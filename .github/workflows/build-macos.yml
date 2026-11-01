@@ -1101,14 +1101,14 @@ jobs:
       # logs and are printed into this log (tools/ci/print_images.py).
       - name: IDE screenshots, light
         if: ${{ !cancelled() }}
-        timeout-minutes: 15
+        timeout-minutes: 20
         run: |
           python3 tools/ci/ui_tour.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
             --appearance light --out "$LOGS/ui-tour/light"
 
       - name: IDE screenshots, dark
         if: ${{ !cancelled() }}
-        timeout-minutes: 15
+        timeout-minutes: 20
         run: |
           python3 tools/ci/ui_tour.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
             --appearance dark --out "$LOGS/ui-tour/dark"
@@ -1289,7 +1289,7 @@ jobs:
           find . -maxdepth 2 -name '*.dSYM' | wc -l | tr -d ' ' | sed 's/$/ dSYM bundles/'
 
       - name: IDE tour
-        timeout-minutes: 15
+        timeout-minutes: 20
         run: |
           python3 tools/ci/ui_tour.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
             --appearance light --only sample,controls,field-scroll,image-frames,inspector,inspector-tabs,inspector-gravity,inspector-hypercard,dictionary,preferences,standalone-settings --out "$RUNNER_TEMP/ui-tour"

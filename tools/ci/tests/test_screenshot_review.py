@@ -105,6 +105,19 @@ and the IDE tour's checks that hold it (tools/ci/ui-tour.livecodescript):
   no more than 0.7 of the enabled ones' median, and 24 or more. On the
   released rc.6.11 IDE with a dark Linux theme every disabled one fails
   (17, the engine's etched label then), light passes.
+- On the Apple silicon Mac's screen, 1024 by 768, OXT-Beyond Home is as
+  wide as the screen and cannot move clear of the Tools palette, which
+  floats over its sidebar: the step academy read the palette's grey
+  (88,88,88) for the selected index line's words, in the Mac's dark
+  appearance. A check that reads a window's pixels off the screen hides
+  the palette while it does when the palette is over what it reads
+  (tourToolsAside, tourToolsBack): the selected index line and the words
+  of the check boxes. The snapshots a person looks through keep it.
+- The whole tour ran past its 600 seconds on the Intel Mac (the light
+  appearance, 141 snapshots) and came within a minute of it on Windows
+  and the Apple silicon Mac, as the review's checks were added. It has
+  900 (tools/ci/ui_tour.py), and each workflow step that runs it 20
+  minutes, room for the IDE's start and the snapshots printed after.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -706,6 +719,85 @@ class TheDisabledLabels(unittest.TestCase):
         self.assertLess(tour.index('\nlocal sLabelInks\n'), tour.index('\ncommand tourLabelInks pStack\n'))
         self.assertLess(tour.index('\nlocal sCtlChecks, sCtlFails, sPixWidth, sPixHeight, sPixData\n'),
                         tour.index('\ncommand tourLabelInks pStack\n'))
+
+
+class TheToolsPalette(unittest.TestCase):
+    """A check that reads a window's pixels off the screen reads that
+    window's, not the Tools palette's over it."""
+
+    def test_aside_and_back(self):
+        tour = read(TOUR)
+        aside = handler(tour, 'function', 'tourToolsAside')
+        # only an open, visible palette, and only when it is over the rect
+        self.assertIn('if the mode of stack "revTools" is 0 or not the visible of stack "revTools" then return false',
+                      aside)
+        self.assertIn('if item 1 of pRect < item 3 of tTools and item 3 of pRect > item 1 of tTools', aside)
+        self.assertIn('and item 2 of pRect < item 4 of tTools and item 4 of pRect > item 2 of tTools then', aside)
+        self.assertLess(aside.index('hide stack "revTools"'), aside.index('return true'))
+        back = handler(tour, 'command', 'tourToolsBack')
+        self.assertIn('show stack "revTools"', back)
+
+    def test_the_selected_line(self):
+        body = handler(read(TOUR), 'function', 'tourSelectedLineInk')
+        # hidden just before the snapshot, shown again just after, even
+        # when the snapshot throws
+        self.assertLess(body.index('put tourToolsAside(tRect) into tAside'),
+                        body.index('export snapshot from rect tRect to tData as PNG'))
+        self.assertLess(body.index('export snapshot from rect tRect to tData as PNG'),
+                        body.index('if tAside then tourToolsBack'))
+        self.assertLess(body.index('if tAside then tourToolsBack'),
+                        body.index('if tError is not empty then throw tError'))
+
+    def test_the_check_boxes(self):
+        body = handler(read(TOUR), 'command', 'tourLabelInks')
+        # once for the window, before the first snapshot and back after
+        # the last
+        self.assertLess(body.index('put tourToolsAside(the rect of stack pStack) into tAside'),
+                        body.index('repeat with i = 1 to the number of buttons of this card'))
+        self.assertLess(body.index('import snapshot from rect tRect'), body.index('if tAside then tourToolsBack'))
+        self.assertLess(body.rindex('end repeat'), body.index('if tAside then tourToolsBack'))
+
+    def test_the_snapshots_keep_it(self):
+        # the snapshots for a person to look through are as the screen is
+        shot = handler(read(TOUR), 'command', 'tourShotStack')
+        self.assertNotIn('tourToolsAside', shot)
+
+
+class TheTourBudget(unittest.TestCase):
+    """The whole tour has the time its steps take, and each workflow step
+    that runs it more than that."""
+
+    WORKFLOWS = ('build-linux.yml', 'build-macos.yml', 'build-windows.yml', 'ui-tour.yml')
+
+    def budget(self):
+        m = re.search(r"add_argument\('--timeout', type=int, default=(\d+),", read(('tools', 'ci', 'ui_tour.py')))
+        self.assertIsNotNone(m)
+        return int(m.group(1))
+
+    def test_the_tour(self):
+        # 600 was short of the Intel Mac's light run on 1 November 2026
+        self.assertGreaterEqual(self.budget(), 900)
+
+    def test_each_step(self):
+        budget = self.budget()
+        steps = 0
+        for wf in self.WORKFLOWS:
+            text = read(('.github', 'workflows', wf))
+            for step in re.split(r'\n      - ', text)[1:]:
+                # the step's own lines, not the comments before the next
+                step = '\n'.join(line for line in step.split('\n') if not line.lstrip().startswith('#'))
+                if 'tools/ci/ui_tour.py' not in step:
+                    continue
+                steps += 1
+                m = re.search(r'--timeout[ =](\d+)', step)
+                seconds = int(m.group(1)) if m else budget
+                limit = re.search(r'^        timeout-minutes: (\d+)$', step, re.M)
+                if limit is None:
+                    continue
+                # the IDE's start (about 100 s on the Mac) and the
+                # snapshots printed after the run, on top of the run
+                self.assertGreaterEqual(int(limit.group(1)) * 60, seconds + 240, '%s: %s' % (wf, step.split('\n')[0]))
+        self.assertGreaterEqual(steps, 9)
 
 
 if __name__ == '__main__':

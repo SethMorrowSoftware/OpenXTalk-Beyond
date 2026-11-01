@@ -4429,6 +4429,7 @@ end tourInclusionIcons
 
 function tourSelectedLineInk pStack, pWhat
    local tDefault, tLine, tTabs, tLeft, tRight, tRect, tHilite, tData, tW, tH, tAt, tBest, tBestRGB, tRGB, tLum, i, tRatio
+   local tAside, tError
    put the defaultStack into tDefault
    set the defaultStack to pStack
    if there is not a field "idx" of this card then
@@ -4453,7 +4454,13 @@ function tourSelectedLineInk pStack, pWhat
          item 1 of the rect of stack pStack + tRight, item 2 of the rect of stack pStack + item 4 of tRect - 2 into tRect
    set the defaultStack to tDefault
    tourUnlockScreen "the selected line of" && pWhat
-   export snapshot from rect tRect to tData as PNG
+   put tourToolsAside(tRect) into tAside
+   try
+      export snapshot from rect tRect to tData as PNG
+   catch tError
+   end try
+   if tAside then tourToolsBack
+   if tError is not empty then throw tError
    lock messages
    create invisible image "oxt_tour_probe" in card 1 of stack "oxt_ui_tour"
    set the text of image "oxt_tour_probe" of stack "oxt_ui_tour" to tData
@@ -5506,9 +5513,10 @@ command tourLabelInksReset
 end tourLabelInksReset
 
 command tourLabelInks pStack
-   local tDefault, tControl, tWords, tOwner, tRect, tTopLeft, tImage, tBack, tRight, i
+   local tDefault, tControl, tWords, tOwner, tRect, tTopLeft, tImage, tBack, tRight, i, tAside
    put the defaultStack into tDefault
    set the defaultStack to pStack
+   put tourToolsAside(the rect of stack pStack) into tAside
    repeat with i = 1 to the number of buttons of this card
       if the style of button i of this card is not among the items of "checkbox,radioButton" then next repeat
       put the long id of button i of this card into tControl
@@ -5556,6 +5564,7 @@ command tourLabelInks pStack
       put (not the enabled of tControl) & tab & tourMaxDiff(26, 3, tRight, sPixHeight - 3, tBack) & tab & \
             the short name of this card & tab & the short name of tControl & return after sLabelInks
    end repeat
+   if tAside then tourToolsBack
    set the defaultStack to tDefault
 end tourLabelInks
 
@@ -7286,6 +7295,35 @@ command tourOnScreen pStack
       end if
    end if
 end tourOnScreen
+
+-- A window as wide as the screen cannot move clear of the Tools palette
+-- (tourOnScreen): OXT-Beyond Home is 1024 wide on the Apple silicon Mac's
+-- 1024 by 768 screen, and the palette, which floats over every window,
+-- covers its sidebar. A check that reads the screen's pixels of a window
+-- would read the palette's: the Academy's selected index line read
+-- 88,88,88, the palette's grey, on the Mac's dark appearance (the rc.6.12
+-- release pull request, 1 November 2026). tourToolsAside hides the palette
+-- while such a check takes its snapshot, when the palette is over pRect
+-- (global), and returns true if it did; tourToolsBack shows it again. The
+-- snapshots a person looks through are taken as they are, palette and all
+function tourToolsAside pRect
+   local tTools
+   if there is not a stack "revTools" then return false
+   if the mode of stack "revTools" is 0 or not the visible of stack "revTools" then return false
+   put the effective rect of stack "revTools" into tTools
+   if item 1 of pRect < item 3 of tTools and item 3 of pRect > item 1 of tTools \
+         and item 2 of pRect < item 4 of tTools and item 4 of pRect > item 2 of tTools then
+      tourRecord "INFO the Tools palette (" & tTools & ") is over" && pRect & ": hidden while the pixels are read"
+      hide stack "revTools"
+      tourWait 300
+      return true
+   end if
+   return false
+end tourToolsAside
+
+command tourToolsBack
+   if there is a stack "revTools" and the mode of stack "revTools" is not 0 then show stack "revTools"
+end tourToolsBack
 
 -- Snapshot of the screen around pObject (of the stack pStack), big enough
 -- for its tooltip

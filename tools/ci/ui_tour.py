@@ -616,7 +616,7 @@ def main(argv=None):
     ap.add_argument('--appearance', choices=('light', 'dark'), default='light',
                     help='the system\'s appearance (default: %(default)s)')
     ap.add_argument('--only', default='', help='comma-separated steps of the script to run (default: all)')
-    ap.add_argument('--timeout', type=int, default=600, help='seconds for the whole run (default: %(default)s)')
+    ap.add_argument('--timeout', type=int, default=900, help='seconds for the whole run (default: %(default)s)')
     ap.add_argument('--script', default=SCRIPT, help='the script to run in the IDE (default: %(default)s)')
     args = ap.parse_args(argv)
     if bool(args.install) == bool(args.package):

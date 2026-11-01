@@ -1499,14 +1499,14 @@ jobs:
       # (tools/ci/print_images.py).
       - name: IDE screenshots, light
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
-        timeout-minutes: 15
+        timeout-minutes: 20
         run: |
           python3 tools/ci/ui_tour.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
             --appearance light --out "$RUNNER_TEMP/logs/ui-tour/light"
 
       - name: IDE screenshots, dark
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
-        timeout-minutes: 15
+        timeout-minutes: 20
         run: |
           python3 tools/ci/ui_tour.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
             --appearance dark --out "$RUNNER_TEMP/logs/ui-tour/dark"

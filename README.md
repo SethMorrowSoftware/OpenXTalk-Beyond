@@ -1740,6 +1740,11 @@ it squashes:
   theme a disabled button's label is a dim grey; on Windows' dark mode it
   was etched in white and read as enabled, and on a dark GTK theme it all
   but vanished (#305).
+- **Three check boxes that kept their etching.** Preferences' "Show
+  classic Start Center" and "Load Start Center when last user stack is
+  closed", and the Standalone Settings' "Rename stackfiles generically",
+  are grey when disabled like the rest; a colour saved on each that is
+  never painted kept them white on Windows' dark mode (#305).
 - **Menus with no arrow.** In Windows' dark mode, option menus and combo
   boxes show their arrow; they were plain boxes (#305).
 - **Light scrollbars in the dark.** In Windows' dark mode scrollbars are
