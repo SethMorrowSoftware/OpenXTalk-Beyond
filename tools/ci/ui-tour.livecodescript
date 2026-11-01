@@ -5787,13 +5787,15 @@ end tourWordsRect
 
 -- The label fields of the card of the stack pStack whose words do not show
 -- whole: a field without scrollbars or a border, locked or never focused,
--- whose words go past its left or right (it does not wrap) or are taller
--- than it (it wraps), or, in one that does not wrap, reach into a button
--- or a field to their right on the same line. Its words are where the
--- engine lays them out (tourWordsRect), after its margins and as it
--- aligns them. A field with a border is a box that shows a value, such as
--- the Windows card's icon file, and may scroll it; one in a group that is
--- hidden is not looked at. Empty, or what is cut off
+-- whose words start above its top, go past its left or right (it does not
+-- wrap) or are taller than it (it wraps), or, in one that does not wrap,
+-- reach into a button or a field to their right on the same line. Its
+-- words are where the engine lays them out (tourWordsRect), after its
+-- margins and as it aligns them. A field with a border is a box that
+-- shows a value, such as the Windows card's icon file, and may scroll it;
+-- one whose border is 0 wide draws none, and is a label (the xTalk
+-- Assistant's are); one in a group that is hidden is not looked at.
+-- Empty, or what is cut off
 function tourFieldsWhole pStack
    local tDefault, tFails, tNeed, tWords, tWhat, tNext, i
    put the defaultStack into tDefault
@@ -5802,10 +5804,24 @@ function tourFieldsWhole pStack
       -- (a label: locked, or never takes the focus)
       if (not the lockText of field i of this card and the traversalOn of field i of this card) or \
             the vScrollbar of field i of this card or the hScrollbar of field i of this card or \
-            the listBehavior of field i of this card or the showBorder of field i of this card then next repeat
+            the listBehavior of field i of this card or \
+            (the showBorder of field i of this card and the borderWidth of field i of this card > 0) then next repeat
       if field i of this card is empty then next repeat
       if not tourControlShown(the long id of field i of this card) then next repeat
       put the short name of field i of this card && "(" & line 1 of field i of this card & ")" into tWhat
+      -- the words start no higher than the field's top, or the field cuts
+      -- the tops of their letters off: the xTalk Assistant's Settings,
+      -- whose notes had a top margin of 4, had their words start two
+      -- points above them, and on Linux the capitals of their first lines
+      -- lost a row of pixels (rc.6.12c)
+      if the vScroll of field i of this card is 0 then
+         put tourWordsRect(the long id of field i of this card) into tWords
+         if tWords is not empty and item 2 of tWords < the top of field i of this card then
+            put "the field" && tWhat && "of" && pStack && "on its card" && the short name of this card && \
+                  "cuts its words' tops off: it starts at" && the top of field i of this card & \
+                  ", its words at" && item 2 of tWords & return after tFails
+         end if
+      end if
       if the dontWrap of field i of this card then
          put tourWordsRect(the long id of field i of this card) into tWords
          if tWords is empty then next repeat
@@ -6682,6 +6698,10 @@ on tourShotXta
       if not tourWaitOpen(kXtaSettings, 5000) then throw "the Settings did not open"
       tourWait 500
       tourXtaLook kXtaSettings, "Save,Cancel"
+      -- every label's words whole (tourFieldsWhole): its notes under and
+      -- beside the boxes lost their capitals' tops on Linux (rc.6.12c)
+      get tourFieldsWhole(kXtaSettings)
+      if it is not empty then tourXtaProblem it
       tourShotStack kXtaSettings, "24f-xtalk-assistant-settings"
       put true into sXta["settings"]
    catch tError
@@ -6698,6 +6718,8 @@ on tourShotXtaMemory
       tourWait 500
       tourXtaLook kXtaMemory, "Save,Cancel,Forget"
       if there is not a field "You" of stack kXtaMemory then tourXtaProblem "the Memory window has no notes about you"
+      get tourFieldsWhole(kXtaMemory)
+      if it is not empty then tourXtaProblem it
       tourShotStack kXtaMemory, "24f-xtalk-assistant-memory"
       put true into sXta["memory"]
    catch tError

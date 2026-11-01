@@ -138,6 +138,20 @@ and the IDE tour's checks that hold it (tools/ci/ui-tour.livecodescript):
   each of the colour scheme menu's choices. On the released rc.6.11 IDE
   with the rc.6.12 stack it fails on this menu alone (its words end at 644,
   the arrow's room starts at 638); with the change it passes (635 of 646).
+- On Linux the xTalk Assistant's Settings cut a row of pixels off the
+  capitals of each note's first line ("Paste your Anthropic API key
+  here", "0 to 10: tries..."). The engine starts a label's words 6 points
+  above its top margin, so the notes' margin of 4 put their words 2
+  points above the notes, and in GitHub's Ubuntu machine's rendering the
+  capitals' tops fell there. Their top margin is 6, and the three beside
+  a box sit at its row's top, so their words are where they were. Every
+  label the step xtalk-assistant finds in the Settings and Memory
+  windows, and the steps preferences, standalone-settings and search,
+  must have its words start no higher than its top (tourFieldsWhole), and
+  a field whose border is 0 wide counts as a label, as the assistant's
+  are. On the released rc.6.11 IDE the step fails on the six notes (their
+  words at 158 in a note at 160); with the change it passes, and
+  Preferences, Standalone Settings and Search fail on nothing new.
 - The whole tour ran past its 600 seconds on the Intel Mac (the light
   appearance, 141 snapshots) and came within a minute of it on Windows
   and the Apple silicon Mac, as the review's checks were added. It has
@@ -165,6 +179,7 @@ PATCHES = ('tools', 'oxt', 'ide-stack-patches')
 INCLUSIONS_ROW = ('ide', 'Toolset', 'palettes', 'standalone settings',
                   'revstandalonesettingsinclusionsrowbehavior.livecodescript')
 MENUBAR = ('ide', 'Toolset', 'palettes', 'menubar', 'revmenubar.livecodescript')
+ASSISTANT = ('ide', 'Extensions', 'org.openxtalk.plugin.xtalkassistant', 'xtalkassistant.livecodescript')
 
 
 def read(parts):
@@ -552,8 +567,11 @@ class TheLinuxFonts(unittest.TestCase):
         self.assertIn('put tourNextOnLine(the long id of button i of this card, false) into tNext', buttons)
         fields = handler(tour, 'function', 'tourFieldsWhole')
         self.assertIn('(not the lockText of field i of this card and the traversalOn of field i of this card)', fields)
-        self.assertIn('the listBehavior of field i of this card or the showBorder of field i of this card then next repeat',
-                      fields)
+        # (a field whose border is 0 wide draws none, and is a label:
+        # TheAssistantNotes)
+        self.assertIn('the listBehavior of field i of this card or \\\n'
+                      '            (the showBorder of field i of this card and the borderWidth of field i of this card > 0) '
+                      'then next repeat', fields)
         self.assertIn('put tourWordsRect(the long id of field i of this card) into tWords', fields)
         self.assertIn('if item 3 of tWords > the right of field i of this card + 2 or '
                       'item 1 of tWords < the left of field i of this card - 2 then', fields)
@@ -899,6 +917,51 @@ class TheOptionMenuArrows(unittest.TestCase):
         self.assertIn('repeat for each line tPane in the text of tMenu\n'
                       '         if tPane is empty or tPane begins with "-" then next repeat\n'
                       '         get tourMenuWordsClear(tMenu, tPane)', step)
+
+
+class TheAssistantNotes(unittest.TestCase):
+    """The xTalk Assistant's Settings notes start their words inside their
+    tops."""
+
+    # the engine starts a label's words this far above its top margin (the
+    # tour's formattedRect of a note: 158 for a note at 160 with a margin
+    # of 4, 160 with one of 6)
+    LIFT = 6
+
+    def test_the_notes_top_margin(self):
+        note = handler(read(ASSISTANT), 'command', 'xtaSettingsNote')
+        m = re.search(r'set the margins of field pName to "(\d+),(\d+),(\d+),(\d+)"', note)
+        self.assertIsNotNone(m)
+        self.assertGreaterEqual(int(m.group(2)), self.LIFT)
+
+    def test_the_notes_beside_a_box(self):
+        build = handler(read(ASSISTANT), 'command', 'xtaBuildSettings')
+        for name in ('Max Tokens Note', 'Fix Rounds Note', 'Timeout Note'):
+            # at the row's top: with the margin of 6 their words are where
+            # they were, 2 points down with a margin of 4
+            self.assertIn('xtaSettingsNote "%s", tLeft + 88, tTop, tRight, 20' % name, build)
+
+    def test_the_notes_under_a_box(self):
+        build = handler(read(ASSISTANT), 'command', 'xtaBuildSettings')
+        for name in ('Key Note', 'Base URL Note', 'Model Note'):
+            # a point under the box above (24 high), and tall enough for two
+            # lines of 13 and the margins
+            self.assertIn('add 25 to tTop\n   xtaSettingsNote "%s", tLeft, tTop, tRight, 31' % name, build)
+
+    def test_the_tour_measures_it(self):
+        tour = read(TOUR)
+        whole = handler(tour, 'function', 'tourFieldsWhole')
+        # a field whose border is 0 wide is a label
+        self.assertIn('(the showBorder of field i of this card and the borderWidth of field i of this card > 0) then next repeat',
+                      whole)
+        top = whole.index('if tWords is not empty and item 2 of tWords < the top of field i of this card then')
+        self.assertLess(whole.index('if the vScroll of field i of this card is 0 then'), top)
+        self.assertLess(top, whole.index('if the dontWrap of field i of this card then'))
+        # the Settings and the Memory window, before their snapshots
+        for shot, stack in (('tourShotXta', 'kXtaSettings'), ('tourShotXtaMemory', 'kXtaMemory')):
+            body = handler(tour, 'on', shot)
+            check = body.index('get tourFieldsWhole(%s)\n      if it is not empty then tourXtaProblem it' % stack)
+            self.assertLess(check, body.index('tourShotStack %s,' % stack))
 
 
 class TheTourBudget(unittest.TestCase):
