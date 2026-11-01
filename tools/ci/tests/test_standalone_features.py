@@ -32,7 +32,7 @@ sys.path.insert(0, CI)
 
 import standalone_check as sc  # noqa: E402
 
-ALL_YES = ['PROBE version=9.7.1-OXT processor=x86_64 platform=Linux environment=command line',
+ALL_YES = ['PROBE version=9.7.1-BeyondEngine processor=x86_64 platform=Linux environment=command line',
            'FEATURE microseconds=yes', 'FEATURE matches=yes', 'FEATURE literal-arrays=yes']
 OLD = ['PROBE version=9.7.1-OXT processor=x86 platform=Win32 environment=command line',
        'FEATURE microseconds=error', 'FEATURE matches=no', 'FEATURE literal-arrays=yes']

@@ -3842,6 +3842,50 @@ private function _ChunkObjectEnd pTokens, pIdx, pAt, pEnd
    return j
 end _ChunkObjectEnd
 
+-- T76: a card numbered by a sum or a difference not in parentheses,
+-- after "of" ("put field "Season" of card it-1 into numSeasons", the Star
+-- Trek guides' openStack; "set name of btn i to short name of cd i-1";
+-- "put item wtln of fld AAs of cd x+1 into n1"), which HyperCard took for
+-- the card the sum numbers, and this engine for the card of the first
+-- number, adding to (or taking from) the value of what it names: the
+-- guides' last card has no field "Season", the one before it has, so
+-- that their stacks stopped as they opened. Only a sum of two operands,
+-- each a number or a variable's name (or it), with + or - between them,
+-- and after it nothing that binds tighter or goes on with it (*, /, ^,
+-- div, mod, another + or -, a "(", or an "of" not before a background
+-- or a stack); "&", which HyperCard's value took after the card ("put
+-- field 1 of card "a" & x into y"), ends nothing here. The index of the
+-- sum's last token, or 0
+private function _CardSumEnd pTokens, pIdx, pAt, pCount
+   local tAfter
+   if pAt + 3 > pCount then return 0
+   if not _CardSumOperand(pTokens, pIdx[pAt + 1]) then return 0
+   if pTokens[pIdx[pAt + 2]]["t"] is not among the items of "+,-" then return 0
+   if not _CardSumOperand(pTokens, pIdx[pAt + 3]) then return 0
+   if pAt + 4 <= pCount then
+      put _T(pTokens, pIdx[pAt + 4]) into tAfter
+      if tAfter is among the items of "+,-,*,/,^,(" or tAfter is among the words of "div mod" then return 0
+      if tAfter is "of" and _T(pTokens, pIdx[pAt + 5]) is not among the words of "background bkgnd bg stack" then return 0
+   end if
+   return pAt + 3
+end _CardSumEnd
+
+-- T76: whether the token at pAt is a number, it, or a word that can be
+-- a variable's name there (not "the", "id", an object, a property)
+private function _CardSumOperand pTokens, pAt
+   local tWord
+   if pTokens[pAt]["k"] is "n" then return true
+   if pTokens[pAt]["k"] is not "w" then return false
+   put _Lower(pTokens[pAt]["t"]) into tWord
+   if tWord is "it" then return true
+   if tWord is among the words of kNeverNames or tWord is among the words of kObjectWords \
+         or tWord is among the words of kNeverNamesAfterCard or tWord is among the words of kChunkOrdinals \
+         or tWord is among the words of kNotPlain or tWord is among the words of kChunkObjectProperties then
+      return false
+   end if
+   return true
+end _CardSumOperand
+
 -- T59: a card named by an expression not in parentheses ("put empty into
 -- field i of card "Div-"&c", 1040A's; "put empty into line count of
 -- field "price" of card "order"&sheet", SalesWriter's; "set lockText of
@@ -4076,6 +4120,18 @@ private function _HyperCardRules pLine, pCompiled, pElse
             put "(" before tTokens[tIdx[i + 2]]["t"]
             put ")" after tTokens[tIdx[j]]["t"]
             _Fire "T50 an object named by a chunk of a variable"
+            next repeat
+         end if
+      end if
+
+      -- T76: a card numbered by a sum after "of", in a script that
+      -- compiles too (_CardSumEnd)
+      if i > 1 and tWord is among the words of "card cd" and _T(tTokens, tIdx[i - 1]) is "of" then
+         put _CardSumEnd(tTokens, tIdx, i, n) into j
+         if j > 0 then
+            put "(" before tTokens[tIdx[i + 1]]["t"]
+            put ")" after tTokens[tIdx[j]]["t"]
+            _Fire "T76 a card numbered by a sum"
             next repeat
          end if
       end if

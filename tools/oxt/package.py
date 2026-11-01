@@ -90,8 +90,9 @@ stage folder itself except on macOS):
   IDE          tools/oxt/layout.py assemble: ide/Toolset, Plugins, Resources,
                Documentation, Extensions, the ide/ root files and the 11
                ide-support scripts, plus the Sample Icons in
-               Runtime/Windows/<arch>/Support (and, on macOS only,
-               Resources/Mobile Examples: package.txt Mobile.MacOSX). Text
+               Runtime/Windows/<arch>/Support (LiveCode's
+               Resources/Mobile Examples, which package.txt Mobile.MacOSX
+               installs on macOS, are not installed since 0.2.7-rc.6.12). Text
                files get LF line endings (--eol) so that the result does
                not depend on git's core.autocrlf. Documentation includes
                the documentation data that tools/ci/build_docs.sh
@@ -263,6 +264,11 @@ DOCS_FILES = (
 # --repo does the same for the web IDE.
 SHOWCASE_SOURCE = 'tools/web-player/stacks'
 SHOWCASE = 'Resources/Examples/Showcase/'
+# ... less the player's own course and its tour of the web: the IDE has
+# them as Home's Academy and Home's tour (OXT-Beyond Home, 0.2.7-rc.6.12),
+# so Learn's gallery leaves them out (leShowcaseTable) and so does the
+# package. tools/web-ide/build_site.py leaves out the same.
+SHOWCASE_LEFT_OUT = ('Learn xTalk.oxtstack', 'OXT-Beyond on the Web.oxtstack')
 
 # The repository's changelog, history and README, which the Release Notes
 # window shows (ide/Toolset/palettes/updates/revreleasenotes.livecodescript,
@@ -884,7 +890,8 @@ def _mac(arch):
         # still run such files, so only the verify step catches it.
         engine_support=(('revsecurity.dylib', app + '/Contents/MacOS/revsecurity.dylib'),
                         ('revpdfprinter.bundle', app + '/Contents/MacOS/revpdfprinter.bundle')),
-        # component Mobile.MacOSX (its Resources/Mobile Examples come from ide/)
+        # component Mobile.MacOSX (without its Resources/Mobile Examples, which
+        # left the repository with OXT-Beyond Home, 0.2.7-rc.6.12)
         mobile=('revandroid.bundle',),
         # a bundle has no architecture in its name: the standalone builder
         # takes it for every macOS target (EXT_NAME)
@@ -911,7 +918,6 @@ def _mac(arch):
             ('LiveCode-Community.app/Contents/MacOS/revpdfprinter.bundle/**',
              'unstripped copy; package.txt Engine.MacOSX takes the build root\'s'),
         ) + _NOT_IN_PACKAGE_TXT + _BUILD_TOOLS,
-        ide_include=('ide/Resources/Mobile Examples/',),
         mac_archs={'universal': ('arm64', 'x86_64'), 'arm64': ('arm64',), 'x86_64': ('x86_64',)}[arch])
 
 
@@ -1379,13 +1385,14 @@ def unused_build_outputs(p, bin_dir, used):
 
 
 def showcase_stacks(repo):
-    """[(file name, path)] of the Stack Player's stacks (SHOWCASE_SOURCE),
-    or [] in a checkout without them."""
+    """[(file name, path)] of the Stack Player's stacks (SHOWCASE_SOURCE)
+    less SHOWCASE_LEFT_OUT, or [] in a checkout without them."""
     folder = os.path.join(repo, *SHOWCASE_SOURCE.split('/'))
     if not os.path.isdir(folder):
         return []
     return [(name, os.path.join(folder, name)) for name in sorted(os.listdir(folder))
-            if name.endswith('.oxtstack') and os.path.isfile(os.path.join(folder, name))]
+            if name.endswith('.oxtstack') and name not in SHOWCASE_LEFT_OUT
+            and os.path.isfile(os.path.join(folder, name))]
 
 
 def ide_pairs(repo, p):

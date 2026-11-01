@@ -1576,10 +1576,15 @@ on revMenubarMenuButtonClicked pWhich
          revIDEToggle "Suppress Errors"
          break
       case "Sample Stacks"
-         send "tOpenNewGuides" to this stack  --tp 24-2, lessons
+         -- OXT-Beyond: Home's examples (it opened the lessons before Home)
+         send "tOpenDemos" to this stack
          break
       case "Tutorials"
-         revIDELaunchResource pWhich
+         -- OXT-Beyond: Home's Academy (it asked for a stack in
+         -- Resources/Examples before Home); with Home missing, as before
+         if not revMenubarOpenHub("academy") then
+            revIDELaunchResource pWhich
+         end if
          break
       case "Resources"
          revIDEOpenPalette "Resource Center"
@@ -2399,10 +2404,14 @@ private function revMenubarHelpMenu pContext
    put "User Guide PDF" & return after tHelp  --tl's version
    put "Data Grid Guide PDF" & return after tHelp  --tl's version
    put "-" & return after tHelp
-   put "Guides" & return after tHelp  --tp's 'allguides.oxtstack' version
-   put "Lessons" & return after tHelp  --tl's 'lessons.txt'
-   put "xTalk Academy" & return after tHelp  -- OXT-Beyond: learn to code (palettes/academy)
-   put "Demos" & return after tHelp
+   -- OXT-Beyond: the places of Home (palettes/home): the Academy, the
+   -- how-to lessons (tl's), the guides (tp's 'allguides.oxtstack') and the
+   -- examples. ("Lessons" and "Demos", their names before Home, still
+   -- work when a script picks them: revMenubarHelpMenuPick.)
+   put "xTalk Academy" & return after tHelp
+   put "How-to" & return after tHelp
+   put "Guides" & return after tHelp
+   put "Examples" & return after tHelp
    put "Forums" & return after tHelp
    put "-" & return after tHelp
    put "Release Notes" & return  after tHelp
@@ -3565,6 +3574,7 @@ on revMenubarHelpMenuPick pWhich
       case "User Guide PDF"
          revIDELaunchResource "User Guide"
          break
+      case "Examples"
       case "Demos"
          send "tOpenDemos" to this stack
          break
@@ -3583,6 +3593,7 @@ on revMenubarHelpMenuPick pWhich
       case "Data Grid Guide PDF"
          revIDELaunchResource "Data Grid Guide"
          break
+      case "How-to"
       case "Lessons"
          send "tOpenNewGuides" to this stack  --tp 23-1, changed to open lessons
          break
@@ -3855,6 +3866,10 @@ end tNavigatorPick
 -- it at startup when the user switched Home's "Show Home at startup" on
 on tOpenHome
    local tPath
+   -- (OXT-Beyond Home, the one window of Home, the Academy and Learn)
+   if revMenubarOpenHub("home") then
+      exit tOpenHome
+   end if
    if "revWebHome" is among the lines of the openStacks then
       go stack "revWebHome"
       exit tOpenHome
@@ -3919,13 +3934,20 @@ on tOpenUnlock  --tp 07-06-2026, 'Unlock and Remove FX'
 end tOpenUnlock
 
 on tOpenDemos  --tp 26-1, open 'Demos' stack
-   -- OXT-Beyond: the examples open in Learn (see revMenubarOpenLearn)
+   local tFilePath
+   -- OXT-Beyond: the examples open in Home (see revMenubarOpenLearn).
+   -- The classic 'Demos' stack is no longer installed: when it is there,
+   -- Option (Alt) opens it as before.
    if revMenubarOpenLearn("examples") then
       exit tOpenDemos
    end if
    set the itemdelimiter to slash
    put item 1 to -5 of the filename of stack "revMenubar" & slash & "Resources" & slash & "Examples" & slash & "demos.oxtstack" into tFilePath
    set the itemdelimiter to ","
+   if there is no file tFilePath then
+      get revMenubarOpenHub("examples")
+      exit tOpenDemos
+   end if
    open stack tFilePath
 end tOpenDemos
 
@@ -3934,6 +3956,9 @@ end tOpenDemos
 -- checks each challenge
 on tOpenAcademy
    local tPath
+   if revMenubarOpenHub("academy") then
+      exit tOpenAcademy
+   end if
    set the itemDelimiter to slash
    put item 1 to -3 of the filename of stack "revMenubar" & "/academy/revacademy.livecodescript" into tPath
    set the itemDelimiter to comma
@@ -3944,15 +3969,18 @@ on tOpenAcademy
 end tOpenAcademy
 
 -- OXT-Beyond: Learn (palettes/learn) shows the lessons, the guides and the
--- examples in one window, in the look of the web tour, and reads the
--- classic stacks without changing them. It opens at pSection ("lessons",
--- "guides" or "examples") and returns true; with the Option (Alt) key
--- down, or when Learn is missing or fails, it returns false and the
--- classic stack opens as it always did.
+-- examples, in the look of the web tour, and reads the classic stacks
+-- without changing them; it does so in Home (revMenubarOpenHub). It opens
+-- at pSection ("lessons", "guides" or "examples") and returns true; with
+-- the Option (Alt) key down, or when Learn is missing or fails, it
+-- returns false and the classic stack opens as it always did.
 private function revMenubarOpenLearn pSection
    local tPath, tError
    if the optionKey is down then
       return false
+   end if
+   if revMenubarOpenHub(pSection) then
+      return true
    end if
    set the itemDelimiter to slash
    put item 1 to -3 of the filename of stack "revMenubar" & "/learn/revlearn.livecodescript" into tPath
@@ -3966,6 +3994,27 @@ private function revMenubarOpenLearn pSection
    end try
    return it is "handled"
 end revMenubarOpenLearn
+
+-- OXT-Beyond Home (palettes/home/revhub.livecodescript): one window for
+-- Home's welcome and tour, the xTalk Academy, the how-to lessons, the
+-- guides and the examples. Opens it at pPlace (a place, or a name Help
+-- used for one: revHubPlace) and pPage, and returns true; false when the
+-- IDE has no Home, or it failed, and the caller opens what it did before.
+function revMenubarOpenHub pPlace, pPage
+   local tPath, tError
+   set the itemDelimiter to slash
+   put item 1 to -3 of the filename of stack "revMenubar" & "/home/revhub.livecodescript" into tPath
+   set the itemDelimiter to comma
+   if there is no file tPath then
+      return false
+   end if
+   try
+      dispatch "revHubShow" to stack tPath with pPlace, pPage
+   catch tError
+      return false
+   end try
+   return it is "handled"
+end revMenubarOpenHub
 
 on tMenuBar_WDdecorations  --tp 24-1, show revmenubar as standard window
    local tOldTop, tOldLeft, tCorrectMacOS

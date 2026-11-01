@@ -1,7 +1,7 @@
 script "OXTExampleQuickStart"
 -- OXT-Beyond: builds "Quick Start Guide", the remaster of Terry Little's
 -- Quick Start v1.5 (2024, GPL 3 or later), which is in
--- ide/Resources/Examples/Quick Start.oxtstack and stays there as he made
+-- tools/examples/originals/Quick Start.oxtstack and stays there as he made
 -- it.
 --
 -- His stack is six lessons for a first-time coder, a card each: the IDE
@@ -118,7 +118,7 @@ private command readOriginal
    set the itemDelimiter to slash
    put item 1 to -4 of the filename of me into tRepo
    set the itemDelimiter to comma
-   put tRepo & "/ide/Resources/Examples/Quick Start.oxtstack" into tOriginal
+   put tRepo & "/tools/examples/originals/Quick Start.oxtstack" into tOriginal
    if there is no file tOriginal then
       throw "cannot find Terry Little's stack at " & tOriginal
    end if

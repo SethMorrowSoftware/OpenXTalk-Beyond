@@ -24,8 +24,10 @@ script "HyperCardSweep"
 -- stopped); ERR and THROW phase error source (an error while running,
 -- base64); ABORT phase (a step a script ended with "exit to top", after
 -- which the tour went on); MODAL phase name (a window that waited for a
--- person, closed by the sweep, the name base64); OPENED; DONE. Text that
--- may hold returns is base64 so a line stays a line.
+-- person, closed by the sweep, the name base64); SKIP phase (a click
+-- left out: the button hidden or disabled); DIALOG phase kind reply (an
+-- answer or ask the sweep answered, the reply base64); OPENED; DONE.
+-- Text that may hold returns is base64 so a line stays a line.
 
 local sDone, sOut, sModal, sTour
 
@@ -131,6 +133,22 @@ command sweepRun
       quit
    end if
 
+   -- A person answers "answer" and "ask": with their default button, as
+   -- the sweep does here (DIALOG). The engine shows them with the stacks
+   -- "Answer Dialog" and "Ask Dialog", which the IDE has and a run
+   -- without it had not: there "it" was the engine's request to the
+   -- dialog, title, prompt and buttons in one, and not a reply. A stack
+   -- that asked how many players until it was told 1, 2 or 3 asked for
+   -- ever, and one that asked for a year went on with that text as one
+   -- (sweepDialog)
+   create invisible stack "Answer Dialog"
+   create invisible stack "Ask Dialog"
+   repeat for each item tLine in "Answer Dialog,Ask Dialog"
+      set the script of stack tLine to "on openStack" & return \
+            & "dispatch " & quote & "sweepDialog" & quote && "to stack" && quote & "HyperCardSweep" & quote && "with the short name of me" & return \
+            & "end openStack"
+   end repeat
+
    insert the script of stack "HyperCardSweepErrors" into back
    send "sweepModalWatch" to me in 250 milliseconds
    put tStack into sTour["stack"]
@@ -203,9 +221,17 @@ command sweepTourStep
             do "go to" && tCardId
             unlock messages
          end if
+         -- A person cannot click a button that is hidden, and HyperCard
+         -- sends a disabled one no mouse messages: such a button is left
+         -- out (SKIP). Clicked anyway, its script ran where it never runs
+         -- in HyperCard, and its errors and waits were the sweep's own
          if exists(tCardId) and the number of buttons of tCardId >= sTour["button"] then
-            dispatch "mouseDown" to button sTour["button"] of tCardId
-            dispatch "mouseUp" to button sTour["button"] of tCardId
+            if the visible of button sTour["button"] of tCardId and the enabled of button sTour["button"] of tCardId then
+               dispatch "mouseDown" to button sTour["button"] of tCardId
+               dispatch "mouseUp" to button sTour["button"] of tCardId
+            else
+               sweepLog "SKIP" & tab & gSweepPhase
+            end if
          end if
       catch tError
          sweepLog "THROW" & tab & gSweepPhase & tab & sweepBase64(tError) & tab & sweepBase64(sweepSource(tError))
@@ -299,7 +325,7 @@ command sweepModalWatch
       send tResume to me in 0 milliseconds
    end if
    repeat for each line tLine in the openStacks
-      if tLine is among the items of "HyperCardSweep,HyperCardSweepErrors" then next repeat
+      if tLine is among the items of "HyperCardSweep,HyperCardSweepErrors,Answer Dialog,Ask Dialog" then next repeat
       try
          if the mode of stack tLine is among the items of "5,6" then
             if sModal[tLine] then
@@ -351,6 +377,34 @@ function sweepSource pError
    end repeat
    return empty
 end sweepSource
+
+-- An "answer" or "ask" (the stack pDialog of the engine's, opened as a
+-- modal window): its default button, as a person most often clicks it.
+-- The dialogData is the request, its parts separated by numToChar(0):
+-- "answer" and its kind, the title, the prompt, the buttons a line each,
+-- or "ask" and its kind, the title, the prompt, the reply it offers. An
+-- answer's default is its last button (OK if it has none), as in
+-- HyperCard; an ask's is OK with the reply it offers, which may be empty
+command sweepDialog pDialog
+   local tData, tReply, tKind
+   global gSweepPhase
+   put the dialogData into tData
+   set the itemDelimiter to numToChar(0)
+   put word 1 to 2 of item 1 of tData into tKind
+   if word 1 of item 1 of tData is "ask" then
+      put item 4 of tData into tReply
+   else
+      put item 4 of tData into tReply
+      put line -1 of tReply into tReply
+      if tReply is empty then put "OK" into tReply
+   end if
+   set the itemDelimiter to comma
+   sweepLog "DIALOG" & tab & gSweepPhase & tab & tKind & tab & sweepBase64(tReply)
+   set the dialogData to tReply
+   -- (closed now, not later: a script that asks again at once would
+   -- find it still open, and the engine would not ask it)
+   close stack pDialog
+end sweepDialog
 
 command sweepLog pLine
    open file sOut for append

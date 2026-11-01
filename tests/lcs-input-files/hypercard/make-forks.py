@@ -57,6 +57,14 @@ forks/Twins.hfs             a plain HFS volume, "Twins Disk", with two copies of
 forks/TestCardsBackgrounds.applesingle
                             ../TestCardsBackgrounds.stack and the fork in one
                             AppleSingle file, named "Synthetic Stack"
+forks/Texts.rsrc            text for the HyperCard Library's ResText: TEXT 128
+                            "Sn 1" (two lines, a curly quote), TEXT 129
+                            "Control" (control characters), STR# 130
+                            "Lines" (three strings) and STR  131 "Pair" (a
+                            string and the bytes after it)
+forks/Texts.appledouble     the same fork in an AppleDouble file
+forks/Texts.macbinary       the same fork in a MacBinary file, "Texts", whose
+                            data fork is "data"
 """
 
 import os
@@ -298,6 +306,17 @@ def resource_fork(resources):
     return header + b"\0" * (data_offset - 16) + data + rmap
 
 
+def macbinary(name, ftype, creator, data, rsrc):
+    """A MacBinary (I) file: a 128-byte header, then each fork padded to 128"""
+    raw = name.encode("mac_roman")
+    header = bytes([0, len(raw)]) + raw + b"\0" * (63 - len(raw))
+    header += ftype + creator + b"\0" * 10
+    header += b"\0" * (83 - len(header)) + struct.pack(">II", len(data), len(rsrc))
+    header += b"\0" * (128 - len(header))
+    pad = lambda b: b + b"\0" * ((128 - len(b) % 128) % 128)
+    return header + pad(data) + pad(rsrc)
+
+
 def applefile(magic, entries):
     """entries: [(id, bytes)]"""
     out = struct.pack(">II", magic, 0x00020000) + b"\0" * 16
@@ -530,6 +549,12 @@ def main():
         (22, 16, "Home", b"STAK", b"WILD", stack, b"", [16], []),
         (23, 18, "Home", b"STAK", b"WILD", stack, b"", [16], []),
     ], split=5)
+    texts = resource_fork([
+        ("TEXT", 128, "Sn 1", "From fairest creatures\rwe desire increase, \u2019tis".encode("mac_roman")),
+        ("TEXT", 129, "Control", b"a\x01b\tc\x7fd"),
+        ("STR#", 130, "Lines", struct.pack(">H", 3) + b"\x03one\x03two\x05three"),
+        ("STR ", 131, "Pair", b"\x04word" + b"rest"),
+    ])
     files = {
         "Stacks.hfs": volume,
         "Stacks.dc42": diskcopy42("Old Disk", volume),
@@ -544,6 +569,9 @@ def main():
         "Empty.appledouble": applefile(APPLEDOUBLE, [(9, FINDER_INFO), (2, empty)]),
         "TestCardsBackgrounds.applesingle": applefile(APPLESINGLE, [
             (3, b"Synthetic Stack"), (9, FINDER_INFO), (1, stack), (2, fork)]),
+        "Texts.rsrc": texts,
+        "Texts.appledouble": applefile(APPLEDOUBLE, [(9, FINDER_INFO), (2, texts)]),
+        "Texts.macbinary": macbinary("Texts", b"STAK", b"WILD", b"data", texts),
     }
     for name, data in files.items():
         with open(os.path.join(OUT, name), "wb") as f:

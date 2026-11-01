@@ -24,10 +24,11 @@ A package's standalone runtimes for the platforms other than its own come
 from the runtimes asset (tools/oxt/external-assets.json, the asset whose id
 begins oxt-runtimes-), which was built from one commit of this repository
 (its "source" says which). Every runtime reports the same version and build
-number whatever commit it was built from, so a standalone check cannot tell
-an old runtime from a new one (modernization report MOD-01). This lists the
-commits since the asset's that changed the engine's source (SOURCE_PATHS),
-the changes those runtimes do not have.
+number whatever commit it was built from until the file version changes it,
+so a standalone check cannot tell an old runtime from a new one
+(modernization report MOD-01). This lists the commits since the asset's
+that changed the engine's source or the version file (SOURCE_PATHS), the
+changes those runtimes do not have.
 
 By default it only reports: the list goes to standard output and, under
 GitHub Actions, to the job summary with a warning, and the exit status is 0
@@ -55,8 +56,13 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 ASSETS = os.path.join(REPO, 'tools', 'oxt', 'external-assets.json')
 
-# The folders whose changes a runtime built from them would carry
-SOURCE_PATHS = ('engine', 'libfoundation', 'libgraphics', 'libscript', 'libbrowser', 'revdb', 'thirdparty')
+# The folders whose changes a runtime built from them would carry, and the
+# file version, whose BUILD_SHORT_VERSION every runtime reports as its
+# version (a change to it alone, as to 9.7.1-BeyondEngine for 0.2.7-rc.6.12,
+# leaves the asset's runtimes with the old text: standalone_check.py
+# reports that, and the release refuses it here)
+SOURCE_PATHS = ('engine', 'libfoundation', 'libgraphics', 'libscript', 'libbrowser', 'revdb', 'thirdparty',
+                'version')
 
 COMMIT_RE = re.compile(r'\bcommit ([0-9a-f]{7,40})\b')
 

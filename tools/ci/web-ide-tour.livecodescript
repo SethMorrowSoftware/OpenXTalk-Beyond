@@ -157,7 +157,7 @@ end tourScriptError
 -- page and Home's title bar is on it, below the menu bar, where a user
 -- can take it
 on tour_start
-   local tScreen, tBar, tHome
+   local tScreen, tBar, tHome, tWin, tName
    tourShot "01-ide"
    put the screenRect into tScreen
    if there is not a stack "revMenubar" or not the visible of stack "revMenubar" then
@@ -167,8 +167,14 @@ on tour_start
    if item 1 of tBar is not item 1 of tScreen or item 3 of tBar is not item 3 of tScreen then
       throw "the menu bar" && tBar && "does not span the page" && tScreen
    end if
-   if "revWebHome" is among the lines of the openStacks then
-      put the rect of stack "revWebHome" into tHome
+   -- (OXT-Beyond Home, revHub, from 0.2.7-rc.6.12; Home's own window,
+   -- revWebHome, before it)
+   put empty into tWin
+   repeat for each item tName in "revHub,revWebHome"
+      if tWin is empty and tName is among the lines of the openStacks then put tName into tWin
+   end repeat
+   if tWin is not empty then
+      put the rect of stack tWin into tHome
       -- (31: the page's title bar above a window, revWebIDEKeepOnPage)
       if item 1 of tHome < item 1 of tScreen or item 2 of tHome - 31 < item 4 of tBar \
             or item 2 of tHome > item 4 of tScreen - 31 then

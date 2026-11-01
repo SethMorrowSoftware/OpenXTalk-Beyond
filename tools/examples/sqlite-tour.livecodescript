@@ -1,7 +1,7 @@
 script "OXTExampleSqliteTour"
 -- OXT-Beyond: builds "A Tour of SQLite", the remaster of LiveCode Ltd's
 -- SQLite Tour v1.0 (debranded for OpenXTalk at LiveCode Ltd's request),
--- which is in ide/Resources/Examples/SQLite Tour.oxtstack and stays there
+-- which is in tools/examples/originals/SQLite Tour.oxtstack and stays there
 -- as they made it. The stack says "(c) LiveCode Ltd" and states no
 -- licence of its own: it came with the IDE.
 --
@@ -65,7 +65,7 @@ command exBuild pFolder
    set the itemDelimiter to slash
    put item 1 to -4 of the filename of me into tRepo
    set the itemDelimiter to comma
-   put tRepo & "/ide/Resources/Examples/SQLite Tour.oxtstack" into tOriginal
+   put tRepo & "/tools/examples/originals/SQLite Tour.oxtstack" into tOriginal
    put the text of image "Icon1" of card "Binary Data" of stack tOriginal into tIcon
    put the altDefaultUsersData of button "Default Data" of card "Edit Databases" of stack tOriginal into tUsers
    put the altDefaultAppsData of button "Default Data" of card "Edit Databases" of stack tOriginal into tApps

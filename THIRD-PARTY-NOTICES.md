@@ -290,12 +290,12 @@ These are in `ide/Plugins/` and are installed in `Plugins/`.
 
 | Component | Where | Origin and terms |
 | --- | --- | --- |
-| Example stacks | `ide/Resources/Examples/` | The examples OpenXTalk Lite added in place of LiveCode's samplers: among them Terry Little's Animate Letter, DataGrid Table and Text To Image and his demo stacks (*Help > Demos*), a Video Player example (1.15), and LiveCode's Data Grid Tour and SQLite Tour, "edited and debranded for open source as requested by LiveCode Ltd." according to their text. The authors of the other examples are not recorded. |
+| Example stacks (the originals of the remasters) | `tools/examples/originals/`, not installed since 0.2.7-rc.6.12 (they were in `ide/Resources/Examples/` and `ide/Resources/Start Center/samples/`) | The examples OpenXTalk Lite added in place of LiveCode's samplers: among them Terry Little's Quick Start, Animate Letter and DataGrid Table, a Video Player example (1.15), and LiveCode's Data Grid Tour and SQLite Tour, "edited and debranded for open source as requested by LiveCode Ltd." according to their text; and three samples of LiveCode Community's Start Center. The remasters' builders read them. The authors of the other examples are not recorded. Terry Little's Text To Image and demo stacks (*Help > Demos*), LiveCode's mobile template and mobile examples, and the Start Center itself left the repository with them. |
 | `neville-segments.mp4` | `ide/Resources/Examples/` | A video file shipped with the examples. Its author and licence are not recorded; see [Still to review](#still-to-review). |
-| Remastered examples | `ide/Resources/Examples/Remastered/`, built by `tools/examples/` | OXT-Beyond's remakes of examples above, in Learn's look, each beside its original, which stays as it was. A remaster keeps its original's programs, comments, credits, pictures and sounds, and is under its original's terms: Terry Little's Quick Start, Animate Letter and DataGrid Table state the GPL version 3 or later; LiveCode Ltd's Data Grid Tour and SQLite Tour and the Start Center's Balls, BookLibrary and balloon samples are LiveCode Community's (GPLv3); RSS Demo (its script says "via theotherbassist, April 2016"), Scroll Image, Video Player, SQLite Book Library and the two Zip demos (remastered as one, Zip Archives) record no author or terms (see [Still to review](#still-to-review)). What OXT-Beyond added (the window, the new cards and programs, the builders) is under the GPLv3, as the rest of the IDE. |
+| Remastered examples | `ide/Resources/Examples/Remastered/`, built by `tools/examples/` | OXT-Beyond's remakes of examples above, in Home's look; the originals stay as they were, in the repository. A remaster keeps its original's programs, comments, credits, pictures and sounds, and is under its original's terms: Terry Little's Quick Start, Animate Letter and DataGrid Table state the GPL version 3 or later; LiveCode Ltd's Data Grid Tour and SQLite Tour and the Start Center's Balls, BookLibrary and balloon samples are LiveCode Community's (GPLv3); RSS Demo (its script says "via theotherbassist, April 2016"), Scroll Image, Video Player, SQLite Book Library and the two Zip demos (remastered as one, Zip Archives) record no author or terms (see [Still to review](#still-to-review)). What OXT-Beyond added (the window, the new cards and programs, the builders) is under the GPLv3, as the rest of the IDE. |
 | `oxt-respring.zip` | `ide/Resources/MacOs/` | Tom Perry's macOS helper application (an AppleScript applet) that restarts the IDE after an update on macOS. Not used on Windows. |
 | `Default Preferences/livecode7.rev` | `ide/Resources/` | A preferences template from OpenXTalk Lite's installer. |
-| The rest of `ide/Resources/` (Start Center, object library, mobile examples, sample icons) | | LiveCode Community's (GPLv3). |
+| The rest of `ide/Resources/` (object library, sample icons) | | LiveCode Community's (GPLv3). |
 
 ### Fonts
 
@@ -523,24 +523,12 @@ Notes:
 
 ### xTalk Suite demos
 
-Four apps of the xTalk Suite are in
-[`ide/Resources/Examples/xTalk Suite/`](ide/Resources/Examples/xTalk%20Suite/),
-as stacks whose script is the suite's own file (see
-[`tools/examples/README.md`](tools/examples/README.md#xtalk-suite-demos)):
-No Cloud Quick Share (the suite's `nocloud`), Torrent Client
-(`torrentxt/examples`), Box2D Platformer (`box2dxt/examples`) and Texas
-Hold'em (`holde-em`). They
-are MIT, © 2026 Seth Morrow, under the suite's `LICENSE`, like the
-extensions above. No Cloud Quick Share carries OnionXT's script inside
-its own, and Box2D Platformer the Box2Dxt Kit's, both of them MIT, ©
-2026 Seth Morrow. Box2D Platformer's pictures are Kenney's game assets
-(kenney.nl), CC0 1.0 (public domain dedication), from the suite's
-`box2dxt/Spritesheets`, imported into the stack; its sounds are made by
-its script. Texas Hold'em's card faces and backs are Kenney's Playing
-Cards Pack and its table sounds eleven sounds of Kenney's Casino Audio
-(kenney.nl/assets/casino-audio, converted from OGG to WAV), both CC0 1.0
-(public domain dedication), from the suite's `holde-em/assets`, whose
-`NOTICE.md` files record them, taken into the stack.
+Four apps of the xTalk Suite (No Cloud Quick Share, Torrent Client, Box2D
+Platformer and Texas Hold'em) were installed in
+`ide/Resources/Examples/xTalk Suite/` from 0.2.7-rc.5 to 0.2.7-rc.6.11,
+MIT, © 2026 Seth Morrow, with Kenney's CC0 pictures and sounds. They are
+no longer installed: the suite, where they are made, has them and their
+notices.
 
 ## Standalone runtimes for other platforms
 
@@ -644,7 +632,6 @@ asset.
 | `Contents/Tools/Extensions/com.livecode.library.timezone/code/universal-mac-macosx/tz.dylib` and `.../resources/zoneinfo` | the time zone library's native code and the IANA time zone data, built here (the runtimes asset's copies are left out) | see [Third-party code inside LiveCode's own sources](#third-party-code-inside-livecodes-own-sources) (IANA tz: public domain, some files BSD 3-clause) |
 | `Contents/Resources/OXT-Beyond.icns` | the OXT-Beyond icon, made from the images in `Installer/oxt-beyond/branding/png/` by [`tools/oxt/icns.py`](tools/oxt/icns.py) | see [The OXT-Beyond icon](#the-oxt-beyond-icon) |
 | `Contents/Resources/LiveCode.icns`, `LiveCodeDoc.icns` (the icon of LiveCode's own document types), `terminology.sdef`, `LiveCode-Community.rsrc`, the `*.lproj/Localisation.strings`; `Standalone.icns` and `StandaloneDoc.icns` in each runtime (the default icons of Mac standalones) | LiveCode Community's resources from `engine/rsrc/` | GPLv3, as part of LiveCode Community. The LiveCode name and logo are LiveCode Ltd's trademarks (see the README's "Trademarks"). |
-| `Contents/Tools/Resources/Mobile Examples/` | LiveCode's mobile example stacks, installed only on macOS (as upstream did) | LiveCode Community's (GPLv3); see [Examples and other resources](#examples-and-other-resources) |
 | `Contents/Info.plist` | generated by `tools/oxt/package.py` from LiveCode's `engine/rsrc/LiveCode-Info.plist` | part of OXT-Beyond (GPLv3) |
 | the build output's `server-community` (in the binaries tar.xz only) | LiveCode Server | GPLv3, statically linking OpenSSL as on Windows; on macOS it uses the system's libcurl (`prebuilt/libcurl.gyp`) instead of libcurl 8.22.0 |
 
@@ -860,11 +847,9 @@ has been in the LiveCode Community tree since upstream. Its licence,
   recorded (and their remasters), and **`Documentation/linked_files/`**
   (the sample stacks and zip archives from LiveCode's lessons and
   samples): authors and terms are not recorded.
-- **Terry Little's Text To Image** (`ide/Resources/Examples/`) says
-  "Terry Little ©2013, All Rights Reserved" and grants no licence,
-  unlike his Animate Letter, DataGrid Table and Quick Start, which state
-  the GPL version 3 or later. It ships as OpenXTalk Lite shipped it, and
-  it has no remaster (`tools/examples`) until he agrees to one.
+- **Terry Little's Text To Image**, which said "Terry Little ©2013, All
+  Rights Reserved" and granted no licence, is no longer shipped (since
+  0.2.7-rc.6.12), and has no remaster until he agrees to one.
 - **The runtimes asset's Android files:** how Tom Perry built those
   that differ from LiveCode's 9.6.3 files is not recorded. Building the
   Android runtime from source would settle it (the other runtimes are

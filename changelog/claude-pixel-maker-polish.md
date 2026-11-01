@@ -1,0 +1,1 @@
+- Web: Pixel Platformer Maker, as Pixel Maker is now called, has eight levels, seesaws, rope bridges and domino planks, and enemies and items no longer pass through crates (#303)

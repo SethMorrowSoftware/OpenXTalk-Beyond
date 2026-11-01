@@ -21,7 +21,9 @@ revOXTIDEGraphicPointsToSVGPath, but never the command, so a pick threw
 tour picks the item with graphics selected and reads the clipboard
 (tools/ci/ui-tour.livecodescript, the step svg-paths). These tests hold the
 pieces to each other, and hold every revOXTIDE command the menu bar calls
-to a handler that exists.
+to a handler that exists. The copy also goes on the clipboard under the
+types Adobe Illustrator reads (OpenXTalkPaul, p=25820), which the tour
+reads back.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -84,6 +86,25 @@ class TheCommand(unittest.TestCase):
         self.assertIn('put revOXTIDEGraphicsToSVG(pObjects) into tSVG', command)
         self.assertIn('set the clipboardData["text"] to tSVG', command)
 
+    def test_illustrators_types_join_the_text(self):
+        # openxtalk.org p=25820: Illustrator and VectorCraft paste these as
+        # vector paths; seth said yes on 2026-10-31
+        types = 'com.adobe.illustrator.svg,com.adobe.illustrator.svgm,com.adobe.svg'
+        self.assertIn('constant kSVGClipboardTypes = "%s"' % types, self.library)
+        command = handler(self.library, 'command', 'revOXTIDEGraphicPointsToSVGPath')
+        self.assertIn('put textEncode(tSVG, "UTF-8") into tData', command)
+        # the text first (which clears the clipboard), then the types, all in
+        # one lock, and the lock always let go
+        lock = command.index('lock the clipboard')
+        text = command.index('set the clipboardData["text"] to tSVG')
+        raw = command.index('set the rawClipboardData[tType] to tData')
+        unlock = command.index('unlock the clipboard')
+        self.assertLess(lock, text)
+        self.assertLess(text, raw)
+        self.assertLess(raw, unlock)
+        self.assertIn('repeat for each item tType in kSVGClipboardTypes', command)
+        self.assertIn('catch tError', command[raw:unlock])
+
     def test_a_path_for_each_graphic(self):
         svg = handler(self.library, 'function', 'revOXTIDEGraphicsToSVG')
         self.assertIn('if word 1 of tObject is not "graphic" then next repeat', svg)
@@ -115,6 +136,16 @@ class TheTour(unittest.TestCase):
             self.assertIn(path, checks)
         self.assertIn('the number of lines of pSVG is not 5', checks)
         self.assertIn('word 1 of tBox > 9 or word 2 of tBox > 9', checks)
+
+    def test_it_reads_illustrators_types_back(self):
+        step = handler(self.tour, 'on', 'tour_svg_paths')
+        self.assertIn('put tourSvgRawChecks(the clipboardData["text"]) after tFails', step)
+        raw = handler(self.tour, 'function', 'tourSvgRawChecks')
+        self.assertIn('"com.adobe.illustrator.svg,com.adobe.illustrator.svgm,com.adobe.svg"', raw)
+        self.assertIn('put the keys of the rawClipboardData into tKeys', raw)
+        self.assertIn('textDecode(the rawClipboardData[tType], "UTF-8")', raw)
+        self.assertIn('if tText is not pSVG then', raw)
+        self.assertIn('unlock the clipboard', raw)
 
 
 if __name__ == '__main__':

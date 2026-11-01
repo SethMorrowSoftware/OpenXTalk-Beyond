@@ -243,6 +243,43 @@ on TestHyperCardImageExtract
    _DeleteFolder tFolder
 end TestHyperCardImageExtract
 
+on TestHyperCardImageFolder
+   -- a folder's folders, then its files with their types and creators,
+   -- for the HyperCard Library's Files
+   local tImage, tList
+   repeat for each item tImage in "Stacks.hfs,Stacks.dc42,Stacks.apm"
+      put revHyperCardImageFolder(_Image(tImage), "Old Disk") into tList
+      TestAssert tImage & ": the top folder, no error", the result is empty
+      TestAssert tImage & ": the top folder's folder, then its file", tList is "Stacks" & tab & "folder" & return & "Read Me" & tab & "file" & tab & "TEXT" & tab & "ttxt"
+      put revHyperCardImageFolder(_Image(tImage), "old disk:STACKS:") into tList
+      TestAssert tImage & ": a folder, its case aside, a colon at its end", tList is "More" & tab & "folder" & return & "Synthetic Stack" & tab & "file" & tab & "STAK" & tab & "WILD"
+      put revHyperCardImageFolder(_Image(tImage), "Old Disk:Stacks:More") into tList
+      TestAssert tImage & ": a folder with no folder in it", tList is "Lost Type" & tab & "file" & tab & "????" & tab & "????"
+   end repeat
+   get revHyperCardImageFolder(_Image("Stacks.hfs"), "Old Disk:Nothing")
+   TestAssert "a folder the volume does not have", it is empty and the result begins with "no such folder"
+   get revHyperCardImageFolder(_Image("Stacks.hfs"), "Other Disk")
+   TestAssert "another volume's name", it is empty and the result begins with "no such folder"
+   get revHyperCardImageFolder(_Image("Stacks.hfs"), "Old Disk:Read Me")
+   TestAssert "a file, not a folder", it is empty and the result begins with "no such folder"
+end TestHyperCardImageFolder
+
+on TestHyperCardImageReadFork
+   -- a fork read in place, for the HyperCard Library's ResText
+   local tData
+   put revHyperCardImageReadFork(_Image("Stacks.apm"), kSynthetic, "resource") into tData
+   TestAssert "read fork: no error", the result is empty
+   TestAssert "read fork: the resource fork, in runs and in the extents tree", tData is _Bytes("Synthetic.rsrc")
+   put revHyperCardImageReadFork(_Image("Stacks.dc42"), "Old Disk:Read Me", "data") into tData
+   TestAssert "read fork: a data fork", the result is empty and tData is "An old disk." & numToByte(13)
+   put revHyperCardImageReadFork(_Image("Stacks.hfs"), kLost, "resource") into tData
+   TestAssert "read fork: a file with no resource fork, empty and no error", the result is empty and tData is empty
+   get revHyperCardImageReadFork(_Image("Stacks.hfs"), "Old Disk:Nothing", "data")
+   TestAssert "read fork: a file the volume does not have", it is empty and the result begins with "no such file"
+   get revHyperCardImageReadFork(_Image("Stacks.hfs"), kSynthetic, "rsrc")
+   TestAssert "read fork: a fork that is neither", it is empty and the result is not empty
+end TestHyperCardImageReadFork
+
 on TestHyperCardImageImport
    -- a stack copied out of an image imports with its fork
    local tFolder, tPath, tError

@@ -90,7 +90,17 @@ Android SDK and are not checked here.
    processor it was built for (for Mach-O, the slice that ran), its
    platform (MacOS, Win32 or Linux) and the environment "command line"
    (what a standalone reports without a user interface; the development
-   engine says "development command line").
+   engine says "development command line"). A runtime from the runtimes
+   asset may instead report the version that the asset's PROVENANCE file
+   in the layout records for it (asset_versions): the asset is built from
+   an earlier commit, and when the engine's version text changes (as it
+   did to 9.7.1-BeyondEngine for 0.2.7-rc.6.12) its runtimes keep the old
+   text until the asset is rebuilt. That is reported, not failed, as the
+   features below are: "Tag a release" refuses while the asset is older
+   than the engine's source and the version file (runtimes_provenance.py
+   --fail-on-stale, MOD-D1), so a release never ships one. Any other
+   version still fails, and so does every version but the engine's when
+   the layout has no PROVENANCE file for the asset.
 
    It then answers, in FEATURE lines, whether its engine has a few
    changes made since the runtimes asset was built that a script can see
@@ -113,6 +123,7 @@ library is used (3.8 or later).
 
 import argparse
 import collections
+import json
 import os
 import platform as host
 import plistlib
@@ -131,6 +142,11 @@ import package  # noqa: E402
 import run_livecode_check as rlc  # noqa: E402
 
 DEPLOY_SCRIPT = os.path.join(HERE, 'standalone-deploy.livecodescript')
+ASSETS = os.path.join(rlc.REPO, 'tools', 'oxt', 'external-assets.json')
+# A runtime's line in the asset's PROVENANCE.md (make_runtimes_asset.py
+# builds_provenance): "- `Runtime/Windows/x86-32/Standalone` (14,180,864
+# bytes, from `win-x86`): version strings found in the file: `9.7.1-OXT`."
+PROVENANCE_VERSIONS_RE = re.compile(r'^- `([^`]+)` \([^)]*\): version strings found in the file: (.*)$')
 # The runtime the IDE deploys for each target, in the tools folder (the Mac
 # target's "IntelArmUniversal" button selects MacOSX x64-ARM64), by the
 # package.py platform whose tables describe its folder
@@ -318,6 +334,59 @@ def check_runtime_folder(tools, tp):
     return problems, ['%s: %d binaries checked (%s)' % (r['folder'], len(checked), describe(fmt, [t.arch]))]
 
 
+def asset_versions(tools, assets_file=ASSETS):
+    """{runtime path in the tools folder: [version strings]}: what the
+    PROVENANCE file of the runtimes asset (the asset in assets_file whose id
+    begins oxt-runtimes-, installed in the tools folder under the name its
+    "rename" gives PROVENANCE.md) records for each Standalone engine it
+    carries. Empty when there is no such asset or file, or it records none:
+    then a runtime of the asset must report the engine's version, as before
+    (check_version)."""
+    try:
+        with open(assets_file, encoding='utf-8') as f:
+            assets = json.load(f).get('assets', [])
+    except (OSError, ValueError):
+        return {}
+    found = [a for a in assets if str(a.get('id', '')).startswith('oxt-runtimes-')]
+    if len(found) != 1:
+        return {}
+    name = (found[0].get('rename') or {}).get('PROVENANCE.md')
+    if not name:
+        return {}
+    path = os.path.join(tools, *(found[0].get('dest') or '').split('/'), name)
+    try:
+        with open(path, encoding='utf-8', errors='replace') as f:
+            text = f.read()
+    except OSError:
+        return {}
+    versions = {}
+    for line in text.splitlines():
+        m = PROVENANCE_VERSIONS_RE.match(line.strip())
+        if m:
+            versions[m.group(1)] = re.findall(r'`([^`]+)`', m.group(2))
+    return versions
+
+
+def check_version(tp, have, want, own, recorded=()):
+    """(problems, lines) for the version a standalone reports (have)
+    against the engine's (want). A runtime built from this commit (own)
+    must report the engine's; one from the runtimes asset may instead
+    report a version its PROVENANCE file records for it (recorded, from
+    asset_versions), which is reported, not failed: the asset was built
+    before the engine's version text changed, and a release rebuilds it
+    (runtimes_provenance.py --fail-on-stale, MOD-D1)."""
+    if have == want:
+        return [], []
+    if not own and have in recorded:
+        return [], ['%s: reports version %r, which the runtimes asset records for it, not this engine\'s %r '
+                    '(a runtime from the runtimes asset: reported, not failed; a release rebuilds the asset, '
+                    'MOD-D1)' % (tp, have, want)]
+    extra = ''
+    if not own and recorded:
+        extra = ' (the runtimes asset records %s for it)' % ', '.join(repr(v) for v in recorded)
+    return ['%s: the standalone reports version %r, expected %r%s' % (tp, have, want, extra)], []
+
+
 FEATURE_RE = re.compile(r'^FEATURE ([a-z0-9-]+)=(yes|no|error)$')
 
 
@@ -340,11 +409,12 @@ def check_features(tp, out, own):
     return [], [line + ' (a runtime from the runtimes asset: reported, not failed; MOD-D1)']
 
 
-def deploy_and_run(engine, runtime, tp, work, timeout, expect_version, own=True):
+def deploy_and_run(engine, runtime, tp, work, timeout, expect_version, own=True, recorded=()):
     """Build the probe standalone for package.py platform tp from runtime
     with engine, check it and run it when this machine can. own: the
     runtime was built from this commit, not taken from the runtimes asset
-    (see check_features). Returns (problems, lines)."""
+    (see check_features); recorded: the versions the asset's PROVENANCE
+    file records for it (see check_version). Returns (problems, lines)."""
     t = package.PLATFORMS[tp]
     family = t.family
     problems, lines = [], []
@@ -423,7 +493,10 @@ def deploy_and_run(engine, runtime, tp, work, timeout, expect_version, own=True)
         version, got, plat, environment = probe.groups()
         # without a user interface a standalone's environment is "command
         # line" (a development engine's "development command line")
-        expected = {'version': (version, expect_version), 'processor': (got, processor),
+        found, what = check_version(tp, version, expect_version, own, recorded)
+        problems += found
+        lines += what
+        expected = {'processor': (got, processor),
                     'platform': (plat, REPORTED_PLATFORM[family]),
                     'environment': (environment.strip(), 'command line')}
         for key, (have, want) in expected.items():
@@ -491,6 +564,7 @@ def main(argv=None):
                 targets = [tp for tp, rel in RUNTIMES.items() if os.path.exists(os.path.join(tools, *rel.split('/')))]
                 if own_target(p) not in targets:
                     targets.insert(0, own_target(p))
+            recorded = asset_versions(tools)
             jobs = []
             for tp in targets:
                 runtime = os.path.join(tools, *RUNTIMES[tp].split('/'))
@@ -503,17 +577,17 @@ def main(argv=None):
                     for line in what:
                         log('Runtime : ' + line)
                     lines += what
-                jobs.append((tp, runtime))
+                jobs.append((tp, runtime, recorded.get(RUNTIMES[tp], [])))
         else:
             engine = os.path.abspath(args.engine)
-            jobs = [(own_target(p), os.path.abspath(args.runtime))]
+            jobs = [(own_target(p), os.path.abspath(args.runtime), [])]
             if not os.path.exists(jobs[0][1]):
                 raise rlc.CheckError('no runtime at %s' % jobs[0][1])
         log('Engine  : %s' % engine)
-        for tp, runtime in jobs:
+        for tp, runtime, versions in jobs:
             log('Target  : %s (%s)' % (tp, runtime))
             found, what = deploy_and_run(engine, runtime, tp, work, args.timeout, expect_version,
-                                         own=tp == own_target(p))
+                                         own=tp == own_target(p), recorded=versions)
             problems += found
             lines += what
     except (rlc.CheckError, OSError, binfmt.FormatError) as e:

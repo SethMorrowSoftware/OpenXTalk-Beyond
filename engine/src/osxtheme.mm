@@ -89,6 +89,13 @@ static void convertmctocgrect(MCRectangle r, CGRect& r_cg)
     r_cg . size . height = r . height;
 }
 
+// OXT-Beyond: the tallest standard button, in points, that keeps the Mac's
+// push bezel (about 21 points) in its rect; a taller one is drawn its whole
+// height with the flexible bezel (drawthemebutton's AppKit path). The
+// usual heights (LiveCode's 23, and up to here) keep the push bezel, which
+// nearly fills them
+#define kMCMacFlexiblePushHeight 30
+
 ////////////////////////////////////////////////////////////////////////////////
 
 static void getthemebuttonpartandstate(const MCWidgetInfo &winfo, HIThemeButtonDrawInfo &bNewInfo,const MCRectangle &drect, HIRect &macR);
@@ -1625,9 +1632,33 @@ void MCMacDrawTheme(MCThemeDrawType p_type, MCThemeDrawInfo& p_info, CGContextRe
 				else if (p_info.button.info.kind == kThemePushButton)
 				{
 					// Push button
+					// OXT-Beyond: a push button's rounded bezel is the Mac's
+					// own height, about 21 points, whatever the frame: a
+					// standard button made taller kept a 21-point bezel in
+					// the middle of its rect, the rest of the rect empty
+					// (Skids, openxtalk.org p=25824). One taller than
+					// kMCMacFlexiblePushHeight gets the bezel that AppKit
+					// draws at any height (NSBezelStyleRegularSquare, which
+					// macOS 14's SDK calls NSBezelStyleFlexiblePush), with
+					// its rounded corners, as Windows and Linux draw a tall
+					// button its whole height. It is drawn in the button's
+					// own rect: the 5 points either side are the push
+					// bezel's (above). From macOS 11: before, that style is
+					// a square bevel. A button of the usual height, up to
+					// kMCMacFlexiblePushHeight, keeps the push bezel, as
+					// before
+					bool t_flexible = false;
+					if (@available(macOS 11.0, *))
+						t_flexible = p_info.dest.height > kMCMacFlexiblePushHeight;
+					if (t_flexible)
+					{
+						t_frame.origin.x += 5;
+						t_frame.size.width -= 10;
+					}
+					
 					NSButton *t_button = [[NSButton alloc] initWithFrame:t_frame];
 					[t_button setButtonType:NSMomentaryPushInButton];
-					[t_button setBezelStyle:NSRoundedBezelStyle];
+					[t_button setBezelStyle:t_flexible ? NSBezelStyleRegularSquare : NSRoundedBezelStyle];
 					[t_button setTitle:@""];
 					
 					// Check if this is a default button (has default adornment)
