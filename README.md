@@ -1688,6 +1688,15 @@ it squashes:
 - **Sparkles on the words.** The sparkles of a How-to or Academy page's
   banner keep off its words and buttons; in a narrow window they landed
   on the title (#305).
+- **Disabled buttons that looked enabled.** On a dark Windows or Linux
+  theme a disabled button's label is a dim grey; on Windows' dark mode it
+  was etched in white and read as enabled, and on a dark GTK theme it all
+  but vanished (#305).
+- **Menus with no arrow.** In Windows' dark mode, option menus and combo
+  boxes show their arrow; they were plain boxes (#305).
+- **A white label on light grey.** On macOS 11 and later a hilited
+  standard button's label keeps its own colour in the light appearance;
+  it was white on the light grey the Mac draws it in (#305).
 - **A scrollbar you could not turn.** The Inspector sets a scrollbar's
   Orientation, Horizontal or Vertical, swapping its width and height
   about its centre; it was read only (TerryL) (#293).

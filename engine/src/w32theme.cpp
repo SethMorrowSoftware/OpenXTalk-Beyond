@@ -865,7 +865,40 @@ Boolean MCNativeTheme::drawwidget(MCDC *dc, const MCWidgetInfo &winfo, const MCR
 			// Draw a simple border
 			dc->setforeground(dc->getgray()); // Use gray for border
 			dc->drawrect(drect);
-			
+
+			// OXT-Beyond: an option menu and a combo box show their arrow,
+			// as the theme draws one in light mode: a light grey triangle
+			// pointing down, in the middle of the part the label is kept
+			// out of (an option menu's right WTHEME_METRIC_OPTIONBUTTONARROWSIZE
+			// points, a combo box's button, square and as tall as it less
+			// its frame: getwidgetrect). They were plain boxes that did not
+			// say they open a menu. Greyer when disabled
+			if (winfo.type == WTHEME_TYPE_OPTIONBUTTON || winfo.type == WTHEME_TYPE_COMBO)
+			{
+				int4 t_part;
+				if (winfo.type == WTHEME_TYPE_COMBO)
+					t_part = MCMax(drect.height - 2, 0);
+				else
+					t_part = getmetric(WTHEME_METRIC_OPTIONBUTTONARROWSIZE);
+				int2 t_cx = drect.x + drect.width - 1 - t_part / 2;
+				int2 t_cy = drect.y + drect.height / 2;
+				MCPoint t_arrow[3];
+				t_arrow[0].x = t_cx - 4;
+				t_arrow[0].y = t_cy - 2;
+				t_arrow[1].x = t_cx + 4;
+				t_arrow[1].y = t_cy - 2;
+				t_arrow[2].x = t_cx;
+				t_arrow[2].y = t_cy + 2;
+				MCColor t_ink;
+				if (winfo.state & WTHEME_STATE_DISABLED)
+					t_ink.red = t_ink.green = t_ink.blue = 0x7070;
+				else
+					t_ink.red = t_ink.green = t_ink.blue = 0xC8C8;
+				dc->setforeground(t_ink);
+				dc->setfillstyle(FillSolid, nil, 0, 0);
+				dc->fillpolygon(t_arrow, 3);
+			}
+
 			return True; // Skip Windows native theme drawing
 		}
 	}

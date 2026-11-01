@@ -1873,6 +1873,39 @@ on tour_controls
    tourRecord "INFO controls: the tall standard button is drawn in rows" && tExtent && "of 0 to" && sPixHeight - 1
    tourCtlCheck tExtent is not empty and item 2 of tExtent - item 1 of tExtent + 1 >= sPixHeight * 4 div 5, \
          "the tall standard button is drawn its whole height (rows" && tExtent && "of 0 to" && sPixHeight - 1 & ")"
+   
+   -- A disabled label is fainter than an enabled one, and still seen. On
+   -- Windows' dark mode it was etched in the theme's white and grey, and
+   -- read as an enabled one (the menu bar's Group); on a dark GTK theme it
+   -- all but vanished (engine/src/buttondraw.cpp,
+   -- MCButtonDisabledInkOnDarkTheme). The most a label's points differ
+   -- from its button's face: 223 and 223 on Windows' dark, 210 and 16 on
+   -- Linux's, 225 and 51 on Windows' light, 164 and 72 on the Mac's dark
+   put tourLabelInk("LabelOn", 12) into tOn
+   put tourLabelInk("LabelOff", 12) into tOff
+   tourRecord "INFO controls: a standard button's label differs from its face by" && tOn & ", a disabled one's by" && tOff
+   tourCtlCheck tOff <= tOn * 0.7, "a disabled label is fainter than an enabled one (" & tOff && "to" && tOn & ")"
+   tourCtlCheck tOff >= 24, "a disabled label is seen on its button (" & tOff & ")"
+   
+   -- A hilited standard button's label is seen on it: from macOS 11 the
+   -- Mac draws a hilited push button light grey in the light appearance,
+   -- and its label was forced white on it (15; the Dictionary's chosen
+   -- syntax, "xTalk Script")
+   put tourLabelInk("Hilited", 12) into tMax
+   tourRecord "INFO controls: a hilited standard button's label differs from its face by" && tMax
+   tourCtlCheck tMax >= 72, "a hilited standard button's label is seen on it (" & tMax & ")"
+   
+   -- An option menu and a combo box show the arrow that says they open a
+   -- menu, in their right 20 points: Windows' dark mode drew them as plain
+   -- boxes (engine/src/w32theme.cpp, drawwidget). The most a point there
+   -- differs from the button's face: 0 there, 139 or more elsewhere
+   repeat for each item tWhere in "Option,Combo"
+      tourGrab tWhere
+      put tourLum(8, sPixHeight div 2) into tInside
+      put tourMaxDiff(sPixWidth - 20, 3, sPixWidth - 3, sPixHeight - 3, tInside) into tMax
+      tourRecord "INFO controls: the right of the" && tWhere && "button differs from its face (" & tInside & ") by" && tMax
+      tourCtlCheck tMax >= 48, "the" && tWhere && "button shows its arrow (" & tMax & ")"
+   end repeat
 
    -- The window colour: on the Mac in light mode the card turns the
    -- system's window colour and back; in dark mode it is that colour
@@ -1902,6 +1935,18 @@ on tour_controls
    delete stack kControls
    if sCtlFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of sCtlFails)
 end tour_controls
+
+-- The most a point of the label of the button pName of the controls
+-- stack differs from the button's face: the face at pFace points in from
+-- its left, half way down, and the label in the button less pFace + 4
+-- points either side and 5 above and below (clear of the frame and of the
+-- Mac's bezel's edge)
+function tourLabelInk pName, pFace
+   local tFace
+   tourGrab pName
+   put tourLum(pFace, sPixHeight div 2) into tFace
+   return tourMaxDiff(pFace + 4, 5, sPixWidth - pFace - 4, sPixHeight - 5, tFace)
+end tourLabelInk
 
 command tourCtlCheck pTrue, pWhat
    add 1 to sCtlChecks
@@ -1959,6 +2004,32 @@ function tourControlsStack
    -- a standard button taller than the Mac's push button
    create button "Tall"
    set the rect of it to "280,210,440,260"
+   -- a standard button's label, enabled and disabled
+   create button "LabelOn"
+   set the label of it to "Group"
+   set the rect of it to "280,156,356,182"
+   create button "LabelOff"
+   set the label of it to "Group"
+   set the rect of it to "364,156,440,182"
+   set the enabled of it to false
+   -- a hilited standard button of the usual height
+   create button "Hilited"
+   set the label of it to "Script"
+   set the rect of it to "280,268,400,290"
+   set the hilite of it to true
+   -- an option menu and a combo box, which open a menu
+   create button "Option"
+   set the style of it to "menu"
+   set the menuMode of it to "option"
+   set the text of it to "One" & return & "Two"
+   set the label of it to "One"
+   set the rect of it to "20,296,200,320"
+   create button "Combo"
+   set the style of it to "menu"
+   set the menuMode of it to "comboBox"
+   set the text of it to "One" & return & "Two"
+   set the label of it to empty
+   set the rect of it to "220,296,400,320"
    unlock messages
    unlock screen
    set the defaultStack to tDefault
