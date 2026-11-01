@@ -102,3 +102,47 @@ on TestDrawingCountOverflow
    put _PixelAt(tDrawing, 50, 50) into tColor
    TestAssert "an overlong count draws nothing", not _IsRed(tColor)
 end TestDrawingCountOverflow
+
+-- A drawing of pOpcodes (bytes) over pScalars (numbers, a comma list),
+-- 100 by 100
+private function _Raw pScalars, pOpcodes
+   local tScalars, tScalar
+   repeat for each item tScalar in pScalars
+      put binaryEncode("f", tScalar) after tScalars
+   end repeat
+   return "LCD" & numToByte(0) & binaryEncode("ff", 100, 100) & \
+         binaryEncode("I", the number of bytes of tScalars div 4) & tScalars & \
+         binaryEncode("I", the number of bytes of pOpcodes) & pOpcodes
+end _Raw
+
+private function _Bytes pList
+   local tByte, tBytes
+   repeat for each item tByte in pList
+      put numToByte(tByte) after tBytes
+   end repeat
+   return tBytes
+end _Bytes
+
+on TestDrawingClip
+   local tDrawing
+   -- ClipBegin, a 50 by 50 square, ClipEnd, a red square over everything,
+   -- ClipRestore, a blue square at 90,90 (OXT-Beyond's clip opcodes)
+   put _Raw("0,0,50,50, 1,0,0,1, 0,0,100,100, 0,0,1,1, 90,90,10,10", \
+         _Bytes("21, 13, 22, 2,1, 13, 23, 2,1, 13, 0")) into tDrawing
+   TestAssert "clip: inside the clip drawn", _IsRed(_PixelAt(tDrawing, 25, 25))
+   TestAssert "clip: outside the clip not drawn", not _IsRed(_PixelAt(tDrawing, 75, 75))
+   TestAssert "clip: restored, the shape after it drawn", _IsBlue(_PixelAt(tDrawing, 95, 95))
+end TestDrawingClip
+
+on TestDrawingClipMalformed
+   local tDrawing
+   -- a ClipRestore with no ClipBegin is ignored
+   put _Raw("1,0,0,1, 0,0,100,100", _Bytes("23, 2,1, 13, 0")) into tDrawing
+   TestAssert "clip: a lone ClipRestore is ignored", _IsRed(_PixelAt(tDrawing, 50, 50))
+   -- a clip left open at the end draws nothing more, and harms nothing
+   put _Raw("1,0,0,1, 0,0,100,100, 0,0,10,10", _Bytes("2,1, 13, 21, 13, 0")) into tDrawing
+   TestAssert "clip: a clip left open", _IsRed(_PixelAt(tDrawing, 50, 50))
+   -- a ClipBegin among a clip's shapes is ignored
+   put _Raw("0,0,50,50, 1,0,0,1, 0,0,100,100", _Bytes("21, 21, 13, 22, 2,1, 13, 23, 0")) into tDrawing
+   TestAssert "clip: a nested ClipBegin is ignored", _IsRed(_PixelAt(tDrawing, 25, 25)) and not _IsRed(_PixelAt(tDrawing, 75, 75))
+end TestDrawingClipMalformed

@@ -329,6 +329,78 @@ on TestDrawLongPolygon
 end TestDrawLongPolygon
 
 -------------------------------------------------------------------------------
+-- Clip paths
+-------------------------------------------------------------------------------
+
+private function _ClipSvg
+   return _Svg("<defs><clipPath id='c-1'><rect x='0' y='0' width='50' height='50'/></clipPath></defs>" & \
+         "<g transform='translate(10 0)'><rect width='100' height='100' fill='#ff0000' clip-path='url(#c-1)'/></g>" & \
+         "<rect x='90' y='90' width='10' height='10' fill='#0000ff'/>")
+end _ClipSvg
+
+on TestClipCompiles
+   local tDrawing, tDecoded
+   put drawingSvgCompile(_ClipSvg(), "clip") into tDrawing
+   TestAssert "clip: compiles", the result is empty and tDrawing begins with "LCD"
+   put drawingDecode(tDrawing) into tDecoded
+   TestAssert "clip: one clip path", the number of elements in tDecoded["clips"] is 1
+   TestAssert "clip: its shape", tDecoded["clips"][1]["shapes"][1]["type"] is "rect" and tDecoded["clips"][1]["shapes"][1]["width"] is 50
+   TestAssert "clip: in the element's coordinates", tDecoded["clips"][1]["shapes"][1]["transform"] is "1,0,0,1,10,0"
+   TestAssert "clip: two shapes drawn", the number of elements in tDecoded["shapes"] is 2
+   TestAssert "clip: the first under the clip", tDecoded["shapes"][1]["clip"] is 1
+   TestAssert "clip: the second not", tDecoded["shapes"][2]["clip"] is empty
+   TestAssert "clip: the state after it", tDecoded["shapes"][2]["transform"] is empty and tDecoded["shapes"][2]["fill"]["color"] is "0,0,1,1"
+end TestClipCompiles
+
+on TestClipForms
+   local tSvg, tDecoded
+   -- in a style, on a group, a quoted reference, nested, and a use of a clipped element
+   put _Svg("<clipPath id='a'><circle cx='50' cy='50' r='40'/></clipPath><clipPath id='b'><rect width='50' height='100'/></clipPath>" & \
+         "<g style='clip-path:url(" & quote & "#a" & quote & ")'><rect id='r' width='100' height='100' fill='red' clip-path='url(#b)'/></g>" & \
+         "<use href='#r' x='0' y='0'/>") into tSvg
+   put drawingDecode(drawingSvgCompile(tSvg, "clip")) into tDecoded
+   TestAssert "clip forms: compiles", the result is empty
+   TestAssert "clip forms: nested clips, outermost first", tDecoded["shapes"][1]["clip"] is "1,2"
+   TestAssert "clip forms: a use of a clipped element is clipped", tDecoded["shapes"][2]["clip"] is 3
+   -- a clip path that is missing leaves the element unclipped; an empty one hides it
+   put drawingDecode(drawingSvgCompile(_Svg("<rect width='10' height='10' clip-path='url(#nothing)'/>"), "clip")) into tDecoded
+   TestAssert "clip forms: missing clip path", the number of elements in tDecoded["shapes"] is 1 and tDecoded["shapes"][1]["clip"] is empty
+   put drawingDecode(drawingSvgCompile(_Svg("<clipPath id='e'></clipPath><rect width='10' height='10' clip-path='url(#e)'/>"), "clip")) into tDecoded
+   TestAssert "clip forms: empty clip path hides", the number of elements in tDecoded["shapes"] is 0
+end TestClipForms
+
+on TestClipWithoutOption
+   TestAssert "clip: without the option, as before", drawingSvgCompile(_ClipSvg()) is drawingSvgCompile(_ClipSvg(), "styles")
+   TestAssert "clip: all includes clip", drawingSvgCompile(_ClipSvg(), "all") is drawingSvgCompile(_ClipSvg(), "clip,styles,opacity,ids")
+end TestClipWithoutOption
+
+on TestClipFlatten
+   local tFlat
+   put drawingFlatten(drawingSvgCompile(_ClipSvg(), "clip")) into tFlat
+   TestAssert "clip: flattened clip shape", line 1 of tFlat["clips"][1]["shapes"][1]["points"] is "10,0"
+   TestAssert "clip: flattened shape keeps its clip", tFlat["shapes"][1]["clip"] is 1
+end TestClipFlatten
+
+on TestDrawClip
+   local tDrawing
+   put drawingSvgCompile(_ClipSvg(), "clip") into tDrawing
+   TestAssert "clip drawn: inside", _IsColor(_PixelAt(tDrawing, 30, 25), 255, 0, 0)
+   TestAssert "clip drawn: outside is not red", not _IsColor(_PixelAt(tDrawing, 75, 75), 255, 0, 0)
+   TestAssert "clip drawn: left of the clip is not red", not _IsColor(_PixelAt(tDrawing, 5, 25), 255, 0, 0)
+   TestAssert "clip drawn: the shape after it", _IsColor(_PixelAt(tDrawing, 95, 95), 0, 0, 255)
+end TestDrawClip
+
+on TestDrawSmoothQuadratics
+   local tDrawing
+   -- a T after a T reflects the control point of the curve before it; the
+   -- engine forgot it after the first T and drew a straight line
+   put drawingSvgCompile("<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150'>" & \
+         "<path fill='#0000ff' d='M0 50 Q25 0 50 50 T100 50 T150 50 Z'/></svg>") into tDrawing
+   TestAssert "T after T: the third bulge drawn", _IsColor(_PixelAt(tDrawing, 125, 35, 150), 0, 0, 255)
+   TestAssert "T after T: the first bulge drawn", _IsColor(_PixelAt(tDrawing, 25, 35, 150), 0, 0, 255)
+end TestDrawSmoothQuadratics
+
+-------------------------------------------------------------------------------
 -- drawingDecode
 -------------------------------------------------------------------------------
 

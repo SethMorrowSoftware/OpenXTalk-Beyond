@@ -133,6 +133,23 @@ Parameters:
 pXmlFile (string):
 The filename of the SVG XML file to load.
 
+pOptions (string):
+Optional. A list of the compile options to use, separated by commas, or an
+array whose keys are the options and whose values are true. With none, the
+drawing is compiled as it always was. Unknown options are ignored.
+
+  - styles: the rules of the SVG's style sheets (style elements), with type,
+    class (.name), id (#name) and * selectors, so colours an SVG gives by
+    class come through
+  - opacity: the opacity attribute and property, of shapes and of groups
+  - ids: references to ids with - _ . or a leading digit, such as
+    url(#grad-1), and quoted ones; without it such a gradient draws black
+  - clip: clip-path and clipPath elements (in user space; clip-rule, and
+    clipPathUnits="objectBoundingBox", are not supported). A drawing with a
+    clip draws only on OXT-Beyond 0.2.7-rc.6.12 and later: an older engine stops
+    at the clip
+  - all: every option. The IDE's import of an SVG uses it
+
 Returns (data):
 A binary string containing the encoded drawing - this can be used as the text
 of an image directly.
@@ -231,6 +248,23 @@ Parameters:
 pXmlText (string):
 The text of the SVG XML document to compile.
 
+pOptions (string):
+Optional. A list of the compile options to use, separated by commas, or an
+array whose keys are the options and whose values are true. With none, the
+drawing is compiled as it always was. Unknown options are ignored.
+
+  - styles: the rules of the SVG's style sheets (style elements), with type,
+    class (.name), id (#name) and * selectors, so colours an SVG gives by
+    class come through
+  - opacity: the opacity attribute and property, of shapes and of groups
+  - ids: references to ids with - _ . or a leading digit, such as
+    url(#grad-1), and quoted ones; without it such a gradient draws black
+  - clip: clip-path and clipPath elements (in user space; clip-rule, and
+    clipPathUnits="objectBoundingBox", are not supported). A drawing with a
+    clip draws only on OXT-Beyond 0.2.7-rc.6.12 and later: an older engine stops
+    at the clip
+  - all: every option. The IDE's import of an SVG uses it
+
 Returns (data):
 A binary string containing the encoded drawing - this can be used as the text
 of an image directly.
@@ -281,6 +315,15 @@ private function svgImportFromArray pXmlArray, pOptions
 	/* Opacity: each element's opacity attribute (or style property) is kept
 	 * aside, as the trim and parse would drop it, and multiplied into the
 	 * fill and stroke opacity of the shapes below it after the cascade. */
+	/* Clip paths: each element with a clip-path becomes a group of a copy
+	 * of the clip path's shapes and the element, which the compile writes
+	 * between the engine's clip opcodes. Before the opacity, so the copies
+	 * carry none, and after the style sheets, so the clip-path a style
+	 * sheet gives is found. */
+	if tOptions["clip"] then
+		_svgApplyClips tArray
+	end if
+
 	if tOptions["opacity"] then
 		_svgCollectOpacity tArray
 	end if
@@ -741,6 +784,10 @@ private command _svgCompileElement @xContext, pElement
 		_svgCompileSvg xContext, pElement
 		break
 	case "g"
+		if pElement["clip-wrap"] then
+			_svgCompileClipped xContext, pElement
+			break
+		end if
 		repeat for each element tChildElement in pElement["content"]
 			_svgCompileElement xContext, tChildElement
 		end repeat
@@ -774,6 +821,28 @@ private command _svgCompileElement @xContext, pElement
 	/* Restore the feature state */
 	_svgContextRestore xContext
 end _svgCompileElement
+
+/* _svgCompileClipped compiles a group _svgApplyClips made: its first child,
+ * the clip path's shapes, between ClipBegin and ClipEnd, then its second,
+ * the clipped element, then ClipRestore. The engine sets its transform to
+ * none at ClipBegin and restores every attribute at ClipRestore, so the
+ * state last written is forgotten at both, and written again before the
+ * next shape. */
+private command _svgCompileClipped @xContext, pElement
+	local tOperation
+	put "clip-begin" into tOperation[1]
+	_svgContextEmit xContext, tOperation
+	_svgContextSetLastState xContext, empty
+	_svgCompileElement xContext, pElement["content"][1]
+	put "clip-end" into tOperation[1]
+	_svgContextEmit xContext, tOperation
+	if the number of elements in pElement["content"] > 1 then
+		_svgCompileElement xContext, pElement["content"][2]
+	end if
+	put "clip-restore" into tOperation[1]
+	_svgContextEmit xContext, tOperation
+	_svgContextSetLastState xContext, empty
+end _svgCompileClipped
 
 /* _svgCompileFeatures loops through all features defined on element and sets
  * the feature state of the context to their 'compiled' values. The compiled
@@ -1366,6 +1435,11 @@ constant kMCGDrawingOpcodeLine = 17
 constant kMCGDrawingOpcodePolyline = 18
 constant kMCGDrawingOpcodePolygon = 19
 constant kMCGDrawingOpcodePath = 20
+/* OXT-Beyond: clip paths. An engine before them stops at them, so they are
+ * written only when a compile asks for clipping. */
+constant kMCGDrawingOpcodeClipBegin = 21
+constant kMCGDrawingOpcodeClipEnd = 22
+constant kMCGDrawingOpcodeClipRestore = 23
 
 constant kMCGDrawingTransformOpcodeIdentity = 0
 constant kMCGDrawingTransformOpcodeAffine = 1
@@ -1521,6 +1595,15 @@ private command _svgEncode @xContext, @rDrawing
 		case "path"
 			_svgEncodeOp xContext, kMCGDrawingOpcodePath
 			_svgEncodePath xContext, tArgument
+			break
+		case "clip-begin"
+			_svgEncodeOp xContext, kMCGDrawingOpcodeClipBegin
+			break
+		case "clip-end"
+			_svgEncodeOp xContext, kMCGDrawingOpcodeClipEnd
+			break
+		case "clip-restore"
+			_svgEncodeOp xContext, kMCGDrawingOpcodeClipRestore
 			break
 		default
 			_InternalError format("unknown command '%s'", tOperation[1])
@@ -3468,6 +3551,7 @@ private function _drawingParseOptions pOptions
 	put false into tFlags["styles"]
 	put false into tFlags["opacity"]
 	put false into tFlags["ids"]
+	put false into tFlags["clip"]
 	if pOptions is an array then
 		repeat for each key tName in pOptions
 			if pOptions[tName] is true then
@@ -3755,6 +3839,175 @@ end _svgApplyOpacity
 
 /*******************************************************************************
  *
+ *  CLIP PATHS (OXT-Beyond)
+ *
+ ******************************************************************************/
+
+/* _svgApplyClips gives effect to clip-path, which the compiler left out (so
+ * a flag's diagonals ran past its edge, and much of an emoji set's art
+ * spilled out of its shapes). Before the trim, an element whose clip-path
+ * (attribute, or style property) names a clipPath of the document becomes a
+ * group with two children: a group of a copy of the clipPath's shapes, with
+ * the element's transform then the clipPath's, filled so each counts, and
+ * the element without its clip-path. _svgCompileClipped writes the first
+ * between ClipBegin and ClipEnd. The clipPath elements are not in the
+ * specification, so the trim then drops them.
+ *
+ * Not done: clipPathUnits="objectBoundingBox" (the element is drawn
+ * unclipped, as before), clip-rule (the engine unites the shapes nonzero),
+ * and a clip path on the shapes of a clip path. */
+private command _svgApplyClips @xRoot
+	local tClips
+	_svgCollectClipPaths xRoot, tClips
+	if tClips is not an array then
+		exit _svgApplyClips
+	end if
+	_svgWrapClipped xRoot, tClips
+end _svgApplyClips
+
+private command _svgCollectClipPaths pElement, @xClips
+	local tId
+	if pElement["type"] is "clipPath" then
+		put pElement["features"]["id"] into tId
+		if tId is empty then
+			put pElement["features"]["xml:id"] into tId
+		end if
+		if tId is not empty and tId is not among the keys of xClips then
+			put pElement into xClips[tId]
+		end if
+		exit _svgCollectClipPaths
+	end if
+	if pElement["content"] is an array then
+		repeat for each element tChild in pElement["content"]
+			_svgCollectClipPaths tChild, xClips
+		end repeat
+	end if
+end _svgCollectClipPaths
+
+private command _svgWrapClipped @xElement, pClips
+	local tIndex, tId
+	if xElement["type"] is "clipPath" or xElement["content"] is not an array then
+		exit _svgWrapClipped
+	end if
+	repeat with tIndex = 1 to the number of elements in xElement["content"]
+		_svgWrapClipped xElement["content"][tIndex], pClips
+		put _svgClipReference(xElement["content"][tIndex]) into tId
+		if tId is not empty then
+			_svgClipWrap xElement["content"][tIndex], pClips[tId]
+		end if
+	end repeat
+end _svgWrapClipped
+
+/* The id of the clip path the element pElement names, from its clip-path
+ * attribute or style property, or empty */
+private function _svgClipReference pElement
+	local tValue, tDecl, tId
+	put pElement["features"]["clip-path"] into tValue
+	if pElement["features"]["style"] contains "clip-path" then
+		set the itemDelimiter to ";"
+		repeat for each item tDecl in pElement["features"]["style"]
+			if word 1 to -1 of (char 1 to offset(":", tDecl) - 1 of tDecl) is "clip-path" then
+				put word 1 to -1 of (char offset(":", tDecl) + 1 to -1 of tDecl) into tValue
+			end if
+		end repeat
+		set the itemDelimiter to comma
+	end if
+	if matchText(tValue, "^\s*url\s*\(\s*['" & quote & "]?#([^\s()'" & quote & "]+)['" & quote & "]?\s*\)\s*$", tId) then
+		return tId
+	end if
+	return empty
+end _svgClipReference
+
+/* xElement, which names the clip path pClip, becomes the group described at
+ * _svgApplyClips; a clip path it cannot express leaves it as it was, but for
+ * its clip-path */
+private command _svgClipWrap @xElement, pClip
+	local tElement, tClipGroup, tWrap, tTransform, tIndex, tCount, tKey
+	put xElement into tElement
+	_svgClipStripReference tElement
+	if pClip is not an array or pClip["features"]["clipPathUnits"] is "objectBoundingBox" then
+		put tElement into xElement
+		exit _svgClipWrap
+	end if
+
+	/* The clip path's shapes are in the user space of the element: its
+	 * transform, then the clipPath's own. */
+	put word 1 to -1 of (tElement["features"]["transform"] && pClip["features"]["transform"]) into tTransform
+	put "g" into tClipGroup["type"]
+	if tTransform is not empty then
+		put tTransform into tClipGroup["features"]["transform"]
+	end if
+	put 0 into tCount
+	if pClip["content"] is an array then
+		repeat with tIndex = 1 to the number of elements in pClip["content"]
+			if pClip["content"][tIndex]["type"] is not empty then
+				add 1 to tCount
+				put pClip["content"][tIndex] into tClipGroup["content"][tCount]
+				_svgClipShape tClipGroup["content"][tCount]
+			end if
+		end repeat
+	end if
+
+	/* An empty clip path clips everything away: the element is left out. */
+	if tCount is 0 then
+		put "g" into xElement["type"]
+		put empty into xElement["features"]
+		put empty into xElement["content"]
+		exit _svgClipWrap
+	end if
+
+	/* The group takes the element's id, so a use of it is clipped too. */
+	put "g" into tWrap["type"]
+	put true into tWrap["clip-wrap"]
+	repeat for each item tKey in "id,xml:id"
+		if tElement["features"][tKey] is not empty then
+			put tElement["features"][tKey] into tWrap["features"][tKey]
+			delete variable tElement["features"][tKey]
+		end if
+	end repeat
+	put tClipGroup into tWrap["content"][1]
+	put tElement into tWrap["content"][2]
+	put tWrap into xElement
+end _svgClipWrap
+
+/* Removes the clip-path attribute and style property from xElement */
+private command _svgClipStripReference @xElement
+	local tDecl, tStyle
+	delete variable xElement["features"]["clip-path"]
+	if xElement["features"]["style"] contains "clip-path" then
+		set the itemDelimiter to ";"
+		repeat for each item tDecl in xElement["features"]["style"]
+			if word 1 to -1 of (char 1 to offset(":", tDecl) - 1 of tDecl) is not "clip-path" then
+				put tDecl & ";" after tStyle
+			end if
+		end repeat
+		set the itemDelimiter to comma
+		put tStyle into xElement["features"]["style"]
+	end if
+end _svgClipStripReference
+
+/* A copy of a clip path's shape: no ids (they would clash with the
+ * originals'), no clip path of its own, and filled, without a line, so its
+ * whole area counts, whatever its own paint */
+private command _svgClipShape @xElement
+	local tIndex
+	delete variable xElement["features"]["id"]
+	delete variable xElement["features"]["xml:id"]
+	_svgClipStripReference xElement
+	put xElement["features"]["style"] & ";fill:#000000;fill-opacity:1;stroke:none" into xElement["features"]["style"]
+	if char 1 of xElement["features"]["style"] is ";" then
+		delete char 1 of xElement["features"]["style"]
+	end if
+	delete variable xElement["features"]["opacity"]
+	if xElement["content"] is an array then
+		repeat with tIndex = 1 to the number of elements in xElement["content"]
+			_svgClipShape xElement["content"][tIndex]
+		end repeat
+	end if
+end _svgClipShape
+
+/*******************************************************************************
+ *
  *  DRAWING DECODE AND FLATTEN (OXT-Beyond)
  *
  ******************************************************************************/
@@ -3877,6 +4130,14 @@ function drawingFlatten pDrawing, pTolerance
 		repeat with tIndex = 1 to the number of elements in tDecoded["shapes"]
 			put _drawingFlattenShape(tDecoded["shapes"][tIndex], pTolerance) into tResult["shapes"][tIndex]
 		end repeat
+		local tClip, tShape
+		repeat with tClip = 1 to the number of elements in tDecoded["clips"]
+			put empty into tResult["clips"][tClip]["shapes"]
+			repeat with tShape = 1 to the number of elements in tDecoded["clips"][tClip]["shapes"]
+				put _drawingFlattenShape(tDecoded["clips"][tClip]["shapes"][tShape], pTolerance) \
+						into tResult["clips"][tClip]["shapes"][tShape]
+			end repeat
+		end repeat
 		return tResult for value
 	catch tError
 		return tError for error
@@ -3930,7 +4191,12 @@ private function _drawingDecode pDrawing
 	put 0 into tState["stroke-dashoffset"]
 	put 4 into tState["stroke-miterlimit"]
 
-	local tOpcode, tShape, tShapes
+	/* Clips (OXT-Beyond): the shapes between ClipBegin and ClipEnd go to
+	 * clips[n]["shapes"], not shapes; tActive lists the clips in force,
+	 * outermost first, which each shape drawn gets as its "clip"; tSaved
+	 * is the state each ClipBegin saved, which ClipRestore brings back. */
+	local tOpcode, tShape, tShapes, tClips, tClipping, tActive, tSaved
+	put 0 into tClipping
 	repeat forever
 		put _drawingReadOp(tReader) into tOpcode
 		if tOpcode is kMCGDrawingOpcodeEnd then
@@ -3938,6 +4204,36 @@ private function _drawingDecode pDrawing
 		end if
 		put empty into tShape
 		switch tOpcode
+		case kMCGDrawingOpcodeClipBegin
+			/* as the engine: a ClipBegin among a clip's shapes is ignored */
+			if tClipping is 0 then
+				put tState into tSaved[the number of elements in tSaved + 1]
+				put empty into tState["transform"]
+				put the number of elements in tClips + 1 into tClipping
+				put empty into tClips[tClipping]["shapes"]
+			end if
+			break
+		case kMCGDrawingOpcodeClipEnd
+			if tClipping is not 0 then
+				if tActive is empty then
+					put tClipping into tActive
+				else
+					put comma & tClipping after tActive
+				end if
+				put 0 into tClipping
+			end if
+			break
+		case kMCGDrawingOpcodeClipRestore
+			if tSaved is an array then
+				if tClipping is not 0 then
+					put 0 into tClipping
+				else
+					delete item -1 of tActive
+				end if
+				put tSaved[the number of elements in tSaved] into tState
+				delete variable tSaved[the number of elements in tSaved]
+			end if
+			break
 		case kMCGDrawingOpcodeTransform
 			put _drawingReadTransform(tReader) into tState["transform"]
 			break
@@ -4052,11 +4348,21 @@ private function _drawingDecode pDrawing
 
 		if tShape is an array then
 			union tShape with tState
-			put tShape into tShapes[the number of elements in tShapes + 1]
+			if tClipping is not 0 then
+				put tShape into tClips[tClipping]["shapes"][the number of elements in tClips[tClipping]["shapes"] + 1]
+			else
+				if tActive is not empty then
+					put tActive into tShape["clip"]
+				end if
+				put tShape into tShapes[the number of elements in tShapes + 1]
+			end if
 		end if
 	end repeat
 
 	put tShapes into tResult["shapes"]
+	if tClips is an array then
+		put tClips into tResult["clips"]
+	end if
 	return tResult
 end _drawingDecode
 
@@ -4298,7 +4604,7 @@ end _drawingNumber
  * as points, as drawingFlatten documents. */
 private function _drawingFlattenShape pShape, pTolerance
 	local tResult, tKey, tMatrix, tScale, tTolerance, tRuns, tRun, tPoints, tDash, tValue
-	repeat for each item tKey in "fill,fill-opacity,fill-rule,stroke,stroke-opacity,stroke-linejoin,stroke-linecap,stroke-miterlimit"
+	repeat for each item tKey in "fill,fill-opacity,fill-rule,stroke,stroke-opacity,stroke-linejoin,stroke-linecap,stroke-miterlimit,clip"
 		put pShape[tKey] into tResult[tKey]
 	end repeat
 
@@ -4709,69 +5015,32 @@ An error string if pDrawing is not a drawing or is damaged.
 References: drawingDecode (function), drawingSvgCompile (function)
 */
 function drawingSvgDecompile pDrawing
-	local tDrawing, tDefs, tBody, tShape, tAttributes, tGradientCount, tSvg
+	local tDrawing, tDefs, tBody, tShape, tGradientCount, tSvg, tClip, tItem, tOpen, tClose
 	put drawingDecode(pDrawing) into tDrawing
 	if the result is not empty then
 		return the result for error
 	end if
 	put 0 into tGradientCount
+
+	/* Clip paths (OXT-Beyond): each in the defs, in the drawing's
+	 * coordinates; a shape drawn under some is wrapped in a group for each,
+	 * outermost first, as a group has no transform of its own */
+	repeat with tClip = 1 to the number of elements in tDrawing["clips"]
+		put "    <clipPath id=" & quote & "clip-" & tClip & quote & ">" & return after tDefs
+		repeat for each element tShape in tDrawing["clips"][tClip]["shapes"]
+			put "      " & _drawingSvgShape(tShape, true, tDefs, tGradientCount) & return after tDefs
+		end repeat
+		put "    </clipPath>" & return after tDefs
+	end repeat
+
 	repeat for each element tShape in tDrawing["shapes"]
-		put empty into tAttributes
-		switch tShape["type"]
-		case "rect"
-			put _drawingSvgAttribute("x", tShape["x"]) & _drawingSvgAttribute("y", tShape["y"]) & \
-					_drawingSvgAttribute("width", tShape["width"]) & _drawingSvgAttribute("height", tShape["height"]) into tAttributes
-			if tShape["rx"] > 0 or tShape["ry"] > 0 then
-				put _drawingSvgAttribute("rx", tShape["rx"]) & _drawingSvgAttribute("ry", tShape["ry"]) after tAttributes
-			end if
-			break
-		case "circle"
-			put _drawingSvgAttribute("cx", tShape["cx"]) & _drawingSvgAttribute("cy", tShape["cy"]) & \
-					_drawingSvgAttribute("r", tShape["r"]) into tAttributes
-			break
-		case "ellipse"
-			put _drawingSvgAttribute("cx", tShape["cx"]) & _drawingSvgAttribute("cy", tShape["cy"]) & \
-					_drawingSvgAttribute("rx", tShape["rx"]) & _drawingSvgAttribute("ry", tShape["ry"]) into tAttributes
-			break
-		case "line"
-			put _drawingSvgAttribute("x1", tShape["x1"]) & _drawingSvgAttribute("y1", tShape["y1"]) & \
-					_drawingSvgAttribute("x2", tShape["x2"]) & _drawingSvgAttribute("y2", tShape["y2"]) into tAttributes
-			break
-		case "polyline"
-		case "polygon"
-			put _drawingSvgAttribute("points", tShape["points"]) into tAttributes
-			break
-		case "path"
-			put _drawingSvgAttribute("d", tShape["d"]) into tAttributes
-			break
-		end switch
-		if tShape["transform"] is not empty then
-			put _drawingSvgAttribute("transform", "matrix(" & _drawingSvgList(tShape["transform"]) & ")") after tAttributes
-		end if
-		put _drawingSvgPaint("fill", tShape["fill"], tShape["fill-opacity"], tDefs, tGradientCount) after tAttributes
-		if tShape["fill-rule"] is "evenodd" then
-			put _drawingSvgAttribute("fill-rule", "evenodd") after tAttributes
-		end if
-		put _drawingSvgPaint("stroke", tShape["stroke"], tShape["stroke-opacity"], tDefs, tGradientCount) after tAttributes
-		if tShape["stroke"]["type"] is not "none" then
-			put _drawingSvgAttribute("stroke-width", tShape["stroke-width"]) after tAttributes
-			if tShape["stroke-linejoin"] is not "miter" then
-				put _drawingSvgAttribute("stroke-linejoin", tShape["stroke-linejoin"]) after tAttributes
-			end if
-			if tShape["stroke-linecap"] is not "butt" then
-				put _drawingSvgAttribute("stroke-linecap", tShape["stroke-linecap"]) after tAttributes
-			end if
-			if tShape["stroke-miterlimit"] is not 4 then
-				put _drawingSvgAttribute("stroke-miterlimit", tShape["stroke-miterlimit"]) after tAttributes
-			end if
-			if tShape["stroke-dasharray"] is not empty then
-				put _drawingSvgAttribute("stroke-dasharray", _drawingSvgList(tShape["stroke-dasharray"])) after tAttributes
-				if tShape["stroke-dashoffset"] is not 0 then
-					put _drawingSvgAttribute("stroke-dashoffset", tShape["stroke-dashoffset"]) after tAttributes
-				end if
-			end if
-		end if
-		put "  <" & tShape["type"] & tAttributes & "/>" & return after tBody
+		put empty into tOpen
+		put empty into tClose
+		repeat for each item tItem in tShape["clip"]
+			put "<g clip-path=" & quote & "url(#clip-" & tItem & ")" & quote & ">" after tOpen
+			put "</g>" after tClose
+		end repeat
+		put "  " & tOpen & _drawingSvgShape(tShape, false, tDefs, tGradientCount) & tClose & return after tBody
 	end repeat
 
 	put "<svg xmlns=" & quote & "http://www.w3.org/2000/svg" & quote & \
@@ -4783,6 +5052,76 @@ function drawingSvgDecompile pDrawing
 	put tBody & "</svg>" & return after tSvg
 	return tSvg for value
 end drawingSvgDecompile
+
+/* The SVG element of the decoded shape pShape; with pGeometryOnly, its
+ * geometry and transform alone (a clip path's shape) */
+private function _drawingSvgShape pShape, pGeometryOnly, @xDefs, @xGradientCount
+	local tShape, tAttributes, tDefs, tGradientCount
+	put pShape into tShape
+	put xDefs into tDefs
+	put xGradientCount into tGradientCount
+	put empty into tAttributes
+	switch tShape["type"]
+	case "rect"
+		put _drawingSvgAttribute("x", tShape["x"]) & _drawingSvgAttribute("y", tShape["y"]) & \
+				_drawingSvgAttribute("width", tShape["width"]) & _drawingSvgAttribute("height", tShape["height"]) into tAttributes
+		if tShape["rx"] > 0 or tShape["ry"] > 0 then
+			put _drawingSvgAttribute("rx", tShape["rx"]) & _drawingSvgAttribute("ry", tShape["ry"]) after tAttributes
+		end if
+		break
+	case "circle"
+		put _drawingSvgAttribute("cx", tShape["cx"]) & _drawingSvgAttribute("cy", tShape["cy"]) & \
+				_drawingSvgAttribute("r", tShape["r"]) into tAttributes
+		break
+	case "ellipse"
+		put _drawingSvgAttribute("cx", tShape["cx"]) & _drawingSvgAttribute("cy", tShape["cy"]) & \
+				_drawingSvgAttribute("rx", tShape["rx"]) & _drawingSvgAttribute("ry", tShape["ry"]) into tAttributes
+		break
+	case "line"
+		put _drawingSvgAttribute("x1", tShape["x1"]) & _drawingSvgAttribute("y1", tShape["y1"]) & \
+				_drawingSvgAttribute("x2", tShape["x2"]) & _drawingSvgAttribute("y2", tShape["y2"]) into tAttributes
+		break
+	case "polyline"
+	case "polygon"
+		put _drawingSvgAttribute("points", tShape["points"]) into tAttributes
+		break
+	case "path"
+		put _drawingSvgAttribute("d", tShape["d"]) into tAttributes
+		break
+	end switch
+	if tShape["transform"] is not empty then
+		put _drawingSvgAttribute("transform", "matrix(" & _drawingSvgList(tShape["transform"]) & ")") after tAttributes
+	end if
+	if pGeometryOnly then
+		return "<" & tShape["type"] & tAttributes & "/>"
+	end if
+	put _drawingSvgPaint("fill", tShape["fill"], tShape["fill-opacity"], tDefs, tGradientCount) after tAttributes
+	if tShape["fill-rule"] is "evenodd" then
+		put _drawingSvgAttribute("fill-rule", "evenodd") after tAttributes
+	end if
+	put _drawingSvgPaint("stroke", tShape["stroke"], tShape["stroke-opacity"], tDefs, tGradientCount) after tAttributes
+	if tShape["stroke"]["type"] is not "none" then
+		put _drawingSvgAttribute("stroke-width", tShape["stroke-width"]) after tAttributes
+		if tShape["stroke-linejoin"] is not "miter" then
+			put _drawingSvgAttribute("stroke-linejoin", tShape["stroke-linejoin"]) after tAttributes
+		end if
+		if tShape["stroke-linecap"] is not "butt" then
+			put _drawingSvgAttribute("stroke-linecap", tShape["stroke-linecap"]) after tAttributes
+		end if
+		if tShape["stroke-miterlimit"] is not 4 then
+			put _drawingSvgAttribute("stroke-miterlimit", tShape["stroke-miterlimit"]) after tAttributes
+		end if
+		if tShape["stroke-dasharray"] is not empty then
+			put _drawingSvgAttribute("stroke-dasharray", _drawingSvgList(tShape["stroke-dasharray"])) after tAttributes
+			if tShape["stroke-dashoffset"] is not 0 then
+				put _drawingSvgAttribute("stroke-dashoffset", tShape["stroke-dashoffset"]) after tAttributes
+			end if
+		end if
+	end if
+	put tDefs into xDefs
+	put tGradientCount into xGradientCount
+	return "<" & tShape["type"] & tAttributes & "/>"
+end _drawingSvgShape
 
 private function _drawingSvgAttribute pName, pValue
 	replace "&" with "&amp;" in pValue

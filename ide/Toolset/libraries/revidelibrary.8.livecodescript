@@ -8445,8 +8445,28 @@ function revIDEConvertDrawingToGraphics pImage
       end if
       put the long id of it into tGroup
       put 0 into tCount
-      repeat for each element tShape in tFlat["shapes"]
-         __revIDEDrawingShapeToGraphics tShape, tGroup, item 1 of tRect, item 2 of tRect, tScaleX, tScaleY, pImage, tCount
+      -- a shape under a clip path goes in a group with lockLoc set, which
+      -- shows only what is inside its rect: the clip path's bounds, which
+      -- is the clip itself for a rectangle (a flag's edges) and the box
+      -- about it for any other shape
+      local tIndex, tClipKey, tClipGroup, tTarget
+      repeat with tIndex = 1 to the number of elements in tFlat["shapes"]
+         put tFlat["shapes"][tIndex] into tShape
+         put tGroup into tTarget
+         if tShape["clip"] is not empty then
+            if tShape["clip"] is not tClipKey then
+               put tShape["clip"] into tClipKey
+               put __revIDEDrawingClipGroup(tFlat, tClipKey, tGroup, item 1 of tRect, item 2 of tRect, tScaleX, tScaleY) into tClipGroup
+            end if
+            -- a clip with nothing in it hides the shape
+            if tClipGroup is empty then
+               next repeat
+            end if
+            put tClipGroup into tTarget
+         else
+            put empty into tClipKey
+         end if
+         __revIDEDrawingShapeToGraphics tShape, tTarget, item 1 of tRect, item 2 of tRect, tScaleX, tScaleY, pImage, tCount
       end repeat
    catch tError
       if tGroup is not empty and exists(tGroup) then delete tGroup
@@ -8494,6 +8514,56 @@ private command __revIDEDrawingShapeToGraphics pShape, pGroup, pLeft, pTop, pSca
       __revIDEDrawingGraphic pShape, tPoints, pGroup, pScaleX, pScaleY, pImage, false, true, tStrokeOpacity, xCount
    end if
 end __revIDEDrawingShapeToGraphics
+
+-- A group in pGroup with lockLoc set and the rect of the clip paths pClips
+-- (drawingFlatten's clip numbers, a comma list, each inside the one before)
+-- on the card, or empty when they leave nothing to show
+private function __revIDEDrawingClipGroup pFlat, pClips, pGroup, pLeft, pTop, pScaleX, pScaleY
+   local tClip, tShape, tLine, tLeft, tTop, tRight, tBottom, tBox, tGroup
+   put empty into tBox
+   repeat for each item tClip in pClips
+      put empty into tLeft
+      repeat for each element tShape in pFlat["clips"][tClip]["shapes"]
+         repeat for each line tLine in tShape["points"]
+            if tLine is empty then
+               next repeat
+            end if
+            if tLeft is empty then
+               put item 1 of tLine into tLeft
+               put item 1 of tLine into tRight
+               put item 2 of tLine into tTop
+               put item 2 of tLine into tBottom
+            else
+               put min(tLeft, item 1 of tLine) into tLeft
+               put max(tRight, item 1 of tLine) into tRight
+               put min(tTop, item 2 of tLine) into tTop
+               put max(tBottom, item 2 of tLine) into tBottom
+            end if
+         end repeat
+      end repeat
+      if tLeft is empty then
+         return empty
+      end if
+      if tBox is empty then
+         put tLeft & comma & tTop & comma & tRight & comma & tBottom into tBox
+      else
+         put max(item 1 of tBox, tLeft) & comma & max(item 2 of tBox, tTop) & comma & \
+               min(item 3 of tBox, tRight) & comma & min(item 4 of tBox, tBottom) into tBox
+      end if
+   end repeat
+   put round(pLeft + item 1 of tBox * pScaleX) & comma & round(pTop + item 2 of tBox * pScaleY) & comma & \
+         round(pLeft + item 3 of tBox * pScaleX) & comma & round(pTop + item 4 of tBox * pScaleY) into tBox
+   if item 3 of tBox <= item 1 of tBox or item 4 of tBox <= item 2 of tBox then
+      return empty
+   end if
+   create group "clip" in pGroup
+   put the long id of it into tGroup
+   set the lockLoc of tGroup to true
+   set the margins of tGroup to 0
+   set the showBorder of tGroup to false
+   set the rect of tGroup to tBox
+   return tGroup
+end __revIDEDrawingClipGroup
 
 -- The opacity of a paint pPaint with the opacity pOpacity: a colour's own
 -- alpha is part of it
