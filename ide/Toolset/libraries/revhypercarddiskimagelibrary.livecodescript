@@ -191,6 +191,100 @@ function revHyperCardImageExtract pImage, pStackPath, pFolder
 end revHyperCardImageExtract
 
 /*
+Lists a folder on the HFS volume in a disk image.
+
+pImage (String): The path of the disk image, as for
+<revHyperCardImageStacks>.
+
+pFolder (String): The folder's HFS path: the volume's name, then each
+folder, separated by colons ("Old Disk:Stacks"). A colon at the end is
+left out; the volume's name alone is its top folder.
+
+Returns (String): One line per folder and file in the folder, its
+folders first, each in the order of the volume's catalog: the name, a
+tab, and "folder", or "file", a tab, its type and a tab and its
+creator, four characters each. Empty with an error in the result when
+the file holds no HFS volume, or the volume no such folder.
+
+Description:
+Names are converted from MacRoman, and compared with the parts of
+pFolder as HFS compared them, case aside. The HyperCard Library's
+stand-in for the Files XFCN lists a stack's folder with it.
+*/
+function revHyperCardImageFolder pImage, pFolder
+   local tError, tParent, tPart, tDir, tFound, tList, tEach
+   put __hciLoad(pImage) into tError
+   if tError is not empty then return tError for error
+   if char -1 of pFolder is colon then delete char -1 of pFolder
+   if pFolder is empty then return "no such folder on the volume:" && pFolder for error
+   -- the top folder's parent is 1
+   put 1 into tParent
+   set the itemDelimiter to colon
+   repeat for each item tPart in pFolder
+      put empty into tFound
+      repeat for each line tDir in sDirs["order"]
+         if sDirs[tDir]["parent"] is tParent and sDirs[tDir]["name"] is tPart then
+            put tDir into tFound
+            exit repeat
+         end if
+      end repeat
+      if tFound is empty then return "no such folder on the volume:" && pFolder for error
+      put tFound into tParent
+   end repeat
+   repeat for each line tEach in sDirs["order"]
+      if sDirs[tEach]["parent"] is tParent then put sDirs[tEach]["name"] & tab & "folder" & return after tList
+   end repeat
+   repeat for each line tEach in sFiles["order"]
+      if sFiles[tEach]["parent"] is tParent then
+         put sFiles[tEach]["name"] & tab & "file" & tab & sFiles[tEach]["type"] & tab & sFiles[tEach]["creator"] & return after tList
+      end if
+   end repeat
+   delete the last char of tList
+   return tList for value
+end revHyperCardImageFolder
+
+/*
+Reads a fork of a file on the HFS volume in a disk image.
+
+pImage (String): The path of the disk image, as for
+<revHyperCardImageStacks>.
+
+pPath (String): The file's HFS path, as <revHyperCardImageFolder> and
+<revHyperCardImageStacks> name it: the volume's name, each folder, the
+file's name, separated by colons.
+
+pFork (String): "data" or "resource".
+
+Returns (String): The bytes of the fork, empty when the file has none.
+Empty with an error in the result if the image or the file cannot be
+read.
+
+Description:
+The file is not copied out, as <revHyperCardImageExtract> copies a
+stack. The HyperCard Library's stand-in for the ResText XFCN reads a
+stack's resource fork with it.
+*/
+function revHyperCardImageReadFork pImage, pPath, pFork
+   local tError, tEach, tFile, tData
+   put __hciLoad(pImage) into tError
+   if tError is not empty then return tError for error
+   if pFork is not among the items of "data,resource" then return "the fork is" && quote & "data" & quote && "or" && quote & "resource" & quote for error
+   repeat for each line tEach in sFiles["order"]
+      if __hciPath(sFiles[tEach]["parent"], sFiles[tEach]["name"]) is pPath then
+         put tEach into tFile
+         exit repeat
+      end if
+   end repeat
+   if tFile is empty then return "no such file on the volume:" && pPath for error
+   if pFork is "resource" then put "rsrc" into pFork
+   if sFiles[tFile][pFork & "size"] is 0 then return empty for value
+   put __hciReadFork(pImage, tFile, pFork) into tData
+   put the result into tError
+   if tError is not empty then return tError for error
+   return tData for value
+end revHyperCardImageReadFork
+
+/*
 Asks which stack of a disk image to import.
 
 pImage (String): The path of the disk image.
@@ -672,6 +766,7 @@ private command __hciCatalogRecord pNode, pOffset
          put __hciU32(pNode, tAt + 6) into tID
          put tParent into sDirs[tID]["parent"]
          put tName into sDirs[tID]["name"]
+         put tID & return after sDirs["order"]
          break
       case 2
          -- filUsrWds (Finder info: type, creator...) at 4, filFlNum at

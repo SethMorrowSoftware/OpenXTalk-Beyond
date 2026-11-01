@@ -3892,6 +3892,182 @@ on TestHyperCardScriptsResourceExternals
    delete folder tFolder
 end TestHyperCardScriptsResourceExternals
 
+on TestHyperCardScriptsFileExternals
+   -- the library's Files, ResText, SystemPath and FindFolder, for the
+   -- externals of those names: a folder's files and folders, here and
+   -- on the disk image a stack came from; the text of the stack's
+   -- resources, from its fork wherever the import found one; the System
+   -- Folder and the folders in it, on the disk the stack came from
+   local tStack, tImage, tFolder, q, tHFS, tText, tExpected
+   global gHCScriptsTest
+   put quote into q
+   put the tempName into tFolder
+   create folder tFolder
+   create folder (tFolder & "/Sub")
+   put "x" into url ("file:" & tFolder & "/Notes.txt")
+   put "y" into url ("file:" & tFolder & "/Other")
+   -- (beside it, what is not a resource fork)
+   put "z" into url ("file:" & tFolder & "/._Other")
+   put "w" into url ("file:" & tFolder & "/Other.rsrc")
+   put url ("binfile:" & TestGetInputFile("hypercard/forks/Texts.macbinary")) into url ("binfile:" & tFolder & "/Texts")
+   put url ("binfile:" & TestGetInputFile("hypercard/TestCardsBackgrounds.stack")) into url ("binfile:" & tFolder & "/Stack Two")
+   put "data" into url ("binfile:" & tFolder & "/Bare")
+   put url ("binfile:" & TestGetInputFile("hypercard/forks/Texts.rsrc")) into url ("binfile:" & tFolder & "/Bare.rsrc")
+   put "data" into url ("binfile:" & tFolder & "/Plain")
+   put url ("binfile:" & TestGetInputFile("hypercard/forks/Texts.appledouble")) into url ("binfile:" & tFolder & "/._Plain")
+
+   put "HCScriptsFiles" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   set the uHyperCard["file"] of stack tStack to tFolder & "/Texts"
+   set the uHyperCard["externals"] of stack tStack to _Lines("XFCN" & tab & "Files", "XFCN" & tab & "ResText", "XFCN" & tab & "SystemPath", "XFCN" & tab & "FindFolder")
+   create button "Files"
+   set the script of button "Files" to _Lines("on mouseUp pPath, pTypes, pWhat", "  global gHCScriptsTest", \
+         "  put Files(pPath, pTypes, pWhat) into gHCScriptsTest", "end mouseUp")
+   create button "ResText"
+   set the script of button "ResText" to _Lines("on mouseUp pType, pName, pThird", "  global gHCScriptsTest", \
+         "  if pThird is empty then put ResText(pType, pName) into gHCScriptsTest", \
+         "  else put ResText(pType, pName, pThird) into gHCScriptsTest", "end mouseUp")
+   create button "Raw"
+   set the script of button "Raw" to _Lines("on mouseUp", "  global gHCScriptsTest", \
+         "  put ResText(" & q & "TEXT" & q & ", " & q & "Control" & q & ", false) into gHCScriptsTest", \
+         "  put (gHCScriptsTest is (" & q & "a" & q & " & numToChar(1) & " & q & "b" & q & " & tab & " & q & "c" & q & " & numToChar(127) & " & q & "d" & q & ")) into gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+
+   -- Files: names, in the stack's folder where none is given or there is
+   -- no such folder; 2 folders only, 3 both; the types from a MacBinary
+   -- header, a stack's first block, .txt; no "._" file, no fork beside
+   send "mouseUp" to button "Files" of stack tStack
+   TestAssert "Files: the stack's folder's files", gHCScriptsTest is _Lines("Bare", "Notes.txt", "Other", "Plain", "Stack Two", "Texts")
+   send "mouseUp empty, " & q & "STAK" & q to button "Files" of stack tStack
+   TestAssert "Files: the stacks, by MacBinary and by the first block", gHCScriptsTest is _Lines("Stack Two", "Texts")
+   send "mouseUp empty, " & q & "TEXT,ZZZZ" & q to button "Files" of stack tStack
+   TestAssert "Files: a text file, of two types", gHCScriptsTest is "Notes.txt"
+   send "mouseUp empty, empty, 2" to button "Files" of stack tStack
+   TestAssert "Files: 2, the folders", gHCScriptsTest is "Sub"
+   send "mouseUp empty, " & q & "STAK" & q & ", 3" to button "Files" of stack tStack
+   TestAssert "Files: 3, the folders and the files", gHCScriptsTest is _Lines("Sub", "Stack Two", "Texts")
+   send "mouseUp " & q & tFolder & "/Sub" & q to button "Files" of stack tStack
+   TestAssert "Files: a path here, an empty folder", gHCScriptsTest is empty
+   send "mouseUp " & q & "No Disk:No Folder" & q & ", " & q & "STAK" & q to button "Files" of stack tStack
+   TestAssert "Files: no such folder, the stack's", gHCScriptsTest is _Lines("Stack Two", "Texts")
+   if the platform is not "Win32" then
+      put char 2 to -1 of tFolder into tHFS
+      replace slash with colon in tHFS
+      send "mouseUp " & q & tHFS & q & ", " & q & "TEXT" & q to button "Files" of stack tStack
+      TestAssert "Files: the folder with colons, as the long name of HyperCard gives it", gHCScriptsTest is "Notes.txt"
+   end if
+
+   -- ResText: by name (case aside) or id; returns as returns; control
+   -- characters as [code], or as they are with false; STR# a line each,
+   -- or one; STR, the bytes after; hex; the errors the external gave
+   put "From fairest creatures" & return & "we desire increase, " & numToCodepoint(8217) & "tis" into tText
+   send "mouseUp TEXT, " & q & "Sn 1" & q to button "ResText" of stack tStack
+   TestAssert "ResText: a TEXT resource by name, Mac text, its return a return", gHCScriptsTest is tText
+   send "mouseUp TEXT, " & q & "sn 1" & q to button "ResText" of stack tStack
+   TestAssert "ResText: a name, case aside", gHCScriptsTest is tText
+   send "mouseUp TEXT, 128" to button "ResText" of stack tStack
+   TestAssert "ResText: by id", gHCScriptsTest is tText
+   send "mouseUp TEXT, " & q & "Control" & q to button "ResText" of stack tStack
+   TestAssert "ResText: control characters as their codes", gHCScriptsTest is "a[1]b" & tab & "c" & numToCodepoint(127) & "d"
+   send "mouseUp" to button "Raw" of stack tStack
+   TestAssert "ResText: false, the bytes as they are", gHCScriptsTest is true
+   send "mouseUp " & q & "STR#" & q & ", " & q & "Lines" & q to button "ResText" of stack tStack
+   TestAssert "ResText: a list of strings (STR sharp), a string a line", gHCScriptsTest is _Lines("one", "two", "three")
+   send "mouseUp " & q & "STR#" & q & ", " & q & "Lines" & q & ", " & q & "#2" & q to button "ResText" of stack tStack
+   TestAssert "ResText: a list of strings (STR sharp), the second", gHCScriptsTest is "two"
+   send "mouseUp " & q & "STR#" & q & ", " & q & "Lines" & q & ", " & q & "#4" & q to button "ResText" of stack tStack
+   TestAssert "ResText: a list of strings (STR sharp), past the last", gHCScriptsTest is "Error : Index is out of range"
+   send "mouseUp " & q & "STR#" & q & ", " & q & "Lines" & q & ", " & q & "#x" & q to button "ResText" of stack tStack
+   TestAssert "ResText: a list of strings (STR sharp), not a number", gHCScriptsTest is "Error : Incorrect STR# item number"
+   send "mouseUp STR, Pair" to button "ResText" of stack tStack
+   TestAssert "ResText: STR (its space left out), the string and the bytes after", gHCScriptsTest is "word" & return & "rest"
+   send "mouseUp TEXT, " & q & "Sn 1" & q & ", hex" to button "ResText" of stack tStack
+   TestAssert "ResText: hex", char 1 to 8 of gHCScriptsTest is "46726F6D" and the number of chars of gHCScriptsTest is 94
+   send "mouseUp TEXT, Nothing" to button "ResText" of stack tStack
+   TestAssert "ResText: no such resource", gHCScriptsTest is "Error : Resource not found"
+   send "mouseUp TEXTS, Nothing" to button "ResText" of stack tStack
+   TestAssert "ResText: no such type", gHCScriptsTest is "Error : Bad resource type"
+   send "mouseUp TEXT" to button "ResText" of stack tStack
+   TestAssert "ResText: a parameter missing", gHCScriptsTest is "Error : Missing or empty parameter(s)"
+   send "mouseUp TEXT, 128, Texts" to button "ResText" of stack tStack
+   TestAssert "ResText: a file named alone, in the stack's folder", gHCScriptsTest is tText
+   send "mouseUp TEXT, 128, Bare" to button "ResText" of stack tStack
+   TestAssert "ResText: a fork beside its file, Name.rsrc", gHCScriptsTest is tText
+   send "mouseUp TEXT, 128, Plain" to button "ResText" of stack tStack
+   TestAssert "ResText: a fork beside its file, ._Name", gHCScriptsTest is tText
+   send "mouseUp TEXT, 128, Other" to button "ResText" of stack tStack
+   TestAssert "ResText: no resource fork, what is beside the file is none", gHCScriptsTest is "Error : No resource fork"
+   send "mouseUp TEXT, 128, " & q & tFolder & "/Nothing" & q to button "ResText" of stack tStack
+   TestAssert "ResText: no such file", gHCScriptsTest is "Error : File not found"
+   _Close tStack
+
+   -- on the disk image the stack came from: its folder there, folders by
+   -- HFS paths, its resource fork there; the System Folder on its disk
+   put TestGetInputFile("hypercard/forks/Stacks.dc42") into tImage
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   set the uHyperCard["image"] of stack tStack to tImage
+   set the uHyperCard["imagepath"] of stack tStack to "Old Disk:Stacks:Synthetic Stack"
+   set the uHyperCard["externals"] of stack tStack to _Lines("XFCN" & tab & "Files", "XFCN" & tab & "ResText", "XFCN" & tab & "SystemPath", "XFCN" & tab & "FindFolder")
+   create button "Files"
+   set the script of button "Files" to _Lines("on mouseUp pPath, pTypes, pWhat", "  global gHCScriptsTest", \
+         "  put Files(pPath, pTypes, pWhat) into gHCScriptsTest", "end mouseUp")
+   create button "ResText"
+   set the script of button "ResText" to _Lines("on mouseUp pType, pName, pThird", "  global gHCScriptsTest", \
+         "  put ResText(pType, pName, pThird) into gHCScriptsTest", "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   send "mouseUp" to button "Files" of stack tStack
+   TestAssert "Files on the image: the stack's folder", gHCScriptsTest is "Synthetic Stack"
+   send "mouseUp empty, empty, 3" to button "Files" of stack tStack
+   TestAssert "Files on the image: 3, its folder and its file", gHCScriptsTest is _Lines("More", "Synthetic Stack")
+   send "mouseUp " & q & "Old Disk:" & q & ", " & q & "TEXT" & q to button "Files" of stack tStack
+   TestAssert "Files on the image: the disk's top folder, a type", gHCScriptsTest is "Read Me"
+   send "mouseUp " & q & ":More" & q to button "Files" of stack tStack
+   TestAssert "Files on the image: a folder in the stack's", gHCScriptsTest is "Lost Type"
+   send "mouseUp " & q & "::" & q & ", empty, 2" to button "Files" of stack tStack
+   TestAssert "Files on the image: the folder above, its folders", gHCScriptsTest is "Stacks"
+   send "mouseUp XFCN, FileName, hex" to button "ResText" of stack tStack
+   TestAssert "ResText on the image: the stack's resource fork", gHCScriptsTest is "4E75"
+   send "mouseUp TEXT, 128, " & q & "Old Disk:Stacks:More:Lost Type" & q to button "ResText" of stack tStack
+   TestAssert "ResText on the image: a file with no resource fork", gHCScriptsTest is "Error : No resource fork"
+   _Close tStack
+
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   set the uHyperCard["image"] of stack tStack to tImage
+   set the uHyperCard["imagepath"] of stack tStack to "Old Disk:Stacks:Synthetic Stack"
+   set the uHyperCard["externals"] of stack tStack to _Lines("XFCN" & tab & "SystemPath", "XFCN" & tab & "FindFolder")
+   create button "System"
+   set the script of button "System" to _Lines("on mouseUp", "  global gHCScriptsTest", \
+         "  put SystemPath(" & q & "noDialog:errGlobal" & q & ") & " & q & "|" & q & " & FindFolder() & " & q & "|" & q & " & FindFolder(" & q & "E" & q & ") into gHCScriptsTest", \
+         "  put " & q & "|" & q & " & FindFolder(" & q & "pref" & q & ") & " & q & "|" & q & " & FindFolder(" & q & "d" & q & ") & " & q & "|" & q & " & FindFolder(" & q & "system folder" & q & ") after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & FindFolder(" & q & "zzzz" & q & ") after gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   send "mouseUp" to button "System" of stack tStack
+   put "Old Disk:System Folder:|Old Disk:System Folder:|Old Disk:System Folder:Extensions:|Old Disk:System Folder:Preferences:" \
+         & "|Old Disk:Desktop Folder:|Old Disk:System Folder:|Error : Folder not found" into tExpected
+   TestAssert "SystemPath and FindFolder: on the disk the stack came from, by letter, type and first letter", gHCScriptsTest is tExpected
+   _Close tStack
+
+   repeat for each line tText in files(tFolder & "/Sub")
+      delete file (tFolder & "/Sub/" & tText)
+   end repeat
+   delete folder (tFolder & "/Sub")
+   repeat for each line tText in files(tFolder)
+      delete file (tFolder & "/" & tText)
+   end repeat
+   delete folder tFolder
+end TestHyperCardScriptsFileExternals
+
 on TestHyperCardScriptsDialogs
    -- the library's list dialogs, Promptoid and picture windows, which it
    -- makes hidden so that they are not seen being made, are shown, and a
@@ -6006,6 +6182,84 @@ on TestHyperCardScriptsT74Repeat
    end if
    _Close tStack
 end TestHyperCardScriptsT74Repeat
+
+on TestHyperCardScriptsT76
+   -- T76: a card numbered by a sum or a difference not in parentheses,
+   -- after "of" ("put field "Season" of card it-1 into numSeasons", the
+   -- Star Trek guides' openStack), which HyperCard took for the card the
+   -- sum numbers, and this engine, in a script that compiles as it is,
+   -- for the card of the first number, adding to the value of what it
+   -- names: the sum in parentheses. A sum that goes on, an operator that
+   -- binds tighter, "&", a word that is no variable's, and a card by id,
+   -- are left as they are
+   local tScript, q, tStack, tError
+   global gHCScriptsTest
+   put quote into q
+   put _Rewrite("on mouseUp", \
+         "  get the number of cards of this stack", \
+         "  put field " & q & "Season" & q & " of card it-1 into numSeasons", \
+         "  put 2 into i", \
+         "  set name of btn i to short name of cd i-1", \
+         "  put item 1 of fld 2 of cd i+1 into n1", \
+         "  get the short name of card i + 1 of bkgnd " & q & "Saved" & q, \
+         "  if field 1 of card i+1 is empty then beep", \
+         "  put field 1 of card i+1 & return after n1", \
+         "end mouseUp") into tScript
+   TestAssert "T76: it-1, before into", line 3 of tScript is "  put field " & q & "Season" & q & " of card (it-1) into numSeasons"
+   TestAssert "T76: at the end of the statement", line 5 of tScript is "  set name of btn i to short name of cd (i-1)"
+   TestAssert "T76: a chunk of a field", line 6 of tScript is "  put item 1 of fld 2 of cd (i+1) into n1"
+   TestAssert "T76: before of a background", line 7 of tScript is "  get the short name of card (i + 1) of bkgnd " & q & "Saved" & q
+   TestAssert "T76: before is", line 8 of tScript is "  if field 1 of card (i+1) is empty then beep"
+   TestAssert "T76: before &", line 9 of tScript is "  put field 1 of card (i+1) & return after n1"
+   TestAssert "T76: those compile", _Compiles(tScript)
+
+   put _Rewrite("on mouseUp", \
+         "  put 2 into x", \
+         "  put field 1 of card x + 1 * 2 into y", \
+         "  put field 1 of card x + 1 + 1 into y", \
+         "  put field 1 of card " & q & "a" & q & " & x into y", \
+         "  put the number of card buttons + 1 into y", \
+         "  put field 1 of card id x + 1 into y", \
+         "  put field 1 of card x - length(y) into y", \
+         "  put field 1 of card x + the number of lines of y into y", \
+         "end mouseUp") into tScript
+   TestAssert "T76: left as they are", line 3 to 9 of tScript is _Lines("  put field 1 of card x + 1 * 2 into y", \
+         "  put field 1 of card x + 1 + 1 into y", "  put field 1 of card " & q & "a" & q & " & x into y", \
+         "  put the number of card buttons + 1 into y", "  put field 1 of card id x + 1 into y", \
+         "  put field 1 of card x - length(y) into y", "  put field 1 of card x + the number of lines of y into y")
+
+   -- in a stack of three cards, whose field f holds A, B and C
+   put "HCScriptsT76" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   create field "f"
+   put "A" into field "f"
+   create card
+   create field "f"
+   put "B" into field "f"
+   create card
+   create field "f"
+   put "C" into field "f"
+   go to card 1
+   create button "Cards"
+   set the script of button "Cards" to _Lines("on mouseUp", "  global gHCScriptsTest", \
+         "  get the number of cards of this stack", \
+         "  put field " & q & "f" & q & " of card it-1 into gHCScriptsTest", \
+         "  put 1 into x", \
+         "  put comma & field " & q & "f" & q & " of cd x+1 after gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   put empty into gHCScriptsTest
+   put empty into tError
+   try
+      send "mouseUp" to button "Cards" of card 1 of stack tStack
+   catch tError
+   end try
+   TestAssert "T76: the cards the sums number", tError is empty and gHCScriptsTest is "B,B"
+   _Close tStack
+end TestHyperCardScriptsT76
 
 on TestHyperCardScriptsT75
    -- T75: a select of the object or the chunk a value names, in
