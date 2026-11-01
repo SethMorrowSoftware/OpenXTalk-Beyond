@@ -1,0 +1,79 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+# The window frame check (tools/ci/window_frame_check.py: a click on a
+# stack's minimize button minimizes it, also for a stack opened the way the
+# IDE opens its menubar) with the Windows portable zip of a published
+# release, on Windows Server 2022 and 2025 (the 2025 image has Windows 11's
+# title bars). The Windows build runs the same check on the package it
+# makes; this one shows what a release does, without a build, by hand. (It
+# runs on no pull request: a release's known faults would make every one
+# red.)
+
+name: Window frame check (release)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release to check (for example v0.2.7-rc.6.11); empty for the latest one
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: window-frame-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [ -z "$TAG" ]; then
+            # the newest release whose tag is a version (not runtimes-* or prebuilts-*)
+            TAG=$(gh release list --repo "$REPO" --limit 30 --json tagName --jq '.[].tagName' | grep -E '^v[0-9]' | head -n 1)
+          fi
+          echo "Release: $TAG"
+          mkdir -p "$RUNNER_TEMP/dist"
+          gh release download "$TAG" --repo "$REPO" --pattern "*-win-x86_64-portable.zip" --dir "$RUNNER_TEMP/dist"
+          cd "$RUNNER_TEMP/dist"
+          # (pwd -W: the Windows path, for Python, in Git Bash)
+          echo "PACKAGE=$(pwd -W)/$(ls *-win-x86_64-portable.zip)" >> "$GITHUB_ENV"
+
+      - name: Window frame check
+        run: python tools/ci/window_frame_check.py --package "$PACKAGE" --platform win-x86_64 --log "$RUNNER_TEMP/window-frame-check.log"

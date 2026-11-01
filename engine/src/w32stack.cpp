@@ -256,6 +256,23 @@ public:
 	}
 };
 
+// OXT-Beyond: make Windows recompute the frame of a window whose extended
+// style changed, and drop a window region it gave the window while the
+// style was different (see MCStack::setopacity). Only for a window without
+// a windowShape: that region is the stack's own.
+static void MCWin32RefreshWindowFrame(HWND p_window)
+{
+	HRGN t_region;
+	t_region = CreateRectRgn(0, 0, 0, 0);
+	if (t_region != NULL)
+	{
+		if (GetWindowRgn(p_window, t_region) != ERROR)
+			SetWindowRgn(p_window, NULL, TRUE);
+		DeleteObject(t_region);
+	}
+	SetWindowPos(p_window, NULL, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+}
+
 // MW-2006-03-20: Bug 3316 - There seems absolutely no way of preventing flicker
 //   when transitioning from no alpha to alpha. Therefore, we need to create a new
 //   window opened *behind* the current window; show it; redraw it; then delete
@@ -291,7 +308,23 @@ void MCStack::setopacity(uint1 p_level)
 			if (IsWindowVisible((HWND)window -> handle . window) && (t_new_long & WS_EX_LAYERED) != 0)
 				t_old_window = (HWND)window -> handle . window;
 			else
+			{
 				SetWindowLong((HWND)window -> handle . window, GWL_EXSTYLE, t_new_long);
+
+				// OXT-Beyond: a stack that stops being translucent (its
+				// blendLevel back to 0) keeps the frame Windows gave it while
+				// it was layered: on Windows 11 the old themed frame region
+				// (its top corners cut) and that frame's caption-button
+				// layout, so a click on the minimize button DWM draws is
+				// tested against the old layout and lands on the title bar.
+				// The IDE's menubar opens at blendLevel 99 and is moved and
+				// sized before it goes to 0, and its minimize button did
+				// nothing. Without a windowShape a stack never has a region
+				// of its own, so drop any region and have the frame
+				// recomputed.
+				if ((t_old_long & WS_EX_LAYERED) != 0 && m_window_shape == nil)
+					MCWin32RefreshWindowFrame((HWND)window -> handle . window);
+			}
 		}
 
 		if (t_old_window != NULL)
