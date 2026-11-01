@@ -878,7 +878,7 @@ on tour_appearance_message
       set the script of card 1 of stack tStack to tHandler
       put empty into gTourAppearanceSeen
       send "systemAppearanceChanged" to card 1 of stack "revTools"
-      tourWait 500
+      tourAppearanceSettle
       if gTourAppearanceSeen is not (tStack & comma) then
          put "sent to the Tools palette, the card's handler got" && quote & gTourAppearanceSeen & quote && \
                "(the openStacks" && tourJoin(the openStacks) & ")" & return after tFails
@@ -886,7 +886,7 @@ on tour_appearance_message
       -- sent to the user's own card: once, as before
       put empty into gTourAppearanceSeen
       send "systemAppearanceChanged" to card 1 of stack tStack
-      tourWait 500
+      tourAppearanceSettle
       if gTourAppearanceSeen is not (tStack & comma) then
          put "sent to the user's card, its handler got" && quote & gTourAppearanceSeen & quote & return after tFails
       end if
@@ -895,23 +895,25 @@ on tour_appearance_message
       set the script of stack tStack to tHandler
       put empty into gTourAppearanceSeen
       send "systemAppearanceChanged" to card 1 of stack "revTools"
-      tourWait 500
+      tourAppearanceSettle
       if gTourAppearanceSeen is not (tStack & comma) then
-         put "sent to the Tools palette, the stack's handler got" && quote & gTourAppearanceSeen & quote & return after tFails
+         put "sent to the Tools palette, the stack's handler got" && quote & gTourAppearanceSeen & quote && \
+               "(the openStacks" && tourJoin(the openStacks) & ")" & return after tFails
       end if
       -- a handler written "command systemAppearanceChanged": also sent on
       set the script of stack tStack to "command systemAppearanceChanged" & return & line 2 to -1 of tHandler
       put empty into gTourAppearanceSeen
       send "systemAppearanceChanged" to card 1 of stack "revTools"
-      tourWait 500
+      tourAppearanceSettle
       if gTourAppearanceSeen is not (tStack & comma) then
-         put "sent to the Tools palette, a command handler got" && quote & gTourAppearanceSeen & quote & return after tFails
+         put "sent to the Tools palette, a command handler got" && quote & gTourAppearanceSeen & quote && \
+               "(the openStacks" && tourJoin(the openStacks) & ")" & return after tFails
       end if
       -- no handler of the user's: nothing is sent on
       set the script of stack tStack to empty
       put empty into gTourAppearanceSeen
       send "systemAppearanceChanged" to card 1 of stack "revTools"
-      tourWait 500
+      tourAppearanceSettle
       if gTourAppearanceSeen is not empty then
          put "with no handler, something got" && quote & gTourAppearanceSeen & quote & return after tFails
       end if
@@ -924,6 +926,20 @@ on tour_appearance_message
    tourRecord "INFO appearance-message:" && the number of lines of tFails && "failed"
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_appearance_message
+
+-- Waits, at most 8 seconds, until no systemAppearanceChanged and no
+-- ideSystemAppearanceChanged is pending: the IDE remakes its palettes for
+-- each one, which on a slow machine takes longer than a fixed wait
+command tourAppearanceSettle
+   local tWaited
+   put 0 into tWaited
+   repeat while tWaited < 8000
+      tourWait 100
+      add 100 to tWaited
+      if not (the pendingMessages contains "systemAppearanceChanged") then exit repeat
+   end repeat
+   tourWait 200
+end tourAppearanceSettle
 
 -- Whether the stack pStack, or a card or control of it, subscribes to the
 -- IDE's message pMessage

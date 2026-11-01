@@ -474,14 +474,15 @@ end desktopChanged
 -- the user's card or stack only ran when the switch came while that stack
 -- happened to be the default (bwmilby, openxtalk.org p=25665). When the
 -- message comes to an IDE stack, it is also sent to the current card of
--- the frontmost open stack that is not the IDE's, as a standalone sends it
--- to its own stack, but only when that card, its stack or its mainstack
--- (or one of their behaviors) handles it: a handler in a library or
--- backscript has already had this one
+-- one open stack that is not the IDE's, as a standalone sends it to its
+-- own stack: the frontmost whose card, stack or mainstack (or one of their
+-- behaviors) handles it. A stack that does not handle it is passed over (a
+-- handler in a library or backscript has already had this one), so which
+-- window happens to be in front does not decide whether it arrives
 on systemAppearanceChanged
    local tCard, tError
-   send "ideMessageSend ideSystemAppearanceChanged" to stack "revIDELibrary" in 0 milliseconds
-   -- (whatever goes wrong here, the IDE still passes the message on)
+   -- (whatever goes wrong here, the IDE still passes the message on; the
+   -- user's handler is queued before the IDE remakes its palettes)
    try
       if revIDEObjectIsOnIDEStack(the long id of the target) then
          put ideUserCardForSystemAppearance() into tCard
@@ -491,11 +492,12 @@ on systemAppearanceChanged
       end if
    catch tError
    end try
+   send "ideMessageSend ideSystemAppearanceChanged" to stack "revIDELibrary" in 0 milliseconds
    pass systemAppearanceChanged
 end systemAppearanceChanged
 
--- The current card of the frontmost open stack that is not the IDE's, if
--- it, its stack or its mainstack handles systemAppearanceChanged
+-- The current card of the frontmost open stack that is not the IDE's and
+-- whose card, stack or mainstack handles systemAppearanceChanged
 private function ideUserCardForSystemAppearance
    local tStack, tCard, tKind, tObject
    repeat for each line tStack in the openStacks
@@ -519,7 +521,6 @@ private function ideUserCardForSystemAppearance
             return tCard
          end if
       end repeat
-      return empty
    end repeat
    return empty
 end ideUserCardForSystemAppearance
