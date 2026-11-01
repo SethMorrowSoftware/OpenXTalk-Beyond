@@ -64,6 +64,23 @@ class Functions(unittest.TestCase):
         self.assertEqual(line, 'deb [signed-by=/usr/share/keyrings/raspberrypi-archive-keyring.asc] '
                                'http://archive.raspberrypi.com/debian/ trixie main')
 
+    def test_package_tarball_is_the_program_folders(self):
+        # the package artifact holds the -binaries and -symbols tar.xz too,
+        # and they sort before the program folder's (rc.6.12's first run
+        # took the -binaries one)
+        d = tempfile.mkdtemp()
+        try:
+            for name in ('OXT-Beyond-0.2.7-rc.6.12-linux-arm64-binaries.tar.xz',
+                         'OXT-Beyond-0.2.7-rc.6.12-linux-arm64-symbols.tar.xz',
+                         'OXT-Beyond-0.2.7-rc.6.12-linux-arm64.tar.xz', 'notes.txt'):
+                open(os.path.join(d, name), 'w').close()
+            found = call('package_tarball', d).stdout.strip()
+            self.assertEqual(os.path.basename(found), 'OXT-Beyond-0.2.7-rc.6.12-linux-arm64.tar.xz')
+            os.remove(found)
+            self.assertEqual(call('package_tarball', d).stdout.strip(), '')
+        finally:
+            shutil.rmtree(d)
+
     def test_sourcing_runs_nothing(self):
         result = subprocess.run(['bash', '-c', 'source "$1"; echo sourced', 'test', SCRIPT],
                                 capture_output=True, text=True)

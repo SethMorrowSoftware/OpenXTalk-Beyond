@@ -130,7 +130,8 @@ jobs:
 
       - name: Install and start it as on a Pi
         run: |
-          package=$(ls "$RUNNER_TEMP"/package/*.tar.xz | head -n 1)
+          package=$(bash -c 'source tools/ci/pi_os_check.sh; package_tarball "$1"' x "$RUNNER_TEMP/package")
+          [ -n "$package" ] || { ls -l "$RUNNER_TEMP/package"; exit 1; }
           bash tools/ci/pi_os_check.sh "$package" "$RUNNER_TEMP/out" 90
 
       - name: Print the last screenshot into the log
@@ -211,7 +212,8 @@ jobs:
         env:
           CPU: ${{ matrix.cpu }}
         run: |
-          package=$(ls "$RUNNER_TEMP"/package/*.tar.xz | head -n 1)
+          package=$(bash -c 'source tools/ci/pi_os_check.sh; package_tarball "$1"' x "$RUNNER_TEMP/package")
+          [ -n "$package" ] || { ls -l "$RUNNER_TEMP/package"; exit 1; }
           mkdir -p "$RUNNER_TEMP/out"
           docker run --rm --platform linux/arm64 --ulimit core=0 \
             -e QEMU_CPU="$CPU" \

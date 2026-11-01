@@ -72,6 +72,12 @@ print_screenshot() {
   echo "----- END $(basename "$1" .png) -----"
 }
 
+# The program folder's tar.xz in a folder (an unzipped package also holds
+# the -binaries and -symbols tar.xz, which sort before it)
+package_tarball() {
+  ls "$1"/OXT-Beyond-*-linux-arm64.tar.xz 2>/dev/null | head -n 1
+}
+
 main() {
   package=$1
   out=$2
@@ -120,10 +126,13 @@ main() {
   as_pi() { runuser -u pi -- env HOME=/home/pi "$@"; }
   (
     cd "$work" || exit 1
+    # the package's program folder, not its -binaries or -symbols tar.xz
     case $package in
-      *.zip) as_pi unzip -q "$(basename "$package")" || exit 1 ;;
+      *.zip)
+        as_pi unzip -q "$(basename "$package")" || exit 1
+        tarball=$(package_tarball .) ;;
+      *) tarball=$(basename "$package") ;;
     esac
-    tarball=$(ls OXT-Beyond-*-linux-arm64.tar.xz 2>/dev/null | head -n 1)
     [ -n "$tarball" ] || { echo "::error::no OXT-Beyond-*-linux-arm64.tar.xz in the package"; exit 1; }
     as_pi tar -xJf "$tarball" || exit 1
   ) || exit 1
