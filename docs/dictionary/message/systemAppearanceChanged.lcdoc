@@ -43,8 +43,8 @@ the <useDesktopAppearance> changes it.
 The message is sent once, to the <current card> of the <defaultStack>.
 In the development environment the <defaultStack> is often one of its own
 stacks; then the message is also sent to the <current card> of the
-frontmost open stack that is not part of the development environment, when
-that card, its stack or its main stack (or one of their behaviors) has a
+frontmost open stack that is not part of the development environment and
+whose card, stack or main stack (or one of their behaviors) has a
 <systemAppearanceChanged> handler. A handler in a library or a backscript
 gets the message wherever it is sent.
 
