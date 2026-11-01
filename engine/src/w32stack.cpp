@@ -256,21 +256,21 @@ public:
 	}
 };
 
-// OXT-Beyond: make Windows recompute the frame of a window whose extended
-// style changed, and drop a window region it gave the window while the
+// OXT-Beyond: drop a window region Windows gave a window while its extended
 // style was different (see MCStack::setopacity). Only for a window without
-// a windowShape: that region is the stack's own.
-static void MCWin32RefreshWindowFrame(HWND p_window)
+// a windowShape, whose region is the stack's own. Nothing else about the
+// window changes: a frame recalculation (SWP_FRAMECHANGED) here was seen to
+// ADD such a region on Windows Server 2022 (the CI runners), so there is
+// none.
+static void MCWin32DropWindowRegion(HWND p_window)
 {
 	HRGN t_region;
 	t_region = CreateRectRgn(0, 0, 0, 0);
-	if (t_region != NULL)
-	{
-		if (GetWindowRgn(p_window, t_region) != ERROR)
-			SetWindowRgn(p_window, NULL, TRUE);
-		DeleteObject(t_region);
-	}
-	SetWindowPos(p_window, NULL, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+	if (t_region == NULL)
+		return;
+	if (GetWindowRgn(p_window, t_region) != ERROR)
+		SetWindowRgn(p_window, NULL, TRUE);
+	DeleteObject(t_region);
 }
 
 // MW-2006-03-20: Bug 3316 - There seems absolutely no way of preventing flicker
@@ -320,10 +320,9 @@ void MCStack::setopacity(uint1 p_level)
 				// The IDE's menubar opens at blendLevel 99 and is moved and
 				// sized before it goes to 0, and its minimize button did
 				// nothing. Without a windowShape a stack never has a region
-				// of its own, so drop any region and have the frame
-				// recomputed.
+				// of its own, so drop any region it has.
 				if ((t_old_long & WS_EX_LAYERED) != 0 && m_window_shape == nil)
-					MCWin32RefreshWindowFrame((HWND)window -> handle . window);
+					MCWin32DropWindowRegion((HWND)window -> handle . window);
 			}
 		}
 

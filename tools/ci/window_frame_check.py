@@ -151,6 +151,28 @@ class Win32:
         hr = self.dwmapi.DwmGetWindowAttribute(self.wt.HWND(hwnd), 1, self.ct.byref(v), self.ct.sizeof(v))
         return bool(v.value) if hr == 0 else None
 
+    def region_experiment(self, hwnd):
+        """Remove the window's region, then recalculate its frame, reading
+        the region and the minimize button after each, and put the region
+        back as it was."""
+        out = []
+        saved = self.gdi32.CreateRectRgn(0, 0, 0, 0)
+        self.user32.GetWindowRgn(hwnd, saved)
+        self.user32.SetWindowRgn.argtypes = [self.wt.HWND, self.wt.HRGN, self.wt.BOOL]
+        self.user32.SetWindowRgn(hwnd, None, True)
+        time.sleep(0.3)
+        out.append('region removed: region %s, minimize button %s' % (self.region(hwnd), self.minimize_button(hwnd)))
+        SWP = 0x0020 | 0x0002 | 0x0001 | 0x0004 | 0x0010 | 0x0200  # FRAMECHANGED NOMOVE NOSIZE NOZORDER NOACTIVATE NOOWNERZORDER
+        self.user32.SetWindowPos.argtypes = [self.wt.HWND, self.wt.HWND, self.ct.c_int, self.ct.c_int,
+                                             self.ct.c_int, self.ct.c_int, self.wt.UINT]
+        self.user32.SetWindowPos(hwnd, None, 0, 0, 0, 0, SWP)
+        time.sleep(0.3)
+        out.append('then the frame recalculated: region %s, minimize button %s'
+                   % (self.region(hwnd), self.minimize_button(hwnd)))
+        self.user32.SetWindowRgn(hwnd, saved, True)  # the window owns it now
+        time.sleep(0.3)
+        return '; '.join(out)
+
     def themed(self):
         """Whether visual styles are on (uxtheme IsThemeActive)."""
         try:
@@ -322,6 +344,15 @@ def check_windows(w, windows, log_path, lines, problems):
     control = frames.get(STACKS[0])
     if control is None:
         return
+
+    # A window with a region it should not have: what removing the region,
+    # and then a frame recalculation, do to it (reported, for the record;
+    # the checks below see the window as the engine left it)
+    for name in STACKS:
+        f = frames.get(name)
+        if f is None or f['region'] == 'none':
+            continue
+        lines.append('INFO %s: experiment: %s' % (name, w.region_experiment(windows[name])))
 
     # A plain stack shows what this machine does: with visual styles the
     # window manager's button is where DWM draws it (Windows 10 and 11 as
