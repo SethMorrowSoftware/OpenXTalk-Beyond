@@ -82,7 +82,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -2802,6 +2802,51 @@ on tour_svg_paths
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_svg_paths
 
+-- Copy Graphics as SVG Paths copies an oval, an arc of one and a rounded
+-- rectangle as the curves the engine draws for them, not as the polygon
+-- of their effective points (OpenXTalkPaul, openxtalk.org p=25837; seth,
+-- 2026-11-01): a filled oval, a rounded rectangle, an open arc that
+-- crosses two quadrants' ends and a filled arc that crosses 0 degrees,
+-- which goes back to its centre as the engine fills it. The paths are
+-- tools/ci/tests/test_svg_paths.py's, which draws them as the engine's
+-- graphicscontext.cpp does
+on tour_svg_curves
+   local tArea, tName, tDefault, tOval, tRound, tArc, tWedge, tFails, tError
+   put "oxt_svg_curves" into tName
+   put line 1 of the working screenRects into tArea
+   tourTbMake tName, item 1 of tArea + 360, item 2 of tArea + 160, empty
+   go stack tName
+   tourOnScreen tName
+   put the defaultStack into tDefault
+   try
+      set the defaultStack to tName
+      put tourSvgGraphic("oval", "oval", "10,10,110,60", empty, "255,0,0", "0,0,255", 2) into tOval
+      put tourSvgGraphic("round", "roundrect", "130,10,230,60", empty, empty, "0,128,0", 1) into tRound
+      set the roundRadius of tRound to 30
+      put tourSvgGraphic("arc", "oval", "10,80,110,130", empty, empty, "0,0,0", 1) into tArc
+      set the startAngle of tArc to 45
+      set the arcAngle of tArc to 180
+      put tourSvgGraphic("wedge", "oval", "130,80,230,130", empty, "255,200,0", "0,0,0", 1) into tWedge
+      set the startAngle of tWedge to 300
+      set the arcAngle of tWedge to 90
+      set the clipboardData["text"] to "nothing copied"
+      revIDESelectObjects tOval & return & tRound & return & tArc & return & tWedge
+      dispatch "revMenubarObjectMenuPick" to stack "revMenuBar" with "Copy Graphics as SVG Paths"
+      revIDEDeselectAll
+      put tourSvgCurveChecks(the clipboardData["text"]) into tFails
+      put tourSvgRawChecks(the clipboardData["text"]) after tFails
+      tourShotStack tName, "04g-svg-curves"
+   catch tError
+      put tourJoin(tError) & return after tFails
+   end try
+   revIDEDeselectAll
+   set the defaultStack to tDefault
+   lock messages
+   if there is a stack tName then delete stack tName
+   unlock messages
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_svg_curves
+
 -- The Inspector sets a scrollbar's Orientation (TerryL, openxtalk.org
 -- p=25821): through revIDEPropertySet, the call the Inspector makes when
 -- its Orientation menu is changed, a horizontal scrollbar turns vertical
@@ -2968,6 +3013,47 @@ function tourSvgChecks pSVG
    end if
    return tFails
 end tourSvgChecks
+
+-- A path element as Copy Graphics as SVG Paths writes it: the data pData,
+-- filled in pFill (or "none") and stroked pWidth wide in pStroke
+function tourSvgPathLine pData, pFill, pStroke, pWidth
+   return "<path d=" & quote & pData & quote && "fill=" & quote & pFill & quote && \
+         "stroke=" & quote & pStroke & quote && "stroke-width=" & quote & pWidth & quote & "/>"
+end tourSvgPathLine
+
+-- A line for each way the SVG pSVG (the clipboard's text after Copy
+-- Graphics as SVG Paths) is not the document of tour_svg_curves' graphics:
+-- an svg element around a path each, each the engine's curves (cubic
+-- Beziers, C) to the hundredth, and a box that holds them all and their
+-- lines, from 9,9 to 231,131
+function tourSvgCurveChecks pSVG
+   local tPath, tFails
+   tourRecord "INFO svg-curves the clipboard:" && tourJoin(pSVG)
+   if pSVG is empty or pSVG is "nothing copied" then
+      return "nothing was copied (the clipboard's text is" && quote & pSVG & quote & ")" & return
+   end if
+   if not (line 1 of pSVG begins with "<svg xmlns=" & quote & "http://www.w3.org/2000/svg" & quote) then
+      put "its first line is not an svg element:" && line 1 of pSVG & return after tFails
+   end if
+   if line -1 of pSVG is not "</svg>" or the number of lines of pSVG is not 6 then
+      put "it is not an svg element around four lines:" && the number of lines of pSVG && "lines" & return after tFails
+   end if
+   if "viewBox=" & quote & "9 9 222 122" & quote is not in line 1 of pSVG then
+      put "its box is not 9 9 222 122:" && line 1 of pSVG & return after tFails
+   end if
+   repeat for each line tPath in \
+         tourSvgPathLine("M110,35 C110,21.19 87.61,10 60,10 C32.39,10 10,21.19 10,35 C10,48.81 32.39,60 60,60 " & \
+         "C87.61,60 110,48.81 110,35 Z", "rgb(255,0,0)", "rgb(0,0,255)", 2) & return & \
+         tourSvgPathLine("M215,10 C223.28,10 230,16.72 230,25 L230,45 C230,53.28 223.28,60 215,60 L145,60 " & \
+         "C136.72,60 130,53.28 130,45 L130,25 C130,16.72 136.72,10 145,10 Z", "none", "rgb(0,128,0)", 1) & return & \
+         tourSvgPathLine("M95.36,87.32 C85.98,82.63 73.26,80 60,80 C32.39,80 10,91.19 10,105 C10,111.63 15.27,117.99 24.64,122.68", \
+         "none", "rgb(0,0,0)", 1) & return & \
+         tourSvgPathLine("M205,126.65 C220.47,122.18 230,113.93 230,105 C230,100.61 227.69,96.3 223.3,92.5 L180,105 Z", \
+         "rgb(255,200,0)", "rgb(0,0,0)", 1)
+      if tPath is not among the lines of pSVG then put "it has no line" && tPath & return after tFails
+   end repeat
+   return tFails
+end tourSvgCurveChecks
 
 on tour_inspector
    local tPI, tSection, tShown, tIndex, tError
