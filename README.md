@@ -1745,6 +1745,11 @@ it squashes:
   closed", and the Standalone Settings' "Rename stackfiles generically",
   are grey when disabled like the rest; a colour saved on each that is
   never painted kept them white on Windows' dark mode (#305).
+- **Bold words run together.** On Linux the words of bold text could be
+  drawn against each other ("Threewindowsforonewelcome" in the release
+  notes): after a font file was loaded, as the IDE does when Home opens,
+  a font could be measured with another font's widths. Text measures as
+  it did before the font file (#305).
 - **Menus with no arrow.** In Windows' dark mode, option menus and combo
   boxes show their arrow; they were plain boxes (#305).
 - **Light scrollbars in the dark.** In Windows' dark mode scrollbars are

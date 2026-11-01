@@ -5502,8 +5502,9 @@ end tourControlShown
 -- MCButtonDisabledInkOnDarkTheme). tourLabelInks measures the words of the
 -- check boxes and radio buttons that show on the card of the stack pStack
 -- (those that are not opaque, so that what is behind them is the window's,
--- with words, whole in the window and in each group they are in), and
--- keeps them in sLabelInks until tourDisabledLabels compares them
+-- with words, whole in the window, in each group they are in and in the
+-- screen's working area), and keeps them in sLabelInks until
+-- tourDisabledLabels compares them
 local sLabelInks
 
 -- A step that measures starts with none kept (one that stopped on an
@@ -5513,10 +5514,11 @@ command tourLabelInksReset
 end tourLabelInksReset
 
 command tourLabelInks pStack
-   local tDefault, tControl, tWords, tOwner, tRect, tTopLeft, tImage, tBack, tRight, i, tAside
+   local tDefault, tControl, tWords, tOwner, tRect, tTopLeft, tImage, tBack, tRight, i, tAside, tArea
    put the defaultStack into tDefault
    set the defaultStack to pStack
    put tourToolsAside(the rect of stack pStack) into tAside
+   put line 1 of the working screenRects into tArea
    repeat with i = 1 to the number of buttons of this card
       if the style of button i of this card is not among the items of "checkbox,radioButton" then next repeat
       put the long id of button i of this card into tControl
@@ -5543,6 +5545,17 @@ command tourLabelInks pStack
       put globalLoc(item 1 to 2 of tRect) into tTopLeft
       put item 1 of tTopLeft, item 2 of tTopLeft, item 1 of tTopLeft + item 3 of tRect - item 1 of tRect, \
             item 2 of tTopLeft + item 4 of tRect - item 2 of tRect into tRect
+      -- whole in the screen's working area: the snapshot is of the screen,
+      -- and on the Mac runners' 1024 x 768 screen the Dock covers the
+      -- bottom of a window as tall as Standalone Settings' Android card,
+      -- whose last check box ("NFC Tag Reading") then measured the Dock's
+      -- icons, as bright as enabled words
+      if item 1 of tRect < item 1 of tArea or item 2 of tRect < item 2 of tArea or \
+            item 3 of tRect > item 3 of tArea or item 4 of tRect > item 4 of tArea then
+         tourRecord "INFO labels:" && the short name of tControl && "on" && the short name of this card && \
+               "at" && tRect && "is not whole in the working screenRect" && tArea & ", not measured"
+         next repeat
+      end if
       tourUnlockScreen "labels"
       set the defaultStack to "oxt_ui_tour"
       lock messages

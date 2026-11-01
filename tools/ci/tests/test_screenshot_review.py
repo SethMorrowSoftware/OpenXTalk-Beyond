@@ -762,6 +762,26 @@ class TheToolsPalette(unittest.TestCase):
         shot = handler(read(TOUR), 'command', 'tourShotStack')
         self.assertNotIn('tourToolsAside', shot)
 
+    def test_the_check_boxes_under_the_dock(self):
+        # The Mac runners' screen is 1024 x 768, and the Dock covers the
+        # bottom of Standalone Settings' Android card: "NFC Tag Reading"
+        # measured the Dock's icons (188 against the enabled ones' 218, the
+        # rc.6.12 pull request's Apple silicon dark tour). A check box not
+        # whole in the working screenRect is left out, and the log says so;
+        # the others are measured as before
+        body = handler(read(TOUR), 'command', 'tourLabelInks')
+        self.assertIn('put line 1 of the working screenRects into tArea', body)
+        self.assertLess(body.index('put line 1 of the working screenRects into tArea'),
+                        body.index('repeat with i = 1 to the number of buttons of this card'))
+        check = body.index('if item 1 of tRect < item 1 of tArea or item 2 of tRect < item 2 of tArea or')
+        self.assertIn('item 3 of tRect > item 3 of tArea or item 4 of tRect > item 4 of tArea then', body)
+        # in global coordinates, before the snapshot of the screen
+        self.assertLess(body.index('put globalLoc(item 1 to 2 of tRect) into tTopLeft'), check)
+        self.assertLess(check, body.index('import snapshot from rect tRect'))
+        skip = body[check:body.index('import snapshot from rect tRect')]
+        self.assertIn('"is not whole in the working screenRect"', skip)
+        self.assertIn('next repeat', skip)
+
 
 class TheTourBudget(unittest.TestCase):
     """The whole tour has the time its steps take, and each workflow step
