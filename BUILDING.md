@@ -1593,6 +1593,29 @@ python3 tools/ci/browser_wm_check.py --install <folder> --shots <folder>
 
 The Linux build runs it on its package after the browser and player check.
 
+### Raspberry Pi OS check (Linux arm64)
+
+No real Raspberry Pi runs in CI, so the workflow
+[`pi-os-check.yml`](.github/workflows/pi-os-check.yml) (Raspberry Pi OS
+check) gives the arm64 package a virtual one. With
+[`tools/ci/pi_os_check.sh`](tools/ci/pi_os_check.sh) it installs a finished
+`OXT-Beyond-linux-arm64` package as a Pi owner does: on Debian bookworm and
+trixie arm64 with the Raspberry Pi archive added and upgraded from, as
+Raspberry Pi OS is, it installs only what the install instructions name
+(GTK 2: `libgtk2.0-0`, `libgtk2.0-0t64` on trixie), checks that the
+launcher then finds every library, starts the IDE as an ordinary user
+with [`tools/ci/linux_ide_start.sh`](tools/ci/linux_ide_start.sh) (with the
+Pi desktop's GTK theme when the archive has it), and runs `install.sh` and
+the uninstall script. It does that natively on an ARM runner for both
+releases, and for bookworm under QEMU as the Pi's own CPUs, the Cortex-A53
+(Pi 3, Zero 2 W), A72 (Pi 4, 400) and A76 (Pi 5): the runners' Neoverse
+CPUs have instructions the A53 and A72 lack (Armv8.1's LSE atomics), and
+QEMU stops a program that uses one, as the Pi would. It cannot stand in
+for the Pi's GPU, its memory size or the Wayland desktop. Start it with
+Run workflow and the run ID of a Build (Linux) run (empty for the newest
+package); a pull request that changes it runs it too. Each job uploads its
+output and screenshots as `pi-os-check-<release or CPU>`.
+
 ### Web standalone check
 
 [`tools/ci/web_check.py`](tools/ci/web_check.py) makes an HTML5
