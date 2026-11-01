@@ -41,7 +41,9 @@ each window this script checks, from outside, with the Win32 API:
   3. the faded stacks' minimize buttons are placed as FramePlain's (from
      the window's top right corner), and with visual styles where DWM
      draws them;
-  4. a real click (SendInput) where a person would click, on the button
+  4. when a click into FramePlain's card reaches it (a session can take no
+     synthesized input; the clicks are then reported as skipped), a real
+     click (SendInput) where a person would click, on the button
      DWM draws with visual styles and on the window manager's without,
      minimizes each stack (IsIconic) and the stack gets iconifyStack.
 
@@ -313,6 +315,20 @@ def check_windows(w, windows, log_path, lines, problems):
         if themed:
             check(name, 'minimize button where DWM draws it', agrees(f),
                   'its %s, DWM\'s minimize %s' % (f['button'], dwm_minimize(f['dwm']) if f['dwm'] else None))
+
+    # Some sessions take no synthesized input (SendInput); a click into the
+    # plain stack's card first tells whether a click can be checked here
+    win = control['window']
+    point = ((win[0] + win[2]) // 2, (win[1] + win[3]) // 2)
+    w.bring_forward(windows[STACKS[0]])
+    w.click(*point)
+    end = time.time() + 3
+    while time.time() < end and 'CLICK ' + STACKS[0] not in read_log(log_path):
+        time.sleep(0.1)
+    if 'CLICK ' + STACKS[0] not in read_log(log_path):
+        lines.append('SKIP the clicks on the minimize buttons: a click into the plain stack\'s card at %s did '
+                     'not reach it (this session takes no synthesized clicks)' % (point,))
+        return
 
     for name in STACKS:
         f = frames.get(name)

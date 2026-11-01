@@ -25,6 +25,7 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --    OXT_FRAME_LOG   the file to append lines to: WINDOW <name> <windowID>
 --                    for each stack, READY when they are all open, an
 --                    ICONIFY <name> for each iconifyStack a stack gets,
+--                    a CLICK <name> for each mouseUp in its card,
 --                    then DONE
 --    OXT_FRAME_GO    a file window_frame_check.py writes when it is
 --                    finished with the windows; the script then quits
@@ -58,8 +59,18 @@ command frameCheckIconified pName
    logLine "ICONIFY" && pName
 end frameCheckIconified
 
+-- Called by each stack's mouseUp handler: window_frame_check.py clicks
+-- into a stack's card first, to find out whether this machine delivers its
+-- synthesized clicks at all
+command frameCheckClicked pName
+   logLine "CLICK" && pName
+end frameCheckClicked
+
 private function stackScript
-   return "on iconifyStack" & return & \
+   return "on mouseUp" & return & \
+         "   dispatch" && quote & "frameCheckClicked" & quote && "to stack" && quote & "OXTWindowFrameCheck" & quote && "with the short name of me" & return & \
+         "end mouseUp" & return & \
+         "on iconifyStack" & return & \
          "   dispatch" && quote & "frameCheckIconified" & quote && "to stack" && quote & "OXTWindowFrameCheck" & quote && "with the short name of me" & return & \
          "   pass iconifyStack" & return & \
          "end iconifyStack"
