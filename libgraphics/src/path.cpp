@@ -827,8 +827,18 @@ static void _MCGPathEllipticArc(MCGPathRef self, const MCGSize &p_radii, MCGFloa
 	}
 	else
 	{
+		// When the end points are (all but) a diameter apart, t_a is 1 give
+		// or take rounding and the numerator can come out a tiny negative:
+		// sqrtf of it is NaN, so is the centre, and the arc drew as a
+		// sliver or not at all (an SVG half circle, such as the Korean
+		// flag's). It is zero there: the centre is the mid point
+		// (OXT-Beyond).
+		MCGFloat t_numerator;
+		t_numerator = t_rx2 * t_ry2 - t_rx2 * t_y2 - t_ry2 * t_x2;
+		if (t_numerator < 0)
+			t_numerator = 0;
 		MCGFloat t_scale;
-		t_scale = sqrtf((t_rx2 * t_ry2 - t_rx2 * t_y2 - t_ry2 * t_x2) / (t_rx2 * t_y2 + t_ry2 * t_x2));
+		t_scale = sqrtf(t_numerator / (t_rx2 * t_y2 + t_ry2 * t_x2));
 		if (p_large_arc == p_sweep)
 			t_scale *= -1;
 		
@@ -915,8 +925,18 @@ static void _MCGPathEllipticArc(MCGPathRef self, const MCGSize &p_radii, MCGFloa
 	}
 	else
 	{
+		// When the end points are (all but) a diameter apart, t_a is 1 give
+		// or take rounding and the numerator can come out a tiny negative:
+		// sqrtf of it is NaN, so is the centre, and the arc drew as a
+		// sliver or not at all (an SVG half circle, such as the Korean
+		// flag's). It is zero there: the centre is the mid point
+		// (OXT-Beyond).
+		MCGFloat t_numerator;
+		t_numerator = t_rx2 * t_ry2 - t_rx2 * t_y2 - t_ry2 * t_x2;
+		if (t_numerator < 0)
+			t_numerator = 0;
 		MCGFloat t_scale;
-		t_scale = sqrtf((t_rx2 * t_ry2 - t_rx2 * t_y2 - t_ry2 * t_x2) / (t_rx2 * t_y2 + t_ry2 * t_x2));
+		t_scale = sqrtf(t_numerator / (t_rx2 * t_y2 + t_ry2 * t_x2));
 		
 		t_c = MCGPointMake(t_scale * t_radii.width * t_p.y / t_radii.height, t_scale * -t_radii.height * t_p.x / t_radii.width);
 	}

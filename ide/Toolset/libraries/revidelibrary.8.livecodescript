@@ -8321,13 +8321,14 @@ on revIDEImportControl pType, pFileName, pReferenced
    switch pType
       case "image"
          if pFileName ends with ".svg" then
-            -- SVG files can't be referenced. "styles,opacity": the colours
-            -- of the SVG's style sheet and its opacity, which the compiler
-            -- leaves out unless asked, so an SVG saved by Illustrator or
-            -- Inkscape does not come in black or opaque
+            -- SVG files can't be referenced. "all": every compile option
+            -- (the colours of the SVG's style sheet, its opacity, and ids
+            -- such as "grad-1"), which the compiler leaves out unless
+            -- asked, so an SVG saved by Illustrator, Inkscape or a minifier
+            -- does not come in black or opaque
             revIDECreateObject "com.livecode.interface.classic.image", tTargetStack, tCreatedControlLocation
             put the long id of the last control into tCreatedControlID
-            set the text of tCreatedControlID to drawingSvgCompileFile(pFileName, "styles,opacity")
+            set the text of tCreatedControlID to drawingSvgCompileFile(pFileName, "all")
          else if pReferenced is true then
             ## Create a classic image control with default properties
             ## Set the filename of the new image control to the referenced image
@@ -8457,7 +8458,7 @@ function revIDEConvertDrawingToGraphics pImage
    set the defaultStack to tDefault
    unlock messages
    unlock screen
-   return tGroup
+   return tGroup for value
 end revIDEConvertDrawingToGraphics
 
 -- The graphics of the flattened shape pShape (drawingFlatten's) in the

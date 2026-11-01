@@ -255,6 +255,11 @@ function drawingSvgCompile pXmlText, pOptions
 	end try
 end drawingSvgCompile
 
+/* The compile options of the compile running (OXT-Beyond), for the value
+ * parsers, which have no context of their own. Set at the start of every
+ * compile, so one compile's options never reach the next. */
+local sDrawingOptions
+
 private function svgImportFromArray pXmlArray, pOptions
 	local tArray
 	put pXmlArray into tArray
@@ -263,6 +268,7 @@ private function svgImportFromArray pXmlArray, pOptions
 	 * compiler does exactly what it always did. */
 	local tOptions
 	put _drawingParseOptions(pOptions) into tOptions
+	put tOptions into sDrawingOptions
 
 	/* Style sheets: the rules of every <style> element become the start of
 	 * the style attribute of each element they select, so they go through
@@ -1297,7 +1303,13 @@ private function _svgBoxPoints pPoints
 end _svgBoxPoints
 
 private function _svgBoxPath pPath
-	_internal vectorpath getbbox pPath["string"]
+	/* The engine's path reader takes the path as text, but it refuses some
+	 * that SVG allows and the parser above reads, such as an arc's flags
+	 * written together ("a1 1 0 112 0", as minifiers write them), and up to
+	 * 0.2.7-rc.6.11 its error stayed behind and failed every path after it.
+	 * So it is given the path the parser read, written out again with a
+	 * space between every number (OXT-Beyond) */
+	_internal vectorpath getbbox _svgPathText(pPath["array"])
 
 	local tBBox
 	put item 1 of the result + 0 into tBBox["left"]
@@ -1306,6 +1318,20 @@ private function _svgBoxPath pPath
 	put item 4 of the result + 0 into tBBox["bottom"]
 	return tBBox
 end _svgBoxPath
+
+/* The text of the path pPath (_svgParsePathValue's array): each command
+ * letter followed by its numbers, as the parser read them, with spaces */
+private function _svgPathText pPath
+	local tText, tIndex, tScalar
+	repeat with tIndex = 1 to the number of chars of pPath["commands"]
+		put char tIndex of pPath["commands"] after tText
+		repeat with tScalar = 1 to the number of elements in pPath["scalars"][tIndex]
+			put space & pPath["scalars"][tIndex][tScalar] after tText
+		end repeat
+		put space after tText
+	end repeat
+	return tText
+end _svgPathText
 
 /*******************************************************************************
  *
@@ -2522,7 +2548,7 @@ private function _svgParsePaintValue @xValue
 	end if
 
 	local tId, tBackup
-	if matchText(xValue, "^url\s*\(\s*#([a-zA-Z][a-zA-Z0-9]*)*\)(.*)$", tId, tBackup) then
+	if matchText(xValue, _svgUrlPattern("(.*)"), tId, tBackup) then
 		put word 1 to -1 of tBackup into tBackup
 		if tBackup is not empty and \
 			tBackup is not "none" and \
@@ -2553,9 +2579,25 @@ private function _svgParsePaintValue @xValue
 	return false
 end _svgParsePaintValue
 
+/* The pattern of a url(#id) reference, followed by pAfter. Before
+ * OXT-Beyond an id had to be letters and digits, so a reference to an id
+ * such as "grad-1" or "a_b" (which most drawing programs and minifiers
+ * write) was not one, and a gradient fill so referred to drew black. With
+ * the "ids" option an id is any run of characters an XML id can hold, and
+ * may be quoted, as CSS allows */
+private function _svgUrlPattern pAfter
+	if sDrawingOptions["ids"] then
+		return "^url\s*\(\s*['" & quote & "]?#([^\s()'" & quote & "]+)['" & quote & "]?\s*\)" & pAfter & "$"
+	end if
+	if pAfter is empty then
+		return "^url\s*\(\s*#([a-zA-Z][a-zA-Z0-9]*)\s*\)$"
+	end if
+	return "^url\s*\(\s*#([a-zA-Z][a-zA-Z0-9]*)*\)" & pAfter & "$"
+end _svgUrlPattern
+
 private function _svgParseReferenceValue @xValue
 	local tId
-	if matchText(xValue, "^url\s*\(\s*#([a-zA-Z][a-zA-Z0-9]*)\s*\)$", tId) then
+	if matchText(xValue, _svgUrlPattern(empty), tId) then
 		put tId into xValue
 		return true
 	end if
@@ -3422,9 +3464,10 @@ end _Log
  * whose values are true). An unknown name is ignored, so a script written for
  * a later version still compiles. */
 private function _drawingParseOptions pOptions
-	local tFlags, tName
+	local tFlags, tName, tFlag
 	put false into tFlags["styles"]
 	put false into tFlags["opacity"]
+	put false into tFlags["ids"]
 	if pOptions is an array then
 		repeat for each key tName in pOptions
 			if pOptions[tName] is true then
@@ -3438,8 +3481,9 @@ private function _drawingParseOptions pOptions
 		repeat for each item tName in pOptions
 			put word 1 to -1 of tName into tName
 			if tName is "all" then
-				put true into tFlags["styles"]
-				put true into tFlags["opacity"]
+				repeat for each key tFlag in tFlags
+					put true into tFlags[tFlag]
+				end repeat
 			else if tName is among the keys of tFlags then
 				put true into tFlags[tName]
 			end if
