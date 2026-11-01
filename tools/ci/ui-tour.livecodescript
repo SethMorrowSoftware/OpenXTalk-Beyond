@@ -6816,13 +6816,77 @@ on tour_ask
 end tour_ask
 
 -- The icon chooser of the inspector's icon properties, which opens it as
--- a sheet; here a palette, so that the tour need not wait on it
+-- a sheet; here a palette, so that the tour need not wait on it. The
+-- words of its Image library menu stand out from the menu: OpenXTalk Lite
+-- 1.15 saved the menu with black words on 86,84,93, and Windows and Linux
+-- draw its box in the theme's colours and its words in the button's, so
+-- in the dark appearance "Standard Icons" was black on dark grey
+-- (light-icon-chooser-menu.txt). Its words, as far as they reach, differ
+-- from the box beyond them, clear of the arrow, by 96 or more: on Linux
+-- black on the light box by 246, the theme's light words on the dark one
+-- by 174, and black on the dark one by 63.
+constant kTourMenuWordsInk = 96
+
 on tour_icon_chooser
+   local tMenu, tInk, tError
    palette stack "revIconChooser"
    tourWait 1000
+   put the long id of button "library chooser" of card 1 of stack "revIconChooser" into tMenu
+   try
+      put tourMenuWordsInk(tMenu) into tInk
+      tourRecord "INFO icon-chooser: the words of the Image library menu (" & the label of tMenu & \
+            ") differ from its box by" && tInk
+      if tInk < kTourMenuWordsInk then
+         put "the words of the icon chooser's Image library menu (" & the label of tMenu & \
+               ") can hardly be seen on it: they differ from its box by" && tInk & \
+               ", less than" && kTourMenuWordsInk into tError
+      end if
+   catch tError
+   end try
    tourShotStack "revIconChooser", "27-icon-chooser"
    close stack "revIconChooser"
+   if tError is not empty then throw tError
 end tour_icon_chooser
+
+-- The most a point of the words of the option menu pMenu differs from its
+-- box: its box half way down, between the end of its words and the 24
+-- points at its right where an arrow is drawn, and its words from 2 points
+-- in, as far as measureText says they reach and 2 more (no further than
+-- that box point), 4 points in from its top and bottom
+function tourMenuWordsInk pMenu
+   local tStack, tDefault, tRect, tTopLeft, tImage, tWords, tEnd, tFace
+   put the long owner of pMenu into tStack
+   repeat until word 1 of tStack is "stack"
+      put the long owner of tStack into tStack
+   end repeat
+   tourUnlockScreen "menu words"
+   put the defaultStack into tDefault
+   -- (globalLoc is of the defaultStack's window)
+   set the defaultStack to the short name of tStack
+   put the rect of pMenu into tRect
+   put globalLoc(item 1 to 2 of tRect) into tTopLeft
+   put item 1 of tTopLeft, item 2 of tTopLeft, \
+         item 1 of tTopLeft + item 3 of tRect - item 1 of tRect, \
+         item 2 of tTopLeft + item 4 of tRect - item 2 of tRect into tRect
+   put the label of pMenu into tWords
+   if tWords is empty then put line 1 of the text of pMenu into tWords
+   set the defaultStack to "oxt_ui_tour"
+   lock messages
+   import snapshot from rect tRect
+   put the long id of last image of card 1 of stack "oxt_ui_tour" into tImage
+   put the width of tImage into sPixWidth
+   put the height of tImage into sPixHeight
+   put the imageData of tImage into sPixData
+   delete tImage
+   unlock messages
+   set the defaultStack to tDefault
+   if sPixWidth < 1 or the number of bytes of sPixData < sPixWidth * sPixHeight * 4 then
+      throw "no pixels for the menu" && the short name of pMenu && "(" & tRect & ")"
+   end if
+   put min(4 + measureText(tWords, pMenu) + 2, sPixWidth - 24) into tEnd
+   put tourLum((tEnd + sPixWidth - 24) div 2, sPixHeight div 2) into tFace
+   return tourMaxDiff(2, 4, tEnd, sPixHeight - 4, tFace)
+end tourMenuWordsInk
 
 -- macOS: the system switched between light and dark while the IDE runs,
 -- as System Settings does it (the global AppleInterfaceStyle written, then

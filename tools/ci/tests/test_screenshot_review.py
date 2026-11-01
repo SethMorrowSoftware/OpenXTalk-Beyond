@@ -152,6 +152,15 @@ and the IDE tour's checks that hold it (tools/ci/ui-tour.livecodescript):
   are. On the released rc.6.11 IDE the step fails on the six notes (their
   words at 158 in a note at 160); with the change it passes, and
   Preferences, Standalone Settings and Search fail on nothing new.
+- The icon chooser's Image library menu read black on dark grey in the
+  dark appearance on Windows and Linux: OpenXTalk Lite 1.15 saved it with
+  black words, and those platforms draw an option menu's box in the
+  theme's colours and its words in the button's. A patch of the binary
+  stack (light-icon-chooser-menu.txt) clears the words' colour, so they
+  take the theme's. The step icon-chooser measures the menu's words on its
+  box (tourMenuWordsInk, 96 or more): on the released rc.6.11 IDE on Linux
+  they differ by 63 in the dark appearance and fail; with the patch by
+  174, and by 220 in the light one.
 - The whole tour ran past its 600 seconds on the Intel Mac (the light
   appearance, 141 snapshots) and came within a minute of it on Windows
   and the Apple silicon Mac, as the review's checks were added. It has
@@ -962,6 +971,37 @@ class TheAssistantNotes(unittest.TestCase):
             body = handler(tour, 'on', shot)
             check = body.index('get tourFieldsWhole(%s)\n      if it is not empty then tourXtaProblem it' % stack)
             self.assertLess(check, body.index('tourShotStack %s,' % stack))
+
+
+class TheIconChooserMenu(unittest.TestCase):
+    """The icon chooser's Image library menu shows its words in the
+    theme's colour."""
+
+    def test_the_patch(self):
+        entries = {(obj, prop): (frm, to) for obj, prop, frm, to in
+                   patches_of('light-icon-chooser-menu.txt')}
+        self.assertEqual(entries, {('button "library chooser" of card 1', 'foregroundColor'): ('black', '')})
+        self.assertIn('file: Toolset/palettes/reviconchooser.rev\n',
+                      read(PATCHES + ('light-icon-chooser-menu.txt',)))
+
+    def test_the_tour_measures_it(self):
+        tour = read(TOUR)
+        self.assertIn('constant kTourMenuWordsInk = 96\n', tour)
+        step = handler(tour, 'on', 'tour_icon_chooser')
+        measure = step.index('put tourMenuWordsInk(tMenu) into tInk')
+        self.assertIn('put the long id of button "library chooser" of card 1 of stack "revIconChooser" into tMenu', step)
+        self.assertLess(measure, step.index('if tInk < kTourMenuWordsInk then'))
+        # measured before the snapshot, and the window closed before a
+        # failure is thrown
+        self.assertLess(measure, step.index('tourShotStack "revIconChooser", "27-icon-chooser"'))
+        self.assertLess(step.index('close stack "revIconChooser"'), step.index('if tError is not empty then throw tError'))
+        ink = handler(tour, 'function', 'tourMenuWordsInk')
+        # the menu's own window's coordinates, then the screen's pixels
+        self.assertLess(ink.index('set the defaultStack to the short name of tStack'),
+                        ink.index('put globalLoc(item 1 to 2 of tRect) into tTopLeft'))
+        self.assertIn('import snapshot from rect tRect', ink)
+        self.assertIn('put tourLum((tEnd + sPixWidth - 24) div 2, sPixHeight div 2) into tFace', ink)
+        self.assertIn('return tourMaxDiff(2, 4, tEnd, sPixHeight - 4, tFace)', ink)
 
 
 class TheTourBudget(unittest.TestCase):
