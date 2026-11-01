@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pixel Platformer Maker · OXT-Beyond web games</title>
+<meta name="description" content="Build and play platform levels in your browser. Pixel Platformer Maker is written in xTalk Script with OXT-Beyond, with real physics from Box2Dxt.">
+<style>
+:root{--ink:#161a38;--night:#1a2042;--panel:#262e5c;--line:#3c4a86;--gold:#ffc83d;--grass:#58d060;--sky:#80f0a8;--text:#f3f4ff;--muted:#b9c0e6}
+*{box-sizing:border-box}
+html{background:var(--night)}
+body{margin:0;min-height:100vh;color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  background:repeating-linear-gradient(0deg,var(--night) 0 8px,#1e2550 8px 16px)}
+header{display:flex;align-items:center;gap:20px;flex-wrap:wrap;justify-content:space-between;max-width:1340px;margin:0 auto;padding:18px 24px 10px}
+header img{display:block;height:40px;image-rendering:pixelated}
+header p{margin:0;color:var(--muted);max-width:44ch}
+nav a{display:inline-block;margin-left:8px;padding:8px 14px;color:var(--ink);background:var(--gold);border:2px solid var(--ink);box-shadow:0 4px 0 #c17a12;font-weight:700;text-decoration:none}
+nav a:hover{filter:brightness(1.08)}
+nav a:active{transform:translateY(3px);box-shadow:0 1px 0 #c17a12}
+main{max-width:1340px;margin:0 auto;padding:0 24px 28px}
+.frame{position:relative;width:1276px;max-width:100%;overflow-x:auto;margin:0 auto;padding:4px;background:var(--gold);border:4px solid var(--ink);box-shadow:0 8px 0 var(--ink)}
+#stack{position:relative;width:1260px;height:608px;background:var(--ink)}
+#canvas{display:block;border:0;outline:0}
+#loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:var(--ink) center/cover no-repeat}
+#loading::before{content:"";position:absolute;inset:0;background:rgba(22,26,56,.72)}
+#loading>*{position:relative}
+#loading img{height:88px;image-rendering:pixelated}
+.bar{width:420px;max-width:80%;height:22px;padding:3px;background:var(--panel);border:3px solid var(--text)}
+.bar i{display:block;height:100%;width:0;background:var(--grass);transition:width .2s}
+#status{min-height:1.5em;color:var(--text);font-weight:600}
+.keys{display:flex;flex-wrap:wrap;gap:10px 22px;justify-content:center;margin:22px 0 0;padding:0;list-style:none;color:var(--muted)}
+kbd{display:inline-block;min-width:1.9em;padding:1px 7px;margin-right:3px;text-align:center;color:var(--ink);background:var(--text);border:2px solid var(--ink);box-shadow:0 3px 0 var(--muted);font:700 13px/1.5 ui-monospace,Consolas,monospace}
+.about{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;max-width:1276px;margin:26px auto 0}
+.about section{padding:14px 18px;background:var(--panel);border:3px solid var(--line)}
+.about h2{margin:0 0 6px;font-size:17px;color:var(--gold)}
+.about p{margin:0;color:var(--muted)}
+a{color:var(--gold)}
+footer{padding:0 24px 28px;text-align:center;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<header>
+  <img src="logo.png" alt="Pixel Platformer Maker">
+  <p>Build a level, press Play, and see how far you get. It runs right here in your browser.</p>
+  <nav><a href="../">All games</a><a href="../../">OXT-Beyond</a></nav>
+</header>
+<main>
+  <div class="frame">
+    <div id="stack">
+      <canvas id="canvas" width="1260" height="608" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+      <div id="loading" style="background-image:url(poster.png)">
+        <img src="logo.png" alt="">
+        <div class="bar"><i id="fill"></i></div>
+        <div id="status">Loading the game...</div>
+      </div>
+    </div>
+  </div>
+  <ul class="keys">
+    <li><kbd>&larr;</kbd><kbd>&rarr;</kbd> move</li>
+    <li><kbd>Space</kbd> jump</li>
+    <li><kbd>Shift</kbd> run</li>
+    <li><kbd>&darr;</kbd> pipe</li>
+    <li><kbd>&uarr;</kbd> door, ladder</li>
+    <li><kbd>P</kbd> pause</li>
+    <li><kbd>M</kbd> sound</li>
+    <li><kbd>N</kbd> music</li>
+  </ul>
+  <div class="about">
+    <section><h2>Make your own</h2><p>Press Learn on the title screen and Astro will walk you through your first level. Your levels stay in this browser.</p></section>
+    <section><h2>Real physics</h2><p>Crates, boulders, barrels and wrecking balls run on Box2D through the Box2Dxt extension, in WebAssembly.</p></section>
+    <section><h2>Written in xTalk</h2><p>The whole game is one <a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond">OXT-Beyond</a> stack in xTalk Script. No web code to write.</p></section>
+  </div>
+</main>
+<footer>Art and audio by <a href="https://kenney.nl">Kenney</a> (CC0). Made with OXT-Beyond, free and open source.</footer>
+<script>
+var fill = document.getElementById('fill'), statusText = document.getElementById('status'), loading = document.getElementById('loading');
+var canvas = document.getElementById('canvas');
+var Module = {
+  canvas: canvas,
+  print: function (t) { console.log(t); },
+  printErr: function (t) { console.error(t); },
+  // the engine and its Box2Dxt library come from the Stack Player beside this page
+  locateFile: function (f) { return f === 'standalone.zip' ? 'standalone.zip' : '../../player/' + f; },
+  setStatus: function (t) {
+    var m = /\((\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)\)/.exec(t || '');
+    if (m) fill.style.width = (100 * m[1] / m[2]) + '%';
+    if (t) statusText.textContent = t.replace(/\(.*\)/, '').trim() || 'Loading the game...';
+    else { fill.style.width = '100%'; setTimeout(function () { loading.style.display = 'none'; }, 800); }
+  }
+};
+window.addEventListener('error', function () { statusText.textContent = 'Something went wrong. The browser console has the details.'; });
+// the game's keys must not scroll the page
+window.addEventListener('keydown', function (e) {
+  if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].indexOf(e.key) >= 0) e.preventDefault();
+});
+canvas.addEventListener('mousedown', function () { canvas.focus(); });
+</script>
+<script async src="../../player/@ENGINE_JS@"></script>
+</body>
+</html>

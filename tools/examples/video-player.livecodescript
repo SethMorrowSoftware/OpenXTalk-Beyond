@@ -1,6 +1,6 @@
 script "OXTExampleVideoPlayer"
 -- OXT-Beyond: builds "Play a Video", the remaster of the Video Player of
--- OpenXTalk Lite's demos (ide/Resources/Examples/Video Player.oxtstack),
+-- OpenXTalk Lite's demos (tools/examples/originals/Video Player.oxtstack),
 -- which stays there as it was made. Its author is not recorded, and it
 -- names no licence. It came with the video it plays,
 -- ide/Resources/Examples/neville-segments.mp4, whose maker and licence

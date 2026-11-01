@@ -748,7 +748,18 @@ Opens Home, the web IDE's welcome stack, or brings it to the front: what
 Help > Welcome to OXT-Beyond does.
 */
 command revWebIDEShowHome
-   local tPath
+   local tPath, tError
+   -- (OXT-Beyond Home: Home, the Academy and Learn in one window)
+   put revIDESpecialFolderPath("Toolset") & "/palettes/home/revhub.livecodescript" into tPath
+   if there is a file tPath then
+      try
+         dispatch "revHubShow" to stack tPath with "home"
+         if it is "handled" then
+            exit revWebIDEShowHome
+         end if
+      catch tError
+      end try
+   end if
    if "revWebHome" is among the lines of the openStacks then
       go stack "revWebHome"
       exit revWebIDEShowHome

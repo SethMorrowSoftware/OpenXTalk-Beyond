@@ -1,7 +1,7 @@
 script "OXTExampleDataGridTour"
 -- OXT-Beyond: builds "A Data Grid Tour", the remaster of LiveCode Ltd's
 -- Data Grid Tour v1.0 (edited and debranded for open source at LiveCode
--- Ltd's request), which is in ide/Resources/Examples/Data Grid
+-- Ltd's request), which is in tools/examples/originals/Data Grid
 -- Tour.oxtstack and stays there as it was made.
 --
 -- Their tour is ten cards: the data grid beside a field and a table field,
@@ -139,7 +139,7 @@ private command readOriginal
    set the itemDelimiter to slash
    put item 1 to -4 of the filename of me into tRepo
    set the itemDelimiter to comma
-   put tRepo & "/ide/Resources/Examples/Data Grid Tour.oxtstack" into tOriginal
+   put tRepo & "/tools/examples/originals/Data Grid Tour.oxtstack" into tOriginal
    if there is no file tOriginal then
       throw "cannot find LiveCode Ltd's Data Grid Tour at " & tOriginal
    end if

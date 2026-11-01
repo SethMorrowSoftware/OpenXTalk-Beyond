@@ -2,7 +2,7 @@ script "OXTExampleScrollImage"
 -- OXT-Beyond: builds "Scroll an Image", the remaster of the demo Scroll
 -- Image from OpenXTalk Lite's demos (its author is not recorded; its
 -- standalone settings say 2013), which is in
--- ide/Resources/Examples/Scroll Image.oxtstack and stays there as its
+-- tools/examples/originals/Scroll Image.oxtstack and stays there as its
 -- author made it.
 --
 -- The original teaches one thing, in its stack script's four steps: put a
@@ -46,7 +46,7 @@ command exBuild pFolder
    set the itemDelimiter to slash
    put item 1 to -4 of the filename of me into tRepo
    set the itemDelimiter to comma
-   put tRepo & "/ide/Resources/Examples/Scroll Image.oxtstack" into tOriginal
+   put tRepo & "/tools/examples/originals/Scroll Image.oxtstack" into tOriginal
    put the text of image "ElGreco.jpg" of card 1 of stack tOriginal into sPicture
    put the htmlText of field "A" of card 2 of stack tOriginal into tFieldA
    put the label of button "Test Button" of card 2 of stack tOriginal into tButtonText

@@ -2,7 +2,7 @@ script "OXTExampleBalloonGame"
 -- OXT-Beyond: builds "Balloon Game", the remaster of LiveCode Ltd's
 -- balloon ("Balloon Adventure", 2013), the fourth sample of LiveCode
 -- Community's Start Center, which is in
--- ide/Resources/Start Center/samples/sample_4/balloon.livecode and stays
+-- tools/examples/originals/sample_4/balloon.livecode and stays
 -- there as its authors made it. LiveCode Community, and so the sample, is
 -- free software under the GNU General Public License, version 3.
 --
@@ -130,7 +130,7 @@ private command readOriginal
    set the itemDelimiter to slash
    put item 1 to -4 of the filename of me into tRepo
    set the itemDelimiter to comma
-   put tRepo & "/ide/Resources/Start Center/samples/sample_4/balloon.livecode" into tOriginal
+   put tRepo & "/tools/examples/originals/sample_4/balloon.livecode" into tOriginal
    if there is no stack tOriginal then
       throw "cannot find the original: " & tOriginal
    end if

@@ -117,6 +117,7 @@ on:
       - '.github/workflows/field-speed.yml'
       - '.github/workflows/ide-screenshots.yml'
       - '.github/workflows/media-check.yml'
+      - '.github/workflows/window-frame-check.yml'
       - '.github/workflows/release.yml'
       - '.github/workflows/runtimes.yml'
       - '.github/workflows/tag-release.yml'
@@ -146,6 +147,8 @@ on:
       - 'tools/ci/web-tests.livecodescript'
       - 'tools/ci/web_tests.py'
       - 'tools/ci/win_crashtrace.py'
+      - 'tools/ci/window-frame-check.livecodescript'
+      - 'tools/ci/window_frame_check.py'
   pull_request:
     branches: [ main ]
     paths-ignore: *build-paths-ignore

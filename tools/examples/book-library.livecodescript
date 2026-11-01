@@ -3,7 +3,7 @@ script "OXTExampleBookLibrary"
 -- sample of the Start Center, by LiveCode Ltd (its controls' ids date it to
 -- 2014), which came with LiveCode Community under the GNU General Public
 -- License, version 3. The original is in
--- ide/Resources/Start Center/samples/sample_2/BookLibrary.livecode, and it
+-- tools/examples/originals/sample_2/BookLibrary.livecode, and it
 -- stays there as LiveCode Ltd made it.
 --
 -- The sample keeps a list of books in an SQLite database: a card that says

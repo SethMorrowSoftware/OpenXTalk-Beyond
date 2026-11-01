@@ -44,7 +44,7 @@ sys.path.insert(0, PAGES)
 
 import build_pages  # noqa: E402
 
-FOLDERS = {'IDE': 'ide/', 'DICTIONARY': 'dictionary/', 'PLAYER': 'player/', 'MAP': 'map/'}
+FOLDERS = {'GAMES': 'games/', 'IDE': 'ide/', 'DICTIONARY': 'dictionary/', 'PLAYER': 'player/', 'MAP': 'map/'}
 # The links the page may make to other hosts
 EXTERNAL = {
     'https://github.com/SethMorrowSoftware/OpenXTalk-Beyond',
@@ -198,6 +198,21 @@ class TheBuiltPage(unittest.TestCase):
         self.assertEqual('href="#downloads"' in text, 'DOWNLOADS' in parts, where)
         self.assertEqual('id="downloads"' in text, 'DOWNLOADS' in parts, where)
         return text
+
+    def test_games_go_up_with_the_players_engine(self):
+        source = os.path.join(self.work, 'games-source', 'one')
+        os.makedirs(source)
+        with open(os.path.join(source, 'index.html'), 'w', encoding='utf-8') as f:
+            f.write('<script src="../../player/@ENGINE_JS@"></script>')
+        player = os.path.join(self.work, 'games-player')
+        os.makedirs(player)
+        target = os.path.join(self.work, 'games-out')
+        self.assertFalse(build_pages.games(os.path.dirname(source), target, player))
+        self.assertFalse(os.path.exists(target))
+        open(os.path.join(player, 'standalone-community-9.js'), 'w').close()
+        self.assertTrue(build_pages.games(os.path.dirname(source), target, player))
+        with open(os.path.join(target, 'one', 'index.html'), encoding='utf-8') as f:
+            self.assertIn('../../player/standalone-community-9.js', f.read())
 
     def test_every_set_of_parts(self):
         keys = list(FOLDERS) + ['DOWNLOADS']

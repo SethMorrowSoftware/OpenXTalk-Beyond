@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Web games · OXT-Beyond</title>
+<meta name="description" content="Games made with OXT-Beyond and xTalk Script, running in your browser.">
+<style>
+:root{--ink:#161a38;--night:#1a2042;--panel:#262e5c;--gold:#ffc83d;--text:#f3f4ff;--muted:#b9c0e6}
+*{box-sizing:border-box}
+html{background:var(--night)}
+body{margin:0;min-height:100vh;color:var(--text);font:17px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  background:repeating-linear-gradient(0deg,var(--night) 0 8px,#1e2550 8px 16px)}
+main{max-width:980px;margin:0 auto;padding:44px 24px}
+h1{margin:0;font-size:40px;color:var(--gold)}
+.lead{margin:6px 0 30px;color:var(--muted)}
+.game{display:block;color:inherit;text-decoration:none;background:var(--panel);border:4px solid var(--ink);box-shadow:0 8px 0 var(--ink)}
+.game:hover{border-color:var(--gold)}
+.game img{display:block;width:100%;height:auto;image-rendering:pixelated}
+.game div{padding:16px 20px}
+.game h2{margin:0;font-size:24px}
+.game p{margin:4px 0 0;color:var(--muted)}
+.back{display:inline-block;margin-top:26px;color:var(--gold)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Web games</h1>
+  <p class="lead">Made with OXT-Beyond and xTalk Script, running in your browser with nothing to install.</p>
+  <a class="game" href="pixel-maker/">
+    <img src="pixel-maker/poster.png" alt="Pixel Platformer Maker: a level with crates, a boulder, a barrel and a wrecking ball">
+    <div>
+      <h2>Pixel Platformer Maker</h2>
+      <p>A platformer and level maker with real Box2Dxt physics. Play eight levels, then build your own.</p>
+    </div>
+  </a>
+  <a class="back" href="../">Back to OXT-Beyond</a>
+</main>
+</body>
+</html>
