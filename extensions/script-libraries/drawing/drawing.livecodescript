@@ -4630,4 +4630,202 @@ private function _drawingTransformPoints pRun, pMatrix
 	return tPoints
 end _drawingTransformPoints
 
+/*******************************************************************************
+ *
+ *  DRAWING TO SVG (OXT-Beyond)
+ *
+ ******************************************************************************/
+
+/**
+Turn a drawing back into SVG.
+
+Example:
+set the clipboardData["text"] to drawingSvgDecompile(the text of image "logo")
+
+Description:
+Use <drawingSvgDecompile> to get SVG text from a drawing, the binary string
+that <drawingSvgCompile> and <drawingSvgCompileFile> make and that an image
+made from an SVG holds as its text. The drawing does not keep the SVG it was
+made from, so this is a new SVG that draws the same: every shape with its
+transform, colors, gradients, opacity and line style written out on it, and
+each path's data with absolute commands. Groups, ids, classes, style sheets and
+anything the compiler left out of the drawing are not in it.
+
+Parameters:
+
+pDrawing (data):
+A drawing, such as the text of an image made from an SVG.
+
+Returns (string):
+An SVG document, or empty if pDrawing is not a drawing.
+
+The result:
+An error string if pDrawing is not a drawing or is damaged.
+
+References: drawingDecode (function), drawingSvgCompile (function)
+*/
+function drawingSvgDecompile pDrawing
+	local tDrawing, tDefs, tBody, tShape, tAttributes, tGradientCount, tSvg
+	put drawingDecode(pDrawing) into tDrawing
+	if the result is not empty then
+		return the result for error
+	end if
+	put 0 into tGradientCount
+	repeat for each element tShape in tDrawing["shapes"]
+		put empty into tAttributes
+		switch tShape["type"]
+		case "rect"
+			put _drawingSvgAttribute("x", tShape["x"]) & _drawingSvgAttribute("y", tShape["y"]) & \
+					_drawingSvgAttribute("width", tShape["width"]) & _drawingSvgAttribute("height", tShape["height"]) into tAttributes
+			if tShape["rx"] > 0 or tShape["ry"] > 0 then
+				put _drawingSvgAttribute("rx", tShape["rx"]) & _drawingSvgAttribute("ry", tShape["ry"]) after tAttributes
+			end if
+			break
+		case "circle"
+			put _drawingSvgAttribute("cx", tShape["cx"]) & _drawingSvgAttribute("cy", tShape["cy"]) & \
+					_drawingSvgAttribute("r", tShape["r"]) into tAttributes
+			break
+		case "ellipse"
+			put _drawingSvgAttribute("cx", tShape["cx"]) & _drawingSvgAttribute("cy", tShape["cy"]) & \
+					_drawingSvgAttribute("rx", tShape["rx"]) & _drawingSvgAttribute("ry", tShape["ry"]) into tAttributes
+			break
+		case "line"
+			put _drawingSvgAttribute("x1", tShape["x1"]) & _drawingSvgAttribute("y1", tShape["y1"]) & \
+					_drawingSvgAttribute("x2", tShape["x2"]) & _drawingSvgAttribute("y2", tShape["y2"]) into tAttributes
+			break
+		case "polyline"
+		case "polygon"
+			put _drawingSvgAttribute("points", tShape["points"]) into tAttributes
+			break
+		case "path"
+			put _drawingSvgAttribute("d", tShape["d"]) into tAttributes
+			break
+		end switch
+		if tShape["transform"] is not empty then
+			put _drawingSvgAttribute("transform", "matrix(" & _drawingSvgList(tShape["transform"]) & ")") after tAttributes
+		end if
+		put _drawingSvgPaint("fill", tShape["fill"], tShape["fill-opacity"], tDefs, tGradientCount) after tAttributes
+		if tShape["fill-rule"] is "evenodd" then
+			put _drawingSvgAttribute("fill-rule", "evenodd") after tAttributes
+		end if
+		put _drawingSvgPaint("stroke", tShape["stroke"], tShape["stroke-opacity"], tDefs, tGradientCount) after tAttributes
+		if tShape["stroke"]["type"] is not "none" then
+			put _drawingSvgAttribute("stroke-width", tShape["stroke-width"]) after tAttributes
+			if tShape["stroke-linejoin"] is not "miter" then
+				put _drawingSvgAttribute("stroke-linejoin", tShape["stroke-linejoin"]) after tAttributes
+			end if
+			if tShape["stroke-linecap"] is not "butt" then
+				put _drawingSvgAttribute("stroke-linecap", tShape["stroke-linecap"]) after tAttributes
+			end if
+			if tShape["stroke-miterlimit"] is not 4 then
+				put _drawingSvgAttribute("stroke-miterlimit", tShape["stroke-miterlimit"]) after tAttributes
+			end if
+			if tShape["stroke-dasharray"] is not empty then
+				put _drawingSvgAttribute("stroke-dasharray", _drawingSvgList(tShape["stroke-dasharray"])) after tAttributes
+				if tShape["stroke-dashoffset"] is not 0 then
+					put _drawingSvgAttribute("stroke-dashoffset", tShape["stroke-dashoffset"]) after tAttributes
+				end if
+			end if
+		end if
+		put "  <" & tShape["type"] & tAttributes & "/>" & return after tBody
+	end repeat
+
+	put "<svg xmlns=" & quote & "http://www.w3.org/2000/svg" & quote & \
+			_drawingSvgAttribute("width", tDrawing["width"]) & _drawingSvgAttribute("height", tDrawing["height"]) & \
+			_drawingSvgAttribute("viewBox", "0 0" && tDrawing["width"] && tDrawing["height"]) & ">" & return into tSvg
+	if tDefs is not empty then
+		put "  <defs>" & return & tDefs & "  </defs>" & return after tSvg
+	end if
+	put tBody & "</svg>" & return after tSvg
+	return tSvg
+end drawingSvgDecompile
+
+private function _drawingSvgAttribute pName, pValue
+	replace "&" with "&amp;" in pValue
+	replace quote with "&quot;" in pValue
+	replace "<" with "&lt;" in pValue
+	return space & pName & "=" & quote & pValue & quote
+end _drawingSvgAttribute
+
+/* A list separated by commas, as SVG writes it: separated by spaces. */
+private function _drawingSvgList pList
+	replace comma with space in pList
+	return pList
+end _drawingSvgList
+
+/* _drawingSvgColor returns the color red,green,blue (0 to 1) as #rrggbb. */
+private function _drawingSvgColor pColor
+	local tHex, tIndex, tByte
+	put "#" into tHex
+	repeat with tIndex = 1 to 3
+		put format("%02x", max(0, min(255, round(item tIndex of pColor * 255)))) after tHex
+	end repeat
+	return tHex
+end _drawingSvgColor
+
+/* _drawingSvgPaint returns the attributes of a fill or stroke (pWhich) for
+ * the paint pPaint and opacity pOpacity, adding a gradient's element to xDefs.
+ * A color's own alpha is multiplied into the opacity. */
+private function _drawingSvgPaint pWhich, pPaint, pOpacity, @xDefs, @xGradientCount
+	local tAttributes, tId, tStop, tElement, tStops
+	if pOpacity is not a number then
+		put 1 into pOpacity
+	end if
+	switch pPaint["type"]
+	case "none"
+		return _drawingSvgAttribute(pWhich, "none")
+	case "current"
+		put _drawingSvgAttribute(pWhich, "currentColor") into tAttributes
+		break
+	case "color"
+		put _drawingSvgAttribute(pWhich, _drawingSvgColor(pPaint["color"])) into tAttributes
+		multiply pOpacity by item 4 of pPaint["color"]
+		break
+	case "linear"
+	case "radial"
+	case "conical"
+		add 1 to xGradientCount
+		put "g" & xGradientCount into tId
+		repeat for each line tStop in pPaint["stops"]
+			put "      <stop" & _drawingSvgAttribute("offset", item 1 of tStop) & \
+					_drawingSvgAttribute("stop-color", _drawingSvgColor(item 2 to 4 of tStop)) into tElement
+			if item 5 of tStop is not 1 then
+				put _drawingSvgAttribute("stop-opacity", _drawingNumber(item 5 of tStop)) after tElement
+			end if
+			put tElement & "/>" & return after tStops
+		end repeat
+		if pPaint["type"] is "linear" then
+			put "    <linearGradient" & _drawingSvgAttribute("id", tId) & \
+					_drawingSvgAttribute("x1", 0) & _drawingSvgAttribute("y1", 0) & \
+					_drawingSvgAttribute("x2", 1) & _drawingSvgAttribute("y2", 0) into tElement
+		else
+			put "    <radialGradient" & _drawingSvgAttribute("id", tId) & \
+					_drawingSvgAttribute("cx", 0) & _drawingSvgAttribute("cy", 0) & _drawingSvgAttribute("r", 1) into tElement
+			if pPaint["type"] is "conical" then
+				put _drawingSvgAttribute("fx", pPaint["fx"]) & _drawingSvgAttribute("fy", pPaint["fy"]) & \
+						_drawingSvgAttribute("fr", pPaint["fr"]) after tElement
+			end if
+		end if
+		put _drawingSvgAttribute("gradientUnits", "userSpaceOnUse") after tElement
+		if pPaint["transform"] is not "1,0,0,1,0,0" then
+			put _drawingSvgAttribute("gradientTransform", "matrix(" & _drawingSvgList(pPaint["transform"]) & ")") after tElement
+		end if
+		if pPaint["spread"] is not "pad" then
+			put _drawingSvgAttribute("spreadMethod", pPaint["spread"]) after tElement
+		end if
+		put tElement & ">" & return & tStops after xDefs
+		if pPaint["type"] is "linear" then
+			put "    </linearGradient>" & return after xDefs
+		else
+			put "    </radialGradient>" & return after xDefs
+		end if
+		put _drawingSvgAttribute(pWhich, "url(#" & tId & ")") into tAttributes
+		break
+	end switch
+	if pOpacity < 1 then
+		put _drawingSvgAttribute(pWhich & "-opacity", _drawingNumber(pOpacity)) after tAttributes
+	end if
+	return tAttributes
+end _drawingSvgPaint
+
 /******************************************************************************/
