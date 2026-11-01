@@ -15,7 +15,7 @@
 # along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
 
 """The SVG Lab page on the GitHub Pages site (tools/pages/games/svg-lab). The
-page runs its standalone.zip on the Stack Player's engine, gives the stack the
+page runs its standalone.zip on its own copy of the engine, gives the stack the
 two file functions it calls in place of the desktop's dialogs, and is listed
 on the games page; its sample art is well formed and uses the features the
 lab shows.
@@ -40,10 +40,13 @@ def read(*path):
 
 
 class SvgLabPage(unittest.TestCase):
-    def test_the_page_uses_the_players_engine(self):
+    def test_the_page_brings_its_own_engine(self):
         page = read(LAB, 'index.html')
-        self.assertIn('../../player/@ENGINE_JS@', page)
-        self.assertIn("'../../player/' + f", page)
+        name = 'standalone-community-9.7.1-BeyondEngine'
+        self.assertIn('src="%s.js"' % name, page)
+        self.assertNotIn('../../player/', page)
+        self.assertTrue(os.path.isfile(os.path.join(LAB, name + '.js')))
+        self.assertTrue(os.path.isfile(os.path.join(LAB, name + '.wasm')))
 
     def test_the_page_answers_the_stacks_file_buttons(self):
         page = read(LAB, 'index.html')
@@ -81,7 +84,8 @@ class SvgLabPage(unittest.TestCase):
         self.assertNotIn('<text', text)
         self.assertIn('<style>', text)
         self.assertIn('url(#bolt.gold)', text)
-        self.assertIn('clip-path=', text)
+        self.assertIn('url(#oxt.letters)', text)
+        self.assertIn('@SHINE@', read(LAB, 'beyond-logo-live.svg'))
 
 
 if __name__ == '__main__':

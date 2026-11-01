@@ -38,7 +38,7 @@ footer{padding:0 24px 28px;text-align:center;color:var(--muted);font-size:14px}
 <header>
   <div>
     <h1>SVG Lab</h1>
-    <p>Every new SVG feature in OXT-Beyond, and the tests that prove them. It runs right here in your browser.</p>
+    <p>Every new SVG feature in OXT-Beyond, opening with our logo as live SVG. It runs right here in your browser.</p>
   </div>
   <nav><a href="../">All demos</a><a href="../../">OXT-Beyond</a></nav>
 </header>
@@ -66,8 +66,8 @@ var Module = {
   canvas: canvas,
   print: function (t) { console.log(t); },
   printErr: function (t) { console.error(t); },
-  // the engine comes from the Stack Player beside this page
-  locateFile: function (f) { return f === 'standalone.zip' ? 'standalone.zip' : '../../player/' + f; },
+  // this page brings its own rc.6.12 engine until the Stack Player has it
+  locateFile: function (f) { return f; },
   setStatus: function (t) {
     var m = /\((\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)\)/.exec(t || '');
     if (m) fill.style.width = (100 * m[1] / m[2]) + '%';
@@ -98,6 +98,6 @@ function oxtSaveSvg(base64) {
   a.click();
 }
 </script>
-<script async src="../../player/@ENGINE_JS@"></script>
+<script async src="standalone-community-9.7.1-BeyondEngine.js"></script>
 </body>
 </html>
