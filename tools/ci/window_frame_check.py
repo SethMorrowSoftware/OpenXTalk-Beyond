@@ -30,13 +30,20 @@ decorations, moved and sized, given its decorations, then blendLevel 0);
 and FrameFadedTitled, at blendLevel 99 with its decorations, then 0. For
 each window this script checks, from outside, with the Win32 API:
 
-  1. the window has no window region (GetWindowRgn): a stack without a
+  1. FramePlain shows what the machine does: with visual styles on (Windows
+     10 and 11 as people use them) the window manager has its minimize
+     button where DWM draws it (WM_GETTITLEBARINFOEX against
+     DWMWA_CAPTION_BUTTON_BOUNDS); without (the Windows Server sessions of
+     the CI runners) it has the classic, smaller one, which is then what a
+     click hits;
+  2. no stack has a window region (GetWindowRgn): a stack without a
      windowShape never sets one;
-  2. where the window manager says its minimize button is (the title bar
-     information, WM_GETTITLEBARINFOEX) is where DWM draws it
-     (DWMWA_CAPTION_BUTTON_BOUNDS), when DWM draws the buttons;
-  3. a real click (SendInput) on the minimize button DWM draws minimizes
-     the window (IsIconic) and the stack gets iconifyStack.
+  3. the faded stacks' minimize buttons are placed as FramePlain's (from
+     the window's top right corner), and with visual styles where DWM
+     draws them;
+  4. a real click (SendInput) where a person would click, on the button
+     DWM draws with visual styles and on the window manager's without,
+     minimizes each stack (IsIconic) and the stack gets iconifyStack.
 
 Up to OXT-Beyond 0.2.7-rc.6.11 the IDE's menubar kept the region and
 caption-button layout Windows gave it while it was translucent, so a click
@@ -129,6 +136,13 @@ class Win32:
 
         self.TITLEBARINFOEX, self.INPUT = TITLEBARINFOEX, INPUT
 
+    def themed(self):
+        """Whether visual styles are on (uxtheme IsThemeActive)."""
+        try:
+            return bool(self.ct.WinDLL('uxtheme').IsThemeActive())
+        except (OSError, AttributeError):
+            return False
+
     @staticmethod
     def rect(r):
         return (r.left, r.top, r.right, r.bottom)
@@ -201,46 +215,113 @@ def wait_for(path, word, seconds):
     return read_log(path)
 
 
-def check_window(w, name, hwnd, log_path, lines, problems):
-    def check(what, ok, detail):
-        line = '%s %s: %s (%s)' % ('PASS' if ok else 'FAIL', name, what, detail)
-        lines.append(line)
-        if not ok:
-            problems.append(line[5:])
-
-    region = w.region(hwnd)
-    check('no window region', region in ('none',), 'GetWindowRgn: %s' % region)
-
+def frame_of(w, hwnd):
+    """What the window manager and DWM say of a window's frame: its region,
+    and its minimize button and DWM's caption buttons relative to the
+    window's top right corner (so windows of different sizes compare)."""
+    win = w.window_rect(hwnd)
     button = w.minimize_button(hwnd)
     dwm = w.dwm_buttons(hwnd)
-    lines.append('INFO %s: window %s, minimize button %s, DWM caption buttons %s'
-                 % (name, w.window_rect(hwnd), button, dwm))
-    if dwm is None:
-        lines.append('INFO %s: DWM draws no caption buttons here; clicking the window manager\'s own' % name)
-        target = button
-    else:
-        # DWM draws minimize, maximize (greyed when there is no maximize
-        # box) and close, the same width each
-        third = (dwm[2] - dwm[0]) // 3
-        target = (dwm[0], dwm[1], dwm[0] + third, dwm[3])
-        centre = (button[0] + button[2]) // 2
-        check('minimize button where DWM draws it', target[0] <= centre < target[2],
-              'its centre x %d, DWM\'s minimize %d..%d' % (centre, target[0], target[2]))
 
+    def rel(r):
+        return None if r is None else (r[0] - win[2], r[1] - win[1], r[2] - win[2], r[3] - win[1])
+    return {'window': win, 'region': w.region(hwnd), 'button': button, 'dwm': dwm,
+            'button_rel': rel(button), 'dwm_rel': rel(dwm)}
+
+
+def dwm_minimize(dwm):
+    """DWM draws minimize, maximize (greyed when there is no maximize box)
+    and close, the same width each: the first third."""
+    third = (dwm[2] - dwm[0]) // 3
+    return (dwm[0], dwm[1], dwm[0] + third, dwm[3])
+
+
+def agrees(f):
+    """Whether the window manager's minimize button is where DWM draws it."""
+    if f['dwm'] is None:
+        return True
+    target = dwm_minimize(f['dwm'])
+    centre = (f['button'][0] + f['button'][2]) // 2
+    return target[0] <= centre < target[2]
+
+
+def click_target(f, themed):
+    """Where a person clicks: the button DWM draws, or with no visual styles
+    (where the window manager's own smaller buttons are what is hit-tested,
+    as on the CI runners) the window manager's button."""
+    r = dwm_minimize(f['dwm']) if themed and f['dwm'] is not None else f['button']
+    return (r[0] + r[2]) // 2, (r[1] + r[3]) // 2
+
+
+def click_minimize(w, name, hwnd, point, log_path):
     before = len([x for x in read_log(log_path) if x == 'ICONIFY ' + name])
     w.bring_forward(hwnd)
-    w.click((target[0] + target[2]) // 2, (target[1] + target[3]) // 2)
+    w.click(*point)
     end = time.time() + 3
     while time.time() < end and not w.user32.IsIconic(hwnd):
         time.sleep(0.1)
     iconic = bool(w.user32.IsIconic(hwnd))
     time.sleep(0.5)
     got = len([x for x in read_log(log_path) if x == 'ICONIFY ' + name]) > before
-    check('a click on the minimize button minimizes it', iconic and got,
-          'IsIconic %s, iconifyStack %s' % (iconic, 'received' if got else 'not received'))
     if iconic:
         w.user32.ShowWindow(hwnd, w.SW_RESTORE)
         time.sleep(0.5)
+    return iconic, got
+
+
+def check_windows(w, windows, log_path, lines, problems):
+    def check(name, what, ok, detail):
+        line = '%s %s: %s (%s)' % ('PASS' if ok else 'FAIL', name, what, detail)
+        lines.append(line)
+        if not ok:
+            problems.append(line[5:])
+
+    frames = {}
+    for name in STACKS:
+        hwnd = windows.get(name)
+        if not hwnd or not w.user32.IsWindow(hwnd):
+            problems.append('%s: no window (%s)' % (name, hwnd))
+            continue
+        frames[name] = frame_of(w, hwnd)
+        f = frames[name]
+        lines.append('INFO %s: window %s, region %s, minimize button %s, DWM caption buttons %s'
+                     % (name, f['window'], f['region'], f['button'], f['dwm']))
+    control = frames.get(STACKS[0])
+    if control is None:
+        return
+
+    # A plain stack shows what this machine does: with visual styles the
+    # window manager's button is where DWM draws it (Windows 10 and 11 as
+    # people use them); without (the CI runners' Windows Server sessions)
+    # it is the classic, smaller one, and that is what a click hits
+    themed = w.themed() and agrees(control)
+    lines.append('INFO visual styles %s; the plain stack\'s minimize button %s where DWM draws it'
+                 % ('on' if w.themed() else 'off', 'is' if agrees(control) else 'is not'))
+    check(STACKS[0], 'no window region', control['region'] == 'none', 'GetWindowRgn: %s' % control['region'])
+
+    for name in STACKS[1:]:
+        f = frames.get(name)
+        if f is None:
+            continue
+        # A stack opened translucent must end with the frame of one that
+        # never was
+        check(name, 'no window region', f['region'] == control['region'],
+              'GetWindowRgn: %s, the plain stack\'s: %s' % (f['region'], control['region']))
+        same = all(abs(a - b) <= 2 for a, b in zip(f['button_rel'], control['button_rel']))
+        check(name, 'minimize button placed as the plain stack\'s', same,
+              'from the top right corner %s, the plain stack\'s %s' % (f['button_rel'], control['button_rel']))
+        if themed:
+            check(name, 'minimize button where DWM draws it', agrees(f),
+                  'its %s, DWM\'s minimize %s' % (f['button'], dwm_minimize(f['dwm']) if f['dwm'] else None))
+
+    for name in STACKS:
+        f = frames.get(name)
+        if f is None:
+            continue
+        point = click_target(f, themed)
+        iconic, got = click_minimize(w, name, windows[name], point, log_path)
+        check(name, 'a click on the minimize button minimizes it', iconic and got,
+              'clicked at %s: IsIconic %s, iconifyStack %s' % (point, iconic, 'received' if got else 'not received'))
 
 
 def main(argv=None):
@@ -287,13 +368,7 @@ def main(argv=None):
                 if x.startswith('WINDOW '):
                     parts = x.split()
                     windows[parts[1]] = int(parts[2])
-            w = Win32()
-            for name in STACKS:
-                hwnd = windows.get(name)
-                if not hwnd or not w.user32.IsWindow(hwnd):
-                    problems.append('%s: no window (%s)' % (name, hwnd))
-                    continue
-                check_window(w, name, hwnd, log_path, lines, problems)
+            check_windows(Win32(), windows, log_path, lines, problems)
         with open(go_path, 'w') as f:
             f.write('go\n')
         try:

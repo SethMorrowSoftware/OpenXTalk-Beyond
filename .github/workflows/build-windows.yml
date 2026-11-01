@@ -1075,6 +1075,17 @@ jobs:
           name: OXT-Beyond-win-x86_64
           path: ${{ runner.temp }}/dist
 
+      # Windows Server leaves the Themes service off, so windows have the
+      # classic frame; start it, so that the check sees visual styles as
+      # people do (it reports whether they are on)
+      - name: Turn on visual styles
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Set-Service -Name Themes -StartupType Automatic
+          Start-Service -Name Themes
+          Get-Service -Name Themes
+
       - name: Window frame check
         run: |
           cd "$RUNNER_TEMP/dist"
