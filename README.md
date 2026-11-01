@@ -1688,6 +1688,9 @@ it squashes:
 - **Sparkles on the words.** The sparkles of a How-to or Academy page's
   banner keep off its words and buttons; in a narrow window they landed
   on the title (#305).
+- **Icons you could not see.** On Linux with a dark theme, the icons of
+  the Standalone Settings' Inclusions card are dark on its light rows;
+  they were white (#305).
 - **Disabled buttons that looked enabled.** On a dark Windows or Linux
   theme a disabled button's label is a dim grey; on Windows' dark mode it
   was etched in white and read as enabled, and on a dark GTK theme it all

@@ -36,6 +36,11 @@ and the IDE tour's checks that hold it (tools/ci/ui-tour.livecodescript):
   ("idea at a time", "Tom Perry"). They are not drawn on the banner's
   words or buttons (lkTextZones, lkInZones); the steps learn and academy
   look for one that is.
+- The icons of the Standalone Settings' Inclusions card took the engine's
+  colour, which on Linux is the GTK theme's: white with a dark theme, on
+  the rows the IDE draws light and white. They take the colour of the
+  row's name (revIDEColor "text_1"); the step standalone-settings measures
+  each icon on its row.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -55,6 +60,8 @@ SE_SCRIPTS = ('stack-scripts', 'ide', 'Toolset', 'palettes', 'script editor', 'r
 SE_COPIES = ('stack_revSETemplate_group_id_53759.livecodescript',
              'stack_revNewScriptEditor_1_group_id_53759.livecodescript')
 PATCHES = ('tools', 'oxt', 'ide-stack-patches')
+INCLUSIONS_ROW = ('ide', 'Toolset', 'palettes', 'standalone settings',
+                  'revstandalonesettingsinclusionsrowbehavior.livecodescript')
 
 
 def read(parts):
@@ -192,6 +199,29 @@ class TheSparkles(unittest.TestCase):
         check = handler(tour, 'function', 'tourHeroSparklesClear')
         self.assertIn('repeat with tPass = 1 to 5', check)
         self.assertIn('the formattedWidth of field tName of this card', check)
+
+
+class TheInclusionIcons(unittest.TestCase):
+    """The Inclusions card's icons are in the colour of their row's name."""
+
+    def test_the_row(self):
+        layout = handler(read(INCLUSIONS_ROW), 'on', 'LayoutControl')
+        name = 'set the textColor of line 1 of field "description" of me to revIDEColor("text_1")'
+        icon = 'set the foregroundColor of widget "icon" of me to revIDEColor("text_1")'
+        self.assertIn(name, layout)
+        self.assertIn(icon, layout)
+        self.assertLess(layout.index(name), layout.index(icon))
+
+    def test_the_tour_measures_it(self):
+        tour = read(TOUR)
+        step = handler(tour, 'on', 'tour_standalone_settings')
+        self.assertIn('if tCard is "Inclusions" then\n         get tourInclusionIcons(tStack)\n'
+                      '         if it is not empty then throw it', step)
+        check = handler(tour, 'function', 'tourInclusionIcons')
+        self.assertIn('if the name of control i is not ("widget" && quote & "icon" & quote) then next repeat', check)
+        self.assertIn('export snapshot from rect tRect to tData as PNG', check)
+        self.assertIn('if tMax < 64 then', check)
+        self.assertIn('if tRects is empty then return "the Inclusions card shows no icons"', check)
 
 
 if __name__ == '__main__':

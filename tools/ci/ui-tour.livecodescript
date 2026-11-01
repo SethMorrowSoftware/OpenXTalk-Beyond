@@ -4203,6 +4203,68 @@ end tourHeroSparklesClear
 -- field's background colour, and the index, with none, took the dark
 -- window's in the dark appearance (dark words on violet). Empty, or why
 -- not; pWhat names the window.
+-- The Inclusions card of the Standalone Settings: each row's icon is seen
+-- on its row. Its icon took the engine's colour, which on Linux is the GTK
+-- theme's: white with a dark theme, on the light rows of the IDE's light
+-- appearance (revstandalonesettingsinclusionsrowbehavior). For each icon
+-- on the screen, the most a point of it differs from its row, a point
+-- left of it: 64 or more. Empty, or what failed
+function tourInclusionIcons pStack
+   local tDefault, tRects, tTop, tRect, tData, tW, tH, tBack, tMax, tAt, tLum, tX, tY, tCount, tFails, i
+   put the defaultStack into tDefault
+   set the defaultStack to pStack
+   put the bottom of group "cards" of this card into tTop
+   repeat with i = 1 to the number of controls of this card
+      if the name of control i is not ("widget" && quote & "icon" & quote) then next repeat
+      if not the visible of control i then next repeat
+      put the rect of control i into tRect
+      -- the rows the list shows (the list keeps a row of its own off to
+      -- the right)
+      if item 2 of tRect < tTop + 2 or item 4 of tRect > the height of this stack - 2 then next repeat
+      if item 1 of tRect < 0 or item 3 of tRect > the width of this stack then next repeat
+      put item 1 of the rect of stack pStack + item 1 of tRect - 8, item 2 of the rect of stack pStack + item 2 of tRect, \
+            item 1 of the rect of stack pStack + item 3 of tRect, item 2 of the rect of stack pStack + item 4 of tRect \
+            & return after tRects
+   end repeat
+   set the defaultStack to tDefault
+   if tRects is empty then return "the Inclusions card shows no icons"
+   tourUnlockScreen "the Inclusions card's icons"
+   put 0 into tCount
+   repeat for each line tRect in tRects
+      add 1 to tCount
+      try
+         export snapshot from rect tRect to tData as PNG
+      catch tData
+         put "icon" && tCount && "at" && tRect && "(no snapshot:" && tourJoin(tData) & ")" & return after tFails
+         next repeat
+      end try
+      lock messages
+      create invisible image "oxt_tour_probe" in card 1 of stack "oxt_ui_tour"
+      set the text of image "oxt_tour_probe" of stack "oxt_ui_tour" to tData
+      put the width of image "oxt_tour_probe" of stack "oxt_ui_tour" into tW
+      put the height of image "oxt_tour_probe" of stack "oxt_ui_tour" into tH
+      put the imageData of image "oxt_tour_probe" of stack "oxt_ui_tour" into tData
+      delete image "oxt_tour_probe" of stack "oxt_ui_tour"
+      unlock messages
+      -- the row, left of the icon; the icon, from 8 points in (on a Mac's
+      -- Retina screen the snapshot has two pixels a point)
+      put ((tH div 2) * tW + 2) * 4 into tAt
+      put (byteToNum(byte tAt + 2 of tData) + byteToNum(byte tAt + 3 of tData) + byteToNum(byte tAt + 4 of tData)) / 3 into tBack
+      put 0 into tMax
+      repeat with tY = 0 to tH - 1
+         repeat with tX = (8 * tW) div (item 3 of tRect - item 1 of tRect) to tW - 1
+            put (tY * tW + tX) * 4 into tAt
+            put (byteToNum(byte tAt + 2 of tData) + byteToNum(byte tAt + 3 of tData) + byteToNum(byte tAt + 4 of tData)) / 3 into tLum
+            put max(tMax, abs(tLum - tBack)) into tMax
+         end repeat
+      end repeat
+      tourRecord "INFO Inclusions: icon" && tCount && "differs from its row (" & round(tBack) & ") by" && round(tMax)
+      if tMax < 64 then put "icon" && tCount && "(" & round(tMax) && "on" && round(tBack) & ")" & return after tFails
+   end repeat
+   if tFails is not empty then return "an icon on the Inclusions card cannot be seen on its row:" && tourJoin(line 1 to -1 of tFails)
+   return empty
+end tourInclusionIcons
+
 function tourSelectedLineInk pStack, pWhat
    local tDefault, tLine, tTabs, tLeft, tRight, tRect, tHilite, tData, tW, tH, tAt, tBest, tBestRGB, tRGB, tLum, i, tRatio
    put the defaultStack into tDefault
@@ -4698,6 +4760,11 @@ on tour_standalone_settings
       set the defaultStack to tDefault
       tourWait 700
       tourShotStack tStack, "15-standalone-" & format("%02d", tIndex) & "-" & tourFileName(tCard)
+      -- each row's icon is seen on its row
+      if tCard is "Inclusions" then
+         get tourInclusionIcons(tStack)
+         if it is not empty then throw it
+      end if
       -- the Web card makes its page's settings when it first opens: the
       -- HTML5 option and those settings are there
       if tCard is "Emscripten" then
