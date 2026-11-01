@@ -67,8 +67,20 @@ and the IDE tour's checks that hold it (tools/ci/ui-tour.livecodescript):
   (each pane) and search measure every check box, radio button, push
   button, option menu and label: against its rect, its groups and the
   window, and the next control on its line. Run on the released rc.6.11
-  IDE with DejaVu Sans they fail on all of these (31 in Preferences); with
+  IDE with DejaVu Sans they fail on all of these (30 in Preferences); with
   the patched stacks they pass, light and dark.
+- The same check of the Standalone Settings, card by card (the step
+  standalone-settings), found seven more: "the profile librar" and "Only
+  include profiles selected" on the General card, "Android armv",
+  "Visibl", "Write External Storag" and "In App Purchasing" run into its
+  check box on the Android card, and "save report to fil" on Bug Reports.
+  standalone-settings-fit-linux.txt gives each its room. A label's words
+  are measured where the engine lays them out (tourWordsRect, the
+  formattedRect of its text less the spaces at its end), and a label
+  beside them by where its own words start, so a version number's dots
+  one point clear of the next box, or "Required" over "Used", are not
+  taken for words cut off; a field with a border is a box that shows a
+  value, such as a path, and is left out.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -244,7 +256,8 @@ class TheInclusionIcons(unittest.TestCase):
         tour = read(TOUR)
         step = handler(tour, 'on', 'tour_standalone_settings')
         self.assertIn('if tCard is "Inclusions" then\n         get tourInclusionIcons(tStack)\n'
-                      '         if it is not empty then throw it', step)
+                      '         if it is not empty then put it & return after tFails', step)
+        self.assertIn('if tFails is not empty then throw line 1 to -1 of tFails\nend tour_standalone_settings', step)
         check = handler(tour, 'function', 'tourInclusionIcons')
         self.assertIn('if the name of control i is not ("widget" && quote & "icon" & quote) then next repeat', check)
         self.assertIn('export snapshot from rect tRect to tData as PNG', check)
@@ -269,7 +282,7 @@ class TheUpdateSummary(unittest.TestCase):
         step = handler(read(TOUR), 'on', 'tour_preferences')
         self.assertIn('if the visible of field "updNote" of card "Automatic Updates" of stack tStack and \\\n'
                       '         field "updNote" of card "Automatic Updates" of stack tStack is not empty then', step)
-        self.assertIn('throw "the Automatic Updates pane shows a summary of an update that is not this release\'s:"',
+        self.assertIn('put "the Automatic Updates pane shows a summary of an update that is not this release\'s:"',
                       step)
 
 
@@ -476,16 +489,96 @@ class TheLinuxFonts(unittest.TestCase):
         self.assertIn('put tourNextOnLine(the long id of button i of this card, false) into tNext', buttons)
         fields = handler(tour, 'function', 'tourFieldsWhole')
         self.assertIn('(not the lockText of field i of this card and the traversalOn of field i of this card)', fields)
-        self.assertIn('put the formattedWidth of field i of this card - the rightMargin of field i of this card '
-                      'into tNeed', fields)
+        self.assertIn('the listBehavior of field i of this card or the showBorder of field i of this card then next repeat',
+                      fields)
+        self.assertIn('put tourWordsRect(the long id of field i of this card) into tWords', fields)
+        self.assertIn('if item 3 of tWords > the right of field i of this card + 2 or '
+                      'item 1 of tWords < the left of field i of this card - 2 then', fields)
         self.assertIn('put the formattedHeight of field i of this card - the bottomMargin of field i of this card + 2 '
                       'into tNeed', fields)
-        self.assertIn('if tNext is not empty and item 1 of tNext < tTo + 3 then', fields)
+        self.assertIn('if tNext is not empty and item 1 of tNext <= min(item 3 of tWords, the right of field i of this card) '
+                      'then', fields)
+        words = handler(tour, 'function', 'tourWordsRect')
+        self.assertIn('repeat while tLast > 0 and (char tLast of tText is space or char tLast of tText is tab or '
+                      'char tLast of tText is return)', words)
+        self.assertIn('return the formattedRect of char 1 to tLast of field id (the id of pField) of tCard', words)
         shown = handler(tour, 'function', 'tourControlShown')
         self.assertIn('the left of pControl >= the width of this stack', shown)
         nxt = handler(tour, 'function', 'tourNextOnLine')
         self.assertIn('if not pWithin and the right of control j of tCard <= the right of pControl then next repeat',
                       nxt)
+        # a label beside starts where its words do, and an empty one is
+        # not there
+        self.assertIn('put tourWordsRect(the long id of control j of tCard) into tWords\n'
+                      '         if tWords is empty then next repeat\n'
+                      '         put max(tStart, item 1 of tWords) into tStart', nxt)
+        # every failure of the step preferences is reported together
+        step = handler(tour, 'on', 'tour_preferences')
+        self.assertNotIn('throw "the Automatic Updates pane', step)
+        self.assertNotIn('throw "the Script Editor pane', step)
+        self.assertEqual(step.count('throw '), 2, step)  # Preferences did not open, and tFails
+
+
+class TheStandaloneSettings(unittest.TestCase):
+    """The Standalone Settings' options have room for their words in
+    DejaVu Sans. NEEDS holds what the tour measured on the released rc.6.11
+    IDE: the right edge each option's words reach."""
+
+    PATCH = 'standalone-settings-fit-linux.txt'
+    NEEDS = [
+        ('button id 1267 of card "General"', 430),   # Include profiles on objects and the profile library
+        ('button id 1210 of card "General"', 551),   # Only include profiles selected below
+        ('button id 2064 of card "Android"', 232),   # Android armv7
+        ('button id 2247 of card "Android"', 187),   # Visible
+        ('button id 2403 of card "Android"', 585),   # Write External Storage
+        ('button id 2821 of card "Android"', 704),   # Coarse Location, 704 of 703 before
+        ('button id 1187 of card "Bug Reports"', 373),  # Allow user to save report to file
+        ('button id 1189 of card "Bug Reports"', 365),  # Allow user to enter comments, 365 of 364 before
+    ]
+
+    def test_the_patch(self):
+        self.assertIn('file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev\n',
+                      read(PATCHES + (self.PATCH,)))
+
+    def test_each_has_room(self):
+        patched = rects(self.PATCH)
+        for obj, need in self.NEEDS:
+            frm, to = patched[obj]
+            self.assertGreaterEqual(to[2], need, obj)
+        # each that was cut off beyond the tour's 2 points
+        for obj, need in self.NEEDS[:5] + self.NEEDS[6:7]:
+            self.assertLess(patched[obj][0][2] + 2, need, obj)
+
+    def test_the_moved_keep_their_size_and_clear_the_next(self):
+        patched = rects(self.PATCH)
+        # "Hidden" moves right of "Visible", and the check box of "In App
+        # Purchasing" right of its label's words (which end at 147)
+        hidden, visible = patched['button id 2248 of card "Android"'][1], patched['button id 2247 of card "Android"'][1]
+        self.assertGreaterEqual(hidden[0], visible[2])
+        box = patched['button id 3193 of card "Android"']
+        self.assertEqual(box[0][2] - box[0][0], box[1][2] - box[1][0])
+        self.assertGreater(box[1][0], 147)
+        # the right column of permissions starts after "Write External
+        # Storage", each still as wide as its words (Fine Location 686,
+        # Vibration 659, Idle Timer 666, Ad Support 671, all + 10)
+        write = patched['button id 2403 of card "Android"'][1]
+        for obj, need in (('button id 2820 of card "Android"', 696), ('button id 2821 of card "Android"', 714),
+                          ('button id 2831 of card "Android"', 669), ('button id 2833 of card "Android"', 676),
+                          ('button id 2854 of card "Android"', 681)):
+            to = patched[obj][1]
+            self.assertGreaterEqual(to[0], write[2], obj)
+            self.assertGreaterEqual(to[2] + 2, need, obj)
+        # armv7 ends before arm64 (243) starts
+        self.assertLess(patched['button id 2064 of card "Android"'][1][2], 243)
+        # the groups round the moved radio buttons grow with them
+        self.assertEqual(patched['group id 1220 of card "General"'][1][2], patched['button id 1210 of card "General"'][1][2] + 4)
+        self.assertEqual(patched['group id 2246 of card "Android"'][1][2], hidden[2] + 4)
+
+    def test_the_tour_measures_each_card(self):
+        step = handler(read(TOUR), 'on', 'tour_standalone_settings')
+        self.assertIn('      put tourButtonsWhole(tStack) after tFails\n'
+                      '      put tourFieldsWhole(tStack) after tFails\n', step)
+        self.assertLess(step.index('tourShotStack tStack, "15-standalone-"'), step.index('put tourButtonsWhole(tStack)'))
 
 
 if __name__ == '__main__':

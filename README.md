@@ -1690,9 +1690,10 @@ it squashes:
   on the title (#305).
 - **An option cut short.** On Linux and the Mac, Search and Replace
   shows "Search [Marked] cards only" whole; "only" was cut off (#305).
-- **Labels cut short on Linux.** In Preferences and Search and Replace
-  every check box, button and label shows whole in Linux's wider font;
-  more than 30 were cut off or ran into the next control (#305).
+- **Labels cut short on Linux.** In Preferences, Search and Replace and
+  the Standalone Application Settings every check box, button and label
+  shows whole in Linux's wider font; more than 40 were cut off or ran
+  into the next control (#305).
 - **Somebody else's update notes.** Preferences' Automatic Updates pane
   no longer shows OpenXTalk Lite's notes of its own last update as the
   "Summary of last update"; Release Notes has what each release changes

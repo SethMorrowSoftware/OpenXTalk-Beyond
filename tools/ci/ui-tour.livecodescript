@@ -4720,8 +4720,8 @@ on tour_preferences
    if the visible of field "updNote" of card "Automatic Updates" of stack tStack and \
          field "updNote" of card "Automatic Updates" of stack tStack is not empty then
       put line 1 to 4 of field "updNote" of card "Automatic Updates" of stack tStack into tItem
-      close stack tStack
-      throw "the Automatic Updates pane shows a summary of an update that is not this release's:" && tourJoin(tItem)
+      put "the Automatic Updates pane shows a summary of an update that is not this release's:" && tourJoin(tItem) & \
+            return after tFails
    end if
    -- The Script Editor pane's colour scheme menu shows its longest choice,
    -- "Follow System Appearance", whole (bwmilby, openxtalk.org p=25582: it
@@ -4743,17 +4743,17 @@ on tour_preferences
    tourRecord "INFO preferences colour scheme menu: width" && the width of tMenu & ", needs" && tNeed && \
          "(margins and arrow" && tItem & ")"
    if the width of tMenu < tNeed then
-      close stack tStack
-      throw "the Script Editor pane's colour scheme menu is" && the width of tMenu && \
-            "pixels wide; its longest choice needs" && tNeed
+      put "the Script Editor pane's colour scheme menu is" && the width of tMenu && \
+            "pixels wide; its longest choice needs" && tNeed & return after tFails
    end if
    close stack tStack
-   -- every button and label of each pane shows its words whole
+   -- each that failed, the words of each pane's buttons and labels among
+   -- them, together
    if tFails is not empty then throw line 1 to -1 of tFails
 end tour_preferences
 
 on tour_standalone_settings
-   local tStack, tFile, tCards, tCard, tIndex, tDefault, i, tMacWas, tMacNow
+   local tStack, tFile, tCards, tCard, tIndex, tDefault, i, tMacWas, tMacNow, tFails
    -- the settings are for a saved stack
    go stack kSample
    -- set up on a Mac to build for Apple Silicon and Intel, the stack keeps
@@ -4794,10 +4794,15 @@ on tour_standalone_settings
       set the defaultStack to tDefault
       tourWait 700
       tourShotStack tStack, "15-standalone-" & format("%02d", tIndex) & "-" & tourFileName(tCard)
+      -- every label, check box, radio button, push button and option
+      -- menu of the card shows whole (in Linux's DejaVu Sans, "the
+      -- profile librar", "Write External Storag", "save report to fil")
+      put tourButtonsWhole(tStack) after tFails
+      put tourFieldsWhole(tStack) after tFails
       -- each row's icon is seen on its row
       if tCard is "Inclusions" then
          get tourInclusionIcons(tStack)
-         if it is not empty then throw it
+         if it is not empty then put it & return after tFails
       end if
       -- the Web card makes its page's settings when it first opens: the
       -- HTML5 option and those settings are there
@@ -4861,6 +4866,7 @@ on tour_standalone_settings
          throw "the OS X card changed the stack's Mac targets (x86-32, x86-64, ARM64) from false,true,true to" && tMacNow
       end if
    end if
+   if tFails is not empty then throw line 1 to -1 of tFails
 end tour_standalone_settings
 
 -- The sample stack's three Mac targets, x86-32, x86-64 and ARM64, as one
@@ -5291,12 +5297,16 @@ end tourControlShown
 
 -- The rect and the name of the nearest button or field that shows to the
 -- right of the control pControl on its card, on the same line (they share
--- more than half the height of the lower of the two), or empty. With
--- pWithin false, one that lies within pControl's width is left out: a
--- check box may hold a menu in a gap of its words on purpose (Search and
--- Replace's "Search [Marked] cards only")
+-- more than half the height of the lower of the two), or empty. Its left
+-- is where it starts to show: for a field with no border that is not
+-- opaque, the left of its words (an empty one shows nothing and is left
+-- out), so a label's words are not taken to run into the next label's
+-- empty margin (the Android card's "Required" and "Used"). With pWithin
+-- false, one that lies within pControl's width is left out: a check box
+-- may hold a menu in a gap of its words on purpose (Search and Replace's
+-- "Search [Marked] cards only")
 function tourNextOnLine pControl, pWithin
-   local tCard, tBest, tLeft, tTop, tBottom, j
+   local tCard, tBest, tLeft, tTop, tBottom, tStart, tWords, j
    put the long owner of pControl into tCard
    repeat while word 1 of tCard is "group"
       put the long owner of tCard into tCard
@@ -5312,58 +5322,81 @@ function tourNextOnLine pControl, pWithin
       if min(tBottom, the bottom of control j of tCard) - max(tTop, the top of control j of tCard) <= \
             min(tBottom - tTop, the height of control j of tCard) / 2 then next repeat
       if not tourControlShown(the long id of control j of tCard) then next repeat
-      if tBest is empty or the left of control j of tCard < item 1 of tBest then
-         put the rect of control j of tCard & comma & the name of control j of tCard into tBest
+      put the left of control j of tCard into tStart
+      if word 1 of the name of control j of tCard is "field" and not the showBorder of control j of tCard \
+            and not the opaque of control j of tCard then
+         put tourWordsRect(the long id of control j of tCard) into tWords
+         if tWords is empty then next repeat
+         put max(tStart, item 1 of tWords) into tStart
+      end if
+      if tBest is empty or tStart < item 1 of tBest then
+         put tStart & comma & item 2 to 4 of the rect of control j of tCard & comma & the name of control j of tCard into tBest
       end if
    end repeat
    return tBest
 end tourNextOnLine
 
+-- Where the words of the field pField show on its card: the left, top,
+-- right and bottom of its text, with the spaces, tabs and returns at its
+-- end left out (the formattedRect of that chunk, so after the field's
+-- margins and its textAlign), or empty when it has none
+function tourWordsRect pField
+   local tText, tLast, tCard
+   put the text of pField into tText
+   put the number of chars of tText into tLast
+   repeat while tLast > 0 and (char tLast of tText is space or char tLast of tText is tab or char tLast of tText is return)
+      subtract 1 from tLast
+   end repeat
+   if tLast is 0 then return empty
+   put the long owner of pField into tCard
+   repeat while word 1 of tCard is "group"
+      put the long owner of tCard into tCard
+   end repeat
+   return the formattedRect of char 1 to tLast of field id (the id of pField) of tCard
+end tourWordsRect
+
 -- The label fields of the card of the stack pStack whose words do not show
--- whole: a field without scrollbars, locked or never focused, whose words
--- are wider than it (it does not wrap) or taller than it (it wraps), or,
--- in one that does not wrap, reach a button or a field to their right on
--- the same line. Its words are as wide as its formattedWidth less its
--- margins, from its left, its right or its middle as it aligns them. A
--- field in a group that is hidden is not looked at. Empty, or what is cut
--- off
+-- whole: a field without scrollbars or a border, locked or never focused,
+-- whose words go past its left or right (it does not wrap) or are taller
+-- than it (it wraps), or, in one that does not wrap, reach into a button
+-- or a field to their right on the same line. Its words are where the
+-- engine lays them out (tourWordsRect), after its margins and as it
+-- aligns them. A field with a border is a box that shows a value, such as
+-- the Windows card's icon file, and may scroll it; one in a group that is
+-- hidden is not looked at. Empty, or what is cut off
 function tourFieldsWhole pStack
-   local tDefault, tFails, tWidth, tNeed, tFrom, tTo, tAlign, tWhat, tNext, i
+   local tDefault, tFails, tNeed, tWords, tWhat, tNext, i
    put the defaultStack into tDefault
    set the defaultStack to pStack
    repeat with i = 1 to the number of fields of this card
       -- (a label: locked, or never takes the focus)
       if (not the lockText of field i of this card and the traversalOn of field i of this card) or \
             the vScrollbar of field i of this card or the hScrollbar of field i of this card or \
-            the listBehavior of field i of this card then next repeat
+            the listBehavior of field i of this card or the showBorder of field i of this card then next repeat
       if field i of this card is empty then next repeat
       if not tourControlShown(the long id of field i of this card) then next repeat
       put the short name of field i of this card && "(" & line 1 of field i of this card & ")" into tWhat
       if the dontWrap of field i of this card then
-         -- the words end at the right margin of what they need
-         put the formattedWidth of field i of this card - the rightMargin of field i of this card into tNeed
-         tourRecord "INFO" && pStack & ": field" && tWhat && "needs" && tNeed && "wide, is" && the width of field i of this card
-         if tNeed > the width of field i of this card + 2 then
+         put tourWordsRect(the long id of field i of this card) into tWords
+         if tWords is empty then next repeat
+         tourRecord "INFO" && pStack & ": field" && tWhat && "has its words from" && item 1 of tWords && "to" && \
+               item 3 of tWords & ", is from" && the left of field i of this card && "to" && the right of field i of this card
+         -- (2 points to spare: a letter's ink stops short of its advance)
+         if item 3 of tWords > the right of field i of this card + 2 or item 1 of tWords < the left of field i of this card - 2 then
             put "the field" && tWhat && "of" && pStack && "on its card" && the short name of this card && \
-                  "is cut off: it is" && the width of field i of this card && "wide, its words need" && tNeed & return after tFails
+                  "is cut off: it is from" && the left of field i of this card && "to" && the right of field i of this card & \
+                  ", its words from" && item 1 of tWords && "to" && item 3 of tWords & return after tFails
          end if
-         put the formattedWidth of field i of this card - the leftMargin of field i of this card - \
-               the rightMargin of field i of this card into tWidth
-         put the effective textAlign of field i of this card into tAlign
-         if tAlign is "right" then
-            put the right of field i of this card - the rightMargin of field i of this card - tWidth into tFrom
-         else if tAlign is "center" then
-            put round((the left of field i of this card + the right of field i of this card - tWidth) / 2) into tFrom
-         else
-            put the left of field i of this card + the leftMargin of field i of this card into tFrom
-         end if
-         put min(tFrom + tWidth, the right of field i of this card) into tTo
-         -- a button or a field to their right on the line, at least 3
-         -- points from them
+         -- a button or a field to their right on the line starts at
+         -- least a point after them: Search and Replace's "Replace with:"
+         -- touched its box (they end at 205 and it starts there), while a
+         -- version number's dots, one point clear of the next box, are as
+         -- they should be
          put tourNextOnLine(the long id of field i of this card, true) into tNext
-         if tNext is not empty and item 1 of tNext < tTo + 3 then
+         if tNext is not empty and item 1 of tNext <= min(item 3 of tWords, the right of field i of this card) then
             put "the words of the field" && tWhat && "of" && pStack && "on its card" && the short name of this card && \
-                  "end at" && tTo & ", at" && item 5 to -1 of tNext && "(" & item 1 to 4 of tNext & ")" & return after tFails
+                  "end at" && min(item 3 of tWords, the right of field i of this card) & ", in" && item 5 to -1 of tNext && \
+                  "(from" && item 1 of tNext & ")" & return after tFails
          end if
       else
          -- the words end at the bottom margin of what they need, and 2
