@@ -32,13 +32,20 @@ controls that hold them (tools/ci/ui-tour.livecodescript):
   appearance, and its label was forced white on it (the Dictionary's
   "xTalk Script"); before macOS 11 it glowed blue, and a default button
   still has the accent colour, so those keep their white label.
+- Windows' theme draws a scrollbar light whatever the appearance, so in
+  dark mode every scrollbar, a field's own among them, was a light grey
+  track with white arrows on the dark window. In dark mode its parts are
+  drawn as Windows' own dark scrollbars are (engine/src/w32theme.cpp,
+  MCWin32DrawDarkScrollPart): the track a little darker than the window,
+  a grey thumb, grey arrows.
 
 The step measures each on the screen: a disabled label against an enabled
 one, a hilited button's label, and the arrow of an option menu and a combo
-box. On the released rc.6.11 IDE it fails on Linux with a dark theme (the
-disabled label: 17), and the screenshots of main show Windows' dark (the
-disabled label 223 like the enabled one, no arrow) and the Mac's light (the
-hilited label 15).
+box, and on a dark card a scrollbar's track. On the released rc.6.11 IDE it
+fails on Linux with a dark theme (the disabled label: 17), and the
+screenshots of main show Windows' dark (the disabled label 223 like the
+enabled one, no arrow, a track of 240) and the Mac's light (the hilited
+label 15).
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -152,6 +159,64 @@ class TheHilitedLabel(unittest.TestCase):
         self.assertNotIn('#else', source[source.rindex('#if defined(_MACOSX) /* OXT-TOM: macOS */', 0, start):start])
 
 
+class TheScrollbars(unittest.TestCase):
+    """Windows' dark mode draws a scrollbar's parts dark."""
+
+    PARTS = ('WTHEME_TYPE_SCROLLBAR_TRACK_VERTICAL', 'WTHEME_TYPE_SCROLLBAR_TRACK_HORIZONTAL',
+             'WTHEME_TYPE_SCROLLBAR_BUTTON_UP', 'WTHEME_TYPE_SCROLLBAR_BUTTON_DOWN',
+             'WTHEME_TYPE_SCROLLBAR_BUTTON_LEFT', 'WTHEME_TYPE_SCROLLBAR_BUTTON_RIGHT',
+             'WTHEME_TYPE_SCROLLBAR_THUMB_VERTICAL', 'WTHEME_TYPE_SCROLLBAR_THUMB_HORIZONTAL',
+             'WTHEME_TYPE_SCROLLBAR_GRIPPER_VERTICAL', 'WTHEME_TYPE_SCROLLBAR_GRIPPER_HORIZONTAL',
+             'WTHEME_TYPE_SPIN')
+
+    def setUp(self):
+        self.theme = read('engine', 'src', 'w32theme.cpp')
+
+    def test_every_part_is_drawn(self):
+        part = c_function(self.theme, 'MCWin32DrawDarkScrollPart')
+        for name in self.PARTS:
+            self.assertIn('case %s:' % name, part)
+        self.assertIn('default:\n\t\treturn false;', part)
+
+    def test_drawwidget_draws_them_in_dark_mode(self):
+        draw = c_function(self.theme, 'MCNativeTheme::drawwidget')
+        # before the theme's own drawing, and before the dark push buttons
+        head = draw[:draw.index('HANDLE htheme = GetTheme(winfo.type);')]
+        hook = head[:head.index('//-- tperry 18th November 2025: Custom draw widgets in dark mode')]
+        for name in self.PARTS:
+            self.assertIn('case %s:' % name, hook)
+        self.assertIn('if (t_appearance == kMCSystemAppearanceDark && MCWin32DrawDarkScrollPart(dc, winfo, drect))\n'
+                      '\t\t\t\treturn True;', hook)
+
+    def test_the_greys(self):
+        part = c_function(self.theme, 'MCWin32DrawDarkScrollPart')
+        track = int(re.search(r'const uint2 kTrack = (0x[0-9A-F]+);', part).group(1), 16)
+        # the dark window is 32 (engine/src/w32dcs.cpp, MCWin32UpdateSystemColors)
+        window = read('engine', 'src', 'w32dcs.cpp')
+        self.assertIn('t_screen->background_pixel.red = t_screen->background_pixel.green = '
+                      't_screen->background_pixel.blue = 0x2020;', window)
+        self.assertLess(track, 0x20)
+        thumb = part[part.index('case WTHEME_TYPE_SCROLLBAR_THUMB_VERTICAL:'):part.index('case WTHEME_TYPE_SCROLLBAR_GRIPPER_VERTICAL:')]
+        levels = [int(v, 16) for v in re.findall(r't_level = (0x[0-9A-F]+);', thumb)]
+        self.assertEqual(levels, [0x30, 0x9E, 0x7A, 0x4D])  # disabled, dragged, under the mouse, at rest
+        self.assertGreaterEqual(min(levels[1:]) - track, 0x30)  # a thumb is seen on the track
+        arrows = part[part.index('case WTHEME_TYPE_SCROLLBAR_BUTTON_UP:'):part.index('case WTHEME_TYPE_SPIN:')]
+        self.assertIn('MCWin32DarkArrow(dc, drect, winfo.type - WTHEME_TYPE_SCROLLBAR_BUTTON_UP, t_level);', arrows)
+        self.assertGreaterEqual(0xA0 - track, 0x80)  # an arrow at rest is seen
+
+    def test_the_arrows_point_their_way(self):
+        # The direction is the part's place after BUTTON_UP: up, down, left, right
+        header = read('engine', 'src', 'mctheme.h')
+        order = re.findall(r'WTHEME_TYPE_SCROLLBAR_BUTTON_(UP|DOWN|LEFT|RIGHT),', header)
+        self.assertEqual(order, ['UP', 'DOWN', 'LEFT', 'RIGHT'])
+        arrow = c_function(self.theme, 'MCWin32DarkArrow')
+        self.assertIn('// p_direction: 0 up, 1 down, 2 left, 3 right.', arrow)
+        up = arrow[arrow.index('case 0:'):arrow.index('case 1:')]
+        self.assertIn('t_arrow[2].x = t_cx; t_arrow[2].y = t_cy - t_depth;', up)
+        left = arrow[arrow.index('case 2:'):arrow.index('default:')]
+        self.assertIn('t_arrow[2].x = t_cx - t_depth; t_arrow[2].y = t_cy;', left)
+
+
 class TheTour(unittest.TestCase):
     """The step controls measures each of them."""
 
@@ -179,6 +244,15 @@ class TheTour(unittest.TestCase):
         self.assertIn('repeat for each item tWhere in "Option,Combo"', step)
         self.assertIn('put tourMaxDiff(sPixWidth - 20, 3, sPixWidth - 3, sPixHeight - 3, tInside) into tMax', step)
         self.assertIn('tourCtlCheck tMax >= 48, "the" && tWhere && "button shows its arrow', step)
+        # a scrollbar's track on a dark card, clear of its thumb and arrows
+        self.assertIn('put tourLum(sPixWidth * 3 div 4, sPixHeight div 2) into tInside', step)
+        self.assertIn('tourCtlCheck tInside < 100, "a scrollbar\'s track is dark on the dark card', step)
+        self.assertLess(step.index('tourGrab "Scroll"'), step.index('a scrollbar\'s track is dark'))
+        self.assertLess(step.index('a scrollbar\'s track is dark'), step.index('repeat for each item tWhere in "Slider,SliderOff"'))
+        stack = handler(self.tour, 'function', 'tourControlsStack')
+        self.assertIn('create scrollbar "Scroll"\n   set the rect of it to "280,130,440,146"\n'
+                      '   set the endValue of it to 100\n   set the thumbSize of it to 20\n'
+                      '   set the thumbPosition of it to 30', stack)
         ink = handler(self.tour, 'function', 'tourLabelInk')
         self.assertIn('return tourMaxDiff(pFace + 4, 5, sPixWidth - pFace - 4, sPixHeight - 5, tFace)', ink)
 

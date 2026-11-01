@@ -1706,6 +1706,8 @@ it squashes:
   but vanished (#305).
 - **Menus with no arrow.** In Windows' dark mode, option menus and combo
   boxes show their arrow; they were plain boxes (#305).
+- **Light scrollbars in the dark.** In Windows' dark mode scrollbars are
+  dark, a field's own too; they were light grey with white arrows (#305).
 - **A white label on light grey.** On macOS 11 and later a hilited
   standard button's label keeps its own colour in the light appearance;
   it was white on the light grey the Mac draws it in (#305).

@@ -1844,6 +1844,16 @@ on tour_controls
    tourGrab "Scroll"
    put tourMaxDiff(0, 0, sPixWidth, sPixHeight, tBack) into tMax
    tourCtlCheck tMax >= 24, "a scrollbar with something to scroll is drawn (" & tMax & ")"
+   -- On a dark card a scrollbar's track is dark too: in Windows' dark
+   -- mode the theme drew it light grey, with white arrows, whatever the
+   -- appearance (engine/src/w32theme.cpp, MCWin32DrawDarkScrollPart). A
+   -- point of the track three quarters along, clear of the thumb (from 30
+   -- to 50) and of the arrows
+   if tBack < 100 then
+      put tourLum(sPixWidth * 3 div 4, sPixHeight div 2) into tInside
+      tourRecord "INFO controls: a scrollbar's track is" && tInside && "on the card's" && tBack
+      tourCtlCheck tInside < 100, "a scrollbar's track is dark on the dark card (" & tInside & ")"
+   end if
    
    repeat for each item tWhere in "Slider,SliderOff"
       tourGrab tWhere
