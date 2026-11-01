@@ -48,7 +48,24 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 
 constant kDecorations = "title,menu,minimize,close"
 
-local sStacks
+local sStacks, sStep
+
+-- A point window_frame_check.py records the frames at: logs STEP <n>
+-- <label> and the stacks' windowIDs, and waits (up to 10 seconds) for it
+-- to write <OXT_FRAME_GO>.<n>
+command stepPoint pLabel
+   local tLine, tEnd
+   add 1 to sStep
+   put "STEP" && sStep && pLabel into tLine
+   repeat for each line tName in sStacks
+      if the windowID of stack tName is an integer then put space & tName & "=" & the windowID of stack tName after tLine
+   end repeat
+   logLine tLine
+   put the milliseconds + 10000 into tEnd
+   repeat while the milliseconds < tEnd and there is not a file ($OXT_FRAME_GO & "." & sStep)
+      wait 50 milliseconds with messages
+   end repeat
+end stepPoint
 
 command logLine pText
    put pText & return after URL ("binfile:" & $OXT_FRAME_LOG)
@@ -99,9 +116,11 @@ on startup
       set the decorations of stack "FrameFaded" to empty
       go stack "FrameFaded"
       wait 200 milliseconds with messages
+      stepPoint "faded-opened"
       set the rect of stack "FrameFaded" to 0,0,600,110
       set the topLeft of stack "FrameFaded" to 640,120
       wait 200 milliseconds with messages
+      stepPoint "faded-sized"
       lock screen
       lock messages
       set the decorations of stack "FrameFaded" to kDecorations
@@ -110,16 +129,23 @@ on startup
       unlock messages
       unlock screen
       wait 300 milliseconds with messages
+      stepPoint "faded-decorated"
       set the blendLevel of stack "FrameFaded" to 0
+      wait 200 milliseconds with messages
+      stepPoint "faded-opaque"
 
       makeStack "FrameFadedTitled", "80,420,580,620"
       set the decorations of stack "FrameFadedTitled" to kDecorations
       set the blendLevel of stack "FrameFadedTitled" to 99
       go stack "FrameFadedTitled"
       wait 200 milliseconds with messages
+      stepPoint "titled-opened"
       set the rect of stack "FrameFadedTitled" to 80,420,640,560
       wait 200 milliseconds with messages
+      stepPoint "titled-sized"
       set the blendLevel of stack "FrameFadedTitled" to 0
+      wait 200 milliseconds with messages
+      stepPoint "titled-opaque"
 
       wait 500 milliseconds with messages
       repeat for each line tName in sStacks

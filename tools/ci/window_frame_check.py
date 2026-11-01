@@ -138,6 +138,19 @@ class Win32:
 
         self.TITLEBARINFOEX, self.INPUT = TITLEBARINFOEX, INPUT
 
+    def ex_style(self, hwnd):
+        GWL_EXSTYLE = -20
+        self.user32.GetWindowLongW.restype = self.ct.c_long
+        return self.user32.GetWindowLongW(self.wt.HWND(hwnd), GWL_EXSTYLE) & 0xFFFFFFFF
+
+    def nc_rendering(self, hwnd):
+        """DWMWA_NCRENDERING_ENABLED: whether DWM draws the window's frame."""
+        if self.dwmapi is None:
+            return None
+        v = self.wt.BOOL()
+        hr = self.dwmapi.DwmGetWindowAttribute(self.wt.HWND(hwnd), 1, self.ct.byref(v), self.ct.sizeof(v))
+        return bool(v.value) if hr == 0 else None
+
     def themed(self):
         """Whether visual styles are on (uxtheme IsThemeActive)."""
         try:
@@ -207,16 +220,6 @@ def read_log(path):
         return [x.rstrip('\r\n') for x in f if x.strip()]
 
 
-def wait_for(path, word, seconds):
-    end = time.time() + seconds
-    while time.time() < end:
-        lines = read_log(path)
-        if any(x == word or x.startswith(word + ' ') or x.startswith('ERROR ') for x in lines):
-            return lines
-        time.sleep(0.2)
-    return read_log(path)
-
-
 def frame_of(w, hwnd):
     """What the window manager and DWM say of a window's frame: its region,
     and its minimize button and DWM's caption buttons relative to the
@@ -269,6 +272,34 @@ def click_minimize(w, name, hwnd, point, log_path):
         w.user32.ShowWindow(hwnd, w.SW_RESTORE)
         time.sleep(0.5)
     return iconic, got
+
+
+def follow_steps(w, log_path, go_path, seconds, lines):
+    """Until READY (or an ERROR): record the frames of the stacks' windows
+    at each STEP the script stops at, and let it go on. Returns the log."""
+    seen = 0
+    end = time.time() + seconds
+    while time.time() < end:
+        log = read_log(log_path)
+        for x in [y for y in log if y.startswith('STEP ')][seen:]:
+            seen += 1
+            parts = x.split()
+            for item in parts[3:]:
+                name, _, hwnd = item.partition('=')
+                hwnd = int(hwnd)
+                if not w.user32.IsWindow(hwnd):
+                    continue
+                f = frame_of(w, hwnd)
+                lines.append('INFO step %s %s: %s %s: ex-style 0x%08X, region %s, minimize button %s, '
+                             'DWM caption buttons %s, DWM draws the frame %s'
+                             % (parts[1], parts[2], name, f['window'], w.ex_style(hwnd), f['region'],
+                                f['button_rel'], f['dwm_rel'], w.nc_rendering(hwnd)))
+            with open('%s.%s' % (go_path, parts[1]), 'w') as fh:
+                fh.write('go\n')
+        if any(y == 'READY' or y.startswith('ERROR ') for y in log):
+            return log
+        time.sleep(0.05)
+    return read_log(log_path)
 
 
 def check_windows(w, windows, log_path, lines, problems):
@@ -373,7 +404,7 @@ def main(argv=None):
         env.update({'OXT_FRAME_LOG': log_path.replace('\\', '/'), 'OXT_FRAME_GO': go_path.replace('\\', '/')})
         proc = subprocess.Popen([engine, SCRIPT], cwd=work, env=env,
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        got = wait_for(log_path, 'READY', args.timeout)
+        got = follow_steps(Win32(), log_path, go_path, args.timeout, lines)
         lines += [x for x in got if x.startswith(('INFO ', 'ERROR '))]
         problems += [x[6:] for x in got if x.startswith('ERROR ')]
         if 'READY' not in got:
