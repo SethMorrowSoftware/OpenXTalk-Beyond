@@ -1,0 +1,1 @@
+- Web: Pixel Platformer Maker's menus are readable: they draw light text on a dark panel, where they drew black on dark (#304)
