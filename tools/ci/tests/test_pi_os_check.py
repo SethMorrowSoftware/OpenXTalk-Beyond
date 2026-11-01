@@ -79,6 +79,18 @@ class Functions(unittest.TestCase):
         self.assertEqual(field('SHA256'), 'abcd')
         self.assertEqual(field('Depends'), '')
 
+    def test_release_sha256(self):
+        release = ('Origin: Raspberry Pi Foundation\nMD5Sum:\n 0123 100 main/binary-arm64/Packages.xz\n'
+                   'SHA256:\n aaaa 100 main/binary-arm64/Packages\n bbbb 50 main/binary-arm64/Packages.xz\n'
+                   'Acquire-By-Hash: yes\n')
+        def sha(path):
+            command = 'source "$1"; release_sha256 "$2"'
+            return subprocess.run(['bash', '-c', command, 'test', SCRIPT, path], input=release,
+                                  capture_output=True, text=True).stdout.strip()
+        self.assertEqual(sha('main/binary-arm64/Packages.xz'), 'bbbb')
+        self.assertEqual(sha('main/binary-arm64/Packages'), 'aaaa')
+        self.assertEqual(sha('main/binary-all/Packages'), '')
+
     def test_package_tarball_is_the_program_folders(self):
         # the package artifact holds the -binaries and -symbols tar.xz too,
         # and they sort before the program folder's (rc.6.12's first run

@@ -64,6 +64,11 @@ packages_field() {
     p && index($0, field ": ") == 1 { print substr($0, length(field) + 3); exit }'
 }
 
+# The SHA256 of one file in a Release file (stdin)
+release_sha256() {
+  awk -v f="$1" '/^SHA256:/ { s = 1; next } /^[^ ]/ { s = 0 } s && $3 == f { print $1; exit }'
+}
+
 # Install the archive's own keyring package, raspberrypi-archive-keyring,
 # as Raspberry Pi OS has it, and print the keyring file apt should use.
 # The key the archive publishes (raspberrypi.gpg.key) has SHA-1 bindings,
@@ -72,20 +77,32 @@ packages_field() {
 # Packages index, and that the package. Nothing is installed unverified.
 pi_archive_keyring() {
   local release=$1 dir=$2 base=http://archive.raspberrypi.com/debian
-  local arch file sum sumgot packages
+  local arch file sum sumgot packages index
   arch=$(dpkg --print-architecture)
   mkdir -p "$dir"
   curl -fsSL --retry 5 "$base/raspberrypi.gpg.key" | gpg --dearmor > "$dir/key.gpg" || return 1
   curl -fsSL --retry 5 "$base/dists/$release/InRelease" -o "$dir/InRelease" || return 1
   gpgv --keyring "$dir/key.gpg" --output "$dir/Release" "$dir/InRelease" 2> "$dir/gpgv.txt" || { cat "$dir/gpgv.txt" >&2; return 1; }
-  packages=main/binary-$arch/Packages.xz
-  sum=$(awk -v f="$packages" '/^SHA256:/ { s = 1; next } /^[^ ]/ { s = 0 } s && $3 == f { print $1 }' "$dir/Release")
-  [ -n "$sum" ] || { echo "no $packages in InRelease" >&2; return 1; }
-  curl -fsSL --retry 5 "$base/dists/$release/$packages" -o "$dir/Packages.xz" || return 1
-  echo "$sum  $dir/Packages.xz" | sha256sum -c --quiet - >&2 || return 1
-  file=$(xz -dc "$dir/Packages.xz" | packages_field raspberrypi-archive-keyring Filename)
-  sum=$(xz -dc "$dir/Packages.xz" | packages_field raspberrypi-archive-keyring SHA256)
-  [ -n "$file" ] && [ -n "$sum" ] || { echo "no raspberrypi-archive-keyring in $packages" >&2; return 1; }
+  # the first index InRelease lists, of this architecture's or "all",
+  # compressed as xz, gzip or not at all
+  file= sum=
+  for index in "binary-$arch/Packages.xz" "binary-$arch/Packages.gz" "binary-$arch/Packages" \
+               binary-all/Packages.xz binary-all/Packages.gz binary-all/Packages; do
+    packages=main/$index
+    sumgot=$(release_sha256 "$packages" < "$dir/Release")
+    [ -n "$sumgot" ] || continue
+    curl -fsSL --retry 5 "$base/dists/$release/$packages" -o "$dir/Packages.in" || return 1
+    echo "$sumgot  $dir/Packages.in" | sha256sum -c --quiet - >&2 || return 1
+    case $packages in
+      *.xz) xz -dc "$dir/Packages.in" > "$dir/Packages" ;;
+      *.gz) gzip -dc "$dir/Packages.in" > "$dir/Packages" ;;
+      *) cp "$dir/Packages.in" "$dir/Packages" ;;
+    esac
+    file=$(packages_field raspberrypi-archive-keyring Filename < "$dir/Packages")
+    sum=$(packages_field raspberrypi-archive-keyring SHA256 < "$dir/Packages")
+    [ -n "$file" ] && break
+  done
+  [ -n "$file" ] && [ -n "$sum" ] || { echo "no raspberrypi-archive-keyring in the main indexes InRelease lists; InRelease begins:" >&2; head -n 40 "$dir/Release" >&2; return 1; }
   curl -fsSL --retry 5 "$base/$file" -o "$dir/keyring.deb" || return 1
   echo "$sum  $dir/keyring.deb" | sha256sum -c --quiet - >&2 || return 1
   dpkg -i "$dir/keyring.deb" > "$dir/dpkg.txt" 2>&1 || { cat "$dir/dpkg.txt" >&2; return 1; }
