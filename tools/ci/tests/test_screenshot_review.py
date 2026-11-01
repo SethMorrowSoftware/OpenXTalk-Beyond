@@ -41,6 +41,12 @@ and the IDE tour's checks that hold it (tools/ci/ui-tour.livecodescript):
   the rows the IDE draws light and white. They take the colour of the
   row's name (revIDEColor "text_1"); the step standalone-settings measures
   each icon on its row.
+- Preferences' Automatic Updates pane showed OpenXTalk Lite's notes of its
+  own last update as the "Summary of last update" (from
+  Toolset/palettes/updates/whatsnew.txt, "respring implemented for
+  updater"). The package no longer carries the file, so the pane shows no
+  summary, as it already did on the Mac; the step preferences looks for
+  one.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -222,6 +228,27 @@ class TheInclusionIcons(unittest.TestCase):
         self.assertIn('export snapshot from rect tRect to tData as PNG', check)
         self.assertIn('if tMax < 64 then', check)
         self.assertIn('if tRects is empty then return "the Inclusions card shows no icons"', check)
+
+
+class TheUpdateSummary(unittest.TestCase):
+    """Preferences shows no summary of OpenXTalk Lite's last update."""
+
+    def test_no_file(self):
+        self.assertFalse(os.path.exists(os.path.join(REPO, 'ide', 'Toolset', 'palettes', 'updates', 'whatsnew.txt')))
+
+    def test_the_installer_does_without_it(self):
+        iss = read(('Installer', 'oxt-beyond', 'oxt-beyond.iss'))
+        self.assertIn('Source: "{#StageDir}\\Toolset\\palettes\\updates\\whatsnew.txt"; '
+                      'DestDir: "{app}\\Toolset\\palettes\\updates"; Flags: ignoreversion skipifsourcedoesntexist', iss)
+        # an install over an older one takes its Toolset folder away first
+        self.assertIn('Type: filesandordirs; Name: "{app}\\Toolset"', iss)
+
+    def test_the_tour_looks(self):
+        step = handler(read(TOUR), 'on', 'tour_preferences')
+        self.assertIn('if the visible of field "updNote" of card "Automatic Updates" of stack tStack and \\\n'
+                      '         field "updNote" of card "Automatic Updates" of stack tStack is not empty then', step)
+        self.assertIn('throw "the Automatic Updates pane shows a summary of an update that is not this release\'s:"',
+                      step)
 
 
 if __name__ == '__main__':

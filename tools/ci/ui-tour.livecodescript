@@ -4700,6 +4700,17 @@ on tour_preferences
       tourWait 700
       tourShotStack tStack, "14-preferences-" & format("%02d", tIndex) & "-" & tourFileName(tPane)
    end repeat
+   -- The Automatic Updates pane shows no "Summary of last update": the one
+   -- it showed, from Toolset/palettes/updates/whatsnew.txt, was OpenXTalk
+   -- Lite's notes of its own update ("respring implemented for updater"),
+   -- which the package no longer carries. Release Notes, below it, has
+   -- what each release changes
+   if the visible of field "updNote" of card "Automatic Updates" of stack tStack and \
+         field "updNote" of card "Automatic Updates" of stack tStack is not empty then
+      put line 1 to 4 of field "updNote" of card "Automatic Updates" of stack tStack into tItem
+      close stack tStack
+      throw "the Automatic Updates pane shows a summary of an update that is not this release's:" && tourJoin(tItem)
+   end if
    -- The Script Editor pane's colour scheme menu shows its longest choice,
    -- "Follow System Appearance", whole (bwmilby, openxtalk.org p=25582: it
    -- was cut off in 146 pixels): the text, measured in the button's own

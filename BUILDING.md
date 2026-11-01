@@ -1862,9 +1862,12 @@ What the installer does:
   time. In an install for all users, the Users group gets Modify
   permission on these data files: the dictionary's
   `Documentation\html_viewer\resources\data\api\exports` folder, and
-  `Toolset\palettes\updates\whatsnew.txt` and `updatehistory\*.txt`
-  (opened with `open file`, which opens a file for reading and
-  writing). No folder or file with stacks, scripts or programs is made
+  `Toolset\palettes\updates\updatehistory\*.txt` (opened with `open
+  file`, which opens a file for reading and writing); and
+  `Toolset\palettes\updates\whatsnew.txt` if a package has one (none
+  has since 0.2.7-rc.6.12: it held OpenXTalk Lite's notes of its own
+  last update, which Preferences showed as the "Summary of last
+  update"). No folder or file with stacks, scripts or programs is made
   writable, so the few places where the IDE saves stacks inside the
   program folder fail for standard users in an install for all users:
   the Report Builder plugin saving itself when it closes, *Plugin
