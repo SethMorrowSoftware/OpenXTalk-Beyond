@@ -1644,6 +1644,40 @@ jobs:
             2>&1 | tee "$RUNNER_TEMP/logs/learn-box2d-clicks.log"
           tail -n 1 "$RUNNER_TEMP/logs/learn-box2d-clicks.log" | grep -qx DONE
 
+      # The Learn stacks of the xTalk Suite's extensions (Learn SodiumXT
+      # and the others builder.livecodescript's exLearn handlers make), run
+      # by the package's engine with the package's extensions: every
+      # lesson's script gives its result, every call opens its page, and
+      # the Reference lists and finds every handler; then the same with
+      # nothing loaded, where each must say its extension is not loaded
+      # (tools/examples/test-learn-stacks.livecodescript)
+      - name: Learn stacks
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
+        timeout-minutes: 10
+        run: |
+          OXT_INSTALL="$OXT_ROOT" timeout 480 xvfb-run -a -s '-screen 0 1280x1024x24' \
+            "$OXT_ROOT/oxt-beyond" -ui tools/examples/test-learn-stacks.livecodescript \
+            2>&1 | tee "$RUNNER_TEMP/logs/learn-stacks.log"
+          tail -n 1 "$RUNNER_TEMP/logs/learn-stacks.log" | grep -qx DONE
+          OXT_LEARN_NOLOAD=1 OXT_INSTALL="$OXT_ROOT" timeout 240 xvfb-run -a -s '-screen 0 1280x1024x24' \
+            "$OXT_ROOT/oxt-beyond" -ui tools/examples/test-learn-stacks.livecodescript \
+            2>&1 | tee "$RUNNER_TEMP/logs/learn-stacks-noload.log"
+          tail -n 1 "$RUNNER_TEMP/logs/learn-stacks-noload.log" | grep -qx DONE
+
+      # The Learn stacks again, clicked with a real mouse: the standalone
+      # engine opens each on its own Xvfb screen, xdotool clicks a tile,
+      # every lesson's Run, calls, Back, Copy, typing and Reset, the
+      # Reference's list, wheel and search, and Back and Next
+      # (tools/examples/learn-clicks.py)
+      - name: Learn stacks clicks
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
+        timeout-minutes: 15
+        run: |
+          timeout 840 python3 tools/examples/learn-clicks.py --install "$OXT_ROOT" \
+            --shots "$RUNNER_TEMP/logs/learn-clicks" \
+            2>&1 | tee "$RUNNER_TEMP/logs/learn-clicks.log"
+          tail -n 1 "$RUNNER_TEMP/logs/learn-clicks.log" | grep -qx DONE
+
       # The remastered examples, built from their builders in
       # tools/examples by the package's engine; then, opened by its
       # standalone engine on an Xvfb screen, an arrow key sent to a card's

@@ -346,7 +346,7 @@ class Examples(unittest.TestCase):
 
     def test_every_group_is_in_the_gallery(self):
         groups = re.findall(r'(?:^|\n|")([a-z]+)\|', '\n'.join(strings(handler(self.learn, 'leExampleGroups'))))
-        self.assertEqual(groups, ['start', 'web', 'small', 'tours', 'apps', 'samples'])
+        self.assertEqual(groups, ['start', 'web', 'small', 'tours', 'suite', 'apps', 'samples'])
         for row in self.table:
             with self.subTest(example=row[1]):
                 self.assertIn(row[4], groups)

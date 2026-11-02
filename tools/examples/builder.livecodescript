@@ -810,13 +810,13 @@ command exWarnLongWords pStack
    end repeat
 end exWarnLongWords
 
--- Is it one of the window's own groups, Frame, Workbench and Scripts, or
--- in one?
+-- Is it one of the window's own groups, Frame, Workbench and Scripts (and
+-- a Learn stack's Learn), or in one?
 private function exInFrame pObj
    local tObj
    put pObj into tObj
    repeat while word 1 of tObj is not "card" and word 1 of tObj is not "stack" and tObj is not empty
-      if word 1 of tObj is "group" and the short name of tObj is among the items of "Frame,Workbench,Scripts" then
+      if word 1 of tObj is "group" and the short name of tObj is among the items of "Frame,Workbench,Scripts,Learn" then
          return true
       end if
       put the long owner of tObj into tObj
@@ -943,3 +943,593 @@ command exSave pStack, pPath
       throw "cannot save " & pPath & ": " & the result
    end if
 end exSave
+
+################################################################################
+#
+# Learn stacks: lessons in an extension OXT-Beyond has built in
+#
+# A "Learn <extension>" example (learn-sodiumxt and the others) teaches one
+# of the xTalk Suite's extensions, a card a lesson. Its cards are "page"
+# cards of the window above, and on each the group "Learn" (exLearnKit), a
+# background whose script is learn-runtime.livecodescript, shows one of
+# three halves, by the card's custom property cLearn:
+#
+#    front      the front page's status panel: whether the extension is
+#               loaded, and its version (the stack's cProbe, an expression
+#               such as "sxVersion()", gives it)
+#    lesson     "In plain words", the calls the lesson makes, its script
+#               in the code panel with Run, Copy and Reset, and the field
+#               "Result" that the script writes to
+#    reference  every handler of the extension, searchable, each with its
+#               page
+#
+# A lesson's words, script and expected result are blocks of its builder:
+# "<card>/words" (paragraphs, a blank line between; a line that begins
+# "- " is a point of a list; `code` and **bold**), "<card>/try" (the
+# script, a mouseUp handler that puts its answer into field "Result") and
+# "<card>/expect" (a regular expression the field "Result" must match once
+# the script has run, which the tests check). The pages of the reference
+# are the IDE's Dictionary's (exLearnDocs reads them from the install the
+# build runs in), with links to the other handlers they name and to the
+# lessons that use each one.
+
+-- Where the halves go, on the content of a card (kLeft..kRight, kTop..kBottom)
+constant kLearnWords = "256,104,540,388"
+constant kLearnCalls = "256,398,540,486"
+constant kLearnOut = "256,496,540,616"
+constant kLearnCode = "552,104,1000,616"
+-- The letters a line of a lesson's script may have: the code panel holds
+-- 58 of the code font at 11 pixels (7 pixels a letter, as Linux draws
+-- them), and a longer line would go on below itself
+constant kLearnCodeRoom = 58
+constant kLearnStatus = "823,492,1000,616"
+
+-- The Dictionary's entries of the extension, by the handler's name in lower
+-- case (the entry, as JSONImport reads it), the names in their order, the
+-- library each came from, and the lessons that use each, by name in lower
+-- case (lines of card names)
+local sLearnDocs, sLearnNames, sLearnUsedIn
+-- What does not fit, a line each, for the build to say all at once
+local sLearnProblems
+
+-- Reads the Dictionary's entries of the libraries pLibraries (their ids,
+-- comma separated, such as "org.openxtalk.library.sodium"), from the
+-- install the build runs in (or the one in OXT_INSTALL)
+command exLearnDocs pLibraries
+   local tInstall, tFolder, tLibrary, tText, tEntries, tIndex, tEntry, tKey, tNames, tMain
+   put $OXT_INSTALL into tInstall
+   if tInstall is empty then
+      put the engine folder into tInstall
+   end if
+   put tInstall & "/Documentation/html_viewer/resources/data/api_extensions/livecode_script" into tFolder
+   exLearnJson tInstall
+   put empty into sLearnDocs
+   put empty into sLearnNames
+   put empty into sLearnUsedIn
+   put empty into sLearnProblems
+   repeat for each item tLibrary in pLibraries
+      put url ("file:" & tFolder & "/" & tLibrary & ".js") into tText
+      if tText is empty then
+         throw "no Dictionary entries for " & tLibrary & " in " & tFolder
+      end if
+      put JSONImport("[" & textDecode(textEncode(tText, "native"), "utf-8") & "]") into tEntries
+      put empty into tNames
+      repeat with tIndex = 1 to the number of elements of tEntries
+         put tEntries[tIndex] into tEntry
+         if tEntry["type"] is "library" then
+            next repeat
+         end if
+         put tolower(tEntry["display name"]) into tKey
+         put tLibrary into tEntry["from"]
+         put tEntry into sLearnDocs[tKey]
+         put tEntry["display name"] & return after tNames
+      end repeat
+      sort lines of tNames
+      put tNames after sLearnNames
+   end repeat
+   delete the last char of sLearnNames
+   if sLearnNames is empty then
+      throw "no handlers in " & pLibraries
+   end if
+end exLearnDocs
+
+-- JSONImport, from the install's JSON library, unless it is loaded
+private command exLearnJson pInstall
+   local tFolder
+   if "com.livecode.library.json" is among the lines of the loadedExtensions then
+      exit exLearnJson
+   end if
+   put pInstall & "/Extensions/com.livecode.library.json" into tFolder
+   load extension from file (tFolder & "/module.lcm") with resource path tFolder
+   if the result is not empty then
+      throw "cannot load the JSON library: " & the result
+   end if
+end exLearnJson
+
+-- The accent as words and links are drawn in it: lighter on the dark
+-- page, where the accent itself is too dark to read
+function exLearnInk
+   if lkDark() then
+      return lkMix(sInfo["accent"], "255,255,255", 0.45)
+   end if
+   return sInfo["accent"]
+end exLearnInk
+
+-- The group "Learn", with its three halves, on the card pCard (where it
+-- is made: the front page) and placed on the cards pOthers (the lessons and
+-- the Reference card)
+--    pName   the extension's name, as the lessons say it
+--    pProbe  an expression that gives its version, empty if it is not loaded
+--    pLoad   how a test loads it without the IDE, a line each: "lcb|<folder in
+--            the install's Extensions>|<native library's name>" or
+--            "lcs|<folder>", in the order they load
+command exLearnKit pCard, pOthers, pName, pProbe, pLoad
+   local tObj, tAccent, tName, tL, tT, tR, tB, tWidth
+   put sInfo["accent"] into tAccent
+   go card pCard
+   get lkGroup("Learn", lkR(kLeft - 16, kTop - 12, kRight + 16, kBottom + 20), empty)
+   set the backgroundBehavior of group "Learn" to true
+   get lkBox("learnAnchor", lkR(kLeft - 16, kTop - 12, kLeft - 15, kTop - 11), empty, 0, "Learn")
+
+   -- The front page's status panel
+   get lkGroup("frontPart", kLearnStatus, "Learn")
+   get exPanel("learnStatusBg", kLearnStatus, "frontPart")
+   put item 1 of kLearnStatus into tL
+   put item 2 of kLearnStatus into tT
+   put item 3 of kLearnStatus into tR
+   put item 4 of kLearnStatus into tB
+   get lkBox("learnStatusIconBg", lkR(tL + 16, tT + 16, tL + 52, tT + 52), lkMix("255,255,255", tAccent, 0.13), 12, "frontPart")
+   get exIcon("learnStatusIcon", "check", tAccent, lkR(tL + 24, tT + 24, tL + 44, tT + 44), "frontPart")
+   put lkLabel("learnStatus", lkR(tL + 16, tT + 62, tR - 14, tB - 8), empty, 12, lkColor("soft"), "frontPart") into tObj
+
+   -- A lesson
+   get lkGroup("lessonPart", lkR(kLeft - 16, kTop - 12, kRight + 16, kBottom + 20), "Learn")
+   get lkBox("lessonAnchor", lkR(kLeft - 16, kTop - 12, kLeft - 15, kTop - 11), empty, 0, "lessonPart")
+   exLearnHead "lessonWordsHead", kLearnWords, "IN PLAIN WORDS", empty
+   put lkLabel("lessonWords", lkR(item 1 of kLearnWords + 16, item 2 of kLearnWords + 32, item 3 of kLearnWords - 14, item 4 of kLearnWords - 10), \
+         empty, 13, lkColor("text"), "lessonPart") into tObj
+   -- (the calls, after the word CALLS, a link each)
+   get exPanel("lessonCallsBg", kLearnCalls, "lessonPart")
+   put lkLabel("lessonCalls", lkR(item 1 of kLearnCalls + 16, item 2 of kLearnCalls + 8, item 3 of kLearnCalls - 12, item 4 of kLearnCalls - 2), \
+         empty, 12, exLearnInk(), "lessonPart") into tObj
+   set the fixedLineHeight of tObj to true
+   set the textHeight of tObj to 17
+   -- The result, in the code's colours
+   put item 1 of kLearnOut into tL
+   put item 2 of kLearnOut into tT
+   put item 3 of kLearnOut into tR
+   put item 4 of kLearnOut into tB
+   put lkBox("lessonOutBg", kLearnOut, lkColor("code"), 16, "lessonPart") into tObj
+   lkShadow tObj, 16, 4, 20
+   put lkLabel("lessonOutHead", lkR(tL + 16, tT + 12, tR - 16, tT + 26), "RESULT", 11, "148,163,184", "lessonPart") into tObj
+   set the textStyle of tObj to "bold"
+   put lkCodeField("Result", lkR(tL + 10, tT + 32, tR - 10, tB - 8), 11, 16, "lessonPart") into tObj
+   set the margins of tObj to "6,4,6,4"
+   -- The script, in the code panel
+   put item 1 of kLearnCode into tL
+   put item 2 of kLearnCode into tT
+   put item 3 of kLearnCode into tR
+   put item 4 of kLearnCode into tB
+   put lkBox("lessonCodeBg", kLearnCode, lkColor("code"), 18, "lessonPart") into tObj
+   lkShadow tObj, 18, 6, 30
+   get lkOval("lessonDot1", lkR(tL + 18, tT + 17, tL + 28, tT + 27), "248,113,113", "lessonPart")
+   get lkOval("lessonDot2", lkR(tL + 34, tT + 17, tL + 44, tT + 27), "251,191,36", "lessonPart")
+   get lkOval("lessonDot3", lkR(tL + 50, tT + 17, tL + 60, tT + 27), "52,211,153", "lessonPart")
+   put lkLabel("lessonCodeHead", lkR(tL + 72, tT + 15, tR - 16, tT + 31), \
+         "Try this script: change it, then press Run", 11, "148,163,184", "lessonPart") into tObj
+   exMiddle tObj, tT + 22
+   put lkCodeField("lessonScript", lkR(tL + 10, tT + 42, tR - 10, tB - 58), 11, 17, "lessonPart") into tObj
+   set the margins of tObj to "8,4,8,4"
+   set the lockText of tObj to false
+   set the traversalOn of tObj to true
+   -- (a label of the kit's does not hilite: left so, a click in the
+   -- script would not open it for typing)
+   set the autoHilite of tObj to true
+   set the autoTab of tObj to false
+   get exButton("lessonRun", tL + 16, tB - 46, 32, "Run", "play", "primary", tAccent, "lessonPart", empty, 92)
+   set the cLearnDo of group "lessonRun" to "run"
+   get exButton("lessonCopy", tL + 116, tB - 46, 32, "Copy", "copy", "dark", empty, "lessonPart", empty, 0)
+   set the left of group "lessonCopy" to the right of group "lessonRun" + 8
+   set the cLearnDo of group "lessonCopy" to "copy"
+   get exButton("lessonReset", tL + 216, tB - 46, 32, "Reset", "undo-2", "dark", empty, "lessonPart", empty, 0)
+   set the right of group "lessonReset" to tR - 16
+   set the cLearnDo of group "lessonReset" to "reset"
+   -- (the button Run gives the script to, off the card)
+   create button "lessonTry" in group "lessonPart"
+   set the rect of it to -40, -40, -30, -30
+   set the visible of it to false
+   -- The page of a call, over the script
+   get lkGroup("lessonSheet", kLearnCode, "lessonPart")
+   put lkBox("lessonSheetBg", kLearnCode, "255,255,255", 18, "lessonSheet") into tObj
+   lkBorder tObj, lkColor("line")
+   lkShadow tObj, 18, 6, 24
+   put lkLabel("sheetText", lkR(tL + 20, tT + 14, tR - 16, tB - 58), empty, 13, lkColor("text"), "lessonSheet") into tObj
+   -- (room above the page's title, which is larger)
+   set the margins of tObj to "0,10,0,0"
+   get exButton("lessonBack", tL + 16, tB - 46, 32, "Back to the script", "arrow-left", "light", tAccent, "lessonSheet", empty, 0)
+   set the cLearnDo of group "lessonBack" to "back"
+
+   -- The Reference card
+   get lkGroup("refPart", lkR(kLeft - 16, kTop - 12, kRight + 16, kBottom + 20), "Learn")
+   get lkBox("refAnchor", lkR(kLeft - 16, kTop - 12, kLeft - 15, kTop - 11), empty, 0, "refPart")
+   put lkBox("refSearchBg", lkR(256, 104, item 3 of kLearnWords, 140), "255,255,255", 10, "refPart") into tObj
+   lkBorder tObj, lkColor("line")
+   get exIcon("refSearchIcon", "search", lkColor("muted"), lkR(268, 113, 286, 131), "refPart")
+   put lkInput("refSearch", lkR(294, 113, item 3 of kLearnWords - 10, 133), empty, 13, "refPart") into tObj
+   get exPanel("refListBg", lkR(256, 152, item 3 of kLearnWords, 616), "refPart")
+   put lkLabel("refList", lkR(262, 160, item 3 of kLearnWords - 6, 608), empty, 13, lkColor("ink"), "refPart") into tObj
+   set the listBehavior of tObj to true
+   set the dontWrap of tObj to true
+   set the fixedLineHeight of tObj to true
+   set the textHeight of tObj to 22
+   set the hiliteColor of tObj to lkMix("255,255,255", tAccent, 0.18)
+   set the margins of tObj to "8,4,4,4"
+   lkSelectedInk tObj, lkColor("ink")
+   -- (it scrolls with the wheel; the thumb at its right says how far)
+   put lkBox("refThumb", lkR(item 3 of kLearnWords - 9, 160, item 3 of kLearnWords - 4, 200), "148,163,184", 3, "refPart") into tObj
+   set the blendLevel of tObj to 40
+   get exPanel("refTextBg", kLearnCode, "refPart")
+   put lkLabel("refText", lkR(item 1 of kLearnCode + 20, item 2 of kLearnCode + 18, item 3 of kLearnCode - 16, item 4 of kLearnCode - 12), \
+         empty, 13, lkColor("text"), "refPart") into tObj
+   set the margins of tObj to "0,10,0,0"
+
+   -- Each card's own words, and the rest the same on every card
+   exShareText "Learn", empty
+   repeat for each item tName in "lessonWords,lessonCalls,lessonScript,Result"
+      set the sharedText of field tName to false
+   end repeat
+   set the script of group "Learn" to exLearnRuntimeScript()
+   -- (the links, the calls and the names in the pages, in the accent: the
+   -- runtime sets the stack's link colours, light or dark, from these, and
+   -- puts the dark one in the pages for the light one)
+   set the cInk of this stack to lkHex(tAccent)
+   set the cInkDark of this stack to lkHex(lkMix(tAccent, "255,255,255", 0.45))
+   set the underlineLinks of this stack to false
+   set the cProbe of this stack to pProbe
+   set the cExtension of this stack to pName
+   set the cLoad of this stack to pLoad
+   set the cLearn of this card to "front"
+   repeat for each item tName in pOthers
+      place group "Learn" of card pCard onto card tName
+   end repeat
+end exLearnKit
+
+-- A panel's eyebrow, and what it says in a lighter colour after it
+private command exLearnHead pName, pRect, pText, pAfter
+   local tObj, tL, tT
+   put item 1 of pRect into tL
+   put item 2 of pRect into tT
+   get exPanel(pName & "Bg", pRect, "lessonPart")
+   put lkLabel(pName, lkR(tL + 16, tT + 14, item 3 of pRect - 16, tT + 28), pText, 11, exLearnInk(), "lessonPart") into tObj
+   set the textStyle of tObj to "bold"
+   set the dontWrap of tObj to true
+   set the rect of tObj to tL + 16, the top of tObj, tL + 20 + the formattedWidth of tObj, the bottom of tObj
+   if pAfter is not empty then
+      put lkLabel(pName & "After", lkR(the right of tObj + 6, tT + 14, item 3 of pRect - 16, tT + 28), \
+            numToCodepoint(183) && pAfter, 11, lkColor("muted"), "lessonPart") into tObj
+      set the dontWrap of tObj to true
+   end if
+end exLearnHead
+
+-- The script of the group "Learn": learn-runtime.livecodescript, without
+-- its first line
+private function exLearnRuntimeScript
+   local tPath, tText
+   set the itemDelimiter to slash
+   put item 1 to -2 of the filename of stack "OXTExampleBuilder" & "/learn-runtime.livecodescript" into tPath
+   set the itemDelimiter to comma
+   put url ("file:" & tPath) into tText
+   if tText is empty then
+      throw "cannot read " & tPath
+   end if
+   delete line 1 of tText
+   return tText
+end exLearnRuntimeScript
+
+-- A lesson: the card pCard's words, script, calls and expected result,
+-- from the builder's blocks "<card>/words", "<card>/try" and "<card>/expect"
+command exLearnLesson pCard
+   local tScript, tCalls, tCall, tHtml
+   put exScript(pCard & "/try") into tScript
+   repeat for each line tCall in tScript
+      if the number of chars of tCall > kLearnCodeRoom then
+         put "a line of the script of " & pCard & " is longer than " & kLearnCodeRoom & " letters: " & tCall & return after sLearnProblems
+      end if
+   end repeat
+   go card pCard
+   set the cLearn of this card to "lesson"
+   set the cScript of this card to tScript
+   set the cExpect of this card to exScript(pCard & "/expect")
+   set the htmlText of field "lessonWords" to exLearnHtml(exScript(pCard & "/words"))
+   if the formattedHeight of field "lessonWords" > the height of field "lessonWords" then
+      put "the words of " & pCard & " do not fit: " & the formattedHeight of field "lessonWords" & " pixels for " & the height of field "lessonWords" & return after sLearnProblems
+   end if
+   put exLearnCallsOf(tScript) into tCalls
+   if tCalls is empty then
+      throw "the script of " & pCard & " calls nothing of the extension"
+   end if
+   repeat for each line tCall in tCalls
+      put "<a>" & tCall & "</a>" & "&nbsp; " after tHtml
+      if sLearnUsedIn[tolower(tCall)] is empty then
+         put pCard into sLearnUsedIn[tolower(tCall)]
+      else if pCard is not among the lines of sLearnUsedIn[tolower(tCall)] then
+         put return & pCard after sLearnUsedIn[tolower(tCall)]
+      end if
+   end repeat
+   set the htmlText of field "lessonCalls" to "<p><font color=" & quote & "#8b9bb0" & quote & "><b>CALLS</b></font>&nbsp;&nbsp; " & \
+         tHtml & "<font color=" & quote & "#8b9bb0" & quote & ">(click one)</font></p>"
+   -- (without the hint, if it takes a line more)
+   if the formattedHeight of field "lessonCalls" > the height of field "lessonCalls" then
+      set the htmlText of field "lessonCalls" to "<p><font color=" & quote & "#8b9bb0" & quote & "><b>CALLS</b></font>&nbsp;&nbsp; " & tHtml & "</p>"
+   end if
+   if the formattedHeight of field "lessonCalls" > the height of field "lessonCalls" then
+      put "the calls of " & pCard & " do not fit: " & the formattedHeight of field "lessonCalls" & " pixels for " & the height of field "lessonCalls" & return after sLearnProblems
+   end if
+   -- (in colour once the card opens: the colours would weigh more than
+   -- the script)
+   put tScript into field "lessonScript"
+   put "Press Run to see what this script does." into field "Result"
+   set the textColor of field "Result" to "148,163,184"
+end exLearnLesson
+
+-- The handlers of the extension a script calls, a line each, in the order
+-- it first calls them
+function exLearnCallsOf pScript
+   local tWord, tOut, tChar, tLine
+   repeat for each line tLine in pScript
+      -- (not in a comment)
+      if offset("--", tLine) > 0 then
+         put char 1 to offset("--", tLine) - 1 of tLine into tLine
+      end if
+      repeat for each char tChar in "(),&" & quote
+         replace tChar with space in tLine
+      end repeat
+      repeat for each word tWord in tLine
+         if sLearnDocs[tolower(tWord)] is an array and sLearnDocs[tolower(tWord)]["display name"] is not among the lines of tOut then
+            put sLearnDocs[tolower(tWord)]["display name"] & return after tOut
+         end if
+      end repeat
+   end repeat
+   delete the last char of tOut
+   return tOut
+end exLearnCallsOf
+
+-- A lesson's words as htmlText: paragraphs (a blank line between them,
+-- which becomes a little space below the paragraph, not a whole line), a
+-- line beginning "- " a point of a list, `code` in the accent and **bold**
+function exLearnHtml pText
+   local tBlocks, tCount, tLine, tHtml, tIndex, tGap
+   put 0 into tCount
+   put false into tGap
+   repeat for each line tLine in pText
+      if word 1 to -1 of tLine is empty then
+         put true into tGap
+      else if char 1 to 2 of tLine is "- " or tCount is 0 or tGap or tBlocks[tCount]["bullet"] then
+         if tGap and tCount > 0 then
+            put true into tBlocks[tCount]["gap"]
+         end if
+         add 1 to tCount
+         put char 1 to 2 of tLine is "- " into tBlocks[tCount]["bullet"]
+         if tBlocks[tCount]["bullet"] then
+            delete char 1 to 2 of tLine
+            put word 1 to -1 of tLine into tBlocks[tCount]["text"]
+         else
+            put word 1 to -1 of tLine into tBlocks[tCount]["text"]
+         end if
+         put false into tGap
+      else
+         put space & word 1 to -1 of tLine after tBlocks[tCount]["text"]
+      end if
+   end repeat
+   repeat with tIndex = 1 to tCount
+      if tBlocks[tIndex]["gap"] then
+         put "<p spacebelow=" & quote & "8" & quote & ">" after tHtml
+      else
+         put "<p>" after tHtml
+      end if
+      if tBlocks[tIndex]["bullet"] then
+         put numToCodepoint(8226) & "&nbsp;" after tHtml
+      end if
+      put exLearnInline(tBlocks[tIndex]["text"]) & "</p>" after tHtml
+   end repeat
+   return tHtml
+end exLearnHtml
+
+private function exLearnInline pText
+   local tOut, tParts, tIndex
+   put lkEscape(pText) into pText
+   -- `code`, in the accent
+   set the itemDelimiter to "`"
+   repeat with tIndex = 1 to the number of items of pText
+      if tIndex mod 2 is 0 then
+         put "<b><font color=" & quote & lkHex(exLearnInk()) & quote & ">" & item tIndex of pText & "</font></b>" after tOut
+      else
+         put item tIndex of pText after tOut
+      end if
+   end repeat
+   -- **bold**
+   put tOut into pText
+   put empty into tOut
+   set the lineDelimiter to numToCodepoint(1)
+   replace "**" with numToCodepoint(1) in pText
+   repeat with tIndex = 1 to the number of lines of pText
+      if tIndex mod 2 is 0 then
+         put "<b>" & line tIndex of pText & "</b>" after tOut
+      else
+         put line tIndex of pText after tOut
+      end if
+   end repeat
+   set the lineDelimiter to return
+   set the itemDelimiter to comma
+   return tOut
+end exLearnInline
+
+-- The Reference card pCard, and every page of the reference, into the
+-- stack's cDocsZ; after the lessons, so that each page names the lessons
+-- that use its handler
+command exLearnReference pCard
+   local tDocs, tName, tKey
+   if sLearnProblems is not empty then
+      throw "the lessons do not fit:" & return & sLearnProblems
+   end if
+   repeat for each line tName in sLearnNames
+      put tolower(tName) into tKey
+      put exLearnPage(sLearnDocs[tKey], sLearnUsedIn[tKey]) into tDocs[tKey]
+   end repeat
+   -- (compressed: the pages are three quarters of what such a stack would
+   -- weigh, and they shrink to a fifth)
+   set the cDocsZ of this stack to compress(arrayEncode(tDocs))
+   set the cDocNames of this stack to sLearnNames
+   go card pCard
+   set the cLearn of this card to "reference"
+   set the htmlText of field "refText" to tDocs[tolower(line 1 of sLearnNames)]
+   put sLearnNames into field "refList"
+   set the hilitedLine of field "refList" to 1
+end exLearnReference
+
+-- A handler's page of the reference, as htmlText: its name, its syntax,
+-- what it does, its parameters and what it returns, the Dictionary's
+-- example and description (the names of other handlers in them links),
+-- and the lessons that use it. Its words take the field's colour, and the
+-- rest is in the accent or a grey that reads in light and dark alike
+private function exLearnPage pEntry, pLessons
+   local tHtml, tAccent, tGrey, tParam, tIndex, tLine, tKind, tExample, tLesson
+   put lkHex(sInfo["accent"]) into tAccent
+   put "#8b9bb0" into tGrey
+   put "<p><font size=" & quote & "20" & quote & "><b>" & lkEscape(pEntry["display name"]) & "</b></font></p>" after tHtml
+   put line 1 of pEntry["syntax"][1] into tLine
+   replace "<" with empty in tLine
+   replace ">" with empty in tLine
+   replace "," with ", " in tLine
+   put "<p><font color=" & quote & tAccent & quote & "><b>" & lkEscape(tLine) & "</b></font></p><p></p>" after tHtml
+   put "<p>" & exLearnLinks(pEntry["summary"]) & "</p>" after tHtml
+   if pEntry["parameters"] is an array then
+      put "<p></p><p><font color=" & quote & tGrey & quote & "><b>PARAMETERS</b></font></p>" after tHtml
+      repeat with tIndex = 1 to the number of elements of pEntry["parameters"]
+         put pEntry["parameters"][tIndex] into tParam
+         put "<p><b>" & lkEscape(tParam["name"]) & "</b>&nbsp;&nbsp;" & exLearnLinks(tParam["description"]) & "</p>" after tHtml
+      end repeat
+   end if
+   if pEntry["value"] is an array then
+      put "<p></p><p><font color=" & quote & tGrey & quote & "><b>RETURNS</b></font></p>" after tHtml
+      put "<p>" & exLearnLinks(pEntry["value"][1]["description"]) & "</p>" after tHtml
+   end if
+   if pEntry["examples"] is an array then
+      put "<p></p><p><font color=" & quote & tGrey & quote & "><b>EXAMPLE</b></font></p>" after tHtml
+      repeat for each line tLine in pEntry["examples"][1]["script"]
+         put "<p><font color=" & quote & tAccent & quote & ">" & exLearnSpaces(lkEscape(tLine)) & "</font></p>" after tHtml
+      end repeat
+   end if
+   if pEntry["description"] is not empty and pEntry["description"] is not pEntry["summary"] then
+      put "<p></p><p><font color=" & quote & tGrey & quote & "><b>MORE</b></font></p>" after tHtml
+      put "<p>" & exLearnLinks(exLearnUnwrap(pEntry["description"])) & "</p>" after tHtml
+   end if
+   if pLessons is not empty then
+      put "<p></p><p><font color=" & quote & tGrey & quote & "><b>SHOWN IN</b></font></p><p>" after tHtml
+      repeat for each line tLesson in pLessons
+         put "<a href=" & quote & "card:" & lkEscape(tLesson) & quote & ">" & lkEscape(exLearnTitleOf(tLesson)) & "</a>&nbsp;&nbsp;&nbsp; " after tHtml
+      end repeat
+      put "</p>" after tHtml
+   end if
+   return tHtml
+end exLearnPage
+
+-- The title of the card pName, from the cards' table
+private function exLearnTitleOf pName
+   local tIndex
+   repeat with tIndex = 1 to the number of lines of sInfo["cards"]
+      if exCardInfo(tIndex, "name") is pName then
+         return exCardInfo(tIndex, "title")
+      end if
+   end repeat
+   return pName
+end exLearnTitleOf
+
+-- The Dictionary's text, its lines joined back into paragraphs (a blank
+-- line between them)
+private function exLearnUnwrap pText
+   local tOut, tLine
+   repeat for each line tLine in pText
+      if word 1 to -1 of tLine is empty then
+         put "</p><p></p><p>" after tOut
+      else if tOut is empty or char -3 to -1 of tOut is "<p>" then
+         put word 1 to -1 of tLine after tOut
+      else
+         put space & word 1 to -1 of tLine after tOut
+      end if
+   end repeat
+   return tOut
+end exLearnUnwrap
+
+-- Text with the Dictionary's links (a name in angle brackets) as links;
+-- the rest escaped. (A name in brackets that is not one of the handlers
+-- loses its brackets, as the Dictionary shows it)
+private function exLearnLinks pText
+   local tOut, tStart, tEnd, tName
+   repeat
+      put offset("<", pText) into tStart
+      put offset(">", pText, tStart) into tEnd
+      if tStart is 0 or tEnd is 0 then
+         exit repeat
+      end if
+      put char tStart + 1 to tStart + tEnd - 1 of pText into tName
+      put lkEscape(char 1 to tStart - 1 of pText) after tOut
+      if sLearnDocs[tolower(tName)] is an array then
+         put "<a>" & lkEscape(tName) & "</a>" after tOut
+      else
+         put lkEscape(tName) after tOut
+      end if
+      delete char 1 to tStart + tEnd of pText
+   end repeat
+   put lkEscape(pText) after tOut
+   return tOut
+end exLearnLinks
+
+-- Leading spaces kept, in htmlText
+private function exLearnSpaces pText
+   local tCount, tOut
+   put 0 into tCount
+   repeat while char tCount + 1 of pText is space
+      add 1 to tCount
+      put "&nbsp;" after tOut
+   end repeat
+   return tOut & char tCount + 1 to -1 of pText
+end exLearnSpaces
+
+-- The front page: the banner, a tile for each card after it, and a row of
+-- three tips (pTips: icon|text, a line each) with the status panel at its
+-- end. A tile says its card's name, which is short; the sidebar says its
+-- title
+command exLearnFront pEyebrow, pTitle, pText, pTips
+   local tIndex, tWidth, tLeft, tCount
+   go card 1
+   exHero lkR(kLeft, kTop, kRight, 252), sInfo["accent"] & "|" & sInfo["accent2"], pEyebrow, pTitle, pText
+   exProgramTiles 264, 4, 48, 8
+   put the number of lines of sInfo["cards"] - 1 into tCount
+   repeat with tIndex = 1 to tCount
+      put exCardInfo(tIndex + 1, "name") into field ("tile" & tIndex & "_title")
+      if the formattedWidth of field ("tile" & tIndex & "_title") > the width of field ("tile" & tIndex & "_title") then
+         throw "the tile of " & exCardInfo(tIndex + 1, "name") & " is too narrow for its name"
+      end if
+   end repeat
+   put (kRight - kLeft - 3 * 12) div 4 into tWidth
+   set the itemDelimiter to "|"
+   repeat with tIndex = 1 to 3
+      put kLeft + (tIndex - 1) * (tWidth + 12) into tLeft
+      exLearnTip "Tip" & tIndex, lkR(tLeft, 492, tLeft + tWidth, kBottom), item 1 of line tIndex of pTips, item 2 of line tIndex of pTips
+   end repeat
+   set the itemDelimiter to comma
+end exLearnFront
+
+private command exLearnTip pName, pRect, pIcon, pText
+   local tObj, tL, tT
+   put item 1 of pRect into tL
+   put item 2 of pRect into tT
+   get exPanel(pName, pRect, empty)
+   get lkBox(pName & "_iconBg", lkR(tL + 16, tT + 16, tL + 52, tT + 52), lkMix("255,255,255", sInfo["accent"], 0.13), 12, empty)
+   get exIcon(pName & "_icon", pIcon, sInfo["accent"], lkR(tL + 24, tT + 24, tL + 44, tT + 44), empty)
+   put lkLabel(pName & "_text", lkR(tL + 16, tT + 62, item 3 of pRect - 12, item 4 of pRect - 6), pText, 12, lkColor("soft"), empty) into tObj
+   if the formattedHeight of tObj > the height of tObj then
+      throw "the tip " & pName & " does not fit: " & pText
+   end if
+end exLearnTip

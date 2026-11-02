@@ -2273,6 +2273,10 @@ private function leExampleTable
    put "|Learn Box2D|Thirteen lessons in Box2D physics, each a live world to play with, how it works and the calls " & \
          "it makes: bodies, shapes, forces, joints, contacts, ray casts and terrain.|OXT-Beyond, 2026, on Box2D 3.1 through Box2Dxt|tours|box|teal|" & \
          "box2d box2dxt physics joints game|Resources/Examples/Remastered/Learn Box2D.oxtstack|Learn Box2D" & return after tTable
+   put "|Learn SodiumXT|Thirteen lessons in cryptography with SodiumXT: random bytes, fingerprints, passwords, " & \
+         "secret and public-key boxes, signatures, key exchange, files and streams, each a script to change and run, " & \
+         "and a reference of every handler.|OXT-Beyond, 2026, on libsodium through SodiumXT|suite|key-round|indigo|" & \
+         "sodium sodiumxt libsodium cryptography encryption hash password signature|Resources/Examples/Remastered/Learn SodiumXT.oxtstack|Learn SodiumXT" & return after tTable
    put "Resources/Examples/SQLite Book Library.oxtstack|SQLite Book Library|A small catalogue of books in SQLite, shown in " & \
          "a Data Grid: list them, search them, add and delete them.|In OpenXTalk Lite's demo set; its author is not recorded|apps|library-big|emerald|" & \
          "sqlite datagrid books database|Resources/Examples/Remastered/SQLite Books.oxtstack|SQLite Books" & return after tTable
@@ -2433,6 +2437,8 @@ private function leExampleGroups
          "small|Small samples|Also from the Stack Player: games, music, live data, speech, notes and modern " & \
          "controls, each small enough to read in one sitting." & return & \
          "tours|Tours|Guided tours of the Data Grid, of SQLite and of Box2D physics, a card at a time." & return & \
+         "suite|The xTalk Suite|Lessons in the extensions built into OXT-Beyond, one idea a card: each has a script " & \
+         "to change and run, and a reference of every handler." & return & \
          "apps|Small apps to take apart|Each does one thing, in a few short scripts: open one, then read its scripts." & return & \
          "samples|Samples, remade|Three of LiveCode Community's samples in Home's look: a game, bouncing balls and a database of books."
 end leExampleGroups
