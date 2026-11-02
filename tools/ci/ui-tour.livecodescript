@@ -5776,9 +5776,33 @@ on tour_about
    put tourNewStack(tBefore) into tNew
    if tNew is empty then throw "no About window opened"
    tourShotStack tNew, "24-about"
+   tourAboutMark tNew, "opened"
    tourRedrawCheck tNew, "lkAppearanceChanged", "24-about-redrawn"
+   tourAboutMark tNew, "redrawn"
    close stack tNew
 end tour_about
+
+-- The About window's mark is the OXT-Beyond logo (seth, 2026-11-02: the new
+-- logo in all the branding): image "heroMark", a copy of the logo the answer
+-- and ask dialogs show, not the orange-to-pink tile with the "layers" icon
+-- it drew before (that stays only for when the icon stack is missing, which
+-- in the IDE it never is)
+on tourAboutMark pStack, pWhen
+   local tLogo
+   if there is a control "heroMarkIcon" of stack pStack or there is a graphic "heroMark" of stack pStack then
+      throw "the About window (" & pWhen & ") draws the old layers mark, not the logo"
+   end if
+   if there is not an image "heroMark" of stack pStack then
+      throw "the About window (" & pWhen & ") has no logo (image heroMark)"
+   end if
+   put the text of image "oxt-l-64.png" of card "theAlertIcons" of stack "revGeneralIcons" into tLogo
+   if tLogo is empty or the text of image "heroMark" of stack pStack is not tLogo then
+      throw "the About window's mark (" & pWhen & ") is not the logo the dialogs show"
+   end if
+   if the rect of image "heroMark" of stack pStack is not "28,30,84,86" then
+      throw "the About window's mark (" & pWhen & ") is at" && the rect of image "heroMark" of stack pStack & ", not 28,30,84,86"
+   end if
+end tourAboutMark
 
 -- Help > Dictionary Online (seth's choice 12A of 2026-10-31): the Help
 -- menu has the item, and picking it, as the menu bar's Help button does,

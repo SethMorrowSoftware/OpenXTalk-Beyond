@@ -313,10 +313,10 @@ private command abBuild
    -- The header
    put lkBox("heroBg", lkR(0, 0, kWidth, kHeroHeight), lkColor("side"), 0, empty) into tObj
    lkGradient tObj, "15,23,42|20,24,54|36,27,82", "0,0", kWidth & "," & kHeroHeight
-   put lkBox("heroMark", lkR(kPad, 30, kPad + 56, 86), lkColor("flame"), 28, empty) into tObj
-   lkGradient tObj, "255,139,0|219,39,119", kPad & ",30", (kPad + 56) & ",86"
-   lkGlow tObj, "255,139,0", 18, 90
-   get lkIcon("heroMarkIcon", "layers", "255,255,255", lkR(kPad + 14, 44, kPad + 42, 72), empty)
+   -- The mark: the OXT-Beyond logo, the 64-pixel image the answer and ask
+   -- dialogs show (tools/oxt/ide-stack-patches/branding-dialog-icons.txt),
+   -- or, without it, the drawn mark the window had before
+   abHeroMark
    put kPad + 76 into tX
    put lkLabel("heroTitle", lkR(tX, 26, kWidth - kPad, 58), abName(), 26, "255,255,255", empty) into tObj
    set the dontWrap of tObj to true
@@ -373,6 +373,30 @@ private command abBuild
       set the defaultStack to tSaved
    end if
 end abBuild
+
+-- The header's mark, at kPad,30 and 56 pixels square: image "heroMark",
+-- a copy of the logo in stack "revGeneralIcons" (its 64-pixel PNG, drawn
+-- at 56 with the best resizing), with the logo's own orange glow. When
+-- that stack or image is not there, the mark is drawn as it was before the
+-- logo: an orange-to-pink tile with the "layers" icon on it.
+private command abHeroMark
+   local tObj
+   if there is a stack "revGeneralIcons" and \
+         there is an image "oxt-l-64.png" of card "theAlertIcons" of stack "revGeneralIcons" then
+      create image "heroMark"
+      put it into tObj
+      set the text of tObj to the text of image "oxt-l-64.png" of card "theAlertIcons" of stack "revGeneralIcons"
+      set the resizeQuality of tObj to "best"
+      set the lockLoc of tObj to true
+      set the rect of tObj to lkR(kPad, 30, kPad + 56, 86)
+      lkGlow tObj, "255,122,0", 18, 70
+      exit abHeroMark
+   end if
+   put lkBox("heroMark", lkR(kPad, 30, kPad + 56, 86), lkColor("flame"), 28, empty) into tObj
+   lkGradient tObj, "255,139,0|219,39,119", kPad & ",30", (kPad + 56) & ",86"
+   lkGlow tObj, "255,139,0", 18, 90
+   get lkIcon("heroMarkIcon", "layers", "255,255,255", lkR(kPad + 14, 44, kPad + 42, 72), empty)
+end abHeroMark
 
 -- Puts what abBuild made where the window's size wants it: the header as
 -- wide as the window, the panel as wide and as tall, and the buttons at
