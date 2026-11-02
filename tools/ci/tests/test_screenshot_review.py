@@ -113,6 +113,54 @@ and the IDE tour's checks that hold it (tools/ci/ui-tour.livecodescript):
   the palette while it does when the palette is over what it reads
   (tourToolsAside, tourToolsBack): the selected index line and the words
   of the check boxes. The snapshots a person looks through keep it.
+- On Linux the toolbar cut "Select Grouped" off at its "S" when it was
+  on (the review of the rc.6.12 pull request's tour, the dark appearance):
+  a lit button's label is bold (setButtonHilite, and any button's while it
+  is pressed), and revMenubarButtonFormattedWidth measured the labels
+  plain. Eight of the eleven buttons were narrower than their bold words
+  in DejaVu Sans ("Select Grouped" 107 of 120, "Messages" 72 of 81). Each
+  label is measured plain and bold; the step menubar-modern measures every
+  button's labels bold, in both looks. On the released rc.6.11 IDE it
+  fails on all eight; with the change it passes, and the toolbar is 999
+  pixels wide on Linux, where it was 922.
+- On Linux the colour scheme menu of Preferences' Script Editor pane
+  still had its arrow over the last "e" of "Follow System Appearance" in
+  its 204 pixels (the same review): the engine puts an option menu's words
+  in its middle, as a push button's, and GTK draws the arrow over the right
+  of the menu, from 22 to 13 pixels before its right on Ubuntu's theme.
+  The tour's check took the engine's own allowance for the arrow, 202 in
+  all, which assumes the words leave the arrow's room free. The menu is 212
+  pixels wide with its words at its left
+  (revpreferencesgui-follow-appearance-width.txt). On Linux the step
+  preferences measures where the words of every option menu end, by their
+  advance, against the arrow (tourMenuWordsClear, 20 pixels: the arrow's 22
+  less the 2 by which the words' ink stops short of their advance), and
+  each of the colour scheme menu's choices. On the released rc.6.11 IDE
+  with the rc.6.12 stack it fails on this menu alone (its words end at 644,
+  the arrow's room starts at 638); with the change it passes (635 of 646).
+- On Linux the xTalk Assistant's Settings cut a row of pixels off the
+  capitals of each note's first line ("Paste your Anthropic API key
+  here", "0 to 10: tries..."). The engine starts a label's words 6 points
+  above its top margin, so the notes' margin of 4 put their words 2
+  points above the notes, and in GitHub's Ubuntu machine's rendering the
+  capitals' tops fell there. Their top margin is 6, and the three beside
+  a box sit at its row's top, so their words are where they were. Every
+  label the step xtalk-assistant finds in the Settings and Memory
+  windows, and the steps preferences, standalone-settings and search,
+  must have its words start no higher than its top (tourFieldsWhole), and
+  a field whose border is 0 wide counts as a label, as the assistant's
+  are. On the released rc.6.11 IDE the step fails on the six notes (their
+  words at 158 in a note at 160); with the change it passes, and
+  Preferences, Standalone Settings and Search fail on nothing new.
+- The icon chooser's Image library menu read black on dark grey in the
+  dark appearance on Windows and Linux: OpenXTalk Lite 1.15 saved it with
+  black words, and those platforms draw an option menu's box in the
+  theme's colours and its words in the button's. A patch of the binary
+  stack (light-icon-chooser-menu.txt) clears the words' colour, so they
+  take the theme's. The step icon-chooser measures the menu's words on its
+  box (tourMenuWordsInk, 96 or more): on the released rc.6.11 IDE on Linux
+  they differ by 63 in the dark appearance and fail; with the patch by
+  174, and by 220 in the light one.
 - The whole tour ran past its 600 seconds on the Intel Mac (the light
   appearance, 141 snapshots) and came within a minute of it on Windows
   and the Apple silicon Mac, as the review's checks were added. It has
@@ -139,6 +187,8 @@ SE_COPIES = ('stack_revSETemplate_group_id_53759.livecodescript',
 PATCHES = ('tools', 'oxt', 'ide-stack-patches')
 INCLUSIONS_ROW = ('ide', 'Toolset', 'palettes', 'standalone settings',
                   'revstandalonesettingsinclusionsrowbehavior.livecodescript')
+MENUBAR = ('ide', 'Toolset', 'palettes', 'menubar', 'revmenubar.livecodescript')
+ASSISTANT = ('ide', 'Extensions', 'org.openxtalk.plugin.xtalkassistant', 'xtalkassistant.livecodescript')
 
 
 def read(parts):
@@ -526,8 +576,11 @@ class TheLinuxFonts(unittest.TestCase):
         self.assertIn('put tourNextOnLine(the long id of button i of this card, false) into tNext', buttons)
         fields = handler(tour, 'function', 'tourFieldsWhole')
         self.assertIn('(not the lockText of field i of this card and the traversalOn of field i of this card)', fields)
-        self.assertIn('the listBehavior of field i of this card or the showBorder of field i of this card then next repeat',
-                      fields)
+        # (a field whose border is 0 wide draws none, and is a label:
+        # TheAssistantNotes)
+        self.assertIn('the listBehavior of field i of this card or \\\n'
+                      '            (the showBorder of field i of this card and the borderWidth of field i of this card > 0) '
+                      'then next repeat', fields)
         self.assertIn('put tourWordsRect(the long id of field i of this card) into tWords', fields)
         self.assertIn('if item 3 of tWords > the right of field i of this card + 2 or '
                       'item 1 of tWords < the left of field i of this card - 2 then', fields)
@@ -781,6 +834,174 @@ class TheToolsPalette(unittest.TestCase):
         skip = body[check:body.index('import snapshot from rect tRect')]
         self.assertIn('"is not whole in the working screenRect"', skip)
         self.assertIn('next repeat', skip)
+
+
+class TheToolbarLabels(unittest.TestCase):
+    """A toolbar button is as wide as its words bold, as a lit one shows
+    them."""
+
+    def test_a_lit_button_is_bold(self):
+        # what the width has to hold
+        lit = handler(read(MENUBAR), 'on', 'setButtonHilite')
+        self.assertIn('set the textStyle of pLongID to "bold"', lit)
+
+    def test_each_label_measured_plain_and_bold(self):
+        body = handler(read(MENUBAR), 'function', '__buttonMaxFormattedWidth')
+        labels = body.index('repeat for each item tHilite in "true,false"')
+        styles = body.index('repeat for each item tStyle in "plain,bold"')
+        style = body.index('set the textStyle of button pName of group "toolbar" of me to tStyle')
+        measure = body.index('put max(tWidth, the formattedwidth of button pName of group "toolbar" of me) into tWidth')
+        self.assertLess(labels, styles)
+        self.assertLess(styles, style)
+        self.assertLess(style, measure)
+        # and the button is left as it was
+        self.assertLess(body.index('put the textStyle of button pName of group "toolbar" of me into tOldStyle'), labels)
+        self.assertLess(measure, body.index('set the textStyle of button pName of group "toolbar" of me to tOldStyle'))
+        self.assertLess(measure, body.index('set the label of button pName of group "toolbar" of me to tOldLabel'))
+        # the layout sizes every button by it
+        layout = handler(read(MENUBAR), 'on', 'layoutMenu')
+        self.assertIn('put revMenubarButtonFormattedWidth(tItem) into tWidth', layout)
+        self.assertIn('return max(__buttonMaxFormattedWidth(pName), kMinimumMenuButtonWidth)',
+                      handler(read(MENUBAR), 'function', 'revMenubarButtonFormattedWidth'))
+
+    def test_the_tour_measures_it(self):
+        tour = read(TOUR)
+        step = handler(tour, 'on', 'tour_menubar_modern')
+        for look, shot in (('modern', '03-menubar-modern-on'), ('classic', '03-menubar-classic')):
+            check = 'if it is not empty then put "%s: a label is cut off:" && it & return after tFails' % look
+            self.assertIn(check, step)
+            # before the snapshot of that look
+            self.assertLess(step.index(check), step.index('tourShotStack tMb, "%s"' % shot))
+        # with the toggles on: Select Grouped was the one cut off
+        self.assertLess(step.index('tourMbToggles true'), step.index('a label is cut off'))
+        check = handler(tour, 'function', 'tourMbLabelsCut')
+        self.assertIn('dispatch function "revMenubarButtonText" to stack tMb with tName, tHilite', check)
+        self.assertIn('set the textStyle of tBtn to "bold"', check)
+        self.assertIn('if tNeed > the width of tBtn then', check)
+        self.assertLess(check.index('put the formattedWidth of tBtn into tNeed'), check.index('if tNeed > the width of tBtn then'))
+        # each button as it was, for the snapshots and tourMbPrint
+        self.assertIn('set the textStyle of tBtn to tStyle', check)
+        self.assertIn('set the label of tBtn to tLabel', check)
+
+
+class TheOptionMenuArrows(unittest.TestCase):
+    """On Linux an option menu's words end clear of the arrow GTK draws over
+    its right."""
+
+    MENU = 'button "Colorization Scheme" of card "Script Editor"'
+    # "Follow System Appearance" in DejaVu Sans, 13 pixels (the tour's
+    # measureText on GitHub's Ubuntu machine and here), the menu's margins,
+    # and the tour's room for the arrow
+    WORDS, MARGIN, ROOM = 176, 4, 20
+
+    def test_the_colour_scheme_menu(self):
+        entries = {(obj, prop): (frm, to) for obj, prop, frm, to in
+                   patches_of('revpreferencesgui-follow-appearance-width.txt')}
+        self.assertEqual(entries[(self.MENU, 'textAlign')], ('center', 'left'))
+        left, top, right, bottom = (int(n) for n in entries[(self.MENU, 'rect')][1].split(','))
+        self.assertEqual((left, top, bottom), (454, 145, 167))
+        # whole, as the engine measures it (its words, margins and arrow)
+        self.assertGreaterEqual(right - left, self.WORDS + 2 * self.MARGIN + 18)
+        # at its left the words end clear of the arrow
+        self.assertLessEqual(left + self.MARGIN + 1 + self.WORDS, right - self.ROOM)
+        # in the middle of rc.6.12's 204 pixels they did not
+        self.assertGreater(454 + round((204 + self.WORDS) / 2), 658 - self.ROOM)
+        # its right stays inside its group (182,4,725,402) and the window (700)
+        self.assertLessEqual(right, 700)
+
+    def test_the_tour_measures_it(self):
+        tour = read(TOUR)
+        whole = handler(tour, 'function', 'tourButtonsWhole')
+        self.assertIn('if tKind is "option menu" and the platform is "Linux" then\n'
+                      '            get tourMenuWordsClear(the long id of button i of this card, the label of button i of this card)',
+                      whole)
+        check = handler(tour, 'function', 'tourMenuWordsClear')
+        self.assertIn('constant kTourMenuArrowRoom = 20\nfunction tourMenuWordsClear pMenu, pWords', tour)
+        self.assertIn('put measureText(pWords, pMenu) into tWords', check)
+        self.assertIn('put the left of pMenu + tMargin + 1 + tWords into tEnd', check)
+        self.assertIn('put the left of pMenu + round((the width of pMenu + tWords) / 2) into tEnd', check)
+        self.assertIn('if tEnd > the right of pMenu - kTourMenuArrowRoom then', check)
+        # and every choice of the colour scheme menu, as it shows
+        step = handler(tour, 'on', 'tour_preferences')
+        self.assertIn('repeat for each line tPane in the text of tMenu\n'
+                      '         if tPane is empty or tPane begins with "-" then next repeat\n'
+                      '         get tourMenuWordsClear(tMenu, tPane)', step)
+
+
+class TheAssistantNotes(unittest.TestCase):
+    """The xTalk Assistant's Settings notes start their words inside their
+    tops."""
+
+    # the engine starts a label's words this far above its top margin (the
+    # tour's formattedRect of a note: 158 for a note at 160 with a margin
+    # of 4, 160 with one of 6)
+    LIFT = 6
+
+    def test_the_notes_top_margin(self):
+        note = handler(read(ASSISTANT), 'command', 'xtaSettingsNote')
+        m = re.search(r'set the margins of field pName to "(\d+),(\d+),(\d+),(\d+)"', note)
+        self.assertIsNotNone(m)
+        self.assertGreaterEqual(int(m.group(2)), self.LIFT)
+
+    def test_the_notes_beside_a_box(self):
+        build = handler(read(ASSISTANT), 'command', 'xtaBuildSettings')
+        for name in ('Max Tokens Note', 'Fix Rounds Note', 'Timeout Note'):
+            # at the row's top: with the margin of 6 their words are where
+            # they were, 2 points down with a margin of 4
+            self.assertIn('xtaSettingsNote "%s", tLeft + 88, tTop, tRight, 20' % name, build)
+
+    def test_the_notes_under_a_box(self):
+        build = handler(read(ASSISTANT), 'command', 'xtaBuildSettings')
+        for name in ('Key Note', 'Base URL Note', 'Model Note'):
+            # a point under the box above (24 high), and tall enough for two
+            # lines of 13 and the margins
+            self.assertIn('add 25 to tTop\n   xtaSettingsNote "%s", tLeft, tTop, tRight, 31' % name, build)
+
+    def test_the_tour_measures_it(self):
+        tour = read(TOUR)
+        whole = handler(tour, 'function', 'tourFieldsWhole')
+        # a field whose border is 0 wide is a label
+        self.assertIn('(the showBorder of field i of this card and the borderWidth of field i of this card > 0) then next repeat',
+                      whole)
+        top = whole.index('if tWords is not empty and item 2 of tWords < the top of field i of this card then')
+        self.assertLess(whole.index('if the vScroll of field i of this card is 0 then'), top)
+        self.assertLess(top, whole.index('if the dontWrap of field i of this card then'))
+        # the Settings and the Memory window, before their snapshots
+        for shot, stack in (('tourShotXta', 'kXtaSettings'), ('tourShotXtaMemory', 'kXtaMemory')):
+            body = handler(tour, 'on', shot)
+            check = body.index('get tourFieldsWhole(%s)\n      if it is not empty then tourXtaProblem it' % stack)
+            self.assertLess(check, body.index('tourShotStack %s,' % stack))
+
+
+class TheIconChooserMenu(unittest.TestCase):
+    """The icon chooser's Image library menu shows its words in the
+    theme's colour."""
+
+    def test_the_patch(self):
+        entries = {(obj, prop): (frm, to) for obj, prop, frm, to in
+                   patches_of('light-icon-chooser-menu.txt')}
+        self.assertEqual(entries, {('button "library chooser" of card 1', 'foregroundColor'): ('black', '')})
+        self.assertIn('file: Toolset/palettes/reviconchooser.rev\n',
+                      read(PATCHES + ('light-icon-chooser-menu.txt',)))
+
+    def test_the_tour_measures_it(self):
+        tour = read(TOUR)
+        self.assertIn('constant kTourMenuWordsInk = 96\n', tour)
+        step = handler(tour, 'on', 'tour_icon_chooser')
+        measure = step.index('put tourMenuWordsInk(tMenu) into tInk')
+        self.assertIn('put the long id of button "library chooser" of card 1 of stack "revIconChooser" into tMenu', step)
+        self.assertLess(measure, step.index('if tInk < kTourMenuWordsInk then'))
+        # measured before the snapshot, and the window closed before a
+        # failure is thrown
+        self.assertLess(measure, step.index('tourShotStack "revIconChooser", "27-icon-chooser"'))
+        self.assertLess(step.index('close stack "revIconChooser"'), step.index('if tError is not empty then throw tError'))
+        ink = handler(tour, 'function', 'tourMenuWordsInk')
+        # the menu's own window's coordinates, then the screen's pixels
+        self.assertLess(ink.index('set the defaultStack to the short name of tStack'),
+                        ink.index('put globalLoc(item 1 to 2 of tRect) into tTopLeft'))
+        self.assertIn('import snapshot from rect tRect', ink)
+        self.assertIn('put tourLum((tEnd + sPixWidth - 24) div 2, sPixHeight div 2) into tFace', ink)
+        self.assertIn('return tourMaxDiff(2, 4, tEnd, sPixHeight - 4, tFace)', ink)
 
 
 class TheTourBudget(unittest.TestCase):

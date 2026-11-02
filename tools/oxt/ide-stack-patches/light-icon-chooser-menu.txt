@@ -1,0 +1,14 @@
+# Icon chooser: OpenXTalk Lite 1.15 saved its Image library menu with
+# black words on 86,84,93 (Tom Perry's dark styling of dialogs). Windows
+# and Linux draw an option menu's box in the theme's colours and its words
+# in the button's, so in the dark appearance "Standard Icons" was black on
+# dark grey, and could hardly be seen; the Mac draws its own. Its words
+# take the theme's colour, as a standard button's do. Its background is
+# left as it was: the theme draws the box (light in the light appearance,
+# with the black words that were readable there). The IDE tour's step
+# icon-chooser measures the menu's words on its box.
+file: Toolset/palettes/reviconchooser.rev
+object: button "library chooser" of card 1
+property: foregroundColor
+from: black
+to: 

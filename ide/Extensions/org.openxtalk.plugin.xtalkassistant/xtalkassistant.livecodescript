@@ -2747,19 +2747,21 @@ private command xtaBuildSettings
    xtaSettingsSection "Section3", "3  Answers", tTop
    xtaSettingsLabel "Longest answer", tTop
    xtaSettingsField "Max Tokens", tLeft, tTop, tLeft + 80
-   xtaSettingsNote "Max Tokens Note", tLeft + 88, tTop + 2, tRight, 20
+   -- (at the row's top, with the note's top margin of 6, its words are
+   -- where they were at 2 points down with a margin of 4)
+   xtaSettingsNote "Max Tokens Note", tLeft + 88, tTop, tRight, 20
    put "tokens (empty:" && xtaMaxTokens("anthropic", empty) && "for Anthropic; OpenAI's model decides)" into field "Max Tokens Note"
 
    add 30 to tTop
    xtaSettingsLabel "Fix rounds", tTop
    xtaSettingsField "Fix Rounds", tLeft, tTop, tLeft + 80
-   xtaSettingsNote "Fix Rounds Note", tLeft + 88, tTop + 2, tRight, 20
+   xtaSettingsNote "Fix Rounds Note", tLeft + 88, tTop, tRight, 20
    put "0 to" && kMaxFixRounds & ": tries to correct code that does not compile" into field "Fix Rounds Note"
 
    add 30 to tTop
    xtaSettingsLabel "Wait for an answer", tTop
    xtaSettingsField "Timeout", tLeft, tTop, tLeft + 80
-   xtaSettingsNote "Timeout Note", tLeft + 88, tTop + 2, tRight, 20
+   xtaSettingsNote "Timeout Note", tLeft + 88, tTop, tRight, 20
    put "seconds (" & kMinTimeout && "to" && kMaxTimeout & "; empty:" && kDefaultTimeout & ", more for a long answer)" into field "Timeout Note"
 
    add 30 to tTop
@@ -2815,14 +2817,17 @@ private command xtaSettingsField pName, pLeft, pTop, pRight
 end xtaSettingsField
 
 -- Small text that explains the row above it (or beside it, one line).
--- The top margin is 4: with less, the engine clips the tops of the first
--- line's letters; and the margins are given as four numbers, the form
--- the suite's kit found OXT keeps.
+-- The top margin is 6: the engine starts a label's words 6 points above
+-- its top margin, so with 4 they started 2 points above the note, and on
+-- Linux the field cut a row of pixels off the tops of the first line's
+-- capitals (rc.6.12c; the IDE tour's tourFieldsWhole measures it). The
+-- margins are given as four numbers, the form the suite's kit found OXT
+-- keeps.
 private command xtaSettingsNote pName, pLeft, pTop, pRight, pHeight
    xtaUiLabel pName, empty, pLeft & comma & pTop & comma & pRight & comma & (pTop + pHeight), 10
    set the foregroundColor of field pName to xtaUi("Muted")
    set the dontWrap of field pName to (pHeight < 24)
-   set the margins of field pName to "1,4,1,1"
+   set the margins of field pName to "1,6,1,1"
 end xtaSettingsNote
 
 private command xtaSettingsCheckbox pName, pLabel, pLeft, pTop, pRight

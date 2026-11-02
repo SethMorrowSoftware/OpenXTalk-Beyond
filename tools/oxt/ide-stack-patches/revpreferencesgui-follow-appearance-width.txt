@@ -3,12 +3,25 @@
 # off (bwmilby, openxtalk.org p=25582, about 200 needed on a Mac). It now
 # reaches from the "Horizontal scroll" checkbox's right edge to the right
 # edge of its label above it, on the same row: first 461 to 656 (195
-# pixels), and from 0.2.7-rc.6.12 454 to 658 (204 pixels), as on Linux the
-# menu's arrow ran over the choice's last letter: it needs 202 there, in
-# DejaVu Sans (revpreferencesgui-fit-script-editor.txt narrows the check
-# box to 452).
+# pixels), then 454 to 658 (204 pixels), as on Linux the menu's arrow ran
+# over the choice's last letter: it needs 202 there, in DejaVu Sans
+# (revpreferencesgui-fit-script-editor.txt narrows the check box to 452).
+# From 0.2.7-rc.6.12c 454 to 666 (212 pixels), with its words at its left
+# (textAlign): on Linux the engine puts an option menu's words in its
+# middle, as a push button's, and GTK draws the arrow over the right of the
+# menu (from 22 to 13 pixels before its right on Ubuntu's theme), so in 204
+# pixels the arrow still ran over the last "e" (the screenshots of the
+# rc.6.12 pull request). At the left, in DejaVu Sans, they end 31 pixels
+# before the menu's right; on the Mac and Windows, whose menus put their
+# words at the left too, the words move left and nothing else does. The
+# IDE tour's step preferences measures where the words of every option
+# menu end against its arrow on Linux (tourMenuWordsClear), and each of
+# this menu's choices.
 file: Toolset/palettes/revpreferencesgui.rev
 object: button "Colorization Scheme" of card "Script Editor"
 property: rect
 from: 503,145,649,167
-to: 454,145,658,167
+to: 454,145,666,167
+property: textAlign
+from: center
+to: left

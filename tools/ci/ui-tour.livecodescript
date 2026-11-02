@@ -1372,6 +1372,10 @@ on tour_menubar_modern
             put "modern: the toggle" && tToggle && "is not on" & return after tFails
          end if
       end repeat
+      -- every button's labels whole in it, bold as a lit button draws them
+      add 1 to tChecks
+      get tourMbLabelsCut()
+      if it is not empty then put "modern: a label is cut off:" && it & return after tFails
       tourShotStack tMb, "03-menubar-modern-on"
       tourMbToggles false
       -- the View menu's item turns the classic look on
@@ -1392,6 +1396,9 @@ on tour_menubar_modern
       if the textColor of group "toolbar" of stack tMb is not empty or there is a graphic "mbBackground" of card 1 of stack tMb then
          put "classic: the labels have a colour, or the modern look's background is still there" & return after tFails
       end if
+      add 1 to tChecks
+      get tourMbLabelsCut()
+      if it is not empty then put "classic: a label is cut off:" && it & return after tFails
       tourShotStack tMb, "03-menubar-classic"
       dispatch "revMenubarViewMenuPick" to stack tMb with "Modern Toolbar"
       tourWait 300
@@ -1437,6 +1444,46 @@ function tourMbPrint
    end repeat
    return tOut
 end tourMbPrint
+
+-- The toolbar's buttons whose words are wider than the button, as the
+-- button can show them: its label now and both of revMenubarButtonText's
+-- (lit and not), each bold, as setButtonHilite draws a lit button's and
+-- any button's while it is pressed. Each is measured as the button lays
+-- it out (its formattedWidth) and put back as it was. The toolbar measured
+-- only the plain labels, and on Linux (DejaVu Sans) cut a lit "Select
+-- Grouped" off at its first letter
+function tourMbLabelsCut
+   local tMb, tCut, tN, tBtn, tName, tLabel, tStyle, tLabels, tHilite, tText, tNeed
+   put "revMenuBar" into tMb
+   lock screen
+   lock messages
+   repeat with tN = 1 to the number of buttons of group "toolbar" of stack tMb
+      put the long id of button tN of group "toolbar" of stack tMb into tBtn
+      if not the visible of tBtn or not the showName of tBtn then next repeat
+      put the short name of tBtn into tName
+      put the label of tBtn into tLabel
+      put the textStyle of tBtn into tStyle
+      put tLabel into tLabels
+      repeat for each item tHilite in "true,false"
+         dispatch function "revMenubarButtonText" to stack tMb with tName, tHilite
+         if it is "handled" and the result is not among the lines of tLabels then put return & the result after tLabels
+      end repeat
+      repeat for each line tText in tLabels
+         if tText is empty then next repeat
+         set the label of tBtn to tText
+         set the textStyle of tBtn to "bold"
+         put the formattedWidth of tBtn into tNeed
+         if tNeed > the width of tBtn then
+            put tName && "is" && the width of tBtn && "wide," && quote & tText & quote && "bold needs" && tNeed & "; " after tCut
+         end if
+      end repeat
+      set the textStyle of tBtn to tStyle
+      set the label of tBtn to tLabel
+   end repeat
+   unlock messages
+   unlock screen
+   return tCut
+end tourMbLabelsCut
 
 -- Messages, Errors and Select Grouped on (pOn) or off, as the toolbar
 -- reads them (updateButtonState)
@@ -4910,6 +4957,14 @@ on tour_preferences
       put "the Script Editor pane's colour scheme menu is" && the width of tMenu && \
             "pixels wide; its longest choice needs" && tNeed & return after tFails
    end if
+   -- and on Linux each choice ends clear of the menu's arrow, as it shows
+   if the platform is "Linux" then
+      repeat for each line tPane in the text of tMenu
+         if tPane is empty or tPane begins with "-" then next repeat
+         get tourMenuWordsClear(tMenu, tPane)
+         if it is not empty then put "the Script Editor pane's colour scheme menu" && it & return after tFails
+      end repeat
+   end if
    -- The line under every pane that says where the preferences are saved
    -- (field "prefloc", filled by updPrefPath in field "Menu") shows a path
    -- too long for it with "..." for folders in its middle, and the whole
@@ -5445,6 +5500,13 @@ function tourButtonsWhole pStack
                   the short name of this card && "is cut off: it is" && the width of button i of this card && \
                   "wide, its words need" && tNeed & return after tFails
          end if
+         if tKind is "option menu" and the platform is "Linux" then
+            get tourMenuWordsClear(the long id of button i of this card, the label of button i of this card)
+            if it is not empty then
+               put "the option menu" && the short name of button i of this card && "of" && pStack && "on its card" && \
+                     the short name of this card && it & return after tFails
+            end if
+         end if
          next repeat
       end if
       put min(the right of button i of this card, the width of this stack) into tRight
@@ -5473,6 +5535,44 @@ function tourButtonsWhole pStack
    if tFails is empty then return empty
    return tFails
 end tourButtonsWhole
+
+-- On Linux the engine puts an option menu's words where it puts a push
+-- button's, in the middle of the menu when its text is centred or at its
+-- left margin, and GTK draws the menu's arrow over the right of the menu:
+-- on Ubuntu's theme from 22 to 13 pixels before its right. Where the words
+-- pWords of the menu pMenu (its label when empty) end, by their advance,
+-- against the arrow's room (kTourMenuArrowRoom: the arrow's 22 pixels less
+-- the 2 by which a word's ink stops short of its advance): empty when they
+-- end before it. The colour scheme menu's "Follow System Appearance" ran 6
+-- pixels into the arrow in 204 pixels (the screenshots of the rc.6.12 pull
+-- request: its advance ended 14 pixels before the menu's right); the sort
+-- order menus' "Ascending" and Indents' "3", 4 pixels clear of it, end 22
+-- and 23 before. A right-aligned menu is left out
+constant kTourMenuArrowRoom = 20
+function tourMenuWordsClear pMenu, pWords
+   local tWords, tMargin, tEnd
+   if pWords is empty then put the short name of pMenu into pWords
+   put measureText(pWords, pMenu) into tWords
+   put the margins of pMenu into tMargin
+   if the number of items of tMargin is 4 then put item 1 of tMargin into tMargin
+   switch the textAlign of pMenu
+      case "left"
+         put the left of pMenu + tMargin + 1 + tWords into tEnd
+         break
+      case "center"
+         put the left of pMenu + round((the width of pMenu + tWords) / 2) into tEnd
+         break
+      default
+         return empty
+   end switch
+   tourRecord "INFO menu words:" && the short name of pMenu && quote & pWords & quote && "end at" && tEnd & \
+         ", the arrow's room starts at" && the right of pMenu - kTourMenuArrowRoom && "(" & the textAlign of pMenu & ")"
+   if tEnd > the right of pMenu - kTourMenuArrowRoom then
+      return "has its words" && quote & pWords & quote && "end at" && tEnd & ", into its arrow (" & \
+            the right of pMenu - kTourMenuArrowRoom && "on, the menu is" && the textAlign of pMenu & ")"
+   end if
+   return empty
+end tourMenuWordsClear
 
 -- Whether the control pControl shows: it is visible, and so is each group
 -- it is in, and it is in the window of the defaultStack (some palettes keep
@@ -5687,13 +5787,15 @@ end tourWordsRect
 
 -- The label fields of the card of the stack pStack whose words do not show
 -- whole: a field without scrollbars or a border, locked or never focused,
--- whose words go past its left or right (it does not wrap) or are taller
--- than it (it wraps), or, in one that does not wrap, reach into a button
--- or a field to their right on the same line. Its words are where the
--- engine lays them out (tourWordsRect), after its margins and as it
--- aligns them. A field with a border is a box that shows a value, such as
--- the Windows card's icon file, and may scroll it; one in a group that is
--- hidden is not looked at. Empty, or what is cut off
+-- whose words start above its top, go past its left or right (it does not
+-- wrap) or are taller than it (it wraps), or, in one that does not wrap,
+-- reach into a button or a field to their right on the same line. Its
+-- words are where the engine lays them out (tourWordsRect), after its
+-- margins and as it aligns them. A field with a border is a box that
+-- shows a value, such as the Windows card's icon file, and may scroll it;
+-- one whose border is 0 wide draws none, and is a label (the xTalk
+-- Assistant's are); one in a group that is hidden is not looked at.
+-- Empty, or what is cut off
 function tourFieldsWhole pStack
    local tDefault, tFails, tNeed, tWords, tWhat, tNext, i
    put the defaultStack into tDefault
@@ -5702,10 +5804,24 @@ function tourFieldsWhole pStack
       -- (a label: locked, or never takes the focus)
       if (not the lockText of field i of this card and the traversalOn of field i of this card) or \
             the vScrollbar of field i of this card or the hScrollbar of field i of this card or \
-            the listBehavior of field i of this card or the showBorder of field i of this card then next repeat
+            the listBehavior of field i of this card or \
+            (the showBorder of field i of this card and the borderWidth of field i of this card > 0) then next repeat
       if field i of this card is empty then next repeat
       if not tourControlShown(the long id of field i of this card) then next repeat
       put the short name of field i of this card && "(" & line 1 of field i of this card & ")" into tWhat
+      -- the words start no higher than the field's top, or the field cuts
+      -- the tops of their letters off: the xTalk Assistant's Settings,
+      -- whose notes had a top margin of 4, had their words start two
+      -- points above them, and on Linux the capitals of their first lines
+      -- lost a row of pixels (rc.6.12c)
+      if the vScroll of field i of this card is 0 then
+         put tourWordsRect(the long id of field i of this card) into tWords
+         if tWords is not empty and item 2 of tWords < the top of field i of this card then
+            put "the field" && tWhat && "of" && pStack && "on its card" && the short name of this card && \
+                  "cuts its words' tops off: it starts at" && the top of field i of this card & \
+                  ", its words at" && item 2 of tWords & return after tFails
+         end if
+      end if
       if the dontWrap of field i of this card then
          put tourWordsRect(the long id of field i of this card) into tWords
          if tWords is empty then next repeat
@@ -6582,6 +6698,10 @@ on tourShotXta
       if not tourWaitOpen(kXtaSettings, 5000) then throw "the Settings did not open"
       tourWait 500
       tourXtaLook kXtaSettings, "Save,Cancel"
+      -- every label's words whole (tourFieldsWhole): its notes under and
+      -- beside the boxes lost their capitals' tops on Linux (rc.6.12c)
+      get tourFieldsWhole(kXtaSettings)
+      if it is not empty then tourXtaProblem it
       tourShotStack kXtaSettings, "24f-xtalk-assistant-settings"
       put true into sXta["settings"]
    catch tError
@@ -6598,6 +6718,8 @@ on tourShotXtaMemory
       tourWait 500
       tourXtaLook kXtaMemory, "Save,Cancel,Forget"
       if there is not a field "You" of stack kXtaMemory then tourXtaProblem "the Memory window has no notes about you"
+      get tourFieldsWhole(kXtaMemory)
+      if it is not empty then tourXtaProblem it
       tourShotStack kXtaMemory, "24f-xtalk-assistant-memory"
       put true into sXta["memory"]
    catch tError
@@ -6694,13 +6816,77 @@ on tour_ask
 end tour_ask
 
 -- The icon chooser of the inspector's icon properties, which opens it as
--- a sheet; here a palette, so that the tour need not wait on it
+-- a sheet; here a palette, so that the tour need not wait on it. The
+-- words of its Image library menu stand out from the menu: OpenXTalk Lite
+-- 1.15 saved the menu with black words on 86,84,93, and Windows and Linux
+-- draw its box in the theme's colours and its words in the button's, so
+-- in the dark appearance "Standard Icons" was black on dark grey
+-- (light-icon-chooser-menu.txt). Its words, as far as they reach, differ
+-- from the box beyond them, clear of the arrow, by 96 or more: on Linux
+-- black on the light box by 246, the theme's light words on the dark one
+-- by 174, and black on the dark one by 63.
+constant kTourMenuWordsInk = 96
+
 on tour_icon_chooser
+   local tMenu, tInk, tError
    palette stack "revIconChooser"
    tourWait 1000
+   put the long id of button "library chooser" of card 1 of stack "revIconChooser" into tMenu
+   try
+      put tourMenuWordsInk(tMenu) into tInk
+      tourRecord "INFO icon-chooser: the words of the Image library menu (" & the label of tMenu & \
+            ") differ from its box by" && tInk
+      if tInk < kTourMenuWordsInk then
+         put "the words of the icon chooser's Image library menu (" & the label of tMenu & \
+               ") can hardly be seen on it: they differ from its box by" && tInk & \
+               ", less than" && kTourMenuWordsInk into tError
+      end if
+   catch tError
+   end try
    tourShotStack "revIconChooser", "27-icon-chooser"
    close stack "revIconChooser"
+   if tError is not empty then throw tError
 end tour_icon_chooser
+
+-- The most a point of the words of the option menu pMenu differs from its
+-- box: its box half way down, between the end of its words and the 24
+-- points at its right where an arrow is drawn, and its words from 2 points
+-- in, as far as measureText says they reach and 2 more (no further than
+-- that box point), 4 points in from its top and bottom
+function tourMenuWordsInk pMenu
+   local tStack, tDefault, tRect, tTopLeft, tImage, tWords, tEnd, tFace
+   put the long owner of pMenu into tStack
+   repeat until word 1 of tStack is "stack"
+      put the long owner of tStack into tStack
+   end repeat
+   tourUnlockScreen "menu words"
+   put the defaultStack into tDefault
+   -- (globalLoc is of the defaultStack's window)
+   set the defaultStack to the short name of tStack
+   put the rect of pMenu into tRect
+   put globalLoc(item 1 to 2 of tRect) into tTopLeft
+   put item 1 of tTopLeft, item 2 of tTopLeft, \
+         item 1 of tTopLeft + item 3 of tRect - item 1 of tRect, \
+         item 2 of tTopLeft + item 4 of tRect - item 2 of tRect into tRect
+   put the label of pMenu into tWords
+   if tWords is empty then put line 1 of the text of pMenu into tWords
+   set the defaultStack to "oxt_ui_tour"
+   lock messages
+   import snapshot from rect tRect
+   put the long id of last image of card 1 of stack "oxt_ui_tour" into tImage
+   put the width of tImage into sPixWidth
+   put the height of tImage into sPixHeight
+   put the imageData of tImage into sPixData
+   delete tImage
+   unlock messages
+   set the defaultStack to tDefault
+   if sPixWidth < 1 or the number of bytes of sPixData < sPixWidth * sPixHeight * 4 then
+      throw "no pixels for the menu" && the short name of pMenu && "(" & tRect & ")"
+   end if
+   put min(4 + measureText(tWords, pMenu) + 2, sPixWidth - 24) into tEnd
+   put tourLum((tEnd + sPixWidth - 24) div 2, sPixHeight div 2) into tFace
+   return tourMaxDiff(2, 4, tEnd, sPixHeight - 4, tFace)
+end tourMenuWordsInk
 
 -- macOS: the system switched between light and dark while the IDE runs,
 -- as System Settings does it (the global AppleInterfaceStyle written, then

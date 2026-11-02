@@ -1,0 +1,4 @@
+- IDE toolbar (on Linux): a toggle that is on, such as Select Grouped, shows its whole label; a lit button draws its label bold, and the buttons were as wide as the plain label, so in DejaVu Sans eight of the eleven cut theirs off (#311)
+- Preferences, Script Editor (on Linux): the colour scheme menu's words sit at its left, clear of the arrow GTK draws over its right, which ran over the last "e" of "Follow System Appearance" (#311)
+- xTalk Assistant Settings (on Linux): the first line of each note under and beside a box shows its capitals whole; their tops lost a row of pixels (#311)
+- Icon chooser (on Windows and Linux): the Image library menu's words take the theme's colour; they were black, which in the dark appearance was black on dark grey (#311)
