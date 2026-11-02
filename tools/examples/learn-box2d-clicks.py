@@ -365,24 +365,47 @@ def drag(run, name):
 
 
 def empty_click(run, name):
-    """Rays and Terrain: a click on empty space, beside a body"""
-    st = run.state()
-    bodies = dynamic(run, st)
+    """Rays and Terrain: a click on empty space, beside a body. A click ON a
+    body is a drag, so the spot must be clear of every other body (and the
+    bodies may still be settling): the bodies whose spot is furthest from
+    the rest are tried, up to three, until one answers"""
+    bodies = dynamic(run)
     if not run.check(bool(bodies), '%s: a body to click beside' % name):
         return
-    body, (x, y) = bodies[0]
-    if name == 'Rays':
-        # (35 pixels is 0.7 metres: within the metre the click asks about)
-        st = run.click(x + 35 if x < 475 else x - 35, y, 0.5)
-        found = st.get('readout', '').split('a click found', 1)[-1].split()
-        run.check(bool(found) and found[0].isdigit() and int(found[0]) >= 1,
-                  'Rays: a click beside a body finds it', st.get('readout', ''))
-    else:
-        st = run.click(x, y - 45, 0.6)
-        now = dict(table(st.get('dynamic')))
-        moved = body in now and abs(now[body][1] - y) + abs(now[body][0] - x) > 4
-        run.check(moved and not run.errors(), 'Terrain: a click above a body blasts it',
-                  '%s -> %s' % ((x, y), now.get(body)))
+
+    def spot(x, y):
+        # Rays: 35 pixels (0.7 metres) beside it, within the metre the
+        # click asks about; Terrain: 45 pixels above it
+        if name == 'Rays':
+            return (x + 35 if x < 475 else x - 35), y
+        return x, y - 45
+
+    def clearance(item):
+        b, (bx, by) = item
+        sx, sy = spot(bx, by)
+        return min([((ox - sx) ** 2 + (oy - sy) ** 2) ** 0.5
+                    for o, (ox, oy) in bodies if o != b] or [999])
+
+    what = {'Rays': 'Rays: a click beside a body finds it',
+            'Terrain': 'Terrain: a click above a body blasts it'}[name]
+    why = ''
+    for body, (x, y) in sorted(bodies, key=clearance, reverse=True)[:3]:
+        st = run.click(*spot(x, y), settle=0.6)
+        if name == 'Rays':
+            found = st.get('readout', '').split('a click found', 1)[-1].split()
+            if found and found[0].isdigit() and int(found[0]) >= 1:
+                run.check(not run.errors(), what, 'a script error')
+                return
+            why = st.get('readout', '')
+        else:
+            now = dict(table(st.get('dynamic')))
+            if body in now and abs(now[body][1] - y) + abs(now[body][0] - x) > 4:
+                run.check(not run.errors(), what, 'a script error')
+                return
+            why = '%s -> %s' % ((x, y), now.get(body))
+        time.sleep(0.5)
+        bodies = dynamic(run)
+    run.check(False, what, why)
 
 
 def keys(run):
