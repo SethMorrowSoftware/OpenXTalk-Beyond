@@ -19,6 +19,7 @@ finds, when it waits for one, and what it logs of one (a .ips as macOS 12
 and later write it, and a .crash); and the crash dialog it keeps off CI's
 screen. And the tour's macOS system-switch step, read from the tour
 script: how it posts the switch, and that it still checks the message.
+And its log, on a console that cannot show every character.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -202,6 +203,34 @@ class CrashDialog(unittest.TestCase):
         _, ran, lines = self.run_it(1)
         self.assertEqual(ran, [['pkill', '-x', 'Problem Reporter']])
         self.assertEqual(lines, ['The Mac: no crash dialog (com.apple.CrashReporter DialogType none, UseUNC 1)'])
+
+
+class TheLog(unittest.TestCase):
+    """The tour prints the script's lines, and a line can hold a character
+    the console cannot show: the xTalk Assistant's mark is U+2726, and
+    Windows' console on CI writes cp1252. On #311's Windows build the tour
+    finished every step and print() then raised UnicodeEncodeError, which
+    failed both screenshot steps. Such a character is logged escaped."""
+
+    def run_it(self, encoding, msg):
+        raw = io.BytesIO()
+        out = io.TextIOWrapper(raw, encoding=encoding, newline='\n')
+        with mock.patch.object(sys, 'stdout', out):
+            ui_tour.log(msg)
+        out.flush()
+        return raw.getvalue().decode(encoding)
+
+    def test_a_character_the_console_cannot_show(self):
+        line = 'INFO xtalk-assistant: field "Mark" (\u2726) whole'
+        self.assertEqual(self.run_it('cp1252', line),
+                         'INFO xtalk-assistant: field "Mark" (\\u2726) whole\n')
+
+    def test_a_line_the_console_can_show(self):
+        self.assertEqual(self.run_it('cp1252', 'STEP icon-chooser ok \u00e9'), 'STEP icon-chooser ok \u00e9\n')
+        self.assertEqual(self.run_it('utf-8', 'mark \u2726'), 'mark \u2726\n')
+
+    def test_an_empty_line(self):
+        self.assertEqual(self.run_it('cp1252', ''), '\n')
 
 
 TOUR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ui-tour.livecodescript')

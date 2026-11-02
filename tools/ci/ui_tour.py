@@ -112,7 +112,16 @@ WINDOWS_VALUES = ('AppsUseLightTheme', 'SystemUsesLightTheme')
 
 
 def log(msg=''):
-    print(msg)
+    # A line can hold a character the console cannot show: the script's
+    # lines name fields by their words, the xTalk Assistant's mark is
+    # U+2726, and Windows' console on CI writes cp1252. print() raised
+    # UnicodeEncodeError there after every step had passed, and failed the
+    # run (#311); such a character is logged escaped (✦) instead.
+    try:
+        print(msg)
+    except UnicodeEncodeError:
+        encoding = getattr(sys.stdout, 'encoding', None) or 'ascii'
+        print(msg.encode(encoding, 'backslashreplace').decode(encoding))
     sys.stdout.flush()
 
 
