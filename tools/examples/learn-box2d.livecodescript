@@ -936,7 +936,9 @@ private command labFitReadout
    else
       set the rect of field "Readout" to tLeft, tTop, tLeft + max(1, the formattedWidth of field "Readout"), tTop + 40
    end if
-   set the height of field "Readout" to max(1, the formattedHeight of field "Readout")
+   -- (a few pixels more than its lines, or the engine cuts off the
+   -- letters that hang below them)
+   set the height of field "Readout" to the formattedHeight of field "Readout" + 4
    set the top of field "Readout" to tTop
    set the rect of graphic "ReadoutBg" to the left of field "Readout" - 6, tTop - 3, \
          the right of field "Readout" + 6, the bottom of field "Readout" + 3
