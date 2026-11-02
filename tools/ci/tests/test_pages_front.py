@@ -139,10 +139,43 @@ class TheTemplate(unittest.TestCase):
             self.assertNotIn('href="%s"' % folder, outside, key)
 
     def test_nothing_from_another_host(self):
+        # The one thing the page loads is its own logo, from brand/ beside it
         page = parse(self.text)
-        self.assertEqual(page.loads, [])
+        self.assertEqual(sorted(set(page.loads)), ['brand/icon.svg', 'brand/logo-animated.svg'])
+        for name in page.loads:
+            self.assertIn(name[len('brand/'):], build_pages.BRAND)
         self.assertNotRegex(self.text, r'url\(\s*["\']?(https?:)?//')
         self.assertNotRegex(self.text, r'@import')
+
+
+    def test_the_logo(self):
+        # The moving logo in the hero, the still one for less motion, the
+        # small one as the favicon, and the banner for link previews: each
+        # a file the site has
+        self.assertIn('<source srcset="brand/logo.svg" media="(prefers-reduced-motion: reduce)">', self.text)
+        self.assertIn('<img src="brand/logo-animated.svg"', self.text)
+        self.assertIn('<link rel="icon" type="image/svg+xml" href="brand/icon.svg">', self.text)
+        # It lies over the stack window's corner, so clicks go through it
+        # to the stack (its answer's OK button is under it on a narrow page)
+        css = re.search(r'\.hero-logo \{([^}]*)\}', self.text).group(1)
+        self.assertIn('pointer-events: none', css)
+        preview = re.search(r'<meta property="og:image" content="([^"]+)">', self.text).group(1)
+        self.assertEqual(preview, 'https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/brand/social.png')
+        for name in build_pages.BRAND:
+            self.assertTrue(os.path.isfile(os.path.join(PAGES, 'brand', name)), name)
+
+    def test_the_web_stacks(self):
+        # "Web Games" became "Web Stacks" (SVG Lab is no game); the folder
+        # stays games/, so every link to it keeps working
+        self.assertIn('<h3>Web Stacks</h3>', self.text)
+        self.assertNotIn('Web Games', self.text)
+        self.assertIn('href="games/"', self.text)
+        with open(os.path.join(PAGES, 'games', 'index.html'), encoding='utf-8') as f:
+            games = f.read()
+        self.assertIn('<title>Web stacks · OXT-Beyond</title>', games)
+        self.assertNotIn('Web games', games)
+        self.assertIn('href="pixel-maker/"', games)
+        self.assertIn('href="svg-lab/"', games)
 
 
 class TheBuiltPage(unittest.TestCase):
@@ -295,6 +328,11 @@ class TheBuiltPage(unittest.TestCase):
             text = f.read()
         self.assertIn('href="player/"', text)
         self.assertNotIn('href="ide/"', text)
+        # the logo goes up beside the page, as the brand folder has it
+        for name in build_pages.BRAND:
+            with open(os.path.join(out, 'brand', name), 'rb') as f, \
+                    open(os.path.join(PAGES, 'brand', name), 'rb') as g:
+                self.assertEqual(f.read(), g.read(), name)
         self.assertNotIn('Launch the Web IDE', text)
         self.assertNotIn('id="downloads"', text)
 
