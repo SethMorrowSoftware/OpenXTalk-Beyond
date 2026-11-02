@@ -1,8 +1,15 @@
 # OXT-Beyond artwork: 0.2.7 "Bug Hunt"
 
 From 0.2.1 the icon is an orange "OXT" struck by lightning over a
-stitched seam and "BEYOND", on a charcoal tile with an orange rim; 0.2.7
-keeps it. From 0.2.7, a release frozen for play testing, the splash
+stitched seam and "BEYOND", on a charcoal tile with an orange rim. In
+0.2.7 it is redrawn as SVG for SVG Lab
+(`tools/pages/games/svg-lab/beyond-logo.svg`, written by `genlogo.py`
+there): the words as paths, so it needs no font, a flame gradient on
+"OXT", a gold bolt, light rays and a glow on the tile, electric arcs and
+sparks. That file is the one source of the icon: `draw_branding.py`
+makes every icon, the logo on the splash screens, the installer and the
+banner, and the web pages' logo from it, so to change the logo, change
+`genlogo.py` and run both. From 0.2.7, a release frozen for play testing, the splash
 screens, the installer art and the release banner are the "Bug Hunt"
 drawings: a friendly teal beetle caught under an orange-handled
 magnifying glass, over a trail of footprints, on a charcoal background.
@@ -18,9 +25,10 @@ the history of this folder (up to 0.2.1-rc.6); his original stays in
 | File | What it is |
 | --- | --- |
 | `draw_branding.py` | Draws every picture below and writes every file made from them. |
-| `svg/icon.svg` | The icon (1024 × 1024): "OXT", lightning, a stitched seam and "BEYOND" on a rounded tile. |
-| `svg/icon-small.svg` | "OXT" and the lightning alone, larger, for 16 to 48 px, where the seam and "BEYOND" would be a pixel or two. |
-| `svg/splash-dark.svg`, `svg/splash-light.svg` | The IDE splash screens (1182 × 612), for the dark and light appearance: "OXT-Beyond", "BUG HUNT" and the beetle. |
+| `svg/icon.svg` | The icon (1024 × 1024): SVG Lab's logo as it is. |
+| `svg/icon-small.svg` | "OXT" and the lightning alone, larger, for 16 to 48 px, where the seam, "BEYOND", the arcs and the sparks would be a pixel or two. |
+| `svg/icon-animated.svg` | The logo, moving, in the file itself (SMIL), so it plays wherever an SVG image does: the rays turn, the glow breathes, the arcs crackle, the sparks twinkle and a shine sweeps across "OXT". |
+| `svg/splash-dark.svg`, `svg/splash-light.svg` | The IDE splash screens (1182 × 612), for the dark and light appearance: the logo, "OXT-Beyond", "BUG HUNT" and the beetle. |
 | `svg/wizard.svg` | The tall image of the Windows installer (534 × 1022). |
 | `svg/banner.svg` | The release banner (1280 × 640), for the GitHub release, the repository's social preview and forum posts. |
 | `png/oxt-beyond-<size>.png` | The icon at 16, 24, 32, 48, 64, 128, 256, 512 and 1024 px. |
@@ -33,6 +41,9 @@ Made by `draw_branding.py` elsewhere in the repository:
 | `ide/OXT-Beyond.ico` | 16 to 128 px as 32-bit bitmaps and 256 px as PNG (`tools/oxt/ico.py`); the installer, shortcuts and file associations. Only the Windows package has it (`WINDOWS_ONLY_IDE_FILES` in `tools/oxt/package.py`). |
 | `engine/rsrc/oxt-beyond.ico` | The same icon, compiled into the development engine (packaged as `OXT-Beyond.exe`) as icon 111 by `engine/rsrc/development.rc`. Standalone applications keep their own icon (`standalone.rc` is unchanged). |
 | `ide/Toolset/resources/community/ideSkin/splash.png`, `splash-light.png` and their `@extra-high` versions | The splash screens at 591 × 306 and 1182 × 612. |
+| `tools/pages/brand/` | The web pages' logo, which `tools/pages/build_pages.py` puts beside the front page: `logo-animated.svg` in the front page's header (`logo.svg`, the still one, for a reader who asks for less motion), `icon.svg` (the small icon) as its favicon and by the site's name, and `social.png` (the banner) for link previews. |
+| `tools/web-player/assets/oxt-beyond-128.png` | The Stack Player's icon. |
+| The `<link rel="icon">` of `tools/web-ide/index.html` | The web IDE's favicon, the small icon in the page itself. |
 
 Made from these files elsewhere:
 
@@ -52,7 +63,7 @@ of the GitHub release.
 The art carries the product and release name. The IDE writes the rest
 over it (`ide/Toolset/palettes/splash/revsplashstackbehavior.livecodescript`,
 at 1x): "<version> · Happy hunting!" in grey 20 px text under the trail
-(field "moreinfo", 24,134 to 560,170), and the loading status in the
+(field "moreinfo", 24,134 to 560,170; the logo and the words end above it), and the loading status in the
 darker band at the bottom (field "Status", 5,270 to 478,293). The stack's
 own field "Info" (product and version) is hidden.
 
@@ -69,21 +80,27 @@ It needs CairoSVG and the DejaVu Sans font (part of most Linux
 distributions). To change a picture, edit the drawing functions in
 `draw_branding.py`, or edit an SVG file in a vector editor and run
 `draw_branding.py --render-only`, which keeps the SVG files and only
-renders them. The icon is unchanged since 0.2.1: a CairoSVG other than
-the one that drew it renders it a few pixels differently, so when only
-the splash, installer or banner art changes, keep the icon files
-(`png/`, both `.ico` files, `svg/icon*.svg`) as they were
-(`git checkout` them after the run). After changing `png/oxt-beyond-32.png` or `-64.png`, update
-the `from-sha1:` lines of `tools/oxt/ide-stack-patches/branding-dialog-icons.txt`
-to the old images' digests and run `tools/oxt/ide-stack-patch.sh`.
+renders them. The icon was last drawn for 0.2.7 (the SVG logo), with
+CairoSVG 2.9.1: another CairoSVG renders it a few pixels differently, so
+when only the splash, installer or banner art changes, keep the icon
+files (`png/`, both `.ico` files, `svg/icon*.svg`, `tools/pages/brand/`
+bar `social.png`, the Stack Player's icon and the web IDE's favicon) as
+they were (`git checkout` them after the run). After changing
+`png/oxt-beyond-32.png` or `-64.png`, update the `from-sha1:` lines of
+`tools/oxt/ide-stack-patches/branding-dialog-icons.txt` to the old
+images' digests and run `tools/oxt/ide-stack-patch.sh` with a Linux
+development engine (a release's `linux-x86_64-binaries` has one).
+`tools/ci/tests/test_branding.py` holds the drawings to the logo and the
+web pages' copies to the drawings.
 
 ## Colours
 
 | Role | Colour |
 | --- | --- |
-| "OXT" orange (kept from the earlier icon) | `#FF7700` |
+| "OXT" orange (kept from the earlier icon); in the SVG logo a flame gradient | `#FF7700`; `#FFC04D` to `#FF6A00` |
+| The logo's rim | `#FFC24D` to `#FF7700` to `#FF3D00` |
 | Beetle shell, light to shadow; its spots | `#4FD8C4` to `#16756A`; `#0E4A43` |
 | Glow and trail | `#5FE0CF` (`#2FA897` on the light splash) |
 | Magnifying glass lens, rim | `#BDF3FF` at 16 %, `#C9D1D9` |
-| Lightning (the icon) | `#FFE14D`, edge `#7A5A00` |
+| Lightning (the icon) | `#FFF9C4` to `#FFC92E` (plain `#FFE14D`), edge `#7A5A00`; arcs `#BFEFFF`, sparks `#FFF4B0` |
 | Charcoal background | `#15171A` to `#2B2F36` |

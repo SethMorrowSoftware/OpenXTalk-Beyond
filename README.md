@@ -1648,6 +1648,13 @@ OXT-Beyond 0.2.7-rc.6.12 has everything in 0.2.7-rc.6.11. In the spirit
 of the Bug Hunt, here is every change since then, each listed as the bug
 it squashes:
 
+- **A flat icon.** The new SVG logo of SVG Lab (orange "OXT"
+  struck by lightning over a glowing, rayed tile) is the logo everywhere:
+  the app icon on Windows, macOS and Linux, the About window and the
+  answer and ask dialogs, the splash screens, the Windows installer, the
+  release banner and the web pages, where it moves. The splash screens,
+  installer and banner keep the Bug Hunt beetle beside it, and nothing a
+  script sees changes: the dialog images keep their names and sizes.
 - **An engine that still said OXT.** `the version` reads
   9.7.1-BeyondEngine where it read 9.7.1-OXT, and so do the About box
   and `-v`; the long version ends "(BeyondEngine)". 9.7.1 and build
@@ -1779,8 +1786,8 @@ it squashes:
   HyperCard (#300).
 
 Behind the scenes, the project's web pages have a new front page with a
-Downloads section (#295) and a Web Games section with Pixel Platformer
-Maker, a platformer and level maker written in xTalk with Box2Dxt
+Downloads section (#295) and a Web Stacks section (first called Web
+Games; its address is still games/) with Pixel Platformer Maker, a platformer and level maker written in xTalk with Box2Dxt
 physics, whose menus are now readable (#301, #303, #306); the HyperCard
 sweep in CI answers dialogs as a person would and skips hidden buttons
 (#296); the revZip test stacks check every revZip command and find

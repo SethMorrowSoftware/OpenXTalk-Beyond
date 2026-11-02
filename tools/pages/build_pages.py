@@ -26,6 +26,7 @@ given.
       [--release TAG --release-assets FILE]
 
   DIR/index.html     the front page (tools/pages/index.html)
+  DIR/brand/         the logo it shows (tools/pages/brand)
   DIR/ide/           OXT-Beyond-<version>-web-ide.zip's site (tools/web-ide)
   DIR/player/        OXT-Beyond-<version>-web-player.zip's site
                      (tools/web-player)
@@ -177,6 +178,24 @@ def games(source, target, player):
     return True
 
 
+# The logo the front page and the web stacks' page show (tools/pages/brand,
+# written by Installer/oxt-beyond/branding/draw_branding.py): its still and
+# moving SVG, the small icon (the favicon and the header's mark) and the
+# banner the page names for link previews (og:image)
+BRAND = ('icon.svg', 'logo.svg', 'logo-animated.svg', 'social.png')
+
+
+def brand(source, target):
+    """Copies the logo files beside the front page."""
+    missing = [n for n in BRAND if not os.path.isfile(os.path.join(source, n))]
+    if missing:
+        raise BuildError('tools/pages/brand has no %s: run Installer/oxt-beyond/branding/draw_branding.py'
+                         % ', '.join(missing))
+    os.makedirs(target)
+    for name in BRAND:
+        shutil.copyfile(os.path.join(source, name), os.path.join(target, name))
+
+
 def front_page(out, parts):
     with open(os.path.join(HERE, 'index.html'), encoding='utf-8') as f:
         page = f.read()
@@ -257,6 +276,7 @@ def build(args):
         else:
             print('no downloads: %s has none of the files the page links' % release)
     front_page(out, parts)
+    brand(os.path.join(HERE, 'brand'), os.path.join(out, 'brand'))
     check_sizes(out)
     for key, version in sorted((k, v) for k, v in parts.items() if k in PARTS):
         print('%s: %s' % (key.lower(), version or '(no version given)'))

@@ -1,4 +1,43 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><defs><linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
-<stop offset="0" stop-color="#2B2F36"/><stop offset="1" stop-color="#15171A"/></linearGradient></defs>
-<rect x="64" y="64" width="896" height="896" rx="200" fill="url(#tile)"/>
-<rect x="64" y="64" width="896" height="896" rx="200" fill="none" stroke="#FF7700" stroke-width="18"/><g transform="translate(590,120) scale(5.0)"><path d="M30 0 L0 56 H22 L8 100 L52 36 H28 L44 0 Z" fill="#FFE14D" stroke="#7A5A00" stroke-width="3" stroke-linejoin="round"/></g><text transform="translate(512,690) scale(0.86,1)" font-family="DejaVu Sans" font-weight="bold" font-size="400" text-anchor="middle" fill="#000" stroke="#000" stroke-width="26" stroke-linejoin="round">OXT</text><text transform="translate(512,690) scale(0.86,1)" font-family="DejaVu Sans" font-weight="bold" font-size="400" text-anchor="middle" fill="#FF7700">OXT</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+<style>
+.tile { fill: url(#tile-fade); }
+.rim { fill: none; stroke: url(#rim.fire); stroke-width: 18; }
+.bolt { fill: url(#bolt.gold); stroke: #7A5A00; stroke-width: 3; stroke-linejoin: round; }
+.outline { fill: #000000; stroke: #000000; stroke-width: 22; stroke-linejoin: round; }
+.oxt { fill: url(#oxt-flame); }
+.arc { fill: none; stroke: #BFEFFF; stroke-width: 5; stroke-linejoin: round; stroke-linecap: round; }
+.tick { stroke: #8A9099; stroke-width: 3; }
+.beyond { fill: #E9ECEF; }
+</style>
+<defs>
+<linearGradient id="tile-fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2B2F36"/><stop offset="1" stop-color="#15171A"/></linearGradient>
+<linearGradient id="rim.fire" gradientUnits="userSpaceOnUse" x1="64" y1="64" x2="960" y2="960"><stop offset="0" stop-color="#FFC24D"/><stop offset="0.5" stop-color="#FF7700"/><stop offset="1" stop-color="#FF3D00"/></linearGradient>
+<linearGradient id="bolt.gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF9C4"/><stop offset="1" stop-color="#FFC92E"/></linearGradient>
+<linearGradient id="oxt-flame" gradientUnits="userSpaceOnUse" x1="0" y1="400" x2="0" y2="660"><stop offset="0" stop-color="#FFC04D"/><stop offset="1" stop-color="#FF6A00"/></linearGradient>
+<linearGradient id="shine-1" gradientUnits="userSpaceOnUse" x1="-90" y1="0" x2="90" y2="0"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0"/><stop offset="0.5" stop-color="#FFFFFF"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient>
+<radialGradient id="glow-1" gradientUnits="userSpaceOnUse" cx="740" cy="300" r="620"><stop offset="0" stop-color="#FFB347"/><stop offset="1" stop-color="#FF7700" stop-opacity="0"/></radialGradient>
+<radialGradient id="halo-1" gradientUnits="userSpaceOnUse" cx="710" cy="260" r="240"><stop offset="0" stop-color="#FFF4B0"/><stop offset="1" stop-color="#FFD24D" stop-opacity="0"/></radialGradient>
+<clipPath id="tile.edge"><rect x="64" y="64" width="896" height="896" rx="200"/></clipPath>
+<clipPath id="oxt.letters"><path d="M296.1 440Q270.6 440 256.5 461Q242.5 481.9 242.5 520Q242.5 557.8 256.5 578.8Q270.6 599.7 296.1 599.7Q321.8 599.7 335.9 578.8Q349.9 557.8 349.9 520Q349.9 481.9 335.9 461Q321.8 440 296.1 440ZM296.1 395.1Q348.3 395.1 377.9 428.3Q407.5 461.5 407.5 520Q407.5 578.3 377.9 611.5Q348.3 644.7 296.1 644.7Q244.1 644.7 214.4 611.5Q184.8 578.3 184.8 520Q184.8 461.5 214.4 428.3Q244.1 395.1 296.1 395.1Z M570.4 517.2 645.5 640H587.3L536.7 557.8L486.5 640H428.1L503.2 517.2L431 399.4H489.3L536.7 476.9L584 399.4H642.6Z M652.9 399.4H852.4V446.3H780.6V640H724.8V446.3H652.9Z"/></clipPath>
+</defs>
+<rect class="tile" x="64" y="64" width="896" height="896" rx="200"/>
+<g clip-path="url(#tile.edge)">
+<g opacity="0.1" transform="rotate(0 740 300)"><polygon points="740,300 1840,300 1833,423" fill="#FFB347"/><polygon points="740,300 1731,777 1671,885" fill="#FFB347"/><polygon points="740,300 1426,1160 1325,1231" fill="#FFB347"/><polygon points="740,300 985,1372 863,1393" fill="#FFB347"/><polygon points="740,300 495,1372 377,1338" fill="#FFB347"/><polygon points="740,300 54,1160 -38,1078" fill="#FFB347"/><polygon points="740,300 -251,777 -298,663" fill="#FFB347"/><polygon points="740,300 -360,300 -353,177" fill="#FFB347"/><polygon points="740,300 -251,-177 -191,-285" fill="#FFB347"/><polygon points="740,300 54,-560 155,-631" fill="#FFB347"/><polygon points="740,300 495,-772 617,-793" fill="#FFB347"/><polygon points="740,300 985,-772 1103,-738" fill="#FFB347"/><polygon points="740,300 1426,-560 1518,-478" fill="#FFB347"/><polygon points="740,300 1731,-177 1778,-63" fill="#FFB347"/></g>
+<rect x="64" y="64" width="896" height="896" fill="url(#glow-1)" opacity="0.34"/>
+<ellipse cx="400" cy="80" rx="520" ry="210" fill="#FFFFFF" opacity="0.05"/>
+</g>
+<rect class="rim" fill="none" stroke="#FF7700" stroke-width="18" x="64" y="64" width="896" height="896" rx="200"/>
+<g transform="translate(512 520) scale(1.2) translate(-518 -397)">
+<circle cx="710" cy="260" r="240" fill="url(#halo-1)" opacity="0.6"/>
+<g transform="translate(600,150) scale(4.2)"><path class="bolt" fill="#FFE14D" stroke="#7A5A00" stroke-width="3" d="M30 0 L0 56 H22 L8 100 L52 36 H28 L44 0 Z"/></g>
+<path class="outline" fill="#000000" stroke="#000000" stroke-width="22" stroke-linejoin="round" d="M296.1 440Q270.6 440 256.5 461Q242.5 481.9 242.5 520Q242.5 557.8 256.5 578.8Q270.6 599.7 296.1 599.7Q321.8 599.7 335.9 578.8Q349.9 557.8 349.9 520Q349.9 481.9 335.9 461Q321.8 440 296.1 440ZM296.1 395.1Q348.3 395.1 377.9 428.3Q407.5 461.5 407.5 520Q407.5 578.3 377.9 611.5Q348.3 644.7 296.1 644.7Q244.1 644.7 214.4 611.5Q184.8 578.3 184.8 520Q184.8 461.5 214.4 428.3Q244.1 395.1 296.1 395.1Z"/>
+<path class="outline" fill="#000000" stroke="#000000" stroke-width="22" stroke-linejoin="round" d="M570.4 517.2 645.5 640H587.3L536.7 557.8L486.5 640H428.1L503.2 517.2L431 399.4H489.3L536.7 476.9L584 399.4H642.6Z"/>
+<path class="outline" fill="#000000" stroke="#000000" stroke-width="22" stroke-linejoin="round" d="M652.9 399.4H852.4V446.3H780.6V640H724.8V446.3H652.9Z"/>
+<path class="oxt" fill="#FF7700" d="M296.1 440Q270.6 440 256.5 461Q242.5 481.9 242.5 520Q242.5 557.8 256.5 578.8Q270.6 599.7 296.1 599.7Q321.8 599.7 335.9 578.8Q349.9 557.8 349.9 520Q349.9 481.9 335.9 461Q321.8 440 296.1 440ZM296.1 395.1Q348.3 395.1 377.9 428.3Q407.5 461.5 407.5 520Q407.5 578.3 377.9 611.5Q348.3 644.7 296.1 644.7Q244.1 644.7 214.4 611.5Q184.8 578.3 184.8 520Q184.8 461.5 214.4 428.3Q244.1 395.1 296.1 395.1Z"/>
+<path class="oxt" fill="#FF7700" d="M570.4 517.2 645.5 640H587.3L536.7 557.8L486.5 640H428.1L503.2 517.2L431 399.4H489.3L536.7 476.9L584 399.4H642.6Z"/>
+<path class="oxt" fill="#FF7700" d="M652.9 399.4H852.4V446.3H780.6V640H724.8V446.3H652.9Z"/>
+<g clip-path="url(#oxt.letters)">
+<polygon transform="translate(620 0)" points="-40,380 130,380 40,680 -130,680" fill="url(#shine-1)" opacity="0.8"/>
+</g>
+</g>
+</svg>
