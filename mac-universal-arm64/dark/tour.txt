@@ -1,0 +1,1259 @@
+STARTED
+INFO platform MacOS 15.8.2 arm64
+INFO version 9.7.1-BeyondEngine 25923
+INFO screenRect 0,0,1024,768
+INFO openStacks revTools | revMenuBar | oxt_ui_tour
+INFO tools look at start "classic"
+INFO systemAppearance dark
+STEP appearance ok
+SHOT 00-screen-start.png 0,0,1024,768
+STEP screen ok
+INFO 01-tools stack revTools rect 10,110,105,652 effective 10,91,105,652 title "Tools"
+SHOT 01-tools.png 10,91,105,652
+STEP tools ok
+INFO tooltip com.livecode.tool.Pointer: Pointer Tool - Select and edit objects
+SHOT 02-tooltip-tools.png 38,107,498,267
+STEP tooltip-tools ok
+INFO hover com.livecode.interface.classic.RectangleGraphic: 0,0,0
+SHOT 02-hover-tools.png 0,424,446,584
+STEP hover-tools ok
+INFO tools-vector classic: Line chose the graphic tool with a line template; the light at 48,376,68,396 and the tile at 48,376,68,396
+INFO tools-vector classic: Polygon chose the graphic tool with a polygon template; the light at 27,376,47,396 and the tile at 27,376,47,396
+INFO tools-vector classic: Curve chose the graphic tool with a curve template; the light at 6,376,26,396 and the tile at 6,376,26,396
+INFO tools-vector classic: Line chose the graphic tool with a line template; the light at 48,376,68,396 and the tile at 48,376,68,396
+INFO 01b-tools-vector-classic stack revTools rect 10,110,105,652 effective 10,91,105,652 title "Tools"
+SHOT 01b-tools-vector-classic.png 10,91,105,652
+INFO tools-modern rect 10,110,270,701 resizable true
+INFO tools-vector modern: Line chose the graphic tool with a line template; the light at 80,576,111,606 and the tile at 80,576,111,606
+INFO tools-vector modern: Polygon chose the graphic tool with a polygon template; the light at 45,576,76,606 and the tile at 45,576,76,606
+INFO tools-vector modern: Curve chose the graphic tool with a curve template; the light at 10,576,41,606 and the tile at 10,576,41,606
+INFO tools-vector modern: Line chose the graphic tool with a line template; the light at 80,576,111,606 and the tile at 80,576,111,606
+INFO 01b-tools-vector-modern stack revTools rect 10,110,270,701 effective 10,91,270,701 title "Tools"
+SHOT 01b-tools-vector-modern.png 10,91,270,701
+STEP tools-vector ok
+INFO tools-modern rect 10,110,130,701 resizable true
+INFO 01-tools-modern stack revTools rect 10,110,130,701 effective 10,91,130,701 title "Tools"
+SHOT 01-tools-modern.png 10,91,130,701
+STEP tools-modern ok
+INFO tools-modern rect 10,110,350,701 resizable true
+INFO 01-tools-modern-wide stack revTools rect 10,110,350,701 effective 10,91,350,701 title "Tools"
+SHOT 01-tools-modern-wide.png 10,91,350,701
+STEP tools-modern-wide ok
+INFO tools-modern rect 10,110,390,701 resizable true
+INFO 01-tools-modern-names stack revTools rect 10,110,390,701 effective 10,91,390,701 title "Tools"
+SHOT 01-tools-modern-names.png 10,91,390,701
+INFO 01-tools-modern-names-tools stack revTools rect 10,110,390,701 effective 10,91,390,701 title "Tools"
+SHOT 01-tools-modern-names-tools.png 10,91,390,701
+STEP tools-modern-names ok
+INFO tools-modern rect 10,110,130,701 resizable true
+INFO tools-modern-large true rect 10,110,178,701
+INFO 01-tools-modern-large stack revTools rect 10,110,178,701 effective 10,91,178,701 title "Tools"
+SHOT 01-tools-modern-large.png 10,91,178,701
+STEP tools-modern-large ok
+INFO tools-modern rect 10,110,130,701 resizable true
+INFO tools-modern-check: 121 checks, 0 failed
+STEP tools-modern-check ok
+INFO tools-modern rect 10,110,130,701 resizable true
+INFO tools-modern-sizes: 43 checks, 0 failed
+STEP tools-modern-sizes ok
+INFO tools-modern rect 10,120,270,701 resizable true
+INFO tools-modern-use: a section shown in 116 ms
+INFO tools-modern-use: 32 checks, 0 failed
+STEP tools-modern-use ok
+INFO tools-modern rect 10,110,270,701 resizable true
+INFO 01-tools-modern-pictures stack revTools rect 10,110,270,701 effective 10,91,270,701 title "Tools"
+SHOT 01-tools-modern-pictures.png 10,91,270,701
+INFO 01-tools-modern-drawn stack revTools rect 10,110,270,701 effective 10,91,270,701 title "Tools"
+SHOT 01-tools-modern-drawn.png 10,91,270,701
+INFO tools-modern-drawn: 54 checks, 0 failed
+STEP tools-modern-drawn ok
+INFO tools-modern rect 10,110,130,701 resizable true
+INFO tools-modern-switch: 10 checks, 0 failed
+STEP tools-modern-switch ok
+INFO 03-menubar stack revMenuBar rect 0,25,886,72 effective 0,25,886,72 title "OXT-Beyond 0.2.7-rc.6.12"
+SHOT 03-menubar.png 0,25,886,72
+STEP menubar ok
+INFO 03-menubar-modern stack revMenuBar rect 0,25,886,72 effective 0,25,886,72 title "OXT-Beyond 0.2.7-rc.6.12"
+SHOT 03-menubar-modern.png 0,25,886,72
+INFO 03-menubar-modern-on stack revMenuBar rect 0,25,886,72 effective 0,25,886,72 title "OXT-Beyond 0.2.7-rc.6.12"
+SHOT 03-menubar-modern-on.png 0,25,886,72
+INFO 03-menubar-classic stack revMenuBar rect 0,25,886,72 effective 0,25,886,72 title "OXT-Beyond 0.2.7-rc.6.12"
+SHOT 03-menubar-classic.png 0,25,886,72
+INFO menubar-modern: 110 checks, 0 failed
+STEP menubar-modern ok
+INFO menubar-mac: as a window, rect 0,53,886,100, effective rect 0,25,886,100, working screenRect 0,25,1024,709
+INFO 03a-menubar-window stack revMenuBar rect 0,53,886,100 effective 0,25,886,100 title "OXT-Beyond 0.2.7-rc.6.12"
+SHOT 03a-menubar-window.png 0,25,886,100
+STEP menubar-mac ok
+INFO menu-marks: the engine draws its menus' marks so on Linux only
+STEP menu-marks ok
+INFO 04-sample-stack stack OXT Tour Sample rect 220,140,700,520 effective 220,112,700,520 title ""
+SHOT 04-sample-stack.png 220,112,700,520
+STEP sample ok
+INFO tools-modern rect 10,110,130,701 resizable true
+INFO appearance-switch: 13 checks, 0 failed
+STEP appearance-switch ok
+INFO 04b-controls stack OXT Tour Controls rect 240,160,700,500 effective 240,132,700,500 title ""
+INFO 04b-controls: the screen was locked
+SHOT 04b-controls.png 240,132,700,500
+INFO controls: the card is 37 (the luminance of its pixels, 0 to 255)
+INFO controls: the tabs' pane is 48 on the card's 37
+INFO controls: a scrollbar's track is 49 on the card's 37
+INFO controls: Slider differs by 112 and is drawn in rows 7,26 of 0 to 29
+INFO controls: SliderOff differs by 29 and is drawn in rows 7,26 of 0 to 29
+INFO controls: the tall standard button is drawn in rows 3,45 of 0 to 49
+INFO controls: a standard button's label differs from its face by 164, a disabled one's by 72
+INFO controls: a hilited standard button's label differs from its face by 139
+INFO controls: the right of the Option button differs from its face (91) by 144
+INFO controls: the right of the Combo button differs from its face (22) by 213
+INFO 04c-controls-window-color stack OXT Tour Controls rect 240,160,700,500 effective 240,132,700,500 title ""
+SHOT 04c-controls-window-color.png 240,132,700,500
+INFO controls: the card with the useSystemWindowColor: 37, without: 37
+INFO controls: 18 checks, 0 failed
+STEP controls ok
+INFO title-bar oxt_tb_above: rect 40,57,360,257, effective rect 40,29,360,257, working screenRect 0,25,1024,709
+INFO title-bar oxt_tb_script: rect 0,57,320,257, effective rect 0,29,320,257, working screenRect 0,25,1024,709
+INFO title-bar oxt_tb_fine: rect 120,165,440,365, effective rect 120,137,440,365, working screenRect 0,25,1024,709
+INFO title-bar oxt_tb_plain: rect 160,-75,480,125, effective rect 160,-75,480,125, working screenRect 0,25,1024,709
+SHOT 04b-title-bar.png 0,0,1024,768
+STEP title-bar ok
+INFO card-border opened: white 255 255 255,white 255 255 255
+INFO card-border showBorder true: blue 0 0 255,blue 0 0 255
+INFO card-border threeD true: green 1 255 0,green 1 255 0
+INFO 04c-card-border stack oxt_card_border rect 360,185,680,385 effective 360,157,680,385 title ""
+SHOT 04c-card-border.png 360,157,680,385
+INFO card-border threeD false: blue 0 0 255,blue 0 0 255
+INFO card-border borderWidth 4: blue 0 0 255,white 255 255 255
+INFO card-border showBorder false: white 255 255 255,white 255 255 255
+STEP card-border ok
+INFO field-scroll 2000 lines, border 2 down to 410 by its vScroll: the same as the field drawn whole
+INFO field-scroll 2000 lines, border 2 back at the top by its vScroll: the same as before
+INFO field-scroll 2000 lines, border 2 down to 410 by the system's mouse wheel: the same as the field drawn whole
+INFO field-scroll 2000 lines, border 2 back at the top by the system's mouse wheel: the same as before
+INFO field-scroll 100 lines, border 2 down to 410 by its vScroll: the same as the field drawn whole
+INFO field-scroll 100 lines, border 2 back at the top by its vScroll: the same as before
+INFO field-scroll still running after 20 s; open stacks: oxt_field_scroll | OXT Tour Sample | revTools | revMenuBar | oxt_ui_tour
+SHOT zz-field-scroll-1.png 0,0,1024,768
+INFO field-scroll 2000 lines, border 0 down to 420 by its vScroll: the same as the field drawn whole
+INFO field-scroll 2000 lines, border 0 back at the top by its vScroll: the same as before
+INFO field-scroll 2000 lines, border 0 across to 50 by its hScroll: the same as the field drawn whole
+INFO field-scroll 2000 lines, border 0 back at the left by its hScroll: the same as before
+INFO field-scroll 2000 lines, border 2 down to 410 by its vScroll: the same as the field drawn whole
+INFO field-scroll 2000 lines, border 2 back at the top by its vScroll: the same as before
+INFO field-scroll 2000 lines, border 2 across to 50 by its hScroll: the same as the field drawn whole
+INFO field-scroll 2000 lines, border 2 back at the left by its hScroll: the same as before
+INFO 04d-field-scroll stack oxt_field_scroll rect 360,145,880,445 effective 360,117,880,445 title ""
+SHOT 04d-field-scroll.png 360,117,880,445
+STEP field-scroll ok
+INFO 04e-image-frames-question stack Answer Dialog rect 312,154,712,285 effective 312,126,712,285 title " "
+SHOT 04e-image-frames-question.png 312,126,712,285
+INFO image-frames Flip Image|Horizontal of animated: asked | Flipping an animated image keeps only the frame it is showing. Its other frames will be lost, and Undo can't bring them back. |  | image "animated": 2 frames
+INFO image-frames Rotate Image|90 of animated: asked | Rotating an animated image keeps only the frame it is showing. Its other frames will be lost, and Undo can't bring them back. |  | image "animated": 2 frames
+INFO image-frames Flip Image|Horizontal of animated: asked | Flipping an animated image keeps only the frame it is showing. Its other frames will be lost, and Undo can't bring them back. |  | image "animated": 2 frames
+INFO image-frames Flip Image|Horizontal of still: 
+INFO image-frames Flip Image|Horizontal of referenced: 
+INFO 04e-image-frames stack oxt_image_frames rect 360,145,680,345 effective 360,117,680,345 title ""
+SHOT 04e-image-frames.png 360,117,680,345
+STEP image-frames ok
+INFO widget-appearance: the segmented control the IDE made: the systemAppearance dark, the card 37,37,37, the screen 64,64,64, wanted 64,64,64
+INFO widget-appearance: a segmented control with its backgroundColor set: the systemAppearance dark, the card 37,37,37, the screen 200,120,40, wanted 200,120,40
+INFO 04f-widget-appearance stack oxt_widget_appearance rect 360,185,680,385 effective 360,157,680,385 title ""
+SHOT 04f-widget-appearance.png 360,157,680,385
+STEP widget-appearance ok
+INFO svg-paths the clipboard: <svg xmlns="http://www.w3.org/2000/svg" width="273" height="54" viewBox="9 8 273 54"> | <path d="M10,10 L110,10 L110,60 L10,60 Z" fill="rgb(255,0,0)" stroke="rgb(0,0,255)" stroke-width="2"/> | <path d="M130,10 L180,60 L130,60 Z" fill="none" stroke="rgb(0,128,0)" stroke-width="1"/> | <path d="M200,10 L280,60" fill="none" stroke="rgb(0,0,0)" stroke-width="1"/> | </svg> | 
+INFO 04g-svg-paths stack oxt_svg_paths rect 360,185,680,385 effective 360,157,680,385 title ""
+SHOT 04g-svg-paths.png 360,157,680,385
+STEP svg-paths ok
+INFO svg-curves the clipboard: <svg xmlns="http://www.w3.org/2000/svg" width="222" height="122" viewBox="9 9 222 122"> | <path d="M110,35 C110,21.19 87.61,10 60,10 C32.39,10 10,21.19 10,35 C10,48.81 32.39,60 60,60 C87.61,60 110,48.81 110,35 Z" fill="rgb(255,0,0)" stroke="rgb(0,0,255)" stroke-width="2"/> | <path d="M215,10 C223.28,10 230,16.72 230,25 L230,45 C230,53.28 223.28,60 215,60 L145,60 C136.72,60 130,53.28 130,45 L130,25 C130,16.72 136.72,10 145,10 Z" fill="none" stroke="rgb(0,128,0)" stroke-width="1"/> | <path d="M95.36,87.32 C85.98,82.63 73.26,80 60,80 C32.39,80 10,91.19 10,105 C10,111.63 15.27,117.99 24.64,122.68" fill="none" stroke="rgb(0,0,0)" stroke-width="1"/> | <path d="M205,126.65 C220.47,122.18 230,113.93 230,105 C230,100.61 227.69,96.3 223.3,92.5 L180,105 Z" fill="rgb(255,200,0)" stroke="rgb(0,0,0)" stroke-width="1"/> | </svg> | 
+INFO 04g-svg-curves stack oxt_svg_curves rect 360,185,680,385 effective 360,157,680,385 title ""
+SHOT 04g-svg-curves.png 360,157,680,385
+STEP svg-curves ok
+INFO svg-menu with nothing selected: (Copy Graphics as SVG Paths
+INFO svg-menu with an image selected: (Copy Graphics as SVG Paths
+INFO svg-menu with a field selected: (Copy Graphics as SVG Paths
+INFO svg-menu with an image and a field selected: (Copy Graphics as SVG Paths
+INFO svg-menu with a graphic selected: Copy Graphics as SVG Paths
+INFO svg-menu with a graphic and an image selected: Copy Graphics as SVG Paths
+INFO svg-menu with a field and a graphic selected: Copy Graphics as SVG Paths
+INFO svg-menu the clipboard: <svg xmlns="http://www.w3.org/2000/svg" width="102" height="52" viewBox="9 9 102 52"> | <path d="M10,10 L110,10 L110,60 L10,60 Z" fill="rgb(255,0,0)" stroke="rgb(0,0,255)" stroke-width="2"/> | </svg> | 
+STEP svg-menu ok
+INFO 04g2-svg-import stack oxt_svg_import rect 360,185,680,385 effective 360,157,680,385 title ""
+SHOT 04g2-svg-import.png 360,157,680,385
+INFO svg-import graphics against image: mean 4.02 far 0.0248
+INFO 04g3-svg-convert stack oxt_svg_import rect 360,185,680,385 effective 360,157,680,385 title ""
+SHOT 04g3-svg-convert.png 360,157,680,385
+STEP svg-import ok
+INFO scrollbar-orientation as made: bar the Inspector shows horizontal, the engine reads horizontal at 40,92,240,108
+INFO scrollbar-orientation set to Vertical: bar the Inspector shows vertical, the engine reads vertical at 132,0,148,200
+INFO 04h-scrollbar-orientation stack oxt_scrollbar_orientation rect 360,185,680,385 effective 360,157,680,385 title ""
+SHOT 04h-scrollbar-orientation.png 360,157,680,385
+INFO scrollbar-orientation set to Vertical again: bar the Inspector shows vertical, the engine reads vertical at 132,0,148,200
+INFO scrollbar-orientation set back to Horizontal: bar the Inspector shows horizontal, the engine reads horizontal at 40,92,240,108
+INFO scrollbar-orientation square, as made: square the Inspector shows vertical, the engine reads vertical at 260,40,300,80
+INFO scrollbar-orientation square, set to Horizontal: square the Inspector shows horizontal, the engine reads horizontal at 260,40,301,80
+STEP scrollbar-orientation ok
+INFO revPropertyInspector 1 header: 9 section tabs
+INFO revPropertyInspector 1 section Basic
+INFO 05-inspector-button-1-basic stack revPropertyInspector 1 rect 400,65,846,436 effective 400,46,846,436 title "button "Push" (id 1003)"
+SHOT 05-inspector-button-1-basic.png 400,46,846,436
+INFO revPropertyInspector 1 section Icons
+INFO 05-inspector-button-2-icons stack revPropertyInspector 1 rect 400,65,846,390 effective 400,46,846,390 title "button "Push" (id 1003)"
+INFO 05-inspector-button-2-icons: the screen was locked
+SHOT 05-inspector-button-2-icons.png 400,46,846,390
+INFO revPropertyInspector 1 section Colors
+INFO 05-inspector-button-3-colors stack revPropertyInspector 1 rect 400,65,846,434 effective 400,46,846,434 title "button "Push" (id 1003)"
+INFO 05-inspector-button-3-colors: the screen was locked
+SHOT 05-inspector-button-3-colors.png 400,46,846,434
+INFO revPropertyInspector 1 section Text
+INFO 05-inspector-button-4-text stack revPropertyInspector 1 rect 400,65,846,238 effective 400,46,846,238 title "button "Push" (id 1003)"
+INFO 05-inspector-button-4-text: the screen was locked
+SHOT 05-inspector-button-4-text.png 400,46,846,238
+INFO inspector inherited textFont: "(Message)" textColor 170,170,170 italic true backgroundColor "" effective 255,255,255
+INFO inspector inherited textSize: "13" textColor 170,170,170 italic true backgroundColor "" effective 22,22,22
+INFO revPropertyInspector 1 section Position
+INFO 05-inspector-button-5-position stack revPropertyInspector 1 rect 400,65,846,386 effective 400,46,846,386 title "button "Push" (id 1003)"
+INFO 05-inspector-button-5-position: the screen was locked
+SHOT 05-inspector-button-5-position.png 400,46,846,386
+INFO revPropertyInspector 1 section Effects
+INFO 05-inspector-button-6-effects stack revPropertyInspector 1 rect 400,65,846,238 effective 400,46,846,238 title "button "Push" (id 1003)"
+INFO 05-inspector-button-6-effects: the screen was locked
+SHOT 05-inspector-button-6-effects.png 400,46,846,238
+INFO revPropertyInspector 1 section Custom
+INFO 05-inspector-button-7-custom stack revPropertyInspector 1 rect 400,65,846,469 effective 400,46,846,469 title "button "Push" (id 1003)"
+INFO 05-inspector-button-7-custom: the screen was locked
+SHOT 05-inspector-button-7-custom.png 400,46,846,469
+INFO revPropertyInspector 1 section Advanced
+INFO 05-inspector-button-8-advanced stack revPropertyInspector 1 rect 400,65,846,209 effective 400,46,846,209 title "button "Push" (id 1003)"
+INFO 05-inspector-button-8-advanced: the screen was locked
+SHOT 05-inspector-button-8-advanced.png 400,46,846,209
+INFO revPropertyInspector 1 section Text
+INFO inspector inherited values on the window colour 225,225,225
+INFO inspector inherited textFont: "(Message)" textColor 170,170,170 italic true backgroundColor "" effective 225,225,225
+INFO inspector inherited textSize: "13" textColor 170,170,170 italic true backgroundColor "" effective 225,225,225
+STEP inspector ok
+INFO click a button: the screen was locked
+INFO revPropertyInspector 1 header: 9 section tabs
+INFO inspector-tabs header 0,0,446,21 of revPropertyInspector 1 at 400,65,846,436; 9 tabs, icons true
+INFO inspector-tabs clicked Custom at 436,77: shows Custom
+INFO inspector-tabs clicked Colors at 457,77: shows Colors
+INFO inspector-tabs clicked Effects at 478,77: shows Effects
+INFO inspector-tabs clicked Icons at 499,77: shows Icons
+INFO 05-inspector-tabs stack revPropertyInspector 1 rect 400,65,846,390 effective 400,46,846,390 title "button "Push" (id 1003)"
+SHOT 05-inspector-tabs.png 400,46,846,390
+INFO inspector-tabs still running after 20 s; open stacks: revPropertyInspector 1 | revInspector | OXT Tour Sample | revTools | revMenuBar | oxt_ui_tour
+SHOT zz-inspector-tabs-1.png 0,0,1024,768
+STEP inspector-tabs ok
+INFO revPropertyInspector 1 section Text
+INFO 06-inspector-field-text stack revPropertyInspector 1 rect 400,65,846,284 effective 400,46,846,284 title "field "Text" (id 1009)"
+INFO 06-inspector-field-text: the screen was locked
+SHOT 06-inspector-field-text.png 400,46,846,284
+STEP inspector-text ok
+INFO inspector-scrollbar the list field opened with 16 in the look Appearance Manager
+INFO revPropertyInspector 1 section Basic
+INFO inspector-scrollbar menu 12 | Standard
+INFO inspector-scrollbar 12: 12 (shown 12)
+INFO inspector-scrollbar Standard from 12: 16 (shown 16)
+INFO inspector-scrollbar Standard from 16: 16 (shown 16)
+INFO inspector-scrollbar Standard from 20: 16 (shown 16)
+INFO 06b-inspector-field-scrollbar stack revPropertyInspector 1 rect 400,65,846,580 effective 400,46,846,580 title "field "List" (id 1010)"
+SHOT 06b-inspector-field-scrollbar.png 400,46,846,580
+INFO revPropertyInspector 1 section Basic
+INFO inspector-scrollbar 12, no scrollbar: 12 (shown 12)
+INFO inspector-scrollbar Standard, no scrollbar: 16 (shown 16)
+STEP inspector-scrollbar ok
+INFO revPropertyInspector 1 section Basic
+INFO inspector-image-id the row shows "1017" for the image's ID 1017; an icon chooser: false
+INFO 06c-inspector-image-id stack revPropertyInspector 1 rect 400,65,846,542 effective 400,46,846,542 title "image "Picture" (id 1017)"
+SHOT 06c-inspector-image-id.png 400,46,846,542
+STEP inspector-image-id ok
+INFO revPropertyInspector 1 section Icons
+INFO inspector-gravity menu "Default | left | top | right | bottom | topLeft | topRight | bottomLeft | bottomRight | center | resize" showing "Default" for the empty iconGravity
+INFO 06d-inspector-button-gravity stack revPropertyInspector 1 rect 400,65,846,390 effective 400,46,846,390 title "button "Push" (id 1003)"
+INFO 06d-inspector-button-gravity: the screen was locked
+SHOT 06d-inspector-button-gravity.png 400,46,846,390
+INFO inspector-gravity topLeft: iconGravity "topLeft" (shown "topLeft")
+INFO inspector-gravity Default: iconGravity "" (shown "Default")
+INFO revPropertyInspector 1 section Icons
+INFO inspector-gravity two buttons, left and top: showing ""
+STEP inspector-gravity ok
+INFO inspector-hypercard button: card button id 1003 of card id 1002 of stack "OXT Tour HyperCard"
+INFO inspector-hypercard card button id 1003 menu "Edit Script | (Edit Behavior Script | Property Inspector | - | (Cut | (Copy | - | (Send Message | - | Show In Project Browser | - | (Clear"
+INFO inspector-hypercard field: card field id 1004 of card id 1002 of stack "OXT Tour HyperCard"
+INFO inspector-hypercard card field id 1004 menu "Edit Script | (Edit Behavior Script | Property Inspector | - | (Cut | (Copy | (Paste Text | - | !nLock Text | !cCan Receive Keyboard Focus | - | (Send Message"
+INFO inspector-hypercard image: card image id 1005 of card id 1002 of stack "OXT Tour HyperCard"
+INFO inspector-hypercard card image id 1005 menu "Edit Script | (Edit Behavior Script | Property Inspector | - | (Cut | (Copy | - | Launch Editor | !nMagnify | - | !nLock Location | Make Original Size"
+INFO inspector-hypercard image: bkgnd image id 1006 of group id 1008 of card id 1002 of stack "OXT Tour HyperCard"
+INFO inspector-hypercard bkgnd image id 1006 menu "Edit Script | (Edit Behavior Script | Property Inspector | - | (Cut | (Copy | - | Launch Editor | !nMagnify | - | !nLock Location | Make Original Size"
+INFO inspector-hypercard field: bkgnd field id 1007 of group id 1008 of card id 1002 of stack "OXT Tour HyperCard"
+INFO inspector-hypercard bkgnd field id 1007 menu "Edit Script | (Edit Behavior Script | Property Inspector | - | (Cut | (Copy | (Paste Text | - | !nLock Text | !cCan Receive Keyboard Focus | - | (Send Message"
+INFO inspector-hypercard group: group id 1008 of card id 1002 of stack "OXT Tour HyperCard"
+INFO inspector-hypercard card: card id 1002 of stack "OXT Tour HyperCard"
+INFO inspector-hypercard stack: stack "OXT Tour HyperCard"
+INFO revPropertyInspector 1 section Icons
+INFO 06e-inspector-hypercard-button stack revPropertyInspector 1 rect 400,65,846,390 effective 400,46,846,390 title "card button "B" (id 1003)"
+INFO 06e-inspector-hypercard-button: the screen was locked
+SHOT 06e-inspector-hypercard-button.png 400,46,846,390
+STEP inspector-hypercard ok
+INFO revPropertyInspector 1 section Colors
+INFO 07-inspector-graphic-colors stack revPropertyInspector 1 rect 400,65,846,350 effective 400,46,846,350 title "graphic "Box" (id 1015)"
+INFO 07-inspector-graphic-colors: the screen was locked
+SHOT 07-inspector-graphic-colors.png 400,46,846,350
+STEP inspector-graphic ok
+INFO revPropertyInspector 1 section Colors
+INFO inspector-gradient popup 125,355,456,693 inspector 125,65,571,350 graphic 774,295,974,395 screen 0,25,1024,709 room off the graphic: below
+SHOT 07-inspector-gradient.png 0,0,1024,768
+INFO inspector-gradient over the graphic: popup 64,65,395,403 inspector 400,65,846,350 room off the graphic: 
+STEP inspector-gradient ok
+INFO revPropertyInspector 1 section Colors
+INFO inspector-clear-colour the header bar's foregroundColor after Clear: ""
+STEP inspector-clear-colour ok
+INFO revPropertyInspector 1 section Colors
+INFO 08-inspector-multiple-colors stack revPropertyInspector 1 rect 400,65,846,259 effective 400,46,846,259 title "Multiple objects"
+INFO 08-inspector-multiple-colors: the screen was locked
+SHOT 08-inspector-multiple-colors.png 400,46,846,259
+STEP inspector-multiple ok
+INFO revPropertyInspector 1 section Colors
+INFO tooltip rowlabel: foregroundColor | foregroundPattern
+INFO hover over rowlabel: the screen was locked
+SHOT 09-tooltip-inspector.png 450,64,910,224
+STEP tooltip-inspector ok
+INFO player: the Player tool was turned off as the IDE started: false
+INFO as the IDE started: the screen was locked
+INFO 09b-player-inspector stack revPropertyInspector 1 rect 400,65,846,548 effective 400,46,846,548 title "player id 1003 (id 1003)"
+SHOT 09b-player-inspector.png 400,46,846,548
+INFO after click 2 on the check box: the screen was locked
+INFO player: the screen was locked
+STEP player ok
+INFO 10-script-editor stack revNewScriptEditor 1 rect 307,162,717,572 effective 307,134,717,572 title "button "Push" of card id 1002 of stack "OXT Tour Sample" - Script Editor (editing)"
+INFO 10-script-editor: the screen was locked
+SHOT 10-script-editor.png 307,134,717,572
+STEP script-editor ok
+INFO 10-script-editor-search stack revNewScriptEditor 1 rect 307,162,717,572 effective 307,134,717,572 title "button "Push" of card id 1002 of stack "OXT Tour Sample" - Script Editor (editing)"
+INFO 10-script-editor-search: the screen was locked
+SHOT 10-script-editor-search.png 307,134,717,572
+INFO Search Results: the object in 170,170,170 on 37,37,37 (contrast 6.6)
+INFO Search Results: the line in 230,230,230 on 37,37,37 (contrast 12.28)
+STEP script-editor-search ok
+INFO 10-script-editor-handlers stack revNewScriptEditor 1 rect 307,162,717,572 effective 307,134,717,572 title "button "Push" of card id 1002 of stack "OXT Tour Sample" - Script Editor (editing)"
+INFO 10-script-editor-handlers: the screen was locked
+SHOT 10-script-editor-handlers.png 307,134,717,572
+STEP script-editor-handlers ok
+INFO 11-message-box stack Message Box rect 125,538,432,709 effective 125,519,432,709 title "Message Box (Single Line)"
+SHOT 11-message-box.png 125,519,432,709
+STEP message-box ok
+INFO 12-project-browser stack revIDEProjectBrowser rect 152,161,638,668 effective 152,133,638,668 title "Project Browser"
+SHOT 12-project-browser.png 152,133,638,668
+INFO the Project Browser's rows 30,30,30 under the ink srcCopy
+STEP project-browser ok
+INFO LiveCode's Dictionary shows the entry try
+INFO LiveCode's Dictionary livecode_script: 4307 entries, 53 libraries (18 widgets)
+INFO LiveCode's Dictionary livecode_builder: 609 entries, 4 libraries (0 widgets)
+INFO 13-dictionary stack revDictionary rect 14,125,1024,641 effective 14,97,1024,641 title "Dictionary"
+INFO 13-dictionary: the screen was locked
+SHOT 13-dictionary.png 14,97,1024,641
+STEP dictionary ok
+INFO the guides: 16 guides; Printing shows 11 of its 11 images
+INFO 13-guides stack revDictionary rect 14,125,1024,641 effective 14,97,1024,641 title "Dictionary"
+INFO 13-guides: the screen was locked
+SHOT 13-guides.png 14,97,1024,641
+STEP guides ok
+INFO dictionary entry try control structure.txt
+INFO 13-dictionary-text stack OpenXTalk Lite Dictionary rect 118,117,1013,694 effective 118,89,1013,694 title "OpenXTalk Lite Dictionary"
+SHOT 13-dictionary-text.png 118,89,1013,694
+STEP text-dictionary ok
+INFO 14-preferences-01-general stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-01-general.png 162,106,862,634
+INFO revPreferencesGUI: button Reset Preferences to Defaults needs 206 wide, is 251
+INFO revPreferencesGUI: check box Show Revolution Stacks needs to 423, shows to 444 (margins 4)
+INFO revPreferencesGUI: check box Context menus work on Rev dev stacks needs to 454, shows to 493 (margins 4)
+INFO revPreferencesGUI: check box navigation arrows needs to 415, shows to 449 (margins 4)
+INFO revPreferencesGUI: check box UI edit script needs to 308, shows to 398 (margins 4)
+INFO revPreferencesGUI: check box opt edit script shortcut needs to 503, shows to 545 (margins 4)
+INFO revPreferencesGUI: radio button Language names on properties needs to 618, shows to 687 (margins 4)
+INFO revPreferencesGUI: radio button Descriptions on properties needs to 468, shows to 475 (margins 4)
+INFO revPreferencesGUI: button Image Editor... needs 65 wide, is 82
+INFO revPreferencesGUI: option menu Crash Report Style needs 58 wide, is 143
+INFO revPreferencesGUI: check box StartCenterPref needs to 384, shows to 394 (margins 4)
+INFO revPreferencesGUI: check box ReloadStartCenter needs to 497, shows to 545 (margins 4)
+INFO revPreferencesGUI: check box StartCenterClassicPref needs to 605, shows to 615 (margins 4)
+INFO revPreferencesGUI: check box hAskSuppress needs to 671, shows to 692 (margins 4)
+INFO revPreferencesGUI: button Clear Msg Box History needs 142 wide, is 186
+INFO revPreferencesGUI: field prefloc (preferences are saved in:) has its words from 282 to 669, is from 274 to 697
+INFO revPreferencesGUI: field New Field 7 (Property labels are:) has its words from 190 to 308, is from 182 to 320
+INFO revPreferencesGUI: field New Field 8 (HTTP proxy:) has its words from 217 to 292, is from 204 to 300
+INFO revPreferencesGUI: field New Field 8 (Image editor:) has its words from 212 to 292, is from 207 to 300
+INFO revPreferencesGUI: field XP Crash Report Label (Crash reporting on Windows:) has its words from 235 to 411, is from 199 to 419
+INFO 14-preferences-02-files-memory stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-02-files-memory.png 162,106,862,634
+INFO revPreferencesGUI: button Reset Preferences to Defaults needs 206 wide, is 251
+INFO revPreferencesGUI: check box destroyStack needs to 377, shows to 396 (margins 4)
+INFO revPreferencesGUI: radio button Remove from memory needs to 427, shows to 447 (margins 4)
+INFO revPreferencesGUI: radio button Ask needs to 490, shows to 522 (margins 4)
+INFO revPreferencesGUI: radio button Don't remove needs to 319, shows to 327 (margins 4)
+INFO revPreferencesGUI: check box PresetSizes needs to 583, shows to 649 (margins 4)
+INFO revPreferencesGUI: check box closeNoWarn needs to 533, shows to 588 (margins 4)
+INFO revPreferencesGUI: check box promptRename needs to 478, shows to 505 (margins 4)
+INFO revPreferencesGUI: check box safetynet needs to 619, shows to 670 (margins 4)
+INFO revPreferencesGUI: check box add extension needs to 633, shows to 688 (margins 4)
+INFO revPreferencesGUI: radio button alphabetically needs to 493, shows to 521 (margins 4)
+INFO revPreferencesGUI: radio button modification date needs to 344, shows to 360 (margins 4)
+INFO revPreferencesGUI: check box Preserve Stack Creator needs to 372, shows to 390 (margins 4)
+INFO revPreferencesGUI: check box Preserve Stack Version needs to 566, shows to 640 (margins 4)
+INFO revPreferencesGUI: check box absoluteImagePaths needs to 455, shows to 520 (margins 4)
+INFO revPreferencesGUI: radio button incDateStamp needs to 341, shows to 354 (margins 4)
+INFO revPreferencesGUI: radio button incRandChars needs to 511, shows to 577 (margins 4)
+INFO revPreferencesGUI: check box ismac needs to 264, shows to 287 (margins 8)
+INFO revPreferencesGUI: check box developerTools needs to 417, shows to 444 (margins 8)
+INFO revPreferencesGUI: check box customStackIcon needs to 667, shows to 699 (margins 8)
+INFO revPreferencesGUI: check box useGallery needs to 597, shows to 645 (margins 4)
+INFO revPreferencesGUI: field prefloc (preferences are saved in:) has its words from 282 to 669, is from 274 to 697
+INFO revPreferencesGUI: field New Field 4 (If destroyStack is false, when closing last stack in file:) has its words from 190 to 516, is from 182 to 575
+INFO revPreferencesGUI: field New Field 4 (MacOS custom icons on stacks:) has its words from 190 to 383, is from 182 to 535
+INFO revPreferencesGUI: field field id 1406 (Number of recent files to store:) has its words from 193 to 383, is from 185 to 404
+INFO revPreferencesGUI: field Customization Path Label (User Additions:) has its words from 190 to 283, is from 182 to 303
+INFO 14-preferences-03-appearance stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-03-appearance.png 162,106,862,634
+INFO revPreferencesGUI: check box MakeRevToolBarDraggable needs to 439, shows to 508 (margins 4)
+INFO revPreferencesGUI: option menu Rulers needs 61 wide, is 113
+INFO revPreferencesGUI: option menu backdrop color needs 70 wide, is 120
+INFO revPreferencesGUI: option menu selectionhandle color needs 49 wide, is 120
+INFO revPreferencesGUI: option menu hypertext color needs 85 wide, is 120
+INFO revPreferencesGUI: option menu toolselector color needs 85 wide, is 120
+INFO revPreferencesGUI: check box gridCheckAtStartup needs to 502, shows to 623 (margins 4)
+INFO revPreferencesGUI: check box revMenubarStandardWD needs to 476, shows to 525 (margins 4)
+INFO revPreferencesGUI: option menu frameSize needs 57 wide, is 159
+INFO revPreferencesGUI: check box middleButtonToggle needs to 625, shows to 640 (margins 4)
+INFO revPreferencesGUI: check box useSystemWindowColor needs to 633, shows to 664 (margins 4)
+INFO revPreferencesGUI: button Reset Preferences to Defaults needs 206 wide, is 251
+INFO revPreferencesGUI: field middlebtn-text (Toggle between 'Browse' and 'Pointer' tool using:) has its words from 190 to 489, is from 182 to 515
+INFO revPreferencesGUI: field New Field 2 (Grid spacing (pixels):) has its words from 190 to 319, is from 182 to 330
+INFO revPreferencesGUI: field New Field 2 (Ruler units:) has its words from 190 to 259, is from 182 to 269
+INFO revPreferencesGUI: field New Field 3 (Backdrop:) has its words from 190 to 252, is from 182 to 290
+INFO revPreferencesGUI: field field id 1073 (Selection handles:) has its words from 190 to 302, is from 182 to 310
+INFO revPreferencesGUI: field New Field 2 (Documentation Hypertext:) needs 36 high, is 42
+INFO revPreferencesGUI: field Label Field (Display tool tips after:) has its words from 190 to 323, is from 182 to 345
+INFO revPreferencesGUI: field field id 1379 (Tool buttons:) has its words from 190 to 270, is from 182 to 311
+INFO revPreferencesGUI: field Label Field (Browse tool icon to use as default:) has its words from 190 to 398, is from 182 to 500
+INFO revPreferencesGUI: field field id 1465 (Size of header icons used in Palettes:) needs 36 high, is 45
+INFO revPreferencesGUI: field prefloc (preferences are saved in:) has its words from 282 to 669, is from 274 to 697
+INFO 14-preferences-04-ui-tweaks stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-04-ui-tweaks.png 162,106,862,634
+INFO revPreferencesGUI: button Reset Preferences to Defaults needs 206 wide, is 251
+INFO revPreferencesGUI: option menu labelsections color needs 69 wide, is 120
+INFO revPreferencesGUI: check box labelsections bold needs to 278, shows to 288 (margins 4)
+INFO revPreferencesGUI: option menu labelsections size needs 69 wide, is 120
+INFO revPreferencesGUI: option menu inspectorBkgnd needs 69 wide, is 120
+INFO revPreferencesGUI: field prefloc (preferences are saved in:) has its words from 282 to 669, is from 274 to 697
+INFO revPreferencesGUI: field field id 1514 (Label field colors of inspector:) has its words from 190 to 374, is from 182 to 412
+INFO revPreferencesGUI: field field id 1517 (Label field text size of inspector:) has its words from 190 to 387, is from 182 to 412
+INFO revPreferencesGUI: field field id 1519 (Background color of inspector:) has its words from 190 to 377, is from 182 to 412
+INFO 14-preferences-05-extras stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-05-extras.png 162,106,862,634
+INFO revPreferencesGUI: button Reset Preferences to Defaults needs 206 wide, is 251
+INFO revPreferencesGUI: check box useLayoutGuides needs to 481, shows to 520 (margins 4)
+INFO revPreferencesGUI: check box tidyUpStacks needs to 550, shows to 610 (margins 4)
+INFO revPreferencesGUI: check box ScreenSharedMemory needs to 621, shows to 675 (margins 4)
+INFO revPreferencesGUI: field prefloc (preferences are saved in:) has its words from 282 to 669, is from 274 to 697
+INFO 14-preferences-06-object-sizes stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-06-object-sizes.png 162,106,862,634
+INFO revPreferencesGUI: button Reset Preferences to Defaults needs 206 wide, is 251
+INFO revPreferencesGUI: button Reset Object Sizes needs 42 wide, is 82
+INFO revPreferencesGUI: field prefloc (preferences are saved in:) has its words from 282 to 669, is from 274 to 697
+INFO revPreferencesGUI: field btnfld (Button:) has its words from 190 to 232, is from 182 to 306
+INFO revPreferencesGUI: field New Field 1 (Tabbed button:) has its words from 190 to 276, is from 182 to 306
+INFO revPreferencesGUI: field New Field 1 (Width:) has its words from 348 to 385, is from 340 to 408
+INFO revPreferencesGUI: field New Field 1 (Height:) has its words from 423 to 465, is from 415 to 483
+INFO revPreferencesGUI: field New Field 1 (Menu or menu item:) has its words from 190 to 303, is from 182 to 336
+INFO revPreferencesGUI: field New Field 1 (Field:) has its words from 190 to 221, is from 182 to 306
+INFO revPreferencesGUI: field New Field 1 (Label field:) has its words from 190 to 253, is from 182 to 306
+INFO revPreferencesGUI: field field id 1112 (Scrollbar (MacOS):) has its words from 190 to 298, is from 182 to 400
+INFO revPreferencesGUI: field New Field 1 (Progress bar (MacOS):) has its words from 190 to 319, is from 182 to 400
+INFO revPreferencesGUI: field New Field 1 (Scrollbar (Unix/Windows):) has its words from 190 to 337, is from 182 to 400
+INFO revPreferencesGUI: field New Field 1 (Graphic:) has its words from 190 to 238, is from 182 to 306
+INFO revPreferencesGUI: field New Field 1 (Image:) has its words from 190 to 229, is from 182 to 306
+INFO revPreferencesGUI: field New Field 6 (Use the following sizes when creating a new object:) needs 19 high, is 26
+INFO revPreferencesGUI: field New Field 1 (Scrollbar:) has its words from 190 to 245, is from 182 to 350
+INFO revPreferencesGUI: field New Field 1 (Player:) has its words from 190 to 229, is from 182 to 306
+INFO 14-preferences-07-script-editor stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-07-script-editor.png 162,106,862,634
+INFO revPreferencesGUI: button Reset Preferences to Defaults needs 206 wide, is 251
+INFO revPreferencesGUI: option menu Font needs 128 wide, is 220
+INFO revPreferencesGUI: option menu Font Size needs 40 wide, is 74
+INFO revPreferencesGUI: check box Auto Format needs to 281, shows to 315 (margins 4)
+INFO revPreferencesGUI: check box Variable Checking needs to 353, shows to 362 (margins 4)
+INFO revPreferencesGUI: check box Variable Preservation needs to 335, shows to 370 (margins 4)
+INFO revPreferencesGUI: radio button -- needs to 399, shows to 448 (margins 4)
+INFO revPreferencesGUI: radio button # needs to 436, shows to 448 (margins 4)
+INFO revPreferencesGUI: radio button // needs to 476, shows to 486 (margins 4)
+INFO revPreferencesGUI: option menu Colorization Scheme needs 189 wide, is 204
+INFO revPreferencesGUI: check box Line Numbers needs to 290, shows to 297 (margins 4)
+INFO revPreferencesGUI: option menu handlerList needs 99 wide, is 146
+INFO revPreferencesGUI: option menu Background Color needs 67 wide, is 113
+INFO revPreferencesGUI: check box Horizontal scroll needs to 441, shows to 452 (margins 4)
+INFO revPreferencesGUI: check box Hide Palettes needs to 287, shows to 322 (margins 4)
+INFO revPreferencesGUI: check box Hide Message Box needs to 454, shows to 490 (margins 4)
+INFO revPreferencesGUI: check box Hide Errors needs to 274, shows to 322 (margins 4)
+INFO revPreferencesGUI: option menu Use Tabs needs 76 wide, is 146
+INFO revPreferencesGUI: check box Interactive find needs to 297, shows to 322 (margins 4)
+INFO revPreferencesGUI: option menu Debug Background Color needs 67 wide, is 113
+INFO revPreferencesGUI: check box Show globals needs to 423, shows to 458 (margins 4)
+INFO revPreferencesGUI: option menu Print Font Size needs 33 wide, is 74
+INFO revPreferencesGUI: option menu Indentation needs 34 wide, is 54
+INFO revPreferencesGUI: check box External script editor needs to 333, shows to 343 (margins 4)
+INFO revPreferencesGUI: field prefloc (preferences are saved in:) has its words from 282 to 669, is from 274 to 697
+INFO revPreferencesGUI: field Label Field (Font:) has its words from 190 to 221, is from 182 to 232
+INFO revPreferencesGUI: field Label Field (Size:) has its words from 190 to 220, is from 182 to 232
+INFO revPreferencesGUI: field Label Field (Script Editor theme:) has its words from 527 to 648, is from 480 to 656
+INFO revPreferencesGUI: field Label Field (Handler List:) has its words from 571 to 648, is from 534 to 656
+INFO revPreferencesGUI: field Label Field (Script Editor background:) has its words from 493 to 648, is from 448 to 656
+INFO revPreferencesGUI: field Label Field (When editing scripts:) has its words from 190 to 319, is from 182 to 345
+INFO revPreferencesGUI: field Label Field (Scripts open in:) has its words from 190 to 285, is from 182 to 313
+INFO revPreferencesGUI: field Label Field (Debug background:) has its words from 528 to 648, is from 500 to 656
+INFO revPreferencesGUI: field Label Field (Print size:) has its words from 349 to 409, is from 330 to 417
+INFO revPreferencesGUI: field Label Field (Indents:) has its words from 533 to 582, is from 483 to 590
+INFO revPreferencesGUI: field Label Field (Comment in scripts using:) has its words from 190 to 348, is from 182 to 384
+INFO 14-preferences-08-property-profiles stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-08-property-profiles.png 162,106,862,634
+INFO revPreferencesGUI: button Reset Preferences to Defaults needs 206 wide, is 251
+INFO revPreferencesGUI: check box Create profiles automatically needs to 379, shows to 436 (margins 4)
+INFO revPreferencesGUI: check box Don't save changes needs to 468, shows to 509 (margins 4)
+INFO revPreferencesGUI: field prefloc (preferences are saved in:) has its words from 282 to 669, is from 274 to 697
+INFO revPreferencesGUI: field New Field 8 (Master profile name:) has its words from 190 to 315, is from 182 to 323
+INFO 14-preferences-09-app-browser stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-09-app-browser.png 162,106,862,634
+INFO revPreferencesGUI: button Reset Preferences to Defaults needs 206 wide, is 251
+INFO revPreferencesGUI: check box Show audio clips needs to 307, shows to 314 (margins 4)
+INFO revPreferencesGUI: check box Show video clips needs to 307, shows to 313 (margins 4)
+INFO revPreferencesGUI: option menu double-click needs 76 wide, is 178
+INFO revPreferencesGUI: option menu command double-click needs 88 wide, is 178
+INFO revPreferencesGUI: option menu option double-click needs 139 wide, is 178
+INFO revPreferencesGUI: field prefloc (preferences are saved in:) has its words from 282 to 669, is from 274 to 697
+INFO revPreferencesGUI: field field id 1214 (Assign actions to mouse key combinations:) has its words from 190 to 451, is from 182 to 470
+INFO revPreferencesGUI: field field id 1220 (Double-click:) has its words from 377 to 458, is from 338 to 466
+INFO revPreferencesGUI: field field id 1221 (Command double-click:) has its words from 313 to 458, is from 301 to 466
+INFO revPreferencesGUI: field field id 1222 (Option double-click:) has its words from 334 to 458, is from 323 to 466
+INFO 14-preferences-10-dictionary stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-10-dictionary.png 162,106,862,634
+INFO revPreferencesGUI: button Reset Preferences to Defaults needs 206 wide, is 251
+INFO revPreferencesGUI: check box inExtBrowser needs to 512, shows to 580 (margins 4)
+INFO revPreferencesGUI: check box prePopulateScripts needs to 575, shows to 649 (margins 4)
+INFO revPreferencesGUI: check box useQuickDict needs to 436, shows to 567 (margins 4)
+INFO revPreferencesGUI: field prefloc (preferences are saved in:) has its words from 282 to 669, is from 274 to 697
+INFO revPreferencesGUI: field descr (Turning this option on will skip the dictionary generating routines when the IDE starts up.) needs 32 high, is 37
+INFO 14-preferences-11-mobile-support stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-11-mobile-support.png 162,106,862,634
+INFO revPreferencesGUI: button Reset Preferences to Defaults needs 206 wide, is 251
+INFO revPreferencesGUI: button Add entry needs 67 wide, is 102
+INFO revPreferencesGUI: button Remove entry needs 91 wide, is 102
+INFO revPreferencesGUI: button ChooseAndroid needs 19 wide, is 22
+INFO revPreferencesGUI: button ChooseJDK needs 19 wide, is 22
+INFO revPreferencesGUI: field prefloc (preferences are saved in:) has its words from 282 to 669, is from 274 to 697
+INFO revPreferencesGUI: field Simulator List (Available simulators: (none)) has its words from 195 to 362, is from 187 to 549
+INFO revPreferencesGUI: field iOS Instructions (In order to deploy to iOS, the location of your iOS development SDKs needs to be set.) needs 34 high, is 38
+INFO revPreferencesGUI: field SDK List (Available device SDKs: (none)) has its words from 195 to 376, is from 187 to 549
+INFO revPreferencesGUI: field Instructions (In order to deploy to Android, the location of your Android development SDK needs to be set.) needs 70 high, is 86
+INFO revPreferencesGUI: field JDK Path (JDK Path: ) has its words from 195 to 255, is from 187 to 619
+INFO revPreferencesGUI: field fmobtip (For MacOS JDK support, please install the 'jdk-8u202-macosx-x64.dmg' directly.) needs 32 high, is 36
+INFO 14-preferences-12-project-browser stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-12-project-browser.png 162,106,862,634
+INFO revPreferencesGUI: button Reset Preferences to Defaults needs 206 wide, is 251
+INFO revPreferencesGUI: option menu stackSortOrder needs 89 wide, is 112
+INFO revPreferencesGUI: radio button Icon needs to 359, shows to 395 (margins 4)
+INFO revPreferencesGUI: radio button Text needs to 359, shows to 395 (margins 4)
+INFO revPreferencesGUI: check box Front scripts needs to 410, shows to 495 (margins 4)
+INFO revPreferencesGUI: check box stacks needs to 374, shows to 493 (margins 4)
+INFO revPreferencesGUI: check box Back scripts needs to 408, shows to 505 (margins 4)
+INFO revPreferencesGUI: check box Stacks in use needs to 413, shows to 494 (margins 4)
+INFO revPreferencesGUI: option menu stackSortType needs 61 wide, is 112
+INFO revPreferencesGUI: option menu cardSortType needs 59 wide, is 112
+INFO revPreferencesGUI: option menu cardSortOrder needs 89 wide, is 112
+INFO revPreferencesGUI: option menu controlSortType needs 59 wide, is 112
+INFO revPreferencesGUI: option menu controlSortOrder needs 89 wide, is 112
+INFO revPreferencesGUI: option menu textSize needs 68 wide, is 112
+INFO revPreferencesGUI: field prefloc (preferences are saved in:) has its words from 282 to 669, is from 274 to 697
+INFO revPreferencesGUI: field objectIndicatorLabel (Object type:) needs 15 high, is 26
+INFO revPreferencesGUI: field sectionsLabel (Show sections:) needs 15 high, is 23
+INFO revPreferencesGUI: field sortStacksLabel (Sort stacks by:) needs 15 high, is 23
+INFO revPreferencesGUI: field sortCardsLabel (Sort cards by:) needs 15 high, is 23
+INFO revPreferencesGUI: field sortControlsLabel (Sort controls by:) needs 15 high, is 23
+INFO revPreferencesGUI: field textSizeLabel (Text size:) needs 15 high, is 23
+INFO 14-preferences-13-compatibility stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-13-compatibility.png 162,106,862,634
+INFO revPreferencesGUI: button Reset Preferences to Defaults needs 206 wide, is 251
+INFO revPreferencesGUI: check box disPlayerLin needs to 461, shows to 669 (margins 4)
+INFO revPreferencesGUI: check box cMenuBarOffset needs to 625, shows to 690 (margins 4)
+INFO revPreferencesGUI: check box disBrowserWidget needs to 391, shows to 669 (margins 4)
+INFO revPreferencesGUI: check box disDataGrid needs to 575, shows to 669 (margins 4)
+INFO revPreferencesGUI: check box ClickDesktopHide needs to 461, shows to 494 (margins 4)
+INFO revPreferencesGUI: check box tPalWd needs to 635, shows to 700 (margins 4)
+INFO revPreferencesGUI: check box tRaiseWD needs to 626, shows to 700 (margins 4)
+INFO revPreferencesGUI: field prefloc (preferences are saved in:) has its words from 282 to 669, is from 274 to 697
+INFO revPreferencesGUI: field xlabel (X adjustment:) has its words from 190 to 274, is from 182 to 320
+INFO revPreferencesGUI: field ylabel (Y adjustment:) has its words from 366 to 450, is from 358 to 496
+INFO revPreferencesGUI: field field id 1457 (Please note: The following options require a restart of the IDE to take effect:) has its words from 190 to 649, is from 182 to 692
+INFO 14-preferences-14-automatic-updates stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-14-automatic-updates.png 162,106,862,634
+INFO revPreferencesGUI: button Reset Preferences to Defaults needs 206 wide, is 251
+INFO revPreferencesGUI: check box useAutomaticUpdates needs to 400, shows to 520 (margins 4)
+INFO revPreferencesGUI: button checknow needs 76 wide, is 120
+INFO revPreferencesGUI: button relNotes needs 94 wide, is 120
+INFO revPreferencesGUI: field prefloc (preferences are saved in:) has its words from 282 to 669, is from 274 to 697
+INFO revPreferencesGUI: field tlastchecked (Last checked for updates:) has its words from 191 to 338, is from 183 to 434
+INFO revPreferencesGUI: field tPrefFootnote (OXT-Beyond 0.2.7-rc.6.12) has its words from 526 to 683, is from 354 to 691
+INFO 14-preferences-15-troubleshooting stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-15-troubleshooting.png 162,106,862,634
+INFO revPreferencesGUI: button Reset Preferences to Defaults needs 206 wide, is 251
+INFO revPreferencesGUI: check box MsgboxSysWin needs to 298, shows to 339 (margins 4)
+INFO revPreferencesGUI: check box MsgboxTopLevel needs to 413, shows to 479 (margins 4)
+INFO revPreferencesGUI: check box MsgboxDontMess needs to 619, shows to 640 (margins 4)
+INFO revPreferencesGUI: check box InspectorSysWin needs to 298, shows to 385 (margins 4)
+INFO revPreferencesGUI: check box InspectorTopLevel needs to 459, shows to 585 (margins 4)
+INFO revPreferencesGUI: button Reset needs 42 wide, is 120
+INFO revPreferencesGUI: field prefloc (preferences are saved in:) has its words from 282 to 669, is from 274 to 697
+INFO revPreferencesGUI: field blurb (If you are experiencing strange behaviour with the IDE's palettes, you can try adjusting a few options here:) needs 36 high, is 56
+INFO revPreferencesGUI: field field id 1440 (Message Box:) needs 19 high, is 23
+INFO revPreferencesGUI: field field id 1448 (Inspectors:) needs 19 high, is 23
+INFO revPreferencesGUI: field blurb2 (Please note: if you are using Linux, and have a desktop session that is known have issues with window focus in the IDE, the above behaviours may be modified automatically. The IDE will try to compensate by making adjustments.) needs 70 high, is 70
+INFO 14-preferences-16-debug-properties stack revPreferencesGUI rect 162,134,862,634 effective 162,106,862,634 title "Preferences"
+SHOT 14-preferences-16-debug-properties.png 162,106,862,634
+INFO revPreferencesGUI: button Reset Preferences to Defaults needs 206 wide, is 251
+INFO revPreferencesGUI: field prefloc (preferences are saved in:) has its words from 282 to 669, is from 274 to 697
+INFO revPreferencesGUI: field Label Field (Search String:) has its words from 190 to 276, is from 184 to 292
+INFO Preferences: the words of Show Revolution Stacks on General (enabled) differ from the window by 218
+INFO Preferences: the words of Context menus work on Rev dev stacks on General (enabled) differ from the window by 218
+INFO Preferences: the words of UI edit script on General (enabled) differ from the window by 216
+INFO Preferences: the words of opt edit script shortcut on General (enabled) differ from the window by 218
+INFO Preferences: the words of Language names on properties on General (enabled) differ from the window by 218
+INFO Preferences: the words of Descriptions on properties on General (enabled) differ from the window by 218
+INFO Preferences: the words of StartCenterPref on General (disabled) differ from the window by 99
+INFO Preferences: the words of ReloadStartCenter on General (disabled) differ from the window by 99
+INFO Preferences: the words of StartCenterClassicPref on General (disabled) differ from the window by 99
+INFO Preferences: the words of destroyStack on Files & Memory (enabled) differ from the window by 218
+INFO Preferences: the words of Remove from memory on Files & Memory (enabled) differ from the window by 218
+INFO Preferences: the words of Ask on Files & Memory (enabled) differ from the window by 218
+INFO Preferences: the words of Don't remove on Files & Memory (enabled) differ from the window by 218
+INFO Preferences: the words of PresetSizes on Files & Memory (enabled) differ from the window by 218
+INFO Preferences: the words of closeNoWarn on Files & Memory (enabled) differ from the window by 218
+INFO Preferences: the words of promptRename on Files & Memory (enabled) differ from the window by 218
+INFO Preferences: the words of safetynet on Files & Memory (enabled) differ from the window by 218
+INFO Preferences: the words of add extension on Files & Memory (enabled) differ from the window by 218
+INFO Preferences: the words of alphabetically on Files & Memory (enabled) differ from the window by 218
+INFO Preferences: the words of modification date on Files & Memory (enabled) differ from the window by 218
+INFO Preferences: the words of Preserve Stack Creator on Files & Memory (enabled) differ from the window by 218
+INFO Preferences: the words of Preserve Stack Version on Files & Memory (enabled) differ from the window by 218
+INFO Preferences: the words of absoluteImagePaths on Files & Memory (enabled) differ from the window by 218
+INFO Preferences: the words of incDateStamp on Files & Memory (enabled) differ from the window by 218
+INFO Preferences: the words of incRandChars on Files & Memory (enabled) differ from the window by 218
+INFO Preferences: the words of customStackIcon on Files & Memory (enabled) differ from the window by 218
+INFO Preferences: the words of useGallery on Files & Memory (enabled) differ from the window by 218
+INFO Preferences: the words of MakeRevToolBarDraggable on Appearance (enabled) differ from the window by 218
+INFO Preferences: the words of gridCheckAtStartup on Appearance (enabled) differ from the window by 218
+INFO Preferences: the words of revMenubarStandardWD on Appearance (enabled) differ from the window by 218
+INFO Preferences: the words of middleButtonToggle on Appearance (enabled) differ from the window by 218
+INFO Preferences: the words of useSystemWindowColor on Appearance (enabled) differ from the window by 218
+INFO Preferences: the words of labelsections bold on UI Tweaks (enabled) differ from the window by 218
+INFO Preferences: the words of useLayoutGuides on Extras (enabled) differ from the window by 218
+INFO Preferences: the words of tidyUpStacks on Extras (enabled) differ from the window by 218
+INFO Preferences: the words of ScreenSharedMemory on Extras (disabled) differ from the window by 99
+INFO Preferences: the words of Auto Format on Script Editor (enabled) differ from the window by 218
+INFO Preferences: the words of Variable Checking on Script Editor (enabled) differ from the window by 218
+INFO Preferences: the words of Variable Preservation on Script Editor (enabled) differ from the window by 218
+INFO Preferences: the words of Line Numbers on Script Editor (enabled) differ from the window by 218
+INFO Preferences: the words of Horizontal scroll on Script Editor (enabled) differ from the window by 218
+INFO Preferences: the words of Hide Palettes on Script Editor (enabled) differ from the window by 218
+INFO Preferences: the words of Hide Message Box on Script Editor (enabled) differ from the window by 218
+INFO Preferences: the words of Hide Errors on Script Editor (enabled) differ from the window by 218
+INFO Preferences: the words of Interactive find on Script Editor (enabled) differ from the window by 218
+INFO Preferences: the words of Show globals on Script Editor (enabled) differ from the window by 218
+INFO Preferences: the words of External script editor on Script Editor (enabled) differ from the window by 218
+INFO Preferences: the words of Create profiles automatically on Property Profiles (enabled) differ from the window by 218
+INFO Preferences: the words of Don't save changes on Property Profiles (enabled) differ from the window by 218
+INFO Preferences: the words of Show audio clips on App Browser (enabled) differ from the window by 218
+INFO Preferences: the words of Show video clips on App Browser (enabled) differ from the window by 218
+INFO Preferences: the words of inExtBrowser on Dictionary (enabled) differ from the window by 218
+INFO Preferences: the words of prePopulateScripts on Dictionary (enabled) differ from the window by 218
+INFO Preferences: the words of useQuickDict on Dictionary (enabled) differ from the window by 218
+INFO Preferences: the words of Icon on Project Browser (enabled) differ from the window by 205
+INFO Preferences: the words of Text on Project Browser (enabled) differ from the window by 218
+INFO Preferences: the words of Front scripts on Project Browser (enabled) differ from the window by 218
+INFO Preferences: the words of stacks on Project Browser (enabled) differ from the window by 218
+INFO Preferences: the words of Back scripts on Project Browser (enabled) differ from the window by 218
+INFO Preferences: the words of Stacks in use on Project Browser (enabled) differ from the window by 218
+INFO Preferences: the words of disPlayerLin on Compatibility (enabled) differ from the window by 218
+INFO Preferences: the words of cMenuBarOffset on Compatibility (enabled) differ from the window by 218
+INFO Preferences: the words of disBrowserWidget on Compatibility (enabled) differ from the window by 218
+INFO Preferences: the words of disDataGrid on Compatibility (enabled) differ from the window by 218
+INFO Preferences: the words of ClickDesktopHide on Compatibility (enabled) differ from the window by 218
+INFO Preferences: the words of tPalWd on Compatibility (enabled) differ from the window by 218
+INFO Preferences: the words of tRaiseWD on Compatibility (enabled) differ from the window by 218
+INFO Preferences: the words of useAutomaticUpdates on Automatic Updates (enabled) differ from the window by 218
+INFO Preferences: the words of MsgboxSysWin on Troubleshooting (enabled) differ from the window by 218
+INFO Preferences: the words of MsgboxTopLevel on Troubleshooting (enabled) differ from the window by 218
+INFO Preferences: the words of MsgboxDontMess on Troubleshooting (enabled) differ from the window by 218
+INFO Preferences: the words of InspectorSysWin on Troubleshooting (enabled) differ from the window by 218
+INFO Preferences: the words of InspectorTopLevel on Troubleshooting (enabled) differ from the window by 218
+INFO Preferences: the median of 69 enabled check boxes' and radio buttons' words 218
+INFO preferences still running after 20 s; open stacks: revPreferencesGUI | OXT Tour Sample | revInspector | revTools | revMenuBar | oxt_ui_tour
+SHOT zz-preferences-1.png 0,0,1024,768
+INFO preferences colour scheme menu: width 204, needs 189 (margins and arrow 26)
+INFO preferences path: a long one is shown as /.../a-third-folder/preferences/oxt-beyond7.rev, 279 wide in 423, tooltip /a-folder-with-a-long-name/another-folder-with-a-long-name/a-third-folder/preferences/oxt-beyond7.rev
+STEP preferences ok
+INFO web runtime check true installed true runtime /Users/runner/work/_temp/oxt-test/OXT-Beyond.app/Contents/Tools/Runtime user runtime /Users/runner/Documents/OXT-Beyond/Runtime folder true
+INFO 15-standalone-01-general stack revStandaloneSettings rect 260,239,1014,699 effective 260,211,1014,699 title "Standalone Application Settings for OXT Tour Sample - General"
+SHOT 15-standalone-01-general.png 260,211,1014,699
+INFO revStandaloneSettings: radio button remove needs to 296, shows to 382 (margins 4)
+INFO revStandaloneSettings: radio button include needs to 408, shows to 440 (margins 4)
+INFO revStandaloneSettings: radio button selected needs to 534, shows to 556 (margins 4)
+INFO revStandaloneSettings: radio button all needs to 245, shows to 289 (margins 4)
+INFO revStandaloneSettings: radio button set needs to 263, shows to 309 (margins 4)
+INFO revStandaloneSettings: option menu set objects needs 60 wide, is 201
+INFO revStandaloneSettings: check box Automatically build here needs to 179, shows to 244 (margins 4)
+INFO revStandaloneSettings: radio button select needs to 391, shows to 490 (margins 4)
+INFO revStandaloneSettings: radio button search needs to 528, shows to 654 (margins 4)
+INFO revStandaloneSettings: field New Field 4 (Inclusions) has its words from 17 to 78, is from 9 to 130
+INFO revStandaloneSettings: field New Field 4 (Property Profiles) has its words from 17 to 119, is from 9 to 160
+INFO revStandaloneSettings: field Label Field (Default build folder:) has its words from 17 to 137, is from 9 to 182
+INFO revStandaloneSettings: field field id 2884 ((Don't include ".exe" or ".app")) has its words from 425 to 612, is from 417 to 660
+INFO revStandaloneSettings: field File name label (Standalone name:) has its words from 17 to 126, is from 9 to 161
+INFO 15-standalone-02-stacks stack revStandaloneSettings rect 260,222,1014,709 effective 260,194,1014,709 title "Standalone Application Settings for OXT Tour Sample - Stacks"
+SHOT 15-standalone-02-stacks.png 260,194,1014,709
+INFO revStandaloneSettings: check box moveSubstacks needs to 690, shows to 747 (margins 4)
+INFO revStandaloneSettings: check box renameFiles needs to 636, shows to 686 (margins 4)
+INFO revStandaloneSettings: check box Data stacks directory needs to 621, shows to 668 (margins 4)
+INFO revStandaloneSettings: check box encrypt needs to 598, shows to 634 (margins 4)
+INFO revStandaloneSettings: check box destroyStack needs to 659, shows to 729 (margins 4)
+INFO revStandaloneSettings: button Add Stack File... needs 105 wide, is 150
+INFO revStandaloneSettings: button Remove Stack File needs 118 wide, is 150
+INFO revStandaloneSettings: field New Field 1 (Stack files in the application:) has its words from 22 to 196, is from 14 to 268
+INFO revStandaloneSettings: field New Field 1 (For the selected stack file:) has its words from 424 to 585, is from 416 to 646
+INFO revStandaloneSettings: field New Field 1 (Stacks in the selected stack file:) has its words from 424 to 620, is from 416 to 689
+INFO revStandaloneSettings: field New Field 1 (For the selected stack:) has its words from 423 to 562, is from 415 to 583
+INFO revStandaloneSettings: field New Field 4 (Advanced Options) has its words from 424 to 536, is from 416 to 572
+INFO 15-standalone-03-os-x stack revStandaloneSettings rect 260,109,1014,709 effective 260,81,1014,709 title "Standalone Application Settings for OXT Tour Sample - Mac"
+SHOT 15-standalone-03-os-x.png 260,81,1014,709
+INFO revStandaloneSettings: check box MacOSX x86-32 needs to 479, shows to 486 (margins 4)
+INFO revStandaloneSettings: check box MacOSX x86-64 needs to 290, shows to 390 (margins 4)
+INFO revStandaloneSettings: check box MacOS-IntelArmUniversal needs to 310, shows to 486 (margins 4)
+INFO revStandaloneSettings: button Use None1 needs 67 wide, is 100
+INFO revStandaloneSettings: button Choose... needs 65 wide, is 75
+INFO revStandaloneSettings: radio button enter needs to 505, shows to 579 (margins 4)
+INFO revStandaloneSettings: radio button choose needs to 484, shows to 575 (margins 4)
+INFO revStandaloneSettings: button Use None3 needs 67 wide, is 100
+INFO revStandaloneSettings: button Choose...2 needs 65 wide, is 75
+INFO revStandaloneSettings: field Field 1 (Build for:) has its words from 22 to 77, is from 14 to 98
+INFO revStandaloneSettings: field field id 1103 (Application Icon:) has its words from 22 to 124, is from 14 to 164
+INFO revStandaloneSettings: field OSXlongversion (Long Version:) has its words from 421 to 504, is from 373 to 512
+INFO revStandaloneSettings: field OSXinfo ( Get Info String:) has its words from 127 to 223, is from 71 to 231
+INFO revStandaloneSettings: field OSXshortversion (Short Version:) has its words from 136 to 222, is from 85 to 230
+INFO revStandaloneSettings: field OSXsignature (Signature:) has its words from 156 to 218, is from 104 to 226
+INFO revStandaloneSettings: field OSXname (Name:) has its words from 179 to 219, is from 147 to 227
+INFO revStandaloneSettings: field OSXDocExt (Doc Extension:) has its words from 413 to 504, is from 363 to 512
+INFO revStandaloneSettings: field OSXDocTypes (Doc Type:) has its words from 442 to 504, is from 400 to 512
+INFO revStandaloneSettings: field New Field 4 (Copyright Notice:) has its words from 116 to 223, is from 50 to 231
+INFO revStandaloneSettings: field New Field 4 (Version Information) has its words from 117 to 235, is from 48 to 243
+INFO revStandaloneSettings: field New Field 4 (Bundle Identifier:) has its words from 119 to 223, is from 45 to 231
+INFO revStandaloneSettings: field field id 1287 (Document Icon:) has its words from 22 to 118, is from 14 to 150
+INFO revStandaloneSettings: field field id 1303 (Application Icon:) has its words from 56 to 158, is from 4 to 166
+INFO revStandaloneSettings: field field id 1305 (Small Application Icon:) has its words from 369 to 507, is from 315 to 515
+INFO revStandaloneSettings: field field id 1307 (Icons to display on ask and answer dialogs) has its words from 22 to 280, is from 14 to 353
+INFO revStandaloneSettings: field New Field 4 (PLIST) has its words from 85 to 121, is from -2 to 129
+INFO 15-standalone-04-unix stack revStandaloneSettings rect 260,109,1014,409 effective 260,81,1014,409 title "Standalone Application Settings for OXT Tour Sample - Linux"
+SHOT 15-standalone-04-unix.png 260,81,1014,409
+INFO revStandaloneSettings: check box FileSelector needs to 291, shows to 335 (margins 4)
+INFO revStandaloneSettings: check box PageSetup needs to 286, shows to 320 (margins 4)
+INFO revStandaloneSettings: check box PrinterChooser needs to 311, shows to 342 (margins 4)
+INFO revStandaloneSettings: check box ColorChooser needs to 303, shows to 340 (margins 4)
+INFO revStandaloneSettings: check box Linux needs to 211, shows to 255 (margins 4)
+INFO revStandaloneSettings: check box Linux x64 needs to 334, shows to 373 (margins 4)
+INFO revStandaloneSettings: field Field 1 (Include:) has its words from 91 to 139, is from 47 to 147
+INFO revStandaloneSettings: field Label Field (Build for:) has its words from 29 to 84, is from -8 to 92
+INFO 15-standalone-05-copy-files stack revStandaloneSettings rect 260,109,1014,469 effective 260,81,1014,469 title "Standalone Application Settings for OXT Tour Sample - Copy Files"
+SHOT 15-standalone-05-copy-files.png 260,81,1014,469
+INFO revStandaloneSettings: button Add File... needs 68 wide, is 129
+INFO revStandaloneSettings: button Remove Entry needs 91 wide, is 129
+INFO revStandaloneSettings: check box Copy Referenced Files needs to 176, shows to 234 (margins 4)
+INFO revStandaloneSettings: button Add Folder... needs 84 wide, is 129
+INFO revStandaloneSettings: field New Field 1 (Non-stack files in the application:) has its words from 22 to 226, is from 14 to 278
+INFO revStandaloneSettings: field Label Field (Destination Folder:) has its words from 22 to 137, is from 14 to 182
+INFO 15-standalone-06-windows stack revStandaloneSettings rect 260,109,1014,669 effective 260,81,1014,669 title "Standalone Application Settings for OXT Tour Sample - Windows"
+SHOT 15-standalone-06-windows.png 260,81,1014,669
+INFO revStandaloneSettings: button Use None needs 67 wide, is 100
+INFO revStandaloneSettings: button Choose... needs 65 wide, is 90
+INFO revStandaloneSettings: button Use None2 needs 67 wide, is 100
+INFO revStandaloneSettings: button Choose...2 needs 65 wide, is 90
+INFO revStandaloneSettings: option menu UAC Execution Level needs 73 wide, is 153
+INFO revStandaloneSettings: check box usePixelScaling needs to 596, shows to 651 (margins 4)
+INFO revStandaloneSettings: check box Windows needs to 256, shows to 267 (margins 4)
+INFO revStandaloneSettings: check box Windows x86-64 needs to 516, shows to 532 (margins 4)
+INFO revStandaloneSettings: field Field 1 (Build for:) has its words from 22 to 77, is from 14 to 101
+INFO revStandaloneSettings: field field id 1135 (Application Icon:) has its words from 32 to 134, is from -30 to 142
+INFO revStandaloneSettings: field field id 1144 (Document Icon:) has its words from 38 to 134, is from -18 to 142
+INFO revStandaloneSettings: field New Field 4 (Copyright Notice:) has its words from 27 to 134, is from -9 to 142
+INFO revStandaloneSettings: field New Field 4 (File Description:) has its words from 36 to 134, is from -4 to 142
+INFO revStandaloneSettings: field Version Label (Version Information) has its words from 22 to 136, is from 14 to 145
+INFO revStandaloneSettings: field New Field 4 (Comments:) has its words from 64 to 134, is from 15 to 142
+INFO revStandaloneSettings: field New Field 4 (Internal Name:) has its words from 463 to 552, is from 423 to 560
+INFO revStandaloneSettings: field New Field 4 (File Version:) has its words from 478 to 552, is from 454 to 560
+INFO revStandaloneSettings: field New Field 4 (Original Filename:) has its words from 443 to 552, is from 405 to 560
+INFO revStandaloneSettings: field New Field 4 (Legal Trademarks:) has its words from 23 to 134, is from -2 to 142
+INFO revStandaloneSettings: field New Field 4 (Product Name:) has its words from 43 to 134, is from 14 to 142
+INFO revStandaloneSettings: field New Field 4 (Product Version:) has its words from 451 to 552, is from 417 to 560
+INFO revStandaloneSettings: field New Field 4 (Private Build:) has its words from 472 to 552, is from 420 to 560
+INFO revStandaloneSettings: field New Field 4 (Company Name:) has its words from 34 to 134, is from 5 to 142
+INFO revStandaloneSettings: field New Field 4 (Special Build:) has its words from 470 to 552, is from 419 to 560
+INFO revStandaloneSettings: field New Field 1 (.) has its words from 628 to 632, is from 624 to 636
+INFO revStandaloneSettings: field New Field 1 (.) has its words from 591 to 595, is from 587 to 599
+INFO revStandaloneSettings: field New Field 1 (.) has its words from 665 to 669, is from 661 to 673
+INFO revStandaloneSettings: field New Field 1 (.) has its words from 628 to 632, is from 624 to 636
+INFO revStandaloneSettings: field New Field 1 (.) has its words from 591 to 595, is from 587 to 599
+INFO revStandaloneSettings: field New Field 1 (.) has its words from 665 to 669, is from 661 to 673
+INFO revStandaloneSettings: field Icon Label (Icon) has its words from 22 to 46, is from 14 to 145
+INFO revStandaloneSettings: field UAC Label (UAC Execution Level) has its words from 22 to 138, is from 14 to 166
+INFO revStandaloneSettings: field UAC Info (Runs with default UAC access. No manifest is included.) needs 19 high, is 40
+INFO revStandaloneSettings: field HiDPI Label (Hi-DPI support) has its words from 452 to 536, is from 444 to 575
+INFO revStandaloneSettings: field HiDPI Info (If enabled, stacks will scale to match the system display settings.) needs 36 high, is 75
+INFO 15-standalone-07-android stack revStandaloneSettings rect 260,53,1014,753 effective 260,25,1014,753 title "Standalone Application Settings for OXT Tour Sample - Android"
+SHOT 15-standalone-07-android.png 260,25,1014,753
+INFO labels: NFC Tag Reading on Android at 678,696,830,719 is not whole in the working screenRect 0,25,1024,709, not measured
+INFO revStandaloneSettings: button Icon Chooser1 needs 19 wide, is 28
+INFO revStandaloneSettings: button Splash Chooser1 needs 19 wide, is 28
+INFO revStandaloneSettings: option menu Signing needs 127 wide, is 223
+INFO revStandaloneSettings: button Key Chooser needs 19 wide, is 28
+INFO revStandaloneSettings: option menu Install Location needs 153 wide, is 223
+INFO revStandaloneSettings: button Status Bar Icon Chooser needs 19 wide, is 28
+INFO revStandaloneSettings: check box Hardware Accelerated needs to 274, shows to 290 (margins 4)
+INFO revStandaloneSettings: option menu Initial Orientation needs 70 wide, is 182
+INFO revStandaloneSettings: radio button false needs to 183, shows to 190 (margins 4)
+INFO revStandaloneSettings: radio button true needs to 259, shows to 266 (margins 4)
+INFO revStandaloneSettings: option menu Minimum Android Version needs 105 wide, is 150
+INFO revStandaloneSettings: radio button button id 2330 needs to 566, shows to 585 (margins 4)
+INFO revStandaloneSettings: radio button button id 2331 needs to 623, shows to 642 (margins 4)
+INFO revStandaloneSettings: radio button button id 2332 needs to 676, shows to 695 (margins 4)
+INFO revStandaloneSettings: radio button button id 2424 needs to 566, shows to 585 (margins 4)
+INFO revStandaloneSettings: radio button button id 2425 needs to 623, shows to 642 (margins 4)
+INFO revStandaloneSettings: radio button button id 2426 needs to 676, shows to 695 (margins 4)
+INFO revStandaloneSettings: radio button button id 2429 needs to 566, shows to 585 (margins 4)
+INFO revStandaloneSettings: radio button button id 2430 needs to 623, shows to 642 (margins 4)
+INFO revStandaloneSettings: radio button button id 2431 needs to 676, shows to 695 (margins 4)
+INFO revStandaloneSettings: radio button button id 2434 needs to 566, shows to 585 (margins 4)
+INFO revStandaloneSettings: radio button button id 2435 needs to 623, shows to 642 (margins 4)
+INFO revStandaloneSettings: radio button button id 2436 needs to 676, shows to 695 (margins 4)
+INFO revStandaloneSettings: radio button button id 2294 needs to 566, shows to 585 (margins 4)
+INFO revStandaloneSettings: radio button button id 2295 needs to 623, shows to 642 (margins 4)
+INFO revStandaloneSettings: radio button button id 2296 needs to 676, shows to 695 (margins 4)
+INFO revStandaloneSettings: radio button button id 2459 needs to 566, shows to 585 (margins 4)
+INFO revStandaloneSettings: radio button button id 2460 needs to 623, shows to 642 (margins 4)
+INFO revStandaloneSettings: radio button button id 2461 needs to 676, shows to 695 (margins 4)
+INFO revStandaloneSettings: radio button button id 2464 needs to 566, shows to 585 (margins 4)
+INFO revStandaloneSettings: radio button button id 2465 needs to 623, shows to 642 (margins 4)
+INFO revStandaloneSettings: radio button button id 2466 needs to 676, shows to 695 (margins 4)
+INFO revStandaloneSettings: radio button button id 2469 needs to 566, shows to 585 (margins 4)
+INFO revStandaloneSettings: radio button button id 2470 needs to 623, shows to 642 (margins 4)
+INFO revStandaloneSettings: radio button button id 2471 needs to 676, shows to 695 (margins 4)
+INFO revStandaloneSettings: radio button button id 2474 needs to 566, shows to 585 (margins 4)
+INFO revStandaloneSettings: radio button button id 2475 needs to 623, shows to 642 (margins 4)
+INFO revStandaloneSettings: radio button button id 2476 needs to 676, shows to 695 (margins 4)
+INFO revStandaloneSettings: radio button button id 2479 needs to 566, shows to 585 (margins 4)
+INFO revStandaloneSettings: radio button button id 2480 needs to 623, shows to 642 (margins 4)
+INFO revStandaloneSettings: radio button button id 2481 needs to 676, shows to 695 (margins 4)
+INFO revStandaloneSettings: radio button button id 2484 needs to 566, shows to 585 (margins 4)
+INFO revStandaloneSettings: radio button button id 2485 needs to 623, shows to 642 (margins 4)
+INFO revStandaloneSettings: radio button button id 2486 needs to 676, shows to 695 (margins 4)
+INFO revStandaloneSettings: radio button button id 2489 needs to 566, shows to 585 (margins 4)
+INFO revStandaloneSettings: radio button button id 2490 needs to 623, shows to 642 (margins 4)
+INFO revStandaloneSettings: radio button button id 2491 needs to 676, shows to 695 (margins 4)
+INFO revStandaloneSettings: radio button button id 2494 needs to 566, shows to 585 (margins 4)
+INFO revStandaloneSettings: radio button button id 2495 needs to 623, shows to 642 (margins 4)
+INFO revStandaloneSettings: radio button button id 2496 needs to 676, shows to 695 (margins 4)
+INFO revStandaloneSettings: check box NFC Tag Reading needs to 543, shows to 570 (margins 4)
+INFO revStandaloneSettings: check box INTERNET needs to 486, shows to 574 (margins 4)
+INFO revStandaloneSettings: check box WRITE_EXTERNAL_STORAGE needs to 574, shows to 587 (margins 4)
+INFO revStandaloneSettings: check box CAMERA needs to 485, shows to 589 (margins 4)
+INFO revStandaloneSettings: check box ACCESS_FINE_LOCATION needs to 690, shows to 713 (margins 4)
+INFO revStandaloneSettings: check box ACCESS_COARSE_LOCATION needs to 708, shows to 713 (margins 4)
+INFO revStandaloneSettings: check box VIBRATE needs to 664, shows to 713 (margins 4)
+INFO revStandaloneSettings: check box WAKE_LOCK needs to 670, shows to 713 (margins 4)
+INFO revStandaloneSettings: check box AD needs to 678, shows to 728 (margins 4)
+INFO revStandaloneSettings: check box READ_CONTACTS needs to 527, shows to 542 (margins 4)
+INFO revStandaloneSettings: check box WRITE_CONTACTS needs to 529, shows to 542 (margins 4)
+INFO revStandaloneSettings: radio button Google needs to 184, shows to 202 (margins 4)
+INFO revStandaloneSettings: radio button Samsung needs to 285, shows to 290 (margins 4)
+INFO revStandaloneSettings: check box In App Purchasing needs to 176, shows to 234 (margins 4)
+INFO revStandaloneSettings: check box Android armv7 needs to 224, shows to 236 (margins 4)
+INFO revStandaloneSettings: check box Android x86_64 needs to 618, shows to 625 (margins 4)
+INFO revStandaloneSettings: check box Android x86 needs to 470, shows to 482 (margins 4)
+INFO revStandaloneSettings: check box Android arm64 needs to 354, shows to 358 (margins 4)
+INFO revStandaloneSettings: field Field 1 (Build for:) has its words from 20 to 75, is from 12 to 77
+INFO revStandaloneSettings: field Identifier Label (Identifier) has its words from 59 to 113, is from 25 to 121
+INFO revStandaloneSettings: field Label Label (Label) has its words from 80 to 113, is from 29 to 121
+INFO revStandaloneSettings: field Version Name Label (Version Name) has its words from 29 to 113, is from 18 to 121
+INFO revStandaloneSettings: field Icon Label (Icon) has its words from 87 to 113, is from 29 to 121
+INFO revStandaloneSettings: field Icon Label (Basic Application Settings) has its words from 20 to 171, is from 12 to 237
+INFO revStandaloneSettings: field Version Code Label (Version Code) has its words from 202 to 283, is from 191 to 291
+INFO revStandaloneSettings: field Splash Label (Splash) has its words from 72 to 113, is from 29 to 121
+INFO revStandaloneSettings: field Signing Label (Signing) has its words from 67 to 113, is from 29 to 121
+INFO revStandaloneSettings: field Key Label (Key) has its words from 90 to 113, is from 29 to 121
+INFO revStandaloneSettings: field Install Location Label (Install Location) has its words from 21 to 113, is from 13 to 121
+INFO revStandaloneSettings: field Custom Url Scheme Label (Custom URL) has its words from 36 to 112, is from -31 to 120
+INFO revStandaloneSettings: field Push Sender ID Label (Push Sender ID) has its words from 19 to 113, is from -35 to 121
+INFO revStandaloneSettings: field Status Bar Icon Label (Status Bar Icon) has its words from 20 to 113, is from 8 to 121
+INFO revStandaloneSettings: field Icon Label (User Interface Options) has its words from 23 to 152, is from 15 to 240
+INFO revStandaloneSettings: field Initial Orientation Label (Initial Orientation) has its words from 32 to 136, is from 22 to 144
+INFO revStandaloneSettings: field Status Bar Label (Status Bar) has its words from 51 to 114, is from 14 to 122
+INFO revStandaloneSettings: field Icon Label (Requirements and Restrictions) has its words from 410 to 588, is from 402 to 627
+INFO revStandaloneSettings: field Minimum Android Version Label (Minimum Android Version) has its words from 403 to 558, is from 390 to 566
+INFO revStandaloneSettings: field Required label (Required) has its words from 533 to 588, is from 528 to 592
+INFO revStandaloneSettings: field Used label (Used) has its words from 603 to 635, is from 581 to 657
+INFO revStandaloneSettings: field n/a label (n/a) has its words from 667 to 686, is from 655 to 698
+INFO revStandaloneSettings: field hardware.camera label (Camera) has its words from 480 to 527, is from 416 to 535
+INFO revStandaloneSettings: field hardware.camera.autofocus label (Camera Autofocus) has its words from 415 to 527, is from 403 to 535
+INFO revStandaloneSettings: field hardware.camera.flash label (Camera Flash) has its words from 444 to 527, is from 416 to 535
+INFO revStandaloneSettings: field hardware.camera.front label (Front Camera) has its words from 444 to 527, is from 416 to 535
+INFO revStandaloneSettings: field hardware.sensor.accelerometer label (Accelerometer) has its words from 438 to 527, is from 416 to 535
+INFO revStandaloneSettings: field hardware.telephony label (Telephony) has its words from 464 to 527, is from 416 to 535
+INFO revStandaloneSettings: field hardware.telephony.cdma label (Telephony CDMA) has its words from 422 to 527, is from 416 to 535
+INFO revStandaloneSettings: field hardware.telephony.gsm label (Telephony GSM) has its words from 432 to 527, is from 416 to 535
+INFO revStandaloneSettings: field hardware.faketouch label (Fake Touch) has its words from 458 to 527, is from 416 to 535
+INFO revStandaloneSettings: field hardware.touchscreen label (Touchscreen) has its words from 449 to 527, is from 416 to 535
+INFO revStandaloneSettings: field hardware.touchscreen.multitouch label (Multitouch) has its words from 462 to 527, is from 416 to 535
+INFO revStandaloneSettings: field hardware.touchscreen.multitouch.distinct label (Multitouch Distinct) has its words from 412 to 527, is from 402 to 535
+INFO revStandaloneSettings: field hardware.touchscreen.multitouch.jazzhand label (Multitouch Jazzhand) has its words from 401 to 527, is from 390 to 535
+INFO revStandaloneSettings: field Icon Label (Application Permissions) has its words from 410 to 551, is from 402 to 627
+INFO revStandaloneSettings: field Icon Label (In App Purchasing) has its words from 22 to 128, is from 14 to 239
+INFO revStandaloneSettings: field Label Field (Store) has its words from 80 to 113, is from 65 to 121
+INFO 15-standalone-08-bug-reports stack revStandaloneSettings rect 260,53,1014,424 effective 260,25,1014,424 title "Standalone Application Settings for OXT Tour Sample - Bug Reports"
+SHOT 15-standalone-08-bug-reports.png 260,25,1014,424
+INFO revStandaloneSettings: check box errorDialog needs to 223, shows to 233 (margins 4)
+INFO revStandaloneSettings: check box save needs to 356, shows to 376 (margins 4)
+INFO revStandaloneSettings: check box email1 needs to 323, shows to 342 (margins 4)
+INFO revStandaloneSettings: check box comments needs to 349, shows to 376 (margins 4)
+INFO revStandaloneSettings: field Field 2 (htmlText for dialog:) has its words from 26 to 143, is from -1 to 151
+INFO revStandaloneSettings: field Field 2 (Dialog icon:) has its words from 70 to 142, is from 14 to 150
+INFO revStandaloneSettings: field field id 1185 (Email Address:) has its words from 169 to 259, is from 131 to 267
+INFO 15-standalone-09-emscripten stack revStandaloneSettings rect 260,53,1014,483 effective 260,25,1014,483 title "Standalone Application Settings for OXT Tour Sample - Web"
+SHOT 15-standalone-09-emscripten.png 260,25,1014,483
+INFO revStandaloneSettings: check box Emscripten needs to 227, shows to 330 (margins 8)
+INFO revStandaloneSettings: button emscriptenIconNone needs 67 wide, is 100
+INFO revStandaloneSettings: button emscriptenIconChoose needs 65 wide, is 90
+INFO revStandaloneSettings: button emscriptenColorDefault needs 70 wide, is 100
+INFO revStandaloneSettings: button emscriptenColorChoose needs 65 wide, is 90
+INFO revStandaloneSettings: option menu emscriptenPosition needs 148 wide, is 250
+INFO revStandaloneSettings: option menu emscriptenAppearance needs 60 wide, is 250
+INFO revStandaloneSettings: option menu emscriptenFields needs 65 wide, is 250
+INFO revStandaloneSettings: field emscriptenDeploymentInfoLabel (Save as Standalone Application writes a folder for a web server: the page (<name>.html), the engine (a .js and a .wasm file) and standalone.zip, with the stacks and the files to copy. Browsers run the page from a web server, not from a file on the disk.) needs 87 high, is 93
+INFO revStandaloneSettings: field Label Field (Build for:) has its words from 22 to 77, is from 14 to 101
+INFO revStandaloneSettings: field emscriptenPageHeading (Web Page) has its words from 22 to 77, is from 14 to 300
+INFO revStandaloneSettings: field emscriptenTitleLabel (Title:) has its words from 103 to 134, is from 2 to 142
+INFO revStandaloneSettings: field emscriptenIconLabel (Icon:) has its words from 104 to 134, is from 2 to 142
+INFO revStandaloneSettings: field emscriptenColorLabel (Background:) has its words from 57 to 134, is from 2 to 142
+INFO revStandaloneSettings: field emscriptenPositionLabel (Position:) has its words from 81 to 134, is from 2 to 142
+INFO revStandaloneSettings: field emscriptenAppearanceLabel (Appearance:) has its words from 57 to 134, is from 2 to 142
+INFO revStandaloneSettings: field emscriptenFieldsLabel (Fields:) has its words from 94 to 134, is from 2 to 142
+INFO revStandaloneSettings: field emscriptenTitleHint ((empty: the stack's title)) has its words from 551 to 699, is from 543 to 740
+INFO 15-standalone-10-inclusions stack revStandaloneSettings rect 260,53,1014,605 effective 260,25,1014,605 title "Standalone Application Settings for OXT Tour Sample - Inclusions"
+SHOT 15-standalone-10-inclusions.png 260,25,1014,605
+INFO revStandaloneSettings: check box Check needs to 730, shows to 729 (margins 4)
+INFO revStandaloneSettings: check box Check needs to 730, shows to 729 (margins 4)
+INFO revStandaloneSettings: check box Check needs to 730, shows to 729 (margins 4)
+INFO revStandaloneSettings: check box Check needs to 730, shows to 729 (margins 4)
+INFO revStandaloneSettings: check box Check needs to 730, shows to 729 (margins 4)
+INFO revStandaloneSettings: check box Check needs to 730, shows to 729 (margins 4)
+INFO revStandaloneSettings: check box Check needs to 730, shows to 729 (margins 4)
+INFO revStandaloneSettings: check box Check needs to 730, shows to 729 (margins 4)
+INFO revStandaloneSettings: check box Check needs to 730, shows to 729 (margins 4)
+INFO revStandaloneSettings: check box Check needs to 730, shows to 729 (margins 4)
+INFO revStandaloneSettings: check box Check needs to 730, shows to 729 (margins 4)
+INFO revStandaloneSettings: check box Check needs to 730, shows to 729 (margins 4)
+INFO revStandaloneSettings: field description (Palette Actions) has its words from 51 to 142, is from 44 to 149
+INFO revStandaloneSettings: field description (Android Native Field) has its words from 51 to 174, is from 44 to 181
+INFO revStandaloneSettings: field description (Icon Picker) has its words from 51 to 118, is from 44 to 125
+INFO revStandaloneSettings: field description (Segmented Control) has its words from 51 to 169, is from 44 to 176
+INFO revStandaloneSettings: field description (Mac Native Single-line Field) has its words from 51 to 220, is from 44 to 227
+INFO revStandaloneSettings: field description (Tile) has its words from 51 to 73, is from 44 to 80
+INFO revStandaloneSettings: field description (Switch Button) has its words from 51 to 136, is from 44 to 143
+INFO revStandaloneSettings: field description (Mac Native Button) has its words from 51 to 163, is from 44 to 170
+INFO revStandaloneSettings: field description (Line Graph) has its words from 51 to 117, is from 44 to 124
+INFO revStandaloneSettings: field description (Tree View) has its words from 51 to 111, is from 44 to 118
+INFO revStandaloneSettings: field description (HTML5 Native Button) has its words from 51 to 182, is from 44 to 189
+INFO revStandaloneSettings: field description (Calendar) has its words from 51 to 106, is from 44 to 113
+INFO Inclusions: icon 1 differs from its row (126) by 129
+INFO Inclusions: icon 2 differs from its row (97) by 158
+INFO Inclusions: icon 3 differs from its row (126) by 129
+INFO Inclusions: icon 4 differs from its row (97) by 158
+INFO Inclusions: icon 5 differs from its row (126) by 129
+INFO Inclusions: icon 6 differs from its row (97) by 158
+INFO Inclusions: icon 7 differs from its row (126) by 129
+INFO Inclusions: icon 8 differs from its row (97) by 158
+INFO Inclusions: icon 9 differs from its row (126) by 129
+INFO Inclusions: icon 10 differs from its row (97) by 158
+INFO Inclusions: icon 11 differs from its row (126) by 129
+INFO Inclusions: icon 12 differs from its row (97) by 158
+INFO Standalone Settings: the words of remove on General (enabled) differ from the window by 218
+INFO Standalone Settings: the words of include on General (enabled) differ from the window by 218
+INFO Standalone Settings: the words of selected on General (disabled) differ from the window by 99
+INFO Standalone Settings: the words of all on General (disabled) differ from the window by 99
+INFO Standalone Settings: the words of set on General (enabled) differ from the window by 218
+INFO Standalone Settings: the words of Automatically build here on General (enabled) differ from the window by 218
+INFO Standalone Settings: the words of select on General (enabled) differ from the window by 218
+INFO Standalone Settings: the words of search on General (enabled) differ from the window by 218
+INFO Standalone Settings: the words of moveSubstacks on Stacks (enabled) differ from the window by 218
+INFO Standalone Settings: the words of renameFiles on Stacks (disabled) differ from the window by 99
+INFO Standalone Settings: the words of Data stacks directory on Stacks (disabled) differ from the window by 99
+INFO Standalone Settings: the words of encrypt on Stacks (disabled) differ from the window by 98
+INFO Standalone Settings: the words of destroyStack on Stacks (enabled) differ from the window by 218
+INFO Standalone Settings: the words of MacOSX x86-32 on OS X (disabled) differ from the window by 99
+INFO Standalone Settings: the words of MacOSX x86-64 on OS X (enabled) differ from the window by 218
+INFO Standalone Settings: the words of MacOS-IntelArmUniversal on OS X (enabled) differ from the window by 218
+INFO Standalone Settings: the words of enter on OS X (enabled) differ from the window by 218
+INFO Standalone Settings: the words of choose on OS X (enabled) differ from the window by 218
+INFO Standalone Settings: the words of FileSelector on UNIX (enabled) differ from the window by 218
+INFO Standalone Settings: the words of PageSetup on UNIX (enabled) differ from the window by 218
+INFO Standalone Settings: the words of PrinterChooser on UNIX (enabled) differ from the window by 218
+INFO Standalone Settings: the words of ColorChooser on UNIX (enabled) differ from the window by 218
+INFO Standalone Settings: the words of Linux on UNIX (enabled) differ from the window by 218
+INFO Standalone Settings: the words of Linux x64 on UNIX (enabled) differ from the window by 218
+INFO Standalone Settings: the words of Copy Referenced Files on Copy Files (enabled) differ from the window by 218
+INFO Standalone Settings: the words of usePixelScaling on Windows (enabled) differ from the window by 218
+INFO Standalone Settings: the words of Windows on Windows (enabled) differ from the window by 218
+INFO Standalone Settings: the words of Windows x86-64 on Windows (enabled) differ from the window by 218
+INFO Standalone Settings: the words of Hardware Accelerated on Android (disabled) differ from the window by 99
+INFO Standalone Settings: the words of false on Android (disabled) differ from the window by 99
+INFO Standalone Settings: the words of true on Android (disabled) differ from the window by 99
+INFO Standalone Settings: the words of INTERNET on Android (disabled) differ from the window by 100
+INFO Standalone Settings: the words of WRITE_EXTERNAL_STORAGE on Android (disabled) differ from the window by 99
+INFO Standalone Settings: the words of CAMERA on Android (disabled) differ from the window by 100
+INFO Standalone Settings: the words of ACCESS_FINE_LOCATION on Android (disabled) differ from the window by 99
+INFO Standalone Settings: the words of ACCESS_COARSE_LOCATION on Android (disabled) differ from the window by 100
+INFO Standalone Settings: the words of VIBRATE on Android (disabled) differ from the window by 100
+INFO Standalone Settings: the words of WAKE_LOCK on Android (disabled) differ from the window by 100
+INFO Standalone Settings: the words of AD on Android (disabled) differ from the window by 97
+INFO Standalone Settings: the words of READ_CONTACTS on Android (disabled) differ from the window by 100
+INFO Standalone Settings: the words of WRITE_CONTACTS on Android (disabled) differ from the window by 96
+INFO Standalone Settings: the words of Google on Android (disabled) differ from the window by 95
+INFO Standalone Settings: the words of Samsung on Android (disabled) differ from the window by 95
+INFO Standalone Settings: the words of Android armv7 on Android (enabled) differ from the window by 218
+INFO Standalone Settings: the words of Android x86_64 on Android (enabled) differ from the window by 218
+INFO Standalone Settings: the words of Android x86 on Android (enabled) differ from the window by 218
+INFO Standalone Settings: the words of Android arm64 on Android (enabled) differ from the window by 218
+INFO Standalone Settings: the words of errorDialog on Bug Reports (enabled) differ from the window by 218
+INFO Standalone Settings: the words of save on Bug Reports (disabled) differ from the window by 99
+INFO Standalone Settings: the words of email1 on Bug Reports (disabled) differ from the window by 99
+INFO Standalone Settings: the words of comments on Bug Reports (disabled) differ from the window by 99
+INFO Standalone Settings: the words of Emscripten on Emscripten (enabled) differ from the window by 218
+INFO Standalone Settings: the median of 28 enabled check boxes' and radio buttons' words 218
+INFO standalone settings: Mac targets (x86-32, x86-64, ARM64) after the cards: false,true,true
+STEP standalone-settings ok
+INFO ext-mergjson /Users/runner/work/_temp/oxt-test/OXT-Beyond.app/Contents/Tools/Ext/mergJSON/mergJSON.bundle target MacOSX x64-ARM64 files LICENSE-jansson.txt | LICENSE.txt | mergJSONLibrary.livecodescript | .. | mergJSON.bundle
+STEP ext-mergjson ok
+INFO 16-menu-builder stack revMenuManager rect 264,149,760,620 effective 264,121,760,620 title "Menu Builder: Menubar 1 (Stack: "OXT Tour Menus")"
+SHOT 16-menu-builder.png 264,121,760,620
+STEP menu-builder ok
+INFO 17-extension-manager stack revIDEExtensionManager rect 148,101,1014,699 effective 148,73,1014,699 title "Extension Manager"
+SHOT 17-extension-manager.png 148,73,1014,699
+INFO the Extension Manager's first row's name in 255,255,255
+INFO 17-extension-manager-redrawn stack revIDEExtensionManager rect 148,101,1014,699 effective 148,73,1014,699 title "Extension Manager"
+SHOT 17-extension-manager-redrawn.png 148,73,1014,699
+STEP extension-manager ok
+INFO 18-extension-builder stack revExtensionBuilder rect 194,101,688,699 effective 194,73,688,699 title "Extension Builder"
+SHOT 18-extension-builder.png 194,73,688,699
+STEP extension-builder ok
+INFO 19-message-watcher stack revMessageWatcher rect 457,430,853,680 effective 457,411,853,680 title "Message Watcher"
+SHOT 19-message-watcher.png 457,411,853,680
+STEP message-watcher ok
+INFO the error window's text in 255,255,255 (255,255,255)
+INFO 19b-error-display stack revErrorDisplay rect 256,246,768,523 effective 256,218,768,523 title ""
+SHOT 19b-error-display.png 256,218,768,523
+STEP error-display ok
+INFO 20-search stack revSearch rect 285,154,735,695 effective 285,126,735,695 title "Find and Replace"
+SHOT 20-search.png 285,126,735,695
+INFO revSearch: button Remove from List needs 113 wide, is 128
+INFO revSearch: button Replace needs 74 wide, is 91
+INFO revSearch: option menu Search In needs 87 wide, is 202
+INFO revSearch: button Search needs 33 wide, is 82
+INFO revSearch: check box Name needs to 323, shows to 335 (margins 4)
+INFO revSearch: check box Field Text needs to 420, shows to 428 (margins 4)
+INFO revSearch: check box Button Contents needs to 432, shows to 438 (margins 4)
+INFO revSearch: check box Script needs to 323, shows to 335 (margins 4)
+INFO revSearch: check box Custom Properties needs to 334, shows to 342 (margins 4)
+INFO revSearch: check box All Other Object Properties needs to 416, shows to 421 (margins 4)
+INFO revSearch: check box Obey dontSearch properties needs to 213, shows to 240 (margins 4)
+INFO revSearch: check box Search Marked Cards Only needs to 275, shows to 314 (margins 4)
+INFO revSearch: option menu Marked or Unmarked needs 88 wide, is 97
+INFO revSearch: check box Case sensitive searching needs to 130, shows to 138 (margins 4)
+INFO revSearch: check box Term is a regular expression needs to 138, shows to 147 (margins 4)
+INFO revSearch: field replace label (Replace with:) has its words from 140 to 222, is from 128 to 230
+INFO revSearch: field Label (Stack) has its words from 10 to 45, is from 2 to 52
+INFO revSearch: field field id 1348 (Find) has its words from 14 to 40, is from 6 to 50
+INFO revSearch: field field id 1349 (In) has its words from 14 to 25, is from 6 to 50
+INFO search: Custom was false, clicked true, clicked again false
+STEP search ok
+INFO 22-object-library stack revImageLibrary rect 110,186,710,690 effective 110,158,710,690 title "Library"
+SHOT 22-object-library.png 110,158,710,690
+STEP object-library ok
+INFO 23-navigator stack Card Navigator rect 125,588,651,652 effective 125,569,651,652 title "Card Navigator"
+SHOT 23-navigator.png 125,569,651,652
+STEP navigator ok
+INFO 24-about stack revAbout rect 192,114,832,614 effective 192,86,832,614 title "About OXT-Beyond"
+SHOT 24-about.png 192,86,832,614
+INFO 24-about-redrawn: 25 controls, were 25
+INFO 24-about-redrawn stack revAbout rect 192,114,832,614 effective 192,86,832,614 title "About OXT-Beyond"
+SHOT 24-about-redrawn.png 192,86,832,614
+STEP about ok
+INFO Help > Dictionary Online opens https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/dictionary/
+STEP dictionary-online ok
+INFO 24b-release-notes stack revReleaseNotes rect 104,44,1024,684 effective 104,16,1024,684 title "Release Notes"
+SHOT 24b-release-notes.png 104,16,1024,684
+INFO Release Notes's selected index line (1): brightest 226,232,240 on the hilite 72,49,139 (contrast 8.16)
+INFO 24b-release-notes-search stack revReleaseNotes rect 104,44,1024,684 effective 104,16,1024,684 title "Release Notes"
+SHOT 24b-release-notes-search.png 104,16,1024,684
+INFO 24b-release-notes-redrawn: 32 controls, were 32
+INFO 24b-release-notes-redrawn stack revReleaseNotes rect 104,44,1024,684 effective 104,16,1024,684 title "Release Notes"
+SHOT 24b-release-notes-redrawn.png 104,16,1024,684
+STEP release-notes ok
+INFO 24a-home stack revHub rect 0,69,1024,709 effective 0,41,1024,709 title "OXT-Beyond Home"
+SHOT 24a-home.png 0,41,1024,709
+INFO 24a-home-resized stack revHub rect 0,53,1200,813 effective 0,25,1200,813 title "OXT-Beyond Home"
+SHOT 24a-home-resized.png 0,25,1024,768
+INFO 24a-home-redrawn: 558 controls, were 558
+INFO 24a-home-redrawn stack revHub rect 0,53,1200,813 effective 0,25,1200,813 title "OXT-Beyond Home"
+SHOT 24a-home-redrawn.png 0,25,1024,768
+STEP home ok
+INFO 24c-kit-dialog stack revKitDialog rect 212,99,812,610 effective 212,71,812,610 title "OXT-Beyond Updates"
+SHOT 24c-kit-dialog.png 212,71,812,610
+STEP kit-dialog ok
+INFO 24d-learn stack revHub rect 0,69,1024,709 effective 0,41,1024,709 title "OXT-Beyond Home"
+SHOT 24d-learn.png 0,41,1024,709
+INFO the Tools palette (10,91,105,652) is over 52,377,224,399: hidden while the pixels are read
+INFO the How-to's selected index line (1): brightest 226,232,240 on the hilite 72,49,139 (contrast 8.16)
+INFO the How-to's banner: no sparkle on its words
+INFO Learn's Academy button: "New to coding? Try the Academy" rect 328,238,597,276
+INFO 24d-learn-redrawn: 463 controls, were 463
+INFO 24d-learn-redrawn stack revHub rect 0,69,1024,709 effective 0,41,1024,709 title "OXT-Beyond Home"
+SHOT 24d-learn-redrawn.png 0,41,1024,709
+STEP learn ok
+INFO 24f-example stack Animate a Letter rect 0,59,1024,699 effective 0,31,1024,699 title "Animate a Letter"
+SHOT 24f-example.png 0,31,1024,699
+INFO the example's page 16,22,36 (dark)
+INFO 24f-example-program stack Animate a Letter rect 0,59,1024,699 effective 0,31,1024,699 title "Animate a Letter"
+SHOT 24f-example-program.png 0,31,1024,699
+STEP example ok
+INFO 24e-academy stack revHub rect 0,69,1024,709 effective 0,41,1024,709 title "OXT-Beyond Home"
+SHOT 24e-academy.png 0,41,1024,709
+INFO the Tools palette (10,91,105,652) is over 48,443,224,463: hidden while the pixels are read
+INFO the Academy's selected index line (1): brightest 226,232,240 on the hilite 72,49,139 (contrast 8.16)
+INFO the Academy's banner: no sparkle on its words
+INFO the Academy's courses: 3
+INFO the Academy's output: "Ran in under 1 ms" | Hello, world!
+INFO 24e-academy-lesson stack revHub rect 0,69,1024,709 effective 0,41,1024,709 title "OXT-Beyond Home"
+SHOT 24e-academy-lesson.png 0,41,1024,709
+INFO 24e-academy-redrawn: 236 controls, were 236
+INFO 24e-academy-redrawn stack revHub rect 0,69,1024,709 effective 0,41,1024,709 title "OXT-Beyond Home"
+SHOT 24e-academy-redrawn.png 0,41,1024,709
+STEP academy ok
+INFO home-ways-in: help|Welcome to OXT-Beyond|home| -> home
+INFO home-ways-in: help|xTalk Academy|academy| -> academy
+INFO home-ways-in: help|How-to|howto| -> howto
+INFO home-ways-in: help|Guides|guides| -> guides
+INFO home-ways-in: help|Examples|examples| -> examples
+INFO home-ways-in: help|Lessons|howto| -> howto
+INFO home-ways-in: help|Demos|examples| -> examples
+INFO home-ways-in: toolbar|Tutorials|academy| -> academy
+INFO home-ways-in: toolbar|Sample Stacks|examples| -> examples
+INFO home-ways-in: menubar|tOpenHome|home| -> home
+INFO home-ways-in: menubar|tOpenAcademy|academy| -> academy
+INFO home-ways-in: menubar|tOpenNewGuides|howto| -> howto
+INFO home-ways-in: menubar|tOpenAllGuides|guides| -> guides
+INFO home-ways-in: menubar|tOpenDemos|examples| -> examples
+INFO home-ways-in: stack|revLearnShow guides|guides| -> guides
+INFO home-ways-in: stack|revLearnShow examples|examples| -> examples
+INFO home-ways-in: stack|revAcademyShow|academy| -> academy
+INFO home-ways-in still running after 20 s; open stacks: OXT Tour Sample | revTools | revInspector | revMenuBar | oxt_ui_tour
+SHOT zz-home-ways-in-1.png 0,0,1024,768
+INFO home-ways-in: palette|welcome|home| -> home
+INFO home-ways-in: palette|start center|home| -> home
+INFO home-ways-in: ide|revIDEOpenHome academy|academy| -> academy
+INFO home-ways-in: web|revWebIDEShowHome|home| -> home
+INFO home-ways-in: closed and opened again by Learn -> guides
+INFO home-ways-in: closed and opened again by Learn -> academy
+STEP home-ways-in ok
+INFO home-places: home 558 controls
+INFO 24g-hub-home stack revHub rect 0,69,1024,709 effective 0,41,1024,709 title "OXT-Beyond Home"
+SHOT 24g-hub-home.png 0,41,1024,709
+INFO home-places: academy 423 controls
+INFO 24g-hub-academy stack revHub rect 0,69,1024,709 effective 0,41,1024,709 title "OXT-Beyond Home"
+SHOT 24g-hub-academy.png 0,41,1024,709
+INFO home-places: howto 463 controls
+INFO 24g-hub-howto stack revHub rect 0,69,1024,709 effective 0,41,1024,709 title "OXT-Beyond Home"
+SHOT 24g-hub-howto.png 0,41,1024,709
+INFO home-places: guides 337 controls
+INFO 24g-hub-guides stack revHub rect 0,69,1024,709 effective 0,41,1024,709 title "OXT-Beyond Home"
+SHOT 24g-hub-guides.png 0,41,1024,709
+INFO home-places: examples 577 controls
+INFO 24g-hub-examples stack revHub rect 0,69,1024,709 effective 0,41,1024,709 title "OXT-Beyond Home"
+SHOT 24g-hub-examples.png 0,41,1024,709
+INFO home-places still running after 20 s; open stacks: revHub | OXT Tour Sample | revTools | revInspector | revMenuBar | oxt_ui_tour
+SHOT zz-home-places-1.png 0,0,1024,768
+INFO home-places still running after 40 s; open stacks: revHub | OXT Tour Sample | revTools | revInspector | revMenuBar | oxt_ui_tour
+SHOT zz-home-places-2.png 0,0,1024,768
+INFO 24g-hub-home-redrawn: 558 controls, were 558
+INFO 24g-hub-home-redrawn stack revHub rect 0,69,1024,709 effective 0,41,1024,709 title "OXT-Beyond Home"
+SHOT 24g-hub-home-redrawn.png 0,41,1024,709
+INFO 24g-hub-academy-redrawn: 423 controls, were 423
+INFO 24g-hub-academy-redrawn stack revHub rect 0,69,1024,709 effective 0,41,1024,709 title "OXT-Beyond Home"
+SHOT 24g-hub-academy-redrawn.png 0,41,1024,709
+INFO 24g-hub-howto-redrawn: 463 controls, were 463
+INFO 24g-hub-howto-redrawn stack revHub rect 0,69,1024,709 effective 0,41,1024,709 title "OXT-Beyond Home"
+SHOT 24g-hub-howto-redrawn.png 0,41,1024,709
+INFO 24g-hub-guides-redrawn: 337 controls, were 337
+INFO 24g-hub-guides-redrawn stack revHub rect 0,69,1024,709 effective 0,41,1024,709 title "OXT-Beyond Home"
+SHOT 24g-hub-guides-redrawn.png 0,41,1024,709
+INFO 24g-hub-examples-redrawn: 577 controls, were 577
+INFO 24g-hub-examples-redrawn stack revHub rect 0,69,1024,709 effective 0,41,1024,709 title "OXT-Beyond Home"
+SHOT 24g-hub-examples-redrawn.png 0,41,1024,709
+INFO home-places: smallest 1024x640
+INFO 24g-hub-home-smallest stack revHub rect 0,69,1024,709 effective 0,41,1024,709 title "OXT-Beyond Home"
+SHOT 24g-hub-home-smallest.png 0,41,1024,709
+INFO home-places still running after 60 s; open stacks: revHub | OXT Tour Sample | revTools | revInspector | revMenuBar | oxt_ui_tour
+SHOT zz-home-places-3.png 0,0,1024,768
+INFO 24g-hub-academy-smallest stack revHub rect 0,69,1024,709 effective 0,41,1024,709 title "OXT-Beyond Home"
+SHOT 24g-hub-academy-smallest.png 0,41,1024,709
+STEP home-places ok
+INFO 24f-xtalk-assistant-settings stack revXTalkAssistantSettings rect 192,62,832,701 effective 192,34,832,701 title "xTalk Assistant Settings"
+SHOT 24f-xtalk-assistant-settings.png 192,34,832,701
+INFO xTalk Assistant status: Anthropic · no API key yet (More > Settings...) · claude-opus-5-5
+INFO 24f-xtalk-assistant stack revXTalkAssistant rect 232,61,792,701 effective 232,42,792,701 title "xTalk Assistant"
+SHOT 24f-xtalk-assistant.png 232,42,792,701
+INFO 24f-xtalk-assistant-memory stack revXTalkAssistantMemory rect 220,76,700,585 effective 220,48,700,585 title "xTalk Assistant Memory"
+SHOT 24f-xtalk-assistant-memory.png 220,48,700,585
+STEP xtalk-assistant ok
+INFO xTalk Chat: online false; relays ""
+INFO 24g-xtalk-chat stack revXTalkChat rect 40,77,1024,709 effective 40,49,1024,709 title "xTalk Chat"
+SHOT 24g-xtalk-chat.png 40,49,1024,709
+INFO 24g-xtalk-chat-redrawn: 191 controls, were 191
+INFO 24g-xtalk-chat-redrawn stack revXTalkChat rect 40,77,1024,709 effective 40,49,1024,709 title "xTalk Chat"
+SHOT 24g-xtalk-chat-redrawn.png 40,49,1024,709
+STEP xtalk-chat ok
+INFO 25-answer stack Answer Dialog rect 312,154,712,254 effective 312,126,712,254 title " "
+SHOT 25-answer.png 312,126,712,254
+INFO closing Answer Dialog
+STEP answer ok
+INFO 26-ask stack Ask Dialog rect 287,154,737,267 effective 287,126,737,267 title " "
+SHOT 26-ask.png 287,126,737,267
+INFO closing Ask Dialog
+STEP ask ok
+INFO 27-icon-chooser stack revIconChooser rect 454,370,914,699 effective 454,351,914,699 title "Image Chooser"
+SHOT 27-icon-chooser.png 454,351,914,699
+STEP icon-chooser ok
+INFO appearance-message: 0 failed
+STEP appearance-message ok
+INFO system-switch to light: systemAppearanceChanged with "light", the systemAppearance now light
+INFO system-switch to light: a card's effective backgroundColor 255,255,255, foregroundColor 0,0,0, on the screen 255,255,255
+INFO widget-appearance: after the switch to light a segmented control the IDE made: the systemAppearance light, the card 255,255,255, the screen 244,244,244, wanted 244,244,244
+INFO system-switch to dark: systemAppearanceChanged with "dark", the systemAppearance now dark
+INFO system-switch to dark: a card's effective backgroundColor 37,37,37, foregroundColor 255,255,255, on the screen 37,37,37
+INFO widget-appearance: after the switch to dark a segmented control the IDE made: the systemAppearance dark, the card 37,37,37, the screen 64,64,64, wanted 64,64,64
+STEP system-switch ok
+SHOT 99-screen-end.png 0,0,1024,768
+STEP screen-end ok
+INFO openStacks at the end OXT Tour Sample | revMenuBar | revTools | revInspector | oxt_ui_tour
+DONE
