@@ -80,15 +80,18 @@ xvfb-run -a <install>/OXT-Beyond -ui tools/examples/test-learn-box2d.livecodescr
 
 runs every lesson of the built stack with Box2Dxt loaded from the
 install: each card runs for three seconds, each of its buttons is
-pressed, and the line under the court must not report an error; every
-body must be in the court; and a button on eight of the cards must do
-what its lesson says (gravity changes, the motor speeds up, the car
-drives, contacts are counted, ...). It ends with `DONE` or `FAILED`.
+pressed, and the line at the court's top must not report an error; every
+body must be in the court; and a button on nine of the cards must do
+what its lesson says (gravity changes, a ball bounces, the motor speeds
+up, the car drives, contacts are counted, ...). First, the front page's
+banner must be running its toy: a little world of its own (the front
+card's script) that rains shapes onto a spinning paddle, and blasts them
+with b2WorldExplode where the banner is clicked. It ends with `DONE` or `FAILED`.
 `OXT_LEARN_BOX2D` names another copy of the stack, and
 `OXT_LEARN_BOX2D_SNAPS` a folder for a picture of each card.
 
 Where Box2Dxt is not loaded (the web IDE, for now), each lesson says so
-under its court, and the rest of the stack still opens and reads.
+at the top of its court, and the rest of the stack still opens and reads.
 
 ## xTalk Suite demos
 

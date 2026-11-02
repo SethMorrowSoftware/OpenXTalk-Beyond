@@ -13,6 +13,9 @@ script "stack_Learn_Box2D_card_id_1034"
 -- of the two multiplied, restitution by the larger.
 
 local sWorld, sRamp
+-- The newest three balls of the bounce test, and until when the line at
+-- the court's top keeps the masses Heavy and light put there
+local sBalls, sHold
 
 on labBuild
    put b2NewWorld(0, -10, true, true) into sWorld
@@ -32,6 +35,7 @@ end labBuild
 
 -- The Bounce test button: three balls, alike but for their restitution
 on bounceTest
+   put empty into sBalls
    dropBall -3.3, 0, "rose"
    dropBall -2.5, 0.5, "amber"
    dropBall -1.7, 0.9, "lime"
@@ -42,7 +46,25 @@ private command dropBall pX, pBounce, pColor
    put b2NewBody(sWorld, 2, pX, 7, 0, false, false) into tBody
    get b2AddCircle(tBody, 0, 0, 0.3, 1, 0.3, pBounce)
    labShow tBody, pColor
+   put tBody & "|" & pBounce & return after sBalls
 end dropBall
+
+-- Each step: how high each ball of the bounce test is, by its
+-- restitution, so you can watch the bounces shrink
+on labStep
+   local tLine, tSay
+   if the milliseconds < sHold then
+      exit labStep
+   end if
+   set the itemDelimiter to "|"
+   repeat for each line tLine in sBalls
+      if labIsShown(item 1 of tLine) then
+         put "    " & item 2 of tLine & ":" && labNum(b2BodyY(item 1 of tLine) - 0.3, 1) && "m" after tSay
+      end if
+   end repeat
+   set the itemDelimiter to comma
+   labSay "height by restitution" & tSay
+end labStep
 
 -- The Slide test button: three boxes on the ramp, alike but for their
 -- friction: none, a little, and enough to hold
@@ -75,5 +97,6 @@ on heavyLight
    get b2AddCircle(tLight, 0, 0, 0.4, 0.5, 0.3, 0.2)
    labShow tLight, "sky"
    b2SetVelocity tHeavy, 5, 0
+   put the milliseconds + 3000 into sHold
    labSay "heavy:" && labNum(b2BodyMass(tHeavy), 1) && "kg    light:" && labNum(b2BodyMass(tLight), 1) && "kg", true
 end heavyLight

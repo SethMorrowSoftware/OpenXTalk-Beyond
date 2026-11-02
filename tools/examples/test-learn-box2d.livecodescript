@@ -7,16 +7,17 @@ script "OXTTestLearnBox2D"
 -- (on Linux, under xvfb-run where there is no display). It opens
 -- ide/Resources/Examples/Remastered/Learn Box2D.oxtstack, or the stack in
 -- OXT_LEARN_BOX2D, loads Box2Dxt from the install it runs in (or the one
--- in OXT_INSTALL), and on each lesson card:
+-- in OXT_INSTALL). On the front page, the banner's toy world must rain
+-- shapes and keep them after a click (a blast). Then, on each lesson card:
 --
 --    lets the world run for three seconds
 --    presses each of the card's buttons, as a click does, and lets the
 --    world run after each
---    checks that the line under the court does not say the lesson
+--    checks that the line at the court's top does not say the lesson
 --    stopped with an error, that the world is drawn (it has bodies), and
 --    that every body is in the court (and, on Terrain, on the hills)
 --    after a fresh Reset, that a button does what the lesson says it
---    does, read from the line under the court (the block of checks at
+--    does, read from the line at the court's top (the block of checks at
 --    the end of this script)
 --
 -- It writes a line for each card, PASS or FAIL, and ends with "DONE"
@@ -40,6 +41,9 @@ on startup
       loadBox2D tInstall
       go stack tStack
       put 0 into tFails
+      if not testFront(tStack) then
+         add 1 to tFails
+      end if
       repeat with tCard = 2 to the number of cards of stack tStack
          if not testCard(tStack, tCard) then
             add 1 to tFails
@@ -139,6 +143,28 @@ private function testCard pStack, pCard
    return false
 end testCard
 
+-- The front page: its banner's toy world rains shapes, and a click in
+-- the banner (its blast) leaves the toy running
+private function testFront pStack
+   local tShapes
+   go card 1 of stack pStack
+   waitRun 2000
+   put the number of graphics of group "Toy" - 1 into tShapes
+   if tShapes < 5 then
+      write "FAIL Start (the banner's toy has" && tShapes && "shapes after two seconds)" & return to stdout
+      return false
+   end if
+   -- (a click in the banner runs frontBlast where it is)
+   dispatch "frontBlast" to this card with item 1 of the loc of group "Toy", item 2 of the loc of group "Toy"
+   waitRun 500
+   if the number of graphics of group "Toy" - 1 < tShapes then
+      write "FAIL Start (the toy lost shapes after a click)" & return to stdout
+      return false
+   end if
+   write "PASS Start (" & tShapes && "shapes in the banner's toy)" & return to stdout
+   return true
+end testFront
+
 private command waitRun pMs
    wait pMs milliseconds with messages
 end waitRun
@@ -183,7 +209,7 @@ private function wherever pCard
 end wherever
 
 -- The checks of what buttons do: a line each, card|button's handler|
--- milliseconds to let it run|a word of the line under the court|> or <|
+-- milliseconds to let it run|a word of the line at the court's top|> or <|
 -- a number. The number after that word must be more (or less) than it.
 -- Each card's checks start from a Reset
 private function checks pCard
@@ -191,6 +217,7 @@ private function checks pCard
    put true into tFirst
    set the itemDelimiter to "|"
    repeat for each line tLine in "World|changeGravity|400|gravity|>|7" & return & \
+         "Materials|bounceTest|300|0.9:|>|1" & return & \
          "Forces|throwBall|150|speed|>|3" & return & \
          "Hinges|fasterMotor|600|windmill:|>|2" & return & \
          "Springs|softer|400|spring|<|1.2" & return & \

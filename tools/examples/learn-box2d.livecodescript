@@ -30,6 +30,9 @@ constant kBottom = 616
 -- metres at the Lab's 50 pixels a metre), and the column beside it
 constant kCourt = "270,162,680,602"
 constant kInfo = "694,162,986,602"
+-- The front banner's toy world, at its right
+constant kToy = "770,114,988,264"
+
 command exBuild pFolder
    local tInfo, tStack, tErrors, tPath, tIndex
    exUseScripts the script of me
@@ -94,12 +97,32 @@ private command buildFront
          "Physics, one idea at a time", \
          "Thirteen lessons, each a live world to play with, what it shows, and the script that makes it. " & \
          "They use Box2D's own handlers, the b2 ones, as your stacks will."
+   -- (the banner's words keep to its left; its right is the toy's, a
+   -- live Box2D world that the card's script runs)
+   set the width of field "hero_text" to 470
+   set the left of field "hero_text" to kLeft + 32
+   set the height of field "hero_text" to the formattedHeight of field "hero_text"
+   repeat with tIndex = 1 to 6
+      if there is a graphic ("hero_star" & tIndex) and item 1 of the loc of graphic ("hero_star" & tIndex) > item 1 of kToy - 20 then
+         delete graphic ("hero_star" & tIndex)
+      end if
+   end repeat
+   get lkGroup("Toy", kToy, "hero")
+   get lkBox("toyAnchor", lkR(item 1 of kToy, item 2 of kToy, item 1 of kToy + 1, item 2 of kToy + 1), empty, 0, "Toy")
+   set the script of this card to exScript("Start/card")
    exProgramTiles 288, 5, 60, 10
+   -- (the tiles say each lesson's short name: the long ones would not fit)
+   repeat with tIndex = 1 to 13
+      put exCardInfo(tIndex + 1, "name") into field ("tile" & tIndex & "_title")
+      if the formattedWidth of field ("tile" & tIndex & "_title") > the width of field ("tile" & tIndex & "_title") then
+         throw "the tile of " & exCardInfo(tIndex + 1, "name") & " is too narrow for its name"
+      end if
+   end repeat
    -- How a lesson works: four tips in a row
    put "mouse-pointer-click|Press the buttons above a court to try what the lesson shows." & return & \
          "hand|Drag any body to throw it. Reset starts the lesson again." & return & \
          "list|Click a Box2D call in a lesson's list to see what it does." & return & \
-         "code|Open Scripts to read a lesson's code, change it, and run it." into tTips
+         "code|Open Scripts to read the code. Edit it, then press Reset to run it." into tTips
    put (kRight - kLeft - 3 * 12) div 4 into tWidth
    set the itemDelimiter to "|"
    repeat with tIndex = 1 to 4
@@ -153,7 +176,14 @@ private command buildLab
    -- something in it to be kept: an empty box at its corner)
    get lkGroup("Bodies", kCourt, "Lab")
    get lkBox("bodiesAnchor", lkR(item 1 of kCourt, item 2 of kCourt, item 1 of kCourt + 1, item 2 of kCourt + 1), empty, 0, "Bodies")
-   put lkLabel("Readout", lkR(item 1 of kCourt + 14, item 4 of kCourt - 34, item 3 of kCourt - 14, item 4 of kCourt - 6), \
+   -- The line of numbers, under the buttons at the court's top, where
+   -- it is clear of the bodies that pile up on the floor, on a dark
+   -- backing that the Lab sizes to its words (labSay)
+   put lkBox("ReadoutBg", lkR(item 1 of kCourt + 8, item 2 of kCourt + 44, item 1 of kCourt + 9, item 2 of kCourt + 45), \
+         "15,23,42", 8, "Lab") into tObj
+   set the blendLevel of tObj to 20
+   hide tObj
+   put lkLabel("Readout", lkR(item 1 of kCourt + 14, item 2 of kCourt + 46, item 3 of kCourt - 14, item 2 of kCourt + 62), \
          empty, 11, "203,213,225", "Lab") into tObj
    set the sharedText of tObj to false
    -- Reset, Pause and Step, small and dark, in the court's top right
@@ -393,7 +423,7 @@ Terrain|Sleep on/off|toggleSleep
 /*@ Lab
 -- The Lab: what every lesson of Learn Box2D shares. It is the script of
 -- the group "Lab", a background on each lesson card, with the court the
--- bodies move in, the line of numbers at its foot and the Reset, Pause
+-- bodies move in, the line of numbers at its top and the Reset, Pause
 -- and Step buttons. A card's own script makes a world and its bodies with
 -- Box2D's handlers (the b2... ones), and hands the world to labStart. From
 -- then on, the lab:
@@ -431,7 +461,7 @@ local sJoints, sMarks, sFlash
 -- The mouse joint that holds a body you drag, and the static body it is
 -- tied to
 local sDrag, sDragGround
--- When the line at the court's foot last changed, and what it says
+-- When the line at the court's top last changed, and what it says
 local sSaidAt, sSaid
 -- Each card's ready-made words for the calls list, and the court's middle
 -- and floor, in pixels
@@ -533,6 +563,9 @@ command labClose
    if sStack is not empty and there is a field "Readout" of sCard then
       put empty into field "Readout" of sCard
    end if
+   if there is a graphic "ReadoutBg" then
+      hide graphic "ReadoutBg"
+   end if
 end labClose
 
 private command labDelete pId
@@ -618,7 +651,7 @@ private command labPauseLabel
 end labPauseLabel
 
 -- When a handler of the card stops with an error, the loop stops, and
--- the line at the court's foot says where
+-- the line at the court's top says where
 command labFail pWhere, pError
    local tLine
    add 1 to sGen
@@ -670,7 +703,7 @@ function labMouseY
    return labMY(the mouseV)
 end labMouseY
 
--- A number with pPlaces decimals, for the line at the court's foot
+-- A number with pPlaces decimals, for the line at the court's top
 function labNum pNumber, pPlaces
    return format("%." & pPlaces & "f", pNumber)
 end labNum
@@ -871,7 +904,7 @@ private function labMark pName, pStyle
    return tId
 end labMark
 
--- The line of words at the court's foot. Called every step, it changes
+-- The line of words at the court's top. Called every step, it changes
 -- at most five times a second, which is as fast as anyone reads; with
 -- pNow, at once
 command labSay pText, pNow
@@ -885,8 +918,30 @@ command labSay pText, pNow
    put the milliseconds into sSaidAt
    if there is a field "Readout" then
       put pText into field "Readout"
+      labFitReadout
    end if
 end labSay
+
+-- The line's field as wide as its words (two lines when they are wider
+-- than the court), and its dark backing around it
+private command labFitReadout
+   local tMax, tLeft, tTop
+   put the left of field "Readout" into tLeft
+   put the top of field "Readout" into tTop
+   put the width of graphic "Court" - 28 into tMax
+   set the dontWrap of field "Readout" to true
+   if the formattedWidth of field "Readout" > tMax then
+      set the dontWrap of field "Readout" to false
+      set the rect of field "Readout" to tLeft, tTop, tLeft + tMax, tTop + 40
+   else
+      set the rect of field "Readout" to tLeft, tTop, tLeft + max(1, the formattedWidth of field "Readout"), tTop + 40
+   end if
+   set the height of field "Readout" to max(1, the formattedHeight of field "Readout")
+   set the top of field "Readout" to tTop
+   set the rect of graphic "ReadoutBg" to the left of field "Readout" - 6, tTop - 3, \
+         the right of field "Readout" + 6, the bottom of field "Readout" + 3
+   set the visible of graphic "ReadoutBg" to (field "Readout" is not empty)
+end labFitReadout
 
 -- Each step: every body that moved, where it is now; bodies that left
 -- the court far behind are forgotten
@@ -1195,7 +1250,13 @@ end labButtonDo
 -- Reset, Pause and Step); an error stops the loop and says where
 command labRun pHandler
    local tError
+   -- (without a world, Box2D is not loaded or the card's labBuild
+   -- stopped: the line at the court's top says so, and only Reset, Pause
+   -- and Step, the Lab's own, have anything to do)
    if sCard is empty then
+      exit labRun
+   end if
+   if sWorld is empty and pHandler is not among the items of "labRestart,labTogglePause,labStepButton" then
       exit labRun
    end if
    try
@@ -1217,6 +1278,220 @@ command labExplain pName
    set the textStyle of line 1 of field "CallDoc" to "bold"
    set the itemDelimiter to comma
 end labExplain
+@*/
+
+/*@ Start/card
+-- The front page: a little Box2D world in the banner, the same way every
+-- lesson works. Make a world with b2NewWorld, put bodies in it, then step
+-- it with b2Step about 60 times a second and draw each body where Box2D
+-- says it is. Shapes rain onto a spinning paddle and pile up; a click in
+-- the banner blasts them apart with b2WorldExplode.
+
+-- Pixels to a metre, and how many shapes are kept at once
+constant kScale = 22
+constant kMost = 26
+
+-- The world, the loop's number (closing the card changes it, so a step
+-- already on its way stops), the stack, the paddle, every body and its
+-- graphic and outline (in metres), the order they came in, and the toy's
+-- middle and floor in pixels
+local sWorld, sGen, sStack, sPaddle, sGraphic, sOutline, sOrder, sTicks, sOX, sOY
+
+on openCard
+   frontStart
+   pass openCard
+end openCard
+
+on closeCard
+   frontStop
+   pass closeCard
+end closeCard
+
+on closeStack
+   frontStop
+   pass closeStack
+end closeStack
+
+command frontStart
+   local tError, tGround
+   frontStop
+   if there is no group "Toy" then
+      exit frontStart
+   end if
+   -- (without Box2Dxt the banner just stays still)
+   try
+      if b2Version() is not 4 then
+         exit frontStart
+      end if
+   catch tError
+      exit frontStart
+   end try
+   put the short name of this stack into sStack
+   put item 1 of the loc of group "Toy" into sOX
+   put the bottom of group "Toy" - 4 into sOY
+   put b2NewWorld(0, -10, true, true) into sWorld
+   -- A floor and two walls, from one static body
+   put b2NewBody(sWorld, 0, 0, 0, 0, false, false) into tGround
+   get b2AddSegment(tGround, -4.9, 0, 4.9, 0, 0.6, 0)
+   get b2AddSegment(tGround, -4.9, 0, -4.9, 30, 0.6, 0)
+   get b2AddSegment(tGround, 4.9, 0, 4.9, 30, 0.6, 0)
+   -- The paddle: a kinematic body, turned at a speed it is given, which
+   -- pushes dynamic bodies and is never pushed back
+   put b2NewBody(sWorld, 1, 0, 2.7, 0, false, false) into sPaddle
+   get b2AddBox(sPaddle, 1.7, 0.1, 1, 0.4, 0.2)
+   b2SetAngularVelocity sPaddle, -1.1
+   frontAdd sPaddle, "-1.7,-0.1" & return & "1.7,-0.1" & return & "1.7,0.1" & return & "-1.7,0.1", 0
+   put 0 into sTicks
+   add 1 to sGen
+   send ("frontTick" && sGen) to me in 0 milliseconds
+end frontStart
+
+command frontStop
+   local tBody
+   add 1 to sGen
+   if sWorld is not empty then
+      b2DestroyWorld sWorld
+   end if
+   put empty into sWorld
+   lock messages
+   repeat for each key tBody in sGraphic
+      if there is a graphic id sGraphic[tBody] then
+         delete graphic id sGraphic[tBody]
+      end if
+   end repeat
+   unlock messages
+   put empty into sGraphic
+   put empty into sOutline
+   put empty into sOrder
+end frontStop
+
+on frontTick pGen
+   local tStart, tError
+   if pGen is not sGen or sWorld is empty then
+      exit frontTick
+   end if
+   put the milliseconds into tStart
+   -- (a message sent in time runs with whichever stack is in front)
+   set the defaultStack to sStack
+   lock screen
+   try
+      b2Step sWorld, 1/60, 4
+      add 1 to sTicks
+      if sTicks mod 18 is 1 then
+         frontRain
+      end if
+      frontDraw
+   catch tError
+      -- (a world that went wrong stops; the banner stays as it is)
+      unlock screen
+      add 1 to sGen
+      exit frontTick
+   end try
+   unlock screen
+   send ("frontTick" && pGen) to me in max(1, 16 - (the milliseconds - tStart)) milliseconds
+end frontTick
+
+-- One more shape from the top: a ball, a box or a triangle, at random.
+-- When there are too many, the oldest goes
+private command frontRain
+   local tBody, tX, tSize, tKind, tOutline, tIndex
+   put (random(81) - 41) / 10 into tX
+   put 0.22 + random(16) / 100 into tSize
+   put random(3) into tKind
+   put b2NewBody(sWorld, 2, tX, 8.4, random(628) / 100, false, false) into tBody
+   switch tKind
+      case 1
+         get b2AddCircle(tBody, 0, 0, tSize, 1, 0.4, 0.45)
+         repeat with tIndex = 0 to 15
+            put tSize * cos(tIndex * pi / 8) & "," & tSize * sin(tIndex * pi / 8) & return after tOutline
+         end repeat
+         break
+      case 2
+         get b2AddBox(tBody, tSize, tSize, 1, 0.5, 0.2)
+         put -tSize & "," & -tSize & return & tSize & "," & -tSize & return & tSize & "," & tSize & return & -tSize & "," & tSize & return into tOutline
+         break
+      default
+         b2PolyBegin
+         b2PolyAddPoint -tSize * 1.2, -tSize
+         b2PolyAddPoint tSize * 1.2, -tSize
+         b2PolyAddPoint 0, tSize * 1.1
+         get b2AddPolygon(tBody, 1, 0.5, 0.2)
+         put -tSize * 1.2 & "," & -tSize & return & tSize * 1.2 & "," & -tSize & return & 0 & "," & tSize * 1.1 & return into tOutline
+   end switch
+   delete the last char of tOutline
+   frontAdd tBody, tOutline, item random(3) of "0,30,55"
+   if the number of items of sOrder > kMost then
+      put item 1 of sOrder into tBody
+      delete item 1 of sOrder
+      lock messages
+      delete graphic id sGraphic[tBody]
+      unlock messages
+      delete variable sGraphic[tBody]
+      delete variable sOutline[tBody]
+      b2DestroyBody tBody
+   end if
+end frontRain
+
+-- A body's graphic: white, more or less see-through
+private command frontAdd pBody, pOutline, pBlend
+   local tId
+   lock messages
+   create graphic in group "Toy"
+   put the id of it into tId
+   set the style of graphic id tId to "polygon"
+   set the antialiased of graphic id tId to true
+   set the filled of graphic id tId to true
+   set the backgroundColor of graphic id tId to "255,255,255"
+   set the foregroundColor of graphic id tId to "255,255,255"
+   set the lineSize of graphic id tId to 1
+   set the blendLevel of graphic id tId to pBlend
+   unlock messages
+   put tId into sGraphic[pBody]
+   put pOutline & return & line 1 of pOutline into sOutline[pBody]
+   if pBody is not sPaddle then
+      if sOrder is empty then
+         put pBody into sOrder
+      else
+         put comma & pBody after sOrder
+      end if
+   end if
+end frontAdd
+
+-- Each body where Box2D says it is: its outline turned by its angle and
+-- moved to its place, then made pixels (y goes up in Box2D, down here)
+private command frontDraw
+   local tBody, tX, tY, tCos, tSin, tPoint, tPixels
+   repeat for each key tBody in sGraphic
+      put b2BodyX(tBody) into tX
+      put b2BodyY(tBody) into tY
+      put cos(b2BodyAngle(tBody)) into tCos
+      put sin(b2BodyAngle(tBody)) into tSin
+      put empty into tPixels
+      repeat for each line tPoint in sOutline[tBody]
+         put round(sOX + (tX + tCos * item 1 of tPoint - tSin * item 2 of tPoint) * kScale) & "," & \
+               round(sOY - (tY + tSin * item 1 of tPoint + tCos * item 2 of tPoint) * kScale) & return after tPixels
+      end repeat
+      delete the last char of tPixels
+      set the points of graphic id sGraphic[tBody] to tPixels
+   end repeat
+end frontDraw
+
+-- A click in the banner: a blast where it is, which pushes every body
+-- near it away
+on mouseUp pButton
+   if pButton is 1 and the mouseLoc is within the rect of group "hero" then
+      frontBlast the mouseH, the mouseV
+   end if
+   pass mouseUp
+end mouseUp
+
+-- A blast at a point of the card: b2WorldExplode pushes every body within
+-- 3 metres of it away, hardest at the middle
+command frontBlast pH, pV
+   if sWorld is not empty then
+      b2WorldExplode sWorld, (pH - sOX) / kScale, (sOY - pV) / kScale, 3, 2, 3
+   end if
+end frontBlast
 @*/
 
 /*@ World/card
@@ -1404,7 +1679,7 @@ end spinLift
 
 /*@ Bodies/about
 Every body has a type. Static bodies never move, like the grey shelf. Kinematic bodies move at the speed you set, like the purple platform, and nothing pushes them. Dynamic bodies, the boxes, are moved by gravity and by what they hit.
-Shelf type switches the shelf between the three. The line under the court shows where the mouse is in metres.
+Shelf type switches the shelf between the three. The line at the top of the court shows where the mouse is in metres.
 @*/
 
 /*@ Shapes/card
@@ -1517,6 +1792,9 @@ A shape's mass comes from its area and its density.
 -- of the two multiplied, restitution by the larger.
 
 local sWorld, sRamp
+-- The newest three balls of the bounce test, and until when the line at
+-- the court's top keeps the masses Heavy and light put there
+local sBalls, sHold
 
 on labBuild
    put b2NewWorld(0, -10, true, true) into sWorld
@@ -1536,6 +1814,7 @@ end labBuild
 
 -- The Bounce test button: three balls, alike but for their restitution
 on bounceTest
+   put empty into sBalls
    dropBall -3.3, 0, "rose"
    dropBall -2.5, 0.5, "amber"
    dropBall -1.7, 0.9, "lime"
@@ -1546,7 +1825,25 @@ private command dropBall pX, pBounce, pColor
    put b2NewBody(sWorld, 2, pX, 7, 0, false, false) into tBody
    get b2AddCircle(tBody, 0, 0, 0.3, 1, 0.3, pBounce)
    labShow tBody, pColor
+   put tBody & "|" & pBounce & return after sBalls
 end dropBall
+
+-- Each step: how high each ball of the bounce test is, by its
+-- restitution, so you can watch the bounces shrink
+on labStep
+   local tLine, tSay
+   if the milliseconds < sHold then
+      exit labStep
+   end if
+   set the itemDelimiter to "|"
+   repeat for each line tLine in sBalls
+      if labIsShown(item 1 of tLine) then
+         put "    " & item 2 of tLine & ":" && labNum(b2BodyY(item 1 of tLine) - 0.3, 1) && "m" after tSay
+      end if
+   end repeat
+   set the itemDelimiter to comma
+   labSay "height by restitution" & tSay
+end labStep
 
 -- The Slide test button: three boxes on the ramp, alike but for their
 -- friction: none, a little, and enough to hold
@@ -1579,6 +1876,7 @@ on heavyLight
    get b2AddCircle(tLight, 0, 0, 0.4, 0.5, 0.3, 0.2)
    labShow tLight, "sky"
    b2SetVelocity tHeavy, 5, 0
+   put the milliseconds + 3000 into sHold
    labSay "heavy:" && labNum(b2BodyMass(tHeavy), 1) && "kg    light:" && labNum(b2BodyMass(tLight), 1) && "kg", true
 end heavyLight
 @*/

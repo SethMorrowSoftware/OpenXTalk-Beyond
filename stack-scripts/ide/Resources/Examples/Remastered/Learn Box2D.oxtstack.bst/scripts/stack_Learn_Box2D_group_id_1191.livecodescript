@@ -1,12 +1,12 @@
-script "stack_Learn_Box2D_group_id_1189"
+script "stack_Learn_Box2D_group_id_1191"
 -- Stack file: ide/Resources/Examples/Remastered/Learn Box2D.oxtstack
--- Object: stack "Learn Box2D" > card "World" (id 1031) > group "Lab" (id 1189)
+-- Object: stack "Learn Box2D" > card "World" (id 1031) > group "Lab" (id 1191)
 -- Made from the stack by tools/oxt/stack-scripts.sh; the stack holds
 -- the script that runs, so change it there, not here.
 
 -- The Lab: what every lesson of Learn Box2D shares. It is the script of
 -- the group "Lab", a background on each lesson card, with the court the
--- bodies move in, the line of numbers at its foot and the Reset, Pause
+-- bodies move in, the line of numbers at its top and the Reset, Pause
 -- and Step buttons. A card's own script makes a world and its bodies with
 -- Box2D's handlers (the b2... ones), and hands the world to labStart. From
 -- then on, the lab:
@@ -44,7 +44,7 @@ local sJoints, sMarks, sFlash
 -- The mouse joint that holds a body you drag, and the static body it is
 -- tied to
 local sDrag, sDragGround
--- When the line at the court's foot last changed, and what it says
+-- When the line at the court's top last changed, and what it says
 local sSaidAt, sSaid
 -- Each card's ready-made words for the calls list, and the court's middle
 -- and floor, in pixels
@@ -146,6 +146,9 @@ command labClose
    if sStack is not empty and there is a field "Readout" of sCard then
       put empty into field "Readout" of sCard
    end if
+   if there is a graphic "ReadoutBg" then
+      hide graphic "ReadoutBg"
+   end if
 end labClose
 
 private command labDelete pId
@@ -231,7 +234,7 @@ private command labPauseLabel
 end labPauseLabel
 
 -- When a handler of the card stops with an error, the loop stops, and
--- the line at the court's foot says where
+-- the line at the court's top says where
 command labFail pWhere, pError
    local tLine
    add 1 to sGen
@@ -283,7 +286,7 @@ function labMouseY
    return labMY(the mouseV)
 end labMouseY
 
--- A number with pPlaces decimals, for the line at the court's foot
+-- A number with pPlaces decimals, for the line at the court's top
 function labNum pNumber, pPlaces
    return format("%." & pPlaces & "f", pNumber)
 end labNum
@@ -484,7 +487,7 @@ private function labMark pName, pStyle
    return tId
 end labMark
 
--- The line of words at the court's foot. Called every step, it changes
+-- The line of words at the court's top. Called every step, it changes
 -- at most five times a second, which is as fast as anyone reads; with
 -- pNow, at once
 command labSay pText, pNow
@@ -498,8 +501,30 @@ command labSay pText, pNow
    put the milliseconds into sSaidAt
    if there is a field "Readout" then
       put pText into field "Readout"
+      labFitReadout
    end if
 end labSay
+
+-- The line's field as wide as its words (two lines when they are wider
+-- than the court), and its dark backing around it
+private command labFitReadout
+   local tMax, tLeft, tTop
+   put the left of field "Readout" into tLeft
+   put the top of field "Readout" into tTop
+   put the width of graphic "Court" - 28 into tMax
+   set the dontWrap of field "Readout" to true
+   if the formattedWidth of field "Readout" > tMax then
+      set the dontWrap of field "Readout" to false
+      set the rect of field "Readout" to tLeft, tTop, tLeft + tMax, tTop + 40
+   else
+      set the rect of field "Readout" to tLeft, tTop, tLeft + max(1, the formattedWidth of field "Readout"), tTop + 40
+   end if
+   set the height of field "Readout" to max(1, the formattedHeight of field "Readout")
+   set the top of field "Readout" to tTop
+   set the rect of graphic "ReadoutBg" to the left of field "Readout" - 6, tTop - 3, \
+         the right of field "Readout" + 6, the bottom of field "Readout" + 3
+   set the visible of graphic "ReadoutBg" to (field "Readout" is not empty)
+end labFitReadout
 
 -- Each step: every body that moved, where it is now; bodies that left
 -- the court far behind are forgotten
@@ -808,7 +833,13 @@ end labButtonDo
 -- Reset, Pause and Step); an error stops the loop and says where
 command labRun pHandler
    local tError
+   -- (without a world, Box2D is not loaded or the card's labBuild
+   -- stopped: the line at the court's top says so, and only Reset, Pause
+   -- and Step, the Lab's own, have anything to do)
    if sCard is empty then
+      exit labRun
+   end if
+   if sWorld is empty and pHandler is not among the items of "labRestart,labTogglePause,labStepButton" then
       exit labRun
    end if
    try
