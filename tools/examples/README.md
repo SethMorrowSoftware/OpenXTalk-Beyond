@@ -90,6 +90,26 @@ with b2WorldExplode where the banner is clicked. It ends with `DONE` or `FAILED`
 `OXT_LEARN_BOX2D` names another copy of the stack, and
 `OXT_LEARN_BOX2D_SNAPS` a folder for a picture of each card.
 
+A script calling handlers is not a click, so
+
+```sh
+python3 tools/examples/learn-box2d-clicks.py --install <install> [--shots <folder>] [--only Rays]
+```
+
+clicks the stack with a real mouse, the way a user does: the install's
+standalone engine opens it in a window on an Xvfb screen of its own,
+with `learn-box2d-clicks.livecodescript` writing what the window shows
+to a file ten times a second, and xdotool (which it needs, with Xvfb)
+clicks. It clicks the toy, checks every tile opens its lesson, and on
+each lesson: the sidebar entry, every button, every call in the list
+(each must explain itself, scrolled to with the wheel where the list is
+longer than the panel), Pause (nothing moves), Step (it stays paused),
+Pause again, Reset, a body dragged with the mouse, the Scripts drawer,
+and a click on an empty court on Rays and Terrain; then the arrow keys,
+the car's on Wheels, and Back and Next. No click may raise a script
+error. It ends with `DONE` or `FAILED n`, and CI runs it after the test
+above.
+
 Where Box2Dxt is not loaded (the web IDE, for now), each lesson says so
 at the top of its court, and the rest of the stack still opens and reads.
 

@@ -46,6 +46,8 @@ local sJoints, sMarks, sFlash
 local sDrag, sDragGround
 -- When the line at the court's top last changed, and what it says
 local sSaidAt, sSaid
+-- True while a click in the court is handed to the card's mouseDown
+local sForwarding
 -- Each card's ready-made words for the calls list, and the court's middle
 -- and floor, in pixels
 local sOriginX, sOriginY
@@ -751,12 +753,64 @@ end labEdge
 # code on its own; here it is what lets you throw bodies on every card.
 
 on mouseDown pButton
+   local tError
+   -- (the card's own mouseDown, which this hands it below, passes it
+   -- here again: it goes no further)
+   if sForwarding then
+      exit mouseDown
+   end if
    if pButton is 1 and sWorld is not empty and the cOwnDrag of this card is not true \
          and the mouseLoc is within the rect of graphic "Court" then
       labGrab
    end if
+   -- A click in the court or on Reset, Pause or Step goes to the card's
+   -- own mouseDown, if it has one (a click on a body, or on empty space),
+   -- and stops there: the window would show this long script in its
+   -- Scripts panel on every such click, which takes most of a second and
+   -- holds up the click and the drag. (The panel's Lab chip shows it)
+   if labOwns(the long id of the target) then
+      put true into sForwarding
+      try
+         dispatch "mouseDown" to this card with pButton
+      catch tError
+         put false into sForwarding
+         labFail "mouseDown", tError
+         exit mouseDown
+      end try
+      put false into sForwarding
+      exit mouseDown
+   end if
    pass mouseDown
 end mouseDown
+
+-- True for the Lab and what is in it
+private function labOwns pObj
+   local tObj
+   put pObj into tObj
+   repeat while word 1 of tObj is not "card" and word 1 of tObj is not "stack" and tObj is not empty
+      if tObj is the long id of me then
+         return true
+      end if
+      put the long id of the owner of tObj into tObj
+   end repeat
+   return false
+end labOwns
+
+-- The calls list scrolls with the wheel (65308 down, 65309 up), three
+-- calls a turn, though it has no scrollbar
+on rawKeyDown pKey
+   local tStep
+   if (pKey is 65308 or pKey is 65309) and there is a field "Calls" \
+         and the mouseLoc is within the rect of field "Calls" then
+      put 3 * the textHeight of field "Calls" into tStep
+      if pKey is 65309 then
+         put -tStep into tStep
+      end if
+      set the vScroll of field "Calls" to max(0, the vScroll of field "Calls" + tStep)
+      exit rawKeyDown
+   end if
+   pass rawKeyDown
+end rawKeyDown
 
 on mouseUp pButton
    local tDo
@@ -853,8 +907,12 @@ end labRun
 
 -- What a Box2D handler in the calls list does
 command labExplain pName
-   local tDoc
-   put the cDocs[pName] of me into tDoc
+   local tDocs, tDoc
+   -- (the words are one array in the custom property cDocs: read whole,
+   -- then by name. "the cDocs[pName]" would ask a custom property SET
+   -- named cDocs, which there is not, and always be empty)
+   put the cDocs of me into tDocs
+   put tDocs[pName] into tDoc
    if tDoc is empty then
       exit labExplain
    end if
