@@ -2250,7 +2250,9 @@ end leChapterIcon
 -- the remaster, and lists the original under Classic when it is there
 -- (the originals are not installed since 0.2.7-rc.6.12: tools/examples/
 -- originals keeps them for the builders). Two originals remade as one
--- remaster both name it, and after its title say what it does.
+-- remaster both name it, and after its title say what it does. An example
+-- made here, with no original, has no file of its own (item 1 is empty):
+-- the gallery opens its remaster, and Classic leaves it out.
 private function leExampleTable
    local tTable
    put "Resources/Examples/Quick Start.oxtstack|Quick Start|Six first lessons, read aloud by a narrator: the Tools palette, " & \
@@ -2268,6 +2270,9 @@ private function leExampleTable
    put "Resources/Examples/DataGrid Table.oxtstack|DataGrid Table|Five short lessons on the Data Grid table: edit one by " & \
          "hand and with code, add a column, make your own, paste one, and compare a field made into a table.|Terry Little, 2022|tours|sheet|teal|" & \
          "datagrid table field|Resources/Examples/Remastered/Data Grid Tables.oxtstack|Data Grid Tables" & return after tTable
+   put "|Learn Box2D|Thirteen lessons in Box2D physics, each a live world to play with, how it works and the calls " & \
+         "it makes: bodies, shapes, forces, joints, contacts, ray casts and terrain.|OXT-Beyond, 2026, on Box2D 3.1 through Box2Dxt|tours|box|teal|" & \
+         "box2d box2dxt physics joints game|Resources/Examples/Remastered/Learn Box2D.oxtstack|Learn Box2D" & return after tTable
    put "Resources/Examples/SQLite Book Library.oxtstack|SQLite Book Library|A small catalogue of books in SQLite, shown in " & \
          "a Data Grid: list them, search them, add and delete them.|In OpenXTalk Lite's demo set; its author is not recorded|apps|library-big|emerald|" & \
          "sqlite datagrid books database|Resources/Examples/Remastered/SQLite Books.oxtstack|SQLite Books" & return after tTable
@@ -2427,7 +2432,7 @@ private function leExampleGroups
          "text, graphics and timers, lists and data, each with a short script to read." & return & \
          "small|Small samples|Also from the Stack Player: games, music, live data, speech, notes and modern " & \
          "controls, each small enough to read in one sitting." & return & \
-         "tours|Tours|Guided tours of the Data Grid and of SQLite, a card at a time." & return & \
+         "tours|Tours|Guided tours of the Data Grid, of SQLite and of Box2D physics, a card at a time." & return & \
          "apps|Small apps to take apart|Each does one thing, in a few short scripts: open one, then read its scripts." & return & \
          "samples|Samples, remade|Three of LiveCode Community's samples in Home's look: a game, bouncing balls and a database of books."
 end leExampleGroups

@@ -19,7 +19,7 @@ script "OXTBuildExamples"
 -- script loads them from the install it runs in, as the IDE does.
 
 -- The examples, by their builders' file names in this folder
-constant kExamples = "animate-letter,quick-start,scroll-image,rss-reader,video-player,bouncing-balls,balloon-game,sqlite-tour,zip-archives,book-library,data-grid-tour,data-grid-table,sqlite-book-library"
+constant kExamples = "animate-letter,quick-start,scroll-image,rss-reader,video-player,bouncing-balls,balloon-game,sqlite-tour,zip-archives,book-library,data-grid-tour,data-grid-table,sqlite-book-library,learn-box2d"
 
 on startup
    local tFolder, tRepo, tOut, tName, tError, tExamples

@@ -1617,6 +1617,19 @@ jobs:
           python3 tools/ci/test_linux_package.py --root "$OXT_ROOT" --require-desktop-tools \
             2>&1 | tee "$RUNNER_TEMP/logs/test-linux-package.log"
 
+      # Learn Box2D's lessons, run by the package's engine with the
+      # package's Box2Dxt: every lesson runs, every button works, and the
+      # behaviour checks in tools/examples/test-learn-box2d.livecodescript
+      # hold (it opens the committed stack)
+      - name: Learn Box2D lessons
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
+        timeout-minutes: 10
+        run: |
+          OXT_INSTALL="$OXT_ROOT" timeout 480 xvfb-run -a -s '-screen 0 1280x1024x24' \
+            "$OXT_ROOT/oxt-beyond" -ui tools/examples/test-learn-box2d.livecodescript \
+            2>&1 | tee "$RUNNER_TEMP/logs/learn-box2d.log"
+          tail -n 1 "$RUNNER_TEMP/logs/learn-box2d.log" | grep -qx DONE
+
       # The remastered examples, built from their builders in
       # tools/examples by the package's engine; then, opened by its
       # standalone engine on an Xvfb screen, an arrow key sent to a card's

@@ -318,11 +318,24 @@ class Examples(unittest.TestCase):
         for row in self.table:
             with self.subTest(example=row[1]):
                 self.assertTrue(os.path.isfile(os.path.join(IDE, *row[8].split('/'))), row[8])
+                # (an example made here, such as Learn Box2D, has no original)
+                if row[0] == '':
+                    continue
                 # the original is not installed, and is kept for its builder
                 self.assertFalse(os.path.isfile(os.path.join(IDE, *row[0].split('/'))), row[0])
                 kept = os.path.join(ORIGINALS, *row[0].split('/')[-2:]) \
                     if 'Start Center' in row[0] else os.path.join(ORIGINALS, os.path.basename(row[0]))
                 self.assertTrue(os.path.isfile(kept), kept)
+
+    def test_an_example_without_an_original_is_built_here(self):
+        build = read(os.path.join(REPO, 'tools', 'examples', 'build-examples.livecodescript'))
+        names = re.search(r'constant kExamples = "([^"]*)"', build).group(1).split(',')
+        builders = '\n'.join(read(os.path.join(REPO, 'tools', 'examples', n + '.livecodescript')) for n in names)
+        made = [row for row in self.table if row[0] == '']
+        self.assertTrue(made)
+        for row in made:
+            with self.subTest(example=row[1]):
+                self.assertIn('pFolder & "/%s"' % os.path.basename(row[8]), builders)
 
     def test_every_builder_finds_its_original(self):
         for path in glob.glob(os.path.join(REPO, 'tools', 'examples', '*.livecodescript')):
