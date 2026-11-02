@@ -1,0 +1,32 @@
+# Menu Builder: the Geometry Manager settings saved with its card put the
+# bottoms of the lists of menus and of items 150 pixels above the card's
+# bottom, and the two groups of check boxes under them lower than where
+# the stack has them, and the IDE's geometry library applies them each
+# time the card opens (revgeometrylibrary, openCard). So the lists ran 24
+# pixels over the check boxes "Disabled" of the menus and "Item Tag" of
+# the items, "Mnemonic" ran into "Mark:", and the frame of "Menu Items:"
+# ran through Ctrl, Shift and Alt, on every platform (the IDE tour's
+# menu-builder step, rc.6.12). The settings now put each of them where
+# the stack has it: the lists' bottoms at 297 (174 above the card's
+# bottom), the scroll bar's at 296, and the groups' centres 94 and 96
+# above it. The stack is not resizable, so nothing else depends on them.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revmenumanager.rev
+object: card "Menu Manager"
+replace:
+|   revInitialiseFieldIcons|
+|   |
+|   --avoid sending message triggered by close field when the stack is closed|
+with:
+|   revInitialiseFieldIcons|
+|   |
+|   -- OXT-Beyond: where the Geometry Manager puts the lists and the check|
+|   -- boxes under them as the card opens: where the stack has them, not|
+|   -- 24 pixels lower, over the check boxes (its saved settings)|
+|   set the cREVGeometry["Master,scalebottomDistance"] of fld "Menu Buttons" to -174|
+|   set the cREVGeometry["Master,scalebottomDistance"] of fld "Menu Items" to -174|
+|   set the cREVGeometry["Master,scalebottomDistance"] of scrollbar "Menu Items" to -175|
+|   set the cREVGeometry["Master,movevDistance"] of grp "Menu Button Controls" to -94|
+|   set the cREVGeometry["Master,movevDistance"] of grp "Menu Item Controls" to -96|
+|   |
+|   --avoid sending message triggered by close field when the stack is closed|

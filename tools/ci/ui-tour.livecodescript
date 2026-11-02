@@ -82,7 +82,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- The inspector's sections for a button, as the icons in its header name
@@ -1713,6 +1713,94 @@ on tour_menu_marks
    end if
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_menu_marks
+
+-- File > New Stack's preset sizes, the ones Preferences lists with "Show a
+-- list of preset new stack sizes in File menu > New Stack": among them
+-- SVGA's 800 x 600 and three quarters of the main screen's width and
+-- height (richmond62, openxtalk.org p=25902), each making a stack of its
+-- size, and the sizes there were before; without the preference, none of
+-- them. The preference and the question that names a new stack are put
+-- back as they were, and the stacks made are deleted
+on tour_new_stack_sizes
+   local tMb, tPresets, tRename, tW, tH, tSizes, tFails, tWant, tBefore, tStack, tNew, tError
+   put "revMenuBar" into tMb
+   if there is not a stack tMb or there is not a button "File" of group "revMenuBar" of stack tMb then
+      throw "failed: the IDE has no File menu (button File of group revMenuBar of stack revMenubar)"
+   end if
+   put the cShowPresetSizes of stack "revPreferences" into tPresets
+   put the cAskForNewStackRename of stack "revPreferences" into tRename
+   put round((item 3 of the screenRect - item 1 of the screenRect) * 3 / 4) into tW
+   put round((item 4 of the screenRect - item 2 of the screenRect) * 3 / 4) into tH
+   try
+      set the cAskForNewStackRename of stack "revPreferences" to false
+      set the cShowPresetSizes of stack "revPreferences" to false
+      put tourNewStackSizes() into tSizes
+      tourRecord "INFO new-stack-sizes without the preference:" && tourJoin(tSizes)
+      if "Default Size" is not in line 1 of tSizes then
+         put "File > New Stack has no Default Size" & return after tFails
+      end if
+      if "SVGA (800x600)" is among the lines of tSizes or "Three Quarters" is in tSizes then
+         put "File > New Stack lists preset sizes when Preferences says not to" & return after tFails
+      end if
+      set the cShowPresetSizes of stack "revPreferences" to true
+      put tourNewStackSizes() into tSizes
+      tourRecord "INFO new-stack-sizes with the preference:" && tourJoin(tSizes)
+      repeat for each item tWant in "VGA (640x480),XGA (1024x768),WXGA HD 16:9 (1366x768),SVGA (800x600)"
+         if tWant is not among the lines of tSizes then
+            put "File > New Stack has no" && quote & tWant & quote & return after tFails
+         end if
+      end repeat
+      put "Three Quarters of the Screen (" & tW & "x" & tH & ")" into tWant
+      if tWant is not among the lines of tSizes then
+         put "File > New Stack has no" && quote & tWant & quote && "for the screenRect" && the screenRect & return after tFails
+      end if
+      -- each new size makes a stack of that size
+      repeat for each item tWant in "SVGA (800x600)," & "Three Quarters of the Screen (" & tW & "x" & tH & ")"
+         if tWant is not among the lines of tSizes then next repeat
+         put the mainStacks into tBefore
+         dispatch "revMenubarFileMenuPick" to stack tMb with "New Stack|" & tWant
+         tourWait 300
+         put empty into tNew
+         repeat for each line tStack in the mainStacks
+            if tStack is not among the lines of tBefore then put tStack & return after tNew
+         end repeat
+         put line 1 to -1 of tNew into tNew
+         if the number of lines of tNew is not 1 then
+            put "File > New Stack >" && tWant && "made" && the number of lines of tNew && "stacks:" && tourJoin(tNew) & return after tFails
+         else
+            tourRecord "INFO new-stack-sizes:" && tWant && "made" && quote & tNew & quote && \
+                  the width of stack tNew & "x" & the height of stack tNew
+            if the width of stack tNew & "x" & the height of stack tNew is not char 2 to -2 of the last word of tWant then
+               put "File > New Stack >" && tWant && "made a stack of" && the width of stack tNew & "x" & the height of stack tNew & return after tFails
+            end if
+         end if
+         repeat for each line tStack in tNew
+            delete stack tStack
+         end repeat
+      end repeat
+   catch tError
+   end try
+   set the cShowPresetSizes of stack "revPreferences" to tPresets
+   set the cAskForNewStackRename of stack "revPreferences" to tRename
+   dispatch "revMenubarBuildMenus" to stack tMb
+   if tError is not empty then throw tError
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_new_stack_sizes
+
+-- The items of File > New Stack, as the IDE's menu bar builds them now
+function tourNewStackSizes
+   local tLine, tIn, tSizes
+   dispatch "revMenubarBuildMenus" to stack "revMenuBar"
+   put false into tIn
+   repeat for each line tLine in the text of button "File" of group "revMenuBar" of stack "revMenuBar"
+      if char 1 of tLine is not tab then
+         put tLine contains "New Stack" into tIn
+      else if tIn then
+         put char 2 to -1 of tLine & return after tSizes
+      end if
+   end repeat
+   return line 1 to -1 of tSizes
+end tourNewStackSizes
 
 -- Opens the pop-up menu of the button pButton of the stack pStack where
 -- the step's snapshots are taken, takes the snapshot pFile while it is
@@ -5250,7 +5338,15 @@ end tour_ext_mergjson
 -- nothing (in rc.6.3 it stopped halfway, on revSetEdited, a handler that
 -- does not exist: forum, tperry2x), and its lists of menus and items take
 -- their text colour from the appearance (rc.6.3 saved them black, which
--- could not be read on the dark appearance)
+-- could not be read on the dark appearance). Its buttons and check boxes
+-- show their words whole, and the lists, the check boxes under them and
+-- the frames around them do not run into one another as the window is
+-- laid out on opening (tourMbLayout): through rc.6.12 the Geometry
+-- Manager's saved settings put the lists over "Disabled" and "Item Tag",
+-- "Mnemonic" into "Mark:" and the frame of "Menu Items:" through Ctrl,
+-- Shift and Alt, and Linux's font cut off "Delete Menu", "Delete Item",
+-- "Auto Menu Bar Script" and "Mnemonic" (ide-stack-patches,
+-- revmenumanager-geometry-saved-layout.txt and revmenumanager-fit-linux.txt)
 on tour_menu_builder
    local tName, tMM, tFails, tError, tField
    put "OXT Tour Menus" into tName
@@ -5288,6 +5384,8 @@ on tour_menu_builder
             put "its list" && tField && "has the text colour" && the foregroundColor of field tField of stack tMM & return after tFails
          end if
       end repeat
+      put tourButtonsWhole(tMM) after tFails
+      put tourMbLayout(tMM) after tFails
    end if
    -- The Menu Builder is closed and the stack deleted however it went, so
    -- that a Menu Builder stopped halfway (rc.6.3) is not left open for the
@@ -5305,6 +5403,74 @@ on tour_menu_builder
    tourUnlockScreen "menu-builder"
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_menu_builder
+
+-- The Menu Builder (the stack pStack) as it is laid out: every control
+-- that shows of the group of the menus' check boxes starts below the list
+-- of menus; every one of the items' check boxes, "Mark:" and its menu
+-- starts below the list of items; each ends above the bottom of the frame
+-- around its list ("Menus:", "Menu Items:"), whose line it would cross;
+-- and no two of one side overlap. Empty, or what is out of place
+function tourMbLayout pStack
+   local tDefault, tFails, tSide, tList, tFrame, tControls, tId, tOther, i, j
+   put the defaultStack into tDefault
+   set the defaultStack to pStack
+   repeat for each item tSide in "menus,items"
+      if tSide is "menus" then
+         put the long id of field "Menu Buttons" of this card into tList
+         put the long id of group "Button Menus:" of this card into tFrame
+         put tourGroupShown(the long id of group "Menu Button Controls" of this card) into tControls
+      else
+         put the long id of field "Menu Items" of this card into tList
+         put the long id of group "Menu Items:" of this card into tFrame
+         put tourGroupShown(the long id of group "Menu Item Controls" of this card) into tControls
+         put the long id of field "Mark Label" of this card into tOther
+         if tourControlShown(tOther) then put tOther & return after tControls
+         put the long id of button "Item Style" of this card into tOther
+         if tourControlShown(tOther) then put tOther & return after tControls
+      end if
+      tourRecord "INFO" && pStack & ": the list of" && tSide && "ends at" && the bottom of tList & ", its frame at" && \
+            the bottom of tFrame & "; under them" && the number of lines of tControls && "controls"
+      if tControls is empty then
+         put "the Menu Builder shows nothing under its list of" && tSide & return after tFails
+         next repeat
+      end if
+      repeat with i = 1 to the number of lines of tControls
+         put line i of tControls into tId
+         if the top of tId < the bottom of tList then
+            put "the Menu Builder's" && the name of tId && "is under its list of" && tSide && "(it starts at" && \
+                  the top of tId & ", the list ends at" && the bottom of tList & ")" & return after tFails
+         end if
+         if the bottom of tId > the bottom of tFrame - 2 then
+            put "the Menu Builder's" && the name of tId && "runs into the frame of its" && tSide && "(it ends at" && \
+                  the bottom of tId & ", the frame at" && the bottom of tFrame & ")" & return after tFails
+         end if
+         repeat with j = i + 1 to the number of lines of tControls
+            put line j of tControls into tOther
+            if the left of tId < the right of tOther and the left of tOther < the right of tId and \
+                  the top of tId < the bottom of tOther and the top of tOther < the bottom of tId then
+               put "the Menu Builder's" && the name of tId && "(" & the rect of tId & ") and" && the name of tOther && \
+                     "(" & the rect of tOther & ") overlap" & return after tFails
+            end if
+         end repeat
+      end repeat
+   end repeat
+   set the defaultStack to tDefault
+   if tFails is empty then return empty
+   return tFails
+end tourMbLayout
+
+-- The long ids of the controls of the group pGroup, in groups in it too,
+-- that show (tourControlShown), a line each; a group itself is left out
+function tourGroupShown pGroup
+   local tShown, i
+   repeat with i = 1 to the number of controls of pGroup
+      if word 1 of the name of control i of pGroup is "group" then next repeat
+      if tourControlShown(the long id of control i of pGroup) then
+         put the long id of control i of pGroup & return after tShown
+      end if
+   end repeat
+   return tShown
+end tourGroupShown
 
 -- A stack of the user's with a menu bar of two menus, File and Edit, and
 -- the hcAddressing of a HyperCard stack
@@ -5489,6 +5655,10 @@ function tourButtonsWhole pStack
          next repeat
       end if
       if not tourControlShown(the long id of button i of this card) then next repeat
+      -- a check box or a radio button that shows no name has no words to
+      -- cut off (the Menu Builder's fold-out triangles, check boxes with
+      -- an icon)
+      if tKind is among the items of "check box,radio button" and not the showName of button i of this card then next repeat
       if tKind is among the items of "button,option menu" then
          if not the showName of button i of this card then next repeat
          if the showIcon of button i of this card and the icon of button i of this card is not 0 then next repeat

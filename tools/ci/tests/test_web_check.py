@@ -308,5 +308,125 @@ class TheCheckBoxes(unittest.TestCase):
         self.assertLess(block.index('boxes_drawn'), block.index("tab.emulate_media(color_scheme='light')"))
 
 
+class TheSvgCheck(unittest.TestCase):
+    """An HTML5 standalone that the IDE builds compiles SVG with the
+    drawing library: the builder must carry the library's resources folder,
+    which holds the SVG specification that the library reads when it
+    starts. The IDE's build names the library (web-deploy), the probe
+    compiles an SVG in the browser and must get the desktop's drawing
+    (probeDrawing), and web_check.py expects that check, and the file in
+    standalone.zip, whenever the IDE had the library."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def zip_with(self, *names):
+        import zipfile
+        with zipfile.ZipFile(os.path.join(self.tmp, 'standalone.zip'), 'w') as z:
+            for name in names:
+                z.writestr(name, 'x')
+        return self.tmp
+
+    def test_the_check_is_expected_with_the_library(self):
+        checks, problems, lines = web_check.expected_checks({}, True, True)
+        self.assertIn('svg', checks)
+        self.assertIn('browser', checks)
+        self.assertEqual(problems, [])
+        self.assertEqual(lines, [])
+
+    def test_a_standalone_without_the_library_the_ide_named_fails(self):
+        checks, problems, lines = web_check.expected_checks(
+            {'drawing-library': 'not loaded', 'extensions': 'com.livecode.widget.browser'}, True, True)
+        self.assertNotIn('svg', checks)
+        self.assertEqual(problems, ['the standalone has no drawing library: its extension is not loaded (the '
+                                    'extensions are com.livecode.widget.browser)'])
+
+    def test_a_standalone_made_without_the_ide_has_none(self):
+        for drawing in (None, False):
+            checks, problems, lines = web_check.expected_checks({'drawing-library': 'not loaded'}, True, drawing)
+            self.assertNotIn('svg', checks)
+            self.assertEqual(problems, [])
+            self.assertEqual(lines, ['SVG was not checked: the standalone was made without the drawing library'])
+
+    def test_a_probe_that_never_says_still_owes_the_check(self):
+        # (an old probe, or one whose probeDrawing never ran: "did not
+        # report the check svg")
+        checks, problems, lines = web_check.expected_checks({}, None, None)
+        self.assertIn('svg', checks)
+
+    def test_the_browser_widget_is_as_before(self):
+        checks, problems, lines = web_check.expected_checks({'browser-widget': 'not loaded'}, True, True)
+        self.assertNotIn('browser', checks)
+        self.assertEqual(problems, ['the standalone has no browser widget: its extension is not loaded (the '
+                                    'extensions are none)'])
+        checks, problems, lines = web_check.expected_checks({'browser-widget': 'not loaded'}, None, True)
+        self.assertEqual(problems, [])
+        self.assertEqual(lines, ['the browser widget was not checked: the IDE has none here (no CEF), and so '
+                                 'neither has the standalone'])
+
+    def test_the_specification_in_the_zip(self):
+        site = self.zip_with('index.html', 'boot/__startup.data',
+                             'boot/standalone/extension3/drawing-svg-specification.txt')
+        self.assertEqual(web_check.drawing_resources(site),
+                         ['boot/standalone/extension3/drawing-svg-specification.txt'])
+
+    def test_no_specification_in_the_zip(self):
+        for names in (('boot/__startup.data',),
+                      ('boot/standalone/drawing-svg-specification.txt',),
+                      ('boot/standalone/extension3/sub/drawing-svg-specification.txt',),
+                      ('extension3/drawing-svg-specification.txt',)):
+            self.assertEqual(web_check.drawing_resources(self.zip_with(*names)), [], names)
+
+    def test_the_library_reads_that_file(self):
+        library = read('extensions', 'script-libraries', 'drawing', 'drawing.livecodescript')
+        self.assertIn('slash & "%s"' % web_check.DRAWING_SPEC, library.split('private command svgSpecLoad', 1)[1])
+        self.assertTrue(os.path.isfile(os.path.join(REPO, 'extensions', 'script-libraries', 'drawing', 'resources',
+                                                    web_check.DRAWING_SPEC)))
+        self.assertIn('script "%s"' % web_check.DRAWING_EXTENSION, library)
+
+    def test_the_ide_names_the_library(self):
+        deploy = read('tools', 'ci', 'web-deploy.livecodescript')
+        build = deploy.split('on webBuild', 1)[1].split('end webBuild', 1)[0]
+        self.assertIn('repeat for each item tExtension in "com.livecode.widget.browser,%s"'
+                      % web_check.DRAWING_EXTENSION, build)
+        self.assertIn('put tExtension after tSettings["extensions"]', build)
+        self.assertIn('webLog "INFO drawing-extension-loaded" && \\\n            ("%s" is among the lines of '
+                      'the loadedExtensions)' % web_check.DRAWING_EXTENSION, build)
+        # ... before the builder runs
+        self.assertLess(build.index('INFO drawing-extension-loaded'), build.index('revSaveAsEmscriptenStandalone'))
+        check = read('tools', 'ci', 'web_check.py')
+        self.assertIn("if line.startswith('INFO drawing-extension-loaded '):", check)
+
+    def test_the_probe_compiles_the_desktop_case(self):
+        probe = read('tools', 'ci', 'web-probe.livecodescript')
+        run = re.search(r'repeat for each item tCheck in "([^"]+)"', probe.split('on probeRun', 1)[1]).group(1)
+        self.assertIn('probeExternals,probeDrawing,', run)
+        body = probe.split('command probeDrawing', 1)[1].split('end probeDrawing', 1)[0]
+        self.assertIn('if "%s" is not among the lines of tExtensions then\n'
+                      '      probeInfo "drawing-library", "not loaded"\n'
+                      '      exit probeDrawing' % web_check.DRAWING_EXTENSION, body)
+        self.assertIn('probeCheck "svg", tError is empty and tMd5 is ', body)
+        self.assertIn('and tSize is "100x100"', body)
+        # The SVG and MD5 of the drawing library's own "rect" case, which the
+        # desktop library compiles (TestCompileUnchanged)
+        tests = read('extensions', 'script-libraries', 'drawing', 'tests', 'drawing.livecodescript')
+        case = re.search(r'put "rect\|([^|]+)\|([0-9a-f]{32})"', tests)
+        self.assertIsNotNone(case)
+        self.assertIn('tMd5 is "%s"' % case.group(2), body)
+        # the probe's SVG is _Svg(<the case>), whose size is 100 when none
+        # is given
+        helper = tests.split('private function _Svg pBody, pSize', 1)[1].split('end _Svg', 1)[0]
+        self.assertIn('if pSize is empty then put "100" into pSize', helper)
+        self.assertIn('return "<svg xmlns=" & quote & "http://www.w3.org/2000/svg" & quote && "width=" & quote & '
+                      'pSize & quote && \\\n         "height=" & quote & pSize & quote & ">" & pBody & "</svg>"',
+                      helper)
+        svg = re.search(r'\n   put ("<svg.+?) into tSvg\n', body, re.S).group(1).replace('\\\n', ' ')
+        self.assertEqual(livecode_text(svg), '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">'
+                         + case.group(1) + '</svg>')
+
+
 if __name__ == '__main__':
     unittest.main()

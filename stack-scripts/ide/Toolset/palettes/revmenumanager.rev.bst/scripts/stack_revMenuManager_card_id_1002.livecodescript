@@ -77,6 +77,15 @@ on revMenuManagerInitialisation
    set the textHeight of fld "Menu Items" to gREVTextHeight
    revInitialiseFieldIcons
    
+   -- OXT-Beyond: where the Geometry Manager puts the lists and the check
+   -- boxes under them as the card opens: where the stack has them, not
+   -- 24 pixels lower, over the check boxes (its saved settings)
+   set the cREVGeometry["Master,scalebottomDistance"] of fld "Menu Buttons" to -174
+   set the cREVGeometry["Master,scalebottomDistance"] of fld "Menu Items" to -174
+   set the cREVGeometry["Master,scalebottomDistance"] of scrollbar "Menu Items" to -175
+   set the cREVGeometry["Master,movevDistance"] of grp "Menu Button Controls" to -94
+   set the cREVGeometry["Master,movevDistance"] of grp "Menu Item Controls" to -96
+   
    --avoid sending message triggered by close field when the stack is closed
    set the cREVClosing of this stack to false
    

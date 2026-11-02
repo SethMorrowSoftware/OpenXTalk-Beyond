@@ -601,15 +601,19 @@ jobs:
       # check does (tools/ci/retry_check.py: the first try's record is
       # kept in try-1 of the uploaded folder, with a warning in the
       # summary), and the step and the job have room for two tries;
-      # Chromium runs it once, as before
+      # Chromium runs it once, as before. Each try has 11 minutes (a pass
+      # takes about 8.5): a try that hangs is stopped and counts as a
+      # failed one, so the second try still runs. On main 25a872e97 the
+      # first WebKit try hung after 355 seconds and the step's 25 minutes
+      # ran out with the second never started.
       - name: Web IDE soak
         timeout-minutes: ${{ matrix.browser == 'webkit' && 25 || 15 }}
         env:
           BROWSER: ${{ matrix.browser }}
           TRIES: ${{ matrix.browser == 'webkit' && 2 || 1 }}
         run: |
-          python3 tools/ci/retry_check.py --tries "$TRIES" --files "$RUNNER_TEMP/web-ide-soak" \
-            --what "The web IDE soak in $BROWSER" -- \
+          python3 tools/ci/retry_check.py --tries "$TRIES" --try-minutes 11 \
+            --files "$RUNNER_TEMP/web-ide-soak" --what "The web IDE soak in $BROWSER" -- \
             "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_ide_soak.py --site "$RUNNER_TEMP/site" \
             --out "$RUNNER_TEMP/web-ide-soak" --browser "$BROWSER" --minutes 8
 

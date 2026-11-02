@@ -1786,6 +1786,15 @@ private function pIsThisAGif tSelectedObject
    else return false
 end pIsThisAGif
 
+-- OXT-Beyond: three quarters of the main screen's width and height, as
+-- "WxH", for File > New Stack's preset sizes
+private function revMenubarThreeQuartersOfTheScreen
+   local tRect
+   put the screenRect into tRect
+   return round((item 3 of tRect - item 1 of tRect) * 3 / 4) & "x" & \
+         round((item 4 of tRect - item 2 of tRect) * 3 / 4)
+end revMenubarThreeQuartersOfTheScreen
+
 private function revMenubarFileMenu pContext, tFile
    local tIsUserTarget, tIsScriptOnly, tCanSaveStack
    put the mode of the topStack is 1 into tIsUserTarget
@@ -1805,6 +1814,10 @@ private function revMenubarFileMenu pContext, tFile
       put tab & "Legal paper-portrait (612x1008)" & return after tFile
       put tab & "WVGA (768x480)" & return after tFile
       put tab & "Letter paper-landscape (792x612)" & return after tFile
+      -- OXT-Beyond: SVGA, and three quarters of the main screen's width
+      -- and height (richmond62, openxtalk.org p=25902); the size is read
+      -- from the label's "(WxH)" (revIDEActionNewMainstack)
+      put tab & "SVGA (800x600)" & return after tFile
       put tab & "Legal paper-landscape (1008x612)" & return after tFile
       put tab & "WSVGA (1024x600)" & return after tFile
       put tab & "XGA Tablet Portrait (768x1024)" & return after tFile
@@ -1812,6 +1825,7 @@ private function revMenubarFileMenu pContext, tFile
       put tab & "WXGA HDTV 16:9 (1280x720)" & return after tFile
       put tab & "SXGA 5:4 (1280x1024)" & return after tFile
       put tab & "WXGA HD 16:9 (1366x768)" & return after tFile
+      put tab & "Three Quarters of the Screen (" & revMenubarThreeQuartersOfTheScreen() & ")" & return after tFile
    end if
    put tab & "-" & return after tFile
    put tab & "Script Only Stack" & return after tFile

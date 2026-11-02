@@ -89,7 +89,13 @@ Then:
    javascriptHandlers). An IDE without CEF (Linux arm64)
    has no browser widget, so neither has the standalone that it builds:
    the probe then writes "PROBE info browser-widget not loaded" instead of
-   that check. Last come the externals that the web engine has: an XML
+   that check. With the IDE, the drawing library is named in the
+   settings too: the probe compiles an SVG with drawingSvgCompile, which
+   must give the desktop's drawing, and shows it in an image at the SVG's
+   size (the library reads its SVG specification from its resources
+   folder, which standalone.zip must carry); built without the IDE, the
+   standalone has no drawing library, and the probe writes "PROBE info
+   drawing-library not loaded" instead. Last come the externals that the web engine has: an XML
    tree read with revXML and transformed with XSLT, a zip archive written
    and read back with revZip, and an SQLite database with revDB, whose
    error for a missing table must reach the script as revDB's error (SQLite
@@ -268,6 +274,16 @@ PROBE_PAGE_DEFERRED = ('<!DOCTYPE html><html><head><title>Probe Page</title></he
 # development engine's packaged_extensions, each after those it uses: the
 # browser widget, which the probe makes
 PROBE_EXTENSIONS = ('com.livecode.library.widgetutils', 'com.livecode.widget.browser')
+
+# The drawing library, which the IDE's build names (web-deploy's webBuild)
+# and whose drawingSvgCompile the probe calls (probeDrawing), and the file
+# of its resources folder that it reads when it starts (svgSpecLoad): the
+# builder carries the folder into standalone.zip as
+# boot/standalone/extension<N>/ and maps the library's resources to it
+# (revSBUpdateSettingsForExtensions). Without the file, the library
+# compiles no SVG in the standalone.
+DRAWING_EXTENSION = 'com.livecode.library.drawing'
+DRAWING_SPEC = 'drawing-svg-specification.txt'
 
 # The file the probe writes to /downloads, which the browser must download
 PROBE_DOWNLOAD = ('probe-download.txt', b'download me')
@@ -884,11 +900,22 @@ def built_files(site):
     return complete[0], os.path.join(site, STACK_NAME + '.html')
 
 
+def drawing_resources(site):
+    """The names in <site>'s standalone.zip of the drawing library's SVG
+    specification, which the builder puts in the folder it maps the
+    library's resources to (boot/standalone/extension<N>/)."""
+    with zipfile.ZipFile(os.path.join(site, 'standalone.zip')) as z:
+        return [n for n in z.namelist()
+                if re.match(r'^boot/standalone/extension\d+/%s$' % re.escape(DRAWING_SPEC), n)]
+
+
 def build_with_ide(args, work, timeout):
     """Build the probe's standalone with the IDE's web builder (see the
-    header) into <work>/site. Returns (site, lines, browser): browser is
-    whether the IDE had the browser widget, which an IDE without CEF (Linux
-    arm64) leaves out, and so its builder (None: it did not say)."""
+    header) into <work>/site. Returns (site, lines, browser, drawing):
+    browser is whether the IDE had the browser widget, which an IDE without
+    CEF (Linux arm64) leaves out, and so its builder (None: it did not
+    say); drawing is whether it had the drawing library, which it names in
+    the settings."""
     # the IDE is started as tools/ci/ui_tour.py starts it
     import ui_tour
     package, rlc = ui_tour.package, ui_tour.rlc
@@ -964,13 +991,15 @@ def build_with_ide(args, work, timeout):
                     ui_tour.mac_tools_log()
             finally:
                 ui_tour.stop(proc)
-        browser = None
+        browser = drawing = None
         for line in ui_tour.read_lines(results):
             log('  ide: %s' % line)
             if line.startswith('BUILD FAILED') or line.startswith('ERROR'):
                 problems.append('the IDE\'s web build: %s' % line)
             if line.startswith('INFO browser-extension-loaded '):
                 browser = line.split()[-1] == 'true'
+            if line.startswith('INFO drawing-extension-loaded '):
+                drawing = line.split()[-1] == 'true'
         if status:
             problems.append('the IDE\'s web build %s' % status)
             for line in ui_tour.read_lines(os.path.join(work, 'ide-output.txt'))[-40:]:
@@ -981,6 +1010,15 @@ def build_with_ide(args, work, timeout):
                 lines.append(fields_page_from_ide(site, fields_site))
             except CheckError as e:
                 problems.append(str(e))
+            if drawing:
+                specs = drawing_resources(site)
+                if specs:
+                    lines.append('standalone.zip carries the drawing library\'s SVG specification (%s)'
+                                 % ', '.join(specs))
+                else:
+                    problems.append('the IDE\'s web build: standalone.zip has no %s in '
+                                    'boot/standalone/extension<N>/, which the drawing library reads when it '
+                                    'starts' % DRAWING_SPEC)
             # The probe uses none of the xTalk Suite's libraries, so the
             # builder gives it the lean engine of the runtime's lean/
             # (getEngineFiles in revsaveasemscriptenstandalone), when the
@@ -1002,7 +1040,7 @@ def build_with_ide(args, work, timeout):
             shutil.rmtree(d, ignore_errors=True)
     if problems:
         raise CheckError('; '.join(problems))
-    return site, lines, browser
+    return site, lines, browser, drawing
 
 
 # ---------------------------------------------------------------------------
@@ -1281,12 +1319,43 @@ def browser_watchdog(browser_name, limit=BROWSER_LIMIT):
     return timer
 
 
-def run_browser(url, version, work, timeout, url_path=None, browser_widget=None, browser_name='chromium'):
+def expected_checks(info, browser_widget=None, drawing=None):
+    """(checks, problems, lines): the probe's checks that the run must
+    report, given what the probe said it left out (its info lines), and
+    the problems and lines of what it left out. browser_widget and drawing
+    say whether the standalone must have the browser widget and the
+    drawing library (None: the check may be left out when it has none)."""
+    checks, problems, lines = list(PROBE_CHECKS), [], []
+    if info.get('browser-widget') == 'not loaded':
+        # The probe leaves its check out when the standalone has no browser
+        # widget: right when the IDE that built it had none
+        checks.remove('browser')
+        if browser_widget:
+            problems.append('the standalone has no browser widget: its extension is not loaded (the '
+                            'extensions are %s)' % (info.get('extensions') or 'none'))
+        else:
+            lines.append('the browser widget was not checked: the IDE has none here (no CEF), and so '
+                         'neither has the standalone')
+    if info.get('drawing-library') == 'not loaded':
+        # ... and the SVG check when it has no drawing library: right when
+        # it was made without the IDE, which names it
+        if drawing:
+            problems.append('the standalone has no drawing library: its extension is not loaded (the '
+                            'extensions are %s)' % (info.get('extensions') or 'none'))
+        else:
+            lines.append('SVG was not checked: the standalone was made without the drawing library')
+    else:
+        checks.append('svg')
+    return checks, problems, lines
+
+
+def run_browser(url, version, work, timeout, url_path=None, browser_widget=None, browser_name='chromium',
+                drawing=None):
     """Open the page in browser_name and check what the probe and the page do; url_path is
     what must load the probe's URLs, 'engine' or 'libURL' (None: either),
-    and browser_widget whether the standalone must have the browser widget
-    (None: the probe's check of it may also be left out, when it has none).
-    Returns (problems, lines)."""
+    and browser_widget and drawing whether the standalone must have the
+    browser widget and the drawing library (None: the probe's check of it
+    may also be left out, when it has none). Returns (problems, lines)."""
     try:
         from playwright.sync_api import sync_playwright, Error as PlaywrightError
         from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
@@ -2189,17 +2258,9 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
         browser_waiting[0] = 'the browser to close'
         browser.close()
 
-    checks = list(PROBE_CHECKS)
-    if info.get('browser-widget') == 'not loaded':
-        # The probe leaves its check out when the standalone has no browser
-        # widget: right when the IDE that built it had none
-        checks.remove('browser')
-        if browser_widget:
-            problems.append('the standalone has no browser widget: its extension is not loaded (the '
-                            'extensions are %s)' % (info.get('extensions') or 'none'))
-        else:
-            lines.append('the browser widget was not checked: the IDE has none here (no CEF), and so '
-                         'neither has the standalone')
+    checks, p, l = expected_checks(info, browser_widget, drawing)
+    problems += p
+    lines += l
     for name in checks:
         results = probes.get(name)
         if not results:
@@ -2289,15 +2350,16 @@ def main(argv=None):
             lines.append(lean_engine(runtime, version, wasm))
             url_path = 'engine'
             browser_widget = True
+            drawing = None
             lines.append('built without the IDE, from %s' % runtime)
         elif mode == 'ide':
-            site, built, browser_widget = build_with_ide(args, work, args.ide_timeout)
+            site, built, browser_widget, drawing = build_with_ide(args, work, args.ide_timeout)
             lines += built
             url_path = 'libURL'
         else:
             site = os.path.abspath(args.built)
             url_path = None
-            browser_widget = None
+            browser_widget = drawing = None
             lines.append('built before: %s' % site)
         version, page = built_files(site)
         js, wasm = [os.path.join(site, 'standalone-community-%s.%s' % (version, x)) for x in ('js', 'wasm')]
@@ -2316,7 +2378,7 @@ def main(argv=None):
         log('Opening %s' % url)
         watchdog = browser_watchdog(args.browser, max(BROWSER_LIMIT, 5 * args.timeout))
         try:
-            p, l = run_browser(url, version, work, args.timeout, url_path, browser_widget, args.browser)
+            p, l = run_browser(url, version, work, args.timeout, url_path, browser_widget, args.browser, drawing)
         finally:
             watchdog.cancel()
         problems += p

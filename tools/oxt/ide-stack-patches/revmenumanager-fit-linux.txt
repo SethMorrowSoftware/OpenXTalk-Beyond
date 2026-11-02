@@ -1,0 +1,50 @@
+# Menu Builder: on Linux, in the desktop's sans font (DejaVu Sans on
+# Ubuntu), "Auto Menu Bar Script" needed 144 pixels in a 140-pixel button,
+# "Delete Menu" 90 in 80 and "Delete Item" 85 in 80, and both "Mnemonic"
+# check boxes ran into the option menu after them ("Mnemoni"; the IDE
+# tour's menu-builder step measures every button of the window). The
+# buttons are wider (the two menu bar script buttons alike, to the right,
+# as the check box "Set As Stack Menu Bar" ends at their left), the check
+# boxes reach as far as their words need, and each option menu and the
+# arrow after it move right to make the room.
+file: Toolset/palettes/revmenumanager.rev
+object: button "Auto Menu Bar Script" of card "Menu Manager"
+property: rect
+from: 321,53,461,73
+to: 321,53,467,73
+object: button "Edit Menu Bar Script" of card "Menu Manager"
+property: rect
+from: 321,77,461,97
+to: 321,77,467,97
+object: button "Delete Menu" of card "Menu Manager"
+property: rect
+from: 105,134,185,154
+to: 99,134,191,154
+object: button "Delete Item" of card "Menu Manager"
+property: rect
+from: 352,134,432,154
+to: 350,134,438,154
+object: button "Menu Mnemonic" of card "Menu Manager"
+property: rect
+from: 13,323,94,343
+to: 13,323,102,343
+object: button "Menu Mnemonic Letter" of card "Menu Manager"
+property: rect
+from: 102,325,147,342
+to: 106,325,151,342
+object: button id 4886 of card "Menu Manager"
+property: rect
+from: 151,327,169,337
+to: 155,327,173,337
+object: button "Item Mnemonic" of card "Menu Manager"
+property: rect
+from: 261,348,345,368
+to: 261,348,351,368
+object: button "Item Mnemonic Letter" of card "Menu Manager"
+property: rect
+from: 347,350,392,367
+to: 353,350,398,367
+object: button id 4868 of card "Menu Manager"
+property: rect
+from: 395,353,413,363
+to: 401,353,419,363

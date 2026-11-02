@@ -945,6 +945,23 @@ void MCPlatformHandleTextInputInsertText(MCPlatformWindowRef p_window, unichar_t
 	if (!MCactivefield)
 		return;
 	
+	// OXT-Beyond: the Mac's unmarkText (mac-window.mm) commits the marked
+	// text by sending no characters at all: p_chars is nil. Everything
+	// below reads p_chars[0] (MCUnicodeMapToNative, *p_chars), so it read
+	// address 0 and the engine crashed whenever macOS asked a focused
+	// field to commit, marked text or none. When macOS asks is up to the
+	// input source. (Found while tracing the crash on Apply after typing
+	// with the Accessibility Keyboard, forum p=25871, whose cause was
+	// another: a view left pointing at a destroyed window, #308.)
+	// Committing keeps the text: the composition just ends, and the
+	// selection is left as it is. An empty string from insertText or
+	// setMarkedText is not nil and goes on as before.
+	if (p_chars == nil)
+	{
+		MCactivefield -> stopcomposition(False, False);
+		return;
+	}
+
     // SN-2014-12-04: [[ Bug 14152 ]] Locking the screen here doesn't allow the screen to refresh after
     //  text input, inside an MCWait loop
 //	MCRedrawLockScreen();

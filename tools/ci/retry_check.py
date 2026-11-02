@@ -18,8 +18,8 @@
 """Run a check, and run it again if it fails, at most a given number of
 times in all, keeping the files of every try.
 
-  python3 tools/ci/retry_check.py [--tries N] [--files DIR] [--what TEXT]
-      -- COMMAND [ARG]...
+  python3 tools/ci/retry_check.py [--tries N] [--try-minutes M] [--files DIR]
+      [--what TEXT] -- COMMAND [ARG]...
 
 The CI's checks in headless WebKit fail now and then where the same
 check passes in Chromium and Firefox, and in WebKit on the next run: the
@@ -39,8 +39,19 @@ later try, each give a warning (an annotation under GitHub Actions, and
 a line in the job summary), so that the flake stays in sight. --what
 names the check in them (default: COMMAND's file name).
 
+--try-minutes gives each try a time limit. A try still running when it
+is up is stopped, with everything it started (its process group gets
+SIGTERM, then SIGKILL 10 seconds later; on Windows, taskkill /T), and
+counts as a failed try with exit status 124, as timeout(1) has it, so the
+next try runs. Without it a try that hangs takes the whole step's time
+and the next try never runs: the web IDE soak in WebKit on main
+25a872e97 (2026-11-02) stopped printing after 355 seconds of its 8
+minutes, and the step's 25-minute limit ended the job with its second try
+unrun.
+
 Exit status: the last try's (128 + the signal's number for a try that a
-signal ended), or 2 when the options are wrong.
+signal ended, 124 for one stopped at its time limit), or 2 when the
+options are wrong.
 
 Only the Python 3 standard library is used.
 """
@@ -48,8 +59,14 @@ Only the Python 3 standard library is used.
 import argparse
 import os
 import shutil
+import signal
 import subprocess
 import sys
+
+# The exit status of a try stopped at its time limit (timeout(1)'s), and
+# the seconds a stopped try's processes have between SIGTERM and SIGKILL
+TIMED_OUT = 124
+GRACE = 10
 
 
 def log(text):
@@ -74,34 +91,96 @@ def aside(files, tried):
     return '%s.try-%d' % (os.path.normpath(files), tried)
 
 
-def run(command):
-    """COMMAND's exit status, 128 + the signal's number for one that a
-    signal ended."""
+def stop(process):
+    """Ends a try's command and every process it started, which share its
+    process group (run() gives the command a group of its own): SIGTERM,
+    then SIGKILL to what is left after GRACE seconds; on Windows,
+    taskkill /T, which ends the process and its children."""
+    if os.name == 'nt':
+        subprocess.call(['taskkill', '/F', '/T', '/PID', str(process.pid)],
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    else:
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except OSError:
+            pass
+        try:
+            process.wait(timeout=GRACE)
+        except subprocess.TimeoutExpired:
+            pass
+        # What is left of the group: the command, or what it started
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except OSError:
+            pass
+    process.wait()
+
+
+def run(command, seconds=None):
+    """(COMMAND's exit status, whether it ran out of time): the status is
+    128 + the signal's number for one that a signal ended, and TIMED_OUT
+    for one still running after seconds, which stop() ends. With a time
+    limit the command gets a process group of its own, so that stop()
+    reaches what it started too (a browser, its driver), and this script
+    passes on a SIGTERM to it."""
+    options = {}
+    if seconds is not None:
+        if os.name == 'nt':
+            options['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
+        else:
+            options['start_new_session'] = True
     try:
-        status = subprocess.call(command)
+        process = subprocess.Popen(command, **options)
     except OSError as e:
         log('could not run %s: %s' % (command[0], e))
-        return 127
-    return 128 - status if status < 0 else status
+        return 127, False
+    # A job that is cancelled, or runs out of time, sends this script
+    # SIGTERM, which no longer reaches a command in its own group
+    terminated = None
+    if seconds is not None and os.name != 'nt':
+        def on_sigterm(number, frame):
+            raise SystemExit(128 + signal.SIGTERM)
+        terminated = signal.signal(signal.SIGTERM, on_sigterm)
+    try:
+        status = process.wait(timeout=seconds)
+    except subprocess.TimeoutExpired:
+        stop(process)
+        return TIMED_OUT, True
+    except BaseException:  # Ctrl-C or SIGTERM: the command goes with this script
+        if seconds is None:
+            process.kill()
+            process.wait()
+        else:
+            stop(process)
+        raise
+    finally:
+        if terminated is not None:
+            signal.signal(signal.SIGTERM, terminated)
+    return (128 - status if status < 0 else status), False
 
 
-def retry(command, tries=2, files=None, what=None):
+def retry(command, tries=2, files=None, what=None, minutes=None):
     what = what or os.path.basename(command[0])
     statuses = []
     for tried in range(1, tries + 1):
         if tried > 1:
             log('%s, try %d of %d' % (what, tried, tries))
-        status = run(command)
+        status, timed_out = run(command, None if minutes is None else minutes * 60)
         statuses.append(status)
         if status == 0:
             break
+        failed = 'failed'
+        if timed_out:
+            log('%s did not finish in %g minutes on try %d of %d and was stopped (exit status %d)'
+                % (what, minutes, tried, tries, status))
+            failed = 'did not finish in %g minutes and was stopped' % minutes
         if tried < tries:
             kept = ''
             if files and os.path.exists(files):
                 shutil.move(files, aside(files, tried))
                 kept = "; its files will be in try-%d of %s" % (tried, os.path.basename(os.path.normpath(files)))
-            warn('%s failed on try %d of %d (exit status %d) and runs again%s'
-                 % (what, tried, tries, status, kept))
+            warn('%s %s on try %d of %d (exit status %d) and runs again%s'
+                 % (what, failed, tried, tries, status, kept))
 
     # Every earlier try's files, into the last one's folder
     if files:
@@ -120,20 +199,22 @@ def retry(command, tries=2, files=None, what=None):
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     if '--' not in argv:
-        print('usage: retry_check.py [--tries N] [--files DIR] [--what TEXT] -- COMMAND [ARG]...',
-              file=sys.stderr)
+        print('usage: retry_check.py [--tries N] [--try-minutes M] [--files DIR] [--what TEXT] '
+              '-- COMMAND [ARG]...', file=sys.stderr)
         return 2
     split = argv.index('--')
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     ap.add_argument('--tries', type=int, default=2, help='how many times COMMAND runs at most (default 2)')
+    ap.add_argument('--try-minutes', type=float,
+                    help='the time limit of each try, after which it is stopped (default: none)')
     ap.add_argument('--files', help='the folder COMMAND writes its files to')
     ap.add_argument('--what', help='the check\'s name in the warnings')
     args = ap.parse_args(argv[:split])
     command = argv[split + 1:]
-    if not command or args.tries < 1:
+    if not command or args.tries < 1 or (args.try_minutes is not None and not args.try_minutes > 0):
         ap.print_usage(sys.stderr)
         return 2
-    return retry(command, args.tries, args.files, args.what)
+    return retry(command, args.tries, args.files, args.what, args.try_minutes)
 
 
 if __name__ == '__main__':

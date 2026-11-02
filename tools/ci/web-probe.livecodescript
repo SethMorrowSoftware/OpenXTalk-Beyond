@@ -94,7 +94,7 @@ end openStack
 
 on probeRun
    local tCheck, tError
-   repeat for each item tCheck in "probeWaits,probeSends,probeJavaScript,probeFiles,probeFonts,probeUrls,probeDialogs,probeSystem,probeSound,probePlayer,probeBrowser,probeObjects,probeExternals,probeCiphers,probeSpeech,probePrint"
+   repeat for each item tCheck in "probeWaits,probeSends,probeJavaScript,probeFiles,probeFonts,probeUrls,probeDialogs,probeSystem,probeSound,probePlayer,probeBrowser,probeObjects,probeExternals,probeDrawing,probeCiphers,probeSpeech,probePrint"
       try
          dispatch tCheck to me
       catch tError
@@ -623,6 +623,43 @@ command probeExternals
    revCloseDatabase tDB
    probeCheck "database-home", tDB is a number and tText is tName, "connection=" & tDB && "data=" & tText
 end probeExternals
+
+-- The drawing library (com.livecode.library.drawing), which the IDE's
+-- builder includes with its resources folder when the Inclusions pane
+-- names it (revSBUpdateSettingsForExtensions; web-deploy.livecodescript
+-- names it): the library reads its SVG specification from that folder
+-- when it starts (svgSpecLoad, through revLibraryMapping), and without it
+-- drawingSvgCompile compiles nothing. An SVG compiled here must give the
+-- drawing that the desktop library compiles from it (the MD5 of the
+-- "rect" case of extensions/script-libraries/drawing/tests, the same SVG
+-- written the same way), and an image set to it must take the SVG's
+-- size. A standalone made without the IDE has no drawing library;
+-- web_check.py then expects the info line, not the check.
+command probeDrawing
+   local tExtensions, tSvg, tDrawing, tError, tMd5, tSize
+   put the loadedExtensions into tExtensions
+   if "com.livecode.library.drawing" is not among the lines of tExtensions then
+      probeInfo "drawing-library", "not loaded"
+      exit probeDrawing
+   end if
+   put "<svg xmlns=" & quote & "http://www.w3.org/2000/svg" & quote && "width=" & quote & "100" & quote && \
+         "height=" & quote & "100" & quote & ">" & \
+         "<rect x='1' y='2' width='30' height='20' fill='#ff0000' stroke='blue' stroke-width='2'/></svg>" into tSvg
+   try
+      put drawingSvgCompile(tSvg) into tDrawing
+      put the result into tError
+   catch tError
+   end try
+   get binaryDecode("H*", md5Digest(tDrawing), tMd5)
+   if tError is empty and byte 1 to 3 of tDrawing is "LCD" then
+      create image "Probe Drawing"
+      set the text of image "Probe Drawing" to tDrawing
+      put the formattedWidth of image "Probe Drawing" & "x" & the formattedHeight of image "Probe Drawing" into tSize
+      delete image "Probe Drawing"
+   end if
+   probeCheck "svg", tError is empty and tMd5 is "492832daa13b77fccaec0d5538932250" and tSize is "100x100", \
+         "error=" & tError && "bytes=" & the number of bytes of tDrawing && "md5=" & tMd5 && "size=" & tSize
+end probeDrawing
 
 -- encrypt, decrypt and the cipherNames, with the OpenSSL that the web
 -- engine links into itself. The values are the desktop engines'.

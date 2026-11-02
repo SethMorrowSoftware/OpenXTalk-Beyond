@@ -47,7 +47,10 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- filled graphic (which reports a drag across it) and a PNG image. The
 -- standalone has the browser widget, which the probe makes when it runs:
 -- 1 is given its module (and that of the library it uses), and 2 names it
--- in the standalone settings.
+-- in the standalone settings. 2 names the drawing library too, whose
+-- drawingSvgCompile the probe calls (probeDrawing): the builder then
+-- carries the library's resources folder, which holds the SVG
+-- specification that the library reads when it starts.
 --
 -- 1 also makes the stack of tools/ci/web_tests.py, which runs the engine's
 -- tests (OXT_WEB_KIND "tests"): the test runner's script
@@ -304,7 +307,7 @@ private command webLog pLine
 end webLog
 
 on webBuild
-   local tSettings, tFolder, tError, tFieldsSettings, tFieldsFolder
+   local tSettings, tFolder, tError, tFieldsSettings, tFieldsFolder, tExtension
    webLog "INFO version" && the version && the buildNumber
    webLog "INFO platform" && the platform && the processor
    webCatchErrors
@@ -320,18 +323,26 @@ on webBuild
       put true into tSettings["Emscripten"]
       -- The probe makes a browser widget when it runs: the extension is
       -- named in the settings, as for a stack whose cards have none yet
-      -- (the builder finds the widgets on its cards itself)
-      if "com.livecode.widget.browser" is not among the lines of tSettings["extensions"] then
-         if tSettings["extensions"] is not empty then
-            put return after tSettings["extensions"]
+      -- (the builder finds the widgets on its cards itself). It also
+      -- compiles an SVG with the drawing library, as a user picks it in
+      -- the Inclusions pane: the builder then carries the library's
+      -- resources folder (revSBUpdateSettingsForExtensions), where the
+      -- library finds its SVG specification
+      repeat for each item tExtension in "com.livecode.widget.browser,com.livecode.library.drawing"
+         if tExtension is not among the lines of tSettings["extensions"] then
+            if tSettings["extensions"] is not empty then
+               put return after tSettings["extensions"]
+            end if
+            put tExtension after tSettings["extensions"]
          end if
-         put "com.livecode.widget.browser" after tSettings["extensions"]
-      end if
+      end repeat
       webLog "INFO name" && tSettings["name"]
       webLog "INFO inclusions" && tSettings["inclusions"]
       webLog "INFO extensions" && tSettings["extensions"]
       webLog "INFO browser-extension-loaded" && \
             ("com.livecode.widget.browser" is among the lines of the loadedExtensions)
+      webLog "INFO drawing-extension-loaded" && \
+            ("com.livecode.library.drawing" is among the lines of the loadedExtensions)
       put $OXT_WEB_OUTPUT into tFolder
       if there is not a folder tFolder then
          create folder tFolder

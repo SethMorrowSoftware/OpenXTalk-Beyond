@@ -1095,7 +1095,9 @@ static void map_key_event(NSEvent *event, MCPlatformKeyCode& r_key_code, codepoi
 	
 	// This is the 'commit' operation, any marked text currently in the buffer should be accepted.
 	// We do this by inserting an empty string, leaving the current selection untouched.
-	
+	// OXT-Beyond: the nil is how MCPlatformHandleTextInputInsertText (desktop.cpp) tells a
+	// commit from an insert; it used to read the first of these no characters, and crashed.
+
 	MCRange t_marked_range, t_selected_range;
 	MCPlatformCallbackSendTextInputQueryTextRanges(t_window, t_marked_range, t_selected_range);
 	

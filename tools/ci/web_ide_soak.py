@@ -42,11 +42,17 @@ Every 30 seconds the log has a line with the latest numbers, so that a
 run that ends badly shows how it got there. The page is asked for its
 numbers with a time limit: a page whose engine keeps the browser's main
 thread busy does not answer, and the script would wait for it for ever.
+What has no time limit of its own in Playwright (finding Home's title
+bar, a key press, closing the browser) runs under a watchdog, which ends
+the check when one of them takes longer than --unresponsive seconds: on
+main 25a872e97 (2026-11-02) the soak in WebKit stopped after 355 seconds
+and waited until the job's limit ended it.
 
 The check fails when the IDE does not open, the page reports an error of
 its own (a JavaScript error, or the engine stopping), the browser's web
 process crashes, the page loads itself again, or the page does not answer
-for --unresponsive seconds (default 60). It does not fail on the numbers,
+for --unresponsive seconds (default 60), whether to the script's questions
+or while the script turns Home's page. It does not fail on the numbers,
 which it reports (start, peak, end, and the growth after the first
 minute) in the log and, under GitHub Actions, in the job summary: what a
 browser tolerates differs from one device to the next.
@@ -126,6 +132,48 @@ def ask(page, expression, seconds):
     return handle.json_value()['value']
 
 
+class Watchdog(object):
+    """Ends the check when one step takes longer than its time limit.
+    ask() and a click have a time limit of their own; locator.count(),
+    is_visible(), keyboard.press() and browser.close() wait for the page
+    as long as it takes, and a page that stops answering in the middle of
+    one would hold the script until the job's limit, with nothing in the
+    log to say where. hung(step, seconds) is called from the watchdog's own
+    thread, while the script's thread is still waiting: it reports and
+    ends the process (os._exit), which also ends Playwright's driver and
+    the browser it started."""
+
+    def __init__(self, hung):
+        self.hung = hung
+        self.lock = threading.Lock()
+        self.step = None
+        threading.Thread(target=self.watch, daemon=True).start()
+
+    def limit(self, step, seconds):
+        """A context in which step must end within seconds."""
+        watchdog = self
+
+        class Limit(object):
+            def __enter__(self):
+                with watchdog.lock:
+                    watchdog.step = (step, seconds, time.monotonic() + seconds)
+
+            def __exit__(self, *exc):
+                with watchdog.lock:
+                    watchdog.step = None
+                return False
+        return Limit()
+
+    def watch(self):
+        while True:
+            time.sleep(0.25)
+            with self.lock:
+                step = self.step
+            if step is not None and time.monotonic() > step[2]:
+                self.hung(step[0], step[1])
+                return
+
+
 def ticks_per_second():
     try:
         return os.sysconf('SC_CLK_TCK')
@@ -198,6 +246,29 @@ def describe(samples):
     return lines
 
 
+def finish(browser, out, problems, samples):
+    """Reports the run (the numbers, the problems and the console's last
+    lines) and gives the exit status."""
+    report = describe(samples)
+    for line in report:
+        log(line)
+    summary(browser, problems, report)
+    if problems:
+        # The page's last words, where the job's log shows them
+        with open(os.path.join(out, 'console.txt'), encoding='utf-8', errors='replace') as f:
+            tail = f.read().splitlines()[-40:]
+        if tail:
+            log('The console\'s last %d lines:' % len(tail))
+            for line in tail:
+                log('  ' + line[:300])
+    for problem in problems:
+        log('FAILED: %s' % problem)
+        annotate('error', problem)
+    if not problems:
+        log('Passed')
+    return 1 if problems else 0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     ap.add_argument('--site', required=True, help='the web IDE site (build_site.py --out)')
@@ -234,6 +305,20 @@ def main():
     def stamp():
         return '%7.1f' % (time.time() - started)
 
+    def hung(step, seconds):
+        # From the watchdog's thread: the script's own thread is still
+        # waiting for the page, and only the end of the process frees it
+        console.write('%s NO ANSWER while %s\n' % (stamp(), step))
+        console.flush()
+        csv.flush()
+        problems.append('the page did not answer for %d seconds while %s' % (seconds, step))
+        try:
+            finish(args.browser, out, list(problems), list(samples))
+        finally:
+            sys.stdout.flush()
+            os._exit(1)
+    watchdog = Watchdog(hung)
+
     with sync_playwright() as p:
         browser = getattr(p, args.browser).launch()
         page = browser.new_page(viewport={'width': WIDTH, 'height': HEIGHT})
@@ -266,9 +351,10 @@ def main():
             state['opened'] = True
             loads = state['loads']
             log('%s the IDE opened' % stamp())
-            note = page.locator('#note button')
-            if note.is_visible():
-                note.click()
+            with watchdog.limit('closing the page\'s note', args.unresponsive):
+                note = page.locator('#note button')
+                if note.is_visible():
+                    note.click()
 
             opened = time.time()
             last_cpu = None
@@ -319,44 +405,31 @@ def main():
                     # the front and does nothing else
                     # (OXT-Beyond Home, from 0.2.7-rc.6.12; Home's own
                     # window, titled Welcome to OXT-Beyond, before it)
-                    title = page.locator('.oxt-window-title', has_text='OXT-Beyond Home')
-                    if title.count() == 0:
-                        title = page.locator('.oxt-window-title', has_text='Welcome to OXT-Beyond')
-                    if title.count() > 0 and title.first.is_visible():
-                        title.first.click()
-                        page.keyboard.press('ArrowRight')
-                        console.write('%s TURN\n' % stamp())
-            page.screenshot(path=os.path.join(out, 'last.png'))
+                    with watchdog.limit('turning Home\'s page', args.unresponsive):
+                        title = page.locator('.oxt-window-title', has_text='OXT-Beyond Home')
+                        if title.count() == 0:
+                            title = page.locator('.oxt-window-title', has_text='Welcome to OXT-Beyond')
+                        if title.count() > 0 and title.first.is_visible():
+                            title.first.click()
+                            page.keyboard.press('ArrowRight')
+                            console.write('%s TURN\n' % stamp())
+            with watchdog.limit('taking the last screenshot', args.unresponsive):
+                page.screenshot(path=os.path.join(out, 'last.png'))
         except Exception as e:  # noqa: BLE001 - every failure is reported
             problems.append('%s: %s' % (type(e).__name__, str(e).splitlines()[0] if str(e) else ''))
             try:
-                page.screenshot(path=os.path.join(out, 'failure.png'))
+                with watchdog.limit('taking a screenshot of the failure', args.unresponsive):
+                    page.screenshot(path=os.path.join(out, 'failure.png'))
             except Exception:  # noqa: BLE001
                 pass
         finally:
-            browser.close()
+            with watchdog.limit('closing the browser', args.unresponsive):
+                browser.close()
             server.shutdown()
             console.close()
             csv.close()
 
-    report = describe(samples)
-    for line in report:
-        log(line)
-    summary(args.browser, problems, report)
-    if problems:
-        # The page's last words, where the job's log shows them
-        with open(os.path.join(out, 'console.txt'), encoding='utf-8', errors='replace') as f:
-            tail = f.read().splitlines()[-40:]
-        if tail:
-            log('The console\'s last %d lines:' % len(tail))
-            for line in tail:
-                log('  ' + line[:300])
-    for problem in problems:
-        log('FAILED: %s' % problem)
-        annotate('error', problem)
-    if not problems:
-        log('Passed')
-    return 1 if problems else 0
+    return finish(args.browser, out, problems, samples)
 
 
 if __name__ == '__main__':
