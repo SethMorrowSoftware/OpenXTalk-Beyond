@@ -272,7 +272,10 @@ static bool s_lock_responder_change = false;
 - (void)popupWindowShouldClose: (NSNotification *)notification
 {
     [self close];
-    MCPlatformCallbackSendWindowCancel([(MCWindowDelegate *)[self delegate] platformWindow]);
+    MCMacPlatformWindow *t_window;
+    t_window = [(MCWindowDelegate *)[self delegate] platformWindow];
+    if (t_window != nil)
+        MCPlatformCallbackSendWindowCancel(t_window);
 }
 
 - (void)popupAndMonitor
@@ -554,6 +557,30 @@ void MCMacPlatformWindowWindowMoved(NSWindow *self, MCPlatformWindowRef p_window
 {
 	[m_tracking_area release];
 	[super dealloc];
+}
+
+// The platform window's destructor calls this. The view can outlive its
+// platform window: the system's text input services (the Accessibility
+// Keyboard's suggestions, the text cursor indicator) keep the view of the
+// last text input client and call its NSTextInputClient methods later, from
+// a delayed perform. With m_window left pointing at the deleted window those
+// calls took a death grip on freed memory, and the grip's release deleted it
+// a second time: a crash after pressing Apply in the script editor while
+// typing with the Accessibility Keyboard (macOS 14). Every method already
+// does nothing when platformWindow is nil.
+- (void)detachPlatformWindow
+{
+    m_window = nil;
+    m_input_method_event = nil;
+}
+
+// A view without a platform window is no longer a text input client, so the
+// system stops asking it for text.
+- (NSTextInputContext *)inputContext
+{
+    if (m_window == nil)
+        return nil;
+    return [super inputContext];
 }
 
 /////////
@@ -874,6 +901,9 @@ static void map_key_event(NSEvent *event, MCPlatformKeyCode& r_key_code, codepoi
 
 - (void)keyDown: (NSEvent *)event
 {
+	if ([self platformWindow] == nil)
+		return;
+	
 	MCMacPlatformHandleModifiersChanged(MCMacPlatformMapNSModifiersToModifiers([event modifierFlags]));
 	
     // Make the event key code to a platform keycode and codepoints.
@@ -1420,6 +1450,8 @@ static void map_key_event(NSEvent *event, MCPlatformKeyCode& r_key_code, codepoi
 {
 	MCMacPlatformWindow *t_window;
 	t_window = [self platformWindow];
+	if (t_window == nil)
+		return;
 	t_window -> HandleDragLeave();
 }
 
@@ -1673,6 +1705,11 @@ static void map_key_event(NSEvent *event, MCPlatformKeyCode& r_key_code, codepoi
         [t_window -> GetView() setFrameSize: size];
 }
 
+- (void)detachPlatformWindow
+{
+    m_window = nil;
+}
+
 @end
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1697,6 +1734,14 @@ MCMacPlatformWindow::MCMacPlatformWindow(void)
 
 MCMacPlatformWindow::~MCMacPlatformWindow(void)
 {
+	// The views can outlive this object (the system's text input services
+	// keep the last text input client), so they must not keep pointing at it.
+	// Detach them first, before anything below can call back into them: a
+	// callback into a window being destroyed would take a death grip on it,
+	// and the grip's release would delete it again.
+	[m_view detachPlatformWindow];
+	[m_container_view detachPlatformWindow];
+	
 	[m_handle setDelegate: nil];
 	[m_handle setContentView: nil];
     
