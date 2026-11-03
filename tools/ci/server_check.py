@@ -253,7 +253,10 @@ CASES = [
         ('revDB with SQLite', lambda r: r.field('db'), 'true'),
         ('query', lambda r: r.field('query'), '42,forty-two'),
         ('revXML', lambda r: r.field('xml'), 'xml'),
-        ('revZip (one line per item)', lambda r: r.field('zip'), 'inside.txt\n')]),
+        # The Windows engine writes every return of a page as CR LF (the
+        # whole body comes back that way there), so the line ending is the
+        # platform's: what is checked is one item, then one line end.
+        ('revZip (one line per item)', lambda r: r.field('zip').replace('\r\n', '\n'), 'inside.txt\n')]),
 ]
 
 
