@@ -82,7 +82,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -4461,6 +4461,133 @@ on tour_inspector_reset_colour
    tourCloseInspectors
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_inspector_reset_colour
+
+-- The Clear button beside each colour swatch of the Colors section, as
+-- LiveCode 7's Inspector had (LittleNemo, openxtalk.org p=25961 and
+-- p=25967: right-click "Reset to default" is not something anyone finds).
+-- It is beside its swatch, on the inspector's window and clear of the next
+-- editor; it is disabled while the object has no colour of its own and
+-- enabled once a script gives it one; a click on it (the engine's own
+-- click, through the editor's mouseUp) takes the colour away, so the
+-- button has no backgroundColor and the swatch shows none at once; the
+-- swatch still opens nothing else on that click and is still control 1.
+-- On a widget whose colour has a default of its own (the header bar's
+-- text colour, 0,0,0) a click on Clear empties it too, as the menu's
+-- Clear does
+on tour_inspector_clear_button
+   local tButton, tPI, tEditor, tSwatch, tClear, tNext, tDefault, tWidget, tFails, tError
+   put tourSample("Push") into tButton
+   set the backgroundColor of tButton to empty
+   try
+      put tourInspect(tButton) into tPI
+      get tourInspectorSection(tPI, "Colors")
+      put tourInspectorEditor(tPI, "backgroundColor") into tEditor
+      if tEditor is empty then throw "the button's inspector has no Background fill"
+      put the long id of control 1 of tEditor into tSwatch
+      if word 1 of tSwatch is "button" and the short name of tSwatch is "clearColour" then
+         throw "control 1 of the colour editor is the Clear button, not the swatch"
+      end if
+      if there is not a button "clearColour" of tEditor then throw "the Background fill has no Clear button"
+      put the long id of button "clearColour" of tEditor into tClear
+      tourRecord "INFO inspector-clear-button swatch" && the rect of tSwatch && "Clear" && the rect of tClear && \
+            "label" && quote & the label of tClear & quote && "enabled" && the enabled of tClear
+      if not the visible of tClear then put "the Clear button is hidden" & return after tFails
+      if the label of tClear is not "Clear" then
+         put "the Clear button's label is" && quote & the label of tClear & quote & return after tFails
+      end if
+      if the left of tClear < the right of tSwatch or the top of tClear > the bottom of tSwatch or \
+            the bottom of tClear < the top of tSwatch then
+         put "the Clear button" && the rect of tClear && "is not beside the swatch" && the rect of tSwatch & return after tFails
+      end if
+      if the right of tClear > the width of stack tPI then
+         put "the Clear button" && the rect of tClear && "is off the inspector's window (width" && the width of stack tPI & ")" & return after tFails
+      end if
+      put tourInspectorEditor(tPI, "backgroundPattern") into tNext
+      if tNext is not empty and the left of tNext < the right of tClear then
+         put "the Clear button" && the rect of tClear && "is under the Fill pattern" && the rect of tNext & return after tFails
+      end if
+      if the enabled of tClear then
+         put "Clear is enabled though the button has no colour of its own" & return after tFails
+      end if
+      -- a colour a script gives it: the button is enabled
+      set the backgroundColor of tButton to "0,160,0"
+      repeat 30 times
+         if the enabled of tClear then exit repeat
+         tourWait 100
+      end repeat
+      if not the enabled of tClear then
+         put "Clear is not enabled once a script gave the button 0,160,0" & return after tFails
+      end if
+      -- a click on it, as a user's
+      put the defaultStack into tDefault
+      set the defaultStack to tPI
+      tourUnlockScreen "inspector-clear-button"
+      click at the loc of tClear
+      set the defaultStack to tDefault
+      repeat 30 times
+         if the backgroundColor of tButton is empty then exit repeat
+         tourWait 100
+      end repeat
+      tourRecord "INFO inspector-clear-button after a click on Clear: backgroundColor" && \
+            quote & the backgroundColor of tButton & quote && "swatch" && quote & the swatchColor of tSwatch & quote && \
+            "Clear enabled" && the enabled of tClear
+      if the backgroundColor of tButton is not empty then
+         put "a click on Clear left the backgroundColor" && the backgroundColor of tButton & return after tFails
+      end if
+      if item 1 to 3 of the swatchColor of tSwatch is "0,160,0" then
+         put "after Clear the swatch still shows 0,160,0" & return after tFails
+      end if
+      if the enabled of tClear then
+         put "Clear is still enabled after it cleared the colour" & return after tFails
+      end if
+      -- the colour the script gives it again, for the picture
+      set the backgroundColor of tButton to "0,160,0"
+      repeat 30 times
+         if the enabled of tClear then exit repeat
+         tourWait 100
+      end repeat
+      tourShotStack tPI, "08-inspector-clear-button"
+   catch tError
+      put tError & return after tFails
+   end try
+   set the backgroundColor of tButton to empty
+   tourCloseInspectors
+   -- a widget's colour whose default is 0,0,0
+   try
+      get tourSampleStack()
+      go stack kSample
+      set the defaultStack to kSample
+      create widget "oxtTourHeaderClear" as "com.livecode.widget.headerbar"
+      put it into tWidget
+      set the foregroundColor of tWidget to "200,0,0"
+      put tourInspect(tWidget) into tPI
+      get tourInspectorSection(tPI, "Colors")
+      put tourInspectorEditor(tPI, "foregroundColor") into tEditor
+      if tEditor is empty then throw "the header bar's inspector has no Text color"
+      if there is not a button "clearColour" of tEditor then throw "the header bar's Text color has no Clear button"
+      put the long id of button "clearColour" of tEditor into tClear
+      repeat 30 times
+         if the enabled of tClear then exit repeat
+         tourWait 100
+      end repeat
+      put the defaultStack into tDefault
+      set the defaultStack to tPI
+      tourUnlockScreen "inspector-clear-button"
+      click at the loc of tClear
+      set the defaultStack to tDefault
+      tourWait 500
+      tourRecord "INFO inspector-clear-button the header bar's foregroundColor after Clear:" && \
+            quote & the foregroundColor of tWidget & quote
+      if the foregroundColor of tWidget is not empty then
+         put "Clear left the header bar's foregroundColor" && the foregroundColor of tWidget & return after tFails
+      end if
+   catch tError
+      put tError & return after tFails
+   end try
+   tourCloseInspectors
+   if tWidget is not empty and exists(tWidget) then delete tWidget
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_inspector_clear_button
 
 -- The first visible open stack but pStack whose window takes in the point
 -- pPoint of the screen, in front of pStack or behind it, or empty
