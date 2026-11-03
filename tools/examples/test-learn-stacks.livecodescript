@@ -10,7 +10,7 @@ script "OXTTestLearnStacks"
 -- (on Linux, under xvfb-run where there is no display). It tests the
 -- stacks named in OXT_LEARN_STACKS (paths, comma separated), or else every
 -- ide/Resources/Examples/Remastered/Learn *.oxtstack whose front card is a
--- Learn stack's (Learn Box2D has a test of its own), and loads each
+-- Learn stack's (Learn Box2D and Learn Box2Dxt Kit have tests of their own), and loads each
 -- stack's extensions from the install it runs in (or the one in
 -- OXT_INSTALL), as the stack's custom property cLoad says. For each:
 --
@@ -99,7 +99,8 @@ private function learnStacksIn pFolder
    local tFiles, tFile, tOut
    put files(pFolder) into tFiles
    repeat for each line tFile in tFiles
-      if tFile begins with "Learn " and tFile ends with ".oxtstack" and tFile is not "Learn Box2D.oxtstack" then
+      if tFile begins with "Learn " and tFile ends with ".oxtstack" and tFile is not "Learn Box2D.oxtstack" \
+            and tFile is not "Learn Box2Dxt Kit.oxtstack" then
          put pFolder & "/" & tFile & comma after tOut
       end if
    end repeat

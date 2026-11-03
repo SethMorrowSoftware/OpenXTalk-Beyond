@@ -48,7 +48,8 @@ What it clicks, and what must follow:
   Back and Next    between lessons
 
 With no --stack, it clicks every ide/Resources/Examples/Remastered/Learn
-*.oxtstack but Learn Box2D (which has learn-box2d-clicks.py). It writes a
+*.oxtstack but Learn Box2D (which has learn-box2d-clicks.py) and Learn
+Box2Dxt Kit (which has test-learn-box2dxt-kit.livecodescript). It writes a
 line for each check, PASS or FAIL, and ends with "DONE" (exit status 0)
 or "FAILED <how many>" (exit status 1). With --shots, a picture of each
 card after its clicks.
@@ -396,7 +397,8 @@ def main():
     stacks = [os.path.abspath(s) for s in (args.stack or [])]
     if not stacks:
         stacks = sorted(s for s in glob.glob(os.path.join(REMASTERED, 'Learn *.oxtstack'))
-                        if os.path.basename(s) != 'Learn Box2D.oxtstack')
+                        if os.path.basename(s) not in ('Learn Box2D.oxtstack',
+                                                       'Learn Box2Dxt Kit.oxtstack'))
     engine = os.path.join(args.install, 'Runtime', 'Linux', 'x86-64', 'Standalone')
     if not os.path.isfile(engine):
         print('FAILED no standalone engine at %s' % engine)
