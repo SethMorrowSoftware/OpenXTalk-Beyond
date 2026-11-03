@@ -348,7 +348,7 @@ end mouseUp
 @*/
 
 /*@ Files/expect
-^pics/a.txt 0\npics/b.txt 4\n$
+^pics[\\/]a\.txt 0\npics[\\/]b\.txt 4\n$
 @*/
 
 /*@ Control/words
