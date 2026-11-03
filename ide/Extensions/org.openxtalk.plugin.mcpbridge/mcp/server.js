@@ -128,7 +128,8 @@ const INSTRUCTIONS = [
   'properties and scripts, as one checked batch), try code with run_code, and save with save_stack.',
   'A long script is read in parts with read_script and changed a handler or a range of lines at a time with edit_script.',
   'A change is made as soon as the user allows the tool here; OXT-Beyond asks the user itself before every run of code',
-  '(showing it), before saving, and before undoing what they changed since.',
+  '(showing it), before saving, and before undoing what they changed since. The user can turn off its asking before runs',
+  'and saves (Stop Asking in OXT-Beyond); then they go ahead at once, so take the same care as if the user were watching.',
   'undo_changes takes back what you changed or ran on a stack. Check code with check_code and look up what you',
   'are not sure of with lookup_dictionary rather than guess.',
   'When a call waits or is refused as busy, its text says what OXT-Beyond waits for: the user\'s answer to its question',
@@ -359,7 +360,8 @@ const TOOLS = [
       'or stack, the user\'s stack, as the Message Box runs code there (with the stack\'s own handlers, me being the card ' +
       'or control given by target, the current card when none), after a checkpoint undo_changes goes back to (on the ' +
       'stack, return gives nothing back: put the value instead; a run that changed nothing keeps no checkpoint). Every run is shown to the user in OXT-Beyond first, and ' +
-      'runs only when they allow it: keep the code short and plain, so that they can read it. Do not use answer or ask: ' +
+      'runs only when they allow it, unless they turned that asking off (it then runs at once, and is noted in a log): ' +
+      'keep the code short and plain, so that they can read it. Do not use answer or ask: ' +
       'the run would wait for the user. A run ' +
       'that never ends is stopped only by the user (Control-period, Command-period on a Mac).',
     inputSchema: {
@@ -379,7 +381,8 @@ const TOOLS = [
     name: 'save_stack',
     title: 'Save a stack',
     description: 'Saves a stack of the user\'s to its file, with its substacks, as File > Save does, after the user says yes ' +
-      'in OXT-Beyond, every time. A stack never saved (a new one you made) is saved where the user chooses. Save when the ' +
+      'in OXT-Beyond, every time unless they turned that asking off. A stack never saved (a new one you made) is saved ' +
+      'where the user chooses. Save when the ' +
       'user asks you to, or offer to when you have built a new stack. Saving cannot be undone.',
     inputSchema: { type: 'object', properties: { stack: STACK } },
     annotations: CHANGES

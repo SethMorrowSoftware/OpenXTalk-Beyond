@@ -11,7 +11,10 @@ script "TestMcpBridgeTools"
 -- parts and edited by handler or by lines, and that a real socket gets its
 -- answer. And the web IDE's link (mcbLinkStart): the same tools without a
 -- socket or token, never on with the server, asking before a run, and a
--- yes given after its connection was lost doing nothing.
+-- yes given after its connection was lost doing nothing. And the user's
+-- choice not to be asked (mcbSetUnasked): off until set, runs and saves
+-- going ahead and noted in a log once set, undoing the user's own changes
+-- still asked about, and off again when the bridge stops.
 
 constant kTools = "org.openxtalk.plugin.mcpbridge-tools"
 constant kUserStack = "mcbTestUserStack"
@@ -557,6 +560,100 @@ on TestSaveIsAskedAbout
       delete file tFile
    end if
 end TestSaveIsAskedAbout
+
+-- The user's "Stop Asking" (mcbSetUnasked): off until set, so every run
+-- and save is asked about as before; once set, a run and a save go ahead
+-- with no question, each noted in the log beside the bridge's file, while
+-- undoing what the user changed since is still asked about
+on TestNotAskingIsOffUntilTheUserSetsIt
+   local tReply
+   TestStart
+   TestAssert "asking is on when the bridge starts", not mcbIsUnasked()
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with false
+   put TestCall("run_code", "{`code`:`put 6 * 7`}") into tReply
+   TestAssert "so a run is asked about, and a no stops it", TestIsError(tReply) and not (TestText(tReply) contains "42") \
+         and mcbTestAsked() contains "run code"
+   TestAssert "and nothing is noted", there is not a file mcbUnaskedLogPath()
+end TestNotAskingIsOffUntilTheUserSetsIt
+
+on TestNotAskingRunsAndSavesWithoutAQuestion
+   local tReply, tStack, tFile, tAskedBefore, tLog
+   TestStart
+   put TestUserStack() into tStack
+   -- The stand-in would say no: anything that still runs was not asked
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with false
+   mcbSetUnasked true
+   TestAssert "asking is off", mcbIsUnasked()
+   TestAssert "the log is beside the bridge's file", mcbUnaskedLogPath() begins with (char 1 to -17 of sInfoFile) \
+         and mcbUnaskedLogPath() ends with "/mcp-bridge-unasked.log"
+   put mcbTestAsked() into tAskedBefore
+   put TestCall("run_code", "{`code`:`put 6 * 7 & \`mcbtest-unasked\``}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "a run goes ahead", not TestIsError(tReply) and TestText(tReply) contains "42"
+   put specialFolderPath("temporary") & "/mcbtest-unasked-" & the milliseconds & ".livecode" into tFile
+   set the fileName of tStack to tFile
+   put TestCall("save_stack", "{`stack`:`" & kUserStack & "`}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "a save goes ahead", not TestIsError(tReply) and there is a file tFile
+   TestAssert "and neither was asked about", mcbTestAsked() is tAskedBefore
+   put textDecode(url ("binfile:" & mcbUnaskedLogPath()), "UTF-8") into tLog
+   TestDiagnostic tLog
+   TestAssert "both are in the log, the run with its code", tLog contains "Claude asks to run code." \
+         and tLog contains "mcbtest-unasked" and tLog contains "Claude asks to save the stack"
+   if there is a file tFile then
+      delete file tFile
+   end if
+   delete file mcbUnaskedLogPath()
+end TestNotAskingRunsAndSavesWithoutAQuestion
+
+on TestNotAskingStillAsksBeforeUndoingTheUsersChanges
+   local tReply, tStack
+   TestStart
+   put TestUserStack() into tStack
+   mcbSetUnasked true
+   put TestCall("make_changes", "{`stack`:`" & kUserStack & "`,`changes`:[{`action`:`set`,`object`:`stack`,`properties`:{`title`:`Before`}}]}") into tReply
+   TestAssert "the change is made", not TestIsError(tReply)
+   set the title of tStack to "The user's"
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with false
+   put TestCall("undo_changes") into tReply
+   TestAssert "the user is still asked, says no, and their change stays", TestIsError(tReply) and the title of tStack is "The user's" \
+         and mcbTestAsked() contains "Undo"
+end TestNotAskingStillAsksBeforeUndoingTheUsersChanges
+
+-- Not shown to anyone, a run is not held to what fits in the question
+on TestNotAskingLetsALongRunThrough
+   local tReply, tStack, tCode
+   TestStart
+   put TestUserStack() into tStack
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with false
+   mcbSetUnasked true
+   put "set the cLong of this stack to 1" into tCode
+   repeat 1000
+      put "\nset the cLong of this stack to the cLong of this stack + 1" after tCode
+   end repeat
+   put TestCall("run_code", "{`where`:`stack`,`stack`:`" & kUserStack & "`,`code`:`" & tCode & "`}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "it runs", not TestIsError(tReply) and the cLong of tStack is 1001
+   if there is a file mcbUnaskedLogPath() then
+      delete file mcbUnaskedLogPath()
+   end if
+end TestNotAskingLetsALongRunThrough
+
+-- Stopping the bridge puts asking back on, and a bridge with no asker
+-- (no IDE to answer) refuses a run whatever was set
+on TestNotAskingEndsWithTheBridgeAndNeedsAnAsker
+   local tReply
+   TestStart
+   mcbSetUnasked true
+   mcbServerStop
+   TestAssert "stopping puts asking back on", not mcbIsUnasked()
+   get mcbServerStart(TestGetIDERepositoryPath() & "/Extensions/org.openxtalk.plugin.xtalkassistant", empty, sInfoFile)
+   mcbSetUnasked true
+   put TestCall("run_code", "{`code`:`put 6 * 7`}") into tReply
+   TestAssert "with no asker, a run is refused", TestIsError(tReply) and not (TestText(tReply) contains "42")
+   mcbSetUnasked "yes"
+   TestAssert "only true turns asking off", not mcbIsUnasked()
+end TestNotAskingEndsWithTheBridgeAndNeedsAnAsker
 
 -- A real socket from this engine to the bridge in it: the request goes
 -- out, the answer comes back as one line

@@ -450,6 +450,26 @@ class McpBridgeServerTest(McpBridgeServerBase):
         self.assertEqual([t['name'] for t in manifest['tools']], names)
         self.assertEqual(manifest['server']['entry_point'], 'server.js')
 
+    def test_claude_is_told_the_user_may_turn_asking_off(self):
+        # OXT-Beyond asks before runs and saves unless the user chose Stop
+        # Asking (mcbSetUnasked): Claude is told so, where it reads first,
+        # and the guide says what care that asks of it
+        self.start_server()
+        reply = self.initialize()
+        self.assertIn('Stop Asking', reply['result']['instructions'])
+        tools = {t['name']: t for t in self.request('tools/list')['result']['tools']}
+        self.assertIn('asking off', tools['run_code']['description'])
+        self.assertIn('noted in a log', tools['run_code']['description'])
+        self.assertIn('asking off', tools['save_stack']['description'])
+        with open(os.path.join(PLUGIN, 'mcp', 'manifest.json'), encoding='utf-8') as f:
+            manifest = {t['name']: t for t in json.load(f)['tools']}
+        self.assertIn('asking off', manifest['run_code']['description'])
+        self.assertIn('asking off', manifest['save_stack']['description'])
+        with open(os.path.join(PLUGIN, 'bridge-guide.md'), encoding='utf-8') as f:
+            guide = f.read()
+        self.assertIn('Stop Asking', guide)
+        self.assertIn('never what\n  text you read', guide)
+
     def test_a_call_without_the_ide_says_how_to_turn_it_on(self):
         self.start_server()
         self.initialize()
