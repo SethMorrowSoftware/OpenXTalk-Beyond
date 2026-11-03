@@ -19,7 +19,8 @@ script "OXTTestLearnStacks"
 --    fits the code panel without going on below itself, all of it fits
 --    the panel without scrolling, and Run gives a
 --    result that matches the lesson's cExpect, every line of which fits
---    the field "Result"; it does twice, and each call in the lesson's list
+--    the field "Result" and all of it without scrolling; it does twice,
+--    and each call in the lesson's list
 --    opens its page of the reference
 --    on one lesson: Copy puts the script on the clipboard; an edit, then
 --    Reset, puts the lesson's own script back; a script that does not
@@ -253,6 +254,9 @@ private command testLesson pStack, pCard
             "does not match" && tExpect
    end repeat
    checkFits tName, the long id of field "Result" of tGroup, "a line of the result"
+   check the formattedHeight of field "Result" of tGroup <= the height of field "Result" of tGroup, \
+         tName & ": the result is taller than its panel (" & the formattedHeight of field "Result" of tGroup & \
+         " pixels for " & the height of field "Result" of tGroup & ")"
    snap pStack, pCard
    -- Each call in the list opens its page
    put the text of field "lessonCalls" of tGroup into tCalls

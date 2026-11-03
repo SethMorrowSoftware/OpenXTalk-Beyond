@@ -2293,6 +2293,10 @@ private function leExampleTable
          "offers and answers, connecting, messages, bytes, channel options and saying goodbye, each a script to change " & \
          "and run, and a reference of every handler.|OXT-Beyond, 2026, on libdatachannel through datachannelxt|suite|users|sky|" & \
          "webrtc datachannel datachannelxt libdatachannel peer p2p network networking sdp ice|Resources/Examples/Remastered/Learn dataChannelXT.oxtstack|Learn dataChannelXT" & return after tTable
+   put "|Learn TorrentXT|Nine lessons in BitTorrent with TorrentXT: the session and its settings, making and " & \
+         "seeding a torrent, magnet links, events, files, pausing and limits, each a script to change and run, " & \
+         "and a reference of every handler.|OXT-Beyond, 2026, on libtorrent through torrentxt|suite|package|orange|" & \
+         "torrent torrentxt bittorrent libtorrent magnet seed peer p2p dht file sharing|Resources/Examples/Remastered/Learn TorrentXT.oxtstack|Learn TorrentXT" & return after tTable
    put "Resources/Examples/SQLite Book Library.oxtstack|SQLite Book Library|A small catalogue of books in SQLite, shown in " & \
          "a Data Grid: list them, search them, add and delete them.|In OpenXTalk Lite's demo set; its author is not recorded|apps|library-big|emerald|" & \
          "sqlite datagrid books database|Resources/Examples/Remastered/SQLite Books.oxtstack|SQLite Books" & return after tTable
