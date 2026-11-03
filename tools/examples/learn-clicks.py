@@ -347,7 +347,17 @@ def click_stack(args, stack, engine):
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     proc = None
     try:
-        time.sleep(1.0)
+        # (the X server is up once its socket is there; the last stack's,
+        # on the same display, has been waited for below)
+        socket = '/tmp/.X11-unix/X' + run.display[1:]
+        for _ in range(100):
+            if os.path.exists(socket) or xvfb.poll() is not None:
+                break
+            time.sleep(0.1)
+        if not run.check(xvfb.poll() is None and os.path.exists(socket), 'the X server starts',
+                         run.display):
+            return run.fails
+        time.sleep(0.5)
         proc = subprocess.Popen([engine, PROBE], env=run.env, stdout=subprocess.DEVNULL,
                                 stderr=subprocess.DEVNULL)
         st = run.wait_for(lambda s: s.get('learn') == 'front', 45)
@@ -366,7 +376,10 @@ def click_stack(args, stack, engine):
     finally:
         if proc:
             proc.kill()
+            proc.wait()
+        # (and gone, with its display, before the next stack's starts)
         xvfb.kill()
+        xvfb.wait()
         shutil.rmtree(run.work, ignore_errors=True)
     return run.fails
 

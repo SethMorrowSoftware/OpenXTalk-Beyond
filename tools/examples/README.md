@@ -31,6 +31,7 @@ package.
 | Learn Box2D | [learn-box2d](learn-box2d.livecodescript) | None: made here, in the same look | OXT-Beyond, 2026 |
 | Learn SodiumXT | [learn-sodiumxt](learn-sodiumxt.livecodescript) | None: made here, a Learn stack (below) | OXT-Beyond, 2026 |
 | Learn CoinXT | [learn-coinxt](learn-coinxt.livecodescript) | None: made here, a Learn stack (below) | OXT-Beyond, 2026 |
+| Learn NostrXT | [learn-nostrxt](learn-nostrxt.livecodescript) | None: made here, a Learn stack (below) | OXT-Beyond, 2026 |
 
 A remaster is a binary stack, `ide/Resources/Examples/Remastered/<name>.oxtstack`,
 and it is never edited by hand: a script here builds it, and the stack is
@@ -121,8 +122,8 @@ at the top of its court, and the rest of the stack still opens and reads.
 A Learn stack teaches one of the extensions of the
 [xTalk Suite](https://github.com/SethMorrowSoftware/xtalk-suite) that
 OXT-Beyond has built in, one idea a card, for a reader new to it. Home
-lists them under "The xTalk Suite": Learn SodiumXT and Learn CoinXT so
-far; Learn Box2D, above, has a look of its own. Each is built by its builder
+lists them under "The xTalk Suite": Learn SodiumXT, Learn CoinXT and
+Learn NostrXT so far; Learn Box2D, above, has a look of its own. Each is built by its builder
 (`learn-<extension>.livecodescript`) with the `exLearn...` handlers of
 [builder.livecodescript](builder.livecodescript), and has:
 
@@ -142,8 +143,8 @@ far; Learn Box2D, above, has a look of its own. Each is built by its builder
   of the install that builds the stack), stored compressed in the stack.
 
 The build stops if a lesson's words or calls do not fit their panel, if
-a line of a script is wider than the code panel, or if a call has no
-page. Lessons are plain text and a few links, so a stack stays small
+a line of a script is wider than the code panel, if a script is taller
+than it (24 lines), or if a call has no page. Lessons are plain text and a few links, so a stack stays small
 (Learn SodiumXT is about 150 KB, 47 KB compressed).
 
 ```sh
@@ -153,7 +154,8 @@ xvfb-run -a <install>/OXT-Beyond -ui tools/examples/test-learn-stacks.livecodesc
 loads each Learn stack's extensions from the install (its `cLoad` says
 which) and checks, on a real engine: the front page says the extension
 is loaded; on every lesson the script shown is the lesson's, every line
-of it and of its result fits its panel, Run (twice) gives a result
+of it and of its result fits its panel and all of the script fits
+without scrolling, Run (twice) gives a result
 matching the lesson's `/*@ <card>/expect` pattern, and every call opens
 its own page; Copy, an edit then Reset, a script that does not compile
 and one that stops each say the right thing; the Reference lists every

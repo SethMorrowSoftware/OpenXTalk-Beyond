@@ -16,7 +16,8 @@ script "OXTTestLearnStacks"
 --
 --    the front page says that the extension is loaded
 --    on each lesson: the script shown is the lesson's, every line of it
---    fits the code panel without going on below itself, and Run gives a
+--    fits the code panel without going on below itself, all of it fits
+--    the panel without scrolling, and Run gives a
 --    result that matches the lesson's cExpect, every line of which fits
 --    the field "Result"; it does twice, and each call in the lesson's list
 --    opens its page of the reference
@@ -236,6 +237,9 @@ private command testLesson pStack, pCard
    check the text of field "lessonScript" of tGroup is the cScript of this card, \
          tName & ": the script shown is not the lesson's"
    checkFits tName, the long id of field "lessonScript" of tGroup, "a line of the script"
+   check the formattedHeight of field "lessonScript" of tGroup <= the height of field "lessonScript" of tGroup, \
+         tName & ": the script is taller than its panel (" & the formattedHeight of field "lessonScript" of tGroup & \
+         " pixels for " & the height of field "lessonScript" of tGroup & ")"
    check the visible of group "lessonPart" of tGroup and not the visible of group "refPart" of tGroup, \
          tName & ": the lesson's half of the Learn group does not show"
    repeat with tRun = 1 to 2

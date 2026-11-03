@@ -1362,6 +1362,11 @@ command exLearnLesson pCard
    -- (in colour once the card opens: the colours would weigh more than
    -- the script)
    put tScript into field "lessonScript"
+   -- (all of it in sight, above the buttons, without scrolling)
+   if the formattedHeight of field "lessonScript" > the height of field "lessonScript" then
+      put "the script of " & pCard & " is too long: " & the number of lines of tScript & " lines, " & \
+            the formattedHeight of field "lessonScript" & " pixels for " & the height of field "lessonScript" & return after sLearnProblems
+   end if
    put "Press Run to see what this script does." into field "Result"
    set the textColor of field "Result" to "148,163,184"
 end exLearnLesson

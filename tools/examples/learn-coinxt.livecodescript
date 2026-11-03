@@ -551,8 +551,6 @@ on mouseUp
          tV, tR, tS) into tTx
    get (the length of tTx["raw"]) / 2
    put cr & "Signed:" && it && "bytes" after tOut
-   get char 1 to 8 of tTx["raw"]
-   put cr & "Starts:" && it after tOut
    get char 1 to 16 of tTx["txhash"]
    put cr & "Hash:" && it after tOut
    put tOut into field "Result"
@@ -560,5 +558,5 @@ end mouseUp
 @*/
 
 /*@ EthTx/expect
-^Digest: 32 bytes\nSigned: 117 bytes\nStarts: 02f87201\nHash: ad35dafd696eb9d6$
+^Digest: 32 bytes\nSigned: 117 bytes\nHash: ad35dafd696eb9d6$
 @*/
