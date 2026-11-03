@@ -337,12 +337,31 @@ def dynamic(run, st=None):
 def drag(run, name):
     st = run.state()
     court = rect(st['court'])
-    # (newest first: a lesson makes its jointed parts, a lift, a flap, a
-    # windmill, before the loose bodies it drops)
-    tries = list(reversed(dynamic(run, st)))[:6]
+    # The bodies no joint holds go first, then the rest newest first: a
+    # body on a hinge, a slider or a motor, such as a windmill's blade or a
+    # lift, may not go where it is pulled. And a press lands where the body
+    # WAS when the state was read, so one still rolling (a ball rolls on a
+    # flat floor for as long as nothing stops it) is pressed beside it and
+    # the drag pulls nothing: a free body counts as still when it moved
+    # under 3 pixels in a quarter of a second, and the test waits up to
+    # four seconds for one, then tries the stillest
+    free = set(n for n in st.get('free', '').split(',') if n)
+    for _ in range(16):
+        before = dict(dynamic(run, st))
+        time.sleep(0.25)
+        st = run.state()
+        bodies = list(reversed(dynamic(run, st)))
+
+        def moved(b):
+            was = before.get(b[0], (-999, -999))
+            return ((b[1][0] - was[0]) ** 2 + (b[1][1] - was[1]) ** 2) ** 0.5
+        loose = sorted([b for b in bodies if b[0] in free], key=lambda b: (moved(b) // 3, b[1][1]))
+        if not loose or moved(loose[0]) < 3:
+            break
+    tries = (loose + [b for b in bodies if b[0] not in free])[:6]
     if not run.check(bool(tries), '%s: a body to drag' % name, 'none in the court'):
         return
-    why = ''
+    why = []
     # (a body a joint holds, such as a lift on its motor or a flap at its
     # limit, may not go where it is pulled: one of the first few must)
     for body, (x, y) in tries:
@@ -352,7 +371,7 @@ def drag(run, name):
         now = dict(table(st.get('dynamic')))
         time.sleep(0.4)
         if body not in now:
-            why = 'the body is gone'
+            why.append('%s is gone' % body)
             continue
         nx, ny = now[body]
         moved = ((nx - x) ** 2 + (ny - y) ** 2) ** 0.5
@@ -360,8 +379,9 @@ def drag(run, name):
         if moved > 30 and near < moved:
             run.check(True, '%s: a dragged body follows the mouse' % name)
             return
-        why = 'from %d,%d toward %d,%d: now %d,%d' % (x, y, tx, ty, nx, ny)
-    run.check(False, '%s: a dragged body follows the mouse' % name, why)
+        why.append('%s%s from %d,%d toward %d,%d: now %d,%d'
+                   % (body, '' if body in free else ' (jointed)', x, y, tx, ty, nx, ny))
+    run.check(False, '%s: a dragged body follows the mouse' % name, '; '.join(why))
 
 
 def empty_click(run, name):

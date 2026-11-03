@@ -331,9 +331,9 @@ Work left for later. 428 notes, by part of the repository:
 - [engine/src/mac-surface.mm:261](engine/src/mac-surface.mm#L261) COCOA-TODO: Getting the height to flip round is dependent on a friend.
 - [engine/src/mac-surface.mm:294](engine/src/mac-surface.mm#L294) COCOA-TODO: Getting the height to flip round is dependent on a friend.
 - [engine/src/mac-window.mm:599](engine/src/mac-window.mm#L599) COCOA-TODO: Make sure this is necessary, apparantly things should
-- [engine/src/mac-window.mm:2052](engine/src/mac-window.mm#L2052) COCOA-TODO: Sort out changes that affect window type (not needed at the moment
-- [engine/src/mac-window.mm:2089](engine/src/mac-window.mm#L2089) COCOA-TODO: At the moment force a re-display here to stop redraw artifacts.
-- [engine/src/mac-window.mm:2379](engine/src/mac-window.mm#L2379) COCOA-TODO: Make display update more specific.
+- [engine/src/mac-window.mm:2054](engine/src/mac-window.mm#L2054) COCOA-TODO: Sort out changes that affect window type (not needed at the moment
+- [engine/src/mac-window.mm:2091](engine/src/mac-window.mm#L2091) COCOA-TODO: At the moment force a re-display here to stop redraw artifacts.
+- [engine/src/mac-window.mm:2381](engine/src/mac-window.mm#L2381) COCOA-TODO: Make display update more specific.
 - [engine/src/mblandroidad.cpp:171](engine/src/mblandroidad.cpp#L171) TODO - Should probably improve this to use a similar method to native controls.
 - [engine/src/mblandroidcalendar.cpp:79](engine/src/mblandroidcalendar.cpp#L79) TODO - IMPLEMENT SUPPORT FOR API LEVEL 14
 - [engine/src/mblandroidcalendar.cpp:92](engine/src/mblandroidcalendar.cpp#L92) TODO - IMPLEMENT SUPPORT FOR API LEVEL 14

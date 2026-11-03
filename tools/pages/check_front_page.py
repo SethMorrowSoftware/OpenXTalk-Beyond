@@ -27,7 +27,11 @@ and narrow (1280 and 390 pixels), in light and in dark, and checks that:
   - nothing is wider than the window (no sideways scrolling on a phone);
   - every link to the site's own folders answers with a page (HTTP 200),
     and every "#" link names an element of the page;
-  - the stack in the header answers its button with "Hello from Beyond!".
+  - the stack in the header answers its button with "Hello from Beyond!";
+  - at rest (nothing pointed at), nothing larger than the header's moving
+    logo is redrawn without end: an endless animation of anything but
+    opacity and transform (which the compositor moves without drawing),
+    or a moving SVG picture (SMIL), is no bigger than that logo.
 
 Screenshots go to --out (front-wide-light.png, front-wide-dark.png,
 front-narrow-light.png, front-narrow-dark.png). Exit status 0 when every
@@ -46,6 +50,53 @@ import urllib.request
 
 SIZES = (('wide', 1280, 800), ('narrow', 390, 844))
 SCHEMES = ('light', 'dark')
+
+# What the page keeps redrawing at rest, larger than the header's moving
+# logo: endless animations of a property the browser draws again each frame
+# (anything but opacity and transform), and moving SVG pictures (SMIL),
+# where they are drawn. The cards' spinning rims and the first card's
+# moving logo kept a browser without a GPU busy most of each second while
+# the cards were on screen (tperry2x, openxtalk.org p=25971: Firefox's fans
+# on a slow machine); the header's logo is the yardstick, as the one thing
+# meant to move all the time.
+RESTLESS = r"""async () => {
+  const area = (el, pseudo) => {
+    if (pseudo) {
+      // a ::before or ::after has no box of its own to ask for: its used size
+      const s = getComputedStyle(el, pseudo), w = parseFloat(s.width), h = parseFloat(s.height);
+      if (w >= 0 && h >= 0) return [Math.round(w), Math.round(h)];
+    }
+    const r = el.getBoundingClientRect();
+    return [Math.round(r.width), Math.round(r.height)];
+  };
+  const logo = document.querySelector('.hero-logo img');
+  if (!logo) return ['no moving logo in the header to measure by'];
+  const [lw, lh] = area(logo), limit = lw * lh, big = [];
+  const name = el => el.tagName.toLowerCase() + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).join('.') : '');
+  for (const a of document.getAnimations()) {
+    const e = a.effect;
+    if (!e || !e.target || a.playState !== 'running' || e.getComputedTiming().iterations !== Infinity) continue;
+    const props = new Set();
+    for (const k of e.getKeyframes()) for (const p of Object.keys(k)) props.add(p);
+    for (const p of ['offset', 'computedOffset', 'easing', 'composite']) props.delete(p);
+    // (a custom property's keyframes may list nothing: drawn again, then)
+    if (props.size && [...props].every(p => p === 'opacity' || p === 'transform')) continue;
+    const [w, h] = area(e.target, e.pseudoElement);
+    if (w * h > limit)
+      big.push((a.animationName || 'an animation') + ' of ' + ([...props].join(', ') || 'a custom property') + ' on ' + name(e.target) +
+               (e.pseudoElement || '') + ', ' + w + 'x' + h);
+  }
+  for (const img of document.images) {
+    if (!img.getClientRects().length || img === logo) continue;
+    const [w, h] = area(img);
+    if (w * h <= limit) continue;
+    let text = '';
+    try { text = await (await fetch(img.currentSrc)).text(); } catch (err) { continue; }
+    if (/<animate/.test(text))
+      big.push('the moving picture ' + img.getAttribute('src') + ', ' + w + 'x' + h);
+  }
+  return big.map(s => s + ' (the logo: ' + lw + 'x' + lh + ')');
+}"""
 
 
 class Quiet(http.server.SimpleHTTPRequestHandler):
@@ -94,6 +145,10 @@ def run(site, out, browser_name, timeout):
                     scroll = page.evaluate('() => [document.documentElement.scrollWidth, window.innerWidth]')
                     check('%s: nothing wider than the window' % where, scroll[0] <= scroll[1],
                           '%d px of content in %d' % tuple(scroll))
+                    # before anything is clicked, so nothing is pointed at
+                    restless = page.evaluate(RESTLESS)
+                    check('%s: at rest nothing big is redrawn without end' % where, not restless,
+                          '; '.join(restless))
                     if out:
                         page.screenshot(path=os.path.join(out, 'front-%s-%s.png' % (size, scheme)), full_page=True)
                     if size == 'wide' and scheme == 'light':

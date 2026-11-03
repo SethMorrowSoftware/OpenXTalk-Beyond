@@ -119,5 +119,14 @@ private function clicksState
       end if
    end repeat
    put "dynamic=" & tDocs & return after tS
+   -- which of those no joint holds (a body on a hinge, a slider or a
+   -- motor may not go where it is pulled, so a drag tries these first)
+   put empty into tDocs
+   repeat for each item tBody in tList
+      if b2BodyType(tBody) is 2 and b2BodyJointCount(tBody) is 0 then
+         put tBody & comma after tDocs
+      end if
+   end repeat
+   put "free=" & tDocs & return after tS
    return tS
 end clicksState

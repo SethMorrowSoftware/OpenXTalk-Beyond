@@ -257,13 +257,18 @@
       var(--panel);
     box-shadow: var(--shadow); transition: transform .25s ease, box-shadow .25s ease;
   }
-  /* The fire rim: a ring of the logo's rim gradient, half lit until hovered */
+  /* The fire rim: a ring of the logo's rim gradient, half lit and still
+     until the card is pointed at or has the focus, when it lights up and
+     spins. Spinning at rest, it drew every card again each frame: with the
+     first card's moving logo, most of each second of a machine without a GPU
+     while the cards were on screen (tperry2x, openxtalk.org p=25971:
+     Firefox, a slow machine's fans). tools/pages/check_front_page.py holds
+     the page to it */
   .card::before {
     content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit;
     padding: 2px; opacity: var(--rim-rest);
     background: conic-gradient(from var(--spin), #ff3d00, #ffc24d 12%, #fff4b0 16%, #ff7700 24%, rgba(255,119,0,.35) 45%,
                                rgba(255,61,0,.35) 70%, #ff3d00);
-    animation: rim-spin 7s linear infinite;
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor; mask-composite: exclude;
     transition: opacity .25s ease;
@@ -288,6 +293,11 @@
     transition: transform .4s ease;
   }
   .feature-logo img { display: block; width: 100%; height: 100%; }
+  /* The logo still at rest, and moving (SMIL, under the two drop shadows)
+     while the card is pointed at or has the focus, as the rim spins */
+  .feature-logo .moving { display: none; }
+  .card.featured:hover .feature-logo .moving, .card.featured:focus-within .feature-logo .moving { display: block; }
+  .card.featured:hover .feature-logo .still, .card.featured:focus-within .feature-logo .still { display: none; }
   .card.featured:hover .feature-logo { transform: translateY(-50%) rotate(0deg) scale(1.05); }
   .card .shine {
     position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit; overflow: hidden;
@@ -300,7 +310,7 @@
     transform: translateY(-5px);
     box-shadow: var(--shadow), 0 20px 54px rgba(255,122,0,.22), 0 0 0 1px rgba(255,122,0,.15);
   }
-  .card:hover::before, .card:focus-within::before { opacity: 1; animation-duration: 2.2s; }
+  .card:hover::before, .card:focus-within::before { opacity: 1; animation: rim-spin 2.2s linear infinite; }
   @keyframes rim-spin { to { --spin: 360deg; } }
   .card:hover .shine::before { animation: card-shine .9s ease-out; }
   @keyframes card-shine { from { left: -50%; } to { left: 130%; } }
@@ -422,6 +432,8 @@
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     *, *::before, *::after { animation: none !important; transition: none !important; }
+    .feature-logo .moving { display: none !important; }
+    .feature-logo .still { display: block !important; }
   }
 </style>
 </head>
@@ -491,10 +503,10 @@
       <!-- @IDE@ -->
       <section class="card featured">
         <span class="shine" aria-hidden="true"></span>
-        <picture class="feature-logo" aria-hidden="true">
-          <source srcset="brand/logo.svg" media="(prefers-reduced-motion: reduce)">
-          <img src="brand/logo-animated.svg" alt="" width="200" height="200">
-        </picture>
+        <span class="feature-logo" aria-hidden="true">
+          <img class="still" src="brand/logo.svg" alt="" width="200" height="200">
+          <img class="moving" src="brand/logo-animated.svg" alt="" width="200" height="200">
+        </span>
         <div class="card-head">
           <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 8.5h18M8 13l-2 2 2 2M12.5 17h4"/></svg></div>
           <div>
