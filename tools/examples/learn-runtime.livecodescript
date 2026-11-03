@@ -38,8 +38,9 @@ local sRunning
 -- The Copy button's label while it says "Copied", and the reference list's
 -- names, a line each, as the list shows them
 local sCopyLabel, sRefNames
--- The name whose page the Reference card shows
-local sRefShown
+-- The name whose page the Reference card shows, and whether it was put
+-- there in the dark look's colours
+local sRefShown, sRefShownDark
 -- The pages of the reference, from the stack's cDocsZ, the stack they
 -- are of, and whether they are in the dark page's colours
 local sDocs, sDocsOf, sDocsDark
@@ -58,6 +59,10 @@ function learnDocs
       if sDark then
          repeat for each key tKey in sDocs
             replace the cInk of this stack with the cInkDark of this stack in sDocs[tKey]
+            -- (and the grey of its headings, a build that has one)
+            if the cGrey of this stack is not empty then
+               replace the cGrey of this stack with the cGreyDark of this stack in sDocs[tKey]
+            end if
          end repeat
       end if
    end if
@@ -113,6 +118,11 @@ command learnLayout
       hide group "frontPart" of me
       show group "refPart" of me
       refFill
+      -- (the page shown, in this look's colours, if the look has changed
+      -- since it was put there)
+      if sRefShown is not empty and sRefShownDark is not sDark then
+         refPage sRefShown
+      end if
    else
       hide group "frontPart" of me
       hide group "refPart" of me
@@ -496,6 +506,7 @@ end refThumb
 private command refPage pName
    local tDocs
    put pName into sRefShown
+   put sDark into sRefShownDark
    put learnDocs() into tDocs
    set the htmlText of field "refText" of me to tDocs[tolower(pName)]
    set the vScroll of field "refText" of me to 0

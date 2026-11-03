@@ -30,6 +30,7 @@ package.
 | Balloon Game | [balloon-game](balloon-game.livecodescript) | `sample_4/balloon.livecode` | LiveCode Ltd (then RunRev Ltd), 2013 |
 | Learn Box2D | [learn-box2d](learn-box2d.livecodescript) | None: made here, in the same look | OXT-Beyond, 2026 |
 | Learn SodiumXT | [learn-sodiumxt](learn-sodiumxt.livecodescript) | None: made here, a Learn stack (below) | OXT-Beyond, 2026 |
+| Learn CoinXT | [learn-coinxt](learn-coinxt.livecodescript) | None: made here, a Learn stack (below) | OXT-Beyond, 2026 |
 
 A remaster is a binary stack, `ide/Resources/Examples/Remastered/<name>.oxtstack`,
 and it is never edited by hand: a script here builds it, and the stack is
@@ -120,8 +121,8 @@ at the top of its court, and the rest of the stack still opens and reads.
 A Learn stack teaches one of the extensions of the
 [xTalk Suite](https://github.com/SethMorrowSoftware/xtalk-suite) that
 OXT-Beyond has built in, one idea a card, for a reader new to it. Home
-lists them under "The xTalk Suite". Learn SodiumXT is the first; Learn
-Box2D, above, has a look of its own. Each is built by its builder
+lists them under "The xTalk Suite": Learn SodiumXT and Learn CoinXT so
+far; Learn Box2D, above, has a look of its own. Each is built by its builder
 (`learn-<extension>.livecodescript`) with the `exLearn...` handlers of
 [builder.livecodescript](builder.livecodescript), and has:
 
@@ -157,7 +158,11 @@ matching the lesson's `/*@ <card>/expect` pattern, and every call opens
 its own page; Copy, an edit then Reset, a script that does not compile
 and one that stops each say the right thing; the Reference lists every
 handler, every link in every page goes somewhere, and a search finds and
-clears. `OXT_LEARN_STACKS` names other copies of the stacks;
+clears; and, in the light look and then the dark, every colour of every
+word in a lesson, a page and the Reference is 4.5 to 1 or more from the
+colour under it (the WCAG's ratio for text). The builder chooses those
+colours to pass (`exLearnReadable` darkens or lightens an extension's
+accent as far as it must), and the test holds it to that. `OXT_LEARN_STACKS` names other copies of the stacks;
 `OXT_LEARN_NOLOAD=1` loads nothing and checks that the stack says the
 extension is not loaded, as it does where it is not installed (the web
 IDE, for now); `OXT_LEARN_SNAPS` is a folder for pictures.

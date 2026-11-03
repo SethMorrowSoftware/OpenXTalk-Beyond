@@ -26,6 +26,10 @@ script "OXTTestLearnStacks"
 --    the Reference card: it lists every handler of the extension, each
 --    has a page, every link in a page goes to a handler or a card, and a
 --    search finds a handler by a word of its page
+--    in the light look and the dark: every colour of every word the group
+--    "Learn" shows (its lesson, a page of the reference, the Reference
+--    card) is 4.5 to 1 or more from the colour under it, the WCAG's ratio
+--    for text that has to be read
 --
 -- With OXT_LEARN_NOLOAD set, it loads no extension, and checks instead that
 -- the front page and Run say that the extension is not loaded, as they do
@@ -38,6 +42,9 @@ script "OXTTestLearnStacks"
 
 -- The failures of the stack being tested
 local sFails
+-- Whether the stack is to be in its dark look (revIDEAppearanceIsDark, as
+-- the stacks ask the IDE, answers it while this script is in the back)
+local sTestDark
 
 on startup
    local tStacks, tInstall, tStack, tError, tFailed, tRepo
@@ -57,6 +64,9 @@ on startup
       quit 1
    end if
    put 0 into tFailed
+   -- (the stacks ask the IDE whether the desktop is dark: this answers)
+   put false into sTestDark
+   insert the script of me into back
    repeat for each item tStack in tStacks
       put empty into sFails
       try
@@ -153,8 +163,15 @@ private command testStack pPath, pInstall
    if tLoaded and tLesson is not empty then
       testButtons tStack, tLesson
    end if
+   testReadable tStack, tLesson, "dark"
+   testReadable tStack, tLesson, "light"
    go card 1 of stack tStack
 end testStack
+
+-- The desktop's look as the stacks see it: see sTestDark
+function revIDEAppearanceIsDark
+   return sTestDark is true
+end revIDEAppearanceIsDark
 
 -- Loads the extensions as the stack's cLoad says, from the install
 private command loadExtensions pLoad, pInstall
@@ -374,6 +391,183 @@ private command testReference pStack, pCard
    check the text of field "refText" of tGroup begins with the last line of tNames, "Reference: refShow does not show the page"
    snap pStack, pCard
 end testReference
+
+################################################################################
+#
+# Words that can be read
+#
+
+-- In the look pLook ("light" or "dark"): every word of the group "Learn" on
+-- each card, and on the lesson pLesson the first call's page, is far
+-- enough in colour from what is under it
+private command testReadable pStack, pLesson, pLook
+   local tCard, tGroup, tCount
+   put pLook is "dark" into sTestDark
+   put 0 into tCount
+   repeat with tCard = 1 to the number of cards of stack pStack
+      -- (the look changes as a card opens, as it does for a user)
+      go card tCard of stack pStack
+      pump 20
+      if tCard is 1 then
+         check the uLook of stack pStack is pLook or (pLook is "light" and the uLook of stack pStack is empty), \
+               "the stack is not in its " & pLook & " look: " & the uLook of stack pStack
+      end if
+      if there is no group "Learn" of card tCard of stack pStack then
+         next repeat
+      end if
+      put the long id of group "Learn" of card tCard of stack pStack into tGroup
+      if tCard is pLesson then
+         dispatch "learnRun" to tGroup
+         pump 20
+      end if
+      add readableFields(tGroup, pLook) to tCount
+      if tCard is pLesson then
+         dispatch "learnExplain" to tGroup with word 2 of field "lessonCalls" of tGroup
+         add readableFields(tGroup, pLook) to tCount
+         dispatch "learnSheet" to tGroup with false
+      end if
+   end repeat
+   write "  " & pLook & ":" && tCount && "colours of words checked" & return to stdout
+   put false into sTestDark
+end testReadable
+
+-- Checks each field of the group pGroup that shows words; how many
+-- colours it checked
+private function readableFields pGroup, pLook
+   local tIndex, tField, tBack, tInk, tCount, tRatio
+   put 0 into tCount
+   repeat with tIndex = 1 to the number of fields of pGroup
+      put the long id of field tIndex of pGroup into tField
+      if the text of tField is empty or not readableShown(tField) then
+         next repeat
+      end if
+      put readableUnder(tField) into tBack
+      repeat for each line tInk in readableInks(tField)
+         put readableContrast(tInk, tBack) into tRatio
+         add 1 to tCount
+         check tRatio >= 4.5, pLook & ", " & the short name of this card & ", " & the short name of tField & ": " & \
+               tInk && "on" && tBack && "is" && format("%.2f", tRatio) && "to 1 (" & char 1 to 30 of line 1 of tField & ")"
+      end repeat
+   end repeat
+   return tCount
+end readableFields
+
+-- Whether the control pObj shows: it and every group it is in visible
+private function readableShown pObj
+   local tObj
+   put pObj into tObj
+   repeat while word 1 of tObj is not "card"
+      if not the visible of tObj then
+         return false
+      end if
+      put the long owner of tObj into tObj
+   end repeat
+   return true
+end readableShown
+
+-- Every colour the words of the field pField are in, "r,g,b" a line: its
+-- own, each its runs set, and the stack's link colour if it has a link
+private function readableInks pField
+   local tOut, tHtml, tAt, tColor
+   put readableRgb(the effective textColor of pField) & return into tOut
+   put the htmlText of pField into tHtml
+   if tHtml contains "<a" or "link" is among the items of the textStyle of pField then
+      -- (the stack's, which the card shown is of, else the engine's)
+      if the linkColor of this stack is not empty then
+         put readableRgb(the linkColor of this stack) & return after tOut
+      else
+         put readableRgb(the linkColor) & return after tOut
+      end if
+   end if
+   repeat
+      -- (" color=": a run's colour, and not its bgcolor)
+      put offset(" color=" & quote, tHtml) into tAt
+      if tAt is 0 then
+         exit repeat
+      end if
+      delete char 1 to tAt + 7 of tHtml
+      put readableRgb(char 1 to offset(quote, tHtml) - 1 of tHtml) into tColor
+      if tColor is not among the lines of tOut then
+         put tColor & return after tOut
+      end if
+   end repeat
+   delete the last char of tOut
+   return tOut
+end readableInks
+
+-- The colour under the middle of the control pObj: its own if it is a
+-- field with one, else the topmost filled graphic or field below it (in
+-- its group, then that group's, out to the card's colour). A gradient
+-- counts as its first colour
+private function readableUnder pObj
+   local tBelow, tOwner, tIndex, tCtl, tLoc, tBest, tBestLayer
+   if word 1 of pObj is "field" and the opaque of pObj and the backgroundColor of pObj is not empty then
+      return readableRgb(the backgroundColor of pObj)
+   end if
+   put the loc of pObj into tLoc
+   put pObj into tBelow
+   repeat while word 1 of tBelow is not "card"
+      put the long owner of tBelow into tOwner
+      put empty into tBest
+      put 0 into tBestLayer
+      repeat with tIndex = 1 to the number of controls of tOwner
+         put the long id of control tIndex of tOwner into tCtl
+         if the long owner of tCtl is not tOwner or the layer of tCtl >= the layer of tBelow or the layer of tCtl <= tBestLayer then
+            next repeat
+         end if
+         if not the visible of tCtl or not (tLoc is within the rect of tCtl) then
+            next repeat
+         end if
+         if word 1 of tCtl is "graphic" and the fillGradient["ramp"] of tCtl is not empty then
+            put item 2 to 4 of line 1 of the fillGradient["ramp"] of tCtl into tBest
+            put the layer of tCtl into tBestLayer
+         else if word 1 of tCtl is "graphic" and the filled of tCtl and the backgroundColor of tCtl is not empty then
+            put the backgroundColor of tCtl into tBest
+            put the layer of tCtl into tBestLayer
+         else if word 1 of tCtl is "field" and the opaque of tCtl and the backgroundColor of tCtl is not empty then
+            put the backgroundColor of tCtl into tBest
+            put the layer of tCtl into tBestLayer
+         end if
+      end repeat
+      if tBest is not empty then
+         return readableRgb(tBest)
+      end if
+      put tOwner into tBelow
+   end repeat
+   return readableRgb(the effective backgroundColor of tBelow)
+end readableUnder
+
+-- "r,g,b" of a colour given as that or as #rrggbb
+private function readableRgb pColor
+   if pColor begins with "#" then
+      return baseConvert(char 2 to 3 of pColor, 16, 10) & comma & baseConvert(char 4 to 5 of pColor, 16, 10) & comma & \
+            baseConvert(char 6 to 7 of pColor, 16, 10)
+   end if
+   return item 1 to 3 of pColor
+end readableRgb
+
+-- The WCAG's contrast of two colours ("r,g,b"): 1 to 21
+private function readableContrast pFirst, pSecond
+   local tLumA, tLumB
+   put readableLuminance(pFirst) into tLumA
+   put readableLuminance(pSecond) into tLumB
+   return (max(tLumA, tLumB) + 0.05) / (min(tLumA, tLumB) + 0.05)
+end readableContrast
+
+private function readableLuminance pColor
+   local tSum, tChannel, tIndex
+   put 0 into tSum
+   repeat with tIndex = 1 to 3
+      put (item tIndex of pColor) / 255 into tChannel
+      if tChannel <= 0.03928 then
+         put tChannel / 12.92 into tChannel
+      else
+         put ((tChannel + 0.055) / 1.055) ^ 2.4 into tChannel
+      end if
+      add tChannel * item tIndex of "0.2126,0.7152,0.0722" to tSum
+   end repeat
+   return tSum
+end readableLuminance
 
 -- The links of a page of htmlText: what each <a> names, its href or its text
 private function pageLinks pHtml

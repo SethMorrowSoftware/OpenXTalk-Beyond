@@ -217,7 +217,7 @@ private command exBuildFrame
    get exButton("frameNext", kSide - 112, kHeight - 104, 32, "Next", "chevron-right", "dark", empty, "Frame", "next", 98)
    put lkLabel("frameCount", lkR(0, kHeight - 60, kSide, kHeight - 44), empty, 12, lkColor("muted"), "Frame", "center") into tObj
    set the sharedText of tObj to false
-   put lkLabel("frameHint", lkR(0, kHeight - 43, kSide, kHeight - 27), empty, 11, "100,116,139", "Frame", "center") into tObj
+   put lkLabel("frameHint", lkR(0, kHeight - 43, kSide, kHeight - 27), empty, 11, "148,163,184", "Frame", "center") into tObj
    set the sharedText of tObj to false
 
    -- The header: each card's own title and tagline
@@ -297,7 +297,7 @@ private command exBuildScripts
    get lkOval("codeDot1", lkR(tLeft + 18, tTop + 17, tLeft + 28, tTop + 27), "248,113,113", "Scripts")
    get lkOval("codeDot2", lkR(tLeft + 34, tTop + 17, tLeft + 44, tTop + 27), "251,191,36", "Scripts")
    get lkOval("codeDot3", lkR(tLeft + 50, tTop + 17, tLeft + 60, tTop + 27), "52,211,153", "Scripts")
-   put lkLabel("codeCaption", lkR(tLeft + 72, tTop + 15, tRight - 16, tTop + 31), "Scripts on this card", 11, "100,116,139", "Scripts") into tObj
+   put lkLabel("codeCaption", lkR(tLeft + 72, tTop + 15, tRight - 16, tTop + 31), "Scripts on this card", 11, "148,163,184", "Scripts") into tObj
    -- (in the middle of the dots, up and down, as a button's label is)
    exMiddle tObj, tTop + 22
    repeat with tIndex = 1 to 5
@@ -305,7 +305,7 @@ private command exBuildScripts
    end repeat
    set the cChipRest of group "Scripts" to lkColor("side2")
    set the cChipInk of group "Scripts" to lkColor("sideInk")
-   put lkLabel("codeRef", lkR(tLeft + 18, tTop + 80, tRight - 16, tTop + 96), empty, 11, "100,116,139", "Scripts") into tObj
+   put lkLabel("codeRef", lkR(tLeft + 18, tTop + 80, tRight - 16, tTop + 96), empty, 11, "148,163,184", "Scripts") into tObj
    set the dontWrap of tObj to true
    put lkLabel("codeText", lkR(tLeft + 10, tTop + 104, tRight - 12, tBottom - 56), empty, 12, lkColor("codeInk"), "Scripts") into tObj
    set the fixedLineHeight of tObj to true
@@ -653,7 +653,7 @@ command exProgramTiles pTop, pColumns, pHeight, pGap
       lkShadow tObj, 10, 2, 8
       put lkBox(tName & "_iconBg", lkR(tX + 12, tY + 12, tX + 52, tY + pHeight - 12), lkMix("255,255,255", tAccent, 0.12), 12, tName) into tObj
       get exIcon(tName & "_icon", exCardInfo(tIndex, "icon"), tAccent, lkR(tX + 22, tY + pHeight div 2 - 10, tX + 42, tY + pHeight div 2 + 10), tName)
-      put lkLabel(tName & "_number", lkR(tX + 64, tY + 13, tX + tWidth - 8, tY + 27), format("%02d", tSlot), 11, lkColor("muted"), tName) into tObj
+      put lkLabel(tName & "_number", lkR(tX + 64, tY + 13, tX + tWidth - 8, tY + 27), format("%02d", tSlot), 11, exTileNumberInk(), tName) into tObj
       set the textStyle of tObj to "bold"
       put lkLabel(tName & "_title", lkR(tX + 64, tY + 29, tX + tWidth - 8, tY + 49), exCardInfo(tIndex, "title"), 14, lkColor("ink"), tName) into tObj
       set the textStyle of tObj to "bold"
@@ -663,6 +663,15 @@ command exProgramTiles pTop, pColumns, pHeight, pGap
       set the cAction of group tName to "go" && exCardInfo(tIndex, "name")
    end repeat
 end exProgramTiles
+
+-- A tile's number: the page's muted grey in the dark, where it reads, and
+-- a darker grey on the light tile, where that one does not (2.6 to 1)
+private function exTileNumberInk
+   if lkDark() then
+      return lkColor("muted")
+   end if
+   return "100,116,139"
+end exTileNumberInk
 
 ################################################################################
 #
@@ -1047,13 +1056,93 @@ private command exLearnJson pInstall
 end exLearnJson
 
 -- The accent as words and links are drawn in it: lighter on the dark
--- page, where the accent itself is too dark to read
+-- page, where the accent itself is too dark to read; on either, as far
+-- from the page as text must be to be read (exLearnReadable)
 function exLearnInk
    if lkDark() then
-      return lkMix(sInfo["accent"], "255,255,255", 0.45)
+      return exLearnInkDark()
    end if
-   return sInfo["accent"]
+   return exLearnAccent()
 end exLearnInk
+
+-- The accent the lessons' words, links and buttons are in on the light
+-- page: the extension's own, darkened as much as it takes for its words on
+-- white, and white words on it (the Run button), to be read
+function exLearnAccent
+   return exLearnReadable(sInfo["accent"], "255,255,255")
+end exLearnAccent
+
+-- The accent of words and links on the dark page (the lesson's panel)
+function exLearnInkDark
+   return exLearnReadable(lkMix(sInfo["accent"], "255,255,255", 0.45), exLearnPanelDark())
+end exLearnInkDark
+
+-- The dark panel the lessons' words are on, whichever look is building
+private function exLearnPanelDark
+   return "30,41,59"
+end exLearnPanelDark
+
+-- The colour pInk ("r,g,b"), moved towards black on a light pBg or white
+-- on a dark one, in small steps, until the two are 4.5 to 1 apart (the
+-- WCAG's ratio for text; 4.6 here, for rounding): unchanged if it already
+-- is. Every colour of a word that the Learn kit chooses goes through this
+function exLearnReadable pInk, pBg
+   local tToward, tStep, tMixed, tIndex
+   if exLearnLuminance(pBg) > 0.18 then
+      put "0,0,0" into tToward
+   else
+      put "255,255,255" into tToward
+   end if
+   put pInk into tMixed
+   repeat with tStep = 1 to 20
+      if exLearnContrast(tMixed, pBg) >= 4.6 then
+         exit repeat
+      end if
+      put empty into tMixed
+      repeat with tIndex = 1 to 3
+         put round(item tIndex of pInk + (item tIndex of tToward - item tIndex of pInk) * tStep / 20) & comma after tMixed
+      end repeat
+      delete the last char of tMixed
+   end repeat
+   return tMixed
+end exLearnReadable
+
+-- How far apart two colours are to the eye, as the WCAG has it: 1 (the
+-- same) to 21 (black and white)
+function exLearnContrast pFirst, pSecond
+   local tLumA, tLumB
+   put exLearnLuminance(pFirst) into tLumA
+   put exLearnLuminance(pSecond) into tLumB
+   return (max(tLumA, tLumB) + 0.05) / (min(tLumA, tLumB) + 0.05)
+end exLearnContrast
+
+-- A colour's relative luminance (the WCAG's): 0 black to 1 white
+function exLearnLuminance pColor
+   local tSum, tChannel, tIndex
+   put 0 into tSum
+   repeat with tIndex = 1 to 3
+      put (item tIndex of pColor) / 255 into tChannel
+      if tChannel <= 0.03928 then
+         put tChannel / 12.92 into tChannel
+      else
+         put ((tChannel + 0.055) / 1.055) ^ 2.4 into tChannel
+      end if
+      add tChannel * item tIndex of "0.2126,0.7152,0.0722" to tSum
+   end repeat
+   return tSum
+end exLearnLuminance
+
+-- The grey of the lessons' and the pages' small words (CALLS, a page's
+-- headings): readable on white, and on the dark panel (learn-runtime puts
+-- the dark one in the pages, which are built once, for the light one)
+constant kLearnGreyLight = "#64748b"
+constant kLearnGreyDark = "#94a3b8"
+function exLearnGrey
+   if lkDark() then
+      return kLearnGreyDark
+   end if
+   return kLearnGreyLight
+end exLearnGrey
 
 -- The group "Learn", with its three halves, on the card pCard (where it
 -- is made: the front page) and placed on the cards pOthers (the lessons and
@@ -1065,7 +1154,7 @@ end exLearnInk
 --            "lcs|<folder>", in the order they load
 command exLearnKit pCard, pOthers, pName, pProbe, pLoad
    local tObj, tAccent, tName, tL, tT, tR, tB, tWidth
-   put sInfo["accent"] into tAccent
+   put exLearnAccent() into tAccent
    go card pCard
    get lkGroup("Learn", lkR(kLeft - 16, kTop - 12, kRight + 16, kBottom + 20), empty)
    set the backgroundBehavior of group "Learn" to true
@@ -1147,6 +1236,9 @@ command exLearnKit pCard, pOthers, pName, pProbe, pLoad
    -- (room above the page's title, which is larger)
    set the margins of tObj to "0,10,0,0"
    get exButton("lessonBack", tL + 16, tB - 46, 32, "Back to the script", "arrow-left", "light", tAccent, "lessonSheet", empty, 0)
+   -- (its words in the accent the lessons' words are in, which reads on
+   -- the panel in either look)
+   set the textColor of field "lessonBack_label" to exLearnInk()
    set the cLearnDo of group "lessonBack" to "back"
 
    -- The Reference card
@@ -1183,7 +1275,9 @@ command exLearnKit pCard, pOthers, pName, pProbe, pLoad
    -- runtime sets the stack's link colours, light or dark, from these, and
    -- puts the dark one in the pages for the light one)
    set the cInk of this stack to lkHex(tAccent)
-   set the cInkDark of this stack to lkHex(lkMix(tAccent, "255,255,255", 0.45))
+   set the cInkDark of this stack to lkHex(exLearnInkDark())
+   set the cGrey of this stack to kLearnGreyLight
+   set the cGreyDark of this stack to kLearnGreyDark
    set the underlineLinks of this stack to false
    set the cProbe of this stack to pProbe
    set the cExtension of this stack to pName
@@ -1256,11 +1350,11 @@ command exLearnLesson pCard
          put return & pCard after sLearnUsedIn[tolower(tCall)]
       end if
    end repeat
-   set the htmlText of field "lessonCalls" to "<p><font color=" & quote & "#8b9bb0" & quote & "><b>CALLS</b></font>&nbsp;&nbsp; " & \
-         tHtml & "<font color=" & quote & "#8b9bb0" & quote & ">(click one)</font></p>"
+   set the htmlText of field "lessonCalls" to "<p><font color=" & quote & exLearnGrey() & quote & "><b>CALLS</b></font>&nbsp;&nbsp; " & \
+         tHtml & "<font color=" & quote & exLearnGrey() & quote & ">(click one)</font></p>"
    -- (without the hint, if it takes a line more)
    if the formattedHeight of field "lessonCalls" > the height of field "lessonCalls" then
-      set the htmlText of field "lessonCalls" to "<p><font color=" & quote & "#8b9bb0" & quote & "><b>CALLS</b></font>&nbsp;&nbsp; " & tHtml & "</p>"
+      set the htmlText of field "lessonCalls" to "<p><font color=" & quote & exLearnGrey() & quote & "><b>CALLS</b></font>&nbsp;&nbsp; " & tHtml & "</p>"
    end if
    if the formattedHeight of field "lessonCalls" > the height of field "lessonCalls" then
       put "the calls of " & pCard & " do not fit: " & the formattedHeight of field "lessonCalls" & " pixels for " & the height of field "lessonCalls" & return after sLearnProblems
@@ -1394,8 +1488,8 @@ end exLearnReference
 -- rest is in the accent or a grey that reads in light and dark alike
 private function exLearnPage pEntry, pLessons
    local tHtml, tAccent, tGrey, tParam, tIndex, tLine, tKind, tExample, tLesson
-   put lkHex(sInfo["accent"]) into tAccent
-   put "#8b9bb0" into tGrey
+   put lkHex(exLearnAccent()) into tAccent
+   put kLearnGreyLight into tGrey
    put "<p><font size=" & quote & "20" & quote & "><b>" & lkEscape(pEntry["display name"]) & "</b></font></p>" after tHtml
    put line 1 of pEntry["syntax"][1] into tLine
    replace "<" with empty in tLine
@@ -1503,7 +1597,11 @@ end exLearnSpaces
 command exLearnFront pEyebrow, pTitle, pText, pTips
    local tIndex, tWidth, tLeft, tCount
    go card 1
-   exHero lkR(kLeft, kTop, kRight, 252), sInfo["accent"] & "|" & sInfo["accent2"], pEyebrow, pTitle, pText
+   -- (in colours white words read on, and those words not see-through:
+   -- a lesson's words are for reading first)
+   exHero lkR(kLeft, kTop, kRight, 252), exLearnAccent() & "|" & exLearnReadable(sInfo["accent2"], "255,255,255"), pEyebrow, pTitle, pText
+   set the blendLevel of field "hero_eyebrow" to 0
+   set the blendLevel of field "hero_text" to 0
    exProgramTiles 264, 4, 48, 8
    put the number of lines of sInfo["cards"] - 1 into tCount
    repeat with tIndex = 1 to tCount

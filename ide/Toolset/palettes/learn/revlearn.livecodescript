@@ -2277,6 +2277,10 @@ private function leExampleTable
          "secret and public-key boxes, signatures, key exchange, files and streams, each a script to change and run, " & \
          "and a reference of every handler.|OXT-Beyond, 2026, on libsodium through SodiumXT|suite|key-round|indigo|" & \
          "sodium sodiumxt libsodium cryptography encryption hash password signature|Resources/Examples/Remastered/Learn SodiumXT.oxtstack|Learn SodiumXT" & return after tTable
+   put "|Learn CoinXT|Thirteen lessons in how Bitcoin and Ethereum keep coins safe, with CoinXT: hashes, keys, " & \
+         "addresses, recovery words, HD wallets, signatures and transactions, each a script to change and run, " & \
+         "and a reference of every handler.|OXT-Beyond, 2026, on trezor-crypto and libsecp256k1 through CoinXT|suite|hash|amber|" & \
+         "coin coinxt bitcoin ethereum wallet address bip39 mnemonic secp256k1 schnorr taproot|Resources/Examples/Remastered/Learn CoinXT.oxtstack|Learn CoinXT" & return after tTable
    put "Resources/Examples/SQLite Book Library.oxtstack|SQLite Book Library|A small catalogue of books in SQLite, shown in " & \
          "a Data Grid: list them, search them, add and delete them.|In OpenXTalk Lite's demo set; its author is not recorded|apps|library-big|emerald|" & \
          "sqlite datagrid books database|Resources/Examples/Remastered/SQLite Books.oxtstack|SQLite Books" & return after tTable

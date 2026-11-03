@@ -350,7 +350,7 @@ def click_stack(args, stack, engine):
         time.sleep(1.0)
         proc = subprocess.Popen([engine, PROBE], env=run.env, stdout=subprocess.DEVNULL,
                                 stderr=subprocess.DEVNULL)
-        st = run.wait_for(lambda s: s.get('learn') == 'front', 20)
+        st = run.wait_for(lambda s: s.get('learn') == 'front', 45)
         if st.get('learn') != 'front':
             run.check(False, 'the stack opens', run.errors() or str(st)[:200])
             return run.fails

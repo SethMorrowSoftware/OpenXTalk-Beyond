@@ -98,6 +98,14 @@ command frameLook
    unlock screen
 end frameLook
 
+-- The field pField on the card whose id is pCardId (see frameLookOne)
+private function frameFieldOn pField, pCardId
+   local tStack
+   put the long id of pField into tStack
+   put char offset(" of stack ", tStack) + 4 to -1 of tStack into tStack
+   return "field id" && the id of pField && "of card id" && pCardId && "of" && tStack
+end frameFieldOn
+
 -- Puts the look pWant ("light" or "dark") on the object pObj, met on the
 -- card whose id is pCardId: its colours, the colours its custom
 -- properties hold, a field's text in colour on that card (unless the user
@@ -127,6 +135,9 @@ private command frameLookOne pObj, pWant, pCardId
       set the customProperties of pObj to tCustom
    end if
    if word 1 of pObj is "field" and tA["h:" & pCardId] is not empty then
+      -- (by its id and the card's: a field of a group placed on many cards
+      -- has a text on each, and its long id names the window's card)
+      put frameFieldOn(pObj, pCardId) into pObj
       if the text of pObj is tA["x:" & pCardId] then
          set the htmlText of pObj to tA["h:" & pCardId]
       end if
@@ -161,7 +172,7 @@ command frameSync
          else
             set the textColor of char tTab + 1 to -1 of line tIndex of field "frameList" to empty
             if tTab > 1 then
-               set the textColor of char 1 to tTab - 1 of line tIndex of field "frameList" to "100,116,139"
+               set the textColor of char 1 to tTab - 1 of line tIndex of field "frameList" to "148,163,184"
             end if
          end if
       end repeat
