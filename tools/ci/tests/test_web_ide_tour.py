@@ -131,5 +131,47 @@ class NotSaved(unittest.TestCase):
         self.assertIn("if: ${{ matrix.size == '800x500' }}", text)
 
 
+class PropertyListeners(unittest.TestCase):
+    """The web IDE's engine tells the IDE that a property changed, as the
+    desktop engines do: the Inspector shows a property again only then,
+    and a colour taken away with Reset to default stayed in its swatch
+    until the window was closed (LittleNemo, openxtalk.org p=25968 and
+    p=25970). The tours' inspector-reset-colour steps check it in the IDE;
+    these hold the pieces to each other."""
+
+    def read(self, *path):
+        with open(os.path.join(REPO, *path), encoding='utf-8') as f:
+            return f.read()
+
+    def wait_loop(self, name):
+        text = self.read('engine', 'src', name)
+        body = text.split('MCScreenDC::wait(', 1)[1]
+        return body.split('\n}\n', 1)[0]
+
+    def test_the_web_wait_sends_them_before_the_pending_messages(self):
+        body = self.wait_loop('em-dc.cpp')
+        self.assertIn('MCModeQueueEvents();', body)
+        self.assertLess(body.index('MCModeQueueEvents();'), body.index('handlepending('))
+        self.assertIn('#include "mode.h"', self.read('engine', 'src', 'em-dc.cpp'))
+
+    def test_as_the_desktop_waits_do(self):
+        for name in ('desktop-dc.cpp', 'lnxdce.cpp', 'w32dce.cpp'):
+            self.assertIn('MCModeQueueEvents();', self.wait_loop(name), name)
+
+    def test_a_standalone_sends_none(self):
+        text = self.read('engine', 'src', 'mode_standalone.cpp')
+        self.assertIn('void MCModeQueueEvents(void)\n{\n}', text)
+
+    def test_both_tours_reset_a_colour(self):
+        for name in ('web-ide-tour.livecodescript', 'ui-tour.livecodescript'):
+            tour = self.read('tools', 'ci', name)
+            steps = [line for line in tour.splitlines() if line.startswith('constant kSteps')][0]
+            self.assertIn('inspector-reset-colour', steps.split('"')[1].split(','), name)
+            step = tour.split('\non tour_inspector_reset_colour\n', 1)[1].split('\nend tour_inspector_reset_colour', 1)[0]
+            self.assertIn('dispatch "menuPick" to button "inspectMenu" of tEditor with "Reset to default"', step, name)
+            self.assertIn('after Reset the swatch still shows 0,160,0', step, name)
+            self.assertIn('set the backgroundColor of tButton to "0,0,200"', step, name)
+
+
 if __name__ == '__main__':
     unittest.main()

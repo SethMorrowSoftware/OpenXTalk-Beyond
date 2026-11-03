@@ -1116,7 +1116,10 @@ jobs:
           # mplayer, Xvfb and xauth: the browser and player check; the
           # window managers (mutter: GNOME's), xdotool, xwininfo (x11-utils)
           # and ImageMagick: the browser window manager check; the Adwaita GTK 2 themes, light
-          # and dark, as a desktop has them: the IDE screenshots; python3-xlib:
+          # and dark, as a desktop has them: the IDE screenshots; MATE's and
+          # Yaru's GTK 2 themes, Ubuntu MATE's own among them (and the
+          # murrine engine some draw with): the menus' marks under a
+          # desktop's own dark themes; python3-xlib:
           # the clipboard check's clipboard manager; xsettingsd and the
           # DejaVu fonts: the HiDPI check's settings manager and its text;
           # gsettings-desktop-schemas (GNOME's color-scheme key): the
@@ -1124,6 +1127,7 @@ jobs:
           pkgs=(desktop-file-utils shared-mime-info xz-utils mplayer xvfb xauth
                 xfwm4 openbox mutter xdotool x11-utils imagemagick
                 gnome-themes-extra gtk2-engines-pixbuf python3-xlib
+                mate-themes ubuntu-mate-themes yaru-theme-gtk gtk2-engines-murrine
                 xsettingsd fonts-dejavu-core gsettings-desktop-schemas)
           while read -r soname use deb rpm rest; do
             case $soname in ''|'#'*) continue ;; esac
@@ -1523,6 +1527,32 @@ jobs:
         run: |
           python3 tools/ci/ui_tour.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
             --appearance dark --out "$RUNNER_TEMP/logs/ui-tour/dark"
+
+      # The tour's menu-marks step again under dark GTK 2 themes a desktop
+      # ships, beside the Adwaita-dark of the run above: Ubuntu MATE's own
+      # (Yaru-MATE-dark), Yaru's and a high-contrast one. On Ubuntu MATE in
+      # dark mode a menu's ticks were black, seen only when the item was
+      # hilited (tperry2x, openxtalk.org p=25972). The engine draws them
+      # white when the colour behind the item is dark (buttondraw.cpp,
+      # MCButtonMenuItemIsOnDarkTheme); the step fails when a mark differs
+      # from its menu by too little to be seen, on the theme's colour and on
+      # a window's own colours. (MATE's BlackMATE draws them white too, but
+      # its menus' letters break into pieces that the step's comparison of
+      # two menus takes for marks, so it is left out)
+      - name: Menu marks, other dark GTK themes
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 20
+        run: |
+          failed=()
+          for theme in Yaru-MATE-dark Yaru-dark HighContrastInverse; do
+            python3 tools/ci/ui_tour.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
+              --appearance dark --gtk-theme "$theme" --only menu-marks \
+              --out "$RUNNER_TEMP/logs/menu-marks/$theme" || failed+=("$theme")
+          done
+          if [ ${#failed[@]} -gt 0 ]; then
+            echo "::error::the menus' marks failed under ${failed[*]}"
+            exit 1
+          fi
 
       # For a person to look through: a page with each window light and
       # dark side by side (tools/ci/ui_tour_page.py), uploaded with the

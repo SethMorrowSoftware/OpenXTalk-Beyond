@@ -39,6 +39,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "em-printer.h"
 #include "em-font.h"
 #include "stacklst.h"
+#include "mode.h"
 
 #include <emscripten.h>
 
@@ -607,6 +608,16 @@ MCScreenDC::wait(real64_t p_duration,
 		if (!t_done)
 		{
 			DoRunloopActions();
+
+			/* OXT-Beyond: the property listeners' propertyChanged and
+			 * mainStacksChanged, as each desktop engine's wait sends
+			 * them before its pending messages (MCModeQueueEvents;
+			 * nothing in a standalone). The web IDE's engine never sent
+			 * them, so the IDE never heard that a property had changed:
+			 * the Inspector went on showing a colour that Reset to
+			 * default had taken away, until its window was closed
+			 * (LittleNemo, openxtalk.org p=25968 and p=25970) */
+			MCModeQueueEvents();
 		}
 
 		/* Dispatch pending engine messages */

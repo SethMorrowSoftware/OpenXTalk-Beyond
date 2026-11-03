@@ -82,9 +82,11 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
+-- the card's own colour in the step controls (tourNearCardColour)
+constant kCardOwnColour = "60,170,90"
 -- The inspector's sections for a button, as the icons in its header name
 -- them (a section the object has not is skipped)
 constant kButtonSections = "Basic,Icons,Colors,Text,Position,Effects,Custom,Advanced"
@@ -1634,7 +1636,7 @@ end tourMbMacSettings
 constant kMarksRect = "600,400,900,640"
 
 on tour_menu_marks
-   local tName, tDefault, tGroups, tGroup, tMarks, tFails, tObject
+   local tName, tDefault, tFails, tObject, tColours, tColour, tPass
    if the platform is not "Linux" then
       tourRecord "INFO menu-marks: the engine draws its menus' marks so on Linux only"
       exit tour_menu_marks
@@ -1669,27 +1671,27 @@ on tour_menu_marks
    tourWait 800
    tourMarksPopup tName, "Marks", "03b-menu-marks"
    tourMarksPopup tName, "No marks", "03c-menu-no-marks"
+   put tourMarksCheck("03b-menu-marks", "03c-menu-no-marks", "the theme's colour") after tFails
+   -- The same menus in a window with a colour of its own, dark and then
+   -- light: a menu takes the first colour above its button, and its
+   -- marks must stand out from it. Until rc.6.14 a menu that took a
+   -- colour of its own kept black marks whatever the colour, so on a
+   -- dark one they could hardly be seen until the item was hovered
+   -- (tperry2x, openxtalk.org p=25972, MATE dark)
+   put "48,52,58" & return & "236,236,236" into tColours
+   put 0 into tPass
+   repeat for each line tColour in tColours
+      add 1 to tPass
+      set the backgroundColor of stack tName to tColour
+      tourWait 300
+      tourMarksPopup tName, "Marks", "03d-menu-marks-own-colour-" & tPass
+      tourMarksPopup tName, "No marks", "03e-menu-no-marks-own-colour-" & tPass
+      put tourMarksCheck("03d-menu-marks-own-colour-" & tPass, "03e-menu-no-marks-own-colour-" & tPass, \
+            "the window's own colour" && tColour) after tFails
+   end repeat
    -- (closed, not deleted: the engine holds on to the button whose menu
    -- was open until the step is over)
    close stack tName
-   put tourMarksGroups(sOut & "/03b-menu-marks.png", sOut & "/03c-menu-no-marks.png") into tGroups
-   -- a group of a few pixels is not a mark
-   put 0 into tMarks
-   repeat for each line tGroup in tGroups
-      if item 5 of tGroup < 4 then next repeat
-      add 1 to tMarks
-      tourRecord "INFO menu-marks: a mark at" && item 1 to 4 of tGroup & "," && item 5 of tGroup && \
-            "pixels, which differ from the menu by" && item 6 of tGroup && "in luma"
-      if item 6 of tGroup <= 127 then
-         put "the mark at" && item 1 to 4 of tGroup && "differs from the menu by" && item 6 of tGroup && \
-               "in luma (0 to 255)" & return after tFails
-      end if
-   end repeat
-   -- the tick, the dot and the arrow, and perhaps the submenu's name,
-   -- which may sit a pixel or two further right in a submenu's item
-   if tMarks < 3 then
-      put "the menus' snapshots differ in" && tMarks && "places, not in the tick, the dot and the arrow" & return after tFails
-   end if
    -- The IDE's own menus, File > Import Stack's HyperCard options among
    -- them, are drawn as this step's are only if they take the theme's
    -- colour too: the engine draws the marks white only when nothing from
@@ -1809,6 +1811,45 @@ end tourNewStackSizes
 -- needs its name's width and 16 more)
 local sMarksShot
 
+-- Empty if each mark in the snapshot pMarks (a menu with a tick, a dot
+-- and a submenu's arrow) stands out from the menu, by more than half the
+-- range of luma, against pNoMarks (the same menu without them), the
+-- menu's colour named pWhat; else a line for each that does not
+function tourMarksCheck pMarks, pNoMarks, pWhat
+   local tGroups, tGroup, tMarks, tFails
+   put tourMarksGroups(sOut & slash & pMarks & ".png", sOut & slash & pNoMarks & ".png") into tGroups
+   -- a group of a few pixels is not a mark
+   put 0 into tMarks
+   repeat for each line tGroup in tGroups
+      if item 5 of tGroup < 4 then next repeat
+      -- the submenu's name, a pixel or two further right in a submenu's
+      -- item: not a mark. Wider than any mark (the tick is 7 pixels, the
+      -- dot and the arrow 4), or in pieces where the menu without marks
+      -- shows its letters too. Its colour is the theme's text colour,
+      -- which can be close to a window's own colour: the theme's black on
+      -- a dark window in the light appearance, its white on a light one
+      -- in the dark appearance
+      if item 3 of tGroup - item 1 of tGroup >= 16 or item 7 of tGroup > 16 then
+         tourRecord "INFO menu-marks:" && pWhat & ": the submenu's name moved at" && item 1 to 4 of tGroup & \
+               ", not a mark (the menu without marks has text there)"
+         next repeat
+      end if
+      add 1 to tMarks
+      tourRecord "INFO menu-marks:" && pWhat & ": a mark at" && item 1 to 4 of tGroup & "," && item 5 of tGroup && \
+            "pixels, which differ from the menu by" && item 6 of tGroup && "in luma"
+      if item 6 of tGroup <= 127 then
+         put "on" && pWhat & ", the mark at" && item 1 to 4 of tGroup && "differs from the menu by" && \
+               item 6 of tGroup && "in luma (0 to 255)" & return after tFails
+      end if
+   end repeat
+   -- the tick, the dot and the arrow
+   if tMarks < 3 then
+      put "on" && pWhat & ", the menus' snapshots differ in" && tMarks && \
+            "places, not in the tick, the dot and the arrow" & return after tFails
+   end if
+   return tFails
+end tourMarksCheck
+
 command tourMarksPopup pStack, pButton, pFile
    set the defaultStack to pStack
    get shell("xdotool mousemove 340 240")
@@ -1838,11 +1879,14 @@ end tourMarksShot
 -- pixels that are not the same in both, in groups of neighbours (a pixel
 -- at most 2 away from one of a group is in it). Returns a line for each
 -- group: its left, top, right and bottom in the snapshots, its number of
--- pixels, and the largest difference in luma (Rec. 601, 0 to 255) of one
--- of its pixels between the two snapshots
+-- pixels, the largest difference in luma (Rec. 601, 0 to 255) of one of
+-- its pixels between the two snapshots, and how far apart in luma its
+-- pixels are in the second snapshot (0 where that one shows only the
+-- menu's own colour, as under a mark)
 function tourMarksGroups pFileA, pFileB
    local tDefault, tA, tB, tW, tH, tAt, tLumaA, tLumaB, tDiff, tKey, tSeen
    local tQueue, tHead, tTail, tPoint, tX, tY, tNext, tBounds, tCount, tMax, tGroups, tError, i, dx, dy
+   local tLumaOfB, tLeast, tMost
    if there is not a file pFileA or there is not a file pFileB then
       throw "there are not both snapshots," && pFileA && "and" && pFileB
    end if
@@ -1877,6 +1921,7 @@ function tourMarksGroups pFileA, pFileB
       put 299 * byteToNum(byte tAt + 2 of tA) + 587 * byteToNum(byte tAt + 3 of tA) + 114 * byteToNum(byte tAt + 4 of tA) into tLumaA
       put 299 * byteToNum(byte tAt + 2 of tB) + 587 * byteToNum(byte tAt + 3 of tB) + 114 * byteToNum(byte tAt + 4 of tB) into tLumaB
       put round(abs(tLumaA - tLumaB) / 1000) into tDiff[(i mod tW) & "," & (i div tW)]
+      put round(tLumaB / 1000) into tLumaOfB[(i mod tW) & "," & (i div tW)]
    end repeat
    repeat for each key tKey in tDiff
       if tSeen[tKey] is true then next repeat
@@ -1887,11 +1932,15 @@ function tourMarksGroups pFileA, pFileB
       put tKey & "," & tKey into tBounds
       put 0 into tCount
       put 0 into tMax
+      put 255 into tLeast
+      put 0 into tMost
       repeat while tHead <= tTail
          put tQueue[tHead] into tPoint
          add 1 to tHead
          add 1 to tCount
          put max(tMax, tDiff[tPoint]) into tMax
+         put min(tLeast, tLumaOfB[tPoint]) into tLeast
+         put max(tMost, tLumaOfB[tPoint]) into tMost
          put item 1 of tPoint into tX
          put item 2 of tPoint into tY
          put min(item 1 of tBounds, tX) into item 1 of tBounds
@@ -1909,7 +1958,7 @@ function tourMarksGroups pFileA, pFileB
          end repeat
       end repeat
       delete variable tQueue
-      put tBounds & "," & tCount & "," & tMax & return after tGroups
+      put tBounds & "," & tCount & "," & tMax & "," & (tMost - tLeast) & return after tGroups
    end repeat
    return line 1 to -1 of tGroups
 end tourMarksGroups
@@ -2076,10 +2125,56 @@ on tour_controls
       tourCtlCheck false, "the useSystemWindowColor:" && tourJoin(tError)
    end try
    
+   -- A colour of the card's own (TerryL, openxtalk.org p=25957: "the
+   -- card's backgroundColor bleeds into buttons and the tab panel"; on
+   -- Windows, by tperry2x's reading of his picture, p=25982). A control
+   -- with no colour of its own takes its owner's, as in LiveCode, but one
+   -- a theme draws, such as a push button or a tab pane, has the theme's
+   -- face. A snapshot for the review, and what the standard button's face
+   -- and the tab panel's inside are drawn in, logged: measured, not held,
+   -- until the snapshots show which platform draws what
+   try
+      set the backgroundColor of card 1 of stack kControls to kCardOwnColour
+      tourWait 500
+      tourShotStack kControls, "04c-controls-card-color"
+      tourGrab "Tall"
+      put tourRgbAt(sPixWidth div 2, 6) into tOn
+      tourRecord "INFO controls: on a card of" && kCardOwnColour & ", the standard button's face is" && tOn && \
+            "(" & tourNearCardColour(tOn) & ")"
+      tourGrab "Tabs"
+      put tourRgbAt(sPixWidth div 2, sPixHeight - 12) into tOn
+      tourRecord "INFO controls: on a card of" && kCardOwnColour & ", the tab panel's inside is" && tOn && \
+            "(" & tourNearCardColour(tOn) & ")"
+      set the backgroundColor of card 1 of stack kControls to empty
+      tourWait 300
+   catch tError
+      tourCtlCheck false, "the card's own colour:" && tourJoin(tError)
+   end try
+   
    tourRecord "INFO controls:" && sCtlChecks && "checks," && the number of lines of sCtlFails && "failed"
    delete stack kControls
    if sCtlFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of sCtlFails)
 end tour_controls
+
+-- The colour of a point of the pixels tourGrab read (x and y from their
+-- top left), as red, green and blue
+function tourRgbAt pX, pY
+   local tAt
+   put max(0, min(pX, sPixWidth - 1)) into pX
+   put max(0, min(pY, sPixHeight - 1)) into pY
+   put (pY * sPixWidth + pX) * 4 into tAt
+   return byteToNum(byte tAt + 2 of sPixData) & comma & byteToNum(byte tAt + 3 of sPixData) & comma & byteToNum(byte tAt + 4 of sPixData)
+end tourRgbAt
+
+-- Whether the colour pRGB is the card's own colour of the step controls
+-- (within 24 in each of red, green and blue)
+function tourNearCardColour pRGB
+   local i
+   repeat with i = 1 to 3
+      if abs(item i of pRGB - item i of kCardOwnColour) > 24 then return "not the card's colour"
+   end repeat
+   return "the card's colour"
+end tourNearCardColour
 
 -- The most a point of the label of the button pName of the controls
 -- stack differs from the button's face: the face at pFace points in from
@@ -4257,6 +4352,132 @@ on tour_inspector_clear_colour
    if exists(tWidget) then delete tWidget
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_inspector_clear_colour
+
+-- A button's background colour given in the inspector and then taken
+-- away with Reset to default (LittleNemo, openxtalk.org p=25968 and
+-- p=25970: in the web IDE and the IDE on a Raspberry Pi, the colour stayed
+-- until the window was closed). The swatch shows a colour picked in the
+-- colour dialog at once, but Reset only sets the property: the swatch
+-- shows it again when the engine tells the IDE that the property changed
+-- (its property listener, propertyChanged, then the IDE's
+-- idePropertyChanged). So: a colour given through the swatch, as the
+-- colour dialog gives it, is on the button and on the screen; after Reset
+-- the button has no colour of its own, the swatch no longer shows the
+-- colour and the screen shows the button without it; and a colour a
+-- script sets is shown by the swatch, and so is its removal
+on tour_inspector_reset_colour
+   local tButton, tPI, tEditor, tSwatch, tPoint, tCover, tPixel, tFails, tError
+   put tourSample("Push") into tButton
+   set the backgroundColor of tButton to empty
+   try
+      put tourInspect(tButton) into tPI
+      get tourInspectorSection(tPI, "Colors")
+      put tourInspectorEditor(tPI, "backgroundColor") into tEditor
+      if tEditor is empty then throw "the button's inspector has no Background fill"
+      put the long id of control 1 of tEditor into tSwatch
+      -- a point of the button's face, clear of its label, with no other
+      -- window over it (the inspector moved aside if it is), or none
+      put tourScreenLoc(tButton, kSample) into tPoint
+      put item 1 of tPoint - (the width of tButton div 2) + 10 into item 1 of tPoint
+      if tourCoverAt(tPoint, kSample) is tPI then
+         set the left of stack tPI to the right of stack kSample + 20
+         tourWait 500
+      end if
+      put tourCoverAt(tPoint, kSample) into tCover
+      if tCover is not empty then
+         tourRecord "INFO inspector-reset-colour the screen not read: the window of" && tCover && "is over the button"
+         put empty into tPoint
+      else
+         -- the screen unlocked before each read, as when the IDE is idle:
+         -- the Inspector leaves it locked, and a locked screen showed the
+         -- face the button had before (42,46,48 dark on Linux with
+         -- 0,160,0 set)
+         tourUnlockScreen "inspector-reset-colour"
+         tourRecord "INFO inspector-reset-colour the button's face before:" && tourPixelAt(item 1 of tPoint, item 2 of tPoint)
+      end if
+      -- as the colour dialog's answer does (com.livecode.pi.color.behavior)
+      set the swatchColor of tSwatch to "0,160,0"
+      dispatch "valueChanged" to tEditor
+      tourWait 1000
+      if tPoint is not empty then
+         tourUnlockScreen "inspector-reset-colour"
+         put tourPixelAt(item 1 of tPoint, item 2 of tPoint) into tPixel
+      end if
+      tourRecord "INFO inspector-reset-colour given 0,160,0: backgroundColor" && quote & the backgroundColor of tButton & quote && \
+            "swatch" && quote & the swatchColor of tSwatch & quote && "face" && tPixel
+      if the backgroundColor of tButton is not "0,160,0" then
+         put "the colour given through the swatch is not on the button:" && quote & the backgroundColor of tButton & quote & return after tFails
+      else if tPoint is not empty and not tourGreen(tPixel) then
+         put "the button given 0,160,0 is" && tPixel && "on the screen" & return after tFails
+      end if
+      -- as a pick of Reset to default in the swatch's menu (editorPopupMenu's button)
+      if there is not a button "inspectMenu" of tEditor then
+         create invisible button "inspectMenu" in tEditor
+      end if
+      dispatch "menuPick" to button "inspectMenu" of tEditor with "Reset to default"
+      repeat 30 times
+         if item 1 to 3 of the swatchColor of tSwatch is not "0,160,0" then exit repeat
+         tourWait 100
+      end repeat
+      tourWait 500
+      if tPoint is not empty then
+         tourUnlockScreen "inspector-reset-colour"
+         put tourPixelAt(item 1 of tPoint, item 2 of tPoint) into tPixel
+      end if
+      tourRecord "INFO inspector-reset-colour after Reset: backgroundColor" && quote & the backgroundColor of tButton & quote && \
+            "swatch" && quote & the swatchColor of tSwatch & quote && "face" && tPixel
+      if the backgroundColor of tButton is not empty then
+         put "Reset left the backgroundColor" && the backgroundColor of tButton & return after tFails
+      end if
+      if item 1 to 3 of the swatchColor of tSwatch is "0,160,0" then
+         put "after Reset the swatch still shows 0,160,0" & return after tFails
+      end if
+      if tPoint is not empty and tourGreen(tPixel) then
+         put "after Reset the button is still green on the screen (" & tPixel & ")" & return after tFails
+      end if
+      -- a colour that a script sets, and takes away
+      set the backgroundColor of tButton to "0,0,200"
+      repeat 30 times
+         if item 1 to 3 of the swatchColor of tSwatch is "0,0,200" then exit repeat
+         tourWait 100
+      end repeat
+      tourRecord "INFO inspector-reset-colour a script set 0,0,200: swatch" && quote & the swatchColor of tSwatch & quote
+      if item 1 to 3 of the swatchColor of tSwatch is not "0,0,200" then
+         put "the swatch does not show 0,0,200 that a script set (it shows" && quote & the swatchColor of tSwatch & quote & ")" & return after tFails
+      end if
+      set the backgroundColor of tButton to empty
+      repeat 30 times
+         if item 1 to 3 of the swatchColor of tSwatch is not "0,0,200" then exit repeat
+         tourWait 100
+      end repeat
+      if item 1 to 3 of the swatchColor of tSwatch is "0,0,200" then
+         put "the swatch still shows 0,0,200 after a script took it away" & return after tFails
+      end if
+      tourShotStack tPI, "08-inspector-reset-colour"
+   catch tError
+      put tError & return after tFails
+   end try
+   set the backgroundColor of tButton to empty
+   tourCloseInspectors
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_inspector_reset_colour
+
+-- The first visible open stack but pStack whose window takes in the point
+-- pPoint of the screen, in front of pStack or behind it, or empty
+function tourCoverAt pPoint, pStack
+   local tStack
+   repeat for each line tStack in the openStacks
+      if tStack is pStack or not the visible of stack tStack then next repeat
+      if pPoint is within the effective rect of stack tStack then return tStack
+   end repeat
+   return empty
+end tourCoverAt
+
+-- Whether the red, green and blue pRGB are a clear green: the 0,160,0 the
+-- step above gives a button, however a theme shades its face
+function tourGreen pRGB
+   return item 2 of pRGB - max(item 1 of pRGB, item 3 of pRGB) >= 60
+end tourGreen
 
 on tour_inspector_multiple
    local tPI
@@ -7718,6 +7939,7 @@ command tourShotStack pStack, pFile
    if pStack is empty or there is not a stack pStack then throw "no stack" && pStack
    if the mode of stack pStack is 0 or not the visible of stack pStack then throw "the stack" && pStack && "is not open"
    tourOnScreen pStack
+   tourInFront pStack
    -- with the title, which Linux in CI, with no window manager, doesn't show
    tourRecord "INFO" && pFile && "stack" && pStack && "rect" && the rect of stack pStack && "effective" && the effective rect of stack pStack && "title" && quote & the title of stack pStack & quote
    tourShotRect the effective rect of stack pStack, pFile
@@ -7756,6 +7978,50 @@ command tourOnScreen pStack
       end if
    end if
 end tourOnScreen
+
+-- The window photographed, in front of the tour's own windows: in the
+-- review of rc.6.13's snapshots the tour's window (oxt_ui_tour, hidden as
+-- the tour starts) was over the top left of the Extension Manager in
+-- 17-extension-manager-redrawn on the Apple silicon Mac, and on Windows
+-- the sample stack sat over the xTalk Assistant in 24f, in both
+-- appearances. The tour's window is hidden again; when the sample or the
+-- controls stack is over the window and in front of it (the openStacks
+-- list the frontmost first), the window is brought to the front, as
+-- going to it does, in the mode it has (a palette stays a palette), and
+-- the defaultStack is put back. A dialog (modal or a sheet) is left as
+-- it is, and only the tour's own windows are looked at: the IDE's, such
+-- as the Tools palette, are snapshot where they are
+command tourInFront pStack
+   local tName, tRect, tOther, tDefault, tFront
+   put the short name of stack pStack into tName
+   if tName is not "oxt_ui_tour" and there is a stack "oxt_ui_tour" \
+         and the mode of stack "oxt_ui_tour" is not 0 and the visible of stack "oxt_ui_tour" then
+      tourRecord "INFO the tour's own window was showing over the IDE's: hidden again"
+      hide stack "oxt_ui_tour"
+      tourWait 300
+   end if
+   if tName is kSample or tName is kControls then exit tourInFront
+   if the mode of stack pStack is not among the items of "1,2,3,4" then exit tourInFront
+   put the effective rect of stack pStack into tRect
+   repeat for each line tOther in the openStacks
+      if tOther is tName then exit repeat
+      if tOther is not kSample and tOther is not kControls then next repeat
+      if the mode of stack tOther is 0 or not the visible of stack tOther then next repeat
+      get the effective rect of stack tOther
+      if item 1 of it < item 3 of tRect and item 3 of it > item 1 of tRect \
+            and item 2 of it < item 4 of tRect and item 4 of it > item 2 of tRect then
+         put tOther into tFront
+         exit repeat
+      end if
+   end repeat
+   if tFront is empty then exit tourInFront
+   tourRecord "INFO" && tFront && "(" & the effective rect of stack tFront & ") was in front of" && tName && "(" & tRect & "): brought to the front"
+   tourUnlockScreen tName
+   put the defaultStack into tDefault
+   go stack pStack
+   if there is a stack tDefault then set the defaultStack to tDefault
+   tourWait 300
+end tourInFront
 
 -- A window as wide as the screen cannot move clear of the Tools palette
 -- (tourOnScreen): OXT-Beyond Home is 1024 wide on the Apple silicon Mac's

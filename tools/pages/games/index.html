@@ -1,8 +1,8 @@
 <!doctype html>
 <!-- The web stacks gallery of OXT-Beyond's GitHub Pages site (games/, the
-     address it kept when it was renamed). Two stacks run on their own pages
-     here (pixel-maker/, svg-lab/); the Stack Player's sample stacks are
-     cards that open in the Stack Player (../player/?play=<title>), filled
+     address it kept when it was renamed). Three stacks run on their own pages
+     here (pixel-maker/, svg-lab/, waterwheel/); the Stack Player's sample stacks each
+     get a page written from stack-page.html (<name>/), and cards here, filled
      in by tools/pages/build_pages.py from the player's samples/samples.json
      between the PLAYER_SAMPLES and PLAYER_LESSONS markers, so the gallery lists only the
      samples the player on the site has. The look is the logo's
@@ -222,12 +222,23 @@
           <div class="tags"><span class="tag">SVG</span><span class="tag">Graphics</span><span class="tag">Tests</span></div>
         </div>
       </a>
+      <a class="stack" href="waterwheel/">
+        <div class="shot">
+          <img src="waterwheel/poster.png" alt="A wooden waterwheel turning under a falling stream of water, beside its control panel">
+          <span class="play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>Open</span>
+        </div>
+        <div class="words">
+          <h3>Waterwheel</h3>
+          <p>One Box2D body turns a whole group of graphics. Rotate by degrees, spin it, flick it, throw it by hand or let the water turn it.</p>
+          <div class="tags"><span class="tag">Physics</span><span class="tag">Graphics</span><span class="tag">Animation</span></div>
+        </div>
+      </a>
     </div>
   </section>
 
   <!-- @PLAYER_SAMPLES@ -->
   <section class="shelf" aria-labelledby="player-stacks">
-    <h2 id="player-stacks">Small wonders <small>Each opens in the Stack Player</small></h2>
+    <h2 id="player-stacks">Small wonders <small>Each on a page of its own</small></h2>
     <div class="grid">
 @PLAYER_SAMPLES_LIST@
     </div>
@@ -236,7 +247,7 @@
 
   <!-- @PLAYER_LESSONS@ -->
   <section class="shelf" aria-labelledby="player-lessons">
-    <h2 id="player-lessons">Learn by playing <small>Tours and lessons, in the Stack Player</small></h2>
+    <h2 id="player-lessons">Learn by playing <small>Tours and lessons, each on a page of its own</small></h2>
     <div class="grid three">
 @PLAYER_LESSONS_LIST@
     </div>

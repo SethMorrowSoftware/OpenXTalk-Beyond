@@ -16,7 +16,8 @@
 
 """The web stacks gallery (tools/pages/games): build_pages.py fills it
 with a card for each of the Stack Player's samples that has a picture,
-each opening that sample in the player through ?play=<title>; the big
+each opening a page of its own that runs the sample in the player through
+?play=<title>; the big
 ones (Pixel Platformer Maker, SVG Lab) keep their own cards; and a page
 or a player from before the gallery is built as it was.
 
@@ -70,7 +71,8 @@ class TheGallery(unittest.TestCase):
         return read(os.path.join(target, 'index.html'))
 
     def cards(self, text):
-        return re.findall(r'<a class="stack( spot)?" href="\.\./player/\?play=([^"]+)">', text)
+        found = re.findall(r'<a class="stack( spot)?" href="([a-z0-9-]+)/">', text)
+        return [c for c in found if c[1] not in ('pixel-maker', 'svg-lab', 'waterwheel')]
 
     def test_the_players_samples_become_cards(self):
         self.samples([
@@ -85,11 +87,11 @@ class TheGallery(unittest.TestCase):
         text = self.built()
         # the spotlight first, the first one large, the rest as listed;
         # the lessons in their own shelf; no card for a sample with no picture
-        self.assertEqual(self.cards(text), [(' spot', 'Beat%20Box'), ('', 'Fireworks'), ('', 'Tiny'),
-                                            ('', 'Lesson')])
+        self.assertEqual(self.cards(text), [(' spot', 'beat-box'), ('', 'fireworks'), ('', 'tiny'),
+                                            ('', 'lesson')])
         self.assertLess(text.index('Small wonders'), text.index('Learn by playing'))
-        self.assertLess(text.index('play=Tiny'), text.index('Learn by playing'))
-        self.assertGreater(text.index('play=Lesson'), text.index('Learn by playing'))
+        self.assertLess(text.index('href="tiny/"'), text.index('Learn by playing'))
+        self.assertGreater(text.index('href="lesson/"'), text.index('Learn by playing'))
         self.assertIn('src="../player/samples/Beat%20Box.webp"', text)
         # what the samples say is text, never markup
         self.assertIn('<p>Small &amp; &lt;b&gt;fine&lt;/b&gt;</p>', text)
@@ -98,6 +100,32 @@ class TheGallery(unittest.TestCase):
         # the big ones keep their own pages
         self.assertIn('href="pixel-maker/"', text)
         self.assertIn('href="svg-lab/"', text)
+        self.assertIn('href="waterwheel/"', text)
+
+    def test_each_sample_gets_its_own_page(self):
+        self.samples([
+            {'title': 'Beat Box', 'image': 'Beat Box.webp', 'description': 'Drums & <b>more</b>', 'tags': ['Sound']},
+            {'title': 'Lesson', 'image': 'Lesson.webp', 'featured': True},
+            {'title': 'No picture', 'image': 'No picture.webp'},
+        ], pictures={'Beat Box', 'Lesson'})
+        self.built()
+        games = os.path.join(self.work, 'games')
+        page = read(os.path.join(games, 'beat-box', 'index.html'))
+        self.assertIn('<title>Beat Box', page)
+        self.assertIn('src="../../player/?play=Beat%20Box"', page)
+        self.assertIn('../../player/samples/Beat%20Box.webp', page)
+        self.assertIn('Drums &amp; &lt;b&gt;more&lt;/b&gt;', page)
+        self.assertIn('<span class="tag">Sound</span>', page)
+        self.assertNotRegex(page, r'@[A-Z_]+@')
+        self.assertTrue(os.path.isfile(os.path.join(games, 'lesson', 'index.html')))
+        self.assertFalse(os.path.exists(os.path.join(games, 'no-picture')))
+        # the template itself stays off the site
+        self.assertFalse(os.path.exists(os.path.join(games, 'stack-page.html')))
+
+    def test_a_sample_cannot_take_a_big_ones_folder(self):
+        self.samples([{'title': 'SVG Lab', 'image': 'SVG Lab.webp'}])
+        with self.assertRaises(build_pages.BuildError):
+            self.built()
 
     def test_a_player_with_no_samples(self):
         # an older player (or none listed): the shelves are left out and
@@ -116,7 +144,7 @@ class TheGallery(unittest.TestCase):
     def test_only_lessons(self):
         self.samples([{'title': 'Lesson', 'image': 'Lesson.webp', 'featured': True}])
         text = self.built()
-        self.assertEqual(self.cards(text), [('', 'Lesson')])
+        self.assertEqual(self.cards(text), [('', 'lesson')])
         self.assertNotIn('Small wonders', text)
         self.assertIn('Learn by playing', text)
 
@@ -147,6 +175,34 @@ class TheGallery(unittest.TestCase):
             self.assertEqual(text.count('@%s_LIST@' % key), 1, key)
         # the page moves only for a reader who has not asked it not to
         self.assertIn('@media (prefers-reduced-motion: reduce)', text)
+
+
+class TheStackPage(unittest.TestCase):
+    """A sample's own page covers the player with the sample's picture
+    until the stack plays. When the player cannot start the engine, or
+    cannot open the sample, the cover goes, so the player's own message
+    shows instead of "Loading..." for ever."""
+
+    def setUp(self):
+        self.text = read(os.path.join(PAGES, 'games', 'stack-page.html'))
+        body = re.search(r"frame\.addEventListener\('load', function \(\) \{(.*?)\n\}\);", self.text, re.S)
+        self.assertIsNotNone(body)
+        self.wait = body.group(1)
+
+    def test_the_cover_goes_when_the_stack_plays(self):
+        self.assertIn("d.body.classList.contains('playing')", self.wait)
+        self.assertIn("loading.style.display = 'none';", self.wait)
+
+    def test_the_cover_goes_when_the_player_fails(self):
+        # the engine that cannot start: the player's loading window says so
+        self.assertIn("d.getElementById('loading-error')", self.wait)
+        self.assertIn('!error.hidden', self.wait)
+        # the sample that cannot be opened: the player's error toast
+        self.assertIn("""d.querySelector('#toasts .toast[data-tone="3"]')""", self.wait)
+        # and the player's error says what the player's error tone is
+        player = read(os.path.join(PLAYER, 'index.html'))
+        self.assertIn("el.dataset.tone = kind == 'error' ? '3' : '2';", player)
+        self.assertIn('<div class="error" id="loading-error" hidden></div>', player)
 
 
 class ThePlayersDeepLink(unittest.TestCase):

@@ -774,6 +774,65 @@ class TheDisabledLabels(unittest.TestCase):
                         tour.index('\ncommand tourLabelInks pStack\n'))
 
 
+class TheWindowInFront(unittest.TestCase):
+    """The review of rc.6.13's snapshots: the tour's own window
+    (oxt_ui_tour, hidden as the tour starts) over the Extension Manager in
+    17-extension-manager-redrawn on the Apple silicon Mac, and the sample
+    stack over the xTalk Assistant in 24f on Windows. Before each snapshot
+    of a window the tour hides its own window again and brings the window
+    in front of its sample and controls stacks."""
+
+    def test_before_each_snapshot(self):
+        shot = handler(read(TOUR), 'command', 'tourShotStack')
+        self.assertLess(shot.index('tourOnScreen pStack'), shot.index('tourInFront pStack'))
+        self.assertLess(shot.index('tourInFront pStack'), shot.index('tourShotRect the effective rect of stack pStack, pFile'))
+
+    def test_the_tours_own_window(self):
+        body = handler(read(TOUR), 'command', 'tourInFront')
+        self.assertIn('if tName is not "oxt_ui_tour" and there is a stack "oxt_ui_tour"', body)
+        self.assertIn('and the mode of stack "oxt_ui_tour" is not 0 and the visible of stack "oxt_ui_tour" then', body)
+        self.assertIn('hide stack "oxt_ui_tour"', body)
+
+    def test_the_window_brought_to_the_front(self):
+        body = handler(read(TOUR), 'command', 'tourInFront')
+        # only the tour's sample and controls stacks are looked at, in the
+        # openStacks' order (the frontmost first), and only over the window
+        self.assertIn('if tName is kSample or tName is kControls then exit tourInFront', body)
+        self.assertIn('repeat for each line tOther in the openStacks', body)
+        self.assertIn('if tOther is tName then exit repeat', body)
+        self.assertIn('if tOther is not kSample and tOther is not kControls then next repeat', body)
+        self.assertIn('if item 1 of it < item 3 of tRect and item 3 of it > item 1 of tRect', body)
+        self.assertIn('and item 2 of it < item 4 of tRect and item 4 of it > item 2 of tRect then', body)
+        # a dialog is left as it is; a palette stays a palette (go keeps the
+        # mode of a stack that is open), and the defaultStack is put back
+        self.assertIn('if the mode of stack pStack is not among the items of "1,2,3,4" then exit tourInFront', body)
+        self.assertLess(body.index('put the defaultStack into tDefault'), body.index('go stack pStack'))
+        self.assertLess(body.index('go stack pStack'), body.index('set the defaultStack to tDefault'))
+        self.assertNotIn('go stack pStack as', body)
+        self.assertNotIn('tourToolsAside', body)
+
+
+class TheCardsOwnColour(unittest.TestCase):
+    """TerryL (openxtalk.org p=25957): "the card's backgroundColor bleeds
+    into buttons and the tab panel", on Windows by tperry2x's reading of
+    the picture (p=25982). The step controls gives the card a colour of its
+    own, snapshots it for the review on every platform, and logs what the
+    standard button's face and the tab panel's inside are drawn in."""
+
+    def test_the_step_snapshots_it(self):
+        tour = read(TOUR)
+        step = handler(tour, 'on', 'tour_controls')
+        self.assertIn('set the backgroundColor of card 1 of stack kControls to kCardOwnColour', step)
+        self.assertLess(step.index('set the backgroundColor of card 1 of stack kControls to kCardOwnColour'),
+                        step.index('tourShotStack kControls, "04c-controls-card-color"'))
+        self.assertIn('tourGrab "Tall"', step)
+        self.assertIn('tourGrab "Tabs"', step)
+        self.assertIn('set the backgroundColor of card 1 of stack kControls to empty', step)
+        # the constant is declared before the step reads it (a name not yet
+        # declared is its own spelling)
+        self.assertLess(tour.index('\nconstant kCardOwnColour = "60,170,90"\n'), tour.index('\non tour_controls\n'))
+
+
 class TheToolsPalette(unittest.TestCase):
     """A check that reads a window's pixels off the screen reads that
     window's, not the Tools palette's over it."""

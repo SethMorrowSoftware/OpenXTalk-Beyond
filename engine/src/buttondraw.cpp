@@ -830,36 +830,35 @@ void MCButton::drawlabel(MCDC *dc, int2 sx, int sy, uint2 twidth, const MCRectan
 }
 
 #if defined(TARGET_PLATFORM_LINUX)
-// OXT-Beyond: whether one of the engine's menu items sits on a dark menu of
-// the desktop's theme. A menu item's tick, its radio dot and a submenu's
-// arrow are white on a dark appearance and black on a light one (tperry,
-// January 2026). Linux's systemAppearance is always light, though
-// (MCUIDC::getsystemappearance): a dark GTK theme comes in as the theme's
-// colours, not as an appearance, so they were black on a dark theme's menu
-// (forum, tperry2x, rc.6.3: File > Import Stack's HyperCard options looked
-// unticked). There the theme's colour behind the item decides. A light
-// theme's menu, a menu whose item, button or stack has a background colour
-// or pattern of its own, and a stack used as a menu keep their black marks,
-// as before
+// OXT-Beyond: whether one of the engine's menu items sits on a dark colour.
+// A menu item's tick, its radio dot and a submenu's arrow are white on a
+// dark appearance and black on a light one (tperry, January 2026). Linux's
+// systemAppearance is always light, though (MCUIDC::getsystemappearance): a
+// dark GTK theme comes in as the theme's colours, not as an appearance, so
+// they were black on a dark theme's menu (forum, tperry2x, rc.6.3: File >
+// Import Stack's HyperCard options looked unticked). There the colour behind
+// the item decides: the one the item fills its background with (MCButton::
+// draw: menu items are opaque), which is the first colour from the item up
+// (the item's, its menu's, then from the menu's button up) or the theme's.
+// Until 0.2.7-rc.6.14 a colour of its own anywhere on that way kept the
+// marks black whatever the colour, so in a window of a dark colour of its
+// own a menu's marks were black on dark, though its text was the theme's
+// white (forum, tperry2x, p=25972, rc.6.13 on Ubuntu MATE in the dark).
+// A light colour, a pattern (no one colour to read) and a stack used as a
+// menu keep their black marks, as before
 static bool MCButtonMenuItemIsOnDarkTheme(MCButton *p_item, MCDC *p_dc)
 {
 	if (p_item -> getmenucontrol() != MENUCONTROL_ITEM)
 		return false;
 
-	// The objects getforecolor looks to for the colour, in its order
-	for (MCObject *t_object = p_item; t_object != nil && t_object != MCdispatcher; t_object = t_object -> getparent())
-	{
-		uint2 t_index;
-		if (t_object -> getcindex(DI_BACK, t_index) || t_object -> getpindex(DI_BACK, t_index))
-			return false;
-	}
-
-	// The theme's colour, which the item fills its background with
-	// (MCButton::draw: menu items are opaque)
+	// The colour the item fills its background with: its own or the first
+	// above it (MCObject::getforecolor), else the theme's
 	MCColor t_color;
 	MCPatternRef t_pattern = nil;
 	int2 t_x, t_y;
 	if (!p_item -> getforecolor(DI_BACK, False, False, t_color, t_pattern, t_x, t_y, p_dc -> gettype(), p_item))
+		return false;
+	if (t_pattern != nil)
 		return false;
 
 	// Rec. 601 luma, out of 65535

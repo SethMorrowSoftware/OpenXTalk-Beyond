@@ -62,6 +62,20 @@ script "org.openxtalk.plugin.mcpbridge-tools"
 -- the tool undo_changes or from the plugin's menu entry, until the bridge
 -- is turned off.
 --
+-- Unless the user says otherwise. mcbSetUnasked true (the plugin's "Stop
+-- Asking", which it keeps as a preference and gives again each time it
+-- starts the bridge) lets runs of code and saves go ahead without the
+-- question: still only with an asker there (the user's IDE, not a bare
+-- engine), and each one noted with its code in a log beside the bridge's
+-- file (mcbUnaskedLogPath), so the user can read afterwards what ran. It is
+-- off until set, and stopping the server or the link puts it off again.
+-- Claude can ask for it with the tool set_asking, which shows the user the
+-- same warning first (mcbAsk: it is never let through unasked) and can put
+-- asking back on with no question; the environment variable
+-- OXTBEYOND_MCP_BRIDGE_ASK=always refuses it here too.
+-- Undoing what the user changed since is asked about all the same: that
+-- is the user's own work, and Claude cannot know what it was worth.
+--
 -- It needs no IDE: the engine tests in tests/lcs/mcpbridge load it, the
 -- assistant's core and build library, and a stand-in asker, the same way.
 --
@@ -83,6 +97,8 @@ script "org.openxtalk.plugin.mcpbridge-tools"
 --    mcbUndoLast()                       the newest change still applied, undone
 --    mcbDesktopConfigText(pOld, pName, pServerPath)  Claude desktop's
 --                                        config with the bridge's entry added
+--    mcbSetUnasked pOn, mcbIsUnasked()   runs and saves without asking
+--    mcbUnaskedLogPath()                 where those are noted
 
 -- What the answer to "hello" calls this end of the protocol; the MCP
 -- server refuses a version it does not know
@@ -98,13 +114,17 @@ constant kMaxRequestBytes = 8000000
 constant kPictureSide = 1024
 -- The most text of a detail the user is asked about (the code of a run)
 constant kMaxAskChars = 3000
+-- The log of runs and saves done without asking (mcbSetUnasked), beside
+-- the bridge's file, and how long it may grow before its older half goes
+constant kUnaskedLogFile = "mcp-bridge-unasked.log"
+constant kMaxUnaskedLogChars = 2000000
 -- The most code a run may have when the asker shows it whole on a panel
 -- that scrolls (OXT-Beyond's question, mcbShowsLongCode): kMaxAskChars
 -- still holds where the question is answer's, which cuts it
 constant kMaxAskLongChars = 20000
 -- The tools, in the order the MCP server lists them (mcp/server.js has
 -- their descriptions and schemas)
-constant kTools = "xtalk_guide,list_stacks,ide_context,read_stack,read_script,search_scripts,look_at_card,lookup_dictionary,check_code,make_changes,edit_script,run_code,save_stack,list_changes,undo_changes,debug_state,stop_paused_script,answer_dialog,import_hypercard"
+constant kTools = "xtalk_guide,list_stacks,ide_context,read_stack,read_script,search_scripts,look_at_card,lookup_dictionary,check_code,make_changes,edit_script,run_code,save_stack,list_changes,undo_changes,debug_state,stop_paused_script,answer_dialog,import_hypercard,set_asking"
 -- The tools that answer while another call is still being carried out
 -- (sBusy): they are for what holds that call up, a script paused in the
 -- debugger or a dialog a stack opened, so they never wait for it. They
@@ -164,6 +184,9 @@ local sDictionaryNames
 -- question to the user answered after the connection it came on has gone
 -- is answered only with nothing done (mcbAsk)
 local sLink, sLinkGeneration, sLinkRequest
+-- True while the user lets runs and saves go ahead without asking
+-- (mcbSetUnasked); off until set, and again when the bridge stops
+local sUnasked
 
 --------------------------------------------------------------------------------
 -- The server
@@ -259,6 +282,7 @@ end mcbServerStop
 -- turned-off assistant leaves them, and its journal, to the bridge.
 private command mcbStopParts
    local tError
+   put false into sUnasked
    put false into sBusy
    put empty into sBusyTool
    put empty into sWaiting
@@ -810,6 +834,8 @@ function mcbCallTool pTool, pArguments
             return mcbToolAnswerDialog(pArguments)
          case "import_hypercard"
             return mcbToolImportHyperCard(pArguments)
+         case "set_asking"
+            return mcbToolSetAsking(mcbArg(pArguments, "ask"))
       end switch
    catch tError
       return mcbFailed(tError)
@@ -977,6 +1003,132 @@ end mcbAssistantOn
 
 --------------------------------------------------------------------------------
 -- Asking the user
+
+-- Lets runs of code and saves go ahead without asking the user (pOn true),
+-- or asks again (anything else). The plugin's "Stop Asking" sets it each
+-- time it starts the bridge; stopping the server or the link puts it off.
+command mcbSetUnasked pOn
+   put pOn is true and not mcbAskIsLocked() into sUnasked
+end mcbSetUnasked
+
+-- True when this computer keeps the question for good
+-- (OXTBEYOND_MCP_BRIDGE_ASK=always)
+private function mcbAskIsLocked
+   return toLower($OXTBEYOND_MCP_BRIDGE_ASK) is "always"
+end mcbAskIsLocked
+
+-- set_asking: pAsk true puts the question before runs and saves back on,
+-- at once; false asks the user, with what it gives away, whether to stop
+-- asking. That question is asked even while asking is off (mcbAsk, not
+-- mcbAllow), so Claude cannot turn its own questions off. The asker is
+-- told the choice (mcbUnaskedChanged), which OXT-Beyond keeps as its
+-- preference, as its menu's Stop Asking and Ask Me Again do.
+private function mcbToolSetAsking pAsk
+   local tDetail
+   if pAsk is true then
+      mcbSetUnasked false
+      mcbTellUnasked false
+      return mcbResult(mcbHostName() & " asks the user again before each run of code and each save.", false)
+   end if
+   if pAsk is not false then
+      return mcbResult("ask is true (ask before runs and saves) or false (ask the user whether to stop asking).", true)
+   end if
+   if mcbIsUnasked() then
+      return mcbResult("The user already lets runs and saves go ahead without asking.", false)
+   end if
+   -- The web IDE always asks (the menu offers no Stop Asking there)
+   if sLink is true then
+      return mcbResult("The web IDE always asks before runs and saves: it cannot be turned off there.", true)
+   end if
+   if mcbAskIsLocked() then
+      return mcbResult("This computer keeps asking before runs and saves for good (OXTBEYOND_MCP_BRIDGE_ASK is always): it cannot be turned off from here.", true)
+   end if
+   put "Claude's code would run, and stacks be saved, without a window asking you first, until you choose Ask Me Again in " & \
+         "Development > Plugins > xTalk MCP Bridge or turn the bridge off." & return & return & \
+         "Code Claude runs can do anything " & mcbHostName() & " can: read, change and delete your files, run programs, and reach the internet. " & \
+         "You will not see it before it runs, and Claude can be misled by what it reads into running code you would not want. " & \
+         "Each run and save is written down, with its code, in:" & return & mcbUnaskedLogPath() into tDetail
+   if not mcbAsk("Claude asks to stop asking you before its runs and saves.", tDetail, "Stop Asking") then
+      return mcbResult("The user chose to keep being asked before runs and saves. Do not ask again unless they ask you to.", true)
+   end if
+   mcbSetUnasked true
+   mcbTellUnasked true
+   return mcbResult("The user lets runs and saves go ahead without asking. Each is written in a log they can read. " & \
+         "Run only what the task needs.", false)
+end mcbToolSetAsking
+
+-- Tells the asker the user's choice about asking (OXT-Beyond keeps it as
+-- a preference); an asker without the handler (a package of the bridge in
+-- another xTalk's IDE, the tests' stand-in) keeps nothing
+private command mcbTellUnasked pOn
+   local tError
+   if sAsker is not empty and there is a sAsker then
+      try
+         dispatch "mcbUnaskedChanged" to sAsker with pOn
+      catch tError
+      end try
+   end if
+end mcbTellUnasked
+
+function mcbIsUnasked
+   return sUnasked is true
+end mcbIsUnasked
+
+-- Where runs and saves done without asking are noted: beside the bridge's
+-- file (mcbInfoFilePath, or the one given to mcbServerStart)
+function mcbUnaskedLogPath
+   local tFile
+   if sInfoFile is not empty then
+      put sInfoFile into tFile
+   else
+      put mcbInfoFilePath() into tFile
+   end if
+   set the itemDelimiter to slash
+   return item 1 to -2 of tFile & slash & kUnaskedLogFile
+end mcbUnaskedLogPath
+
+-- True when what Claude asks for (a run, a save) may go ahead: without a
+-- question while the user lets it (mcbSetUnasked), noted in the log; else
+-- as the user answers (mcbAsk). Never without an asker: a bridge started
+-- with none refuses, as it always did.
+private function mcbAllow pTitle, pDetail, pYes, pParts
+   if sUnasked is true and sAsker is not empty and there is a sAsker then
+      mcbNoteUnasked pTitle, pDetail
+      return true
+   end if
+   return mcbAsk(pTitle, pDetail, pYes, pParts)
+end mcbAllow
+
+-- Adds what went ahead without asking to the log, with the time, for the
+-- user to read later. The log is only the user's to read, as the bridge's
+-- file is; once longer than kMaxUnaskedLogChars its older half goes. A log
+-- that cannot be written does not stop the run: the user chose not to be
+-- asked, and the run's own record (list_changes, undo) is unchanged.
+private command mcbNoteUnasked pTitle, pDetail
+   local tFile, tFolder, tOld, tEntry, tError
+   put mcbUnaskedLogPath() into tFile
+   set the itemDelimiter to slash
+   put item 1 to -2 of tFile into tFolder
+   try
+      if there is not a folder tFolder then
+         create folder tFolder
+         mcbOwnerOnly tFolder, "700"
+      end if
+      if there is a file tFile then
+         put textDecode(url ("binfile:" & tFile), "UTF-8") into tOld
+      else
+         put empty into url ("binfile:" & tFile)
+         mcbOwnerOnly tFile, "600"
+      end if
+      if the number of chars of tOld > kMaxUnaskedLogChars then
+         put char (the number of chars of tOld div 2) to -1 of tOld into tOld
+      end if
+      put "== " & the internet date & ":" && pTitle & numToChar(10) & pDetail & numToChar(10) & numToChar(10) into tEntry
+      replace return with numToChar(10) in tEntry
+      put textEncode(tOld & tEntry, "UTF-8") into url ("binfile:" & tFile)
+   catch tError
+   end try
+end mcbNoteUnasked
 
 -- Asks the user (the plugin's dialog); true when they said yes. With no
 -- asker (the bridge started without one), false. pParts, when given, is
@@ -2322,7 +2474,7 @@ end mcbChangesOf
 
 -- Code run in a sandbox or on the user's stack (after a checkpoint, which
 -- undo_changes goes back to), after the user says yes in OXT-Beyond, every
--- time. The sandbox is a hidden stack in this same engine, so its code can
+-- time (unless they chose not to be asked: mcbAllow). The sandbox is a hidden stack in this same engine, so its code can
 -- do whatever the IDE can; and xtaRiskScan reads the code's text, which
 -- code can always word so that it is not seen ("the shell of", a "do" of
 -- text it builds, a handler the code calls), so it only says what the
@@ -2360,7 +2512,11 @@ private function mcbToolRunCode pArguments
    else
       put kMaxAskChars into tMax
    end if
-   if the number of chars of tDetail > tMax then
+   -- Not asked (mcbSetUnasked), it is shown to nobody: the log keeps it whole
+   if mcbIsUnasked() and sAsker is not empty and there is a sAsker then
+      put empty into tMax
+   end if
+   if tMax is not empty and the number of chars of tDetail > tMax then
       return mcbResult("Nothing ran: the code and its handlers are too long for the user to read in the question " & mcbHostName() & \
             " asks before a run (" & the number of chars of tDetail && "characters with the question; at most" && tMax & "). " & \
             "Run shorter code: put long handlers into the stack's script with make_changes first, then run a short call to them.", true)
@@ -2376,7 +2532,7 @@ private function mcbToolRunCode pArguments
       put return & "Note:" && tPaused after tParts["prose"]
       put return & "Note:" && tPaused before tDetail
    end if
-   if not mcbAsk(tTitle, tDetail, "Run", tParts) then
+   if not mcbAllow(tTitle, tDetail, "Run", tParts) then
       return mcbResult("Nothing ran: the user did not allow the run. Ask them what they would like instead; do not send the same code again.", true)
    end if
    put xtaRunCode(tRun) into tRan
@@ -2394,7 +2550,8 @@ private function mcbToolRunCode pArguments
 end mcbToolRunCode
 
 -- Saves a stack (its main stack, with its substacks) to its file, after
--- the user says yes in OXT-Beyond, every time
+-- the user says yes in OXT-Beyond, every time (unless they chose not to be
+-- asked: mcbAllow)
 private function mcbToolSaveStack pStackName
    local tTarget, tMain, tName, tFile, tDetail, tDone, tError
    put mcbTarget(pStackName) into tTarget
@@ -2410,7 +2567,7 @@ private function mcbToolSaveStack pStackName
       put "It is saved to its file, with its substacks:" & return & tFile into tDetail
    end if
    put return & return & "Saving cannot be undone." after tDetail
-   if not mcbAsk("Claude asks to save the stack" && quote & tName & quote & ".", tDetail, "Save") then
+   if not mcbAllow("Claude asks to save the stack" && quote & tName & quote & ".", tDetail, "Save") then
       return mcbResult("The user chose not to save the stack" && quote & tName & quote & ", and nothing was saved. Do not ask again unless they ask you to.", true)
    end if
    try

@@ -1,0 +1,78 @@
+<!doctype html>
+<!-- The page of one Stack Player sample on the web stacks gallery.
+     tools/pages/build_pages.py writes one from this for each sample, at
+     games/<name>/; this file does not go on the site. The stack runs in
+     the Stack Player in a frame, with the player's own menu bar hidden. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>@TITLE@ · OXT-Beyond</title>
+<meta name="description" content="@DESCRIPTION@">
+<style>
+:root{--ink:#090d2b;--night:#14184a;--panel:#20265f;--line:#3b4596;--gold:#f4d35e;--moon:#fff6c2;--text:#f3f4ff;--muted:#bcc2ea}
+*{box-sizing:border-box}
+html{background:var(--ink)}
+body{margin:0;min-height:100vh;color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  background:linear-gradient(var(--ink),var(--night) 420px,#2a2a70)}
+header{display:flex;align-items:center;gap:20px;flex-wrap:wrap;justify-content:space-between;max-width:1100px;margin:0 auto;padding:18px 24px 10px}
+h1{margin:0;font-size:30px;line-height:1.1;color:var(--gold)}
+header p{margin:2px 0 0;color:var(--muted);max-width:56ch}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.tag{padding:1px 9px;font-size:13px;color:var(--muted);border:1px solid var(--line);border-radius:999px}
+nav a{display:inline-block;margin:0 0 6px 8px;padding:8px 14px;color:var(--ink);background:var(--gold);border-radius:8px;font-weight:700;text-decoration:none}
+nav a:hover{filter:brightness(1.08)}
+main{max-width:1100px;margin:0 auto;padding:0 24px 28px}
+.frame{position:relative;padding:6px;background:var(--gold);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+#stack{position:relative;height:max(560px,calc(100vh - 190px));background:var(--ink);border-radius:8px;overflow:hidden}
+iframe{display:block;width:100%;height:100%;border:0;visibility:hidden}
+#loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--ink) center/cover no-repeat}
+#loading::before{content:"";position:absolute;inset:0;background:rgba(9,13,43,.72)}
+#status{position:relative;font-weight:600}
+footer{padding:0 24px 28px;text-align:center;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>@TITLE@</h1>
+    <p>@DESCRIPTION@</p>
+    <div class="tags">@TAGS@</div>
+  </div>
+  <nav><a href="../">All demos</a><a href="../../player/?play=@PLAY@">Open in the Stack Player</a><a href="../../">OXT-Beyond</a></nav>
+</header>
+<main>
+  <div class="frame">
+    <div id="stack">
+      <iframe id="player" title="@TITLE@" src="../../player/?play=@PLAY@" allow="fullscreen; autoplay; microphone; camera; clipboard-write"></iframe>
+      <div id="loading" style="background-image:url(&quot;../../player/samples/@IMAGE@&quot;)"><div id="status">Loading @TITLE@...</div></div>
+    </div>
+  </div>
+</main>
+<footer>Written in xTalk Script. Made with OXT-Beyond, free and open source.</footer>
+<script>
+var frame = document.getElementById('player'), loading = document.getElementById('loading');
+frame.addEventListener('load', function () {
+  // the page is the stack's own, so the player's menu bar stays out of it
+  var d = frame.contentDocument, style = d.createElement('style');
+  style.textContent = '.menubar{display:none!important}';
+  d.head.appendChild(style);
+  frame.style.visibility = 'visible';
+  // the player marks the page as playing once the stack is up. If it
+  // cannot start the engine (its loading window's error) or open the
+  // sample (an error toast), the cover goes too, so its message shows.
+  var wait = setInterval(function () {
+    var playing = d.body.classList.contains('playing');
+    var error = d.getElementById('loading-error');
+    var failed = (error && !error.hidden) || d.querySelector('#toasts .toast[data-tone="3"]');
+    if (!playing && !failed) return;
+    clearInterval(wait);
+    loading.style.display = 'none';
+    if (!playing) return;
+    // as tall as the stack, so the frame has no scrollbar of its own
+    setTimeout(function () { document.getElementById('stack').style.height = d.documentElement.scrollHeight + 'px'; }, 300);
+  }, 200);
+});
+</script>
+</body>
+</html>

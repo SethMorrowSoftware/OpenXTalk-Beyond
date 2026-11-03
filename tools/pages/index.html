@@ -77,16 +77,20 @@
       radial-gradient(1px 1px at 260px 140px, #fff, transparent),
       radial-gradient(2px 2px at 330px 40px, rgba(190,240,235,.9), transparent);
     background-size: 380px 300px;
-    animation: twinkle 5s ease-in-out infinite alternate;
+    opacity: .6; animation: twinkle 4s ease-in-out 2 alternate;
   }
   .stars::after {
     background-image:
       radial-gradient(2px 2px at 120px 90px, #fff, transparent),
       radial-gradient(1px 1px at 420px 260px, rgba(255,255,255,.8), transparent);
     background-size: 520px 360px;
-    animation: twinkle 7s ease-in-out 1.5s infinite alternate;
+    opacity: .6; animation: twinkle 5s ease-in-out 1.5s 2 alternate;
   }
-  @keyframes twinkle { from { opacity: .35; } to { opacity: 1; } }
+  /* The stars twinkle twice as the page opens and then rest where they
+     began (an endless twinkle of these layers, as big as the header and the
+     downloads, kept a browser without a GPU busy all the time: tperry2x,
+     openxtalk.org p=25971) */
+  @keyframes twinkle { from { opacity: .6; } to { opacity: 1; } }
 
   /* The planet: a huge circle whose top edge is the horizon, lit orange,
      and whose surface is the rest of the page */
@@ -155,17 +159,32 @@
   .orbit::after {
     content: ""; position: absolute; width: 10px; height: 10px; border-radius: 50%; top: 50%; left: 50%;
     background: var(--teal); box-shadow: 0 0 14px 3px rgba(79,209,197,.7);
-    offset-path: ellipse(50% 50% at 50% 50%); animation: orbit 14s linear infinite;
+    offset-path: ellipse(50% 50% at 50% 50%);
   }
+  .scene:hover .orbit::after { animation: orbit 14s linear infinite; }
+  .scene:has(:focus-visible) .orbit::after { animation: orbit 14s linear infinite; }
   @keyframes orbit { from { offset-distance: 0%; } to { offset-distance: 100%; } }
-  /* The logo, moving (brand/logo-animated.svg: SMIL in the file), over the
-     corner of the stack window's script, where it covers nothing; the still
-     one for a reader who asks for less motion */
+  /* The logo over the corner of the stack window's script, where it covers
+     nothing: moving (brand/logo-animated.svg, SMIL in the file) for the
+     first seconds of the page (the class "opening", which the page's script
+     takes off) and while the stack window is pointed at or has the
+     keyboard's focus; still the rest of the time, and always for a reader
+     who asks for less motion. Moving without end it kept a browser without
+     a GPU busy on its own (tperry2x, openxtalk.org p=25971), as did the
+     orbit's dot, which moves with it, and the rays, which no longer turn */
   .hero-logo {
     position: absolute; z-index: 2; right: -18px; bottom: -6px; width: 132px; height: 132px;
     transform: rotate(7deg); pointer-events: none; filter: drop-shadow(0 18px 30px rgba(0,0,0,.5)) drop-shadow(0 0 26px rgba(255,122,0,.28));
   }
   .hero-logo img { display: block; width: 100%; height: 100%; }
+  .hero-logo .moving { display: none; }
+  .opening .hero-logo .moving, .scene:hover .hero-logo .moving { display: block; }
+  .opening .hero-logo .still, .scene:hover .hero-logo .still { display: none; }
+  /* (apart: a browser without :has() drops only this rule, not the others;
+     :focus-visible, not :focus-within, because "Say hello" keeps the focus
+     after a click) */
+  .scene:has(:focus-visible) .hero-logo .moving { display: block; }
+  .scene:has(:focus-visible) .hero-logo .still { display: none; }
   .window {
     position: relative; width: min(100%, 440px); border-radius: 14px; overflow: hidden;
     background: #1a2436; box-shadow: 0 0 0 1px rgba(255,255,255,.09), 0 30px 80px rgba(0,0,0,.55), 0 0 60px rgba(255,122,0,.12);
@@ -231,21 +250,20 @@
     background: repeating-conic-gradient(from 0deg at 50% 0, var(--rays) 0 4deg, transparent 4deg 13deg);
     -webkit-mask: radial-gradient(ellipse 50% 60% at 50% 0, #000 30%, transparent 75%);
     mask: radial-gradient(ellipse 50% 60% at 50% 0, #000 30%, transparent 75%);
-    animation: rays-turn 140s linear infinite;
   }
   .explore::after {
     content: ""; position: absolute; z-index: -1; left: 0; right: 0; top: 0; height: 520px;
     background: radial-gradient(ellipse 60% 70% at 50% 0, var(--section-glow), transparent 70%);
   }
-  @keyframes rays-turn { to { transform: translateX(-50%) rotate(360deg); } }
   .section-head { text-align: center; margin: 0 auto 48px; max-width: 640px; }
   .section-head .eyebrow { color: var(--ember); }
   .section-head h2 { margin: 0 0 12px; font-size: clamp(2.2rem, 5vw, 3.6rem); font-weight: 850; letter-spacing: -.035em; line-height: 1.05; }
   .section-head h2 .flame {
     background: linear-gradient(100deg, #ffa12e, #ff7700 35%, #ff3d00 65%, #ff9a1f 85%, #ffb347);
     background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
-    filter: drop-shadow(0 4px 18px rgba(255,122,0,.35)); animation: flame-flow 6s ease-in-out infinite alternate;
+    filter: drop-shadow(0 4px 18px rgba(255,122,0,.35));
   }
+  .section-head:hover .flame { animation: flame-flow 6s ease-in-out infinite alternate; }
   @keyframes flame-flow { to { background-position: 100% 0; } }
   .section-head p { margin: 0; color: var(--muted); font-size: 1.08rem; }
   .cards { display: grid; gap: 26px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); counter-reset: part; }
@@ -434,6 +452,8 @@
     *, *::before, *::after { animation: none !important; transition: none !important; }
     .feature-logo .moving { display: none !important; }
     .feature-logo .still { display: block !important; }
+    .hero-logo .moving { display: none !important; }
+    .hero-logo .still { display: block !important; }
   }
 </style>
 </head>
@@ -473,10 +493,10 @@
       </div>
       <div class="scene">
         <div class="orbit" aria-hidden="true"></div>
-        <picture class="hero-logo">
-          <source srcset="brand/logo.svg" media="(prefers-reduced-motion: reduce)">
-          <img src="brand/logo-animated.svg" alt="The OXT-Beyond logo: OXT struck by lightning" width="132" height="132">
-        </picture>
+        <span class="hero-logo" role="img" aria-label="The OXT-Beyond logo: OXT struck by lightning">
+          <img class="still" src="brand/logo.svg" alt="" width="132" height="132">
+          <img class="moving" src="brand/logo-animated.svg" alt="" width="132" height="132">
+        </span>
         <figure class="window" aria-label="An xTalk stack: a card with a button, and the button's script">
           <div class="titlebar" aria-hidden="true"><i></i><i></i><i></i><span>Hello Beyond.oxtstack</span></div>
           <div class="card-face">
@@ -632,6 +652,15 @@
 </footer>
 
 <script>
+  // The logo in the header moves for the page's first seconds, and then
+  // only while the stack window is pointed at (the class "opening"; without
+  // this script it is still)
+  (function () {
+    var root = document.documentElement;
+    root.classList.add('opening');
+    setTimeout(function () { root.classList.remove('opening'); }, 6000);
+  })();
+
   // The stack in the header answers its button, as its script says. The
   // page works without this: it is the only script, and it loads nothing.
   (function () {

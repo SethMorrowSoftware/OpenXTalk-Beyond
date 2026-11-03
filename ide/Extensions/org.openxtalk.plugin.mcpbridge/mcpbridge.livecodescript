@@ -25,6 +25,16 @@ script "org.openxtalk.plugin.mcpbridge"
 -- the same item. Set the environment variable OXTBEYOND_MCP_BRIDGE to "off"
 -- to keep it off for good.
 --
+-- Asking. While on, the user is asked before every run of Claude's code
+-- and every save. The same menu's "Stop Asking..." lets those go ahead
+-- without a question, after a window that says what that gives away
+-- (mcbStopAsking); it is off by default, kept as a preference while the
+-- bridge stays on (so a restart keeps it), put off with the bridge, and
+-- "Ask Me Again" puts it off at once. Each run and save it lets through is
+-- noted in a log beside the bridge's file (mcbUnaskedLogPath). Set the
+-- environment variable OXTBEYOND_MCP_BRIDGE_ASK to "always" to keep the
+-- questions for good on a computer. The web IDE always asks.
+--
 -- In the web IDE (the IDE in a browser tab, tools/web-ide) the same item
 -- connects instead (mcbWebMenuPick). A page cannot listen for a
 -- connection, so the MCP server, started by Claude's app on the user's
@@ -59,7 +69,8 @@ script "org.openxtalk.plugin.mcpbridge"
 --    mcbWebMenuPick              the same in the web IDE
 --    mcbIsEnabled()
 --    mcbConfirm(pTitle, pDetail, pYes, pParts), mcbTooLate, mcbEditorStack(),
---    mcbEditorContext(), mcbShowsLongCode(), mcbStopDebugger()
+--    mcbEditorContext(), mcbShowsLongCode(), mcbStopDebugger(),
+--    mcbUnaskedChanged pOn
 --                                (the bridge's)
 
 constant kTitle = "xTalk MCP Bridge"
@@ -70,6 +81,8 @@ constant kAssistantFolderName = "org.openxtalk.plugin.xtalkassistant"
 constant kBundledAssistantFolder = "xtalkassistant"
 -- Preferences (custom properties of the revPreferences stack)
 constant kPrefEnabled = "cMcpBridge,enabled"
+-- That runs and saves go ahead without asking (mcbStopAsking)
+constant kPrefUnasked = "cMcpBridge,unasked"
 -- The name Claude's apps show for the server (mcbServerName: a package of
 -- the bridge in another xTalk's IDE gives that IDE's own)
 constant kServerName = "oxt-beyond"
@@ -155,8 +168,92 @@ private function mcbIsLockedOff
    return toLower($OXTBEYOND_MCP_BRIDGE) is among the items of "off,0,false,no"
 end mcbIsLockedOff
 
+-- True when the user chose that runs and saves go ahead without asking,
+-- and this computer does not forbid it (OXTBEYOND_MCP_BRIDGE_ASK=always)
+private function mcbIsUnaskedChosen
+   if mcbAskIsLocked() then
+      return false
+   end if
+   return revIDEGetPreference(kPrefUnasked) is true
+end mcbIsUnaskedChosen
+
+private function mcbAskIsLocked
+   return toLower($OXTBEYOND_MCP_BRIDGE_ASK) is "always"
+end mcbAskIsLocked
+
+-- The bridge's tool set_asking changed the user's choice (to turn asking
+-- off, only after they said yes in its window): kept as the menu's is
+on mcbUnaskedChanged pOn
+   revIDESetPreference kPrefUnasked, (pOn is true and not mcbAskIsLocked())
+end mcbUnaskedChanged
+
+-- Gives the running bridge the user's choice about asking
+private command mcbApplyUnasked
+   local tError
+   if mcbToolsInUse() then
+      try
+         mcbSetUnasked mcbIsUnaskedChosen()
+      catch tError
+      end try
+   end if
+end mcbApplyUnasked
+
+-- "Stop Asking...": says what it gives away, and on yes lets runs and
+-- saves go ahead without asking until the user asks again or turns the
+-- bridge off
+private command mcbStopAsking
+   local tText, tSpec, tChoice
+   if mcbAskIsLocked() then
+      if not mcbKitSay("Asking stays on", "On this computer, Claude's runs and saves are always asked about (the environment variable OXTBEYOND_MCP_BRIDGE_ASK is always).", "lock", "amber") then
+         answer information "On this computer, Claude's runs and saves are always asked about (the environment variable OXTBEYOND_MCP_BRIDGE_ASK is always)." titled kTitle
+      end if
+      exit mcbStopAsking
+   end if
+   put "Claude's code will run, and its saves will be made, without a window asking you first." & return & return & \
+         "Code Claude runs can do anything " & mcbHostName() & " can: read, change and delete your files, run programs, and reach the internet. " & \
+         "You will not see it before it runs. Claude can be misled by what it reads (a stack, a web page, a file someone gave you) into running code you would not want." & return & return & \
+         "Claude's app still asks before each tool unless you told it not to. Changes to stacks can still be undone from this menu, and undoing what you changed yourself is still asked about. " & \
+         "Each run and save is written down, with its code, in:" & return & mcbUnaskedLogPathText() & return & return & \
+         "This stays until you choose Ask Me Again here or turn the bridge off." into tText
+   put "Stop asking before runs and saves?" into tSpec["heading"]
+   put "Only for Claude you trust with this computer" into tSpec["subheading"]
+   put "triangle-alert" into tSpec["icon"]
+   put "rose" into tSpec["tone"]
+   put tText into tSpec["text"]
+   put "Cancel" & return & "Stop Asking" into tSpec["buttons"]
+   put "Cancel" into tSpec["cancel"]
+   if not mcbKit(tSpec, tChoice) then
+      answer warning tText with "Cancel" or "Stop Asking" titled kTitle
+      put it into tChoice
+   end if
+   if tChoice is not "Stop Asking" then
+      exit mcbStopAsking
+   end if
+   revIDESetPreference kPrefUnasked, true
+   mcbApplyUnasked
+end mcbStopAsking
+
+private command mcbAskAgain
+   revIDESetPreference kPrefUnasked, false
+   mcbApplyUnasked
+   if not mcbKitSay("Asking again", "You will be asked before each run of Claude's code and each save.", "lock", "emerald") then
+      answer information "You will be asked before each run of Claude's code and each save." titled kTitle
+   end if
+end mcbAskAgain
+
+-- Where the log of what went ahead without asking is, as the system writes it
+private function mcbUnaskedLogPathText
+   local tPath, tError
+   try
+      put mcbUnaskedLogPath() into tPath
+   catch tError
+      return "the folder .oxt-beyond in your home folder"
+   end try
+   return mcbNativePath(tPath)
+end mcbUnaskedLogPathText
+
 command mcpBridgeMenuPick
-   local tProblem, tPort, tClients, tText, tSpec, tChoice
+   local tProblem, tPort, tClients, tText, tSpec, tChoice, tAskButton, tAskText
    if mcbIsLockedOff() then
       put "The bridge is turned off" into tSpec["heading"]
       put "On this computer, by the environment variable OXTBEYOND_MCP_BRIDGE" into tSpec["subheading"]
@@ -234,13 +331,38 @@ command mcpBridgeMenuPick
    end if
    put return & return & "Undo Last Change takes back the newest change Claude made to a stack, or the newest run of its code on one." after tText
    put "Undo Last Change takes back the newest change Claude made to a stack, or the newest run of its code on one." after tSpec["text"]
-   put "Turn Off" & return & "Undo Last Change" & return & "Claude Setup..." & return & "Close" into tSpec["buttons"]
+   -- Asking before runs and saves: on (the default), or off by the user's
+   -- choice (mcbStopAsking); a computer that forbids it offers neither
+   if mcbIsUnaskedChosen() then
+      put "Ask Me Again" into tAskButton
+      put return & return & "Claude's code runs, and its saves are made, without asking you. Each is written down in" && mcbUnaskedLogPathText() & "." into tAskText
+   else if not mcbAskIsLocked() then
+      put "Stop Asking..." into tAskButton
+      put return & return & "You are asked before each run of Claude's code and each save." into tAskText
+   end if
+   put tAskText after tText
+   put tAskText after tSpec["text"]
+   if tAskButton is empty then
+      put "Turn Off" & return & "Undo Last Change" & return & "Claude Setup..." & return & "Close" into tSpec["buttons"]
+   else
+      put "Turn Off" & return & "Undo Last Change" & return & tAskButton & return & "Claude Setup..." & return & "Close" into tSpec["buttons"]
+   end if
    put "Close" into tSpec["cancel"]
    if not mcbKit(tSpec, tChoice) then
-      answer information tText with "Turn Off" or "Undo Last Change" or "Claude Setup..." or "Close" titled kTitle
+      if tAskButton is empty then
+         answer information tText with "Turn Off" or "Undo Last Change" or "Claude Setup..." or "Close" titled kTitle
+      else
+         answer information tText with "Turn Off" or "Undo Last Change" or tAskButton or "Claude Setup..." or "Close" titled kTitle
+      end if
       put it into tChoice
    end if
    switch tChoice
+      case "Stop Asking..."
+         mcbStopAsking
+         break
+      case "Ask Me Again"
+         mcbAskAgain
+         break
       case "Turn Off"
          mcbTurnOff
          break
@@ -270,6 +392,8 @@ private command mcbTurnOff
       exit mcbTurnOff
    end if
    revIDESetPreference kPrefEnabled, false
+   -- Not asking was for this time the bridge was on: turned on again, it asks
+   revIDESetPreference kPrefUnasked, false
    mcbStop
 end mcbTurnOff
 
@@ -328,6 +452,8 @@ private function mcbStart
    catch tError
       return line 1 of tError
    end try
+   -- The user's choice about asking, kept from an earlier session
+   mcbApplyUnasked
    return empty
 end mcbStart
 

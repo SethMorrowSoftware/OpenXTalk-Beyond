@@ -38,8 +38,9 @@ and restored at the end:
            SystemUsesLightTheme 0 (dark) or 1 (light)
   Linux    GTK2_RC_FILES: the Adwaita or Adwaita-dark GTK 2 theme when it
            is installed (gnome-themes-extra), else a gtkrc of plain light or
-           dark colours; the engine runs under xvfb-run when there is no
-           DISPLAY
+           dark colours, or the installed GTK 2 theme --gtk-theme names
+           (Yaru-MATE-dark, Yaru-dark: a desktop's own); the engine runs under
+           xvfb-run when there is no DISPLAY
 
 The IDE follows the system's appearance (OpenXTalk Lite 1.15's dark mode on
 Windows and macOS; Linux is drawn light).
@@ -74,7 +75,9 @@ import run_livecode_check as rlc  # noqa: E402
 
 SCRIPT = os.path.join(HERE, 'ui-tour.livecodescript')
 
-# GTK 2 themes for Linux: the installed Adwaita ones, else plain colours
+# GTK 2 themes for Linux: the installed Adwaita ones, else plain colours;
+# or, by --gtk-theme, one of THEMES by its name
+THEMES = '/usr/share/themes'
 ADWAITA = {'light': '/usr/share/themes/Adwaita/gtk-2.0/gtkrc',
            'dark': '/usr/share/themes/Adwaita-dark/gtk-2.0/gtkrc'}
 PLAIN = {
@@ -190,8 +193,15 @@ def set_windows(appearance):
     return restore
 
 
-def linux_gtkrc(appearance, work):
-    """The gtkrc for GTK2_RC_FILES."""
+def linux_gtkrc(appearance, work, theme=None):
+    """The gtkrc for GTK2_RC_FILES: the installed theme named theme, or
+    the Adwaita one of the appearance, or plain colours."""
+    if theme:
+        path = os.path.join(THEMES, theme, 'gtk-2.0', 'gtkrc')
+        if not os.path.isfile(path):
+            raise rlc.CheckError('no GTK 2 theme %s (%s)' % (theme, path))
+        log('GTK theme: %s' % path)
+        return path
     if os.path.isfile(ADWAITA[appearance]):
         log('GTK theme: %s' % ADWAITA[appearance])
         return ADWAITA[appearance]
@@ -625,6 +635,8 @@ def main(argv=None):
     ap.add_argument('--appearance', choices=('light', 'dark'), default='light',
                     help='the system\'s appearance (default: %(default)s)')
     ap.add_argument('--only', default='', help='comma-separated steps of the script to run (default: all)')
+    ap.add_argument('--gtk-theme', metavar='NAME',
+                    help='Linux: the installed GTK 2 theme to draw with (default: Adwaita of the appearance)')
     ap.add_argument('--timeout', type=int, default=900, help='seconds for the whole run (default: %(default)s)')
     ap.add_argument('--script', default=SCRIPT, help='the script to run in the IDE (default: %(default)s)')
     args = ap.parse_args(argv)
@@ -664,7 +676,7 @@ def main(argv=None):
         elif p.family == 'windows':
             restore = set_windows(args.appearance)
         else:
-            env['GTK2_RC_FILES'] = linux_gtkrc(args.appearance, out)
+            env['GTK2_RC_FILES'] = linux_gtkrc(args.appearance, out, args.gtk_theme)
             # as the launcher does (Installer/linux/oxt-beyond), which this
             # does not run: a package without CEF (arm64) has no browser
             # widget, and the IDE then opens the dictionary in the system's

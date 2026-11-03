@@ -983,7 +983,12 @@ bool MCA_color(MCStringRef p_title, MCColor p_initial_color, bool p_as_sheet, bo
 	t_parent_window = MCModeGetParentWindow();
 	chooseclr.hwndOwner = t_parent_window != NULL ? (HWND)t_parent_window -> handle . window : NULL;
 
-	chooseclr.Flags = CC_RGBINIT;
+	// OXT-Beyond: open the dialog in its full form, with the spectrum and the
+	// red, green and blue fields, not the short form of 48 basic colours and a
+	// row of black "Custom colors" that looks as if it can give only a few
+	// colours (TerryL, openxtalk.org p=25957, from the Inspector's swatches).
+	// The custom colours are unchanged: they are the colorDialogColors.
+	chooseclr.Flags = CC_RGBINIT | CC_FULLOPEN;
 	chooseclr.rgbResult = RGB(p_initial_color.red >> 8, p_initial_color.green >> 8,
 	                          p_initial_color.blue >> 8);
 

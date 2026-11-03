@@ -28,10 +28,14 @@ and narrow (1280 and 390 pixels), in light and in dark, and checks that:
   - every link to the site's own folders answers with a page (HTTP 200),
     and every "#" link names an element of the page;
   - the stack in the header answers its button with "Hello from Beyond!";
-  - at rest (nothing pointed at), nothing larger than the header's moving
-    logo is redrawn without end: an endless animation of anything but
-    opacity and transform (which the compositor moves without drawing),
-    or a moving SVG picture (SMIL), is no bigger than that logo.
+  - at rest (its opening moves over, nothing pointed at), nothing larger
+    than the header's logo is redrawn without end: an endless animation
+    (of any property) or a moving SVG picture (SMIL) is no bigger than that
+    logo;
+  - at rest, at the top of the page and at its Downloads, the browser's
+    processes use no more than REST_CPU of a core over REST_SECONDS, and
+    their memory grows by no more than REST_GROWTH_MB (read from Linux's
+    /proc; elsewhere these two are not measured, and it says so).
 
 Screenshots go to --out (front-wide-light.png, front-wide-dark.png,
 front-narrow-light.png, front-narrow-dark.png). Exit status 0 when every
@@ -45,20 +49,24 @@ import http.server
 import os
 import sys
 import threading
+import time
 import urllib.parse
 import urllib.request
 
 SIZES = (('wide', 1280, 800), ('narrow', 390, 844))
 SCHEMES = ('light', 'dark')
 
-# What the page keeps redrawing at rest, larger than the header's moving
-# logo: endless animations of a property the browser draws again each frame
-# (anything but opacity and transform), and moving SVG pictures (SMIL),
-# where they are drawn. The cards' spinning rims and the first card's
-# moving logo kept a browser without a GPU busy most of each second while
-# the cards were on screen (tperry2x, openxtalk.org p=25971: Firefox's fans
-# on a slow machine); the header's logo is the yardstick, as the one thing
-# meant to move all the time.
+# What the page keeps redrawing at rest, larger than the header's logo:
+# endless animations, and moving SVG pictures (SMIL), where they are drawn.
+# The cards' spinning rims and the first card's moving logo kept a browser
+# without a GPU busy most of each second while the cards were on screen
+# (tperry2x, openxtalk.org p=25971: Firefox's fans on a slow machine). An
+# animation of opacity or transform was let through at first, as one the
+# compositor moves without drawing; but without a GPU the compositor draws
+# too, and the stars' twinkle (opacity, layers as big as the header and the
+# Downloads) cost about half a core on its own, and the turning rays
+# (transform) a third. Every property counts. The header's logo is the
+# yardstick, as the biggest thing small enough to be let through.
 RESTLESS = r"""async () => {
   const area = (el, pseudo) => {
     if (pseudo) {
@@ -69,8 +77,8 @@ RESTLESS = r"""async () => {
     const r = el.getBoundingClientRect();
     return [Math.round(r.width), Math.round(r.height)];
   };
-  const logo = document.querySelector('.hero-logo img');
-  if (!logo) return ['no moving logo in the header to measure by'];
+  const logo = document.querySelector('.hero-logo');
+  if (!logo) return ['no logo in the header to measure by'];
   const [lw, lh] = area(logo), limit = lw * lh, big = [];
   const name = el => el.tagName.toLowerCase() + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).join('.') : '');
   for (const a of document.getAnimations()) {
@@ -79,15 +87,13 @@ RESTLESS = r"""async () => {
     const props = new Set();
     for (const k of e.getKeyframes()) for (const p of Object.keys(k)) props.add(p);
     for (const p of ['offset', 'computedOffset', 'easing', 'composite']) props.delete(p);
-    // (a custom property's keyframes may list nothing: drawn again, then)
-    if (props.size && [...props].every(p => p === 'opacity' || p === 'transform')) continue;
     const [w, h] = area(e.target, e.pseudoElement);
     if (w * h > limit)
       big.push((a.animationName || 'an animation') + ' of ' + ([...props].join(', ') || 'a custom property') + ' on ' + name(e.target) +
                (e.pseudoElement || '') + ', ' + w + 'x' + h);
   }
   for (const img of document.images) {
-    if (!img.getClientRects().length || img === logo) continue;
+    if (!img.getClientRects().length || logo.contains(img)) continue;
     const [w, h] = area(img);
     if (w * h <= limit) continue;
     let text = '';
@@ -97,6 +103,92 @@ RESTLESS = r"""async () => {
   }
   return big.map(s => s + ' (the logo: ' + lw + 'x' + lh + ')');
 }"""
+
+
+# At rest: once every animation that ends has ended (the page's opening
+# moves, such as the header's logo and the stars' first twinkles, at most
+# REST_SETTLE seconds), the browser's processes over REST_SECONDS: the CPU
+# they use, as a share of one core, and how much their memory grows (the
+# sum of each process's proportional set size, Pss). The page before the
+# stars, rays and logo were stilled (main at d94cf96bd, Chromium without a
+# GPU on a Linux machine): 168% of a core at the top, 94% at Explore, 161%
+# at the Downloads, its memory up 11 to 22 MB in 10 seconds; after: 0.1% to
+# 0.8%, and its memory falling as the page's start is cleared away
+# (tperry2x, openxtalk.org p=25971: "a noticable CPU and memory drain",
+# Firefox's performance monitor on the Downloads)
+REST_SETTLE = 20
+REST_SECONDS = 10
+REST_CPU = 0.10
+REST_GROWTH_MB = 8.0
+REST_PLACES = (('the top', ''), ('the Downloads', '#downloads'))
+SETTLED = r"""() => !document.documentElement.classList.contains('opening') &&
+  document.getAnimations().every(a => a.playState !== 'running' ||
+    !a.effect || a.effect.getComputedTiming().iterations === Infinity)"""
+
+
+def descendants(root, proc='/proc'):
+    """Every process under root (the browser and its helpers, under the
+    Playwright driver this process started)."""
+    children = {}
+    for name in os.listdir(proc):
+        if not name.isdigit():
+            continue
+        try:
+            with open(os.path.join(proc, name, 'stat')) as f:
+                stat = f.read()
+        except OSError:
+            continue
+        # (the name in brackets may hold spaces and brackets of its own)
+        parent = int(stat[stat.rindex(')') + 2:].split()[1])
+        children.setdefault(parent, []).append(int(name))
+    found, todo = [], [root]
+    while todo:
+        for child in children.get(todo.pop(), []):
+            found.append(child)
+            todo.append(child)
+    return found
+
+
+def usage(pids, proc='/proc', tick=None, page=None):
+    """The CPU seconds the processes have used, and their memory in MB (the
+    sum of their Pss, or of their resident sets where Pss is not shown).
+    tick (the clock's ticks a second) and page (the page size in bytes) are
+    the system's own unless given: a test gives them, since Windows has no
+    sysconf to ask."""
+    if tick is None:
+        tick = os.sysconf('SC_CLK_TCK')
+    if page is None:
+        page = os.sysconf('SC_PAGE_SIZE')
+    ticks, kb = 0, 0
+    for pid in pids:
+        try:
+            with open(os.path.join(proc, str(pid), 'stat')) as f:
+                stat = f.read()
+            fields = stat[stat.rindex(')') + 2:].split()
+            ticks += int(fields[11]) + int(fields[12])
+            pss = None
+            try:
+                with open(os.path.join(proc, str(pid), 'smaps_rollup')) as f:
+                    for line in f:
+                        if line.startswith('Pss:'):
+                            pss = int(line.split()[1])
+                            break
+            except OSError:
+                pass
+            if pss is None:
+                with open(os.path.join(proc, str(pid), 'statm')) as f:
+                    pss = int(f.read().split()[1]) * page // 1024
+            kb += pss
+        except (OSError, ValueError, IndexError):
+            # (a process that ended between the two reads)
+            continue
+    return ticks / tick, kb / 1024.0
+
+
+def at_rest(before, after, seconds):
+    """(the share of a core used, the memory grown in MB) between two
+    readings of usage(), taken seconds apart."""
+    return (after[0] - before[0]) / seconds, after[1] - before[1]
 
 
 class Quiet(http.server.SimpleHTTPRequestHandler):
@@ -145,7 +237,9 @@ def run(site, out, browser_name, timeout):
                     scroll = page.evaluate('() => [document.documentElement.scrollWidth, window.innerWidth]')
                     check('%s: nothing wider than the window' % where, scroll[0] <= scroll[1],
                           '%d px of content in %d' % tuple(scroll))
-                    # before anything is clicked, so nothing is pointed at
+                    # before anything is clicked, so nothing is pointed at,
+                    # and once the page's opening moves are over
+                    page.wait_for_function(SETTLED, timeout=REST_SETTLE * 1000)
                     restless = page.evaluate(RESTLESS)
                     check('%s: at rest nothing big is redrawn without end' % where, not restless,
                           '; '.join(restless))
@@ -178,10 +272,38 @@ def run(site, out, browser_name, timeout):
                     check('%s: the page answers' % where, False, str(e).split('\n')[0])
                 check('%s: no missing file, error or other host' % where, not problems, '; '.join(problems[:6]))
                 page.close()
+            rest(browser, base, timeout, check)
             browser.close()
     finally:
         server.shutdown()
     return results
+
+
+def rest(browser, base, timeout, check):
+    """The browser's CPU and memory while the page rests, wide and light,
+    at each of REST_PLACES, alone in the browser."""
+    from playwright.sync_api import Error as PlaywrightError
+    if not os.path.isfile('/proc/self/stat'):
+        print('NOTE  the CPU and memory at rest are measured on Linux only (from /proc)')
+        return
+    for place, anchor in REST_PLACES:
+        page = browser.new_page(viewport={'width': 1280, 'height': 800}, color_scheme='light')
+        page.set_default_timeout(timeout * 1000)
+        try:
+            page.goto(base + anchor, wait_until='networkidle')
+            page.wait_for_function(SETTLED, timeout=REST_SETTLE * 1000)
+            start, began = usage(descendants(os.getpid())), time.time()
+            page.wait_for_timeout(REST_SECONDS * 1000)
+            end = usage(descendants(os.getpid()))
+            cpu, grown = at_rest(start, end, time.time() - began)
+            check('at rest at %s: the browser uses little of a core' % place, cpu <= REST_CPU,
+                  '%.1f%% of a core over %d seconds (at most %d%%)' % (100 * cpu, REST_SECONDS, 100 * REST_CPU))
+            check('at rest at %s: the browser\'s memory does not grow' % place, grown <= REST_GROWTH_MB,
+                  '%+.1f MB over %d seconds, %.0f MB in all (at most %+.0f MB)'
+                  % (grown, REST_SECONDS, end[1], REST_GROWTH_MB))
+        except PlaywrightError as e:
+            check('at rest at %s: the page settles' % place, False, str(e).split('\n')[0])
+        page.close()
 
 
 def main(argv=None):

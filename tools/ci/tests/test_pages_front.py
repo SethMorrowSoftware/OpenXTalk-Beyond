@@ -150,11 +150,19 @@ class TheTemplate(unittest.TestCase):
 
 
     def test_the_logo(self):
-        # The moving logo in the hero, the still one for less motion, the
-        # small one as the favicon, and the banner for link previews: each
-        # a file the site has
-        self.assertIn('<source srcset="brand/logo.svg" media="(prefers-reduced-motion: reduce)">', self.text)
-        self.assertIn('<img src="brand/logo-animated.svg"', self.text)
+        # The logo in the hero, still and moving (the moving one for the
+        # page's first seconds and while the stack window is pointed at;
+        # never for less motion), the small one as the favicon, and the
+        # banner for link previews: each a file the site has. Its words are
+        # the hero's own, so a screen reader has them whichever one shows
+        self.assertIn('<span class="hero-logo" role="img" '
+                      'aria-label="The OXT-Beyond logo: OXT struck by lightning">', self.text)
+        hero = self.text[self.text.index('<span class="hero-logo"'):]
+        hero = hero[:hero.index('</span>')]
+        self.assertIn('<img class="still" src="brand/logo.svg" alt="" width="132" height="132">', hero)
+        self.assertIn('<img class="moving" src="brand/logo-animated.svg" alt="" width="132" height="132">', hero)
+        self.assertIn('.hero-logo .moving { display: none !important; }',
+                      self.text[self.text.index('@media (prefers-reduced-motion: reduce)'):])
         self.assertIn('<link rel="icon" type="image/svg+xml" href="brand/icon.svg">', self.text)
         # It lies over the stack window's corner, so clicks go through it
         # to the stack (its answer's OK button is under it on a narrow page)
@@ -221,6 +229,161 @@ class TheTemplate(unittest.TestCase):
         self.assertNotIn('Web games', games)
         self.assertIn('href="pixel-maker/"', games)
         self.assertIn('href="svg-lab/"', games)
+
+
+def css_rules(text):
+    """Each innermost rule of the page's style sheet, as (selector, body),
+    comments left out (a rule inside @media is read with its own selector)."""
+    css = text[text.index('<style>'):text.index('</style>')]
+    css = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
+    return [(m.group(1).strip(), m.group(2)) for m in re.finditer(r'([^{}]+)\{([^{}]*)\}', css)]
+
+
+class StillAtRest(unittest.TestCase):
+    """tperry2x (openxtalk.org p=25971): Firefox's performance monitor
+    showed "a noticable CPU and memory drain" on the site's Downloads, with
+    a slow machine's fans spinning up. The cards' rims and the first card's
+    logo were stilled first (test_the_rims_are_still_at_rest); but in a
+    browser without a GPU the page still kept 94% to 168% of a core busy at
+    rest, with its memory growing, from what was left moving without end:
+    the stars' twinkle over the header and the Downloads (about half a core
+    on its own), the header's moving logo (another half), the turning rays
+    behind the parts, the flame in their heading and the orbit's dot. Now
+    nothing moves without end unless it is pointed at or has the keyboard's
+    focus, and the page's opening moves end. tools/pages/check_front_page.py
+    measures the browser itself, in Chromium and Firefox."""
+
+    def setUp(self):
+        with open(os.path.join(PAGES, 'index.html'), encoding='utf-8') as f:
+            self.text = f.read()
+
+    def test_nothing_moves_without_end_at_rest(self):
+        endless = [(selector, body) for selector, body in css_rules(self.text)
+                   if re.search(r'animation:[^;]*\binfinite\b', body)]
+        self.assertTrue(endless)
+        for selector, body in endless:
+            for part in selector.split(','):
+                self.assertRegex(part, r':hover|:focus-within|:has\(:focus-visible\)',
+                                 'moves without end at rest: %s { %s }' % (selector, body.strip()))
+
+    def test_the_stars_twinkle_twice_and_rest_where_they_began(self):
+        # two alternate runs end where the first began, at the opacity the
+        # layers keep, so the stars do not jump when they stop
+        self.assertIn('@keyframes twinkle { from { opacity: .6; } to { opacity: 1; } }', self.text)
+        rules = dict(css_rules(self.text))
+        self.assertIn('opacity: .6; animation: twinkle 4s ease-in-out 2 alternate;', rules['.stars::before'])
+        self.assertIn('opacity: .6; animation: twinkle 5s ease-in-out 1.5s 2 alternate;', rules['.stars::after'])
+
+    def test_the_header_logo_moves_as_the_page_opens(self):
+        # still at rest; moving while the page has the class "opening",
+        # which its script puts on and takes off after 6 seconds, and while
+        # the stack window is pointed at or has the keyboard's focus (not
+        # :focus-within: "Say hello" keeps the focus after a click); the
+        # :has() rules on their own, so a browser without :has() keeps the
+        # rest
+        rules = css_rules(self.text)
+        self.assertIn(('.hero-logo .moving', ' display: none; '), rules)
+        self.assertIn(('.opening .hero-logo .moving, .scene:hover .hero-logo .moving', ' display: block; '), rules)
+        self.assertIn(('.opening .hero-logo .still, .scene:hover .hero-logo .still', ' display: none; '), rules)
+        self.assertIn(('.scene:has(:focus-visible) .hero-logo .moving', ' display: block; '), rules)
+        self.assertIn(('.scene:has(:focus-visible) .hero-logo .still', ' display: none; '), rules)
+        script = self.text[self.text.index('<script>'):self.text.index('</script>')]
+        self.assertIn("root.classList.add('opening');", script)
+        self.assertIn("setTimeout(function () { root.classList.remove('opening'); }, 6000);", script)
+        self.assertNotIn('class="opening"', self.text)
+
+    def test_the_rays_the_flame_and_the_orbit(self):
+        rules = dict(css_rules(self.text))
+        self.assertNotIn('animation', rules['.explore::before'])
+        self.assertNotIn('rays-turn', self.text)
+        self.assertNotIn('animation', rules['.section-head h2 .flame'])
+        self.assertIn('animation: flame-flow 6s ease-in-out infinite alternate;', rules['.section-head:hover .flame'])
+        self.assertNotIn('animation', rules['.orbit::after'])
+        self.assertIn('animation: orbit 14s linear infinite;', rules['.scene:hover .orbit::after'])
+        self.assertIn('animation: orbit 14s linear infinite;', rules['.scene:has(:focus-visible) .orbit::after'])
+
+
+class TheRestCheck(unittest.TestCase):
+    """check_front_page.py: what it counts as moving at rest, and how it
+    reads the browser's CPU and memory from Linux's /proc."""
+
+    @classmethod
+    def setUpClass(cls):
+        import check_front_page
+        cls.check = check_front_page
+
+    def test_every_property_counts(self):
+        # without a GPU the compositor draws too: the stars' twinkle
+        # (opacity) and the rays (transform) were let through, and cost the
+        # most
+        self.assertNotIn("p === 'opacity'", self.check.RESTLESS)
+        self.assertNotIn("p === 'transform'", self.check.RESTLESS)
+        self.assertIn("document.querySelector('.hero-logo')", self.check.RESTLESS)
+        self.assertIn('logo.contains(img)', self.check.RESTLESS)
+
+    def test_the_budgets(self):
+        self.assertEqual(self.check.REST_CPU, 0.10)
+        self.assertEqual(self.check.REST_GROWTH_MB, 8.0)
+        self.assertGreaterEqual(self.check.REST_SECONDS, 10)
+        self.assertIn(('the Downloads', '#downloads'), self.check.REST_PLACES)
+        self.assertIn(('the top', ''), self.check.REST_PLACES)
+        # measured once the page's opening is over and every animation that
+        # ends has ended
+        self.assertIn("classList.contains('opening')", self.check.SETTLED)
+        self.assertIn('iterations === Infinity', self.check.SETTLED)
+
+    def fake_proc(self, processes):
+        proc = tempfile.mkdtemp(prefix='test-pages-front-proc-')
+        self.addCleanup(shutil.rmtree, proc, ignore_errors=True)
+        os.makedirs(os.path.join(proc, 'self'))
+        for pid, (name, parent, utime, stime, pss) in processes.items():
+            folder = os.path.join(proc, str(pid))
+            os.makedirs(folder)
+            fields = ['S', str(parent)] + ['0'] * 9 + [str(utime), str(stime)] + ['0'] * 8
+            with open(os.path.join(folder, 'stat'), 'w') as f:
+                f.write('%d (%s) %s\n' % (pid, name, ' '.join(fields)))
+            if pss is None:
+                # no smaps_rollup: its resident set, from statm (in pages)
+                with open(os.path.join(folder, 'statm'), 'w') as f:
+                    f.write('1000 256 0 0 0 0 0\n')
+            else:
+                with open(os.path.join(folder, 'smaps_rollup'), 'w') as f:
+                    f.write('00400000-7fff [rollup]\nRss: %d kB\nPss: %d kB\n' % (pss * 2, pss))
+        return proc
+
+    def test_the_browsers_processes(self):
+        # (given, not asked of the system: Windows has no os.sysconf)
+        tick, page = 100, 4096
+        proc = self.fake_proc({
+            10: ('python3', 1, 0, 0, 0),
+            11: ('node', 10, tick, 0, 2048),
+            12: ('firefox', 11, 2 * tick, tick, 4096),
+            # a name with a space and a bracket, as a browser's helpers have
+            13: ('Web Content) x', 12, tick, tick, None),
+            20: ('other', 1, 50 * tick, 0, 9999),
+        })
+        self.assertEqual(sorted(self.check.descendants(10, proc=proc)), [11, 12, 13])
+        self.assertEqual(self.check.descendants(13, proc=proc), [])
+        cpu, mb = self.check.usage([11, 12, 13], proc=proc, tick=tick, page=page)
+        self.assertAlmostEqual(cpu, 6.0)
+        self.assertAlmostEqual(mb, (2048 + 4096 + 256 * page // 1024) / 1024.0)
+        # a process that ended between the list and the read is left out
+        self.assertEqual(self.check.usage([11, 99], proc=proc, tick=tick, page=page), (1.0, 2.0))
+
+    def test_at_rest(self):
+        cpu, grown = self.check.at_rest((1.0, 500.0), (1.5, 504.0), 10.0)
+        self.assertAlmostEqual(cpu, 0.05)
+        self.assertAlmostEqual(grown, 4.0)
+
+    def test_in_firefox_too(self):
+        # tperry2x saw it in Firefox; web-ide.yml reads the page in both
+        with open(os.path.join(REPO, '.github', 'workflows', 'web-ide.yml'), encoding='utf-8') as f:
+            workflow = f.read()
+        self.assertIn('-m playwright install --with-deps chromium firefox', workflow)
+        # run whether or not Chromium's check passed
+        self.assertIn("      - name: The site's front page in Firefox\n        if: ${{ !cancelled() }}\n", workflow)
+        self.assertIn('tools/pages/check_front_page.py --browser firefox \\\n'
+                      '            --site "$RUNNER_TEMP/pages"', workflow)
 
 
 class TheBuiltPage(unittest.TestCase):

@@ -430,3 +430,127 @@ class TheSvgCheck(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class FakeError(Exception):
+    """Playwright's Error, for the pages below"""
+
+
+class FakeTimeout(FakeError):
+    """Playwright's TimeoutError, a kind of its Error"""
+
+
+class FakePage:
+    """A page that gives the states in turn from evaluate, and crashes
+    (its crash handlers, then FakeError) when the next state is 'crash'"""
+
+    def __init__(self, states, message='Target page, context or browser has been closed'):
+        self.states = list(states)
+        self.message = message
+        self.handlers = {}
+        self.url = None
+
+    def on(self, event, handler):
+        self.handlers.setdefault(event, []).append(handler)
+
+    def goto(self, url):
+        self.url = url
+
+    def evaluate(self, js):
+        assert js == web_check.PAGE_STATE_JS
+        state = self.states.pop(0)
+        if state == 'crash':
+            for handler in self.handlers.get('crash', []):
+                handler(self)
+            raise FakeError(self.message)
+        return state
+
+    def wait_for_timeout(self, ms):
+        pass
+
+
+class FakeContext:
+    def __init__(self, *pages):
+        self.pages = list(pages)
+        self.opened = []
+
+    def new_page(self):
+        page = self.pages.pop(0)
+        self.opened.append(page)
+        return page
+
+
+class ExtraPagesInWebKit(unittest.TestCase):
+    """The pages opened after the probe's: one more try for a page that
+    crashed before its engine started, as WebKit 26.0's did on 3 November,
+    and none for anything else"""
+
+    def open(self, context, seconds=120, clock=None):
+        self.prepared, self.reopened = [], []
+        kwargs = {'clock': clock} if clock else {}
+        return web_check.open_ready_page(context, 'http://x/WebProbe.html?tab=colors', 'the page as built', seconds,
+                                         lambda page, name: self.prepared.append(name), self.reopened.append,
+                                         FakeError, FakeTimeout, **kwargs)
+
+    def test_a_page_that_opens(self):
+        page = FakePage(['loading', 'started', 'ready'])
+        self.assertIs(self.open(FakeContext(page)), page)
+        self.assertEqual(page.url, 'http://x/WebProbe.html?tab=colors')
+        self.assertEqual(self.prepared, ['the page as built'])
+        self.assertEqual(self.reopened, [])
+
+    def test_a_crash_before_the_engine_started_is_tried_again(self):
+        crashed, second = FakePage(['loading', 'crash']), FakePage(['ready'])
+        context = FakeContext(crashed, second)
+        self.assertIs(self.open(context), second)
+        self.assertEqual(context.opened, [crashed, second])
+        self.assertEqual(self.prepared, ['the page as built'] * 2)
+        self.assertEqual(self.reopened, ['the page as built'])
+
+    def test_a_crash_the_error_names_is_tried_again(self):
+        crashed, second = FakePage(['crash'], message='Target crashed'), FakePage(['ready'])
+        crashed.handlers = {}
+        crashed.on = lambda event, handler: None  # (its crash event never came)
+        self.assertIs(self.open(FakeContext(crashed, second)), second)
+        self.assertEqual(self.reopened, ['the page as built'])
+
+    def test_a_second_crash_fails(self):
+        context = FakeContext(FakePage(['crash']), FakePage(['loading', 'crash']), FakePage(['ready']))
+        with self.assertRaises(FakeError):
+            self.open(context)
+        self.assertEqual(len(context.opened), 2)
+        self.assertEqual(self.reopened, ['the page as built'])
+
+    def test_a_crash_after_the_engine_started_fails(self):
+        context = FakeContext(FakePage(['loading', 'started', 'crash']), FakePage(['ready']))
+        with self.assertRaises(FakeError):
+            self.open(context)
+        self.assertEqual(len(context.opened), 1)
+        self.assertEqual(self.reopened, [])
+
+    def test_an_error_that_is_not_a_crash_fails(self):
+        page = FakePage(['loading'])
+        page.evaluate = lambda js: (_ for _ in ()).throw(FakeError('Execution context was destroyed'))
+        context = FakeContext(page, FakePage(['ready']))
+        with self.assertRaises(FakeError):
+            self.open(context)
+        self.assertEqual(self.reopened, [])
+
+    def test_a_stack_that_never_opens_times_out(self):
+        times = iter([0, 1, 2, 200])
+        context = FakeContext(FakePage(['started'] * 4), FakePage(['ready']))
+        with self.assertRaises(FakeTimeout) as caught:
+            self.open(context, seconds=120, clock=lambda: next(times))
+        self.assertIn('the page as built did not open its stack within 120 seconds (its engine started)',
+                      str(caught.exception))
+        self.assertEqual(self.reopened, [])
+
+    def test_every_page_after_the_probes_opens_so(self):
+        source = read('tools', 'ci', 'web_check.py')
+        self.assertEqual(source.count('open_extra(tabs, '), 1)
+        self.assertEqual(source.count('open_extra(profile, '), 1)
+        self.assertEqual(source.count('open_extra(dark, '), 1)
+        self.assertEqual(source.count('open_extra(light, '), 1)
+        # and none waits for its stack in the old way, without the retry
+        self.assertNotIn('tab.wait_for_function(', source)
+        self.assertNotIn("fresh.goto(url", source)

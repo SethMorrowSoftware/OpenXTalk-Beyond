@@ -187,23 +187,52 @@ def player_samples(player, featured=False):
             + [s for s in shown if s['title'] not in first])
 
 
+def sample_slug(title):
+    """The folder of a sample's page: games/<slug>/."""
+    return re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
+
+
+def sample_tags(s):
+    return ''.join('<span class="tag">%s</span>' % html.escape(t) for t in s.get('tags') or [] if isinstance(t, str))
+
+
 def sample_card(s, spot=False):
-    tags = ''.join('<span class="tag">%s</span>' % html.escape(t) for t in s.get('tags') or [] if isinstance(t, str))
-    return ('      <a class="stack%s" href="../player/?play=%s">\n'
+    tags = sample_tags(s)
+    return ('      <a class="stack%s" href="%s/">\n'
             '        <div class="shot">\n'
             '          <img src="../player/samples/%s" alt="">\n'
-            '          <span class="where">Stack Player</span>\n'
             '          <span class="play">%sPlay</span>\n'
             '        </div>\n'
             '        <div class="words"><h3>%s</h3><p>%s</p><div class="tags">%s</div></div>\n'
-            '      </a>' % (' spot' if spot else '', html.escape(urllib.parse.quote(s['title'])),
+            '      </a>' % (' spot' if spot else '', html.escape(sample_slug(s['title'])),
                              html.escape(urllib.parse.quote(s['image'])), PLAY_ICON, html.escape(s['title']),
                              html.escape(str(s.get('description', ''))), tags))
 
 
+def sample_pages(template, target, player):
+    """Writes a page of its own for each sample the gallery shows, from
+    games/stack-page.html: games/<slug>/index.html, which runs the sample in
+    the Stack Player in a frame (?play=<title>)."""
+    with open(template, encoding='utf-8') as f:
+        page = f.read()
+    for s in player_samples(player, False) + player_samples(player, True):
+        folder = os.path.join(target, sample_slug(s['title']))
+        if not sample_slug(s['title']) or os.path.exists(folder):
+            raise BuildError('the sample %r has no folder of its own under games/' % s['title'])
+        os.makedirs(folder)
+        text = page
+        for key, value in (('TITLE', html.escape(s['title'])),
+                           ('DESCRIPTION', html.escape(str(s.get('description', '')))),
+                           ('TAGS', sample_tags(s)), ('PLAY', html.escape(urllib.parse.quote(s['title']))),
+                           ('IMAGE', html.escape(urllib.parse.quote(s['image'])))):
+            text = text.replace('@%s@' % key, value)
+        with open(os.path.join(folder, 'index.html'), 'w', encoding='utf-8', newline='\n') as f:
+            f.write(text)
+
+
 def gallery(page, player):
     """Fills the web stacks page's blocks with a card for each of the Stack
-    Player's samples, each opening it in the player (?play=<title>):
+    Player's samples, each opening its own page (sample_pages):
     PLAYER_SAMPLES (the first one large) and PLAYER_LESSONS (its featured
     stacks). A block with no samples is left out; a page without the
     blocks (an older one) is left as it is."""
@@ -236,6 +265,10 @@ def games(source, target, player):
         return False
     shutil.copytree(source, target)
     gallery(os.path.join(target, 'index.html'), player)
+    template = os.path.join(target, 'stack-page.html')
+    if os.path.isfile(template):
+        sample_pages(template, target, player)
+        os.remove(template)
     for root, _, names in os.walk(target):
         for name in names:
             if name == 'index.html':

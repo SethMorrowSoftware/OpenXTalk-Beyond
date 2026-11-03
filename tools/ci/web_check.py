@@ -1252,6 +1252,50 @@ def printed_paper(browser, html):
             page.close()
 
 
+# The state of a page of the probe as it opens: whether its engine has
+# started (document.liveCode) and whether its stack is open
+PAGE_STATE_JS = ("() => !(document.liveCode && document.liveCode.findStackWithName) ? 'loading' : "
+                 "(document.liveCode.findStackWithName('%s') ? 'ready' : 'started')" % STACK_NAME)
+
+
+def open_ready_page(context, page_url, name, seconds, prepare, reopened, error, timeout_error,
+                    clock=time.time):
+    """A new page of the browser context at page_url once its stack is
+    open (prepare(page, name) first, to watch it as name). In WebKit 26.0
+    a page opened after the probe's (the two tabs, the old home folder's
+    copy, the systemAppearance and the default colours) sometimes stopped
+    as it loaded and crashed about 30 s later, while the page opened next
+    loaded in a second: on 3 November, a different page from run to run,
+    in eight tries out of nine, with the browser, the packages and the
+    engine of runs that passed. As for the probe's own page, a page that
+    crashed before its engine started is the browser's: it is opened once
+    more (reopened(name), for the report), and a second crash, a crash
+    after its engine started, or any other error, fails the check. error
+    and timeout_error are Playwright's Error and TimeoutError"""
+    for attempt in (1, 2):
+        page = context.new_page()
+        prepare(page, name)
+        page_crashed = []
+        page.on('crash', lambda _page, page_crashed=page_crashed: page_crashed.append(True))
+        state = 'not opened'
+        try:
+            page.goto(page_url)
+            deadline = clock() + seconds
+            while True:
+                state = page.evaluate(PAGE_STATE_JS)
+                if state == 'ready':
+                    return page
+                if clock() > deadline:
+                    raise timeout_error('%s did not open its stack within %d seconds (its engine %s)'
+                                        % (name, seconds, 'started' if state == 'started' else 'did not start'))
+                page.wait_for_timeout(250)
+        except error as e:
+            crashed = page_crashed or 'crash' in str(e).lower()
+            if attempt == 2 or not crashed or state not in ('not opened', 'loading'):
+                raise
+        reopened(name)
+
+
 def touch_drag_ok(report, points):
     """Whether the probe's report of a drag across its graphic
     (probeReport("drag"): "down@x,y move@x,y up@x,y", each with the mouse's
@@ -1452,6 +1496,18 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
 
     def extra_said():
         return ' (%s)' % '; '.join(extra_events) if extra_events else ' (its pages reported no crash, close or error)'
+
+    def prepare_extra(tab, name):
+        tab.on('dialog', on_dialog)
+        watch_extra(tab, name)
+
+    def reopened_extra(name):
+        lines.append('%s crashed before its engine started; it was opened again' % name)
+        log('  %s crashed before its engine started (WebKit); opening it again' % name)
+
+    def open_extra(context, page_url, name, seconds):
+        return open_ready_page(context, page_url, name, seconds, prepare_extra, reopened_extra,
+                               PlaywrightError, PlaywrightTimeoutError)
 
     def wait_for(predicate, what, seconds):
         browser_waiting[0] = what
@@ -2045,13 +2101,8 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                 report_js = "document.liveCode.findStackWithName('%s').probeReport('%%s')" % STACK_NAME
                 opened = []
                 for name in ('first', 'second'):
-                    tab = tabs.new_page()
-                    tab.on('dialog', on_dialog)
-                    watch_extra(tab, 'the %s tab' % name)
-                    tab.goto(url + ('&' if '?' in url else '?') + 'tab=' + name)
-                    tab.wait_for_function("() => document.liveCode && document.liveCode.findStackWithName "
-                                          "&& document.liveCode.findStackWithName('%s')" % STACK_NAME,
-                                          timeout=timeout * 1000)
+                    tab = open_extra(tabs, url + ('&' if '?' in url else '?') + 'tab=' + name,
+                                     'the %s tab' % name, timeout)
                     tab.wait_for_timeout(1000)
                     opened.append(tab)
                 first, second = opened
@@ -2102,12 +2153,14 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                 browser_waiting[0] = 'the old home folder\'s copy'
                 del extra_events[:]  # (and what closing the last pages said)
                 profile = browser.new_context()
-                fresh = profile.new_page()
-                fresh.on('dialog', on_dialog)
-                watch_extra(fresh, 'the old home folder\'s page')
-                fresh.goto(urllib.parse.urljoin(url, '/no-such-page'))  # the site, without the engine
-                fresh.evaluate(SEED_LEGACY_HOME_JS, [LEGACY_HOME_FILE[0], LEGACY_HOME_FILE[2]])
-                fresh.goto(url + ('&' if '?' in url else '?') + 'tab=legacy')
+                seed = profile.new_page()
+                seed.on('dialog', on_dialog)
+                watch_extra(seed, 'the old home folder\'s seed page')
+                seed.goto(urllib.parse.urljoin(url, '/no-such-page'))  # the site, without the engine
+                seed.evaluate(SEED_LEGACY_HOME_JS, [LEGACY_HOME_FILE[0], LEGACY_HOME_FILE[2]])
+                seed.close()
+                fresh = open_extra(profile, url + ('&' if '?' in url else '?') + 'tab=legacy',
+                                   'the old home folder\'s page', timeout)
                 copied = [None]
 
                 def legacy_copied():
@@ -2145,13 +2198,8 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                 for name, page_url in (('as built', url),
                                        ('following the browser',
                                         urllib.parse.urljoin(url, appearance_page_name()))):
-                    tab = dark.new_page()
-                    tab.on('dialog', on_dialog)
-                    watch_extra(tab, 'the page %s' % name)
-                    tab.goto(page_url + ('&' if '?' in page_url else '?') + 'tab=appearance')
-                    tab.wait_for_function("() => document.liveCode && document.liveCode.findStackWithName "
-                                          "&& document.liveCode.findStackWithName('%s')" % STACK_NAME,
-                                          timeout=timeout * 1000)
+                    tab = open_extra(dark, page_url + ('&' if '?' in page_url else '?') + 'tab=appearance',
+                                     'the page %s' % name, timeout)
                     seen[name] = tab.evaluate(report_js)
                     want_boxes = CHECKS_DARK if name == 'following the browser' else CHECKS_LIGHT
                     opened = tab.evaluate(checks_js.replace("'checks'", "'colors-open'"))
@@ -2223,13 +2271,8 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                                              ('with its fields in the card\'s grey',
                                               urllib.parse.urljoin(url, fields_page_name()),
                                               COLORS_FIELDS_LIKE_CARD)):
-                    tab = light.new_page()
-                    tab.on('dialog', on_dialog)
-                    watch_extra(tab, 'the page %s' % name)
-                    tab.goto(page_url + ('&' if '?' in page_url else '?') + 'tab=colors')
-                    tab.wait_for_function("() => document.liveCode && document.liveCode.findStackWithName "
-                                          "&& document.liveCode.findStackWithName('%s')" % STACK_NAME,
-                                          timeout=timeout * 1000)
+                    tab = open_extra(light, page_url + ('&' if '?' in page_url else '?') + 'tab=colors',
+                                     'the page %s' % name, timeout)
                     opened = tab.evaluate(report_js.replace("'colors'", "'colors-open'"))
                     if opened != 'opened':
                         problems.append('the page %s could not open a stack for its colours: %r' % (name, opened))
