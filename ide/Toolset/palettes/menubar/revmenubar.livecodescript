@@ -1763,6 +1763,12 @@ function buildMenuContext  --returns array to build menus
       end if
    end repeat
    put tAnyGraphic into tContext["anyGraphic"]
+   -- OXT-Beyond: Object > Convert SVG Image to Graphics does what an SVG
+   -- image's right-click menu does (Convert to Graphics), from the menu bar
+   -- too (OpenXTalkPaul, openxtalk.org p=25900): enabled when the selection
+   -- is one image made from an SVG
+   put the number of lines of tSelectedObject is 1 and revIDEImageIsDrawing(line 1 of tSelectedObject) \
+         into tContext["oneDrawing"]
    
    --build array used to build appropriate menus for the current selection(s)
    put tEnableFlipandRotate into tContext["enableFlipAndRotate"]
@@ -2188,6 +2194,8 @@ private function revMenubarObjectMenu pContext
    put buildRotateSubmenu() & return after tObject
    put tReshapeText & return after tObject
    put tCopySVGPathText & return after tObject  --tp 24-4, add copy as SVG Path
+   -- OXT-Beyond: enabled when one SVG image is selected (buildMenuContext)
+   put enableMenuItem("Convert SVG Image to Graphics", pContext["oneDrawing"] is true) & return after tObject
    put "-" & return after tObject
    --align selected controls, with submenu
    put enableMenuItem("Align Selected Controls", the number of lines in (the selObj) >= 2) & return after tObject
@@ -3280,6 +3288,18 @@ on revMenubarObjectMenuPick pWhich
    switch item 1 of pWhich
       case "Copy Graphics as SVG Paths"
          revOXTIDEGraphicPointsToSVGPath the selobjs
+         break
+      case "Convert SVG Image to Graphics"
+         -- as the image's right-click menu does (revMenubarContextMenuPick)
+         local tDrawingImage, tConverted
+         put line 1 of the selobj into tDrawingImage
+         if not revIDEImageIsDrawing(tDrawingImage) then break
+         put revIDEConvertDrawingToGraphics(tDrawingImage) into tConverted
+         if the result is not empty then
+            answer error "Could not convert the image to graphics:" && the result
+         else if tConverted is not empty then
+            select tConverted
+         end if
          break
       case "Reshape Graphic"
          revIDEToggleReshapeGraphic

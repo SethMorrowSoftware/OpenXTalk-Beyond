@@ -85,6 +85,8 @@ on:
       - tools/pages/build_dictionary.py
       - tools/pages/check_dictionary.py
       - tools/pages/check_front_page.py
+      - tools/pages/index.html
+      - tools/pages/brand/**
       - tools/ci/web-ide-xtalk.livecodescript
       - tools/ci/nostr_test_relay.py
       - tools/oxt/xtalk-extensions.json
@@ -112,6 +114,8 @@ on:
       - tools/pages/build_dictionary.py
       - tools/pages/check_dictionary.py
       - tools/pages/check_front_page.py
+      - tools/pages/index.html
+      - tools/pages/brand/**
       - tools/ci/web-ide-xtalk.livecodescript
       - tools/ci/nostr_test_relay.py
       - tools/oxt/xtalk-extensions.json

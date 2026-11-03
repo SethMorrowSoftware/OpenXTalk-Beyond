@@ -14,6 +14,19 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
+## 0.2.7-rc.6.13 (2026-11-02, pre-release)
+
+- Home: the sidebar shows the OXT-Beyond logo, as the About window does, in Home and in each of its places (the Academy, How-to, Guides and Examples), not the old orange tile with the layers icon (#321)
+- Menu Builder: the lists, buttons and check boxes no longer run into one another, and no label is cut off. On Linux "Disable Menu", "Menu Mnemonic", "Item Tagged" and the tag field were drawn under the lists, "Item Mnemonic" over "Mark:" and Option, Command and Shift past the frame, because the IDE's Geometry Manager applied settings stored for an older layout each time the palette opened (#322)
+- Mac: committing marked text (an input method's composition, or the Accessibility Keyboard) while a field has the focus no longer reads past an empty list of characters, a crash; the composition ends and its text is kept (#322)
+- CI: a Web IDE soak try that hangs is stopped after 11 minutes and the next try runs, and the soak names the step where the page stopped answering; the web standalone check compiles an SVG with the drawing library in the browser, and checks that the IDE's web build carries the library's SVG specification (#322)
+- File > New Stack: the preset sizes (Preferences, "Show a list of preset new stack sizes in File menu > New Stack") include SVGA (800x600) and three quarters of the main screen's width and height (richmond62, openxtalk.org p=25902) (#322)
+- CI: the IDE tour checks File > New Stack's preset sizes, with the preference and without it, and that the new sizes make stacks of their size (#322)
+- CI: the Windows build's Cygwin and the CI checks' Python are set up with the actions' new major versions, cygwin-install-action v7 and setup-python v7 (Dependabot, #304) (#322)
+- Examples: Learn Box2D, thirteen lessons in Box2D physics (the world, body types, shapes, materials, forces, hinges, springs, sliders, wheels, dragging, contacts, ray casts and terrain), each a live world with its buttons, how it works, its script and the Box2D calls it makes, in Home's Examples under Tours (#323)
+- Object menu: Convert SVG Image to Graphics does what an SVG image's right-click Convert to Graphics does, from the menu bar: it is enabled when the selection is one image made from an SVG, and selects the group of graphics it makes (OpenXTalkPaul, openxtalk.org p=25900). The IDE tour checks when it is enabled and that it makes and selects the group (#324)
+- Standalone runtimes for the other platforms (Windows x86 and x86-64, Linux x86 and x86-64) rebuilt from 0.2.7-rc.6.13's engine, so they carry its fixes: the asset `oxt-runtimes-0.2.7-rc.6.13` replaces `oxt-runtimes-0.2.7-rc.6.12c` (#324)
+
 ## 0.2.7-rc.6.12 (2026-11-01, pre-release)
 
 - Engine: the version reads 9.7.1-BeyondEngine, where it read 9.7.1-OXT, in `the version`, the About box and `-v`; the long version ends "(BeyondEngine)", and the web engine's files, the Linux window class, the server's home folder and the Community licence file take the new name. 9.7.1 and build 25923 are unchanged, so a script that takes the part before the "-" (`set the itemDelimiter to "-"`) or reads `the buildNumber` gets what it did; one that looks for "OXT" in the version no longer finds it (tperry2x, openxtalk.org p=25816) (#293)

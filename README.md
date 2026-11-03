@@ -170,7 +170,13 @@ Academy and Learn into one Home window, opens more HyperCard stacks,
 imports SVGs with their colours and clip paths and turns them into
 graphics, and pastes Copy Graphics as SVG Paths into Illustrator as
 curves (see
-[0.2.7-rc.6.12](#027-rc612-the-bug-hunt-round-twelve));
+[0.2.7-rc.6.12](#027-rc612-the-bug-hunt-round-twelve)), and
+0.2.7-rc.6.13 sets the Menu Builder's controls out where none runs
+into another, ends a crash on the Mac when typed text is committed,
+puts the OXT-Beyond logo in Home's sidebar, adds two preset sizes for
+new stacks, converts an SVG image to graphics from the Object menu, and
+brings Learn Box2D, thirteen live lessons in Box2D physics (see
+[0.2.7-rc.6.13](#027-rc613-the-bug-hunt-round-thirteen));
 0.2.6 stays the main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
@@ -187,7 +193,7 @@ curves (see
   x86-64, macOS for Apple Silicon and Intel, Linux x86-64), and so are
   the standalone runtimes that every package carries for Windows
   (x86-64 and x86) and Linux (x86-64 and x86): CI builds the 32-bit
-  engines for them, and a release asset (`oxt-runtimes-0.2.7-rc.6.12c.zip`)
+  engines for them, and a release asset (`oxt-runtimes-0.2.7-rc.6.13.zip`)
   brings each platform's runtimes into the other packages. The web
   engine of HTML5 standalones, which every package carries, is built
   from this repository too (see [The engine](#the-engine)). The Android
@@ -323,9 +329,8 @@ OpenSSL 3 for DataChannelXT); see [macOS](#macos) and
 requirements too.
 
 Releases whose tags do not start with `v`, such as `prebuilts-v1`,
-`runtimes-1.15`, `runtimes-0.2.5-rc.2`, `runtimes-0.2.7-rc.6.12`,
-`runtimes-0.2.7-rc.6.12b` and `runtimes-0.2.7-rc.6.12c`, are not
-programs. They hold
+`runtimes-1.15`, `runtimes-0.2.5-rc.2`, `runtimes-0.2.7-rc.6.12c` and
+`runtimes-0.2.7-rc.6.13`, are not programs. They hold
 files that the build and the packager download: the prebuilt
 third-party libraries of earlier versions and the standalone runtimes
 for other platforms.
@@ -1642,6 +1647,55 @@ undo, and the folders where it keeps copies of stacks before changing
 them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
+
+#### 0.2.7-rc.6.13: the Bug Hunt, round thirteen
+
+OXT-Beyond 0.2.7-rc.6.13 has everything in 0.2.7-rc.6.12. In the spirit
+of the Bug Hunt, here is every change since then, each listed as the bug
+it squashes:
+
+- **A Menu Builder that ran into itself.** On Linux the Menu Builder's
+  lists, buttons and check boxes ran into one another: "Disable Menu"
+  and "Menu Mnemonic" were drawn under the lists, "Item Mnemonic" over
+  "Mark:", Option, Command and Shift past the frame, and labels such as
+  "Delete Menu" were cut off. The IDE put back an older layout each time
+  the palette opened. Every control is where the palette's layout puts
+  it, on every platform, and every label is whole (#322).
+- **A crash on committing typed text.** On macOS, committing marked text
+  (an input method's composition, or the Accessibility Keyboard's) while
+  a field had the focus could crash; the composition ends and its text
+  is kept (#322).
+- **An old tile in Home.** Home's sidebar, in each of its places (Home,
+  the Academy, How-to, Guides and Examples), shows the OXT-Beyond logo
+  as the About window does; it showed the old orange tile with the
+  layers icon (#321).
+- **Too few sizes of new stack.** File > New Stack's preset sizes, which
+  Preferences shows with "Show a list of preset new stack sizes in File
+  menu > New Stack", include SVGA's 800 x 600 and three quarters of the
+  main screen's width and height (richmond62) (#322).
+- **An SVG you could convert only by right-clicking.** Object > Convert
+  SVG Image to Graphics, enabled when one image made from an SVG is
+  selected, makes and selects its group of graphics, as the image's
+  right-click Convert to Graphics does (OpenXTalkPaul) (#324).
+- **No way to learn Box2D by playing with it.** Learn Box2D, a new
+  example in Home's Examples under Tours, teaches Box2D in thirteen
+  lessons: the world, body types, shapes, materials, forces, hinges,
+  springs, sliders, wheels, dragging, contacts and sensors, ray casts,
+  and terrain and blasts. Each lesson is a live world to throw things
+  around in with the mouse (Reset, Pause and Step), with buttons that
+  run the card's own handlers, how it works, and every Box2D call the
+  card's script makes, each explained on a click; where Box2Dxt is not
+  loaded, each lesson says so (#323).
+
+Behind the scenes, the web standalone check compiles an SVG with the
+drawing library in the browser and checks that the IDE's web build
+carries the library's SVG specification; a Web IDE soak try that hangs
+is stopped and the next one runs, naming the step where the page
+stopped answering; the IDE tour checks the Menu Builder's layout, the
+New Stack sizes and the new Object menu item; the Linux package plays
+every Learn Box2D lesson and presses its buttons; and the runtimes that
+every package carries for the other platforms are rebuilt from this
+release's engine (#322, #323, #324).
 
 #### 0.2.7-rc.6.12: the Bug Hunt, round twelve
 

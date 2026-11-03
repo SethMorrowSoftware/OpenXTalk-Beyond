@@ -140,8 +140,9 @@ class TheTemplate(unittest.TestCase):
 
     def test_nothing_from_another_host(self):
         # The one thing the page loads is its own logo, from brand/ beside it
+        # (moving, and still in the first card until it is pointed at)
         page = parse(self.text)
-        self.assertEqual(sorted(set(page.loads)), ['brand/icon.svg', 'brand/logo-animated.svg'])
+        self.assertEqual(sorted(set(page.loads)), ['brand/icon.svg', 'brand/logo-animated.svg', 'brand/logo.svg'])
         for name in page.loads:
             self.assertIn(name[len('brand/'):], build_pages.BRAND)
         self.assertNotRegex(self.text, r'url\(\s*["\']?(https?:)?//')
@@ -165,19 +166,48 @@ class TheTemplate(unittest.TestCase):
             self.assertTrue(os.path.isfile(os.path.join(PAGES, 'brand', name)), name)
 
     def test_the_parts_in_the_logos_look(self):
-        # The Web IDE's card is the wide one with the logo, moving (still
-        # for less motion), inside the IDE's part, so a site without the IDE
-        # loses it with the card; every card has its shine, hidden from
+        # The Web IDE's card is the wide one with the logo inside the IDE's
+        # part, so a site without the IDE loses it with the card: still at
+        # rest and moving while the card is pointed at or has the focus
+        # (never for less motion); every card has its shine, hidden from
         # screen readers; and every animation stops for less motion
         start, end = self.text.index('<!-- @IDE@ -->\n      <section class="card featured">'), None
         end = self.text.index('<!-- /@IDE@ -->', start)
         ide = self.text[start:end]
-        self.assertIn('<source srcset="brand/logo.svg" media="(prefers-reduced-motion: reduce)">', ide)
-        self.assertIn('<img src="brand/logo-animated.svg" alt=""', ide)
+        self.assertIn('<img class="still" src="brand/logo.svg" alt=""', ide)
+        self.assertIn('<img class="moving" src="brand/logo-animated.svg" alt=""', ide)
+        self.assertIn('.feature-logo .moving { display: none; }', self.text)
+        self.assertIn('.card.featured:hover .feature-logo .moving, '
+                      '.card.featured:focus-within .feature-logo .moving { display: block; }', self.text)
+        self.assertIn('.feature-logo .moving { display: none !important; }',
+                      self.text[self.text.index('@media (prefers-reduced-motion: reduce)'):])
         self.assertEqual(self.text.count('<section class="card'),
                          self.text.count('<span class="shine" aria-hidden="true"></span>'))
         self.assertIn('*, *::before, *::after { animation: none !important; transition: none !important; }', self.text)
         self.assertIn('Where will you go <span class="flame">Beyond</span>?', self.text)
+
+    def test_the_rims_are_still_at_rest(self):
+        # A card's fire rim spins only while the card is pointed at or has
+        # the focus: spinning at rest it drew every card again each frame,
+        # with the first card's moving logo most of each second of a machine
+        # without a GPU (tperry2x, openxtalk.org p=25971). In a browser,
+        # tools/pages/check_front_page.py holds the whole page to it
+        rim = re.search(r'\n  \.card::before \{([^}]*)\}', self.text).group(1)
+        self.assertNotIn('animation', rim)
+        self.assertIn('.card:hover::before, .card:focus-within::before '
+                      '{ opacity: 1; animation: rim-spin 2.2s linear infinite; }', self.text)
+
+    def test_a_change_to_the_page_is_read_in_a_browser(self):
+        # web-ide.yml reads the page in a browser (check_front_page.py): a
+        # pull request or push that changes the page, its logo or the check
+        # runs it. The page was not in its paths, so its own changes, the
+        # spinning rims among them, were never read in a browser before
+        # they went up
+        with open(os.path.join(REPO, '.github', 'workflows', 'web-ide.yml'), encoding='utf-8') as f:
+            workflow = f.read()
+        self.assertIn('tools/pages/check_front_page.py \\\n            --site "$RUNNER_TEMP/pages"', workflow)
+        for path in ('tools/pages/index.html', 'tools/pages/brand/**', 'tools/pages/check_front_page.py'):
+            self.assertEqual(workflow.count('      - %s\n' % path), 2, path)
 
     def test_the_web_stacks(self):
         # "Web Games" became "Web Stacks" (SVG Lab is no game); the folder
