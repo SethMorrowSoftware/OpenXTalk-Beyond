@@ -12,7 +12,9 @@ script "OXTExampleLearnTorrentXT"
 -- IDE's Dictionary. libtorrent allows ONE session in the process, so a
 -- lesson that needs one starts it, turns off the DHT and local peer
 -- discovery at once (the lessons only ever share their own tiny files,
--- in the temporary folder, and never download), and stops it before it
+-- in their own folder oxtbt in the temporary folder, so they never
+-- overwrite or delete a file another program left there, and never
+-- download), and stops it before it
 -- ends. It keeps the handle in the global gLearnBt and first stops the
 -- one that global holds, so a run that threw halfway (after an edit)
 -- cannot leave a session on that refuses every later lesson's. A lesson
@@ -70,7 +72,7 @@ command exBuild pFolder
          "Each runs a real script that you can change, run again and copy.", \
          "lightbulb|Each lesson starts in plain words, and stays on this computer." & return & \
          "book-open|Click a call to read its parameters, units and result." & return & \
-         "info|The lessons share only tiny files of their own, in the temporary folder."
+         "info|The lessons share only their own tiny files, in a folder of their own."
    go card 1
    unlock messages
    put exCheck(tStack) into tErrors
@@ -171,8 +173,9 @@ It needs no session.
 /*@ Create/try
 on mouseUp
    local tDir, tFile, tData, tOut
-   -- a file to share, in the temporary folder
-   put specialFolderPath("temporary") into tDir
+   -- a file to share, in a folder of the lessons' own
+   put specialFolderPath("temporary") & "/oxtbt" into tDir
+   create folder tDir -- this lesson's own folder
    put tDir & "/hello.txt" into tFile
    put "Hello, swarm!" into url ("file:" & tFile)
    put btCreateTorrent(tFile, 0, 0, empty) into tData
@@ -209,7 +212,8 @@ on mouseUp
    put btStartSession() into gLearnBt
    get btSetBool(gLearnBt, "enable_dht", false) -- offline
    get btSetBool(gLearnBt, "enable_lsd", false)
-   put specialFolderPath("temporary") into tDir
+   put specialFolderPath("temporary") & "/oxtbt" into tDir
+   create folder tDir -- this lesson's own folder
    put tDir & "/hello.txt" into tFile
    put "Hello, swarm!" into url ("file:" & tFile)
    put btCreateTorrent(tFile, 0, 0, empty) into tData
@@ -221,15 +225,14 @@ on mouseUp
       wait 20 milliseconds
    end repeat
    put "State:" && btStateName(tE["state"]) into tOut
-   get tE["progress"] * 100 -- (progress is 0 to 1)
-   put cr & "Have:" && it & "%" after tOut
+   put cr & 100 * tE["progress"] & "% done" after tOut
    btStopSession gLearnBt
    put tOut into field "Result"
 end mouseUp
 @*/
 
 /*@ Seeding/expect
-^State: seeding\nHave: 100%$
+^State: seeding\n100% done$
 @*/
 
 /*@ Magnets/words
@@ -253,7 +256,7 @@ on mouseUp
    put "magnet:?xt=urn:btih:" & \
          "0123456789abcdef0123456789abcdef01234567" & \
          "&dn=demo" into tLink
-   put specialFolderPath("temporary") into tDir
+   put specialFolderPath("temporary") & "/oxtbt" into tDir
    put btAddMagnet(gLearnBt, tLink, tDir) into tT
    wait 200 milliseconds
    put btTorrentStatus(tT) into tE
@@ -288,18 +291,18 @@ on mouseUp
    put btStartSession() into gLearnBt
    get btSetBool(gLearnBt, "enable_dht", false) -- offline
    get btSetBool(gLearnBt, "enable_lsd", false)
-   put specialFolderPath("temporary") into tDir
+   put specialFolderPath("temporary") & "/oxtbt" into tDir
+   create folder tDir -- this lesson's own folder
    put tDir & "/hello.txt" into tFile
    put "Hello, swarm!" into url ("file:" & tFile)
    put btCreateTorrent(tFile, 0, 0, empty) into tData
    put btAddTorrentFile(gLearnBt, tData, tDir) into tT
-   repeat 100 times -- poll: the events since the last
+   repeat 50 times -- poll: the events since the last
       repeat for each element tE in btPoll(gLearnBt)
          if tE["torrent"] is not tT then next repeat
          if tE["name"] is "stateChanged" then next repeat
          put tE["name"] & cr after tOut
       end repeat
-      if tOut contains "Finished" then exit repeat
       wait 20 milliseconds
    end repeat
    btStopSession gLearnBt
@@ -328,11 +331,11 @@ on mouseUp
    put btStartSession() into gLearnBt
    get btSetBool(gLearnBt, "enable_dht", false) -- offline
    get btSetBool(gLearnBt, "enable_lsd", false)
-   put specialFolderPath("temporary") into tDir
+   put specialFolderPath("temporary") & "/oxtbt" into tDir
+   create folder tDir
    create folder tDir & "/pics"
    put "aaaa" into url ("file:" & tDir & "/pics/a.txt")
    put "bb" into url ("file:" & tDir & "/pics/b.txt")
-   -- a folder makes one torrent of all its files
    get btCreateTorrent(tDir & "/pics", 0, 0, empty)
    put btAddTorrentFile(gLearnBt, it, tDir) into tT
    -- priority 0 skips a file (4 is usual, 7 the top)
@@ -370,7 +373,7 @@ on mouseUp
    put "magnet:?xt=urn:btih:" & \
          "0123456789abcdef0123456789abcdef01234567" & \
          "&dn=demo" into tLink
-   put specialFolderPath("temporary") into tDir
+   put specialFolderPath("temporary") & "/oxtbt" into tDir
    put btAddMagnet(gLearnBt, tLink, tDir) into tT
    get btPause(tT) -- and btResume goes on again
    wait 100 milliseconds
@@ -408,7 +411,8 @@ on mouseUp
    put btStartSession() into gLearnBt
    get btSetBool(gLearnBt, "enable_dht", false) -- offline
    get btSetBool(gLearnBt, "enable_lsd", false)
-   put specialFolderPath("temporary") into tDir
+   put specialFolderPath("temporary") & "/oxtbt" into tDir
+   create folder tDir -- this lesson's own folder
    put tDir & "/hello.txt" into tFile
    put "Hello, swarm!" into url ("file:" & tFile)
    put btCreateTorrent(tFile, 0, 0, empty) into tData
@@ -421,7 +425,6 @@ on mouseUp
    put cr & "After removing:" && it after tOut
    get there is a file tFile
    put cr & "File still there?" && it after tOut
-   -- and stop the session: it lets go of everything
    btStopSession gLearnBt
    put tOut into field "Result"
 end mouseUp

@@ -1521,7 +1521,11 @@ private function exLearnPage pEntry, pLessons
    end if
    if pEntry["description"] is not empty and pEntry["description"] is not pEntry["summary"] then
       put "<p></p><p><font color=" & quote & tGrey & quote & "><b>MORE</b></font></p>" after tHtml
-      put "<p>" & exLearnLinks(exLearnUnwrap(pEntry["description"])) & "</p>" after tHtml
+      -- (the links first, then the breaks between paragraphs: tags put
+      -- in before the links would be taken for names and shown as text)
+      get exLearnLinks(exLearnUnwrap(pEntry["description"]))
+      replace numToCodepoint(30) with "</p><p></p><p>" in it
+      put "<p>" & it & "</p>" after tHtml
    end if
    if pLessons is not empty then
       put "<p></p><p><font color=" & quote & tGrey & quote & "><b>SHOWN IN</b></font></p><p>" after tHtml
@@ -1544,14 +1548,15 @@ private function exLearnTitleOf pName
    return pName
 end exLearnTitleOf
 
--- The Dictionary's text, its lines joined back into paragraphs (a blank
--- line between them)
+-- The Dictionary's text, its lines joined back into paragraphs, with
+-- codepoint 30 where a blank line parts two of them (not a tag yet:
+-- exLearnLinks would take a tag for a name and show it as text)
 private function exLearnUnwrap pText
    local tOut, tLine
    repeat for each line tLine in pText
       if word 1 to -1 of tLine is empty then
-         put "</p><p></p><p>" after tOut
-      else if tOut is empty or char -3 to -1 of tOut is "<p>" then
+         put numToCodepoint(30) after tOut
+      else if tOut is empty or char -1 of tOut is numToCodepoint(30) then
          put word 1 to -1 of tLine after tOut
       else
          put space & word 1 to -1 of tLine after tOut

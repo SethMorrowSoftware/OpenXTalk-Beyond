@@ -367,6 +367,10 @@ private command testReference pStack, pCard
       put tolower(tName) into tKey
       put tDocs[tKey] into tPage
       check tPage is not empty, "Reference: " & tName & " has no page"
+      -- (a break between paragraphs is a break, not the text of its tags
+      -- with their brackets gone, nor the mark the build puts there first)
+      check "/pp/p" is not in tPage and numToCodepoint(30) is not in tPage, \
+            "Reference: the page of " & tName & " shows its paragraph breaks as text"
       -- (every link goes somewhere)
       repeat for each item tLink in pageLinks(tPage)
          add 1 to tCount
