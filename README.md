@@ -306,16 +306,20 @@ version, for example `0.1.0`:
 | | `OXT-Beyond-<version>-win-x86_64-portable.zip` | The same program folder without an installer. |
 | | `OXT-Beyond-<version>-win-x86_64-binaries.zip` | Only the built engine, externals and tools (`win-x86_64-bin`, without debug symbols) and the licence files, for use with a source checkout. |
 | | `OXT-Beyond-<version>-win-x86_64-symbols.zip` | Debug symbols (`.pdb`), for developers. |
+| | `OXT-Beyond-<version>-win-x86_64-server.zip` | OXT-Beyond Server: the server engine with its externals and database drivers, to run `.lc` pages on a web server (see [OXT-Beyond Server](#oxt-beyond-server)). From 0.2.7-rc.6.15; experimental. |
 | macOS 11 or later on Apple Silicon, 10.13 or later on Intel | `OXT-Beyond-<version>-mac-universal.dmg` | A disk image with `OXT-Beyond.app`, one app for Apple Silicon and Intel Macs, to drag to Applications (see [macOS](#macos)). |
 | | `OXT-Beyond-<version>-mac-universal.zip` | The same app, for scripted installs. |
 | | `OXT-Beyond-<version>-mac-universal-binaries.tar.xz` | Only the built engine, externals and tools (`Release/`, both architectures joined), without debug symbols and the build's own tools, and the licence files. |
 | | `OXT-Beyond-<version>-mac-universal-symbols.zip` | Debug symbols (`.dSYM`), for developers. |
+| | `OXT-Beyond-<version>-mac-universal-server.zip` | OXT-Beyond Server: the server engine with its externals and database drivers, to run `.lc` pages on a web server (see [OXT-Beyond Server](#oxt-beyond-server)). From 0.2.7-rc.6.15; experimental. |
 | Linux x86-64 with glibc 2.31 or later | `OXT-Beyond-<version>-linux-x86_64.tar.xz` | The program folder, with a launcher and `install.sh` for a per-user install (see [Linux](#linux-x86-64)). |
 | | `OXT-Beyond-<version>-linux-x86_64-binaries.tar.xz` | Only the built engine, externals and tools (`linux-x86_64-bin`), without debug symbols and the build's own tools, and the licence files. |
 | | `OXT-Beyond-<version>-linux-x86_64-symbols.tar.xz` | Debug symbols (`.dbg`), for developers. |
+| | `OXT-Beyond-<version>-linux-x86_64-server.zip` | OXT-Beyond Server: the server engine with its externals and database drivers, to run `.lc` pages on a web server (see [OXT-Beyond Server](#oxt-beyond-server)). From 0.2.7-rc.6.15; experimental. |
 | 64-bit ARM Linux with glibc 2.31 or later (from 0.2.4-rc.2) | `OXT-Beyond-<version>-linux-arm64.tar.xz` | The same program folder for 64-bit ARM, such as a Raspberry Pi 3, 4 or 5 on a 64-bit system, without the browser widget (see [Linux (64-bit ARM)](#linux-64-bit-arm)). |
 | | `OXT-Beyond-<version>-linux-arm64-binaries.tar.xz` | Only the built engine, externals and tools (`linux-arm64-bin`), as for x86-64. |
 | | `OXT-Beyond-<version>-linux-arm64-symbols.tar.xz` | Debug symbols (`.dbg`), for developers. |
+| | `OXT-Beyond-<version>-linux-arm64-server.zip` | OXT-Beyond Server: the server engine with its externals and database drivers, to run `.lc` pages on a web server (see [OXT-Beyond Server](#oxt-beyond-server)). From 0.2.7-rc.6.15; experimental. |
 | Other xTalks' IDEs (LiveCode Community 9, HyperXTalk, OpenXTalk) | `OXT-Beyond-<version>-xtalk-assistant-plugin.lce`, `OXT-Beyond-<version>-mcp-bridge-plugin.lce` | The xTalk Assistant and the xTalk MCP Bridge as extension packages, to install with that IDE's Extension Manager (see [tools/plugins](tools/plugins/README.md)). OXT-Beyond has both built in. Experimental. |
 | All | `OXT-Beyond-<version>-xtalk-sources.zip` | Every file of the bundled xTalk Suite extensions as the release took it from their repositories, so that it can be rebuilt without them. |
 | All | `SHA256SUMS` | SHA-256 checksums of all the files above. |
@@ -3563,6 +3567,30 @@ let a page do (sockets, other programs, other externals) fails as it
 does on a desktop that cannot do it. The guide *Deploying Your
 Application* says what works, and how to put a standalone on a web
 site.
+
+#### OXT-Beyond Server
+
+The engine also comes as a server engine that runs xTalk scripts on a
+web server, as LiveCode Server did: a page is a `.lc` file with xTalk
+between `<?lc` and `?>`, which reads the request in `$_GET`, `$_POST`,
+`$_FILES`, `$_COOKIE` and `$_SERVER`, answers with `put header`,
+`put cookie` and `put`, shares code with `include` and `require`, and
+keeps state with `start session` and `$_SESSION`. Every build has made
+it (`server-community` in the binaries archives); from 0.2.7-rc.6.15
+each release also has it as `OXT-Beyond-<version>-<platform>-server.zip`
+for Windows x86-64, macOS (universal) and Linux x86-64 and arm64, in the
+layout of LiveCode Community's server zips: the engine
+`livecode-community-server` with `externals/` (revDB, revXML, revZip)
+and `drivers/` (SQLite, MySQL, PostgreSQL, ODBC), so that a web server
+set up for LiveCode Community's server runs it unchanged. The zip's
+`README.txt` ([`tools/oxt/server-readme.txt`](tools/oxt/server-readme.txt))
+says how to set it up with Apache, IIS or nginx and what to change
+before putting it on the internet. It is experimental. Every build runs
+each zip's engine as a CGI program, and on Linux through Apache, with
+pages that use all of the above, revDB with SQLite, revXML and revZip
+([`tools/ci/server_check.py`](tools/ci/server_check.py)). From
+0.2.7-rc.6.15 a second `require` of the same file no longer crashes the
+engine (LiveCode Community 9.6.3's server engine crashed there too).
 
 Changes made in this repository to build it: the `thirdparty` and `ide`
 submodules are ordinary folders in the repository, the prebuilt

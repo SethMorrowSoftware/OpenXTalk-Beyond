@@ -731,6 +731,14 @@ writes to `dist\` (`<ver>` is the content of `ide/.version`, for example
 | `OXT-Beyond-<ver>-xtalk-sources.zip` | Only with `-XtalkSourcesZip` (CI sets it for release builds): every file the [xTalk Suite extensions](#xtalk-suite-extensions) pin, as packaging took them, with the manifest. |
 | `SHA256SUMS` | Checksums of the zips. [`build-installer.ps1`](#installer) rewrites it when it adds the installer. |
 
+CI then writes the server zip, `OXT-Beyond-<ver>-win-x86_64-server.zip`, with
+[`tools/oxt/package_server.py`](tools/oxt/README.md#the-server-zip-package_serverpy)
+(`python tools\oxt\package_server.py --platform win-x86_64 --bin win-x86_64-bin --out dist --sums`)
+and checks it with `python tools\ci\server_check.py --zip <zip>`, which runs
+its engine as a CGI program with pages that use what server scripts rely on.
+The Linux and macOS jobs do the same for theirs; on Linux the check also
+runs the pages through Apache.
+
 Options: `-BuildNumber <n>`, `-AssetsCache <folder>`,
 `-NoExternalAssets`, `-NoXtalkExtensions`, `-XtalkCache <folder>`,
 `-XtalkSourcesZip`, `-VcRedist <folder>` (see
@@ -2433,9 +2441,9 @@ it.
 
    | Platform | Files (`OXT-Beyond-<version>-...`) |
    | --- | --- |
-   | Windows x86-64 | `win-x86_64-setup.exe`, `win-x86_64-portable.zip`, `win-x86_64-binaries.zip`, `win-x86_64-symbols.zip` |
-   | macOS universal | `mac-universal.dmg`, `mac-universal.zip`, `mac-universal-binaries.tar.xz`, `mac-universal-symbols.zip` |
-   | Linux x86-64 | `linux-x86_64.tar.xz`, `linux-x86_64-binaries.tar.xz`, `linux-x86_64-symbols.tar.xz` |
+   | Windows x86-64 | `win-x86_64-setup.exe`, `win-x86_64-portable.zip`, `win-x86_64-binaries.zip`, `win-x86_64-symbols.zip`, `win-x86_64-server.zip` |
+   | macOS universal | `mac-universal.dmg`, `mac-universal.zip`, `mac-universal-binaries.tar.xz`, `mac-universal-symbols.zip`, `mac-universal-server.zip` |
+   | Linux x86-64 | `linux-x86_64.tar.xz`, `linux-x86_64-binaries.tar.xz`, `linux-x86_64-symbols.tar.xz`, `linux-x86_64-server.zip` (and the same for `linux-arm64`) |
    | Other xTalks' IDEs | `xtalk-assistant-plugin.lce`, `mcp-bridge-plugin.lce` (built by the publish job, `tools/plugins`) |
    | All | `xtalk-sources.zip`, and `SHA256SUMS` |
 
