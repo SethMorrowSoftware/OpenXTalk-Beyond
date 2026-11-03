@@ -27,6 +27,8 @@ script "OXTTestLearnStacks"
 --    the Reference card: it lists every handler of the extension, each
 --    has a page, every link in a page goes to a handler or a card, and a
 --    search finds a handler by a word of its page
+--    the sidebar, on every card: the pill that marks where you are is
+--    on that card's own line, and only that line's title is white
 --    in the light look and the dark: every colour of every word the group
 --    "Learn" shows (its lesson, a page of the reference, the Reference
 --    card) is 4.5 to 1 or more from the colour under it, the WCAG's ratio
@@ -164,6 +166,7 @@ private command testStack pPath, pInstall
    if tLoaded and tLesson is not empty then
       testButtons tStack, tLesson
    end if
+   testSidebar tStack
    testReadable tStack, tLesson, "dark"
    testReadable tStack, tLesson, "light"
    go card 1 of stack tStack
@@ -398,6 +401,45 @@ end testReference
 
 ################################################################################
 #
+# The sidebar: where you are
+#
+
+-- On each card, the sidebar marks that card and no other: the pill
+-- (graphic "frameHi") is on the card's own line of the list (the card's
+-- name is that line of the frame's cFrameCards), and that line's title is
+-- the only one in white
+private command testSidebar pStack
+   local tCard, tName, tFrame, tLine, tMid, tRect, tIndex, tTab, tWhite
+   repeat with tCard = 1 to the number of cards of stack pStack
+      go card tCard of stack pStack
+      pump 20
+      put the short name of card tCard of stack pStack into tName
+      -- (the window's card: the frame's list has a text on each card, and
+      -- names in a chunk read the card shown)
+      put the long id of group "Frame" of card tCard of stack pStack into tFrame
+      set the wholeMatches to true
+      put lineOffset(tName, the cFrameCards of tFrame) into tLine
+      check tLine > 0, tName & ": not in the sidebar's list of cards"
+      if tLine is 0 then
+         next repeat
+      end if
+      put the formattedRect of line tLine of field "frameList" of group "Frame" into tRect
+      put item 2 of the loc of graphic "frameHi" of tFrame into tMid
+      check tMid >= item 2 of tRect and tMid <= item 4 of tRect + 10, \
+            tName & ": the sidebar's pill (middle " & tMid & ") is not on its line " & tLine & " (" & tRect & ")"
+      put empty into tWhite
+      repeat with tIndex = 1 to the number of lines of field "frameList" of group "Frame"
+         put offset(tab, line tIndex of field "frameList" of group "Frame") into tTab
+         if the textColor of char tTab + 1 of line tIndex of field "frameList" of group "Frame" is "255,255,255" then
+            put tIndex & comma after tWhite
+         end if
+      end repeat
+      check tWhite is tLine & comma, tName & ": the sidebar's white titles are on lines " & tWhite & " not " & tLine
+   end repeat
+end testSidebar
+
+################################################################################
+#
 # Words that can be read
 #
 
@@ -450,7 +492,7 @@ private function readableFields pGroup, pLook
          put readableContrast(tInk, tBack) into tRatio
          add 1 to tCount
          check tRatio >= 4.5, pLook & ", " & the short name of this card & ", " & the short name of tField & ": " & \
-               tInk && "on" && tBack && "is" && format("%.2f", tRatio) && "to 1 (" & char 1 to 30 of line 1 of tField & ")"
+               tInk && "on" && tBack && "is" && format("%.2f", tRatio) && "to 1 (" & char 1 to 30 of line 1 of the text of tField & ")"
       end repeat
    end repeat
    return tCount

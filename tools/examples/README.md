@@ -160,7 +160,9 @@ matching the lesson's `/*@ <card>/expect` pattern, and every call opens
 its own page; Copy, an edit then Reset, a script that does not compile
 and one that stops each say the right thing; the Reference lists every
 handler, every link in every page goes somewhere, and a search finds and
-clears; and, in the light look and then the dark, every colour of every
+clears; on every card the sidebar's pill and its one white title mark
+that card's own line (a test shown to fail on a sidebar that always
+marks its first line); and, in the light look and then the dark, every colour of every
 word in a lesson, a page and the Reference is 4.5 to 1 or more from the
 colour under it (the WCAG's ratio for text). The builder chooses those
 colours to pass (`exLearnReadable` darkens or lightens an extension's
