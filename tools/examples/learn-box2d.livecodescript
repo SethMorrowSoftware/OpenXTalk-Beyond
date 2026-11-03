@@ -36,6 +36,7 @@ constant kToy = "770,114,988,264"
 command exBuild pFolder
    local tInfo, tStack, tErrors, tPath, tIndex
    exUseScripts the script of me
+   exAddIcon "loader-circle", "<path d='M21 12a9 9 0 1 1-6.219-8.56'/>"
    exAddIcon "link", "<path d='M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'/>" & \
          "<path d='M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'/>"
    exAddIcon "circle-dot", "<circle cx='12' cy='12' r='10'/><circle cx='12' cy='12' r='1'/>"
@@ -130,6 +131,10 @@ private command buildFront
       tip "Tip" & tIndex, tLeft, 500, tLeft + tWidth, kBottom, item 1 of line tIndex of tTips, item 2 of line tIndex of tTips
    end repeat
    set the itemDelimiter to comma
+   -- The way to the Kit's lessons, beside the last row of tiles
+   put exButton("OtherStack", 0, 442, 32, "Learn Box2Dxt Kit: games in pixels", "gamepad-2", "ghost", lkColor("teal"), empty, empty, 0) into tWidth
+   set the right of group "OtherStack" to kRight
+   set the toolTip of group "OtherStack" to "Open Learn Box2Dxt Kit, whose lessons make games with the Kit: pixels, sprites, players and sound"
 end buildFront
 
 private command tip pName, pLeft, pTop, pRight, pBottom, pIcon, pText
@@ -203,12 +208,21 @@ private command buildLab
    set the left of group "LabReset" to tRight - tWidth
    set the cDo of group "LabReset" to "labRestart"
    set the sharedText of field "LabReset_label" to true
+   -- The sign that the lesson is being made: it shows in the court's
+   -- middle from when the card opens until its world is ready
+   put exButton("LabLoading", 0, item 2 of kCourt + 200, 40, "Getting the lesson ready...", "loader-circle", "dark", lkColor("teal"), "Lab", empty, 0) into tWidth
+   set the left of group "LabLoading" to (item 1 of kCourt + item 3 of kCourt - tWidth) div 2
+   set the sharedText of field "LabLoading_label" to true
+   hide group "LabLoading"
    set the script of group "Lab" to exScript("Lab")
    set the cDocs of group "Lab" to docs()
 end buildLab
 
 -- The card's own buttons, from the block "buttons" (card|label|handler,
--- the first of a card's drawn as the main one), in a row from the left
+-- and "switch" for one that switches something on and off), in a row
+-- from the left, all alike. Each has a light, hidden: a wash of the
+-- accent and its outline, which the Lab shows while a switch is on, or
+-- for a moment when a button runs (labShowButtons)
 private command lessonButtons pCard
    local tLine, tLeft, tWidth, tStyle, tName, tCount
    put kLeft + 14 into tLeft
@@ -219,14 +233,18 @@ private command lessonButtons pCard
          next repeat
       end if
       add 1 to tCount
-      if tCount is 1 then
-         put "primary" into tStyle
-      else
-         put "ghost" into tStyle
-      end if
+      put "ghost" into tStyle
       put "Do" & tCount into tName
       put exButton(tName, tLeft, kTop + 14, 34, item 2 of tLine, empty, tStyle, lkColor("teal"), empty, empty, 0) into tWidth
       set the cDo of group tName to item 3 of tLine
+      buttonLight tName, lkColor("teal")
+      if item 4 of tLine is "switch" then
+         set the cSwitch of group tName to true
+         if "labLit" is not among the words of scriptFunctionNames(the script of this card) then
+            set the itemDelimiter to comma
+            throw "the switch " & item 2 of tLine & " of " & pCard & " needs a function labLit on its card"
+         end if
+      end if
       if word 1 to -1 of item 3 of tLine is not among the words of handlerNames(the script of this card) then
          set the itemDelimiter to comma
          throw "the button " & item 2 of tLine & " of " & pCard & " runs " & item 3 of tLine & ", which its card has not got"
@@ -238,6 +256,29 @@ private command lessonButtons pCard
       throw "the buttons of " & pCard & " run past the stage"
    end if
 end lessonButtons
+
+-- A button's light: a wash of the accent over it and an outline in it,
+-- hidden (labLight shows them)
+private command buttonLight pName, pAccent
+   local tObj
+   put lkBox(pName & "_lit", the rect of group pName, pAccent, 34, pName) into tObj
+   set the blendLevel of tObj to 84
+   set the visible of tObj to false
+   put lkBox(pName & "_ring", the rect of group pName, empty, 34, pName) into tObj
+   set the lineSize of tObj to 2
+   set the foregroundColor of tObj to pAccent
+   set the visible of tObj to false
+end buttonLight
+
+private function scriptFunctionNames pScript
+   local tLine, tNames
+   repeat for each line tLine in pScript
+      if word 1 of tLine is "function" then
+         put word 2 of tLine & space after tNames
+      end if
+   end repeat
+   return tNames
+end scriptFunctionNames
 
 -- The names of the handlers a script has (on and command lines)
 private function handlerNames pScript
@@ -380,44 +421,44 @@ Materials|Bounce test|bounceTest
 Materials|Slide test|slideTest
 Materials|Heavy and light|heavyLight
 Forces|Kick up|kickUp
-Forces|Wind|toggleWind
+Forces|Wind|toggleWind|switch
 Forces|Spin|spinBox
 Forces|Flip|flipBox
 Forces|Throw|throwBall
 Hinges|Push|pushSwing
 Hinges|Faster|fasterMotor
 Hinges|Reverse|reverseMotor
-Hinges|Motor|toggleMotor
+Hinges|Motor|toggleMotor|switch
 Hinges|Drop balls|dropBalls
 Springs|Pull down|pullWeight
 Springs|Stiffer|stiffer
 Springs|Softer|softer
 Springs|Drop on board|dropOnBoard
-Springs|Rigid board|toggleBoard
-Sliders|Up|liftUp
-Sliders|Stop|liftStop
-Sliders|Down|liftDown
+Springs|Rigid board|toggleBoard|switch
+Sliders|Up|liftUp|switch
+Sliders|Stop|liftStop|switch
+Sliders|Down|liftDown|switch
 Sliders|Fire|firePiston
 Sliders|Load boxes|loadBoxes
-Wheels|Right|driveRight
-Wheels|Brake|brake
-Wheels|Left|driveLeft
+Wheels|Right|driveRight|switch
+Wheels|Brake|brake|switch
+Wheels|Left|driveLeft|switch
 Wheels|Softer|softer
 Wheels|Stiffer|stiffer
-Dragging|Soft grab|softGrab
-Dragging|Firm grab|firmGrab
+Dragging|Soft grab|softGrab|switch
+Dragging|Firm grab|firmGrab|switch
 Dragging|Weaker links|weaker
 Dragging|Stronger links|stronger
 Contacts|Drop red|dropRed
 Contacts|Drop blue|dropBlue
 Contacts|Drop five|dropFive
-Rays|Closest / all|switchRay
-Rays|Follow mouse|switchAim
+Rays|Closest / all|switchRay|switch
+Rays|Follow mouse|switchAim|switch
 Rays|Add shapes|addShape
 Terrain|Drop ten|dropTen
 Terrain|Big blast|bigBlast
 Terrain|Wake all|wakeAll
-Terrain|Sleep on/off|toggleSleep
+Terrain|Sleep on/off|toggleSleep|switch
 @*/
 
 /*@ Lab
@@ -458,6 +499,10 @@ local sBodies, sPoints, sStill, sColor
 -- The joints labShowJoint draws, the lines and dots labLine and labDot
 -- draw, and the bodies labFlash lit, with when they go back
 local sJoints, sMarks, sFlash
+-- The button of the card's that is lit for a moment (labShowButtons)
+local sFlashed, sLightTicks
+-- The card being opened, until labOpenNow makes its lesson
+local sOpening
 -- The mouse joint that holds a body you drag, and the static body it is
 -- tied to
 local sDrag, sDragGround
@@ -474,10 +519,39 @@ local sOriginX, sOriginY
 # The card opens and closes
 #
 
+-- The card opens: the sign that the lesson is being made shows first,
+-- and the lesson is made a moment later, when the window has drawn the
+-- card and the sign. (Made at once, the card stays blank until it is
+-- ready.) A card left before then is not made
 on openCard
-   labOpen
+   labLoading true
+   put the long id of this card into sOpening
+   send "labOpenNow" to me in 20 milliseconds
    pass openCard
 end openCard
+
+command labOpenNow
+   if sOpening is not the long id of this card then
+      exit labOpenNow
+   end if
+   put empty into sOpening
+   labOpen
+   labLoading false
+end labOpenNow
+
+-- Shows, or takes away, the sign that the lesson is being made, with the
+-- busy pointer
+command labLoading pOn
+   if there is a group "LabLoading" then
+      set the visible of group "LabLoading" to pOn
+   end if
+   if pOn then
+      lock cursor
+      set the cursor to busy
+   else
+      unlock cursor
+   end if
+end labLoading
 
 on closeCard
    labClose
@@ -510,6 +584,7 @@ command labOpen
    catch tError
       labFail "labBuild", tError
    end try
+   labShowButtons empty
 end labOpen
 
 -- True when the Box2Dxt extension is loaded: its b2Version() is 4
@@ -617,6 +692,12 @@ command labStepOnce
    b2Step sWorld, kStep, kSubSteps
    dispatch "labStep" to sCard
    labDraw
+   -- (the arrow keys can switch things too: the lights follow, five
+   -- times a second)
+   add 1 to sLightTicks
+   if sLightTicks mod 12 is 0 then
+      labShowButtons empty
+   end if
 end labStepOnce
 
 -- The Reset button: the card made again from the start
@@ -742,6 +823,9 @@ command labShow pBody, pColor
    repeat with tIndex = 1 to tCount
       put b2BodyShapeAt(tIndex) & comma after tShapes
    end repeat
+   -- (locked until the body is drawn where it is: a new graphic shows at
+   -- the card's middle until then)
+   lock screen
    lock messages
    repeat for each item tShape in tShapes
       put labShapePoints(tShape) into tPoints
@@ -756,6 +840,7 @@ command labShow pBody, pColor
    unlock messages
    put empty into sStill[pBody]
    labDrawBody pBody, true
+   unlock screen
 end labShow
 
 -- Takes a body out of the world, and its graphics off the card
@@ -1315,12 +1400,77 @@ command labRun pHandler
    if sWorld is empty and pHandler is not among the items of "labRestart,labTogglePause,labStepButton" then
       exit labRun
    end if
+   -- (the screen is locked while the button runs: a body's graphics are
+   -- made before they are put where the body is, and would flash at the
+   -- card's middle in the meantime)
+   lock screen
    try
       dispatch pHandler to sCard
    catch tError
       labFail pHandler, tError
    end try
+   labShowButtons pHandler
+   unlock screen
 end labRun
+
+########################################
+#
+# The card's buttons light up
+#
+# A button that switches something on or off (its group's cSwitch is
+# true, from "switch" in the builder's buttons block) stays lit while
+# what it switches is on: the card's function labLit, given the
+# button's handler, says whether it is. Any other button lights up for
+# a moment when it runs. The light is the group's graphics "<name>_lit"
+# (a wash of the accent) and "<name>_ring" (its outline), hidden when
+# the button is not lit.
+
+-- After a button's handler ran (empty: after the lesson was made, or
+-- the Code tab's lines ran): puts every switch's light right, and
+-- flashes the button that ran, if it is not a switch
+command labShowButtons pHandler
+   local tIndex, tObj, tOn, tError
+   if sCard is empty then
+      exit labShowButtons
+   end if
+   repeat with tIndex = 1 to the number of groups of sCard
+      put the long id of group tIndex of sCard into tObj
+      if not (the short name of tObj begins with "Do") or the cDo of tObj is empty then
+         next repeat
+      end if
+      if the cSwitch of tObj is true then
+         put false into tOn
+         try
+            dispatch function "labLit" to sCard with the cDo of tObj
+            put (the result is true) into tOn
+         catch tError
+         end try
+         labLight tObj, tOn
+      else if pHandler is not empty and the cDo of tObj is pHandler then
+         labLight tObj, true
+         put tObj into sFlashed
+         send "labUnflash" to me in 180 milliseconds
+      end if
+   end repeat
+end labShowButtons
+
+-- The end of a button's flash
+command labUnflash
+   if sFlashed is not empty and exists(sFlashed) then
+      labLight sFlashed, false
+   end if
+   put empty into sFlashed
+end labUnflash
+
+-- Lights a button of the card's, or puts its light out
+command labLight pGroup, pOn
+   local tName
+   put the short name of pGroup into tName
+   if there is a graphic (tName & "_lit") of pGroup then
+      set the visible of graphic (tName & "_lit") of pGroup to pOn
+      set the visible of graphic (tName & "_ring") of pGroup to pOn
+   end if
+end labLight
 
 -- What a Box2D handler in the calls list does
 command labExplain pName
@@ -1537,13 +1687,32 @@ private command frontDraw
 end frontDraw
 
 -- A click in the banner: a blast where it is, which pushes every body
--- near it away
+-- near it away. "Learn Box2Dxt Kit" opens that example, which is beside
+-- this one
 on mouseUp pButton
+   if pButton is 1 and the long name of the target contains "group " & quote & "OtherStack" & quote then
+      openOther
+      exit mouseUp
+   end if
    if pButton is 1 and the mouseLoc is within the rect of group "hero" then
       frontBlast the mouseH, the mouseV
    end if
    pass mouseUp
 end mouseUp
+
+command openOther
+   local tPath
+   set the itemDelimiter to slash
+   put item 1 to -2 of the effective filename of this stack & "/Learn Box2Dxt Kit.oxtstack" into tPath
+   set the itemDelimiter to comma
+   if there is a file tPath then
+      go stack tPath
+   else if there is a stack "Learn Box2Dxt Kit" then
+      go stack "Learn Box2Dxt Kit"
+   else
+      answer "Learn Box2Dxt Kit is with the other examples: open it from Home, under Examples."
+   end if
+end openOther
 
 -- A blast at a point of the card: b2WorldExplode pushes every body within
 -- 3 metres of it away, hardest at the middle
@@ -2018,6 +2187,15 @@ on labStep
          "    box: turning" && round(b2BodyAngularVelocity(sBox) * 180 / pi) && "degrees/s" & \
          "    wind:" && sWind
 end labStep
+
+-- Which of the switches is on (the Lab lights its button)
+function labLit pHandler
+   switch pHandler
+      case "toggleWind"
+         return sWind
+   end switch
+   return false
+end labLit
 @*/
 
 /*@ Forces/about
@@ -2123,6 +2301,15 @@ on labStep
          labNum(b2RevoluteMotorSpeed(sMill), 1) && "rad/s," && round(b2RevoluteMotorTorque(sMill)) && "N m" & \
          "  flap" && round(b2RevoluteAngle(sFlap) * 180 / pi) && "(limit -34 to 17)"
 end labStep
+
+-- Which of the switches is on (the Lab lights its button)
+function labLit pHandler
+   switch pHandler
+      case "toggleMotor"
+         return b2RevoluteIsMotorEnabled(sMill)
+   end switch
+   return false
+end labLit
 @*/
 
 /*@ Hinges/about
@@ -2257,6 +2444,15 @@ on labStep
    labSay "spring" && labNum(sHertz, 1) && "hertz: rest 2.2 m, now" && \
          labNum(b2DistanceCurrentLength(sSpring), 2) && "m    board:" && boardName()
 end labStep
+
+-- Which of the switches is on (the Lab lights its button)
+function labLit pHandler
+   switch pHandler
+      case "toggleBoard"
+         return not sBendy
+   end switch
+   return false
+end labLit
 @*/
 
 /*@ Springs/about
@@ -2271,7 +2467,7 @@ The board at the right is four planks welded end to end. Its welds have an angul
 -- hinge, it can have a limit (how far it slides) and a motor (how fast,
 -- with a force it may not pass); it can also have a spring.
 
-local sWorld, sLift, sLiftJoint, sRam, sRamJoint
+local sWorld, sLift, sLiftJoint, sRam, sRamJoint, sLiftMove
 
 on labBuild
    local tShaft, tBase, tIndex
@@ -2286,6 +2482,7 @@ on labBuild
    put b2PrismaticJoint(sWorld, tShaft, sLift, 0, 0.4, 0, 0, 0, 1, 0, false) into sLiftJoint
    b2PrismaticEnableLimit sLiftJoint, true, 0, 5.5
    b2PrismaticEnableMotor sLiftJoint, true, 0, 3000
+   put "stop" into sLiftMove
    -- The piston: a ram that slides along the floor (axis 1,0), held back
    -- by a spring
    put b2NewBody(sWorld, 0, 0.4, 0, 0, false, false) into tBase
@@ -2307,15 +2504,18 @@ end labBuild
 
 -- The Up, Stop and Down buttons: the motor's speed, in metres a second
 on liftUp
+   put "up" into sLiftMove
    b2PrismaticSetMotorSpeed sLiftJoint, 1.2
    b2JointWakeBodies sLiftJoint
 end liftUp
 
 on liftStop
+   put "stop" into sLiftMove
    b2PrismaticSetMotorSpeed sLiftJoint, 0
 end liftStop
 
 on liftDown
+   put "down" into sLiftMove
    b2PrismaticSetMotorSpeed sLiftJoint, -1.2
    b2JointWakeBodies sLiftJoint
 end liftDown
@@ -2343,6 +2543,19 @@ on labStep
          labNum(b2PrismaticSpeed(sLiftJoint), 1) && "m/s, motor force" && round(b2PrismaticMotorForce(sLiftJoint)) && "N" & \
          "    ram:" && labNum(b2PrismaticTranslation(sRamJoint), 2) && "m"
 end labStep
+
+-- Which of the switches is on (the Lab lights its button)
+function labLit pHandler
+   switch pHandler
+      case "liftUp"
+         return sLiftMove is "up"
+      case "liftStop"
+         return sLiftMove is not "up" and sLiftMove is not "down"
+      case "liftDown"
+         return sLiftMove is "down"
+   end switch
+   return false
+end labLit
 @*/
 
 /*@ Sliders/about
@@ -2472,6 +2685,19 @@ on labStep
    labSay "speed" && labNum(b2BodyVX(sCar), 1) && "m/s    motor torque" && \
          labNum(b2WheelMotorTorque(item 1 of sWheels), 1) && "N m    springs" && labNum(sHertz, 1) && "hertz"
 end labStep
+
+-- Which of the switches is on (the Lab lights its button)
+function labLit pHandler
+   switch pHandler
+      case "driveRight"
+         return sDrive is 1
+      case "brake"
+         return sDrive is 0
+      case "driveLeft"
+         return sDrive is -1
+   end switch
+   return false
+end labLit
 @*/
 
 /*@ Wheels/about
@@ -2594,6 +2820,17 @@ end weaker
 on stronger
    put sLimit + 80 into sLimit
 end stronger
+
+-- Which of the switches is on (the Lab lights its button)
+function labLit pHandler
+   switch pHandler
+      case "softGrab"
+         return sHertz is 1.5
+      case "firmGrab"
+         return sHertz is 8
+   end switch
+   return false
+end labLit
 @*/
 
 /*@ Dragging/about
@@ -2826,6 +3063,17 @@ on labStep
       labSay "the ray goes through" && b2QueryCount() && "shapes   a click found" && sFound && "shapes"
    end if
 end labStep
+
+-- Which of the switches is on (the Lab lights its button)
+function labLit pHandler
+   switch pHandler
+      case "switchRay"
+         return sAll
+      case "switchAim"
+         return not sSweep
+   end switch
+   return false
+end labLit
 @*/
 
 /*@ Rays/about
@@ -2950,6 +3198,15 @@ on labStep
          b2WorldContactCount() && "  step" && labNum(b2WorldProfileStep(), 2) && "ms   sleeping on:" && \
          b2IsSleepingEnabled(sWorld)
 end labStep
+
+-- Which of the switches is on (the Lab lights its button)
+function labLit pHandler
+   switch pHandler
+      case "toggleSleep"
+         return b2IsSleepingEnabled(sWorld)
+   end switch
+   return false
+end labLit
 @*/
 
 /*@ Terrain/about

@@ -120,3 +120,12 @@ on labStep
          b2WorldContactCount() && "  step" && labNum(b2WorldProfileStep(), 2) && "ms   sleeping on:" && \
          b2IsSleepingEnabled(sWorld)
 end labStep
+
+-- Which of the switches is on (the Lab lights its button)
+function labLit pHandler
+   switch pHandler
+      case "toggleSleep"
+         return b2IsSleepingEnabled(sWorld)
+   end switch
+   return false
+end labLit

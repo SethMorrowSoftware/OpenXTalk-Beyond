@@ -129,3 +129,12 @@ on labStep
    labSay "spring" && labNum(sHertz, 1) && "hertz: rest 2.2 m, now" && \
          labNum(b2DistanceCurrentLength(sSpring), 2) && "m    board:" && boardName()
 end labStep
+
+-- Which of the switches is on (the Lab lights its button)
+function labLit pHandler
+   switch pHandler
+      case "toggleBoard"
+         return not sBendy
+   end switch
+   return false
+end labLit

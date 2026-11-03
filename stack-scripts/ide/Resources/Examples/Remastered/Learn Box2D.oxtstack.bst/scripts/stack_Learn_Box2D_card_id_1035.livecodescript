@@ -74,3 +74,12 @@ on labStep
          "    box: turning" && round(b2BodyAngularVelocity(sBox) * 180 / pi) && "degrees/s" & \
          "    wind:" && sWind
 end labStep
+
+-- Which of the switches is on (the Lab lights its button)
+function labLit pHandler
+   switch pHandler
+      case "toggleWind"
+         return sWind
+   end switch
+   return false
+end labLit

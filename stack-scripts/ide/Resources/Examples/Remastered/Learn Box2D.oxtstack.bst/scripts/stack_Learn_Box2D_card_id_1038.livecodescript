@@ -10,7 +10,7 @@ script "stack_Learn_Box2D_card_id_1038"
 -- hinge, it can have a limit (how far it slides) and a motor (how fast,
 -- with a force it may not pass); it can also have a spring.
 
-local sWorld, sLift, sLiftJoint, sRam, sRamJoint
+local sWorld, sLift, sLiftJoint, sRam, sRamJoint, sLiftMove
 
 on labBuild
    local tShaft, tBase, tIndex
@@ -25,6 +25,7 @@ on labBuild
    put b2PrismaticJoint(sWorld, tShaft, sLift, 0, 0.4, 0, 0, 0, 1, 0, false) into sLiftJoint
    b2PrismaticEnableLimit sLiftJoint, true, 0, 5.5
    b2PrismaticEnableMotor sLiftJoint, true, 0, 3000
+   put "stop" into sLiftMove
    -- The piston: a ram that slides along the floor (axis 1,0), held back
    -- by a spring
    put b2NewBody(sWorld, 0, 0.4, 0, 0, false, false) into tBase
@@ -46,15 +47,18 @@ end labBuild
 
 -- The Up, Stop and Down buttons: the motor's speed, in metres a second
 on liftUp
+   put "up" into sLiftMove
    b2PrismaticSetMotorSpeed sLiftJoint, 1.2
    b2JointWakeBodies sLiftJoint
 end liftUp
 
 on liftStop
+   put "stop" into sLiftMove
    b2PrismaticSetMotorSpeed sLiftJoint, 0
 end liftStop
 
 on liftDown
+   put "down" into sLiftMove
    b2PrismaticSetMotorSpeed sLiftJoint, -1.2
    b2JointWakeBodies sLiftJoint
 end liftDown
@@ -82,3 +86,16 @@ on labStep
          labNum(b2PrismaticSpeed(sLiftJoint), 1) && "m/s, motor force" && round(b2PrismaticMotorForce(sLiftJoint)) && "N" & \
          "    ram:" && labNum(b2PrismaticTranslation(sRamJoint), 2) && "m"
 end labStep
+
+-- Which of the switches is on (the Lab lights its button)
+function labLit pHandler
+   switch pHandler
+      case "liftUp"
+         return sLiftMove is "up"
+      case "liftStop"
+         return sLiftMove is not "up" and sLiftMove is not "down"
+      case "liftDown"
+         return sLiftMove is "down"
+   end switch
+   return false
+end labLit

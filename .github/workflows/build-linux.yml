@@ -1674,6 +1674,20 @@ jobs:
             2>&1 | tee "$RUNNER_TEMP/logs/learn-box2d-clicks.log"
           tail -n 1 "$RUNNER_TEMP/logs/learn-box2d-clicks.log" | grep -qx DONE
 
+      # Learn Box2Dxt Kit's lessons, run by the package's engine with the
+      # package's Box2Dxt and Kit: every button, the Code tab's lines,
+      # Step, Pause and Reset on every lesson, the behaviour checks in
+      # tools/examples/test-learn-box2dxt-kit.livecodescript, and the
+      # Reference card's search (it opens the committed stack)
+      - name: Learn Box2Dxt Kit lessons
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
+        timeout-minutes: 10
+        run: |
+          OXT_INSTALL="$OXT_ROOT" timeout 480 xvfb-run -a -s '-screen 0 1280x1024x24' \
+            "$OXT_ROOT/oxt-beyond" -ui tools/examples/test-learn-box2dxt-kit.livecodescript \
+            2>&1 | tee "$RUNNER_TEMP/logs/learn-box2dxt-kit.log"
+          tail -n 1 "$RUNNER_TEMP/logs/learn-box2dxt-kit.log" | grep -qx DONE
+
       # The Learn stacks of the xTalk Suite's extensions (Learn SodiumXT
       # and the others builder.livecodescript's exLearn handlers make), run
       # by the package's engine with the package's extensions: every

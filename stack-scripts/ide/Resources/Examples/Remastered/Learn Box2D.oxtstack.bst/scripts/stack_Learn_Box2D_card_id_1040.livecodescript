@@ -117,3 +117,14 @@ end weaker
 on stronger
    put sLimit + 80 into sLimit
 end stronger
+
+-- Which of the switches is on (the Lab lights its button)
+function labLit pHandler
+   switch pHandler
+      case "softGrab"
+         return sHertz is 1.5
+      case "firmGrab"
+         return sHertz is 8
+   end switch
+   return false
+end labLit

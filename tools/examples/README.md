@@ -29,6 +29,7 @@ package.
 | Bookshelf | [book-library](book-library.livecodescript) | `sample_2/BookLibrary.livecode` | LiveCode Ltd, 2014 |
 | Balloon Game | [balloon-game](balloon-game.livecodescript) | `sample_4/balloon.livecode` | LiveCode Ltd (then RunRev Ltd), 2013 |
 | Learn Box2D | [learn-box2d](learn-box2d.livecodescript) | None: made here, in the same look | OXT-Beyond, 2026 |
+| Learn Box2Dxt Kit | [learn-box2dxt-kit](learn-box2dxt-kit.livecodescript) | None: made here, in the same look | OXT-Beyond, 2026, with Kenney's CC0 pictures |
 | Learn SodiumXT | [learn-sodiumxt](learn-sodiumxt.livecodescript) | None: made here, a Learn stack (below) | OXT-Beyond, 2026 |
 | Learn CoinXT | [learn-coinxt](learn-coinxt.livecodescript) | None: made here, a Learn stack (below) | OXT-Beyond, 2026 |
 | Learn NostrXT | [learn-nostrxt](learn-nostrxt.livecodescript) | None: made here, a Learn stack (below) | OXT-Beyond, 2026 |
@@ -59,7 +60,8 @@ need the kit to open.
 
 ## Learn Box2D
 
-Learn Box2D is the one example here with no original: it was made in
+Learn Box2D and Learn Box2Dxt Kit are the two examples here with no
+original. Learn Box2D was made in
 the remasters' look to teach Box2D, the physics engine built in as
 Box2Dxt. Each of its thirteen lessons (the world, body types, shapes,
 materials, forces, hinges, springs, sliders, wheels, dragging, contacts,
@@ -120,6 +122,51 @@ above.
 
 Where Box2Dxt is not loaded (the web IDE, for now), each lesson says so
 at the top of its court, and the rest of the stack still opens and reads.
+
+## Learn Box2Dxt Kit
+
+Learn Box2Dxt Kit is Learn Box2D's other half, and each links to the
+other from its front page. Learn Box2D teaches Box2D's own calls, in
+metres; this one teaches the Box2Dxt Kit (`b2k...`), the script library
+that makes games with Box2D in pixels, with the screen's y going down
+and angles in degrees. Its twelve lessons, each a `wide` card with a
+live court, buttons, "How it works" and a Code tab of lines to run:
+
+- the basics (a ball, a box and a floor in a few lines), controls made
+  into bodies, moving things (velocity, impulses, a jump), joints (a
+  windmill, a lift, a rope and a cart on wheels), and a hero on the
+  keyboard;
+- sprites from a sprite sheet, animation (frames, a GIF, and a sheet
+  read from a PNG and Kenney's XML atlas), a player that runs, jumps,
+  climbs and swims, a camera that follows it through a level four
+  times as wide as the court (`b2kCamOn` on a viewport away from the
+  card's corner, which needs the Kit of 2026-11-03 or later), and sound;
+- contacts and sensors (coins, layers that pass through each other),
+  and terrain (smooth ground, a pit, a ray cast, a kill floor).
+
+Its last card, Reference, lists every public handler of the Kit: a
+search narrows the list, and a click on one shows how to call it, what
+each parameter means and which lessons use it. The pictures are
+Kenney's (https://kenney.nl), CC0, copied from the xTalk Suite's
+`box2dxt/Spritesheets` to [assets/kenney](assets/kenney); the builder
+saves them in the stack, so it needs no files beside it, and the one
+GIF, `alien-walk.gif`, was made from two of those frames.
+
+```sh
+xvfb-run -a <install>/OXT-Beyond -ui tools/examples/test-learn-box2dxt-kit.livecodescript
+```
+
+runs every lesson of the built stack with Box2Dxt and the Kit loaded
+from the install: on each card it runs every button, the Code tab's
+lines, Step, Pause and Reset; the line at the court's top must never
+say the lesson or the lines stopped; everything that moves must be in
+the court; and, from a fresh Reset, a button on seven of the cards must
+do what its lesson says (it rains, the ball jumps, the lift rises, the
+cart drives, a sheet's frames load, the camera follows a player that
+runs by itself, contacts are counted). The search
+and an explanation are checked on the Reference card. It ends with
+`DONE` or `FAILED`; `OXT_LEARN_KIT` names another copy of the stack, and
+`OXT_LEARN_KIT_SNAPS` a folder for a picture of each card.
 
 ## Learn stacks: the xTalk Suite's extensions
 

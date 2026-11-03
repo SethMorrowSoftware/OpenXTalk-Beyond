@@ -119,3 +119,14 @@ on labStep
       labSay "the ray goes through" && b2QueryCount() && "shapes   a click found" && sFound && "shapes"
    end if
 end labStep
+
+-- Which of the switches is on (the Lab lights its button)
+function labLit pHandler
+   switch pHandler
+      case "switchRay"
+         return sAll
+      case "switchAim"
+         return not sSweep
+   end switch
+   return false
+end labLit

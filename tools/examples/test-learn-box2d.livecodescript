@@ -11,7 +11,9 @@ script "OXTTestLearnBox2D"
 -- shapes and keep them after a click (a blast). Then, on each lesson card:
 --
 --    lets the world run for three seconds
---    presses each of the card's buttons, as a click does, and lets the
+--    presses each of the card's buttons, as a click does, checks that
+--    its light is right (a switch lit while its card says it is on, any
+--    other button lit for a moment), and lets the
 --    world run after each
 --    checks that the line at the court's top does not say the lesson
 --    stopped with an error, that the world is drawn (it has bodies), and
@@ -113,8 +115,11 @@ private function testCard pStack, pCard
          exit repeat
       end if
       dispatch "labRun" to this card with tDo
-      waitRun 500
-      put problem() into tWhy
+      put lights(tDo) into tWhy
+      if tWhy is empty then
+         waitRun 500
+         put problem() into tWhy
+      end if
       if tWhy is not empty then
          put tWhy && "(after" && tDo & ")" into tWhy
       end if
@@ -168,6 +173,34 @@ end testFront
 private command waitRun pMs
    wait pMs milliseconds with messages
 end waitRun
+
+-- The buttons' lights, just after the button pDo ran: a switch is lit
+-- when its card's labLit says it is on, and out when not; any other
+-- button that ran is lit for a moment. Empty when they are right
+private function lights pDo
+   local tCount, tObj, tLit, tOn
+   repeat with tCount = 1 to the number of groups of this card
+      put the long id of group tCount of this card into tObj
+      if not (the short name of tObj begins with "Do") or the cDo of tObj is empty then
+         next repeat
+      end if
+      if there is no graphic (the short name of tObj & "_lit") of tObj then
+         return "the button" && the cDo of tObj && "has no light"
+      end if
+      put the visible of graphic (the short name of tObj & "_lit") of tObj into tLit
+      if the cSwitch of tObj is true then
+         dispatch function "labLit" to this card with the cDo of tObj
+         put (the result is true) into tOn
+         if tLit is not tOn then
+            return "the switch" && the cDo of tObj && "is" && word (1 + (tLit is true)) of "out lit" && \
+                  "but its card says it is" && word (1 + (tOn is true)) of "off on"
+         end if
+      else if the cDo of tObj is pDo and not tLit then
+         return "the button" && pDo && "did not light up when it ran"
+      end if
+   end repeat
+   return empty
+end lights
 
 -- What is wrong with the card in front, or empty
 private function problem

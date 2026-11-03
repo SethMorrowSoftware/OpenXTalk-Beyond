@@ -200,13 +200,32 @@ private command frontDraw
 end frontDraw
 
 -- A click in the banner: a blast where it is, which pushes every body
--- near it away
+-- near it away. "Learn Box2Dxt Kit" opens that example, which is beside
+-- this one
 on mouseUp pButton
+   if pButton is 1 and the long name of the target contains "group " & quote & "OtherStack" & quote then
+      openOther
+      exit mouseUp
+   end if
    if pButton is 1 and the mouseLoc is within the rect of group "hero" then
       frontBlast the mouseH, the mouseV
    end if
    pass mouseUp
 end mouseUp
+
+command openOther
+   local tPath
+   set the itemDelimiter to slash
+   put item 1 to -2 of the effective filename of this stack & "/Learn Box2Dxt Kit.oxtstack" into tPath
+   set the itemDelimiter to comma
+   if there is a file tPath then
+      go stack tPath
+   else if there is a stack "Learn Box2Dxt Kit" then
+      go stack "Learn Box2Dxt Kit"
+   else
+      answer "Learn Box2Dxt Kit is with the other examples: open it from Home, under Examples."
+   end if
+end openOther
 
 -- A blast at a point of the card: b2WorldExplode pushes every body within
 -- 3 metres of it away, hardest at the middle

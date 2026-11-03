@@ -124,3 +124,16 @@ on labStep
    labSay "speed" && labNum(b2BodyVX(sCar), 1) && "m/s    motor torque" && \
          labNum(b2WheelMotorTorque(item 1 of sWheels), 1) && "N m    springs" && labNum(sHertz, 1) && "hertz"
 end labStep
+
+-- Which of the switches is on (the Lab lights its button)
+function labLit pHandler
+   switch pHandler
+      case "driveRight"
+         return sDrive is 1
+      case "brake"
+         return sDrive is 0
+      case "driveLeft"
+         return sDrive is -1
+   end switch
+   return false
+end labLit

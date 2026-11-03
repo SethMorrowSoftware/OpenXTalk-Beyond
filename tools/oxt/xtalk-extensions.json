@@ -163,7 +163,7 @@
     {
       "name": "Box2Dxt",
       "repository": "SethMorrowSoftware/Box2Dxt",
-      "commit": "0dd09c675897743380dd51cf787ab549e423beec",
+      "commit": "affb67725ccf0494cca078969202bfae84cdb943",
       "version": "0.2.0",
       "version_from": {
         "path": "src/box2dxt.lcb",
@@ -173,8 +173,8 @@
       "licence": "MIT (Seth Morrow and Box2Dxt contributors); the libraries statically link Box2D (MIT); the Windows libraries need the Microsoft Visual C++ runtime",
       "files": [
         {"path": "src/box2dxt.lcb", "role": "source", "sha256": "bde77cafb09344922e286e8d1e076527d1fb6be8c9f564f804dba9e54d43f378", "size": 294359},
-        {"path": "src/box2dxt-kit.livecodescript", "role": "source", "sha256": "cfa234e3ae0d438cf9d0d252ed662f8e868241e0c838c668831f35acb5d7f6ea", "size": 374025},
-        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "7d1d0ddf8c42e9fe1b57bde44622fe1af15f231103f9b8c8a6fbb104bf0a9518", "size": 539},
+        {"path": "src/box2dxt-kit.livecodescript", "role": "source", "sha256": "878085bf6d5283ac26e265ddaa503c77cdf8bab1d4462b0ba535c5557bf813a9", "size": 376418},
+        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "65099d5448c9fc9807c2ca31fec6b9946047748eee6a4e1c9c0f063b2c4efd25", "size": 633},
         {"path": "src/code/x86_64-win32/box2dxt.dll", "role": "library", "sha256": "7f33cb3489aa6132b9db4363e3bde0ffe22d68be3d3cbfe83e76b492480643c5", "size": 337408, "imports": ["KERNEL32.dll", "VCRUNTIME140.dll", "api-ms-win-crt-heap-l1-1-0.dll", "api-ms-win-crt-utility-l1-1-0.dll", "api-ms-win-crt-math-l1-1-0.dll", "api-ms-win-crt-stdio-l1-1-0.dll", "api-ms-win-crt-runtime-l1-1-0.dll"]},
         {"path": "src/code/x86-win32/box2dxt.dll", "role": "library", "sha256": "2c12770687a553f1674682dbdfbb498a9666612b5ba8bcdf45f934e3d8b75a75", "size": 301056, "imports": ["KERNEL32.dll", "VCRUNTIME140.dll", "api-ms-win-crt-heap-l1-1-0.dll", "api-ms-win-crt-utility-l1-1-0.dll", "api-ms-win-crt-math-l1-1-0.dll", "api-ms-win-crt-stdio-l1-1-0.dll", "api-ms-win-crt-runtime-l1-1-0.dll"]},
         {"path": "src/code/x86_64-linux/box2dxt.so", "role": "library", "sha256": "a19edb050dc891682658571214746ac55679de163018c9d0b9713e276a8ca7dc", "size": 463576},

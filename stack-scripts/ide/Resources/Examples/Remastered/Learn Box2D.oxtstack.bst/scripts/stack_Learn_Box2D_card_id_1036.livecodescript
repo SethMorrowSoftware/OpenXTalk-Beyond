@@ -100,3 +100,12 @@ on labStep
          labNum(b2RevoluteMotorSpeed(sMill), 1) && "rad/s," && round(b2RevoluteMotorTorque(sMill)) && "N m" & \
          "  flap" && round(b2RevoluteAngle(sFlap) * 180 / pi) && "(limit -34 to 17)"
 end labStep
+
+-- Which of the switches is on (the Lab lights its button)
+function labLit pHandler
+   switch pHandler
+      case "toggleMotor"
+         return b2RevoluteIsMotorEnabled(sMill)
+   end switch
+   return false
+end labLit
