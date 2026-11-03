@@ -2276,6 +2276,9 @@ private function leExampleTable
    put "|Learn Box2Dxt Kit|Twelve lessons in making games with the Box2Dxt Kit, in pixels: sprites, sprite sheets " & \
          "and GIFs, a player to steer and a camera to follow it, sound, contacts, coins and terrain, with a Reference of every Kit call.|OXT-Beyond, 2026, on the Box2Dxt Kit|tours|gamepad-2|emerald|" & \
          "box2d box2dxt kit physics game sprite spritesheet gif animation player|Resources/Examples/Remastered/Learn Box2Dxt Kit.oxtstack|Learn Box2Dxt Kit" & return after tTable
+   put "|SVG Lab|What OXT-Beyond does with SVG: the logo as live SVG, the old compile beside the new, each compile option, " & \
+         "Convert to Graphics, Export SVG, zoom and recolour, on the logo or an SVG of your own.|OXT-Beyond, 2026|tours|wand-sparkles|orange|" & \
+         "svg vector drawing image graphics convert export decompile logo animation|Resources/Examples/Remastered/SVG Lab.oxtstack|SVG Lab" & return after tTable
    put "|Learn SodiumXT|Thirteen lessons in cryptography with SodiumXT: random bytes, fingerprints, passwords, " & \
          "secret and public-key boxes, signatures, key exchange, files and streams, each a script to change and run, " & \
          "and a reference of every handler.|OXT-Beyond, 2026, on libsodium through SodiumXT|suite|key-round|indigo|" & \

@@ -1688,6 +1688,19 @@ jobs:
             2>&1 | tee "$RUNNER_TEMP/logs/learn-box2dxt-kit.log"
           tail -n 1 "$RUNNER_TEMP/logs/learn-box2dxt-kit.log" | grep -qx DONE
 
+      # SVG Lab, run by the package's engine with the package's revXML and
+      # drawing library: the live logo, the old compile beside the new,
+      # every compile option, Convert, zoom, recolour and an SVG of one's
+      # own (tools/examples/test-svg-lab.livecodescript)
+      - name: SVG Lab
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
+        timeout-minutes: 10
+        run: |
+          OXT_INSTALL="$OXT_ROOT" timeout 300 xvfb-run -a -s '-screen 0 1280x1024x24' \
+            "$OXT_ROOT/oxt-beyond" -ui tools/examples/test-svg-lab.livecodescript \
+            2>&1 | tee "$RUNNER_TEMP/logs/svg-lab.log"
+          tail -n 1 "$RUNNER_TEMP/logs/svg-lab.log" | grep -qx DONE
+
       # The Learn stacks of the xTalk Suite's extensions (Learn SodiumXT
       # and the others builder.livecodescript's exLearn handlers make), run
       # by the package's engine with the package's extensions: every
