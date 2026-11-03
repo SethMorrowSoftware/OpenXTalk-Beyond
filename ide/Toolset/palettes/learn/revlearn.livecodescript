@@ -2297,6 +2297,10 @@ private function leExampleTable
          "seeding a torrent, magnet links, events, files, pausing and limits, each a script to change and run, " & \
          "and a reference of every handler.|OXT-Beyond, 2026, on libtorrent through torrentxt|suite|package|orange|" & \
          "torrent torrentxt bittorrent libtorrent magnet seed peer p2p dht file sharing|Resources/Examples/Remastered/Learn TorrentXT.oxtstack|Learn TorrentXT" & return after tTable
+   put "|Learn OnionXT|Six lessons in Tor with OnionXT: what Tor is, checking onion addresses, the key inside " & \
+         "an address, an address of your own from a seed, dialing and onion services, each a script to change and run " & \
+         "without Tor, and a reference of every handler.|OXT-Beyond, 2026, on Tor through onionxt and SodiumXT|suite|lock|violet|" & \
+         "tor onion onionxt anonymity privacy address socks hidden service|Resources/Examples/Remastered/Learn OnionXT.oxtstack|Learn OnionXT" & return after tTable
    put "Resources/Examples/SQLite Book Library.oxtstack|SQLite Book Library|A small catalogue of books in SQLite, shown in " & \
          "a Data Grid: list them, search them, add and delete them.|In OpenXTalk Lite's demo set; its author is not recorded|apps|library-big|emerald|" & \
          "sqlite datagrid books database|Resources/Examples/Remastered/SQLite Books.oxtstack|SQLite Books" & return after tTable
