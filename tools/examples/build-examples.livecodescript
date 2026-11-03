@@ -19,7 +19,7 @@ script "OXTBuildExamples"
 -- script loads them from the install it runs in, as the IDE does.
 
 -- The examples, by their builders' file names in this folder
-constant kExamples = "animate-letter,quick-start,scroll-image,rss-reader,video-player,bouncing-balls,balloon-game,sqlite-tour,zip-archives,book-library,data-grid-tour,data-grid-table,sqlite-book-library,learn-box2d,learn-sodiumxt,learn-coinxt,learn-nostrxt,learn-enet"
+constant kExamples = "animate-letter,quick-start,scroll-image,rss-reader,video-player,bouncing-balls,balloon-game,sqlite-tour,zip-archives,book-library,data-grid-tour,data-grid-table,sqlite-book-library,learn-box2d,learn-sodiumxt,learn-coinxt,learn-nostrxt,learn-enet,learn-datachannelxt"
 
 on startup
    local tFolder, tRepo, tOut, tName, tError, tExamples
@@ -288,8 +288,10 @@ end buildLog
 -- line, or the text a builder threw
 private function buildErrorText pError
    local tLine, tCode, tText
+   -- (a message of our own: all of it, as a list of what does not fit
+   -- names every problem on its own line)
    if item 1 of line 1 of pError is not an integer then
-      return line 1 of pError
+      return pError
    end if
    repeat for each line tLine in pError
       put item 1 of tLine into tCode

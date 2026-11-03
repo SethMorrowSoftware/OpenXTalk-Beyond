@@ -33,6 +33,7 @@ package.
 | Learn CoinXT | [learn-coinxt](learn-coinxt.livecodescript) | None: made here, a Learn stack (below) | OXT-Beyond, 2026 |
 | Learn NostrXT | [learn-nostrxt](learn-nostrxt.livecodescript) | None: made here, a Learn stack (below) | OXT-Beyond, 2026 |
 | Learn ENet | [learn-enet](learn-enet.livecodescript) | None: made here, a Learn stack (below) | OXT-Beyond, 2026 |
+| Learn dataChannelXT | [learn-datachannelxt](learn-datachannelxt.livecodescript) | None: made here, a Learn stack (below) | OXT-Beyond, 2026 |
 
 A remaster is a binary stack, `ide/Resources/Examples/Remastered/<name>.oxtstack`,
 and it is never edited by hand: a script here builds it, and the stack is
@@ -124,7 +125,7 @@ A Learn stack teaches one of the extensions of the
 [xTalk Suite](https://github.com/SethMorrowSoftware/xtalk-suite) that
 OXT-Beyond has built in, one idea a card, for a reader new to it. Home
 lists them under "The xTalk Suite": Learn SodiumXT, Learn CoinXT, Learn
-NostrXT and Learn ENet so far; Learn Box2D, above, has a look of its own. Each is built by its builder
+NostrXT, Learn ENet and Learn dataChannelXT so far; Learn Box2D, above, has a look of its own. Each is built by its builder
 (`learn-<extension>.livecodescript`) with the `exLearn...` handlers of
 [builder.livecodescript](builder.livecodescript), and has:
 
