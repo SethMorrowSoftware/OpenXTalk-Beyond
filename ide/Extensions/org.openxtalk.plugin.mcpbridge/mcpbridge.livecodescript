@@ -69,7 +69,8 @@ script "org.openxtalk.plugin.mcpbridge"
 --    mcbWebMenuPick              the same in the web IDE
 --    mcbIsEnabled()
 --    mcbConfirm(pTitle, pDetail, pYes, pParts), mcbTooLate, mcbEditorStack(),
---    mcbEditorContext(), mcbShowsLongCode(), mcbStopDebugger()
+--    mcbEditorContext(), mcbShowsLongCode(), mcbStopDebugger(),
+--    mcbUnaskedChanged pOn
 --                                (the bridge's)
 
 constant kTitle = "xTalk MCP Bridge"
@@ -179,6 +180,12 @@ end mcbIsUnaskedChosen
 private function mcbAskIsLocked
    return toLower($OXTBEYOND_MCP_BRIDGE_ASK) is "always"
 end mcbAskIsLocked
+
+-- The bridge's tool set_asking changed the user's choice (to turn asking
+-- off, only after they said yes in its window): kept as the menu's is
+on mcbUnaskedChanged pOn
+   revIDESetPreference kPrefUnasked, (pOn is true and not mcbAskIsLocked())
+end mcbUnaskedChanged
 
 -- Gives the running bridge the user's choice about asking
 private command mcbApplyUnasked

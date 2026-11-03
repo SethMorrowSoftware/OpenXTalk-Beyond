@@ -129,7 +129,8 @@ const INSTRUCTIONS = [
   'A long script is read in parts with read_script and changed a handler or a range of lines at a time with edit_script.',
   'A change is made as soon as the user allows the tool here; OXT-Beyond asks the user itself before every run of code',
   '(showing it), before saving, and before undoing what they changed since. The user can turn off its asking before runs',
-  'and saves (Stop Asking in OXT-Beyond); then they go ahead at once, so take the same care as if the user were watching.',
+  'and saves (Stop Asking in OXT-Beyond, or set_asking, which asks them first); then they go ahead at once, so take the',
+  'same care as if the user were watching.',
   'undo_changes takes back what you changed or ran on a stack. Check code with check_code and look up what you',
   'are not sure of with lookup_dictionary rather than guess.',
   'When a call waits or is refused as busy, its text says what OXT-Beyond waits for: the user\'s answer to its question',
@@ -462,6 +463,22 @@ const TOOLS = [
       required: ['file']
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
+  },
+  {
+    name: 'set_asking',
+    title: 'Ask before runs and saves',
+    description: 'Whether OXT-Beyond asks the user before each run of code and each save. ask true puts the question back ' +
+      'on at once. ask false shows the user a window saying what that gives away, and only their Stop Asking there turns ' +
+      'it off (a no is final: do not ask again unless they ask you to). Use false only when the user asked you to work ' +
+      'without approvals; runs and saves are then written in a log the user can read.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ask: { type: 'boolean', description: 'true: ask before runs and saves; false: ask the user whether to stop asking' }
+      },
+      required: ['ask']
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
   }
 ];
 

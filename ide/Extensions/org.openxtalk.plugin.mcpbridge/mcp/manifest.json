@@ -42,7 +42,8 @@
     { "name": "debug_state", "description": "Where a script paused in the debugger is" },
     { "name": "stop_paused_script", "description": "Stops the script paused in the debugger, as Stop in the Script Editor does" },
     { "name": "answer_dialog", "description": "Presses a button of a dialog a stack of the user's opened" },
-    { "name": "import_hypercard", "description": "Imports a HyperCard stack, or one from a Mac disk image, without running its scripts" }
+    { "name": "import_hypercard", "description": "Imports a HyperCard stack, or one from a Mac disk image, without running its scripts" },
+    { "name": "set_asking", "description": "Asks before runs and saves again, or asks the user whether to stop asking" }
   ],
   "compatibility": {
     "platforms": ["darwin", "win32", "linux"],

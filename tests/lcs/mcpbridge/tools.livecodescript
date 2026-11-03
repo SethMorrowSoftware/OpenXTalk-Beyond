@@ -655,6 +655,41 @@ on TestNotAskingEndsWithTheBridgeAndNeedsAnAsker
    TestAssert "only true turns asking off", not mcbIsUnasked()
 end TestNotAskingEndsWithTheBridgeAndNeedsAnAsker
 
+-- set_asking: Claude can put the question back on at once, but turning it
+-- off is the user's answer in a window, which a no ends
+on TestSetAskingNeedsTheUsersYes
+   local tReply
+   TestStart
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with false
+   put TestCall("set_asking", "{`ask`:false}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "the user is asked, says no, and asking stays on", TestIsError(tReply) and not mcbIsUnasked() \
+         and mcbTestAsked() contains "stop asking"
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
+   put TestCall("set_asking", "{`ask`:false}") into tReply
+   TestAssert "says yes, and asking is off", not TestIsError(tReply) and mcbIsUnasked()
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with false
+   put TestCall("run_code", "{`code`:`put 6 * 7`}") into tReply
+   TestAssert "so a run goes ahead", not TestIsError(tReply) and TestText(tReply) contains "42"
+   put TestCall("set_asking", "{`ask`:true}") into tReply
+   TestAssert "ask true puts asking back on", not TestIsError(tReply) and not mcbIsUnasked()
+   put TestCall("run_code", "{`code`:`put 6 * 7`}") into tReply
+   TestAssert "and the next run is asked about, and a no stops it", TestIsError(tReply) and not (TestText(tReply) contains "42")
+   put TestCall("set_asking", "{`ask`:`no`}") into tReply
+   TestAssert "ask is only true or false", TestIsError(tReply) and not mcbIsUnasked()
+   if there is a file mcbUnaskedLogPath() then
+      delete file mcbUnaskedLogPath()
+   end if
+end TestSetAskingNeedsTheUsersYes
+
+on TestSetAskingIsRefusedOnTheWeb
+   local tReply
+   TestStartLink
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
+   put TestLinkCall("set_asking", "{`ask`:false}") into tReply
+   TestAssert "the web IDE always asks", TestIsError(tReply) and not mcbIsUnasked()
+end TestSetAskingIsRefusedOnTheWeb
+
 -- A real socket from this engine to the bridge in it: the request goes
 -- out, the answer comes back as one line
 on TestOverASocket

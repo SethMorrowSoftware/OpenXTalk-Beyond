@@ -461,6 +461,9 @@ class McpBridgeServerTest(McpBridgeServerBase):
         self.assertIn('asking off', tools['run_code']['description'])
         self.assertIn('noted in a log', tools['run_code']['description'])
         self.assertIn('asking off', tools['save_stack']['description'])
+        # Claude can ask for it only through a window the user answers
+        self.assertEqual(tools['set_asking']['inputSchema']['required'], ['ask'])
+        self.assertIn('only their Stop Asking there turns', tools['set_asking']['description'])
         with open(os.path.join(PLUGIN, 'mcp', 'manifest.json'), encoding='utf-8') as f:
             manifest = {t['name']: t for t in json.load(f)['tools']}
         self.assertIn('asking off', manifest['run_code']['description'])
