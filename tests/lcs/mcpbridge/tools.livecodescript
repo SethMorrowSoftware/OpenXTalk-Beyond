@@ -891,7 +891,13 @@ local sServerOut
 on TestTheRealServerEndToEnd
    local tNode, tProcess, tReply, tStack, tRelay, tAt, tNumber
    if the platform is "Win32" then
-      put line 1 of shell("where node") into tNode
+      -- where.exe by its full path: a PATH without System32 (seen on a
+      -- user's PC) still finds node, but not where
+      if $SystemRoot is not empty and there is a file ($SystemRoot & "/System32/where.exe") then
+         put line 1 of shell(quote & $SystemRoot & "\System32\where.exe" & quote && "node") into tNode
+      else
+         put line 1 of shell("where node") into tNode
+      end if
       replace numToChar(13) with empty in tNode
       if tNode is not empty and there is not a file tNode then
          put empty into tNode
