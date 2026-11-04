@@ -82,7 +82,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,menubar,menubar-modern,menubar-mac,menu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -849,6 +849,60 @@ on tour_tools_modern_switch
    tourTmFinish "tools-modern-switch"
    tourTmReset
 end tour_tools_modern_switch
+
+-- The names are on by default (0.2.7-rc.6.15): a fresh profile, which has
+-- chosen nothing and kept no size, opens the modern look as one column of
+-- icons with their names, kTmNamesWidth (200) wide, and saves the choice.
+-- A profile that has used the modern look (a size kept) and never chose
+-- keeps its icons alone, and a saved choice of either is kept as it is
+on tour_tools_modern_default
+   local tWidth
+   if not tourTmStart("tools-modern-default") then exit tour_tools_modern_default
+   -- a fresh profile
+   tourToolsDefaultOpen empty, empty
+   tourTmCheck revIDEGetPreference("revTools_modernNames") is true, \
+         "a fresh profile shows the names, and saves it (" & revIDEGetPreference("revTools_modernNames") & ")"
+   put the width of stack "revTools" into tWidth
+   tourTmCheck tWidth is 200, "and opens 200 wide (" & tWidth & ")"
+   tourTmCheck tourTmColumns("widget") is 1 and tourTmColumns("classic") is 1, \
+         "in one column (" & tourTmColumns("widget") & "," && tourTmColumns("classic") & ")"
+   tourTmLayoutOK "by default"
+   tourTmNamesWhole "by default"
+   tourShotStack "revTools", "01-tools-modern-default"
+   -- opened again, with the size it kept, it is as it was
+   close stack "revTools"
+   revIDEOpenPalette "tools"
+   tourWait 600
+   tourTmCheck revIDEGetPreference("revTools_modernNames") is true and tourTmColumns("classic") is 1, \
+         "opened again, it shows the names in one column"
+   -- a profile that has used the modern look, at 120 wide, and never chose
+   tourToolsDefaultOpen empty, "120,500"
+   tourTmCheck revIDEGetPreference("revTools_modernNames") is false, \
+         "a profile that used the modern look keeps its icons alone (" & revIDEGetPreference("revTools_modernNames") & ")"
+   tourTmCheck the width of stack "revTools" is 120, "at its own width (" & the width of stack "revTools" & ")"
+   -- a saved choice is kept, with no size kept as with one
+   tourToolsDefaultOpen false, empty
+   tourTmCheck revIDEGetPreference("revTools_modernNames") is false and the width of stack "revTools" is 120, \
+         "a saved choice of no names is kept (" & revIDEGetPreference("revTools_modernNames") & "," && the width of stack "revTools" & ")"
+   tourToolsDefaultOpen true, "380,500"
+   tourTmCheck revIDEGetPreference("revTools_modernNames") is true and the width of stack "revTools" is 380, \
+         "and one of names, at its own width (" & revIDEGetPreference("revTools_modernNames") & "," && the width of stack "revTools" & ")"
+   tourTmFinish "tools-modern-default"
+   tourTmReset
+end tour_tools_modern_default
+
+-- Opens the modern look as a profile with pNames and pSize saved finds it
+command tourToolsDefaultOpen pNames, pSize
+   close stack "revTools"
+   revIDESetPreference "revTools_modernNames", pNames
+   revIDESetPreference "revTools_modernSize", pSize
+   revIDESetPreference "revTools_modernFolded", empty
+   revIDESetPreference "revTools_modernShow", empty
+   revIDESetPreference "revTools_modernLarge", empty
+   revIDESetPreference "revTools_look", "modern"
+   revIDEOpenPalette "tools"
+   tourWait 800
+end tourToolsDefaultOpen
 
 -- A switch between light and dark as the IDE hears it: the engine's
 -- systemAppearanceChanged, which the message handler frontscript turns into

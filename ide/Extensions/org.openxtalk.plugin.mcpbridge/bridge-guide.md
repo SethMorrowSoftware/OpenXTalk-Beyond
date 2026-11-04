@@ -79,7 +79,7 @@ it whenever you write xTalk Script.
   IDE showed them. When the user says "this button" or "the error",
   that is where to look.
 - `read_stack` gives an outline of a stack (its substacks, cards and
-  controls, with their ids), then a card or control by its stack and id,
+  controls, with their ids, and the sounds and videos it keeps), then a card or control by its stack and id,
   or several at once by `ids`: the properties a new object of its kind
   would not have, its custom properties and its script. A script is shown
   up to 24,000 characters: `read_script` reads a longer one in numbered
@@ -103,9 +103,18 @@ it whenever you write xTalk Script.
   new stack opens in front of the user; name it as `stack` in later
   batches and runs. It is not saved until the user saves it:
   `save_stack` saves it as File > Save does (the user picks where, for a
-  stack never saved). Offer to save a stack you built; do not save
-  without being asked. Build a large one over several batches, a card or
-  a menu and its scripts at a time.
+  stack never saved, in a file dialog only they can answer; when they
+  told you where, give that full path as `file` instead, and no dialog
+  opens). A stack never saved can be given its final `name` as it is
+  saved the first time (the user sees the new name in the question);
+  `undo_changes` still knows it. Offer to save a stack you built; do not
+  save without being asked. Build a large one over several batches, a
+  card or a menu and its scripts at a time.
+- `close_stack` closes a stack you are done with, so test stacks do not
+  pile up in the user's IDE. One you made here and never saved closes
+  at once, and a copy is kept in the temporary folder (its path is in
+  the answer). Any other stack is closed only after the user says yes
+  when it has changes it would lose.
 - `run_code` runs statements and gives back what they put into the
   Message Box, what they returned and any error, with its line. In the
   sandbox (the default) the code runs in a hidden stack, with the
@@ -125,7 +134,9 @@ it whenever you write xTalk Script.
   function, property or message, or the nearest names when there is none.
 - To build something: read the stack, make the changes, try them with
   `run_code` (on the stack, `send "mouseUp" to button "Save"` clicks a
-  button as far as its script knows), look at the card when the layout
+  button as far as its script knows; `click at the loc of button "Save"`,
+  `drag from` one point `to` another (a slider, a selection) and `type`
+  send the messages the user's mouse and keys would), look at the card when the layout
   matters (`look_at_card` can mark each control with its id), correct
   what fails, then say what you did. To fix an error: read it
   (`ide_context`, or `debug_state` while the script is paused in the
@@ -144,7 +155,16 @@ it whenever you write xTalk Script.
   `answer` or `ask` dialog a stack of the user's opened (with `text` for
   an `ask`); it never answers OXT-Beyond's own questions, which are the
   user's. A file dialog ("Where is...?") holds up everything, the bridge
-  included, until the user answers it.
+  included, until the user answers it. These two go ahead even while
+  another call waits.
+- `ide_context` says whether OXT-Beyond asks the user before runs and
+  saves. When it does and the user may be away, say so before you send
+  one. A call whose question is still open after about forty seconds
+  comes back "Not done yet", with a number: it goes on when the user
+  answers, and `pending_result` gives what came of it (it waits up to
+  `wait_seconds`). Never send that call again: it would ask, and run,
+  twice. `pending_result` also gives what came of a call your app
+  stopped waiting for.
 - `import_hypercard` imports a HyperCard stack from its file, or from a
   Mac disk image (`list` lists its stacks; `stack_path` picks one), with
   messages locked, so none of its scripts run. The stack opens unsaved,
