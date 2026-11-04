@@ -58,3 +58,13 @@ The Phone Starter (in Home's gallery and the Stack Player) is a stack to
 copy that uses all of it, in portrait and in landscape: its Phone card
 takes a photo, shares, finds where the phone is, rolls a ball as the
 phone tilts, keeps the screen on and hides the browser's bars.
+
+With **Search for required inclusions** on, the standalone builder now
+finds the library in a stack that calls its handlers and includes it, so
+an HTML5 build of such a stack needs nothing ticked by hand. (It could
+not find any library extension before: the manifest of a script library
+named none of its handlers, the IDE dropped them for a script library,
+and the builder wrote the extension it found over. Only the Mobile Web
+library's manifest names its handlers, so no other stack's inclusions
+change.) The guide *Stacks for Phones* in the Dictionary shows how to
+make a stack for phones.

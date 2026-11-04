@@ -3073,8 +3073,14 @@ private command revCheckObject pObject,pUserLibraries, @xSettings, @xWidgetKinds
       
       -- Detect use of library extensions
       local tHandlers
+      -- OXT-Beyond: a library found here goes into xWidgetKinds, the set
+      -- revSmartChecking makes the "extensions" setting from when it is
+      -- done; added to xSettings["extensions"] alone, as before, it was
+      -- written over then and left out. No library's handlers were known
+      -- until the Mobile Web library's manifest named them, so no other
+      -- library is found where it was not before.
       repeat for each key tLibrary in revIDEExtensions("library","installed", false) 
-         if tLibrary is among the lines of xSettings["extensions"] then
+         if xWidgetKinds[tLibrary] or tLibrary is among the lines of xSettings["extensions"] then
             next repeat
          end if
          
@@ -3082,6 +3088,8 @@ private command revCheckObject pObject,pUserLibraries, @xSettings, @xWidgetKinds
          repeat for each line tHandler in tHandlers
             if lineOffset(tHandler, tScript) is not 0 then
                revSBAddInclusion tLibrary, "extensions", xSettings
+               put true into xWidgetKinds[tLibrary]
+               exit repeat
             end if
          end repeat
          

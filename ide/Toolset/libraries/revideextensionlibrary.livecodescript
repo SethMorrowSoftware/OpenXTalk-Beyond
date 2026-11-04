@@ -1406,7 +1406,15 @@ private command __revIDELCSExtensionLoad pFullPath, pFolder, pVersion, pStatus, 
    __extensionPropertySet tCacheIndex, "type", pAdditionalInfoA["type"]
    __extensionPropertySet tCacheIndex, "uservisible", true
    __extensionPropertySet tCacheIndex, "support_files", pAdditionalInfoA["support_files"]
-   
+
+   # OXT-Beyond: keep the handlers the manifest names, as an LCB
+   # extension's are kept (revIDEExtensionSetInfo), so that "Search for
+   # required inclusions" finds the library in a stack that calls them
+   # (revIDEExtensionLibraryHandlers). A script library's manifest names
+   # them only when it asks to (extensionGenerateManifestForLCSExtension);
+   # for any other, this is empty, as it was before.
+   __extensionPropertySet tCacheIndex, "handlers", pAdditionalInfoA["handlers"]
+
    # Check for sample stacks, as LCB extensions do: without this the
    # Extension Manager could not open a script library's samples
    __extensionPropertySet tCacheIndex, "samples", __extensionSampleStacks(tId,pFolder)

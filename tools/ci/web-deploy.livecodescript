@@ -367,6 +367,7 @@ on webBuild
             with "WebProbe", tFieldsFolder, tFieldsSettings
       webLog "INFO fields-warnings" && revStandaloneGetWarnings()
       webLog "INFO fields-files" && webFiles(tFieldsFolder)
+      webMobileWebFound
    catch tError
    end try
    if "revStandaloneProgress" is among the lines of the openStacks then
@@ -379,6 +380,44 @@ on webBuild
    end if
    webLog "DONE"
 end webBuild
+
+-- "Search for required inclusions" finds the Mobile Web library in a
+-- stack that calls it, as it finds a library extension by the handlers
+-- its manifest names (revsblibrary revCheckObject), and not in one that
+-- does not: web_check.py reads the two lines. The library's manifest names
+-- them since the library was built with extension-utils'
+-- kLibrariesFoundByHandlers, the IDE keeps them since
+-- revideextensionlibrary's script library loader does, and the builder
+-- keeps what it found since revCheckObject puts it where revSmartChecking
+-- makes the "extensions" setting from.
+private command webMobileWebFound
+   local tSettings, tKind, tFile
+   repeat for each item tKind in "phone,plain"
+      if there is a stack ("MobileWebFound" & tKind) then
+         delete stack ("MobileWebFound" & tKind)
+      end if
+      create invisible stack ("MobileWebFound" & tKind)
+      if tKind is "phone" then
+         set the script of it to "on preOpenStack" & return & "   mwStart" & return & "end preOpenStack"
+      else
+         set the script of it to "on mouseUp" & return & "   beep" & return & "end mouseUp"
+      end if
+      -- saved, as a stack is when it is built: the search reads the
+      -- stacks of the stack's file, and a stack never saved has none
+      put the temporary folder & "/MobileWebFound" & tKind & ".oxtstack" into tFile
+      save stack ("MobileWebFound" & tKind) as tFile
+      put empty into tSettings
+      put "search" into tSettings["inclusions"]
+      put true into tSettings["Emscripten"]
+      revSBSearchForInclusions ("MobileWebFound" & tKind), tSettings
+      webLog "INFO mobileweb-found-" & tKind && \
+            ("com.livecode.library.mobileweb" is among the lines of tSettings["extensions"])
+      delete stack ("MobileWebFound" & tKind)
+      if there is a file tFile then
+         delete file tFile
+      end if
+   end repeat
+end webMobileWebFound
 
 private function webFiles pFolder
    local tFiles

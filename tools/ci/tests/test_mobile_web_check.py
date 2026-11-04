@@ -161,6 +161,49 @@ class FitsAnIPhonesStack(unittest.TestCase):
         self.assertEqual(env.get('PATH'), os.environ.get('PATH'))
 
 
+class FoundForStandalones(unittest.TestCase):
+    """"Search for required inclusions" in the standalone builder finds
+    the Mobile Web library in a stack that calls it: its manifest names
+    its handlers (extension-utils), the IDE keeps them for a script
+    library (revideextensionlibrary), and the builder keeps the library it
+    finds (revsblibrary). web_check.py proves it in the real IDE; these
+    hold the three pieces in place."""
+
+    def test_only_the_mobile_web_manifest_names_handlers(self):
+        utils = read('extensions', 'script-libraries', 'extension-utils', 'extension-utils.livecodescript')
+        self.assertIn('constant kLibrariesFoundByHandlers = "com.livecode.library.mobileweb"', utils)
+        self.assertRegex(utils, r'if tDataA\["name"\] is among the items of kLibrariesFoundByHandlers then\s+'
+                                r'repeat for each line tHandler in __LCSDocumentedHandlers\(tDocA\)')
+
+    def test_the_ide_keeps_a_script_librarys_handlers(self):
+        ide = read('ide', 'Toolset', 'libraries', 'revideextensionlibrary.livecodescript')
+        loader = ide[ide.index('private command __revIDELCSExtensionLoad'):ide.index('end __revIDELCSExtensionLoad')]
+        self.assertIn('__extensionPropertySet tCacheIndex, "handlers", pAdditionalInfoA["handlers"]', loader)
+
+    def test_the_builder_keeps_what_it_found(self):
+        sb = read('ide-support', 'revsblibrary.livecodescript')
+        check = sb[sb.index('private command revCheckObject'):sb.index('end revCheckObject')]
+        found = check[check.index('revIDEExtensionLibraryHandlers(tLibrary)'):]
+        # revSmartChecking makes the "extensions" setting from xWidgetKinds
+        self.assertIn('put the keys of tExtensionIDs into tNewSettings["extensions"]', sb)
+        self.assertRegex(found, r'revSBAddInclusion tLibrary, "extensions", xSettings\s+'
+                                r'put true into xWidgetKinds\[tLibrary\]')
+
+    def test_the_web_build_reports_it(self):
+        deploy = read('tools', 'ci', 'web-deploy.livecodescript')
+        self.assertIn('webMobileWebFound', deploy)
+        self.assertIn('"INFO mobileweb-found-" & tKind', deploy)
+        self.assertIn('   mwStart', deploy)
+
+    def test_the_web_check_judges_it(self):
+        import web_check
+        self.assertIsNone(web_check.mobile_web_found_problem({'phone': True, 'plain': False}))
+        self.assertIn('did not find', web_check.mobile_web_found_problem({'phone': False, 'plain': False}))
+        self.assertIn('does not call it', web_check.mobile_web_found_problem({'phone': True, 'plain': True}))
+        self.assertIn('did not report', web_check.mobile_web_found_problem({}))
+        self.assertIn('did not report', web_check.mobile_web_found_problem({'phone': True}))
+
+
 class PhoneStarterOffered(unittest.TestCase):
 
     def test_in_the_players_samples_with_its_picture(self):

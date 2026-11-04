@@ -611,6 +611,25 @@ COLOURS = (
 )
 
 
+def mobile_web_found_problem(found):
+    """What is wrong with web-deploy.livecodescript's mobileweb-found
+    lines (found: kind -> whether the standalone builder's search for
+    inclusions put the Mobile Web library in the extensions setting), or
+    None: it must be found in the stack that calls mwStart ("phone") and
+    not in the one that does not ("plain")."""
+    if set(found) != {'phone', 'plain'}:
+        return ('the build did not report whether "Search for required inclusions" finds the Mobile Web '
+                'library (INFO mobileweb-found-phone and -plain lines): %s' % (sorted(found) or 'none'))
+    if not found['phone']:
+        return ('"Search for required inclusions" did not find the Mobile Web library in a stack that '
+                'calls mwStart: is <handler> in its manifest.xml (extension-utils '
+                'kLibrariesFoundByHandlers), kept by the IDE (revideextensionlibrary) and kept by '
+                'the builder (revsblibrary revCheckObject)?')
+    if found['plain']:
+        return '"Search for required inclusions" put the Mobile Web library in a stack that does not call it'
+    return None
+
+
 def log(msg=''):
     print(msg, flush=True)
 
@@ -999,6 +1018,8 @@ def build_with_ide(args, work, timeout):
             finally:
                 ui_tour.stop(proc)
         browser = drawing = None
+        found = {}
+        built_ok = False
         for line in ui_tour.read_lines(results):
             log('  ide: %s' % line)
             if line.startswith('BUILD FAILED') or line.startswith('ERROR'):
@@ -1007,6 +1028,17 @@ def build_with_ide(args, work, timeout):
                 browser = line.split()[-1] == 'true'
             if line.startswith('INFO drawing-extension-loaded '):
                 drawing = line.split()[-1] == 'true'
+            if line.startswith('BUILD OK'):
+                built_ok = True
+            if line.startswith('INFO mobileweb-found-'):
+                found[line.split()[1][len('mobileweb-found-'):]] = line.split()[-1] == 'true'
+        if not status and built_ok:
+            problem = mobile_web_found_problem(found)
+            if problem:
+                problems.append('the IDE\'s web build: %s' % problem)
+            else:
+                lines.append('"Search for required inclusions" found the Mobile Web library in a stack '
+                             'that calls mwStart, and not in one that does not')
         if status:
             problems.append('the IDE\'s web build %s' % status)
             for line in ui_tour.read_lines(os.path.join(work, 'ide-output.txt'))[-40:]:
