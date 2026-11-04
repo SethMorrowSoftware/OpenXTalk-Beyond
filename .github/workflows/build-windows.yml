@@ -665,6 +665,33 @@ jobs:
           if (-not (Test-Path -LiteralPath $package -PathType Leaf)) { throw "$package was not written" }
           ./tools/ci/smoke-test.ps1 -Package $package -LogFile "$env:RUNNER_TEMP\build-logs\smoke-test-portable.log"
 
+      # OXT-Beyond Server: the build's server engine with its externals and
+      # database drivers (the desktop DLLs where the build has no server
+      # copy, as LiveCode's builder took them), in the layout of LiveCode
+      # Community's server zips, as <root>-win-x86_64-server.zip
+      # (tools/oxt/package_server.py), a release file in SHA256SUMS
+      # (build-installer.ps1 writes SHA256SUMS again over all of dist)
+      - name: Server zip
+        id: server
+        timeout-minutes: 10
+        run: |
+          python tools/oxt/package_server.py --platform win-x86_64 --bin win-x86_64-bin --out dist --sums
+          if ($LASTEXITCODE -ne 0) { throw "package_server.py failed with exit code $LASTEXITCODE" }
+
+      # The server zip as IIS or Apache use it (tools/ci/server_check.py):
+      # extracted to a neutral folder, its engine run as a CGI program with
+      # the request in the environment: $_GET, $_POST, $_FILES, cookies,
+      # headers, include and require, sessions, revDB with SQLite, revXML,
+      # revZip and the errorMode
+      - name: Server check
+        id: server_check
+        timeout-minutes: 10
+        env:
+          SERVER_ZIP: ${{ steps.server.outputs.zip }}
+        run: |
+          python tools/ci/server_check.py --zip $env:SERVER_ZIP --platform win-x86_64 --apache no --log "$env:RUNNER_TEMP\build-logs\server-check.log"
+          if ($LASTEXITCODE -ne 0) { throw "server_check.py failed with exit code $LASTEXITCODE" }
+
       # A standalone built from each runtime of the portable zip
       # (Windows x86-64 and x86, Linux x86-64 and x86) by its engine, as the
       # IDE's builder does at its core ("_internal deploy"); the Windows

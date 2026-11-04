@@ -237,11 +237,18 @@ function constellation(host){
   wrap.append(cv,h('div',{class:'cap'},h('div',null,h('h2',null,'How the engine and the IDE hold together'),
     h('p',null,`${D.engine.subsystems.length} engine subsystems (amber, left) and ${nIDE} IDE scripts (right), sized by how much depends on them. Lines are real links: #includes, script calls and stack references, and the engine messages and properties the IDE handles. Sparks travel the engine-to-IDE links. Hover, drag, or click a star.`))),tip,info);
   const groups=Object.keys(SKYAREAS).concat(['engine']);const on=Object.fromEntries(groups.map(g=>[g,true]));
-  const legend=h('div',{class:'legend2'},[['engine','Engine subsystems','--c-engine'],...Object.entries(SKYAREAS).map(([k,[l,c]])=>[k,l,c])].map(([k,l,c])=>{const b=h('button',{'aria-pressed':'true',onclick:()=>{on[k]=!on[k];b.setAttribute('aria-pressed',on[k]);if(!running)draw()}},h('i',{style:`background:var(${c});color:var(${c})`}),l);return b}));
+  const legend=h('div',{class:'legend2'},[['engine','Engine subsystems','--c-engine'],...Object.entries(SKYAREAS).map(([k,[l,c]])=>[k,l,c])].map(([k,l,c])=>{const b=h('button',{'aria-pressed':'true',onclick:()=>{on[k]=!on[k];b.setAttribute('aria-pressed',on[k]);request()}},h('i',{style:`background:var(${c});color:var(${c})`}),l);return b}));
   const pauseBtn=h('button',{type:'button'},reduce?'Play sparks':'Pause sparks');
   wrap.append(h('div',{class:'side'},legend,h('div',{class:'ctl'},pauseBtn)));
   host.append(wrap);
+  // The colours are read once and again when the theme changes: read from
+  // the style for every line and star of every frame, they were the
+  // biggest part of a frame's work
   const css=getComputedStyle(wrap);const col=v=>css.getPropertyValue(v).trim();
+  let pal=null;const colours=()=>pal||(pal=Object.fromEntries([['engine',col('--c-engine')],...Object.entries(SKYAREAS).map(([k,[,c]])=>[k,col(c)])]));
+  const recolour=()=>{pal=null;glows.clear();request()};
+  if(window.matchMedia){const mq=matchMedia('(prefers-color-scheme: dark)');if(mq.addEventListener)mq.addEventListener('change',recolour)}
+  if(window.MutationObserver)new MutationObserver(recolour).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
   // nodes
   const nodes=[],byKey={};
   for(const s of D.engine.subsystems){const n={key:'e:'+s.id,label:s.id,kind:'engine',area:'engine',r:6+Math.sqrt(s.lines/1000)*1.9,info:`${fmt(s.files)} files · ${fmt(s.lines)} lines of C++`};nodes.push(n);byKey[n.key]=n}
@@ -255,7 +262,7 @@ function constellation(host){
   const home=U.find(u=>u.path==='ide/Toolset/home.livecodescript');if(home)add('e:modes','u:'+home.id,'boundary','opens home in development mode');
   const links=Object.values(L).map(l=>({...l,labels:[...l.labels]}));
   const nbr={};for(const l of links){(nbr[l.source]=nbr[l.source]||new Set()).add(l.target);(nbr[l.target]=nbr[l.target]||new Set()).add(l.source)}
-  let W=0,H=0,dpr=1;const ctx=cv.getContext('2d');
+  let W=0,H=0,dpr=1;const main=cv.getContext('2d');let ctx=main;
   function size(){const r=cv.getBoundingClientRect();W=r.width;H=r.height;dpr=window.devicePixelRatio||1;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}
   size();
   const sim=d3.forceSimulation(nodes)
@@ -265,27 +272,65 @@ function constellation(host){
     .force('y',d3.forceY(()=>H*0.56).strength(0.07))
     .force('collide',d3.forceCollide(d=>d.kind==='engine'?d.r+16:d.r+1.5))
     .alphaDecay(0.025);
-  let sel=null,hover=null,running=true,sparksOn=!reduce;const sparks=[];
+  // The sparks flow for SPARK_SECONDS once the network comes into view, and
+  // while it is pointed at or "Play sparks" is on; then the ones in flight
+  // land and nothing is drawn until something changes (a star pointed at,
+  // dragged or picked, a group turned off, the layout settling). An endless
+  // loop of whole-canvas frames kept a browser without a GPU busy all the
+  // time, even with the sparks paused or less motion asked for (the
+  // front page's rule, tperry2x, openxtalk.org p=25971);
+  // tools/pages/check_site_rest.py holds the map to it.
+  const SPARK_SECONDS=12;
+  let sel=null,hover=null,mode=reduce?'off':'auto',awakeUntil=0,pointedAt=false,onScreen=false,raf=0;const sparks=[];
   const bLinks=links.filter(l=>l.type==='boundary');
-  const colorOf=n=>n.kind==='engine'?col('--c-engine'):col(SKYAREAS[n.area][1]);
+  const colorOf=n=>colours()[n.kind==='engine'?'engine':n.area];
   const visible=n=>on[n.area];
-  function draw(){ctx.clearRect(0,0,W,H);
-    const focus=sel||hover;const fset=focus?nbr[focus.key]||new Set():null;
+  const flowing=()=>mode==='on'||(mode==='auto'&&(pointedAt||performance.now()<awakeUntil));
+  // A glowing star is drawn once, blur and all, into a little canvas of its
+  // own and then copied: a canvas shadow is blurred again on every fill,
+  // and without a GPU that was most of a frame. (The blur is in the
+  // canvas's own pixels, as a shadow's is, so it looks the same.)
+  const glows=new Map();
+  function glow(c,r,blur){const k=c+'|'+r+'|'+blur+'|'+dpr;let g=glows.get(k);if(g)return g;
+    const pad=Math.ceil(r*dpr+blur*1.6+2),o=document.createElement('canvas');o.width=o.height=pad*2;const x=o.getContext('2d');
+    x.shadowColor=c;x.shadowBlur=blur;x.fillStyle=c;x.beginPath();x.arc(pad,pad,r*dpr,0,7);x.fill();
+    g={img:o,half:pad/dpr};glows.set(k,g);return g}
+  let spark=null;
+  function sparkImage(){if(spark&&spark.dpr===dpr)return spark.img;const n=Math.ceil(10*dpr),o=document.createElement('canvas');o.width=o.height=n;const x=o.getContext('2d');
+    const g=x.createRadialGradient(n/2,n/2,0,n/2,n/2,n/2);g.addColorStop(0,'rgba(255,230,170,.95)');g.addColorStop(1,'rgba(255,190,80,0)');x.fillStyle=g;x.beginPath();x.arc(n/2,n/2,n/2,0,7);x.fill();
+    spark={img:o,dpr};return o}
+  // The lines and the stars are drawn into two layers of their own when
+  // something changes them (the layout, a star pointed at or picked, a
+  // group turned off, the theme or the size); a frame in which only the
+  // sparks move copies the two layers, with the sparks between them
+  let back=null,front=null,stale=true;
+  function layer(old){const o=old||document.createElement('canvas');o.width=cv.width;o.height=cv.height;const x=o.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);return{o,x}}
+  function draw(){
+    if(stale||!back||back.o.width!==cv.width||back.o.height!==cv.height){back=layer(back&&back.o);front=layer(front&&front.o);ctx=back.x;drawLines();ctx=front.x;drawStars();ctx=main;stale=false}
+    ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height);ctx.drawImage(back.o,0,0);ctx.setTransform(dpr,0,0,dpr,0,0);
+    drawSparks();
+    ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(front.o,0,0);ctx.setTransform(dpr,0,0,dpr,0,0)}
+  function drawLines(){
+    const focus=sel||hover;const pc=colours();
     for(const l of links){const a=l.source,b=l.target;if(!visible(a)||!visible(b))continue;
       const hot=focus&&(a===focus||b===focus);
       if(focus&&!hot){ctx.globalAlpha=0.03}else ctx.globalAlpha=l.type==='boundary'?(hot?0.75:0.08):l.type==='include'?(hot?0.9:0.32):(hot?0.8:0.12);
-      ctx.strokeStyle=l.type==='boundary'?col('--c-engine'):l.type==='include'?col('--c-engine'):colorOf(a);ctx.lineWidth=l.type==='include'?Math.min(3,0.6+Math.sqrt(l.w)/4):hot?1.2:0.6;
+      ctx.strokeStyle=l.type==='script'?colorOf(a):pc.engine;ctx.lineWidth=l.type==='include'?Math.min(3,0.6+Math.sqrt(l.w)/4):hot?1.2:0.6;
       ctx.beginPath();if(l.type==='boundary'){const mx=(a.x+b.x)/2,my=(a.y+b.y)/2-60;ctx.moveTo(a.x,a.y);ctx.quadraticCurveTo(mx,my,b.x,b.y)}else{ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y)}ctx.stroke()}
-    ctx.globalAlpha=1;
-    for(const s of sparks){const a=s.l.source,b=s.l.target;if(!visible(a)||!visible(b))continue;const t=s.t,mx=(a.x+b.x)/2,my=(a.y+b.y)/2-60;
-      const x=(1-t)*(1-t)*a.x+2*(1-t)*t*mx+t*t*b.x,y=(1-t)*(1-t)*a.y+2*(1-t)*t*my+t*t*b.y;
-      const g=ctx.createRadialGradient(x,y,0,x,y,5);g.addColorStop(0,'rgba(255,230,170,.95)');g.addColorStop(1,'rgba(255,190,80,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,5,0,7);ctx.fill()}
+    ctx.globalAlpha=1}
+  function drawSparks(){
+    if(sparks.length){const img=sparkImage();
+      for(const s of sparks){const a=s.l.source,b=s.l.target;if(!visible(a)||!visible(b))continue;const t=s.t,mx=(a.x+b.x)/2,my=(a.y+b.y)/2-60;
+        const x=(1-t)*(1-t)*a.x+2*(1-t)*t*mx+t*t*b.x,y=(1-t)*(1-t)*a.y+2*(1-t)*t*my+t*t*b.y;
+        ctx.drawImage(img,x-5,y-5,10,10)}}}
+  function drawStars(){
+    const focus=sel||hover;const fset=focus?nbr[focus.key]||new Set():null;
     const want=[];
     for(const n of nodes){if(!visible(n))continue;const dim=focus&&n!==focus&&!fset.has(n.key);const c=colorOf(n);
       ctx.globalAlpha=dim?0.15:1;
-      if(n.kind==='engine'||n.r>6){ctx.shadowColor=c;ctx.shadowBlur=n.kind==='engine'?22:12}else ctx.shadowBlur=0;
-      ctx.fillStyle=c;ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,7);ctx.fill();ctx.shadowBlur=0;
-      if(n===focus){ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke()}
+      if(n.kind==='engine'||n.r>6){const g=glow(c,n.r,n.kind==='engine'?22:12);ctx.drawImage(g.img,n.x-g.half,n.y-g.half,g.half*2,g.half*2)}
+      else{ctx.fillStyle=c;ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,7);ctx.fill()}
+      if(n===focus){ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,7);ctx.stroke()}
       if((n.kind==='engine'||n.r>9||n===focus||(fset&&fset.has(n.key)&&n.r>4))&&!dim)want.push(n)}
     // Labels: the focused star first, then the biggest; one that would
     // overlap a label already drawn is left out (hover shows its name)
@@ -296,24 +341,35 @@ function constellation(host){
       const r=[n.x-w/2-2,y-11,n.x+w/2+2,y+2];if(n!==focus&&placed.some(o=>r[0]<o[2]&&r[2]>o[0]&&r[1]<o[3]&&r[3]>o[1]))continue;placed.push(r);
       ctx.strokeStyle='rgba(8,13,26,.85)';ctx.lineWidth=3;ctx.strokeText(t,n.x,y);ctx.fillStyle=n.kind==='engine'?'#ffe4b5':'#dfe9f7';ctx.fillText(t,n.x,y)}
     ctx.globalAlpha=1}
-  function tick(){if(sparksOn){if(sparks.length<140&&bLinks.length){for(let i=0;i<3;i++){const l=bLinks[(Math.random()*bLinks.length)|0];sparks.push({l,t:0,v:0.004+Math.random()*0.008})}}
+  // One frame: new sparks while they flow, the ones in flight moved on,
+  // and the picture drawn. Another frame follows only while sparks are in
+  // flight; anything else that changes the picture asks for one.
+  function frame(){raf=0;
+    if(onScreen&&mode!=='off'){if(flowing()&&sparks.length<140&&bLinks.length){for(let i=0;i<3;i++){const l=bLinks[(Math.random()*bLinks.length)|0];sparks.push({l,t:0,v:0.004+Math.random()*0.008})}}
       for(let i=sparks.length-1;i>=0;i--){sparks[i].t+=sparks[i].v;if(sparks[i].t>=1)sparks.splice(i,1)}}
-    draw();if(running)requestAnimationFrame(tick)}
-  sim.on('tick',()=>{if(!running)draw()});
-  requestAnimationFrame(tick);
-  // keep the loop only while the panel is on screen
-  if('IntersectionObserver' in window)new IntersectionObserver(es=>{const vis=es[0].isIntersecting&&!document.getElementById('v-overview').hidden;if(vis&&!running){running=true;requestAnimationFrame(tick)}else if(!vis)running=false}).observe(cv);
-  pauseBtn.addEventListener('click',()=>{sparksOn=!sparksOn;if(!sparksOn)sparks.length=0;pauseBtn.textContent=sparksOn?'Pause sparks':'Play sparks'});
+    draw();label();
+    if(onScreen&&sparks.length)request(false)}
+  // (changed: anything but the sparks' own next frame, which redraws no layer)
+  function request(changed){if(changed!==false)stale=true;if(!raf)raf=requestAnimationFrame(frame)}
+  function label(){const t=flowing()?'Pause sparks':'Play sparks';if(pauseBtn.textContent!==t)pauseBtn.textContent=t}
+  sim.on('tick',request);
+  request();
+  // The sparks wake as the network comes into view, and rest while it is
+  // off screen or its view is not the one shown
+  if('IntersectionObserver' in window)new IntersectionObserver(es=>{const vis=es[0].isIntersecting&&!document.getElementById('v-overview').hidden;if(vis&&!onScreen){onScreen=true;awakeUntil=performance.now()+SPARK_SECONDS*1000;request();setTimeout(label,SPARK_SECONDS*1000+50)}else if(!vis)onScreen=false}).observe(cv);
+  else{onScreen=true;awakeUntil=performance.now()+SPARK_SECONDS*1000}
+  pauseBtn.addEventListener('click',()=>{if(flowing()){mode='off';sparks.length=0}else mode='on';request()});
   const at=ev=>{const r=cv.getBoundingClientRect();return[ev.clientX-r.left,ev.clientY-r.top]};
   const pickNode=(x,y)=>{let best=null,bd=1e9;for(const n of nodes){if(!visible(n))continue;const d=Math.hypot(n.x-x,n.y-y)-n.r;if(d<bd){bd=d;best=n}}return bd<6?best:null};
   let drag=null;
+  cv.addEventListener('pointerenter',()=>{pointedAt=true;request()});
   cv.addEventListener('pointermove',ev=>{const[x,y]=at(ev);if(drag){drag.fx=x;drag.fy=y;sim.alphaTarget(0.2).restart();return}
-    const n=pickNode(x,y);hover=n;cv.style.cursor=n?'pointer':'grab';
+    const n=pickNode(x,y);if(n!==hover){hover=n;request()}cv.style.cursor=n?'pointer':'grab';
     if(n){tip.hidden=false;tip.replaceChildren(h('b',null,n.kind==='engine'?'engine: '+n.label:U[n.uid].path),h('div',{class:'m'},n.info));const r=wrap.getBoundingClientRect();let tx=x+14,ty=y+14;if(tx>r.width-310)tx=x-300;tip.style.left=tx+'px';tip.style.top=ty+'px'}else tip.hidden=true});
-  cv.addEventListener('pointerleave',()=>{hover=null;tip.hidden=true});
+  cv.addEventListener('pointerleave',()=>{pointedAt=false;hover=null;tip.hidden=true;request()});
   cv.addEventListener('pointerdown',ev=>{const[x,y]=at(ev);const n=pickNode(x,y);if(n){drag=n;n.fx=n.x;n.fy=n.y;cv.setPointerCapture(ev.pointerId)}});
   cv.addEventListener('pointerup',ev=>{const[x,y]=at(ev);if(drag){const moved=Math.hypot(drag.x-x,drag.y-y)>4;drag.fx=null;drag.fy=null;sim.alphaTarget(0);const n=drag;drag=null;if(!moved||true){select(n)}}else select(null)});
-  function select(n){sel=n;if(!n){info.hidden=true;return}
+  function select(n){sel=n;request();if(!n){info.hidden=true;return}
     const ls=links.filter(l=>l.source===n||l.target===n);const bl=ls.filter(l=>l.type==='boundary');
     info.hidden=false;info.replaceChildren(h('div',{style:'font-family:var(--f-mono);font-size:.78rem;overflow-wrap:anywhere'},n.kind==='engine'?'engine: '+n.label:U[n.uid].path),h('div',{class:'m',style:'margin:2px 0 6px'},n.info),
       h('div',null,`${ls.length} links, ${bl.length} across the engine/IDE boundary.`),

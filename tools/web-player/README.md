@@ -109,9 +109,46 @@ own that holds nothing else of value.
 | `stack-player.livecodescript` | the player stack's script |
 | `build-player.livecodescript` | run by the IDE: makes the player stack (and the sample stacks) and builds it with `revSaveAsEmscriptenStandalone` |
 | `index.html` | the page: the home, library, About panel and bar in HTML, and the engine's canvas for the stack; it writes the files it is given into the engine's `/uploads` and calls the player stack's `playerFromPage` |
-| `stacks/` | the three stacks the home page features and the small samples with a picture, each with a picture of its first card (`.webp`, 960 wide at most); every one carries the colourized Script Viewer as a substack |
+| `stacks/` | the three stacks the home page features and the small samples with a picture, each with a picture of its first card (`.webp`, 960 wide at most); each one before the Phone Starter carries the colourized Script Viewer as a substack |
+| `phone-starter.livecodescript`, `phone-starter-stack.livecodescript` | build `stacks/Phone Starter.oxtstack` (see below) |
 | `assets/` | the page's logo and pictures, copied beside it |
 | `build_player.py` | starts the IDE with the script above, puts the page in place, packs the zip and, with `--check`, drives the player in headless Chromium |
+
+## The Phone Starter
+
+`stacks/Phone Starter.oxtstack` is a stack to copy for a stack made for
+phones, with the Mobile Web library
+(`extensions/script-libraries/mobileweb`): a header, four cards under a
+tab bar a thumb can reach (Home, List, Form, Gestures), a swipe left or
+right to change tab, a list that scrolls with a finger, a form that stays
+above the on-screen keyboard, and a pad (a group with its own `swipe`,
+`pinch` and `longPress` handlers) for gestures. One line, `mwStart`,
+makes it a phone stack: in a page of its own (an HTML5 standalone) it
+fills the browser's window and fills it again when the phone turns, in
+portrait or landscape (two columns, smaller bars, out of the notch); in
+the player, whose page keeps its own layout, and on a desktop, it is a
+phone-sized window. Without the library (an engine before 0.2.7) it still
+opens and works, without the gestures.
+
+The stack is never edited by hand. Its script is
+`phone-starter-stack.livecodescript` and its controls are made by
+`phone-starter.livecodescript`; change them, then build it again with any
+OXT-Beyond engine:
+
+```sh
+<engine> -ui tools/web-player/phone-starter.livecodescript
+```
+
+`tools/ci/mobile_web_check.py` opens it on emulated phones (Playwright's
+Pixel 7 and iPhone 13, in Chromium and WebKit) and checks the taps,
+drags, swipes, pinch, long press, keyboard and turns (every card in
+landscape must end above the tab bar); it fails if the
+committed stack's script is not `phone-starter-stack.livecodescript`'s.
+CI runs it in web.yml, after the web runtime check. To run it yourself:
+
+```sh
+python3 tools/ci/mobile_web_check.py --runtime <web runtime> --engine-cache <folder> --shots <folder>
+```
 
 ## Building and checking it
 

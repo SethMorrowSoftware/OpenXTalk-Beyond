@@ -277,6 +277,96 @@ class Build(unittest.TestCase):
         self.assertEqual(template.count('<title>Dictionary</title>'), 1)
 
 
+class FollowsTheSystem(unittest.TestCase):
+    """The online page is dark for a reader whose system is dark (seth,
+    2026-11-04), by the class oxt-dark that the IDE's palette sets; the
+    IDE's own page keeps following the IDE. check_dictionary.py reads it
+    in a browser in both."""
+
+    def setUp(self):
+        self.work = tempfile.mkdtemp(prefix='test-dictionary-')
+        self.viewer = os.path.join(self.work, 'viewer')
+        os.makedirs(self.viewer)
+        self.out = os.path.join(self.work, 'out')
+
+    def tearDown(self):
+        shutil.rmtree(self.work, ignore_errors=True)
+
+    def page(self):
+        with open(os.path.join(self.out, 'index.html'), encoding='utf-8') as f:
+            return f.read()
+
+    def test_the_page_follows_the_system(self):
+        make_viewer(self.viewer)
+        build_dictionary.build(self.viewer, self.out)
+        page = self.page()
+        self.assertEqual(page.count(build_dictionary.FOLLOW_SYSTEM_MARK), 1)
+        head, body = page.split('</head>')
+        # in the head, after the dark sheet and the IDE's own switch, so
+        # the class is set before anything is drawn and has the last word
+        self.assertIn(build_dictionary.FOLLOW_SYSTEM, head)
+        self.assertLess(head.index('<link href="css/oxt-dark.css" rel="stylesheet">'),
+                        head.index(build_dictionary.FOLLOW_SYSTEM_MARK))
+        self.assertLess(head.index('appearance=dark\\b/.test'), head.index(build_dictionary.FOLLOW_SYSTEM_MARK))
+        self.assertNotIn(build_dictionary.FOLLOW_SYSTEM_MARK, body)
+        script = build_dictionary.FOLLOW_SYSTEM
+        self.assertIn('matchMedia("(prefers-color-scheme: dark)")', script)
+        self.assertIn('classList.toggle("oxt-dark"', script)
+        # the address still wins, in both directions, and only the system
+        # is listened to
+        self.assertIn('appearance=(dark|light)', script)
+        self.assertIn('if (dark && !asked)', script)
+        # (the sheet it switches is there and dark under the class alone)
+        css = read('ide', 'Documentation', 'html_viewer', 'css', 'oxt-dark.css')
+        self.assertNotIn('prefers-color-scheme', css)
+        rules = re.sub(r'/\*.*?\*/', '', css, flags=re.S).replace('@charset "UTF-8";', '')
+        for selectors in re.findall(r'([^{}]+)\{', rules):
+            for selector in selectors.split(','):
+                self.assertTrue(selector.strip().startswith('html.oxt-dark'), selector)
+
+    def test_the_ide_page_follows_the_ide(self):
+        # the template the IDE's palette fills is not changed: its page is
+        # dark when the IDE is, whatever the system is
+        for name in ('api.html.template', 'guide.html.template'):
+            template = read('ide', 'Documentation', 'html_viewer', name)
+            self.assertNotIn('prefers-color-scheme', template, name)
+            self.assertNotIn(build_dictionary.FOLLOW_SYSTEM_MARK, template, name)
+
+    def test_a_viewer_without_the_dark_sheet(self):
+        # an IDE from before oxt-dark.css: its page is as it was, light
+        make_viewer(self.viewer)
+        template = os.path.join(self.viewer, 'api.html.template')
+        with open(template, encoding='utf-8') as f:
+            text = f.read()
+        old = re.sub(r'\t<link href="\[\[tDocsCSSFolder\]\]/oxt-dark\.css" rel="stylesheet">\n', '', text)
+        self.assertNotEqual(old, text)
+        with open(template, 'w', encoding='utf-8') as f:
+            f.write(old)
+        build_dictionary.build(self.viewer, self.out)
+        self.assertNotIn(build_dictionary.FOLLOW_SYSTEM_MARK, self.page())
+        self.assertNotIn('prefers-color-scheme', self.page())
+
+    def test_only_one_head(self):
+        with self.assertRaisesRegex(build_dictionary.DictionaryError, '</head>'):
+            build_dictionary.follows_the_system('<link href="css/oxt-dark.css" rel="stylesheet">')
+        self.assertEqual(build_dictionary.follows_the_system('<head></head>'), '<head></head>')
+
+    def test_the_search_marks_are_readable_in_the_dark(self):
+        # a match is marked yellow (dictionary_functions.js); its text, and
+        # the syntax colours inside it, are dark on it
+        css = read('ide', 'Documentation', 'html_viewer', 'css', 'oxt-dark.css')
+        self.assertIn("background-color: yellow;", read('ide', 'Documentation', 'html_viewer', 'js',
+                                                         'dictionary_functions.js'))
+        self.assertRegex(css, r'html\.oxt-dark span\[style\*="yellow"\],\s*'
+                              r'html\.oxt-dark span\[style\*="yellow"\] \* \{\s*color: #0f172a;')
+
+    def test_the_browser_check_reads_it(self):
+        check = read('tools', 'pages', 'check_dictionary.py')
+        self.assertIn("color_scheme='dark'", check)
+        self.assertIn("emulate_media(color_scheme='light')", check)
+        self.assertIn('dictionary-dark.png', check)
+
+
 class FromTheWebIde(unittest.TestCase):
 
     def setUp(self):

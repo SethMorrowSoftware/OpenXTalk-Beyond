@@ -164,6 +164,7 @@ REPO_BUILT_EXTENSIONS = (
     'com.livecode.library.json',
     'com.livecode.library.messageauthentication',
     'com.livecode.library.mime',
+    'com.livecode.library.mobileweb',
     'com.livecode.library.native.mac.statusmenu',
     'com.livecode.library.oauth2',
     'com.livecode.library.objectrepository',

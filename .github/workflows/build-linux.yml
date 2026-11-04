@@ -1228,6 +1228,21 @@ jobs:
             --bin-tar "$BIN_TAR" --symbols-tar "$SYMBOLS_TAR" --out dist \
             2>&1 | tee -a "$RUNNER_TEMP/logs/package.log"
 
+      # OXT-Beyond Server: the build's server engine with its externals and
+      # database drivers, in the layout of LiveCode Community's server zips
+      # (livecode-community-server, externals/, drivers/), as
+      # <root>-linux-<arch>-server.zip, a release file added to SHA256SUMS
+      # (tools/oxt/package_server.py; checked in "Server check" below)
+      - name: Server zip
+        id: server
+        timeout-minutes: 10
+        env:
+          BIN_TAR: ${{ runner.temp }}/ci-build/OXT-Beyond-linux-${{ matrix.arch }}-bin.tar.xz
+        run: |
+          mkdir -p "$RUNNER_TEMP/logs"
+          python3 tools/oxt/package_server.py --platform "linux-$ARCH" --bin-tar "$BIN_TAR" --out dist --sums \
+            2>&1 | tee "$RUNNER_TEMP/logs/server-zip.log"
+
       - name: Save external assets to the cache
         if: always() && steps.assets-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/*.zip') != ''
         continue-on-error: true
@@ -1293,6 +1308,27 @@ jobs:
         run: |
           python3 tools/ci/run_livecode_check.py smoke --package "$PACKAGE" --platform "linux-$ARCH" \
             --log "$RUNNER_TEMP/logs/smoke-test.log"
+
+      # The server zip as a web server uses it (tools/ci/server_check.py):
+      # extracted to a neutral folder, its engine run as a CGI program with
+      # requests in the environment, then through Apache httpd set up as
+      # the zip's README says (mod_cgi, mod_actions, AddHandler and Action
+      # for .lc), each with the same pages: $_GET, $_POST, $_FILES,
+      # cookies, headers, include and require, sessions, revDB with SQLite,
+      # revXML and revZip, and the errorMode. The runner image has Apache;
+      # it is installed if not.
+      - name: Server check
+        if: ${{ !cancelled() && steps.server.outcome == 'success' }}
+        timeout-minutes: 10
+        env:
+          SERVER_ZIP: ${{ steps.server.outputs.zip }}
+        run: |
+          if ! command -v apache2 > /dev/null && [ ! -x /usr/sbin/apache2 ]; then
+            sudo apt-get update -q
+            sudo apt-get install -y -q --no-install-recommends apache2
+          fi
+          python3 tools/ci/server_check.py --zip "$SERVER_ZIP" --platform "linux-$ARCH" --apache yes \
+            --log "$RUNNER_TEMP/logs/server-check.log"
 
       # Every IDE script of the extracted package, compiled by its engine
       # started through the launcher (with -ui the launcher needs only the
@@ -1687,6 +1723,19 @@ jobs:
             "$OXT_ROOT/oxt-beyond" -ui tools/examples/test-learn-box2dxt-kit.livecodescript \
             2>&1 | tee "$RUNNER_TEMP/logs/learn-box2dxt-kit.log"
           tail -n 1 "$RUNNER_TEMP/logs/learn-box2dxt-kit.log" | grep -qx DONE
+
+      # SVG Lab, run by the package's engine with the package's revXML and
+      # drawing library: the live logo, the old compile beside the new,
+      # every compile option, Convert, zoom, recolour and an SVG of one's
+      # own (tools/examples/test-svg-lab.livecodescript)
+      - name: SVG Lab
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
+        timeout-minutes: 10
+        run: |
+          OXT_INSTALL="$OXT_ROOT" timeout 300 xvfb-run -a -s '-screen 0 1280x1024x24' \
+            "$OXT_ROOT/oxt-beyond" -ui tools/examples/test-svg-lab.livecodescript \
+            2>&1 | tee "$RUNNER_TEMP/logs/svg-lab.log"
+          tail -n 1 "$RUNNER_TEMP/logs/svg-lab.log" | grep -qx DONE
 
       # The Learn stacks of the xTalk Suite's extensions (Learn SodiumXT
       # and the others builder.livecodescript's exLearn handlers make), run

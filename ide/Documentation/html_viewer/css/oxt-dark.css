@@ -217,8 +217,11 @@ html.oxt-dark .text-muted,
 html.oxt-dark .help-block {
 	color: #b0bece;
 }
-/* (the search's matches, marked yellow: dark text on them) */
-html.oxt-dark span[style*="yellow"] {
+/* (the search's matches, marked yellow: dark text on them, and on the
+   syntax colours inside them, whose light yellow keywords were yellow on
+   yellow) */
+html.oxt-dark span[style*="yellow"],
+html.oxt-dark span[style*="yellow"] * {
 	color: #0f172a;
 }
 

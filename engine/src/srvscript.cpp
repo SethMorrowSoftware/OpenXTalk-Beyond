@@ -498,11 +498,13 @@ bool MCServerScript::Include(MCExecContext& ctxt, MCStringRef p_filename, bool p
 	MCsystem->SetCurrentFolder(*t_old_folder);
 
 	// If we are 'requiring' and the script is already loaded, we are done.
+	// OXT-Beyond: without deleting t_file. A file whose script is loaded is
+	// one of m_files (the load below links it in), so the delete that was
+	// here freed a node of that list, and the engine crashed on its next
+	// walk of it: the second "require" of a file ended every page that did
+	// it (LiveCode Community 9.6.3's server engine crashes the same way).
 	if (t_file -> script != NULL && p_require)
-	{
-		delete t_file;
 		return true;
-	}
 	
 	// If the file isn't open yet, open it
 	if (t_file -> script == NULL)

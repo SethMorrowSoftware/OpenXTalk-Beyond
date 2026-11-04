@@ -312,6 +312,11 @@ SAMPLES = [
      'description': 'Open a photo of your own, pick a look, adjust it and download it at full '
                     'size; the browser does the pixel work and the photo never leaves your computer.',
      'tags': ['Images', 'JavaScript', 'Files']},
+    {'title': 'Phone Starter', 'source': 'stacks',
+     'files': ['Phone Starter.oxtstack'], 'image': 'Phone Starter.webp',
+     'description': 'A stack to copy for phones, made with the Mobile Web library: tabs for a '
+                    'thumb, swipes, a list that scrolls with a finger, a form above the keyboard.',
+     'tags': ['Phones', 'Touch', 'Starter']},
     {'title': 'Tour', 'files': ['Tour.livecode'],
      'description': 'Cards, a widget, a palette window and a script error, caught and shown.',
      'tags': ['Cards', 'Widget', 'Palette']},

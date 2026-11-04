@@ -320,7 +320,8 @@ The folder is put together from:
 
 Build outputs that are not installed (every run lists them): `*.pdb` (they go
 into the symbols zip), `installer.exe` (OXT-Beyond uses Inno Setup),
-`server-*` (package.txt installs no server engine),
+`server-*` (package.txt installs no server engine; they go into the server
+zip, see below),
 `Externals/CEF/devtools_resources.pak` (not in package.txt), the second copies
 of the two CEF helper executables in `Externals/CEF/` (package.txt takes the
 identical copies at the build root), and `packaged_extensions/` for
@@ -728,6 +729,35 @@ it is.
 Under GitHub Actions it writes the step outputs `version`, `package-root`,
 `platform`, `dist-dir`, `package`, `dmg` (with `--dmg`) and `sha256sums`
 and a table of the archives to the job summary.
+
+## The server zip (`package_server.py`)
+
+`package_server.py` writes `OXT-Beyond-<version>-<platform>-server.zip`,
+OXT-Beyond Server: the server engine of a build output with its externals
+and database drivers, in the layout of LiveCode Community's server zips
+(LiveCode's `builder/server_builder.livecodescript`), so that a web server
+set up for one runs it unchanged:
+
+```sh
+python3 tools/oxt/package_server.py --platform linux-x86_64 \
+    --bin-tar OXT-Beyond-linux-x86_64-bin.tar.xz --out dist --sums
+```
+
+The build output is a folder (`--bin`), a tarball (`--bin-tar`: a CI bin
+artifact or a release's binaries tarball) or the Windows binaries zip
+(`--bin-zip`). The zip holds, at its top: `livecode-community-server`
+(`.exe` on Windows; the build's `server-community`), `externals/` (revdb,
+revxml, revzip), `drivers/` (dbsqlite, dbmysql, dbpostgresql, dbodbc),
+`README.txt` (from `server-readme.txt`, with the version, platform and
+engine name filled in) and the licence files, with
+`ide/Open Source Licenses.txt`. The externals and drivers are the build's
+`server-*` libraries; on Windows, where some have no server copy, the
+desktop DLL, as LiveCode's builder did. A missing file, or an engine that
+is not an executable of the platform, writes nothing. `--sums` adds the
+zip to the folder's `SHA256SUMS`. The build workflows make one per
+package (Windows x86-64, macOS universal, Linux x86-64 and arm64) and run
+`tools/ci/server_check.py` on it: the engine as a CGI program on every
+platform, and through Apache on Linux.
 
 ## External assets
 

@@ -1945,6 +1945,7 @@ private command leHero pEyebrow, pTitle, pText, pCredit, pColors, pButton1, pBut
       put lkOval("p_heroGlow" & tIndex, lkR(0, 0, tSize, tSize), "255,255,255", "p_hero") into tObj
       lkGlowFill tObj, "255,255,255", item tIndex of "70,55,60,45"
       set the blendLevel of tObj to 40
+      lkGlowPicture tObj
    end repeat
    repeat with tIndex = 1 to 6
       put lkBox("p_heroStar" & tIndex, lkR(0, 0, 10, 10), "255,255,255", 0, "p_hero") into tObj
@@ -2020,7 +2021,7 @@ private command leHeroFrame
    repeat with tIndex = 1 to 4
       put item 1 of tRect + tW * (item tIndex of "0.72,0.9,0.55,0.18") + 60 * sin(tT * (0.35 + tIndex * 0.07) + tIndex * 1.7) into tX
       put item 2 of tRect + tH * (item tIndex of "0.2,0.85,0.95,0.1") + 30 * cos(tT * (0.3 + tIndex * 0.05) + tIndex) into tY
-      set the loc of graphic ("p_heroGlow" & tIndex) to round(tX), round(tY)
+      lkGlowMove "p_heroGlow" & tIndex, round(tX) & comma & round(tY)
    end repeat
    repeat with tIndex = 1 to 6
       put "p_heroStar" & tIndex into tObj
@@ -2276,6 +2277,9 @@ private function leExampleTable
    put "|Learn Box2Dxt Kit|Twelve lessons in making games with the Box2Dxt Kit, in pixels: sprites, sprite sheets " & \
          "and GIFs, a player to steer and a camera to follow it, sound, contacts, coins and terrain, with a Reference of every Kit call.|OXT-Beyond, 2026, on the Box2Dxt Kit|tours|gamepad-2|emerald|" & \
          "box2d box2dxt kit physics game sprite spritesheet gif animation player|Resources/Examples/Remastered/Learn Box2Dxt Kit.oxtstack|Learn Box2Dxt Kit" & return after tTable
+   put "|SVG Lab|What OXT-Beyond does with SVG: the logo as live SVG, the old compile beside the new, each compile option, " & \
+         "Convert to Graphics, Export SVG, zoom and recolour, on the logo or an SVG of your own.|OXT-Beyond, 2026|tours|wand-sparkles|orange|" & \
+         "svg vector drawing image graphics convert export decompile logo animation|Resources/Examples/Remastered/SVG Lab.oxtstack|SVG Lab" & return after tTable
    put "|Learn SodiumXT|Thirteen lessons in cryptography with SodiumXT: random bytes, fingerprints, passwords, " & \
          "secret and public-key boxes, signatures, key exchange, files and streams, each a script to change and run, " & \
          "and a reference of every handler.|OXT-Beyond, 2026, on libsodium through SodiumXT|suite|key-round|indigo|" & \
@@ -2361,7 +2365,7 @@ private function leShowcaseTable
    end repeat
    repeat for each item tName in "xTalk Primer,Fireworks,Live Weather," & \
          "Web Audio Piano,Neon Snake,QR Studio,Talking Robot,2048,Quake Map,Beat Box,Kanban Board," & \
-         "Markdown Notes,UI Gallery,Photo Lab"
+         "Markdown Notes,UI Gallery,Photo Lab,Phone Starter"
       if (tName & ".oxtstack") is among the lines of tFiles then
          put tName & return after tNames
       end if
@@ -2448,6 +2452,10 @@ private function leShowcaseInfo pName
       case "Photo Lab"
          return "small|Open a photo of your own, pick a look, adjust it and download it at full size. " & \
                "The browser does the pixel work, so it runs in a browser.|image|pink|photos javascript"
+      case "Phone Starter"
+         return "small|A stack to copy for phones, made with the Mobile Web library: tabs for a thumb, " & \
+               "swipes, a list that scrolls with a finger and a form above the keyboard. Build it for " & \
+               "HTML5 and open it on a phone.|smartphone|indigo|phones touch"
    end switch
    return "small|A small sample made for the Stack Player: open it, then read its scripts.|layers|indigo|sample"
 end leShowcaseInfo

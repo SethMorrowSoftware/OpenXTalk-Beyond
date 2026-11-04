@@ -28,14 +28,16 @@ script "revLearnKit"
 --  - scrolls: lkScroller puts a slim thumb in place of a group's or a
 --    field's scrollbar, which the wheel and a drag move, smoothly;
 --  - keeps time: lkStartTicking sends lkTick about sixty times a second
---    (ten while another window is in front), which animates the lit
+--    (none while another window is in front, or the browser's window is
+--    not in use: lkTick), which animates the lit
 --    things and then sends lkFrame to the stack for its own animations;
 --    lkNow and lkDt give the frame's time and the seconds since the last.
 -- A timer handler runs whatever stack is in front, so each frame sets the
 -- defaultStack to the kit's stack and puts it back.
 
 constant kFrame = 16
-constant kAwayFrame = 100
+constant kAwayCheck = 500
+constant kWake = 2000
 constant kTextInset = 4
 
 -- The groups that light up when the pointer is over them and do something
@@ -46,8 +48,15 @@ local sCfg, sLiveList, sHover, sHoverAmt, sEnterAmt
 local sScope, sScopeStart
 -- The pending frame, this frame's time, and the time since the last one
 local sTick, sNow, sLastFrame, sDt
--- True while another window is in front: frames come ten times a second
+-- True while another window is in front: no frames come (lkTick)
 local sAway
+-- True while the browser's window is not the one in use, or another of
+-- the page's windows has the keyboard, asked of the page every
+-- kAwayCheck milliseconds (lkCheckPage); and the time of the next look
+local sPageAway, sPageCheckAt
+-- True while the stack holds still (lkTick), and the time until which the
+-- pointer over it keeps it moving (lkWake)
+local sHeld, sWokeUntil
 -- The font code is shown in ("-" for the default font)
 local sFont
 -- The thumbs lkScroller made, by name: each one's target, colour and
@@ -70,6 +79,10 @@ command lkStartTicking
    lkStopTicking
    put the milliseconds into sLastFrame
    put sLastFrame into sNow
+   put false into sPageAway
+   put 0 into sPageCheckAt
+   put false into sHeld
+   put 0 into sWokeUntil
    send "lkTick" to me in kFrame milliseconds
    put the result into sTick
 end lkStartTicking
@@ -87,15 +100,39 @@ end lkStopTicking
 
 -- One frame. A frame that fails is skipped, not shown as an error sixty
 -- times a second.
+--
+-- While another window is in front, or the browser's window is not the
+-- one in use, the stack draws nothing and holds still (lkHeld): it only
+-- looks, every kAwayCheck milliseconds, whether it is back in use. Until
+-- 0.2.7-rc.6.15 it went on drawing ten frames a second there (and, in a
+-- web IDE whose page was not in use, sixty), which kept the browser busy
+-- for as long as Home's Academy or Learn's pages stayed open behind the
+-- user's own stacks (seth, 2026-11-04). The pointer over the stack, and
+-- its wheel, wake it for kWake milliseconds (lkWake), so that what lights
+-- up under the pointer still lights up and a page still glides when
+-- scrolled.
 on lkTick
    local tSaved, tError
    put empty into sTick
    if the mode of me is 0 then
       exit lkTick
    end if
+   put the milliseconds into sNow
+   if lkHeld() then
+      lkCheckPage
+      if lkHeld() then
+         put true into sHeld
+         send "lkTick" to me in kAwayCheck milliseconds
+         put the result into sTick
+         exit lkTick
+      end if
+   end if
+   if sHeld is true then
+      put false into sHeld
+      put sNow into sLastFrame
+   end if
    put the defaultStack into tSaved
    set the defaultStack to the short name of me
-   put the milliseconds into sNow
    put min(0.1, max(0, (sNow - sLastFrame) / 1000)) into sDt
    put sNow into sLastFrame
    lock screen
@@ -109,13 +146,66 @@ on lkTick
    if tSaved is not empty and there is a stack tSaved then
       set the defaultStack to tSaved
    end if
-   if sAway is true then
-      send "lkTick" to me in kAwayFrame milliseconds
+   lkCheckPage
+   if lkHeld() then
+      put true into sHeld
+      send "lkTick" to me in kAwayCheck milliseconds
    else
       send "lkTick" to me in kFrame milliseconds
    end if
    put the result into sTick
 end lkTick
+
+-- Whether the stack holds still now: another window is in front, or the
+-- browser's window is not in use, and the pointer has not woken it
+private function lkHeld
+   return (sAway is true or sPageAway is true) and sNow >= sWokeUntil
+end lkHeld
+
+-- The stack moves for the next pMilliseconds, and at once if it was
+-- holding still (the pointer or the wheel over it, or the stack brought
+-- to the front)
+private command lkWake pMilliseconds
+   put max(sWokeUntil, the milliseconds + pMilliseconds) into sWokeUntil
+   if sHeld is true and sTick is not empty then
+      cancel sTick
+      send "lkTick" to me in 0 milliseconds
+      put the result into sTick
+   end if
+end lkWake
+
+-- Is the browser's window the one in use, and is the stack's window the
+-- page's window that has the keyboard (or is a palette's)? As Home asks
+-- it (revWebHome's hmCheckPage, which says why): the engine marks the
+-- window with the keyboard oxt-window-active (engine/src/em-dc.js), and
+-- a stack that never had the keyboard never hears suspendStack. A browser
+-- that cannot say is taken to be in use; the desktop's engines leave it
+-- to suspendStack.
+private command lkCheckPage
+   local tAnswer, tError, tTitle
+   if the platform is not "HTML5" or sNow < sPageCheckAt then
+      exit lkCheckPage
+   end if
+   put sNow + kAwayCheck into sPageCheckAt
+   put the label of me into tTitle
+   if tTitle is empty then
+      put the short name of me into tTitle
+   end if
+   replace "\" with "\\" in tTitle
+   replace "'" with "\'" in tTitle
+   try
+      do "(function(t){" & \
+            "if(document.hidden||!document.hasFocus())return 'true';" & \
+            "var a=document.querySelector('.oxt-window-active');" & \
+            "if(!a||a.classList.contains('oxt-window-utility'))return 'false';" & \
+            "var l=a.querySelector('.oxt-window-label');" & \
+            "return String(!!l&&l.textContent.indexOf(t)!==0);" & \
+            "})('" & tTitle & "')" as "JavaScript"
+      put the result into tAnswer
+   catch tError
+   end try
+   put tAnswer is "true" into sPageAway
+end lkCheckPage
 
 function lkNow
    return sNow
@@ -138,6 +228,8 @@ end suspendStack
 
 on resumeStack
    put false into sAway
+   -- (held still behind the other window: it moves again at once, lkTick)
+   lkWake 0
    pass resumeStack
 end resumeStack
 
@@ -748,6 +840,60 @@ command lkGlowCentre pObj
    set the fillGradient["via"] of pObj to item 1 of tLoc & "," & (item 2 of tLoc + tRadius)
 end lkGlowCentre
 
+-- The web engine draws a light's soft round gradient again, pixel by
+-- pixel, every time anything over it is drawn, which a banner whose lights
+-- drift does sixty times a second: Home's welcome spent two fifths of its
+-- frame on four of them (revWebHome's hmOrbPicture). On the web the
+-- light pObj is drawn once, at its size and with no blend, into a picture
+-- (<name>Pic, just above it, with its blendLevel), and the graphic is
+-- hidden; the frame moves the picture (lkGlowMove). The same pixels for a
+-- picture's copy (tools/ci/web-ide-idle.livecodescript, learn-pictures).
+-- Where the picture cannot be made the graphic stays, as before; the
+-- desktop's engines draw the gradient natively and keep it.
+command lkGlowPicture pObj
+   local tData, tPic, tBlend, tGroup, tError
+   if the platform is not "HTML5" then
+      exit lkGlowPicture
+   end if
+   put the blendLevel of pObj into tBlend
+   try
+      set the blendLevel of pObj to 0
+      export snapshot from pObj to tData as PNG
+      set the blendLevel of pObj to tBlend
+      if tData is empty then
+         exit lkGlowPicture
+      end if
+      if word 1 of the owner of pObj is "group" then
+         put the short name of the owner of pObj into tGroup
+         create image (the short name of pObj & "Pic") in group tGroup
+      else
+         create image (the short name of pObj & "Pic")
+      end if
+      put it into tPic
+      set the text of tPic to tData
+      set the lockLoc of tPic to true
+      set the rect of tPic to the rect of pObj
+      set the blendLevel of tPic to tBlend
+      relayer tPic after pObj
+      hide pObj
+   catch tError
+      set the blendLevel of pObj to tBlend
+      if tPic is not empty and exists(tPic) then
+         delete tPic
+      end if
+      show pObj
+   end try
+end lkGlowPicture
+
+-- Moves the light pName to pLoc: its picture, if it has one (lkGlowPicture)
+command lkGlowMove pName, pLoc
+   if there is an image (pName & "Pic") then
+      set the loc of image (pName & "Pic") to pLoc
+   else
+      set the loc of graphic pName to pLoc
+   end if
+end lkGlowMove
+
 command lkShadow pObj, pSize, pDistance, pOpacity
    set the dropShadow["color"] of pObj to "15,23,42"
    set the dropShadow["blendMode"] of pObj to "normal"
@@ -1052,6 +1198,7 @@ end lkHoverOn
 
 on mouseMove
    local tName
+   lkWake kWake
    if sDrag["name"] is not empty then
       lkScrollDrag
       exit mouseMove
@@ -1302,6 +1449,7 @@ on rawKeyDown pKey
       end if
       put max(0, min(lkScrollRoom(tTarget), tGoal)) into sScroll[tName]["goal"]
       put the vScroll of tTarget into sScroll[tName]["at"]
+      lkWake kWake
       exit rawKeyDown
    end repeat
    pass rawKeyDown

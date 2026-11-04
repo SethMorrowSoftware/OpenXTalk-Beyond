@@ -86,6 +86,37 @@ IDE_ZIP_PREFIX = 'boot/Documentation/html_viewer/'
 EXTENSIONS_FOLDER = 'api_extensions'
 
 
+# The page follows the reader's light or dark setting (seth, 2026-11-04).
+# The viewer's pages are dark under the class oxt-dark (css/oxt-dark.css),
+# which only the IDE's Dictionary palette sets, from the IDE's appearance
+# (?appearance=dark, then revDictionaryBehavior toggles it). The online
+# page has no palette, so this script, put in its <head> here and not in
+# the template (the IDE's page must keep following the IDE, not the
+# system), sets the class from prefers-color-scheme before the body is
+# drawn, so a dark reader never sees it white first, and again when the
+# setting changes. ?appearance=dark or ?appearance=light in the address
+# still wins, as it does in the IDE. A light reader's page is the page
+# it was: nothing sets the class.
+FOLLOW_SYSTEM_MARK = 'oxt-follow-system'
+FOLLOW_SYSTEM = (
+    '<!-- OXT-Beyond (%s): the online Dictionary follows the reader\'s light or dark setting -->\n'
+    '\t<script>(function () {\n'
+    '\t\tvar asked = /[?&]appearance=(dark|light)\\b/.exec(window.location.search);\n'
+    '\t\tvar dark = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;\n'
+    '\t\tfunction follow() {\n'
+    '\t\t\tdocument.documentElement.classList.toggle("oxt-dark",'
+    ' asked ? asked[1] == "dark" : !!(dark && dark.matches));\n'
+    '\t\t}\n'
+    '\t\tfollow();\n'
+    '\t\tif (dark && !asked) {\n'
+    '\t\t\tif (dark.addEventListener) dark.addEventListener("change", follow);\n'
+    '\t\t\telse if (dark.addListener) dark.addListener(follow);\n'
+    '\t\t}\n'
+    '\t})();</script>\n' % FOLLOW_SYSTEM_MARK)
+
+DARK_SHEET = 'css/oxt-dark.css'
+
+
 class DictionaryError(Exception):
     pass
 
@@ -107,7 +138,19 @@ def page_text(template):
     if left:
         raise DictionaryError('api.html.template has holes this page does not fill: %s'
                               % ', '.join(sorted(set(left))))
-    return text
+    return follows_the_system(text)
+
+
+def follows_the_system(page):
+    """The page with FOLLOW_SYSTEM at the end of its <head>, when it links
+    the dark style sheet. A viewer made before it (an IDE older than
+    oxt-dark.css) has no dark look to follow, and its page is left as it
+    was, light."""
+    if '<link href="%s" rel="stylesheet">' % DARK_SHEET not in page:
+        return page
+    if page.count('</head>') != 1:
+        raise DictionaryError('api.html.template has no single </head>')
+    return page.replace('</head>', '\t' + FOLLOW_SYSTEM + '</head>', 1)
 
 
 def _js_texts(folder):

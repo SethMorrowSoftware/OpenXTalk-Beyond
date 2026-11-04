@@ -489,7 +489,7 @@ def _windows(arch):
         not_installed=(
             ('*.pdb', 'debug symbols; they go into the -symbols.zip'),
             ('installer.exe', 'LiveCode\'s installer engine; OXT-Beyond is installed by Inno Setup'),
-            ('server-*', 'LiveCode Server engine and its externals; package.txt installs no server'),
+            ('server-*', 'the server engine and its externals: package.txt installs no server; they go into the server zip (package_server.py)'),
             ('Externals/CEF/devtools_resources.pak', 'not in package.txt Externals.CEF.Windows'),
             ('Externals/CEF/libbrowser-cefprocess.exe',
              'package.txt takes the identical copy at the root of the build'),
@@ -520,7 +520,7 @@ def _linux(arch):
     not_installed = (
         ('*.dbg', 'debug symbols (objcopy --only-keep-debug); they go into the -symbols archive'),
         ('installer', 'LiveCode\'s installer engine; OXT-Beyond ships a portable folder'),
-        ('server-*', 'LiveCode Server engine and its externals; package.txt installs no server'),
+        ('server-*', 'the server engine and its externals: package.txt installs no server; they go into the server zip (package_server.py)'),
         ('Externals/CEF/chrome-sandbox',
          'CEF\'s setuid sandbox helper: CEF runs with no_sandbox (libbrowser_cef.cpp, cefbrowser.cpp), '
          'and the helper would need root ownership and mode 4755'),
@@ -903,7 +903,7 @@ def _mac(arch):
             ('*.dSYM/**', 'debug symbols; they go into the -symbols zip'),
             ('Installer.app/**', 'LiveCode\'s installer; OXT-Beyond ships the app in a disk image'),
             ('installer-stub', 'LiveCode\'s installer'),
-            ('server-*', 'LiveCode Server engine and its externals; package.txt installs no server'),
+            ('server-*', 'the server engine and its externals: package.txt installs no server; they go into the server zip (package_server.py)'),
             ('tz.dylib', 'native code of the timezone library; its packaged_extensions copy is installed'),
             ('inih.dylib', 'native code of com.livecode.library.ini, which package.txt does not install'),
             ('LiveCode-Community.app/Contents/Info.plist',
