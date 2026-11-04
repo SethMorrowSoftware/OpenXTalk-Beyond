@@ -448,13 +448,15 @@ jobs:
   # Home are on the page, and its sample step unless it still answers.
   # At 800x500 each browser also opens it with its storage refused
   # (web_ide_tour.py --refuse-storage): the storage-open step fails unless
-  # the page's not-saved bar says so.
+  # the page's not-saved bar says so. And with errors of other scripts
+  # thrown while it starts (--stray-errors), which must not stop it, and
+  # with an error of the page's own (--own-error), which must.
   small:
     name: Web IDE small window (${{ matrix.browser }}, ${{ matrix.size }})
     needs: engine
     if: ${{ !inputs.release }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -528,6 +530,32 @@ jobs:
             --out "$RUNNER_TEMP/web-ide-refused" --browser "$BROWSER" --refuse-storage \
             --only storage-open --timeout 480
 
+      # Errors of scripts that are not the IDE's while it starts (a browser
+      # extension's script in the page, another site's script): the IDE
+      # still opens. Before 0.2.7-rc.6.15 any error stopped the start with
+      # "Something went wrong", and a private window, which leaves the
+      # extensions out, opened it (seth, 2026-11-04). And an error of the
+      # page's own still stops it, and shows. Once for each browser.
+      - name: Web IDE with errors of other scripts while it starts
+        if: ${{ matrix.size == '800x500' }}
+        timeout-minutes: 10
+        env:
+          BROWSER: ${{ matrix.browser }}
+        run: |
+          "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_ide_tour.py --site "$RUNNER_TEMP/site" \
+            --out "$RUNNER_TEMP/web-ide-stray-errors" --browser "$BROWSER" --stray-errors \
+            --only start --timeout 480
+
+      - name: Web IDE stopped by an error of its own page
+        if: ${{ matrix.size == '800x500' }}
+        timeout-minutes: 10
+        env:
+          BROWSER: ${{ matrix.browser }}
+        run: |
+          "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_ide_tour.py --site "$RUNNER_TEMP/site" \
+            --out "$RUNNER_TEMP/web-ide-own-error" --browser "$BROWSER" --own-error \
+            --timeout 480
+
       - name: Upload the screenshots
         if: always()
         uses: actions/upload-artifact@v7
@@ -543,6 +571,17 @@ jobs:
         with:
           name: web-ide-refused-${{ matrix.browser }}
           path: ${{ runner.temp }}/web-ide-refused
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload the stray and own errors' screenshots
+        if: ${{ always() && matrix.size == '800x500' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-ide-errors-${{ matrix.browser }}
+          path: |
+            ${{ runner.temp }}/web-ide-stray-errors
+            ${{ runner.temp }}/web-ide-own-error
           if-no-files-found: ignore
           retention-days: 14
 

@@ -68,6 +68,13 @@ page's not-saved bar says so. The page gives the tour
 window.oxtTour.refused, true; web-ide.yml runs the tour's storage-open
 step alone with it.
 
+--stray-errors has scripts that are not the IDE's throw errors while it
+starts, as a browser extension's script in the page can (STRAY_ERRORS):
+the IDE must open all the same. --own-error has the page report an error
+of its own instead (OWN_ERROR), and the check passes only when the page
+stops the start and shows it; no tour runs. web-ide.yml runs the start
+step with the first and the second alone, in Chromium and Firefox.
+
 Exit status 0 when the tour passes, 1 otherwise. Needs Python 3.8 or later
 and the Python package playwright with its Chromium
 (python3 -m playwright install chromium).
@@ -122,6 +129,63 @@ IDBFactory.prototype.open = function() {
   throw new DOMException('refused by the tour', 'SecurityError');
 };
 '''
+
+# --stray-errors: while the IDE starts, scripts that are not the IDE's
+# throw, as a browser extension's script in the page can. A private
+# window leaves the extensions out: seth's web IDE showed "Something went
+# wrong" in a normal window and opened in a private one (2026-11-04),
+# and the page stopped the start on any error before 0.2.7-rc.6.15. The
+# errors: one thrown by a script with no file (as an extension's script
+# put in the page reports it), one by a script from a file of its own (a
+# blob), and those a browser reports for an extension's file and for a
+# script of another site ("Script error.", with no file), each three
+# times while the IDE downloads and starts. The page goes on, and the
+# IDE must open. Each error's message has STRAY_MARK, so that the check
+# does not count the thrown ones as the page's.
+STRAY_MARK = 'stray error of the tour'
+STRAY_ERRORS = '''
+(function() {
+  var mark = '%s';
+  function stray() {
+    setTimeout(function() {
+      throw new Error(mark + ', from a script with no file');
+    }, 0);
+    try {
+      var script = document.createElement('script');
+      script.src = URL.createObjectURL(new Blob(
+        ['throw new Error("' + mark + ', from a file of its own");'],
+        {type: 'text/javascript'}));
+      (document.head || document.documentElement).appendChild(script);
+    } catch (e) {
+    }
+    [['chrome-extension://oxttour/inject.js', 'Uncaught Error: ' + mark + ', from an extension'],
+     ['moz-extension://oxttour/inject.js', 'Error: ' + mark + ', from an extension'],
+     ['', 'Script error.']].forEach(function(error) {
+      window.dispatchEvent(new ErrorEvent('error', {message: error[1], filename: error[0]}));
+    });
+  }
+  [300, 2500, 6000].forEach(function(ms) {
+    setTimeout(stray, ms);
+  });
+})();
+''' % STRAY_MARK
+
+# --own-error: before the IDE opens, the page reports an error of its own
+# (the file is the page's), as a fault of its own scripts does: the page
+# must stop the start and show it, as it always did
+OWN_ERROR_TEXT = 'an error of the page itself, from the tour'
+OWN_ERROR = '''
+setTimeout(function() {
+  window.dispatchEvent(new ErrorEvent('error', {
+    message: 'Uncaught Error: %s',
+    filename: location.href.replace(/[?#].*$/, ''), lineno: 1, colno: 1}));
+}, 1500);
+''' % OWN_ERROR_TEXT
+
+
+class OwnErrorShown(Exception):
+    """--own-error's check is over (its result is in problems)."""
+
 
 WIDTH, HEIGHT = 1400, 900
 
@@ -262,6 +326,11 @@ def main(argv=None):
                     help='the page\'s size as it opens (default %dx%d)' % (WIDTH, HEIGHT))
     ap.add_argument('--refuse-storage', action='store_true',
                     help='the browser\'s storage (IndexedDB) refuses the page from the start')
+    errors = ap.add_mutually_exclusive_group()
+    errors.add_argument('--stray-errors', action='store_true',
+                        help='scripts that are not the IDE\'s throw errors while it starts')
+    errors.add_argument('--own-error', action='store_true',
+                        help='the page reports an error of its own: passes only when it stops')
     args = ap.parse_args(argv)
     replace = []
     for item in args.replace:
@@ -306,6 +375,9 @@ def main(argv=None):
         page.on('console', lambda m: console.write('%s %s %s\n' % (stamp(), m.type, m.text)))
 
         def page_error(error):
+            if args.stray_errors and STRAY_MARK in str(error):
+                console.write('%s the tour\'s stray error %s\n' % (stamp(), error))
+                return
             console.write('%s PAGE ERROR %s\n' % (stamp(), error))
             problems.append('page error: %s' % error)
         page.on('pageerror', page_error)
@@ -313,9 +385,27 @@ def main(argv=None):
         if args.refuse_storage:
             page.add_init_script(REFUSE_STORAGE)
             log('Storage: refused from the start')
+        if args.stray_errors:
+            page.add_init_script(STRAY_ERRORS)
+            log('Errors: stray ones, not the IDE\'s, while it starts')
+        if args.own_error:
+            page.add_init_script(OWN_ERROR)
+            log('Errors: one of the page\'s own before the IDE opens')
         try:
             page.goto(url)
             page.wait_for_function('%s || %s' % (OPENED, FAILED), timeout=args.timeout * 1000 / 2)
+            if args.own_error:
+                status = ''
+                if page.evaluate(FAILED):
+                    status = page.evaluate("document.getElementById('error').textContent")
+                page.screenshot(path=os.path.join(shots_dir, '00-own-error.png'))
+                shots.append('00-own-error')
+                if OWN_ERROR_TEXT in status:
+                    log('%s the page stopped on its own error: %s' % (stamp(), status.strip()))
+                else:
+                    problems.append('the page did not stop on an error of its own: %s'
+                                    % (status.strip() or 'the IDE opened'))
+                raise OwnErrorShown()
             if page.evaluate(FAILED):
                 status = page.evaluate("document.getElementById('error').textContent")
                 raise RuntimeError('the IDE did not open: %s' % status)
@@ -358,6 +448,8 @@ def main(argv=None):
                         time.sleep(1)
                 except KeyboardInterrupt:
                     pass
+        except OwnErrorShown:
+            finished = True
         except Exception as e:  # noqa: BLE001 - every failure is reported
             problems.append('%s: %s' % (type(e).__name__, str(e).splitlines()[0] if str(e) else ''))
             try:

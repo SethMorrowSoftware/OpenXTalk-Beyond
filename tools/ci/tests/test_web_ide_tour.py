@@ -20,7 +20,8 @@ window, openxtalk.org p=25583). Its --color-scheme, and the web IDE's page
 following the browser between light and dark (seth's choice of
 2026-10-30): the page asks for it, its title bars have dark colours, the
 check runs the tour in both and its appearance step switches the page.
-Playwright is not needed.
+Its --stray-errors and --own-error, and the page stopping its start only
+on an error of its own. Playwright is not needed.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -129,6 +130,73 @@ class NotSaved(unittest.TestCase):
         text = self.read('.github', 'workflows', 'web-ide.yml')
         self.assertIn('--refuse-storage \\\n            --only storage-open', text)
         self.assertIn("if: ${{ matrix.size == '800x500' }}", text)
+
+
+class StrayErrors(unittest.TestCase):
+    """Only the IDE's own errors stop its start (2026-11-04: seth's web IDE
+    showed "Something went wrong" in a normal window and opened in a
+    private one, which leaves the browser's extensions out; the page
+    stopped on any error). The page's rule, and web_ide_tour.py's
+    --stray-errors and --own-error, which run it in the browser both ways.
+    These tests hold the pieces to each other; the browser runs settle
+    the behaviour."""
+
+    def read(self, *path):
+        with open(os.path.join(REPO, *path), encoding='utf-8') as f:
+            return f.read()
+
+    def listener(self):
+        page = self.read('tools', 'web-ide', 'index.html')
+        return page.split("window.addEventListener('error', function(e) {", 1)[1].split('});', 1)[0]
+
+    def test_the_page_asks_whose_error_it_is_before_it_stops(self):
+        body = self.listener()
+        self.assertIn('if (!ownError(e)) {', body)
+        self.assertLess(body.index('ownError(e)'), body.index('fail('))
+        # the start is not stopped after the IDE has opened, as before
+        self.assertLess(body.index('if (started)'), body.index('ownError(e)'))
+
+    def test_the_page_s_own_files_and_its_webassembly_are_its_own(self):
+        page = self.read('tools', 'web-ide', 'index.html')
+        rule = page.split('function ownError(e) {', 1)[1].split('\n        }\n', 1)[0]
+        self.assertIn("file.indexOf(FOLDER) === 0", rule)
+        self.assertIn("file.indexOf('wasm:') === 0", rule)
+        self.assertIn('e.error instanceof WebAssembly.RuntimeError', rule)
+        # an error with no file (an extension's script in the page, or
+        # another site's "Script error.") is not
+        self.assertIn("file !== '' &&", rule)
+        self.assertIn("var FOLDER = location.href.replace(/[?#].*$/, '').replace(/[^\\/]*$/, '');", page)
+
+    def test_stray_errors(self):
+        js = web_ide_tour.STRAY_ERRORS
+        mark = web_ide_tour.STRAY_MARK
+        self.assertIn("var mark = '%s';" % mark, js)
+        # thrown with no file, thrown from a file of its own, an
+        # extension's file in Chromium and Firefox, another site's script
+        self.assertIn("throw new Error(mark + ', from a script with no file');", js)
+        self.assertIn('new Blob(', js)
+        self.assertIn("'chrome-extension://", js)
+        self.assertIn("'moz-extension://", js)
+        self.assertIn("['', 'Script error.']", js)
+        # while the IDE downloads and starts
+        self.assertIn('[300, 2500, 6000]', js)
+
+    def test_own_error(self):
+        js = web_ide_tour.OWN_ERROR
+        self.assertIn(web_ide_tour.OWN_ERROR_TEXT, js)
+        self.assertIn("filename: location.href.replace(/[?#].*$/, '')", js)
+
+    def test_one_or_the_other(self):
+        with self.assertRaises(SystemExit):
+            web_ide_tour.main(['--site', 'x', '--out', 'y', '--stray-errors', '--own-error'])
+
+    def test_the_workflow_runs_both_in_each_browser(self):
+        text = self.read('.github', 'workflows', 'web-ide.yml')
+        self.assertIn('--stray-errors \\\n            --only start --timeout 480', text)
+        self.assertIn('--own-error \\\n            --timeout 480', text)
+        small = text.split('\n  small:\n', 1)[1].split('\n  soak:\n', 1)[0]
+        self.assertIn('browser: [chromium, firefox]', small)
+        self.assertEqual(small.count("if: ${{ matrix.size == '800x500' }}"), 3)
 
 
 class PropertyListeners(unittest.TestCase):
