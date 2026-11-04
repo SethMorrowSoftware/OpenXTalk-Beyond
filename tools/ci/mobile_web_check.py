@@ -299,6 +299,15 @@ def png(width, height):
             + chunk(b'IDAT', zlib.compress(rows, 6)) + chunk(b'IEND', b''))
 
 
+def not_from_a_tap_expected(whole_screen):
+    """What mwcNotFromATap answers when not from a tap: the camera, the
+    share sheet and the whole screen each say "not from a tap", except
+    that a browser with no whole screen at all says "not supported" for
+    it first (mobileweb's fullScreen asks that before the tap)."""
+    return ','.join(['not from a tap', 'not from a tap',
+                     'not from a tap' if whole_screen else 'not supported'])
+
+
 def notes_middle(s, width):
     """Where the middle of Notes is across (state's notesleft: its left
     and right), or the middle of the window where the stack does not say."""
@@ -601,12 +610,17 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
         # keeps for 5 seconds at most: the call is made from a timer after
         # that)
         if page.evaluate("() => 'userActivation' in navigator"):
+            # a browser with no whole screen at all (an iPhone's Safari,
+            # Playwright's WebKit) says "not supported" first, as it should
+            whole = page.evaluate("""() => { var el = document.documentElement;
+                return !!(el.requestFullscreen || el.webkitRequestFullscreen) &&
+                    document.fullscreenEnabled !== false; }""")
             got = str(page.evaluate("""() => new Promise(function(done) { setTimeout(function() {
                 done(navigator.userActivation.isActive ? 'still a tap' :
                      String(document.liveCode.findStackWithName('MobileWebCheck').mwcNotFromATap()));
             }, 6500); })"""))
             expect('not from a tap, the camera, the share sheet and the whole screen say so at once',
-                   got == 'not from a tap,not from a tap,not from a tap', {'not-from-a-tap': got})
+                   got == not_from_a_tap_expected(whole), {'not-from-a-tap': got, 'whole-screen': whole})
         else:
             log('  (this browser cannot tell a tap: no navigator.userActivation)')
 

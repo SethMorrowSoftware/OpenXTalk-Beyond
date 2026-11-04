@@ -533,6 +533,20 @@ class Helpers(unittest.TestCase):
         with self.assertRaises(mobile_web_check.CheckError):
             mobile_web_check.middle('1,2,3')
 
+    def test_not_from_a_tap_expected(self):
+        # a browser with a whole screen: all three say "not from a tap"
+        self.assertEqual(mobile_web_check.not_from_a_tap_expected(True),
+                         'not from a tap,not from a tap,not from a tap')
+        # none at all (an iPhone's Safari, Playwright's WebKit): the whole
+        # screen says "not supported", which the library asks first
+        self.assertEqual(mobile_web_check.not_from_a_tap_expected(False),
+                         'not from a tap,not from a tap,not supported')
+        lib = read('extensions', 'script-libraries', 'mobileweb', 'mobileweb.livecodescript')
+        body = lib[lib.index('function fullScreen(on) {'):]
+        self.assertLess(body.index("return 'not supported';"), body.index("return 'not from a tap';"))
+        check = read('tools', 'ci', 'mobile_web_check.py')
+        self.assertIn('got == not_from_a_tap_expected(whole)', check)
+
 
 if __name__ == '__main__':
     unittest.main()
