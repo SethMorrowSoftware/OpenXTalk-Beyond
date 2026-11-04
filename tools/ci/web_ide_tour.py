@@ -39,7 +39,10 @@ tells the tour to go. The tour (web-ide-tour.livecodescript says what it
 opens) hands the page lines through window.oxtTour; this script writes
 them to <out>/tour.txt, and does what each ACT line asks: a screenshot of
 the page (<out>/shots/<file>.png), a click, a key, or a new size of the
-page. What the browser's console says goes to <out>/console.txt.
+page; or, in Chromium, how busy the page's main thread is for a while
+(ACT cpu, tools/ci/web-ide-idle.livecodescript), which fails the check
+above its budget. What the browser's console says goes to
+<out>/console.txt.
 
 The check fails when the IDE does not open, the page reports an error of
 its own (a JavaScript error, or the engine stopping), the tour records a
@@ -472,6 +475,48 @@ def tap(page, x, y):
         session.detach()
 
 
+def busy_percent(before, after, seconds):
+    """How busy the page's main thread was, in percent of one core, from
+    two readings of Chromium's TaskDuration (seconds of work) seconds
+    apart."""
+    if seconds <= 0:
+        raise ValueError('no time measured')
+    return 100.0 * (after - before) / seconds
+
+
+def task_duration(session):
+    """Chromium's TaskDuration: the seconds of work the page's main thread
+    has done (Performance.getMetrics)."""
+    for metric in session.send('Performance.getMetrics')['metrics']:
+        if metric['name'] == 'TaskDuration':
+            return metric['value']
+    raise RuntimeError('Chromium gave no TaskDuration')
+
+
+def cpu(page, name, seconds, budget, problems):
+    """An ACT cpu line (web-ide-idle.livecodescript): how busy the page's
+    main thread is for seconds, in percent of one core, logged, and a
+    problem when above budget. Only Chromium has the DevTools protocol;
+    another browser logs that it was not measured."""
+    try:
+        session = page.context.new_cdp_session(page)
+    except Exception:  # noqa: BLE001 - not Chromium
+        log('CPU %s: not measured in this browser' % name)
+        return None
+    try:
+        session.send('Performance.enable')
+        before, started = task_duration(session), time.monotonic()
+        page.wait_for_timeout(seconds * 1000)
+        after, took = task_duration(session), time.monotonic() - started
+    finally:
+        session.detach()
+    busy = busy_percent(before, after, took)
+    log('CPU %s: %.1f%% of a core over %.0f s (at most %g%%)' % (name, busy, took, budget))
+    if busy > budget:
+        problems.append('%s kept the page busy %.1f%% of the time, more than %g%%' % (name, busy, budget))
+    return busy
+
+
 def act(page, words, shots_dir, shots, problems):
     """Does what an ACT line asks (web-ide-tour.livecodescript, "Lines")."""
     verb, rest = words[2], words[3:]
@@ -493,6 +538,8 @@ def act(page, words, shots_dir, shots, problems):
             page.set_viewport_size({'width': int(rest[0]), 'height': int(rest[1])})
         elif verb == 'scheme' and len(rest) == 1 and rest[0] in ('light', 'dark'):
             page.emulate_media(color_scheme=rest[0])
+        elif verb == 'cpu' and len(rest) == 3:
+            cpu(page, rest[0], float(rest[1]), float(rest[2]), problems)
         else:
             problems.append('the tour asked for what the page cannot do: %s' % ' '.join(words))
     except Exception as e:  # noqa: BLE001
