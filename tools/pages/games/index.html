@@ -37,7 +37,11 @@
   a:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; border-radius: 8px; }
   .wrap { width: min(1180px, 100% - 32px); margin: 0 auto; }
 
-  /* The sky: stars, and the logo's rays turning slowly */
+  /* The sky: stars, and the logo's rays. Nothing on this page moves without
+     end unless it is pointed at or has the keyboard's focus, as on the
+     front page (tperry2x, openxtalk.org p=25971): the rays turning, nineteen
+     rims running and the flame flowing kept a browser without a GPU busy
+     all the time. tools/pages/check_site_rest.py holds it to that. */
   .sky { position: relative; isolation: isolate; overflow: hidden; padding-bottom: 30px; }
   .sky::before {
     content: ""; position: absolute; z-index: -1; inset: 0;
@@ -55,9 +59,7 @@
     background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(255,160,60,.07) 0 4deg, transparent 4deg 13deg);
     -webkit-mask: radial-gradient(circle at 50% 50%, #000 15%, transparent 55%);
     mask: radial-gradient(circle at 50% 50%, #000 15%, transparent 55%);
-    animation: rays 160s linear infinite;
   }
-  @keyframes rays { to { transform: translateX(-50%) rotate(360deg); } }
 
   nav.top { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
   .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; color: var(--text); text-decoration: none; font-size: 1.05rem; }
@@ -77,12 +79,21 @@
   .flame {
     background: linear-gradient(100deg, #ffd08a, #ffb347 20%, #ff7700 60%, #ff3d00 85%, #ffb347);
     background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
-    filter: drop-shadow(0 4px 22px rgba(255,122,0,.4)); animation: flow 6s ease-in-out infinite alternate;
+    filter: drop-shadow(0 4px 22px rgba(255,122,0,.4)); animation: flow 6s ease-in-out 2 alternate;
   }
+  /* (it flows there and back as the page opens, then while pointed at) */
+  .hero h1:hover .flame { animation: flow 6s ease-in-out infinite alternate; }
   @keyframes flow { to { background-position: 100% 0; } }
   .lead { margin: 0; max-width: 40em; font-size: 1.15rem; color: rgba(222,230,244,.82); }
-  .hero-logo { width: 190px; height: 190px; transform: rotate(6deg); filter: drop-shadow(0 18px 30px rgba(0,0,0,.5)) drop-shadow(0 0 30px rgba(255,122,0,.35)); }
+  .hero-logo { display: block; width: 190px; height: 190px; transform: rotate(6deg); filter: drop-shadow(0 18px 30px rgba(0,0,0,.5)) drop-shadow(0 0 30px rgba(255,122,0,.35)); }
   .hero-logo img { display: block; width: 100%; height: 100%; }
+  /* The logo moves (brand/logo-animated.svg, SMIL in the file) for the
+     page's first seconds (the class "opening", which the script below
+     takes off) and while it is pointed at; still otherwise, and always for
+     less motion */
+  .hero-logo .moving { display: none; }
+  .opening .hero-logo .moving, .hero-logo:hover .moving { display: block; }
+  .opening .hero-logo .still, .hero-logo:hover .still { display: none; }
 
   /* A section's heading: its name, and the logo's stitched seam */
   .shelf { padding: 34px 0 10px; }
@@ -118,11 +129,12 @@
     background: conic-gradient(from var(--spin), #ff3d00, #ffc24d 12%, #fff4b0 16%, #ff7700 24%, rgba(255,119,0,.3) 45%, rgba(255,61,0,.3) 70%, #ff3d00);
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor; mask-composite: exclude;
-    animation: spin 8s linear infinite; transition: opacity .25s ease;
+    transition: opacity .25s ease;
   }
+  /* The rim runs only around the stack pointed at or focused */
   @keyframes spin { to { --spin: 360deg; } }
   .stack:hover, .stack:focus-visible { transform: translateY(-6px); box-shadow: 0 20px 54px rgba(255,122,0,.22), 0 0 0 1px rgba(255,122,0,.15); }
-  .stack:hover::before, .stack:focus-visible::before { opacity: 1; animation-duration: 2.2s; }
+  .stack:hover::before, .stack:focus-visible::before { opacity: 1; animation: spin 2.2s linear infinite; }
   .shot { position: relative; aspect-ratio: 16 / 10; overflow: hidden; background: #0c111b; }
   .big .shot { aspect-ratio: 2 / 1; }
   .shot img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; transition: transform .5s ease; }
@@ -168,6 +180,8 @@
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
+    .hero-logo .moving { display: none !important; }
+    .hero-logo .still { display: block !important; }
   }
 </style>
 </head>
@@ -188,10 +202,10 @@
         <h1>Web <span class="flame">Stacks</span></h1>
         <p class="lead">Games, music, live data and drawing, every one a stack written in xTalk Script and running right here in your browser, with nothing to install. Pick one and play.</p>
       </div>
-      <picture class="hero-logo" aria-hidden="true">
-        <source srcset="../brand/logo.svg" media="(prefers-reduced-motion: reduce)">
-        <img src="../brand/logo-animated.svg" alt="" width="190" height="190">
-      </picture>
+      <span class="hero-logo" aria-hidden="true">
+        <img class="still" src="../brand/logo.svg" alt="" width="190" height="190">
+        <img class="moving" src="../brand/logo-animated.svg" alt="" width="190" height="190">
+      </span>
     </div>
   </div>
 </header>
@@ -261,5 +275,14 @@
     <a href="../">Back to OXT-Beyond</a>
   </div>
 </footer>
+<script>
+  // The header's logo moves for the page's first seconds, then only while
+  // it is pointed at (without this script it is still)
+  (function () {
+    var root = document.documentElement;
+    root.classList.add('opening');
+    setTimeout(function () { root.classList.remove('opening'); }, 6000);
+  })();
+</script>
 </body>
 </html>
