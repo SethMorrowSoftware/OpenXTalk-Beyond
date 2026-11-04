@@ -129,6 +129,7 @@ own that holds nothing else of value.
 | `index.html` | the page: the home, library, About panel and bar in HTML, and the engine's canvas for the stack; it writes the files it is given into the engine's `/uploads` and calls the player stack's `playerFromPage` |
 | `stacks/` | the three stacks the home page features and the small samples with a picture, each with a picture of its first card (`.webp`, 960 wide at most); each one before the Phone Starter carries the colourized Script Viewer as a substack |
 | `phone-starter.livecodescript`, `phone-starter-stack.livecodescript` | build `stacks/Phone Starter.oxtstack` (see below) |
+| `responsive-starter.livecodescript`, `responsive-starter-stack.livecodescript` | build `stacks/Responsive Starter.oxtstack` (see below) |
 | `assets/` | the page's logo and pictures, copied beside it |
 | `build_player.py` | starts the IDE with the script above, puts the page in place, packs the zip and, with `--check`, drives the player in headless Chromium |
 
@@ -197,3 +198,37 @@ not reach earthquake.usgs.gov).
 `OXT_CHROMIUM` names a Chromium to use instead of Playwright's.
 Screenshots and the browser's console go to `<work>/check`. CI runs it in
 build-linux.yml ("Web Stack Player") and attaches the zip to releases.
+
+## The Responsive Starter
+
+`stacks/Responsive Starter.oxtstack` is a stack to copy for one stack
+that is laid out for a phone, a tablet and a desktop, with the Mobile Web
+library's layout rules (`mwResponsive`; the guide *Stacks for Every
+Screen*): Places, three cards (Explore, Saved, How it works) under a tab
+bar on a phone, a rail on a tablet and a sidebar on a desktop; a grid of
+places in one, two or three columns; a place's details in a sheet over
+the grid on a phone and a pane beside it on a tablet or a desktop; a
+search, keys and hover for a mouse, and a dark look. Every control's
+place is a rule in its `mwLayout` custom properties, which the builder
+sets; the stack's script does only what a rule cannot say, in
+`rsAfterLayout` and `layoutChanged`.
+
+The stack is never edited by hand. Its script is
+`responsive-starter-stack.livecodescript` and its controls are made by
+`responsive-starter.livecodescript`; change them, then build it again
+with any OXT-Beyond engine:
+
+```sh
+<engine> -ui tools/web-player/responsive-starter.livecodescript
+```
+
+`tools/ci/responsive_web_check.py` opens it on an iPhone 13, an iPad Mini
+and a desktop (light and dark), in Chromium and WebKit, and checks each
+layout, the sheet and the pane, a turn, a notch, the keys, a narrow
+window and the look; it fails if the committed stack's script is not
+`responsive-starter-stack.livecodescript`'s. CI runs it in web.yml, after
+the Mobile Web check. To run it yourself:
+
+```sh
+python3 tools/ci/responsive_web_check.py --runtime <web runtime> --engine-cache <folder> --shots <folder>
+```
