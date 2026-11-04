@@ -87,7 +87,22 @@
           return;
         }
         Module.setStatus('Something went wrong. The browser console has the details.');
+        // The engine's own JavaScript not understood: a browser older
+        // than the engine needs (an iPhone or an iPad before iOS 15)
+        if (e.error instanceof SyntaxError && oxtTooOld()) {
+          showStopped(oxtTooOldText);
+        }
       });
+
+      // Whether the browser is older than the engine needs: Safari 15 (iOS
+      // 15) is the first Safari with what the engine uses, BigInt64Array
+      // among it. A newer browser that cannot read the engine has a
+      // damaged file, or a server that sent something else in its place.
+      function oxtTooOld() {
+        return typeof BigInt64Array == 'undefined';
+      }
+      var oxtTooOldText = 'This browser is too old to run the stack: it needs Safari 15 or later ' +
+        '(iOS 15 or later on an iPhone or an iPad), or an up-to-date Chrome, Edge or Firefox.';
 
       // A note above everything, with the browser's own words and which
       // browser it is, so that whoever sees it can tell what happened:
@@ -119,7 +134,15 @@
         var stopped = (reason instanceof RangeError && /wasm/.test(String(reason.stack || ''))) ||
           (typeof WebAssembly == 'object' && WebAssembly.RuntimeError && reason instanceof WebAssembly.RuntimeError);
         if (stopped) {
-          showStopped('The stack stopped in this browser: ' + (reason.message || String(reason)));
+          var said = reason.message || String(reason);
+          if (!/CompileError/.test(said)) {
+            showStopped('The stack stopped in this browser: ' + said);
+          } else if (oxtTooOld()) {
+            showStopped(oxtTooOldText + ' (' + said + ')');
+          } else {
+            showStopped('This browser could not read the engine: its .wasm file is damaged, or the server ' +
+              'sent something else in its place. Upload the files again as they were built. (' + said + ')');
+          }
         }
       });
 

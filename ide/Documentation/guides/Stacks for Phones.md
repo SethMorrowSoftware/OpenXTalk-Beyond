@@ -239,7 +239,11 @@ A browser keeps some of these for the user's own choice:
   iPhone, the motion): a no comes as `trackingError`.
 * What a phone cannot do, the handler says in `the result` (`not
   supported`, `not available`), and the stack goes on: an iPhone cannot
-  buzz or hide Safari's bars, for one.
+  buzz or hide Safari's bars, for one. Called other than from a tap, the
+  camera, the share sheet and the full screen say `not from a tap`.
+* A stack for phones needs iOS 15 or later on an iPhone or an iPad (an
+  iPhone 6s or newer), and WebAssembly: Lockdown Mode turns it off, and
+  the page says so.
 
 Stop a sensor when it is not needed, in `closeCard`: reading one uses the
 battery.

@@ -299,6 +299,16 @@ def png(width, height):
             + chunk(b'IDAT', zlib.compress(rows, 6)) + chunk(b'IEND', b''))
 
 
+def notes_middle(s, width):
+    """Where the middle of Notes is across (state's notesleft: its left
+    and right), or the middle of the window where the stack does not say."""
+    try:
+        left, right = (int(v) for v in s.get('notesleft', '').split(','))
+    except ValueError:
+        return width / 2
+    return (left + right) / 2
+
+
 def buttons(s):
     """The Phone card's buttons, by name, as rectangles"""
     out = {}
@@ -438,7 +448,9 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
         # told that a keyboard covers the window from 60 pixels below the
         # top of Notes (so Notes, 120 high, is under it on any phone)
         before = int(s.get('notestop') or 0)
-        fingers.tap(width / 2, before + 40)
+        # (where Notes is across: a tablet lays the form out in two columns)
+        notes_x = notes_middle(s, width)
+        fingers.tap(notes_x, before + 40)
         time.sleep(0.5)
         keyboard = height - before - 60
         page.evaluate("""([w, h, k]) => {
@@ -467,7 +479,7 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
         time.sleep(1)
         s = state(page)
         expect('the form stays put for Name, above the keyboard', s.get('notestop') == str(before), s)
-        fingers.tap(width / 2, before + 40)
+        fingers.tap(notes_x, before + 40)
         s = wait_for(page, lambda s: s.get('notestop', '').lstrip('-').isdigit() and int(s['notestop']) < before)
         top = int(s.get('notestop') or 0)
         expect('Notes tapped while the keyboard is up moves the form up', top < before and top + 120 <= height - keyboard, s)
@@ -582,6 +594,22 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
             'Sent to the share sheet.', 'Copied, ready to paste.', 'This browser cannot share.'), s)
         shot('7-phone')
 
+        # 7b. the camera, the share sheet and the whole screen asked for
+        # other than from a tap (as from a timer): where the browser can tell,
+        # each says "not from a tap" at once; mwPickPhoto waited for ever
+        # (Playwright runs page.evaluate as if from a tap, which a browser
+        # keeps for 5 seconds at most: the call is made from a timer after
+        # that)
+        if page.evaluate("() => 'userActivation' in navigator"):
+            got = str(page.evaluate("""() => new Promise(function(done) { setTimeout(function() {
+                done(navigator.userActivation.isActive ? 'still a tap' :
+                     String(document.liveCode.findStackWithName('MobileWebCheck').mwcNotFromATap()));
+            }, 6500); })"""))
+            expect('not from a tap, the camera, the share sheet and the whole screen say so at once',
+                   got == 'not from a tap,not from a tap,not from a tap', {'not-from-a-tap': got})
+        else:
+            log('  (this browser cannot tell a tap: no navigator.userActivation)')
+
         # 8. the phone turns
         tab(0)
         page.set_viewport_size({'width': height, 'height': width})
@@ -606,36 +634,43 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
 
         # 9. a desktop stack fitted to the phone: the button at 680,420 to
         # 780,480 of an 800x500 stack, shown as big as fits and centred
-        page.evaluate("() => document.liveCode.findStackWithName('MobileWebCheck').mwcFit()")
-        s = wait_for(page, lambda s: s.get('fullscreen') == 'true')
-        expect('the desktop stack is made fullscreen', s.get('fullscreen') == 'true', s)
-        time.sleep(1)
-        scale = min(width / 800.0, height / 500.0)
-        x = (width - 800 * scale) / 2 + 730 * scale
-        y = (height - 500 * scale) / 2 + 450 * scale
-        fingers.tap(x, y)
-        s = wait_for(page, lambda s: s.get('farhit') == 'true')
-        shot('6-fit')
-        expect('a tap reaches the fitted stack\'s far button', s.get('farhit') == 'true', s)
-        # turned, it is fitted again, and the Phone Starter, filled
-        # before, is left as it was: the window is the new stack's now
-        page.set_viewport_size({'width': height, 'height': width})
-        time.sleep(2)
-        s = state(page)
-        expect('turned, the stack filled before is left as it was',
-               rect(s.get('rect', '')) == [0, 0, width, height], s)
+        # (a tablet: the desktop stack fits, the right way up or turned,
+        # and by design is left as it is then; the library's own tests
+        # hold that. The turns below need it too big both ways.)
+        fits = max(width, height) >= 800 and min(width, height) >= 500
+        if fits:
+            log('  (the 800x500 stack fits this %dx%d screen, or turned: nothing to fit)' % (width, height))
+        else:
+            page.evaluate("() => document.liveCode.findStackWithName('MobileWebCheck').mwcFit()")
+            s = wait_for(page, lambda s: s.get('fullscreen') == 'true')
+            expect('the desktop stack is made fullscreen', s.get('fullscreen') == 'true', s)
+            time.sleep(1)
+            scale = min(width / 800.0, height / 500.0)
+            x = (width - 800 * scale) / 2 + 730 * scale
+            y = (height - 500 * scale) / 2 + 450 * scale
+            fingers.tap(x, y)
+            s = wait_for(page, lambda s: s.get('farhit') == 'true')
+            shot('6-fit')
+            expect('a tap reaches the fitted stack\'s far button', s.get('farhit') == 'true', s)
+            # turned, it is fitted again, and the Phone Starter, filled
+            # before, is left as it was: the window is the new stack's now
+            page.set_viewport_size({'width': height, 'height': width})
+            time.sleep(2)
+            s = state(page)
+            expect('turned, the stack filled before is left as it was',
+                   rect(s.get('rect', '')) == [0, 0, width, height], s)
 
-        # the same stack fitted by mwFitStack alone (after mwStop), then
-        # turned back: fitted again for the new window
-        got = str(page.evaluate("() => document.liveCode.findStackWithName('MobileWebCheck').mwcFitAlone()"))
-        expect('mwFitStack alone fits it', got == '', {'result': got})
-        time.sleep(1)
-        page.set_viewport_size({'width': width, 'height': height})
-        time.sleep(2)
-        fingers.tap(x, y)
-        s = wait_for(page, lambda s: s.get('farhit') == 'true')
-        expect('turned back, mwFitStack alone has fitted it again: a tap reaches the far button',
-               s.get('farhit') == 'true', s)
+            # the same stack fitted by mwFitStack alone (after mwStop), then
+            # turned back: fitted again for the new window
+            got = str(page.evaluate("() => document.liveCode.findStackWithName('MobileWebCheck').mwcFitAlone()"))
+            expect('mwFitStack alone fits it', got == '', {'result': got})
+            time.sleep(1)
+            page.set_viewport_size({'width': width, 'height': height})
+            time.sleep(2)
+            fingers.tap(x, y)
+            s = wait_for(page, lambda s: s.get('farhit') == 'true')
+            expect('turned back, mwFitStack alone has fitted it again: a tap reaches the far button',
+                   s.get('farhit') == 'true', s)
 
         # 10. mwStop gives the page back its own look, and a page that keeps
         # its own layout (as the Stack Player's does) is not filled

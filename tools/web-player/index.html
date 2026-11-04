@@ -776,7 +776,16 @@ dialog.answer .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:
     var reason = event.reason;
     var stopped = (reason instanceof RangeError && /wasm/.test(String(reason.stack || ''))) ||
       (typeof WebAssembly == 'object' && WebAssembly.RuntimeError && reason instanceof WebAssembly.RuntimeError);
-    if (stopped) showStopped('The stack stopped in this browser: ' + (reason.message || String(reason)));
+    if (!stopped) return;
+    var said = reason.message || String(reason);
+    // its WebAssembly not understood: a browser older than the engine
+    // needs (Safari 15, iOS 15, is the first with BigInt64Array, which the
+    // engine uses), or else a damaged file
+    if (!/CompileError/.test(said)) showStopped('The stack stopped in this browser: ' + said);
+    else if (typeof BigInt64Array == 'undefined') showStopped('This browser is too old to run stacks: it needs Safari 15 or later ' +
+      '(iOS 15 or later on an iPhone or an iPad), or an up-to-date Chrome, Edge or Firefox. (' + said + ')');
+    else showStopped('This browser could not read the engine: its .wasm file is damaged, or the server ' +
+      'sent something else in its place. Upload the files again as they were built. (' + said + ')');
   });
   // A browser without WebAssembly cannot run the engine at all, and the
   // page said it was starting for ever. An iPhone's or an iPad's Lockdown

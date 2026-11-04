@@ -239,10 +239,15 @@ const document = {
 const navigator = { userAgent: 'TestPhone/1.0' };
 const $ = (id) => document.getElementById(id);
 const RealWasm = globalThis.WebAssembly;
-(function (WebAssembly) {
+(function (WebAssembly, BigInt64Array) {
 NOTE
-})(NOWASM ? undefined : RealWasm);
+})(NOWASM ? undefined : RealWasm, 'MODE' === 'oldcompile' ? undefined : globalThis.BigInt64Array);
 const fire = (reason) => listeners.unhandledrejection.forEach((fn) => fn({ reason }));
+if ('MODE' === 'compile' || 'MODE' === 'oldcompile') {
+  fire(new RealWasm.RuntimeError('Aborted(CompileError: WebAssembly.Module doesn\'t parse at byte 9)'));
+  console.log(JSON.stringify({ seen: [added.length], note: added[0] || null }));
+  process.exit(0);
+}
 const seen = [added.length];
 fire(new Error('a stack of its own'));
 seen.push(added.length);
@@ -271,6 +276,8 @@ class SaysWhenItStops(unittest.TestCase):
     @staticmethod
     def note_code(page):
         start = page.index('function showStopped(text)')
+        if 'function oxtTooOld()' in page:
+            start = min(start, page.index('function oxtTooOld()'))
         check = page.index("if (typeof WebAssembly != 'object') {", start)
         end = re.compile(r'^\s*\}$', re.M).search(page, check).end()
         return page[start:end]
@@ -293,8 +300,9 @@ class SaysWhenItStops(unittest.TestCase):
         player = read(*self.PAGES[1])
         self.assertRegex(player, r'#stopped\{position:fixed;[^}]*z-index:2147483647')
 
-    def run_page(self, parts, nowasm):
-        script = FAKE_PAGE.replace('NOTE', self.note_code(read(*parts))).replace('NOWASM', 'true' if nowasm else 'false')
+    def run_page(self, parts, nowasm, mode='normal'):
+        script = FAKE_PAGE.replace('NOTE', self.note_code(read(*parts))).replace(
+            'NOWASM', 'true' if nowasm else 'false').replace("'MODE'", repr(mode))
         out = subprocess.run([shutil.which('node'), '-e', script], capture_output=True, text=True, timeout=60)
         self.assertEqual(out.returncode, 0, (parts, out.stderr))
         return json.loads(out.stdout)
@@ -307,6 +315,34 @@ class SaysWhenItStops(unittest.TestCase):
             self.assertEqual(result['note']['id'], 'stopped')
             self.assertEqual(result['note']['textContent'],
                              'The stack stopped in this browser: Maximum call stack size exceeded. (TestPhone/1.0)')
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not installed')
+    def test_a_browser_too_old_for_the_engine_is_told_so(self):
+        # its WebAssembly not understood (Safari before 15): the engine's
+        # abort names the CompileError
+        for parts in self.PAGES:
+            result = self.run_page(parts, False, 'oldcompile')
+            self.assertEqual(result['seen'], [1], parts)
+            self.assertIn('too old', result['note']['textContent'])
+            self.assertIn('Safari 15 or later', result['note']['textContent'])
+            self.assertIn('CompileError', result['note']['textContent'])
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not installed')
+    def test_a_newer_browser_that_cannot_read_the_engine_has_a_damaged_file(self):
+        # (a server that sends a page of its own for the .wasm file, or a
+        # file cut short, is not the browser's age)
+        for parts in self.PAGES:
+            result = self.run_page(parts, False, 'compile')
+            self.assertEqual(result['seen'], [1], parts)
+            self.assertNotIn('too old', result['note']['textContent'])
+            self.assertIn('.wasm file is damaged', result['note']['textContent'])
+
+    def test_its_javascript_not_understood_is_too_old_too(self):
+        page = read(*self.PAGES[0])
+        listener = page[page.index("window.addEventListener('error', function(e) {"):page.index('function oxtTooOld()')]
+        self.assertRegex(listener, r'if \(e\.error instanceof SyntaxError && oxtTooOld\(\)\) \{\s+showStopped\(oxtTooOldText\);')
+        # (only after the page's own errors are sorted from others', #341)
+        self.assertLess(listener.index('oxtOwnError(e)'), listener.index('SyntaxError'))
 
     @unittest.skipUnless(shutil.which('node'), 'node is not installed')
     def test_a_browser_without_webassembly_is_told_at_once(self):

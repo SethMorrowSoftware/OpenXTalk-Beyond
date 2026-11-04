@@ -1025,8 +1025,9 @@ app (a message, an email, a note) to share with. Call it from a tap: a
 browser opens the sheet only then. Where the browser has no share sheet,
 as on most desktops, the text and the link are copied instead, ready to
 paste, and the result is "copied". It is "not supported" where neither
-can be done, and "nothing to share" when the text and the link are
-empty.
+can be done, "nothing to share" when the text and the link are empty,
+and "not from a tap" when it was not called from a tap and the browser
+can tell that it would not open the sheet.
 
 References: mwVibrate (command)
 */
@@ -1108,9 +1109,9 @@ with the phone's back gesture.
 
 Call it from a tap: a browser gives the whole screen only then. The
 result is "not supported" where the browser cannot, such as on an iPhone
-(an iPad can) and on a desktop outside a browser. On an iPhone, a page
-added to the home screen opens without the bars instead (see
-<mwIsInstalled>).
+(an iPad can) and on a desktop outside a browser, and "not from a tap"
+when it was not called from a tap. On an iPhone, a page added to the
+home screen opens without the bars instead (see <mwIsInstalled>).
 
 References: mwIsFullScreen (function), mwIsInstalled (function), mwStart (command)
 */
@@ -1179,15 +1180,17 @@ is empty. When the user closes the camera without one, no image is made
 and the result is "cancel". The stack goes on getting its messages while
 <mwPickPhoto> waits.
 
-Call it from a tap: a browser opens the camera only then. A browser
-that cannot open the camera itself, as on a desktop, shows its file
-chooser instead. In the IDE, "library" asks for a picture file and the
+Call it from a tap: a browser opens the camera only then. Called
+otherwise, the result is "not from a tap" at once where the browser can
+tell (Safari 16.4 and later, Chrome, Firefox), and no image is made. A
+browser that cannot open the camera itself, as on a desktop, shows its
+file chooser instead. In the IDE, "library" asks for a picture file and the
 cameras give "not supported".
 
 References: mwShare (command)
 */
 command mwPickPhoto pSource, pMaxWidth, pMaxHeight
-   local tData, tStack, tDefault, tImage, tScale
+   local tData, tStack, tDefault, tImage, tScale, tStarted
    if pSource is empty then
       put "library" into pSource
    end if
@@ -1212,7 +1215,14 @@ command mwPickPhoto pSource, pMaxWidth, pMaxHeight
       mwInstallBrowserSide
       put empty into sPhoto
       put "waiting" into sPhotoState
-      get mwJS("return window.__oxtMobileWeb.pickPhoto(" & mwQuote(pSource) & comma & pMaxWidth & comma & pMaxHeight & ");")
+      -- (a browser opens the camera only from a tap: "not from a tap"
+      -- when it can tell that it would not, rather than waiting for a
+      -- photo that cannot come)
+      put mwJS("return window.__oxtMobileWeb.pickPhoto(" & mwQuote(pSource) & comma & pMaxWidth & comma & pMaxHeight & ");") into tStarted
+      if tStarted is not empty then
+         put empty into sPhotoState
+         return tStarted
+      end if
       wait until sPhotoState is not "waiting" with messages
       if sPhotoState is not "done" then
          put empty into sPhotoState
@@ -1761,6 +1771,12 @@ private function mwBrowserScript
    put "function round3(v) { return Math.round(v * 1000) / 1000; }" & return after tScript
    put "function seconds() { return (Date.now() / 1000).toFixed(3); }" & return after tScript
    put "function touchy() { return (navigator.maxTouchPoints || 0) > 0 || 'ontouchstart' in window; }" & return after tScript
+   put "// A browser opens the camera, the share sheet or the whole screen only" & return after tScript
+   put "// from a tap: without one nothing opens and nothing answers. Where the" & return after tScript
+   put "// browser can tell (Safari 16.4 and later, Chrome, Firefox), say so." & return after tScript
+   put "// (Not for the sensors: a phone that was allowed them once gives them" & return after tScript
+   put "// again without a tap.)" & return after tScript
+   put "function noTap() { return !!(navigator.userActivation && navigator.userActivation.isActive === false); }" & return after tScript
    put "function sensorAvailable(name) {" & return after tScript
    put "  if (name === 'location') return !!navigator.geolocation;" & return after tScript
    put "  if (name === 'heading') return 'DeviceOrientationEvent' in window && touchy();" & return after tScript
@@ -1869,6 +1885,7 @@ private function mwBrowserScript
    put "  var el = document.documentElement, ask = el.requestFullscreen || el.webkitRequestFullscreen;" & return after tScript
    put "  var leave = document.exitFullscreen || document.webkitExitFullscreen;" & return after tScript
    put "  if (!ask || document.fullscreenEnabled === false) return 'not supported';" & return after tScript
+   put "  if (on && !isFullScreen() && noTap()) return 'not from a tap';" & return after tScript
    put "  try {" & return after tScript
    put "    var p = null;" & return after tScript
    put "    if (on && !isFullScreen()) p = ask.call(el, {navigationUI: 'hide'});" & return after tScript
@@ -1878,6 +1895,7 @@ private function mwBrowserScript
    put "  return '';" & return after tScript
    put "}" & return after tScript
    put "function share(text, url, title) {" & return after tScript
+   put "  if (noTap()) return 'not from a tap';" & return after tScript
    put "  var d = {};" & return after tScript
    put "  if (text) d.text = text;" & return after tScript
    put "  if (url) d.url = url;" & return after tScript
@@ -1910,6 +1928,7 @@ private function mwBrowserScript
    put "}" & return after tScript
    put "function pickPhoto(source, maxW, maxH) {" & return after tScript
    put "  if (mw.photo) mw.photo.finish('photocancel', '');" & return after tScript
+   put "  if (noTap()) return 'not from a tap';" & return after tScript
    put "  var input = document.createElement('input'), job = {done: false, chosen: false};" & return after tScript
    put "  input.type = 'file'; input.accept = 'image/*';" & return after tScript
    put "  if (source !== 'library') input.setAttribute('capture', source === 'front camera' ? 'user' : 'environment');" & return after tScript
