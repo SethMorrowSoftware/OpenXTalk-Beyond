@@ -1688,6 +1688,18 @@ jobs:
             2>&1 | tee "$RUNNER_TEMP/logs/learn-box2dxt-kit.log"
           tail -n 1 "$RUNNER_TEMP/logs/learn-box2dxt-kit.log" | grep -qx DONE
 
+      # What the two Box2D Learn stacks cost, lesson by lesson: a lesson
+      # paused, or with its window hidden, must cost next to nothing, and a
+      # frame (one with many bodies too) must keep within its budget
+      # (tools/examples/perf-learn-box2d.py, BUDGET there)
+      - name: Box2D Learn stacks' cost
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
+        timeout-minutes: 15
+        run: |
+          timeout 840 python3 tools/examples/perf-learn-box2d.py --install "$OXT_ROOT" \
+            2>&1 | tee "$RUNNER_TEMP/logs/learn-box2d-perf.log"
+          tail -n 1 "$RUNNER_TEMP/logs/learn-box2d-perf.log" | grep -qx DONE
+
       # The Learn stacks of the xTalk Suite's extensions (Learn SodiumXT
       # and the others builder.livecodescript's exLearn handlers make), run
       # by the package's engine with the package's extensions: every

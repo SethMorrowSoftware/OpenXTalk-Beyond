@@ -136,6 +136,9 @@ private function testCard pStack, pCard
    if tWhy is empty then
       put checks(tName) into tWhy
    end if
+   if tWhy is empty and tName is "Bodies" then
+      put shelfFalls() into tWhy
+   end if
    put $OXT_LEARN_BOX2D_SNAPS into tSnaps
    if tSnaps is not empty then
       export snapshot from this card to file (tSnaps & "/" & format("%02d", pCard - 1) & "-" & tName & ".png") as PNG
@@ -288,6 +291,38 @@ private function checks pCard
    set the itemDelimiter to comma
    return tWhy
 end checks
+
+-- On Bodies, the shelf made dynamic falls, and is drawn where it is:
+-- the Lab draws only the bodies that move, and a body that was static
+-- when it was shown must still be drawn once it moves (before 0.2.7-rc.6.15
+-- its graphic stayed where it was, in the air)
+private function shelfFalls
+   local tBody, tShelf, tY, tGraphic, tDrawnY, tCard
+   put the long id of this card into tCard
+   dispatch "labRun" to this card with "labRestart"
+   waitRun 800
+   repeat for each item tBody in value("labBodies()", tCard)
+      if b2BodyType(tBody) is 0 and abs(b2BodyX(tBody) + 2.6) < 0.01 and abs(b2BodyY(tBody) - 3.2) < 0.01 then
+         put tBody into tShelf
+      end if
+   end repeat
+   if tShelf is empty then
+      return "no static shelf at -2.6, 3.2"
+   end if
+   dispatch "labRun" to this card with "shelfType"
+   waitRun 1500
+   put b2BodyY(tShelf) into tY
+   if tY > 2.5 then
+      return "the shelf made dynamic did not fall: it is at" && tY && "m"
+   end if
+   put item 1 of value("labGraphics(" & tShelf & ")", tCard) into tGraphic
+   put item 2 of the loc of graphic id tGraphic into tDrawnY
+   if abs(tDrawnY - value("labPY(" & tY & ")", tCard)) > 3 then
+      return "the shelf is at" && value("labPY(" & tY & ")", tCard) && "px but drawn at" && tDrawnY
+   end if
+   write "  ok Bodies shelfType -> the shelf fell to" && round(tY, 2) && "m and is drawn there" & return to stdout
+   return empty
+end shelfFalls
 
 -- The number after a word in a line (with a comma or a bracket after it
 -- taken off)

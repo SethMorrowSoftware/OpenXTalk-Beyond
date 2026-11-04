@@ -493,16 +493,26 @@ local sWorld, sCard, sStack, sGen
 -- True while the Pause button holds the world still
 local sPaused
 -- What labShow draws: the graphics of each body (sBodies[body] is their
--- ids), each graphic's points around its body (in metres), the bodies
--- that never move, and the colour each graphic is drawn in
-local sBodies, sPoints, sStill, sColor
+-- ids), each graphic's points around its body (in pixels, made from
+-- metres once, when it is shown), where and at what angle each body was
+-- last drawn, the points each graphic was last given, and the colour
+-- each graphic is drawn in
+local sBodies, sPoints, sPose, sDrawn, sColor
 -- The joints labShowJoint draws, the lines and dots labLine and labDot
 -- draw, and the bodies labFlash lit, with when they go back
 local sJoints, sMarks, sFlash
--- The button of the card's that is lit for a moment (labShowButtons)
-local sFlashed, sLightTicks
+-- The button of the card's that is lit for a moment (labShowButtons),
+-- and the card's switches, after the card's long id (labSwitchLights)
+local sFlashed, sLightTicks, sSwitches
 -- The card being opened, until labOpenNow makes its lesson
 local sOpening
+-- What each joint labShowJoint draws holds: its second body and the two
+-- points it holds, each around its own body (they never change; its line's
+-- points are sDrawn["joint" & the joint])
+local sJointInfo
+-- True when the window was hidden or made an icon: the world waited,
+-- and is drawn whole when it is back
+local sHidden
 -- The mouse joint that holds a body you drag, and the static body it is
 -- tied to
 local sDrag, sDragGround
@@ -631,9 +641,12 @@ command labClose
    unlock screen
    put empty into sBodies
    put empty into sPoints
-   put empty into sStill
+   put empty into sPose
+   put empty into sDrawn
    put empty into sColor
    put empty into sJoints
+   put empty into sJointInfo
+   put false into sHidden
    put empty into sMarks
    put empty into sFlash
    put empty into sSaid
@@ -657,12 +670,22 @@ end labDelete
 #
 
 -- One step of the world: b2Step moves every body 1/60 of a second, the
--- card's labStep does what it does each step, and every body is drawn
--- again. Then it sends itself, to run again in what is left of 16
--- milliseconds, so about 60 times a second
+-- card's labStep does what it does each step, and every body that moved
+-- is drawn again. Then it sends itself, to run again in what is left of
+-- 16 milliseconds, so about 60 times a second.
+-- Paused, nothing moves, so nothing is drawn: it only lets go of a body
+-- the mouse let go of, and puts out the bodies labFlash lit, 20 times a
+-- second. (A button pressed while paused draws what it changed: labRun)
+-- While the window is hidden, or made an icon, the world waits, as if
+-- paused, and is drawn again whole when the window is back
 on labTick pGen
    local tStart, tError
    if pGen is not sGen or sWorld is empty then
+      exit labTick
+   end if
+   if the visible of stack sStack is false or the iconic of stack sStack then
+      put true into sHidden
+      send ("labTick" && pGen) to me in 250 milliseconds
       exit labTick
    end if
    put the milliseconds into tStart
@@ -675,7 +698,7 @@ on labTick pGen
          labStepOnce
       else
          labDrag
-         labDraw
+         labFlashesOut
       end if
    catch tError
       unlock screen
@@ -683,7 +706,11 @@ on labTick pGen
       exit labTick
    end try
    unlock screen
-   send ("labTick" && pGen) to me in max(1, 16 - (the milliseconds - tStart)) milliseconds
+   if sPaused then
+      send ("labTick" && pGen) to me in 50 milliseconds
+   else
+      send ("labTick" && pGen) to me in max(1, 16 - (the milliseconds - tStart)) milliseconds
+   end if
 end labTick
 
 -- What the Step button does, and what each tick does when it runs
@@ -696,7 +723,7 @@ command labStepOnce
    -- times a second)
    add 1 to sLightTicks
    if sLightTicks mod 12 is 0 then
-      labShowButtons empty
+      labSwitchLights
    end if
 end labStepOnce
 
@@ -833,12 +860,11 @@ command labShow pBody, pColor
          next repeat
       end if
       put labNewGraphic(b2ShapeType(tShape) is 2, pColor) into tId
-      put tPoints into sPoints[tId]
+      put labScaled(tPoints) into sPoints[tId]
       put pColor into sColor[tId]
       put tId & comma after sBodies[pBody]
    end repeat
    unlock messages
-   put empty into sStill[pBody]
    labDrawBody pBody, true
    unlock screen
 end labShow
@@ -851,11 +877,12 @@ command labForget pBody
       repeat for each item tId in sBodies[pBody]
          labDelete tId
          delete variable sPoints[tId]
+         delete variable sDrawn[tId]
          delete variable sColor[tId]
       end repeat
       unlock messages
       delete variable sBodies[pBody]
-      delete variable sStill[pBody]
+      delete variable sPose[pBody]
    end if
    b2DestroyBody pBody
 end labForget
@@ -863,6 +890,14 @@ end labForget
 function labIsShown pBody
    return pBody is among the keys of sBodies
 end labIsShown
+
+-- The ids of the graphics labShow drew for a body, a comma between each
+function labGraphics pBody
+   if labIsShown(pBody) then
+      return item 1 to -1 of sBodies[pBody]
+   end if
+   return empty
+end labGraphics
 
 -- Every body labShow drew, a comma between each
 function labBodies
@@ -912,6 +947,8 @@ command labShowJoint pJoint
    set the points of graphic id tId to "0,0" & return & "1,1"
    unlock messages
    put tId into sJoints[pJoint]
+   put b2JointBodyB(pJoint) & "," & b2JointLocalAnchorAX(pJoint) & "," & b2JointLocalAnchorAY(pJoint) & "," & \
+         b2JointLocalAnchorBX(pJoint) & "," & b2JointLocalAnchorBY(pJoint) into sJointInfo[pJoint]
    labDrawJoint pJoint
 end labShowJoint
 
@@ -920,20 +957,34 @@ command labHideJoint pJoint
    if pJoint is among the keys of sJoints then
       labDelete sJoints[pJoint]
       delete variable sJoints[pJoint]
+      delete variable sJointInfo[pJoint]
+      delete variable sDrawn["joint" & pJoint]
    end if
 end labHideJoint
 
 -- A line, named, from one point to another (in metres): made the first
 -- time, moved after. An empty pColor hides it
 command labLine pName, pX1, pY1, pX2, pY2, pColor
-   local tId
+   local tId, tLook
    put labMark(pName, "line") into tId
+   if pColor is empty then
+      put empty into tLook
+   else
+      put pColor & "|" & labPX(pX1) & "," & labPY(pY1) & return & labPX(pX2) & "," & labPY(pY2) into tLook
+   end if
+   -- (called every step: a line just as it was is left alone)
+   if tLook is sDrawn["mark" & tId] then
+      exit labLine
+   end if
+   put tLook into sDrawn["mark" & tId]
    if pColor is empty then
       hide graphic id tId
       exit labLine
    end if
+   set the itemDelimiter to "|"
    set the foregroundColor of graphic id tId to labRGB(pColor)
-   set the points of graphic id tId to labPX(pX1) & "," & labPY(pY1) & return & labPX(pX2) & "," & labPY(pY2)
+   set the points of graphic id tId to item 2 of tLook
+   set the itemDelimiter to comma
    show graphic id tId
 end labLine
 
@@ -942,12 +993,21 @@ command labDot pName, pX, pY, pColor, pSize
    local tId, tX, tY, tR
    put labMark(pName, "oval") into tId
    if pColor is empty then
+      put empty into tX
+   else
+      put labPX(pX) into tX
+      put labPY(pY) into tY
+      put max(1, pSize div 2) into tR
+   end if
+   -- (called every step: a dot just as it was is left alone)
+   if pColor & "|" & tX & "|" & tY & "|" & tR is sDrawn["mark" & tId] then
+      exit labDot
+   end if
+   put pColor & "|" & tX & "|" & tY & "|" & tR into sDrawn["mark" & tId]
+   if pColor is empty then
       hide graphic id tId
       exit labDot
    end if
-   put labPX(pX) into tX
-   put labPY(pY) into tY
-   put max(1, pSize div 2) into tR
    set the backgroundColor of graphic id tId to labRGB(pColor)
    set the rect of graphic id tId to tX - tR, tY - tR, tX + tR, tY + tR
    show graphic id tId
@@ -958,6 +1018,7 @@ end labDot
 command labPath pName, pPoints, pColor
    local tId, tPoint, tPixels
    put labMark(pName, "line") into tId
+   put empty into sDrawn["mark" & tId]
    repeat for each line tPoint in pPoints
       put labPX(item 1 of tPoint) & "," & labPY(item 2 of tPoint) & return after tPixels
    end repeat
@@ -988,6 +1049,8 @@ private function labMark pName, pStyle
    set the points of graphic id tId to "0,0" & return & "1,1"
    unlock messages
    put tId into sMarks[pName]
+   -- (not yet drawn: labLine and labDot draw it whatever they are given)
+   put "new" into sDrawn["mark" & tId]
    return tId
 end labMark
 
@@ -1033,9 +1096,35 @@ private command labFitReadout
 end labFitReadout
 
 -- Each step: every body that moved, where it is now; bodies that left
--- the court far behind are forgotten
+-- the court far behind are forgotten. After the window was hidden, or
+-- made an icon, everything is drawn again
 private command labDraw
-   local tBody, tNow, tY, tGone
+   local tBody, tY, tGone, tFirst
+   labFlashesOut
+   put sHidden into tFirst
+   put false into sHidden
+   repeat for each key tBody in sBodies
+      put b2BodyY(tBody) into tY
+      if tY < -3 or abs(b2BodyX(tBody)) > 12 then
+         put tBody & comma after tGone
+         next repeat
+      end if
+      labDrawBody tBody, tFirst
+   end repeat
+   repeat for each item tBody in tGone
+      labForget tBody
+   end repeat
+   repeat for each key tBody in sJoints
+      labDrawJoint tBody
+   end repeat
+end labDraw
+
+-- The bodies labFlash lit whose moment is over, back in their colours
+private command labFlashesOut
+   local tBody, tNow, tGone
+   if sFlash is empty then
+      exit labFlashesOut
+   end if
    put the milliseconds into tNow
    repeat for each key tBody in sFlash
       if tNow > sFlash[tBody] then
@@ -1046,77 +1135,87 @@ private command labDraw
       delete variable sFlash[tBody]
       labRepaint tBody
    end repeat
-   put empty into tGone
-   repeat for each key tBody in sBodies
-      if sStill[tBody] is true then
-         next repeat
-      end if
-      put b2BodyY(tBody) into tY
-      if tY < -3 or abs(b2BodyX(tBody)) > 12 then
-         put tBody & comma after tGone
-         next repeat
-      end if
-      labDrawBody tBody, false
-   end repeat
-   repeat for each item tBody in tGone
-      labForget tBody
-   end repeat
-   repeat for each key tBody in sJoints
-      labDrawJoint tBody
-   end repeat
-end labDraw
+end labFlashesOut
 
 -- Turns a body's shapes, as Box2D has them around the body, into points
 -- on the card: each point turned by the body's angle, moved to where the
--- body is, and made pixels
+-- body is, in pixels. A body asleep, or one that has not moved since it
+-- was last drawn (one that never moves, as a static body, among them),
+-- is not drawn again
 private command labDrawBody pBody, pFirst
-   local tX, tY, tAngle, tCos, tSin, tId, tPoint, tPixels, tPX, tPY
-   -- (a body asleep has not moved since it was last drawn)
+   local tX, tY, tAngle, tPose, tCos, tSin, tId, tPoint, tPixels, tAX, tAY
    if not pFirst and not b2BodyIsAwake(pBody) then
       exit labDrawBody
    end if
    put b2BodyX(pBody) into tX
    put b2BodyY(pBody) into tY
    put b2BodyAngle(pBody) into tAngle
+   put tX & "," & tY & "," & tAngle into tPose
+   if not pFirst and tPose is sPose[pBody] then
+      exit labDrawBody
+   end if
+   put tPose into sPose[pBody]
    put cos(tAngle) into tCos
    put sin(tAngle) into tSin
+   -- (where the body is, in pixels; y goes up in Box2D, down here)
+   put sOriginX + tX * kScale into tX
+   put sOriginY - tY * kScale into tY
    repeat for each item tId in sBodies[pBody]
       put empty into tPixels
       repeat for each line tPoint in sPoints[tId]
-         put tX + tCos * item 1 of tPoint - tSin * item 2 of tPoint into tPX
-         put tY + tSin * item 1 of tPoint + tCos * item 2 of tPoint into tPY
-         put round(sOriginX + tPX * kScale) & "," & round(sOriginY - tPY * kScale) & return after tPixels
+         put item 1 of tPoint into tAX
+         put item 2 of tPoint into tAY
+         put round(tX + tCos * tAX - tSin * tAY) & "," & round(tY - tSin * tAX - tCos * tAY) & return after tPixels
       end repeat
       delete the last char of tPixels
-      set the points of graphic id tId to tPixels
+      -- (points that did not change are not set again, which would draw
+      -- the graphic again)
+      if tPixels is not sDrawn[tId] then
+         put tPixels into sDrawn[tId]
+         set the points of graphic id tId to tPixels
+      end if
    end repeat
-   -- (a static body never moves: drawn once is enough)
-   if b2BodyType(pBody) is 0 then
-      put true into sStill[pBody]
-   end if
 end labDrawBody
 
+-- A shape's points, in metres a line, as pixels (not rounded: they are
+-- turned and moved first, each time the body is drawn)
+private function labScaled pPoints
+   local tPoint, tScaled
+   repeat for each line tPoint in pPoints
+      put item 1 of tPoint * kScale & "," & item 2 of tPoint * kScale & return after tScaled
+   end repeat
+   delete the last char of tScaled
+   return tScaled
+end labScaled
+
+-- A joint's line: its two points, each where its body has it now. A
+-- joint's bodies and points never change, so labShowJoint asks for them
+-- once. The line is set again only when it is not where it was
 private command labDrawJoint pJoint
-   local tA, tB, tAX, tAY, tBX, tBY
+   local tA, tB, tAX, tAY, tBX, tBY, tPixels
    put b2JointBodyA(pJoint) into tA
-   put b2JointBodyB(pJoint) into tB
-   if tA is 0 or tB is 0 then
+   if tA is 0 then
       -- (the joint was destroyed)
       labHideJoint pJoint
       exit labDrawJoint
    end if
-   put b2BodyWorldPointX(tA, b2JointLocalAnchorAX(pJoint), b2JointLocalAnchorAY(pJoint)) into tAX
-   put b2BodyWorldPointY(tA, b2JointLocalAnchorAX(pJoint), b2JointLocalAnchorAY(pJoint)) into tAY
-   put b2BodyWorldPointX(tB, b2JointLocalAnchorBX(pJoint), b2JointLocalAnchorBY(pJoint)) into tBX
-   put b2BodyWorldPointY(tB, b2JointLocalAnchorBX(pJoint), b2JointLocalAnchorBY(pJoint)) into tBY
+   put item 1 of sJointInfo[pJoint] into tB
+   put b2BodyWorldPointX(tA, item 2 of sJointInfo[pJoint], item 3 of sJointInfo[pJoint]) into tAX
+   put b2BodyWorldPointY(tA, item 2 of sJointInfo[pJoint], item 3 of sJointInfo[pJoint]) into tAY
+   put b2BodyWorldPointX(tB, item 4 of sJointInfo[pJoint], item 5 of sJointInfo[pJoint]) into tBX
+   put b2BodyWorldPointY(tB, item 4 of sJointInfo[pJoint], item 5 of sJointInfo[pJoint]) into tBY
    if abs(tAX - tBX) + abs(tAY - tBY) > 0.01 then
       -- (a rod, a spring, a rope: from one anchor to the other)
-      set the points of graphic id sJoints[pJoint] to labPX(tAX) & "," & labPY(tAY) & return & labPX(tBX) & "," & labPY(tBY)
+      put labPX(tAX) & "," & labPY(tAY) & return & labPX(tBX) & "," & labPY(tBY) into tPixels
    else
       -- (a hinge or a wheel, whose two anchors are one point: from the
       -- middle of one body, through the pin, to the middle of the other)
-      set the points of graphic id sJoints[pJoint] to labPX(b2BodyX(tA)) & "," & labPY(b2BodyY(tA)) & return & \
-            labPX(tAX) & "," & labPY(tAY) & return & labPX(b2BodyX(tB)) & "," & labPY(b2BodyY(tB))
+      put labPX(b2BodyX(tA)) & "," & labPY(b2BodyY(tA)) & return & \
+            labPX(tAX) & "," & labPY(tAY) & return & labPX(b2BodyX(tB)) & "," & labPY(b2BodyY(tB)) into tPixels
+   end if
+   if tPixels is not sDrawn["joint" & pJoint] then
+      put tPixels into sDrawn["joint" & pJoint]
+      set the points of graphic id sJoints[pJoint] to tPixels
    end if
 end labDrawJoint
 
@@ -1274,6 +1373,11 @@ on mouseDown pButton
       put true into sForwarding
       try
          dispatch "mouseDown" to this card with pButton
+         if sPaused and sWorld is not empty then
+            lock screen
+            labDraw
+            unlock screen
+         end if
       catch tError
          put false into sForwarding
          labFail "mouseDown", tError
@@ -1406,6 +1510,11 @@ command labRun pHandler
    lock screen
    try
       dispatch pHandler to sCard
+      -- (paused, the loop draws nothing: what the button changed is
+      -- drawn here)
+      if sPaused and sWorld is not empty and pHandler is not "labStepButton" then
+         labDraw
+      end if
    catch tError
       labFail pHandler, tError
    end try
@@ -1453,6 +1562,35 @@ command labShowButtons pHandler
       end if
    end repeat
 end labShowButtons
+
+-- Every switch's light right, five times a second while the lesson
+-- runs: the card's switches are found once, when it opens, not each time
+command labSwitchLights
+   local tObj, tOn, tError
+   if sCard is empty then
+      exit labSwitchLights
+   end if
+   -- (a line each: a long id holds the stack's path, which can hold a
+   -- comma)
+   if line 1 of sSwitches is not sCard then
+      put sCard into sSwitches
+      repeat with tObj = 1 to the number of groups of sCard
+         if the short name of group tObj of sCard begins with "Do" and the cDo of group tObj of sCard is not empty \
+               and the cSwitch of group tObj of sCard is true then
+            put return & the long id of group tObj of sCard after sSwitches
+         end if
+      end repeat
+   end if
+   repeat for each line tObj in line 2 to -1 of sSwitches
+      put false into tOn
+      try
+         dispatch function "labLit" to sCard with the cDo of tObj
+         put (the result is true) into tOn
+      catch tError
+      end try
+      labLight tObj, tOn
+   end repeat
+end labSwitchLights
 
 -- The end of a button's flash
 command labUnflash
@@ -1580,6 +1718,11 @@ on frontTick pGen
    if pGen is not sGen or sWorld is empty then
       exit frontTick
    end if
+   -- (while the window is hidden, or made an icon, the toy waits)
+   if the visible of stack sStack is false or the iconic of stack sStack then
+      send ("frontTick" && pGen) to me in 250 milliseconds
+      exit frontTick
+   end if
    put the milliseconds into tStart
    -- (a message sent in time runs with whichever stack is in front)
    set the defaultStack to sStack
@@ -1644,7 +1787,7 @@ end frontRain
 
 -- A body's graphic: white, more or less see-through
 private command frontAdd pBody, pOutline, pBlend
-   local tId
+   local tId, tPoint
    lock messages
    create graphic in group "Toy"
    put the id of it into tId
@@ -1657,7 +1800,11 @@ private command frontAdd pBody, pOutline, pBlend
    set the blendLevel of graphic id tId to pBlend
    unlock messages
    put tId into sGraphic[pBody]
-   put pOutline & return & line 1 of pOutline into sOutline[pBody]
+   -- (in pixels: kScale times the metres)
+   repeat for each line tPoint in pOutline & return & line 1 of pOutline
+      put item 1 of tPoint * kScale & "," & item 2 of tPoint * kScale & return after sOutline[pBody]
+   end repeat
+   delete the last char of sOutline[pBody]
    if pBody is not sPaddle then
       if sOrder is empty then
          put pBody into sOrder
@@ -1668,18 +1815,24 @@ private command frontAdd pBody, pOutline, pBlend
 end frontAdd
 
 -- Each body where Box2D says it is: its outline turned by its angle and
--- moved to its place, then made pixels (y goes up in Box2D, down here)
+-- moved to its place, in pixels (y goes up in Box2D, down here). A body
+-- asleep on the pile has not moved since it was drawn, and is left as it
+-- is
 private command frontDraw
-   local tBody, tX, tY, tCos, tSin, tPoint, tPixels
+   local tBody, tX, tY, tAngle, tCos, tSin, tPoint, tPixels
    repeat for each key tBody in sGraphic
-      put b2BodyX(tBody) into tX
-      put b2BodyY(tBody) into tY
-      put cos(b2BodyAngle(tBody)) into tCos
-      put sin(b2BodyAngle(tBody)) into tSin
+      if not b2BodyIsAwake(tBody) then
+         next repeat
+      end if
+      put sOX + b2BodyX(tBody) * kScale into tX
+      put sOY - b2BodyY(tBody) * kScale into tY
+      put b2BodyAngle(tBody) into tAngle
+      put cos(tAngle) into tCos
+      put sin(tAngle) into tSin
       put empty into tPixels
       repeat for each line tPoint in sOutline[tBody]
-         put round(sOX + (tX + tCos * item 1 of tPoint - tSin * item 2 of tPoint) * kScale) & "," & \
-               round(sOY - (tY + tSin * item 1 of tPoint + tCos * item 2 of tPoint) * kScale) & return after tPixels
+         put round(tX + tCos * item 1 of tPoint - tSin * item 2 of tPoint) & "," & \
+               round(tY - tSin * item 1 of tPoint - tCos * item 2 of tPoint) & return after tPixels
       end repeat
       delete the last char of tPixels
       set the points of graphic id sGraphic[tBody] to tPixels

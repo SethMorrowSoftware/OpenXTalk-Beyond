@@ -93,6 +93,11 @@ on frontTick pGen
    if pGen is not sGen or sWorld is empty then
       exit frontTick
    end if
+   -- (while the window is hidden, or made an icon, the toy waits)
+   if the visible of stack sStack is false or the iconic of stack sStack then
+      send ("frontTick" && pGen) to me in 250 milliseconds
+      exit frontTick
+   end if
    put the milliseconds into tStart
    -- (a message sent in time runs with whichever stack is in front)
    set the defaultStack to sStack
@@ -157,7 +162,7 @@ end frontRain
 
 -- A body's graphic: white, more or less see-through
 private command frontAdd pBody, pOutline, pBlend
-   local tId
+   local tId, tPoint
    lock messages
    create graphic in group "Toy"
    put the id of it into tId
@@ -170,7 +175,11 @@ private command frontAdd pBody, pOutline, pBlend
    set the blendLevel of graphic id tId to pBlend
    unlock messages
    put tId into sGraphic[pBody]
-   put pOutline & return & line 1 of pOutline into sOutline[pBody]
+   -- (in pixels: kScale times the metres)
+   repeat for each line tPoint in pOutline & return & line 1 of pOutline
+      put item 1 of tPoint * kScale & "," & item 2 of tPoint * kScale & return after sOutline[pBody]
+   end repeat
+   delete the last char of sOutline[pBody]
    if pBody is not sPaddle then
       if sOrder is empty then
          put pBody into sOrder
@@ -181,18 +190,24 @@ private command frontAdd pBody, pOutline, pBlend
 end frontAdd
 
 -- Each body where Box2D says it is: its outline turned by its angle and
--- moved to its place, then made pixels (y goes up in Box2D, down here)
+-- moved to its place, in pixels (y goes up in Box2D, down here). A body
+-- asleep on the pile has not moved since it was drawn, and is left as it
+-- is
 private command frontDraw
-   local tBody, tX, tY, tCos, tSin, tPoint, tPixels
+   local tBody, tX, tY, tAngle, tCos, tSin, tPoint, tPixels
    repeat for each key tBody in sGraphic
-      put b2BodyX(tBody) into tX
-      put b2BodyY(tBody) into tY
-      put cos(b2BodyAngle(tBody)) into tCos
-      put sin(b2BodyAngle(tBody)) into tSin
+      if not b2BodyIsAwake(tBody) then
+         next repeat
+      end if
+      put sOX + b2BodyX(tBody) * kScale into tX
+      put sOY - b2BodyY(tBody) * kScale into tY
+      put b2BodyAngle(tBody) into tAngle
+      put cos(tAngle) into tCos
+      put sin(tAngle) into tSin
       put empty into tPixels
       repeat for each line tPoint in sOutline[tBody]
-         put round(sOX + (tX + tCos * item 1 of tPoint - tSin * item 2 of tPoint) * kScale) & "," & \
-               round(sOY - (tY + tSin * item 1 of tPoint + tCos * item 2 of tPoint) * kScale) & return after tPixels
+         put round(tX + tCos * item 1 of tPoint - tSin * item 2 of tPoint) & "," & \
+               round(tY - tSin * item 1 of tPoint - tCos * item 2 of tPoint) & return after tPixels
       end repeat
       delete the last char of tPixels
       set the points of graphic id sGraphic[tBody] to tPixels
