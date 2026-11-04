@@ -109,11 +109,14 @@
       // When the engine itself stops (it ran out of the browser's stack,
       // as on an iPhone or an iPad, which give a page far less than a
       // desktop, or WebAssembly failed), it does so in a promise that
-      // nothing catches, and the page stayed blank. Other unhandled
-      // rejections (a stack's own JavaScript) are left as they were.
+      // nothing catches, and the page stayed blank. Only the engine's own
+      // count, as oxtOwnError has it: a RangeError raised in its
+      // WebAssembly (whose stack names wasm functions), or a
+      // WebAssembly.RuntimeError. Other unhandled rejections (a stack's
+      // own JavaScript, a browser extension's) are left as they were.
       window.addEventListener('unhandledrejection', function(event) {
         var reason = event.reason;
-        var stopped = reason instanceof RangeError ||
+        var stopped = (reason instanceof RangeError && /wasm/.test(String(reason.stack || ''))) ||
           (typeof WebAssembly == 'object' && WebAssembly.RuntimeError && reason instanceof WebAssembly.RuntimeError);
         if (stopped) {
           showStopped('The stack stopped in this browser: ' + (reason.message || String(reason)));

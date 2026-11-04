@@ -392,13 +392,19 @@ end webBuild
 -- makes the "extensions" setting from.
 private command webMobileWebFound
    local tSettings, tKind, tFile
-   repeat for each item tKind in "phone,plain"
+   -- "json" calls the JSON library, an LCB library whose manifest names its
+   -- handlers too: the search found it always and then left it out, and
+   -- still must, so that the standalones of stacks made before keep the
+   -- inclusions they had (revsblibrary kSBLibrariesKeptWhenFound)
+   repeat for each item tKind in "phone,plain,json"
       if there is a stack ("MobileWebFound" & tKind) then
          delete stack ("MobileWebFound" & tKind)
       end if
       create invisible stack ("MobileWebFound" & tKind)
       if tKind is "phone" then
          set the script of it to "on preOpenStack" & return & "   mwStart" & return & "end preOpenStack"
+      else if tKind is "json" then
+         set the script of it to "on mouseUp" & return & "   put JsonImport(" & quote & "[]" & quote & ") into tList" & return & "end mouseUp"
       else
          set the script of it to "on mouseUp" & return & "   beep" & return & "end mouseUp"
       end if
@@ -412,6 +418,8 @@ private command webMobileWebFound
       revSBSearchForInclusions ("MobileWebFound" & tKind), tSettings
       webLog "INFO mobileweb-found-" & tKind && \
             ("com.livecode.library.mobileweb" is among the lines of tSettings["extensions"])
+      webLog "INFO json-found-" & tKind && \
+            ("com.livecode.library.json" is among the lines of tSettings["extensions"])
       delete stack ("MobileWebFound" & tKind)
       if there is a file tFile then
          delete file tFile

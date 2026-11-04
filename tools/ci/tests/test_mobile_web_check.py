@@ -192,7 +192,14 @@ class FoundForStandalones(unittest.TestCase):
         # revSmartChecking makes the "extensions" setting from xWidgetKinds
         self.assertIn('put the keys of tExtensionIDs into tNewSettings["extensions"]', sb)
         self.assertRegex(found, r'revSBAddInclusion tLibrary, "extensions", xSettings\s+'
-                                r'put true into xWidgetKinds\[tLibrary\]')
+                                r'if tLibrary is among the items of kSBLibrariesKeptWhenFound then\s+'
+                                r'put true into xWidgetKinds\[tLibrary\]\s+end if')
+        # every other library found by its handlers (the JSON library, Canvas
+        # and the other LCB libraries, whose manifests name them) is left out,
+        # as it always was, so that old stacks' standalones keep their inclusions
+        self.assertIn('constant kSBLibrariesKeptWhenFound = "com.livecode.library.mobileweb"\n', sb)
+        self.assertEqual(found.count('xWidgetKinds'), 1)
+        self.assertLess(sb.index('constant kSBLibrariesKeptWhenFound'), sb.index('kSBLibrariesKeptWhenFound then'))
 
     def test_the_web_build_reports_it(self):
         deploy = read('tools', 'ci', 'web-deploy.livecodescript')
@@ -202,11 +209,18 @@ class FoundForStandalones(unittest.TestCase):
 
     def test_the_web_check_judges_it(self):
         import web_check
-        self.assertIsNone(web_check.mobile_web_found_problem({'phone': True, 'plain': False}))
-        self.assertIn('did not find', web_check.mobile_web_found_problem({'phone': False, 'plain': False}))
-        self.assertIn('does not call it', web_check.mobile_web_found_problem({'phone': True, 'plain': True}))
-        self.assertIn('did not report', web_check.mobile_web_found_problem({}))
-        self.assertIn('did not report', web_check.mobile_web_found_problem({'phone': True}))
+        judge = web_check.mobile_web_found_problem
+        mw = {'phone': True, 'plain': False, 'json': False}
+        js = {'phone': False, 'plain': False, 'json': False}
+        self.assertIsNone(judge(mw, js))
+        self.assertIn('did not find', judge(dict(mw, phone=False), js))
+        self.assertIn('does not call it', judge(dict(mw, plain=True), js))
+        self.assertIn('does not call it', judge(dict(mw, json=True), js))
+        self.assertIn('JSON library', judge(mw, dict(js, json=True)))
+        self.assertIn('did not report', judge({}, js))
+        self.assertIn('did not report', judge({'phone': True, 'plain': False}, js))
+        self.assertIn('did not report', judge(mw, {}))
+        self.assertIn('did not report', judge(mw))
 
 
 # A fake page for the note code lifted out of a page's script (from
@@ -232,7 +246,10 @@ const fire = (reason) => listeners.unhandledrejection.forEach((fn) => fn({ reaso
 const seen = [added.length];
 fire(new Error('a stack of its own'));
 seen.push(added.length);
-fire(new RangeError('Maximum call stack size exceeded.'));
+const overflow = (where) => { const e = new RangeError('Maximum call stack size exceeded.'); e.stack = where; return e; };
+fire(overflow('f@https://extension.example/content.js:1:1'));
+seen.push(added.length);
+fire(overflow('16484@wasm-function[16484]\n864@wasm-function[864]'));
 seen.push(added.length);
 fire(new RealWasm.RuntimeError('unreachable'));
 seen.push(added.length);
@@ -263,7 +280,8 @@ class SaysWhenItStops(unittest.TestCase):
             page = read(*parts)
             self.assertIn("window.addEventListener('error', function", page, parts)
             code = self.note_code(page)
-            for want in ("window.addEventListener('unhandledrejection', function", 'instanceof RangeError',
+            for want in ("window.addEventListener('unhandledrejection', function",
+                         "reason instanceof RangeError && /wasm/.test(String(reason.stack || ''))",
                          'WebAssembly.RuntimeError', "'stopped'", "setAttribute('role', 'alert')",
                          'navigator.userAgent', 'appendChild', 'Lockdown Mode'):
                 self.assertIn(want, code, (parts, want))
@@ -285,7 +303,7 @@ class SaysWhenItStops(unittest.TestCase):
     def test_only_the_engine_stopping_shows_the_note_once(self):
         for parts in self.PAGES:
             result = self.run_page(parts, False)
-            self.assertEqual(result['seen'], [0, 0, 1, 1], parts)
+            self.assertEqual(result['seen'], [0, 0, 0, 1, 1], parts)
             self.assertEqual(result['note']['id'], 'stopped')
             self.assertEqual(result['note']['textContent'],
                              'The stack stopped in this browser: Maximum call stack size exceeded. (TestPhone/1.0)')
@@ -294,7 +312,7 @@ class SaysWhenItStops(unittest.TestCase):
     def test_a_browser_without_webassembly_is_told_at_once(self):
         for parts in self.PAGES:
             result = self.run_page(parts, True)
-            self.assertEqual(result['seen'], [1, 1, 1, 1], parts)
+            self.assertEqual(result['seen'], [1, 1, 1, 1, 1], parts)
             self.assertIn('WebAssembly is turned off', result['note']['textContent'])
             self.assertTrue(result['note']['textContent'].endswith('(TestPhone/1.0)'))
 

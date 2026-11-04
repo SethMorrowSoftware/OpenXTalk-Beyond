@@ -768,11 +768,13 @@ dialog.answer .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:
   // The engine stopping (out of the browser's stack, as on an iPhone or
   // an iPad, which give a page far less than a desktop, or WebAssembly
   // failing) comes as a promise nothing catches, not as an 'error', and
-  // left the page blank. A stack's own JavaScript rejecting is left as it
-  // was.
+  // left the page blank. Only the engine's own count: a RangeError raised
+  // in its WebAssembly (whose stack names wasm functions), or a
+  // WebAssembly.RuntimeError. A stack's own JavaScript rejecting, or a
+  // browser extension's, is left as it was.
   window.addEventListener('unhandledrejection', function (event) {
     var reason = event.reason;
-    var stopped = reason instanceof RangeError ||
+    var stopped = (reason instanceof RangeError && /wasm/.test(String(reason.stack || ''))) ||
       (typeof WebAssembly == 'object' && WebAssembly.RuntimeError && reason instanceof WebAssembly.RuntimeError);
     if (stopped) showStopped('The stack stopped in this browser: ' + (reason.message || String(reason)));
   });
