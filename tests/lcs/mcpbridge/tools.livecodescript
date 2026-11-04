@@ -46,6 +46,9 @@ on TestSetup
          "on mcbTooLate" & return & "put " & quote & "too late" & quote & " & return after sAsked" & return & "end mcbTooLate" & return & \
          "function mcbEditorStack" & return & "return empty" & return & "end mcbEditorStack" & return & \
          "function mcbTestAsked" & return & "return sAsked" & return & "end mcbTestAsked" & return & \
+         "function revIDEStackIsEdited pName" & return & "global gMcbTestEdited" & return & \
+         "if gMcbTestEdited is empty then throw " & quote & "no IDE here" & quote & return & \
+         "return pName is among the lines of gMcbTestEdited" & return & "end revIDEStackIsEdited" & return & \
          "function mcbTestAskedDetails" & return & "return sAskedDetails" & return & "end mcbTestAskedDetails" & return & \
          "on revIDEImportHyperCardStack pFile" & return & "lock messages" & return & "import stack from file pFile" & return & "unlock messages" & return & \
          "end revIDEImportHyperCardStack" & return & \
@@ -662,14 +665,53 @@ on TestCloseStack
    TestAssert "the IDE's stacks are not closed", TestIsError(tReply) and there is a stack "mcbTestIDE"
 end TestCloseStack
 
+-- close_stack asks whether a saved stack loses changes in any of its
+-- stacks: the IDE marks the stack an object is in, so a substack's changes
+-- are the substack's own
+on TestCloseAsksWhenASubstackHasChanges
+   global gMcbTestEdited
+   local tReply, tStack, tFile, tAsked
+   TestStart
+   put TestUserStack() into tStack
+   put specialFolderPath("temporary") & "/mcbtest-closesub-" & the milliseconds & ".livecode" into tFile
+   set the fileName of tStack to tFile
+   create stack "mcbTestSub"
+   set the mainStack of stack "mcbTestSub" to kUserStack
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with false
+   mcbSetUnasked true
+   put "mcbTestSub" into gMcbTestEdited
+   put mcbTestAsked() into tAsked
+   put TestCall("close_stack", "{`stack`:`" & kUserStack & "`}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "a substack's changes are asked about, even with asking off", TestIsError(tReply) and there is a stack kUserStack \
+         and mcbTestAsked() is not tAsked
+   put "nothing edited" into gMcbTestEdited
+   put mcbTestAsked() into tAsked
+   put TestCall("close_stack", "{`stack`:`" & kUserStack & "`}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "with nothing to lose and asking off, it closes", not TestIsError(tReply) and there is not a stack kUserStack \
+         and mcbTestAsked() is tAsked
+   put empty into gMcbTestEdited
+   mcbSetUnasked false
+end TestCloseAsksWhenASubstackHasChanges
+
 -- save_stack with a name: a stack never saved is named at its first save,
 -- and undo still finds what was made in it; a saved stack is not renamed
 on TestSaveNamesAStackNeverSaved
-   local tReply, tStack, tFolder, tFile
+   local tReply, tStack, tFolder, tFile, tValue
    TestStart
    put TestUserStack() into tStack
    put TestCall("make_changes", "{`stack`:`" & kUserStack & "`,`changes`:[{`action`:`create`,`kind`:`button`,`name`:`Added`}]}") into tReply
    TestAssert "a button is made", not TestIsError(tReply)
+   -- The user's value that ends as an object reference does: undo must
+   -- give it back as it was, whatever the stack is named by then
+   put "button id 1003 of stack" && quote & kUserStack & quote into tValue
+   set the cRef of button "Go" of tStack to tValue
+   put TestCall("make_changes", "{`stack`:`" & kUserStack & "`,`changes`:[{`action`:`set`,`object`:1003,`custom_properties`:{`cRef`:`x`}}]}") into tReply
+   TestAssert "a custom property is set", not TestIsError(tReply) and the cRef of button "Go" of tStack is "x"
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
+   put TestCall("run_code", "{`where`:`stack`,`stack`:`" & kUserStack & "`,`code`:`set the cRun of this stack to 1`}") into tReply
+   TestAssert "a run changes the stack", not TestIsError(tReply) and the cRun of tStack is 1
    put specialFolderPath("temporary") & "/mcbtest-name-" & the milliseconds into tFolder
    create folder tFolder
    dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with false
@@ -683,6 +725,14 @@ on TestSaveNamesAStackNeverSaved
    put tFolder & "/lab.oxtstack" into tFile
    TestAssert "named and saved", not TestIsError(tReply) and there is a stack "mcb Lab" and there is not a stack kUserStack \
          and there is a file tFile and mcbTestAskedDetails() contains "It is named"
+   put TestCall("undo_changes") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "undoing the run keeps the new name and file", not TestIsError(tReply) and there is a stack "mcb Lab" \
+         and there is not a stack kUserStack and the cRun of stack "mcb Lab" is empty and the effective filename of stack "mcb Lab" is tFile
+   put TestCall("undo_changes") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "undo gives the user's value back as it was", not TestIsError(tReply) and the cRef of button "Go" of stack "mcb Lab" is tValue \
+         and the short name of stack "mcb Lab" is "mcb Lab"
    put TestCall("undo_changes") into tReply
    TestDiagnostic TestText(tReply)
    TestAssert "undo still finds the button it made", not TestIsError(tReply) and there is not a button "Added" of stack "mcb Lab"
@@ -916,11 +966,11 @@ on TestTheRealServerEndToEnd
    put TestUserStack() into tStack
    put sInfoFile into $OXT_MCP_BRIDGE_FILE
    put "300" into $OXT_MCP_ANSWER_WAIT_MS
-   -- The engine on Linux and macOS writes to a process two bytes a
-   -- character (seen 2026-11-04; on Windows the same mix-up of encodings
-   -- comes out as UTF-8, by reading the code), so a relay drops
-   -- the zero bytes on the way in: the requests are ASCII, and it passes a
-   -- UTF-8 write through as it is. The server itself is run as it ships.
+   -- An engine before #342 writes to a process two bytes a character on
+   -- Linux and macOS (seen 2026-11-04 on rc.6.13), so a relay drops the
+   -- zero bytes on the way in: the requests are ASCII, and it passes the
+   -- UTF-8 a fixed engine writes through as it is. The server itself is
+   -- run as it ships.
    put specialFolderPath("temporary") & "/mcbtest-relay-" & the milliseconds & ".js" into tRelay
    put "const child = require('child_process').spawn(process.execPath, [process.argv[2]], { stdio: ['pipe', 'inherit', 'inherit'] });" & numToChar(10) & \
          "process.stdin.on('data', (d) => child.stdin.write(Buffer.from(d.toString('latin1').replace(/\u0000/g, ''), 'latin1')));" & numToChar(10) & \

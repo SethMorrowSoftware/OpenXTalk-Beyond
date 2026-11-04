@@ -1607,37 +1607,69 @@ function xtaBuildRenameStack pStack, pNew
    put xtbPrint(tNewStack) into tNewPrint
    repeat for each key tIndex in sJournal
       if sJournal[tIndex]["main"] is tOld then
-         put xtbRenamedIn(sJournal[tIndex], tOld, pNew, tOldPrint, tNewPrint, tNewStack) into sJournal[tIndex]
+         put xtbRenamedEntry(sJournal[tIndex], tOld, pNew, tOldPrint, tNewPrint, tNewStack) into sJournal[tIndex]
          put pNew into sJournal[tIndex]["main"]
       end if
    end repeat
    return empty
 end xtaBuildRenameStack
 
--- pValue (an entry, or a part of one) with each key and text that names
--- the stack pOld by its long id naming it pNew instead, the name of a step
--- that made it, and the stack's own print taken again
-private function xtbRenamedIn pValue, pOld, pNew, pOldPrint, pNewPrint, pNewStack
-   local tOut, tKey, tNewKey, tTail
-   if pValue is not an array then
-      put "stack" && quote & pOld & quote into tTail
-      if pValue ends with tTail then
-         return char 1 to -(the number of chars of tTail + 1) of pValue & "stack" && quote & pNew & quote
-      end if
-      return pValue
-   end if
-   repeat for each key tKey in pValue
-      put xtbRenamedIn(tKey, pOld, pNew) into tNewKey
-      put xtbRenamedIn(pValue[tKey], pOld, pNew, pOldPrint, pNewPrint, pNewStack) into tOut[tNewKey]
-      if tNewKey is pNewStack and tOut[tNewKey] is pOldPrint then
-         put pNewPrint into tOut[tNewKey]
+-- The journal entry pEntry of the stack renamed from pOld to pNew, with
+-- each reference to an object in it naming the stack by its new name: the
+-- entry's stack, the keys of its prints, the objects its steps made,
+-- changed or deleted, the name of a step that made the stack, and the
+-- stack's own print taken again. What a step kept of an object (its
+-- snapshot: the user's properties and custom properties) is left as it
+-- was, so that undo puts back what was there, but for the stack's own
+-- name. A run's checkpoint file keeps the old name inside it, which undo
+-- puts right (checkpointName).
+private function xtbRenamedEntry pEntry, pOld, pNew, pOldPrint, pNewPrint, pNewStack
+   local tKind, tKey, tNewKey, tMap, tIndex, tStep
+   put xtbRenamedRef(pEntry["stack"], pOld, pNew) into pEntry["stack"]
+   repeat for each item tKind in "prints,before"
+      put empty into tMap
+      repeat for each key tKey in pEntry[tKind]
+         put xtbRenamedRef(tKey, pOld, pNew) into tNewKey
+         put pEntry[tKind][tKey] into tMap[tNewKey]
+         if tNewKey is pNewStack and tMap[tNewKey] is pOldPrint then
+            put pNewPrint into tMap[tNewKey]
+         end if
+      end repeat
+      if pEntry[tKind] is an array then
+         put tMap into pEntry[tKind]
       end if
    end repeat
-   if tOut["op"] is "createdStack" and tOut["name"] is pOld then
-      put pNew into tOut["name"]
+   repeat with tIndex = 1 to the number of elements of pEntry["steps"]
+      put pEntry["steps"][tIndex] into tStep
+      put xtbRenamedRef(tStep["object"], pOld, pNew) into tStep["object"]
+      if tStep["record"] is an array then
+         put xtbRenamedRef(tStep["record"]["stack"], pOld, pNew) into tStep["record"]["stack"]
+      end if
+      if tStep["op"] is "createdStack" and tStep["name"] is pOld then
+         put pNew into tStep["name"]
+      end if
+      -- A change to the stack itself: undo keeps the name the user gave it
+      if tStep["op"] is "changed" and tStep["object"] is pNewStack and tStep["snapshot"]["properties"]["name"] is pOld then
+         put pNew into tStep["snapshot"]["properties"]["name"]
+      end if
+      put tStep into pEntry["steps"][tIndex]
+   end repeat
+   if pEntry["kind"] is "run" and pEntry["checkpointName"] is empty then
+      put pOld into pEntry["checkpointName"]
    end if
-   return tOut
-end xtbRenamedIn
+   return pEntry
+end xtbRenamedEntry
+
+-- pRef (the long id of an object) naming the stack pOld by pNew instead;
+-- anything else as it is
+private function xtbRenamedRef pRef, pOld, pNew
+   local tTail
+   put "stack" && quote & pOld & quote into tTail
+   if pRef ends with tTail then
+      return char 1 to -(the number of chars of tTail + 1) of pRef & "stack" && quote & pNew & quote
+   end if
+   return pRef
+end xtbRenamedRef
 
 -- Undoes the entry pEntry, and every later one on the same stack first,
 -- newest first. Unless pForce, nothing is undone when the user changed
@@ -1693,7 +1725,7 @@ private function xtbUndoEntries pList, pForce
    put 0 into tCount
    repeat for each line tIndex in pList
       if sJournal[tIndex]["kind"] is "run" then
-         put xtaCheckpointRestore(sJournal[tIndex]["checkpoint"], sJournal[tIndex]["stack"]) into tProblems
+         put xtaCheckpointRestore(sJournal[tIndex]["checkpoint"], sJournal[tIndex]["stack"], sJournal[tIndex]["checkpointName"]) into tProblems
       else
          xtbUndoSteps sJournal[tIndex]["steps"]
          put the result into tProblems
@@ -2188,7 +2220,9 @@ end xtaCheckpointSave
 
 -- Reverts the main stack of pStack to the checkpoint pPath; the result is
 -- empty, or what went wrong
-function xtaCheckpointRestore pPath, pStack
+-- pFileName: the name the stack has in that file, when the stack was
+-- renamed since (xtaBuildRenameStack); it keeps the name it has now
+function xtaCheckpointRestore pPath, pStack, pFileName
    local tMain, tName, tOldFile, tOldDefault, tError, tProblem
    if there is not a file pPath then
       return "the checkpoint's file is gone"
@@ -2207,6 +2241,10 @@ function xtaCheckpointRestore pPath, pStack
    try
       set the fileName of tMain to pPath
       revert stack tName
+      if pFileName is not empty and pFileName is not tName and there is not a stack tName and there is a stack pFileName \
+            and the effective filename of stack pFileName is pPath then
+         set the name of stack pFileName to tName
+      end if
    catch tError
       put xtbErrorMessage(tError) into tProblem
    end try

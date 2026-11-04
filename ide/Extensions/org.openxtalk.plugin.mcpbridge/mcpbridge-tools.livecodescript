@@ -2793,17 +2793,28 @@ end mcbRenameMade
 -- True when the IDE has the stack as changed since it was last saved; a
 -- stack never saved counts as changed
 private function mcbHasUnsavedChanges pStack
-   local tEdited, tError
+   local tEdited, tError, tName, tNames
    if the effective filename of pStack is empty then
       return true
    end if
-   try
-      put revIDEStackIsEdited(the short name of pStack) into tEdited
-   catch tError
-      -- Without the IDE (the tests): not known, so taken as changed
-      return true
-   end try
-   return tEdited is true
+   -- The IDE marks the stack an object is in, so a substack's changes are
+   -- its own: the main stack and each substack are asked about
+   put the short name of pStack & return & the substacks of pStack into tNames
+   repeat for each line tName in tNames
+      if tName is empty then
+         next repeat
+      end if
+      try
+         put revIDEStackIsEdited(tName) into tEdited
+      catch tError
+         -- Without the IDE (the tests): not known, so taken as changed
+         return true
+      end try
+      if tEdited is true then
+         return true
+      end if
+   end repeat
+   return false
 end mcbHasUnsavedChanges
 
 -- Closes a main stack of the user's (with its substacks) and takes it out
