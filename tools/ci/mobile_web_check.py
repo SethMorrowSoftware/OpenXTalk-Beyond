@@ -67,6 +67,8 @@ constructor, no touch points), so there the taps and drags are the
 mouse's and the gestures (3, and 6 but for the tab) are left out: WebKit
 checks the layout, the fill, the keyboard, the turns and the fit. A
 real iPhone's Safari has touch events; Chromium checks every step.
+WebKit runs with as little JavaScript stack as an iPhone gives a page
+(IPHONE_STACK).
 
 Without a device the engine's mouse messages are those of a touch; the
 library only adds its own. Ends with "MOBILE WEB CHECK OK" or a list of
@@ -99,6 +101,22 @@ DEFAULT_DEVICES = {'chromium': ['Pixel 7', 'iPhone 13'], 'webkit': ['iPhone 13']
 
 class CheckError(Exception):
     pass
+
+
+# An iPhone's or an iPad's Safari gives a page's script far less stack
+# than a desktop's WebKit: a Phone Starter ran out of it as it opened
+# there ("Maximum call stack size exceeded", a blank page), while it
+# opened in every browser this check ran. So WebKit runs with its
+# JavaScript stack cut to IPHONE_STACK bytes (JavaScriptCore's
+# maxPerThreadStackUsage option, read from the environment): under it
+# that Phone Starter fails at the start, and it fails this check.
+IPHONE_STACK = 300000
+
+
+def launch_options(browser_name):
+    if browser_name != 'webkit':
+        return {}
+    return {'env': dict(os.environ, JSC_maxPerThreadStackUsage=str(IPHONE_STACK))}
 
 
 def log(msg=''):
@@ -266,7 +284,7 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
 
     profile = dict(playwright.devices[device])
     profile.pop('default_browser_type', None)
-    browser = getattr(playwright, browser_name).launch()
+    browser = getattr(playwright, browser_name).launch(**launch_options(browser_name))
     try:
         context = browser.new_context(**profile)
         page = context.new_page()

@@ -114,6 +114,50 @@ class Ships(unittest.TestCase):
             self.assertRegex(tests, r'\b%s\b' % name, 'the tests never call %s' % name)
 
 
+class FitsAnIPhonesStack(unittest.TestCase):
+    """Safari on an iPhone or an iPad gives a page's script far less stack
+    than a desktop's WebKit. A Phone Starter ran out of it as it opened (a
+    blank page): the library's browser script was one "put" of every line
+    joined with "&", an expression as deep as the script is long. Long
+    statements are kept out of what a phone runs, and the check's WebKit
+    runs with an iPhone's stack."""
+
+    LONGEST = 30
+
+    def longest_statement(self, text):
+        longest = run = 0
+        for line in text.split('\n'):
+            run = run + 1 if line.rstrip().endswith('\\') else 0
+            longest = max(longest, run)
+        return longest
+
+    def test_no_statement_is_too_long(self):
+        for path in (LIBRARY, os.path.join(PLAYER, 'phone-starter-stack.livecodescript'),
+                     os.path.join(PLAYER, 'phone-starter.livecodescript'),
+                     os.path.join(PLAYER, 'stack-player.livecodescript')):
+            with open(path, encoding='utf-8') as f:
+                text = f.read()
+            self.assertLessEqual(self.longest_statement(text), self.LONGEST,
+                                 '%s has a statement continued over %d lines' % (os.path.basename(path), self.LONGEST))
+
+    def test_the_measure_sees_a_long_statement(self):
+        long_put = 'put "a" & return & \\\n' * 40 + '"z" into t\n'
+        self.assertEqual(self.longest_statement(long_put), 40)
+        self.assertEqual(self.longest_statement('put 1 into t\nput 2 into u\n'), 0)
+
+    def test_the_browser_script_is_put_a_line_at_a_time(self):
+        library = read(*LIBRARY[len(REPO) + 1:].split(os.sep))
+        body = library[library.index('private function mwBrowserScript'):library.index('end mwBrowserScript')]
+        self.assertGreater(body.count(' after tScript'), 100)
+
+    def test_webkit_runs_with_an_iphones_stack(self):
+        self.assertEqual(mobile_web_check.launch_options('chromium'), {})
+        env = mobile_web_check.launch_options('webkit')['env']
+        self.assertEqual(env['JSC_maxPerThreadStackUsage'], str(mobile_web_check.IPHONE_STACK))
+        self.assertLessEqual(mobile_web_check.IPHONE_STACK, 512 * 1024)
+        self.assertEqual(env.get('PATH'), os.environ.get('PATH'))
+
+
 class PhoneStarterOffered(unittest.TestCase):
 
     def test_in_the_players_samples_with_its_picture(self):

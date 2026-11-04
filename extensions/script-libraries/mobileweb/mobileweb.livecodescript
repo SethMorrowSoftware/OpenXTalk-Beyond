@@ -1009,166 +1009,171 @@ end mwInstallBrowserSide
 
 private function mwBrowserScript
    local tScript
-   put "var lib = " & mwQuote(kLibrary) & ";" & return & \
-         "var mw = {gestures: {}, on: false, touches: {}, start0: null, pinch: null, press: null," & return & \
-         "  pressed: false, queue: [], timer: null, probe: null, lastView: ''};" & return & \
-         "function call(kind, a, b, c) {" & return & \
-         "  mw.queue.push([kind, a, b, c]);" & return & \
-         "  if (mw.timer === null) mw.timer = setTimeout(flush, 0);" & return & \
-         "}" & return & \
-         "function flush() {" & return & \
-         "  mw.timer = null;" & return & \
-         "  var q = mw.queue; mw.queue = [];" & return & \
-         "  var h = document.liveCode && document.liveCode.findStackWithName(lib);" & return & \
-         "  if (!h || !h.mwFromBrowser) return;" & return & \
-         "  for (var i = 0; i < q.length; i++) h.mwFromBrowser(q[i][0], q[i][1], q[i][2], q[i][3]);" & return & \
-         "}" & return & \
-         "function insets() {" & return & \
-         "  if (!mw.probe) {" & return & \
-         "    mw.probe = document.createElement('div');" & return & \
-         "    mw.probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;' +" & return & \
-         "      'padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';" & return & \
-         "    document.body.appendChild(mw.probe);" & return & \
-         "  }" & return & \
-         "  var s = getComputedStyle(mw.probe);" & return & \
-         "  return [s.paddingTop, s.paddingRight, s.paddingBottom, s.paddingLeft].map(function(v) { return Math.round(parseFloat(v) || 0); });" & return & \
-         "}" & return & \
-         "function viewport() {" & return & \
-         "  var vv = window.visualViewport;" & return & \
-         "  var lw = document.documentElement.clientWidth || window.innerWidth;" & return & \
-         "  var lh = window.innerHeight;" & return & \
-         "  var w = vv ? vv.width * vv.scale : lw, h = vv ? vv.height * vv.scale : lh;" & return & \
-         "  var kb = vv ? Math.max(0, lh - vv.height * vv.scale - vv.offsetTop) : 0;" & return & \
-         "  if (kb < 60) kb = 0;" & return & \
-         "  var i = insets();" & return & \
-         "  return [Math.round(w), Math.round(h), Math.round(kb), i[0], i[1], i[2], i[3], lw > lh ? 'landscape' : 'portrait'].join(',');" & return & \
-         "}" & return & \
-         "function viewChanged() {" & return & \
-         "  if (!mw.on) return;" & return & \
-         "  var v = viewport();" & return & \
-         "  if (v === mw.lastView) return;" & return & \
-         "  mw.lastView = v;" & return & \
-         "  call('viewport', v);" & return & \
-         "}" & return & \
-         "var viewTimer = null;" & return & \
-         "// once the browser has settled, then twice more: a phone that turns can" & return & \
-         "// report its new size in steps, the last without an event" & return & \
-         "function viewSoon() { clearTimeout(viewTimer); viewTimer = setTimeout(function() { viewChanged();" & return & \
-         "  viewTimer = setTimeout(function() { viewChanged(); viewTimer = setTimeout(viewChanged, 700); }, 380); }, 120); }" & return & \
-         "function canvasOf(e) { var t = e.target; return t && t.tagName === 'CANVAS' ? t : null; }" & return & \
-         "function local(canvas, x, y) { var r = canvas.getBoundingClientRect(); return [Math.round(x - r.left), Math.round(y - r.top)]; }" & return & \
-         "function cancelPress() { if (mw.press) { clearTimeout(mw.press.timer); mw.press = null; } }" & return & \
-         "function onStart(e) {" & return & \
-         "  var c = canvasOf(e); if (!c || !mw.on) return;" & return & \
-         "  mw.pressed = false;" & return & \
-         "  var t = e.touches;" & return & \
-         "  if (t.length === 1) {" & return & \
-         "    var l0 = local(c, t[0].clientX, t[0].clientY);" & return & \
-         "    mw.start0 = {x: t[0].clientX, y: t[0].clientY, lx: l0[0], ly: l0[1], time: e.timeStamp, canvas: c, multi: false};" & return & \
-         "    cancelPress();" & return & \
-         "    if (mw.gestures.longpress) {" & return & \
-         "      var p = {x: t[0].clientX, y: t[0].clientY, canvas: c};" & return & \
-         "      p.timer = setTimeout(function() { if (mw.press === p) { mw.press = null; mw.pressed = true;" & return & \
-         "        var l = local(p.canvas, p.x, p.y); call('longpress', l[0], l[1]); } }, 550);" & return & \
-         "      mw.press = p;" & return & \
-         "    }" & return & \
-         "  } else {" & return & \
-         "    cancelPress();" & return & \
-         "    if (mw.start0) mw.start0.multi = true;" & return & \
-         "    if (t.length === 2 && mw.gestures.pinch) {" & return & \
-         "      var d = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY) || 1;" & return & \
-         "      var m = local(c, (t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2);" & return & \
-         "      mw.pinch = {d: d, canvas: c, scale: 1, frame: null};" & return & \
-         "      call('pinchstart', m[0], m[1]);" & return & \
-         "    }" & return & \
-         "  }" & return & \
-         "}" & return & \
-         "function onMove(e) {" & return & \
-         "  if (!mw.on) return;" & return & \
-         "  var t = e.touches;" & return & \
-         "  if (mw.press && t.length === 1 && Math.hypot(t[0].clientX - mw.press.x, t[0].clientY - mw.press.y) > 10) cancelPress();" & return & \
-         "  if (mw.pinch && t.length >= 2) {" & return & \
-         "    var p = mw.pinch;" & return & \
-         "    p.scale = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY) / p.d;" & return & \
-         "    p.mid = local(p.canvas, (t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2);" & return & \
-         "    if (!p.frame) p.frame = requestAnimationFrame(function() { p.frame = null;" & return & \
-         "      if (mw.pinch === p) call('pinch', Math.round(p.scale * 1000) / 1000, p.mid[0], p.mid[1]); });" & return & \
-         "  }" & return & \
-         "}" & return & \
-         "function onEnd(e) {" & return & \
-         "  if (!mw.on) return;" & return & \
-         "  var t = e.touches;" & return & \
-         "  cancelPress();" & return & \
-         "  if (mw.pinch && t.length < 2) {" & return & \
-         "    var s = mw.pinch.scale; mw.pinch = null;" & return & \
-         "    call('pinchend', Math.round(s * 1000) / 1000);" & return & \
-         "  }" & return & \
-         "  if (t.length === 0 && mw.start0) {" & return & \
-         "    var s0 = mw.start0; mw.start0 = null;" & return & \
-         "    var u = e.changedTouches[0];" & return & \
-         "    if (e.type === 'touchend' && u && !s0.multi && !mw.pressed && mw.gestures.swipe && e.timeStamp - s0.time < 700) {" & return & \
-         "      var dx = u.clientX - s0.x, dy = u.clientY - s0.y;" & return & \
-         "      var ax = Math.abs(dx), ay = Math.abs(dy);" & return & \
-         "      if (Math.max(ax, ay) >= 50 && Math.max(ax, ay) >= 1.5 * Math.min(ax, ay))" & return & \
-         "        call('swipe', ax > ay ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down'), s0.lx, s0.ly);" & return & \
-         "    }" & return & \
-         "  }" & return & \
-         "  if (mw.pressed) setTimeout(function() { mw.pressed = false; }, 400);" & return & \
-         "}" & return & \
-         "var touchEvents = [['touchstart', onStart], ['touchmove', onMove], ['touchend', onEnd], ['touchcancel', onEnd]];" & return & \
-         "var viewEvents = ['resize', 'orientationchange'];" & return & \
-         "window.__oxtMobileWeb = {" & return & \
-         "  start: function(gestures) {" & return & \
-         "    mw.gestures = {};" & return & \
-         "    gestures.split(',').forEach(function(g) { if (g) mw.gestures[g] = true; });" & return & \
-         "    if (mw.on) return;" & return & \
-         "    mw.on = true; mw.lastView = '';" & return & \
-         "    touchEvents.forEach(function(x) { document.addEventListener(x[0], x[1], {capture: true, passive: true}); });" & return & \
-         "    viewEvents.forEach(function(x) { window.addEventListener(x, viewSoon); });" & return & \
-         "    if (window.visualViewport) { visualViewport.addEventListener('resize', viewSoon); visualViewport.addEventListener('scroll', viewSoon); }" & return & \
-         "    viewSoon();" & return & \
-         "  }," & return & \
-         "  stop: function() {" & return & \
-         "    if (!mw.on) return;" & return & \
-         "    mw.on = false; cancelPress(); mw.pinch = null; mw.start0 = null;" & return & \
-         "    touchEvents.forEach(function(x) { document.removeEventListener(x[0], x[1], {capture: true, passive: true}); });" & return & \
-         "    viewEvents.forEach(function(x) { window.removeEventListener(x, viewSoon); });" & return & \
-         "    if (window.visualViewport) { visualViewport.removeEventListener('resize', viewSoon); visualViewport.removeEventListener('scroll', viewSoon); }" & return & \
-         "  }," & return & \
-         "  viewport: viewport," & return & \
-         "  pageSize: function() { return [document.documentElement.clientWidth || window.innerWidth, window.innerHeight].join(','); }," & return & \
-         "  longPressed: function() { return mw.pressed; }," & return & \
-         "  fillPage: function(ask) {" & return & \
-         "    var keep = function(el) { return el && el.getAttribute('data-mobile-web-fill') === 'no'; };" & return & \
-         "    if (keep(document.documentElement) || keep(document.body)) return 'no';" & return & \
-         "    if (ask) return 'yes';" & return & \
-         "    var meta = document.querySelector('meta[name=viewport]');" & return & \
-         "    if (!meta) { meta = document.createElement('meta'); meta.name = 'viewport'; meta.setAttribute('data-oxt-mobile-web', 'made'); document.head.appendChild(meta); }" & return & \
-         "    if (!/viewport-fit/.test(meta.content)) {" & return & \
-         "      if (!meta.hasAttribute('data-oxt-mobile-web')) meta.setAttribute('data-oxt-mobile-web', meta.content);" & return & \
-         "      meta.content = (meta.content ? meta.content + ', ' : '') + 'viewport-fit=cover';" & return & \
-         "    }" & return & \
-         "    var css = document.getElementById('oxt-mobile-web-fill');" & return & \
-         "    if (!css) {" & return & \
-         "      css = document.createElement('style'); css.id = 'oxt-mobile-web-fill';" & return & \
-         "      css.textContent = 'html,body{margin:0;padding:0;height:100%;overflow:hidden;overscroll-behavior:none}' +" & return & \
-         "        '#stack{margin:0!important}';" & return & \
-         "      document.head.appendChild(css);" & return & \
-         "    }" & return & \
-         "    window.scrollTo(0, 0);" & return & \
-         "    return 'yes';" & return & \
-         "  }," & return & \
-         "  unfillPage: function() {" & return & \
-         "    var css = document.getElementById('oxt-mobile-web-fill');" & return & \
-         "    if (css) css.parentNode.removeChild(css);" & return & \
-         "    var meta = document.querySelector('meta[data-oxt-mobile-web]');" & return & \
-         "    if (meta) {" & return & \
-         "      var was = meta.getAttribute('data-oxt-mobile-web');" & return & \
-         "      if (was === 'made') meta.parentNode.removeChild(meta);" & return & \
-         "      else { meta.content = was; meta.removeAttribute('data-oxt-mobile-web'); }" & return & \
-         "    }" & return & \
-         "  }" & return & \
-         "};" & return & \
-         "return '';" into tScript
+   -- one line a statement: a single "put" of every line joined with "&"
+   -- is an expression as deep as the script is long, and evaluating it
+   -- used more of the thread's stack than an iPhone or an iPad gives a
+   -- page ("Maximum call stack size exceeded" as the stack opened, and a
+   -- blank page)
+   put "var lib = " & mwQuote(kLibrary) & ";" & return after tScript
+   put "var mw = {gestures: {}, on: false, touches: {}, start0: null, pinch: null, press: null," & return after tScript
+   put "  pressed: false, queue: [], timer: null, probe: null, lastView: ''};" & return after tScript
+   put "function call(kind, a, b, c) {" & return after tScript
+   put "  mw.queue.push([kind, a, b, c]);" & return after tScript
+   put "  if (mw.timer === null) mw.timer = setTimeout(flush, 0);" & return after tScript
+   put "}" & return after tScript
+   put "function flush() {" & return after tScript
+   put "  mw.timer = null;" & return after tScript
+   put "  var q = mw.queue; mw.queue = [];" & return after tScript
+   put "  var h = document.liveCode && document.liveCode.findStackWithName(lib);" & return after tScript
+   put "  if (!h || !h.mwFromBrowser) return;" & return after tScript
+   put "  for (var i = 0; i < q.length; i++) h.mwFromBrowser(q[i][0], q[i][1], q[i][2], q[i][3]);" & return after tScript
+   put "}" & return after tScript
+   put "function insets() {" & return after tScript
+   put "  if (!mw.probe) {" & return after tScript
+   put "    mw.probe = document.createElement('div');" & return after tScript
+   put "    mw.probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;' +" & return after tScript
+   put "      'padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';" & return after tScript
+   put "    document.body.appendChild(mw.probe);" & return after tScript
+   put "  }" & return after tScript
+   put "  var s = getComputedStyle(mw.probe);" & return after tScript
+   put "  return [s.paddingTop, s.paddingRight, s.paddingBottom, s.paddingLeft].map(function(v) { return Math.round(parseFloat(v) || 0); });" & return after tScript
+   put "}" & return after tScript
+   put "function viewport() {" & return after tScript
+   put "  var vv = window.visualViewport;" & return after tScript
+   put "  var lw = document.documentElement.clientWidth || window.innerWidth;" & return after tScript
+   put "  var lh = window.innerHeight;" & return after tScript
+   put "  var w = vv ? vv.width * vv.scale : lw, h = vv ? vv.height * vv.scale : lh;" & return after tScript
+   put "  var kb = vv ? Math.max(0, lh - vv.height * vv.scale - vv.offsetTop) : 0;" & return after tScript
+   put "  if (kb < 60) kb = 0;" & return after tScript
+   put "  var i = insets();" & return after tScript
+   put "  return [Math.round(w), Math.round(h), Math.round(kb), i[0], i[1], i[2], i[3], lw > lh ? 'landscape' : 'portrait'].join(',');" & return after tScript
+   put "}" & return after tScript
+   put "function viewChanged() {" & return after tScript
+   put "  if (!mw.on) return;" & return after tScript
+   put "  var v = viewport();" & return after tScript
+   put "  if (v === mw.lastView) return;" & return after tScript
+   put "  mw.lastView = v;" & return after tScript
+   put "  call('viewport', v);" & return after tScript
+   put "}" & return after tScript
+   put "var viewTimer = null;" & return after tScript
+   put "// once the browser has settled, then twice more: a phone that turns can" & return after tScript
+   put "// report its new size in steps, the last without an event" & return after tScript
+   put "function viewSoon() { clearTimeout(viewTimer); viewTimer = setTimeout(function() { viewChanged();" & return after tScript
+   put "  viewTimer = setTimeout(function() { viewChanged(); viewTimer = setTimeout(viewChanged, 700); }, 380); }, 120); }" & return after tScript
+   put "function canvasOf(e) { var t = e.target; return t && t.tagName === 'CANVAS' ? t : null; }" & return after tScript
+   put "function local(canvas, x, y) { var r = canvas.getBoundingClientRect(); return [Math.round(x - r.left), Math.round(y - r.top)]; }" & return after tScript
+   put "function cancelPress() { if (mw.press) { clearTimeout(mw.press.timer); mw.press = null; } }" & return after tScript
+   put "function onStart(e) {" & return after tScript
+   put "  var c = canvasOf(e); if (!c || !mw.on) return;" & return after tScript
+   put "  mw.pressed = false;" & return after tScript
+   put "  var t = e.touches;" & return after tScript
+   put "  if (t.length === 1) {" & return after tScript
+   put "    var l0 = local(c, t[0].clientX, t[0].clientY);" & return after tScript
+   put "    mw.start0 = {x: t[0].clientX, y: t[0].clientY, lx: l0[0], ly: l0[1], time: e.timeStamp, canvas: c, multi: false};" & return after tScript
+   put "    cancelPress();" & return after tScript
+   put "    if (mw.gestures.longpress) {" & return after tScript
+   put "      var p = {x: t[0].clientX, y: t[0].clientY, canvas: c};" & return after tScript
+   put "      p.timer = setTimeout(function() { if (mw.press === p) { mw.press = null; mw.pressed = true;" & return after tScript
+   put "        var l = local(p.canvas, p.x, p.y); call('longpress', l[0], l[1]); } }, 550);" & return after tScript
+   put "      mw.press = p;" & return after tScript
+   put "    }" & return after tScript
+   put "  } else {" & return after tScript
+   put "    cancelPress();" & return after tScript
+   put "    if (mw.start0) mw.start0.multi = true;" & return after tScript
+   put "    if (t.length === 2 && mw.gestures.pinch) {" & return after tScript
+   put "      var d = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY) || 1;" & return after tScript
+   put "      var m = local(c, (t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2);" & return after tScript
+   put "      mw.pinch = {d: d, canvas: c, scale: 1, frame: null};" & return after tScript
+   put "      call('pinchstart', m[0], m[1]);" & return after tScript
+   put "    }" & return after tScript
+   put "  }" & return after tScript
+   put "}" & return after tScript
+   put "function onMove(e) {" & return after tScript
+   put "  if (!mw.on) return;" & return after tScript
+   put "  var t = e.touches;" & return after tScript
+   put "  if (mw.press && t.length === 1 && Math.hypot(t[0].clientX - mw.press.x, t[0].clientY - mw.press.y) > 10) cancelPress();" & return after tScript
+   put "  if (mw.pinch && t.length >= 2) {" & return after tScript
+   put "    var p = mw.pinch;" & return after tScript
+   put "    p.scale = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY) / p.d;" & return after tScript
+   put "    p.mid = local(p.canvas, (t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2);" & return after tScript
+   put "    if (!p.frame) p.frame = requestAnimationFrame(function() { p.frame = null;" & return after tScript
+   put "      if (mw.pinch === p) call('pinch', Math.round(p.scale * 1000) / 1000, p.mid[0], p.mid[1]); });" & return after tScript
+   put "  }" & return after tScript
+   put "}" & return after tScript
+   put "function onEnd(e) {" & return after tScript
+   put "  if (!mw.on) return;" & return after tScript
+   put "  var t = e.touches;" & return after tScript
+   put "  cancelPress();" & return after tScript
+   put "  if (mw.pinch && t.length < 2) {" & return after tScript
+   put "    var s = mw.pinch.scale; mw.pinch = null;" & return after tScript
+   put "    call('pinchend', Math.round(s * 1000) / 1000);" & return after tScript
+   put "  }" & return after tScript
+   put "  if (t.length === 0 && mw.start0) {" & return after tScript
+   put "    var s0 = mw.start0; mw.start0 = null;" & return after tScript
+   put "    var u = e.changedTouches[0];" & return after tScript
+   put "    if (e.type === 'touchend' && u && !s0.multi && !mw.pressed && mw.gestures.swipe && e.timeStamp - s0.time < 700) {" & return after tScript
+   put "      var dx = u.clientX - s0.x, dy = u.clientY - s0.y;" & return after tScript
+   put "      var ax = Math.abs(dx), ay = Math.abs(dy);" & return after tScript
+   put "      if (Math.max(ax, ay) >= 50 && Math.max(ax, ay) >= 1.5 * Math.min(ax, ay))" & return after tScript
+   put "        call('swipe', ax > ay ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down'), s0.lx, s0.ly);" & return after tScript
+   put "    }" & return after tScript
+   put "  }" & return after tScript
+   put "  if (mw.pressed) setTimeout(function() { mw.pressed = false; }, 400);" & return after tScript
+   put "}" & return after tScript
+   put "var touchEvents = [['touchstart', onStart], ['touchmove', onMove], ['touchend', onEnd], ['touchcancel', onEnd]];" & return after tScript
+   put "var viewEvents = ['resize', 'orientationchange'];" & return after tScript
+   put "window.__oxtMobileWeb = {" & return after tScript
+   put "  start: function(gestures) {" & return after tScript
+   put "    mw.gestures = {};" & return after tScript
+   put "    gestures.split(',').forEach(function(g) { if (g) mw.gestures[g] = true; });" & return after tScript
+   put "    if (mw.on) return;" & return after tScript
+   put "    mw.on = true; mw.lastView = '';" & return after tScript
+   put "    touchEvents.forEach(function(x) { document.addEventListener(x[0], x[1], {capture: true, passive: true}); });" & return after tScript
+   put "    viewEvents.forEach(function(x) { window.addEventListener(x, viewSoon); });" & return after tScript
+   put "    if (window.visualViewport) { visualViewport.addEventListener('resize', viewSoon); visualViewport.addEventListener('scroll', viewSoon); }" & return after tScript
+   put "    viewSoon();" & return after tScript
+   put "  }," & return after tScript
+   put "  stop: function() {" & return after tScript
+   put "    if (!mw.on) return;" & return after tScript
+   put "    mw.on = false; cancelPress(); mw.pinch = null; mw.start0 = null;" & return after tScript
+   put "    touchEvents.forEach(function(x) { document.removeEventListener(x[0], x[1], {capture: true, passive: true}); });" & return after tScript
+   put "    viewEvents.forEach(function(x) { window.removeEventListener(x, viewSoon); });" & return after tScript
+   put "    if (window.visualViewport) { visualViewport.removeEventListener('resize', viewSoon); visualViewport.removeEventListener('scroll', viewSoon); }" & return after tScript
+   put "  }," & return after tScript
+   put "  viewport: viewport," & return after tScript
+   put "  pageSize: function() { return [document.documentElement.clientWidth || window.innerWidth, window.innerHeight].join(','); }," & return after tScript
+   put "  longPressed: function() { return mw.pressed; }," & return after tScript
+   put "  fillPage: function(ask) {" & return after tScript
+   put "    var keep = function(el) { return el && el.getAttribute('data-mobile-web-fill') === 'no'; };" & return after tScript
+   put "    if (keep(document.documentElement) || keep(document.body)) return 'no';" & return after tScript
+   put "    if (ask) return 'yes';" & return after tScript
+   put "    var meta = document.querySelector('meta[name=viewport]');" & return after tScript
+   put "    if (!meta) { meta = document.createElement('meta'); meta.name = 'viewport'; meta.setAttribute('data-oxt-mobile-web', 'made'); document.head.appendChild(meta); }" & return after tScript
+   put "    if (!/viewport-fit/.test(meta.content)) {" & return after tScript
+   put "      if (!meta.hasAttribute('data-oxt-mobile-web')) meta.setAttribute('data-oxt-mobile-web', meta.content);" & return after tScript
+   put "      meta.content = (meta.content ? meta.content + ', ' : '') + 'viewport-fit=cover';" & return after tScript
+   put "    }" & return after tScript
+   put "    var css = document.getElementById('oxt-mobile-web-fill');" & return after tScript
+   put "    if (!css) {" & return after tScript
+   put "      css = document.createElement('style'); css.id = 'oxt-mobile-web-fill';" & return after tScript
+   put "      css.textContent = 'html,body{margin:0;padding:0;height:100%;overflow:hidden;overscroll-behavior:none}' +" & return after tScript
+   put "        '#stack{margin:0!important}';" & return after tScript
+   put "      document.head.appendChild(css);" & return after tScript
+   put "    }" & return after tScript
+   put "    window.scrollTo(0, 0);" & return after tScript
+   put "    return 'yes';" & return after tScript
+   put "  }," & return after tScript
+   put "  unfillPage: function() {" & return after tScript
+   put "    var css = document.getElementById('oxt-mobile-web-fill');" & return after tScript
+   put "    if (css) css.parentNode.removeChild(css);" & return after tScript
+   put "    var meta = document.querySelector('meta[data-oxt-mobile-web]');" & return after tScript
+   put "    if (meta) {" & return after tScript
+   put "      var was = meta.getAttribute('data-oxt-mobile-web');" & return after tScript
+   put "      if (was === 'made') meta.parentNode.removeChild(meta);" & return after tScript
+   put "      else { meta.content = was; meta.removeAttribute('data-oxt-mobile-web'); }" & return after tScript
+   put "    }" & return after tScript
+   put "  }" & return after tScript
+   put "};" & return after tScript
+   put "return '';" after tScript
    return tScript
 end mwBrowserScript
