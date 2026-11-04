@@ -1872,6 +1872,9 @@ function lkIconPaths pName
                "0-.74.739l-1.04 4.35a.5.5 0 0 1-.95.074z'/>"
       case "smartphone"
          return "<rect width='14' height='20' x='5' y='2' rx='2' ry='2'/><path d='M12 18h.01'/>"
+      case "monitor-smartphone"
+         return "<path d='M18 8V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h8'/><path d='M10 19v-3.96 3.15'/>" & \
+               "<path d='M7 19h5'/><rect width='6' height='10' x='16' y='12' rx='2'/>"
       case "newspaper"
          return "<path d='M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-" & \
                "2-2v-9c0-1.1.9-2 2-2h2'/><path d='M18 14h-8'/><path d='M15 18h-5'/><path d='M10 6h8v4h-8V6Z'/>"

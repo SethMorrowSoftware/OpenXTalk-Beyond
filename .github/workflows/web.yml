@@ -458,6 +458,25 @@ jobs:
             --engine-cache "$RUNNER_TEMP/engine" --work "$RUNNER_TEMP/web-check/mobile-web" \
             --shots "$RUNNER_TEMP/web-check/mobile-web/shots" --browser "$BROWSER"
 
+      # The Responsive Starter (tools/web-player/stacks) and the Mobile Web
+      # library's rules on an iPhone, an iPad and a desktop: each layout,
+      # the sheet and the pane, a turn, a notch, the keys and the mouse, a
+      # window made narrower and the dark look
+      # (tools/ci/responsive_web_check.py, which says what it checks).
+      # Chromium and WebKit, as above; its files go in responsive-web.
+      - name: Check the Responsive Starter on every screen in ${{ matrix.browser }}
+        if: matrix.browser != 'firefox'
+        timeout-minutes: ${{ matrix.browser == 'webkit' && 20 || 10 }}
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TRIES: ${{ matrix.browser == 'webkit' && 2 || 1 }}
+        run: |
+          python3 tools/ci/retry_check.py --tries "$TRIES" --files "$RUNNER_TEMP/web-check/responsive-web" \
+            --what "The Responsive Starter check in $BROWSER" -- \
+            "$RUNNER_TEMP/playwright/bin/python" tools/ci/responsive_web_check.py --runtime "$RUNNER_TEMP/web-runtime" \
+            --engine-cache "$RUNNER_TEMP/engine" --work "$RUNNER_TEMP/web-check/responsive-web" \
+            --shots "$RUNNER_TEMP/web-check/responsive-web/shots" --browser "$BROWSER"
+
       - name: Upload the check's files
         if: always()
         uses: actions/upload-artifact@v7

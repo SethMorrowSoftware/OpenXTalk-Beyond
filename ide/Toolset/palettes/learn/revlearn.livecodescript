@@ -2364,7 +2364,7 @@ private function leShowcaseTable
    end repeat
    repeat for each item tName in "xTalk Primer,Fireworks,Live Weather," & \
          "Web Audio Piano,Neon Snake,QR Studio,Talking Robot,2048,Quake Map,Beat Box,Kanban Board," & \
-         "Markdown Notes,UI Gallery,Photo Lab,Phone Starter"
+         "Markdown Notes,UI Gallery,Photo Lab,Phone Starter,Responsive Starter"
       if (tName & ".oxtstack") is among the lines of tFiles then
          put tName & return after tNames
       end if
@@ -2455,6 +2455,10 @@ private function leShowcaseInfo pName
          return "small|A stack to copy for phones, made with the Mobile Web library: tabs for a thumb, " & \
                "swipes, pinches and every finger, a form above the keyboard, and the camera, location, " & \
                "tilt and share sheet. Build it for HTML5 and open it on a phone.|smartphone|indigo|phones touch"
+      case "Responsive Starter"
+         return "small|One stack for every screen, made with the Mobile Web library: a tab bar on a " & \
+               "phone, a rail on a tablet and a sidebar on a desktop, a grid that reflows and details " & \
+               "in a sheet or a pane. Make the window narrower to see it.|monitor-smartphone|teal|responsive layout"
    end switch
    return "small|A small sample made for the Stack Player: open it, then read its scripts.|layers|indigo|sample"
 end leShowcaseInfo

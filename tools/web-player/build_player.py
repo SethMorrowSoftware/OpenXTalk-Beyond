@@ -318,6 +318,12 @@ SAMPLES = [
                     'thumb, swipes, pinches and every finger, a list that scrolls with a finger, a '
                     'form above the keyboard, and the camera, location, tilt and share sheet.',
      'tags': ['Phones', 'Touch', 'Starter']},
+    {'title': 'Responsive Starter', 'source': 'stacks',
+     'files': ['Responsive Starter.oxtstack'], 'image': 'Responsive Starter.webp',
+     'description': 'One stack for every screen, made with the Mobile Web library: a tab bar on a '
+                    'phone, a rail on a tablet and a sidebar on a desktop, a grid that reflows, '
+                    'details in a sheet or a pane, and a dark look. Make the window narrower to see it.',
+     'tags': ['Responsive', 'Layout', 'Starter']},
     {'title': 'Tour', 'files': ['Tour.livecode'],
      'description': 'Cards, a widget, a palette window and a script error, caught and shown.',
      'tags': ['Cards', 'Widget', 'Palette']},
