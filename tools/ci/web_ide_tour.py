@@ -507,7 +507,9 @@ def cpu(page, name, seconds, budget, problems):
         session.send('Performance.enable')
         before, started = task_duration(session), time.monotonic()
         page.wait_for_timeout(seconds * 1000)
-        after, took = task_duration(session), time.monotonic() - started
+        # (the wait lasts at least its seconds: a coarse clock, as
+        # Windows' monotonic one of about 15 ms, cannot make it less)
+        after, took = task_duration(session), max(seconds, time.monotonic() - started)
     finally:
         session.detach()
     busy = busy_percent(before, after, took)

@@ -246,6 +246,15 @@ class Cpu(unittest.TestCase):
         self.assertIn('home-behind', problems[0])
         self.assertEqual(page.waited, [10.0])
 
+    def test_a_coarse_clock(self):
+        # (a fake page's wait takes no time, as a clock of about 15 ms,
+        # Windows' monotonic one, can read: the wait's seconds are the
+        # least it took)
+        problems = []
+        busy = web_ide_tour.cpu(FakePage(FakeSession([0.0, 0.001])), 'ide-alone', 0.01, 5, problems)
+        self.assertAlmostEqual(busy, 10.0)
+        self.assertEqual(len(problems), 1)
+
     def test_another_browser_is_not_measured(self):
         problems = []
         self.assertIsNone(web_ide_tour.cpu(FakePage(None), 'ide-alone', 1, 5, problems))
