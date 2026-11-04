@@ -37,6 +37,7 @@ package.
 | Learn dataChannelXT | [learn-datachannelxt](learn-datachannelxt.livecodescript) | None: made here, a Learn stack (below) | OXT-Beyond, 2026 |
 | Learn TorrentXT | [learn-torrentxt](learn-torrentxt.livecodescript) | None: made here, a Learn stack (below) | OXT-Beyond, 2026 |
 | Learn OnionXT | [learn-onionxt](learn-onionxt.livecodescript) | None: made here, a Learn stack (below) | OXT-Beyond, 2026 |
+| SVG Lab | [svg-lab](svg-lab.livecodescript) | None: made here, in the same look (below) | OXT-Beyond, 2026 |
 
 A remaster is a binary stack, `ide/Resources/Examples/Remastered/<name>.oxtstack`,
 and it is never edited by hand: a script here builds it, and the stack is
@@ -434,3 +435,39 @@ Liberation Sans, all with Helvetica's widths. (Left empty, the stack's
 font would be its platform's own, the IDE's Sans at 13 on Linux, and
 words sized here would not fit.) A control of the example's own can have
 another font, sized when the stack is built.
+
+## SVG Lab
+
+SVG Lab shows what 0.2.7-rc.6.12 brought to SVG, on the OXT-Beyond logo
+or on an SVG the reader opens. It is the desktop cousin of the web page
+[tools/pages/games/svg-lab](../pages/games/svg-lab), whose logo (the
+installer's, with its words as paths, since the drawing library has no
+text element) and the template its every frame is made from it reads
+from there and keeps in the stack. Its five `wide` cards:
+
+- Live Logo: each frame is the logo's SVG with new numbers in it (the
+  rays, the glow, the shine, the electricity and the sparks), compiled
+  again; Pause stops it.
+- Before and After: the SVG compiled with no options, as every old stack
+  still gets it, left of a line the reader drags, and with "all" right of it.
+- Options: each compile option on and off, Convert to Graphics (in the
+  IDE, which has it) and Export SVG.
+- Zoom: the drawing beside a 200 pixel bitmap of it, zoomed alike.
+- Recolor: decompile, change every colour as text, compile again.
+
+A page, How It Works, lists the calls and options. The drawing library
+does the work: where it is not loaded, each card says so.
+
+```sh
+xvfb-run -a <install>/OXT-Beyond -ui tools/examples/test-svg-lab.livecodescript
+```
+
+runs every card of the built stack with revXML and the drawing library
+loaded from the install: the logo is drawn again and again and Pause
+stops it; the old compile and the new differ and the line moves; each
+option changes the logo, and with clip off it has no clips; Convert makes
+graphics in the IDE or says it needs it; both pictures zoom alike and the
+bitmap is a PNG; every recolouring changes the colours; and an SVG of
+one's own reaches every card, and Logo goes back. It ends with `DONE` or
+`FAILED`; `OXT_SVG_LAB` names another copy of the stack, and
+`OXT_SVG_LAB_SNAPS` a folder for a picture of each card.

@@ -63,7 +63,29 @@
         },
       };
 
-      window.addEventListener('error', function() {
+      // An error of the page's own (a script's of the page's site, or the
+      // engine's WebAssembly's) says something went wrong. Another
+      // script's is not the stack's: a browser extension's in the page, or
+      // another site's ("Script error.", with no file), put the message
+      // over a stack that was running well before OXT-Beyond 0.2.7-rc.6.15
+      function oxtOwnError(e) {
+        var file = String(e.filename || '');
+        var site = location.protocol === 'file:' ? 'file:' : location.origin + '/';
+        if (e.error && typeof WebAssembly === 'object' &&
+            (e.error instanceof WebAssembly.RuntimeError ||
+             e.error instanceof WebAssembly.CompileError ||
+             e.error instanceof WebAssembly.LinkError)) {
+          return true;
+        }
+        return file !== '' && (file.indexOf(site) === 0 || file.indexOf('wasm:') === 0);
+      }
+
+      window.addEventListener('error', function(e) {
+        if (!oxtOwnError(e)) {
+          console.warn('An error that is not the page\'s own: ' +
+                       (e.message || 'an error') + (e.filename ? ' (' + e.filename + ')' : ''));
+          return;
+        }
         Module.setStatus('Something went wrong. The browser console has the details.');
       });
     </script>

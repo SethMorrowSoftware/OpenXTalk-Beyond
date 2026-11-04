@@ -309,6 +309,46 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # The gallery, the Stack Player and the map at rest, read in a browser
+      # (tools/pages/check_site_rest.py): nothing big moves without end, no
+      # frame is drawn, and the browser keeps at most 10% of a core busy.
+      # rc.6.14's site kept 233%, 233% and 56% busy without a GPU. The site
+      # goes up whatever it finds (tools/ci/tests/test_pages_at_rest.py holds
+      # the pages on every pull request); a failure is a warning here and its
+      # lines are in the summary
+      - name: The site at rest
+        id: rest
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_VERSION: 1.56.0
+        run: |
+          python3 -m venv "$RUNNER_TEMP/playwright"
+          "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
+          "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps chromium
+          set +e
+          "$RUNNER_TEMP/playwright/bin/python" tools/pages/check_site_rest.py \
+            --site "$RUNNER_TEMP/site" --out "$RUNNER_TEMP/rest-shots" | tee "$RUNNER_TEMP/rest.txt"
+          status=${PIPESTATUS[0]}
+          {
+            echo
+            echo "The site at rest (tools/pages/check_site_rest.py):"
+            echo
+            sed 's/^/    /' "$RUNNER_TEMP/rest.txt"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" != 0 ]; then
+            echo "::warning::the site does not rest: see the summary"
+          fi
+          exit "$status"
+
+      - name: Upload the screenshots at rest
+        if: ${{ !cancelled() && steps.rest.outcome != 'skipped' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: site-at-rest
+          path: ${{ runner.temp }}/rest-shots/
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Upload the site
         uses: actions/upload-pages-artifact@v5
         with:

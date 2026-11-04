@@ -24,6 +24,13 @@ that are there, its own anchors and the project on GitHub;
 [check_front_page.py](check_front_page.py) reads it in a browser, wide
 and narrow, light and dark (the Web IDE workflow runs it beside the
 Dictionary's check).
+[check_site_rest.py](check_site_rest.py) holds the gallery, the Stack
+Player's home and the codebase map to the front page's rule at rest:
+nothing big moves without end unless it is pointed at, no frame is drawn,
+and the browser keeps at most 10% of a core busy (pages.yml runs it on
+the site it is about to deploy, as a warning;
+[test_pages_at_rest.py](../ci/tests/test_pages_at_rest.py) holds the
+pages without a browser).
 
 With a release (`--release TAG --release-assets FILE`, which pages.yml
 gives: the release on the site, or the newest when the site has a test

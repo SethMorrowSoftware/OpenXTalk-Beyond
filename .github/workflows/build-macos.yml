@@ -793,6 +793,17 @@ jobs:
             --bin "$MAC/universal/Release" --out "$RUNNER_TEMP/dist" --dmg 2>&1 | tee "$LOGS/package-dist.log"
           ls -l "$RUNNER_TEMP/dist"
 
+      # OXT-Beyond Server: the merged build's server engine (universal,
+      # signed ad hoc above) with its externals and database drivers, in the
+      # layout of LiveCode Community's server zips, as
+      # <root>-mac-universal-server.zip, a release file added to SHA256SUMS
+      # (tools/oxt/package_server.py), checked by the test jobs on both
+      # architectures.
+      - name: Server zip
+        run: |
+          python3 tools/oxt/package_server.py --platform mac-universal --bin "$MAC/universal/Release" \
+            --out "$RUNNER_TEMP/dist" --sums 2>&1 | tee "$LOGS/server-zip.log"
+
       - name: Upload the packages
         uses: actions/upload-artifact@v7
         with:
@@ -804,13 +815,15 @@ jobs:
           compression-level: 0
 
       # The test jobs need only the disk image (about 0.6 GB of the 1.4 GB
-      # above), so they download it from an artifact of its own
+      # above) and the server zip, so they download them from an artifact
+      # of their own
       - name: Upload the disk image for the tests
         uses: actions/upload-artifact@v7
         with:
           name: OXT-Beyond-mac-universal-dmg
           path: |
             ${{ runner.temp }}/dist/*.dmg
+            ${{ runner.temp }}/dist/*-server.zip
             ${{ runner.temp }}/dist/SHA256SUMS
           if-no-files-found: error
           retention-days: 30
@@ -900,8 +913,11 @@ jobs:
           cd "$RUNNER_TEMP/dist"
           ls -l
           dmg="OXT-Beyond-$VERSION-mac-universal.dmg"
-          awk -v f="$dmg" '$2 == f' SHA256SUMS > dmg.sha256
-          if [ ! -s dmg.sha256 ]; then echo "::error::SHA256SUMS has no line for $dmg"; exit 1; fi
+          server="OXT-Beyond-$VERSION-mac-universal-server.zip"
+          awk -v f="$dmg" -v g="$server" '$2 == f || $2 == g' SHA256SUMS > dmg.sha256
+          for f in "$dmg" "$server"; do
+            if ! awk -v f="$f" '$2 == f' dmg.sha256 | grep -q .; then echo "::error::SHA256SUMS has no line for $f"; exit 1; fi
+          done
           shasum -a 256 -c dmg.sha256
 
       # hdiutil attach -readonly, as a user's double-click mounts it; the
@@ -946,6 +962,18 @@ jobs:
         run: |
           python3 tools/ci/run_livecode_check.py smoke --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
             --log "$LOGS/smoke-test.log"
+
+      # The server zip as a web server uses it, on this architecture
+      # (tools/ci/server_check.py): its engine run as a CGI program with the
+      # request in the environment ($_GET, $_POST, $_FILES, cookies,
+      # headers, include and require, sessions, revDB with SQLite, revXML,
+      # revZip, the errorMode), and a page run as a program of its own
+      # through its "#!" line. Apache is checked on Linux.
+      - name: Server check
+        timeout-minutes: 10
+        run: |
+          python3 tools/ci/server_check.py --zip "$RUNNER_TEMP/dist/OXT-Beyond-$VERSION-mac-universal-server.zip" \
+            --platform mac-universal --apache no --log "$LOGS/server-check.log"
 
       # Every native library of the bundled extensions finds what it needs
       # on a user's Mac and holds both architectures, and each slice needs

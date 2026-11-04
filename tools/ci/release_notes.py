@@ -103,6 +103,7 @@ Needs 64-bit Windows 10 or later.
 - `{root}-win-x86_64-portable.zip`: the same program folder without an installer. Extract it and run `OXT-Beyond.exe`.
 - `{root}-win-x86_64-binaries.zip`: the engine, externals and tools as built (`win-x86_64-bin`), without debug symbols, plus the licence files.
 - `{root}-win-x86_64-symbols.zip`: debug symbols (`*.pdb`) for the binaries.
+- `{root}-win-x86_64-server.zip`: OXT-Beyond Server, the server engine that runs `.lc` pages on a web server (see *Server* below).
 
 The executables are not code-signed, so Windows SmartScreen may warn when they are run for the first time.
 
@@ -114,6 +115,7 @@ One universal app, `OXT-Beyond.app`. It needs macOS 11 Big Sur or later on Apple
 - `{root}-mac-universal.zip`: the same app, for scripted installs (`ditto -x -k {root}-mac-universal.zip /Applications`).
 - `{root}-mac-universal-binaries.tar.xz`: the build output (`Release/`, the Apple Silicon and Intel builds joined with lipo), signed ad hoc, without debug symbols and the build's own tools, plus the licence files.
 - `{root}-mac-universal-symbols.zip`: debug symbols (`.dSYM` bundles) for the binaries.
+- `{root}-mac-universal-server.zip`: OXT-Beyond Server, the server engine that runs `.lc` pages on a web server (see *Server* below).
 
 **Opening it for the first time.** The app is signed ad hoc: it is not signed with an Apple Developer ID and not notarized by Apple, so macOS does not open a downloaded copy until you allow it. You do this once. On macOS 15 Sequoia and later:
 
@@ -136,6 +138,7 @@ Needs 64-bit x86 Linux with glibc 2.31 or later (Ubuntu 20.04, Debian 11, Fedora
 - `{root}-linux-x86_64.tar.xz`: the program folder `{root}`. Extract it onto a Linux file system (not FAT, exFAT or a Windows drive) and run `./oxt-beyond` in it, or run `./install.sh` to install it for yourself: under `~/.local/share/oxt-beyond`, with a menu entry, icons, the .oxtstack and .oxtscript file types and the command `oxt-beyond`, without administrator rights.
 - `{root}-linux-x86_64-binaries.tar.xz`: the engine, externals and tools as built (`linux-x86_64-bin`), without debug symbols and the build's own tools, plus the licence files.
 - `{root}-linux-x86_64-symbols.tar.xz`: debug symbols (`.dbg` files) for the binaries.
+- `{root}-linux-x86_64-server.zip`: OXT-Beyond Server, the server engine that runs `.lc` pages on a web server (see *Server* below).
 
 ## Linux (64-bit ARM)
 
@@ -144,6 +147,7 @@ For 64-bit ARM Linux with glibc 2.31 or later: a Raspberry Pi 3, 4 or 5 running 
 - `{root}-linux-arm64.tar.xz`: the program folder `{root}`, as for x86-64.
 - `{root}-linux-arm64-binaries.tar.xz`: the engine, externals and tools as built (`linux-arm64-bin`), without debug symbols and the build's own tools, plus the licence files.
 - `{root}-linux-arm64-symbols.tar.xz`: debug symbols (`.dbg` files) for the binaries.
+- `{root}-linux-arm64-server.zip`: OXT-Beyond Server, the server engine that runs `.lc` pages on a web server (see *Server* below).
 
 ## Plugins for other xTalks
 
@@ -161,6 +165,10 @@ The Stack Player: OXT-Beyond's web engine with a stack that opens any stack you 
 The web IDE: the OXT-Beyond IDE itself in a web page, run by its own engine built for the web, with the Script Editor, the Property Inspector, the Message Box, the Dictionary and the xTalk Academy. Extract the zip and, in its folder, double-click `Start Web IDE.bat` on Windows or run `python3 serve.py` on macOS and Linux (it needs Python 3); your browser then opens it at `http://localhost:8000/`. Or put the folder's files on any web server. Stacks you make are kept in the browser, and File > Download Stack gives you a copy. Experimental: building standalones and a few other things a browser cannot do are left out (see `tools/web-ide/README.md`).
 
 - `{root}-web-ide.zip`: the web IDE's folder, with its README.
+
+## Server
+
+OXT-Beyond Server runs xTalk scripts on a web server, as LiveCode Server did: a page is a `.lc` file with xTalk between `<?lc` and `?>`, which reads the request in `$_GET`, `$_POST`, `$_FILES`, `$_COOKIE` and `$_SERVER` and answers with `put header`, `put cookie` and `put`. Each zip above holds the engine `livecode-community-server` with its `externals` (revDB, revXML, revZip) and `drivers` (SQLite, MySQL, PostgreSQL, ODBC) in the layout of LiveCode Community's server zips, so a web server set up for one runs it unchanged; its `README.txt` says how to set it up with Apache, IIS or nginx and what to change before putting it on the internet. New in 0.2.7-rc.6.15 and experimental. Every build runs it as a CGI program on each platform, and through Apache on Linux.
 
 ## All platforms
 

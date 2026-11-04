@@ -97,6 +97,11 @@ ASSETS = (
         '-win-x86_64-portable.zip',
         '-win-x86_64-binaries.zip',
         '-win-x86_64-symbols.zip',
+        # The server engine with its externals and drivers in LiveCode
+        # Community's server zip layout (tools/oxt/package_server.py),
+        # checked by tools/ci/server_check.py; one per platform's
+        # artifact, added in 0.2.7-rc.6.15
+        '-win-x86_64-server.zip',
         # Every platform's packages take the same pinned xTalk files, so
         # one copy serves the release; the Windows job writes it
         # (package-windows.ps1 -XtalkSourcesZip) and no other job does
@@ -107,22 +112,25 @@ ASSETS = (
         '-mac-universal.zip',
         '-mac-universal-binaries.tar.xz',
         '-mac-universal-symbols.zip',
+        '-mac-universal-server.zip',
     )),
     ('OXT-Beyond-linux-x86_64', 'linux-x86_64', (
         '-linux-x86_64.tar.xz',
         '-linux-x86_64-binaries.tar.xz',
         '-linux-x86_64-symbols.tar.xz',
+        '-linux-x86_64-server.zip',
         # The Stack Player (tools/web-player), a web standalone that opens
         # any stack: the same files on any platform, built by this job with
         # the package's IDE (build_player.py --zip) once it has checked it
         '-web-player.zip',
     )),
     # 64-bit ARM Linux (Raspberry Pi 3/4/5 on a 64-bit OS, ARM servers),
-    # published since 0.2.4-rc.2; the same three files as x86_64
+    # published since 0.2.4-rc.2; the same files as x86_64
     ('OXT-Beyond-linux-arm64', 'linux-arm64', (
         '-linux-arm64.tar.xz',
         '-linux-arm64-binaries.tar.xz',
         '-linux-arm64-symbols.tar.xz',
+        '-linux-arm64-server.zip',
     )),
     # The xTalk Assistant and the xTalk MCP Bridge as extension packages
     # for other xTalks' IDEs (tools/plugins), built by the publish job

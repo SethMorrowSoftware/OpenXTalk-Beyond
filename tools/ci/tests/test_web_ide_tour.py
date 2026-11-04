@@ -20,7 +20,8 @@ window, openxtalk.org p=25583). Its --color-scheme, and the web IDE's page
 following the browser between light and dark (seth's choice of
 2026-10-30): the page asks for it, its title bars have dark colours, the
 check runs the tour in both and its appearance step switches the page.
-Playwright is not needed.
+Its --stray-errors and --own-error, and the page stopping its start only
+on an error of its own. Playwright is not needed.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -129,6 +130,97 @@ class NotSaved(unittest.TestCase):
         text = self.read('.github', 'workflows', 'web-ide.yml')
         self.assertIn('--refuse-storage \\\n            --only storage-open', text)
         self.assertIn("if: ${{ matrix.size == '800x500' }}", text)
+
+
+class StrayErrors(unittest.TestCase):
+    """--stray-errors and --own-error (2026-11-04: seth's web IDE showed
+    "Something went wrong" in a normal window and opened in a private one,
+    which leaves the browser's extensions out; the page stopped on any
+    error). The page's rule and the scripts that raise the errors are
+    tools/ci/stray_errors.py's, held by test_stray_errors.py; these hold
+    the web IDE's check to them."""
+
+    def read(self, *path):
+        with open(os.path.join(REPO, *path), encoding='utf-8') as f:
+            return f.read()
+
+    def test_the_web_ide_s_listener(self):
+        page = self.read('tools', 'web-ide', 'index.html')
+        body = page.split("window.addEventListener('error', function(e) {", 1)[1].split('});', 1)[0]
+        self.assertIn('if (!oxtOwnError(e)) {', body)
+        self.assertLess(body.index('oxtOwnError(e)'), body.index('fail('))
+        # the start is not stopped after the IDE has opened, as before
+        self.assertLess(body.index('if (started)'), body.index('oxtOwnError(e)'))
+
+    def test_the_tour_uses_the_shared_scripts(self):
+        import stray_errors
+        self.assertIs(web_ide_tour.STRAY_ERRORS, stray_errors.STRAY_ERRORS)
+        self.assertIs(web_ide_tour.OWN_ERROR, stray_errors.OWN_ERROR)
+        # the thrown errors are not counted as the page's
+        self.assertIn('if args.stray_errors and STRAY_MARK in str(error):',
+                      self.read('tools', 'ci', 'web_ide_tour.py'))
+
+    def test_one_or_the_other(self):
+        with self.assertRaises(SystemExit):
+            web_ide_tour.main(['--site', 'x', '--out', 'y', '--stray-errors', '--own-error'])
+
+    def test_the_workflow_runs_both_in_each_browser(self):
+        text = self.read('.github', 'workflows', 'web-ide.yml')
+        self.assertIn('--stray-errors \\\n            --only start --timeout 480', text)
+        self.assertIn('--own-error \\\n            --timeout 480', text)
+        small = text.split('\n  small:\n', 1)[1].split('\n  soak:\n', 1)[0]
+        self.assertIn('browser: [chromium, firefox]', small)
+        self.assertEqual(small.count("if: ${{ matrix.size == '800x500' }}"), 3)
+
+
+class Update(unittest.TestCase):
+    """An update of the site in a kept browser profile (web-ide.yml's
+    upgrade job): the newest release's web IDE saves a stack and a
+    preference (the tour's keep step), and this commit's, at the same
+    address in the same profile, must find them (kept). "Will I have to
+    clear my cache?" (seth, 2026-11-04)."""
+
+    def read(self, *path):
+        with open(os.path.join(REPO, *path), encoding='utf-8') as f:
+            return f.read()
+
+    def test_the_tour_has_the_steps_only_when_asked(self):
+        tour = self.read('tools', 'ci', 'web-ide-tour.livecodescript')
+        steps = [line for line in tour.splitlines() if line.startswith('constant kSteps')][0]
+        steps = steps.split('"')[1].split(',')
+        self.assertIn('constant kAskedSteps = "keep,kept"', tour)
+        for step in ('keep', 'kept'):
+            self.assertIn(step, steps)
+            self.assertIn('\non tour_%s\n' % step, tour)
+        # a tour with no --only leaves them out
+        self.assertIn('if tOnly is empty and tStep is among the items of kAskedSteps then', tour)
+        keep = tour.split('\non tour_keep\n', 1)[1].split('\nend tour_keep', 1)[0]
+        kept = tour.split('\non tour_kept\n', 1)[1].split('\nend tour_kept', 1)[0]
+        self.assertIn('save stack kKept', keep)
+        self.assertIn('revIDESetPreference "oxtWebTourKept", kKeptText', keep)
+        self.assertIn('tourCheckStorage false, empty, 5000', keep)
+        self.assertIn('if tText is not kKeptText then', kept)
+        self.assertIn('if tPref is not kKeptText then', kept)
+        self.assertIn('oxt-web-tour-kept.oxtstack', keep)
+        self.assertIn('oxt-web-tour-kept.oxtstack', kept)
+
+    def test_profile_and_port(self):
+        text = self.read('tools', 'ci', 'web_ide_tour.py')
+        self.assertIn('launch_persistent_context(', text)
+        self.assertIn('server = serve(site, args.port)', text)
+        self.assertIn("ThreadingHTTPServer(('127.0.0.1', port),", text)
+
+    def test_the_workflow_updates_the_released_site(self):
+        text = self.read('.github', 'workflows', 'web-ide.yml')
+        job = text.split('\n  upgrade:\n', 1)[1].split('\n  soak:\n', 1)[0]
+        self.assertIn('browser: [chromium, firefox]', job)
+        self.assertIn('--pattern "*-web-ide.zip"', job)
+        before = job.index('--site "$RELEASED_SITE"')
+        after = job.index('--site "$RUNNER_TEMP/site"')
+        self.assertLess(before, after)
+        self.assertIn('--profile "$RUNNER_TEMP/profile" --port 8765 --only start,keep --timeout 480', job)
+        self.assertIn('--profile "$RUNNER_TEMP/profile" --port 8765 --only start,storage-open,kept,sample '
+                      '--timeout 480', job)
 
 
 class PropertyListeners(unittest.TestCase):

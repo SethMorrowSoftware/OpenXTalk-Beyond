@@ -75,7 +75,24 @@ var Module = {
     else { fill.style.width = '100%'; setTimeout(function () { loading.style.display = 'none'; }, 800); }
   }
 };
-window.addEventListener('error', function () { statusText.textContent = 'Something went wrong. The browser console has the details.'; });
+// An error of the page's own (a script's of the page's site, or the
+// engine's WebAssembly's) says something went wrong; another script's (a
+// browser extension's in the page, another site's) is not the page's
+function oxtOwnError(e) {
+  var file = String(e.filename || '');
+  var site = location.protocol === 'file:' ? 'file:' : location.origin + '/';
+  if (e.error && typeof WebAssembly === 'object' &&
+      (e.error instanceof WebAssembly.RuntimeError ||
+       e.error instanceof WebAssembly.CompileError ||
+       e.error instanceof WebAssembly.LinkError)) {
+    return true;
+  }
+  return file !== '' && (file.indexOf(site) === 0 || file.indexOf('wasm:') === 0);
+}
+window.addEventListener('error', function (e) {
+  if (!oxtOwnError(e)) { console.warn('An error that is not the page\'s own: ' + (e.message || 'an error')); return; }
+  statusText.textContent = 'Something went wrong. The browser console has the details.';
+});
 canvas.addEventListener('mousedown', function () { canvas.focus(); });
 </script>
 <script async src="../svg-lab/standalone-community-9.7.1-BeyondEngine.js"></script>

@@ -54,6 +54,13 @@ stack file with no extension, which the player must import with its
 scripts fixed as File > Import Stack fixes them, and Stacks.dc42, a
 DiskCopy 4.2 image, whose stacks it must list and open the one chosen.
 
+The first page also has other scripts' errors raised while the player
+starts and once it has (tools/ci/stray_errors.py: a browser extension's
+script in the page, another site's): the player must start and say
+nothing of them (its loading card's error stays hidden). A last page has
+an error of its own page raised while the engine starts: that one must
+show on the loading card.
+
 Screenshots go into <work>/check.
 """
 
@@ -305,6 +312,11 @@ SAMPLES = [
      'description': 'Open a photo of your own, pick a look, adjust it and download it at full '
                     'size; the browser does the pixel work and the photo never leaves your computer.',
      'tags': ['Images', 'JavaScript', 'Files']},
+    {'title': 'Phone Starter', 'source': 'stacks',
+     'files': ['Phone Starter.oxtstack'], 'image': 'Phone Starter.webp',
+     'description': 'A stack to copy for phones, made with the Mobile Web library: tabs for a '
+                    'thumb, swipes, a list that scrolls with a finger, a form above the keyboard.',
+     'tags': ['Phones', 'Touch', 'Starter']},
     {'title': 'Tour', 'files': ['Tour.livecode'],
      'description': 'Cards, a widget, a palette window and a script error, caught and shown.',
      'tags': ['Cards', 'Widget', 'Palette']},
@@ -391,6 +403,8 @@ def png_pixel(data, x, y):
 
 def check(site, samples, work):
     from playwright.sync_api import sync_playwright
+    sys.path.insert(0, os.path.join(REPO, 'tools', 'ci'))
+    import stray_errors
     shots = os.path.join(work, 'check')
     shutil.rmtree(shots, ignore_errors=True)
     os.makedirs(shots)
@@ -441,13 +455,26 @@ def check(site, samples, work):
         page = context.new_page()
         downloads = []
         page.on('console', lambda m: lines.append(m.text))
-        page.on('pageerror', lambda e: problems.append('page error: %s' % e))
+
+        def page_error(error):
+            # (the other scripts' errors this check raises are not the page's)
+            if stray_errors.STRAY_MARK not in str(error):
+                problems.append('page error: %s' % error)
+        page.on('pageerror', page_error)
         page.on('download', lambda d: downloads.append(d.suggested_filename))
+        # Other scripts' errors while the player starts, as a browser
+        # extension's script in the page raises them
+        page.add_init_script(stray_errors.STRAY_ERRORS)
 
         started = time.time()
         page.goto(url)
         if wait_for(page, lambda: seen('PLAYER ready'), 'the player starting', 180):
             expect('start', True, '%.1f s' % (time.time() - started))
+        # ... and once it has: neither says the engine could not start
+        page.evaluate(stray_errors.STRAY_NOW)
+        page.wait_for_timeout(500)
+        expect('stray-errors', page.evaluate("document.getElementById('loading-error').hidden") is True,
+               page.evaluate("document.getElementById('loading-error').textContent"))
         wait_for(page, lambda: page.locator('#library-empty').is_visible(), 'the empty library', 20)
         page.wait_for_timeout(800)
         page.screenshot(path=os.path.join(shots, '1-player.png'), full_page=True)
@@ -702,6 +729,18 @@ def check(site, samples, work):
         wait_for(third, lambda: any(x.startswith('PLAYER library') for x in third_lines[before:]), 'going home', 15)
 
         third_context.close()
+
+        # An error of the page's own while the engine starts still shows
+        own_context = browser.new_context(viewport={'width': 1000, 'height': 700})
+        own = own_context.new_page()
+        own.add_init_script(stray_errors.OWN_ERROR)
+        own.goto(url)
+        shown = wait_for(own, lambda: own.evaluate(
+            "!document.getElementById('loading-error').hidden"), 'the own error showing', 60)
+        text = own.evaluate("document.getElementById('loading-error').textContent")
+        expect('own-error', shown and 'could not start' in text, text)
+        own.screenshot(path=os.path.join(shots, '9-own-error.png'))
+        own_context.close()
         browser.close()
     server.shutdown()
     with open(os.path.join(shots, 'console.txt'), 'w', encoding='utf-8') as f:

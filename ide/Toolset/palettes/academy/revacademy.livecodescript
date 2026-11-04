@@ -2166,6 +2166,7 @@ private command acHero pEyebrow, pTitle, pText, pStats, pColors, pButton1, pButt
       put lkOval("p_heroGlow" & tIndex, lkR(0, 0, tSize, tSize), "255,255,255", "p_hero") into tObj
       lkGlowFill tObj, "255,255,255", item tIndex of "70,55,60,45"
       set the blendLevel of tObj to 40
+      lkGlowPicture tObj
    end repeat
    repeat with tIndex = 1 to 6
       put lkBox("p_heroStar" & tIndex, lkR(0, 0, 10, 10), "255,255,255", 0, "p_hero") into tObj
@@ -2243,7 +2244,7 @@ private command acHeroFrame
    repeat with tIndex = 1 to 4
       put item 1 of tRect + tW * (item tIndex of "0.72,0.9,0.55,0.18") + 60 * sin(tT * (0.35 + tIndex * 0.07) + tIndex * 1.7) into tX
       put item 2 of tRect + tH * (item tIndex of "0.2,0.85,0.95,0.1") + 30 * cos(tT * (0.3 + tIndex * 0.05) + tIndex) into tY
-      set the loc of graphic ("p_heroGlow" & tIndex) to round(tX), round(tY)
+      lkGlowMove "p_heroGlow" & tIndex, round(tX) & comma & round(tY)
    end repeat
    repeat with tIndex = 1 to 6
       put "p_heroStar" & tIndex into tObj

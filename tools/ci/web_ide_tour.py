@@ -39,7 +39,10 @@ tells the tour to go. The tour (web-ide-tour.livecodescript says what it
 opens) hands the page lines through window.oxtTour; this script writes
 them to <out>/tour.txt, and does what each ACT line asks: a screenshot of
 the page (<out>/shots/<file>.png), a click, a key, or a new size of the
-page. What the browser's console says goes to <out>/console.txt.
+page; or, in Chromium, how busy the page's main thread is for a while
+(ACT cpu, tools/ci/web-ide-idle.livecodescript), which fails the check
+above its budget. What the browser's console says goes to
+<out>/console.txt.
 
 The check fails when the IDE does not open, the page reports an error of
 its own (a JavaScript error, or the engine stopping), the tour records a
@@ -67,6 +70,21 @@ engine cannot load the home folder, where the IDE saves stacks, and the
 page's not-saved bar says so. The page gives the tour
 window.oxtTour.refused, true; web-ide.yml runs the tour's storage-open
 step alone with it.
+
+--profile DIR keeps the browser's profile in DIR (its storage, its
+cache) from one run to the next, and --port the site's address the same,
+so that a run on the released site and then one on the new site is an
+update of the site as a user's browser meets it. The tour's keep step
+(asked for with --only) saves a stack and a preference on the first; its
+kept step, on the second, must find them. web-ide.yml's upgrade job runs
+them in Chromium and Firefox.
+
+--stray-errors has scripts that are not the IDE's throw errors while it
+starts, as a browser extension's script in the page can (STRAY_ERRORS):
+the IDE must open all the same. --own-error has the page report an error
+of its own instead (OWN_ERROR), and the check passes only when the page
+stops the start and shows it; no tour runs. web-ide.yml runs the start
+step with the first and the second alone, in Chromium and Firefox.
 
 Exit status 0 when the tour passes, 1 otherwise. Needs Python 3.8 or later
 and the Python package playwright with its Chromium
@@ -122,6 +140,15 @@ IDBFactory.prototype.open = function() {
   throw new DOMException('refused by the tour', 'SecurityError');
 };
 '''
+
+# --stray-errors and --own-error: the scripts that raise other scripts'
+# errors, and an error of the page's own (stray_errors.py)
+from stray_errors import STRAY_MARK, STRAY_ERRORS, OWN_ERROR_TEXT, OWN_ERROR  # noqa: E402,F401
+
+
+class OwnErrorShown(Exception):
+    """--own-error's check is over (its result is in problems)."""
+
 
 WIDTH, HEIGHT = 1400, 900
 
@@ -194,7 +221,7 @@ def make_site(site, out, tour=TOUR, add=(), replace=()):
     return copy
 
 
-def serve(folder):
+def serve(folder, port=0):
     class Handler(http.server.SimpleHTTPRequestHandler):
         extensions_map = dict(http.server.SimpleHTTPRequestHandler.extensions_map,
                               **{'.wasm': 'application/wasm', '.js': 'text/javascript'})
@@ -202,7 +229,7 @@ def serve(folder):
         def log_message(self, *args):
             pass
 
-    server = http.server.ThreadingHTTPServer(('127.0.0.1', 0),
+    server = http.server.ThreadingHTTPServer(('127.0.0.1', port),
                                              functools.partial(Handler, directory=folder))
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server
@@ -262,6 +289,15 @@ def main(argv=None):
                     help='the page\'s size as it opens (default %dx%d)' % (WIDTH, HEIGHT))
     ap.add_argument('--refuse-storage', action='store_true',
                     help='the browser\'s storage (IndexedDB) refuses the page from the start')
+    ap.add_argument('--profile', default='', metavar='DIR',
+                    help='a browser profile to keep between runs (with --port: an update of the site)')
+    ap.add_argument('--port', type=int, default=0,
+                    help='the port to serve the site on (default: any free one)')
+    errors = ap.add_mutually_exclusive_group()
+    errors.add_argument('--stray-errors', action='store_true',
+                        help='scripts that are not the IDE\'s throw errors while it starts')
+    errors.add_argument('--own-error', action='store_true',
+                        help='the page reports an error of its own: passes only when it stops')
     args = ap.parse_args(argv)
     replace = []
     for item in args.replace:
@@ -279,7 +315,7 @@ def main(argv=None):
     os.makedirs(shots_dir)
     site = make_site(os.path.abspath(args.site), out, os.path.abspath(args.tour),
                      [os.path.abspath(a) for a in args.add], replace)
-    server = serve(site)
+    server = serve(site, args.port)
     url = 'http://127.0.0.1:%d/' % server.server_address[1]
     log('Site  : %s (a copy of %s, with the tour)' % (site, args.site))
     log('Page  : %s at %dx%d, %s' % (url, args.size[0], args.size[1], args.color_scheme))
@@ -300,12 +336,25 @@ def main(argv=None):
         return '%7.1f' % (time.time() - started)
 
     with sync_playwright() as p:
-        browser = getattr(p, args.browser).launch()
-        page = browser.new_page(viewport={'width': args.size[0], 'height': args.size[1]},
-                                color_scheme=args.color_scheme)
+        if args.profile:
+            # A profile kept between runs: the browser's storage (the home
+            # folder's IndexedDB, the page's Cache Storage) and its cache,
+            # as a user's browser keeps them from one visit to the next
+            browser = getattr(p, args.browser).launch_persistent_context(
+                os.path.abspath(args.profile), viewport={'width': args.size[0], 'height': args.size[1]},
+                color_scheme=args.color_scheme)
+            page = browser.pages[0] if browser.pages else browser.new_page()
+            log('Profile: %s' % os.path.abspath(args.profile))
+        else:
+            browser = getattr(p, args.browser).launch()
+            page = browser.new_page(viewport={'width': args.size[0], 'height': args.size[1]},
+                                    color_scheme=args.color_scheme)
         page.on('console', lambda m: console.write('%s %s %s\n' % (stamp(), m.type, m.text)))
 
         def page_error(error):
+            if args.stray_errors and STRAY_MARK in str(error):
+                console.write('%s the tour\'s stray error %s\n' % (stamp(), error))
+                return
             console.write('%s PAGE ERROR %s\n' % (stamp(), error))
             problems.append('page error: %s' % error)
         page.on('pageerror', page_error)
@@ -313,9 +362,27 @@ def main(argv=None):
         if args.refuse_storage:
             page.add_init_script(REFUSE_STORAGE)
             log('Storage: refused from the start')
+        if args.stray_errors:
+            page.add_init_script(STRAY_ERRORS)
+            log('Errors: stray ones, not the IDE\'s, while it starts')
+        if args.own_error:
+            page.add_init_script(OWN_ERROR)
+            log('Errors: one of the page\'s own before the IDE opens')
         try:
             page.goto(url)
             page.wait_for_function('%s || %s' % (OPENED, FAILED), timeout=args.timeout * 1000 / 2)
+            if args.own_error:
+                status = ''
+                if page.evaluate(FAILED):
+                    status = page.evaluate("document.getElementById('error').textContent")
+                page.screenshot(path=os.path.join(shots_dir, '00-own-error.png'))
+                shots.append('00-own-error')
+                if OWN_ERROR_TEXT in status:
+                    log('%s the page stopped on its own error: %s' % (stamp(), status.strip()))
+                else:
+                    problems.append('the page did not stop on an error of its own: %s'
+                                    % (status.strip() or 'the IDE opened'))
+                raise OwnErrorShown()
             if page.evaluate(FAILED):
                 status = page.evaluate("document.getElementById('error').textContent")
                 raise RuntimeError('the IDE did not open: %s' % status)
@@ -349,6 +416,10 @@ def main(argv=None):
                         finished = True
                 if finished:
                     break
+            if finished and args.profile:
+                # what the IDE wrote last reaches the browser's storage
+                # before the profile is closed
+                page.wait_for_timeout(2000)
             if not finished:
                 problems.append('the tour did not finish within %d s' % args.timeout)
             if args.keep_serving:
@@ -358,6 +429,8 @@ def main(argv=None):
                         time.sleep(1)
                 except KeyboardInterrupt:
                     pass
+        except OwnErrorShown:
+            finished = True
         except Exception as e:  # noqa: BLE001 - every failure is reported
             problems.append('%s: %s' % (type(e).__name__, str(e).splitlines()[0] if str(e) else ''))
             try:
@@ -402,6 +475,50 @@ def tap(page, x, y):
         session.detach()
 
 
+def busy_percent(before, after, seconds):
+    """How busy the page's main thread was, in percent of one core, from
+    two readings of Chromium's TaskDuration (seconds of work) seconds
+    apart."""
+    if seconds <= 0:
+        raise ValueError('no time measured')
+    return 100.0 * (after - before) / seconds
+
+
+def task_duration(session):
+    """Chromium's TaskDuration: the seconds of work the page's main thread
+    has done (Performance.getMetrics)."""
+    for metric in session.send('Performance.getMetrics')['metrics']:
+        if metric['name'] == 'TaskDuration':
+            return metric['value']
+    raise RuntimeError('Chromium gave no TaskDuration')
+
+
+def cpu(page, name, seconds, budget, problems):
+    """An ACT cpu line (web-ide-idle.livecodescript): how busy the page's
+    main thread is for seconds, in percent of one core, logged, and a
+    problem when above budget. Only Chromium has the DevTools protocol;
+    another browser logs that it was not measured."""
+    try:
+        session = page.context.new_cdp_session(page)
+    except Exception:  # noqa: BLE001 - not Chromium
+        log('CPU %s: not measured in this browser' % name)
+        return None
+    try:
+        session.send('Performance.enable')
+        before, started = task_duration(session), time.monotonic()
+        page.wait_for_timeout(seconds * 1000)
+        # (the wait lasts at least its seconds: a coarse clock, as
+        # Windows' monotonic one of about 15 ms, cannot make it less)
+        after, took = task_duration(session), max(seconds, time.monotonic() - started)
+    finally:
+        session.detach()
+    busy = busy_percent(before, after, took)
+    log('CPU %s: %.1f%% of a core over %.0f s (at most %g%%)' % (name, busy, took, budget))
+    if busy > budget:
+        problems.append('%s kept the page busy %.1f%% of the time, more than %g%%' % (name, busy, budget))
+    return busy
+
+
 def act(page, words, shots_dir, shots, problems):
     """Does what an ACT line asks (web-ide-tour.livecodescript, "Lines")."""
     verb, rest = words[2], words[3:]
@@ -423,6 +540,8 @@ def act(page, words, shots_dir, shots, problems):
             page.set_viewport_size({'width': int(rest[0]), 'height': int(rest[1])})
         elif verb == 'scheme' and len(rest) == 1 and rest[0] in ('light', 'dark'):
             page.emulate_media(color_scheme=rest[0])
+        elif verb == 'cpu' and len(rest) == 3:
+            cpu(page, rest[0], float(rest[1]), float(rest[2]), problems)
         else:
             problems.append('the tour asked for what the page cannot do: %s' % ' '.join(words))
     except Exception as e:  # noqa: BLE001
