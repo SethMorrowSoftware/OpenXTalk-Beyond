@@ -21,8 +21,10 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- project's files says why it is a library and not engine changes).
 --
 -- It changes nothing until a stack calls one of its handlers: it sends no
--- message of its own and handles none of the engine's. A stack that calls
--- mwStart gets the messages below, and only for what happens after it.
+-- message of its own, and the one engine message it handles,
+-- resizeStack, it only looks at for the stacks mwResponsive lays out and
+-- always passes on. A stack that calls mwStart gets the messages below,
+-- and only for what happens after it.
 -- The gestures go to the control under the finger, as a mouse message
 -- does, and on up the message path to its card and stack if it passes
 -- them (or has no handler); the rest go to the current card, by the
@@ -48,6 +50,14 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --    accelerationChanged pX, pY, pZ, pTime
 --    rotationRateChanged pX, pY, pZ, pTime
 --    trackingError pSensor, pError
+--
+-- and for a stack that mwResponsive lays out, on a desktop as in a
+-- browser, to its current card when its size crosses a breakpoint or
+-- turns (after its controls' mwLayout rules are followed):
+--
+--    layoutChanged pClass, pOrientation   ("phone", "tablet" or
+--                                          "desktop"; "portrait" or
+--                                          "landscape")
 --
 -- mwStart also makes the stack fit the browser's window: a resizable
 -- stack fills it (and gets resizeStack, so a Geometry Manager layout or a
@@ -82,6 +92,8 @@ on extensionFinalize
    end if
 
    mwStop
+   put empty into sResponsive
+   put empty into sApplied
    remove the script of me from back
 end extensionFinalize
 
@@ -99,6 +111,11 @@ the stack and keeps it filled when the phone turns, tells the stack how
 much of it the on-screen keyboard covers, reports swipes, pinches and
 long presses, and scrolls a field or group with a finger.
 
+It also lays one stack out for a phone, a tablet and a desktop
+(mwResponsive): rules on the controls say where each goes at each size,
+a group can arrange its controls in columns (mwFlow), and the stack is
+told when it crosses from one layout to another (layoutChanged).
+
 On a desktop it answers as a desktop would and sends no gestures, so a
 stack that uses it can be made and tried in the IDE. Nothing changes for
 a stack that does not call it.
@@ -113,6 +130,17 @@ constant kSensors = "location,heading,acceleration,rotation rate"
 constant kPhotoSources = "library,camera,rear camera,front camera"
 -- a phone's photo is 12 megapixels or more: this keeps it to about 1.2
 constant kPhotoMax = 1280
+-- the widths at which a stack's layout becomes a tablet's and a
+-- desktop's (mwLayoutClass): under 600 is a phone held upright, 600 to
+-- 1023 a tablet (and a phone on its side, 640 to 932 wide), 1024 and over
+-- a desktop (and a tablet on its side, 1024 to 1366)
+constant kBreakpoints = "600,1024"
+constant kLayoutClasses = "phone,tablet,desktop"
+-- the words of a layout rule (the mwLayout custom property set)
+constant kRuleEdges = "left,top,right,bottom,width,height"
+constant kRuleWords = "left,top,right,bottom,width,height,hidden,shown,bleed,flow,gap"
+-- the space between the controls mwFlow arranges, when none is given
+constant kFlowGap = 12
 
 -- the stack that gets the library's messages, by its short name, and
 -- whether mwStart has started the browser's side
@@ -145,6 +173,13 @@ local sGlideObject, sGlideSpeed, sGlideMessage
 -- mwDragScroll's drag: where it began, whether it has moved, and whether
 -- the finger is still down (for mwDragMoved)
 local sDragStartV, sDragMoved, sDragActive
+
+-- mwResponsive: the stacks it lays out (sResponsive[short name] is the
+-- class and orientation last sent with layoutChanged, as
+-- "phone,portrait"), what each was last laid out for (sApplied[short
+-- name]: width, height, class, orientation and insets), and the
+-- breakpoints mwSetBreakpoints set (empty for kBreakpoints)
+local sResponsive, sApplied, sBreakpoints
 
 /**
 Whether the stack runs in a web browser.
@@ -1265,6 +1300,797 @@ command mwPickPhoto pSource, pMaxWidth, pMaxHeight
    set the defaultStack to tDefault
    return empty
 end mwPickPhoto
+
+/**
+Which kind of screen a stack's size is laid out for: a phone's, a
+tablet's or a desktop's.
+
+Parameters:
+pWidthOrStack:
+A width in pixels, or the name of a stack (its width is used). Empty
+for the <defaultStack>.
+
+Returns (string):
+"phone", "tablet" or "desktop".
+
+Example:
+if mwLayoutClass() is "phone" then
+   hide group "Sidebar"
+else
+   show group "Sidebar"
+end if
+
+Example:
+put mwLayoutClass(700) -- "tablet"
+
+Description:
+Use <mwLayoutClass> to lay a stack out by the room it has, as a web page
+does with its breakpoints. It goes by the width alone: under 600 pixels
+is "phone" (a phone held upright), 600 to 1023 is "tablet" (a tablet, or
+a phone on its side), and 1024 and over is "desktop" (a computer's
+window, or a big tablet on its side). <mwSetBreakpoints> changes the two
+widths.
+
+It answers the same on a desktop, in the IDE and in a browser, so a
+stack can be tried in all three layouts in the IDE by making its window
+narrower or wider. <mwResponsive> sends layoutChanged when the class
+changes, and lays out the controls that have rules for it.
+
+References: mwResponsive (command), mwSetBreakpoints (command), mwBreakpoints (function), mwPointer (function)
+*/
+function mwLayoutClass pWidthOrStack
+   local tWidth, tBreaks
+   if pWidthOrStack is empty then
+      put the width of the defaultStack into tWidth
+   else if pWidthOrStack is a number then
+      put pWidthOrStack into tWidth
+   else if there is a stack pWidthOrStack then
+      put the width of stack pWidthOrStack into tWidth
+   else
+      return empty
+   end if
+   put mwBreakpoints() into tBreaks
+   if tWidth < item 1 of tBreaks then
+      return "phone"
+   else if tWidth < item 2 of tBreaks then
+      return "tablet"
+   end if
+   return "desktop"
+end mwLayoutClass
+
+/**
+The widths at which <mwLayoutClass> changes.
+
+Returns (string):
+Two numbers, separated by a comma: the width from which a stack is laid
+out as a tablet's, and the width from which it is laid out as a
+desktop's. "600,1024" unless <mwSetBreakpoints> changed them.
+
+Example:
+put item 2 of mwBreakpoints() into tDesktopWidth
+
+References: mwSetBreakpoints (command), mwLayoutClass (function)
+*/
+function mwBreakpoints
+   if sBreakpoints is empty then
+      return kBreakpoints
+   end if
+   return sBreakpoints
+end mwBreakpoints
+
+/**
+Change the widths at which <mwLayoutClass> changes.
+
+Parameters:
+pTablet (number):
+The width, in pixels, from which a stack is laid out as a tablet's.
+
+pDesktop (number):
+The width from which it is laid out as a desktop's: more than pTablet.
+
+Example:
+-- a stack whose desktop layout needs more room
+mwSetBreakpoints 600, 1200
+
+Example:
+-- back to 600 and 1024
+mwSetBreakpoints
+
+Description:
+With no parameters, the widths go back to 600 and 1024. The breakpoints
+are the same for every stack. The stacks that <mwResponsive> lays out
+are laid out again for the new widths, and get layoutChanged if their
+class changes.
+
+If the widths are not two whole numbers, the second more than the first,
+nothing changes and the result is "bad breakpoints".
+
+References: mwBreakpoints (function), mwLayoutClass (function), mwResponsive (command)
+*/
+command mwSetBreakpoints pTablet, pDesktop
+   local tStack
+   if pTablet is empty and pDesktop is empty then
+      put empty into sBreakpoints
+   else
+      if pTablet is not an integer or pDesktop is not an integer or pTablet < 1 or pDesktop <= pTablet then
+         return "bad breakpoints"
+      end if
+      put pTablet & comma & pDesktop into sBreakpoints
+   end if
+   repeat for each key tStack in sResponsive
+      mwCheckLayout tStack
+   end repeat
+   return empty
+end mwSetBreakpoints
+
+/**
+What the stack is used with: a finger, a mouse, or both.
+
+Returns (string):
+"touch", "mouse" or "both".
+
+Example:
+-- bigger targets for a finger, hover effects for a mouse
+if mwPointer() is "touch" then
+   set the height of button "Save" to 48
+else
+   set the height of button "Save" to 32
+end if
+
+Description:
+In a browser, "touch" is a phone or a tablet, "mouse" a computer with a
+mouse or a trackpad, and "both" a computer with a touch screen or a
+tablet with a trackpad, as the browser reports them (the CSS any-pointer
+media feature). On a desktop it is "mouse".
+
+The pointer and the size go apart: a tablet on its side is as wide as a
+small computer's window. Use <mwLayoutClass> to arrange the controls, and
+<mwPointer> to size them for a finger and to choose whether hovering
+shows anything.
+
+References: mwLayoutClass (function), mwIsTouchScreen (function)
+*/
+function mwPointer
+   local tPointer
+   if not mwIsWeb() then
+      return "mouse"
+   end if
+   put mwJS("var m = function(q) { return !!(window.matchMedia && window.matchMedia(q).matches); };" && \
+         "var c = m('(any-pointer: coarse)'), f = m('(any-pointer: fine)');" && \
+         "if (!c && !f) return (navigator.maxTouchPoints || 0) > 0 ? 'touch' : 'mouse';" && \
+         "return c && f ? 'both' : (c ? 'touch' : 'mouse');") into tPointer
+   if tPointer is not among the items of "touch,mouse,both" then
+      return "mouse"
+   end if
+   return tPointer
+end mwPointer
+
+/**
+Whether the browser or the computer is set to a dark look.
+
+Returns (string):
+"dark" or "light".
+
+Example:
+if mwAppearance() is "dark" then
+   set the backColor of this stack to "#111827"
+end if
+
+Description:
+In a browser, <mwAppearance> is what the browser asks pages for (the CSS
+prefers-color-scheme), whatever the standalone's settings. On a desktop
+it is the <systemAppearance>.
+
+The <systemAppearanceChanged> message says when it changes: on a desktop,
+and in an HTML5 standalone built with Appearance set to "Follow the
+browser" in the Web pane of the Standalone Application Settings.
+
+References: systemAppearance (property), systemAppearanceChanged (message)
+*/
+function mwAppearance
+   local tLook, tError
+   if mwIsWeb() then
+      put mwJS("return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';") into tLook
+   else
+      try
+         put the systemAppearance into tLook
+      catch tError
+         put "light" into tLook
+      end try
+   end if
+   if tLook is "dark" then
+      return "dark"
+   end if
+   return "light"
+end mwAppearance
+
+/**
+Lay a stack out for a phone, a tablet or a desktop, and again whenever its
+size changes.
+
+Parameters:
+pStack (string):
+The name of the stack. Empty for the <defaultStack>.
+
+pOn (boolean):
+false to stop. Empty or true to start.
+
+Example:
+on preOpenStack
+   mwStart -- fill a phone's screen (does nothing on a desktop)
+   mwResponsive -- and lay the stack out for its size
+end preOpenStack
+
+on layoutChanged pClass, pOrientation
+   -- "phone", "tablet" or "desktop"; "portrait" or "landscape"
+   set the label of button "Menu" to pClass
+end layoutChanged
+
+Example:
+-- rules that the library follows: a sidebar on a desktop, none on a phone
+set the mwLayout["desktop"] of group "Sidebar" to "left 0, top 0, bottom 0, width 240"
+set the mwLayout["phone"] of group "Sidebar" to "hidden"
+set the mwLayout["desktop"] of group "Cards" to "left 256, top 16, right 16, bottom 16, flow 3"
+set the mwLayout["all"] of group "Cards" to "left 16, top 16, right 16, bottom 72, flow"
+
+Description:
+<mwResponsive> makes one stack fit a phone, a tablet and a desktop, as a
+web page does. Each time the stack's size changes, on a desktop or in a
+browser, it does two things:
+
+1. It lays out the controls that have rules: the keys of their mwLayout
+   custom property set, below.
+2. When the stack's layout class (<mwLayoutClass>) or orientation has
+   changed, it sends layoutChanged pClass, pOrientation to the current
+   card, so a script can do the rest. It is sent once at once, when
+   <mwResponsive> starts.
+
+A rule is a key of a control's mwLayout custom property set: "phone",
+"tablet" or "desktop", any of them followed by a space and "portrait" or
+"landscape" ("phone landscape"), or "all". The most particular key that
+the control has is used: "phone landscape", then "phone", then "all". A
+control with no key that fits is left alone. A rule is a list of these,
+separated by commas:
+
+- left N, top N, right N, bottom N: the distance from that edge of the
+  card (right and bottom from the right and bottom edges). N is in
+  pixels, or a percentage of the card's width or height ("50%").
+- width N, height N: the size. With left and right both given, the
+  width follows from them; with neither, the control keeps its place.
+  The same goes for top, bottom and height.
+- hidden: the control is hidden. Any other rule shows it.
+- bleed: measure from the edges of the screen. Otherwise the distances
+  are measured inside the safe area, out of a phone's notch and home
+  bar, once <mwStart> fills the screen (on a desktop there is none).
+- flow N, and gap N: for a group, arrange the controls in it in N
+  columns, as <mwFlow> does; flow alone chooses 1, 2 or 3 columns by
+  the class.
+
+The rules are followed for every card of the stack, and a control
+shared by cards (a group placed on them) once.
+
+The stack's size changes reach the library as resizeStack: if the stack
+has a resizeStack handler, it must pass the message, as for the Geometry
+Manager. A resizeStack handler that wants the rules followed first, so
+as to place other controls by the ones they moved, calls
+<mwApplyLayout> before it does so.
+
+On its own, <mwResponsive> neither fills a phone's screen nor sends the
+gestures: <mwStart> does those. Together, a resizable stack fills the
+browser's window and is laid out for it again as the phone turns.
+
+If the stack does not exist, the result is "no such stack:" and its name.
+
+References: mwLayoutClass (function), mwApplyLayout (command), mwFlow (command), mwSetBreakpoints (command), mwStart (command), mwPointer (function)
+*/
+command mwResponsive pStack, pOn
+   if pStack is empty then
+      put the short name of the defaultStack into pStack
+   end if
+   if pOn is false then
+      if there is a stack pStack then
+         put the short name of stack pStack into pStack
+      end if
+      delete variable sResponsive[pStack]
+      delete variable sApplied[pStack]
+      return empty
+   end if
+   if there is not a stack pStack then
+      return "no such stack:" && pStack
+   end if
+   put the short name of stack pStack into pStack
+   put empty into sResponsive[pStack]
+   delete variable sApplied[pStack]
+   mwCheckLayout pStack
+   return empty
+end mwResponsive
+
+/**
+Follow a stack's layout rules now.
+
+Parameters:
+pStack (string):
+The name of the stack. Empty for the <defaultStack>.
+
+Example:
+on resizeStack
+   mwApplyLayout -- the rules first
+   -- then a control placed by one that a rule moved
+   set the top of field "Note" to the bottom of group "Header" + 8
+   pass resizeStack
+end resizeStack
+
+Description:
+<mwApplyLayout> lays out the controls of every card of the stack that
+have rules for its size now, the keys of their mwLayout custom property
+set (see <mwResponsive>). <mwResponsive> does it each time the stack's
+size changes; call it to have it done before your own code, or after
+making controls or changing their rules. It sends no message.
+
+It works on any stack, whether <mwResponsive> started or not, and on a
+desktop as in a browser.
+
+A rule that cannot be read is left out, and the result is "bad rule:",
+the control's name and the rule; otherwise the result is empty.
+
+References: mwResponsive (command), mwFlow (command)
+*/
+command mwApplyLayout pStack
+   local tW, tH, tClass, tOrient, tInsets, tCard, tCount, i, tControl, tId
+   local tDone, tRule, tFlows, tFlow, tFirstError, tKey
+   if pStack is empty then
+      put the short name of the defaultStack into pStack
+   end if
+   if there is not a stack pStack then
+      return "no such stack:" && pStack
+   end if
+   put the short name of stack pStack into pStack
+   put mwLayoutKey(pStack) into tKey
+   put item 1 of tKey into tW
+   put item 2 of tKey into tH
+   put item 3 of tKey into tClass
+   put item 4 of tKey into tOrient
+   put mwInsetsFor(pStack) into tInsets
+
+   lock screen
+   repeat with tCard = 1 to the number of cards of stack pStack
+      put the number of controls of card tCard of stack pStack into tCount
+      repeat with i = 1 to tCount
+         put the long id of control i of card tCard of stack pStack into tControl
+         -- a group placed on several cards, and the controls in it, once
+         put the id of tControl into tId
+         if tDone[tId] then
+            next repeat
+         end if
+         put true into tDone[tId]
+         put mwRuleFor(tControl, tClass, tOrient) into tRule
+         if tRule is empty then
+            next repeat
+         end if
+         -- "ok" or "bad", then for a group to flow: "flow", its columns
+         -- and its gap
+         put mwFollowRule(tControl, tRule, tW, tH, tInsets) into tFlow
+         if item 1 of tFlow is "bad" and tFirstError is empty then
+            put "bad rule:" && the short name of tControl & ":" && tRule into tFirstError
+         end if
+         if item 2 of tFlow is "flow" then
+            -- a group's own controls after every control's rule
+            put tControl & tab & item 3 of tFlow & tab & item 4 of tFlow & return after tFlows
+         end if
+      end repeat
+   end repeat
+   set the itemDelimiter to tab
+   repeat for each line tFlow in tFlows
+      if there is a (item 1 of tFlow) then
+         mwFlow item 1 of tFlow, item 2 of tFlow, item 3 of tFlow
+      end if
+   end repeat
+   unlock screen
+
+   put tKey into sApplied[pStack]
+   return tFirstError
+end mwApplyLayout
+
+/**
+Arrange the controls in a group in columns, as a grid of cards.
+
+Parameters:
+pGroup:
+A reference to the group, such as the long id of a group.
+
+pColumns (number):
+The number of columns. Empty for one on a phone, two on a tablet and
+three on a desktop, by the <mwLayoutClass> of the group's stack.
+
+pGap (number):
+The space between the controls, and around them, in pixels. Empty for
+12.
+
+Returns:
+The height that the controls take up, from the top of the group, in
+the result.
+
+Example:
+-- a grid of cards that reflows by the width of the window
+on resizeStack pWidth, pHeight
+   set the rect of group "Cards" to 0, 56, pWidth, pHeight
+   mwFlow the long id of group "Cards"
+   pass resizeStack
+end resizeStack
+
+Description:
+<mwFlow> places the visible controls that are directly in the group, in
+the order of their layers, left to right in rows: every control is made
+as wide as a column, keeps its height, and a row is as tall as its
+tallest control. A hidden control is left out. The group keeps its
+rectangle (its lockLocation is set to true); if the controls need more
+height than it has, give it a scroll bar or use <mwDragScroll> on it. Its
+scroll is kept, as far as the new height allows.
+
+A rule of the mwLayout custom property set with "flow" does the same each
+time the stack's size changes (see <mwResponsive>).
+
+If pGroup is not a group, the result is "no such group".
+
+References: mwResponsive (command), mwLayoutClass (function), mwDragScroll (command)
+*/
+command mwFlow pGroup, pColumns, pGap
+   local tGroup, tStack, tCount, i, tChild, tKids, tLeft, tTop, tWidth, tColWidth
+   local tCol, tX, tY, tRowHeight, tScroll, tScrollbar, tHeight, tError
+   try
+      put the long id of pGroup into tGroup
+   catch tError
+      return "no such group"
+   end try
+   if word 1 of tGroup is not "group" then
+      return "no such group"
+   end if
+   if pColumns is empty then
+      put mwStackOfObject(tGroup) into tStack
+      switch mwLayoutClass(tStack)
+         case "phone"
+            put 1 into pColumns
+            break
+         case "tablet"
+            put 2 into pColumns
+            break
+         default
+            put 3 into pColumns
+            break
+      end switch
+   end if
+   if pColumns is not an integer or pColumns < 1 then
+      put 1 into pColumns
+   end if
+   if pGap is not a number or pGap < 0 then
+      put kFlowGap into pGap
+   end if
+
+   -- the group's own controls, not the controls of the groups in it
+   put the number of controls of tGroup into tCount
+   repeat with i = 1 to tCount
+      put the long id of control i of tGroup into tChild
+      if the long id of the owner of tChild is not tGroup then
+         next repeat
+      end if
+      if not the visible of tChild then
+         next repeat
+      end if
+      put tChild & return after tKids
+   end repeat
+
+   lock screen
+   set the lockLocation of tGroup to true
+   -- laid out unscrolled, then scrolled back as far as it still goes
+   put the vScroll of tGroup into tScroll
+   if tScroll is not 0 then
+      set the vScroll of tGroup to 0
+   end if
+   put 0 into tScrollbar
+   if the vScrollbar of tGroup then
+      put the scrollbarWidth of tGroup into tScrollbar
+   end if
+   put the left of tGroup + pGap into tLeft
+   put the top of tGroup + pGap into tTop
+   put the width of tGroup - tScrollbar - 2 * pGap into tWidth
+   put max(1, (tWidth - (pColumns - 1) * pGap) / pColumns) into tColWidth
+   put tTop into tY
+   put 0 into tRowHeight
+   put 0 into tCol
+   repeat for each line tChild in tKids
+      if tCol is pColumns then
+         put tY + tRowHeight + pGap into tY
+         put 0 into tRowHeight
+         put 0 into tCol
+      end if
+      put round(tLeft + tCol * (tColWidth + pGap)) into tX
+      put the height of tChild into tHeight
+      -- (a group's controls move with its topLeft, not with its rect)
+      set the topLeft of tChild to tX, tY
+      set the rect of tChild to tX, tY, round(tLeft + tCol * (tColWidth + pGap) + tColWidth), tY + tHeight
+      put max(tRowHeight, tHeight) into tRowHeight
+      add 1 to tCol
+   end repeat
+   if tKids is not empty then
+      put tY + tRowHeight + pGap into tY
+   end if
+   if tScroll is not 0 then
+      set the vScroll of tGroup to min(tScroll, max(0, (tY - the top of tGroup) - the height of tGroup))
+   end if
+   unlock screen
+   return tY - the top of tGroup
+end mwFlow
+
+-- A stack that mwResponsive lays out has changed its size: its rules
+-- followed, and layoutChanged when its class or orientation is new.
+-- (Only the stacks mwResponsive started; the message always goes on.)
+on resizeStack
+   local tStack
+   if sResponsive is an array then
+      put mwStackOfObject(the long id of the target) into tStack
+      if tStack is not empty and tStack is among the lines of the keys of sResponsive then
+         mwCheckLayout tStack
+      end if
+   end if
+   pass resizeStack
+end resizeStack
+
+-- The stack's rules followed, unless they already were for its size (as
+-- when its own resizeStack called mwApplyLayout), and layoutChanged sent
+-- to its card when its class or its orientation has changed
+private command mwCheckLayout pStack
+   local tNow
+   if there is not a stack pStack then
+      delete variable sResponsive[pStack]
+      delete variable sApplied[pStack]
+      exit mwCheckLayout
+   end if
+   if sApplied[pStack] is not mwLayoutKey(pStack) then
+      mwApplyLayout pStack
+   end if
+   put item 3 to 4 of sApplied[pStack] into tNow
+   if tNow is not sResponsive[pStack] then
+      put tNow into sResponsive[pStack]
+      dispatch "layoutChanged" to this card of stack pStack with item 1 of tNow, item 2 of tNow
+   end if
+end mwCheckLayout
+
+-- What a stack is laid out for: width, height, class, orientation, and
+-- the safe area's insets (top, right, bottom, left)
+private function mwLayoutKey pStack
+   local tW, tH, tOrient
+   put the width of stack pStack into tW
+   put the height of stack pStack into tH
+   if tW > tH then
+      put "landscape" into tOrient
+   else
+      put "portrait" into tOrient
+   end if
+   return tW, tH, mwLayoutClass(tW), tOrient, mwInsetsFor(pStack)
+end mwLayoutKey
+
+-- The safe area's insets (top, right, bottom, left) for a stack's
+-- rules: the notch's and the home bar's where the library fills a
+-- phone's screen with the stack, 0 everywhere else
+private function mwInsetsFor pStack
+   local tView
+   if not mwIsWeb() or sOptions["fill"] is not pStack then
+      return "0,0,0,0"
+   end if
+   put mwViewport() into tView
+   return max(0, tView["top"]), max(0, tView["right"]), max(0, tView["bottom"]), max(0, tView["left"])
+end mwInsetsFor
+
+-- The short name of the stack an object is in (its own, for a stack), or
+-- empty
+private function mwStackOfObject pObject
+   local tObject, tError, i
+   put pObject into tObject
+   try
+      repeat with i = 1 to 100
+         if word 1 of tObject is "stack" then
+            return the short name of tObject
+         end if
+         put the long owner of tObject into tObject
+         if tObject is empty then
+            exit repeat
+         end if
+      end repeat
+   catch tError
+   end try
+   return empty
+end mwStackOfObject
+
+-- A control's rule for a class and orientation: its mwLayout key
+-- "<class> <orientation>", else "<class>", else "all"; empty for none
+private function mwRuleFor pControl, pClass, pOrient
+   local tRules
+   put the customProperties["mwLayout"] of pControl into tRules
+   if tRules is not an array then
+      return empty
+   end if
+   if tRules[pClass && pOrient] is not empty then
+      return tRules[pClass && pOrient]
+   end if
+   if tRules[pClass] is not empty then
+      return tRules[pClass]
+   end if
+   return tRules["all"]
+end mwRuleFor
+
+-- A distance of a rule in pixels: N, or N% of pWhole; empty if it is
+-- neither
+private function mwRuleValue pText, pWhole
+   if char -1 of pText is "%" then
+      delete char -1 of pText
+      if pText is not a number then
+         return empty
+      end if
+      return round(pWhole * pText / 100)
+   end if
+   if pText is not a number then
+      return empty
+   end if
+   return round(pText)
+end mwRuleValue
+
+-- One control placed by its rule (see mwResponsive) in a card of
+-- pWidth by pHeight, inside pInsets (top, right, bottom, left). Returns
+-- "ok", or "bad" when a part of the rule cannot be read (the rest is
+-- followed); then for a group with "flow", "flow", its columns (empty to
+-- choose by the class) and its gap
+private function mwFollowRule pControl, pRule, pWidth, pHeight, pInsets
+   local tPart, tWord, tValue, tSpec, tBad, tHide, tBleed, tFlow, tGap, tNew, tOk
+   local tL, tT, tR, tB, tAreaW, tAreaH, tRect, tX1, tY1, tX2, tY2
+   repeat for each item tPart in pRule
+      put word 1 to -1 of tPart into tPart
+      if tPart is empty then
+         next repeat
+      end if
+      put word 1 of tPart into tWord
+      put word 2 of tPart into tValue
+      if tWord is not among the items of kRuleWords or the number of words of tPart > 2 then
+         put true into tBad
+         next repeat
+      end if
+      switch tWord
+         case "hidden"
+            put true into tHide
+            break
+         case "shown"
+            break
+         case "bleed"
+            put true into tBleed
+            break
+         case "flow"
+            if tValue is empty then
+               put "auto" into tFlow
+            else if tValue is an integer and tValue > 0 then
+               put tValue into tFlow
+            else
+               put true into tBad
+            end if
+            break
+         case "gap"
+            if tValue is a number and tValue >= 0 then
+               put tValue into tGap
+            else
+               put true into tBad
+            end if
+            break
+         default
+            put tValue into tSpec[tWord]
+            break
+      end switch
+   end repeat
+
+   if tBad then
+      put "bad" into tOk
+   else
+      put "ok" into tOk
+   end if
+   if tHide then
+      set the visible of pControl to false
+      return tOk
+   end if
+   if not the visible of pControl then
+      set the visible of pControl to true
+   end if
+
+   -- the area the distances are measured in
+   if tBleed then
+      put 0 into tL
+      put 0 into tT
+      put pWidth into tR
+      put pHeight into tB
+   else
+      put item 4 of pInsets into tL
+      put item 1 of pInsets into tT
+      put pWidth - item 2 of pInsets into tR
+      put pHeight - item 3 of pInsets into tB
+   end if
+   put tR - tL into tAreaW
+   put tB - tT into tAreaH
+   repeat for each item tWord in kRuleEdges
+      if tSpec[tWord] is empty then
+         next repeat
+      end if
+      if tWord is among the items of "left,right,width" then
+         put mwRuleValue(tSpec[tWord], tAreaW) into tSpec[tWord]
+      else
+         put mwRuleValue(tSpec[tWord], tAreaH) into tSpec[tWord]
+      end if
+      if tSpec[tWord] is empty then
+         put "bad" into tOk
+         delete variable tSpec[tWord]
+      end if
+   end repeat
+
+   put the rect of pControl into tRect
+   put item 1 of tRect into tX1
+   put item 2 of tRect into tY1
+   put item 3 of tRect into tX2
+   put item 4 of tRect into tY2
+   if tSpec["left"] is not empty and tSpec["right"] is not empty then
+      put tL + tSpec["left"] into tX1
+      put tR - tSpec["right"] into tX2
+   else if tSpec["left"] is not empty then
+      put tL + tSpec["left"] into tX1
+      if tSpec["width"] is not empty then
+         put tX1 + tSpec["width"] into tX2
+      else
+         put tX1 + item 3 of tRect - item 1 of tRect into tX2
+      end if
+   else if tSpec["right"] is not empty then
+      put tR - tSpec["right"] into tX2
+      if tSpec["width"] is not empty then
+         put tX2 - tSpec["width"] into tX1
+      else
+         put tX2 - (item 3 of tRect - item 1 of tRect) into tX1
+      end if
+   else if tSpec["width"] is not empty then
+      put tX1 + tSpec["width"] into tX2
+   end if
+   if tSpec["top"] is not empty and tSpec["bottom"] is not empty then
+      put tT + tSpec["top"] into tY1
+      put tB - tSpec["bottom"] into tY2
+   else if tSpec["top"] is not empty then
+      put tT + tSpec["top"] into tY1
+      if tSpec["height"] is not empty then
+         put tY1 + tSpec["height"] into tY2
+      else
+         put tY1 + item 4 of tRect - item 2 of tRect into tY2
+      end if
+   else if tSpec["bottom"] is not empty then
+      put tB - tSpec["bottom"] into tY2
+      if tSpec["height"] is not empty then
+         put tY2 - tSpec["height"] into tY1
+      else
+         put tY2 - (item 4 of tRect - item 2 of tRect) into tY1
+      end if
+   else if tSpec["height"] is not empty then
+      put tY1 + tSpec["height"] into tY2
+   end if
+   put max(tX1, tX2) into tX2
+   put max(tY1, tY2) into tY2
+   put tX1, tY1, tX2, tY2 into tNew
+   if tNew is not tRect then
+      -- a group's controls move with its topLeft (not with its rect, which
+      -- only changes its own bounds), so the group's contents go with it
+      if word 1 of pControl is "group" then
+         set the topLeft of pControl to tX1, tY1
+      end if
+      set the rect of pControl to tNew
+   end if
+
+   if tFlow is not empty and word 1 of pControl is "group" then
+      if tFlow is "auto" then
+         put empty into tFlow
+      end if
+      return tOk & ",flow," & tFlow & comma & tGap
+   end if
+   return tOk
+end mwFollowRule
 
 -- The browser calls this (it is the library stack's only
 -- javascriptHandlers entry) with a kind and its values; see mwStart for
