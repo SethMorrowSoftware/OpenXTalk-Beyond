@@ -691,8 +691,31 @@ dialog.answer .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:
       }
     }
   };
-  window.addEventListener('error', function () {
+  // An error of the page's own while the engine starts (oxtOwnError: a
+  // script's of the page's site, or the engine's WebAssembly's) says the
+  // engine could not start. Another script's is not the player's: a
+  // browser extension's in the page, or another site's ("Script error.",
+  // with no file), said so too before 0.2.7-rc.6.15, though the engine
+  // went on starting (the web IDE's page, tools/web-ide/index.html,
+  // carries the same oxtOwnError)
+  function oxtOwnError(e) {
+    var file = String(e.filename || '');
+    var site = location.protocol === 'file:' ? 'file:' : location.origin + '/';
+    if (e.error && typeof WebAssembly === 'object' &&
+        (e.error instanceof WebAssembly.RuntimeError ||
+         e.error instanceof WebAssembly.CompileError ||
+         e.error instanceof WebAssembly.LinkError)) {
+      return true;
+    }
+    return file !== '' && (file.indexOf(site) === 0 || file.indexOf('wasm:') === 0);
+  }
+  window.addEventListener('error', function (e) {
     if (ready) return;
+    if (!oxtOwnError(e)) {
+      console.warn('The Stack Player goes on starting after an error that is not its own: ' +
+        (e.message || 'an error') + (e.filename ? ' (' + e.filename + ')' : ''));
+      return;
+    }
     $('loading-error').hidden = false;
     $('loading-error').textContent = 'The engine could not start in this browser. ' +
       (location.protocol == 'file:' ? 'Open this page from a web server, not from a file on disk.' : 'Try an up-to-date Chrome, Edge, Firefox or Safari.');

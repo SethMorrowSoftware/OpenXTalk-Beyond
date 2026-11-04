@@ -761,32 +761,35 @@
         }
 
         // An error before the IDE has opened stops the start, and the page
-        // says so, when it is the IDE's own: this page's, the engine
-        // script's beside it, or the engine's WebAssembly's. Another
-        // script's error is not the IDE's, and the IDE goes on starting:
-        // a browser extension's script in the page (which a private window
-        // leaves out), or a script of another site, which the browser
-        // reports as "Script error." with no file. Before 0.2.7-rc.6.15
-        // any error stopped it: the page showed "Something went wrong" in
-        // a normal window and opened in a private one, though the IDE had
-        // gone on starting under the message.
-        var FOLDER = location.href.replace(/[?#].*$/, '').replace(/[^\/]*$/, '');
-        function ownError(e) {
+        // says so, when it is the IDE's own (oxtOwnError): a script's of
+        // the page's site (this page, the engine's script) or the engine's
+        // WebAssembly's. Another script's error is not the IDE's, and the
+        // IDE goes on starting: a browser extension's script in the page
+        // (which a private window leaves out), or a script of another
+        // site, which the browser reports as "Script error." with no file.
+        // Before 0.2.7-rc.6.15 any error stopped it: the page showed
+        // "Something went wrong" in a normal window and opened in a
+        // private one, though the IDE had gone on starting under the
+        // message (seth, 2026-11-04). The Stack Player's page, the
+        // gallery's and the web standalone's (engine/rsrc/
+        // emscripten-html-template.html) carry the same oxtOwnError.
+        function oxtOwnError(e) {
           var file = String(e.filename || '');
+          var site = location.protocol === 'file:' ? 'file:' : location.origin + '/';
           if (e.error && typeof WebAssembly === 'object' &&
               (e.error instanceof WebAssembly.RuntimeError ||
                e.error instanceof WebAssembly.CompileError ||
                e.error instanceof WebAssembly.LinkError)) {
             return true;
           }
-          return file !== '' && (file.indexOf(FOLDER) === 0 || file.indexOf('wasm:') === 0);
+          return file !== '' && (file.indexOf(site) === 0 || file.indexOf('wasm:') === 0);
         }
 
         window.addEventListener('error', function(e) {
           if (started) {
             return;
           }
-          if (!ownError(e)) {
+          if (!oxtOwnError(e)) {
             console.warn('The web IDE goes on starting after an error that is not its own: ' +
                          (e.message || 'an error') + (e.filename ? ' (' + e.filename + ')' : ''));
             return;

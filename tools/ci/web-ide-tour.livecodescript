@@ -55,8 +55,16 @@ Screenshots of the web IDE for its CI job (tools/ci/web_ide_tour.py).
 Only CI's copy of the site has it.
 */
 
-constant kSteps = "start,storage-open,sample,inspector,inspector-tabs,inspector-reset-colour,script-editor,message-box,project-browser,browse,dictionary,preferences,file-menu,new-controls,narrow,phone-menu,touch-menu,appearance,storage"
+constant kSteps = "start,storage-open,keep,kept,sample,inspector,inspector-tabs,inspector-reset-colour,script-editor,message-box,project-browser,browse,dictionary,preferences,file-menu,new-controls,narrow,phone-menu,touch-menu,appearance,storage"
 constant kSample = "Web Tour Sample"
+-- Steps that run only when web_ide_tour.py --only names them: keep, on
+-- the released web IDE, saves a stack and a preference in the home
+-- folder (the browser's storage), and kept, on the new one in the same
+-- browser profile, finds them (web-ide.yml's upgrade job: an update of
+-- the site keeps what the user saved, with no cache to clear)
+constant kAskedSteps = "keep,kept"
+constant kKept = "Web Tour Kept"
+constant kKeptText = "Kept by the web IDE before the update"
 -- The classic controls of Object > New Control (revMenubar), by the last
 -- part of their kind
 constant kNewControls = "Checkbox,ComboBox,DefaultButton,OptionMenu,PopupMenu,PulldownMenu,RadioButton,RectangleButton,Button,TabPanel,DataGrid,Field,LabelField,TextArea,ListField,TableField,Arrow,FivePointStar,OvalGraphic,RectangleGraphic,RegularGraphic,RoundRectGraphic,SpeechBubble,TenPointStar,CurveGraphic,PolygonGraphic,Image,Player,LittleArrows,Progressbar,Scrollbar,Slider"
@@ -102,6 +110,9 @@ on tourRun
    tourCatchErrors
    repeat for each item tStep in kSteps
       if tOnly is not empty and tStep is not among the items of tOnly then
+         next repeat
+      end if
+      if tOnly is empty and tStep is among the items of kAskedSteps then
          next repeat
       end if
       put "tour_" & tStep into tHandler
@@ -201,6 +212,53 @@ on tour_storage_open
       tourCheckStorage false, empty, 0
    end if
 end tour_storage_open
+
+-- keep (asked for): a stack saved in Documents, with a field's text, and
+-- a preference, as a user's work and settings, written to the browser's
+-- storage before the page goes
+on tour_keep
+   local tDefault, tFile
+   put specialFolderPath("documents") & "/oxt-web-tour-kept.oxtstack" into tFile
+   put the defaultStack into tDefault
+   lock messages
+   create invisible stack kKept
+   set the defaultStack to kKept
+   create field "Kept"
+   set the text of it to kKeptText
+   set the filename of stack kKept to tFile
+   save stack kKept
+   unlock messages
+   set the defaultStack to tDefault
+   delete stack kKept
+   revIDESetPreference "oxtWebTourKept", kKeptText
+   -- the preferences are saved 2 seconds after they change on the web
+   -- (revInternal__SavePreferences), and the home folder soon after that
+   tourWait 3500
+   if there is not a file tFile then
+      throw "the stack was not saved:" && tFile
+   end if
+   tourCheckStorage false, empty, 5000
+   tourRecord "INFO kept" && tFile
+end tour_keep
+
+-- kept (asked for): what keep saved, there after the update
+on tour_kept
+   local tFile, tText, tPref
+   put specialFolderPath("documents") & "/oxt-web-tour-kept.oxtstack" into tFile
+   if there is not a file tFile then
+      throw "the stack saved before the update is gone:" && tFile
+   end if
+   put the text of field "Kept" of stack tFile into tText
+   delete stack kKept
+   if tText is not kKeptText then
+      throw "the stack saved before the update has" && tText
+   end if
+   put revIDEGetPreference("oxtWebTourKept") into tPref
+   if tPref is not kKeptText then
+      throw "the preference saved before the update is" && quote & tPref & quote
+   end if
+   tourRecord "INFO kept from before the update:" && tFile && "and the preference"
+end tour_kept
 
 on tour_sample
    go tourSampleStack()

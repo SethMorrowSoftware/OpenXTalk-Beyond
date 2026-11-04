@@ -220,6 +220,13 @@ import urllib.request
 import zipfile
 import zlib
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import stray_errors  # noqa: E402
+
+# The page's status line (engine/rsrc/emscripten-html-template.html): its
+# display and its text
+STATUS_JS = "(function() { var s = document.getElementById('status'); return [s.style.display, s.textContent]; })()"
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 DEPLOY_SCRIPT = os.path.join(HERE, 'web-deploy.livecodescript')
@@ -1459,6 +1466,9 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
         downloads.append((download.suggested_filename, content))
 
     def on_page_error(error):
+        # (the other scripts' errors the check raises are not the page's)
+        if stray_errors.STRAY_MARK in str(error):
+            return
         page_errors.append(str(error))
         log('  page error: %s' % error)
 
@@ -1543,6 +1553,9 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
             opened.add_init_script(SPEECH_HOOK)
             opened.add_init_script(PRINT_HOOK)
             opened.add_init_script(KEYBOARD_HOOK)
+            # Other scripts' errors while the engine starts, as a browser
+            # extension's script in the page raises them (stray_errors.py)
+            opened.add_init_script(stray_errors.STRAY_ERRORS)
             return opened
 
         page = open_page()
@@ -2298,6 +2311,31 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
             except (PlaywrightError, PlaywrightTimeoutError) as e:
                 problems.append('the check of the default colours failed: %s%s' % (e, extra_said()))
                 del extra_events[:]
+        if 'ready' in probes and not crashed:
+            # Other scripts' errors, raised while the engine started (open_page)
+            # and now: the page says nothing of them. A browser extension's
+            # script in the page, or another site's, put "Something went wrong"
+            # over a stack that ran well before 0.2.7-rc.6.15 (seth's web
+            # IDE, 2026-11-04). Then an error of the page's own, which still
+            # says so (last: the message moves the stack down the page)
+            try:
+                browser_waiting[0] = 'the errors of other scripts'
+                page.evaluate(stray_errors.STRAY_NOW)
+                page.wait_for_timeout(500)
+                status = page.evaluate(STATUS_JS)
+                if status[0] != 'none':
+                    problems.append('the page shows %r after errors of other scripts (a browser '
+                                    'extension\'s, another site\'s)' % status[1])
+                else:
+                    page.evaluate(stray_errors.OWN_NOW)
+                    status = page.evaluate(STATUS_JS)
+                    if status[0] == 'none' or 'Something went wrong' not in status[1]:
+                        problems.append('the page does not show an error of its own: %r' % (status,))
+                    else:
+                        lines.append('errors of other scripts: the page shows nothing; an error of its own: '
+                                     '"%s"' % status[1])
+            except (PlaywrightError, PlaywrightTimeoutError) as e:
+                problems.append('the check of other scripts\' errors failed: %s' % e)
         browser_waiting[0] = 'the browser to close'
         browser.close()
 
@@ -2341,7 +2379,9 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
     # (url-missing): Chromium and WebKit do, in these words; Firefox does not
     expected = ['Failed to load resource: the server responded with a status of 404 (Not Found)']
     for kind, text in console:
-        if kind == 'error' and not text.startswith('PROBE '):
+        # (a browser may also log the other scripts' errors the check
+        # raises: they are not the page's)
+        if kind == 'error' and not text.startswith('PROBE ') and stray_errors.STRAY_MARK not in text:
             if text in expected:
                 expected.remove(text)
             else:

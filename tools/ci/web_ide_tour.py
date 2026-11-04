@@ -68,6 +68,14 @@ page's not-saved bar says so. The page gives the tour
 window.oxtTour.refused, true; web-ide.yml runs the tour's storage-open
 step alone with it.
 
+--profile DIR keeps the browser's profile in DIR (its storage, its
+cache) from one run to the next, and --port the site's address the same,
+so that a run on the released site and then one on the new site is an
+update of the site as a user's browser meets it. The tour's keep step
+(asked for with --only) saves a stack and a preference on the first; its
+kept step, on the second, must find them. web-ide.yml's upgrade job runs
+them in Chromium and Firefox.
+
 --stray-errors has scripts that are not the IDE's throw errors while it
 starts, as a browser extension's script in the page can (STRAY_ERRORS):
 the IDE must open all the same. --own-error has the page report an error
@@ -130,57 +138,9 @@ IDBFactory.prototype.open = function() {
 };
 '''
 
-# --stray-errors: while the IDE starts, scripts that are not the IDE's
-# throw, as a browser extension's script in the page can. A private
-# window leaves the extensions out: seth's web IDE showed "Something went
-# wrong" in a normal window and opened in a private one (2026-11-04),
-# and the page stopped the start on any error before 0.2.7-rc.6.15. The
-# errors: one thrown by a script with no file (as an extension's script
-# put in the page reports it), one by a script from a file of its own (a
-# blob), and those a browser reports for an extension's file and for a
-# script of another site ("Script error.", with no file), each three
-# times while the IDE downloads and starts. The page goes on, and the
-# IDE must open. Each error's message has STRAY_MARK, so that the check
-# does not count the thrown ones as the page's.
-STRAY_MARK = 'stray error of the tour'
-STRAY_ERRORS = '''
-(function() {
-  var mark = '%s';
-  function stray() {
-    setTimeout(function() {
-      throw new Error(mark + ', from a script with no file');
-    }, 0);
-    try {
-      var script = document.createElement('script');
-      script.src = URL.createObjectURL(new Blob(
-        ['throw new Error("' + mark + ', from a file of its own");'],
-        {type: 'text/javascript'}));
-      (document.head || document.documentElement).appendChild(script);
-    } catch (e) {
-    }
-    [['chrome-extension://oxttour/inject.js', 'Uncaught Error: ' + mark + ', from an extension'],
-     ['moz-extension://oxttour/inject.js', 'Error: ' + mark + ', from an extension'],
-     ['', 'Script error.']].forEach(function(error) {
-      window.dispatchEvent(new ErrorEvent('error', {message: error[1], filename: error[0]}));
-    });
-  }
-  [300, 2500, 6000].forEach(function(ms) {
-    setTimeout(stray, ms);
-  });
-})();
-''' % STRAY_MARK
-
-# --own-error: before the IDE opens, the page reports an error of its own
-# (the file is the page's), as a fault of its own scripts does: the page
-# must stop the start and show it, as it always did
-OWN_ERROR_TEXT = 'an error of the page itself, from the tour'
-OWN_ERROR = '''
-setTimeout(function() {
-  window.dispatchEvent(new ErrorEvent('error', {
-    message: 'Uncaught Error: %s',
-    filename: location.href.replace(/[?#].*$/, ''), lineno: 1, colno: 1}));
-}, 1500);
-''' % OWN_ERROR_TEXT
+# --stray-errors and --own-error: the scripts that raise other scripts'
+# errors, and an error of the page's own (stray_errors.py)
+from stray_errors import STRAY_MARK, STRAY_ERRORS, OWN_ERROR_TEXT, OWN_ERROR  # noqa: E402,F401
 
 
 class OwnErrorShown(Exception):
@@ -258,7 +218,7 @@ def make_site(site, out, tour=TOUR, add=(), replace=()):
     return copy
 
 
-def serve(folder):
+def serve(folder, port=0):
     class Handler(http.server.SimpleHTTPRequestHandler):
         extensions_map = dict(http.server.SimpleHTTPRequestHandler.extensions_map,
                               **{'.wasm': 'application/wasm', '.js': 'text/javascript'})
@@ -266,7 +226,7 @@ def serve(folder):
         def log_message(self, *args):
             pass
 
-    server = http.server.ThreadingHTTPServer(('127.0.0.1', 0),
+    server = http.server.ThreadingHTTPServer(('127.0.0.1', port),
                                              functools.partial(Handler, directory=folder))
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server
@@ -326,6 +286,10 @@ def main(argv=None):
                     help='the page\'s size as it opens (default %dx%d)' % (WIDTH, HEIGHT))
     ap.add_argument('--refuse-storage', action='store_true',
                     help='the browser\'s storage (IndexedDB) refuses the page from the start')
+    ap.add_argument('--profile', default='', metavar='DIR',
+                    help='a browser profile to keep between runs (with --port: an update of the site)')
+    ap.add_argument('--port', type=int, default=0,
+                    help='the port to serve the site on (default: any free one)')
     errors = ap.add_mutually_exclusive_group()
     errors.add_argument('--stray-errors', action='store_true',
                         help='scripts that are not the IDE\'s throw errors while it starts')
@@ -348,7 +312,7 @@ def main(argv=None):
     os.makedirs(shots_dir)
     site = make_site(os.path.abspath(args.site), out, os.path.abspath(args.tour),
                      [os.path.abspath(a) for a in args.add], replace)
-    server = serve(site)
+    server = serve(site, args.port)
     url = 'http://127.0.0.1:%d/' % server.server_address[1]
     log('Site  : %s (a copy of %s, with the tour)' % (site, args.site))
     log('Page  : %s at %dx%d, %s' % (url, args.size[0], args.size[1], args.color_scheme))
@@ -369,9 +333,19 @@ def main(argv=None):
         return '%7.1f' % (time.time() - started)
 
     with sync_playwright() as p:
-        browser = getattr(p, args.browser).launch()
-        page = browser.new_page(viewport={'width': args.size[0], 'height': args.size[1]},
-                                color_scheme=args.color_scheme)
+        if args.profile:
+            # A profile kept between runs: the browser's storage (the home
+            # folder's IndexedDB, the page's Cache Storage) and its cache,
+            # as a user's browser keeps them from one visit to the next
+            browser = getattr(p, args.browser).launch_persistent_context(
+                os.path.abspath(args.profile), viewport={'width': args.size[0], 'height': args.size[1]},
+                color_scheme=args.color_scheme)
+            page = browser.pages[0] if browser.pages else browser.new_page()
+            log('Profile: %s' % os.path.abspath(args.profile))
+        else:
+            browser = getattr(p, args.browser).launch()
+            page = browser.new_page(viewport={'width': args.size[0], 'height': args.size[1]},
+                                    color_scheme=args.color_scheme)
         page.on('console', lambda m: console.write('%s %s %s\n' % (stamp(), m.type, m.text)))
 
         def page_error(error):
@@ -439,6 +413,10 @@ def main(argv=None):
                         finished = True
                 if finished:
                     break
+            if finished and args.profile:
+                # what the IDE wrote last reaches the browser's storage
+                # before the profile is closed
+                page.wait_for_timeout(2000)
             if not finished:
                 problems.append('the tour did not finish within %d s' % args.timeout)
             if args.keep_serving:

@@ -133,58 +133,32 @@ class NotSaved(unittest.TestCase):
 
 
 class StrayErrors(unittest.TestCase):
-    """Only the IDE's own errors stop its start (2026-11-04: seth's web IDE
-    showed "Something went wrong" in a normal window and opened in a
-    private one, which leaves the browser's extensions out; the page
-    stopped on any error). The page's rule, and web_ide_tour.py's
-    --stray-errors and --own-error, which run it in the browser both ways.
-    These tests hold the pieces to each other; the browser runs settle
-    the behaviour."""
+    """--stray-errors and --own-error (2026-11-04: seth's web IDE showed
+    "Something went wrong" in a normal window and opened in a private one,
+    which leaves the browser's extensions out; the page stopped on any
+    error). The page's rule and the scripts that raise the errors are
+    tools/ci/stray_errors.py's, held by test_stray_errors.py; these hold
+    the web IDE's check to them."""
 
     def read(self, *path):
         with open(os.path.join(REPO, *path), encoding='utf-8') as f:
             return f.read()
 
-    def listener(self):
+    def test_the_web_ide_s_listener(self):
         page = self.read('tools', 'web-ide', 'index.html')
-        return page.split("window.addEventListener('error', function(e) {", 1)[1].split('});', 1)[0]
-
-    def test_the_page_asks_whose_error_it_is_before_it_stops(self):
-        body = self.listener()
-        self.assertIn('if (!ownError(e)) {', body)
-        self.assertLess(body.index('ownError(e)'), body.index('fail('))
+        body = page.split("window.addEventListener('error', function(e) {", 1)[1].split('});', 1)[0]
+        self.assertIn('if (!oxtOwnError(e)) {', body)
+        self.assertLess(body.index('oxtOwnError(e)'), body.index('fail('))
         # the start is not stopped after the IDE has opened, as before
-        self.assertLess(body.index('if (started)'), body.index('ownError(e)'))
+        self.assertLess(body.index('if (started)'), body.index('oxtOwnError(e)'))
 
-    def test_the_page_s_own_files_and_its_webassembly_are_its_own(self):
-        page = self.read('tools', 'web-ide', 'index.html')
-        rule = page.split('function ownError(e) {', 1)[1].split('\n        }\n', 1)[0]
-        self.assertIn("file.indexOf(FOLDER) === 0", rule)
-        self.assertIn("file.indexOf('wasm:') === 0", rule)
-        self.assertIn('e.error instanceof WebAssembly.RuntimeError', rule)
-        # an error with no file (an extension's script in the page, or
-        # another site's "Script error.") is not
-        self.assertIn("file !== '' &&", rule)
-        self.assertIn("var FOLDER = location.href.replace(/[?#].*$/, '').replace(/[^\\/]*$/, '');", page)
-
-    def test_stray_errors(self):
-        js = web_ide_tour.STRAY_ERRORS
-        mark = web_ide_tour.STRAY_MARK
-        self.assertIn("var mark = '%s';" % mark, js)
-        # thrown with no file, thrown from a file of its own, an
-        # extension's file in Chromium and Firefox, another site's script
-        self.assertIn("throw new Error(mark + ', from a script with no file');", js)
-        self.assertIn('new Blob(', js)
-        self.assertIn("'chrome-extension://", js)
-        self.assertIn("'moz-extension://", js)
-        self.assertIn("['', 'Script error.']", js)
-        # while the IDE downloads and starts
-        self.assertIn('[300, 2500, 6000]', js)
-
-    def test_own_error(self):
-        js = web_ide_tour.OWN_ERROR
-        self.assertIn(web_ide_tour.OWN_ERROR_TEXT, js)
-        self.assertIn("filename: location.href.replace(/[?#].*$/, '')", js)
+    def test_the_tour_uses_the_shared_scripts(self):
+        import stray_errors
+        self.assertIs(web_ide_tour.STRAY_ERRORS, stray_errors.STRAY_ERRORS)
+        self.assertIs(web_ide_tour.OWN_ERROR, stray_errors.OWN_ERROR)
+        # the thrown errors are not counted as the page's
+        self.assertIn('if args.stray_errors and STRAY_MARK in str(error):',
+                      self.read('tools', 'ci', 'web_ide_tour.py'))
 
     def test_one_or_the_other(self):
         with self.assertRaises(SystemExit):
@@ -197,6 +171,56 @@ class StrayErrors(unittest.TestCase):
         small = text.split('\n  small:\n', 1)[1].split('\n  soak:\n', 1)[0]
         self.assertIn('browser: [chromium, firefox]', small)
         self.assertEqual(small.count("if: ${{ matrix.size == '800x500' }}"), 3)
+
+
+class Update(unittest.TestCase):
+    """An update of the site in a kept browser profile (web-ide.yml's
+    upgrade job): the newest release's web IDE saves a stack and a
+    preference (the tour's keep step), and this commit's, at the same
+    address in the same profile, must find them (kept). "Will I have to
+    clear my cache?" (seth, 2026-11-04)."""
+
+    def read(self, *path):
+        with open(os.path.join(REPO, *path), encoding='utf-8') as f:
+            return f.read()
+
+    def test_the_tour_has_the_steps_only_when_asked(self):
+        tour = self.read('tools', 'ci', 'web-ide-tour.livecodescript')
+        steps = [line for line in tour.splitlines() if line.startswith('constant kSteps')][0]
+        steps = steps.split('"')[1].split(',')
+        self.assertIn('constant kAskedSteps = "keep,kept"', tour)
+        for step in ('keep', 'kept'):
+            self.assertIn(step, steps)
+            self.assertIn('\non tour_%s\n' % step, tour)
+        # a tour with no --only leaves them out
+        self.assertIn('if tOnly is empty and tStep is among the items of kAskedSteps then', tour)
+        keep = tour.split('\non tour_keep\n', 1)[1].split('\nend tour_keep', 1)[0]
+        kept = tour.split('\non tour_kept\n', 1)[1].split('\nend tour_kept', 1)[0]
+        self.assertIn('save stack kKept', keep)
+        self.assertIn('revIDESetPreference "oxtWebTourKept", kKeptText', keep)
+        self.assertIn('tourCheckStorage false, empty, 5000', keep)
+        self.assertIn('if tText is not kKeptText then', kept)
+        self.assertIn('if tPref is not kKeptText then', kept)
+        self.assertIn('oxt-web-tour-kept.oxtstack', keep)
+        self.assertIn('oxt-web-tour-kept.oxtstack', kept)
+
+    def test_profile_and_port(self):
+        text = self.read('tools', 'ci', 'web_ide_tour.py')
+        self.assertIn('launch_persistent_context(', text)
+        self.assertIn('server = serve(site, args.port)', text)
+        self.assertIn("ThreadingHTTPServer(('127.0.0.1', port),", text)
+
+    def test_the_workflow_updates_the_released_site(self):
+        text = self.read('.github', 'workflows', 'web-ide.yml')
+        job = text.split('\n  upgrade:\n', 1)[1].split('\n  soak:\n', 1)[0]
+        self.assertIn('browser: [chromium, firefox]', job)
+        self.assertIn('--pattern "*-web-ide.zip"', job)
+        before = job.index('--site "$RELEASED_SITE"')
+        after = job.index('--site "$RUNNER_TEMP/site"')
+        self.assertLess(before, after)
+        self.assertIn('--profile "$RUNNER_TEMP/profile" --port 8765 --only start,keep --timeout 480', job)
+        self.assertIn('--profile "$RUNNER_TEMP/profile" --port 8765 --only start,storage-open,kept,sample '
+                      '--timeout 480', job)
 
 
 class PropertyListeners(unittest.TestCase):
