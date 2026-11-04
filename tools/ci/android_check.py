@@ -1,0 +1,932 @@
+#!/usr/bin/env python3
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+"""Build Android packages with the IDE's own Android builder, check them,
+compare them with what another builder made, and run them on a device.
+
+  python3 tools/ci/android_check.py extract --package FILE --dest DIR [--platform P] [--env NAME]
+  python3 tools/ci/android_check.py overlay --root DIR
+  python3 tools/ci/android_check.py ide (--install DIR | --package FILE | --bin DIR)
+      --work DIR [--sdk DIR] [--jdk DIR] [--platform P] [--device SERIAL]
+      [--stack FILE] [--builds NAMES] [--no-units] [--timeout SECONDS]
+  python3 tools/ci/android_check.py verify --work DIR --sdk DIR
+  python3 tools/ci/android_check.py compare --old DIR --new DIR --sdk DIR
+  python3 tools/ci/android_check.py device --apk FILE --serial SERIAL --sdk DIR
+      [--out FILE] [--abi ABI] [--timeout SECONDS]
+
+extract unpacks a package as tools/ci/run_livecode_check.py does (modes and
+symbolic links kept) and prints the folder to give --install, and with
+--env NAME also writes NAME=<folder> to $GITHUB_ENV.
+
+overlay puts this checkout's Android builder (OVERLAY) into an installed
+OXT-Beyond (a released one), over the files of the same names, so that the
+release's IDE runs the changed builder, and the comparison is of the
+builders alone, with the same engine and runtimes.
+
+ide starts the IDE as a user starts it (as tools/ci/web_check.py does, under
+xvfb-run on Linux without a DISPLAY) with tools/ci/android-check.livecodescript
+named on its command line. That script runs the units of the builder's new
+handlers, which need no Android SDK, and with --sdk builds the probe stack
+four times with the builder (see BUILDS) into <work>/out/<name>.apk; with
+--device it also does what the IDE's Test does for that device. Its lines go
+to <work>/android-check.txt, which this prints. The release build is signed
+with a keystore made here with the JDK's keytool (<work>/check.keystore).
+--stack gives a probe stack file saved by an earlier run, so that two
+builders build the same stack (the stack goes into the engine library).
+--no-units is for a released builder, which has none of the units'
+handlers.
+
+verify checks each package in <work>/out against BUILDS and the lines the
+IDE wrote: the architectures it has, the signature (apksigner, and the APK
+Signing Block that v2 and v3 signatures live in), zipalign, resources.arsc
+stored and aligned (Android 11 and newer refuse it compressed for apps that
+target API 30 and newer), every activity, service and receiver with an
+intent-filter saying android:exported (Android 12 and newer refuse the app
+otherwise), the 64-bit engine libraries aligned for 16 KB pages, the
+package name and target API, and the builder's warnings.
+
+compare checks that two sets of packages (the released builder's and the
+changed one's, of the same probe stack) hold the same files with the same
+bytes, apart from what the change meant to change: the signatures (see
+EXPECTED_SIGNING) and, in the debug build, the push receiver's
+android:exported (see EXPECTED_MANIFEST). Every difference is printed.
+
+device installs a package on a device or emulator with adb, starts it and
+waits until the screen is the probe's green (kRunColor in
+android-check.livecodescript), which only the probe's openStack makes: the
+engine loaded, opened the stack and ran its script. The screen is saved as
+a PNG (--out), and the device's log is searched for the app's crash.
+
+Exit status 0 when every check passed, 1 otherwise. Only the Python 3
+standard library is used (3.8 or later), with the Android SDK's adb,
+apksigner, aapt and zipalign.
+"""
+
+import argparse
+import os
+import re
+import shutil
+import struct
+import subprocess
+import sys
+import time
+import zipfile
+import zlib
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+
+REPO = os.path.dirname(os.path.dirname(HERE))
+CHECK_SCRIPT = os.path.join(HERE, 'android-check.livecodescript')
+# The Android builder's files, which overlay copies into an installed IDE
+OVERLAY = ('ide-support/revsaveasandroidstandalone.livecodescript',
+           'ide-support/revdeploylibraryandroid.livecodescript',
+           'ide/Toolset/palettes/standalone settings/revstandalonesettingsandroidbehavior.livecodescript')
+LOG_NAME = 'android-check.txt'
+IDENTIFIER = 'org.openxtalk.check.androidprobe'
+# kRunColor and kSavedColor of android-check.livecodescript
+RUN_COLOR = (31, 158, 90)
+SAVED_COLOR = (204, 34, 0)
+TARGET_SDK = '33'
+KEY_ALIAS = 'oxtcheck'
+KEY_PASSWORD = 'oxtcheck-pass'
+KEY_DNAME = 'CN=OXT Android Check, O=OXT-Beyond, C=US'
+DEBUG_DNAME = 'CN=Android Debug, O=Android, C=US'
+SIG_BLOCK_MAGIC = b'APK Sig Block 42'
+PAGE_16K = 16384
+
+# What each build of android-check.livecodescript is: its architectures,
+# who signs it (None: nobody), whether it has the push receiver, and the
+# warnings the builder must give (each a piece of one warning line)
+BUILDS = {
+    'debug': {'abis': {'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'}, 'signer': DEBUG_DNAME, 'push': True,
+              'warnings': []},
+    'release': {'abis': {'arm64-v8a', 'x86_64'}, 'signer': KEY_DNAME, 'push': False, 'warnings': []},
+    'unsigned': {'abis': {'arm64-v8a'}, 'signer': None, 'push': False, 'warnings': []},
+    'legacy': {'abis': {'armeabi-v7a'}, 'signer': None, 'push': False,
+               'warnings': ['built for armv7 and not arm64']},
+}
+ABIS_64 = ('arm64-v8a', 'x86_64')
+
+# compare: what the change made different on purpose, per build. The
+# released builder left "Sign for development only" builds unsigned (its
+# ApkBuilder replacement signed nothing), and signed with the user's key
+# before zipalign, which took the v2 and v3 signatures off again.
+EXPECTED_SIGNING = {
+    'debug': 'the released builder did not sign it; now the debug key signs it',
+    'release': 'the signature is made again (a new signing time); the released builder\'s lost its v2 and v3 '
+               'signatures to zipalign',
+}
+# compare: the manifest lines (aapt's xmltree, without line numbers) the
+# change added, per build
+EXPECTED_MANIFEST = {
+    'debug': ['receiver PushReceiver: android:exported=true'],
+}
+
+
+def log(msg=''):
+    print(msg, flush=True)
+
+
+def gha():
+    return os.environ.get('GITHUB_ACTIONS') == 'true'
+
+
+def annotate(kind, msg):
+    if gha():
+        log('::%s::%s' % (kind, msg.replace('%', '%25').replace('\r', '').replace('\n', '%0A')))
+
+
+def summary(text):
+    path = os.environ.get('GITHUB_STEP_SUMMARY')
+    if path:
+        with open(path, 'a', encoding='utf-8') as f:
+            f.write(text + '\n')
+
+
+class CheckError(Exception):
+    pass
+
+
+def read_lines(path):
+    if not os.path.isfile(path):
+        return []
+    with open(path, encoding='utf-8', errors='replace') as f:
+        return [x.rstrip('\r\n') for x in f if x.strip()]
+
+
+# ---------------------------------------------------------------------------
+# The Android SDK's tools
+
+def exe(name):
+    if os.name == 'nt':
+        return name + ('.bat' if name in ('apksigner', 'd8') else '.exe')
+    return name
+
+
+def version_key(name):
+    return [int(x) if x.isdigit() else -1 for x in re.split(r'[.-]', name)]
+
+
+def build_tool(sdk, name):
+    """The newest build-tools' <name>, or None."""
+    folder = os.path.join(sdk, 'build-tools')
+    if not os.path.isdir(folder):
+        return None
+    for version in sorted(os.listdir(folder), key=version_key, reverse=True):
+        path = os.path.join(folder, version, exe(name))
+        if os.path.isfile(path):
+            return path
+    return None
+
+
+def adb_path(sdk):
+    path = os.path.join(sdk, 'platform-tools', exe('adb'))
+    return path if os.path.isfile(path) else shutil.which('adb')
+
+
+def run(cmd, timeout=300, check=False):
+    """(exit status, stdout and stderr together as text)."""
+    env = dict(os.environ)
+    # the JDK's notice of this variable goes to stderr, in the output
+    env.pop('JAVA_TOOL_OPTIONS', None)
+    try:
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, env=env)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        raise CheckError('%s: %s' % (' '.join(cmd), e))
+    out = proc.stdout.decode('utf-8', 'replace')
+    if check and proc.returncode != 0:
+        raise CheckError('%s: exit status %d: %s' % (' '.join(cmd), proc.returncode, out.strip()[-2000:]))
+    return proc.returncode, out
+
+
+# ---------------------------------------------------------------------------
+# Reading a package (pure functions, tested by tests/test_android_check.py)
+
+def has_signing_block(data):
+    """Whether a zip file's bytes hold an APK Signing Block: the v2, v3 and
+    v4 signatures' container, just before the central directory, which
+    ends with SIG_BLOCK_MAGIC."""
+    end = data.rfind(b'PK\x05\x06', max(0, len(data) - 65557))
+    if end < 0:
+        raise CheckError('not a zip file (no end of central directory)')
+    cd_offset = struct.unpack('<I', data[end + 16:end + 20])[0]
+    return cd_offset >= 16 and data[cd_offset - 16:cd_offset] == SIG_BLOCK_MAGIC
+
+
+def data_offset(data, info):
+    """Where a zip entry's data starts in the file: after its local header,
+    whose name and extra field can differ from the central directory's."""
+    off = info.header_offset
+    if data[off:off + 4] != b'PK\x03\x04':
+        raise CheckError('%s: no local header at %d' % (info.filename, off))
+    name_len, extra_len = struct.unpack('<HH', data[off + 26:off + 30])
+    return off + 30 + name_len + extra_len
+
+
+def elf_load_alignments(data):
+    """The p_align of each PT_LOAD segment of an ELF file."""
+    if data[:4] != b'\x7fELF':
+        raise CheckError('not an ELF file')
+    is64 = data[4] == 2
+    end = '<' if data[5] == 1 else '>'
+    if is64:
+        phoff, = struct.unpack(end + 'Q', data[32:40])
+        phentsize, phnum = struct.unpack(end + 'HH', data[54:58])
+    else:
+        phoff, = struct.unpack(end + 'I', data[28:32])
+        phentsize, phnum = struct.unpack(end + 'HH', data[42:46])
+    aligns = []
+    for i in range(phnum):
+        h = data[phoff + i * phentsize:phoff + (i + 1) * phentsize]
+        p_type, = struct.unpack(end + 'I', h[:4])
+        if p_type != 1:
+            continue
+        aligns.append(struct.unpack(end + 'Q', h[48:56])[0] if is64 else struct.unpack(end + 'I', h[28:32])[0])
+    return aligns
+
+
+def manifest_components(xmltree):
+    """The activities, activity-aliases, services, receivers and providers
+    of `aapt dump xmltree <apk> AndroidManifest.xml` (aapt's or aapt2's
+    form): a list of dicts with kind, name, exported (True, False or None
+    when the manifest does not say) and filter (whether it has an
+    intent-filter)."""
+    components, stack = [], []
+    for line in xmltree.splitlines():
+        m = re.match(r'^(\s*)(E|A): (.*)$', line)
+        if not m:
+            continue
+        depth, kind, rest = len(m.group(1)), m.group(2), m.group(3)
+        if kind == 'E':
+            name = rest.split()[0]
+            while stack and stack[-1][0] >= depth:
+                stack.pop()
+            node = {'kind': name, 'name': None, 'exported': None, 'filter': False, 'depth': depth}
+            stack.append((depth, node))
+            if name in ('activity', 'activity-alias', 'service', 'receiver', 'provider') and \
+                    any(x[1]['kind'] == 'application' for x in stack[:-1]):
+                components.append(node)
+            if name == 'intent-filter':
+                for _, parent in reversed(stack[:-1]):
+                    if parent in components:
+                        parent['filter'] = True
+                        break
+            continue
+        # an attribute of the element on top
+        while stack and stack[-1][0] >= depth:
+            stack.pop()
+        if not stack:
+            continue
+        node = stack[-1][1]
+        a = re.match(r'^(?:\S*:)?(name|exported)\(0x[0-9a-f]+\)=(.*)$', rest)
+        if not a:
+            continue
+        value = a.group(2).strip()
+        if a.group(1) == 'name':
+            q = re.match(r'^"([^"]*)"', value)
+            node['name'] = q.group(1) if q else value
+        else:
+            low = value.lower()
+            node['exported'] = low.endswith('0xffffffff') or low == 'true'
+    for c in components:
+        c.pop('depth', None)
+    return components
+
+
+def manifest_lines(xmltree):
+    """aapt's xmltree with the line numbers taken out, which move when a
+    line of the manifest template moves"""
+    return [re.sub(r' \(line=\d+\)', '', x).rstrip() for x in xmltree.splitlines() if x.strip()]
+
+
+def screen_from_raw(data):
+    """(width, height, RGBA bytes) of `adb exec-out screencap` without -p:
+    width, height and format as 32-bit little-endian numbers, from Android
+    9 a colour space too, then the pixels."""
+    if len(data) < 12:
+        raise CheckError('screencap gave %d bytes' % len(data))
+    w, h, fmt = struct.unpack('<III', data[:12])
+    pixels = w * h * 4
+    header = len(data) - pixels
+    if w == 0 or h == 0 or header not in (12, 16) or fmt not in (1, 2):
+        raise CheckError('screencap: unexpected header (width %d, height %d, format %d, %d bytes)'
+                         % (w, h, fmt, len(data)))
+    return w, h, data[header:]
+
+
+def colour_share(rgba, colour, tolerance=24, step=7):
+    """The share of the pixels (every step-th) within tolerance of colour."""
+    total = hits = 0
+    r0, g0, b0 = colour
+    for i in range(0, len(rgba) - 3, 4 * step):
+        total += 1
+        if abs(rgba[i] - r0) <= tolerance and abs(rgba[i + 1] - g0) <= tolerance and \
+                abs(rgba[i + 2] - b0) <= tolerance:
+            hits += 1
+    return hits / total if total else 0.0
+
+
+def png_from_rgba(w, h, rgba):
+    def chunk(kind, body):
+        return struct.pack('>I', len(body)) + kind + body + struct.pack('>I', zlib.crc32(kind + body) & 0xffffffff)
+    raw = b''.join(b'\x00' + rgba[y * w * 4:(y + 1) * w * 4] for y in range(h))
+    return (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 6, 0, 0, 0)) +
+            chunk(b'IDAT', zlib.compress(raw, 6)) + chunk(b'IEND', b''))
+
+
+def ide_results(lines):
+    """From the IDE's lines: units (name -> None or why it failed), builds
+    (name -> apk or the failure), warnings and questions (name -> text),
+    test (None, True or the failure), errors, and done."""
+    r = {'units': {}, 'builds': {}, 'warnings': {}, 'asked': {}, 'test': None, 'errors': [], 'done': False}
+    for line in lines:
+        if line.startswith('UNIT OK '):
+            r['units'][line[8:].strip()] = None
+        elif line.startswith('UNIT FAILED '):
+            name, _, why = line[12:].partition(':')
+            r['units'][name.strip()] = why.strip() or 'failed'
+        elif line.startswith('BUILT '):
+            parts = line.split(' ', 2)
+            r['builds'][parts[1]] = ('ok', parts[2] if len(parts) > 2 else '')
+        elif line.startswith('BUILD FAILED '):
+            parts = line.split(' ', 3)
+            r['builds'][parts[2]] = ('failed', parts[3] if len(parts) > 3 else '')
+        elif line.startswith('INFO ') and len(line.split(' ')) >= 3 and line.split(' ')[2] in ('warnings', 'asked'):
+            parts = line.split(' ', 3)
+            r[parts[2]][parts[1]] = parts[3] if len(parts) > 3 else ''
+        elif line.startswith('TEST OK'):
+            r['test'] = True
+        elif line.startswith('TEST FAILED'):
+            r['test'] = line[12:].strip() or 'failed'
+        elif line.startswith('ERROR'):
+            r['errors'].append(line)
+        elif line.startswith('DONE'):
+            r['done'] = True
+    return r
+
+
+# ---------------------------------------------------------------------------
+# extract and overlay
+
+def extract(args):
+    import run_livecode_check as rlc
+    import ui_tour
+    p = ui_tour.package.PLATFORMS[args.platform or rlc.default_platform()]
+    dest = os.path.abspath(args.dest)
+    os.makedirs(dest, exist_ok=True)
+    try:
+        top = rlc.extract_package(os.path.abspath(args.package), dest)
+    except rlc.CheckError as e:
+        raise CheckError(str(e))
+    # as find_layout: the macOS zip holds the app itself
+    root = dest if top == p.engine else os.path.join(dest, top)
+    log(root)
+    env = os.environ.get('GITHUB_ENV')
+    if args.env and env:
+        with open(env, 'a', encoding='utf-8') as f:
+            f.write('%s=%s\n' % (args.env, root))
+    return []
+
+
+def overlay(args):
+    root = os.path.abspath(args.root)
+    found = {}
+    for folder, _, names in os.walk(root):
+        for n in names:
+            found.setdefault(n, []).append(os.path.join(folder, n))
+    problems = []
+    for rel in OVERLAY:
+        name = os.path.basename(rel)
+        places = found.get(name, [])
+        if len(places) != 1:
+            problems.append('%s: %d files named %s, not one' % (root, len(places), name))
+            continue
+        shutil.copyfile(os.path.join(REPO, *rel.split('/')), places[0])
+        log('%s -> %s' % (rel, os.path.relpath(places[0], root)))
+    return problems
+
+
+# ---------------------------------------------------------------------------
+# ide
+
+def make_keystore(jdk, path):
+    keytool = os.path.join(jdk, 'bin', 'keytool.exe' if os.name == 'nt' else 'keytool') if jdk else None
+    if not keytool or not os.path.isfile(keytool):
+        keytool = shutil.which('keytool')
+    if not keytool:
+        raise CheckError('no keytool (the JDK\'s) to make the release build\'s keystore')
+    if os.path.exists(path):
+        os.remove(path)
+    run([keytool, '-genkeypair', '-keystore', path, '-storetype', 'PKCS12', '-storepass', KEY_PASSWORD,
+         '-keypass', KEY_PASSWORD, '-alias', KEY_ALIAS, '-keyalg', 'RSA', '-keysize', '2048', '-validity', '3650',
+         '-dname', KEY_DNAME.replace(', ', ',')], check=True)
+
+
+def ide(args):
+    import ui_tour
+    package, rlc = ui_tour.package, ui_tour.rlc
+    p = package.PLATFORMS[args.platform or rlc.default_platform()]
+    work = os.path.abspath(args.work)
+    out = os.path.join(work, 'out')
+    os.makedirs(out, exist_ok=True)
+    results = os.path.join(work, LOG_NAME)
+    if os.path.exists(results):
+        os.remove(results)
+    # the document the IDE opens: a copy, as web_check.py opens its script
+    document = os.path.join(work, 'oxt_android_check.livecodescript')
+    shutil.copyfile(CHECK_SCRIPT, document)
+    stack = os.path.join(work, 'AndroidProbe.livecode')
+    if args.stack:
+        if os.path.abspath(args.stack) != stack:
+            shutil.copyfile(args.stack, stack)
+    elif os.path.exists(stack):
+        os.remove(stack)
+    keystore = os.path.join(work, 'check.keystore')
+    if args.sdk:
+        make_keystore(args.jdk, keystore)
+
+    def path(x):
+        return x.replace('\\', '/') if x else ''
+    temp_dirs, problems = [], []
+    try:
+        args.engine = None
+        try:
+            lay = rlc.find_layout(args, p, temp_dirs)
+        except rlc.CheckError as e:
+            raise CheckError(str(e))
+        log('Layout : %s' % lay.root)
+        log('Engine : %s' % lay.engine)
+        env = dict(os.environ)
+        env.pop('JAVA_TOOL_OPTIONS', None)
+        env.update(OXT_ANDROID_LOG=path(results), OXT_ANDROID_SDK=path(args.sdk), OXT_ANDROID_JDK=path(args.jdk),
+                   OXT_ANDROID_STACK=path(stack), OXT_ANDROID_OUTPUT=path(out),
+                   OXT_ANDROID_BUILDS=args.builds or '', OXT_ANDROID_KEYSTORE=path(keystore),
+                   OXT_ANDROID_ALIAS=KEY_ALIAS, OXT_ANDROID_PASSWORD=KEY_PASSWORD,
+                   OXT_ANDROID_DEVICE=args.device or '', OXT_ANDROID_WORK=path(os.path.join(work, 'units')),
+                   OXT_ANDROID_UNITS='skip' if args.no_units else '')
+        cmd = [lay.engine, document]
+        if p.family == 'linux':
+            cef = os.path.join(lay.root, 'Externals') if lay.kind == 'development' else lay.externals
+            if 'LIVECODE_USE_CEF' not in env and not os.path.isfile(os.path.join(cef, 'CEF', 'libcef.so')):
+                env['LIVECODE_USE_CEF'] = '0'
+            if not env.get('DISPLAY'):
+                xvfb = shutil.which('xvfb-run')
+                if not xvfb:
+                    raise CheckError('no DISPLAY and no xvfb-run')
+                cmd = [xvfb, '-a', '-s', '-screen 0 1440x900x24'] + cmd
+        log('Running: %s' % ' '.join(cmd))
+        started = progress = time.time()
+        status = 'did not finish within %d seconds' % args.timeout
+        with open(os.path.join(work, 'ide-output.txt'), 'wb') as engine_log:
+            kw = {'creationflags': subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == 'nt' else \
+                {'start_new_session': True}
+            proc = subprocess.Popen(cmd, cwd=work, env=env, stdout=engine_log, stderr=subprocess.STDOUT, **kw)
+            try:
+                while time.time() - started < args.timeout:
+                    done = read_lines(results)
+                    if any(x.startswith('DONE') for x in done):
+                        status = None
+                        break
+                    if proc.poll() is not None:
+                        status = 'the IDE ended with exit status %s after %.0f s' % (
+                            proc.returncode, time.time() - started)
+                        break
+                    if time.time() - progress >= 15:
+                        progress = time.time()
+                        log('  after %.0f s: %s' % (progress - started, done[-1] if done else '(no lines yet)'))
+                    time.sleep(0.5)
+            finally:
+                ui_tour.stop(proc)
+    finally:
+        for d in temp_dirs:
+            shutil.rmtree(d, ignore_errors=True)
+    lines = read_lines(results)
+    for line in lines:
+        log('  ide: %s' % line)
+    r = ide_results(lines)
+    if status:
+        problems.append('the IDE %s' % status)
+        for line in read_lines(os.path.join(work, 'ide-output.txt'))[-40:]:
+            log('  ide output: %s' % line)
+    problems += ['the IDE: %s' % x for x in r['errors']]
+    failed = {k: v for k, v in r['units'].items() if v}
+    if not args.no_units:
+        if not r['units']:
+            problems.append('no units ran')
+        problems += ['unit %s: %s' % (k, v) for k, v in sorted(failed.items())]
+    if args.sdk:
+        wanted = (args.builds or ','.join(BUILDS)).split(',')
+        for name in wanted:
+            state = r['builds'].get(name)
+            if not state:
+                problems.append('build %s: the IDE did not get to it' % name)
+            elif state[0] != 'ok':
+                problems.append('build %s failed: %s' % (name, state[1]))
+    if args.device and r['test'] is not True:
+        problems.append('Test on %s: %s' % (args.device, r['test'] or 'the IDE did not get to it'))
+    log()
+    log('Units: %d passed, %d failed' % (len(r['units']) - len(failed), len(failed)))
+    log('Builds: %s' % ', '.join('%s %s' % (k, v[0]) for k, v in sorted(r['builds'].items())) or 'none')
+    if args.device:
+        log('Test on %s: %s' % (args.device, 'passed' if r['test'] is True else r['test']))
+    return problems
+
+
+# ---------------------------------------------------------------------------
+# verify
+
+def signing(apksigner, apk):
+    """(verified, schemes verified, signer DN) by apksigner."""
+    status, out = run([apksigner, 'verify', '--verbose', '--print-certs', apk])
+    schemes = sorted(set(re.findall(r'Verified using (v\d) scheme[^:]*: true', out)))
+    dn = re.search(r'Signer #1 certificate DN: (.*)', out)
+    return status == 0, schemes, dn.group(1).strip() if dn else None, out
+
+
+def zipalign_supports_pages(zipalign):
+    _, out = run([zipalign])
+    return '-P' in out
+
+
+def verify_apk(name, apk, spec, tools, warnings):
+    """The problems of one package, and lines saying what was checked."""
+    problems, notes = [], []
+    with open(apk, 'rb') as f:
+        data = f.read()
+    z = zipfile.ZipFile(apk)
+    infos = {i.filename: i for i in z.infolist()}
+    for required in ('AndroidManifest.xml', 'classes.dex', 'resources.arsc'):
+        if required not in infos:
+            problems.append('%s has no %s' % (name, required))
+    arsc = infos.get('resources.arsc')
+    if arsc:
+        if arsc.compress_type != zipfile.ZIP_STORED:
+            problems.append('%s: resources.arsc is compressed; Android 11 and newer refuse that for an app that '
+                            'targets API 30 or newer' % name)
+        elif data_offset(data, arsc) % 4:
+            problems.append('%s: resources.arsc is not aligned to 4 bytes' % name)
+        else:
+            notes.append('resources.arsc stored and aligned')
+    libs = {}
+    for n in infos:
+        m = re.match(r'^lib/([^/]+)/([^/]+\.so)$', n)
+        if m:
+            libs.setdefault(m.group(1), []).append(m.group(2))
+    abis = set(libs)
+    if abis != spec['abis']:
+        problems.append('%s has native code for %s, not %s' % (name, ', '.join(sorted(abis)) or 'nothing',
+                                                             ', '.join(sorted(spec['abis']))))
+    for abi in sorted(abis):
+        if 'librevandroid.so' not in libs[abi]:
+            problems.append('%s has no lib/%s/librevandroid.so' % (name, abi))
+    for abi in ABIS_64:
+        for lib in libs.get(abi, []):
+            n = 'lib/%s/%s' % (abi, lib)
+            small = [a for a in elf_load_alignments(z.read(n)) if a < PAGE_16K]
+            if small:
+                problems.append('%s: %s has LOAD segments aligned to %s, under 16 KB: Android with 16 KB pages '
+                                'cannot load it' % (name, n, ', '.join(str(x) for x in small)))
+            info = infos[n]
+            if info.compress_type == zipfile.ZIP_STORED and data_offset(data, info) % PAGE_16K:
+                problems.append('%s: %s is stored and not aligned to 16 KB' % (name, n))
+    if any(abi in libs for abi in ABIS_64):
+        notes.append('the 64-bit engine libraries are aligned for 16 KB pages')
+    # zipalign: 4 bytes, and 16 KB pages for stored libraries when it can
+    za = tools.get('zipalign')
+    if za:
+        cmd = [za, '-c'] + (['-P', '16'] if zipalign_supports_pages(za) else []) + ['4', apk]
+        status, out = run(cmd)
+        if status != 0:
+            problems.append('%s: %s says it is not aligned: %s' % (name, ' '.join(cmd[:-1]), out.strip()[-500:]))
+        else:
+            notes.append('zipalign -c%s 4' % (' -P 16' if '-P' in cmd else ''))
+    # the signature
+    block = has_signing_block(data)
+    meta = [n for n in infos if re.match(r'^META-INF/[^/]+\.(SF|RSA|DSA|EC)$', n)]
+    if spec['signer']:
+        if not block:
+            problems.append('%s has no APK Signing Block (no v2 or v3 signature)' % name)
+        ok, schemes, dn, out = signing(tools['apksigner'], apk)
+        if not ok:
+            problems.append('%s: apksigner does not verify it: %s' % (name, out.strip()[-800:]))
+        if 'v2' not in schemes and 'v3' not in schemes:
+            problems.append('%s: no v2 or v3 signature verifies (verified: %s)' % (name, ', '.join(schemes)))
+        if dn != spec['signer']:
+            problems.append('%s is signed by %s, not %s' % (name, dn, spec['signer']))
+        if ok:
+            notes.append('signed by %s (%s)' % (dn, ', '.join(schemes)))
+    else:
+        if block or meta:
+            problems.append('%s is signed, and should not be (%s)' % (name, 'signing block' if block else meta))
+        else:
+            notes.append('not signed')
+    # the manifest
+    aapt = tools.get('aapt')
+    if aapt:
+        status, badging = run([aapt, 'dump', 'badging', apk])
+        if "package: name='%s'" % IDENTIFIER not in badging:
+            problems.append('%s: aapt does not name the package %s' % (name, IDENTIFIER))
+        if "targetSdkVersion:'%s'" % TARGET_SDK not in badging:
+            problems.append('%s does not target API %s' % (name, TARGET_SDK))
+        status, tree = run([aapt, 'dump', 'xmltree', apk, 'AndroidManifest.xml'])
+        if status != 0:
+            problems.append('%s: aapt cannot read the manifest: %s' % (name, tree.strip()[-300:]))
+        else:
+            comps = manifest_components(tree)
+            missing = ['%s %s' % (c['kind'], c['name']) for c in comps
+                       if c['filter'] and c['exported'] is None and c['kind'] != 'provider']
+            if missing:
+                problems.append('%s: Android 12 and newer refuse it, these have an intent-filter and no '
+                                'android:exported: %s' % (name, ', '.join(missing)))
+            push = [c for c in comps if c['kind'] == 'receiver' and c['name'] == 'PushReceiver']
+            if spec['push'] and not (push and push[0]['exported'] is True):
+                problems.append('%s: the push receiver is not there with android:exported="true"' % name)
+            if not spec['push'] and push:
+                problems.append('%s has a push receiver' % name)
+            notes.append('%d components, every one with an intent-filter says android:exported' % len(comps))
+    # the builder's warnings
+    said = warnings.get(name, '')
+    for w in spec['warnings']:
+        if w not in said:
+            problems.append('%s: the builder did not warn "%s" (it said: %s)' % (name, w, said or 'nothing'))
+    android = [x.strip() for x in said.split(' | ') if x.strip().startswith('Android:')]
+    unexpected = [x for x in android if not any(w in x for w in spec['warnings'])]
+    if unexpected:
+        problems.append('%s: the builder warned: %s' % (name, ' | '.join(unexpected)))
+    return problems, notes
+
+
+def find_tools(sdk):
+    tools = {'apksigner': build_tool(sdk, 'apksigner'), 'aapt': build_tool(sdk, 'aapt'),
+             'zipalign': build_tool(sdk, 'zipalign')}
+    if not tools['apksigner']:
+        raise CheckError('no apksigner in %s/build-tools' % sdk)
+    return tools
+
+
+def verify(args):
+    work = os.path.abspath(args.work)
+    tools = find_tools(args.sdk)
+    r = ide_results(read_lines(os.path.join(work, LOG_NAME)))
+    problems = []
+    names = (args.builds or ','.join(BUILDS)).split(',')
+    for name in names:
+        apk = os.path.join(work, 'out', name + '.apk')
+        if not os.path.isfile(apk):
+            problems.append('there is no %s' % apk)
+            continue
+        p, notes = verify_apk(name, apk, BUILDS[name], tools, r['warnings'])
+        log('%s.apk (%.1f MB): %s' % (name, os.path.getsize(apk) / 1e6, '; '.join(notes)))
+        for x in p:
+            log('  PROBLEM: %s' % x)
+        problems += p
+    leftovers = [x for x in os.listdir(os.path.join(work, 'out')) if not x.endswith('.apk')]
+    if leftovers:
+        problems.append('the builder left other files beside the packages: %s' % ', '.join(sorted(leftovers)))
+    return problems
+
+
+# ---------------------------------------------------------------------------
+# compare
+
+def manifest_summary(xmltree):
+    """'<kind> <name>: android:exported=<value>' for every component, for
+    the comparison"""
+    return ['%s %s: android:exported=%s' % (c['kind'], c['name'],
+                                           {True: 'true', False: 'false', None: '(not set)'}[c['exported']])
+            for c in manifest_components(xmltree)]
+
+
+def compare_apks(name, old, new, aapt=None):
+    """(problems, notes) of one build's two packages."""
+    problems, notes = [], []
+    zo, zn = zipfile.ZipFile(old), zipfile.ZipFile(new)
+
+    def files(z):
+        # zip's directory entries (the released builder's shell zip wrote
+        # them) and the signature's files are left out
+        return {i.filename for i in z.infolist() if not i.filename.endswith('/') and
+                not re.match(r'^META-INF/', i.filename)}
+    fo, fn = files(zo), files(zn)
+    if fo - fn:
+        problems.append('%s: only the old package has %s' % (name, ', '.join(sorted(fo - fn))))
+    if fn - fo:
+        problems.append('%s: only the new package has %s' % (name, ', '.join(sorted(fn - fo))))
+    same = []
+    for n in sorted(fo & fn):
+        if zo.read(n) == zn.read(n):
+            same.append(n)
+        elif n != 'AndroidManifest.xml':
+            problems.append('%s: %s differs' % (name, n))
+    notes.append('%d of %d files the same' % (len(same), len(fo | fn)))
+    if 'AndroidManifest.xml' in fo & fn and 'AndroidManifest.xml' not in same:
+        if not aapt:
+            problems.append('%s: the manifest differs (no aapt to say how)' % name)
+        else:
+            mo = manifest_summary(run([aapt, 'dump', 'xmltree', old, 'AndroidManifest.xml'], check=True)[1])
+            mn = manifest_summary(run([aapt, 'dump', 'xmltree', new, 'AndroidManifest.xml'], check=True)[1])
+            added = [x for x in mn if x not in mo]
+            removed = [x for x in mo if x not in mn]
+            expected = EXPECTED_MANIFEST.get(name, [])
+            if sorted(added) != sorted(expected) or len(removed) != len(added):
+                problems.append('%s: the manifest changed: %s' % (
+                    name, '; '.join(['- ' + x for x in removed] + ['+ ' + x for x in added]) or
+                    'outside the components'))
+            else:
+                notes.append('manifest: %s' % '; '.join(['- ' + x for x in removed] + ['+ ' + x for x in added]))
+            # anything else in the manifest must be the same
+            to = manifest_lines(run([aapt, 'dump', 'xmltree', old, 'AndroidManifest.xml'], check=True)[1])
+            tn = manifest_lines(run([aapt, 'dump', 'xmltree', new, 'AndroidManifest.xml'], check=True)[1])
+            extra = [x for x in tn if x not in to and 'exported' not in x]
+            gone = [x for x in to if x not in tn]
+            if extra or gone:
+                problems.append('%s: other manifest lines changed: %s' % (
+                    name, '; '.join(['- ' + x.strip() for x in gone] + ['+ ' + x.strip() for x in extra])))
+    elif name in EXPECTED_MANIFEST:
+        problems.append('%s: the manifest is the same, and should have %s' % (name, EXPECTED_MANIFEST[name]))
+    so = {i.filename for i in zo.infolist() if i.filename.startswith('META-INF/')}
+    sn = {i.filename for i in zn.infolist() if i.filename.startswith('META-INF/')}
+    sig_same = so == sn and all(zo.read(x) == zn.read(x) for x in so)
+    with open(old, 'rb') as f:
+        bo = has_signing_block(f.read())
+    with open(new, 'rb') as f:
+        bn = has_signing_block(f.read())
+    if sig_same and bo == bn:
+        if name in EXPECTED_SIGNING and BUILDS.get(name, {}).get('signer'):
+            notes.append('the signatures are the same')
+    elif name in EXPECTED_SIGNING:
+        notes.append('signature: %s' % EXPECTED_SIGNING[name])
+    else:
+        problems.append('%s: the signature changed (old: %s, signing block %s; new: %s, signing block %s)' % (
+            name, ', '.join(sorted(so)) or 'none', bo, ', '.join(sorted(sn)) or 'none', bn))
+    return problems, notes
+
+
+def compare(args):
+    problems = []
+    aapt = build_tool(args.sdk, 'aapt') if args.sdk else None
+    apksigner = build_tool(args.sdk, 'apksigner') if args.sdk else None
+    names = (args.builds or ','.join(BUILDS)).split(',')
+    for name in names:
+        old = os.path.join(args.old, 'out', name + '.apk')
+        new = os.path.join(args.new, 'out', name + '.apk')
+        if not (os.path.isfile(old) and os.path.isfile(new)):
+            problems.append('%s: missing %s' % (name, old if not os.path.isfile(old) else new))
+            continue
+        p, notes = compare_apks(name, old, new, aapt)
+        if apksigner:
+            for label, apk in (('old', old), ('new', new)):
+                ok, schemes, dn, _ = signing(apksigner, apk)
+                notes.append('%s: %s' % (label, 'verifies, %s, %s' % (', '.join(schemes), dn) if ok
+                                         else 'does not verify (Android will not install it)'))
+        log('%s: %s' % (name, '; '.join(notes)))
+        for x in p:
+            log('  PROBLEM: %s' % x)
+        problems += p
+    return problems
+
+
+# ---------------------------------------------------------------------------
+# device
+
+def device(args):
+    adb = adb_path(args.sdk)
+    if not adb:
+        raise CheckError('no adb')
+    problems = []
+
+    def a(*cmd, timeout=180):
+        return run([adb, '-s', args.serial] + list(cmd), timeout=timeout)
+    _, props = a('shell', 'getprop', 'ro.build.version.sdk')
+    _, page = a('shell', 'getconf', 'PAGE_SIZE')
+    _, abi = a('shell', 'getprop', 'ro.product.cpu.abi')
+    log('Device %s: API %s, %s, pages of %s bytes' % (args.serial, props.strip(), abi.strip(), page.strip()))
+    a('uninstall', IDENTIFIER)
+    status, out = a('install', '-r', args.apk, timeout=600)
+    if 'Success' not in out:
+        return ['%s does not install on %s: %s' % (os.path.basename(args.apk), args.serial, out.strip()[-800:])]
+    log('Installed %s' % os.path.basename(args.apk))
+    a('logcat', '-c')
+    status, out = a('shell', 'am', 'start', '-W', '-n', IDENTIFIER + '/.mblandroid')
+    log('Started: %s' % ' | '.join(x.strip() for x in out.splitlines() if x.strip()))
+    if 'Error' in out:
+        problems.append('the app does not start: %s' % out.strip()[-500:])
+    started = time.time()
+    share = saved = 0.0
+    w = h = 0
+    rgba = b''
+    while time.time() - started < args.timeout:
+        time.sleep(3)
+        try:
+            proc = subprocess.run([adb, '-s', args.serial, 'exec-out', 'screencap'], stdout=subprocess.PIPE,
+                                  stderr=subprocess.DEVNULL, timeout=60)
+            w, h, rgba = screen_from_raw(proc.stdout)
+        except (CheckError, subprocess.TimeoutExpired) as e:
+            log('  screencap: %s' % e)
+            continue
+        share, saved = colour_share(rgba, RUN_COLOR), colour_share(rgba, SAVED_COLOR)
+        if share >= 0.25:
+            break
+    _, pid = a('shell', 'pidof', IDENTIFIER)
+    _, logcat = a('logcat', '-d', '-v', 'brief')
+    crash = [x for x in logcat.splitlines() if re.search(
+        r'FATAL EXCEPTION|UnsatisfiedLinkError|dlopen failed|Fatal signal|has stopped|ANR in ' + re.escape(IDENTIFIER),
+        x)]
+    if args.out and rgba:
+        with open(args.out, 'wb') as f:
+            f.write(png_from_rgba(w, h, rgba))
+        log('Screen: %s (%dx%d)' % (args.out, w, h))
+    if args.log_out:
+        with open(args.log_out, 'w', encoding='utf-8') as f:
+            f.write(logcat)
+    log('After %.0f s: %.0f%% of the screen is the probe\'s green, %.0f%% its saved red; process %s' % (
+        time.time() - started, share * 100, saved * 100, pid.strip() or 'not running'))
+    if share < 0.25:
+        problems.append('the screen never turned the probe\'s green (%.0f%% green, %.0f%% red: %s)' % (
+            share * 100, saved * 100, 'the stack showed and its script did not run' if saved >= 0.25 else
+            'the stack never showed'))
+    if not pid.strip():
+        problems.append('the app is not running')
+    if crash:
+        problems.append('the device\'s log: %s' % ' | '.join(crash[:8]))
+    return problems
+
+
+# ---------------------------------------------------------------------------
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
+    sub = ap.add_subparsers(dest='command', required=True)
+    e = sub.add_parser('extract')
+    e.add_argument('--package', required=True)
+    e.add_argument('--dest', required=True)
+    e.add_argument('--platform')
+    e.add_argument('--env')
+    o = sub.add_parser('overlay')
+    o.add_argument('--root', required=True)
+    i = sub.add_parser('ide')
+    i.add_argument('--bin', dest='bin_dir')
+    i.add_argument('--install')
+    i.add_argument('--package')
+    i.add_argument('--platform')
+    i.add_argument('--work', required=True)
+    i.add_argument('--sdk')
+    i.add_argument('--jdk')
+    i.add_argument('--device')
+    i.add_argument('--stack')
+    i.add_argument('--builds')
+    i.add_argument('--no-units', action='store_true')
+    i.add_argument('--timeout', type=int, default=1500)
+    v = sub.add_parser('verify')
+    v.add_argument('--work', required=True)
+    v.add_argument('--sdk', required=True)
+    v.add_argument('--builds')
+    c = sub.add_parser('compare')
+    c.add_argument('--old', required=True)
+    c.add_argument('--new', required=True)
+    c.add_argument('--sdk')
+    c.add_argument('--builds')
+    d = sub.add_parser('device')
+    d.add_argument('--apk', required=True)
+    d.add_argument('--serial', required=True)
+    d.add_argument('--sdk', required=True)
+    d.add_argument('--out')
+    d.add_argument('--log-out')
+    d.add_argument('--timeout', type=int, default=90)
+    args = ap.parse_args(argv)
+    try:
+        problems = {'extract': extract, 'overlay': overlay, 'ide': ide, 'verify': verify, 'compare': compare,
+                    'device': device}[args.command](args)
+    except CheckError as e:
+        problems = [str(e)]
+    log()
+    if problems:
+        for x in problems:
+            log('PROBLEM: %s' % x)
+            annotate('error', 'Android %s: %s' % (args.command, x))
+        summary('**Android %s**: %d problem(s)\n\n%s' % (args.command, len(problems),
+                                                         '\n'.join('- ' + x for x in problems)))
+        log('Android %s: failed' % args.command)
+        return 1
+    summary('**Android %s**: passed' % args.command)
+    log('Android %s: passed' % args.command)
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

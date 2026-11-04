@@ -1,0 +1,312 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+# The IDE's Android standalone builder, with a real Android SDK, on Windows,
+# Linux and macOS (tools/ci/android_check.py; the Android plan's phase 0).
+# The builder is IDE script only, so this needs no build: it takes a
+# published release (the latest, or the tag given), and runs the release's
+# own IDE twice, as it is and with this checkout's builder put in its place
+# (android_check.py overlay):
+#
+#   - the units of the builder's handlers, which need no SDK;
+#   - four builds of a probe stack through the builder, as File > Save as
+#     Standalone Application makes them (debug-signed, signed with a key,
+#     unsigned, and a stack that never opened the Android card), by both
+#     builders from the same stack file;
+#   - verify: what Android and Google Play ask of a package (signature
+#     schemes, zipalign, resources.arsc, android:exported, 16 KB pages);
+#   - compare: the two builders' packages hold the same files with the
+#     same bytes, apart from what the change meant (the signatures, the push
+#     receiver's android:exported), every difference printed: the "no
+#     breaking changes" check of CLAUDE.md;
+#   - Linux only, on emulators (KVM): the IDE's Test for an Android 13
+#     (API 33) emulator, the packages installed and started there until the
+#     probe's screen shows that its script ran, and then the same on the
+#     first emulator image with 16 KB memory pages (Android 15 and newer).
+#
+# The released builder's builds are the comparison's other half; where
+# they fail (its shell zip is not there on Windows), the job says so and
+# carries on without the comparison.
+name: Android builder
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths: &android-paths
+      - .github/workflows/android.yml
+      - tools/ci/android_check.py
+      - tools/ci/android-check.livecodescript
+      - ide-support/revsaveasandroidstandalone.livecodescript
+      - ide-support/revdeploylibraryandroid.livecodescript
+      - 'ide/Toolset/palettes/standalone settings/revstandalonesettingsandroidbehavior.livecodescript'
+  push:
+    branches: [ main ]
+    paths: *android-paths
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release whose IDE to run (for example v0.2.7-rc.6.14); empty for the latest one
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  builder:
+    name: Android builder on ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x86_64
+            runner: ubuntu-24.04
+            asset: linux-x86_64.tar.xz
+          - platform: win-x86_64
+            runner: windows-2022
+            asset: win-x86_64-portable.zip
+          - platform: mac-universal
+            runner: macos-15
+            asset: mac-universal.zip
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 75
+    env:
+      PLATFORM: ${{ matrix.platform }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+          ASSET: ${{ matrix.asset }}
+        run: |
+          if [ -z "$TAG" ]; then
+            TAG=$(gh release list --repo "$REPO" --limit 30 --json tagName --jq '.[].tagName' | grep -E '^v[0-9]' | head -n 1)
+          fi
+          echo "Release: $TAG"
+          echo "### Android builder on $PLATFORM, in the IDE of $TAG" >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p "$RUNNER_TEMP/dist"
+          gh release download "$TAG" --repo "$REPO" --pattern "*-$ASSET" --dir "$RUNNER_TEMP/dist"
+          ls -l "$RUNNER_TEMP/dist"
+          cd "$RUNNER_TEMP/dist"
+          echo "PACKAGE=$(pwd -W 2>/dev/null || pwd)/$(ls *-"$ASSET")" >> "$GITHUB_ENV"
+          py=python3
+          [ "$RUNNER_OS" = Windows ] && py=python
+          echo "PY=$py" >> "$GITHUB_ENV"
+          work="$RUNNER_TEMP/android"
+          [ "$RUNNER_OS" = Windows ] && work=$(cygpath -m "$work")
+          echo "WORK=$work" >> "$GITHUB_ENV"
+
+      # The IDE's runtime libraries and Xvfb, as ui-tour.yml installs them
+      - name: Install Xvfb and the runtime libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          pkgs=(xvfb xauth fonts-dejavu-core)
+          while read -r soname use deb rpm rest; do
+            case $soname in ''|'#'*) continue ;; esac
+            if apt-cache show --no-all-versions "${deb}t64" > /dev/null 2>&1; then
+              deb="${deb}t64"
+            fi
+            case " ${pkgs[*]} " in *" $deb "*) ;; *) pkgs+=("$deb") ;; esac
+          done < Installer/linux/libraries.txt
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}"
+
+      # The JDK that the builder's javac and keytool come from (as
+      # build-macos.yml chooses one), and the parts of the runner's Android
+      # SDK that the builder needs: the platform of its target API (the
+      # released builder takes no other), build-tools and platform-tools.
+      # On Linux also the emulator, an Android 13 image and the first image
+      # with 16 KB pages, whose name sdkmanager lists
+      - name: Set up the JDK and the Android SDK
+        run: |
+          for v in JAVA_HOME_17_X64 JAVA_HOME_17_arm64 JAVA_HOME_21_X64 JAVA_HOME_21_arm64; do
+            if [ -n "${!v}" ] && [ -d "${!v}/bin" ]; then
+              jdk="${!v}"
+              break
+            fi
+          done
+          [ -n "$jdk" ] || { echo "::error::no JDK 17 or 21 on the runner"; exit 1; }
+          sdk="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          [ -d "$sdk" ] || { echo "::error::no Android SDK on the runner (ANDROID_HOME)"; exit 1; }
+          if [ "$RUNNER_OS" = Windows ]; then
+            jdk=$(cygpath -m "$jdk")
+            sdk=$(cygpath -m "$sdk")
+          fi
+          echo "JDK=$jdk" >> "$GITHUB_ENV"
+          echo "SDK=$sdk" >> "$GITHUB_ENV"
+          sm="$sdk/cmdline-tools/latest/bin/sdkmanager"
+          [ "$RUNNER_OS" = Windows ] && sm="$sm.bat"
+          (yes || true) | "$sm" --licenses > /dev/null
+          parts=("platforms;android-33" "build-tools;35.0.0" "platform-tools")
+          if [ "$RUNNER_OS" = Linux ]; then
+            img16=$("$sm" --list 2>/dev/null | grep -oE 'system-images;android-[0-9.]+;google_apis_ps16k;x86_64' |
+              sort -u -t';' -k2,2V | head -n 1)
+            [ -n "$img16" ] || { echo "::error::sdkmanager lists no x86_64 image with 16 KB pages"; exit 1; }
+            echo "IMAGE_16K=$img16" >> "$GITHUB_ENV"
+            parts+=("emulator" "system-images;android-33;google_apis;x86_64" "$img16")
+          fi
+          "$sm" --install "${parts[@]}" > "$RUNNER_TEMP/sdkmanager.log" 2>&1 ||
+            { tail -40 "$RUNNER_TEMP/sdkmanager.log"; exit 1; }
+          echo "JDK: $jdk"; "$jdk/bin/java" -version 2>&1 | head -n 1
+          echo "SDK: $sdk"; ls "$sdk/platforms" "$sdk/build-tools"
+
+      - name: Unpack the release twice, and put this builder into one
+        run: |
+          "$PY" tools/ci/android_check.py extract --package "$PACKAGE" --dest "$WORK/released-ide" \
+            --platform "$PLATFORM" --env RELEASED
+          "$PY" tools/ci/android_check.py extract --package "$PACKAGE" --dest "$WORK/changed-ide" \
+            --platform "$PLATFORM" --env CHANGED
+          "$PY" tools/ci/android_check.py overlay --root "$WORK/changed-ide"
+
+      # Started now: it boots while the IDE builds
+      - name: Start an Android 13 emulator
+        if: runner.os == 'Linux'
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
+            sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          echo no | "$SDK/cmdline-tools/latest/bin/avdmanager" create avd -n api33 \
+            -k "system-images;android-33;google_apis;x86_64" -d pixel_5 --force
+          nohup "$SDK/emulator/emulator" -avd api33 -no-window -no-audio -no-boot-anim -no-snapshot \
+            -gpu swiftshader_indirect -camera-back none -camera-front none \
+            > "$WORK/emulator-api33.log" 2>&1 &
+
+      - name: This builder (units and builds)
+        run: |
+          "$PY" tools/ci/android_check.py ide --install "$CHANGED" --platform "$PLATFORM" \
+            --work "$WORK/changed" --sdk "$SDK" --jdk "$JDK"
+
+      - name: Check the packages
+        run: |
+          "$PY" tools/ci/android_check.py verify --work "$WORK/changed" --sdk "$SDK"
+
+      # The same stack file: it goes into the engine library
+      - name: The released builder (builds)
+        id: released
+        continue-on-error: true
+        run: |
+          "$PY" tools/ci/android_check.py ide --install "$RELEASED" --platform "$PLATFORM" \
+            --work "$WORK/released" --sdk "$SDK" --jdk "$JDK" --no-units \
+            --stack "$WORK/changed/AndroidProbe.livecode"
+
+      - name: The released builder made no packages to compare
+        if: steps.released.outcome != 'success'
+        run: |
+          msg="the released builder could not build the probe on $PLATFORM, so there is no comparison here (see its step)"
+          echo "::warning::$msg"
+          echo "- $msg" >> "$GITHUB_STEP_SUMMARY"
+          [ "$RUNNER_OS" != Linux ] || { echo "::error::on Linux it must"; exit 1; }
+
+      - name: Compare with the released builder's packages
+        if: steps.released.outcome == 'success'
+        run: |
+          "$PY" tools/ci/android_check.py compare --old "$WORK/released" --new "$WORK/changed" --sdk "$SDK"
+
+      - name: Wait for the emulator
+        if: runner.os == 'Linux'
+        timeout-minutes: 10
+        run: |
+          adb="$SDK/platform-tools/adb"
+          "$adb" wait-for-device
+          until [ "$("$adb" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; do sleep 5; done
+          "$adb" shell input keyevent 82 || true
+          "$adb" shell svc power stayon true || true
+          "$adb" devices
+
+      # What Test does (deployDo): the builder makes a debug-signed package
+      # for the emulator's architecture, adb installs and starts it
+      - name: The IDE's Test on the emulator
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_check.py ide --install "$CHANGED" --platform "$PLATFORM" \
+            --work "$WORK/test" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug \
+            --stack "$WORK/changed/AndroidProbe.livecode" --device emulator-5554
+
+      - name: Run the packages on Android 13
+        if: runner.os == 'Linux'
+        run: |
+          for build in debug release; do
+            "$PY" tools/ci/android_check.py device --apk "$WORK/changed/out/$build.apk" --serial emulator-5554 \
+              --sdk "$SDK" --out "$WORK/screen-api33-$build.png" --log-out "$WORK/logcat-api33-$build.txt"
+          done
+
+      # For the record, not a check: what Android 13 says to the released
+      # builder's packages (its "Sign with my key" one lost its v2 and v3
+      # signatures to zipalign, its "Sign for development only" one is not
+      # signed)
+      - name: The released builder's packages on Android 13
+        if: runner.os == 'Linux' && steps.released.outcome == 'success'
+        run: |
+          adb="$SDK/platform-tools/adb"
+          for build in debug release; do
+            "$adb" -s emulator-5554 uninstall org.openxtalk.check.androidprobe > /dev/null 2>&1 || true
+            out=$({ "$adb" -s emulator-5554 install -r "$WORK/released/out/$build.apk" 2>&1 || true; } | tr '\r\n' '  ')
+            echo "released $build.apk: $out"
+            echo "- the released builder's $build.apk on Android 13: \`$out\`" >> "$GITHUB_STEP_SUMMARY"
+          done
+          "$adb" -s emulator-5554 uninstall org.openxtalk.check.androidprobe > /dev/null 2>&1 || true
+
+      - name: Run the package with 16 KB pages
+        if: runner.os == 'Linux'
+        timeout-minutes: 15
+        run: |
+          adb="$SDK/platform-tools/adb"
+          "$adb" -s emulator-5554 emu kill || true
+          while "$adb" devices | grep -q emulator-5554; do sleep 2; done
+          echo "Image: $IMAGE_16K"
+          echo no | "$SDK/cmdline-tools/latest/bin/avdmanager" create avd -n pages16k -k "$IMAGE_16K" \
+            -d pixel_5 --force
+          nohup "$SDK/emulator/emulator" -avd pages16k -no-window -no-audio -no-boot-anim -no-snapshot \
+            -gpu swiftshader_indirect -camera-back none -camera-front none \
+            > "$WORK/emulator-16k.log" 2>&1 &
+          "$adb" wait-for-device
+          until [ "$("$adb" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; do sleep 5; done
+          "$adb" shell input keyevent 82 || true
+          page=$("$adb" shell getconf PAGE_SIZE | tr -d '\r')
+          echo "Page size: $page"
+          [ "$page" = 16384 ] || { echo "::error::$IMAGE_16K has pages of $page bytes, not 16384"; exit 1; }
+          "$PY" tools/ci/android_check.py device --apk "$WORK/changed/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-16k-debug.png" --log-out "$WORK/logcat-16k-debug.txt"
+
+      - name: Upload the packages and logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-builder-${{ matrix.platform }}
+          path: |
+            ${{ env.WORK }}/*/android-check.txt
+            ${{ env.WORK }}/*/ide-output.txt
+            ${{ env.WORK }}/*/out/*.apk
+            ${{ env.WORK }}/*.png
+            ${{ env.WORK }}/*.log
+            ${{ env.WORK }}/logcat-*.txt
+          if-no-files-found: warn
+          retention-days: 14

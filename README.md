@@ -213,7 +213,9 @@ brings Learn stacks for the Box2Dxt Kit and the rest of the xTalk Suite
   libraries, as LiveCode's do (OpenXTalk Lite 1.15's Linux runtimes came
   with copies of some). The automatic tests build a standalone from every
   runtime a package carries, Android aside, and run those the test
-  machine can run.
+  machine can run; Android packages are built by the IDE's Android
+  builder with a real Android SDK, checked, and run on Android emulators
+  by a workflow of their own (see [BUILDING.md](BUILDING.md#android-standalone-check)).
 - **Some old third-party libraries.** OpenSSL (3.5.9, a long-term
   support release), curl (8.22.0) and ICU (78.3) are current, built from
   source for every platform, and so are the image and pattern libraries
@@ -3753,11 +3755,15 @@ Known limitations, in rough order of importance:
    ICU, zlib, libpng, giflib, libjpeg and PCRE are current from
    0.2.1-rc.3 on.) Plan: update them too.
 2. The Android standalone runtime is OpenXTalk Lite 1.15's (LiveCode
-   Community 9.6.3 builds), not built from this repository, and Android
-   standalones are not tested automatically. The Windows and Linux
-   runtimes are built from this repository from 0.2.1-rc.3 on, and every
-   package's tests build a standalone from each of them. Plan: build the
-   Android engine here too.
+   Community 9.6.3 builds), not built from this repository, and it
+   targets Android 13 (API 33), which Google Play no longer takes for new
+   apps and updates. The Android builder is tested automatically
+   (packages built with a real Android SDK, checked, and run on Android 13
+   and 16 KB page emulators), the engine itself only as that build runs
+   it. The Windows and Linux runtimes are built from this repository from
+   0.2.1-rc.3 on, and every package's tests build a standalone from each
+   of them. Plan: build the Android engine here too, then raise the
+   target API.
 3. The Windows binaries are not code-signed, and the macOS app is signed
    ad hoc, not with an Apple Developer ID, and not notarized. Plan:
    Developer ID signing and notarization for macOS.
