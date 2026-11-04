@@ -209,8 +209,10 @@ class FoundForStandalones(unittest.TestCase):
         self.assertIn('did not report', web_check.mobile_web_found_problem({'phone': True}))
 
 
-# A fake page for a listener lifted out of a page's script: the
-# listeners it adds, and the elements it puts on the body.
+# A fake page for the note code lifted out of a page's script (from
+# showStopped to the WebAssembly check): the listeners it adds, and the
+# elements it puts on the body. NOWASM runs it in a browser without
+# WebAssembly, as an iPhone's Lockdown Mode is.
 FAKE_PAGE = r"""
 const listeners = {};
 const window = { addEventListener: (name, fn) => { (listeners[name] = listeners[name] || []).push(fn); } };
@@ -222,14 +224,17 @@ const document = {
 };
 const navigator = { userAgent: 'TestPhone/1.0' };
 const $ = (id) => document.getElementById(id);
-LISTENER
+const RealWasm = globalThis.WebAssembly;
+(function (WebAssembly) {
+NOTE
+})(NOWASM ? undefined : RealWasm);
 const fire = (reason) => listeners.unhandledrejection.forEach((fn) => fn({ reason }));
-const seen = [];
+const seen = [added.length];
 fire(new Error('a stack of its own'));
 seen.push(added.length);
 fire(new RangeError('Maximum call stack size exceeded.'));
 seen.push(added.length);
-fire(new WebAssembly.RuntimeError('unreachable'));
+fire(new RealWasm.RuntimeError('unreachable'));
 seen.push(added.length);
 console.log(JSON.stringify({ seen, note: added[0] || null }));
 """
@@ -239,45 +244,59 @@ class SaysWhenItStops(unittest.TestCase):
     """When the engine stops in a browser (out of the stack an iPhone or
     an iPad gives a page, or WebAssembly failing) it does so in a promise
     nothing catches, and a standalone's page, and the Stack Player's, was
-    left blank. Each now says so above everything, in the browser's
+    left blank; a browser without WebAssembly (Lockdown Mode) left it
+    loading for ever. Each now says so above everything, in the browser's
     words; a stack's own JavaScript rejecting is left as it was, and the
     'error' listener each had is kept."""
 
     PAGES = (('engine', 'rsrc', 'emscripten-html-template.html'), ('tools', 'web-player', 'index.html'))
 
     @staticmethod
-    def listener(page):
-        start = page.index("window.addEventListener('unhandledrejection', function")
-        end = re.compile(r'^\s*\}\);$', re.M).search(page, start).end()
+    def note_code(page):
+        start = page.index('function showStopped(text)')
+        check = page.index("if (typeof WebAssembly != 'object') {", start)
+        end = re.compile(r'^\s*\}$', re.M).search(page, check).end()
         return page[start:end]
 
-    def test_both_pages_listen_and_keep_their_error_listener(self):
+    def test_both_pages_note_it_and_keep_their_error_listener(self):
         for parts in self.PAGES:
             page = read(*parts)
             self.assertIn("window.addEventListener('error', function", page, parts)
-            listener = self.listener(page)
-            for want in ('instanceof RangeError', 'WebAssembly.RuntimeError', "'stopped'",
-                         "setAttribute('role', 'alert')", 'navigator.userAgent', 'appendChild'):
-                self.assertIn(want, listener, (parts, want))
+            code = self.note_code(page)
+            for want in ("window.addEventListener('unhandledrejection', function", 'instanceof RangeError',
+                         'WebAssembly.RuntimeError', "'stopped'", "setAttribute('role', 'alert')",
+                         'navigator.userAgent', 'appendChild', 'Lockdown Mode'):
+                self.assertIn(want, code, (parts, want))
 
     def test_the_note_is_above_everything(self):
-        template = self.listener(read(*self.PAGES[0]))
+        template = self.note_code(read(*self.PAGES[0]))
         self.assertIn('position:fixed', template)
         self.assertIn('z-index:2147483647', template)
         player = read(*self.PAGES[1])
         self.assertRegex(player, r'#stopped\{position:fixed;[^}]*z-index:2147483647')
 
+    def run_page(self, parts, nowasm):
+        script = FAKE_PAGE.replace('NOTE', self.note_code(read(*parts))).replace('NOWASM', 'true' if nowasm else 'false')
+        out = subprocess.run([shutil.which('node'), '-e', script], capture_output=True, text=True, timeout=60)
+        self.assertEqual(out.returncode, 0, (parts, out.stderr))
+        return json.loads(out.stdout)
+
     @unittest.skipUnless(shutil.which('node'), 'node is not installed')
     def test_only_the_engine_stopping_shows_the_note_once(self):
         for parts in self.PAGES:
-            script = FAKE_PAGE.replace('LISTENER', self.listener(read(*parts)))
-            out = subprocess.run([shutil.which('node'), '-e', script], capture_output=True, text=True, timeout=60)
-            self.assertEqual(out.returncode, 0, (parts, out.stderr))
-            result = json.loads(out.stdout)
-            self.assertEqual(result['seen'], [0, 1, 1], parts)
+            result = self.run_page(parts, False)
+            self.assertEqual(result['seen'], [0, 0, 1, 1], parts)
             self.assertEqual(result['note']['id'], 'stopped')
             self.assertEqual(result['note']['textContent'],
                              'The stack stopped in this browser: Maximum call stack size exceeded. (TestPhone/1.0)')
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not installed')
+    def test_a_browser_without_webassembly_is_told_at_once(self):
+        for parts in self.PAGES:
+            result = self.run_page(parts, True)
+            self.assertEqual(result['seen'], [1, 1, 1, 1], parts)
+            self.assertIn('WebAssembly is turned off', result['note']['textContent'])
+            self.assertTrue(result['note']['textContent'].endswith('(TestPhone/1.0)'))
 
 
 class PlayerOnAPhone(unittest.TestCase):

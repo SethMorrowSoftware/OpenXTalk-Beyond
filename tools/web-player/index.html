@@ -755,23 +755,34 @@ dialog.answer .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:
     $('loading-error').textContent = 'The engine could not start in this browser. ' +
       (location.protocol == 'file:' ? 'Open this page from a web server, not from a file on disk.' : 'Try an up-to-date Chrome, Edge, Firefox or Safari.');
   });
+  // A note above everything, with the browser's own words and which
+  // browser it is, so that whoever sees it can tell what happened.
+  function showStopped(text) {
+    if ($('stopped')) return;
+    var note = document.createElement('div');
+    note.id = 'stopped';
+    note.setAttribute('role', 'alert');
+    note.textContent = text + ' (' + navigator.userAgent + ')';
+    document.body.appendChild(note);
+  }
   // The engine stopping (out of the browser's stack, as on an iPhone or
   // an iPad, which give a page far less than a desktop, or WebAssembly
   // failing) comes as a promise nothing catches, not as an 'error', and
-  // left the page blank. Say so above everything, with the browser's
-  // words; a stack's own JavaScript rejecting is left as it was.
+  // left the page blank. A stack's own JavaScript rejecting is left as it
+  // was.
   window.addEventListener('unhandledrejection', function (event) {
     var reason = event.reason;
     var stopped = reason instanceof RangeError ||
       (typeof WebAssembly == 'object' && WebAssembly.RuntimeError && reason instanceof WebAssembly.RuntimeError);
-    if (!stopped || $('stopped')) return;
-    var note = document.createElement('div');
-    note.id = 'stopped';
-    note.setAttribute('role', 'alert');
-    note.textContent = 'The stack stopped in this browser: ' + (reason.message || String(reason)) +
-      ' (' + navigator.userAgent + ')';
-    document.body.appendChild(note);
+    if (stopped) showStopped('The stack stopped in this browser: ' + (reason.message || String(reason)));
   });
+  // A browser without WebAssembly cannot run the engine at all, and the
+  // page said it was starting for ever. An iPhone's or an iPad's Lockdown
+  // Mode turns WebAssembly off.
+  if (typeof WebAssembly != 'object') {
+    showStopped('This browser cannot run stacks: WebAssembly is turned off in it. ' +
+      'On an iPhone or an iPad, Lockdown Mode turns it off, and Safari can leave this site out of Lockdown Mode.');
+  }
 
   // ---------------------------------------------------------------- the player stack
   var opened = 0;

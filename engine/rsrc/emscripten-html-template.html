@@ -89,18 +89,11 @@
         Module.setStatus('Something went wrong. The browser console has the details.');
       });
 
-      // When the engine itself stops (it ran out of the browser's stack,
-      // as on an iPhone or an iPad, which give a page far less than a
-      // desktop, or WebAssembly failed), it does so in a promise that
-      // nothing catches, and the page stayed blank: the canvas covers the
-      // status. Say so above everything, with the browser's words, so
-      // that whoever sees it can tell what happened. Other unhandled
-      // rejections (a stack's own JavaScript) are left as they were.
-      window.addEventListener('unhandledrejection', function(event) {
-        var reason = event.reason;
-        var stopped = reason instanceof RangeError ||
-          (typeof WebAssembly == 'object' && WebAssembly.RuntimeError && reason instanceof WebAssembly.RuntimeError);
-        if (!stopped || document.getElementById('stopped')) {
+      // A note above everything, with the browser's own words and which
+      // browser it is, so that whoever sees it can tell what happened:
+      // the canvas covers the status once the engine has started.
+      function showStopped(text) {
+        if (document.getElementById('stopped')) {
           return;
         }
         var note = document.createElement('div');
@@ -109,10 +102,31 @@
         note.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:2147483647;padding:16px 20px;' +
           'background:#fff4f0;color:#7a1d00;border-bottom:2px solid #e8590c;' +
           'font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;text-align:left';
-        note.textContent = 'The stack stopped in this browser: ' + (reason.message || String(reason)) +
-          ' (' + navigator.userAgent + ')';
+        note.textContent = text + ' (' + navigator.userAgent + ')';
         document.body.appendChild(note);
+      }
+
+      // When the engine itself stops (it ran out of the browser's stack,
+      // as on an iPhone or an iPad, which give a page far less than a
+      // desktop, or WebAssembly failed), it does so in a promise that
+      // nothing catches, and the page stayed blank. Other unhandled
+      // rejections (a stack's own JavaScript) are left as they were.
+      window.addEventListener('unhandledrejection', function(event) {
+        var reason = event.reason;
+        var stopped = reason instanceof RangeError ||
+          (typeof WebAssembly == 'object' && WebAssembly.RuntimeError && reason instanceof WebAssembly.RuntimeError);
+        if (stopped) {
+          showStopped('The stack stopped in this browser: ' + (reason.message || String(reason)));
+        }
       });
+
+      // A browser without WebAssembly cannot run the engine at all, and
+      // the page said "Loading..." for ever. An iPhone's or an iPad's
+      // Lockdown Mode turns WebAssembly off.
+      if (typeof WebAssembly != 'object') {
+        showStopped('This browser cannot run the stack: WebAssembly is turned off in it. ' +
+          'On an iPhone or an iPad, Lockdown Mode turns it off, and Safari can leave this site out of Lockdown Mode.');
+      }
     </script>
     {{{ SCRIPT }}}
   </body>
