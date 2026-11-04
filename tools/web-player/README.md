@@ -118,11 +118,14 @@ own that holds nothing else of value.
 
 `stacks/Phone Starter.oxtstack` is a stack to copy for a stack made for
 phones, with the Mobile Web library
-(`extensions/script-libraries/mobileweb`): a header, four cards under a
-tab bar a thumb can reach (Home, List, Form, Gestures), a swipe left or
-right to change tab, a list that scrolls with a finger, a form that stays
-above the on-screen keyboard, and a pad (a group with its own `swipe`,
-`pinch` and `longPress` handlers) for gestures. One line, `mwStart`,
+(`extensions/script-libraries/mobileweb`): a header, five cards under a
+tab bar a thumb can reach (Home, List, Form, Gestures, Phone), a swipe
+left or right to change tab, a list that scrolls with a finger, a form
+that stays above the on-screen keyboard, a pad (a group with its own
+`swipe`, `pinch`, `longPress` and touch handlers, which draw a ring under
+each finger) for gestures, and a Phone card that takes a photo, shares,
+finds where the phone is, rolls a ball as it tilts, keeps the screen on
+and hides the browser's bars. One line, `mwStart`,
 makes it a phone stack: in a page of its own (an HTML5 standalone) it
 fills the browser's window and fills it again when the phone turns, in
 portrait or landscape (two columns, smaller bars, out of the notch); in
@@ -141,8 +144,10 @@ OXT-Beyond engine:
 
 `tools/ci/mobile_web_check.py` opens it on emulated phones (Playwright's
 Pixel 7 and iPhone 13, in Chromium and WebKit) and checks the taps,
-drags, swipes, pinch, long press, keyboard and turns (every card in
-landscape must end above the tab bar); it fails if the
+drags, swipes, pinch, long press, fingers, keyboard, the Phone card (a
+location it is given, a photo through the file chooser, a tilt it
+makes) and turns (every card in landscape must end above the tab bar);
+it fails if the
 committed stack's script is not `phone-starter-stack.livecodescript`'s.
 CI runs it in web.yml, after the web runtime check. To run it yourself:
 

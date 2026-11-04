@@ -28,6 +28,10 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- them (or has no handler); the rest go to the current card, by the
 -- names LiveCode's iOS and Android engines send them:
 --
+--    touchStart pId, pX, pY        (one finger each, pId a number)
+--    touchMove pId, pX, pY
+--    touchEnd pId, pX, pY
+--    touchRelease pId, pX, pY      (the browser took the touch away)
 --    swipe pDirection              (left, right, up or down)
 --    pinchStart pX, pY
 --    pinch pScale, pX, pY
@@ -36,6 +40,14 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --    orientationChanged
 --    keyboardActivated
 --    keyboardDeactivated
+--
+-- and while a sensor is started (mwStartSensor), to the current card:
+--
+--    locationChanged pLatitude, pLongitude, pAltitude
+--    headingChanged pHeading
+--    accelerationChanged pX, pY, pZ, pTime
+--    rotationRateChanged pX, pY, pZ, pTime
+--    trackingError pSensor, pError
 --
 -- mwStart also makes the stack fit the browser's window: a resizable
 -- stack fills it (and gets resizeStack, so a Geometry Manager layout or a
@@ -96,7 +108,11 @@ html5, mobile, touch
 */
 
 constant kLibrary = "com.livecode.library.mobileweb"
-constant kGestures = "swipe,pinch,longpress"
+constant kGestures = "swipe,pinch,longpress,touch"
+constant kSensors = "location,heading,acceleration,rotation rate"
+constant kPhotoSources = "library,camera,rear camera,front camera"
+-- a phone's photo is 12 megapixels or more: this keeps it to about 1.2
+constant kPhotoMax = 1280
 
 -- the stack that gets the library's messages, by its short name, and
 -- whether mwStart has started the browser's side
@@ -110,6 +126,15 @@ local sOptions
 local sKeyboard, sOrientation
 -- the control a pinch began over, which gets pinch and pinchEnd too
 local sPinchTarget
+-- the control each finger touched first (by the finger's number), which
+-- gets its touchMove and touchEnd too
+local sTouchTarget
+-- the sensors started (sSensors[name] is true), the stack whose card
+-- gets their messages, and each one's last reading, as the browser sent it
+local sSensors, sSensorStack, sReading
+-- mwPickPhoto's wait: "waiting", then "done" (sPhoto has the JPEG, in
+-- base64) or "cancel"
+local sPhotoState, sPhoto
 -- the browser's last viewport (see mwViewport), as a list of
 -- width,height,keyboard,top,right,bottom,left,orientation
 local sViewport
@@ -204,7 +229,8 @@ The name of the stack. Empty for the default stack.
 
 pGestures (string):
 A comma-separated list of the gestures to report: any of "swipe",
-"pinch" and "longpress". Empty for all three; "none" for none.
+"pinch", "longpress" and "touch" (the touch messages, one finger each).
+Empty for all four; "none" for none.
 
 pScreen (string):
 How the stack meets the browser's window: "fill" (the stack is made as
@@ -252,6 +278,13 @@ its stack, so a card's script can handle every swipe on the card.
   their distance at the start, and pX, pY the point between them. All
   three go to the control under that point when the pinch began.
 - longPress pX, pY: a finger held still for about half a second.
+- touchStart pId, pX, pY when a finger touches the stack, touchMove
+  pId, pX, pY as it moves (at most once a frame), and touchEnd pId, pX,
+  pY when it lets go (touchRelease when the browser takes the touch away,
+  as it can for a call). pId is a number of the finger's own, the same
+  in all its messages, so two or more fingers can be followed at once,
+  for drawing or a game. All of them go to the control the finger
+  touched first, as LiveCode's iOS and Android engines send them.
 
 These go to the current card, as LiveCode's iOS and Android engines send
 them:
@@ -305,6 +338,7 @@ command mwStart pStack, pGestures, pScreen
    put empty into sKeyboard
    put empty into sOrientation
    put empty into sPinchTarget
+   put empty into sTouchTarget
    put empty into sViewport
 
    if not mwIsWeb() then
@@ -356,7 +390,10 @@ end closeStack
 
 Description:
 After <mwStop> no more of the library's messages are sent, and the
-browser's listeners that <mwStart> added are removed. A stack that was
+browser's listeners that <mwStart> added are removed. The sensors that
+<mwStartSensor> started are stopped, the screen kept on by
+<mwKeepAwake> is let go, and an <mwPickPhoto> still waiting is
+cancelled. A stack that was
 filling the screen keeps the size it has, and the page gets back its
 margins and its scrolling.
 
@@ -368,10 +405,20 @@ command mwStop
    put empty into sKeyboard
    put empty into sOrientation
    put empty into sPinchTarget
+   put empty into sTouchTarget
+   put empty into sSensors
+   put empty into sSensorStack
+   put empty into sReading
+   if sPhotoState is "waiting" then
+      put "cancel" into sPhotoState
+   end if
    mwGlideStop
    if mwIsWeb() then
-      -- the listeners off, and the page as it was before mwFillScreen
-      get mwJS("if (window.__oxtMobileWeb) { window.__oxtMobileWeb.stop(); window.__oxtMobileWeb.unfillPage(); } return '';")
+      -- the listeners and the sensors off, the screen let go, a photo
+      -- not yet taken forgotten, and the page as it was before
+      -- mwFillScreen
+      get mwJS("var m = window.__oxtMobileWeb; if (m) { m.stop(); m.sensorsOff(); m.keepAwake(false);" && \
+            "m.cancelPhoto(); m.unfillPage(); } return '';")
    end if
    put false into sStarted
 end mwStop
@@ -740,11 +787,503 @@ function mwLongPressed
    return mwJS("return window.__oxtMobileWeb && window.__oxtMobileWeb.longPressed() ? 'true' : 'false';") is "true"
 end mwLongPressed
 
+/**
+Whether the phone has a sensor the browser can read.
+
+Parameters:
+pSensor (string):
+"location", "heading", "acceleration" or "rotation rate".
+
+Returns (boolean):
+true where the browser has a way to read the sensor; false on a desktop,
+in a browser without one, and for a name that is not a sensor.
+
+Example:
+if mwSensorAvailable("location") then
+   show button "Where am I"
+end if
+
+Description:
+Use <mwSensorAvailable> to show only what the phone can do. A browser
+that has the way may still find no sensor, or the user may say no: then
+<mwStartSensor> sends trackingError.
+
+References: mwStartSensor (command), mwSensorReading (function)
+*/
+function mwSensorAvailable pSensor
+   if pSensor is not among the items of kSensors or not mwIsWeb() then
+      return false
+   end if
+   mwInstallBrowserSide
+   return mwJS("return window.__oxtMobileWeb.sensorAvailable(" & mwQuote(pSensor) & ");") is "true"
+end mwSensorAvailable
+
+/**
+Start reading a sensor: where the phone is, which way it points, how it
+is tilted or turning.
+
+Parameters:
+pSensor (string):
+"location", "heading", "acceleration" or "rotation rate".
+
+pLoosely (boolean):
+true to read it less often or less exactly, which saves the battery:
+the location from the network rather than the GPS, the heading when it
+changes by 5 degrees, the motion five times a second. Empty for false.
+
+Example:
+on mouseUp
+   mwStartSensor "location"
+end mouseUp
+
+on locationChanged pLatitude, pLongitude
+   put "You are at" && pLatitude & comma & pLongitude into field "Where"
+   mwStopSensor "location"
+end locationChanged
+
+Example:
+-- a ball that rolls as the phone tilts
+on openCard
+   mwStartSensor "acceleration"
+end openCard
+
+on accelerationChanged pX, pY
+   set the loc of graphic "Ball" to \
+         item 1 of the loc of graphic "Ball" + round(pX * -10), \
+         item 2 of the loc of graphic "Ball" + round(pY * 10)
+end accelerationChanged
+
+Description:
+After <mwStartSensor> the current card of the stack that was the
+default stack gets a message each time the sensor has a new reading,
+by the names LiveCode's iOS and Android engines use:
+
+- locationChanged pLatitude, pLongitude, pAltitude (degrees, and meters;
+  the altitude is empty where the phone does not know it)
+- headingChanged pHeading (degrees from north, clockwise)
+- accelerationChanged pX, pY, pZ, pTime: in g, gravity included, so a
+  phone lying flat reads about 0, 0 and 1 or -1; pTime in seconds
+- rotationRateChanged pX, pY, pZ, pTime: how fast it turns about each
+  axis, in radians a second
+
+If the sensor cannot be read, the card gets trackingError pSensor,
+pError ("permission denied" when the user said no) and the sensor is
+stopped. <mwSensorReading> gives the last reading at any time.
+
+Browsers ask the user before they give the location, and an iPhone
+asks before the motion and the heading too; an iPhone asks only when
+<mwStartSensor> is called from a tap (in mouseUp). The location needs a
+page served over https (or from the same computer).
+
+The result is "not available" where the browser has no way to read the
+sensor, as on a desktop, and "unknown sensor: " and the name for a name
+that is not one.
+
+References: mwStopSensor (command), mwSensorReading (function), mwSensorAvailable (function)
+*/
+command mwStartSensor pSensor, pLoosely
+   local tResult
+   if pSensor is not among the items of kSensors then
+      return "unknown sensor:" && pSensor
+   end if
+   if pLoosely is empty then
+      put false into pLoosely
+   end if
+   if pLoosely is not a boolean then
+      return "loosely is not true or false:" && pLoosely
+   end if
+   if not mwIsWeb() then
+      return "not available"
+   end if
+   mwInstallBrowserSide
+   put mwTargetStack() into sSensorStack
+   put true into sSensors[pSensor]
+   put mwJS("return window.__oxtMobileWeb.sensorOn(" & mwQuote(pSensor) & comma & pLoosely & ");") into tResult
+   if tResult is not empty then
+      delete variable sSensors[pSensor]
+   end if
+   return tResult
+end mwStartSensor
+
+/**
+Stop reading a sensor.
+
+Parameters:
+pSensor (string):
+"location", "heading", "acceleration" or "rotation rate".
+
+Example:
+on closeCard
+   mwStopSensor "acceleration"
+end closeCard
+
+Description:
+After <mwStopSensor> the card gets no more of that sensor's messages.
+Stop a sensor when it is not needed: reading one uses the battery.
+<mwStop> stops them all.
+
+References: mwStartSensor (command)
+*/
+command mwStopSensor pSensor
+   if pSensor is not among the items of kSensors then
+      return "unknown sensor:" && pSensor
+   end if
+   delete variable sSensors[pSensor]
+   delete variable sReading[pSensor]
+   if mwIsWeb() then
+      get mwJS("if (window.__oxtMobileWeb) window.__oxtMobileWeb.sensorOff(" & mwQuote(pSensor) & "); return '';")
+   end if
+   return empty
+end mwStopSensor
+
+/**
+A sensor's last reading.
+
+Parameters:
+pSensor (string):
+"location", "heading", "acceleration" or "rotation rate".
+
+pDetailed (boolean):
+true for an array with every value the browser gave; empty or false for
+the main values, separated by commas.
+
+Returns (string):
+For "location", the latitude, longitude and altitude; for "heading",
+the heading; for "acceleration" and "rotation rate", x, y and z. With
+pDetailed, an array: "latitude", "longitude", "altitude", "horizontal
+accuracy", "vertical accuracy", "speed", "course" and "timestamp" for a
+location; "heading", "accuracy" and "timestamp" for a heading; "x", "y",
+"z" and "timestamp" for the others. Empty before the first reading.
+
+Example:
+put mwSensorReading("location") into tWhere
+if tWhere is not empty then
+   put "Latitude:" && item 1 of tWhere into field "Where"
+end if
+
+Description:
+Use <mwSensorReading> to look at a sensor's reading when it is needed,
+instead of keeping each message's. The sensor must be started with
+<mwStartSensor>; its reading is kept until it is stopped.
+
+References: mwStartSensor (command)
+*/
+function mwSensorReading pSensor, pDetailed
+   local tValues, tReading, tKeys, i
+   if sSensors[pSensor] is not true then
+      return empty
+   end if
+   put sReading[pSensor] into tValues
+   if tValues is empty then
+      return empty
+   end if
+   if pDetailed is not true then
+      if pSensor is "heading" then
+         return item 1 of tValues
+      end if
+      return item 1 to 3 of tValues
+   end if
+   switch pSensor
+      case "location"
+         put "latitude,longitude,altitude,horizontal accuracy,vertical accuracy,speed,course,timestamp" into tKeys
+         break
+      case "heading"
+         put "heading,accuracy,timestamp" into tKeys
+         break
+      default
+         put "x,y,z,timestamp" into tKeys
+         break
+   end switch
+   repeat with i = 1 to the number of items of tKeys
+      put item i of tValues into tReading[item i of tKeys]
+   end repeat
+   return tReading
+end mwSensorReading
+
+/**
+Share text or a link through the phone's share sheet.
+
+Parameters:
+pText (string):
+The text to share.
+
+pURL (string):
+A link to share. Empty for none.
+
+pTitle (string):
+A title, which some apps show. Empty for none.
+
+Example:
+on mouseUp
+   mwShare "My best score is" && field "Score", "https://example.com/game"
+   if the result is "copied" then answer "Copied, ready to paste."
+end mouseUp
+
+Description:
+On a phone, <mwShare> opens the share sheet, where the user picks an
+app (a message, an email, a note) to share with. Call it from a tap: a
+browser opens the sheet only then. Where the browser has no share sheet,
+as on most desktops, the text and the link are copied instead, ready to
+paste, and the result is "copied". It is "not supported" where neither
+can be done, and "nothing to share" when the text and the link are
+empty.
+
+References: mwVibrate (command)
+*/
+command mwShare pText, pURL, pTitle
+   if pText is empty and pURL is empty then
+      return "nothing to share"
+   end if
+   if not mwIsWeb() then
+      if pText is not empty and pURL is not empty then
+         set the clipboardData["text"] to pText && pURL
+      else
+         set the clipboardData["text"] to pText & pURL
+      end if
+      return "copied"
+   end if
+   mwInstallBrowserSide
+   return mwJS("return window.__oxtMobileWeb.share(" & mwQuote(pText) & comma & mwQuote(pURL) & comma & mwQuote(pTitle) & ");")
+end mwShare
+
+/**
+Keep the phone's screen on, or let it turn off again.
+
+Parameters:
+pAwake (boolean):
+true to keep the screen on, false to let it turn off as usual.
+
+Example:
+-- a recipe, read while cooking
+on openCard
+   mwKeepAwake true
+end openCard
+
+on closeCard
+   mwKeepAwake false
+end closeCard
+
+Description:
+A phone turns its screen off after a while without a touch. Use
+<mwKeepAwake> for a stack that is read or watched without being touched:
+a recipe, a timer, a game played with the sensors. The screen stays on
+while the page is in front, and again when the user comes back to it.
+<mwStop> lets it go.
+
+The result is "not supported" where the browser cannot keep the screen
+on, as on a desktop or a page not served over https.
+
+References: mwStop (command)
+*/
+command mwKeepAwake pAwake
+   if pAwake is not a boolean then
+      return "not true or false:" && pAwake
+   end if
+   if not mwIsWeb() then
+      return "not supported"
+   end if
+   mwInstallBrowserSide
+   return mwJS("return window.__oxtMobileWeb.keepAwake(" & pAwake & ");")
+end mwKeepAwake
+
+/**
+Show the stack on the whole screen, without the browser's bars, or put
+the bars back.
+
+Parameters:
+pFull (boolean):
+true for the whole screen, false for the browser's bars back.
+
+Example:
+on mouseUp
+   mwFullScreen not mwIsFullScreen()
+end mouseUp
+
+Description:
+A phone's browser keeps its address bar (and on some phones, buttons)
+over part of the screen. <mwFullScreen> true asks for the whole screen,
+as a video does; the stack gets resizeStack (when <mwStart> fills the
+screen with it) and is laid out for the new size. The user can leave
+with the phone's back gesture.
+
+Call it from a tap: a browser gives the whole screen only then. The
+result is "not supported" where the browser cannot, such as on an iPhone
+(an iPad can) and on a desktop outside a browser. On an iPhone, a page
+added to the home screen opens without the bars instead (see
+<mwIsInstalled>).
+
+References: mwIsFullScreen (function), mwIsInstalled (function), mwStart (command)
+*/
+command mwFullScreen pFull
+   if pFull is not a boolean then
+      return "not true or false:" && pFull
+   end if
+   if not mwIsWeb() then
+      return "not supported"
+   end if
+   mwInstallBrowserSide
+   return mwJS("return window.__oxtMobileWeb.fullScreen(" & pFull & ");")
+end mwFullScreen
+
+/**
+Whether the stack is on the whole screen, without the browser's bars.
+
+Returns (boolean):
+true after <mwFullScreen> true, until the user or <mwFullScreen> false
+puts the bars back; false on a desktop.
+
+Example:
+if mwIsFullScreen() then
+   set the label of button "Full" to "Show the bars"
+end if
+
+References: mwFullScreen (command)
+*/
+function mwIsFullScreen
+   if not mwIsWeb() then
+      return false
+   end if
+   mwInstallBrowserSide
+   return mwJS("return window.__oxtMobileWeb.isFullScreen();") is "true"
+end mwIsFullScreen
+
+/**
+Take a photo with the camera, or choose one of the phone's pictures, as
+a new image on the card.
+
+Parameters:
+pSource (string):
+"camera" or "rear camera" (the camera on the back), "front camera", or
+"library" (a picture the phone has). Empty for "library".
+
+pMaxWidth (number):
+The widest the image may be, in pixels. Empty for 1280.
+
+pMaxHeight (number):
+The tallest the image may be, in pixels. Empty for 1280.
+
+Example:
+on mouseUp
+   mwPickPhoto "camera", 600, 600
+   if the result is "cancel" then exit mouseUp
+   -- the photo is the card's last image
+   set the rect of last image to the rect of graphic "Frame"
+end mouseUp
+
+Description:
+<mwPickPhoto> opens the phone's camera, or its pictures, and waits until
+the user has taken or chosen a photo. The photo becomes a new image on
+the current card, the last image, made smaller to fit in pMaxWidth by
+pMaxHeight (a phone's photo is far bigger than its screen); the result
+is empty. When the user closes the camera without one, no image is made
+and the result is "cancel". The stack goes on getting its messages while
+<mwPickPhoto> waits.
+
+Call it from a tap: a browser opens the camera only then. A browser
+that cannot open the camera itself, as on a desktop, shows its file
+chooser instead. In the IDE, "library" asks for a picture file and the
+cameras give "not supported".
+
+References: mwShare (command)
+*/
+command mwPickPhoto pSource, pMaxWidth, pMaxHeight
+   local tData, tStack, tDefault, tImage, tScale
+   if pSource is empty then
+      put "library" into pSource
+   end if
+   if pSource is not among the items of kPhotoSources then
+      return "unknown source:" && pSource
+   end if
+   if pMaxWidth is empty then
+      put kPhotoMax into pMaxWidth
+   end if
+   if pMaxHeight is empty then
+      put kPhotoMax into pMaxHeight
+   end if
+   if pMaxWidth is not an integer or pMaxWidth < 1 or pMaxHeight is not an integer or pMaxHeight < 1 then
+      return "not a size:" && pMaxWidth & comma & pMaxHeight
+   end if
+   if sPhotoState is "waiting" then
+      return "busy"
+   end if
+   put mwTargetStack() into tStack
+
+   if mwIsWeb() then
+      mwInstallBrowserSide
+      put empty into sPhoto
+      put "waiting" into sPhotoState
+      get mwJS("return window.__oxtMobileWeb.pickPhoto(" & mwQuote(pSource) & comma & pMaxWidth & comma & pMaxHeight & ");")
+      wait until sPhotoState is not "waiting" with messages
+      if sPhotoState is not "done" then
+         put empty into sPhotoState
+         return "cancel"
+      end if
+      put base64Decode(sPhoto) into tData
+      put empty into sPhoto
+      put empty into sPhotoState
+   else
+      if pSource is not "library" then
+         return "not supported"
+      end if
+      answer file "Choose a photo:" with type "Pictures|jpg,jpeg,png,gif,bmp|"
+      if it is empty then
+         return "cancel"
+      end if
+      put URL ("binfile:" & it) into tData
+   end if
+   if there is not a stack tStack then
+      return "cancel"
+   end if
+
+   put the defaultStack into tDefault
+   set the defaultStack to tStack
+   lock screen
+   create image
+   put it into tImage
+   set the text of tImage to tData
+   -- (a picture from the IDE's chooser keeps its pixels, and is shown
+   -- smaller)
+   put min(1, pMaxWidth / max(1, the width of tImage), pMaxHeight / max(1, the height of tImage)) into tScale
+   if tScale < 1 then
+      set the resizeQuality of tImage to "good"
+      set the lockLoc of tImage to true
+      set the width of tImage to max(1, round(the width of tImage * tScale))
+      set the height of tImage to max(1, round(the height of tImage * tScale))
+   end if
+   set the loc of tImage to round(the width of stack tStack / 2), round(the height of stack tStack / 2)
+   unlock screen
+   set the defaultStack to tDefault
+   return empty
+end mwPickPhoto
+
 -- The browser calls this (it is the library stack's only
 -- javascriptHandlers entry) with a kind and its values; see mwStart for
 -- the messages
-on mwFromBrowser pKind, p1, p2, p3
-   local tKeyboard, tOrientation
+on mwFromBrowser pKind, p1, p2, p3, p4
+   local tKeyboard, tOrientation, tObject
+   -- a photo, and the sensors: whether or not mwStart was called
+   switch pKind
+      case "photo"
+         if sPhotoState is "waiting" then
+            put p1 into sPhoto
+            put "done" into sPhotoState
+         end if
+         exit mwFromBrowser
+      case "photocancel"
+         if sPhotoState is "waiting" then
+            put "cancel" into sPhotoState
+         end if
+         exit mwFromBrowser
+      case "sensor"
+         mwSensorSays p1, p2
+         exit mwFromBrowser
+      case "sensorerror"
+         if sSensors[p1] is true then
+            delete variable sSensors[p1]
+            mwSendToCardOf sSensorStack, "trackingError", p1, p2
+         end if
+         exit mwFromBrowser
+   end switch
    -- (a viewport report fills or fits again after mwFillScreen or
    -- mwFitStack alone; the messages need mwStart's stack)
    if pKind is not "viewport" and (sTarget is empty or there is not a stack sTarget) then
@@ -803,8 +1342,53 @@ on mwFromBrowser pKind, p1, p2, p3
          mwToCard p1, p2
          mwSendAt "longPress", mwControlAt(p1, p2), p1, p2
          break
+      case "touchstart"
+         mwToCard p2, p3
+         put mwControlAt(p2, p3) into sTouchTarget[p1]
+         mwSendAt "touchStart", sTouchTarget[p1], p1, p2, p3
+         break
+      case "touchmove"
+         mwToCard p2, p3
+         mwSendAt "touchMove", sTouchTarget[p1], p1, p2, p3
+         break
+      case "touchend"
+      case "touchrelease"
+         mwToCard p2, p3
+         put sTouchTarget[p1] into tObject
+         delete variable sTouchTarget[p1]
+         if pKind is "touchend" then
+            mwSendAt "touchEnd", tObject, p1, p2, p3
+         else
+            mwSendAt "touchRelease", tObject, p1, p2, p3
+         end if
+         break
    end switch
 end mwFromBrowser
+
+-- A sensor's reading, as the browser sent it (items, see mwSensorReading),
+-- kept and sent on to the card
+private command mwSensorSays pSensor, pValues
+   if sSensors[pSensor] is not true then
+      exit mwSensorSays
+   end if
+   put pValues into sReading[pSensor]
+   switch pSensor
+      case "location"
+         mwSendToCardOf sSensorStack, "locationChanged", item 1 of pValues, item 2 of pValues, item 3 of pValues
+         break
+      case "heading"
+         mwSendToCardOf sSensorStack, "headingChanged", item 1 of pValues
+         break
+      case "acceleration"
+         mwSendToCardOf sSensorStack, "accelerationChanged", item 1 of pValues, item 2 of pValues, \
+               item 3 of pValues, item 4 of pValues
+         break
+      case "rotation rate"
+         mwSendToCardOf sSensorStack, "rotationRateChanged", item 1 of pValues, item 2 of pValues, \
+               item 3 of pValues, item 4 of pValues
+         break
+   end switch
+end mwSensorSays
 
 -- The glide after mwDragScroll lets go
 on mwGlide
@@ -980,6 +1564,13 @@ private command mwSendToCard pMessage
    dispatch pMessage to this card of stack sTarget
 end mwSendToCard
 
+private command mwSendToCardOf pStack, pMessage, p1, p2, p3, p4
+   if pStack is empty or there is not a stack pStack then
+      exit mwSendToCardOf
+   end if
+   dispatch pMessage to this card of stack pStack with p1, p2, p3, p4
+end mwSendToCardOf
+
 -- JavaScript's result, as text (empty after an error)
 private function mwJS pScript
    local tResult, tError
@@ -1015,10 +1606,10 @@ private function mwBrowserScript
    -- page ("Maximum call stack size exceeded" as the stack opened, and a
    -- blank page)
    put "var lib = " & mwQuote(kLibrary) & ";" & return after tScript
-   put "var mw = {gestures: {}, on: false, touches: {}, start0: null, pinch: null, press: null," & return after tScript
-   put "  pressed: false, queue: [], timer: null, probe: null, lastView: ''};" & return after tScript
-   put "function call(kind, a, b, c) {" & return after tScript
-   put "  mw.queue.push([kind, a, b, c]);" & return after tScript
+   put "var mw = {gestures: {}, on: false, fingers: {}, nextFinger: 1, moveFrame: null, start0: null, pinch: null, press: null," & return after tScript
+   put "  pressed: false, queue: [], timer: null, probe: null, lastView: '', sensors: {}, wantWake: false, wake: null, waking: false, photo: null};" & return after tScript
+   put "function call(kind, a, b, c, d) {" & return after tScript
+   put "  mw.queue.push([kind, a, b, c, d]);" & return after tScript
    put "  if (mw.timer === null) mw.timer = setTimeout(flush, 0);" & return after tScript
    put "}" & return after tScript
    put "function flush() {" & return after tScript
@@ -1026,7 +1617,7 @@ private function mwBrowserScript
    put "  var q = mw.queue; mw.queue = [];" & return after tScript
    put "  var h = document.liveCode && document.liveCode.findStackWithName(lib);" & return after tScript
    put "  if (!h || !h.mwFromBrowser) return;" & return after tScript
-   put "  for (var i = 0; i < q.length; i++) h.mwFromBrowser(q[i][0], q[i][1], q[i][2], q[i][3]);" & return after tScript
+   put "  for (var i = 0; i < q.length; i++) h.mwFromBrowser(q[i][0], q[i][1], q[i][2], q[i][3], q[i][4]);" & return after tScript
    put "}" & return after tScript
    put "function insets() {" & return after tScript
    put "  if (!mw.probe) {" & return after tScript
@@ -1062,9 +1653,52 @@ private function mwBrowserScript
    put "  viewTimer = setTimeout(function() { viewChanged(); viewTimer = setTimeout(viewChanged, 700); }, 380); }, 120); }" & return after tScript
    put "function canvasOf(e) { var t = e.target; return t && t.tagName === 'CANVAS' ? t : null; }" & return after tScript
    put "function local(canvas, x, y) { var r = canvas.getBoundingClientRect(); return [Math.round(x - r.left), Math.round(y - r.top)]; }" & return after tScript
+   put "// touchStart, touchMove, touchEnd and touchRelease: one finger each, by a" & return after tScript
+   put "// number of the library's own; the moves at most once a frame, and a" & return after tScript
+   put "// finger's last move before its end" & return after tScript
+   put "function fingerStart(e, c) {" & return after tScript
+   put "  if (!mw.gestures.touch) return;" & return after tScript
+   put "  for (var i = 0; i < e.changedTouches.length; i++) {" & return after tScript
+   put "    var u = e.changedTouches[i];" & return after tScript
+   put "    if (mw.fingers[u.identifier]) continue;" & return after tScript
+   put "    var l = local(c, u.clientX, u.clientY), f = {id: mw.nextFinger++, canvas: c, x: l[0], y: l[1], moved: false};" & return after tScript
+   put "    mw.fingers[u.identifier] = f;" & return after tScript
+   put "    call('touchstart', f.id, f.x, f.y);" & return after tScript
+   put "  }" & return after tScript
+   put "}" & return after tScript
+   put "function fingerFlush() {" & return after tScript
+   put "  if (mw.moveFrame) { cancelAnimationFrame(mw.moveFrame); mw.moveFrame = null; }" & return after tScript
+   put "  for (var k in mw.fingers) { var f = mw.fingers[k]; if (f.moved) { f.moved = false; call('touchmove', f.id, f.x, f.y); } }" & return after tScript
+   put "}" & return after tScript
+   put "function fingerAt(f, u) {" & return after tScript
+   put "  var l = local(f.canvas, u.clientX, u.clientY);" & return after tScript
+   put "  if (l[0] !== f.x || l[1] !== f.y) { f.x = l[0]; f.y = l[1]; f.moved = true; }" & return after tScript
+   put "  return f.moved;" & return after tScript
+   put "}" & return after tScript
+   put "function fingerMove(e) {" & return after tScript
+   put "  var any = false;" & return after tScript
+   put "  for (var i = 0; i < e.changedTouches.length; i++) {" & return after tScript
+   put "    var f = mw.fingers[e.changedTouches[i].identifier];" & return after tScript
+   put "    if (f && fingerAt(f, e.changedTouches[i])) any = true;" & return after tScript
+   put "  }" & return after tScript
+   put "  if (any && !mw.moveFrame) mw.moveFrame = requestAnimationFrame(function() { mw.moveFrame = null; fingerFlush(); });" & return after tScript
+   put "}" & return after tScript
+   put "function fingerEnd(e) {" & return after tScript
+   put "  var ended = [];" & return after tScript
+   put "  for (var i = 0; i < e.changedTouches.length; i++) {" & return after tScript
+   put "    var u = e.changedTouches[i], f = mw.fingers[u.identifier];" & return after tScript
+   put "    if (!f) continue;" & return after tScript
+   put "    fingerAt(f, u); ended.push(f); delete mw.fingers[u.identifier];" & return after tScript
+   put "  }" & return after tScript
+   put "  if (!ended.length) return;" & return after tScript
+   put "  ended.forEach(function(f) { if (f.moved) { f.moved = false; call('touchmove', f.id, f.x, f.y); } });" & return after tScript
+   put "  fingerFlush();" & return after tScript
+   put "  ended.forEach(function(f) { call(e.type === 'touchcancel' ? 'touchrelease' : 'touchend', f.id, f.x, f.y); });" & return after tScript
+   put "}" & return after tScript
    put "function cancelPress() { if (mw.press) { clearTimeout(mw.press.timer); mw.press = null; } }" & return after tScript
    put "function onStart(e) {" & return after tScript
    put "  var c = canvasOf(e); if (!c || !mw.on) return;" & return after tScript
+   put "  fingerStart(e, c);" & return after tScript
    put "  mw.pressed = false;" & return after tScript
    put "  var t = e.touches;" & return after tScript
    put "  if (t.length === 1) {" & return after tScript
@@ -1090,6 +1724,7 @@ private function mwBrowserScript
    put "}" & return after tScript
    put "function onMove(e) {" & return after tScript
    put "  if (!mw.on) return;" & return after tScript
+   put "  fingerMove(e);" & return after tScript
    put "  var t = e.touches;" & return after tScript
    put "  if (mw.press && t.length === 1 && Math.hypot(t[0].clientX - mw.press.x, t[0].clientY - mw.press.y) > 10) cancelPress();" & return after tScript
    put "  if (mw.pinch && t.length >= 2) {" & return after tScript
@@ -1102,6 +1737,7 @@ private function mwBrowserScript
    put "}" & return after tScript
    put "function onEnd(e) {" & return after tScript
    put "  if (!mw.on) return;" & return after tScript
+   put "  fingerEnd(e);" & return after tScript
    put "  var t = e.touches;" & return after tScript
    put "  cancelPress();" & return after tScript
    put "  if (mw.pinch && t.length < 2) {" & return after tScript
@@ -1120,6 +1756,191 @@ private function mwBrowserScript
    put "  }" & return after tScript
    put "  if (mw.pressed) setTimeout(function() { mw.pressed = false; }, 400);" & return after tScript
    put "}" & return after tScript
+   put "// The sensors: each sends its readings with call('sensor', name, values)" & return after tScript
+   put "// until it is stopped, or call('sensorerror', name, why) once" & return after tScript
+   put "function round3(v) { return Math.round(v * 1000) / 1000; }" & return after tScript
+   put "function seconds() { return (Date.now() / 1000).toFixed(3); }" & return after tScript
+   put "function touchy() { return (navigator.maxTouchPoints || 0) > 0 || 'ontouchstart' in window; }" & return after tScript
+   put "function sensorAvailable(name) {" & return after tScript
+   put "  if (name === 'location') return !!navigator.geolocation;" & return after tScript
+   put "  if (name === 'heading') return 'DeviceOrientationEvent' in window && touchy();" & return after tScript
+   put "  return 'DeviceMotionEvent' in window && touchy();" & return after tScript
+   put "}" & return after tScript
+   put "// iPhones and iPads ask the user first, and only from a tap" & return after tScript
+   put "function permitted(klass, s, then) {" & return after tScript
+   put "  if (klass && typeof klass.requestPermission === 'function') {" & return after tScript
+   put "    klass.requestPermission().then(function(r) {" & return after tScript
+   put "      if (s.stopped) return;" & return after tScript
+   put "      // (Chrome answers 'prompt' where it asks nobody: only a no is a no)" & return after tScript
+   put "      if (r !== 'denied') then(); else { s.stopped = true; delete mw.sensors[s.name]; call('sensorerror', s.name, 'permission denied'); }" & return after tScript
+   put "    }, function(err) {" & return after tScript
+   put "      if (s.stopped) return;" & return after tScript
+   put "      s.stopped = true; delete mw.sensors[s.name]; call('sensorerror', s.name, 'permission denied');" & return after tScript
+   put "    });" & return after tScript
+   put "  } else then();" & return after tScript
+   put "}" & return after tScript
+   put "function listen(s, type, h) {" & return after tScript
+   put "  window.addEventListener(type, h);" & return after tScript
+   put "  s.off = function() { window.removeEventListener(type, h); };" & return after tScript
+   put "}" & return after tScript
+   put "function sensorOn(name, loosely) {" & return after tScript
+   put "  if (mw.sensors[name]) return '';" & return after tScript
+   put "  if (!sensorAvailable(name)) return 'not available';" & return after tScript
+   put "  var s = {name: name, stopped: false, off: null};" & return after tScript
+   put "  mw.sensors[name] = s;" & return after tScript
+   put "  if (name === 'location') {" & return after tScript
+   put "    var w = navigator.geolocation.watchPosition(function(p) {" & return after tScript
+   put "      if (s.stopped) return;" & return after tScript
+   put "      var c = p.coords, n = function(v) { return v === null || v === undefined || isNaN(v) ? '' : v; };" & return after tScript
+   put "      call('sensor', name, [c.latitude, c.longitude, n(c.altitude), n(c.accuracy), n(c.altitudeAccuracy), n(c.speed), n(c.heading), (p.timestamp / 1000).toFixed(3)].join(','));" & return after tScript
+   put "    }, function(err) {" & return after tScript
+   put "      if (s.stopped) return;" & return after tScript
+   put "      s.stopped = true; delete mw.sensors[name]; navigator.geolocation.clearWatch(w);" & return after tScript
+   put "      call('sensorerror', name, err.code === 1 ? 'permission denied' : 'location unavailable');" & return after tScript
+   put "    }, {enableHighAccuracy: !loosely, maximumAge: loosely ? 60000 : 0});" & return after tScript
+   put "    s.off = function() { navigator.geolocation.clearWatch(w); };" & return after tScript
+   put "  } else if (name === 'heading') {" & return after tScript
+   put "    var abs = 'ondeviceorientationabsolute' in window, last = null, step = loosely ? 5 : 1;" & return after tScript
+   put "    permitted(window.DeviceOrientationEvent, s, function() {" & return after tScript
+   put "      listen(s, abs ? 'deviceorientationabsolute' : 'deviceorientation', function(e) {" & return after tScript
+   put "        var v = null;" & return after tScript
+   put "        if (typeof e.webkitCompassHeading === 'number') v = e.webkitCompassHeading;" & return after tScript
+   put "        else if ((abs || e.absolute) && typeof e.alpha === 'number') v = (360 - e.alpha) % 360;" & return after tScript
+   put "        if (v === null || s.stopped) return;" & return after tScript
+   put "        v = Math.round(v * 10) / 10;" & return after tScript
+   put "        if (last !== null && Math.abs(((v - last + 540) % 360) - 180) < step) return;" & return after tScript
+   put "        last = v;" & return after tScript
+   put "        call('sensor', name, [v, typeof e.webkitCompassAccuracy === 'number' ? e.webkitCompassAccuracy : '', seconds()].join(','));" & return after tScript
+   put "      });" & return after tScript
+   put "    });" & return after tScript
+   put "  } else {" & return after tScript
+   put "    var gap = loosely ? 200 : 50, then = 0, g = 9.80665, rad = Math.PI / 180;" & return after tScript
+   put "    permitted(window.DeviceMotionEvent, s, function() {" & return after tScript
+   put "      listen(s, 'devicemotion', function(e) {" & return after tScript
+   put "        var now = Date.now(), v;" & return after tScript
+   put "        if (s.stopped || now - then < gap) return;" & return after tScript
+   put "        if (name === 'acceleration') {" & return after tScript
+   put "          var a = e.accelerationIncludingGravity;" & return after tScript
+   put "          if (!a || typeof a.x !== 'number') return;" & return after tScript
+   put "          v = [round3(a.x / g), round3(a.y / g), round3(a.z / g)];" & return after tScript
+   put "        } else {" & return after tScript
+   put "          var r = e.rotationRate;" & return after tScript
+   put "          if (!r || typeof r.alpha !== 'number') return;" & return after tScript
+   put "          v = [round3(r.beta * rad), round3(r.gamma * rad), round3(r.alpha * rad)];" & return after tScript
+   put "        }" & return after tScript
+   put "        then = now;" & return after tScript
+   put "        v.push(seconds());" & return after tScript
+   put "        call('sensor', name, v.join(','));" & return after tScript
+   put "      });" & return after tScript
+   put "    });" & return after tScript
+   put "  }" & return after tScript
+   put "  return '';" & return after tScript
+   put "}" & return after tScript
+   put "function sensorOff(name) {" & return after tScript
+   put "  var s = mw.sensors[name];" & return after tScript
+   put "  if (!s) return;" & return after tScript
+   put "  s.stopped = true; delete mw.sensors[name];" & return after tScript
+   put "  if (s.off) s.off();" & return after tScript
+   put "}" & return after tScript
+   put "// The screen kept on, while the page is in front (a phone lets go of it" & return after tScript
+   put "// when the page is hidden: it is asked for again when it comes back)" & return after tScript
+   put "function wakeAsk() {" & return after tScript
+   put "  if (!mw.wantWake || mw.wake || mw.waking || document.visibilityState !== 'visible') return;" & return after tScript
+   put "  mw.waking = true;" & return after tScript
+   put "  navigator.wakeLock.request('screen').then(function(l) {" & return after tScript
+   put "    mw.waking = false;" & return after tScript
+   put "    if (!mw.wantWake) { l.release(); return; }" & return after tScript
+   put "    mw.wake = l;" & return after tScript
+   put "    l.addEventListener('release', function() { if (mw.wake === l) mw.wake = null; });" & return after tScript
+   put "  }, function() { mw.waking = false; });" & return after tScript
+   put "}" & return after tScript
+   put "function keepAwake(on) {" & return after tScript
+   put "  if (!('wakeLock' in navigator)) return 'not supported';" & return after tScript
+   put "  mw.wantWake = on;" & return after tScript
+   put "  if (on) { document.addEventListener('visibilitychange', wakeAsk); wakeAsk(); }" & return after tScript
+   put "  else {" & return after tScript
+   put "    document.removeEventListener('visibilitychange', wakeAsk);" & return after tScript
+   put "    if (mw.wake) { var l = mw.wake; mw.wake = null; l.release().catch(function() {}); }" & return after tScript
+   put "  }" & return after tScript
+   put "  return '';" & return after tScript
+   put "}" & return after tScript
+   put "function isFullScreen() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }" & return after tScript
+   put "function fullScreen(on) {" & return after tScript
+   put "  var el = document.documentElement, ask = el.requestFullscreen || el.webkitRequestFullscreen;" & return after tScript
+   put "  var leave = document.exitFullscreen || document.webkitExitFullscreen;" & return after tScript
+   put "  if (!ask || document.fullscreenEnabled === false) return 'not supported';" & return after tScript
+   put "  try {" & return after tScript
+   put "    var p = null;" & return after tScript
+   put "    if (on && !isFullScreen()) p = ask.call(el, {navigationUI: 'hide'});" & return after tScript
+   put "    else if (!on && isFullScreen()) p = leave.call(document);" & return after tScript
+   put "    if (p && p.catch) p.catch(function() {});" & return after tScript
+   put "  } catch (err) { return 'not supported'; }" & return after tScript
+   put "  return '';" & return after tScript
+   put "}" & return after tScript
+   put "function share(text, url, title) {" & return after tScript
+   put "  var d = {};" & return after tScript
+   put "  if (text) d.text = text;" & return after tScript
+   put "  if (url) d.url = url;" & return after tScript
+   put "  if (title) d.title = title;" & return after tScript
+   put "  if (navigator.share && (!navigator.canShare || navigator.canShare(d))) {" & return after tScript
+   put "    try { navigator.share(d).catch(function() {}); return ''; } catch (err) {}" & return after tScript
+   put "  }" & return after tScript
+   put "  if (navigator.clipboard && navigator.clipboard.writeText) {" & return after tScript
+   put "    navigator.clipboard.writeText([text, url].filter(Boolean).join(' ')).catch(function() {});" & return after tScript
+   put "    return 'copied';" & return after tScript
+   put "  }" & return after tScript
+   put "  return 'not supported';" & return after tScript
+   put "}" & return after tScript
+   put "// A photo from the camera or the phone's pictures, made no bigger than" & return after tScript
+   put "// maxW by maxH and sent as JPEG, in base64: call('photo', data), or" & return after tScript
+   put "// call('photocancel', why) when none was taken or chosen" & return after tScript
+   put "function shrink(file, maxW, maxH, done) {" & return after tScript
+   put "  var url = URL.createObjectURL(file), img = new Image();" & return after tScript
+   put "  img.onload = function() {" & return after tScript
+   put "    var w = img.naturalWidth, h = img.naturalHeight, k = Math.min(1, maxW / w, maxH / h);" & return after tScript
+   put "    var cv = document.createElement('canvas');" & return after tScript
+   put "    cv.width = Math.max(1, Math.round(w * k)); cv.height = Math.max(1, Math.round(h * k));" & return after tScript
+   put "    cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);" & return after tScript
+   put "    URL.revokeObjectURL(url);" & return after tScript
+   put "    var data = cv.toDataURL('image/jpeg', 0.85);" & return after tScript
+   put "    done(data.slice(data.indexOf(',') + 1));" & return after tScript
+   put "  };" & return after tScript
+   put "  img.onerror = function() { URL.revokeObjectURL(url); done(null, 'not a picture'); };" & return after tScript
+   put "  img.src = url;" & return after tScript
+   put "}" & return after tScript
+   put "function pickPhoto(source, maxW, maxH) {" & return after tScript
+   put "  if (mw.photo) mw.photo.finish('photocancel', '');" & return after tScript
+   put "  var input = document.createElement('input'), job = {done: false, chosen: false};" & return after tScript
+   put "  input.type = 'file'; input.accept = 'image/*';" & return after tScript
+   put "  if (source !== 'library') input.setAttribute('capture', source === 'front camera' ? 'user' : 'environment');" & return after tScript
+   put "  input.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none';" & return after tScript
+   put "  // without a cancel event (older browsers), the page coming back with" & return after tScript
+   put "  // nothing chosen is a cancel" & return after tScript
+   put "  var back = function() {" & return after tScript
+   put "    if (document.visibilityState !== 'visible') return;" & return after tScript
+   put "    setTimeout(function() { if (!job.chosen) job.finish('photocancel', ''); }, 3000);" & return after tScript
+   put "  };" & return after tScript
+   put "  job.finish = function(kind, data) {" & return after tScript
+   put "    if (job.done) return;" & return after tScript
+   put "    job.done = true;" & return after tScript
+   put "    window.removeEventListener('focus', back); document.removeEventListener('visibilitychange', back);" & return after tScript
+   put "    if (input.parentNode) input.parentNode.removeChild(input);" & return after tScript
+   put "    if (mw.photo === job) mw.photo = null;" & return after tScript
+   put "    call(kind, data || '');" & return after tScript
+   put "  };" & return after tScript
+   put "  input.addEventListener('change', function() {" & return after tScript
+   put "    job.chosen = true;" & return after tScript
+   put "    var f = input.files && input.files[0];" & return after tScript
+   put "    if (!f) { job.finish('photocancel', ''); return; }" & return after tScript
+   put "    shrink(f, maxW, maxH, function(data, why) { if (data) job.finish('photo', data); else job.finish('photocancel', why); });" & return after tScript
+   put "  });" & return after tScript
+   put "  input.addEventListener('cancel', function() { job.finish('photocancel', ''); });" & return after tScript
+   put "  setTimeout(function() { if (!job.done) { window.addEventListener('focus', back); document.addEventListener('visibilitychange', back); } }, 500);" & return after tScript
+   put "  document.body.appendChild(input);" & return after tScript
+   put "  mw.photo = job;" & return after tScript
+   put "  try { input.click(); } catch (err) { job.finish('photocancel', 'not allowed'); }" & return after tScript
+   put "  return '';" & return after tScript
+   put "}" & return after tScript
    put "var touchEvents = [['touchstart', onStart], ['touchmove', onMove], ['touchend', onEnd], ['touchcancel', onEnd]];" & return after tScript
    put "var viewEvents = ['resize', 'orientationchange'];" & return after tScript
    put "window.__oxtMobileWeb = {" & return after tScript
@@ -1136,11 +1957,23 @@ private function mwBrowserScript
    put "  stop: function() {" & return after tScript
    put "    if (!mw.on) return;" & return after tScript
    put "    mw.on = false; cancelPress(); mw.pinch = null; mw.start0 = null;" & return after tScript
+   put "    if (mw.moveFrame) { cancelAnimationFrame(mw.moveFrame); mw.moveFrame = null; }" & return after tScript
+   put "    mw.fingers = {};" & return after tScript
    put "    touchEvents.forEach(function(x) { document.removeEventListener(x[0], x[1], {capture: true, passive: true}); });" & return after tScript
    put "    viewEvents.forEach(function(x) { window.removeEventListener(x, viewSoon); });" & return after tScript
    put "    if (window.visualViewport) { visualViewport.removeEventListener('resize', viewSoon); visualViewport.removeEventListener('scroll', viewSoon); }" & return after tScript
    put "  }," & return after tScript
    put "  viewport: viewport," & return after tScript
+   put "  sensorAvailable: function(name) { return sensorAvailable(name) ? 'true' : 'false'; }," & return after tScript
+   put "  sensorOn: sensorOn," & return after tScript
+   put "  sensorOff: sensorOff," & return after tScript
+   put "  sensorsOff: function() { Object.keys(mw.sensors).forEach(sensorOff); }," & return after tScript
+   put "  keepAwake: keepAwake," & return after tScript
+   put "  fullScreen: fullScreen," & return after tScript
+   put "  isFullScreen: function() { return isFullScreen() ? 'true' : 'false'; }," & return after tScript
+   put "  share: share," & return after tScript
+   put "  pickPhoto: pickPhoto," & return after tScript
+   put "  cancelPhoto: function() { if (mw.photo) mw.photo.finish('photocancel', ''); }," & return after tScript
    put "  pageSize: function() { return [document.documentElement.clientWidth || window.innerWidth, window.innerHeight].join(','); }," & return after tScript
    put "  longPressed: function() { return mw.pressed; }," & return after tScript
    put "  fillPage: function(ask) {" & return after tScript

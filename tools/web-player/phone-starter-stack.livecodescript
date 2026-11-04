@@ -9,16 +9,24 @@ script "Phone Starter"
 -- puts every control in its place for the new size (portrait or
 -- landscape, out of the notch). The gestures come as messages, to the
 -- control under the finger, as mouse messages do: the "Play" group on the
--- Gestures card handles its own, and a swipe anywhere else comes up to
--- this script's "on swipe", which changes tab.
+-- Gestures card handles its own (and draws a ring under each finger,
+-- from the touch messages), and a swipe anywhere else comes up to this
+-- script's "on swipe", which changes tab. The Phone card uses the rest
+-- of the phone: the camera, the share sheet, the location, the tilt,
+-- the screen kept on and the browser's bars hidden.
 
-constant kTabs = "Home,List,Form,Gestures"
+constant kTabs = "Home,List,Form,Gestures,Phone"
 constant kAccent = "#4F46E5"
 constant kQuiet = "#6B6F86"
+constant kSoft = "#E0E7FF"
+constant kSoftText = "#3730A3"
 
 -- whether the Mobile Web library is there, how far the form is moved up
 -- for the keyboard, and the dot's size (and its size when a pinch began)
 local sLibrary, sFormShift, sDotSize, sPinchFrom
+-- the Phone card: whether the ball rolls (and its speed, and which way
+-- the browser's gravity points), and whether the screen is kept on
+local sTilting, sBallSpeed, sTiltSign, sAwake
 
 on preOpenStack
    put 0 into sFormShift
@@ -37,6 +45,12 @@ end preOpenStack
 on closeStack
    if sLibrary then mwStop
 end closeStack
+
+-- the ball stops rolling when its card is left, to save the battery
+on closeCard
+   if the short name of this card is "Phone" and sTilting then psTilt
+   pass closeCard
+end closeCard
 
 on resizeStack
    psLayout
@@ -107,6 +121,9 @@ command psLayout
          break
       case "Gestures"
          psLayoutGestures tContent
+         break
+      case "Phone"
+         psLayoutPhone tContent
          break
    end switch
    unlock screen
@@ -214,6 +231,75 @@ private command psLayoutGestures pRect
    set the height of graphic "Dot" to sDotSize
    set the loc of graphic "Dot" to the loc of graphic "Pad"
 end psLayoutGestures
+
+-- Six buttons, two to a row, under what was said; the frame for the
+-- photo (and the ball) below them, or beside them when there is room
+private command psLayoutPhone pRect
+   local tL, tT, tR, tB, tColR, tY, tName, i, tW, tFrame
+   put item 1 of pRect + 20 into tL
+   put item 2 of pRect + 12 into tT
+   put item 3 of pRect - 20 into tR
+   put item 4 of pRect - 16 into tB
+   put tR into tColR
+   if psTwoColumns(pRect) then
+      put round((tL + tR) / 2) - 10 into tColR
+   end if
+   set the rect of field "Phone Said" to tL, tT, tColR, tT + 44
+   put tT + 52 into tY
+   put round((tColR - tL - 12) / 2) into tW
+   put 0 into i
+   repeat for each item tName in "Camera,Share,Where,Tilt,Awake,Full"
+      set the rect of button tName to tL + (i mod 2) * (tW + 12), tY + (i div 2) * 58, \
+            tL + (i mod 2) * (tW + 12) + tW, tY + (i div 2) * 58 + 48
+      add 1 to i
+   end repeat
+   if psTwoColumns(pRect) then
+      put tColR + 20, tT, tR, tB into tFrame
+   else
+      put tL, tY + 3 * 58 + 4, tR, max(tY + 3 * 58 + 84, tB) into tFrame
+   end if
+   set the rect of graphic "Frame" to tFrame
+   set the rect of field "Frame Hint" to item 1 of tFrame + 12, item 2 of tFrame, item 3 of tFrame - 12, item 4 of tFrame
+   set the topMargin of field "Frame Hint" to max(4, round((item 4 of tFrame - item 2 of tFrame) / 2 - 12))
+   psPlacePhoto
+   set the loc of graphic "Ball" to the loc of graphic "Frame"
+   put 0,0 into sBallSpeed
+   if sLibrary then
+      psToggleLook "Full", mwIsFullScreen(), "Full screen", "Show the bars"
+   end if
+end psLayoutPhone
+
+-- The photo as big as fits in the frame, under the ball
+private command psPlacePhoto
+   local tFrame, tW, tH, tScale
+   set the visible of field "Frame Hint" to there is not an image "Photo"
+   if there is not an image "Photo" then exit psPlacePhoto
+   put the rect of graphic "Frame" into tFrame
+   put the formattedWidth of image "Photo" into tW
+   put the formattedHeight of image "Photo" into tH
+   if tW < 1 or tH < 1 then exit psPlacePhoto
+   put min((item 3 of tFrame - item 1 of tFrame - 16) / tW, (item 4 of tFrame - item 2 of tFrame - 16) / tH) into tScale
+   set the resizeQuality of image "Photo" to "good"
+   set the lockLoc of image "Photo" to true
+   set the width of image "Photo" to max(1, round(tW * tScale))
+   set the height of image "Photo" to max(1, round(tH * tScale))
+   set the loc of image "Photo" to the loc of graphic "Frame"
+end psPlacePhoto
+
+-- A button that is on (filled) or off (soft), with its label for each
+private command psToggleLook pButton, pOn, pOffLabel, pOnLabel
+   if pOn then
+      set the backgroundColor of button pButton to kAccent
+      set the borderColor of button pButton to kAccent
+      set the textColor of button pButton to "#FFFFFF"
+      set the label of button pButton to pOnLabel
+   else
+      set the backgroundColor of button pButton to kSoft
+      set the borderColor of button pButton to kSoft
+      set the textColor of button pButton to kSoftText
+      set the label of button pButton to pOffLabel
+   end if
+end psToggleLook
 
 command psGoTab pName
    if pName is the short name of this card then exit psGoTab
@@ -354,3 +440,210 @@ command psPlayLongPress pX, pY
    set the text of field "Said" to "A long press at" && pX & comma & pY & "."
    mwVibrate 20
 end psPlayLongPress
+
+-- The fingers on the pad: a ring under each, from the touch messages
+-- (touchStart, touchMove, touchEnd, touchRelease), which the "Play" group
+-- sends here. pId tells one finger from another
+command psPlayTouch pWhat, pId, pX, pY
+   local tName
+   put "Finger" && pId into tName
+   switch pWhat
+      case "start"
+         if there is a graphic tName then break
+         create graphic tName in group "Play"
+         set the style of graphic tName to "oval"
+         set the opaque of graphic tName to false
+         set the lineSize of graphic tName to 4
+         set the foregroundColor of graphic tName to kAccent
+         set the rect of graphic tName to pX - 30, pY - 30, pX + 30, pY + 30
+         psSayFingers
+         break
+      case "move"
+         if there is a graphic tName then
+            set the loc of graphic tName to pX, pY
+         end if
+         break
+      case "end"
+         if there is a graphic tName then
+            delete graphic tName
+         end if
+         break
+   end switch
+end psPlayTouch
+
+private function psFingers
+   local tCount, i
+   put 0 into tCount
+   repeat with i = 1 to the number of graphics of group "Play"
+      if the short name of graphic i of group "Play" begins with "Finger " then add 1 to tCount
+   end repeat
+   return tCount
+end psFingers
+
+private command psSayFingers
+   local tCount
+   put psFingers() into tCount
+   if tCount is 1 then
+      set the text of field "Said" to "One finger on the pad."
+   else if tCount > 1 then
+      set the text of field "Said" to tCount && "fingers on the pad."
+   end if
+end psSayFingers
+
+-- The Phone card ---------------------------------------------------------
+
+private command psSay pText
+   set the text of field "Phone Said" to pText
+end psSay
+
+command psPhone pWhat
+   if not sLibrary then
+      psSay "This needs the Mobile Web library (OXT-Beyond 0.2.7 or later)."
+      exit psPhone
+   end if
+   switch pWhat
+      case "Camera"
+         psTakePhoto
+         break
+      case "Share"
+         mwShare "I am trying the Phone Starter, a stack made for phones with OXT-Beyond.", empty, "Phone Starter"
+         switch the result
+            case empty
+               psSay "Sent to the share sheet."
+               break
+            case "copied"
+               psSay "Copied, ready to paste."
+               break
+            default
+               psSay "This browser cannot share."
+         end switch
+         break
+      case "Where"
+         mwStartSensor "location"
+         if the result is empty then
+            psSay "Finding where you are..."
+         else
+            psSay "This browser cannot tell where it is."
+         end if
+         break
+      case "Tilt"
+         psTilt
+         break
+      case "Awake"
+         mwKeepAwake not sAwake
+         if the result is not empty then
+            psSay "This browser cannot keep the screen on (it can on a page served over https)."
+         else
+            put not sAwake into sAwake
+            psToggleLook "Awake", sAwake, "Keep screen on", "Screen stays on"
+            if sAwake then
+               psSay "The screen stays on while this page is open."
+            else
+               psSay "The screen turns off as usual."
+            end if
+         end if
+         break
+      case "Full"
+         mwFullScreen not mwIsFullScreen()
+         if the result is not empty then
+            psSay "This browser cannot hide its bars. On an iPhone, add the page to the home screen instead."
+         end if
+         break
+   end switch
+end psPhone
+
+-- A photo from the camera (on a desktop, a picture file), in the frame
+private command psTakePhoto
+   local tSource, tResult
+   if mwIsWeb() then
+      put "camera" into tSource
+   else
+      put "library" into tSource
+   end if
+   mwPickPhoto tSource, 1000, 1000
+   put the result into tResult
+   if tResult is "cancel" then
+      psSay "No photo this time."
+      exit psTakePhoto
+   else if tResult is not empty then
+      psSay "There is no camera here."
+      exit psTakePhoto
+   end if
+   lock screen
+   if there is an image "Photo" then delete image "Photo"
+   set the name of last image to "Photo"
+   set the layer of image "Photo" to (the layer of graphic "Frame") + 1
+   psPlacePhoto
+   unlock screen
+   psSay "A photo," && the formattedWidth of image "Photo" && "by" && the formattedHeight of image "Photo" && "pixels."
+end psTakePhoto
+
+-- The ball rolls as the phone tilts, or stops
+private command psTilt
+   if sTilting then
+      mwStopSensor "acceleration"
+      put false into sTilting
+      psSay "The ball stops."
+   else
+      mwStartSensor "acceleration"
+      if the result is not empty then
+         psSay "This phone or browser has no motion sensor to read."
+         exit psTilt
+      end if
+      put true into sTilting
+      put empty into sTiltSign
+      put 0,0 into sBallSpeed
+      psSay "Tilt the phone to roll the ball."
+   end if
+   psToggleLook "Tilt", sTilting, "Roll the ball", "Stop the ball"
+end psTilt
+
+on locationChanged pLatitude, pLongitude
+   mwStopSensor "location"
+   psSay "You are at" && round(pLatitude, 5) & comma && round(pLongitude, 5) & "."
+end locationChanged
+
+on accelerationChanged pX, pY, pZ
+   local tLoc, tFrame, tHalf, tVX, tVY
+   if not sTilting or the short name of this card is not "Phone" then exit accelerationChanged
+   -- browsers do not agree which way gravity points: the first reading,
+   -- with the phone held up or lying flat, says
+   if sTiltSign is empty then
+      if abs(pY) > abs(pZ) then
+         put pY into sTiltSign
+      else
+         put pZ into sTiltSign
+      end if
+      if sTiltSign < 0 then
+         put -1 into sTiltSign
+      else
+         put 1 into sTiltSign
+      end if
+   end if
+   put item 1 of sBallSpeed * 0.9 - sTiltSign * pX * 4 into tVX
+   put item 2 of sBallSpeed * 0.9 + sTiltSign * pY * 4 into tVY
+   put the loc of graphic "Ball" into tLoc
+   put the rect of graphic "Frame" into tFrame
+   put round(the width of graphic "Ball" / 2) into tHalf
+   add round(tVX) to item 1 of tLoc
+   add round(tVY) to item 2 of tLoc
+   -- off the frame's walls
+   if item 1 of tLoc < item 1 of tFrame + tHalf or item 1 of tLoc > item 3 of tFrame - tHalf then
+      put max(item 1 of tFrame + tHalf, min(item 3 of tFrame - tHalf, item 1 of tLoc)) into item 1 of tLoc
+      put -tVX / 2 into tVX
+   end if
+   if item 2 of tLoc < item 2 of tFrame + tHalf or item 2 of tLoc > item 4 of tFrame - tHalf then
+      put max(item 2 of tFrame + tHalf, min(item 4 of tFrame - tHalf, item 2 of tLoc)) into item 2 of tLoc
+      put -tVY / 2 into tVY
+   end if
+   put tVX, tVY into sBallSpeed
+   set the loc of graphic "Ball" to tLoc
+end accelerationChanged
+
+on trackingError pSensor, pError
+   psSay "The" && pSensor && "cannot be read:" && pError & "."
+   if pSensor is "acceleration" and sTilting then
+      put false into sTilting
+      psToggleLook "Tilt", false, "Roll the ball", "Stop the ball"
+   end if
+end trackingError

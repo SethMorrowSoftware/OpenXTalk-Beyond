@@ -30,6 +30,9 @@ held to the pieces it works with, without a browser or an engine:
   picture, and in Home's gallery
 - the workflow runs the check in Chromium and WebKit, and not in Firefox,
   which has no touch screen for Playwright to emulate
+- the Phone Starter's tabs and Phone card agree with the check, and its
+  pad takes the touch messages
+- every message the library sends is listed at the top of it
 - the check's small helpers
 
   python3 -m unittest discover -s tools/ci/tests
@@ -177,6 +180,66 @@ class PhoneStarterOffered(unittest.TestCase):
             self.assertTrue(os.path.isfile(path), path)
 
 
+class PhoneCard(unittest.TestCase):
+    """The Phone Starter's tabs and its Phone card, as the builder makes
+    them, the stack's script lays them out and the check presses them"""
+
+    def test_the_tabs_agree(self):
+        want = 'constant kTabs = "%s"' % ','.join(mobile_web_check.TABS)
+        self.assertIn(want, read('tools', 'web-player', 'phone-starter-stack.livecodescript'))
+        self.assertIn(want, read('tools', 'web-player', 'phone-starter.livecodescript'))
+
+    def test_the_phone_buttons_agree(self):
+        builder = read('tools', 'web-player', 'phone-starter.livecodescript')
+        script = read('tools', 'web-player', 'phone-starter-stack.livecodescript')
+        check = read('tools', 'ci', 'mobile-web-check.livecodescript')
+        build = re.search(r'^private command buildPhone\n(.*?)^end buildPhone', builder, re.M | re.S).group(1)
+        built = re.findall(r'(\w+)\|[^"]+"', build)
+        self.assertEqual(len(built), 6, built)
+        laid = re.search(r'repeat for each item tName in "([^"]+)"', re.search(
+            r'^private command psLayoutPhone pRect\n(.*?)^end psLayoutPhone', script, re.M | re.S).group(1)).group(1).split(',')
+        self.assertEqual(laid, built)
+        for handler in ('mwcButtons', 'mwcLabels'):
+            body = re.search(r'^private function %s\n(.*?)^end %s' % (handler, handler), check, re.M | re.S).group(1)
+            self.assertIn('"%s"' % ','.join(built), body)
+        phone = re.search(r'^command psPhone pWhat\n(.*?)^end psPhone', script, re.M | re.S).group(1)
+        for name in built:
+            self.assertIn('case "%s"' % name, phone)
+
+    def test_the_pad_takes_the_touch_messages(self):
+        builder = read('tools', 'web-player', 'phone-starter.livecodescript')
+        play = re.search(r'^private function playScript\n(.*?)^end playScript', builder, re.M | re.S).group(1)
+        for message in ('touchStart', 'touchMove', 'touchEnd', 'touchRelease'):
+            self.assertRegex(play, r'"on %s pId[^"]*" & return & "   psPlayTouch' % message)
+        self.assertIn('command psPlayTouch pWhat, pId, pX, pY', read('tools', 'web-player', 'phone-starter-stack.livecodescript'))
+
+
+class LibraryMessages(unittest.TestCase):
+
+    def test_every_message_sent_is_listed_in_the_header(self):
+        library = read(*LIBRARY[len(REPO) + 1:].split(os.sep))
+        header = library.split('on extensionInitialize', 1)[0]
+        sent = set(re.findall(r'mwSendAt "(\w+)"', library))
+        sent |= set(re.findall(r'mwSendToCard "(\w+)"', library))
+        sent |= set(re.findall(r'mwSendToCardOf sSensorStack, "(\w+)"', library))
+        self.assertGreaterEqual(len(sent), 16, sent)
+        for message in sorted(sent):
+            self.assertRegex(header, r'--\s+%s\b' % message, '%s is not in the header' % message)
+
+    def test_only_a_no_is_a_no(self):
+        # Chromium answers requestPermission with "prompt" where it asks
+        # nobody: the sensor must still start
+        library = read(*LIBRARY[len(REPO) + 1:].split(os.sep))
+        self.assertIn("if (r !== 'denied') then();", library)
+
+    def test_the_browser_script_has_no_double_quote(self):
+        library = read(*LIBRARY[len(REPO) + 1:].split(os.sep))
+        body = re.search(r'^private function mwBrowserScript\n(.*?)^end mwBrowserScript', library, re.M | re.S).group(1)
+        for line in body.split('\n')[3:]:
+            if line.strip().startswith('"'):
+                self.assertRegex(line.strip(), r'^"[^"]*" (& return & \\|into tScript)$', line)
+
+
 class Workflow(unittest.TestCase):
 
     def test_chromium_and_webkit_not_firefox(self):
@@ -196,6 +259,19 @@ class Helpers(unittest.TestCase):
         self.assertEqual(mobile_web_check.rect('-4,10,20,30'), [-4, 10, 20, 30])
         self.assertIsNone(mobile_web_check.rect(''))
         self.assertIsNone(mobile_web_check.rect('a,b'))
+
+    def test_png(self):
+        import struct
+        data = mobile_web_check.png(4, 3)
+        self.assertTrue(data.startswith(b'\x89PNG\r\n\x1a\n'))
+        self.assertEqual(struct.unpack('>II', data[16:24]), (4, 3))
+        self.assertTrue(data.endswith(b'IEND\xaeB`\x82'))
+
+    def test_buttons_and_labels(self):
+        s = {'buttons': 'Camera:20,120,200,168;Share:212,120,392,168', 'labels': 'Tilt:Roll the ball;Full:Full screen'}
+        self.assertEqual(mobile_web_check.buttons(s), {'Camera': '20,120,200,168', 'Share': '212,120,392,168'})
+        self.assertEqual(mobile_web_check.labels(s), {'Tilt': 'Roll the ball', 'Full': 'Full screen'})
+        self.assertEqual(mobile_web_check.buttons({}), {})
 
     def test_middle(self):
         self.assertEqual(mobile_web_check.middle('20,100,370,148'), (195, 124))

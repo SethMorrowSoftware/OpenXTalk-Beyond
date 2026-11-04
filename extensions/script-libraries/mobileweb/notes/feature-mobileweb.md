@@ -32,8 +32,29 @@ end openStack
   gives the page back its own look. A page that shows the stack in a
   frame of its own, as the Stack Player does, says
   `data-mobile-web-fill="no"` and keeps its layout.
+- `touchStart`, `touchMove`, `touchEnd` and `touchRelease` follow each
+  finger on its own, for drawing and games with more than one finger,
+  to the control the finger touched first, as on iOS and Android.
+- `mwStartSensor` and `mwStopSensor` read the phone's sensors, with the
+  messages LiveCode's iOS and Android engines send: `locationChanged`,
+  `headingChanged`, `accelerationChanged`, `rotationRateChanged`, and
+  `trackingError` when the user says no. `mwSensorReading()` gives the
+  last reading and `mwSensorAvailable()` says whether there is one.
+- `mwPickPhoto` takes a photo with the camera, or picks one of the
+  phone's pictures, as a new image on the card, made small enough for
+  the stack, and waits for it as LiveCode's `mobilePickPhoto` does
+  (`the result` is "cancel" when there is none).
+- `mwShare` opens the phone's share sheet (or copies, where there is
+  none), `mwKeepAwake` keeps the screen on, and `mwFullScreen` and
+  `mwIsFullScreen()` hide and show the browser's bars.
 - `mwVibrate`, `mwLongPressed()`, `mwIsWeb()`, `mwIsTouchScreen()` and
   `mwIsInstalled()`.
 
+The camera, the share sheet, the full screen and, on an iPhone, the
+motion sensors open only from a tap, so call them in `mouseUp`. The
+location and keeping the screen on need a page served over https.
+
 The Phone Starter (in Home's gallery and the Stack Player) is a stack to
-copy that uses all of it, in portrait and in landscape.
+copy that uses all of it, in portrait and in landscape: its Phone card
+takes a photo, shares, finds where the phone is, rolls a ball as the
+phone tilts, keeps the screen on and hides the browser's bars.
