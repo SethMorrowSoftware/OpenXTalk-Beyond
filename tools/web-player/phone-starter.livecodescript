@@ -179,8 +179,10 @@ private command setButton pButton, pLabel, pColor
    set the showFocusBorder of pButton to false
    set the traversalOn of pButton to false
    set the backgroundColor of pButton to pColor
-   -- (a roundrect button draws its edge whatever showBorder says)
+   -- (a roundrect button draws its edge whatever showBorder says: in
+   -- the fill's colour, and as thin as it goes)
    set the borderColor of pButton to pColor
+   set the borderWidth of pButton to 0
    set the textColor of pButton to "#FFFFFF"
    set the textStyle of pButton to "bold"
    set the label of pButton to pLabel

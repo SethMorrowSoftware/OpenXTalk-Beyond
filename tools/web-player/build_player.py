@@ -315,7 +315,8 @@ SAMPLES = [
     {'title': 'Phone Starter', 'source': 'stacks',
      'files': ['Phone Starter.oxtstack'], 'image': 'Phone Starter.webp',
      'description': 'A stack to copy for phones, made with the Mobile Web library: tabs for a '
-                    'thumb, swipes, a list that scrolls with a finger, a form above the keyboard.',
+                    'thumb, swipes, pinches and every finger, a list that scrolls with a finger, a '
+                    'form above the keyboard, and the camera, location, tilt and share sheet.',
      'tags': ['Phones', 'Touch', 'Starter']},
     {'title': 'Tour', 'files': ['Tour.livecode'],
      'description': 'Cards, a widget, a palette window and a script error, caught and shown.',
