@@ -30,6 +30,10 @@ given.
   DIR/ide/           OXT-Beyond-<version>-web-ide.zip's site (tools/web-ide)
   DIR/player/        OXT-Beyond-<version>-web-player.zip's site
                      (tools/web-player)
+  DIR/play/          the bare player: the zip's play/index.html (the
+                     stack and nothing else, tools/web-player/play.html),
+                     a site of its own beside the player, on the player's
+                     engine and stack (left out for a zip without it)
   DIR/dictionary/    the Dictionary that the IDE's Help > Dictionary Online
                      opens, made from the web IDE's own html_viewer and
                      dictionary data (tools/pages/build_dictionary.py), so
@@ -148,6 +152,30 @@ def unpack(zip_path, target, drop=()):
         root = site_root(tmp)
         shutil.copytree(root, target, ignore=lambda d, names:
                         [n for n in names if d == root and n in drop])
+
+
+# The bare player's page names the player's folder in this meta, relative
+# to itself: "../" in the player's zip (play/index.html), "../player/" at
+# <site>/play/
+BARE_BASE = '<meta name="oxt-player-base" content="../">'
+
+
+def bare_player(out):
+    """Moves the player's play/index.html (tools/web-player/play.html) to
+    <out>/play/, a site of its own, its engine, stack and samples still the
+    player's. False for a player without it (one before 0.2.7-rc.6.15)."""
+    page = os.path.join(out, 'player', 'play', 'index.html')
+    if not os.path.isfile(page):
+        return False
+    with open(page, encoding='utf-8') as f:
+        text = f.read()
+    if text.count(BARE_BASE) != 1:
+        raise BuildError('player/play/index.html does not have %s once' % BARE_BASE)
+    os.makedirs(os.path.join(out, 'play'))
+    with open(os.path.join(out, 'play', 'index.html'), 'w', encoding='utf-8', newline='\n') as f:
+        f.write(text.replace(BARE_BASE, BARE_BASE.replace('"../"', '"../player/"')))
+    shutil.rmtree(os.path.join(out, 'player', 'play'))
+    return True
 
 
 def check_sizes(folder):
@@ -351,6 +379,8 @@ def build(args):
     if args.player:
         unpack(args.player, os.path.join(out, 'player'))
         parts['PLAYER'] = args.player_version or ''
+        if bare_player(out):
+            print('bare player: play/')
         # The games run on the Stack Player's engine, so they go up with it
         if games(os.path.join(HERE, 'games'), os.path.join(out, 'games'), os.path.join(out, 'player')):
             parts['GAMES'] = ''

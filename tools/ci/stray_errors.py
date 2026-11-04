@@ -56,6 +56,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 PAGES = (
     'tools/web-ide/index.html',
     'tools/web-player/index.html',
+    'tools/web-player/play.html',
     'engine/rsrc/emscripten-html-template.html',
     'tools/pages/games/waterwheel/index.html',
     'tools/pages/games/pixel-maker/index.html',
