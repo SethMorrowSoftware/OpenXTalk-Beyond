@@ -370,7 +370,10 @@ dialog.answer .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:
 }
 </style>
 </head>
-<body data-tone="1">
+<!-- data-mobile-web-fill="no": the stack is shown in a window of the
+     player's own, so a stack that asks the Mobile Web library to fill the
+     browser's window (mwFillScreen) keeps its size here -->
+<body data-tone="1" data-mobile-web-fill="no">
 
 <header class="menubar">
   <div class="inner">
