@@ -417,6 +417,7 @@ on TestIdeContext
    TestDiagnostic TestText(tReply)
    TestAssert "the stack the user works on", not TestIsError(tReply) and TestText(tReply) contains ("working on the stack" && quote & kUserStack & quote)
    TestAssert "no error yet", TestText(tReply) contains "no error since the bridge was turned on"
+   TestAssert "a run or a save waits for the user's answer", TestText(tReply) contains "asks the user before each run of code and each save"
    TestAssert "the hook is in the message path", the long id of stack "org.openxtalk.plugin.mcpbridge-errors" is among the lines of the frontScripts
    -- As the engine sends it on its way to the IDE's debugger
    dispatch "traceError" to button "Go" of tStack with "mouseUp", 4, 7, "219,4,7,frobnicate"
@@ -561,6 +562,43 @@ on TestSaveIsAskedAbout
    end if
 end TestSaveIsAskedAbout
 
+-- save_stack with a file: Save As with no dialog, asked about with the
+-- path; it replaces no file but the stack's own, and takes only a full
+-- path in a folder that exists
+on TestSaveAsAFile
+   local tReply, tStack, tFolder, tFile, tOther
+   TestStart
+   put TestUserStack() into tStack
+   put specialFolderPath("temporary") & "/mcbtest-saveas-" & the milliseconds into tFolder
+   create folder tFolder
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with false
+   put TestCall("save_stack", "{`stack`:`" & kUserStack & "`,`file`:`" & tFolder & "/My Lab`}") into tReply
+   TestAssert "asked as a new file, refused, nothing is saved", TestIsError(tReply) and mcbTestAsked() contains "as a new file" \
+         and there is not a file (tFolder & "/My Lab.oxtstack")
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
+   put TestCall("save_stack", "{`stack`:`" & kUserStack & "`,`file`:`" & tFolder & "/My Lab`}") into tReply
+   TestDiagnostic TestText(tReply)
+   put tFolder & "/My Lab.oxtstack" into tFile
+   TestAssert "allowed, saved there with the extension added", not TestIsError(tReply) and there is a file tFile \
+         and the effective filename of tStack is tFile
+   -- Its own file again: saved over, as File > Save would
+   put TestCall("save_stack", "{`stack`:`" & kUserStack & "`,`file`:`" & tFile & "`}") into tReply
+   TestAssert "its own file is saved again", not TestIsError(tReply)
+   -- Another file there is never replaced
+   put tFolder & "/notes.livecode" into tOther
+   put "keep me" into url ("file:" & tOther)
+   put TestCall("save_stack", "{`stack`:`" & kUserStack & "`,`file`:`" & tOther & "`}") into tReply
+   TestAssert "another file is not replaced", TestIsError(tReply) and TestText(tReply) contains "already a file" \
+         and url ("file:" & tOther) is "keep me" and the effective filename of tStack is tFile
+   put TestCall("save_stack", "{`stack`:`" & kUserStack & "`,`file`:`relative/My Lab.oxtstack`}") into tReply
+   TestAssert "a path that is not full is refused", TestIsError(tReply) and TestText(tReply) contains "full path"
+   put TestCall("save_stack", "{`stack`:`" & kUserStack & "`,`file`:`" & tFolder & "/no/such/My Lab.oxtstack`}") into tReply
+   TestAssert "a folder that is not there is refused", TestIsError(tReply) and TestText(tReply) contains "there is no folder"
+   delete file tOther
+   delete file tFile
+   delete folder tFolder
+end TestSaveAsAFile
+
 -- The user's "Stop Asking" (mcbSetUnasked): off until set, so every run
 -- and save is asked about as before; once set, a run and a save go ahead
 -- with no question, each noted in the log beside the bridge's file, while
@@ -596,6 +634,8 @@ on TestNotAskingRunsAndSavesWithoutAQuestion
    TestDiagnostic TestText(tReply)
    TestAssert "a save goes ahead", not TestIsError(tReply) and there is a file tFile
    TestAssert "and neither was asked about", mcbTestAsked() is tAskedBefore
+   put TestCall("ide_context") into tReply
+   TestAssert "ide_context says runs and saves are not asked about", TestText(tReply) contains "go ahead without asking the user"
    put textDecode(url ("binfile:" & mcbUnaskedLogPath()), "UTF-8") into tLog
    TestDiagnostic tLog
    TestAssert "both are in the log, the run with its code", tLog contains "Claude asks to run code." \
@@ -799,6 +839,10 @@ on TestAYesAfterTheLinkWasLostDoesNothing
    put TestLinkCall("run_code", "{`code`:`put 6 * 7`}") into tReply
    TestDiagnostic TestText(tReply)
    TestAssert "nothing ran", TestIsError(tReply) and not (TestText(tReply) contains "42")
+   -- Told once the call is over: told during it, the notice held the
+   -- bridge busy until the user closed it
+   TestAssert "not told while the call goes on", not (mcbTestAsked() contains "too late")
+   wait 50 milliseconds with messages
    TestAssert "the user was told", mcbTestAsked() contains "too late"
    dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
    put TestLinkCall("run_code", "{`code`:`put 6 * 7`}") into tReply
@@ -827,6 +871,7 @@ on TestTheStatusSaysWhatItWaitsFor
    TestDiagnostic TestText(tReply)
    TestAssert "a status, not busy", xtaJsonText(xtaJsonMember(tReply, "ok")) is "true" and xtaJsonText(xtaJsonMember(tReply, "busy")) is "false" \
          and TestText(tReply) contains "not busy"
+   TestAssert "and not asking", xtaJsonText(xtaJsonMember(tReply, "asking")) is "false"
    -- While the user is asked before a run: a status, a call, and one that
    -- unblocks, each read inside the question as the engine reads them
    put TestRequestLine("status") & return & TestRequestLine("call", "list_stacks") & return & \
@@ -840,6 +885,7 @@ on TestTheStatusSaysWhatItWaitsFor
    put xtaJsonParse(line 1 of tReplies) into tReply
    TestAssert "the status names the question", xtaJsonText(xtaJsonMember(tReply, "busy")) is "true" \
          and TestText(tReply) contains "waiting for the user to answer its question" and TestText(tReply) contains "Claude asks to run code."
+   TestAssert "and says it is asking (the server answers the call early)", xtaJsonText(xtaJsonMember(tReply, "asking")) is "true"
    put xtaJsonParse(line 2 of tReplies) into tReply
    TestAssert "a call is refused as busy, and told why", xtaJsonText(xtaJsonMember(tReply, "ok")) is "false" \
          and xtaJsonText(xtaJsonMember(tReply, "error")) contains "still busy" \

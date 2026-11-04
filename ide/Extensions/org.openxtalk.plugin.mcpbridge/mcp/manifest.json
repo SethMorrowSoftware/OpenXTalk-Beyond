@@ -36,14 +36,15 @@
     { "name": "make_changes", "description": "Creates, sets and deletes controls, cards and stacks, as one checked batch" },
     { "name": "edit_script", "description": "Replaces, adds or deletes one handler, or a range of lines, of a script" },
     { "name": "run_code", "description": "Runs xTalk Script in a sandbox or on a stack, after the user allows it in OXT-Beyond (unless they turned asking off)" },
-    { "name": "save_stack", "description": "Saves a stack to its file, after the user says yes in OXT-Beyond (unless they turned asking off)" },
+    { "name": "save_stack", "description": "Saves a stack to its file, or as a new file, after the user says yes in OXT-Beyond (unless they turned asking off)" },
     { "name": "list_changes", "description": "What was changed or run, and whether it was undone" },
     { "name": "undo_changes", "description": "Takes back a change or a run" },
     { "name": "debug_state", "description": "Where a script paused in the debugger is" },
     { "name": "stop_paused_script", "description": "Stops the script paused in the debugger, as Stop in the Script Editor does" },
     { "name": "answer_dialog", "description": "Presses a button of a dialog a stack of the user's opened" },
     { "name": "import_hypercard", "description": "Imports a HyperCard stack, or one from a Mac disk image, without running its scripts" },
-    { "name": "set_asking", "description": "Asks before runs and saves again, or asks the user whether to stop asking" }
+    { "name": "set_asking", "description": "Asks before runs and saves again, or asks the user whether to stop asking" },
+    { "name": "pending_result", "description": "The result of a call answered while the user was still asked about it" }
   ],
   "compatibility": {
     "platforms": ["darwin", "win32", "linux"],

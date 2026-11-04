@@ -686,9 +686,13 @@ private function mcbAnswerLine pLine, pFromLink
    -- What the bridge is doing or waiting for, answered at once, even while
    -- a tool runs (the MCP server asks it while a call takes long, over a
    -- connection of its own, to tell Claude why)
+   -- "asking" is whether that is the user's answer to a question of the
+   -- bridge's (a run, a save, an undo): the server then answers the call
+   -- that waits for it early, and keeps its result (pending_result)
    if tMethod is "status" then
       return "{" & mcbJsonString("id") & ":" & tId & "," & mcbJsonString("ok") & ":true," & \
             mcbJsonString("busy") & ":" & (sBusy is true) & "," & \
+            mcbJsonString("asking") & ":" & (sWaiting is not empty) & "," & \
             mcbJsonString("text") & ":" & mcbJsonString(mcbStatusText()) & "}"
    end if
    if tMethod is not "call" then
@@ -821,7 +825,7 @@ function mcbCallTool pTool, pArguments
          case "run_code"
             return mcbToolRunCode(pArguments)
          case "save_stack"
-            return mcbToolSaveStack(mcbArg(pArguments, "stack"))
+            return mcbToolSaveStack(mcbArg(pArguments, "stack"), mcbArg(pArguments, "file"))
          case "list_changes"
             return mcbToolListChanges()
          case "undo_changes"
@@ -1163,10 +1167,13 @@ private function mcbAsk pTitle, pDetail, pYes, pParts
    -- for, maybe twice: it does nothing, and the user is told why.
    -- The same for the web IDE's link, whose connection closed or was made
    -- again while the user was asked (mcbLinkLost)
+   -- The user is told once this call is over: told while it went on, the
+   -- notice held the bridge busy until they closed it, and every call
+   -- after it was refused
    if tAnswer is true and ((sRequestSocket is not empty and sRequestSocket is not among the lines of sClients) \
          or (sLinkRequest is not empty and sLinkRequest is not sLinkGeneration)) then
       try
-         dispatch "mcbTooLate" to sAsker
+         send "mcbTooLate" to sAsker in 0 milliseconds
       catch tError
       end try
       return false
@@ -1445,6 +1452,13 @@ private function mcbToolContext
    put mcbFrontDialog() into tDialog
    if tDialog is not empty then
       put return & mcbDialogText(tDialog) after tText
+   end if
+   -- Whether a run or a save will wait for the user: when they are away,
+   -- Claude says so before it sends one
+   if mcbIsUnasked() and sAsker is not empty and there is a sAsker then
+      put return & "Runs of code and saves go ahead without asking the user (they chose Stop Asking); each is written in a log." after tText
+   else
+      put return & mcbHostName() & " asks the user before each run of code and each save, and the call waits for their answer." after tText
    end if
    return mcbResult(tText, false)
 end mcbToolContext
@@ -2551,9 +2565,11 @@ end mcbToolRunCode
 
 -- Saves a stack (its main stack, with its substacks) to its file, after
 -- the user says yes in OXT-Beyond, every time (unless they chose not to be
--- asked: mcbAllow)
-private function mcbToolSaveStack pStackName
-   local tTarget, tMain, tName, tFile, tDetail, tDone, tError
+-- asked: mcbAllow). With pFile, as that file (Save As, with no dialog: a
+-- stack never saved otherwise waited on a file dialog of the system's,
+-- which Claude cannot answer and during which the engine reads no socket)
+private function mcbToolSaveStack pStackName, pFile
+   local tTarget, tMain, tName, tFile, tDetail, tDone, tError, tAs, tTitle
    put mcbTarget(pStackName) into tTarget
    if tTarget["problem"] is not empty then
       return mcbResult("Nothing was saved:" && tTarget["problem"], true)
@@ -2561,23 +2577,44 @@ private function mcbToolSaveStack pStackName
    put mcbMainStackOf(tTarget["stack"]) into tMain
    put the short name of tMain into tName
    put the effective filename of tMain into tFile
-   if tFile is empty then
+   put "Claude asks to save the stack" && quote & tName & quote & "." into tTitle
+   if pFile is not empty then
+      put mcbSaveAsFile(pFile, tMain) into tAs
+      if tAs["problem"] is not empty then
+         return mcbResult("Nothing was saved:" && tAs["problem"], true)
+      end if
+      put tAs["file"] into tAs
+   end if
+   if tAs is not empty and not mcbSamePath(tAs, tFile) then
+      put "Claude asks to save the stack" && quote & tName & quote && "as a new file." into tTitle
+      put "It is saved, with its substacks, as:" & return & tAs & return & "and keeps that file from then on." into tDetail
+      if tFile is not empty then
+         put return & "Its file until now stays as it was:" & return & tFile after tDetail
+      end if
+   else if tFile is empty then
       put "It has never been saved: you choose where, in the dialog that comes next." into tDetail
    else
       put "It is saved to its file, with its substacks:" & return & tFile into tDetail
    end if
    put return & return & "Saving cannot be undone." after tDetail
-   if not mcbAllow("Claude asks to save the stack" && quote & tName & quote & ".", tDetail, "Save") then
+   if not mcbAllow(tTitle, tDetail, "Save") then
       return mcbResult("The user chose not to save the stack" && quote & tName & quote & ", and nothing was saved. Do not ask again unless they ask you to.", true)
    end if
    try
-      revIDEActionSaveStack tMain
+      if tAs is not empty and not mcbSamePath(tAs, tFile) then
+         revIDESaveStackAs tMain, tAs
+      else
+         revIDEActionSaveStack tMain
+      end if
       put the result into tDone
    catch tError
       -- Without the IDE (the tests): the engine's own save, which needs a
       -- file
       put empty into tDone
-      if tFile is empty then
+      if tAs is not empty then
+         save tMain as tAs
+         put the result into tDone
+      else if tFile is empty then
          put "the stack has no file" into tDone
       else
          save tMain
@@ -2588,11 +2625,76 @@ private function mcbToolSaveStack pStackName
    if tDone is "Cancelled" then
       return mcbResult("The user cancelled saving the stack" && quote & tName & quote & ", and nothing was saved.", true)
    end if
-   if tDone is not empty or tFile is empty or there is not a file tFile then
+   if tDone is not empty or tFile is empty or there is not a file tFile or (tAs is not empty and not mcbSamePath(tFile, tAs)) then
       return mcbResult("The stack" && quote & tName & quote && "was not saved:" && line 1 of tDone, true)
    end if
    return mcbResult("Saved the stack" && quote & tName & quote && "to" && tFile & ".", false)
 end mcbToolSaveStack
+
+-- The file save_stack saves pStack as, from the path Claude gave: an array
+-- with "file" (a full path with slashes, and a stack file's extension), or
+-- "problem". It replaces no file but the stack's own: a path Claude was
+-- misled into giving, or got wrong, takes nothing the user has.
+private function mcbSaveAsFile pPath, pStack
+   local tResult, tPath, tFolder, tLower, tExtension, tFound
+   put pPath into tPath
+   replace backslash with slash in tPath
+   if not (char 1 of tPath is slash or matchText(tPath, "^[A-Za-z]:/")) then
+      put "the file must be a full path, such as" && quote & "C:/Users/me/Documents/My Stack.oxtstack" & quote && "or" && \
+            quote & "/home/me/My Stack.oxtstack" & quote & "." into tResult["problem"]
+      return tResult
+   end if
+   if char -1 of tPath is slash then
+      put "the file" && quote & pPath & quote && "names a folder, not a file." into tResult["problem"]
+      return tResult
+   end if
+   put toLower(tPath) into tLower
+   put false into tFound
+   repeat for each item tExtension in ".oxtstack,.livecode,.rev,.livecodescript"
+      if tLower ends with tExtension then
+         put true into tFound
+      end if
+   end repeat
+   if not tFound then
+      if the scriptOnly of pStack then
+         put ".livecodescript" after tPath
+      else
+         put ".oxtstack" after tPath
+      end if
+   end if
+   set the itemDelimiter to slash
+   put item 1 to -2 of tPath into tFolder
+   if tFolder is empty then
+      put slash into tFolder
+   end if
+   if there is not a folder tFolder then
+      put "there is no folder" && quote & tFolder & quote & ". Save in a folder that exists." into tResult["problem"]
+      return tResult
+   end if
+   if there is a folder tPath then
+      put quote & tPath & quote && "is a folder." into tResult["problem"]
+      return tResult
+   end if
+   if there is a file tPath and not mcbSamePath(tPath, the effective filename of pStack) then
+      put "there is already a file" && quote & tPath & quote & ", and save_stack does not replace it. Choose another name, " & \
+            "or ask the user to save over it themselves." into tResult["problem"]
+      return tResult
+   end if
+   put tPath into tResult["file"]
+   return tResult
+end mcbSaveAsFile
+
+-- True when two paths name the same file: without regard to case where
+-- the system's files have none (Windows, macOS), with it elsewhere
+private function mcbSamePath pA, pB
+   if pA is empty or pB is empty then
+      return false
+   end if
+   replace backslash with slash in pA
+   replace backslash with slash in pB
+   set the caseSensitive to (the platform is not "Win32" and the platform is not "MacOS")
+   return ("p" & pA) is ("p" & pB)
+end mcbSamePath
 
 private function mcbToolListChanges
    local tEntries, tIndex, tText

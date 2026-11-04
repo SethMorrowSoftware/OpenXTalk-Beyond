@@ -103,7 +103,9 @@ it whenever you write xTalk Script.
   new stack opens in front of the user; name it as `stack` in later
   batches and runs. It is not saved until the user saves it:
   `save_stack` saves it as File > Save does (the user picks where, for a
-  stack never saved). Offer to save a stack you built; do not save
+  stack never saved, in a file dialog only they can answer; when they
+  told you where, give that full path as `file` instead, and no dialog
+  opens). Offer to save a stack you built; do not save
   without being asked. Build a large one over several batches, a card or
   a menu and its scripts at a time.
 - `run_code` runs statements and gives back what they put into the
@@ -125,7 +127,9 @@ it whenever you write xTalk Script.
   function, property or message, or the nearest names when there is none.
 - To build something: read the stack, make the changes, try them with
   `run_code` (on the stack, `send "mouseUp" to button "Save"` clicks a
-  button as far as its script knows), look at the card when the layout
+  button as far as its script knows; `click at the loc of button "Save"`,
+  `drag from` one point `to` another (a slider, a selection) and `type`
+  send the messages the user's mouse and keys would), look at the card when the layout
   matters (`look_at_card` can mark each control with its id), correct
   what fails, then say what you did. To fix an error: read it
   (`ide_context`, or `debug_state` while the script is paused in the
@@ -144,7 +148,16 @@ it whenever you write xTalk Script.
   `answer` or `ask` dialog a stack of the user's opened (with `text` for
   an `ask`); it never answers OXT-Beyond's own questions, which are the
   user's. A file dialog ("Where is...?") holds up everything, the bridge
-  included, until the user answers it.
+  included, until the user answers it. These two go ahead even while
+  another call waits.
+- `ide_context` says whether OXT-Beyond asks the user before runs and
+  saves. When it does and the user may be away, say so before you send
+  one. A call whose question is still open after about forty seconds
+  comes back "Not done yet", with a number: it goes on when the user
+  answers, and `pending_result` gives what came of it (it waits up to
+  `wait_seconds`). Never send that call again: it would ask, and run,
+  twice. `pending_result` also gives what came of a call your app
+  stopped waiting for.
 - `import_hypercard` imports a HyperCard stack from its file, or from a
   Mac disk image (`list` lists its stacks; `stack_path` picks one), with
   messages locked, so none of its scripts run. The stack opens unsaved,
