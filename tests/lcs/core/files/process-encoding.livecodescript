@@ -24,9 +24,9 @@ Linux text and binary writes went out as UTF-16, on macOS binary data went
 out UTF-8 encoded, and "UTF-8" went out as UTF-16LE everywhere.
 
 On Linux and macOS the bytes are read back exactly: through od, which
-prints each byte it is given in hex once the engine closes its input
-(writing numToChar(4) to a process in text mode does that), and through
-cat for binary mode, which has no end-of-input character. Windows has
+prints each byte it is given in hex, to a file, once the engine closes
+its input (writing numToChar(4) to a process in text mode does that), and
+through cat for binary mode, which has no end-of-input character. Windows has
 neither tool, so there cmd.exe has to run what it was sent.
 */
 
@@ -34,18 +34,37 @@ constant kTimeout = 10
 
 -- The hex of the bytes od was sent by "write pText & numToChar(4)" to a
 -- process opened for pEncoding text update (empty: plain "text").
+--
+-- od writes to a file, not back to the engine: "read from process" decodes
+-- what it reads in the process's encoding too, so od's ASCII read back
+-- through a UTF-16 process would be garbled. The script od runs in takes
+-- its paths from the arguments, because the engine splits a process's
+-- name at spaces without quoting.
 private function __BytesSentInTextMode pEncoding, pText
-   local tProcess, tOutput
-   put "od -An -tx1 -v" into tProcess
+   local tFolder, tScript, tOutFile, tProcess, tOutput, tTry
+   put the tempName into tFolder
+   create folder tFolder
+   put tFolder & "/od.sh" into tScript
+   put tFolder & "/out.txt" into tOutFile
+   put "od -An -tx1 -v > " & quote & "$1" & quote & LF into url ("binfile:" & tScript)
+   put "/bin/sh" && tScript && tOutFile into tProcess
    if pEncoding is empty then
-      open process tProcess for text update
+      open process tProcess for text write
    else
-      open process tProcess for pEncoding text update
+      open process tProcess for pEncoding text write
    end if
    write pText & numToChar(4) to process tProcess
-   read from process tProcess until EOF in kTimeout seconds
-   put it into tOutput
+   -- The engine closed od's input at numToChar(4); od writes its few lines
+   -- in one go when it ends.
+   repeat with tTry = 1 to kTimeout * 10
+      put url ("binfile:" & tOutFile) into tOutput
+      if tOutput ends with LF then exit repeat
+      wait 100 millisecs with messages
+   end repeat
    close process tProcess
+   delete file tOutFile
+   delete file tScript
+   delete folder tFolder
    replace space with empty in tOutput
    replace LF with empty in tOutput
    replace CR with empty in tOutput
