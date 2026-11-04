@@ -121,12 +121,14 @@ phones, with the Mobile Web library
 (`extensions/script-libraries/mobileweb`): a header, four cards under a
 tab bar a thumb can reach (Home, List, Form, Gestures), a swipe left or
 right to change tab, a list that scrolls with a finger, a form that stays
-above the on-screen keyboard, and a pad for a pinch and a long press. In
-a page of its own (an HTML5 standalone) it fills the browser's window and
-fills it again when the phone turns; in the player, whose page keeps its
-own layout, and on a desktop, it is a phone-sized window. Without the
-library (an engine before 0.2.7) it still opens and works, without the
-gestures.
+above the on-screen keyboard, and a pad (a group with its own `swipe`,
+`pinch` and `longPress` handlers) for gestures. One line, `mwStart`,
+makes it a phone stack: in a page of its own (an HTML5 standalone) it
+fills the browser's window and fills it again when the phone turns, in
+portrait or landscape (two columns, smaller bars, out of the notch); in
+the player, whose page keeps its own layout, and on a desktop, it is a
+phone-sized window. Without the library (an engine before 0.2.7) it still
+opens and works, without the gestures.
 
 The stack is never edited by hand. Its script is
 `phone-starter-stack.livecodescript` and its controls are made by
@@ -139,7 +141,8 @@ OXT-Beyond engine:
 
 `tools/ci/mobile_web_check.py` opens it on emulated phones (Playwright's
 Pixel 7 and iPhone 13, in Chromium and WebKit) and checks the taps,
-drags, swipes, pinch, long press, keyboard and turns; it fails if the
+drags, swipes, pinch, long press, keyboard and turns (every card in
+landscape must end above the tab bar); it fails if the
 committed stack's script is not `phone-starter-stack.livecodescript`'s.
 CI runs it in web.yml, after the web runtime check. To run it yourself:
 

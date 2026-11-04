@@ -43,6 +43,7 @@ function mwcState
    put "saverect=" & the rect of button "Save" of card "Form" of stack kStack & return after tState
    put "screen=" & mwcOneLine(field "Screen" of card "Home" of stack kStack) & return after tState
    put "tabs=" & the top of graphic "Tabs Back" of card "Home" of stack kStack & return after tState
+   put "contentbottom=" & mwcContentBottom() & return after tState
    put "farhit=" & (the cHit of stack "MobileWebCheck" is true) & return after tState
    put false into tFull
    if there is a stack "Wide Check" then
@@ -52,14 +53,31 @@ function mwcState
    return tState
 end mwcState
 
+-- The lowest bottom of the current card's own controls (not the header's
+-- or the tab bar's), which must be above the tab bar
+private function mwcContentBottom
+   local tBottom, tOwner
+   put 0 into tBottom
+   repeat with i = 1 to the number of controls of this card of stack kStack
+      put the short name of the owner of control i of this card of stack kStack into tOwner
+      if tOwner is among the items of "Header,Tabs" or \
+            the short name of control i of this card of stack kStack is among the items of "Header,Tabs" then
+         next repeat
+      end if
+      if not the visible of control i of this card of stack kStack then next repeat
+      put max(tBottom, the bottom of control i of this card of stack kStack) into tBottom
+   end repeat
+   return tBottom
+end mwcContentBottom
+
 private function mwcOneLine pText
    replace return with "|" in pText
    return pText
 end mwcOneLine
 
--- A stack laid out for a desktop, 800 by 500, with a button in its far
--- corner, fitted to the phone with mwFitStack: a tap where the button is
--- drawn must reach it
+-- A stack laid out for a desktop, 800 by 500, of a fixed size, with a
+-- button in its far corner: mwStart alone fits it to the phone, as it is
+-- too big for it, and a tap where the button is drawn must reach it
 command mwcFit
    set the cHit of me to false
    if there is a stack "Wide Check" then
@@ -72,9 +90,9 @@ command mwcFit
    set the rect of button "Far" of card 1 of stack "Wide Check" to 680, 420, 780, 480
    set the script of button "Far" of card 1 of stack "Wide Check" to \
          "on mouseUp" & return & "   set the cHit of stack " & quote & "MobileWebCheck" & quote & " to true" & return & "end mouseUp"
+   set the resizable of stack "Wide Check" to false
    go stack "Wide Check"
    mwStart "Wide Check", "none"
-   mwFitStack "Wide Check"
    return the result
 end mwcFit
 

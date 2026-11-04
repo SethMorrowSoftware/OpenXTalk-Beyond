@@ -33,12 +33,14 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --             that picks a line
 --   Form      fields that stay above the on-screen keyboard
 --             (mwViewportChanged)
---   Gestures  swipe, pinch and long press on a pad
+--   Gestures  swipe, pinch and long press on a pad (a group, "Play", whose
+--             script takes its own gestures)
 -- A swipe left or right goes to the next or the previous tab, except on
--- Gestures, whose pad takes it. On a desktop the stack is a phone-sized
--- window that can be resized; in a browser it fills the page
--- (mwFillScreen). Without the library (an engine older than 0.2.7) it
--- still opens and works, without the gestures.
+-- the pad, which keeps its swipes. On a desktop the stack is a
+-- phone-sized window that can be resized; in a phone's browser it fills
+-- the screen (mwStart, as the stack is resizable), in portrait or
+-- landscape. Without the library (an engine older than 0.2.7) it still
+-- opens and works, without the gestures.
 
 constant kWidth = 390
 constant kHeight = 760
@@ -197,7 +199,8 @@ private command buildHome
          "It fills the screen, and fills it again when the phone turns. The tabs below are big " & \
          "enough for a thumb, a swipe left or right changes tab, the list scrolls with a finger, " & \
          "and the form stays above the keyboard." & return & return & \
-         "Copy it, then change it: every card lays itself out in the stack's psLayout handler.", \
+         "Copy it, then change it: one line, mwStart, makes it a phone stack, and every card " & \
+         "lays itself out in the stack's psLayout handler.", \
          17, "#1F2240", "plain"
    create field "Screen"
    setLabel the long id of field "Screen", empty, 14, "#6B6F86", "plain"
@@ -255,13 +258,21 @@ private command buildForm
 end buildForm
 
 private command buildGestures
-   create graphic "Pad"
+   create group "Play"
+   set the lockLoc of group "Play" to true
+   set the showBorder of group "Play" to false
+   set the margins of group "Play" to 0
+   set the script of group "Play" to playScript()
+   if the result is not empty then
+      throw "the play area's script does not compile:" && the result
+   end if
+   create graphic "Pad" in group "Play"
    set the style of graphic "Pad" to "roundrect"
    set the roundRadius of graphic "Pad" to 24
    set the opaque of graphic "Pad" to true
    set the lineSize of graphic "Pad" to 0
    set the backgroundColor of graphic "Pad" to "#E4E6F6"
-   create graphic "Dot"
+   create graphic "Dot" in group "Play"
    set the style of graphic "Dot" to "oval"
    set the opaque of graphic "Dot" to true
    set the lineSize of graphic "Dot" to 0
@@ -272,6 +283,16 @@ private command buildGestures
          16, "#1F2240", "plain"
    set the textAlign of field "Said" to "center"
 end buildGestures
+
+-- The play area's gestures: they come to the control under the finger
+-- (the pad or the dot) and up to the group, which keeps them
+private function playScript
+   return "on swipe pDirection" & return & "   psPlaySwipe pDirection" & return & "end swipe" & return & \
+         "on pinchStart" & return & "   psPlayPinchStart" & return & "end pinchStart" & return & \
+         "on pinch pScale" & return & "   psPlayPinch pScale" & return & "end pinch" & return & \
+         "on pinchEnd" & return & "   psPlayPinchEnd" & return & "end pinchEnd" & return & \
+         "on longPress pX, pY" & return & "   psPlayLongPress pX, pY" & return & "end longPress"
+end playScript
 
 private function listScript
    return "on mouseDown" & return & \

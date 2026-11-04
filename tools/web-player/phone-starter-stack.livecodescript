@@ -3,16 +3,21 @@ script "Phone Starter"
 -- Built by tools/web-player/phone-starter.livecodescript in OXT-Beyond's
 -- repository; to make your own, save a copy of it and change it.
 --
--- Every control is placed by psLayout, from the size of the stack: change
--- the stack's size (a phone that turns, a window that is resized) and it
--- lays itself out again.
+-- One line makes it a phone stack: mwStart, in preOpenStack. The stack is
+-- resizable, so in a phone's browser it fills the screen, and fills it
+-- again when the phone turns; each time it gets resizeStack, and psLayout
+-- puts every control in its place for the new size (portrait or
+-- landscape, out of the notch). The gestures come as messages, to the
+-- control under the finger, as mouse messages do: the "Play" group on the
+-- Gestures card handles its own, and a swipe anywhere else comes up to
+-- this script's "on swipe", which changes tab.
 
 constant kTabs = "Home,List,Form,Gestures"
 constant kAccent = "#4F46E5"
 constant kQuiet = "#6B6F86"
 
--- whether the Mobile Web library is there, and how far the form is moved
--- up for the keyboard
+-- whether the Mobile Web library is there, how far the form is moved up
+-- for the keyboard, and the dot's size (and its size when a pinch began)
 local sLibrary, sFormShift, sDotSize, sPinchFrom
 
 on preOpenStack
@@ -26,9 +31,6 @@ on preOpenStack
    catch tError
       put false into sLibrary
    end try
-   if sLibrary then
-      mwFillScreen the short name of me
-   end if
    psLayout
 end preOpenStack
 
@@ -46,8 +48,8 @@ on preOpenCard
    pass preOpenCard
 end preOpenCard
 
--- The part of the screen under a notch or the home bar: the library's
--- safe-area insets, 0 without it
+-- The part of the screen under a notch, a rounded corner or the home bar:
+-- the library's safe-area insets, 0 without it
 private function psInset pSide
    local tView
    if not sLibrary then return 0
@@ -55,24 +57,36 @@ private function psInset pSide
    return max(0, tView[pSide])
 end psInset
 
--- Every control in its place, for the stack's size
+-- Every control in its place, for the stack's size: a header and a tab
+-- bar (lower in landscape, where height is short), and the card's own
+-- controls between them, kept out of the notch at either side
 command psLayout
-   local tW, tH, tTop, tBottom, tTabH, tX, tTabW, tName, i, tContent
+   local tW, tH, tLeft, tRight, tTop, tBottom, tTabH, tHeadH, tTabW, tName, i, tContent, tCompact
    lock screen
    put the width of me into tW
    put the height of me into tH
-   put 56 + psInset("top") into tTop
-   put 60 + psInset("bottom") into tTabH
-   put tH - tTabH into tBottom
+   put tH < 500 into tCompact
+   put psInset("left") into tLeft
+   put tW - psInset("right") into tRight
+   if tCompact then
+      put 44 into tHeadH
+      put 48 into tTabH
+   else
+      put 56 into tHeadH
+      put 60 into tTabH
+   end if
+   put tHeadH + psInset("top") into tTop
+   put tH - tTabH - psInset("bottom") into tBottom
    set the rect of graphic "Header Back" to 0, 0, tW, tTop
-   set the rect of field "Title" to 16, tTop - 46, tW - 16, tTop - 10
+   set the rect of field "Title" to tLeft + 16, tTop - tHeadH + 8, tRight - 16, tTop - 8
    set the text of field "Title" to the short name of this card
    set the rect of graphic "Tabs Back" to 0, tBottom, tW, tH
    set the points of graphic "Tabs Line" to 0, tBottom & return & tW, tBottom
-   put tW / the number of items of kTabs into tTabW
+   put (tRight - tLeft) / the number of items of kTabs into tTabW
    put 0 into i
    repeat for each item tName in kTabs
-      set the rect of button ("Tab" && tName) to round(i * tTabW), tBottom + 1, round((i + 1) * tTabW), tBottom + 60
+      set the rect of button ("Tab" && tName) to tLeft + round(i * tTabW), tBottom + 1, \
+            tLeft + round((i + 1) * tTabW), tBottom + tTabH
       if tName is the short name of this card then
          set the textColor of button ("Tab" && tName) to kAccent
       else
@@ -80,7 +94,7 @@ command psLayout
       end if
       add 1 to i
    end repeat
-   put 0, tTop, tW, tBottom into tContent
+   put tLeft, tTop, tRight, tBottom into tContent
    switch the short name of this card
       case "Home"
          psLayoutHome tContent
@@ -98,15 +112,37 @@ command psLayout
    unlock screen
 end psLayout
 
+-- Whether the content is wide enough for two columns (a phone on its
+-- side, a tablet)
+private function psTwoColumns pRect
+   return item 3 of pRect - item 1 of pRect >= 560
+end psTwoColumns
+
+-- The welcome text, then the button and what the screen is; side by side
+-- when there is room. The text scrolls with a finger if it is cut off
 private command psLayoutHome pRect
-   local tW
-   put item 3 of pRect into tW
-   set the width of field "Welcome" to tW - 40
-   set the height of field "Welcome" to the formattedHeight of field "Welcome"
-   set the topLeft of field "Welcome" to 20, item 2 of pRect + 20
-   set the rect of button "Buzz" to 20, the bottom of field "Welcome" + 16, tW - 20, the bottom of field "Welcome" + 68
+   local tL, tT, tR, tB, tMid
+   put item 1 of pRect + 20 into tL
+   put item 2 of pRect + 16 into tT
+   put item 3 of pRect - 20 into tR
+   put item 4 of pRect - 12 into tB
    psShowScreen
-   set the rect of field "Screen" to 20, the bottom of button "Buzz" + 16, tW - 20, the bottom of button "Buzz" + 120
+   if psTwoColumns(pRect) then
+      put round((tL + tR) / 2) into tMid
+      set the width of field "Welcome" to tMid - 10 - tL
+      set the rect of field "Welcome" to tL, tT, tMid - 10, \
+            min(tB, tT + the formattedHeight of field "Welcome")
+      set the rect of button "Buzz" to tMid + 10, tT, tR, tT + 52
+      set the rect of field "Screen" to tMid + 10, tT + 68, tR, min(tB, tT + 172)
+   else
+      set the width of field "Welcome" to tR - tL
+      set the rect of field "Welcome" to tL, tT, tR, \
+            min(tB - 52 - 16 - 60, tT + the formattedHeight of field "Welcome")
+      set the rect of button "Buzz" to tL, the bottom of field "Welcome" + 16, tR, the bottom of field "Welcome" + 68
+      set the rect of field "Screen" to tL, the bottom of button "Buzz" + 12, tR, \
+            min(tB, the bottom of button "Buzz" + 116)
+   end if
+   set the vScroll of field "Welcome" to 0
 end psLayoutHome
 
 private command psShowScreen
@@ -125,32 +161,55 @@ private command psShowScreen
 end psShowScreen
 
 private command psLayoutList pRect
-   set the rect of field "Picked" to 16, item 2 of pRect + 8, item 3 of pRect - 16, item 2 of pRect + 40
-   set the rect of field "Items" to 0, item 2 of pRect + 48, item 3 of pRect, item 4 of pRect
+   set the rect of field "Picked" to item 1 of pRect + 16, item 2 of pRect + 8, item 3 of pRect - 16, item 2 of pRect + 40
+   set the rect of field "Items" to item 1 of pRect, item 2 of pRect + 48, item 3 of pRect, item 4 of pRect
 end psLayoutList
 
+-- Name and Email, then Notes and Save; Notes and Save in a second column
+-- when there is room. Moved up by sFormShift while the keyboard is up
 private command psLayoutForm pRect
-   local tY, tW, tName
-   put item 2 of pRect + 20 - sFormShift into tY
-   put item 3 of pRect into tW
+   local tL, tR, tY, tName, tMid, tNotesH, tColL, tColR
+   put item 1 of pRect + 20 into tL
+   put item 3 of pRect - 20 into tR
+   put item 2 of pRect + 16 - sFormShift into tY
+   put tL into tColL
+   put tR into tColR
+   if psTwoColumns(pRect) then
+      put round((tL + tR) / 2) into tMid
+      put tMid - 10 into tColR
+   end if
    repeat for each item tName in "Name,Email,Notes"
-      set the rect of field (tName && "Label") to 20, tY, tW - 20, tY + 24
-      if tName is "Notes" then
-         set the rect of field tName to 20, tY + 26, tW - 20, tY + 146
-      else
-         set the rect of field tName to 20, tY + 26, tW - 20, tY + 74
+      if tName is "Notes" and psTwoColumns(pRect) then
+         put tMid + 10 into tColL
+         put tR into tColR
+         put item 2 of pRect + 16 - sFormShift into tY
       end if
-      put the bottom of field tName + 14 into tY
+      set the rect of field (tName && "Label") to tColL, tY, tColR, tY + 24
+      if tName is "Notes" then
+         -- as tall as there is room for, from 72 to 120
+         put max(72, min(120, item 4 of pRect - sFormShift - (tY + 26) - 12 - 52 - 40)) into tNotesH
+         set the rect of field tName to tColL, tY + 26, tColR, tY + 26 + tNotesH
+      else
+         set the rect of field tName to tColL, tY + 26, tColR, tY + 74
+      end if
+      put the bottom of field tName + 12 into tY
    end repeat
-   set the rect of button "Save" to 20, tY + 6, tW - 20, tY + 58
-   set the rect of field "Saved" to 20, tY + 66, tW - 20, tY + 96
+   set the rect of button "Save" to tColL, tY + 4, tColR, tY + 56
+   set the rect of field "Saved" to tColL, tY + 62, tColR, tY + 92
 end psLayoutForm
 
+-- What was said above, and the play area (the pad, with the dot on it)
+-- below
 private command psLayoutGestures pRect
-   local tW
-   put item 3 of pRect into tW
-   set the rect of field "Said" to 20, item 2 of pRect + 12, tW - 20, item 2 of pRect + 72
-   set the rect of graphic "Pad" to 20, item 2 of pRect + 80, tW - 20, item 4 of pRect - 20
+   local tL, tR, tT, tB
+   put item 1 of pRect + 20 into tL
+   put item 3 of pRect - 20 into tR
+   put item 2 of pRect into tT
+   put item 4 of pRect into tB
+   set the rect of field "Said" to tL, tT + 8, tR, tT + 56
+   set the rect of group "Play" to tL, tT + 60, tR, tB - 16
+   set the rect of graphic "Pad" to the rect of group "Play"
+   put min(sDotSize, min(the width of graphic "Pad", the height of graphic "Pad") - 20) into sDotSize
    set the width of graphic "Dot" to sDotSize
    set the height of graphic "Dot" to sDotSize
    set the loc of graphic "Dot" to the loc of graphic "Pad"
@@ -206,61 +265,81 @@ command psSave
    end if
 end psSave
 
+-- A field that is cut off (the welcome text in a small window) scrolls
+-- with a finger
+on mouseDown
+   if sLibrary and the short name of the target is "Welcome" then
+      mwDragScroll the long id of the target
+   end if
+   pass mouseDown
+end mouseDown
+
 -- The library's messages ----------------------------------------------
 
--- The phone turned, or the keyboard came up or went: on the Form card,
--- the form moves up so that the field being typed in stays above the
--- keyboard
-on mwViewportChanged pWidth, pHeight, pKeyboard
-   local tFocus, tLimit, tWas
-   -- where the field would be without the shift, against the top of the
-   -- keyboard
-   put sFormShift into tWas
-   put 0 into sFormShift
-   if pKeyboard > 0 and the short name of this card is "Form" then
-      put the focusedObject into tFocus
-      put the height of me - pKeyboard - 12 into tLimit
-      if word 1 of tFocus is "field" and the bottom of tFocus + tWas > tLimit then
-         put the bottom of tFocus + tWas - tLimit into sFormShift
-      end if
-   end if
-   psLayout
-end mwViewportChanged
-
-on mwSwipe pDirection
+-- A swipe that no control took: left and right change tab
+on swipe pDirection
    local tIndex
-   if the short name of this card is "Gestures" then
-      set the text of field "Said" to "A swipe" && pDirection & "."
-      exit mwSwipe
-   end if
    put itemOffset(the short name of this card, kTabs) into tIndex
    if pDirection is "left" and tIndex < the number of items of kTabs then
       psGoTab item tIndex + 1 of kTabs
    else if pDirection is "right" and tIndex > 1 then
       psGoTab item tIndex - 1 of kTabs
    end if
-end mwSwipe
+end swipe
 
-on mwPinchStart pX, pY
+-- The keyboard came up (or changed its height), or went away: on the Form
+-- card, the form moves up so that the field being typed in stays above
+-- it
+on keyboardActivated
+   psKeepAboveKeyboard
+end keyboardActivated
+
+on keyboardDeactivated
+   psKeepAboveKeyboard
+end keyboardDeactivated
+
+private command psKeepAboveKeyboard
+   local tFocus, tLimit, tWas, tKeyboard
+   put mwViewport() into tKeyboard
+   put tKeyboard["keyboard"] into tKeyboard
+   -- where the field would be without the shift, against the top of the
+   -- keyboard
+   put sFormShift into tWas
+   put 0 into sFormShift
+   if tKeyboard > 0 and the short name of this card is "Form" then
+      put the focusedObject into tFocus
+      put the height of me - tKeyboard - 12 into tLimit
+      if word 1 of tFocus is "field" and the bottom of tFocus + tWas > tLimit then
+         put the bottom of tFocus + tWas - tLimit into sFormShift
+      end if
+   end if
+   psLayout
+end psKeepAboveKeyboard
+
+-- The "Play" group's gestures (its script sends them here): it keeps its
+-- swipes, so they do not change tab
+command psPlaySwipe pDirection
+   set the text of field "Said" to "A swipe" && pDirection & "."
+end psPlaySwipe
+
+command psPlayPinchStart
    put sDotSize into sPinchFrom
-end mwPinchStart
+end psPlayPinchStart
 
-on mwPinch pScale, pX, pY
-   if the short name of this card is not "Gestures" then exit mwPinch
-   put max(40, min(the width of graphic "Pad" - 20, round(sPinchFrom * pScale))) into sDotSize
+command psPlayPinch pScale
+   if sPinchFrom is not a number then exit psPlayPinch
+   put max(40, min(min(the width of graphic "Pad", the height of graphic "Pad") - 20, round(sPinchFrom * pScale))) into sDotSize
    set the width of graphic "Dot" to sDotSize
    set the height of graphic "Dot" to sDotSize
    set the text of field "Said" to "A pinch:" && round(pScale * 100) & "%"
-end mwPinch
+end psPlayPinch
 
-on mwPinchEnd pScale
+command psPlayPinchEnd
    put empty into sPinchFrom
-end mwPinchEnd
+end psPlayPinchEnd
 
-on mwLongPress pX, pY
-   if the short name of this card is not "Gestures" then exit mwLongPress
-   if (pX & comma & pY) is not within the rect of graphic "Pad" then exit mwLongPress
+command psPlayLongPress pX, pY
    set the loc of graphic "Dot" to pX, pY
    set the text of field "Said" to "A long press at" && pX & comma & pY & "."
    mwVibrate 20
-end mwLongPress
+end psPlayLongPress

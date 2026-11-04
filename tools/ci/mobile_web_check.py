@@ -51,13 +51,20 @@ emulate) opens the page with a touch screen and a phone's window, and:
   6. on Gestures, two fingers spread on the pad make the dot bigger
      (mwPinch), a swipe on the pad is reported and stays on the card, and
      a finger held still is a long press (mwLongPress)
-  7. the phone turns: the stack fills the window again, in landscape
-  8. a stack laid out for a desktop (800 by 500) is fitted to the window
-     (mwFitStack): a tap where its far corner's button is drawn reaches
-     the button
+  7. the phone turns: the stack fills the window again, in landscape,
+     and on each card its controls end above the tab bar
+  8. a stack laid out for a desktop (800 by 500), of a fixed size, is
+     fitted to the window by mwStart alone, as it is too big for it: a
+     tap where its far corner's button is drawn reaches the button
   9. mwStop takes away the style that filling gave the page, and in a
      page that keeps its own layout (data-mobile-web-fill="no", as the
      Stack Player's page has) mwFillScreen fills nothing
+
+Playwright's WebKit on Linux makes no touch events (no Touch
+constructor, no touch points), so there the taps and drags are the
+mouse's and the gestures (3, and 6 but for the tab) are left out: WebKit
+checks the layout, the fill, the keyboard, the turns and the fit. A
+real iPhone's Safari has touch events; Chromium checks every step.
 
 Without a device the engine's mouse messages are those of a touch; the
 library only adds its own. Ends with "MOBILE WEB CHECK OK" or a list of
@@ -152,19 +159,43 @@ def middle(text):
     return (r[0] + r[2]) / 2, (r[1] + r[3]) / 2
 
 
+# Whether the page can make touch events of its own (Playwright's WebKit
+# on Linux has none: "new Touch()" is an illegal constructor there, and
+# navigator.maxTouchPoints is 0 whatever the device profile says)
+CAN_MAKE_TOUCHES = """() => {
+    if (typeof TouchEvent === 'undefined' || typeof Touch === 'undefined') return false;
+    try { new Touch({identifier: 1, target: document.body, clientX: 0, clientY: 0}); return true; }
+    catch (e) { return false; }
+}"""
+
+
 class Fingers:
-    """Touches sent as a touch screen sends them (Chromium's
-    Input.dispatchTouchEvent; in WebKit, Playwright's touchscreen, which
-    taps only, and touch events made in the page)."""
+    """Touches sent as a touch screen sends them: Chromium's
+    Input.dispatchTouchEvent (cdp), or touch events made in the page
+    (page). In a browser that can make neither (Playwright's WebKit on
+    Linux), the mouse (mouse): taps and drags, but no gestures, which the
+    library sees only in touch events; .touches says which."""
 
     def __init__(self, page, context, browser, touch='auto'):
         self.page = page
         self.cdp = None
+        self.mouse = False
         if touch == 'cdp' or (touch == 'auto' and browser == 'chromium'):
             self.cdp = context.new_cdp_session(page)
+        elif touch == 'mouse' or not page.evaluate(CAN_MAKE_TOUCHES):
+            self.mouse = True
+        self.touches = not self.mouse
 
     def _send(self, kind, points):
-        if self.cdp:
+        if self.mouse:
+            if kind == 'touchStart':
+                self.page.mouse.move(*points[0])
+                self.page.mouse.down()
+            elif kind == 'touchMove':
+                self.page.mouse.move(*points[0])
+            else:
+                self.page.mouse.up()
+        elif self.cdp:
             self.cdp.send('Input.dispatchTouchEvent', {
                 'type': kind, 'touchPoints': [{'x': x, 'y': y, 'id': i + 1} for i, (x, y) in enumerate(points)]})
         else:
@@ -266,8 +297,13 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
         expect('the stack fills the window (%dx%d)' % (width, height),
                rect(s.get('rect', '')) == [0, 0, width, height], s)
         expect('the tab bar is at the bottom', s.get('tabs', '').isdigit() and height - 130 <= int(s['tabs']) < height, s)
-        expect('Home says it is on a touch screen in a browser',
-               'Touch screen: true' in s.get('screen', '') and 'In a browser: true' in s.get('screen', ''), s)
+        if fingers.touches:
+            expect('Home says it is on a touch screen in a browser',
+                   'Touch screen: true' in s.get('screen', '') and 'In a browser: true' in s.get('screen', ''), s)
+        else:
+            log('  (this browser makes no touch events: taps and drags are the mouse\'s, and the '
+                'gestures are left out)')
+            expect('Home says it is in a browser', 'In a browser: true' in s.get('screen', ''), s)
 
         tab_y = height - 30
 
@@ -295,12 +331,13 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
         shot('2-list')
 
         # 3. swipes change tab
-        fingers.drag(width * 0.2, height / 2, width * 0.8, height / 2, steps=5, pause=0.016)
-        s = on_card('Home')
-        expect('a swipe right goes back to Home', s.get('card') == 'Home', s)
-        fingers.drag(width * 0.8, height / 2, width * 0.2, height / 2, steps=5, pause=0.016)
-        s = on_card('List')
-        expect('a swipe left goes on to List', s.get('card') == 'List', s)
+        if fingers.touches:
+            fingers.drag(width * 0.2, height / 2, width * 0.8, height / 2, steps=5, pause=0.016)
+            s = on_card('Home')
+            expect('a swipe right goes back to Home', s.get('card') == 'Home', s)
+            fingers.drag(width * 0.8, height / 2, width * 0.2, height / 2, steps=5, pause=0.016)
+            s = on_card('List')
+            expect('a swipe left goes on to List', s.get('card') == 'List', s)
 
         # 4. the form
         tab(2)
@@ -344,18 +381,21 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
         tab(3)
         s = on_card('Gestures')
         expect('the Gestures tab goes to Gestures', s.get('card') == 'Gestures', s)
-        fingers.spread(width / 2, height / 2 + 30)
-        s = wait_for(page, lambda s: s.get('dot', '').isdigit() and int(s['dot']) > 120)
-        expect('a pinch makes the dot bigger', s.get('dot', '').isdigit() and int(s['dot']) > 120, s)
-        expect('the pinch is reported', s.get('said', '').startswith('A pinch'), s)
-        shot('4-gestures')
-        fingers.drag(width * 0.8, height / 2, width * 0.2, height / 2, steps=5, pause=0.016)
-        s = wait_for(page, lambda s: s.get('said', '').startswith('A swipe'))
-        expect('a swipe on the pad is reported', s.get('said') == 'A swipe left.', s)
-        expect('and stays on Gestures', s.get('card') == 'Gestures', s)
-        fingers.hold(width / 2 - 60, height / 2 + 60)
-        s = wait_for(page, lambda s: s.get('said', '').startswith('A long press'))
-        expect('a finger held still is a long press', s.get('said', '').startswith('A long press at'), s)
+        if fingers.touches:
+            fingers.spread(width / 2, height / 2 + 30)
+            s = wait_for(page, lambda s: s.get('dot', '').isdigit() and int(s['dot']) > 120)
+            expect('a pinch makes the dot bigger', s.get('dot', '').isdigit() and int(s['dot']) > 120, s)
+            expect('the pinch is reported', s.get('said', '').startswith('A pinch'), s)
+            shot('4-gestures')
+            fingers.drag(width * 0.8, height / 2, width * 0.2, height / 2, steps=5, pause=0.016)
+            s = wait_for(page, lambda s: s.get('said', '').startswith('A swipe'))
+            expect('a swipe on the pad is reported', s.get('said') == 'A swipe left.', s)
+            expect('and stays on Gestures', s.get('card') == 'Gestures', s)
+            fingers.hold(width / 2 - 60, height / 2 + 60)
+            s = wait_for(page, lambda s: s.get('said', '').startswith('A long press'))
+            expect('a finger held still is a long press', s.get('said', '').startswith('A long press at'), s)
+        else:
+            shot('4-gestures')
 
         # 7. the phone turns
         tab(0)
@@ -365,6 +405,16 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
         expect('turned, the stack fills the window again (%dx%d)' % (height, width),
                rect(s.get('rect', '')) == [0, 0, height, width], s)
         expect('Home says landscape', 'landscape' in s.get('screen', ''), s)
+        for i, name in enumerate(['Home', 'List', 'Form', 'Gestures']):
+            if i:
+                fingers.tap(height * (i + 0.5) / 4, width - 24)
+            s = on_card(name)
+            shot('5-landscape-%s' % name.lower())
+            expect('in landscape, %s ends above the tab bar' % name,
+                   s.get('card') == name and s.get('contentbottom', '').isdigit() and s.get('tabs', '').isdigit()
+                   and int(s['contentbottom']) <= int(s['tabs']), s)
+        fingers.tap(height * 0.5 / 4, width - 24)
+        s = on_card('Home')
         page.set_viewport_size({'width': width, 'height': height})
         s = wait_for(page, lambda s: rect(s.get('rect', '')) == [0, 0, width, height])
         expect('turned back, it fills the window again', rect(s.get('rect', '')) == [0, 0, width, height], s)
@@ -408,10 +458,10 @@ def main(argv=None):
     ap.add_argument('--work', help='the work folder (default: a temporary folder)')
     ap.add_argument('--timeout', type=int, default=120, help='seconds for each step (default 120)')
     ap.add_argument('--shots', help='a folder for screenshots of each device')
-    ap.add_argument('--touch', choices=('auto', 'cdp', 'page'), default='auto',
+    ap.add_argument('--touch', choices=('auto', 'cdp', 'page', 'mouse'), default='auto',
                     help="how touches are sent: Chromium's own (cdp), touch events made in the page "
-                         "(page, as in WebKit; it can be tried in Chromium too), or whichever the browser "
-                         "takes (auto)")
+                         "(page, as in WebKit; it can be tried in Chromium too), the mouse (mouse: no "
+                         "gestures), or whichever the browser takes (auto)")
     args = ap.parse_args(argv)
     if not args.engine and not args.engine_cache:
         ap.error('--engine or --engine-cache is needed')
