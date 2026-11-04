@@ -890,11 +890,18 @@ local sServerOut
 
 on TestTheRealServerEndToEnd
    local tNode, tProcess, tReply, tStack, tRelay, tAt, tNumber
-   if the platform is not "macos" and not (the platform contains "linux") then
+   if the platform is "Win32" then
+      put line 1 of shell("where node") into tNode
+      replace numToChar(13) with empty in tNode
+      if tNode is not empty and there is not a file tNode then
+         put empty into tNode
+      end if
+   else if the platform is "macos" or the platform contains "linux" then
+      put line 1 of shell("command -v node") into tNode
+   else
       TestSkip "the real server end to end", "a shell to find Node in"
       exit TestTheRealServerEndToEnd
    end if
-   put line 1 of shell("command -v node") into tNode
    if tNode is empty then
       TestSkip "the real server end to end", "Node is not installed"
       exit TestTheRealServerEndToEnd
@@ -904,7 +911,8 @@ on TestTheRealServerEndToEnd
    put sInfoFile into $OXT_MCP_BRIDGE_FILE
    put "300" into $OXT_MCP_ANSWER_WAIT_MS
    -- The engine on Linux and macOS writes to a process two bytes a
-   -- character (seen 2026-11-04; Windows writes UTF-8), so a relay drops
+   -- character (seen 2026-11-04; on Windows the same mix-up of encodings
+   -- comes out as UTF-8, by reading the code), so a relay drops
    -- the zero bytes on the way in: the requests are ASCII, and it passes a
    -- UTF-8 write through as it is. The server itself is run as it ships.
    put specialFolderPath("temporary") & "/mcbtest-relay-" & the milliseconds & ".js" into tRelay
