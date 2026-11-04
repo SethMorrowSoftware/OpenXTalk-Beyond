@@ -298,6 +298,17 @@ on keyboardDeactivated
    psKeepAboveKeyboard
 end keyboardDeactivated
 
+-- Another field focused while the keyboard stays up (its height the
+-- same, so no keyboardActivated): that field too must be above it
+on openField
+   local tView
+   if sLibrary and the short name of this card is "Form" then
+      put mwViewport() into tView
+      if tView["keyboard"] > 0 then psKeepAboveKeyboard
+   end if
+   pass openField
+end openField
+
 private command psKeepAboveKeyboard
    local tFocus, tLimit, tWas, tKeyboard
    put mwViewport() into tKeyboard

@@ -315,6 +315,12 @@ command mwStart pStack, pGestures, pScreen
    get mwJS("window.__oxtMobileWeb.start(" & mwQuote(tGestures) & "); return '';")
    put true into sStarted
 
+   -- what an earlier mwStart, mwFillScreen or mwFitStack chose is
+   -- forgotten: the window's changes now go to this stack, or to none
+   put empty into sOptions["fill"]
+   put empty into sOptions["fit"]
+   put empty into sOptions["autofit"]
+
    -- the screen: what was asked for, or what suits the stack
    if pScreen is empty then
       if the resizable of stack sTarget then
@@ -493,6 +499,7 @@ command mwFillScreen pStack
       set the fullscreen of stack pStack to false
    end if
    mwFill
+   mwWatchViewport
    return empty
 end mwFillScreen
 
@@ -553,6 +560,7 @@ command mwFitStack pStack, pMode
    put empty into sOptions["fill"]
    set the fullscreenMode of stack pStack to pMode
    set the fullscreen of stack pStack to true
+   mwWatchViewport
    return empty
 end mwFitStack
 
@@ -737,7 +745,9 @@ end mwLongPressed
 -- the messages
 on mwFromBrowser pKind, p1, p2, p3
    local tKeyboard, tOrientation
-   if sTarget is empty or there is not a stack sTarget then
+   -- (a viewport report fills or fits again after mwFillScreen or
+   -- mwFitStack alone; the messages need mwStart's stack)
+   if pKind is not "viewport" and (sTarget is empty or there is not a stack sTarget) then
       exit mwFromBrowser
    end if
    switch pKind
@@ -814,6 +824,17 @@ on mwGlide
    send "mwGlide" to me in 16 milliseconds
    put the result into sGlideMessage
 end mwGlide
+
+-- The browser's window watched, so that a stack filled or fitted without
+-- mwStart is filled or fitted again when the phone turns (with no
+-- gestures: those are mwStart's)
+private command mwWatchViewport
+   if sStarted is true then
+      exit mwWatchViewport
+   end if
+   get mwJS("window.__oxtMobileWeb.start(''); return '';")
+   put true into sStarted
+end mwWatchViewport
 
 private command mwGlideStop
    if sGlideMessage is not empty then

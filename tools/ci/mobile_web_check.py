@@ -55,7 +55,9 @@ emulate) opens the page with a touch screen and a phone's window, and:
      and on each card its controls end above the tab bar
   8. a stack laid out for a desktop (800 by 500), of a fixed size, is
      fitted to the window by mwStart alone, as it is too big for it: a
-     tap where its far corner's button is drawn reaches the button
+     tap where its far corner's button is drawn reaches the button; when
+     the phone turns, the stack filled before is left as it was; fitted
+     by mwFitStack alone and turned back, it is fitted again
   9. mwStop takes away the style that filling gave the page, and in a
      page that keeps its own layout (data-mobile-web-fill="no", as the
      Stack Player's page has) mwFillScreen fills nothing
@@ -376,6 +378,28 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
         }""", [width, height])
         s = wait_for(page, lambda s: s.get('notestop') == str(before))
         expect('the form comes back when the keyboard goes', s.get('notestop') == str(before), s)
+        # the keyboard up for Name, which it does not cover, and then
+        # Notes tapped while it stays up: no keyboard message comes, and
+        # the form must move up for Notes all the same (openField)
+        fingers.tap(*middle(s.get('namerect', '')))
+        time.sleep(0.5)
+        page.evaluate("""([w, h, k]) => {
+            var lib = document.liveCode.findStackWithName('com.livecode.library.mobileweb');
+            lib.mwFromBrowser('viewport', [w, h - k, k, 0, 0, 0, 0, 'portrait'].join(','));
+        }""", [width, height, keyboard])
+        time.sleep(1)
+        s = state(page)
+        expect('the form stays put for Name, above the keyboard', s.get('notestop') == str(before), s)
+        fingers.tap(width / 2, before + 40)
+        s = wait_for(page, lambda s: s.get('notestop', '').lstrip('-').isdigit() and int(s['notestop']) < before)
+        top = int(s.get('notestop') or 0)
+        expect('Notes tapped while the keyboard is up moves the form up', top < before and top + 120 <= height - keyboard, s)
+        page.evaluate("""([w, h]) => {
+            var lib = document.liveCode.findStackWithName('com.livecode.library.mobileweb');
+            lib.mwFromBrowser('viewport', [w, h, 0, 0, 0, 0, 0, 'portrait'].join(','));
+        }""", [width, height])
+        s = wait_for(page, lambda s: s.get('notestop') == str(before))
+        expect('and it comes back when the keyboard goes', s.get('notestop') == str(before), s)
 
         # 6. gestures
         tab(3)
@@ -432,6 +456,25 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
         s = wait_for(page, lambda s: s.get('farhit') == 'true')
         shot('6-fit')
         expect('a tap reaches the fitted stack\'s far button', s.get('farhit') == 'true', s)
+        # turned, it is fitted again, and the Phone Starter, filled
+        # before, is left as it was: the window is the new stack's now
+        page.set_viewport_size({'width': height, 'height': width})
+        time.sleep(2)
+        s = state(page)
+        expect('turned, the stack filled before is left as it was',
+               rect(s.get('rect', '')) == [0, 0, width, height], s)
+
+        # the same stack fitted by mwFitStack alone (after mwStop), then
+        # turned back: fitted again for the new window
+        got = str(page.evaluate("() => document.liveCode.findStackWithName('MobileWebCheck').mwcFitAlone()"))
+        expect('mwFitStack alone fits it', got == '', {'result': got})
+        time.sleep(1)
+        page.set_viewport_size({'width': width, 'height': height})
+        time.sleep(2)
+        fingers.tap(x, y)
+        s = wait_for(page, lambda s: s.get('farhit') == 'true')
+        expect('turned back, mwFitStack alone has fitted it again: a tap reaches the far button',
+               s.get('farhit') == 'true', s)
 
         # 9. mwStop gives the page back its own look, and a page that keeps
         # its own layout (as the Stack Player's does) is not filled

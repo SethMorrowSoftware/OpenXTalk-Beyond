@@ -156,7 +156,10 @@ on TestNoMessagesBeforeStart
    _ClearGot
    _FromBrowser "swipe", "left"
    _FromBrowser "longpress", 10, 20
+   _FromBrowser "viewport", "390,664,0,47,0,34,0,portrait"
+   _FromBrowser "viewport", "664,390,300,0,47,21,47,landscape"
    TestAssert "nothing is sent before mwStart", _Got() is empty
+   TestAssert "and a viewport report changes no stack", the rect of stack "MobileWebTest" is "100,100,500,400"
 end TestNoMessagesBeforeStart
 
 on TestMessagesAfterStart

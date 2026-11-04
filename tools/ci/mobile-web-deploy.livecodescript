@@ -55,6 +55,7 @@ on startup
             "set the cJavascriptHandlers of stack" && quote & "MobileWebCheck" & quote && \
             "to" && quote & "mwcState" & quote && "& return &" && quote & "mwcFit" & quote && \
             "& return &" && quote & "mwcStopAndKeep" & quote && \
+            "& return &" && quote & "mwcFitAlone" & quote && \
             "& return &" && quote & "mwcStarterScript" & quote into tStartup
       put fileText($OXT_MW_TEMPLATE) into tParams["startup_script"]
       replace "@ENGINE_VERSION@" with $OXT_MW_VERSION in tParams["startup_script"]

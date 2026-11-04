@@ -21,8 +21,9 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- Mobile Web library. Its javascriptHandlers (set by the standalone's
 -- startup script) let the check read what the Phone Starter shows
 -- (mwcState), open a stack laid out for a desktop, fitted to the phone
--- (mwcFit), and stop the library and fill again in a page that keeps its
--- own layout (mwcStopAndKeep). It changes nothing in the Phone Starter.
+-- (mwcFit), fit it again with mwFitStack alone (mwcFitAlone), and stop
+-- the library and fill again in a page that keeps its own layout
+-- (mwcStopAndKeep). It changes nothing in the Phone Starter.
 
 constant kStack = "Phone Starter"
 
@@ -95,6 +96,15 @@ command mwcFit
    mwStart "Wide Check", "none"
    return the result
 end mwcFit
+
+-- The same stack fitted by mwFitStack alone, after mwStop: the library
+-- must still fit it again when the phone turns
+command mwcFitAlone
+   set the cHit of me to false
+   mwStop
+   mwFitStack "Wide Check"
+   return the result
+end mwcFitAlone
 
 -- mwStop, then mwFillScreen in a page that says it keeps its own layout
 -- (data-mobile-web-fill="no", as the Stack Player's page says): whether
