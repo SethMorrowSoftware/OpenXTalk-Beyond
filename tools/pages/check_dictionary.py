@@ -30,9 +30,14 @@ checks that:
     many entries as built_api.js has for it;
   - a search for "answer" lists the answer entries, and the first one
     opens with its syntax;
-  - the page asks for no file it does not have and throws no error.
+  - the page asks for no file it does not have and throws no error;
+  - it follows the reader's light or dark setting: light, the page is
+    white and not dark; dark, it is dark (the class oxt-dark, a dark
+    page); ?appearance=light in the address wins over a dark setting; and
+    a page left open turns light when the setting does.
 
-Screenshots go to --out (dictionary-script.png, dictionary-builder.png).
+Screenshots go to --out (dictionary-script.png, dictionary-builder.png,
+dictionary-dark.png).
 Exit status 0 when every check passes, 1 when one fails, 2 when the check
 cannot run. It needs Playwright (pip install playwright, then playwright
 install chromium).
@@ -51,6 +56,17 @@ sys.path.insert(0, HERE)
 import build_dictionary  # noqa: E402
 
 SEARCH = 'answer'
+
+# What the page's look is: whether the class oxt-dark is on it, and the
+# colour of its page
+LOOK = """() => ({dark: document.documentElement.classList.contains('oxt-dark'),
+                 page: getComputedStyle(document.body).backgroundColor})"""
+
+
+def is_dark(colour):
+    """Whether a computed rgb()/rgba() colour is a dark one."""
+    parts = [float(x) for x in colour[colour.index('(') + 1:colour.index(')')].split(',')[:3]]
+    return sum(parts) / 3 < 64
 
 
 class Quiet(http.server.SimpleHTTPRequestHandler):
@@ -139,9 +155,42 @@ def run(site, out, browser_name, timeout):
                       '%d entries' % counts['xTalk Builder'])
                 if out:
                     page.screenshot(path=os.path.join(out, 'dictionary-builder.png'))
+                look = page.evaluate(LOOK)
+                check('light, it is light', not look['dark'] and not is_dark(look['page']), str(look))
             except PlaywrightError as e:
                 check('the page answers', False, str(e).split('\n')[0])
             check('no missing file or error', not problems, '; '.join(problems[:6]))
+
+            # The reader's dark setting (prefers-color-scheme)
+            dark = browser.new_page(viewport={'width': 1280, 'height': 800}, color_scheme='dark')
+            dark.set_default_timeout(timeout * 1000)
+            try:
+                dark.goto(url)
+                dark.wait_for_function("() => document.querySelectorAll('#table_list tr').length > 0")
+                look = dark.evaluate(LOOK)
+                check('dark, it is dark', look['dark'] and is_dark(look['page']), str(look))
+                if out:
+                    dark.fill('#ui_filer', SEARCH)
+                    dark.press('#ui_filer', 'Enter')
+                    dark.wait_for_function("(n) => document.querySelectorAll('#table_list tr').length < n",
+                                           arg=counts['xTalk Script'])
+                    dark.locator('#table_list tr').first.click()
+                    dark.wait_for_function("() => document.querySelector('#api_entry') &&"
+                                           " document.querySelector('#api_entry').innerText.indexOf('Syntax') >= 0")
+                    dark.screenshot(path=os.path.join(out, 'dictionary-dark.png'))
+                # a page left open follows the setting as it changes
+                dark.emulate_media(color_scheme='light')
+                dark.wait_for_function("() => !document.documentElement.classList.contains('oxt-dark')")
+                look = dark.evaluate(LOOK)
+                check('it turns light with the setting', not look['dark'] and not is_dark(look['page']), str(look))
+                # the address wins over the setting, as in the IDE
+                dark.emulate_media(color_scheme='dark')
+                dark.goto(url + '?appearance=light')
+                dark.wait_for_function("() => document.querySelectorAll('#table_list tr').length > 0")
+                look = dark.evaluate(LOOK)
+                check('?appearance=light wins over a dark setting', not look['dark'], str(look))
+            except PlaywrightError as e:
+                check('the dark page answers', False, str(e).split('\n')[0])
             browser.close()
     finally:
         server.shutdown()
