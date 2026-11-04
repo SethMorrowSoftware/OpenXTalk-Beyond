@@ -1,0 +1,4 @@
+- xTalk MCP Bridge: Claude's stop_paused_script and answer_dialog go ahead while another call waits, as OXT-Beyond always answered them; the MCP server queued them behind the call they were meant to unblock and then refused them as busy (#340)
+- xTalk MCP Bridge: a call still waiting for the user's Run or Save after 40 seconds is answered that it waits, and goes on: Claude's new tool pending_result gives what came of it, so a yes given after Claude's app stopped waiting is no longer lost or run unseen; OXT_MCP_ANSWER_WAIT_MS=0 waits as before, and the web IDE is unchanged (#340)
+- xTalk MCP Bridge: the "Nothing was done" notice after a late yes shows once the call is over, so it no longer holds the bridge busy until it is closed (#340)
+- xTalk MCP Bridge: save_stack takes a full path to save a stack as, with no file dialog; it replaces no file but the stack's own. ide_context says whether runs and saves are asked about (#340)
