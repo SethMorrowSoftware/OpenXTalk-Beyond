@@ -266,6 +266,17 @@ class ServerCheckTest(unittest.TestCase):
         self.assertEqual(r.field_bytes('data'), b'a\x00\xff\nb')
         self.assertEqual(r.field('next'), '1')
 
+    def test_fields_on_every_platforms_line_ends(self):
+        # The engine writes return as LF on Linux, CR LF on Windows and CR
+        # on macOS; the first CI runs on Windows and macOS met the last two.
+        for end in (b'\n', b'\r\n', b'\r'):
+            body = b'name=a b;' + end + b'zip=inside.txt' + end + b';' + end + b'last=1;' + end
+            r = server_check.Response(200, [], body)
+            self.assertEqual(r.field('name'), 'a b', end)
+            self.assertEqual(server_check.line_ends(r.field('zip')), 'inside.txt\n', end)
+            self.assertEqual(r.field('last'), '1', end)
+            self.assertIsNone(r.field('b'), end)
+
     def test_extract_keeps_modes_and_refuses_paths_out(self):
         good = os.path.join(self.tmp, 'good.zip')
         with zipfile.ZipFile(good, 'w') as z:

@@ -253,11 +253,16 @@ CASES = [
         ('revDB with SQLite', lambda r: r.field('db'), 'true'),
         ('query', lambda r: r.field('query'), '42,forty-two'),
         ('revXML', lambda r: r.field('xml'), 'xml'),
-        # The Windows engine writes every return of a page as CR LF (the
-        # whole body comes back that way there), so the line ending is the
-        # platform's: what is checked is one item, then one line end.
-        ('revZip (one line per item)', lambda r: r.field('zip').replace('\r\n', '\n'), 'inside.txt\n')]),
+        # The engine writes the return after the item as its platform's
+        # line end (see field_bytes): what is checked is one item, then
+        # one line end.
+        ('revZip (one line per item)', lambda r: line_ends((r.field('zip') or '')), 'inside.txt\n')]),
 ]
+
+
+def line_ends(text):
+    """Text with every line end, CR LF, CR or LF, written as LF."""
+    return text.replace('\r\n', '\n').replace('\r', '\n')
 
 
 class Response(object):
@@ -280,8 +285,11 @@ class Response(object):
         return self.body.decode('latin-1')
 
     def field_bytes(self, name):
-        """The bytes between "name=" and ";" on a line of the body."""
-        m = re.search(rb'(?m)^' + re.escape(name.encode()) + rb'=(.*?);\r?$', self.body, re.S)
+        """The bytes between "name=" and ";" on a line of the body. A
+        line ends as the engine writes "return" on its platform: LF on
+        Linux, CR LF on Windows and CR on macOS (as LiveCode's server
+        engines did), so all three end a line here."""
+        m = re.search(rb'(?:^|(?<=[\r\n]))' + re.escape(name.encode()) + rb'=(.*?);(?=[\r\n]|$)', self.body, re.S)
         return m.group(1) if m else None
 
     def field(self, name):
