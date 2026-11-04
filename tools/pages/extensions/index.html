@@ -7,7 +7,9 @@
      xTalk Suite release that has them (pages.yml lists its files). It keeps
      the SUITE_RELEASE, SUITE_SUMS and SUITE_MORE blocks only with such a
      release, and the SUITE_NONE block only without one, so no link here
-     leads to a file that is not there. -->
+     leads to a file that is not there. PLUGINS_LIST is OXT-Beyond's own two
+     plugins (PLUGINS), linked in the release the front page's Downloads
+     links. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -202,7 +204,7 @@
       <div>
         <p class="eyebrow">The xTalk Suite</p>
         <h1>Extensions <span class="flame">Beyond</span></h1>
-        <p class="lead">Cryptography, BitTorrent, real-time and peer-to-peer networking, 2D physics, Bitcoin and Ethereum, Tor and Nostr, all from plain xTalk script. Each one is a thin layer over a proven library, or plain script. They are built into OXT-Beyond, so there is nothing to install there. Download a package to use one in LiveCode Community 9.6.3, OpenXTalk or HyperXTalk.</p>
+        <p class="lead">Cryptography, BitTorrent, real-time and peer-to-peer networking, 2D physics, Bitcoin and Ethereum, Tor and Nostr, all from plain xTalk script. Each one is a thin layer over a proven library, or plain script. They are built into OXT-Beyond, so there is nothing to install there. Download a package to use one in LiveCode Community 9.6.3, OpenXTalk or HyperXTalk, and the xTalk Assistant and the xTalk MCP Bridge with them.</p>
         <!-- @SUITE_RELEASE@ -->
         <p class="release"><span class="tag">@SUITE_TAG@</span><span>The packages of the newest xTalk Suite release</span><a href="@SUITE_TAG_URL@">Release notes</a><!-- @SUITE_SUMS@ --><a href="@SUITE_SUMS_URL@">Checksums (SHA256SUMS)</a><!-- /@SUITE_SUMS@ --></p>
         <!-- /@SUITE_RELEASE@ -->
@@ -226,6 +228,13 @@
     </div>
   </section>
 
+  <section class="shelf" aria-labelledby="the-plugins">
+    <h2 id="the-plugins">AI in the IDE <small>OXT-Beyond's own plugins, also built in</small></h2>
+    <div class="grid">
+@PLUGINS_LIST@
+    </div>
+  </section>
+
   <!-- @SUITE_MORE@ -->
   <section class="shelf" aria-labelledby="more-packages">
     <h2 id="more-packages">More from the suite <small>Packages new since this page was written</small></h2>
@@ -238,7 +247,7 @@
     <ol class="steps">
       <li><b>Download</b> the extension's <kbd>.lce</kbd> file, and its helpers, Kit or script layer if you want them.</li>
       <li>Open <b>Tools &gt; Extension Manager</b>, click <b>+</b> and choose the file.</li>
-      <li>Install a library <b>before</b> what is built on it: TorrentXT before its Helpers, CoinXT before its script layer, OnionXT before its web server.</li>
+      <li>Install a library <b>before</b> what is built on it: TorrentXT before its Helpers, CoinXT before its script layer, OnionXT before its web server. A plugin appears in <b>Development &gt; Plugins</b>.</li>
     </ol>
     <p class="note">The native libraries carry their builds for Windows, macOS 10.15 or later and Linux (64-bit and 32-bit x86, and 64-bit ARM), and the IDE picks the right one. In OXT-Beyond a package you install is used in place of the built-in copy; uninstall it in the Extension Manager to go back.</p>
   </section>

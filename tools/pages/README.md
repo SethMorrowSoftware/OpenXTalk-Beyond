@@ -45,8 +45,11 @@ of the newest packaged release each time the site is built. Only the
 files the release has get a link; a package the page's table
 (`EXTENSIONS` in `build_pages.py`) does not name is linked under "More
 from the suite"; and without a release with packages each card links the
-suite's releases page instead. The page goes up with every site, and the
-front page has its card. [test_pages_extensions.py](../ci/tests/test_pages_extensions.py)
+suite's releases page instead. After them come OXT-Beyond's own two
+plugins, the xTalk Assistant and the xTalk MCP Bridge (`PLUGINS`), each
+linked to its `.lce` in the release the front page's Downloads links
+(`--release`), or to OXT-Beyond's releases without one. The page goes
+up with every site, and the front page has its card. [test_pages_extensions.py](../ci/tests/test_pages_extensions.py)
 holds it.
 
 With a release (`--release TAG --release-assets FILE`, which pages.yml

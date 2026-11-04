@@ -23,6 +23,9 @@ leads to a file it has, a package the table does not name is still
 linked, no marker or placeholder is left, and without a release with
 packages every card links the suite's releases instead. Like the rest of
 the site, the page asks no other host for anything and is still at rest.
+After the extensions come OXT-Beyond's own two plugins, the xTalk
+Assistant and the xTalk MCP Bridge, linked in the OXT-Beyond release the
+front page's Downloads links.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -64,6 +67,13 @@ ASSETS = SUITE_PACKAGES + ['SHA256SUMS']
 # repository, and OXT-Beyond
 EXTERNAL = {SUITE, SUITE + '/releases', 'https://github.com/SethMorrowSoftware/OpenXTalk-Beyond'}
 EXTERNAL |= {row[5] for row in build_pages.EXTENSIONS}
+BEYOND = 'https://github.com/SethMorrowSoftware/OpenXTalk-Beyond'
+EXTERNAL |= {BEYOND + '/releases', BEYOND + '/tree/main/tools/plugins'}
+# OXT-Beyond's own plugins, in the release the front page's Downloads links
+BEYOND_TAG = 'v0.2.7-rc.6.14'
+BEYOND_DOWNLOAD = '%s/releases/download/%s/' % (BEYOND, BEYOND_TAG)
+BEYOND_PLUGINS = ['OXT-Beyond-0.2.7-rc.6.14-xtalk-assistant-plugin.lce',
+                  'OXT-Beyond-0.2.7-rc.6.14-mcp-bridge-plugin.lce']
 
 
 def template():
@@ -153,9 +163,10 @@ class TheBuiltPage(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.work, ignore_errors=True)
 
-    def build(self, tag, assets):
+    def build(self, tag, assets, beyond_tag=None, beyond_assets=()):
         out = os.path.join(self.work, 'site-%d' % len(os.listdir(self.work)))
-        shown = build_pages.extensions_page(os.path.join(PAGES, 'extensions'), out, tag, set(assets))
+        shown = build_pages.extensions_page(os.path.join(PAGES, 'extensions'), out, tag, set(assets),
+                                            beyond_tag, set(beyond_assets))
         with open(os.path.join(out, 'index.html'), encoding='utf-8') as f:
             text = f.read()
         where = '%s %d files' % (tag, len(assets))
@@ -168,6 +179,9 @@ class TheBuiltPage(unittest.TestCase):
             if href.startswith(SUITE + '/releases/download/'):
                 self.assertTrue(href.startswith(DOWNLOAD), href)
                 self.assertIn(href[len(DOWNLOAD):], assets, href)
+            elif href.startswith(BEYOND + '/releases/download/'):
+                self.assertTrue(href.startswith(BEYOND_DOWNLOAD), href)
+                self.assertIn(href[len(BEYOND_DOWNLOAD):], beyond_assets, href)
             elif href.startswith(SUITE + '/releases/tag/'):
                 self.assertEqual(href, SUITE + '/releases/tag/' + TAG)
             elif href.startswith('https://'):
@@ -179,6 +193,33 @@ class TheBuiltPage(unittest.TestCase):
             self.assertIn('href="%s"' % row[5], text)
         return shown, text, page
 
+    def test_the_plugins(self):
+        # The xTalk Assistant and the xTalk MCP Bridge, OXT-Beyond's own,
+        # each linked in the release the front page's Downloads links
+        shown, text, page = self.build(TAG, ASSETS, BEYOND_TAG, BEYOND_PLUGINS + ['SHA256SUMS'])
+        for name in BEYOND_PLUGINS:
+            self.assertEqual(page.links.count(BEYOND_DOWNLOAD + name), 1, name)
+        for ident in ('xtalk-assistant', 'mcp-bridge'):
+            self.assertIn('id="%s"' % ident, text)
+        self.assertIn('xTalk Assistant <small>0.2.7-rc.6.14</small>', text)
+        self.assertIn('xTalk MCP Bridge <small>0.2.7-rc.6.14</small>', text)
+
+    def test_the_plugins_without_a_release(self):
+        # no OXT-Beyond release listed, or one without the plugin: its card
+        # links OXT-Beyond's releases
+        shown, text, page = self.build(TAG, ASSETS)
+        self.assertNotIn('-plugin.lce', text)
+        self.assertEqual(page.links.count(BEYOND + '/releases'), 2)
+        shown, text, page = self.build(TAG, ASSETS, BEYOND_TAG, BEYOND_PLUGINS[:1])
+        self.assertIn(BEYOND_DOWNLOAD + BEYOND_PLUGINS[0], text)
+        self.assertNotIn(BEYOND_PLUGINS[1], text)
+        self.assertEqual(page.links.count(BEYOND + '/releases'), 1)
+
+    def test_a_beyond_tag_that_is_not_one(self):
+        for tag in ('0.2.7', 'v0.2.7"><script>', ''):
+            with self.assertRaises(build_pages.BuildError):
+                build_pages.plugins_html(tag, set(BEYOND_PLUGINS))
+
     def test_with_every_package(self):
         shown, text, page = self.build(TAG, ASSETS)
         self.assertEqual(shown, TAG)
@@ -186,7 +227,7 @@ class TheBuiltPage(unittest.TestCase):
             self.assertEqual(page.links.count(DOWNLOAD + name), 1, name)
         self.assertIn('href="%sSHA256SUMS"' % DOWNLOAD, text)
         self.assertIn('<span class="tag">%s</span>' % TAG, text)
-        self.assertNotIn('class="soon"', text)
+        self.assertNotIn('class="soon"', text[:text.index('id="the-plugins"')])
         self.assertNotIn('id="more-packages"', text)
         # each card's library is the filled button, what is built on it the
         # outlined one
@@ -198,7 +239,7 @@ class TheBuiltPage(unittest.TestCase):
         shown, text, page = self.build(None, ())
         self.assertIsNone(shown)
         self.assertNotIn('.lce"', text)
-        self.assertEqual(text.count('class="soon"'), len(build_pages.EXTENSIONS))
+        self.assertEqual(text.count('class="soon"'), len(build_pages.EXTENSIONS) + len(build_pages.PLUGINS))
         self.assertIn('href="%s/releases"' % SUITE, text)
         self.assertNotIn('class="tag"', text)
 
@@ -248,9 +289,13 @@ class TheBuiltPage(unittest.TestCase):
         with open(listing, 'w', encoding='utf-8') as f:
             f.write('\n'.join(ASSETS) + '\n')
         out = os.path.join(self.work, 'site')
+        beyond = os.path.join(self.work, 'beyond-assets.txt')
+        with open(beyond, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(BEYOND_PLUGINS) + '\n')
         args = build_pages.argparse.Namespace(out=out, ide=None, ide_version=None, player=player,
                                               player_version='9.9.9', map=None, map_version=None,
-                                              suite_release=TAG, suite_assets=listing)
+                                              suite_release=TAG, suite_assets=listing,
+                                              release=BEYOND_TAG, release_assets=beyond)
         with redirect_stdout(io.StringIO()):
             build_pages.build(args)
         with open(os.path.join(out, 'index.html'), encoding='utf-8') as f:
@@ -258,7 +303,9 @@ class TheBuiltPage(unittest.TestCase):
         self.assertIn('<a class="button" href="extensions/">See the extensions</a>', front)
         self.assertIn('<p class="version">xTalk Suite %s</p>' % TAG, front)
         with open(os.path.join(out, 'extensions', 'index.html'), encoding='utf-8') as f:
-            self.assertIn(DOWNLOAD + 'nostrxt-relay-0.1.0.lce', f.read())
+            text = f.read()
+        self.assertIn(DOWNLOAD + 'nostrxt-relay-0.1.0.lce', text)
+        self.assertIn(BEYOND_DOWNLOAD + BEYOND_PLUGINS[1], text)
         shutil.rmtree(out)
         args.suite_assets = None
         with self.assertRaisesRegex(build_pages.BuildError, 'suite-assets'):

@@ -203,6 +203,65 @@ def downloads_html(tag, assets):
     return '\n'.join(out)
 
 
+# The two plugins OXT-Beyond ships built in and also releases as .lce
+# packages for the other xTalks (tools/plugins), which the extensions page
+# lists after the suite's extensions: (id, name, what it is, what it does,
+# what it needs, the file suffix in an OXT-Beyond release, as DOWNLOADS
+# names them). They link the files of the release the front page's
+# Downloads links (--release), or OXT-Beyond's releases without one.
+PLUGINS = (
+    ('xtalk-assistant', 'xTalk Assistant', 'IDE plugin · AI helper',
+     'An AI helper in a window beside your stacks: ask it about xTalk, and it writes, runs and debugs '
+     'scripts with you, using the AI service and key you choose. Off until you turn it on.',
+     'your own key for an AI service', 'xtalk-assistant-plugin.lce'),
+    ('mcp-bridge', 'xTalk MCP Bridge', 'IDE plugin · Claude',
+     'Lets Claude, in the Claude desktop app or Claude Code with your own Claude plan, read your open '
+     'stacks and build in them: cards, controls, scripts, runs and saves, asking before each step. '
+     'Off until you turn it on.',
+     'the Claude desktop app or Claude Code, and Node.js', 'mcp-bridge-plugin.lce'),
+)
+PLUGIN_ICONS = {
+    'xtalk-assistant': '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4h0A2.5 2.5 0 0 1 4 13.5z"/>'
+                       '<path d="M12 6.5l1 2.3 2.3 1-2.3 1-1 2.3-1-2.3-2.3-1 2.3-1z"/>',
+    'mcp-bridge': '<path d="M3 17h18M5 17c0-5 3-8 7-8s7 3 7 8M9 17v-4M15 17v-4M12 17V9"/>',
+}
+
+
+def plugins_html(tag, assets):
+    """The extensions page's cards for OXT-Beyond's own plugins: each
+    links its .lce in the OXT-Beyond release tag when that release has it
+    (assets, its file names), or OXT-Beyond's releases."""
+    if tag is not None and not re.match(r'^v[0-9][0-9A-Za-z.+-]*$', tag):
+        raise BuildError('--release %r is not a release tag (v<version>)' % tag)
+    cards = []
+    for ident, name, kind, what, needs, suffix in PLUGINS:
+        file = 'OXT-Beyond-%s-%s' % (tag[1:], suffix) if tag else None
+        if file and file in assets:
+            files_html = ('<div class="files"><a class="file" href="%s/releases/download/%s/%s" download>'
+                          '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>'
+                          '%s <small>%s</small></a></div>'
+                          % (REPOSITORY, urllib.parse.quote(tag), urllib.parse.quote(file), html.escape(name),
+                             html.escape(tag[1:])))
+        else:
+            files_html = ('<p class="soon">Its .lce package is on '
+                          '<a href="%s/releases">OXT-Beyond\'s releases</a>.</p>' % REPOSITORY)
+        cards.append(
+            '      <article class="ext" id="%s">\n'
+            '        <div class="ext-head">\n'
+            '          <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+            'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">%s</svg></div>\n'
+            '          <div><h3>%s</h3><p class="kind">%s</p></div>\n'
+            '        </div>\n'
+            '        <p class="what">%s</p>\n'
+            '        <p class="needs">Needs %s</p>\n'
+            '        %s\n'
+            '        <a class="source" href="%s/tree/main/tools/plugins">Guide and source</a>\n'
+            '      </article>'
+            % (html.escape(ident), PLUGIN_ICONS[ident], html.escape(name), html.escape(kind), html.escape(what),
+               html.escape(needs), files_html, REPOSITORY))
+    return '\n'.join(cards)
+
+
 def suite_packages(assets):
     """The .lce packages among a suite release's files, as {package:
     (version, file)}: the newest version of each when there are two."""
@@ -268,7 +327,7 @@ def extensions_html(tag, assets):
     return '\n'.join(cards), ''.join(more)
 
 
-def extensions_page(source, target, tag=None, assets=()):
+def extensions_page(source, target, tag=None, assets=(), beyond_tag=None, beyond_assets=()):
     """Writes the extensions page (tools/pages/extensions/index.html) to
     target/index.html: the cards, and the release's own block (its name,
     its checksums and any package the cards do not name) or, without a
@@ -292,6 +351,7 @@ def extensions_page(source, target, tag=None, assets=()):
             stop = page.index(end, at) + len(end)
             page = page[:at] + (page[at + len(start):stop - len(end)] if keep else '') + page[stop:]
     page = page.replace('@EXTENSIONS_LIST@', cards)
+    page = page.replace('@PLUGINS_LIST@', plugins_html(beyond_tag, set(beyond_assets)))
     if has:
         page = page.replace('@SUITE_MORE_LIST@', more)
         page = page.replace('@SUITE_TAG@', html.escape(tag))
@@ -565,7 +625,8 @@ def build(args):
     if suite_assets:
         with open(suite_assets, encoding='utf-8') as f:
             listed = {line.strip() for line in f if line.strip()}
-    shown = extensions_page(os.path.join(HERE, 'extensions'), os.path.join(out, 'extensions'), suite, listed)
+    shown = extensions_page(os.path.join(HERE, 'extensions'), os.path.join(out, 'extensions'), suite, listed,
+                            release if release else None, assets if release else ())
     if suite and not shown:
         print('no extension packages: %s has no .lce files' % suite)
     parts['EXTENSIONS'] = 'xTalk Suite %s' % shown if shown else 'xTalk Suite'
