@@ -6548,3 +6548,150 @@ on TestHyperCardScriptsBuiltIns
    _Close "HCBuiltInsLib"
    _Close tStack
 end TestHyperCardScriptsBuiltIns
+
+on TestHyperCardScriptsT77
+   -- T77: a variable a "do" puts into, named by a word this engine
+   -- refuses as a variable ("do "put there is a" && fspec && "into
+   -- exists"" then "if not exists then return false", the Colour Text
+   -- stacks' functions, 20 handlers in 8 stacks of the corpus), which
+   -- HyperCard ran in the handler as the handler's variable: the name
+   -- the import gives the variable (T2's), in the code and in the do's
+   -- text, so that the do puts into the variable the code reads
+   local tScript, q, tStack, tError
+   global gHCScriptsTest
+   put quote into q
+   put _Rewrite("function Colourize fspec, ctab", \
+         "  do " & q & "put there is a" & q && "&& fspec &&" && q & "into exists" & q, \
+         "  if not exists then return false", \
+         "  do " & q & "put the short id of" & q && "&& fspec &&" && q & "into fid" & q, \
+         "  return fid", \
+         "end Colourize") into tScript
+   TestAssert "T77: the do's text puts into the variable's new name", line 2 of tScript \
+         is "  do " & q & "put there is a" & q && "&& fspec &&" && q & "into hc_exists" & q
+   TestAssert "T77: the code reads that name", line 3 of tScript is "  if not hc_exists then return false"
+   TestAssert "T77: a do into a name this engine takes, unchanged", line 4 of tScript \
+         is "  do " & q & "put the short id of" & q && "&& fspec &&" && q & "into fid" & q
+   TestAssert "T77: those compile", _Compiles(tScript)
+
+   -- and a do into a variable T2 renames, as the code that reads it is
+   -- (Net Worth's "do "put field "&typer&"stot into value"")
+   put _Rewrite("on mouseUp", \
+         "  put field " & q & "worth" & q & " into value", \
+         "  do " & q & "put field " & q & "&typer&" & q & "stot into value" & q, \
+         "  if x then do " & q & "put 2 into value" & q & " else beep", \
+         "  do " & q & "put 3 into value " & tab & q, \
+         "end mouseUp") into tScript
+   TestAssert "T77: a variable T2 renames", line 2 of tScript is "  put field " & q & "worth" & q & " into hc_value"
+   TestAssert "T77: a do into it, its text joined", line 3 of tScript is "  do " & q & "put field " & q & "&typer&" & q & "stot into hc_value" & q
+   TestAssert "T77: a do into it after then", line 4 of tScript is "  if x then do " & q & "put 2 into hc_value" & q & " else beep"
+   TestAssert "T77: a do into it, a space and a tab after the name", line 5 of tScript is "  do " & q & "put 3 into hc_value " & tab & q
+
+   -- unchanged: the word in another statement's text, and the function
+   -- where no do puts into a variable of its name
+   put _Rewrite("on mouseUp", \
+         "  answer " & q & "put it into exists" & q, \
+         "  if exists(card field 1) then beep", \
+         "  do " & q & "put 1 into exists now" & q, \
+         "end mouseUp") into tScript
+   TestAssert "T77: another statement's text, unchanged", line 2 of tScript is "  answer " & q & "put it into exists" & q
+   TestAssert "T77: the function exists, unchanged", line 3 of tScript is "  if exists(card field 1) then beep"
+   TestAssert "T77: a do whose text goes on after the name, unchanged", line 4 of tScript is "  do " & q & "put 1 into exists now" & q
+
+   -- Fixed by revHyperCardFixScripts and run: false for a field that is
+   -- not there, the field's id for one that is
+   put "HCDoVariable" & the milliseconds into tStack
+   lock messages
+   create stack tStack
+   set the defaultStack to tStack
+   create field "Notes"
+   create button "Find"
+   set the script of button "Find" to _Lines("on mouseUp", "  global gHCScriptsTest", \
+         "  put lookUp(" & q & "card field " & q & " & quote & " & q & "Nowhere" & q & " & quote) into gHCScriptsTest", \
+         "  put comma & (lookUp(" & q & "card field " & q & " & quote & " & q & "Notes" & q & " & quote) is the short id of card field " & q & "Notes" & q & ") after gHCScriptsTest", \
+         "  put comma & lastWorth() after gHCScriptsTest", \
+         "end mouseUp", \
+         "function lookUp fspec", \
+         "  do " & q & "put there is a" & q && "&& fspec &&" && q & "into exists" & q, \
+         "  if not exists then return false", \
+         "  do " & q & "put the short id of" & q && "&& fspec &&" && q & "into fid" & q, \
+         "  return fid", \
+         "end lookUp", \
+         "function lastWorth", \
+         "  put 1 into value", \
+         "  do " & q & "put 2 into value" & q, \
+         "  return value", \
+         "end lastWorth")
+   unlock messages
+   TestAssert "T77: the script does not compile before", not _Compiles(the script of button "Find" of stack tStack)
+   get revHyperCardFixScripts(tStack)
+   TestAssert "T77: in a stack fixed", line 9 of the script of button "Find" of stack tStack is "  if not hc_exists then return false"
+   put empty into gHCScriptsTest
+   try
+      send "mouseUp" to button "Find" of stack tStack
+   catch tError
+   end try
+   TestAssert "T77: false for no field, the field's id for one; the value a do put into a variable T2 renames", gHCScriptsTest is "false,true,2"
+   _Close tStack
+end TestHyperCardScriptsT77
+
+on TestHyperCardScriptsPlayCorpus
+   -- T35: play's notes not in quotes after a sound in parentheses and a
+   -- tempo, the whole of Resource Library's lines (the sweep left both
+   -- out of their handler): notes with a dot ("ch.") and a sharp ("f#")
+   local tScript, q, tNotes1, tNotes2
+   put quote into q
+   put "cq e f gw gq cq e f gw gq cq e f gh e c e dw dh eq d ch. cq eh gq g g fw fq eq f gh e c d cw" into tNotes1
+   put "bq b g g be b bq d5h a4q a f# f# ae a aq c5h b4q b g g be b bq d5h a4q be c5e b4q a gh gq" into tNotes2
+   put _Rewrite("on mouseUp", \
+         "  play (field " & q & "Name" & q & ") tempo 220" && tNotes1, \
+         "  play (field " & q & "Name" & q & ") tempo 200" && tNotes2, \
+         "end mouseUp") into tScript
+   TestAssert "T35: notes with a dotted one", line 2 of tScript is "  play (field " & q & "Name" & q & ") tempo 220" && q & tNotes1 & q
+   TestAssert "T35: notes with sharps", line 3 of tScript is "  play (field " & q & "Name" & q & ") tempo 200" && q & tNotes2 & q
+   TestAssert "T35: those compile", _Compiles(tScript)
+
+   -- and in a stack fixed, as the import fixes it
+   local tStack
+   put "HCPlayCorpus" & the milliseconds into tStack
+   lock messages
+   create stack tStack
+   set the defaultStack to tStack
+   create field "Name"
+   create button "Play"
+   set the script of button "Play" to _Lines("on mouseUp", \
+         "play (field " & q & "Name" & q & ") tempo 220" && tNotes1, \
+         "play (field " & q & "Name" & q & ") tempo 200" && tNotes2, \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   put the script of button "Play" of stack tStack into tScript
+   TestAssert "T35: in a stack fixed, notes with a dotted one", line 2 of tScript is "play (field " & q & "Name" & q & ") tempo 220" && q & tNotes1 & q
+   TestAssert "T35: in a stack fixed, notes with sharps", line 3 of tScript is "play (field " & q & "Name" & q & ") tempo 200" && q & tNotes2 & q
+   _Close tStack
+
+   -- as Resource Library has them: the notes on the line after the tempo
+   -- (the play goes on its first line, the space before its \ kept, and
+   -- the line after is left empty, so that the lines after keep their
+   -- numbers); unchanged: notes in quotes joined over lines, and a
+   -- voice's notes in a variable
+   put _Rewrite("on mouseUp", \
+         "  put " & q & "c d" & q & " into tNotes", \
+         "  play (field " & q & "Name" & q & ") tempo 220 \", \
+         "  " & tNotes1, \
+         "  play harpsichord tempo 200 \", \
+         "  " & tNotes2 & " -- the tune", \
+         "  play (field " & q & "Name" & q & ") tempo 200 \", \
+         "  " & q & "gq gq. ee" & q & " && \", \
+         "  " & q & "dq c5q cq." & q, \
+         "  play flute tempo 200 \", \
+         "  tNotes", \
+         "end mouseUp") into tScript
+   TestAssert "T35: notes on the line after the tempo", line 3 of tScript is "  play (field " & q & "Name" & q & ") tempo 220 " && q & tNotes1 & q \
+         and line 4 of tScript is empty
+   TestAssert "T35: a voice's notes on the line after, a comment kept", line 5 of tScript is "  play harpsichord tempo 200 " && q & tNotes2 & q & " -- the tune" \
+         and line 6 of tScript is empty
+   TestAssert "T35: notes in quotes over lines, unchanged", line 7 of tScript is "  play (field " & q & "Name" & q & ") tempo 200 \" \
+         and line 8 of tScript is "  " & q & "gq gq. ee" & q & " && \" and line 9 of tScript is "  " & q & "dq c5q cq." & q
+   TestAssert "T35: a variable on the line after, unchanged", line 10 of tScript is "  play flute tempo 200 \" and line 11 of tScript is "  tNotes"
+   TestAssert "T35: those compile", _Compiles(tScript)
+end TestHyperCardScriptsPlayCorpus
