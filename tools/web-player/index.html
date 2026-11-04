@@ -292,6 +292,28 @@ body:not(.playing) #stage{position:absolute;left:0;top:0;width:100%;height:0;pad
 body.fullscreen .menubar{display:none}
 body.fullscreen #stage{box-sizing:border-box;min-height:100vh;justify-content:center}
 
+/* ---------- A stack on a phone: it has the whole screen ----------
+   (data-mobile-web-fill is taken off the body on a phone, so the Mobile
+   Web library may fill the page: a stack made for phones fills it with
+   mwStart, and the player fits any other stack to it, mwFitStack). The
+   engine sizes the stack to the whole page, so the bar steps aside for
+   one button, back to the library, over the stack's corner. */
+body.phone-play .menubar,body.phone-play #stage .titlebar,body.phone-play #stage .caption{display:none}
+body.phone-play #stage{position:fixed;inset:0;padding:0;overflow:hidden;display:block}
+body.phone-play #stage .window.card{margin:0;padding:0;border:0;border-radius:0;background:none;box-shadow:none}
+body.phone-play #stage .clip{border-radius:0}
+#phone-home{display:none}
+body.phone-play #phone-home{display:grid;place-items:center;position:fixed;z-index:30;
+  top:calc(env(safe-area-inset-top,0px) + 10px);right:calc(env(safe-area-inset-right,0px) + 10px);
+  width:42px;height:42px;padding:0;border-radius:50%;border:1px solid rgba(255,255,255,.28);
+  background:rgba(10,15,26,.55);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.35);cursor:pointer;opacity:.9;transition:opacity .4s}
+body.phone-play #phone-home.dim{opacity:.45}
+#phone-home .i{width:20px;height:20px}
+#stopped{position:fixed;left:0;right:0;top:0;z-index:2147483647;padding:16px 20px;
+  padding-top:max(16px,env(safe-area-inset-top));background:#fff4f0;color:#7a1d00;
+  border-bottom:2px solid #e8590c;font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+
 /* ---------- Loading: the logo in the night, and a bar of fire ---------- */
 #loading{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:1rem;color:var(--star);transition:opacity .3s;
   background:radial-gradient(1px 1px at 20px 30px,#fff,transparent),radial-gradient(1px 1px at 140px 80px,rgba(255,255,255,.8),transparent),
@@ -468,6 +490,7 @@ dialog.answer .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:
   </div>
   <p class="caption" id="current-meta"></p>
 </section>
+<button id="phone-home" title="Back to your stacks" aria-label="Back to your stacks"><svg class="i" viewBox="0 0 24 24"><path d="M4 11.5 12 4.5l8 7M6.5 9.5V19.5h11V9.5"/></svg></button>
 
 <div id="loading" role="status" aria-live="polite">
   <div class="window card">
@@ -732,6 +755,23 @@ dialog.answer .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:
     $('loading-error').textContent = 'The engine could not start in this browser. ' +
       (location.protocol == 'file:' ? 'Open this page from a web server, not from a file on disk.' : 'Try an up-to-date Chrome, Edge, Firefox or Safari.');
   });
+  // The engine stopping (out of the browser's stack, as on an iPhone or
+  // an iPad, which give a page far less than a desktop, or WebAssembly
+  // failing) comes as a promise nothing catches, not as an 'error', and
+  // left the page blank. Say so above everything, with the browser's
+  // words; a stack's own JavaScript rejecting is left as it was.
+  window.addEventListener('unhandledrejection', function (event) {
+    var reason = event.reason;
+    var stopped = reason instanceof RangeError ||
+      (typeof WebAssembly == 'object' && WebAssembly.RuntimeError && reason instanceof WebAssembly.RuntimeError);
+    if (!stopped || $('stopped')) return;
+    var note = document.createElement('div');
+    note.id = 'stopped';
+    note.setAttribute('role', 'alert');
+    note.textContent = 'The stack stopped in this browser: ' + (reason.message || String(reason)) +
+      ' (' + navigator.userAgent + ')';
+    document.body.appendChild(note);
+  });
 
   // ---------------------------------------------------------------- the player stack
   var opened = 0;
@@ -742,9 +782,35 @@ dialog.answer .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:
     return stack.playerFromPage(what);
   }
 
+  // A phone: a touch screen whose short side is a phone's. There a stack
+  // has the whole screen: the body loses data-mobile-web-fill="no", so
+  // that the Mobile Web library may fill the page, before a stack opens
+  // (its own openStack may call mwStart), and the player then fits a
+  // stack that did not take the screen itself (playerFitToPhone).
+  // Anywhere else, the stack is shown in its window, as it always was.
+  function isPhone() {
+    return window.matchMedia('(pointer: coarse)').matches && Math.min(window.innerWidth, window.innerHeight) <= 600;
+  }
+  function choosePhone() {
+    if (document.body.classList.contains('playing')) return;
+    if (isPhone()) document.body.removeAttribute('data-mobile-web-fill');
+    else document.body.setAttribute('data-mobile-web-fill', 'no');
+  }
+  choosePhone();
+  window.addEventListener('resize', choosePhone);
+  var dimTimer = 0;
+  function dimPhoneHome() {
+    $('phone-home').classList.remove('dim');
+    clearTimeout(dimTimer);
+    dimTimer = setTimeout(function () { $('phone-home').classList.add('dim'); }, 2500);
+  }
+
   function setPlaying(name, detail) {
     var on = name !== '';
     document.body.classList.toggle('playing', on);
+    document.body.classList.toggle('phone-play', on && !document.body.hasAttribute('data-mobile-web-fill'));
+    if (on) dimPhoneHome();
+    else choosePhone();
     $('current').textContent = name;
     $('current-meta').textContent = detail || '';
     // each stack opened gets the next colour along
@@ -981,6 +1047,7 @@ dialog.answer .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:
       call(id);
     });
   });
+  $('phone-home').addEventListener('click', function () { call('home'); });
   $('brand').addEventListener('click', function () {
     if (document.body.classList.contains('playing')) call('home');
     else window.scrollTo({ top: 0, behavior: 'smooth' });

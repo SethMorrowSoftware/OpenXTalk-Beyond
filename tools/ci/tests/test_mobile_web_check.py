@@ -33,13 +33,18 @@ held to the pieces it works with, without a browser or an engine:
 - the Phone Starter's tabs and Phone card agree with the check, and its
   pad takes the touch messages
 - every message the library sends is listed at the top of it
+- a page says so when the engine stops, and the Stack Player gives a
+  stack the whole screen on a phone and nowhere else
 - the check's small helpers
 
   python3 -m unittest discover -s tools/ci/tests
 """
 
+import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import unittest
 
@@ -202,6 +207,138 @@ class FoundForStandalones(unittest.TestCase):
         self.assertIn('does not call it', web_check.mobile_web_found_problem({'phone': True, 'plain': True}))
         self.assertIn('did not report', web_check.mobile_web_found_problem({}))
         self.assertIn('did not report', web_check.mobile_web_found_problem({'phone': True}))
+
+
+# A fake page for a listener lifted out of a page's script: the
+# listeners it adds, and the elements it puts on the body.
+FAKE_PAGE = r"""
+const listeners = {};
+const window = { addEventListener: (name, fn) => { (listeners[name] = listeners[name] || []).push(fn); } };
+const added = [];
+const document = {
+  createElement: () => ({ style: {}, setAttribute(k, v) { this[k] = v; } }),
+  getElementById: (id) => added.find((e) => e.id === id) || null,
+  body: { appendChild: (e) => added.push(e) },
+};
+const navigator = { userAgent: 'TestPhone/1.0' };
+const $ = (id) => document.getElementById(id);
+LISTENER
+const fire = (reason) => listeners.unhandledrejection.forEach((fn) => fn({ reason }));
+const seen = [];
+fire(new Error('a stack of its own'));
+seen.push(added.length);
+fire(new RangeError('Maximum call stack size exceeded.'));
+seen.push(added.length);
+fire(new WebAssembly.RuntimeError('unreachable'));
+seen.push(added.length);
+console.log(JSON.stringify({ seen, note: added[0] || null }));
+"""
+
+
+class SaysWhenItStops(unittest.TestCase):
+    """When the engine stops in a browser (out of the stack an iPhone or
+    an iPad gives a page, or WebAssembly failing) it does so in a promise
+    nothing catches, and a standalone's page, and the Stack Player's, was
+    left blank. Each now says so above everything, in the browser's
+    words; a stack's own JavaScript rejecting is left as it was, and the
+    'error' listener each had is kept."""
+
+    PAGES = (('engine', 'rsrc', 'emscripten-html-template.html'), ('tools', 'web-player', 'index.html'))
+
+    @staticmethod
+    def listener(page):
+        start = page.index("window.addEventListener('unhandledrejection', function")
+        end = re.compile(r'^\s*\}\);$', re.M).search(page, start).end()
+        return page[start:end]
+
+    def test_both_pages_listen_and_keep_their_error_listener(self):
+        for parts in self.PAGES:
+            page = read(*parts)
+            self.assertIn("window.addEventListener('error', function", page, parts)
+            listener = self.listener(page)
+            for want in ('instanceof RangeError', 'WebAssembly.RuntimeError', "'stopped'",
+                         "setAttribute('role', 'alert')", 'navigator.userAgent', 'appendChild'):
+                self.assertIn(want, listener, (parts, want))
+
+    def test_the_note_is_above_everything(self):
+        template = self.listener(read(*self.PAGES[0]))
+        self.assertIn('position:fixed', template)
+        self.assertIn('z-index:2147483647', template)
+        player = read(*self.PAGES[1])
+        self.assertRegex(player, r'#stopped\{position:fixed;[^}]*z-index:2147483647')
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not installed')
+    def test_only_the_engine_stopping_shows_the_note_once(self):
+        for parts in self.PAGES:
+            script = FAKE_PAGE.replace('LISTENER', self.listener(read(*parts)))
+            out = subprocess.run([shutil.which('node'), '-e', script], capture_output=True, text=True, timeout=60)
+            self.assertEqual(out.returncode, 0, (parts, out.stderr))
+            result = json.loads(out.stdout)
+            self.assertEqual(result['seen'], [0, 1, 1], parts)
+            self.assertEqual(result['note']['id'], 'stopped')
+            self.assertEqual(result['note']['textContent'],
+                             'The stack stopped in this browser: Maximum call stack size exceeded. (TestPhone/1.0)')
+
+
+class PlayerOnAPhone(unittest.TestCase):
+    """On a phone the Stack Player gives a stack the whole screen: a
+    stack made for phones fills it with mwStart, and any other is fitted
+    to it (mwFitStack), with one button back to the library. Anywhere
+    else, and in the IDE, a stack is shown in its window at its own size,
+    as it always was. mobile_web_check's emulated phone saw it; these
+    hold the pieces together."""
+
+    def setUp(self):
+        self.page = read('tools', 'web-player', 'index.html')
+        self.player = read('tools', 'web-player', 'stack-player.livecodescript')
+
+    def handler(self, kind, name):
+        found = re.search(r'^(?:private )?%s %s\b.*?\n(.*?)^end %s$' % (kind, name, name), self.player, re.M | re.S)
+        self.assertIsNotNone(found, name)
+        return found.group(1)
+
+    def test_the_page_lets_the_library_fill_only_on_a_phone(self):
+        self.assertRegex(self.page, r"function isPhone\(\) \{\s+return window\.matchMedia\('\(pointer: coarse\)'\)\.matches && "
+                                    r"Math\.min\(window\.innerWidth, window\.innerHeight\) <= 600;")
+        self.assertIn("if (isPhone()) document.body.removeAttribute('data-mobile-web-fill');", self.page)
+        self.assertIn("else document.body.setAttribute('data-mobile-web-fill', 'no');", self.page)
+        # a stack that is open keeps the page as it is when a phone turns
+        self.assertIn("if (document.body.classList.contains('playing')) return;", self.page)
+
+    def test_the_page_plays_full_screen_with_a_way_home(self):
+        self.assertIn("document.body.classList.toggle('phone-play', on && !document.body.hasAttribute('data-mobile-web-fill'));", self.page)
+        self.assertRegex(self.page, r'<button id="phone-home"[^>]*aria-label="Back to your stacks"')
+        self.assertIn("$('phone-home').addEventListener('click', function () { call('home'); });", self.page)
+        self.assertIn('#phone-home{display:none}', self.page)
+
+    def test_the_player_asks_the_page(self):
+        on = self.handler('function', 'playerOnPhone')
+        self.assertIn('if the platform is not "HTML5" then\n      return false', on)
+        self.assertIn("document.body.hasAttribute('data-mobile-web-fill') ? 'no' : 'yes'", on)
+        filled = self.handler('function', 'playerLibraryFilled')
+        self.assertIn("document.getElementById('oxt-mobile-web-fill')", filled)
+        self.assertIn("css.id = 'oxt-mobile-web-fill'", read(*LIBRARY[len(REPO) + 1:].split(os.sep)))
+
+    def test_only_a_phone_changes_how_a_stack_opens(self):
+        open_ = self.handler('command', 'playerOpenFile')
+        self.assertIn('put playerOnPhone() and sMode is "page" into tOnPhone', open_)
+        self.assertRegex(open_, r'if tOnPhone then\s+playerTakeTheScreen\s+end if\s+try')
+        self.assertIn('put tOnPhone and playerLibraryFilled() into tTookTheScreen', open_)
+        # off a phone, the stack's own size is put back as before
+        self.assertRegex(open_, r'else if the mode of stack tName > 0 then\s+if tOnPhone then\s+'
+                                r'set the resizable of stack tName to tResizable\s+end if\s+'
+                                r'set the width of stack tName to item 3 of tRect - item 1 of tRect')
+        self.assertIn('if tOnPhone and not tTookTheScreen and the mode of stack tName > 0 then\n      playerFitToPhone tName', open_)
+        self.assertIn('mwFitStack pStack', self.handler('command', 'playerFitToPhone'))
+        take = self.handler('command', 'playerTakeTheScreen')
+        self.assertIn('set the resizable of me to true', take)
+        self.assertIn('set the rect of me to 0, 0, tView["width"], tView["height"]', take)
+
+    def test_home_gives_the_page_back(self):
+        home = self.handler('command', 'playerGoHome')
+        self.assertTrue(home.lstrip().startswith('local') and 'playerStopMobileWeb' in home.split('\n')[2])
+        stop = self.handler('command', 'playerStopMobileWeb')
+        self.assertRegex(stop, r'if mwIsWeb\(\) then\s+mwStop')
 
 
 class PhoneStarterOffered(unittest.TestCase):

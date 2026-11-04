@@ -25,6 +25,24 @@ same names never starts them with this version's. Its scripts carry
 are. Behind a CDN, purge its cache when the site is updated from a release
 before this one, which had no stamp.
 
+On a phone (a touch screen whose short side is 600 pixels or less) a
+stack has the whole screen. The page takes `data-mobile-web-fill="no"`
+off its body there, so a stack made for phones that calls `mwStart` fills
+the screen as it does in a standalone of its own; any other stack is
+fitted to the screen (`mwFitStack`: scaled to it, and fitted again when
+the phone turns), and taps land on the controls under them. The menu bar
+and the window's title step aside for one round button, back to the
+library, which leaving a stack also gives back the page's own look
+(`mwStop`). Anywhere else a stack is shown in its window, at its own size,
+as before.
+
+If the engine stops in a browser (it runs out of the stack the browser
+gives a page, as on an older build on an iPhone or an iPad, or
+WebAssembly fails), a note across the top of the page says so, with the
+browser's words and its user agent, instead of a blank page. A
+standalone's page (`engine/rsrc/emscripten-html-template.html`) does the
+same.
+
 The home page offers **Open a stack**, **Open a folder** and a drop zone
 (a stack file, a folder, or a `.zip` holding a stack and the files it
 uses), three whole stacks to play (**OXT-Beyond on the Web**, a tour of
@@ -129,8 +147,8 @@ and hides the browser's bars. One line, `mwStart`,
 makes it a phone stack: in a page of its own (an HTML5 standalone) it
 fills the browser's window and fills it again when the phone turns, in
 portrait or landscape (two columns, smaller bars, out of the notch); in
-the player, whose page keeps its own layout, and on a desktop, it is a
-phone-sized window. Without the library (an engine before 0.2.7) it still
+the player on a desktop, whose page keeps its own layout, it is a
+phone-sized window, and in the player on a phone it fills the screen. Without the library (an engine before 0.2.7) it still
 opens and works, without the gestures.
 
 The stack is never edited by hand. Its script is
