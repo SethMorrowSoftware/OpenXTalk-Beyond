@@ -1,0 +1,263 @@
+<!doctype html>
+<!-- The xTalk Suite's extensions on OXT-Beyond's GitHub Pages site
+     (extensions/), in the web stacks gallery's look (../games/): the night
+     sky, the fire rim, the stitched seam. tools/pages/build_pages.py puts
+     a card for each extension (its EXTENSIONS table) at the
+     EXTENSIONS_LIST marker, each linking its .lce packages in the newest
+     xTalk Suite release that has them (pages.yml lists its files). It keeps
+     the SUITE_RELEASE, SUITE_SUMS and SUITE_MORE blocks only with such a
+     release, and the SUITE_NONE block only without one, so no link here
+     leads to a file that is not there. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Extensions · OXT-Beyond</title>
+<link rel="icon" type="image/svg+xml" href="../brand/icon.svg">
+<meta name="description" content="The xTalk Suite's extensions: cryptography, BitTorrent, real-time and peer-to-peer networking, 2D physics, Bitcoin and Ethereum, Tor and Nostr for xTalk. Built into OXT-Beyond, and as .lce packages for LiveCode Community 9, OpenXTalk and HyperXTalk.">
+<meta name="theme-color" content="#0a0f1a">
+<style>
+  /* Always the night: the page is the logo's dark tile, as the web stacks
+     gallery is, whatever the reader's light setting */
+  @property --spin { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+  :root {
+    color-scheme: dark;
+    --night: #0a0f1a; --night-2: #111a2b; --panel: #141b29; --panel-2: #1b2435;
+    --ember: #ff7a00; --amber: #ffb347; --teal: #5fe0cf; --star: #eef3ff;
+    --text: #e8edf4; --muted: #9eabbd; --line: #26324a;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--night); }
+  body {
+    margin: 0; min-height: 100vh; color: var(--text); overflow-x: hidden;
+    font: 16px/1.55 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(ellipse 80% 50% at 50% 0, #1a2440 0, transparent 70%), var(--night);
+  }
+  a { color: var(--amber); }
+  a:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; border-radius: 8px; }
+  .wrap { width: min(1180px, 100% - 32px); margin: 0 auto; }
+
+  /* The sky: stars and the logo's rays, still. Nothing on this page moves
+     without end unless it is pointed at or has the keyboard's focus, as on
+     the front page and the gallery (tools/pages/check_site_rest.py) */
+  .sky { position: relative; isolation: isolate; overflow: hidden; padding-bottom: 30px; }
+  .sky::before {
+    content: ""; position: absolute; z-index: -1; inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 20px 30px, #fff, transparent),
+      radial-gradient(1px 1px at 140px 80px, rgba(255,255,255,.8), transparent),
+      radial-gradient(1.5px 1.5px at 90px 150px, #fff, transparent),
+      radial-gradient(1px 1px at 190px 190px, rgba(255,255,255,.7), transparent),
+      radial-gradient(1px 1px at 60px 210px, rgba(255,255,255,.6), transparent);
+    background-size: 230px 240px; opacity: .55;
+  }
+  .sky::after {
+    content: ""; position: absolute; z-index: -1; left: 50%; top: -420px; width: 1700px; height: 1300px;
+    transform: translateX(-50%);
+    background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(255,160,60,.07) 0 4deg, transparent 4deg 13deg);
+    -webkit-mask: radial-gradient(circle at 50% 50%, #000 15%, transparent 55%);
+    mask: radial-gradient(circle at 50% 50%, #000 15%, transparent 55%);
+  }
+
+  nav.top { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; color: var(--text); text-decoration: none; font-size: 1.05rem; }
+  .brand img { width: 36px; height: 36px; filter: drop-shadow(0 4px 12px rgba(255,122,0,.3)); }
+  .brand b { color: var(--ember); }
+  nav.top .links { display: flex; gap: 22px; font-size: .95rem; }
+  nav.top .links a { color: var(--text); opacity: .82; text-decoration: none; }
+  nav.top .links a:hover { opacity: 1; color: var(--amber); }
+
+  .hero { display: grid; grid-template-columns: 1fr auto; gap: 40px; align-items: center; padding: 34px 0 20px; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px; margin: 0 0 16px;
+    font: 600 .78rem/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--teal);
+  }
+  .eyebrow::before { content: ""; width: 26px; height: 1px; background: currentColor; }
+  h1 { margin: 0 0 16px; font-size: clamp(2.6rem, 7vw, 4.6rem); line-height: 1; letter-spacing: -.04em; font-weight: 850; }
+  .flame {
+    background: linear-gradient(100deg, #ffd08a, #ffb347 20%, #ff7700 60%, #ff3d00 85%, #ffb347);
+    background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 4px 22px rgba(255,122,0,.4)); animation: flow 6s ease-in-out 2 alternate;
+  }
+  /* (it flows there and back as the page opens, then while pointed at) */
+  .hero h1:hover .flame { animation: flow 6s ease-in-out infinite alternate; }
+  @keyframes flow { to { background-position: 100% 0; } }
+  .lead { margin: 0; max-width: 42em; font-size: 1.12rem; color: rgba(222,230,244,.82); }
+  .hero-logo { display: block; width: 190px; height: 190px; transform: rotate(6deg); filter: drop-shadow(0 18px 30px rgba(0,0,0,.5)) drop-shadow(0 0 30px rgba(255,122,0,.35)); }
+  .hero-logo img { display: block; width: 100%; height: 100%; }
+  /* The logo moves (brand/logo-animated.svg) for the page's first seconds
+     (the class "opening", which the script below takes off) and while it
+     is pointed at; still otherwise, and always for less motion */
+  .hero-logo .moving { display: none; }
+  .opening .hero-logo .moving, .hero-logo:hover .moving { display: block; }
+  .opening .hero-logo .still, .hero-logo:hover .still { display: none; }
+
+  /* Where the packages come from: the suite release, or where it will be */
+  .release {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin: 26px 0 0; padding: 14px 18px;
+    border-radius: 14px; background: rgba(20,27,41,.75); box-shadow: inset 0 0 0 1px var(--line); font-size: .95rem;
+  }
+  .release .tag {
+    padding: 3px 10px; border-radius: 999px; font: 600 .78rem/1.4 var(--mono); color: var(--amber);
+    box-shadow: inset 0 0 0 1px rgba(255,179,71,.35);
+  }
+
+  /* A section's heading: its name, and the logo's stitched seam */
+  .shelf { padding: 34px 0 10px; }
+  .shelf h2 {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    margin: 0 0 22px; padding-bottom: 16px; font-size: clamp(1.5rem, 3vw, 2rem); letter-spacing: -.02em;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Cpath d='M0 6H12' stroke='%238A9099' stroke-width='1'/%3E%3Cpath d='M5 2.5L7 9.5' stroke='%238A9099' stroke-width='1.2'/%3E%3C/svg%3E") left bottom / 12px 12px repeat-x;
+  }
+  .shelf h2 small { font: 500 .95rem/1.4 Inter, system-ui, sans-serif; color: var(--muted); letter-spacing: 0; }
+
+  /* An extension: a tile with the gallery's fire rim, lit and running
+     only while the tile is pointed at or one of its links has the focus */
+  .grid { display: grid; gap: 22px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); }
+  .ext {
+    position: relative; isolation: isolate; display: flex; flex-direction: column; gap: 12px; padding: 22px 22px 20px;
+    border-radius: 20px;
+    background: radial-gradient(circle at 100% 0, rgba(255,179,71,.14), transparent 50%), linear-gradient(180deg, var(--panel-2), var(--panel));
+    box-shadow: 0 1px 2px rgba(0,0,0,.3), 0 16px 40px rgba(0,0,0,.35);
+    transition: transform .25s ease, box-shadow .25s ease;
+  }
+  .ext::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit;
+    padding: 2px; opacity: .45;
+    background: conic-gradient(from var(--spin), #ff3d00, #ffc24d 12%, #fff4b0 16%, #ff7700 24%, rgba(255,119,0,.3) 45%, rgba(255,61,0,.3) 70%, #ff3d00);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    transition: opacity .25s ease;
+  }
+  @keyframes spin { to { --spin: 360deg; } }
+  .ext:hover, .ext:focus-within { transform: translateY(-4px); box-shadow: 0 20px 54px rgba(255,122,0,.2), 0 0 0 1px rgba(255,122,0,.15); }
+  .ext:hover::before, .ext:focus-within::before { opacity: 1; animation: spin 2.2s linear infinite; }
+  .ext-head { display: flex; align-items: center; gap: 14px; }
+  .ext .icon {
+    flex: none; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; color: #1a1206;
+    background: linear-gradient(180deg, #ffc04d, #ff6a00); box-shadow: 0 6px 18px rgba(255,122,0,.35), inset 0 1px 0 rgba(255,255,255,.45);
+  }
+  .ext .icon svg { width: 26px; height: 26px; }
+  .ext h3 { margin: 0; font-size: 1.3rem; letter-spacing: -.01em; }
+  .ext .kind { margin: 2px 0 0; font: 500 .74rem/1.4 var(--mono); letter-spacing: .04em; color: var(--teal); }
+  .ext .what { margin: 0; color: #c9d3e2; font-size: .96rem; flex: 1; }
+  .ext .needs { margin: 0; color: var(--muted); font-size: .88rem; }
+  .ext .needs::before { content: "\2192\00a0"; color: var(--amber); }
+  .ext .soon { margin: 0; color: var(--muted); font-size: .92rem; }
+  .ext .source { align-self: flex-start; font-size: .9rem; }
+  .files { display: flex; flex-wrap: wrap; gap: 8px; }
+  .file {
+    display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px 8px 12px; border-radius: 999px;
+    font-weight: 800; font-size: .88rem; color: #1a1206; text-decoration: none;
+    background: linear-gradient(180deg, #ffc04d, #ff6a00); box-shadow: 0 6px 18px rgba(255,122,0,.3), inset 0 1px 0 rgba(255,255,255,.45);
+  }
+  .file svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  .file small { font: 600 .74rem/1 var(--mono); opacity: .75; }
+  .file.ghost { color: var(--amber); background: rgba(255,179,71,.08); box-shadow: inset 0 0 0 1px rgba(255,179,71,.4); }
+  .file:hover { filter: brightness(1.08); }
+
+  /* Installing one */
+  .steps { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); margin: 0; padding: 0; list-style: none; counter-reset: step; }
+  .steps li {
+    counter-increment: step; position: relative; padding: 18px 20px 18px 62px; border-radius: 16px;
+    background: rgba(20,27,41,.75); box-shadow: inset 0 0 0 1px var(--line); color: #c9d3e2; font-size: .95rem;
+  }
+  .steps li::before {
+    content: counter(step); position: absolute; left: 18px; top: 16px; display: grid; place-items: center;
+    width: 30px; height: 30px; border-radius: 50%; font: 800 .95rem/1 var(--mono); color: var(--amber);
+    box-shadow: inset 0 0 0 1.5px rgba(255,179,71,.6);
+  }
+  .steps b { color: var(--text); }
+  .note { margin: 18px 0 0; color: var(--muted); font-size: .92rem; max-width: 60em; }
+  kbd { font: 600 .82em var(--mono); padding: 1px 6px; border-radius: 6px; background: rgba(255,255,255,.07); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+
+  footer { margin-top: 50px; padding: 28px 0 40px; color: var(--muted); font-size: .92rem; border-top: 1px solid var(--line); }
+  footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+  @media (max-width: 760px) {
+    .hero { grid-template-columns: 1fr; padding-top: 16px; }
+    .hero-logo { display: none; }
+    nav.top .links a.optional { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .hero-logo .moving { display: none !important; }
+    .hero-logo .still { display: block !important; }
+  }
+</style>
+</head>
+<body>
+<header class="sky">
+  <div class="wrap">
+    <nav class="top" aria-label="Site">
+      <a class="brand" href="../"><img src="../brand/icon.svg" alt="" width="36" height="36"><span>OXT-<b>Beyond</b></span></a>
+      <div class="links">
+        <a href="../">Home</a>
+        <a class="optional" href="https://github.com/SethMorrowSoftware/xtalk-suite">xTalk Suite</a>
+        <a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond">GitHub</a>
+      </div>
+    </nav>
+    <div class="hero">
+      <div>
+        <p class="eyebrow">The xTalk Suite</p>
+        <h1>Extensions <span class="flame">Beyond</span></h1>
+        <p class="lead">Cryptography, BitTorrent, real-time and peer-to-peer networking, 2D physics, Bitcoin and Ethereum, Tor and Nostr, all from plain xTalk script. Each one is a thin layer over a proven library, or plain script. They are built into OXT-Beyond, so there is nothing to install there. Download a package to use one in LiveCode Community 9.6.3, OpenXTalk or HyperXTalk.</p>
+        <!-- @SUITE_RELEASE@ -->
+        <p class="release"><span class="tag">@SUITE_TAG@</span><span>The packages of the newest xTalk Suite release</span><a href="@SUITE_TAG_URL@">Release notes</a><!-- @SUITE_SUMS@ --><a href="@SUITE_SUMS_URL@">Checksums (SHA256SUMS)</a><!-- /@SUITE_SUMS@ --></p>
+        <!-- /@SUITE_RELEASE@ -->
+        <!-- @SUITE_NONE@ -->
+        <p class="release"><span>The .lce packages are published on <a href="https://github.com/SethMorrowSoftware/xtalk-suite/releases">the xTalk Suite's releases</a>.</span></p>
+        <!-- /@SUITE_NONE@ -->
+      </div>
+      <span class="hero-logo" aria-hidden="true">
+        <img class="still" src="../brand/logo.svg" alt="" width="190" height="190">
+        <img class="moving" src="../brand/logo-animated.svg" alt="" width="190" height="190">
+      </span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="shelf" aria-labelledby="the-extensions">
+    <h2 id="the-extensions">The extensions <small>Each with its packages, guide and source</small></h2>
+    <div class="grid">
+@EXTENSIONS_LIST@
+    </div>
+  </section>
+
+  <!-- @SUITE_MORE@ -->
+  <section class="shelf" aria-labelledby="more-packages">
+    <h2 id="more-packages">More from the suite <small>Packages new since this page was written</small></h2>
+    <div class="files">@SUITE_MORE_LIST@</div>
+  </section>
+  <!-- /@SUITE_MORE@ -->
+
+  <section class="shelf" aria-labelledby="installing">
+    <h2 id="installing">Installing a package <small>In any IDE built on LiveCode Community 9</small></h2>
+    <ol class="steps">
+      <li><b>Download</b> the extension's <kbd>.lce</kbd> file, and its helpers, Kit or script layer if you want them.</li>
+      <li>Open <b>Tools &gt; Extension Manager</b>, click <b>+</b> and choose the file.</li>
+      <li>Install a library <b>before</b> what is built on it: TorrentXT before its Helpers, CoinXT before its script layer, OnionXT before its web server.</li>
+    </ol>
+    <p class="note">The native libraries carry their builds for Windows, macOS 10.15 or later and Linux (64-bit and 32-bit x86, and 64-bit ARM), and the IDE picks the right one. In OXT-Beyond a package you install is used in place of the built-in copy; uninstall it in the Extension Manager to go back.</p>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>The xTalk Suite is free and open source (MIT), on <a href="https://github.com/SethMorrowSoftware/xtalk-suite">GitHub</a>.</span>
+    <a href="../">Back to OXT-Beyond</a>
+  </div>
+</footer>
+<script>
+  // The header's logo moves for the page's first seconds, then only while
+  // it is pointed at (without this script it is still)
+  (function () {
+    var root = document.documentElement;
+    root.classList.add('opening');
+    setTimeout(function () { root.classList.remove('opening'); }, 6000);
+  })();
+</script>
+</body>
+</html>

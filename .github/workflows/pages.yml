@@ -63,6 +63,12 @@
 # release has are linked (tools/pages/build_pages.py --release-assets);
 # a release that cannot be listed leaves the section out, with a warning.
 #
+# The extensions page (extensions/) has a card for each xTalk Suite
+# extension, which OXT-Beyond ships built in, linking its .lce packages in
+# the suite's newest release that has them, so a site built after a suite
+# release links that release's files; without one it links the suite's
+# releases page (tools/pages/build_pages.py --suite-release).
+#
 # The codebase map is the one part made here, and it is made from the
 # source of the commit this run checks out (main's, for the release's run),
 # so it is as new as the site. tools/codebase-map/build_map.py reads the
@@ -263,6 +269,27 @@ jobs:
             echo "::warning::could not list the files of ${tag:-the newest release}; the front page has no Downloads section"
           fi
 
+      - name: The xTalk Suite release with packages
+        # The extensions page (tools/pages/extensions) links each xTalk
+        # Suite extension's .lce packages in the suite's newest release that
+        # has any (its lce-packages.yml attaches them; prereleases count,
+        # drafts do not). Without one, or when the suite cannot be listed,
+        # the page goes up with links to the suite's releases instead
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for tag in $(gh release list --repo SethMorrowSoftware/xtalk-suite --exclude-drafts --limit 30 \
+                         --json tagName --jq '.[].tagName'); do
+            if gh release view "$tag" --repo SethMorrowSoftware/xtalk-suite --json assets --jq '.assets[].name' \
+                 > "$RUNNER_TEMP/suite-assets.txt" && grep -q '\.lce$' "$RUNNER_TEMP/suite-assets.txt"; then
+              echo "SUITE_TAG=$tag" >> "$GITHUB_ENV"
+              echo "xTalk Suite $tag: $(grep -c '\.lce$' "$RUNNER_TEMP/suite-assets.txt") packages"
+              exit 0
+            fi
+          done
+          echo "::warning::no xTalk Suite release has .lce packages; the extensions page links the suite's releases"
+
       - name: Build the site
         run: |
           args=()
@@ -285,6 +312,9 @@ jobs:
           if [ -n "${DOWNLOADS_TAG:-}" ]; then
             args+=(--release "$DOWNLOADS_TAG" --release-assets "$RUNNER_TEMP/release-assets.txt")
           fi
+          if [ -n "${SUITE_TAG:-}" ]; then
+            args+=(--suite-release "$SUITE_TAG" --suite-assets "$RUNNER_TEMP/suite-assets.txt")
+          fi
           python3 tools/pages/build_pages.py --out "$RUNNER_TEMP/site" "${args[@]}"
           describe() { if [ -n "$1" ]; then basename "$1"; else echo "not on the site"; fi; }
           {
@@ -301,6 +331,11 @@ jobs:
               echo "- Downloads: the files of $DOWNLOADS_TAG"
             else
               echo "- Downloads: not on the front page"
+            fi
+            if grep -q '\.lce"' "$RUNNER_TEMP/site/extensions/index.html"; then
+              echo "- Extensions: the .lce packages of xTalk Suite $SUITE_TAG"
+            else
+              echo "- Extensions: no packages linked (no xTalk Suite release has them)"
             fi
             if [ -n "${MAP_HTML:-}" ]; then
               echo "- Codebase map: $MAP_VERSION${MAP_ENGINE:+, binary stacks read with the engine of $MAP_ENGINE}"

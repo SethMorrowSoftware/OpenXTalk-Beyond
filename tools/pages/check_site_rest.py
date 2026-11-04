@@ -15,8 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
 """Check in a browser that the site's other pages rest as its front page
-does (tools/pages/check_front_page.py): the web stacks gallery, the Stack
-Player's home and the codebase map, those of them the site has:
+does (tools/pages/check_front_page.py): the web stacks gallery, the
+extensions page, the Stack Player's home and the codebase map, those of
+them the site has:
 
   python3 tools/pages/check_site_rest.py --site DIR [--out DIR]
       [--browser chromium|firefox|webkit] [--timeout S]
@@ -58,6 +59,7 @@ from check_front_page import at_rest, descendants, serve, usage  # noqa: E402
 # (name, the page's folder in the site, its file name for the screenshot)
 PAGES = (
     ('the web stacks gallery', 'games/', 'gallery'),
+    ('the extensions page', 'extensions/', 'extensions'),
     ('the Stack Player', 'player/', 'player'),
     ('the codebase map', 'map/', 'map'),
 )
