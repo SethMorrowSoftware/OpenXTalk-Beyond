@@ -83,22 +83,38 @@ private function __SampleText
    return "Ab" & numToCodepoint(233) & numToCodepoint(0x20AC) & "z"
 end __SampleText
 
+-- The hex of the line ending text mode writes: the engine's legacy native
+-- one, which is LF on Linux and, since the classic Mac OS, CR on macOS
+-- (kMCStringLineEndingStyleLegacyNative), as before rc.6.15.
+private function __NativeEOL
+   if the platform is "MacOS" then
+      return "0d"
+   end if
+   return "0a"
+end __NativeEOL
+
 on TestWriteToProcessText
    TestSkipIfNot "platform", "MacOS,Linux"
 
    -- Text, and native text, go out in the platform's native charset, as the
    -- dictionary says (ISO-8859-1 on Linux). On macOS they go out as UTF-8,
-   -- as they have since LiveCode 7, so that scripts keep working.
-   local tText, tExpected
-   put "Ab" & numToCodepoint(233) & LF into tText
+   -- as they have since LiveCode 7, so that scripts keep working. The line
+   -- feed goes out as the platform's legacy line ending (__NativeEOL).
+   local tText, tExpected, tSent
+   put "Ab" & numToCodepoint(233) into tText
    if the platform is "MacOS" then
       put __Hex(textEncode(tText, "UTF-8")) into tExpected
    else
       put __Hex(textEncode(tText, "native")) into tExpected
    end if
+   put __NativeEOL() after tExpected
 
-   TestAssert "text writes" && tExpected, __BytesSentInTextMode(empty, tText) is tExpected
-   TestAssert "native text writes" && tExpected, __BytesSentInTextMode("native", tText) is tExpected
+   put __BytesSentInTextMode(empty, tText & LF) into tSent
+   TestDiagnostic "text: sent" && tSent
+   TestAssert "text writes" && tExpected, tSent is tExpected
+   put __BytesSentInTextMode("native", tText & LF) into tSent
+   TestDiagnostic "native text: sent" && tSent
+   TestAssert "native text writes" && tExpected, tSent is tExpected
 end TestWriteToProcessText
 
 on TestWriteToProcessUnicodeEncodings
@@ -117,11 +133,16 @@ end TestWriteToProcessUnicodeEncodings
 on TestWriteToProcessTextLineEndings
    TestSkipIfNot "platform", "MacOS,Linux"
 
-   -- Text mode still turns return into the platform's line feed, and still
-   -- stops at numToChar(4) and closes the process's input there.
-   TestAssert "CR becomes LF", __BytesSentInTextMode(empty, "a" & CR & "b") is "610a62"
-   TestAssert "UTF-8 text: CR becomes LF", \
-         __BytesSentInTextMode("UTF-8", "a" & CR & "b") is "610a62"
+   -- Text mode still turns line endings into the platform's legacy one, and
+   -- still stops at numToChar(4) and closes the process's input there.
+   local tExpected, tSent
+   put "61" & __NativeEOL() & "62" & __NativeEOL() & "63" into tExpected
+   put __BytesSentInTextMode(empty, "a" & CR & "b" & LF & "c") into tSent
+   TestDiagnostic "text: sent" && tSent
+   TestAssert "text: CR and LF become" && __NativeEOL(), tSent is tExpected
+   put __BytesSentInTextMode("UTF-8", "a" & CR & "b" & LF & "c") into tSent
+   TestDiagnostic "UTF-8 text: sent" && tSent
+   TestAssert "UTF-8 text: CR and LF become" && __NativeEOL(), tSent is tExpected
 end TestWriteToProcessTextLineEndings
 
 on TestWriteToProcessBinary
