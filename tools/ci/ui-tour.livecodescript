@@ -3749,9 +3749,11 @@ on tour_inspector_tabs
       tourMoveMouse tX & "," & tY
       tourWait 1500
       tourClick tX, tY
-      tourWait 1500
-      dispatch function "inspectorSectionGetName" to stack tPI
-      put the result into tShown
+      -- the section the click shows, waited for (a read 1.5 s after the
+      -- click saw Effects for Icons on macOS 26, #340's run 41757813518:
+      -- the step's 20-second watchdog took its screenshot inside that
+      -- wait, and the click was handled after the read)
+      put tourInspectorSectionAfterClick(tPI, tLabel, 6000) into tShown
       tourRecord "INFO inspector-tabs clicked" && tLabel && "at" && tX & "," & tY & ": shows" && tShown
       if tShown is not tLabel then
          put tLabel & ":" && tShown & "; " after tFails
@@ -3764,6 +3766,25 @@ on tour_inspector_tabs
             char 1 to -3 of tFails
    end if
 end tour_inspector_tabs
+
+-- The section the inspector pStack shows once it shows pSection, or after
+-- pMilliseconds: what a click on pSection's icon in its header showed.
+-- Waits a quarter second at a time, each time back through the event
+-- loop, so a click handled late still counts, and counts the turns, not
+-- the clock: a 20-second watchdog's screenshot inside one wait runs the
+-- clock down without the click being handled (the 1.5 s read it replaces
+-- saw "Icons: Effects" on macOS 26 so). A click that never shows its
+-- section returns the one shown at the end, and the step fails
+function tourInspectorSectionAfterClick pStack, pSection, pMilliseconds
+   local tShown
+   repeat (pMilliseconds div 250) times
+      tourWait 250
+      dispatch function "inspectorSectionGetName" to stack pStack
+      put the result into tShown
+      if tShown is pSection then exit repeat
+   end repeat
+   return tShown
+end tourInspectorSectionAfterClick
 
 -- Whether a click of tourClick reaches the IDE here: a button of a stack
 -- of the tour, clicked in Run mode, must get its mouseUp. Notes it when not
@@ -3788,7 +3809,13 @@ function tourClickWorks
    tourMoveMouse tLoc
    tourWait 300
    tourClick item 1 of tLoc, item 2 of tLoc
-   tourWait 1500
+   -- its mouseUp, waited for up to 6 s, a quarter second at a time (as
+   -- tourInspectorSectionAfterClick): one handled late, after a watchdog
+   -- took the wait, would leave the header unclicked without a failure
+   repeat 24 times
+      tourWait 250
+      if the cTourClicked of button "Click" of card 1 of stack tStack is true then exit repeat
+   end repeat
    put the cTourClicked of button "Click" of card 1 of stack tStack is true into tWorks
    choose pointer tool
    delete stack tStack
