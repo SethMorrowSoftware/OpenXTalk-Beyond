@@ -139,36 +139,53 @@ on TestWriteToProcessBinary
    close process tProcess
 end TestWriteToProcessBinary
 
-on TestWriteToProcessWindows
-   TestSkipIfNot "platform", "Win32"
-
-   -- cmd.exe runs a command it was sent in UTF-8 (UTF-16LE before
-   -- rc.6.15, which it could not read), in binary, and in text (which was
-   -- right on Windows before too).
-   local tMode, tProcess, tOutput
+-- cmd.exe runs a command it was sent. Each mode is a test of its own, so
+-- each runs in an engine of its own: closing a process and opening the
+-- same command again at once can find the old one still in the list.
+private command __CmdRunsWhatItIsSent pMode
+   local tProcess, tOutput
    put "cmd.exe" into tProcess
-   repeat for each item tMode in "text,UTF-8,binary"
-      put empty into tOutput
-      switch tMode
-         case "text"
-            open process tProcess for text update
-            break
-         case "binary"
-            open process tProcess for binary update
-            break
-         default
-            open process tProcess for tMode text update
-      end switch
-      if tMode is "binary" then
-         write "echo foo" & tMode & CR & LF to process tProcess
-      else
-         write "echo foo" & tMode & return to process tProcess
-      end if
-      read from process tProcess until ("foo" & tMode) in kTimeout seconds
-      read from process tProcess until ("foo" & tMode) in kTimeout seconds
-      put it into tOutput
-      TestDiagnostic tMode & ": cmd.exe printed" && tOutput
-      TestAssert tMode && "write is run by cmd.exe", tOutput ends with ("foo" & tMode)
-      close process tProcess
-   end repeat
-end TestWriteToProcessWindows
+   switch pMode
+      case "text"
+         open process tProcess for text update
+         break
+      case "binary"
+         open process tProcess for binary update
+         break
+      default
+         open process tProcess for pMode text update
+   end switch
+   TestDiagnostic pMode & ": open process gave" && quote & the result & quote
+   if pMode is "binary" then
+      write "echo foo" & pMode & CR & LF to process tProcess
+   else
+      write "echo foo" & pMode & return to process tProcess
+   end if
+   -- cmd.exe echoes the command, then prints what it echoes.
+   read from process tProcess until ("foo" & pMode) in kTimeout seconds
+   put it into tOutput
+   read from process tProcess until ("foo" & pMode) in kTimeout seconds
+   put it after tOutput
+   TestDiagnostic pMode & ": cmd.exe printed" && tOutput
+   TestAssert pMode && "write is run by cmd.exe", \
+         tOutput ends with (return & "foo" & pMode) or \
+         tOutput ends with (LF & "foo" & pMode)
+   close process tProcess
+end __CmdRunsWhatItIsSent
+
+on TestWriteToProcessWindowsText
+   TestSkipIfNot "platform", "Win32"
+   -- Text was sent right on Windows before rc.6.15 too.
+   __CmdRunsWhatItIsSent "text"
+end TestWriteToProcessWindowsText
+
+on TestWriteToProcessWindowsUTF8
+   TestSkipIfNot "platform", "Win32"
+   -- UTF-8 went out as UTF-16LE before rc.6.15, which cmd.exe cannot read.
+   __CmdRunsWhatItIsSent "UTF-8"
+end TestWriteToProcessWindowsUTF8
+
+on TestWriteToProcessWindowsBinary
+   TestSkipIfNot "platform", "Win32"
+   __CmdRunsWhatItIsSent "binary"
+end TestWriteToProcessWindowsBinary
