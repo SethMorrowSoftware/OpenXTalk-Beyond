@@ -323,3 +323,67 @@ on TestRuleMovesAGroupWithItsControls
    TestAssert "the group is placed", item 1 to 2 of the rect of tNest is "100,300"
    TestAssert "its controls go with it", the top of button "Inner" of tNest - the top of tNest is tOffset
 end TestRuleMovesAGroupWithItsControls
+
+on TestHiddenByARuleShownByTheNext
+   local tSide
+   put the long id of field "Side" of card 1 of stack "ResponsiveTest" into tSide
+   set the mwLayout["phone"] of tSide to "hidden"
+   set the mwLayout["tablet"] of tSide to "left 0, width 100"
+   mwApplyLayout "ResponsiveTest"
+   TestAssert "hidden by the phone rule", not the visible of tSide
+   set the rect of stack "ResponsiveTest" to 0, 0, 800, 600
+   mwApplyLayout "ResponsiveTest"
+   TestAssert "shown by the tablet rule", the visible of tSide
+   -- a control a script hides stays hidden whatever the rule
+   hide tSide
+   set the rect of stack "ResponsiveTest" to 0, 0, 820, 600
+   mwApplyLayout "ResponsiveTest"
+   TestAssert "a control a script hid stays hidden", not the visible of tSide
+   set the rect of stack "ResponsiveTest" to 0, 0, 400, 600
+   mwApplyLayout "ResponsiveTest"
+   set the rect of stack "ResponsiveTest" to 0, 0, 800, 600
+   mwApplyLayout "ResponsiveTest"
+   TestAssert "and through a hidden layout and back", not the visible of tSide
+end TestHiddenByARuleShownByTheNext
+
+on TestHiddenByARuleKeptWithTheStack
+   -- the mark that a rule hid it is the control's own, so it lasts
+   -- when the stack is saved and opened again (and the library's
+   -- memory is gone)
+   local tSide
+   put the long id of field "Side" of card 1 of stack "ResponsiveTest" into tSide
+   set the mwLayout["phone"] of tSide to "hidden"
+   set the mwLayout["tablet"] of tSide to "left 0"
+   mwApplyLayout "ResponsiveTest"
+   TestAssert "marked as hidden by a rule", the mwLayoutHid of tSide is true
+   stop using stack sLib
+   start using stack sLib
+   set the rect of stack "ResponsiveTest" to 0, 0, 800, 600
+   mwApplyLayout "ResponsiveTest"
+   TestAssert "shown again by the library started afresh", the visible of tSide
+end TestHiddenByARuleKeptWithTheStack
+
+on TestWithinAGroup
+   local tNest
+   put the long id of group "Nest" of card 1 of stack "ResponsiveTest" into tNest
+   set the mwLayout["all"] of tNest to "left 100, top 300, width 200, height 100"
+   set the mwLayout["all"] of button "Inner" of tNest to "within, left 10, right 10, bottom 0, height 20"
+   mwApplyLayout "ResponsiveTest"
+   TestAssert "placed within its group", the rect of button "Inner" of tNest is "110,380,290,400"
+   set the mwLayout["all"] of button "Inner" of tNest to "within, left 0, top 0, right 0, bottom 0, bleed"
+   mwApplyLayout "ResponsiveTest"
+   TestAssert "filling its group", the rect of button "Inner" of tNest is "100,300,300,400"
+end TestWithinAGroup
+
+on TestWithinACardOfAGrid
+   -- a card of a grid lays itself out for its new width after the flow
+   local tGroup
+   put the long id of group "Tiles" of card 1 of stack "ResponsiveTest" into tGroup
+   set the mwLayout["all"] of button "Inner" of tGroup to "within, left 0, right 0, top 0, height 30"
+   set the rect of tGroup to 0, 100, 400, 700
+   mwFlow tGroup, 2, 10
+   TestAssert "the card's control spans the card's new width", \
+         item 1 of the rect of button "Inner" of tGroup is item 1 of the rect of group "Nest" of tGroup and \
+         item 3 of the rect of button "Inner" of tGroup is item 3 of the rect of group "Nest" of tGroup
+   TestAssert "the card is a column wide", the width of group "Nest" of tGroup is 185
+end TestWithinACardOfAGrid

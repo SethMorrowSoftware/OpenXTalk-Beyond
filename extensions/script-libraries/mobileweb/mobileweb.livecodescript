@@ -138,7 +138,7 @@ constant kBreakpoints = "600,1024"
 constant kLayoutClasses = "phone,tablet,desktop"
 -- the words of a layout rule (the mwLayout custom property set)
 constant kRuleEdges = "left,top,right,bottom,width,height"
-constant kRuleWords = "left,top,right,bottom,width,height,hidden,shown,bleed,flow,gap"
+constant kRuleWords = "left,top,right,bottom,width,height,hidden,shown,bleed,within,flow,gap"
 -- the space between the controls mwFlow arranges, when none is given
 constant kFlowGap = 12
 
@@ -1558,16 +1558,26 @@ separated by commas:
 - width N, height N: the size. With left and right both given, the
   width follows from them; with neither, the control keeps its place.
   The same goes for top, bottom and height.
-- hidden: the control is hidden. Any other rule shows it.
-- bleed: measure from the edges of the screen. Otherwise the distances
-  are measured inside the safe area, out of a phone's notch and home
-  bar, once <mwStart> fills the screen (on a desktop there is none).
+- hidden: the control is hidden in this layout. In a layout whose rule
+  does not say hidden, it is shown again; a control that a script hid
+  stays hidden.
+- within: measure from the group the control is in, not from the card:
+  for the controls of a card in a grid, or of a panel.
+- bleed: an edge at 0 reaches on past the safe area to the edge of the
+  screen (or of the group, with within). The distances are measured
+  inside the safe area, out of a phone's notch and home bar, once
+  <mwStart> fills the screen (on a desktop there is none); a bar's
+  background with "bleed, top 0, height 56" fills the notch above it,
+  while the title in it stays below the notch.
 - flow N, and gap N: for a group, arrange the controls in it in N
   columns, as <mwFlow> does; flow alone chooses 1, 2 or 3 columns by
   the class.
 
 The rules are followed for every card of the stack, and a control
-shared by cards (a group placed on them) once.
+shared by cards (a group placed on them) once. A group's controls move
+with it, and a group placed by a rule keeps the rectangle it is given
+(its lockLocation is set to true); the rules within a group are followed
+after the group is placed and its controls flowed.
 
 The stack's size changes reach the library as resizeStack: if the stack
 has a resizeStack handler, it must pass the message, as for the Geometry
@@ -1636,8 +1646,8 @@ the control's name and the rule; otherwise the result is empty.
 References: mwResponsive (command), mwFlow (command)
 */
 command mwApplyLayout pStack
-   local tW, tH, tClass, tOrient, tInsets, tCard, tCount, i, tControl, tId
-   local tDone, tRule, tFlows, tFlow, tFirstError, tKey
+   local tClass, tOrient, tCard, tCount, i, tControl, tId
+   local tDone, tRule, tFlows, tFlow, tFirstError, tKey, tWithin
    if pStack is empty then
       put the short name of the defaultStack into pStack
    end if
@@ -1646,11 +1656,8 @@ command mwApplyLayout pStack
    end if
    put the short name of stack pStack into pStack
    put mwLayoutKey(pStack) into tKey
-   put item 1 of tKey into tW
-   put item 2 of tKey into tH
    put item 3 of tKey into tClass
    put item 4 of tKey into tOrient
-   put mwInsetsFor(pStack) into tInsets
 
    lock screen
    repeat with tCard = 1 to the number of cards of stack pStack
@@ -1667,9 +1674,16 @@ command mwApplyLayout pStack
          if tRule is empty then
             next repeat
          end if
+         -- a rule "within" its group: once the groups are placed and
+         -- their controls flowed (in the order of the controls, a
+         -- group's before those in it)
+         if mwRuleIsWithin(tRule) then
+            put tControl & return after tWithin
+            next repeat
+         end if
          -- "ok" or "bad", then for a group to flow: "flow", its columns
          -- and its gap
-         put mwFollowRule(tControl, tRule, tW, tH, tInsets) into tFlow
+         put mwFollowRule(tControl, tRule, pStack, tKey) into tFlow
          if item 1 of tFlow is "bad" and tFirstError is empty then
             put "bad rule:" && the short name of tControl & ":" && tRule into tFirstError
          end if
@@ -1683,6 +1697,20 @@ command mwApplyLayout pStack
    repeat for each line tFlow in tFlows
       if there is a (item 1 of tFlow) then
          mwFlow item 1 of tFlow, item 2 of tFlow, item 3 of tFlow
+      end if
+   end repeat
+   set the itemDelimiter to comma
+   repeat for each line tControl in tWithin
+      if there is not a tControl then
+         next repeat
+      end if
+      put mwRuleFor(tControl, tClass, tOrient) into tRule
+      put mwFollowRule(tControl, tRule, pStack, tKey) into tFlow
+      if item 1 of tFlow is "bad" and tFirstError is empty then
+         put "bad rule:" && the short name of tControl & ":" && tRule into tFirstError
+      end if
+      if item 2 of tFlow is "flow" then
+         mwFlow tControl, item 3 of tFlow, item 4 of tFlow
       end if
    end repeat
    unlock screen
@@ -1722,7 +1750,9 @@ Description:
 <mwFlow> places the visible controls that are directly in the group, in
 the order of their layers, left to right in rows: every control is made
 as wide as a column, keeps its height, and a row is as tall as its
-tallest control. A hidden control is left out. The group keeps its
+tallest control. A hidden control is left out. Then the rules "within" the
+controls it placed are followed (see <mwResponsive>), so a group in the
+grid can lay out its own controls for its new width. The group keeps its
 rectangle (its lockLocation is set to true); if the controls need more
 height than it has, give it a scroll bar or use <mwDragScroll> on it. Its
 scroll is kept, as far as the new height allows.
@@ -1805,7 +1835,11 @@ command mwFlow pGroup, pColumns, pGap
       end if
       put round(tLeft + tCol * (tColWidth + pGap)) into tX
       put the height of tChild into tHeight
-      -- (a group's controls move with its topLeft, not with its rect)
+      -- (a group's controls move with its topLeft, not with its rect;
+      -- and it keeps the rect it is given, rather than shrinking to them)
+      if word 1 of tChild is "group" then
+         set the lockLocation of tChild to true
+      end if
       set the topLeft of tChild to tX, tY
       set the rect of tChild to tX, tY, round(tLeft + tCol * (tColWidth + pGap) + tColWidth), tY + tHeight
       put max(tRowHeight, tHeight) into tRowHeight
@@ -1814,12 +1848,49 @@ command mwFlow pGroup, pColumns, pGap
    if tKids is not empty then
       put tY + tRowHeight + pGap into tY
    end if
+   -- the rules "within" the controls placed, now that they have their
+   -- size (a card in the grid laid out inside itself)
+   if tStack is empty then
+      put mwStackOfObject(tGroup) into tStack
+   end if
+   repeat for each line tChild in tKids
+      if word 1 of tChild is "group" then
+         mwApplyWithin tChild, tStack
+      end if
+   end repeat
    if tScroll is not 0 then
       set the vScroll of tGroup to min(tScroll, max(0, (tY - the top of tGroup) - the height of tGroup))
    end if
    unlock screen
    return tY - the top of tGroup
 end mwFlow
+
+-- The rules "within" a group, of the controls in it (and in the groups
+-- in it), for its stack's size now
+private command mwApplyWithin pGroup, pStack
+   local tKey, i, tControl, tRule, tFlow
+   if pStack is empty or there is not a stack pStack then
+      exit mwApplyWithin
+   end if
+   put mwLayoutKey(pStack) into tKey
+   repeat with i = 1 to the number of controls of pGroup
+      put the long id of control i of pGroup into tControl
+      put mwRuleFor(tControl, item 3 of tKey, item 4 of tKey) into tRule
+      if tRule is empty or not mwRuleIsWithin(tRule) then
+         next repeat
+      end if
+      put mwFollowRule(tControl, tRule, pStack, tKey) into tFlow
+      if item 2 of tFlow is "flow" then
+         mwFlow tControl, item 3 of tFlow, item 4 of tFlow
+      end if
+   end repeat
+end mwApplyWithin
+
+-- Whether a rule is measured within the control's group
+private function mwRuleIsWithin pRule
+   replace comma with space in pRule
+   return "within" is among the words of pRule
+end mwRuleIsWithin
 
 -- A stack that mwResponsive lays out has changed its size: its rules
 -- followed, and layoutChanged when its class or orientation is new.
@@ -1934,14 +2005,16 @@ private function mwRuleValue pText, pWhole
    return round(pText)
 end mwRuleValue
 
--- One control placed by its rule (see mwResponsive) in a card of
--- pWidth by pHeight, inside pInsets (top, right, bottom, left). Returns
--- "ok", or "bad" when a part of the rule cannot be read (the rest is
--- followed); then for a group with "flow", "flow", its columns (empty to
--- choose by the class) and its gap
-private function mwFollowRule pControl, pRule, pWidth, pHeight, pInsets
-   local tPart, tWord, tValue, tSpec, tBad, tHide, tBleed, tFlow, tGap, tNew, tOk
-   local tL, tT, tR, tB, tAreaW, tAreaH, tRect, tX1, tY1, tX2, tY2
+-- One control placed by its rule (see mwResponsive) for its stack's
+-- layout now, pKey (mwLayoutKey: width, height, class, orientation and
+-- the safe area's insets, top, right, bottom and left). Returns "ok", or
+-- "bad" when a part of the rule cannot be read (the rest is followed);
+-- then for a group with "flow", "flow", its columns (empty to choose by
+-- the class) and its gap
+private function mwFollowRule pControl, pRule, pStack, pKey
+   local tPart, tWord, tValue, tSpec, tHide, tBleed, tWithin, tFlow, tGap, tNew, tOk
+   local tBox, tOwner, tL, tT, tR, tB, tAreaW, tAreaH, tRect, tX1, tY1, tX2, tY2
+   put "ok" into tOk
    repeat for each item tPart in pRule
       put word 1 to -1 of tPart into tPart
       if tPart is empty then
@@ -1950,7 +2023,7 @@ private function mwFollowRule pControl, pRule, pWidth, pHeight, pInsets
       put word 1 of tPart into tWord
       put word 2 of tPart into tValue
       if tWord is not among the items of kRuleWords or the number of words of tPart > 2 then
-         put true into tBad
+         put "bad" into tOk
          next repeat
       end if
       switch tWord
@@ -1962,20 +2035,23 @@ private function mwFollowRule pControl, pRule, pWidth, pHeight, pInsets
          case "bleed"
             put true into tBleed
             break
+         case "within"
+            put true into tWithin
+            break
          case "flow"
             if tValue is empty then
                put "auto" into tFlow
             else if tValue is an integer and tValue > 0 then
                put tValue into tFlow
             else
-               put true into tBad
+               put "bad" into tOk
             end if
             break
          case "gap"
             if tValue is a number and tValue >= 0 then
                put tValue into tGap
             else
-               put true into tBad
+               put "bad" into tOk
             end if
             break
          default
@@ -1984,33 +2060,38 @@ private function mwFollowRule pControl, pRule, pWidth, pHeight, pInsets
       end switch
    end repeat
 
-   if tBad then
-      put "bad" into tOk
-   else
-      put "ok" into tOk
-   end if
+   -- hidden in this layout; shown again in a layout that does not say
+   -- so, if a rule hid it (a control that a script hid stays hidden). The
+   -- mark is kept with the control, so that it lasts when the stack is
+   -- saved and opened again
    if tHide then
-      set the visible of pControl to false
+      if the visible of pControl then
+         set the visible of pControl to false
+         set the mwLayoutHid of pControl to true
+      end if
       return tOk
    end if
-   if not the visible of pControl then
+   if the mwLayoutHid of pControl is true then
+      set the mwLayoutHid of pControl to false
       set the visible of pControl to true
    end if
 
-   -- the area the distances are measured in
-   if tBleed then
-      put 0 into tL
-      put 0 into tT
-      put pWidth into tR
-      put pHeight into tB
-   else
-      put item 4 of pInsets into tL
-      put item 1 of pInsets into tT
-      put pWidth - item 2 of pInsets into tR
-      put pHeight - item 3 of pInsets into tB
+   -- the box the rule is in (the card, or with "within" the control's
+   -- group), and the part of it the distances are measured in: inside
+   -- the safe area, out of a notch and a home bar
+   put 0, 0, item 1 of pKey, item 2 of pKey into tBox
+   if tWithin then
+      put the long id of the owner of pControl into tOwner
+      if word 1 of tOwner is "group" then
+         put the rect of tOwner into tBox
+      end if
    end if
-   put tR - tL into tAreaW
-   put tB - tT into tAreaH
+   put max(item 1 of tBox, item 8 of pKey) into tL
+   put max(item 2 of tBox, item 5 of pKey) into tT
+   put min(item 3 of tBox, item 1 of pKey - item 6 of pKey) into tR
+   put min(item 4 of tBox, item 2 of pKey - item 7 of pKey) into tB
+   put max(0, tR - tL) into tAreaW
+   put max(0, tB - tT) into tAreaH
    repeat for each item tWord in kRuleEdges
       if tSpec[tWord] is empty then
          next repeat
@@ -2071,13 +2152,31 @@ private function mwFollowRule pControl, pRule, pWidth, pHeight, pInsets
    else if tSpec["height"] is not empty then
       put tY1 + tSpec["height"] into tY2
    end if
+   -- "bleed": an edge at 0 from the safe area's reaches on to the box's
+   -- (under the notch, or the home bar)
+   if tBleed then
+      if tSpec["left"] is 0 then
+         put item 1 of tBox into tX1
+      end if
+      if tSpec["top"] is 0 then
+         put item 2 of tBox into tY1
+      end if
+      if tSpec["right"] is 0 then
+         put item 3 of tBox into tX2
+      end if
+      if tSpec["bottom"] is 0 then
+         put item 4 of tBox into tY2
+      end if
+   end if
    put max(tX1, tX2) into tX2
    put max(tY1, tY2) into tY2
    put tX1, tY1, tX2, tY2 into tNew
    if tNew is not tRect then
       -- a group's controls move with its topLeft (not with its rect, which
-      -- only changes its own bounds), so the group's contents go with it
+      -- only changes its own bounds), so the group's contents go with it;
+      -- and it keeps the rect it is given, rather than shrinking to them
       if word 1 of pControl is "group" then
+         set the lockLocation of pControl to true
          set the topLeft of pControl to tX1, tY1
       end if
       set the rect of pControl to tNew
@@ -2096,7 +2195,7 @@ end mwFollowRule
 -- javascriptHandlers entry) with a kind and its values; see mwStart for
 -- the messages
 on mwFromBrowser pKind, p1, p2, p3, p4
-   local tKeyboard, tOrientation, tObject
+   local tKeyboard, tOrientation, tObject, tStack
    -- a photo, and the sensors: whether or not mwStart was called
    switch pKind
       case "photo"
@@ -2156,6 +2255,11 @@ on mwFromBrowser pKind, p1, p2, p3, p4
             end if
          end if
          put tKeyboard into sKeyboard
+         -- the stacks laid out by mwResponsive, for a new safe area (a
+         -- new size has laid them out already, through resizeStack)
+         repeat for each key tStack in sResponsive
+            mwCheckLayout tStack
+         end repeat
          break
       case "swipe"
          mwToCard p2, p3
