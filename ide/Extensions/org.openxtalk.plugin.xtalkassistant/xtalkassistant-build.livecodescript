@@ -1580,6 +1580,65 @@ function xtaBuildEntries
    return tEntries
 end xtaBuildEntries
 
+-- Renames the main stack pStack (a long id) to pNew, with messages locked,
+-- and makes the journal follow: every reference to it or to what is in it
+-- (a long id, which ends with its name while it has no file) names it by
+-- pNew, so that undo still finds what was made and changed there, and a
+-- print of the stack taken as it was now is taken again, so that the new
+-- name does not read as the user changing it. Returns empty, or what went
+-- wrong (nothing is renamed then). For the MCP bridge's save_stack, which
+-- names a stack never saved at its first save.
+function xtaBuildRenameStack pStack, pNew
+   local tOld, tOldPrint, tNewStack, tNewPrint, tIndex, tError
+   if there is not a pStack then
+      return "the stack is no longer open"
+   end if
+   put the short name of pStack into tOld
+   put xtbPrint(pStack) into tOldPrint
+   lock messages
+   try
+      set the name of pStack to pNew
+   catch tError
+      unlock messages
+      return xtbErrorMessage(tError)
+   end try
+   unlock messages
+   put the long id of stack pNew into tNewStack
+   put xtbPrint(tNewStack) into tNewPrint
+   repeat for each key tIndex in sJournal
+      if sJournal[tIndex]["main"] is tOld then
+         put xtbRenamedIn(sJournal[tIndex], tOld, pNew, tOldPrint, tNewPrint, tNewStack) into sJournal[tIndex]
+         put pNew into sJournal[tIndex]["main"]
+      end if
+   end repeat
+   return empty
+end xtaBuildRenameStack
+
+-- pValue (an entry, or a part of one) with each key and text that names
+-- the stack pOld by its long id naming it pNew instead, the name of a step
+-- that made it, and the stack's own print taken again
+private function xtbRenamedIn pValue, pOld, pNew, pOldPrint, pNewPrint, pNewStack
+   local tOut, tKey, tNewKey, tTail
+   if pValue is not an array then
+      put "stack" && quote & pOld & quote into tTail
+      if pValue ends with tTail then
+         return char 1 to -(the number of chars of tTail + 1) of pValue & "stack" && quote & pNew & quote
+      end if
+      return pValue
+   end if
+   repeat for each key tKey in pValue
+      put xtbRenamedIn(tKey, pOld, pNew) into tNewKey
+      put xtbRenamedIn(pValue[tKey], pOld, pNew, pOldPrint, pNewPrint, pNewStack) into tOut[tNewKey]
+      if tNewKey is pNewStack and tOut[tNewKey] is pOldPrint then
+         put pNewPrint into tOut[tNewKey]
+      end if
+   end repeat
+   if tOut["op"] is "createdStack" and tOut["name"] is pOld then
+      put pNew into tOut["name"]
+   end if
+   return tOut
+end xtbRenamedIn
+
 -- Undoes the entry pEntry, and every later one on the same stack first,
 -- newest first. Unless pForce, nothing is undone when the user changed
 -- what they made since: then "changed" lists what, for the plugin to ask

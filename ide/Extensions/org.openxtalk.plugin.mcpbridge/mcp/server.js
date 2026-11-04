@@ -166,7 +166,7 @@ const INSTRUCTIONS = [
   '(ask them to look for that window), a script paused in the debugger (stop_paused_script), or a dialog a stack opened',
   '(answer_dialog). Those two answer even while another call waits. A call still waiting for the user\'s answer after about',
   'forty seconds is answered that it waits; it goes on when they answer, and pending_result gives what came of it: do',
-  'not send it again. import_hypercard imports a HyperCard stack, or one from a Mac disk image, without running its scripts.'
+  'not send it again. close_stack closes the test stacks you made. import_hypercard imports a HyperCard stack, or one from a Mac disk image, without running its scripts.'
 ].join(' ');
 
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
@@ -423,7 +423,9 @@ const TOOLS = [
       properties: {
         stack: STACK,
         file: { type: 'string', description: 'Save it as this file: a full path on this computer, in a folder that exists ' +
-          '(.oxtstack is added when it has no stack file\'s extension). Only where the user asked for it, or a stack never saved' }
+          '(.oxtstack is added when it has no stack file\'s extension). Only where the user asked for it, or a stack never saved' },
+        name: { type: 'string', description: 'A stack never saved only: name it this first (a new stack is "Untitled 1" ' +
+          'until named). Undo still finds what you made in it' }
       }
     },
     annotations: CHANGES
@@ -519,6 +521,21 @@ const TOOLS = [
       required: ['ask']
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+  },
+  {
+    name: 'close_stack',
+    title: 'Close a stack',
+    description: 'Closes a stack of the user\'s, with its substacks, and takes it out of memory, with messages locked so ' +
+      'none of its handlers runs; its file, if it has one, stays as it is. A stack your calls brought in (made with ' +
+      'make_changes or by a run, or imported) and never saved closes at once, a copy kept in the temporary folder: close ' +
+      'the test stacks you made when you are done with them. Any other is closed only when the user says yes in ' +
+      'OXT-Beyond, and always asked about when it has changes not saved, since they are lost. Name the stack.',
+    inputSchema: {
+      type: 'object',
+      properties: { stack: { type: 'string', description: 'The stack to close, by name, as list_stacks gives it' } },
+      required: ['stack']
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false }
   },
   {
     name: 'pending_result',

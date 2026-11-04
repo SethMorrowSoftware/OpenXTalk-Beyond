@@ -109,7 +109,8 @@ Claude can do the same things the xTalk Assistant's tools do:
 - **Read and look:** read the guide to xTalk Script, list your open
   stacks, see what you have selected, the script open in the Script
   Editor and the last error the IDE showed you, read a stack's outline
-  or its cards and controls, search its scripts, look at a picture of a
+  or its cards and controls (and the sounds and videos it keeps),
+  search its scripts, look at a picture of a
   card (with each control's id written on it, if Claude asks), look up
   the Dictionary, check that code compiles, and read a script that is
   paused in the debugger. A long script is read in parts, with line
@@ -120,7 +121,11 @@ Claude can do the same things the xTalk Assistant's tools do:
   completely or not at all.
 - **Run and save:** run code in a sandbox or on your stack, and save a
   stack, to its file or, when you tell Claude where, as a new file
-  (never over another file).
+  (never over another file), giving a stack never saved its name as it
+  is saved. Close a stack when Claude is done with it: one Claude made
+  and never saved closes at once, with a copy kept in the temporary
+  folder; any other is closed only after you say yes, if it has changes
+  it would lose.
 - **When OXT-Beyond is held up:** say what a call waits for (a question
   of OXT-Beyond's behind other windows, a script paused in the debugger,
   a dialog open in front of you), stop a paused script as Stop in the

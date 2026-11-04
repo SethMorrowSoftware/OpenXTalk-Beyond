@@ -14,7 +14,9 @@ script "TestMcpBridgeTools"
 -- yes given after its connection was lost doing nothing. And the user's
 -- choice not to be asked (mcbSetUnasked): off until set, runs and saves
 -- going ahead and noted in a log once set, undoing the user's own changes
--- still asked about, and off again when the bridge stops.
+-- still asked about, and off again when the bridge stops. And end to end,
+-- where Node is installed: the real MCP server (mcp/server.js) against
+-- this side over its socket, as Claude's app talks to it.
 
 constant kTools = "org.openxtalk.plugin.mcpbridge-tools"
 constant kUserStack = "mcbTestUserStack"
@@ -30,18 +32,21 @@ on TestSetup
    -- The IDE's handlers the assistant's build library calls, and the
    -- plugin's two functions the bridge asks: mcbConfirm answers as
    -- mcbTestSetAnswer says, and records what it was asked
-   put "local sAnswer, sAsked" & return & \
+   put "local sAnswer, sAsked, sAskedDetails" & return & \
          "on ideMessageSend pMessage, pTarget" & return & "end ideMessageSend" & return & \
          "on revIDESetEdited pStack" & return & "end revIDESetEdited" & return & \
          "on mcbTestSetAnswer pAnswer" & return & "put pAnswer into sAnswer" & return & "end mcbTestSetAnswer" & return & \
          "function mcbConfirm pTitle, pDetail, pYes" & return & "put pTitle & return after sAsked" & return & \
+         "put pDetail & return after sAskedDetails" & return & \
          "global gMcbTestDuringAsk, gMcbTestDuringReply" & return & \
          "repeat for each line tLine in gMcbTestDuringAsk" & return & "put mcbHandleLine(tLine) & return after gMcbTestDuringReply" & return & "end repeat" & return & \
          "if sAnswer is " & quote & "lose" & quote & " then" & return & "mcbLinkLost" & return & "return true" & return & "end if" & return & \
+         "if sAnswer is " & quote & "slow" & quote & " then" & return & "wait 1500 milliseconds with messages" & return & "return true" & return & "end if" & return & \
          "return sAnswer" & return & "end mcbConfirm" & return & \
          "on mcbTooLate" & return & "put " & quote & "too late" & quote & " & return after sAsked" & return & "end mcbTooLate" & return & \
          "function mcbEditorStack" & return & "return empty" & return & "end mcbEditorStack" & return & \
          "function mcbTestAsked" & return & "return sAsked" & return & "end mcbTestAsked" & return & \
+         "function mcbTestAskedDetails" & return & "return sAskedDetails" & return & "end mcbTestAskedDetails" & return & \
          "on revIDEImportHyperCardStack pFile" & return & "lock messages" & return & "import stack from file pFile" & return & "unlock messages" & return & \
          "end revIDEImportHyperCardStack" & return & \
          "on revIDEImportHyperCardFromDiskImage pImage, pPath" & return & "local tFolder" & return & \
@@ -599,6 +604,124 @@ on TestSaveAsAFile
    delete folder tFolder
 end TestSaveAsAFile
 
+-- close_stack: a stack Claude's calls made and nobody saved closes with
+-- no question (a copy kept); any other is asked about, and one with
+-- changes not saved always, even with asking off
+on TestCloseStack
+   local tReply, tStack, tAsked, tFile, tCopy
+   TestStart
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with false
+   put TestCall("close_stack") into tReply
+   TestAssert "a stack must be named", TestIsError(tReply) and TestText(tReply) contains "name the stack"
+   put TestCall("make_changes", "{`changes`:[{`action`:`create`,`kind`:`stack`,`name`:`mcbMadeStack`,`rect`:[100,100,400,300]}," & \
+         "{`action`:`create`,`kind`:`button`,`name`:`B`}]}") into tReply
+   TestAssert "a stack is made", not TestIsError(tReply) and there is a stack "mcbMadeStack"
+   put mcbTestAsked() into tAsked
+   put TestCall("close_stack", "{`stack`:`mcbMadeStack`}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "the stack Claude made is closed without a question", not TestIsError(tReply) and there is not a stack "mcbMadeStack" \
+         and mcbTestAsked() is tAsked
+   put word -1 of TestText(tReply) into tCopy
+   if char -1 of tCopy is "," then
+      delete char -1 of tCopy
+   end if
+   put char 1 to offset(".oxtstack", TestText(tReply)) + 8 of TestText(tReply) into tCopy
+   put word -1 of tCopy into tCopy
+   TestAssert "and a copy is kept", there is a file tCopy
+   if there is a file tCopy then
+      delete file tCopy
+   end if
+   -- One made by a run on the sandbox
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
+   put TestCall("run_code", "{`code`:`create invisible stack \`mcbRunMade\``}") into tReply
+   TestAssert "a run made a stack", there is a stack "mcbRunMade"
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with false
+   put mcbTestAsked() into tAsked
+   put TestCall("close_stack", "{`stack`:`mcbRunMade`}") into tReply
+   TestAssert "a stack a run made is closed without a question", not TestIsError(tReply) and there is not a stack "mcbRunMade" \
+         and mcbTestAsked() is tAsked
+   -- The user's own
+   put TestUserStack() into tStack
+   put TestCall("close_stack", "{`stack`:`" & kUserStack & "`}") into tReply
+   TestAssert "the user's stack is asked about, and a no keeps it", TestIsError(tReply) and there is a stack kUserStack \
+         and mcbTestAsked() contains ("close the stack" && quote & kUserStack & quote)
+   -- Asking off: one with changes not saved is still asked about
+   put specialFolderPath("temporary") & "/mcbtest-close-" & the milliseconds & ".livecode" into tFile
+   set the fileName of tStack to tFile
+   mcbSetUnasked true
+   put mcbTestAsked() into tAsked
+   put TestCall("close_stack", "{`stack`:`" & kUserStack & "`}") into tReply
+   TestAssert "changes not saved are always asked about", TestIsError(tReply) and there is a stack kUserStack \
+         and mcbTestAsked() is not tAsked
+   mcbSetUnasked false
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
+   put TestCall("close_stack", "{`stack`:`" & kUserStack & "`}") into tReply
+   TestAssert "a yes closes it, and its file is not made", not TestIsError(tReply) and there is not a stack kUserStack \
+         and there is not a file tFile
+   put TestCall("close_stack", "{`stack`:`mcbTestIDE`}") into tReply
+   TestAssert "the IDE's stacks are not closed", TestIsError(tReply) and there is a stack "mcbTestIDE"
+end TestCloseStack
+
+-- save_stack with a name: a stack never saved is named at its first save,
+-- and undo still finds what was made in it; a saved stack is not renamed
+on TestSaveNamesAStackNeverSaved
+   local tReply, tStack, tFolder, tFile
+   TestStart
+   put TestUserStack() into tStack
+   put TestCall("make_changes", "{`stack`:`" & kUserStack & "`,`changes`:[{`action`:`create`,`kind`:`button`,`name`:`Added`}]}") into tReply
+   TestAssert "a button is made", not TestIsError(tReply)
+   put specialFolderPath("temporary") & "/mcbtest-name-" & the milliseconds into tFolder
+   create folder tFolder
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with false
+   put TestCall("save_stack", "{`stack`:`" & kUserStack & "`,`name`:`mcb Lab`,`file`:`" & tFolder & "/lab`}") into tReply
+   TestAssert "a no keeps its name", TestIsError(tReply) and there is a stack kUserStack and there is not a stack "mcb Lab"
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
+   put TestCall("save_stack", "{`stack`:`" & kUserStack & "`,`name`:`mcbTestIDE`,`file`:`" & tFolder & "/lab`}") into tReply
+   TestAssert "not the name of a stack that is open", TestIsError(tReply) and TestText(tReply) contains "is open already"
+   put TestCall("save_stack", "{`stack`:`" & kUserStack & "`,`name`:`mcb Lab`,`file`:`" & tFolder & "/lab`}") into tReply
+   TestDiagnostic TestText(tReply)
+   put tFolder & "/lab.oxtstack" into tFile
+   TestAssert "named and saved", not TestIsError(tReply) and there is a stack "mcb Lab" and there is not a stack kUserStack \
+         and there is a file tFile and mcbTestAskedDetails() contains "It is named"
+   put TestCall("undo_changes") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "undo still finds the button it made", not TestIsError(tReply) and there is not a button "Added" of stack "mcb Lab"
+   put TestCall("save_stack", "{`stack`:`mcb Lab`,`name`:`mcb Other`}") into tReply
+   TestAssert "a saved stack is not renamed", TestIsError(tReply) and TestText(tReply) contains "only a stack never saved" \
+         and there is a stack "mcb Lab"
+   delete stack "mcb Lab"
+   delete file tFile
+   delete folder tFolder
+end TestSaveNamesAStackNeverSaved
+
+-- read_stack lists the sounds a stack keeps, and reads one by its id
+on TestReadStackListsSounds
+   local tStack, tReply, tWav, tFile, tId, tData
+   TestStart
+   put TestUserStack() into tStack
+   -- A WAV of 8 samples: 1 channel, 8000 Hz, 8 bits, every number
+   -- written byte by byte, little-endian as the format has it
+   put "fmt " & numToByte(16) & numToByte(0) & numToByte(0) & numToByte(0) & numToByte(1) & numToByte(0) & numToByte(1) & numToByte(0) & \
+         numToByte(64) & numToByte(31) & numToByte(0) & numToByte(0) & numToByte(64) & numToByte(31) & numToByte(0) & numToByte(0) & \
+         numToByte(1) & numToByte(0) & numToByte(8) & numToByte(0) & "data" & numToByte(8) & numToByte(0) & numToByte(0) & numToByte(0) & \
+         "abcdefgh" into tData
+   put "RIFF" & numToByte(the number of bytes of tData + 4) & numToByte(0) & numToByte(0) & numToByte(0) & "WAVE" & tData into tWav
+   put specialFolderPath("temporary") & "/mcbtest-sound-" & the milliseconds & ".wav" into tFile
+   put tWav into url ("binfile:" & tFile)
+   set the defaultStack to kUserStack
+   import audioclip from file tFile
+   put the id of last audioclip of tStack into tId
+   delete file tFile
+   put TestCall("read_stack", "{`stack`:`" & kUserStack & "`}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "the outline lists the sound", not TestIsError(tReply) and TestText(tReply) contains "Sounds and videos" \
+         and TestText(tReply) contains ("(id" && tId & ",")
+   put TestCall("read_stack", "{`stack`:`" & kUserStack & "`,`id`:" & tId & "}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "read by its id, with its size and loudness", not TestIsError(tReply) and TestText(tReply) contains "size: 8 bytes" \
+         and TestText(tReply) contains ("playLoudness:" && the playLoudness of audioClip id tId of tStack)
+end TestReadStackListsSounds
+
 -- The user's "Stop Asking" (mcbSetUnasked): off until set, so every run
 -- and save is asked about as before; once set, a run and a save go ahead
 -- with no question, each noted in the log beside the bridge's file, while
@@ -755,6 +878,105 @@ end TestOverASocket
 on TestReplyRead pSocket, pData
    put pData into sReply
 end TestReplyRead
+
+--------------------------------------------------------------------------------
+-- End to end: the real MCP server (mcp/server.js, run by Node) against
+-- this side over its socket, as Claude's client talks to them: the
+-- server finds the bridge's file, says hello with the token, lists the
+-- tools, sends a call, and answers early with pending_result while the
+-- user is still being asked, then gives the result when it comes
+
+local sServerOut
+
+on TestTheRealServerEndToEnd
+   local tNode, tProcess, tReply, tStack, tRelay, tAt, tNumber
+   if the platform is not "macos" and not (the platform contains "linux") then
+      TestSkip "the real server end to end", "a shell to find Node in"
+      exit TestTheRealServerEndToEnd
+   end if
+   put line 1 of shell("command -v node") into tNode
+   if tNode is empty then
+      TestSkip "the real server end to end", "Node is not installed"
+      exit TestTheRealServerEndToEnd
+   end if
+   TestStart
+   put TestUserStack() into tStack
+   put sInfoFile into $OXT_MCP_BRIDGE_FILE
+   put "300" into $OXT_MCP_ANSWER_WAIT_MS
+   -- The engine on Linux and macOS writes to a process two bytes a
+   -- character (seen 2026-11-04; Windows writes UTF-8), so a relay drops
+   -- the zero bytes on the way in: the requests are ASCII, and it passes a
+   -- UTF-8 write through as it is. The server itself is run as it ships.
+   put specialFolderPath("temporary") & "/mcbtest-relay-" & the milliseconds & ".js" into tRelay
+   put "const child = require('child_process').spawn(process.execPath, [process.argv[2]], { stdio: ['pipe', 'inherit', 'inherit'] });" & numToChar(10) & \
+         "process.stdin.on('data', (d) => child.stdin.write(Buffer.from(d.toString('latin1').replace(/\u0000/g, ''), 'latin1')));" & numToChar(10) & \
+         "process.stdin.on('end', () => child.stdin.end());" & numToChar(10) & \
+         "child.on('exit', (code) => process.exit(code || 0));" & numToChar(10) into url ("binfile:" & tRelay)
+   put tNode && quote & tRelay & quote && quote & TestGetIDERepositoryPath() & "/Extensions/org.openxtalk.plugin.mcpbridge/mcp/server.js" & quote into tProcess
+   open process tProcess for binary update
+   TestAssert "the server starts", the result is empty
+   put empty into sServerOut
+   TestServerSend tProcess, "{`jsonrpc`:`2.0`,`id`:1,`method`:`initialize`,`params`:{`protocolVersion`:`2025-06-18`,`capabilities`:{},`clientInfo`:{`name`:`mcbtest`,`version`:`1`}}}"
+   put TestServerReply(tProcess, 1) into tReply
+   TestAssert "it answers initialize", tReply contains "serverInfo"
+   TestServerSend tProcess, "{`jsonrpc`:`2.0`,`method`:`notifications/initialized`}"
+   TestServerSend tProcess, "{`jsonrpc`:`2.0`,`id`:2,`method`:`tools/list`}"
+   put TestServerReply(tProcess, 2) into tReply
+   TestAssert "it lists the tools", tReply contains (quote & "close_stack" & quote) and tReply contains (quote & "pending_result" & quote)
+   TestServerSend tProcess, "{`jsonrpc`:`2.0`,`id`:3,`method`:`tools/call`,`params`:{`name`:`read_stack`,`arguments`:{`stack`:`" & kUserStack & "`}}}"
+   put TestServerReply(tProcess, 3) into tReply
+   TestDiagnostic tReply
+   TestAssert "a call reaches this side with the token and comes back", tReply contains ("Stack \" & quote & kUserStack) \
+         and not (tReply contains (quote & "isError" & quote & ":true"))
+   -- The user takes a while to answer: the server answers first, and
+   -- pending_result gives what the run gave once they said yes
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with "slow"
+   TestServerSend tProcess, "{`jsonrpc`:`2.0`,`id`:4,`method`:`tools/call`,`params`:{`name`:`run_code`,`arguments`:{`code`:`put 6 * 7`}}}"
+   put TestServerReply(tProcess, 4) into tReply
+   TestDiagnostic tReply
+   TestAssert "a call waiting for the user is answered early", tReply contains "Not done yet" and tReply contains "pending_result"
+   -- The number the answer gives, which is the server's own, not the id
+   put offset("pending_result with request ", tReply) into tAt
+   put word 1 of (char (tAt + 28) to (tAt + 40) of tReply) into tNumber
+   TestAssert "it says which number to ask for", tAt > 0 and tNumber is an integer
+   TestServerSend tProcess, "{`jsonrpc`:`2.0`,`id`:5,`method`:`tools/call`,`params`:{`name`:`pending_result`,`arguments`:{`request`:" & tNumber & ",`wait_seconds`:10}}}"
+   put TestServerReply(tProcess, 5) into tReply
+   TestDiagnostic tReply
+   TestAssert "pending_result gives the run's result", tReply contains "42" and not (tReply contains (quote & "isError" & quote & ":true"))
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
+   close process tProcess
+   delete file tRelay
+   put empty into $OXT_MCP_ANSWER_WAIT_MS
+   put empty into $OXT_MCP_BRIDGE_FILE
+end TestTheRealServerEndToEnd
+
+private command TestServerSend pProcess, pJson
+   replace "`" with quote in pJson
+   -- One encode for the whole line: data joined to text is text again,
+   -- which a binary write would send two bytes a character
+   write textEncode(pJson & numToChar(10), "UTF-8") to process pProcess
+end TestServerSend
+
+-- The server's answer to request pId: read while this side keeps serving
+-- its socket, as the IDE does (a read from a process alone does not)
+private function TestServerReply pProcess, pId
+   local tStart, tLine, tAt
+   put the milliseconds into tStart
+   repeat while the milliseconds - tStart < 20000
+      wait 20 milliseconds with messages
+      read from process pProcess until numToChar(10) in 10 milliseconds
+      put it after sServerOut
+      repeat while numToChar(10) is in sServerOut
+         put offset(numToChar(10), sServerOut) into tAt
+         put textDecode(char 1 to tAt - 1 of sServerOut, "UTF-8") into tLine
+         delete char 1 to tAt of sServerOut
+         if tLine contains (quote & "id" & quote & ":" & pId & ",") or tLine contains (quote & "id" & quote & ":" & pId & "}") then
+            return tLine
+         end if
+      end repeat
+   end repeat
+   return empty
+end TestServerReply
 
 --------------------------------------------------------------------------------
 -- The web IDE's link

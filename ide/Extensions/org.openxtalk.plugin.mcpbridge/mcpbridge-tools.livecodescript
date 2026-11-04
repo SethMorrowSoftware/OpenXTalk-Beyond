@@ -124,7 +124,7 @@ constant kMaxUnaskedLogChars = 2000000
 constant kMaxAskLongChars = 20000
 -- The tools, in the order the MCP server lists them (mcp/server.js has
 -- their descriptions and schemas)
-constant kTools = "xtalk_guide,list_stacks,ide_context,read_stack,read_script,search_scripts,look_at_card,lookup_dictionary,check_code,make_changes,edit_script,run_code,save_stack,list_changes,undo_changes,debug_state,stop_paused_script,answer_dialog,import_hypercard,set_asking"
+constant kTools = "xtalk_guide,list_stacks,ide_context,read_stack,read_script,search_scripts,look_at_card,lookup_dictionary,check_code,make_changes,edit_script,run_code,save_stack,list_changes,undo_changes,debug_state,stop_paused_script,answer_dialog,import_hypercard,set_asking,close_stack"
 -- The tools that answer while another call is still being carried out
 -- (sBusy): they are for what holds that call up, a script paused in the
 -- debugger or a dialog a stack opened, so they never wait for it. They
@@ -187,6 +187,10 @@ local sLink, sLinkGeneration, sLinkRequest
 -- True while the user lets runs and saves go ahead without asking
 -- (mcbSetUnasked); off until set, and again when the bridge stops
 local sUnasked
+-- The main stacks Claude's calls brought into memory (made with
+-- make_changes, made by a run, imported), by name, while the bridge is on:
+-- close_stack closes one never saved without asking
+local sMadeStacks
 
 --------------------------------------------------------------------------------
 -- The server
@@ -283,6 +287,7 @@ end mcbServerStop
 private command mcbStopParts
    local tError
    put false into sUnasked
+   put empty into sMadeStacks
    put false into sBusy
    put empty into sBusyTool
    put empty into sWaiting
@@ -792,7 +797,7 @@ end mcbToolNames
 -- Returns an array with "text" and "error" (true when the tool could not
 -- do it), and for a picture "image" (base64) and "imageType".
 function mcbCallTool pTool, pArguments
-   local tResult, tError
+   local tResult, tError, tBefore
    try
       mcbEnsureParts
    catch tError
@@ -821,11 +826,19 @@ function mcbCallTool pTool, pArguments
          case "check_code"
             return mcbToolCheck(mcbArg(pArguments, "code"))
          case "make_changes"
-            return mcbToolMakeChanges(pArguments)
+            put mcbMainStackNames() into tBefore
+            put mcbToolMakeChanges(pArguments) into tResult
+            mcbNoteMadeStacks tBefore
+            return tResult
          case "run_code"
-            return mcbToolRunCode(pArguments)
+            put mcbMainStackNames() into tBefore
+            put mcbToolRunCode(pArguments) into tResult
+            mcbNoteMadeStacks tBefore
+            return tResult
          case "save_stack"
-            return mcbToolSaveStack(mcbArg(pArguments, "stack"), mcbArg(pArguments, "file"))
+            return mcbToolSaveStack(mcbArg(pArguments, "stack"), mcbArg(pArguments, "file"), mcbArg(pArguments, "name"))
+         case "close_stack"
+            return mcbToolCloseStack(mcbArg(pArguments, "stack"))
          case "list_changes"
             return mcbToolListChanges()
          case "undo_changes"
@@ -837,7 +850,10 @@ function mcbCallTool pTool, pArguments
          case "answer_dialog"
             return mcbToolAnswerDialog(pArguments)
          case "import_hypercard"
-            return mcbToolImportHyperCard(pArguments)
+            put mcbMainStackNames() into tBefore
+            put mcbToolImportHyperCard(pArguments) into tResult
+            mcbNoteMadeStacks tBefore
+            return tResult
          case "set_asking"
             return mcbToolSetAsking(mcbArg(pArguments, "ask"))
       end switch
@@ -1618,7 +1634,7 @@ private function mcbToolReadStack pArguments
       if mcbArg(pArguments, "details") is "true" then
          return mcbResult(mcbWithScriptHint(xtaObjectText(tStack, tLean)), false)
       end if
-      return mcbResult(xtaStackOutline(mcbMainStackOf(tStack)), false)
+      return mcbResult(xtaStackOutline(mcbMainStackOf(tStack)) & mcbClipsText(mcbMainStackOf(tStack)), false)
    end if
    if the number of lines of tIds > kMaxReadIds then
       return mcbResult("read_stack reads at most" && kMaxReadIds && "objects at once.", true)
@@ -1633,6 +1649,14 @@ private function mcbToolReadStack pArguments
          put the long id of card id tId of tStack into tObject
       else if there is a control id tId of tStack then
          put the long id of control id tId of tStack into tObject
+      else if there is an audioClip id tId of tStack or there is a videoClip id tId of tStack then
+         -- Not controls: what the engine says of them
+         add 1 to tCount
+         if tText is not empty then
+            put return & return after tText
+         end if
+         put mcbClipText(tStack, tId) after tText
+         next repeat
       end if
       if tObject is empty then
          put tId & ", " after tMissing
@@ -1657,6 +1681,63 @@ end mcbToolReadStack
 
 -- An object's text, and when its script was cut, how to read the rest and
 -- change it without sending it back whole
+-- The sounds and videos kept in a main stack and its substacks (they are
+-- not controls, so the outline has none), a line each, after a blank
+-- line, or empty when there are none
+private function mcbClipsText pMain
+   local tText, tStacks, tStack, tIndex
+   put pMain & return into tStacks
+   repeat for each line tStack in the substacks of pMain
+      put the long id of stack tStack of pMain & return after tStacks
+   end repeat
+   repeat for each line tStack in tStacks
+      repeat with tIndex = 1 to the number of audioClips of tStack
+         put "- " & mcbClipLine(tStack, "audioClip", tIndex) & return after tText
+      end repeat
+      repeat with tIndex = 1 to the number of videoClips of tStack
+         put "- " & mcbClipLine(tStack, "videoClip", tIndex) & return after tText
+      end repeat
+   end repeat
+   if tText is empty then
+      return empty
+   end if
+   return return & return & "Sounds and videos kept in the stack (read_stack with an id gives more):" & return & char 1 to -2 of tText
+end mcbClipsText
+
+-- One sound or video of pStack, the pIndex'th of its kind: its kind,
+-- name, id, size and the stack it is in
+private function mcbClipLine pStack, pKind, pIndex
+   local tClip
+   if pKind is "audioClip" then
+      put the long id of audioClip pIndex of pStack into tClip
+      return "audioclip" && quote & the short name of tClip & quote && "(id" && the id of tClip & "," && the size of tClip && "bytes) in stack" && quote & the short name of pStack & quote
+   end if
+   put the long id of videoClip pIndex of pStack into tClip
+   return "videoclip" && quote & the short name of tClip & quote && "(id" && the id of tClip & "," && the size of tClip && "bytes) in stack" && quote & the short name of pStack & quote
+end mcbClipLine
+
+-- A sound or video of pStack by its id: what the engine says of it
+private function mcbClipText pStack, pId
+   local tClip, tText
+   -- The engine keeps an imported sound as its samples, not the file it
+   -- came from, so the properties are all it can say of one
+   if there is an audioClip id pId of pStack then
+      put the long id of audioClip id pId of pStack into tClip
+      put "audioclip" && quote & the short name of tClip & quote && "(id" && pId & ")" & return into tText
+      put "size:" && the size of tClip && "bytes" & return after tText
+      put "playLoudness:" && the playLoudness of tClip & return after tText
+      put "playDestination:" && the playDestination of tClip after tText
+      return tText
+   end if
+   put the long id of videoClip id pId of pStack into tClip
+   put "videoclip" && quote & the short name of tClip & quote && "(id" && pId & ")" & return into tText
+   put "size:" && the size of tClip && "bytes" & return after tText
+   put "frameRate:" && the frameRate of tClip & return after tText
+   put "scale:" && the scale of tClip & return after tText
+   put "dontRefresh:" && the dontRefresh of tClip after tText
+   return tText
+end mcbClipText
+
 private function mcbWithScriptHint pText
    if kCutMark is in pText then
       put return & return & "The script was cut. read_script reads it all, in parts, with line numbers and its handlers; " & \
@@ -2568,8 +2649,8 @@ end mcbToolRunCode
 -- asked: mcbAllow). With pFile, as that file (Save As, with no dialog: a
 -- stack never saved otherwise waited on a file dialog of the system's,
 -- which Claude cannot answer and during which the engine reads no socket)
-private function mcbToolSaveStack pStackName, pFile
-   local tTarget, tMain, tName, tFile, tDetail, tDone, tError, tAs, tTitle
+private function mcbToolSaveStack pStackName, pFile, pNewName
+   local tTarget, tMain, tName, tFile, tDetail, tDone, tError, tAs, tTitle, tProblem, tOldName
    put mcbTarget(pStackName) into tTarget
    if tTarget["problem"] is not empty then
       return mcbResult("Nothing was saved:" && tTarget["problem"], true)
@@ -2578,6 +2659,14 @@ private function mcbToolSaveStack pStackName, pFile
    put the short name of tMain into tName
    put the effective filename of tMain into tFile
    put "Claude asks to save the stack" && quote & tName & quote & "." into tTitle
+   if pNewName is not empty and pNewName is not tName then
+      put mcbNewNameProblem(pNewName, tFile) into tProblem
+      if tProblem is not empty then
+         return mcbResult("Nothing was saved:" && tProblem, true)
+      end if
+   else
+      put empty into pNewName
+   end if
    if pFile is not empty then
       put mcbSaveAsFile(pFile, tMain) into tAs
       if tAs["problem"] is not empty then
@@ -2596,9 +2685,24 @@ private function mcbToolSaveStack pStackName, pFile
    else
       put "It is saved to its file, with its substacks:" & return & tFile into tDetail
    end if
+   if pNewName is not empty then
+      put return & "It is named" && quote & pNewName & quote && "first (it is" && quote & tName & quote && "now)." after tDetail
+   end if
    put return & return & "Saving cannot be undone." after tDetail
    if not mcbAllow(tTitle, tDetail, "Save") then
       return mcbResult("The user chose not to save the stack" && quote & tName & quote & ", and nothing was saved. Do not ask again unless they ask you to.", true)
+   end if
+   -- Named first, with the journal following (undo still finds what it
+   -- made), and named back if it is not saved after all
+   if pNewName is not empty then
+      put tName into tOldName
+      put xtaBuildRenameStack(tMain, pNewName) into tProblem
+      if tProblem is not empty then
+         return mcbResult("Nothing was saved: the stack could not be named" && quote & pNewName & quote & ":" && tProblem, true)
+      end if
+      put the long id of stack pNewName into tMain
+      put pNewName into tName
+      mcbRenameMade tOldName, pNewName
    end if
    try
       if tAs is not empty and not mcbSamePath(tAs, tFile) then
@@ -2622,6 +2726,13 @@ private function mcbToolSaveStack pStackName, pFile
       end if
    end try
    put the effective filename of tMain into tFile
+   if tDone is "Cancelled" or tDone is not empty or tFile is empty or there is not a file tFile or (tAs is not empty and not mcbSamePath(tFile, tAs)) then
+      if tOldName is not empty and there is a tMain then
+         get xtaBuildRenameStack(tMain, tOldName)
+         mcbRenameMade pNewName, tOldName
+         put tOldName into tName
+      end if
+   end if
    if tDone is "Cancelled" then
       return mcbResult("The user cancelled saving the stack" && quote & tName & quote & ", and nothing was saved.", true)
    end if
@@ -2630,6 +2741,140 @@ private function mcbToolSaveStack pStackName, pFile
    end if
    return mcbResult("Saved the stack" && quote & tName & quote && "to" && tFile & ".", false)
 end mcbToolSaveStack
+
+-- Why pName cannot be the new name of a stack, or empty: only a stack
+-- never saved is named (other stacks and scripts may know a saved one by
+-- its name), never as another open stack or the IDE's
+private function mcbNewNameProblem pName, pFile
+   if pFile is not empty then
+      return "only a stack never saved is named by save_stack; this one has a file (" & pFile & "). Ask the user to rename it in the Property Inspector."
+   end if
+   if pName contains quote or pName contains return or the number of chars of word 1 to -1 of pName is 0 then
+      return "a stack's name has no quotes or line breaks, and is not empty."
+   end if
+   if there is a stack pName then
+      return "a stack named" && quote & pName & quote && "is open already."
+   end if
+   if pName begins with "rev" or pName begins with "com.livecode." or pName begins with "org.openxtalk." \
+         or pName is among the items of "Message Box,Answer Dialog,Ask Dialog,Home" then
+      return quote & pName & quote && "is a name of the IDE's own stacks."
+   end if
+   return empty
+end mcbNewNameProblem
+
+--------------------------------------------------------------------------------
+-- The stacks Claude made, and closing a stack
+
+-- The names of the main stacks in memory, one per line
+private function mcbMainStackNames
+   return the mainStacks
+end mcbMainStackNames
+
+-- Notes the user's main stacks in memory now that were not before (one
+-- name per line in pBefore) as Claude's (close_stack)
+private command mcbNoteMadeStacks pBefore
+   local tName
+   repeat for each line tName in the mainStacks
+      if tName is not among the lines of pBefore and there is a stack tName then
+         if not mcbIsIDEStack(the long id of stack tName) then
+            put true into sMadeStacks[tName]
+         end if
+      end if
+   end repeat
+end mcbNoteMadeStacks
+
+private command mcbRenameMade pOld, pNew
+   if sMadeStacks[pOld] is true then
+      delete variable sMadeStacks[pOld]
+      put true into sMadeStacks[pNew]
+   end if
+end mcbRenameMade
+
+-- True when the IDE has the stack as changed since it was last saved; a
+-- stack never saved counts as changed
+private function mcbHasUnsavedChanges pStack
+   local tEdited, tError
+   if the effective filename of pStack is empty then
+      return true
+   end if
+   try
+      put revIDEStackIsEdited(the short name of pStack) into tEdited
+   catch tError
+      -- Without the IDE (the tests): not known, so taken as changed
+      return true
+   end try
+   return tEdited is true
+end mcbHasUnsavedChanges
+
+-- Closes a main stack of the user's (with its substacks) and takes it out
+-- of memory, with messages locked so that none of its handlers runs (a
+-- closeStack that asks to save, for one). One that Claude's calls brought
+-- in and that was never saved goes without a question, with a copy kept in
+-- the temporary folder; any other is asked about (and, when it has changes
+-- not saved, always, even with asking off: they are lost)
+private function mcbToolCloseStack pStackName
+   local tTarget, tMain, tName, tFile, tMade, tDetail, tLoses, tCopy, tError, tAllowed
+   if pStackName is empty then
+      return mcbResult("Nothing was closed: name the stack to close (list_stacks names them).", true)
+   end if
+   put mcbTarget(pStackName) into tTarget
+   if tTarget["problem"] is not empty then
+      return mcbResult("Nothing was closed:" && tTarget["problem"], true)
+   end if
+   put mcbMainStackOf(tTarget["stack"]) into tMain
+   put the short name of tMain into tName
+   put the effective filename of tMain into tFile
+   put (sMadeStacks[tName] is true and tFile is empty) into tMade
+   if not tMade then
+      put mcbHasUnsavedChanges(tMain) into tLoses
+      if tFile is empty then
+         put "It has never been saved, so all of it is lost." into tDetail
+      else if tLoses then
+         put "Changes made since it was last saved are lost. Its file stays as it was saved:" & return & tFile into tDetail
+      else
+         put "Its file stays as it is, and it can be opened again from there:" & return & tFile into tDetail
+      end if
+      put "It is closed, with its substacks, and taken out of memory." & return & return before tDetail
+      if tLoses then
+         put mcbAsk("Claude asks to close the stack" && quote & tName & quote & ".", tDetail, "Close") into tAllowed
+      else
+         put mcbAllow("Claude asks to close the stack" && quote & tName & quote & ".", tDetail, "Close") into tAllowed
+      end if
+      if not tAllowed then
+         return mcbResult("The user chose to keep the stack" && quote & tName & quote && "open. Do not ask again unless they ask you to.", true)
+      end if
+   else
+      -- A copy, in case the user wanted it after all
+      put specialFolderPath("temporary") & "/oxt-mcp-closed-" & the seconds & "-" & random(100000) & ".oxtstack" into tCopy
+      try
+         lock messages
+         save tMain as tCopy
+         unlock messages
+      catch tError
+         unlock messages
+         put empty into tCopy
+      end try
+   end if
+   try
+      lock messages
+      delete tMain
+      unlock messages
+   catch tError
+      unlock messages
+      return mcbResult("The stack" && quote & tName & quote && "was not closed:" && line 1 of tError, true)
+   end try
+   if sMadeStacks[tName] is true then
+      delete variable sMadeStacks[tName]
+   end if
+   if tMade then
+      if tCopy is not empty and there is a file tCopy then
+         return mcbResult("Closed the stack" && quote & tName & quote & ", which your calls made and nobody saved. A copy is in" && tCopy & \
+               ", in case the user wants it back.", false)
+      end if
+      return mcbResult("Closed the stack" && quote & tName & quote & ", which your calls made and nobody saved.", false)
+   end if
+   return mcbResult("Closed the stack" && quote & tName & quote & ".", false)
+end mcbToolCloseStack
 
 -- The file save_stack saves pStack as, from the path Claude gave: an array
 -- with "file" (a full path with slashes, and a stack file's extension), or

@@ -79,7 +79,7 @@ it whenever you write xTalk Script.
   IDE showed them. When the user says "this button" or "the error",
   that is where to look.
 - `read_stack` gives an outline of a stack (its substacks, cards and
-  controls, with their ids), then a card or control by its stack and id,
+  controls, with their ids, and the sounds and videos it keeps), then a card or control by its stack and id,
   or several at once by `ids`: the properties a new object of its kind
   would not have, its custom properties and its script. A script is shown
   up to 24,000 characters: `read_script` reads a longer one in numbered
@@ -105,9 +105,16 @@ it whenever you write xTalk Script.
   `save_stack` saves it as File > Save does (the user picks where, for a
   stack never saved, in a file dialog only they can answer; when they
   told you where, give that full path as `file` instead, and no dialog
-  opens). Offer to save a stack you built; do not save
-  without being asked. Build a large one over several batches, a card or
-  a menu and its scripts at a time.
+  opens). A stack never saved can be given its final `name` as it is
+  saved the first time (the user sees the new name in the question);
+  `undo_changes` still knows it. Offer to save a stack you built; do not
+  save without being asked. Build a large one over several batches, a
+  card or a menu and its scripts at a time.
+- `close_stack` closes a stack you are done with, so test stacks do not
+  pile up in the user's IDE. One you made here and never saved closes
+  at once, and a copy is kept in the temporary folder (its path is in
+  the answer). Any other stack is closed only after the user says yes
+  when it has changes it would lose.
 - `run_code` runs statements and gives back what they put into the
   Message Box, what they returned and any error, with its line. In the
   sandbox (the default) the code runs in a hidden stack, with the
