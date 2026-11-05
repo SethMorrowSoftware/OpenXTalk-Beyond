@@ -134,8 +134,8 @@ on nameChanged pOldname, pNewName, pTarget
    put the hcAddressing of stack tTargetStack into tHCAddressing
    set the hcAddressing of stack tTargetStack to false
    
-   if there is a stack "revApplicationOverview" then
-      send "revNameChanged the long id of tTarget, pOldName, pNewName" to stack "revApplicationOverview"
+   if revIDEAppBrowserStack() is not empty then
+      send "revNameChanged the long id of tTarget, pOldName, pNewName" to stack (revIDEAppBrowserStack())
    end if
    
    set the hcAddressing of stack tTargetStack to tHCAddressing
@@ -470,9 +470,9 @@ on revDeleteStack pWhichStacks
 end revDeleteStack
 
 on revCheckStackOpen pStack, pStacks
-   if there is a stack "revApplicationOverview" then
-      if the mode of stack "revApplicationOverview" is not 0 and there is not a stack pStack
-      then send "revAODeleteStack pStack, pStacks" to stack "revApplicationOverview"
+   if revIDEAppBrowserStack() is not empty then
+      if the mode of stack (revIDEAppBrowserStack()) is not 0 and there is not a stack pStack
+      then send "revAODeleteStack pStack, pStacks" to stack (revIDEAppBrowserStack())
    end if
 end revCheckStackOpen
 
