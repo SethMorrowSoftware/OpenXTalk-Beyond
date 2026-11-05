@@ -837,7 +837,7 @@ end playerForgetFolder
 
 command playerOpenFile pPath
    local tRect, tName, tError, tResult, tFolder, tOpenError, tHyperCard, tStack
-   local tResizable, tOnPhone, tTookTheScreen
+   local tResizable, tOnPhone, tTakeTheScreen, tTookTheScreen
    -- With a stack open, first home, and the stack opened after the one
    -- that goes is forgotten (as playerReload does): until then it is in
    -- memory, and a stack of the same name from another file (a newer copy
@@ -908,8 +908,16 @@ command playerOpenFile pPath
    -- resized, so the player's window is first made the screen, resizable.
    -- A stack made for phones that calls mwStart in its openStack then
    -- fills it, as it fills the page of its own standalone.
+   -- On a tablet (playerOnTouch) only a stack made with the Mobile Web
+   -- library is given the screen, to fill as it would on a phone (the
+   -- Responsive Starter laid out as a tablet's); every other stack opens
+   -- there as it does on a desktop, and none is fitted to the screen.
    put playerOnPhone() and sMode is "page" into tOnPhone
-   if tOnPhone then
+   put tOnPhone into tTakeTheScreen
+   if not tOnPhone and not tHyperCard and sMode is "page" then
+      put playerOnTouch() and playerUsesMobileWeb(pPath) into tTakeTheScreen
+   end if
+   if tTakeTheScreen then
       playerTakeTheScreen
    end if
    try
@@ -952,14 +960,14 @@ command playerOpenFile pPath
       playerStatus "Could not open" && pPath & ":" && tResult, "error"
       exit playerOpenFile
    end if
-   put tOnPhone and playerLibraryFilled() into tTookTheScreen
+   put tTakeTheScreen and playerLibraryFilled() into tTookTheScreen
    lock screen
    set the itemDelimiter to comma
    if tTookTheScreen then
       -- a stack made for phones that filled the screen itself keeps it
       playerLog "fills the screen" && tName
    else if the mode of stack tName > 0 then
-      if tOnPhone then
+      if tTakeTheScreen then
          set the resizable of stack tName to tResizable
       end if
       set the width of stack tName to item 3 of tRect - item 1 of tRect
@@ -1083,6 +1091,44 @@ private function playerOnPhone
    end try
    return false
 end playerOnPhone
+
+-- Whether the page gives a stack made with the Mobile Web library the
+-- whole screen of a touch screen that is not a phone's (a tablet), where
+-- index.html and play.html set data-mobile-web-fill="touch". Anywhere
+-- else, and in the IDE, no.
+private function playerOnTouch
+   local tError
+   if the platform is not "HTML5" then
+      return false
+   end if
+   try
+      do "document.body.getAttribute('data-mobile-web-fill') === 'touch' ? 'yes' : 'no'" as "JavaScript"
+      return the result is "yes"
+   catch tError
+   end try
+   return false
+end playerOnTouch
+
+-- Whether a stack is made with the Mobile Web library: its script, its
+-- cards' or its behavior's calls mwStart, mwFillScreen or mwFitStack, the
+-- commands that give a stack the window. Read before it opens, so that a
+-- stack that does not is opened on a tablet exactly as on a desktop. A
+-- script that cannot be read (a stack with a password) is not.
+private function playerUsesMobileWeb pPath
+   local tScripts, tCard, tError
+   try
+      put the script of stack pPath into tScripts
+      repeat with tCard = 1 to the number of cards of stack pPath
+         put return & the script of card tCard of stack pPath after tScripts
+      end repeat
+      if the behavior of stack pPath is not empty then
+         put return & the script of (the behavior of stack pPath) after tScripts
+      end if
+   catch tError
+      return false
+   end try
+   return matchText(tScripts, "(?i)(^|[^a-z0-9_])mw(start|fillscreen|fitstack)([^a-z0-9_]|$)")
+end playerUsesMobileWeb
 
 -- Leaving a stack stops what the Mobile Web library was doing for it
 -- (its gestures, sensors, the screen kept on, the page filled), so that

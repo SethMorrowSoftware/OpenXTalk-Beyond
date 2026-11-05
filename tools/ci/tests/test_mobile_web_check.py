@@ -381,7 +381,10 @@ class PlayerOnAPhone(unittest.TestCase):
         self.assertIn("if (document.body.classList.contains('playing')) return;", self.page)
 
     def test_the_page_plays_full_screen_with_a_way_home(self):
-        self.assertIn("document.body.classList.toggle('phone-play', on && !document.body.hasAttribute('data-mobile-web-fill'));", self.page)
+        # on a phone every stack; on a tablet one the library filled the
+        # page for (test_web_player_touch)
+        self.assertIn("document.body.classList.toggle('phone-play', on && fillsTheScreen());", self.page)
+        self.assertIn("return fill === null || (fill === 'touch' && !!document.getElementById('oxt-mobile-web-fill'));", self.page)
         self.assertRegex(self.page, r'<button id="phone-home"[^>]*aria-label="Back to your stacks"')
         self.assertIn("$('phone-home').addEventListener('click', function () { call('home'); });", self.page)
         self.assertIn('#phone-home{display:none}', self.page)
@@ -397,10 +400,13 @@ class PlayerOnAPhone(unittest.TestCase):
     def test_only_a_phone_changes_how_a_stack_opens(self):
         open_ = self.handler('command', 'playerOpenFile')
         self.assertIn('put playerOnPhone() and sMode is "page" into tOnPhone', open_)
-        self.assertRegex(open_, r'if tOnPhone then\s+playerTakeTheScreen\s+end if\s+try')
-        self.assertIn('put tOnPhone and playerLibraryFilled() into tTookTheScreen', open_)
+        # on a phone every stack takes the screen; on a tablet only one
+        # made with the Mobile Web library (test_web_player_touch)
+        self.assertIn('put tOnPhone into tTakeTheScreen', open_)
+        self.assertRegex(open_, r'if tTakeTheScreen then\s+playerTakeTheScreen\s+end if\s+try')
+        self.assertIn('put tTakeTheScreen and playerLibraryFilled() into tTookTheScreen', open_)
         # off a phone, the stack's own size is put back as before
-        self.assertRegex(open_, r'else if the mode of stack tName > 0 then\s+if tOnPhone then\s+'
+        self.assertRegex(open_, r'else if the mode of stack tName > 0 then\s+if tTakeTheScreen then\s+'
                                 r'set the resizable of stack tName to tResizable\s+end if\s+'
                                 r'set the width of stack tName to item 3 of tRect - item 1 of tRect')
         self.assertIn('if tOnPhone and not tTookTheScreen and the mode of stack tName > 0 then\n      playerFitToPhone tName', open_)

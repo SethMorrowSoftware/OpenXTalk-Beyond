@@ -44,7 +44,11 @@ mwStart fills the screen, and the player fits one that does not
 (stack-player.livecodescript, playerOnPhone, reads the attribute). Anywhere
 else the body has data-mobile-web-fill="no" and the stack is shown at its
 own size: without it, the player took every desktop browser for a phone
-from 0.2.7-rc.6.16 (#348) and scaled each stack up to the window.
+from 0.2.7-rc.6.16 (#348) and scaled each stack up to the window. On a
+tablet (another touch screen, an iPad) it is data-mobile-web-fill="touch":
+a stack made with the Mobile Web library fills the screen there too, so
+that the Responsive Starter is laid out as a tablet's, and any other stack
+is shown at its own size, as on a desktop (isTouch, playerOnTouch).
 
 The page talks to the player stack as index.html does: playerFromPage
 (take, home) one way, window.oxtPlayer.event the other.
@@ -214,9 +218,18 @@ body.dropping .center#open{outline:2px dashed var(--accent);outline-offset:-1rem
   function isPhone() {
     return window.matchMedia('(pointer: coarse)').matches && Math.min(window.innerWidth, window.innerHeight) <= 600;
   }
+  // A tablet: another touch screen (an iPad). There the body has
+  // data-mobile-web-fill="touch": the Mobile Web library may fill the page,
+  // and the player gives the window to a stack made with it (one whose
+  // scripts call mwStart, mwFillScreen or mwFitStack, playerUsesMobileWeb);
+  // every other stack is shown at its own size, as on a desktop.
+  function isTouch() {
+    return window.matchMedia('(pointer: coarse)').matches;
+  }
   function choosePhone() {
     if (playing) return;
     if (isPhone()) document.body.removeAttribute('data-mobile-web-fill');
+    else if (isTouch()) document.body.setAttribute('data-mobile-web-fill', 'touch');
     else document.body.setAttribute('data-mobile-web-fill', 'no');
   }
   choosePhone();
