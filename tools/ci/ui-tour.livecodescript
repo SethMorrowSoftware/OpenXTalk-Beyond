@@ -6401,6 +6401,7 @@ on tour_extension_manager
    tourWait 2500
    if tStack is empty or there is not a stack tStack then throw "no stack for the palette extension manager"
    if not the visible of stack tStack then throw "the palette extension manager (" & tStack & ") is not visible"
+   tourClearOfTools tStack
    tourShotStack tStack, "17-extension-manager"
    if $OXT_TOUR_APPEARANCE is "dark" then
       put "255,255,255" into tWant
@@ -8796,6 +8797,48 @@ command tourInFront pStack
    if there is a stack tDefault then set the defaultStack to tDefault
    tourWait 300
 end tourInFront
+
+-- A window wider than the screen right of the Tools palette is made that
+-- wide, at most down to its minWidth, so that tourOnScreen can move it
+-- clear of the palette. On the Apple silicon Mac's 1024 by 768 screen the
+-- Extension Manager opened 1004 wide at left 20 (rc.6.14; rc.6.12: 866 at
+-- 158), and the palette covered its left edge in 17-extension-manager in
+-- the dark appearance. Only the tour's own snapshot is affected: the
+-- window is the IDE's, as it opened, until this narrows it. When it could
+-- be narrowed enough and is still under the palette, that is the tour's
+-- fault, and it says so
+command tourClearOfTools pStack
+   local tScreen, tTools, tRect, tRoom, tFrame
+   if there is not a stack "revTools" then exit tourClearOfTools
+   if the mode of stack "revTools" is 0 or not the visible of stack "revTools" then exit tourClearOfTools
+   put the working screenRect into tScreen
+   put the effective rect of stack "revTools" into tTools
+   put the effective rect of stack pStack into tRect
+   if not (item 1 of tRect < item 3 of tTools and item 3 of tRect > item 1 of tTools \
+         and item 2 of tRect < item 4 of tTools and item 4 of tRect > item 2 of tTools) then
+      exit tourClearOfTools
+   end if
+   -- the window's frame, the effective rect less the rect, on both sides
+   put (item 3 of tRect - item 1 of tRect) - the width of stack pStack into tFrame
+   -- 20 pixels clear of the palette, as tourOnScreen moves it
+   put item 3 of tScreen - (item 3 of tTools + 20) - tFrame into tRoom
+   if the width of stack pStack > tRoom and tRoom >= the minWidth of stack pStack then
+      tourRecord "INFO" && pStack && "is" && the width of stack pStack && "wide, more than the" \
+            && tRoom && "right of the Tools palette: made" && tRoom && "wide"
+      set the width of stack pStack to tRoom
+      tourWait 500
+   end if
+   tourOnScreen pStack
+   put the effective rect of stack pStack into tRect
+   if item 1 of tRect < item 3 of tTools and item 3 of tRect > item 1 of tTools \
+         and item 2 of tRect < item 4 of tTools and item 4 of tRect > item 2 of tTools then
+      if the width of stack pStack <= tRoom then
+         throw pStack && "(" & tRect & ") fits right of the Tools palette (" & tTools & ") but is still under it"
+      end if
+      tourRecord "INFO" && pStack && "cannot be narrowed below its minWidth" && the minWidth of stack pStack \
+            && "to clear the Tools palette (" & tRoom && "room)"
+   end if
+end tourClearOfTools
 
 -- A window as wide as the screen cannot move clear of the Tools palette
 -- (tourOnScreen): OXT-Beyond Home is 1024 wide on the Apple silicon Mac's
