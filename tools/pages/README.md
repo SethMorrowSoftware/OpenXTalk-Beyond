@@ -138,6 +138,19 @@ the engine and compared with `lessons/shots/<id>.png`, at twice the
 stage's size; on Linux the check points fontconfig at the checkout's
 fonts, so that the picture does not depend on the machine.
 
+The lessons about objects start where a beginner starts: the reader
+builds a card with the Tools palette and the Property Inspector, from a
+`<div class="build">` of numbered steps, and the xTalk that makes the
+same card goes in its `<pre class="setup">`, which the page leaves out.
+An example on that card (`data-card`) is lines for the Message Box
+(`data-in="message"`), or a script for one of its objects (`data-script`:
+`button "Go"`, `this card`, `this stack`) that the reader then clicks in
+Run mode (`data-click`); `data-after` names the scripts the reader put in
+before it. The check builds the card with messages locked, puts the
+scripts in, makes the clicks as the engine does (a check box or radio
+button changes first), and holds the example to what the Message Box
+shows after each click.
+
 ```sh
 python3 tools/pages/build_lessons.py --out /tmp/lessons      # the pages alone
 python3 tools/ci/lessons_check.py --engine <OXT-Beyond>/oxt-beyond [--only <slug>|<example id>] [--update-shots]
@@ -150,8 +163,8 @@ lessons with the engine it built (build-linux.yml, "Lessons check"), and
 them with the latest release's engine, uploading the engine's pictures,
 with what changed beside any that differs.
 [test_pages_lessons.py](../ci/tests/test_pages_lessons.py) holds the
-build, the example rules, the links and the picture comparison without
-an engine.
+build, the example rules (the palette's among them), the code the check
+runs on a card, the links and the picture comparison without an engine.
 
 ## Turning it on
 
