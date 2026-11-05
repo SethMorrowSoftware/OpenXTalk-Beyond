@@ -1540,8 +1540,8 @@ static double MCObjectColorContrast(const MCColor &p_a, const MCColor &p_b)
  * Only where those two colours cannot be read against each other (a
  * contrast under 1.5: light grey on white is 1.1) the list is drawn
  * otherwise: in the background colour the button has, its own or the first
- * above it, if the words can be read on it; else in the theme's words, or
- * black or white, whichever reads on the list. Every list that could be
+ * above it, if the words read on it as the WCAG asks of words (4.5); else
+ * in the theme's words, or black or white, whichever reads on the list. Every list that could be
  * read is drawn as before, as is a list with a colour or a pattern of its
  * own, a disabled one, and the Mac's and Motif's. True with both colours
  * when the list is drawn otherwise */
@@ -1590,7 +1590,7 @@ bool MCObject::getmenulistcolors(MCContextType dc_type, MCColor &r_back, MCColor
 			MCColor t_color;
 			MCPatternRef t_none = nil;
 			if (t_object -> getforecolor(DI_BACK, False, False, t_color, t_none, t_x, t_y, dc_type, t_object) &&
-			    t_none == nil && MCObjectColorContrast(t_fore, t_color) >= 3.0)
+			    t_none == nil && MCObjectColorContrast(t_fore, t_color) >= 4.5)
 			{
 				r_back = t_color;
 				r_fore = t_fore;
@@ -1604,7 +1604,7 @@ bool MCObject::getmenulistcolors(MCContextType dc_type, MCColor &r_back, MCColor
 	MCColor t_words;
 	if (!getthemeselectorsforprop(P_FORE_COLOR, t_type, t_part, t_state, t_prop, t_prop_type) ||
 	    !MCPlatformGetControlThemePropColor(t_type, t_part, t_state, t_prop, t_words) ||
-	    MCObjectColorContrast(t_words, t_back) < 3.0)
+	    MCObjectColorContrast(t_words, t_back) < 4.5)
 	{
 		MCColor t_black = MCscreen -> getblack();
 		MCColor t_white = MCscreen -> getwhite();
