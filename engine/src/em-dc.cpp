@@ -534,6 +534,13 @@ bool MCScreenDC::platform_getdisplays(bool p_effective, MCDisplay *&r_displays, 
  * Event loop
  * ================================================================ */
 
+/* OXT-Beyond: when the browser last had a turn, the time a yield to it
+ * came back (every yield of the engine is in MCScreenDC::wait), and how
+ * long a wait may go on running the engine after it before it gives the
+ * browser one: a frame at 60 frames a second. */
+static real64_t s_browser_turn_time = 0.0;
+static const real64_t kMCEmscriptenFrameInterval = 1.0 / 60.0;
+
 /* Returns true if quit is requested, or if the engine cannot yield. */
 Boolean
 MCScreenDC::wait(real64_t p_duration,
@@ -566,6 +573,7 @@ MCScreenDC::wait(real64_t p_duration,
 
 	bool t_first = true;
 	bool t_done = false;
+	bool t_yielded = false;
 
 	while (!t_done && !MCquit)
 	{
@@ -591,14 +599,38 @@ MCScreenDC::wait(real64_t p_duration,
 				t_done = (t_exit_time - t_current_time <= 0);
 			}
 
+			/* OXT-Beyond: a wait that is over without having yielded
+			 * (one of 0 ms, or one whose messages took longer than it
+			 * lasts) still gives the browser a turn, and then handles
+			 * what came in during it, when a frame or more has gone by
+			 * since the browser's last turn. The page shows its canvas
+			 * and gets its events only between the engine's turns, so
+			 * an animation that waited 0 ms between its frames ("wait 0
+			 * milliseconds with messages") showed nothing until it
+			 * ended, though one that waited 0.1 ms animated, and a loop
+			 * of such waits never saw a click; a desktop engine shows
+			 * what was drawn and takes the user's clicks during any
+			 * wait (OpenXTalkPaul, openxtalk.org p=26041). At most one
+			 * turn a frame, so a loop of such waits slows little. */
+			if (t_done && !t_yielded &&
+			    t_current_time - s_browser_turn_time >= kMCEmscriptenFrameInterval)
+			{
+				t_done = false;
+				t_sleep_time = 0.0;
+			}
+
 			/* There's still some waiting required, so give up running the
 			 * engine for now and wait for an event or timeout from the
 			 * browser: no time at all if a message is due, which keeps
 			 * the page answering while the messages run */
-			if (!t_done &&
-			    MCEmscriptenAsyncYield(MCMax(t_sleep_time, 0.0)))
+			if (!t_done)
 			{
-				t_done = p_accept_any_event;
+				t_yielded = true;
+				if (MCEmscriptenAsyncYield(MCMax(t_sleep_time, 0.0)))
+				{
+					t_done = p_accept_any_event;
+				}
+				s_browser_turn_time = MCS_time();
 			}
 
 			/* Update the times based on the result of the yield */

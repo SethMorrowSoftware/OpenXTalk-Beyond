@@ -79,6 +79,7 @@ on:
       - tools/ci/web_ide_soak.py
       - tools/ci/retry_check.py
       - tools/ci/web-ide-tour.livecodescript
+      - tools/ci/web-ide-idle.livecodescript
       - tools/ci/build-web-ide.sh
       - tools/ci/build-web.sh
       - tools/web-ide/**
@@ -109,6 +110,7 @@ on:
       - tools/ci/web_ide_soak.py
       - tools/ci/retry_check.py
       - tools/ci/web-ide-tour.livecodescript
+      - tools/ci/web-ide-idle.livecodescript
       - tools/ci/build-web-ide.sh
       - tools/ci/build-web.sh
       - tools/web-ide/**
@@ -420,6 +422,21 @@ jobs:
         run: |
           "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_ide_tour.py --site "$RUNNER_TEMP/site" \
             --out "$RUNNER_TEMP/web-ide-tour" --color-scheme "$SCHEME"
+
+      # How busy the web IDE keeps the browser while nobody uses it
+      # (tools/ci/web-ide-idle.livecodescript): Home's lights are pictures
+      # that draw the gradients' pixels, Home moves in front and holds
+      # still behind a stack of the user's, and the main thread's work in
+      # each state, with Home closed too, stays under its budget (seth,
+      # 2026-11-04: half a core while idle on 0.2.7-rc.6.14). Once, in the
+      # light job; the numbers are in the step's log.
+      - name: Web IDE at rest
+        if: ${{ !cancelled() && matrix.scheme == 'light' }}
+        timeout-minutes: 10
+        run: |
+          "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_ide_tour.py --site "$RUNNER_TEMP/site" \
+            --out "$RUNNER_TEMP/web-ide-tour/at-rest" --tour tools/ci/web-ide-idle.livecodescript \
+            --timeout 480
 
       # (light keeps the artifact's old name)
       - name: Upload the screenshots

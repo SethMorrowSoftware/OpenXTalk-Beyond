@@ -191,6 +191,10 @@ private function compilerPrettyPrintAssertion pAssertion, pPositions
       return "compile succeeded"
    end if
 
+   if item 1 of pAssertion is "nowarnings" then
+      return "compile succeeded with no warnings"
+   end if
+
    if item 1 of pAssertion is among the items of "error,warning" then
       return format("%s %s at line %d", item 1 of pAssertion, item 2 of pAssertion, pPositions[item 3 of pAssertion])
    end if
@@ -294,7 +298,7 @@ private command processCompilerTest pInfo, pScriptFile, pTest, @rCompilerTest
                delete char -1 of tExpectationReason
             end if
             put "assertions" into tState
-         else if tToken is among the items of "%SUCCESS,%WARNING,%ERROR" then
+         else if tToken is among the items of "%SUCCESS,%NOWARNINGS,%WARNING,%ERROR" then
             if tState is not "assertions" then
                reportCompilerTestError pScriptFile, tLineNumber, "assertion directive outside of assertion block"
             end if
@@ -306,6 +310,18 @@ private command processCompilerTest pInfo, pScriptFile, pTest, @rCompilerTest
                
                reportCompilerTestDiag format("found assert success at line %d", tLineNumber)
                put "success" & return after tAssertions
+            else if tToken is "%NOWARNINGS" then
+               -- The compile succeeds and prints no warning at all: what a
+               -- test of a rule's ALLOWED cases asserts, since %SUCCESS
+               -- passes whatever warnings the compile printed. (Paul's
+               -- html5 report: a digit in a namespace part drew the
+               -- non-lowercase warning, and %SUCCESS could not see it.)
+               if the number of words in tLine is not 1 then
+                  reportCompilerTestError pScriptFile, tLineNumber, "incorrect syntax, expected: %NOWARNINGS"
+               end if
+               
+               reportCompilerTestDiag format("found assert no warnings at line %d", tLineNumber)
+               put "nowarnings" & return after tAssertions
             else if tToken is "%WARNING" then
                if (the number of words in tLine is 4 and \
                      word 3 of tLine is "AT") then

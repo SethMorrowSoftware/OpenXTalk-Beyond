@@ -2431,6 +2431,34 @@ void MCFilesExecWriteToFileOrDriverAtEndLegacy(MCExecContext& ctxt, MCNameRef p_
 	MCFilesExecWriteToFileOrDriver(ctxt, p_file, p_data, true, p_unit_type, 0, false);
 }
 
+// The encoding "write to process" puts the text into.
+//
+// A process keeps the file encoding it was opened with (kMCFileEncoding...,
+// "text" already turned into kMCFileEncodingNative), and
+// MCFilesExecWriteToStream takes a file encoding. Until rc.6.15 the write
+// passed it through MCS_file_to_string_encoding first, so the stream was
+// handed a STRING encoding (kMCStringEncoding...) read as a file encoding:
+// different numbering, so the bytes depended on the platform's native
+// charset. On Linux (ISO-8859-1, 3 = kMCFileEncodingUTF16) text and binary
+// writes went out as UTF-16; on macOS (MacRoman, 2 = kMCFileEncodingUTF8)
+// as UTF-8, binary data included; on Windows (1252, 1 =
+// kMCFileEncodingNative) text and binary were right. On every platform
+// "UTF-8" went out as UTF-16LE (4) and "UTF-16" as native text (9). The
+// read side, and write to file, always used the file encoding as it is.
+//
+// The one mapping kept: on macOS, native text (and plain "text") has gone to
+// a process as UTF-8 since LiveCode 7, which is what macOS programs read, so
+// it still does, though the dictionary says MacRoman (no breaking changes).
+static intenum_t MCFilesProcessWriteEncoding(Encoding_type p_encoding)
+{
+    MCFileEncodingType t_encoding = (MCFileEncodingType)p_encoding;
+#if defined(__MACROMAN__)
+    if (t_encoding == kMCFileEncodingNative)
+        return kMCFileEncodingUTF8;
+#endif
+    return t_encoding;
+}
+
 void MCFilesExecWriteToProcess(MCExecContext& ctxt, MCNameRef p_process, MCStringRef p_data, int p_unit_type)
 {
 	uindex_t t_index;
@@ -2466,11 +2494,11 @@ void MCFilesExecWriteToProcess(MCExecContext& ctxt, MCNameRef p_process, MCStrin
 			MCValueAssign(t_text_data, *t_substring);
 			haseof = True;
 		}
-        MCFilesExecWriteToStream(ctxt, t_stream, t_text_data, p_unit_type, MCS_file_to_string_encoding((MCFileEncodingType)MCprocesses[t_index].encoding), t_stat);
+        MCFilesExecWriteToStream(ctxt, t_stream, t_text_data, p_unit_type, MCFilesProcessWriteEncoding(MCprocesses[t_index].encoding), t_stat);
 		MCValueRelease(t_text_data);
 	}
 	else
-        MCFilesExecWriteToStream(ctxt, t_stream, p_data, p_unit_type, MCS_file_to_string_encoding((MCFileEncodingType)MCprocesses[t_index].encoding), t_stat);
+        MCFilesExecWriteToStream(ctxt, t_stream, p_data, p_unit_type, MCFilesProcessWriteEncoding(MCprocesses[t_index].encoding), t_stat);
 
     if (haseof)
 	{

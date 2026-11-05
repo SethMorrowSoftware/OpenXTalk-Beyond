@@ -10692,12 +10692,25 @@ on revIDEEditImage pImages
    
    set the defaultStack to the topStack	
 
-   local tNumber, tImagePath
+   local tNumber, tImagePath, tLineNo, tTempFiles, tNumbersUsed
+   put 0 into tLineNo
    repeat for each line tImage in pImages
       # The image itself, not "image tNumber": in a stack whose
       # hcAddressing is true, the number of a background's image counts
       # the background's images, and image tNumber is a card's
       put the number of tImage into tNumber
+      # Each image its own temporary file: temp<N>.png, as always, for
+      # the first image of a number, and temp<N>-<line>.png for another
+      # of the same number (a card's and a background's image in such a
+      # stack), which used to share the first one's file, so that Update
+      # gave the first image the second's picture and emptied the second
+      add 1 to tLineNo
+      if tNumbersUsed[tNumber] is true then
+         put "temp" & tNumber & "-" & tLineNo & ".png" into tTempFiles[tLineNo]
+      else
+         put "temp" & tNumber & ".png" into tTempFiles[tLineNo]
+         put true into tNumbersUsed[tNumber]
+      end if
       if the fileName of tImage is not empty then
          put the fileName of tImage into tImagePath
          local tEditFileName
@@ -10707,14 +10720,14 @@ on revIDEEditImage pImages
          put the fileType into tReturn
          set the fileType to "PNGf????"
          try
-            export tImage to file "temp" & tNumber & ".png" as png
+            export tImage to file tTempFiles[tLineNo] as png
          catch tError
             answer error line (item 1 of line 1 of tError) of the cErrorsList \
                   of cd 1 of stack "revErrorDisplay"
             exit revIDEEditImage
          end try
          set the fileType to tReturn
-         put the directory & "/" & ("temp" & tNumber & ".png") into tImagePath
+         put the directory & "/" & tTempFiles[tLineNo] into tImagePath
       end if
       
       if tImageEditor is among the lines of the openProcesses then 
@@ -10745,15 +10758,15 @@ on revIDEEditImage pImages
          exit revIDEEditImage
       end if
       if it is "cancel" then
-         repeat for each line tImage in pImages
-            put the number of tImage into tNumber
-            delete file ("temp" & tNumber & ".png")
+         repeat with tLineNo = 1 to the number of lines of pImages
+            delete file tTempFiles[tLineNo]
          end repeat
       else
+         put 0 into tLineNo
          repeat for each line tImage in pImages
-            put the number of tImage into tNumber
-            set the text of tImage to URL ("binfile:" & ("temp" & tNumber & ".png"))
-            delete file ("temp" & tNumber & ".png")
+            add 1 to tLineNo
+            set the text of tImage to URL ("binfile:" & tTempFiles[tLineNo])
+            delete file tTempFiles[tLineNo]
          end repeat
       end if
 end revIDEEditImage

@@ -84,6 +84,13 @@ const BRIDGE_PROTOCOL = 1;
 // The MCP versions this answers to, newest first: a client asking for one
 // of them gets it, any other client the newest
 const MCP_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
+// A number of milliseconds from the environment, where 0 is a value of its
+// own (Number(...) || default would take it as unset)
+function envMs(name, fallback) {
+  const text = process.env[name];
+  const value = Number(text);
+  return text === undefined || text === '' || !Number.isFinite(value) || value < 0 ? fallback : value;
+}
 // How long a call may take, in milliseconds: a run, or the user answering
 // a question in the IDE, can take minutes
 const CALL_TIMEOUT_MS = Number(process.env.OXT_MCP_TIMEOUT_MS) || 10 * 60 * 1000;
@@ -100,6 +107,28 @@ const BUSY_WAIT_MS = Number(process.env.OXT_MCP_BUSY_WAIT_MS) || 20000;
 // asked for progress; and how long it may take to answer that
 const STATUS_INTERVAL_MS = Number(process.env.OXT_MCP_STATUS_INTERVAL_MS) || 15000;
 const STATUS_TIMEOUT_MS = 3000;
+// How long a call waits for the user to answer OXT-Beyond's question (Run,
+// Save, an undo) before it is answered that the question is still open:
+// Claude's apps give up on a call after about a minute, and a yes given
+// after that ran what nobody waited for. The call goes on in OXT-Beyond,
+// and pending_result gives what came of it. 0: wait as long as the call
+// may take (CALL_TIMEOUT_MS), as before 0.2.7-rc.6.15. Then how often it
+// looks again while OXT-Beyond is not asking (a run that takes long)
+const ANSWER_WAIT_MS = envMs('OXT_MCP_ANSWER_WAIT_MS', 40000);
+const ANSWER_RECHECK_MS = 5000;
+// The longest pending_result waits for an answer, in seconds, and what it
+// waits when not told: less than the minute after which Claude's apps give up
+const PENDING_WAIT_MAX_S = 50;
+const PENDING_WAIT_DEFAULT_S = 30;
+// How many calls pending_result keeps the outcome of
+const PENDING_KEEP = 20;
+// The tools that end what holds an earlier call up (a script paused in the
+// debugger, a dialog a stack opened): OXT-Beyond answers them while that
+// call waits (its kUnblockingTools), so they do not wait their turn here
+// behind it, which they did until 0.2.7-rc.6.15 and were then refused as
+// busy; and how long one may take
+const UNBLOCKING_TOOLS = new Set(['stop_paused_script', 'answer_dialog']);
+const ASIDE_TIMEOUT_MS = 30000;
 // For the web IDE (see the top of this file): whether this server is for
 // it, the port it listens on for the tab, the key the two ends share, the
 // origins it lets connect, the largest message it reads from the tab (a
@@ -135,7 +164,9 @@ const INSTRUCTIONS = [
   'are not sure of with lookup_dictionary rather than guess.',
   'When a call waits or is refused as busy, its text says what OXT-Beyond waits for: the user\'s answer to its question',
   '(ask them to look for that window), a script paused in the debugger (stop_paused_script), or a dialog a stack opened',
-  '(answer_dialog). import_hypercard imports a HyperCard stack, or one from a Mac disk image, without running its scripts.'
+  '(answer_dialog). Those two answer even while another call waits. A call still waiting for the user\'s answer after about',
+  'forty seconds is answered that it waits; it goes on when they answer, and pending_result gives what came of it: do',
+  'not send it again. close_stack closes the test stacks you made. import_hypercard imports a HyperCard stack, or one from a Mac disk image, without running its scripts.'
 ].join(' ');
 
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
@@ -383,9 +414,20 @@ const TOOLS = [
     title: 'Save a stack',
     description: 'Saves a stack of the user\'s to its file, with its substacks, as File > Save does, after the user says yes ' +
       'in OXT-Beyond, every time unless they turned that asking off. A stack never saved (a new one you made) is saved ' +
-      'where the user chooses. Save when the ' +
+      'where the user chooses, in a file dialog only they can answer; with file, it is saved there instead, as Save As ' +
+      'does, and keeps that file from then on (a file of another stack, or any other file already there, is not ' +
+      'replaced). Save when the ' +
       'user asks you to, or offer to when you have built a new stack. Saving cannot be undone.',
-    inputSchema: { type: 'object', properties: { stack: STACK } },
+    inputSchema: {
+      type: 'object',
+      properties: {
+        stack: STACK,
+        file: { type: 'string', description: 'Save it as this file: a full path on this computer, in a folder that exists ' +
+          '(.oxtstack is added when it has no stack file\'s extension). Only where the user asked for it, or a stack never saved' },
+        name: { type: 'string', description: 'A stack never saved only: name it this first (a new stack is "Untitled 1" ' +
+          'until named). Undo still finds what you made in it' }
+      }
+    },
     annotations: CHANGES
   },
   {
@@ -479,10 +521,45 @@ const TOOLS = [
       required: ['ask']
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+  },
+  {
+    name: 'close_stack',
+    title: 'Close a stack',
+    description: 'Closes a stack of the user\'s, with its substacks, and takes it out of memory, with messages locked so ' +
+      'none of its handlers runs; its file, if it has one, stays as it is. A stack your calls brought in (made with ' +
+      'make_changes or by a run, or imported) and never saved closes at once, a copy kept in the temporary folder: close ' +
+      'the test stacks you made when you are done with them. Any other is closed only when the user says yes in ' +
+      'OXT-Beyond, and always asked about when it has changes not saved, since they are lost. Name the stack.',
+    inputSchema: {
+      type: 'object',
+      properties: { stack: { type: 'string', description: 'The stack to close, by name, as list_stacks gives it' } },
+      required: ['stack']
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false }
+  },
+  {
+    name: 'pending_result',
+    title: 'Get a call\'s result',
+    description: 'Gives the result of a call that was answered before it was done: one still waiting for the user to ' +
+      'answer OXT-Beyond\'s question (Run, Save) after about forty seconds, or one your app stopped waiting for. That call ' +
+      'goes on in OXT-Beyond, and what came of it is kept here until read: the run\'s output, the save, or that the user ' +
+      'said no. With no request, the oldest. While it still waits, this waits for it (wait_seconds, 30 when none), then ' +
+      'says what it waits for. Use it instead of sending the call again, which would ask, and run, twice.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        request: { type: 'integer', description: 'The number the call was answered with; the oldest when none' },
+        wait_seconds: { type: 'integer', minimum: 0, maximum: PENDING_WAIT_MAX_S, description: 'How long to wait for it, at most ' +
+          PENDING_WAIT_MAX_S + ' (30 when none)' }
+      }
+    },
+    annotations: READ_ONLY
   }
 ];
 
 const TOOL_NAMES = new Set(TOOLS.map((t) => t.name));
+// The tools this server answers itself, which OXT-Beyond does not have
+const SERVER_TOOLS = new Set(['pending_result']);
 
 function log(message) {
   process.stderr.write('[oxt-beyond-mcp] ' + message + '\n');
@@ -696,6 +773,12 @@ class Bridge {
   // is not sent at all (one already sent cannot be taken back).
   call(tool, args, state) {
     const ticket = state || {};
+    // What holds the call before it up is what this one is for: it goes
+    // past the queue, on a connection of its own
+    if (UNBLOCKING_TOOLS.has(tool) && this.waiting > 0 && this.canCallAside()) {
+      ticket.started = true;
+      return this.callAside(tool, args);
+    }
     const run = () => {
       if (ticket.abandoned || ticket.cancelled) {
         return Promise.reject(new BridgeError(ticket.cancelled ? 'Cancelled.' : BUSY));
@@ -733,27 +816,67 @@ class Bridge {
   // is waiting for an answer. Resolves with the text, or '' when there is
   // none to give (an OXT-Beyond that has no status, or none running).
   status() {
+    return this.statusInfo().then((info) => info.text);
+  }
+
+  // The status with whether OXT-Beyond is asking the user a question of
+  // its own (its "asking", or, from an OXT-Beyond before 0.2.7-rc.6.15,
+  // its text saying so): { text, asking }
+  statusInfo() {
+    return this.aside({ method: 'status' }, STATUS_TIMEOUT_MS).then((reply) => {
+      const text = reply && reply.ok && typeof reply.text === 'string' ? reply.text : '';
+      const asking = !!(reply && reply.ok && (reply.asking === true ||
+        (reply.asking === undefined && /is waiting for the user to answer its question/.test(text))));
+      return { text, asking };
+    }, () => ({ text: '', asking: false }));
+  }
+
+  // Whether a request can go on a connection of its own (the web IDE's
+  // tab has one connection only)
+  canCallAside() {
+    return true;
+  }
+
+  // A tool called past the queue (UNBLOCKING_TOOLS), as dispatch would
+  // give its answer
+  callAside(tool, args) {
+    return this.aside({ method: 'call', tool, arguments: args || {} }, ASIDE_TIMEOUT_MS).catch((e) => {
+      throw e instanceof BridgeError ? e : new BridgeError(e.message === 'timeout'
+        ? 'OXT-Beyond did not answer ' + tool + ' in ' + Math.round(ASIDE_TIMEOUT_MS / 1000) + ' seconds. Ask the user to look at OXT-Beyond.'
+        : this.notRunning);
+    });
+  }
+
+  // One request on a connection of its own, while the one calls go on may
+  // be waiting for an answer: resolves with OXT-Beyond's answer, parsed;
+  // rejects when there is none in timeoutMs (Error 'timeout') or no
+  // connection (a BridgeError when the bridge's file says why)
+  aside(request, timeoutMs) {
     let info;
     try {
       info = this.readInfo();
     } catch (e) {
-      return Promise.resolve('');
+      return Promise.reject(e);
     }
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const socket = net.createConnection({ host: '127.0.0.1', port: info.port });
       let buffer = '';
       let done = false;
-      const finish = (text) => {
+      const finish = (error, reply) => {
         if (!done) {
           done = true;
           clearTimeout(timer);
           socket.destroy();
-          resolve(text);
+          if (error) {
+            reject(error);
+          } else {
+            resolve(reply);
+          }
         }
       };
-      const timer = setTimeout(() => finish(''), STATUS_TIMEOUT_MS);
+      const timer = setTimeout(() => finish(new Error('timeout')), timeoutMs);
       socket.setEncoding('utf8');
-      socket.on('connect', () => socket.write(JSON.stringify({ id: 1, token: info.token, method: 'status' }) + '\n'));
+      socket.on('connect', () => socket.write(JSON.stringify(Object.assign({ id: 1, token: info.token }, request)) + '\n'));
       socket.on('data', (chunk) => {
         buffer += chunk;
         const at = buffer.indexOf('\n');
@@ -766,9 +889,14 @@ class Bridge {
         } catch (e) {
           // not an answer
         }
-        finish(reply && reply.ok && typeof reply.text === 'string' ? reply.text : '');
+        if (reply === null) {
+          finish(new Error('not JSON'));
+        } else {
+          finish(null, reply);
+        }
       });
-      socket.on('error', () => finish(''));
+      socket.on('error', (e) => finish(e));
+      socket.on('close', () => finish(new Error('closed')));
     });
   }
 
@@ -794,7 +922,7 @@ function toolsDifference(ideTools) {
   }
   const ide = new Set(ideTools.split(',').map((t) => t.trim()).filter(Boolean));
   const missingHere = [...ide].filter((t) => !TOOL_NAMES.has(t));
-  const missingThere = [...TOOL_NAMES].filter((t) => !ide.has(t));
+  const missingThere = [...TOOL_NAMES].filter((t) => !ide.has(t) && !SERVER_TOOLS.has(t));
   if (missingHere.length === 0 && missingThere.length === 0) {
     return '';
   }
@@ -1292,6 +1420,14 @@ class WebBridge extends Bridge {
     return Promise.resolve('');
   }
 
+  statusInfo() {
+    return Promise.resolve({ text: '', asking: false });
+  }
+
+  canCallAside() {
+    return false;
+  }
+
   connect() {
     if (this.link.problem) {
       return Promise.reject(new BridgeError(this.link.problem));
@@ -1343,21 +1479,61 @@ function textResult(text, isError) {
   return { content: [{ type: 'text', text }], isError: !!isError };
 }
 
-async function callTool(params, state) {
-  const name = params && params.name;
-  if (!TOOL_NAMES.has(name)) {
-    return textResult('There is no tool named "' + name + '".', true);
+// The calls answered before they were done (deferred while the user was
+// asked, or cancelled by the client once sent), by number, with what came
+// of each once it has: pending_result reads them, once
+class PendingCalls {
+  constructor() {
+    this.calls = new Map();
+    this.next = 1;
   }
-  const args = params.arguments && typeof params.arguments === 'object' ? params.arguments : {};
-  let reply;
-  try {
-    reply = await bridge.call(name, args, state);
-  } catch (e) {
-    if (e instanceof BridgeError) {
-      return textResult(e.message, true);
+
+  // Keeps work's outcome (a promise of an MCP result) under a new number
+  add(tool, work) {
+    const number = this.next++;
+    const entry = { number, tool, done: false, result: null, settled: null };
+    entry.settled = work.then((result) => result, (e) => textResult('The call failed: ' + e.message, true))
+      .then((result) => {
+        entry.done = true;
+        entry.result = result;
+      });
+    this.calls.set(number, entry);
+    // The oldest that are done go first when too many are kept
+    for (const [key, old] of this.calls) {
+      if (this.calls.size <= PENDING_KEEP) {
+        break;
+      }
+      if (old.done) {
+        this.calls.delete(key);
+      }
     }
-    throw e;
+    return number;
   }
+
+  get(number) {
+    if (number === undefined) {
+      return this.calls.values().next().value || null;
+    }
+    return this.calls.get(number) || null;
+  }
+
+  take(entry) {
+    this.calls.delete(entry.number);
+  }
+}
+
+const pending = new PendingCalls();
+
+// What a call deferred while the user is asked is answered
+function deferredText(number, tool, status) {
+  return 'Not done yet: OXT-Beyond is asking the user before it carries out ' + tool + ', and they have not answered. The ' +
+    'question stays open, and the call goes on as soon as they answer. Ask the user to look for that window in OXT-Beyond ' +
+    '(it may be behind others), then call pending_result with request ' + number + ' to get what came of it. Do not send ' +
+    'this call again: it would ask, and run, twice.' + (status ? '\n\n' + status : '');
+}
+
+// The MCP result of OXT-Beyond's reply to a call
+function resultOf(reply) {
   if (!reply.ok) {
     return textResult(reply.error || 'OXT-Beyond refused the request.', true);
   }
@@ -1367,6 +1543,101 @@ async function callTool(params, state) {
     content.push({ type: 'image', data: reply.image, mimeType: reply.imageType || 'image/png' });
   }
   return { content, isError: !!reply.isError };
+}
+
+async function callTool(params, state) {
+  const name = params && params.name;
+  if (!TOOL_NAMES.has(name)) {
+    return textResult('There is no tool named "' + name + '".', true);
+  }
+  const args = params.arguments && typeof params.arguments === 'object' ? params.arguments : {};
+  if (name === 'pending_result') {
+    return pendingResult(args);
+  }
+  const work = bridge.call(name, args, state).then(resultOf, (e) => {
+    if (e instanceof BridgeError) {
+      return textResult(e.message, true);
+    }
+    throw e;
+  });
+  state.tool = name;
+  state.work = work;
+  if (!(ANSWER_WAIT_MS > 0) || !bridge.canCallAside()) {
+    return work;
+  }
+  // Answered early while OXT-Beyond asks the user (ANSWER_WAIT_MS), and
+  // kept for pending_result: the call itself goes on
+  return new Promise((resolve, reject) => {
+    let done = false;
+    let timer = null;
+    work.then((result) => {
+      if (!done) {
+        done = true;
+        clearTimeout(timer);
+        resolve(result);
+      }
+    }, (e) => {
+      if (!done) {
+        done = true;
+        clearTimeout(timer);
+        reject(e);
+      }
+    });
+    const look = () => {
+      if (done || state.cancelled) {
+        return;
+      }
+      // Only a call that has gone to OXT-Beyond waits for the user's answer
+      // to its question; one waiting its turn here is told it is busy
+      if (!state.started) {
+        timer = setTimeout(look, ANSWER_RECHECK_MS);
+        return;
+      }
+      bridge.statusInfo().then((info) => {
+        if (done || state.cancelled) {
+          return;
+        }
+        if (info.asking) {
+          done = true;
+          state.deferred = true;
+          resolve(textResult(deferredText(pending.add(name, work), name, info.text), false));
+        } else {
+          timer = setTimeout(look, ANSWER_RECHECK_MS);
+        }
+      });
+    };
+    timer = setTimeout(look, ANSWER_WAIT_MS);
+  });
+}
+
+// pending_result: the outcome of a deferred call, once, waiting for it a
+// while when it has none yet
+async function pendingResult(args) {
+  const asked = Number.isInteger(args.request) ? args.request : undefined;
+  const entry = pending.get(asked);
+  if (!entry) {
+    return textResult(asked === undefined
+      ? 'No call is waiting for an answer here, and none has a result not yet read.'
+      : 'There is no call ' + asked + ' here: its result was read already, or no call was answered with that number ' +
+        '(they are kept only while this MCP server runs).', asked !== undefined);
+  }
+  let seconds = Number.isInteger(args.wait_seconds) ? args.wait_seconds : PENDING_WAIT_DEFAULT_S;
+  seconds = Math.max(0, Math.min(PENDING_WAIT_MAX_S, seconds));
+  if (!entry.done && seconds > 0) {
+    let timer;
+    await Promise.race([entry.settled, new Promise((resolve) => { timer = setTimeout(resolve, seconds * 1000); })]);
+    clearTimeout(timer);
+  }
+  if (!entry.done) {
+    const info = await bridge.statusInfo();
+    return textResult('Call ' + entry.number + ' (' + entry.tool + ') is not done yet. Call pending_result again to keep ' +
+      'waiting; do not send it again.' + (info.text ? '\n\n' + info.text : ''), false);
+  }
+  pending.take(entry);
+  const content = entry.result.content.slice();
+  content[0] = { type: 'text', text: 'Call ' + entry.number + ' (' + entry.tool + ') is done. What came of it:\n\n' +
+    (content[0] && content[0].text || '') };
+  return { content, isError: !!entry.result.isError };
 }
 
 function respond(id, result) {
@@ -1392,6 +1663,11 @@ async function handle(message) {
       state.cancelled = true;
       if (typeof state.onCancel === 'function') {
         state.onCancel();
+      }
+      // One already sent goes on in OXT-Beyond (a run the user may still
+      // allow): what comes of it is kept for pending_result
+      if (state.started && state.work && !state.deferred) {
+        pending.add(state.tool, state.work);
       }
     }
     return;

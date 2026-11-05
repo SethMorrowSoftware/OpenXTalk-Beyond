@@ -82,7 +82,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,menubar,menubar-modern,menubar-mac,menu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,menubar,menubar-modern,menubar-mac,menu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -849,6 +849,60 @@ on tour_tools_modern_switch
    tourTmFinish "tools-modern-switch"
    tourTmReset
 end tour_tools_modern_switch
+
+-- The names are on by default (0.2.7-rc.6.15): a fresh profile, which has
+-- chosen nothing and kept no size, opens the modern look as one column of
+-- icons with their names, kTmNamesWidth (200) wide, and saves the choice.
+-- A profile that has used the modern look (a size kept) and never chose
+-- keeps its icons alone, and a saved choice of either is kept as it is
+on tour_tools_modern_default
+   local tWidth
+   if not tourTmStart("tools-modern-default") then exit tour_tools_modern_default
+   -- a fresh profile
+   tourToolsDefaultOpen empty, empty
+   tourTmCheck revIDEGetPreference("revTools_modernNames") is true, \
+         "a fresh profile shows the names, and saves it (" & revIDEGetPreference("revTools_modernNames") & ")"
+   put the width of stack "revTools" into tWidth
+   tourTmCheck tWidth is 200, "and opens 200 wide (" & tWidth & ")"
+   tourTmCheck tourTmColumns("widget") is 1 and tourTmColumns("classic") is 1, \
+         "in one column (" & tourTmColumns("widget") & "," && tourTmColumns("classic") & ")"
+   tourTmLayoutOK "by default"
+   tourTmNamesWhole "by default"
+   tourShotStack "revTools", "01-tools-modern-default"
+   -- opened again, with the size it kept, it is as it was
+   close stack "revTools"
+   revIDEOpenPalette "tools"
+   tourWait 600
+   tourTmCheck revIDEGetPreference("revTools_modernNames") is true and tourTmColumns("classic") is 1, \
+         "opened again, it shows the names in one column"
+   -- a profile that has used the modern look, at 120 wide, and never chose
+   tourToolsDefaultOpen empty, "120,500"
+   tourTmCheck revIDEGetPreference("revTools_modernNames") is false, \
+         "a profile that used the modern look keeps its icons alone (" & revIDEGetPreference("revTools_modernNames") & ")"
+   tourTmCheck the width of stack "revTools" is 120, "at its own width (" & the width of stack "revTools" & ")"
+   -- a saved choice is kept, with no size kept as with one
+   tourToolsDefaultOpen false, empty
+   tourTmCheck revIDEGetPreference("revTools_modernNames") is false and the width of stack "revTools" is 120, \
+         "a saved choice of no names is kept (" & revIDEGetPreference("revTools_modernNames") & "," && the width of stack "revTools" & ")"
+   tourToolsDefaultOpen true, "380,500"
+   tourTmCheck revIDEGetPreference("revTools_modernNames") is true and the width of stack "revTools" is 380, \
+         "and one of names, at its own width (" & revIDEGetPreference("revTools_modernNames") & "," && the width of stack "revTools" & ")"
+   tourTmFinish "tools-modern-default"
+   tourTmReset
+end tour_tools_modern_default
+
+-- Opens the modern look as a profile with pNames and pSize saved finds it
+command tourToolsDefaultOpen pNames, pSize
+   close stack "revTools"
+   revIDESetPreference "revTools_modernNames", pNames
+   revIDESetPreference "revTools_modernSize", pSize
+   revIDESetPreference "revTools_modernFolded", empty
+   revIDESetPreference "revTools_modernShow", empty
+   revIDESetPreference "revTools_modernLarge", empty
+   revIDESetPreference "revTools_look", "modern"
+   revIDEOpenPalette "tools"
+   tourWait 800
+end tourToolsDefaultOpen
 
 -- A switch between light and dark as the IDE hears it: the engine's
 -- systemAppearanceChanged, which the message handler frontscript turns into
@@ -3749,9 +3803,11 @@ on tour_inspector_tabs
       tourMoveMouse tX & "," & tY
       tourWait 1500
       tourClick tX, tY
-      tourWait 1500
-      dispatch function "inspectorSectionGetName" to stack tPI
-      put the result into tShown
+      -- the section the click shows, waited for (a read 1.5 s after the
+      -- click saw Effects for Icons on macOS 26, #340's run 41757813518:
+      -- the step's 20-second watchdog took its screenshot inside that
+      -- wait, and the click was handled after the read)
+      put tourInspectorSectionAfterClick(tPI, tLabel, 6000) into tShown
       tourRecord "INFO inspector-tabs clicked" && tLabel && "at" && tX & "," & tY & ": shows" && tShown
       if tShown is not tLabel then
          put tLabel & ":" && tShown & "; " after tFails
@@ -3764,6 +3820,25 @@ on tour_inspector_tabs
             char 1 to -3 of tFails
    end if
 end tour_inspector_tabs
+
+-- The section the inspector pStack shows once it shows pSection, or after
+-- pMilliseconds: what a click on pSection's icon in its header showed.
+-- Waits a quarter second at a time, each time back through the event
+-- loop, so a click handled late still counts, and counts the turns, not
+-- the clock: a 20-second watchdog's screenshot inside one wait runs the
+-- clock down without the click being handled (the 1.5 s read it replaces
+-- saw "Icons: Effects" on macOS 26 so). A click that never shows its
+-- section returns the one shown at the end, and the step fails
+function tourInspectorSectionAfterClick pStack, pSection, pMilliseconds
+   local tShown
+   repeat (pMilliseconds div 250) times
+      tourWait 250
+      dispatch function "inspectorSectionGetName" to stack pStack
+      put the result into tShown
+      if tShown is pSection then exit repeat
+   end repeat
+   return tShown
+end tourInspectorSectionAfterClick
 
 -- Whether a click of tourClick reaches the IDE here: a button of a stack
 -- of the tour, clicked in Run mode, must get its mouseUp. Notes it when not
@@ -3788,7 +3863,13 @@ function tourClickWorks
    tourMoveMouse tLoc
    tourWait 300
    tourClick item 1 of tLoc, item 2 of tLoc
-   tourWait 1500
+   -- its mouseUp, waited for up to 6 s, a quarter second at a time (as
+   -- tourInspectorSectionAfterClick): one handled late, after a watchdog
+   -- took the wait, would leave the header unclicked without a failure
+   repeat 24 times
+      tourWait 250
+      if the cTourClicked of button "Click" of card 1 of stack tStack is true then exit repeat
+   end repeat
    put the cTourClicked of button "Click" of card 1 of stack tStack is true into tWorks
    choose pointer tool
    delete stack tStack
@@ -4160,6 +4241,165 @@ on tour_inspector_hypercard
    set the defaultStack to tDefault
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_inspector_hypercard
+
+-- Launch Editor (an image's right-click menu, and revEditImage pImages
+-- from a script) exports each image to a temporary file named after its
+-- number, waits while the editor changes it, and on Update reads it back.
+-- In a stack whose hcAddressing is true a card's image and a background's
+-- can have one number, and both went to one temp<N>.png: Update gave the
+-- first the second's picture and emptied the second. Each has its own file
+-- now (temp<N>.png for the first, as before). Here a card image and a
+-- background image of number 1 go to Launch Editor together, an editor
+-- that does nothing (/bin/true) "edits" them by the tour writing a picture
+-- of its own into each file, and after Update each image must show the
+-- picture written into its own file. Linux only (an editor that does
+-- nothing; the code is the same on every platform)
+constant kTourEditStack = "OXT Tour Edit Image"
+local sTourEditFiles, sTourEditImages, sTourEditFails, sTourEditFolder, sTourEditDone
+on tour_edit_image_numbers
+   local tDefault, tFolder, tOldFolder, tOldEditor, tCardImage, tBgImage, tFile, tFails, tError, i, tGot, tWant
+   if the platform is not "Linux" then
+      tourRecord "INFO edit-image-numbers: not checked on" && the platform && "(an editor that does nothing is Linux's /bin/true here)"
+      exit tour_edit_image_numbers
+   end if
+   put specialFolderPath("temporary") & "/oxt_tour_edit_image" into tFolder
+   if there is a folder tFolder then tourEditClearFolder tFolder
+   else create folder tFolder
+   put the defaultStack into tDefault
+   lock screen
+   lock messages
+   if there is a stack kTourEditStack then delete stack kTourEditStack
+   create stack kTourEditStack
+   set the rect of stack kTourEditStack to "240,160,560,400"
+   set the defaultStack to kTourEditStack
+   create image "Pic"
+   set the rect of it to "20,20,36,36"
+   create image "BgPic"
+   set the rect of it to "60,20,76,36"
+   group image "BgPic"
+   set the backgroundBehavior of group 1 of card 1 of stack kTourEditStack to true
+   tourEditFill the long id of image "Pic", "200,0,0"
+   tourEditFill the long id of image "BgPic", "0,0,200"
+   set the hcAddressing of stack kTourEditStack to true
+   unlock messages
+   unlock screen
+   set the defaultStack to tDefault
+   put the long id of card image 1 of card 1 of stack kTourEditStack into tCardImage
+   put the long id of bkgnd image 1 of card 1 of stack kTourEditStack into tBgImage
+   tourRecord "INFO edit-image-numbers" && tCardImage && "number" && the number of tCardImage && "and" && tBgImage && "number" && the number of tBgImage
+   if the number of tCardImage is not the number of tBgImage then
+      throw "the two images do not have one number:" && the number of tCardImage && the number of tBgImage
+   end if
+   put revIDEGetPreference("cEditorPath") into tOldEditor
+   put the directory into tOldFolder
+   try
+      revIDESetPreference "cEditorPath", "/bin/true"
+      set the directory to tFolder
+      put tCardImage & return & tBgImage into sTourEditImages
+      put empty into sTourEditFiles
+      put empty into sTourEditFails
+      put tFolder into sTourEditFolder
+      put false into sTourEditDone
+      -- the dialog's own loop runs while it is open, so the editor's work
+      -- and the click on Update come in a message sent into that loop
+      send "tourEditAct 0" to me in 200 milliseconds
+      send "tourEditLaunch" to me in 0 milliseconds
+      repeat with i = 1 to 150
+         wait 100 milliseconds with messages
+         if sTourEditDone is true and not (there is a stack "Answer Dialog" and the mode of stack "Answer Dialog" is not 0) then exit repeat
+      end repeat
+      wait 300 milliseconds with messages
+      put sTourEditFails after tFails
+      if sTourEditDone is not true then put "Launch Editor asked nothing in 15 seconds" & return after tFails
+      put tourEditFirstPixel(tCardImage) into tGot
+      if tGot is not "0,200,0" then
+         put "the card's image shows" && tGot && "after Update, not its own file's 0,200,0" & return after tFails
+      end if
+      put tourEditFirstPixel(tBgImage) into tGot
+      if tGot is not "200,200,0" then
+         put "the background's image shows" && quote & tGot & quote && "after Update, not its own file's 200,200,0" & return after tFails
+      end if
+      put files(tFolder) into tGot
+      if tGot is not empty then
+         put "temporary files left after Update:" && tourJoin(tGot) & return after tFails
+      end if
+   catch tError
+      put "error:" && tourJoin(tError) & return after tFails
+   end try
+   tourCloseDialogs
+   set the directory to tOldFolder
+   revIDESetPreference "cEditorPath", tOldEditor
+   tourEditClearFolder tFolder
+   delete folder tFolder
+   if there is a stack kTourEditStack then delete stack kTourEditStack
+   if tFails is not empty then throw tourJoin(tFails)
+end tour_edit_image_numbers
+
+on tourEditLaunch
+   revEditImage sTourEditImages
+end tourEditLaunch
+
+-- In the dialog's loop: the files Launch Editor made, the editor's work
+-- (green into the first image's file, yellow into the second's if it has
+-- one of its own), then Update
+on tourEditAct pTries
+   local tFile
+   if not (there is a stack "Answer Dialog" and the mode of stack "Answer Dialog" is not 0) then
+      if pTries < 50 then send "tourEditAct" && pTries + 1 to me in 200 milliseconds
+      exit tourEditAct
+   end if
+   put files(sTourEditFolder) into sTourEditFiles
+   sort lines of sTourEditFiles
+   tourRecord "INFO edit-image-numbers temporary files:" && tourJoin(sTourEditFiles)
+   if there is a file (sTourEditFolder & "/temp1.png") then
+      tourEditPng sTourEditFolder & "/temp1.png", "0,200,0"
+   else
+      put "there is no temp1.png for the first image" & return after sTourEditFails
+   end if
+   if the number of lines of sTourEditFiles < 2 then
+      put "the two images went to" && the number of lines of sTourEditFiles && "temporary file(s), not one each:" && tourJoin(sTourEditFiles) & return after sTourEditFails
+   else
+      repeat for each line tFile in sTourEditFiles
+         if tFile is not "temp1.png" then tourEditPng sTourEditFolder & "/" & tFile, "200,200,0"
+      end repeat
+   end if
+   put true into sTourEditDone
+   send "mouseUp" to button "Update" of card 1 of stack "Answer Dialog"
+end tourEditAct
+
+command tourEditClearFolder pFolder
+   local tFile
+   repeat for each line tFile in files(pFolder)
+      delete file (pFolder & "/" & tFile)
+   end repeat
+end tourEditClearFolder
+
+-- A 16 x 16 picture of one colour, in an image or a PNG file
+command tourEditFill pImage, pRGB
+   local tData, i
+   repeat 16 * 16 times
+      put numToByte(255) & numToByte(item 1 of pRGB) & numToByte(item 2 of pRGB) & numToByte(item 3 of pRGB) after tData
+   end repeat
+   set the width of pImage to 16
+   set the height of pImage to 16
+   set the imageData of pImage to tData
+end tourEditFill
+
+command tourEditPng pFile, pRGB
+   lock screen
+   create invisible image "oxt_tour_edit_png" in card 1 of stack "oxt_ui_tour"
+   tourEditFill the long id of it, pRGB
+   export image "oxt_tour_edit_png" of card 1 of stack "oxt_ui_tour" to file pFile as png
+   delete image "oxt_tour_edit_png" of card 1 of stack "oxt_ui_tour"
+   unlock screen
+end tourEditPng
+
+function tourEditFirstPixel pImage
+   local tData
+   put the imageData of pImage into tData
+   if tData is empty then return "empty"
+   return byteToNum(byte 2 of tData) & "," & byteToNum(byte 3 of tData) & "," & byteToNum(byte 4 of tData)
+end tourEditFirstPixel
 
 on tour_inspector_graphic
    local tPI
@@ -5930,6 +6170,88 @@ function tourEmFirstInk pStack
    end repeat
    return "no row"
 end tourEmFirstInk
+
+-- Every extension loaded used to run the extension library's dark mode
+-- hook on its own: a theme pass and an IDEToDarkMode or IDEToLightMode
+-- waiting for each, hundreds of them in a slow start. Three libraries no
+-- IDE window uses, unloaded and loaded again in a row (six changes), are
+-- one batch: one hook message reaches the back of the message path, after
+-- the batch, none is left waiting, and the three are loaded as before
+constant kTourHookStack = "oxt_tour_extensions_hook"
+local sTourHookCount
+on tour_extensions_theme_pass
+   local tIds, tId, tLine, tWaiting, tFails, tError, tTry
+   put "com.livecode.library.diff,com.livecode.library.getopt,com.livecode.library.mime" into tIds
+   repeat for each item tId in tIds
+      if revIDEExtensionProperty(tId, "status") is not "installed" then
+         throw tId && "is not loaded (" & revIDEExtensionProperty(tId, "status") & ")"
+      end if
+   end repeat
+   -- whatever the start left waiting goes first
+   wait 300 milliseconds with messages
+   if there is a stack kTourHookStack then delete stack kTourHookStack
+   create invisible stack kTourHookStack
+   set the script of stack kTourHookStack to \
+         "on IDEToDarkMode" & return & "   send " & quote & "tourHookCounted" & quote & " to stack " & quote & "oxt_ui_tour" & quote & return & "   pass IDEToDarkMode" & return & "end IDEToDarkMode" & return & \
+         "on IDEToLightMode" & return & "   send " & quote & "tourHookCounted" & quote & " to stack " & quote & "oxt_ui_tour" & quote & return & "   pass IDEToLightMode" & return & "end IDEToLightMode"
+   put 0 into sTourHookCount
+   insert the script of stack kTourHookStack into back
+   try
+      repeat for each item tId in tIds
+         revIDEExtensionUnload tId
+         revIDEExtensionReload tId
+      end repeat
+      put 0 into tWaiting
+      repeat for each line tLine in the pendingMessages
+         if item 3 of tLine is among the items of "IDEToDarkMode,IDEToLightMode" then add 1 to tWaiting
+      end repeat
+      tourRecord "INFO extensions-theme-pass hook messages waiting after six changes:" && tWaiting
+      if tWaiting > 0 then
+         put tWaiting && "hook messages wait already, one per extension loaded (none should until the batch ends)" & return after tFails
+      end if
+      -- the batch, and the hook message it sends, can take a while on a
+      -- slow machine (an Intel Mac runner had it still waiting after 500
+      -- ms): wait for them for up to 10 seconds, then 300 ms more, in
+      -- which a second hook message would come
+      repeat with tTry = 1 to 100
+         wait 100 milliseconds with messages
+         if sTourHookCount > 0 and not tourHookWaiting() then exit repeat
+      end repeat
+      wait 300 milliseconds with messages
+      tourRecord "INFO extensions-theme-pass hook messages sent for the batch:" && sTourHookCount && "(waited" && tTry * 100 + 300 && "ms)"
+      if sTourHookCount is not 1 then
+         put sTourHookCount && "hook messages were sent for one batch of six changes, not 1" & return after tFails
+      end if
+      repeat for each item tId in tIds
+         if revIDEExtensionProperty(tId, "status") is not "installed" then
+            put tId && "is" && revIDEExtensionProperty(tId, "status") && "after it was loaded again:" && revIDEExtensionProperty(tId, "error") & return after tFails
+         end if
+      end repeat
+      repeat for each line tLine in the pendingMessages
+         if item 3 of tLine is among the items of "IDEToDarkMode,IDEToLightMode,doExtensionsChanged,doExtensionsChangedBatch" then
+            put "still waiting after the batch:" && tLine & return after tFails
+         end if
+      end repeat
+   catch tError
+      put "error:" && tourJoin(tError) & return after tFails
+   end try
+   remove the script of stack kTourHookStack from back
+   delete stack kTourHookStack
+   if tFails is not empty then throw tourJoin(tFails)
+end tour_extensions_theme_pass
+
+on tourHookCounted
+   add 1 to sTourHookCount
+end tourHookCounted
+
+-- Whether the extension library's batch or its hook message still waits
+function tourHookWaiting
+   local tLine
+   repeat for each line tLine in the pendingMessages
+      if item 3 of tLine is among the items of "IDEToDarkMode,IDEToLightMode,doExtensionsChanged,doExtensionsChangedBatch" then return true
+   end repeat
+   return false
+end tourHookWaiting
 
 on tour_extension_builder
    tourPalette "extension builder", "18-extension-builder", 2000

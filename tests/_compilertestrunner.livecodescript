@@ -87,6 +87,20 @@ function CompilerTestRunner_DoesOutputSatisfyAssertion pCompilerOutput, pCompile
       return pCompilerExitCode is 0
    end if
 
+   -- %NOWARNINGS: the compile succeeded and no output line is a warning
+   -- ("<file>:<line>:<col>: warning: <msg>")
+   if item 1 of pAssertion is "nowarnings" then
+      if pCompilerExitCode is not 0 then
+         return false
+      end if
+      repeat for each line tOutputLine in pCompilerOutput
+         if tOutputLine contains ": warning: " then
+            return false
+         end if
+      end repeat
+      return true
+   end if
+
    local tAssertionType, tAssertionPartialMsg, tAssertionPos
    put item 1 of pAssertion into tAssertionType
    put item 2 of pAssertion into tAssertionPartialMsg

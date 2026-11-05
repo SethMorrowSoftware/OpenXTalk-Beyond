@@ -898,20 +898,45 @@ private function __extensionError pCacheIndex, pErrorMessage
    return pErrorMessage
 end __extensionError
 
+-- Every extension the IDE loads, unloads, installs or uninstalls comes
+-- here, so at start-up it runs once per extension. The notice waits 10
+-- milliseconds and a later change cancels it, so one batch of changes
+-- sends ideExtensionsChanged once; the dark mode hook below runs with it,
+-- once a batch too. It used to run on every call: a theme pass and an
+-- IDEToDarkMode or IDEToLightMode waiting for each extension, hundreds
+-- of them pending in a slow start (the IDE tour's step
+-- extensions-theme-pass counts them)
+local sExtensionsChangedMsg, sExtensionsThemeMsg
+
 # Send notication that widget has been added/removed
 on doExtensionsChanged
    ideMessageSend "ideExtensionsChanged"
 end doExtensionsChanged
 
-local sExtensionsChangedMsg
+-- The end of a batch: the dark mode hook, then the notice
+on doExtensionsChangedBatch
+   put empty into sExtensionsChangedMsg
+   __extensionsThemeHook
+   doExtensionsChanged
+end doExtensionsChangedBatch
+
 private command __extensionsChanged
    if sExtensionsChangedMsg is not empty then
       cancel sExtensionsChangedMsg
    end if
-   send "doExtensionsChanged" to me in 10 millisecs
+   send "doExtensionsChangedBatch" to me in 10 millisecs
    put the result into sExtensionsChangedMsg
-   -- dark mode hook (Paul McClernan)
-     get the cDarkMode of stack "revPreferences"
+end __extensionsChanged
+
+-- dark mode hook (Paul McClernan): setAllToDarkMode or setAllToLightMode
+-- where a stack in use has it, then IDEToDarkMode or IDEToLightMode, as
+-- before; a hook message still waiting from the last batch is not sent
+-- twice
+private command __extensionsThemeHook
+   if sExtensionsThemeMsg is not empty then
+      cancel sExtensionsThemeMsg
+   end if
+   get the cDarkMode of stack "revPreferences"
    if it is true then
       try
          setAllToDarkMode
@@ -923,7 +948,8 @@ private command __extensionsChanged
       end try
       send "IDEToLightMode" to me in 0 millisecs
    end if
-end __extensionsChanged
+   put the result into sExtensionsThemeMsg
+end __extensionsThemeHook
 
 # Sent progress update on installation of widget
 on __extensionSendProgressUpdate pCacheIndex, pMessage, pProgress

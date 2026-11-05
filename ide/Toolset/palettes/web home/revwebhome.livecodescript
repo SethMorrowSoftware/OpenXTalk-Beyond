@@ -45,7 +45,8 @@ constant kHeight = 640
 constant kSide = 200
 constant kPages = "home,speak,move,draw,web,app"
 constant kFrame = 16
-constant kAwayFrame = 100
+constant kAwayCheck = 500
+constant kWake = 2000
 constant kPageCheck = 500
 constant kPool = 120
 constant kStage = "224,96,1000,452"
@@ -55,13 +56,17 @@ constant kTextInset = 4
 local sPage, sPageStart
 -- The pending frame, this frame's time, and the time since the last one
 local sTick, sNow, sLastFrame, sDt
--- True while another window is in front: Home then draws ten frames a
--- second, not sixty, and leaves the browser to the window in use
+-- True while another window is in front: Home then holds still, and
+-- leaves the browser to the window in use (hmTick)
 local sAway
 -- True while the browser's window is not the one in use (another tab or
--- program is), asked of the page every kPageCheck milliseconds: Home then
--- draws ten frames a second too, as when another window is in front
+-- program is), or another of the page's windows has the keyboard, asked
+-- of the page every kPageCheck milliseconds (hmCheckPage): Home then
+-- holds still too, as when another window is in front
 local sPageAway, sPageCheckAt
+-- True while Home holds still (hmTick), and the time until which the
+-- pointer over it keeps it moving (hmWake)
+local sHeld, sWokeUntil
 -- The groups that light up when the pointer is over them and do something
 -- when clicked, by name: what each one does and how it looks
 local sCfg, sLiveList, sHover, sHoverAmt, sEnterAmt
@@ -111,6 +116,9 @@ end suspendStack
 
 on resumeStack
    put false into sAway
+   -- (Home held still behind the other window: it moves again at once,
+   -- not at the next look, hmTick)
+   hmWake 0
    pass resumeStack
 end resumeStack
 
@@ -270,6 +278,8 @@ private command hmStartTicking
    put sLastFrame into sFpsStart
    put false into sPageAway
    put 0 into sPageCheckAt
+   put false into sHeld
+   put 0 into sWokeUntil
    put 0 into sFpsFrames
    send "hmTick" to me in kFrame milliseconds
    put the result into sTick
@@ -286,15 +296,41 @@ end hmStopTicking
 -- front, so the frame sets the defaultStack to Home, and puts it back.
 -- A frame that fails is skipped, not shown as an error sixty times a
 -- second.
+--
+-- While another window is in front, or the browser's window is not the
+-- one in use, Home draws nothing and holds still (hmHeld): it only looks,
+-- every kAwayCheck milliseconds, whether it is back in use. Until
+-- 0.2.7-rc.6.15 it went on drawing ten frames a second there, which kept
+-- a tenth of a core busy (more at 2x) for as long as the IDE was open
+-- behind the user's own stacks (seth, 2026-11-04). The pointer moving
+-- over Home wakes it for kWake milliseconds (hmWake), so that what it
+-- lights up under the pointer still lights up. Each animation follows the
+-- clock, so it goes on from where the clock has got to, and a page's
+-- frames a second start again.
 on hmTick
    local tSaved, tError
    put empty into sTick
    if the mode of me is 0 then
       exit hmTick
    end if
+   put the milliseconds into sNow
+   if hmHeld() then
+      hmCheckPage
+      if hmHeld() then
+         put true into sHeld
+         send "hmTick" to me in kAwayCheck milliseconds
+         put the result into sTick
+         exit hmTick
+      end if
+   end if
+   if sHeld is true then
+      put false into sHeld
+      put sNow into sLastFrame
+      put sNow into sFpsStart
+      put 0 into sFpsFrames
+   end if
    put the defaultStack into tSaved
    set the defaultStack to the short name of me
-   put the milliseconds into sNow
    put min(0.1, max(0, (sNow - sLastFrame) / 1000)) into sDt
    put sNow into sLastFrame
    lock screen
@@ -307,26 +343,66 @@ on hmTick
       set the defaultStack to tSaved
    end if
    hmCheckPage
-   if sAway is true or sPageAway is true then
-      send "hmTick" to me in kAwayFrame milliseconds
+   if hmHeld() then
+      put true into sHeld
+      send "hmTick" to me in kAwayCheck milliseconds
    else
       send "hmTick" to me in kFrame milliseconds
    end if
    put the result into sTick
 end hmTick
 
+-- Whether Home holds still now: another window is in front, or the
+-- browser's window is not in use, and the pointer has not woken it
+private function hmHeld
+   return (sAway is true or sPageAway is true) and sNow >= sWokeUntil
+end hmHeld
+
+-- Home moves for the next kWake milliseconds, and at once if it was
+-- holding still (the pointer over it, or Home brought to the front)
+private command hmWake pMilliseconds
+   put max(sWokeUntil, the milliseconds + pMilliseconds) into sWokeUntil
+   if sHeld is true and sTick is not empty then
+      hmStopTicking
+      send "hmTick" to me in 0 milliseconds
+      put the result into sTick
+   end if
+end hmWake
+
 -- Is the browser's window the one in use? Sixty frames a second keep
 -- the browser busy even when nobody can see them, and Safari reloads a
 -- page that uses too much of the computer for too long, on a phone above
--- all. A browser that cannot say is taken to be in use.
+-- all. A browser that cannot say is taken to be in use. (hmTick asks
+-- again while Home holds still: sNow is the time of the look.)
+--
+-- And is another of the page's windows the one in use? The engine marks
+-- the window that has the keyboard (oxt-window-active, engine/src/
+-- em-dc.js): when that is a window that is not Home and not a palette
+-- (oxt-window-utility), such as a stack the user opened from the menu
+-- bar, Home is behind it and holds still too. Home hears suspendStack
+-- only when it had the keyboard itself, which a Home the user never
+-- clicked has not: then it went on drawing sixty frames a second behind
+-- the user's stack (tools/ci/web-ide-idle.livecodescript, behind).
 private command hmCheckPage
-   local tAnswer, tError
+   local tAnswer, tError, tTitle
    if the platform is not "HTML5" or sNow < sPageCheckAt then
       exit hmCheckPage
    end if
    put sNow + kPageCheck into sPageCheckAt
+   put the label of me into tTitle
+   if tTitle is empty then
+      put the short name of me into tTitle
+   end if
+   replace "\" with "\\" in tTitle
+   replace "'" with "\'" in tTitle
    try
-      do "String(document.hidden || !document.hasFocus())" as "JavaScript"
+      do "(function(t){" & \
+            "if(document.hidden||!document.hasFocus())return 'true';" & \
+            "var a=document.querySelector('.oxt-window-active');" & \
+            "if(!a||a.classList.contains('oxt-window-utility'))return 'false';" & \
+            "var l=a.querySelector('.oxt-window-label');" & \
+            "return String(!!l&&l.textContent.indexOf(t)!==0);" & \
+            "})('" & tTitle & "')" as "JavaScript"
       put the result into tAnswer
    catch tError
    end try
@@ -1171,6 +1247,7 @@ end hmHoverOn
 
 on mouseMove
    local tName
+   hmWake kWake
    put hmLiveOf(the long id of the target) into tName
    hmHoverOn tName
    pass mouseMove
@@ -2133,6 +2210,7 @@ private command hmBuildHome
       put item tIndex of tColors into tColor
       put hmOval("heroOrb" & tIndex, "300,60,500,260", "255,255,255", "hero") into tObj
       hmGlowFill tObj, tColor, 150
+      hmOrbPicture tObj, hmOrbRadius(tIndex)
    end repeat
    set the itemDelimiter to comma
    repeat with tIndex = 1 to 7
@@ -2225,6 +2303,49 @@ private command hmBuildHome
       add 1 to tIndex
    end repeat
 end hmBuildHome
+
+-- The radius of the hero's light pPlace, which never changes as it drifts
+private function hmOrbRadius pPlace
+   return 70 + pPlace * 18
+end hmOrbRadius
+
+-- The web engine draws a light's soft round gradient again, pixel by
+-- pixel, every time any of the hero is drawn: sixty times a second, the
+-- four lights took about two fifths of Home's frame, and Home in front
+-- kept a third of a core busy (half of one at 2x). On the web a light is
+-- drawn once, at its own size, into a picture (heroOrb<n>Pic, just above
+-- its graphic, which is hidden), and each frame moves the picture: the
+-- same pixels (within 2 of 255 at 1x and 2x, tools/ci/web_ide_idle_cpu.py),
+-- for a picture's copy, which costs a fraction of the gradient. Where the
+-- picture cannot be made the graphic stays, as before. The desktop's
+-- engines draw the gradient natively, and keep the graphic.
+private command hmOrbPicture pObj, pRadius
+   local tData, tPic, tError
+   if not hmOnWeb() then
+      exit hmOrbPicture
+   end if
+   set the rect of pObj to 300, 60, 300 + 2 * pRadius, 60 + 2 * pRadius
+   hmGlowCentre pObj
+   try
+      export snapshot from pObj to tData as PNG
+      if tData is empty then
+         exit hmOrbPicture
+      end if
+      create image (the short name of pObj & "Pic") in group "hero"
+      put it into tPic
+      set the text of tPic to tData
+      set the lockLoc of tPic to true
+      set the rect of tPic to the rect of pObj
+      -- (the light's own place among the hero's layers)
+      relayer tPic after pObj
+      hide pObj
+   catch tError
+      if tPic is not empty and exists(tPic) then
+         delete tPic
+      end if
+      show pObj
+   end try
+end hmOrbPicture
 
 private command hmHeroSparkles
    local tIndex, tSpots
@@ -2328,12 +2449,17 @@ private command hmHomeFrame
    hmGradientPoints the long id of graphic "heroBg", round(612 + sOX + 430 * cos(tA)) & "," & round(156 + sOY + 150 * sin(tA)), \
          round(612 + sOX - 430 * cos(tA)) & "," & round(156 + sOY - 150 * sin(tA))
    -- The lights drift
+   -- (the light's picture, on the web: hmOrbPicture)
    repeat with tIndex = 1 to 4
-      put 70 + tIndex * 18 into tR
+      put hmOrbRadius(tIndex) into tR
       put 612 + sOX + (300 - tIndex * 30) * sin(tT * (0.21 + tIndex * 0.07) + tIndex * 1.7) into tX
       put 156 + sOY + (90 - tIndex * 8) * cos(tT * (0.17 + tIndex * 0.05) + tIndex * 2.3) into tY
-      set the rect of graphic ("heroOrb" & tIndex) to round(tX - tR), round(tY - tR), round(tX + tR), round(tY + tR)
-      hmGlowCentre the long id of graphic ("heroOrb" & tIndex)
+      if there is an image ("heroOrb" & tIndex & "Pic") then
+         set the rect of image ("heroOrb" & tIndex & "Pic") to round(tX - tR), round(tY - tR), round(tX + tR), round(tY + tR)
+      else
+         set the rect of graphic ("heroOrb" & tIndex) to round(tX - tR), round(tY - tR), round(tX + tR), round(tY + tR)
+         hmGlowCentre the long id of graphic ("heroOrb" & tIndex)
+      end if
    end repeat
    -- The stack of cards floats, and sparkles twinkle round it
    set the top of image "heroArt" to 44 + sOY + round(7 * sin(tT * 1.6))
