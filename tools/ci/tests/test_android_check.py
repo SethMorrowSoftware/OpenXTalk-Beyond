@@ -29,6 +29,7 @@ import re
 import struct
 import sys
 import tempfile
+import time
 import unittest
 import zipfile
 import zlib
@@ -420,15 +421,23 @@ class Boot(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def boot(self, script, *extra):
+    def boot(self, script, *extra, running=True, minutes='0.002'):
+        """running: what emulator_processes answers (True: one emulator
+        line, False: none, None: ps could not be run)"""
         adb = os.path.join(self.sdk, 'platform-tools', 'adb')
         with open(adb, 'w') as f:
             f.write('#!/bin/sh\n' + script)
         os.chmod(adb, 0o755)
+        procs = {True: ['4242 01:00 /sdk/emulator/emulator -avd api33'], False: [], None: None}[running]
+        saved = ac.emulator_processes
+        ac.emulator_processes = lambda: procs
         out = io.StringIO()
-        with contextlib.redirect_stdout(out):
-            status = ac.main(['boot', '--serial', 'emulator-5554', '--sdk', self.sdk, '--minutes', '0.002',
-                              '--interval', '0.05'] + list(extra))
+        try:
+            with contextlib.redirect_stdout(out):
+                status = ac.main(['boot', '--serial', 'emulator-5554', '--sdk', self.sdk, '--minutes', minutes,
+                                  '--interval', '0.05'] + list(extra))
+        finally:
+            ac.emulator_processes = saved
         return status, out.getvalue()
 
     def test_booted(self):
@@ -453,6 +462,72 @@ class Boot(unittest.TestCase):
         self.assertEqual(status, 1)
         self.assertIn('adb says device, sys.boot_completed is not there', out)
         self.assertIn('waiting for emulator-5554', out)
+
+    def test_emulator_gone_gives_up_early(self):
+        # the AVD the emulator could not find: it exits at once, and the
+        # wait ends in seconds, not at --minutes
+        log = os.path.join(self.sdk, 'emulator.log')
+        with open(log, 'w') as f:
+            f.write('ERROR | Unknown AVD name [api33], use -list-avds to see valid list.\n')
+        started = time.monotonic()
+        status, out = self.boot(self.ABSENT, '--log', log, running=False, minutes='5')
+        self.assertLess(time.monotonic() - started, 30)
+        self.assertEqual(status, 1)
+        self.assertIn("emulator-5554 will not boot: no emulator is running (adb says error: device "
+                      "'emulator-5554' not found", out)
+        self.assertIn('emulator processes: none (it is not running)', out)
+        self.assertIn('Unknown AVD name [api33]', out)
+
+    def test_emulator_there_but_not_on_adb_yet_is_waited_for(self):
+        status, out = self.boot(self.ABSENT, running=True)
+        self.assertIn('did not boot in 0.002 minutes', out)
+        self.assertNotIn('will not boot', out)
+
+    def test_no_ps_is_not_taken_for_no_emulator(self):
+        status, out = self.boot(self.ABSENT, running=None)
+        self.assertIn('did not boot in 0.002 minutes', out)
+        self.assertIn('emulator processes: ps could not be run', out)
+
+    def test_a_device_on_a_cable_has_no_process(self):
+        adb = os.path.join(self.sdk, 'platform-tools', 'adb')
+        with open(adb, 'w') as f:
+            f.write('#!/bin/sh\n' + self.ABSENT)
+        os.chmod(adb, 0o755)
+        saved = ac.emulator_processes
+        ac.emulator_processes = lambda: []
+        out = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(out):
+                ac.main(['boot', '--serial', 'R58M12345', '--sdk', self.sdk, '--minutes', '0.002',
+                         '--interval', '0.05'])
+        finally:
+            ac.emulator_processes = saved
+        self.assertIn('R58M12345 did not boot in 0.002 minutes', out.getvalue())
+
+    def test_emulator_processes_names_programs_not_arguments(self):
+        ps = ('    PID     ELAPSED COMMAND\n'
+              '   4960       10:00 python3 tools/ci/android_check.py boot --log /w/emulator-api33.log\n'
+              '   5001       09:58 /sdk/emulator/emulator -avd api33 -no-window\n'
+              '   5002       09:57 /sdk/emulator/qemu/linux-x86_64/qemu-system-x86_64-headless -avd api33\n'
+              '   5003       09:57 /sdk/emulator/crashpad_handler --database=/tmp\n'
+              '   %d       00:01 /sdk/emulator/emulator (this process)\n' % os.getpid())
+        saved = ac.run
+        ac.run = lambda cmd, timeout=300, check=False: (0, ps)
+        try:
+            procs = ac.emulator_processes()
+        finally:
+            ac.run = saved
+        self.assertEqual([p.split()[0] for p in procs], ['5001', '5002'])
+
+    def test_emulator_processes_without_ps(self):
+        def no_ps(cmd, timeout=300, check=False):
+            raise ac.CheckError('ps: not found')
+        saved = ac.run
+        ac.run = no_ps
+        try:
+            self.assertIsNone(ac.emulator_processes())
+        finally:
+            ac.run = saved
 
     def test_tail(self):
         log = os.path.join(self.sdk, 'long.log')

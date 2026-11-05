@@ -193,8 +193,16 @@ jobs:
             sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+          # One place for the AVDs, for avdmanager and the emulator alike,
+          # and for the 16 KB step's (GITHUB_ENV): left to themselves they
+          # looked in different places, and the emulator exited at once
+          # with "Unknown AVD name [api33]"
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/avd"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
+          mkdir -p "$ANDROID_AVD_HOME"
           echo no | "$SDK/cmdline-tools/latest/bin/avdmanager" create avd -n api33 \
             -k "system-images;android-33;google_apis;x86_64" -d pixel_5 --force
+          echo "The emulator's AVDs: $("$SDK/emulator/emulator" -list-avds | tr '\n' ' ')"
           # adb's server first: it makes ~/.android/adbkey, which the
           # emulator hands to the image as it starts
           "$SDK/platform-tools/adb" start-server
@@ -206,6 +214,8 @@ jobs:
           # says more if it never boots
           sleep 20
           df -h / | tail -n 1
+          # A warning, not a failure, so that the builder's own steps still
+          # run; the wait for the emulator fails within seconds then
           if ! pgrep -f 'qemu-system|emulator.*-avd api33' > /dev/null; then
             echo "::warning::the Android 13 emulator stopped within 20 s of starting; the end of its log:"
             tail -n 40 "$WORK/emulator-api33.log"
@@ -242,9 +252,10 @@ jobs:
         run: |
           "$PY" tools/ci/android_check.py compare --old "$WORK/released" --new "$WORK/changed" --sdk "$SDK"
 
-      # boot gives up after 10 minutes with what may say why (the
-      # emulator's processes, /dev/kvm, adb's devices, the disk, the end of
-      # its log), before the step's own timeout cuts it off saying nothing
+      # boot gives up after 10 minutes, or within seconds once the
+      # emulator has exited, with what may say why (the emulator's
+      # processes, /dev/kvm, adb's devices, the disk, the end of its log),
+      # before the step's own timeout cuts it off saying nothing
       - name: Wait for the emulator
         if: runner.os == 'Linux'
         timeout-minutes: 15
@@ -299,6 +310,7 @@ jobs:
           echo "Image: $IMAGE_16K"
           echo no | "$SDK/cmdline-tools/latest/bin/avdmanager" create avd -n pages16k -k "$IMAGE_16K" \
             -d pixel_5 --force
+          echo "The emulator's AVDs (in $ANDROID_AVD_HOME): $("$SDK/emulator/emulator" -list-avds | tr '\n' ' ')"
           nohup "$SDK/emulator/emulator" -avd pages16k -no-window -no-audio -no-boot-anim -no-snapshot \
             -gpu swiftshader_indirect -camera-back none -camera-front none \
             > "$WORK/emulator-16k.log" 2>&1 &

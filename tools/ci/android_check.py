@@ -72,10 +72,11 @@ engine loaded, opened the stack and ran its script. The screen is saved as
 a PNG (--out), and the device's log is searched for the app's crash.
 
 boot waits until an emulator has booted (adb sees it and
-sys.boot_completed is 1), saying where it is every minute. When it gives
-up it prints what might say why: whether the emulator still runs, /dev/kvm,
-adb's devices, the free disk and the end of the emulator's log (--log),
-which otherwise only reaches the workflow's artifact.
+sys.boot_completed is 1), saying where it is every minute. It gives up
+at --minutes, or within seconds once no emulator runs and adb has no such
+device, and then prints what might say why: whether the emulator still
+runs, /dev/kvm, adb's devices, the free disk and the end of the emulator's
+log (--log), which otherwise only reaches the workflow's artifact.
 
 Exit status 0 when every check passed, 1 otherwise. Only the Python 3
 standard library is used (3.8 or later), with the Android SDK's adb,
@@ -930,15 +931,32 @@ def boot_state(adb, serial):
     return state, booted.strip()
 
 
+def emulator_processes():
+    """The running emulator's processes as ps lines (pid, elapsed time,
+    command), or None when ps cannot be run. Only a program named emulator
+    or qemu-system-*: a command that merely names one (this check's own,
+    with --log .../emulator-api33.log) is not one."""
+    try:
+        _, ps = run(['ps', '-eo', 'pid,etime,args'], timeout=30)
+    except CheckError:
+        return None
+    out = []
+    for line in ps.splitlines():
+        parts = line.split(None, 3)
+        if len(parts) < 3 or not parts[0].isdigit() or int(parts[0]) == os.getpid():
+            continue
+        program = os.path.basename(parts[2])
+        if program == 'emulator' or program.startswith('qemu-system'):
+            out.append(line.strip()[:300])
+    return out
+
+
 def boot_diagnostics(adb, sdk, log_path):
     """What may say why an emulator did not boot, as lines."""
     out = []
-    try:
-        _, ps = run(['ps', '-eo', 'pid,etime,args'], timeout=30)
-        procs = [x.strip()[:300] for x in ps.splitlines() if 'qemu-system' in x or '/emulator' in x]
-        out.append('emulator processes: %s' % ('; '.join(procs) if procs else 'none (it is not running)'))
-    except CheckError as e:
-        out.append('emulator processes: %s' % e)
+    procs = emulator_processes()
+    out.append('emulator processes: %s' % ('ps could not be run' if procs is None
+                                           else '; '.join(procs) or 'none (it is not running)'))
     try:
         st = os.stat('/dev/kvm')
         out.append('/dev/kvm: mode %o, %s' % (st.st_mode & 0o777,
@@ -969,21 +987,34 @@ def boot(args):
     deadline = start + args.minutes * 60
     report = start
     state = booted = ''
+    # An emulator that has exited will not boot: once adb has no such
+    # device and no emulator runs, three polls running, say so then, not
+    # at the deadline (an AVD the emulator could not find once cost 10
+    # minutes of waiting). Only for an emulator's serial: a device on a
+    # cable has no process here.
+    gone = 0
     while True:
         state, booted = boot_state(adb, args.serial)
         now = time.monotonic()
         if booted == '1':
             log('%s booted after %d s' % (args.serial, now - start))
             return []
+        if args.serial.startswith('emulator-') and state != 'device' and emulator_processes() == []:
+            gone += 1
+        else:
+            gone = 0
         if now >= report:
             log('waiting for %s (%d s): adb says %s, sys.boot_completed is %s' % (
                 args.serial, now - start, state or 'nothing', booted or 'not there'))
             report = now + 60
-        if now >= deadline:
+        if gone >= 3 or now >= deadline:
             break
         time.sleep(args.interval)
     for line in boot_diagnostics(adb, args.sdk, args.log):
         log(line)
+    if gone >= 3:
+        return ['%s will not boot: no emulator is running (adb says %s); see the lines above' % (
+            args.serial, state or 'nothing')]
     return ['%s did not boot in %g minutes (adb says %s, sys.boot_completed is %s); see the lines above' % (
         args.serial, args.minutes, state or 'nothing', booted or 'not there')]
 
