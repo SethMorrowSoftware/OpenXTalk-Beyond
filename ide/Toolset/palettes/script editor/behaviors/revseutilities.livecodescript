@@ -505,6 +505,19 @@ command sePrefInit
          put "default" into tScheme
       end if
    end if
+   -- The background is resolved apart from the scheme: a saved RGB is
+   -- drawn as is, whatever the appearance. The built-in light scheme
+   -- draws words black and the built-in dark one draws them light, so
+   -- either on the other's background was unreadable, black on grey
+   -- (richmond62, macOS 15, openxtalk.org p=26077). Load the built-in
+   -- scheme that suits the background drawn. Only these two are swapped,
+   -- and only for the colours: the saved names are kept, and custom and
+   -- other named schemes stay the user's choice.
+   if tScheme is "default" and seBackgroundIsDark(tPrefs["editor,backgroundcolor"]) then
+      put "dark mode" into tScheme
+   else if tScheme is "dark mode" and seBackgroundIsLight(tPrefs["editor,backgroundcolor"]) then
+      put "default" into tScheme
+   end if
    seColorizationLoadScheme tScheme, tPrefs
    
    # Put the completed array into the script local sPrefs for use by the script editor.
@@ -783,6 +796,22 @@ private function seBackgroundIsDark pBackground
    end if
    return false
 end seBackgroundIsDark
+
+# Parameters
+#   pBackground : the editor,backgroundcolor preference ("default" follows the appearance)
+# Returns
+#   Whether dark text is the readable choice on that background. Unlike
+#   "not seBackgroundIsDark", a named colour is judged neither light nor
+#   dark, so a scheme chosen for one is left alone.
+private function seBackgroundIsLight pBackground
+   if pBackground is empty or pBackground is "default" then
+      return not revIDEAppearanceIsDark()
+   end if
+   if the number of items of pBackground is 3 and pBackground is a color then
+      return item 1 of pBackground * 299 + item 2 of pBackground * 587 + item 3 of pBackground * 114 >= 128000
+   end if
+   return false
+end seBackgroundIsLight
 
 # Parameters
 #   pScheme : the name of the colorization scheme to load

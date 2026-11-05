@@ -31,8 +31,10 @@ on startup
    seColorizationLoadScheme "oxt lite dark", tExpected
    check sePrefGet("colorization,config"), tExpected["colorization,config"], "honor schemedark"
    put false into sDark
+   put empty into sPrefs["cScriptEditor,editor,backgroundcolor"]
    sePrefInit
    check (sePrefGet("colorization,config") contains "class identifier none 0,0,0"), true, "restore light scheme"
+   put "12,34,56" into sPrefs["cScriptEditor,editor,backgroundcolor"]
    -- Saving the mode must stay readable by older builds and plugins.
    sePrefSet "editor,backgroundcolor", "default"
    sePrefSet "editor,debugBackgroundcolor", "default"
@@ -78,6 +80,68 @@ on startup
    put empty into sPrefs["cScriptEditor,editor,backgroundcolor"]
    sePrefInit
    check sePrefGet("colorization,config"), tDarkMode["colorization,config"], "an unknown scheme following a dark appearance"
+
+   -- The built-in light scheme draws words black and the built-in dark
+   -- one draws them light, so either on the other's background is
+   -- unreadable. The scheme follows the background that is drawn, not
+   -- the appearance alone: a dark background saved in a light
+   -- appearance, or a light one in a dark appearance, gave black text on
+   -- grey (richmond62, macOS 15, openxtalk.org p=26077). The saved
+   -- names are kept, and custom and other named schemes are untouched.
+   local tDefault
+   seColorizationLoadScheme "default", tDefault
+   put "default" into sPrefs["cScriptEditor,colorization,scheme"]
+   put empty into sPrefs["cScriptEditor,colorization,schemedark"]
+   put false into sDark
+   put "30,30,30" into sPrefs["cScriptEditor,editor,backgroundcolor"]
+   sePrefInit
+   check sePrefGet("editor,backgroundcolor"), "30,30,30", "a saved dark background in a light appearance is kept"
+   check sePrefGet("colorization,config"), tDarkMode["colorization,config"], "the light scheme on a saved dark background in a light appearance loads dark mode"
+   check sePrefGet("colorization,scheme"), "default", "keep the light scheme's saved name on a dark background"
+   put true into sDark
+   put "12,34,56" into sPrefs["cScriptEditor,editor,backgroundcolor"]
+   sePrefInit
+   check sePrefGet("colorization,config"), tDarkMode["colorization,config"], "the light scheme on a saved dark background in a dark appearance loads dark mode"
+   put "255,255,255" into sPrefs["cScriptEditor,editor,backgroundcolor"]
+   put "dark mode" into sPrefs["cScriptEditor,colorization,schemedark"]
+   sePrefInit
+   check sePrefGet("editor,backgroundcolor"), "255,255,255", "a saved light background in a dark appearance is kept"
+   check sePrefGet("colorization,config"), tDefault["colorization,config"], "dark mode on a saved light background in a dark appearance loads the light scheme"
+   put empty into sPrefs["cScriptEditor,colorization,schemedark"]
+   put "dark mode" into sPrefs["cScriptEditor,colorization,scheme"]
+   put false into sDark
+   sePrefInit
+   check sePrefGet("colorization,config"), tDefault["colorization,config"], "dark mode on a saved light background in a light appearance loads the light scheme"
+   check sePrefGet("colorization,scheme"), "dark mode", "keep dark mode's saved name on a light background"
+   -- Each built-in scheme on its own background is unchanged.
+   put "0,0,0" into sPrefs["cScriptEditor,editor,backgroundcolor"]
+   sePrefInit
+   check sePrefGet("colorization,config"), tDarkMode["colorization,config"], "dark mode on a dark background"
+   put "default" into sPrefs["cScriptEditor,colorization,scheme"]
+   put "255,255,255" into sPrefs["cScriptEditor,editor,backgroundcolor"]
+   put true into sDark
+   sePrefInit
+   check sePrefGet("colorization,config"), tDefault["colorization,config"], "the light scheme on a light background in a dark appearance"
+   -- Other schemes are the user's choice, on whatever background.
+   put "vibrant" into sPrefs["cScriptEditor,colorization,scheme"]
+   put false into sDark
+   sePrefInit
+   check sePrefGet("colorization,config"), tVibrant["colorization,config"], "vibrant on a light background is untouched"
+   local tLiteDark
+   seColorizationLoadScheme "oxt lite dark", tLiteDark
+   put "oxt lite dark" into sPrefs["cScriptEditor,colorization,scheme"]
+   put "255,255,255" into sPrefs["cScriptEditor,editor,backgroundcolor"]
+   sePrefInit
+   check sePrefGet("colorization,config"), tLiteDark["colorization,config"], "a named dark scheme on a light background is untouched"
+   -- A named background colour is not judged, as before.
+   put "default" into sPrefs["cScriptEditor,colorization,scheme"]
+   put "black" into sPrefs["cScriptEditor,editor,backgroundcolor"]
+   sePrefInit
+   check sePrefGet("colorization,config"), tDefault["colorization,config"], "a named background keeps the chosen scheme"
+   put "dark mode" into sPrefs["cScriptEditor,colorization,scheme"]
+   sePrefInit
+   check sePrefGet("colorization,config"), tDarkMode["colorization,config"], "a named background keeps dark mode"
+
    put "default" into sPrefs["cScriptEditor,colorization,scheme"]
    put "12,34,56" into sPrefs["cScriptEditor,editor,backgroundcolor"]
    put false into sDark
