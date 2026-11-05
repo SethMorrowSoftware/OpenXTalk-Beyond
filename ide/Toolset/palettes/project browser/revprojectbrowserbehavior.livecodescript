@@ -235,8 +235,22 @@ on ideOpenStack pTarget
    addStackToProjectBrowser tStack
 end ideOpenStack
 
+-- OXT-Beyond: pTarget is the long id of a stack that is gone, and for a
+-- saved stack it names the stack's file. Asking the engine about it (there
+-- is, exists, the short name of, as getRow does when it has no row for that
+-- long id) reads the stack from its file and puts it back in memory: after
+-- File > Close and Remove From Memory with the Project Browser opened once
+-- (it keeps listening when it is closed), the stack stayed in memory.
+-- So the row is found by that long id alone; when there is none (the
+-- stack was listed under its name before it was saved) an open Project
+-- Browser is built again from what is in memory, and a closed one builds
+-- itself when it opens
 on ideDestroyStack pTarget
-   deleteStackFromProjectBrowser pTarget
+   if sLongIDToRow[pTarget] is not empty then
+      deleteStackFromProjectBrowser pTarget
+   else if the mode of me is not 0 then
+      buildProjectView true
+   end if
 end ideDestroyStack
 
 on ideResumeStack pTarget
