@@ -1783,6 +1783,18 @@ it squashes:
   looks only for the stack's own row; with none, an open browser lists
   what is in memory again and a closed one does nothing. 0.2.6 did the
   same (#362).
+- **An App Browser that missed changes.** The App Browser (the
+  Application Browser) never heard about new, renamed or removed stacks:
+  the IDE still sent its news to the browser's old name, so a stack
+  removed from memory stayed listed until Refresh. The open browser now
+  hears it, leaves out the IDE's own File Selector, and its names can be
+  read on a dark window. A stack of yours named "App Browser" or "File
+  Selector" is not mistaken for the IDE's. 0.2.6 did the same (#364).
+- **A hidden error on every stack open.** The extension library failed
+  quietly each time a stack opened while no extension's sample stack was
+  opening; only an IDE run from the source showed it, as an ERROR line
+  in the Message Box. Now it returns at once in that case, and nothing
+  else changes (#365).
 
 Behind the scenes, the Responsive Starter is checked in a browser on an
 iPhone, an iPad and a desktop, light and dark, with a notch, turned on
@@ -1804,13 +1816,15 @@ draws a menu in a window of its own colour under three dark GTK themes
 and reads the Dictionary's page off the screen; the web check reads
 option menu lists on a light and a dark page; the IDE's tests remove
 a saved stack from memory with the Stack Inspector open on it and after
-the Project Browser was opened and closed, or left open; the changelog
-check refuses a fragment that was folded already; the WebKit checks
-fetch their browser's packages with a time limit and keep them in a
-cache, so a slow mirror no longer holds them past their time; and the
-runtimes that every package carries for the other platforms are rebuilt
-from this release's engine (#348, #349, #350, #353, #354, #355, #356,
-#357, #358, #359, #360, #361, #362).
+the Project Browser was opened and closed, or left open; new IDE tests
+watch the App Browser hear about new, renamed and removed stacks and
+send a stack open past the extension library without an error; the
+changelog check refuses a fragment that was folded already; the WebKit
+checks fetch their browser's packages with a time limit and keep them
+in a cache, so a slow mirror no longer holds them past their time; and
+the runtimes that every package carries for the other platforms are
+rebuilt from this release's engine (#348, #349, #350, #353, #354, #355,
+#356, #357, #358, #359, #360, #361, #362, #364, #365).
 
 One bug found this round is not fixed in it. An Android app made with
 OXT-Beyond closes when Android makes its screen again without ending

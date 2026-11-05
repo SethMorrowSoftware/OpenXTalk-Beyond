@@ -124,7 +124,7 @@ Code its authors knew to be wrong or incomplete. 64 notes, by part of the reposi
 
 ### FIXME: ide (1)
 
-- [ide/Toolset/libraries/revidelibrary.8.livecodescript:12745](ide/Toolset/libraries/revidelibrary.8.livecodescript#L12745) FIXME There is some inconsistency in the guide's files that we
+- [ide/Toolset/libraries/revidelibrary.8.livecodescript:12841](ide/Toolset/libraries/revidelibrary.8.livecodescript#L12841) FIXME There is some inconsistency in the guide's files that we
 
 <a id="fixme-ide-support"></a>
 
