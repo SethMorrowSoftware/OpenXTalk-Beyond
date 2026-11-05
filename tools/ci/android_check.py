@@ -69,7 +69,9 @@ device installs a package on a device or emulator with adb, starts it and
 waits until the screen is the probe's green (kRunColor in
 android-check.livecodescript), which only the probe's openStack makes: the
 engine loaded, opened the stack and ran its script. The screen is saved as
-a PNG (--out), and the device's log is searched for the app's crash.
+a PNG (--out), and the device's log is searched for the app's crash (the
+engine's caught attempt at an SSL library the package does not hold is
+expected, and only then: crash_lines).
 
 boot waits until an emulator has booted (adb sees it and
 sys.boot_completed is 1), saying where it is every minute. It gives up
@@ -354,6 +356,36 @@ def png_from_rgba(w, h, rgba):
     raw = b''.join(b'\x00' + rgba[y * w * 4:(y + 1) * w * 4] for y in range(h))
     return (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 6, 0, 0, 0)) +
             chunk(b'IDAT', zlib.compress(raw, 6)) + chunk(b'IEND', b''))
+
+
+# What in the device's log says the app crashed or could not load its code
+CRASH = r'FATAL EXCEPTION|UnsatisfiedLinkError|dlopen failed|Fatal signal|has stopped|ANR in ' + re.escape(IDENTIFIER)
+
+# Every Android standalone asks for SSL as it starts (mblmain.cpp's
+# revandroid_loadExternalLibrary("revsecurity"), LiveCode's since 2014);
+# Engine.loadExternalLibrary catches the UnsatisfiedLinkError, logs it at
+# info level and the engine runs on without SSL. A package built without
+# SSL ("android,include revsecurity" false: the probe's) has no
+# librevsecurity.so, so the line is expected there and only there: in a
+# package that holds one, a failure to load it is a problem.
+NO_SSL = (r'^I/revandroid\(\s*\d+\): java\.lang\.UnsatisfiedLinkError: '
+          r'(?:dlopen failed: library "librevsecurity\.so" not found|.*couldn\'t find "librevsecurity\.so")\s*$')
+
+
+def crash_lines(logcat, apk_names):
+    """(the device's log lines that say the app crashed or could not load
+    its code, the lines left out as expected), for a package whose zip
+    entries are apk_names."""
+    has_ssl = any(n.startswith('lib/') and n.endswith('/librevsecurity.so') for n in apk_names)
+    crash, expected = [], []
+    for line in logcat.splitlines():
+        if not re.search(CRASH, line):
+            continue
+        if not has_ssl and re.search(NO_SSL, line):
+            expected.append(line.strip())
+        else:
+            crash.append(line.strip())
+    return crash, expected
 
 
 def ide_results(lines):
@@ -876,9 +908,10 @@ def device(args):
             break
     _, pid = a('shell', 'pidof', IDENTIFIER)
     _, logcat = a('logcat', '-d', '-v', 'brief')
-    crash = [x for x in logcat.splitlines() if re.search(
-        r'FATAL EXCEPTION|UnsatisfiedLinkError|dlopen failed|Fatal signal|has stopped|ANR in ' + re.escape(IDENTIFIER),
-        x)]
+    with zipfile.ZipFile(args.apk) as z:
+        crash, expected = crash_lines(logcat, z.namelist())
+    for line in expected:
+        log('Expected (the package has no SSL library, and the engine runs on without it): %s' % line)
     if args.out and rgba:
         with open(args.out, 'wb') as f:
             f.write(png_from_rgba(w, h, rgba))

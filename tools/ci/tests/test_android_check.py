@@ -233,6 +233,50 @@ class SignerDN(unittest.TestCase):
         self.assertIsNone(ac.signer_dn('WARNING: the certificate DN: CN=X is old\n'))
 
 
+class CrashLines(unittest.TestCase):
+    """The device's log: the engine's caught attempt at SSL is expected
+    only in a package without librevsecurity.so"""
+
+    NO_SSL = 'I/revandroid( 7092): java.lang.UnsatisfiedLinkError: dlopen failed: library "librevsecurity.so" not found'
+    NO_SSL_OLD = ('I/revandroid( 812): java.lang.UnsatisfiedLinkError: dalvik.system.PathClassLoader'
+                  '[DexPathList[[zip file "/data/app/x.apk"]]] couldn\'t find "librevsecurity.so"')
+    PLAIN = ['AndroidManifest.xml', 'classes.dex', 'lib/arm64-v8a/librevandroid.so', 'lib/x86_64/librevandroid.so']
+    WITH_SSL = PLAIN + ['lib/arm64-v8a/librevsecurity.so', 'lib/x86_64/librevsecurity.so']
+
+    def log(self, *lines):
+        return '\n'.join(('I/ActivityManager(  500): Start proc 7092:org.openxtalk.check.androidprobe',)
+                         + lines + ('D/revandroid( 7092): done',))
+
+    def test_expected_without_ssl(self):
+        for line in (self.NO_SSL, self.NO_SSL_OLD):
+            self.assertEqual(ac.crash_lines(self.log(line), self.PLAIN), ([], [line]))
+
+    def test_a_problem_with_ssl(self):
+        # the package holds it and the engine could not load it
+        self.assertEqual(ac.crash_lines(self.log(self.NO_SSL), self.WITH_SSL), ([self.NO_SSL], []))
+        bad = ('I/revandroid( 7092): java.lang.UnsatisfiedLinkError: dlopen failed: "/data/app/lib/x86_64/'
+               'librevsecurity.so" program alignment (4096) cannot be smaller than system page size (16384)')
+        self.assertEqual(ac.crash_lines(self.log(bad), self.WITH_SSL), ([bad], []))
+        self.assertEqual(ac.crash_lines(self.log(bad), self.PLAIN), ([bad], []))
+
+    def test_other_libraries_and_levels_still_count(self):
+        for line in ('I/revandroid( 7092): java.lang.UnsatisfiedLinkError: dlopen failed: library "librevdb.so" not found',
+                     'E/revandroid( 7092): java.lang.UnsatisfiedLinkError: dlopen failed: library "librevsecurity.so" not found',
+                     'E/AndroidRuntime( 7092): java.lang.UnsatisfiedLinkError: dlopen failed: library '
+                     '"librevsecurity.so" not found',
+                     'E/AndroidRuntime( 7092): FATAL EXCEPTION: main',
+                     'F/libc    ( 7092): Fatal signal 11 (SIGSEGV), code 1',
+                     'E/ActivityManager(  500): ANR in org.openxtalk.check.androidprobe'):
+            self.assertEqual(ac.crash_lines(self.log(line), self.PLAIN), ([line], []), line)
+
+    def test_both_at_once(self):
+        fatal = 'E/AndroidRuntime( 7092): FATAL EXCEPTION: main'
+        self.assertEqual(ac.crash_lines(self.log(self.NO_SSL, fatal), self.PLAIN), ([fatal], [self.NO_SSL]))
+
+    def test_a_quiet_log(self):
+        self.assertEqual(ac.crash_lines(self.log(), self.PLAIN), ([], []))
+
+
 class Screen(unittest.TestCase):
     def raw(self, w, h, colour, header=16):
         head = struct.pack('<III', w, h, 1) + (struct.pack('<I', 0) if header == 16 else b'')
