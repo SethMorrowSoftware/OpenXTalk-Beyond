@@ -82,7 +82,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,menubar,menubar-modern,menubar-mac,menu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -1769,6 +1769,96 @@ on tour_menu_marks
    end if
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_menu_marks
+
+-- The words of a menu's items as the engine draws them on Linux, as for
+-- tour_menu_marks: they must stand out from the menu behind them, on the
+-- theme's colour and on a window's own colours, dark and light. A menu
+-- takes the first colour above its button, and until rc.6.16 its words
+-- were the theme's whatever that colour was: the theme's dark grey on a
+-- dark window in the light appearance (Adwaita's on 48,52,58 differed by
+-- 2 in luma) and its light grey on a light window in the dark one. What
+-- differs between two snapshots of a menu with an item of words and the
+-- same menu with that item blank is the words, and the most one of their
+-- pixels differs from the menu there must be more than half the range of
+-- luma, as for a mark. A step of its own, so that the two take less than
+-- the watchdog's 20 seconds each
+on tour_menu_words
+   local tName, tDefault, tFails, tColours, tColour, tPass
+   if the platform is not "Linux" then
+      tourRecord "INFO menu-words: the engine draws its menus' words so on Linux only"
+      exit tour_menu_words
+   end if
+   if shell("command -v xdotool") is empty then
+      tourRecord "INFO menu-words: there is no xdotool to close the menu with"
+      exit tour_menu_words
+   end if
+   put "OXT Tour Menu Words" into tName
+   put the defaultStack into tDefault
+   lock messages
+   if there is a stack tName then delete stack tName
+   create stack tName
+   set the rect of stack tName to "300,200,700,500"
+   set the defaultStack to tName
+   create button "Words"
+   set the style of it to "menu"
+   set the menuMode of it to "popup"
+   set the rect of it to "20,20,140,46"
+   set the text of it to "The first item, plain" & return & "Readable words" & return & "The last item, plain"
+   create button "No words"
+   set the style of it to "menu"
+   set the menuMode of it to "popup"
+   set the rect of it to "160,20,280,46"
+   set the text of it to "The first item, plain" & return & space & return & "The last item, plain"
+   close stack tName
+   set the defaultStack to tDefault
+   unlock messages
+   go stack tName
+   tourWait 800
+   tourMarksPopup tName, "Words", "03f-menu-words"
+   tourMarksPopup tName, "No words", "03g-menu-no-words"
+   put tourWordsCheck("03f-menu-words", "03g-menu-no-words", "the theme's colour") after tFails
+   put "48,52,58" & return & "236,236,236" into tColours
+   put 0 into tPass
+   repeat for each line tColour in tColours
+      add 1 to tPass
+      set the backgroundColor of stack tName to tColour
+      tourWait 300
+      tourMarksPopup tName, "Words", "03h-menu-words-own-colour-" & tPass
+      tourMarksPopup tName, "No words", "03i-menu-no-words-own-colour-" & tPass
+      put tourWordsCheck("03h-menu-words-own-colour-" & tPass, "03i-menu-no-words-own-colour-" & tPass, \
+            "the window's own colour" && tColour) after tFails
+   end repeat
+   -- (closed, not deleted, as in tour_menu_marks)
+   close stack tName
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_menu_words
+
+-- Empty if the words of an item stand out from the menu: the snapshot
+-- pWords (a menu with an item of words) against pNoWords (the same menu
+-- with that item blank), the menu's colour named pWhat; else a line that
+-- says by how little they do
+function tourWordsCheck pWords, pNoWords, pWhat
+   local tGroups, tGroup, tMost, tPixels
+   put tourMarksGroups(sOut & slash & pWords & ".png", sOut & slash & pNoWords & ".png") into tGroups
+   put 0 into tMost
+   put 0 into tPixels
+   repeat for each line tGroup in tGroups
+      add item 5 of tGroup to tPixels
+      put max(tMost, item 6 of tGroup) into tMost
+   end repeat
+   tourRecord "INFO menu-words:" && pWhat & ": an item's words," && tPixels && \
+         "pixels, differ from the menu by at most" && tMost && "in luma"
+   -- the words are some hundreds of pixels
+   if tPixels < 20 then
+      return "on" && pWhat & ", the menus' snapshots differ in" && tPixels && \
+            "pixels, not in an item's words" & return
+   end if
+   if tMost <= 127 then
+      return "on" && pWhat & ", an item's words differ from the menu by" && tMost && \
+            "in luma (0 to 255): they cannot be read" & return
+   end if
+   return empty
+end tourWordsCheck
 
 -- File > New Stack's preset sizes, the ones Preferences lists with "Show a
 -- list of preset new stack sizes in File menu > New Stack": among them
@@ -5460,7 +5550,7 @@ end tourLuminance
 -- no browser widget (revIDEBrowserWidgetUnavailable); the text dictionary
 -- when Preferences > Dictionary chooses it (cDictionaryDisplayMethod)
 on tour_dictionary
-   local tBefore, tNew
+   local tBefore, tNew, tBlank
    put the openStacks into tBefore
    send "tNewDictionaryDisplay" to stack "revMenuBar"
    if the cDictionaryDisplayMethod of stack "revPreferences" is not true and revIDEBrowserWidgetUnavailable() then
@@ -5476,12 +5566,110 @@ on tour_dictionary
    tourWait 4000
    if tNew is revIDEPaletteToStackName("dictionary") then
       tourDictionaryData tNew
+      put tourDictionaryBlank(tNew, "as it opened") into tBlank
    else
       tourDictionaryEntry tNew, "try control structure.txt"
    end if
    tourShotStack tNew, "13-dictionary"
+   if tBlank is not empty then tourDictionaryWhy tNew
    close stack tNew
+   if tBlank is not empty then throw tBlank
 end tour_dictionary
+
+-- LiveCode's Dictionary must draw its page, which on Windows in the dark
+-- appearance it did not: its window was blank in the tour's 13-dictionary
+-- from rc.6.11 to rc.6.15 (the window at 14,100, where it opens once a
+-- run has moved it to fit the 1024-point screen), while the page's data
+-- checks passed (tourDictionaryData reads the page, not the screen). The
+-- page's part of the screen (the palette's contentRect, less the Tools
+-- palette where it is in front) must hold more than one colour: a blank
+-- page is a single one. Empty when it does; else what is wrong, with what
+-- the window and its browser widget were (pWhen: when it was read)
+function tourDictionaryBlank pStack, pWhen
+   local tSpread
+   tourUnlockScreen "dictionary"
+   put tourDictionarySpread(pStack) into tSpread
+   tourRecord "INFO LiveCode's Dictionary" && pWhen & ":" && tourDictionaryState(pStack) & \
+         "; its page's lightness spreads over" && tSpread
+   if tSpread is not a number then return "LiveCode's Dictionary: its page could not be read (" & tSpread & ")"
+   if tSpread >= 48 then return empty
+   return "LiveCode's Dictionary draws nothing where its page is" && pWhen && "(lightness spread" && \
+         tSpread & ";" && tourDictionaryState(pStack) & ")"
+end tourDictionaryBlank
+
+-- The rects of the Dictionary's window and of its browser widget, whether
+-- the widget is shown, the lockScreen and the page's address
+function tourDictionaryState pStack
+   local tWidget
+   if there is not a widget "Dictionary" of stack pStack then return "no browser widget"
+   put the long id of widget "Dictionary" of stack pStack into tWidget
+   return "window" && the rect of stack pStack && "content" && the contentRect of stack pStack && \
+         "widget" && the rect of tWidget && "visible" && the visible of tWidget && \
+         "lockScreen" && the lockScreen && "url" && the url of tWidget
+end tourDictionaryState
+
+-- How far the lightness of the page's part of the screen spreads (the
+-- lightest point less the darkest, of points 6 apart): 0 for one colour.
+-- The part is the window's contentRect, on the screen, 8 points in, less
+-- what the Tools palette covers at its left
+function tourDictionarySpread pStack
+   local tRect, tContent, tScreen, tTools, tDefault, tImage, tMin, tMax, tX, tY, tLum
+   put the rect of stack pStack into tRect
+   put the contentRect of stack pStack into tContent
+   put the screenRect into tScreen
+   put item 1 of tRect + item 1 of tContent + 8, item 2 of tRect + item 2 of tContent + 8, \
+         min(item 1 of tRect + item 3 of tContent - 8, item 3 of tScreen - 4), \
+         min(item 2 of tRect + item 4 of tContent - 8, item 4 of tScreen - 4) into tRect
+   if there is a stack "revTools" and the mode of stack "revTools" is not 0 and the visible of stack "revTools" then
+      put the effective rect of stack "revTools" into tTools
+      if item 1 of tTools <= item 1 of tRect and item 3 of tTools > item 1 of tRect \
+            and item 2 of tTools < item 4 of tRect and item 4 of tTools > item 2 of tRect then
+         put item 3 of tTools + 4 into item 1 of tRect
+      end if
+   end if
+   if item 3 of tRect - item 1 of tRect < 40 or item 4 of tRect - item 2 of tRect < 40 then
+      return "no room: the page's part is" && tRect
+   end if
+   put the defaultStack into tDefault
+   set the defaultStack to "oxt_ui_tour"
+   lock messages
+   import snapshot from rect tRect
+   put the long id of last image of card 1 of stack "oxt_ui_tour" into tImage
+   put the width of tImage into sPixWidth
+   put the height of tImage into sPixHeight
+   put the imageData of tImage into sPixData
+   delete tImage
+   unlock messages
+   set the defaultStack to tDefault
+   if sPixWidth < 1 or the number of bytes of sPixData < sPixWidth * sPixHeight * 4 then
+      return "no pixels of" && tRect
+   end if
+   put 255 into tMin
+   put 0 into tMax
+   repeat with tY = 0 to sPixHeight - 1 step 6
+      repeat with tX = 0 to sPixWidth - 1 step 6
+         put tourLum(tX, tY) into tLum
+         put min(tMin, tLum) into tMin
+         put max(tMax, tLum) into tMax
+      end repeat
+   end repeat
+   return tMax - tMin
+end tourDictionarySpread
+
+-- After a blank page's snapshot, for the record: whether the page draws
+-- once the window gets a resizeStack, as browserNavigateComplete gives it
+-- (revdictionarybehavior.livecodescript sets the widget's rect to 0,0,0,0
+-- as the window opens, and to the contentRect on that message)
+command tourDictionaryWhy pStack
+   local tError
+   try
+      dispatch "resizeStack" to stack pStack
+      tourWait 1500
+      get tourDictionaryBlank(pStack, "after a resizeStack")
+   catch tError
+      tourRecord "INFO LiveCode's Dictionary after a resizeStack:" && tourJoin(tError)
+   end try
+end tourDictionaryWhy
 
 -- Tom Perry's text dictionary, as Help > Dictionary opens it when
 -- Preferences > Dictionary chooses it, on an entry that

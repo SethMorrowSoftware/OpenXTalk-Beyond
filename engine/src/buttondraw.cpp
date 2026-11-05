@@ -91,6 +91,10 @@ static bool MCButtonDisabledInkOnDarkTheme(MCButton *p_button, MCDC *p_dc, MCCol
 #endif
 }
 
+#if defined(TARGET_PLATFORM_LINUX)
+static bool MCButtonMenuItemTextInkOnOwnColour(MCButton *p_item, MCDC *p_dc, MCColor &r_ink);
+#endif
+
 // MW-2011-09-06: [[ Redraw ]] Added 'sprite' option - if true, ink and opacity are not set.
 void MCButton::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool p_sprite)
 {
@@ -429,9 +433,23 @@ void MCButton::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool 
 				(MClook != LF_MOTIF && style == F_MENU && flags & F_OPAQUE && state & CS_ARMED && !(flags & F_SHOW_BORDER)))
 				setforeground(dc, DI_PSEUDO_BUTTON_TEXT_SEL, False, True);
 			else
+			{
 				setforeground(dc, DI_FORE, ((state & CS_HILITED && flags & F_HILITE_FILL)
 				                            || ((state & CS_ARMED && flags & F_ARM_FILL) && flags & F_OPAQUE && ((MClook != LF_WIN95 && !MCaqua)))
 				                            || style != F_STANDARD), False);
+#if defined(TARGET_PLATFORM_LINUX)
+				// OXT-Beyond: a menu item's words on a colour of its own
+				// that the theme's text colour cannot be read on, black or
+				// white by that colour, as its tick
+				// (MCButtonMenuItemTextInkOnOwnColour)
+				MCColor t_ink;
+				if (MCButtonMenuItemTextInkOnOwnColour(this, dc, t_ink))
+				{
+					dc->setforeground(t_ink);
+					dc->setfillstyle(FillSolid, nil, 0, 0);
+				}
+#endif
+			}
         }
 		}
 
@@ -865,6 +883,67 @@ static bool MCButtonMenuItemIsOnDarkTheme(MCButton *p_item, MCDC *p_dc)
 	uint32_t t_luma;
 	t_luma = (299 * uint32_t(t_color . red) + 587 * uint32_t(t_color . green) + 114 * uint32_t(t_color . blue)) / 1000;
 	return t_luma < 32768;
+}
+
+// OXT-Beyond: the colour of a menu item's words when the colour behind them
+// is one of the user's own that the theme's text colour cannot be read on.
+// An item's words are the first text colour from the item up, else the
+// theme's; the colour behind them is the first background colour from the
+// item up (its menu's, then from the menu's button up: a window's colour of
+// its own reaches its menus), else the theme's. Until 0.2.7-rc.6.16 the
+// words were the theme's whatever that colour was, so in a window of a
+// light colour of its own in a dark theme they were light grey on near
+// white (Adwaita-dark's 238 on 236,236,236), and in a window of a dark one
+// in a light theme the theme's dark grey on dark (Adwaita's on 48,52,58).
+// When the theme's text and that colour are both dark or both light, the
+// words are drawn white or black by that colour, as the item's tick
+// (MCButtonMenuItemIsOnDarkTheme). Nothing changes for an item with a text
+// colour or pattern of its own anywhere on the way, for one on the theme's
+// colour or on a pattern, for an armed item (drawn on the theme's hilite
+// colour, as before), nor where the theme's text can already be read
+static bool MCButtonMenuItemTextInkOnOwnColour(MCButton *p_item, MCDC *p_dc, MCColor &r_ink)
+{
+	if (p_item -> getmenucontrol() != MENUCONTROL_ITEM)
+		return false;
+
+	// The objects getforecolor looks to for both colours, in its order: a
+	// text colour or pattern of the user's anywhere keeps the words as they
+	// are, and so does a background that is the theme's or a pattern
+	bool t_own_back = false;
+	for (MCObject *t_object = p_item; t_object != nil && t_object != MCdispatcher; t_object = t_object -> getparent())
+	{
+		uint2 t_index;
+		if (t_object -> getcindex(DI_FORE, t_index) || t_object -> getpindex(DI_FORE, t_index))
+			return false;
+		if (!t_own_back)
+		{
+			if (t_object -> getpindex(DI_BACK, t_index) && !t_object -> getcindex(DI_BACK, t_index))
+				return false;
+			if (t_object -> getcindex(DI_BACK, t_index))
+				t_own_back = true;
+		}
+	}
+	if (!t_own_back)
+		return false;
+
+	MCColor t_back, t_fore;
+	MCPatternRef t_pattern = nil;
+	int2 t_x, t_y;
+	if (!p_item -> getforecolor(DI_BACK, False, False, t_back, t_pattern, t_x, t_y, p_dc -> gettype(), p_item) || t_pattern != nil)
+		return false;
+	if (!p_item -> getforecolor(DI_FORE, False, False, t_fore, t_pattern, t_x, t_y, p_dc -> gettype(), p_item) || t_pattern != nil)
+		return false;
+
+	// Rec. 601 luma, out of 65535
+	uint32_t t_back_luma, t_fore_luma;
+	t_back_luma = (299 * uint32_t(t_back . red) + 587 * uint32_t(t_back . green) + 114 * uint32_t(t_back . blue)) / 1000;
+	t_fore_luma = (299 * uint32_t(t_fore . red) + 587 * uint32_t(t_fore . green) + 114 * uint32_t(t_fore . blue)) / 1000;
+	bool t_dark_back = t_back_luma < 32768;
+	if (t_dark_back != (t_fore_luma < 32768))
+		return false;
+
+	r_ink = t_dark_back ? p_dc -> getwhite() : p_dc -> getblack();
+	return true;
 }
 #endif
 

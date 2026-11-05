@@ -44,11 +44,29 @@ on openStack
    showTab sTab
    set the cantModify of me to true
    unlock screen
+   -- OXT-Beyond: the page fills the window once it is open
+   send "dictFitPage" to me in 0 milliseconds
 end openStack
 
 on resizeStack
    set the rect of widget "Dictionary" of me to the contentRect of me
 end resizeStack
+
+-- OXT-Beyond: the browser widget is set to 0,0,0,0 as the window opens,
+-- and was given the window's contentRect only by a resizeStack, which
+-- comes when the width set above changes the window's, or by
+-- browserNavigateComplete. A window that opened at the width it already
+-- had (where it was last, as the IDE keeps a palette's place) got neither
+-- on Windows, and its page stayed a point at the top left: the Dictionary
+-- was blank, the window's own colour (the IDE tour's 13-dictionary in the
+-- dark, rc.6.11 to rc.6.15; its widget read 0,0,1,1, and a resizeStack
+-- drew the page). The page is now fitted once the window is open. A
+-- window that got a resizeStack is given the same rect again
+on dictFitPage
+   if the mode of me is not 0 then
+      resizeStack
+   end if
+end dictFitPage
 
 on showAPIs
    showTab "api"

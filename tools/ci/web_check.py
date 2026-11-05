@@ -201,6 +201,7 @@ for the browser, the Python package playwright with its browser
 """
 
 import argparse
+import base64
 import glob
 import hashlib
 import http.server
@@ -432,8 +433,149 @@ WINDOW_FRAME_JS = '''(title) => {
             opacity: window.style.opacity};
 }'''
 
+# The ids of the windows the page shows (data-lc-window-id), to find the
+# one a click opened: a menu's list is a window of its own
+SHOWN_WINDOW_IDS_JS = '''() => Array.from(document.querySelectorAll('canvas')).filter(function(canvas) {
+    const r = canvas.getBoundingClientRect();
+    return canvas.dataset.lcWindowId && r.width > 0 && r.height > 0;
+}).map(function(canvas) { return canvas.dataset.lcWindowId; })'''
+
+# The option menu lists read (probeMenuColors in web-probe.livecodescript):
+# (the page, the menu's kind, the least contrast its words must have with
+# the list, and the colour the list must be, or None for any). A list that
+# sets no colour stays as it was: black on white on the page as built, white
+# on the dark face (em-theme.cpp) on the page that follows a dark browser.
+# A list whose words would not be seen on the theme's list (light grey
+# words on white: SVG Lab's dark look, seth's report of rc.6.12; black on
+# the dark list) must be readable. 4.5 is the WCAG's least contrast for
+# words; light grey on white was about 1.2.
+MENU_LISTS = (
+    ('as built', 'plain', 15.0, (255, 255, 255)),
+    ('as built', 'light-text', 4.5, None),
+    ('following the browser', 'plain', 12.0, (32, 32, 32)),
+    ('following the browser', 'black-text', 4.5, None),
+)
+
+
+def png_pixels(data):
+    """The width, height and rows of (r, g, b) of a PNG of 8 bits a channel
+    (grey, RGB, grey and alpha or RGBA; not interlaced): what Playwright's
+    screenshots are"""
+    import struct
+    if data[:8] != b'\x89PNG\r\n\x1a\n':
+        raise ValueError('not a PNG')
+    at, idat, header = 8, [], None
+    while at < len(data):
+        length, kind = struct.unpack('>I4s', data[at:at + 8])
+        body = data[at + 8:at + 8 + length]
+        if kind == b'IHDR':
+            header = struct.unpack('>IIBBBBB', body)
+        elif kind == b'IDAT':
+            idat.append(body)
+        elif kind == b'IEND':
+            break
+        at += 12 + length
+    if header is None:
+        raise ValueError('no IHDR')
+    width, height, depth, colour, _, _, interlace = header
+    channels = {0: 1, 2: 3, 4: 2, 6: 4}.get(colour)
+    if depth != 8 or channels is None or interlace:
+        raise ValueError('a PNG of depth %d, colour type %d, interlace %d' % (depth, colour, interlace))
+    raw = zlib.decompress(b''.join(idat))
+    stride = width * channels
+    rows, previous, at = [], bytearray(stride), 0
+    for _ in range(height):
+        kind, line = raw[at], bytearray(raw[at + 1:at + 1 + stride])
+        at += 1 + stride
+        for i in range(stride):
+            left = line[i - channels] if i >= channels else 0
+            up = previous[i]
+            corner = previous[i - channels] if i >= channels else 0
+            if kind == 1:
+                line[i] = (line[i] + left) & 255
+            elif kind == 2:
+                line[i] = (line[i] + up) & 255
+            elif kind == 3:
+                line[i] = (line[i] + ((left + up) >> 1)) & 255
+            elif kind == 4:
+                p = left + up - corner
+                pa, pb, pc = abs(p - left), abs(p - up), abs(p - corner)
+                line[i] = (line[i] + (left if pa <= pb and pa <= pc else up if pb <= pc else corner)) & 255
+        previous = line
+        if channels < 3:
+            rows.append([(line[i],) * 3 for i in range(0, stride, channels)])
+        else:
+            rows.append([tuple(line[i:i + 3]) for i in range(0, stride, channels)])
+    return width, height, rows
+
+
+def relative_luminance(rgb):
+    """The WCAG's relative luminance of an (r, g, b) of 0 to 255"""
+    def channel(v):
+        v = v / 255.0
+        return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
+    r, g, b = (channel(v) for v in rgb)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast_ratio(a, b):
+    """The WCAG's contrast ratio of two colours, 1 to 21"""
+    la, lb = relative_luminance(a), relative_luminance(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+
+def print_image(name, data):
+    """Prints PNG data into the log as tools/ci/print_images.py reads it."""
+    text = base64.b64encode(data).decode('ascii')
+    parts = [text[i:i + 4000] for i in range(0, len(text), 4000)] or ['']
+    for i, part in enumerate(parts):
+        print('IMAGE %s %d/%d %s' % (name, i + 1, len(parts), part))
+    sys.stdout.flush()
+
+
+def menu_list_colours(width, height, rows):
+    """The colour of an option menu's list and of its words, and their
+    contrast, from a picture of the list's window: the list is the colour
+    most of its points have, and its words the colour of the point most
+    unlike it. Only the lower half is read, below the first line, which is
+    the hilited one (the menuHistory), 3 points in from each edge, past the
+    border, and only the left 60%, where the words are: a long list's
+    scroll bar is at the right."""
+    counts = {}
+    points = []
+    for y in range(max(3, height // 2), height - 3):
+        for x in range(3, max(4, width * 3 // 5)):
+            rgb = rows[y][x]
+            counts[rgb] = counts.get(rgb, 0) + 1
+            points.append(rgb)
+    if not points:
+        raise ValueError('a list of %dx%d has no points to read' % (width, height))
+    back = max(counts, key=counts.get)
+    words = max(points, key=lambda rgb: contrast_ratio(rgb, back))
+    return back, words, contrast_ratio(back, words)
+
+
+def menu_list_problem(where, kind, least, want_back, back, words, ratio):
+    """What is wrong with the list read (menu_list_colours) of the option
+    menu kind on the page where, or None"""
+    said = ('on the page %s, the list of an option menu with %s is %s with words %s (contrast %.1f)'
+            % (where, MENU_KINDS.get(kind, kind), 'rgb(%d,%d,%d)' % back, 'rgb(%d,%d,%d)' % words, ratio))
+    if want_back is not None and max(abs(a - b) for a, b in zip(back, want_back)) > 2:
+        return said + ', expected the list rgb(%d,%d,%d) as before' % want_back
+    if ratio < least:
+        return said + ', expected a contrast of %.1f or more' % least
+    return None
+
+
+MENU_KINDS = {
+    'plain': 'no colours',
+    'light-text': 'light words on a dark button',
+    'black-text': 'black words and no background colour',
+}
+
+
 # How many windows the page shows: a menu's list is a window of its own
-SHOWN_WINDOWS_JS = '''() => Array.from(document.querySelectorAll('canvas')).filter(function(canvas) {
+SHOWN_WINDOWS_JS ='''() => Array.from(document.querySelectorAll('canvas')).filter(function(canvas) {
     const r = canvas.getBoundingClientRect();
     return canvas.dataset.lcWindowId && r.width > 0 && r.height > 0;
 }).length'''
@@ -1579,6 +1721,59 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
         problems.append('%s did not happen within %d seconds' % (what, seconds))
         return False
 
+    def read_menu_list(tab, where, kind, least, want_back):
+        """Opens the probe's option menu of the kind on the page tab (where:
+        'as built' or 'following the browser'), reads its list's colours from
+        a picture of the list's window, and closes it again with a click
+        outside every window. A line for the log, and a problem or None."""
+        stack = "document.liveCode.findStackWithName('%s')" % STACK_NAME
+        rect = tab.evaluate('%s.probeReport("menu-colors %s")' % (stack, kind))
+        try:
+            left, top, right, bottom = parse_rect(rect)
+        except (ValueError, TypeError):
+            return None, 'on the page %s, the probe could not make an option menu with %s: %r' % (
+                where, MENU_KINDS[kind], rect)
+        canvas = tab.locator('#canvas').bounding_box()
+        outside = tab.evaluate(PAGE_OUTSIDE_JS)
+        if not canvas or not outside:
+            return None, 'on the page %s, no canvas or no point outside every window to click' % where
+        tab.wait_for_timeout(300)
+        before = set(tab.evaluate(SHOWN_WINDOW_IDS_JS))
+        tab.mouse.click(canvas['x'] + (left + right) / 2, canvas['y'] + (top + bottom) / 2)
+        opened = []
+        deadline = time.time() + 10
+        while time.time() < deadline and not opened:
+            tab.wait_for_timeout(100)
+            opened = [i for i in tab.evaluate(SHOWN_WINDOW_IDS_JS) if i not in before]
+        if not opened:
+            return None, 'on the page %s, a click on an option menu with %s showed no list' % (
+                where, MENU_KINDS[kind])
+        tab.wait_for_timeout(500)
+        listed = tab.locator('canvas[data-lc-window-id="%s"]' % opened[0])
+        picture = listed.screenshot()
+        name = 'menu-list-%s-%s.png' % (where.replace(' ', '-'), kind)
+        with open(os.path.join(work, name), 'wb') as f:
+            f.write(picture)
+        # For a person to look at: the menu and its open list on the page,
+        # printed into the log (tools/ci/print_images.py writes it back),
+        # since the job's artifact is not always at hand
+        box = listed.bounding_box()
+        if box:
+            x0 = min(canvas['x'] + left, box['x']) - 12
+            y0 = min(canvas['y'] + top, box['y']) - 12
+            x1 = max(canvas['x'] + right, box['x'] + box['width']) + 12
+            y1 = max(canvas['y'] + bottom, box['y'] + box['height']) + 12
+            x0, y0 = max(x0, 0), max(y0, 0)
+            seen = tab.screenshot(clip={'x': x0, 'y': y0, 'width': x1 - x0, 'height': y1 - y0})
+            print_image('%s/%s' % (browser_name, name), seen)
+        tab.mouse.click(*outside)
+        tab.wait_for_timeout(300)
+        tab.evaluate('%s.probeReport("menu-colors-done")' % stack)
+        back, words, ratio = menu_list_colours(*png_pixels(picture))
+        line = ('on the page %s, an option menu with %s: its list rgb(%d,%d,%d), its words rgb(%d,%d,%d), '
+                'contrast %.1f' % ((where, MENU_KINDS[kind]) + back + words + (ratio,)))
+        return line, menu_list_problem(where, kind, least, want_back, back, words, ratio)
+
     browser_waiting[0] = '%s to start' % browser_name
     with sync_playwright() as p:
         browser = getattr(p, browser_name).launch()
@@ -2042,6 +2237,22 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                 else:
                     lines.append('an option menu\'s list closed with no menuPick when the page outside every window '
                                  'was clicked, and opened again')
+                # the colours of option menus' lists on the page as built (the
+                # page that follows a dark browser has its own, below)
+                for where, kind, least, want_back in MENU_LISTS:
+                    if where != 'as built':
+                        continue
+                    try:
+                        line, problem = read_menu_list(page, where, kind, least, want_back)
+                    except (PlaywrightError, ValueError) as e:
+                        line, problem = None, 'on the page as built, the list of an option menu with %s could ' \
+                            'not be read: %s' % (MENU_KINDS[kind], e)
+                    if line:
+                        log('  ' + line)
+                    if problem:
+                        problems.append(problem)
+                    elif line:
+                        lines.append(line)
                 # the files the probe wrote to /downloads: a text file, and the
                 # PDF that it printed
                 names = lambda: [name for name, _ in downloads]
@@ -2276,6 +2487,22 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                                                '; a white box on a dark card looks ticked'
                                                if want_boxes == CHECKS_DARK else ''))
                         tab.evaluate(checks_js.replace("'checks'", "'colors-close'"))
+                    # the colours of option menus' lists on the page that
+                    # follows the dark browser
+                    for where, kind, least, want_back in MENU_LISTS:
+                        if where != name or name != 'following the browser':
+                            continue
+                        try:
+                            line, problem = read_menu_list(tab, where, kind, least, want_back)
+                        except (PlaywrightError, ValueError) as e:
+                            line, problem = None, 'in a browser set to dark, the list of an option menu with %s ' \
+                                'could not be read: %s' % (MENU_KINDS[kind], e)
+                        if line:
+                            log('  ' + line)
+                        if problem:
+                            problems.append(problem)
+                        elif line:
+                            lines.append(line)
                     if name == 'following the browser' and seen[name] == 'dark,0':
                         # the page's own count of the browser's change
                         # events, which says on a failure whether the

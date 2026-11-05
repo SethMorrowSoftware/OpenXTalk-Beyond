@@ -79,6 +79,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "platform.h"
 #endif
 
+#include <math.h>
+
 ////////////////////////////////////////////////////////////////////////////////
 
 uint1 MCObject::dashlist[2] = {4, 4};
@@ -1509,11 +1511,129 @@ Boolean MCObject::resizeparent()
 	return False;
 }
 
+/* OXT-Beyond: the WCAG's contrast of two colours, 1 to 21 */
+static double MCObjectColorLuminance(const MCColor &p_color)
+{
+	double t_rgb[3] = { p_color.red / 65535.0, p_color.green / 65535.0, p_color.blue / 65535.0 };
+	for (int i = 0; i < 3; i++)
+		t_rgb[i] = t_rgb[i] <= 0.03928 ? t_rgb[i] / 12.92 : pow((t_rgb[i] + 0.055) / 1.055, 2.4);
+	return 0.2126 * t_rgb[0] + 0.7152 * t_rgb[1] + 0.0722 * t_rgb[2];
+}
+
+static double MCObjectColorContrast(const MCColor &p_a, const MCColor &p_b)
+{
+	double t_a = MCObjectColorLuminance(p_a);
+	double t_b = MCObjectColorLuminance(p_b);
+	return (MCMax(t_a, t_b) + 0.05) / (MCMin(t_a, t_b) + 0.05);
+}
+
+/* OXT-Beyond: the list that an option menu (Windows, Linux and the web) or
+ * a combo box shows is a list field of its own, in a stack whose parent is
+ * the button (MCButton::findmenu, MCStack::createmenu). The field fills its
+ * background with the theme's list colour, which ignores the colours above
+ * it (getforecolor), and draws its words in the colour it inherits from the
+ * button. So a button with light words of its own showed light words on the
+ * white list (SVG Lab's dark look on the web, seth's report of rc.6.12), and
+ * one with black words showed them on the dark list of Windows' dark mode,
+ * and of a web page that follows a dark browser.
+ *
+ * Only where those two colours cannot be read against each other (a
+ * contrast under 1.5: light grey on white is 1.1) the list is drawn
+ * otherwise: in the background colour the button has, its own or the first
+ * above it, if the words read on it as the WCAG asks of words (4.5); else
+ * in the theme's words, or black or white, whichever reads on the list. Every list that could be
+ * read is drawn as before, as is a list with a colour or a pattern of its
+ * own, a disabled one, and the Mac's and Motif's. True with both colours
+ * when the list is drawn otherwise */
+bool MCObject::getmenulistcolors(MCContextType dc_type, MCColor &r_back, MCColor &r_fore)
+{
+	if (gettype() != CT_FIELD || !getstate(CS_MENUFIELD) || (flags & F_DISABLED) || !(flags & F_OPAQUE))
+		return false;
+	if (MClook == LF_MOTIF || IsMacLF())
+		return false;
+
+	uint2 i;
+	if (getcindex(DI_BACK, i) || getpindex(DI_BACK, i) || getcindex(DI_FORE, i) || getpindex(DI_FORE, i))
+		return false;
+	if (!parent.IsValid() || !getstack().IsValid())
+		return false;
+
+	// The words, as they inherit their colour
+	MCColor t_fore;
+	MCPatternRef t_pattern = nil;
+	int2 t_x, t_y;
+	if (!parent -> getforecolor(DI_FORE, False, True, t_fore, t_pattern, t_x, t_y, dc_type, this) || t_pattern != nil)
+		return false;
+
+	// The list, as getforecolor fills it: the theme's, else white
+	MCColor t_back;
+	MCPlatformControlType t_type;
+	MCPlatformControlPart t_part;
+	MCPlatformControlState t_state;
+	MCPlatformThemeProperty t_prop;
+	MCPlatformThemePropertyType t_prop_type;
+	if (!getthemeselectorsforprop(P_BACK_COLOR, t_type, t_part, t_state, t_prop, t_prop_type) ||
+	    !MCPlatformGetControlThemePropColor(t_type, t_part, t_state, t_prop, t_back))
+		t_back = MCscreen -> getwhite();
+
+	if (MCObjectColorContrast(t_fore, t_back) >= 1.5)
+		return false;
+
+	// The button's background colour, its own or the first above it; none
+	// when the first is a pattern
+	for (MCObject *t_object = getstack() -> getparent(); t_object != nil && t_object != MCdispatcher; t_object = t_object -> getparent())
+	{
+		if (t_object -> getpindex(DI_BACK, i))
+			break;
+		if (t_object -> getcindex(DI_BACK, i))
+		{
+			MCColor t_color;
+			MCPatternRef t_none = nil;
+			if (t_object -> getforecolor(DI_BACK, False, False, t_color, t_none, t_x, t_y, dc_type, t_object) &&
+			    t_none == nil && MCObjectColorContrast(t_fore, t_color) >= 4.5)
+			{
+				r_back = t_color;
+				r_fore = t_fore;
+				return true;
+			}
+			break;
+		}
+	}
+
+	// The theme's words on the list, else black or white
+	MCColor t_words;
+	if (!getthemeselectorsforprop(P_FORE_COLOR, t_type, t_part, t_state, t_prop, t_prop_type) ||
+	    !MCPlatformGetControlThemePropColor(t_type, t_part, t_state, t_prop, t_words) ||
+	    MCObjectColorContrast(t_words, t_back) < 4.5)
+	{
+		MCColor t_black = MCscreen -> getblack();
+		MCColor t_white = MCscreen -> getwhite();
+		t_words = MCObjectColorContrast(t_black, t_back) >= MCObjectColorContrast(t_white, t_back) ? t_black : t_white;
+	}
+	r_back = t_back;
+	r_fore = t_words;
+	return true;
+}
+
 Boolean MCObject::getforecolor(uint2 p_di, Boolean rev, Boolean hilite,
                                MCColor &c, MCPatternRef &r_pattern,
                                int2 &x, int2 &y, MCContextType dc_type,
                                MCObject *o, bool selected)
 {
+    // OXT-Beyond: an option menu's or a combo box's list whose words could
+    // not be read on it (getmenulistcolors). The fill and the words only:
+    // a selected line's colours are the theme's, as before
+    if ((p_di == DI_BACK || p_di == DI_FORE || p_di == DI_PSEUDO_TEXT_COLOR) &&
+        gettype() == CT_FIELD && getstate(CS_MENUFIELD))
+    {
+        MCColor t_back, t_fore;
+        if (getmenulistcolors(dc_type, t_back, t_fore))
+        {
+            c = p_di == DI_BACK ? t_back : t_fore;
+            return True;
+        }
+    }
+
     uint2 di;
     switch (p_di)
     {

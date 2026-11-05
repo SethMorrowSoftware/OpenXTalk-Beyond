@@ -554,3 +554,150 @@ class ExtraPagesInWebKit(unittest.TestCase):
         # and none waits for its stack in the old way, without the retry
         self.assertNotIn('tab.wait_for_function(', source)
         self.assertNotIn("fresh.goto(url", source)
+
+
+def _png(width, height, pixel):
+    """A PNG of width x height, RGB, each point pixel(x, y), with a
+    different filter on each row (0 to 4), as Chromium's screenshots mix
+    them"""
+    import struct
+    import zlib
+
+    def chunk(kind, body):
+        return struct.pack('>I', len(body)) + kind + body + struct.pack('>I', zlib.crc32(kind + body) & 0xffffffff)
+    raw = bytearray()
+    previous = bytearray(width * 3)
+    for y in range(height):
+        line = bytearray()
+        for x in range(width):
+            line.extend(pixel(x, y))
+        kind = y % 5
+        out = bytearray()
+        for i in range(len(line)):
+            left = line[i - 3] if i >= 3 else 0
+            up = previous[i]
+            corner = previous[i - 3] if i >= 3 else 0
+            if kind == 0:
+                predict = 0
+            elif kind == 1:
+                predict = left
+            elif kind == 2:
+                predict = up
+            elif kind == 3:
+                predict = (left + up) >> 1
+            else:
+                p = left + up - corner
+                pa, pb, pc = abs(p - left), abs(p - up), abs(p - corner)
+                predict = left if pa <= pb and pa <= pc else up if pb <= pc else corner
+            out.append((line[i] - predict) & 255)
+        raw.append(kind)
+        raw.extend(out)
+        previous = line
+    return (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0)) +
+            chunk(b'IDAT', zlib.compress(bytes(raw))) + chunk(b'IEND', b''))
+
+
+def _list(back, words, hilite=(51, 153, 255), width=120, height=90):
+    """A picture of an option menu's list: a 1-point grey border, the first
+    line hilited, and a word of each other line drawn as a bar of the words'
+    colour at the left"""
+    def pixel(x, y):
+        if x == 0 or y == 0 or x == width - 1 or y == height - 1:
+            return (160, 160, 160)
+        if y < 26:
+            return hilite if not (6 < x < 40 and 10 < y < 18) else (255, 255, 255)
+        line = (y - 26) // 20
+        if 6 < x < 30 + 6 * line and 30 + 20 * line < y < 38 + 20 * line:
+            return words
+        return back
+    return _png(width, height, pixel)
+
+
+class TheMenuLists(unittest.TestCase):
+    """The colours of option menus' lists (seth's report of rc.6.12: a web
+    app's option menu, light words on a dark button, opened as light grey
+    words on white): web_check.py reads a picture of each list's window,
+    and must tell a readable list from one that is not, and a plain list
+    changed from as it was."""
+
+    def test_png_pixels_reads_every_filter(self):
+        data = _png(7, 10, lambda x, y: (x * 30, y * 20, (x * y) % 256))
+        width, height, rows = web_check.png_pixels(data)
+        self.assertEqual((width, height), (7, 10))
+        for y in range(10):
+            for x in range(7):
+                self.assertEqual(rows[y][x], (x * 30, y * 20, (x * y) % 256))
+
+    def test_a_printed_picture_comes_back_from_the_log(self):
+        import contextlib
+        import io
+        import tempfile
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        import print_images
+        data = _png(90, 70, lambda x, y: (x, y, 200))
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            web_check.print_image('webkit/menu-list-as-built-plain.png', data)
+        self.assertTrue(out.getvalue().startswith('IMAGE webkit/menu-list-as-built-plain.png 1/'))
+        with tempfile.TemporaryDirectory() as folder:
+            log = os.path.join(folder, 'log.txt')
+            with open(log, 'w') as f:
+                f.write(''.join('2026-11-05T12:00:00.0Z ' + line + '\n' for line in out.getvalue().splitlines()))
+            with contextlib.redirect_stdout(io.StringIO()):
+                print_images.main([log, os.path.join(folder, 'out')])
+            with open(os.path.join(folder, 'out', 'webkit-menu-list-as-built-plain.png'), 'rb') as f:
+                self.assertEqual(f.read(), data)
+
+    def test_png_pixels_refuses_what_it_cannot_read(self):
+        with self.assertRaises(ValueError):
+            web_check.png_pixels(b'GIF89a')
+
+    def test_light_grey_words_on_white_are_unreadable(self):
+        back, words, ratio = web_check.menu_list_colours(*web_check.png_pixels(_list((255, 255, 255), (240, 240, 240))))
+        self.assertEqual(back, (255, 255, 255))
+        self.assertEqual(words, (240, 240, 240))
+        self.assertLess(ratio, 1.2)
+        problem = web_check.menu_list_problem('as built', 'light-text', 4.5, None, back, words, ratio)
+        self.assertIn('expected a contrast of 4.5 or more', problem)
+
+    def test_black_on_the_dark_list_is_unreadable(self):
+        back, words, ratio = web_check.menu_list_colours(*web_check.png_pixels(_list((32, 32, 32), (0, 0, 0))))
+        self.assertLess(ratio, 1.5)
+        self.assertTrue(web_check.menu_list_problem('following the browser', 'black-text', 4.5, None,
+                                                    back, words, ratio))
+
+    def test_the_hilited_line_is_not_read(self):
+        # the white words of the hilited first line are not the list's
+        back, words, _ = web_check.menu_list_colours(*web_check.png_pixels(_list((48, 52, 62), (230, 230, 235))))
+        self.assertEqual((back, words), ((48, 52, 62), (230, 230, 235)))
+
+    def test_readable_lists_pass(self):
+        for where, kind, least, want in web_check.MENU_LISTS:
+            if kind == 'plain':
+                picture = _list(want, (0, 0, 0) if want == (255, 255, 255) else (255, 255, 255))
+            else:
+                picture = _list((48, 52, 62), (230, 230, 235)) if kind == 'light-text' \
+                    else _list((32, 32, 32), (255, 255, 255))
+            colours = web_check.menu_list_colours(*web_check.png_pixels(picture))
+            self.assertIsNone(web_check.menu_list_problem(where, kind, least, want, *colours), (where, kind))
+
+    def test_a_plain_list_must_stay_as_it_was(self):
+        colours = web_check.menu_list_colours(*web_check.png_pixels(_list((48, 52, 62), (230, 230, 235))))
+        problem = web_check.menu_list_problem('as built', 'plain', 15.0, (255, 255, 255), *colours)
+        self.assertIn('expected the list rgb(255,255,255) as before', problem)
+
+    def test_each_kind_is_one_the_probe_makes(self):
+        probe = read('tools', 'ci', 'web-probe.livecodescript')
+        for _, kind, _, _ in web_check.MENU_LISTS:
+            self.assertIn(kind, web_check.MENU_KINDS)
+            if kind != 'plain':
+                self.assertIn('pKind is "%s"' % kind, probe)
+        self.assertIn('word 1 of pWhat is "menu-colors"', probe)
+        self.assertIn('pWhat is "menu-colors-done"', probe)
+
+    def test_both_pages_read_their_lists(self):
+        script = read('tools', 'ci', 'web_check.py')
+        self.assertEqual(script.count('= read_menu_list(page, where'), 1)
+        self.assertEqual(script.count('= read_menu_list(tab, where'), 1)
+        self.assertEqual({where for where, _, _, _ in web_check.MENU_LISTS},
+                         {'as built', 'following the browser'})
