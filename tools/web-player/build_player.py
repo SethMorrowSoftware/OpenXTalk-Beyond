@@ -59,6 +59,13 @@ of the page with no bar or window around it, a stack of the site by
 ?stack=, another site's refused, and the Phone Starter filling an iPhone's
 window (Chromium, and WebKit where it is installed).
 
+Then a tablet (check_tablet: Playwright's iPad Mini, portrait and
+landscape, in the player's page and the bare player): the Responsive
+Starter, made with the Mobile Web library, has the whole screen and is
+drawn to its corners; 2048, which is not, opens exactly as it did before
+there was a rule for a tablet (the same rect and canvas as on the same
+iPad with the page's touch test answering no), at its own size.
+
 The first page also has other scripts' errors raised while the player
 starts and once it has (tools/ci/stray_errors.py: a browser extension's
 script in the page, another site's): the player must start and say
@@ -759,6 +766,9 @@ def check(site, samples, work):
         # The bare player (play/): the stack and nothing else
         check_bare(p, browser, url.replace('index.html', BARE + '/'), shots, expect, wait_for)
 
+        # A tablet: a Mobile Web stack has the screen, any other is as it was
+        check_tablet(p, browser, url, shots, expect, wait_for)
+
         # An error of the page's own while the engine starts still shows
         own_context = browser.new_context(viewport={'width': 1000, 'height': 700})
         own = own_context.new_page()
@@ -900,6 +910,78 @@ def check_bare(p, browser, url, shots, expect, wait_for):
         phone(webkit, 'webkit')
     finally:
         webkit.close()
+
+
+# A page whose touch test answers no, as the page's own was before it had
+# a rule for a tablet: what a stack that is not made with the Mobile Web
+# library must look like on a tablet still
+NOT_TOUCH = """(() => { const was = window.matchMedia.bind(window);
+  window.matchMedia = q => q === '(pointer: coarse)' ? {matches: false, media: q, onchange: null,
+    addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}} : was(q); })();"""
+
+
+def check_tablet(p, browser, url, shots, expect, wait_for):
+    """A tablet (Playwright's iPad Mini, a touch screen whose short side
+    is not a phone's), portrait and landscape, in the player's page and the
+    bare player. The page's body has data-mobile-web-fill="touch".
+
+    The Responsive Starter calls mwStart: the player gives it the window,
+    the library fills the page, and it is drawn to the window's four
+    corners (its own light backgrounds there, not the page's), in the
+    player's page with the bar out of the way (phone-play). Before, it
+    opened at its own 1240x780 and was cut off at the right.
+
+    2048 does not: it must open as it did before (the same rect, as the
+    player logs it, and the same canvas as on the same iPad with the
+    page's touch test answering no), at its own size, never fitted."""
+    def visit(device, page_url, query, shot, not_touch=False):
+        context = browser.new_context(**p.devices[device])
+        if not_touch:
+            context.add_init_script(NOT_TOUCH)
+        page = context.new_page()
+        lines = []
+        page.on('console', lambda m: lines.append(m.text))
+        page.goto(page_url + query)
+        wait_for(page, lambda: any(x.startswith('PLAYER opened') for x in lines), 'a stack on a tablet', 120)
+        page.wait_for_timeout(2500)
+        state = page.evaluate("""() => {
+            const c = document.getElementById('canvas').getBoundingClientRect();
+            return {fill: document.body.getAttribute('data-mobile-web-fill'),
+                    phonePlay: document.body.classList.contains('phone-play'),
+                    canvas: [c.left, c.top, c.width, c.height].map(Math.round),
+                    view: [innerWidth, innerHeight], ratio: window.devicePixelRatio}; }""")
+        png = page.screenshot(path=os.path.join(shots, shot))
+        opened = [x for x in lines if x.startswith('PLAYER opened')][-1]
+        state['opened'] = opened
+        state['filled'] = any(x.startswith('PLAYER fills the screen') for x in lines)
+        state['fitted'] = any(x.startswith('PLAYER fitted') for x in lines)
+        log('  tablet %s%s%s: %s' % (page_url.rsplit('/', 2)[-2:], query, ' (not touch)' if not_touch else '', state))
+        context.close()
+        return state, png
+
+    def bright(png, st, x, y):
+        r = st['ratio'] or 1
+        return sum(png_pixel(png, int(x * r), int(y * r))) / 3 > 170
+
+    pages = (('player', url), ('bare', url.replace('index.html', BARE + '/')))
+    for device, turn in (('iPad Mini', 'portrait'), ('iPad Mini landscape', 'landscape')):
+        for kind, page_url in pages:
+            st, png = visit(device, page_url, '?play=Responsive%20Starter', '24-tablet-responsive-%s-%s.png' % (kind, turn))
+            vw, vh = st['view']
+            corners = [(2, 2), (vw - 3, 2), (2, vh - 3), (vw - 3, vh - 3)]
+            expect('tablet-mobile-web-fills-%s-%s' % (kind, turn),
+                   st['fill'] == 'touch' and st['filled'] and not st['fitted']
+                   and st['canvas'] == [0, 0, vw, vh] and st['opened'].endswith('rect=0,0,%d,%d' % (vw, vh))
+                   and (kind == 'bare' or st['phonePlay'])
+                   and all(bright(png, st, x, y) for x, y in corners), str(st))
+            st, png = visit(device, page_url, '?play=2048', '25-tablet-2048-%s-%s.png' % (kind, turn))
+            was, _ = visit(device, page_url, '?play=2048', '25-tablet-2048-%s-%s-was.png' % (kind, turn), True)
+            m = re.search(r'rect=(-?\d+),(-?\d+),(-?\d+),(-?\d+)', st['opened'])
+            own = [int(m.group(3)) - int(m.group(1)), int(m.group(4)) - int(m.group(2))] if m else None
+            expect('tablet-other-stack-as-before-%s-%s' % (kind, turn),
+                   st['fill'] == 'touch' and was['fill'] == 'no' and not st['filled'] and not st['fitted']
+                   and not st['phonePlay'] and st['opened'] == was['opened'] and st['canvas'] == was['canvas']
+                   and own == st['canvas'][2:], 'now %s, was %s' % (st, was))
 
 
 def main(argv=None):

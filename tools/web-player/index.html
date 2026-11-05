@@ -295,7 +295,9 @@ body.fullscreen #stage{box-sizing:border-box;min-height:100vh;justify-content:ce
 /* ---------- A stack on a phone: it has the whole screen ----------
    (data-mobile-web-fill is taken off the body on a phone, so the Mobile
    Web library may fill the page: a stack made for phones fills it with
-   mwStart, and the player fits any other stack to it, mwFitStack). The
+   mwStart, and the player fits any other stack to it, mwFitStack; on a
+   tablet it is "touch", and only a stack the library filled the page for
+   has it, fillsTheScreen). The
    engine sizes the stack to the whole page, so the bar steps aside for
    one button, back to the library, over the stack's corner. */
 body.phone-play .menubar,body.phone-play #stage .titlebar,body.phone-play #stage .caption{display:none}
@@ -813,10 +815,28 @@ dialog.answer .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:
   function isPhone() {
     return window.matchMedia('(pointer: coarse)').matches && Math.min(window.innerWidth, window.innerHeight) <= 600;
   }
+  // A tablet: another touch screen (an iPad). There the body has
+  // data-mobile-web-fill="touch": the Mobile Web library may fill the page,
+  // and the player gives the whole screen to a stack made with it (one
+  // whose scripts call mwStart, mwFillScreen or mwFitStack,
+  // playerUsesMobileWeb); every other stack is shown in its window, at its
+  // own size, as on a desktop.
+  function isTouch() {
+    return window.matchMedia('(pointer: coarse)').matches;
+  }
   function choosePhone() {
     if (document.body.classList.contains('playing')) return;
     if (isPhone()) document.body.removeAttribute('data-mobile-web-fill');
+    else if (isTouch()) document.body.setAttribute('data-mobile-web-fill', 'touch');
     else document.body.setAttribute('data-mobile-web-fill', 'no');
+  }
+  // Whether the stack that opened has the whole screen: on a phone every
+  // stack has it; on a tablet one that the Mobile Web library filled the
+  // page for (its style for a filled page is there, as the player stack's
+  // playerLibraryFilled asks).
+  function fillsTheScreen() {
+    var fill = document.body.getAttribute('data-mobile-web-fill');
+    return fill === null || (fill === 'touch' && !!document.getElementById('oxt-mobile-web-fill'));
   }
   choosePhone();
   window.addEventListener('resize', choosePhone);
@@ -830,7 +850,7 @@ dialog.answer .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:
   function setPlaying(name, detail) {
     var on = name !== '';
     document.body.classList.toggle('playing', on);
-    document.body.classList.toggle('phone-play', on && !document.body.hasAttribute('data-mobile-web-fill'));
+    document.body.classList.toggle('phone-play', on && fillsTheScreen());
     if (on) dimPhoneHome();
     else choosePhone();
     $('current').textContent = name;

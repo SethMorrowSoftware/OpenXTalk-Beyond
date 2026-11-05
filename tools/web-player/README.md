@@ -146,7 +146,13 @@ screen (#348): one that calls the Mobile Web library's `mwStart`,
 Phone Starter does. Anywhere else the page keeps the attribute and shows
 every stack at its own size, as the player does; without it the player
 took a desktop browser for a phone and scaled every stack up to the
-window. It keeps out of a phone's notch and home bar
+window. On a tablet (another touch screen, an iPad) the page sets
+`data-mobile-web-fill="touch"`: a stack made with the Mobile Web library
+(its scripts call `mwStart`, `mwFillScreen` or `mwFitStack`) has the
+whole screen there too, so the Responsive Starter is laid out as a
+tablet's, and every other stack opens as it does on a desktop, at its own
+size and never fitted; the player's own page does the same, with its bar
+out of the way only for a stack that filled the screen. It keeps out of a phone's notch and home bar
 (`viewport-fit=cover` and the safe-area insets) and uses `100dvh`, which
 iOS Safari's toolbar does not cover. The stacks it opens go into the
 same library as the player's (the browser's storage for the site).
@@ -156,7 +162,11 @@ the edges of what is drawn and not just inside them, a stack of the site
 at the top left, another site's refused, and the Phone Starter drawn to
 both sides, the top and the bottom of an iPhone's window, read from the
 screenshot's pixels and not only the canvas's size, in Chromium and,
-where Playwright's WebKit is installed, in WebKit).
+where Playwright's WebKit is installed, in WebKit), and `check_tablet`
+opens the Responsive Starter and 2048 on an iPad Mini, portrait and
+landscape, in both pages: the one drawn to the window's corners, the other
+with the same rect and canvas as on that iPad with the page's touch test
+answering no.
 
 ## Files
 

@@ -18,8 +18,22 @@ on editorUpdate
       set the backgroundpattern of graphic 1 of me to tValue
    end if
    unlock messages
+   -- OXT-Beyond: the colour beside this pattern in its row enables its
+   -- Clear for a pattern too (com.livecode.pi.color.behavior), so it is
+   -- told this pattern changed (LittleNemo, openxtalk.org p=26076)
+   editorTellColour
    unlock screen
 end editorUpdate
+
+private command editorTellColour
+   local tProperty
+   put the editorProperty["property_name"] of me into tProperty
+   if char -7 to -1 of tProperty is not "Pattern" then exit editorTellColour
+   put char 1 to -8 of tProperty & "Color" into tProperty
+   if there is a group tProperty of the owner of me then
+      dispatch "editorPatternUpdated" to group tProperty of the owner of me
+   end if
+end editorTellColour
 
 on editorResize
    lock screen

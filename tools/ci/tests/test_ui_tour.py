@@ -389,5 +389,45 @@ class InspectorTabClicks(unittest.TestCase):
         self.assertIn('if the cTourClicked of button "Click" of card 1 of stack tStack is true then exit repeat', loop)
 
 
+class MenuBuilderBareBoxes(unittest.TestCase):
+    # On macOS's dark appearance the Menu Builder drew a light grey box
+    # after each Mnemonic option menu: an opaque button, 18 by 10, whose
+    # icon (200606) no stack has. The menu-builder step must fail on such a
+    # button, and the stack patch must make both transparent.
+
+    def setUp(self):
+        with open(TOUR, encoding='utf-8') as f:
+            self.tour = f.read()
+
+    def test_the_step_looks_for_bare_boxes(self):
+        step = self.tour.split('on tour_menu_builder', 1)[1].split('end tour_menu_builder', 1)[0]
+        self.assertIn('put tourBareBoxes(tMM) after tFails', step)
+
+    def test_a_bare_box_is_an_opaque_button_with_nothing_on_it(self):
+        check = self.tour.split('function tourBareBoxes', 1)[1].split('end tourBareBoxes', 1)[0]
+        self.assertIn('if not tourControlShown(tId) then next repeat', check)
+        self.assertIn('if not the opaque of tId or the showBorder of tId then next repeat', check)
+        # the theme draws these styles, and a swatch has a colour of its own
+        self.assertIn('"menu,checkbox,radioButton,standard"', check)
+        self.assertIn('if the backColor of tId is not empty or the backPattern of tId is not empty then next repeat', check)
+        self.assertIn('tourIconFound(the icon of tId, pStack)', check)
+        found = self.tour.split('function tourIconFound', 1)[1].split('end tourIconFound', 1)[0]
+        self.assertIn('if pIcon is empty or pIcon is 0 then return false', found)
+        self.assertIn('there is an image id pIcon of stack tStack', found)
+
+    def test_the_patch_makes_both_buttons_transparent(self):
+        path = os.path.join(os.path.dirname(TOUR), '..', 'oxt', 'ide-stack-patches',
+                            'revmenumanager-mnemonic-boxes.txt')
+        with open(path, encoding='utf-8') as f:
+            lines = [line for line in f.read().splitlines() if line and not line.startswith('#')]
+        self.assertEqual(lines[0], 'file: Toolset/palettes/revmenumanager.rev')
+        for button in ('4886', '4868'):
+            at = lines.index('object: button id %s of card "Menu Manager"' % button)
+            self.assertEqual(lines[at + 1:at + 7], ['property: style', 'from: opaque', 'to: transparent',
+                                                    'property: opaque', 'from: true', 'to: false'])
+        # these two buttons and nothing else
+        self.assertEqual(len([line for line in lines if line.startswith('object:')]), 2)
+
+
 if __name__ == '__main__':
     unittest.main()
