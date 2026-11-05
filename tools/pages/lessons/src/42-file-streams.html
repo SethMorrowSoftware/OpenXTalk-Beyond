@@ -1,0 +1,134 @@
+<!--
+title: Files a piece at a time
+level: advanced
+minutes: 9
+summary: Open a file and read or write it a line or a block at a time, for files too big to read whole, and for logs you add to as you go.
+words: open file, read from file, write to file, close file, until, for, at, EOF, append, the openFiles
+-->
+<h2 id="why">When a URL is not enough</h2>
+<p><code>URL "file:"</code> reads or writes a whole file at once, which is right for almost every file. But a log of millions of lines does not need to be in memory to read its last entry, and a program that writes as it goes should not rewrite the whole file each time. For these, open the file and work on it a piece at a time:</p>
+<ol>
+<li><code>open file</code> it, <code>for read</code>, <code>for write</code> (replacing it), <code>for append</code> (adding to the end) or <code>for update</code>;</li>
+<li><code>read from file</code> or <code>write to file</code>, as often as you need;</li>
+<li><code>close file</code> it, always.</li>
+</ol>
+
+<h2 id="write">Writing a line at a time</h2>
+<figure class="example" id="ex-streams-write" data-run="output">
+<pre class="code"><code>put specialFolderPath("temporary") &amp; "/oxt-lesson-stream.txt" into tPath
+open file tPath for write
+repeat with i = 1 to 3
+   write "line" &amp;&amp; i &amp; return to file tPath
+end repeat
+close file tPath
+put the number of lines of URL ("file:" &amp; tPath)
+delete file tPath</code></pre>
+<pre class="out">3</pre>
+</figure>
+
+<h2 id="read">Reading a line at a time</h2>
+<p><code>read from file</code> puts what it read in <code>it</code>. Read <code>for 1 line</code>, or <code>until return</code>, and loop until there is nothing left:</p>
+<figure class="example" id="ex-streams-read" data-run="output">
+<pre class="code"><code>put specialFolderPath("temporary") &amp; "/oxt-lesson-stream.txt" into tPath
+put "alpha" &amp; return &amp; "beta" &amp; return &amp; "gamma" &amp; return into URL ("file:" &amp; tPath)
+open file tPath for read
+repeat
+   read from file tPath for 1 line
+   if it is empty then exit repeat
+   put "got:" &amp;&amp; line 1 of it
+end repeat
+close file tPath
+delete file tPath</code></pre>
+<pre class="out">got: alpha
+got: beta
+got: gamma</pre>
+</figure>
+<p>What was read includes the <code>return</code> at the end of the line, which is why the example takes <code>line 1 of it</code>.</p>
+
+<h2 id="positions">Reading from a position</h2>
+<p>A file is read from where the last read stopped. You can also read from any position with <code>at</code>, a number of characters with <code>for</code>, or everything left <code>until EOF</code> (the end of the file):</p>
+<figure class="example" id="ex-streams-at" data-run="output">
+<pre class="code"><code>put specialFolderPath("temporary") &amp; "/oxt-lesson-digits.txt" into tPath
+put "0123456789" into URL ("file:" &amp; tPath)
+open file tPath for read
+read from file tPath at 4 for 3
+put it
+read from file tPath until EOF
+put it
+close file tPath
+delete file tPath</code></pre>
+<pre class="out">345
+6789</pre>
+</figure>
+<p>Positions count from 1, as everywhere in xTalk. For a binary file, open it <code>for binary read</code> and positions count bytes.</p>
+
+<h2 id="append">Adding to a log</h2>
+<p><code>for append</code> writes after whatever the file holds already, which is just what a log needs:</p>
+<figure class="example" id="ex-streams-append" data-run="output">
+<pre class="code"><code>put specialFolderPath("temporary") &amp; "/oxt-lesson-app.log" into tPath
+put "started" &amp; return into URL ("file:" &amp; tPath)
+
+command logLine pPath, pText
+   open file pPath for append
+   write pText &amp; return to file pPath
+   close file pPath
+end logLine
+
+logLine tPath, "loaded 3 files"
+logLine tPath, "finished"
+put URL ("file:" &amp; tPath) into tLog
+put the number of lines of tLog
+put line -1 of tLog
+delete file tPath</code></pre>
+<pre class="out">3
+finished</pre>
+</figure>
+
+<h2 id="close">Always close</h2>
+<p>An open file stays open, and on some systems locked, until you close it or the program quits. <code>the openFiles</code> lists the files still open. Close every file you open, even when something goes wrong: a <code>try</code> with <code>finally</code> (from <a href="../errors/#finally">Handling errors</a>) makes sure of it.</p>
+<figure class="example" id="ex-streams-finally" data-run="output">
+<pre class="code"><code>put specialFolderPath("temporary") &amp; "/oxt-lesson-safe.txt" into tPath
+put "data" into URL ("file:" &amp; tPath)
+try
+   open file tPath for read
+   read from file tPath until EOF
+   put "read:" &amp;&amp; it
+   throw "something went wrong while working"
+catch tError
+   put "error:" &amp;&amp; tError
+finally
+   close file tPath
+end try
+put "files still open:" &amp;&amp; the number of lines of the openFiles
+delete file tPath</code></pre>
+<pre class="out">read: data
+error: something went wrong while working
+files still open: 0</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write the numbers 1 to 1000 to a file, a line each, with <code>write</code>. Then read the file a line at a time and add up only the lines that are multiples of 7. Put the total, and delete the file.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-streams-try" data-run="output">
+<pre class="code"><code>put specialFolderPath("temporary") &amp; "/oxt-lesson-numbers.txt" into tPath
+open file tPath for write
+repeat with i = 1 to 1000
+   write i &amp; return to file tPath
+end repeat
+close file tPath
+put 0 into tTotal
+open file tPath for read
+repeat
+   read from file tPath for 1 line
+   if it is empty then exit repeat
+   put line 1 of it into tNumber
+   if tNumber mod 7 is 0 then add tNumber to tTotal
+end repeat
+close file tPath
+delete file tPath
+put tTotal</code></pre>
+<pre class="out">71071</pre>
+</figure>
+</details>
+</section>

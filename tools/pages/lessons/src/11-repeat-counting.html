@@ -1,0 +1,108 @@
+<!--
+title: Counting loops
+level: beginner
+minutes: 8
+summary: Do something a number of times, count up or down, and add things up as you go.
+words: repeat, times, with, to, down to, step, end repeat
+-->
+<h2 id="times">Again and again</h2>
+<p>A <strong>loop</strong> runs the same lines more than once. The simplest says how many times:</p>
+<figure class="example" id="ex-rep-times" data-run="output">
+<pre class="code"><code>repeat 3 times
+   put "Hip hip hooray!"
+end repeat</code></pre>
+<pre class="out">Hip hip hooray!
+Hip hip hooray!
+Hip hip hooray!</pre>
+</figure>
+
+<h2 id="with">Counting with a variable</h2>
+<p><code>repeat with</code> counts in a variable for you: it starts at the first number, runs the lines, adds one, and stops after the last number. Short names like <code>i</code> are traditional for a counter.</p>
+<figure class="example" id="ex-rep-with" data-run="output">
+<pre class="code"><code>repeat with i = 1 to 5
+   put i &amp;&amp; "squared is" &amp;&amp; i * i
+end repeat</code></pre>
+<pre class="out">1 squared is 1
+2 squared is 4
+3 squared is 9
+4 squared is 16
+5 squared is 25</pre>
+</figure>
+
+<h2 id="down-and-step">Counting down, and in steps</h2>
+<p><code>down to</code> counts backwards. <code>step</code> says how much to add each time, and can be negative.</p>
+<figure class="example" id="ex-rep-down" data-run="output">
+<pre class="code"><code>repeat with tCount = 3 down to 1
+   put tCount &amp; "..."
+end repeat
+put "Lift off!"
+repeat with i = 0 to 20 step 5
+   put i
+end repeat</code></pre>
+<pre class="out">3...
+2...
+1...
+Lift off!
+0
+5
+10
+15
+20</pre>
+</figure>
+
+<h2 id="accumulate">Adding things up</h2>
+<p>A loop and a variable that grows are a pair you will use all the time. Here is the sum of 1 to 100, which the young Carl Friedrich Gauss is said to have worked out in his head:</p>
+<figure class="example" id="ex-rep-sum" data-run="output">
+<pre class="code"><code>put 0 into tTotal
+repeat with i = 1 to 100
+   add i to tTotal
+end repeat
+put tTotal</code></pre>
+<pre class="out">5050</pre>
+</figure>
+<p>And a string can grow the same way, with <code>put ... after</code>:</p>
+<figure class="example" id="ex-rep-string" data-run="output">
+<pre class="code"><code>repeat with i = 1 to 5
+   put i * 7 &amp; space after tTable
+end repeat
+put "Sevens:" &amp;&amp; tTable
+put "Stars:" &amp;&amp; tStars
+repeat 4 times
+   put "*" after tStars
+end repeat
+put "Stars:" &amp;&amp; tStars</code></pre>
+<pre class="out">Sevens: 7 14 21 28 35 
+Stars: tStars
+Stars: ****</pre>
+</figure>
+<p>Look at the second line of Output: before anything was put into <code>tStars</code>, xTalk read the name as a word (an unquoted literal, from the lesson on <a href="../variables/">variables</a>). Once the loop filled it, it is a variable.</p>
+
+<h2 id="nested">A loop in a loop</h2>
+<p>Loops can go inside each other. The inner loop runs all the way through for every turn of the outer one: here, a little multiplication table.</p>
+<figure class="example" id="ex-rep-nested" data-run="output">
+<pre class="code"><code>repeat with tRow = 1 to 3
+   put empty into tLine
+   repeat with tColumn = 1 to 4
+      put tRow * tColumn &amp; tab after tLine
+   end repeat
+   put tLine
+end repeat</code></pre>
+<pre class="out">1	2	3	4	
+2	4	6	8	
+3	6	9	12	</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>The factorial of a number is all the whole numbers up to it multiplied together: 4 factorial is 1 &times; 2 &times; 3 &times; 4 = 24. Use a loop to put the factorial of 10.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-rep-try" data-run="output">
+<pre class="code"><code>put 1 into tResult
+repeat with i = 1 to 10
+   multiply tResult by i
+end repeat
+put tResult</code></pre>
+<pre class="out">3628800</pre>
+</figure>
+</details>
+</section>

@@ -1,0 +1,154 @@
+<!--
+title: Libraries
+level: advanced
+minutes: 10
+summary: Share handlers across a whole program with library stacks, keep helpers private, and use front and back scripts to see or catch every message.
+words: start using, stop using, the stacksInUse, libraryStack, releaseStack, private, insert script, remove script, the frontScripts, the backScripts
+-->
+<h2 id="why">Handlers for the whole program</h2>
+<p>A handler in a stack's script serves that stack's cards and controls (<a href="../message-path/#sharing">The message path</a>). A <strong>library</strong> goes further: a stack whose handlers every script of the program can call, in any stack, as if they were built in. Text tools, a settings store, the code that talks to a server: anything several stacks need belongs in one.</p>
+
+<h2 id="start-using">start using</h2>
+<p><code>start using</code> puts a stack's script on the message path of everything, after each stack's own script. <code>stop using</code> takes it off again. A library is usually a script-only stack, saved as a <code>.livecodescript</code> file beside the program; here the example makes one:</p>
+<figure class="example" id="ex-lib-start" data-run="output">
+<pre class="code"><code>create script only stack "TextTools"
+put "function shoutText pText" &amp; return into tScript
+put "   return toUpper(pText) &amp; " &amp; quote &amp; "!" &amp; quote &amp; return after tScript
+put "end shoutText" after tScript
+set the script of stack "TextTools" to tScript
+
+start using stack "TextTools"
+put shoutText("hello")
+put "TextTools" is among the lines of the stacksInUse
+
+stop using stack "TextTools"
+try
+   put shoutText("again")
+catch tError
+   put "shoutText is gone"
+end try
+delete stack "TextTools"</code></pre>
+<pre class="out">HELLO!
+true
+shoutText is gone</pre>
+</figure>
+<p><code>the stacksInUse</code> lists the libraries in use, a line each. The IDE uses libraries of its own, so in the IDE the list is longer than yours: check for your library's name in it, as the example does, rather than counting.</p>
+<p>When it is put into use, a library is sent <code>libraryStack</code>, and when it is taken out, <code>releaseStack</code>: the places to set it up and tidy it away. Other stacks' messages pass through a library too, so check that the message is the library's own:</p>
+<figure class="example" id="ex-lib-messages" data-run="compile">
+<pre class="code"><code>local sSettings
+
+on libraryStack
+   if the target is not me then pass libraryStack
+   put empty into sSettings
+   put "light" into sSettings["theme"]
+end libraryStack
+
+on releaseStack
+   if the target is not me then pass releaseStack
+   put empty into sSettings
+end releaseStack
+
+function settingOf pName
+   return sSettings[pName]
+end settingOf</code></pre>
+</figure>
+
+<h2 id="private">Private helpers</h2>
+<p>Everything a library offers shares one name space with every other library and every script on the path, so a library should offer few names, and keep its helpers to itself. A handler marked <code>private</code> can be called only from its own script:</p>
+<figure class="example" id="ex-lib-private" data-run="output">
+<pre class="code"><code>create script only stack "Counter"
+put "local sCount" &amp; return into tScript
+put "command countUp" &amp; return after tScript
+put "   add 1 to sCount" &amp; return after tScript
+put "   return describeCount()" &amp; return after tScript
+put "end countUp" &amp; return after tScript
+put "private function describeCount" &amp; return after tScript
+put "   return " &amp; quote &amp; "the count is " &amp; quote &amp; " &amp; sCount" &amp; return after tScript
+put "end describeCount" after tScript
+set the script of stack "Counter" to tScript
+start using stack "Counter"
+
+countUp
+put the result
+countUp
+put the result
+try
+   put describeCount()
+catch tError
+   put "describeCount is private"
+end try
+
+stop using stack "Counter"
+delete stack "Counter"</code></pre>
+<pre class="out">the count is 1
+the count is 2
+describeCount is private</pre>
+</figure>
+<p>A script local such as <code>sCount</code> belongs to the library's script and lasts as long as the library is open, so it is a library's memory: settings, a cache, the connection it made.</p>
+<aside class="tip"><p>Begin every public handler of a library with a short prefix of its own: <code>ttShout</code> and <code>ttTrim</code> for TextTools, say. Two libraries that both offer <code>trimText</code> cannot both be used, and the one further along the path is silently never called.</p></aside>
+
+<h2 id="front-back">Front and back scripts</h2>
+<p>Any object's script can be inserted into the message path at either end. A <strong>front script</strong> sees every message <em>before</em> the object it is sent to: useful for logging, or for a tool that watches clicks. It should <code>pass</code> the message on, or it takes it away from everyone:</p>
+<figure class="example" id="ex-lib-front" data-run="output">
+<pre class="code"><code>create invisible button "Spy"
+set the script of it to "on mouseUp" &amp; return &amp; \
+      "   put " &amp; quote &amp; "the front script saw a click on " &amp; quote &amp; " &amp; the short name of the target" &amp; return &amp; \
+      "   pass mouseUp" &amp; return &amp; "end mouseUp"
+insert the script of it into front
+
+create button "Go"
+set the script of it to "on mouseUp" &amp; return &amp; "   put " &amp; quote &amp; "Go was clicked" &amp; quote &amp; return &amp; "end mouseUp"
+send "mouseUp" to button "Go"
+
+remove the script of button "Spy" from front
+send "mouseUp" to button "Go"</code></pre>
+<pre class="out">the front script saw a click on Go
+Go was clicked
+Go was clicked</pre>
+</figure>
+<p>A <strong>back script</strong> sees a message only when nothing before it took the message: a place for what should happen when nothing else does.</p>
+<figure class="example" id="ex-lib-back" data-run="output">
+<pre class="code"><code>create invisible button "Fallback"
+set the script of it to "on mouseUp" &amp; return &amp; "   put " &amp; quote &amp; "no one else took the click" &amp; quote &amp; return &amp; "end mouseUp"
+insert the script of it into back
+
+create button "Quiet"
+send "mouseUp" to button "Quiet"
+remove the script of button "Fallback" from back</code></pre>
+<pre class="out">no one else took the click</pre>
+</figure>
+<p><code>the frontScripts</code> and <code>the backScripts</code> list them. Libraries, back scripts and front scripts stay in place until they are removed or the program quits, so remove one when its work is done.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Make a library <code>Stats</code> with a public function <code>statsMean</code> (the mean of a comma-separated list of numbers) and a private helper that adds the list up. Use it, put the mean of <code>4,8,15,16,23,42</code>, show that the helper cannot be called from outside, and tidy up.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-lib-try" data-run="output">
+<pre class="code"><code>create script only stack "Stats"
+put "function statsMean pList" &amp; return after tScript
+put "   return statsTotal(pList) / the number of items of pList" &amp; return after tScript
+put "end statsMean" &amp; return after tScript
+put "private function statsTotal pList" &amp; return after tScript
+put "   local tTotal" &amp; return after tScript
+put "   repeat for each item tNumber in pList" &amp; return after tScript
+put "      add tNumber to tTotal" &amp; return after tScript
+put "   end repeat" &amp; return after tScript
+put "   return tTotal" &amp; return after tScript
+put "end statsTotal" after tScript
+set the script of stack "Stats" to tScript
+start using stack "Stats"
+
+put statsMean("4,8,15,16,23,42")
+try
+   put statsTotal("1,2")
+catch tError
+   put "statsTotal is private"
+end try
+
+stop using stack "Stats"
+delete stack "Stats"</code></pre>
+<pre class="out">18
+statsTotal is private</pre>
+</figure>
+</details>
+</section>

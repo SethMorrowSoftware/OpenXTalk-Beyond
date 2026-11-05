@@ -1,0 +1,243 @@
+<!--
+title: Animation and games
+level: advanced
+minutes: 12
+summary: Move controls smoothly with move, animate frame by frame with a timer, answer the arrow keys, find collisions, and put it together in a small game.
+words: move, without waiting, the movingControls, lock screen, unlock screen, arrowKey, keyDown, intersect, randomSeed, loc, the long id
+-->
+<h2 id="move">Moving a control: move</h2>
+<p>The simplest animation is one command. <code>move</code> slides a control to a point over a time you give, and the engine draws every step between. Give it a list of points, such as a graphic's <code>points</code>, and it follows them one after another:</p>
+<figure class="example" id="ex-anim-move" data-run="output" data-shot="The stage, with a grey dashed zigzag line from the bottom left to the top right, and an orange ball at its top right end, where the move finished.">
+<pre class="code"><code>create graphic "Path"
+set the style of it to "polygon"
+set the points of it to "40,300" &amp; return &amp; "160,80" &amp; return &amp; "280,300" &amp; return &amp; "400,80"
+set the foregroundColor of it to "#94A3B8"
+set the dashes of it to "6,6"
+
+create graphic "Ball"
+set the style of it to "oval"
+set the filled of it to true
+set the backgroundColor of it to "#FF7A00"
+set the rect of it to 0,0,32,32
+set the loc of it to 40,300
+
+move graphic "Ball" to the points of graphic "Path" in 400 milliseconds
+put the loc of graphic "Ball"</code></pre>
+<pre class="out">400,80</pre>
+</figure>
+<p><code>move</code> waits until the control arrives. Add <code>without waiting</code> and the script goes on at once while the control moves; <code>the movingControls</code> lists the controls still on their way:</p>
+<figure class="example" id="ex-anim-nowait" data-run="output">
+<pre class="code"><code>create graphic "Ball"
+set the rect of it to 0,0,20,20
+move graphic "Ball" to 200,100 in 500 milliseconds without waiting
+put the loc of graphic "Ball"
+put the number of lines of the movingControls</code></pre>
+<pre class="out">10,10
+1</pre>
+</figure>
+
+<h2 id="frames">Frame by frame</h2>
+<p>For anything <code>move</code> cannot do (a ball that bounces, a game where everything moves at once) animate it yourself: a handler that changes positions a little, then sends itself again a moment later, as in <a href="../timers/#again">Timers and waiting</a>. Each run is one <strong>frame</strong>. About 16 milliseconds between frames gives 60 a second, as smooth as most screens show.</p>
+<figure class="example" id="ex-anim-bounce" data-run="output" data-wait="4" data-shot="The stage, with a thin grey line tracing the path of a teal ball that started in the top left and bounced off the edges of the stage, and the ball where it stopped, near the bottom.">
+<pre class="code"><code>local sBall, sTrail, sDX = 15, sDY = 10, sSteps = 0
+
+on stepBall
+   lock screen
+   set the left of sBall to the left of sBall + sDX
+   set the top of sBall to the top of sBall + sDY
+   if the right of sBall &gt;= the width of me or the left of sBall &lt;= 0 then
+      multiply sDX by -1
+   end if
+   if the bottom of sBall &gt;= the height of me or the top of sBall &lt;= 0 then
+      multiply sDY by -1
+   end if
+   set the points of sTrail to the points of sTrail &amp; return &amp; the loc of sBall
+   unlock screen
+   add 1 to sSteps
+   if sSteps &lt; 100 then
+      send "stepBall" to me in 16 milliseconds
+   else
+      put "stopped at" &amp;&amp; the loc of sBall
+   end if
+end stepBall
+
+create graphic "Trail"
+set the style of it to "polygon"
+set the foregroundColor of it to "#CBD5E1"
+set the points of it to "40,40"
+put it into sTrail
+
+create graphic "Ball"
+set the style of it to "oval"
+set the filled of it to true
+set the backgroundColor of it to "#14B8A6"
+set the rect of it to 20,20,60,60
+put it into sBall
+
+stepBall</code></pre>
+<pre class="out">stopped at 280,280</pre>
+</figure>
+<p>Three habits in this example are worth keeping:</p>
+<ul>
+<li><strong>Keep the long id.</strong> After <code>create</code>, <code>it</code> is the new control's long id (<a href="../referring-to-objects/">Referring to objects</a>). Kept in a script local, it finds the control from any handler, whichever stack is in front when the timer fires. A name such as <code>graphic "Ball"</code> is looked for on the card in front, which, when a timer fires, may be another window's.</li>
+<li><strong>Measure from <code>me</code>.</strong> <code>the width of me</code> is the width of the card or stack whose script this is, which is the same whichever window is in front.</li>
+<li><strong>Lock the screen.</strong> <code>lock screen</code> holds what is drawn until <code>unlock screen</code>, so the ball's two moves and the trail's new point appear together, as one frame, never half done.</li>
+</ul>
+
+<h2 id="keys">The arrow keys</h2>
+<p>A key pressed while no field is being typed in goes to the card as a message: <code>arrowKey</code> for an arrow key, with <code>left</code>, <code>right</code>, <code>up</code> or <code>down</code>, and <code>keyDown</code> for any other, with the character. A player moved by the keys is a pair of handlers. Here, <code>send</code> presses the keys, so the example runs by itself:</p>
+<figure class="example" id="ex-anim-keys" data-run="output" data-shot="The stage, with a violet square to the right of and below where it started, after the arrow keys moved it.">
+<pre class="code"><code>local sPlayer
+
+on arrowKey pWhich
+   switch pWhich
+      case "left"
+         set the left of sPlayer to the left of sPlayer - 20
+         break
+      case "right"
+         set the left of sPlayer to the left of sPlayer + 20
+         break
+      case "up"
+         set the top of sPlayer to the top of sPlayer - 20
+         break
+      case "down"
+         set the top of sPlayer to the top of sPlayer + 20
+         break
+   end switch
+end arrowKey
+
+create graphic "Player"
+set the filled of it to true
+set the backgroundColor of it to "#8B5CF6"
+set the rect of it to 100,100,140,140
+put it into sPlayer
+
+repeat 5 times
+   send "arrowKey right" to me
+end repeat
+repeat 3 times
+   send "arrowKey down" to me
+end repeat
+put the topLeft of sPlayer</code></pre>
+<pre class="out">200,160</pre>
+</figure>
+<aside class="note"><p>An <code>arrowKey</code> handler that does not <code>pass</code> the message stops the arrow keys doing what they normally do, such as moving to the next card. That is usually what a game wants.</p></aside>
+
+<h2 id="collisions">Collisions</h2>
+<p><code>intersect</code> tells whether two controls overlap. Their rectangles are compared, unless you ask for <code>"opaque pixels"</code>, which compares what is actually drawn: slower, but exact for round or odd shapes.</p>
+<figure class="example" id="ex-anim-intersect" data-run="output">
+<pre class="code"><code>create graphic "Player"
+set the rect of it to 20,20,60,60
+create graphic "Coin"
+set the rect of it to 100,20,120,40
+put intersect(graphic "Player", graphic "Coin")
+set the left of graphic "Player" to 90
+put intersect(graphic "Player", graphic "Coin")</code></pre>
+<pre class="out">false
+true</pre>
+</figure>
+
+<h2 id="game">A small game</h2>
+<p>Put the pieces together: a basket at the bottom of the stage, coins that fall from the top, and a point for every coin the basket catches. Each frame moves every coin down, checks each for a catch, and starts a fallen one again at the top. Here the basket heads for the lowest coin by itself, so the example plays itself; in a real game the arrow keys would move it. <code>randomSeed</code> makes <code>random</code> give the same numbers each run, which is how a game can replay a level:</p>
+<figure class="example" id="ex-anim-game" data-run="output" data-wait="6" data-shot="The stage, a dark blue night sky headed Catch the coins: 7, with gold coins falling at different heights and a violet basket at the bottom.">
+<pre class="code"><code>local sBasket, sScore, sFrame, sCoins
+
+on gameFrame
+   add 1 to sFrame
+   lock screen
+   -- the basket heads for the lowest coin, at most 8 pixels a frame
+   put empty into tLowest
+   repeat for each line tCoin in sCoins
+      if tLowest is empty or the top of tCoin &gt; the top of tLowest then
+         put tCoin into tLowest
+      end if
+   end repeat
+   put item 1 of the loc of tLowest - the width of sBasket / 2 into tGoal
+   put max(-8, min(8, tGoal - the left of sBasket)) into tStep
+   set the left of sBasket to the left of sBasket + tStep
+   repeat for each line tCoin in sCoins
+      set the top of tCoin to the top of tCoin + 6
+      if intersect(tCoin, sBasket) then
+         add 1 to sScore
+         newCoin tCoin
+      else if the top of tCoin &gt; the height of me then
+         newCoin tCoin
+      end if
+   end repeat
+   set the text of field "Score" of me to "Catch the coins:" &amp;&amp; sScore
+   unlock screen
+   if sFrame &lt; 140 then
+      send "gameFrame" to me in 16 milliseconds
+   else
+      put "score:" &amp;&amp; sScore
+   end if
+end gameFrame
+
+on newCoin pCoin
+   set the loc of pCoin to random(440) + 20, 40 + random(60)
+end newCoin
+
+set the randomSeed to 7
+set the backgroundColor of this card to "#0F172A"
+create field "Score"
+set the rect of it to 10,8,300,36
+set the opaque of it to false
+set the showBorder of it to false
+set the textColor of it to "#F8FAFC"
+set the textStyle of it to "bold"
+set the textSize of it to 16
+
+repeat with i = 1 to 4
+   create graphic ("Coin" &amp;&amp; i)
+   set the style of it to "oval"
+   set the filled of it to true
+   set the backgroundColor of it to "#FACC15"
+   set the rect of it to 0,0,24,24
+   newCoin it
+   put it &amp; return after sCoins
+end repeat
+delete the last char of sCoins
+
+create graphic "Basket"
+set the style of it to "roundRect"
+set the filled of it to true
+set the backgroundColor of it to "#8B5CF6"
+set the rect of it to 200,320,280,340
+put it into sBasket
+
+put 0 into sScore
+put 0 into sFrame
+gameFrame</code></pre>
+<pre class="out">score: 7</pre>
+</figure>
+<p>A real game adds a few things to this shape: <code>arrowKey</code> handlers to move the basket, a frame count or time limit for each level, and a <code>closeCard</code> that cancels the timer (<a href="../timers/#pending">Timers and waiting</a>) so the game stops when its card closes.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Make a square that grows: a graphic 10 pixels wide in the middle of the stage that, frame by frame, gets 10 pixels wider and taller (keeping its middle where it is) until it is 200 pixels wide, then puts its <code>rect</code>.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-anim-try" data-run="output" data-wait="2" data-shot="The stage, with a large rose-coloured square, 200 pixels wide, in the middle.">
+<pre class="code"><code>local sBox
+
+on grow
+   put the loc of sBox into tMiddle
+   set the width of sBox to the width of sBox + 10
+   set the height of sBox to the height of sBox + 10
+   set the loc of sBox to tMiddle
+   if the width of sBox &lt; 200 then
+      send "grow" to me in 16 milliseconds
+   else
+      put the rect of sBox
+   end if
+end grow
+
+create graphic "Box"
+set the filled of it to true
+set the backgroundColor of it to "#F43F5E"
+set the rect of it to 235,175,245,185
+put it into sBox
+grow</code></pre>
+<pre class="out">140,80,340,280</pre>
+</figure>
+</details>
+</section>

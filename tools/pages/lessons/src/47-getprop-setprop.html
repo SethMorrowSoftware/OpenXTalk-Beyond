@@ -1,0 +1,173 @@
+<!--
+title: Properties with handlers
+level: advanced
+minutes: 9
+summary: Make properties that work something out when read, check or react when set, and serve many objects from one place: getprop and setprop.
+words: getprop, setprop, pass, the target, lock messages, custom property, property array
+-->
+<h2 id="getprop">A property that works itself out</h2>
+<p>A custom property (<a href="../custom-properties/">Custom properties</a>) holds whatever you put in it. A <code>getprop</code> handler goes further: when a script asks for the property, the handler runs, and what it returns is the property's value. The property can be worked out from others, so it is never out of date:</p>
+<figure class="example" id="ex-gp-getprop" data-run="output">
+<pre class="code"><code>create button "Oven"
+set the script of it to \
+      "getprop fahrenheit" &amp; return &amp; \
+      "   return the celsius of me * 9 / 5 + 32" &amp; return &amp; \
+      "end fahrenheit" &amp; return &amp; \
+      "setprop fahrenheit pValue" &amp; return &amp; \
+      "   set the celsius of me to (pValue - 32) * 5 / 9" &amp; return &amp; \
+      "end fahrenheit"
+
+set the celsius of button "Oven" to 180
+put the fahrenheit of button "Oven"
+set the fahrenheit of button "Oven" to 212
+put the celsius of button "Oven"
+put the customKeys of button "Oven"</code></pre>
+<pre class="out">356
+100
+celsius</pre>
+</figure>
+<p>Only <code>celsius</code> is stored. <code>fahrenheit</code> is a <strong>virtual property</strong>: reading it runs the <code>getprop</code> handler, and setting it runs the <code>setprop</code> handler, which sets <code>celsius</code> instead. To the scripts that use it, it is a property like any other.</p>
+
+<h2 id="setprop">Checking and reacting: setprop</h2>
+<p>A <code>setprop</code> handler runs when the property is set, with the new value as its parameter. It can refuse a bad value, update what the user sees, and then <code>pass</code> the message, which stores the value:</p>
+<figure class="example" id="ex-gp-setprop" data-run="output">
+<pre class="code"><code>create button "Score"
+set the script of it to \
+      "setprop cScore pValue" &amp; return &amp; \
+      "   if pValue is not an integer or pValue &lt; 0 then" &amp; return &amp; \
+      "      throw " &amp; quote &amp; "a score is a whole number, 0 or more" &amp; quote &amp; return &amp; \
+      "   end if" &amp; return &amp; \
+      "   set the label of me to " &amp; quote &amp; "Score: " &amp; quote &amp; " &amp; pValue" &amp; return &amp; \
+      "   pass cScore" &amp; return &amp; \
+      "end cScore"
+
+set the cScore of button "Score" to 12
+put the cScore of button "Score"
+put the label of button "Score"
+try
+   set the cScore of button "Score" to "lots"
+catch tError
+   put "refused:" &amp;&amp; tError
+end try
+put the cScore of button "Score"</code></pre>
+<pre class="out">12
+Score: 12
+refused: a score is a whole number, 0 or more
+12</pre>
+</figure>
+<p>Now no script can give the button a score that is not a number, and its label can never disagree with its score. Without the <code>pass</code>, the value is not stored at all:</p>
+<figure class="example" id="ex-gp-nopass" data-run="output">
+<pre class="code"><code>create button "Forgetful"
+set the script of it to "setprop cName pValue" &amp; return &amp; "end cName"
+set the cName of button "Forgetful" to "Ada"
+put the cName of button "Forgetful" is empty</code></pre>
+<pre class="out">true</pre>
+</figure>
+
+<h2 id="path">One handler for many objects</h2>
+<p><code>getprop</code> and <code>setprop</code> are messages, sent to the object whose property is used, so they travel the message path like any other. A handler further along it, in a card, a stack, a <a href="../behaviors/">behavior</a> or a library, can serve every object below it. <code>the target</code> is the object whose property it is:</p>
+<figure class="example" id="ex-gp-path" data-run="output">
+<pre class="code"><code>set the script of this card to \
+      "getprop area" &amp; return &amp; \
+      "   return the width of the target * the height of the target" &amp; return &amp; \
+      "end area"
+
+create button "Wide"
+set the rect of it to 20,20,220,50
+create graphic "Square"
+set the rect of it to 20,80,60,120
+put the area of button "Wide"
+put the area of graphic "Square"</code></pre>
+<pre class="out">6000
+1600</pre>
+</figure>
+
+<h2 id="arrays">Property arrays</h2>
+<p>A <code>getprop</code> or <code>setprop</code> handler can take a key in square brackets, for a property used like an array. The key arrives in the handler's name line:</p>
+<figure class="example" id="ex-gp-array" data-run="output">
+<pre class="code"><code>create button "Translator"
+set the script of it to \
+      "getprop cWord[pKey]" &amp; return &amp; \
+      "   switch pKey" &amp; return &amp; \
+      "      case " &amp; quote &amp; "hello" &amp; quote &amp; return &amp; \
+      "         return " &amp; quote &amp; "bonjour" &amp; quote &amp; return &amp; \
+      "      case " &amp; quote &amp; "cat" &amp; quote &amp; return &amp; \
+      "         return " &amp; quote &amp; "chat" &amp; quote &amp; return &amp; \
+      "   end switch" &amp; return &amp; \
+      "   return " &amp; quote &amp; "?" &amp; quote &amp; return &amp; \
+      "end cWord"
+put the cWord["hello"] of button "Translator"
+put the cWord["cat"] of button "Translator"
+put the cWord["dog"] of button "Translator"</code></pre>
+<pre class="out">bonjour
+chat
+?</pre>
+</figure>
+
+<h2 id="lock-messages">Going round the handlers</h2>
+<p>While <code>lock messages</code> is in force, no messages are sent, so setting a property stores it directly and its <code>setprop</code> handler does not run. Saving and loading use this, to put values back exactly as they were without setting off every handler on the way:</p>
+<figure class="example" id="ex-gp-lock" data-run="output">
+<pre class="code"><code>create button "Watched"
+set the script of it to \
+      "setprop cLevel pValue" &amp; return &amp; \
+      "   put " &amp; quote &amp; "the handler saw " &amp; quote &amp; " &amp; pValue" &amp; return &amp; \
+      "   pass cLevel" &amp; return &amp; \
+      "end cLevel"
+set the cLevel of button "Watched" to 1
+lock messages
+set the cLevel of button "Watched" to 2
+unlock messages
+put the cLevel of button "Watched"</code></pre>
+<pre class="out">the handler saw 1
+2</pre>
+</figure>
+<h2 id="inside">The property inside its own handler</h2>
+<p>Inside its own handler, a property of <code>me</code> is just what is stored: reading it there does not run the <code>getprop</code> handler again, and setting it there stores the value without running the <code>setprop</code> handler again. So a handler can use the stored value, and a <code>setprop</code> handler that changes the value it was given sets the property itself instead of passing (a <code>pass</code> stores the value as it was set):</p>
+<figure class="example" id="ex-gp-inside" data-run="output">
+<pre class="code"><code>create button "Doubler"
+set the script of it to \
+      "setprop cAmount pValue" &amp; return &amp; \
+      "   set the cAmount of me to pValue * 2" &amp; return &amp; \
+      "end cAmount" &amp; return &amp; \
+      "getprop cAmount" &amp; return &amp; \
+      "   return the cAmount of me &amp;&amp; " &amp; quote &amp; "(doubled)" &amp; quote &amp; return &amp; \
+      "end cAmount"
+set the cAmount of button "Doubler" to 5
+put the cAmount of button "Doubler"</code></pre>
+<pre class="out">10 (doubled)</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Make a progress bar: a grey graphic for the track and a teal one for the bar, 300 pixels at full. Give the bar a <code>cPercent</code> property whose <code>setprop</code> keeps the value between 0 and 100, sets the bar's width to match, and stores it. Set it to 140, then to 65, and put the width and the <code>cPercent</code> each time.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-gp-try" data-run="output" data-shot="The stage, with a progress bar near the top: a light grey track with a teal bar filling 65 percent of it, from the left.">
+<pre class="code"><code>create graphic "Track"
+set the filled of it to true
+set the backgroundColor of it to "#E2E8F0"
+set the lineSize of it to 0
+set the rect of it to 40,40,340,64
+
+create graphic "Bar"
+set the filled of it to true
+set the backgroundColor of it to "#14B8A6"
+set the lineSize of it to 0
+set the rect of it to 40,40,41,64
+set the script of it to \
+      "setprop cPercent pValue" &amp; return &amp; \
+      "   put max(0, min(100, pValue)) into pValue" &amp; return &amp; \
+      "   set the width of me to max(1, round(3 * pValue))" &amp; return &amp; \
+      "   set the left of me to 40" &amp; return &amp; \
+      "   set the cPercent of me to pValue" &amp; return &amp; \
+      "end cPercent"
+
+set the cPercent of graphic "Bar" to 140
+put the width of graphic "Bar" &amp;&amp; the cPercent of graphic "Bar"
+set the cPercent of graphic "Bar" to 65
+put the width of graphic "Bar" &amp;&amp; the cPercent of graphic "Bar"</code></pre>
+<pre class="out">300 100
+195 65</pre>
+</figure>
+<p>The handler stores the value it kept in range by setting the property itself: a <code>pass</code> would have stored 140, the value as it was set, and the first line would say <code>300 140</code>.</p>
+</details>
+</section>

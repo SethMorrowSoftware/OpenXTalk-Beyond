@@ -1,0 +1,65 @@
+<!--
+title: Searching text
+level: beginner
+minutes: 7
+summary: Find where something is with offset, wordOffset, itemOffset and lineOffset, and count how often it appears.
+words: offset, wordOffset, itemOffset, lineOffset, contains, is in
+-->
+<h2 id="offset">Where is it?</h2>
+<p><code>contains</code> tells you <em>whether</em> something is there. <code>offset</code> tells you <em>where</em>: the number of the character it starts at, or 0 when it is not there at all.</p>
+<figure class="example" id="ex-search-offset" data-run="output">
+<pre class="code"><code>put "the cat sat on the mat" into tText
+put offset("sat", tText)
+put offset("dog", tText)
+put char offset("on", tText) to -1 of tText</code></pre>
+<pre class="out">9
+0
+on the mat</pre>
+</figure>
+
+<h2 id="chunk-offsets">Which word, item or line?</h2>
+<p>The other offsets count in chunks, which is usually what you want for a list: the number of the word, item or line that holds the text.</p>
+<figure class="example" id="ex-search-chunk-offsets" data-run="output">
+<pre class="code"><code>put wordOffset("on", "the cat sat on the mat")
+put itemOffset("blue", "red,green,blue")
+put "apple" &amp; return &amp; "fig" &amp; return &amp; "kiwi" into tFruit
+put lineOffset("fig", tFruit)
+put lineOffset("pear", tFruit)</code></pre>
+<pre class="out">4
+3
+2
+0</pre>
+</figure>
+<aside class="warn"><p><code>lineOffset</code> finds the text anywhere in a line, not only a whole line: <code>lineOffset("app", tFruit)</code> is 1. To find an exact line, use <code>is among the lines of</code>, or set <code>the wholeMatches</code> to true first.</p></aside>
+
+<h2 id="count">How many times?</h2>
+<p>To count every copy, look again from just after the last one found. <code>offset</code>'s third value says how many characters to skip, and the answer is counted from there.</p>
+<figure class="example" id="ex-search-count" data-run="output">
+<pre class="code"><code>put "she sells sea shells by the sea shore" into tText
+put 0 into tCount
+put 0 into tSkip
+repeat
+   put offset("se", tText, tSkip) into tFound
+   if tFound is 0 then exit repeat
+   add 1 to tCount
+   add tFound to tSkip
+end repeat
+put tCount</code></pre>
+<pre class="out">3</pre>
+</figure>
+<p>For whole words there is an easier way: loop over the words and compare each one, as in <a href="../repeat-for-each/">Repeat for each</a>.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>An email address is <code>ada@example.com</code>. Use <code>offset</code> to put the part before the <code>@</code> and the part after it.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-search-try" data-run="output">
+<pre class="code"><code>put "ada@example.com" into tEmail
+put offset("@", tEmail) into tAt
+put char 1 to tAt - 1 of tEmail
+put char tAt + 1 to -1 of tEmail</code></pre>
+<pre class="out">ada
+example.com</pre>
+</figure>
+</details>
+</section>

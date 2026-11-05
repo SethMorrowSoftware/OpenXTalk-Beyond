@@ -1,0 +1,146 @@
+<!--
+title: Debugging
+level: advanced
+minutes: 10
+summary: Find out why a script does what it does: read the error, trace values with put, step through with the debugger, and test handlers in small pieces.
+words: breakpoint, put, the Message Box, debugger, Variables, errorDialog, explicitVariables
+-->
+<h2 id="mindset">Every programmer debugs</h2>
+<p>A <strong>bug</strong> is a difference between what you meant and what you wrote. Finding one is not a sign you are bad at programming: it is most of programming. The trick is to stop guessing and start looking. This lesson is a toolbox for looking.</p>
+
+<h2 id="read-the-error">1. Read the error</h2>
+<p>When a script stops, xTalk tells you where and why. The playground highlights the line and explains in plain words; the Script Editor shows the error under the script and puts its line in view. Read the whole message: it usually names the problem exactly.</p>
+<figure class="example" id="ex-debug-error" data-run="error" data-line="3">
+<pre class="code"><code>put "apple,pear,fig" into tFruit
+put the number of items of tFruit into tCount
+put tCount / (tCount - 3)</code></pre>
+</figure>
+<p>Here, line 3 divides by zero, because there are exactly three items. The message says so, and the line number says where.</p>
+<aside class="tip"><p>The line an error is reported on is where the trouble showed, which is not always where it started. If a value is wrong on line 30, the question is which earlier line made it wrong.</p></aside>
+
+<h2 id="trace">2. Look at the values: put</h2>
+<p>The quickest way to see what a script is doing is to make it tell you. Put the values you are unsure of as it runs, with a word to say which is which:</p>
+<figure class="example" id="ex-debug-trace" data-run="output">
+<pre class="code"><code>function average3 pA, pB, pC
+   put pA + pB + pC / 3 into tResult
+   put "trace: sum part =" &amp;&amp; pA + pB &amp;&amp; "result =" &amp;&amp; tResult
+   return tResult
+end average3
+
+put average3(3, 6, 9)</code></pre>
+<pre class="out">trace: sum part = 9 result = 12
+12</pre>
+</figure>
+<p>The average of 3, 6 and 9 is 6, not 12. The trace shows the sum is right, so the division is wrong: <code>/</code> goes before <code>+</code>, so only <code>pC</code> was divided. Brackets fix it:</p>
+<figure class="example" id="ex-debug-fixed" data-run="output">
+<pre class="code"><code>function average3 pA, pB, pC
+   return (pA + pB + pC) / 3
+end average3
+
+put average3(3, 6, 9)</code></pre>
+<pre class="out">6</pre>
+</figure>
+<p>In a stack, a <code>put</code> with no container goes to the <strong>Message Box</strong> (<kbd>Tools &gt; Message Box</kbd>), where it replaces what was there. To keep a running log, put each value <code>after msg</code> with a <code>return</code>, or write to a field of your own.</p>
+
+<h2 id="debugger">3. Stop and look around: the debugger</h2>
+<p>Click in the Script Editor's left margin, next to a line, to set a <strong>breakpoint</strong>: a red dot. When the script reaches that line it pauses, and the Script Editor becomes the debugger. Now you can:</p>
+<ul>
+<li>see every variable of the handler and its value, in the <strong>Variables</strong> pane at the bottom;</li>
+<li><strong>Step Into</strong> the next line (and into any handler it calls), <strong>Step Over</strong> it, or <strong>Step Out</strong> of the handler;</li>
+<li>look at the <strong>stack trace</strong>: which handler called this one, and which called that;</li>
+<li><strong>Run</strong> on to the next breakpoint, or <strong>Stop</strong>.</li>
+</ul>
+<p>A script can set a breakpoint too, with the command <code>breakpoint</code>, handy for pausing only in an unusual case:</p>
+<figure class="example" id="ex-debug-breakpoint" data-run="compile">
+<pre class="code"><code>on mouseUp
+   repeat with i = 1 to 100
+      put someCalculation(i) into tValue
+      if tValue &lt; 0 then breakpoint
+   end repeat
+end mouseUp
+
+function someCalculation pN
+   return 50 - pN
+end someCalculation</code></pre>
+</figure>
+<aside class="note"><p>Breakpoints pause only in the IDE, and only while Script Debug Mode is on (in the Development menu). A standalone application ignores them.</p></aside>
+
+<h2 id="small-pieces">4. Test in small pieces</h2>
+<p>A long handler that does everything is hard to debug, because a wrong answer could come from anywhere in it. Split the work into small functions, and check each with a few values whose answers you know. When one fails, you know exactly where to look:</p>
+<figure class="example" id="ex-debug-tests" data-run="output">
+<pre class="code"><code>function initials pName
+   put empty into tLetters
+   repeat for each word tWord in pName
+      put toUpper(char 1 of tWord) after tLetters
+   end repeat
+   return tLetters
+end initials
+
+command expect pGot, pWanted
+   if pGot is pWanted then
+      put "ok" &amp;&amp; quote &amp; pGot &amp; quote
+   else
+      put "FAILED: got" &amp;&amp; pGot &amp;&amp; "but wanted" &amp;&amp; pWanted
+   end if
+end expect
+
+expect initials("ada lovelace"), "AL"
+expect initials("Grace  Brewster Hopper"), "GBH"
+expect initials(""), ""</code></pre>
+<pre class="out">ok "AL"
+ok "GBH"
+ok ""</pre>
+</figure>
+<p>Keep checks like these in your stack, and run them again after every change: they catch a new bug in old code the moment you make it.</p>
+
+<h2 id="usual-suspects">5. The usual suspects</h2>
+<p>Most bugs in xTalk are one of a handful. Check these first:</p>
+<ul>
+<li><strong>A misspelled variable</strong>, which xTalk reads as its own name, as text. Turn on Variable Checking (<kbd>Edit &gt; Options &gt; Variable Checking</kbd> in the Script Editor) and these become errors.</li>
+<li><strong>A misspelled property</strong>, which silently becomes a custom property (<a href="../properties/#typos">Properties</a>).</li>
+<li><strong>The wrong order of operations</strong>, as above: add brackets.</li>
+<li><strong>A trailing return or space</strong> in a value, which makes <code>is</code> say false: compare <code>the length</code> of the two values.</li>
+<li><strong>A message that never arrives</strong>: a handler further down the message path caught it and did not <code>pass</code> it.</li>
+<li><strong>The wrong itemDelimiter</strong>, left set to something else by earlier code.</li>
+</ul>
+<figure class="example" id="ex-debug-trailing" data-run="output">
+<pre class="code"><code>put "yes" &amp; return into tAnswer
+put tAnswer is "yes"
+put the length of tAnswer
+put line 1 of tAnswer is "yes"</code></pre>
+<pre class="out">false
+4
+true</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>This function should count the words longer than three letters. There are five in the sentence, but it says 0. Add a trace to the loop to find out why, then fix it.</p>
+<figure class="example" id="ex-debug-buggy" data-run="output">
+<pre class="code"><code>function longWords pText
+   repeat for each word tWord in pText
+      put 0 into tCount
+      if the length of tWord &gt; 3 then add 1 to tCount
+   end repeat
+   return tCount
+end longWords
+
+put longWords("the quick brown fox jumps over the lazy dog")</code></pre>
+<pre class="out">0</pre>
+</figure>
+<details class="solution"><summary>Show a solution</summary>
+<p>A trace after the <code>if</code> shows the count each time round: it goes to 1 for each long word, then back to 0 for the next word. The <code>put 0 into tCount</code> is inside the loop, so it starts again every time, and the last word, <code>dog</code>, leaves it at 0. Move it above the loop:</p>
+<figure class="example" id="ex-debug-try" data-run="output">
+<pre class="code"><code>function longWords pText
+   put 0 into tCount
+   repeat for each word tWord in pText
+      if the length of tWord &gt; 3 then add 1 to tCount
+   end repeat
+   return tCount
+end longWords
+
+put longWords("the quick brown fox jumps over the lazy dog")</code></pre>
+<pre class="out">5</pre>
+</figure>
+</details>
+</section>

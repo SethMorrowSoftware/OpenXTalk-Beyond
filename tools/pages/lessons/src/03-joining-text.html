@@ -1,0 +1,81 @@
+<!--
+title: Joining text
+level: beginner
+minutes: 7
+summary: Build sentences out of pieces with & and &&, and use xTalk's names for spaces, tabs and new lines.
+words: &, &&, space, tab, return, comma, quote, empty
+-->
+<h2 id="concatenation">Two ways to join</h2>
+<p>Joining strings together is called <strong>concatenation</strong>. xTalk has two operators for it: <code>&amp;</code> joins two values exactly as they are, and <code>&amp;&amp;</code> joins them with a space between.</p>
+<figure class="example" id="ex-join-two-ways" data-run="output">
+<pre class="code"><code>put "sun" &amp; "flower"
+put "sun" &amp;&amp; "flower"
+put "Room" &amp;&amp; 101
+put "Total:" &amp;&amp; 6 * 7 &amp;&amp; "points"</code></pre>
+<pre class="out">sunflower
+sun flower
+Room 101
+Total: 42 points</pre>
+</figure>
+<p>Numbers join just like text, and a sum is worked out before it is joined. You can chain as many pieces as you like on one line.</p>
+
+<h2 id="special-characters">Names for characters you cannot see</h2>
+<p>Some characters are hard to type inside quotes. xTalk gives them names, called constants, which you join like any other value:</p>
+<div class="table-scroll"><table>
+<thead><tr><th>Constant</th><th>Is</th></tr></thead>
+<tbody>
+<tr><td><code>space</code></td><td>one space (<code>&amp;&amp;</code> is a shortcut for <code>&amp; space &amp;</code>)</td></tr>
+<tr><td><code>tab</code></td><td>a tab character, for columns</td></tr>
+<tr><td><code>return</code> (or <code>cr</code>)</td><td>a new line</td></tr>
+<tr><td><code>comma</code>, <code>colon</code>, <code>slash</code></td><td><code>,</code> <code>:</code> <code>/</code></td></tr>
+<tr><td><code>quote</code></td><td>a double quote, <code>"</code></td></tr>
+<tr><td><code>empty</code></td><td>nothing at all, the same as <code>""</code></td></tr>
+</tbody></table></div>
+<figure class="example" id="ex-join-constants" data-run="output">
+<pre class="code"><code>put "Line one" &amp; return &amp; "Line two"
+put "Name" &amp; tab &amp; "Score"
+put "a" &amp; comma &amp; "b" &amp; comma &amp; "c"
+put "Say" &amp;&amp; quote &amp; "cheese" &amp; quote</code></pre>
+<pre class="out">Line one
+Line two
+Name	Score
+a,b,c
+Say "cheese"</pre>
+</figure>
+<p>Notice that the first <code>put</code> made two lines of Output: the value itself has a new line in it.</p>
+
+<h2 id="building-up">Building a string a piece at a time</h2>
+<p>Long text is often built in a variable, a piece at a time, with <code>put ... after</code> (and <code>put ... before</code> for the front). Variables come in the <a href="../variables/">next lesson</a>, but the idea is simple: <code>tLine</code> is a named place to keep the string while it grows.</p>
+<figure class="example" id="ex-join-build" data-run="output">
+<pre class="code"><code>put "Dear" into tLine
+put space &amp; "Ada" after tLine
+put "," after tLine
+put "Hello! " before tLine
+put tLine</code></pre>
+<pre class="out">Hello! Dear Ada,</pre>
+</figure>
+
+<h2 id="numbers-in-text">Numbers inside text</h2>
+<p>When you join a number to text, its digits become part of the string. Be careful with sums: brackets make sure the sum happens before the join.</p>
+<figure class="example" id="ex-join-brackets" data-run="output">
+<pre class="code"><code>put "2 + 3 =" &amp;&amp; 2 + 3
+put "Ages:" &amp;&amp; (20 + 1) &amp; "," &amp;&amp; (30 + 1)
+put 1 &amp; 2 + 3</code></pre>
+<pre class="out">2 + 3 = 5
+Ages: 21, 31
+15</pre>
+</figure>
+<p>The last line shows why brackets help: <code>+</code> is worked out before <code>&amp;</code>, so xTalk adds 2 and 3 first and then joins the 1 in front, giving the string <code>15</code>.</p>
+<aside class="warn"><p><code>&amp;&amp;</code> always adds exactly one space, even if a string already ends with one. <code>"Hello " &amp;&amp; "you"</code> gives two spaces.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Make a single <code>put</code> show a two-line label: <code>Name: Grace Hopper</code> on the first line and <code>Born: 1906</code> on the second. Use <code>&amp;&amp;</code>, <code>&amp;</code> and <code>return</code>.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-join-try" data-run="output">
+<pre class="code"><code>put "Name:" &amp;&amp; "Grace" &amp;&amp; "Hopper" &amp; return &amp; "Born:" &amp;&amp; 1906</code></pre>
+<pre class="out">Name: Grace Hopper
+Born: 1906</pre>
+</figure>
+</details>
+</section>

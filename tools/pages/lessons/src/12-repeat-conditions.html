@@ -1,0 +1,90 @@
+<!--
+title: Loops that decide
+level: beginner
+minutes: 8
+summary: Loop while something is true, until something happens, or forever, and leave a loop or skip a turn with exit and next.
+words: repeat while, repeat until, repeat forever, exit repeat, next repeat
+-->
+<h2 id="while">Repeat while</h2>
+<p>Sometimes you do not know how many times to loop, only when to stop. <code>repeat while</code> checks its condition before every turn, and stops as soon as it is false.</p>
+<figure class="example" id="ex-loop-while" data-run="output">
+<pre class="code"><code>put 1 into tNumber
+repeat while tNumber &lt; 100
+   multiply tNumber by 3
+end repeat
+put tNumber</code></pre>
+<pre class="out">243</pre>
+</figure>
+
+<h2 id="until">Repeat until</h2>
+<p><code>repeat until</code> is the other way round: it loops until its condition becomes true. How many years does money take to double at 7% a year?</p>
+<figure class="example" id="ex-loop-until" data-run="output">
+<pre class="code"><code>put 1000 into tMoney
+put 0 into tYears
+repeat until tMoney &gt;= 2000
+   multiply tMoney by 1.07
+   add 1 to tYears
+end repeat
+put "Doubled after" &amp;&amp; tYears &amp;&amp; "years"
+put round(tMoney, 2)</code></pre>
+<pre class="out">Doubled after 11 years
+2104.85</pre>
+</figure>
+
+<h2 id="exit">Leaving a loop: exit repeat</h2>
+<p>A plain <code>repeat</code> (or <code>repeat forever</code>) never stops by itself. <code>exit repeat</code> leaves the loop at once, from anywhere inside it.</p>
+<figure class="example" id="ex-loop-exit" data-run="output">
+<pre class="code"><code>put 0 into tCount
+repeat
+   add 1 to tCount
+   if tCount * tCount &gt; 50 then exit repeat
+end repeat
+put tCount &amp;&amp; "is the first number whose square is over 50"</code></pre>
+<pre class="out">8 is the first number whose square is over 50</pre>
+</figure>
+
+<h2 id="next">Skipping a turn: next repeat</h2>
+<p><code>next repeat</code> skips the rest of this turn and goes straight on to the next one.</p>
+<figure class="example" id="ex-loop-next" data-run="output">
+<pre class="code"><code>repeat with i = 1 to 12
+   if i mod 3 is not 0 then next repeat
+   put i &amp;&amp; "divides by 3"
+end repeat</code></pre>
+<pre class="out">3 divides by 3
+6 divides by 3
+9 divides by 3
+12 divides by 3</pre>
+</figure>
+
+<h2 id="collatz">A famous loop</h2>
+<p>Start with any whole number. If it is even, halve it; if it is odd, triple it and add one. Mathematicians believe you always reach 1, but nobody has proved it (it is the Collatz conjecture).</p>
+<figure class="example" id="ex-loop-collatz" data-run="output">
+<pre class="code"><code>put 6 into tNumber
+put tNumber into tPath
+repeat while tNumber is not 1
+   if tNumber mod 2 is 0 then
+      put tNumber / 2 into tNumber
+   else
+      put tNumber * 3 + 1 into tNumber
+   end if
+   put comma &amp; tNumber after tPath
+end repeat
+put tPath</code></pre>
+<pre class="out">6,3,10,5,16,8,4,2,1</pre>
+</figure>
+<aside class="warn"><p>A loop whose condition never changes runs for ever, and the program seems to freeze. The Academy's playground stops a loop after ten seconds. In the IDE, stop a running script with <kbd>Ctrl</kbd>+<kbd>.</kbd> (<kbd>Cmd</kbd>+<kbd>.</kbd> on a Mac).</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Find the first power of 2 that is bigger than 1000, by doubling a number in a loop.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-loop-try" data-run="output">
+<pre class="code"><code>put 1 into tPower
+repeat until tPower &gt; 1000
+   multiply tPower by 2
+end repeat
+put tPower</code></pre>
+<pre class="out">1024</pre>
+</figure>
+</details>
+</section>

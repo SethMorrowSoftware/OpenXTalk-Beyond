@@ -1,0 +1,191 @@
+<!--
+title: Extensions in xTalk Builder
+level: expert
+minutes: 14
+summary: Write your own library and widget in xTalk Builder, the typed, compiled language of extensions: modules, types, lists, a widget that draws itself, and calling C code directly.
+words: xTalk Builder, LCB, library, widget, module, handler, variable, as String, List, optional, OnPaint, OnCreate, property, redraw all, post, foreign handler, unsafe, load extension, create widget
+-->
+<h2 id="what">A second language for extensions</h2>
+<p>Everything so far was <strong>xTalk script</strong>. OXT-Beyond has a second language, <strong>xTalk Builder</strong> (the language of <code>.lcb</code> files, known from LiveCode as LiveCode Builder), for writing <strong>extensions</strong>: libraries that add commands and functions, and <strong>widgets</strong>, new kinds of control that draw themselves. Most of the libraries and widgets in the Extensions folder are written in it, and it can call code written in C directly, which is how OXT-Beyond's own libsodium, ENet and Box2D extensions are made.</p>
+<p>It reads much like xTalk, with three big differences:</p>
+<ul>
+<li>It is <strong>compiled</strong> ahead of time into a <strong>module</strong> (a <code>.lcm</code> file) by <code>lc-compile</code>, which finds many mistakes before anything runs.</li>
+<li>It is <strong>typed</strong>: every variable and parameter is declared with its type, such as <code>String</code>, <code>Number</code>, <code>Integer</code>, <code>Boolean</code>, <code>List</code>, <code>Array</code> or <code>Data</code>, and must be declared before it is used.</li>
+<li>It has no chunks of objects on cards: a library works with values, and a widget draws on a canvas.</li>
+</ul>
+
+<h2 id="library">A library</h2>
+<p>A library module begins with <code>library</code> and a unique name in reverse-domain form, has metadata for the Extension Manager, and makes the handlers marked <code>public</code> available to every script once it is loaded:</p>
+<figure class="example" id="ex-lcb-library" data-run="builder">
+<pre class="code"><code>library org.openxtalk.lessons.greeting
+
+metadata title is "Greeting"
+metadata author is "OXT-Beyond lessons"
+metadata version is "1.0.0"
+
+public handler lessonGreeting(in pName as String) returns String
+   return "Hello, " &amp; pName &amp; ", from xTalk Builder"
+end handler
+
+public handler lessonTotal(in pList as String) returns Number
+   variable tParts as List
+   variable tPart as String
+   variable tNumber as optional Number
+   variable tTotal as Number
+   split pList by "," into tParts
+   put 0 into tTotal
+   repeat for each element tPart in tParts
+      put tPart parsed as number into tNumber
+      if tNumber is nothing then
+         throw "not a number: " &amp; tPart
+      end if
+      add tNumber to tTotal
+   end repeat
+   return tTotal
+end handler
+
+end library</code></pre>
+</figure>
+<p>Some things to notice: <code>in</code> before a parameter says the value only comes in (<code>out</code> and <code>inout</code> send one back); a <code>List</code> is a sequence of values, gone through with <code>repeat for each element</code>; <code>parsed as number</code> gives <code>nothing</code> for text that is not a number, which is why <code>tNumber</code> is an <code>optional Number</code>; and <code>throw</code> stops with an error the calling script can catch.</p>
+<p>Once the module is loaded (the IDE loads installed extensions as it starts), its handlers are called from script like any function:</p>
+<figure class="example" id="ex-lcb-use-library" data-run="output" data-needs="builder:ex-lcb-library">
+<pre class="code"><code>put lessonGreeting("Ada")
+put lessonTotal("1,2,3.5")
+try
+   put lessonTotal("1,two")
+catch tError
+   put "lessonTotal refused the list"
+end try</code></pre>
+<pre class="out">Hello, Ada, from xTalk Builder
+6.5
+lessonTotal refused the list</pre>
+</figure>
+
+<h2 id="widget">A widget</h2>
+<p>A widget is a control whose looks and behaviour you write. Its module begins with <code>widget</code>, and the engine sends it messages: <code>OnCreate</code> when one is made, <code>OnPaint</code> whenever it must be drawn, <code>OnMouseUp</code> when it is clicked, and others. A <code>property</code> line makes a property that scripts set and get, with handlers for each; after a change that affects the looks, <code>redraw all</code> asks for a new <code>OnPaint</code>. This badge draws a rounded violet label:</p>
+<figure class="example" id="ex-lcb-widget" data-run="builder">
+<pre class="code"><code>widget org.openxtalk.lessons.badge
+
+metadata title is "Badge"
+metadata author is "OXT-Beyond lessons"
+metadata version is "1.0.0"
+
+use com.livecode.canvas
+use com.livecode.widget
+use com.livecode.engine
+
+property badgeText get mText set setBadgeText
+
+private variable mText as String
+
+public handler OnCreate()
+   put "New" into mText
+end handler
+
+public handler setBadgeText(in pText as String)
+   put pText into mText
+   redraw all
+end handler
+
+public handler OnPaint()
+   variable tBounds as Rectangle
+   put my bounds into tBounds
+   set the paint of this canvas to solid paint with color [0.545, 0.361, 0.965]
+   fill rounded rectangle path of tBounds with radius my height / 2 on this canvas
+   set the paint of this canvas to solid paint with color [1, 1, 1]
+   set the font of this canvas to font "Droid Sans" at size 20
+   fill text mText at center of tBounds on this canvas
+end handler
+
+public handler OnMouseUp()
+   post "mouseUp" with [1]
+end handler
+
+end widget</code></pre>
+</figure>
+<p>A widget is made with <code>create widget</code> and its module's name, and then is a control like any other: it has a rect, it can be moved and hidden, it has the properties its module declares, and its script gets the <code>mouseUp</code> the module <code>post</code>s:</p>
+<figure class="example" id="ex-lcb-use-widget" data-run="output" data-needs="builder:ex-lcb-widget" data-shot="The stage, with two rounded violet badges in white letters: a wide one saying Lesson 60 in the middle, and a smaller one saying New below it.">
+<pre class="code"><code>create widget "Title" as "org.openxtalk.lessons.badge"
+set the rect of it to 140,130,340,180
+set the badgeText of it to "Lesson 60"
+
+create widget "Fresh" as "org.openxtalk.lessons.badge"
+set the rect of it to 190,200,290,240
+
+put the badgeText of widget "Title"
+put the badgeText of widget "Fresh"
+put the kind of widget "Title"</code></pre>
+<pre class="out">Lesson 60
+New
+org.openxtalk.lessons.badge</pre>
+</figure>
+
+<h2 id="foreign">Calling C directly</h2>
+<p>A <code>foreign handler</code> declares a function from a C library, with the C types of its parameters and result; the module then calls it like any handler, inside an <code>unsafe</code> block, because the compiler cannot check what C code does. Here the C library's <code>strlen</code> counts the bytes of text sent as UTF-8:</p>
+<figure class="example" id="ex-lcb-foreign" data-run="builder">
+<pre class="code"><code>library org.openxtalk.lessons.ccount
+
+metadata title is "C count"
+metadata author is "OXT-Beyond lessons"
+metadata version is "1.0.0"
+
+use com.livecode.foreign
+
+foreign handler C_strlen(in pText as ZStringUTF8) returns CSInt binds to "c:strlen"
+
+public handler lessonByteCount(in pText as String) returns Integer
+   variable tCount as Integer
+   unsafe
+      put C_strlen(pText) into tCount
+   end unsafe
+   return tCount
+end handler
+
+end library</code></pre>
+</figure>
+<figure class="example" id="ex-lcb-use-foreign" data-run="output" data-needs="builder:ex-lcb-foreign">
+<pre class="code"><code>put lessonByteCount("cafe")
+put lessonByteCount("café")</code></pre>
+<pre class="out">4
+5</pre>
+</figure>
+<p><code>binds to "c:strlen"</code> names the function; for a library of your own it is <code>"c:mylibrary&gt;my_function"</code>, and the compiled library goes in the extension's <code>code</code> folder, a folder for each platform, such as <code>code/x86_64-linux</code> and <code>code/x86_64-win32</code>.</p>
+<aside class="warn"><p>C code runs without any of xTalk's safety: a wrong type or a bad pointer crashes the whole program. Keep foreign handlers few and simple, check every value before it crosses, and catch every C++ exception on the C side, as OXT-Beyond's own extensions do.</p></aside>
+
+<h2 id="making">Building and sharing an extension</h2>
+<p>In the IDE, <kbd>Tools &gt; Extension Builder</kbd> opens a <code>.lcb</code> file, compiles it, shows the errors on their lines, and with <strong>Test</strong> loads it and makes a test stack (for a widget, with one on it). <strong>Install</strong> adds it to the IDE for good, and <strong>Package</strong> makes a <code>.lce</code> file to give to others. A script can load a compiled module itself with <code>load extension from file</code>, which is how a standalone carries one, and the Standalone Application Settings include the extensions it uses.</p>
+<p>The xTalk Builder reference is in the Dictionary, under the LCB entries, and the extensions in the IDE's Extensions folder, including OXT-Beyond's own, are good examples to read.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Add a library with a public handler <code>lessonReverseWords</code> that takes a <code>String</code> and returns its words in reverse order. In xTalk Builder, <code>split</code> by a space into a <code>List</code>, go through it with <code>repeat with</code> from the end, and <code>combine</code> the result with spaces. Use it from script on <code>one small step for a cat</code>.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-lcb-try" data-run="builder">
+<pre class="code"><code>library org.openxtalk.lessons.reverse
+
+metadata title is "Reverse words"
+metadata author is "OXT-Beyond lessons"
+metadata version is "1.0.0"
+
+public handler lessonReverseWords(in pText as String) returns String
+   variable tWords as List
+   variable tReversed as List
+   variable tIndex as Integer
+   variable tResult as String
+   split pText by " " into tWords
+   put [] into tReversed
+   repeat with tIndex from the number of elements in tWords down to 1
+      push tWords[tIndex] onto back of tReversed
+   end repeat
+   combine tReversed with " " into tResult
+   return tResult
+end handler
+
+end library</code></pre>
+</figure>
+<figure class="example" id="ex-lcb-try-use" data-run="output" data-needs="builder:ex-lcb-try">
+<pre class="code"><code>put lessonReverseWords("one small step for a cat")</code></pre>
+<pre class="out">cat a for step small one</pre>
+</figure>
+</details>
+</section>

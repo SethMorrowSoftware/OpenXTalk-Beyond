@@ -1,0 +1,146 @@
+<!--
+title: Fields
+level: intermediate
+minutes: 10
+summary: Put text into fields and take it out, style any chunk of it, use a field as a label, a table or a list to choose from.
+words: field, text, htmlText, textStyle, lockText, listBehavior, hilitedLine, selectedText, tabStops, vScrollbar, showBorder
+-->
+<h2 id="containers">A field is a container</h2>
+<p>A <strong>field</strong> holds text the user can read and, unless you lock it, edit. In a script a field works like a variable: you <code>put</code> into it, <code>put</code> after it, read it, and use every chunk expression you know on it.</p>
+<figure class="example" id="ex-fields-container" data-run="output">
+<pre class="code"><code>create field "Notes"
+put "one two three" into field "Notes"
+put the number of words of field "Notes"
+put "TWO" into word 2 of field "Notes"
+put " four" after field "Notes"
+put field "Notes"</code></pre>
+<pre class="out">3
+one TWO three four</pre>
+</figure>
+<p>A field holding a number can be used in sums, and changed in place:</p>
+<figure class="example" id="ex-fields-number" data-run="output">
+<pre class="code"><code>create field "Score"
+put 10 into field "Score"
+add 5 to field "Score"
+put field "Score" * 2</code></pre>
+<pre class="out">30</pre>
+</figure>
+
+<h2 id="styling">Styling part of the text</h2>
+<p>Every text property can be set for a chunk of a field, not just the whole field: a word in bold, a line in another colour, a few characters bigger. A field gives every line the same height unless its <code>fixedLineHeight</code> is false, so turn that off when some lines are bigger than others.</p>
+<figure class="example" id="ex-fields-chunk-style" data-run="output" data-shot="The stage, with a field holding three lines: The rain in Spain with rain in bold, falls mainly in large type, and on the plain in blue.">
+<pre class="code"><code>create field "Poem"
+set the rect of it to 40,40,440,200
+set the fixedLineHeight of it to false
+put "The rain in Spain" &amp; return &amp; "falls mainly" &amp; return &amp; "on the plain" into field "Poem"
+set the textStyle of word 2 of line 1 of field "Poem" to "bold"
+set the textSize of line 2 of field "Poem" to 24
+set the textColor of line 3 of field "Poem" to "blue"
+set the backgroundColor of word 2 of line 3 of field "Poem" to "yellow"
+put the textStyle of word 2 of line 1 of field "Poem"</code></pre>
+<pre class="out">bold</pre>
+</figure>
+
+<h2 id="htmltext">Text with its styles: htmlText</h2>
+<p><code>the text</code> of a field is its plain characters. <code>the htmlText</code> is the same text with its styles, in a small dialect of HTML. You can read it to save a field's look, and set it to fill a field with styled text in one go:</p>
+<figure class="example" id="ex-fields-htmltext" data-run="output" data-shot="The stage, with a field that reads Some bold and italic and red, each word in its style.">
+<pre class="code"><code>create field "Styled"
+set the rect of it to 40,40,440,100
+set the textSize of it to 18
+set the htmlText of field "Styled" to "&lt;p&gt;Some &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt; and" &amp;&amp; \
+      "&lt;font color=" &amp; quote &amp; "#FF0000" &amp; quote &amp; "&gt;red&lt;/font&gt;&lt;/p&gt;"
+put the text of field "Styled"
+put the htmlText of field "Styled"</code></pre>
+<pre class="out">Some bold and italic and red
+&lt;p&gt;Some &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt; and &lt;font color="#FF0000"&gt;red&lt;/font&gt;&lt;/p&gt;</pre>
+</figure>
+<aside class="tip"><p>To copy text with its styles from one field to another, <code>set the htmlText of field "B" to the htmlText of field "A"</code>. A plain <code>put field "A" into field "B"</code> copies only the characters.</p></aside>
+
+<h2 id="labels">Fields as labels</h2>
+<p>Most text you see in a program that the user cannot change, titles, captions, a score, is a field with its border and background turned off and its text locked:</p>
+<figure class="example" id="ex-fields-label" data-run="output" data-shot="The stage, with a large bold title Weekly report written straight onto the card, and a smaller caption below it.">
+<pre class="code"><code>create field "Title"
+set the rect of it to 30,30,450,80
+set the textSize of it to 30
+set the textStyle of it to "bold"
+create field "Caption"
+set the rect of it to 30,80,450,110
+set the textColor of it to "#64748B"
+repeat for each item tField in "Title,Caption"
+   set the showBorder of field tField to false
+   set the opaque of field tField to false
+   set the lockText of field tField to true
+end repeat
+put "Weekly report" into field "Title"
+put "Everything sold this week, by day" into field "Caption"
+put the lockText of field "Title"</code></pre>
+<pre class="out">true</pre>
+</figure>
+<p>With <code>lockText</code> true the user cannot type into the field, and a click on it sends <code>mouseUp</code> to it like a button's.</p>
+
+<h2 id="tables">Columns with tabs</h2>
+<p>A tab character moves the text on to the next <strong>tab stop</strong>. Set a field's <code>tabStops</code> and lines with tabs between their parts line up as a table. In the script, set the <code>itemDelimiter</code> to tab and each column is an item:</p>
+<figure class="example" id="ex-fields-tabs" data-run="output" data-shot="The stage, with a field showing a small table with the columns Name, Age and Town in bold, and rows for Ada and Alan.">
+<pre class="code"><code>create field "Table"
+set the rect of it to 20,20,460,110
+set the tabStops of field "Table" to 150,300
+put "Name" &amp; tab &amp; "Age" &amp; tab &amp; "Town" &amp; return &amp; \
+      "Ada" &amp; tab &amp; "36" &amp; tab &amp; "London" &amp; return &amp; \
+      "Alan" &amp; tab &amp; "41" &amp; tab &amp; "Manchester" into field "Table"
+set the textStyle of line 1 of field "Table" to "bold"
+set the itemDelimiter to tab
+put item 3 of line 3 of field "Table"</code></pre>
+<pre class="out">Manchester</pre>
+</figure>
+<p>For bigger tables, with columns the user can sort and resize, OXT-Beyond has the Data Grid, which its own guide covers in Help &gt; Guides.</p>
+
+<h2 id="lists">A list to choose from</h2>
+<p>Set a locked field's <code>listBehavior</code> to true and it becomes a list: a click highlights a whole line. <code>the hilitedLine</code> says which line is chosen (and setting it chooses one), and <code>the selectedText</code> gives its text.</p>
+<figure class="example" id="ex-fields-list" data-run="output" data-shot="The stage, with a list field of three fruits, Apple, Pear and Plum, with Pear highlighted.">
+<pre class="code"><code>create field "Fruit"
+set the rect of it to 40,40,240,130
+set the lockText of it to true
+set the listBehavior of it to true
+put "Apple" &amp; return &amp; "Pear" &amp; return &amp; "Plum" into field "Fruit"
+set the hilitedLine of field "Fruit" to 2
+put the hilitedLine of field "Fruit"
+put the selectedText of field "Fruit"</code></pre>
+<pre class="out">2
+Pear</pre>
+</figure>
+<p>A list field sends <code>mouseUp</code> when a line is clicked, so its script can read <code>the selectedText of me</code> and act on the choice.</p>
+
+<h2 id="long-text">Long text: scrolling</h2>
+<p>A field with more text than fits can have a scroll bar: set its <code>vScrollbar</code> to true. Its <code>scroll</code> property is how far down it is scrolled, in points.</p>
+<figure class="example" id="ex-fields-scroll" data-run="output" data-shot="The stage, with a field showing the first lines of a long list, Line 1, Line 2 and so on, with a scroll bar on its right.">
+<pre class="code"><code>create field "Long"
+set the rect of it to 40,40,300,200
+set the vScrollbar of it to true
+repeat with i = 1 to 30
+   put "Line" &amp;&amp; i &amp; return after tText
+end repeat
+put tText into field "Long"
+put the number of lines of field "Long"</code></pre>
+<pre class="out">30</pre>
+</figure>
+<aside class="tip"><p>Build long text in a variable and put it into the field once, as here. Putting into a field a line at a time makes it redraw every time, which is much slower when there are thousands of lines.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Make a list field of the days of the week, with Wednesday chosen, and every day of the weekend in red.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-fields-try" data-run="output" data-shot="The stage, with a list of the seven days of the week, Wednesday highlighted and Saturday and Sunday in red.">
+<pre class="code"><code>create field "Days"
+set the rect of it to 40,30,240,170
+set the lockText of it to true
+set the listBehavior of it to true
+put "Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday" into tDays
+replace comma with return in tDays
+put tDays into field "Days"
+set the textColor of line 6 to 7 of field "Days" to "red"
+set the hilitedLine of field "Days" to 3
+put the selectedText of field "Days"</code></pre>
+<pre class="out">Wednesday</pre>
+</figure>
+</details>
+</section>

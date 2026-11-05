@@ -1,0 +1,143 @@
+<!--
+title: The message path
+level: intermediate
+minutes: 9
+summary: Where a message goes when its object does not handle it, how pass sends it further, and how to use the path to share code.
+words: message path, pass, the target, me, group, card, stack, set the script of
+-->
+<h2 id="the-path">The road a message takes</h2>
+<p>A message does not stop at the object it was sent to. If that object has no handler for it, it travels along the <strong>message path</strong>, through every object that holds it, until a handler answers it or it reaches the engine:</p>
+<ol class="path">
+<li>the control it was sent to (the <strong>target</strong>)</li>
+<li>the group the control is in, if it is in one</li>
+<li>the card</li>
+<li>the card's background groups</li>
+<li>the stack, then its main stack, if it is a substack</li>
+<li>libraries and back scripts the program has added (<a href="../libraries/">Libraries</a> shows how)</li>
+<li>the engine, which does its default job for messages it knows, and nothing for the rest</li>
+</ol>
+<p>The first handler on the way runs, and the message stops there.</p>
+<figure class="example" id="ex-path-stops" data-run="output">
+<pre class="code"><code>create button "B"
+set the script of this card to \
+      "on mouseUp" &amp; return &amp; \
+      "   put" &amp;&amp; quote &amp; "the card handled it" &amp; quote &amp; return &amp; \
+      "end mouseUp"
+
+on mouseUp
+   put "the stack handled it"
+end mouseUp
+
+send "mouseUp" to button "B"</code></pre>
+<pre class="out">the card handled it</pre>
+</figure>
+<p>The button has no script, so the message went to the card. The card had a handler, so the stack's handler, further along, never heard of the click.</p>
+
+<h2 id="pass">Sending it on with pass</h2>
+<p>A handler that has done its part can let the message carry on with <code>pass</code>. Each object on the path gets its turn:</p>
+<figure class="example" id="ex-path-pass" data-run="output">
+<pre class="code"><code>create button "B"
+set the script of button "B" to \
+      "on mouseUp" &amp; return &amp; \
+      "   put 1 &amp;&amp; the short name of me" &amp; return &amp; \
+      "   pass mouseUp" &amp; return &amp; \
+      "end mouseUp"
+set the script of this card to \
+      "on mouseUp" &amp; return &amp; \
+      "   put 2 &amp;&amp; word 1 of the name of me" &amp; return &amp; \
+      "   pass mouseUp" &amp; return &amp; \
+      "end mouseUp"
+
+on mouseUp
+   put 3 &amp;&amp; "the stack"
+end mouseUp
+
+send "mouseUp" to button "B"</code></pre>
+<pre class="out">1 B
+2 card
+3 the stack</pre>
+</figure>
+<p>Inside each handler, <code>me</code> is the object whose script is running: first the button, then the card. <code>the target</code> stays the button all the way.</p>
+<aside class="warn"><p>A handler for a message the engine itself acts on, such as <code>keyDown</code> or <code>closeStack</code>, <em>stops</em> that action unless it passes the message. A <code>keyDown</code> handler without <code>pass keyDown</code> means the field never gets the key.</p></aside>
+
+<h2 id="groups">Groups on the path</h2>
+<p>A group sits between its controls and the card, so a group's script can serve every control inside it. That is a neat way to build a panel of buttons that share one handler:</p>
+<figure class="example" id="ex-path-group" data-run="output" data-shot="The stage, with a group of three buttons labelled Small, Medium and Large in a column.">
+<pre class="code"><code>create group "Sizes"
+repeat for each item tSize in "Small,Medium,Large"
+   add 1 to tCount
+   create button tSize in group "Sizes"
+   set the rect of it to 60, tCount * 50, 220, tCount * 50 + 36
+end repeat
+set the script of group "Sizes" to \
+      "on mouseUp" &amp; return &amp; \
+      "   put" &amp;&amp; quote &amp; "Size chosen:" &amp; quote &amp;&amp; "&amp;&amp; the short name of the target" &amp; return &amp; \
+      "end mouseUp"
+send "mouseUp" to button "Medium"
+put the number of controls of group "Sizes"</code></pre>
+<pre class="out">Size chosen: Medium
+3</pre>
+</figure>
+
+<h2 id="sharing">Sharing handlers up the path</h2>
+<p>Commands and functions travel the same path. A function in the stack's script can be called from any button, field or card in the stack, so the stack is the natural home for code that many objects use:</p>
+<figure class="example" id="ex-path-shared-function" data-run="output">
+<pre class="code"><code>function doubled pN
+   return pN * 2
+end doubled
+
+create button "B"
+set the script of button "B" to \
+      "on mouseUp" &amp; return &amp; \
+      "   put doubled(21)" &amp; return &amp; \
+      "end mouseUp"
+send "mouseUp" to button "B"</code></pre>
+<pre class="out">42</pre>
+</figure>
+<p>The reverse is not true: the stack cannot call a handler that lives in a button's script by name, because the stack is not on the button's path. To run it, <code>send</code> the message to the button.</p>
+<figure class="example" id="ex-path-down" data-run="output">
+<pre class="code"><code>create button "Helper"
+set the script of button "Helper" to \
+      "on tidyUp" &amp; return &amp; \
+      "   put" &amp;&amp; quote &amp; "tidied by the button" &amp; quote &amp; return &amp; \
+      "end tidyUp"
+send "tidyUp" to button "Helper"</code></pre>
+<pre class="out">tidied by the button</pre>
+</figure>
+
+<h2 id="where">Where should a handler go?</h2>
+<ul>
+<li>In the <strong>control</strong>, when it is about that control alone: what this button does when clicked.</li>
+<li>In a <strong>group</strong>, for controls that work together, like a set of tool buttons.</li>
+<li>In the <strong>card</strong>, for what belongs to one screen: getting it ready in <code>openCard</code>.</li>
+<li>In the <strong>stack</strong>, for anything the whole program needs: helper functions, saving, starting up.</li>
+</ul>
+<aside class="legacy"><p>The message path is one of HyperCard's big ideas, and it has hardly changed since 1987: button, card, background, stack, Home. In OXT-Beyond a HyperCard background becomes a group shared by several cards, and keeps its place on the path.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Give a button a <code>mouseUp</code> handler that puts <code>button first</code> and passes the message, and give the card one that puts <code>card next</code> and does not pass it. Put a <code>mouseUp</code> handler in the playground's code that puts <code>stack last</code>. Send <code>mouseUp</code> to the button: which lines appear, and why?</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-path-try" data-run="output">
+<pre class="code"><code>create button "B"
+set the script of button "B" to \
+      "on mouseUp" &amp; return &amp; \
+      "   put" &amp;&amp; quote &amp; "button first" &amp; quote &amp; return &amp; \
+      "   pass mouseUp" &amp; return &amp; \
+      "end mouseUp"
+set the script of this card to \
+      "on mouseUp" &amp; return &amp; \
+      "   put" &amp;&amp; quote &amp; "card next" &amp; quote &amp; return &amp; \
+      "end mouseUp"
+
+on mouseUp
+   put "stack last"
+end mouseUp
+
+send "mouseUp" to button "B"</code></pre>
+<pre class="out">button first
+card next</pre>
+</figure>
+<p>The card handles the message and does not pass it, so it never reaches the stack.</p>
+</details>
+</section>

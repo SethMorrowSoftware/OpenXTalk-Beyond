@@ -1,0 +1,169 @@
+<!--
+title: Arrays
+level: intermediate
+minutes: 10
+summary: Keep many named values in one variable, look them up by key, count with them, and build records and tables out of them.
+words: array, key, element, the keys, the number of elements, repeat for each key, repeat for each element, delete variable, is an array
+-->
+<h2 id="keys">Values with names</h2>
+<p>An <strong>array</strong> is a variable that holds many values, each filed under a <strong>key</strong>. You write the key in square brackets after the variable's name. A key can be any text or number; the value stored under it is an <strong>element</strong>.</p>
+<figure class="example" id="ex-arrays-first" data-run="output">
+<pre class="code"><code>put "Ada" into tPerson["name"]
+put 36 into tPerson["age"]
+put "London" into tPerson["town"]
+put tPerson["name"] &amp;&amp; "is" &amp;&amp; tPerson["age"]
+put the number of elements of tPerson
+put tPerson is an array</code></pre>
+<pre class="out">Ada is 36
+3
+true</pre>
+</figure>
+<p>An array is not text, so <code>put tPerson</code> on its own shows nothing: ask for its elements, or turn it into text first, as the next lesson shows.</p>
+
+<h2 id="the-keys">Which keys are there?</h2>
+<p><code>the keys</code> of an array is a list of its keys, a line each. The keys come in no particular order, so sort them when the order matters:</p>
+<figure class="example" id="ex-arrays-keys" data-run="output">
+<pre class="code"><code>put "Ada" into tPerson["name"]
+put 36 into tPerson["age"]
+put "London" into tPerson["town"]
+put the keys of tPerson into tKeys
+sort tKeys
+put tKeys
+put "age" is among the lines of the keys of tPerson</code></pre>
+<pre class="out">age
+name
+town
+true</pre>
+</figure>
+
+<h2 id="each-key">Going through an array</h2>
+<p><code>repeat for each key</code> visits every key, and <code>repeat for each element</code> every value. <code>delete variable</code> with a key removes that element:</p>
+<figure class="example" id="ex-arrays-each" data-run="output">
+<pre class="code"><code>put 5 into tStock["apples"]
+put 0 into tStock["pears"]
+put 12 into tStock["figs"]
+repeat for each key tFruit in tStock
+   if tStock[tFruit] is 0 then put tFruit &amp;&amp; "are sold out"
+end repeat
+delete variable tStock["pears"]
+put the number of elements of tStock
+repeat for each element tCount in tStock
+   add tCount to tTotal
+end repeat
+put tTotal &amp;&amp; "pieces of fruit"</code></pre>
+<pre class="out">pears are sold out
+2
+17 pieces of fruit</pre>
+</figure>
+
+<h2 id="counting">Counting with an array</h2>
+<p>Arrays shine when you need to count things. Use each thing as a key and add 1 to its element: an element that does not exist yet starts as empty, which <code>add</code> treats as 0.</p>
+<figure class="example" id="ex-arrays-count" data-run="output">
+<pre class="code"><code>put "the cat and the dog and the bird" into tText
+repeat for each word tWord in tText
+   add 1 to tCount[tWord]
+end repeat
+put the keys of tCount into tWords
+sort tWords
+repeat for each line tWord in tWords
+   put tWord &amp; ":" &amp;&amp; tCount[tWord]
+end repeat</code></pre>
+<pre class="out">and: 2
+bird: 1
+cat: 1
+dog: 1
+the: 3</pre>
+</figure>
+<aside class="tip"><p>Looking up a key is fast however big the array is, while finding a line in a long list means reading the list. When you check "have I seen this before?" thousands of times, an array is the tool.</p></aside>
+
+<h2 id="numbered">Numbered keys</h2>
+<p>Keys that are 1, 2, 3 make an array a numbered list, and a loop with a counter walks it in order:</p>
+<figure class="example" id="ex-arrays-numbered" data-run="output">
+<pre class="code"><code>put "red" into tColours[1]
+put "green" into tColours[2]
+put "blue" into tColours[3]
+repeat with i = 1 to the number of elements of tColours
+   put i &amp; "." &amp;&amp; tColours[i]
+end repeat</code></pre>
+<pre class="out">1. red
+2. green
+3. blue</pre>
+</figure>
+
+<h2 id="nested">Arrays inside arrays</h2>
+<p>An element can itself be an array, which gives you records and tables. Here a numbered array holds a record for each person:</p>
+<figure class="example" id="ex-arrays-nested" data-run="output">
+<pre class="code"><code>put "Ada" into tPeople[1]["name"]
+put 36 into tPeople[1]["age"]
+put "Alan" into tPeople[2]["name"]
+put 41 into tPeople[2]["age"]
+put the number of elements of tPeople
+repeat with i = 1 to the number of elements of tPeople
+   put tPeople[i]["name"] &amp;&amp; "is" &amp;&amp; tPeople[i]["age"]
+end repeat
+put tPeople[2] is an array</code></pre>
+<pre class="out">2
+Ada is 36
+Alan is 41
+true</pre>
+</figure>
+
+<h2 id="functions">Arrays in and out of handlers</h2>
+<p>A whole array can be passed to a handler and returned from one, which is a tidy way to give back several named values at once:</p>
+<figure class="example" id="ex-arrays-return" data-run="output">
+<pre class="code"><code>function newPoint pX, pY
+   put pX into tPoint["x"]
+   put pY into tPoint["y"]
+   return tPoint
+end newPoint
+
+function distanceFromOrigin pPoint
+   return sqrt(pPoint["x"] ^ 2 + pPoint["y"] ^ 2)
+end distanceFromOrigin
+
+put newPoint(3, 4) into tPoint
+put tPoint["x"] &amp; "," &amp; tPoint["y"]
+put distanceFromOrigin(tPoint)</code></pre>
+<pre class="out">3,4
+5</pre>
+</figure>
+<p>Arrays are copied when you put them into another variable or pass them, like any value: changing the copy leaves the original alone.</p>
+<figure class="example" id="ex-arrays-copy" data-run="output">
+<pre class="code"><code>put 5 into tOriginal["score"]
+put tOriginal into tCopy
+put 9 into tCopy["score"]
+put tOriginal["score"] &amp;&amp; tCopy["score"]</code></pre>
+<pre class="out">5 9</pre>
+</figure>
+
+<h2 id="case">Keys and capitals</h2>
+<p>Keys ignore case, like the rest of xTalk, unless <code>caseSensitive</code> is true:</p>
+<figure class="example" id="ex-arrays-case" data-run="output">
+<pre class="code"><code>put 1 into tA["Apple"]
+put tA["APPLE"]
+set the caseSensitive to true
+put "[" &amp; tA["APPLE"] &amp; "]"</code></pre>
+<pre class="out">1
+[]</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Count how many times each letter appears in <code>mississippi</code>, and put each letter that appears with its count, in alphabetical order, like <code>i 4</code>.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-arrays-try" data-run="output">
+<pre class="code"><code>repeat for each char tLetter in "mississippi"
+   add 1 to tCount[tLetter]
+end repeat
+put the keys of tCount into tLetters
+sort tLetters
+repeat for each line tLetter in tLetters
+   put tLetter &amp;&amp; tCount[tLetter]
+end repeat</code></pre>
+<pre class="out">i 4
+m 1
+p 2
+s 4</pre>
+</figure>
+</details>
+</section>

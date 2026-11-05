@@ -1,0 +1,153 @@
+<!--
+title: Where variables live
+level: beginner
+minutes: 9
+summary: Which handlers can see a variable: locals that last one call, script locals a whole script shares, globals, and constants that never change.
+words: local, global, constant, the globalNames, explicitVariables
+-->
+<h2 id="handler-locals">Each handler has its own variables</h2>
+<p>A variable you create in a handler belongs to that handler alone. Other handlers cannot see it, and it is gone when the handler ends. Programmers call the part of a program where a name means something its <strong>scope</strong>.</p>
+<figure class="example" id="ex-scope-local" data-run="output">
+<pre class="code"><code>on setName
+   put "Ada" into tName
+end setName
+
+on showName
+   put "Name:" &amp;&amp; tName
+end showName
+
+setName
+showName</code></pre>
+<pre class="out">Name: tName</pre>
+</figure>
+<p><code>showName</code> has never had anything put into a <code>tName</code> of its own, so it reads the word as plain text, the way <a href="../variables/#unset">Variables</a> explained. The same happens the other way round, from the main lines into a handler:</p>
+<figure class="example" id="ex-scope-inside" data-run="output">
+<pre class="code"><code>on showColour
+   put "inside:" &amp;&amp; tColour
+end showColour
+
+put "red" into tColour
+showColour
+put "outside:" &amp;&amp; tColour</code></pre>
+<pre class="out">inside: tColour
+outside: red</pre>
+</figure>
+<p>That is a feature, not a nuisance: two handlers can both use a <code>tCount</code> without getting in each other's way. To give a handler a value, pass it as a parameter; to get one back, use <code>return</code>.</p>
+
+<h2 id="declaring">Declaring a local</h2>
+<p>You can say up front which variables a handler uses with <code>local</code>, and give them a first value as you do:</p>
+<figure class="example" id="ex-scope-declare" data-run="output">
+<pre class="code"><code>on addTwo
+   local tX = 5, tY = 10
+   put tX + tY
+end addTwo
+
+addTwo</code></pre>
+<pre class="out">15</pre>
+</figure>
+<p>In an ordinary script this is optional. But if you turn on <strong>Variable Checking</strong> in the Script Editor (<kbd>Edit &gt; Options &gt; Variable Checking</kbd>), xTalk insists that every variable is declared before it is used, and a mistyped name becomes an error you see straight away, rather than a word that quietly turns into text. The setting is called <code>explicitVariables</code>, and many experienced scripters keep it on.</p>
+
+<h2 id="script-locals">Variables a whole script shares</h2>
+<p>Declare a variable with <code>local</code> outside any handler, at the top of the script, and every handler in that script can use it. It keeps its value between calls, for as long as the stack is open. These are called <strong>script locals</strong>, and many people start their names with <code>s</code>:</p>
+<figure class="example" id="ex-scope-script-local" data-run="output">
+<pre class="code"><code>local sCount = 0
+
+on bump
+   add 1 to sCount
+end bump
+
+bump
+bump
+bump
+put "Bumped" &amp;&amp; sCount &amp;&amp; "times"</code></pre>
+<pre class="out">Bumped 3 times</pre>
+</figure>
+<p>A script local is the natural home for something a button or card needs to remember: the score in a game, the file it opened last, whether it is busy.</p>
+<figure class="example" id="ex-scope-running-total" data-run="output">
+<pre class="code"><code>local sTotal
+
+command addUp pN
+   add pN to sTotal
+   return sTotal
+end addUp
+
+addUp 4
+put the result
+addUp 6
+put the result</code></pre>
+<pre class="out">4
+10</pre>
+</figure>
+
+<h2 id="globals">Globals: one value for every script</h2>
+<p>A <strong>global</strong> is shared by every script in every open stack. Each handler that uses it must say so with <code>global</code> and its name, either inside the handler or at the top of the script:</p>
+<figure class="example" id="ex-scope-global" data-run="output">
+<pre class="code"><code>global gScore
+
+on addPoints pN
+   global gScore
+   add pN to gScore
+end addPoints
+
+put 0 into gScore
+addPoints 10
+addPoints 5
+put "Score:" &amp;&amp; gScore</code></pre>
+<pre class="out">Score: 15</pre>
+</figure>
+<p>A global nobody has put anything into is <code>empty</code>, and it lasts until you quit, even after the stack that made it closes.</p>
+<aside class="warn"><p>Globals are easy to reach for and hard to live with: any script anywhere can change them, so when one holds the wrong value it is hard to find out who did it. Prefer parameters and script locals, and keep globals for the few things that truly belong to the whole program. The <code>g</code> at the front of a global's name is a warning to every reader.</p></aside>
+
+<h2 id="constants">Constants: names that never change</h2>
+<p>A <strong>constant</strong> is a name for a value that stays the same while the program runs. Write it once, at the top, and use its name everywhere. When the value changes in a later version, you change one line.</p>
+<figure class="example" id="ex-scope-constant" data-run="output">
+<pre class="code"><code>constant kMaxLives = 3
+constant kGreeting = "Welcome back"
+
+put kGreeting &amp; "! You have" &amp;&amp; kMaxLives &amp;&amp; "lives."</code></pre>
+<pre class="out">Welcome back! You have 3 lives.</pre>
+</figure>
+<p>xTalk will not let you put anything into a constant, which is the whole point of one:</p>
+<figure class="example" id="ex-scope-constant-fixed" data-run="error" data-line="2">
+<pre class="code"><code>constant kMax = 3
+put 5 into kMax</code></pre>
+</figure>
+
+<h2 id="prefixes">The letters at the front</h2>
+<p>The names in these lessons follow a habit common across the xTalk world, which tells you where a variable lives without looking for its declaration:</p>
+<ul>
+<li><code>t</code> for a temporary variable inside one handler: <code>tTotal</code></li>
+<li><code>p</code> for a parameter: <code>pName</code></li>
+<li><code>s</code> for a script local: <code>sCount</code></li>
+<li><code>g</code> for a global: <code>gScore</code></li>
+<li><code>k</code> for a constant: <code>kMaxLives</code></li>
+</ul>
+<p>xTalk does not require any of this, but code that follows it is much easier to read, and it also keeps your names from colliding with xTalk's own words.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a command <code>keepWord</code> that remembers every word it is given in a script local, and a function <code>keptWords</code> that gives back the words kept so far, joined by commas. Keep <code>apple</code>, <code>pear</code> and <code>fig</code>, then put <code>keptWords()</code>.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-scope-try" data-run="output">
+<pre class="code"><code>local sWords
+
+command keepWord pWord
+   if sWords is empty then
+      put pWord into sWords
+   else
+      put comma &amp; pWord after sWords
+   end if
+end keepWord
+
+function keptWords
+   return sWords
+end keptWords
+
+keepWord "apple"
+keepWord "pear"
+keepWord "fig"
+put keptWords()</code></pre>
+<pre class="out">apple,pear,fig</pre>
+</figure>
+</details>
+</section>

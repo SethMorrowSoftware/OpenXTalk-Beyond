@@ -1,0 +1,95 @@
+<!--
+title: Text and numbers
+level: beginner
+minutes: 7
+summary: The two kinds of value you use most, how to write them, and how to leave notes in your code.
+words: put, empty, quote, --, #, /* */
+-->
+<h2 id="values">Values</h2>
+<p>Everything a program works with is a <strong>value</strong>: a name, a price, a line of a poem, the number of lives left in a game. In xTalk the two kinds you will use most are <strong>text</strong> and <strong>numbers</strong>.</p>
+<p>Text goes between double quotes, so that xTalk knows exactly where it starts and ends. Programmers call a piece of text a <strong>string</strong>. Numbers are written as they are, with a point for the decimals and a minus sign for the negatives.</p>
+<figure class="example" id="ex-text-values" data-run="output">
+<pre class="code"><code>put "I am learning xTalk"
+put 42
+put 3.75
+put -12
+put "42"</code></pre>
+<pre class="out">I am learning xTalk
+42
+3.75
+-12
+42</pre>
+</figure>
+<p>The last line is text that happens to be made of digits. It looks the same as the number 42, and in xTalk it mostly behaves the same too: <a href="../values-and-types/">Everything is text</a> explains why.</p>
+
+<h2 id="quotes-matter">Why the quotes matter</h2>
+<p>Without quotes, xTalk reads a word as a name: the name of a variable, or one of its own words. With quotes, it is just text. Compare these:</p>
+<figure class="example" id="ex-text-quotes" data-run="output">
+<pre class="code"><code>put "2 + 2"
+put 2 + 2
+put "pi"
+put pi</code></pre>
+<pre class="out">2 + 2
+4
+pi
+3.141593</pre>
+</figure>
+<p>In quotes, <code>2 + 2</code> is three characters to show as they are. Without them it is a sum, which xTalk works out. And <code>pi</code> without quotes is one of xTalk's built-in <strong>constants</strong>, a name for a value it already knows.</p>
+<aside class="note"><p>xTalk shows <code>pi</code> rounded to six places. It knows many more: <a href="../formatting/">Formatting text</a> shows how to choose how many decimals a number shows.</p></aside>
+
+<h2 id="empty-and-quote">Empty, and a quote inside a string</h2>
+<p>A string can have nothing in it at all. xTalk has a word for that: <code>empty</code>, the same as <code>""</code>. And because a double quote ends a string, a string cannot simply contain one. Instead you join the constant <code>quote</code> to it (the <code>&amp;</code> joins two values; the next lesson is all about it):</p>
+<figure class="example" id="ex-text-empty-quote" data-run="output">
+<pre class="code"><code>put "" is empty
+put "She said" &amp;&amp; quote &amp; "hello" &amp; quote
+put quote &amp; "xTalk" &amp; quote &amp;&amp; "has" &amp;&amp; the number of chars of "xTalk" &amp;&amp; "letters"</code></pre>
+<pre class="out">true
+She said "hello"
+"xTalk" has 5 letters</pre>
+</figure>
+
+<h2 id="case">Capital letters</h2>
+<p>xTalk does not mind how you capitalise its own words: <code>PUT</code>, <code>Put</code> and <code>put</code> are the same command. Most people write them in lower case and keep capitals for the names they make up, like <code>tTotalScore</code>. What is inside quotes is shown exactly as you typed it.</p>
+<figure class="example" id="ex-text-case" data-run="output">
+<pre class="code"><code>PUT "Shouting works too"
+Put 10 * 10</code></pre>
+<pre class="out">Shouting works too
+100</pre>
+</figure>
+
+<h2 id="comments">Notes for people: comments</h2>
+<p>A <strong>comment</strong> is a note that xTalk ignores, for whoever reads the code next (very often yourself, a month later). It starts with <code>--</code> or <code>#</code> and runs to the end of the line. A longer note can go between <code>/*</code> and <code>*/</code>, over as many lines as you like.</p>
+<figure class="example" id="ex-text-comments" data-run="output">
+<pre class="code"><code>-- Work out the area of a rectangle
+put 8 * 5 -- width times height
+# a comment can start with # too
+/* and this one
+   covers several lines */
+put "done"</code></pre>
+<pre class="out">40
+done</pre>
+</figure>
+<aside class="tip"><p>A good comment says <em>why</em>, not what: the code already says what it does. "Times 1.2 for the VAT" helps the next reader; "multiply by 1.2" does not.</p></aside>
+
+<h2 id="long-lines">A line that goes on</h2>
+<p>A statement normally fits on one line. When one gets too long to read, end the line with a backslash <code>\</code> and carry on below: xTalk reads the two lines as one.</p>
+<figure class="example" id="ex-text-continue" data-run="output">
+<pre class="code"><code>put "This sentence is rather long, so it is split" &amp;&amp; \
+      "over two lines of the script"</code></pre>
+<pre class="out">This sentence is rather long, so it is split over two lines of the script</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Make the Output show these three lines, exactly: the word <code>Hello</code> in double quotes, then the result of 365 times 24, then the text <code>365 * 24</code>. Add a comment that says what the number means.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-text-try" data-run="output">
+<pre class="code"><code>put quote &amp; "Hello" &amp; quote
+put 365 * 24 -- the hours in a year
+put "365 * 24"</code></pre>
+<pre class="out">"Hello"
+8760
+365 * 24</pre>
+</figure>
+</details>
+</section>

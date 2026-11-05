@@ -1,0 +1,168 @@
+<!--
+title: Messages and events
+level: intermediate
+minutes: 10
+summary: How a click, a key or a new card becomes a message, how a handler answers it, and how your scripts can send messages of their own.
+words: message, handler, mouseUp, mouseDown, mouseEnter, mouseLeave, keyDown, openCard, the target, send, dispatch, set the script of
+-->
+<h2 id="messages">Everything is a message</h2>
+<p>When the user does something, xTalk tells the object it happened to by sending it a <strong>message</strong>: a word such as <code>mouseUp</code>, <code>keyDown</code> or <code>openCard</code>. If the object's script has a <strong>handler</strong> with that name, the handler runs. If not, nothing visible happens, and the message moves on (the next lesson follows where it goes).</p>
+<p>This is the heart of every xTalk program: you do not write a main loop that waits for clicks. You write small handlers, put each in the object it belongs to, and xTalk calls them at the right moment.</p>
+
+<h2 id="a-button-script">A button with a script</h2>
+<p>Usually you type a script into an object with the Script Editor. A script can also set another object's script, which lets the playground show the whole story in one place. (The backslashes join the lines of one long statement, as in <a href="../text-and-numbers/#long-lines">Text and numbers</a>.) And a script can <code>send</code> a message to an object, just as a click would:</p>
+<figure class="example" id="ex-events-script" data-run="output">
+<pre class="code"><code>create button "Hello"
+set the script of button "Hello" to \
+      "on mouseUp" &amp; return &amp; \
+      "   put" &amp;&amp; quote &amp; "Hello from the button" &amp; quote &amp; return &amp; \
+      "end mouseUp"
+send "mouseUp" to button "Hello"
+put the number of lines of the script of button "Hello"</code></pre>
+<pre class="out">Hello from the button
+3</pre>
+</figure>
+<p>In the playground you can also click the button on the stage: the click sends the same <code>mouseUp</code>, and its handler puts the same line in the Output.</p>
+
+<h2 id="common">Messages you will meet</h2>
+<div class="table-scroll"><table>
+<thead><tr><th>Message</th><th>Sent to</th><th>When</th></tr></thead>
+<tbody>
+<tr><td><code>mouseDown</code>, <code>mouseUp</code></td><td>the control under the mouse</td><td>a mouse button goes down, and comes up again over the same control (a click)</td></tr>
+<tr><td><code>mouseDoubleUp</code></td><td>the control</td><td>a double click</td></tr>
+<tr><td><code>mouseEnter</code>, <code>mouseLeave</code></td><td>the control</td><td>the pointer moves onto it, and off it</td></tr>
+<tr><td><code>mouseMove</code></td><td>the control under the pointer</td><td>the pointer moves (with its position)</td></tr>
+<tr><td><code>keyDown</code>, <code>returnInField</code></td><td>the field being typed in</td><td>a key is typed (with the character), Return is pressed</td></tr>
+<tr><td><code>openField</code>, <code>closeField</code></td><td>a field</td><td>the user starts editing it, and leaves it after a change</td></tr>
+<tr><td><code>openCard</code>, <code>closeCard</code></td><td>the card</td><td>a card appears, or is left</td></tr>
+<tr><td><code>preOpenStack</code>, <code>openStack</code></td><td>the first card</td><td>a stack opens: before it is shown, then after</td></tr>
+<tr><td><code>resizeStack</code>, <code>closeStack</code></td><td>the card</td><td>the window is resized, or closed</td></tr>
+</tbody></table></div>
+
+<h2 id="parameters">Messages that carry a value</h2>
+<p>Some messages come with information, which arrives in the handler's parameters: <code>mouseUp</code> says which mouse button was used (1 is the main one), and <code>keyDown</code> which key was typed.</p>
+<figure class="example" id="ex-events-params" data-run="output">
+<pre class="code"><code>create button "B"
+create field "Typing"
+
+on mouseUp pWhich
+   put "mouseUp with button" &amp;&amp; pWhich
+end mouseUp
+
+on keyDown pKey
+   put "typed" &amp;&amp; pKey
+end keyDown
+
+send "mouseUp 1" to button "B"
+send "keyDown x" to field "Typing"</code></pre>
+<pre class="out">mouseUp with button 1
+typed x</pre>
+</figure>
+<aside class="note"><p>A <code>keyDown</code> handler that does not <code>pass</code> the message swallows the key, so the field never shows it. That is how you stop a field taking letters when only digits make sense: handle <code>keyDown</code>, and <code>pass keyDown</code> only when the key is a digit.</p></aside>
+
+<h2 id="one-handler">One handler, many controls</h2>
+<p>A control with no handler for a message lets it go on to its card and then its stack. So a handler in the stack's script hears the clicks of every button that does not handle them itself, and <code>the target</code> says which one it was:</p>
+<figure class="example" id="ex-events-counter" data-run="output" data-shot="The stage, with two buttons: one labelled 3 and one labelled 1.">
+<pre class="code"><code>create button "Left"
+set the rect of it to 60,60,200,110
+create button "Right"
+set the rect of it to 280,60,420,110
+set the label of button "Left" to 0
+set the label of button "Right" to 0
+
+on mouseUp
+   set the label of the target to the label of the target + 1
+end mouseUp
+
+repeat 3 times
+   send "mouseUp" to button "Left"
+end repeat
+send "mouseUp" to button "Right"
+put the label of button "Left" &amp;&amp; the label of button "Right"</code></pre>
+<pre class="out">3 1</pre>
+</figure>
+<p>Click the buttons on the stage and watch their labels count up.</p>
+
+<h2 id="hover">Reacting to the pointer</h2>
+<p>Here is a script you could give any button: it lights up while the pointer is over it. It goes in the button's own script, so this example is marked <strong>Script</strong>.</p>
+<figure class="example" id="ex-events-hover" data-run="compile">
+<pre class="code"><code>on mouseEnter
+   set the backgroundColor of me to "gold"
+end mouseEnter
+
+on mouseLeave
+   set the backgroundColor of me to empty
+end mouseLeave
+
+on mouseUp
+   answer "You clicked" &amp;&amp; the short name of me
+end mouseUp</code></pre>
+</figure>
+<p>Setting a colour to <code>empty</code> gives the control back its normal look, inherited from its card and stack.</p>
+
+<h2 id="cards">Messages when a card opens</h2>
+<p>Going to a card sends it <code>openCard</code>. It is the place for a card to get ready: fill its fields, start a timer, reset a game.</p>
+<figure class="example" id="ex-events-opencard" data-run="output">
+<pre class="code"><code>on openCard
+   put "openCard: the card is ready"
+end openCard
+
+create card "Second"
+go to card 1</code></pre>
+<pre class="out">openCard: the card is ready
+openCard: the card is ready</pre>
+</figure>
+<p>Two lines: <code>create card</code> goes to the new card, and then <code>go to card 1</code> goes back, and each arrival sends <code>openCard</code>.</p>
+
+<h2 id="send-dispatch">Send and dispatch</h2>
+<p><code>send</code> delivers a message as if xTalk had sent it. If no handler anywhere answers it, <code>send</code> stops with an error:</p>
+<figure class="example" id="ex-events-send-unhandled" data-run="error" data-line="2">
+<pre class="code"><code>create button "B"
+send "mouseUp" to button "B"</code></pre>
+</figure>
+<p><code>dispatch</code> is the polite form: it delivers the message if someone handles it, and either way sets <code>it</code> to <code>handled</code> or <code>unhandled</code>, so your script can tell.</p>
+<figure class="example" id="ex-events-dispatch" data-run="output">
+<pre class="code"><code>on tidyUp
+   put "tidying up"
+end tidyUp
+
+create button "B"
+dispatch "refresh" to button "B"
+put it
+dispatch "tidyUp" to button "B"
+put it</code></pre>
+<pre class="out">unhandled
+tidying up
+handled</pre>
+</figure>
+<aside class="tip"><p>Use <code>dispatch</code> when you tell objects about something they may or may not care about ("the score changed"). Each object that wants to know has a handler; the others are left alone.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Make a field called <code>Log</code> and three buttons, <code>Apple</code>, <code>Pear</code> and <code>Plum</code>. Write one <code>mouseUp</code> handler that adds the name of the button clicked as a new line of the field. Send <code>mouseUp</code> to <code>Pear</code>, then <code>Plum</code>, then <code>Apple</code>, and put the field.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-events-try" data-run="output" data-shot="The stage, with three buttons labelled Apple, Pear and Plum in a row, and a field below listing Pear, Plum and Apple.">
+<pre class="code"><code>create field "Log"
+set the rect of it to 40,90,440,200
+repeat for each item tFruit in "Apple,Pear,Plum"
+   add 1 to tCount
+   create button tFruit
+   set the rect of it to tCount * 140 - 100, 30, tCount * 140 + 20, 70
+end repeat
+
+on mouseUp
+   if word 1 of the name of the target is not "button" then exit mouseUp
+   if field "Log" is not empty then put return after field "Log"
+   put the short name of the target after field "Log"
+end mouseUp
+
+send "mouseUp" to button "Pear"
+send "mouseUp" to button "Plum"
+send "mouseUp" to button "Apple"
+put field "Log"</code></pre>
+<pre class="out">Pear
+Plum
+Apple</pre>
+</figure>
+</details>
+</section>

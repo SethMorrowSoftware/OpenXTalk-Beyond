@@ -1,0 +1,212 @@
+<!--
+title: Shipping your program
+level: expert
+minutes: 13
+summary: Turn a stack into a program other people run: the Standalone Application Settings, inclusions, files that travel with it, where it keeps the user's data, catching errors out in the world, script-only stacks for version control, and programs for the command line.
+words: Save as Standalone Application, Standalone Application Settings, inclusions, the environment, the platform, specialFolderPath, resources, arrayEncode, arrayDecode, errorDialog, script only stack, the scriptOnly, the stackFiles, the commandArguments, stdout, stderr, quit
+-->
+<h2 id="standalone">From stack to program</h2>
+<p>A stack needs OXT-Beyond to open it. A <strong>standalone application</strong> does not: it is the engine and your stacks built into one program, which runs on a computer that has never seen OXT-Beyond. <kbd>File &gt; Save as Standalone Application</kbd> builds one, into a folder for each platform you chose, next to the stack file.</p>
+<p>Before the first build, open <kbd>File &gt; Standalone Application Settings</kbd>. The settings are kept in the stack itself, so they are saved, and shared, with it:</p>
+<ul>
+<li><strong>General</strong>: the program's name, and its <strong>inclusions</strong> (below).</li>
+<li><strong>Stacks</strong>: the other stack files to build in, such as libraries and behaviors kept in files of their own.</li>
+<li><strong>Copy Files</strong>: files and folders that go beside the program: pictures, sounds, help pages, a starting database.</li>
+<li>One pane for each <strong>platform</strong>: whether to build for it, and its icon, version and copyright.</li>
+<li><strong>Bug Reports</strong>: what the user sees when an error is not caught (<a href="#errors">below</a>).</li>
+</ul>
+<aside class="tip"><p>Build early and run the result on a clean computer, not only on yours. Most surprises in a standalone (a missing library, a file it cannot find, a folder it may not write to) show up in the first minute.</p></aside>
+
+<h2 id="inclusions">Inclusions: what the program needs</h2>
+<p>The engine alone has every xTalk command, but not the libraries and extensions the IDE loads as it starts: the internet library, database support and its drivers, JSON, the HTTP server, widgets, OXT-Beyond's own extensions. A standalone carries only those it is given. <strong>Search for required inclusions</strong> looks through your scripts and adds what they use. <strong>Select inclusions</strong> lets you tick them yourself, on the Inclusions pane.</p>
+<p>The search reads the words in your scripts, so it cannot see a library used through <code>do</code> (<a href="../dynamic-code/">Dynamic code</a>) or a command whose name is built in a string. If a standalone says a handler cannot be found when the IDE ran it happily, a missing inclusion is the first thing to look for: tick it by hand. For a database, tick both <strong>Database</strong> and the driver, such as <strong>SQLite</strong> (<a href="../databases/">Databases</a>).</p>
+
+<h2 id="environment">Where is it running?</h2>
+<p>The same scripts run in the IDE and in the program, and now and then they must know which. <code>the environment</code> is <code>development</code> in the IDE and <code>standalone application</code> in a built program, and adds <code>command line</code> when it runs without windows. <code>the platform</code> is <code>Win32</code> on Windows (both 32 and 64 bit), <code>MacOS</code> or <code>Linux</code>, and <code>the processor</code> says which kind of processor. Here is what they said on the computer that checks this page, which runs every example without windows:</p>
+<figure class="example" id="ex-ship-environment" data-run="runs">
+<pre class="code"><code>put "environment:" &amp;&amp; the environment
+put "platform:" &amp;&amp; the platform
+put "processor:" &amp;&amp; the processor
+put "engine version:" &amp;&amp; the version</code></pre>
+<pre class="out">environment: development command line
+platform: Linux
+processor: x86_64
+engine version: 9.7.1-BeyondEngine</pre>
+</figure>
+<p>A common use is a tool or a test button that only the developer should see:</p>
+<figure class="example" id="ex-ship-debug-button" data-run="compile">
+<pre class="code"><code>on preOpenStack
+   set the visible of button "Run tests" to (the environment begins with "development")
+end preOpenStack</code></pre>
+</figure>
+
+<h2 id="files">Files that travel with it</h2>
+<p>Files listed on the Copy Files pane are put beside the program, and <code>specialFolderPath("resources")</code> finds them. In the IDE the same call gives the folder of the stack file, so keep the files in the same place beside the stack while you work, and one path works in both:</p>
+<figure class="example" id="ex-ship-resources" data-run="compile">
+<pre class="code"><code>function resourceFile pName
+   return specialFolderPath("resources") &amp; "/assets/" &amp; pName
+end resourceFile
+
+on openCard
+   set the filename of image "Logo" to resourceFile("logo.png")
+   if there is not a file resourceFile("help.html") then
+      answer warning "The help pages are missing. Please reinstall the program."
+   end if
+end openCard</code></pre>
+</figure>
+<p>Use <code>/</code> between folders on every platform, Windows included: the engine turns it into what the system wants (<a href="../files/#where">Reading and writing files</a>).</p>
+
+<h2 id="data">Where to keep the user's data</h2>
+<p>A program cannot save itself. Its main stack is built into the program file, and the folder it is installed in is usually read-only for the user. So anything that must outlast a run (settings, the user's work, a cache) goes in a file in one of the user's own folders. A small settings file can be a whole array, turned into bytes with <code>arrayEncode</code> and back with <code>arrayDecode</code>. This example keeps it in the temporary folder, so that it tidies up after itself:</p>
+<figure class="example" id="ex-ship-settings" data-run="output">
+<pre class="code"><code>local sSettings
+
+function settingsFile
+   return specialFolderPath("temporary") &amp; "/oxt-lesson-settings.dat"
+end settingsFile
+
+command saveSettings
+   put arrayEncode(sSettings) into URL ("binfile:" &amp; settingsFile())
+end saveSettings
+
+command loadSettings
+   put empty into sSettings
+   if there is a file settingsFile() then
+      put arrayDecode(URL ("binfile:" &amp; settingsFile())) into sSettings
+   end if
+end loadSettings
+
+put "dark" into sSettings["theme"]
+put "20,40,660,520" into sSettings["windowRect"]
+saveSettings
+
+put empty into sSettings
+loadSettings
+put "theme:" &amp;&amp; sSettings["theme"]
+put "window:" &amp;&amp; sSettings["windowRect"]
+delete file settingsFile()
+loadSettings
+put "after the file is gone:" &amp;&amp; the number of elements of sSettings</code></pre>
+<pre class="out">theme: dark
+window: 20,40,660,520
+after the file is gone: 0</pre>
+</figure>
+<p>A real program keeps it where each system expects: <code>specialFolderPath("support")</code> on Windows (the user's AppData folder) and macOS (Application Support), and a folder in <code>.config</code> in the home folder on Linux. Give the program a folder of its own there, made the first time it is needed. The user's own documents belong in <code>specialFolderPath("documents")</code>, or wherever they choose with <code>ask file</code> (<a href="../dialogs/">Dialogs</a>).</p>
+<figure class="example" id="ex-ship-settings-folder" data-run="compile">
+<pre class="code"><code>function settingsFolder
+   local tFolder
+   switch the platform
+      case "Win32"
+      case "MacOS"
+         put specialFolderPath("support") &amp; "/Lesson App" into tFolder
+         break
+      default
+         put specialFolderPath("home") &amp; "/.config/lesson-app" into tFolder
+   end switch
+   if there is not a folder tFolder then create folder tFolder
+   return tFolder
+end settingsFolder</code></pre>
+</figure>
+
+<h2 id="errors">Errors out in the world</h2>
+<p>In the IDE an error that nothing catches opens the script editor at the line. In a standalone there is no script editor: the Bug Reports pane decides what the user sees. A program can also handle them itself: an uncaught error sends <code>errorDialog</code>, with the error's details, to the object whose script failed, and from there along the message path, so a handler in the main stack's script hears them all. Writing them to a log file gives you something to read when a user says "it went wrong":</p>
+<figure class="example" id="ex-ship-error-log" data-run="compile">
+<pre class="code"><code>on errorDialog pError
+   local tLog
+   put specialFolderPath("documents") &amp; "/Lesson App errors.txt" into tLog
+   put the internet date &amp; return &amp; pError &amp; return &amp; return after URL ("file:" &amp; tLog)
+   answer error "Sorry, something went wrong. The details were saved in" &amp;&amp; tLog
+end errorDialog</code></pre>
+</figure>
+<p>Catching errors where they can happen, with <code>try</code> (<a href="../errors/">Errors</a>), is still better: there the script knows what it was doing and can carry on. <code>errorDialog</code> is the net under everything else.</p>
+
+<h2 id="script-only">Script-only stacks and version control</h2>
+<p>A stack file holds cards, controls, pictures and scripts in a binary format. A version control system such as <strong>git</strong> can keep it, but cannot show what changed in it or merge two people's changes. A <strong>script-only stack</strong> is a plain text file that holds a stack's script and nothing else: its first line names the stack, and the rest is the script (the engine ends the file with a line break), ready for git and any text editor. Libraries and behaviors (<a href="../libraries/">Libraries</a>, <a href="../behaviors/">Behaviors</a>) suit it well, so a program can keep almost all its code in script-only stacks and only its windows in a binary stack:</p>
+<figure class="example" id="ex-ship-script-only" data-run="output">
+<pre class="code"><code>put specialFolderPath("temporary") &amp; "/oxtLessonTools.livecodescript" into tPath
+create script only stack "oxtLessonTools"
+put the scriptOnly of stack "oxtLessonTools"
+set the script of stack "oxtLessonTools" to "function shout pText" &amp; return &amp; \
+      "   return toUpper(pText) &amp; " &amp; quote &amp; "!" &amp; quote &amp; return &amp; "end shout"
+set the filename of stack "oxtLessonTools" to tPath
+save stack "oxtLessonTools"
+delete stack "oxtLessonTools"
+
+put URL ("file:" &amp; tPath)
+start using stack tPath
+put shout("hello")
+stop using stack tPath
+delete file tPath</code></pre>
+<pre class="out">true
+script "oxtLessonTools"
+function shout pText
+   return toUpper(pText) &amp; "!"
+end shout
+
+HELLO!</pre>
+</figure>
+<p>List the script-only stacks in the main stack's <code>stackFiles</code>, a stack name and a path relative to the main stack's file on each line, and the engine finds each by its name the first time a script refers to it, opening the file then. The Stacks pane of the settings lists them too, to build into the standalone.</p>
+<aside class="note"><p>A <code>.livecodescript</code> file is opened as a stack, so its first line must stay <code>script "name"</code> with the stack's name in quotes. Edit it in the IDE's script editor or any text editor, and save it as UTF-8.</p></aside>
+
+<h2 id="command-line">Programs without windows</h2>
+<p>A standalone can also be a tool for the terminal, or a job a server runs. Started with <code>-ui</code>, it runs with no windows at all. <code>the commandArguments</code> holds what followed the program's name on the command line, a numbered array; <code>write ... to stdout</code> prints, and <code>to stderr</code> prints errors apart from the output; and <code>quit</code> with a number ends it with that exit code, 0 for success. A program with no windows must <code>quit</code> when it is done, or it waits for events forever:</p>
+<figure class="example" id="ex-ship-command-line" data-run="compile">
+<pre class="code"><code>-- run as:  sum -ui 4 5 6.5
+on startup
+   local tArguments, tTotal
+   put the commandArguments into tArguments
+   if the number of elements of tArguments is 0 then
+      write "usage: sum -ui NUMBER..." &amp; return to stderr
+      quit 2
+   end if
+   put 0 into tTotal
+   repeat for each element tArgument in tArguments
+      if tArgument is not a number then
+         write "not a number:" &amp;&amp; tArgument &amp; return to stderr
+         quit 1
+      end if
+      add tArgument to tTotal
+   end repeat
+   write tTotal &amp; return to stdout
+   quit 0
+end startup</code></pre>
+</figure>
+<p>That is exactly how this site's lessons are checked: an OXT-Beyond engine started with <code>-ui</code> runs every example, compares what it puts with what the page shows, and quits with the result.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a tiny settings library: <code>setPref</code> saves a value under a name and writes all the settings to a file at once, and <code>getPref</code> gives a value back, reading the file first if the settings are not in memory. Save a theme and a font size, forget them, and show that <code>getPref</code> still knows them, and that a setting never saved is empty.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-ship-try" data-run="output">
+<pre class="code"><code>local sPrefs
+
+function prefsFile
+   return specialFolderPath("temporary") &amp; "/oxt-lesson-prefs.dat"
+end prefsFile
+
+command setPref pKey, pValue
+   put pValue into sPrefs[pKey]
+   put arrayEncode(sPrefs) into URL ("binfile:" &amp; prefsFile())
+end setPref
+
+function getPref pKey
+   if sPrefs is not an array and there is a file prefsFile() then
+      put arrayDecode(URL ("binfile:" &amp; prefsFile())) into sPrefs
+   end if
+   return sPrefs[pKey]
+end getPref
+
+setPref "theme", "dark"
+setPref "fontSize", 14
+put empty into sPrefs
+put "theme is" &amp;&amp; getPref("theme")
+put "fontSize is" &amp;&amp; getPref("fontSize")
+put "missing is empty:" &amp;&amp; (getPref("missing") is empty)
+delete file prefsFile()</code></pre>
+<pre class="out">theme is dark
+fontSize is 14
+missing is empty: true</pre>
+</figure>
+<p>In a real program, <code>prefsFile</code> would use the settings folder of the section above, and the whole library would be a script-only stack that the main stack starts using as it opens.</p>
+</details>
+</section>

@@ -1,0 +1,126 @@
+<!--
+title: Reading and writing files
+level: advanced
+minutes: 10
+summary: Read a whole file into a variable and write one back in a line, find the folders a program may use, and list, rename and delete files.
+words: URL, file:, binfile:, specialFolderPath, files, folders, there is a file, delete file, create folder, rename, defaultFolder
+-->
+<h2 id="url">A file is a container</h2>
+<p>The simplest way to use a file in xTalk is to treat it as a container, like a variable or a field. <code>URL "file:"</code> followed by the file's path reads the whole file, and putting into it writes the whole file:</p>
+<figure class="example" id="ex-files-url" data-run="output">
+<pre class="code"><code>put specialFolderPath("temporary") &amp; "/oxt-lesson-notes.txt" into tPath
+put "First line" &amp; return &amp; "Second line" into URL ("file:" &amp; tPath)
+put URL ("file:" &amp; tPath) into tText
+put the number of lines of tText
+put line 2 of tText
+put there is a file tPath
+delete file tPath
+put there is a file tPath</code></pre>
+<pre class="out">2
+Second line
+true
+false</pre>
+</figure>
+<p>Use <code>after</code> to add to the end of a file without reading it first, which is handy for a log:</p>
+<figure class="example" id="ex-files-append" data-run="output">
+<pre class="code"><code>put specialFolderPath("temporary") &amp; "/oxt-lesson-log.txt" into tPath
+put "started" into URL ("file:" &amp; tPath)
+put return &amp; "working" after URL ("file:" &amp; tPath)
+put return &amp; "finished" after URL ("file:" &amp; tPath)
+put URL ("file:" &amp; tPath)
+delete file tPath</code></pre>
+<pre class="out">started
+working
+finished</pre>
+</figure>
+
+<h2 id="text-binary">file: or binfile:</h2>
+<p><code>file:</code> reads and writes text, and changes line endings to suit the system. <code>binfile:</code> reads and writes the bytes exactly as they are: use it for pictures, sound and any data that is not plain text, and for text whose encoding you choose yourself:</p>
+<figure class="example" id="ex-files-binfile" data-run="output">
+<pre class="code"><code>put specialFolderPath("temporary") &amp; "/oxt-lesson-utf8.txt" into tPath
+put textEncode("café ☕", "UTF-8") into URL ("binfile:" &amp; tPath)
+put the number of bytes of URL ("binfile:" &amp; tPath)
+put textDecode(URL ("binfile:" &amp; tPath), "UTF-8")
+delete file tPath</code></pre>
+<pre class="out">9
+café ☕</pre>
+</figure>
+<aside class="tip"><p>For text in any language, the safe pair is <code>textEncode(tText, "UTF-8")</code> into a <code>binfile:</code> URL to write, and <code>textDecode(URL ("binfile:" &amp; tPath), "UTF-8")</code> to read, so the encoding is always UTF-8, whatever system the stack runs on.</p></aside>
+
+<h2 id="where">Where to keep files</h2>
+<p>A program should not scatter files anywhere. <code>specialFolderPath</code> gives the right folder on every system:</p>
+<ul>
+<li><code>specialFolderPath("documents")</code>: the user's documents, for files they made and will look for;</li>
+<li><code>specialFolderPath("support")</code>: the place for a program's own settings and data (add a folder with your program's name);</li>
+<li><code>specialFolderPath("temporary")</code>: for files you need only for a moment, as in these examples;</li>
+<li><code>specialFolderPath("home")</code> and <code>specialFolderPath("desktop")</code>.</li>
+</ul>
+<p>Paths in xTalk always use <code>/</code> between folders, on Windows too, so the same script works everywhere. With the <code>itemDelimiter</code> set to <code>/</code>, a path's items are its folders:</p>
+<figure class="example" id="ex-files-paths" data-run="output">
+<pre class="code"><code>put "/home/ada/notes/todo.txt" into tPath
+set the itemDelimiter to slash
+put item -1 of tPath
+put item 1 to -2 of tPath
+set the itemDelimiter to "."
+put item -1 of tPath</code></pre>
+<pre class="out">todo.txt
+/home/ada/notes
+txt</pre>
+</figure>
+
+<h2 id="folders">Folders and listing files</h2>
+<p><code>files(folder)</code> lists the files in a folder, a line each, and <code>folders(folder)</code> its folders. <code>create folder</code>, <code>rename file</code> and <code>delete file</code> and <code>delete folder</code> do what they say:</p>
+<figure class="example" id="ex-files-list" data-run="output">
+<pre class="code"><code>put specialFolderPath("temporary") &amp; "/oxt-lesson-folder" into tFolder
+create folder tFolder
+put "a" into URL ("file:" &amp; tFolder &amp; "/b.txt")
+put "b" into URL ("file:" &amp; tFolder &amp; "/a.txt")
+put "c" into URL ("file:" &amp; tFolder &amp; "/c.csv")
+put files(tFolder) into tFiles
+sort tFiles
+put tFiles
+filter tFiles with "*.txt"
+put the number of lines of tFiles
+rename file (tFolder &amp; "/c.csv") to (tFolder &amp; "/d.csv")
+put there is a file (tFolder &amp; "/d.csv")
+repeat for each line tFile in files(tFolder)
+   delete file (tFolder &amp; "/" &amp; tFile)
+end repeat
+delete folder tFolder
+put there is a folder tFolder</code></pre>
+<pre class="out">a.txt
+b.txt
+c.csv
+2
+true
+false</pre>
+</figure>
+<aside class="warn"><p><code>delete file</code> does not use the Trash or Recycle Bin: the file is gone. Check the path twice before deleting in a loop.</p></aside>
+
+<h2 id="errors">When a file cannot be read</h2>
+<p>Reading a file that is not there does not stop the script. The URL is empty and <code>the result</code> says what went wrong, so check it:</p>
+<figure class="example" id="ex-files-missing" data-run="output">
+<pre class="code"><code>put URL "file:/no/such/folder/settings.txt" into tSettings
+if the result is not empty then
+   put "Could not read the settings:" &amp;&amp; the result
+end if</code></pre>
+<pre class="out">Could not read the settings: can't open file</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Save a high-score table (one line per player, <code>name,score</code>) to a file in the temporary folder, read it back, add a new score, sort the table highest first, save it again, and put the top line. Delete the file at the end.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-files-try" data-run="output">
+<pre class="code"><code>put specialFolderPath("temporary") &amp; "/oxt-lesson-scores.txt" into tPath
+put "Kim,340" &amp; return &amp; "Lee,875" into URL ("file:" &amp; tPath)
+put URL ("file:" &amp; tPath) into tScores
+put return &amp; "Raj,1200" after tScores
+sort lines of tScores numeric descending by item 2 of each
+put tScores into URL ("file:" &amp; tPath)
+put line 1 of URL ("file:" &amp; tPath)
+delete file tPath</code></pre>
+<pre class="out">Raj,1200</pre>
+</figure>
+</details>
+</section>

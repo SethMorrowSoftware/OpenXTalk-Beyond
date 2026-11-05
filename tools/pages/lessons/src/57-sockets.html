@@ -1,0 +1,172 @@
+<!--
+title: Sockets
+level: expert
+minutes: 12
+summary: Connect two programs directly over the network: a server that accepts connections, a client that opens one, reading and writing with messages, errors, and a small protocol of your own.
+words: accept connections, open socket, write to socket, read from socket, close socket, the openSockets, socketError, socketClosed, socketTimeout, open secure socket
+-->
+<h2 id="what">A line between two programs</h2>
+<p>A web request (<a href="../internet/">The web and the internet</a>) asks a question and gets one answer. A <strong>socket</strong> is a lasting two-way connection: both ends can write whenever they like, for as long as it stays open. Chat programs, multiplayer games and devices on a network all talk this way.</p>
+<p>One program is the <strong>server</strong>: it listens on a <strong>port</strong>, a number from 1 to 65535 on its computer. The other is the <strong>client</strong>: it connects to the server's address and port. Once connected, the two are equal. In this lesson's examples one script plays both parts, on this computer (<code>127.0.0.1</code>), so they run anywhere.</p>
+
+<h2 id="server">The server: accept connections</h2>
+<p><code>accept connections on port</code> starts listening. Each time a client connects, the message you name arrives with the new connection's id, which is the client's address and port, and is how you write to it, read from it and close it:</p>
+<figure class="example" id="ex-sock-accept" data-run="compile">
+<pre class="code"><code>on startServer
+   accept connections on port 47123 with message "newClient"
+   if the result is not empty then answer "Could not listen:" &amp;&amp; the result
+end startServer
+
+on newClient pSocket
+   -- pSocket is the connection, such as 127.0.0.1:52344
+   write "Welcome!" &amp; return to socket pSocket
+end newClient
+
+on stopServer
+   close socket 47123
+end stopServer</code></pre>
+</figure>
+<p>Closing the port stops the listening; connections already made stay open until they are closed too. Use a port above 1024 (lower ones need special permission), and one no other program on the computer uses.</p>
+
+<h2 id="client">The client: open socket</h2>
+<p><code>open socket to</code> the address and port connects, and the message you name arrives once the connection is made. Nothing should be written before it does.</p>
+
+<h2 id="read-write">Writing and reading with messages</h2>
+<p><code>write ... to socket</code> sends data. <code>read from socket</code> takes data that has arrived: <code>until return</code> for a line, or <code>for</code> a number of bytes. With <code>with message</code>, the read returns at once, and the message arrives with the data when it has all come, so the program never stops to wait for the other end. Here a client says hello and a server answers in capitals:</p>
+<figure class="example" id="ex-sock-echo" data-run="output" data-wait="3">
+<pre class="code"><code>on newClient pSocket
+   put "server: someone connected"
+   read from socket pSocket until return with message "serverGotLine"
+end newClient
+
+on serverGotLine pSocket, pData
+   put "server got:" &amp;&amp; line 1 of pData
+   write toUpper(pData) to socket pSocket
+end serverGotLine
+
+on connected pSocket
+   put "client: connected"
+   write "hello" &amp; return to socket pSocket
+   read from socket pSocket until return with message "clientGotLine"
+end connected
+
+on clientGotLine pSocket, pData
+   put "client got:" &amp;&amp; line 1 of pData
+   close socket pSocket
+   close socket 47123
+end clientGotLine
+
+accept connections on port 47123 with message "newClient"
+open socket to "127.0.0.1:47123" with message "connected"
+put "both ends are getting ready"</code></pre>
+<pre class="out">both ends are getting ready
+server: someone connected
+client: connected
+server got: hello
+client got: HELLO</pre>
+</figure>
+<p>Follow the order of the lines: nothing happens during the script itself but setting things up. Everything after the first line happens in messages, as the data travels. That is the shape of every socket program: a handler for each thing that can arrive.</p>
+<aside class="tip"><p>A read with <code>until return</code> gets the line with its <code>return</code>, as the examples show by taking <code>line 1</code>. A read gets one piece: to keep listening for the next line, read again in the handler, as the try-it below does.</p></aside>
+
+<h2 id="errors">When things go wrong</h2>
+<p>Networks fail: the server is not there, the other end goes away, nothing arrives. The engine reports each with a message to the object that opened the socket: <code>socketError</code> with the socket and what went wrong, <code>socketClosed</code> when the other end closes, and <code>socketTimeout</code> when a read has waited longer than the <code>socketTimeoutInterval</code>:</p>
+<figure class="example" id="ex-sock-error" data-run="output" data-wait="2">
+<pre class="code"><code>on socketError pSocket, pError
+   put "could not use" &amp;&amp; pSocket &amp; ":" &amp;&amp; pError
+end socketError
+
+on socketClosed pSocket
+   put pSocket &amp;&amp; "was closed by the other end"
+end socketClosed
+
+open socket to "127.0.0.1:1" with message "connected"
+put "trying a port where nobody listens"</code></pre>
+<pre class="out">trying a port where nobody listens
+could not use 127.0.0.1:1: Error 111 reading socket</pre>
+</figure>
+<p><code>the openSockets</code> lists the connections and ports still open, a line each: check it to make sure a program closes what it opens.</p>
+
+<h2 id="protocol">A protocol of your own</h2>
+<p>The two ends must agree how a message ends, or the reader cannot tell one from the next: this agreement is a <strong>protocol</strong>. The simplest is a line each, as above, which suits text that has no line breaks in it. For anything else (text with returns, pictures, files) send the length first, and read exactly that many bytes:</p>
+<figure class="example" id="ex-sock-protocol" data-run="compile">
+<pre class="code"><code>-- each message: its length as 4 bytes, then the bytes
+command sendMessage pSocket, pText
+   local tData
+   put textEncode(pText, "UTF-8") into tData
+   write binaryEncode("N", the number of bytes of tData) &amp; tData to socket pSocket
+end sendMessage
+
+command listenFor pSocket
+   read from socket pSocket for 4 bytes with message "gotLength"
+end listenFor
+
+on gotLength pSocket, pData
+   local tLength
+   get binaryDecode("N", pData, tLength)
+   read from socket pSocket for tLength bytes with message "gotMessage"
+end gotLength
+
+on gotMessage pSocket, pData
+   put textDecode(pData, "UTF-8") after field "Chat"
+   listenFor pSocket
+end gotMessage</code></pre>
+</figure>
+<aside class="note"><p>Over the internet, use <code>open secure socket</code> and <code>accept secure connections</code>, which encrypt everything with TLS as <code>https:</code> does. OXT-Beyond's own libraries go further for particular jobs: ENet (fast messages for games), WebRTC data channels (straight between two users) and Tor, each in the Dictionary.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a calculator server: it reads lines such as <code>add 2 3</code> or <code>times 4 5</code>, answers each with the result, and keeps reading. The client sends both questions, one after the other as each answer arrives, puts the answers, then closes.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-sock-try" data-run="output" data-wait="3">
+<pre class="code"><code>local sQuestions
+
+on newClient pSocket
+   read from socket pSocket until return with message "serverGotLine"
+end newClient
+
+on serverGotLine pSocket, pData
+   switch word 1 of pData
+      case "add"
+         write word 2 of pData + word 3 of pData &amp; return to socket pSocket
+         break
+      case "times"
+         write word 2 of pData * word 3 of pData &amp; return to socket pSocket
+         break
+      default
+         write "unknown" &amp; return to socket pSocket
+   end switch
+   read from socket pSocket until return with message "serverGotLine"
+end serverGotLine
+
+on connected pSocket
+   askNext pSocket
+end connected
+
+on askNext pSocket
+   if sQuestions is empty then
+      close socket pSocket
+      close socket 47124
+      exit askNext
+   end if
+   put line 1 of sQuestions into tQuestion
+   delete line 1 of sQuestions
+   put tQuestion &amp;&amp; "is ..."
+   write tQuestion &amp; return to socket pSocket
+   read from socket pSocket until return with message "clientGotAnswer"
+end askNext
+
+on clientGotAnswer pSocket, pData
+   put "... " &amp; line 1 of pData
+   askNext pSocket
+end clientGotAnswer
+
+put "add 2 3" &amp; return &amp; "times 4 5" into sQuestions
+accept connections on port 47124 with message "newClient"
+open socket to "127.0.0.1:47124" with message "connected"</code></pre>
+<pre class="out">add 2 3 is ...
+... 5
+times 4 5 is ...
+... 20</pre>
+</figure>
+</details>
+</section>

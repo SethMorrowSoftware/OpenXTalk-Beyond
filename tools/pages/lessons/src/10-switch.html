@@ -1,0 +1,107 @@
+<!--
+title: Many choices with switch
+level: beginner
+minutes: 7
+summary: Pick one of many paths with switch, case, break and default, and when to prefer it to a chain of ifs.
+words: switch, case, break, default, end switch
+-->
+<h2 id="switch">One value, many cases</h2>
+<p>When you compare one value against many possibilities, <code>switch</code> is tidier than a long chain of <code>else if</code>. Each <code>case</code> gives a value; xTalk runs the lines of the first one that matches, until a <code>break</code>. <code>default</code> runs when nothing matched.</p>
+<figure class="example" id="ex-switch-basic" data-run="output">
+<pre class="code"><code>put "Save" into tChoice
+switch tChoice
+   case "Open"
+      put "Opening a file"
+      break
+   case "Save"
+      put "Saving your work"
+      break
+   default
+      put "Not a menu item:" &amp;&amp; tChoice
+end switch</code></pre>
+<pre class="out">Saving your work</pre>
+</figure>
+
+<h2 id="several-values">Several values, one answer</h2>
+<p>Cases with no lines between them share the lines that follow. Matching text ignores capitals, as every text comparison does.</p>
+<figure class="example" id="ex-switch-shared" data-run="output">
+<pre class="code"><code>put "SUN" into tDay
+switch tDay
+   case "Sat"
+   case "Sun"
+      put "Weekend"
+      break
+   default
+      put "Weekday"
+end switch</code></pre>
+<pre class="out">Weekend</pre>
+</figure>
+
+<h2 id="break">Do not forget break</h2>
+<p>Without <code>break</code>, xTalk carries on into the next case's lines, whether it matches or not. Occasionally that is what you want; usually it is a bug.</p>
+<figure class="example" id="ex-switch-fall" data-run="output">
+<pre class="code"><code>put 2 into tLevel
+switch tLevel
+   case 1
+      put "Easy"
+   case 2
+      put "Medium" -- no break here...
+   case 3
+      put "Hard"   -- ...so this runs too
+      break
+   default
+      put "Unknown level"
+end switch</code></pre>
+<pre class="out">Medium
+Hard</pre>
+</figure>
+
+<h2 id="conditions">Cases that are conditions</h2>
+<p>A <code>switch</code> with nothing after it takes a condition in each <code>case</code>, and runs the first that is true. It reads well for ranges.</p>
+<figure class="example" id="ex-switch-conditions" data-run="output">
+<pre class="code"><code>put 37 into tCelsius
+switch
+   case tCelsius &lt; 0
+      put "Freezing"
+      break
+   case tCelsius &lt; 20
+      put "Mild"
+      break
+   case tCelsius &lt; 35
+      put "Warm"
+      break
+   default
+      put "Hot"
+end switch</code></pre>
+<pre class="out">Hot</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a <code>switch</code> that turns a month's number (1 to 12) into its season in the northern hemisphere: 12, 1 and 2 are winter, 3 to 5 spring, 6 to 8 summer, and 9 to 11 autumn. Try it with month 4.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-switch-try" data-run="output">
+<pre class="code"><code>put 4 into tMonth
+switch tMonth
+   case 12
+   case 1
+   case 2
+      put "Winter"
+      break
+   case 3
+   case 4
+   case 5
+      put "Spring"
+      break
+   case 6
+   case 7
+   case 8
+      put "Summer"
+      break
+   default
+      put "Autumn"
+end switch</code></pre>
+<pre class="out">Spring</pre>
+</figure>
+</details>
+</section>

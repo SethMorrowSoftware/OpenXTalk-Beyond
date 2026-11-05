@@ -1,0 +1,148 @@
+<!--
+title: JSON
+level: expert
+minutes: 10
+summary: Read and write JSON, the text format of almost every web service: JSONImport into arrays, JSONExport back out, numbers and lists, errors, and settings files.
+words: JSONImport, JSONExport, array, element, keys, try, textEncode, textDecode, binfile:
+-->
+<h2 id="what">JSON in one look</h2>
+<p><strong>JSON</strong> (JavaScript Object Notation) is plain text for structured data, and almost every web service sends and takes it. Its pieces map onto xTalk's naturally:</p>
+<div class="table-scroll"><table>
+<thead><tr><th>JSON</th><th>Looks like</th><th>In xTalk</th></tr></thead>
+<tbody>
+<tr><td>object</td><td><code>{"name": "Ada", "born": 1815}</code></td><td>an array with those keys</td></tr>
+<tr><td>array (a list)</td><td><code>["tea", "cake"]</code></td><td>an array with keys 1, 2, 3 …</td></tr>
+<tr><td>string</td><td><code>"Zoë said \"hi\""</code></td><td>text</td></tr>
+<tr><td>number</td><td><code>3.14</code></td><td>a number</td></tr>
+<tr><td><code>true</code>, <code>false</code></td><td></td><td><code>true</code>, <code>false</code></td></tr>
+<tr><td><code>null</code></td><td></td><td>empty</td></tr>
+</tbody></table></div>
+<p>The two functions that do the work, <code>JSONImport</code> and <code>JSONExport</code>, come in the JSON library that OXT-Beyond loads as it starts.</p>
+
+<h2 id="import">Reading JSON: JSONImport</h2>
+<p><code>JSONImport</code> turns JSON text into an xTalk value, usually an array, whose elements you reach with keys, as deep as the JSON goes:</p>
+<figure class="example" id="ex-json-import" data-run="output" data-needs="com.livecode.library.json">
+<pre class="code"><code>put "{'name': 'Zoë', 'tags': ['admin', 'editor'], 'address': {'city': 'Lyon'}, 'score': 3.5, 'active': false, 'manager': null}" into tJSON
+replace "'" with quote in tJSON
+
+put JSONImport(tJSON) into tUser
+put tUser["name"] &amp;&amp; "lives in" &amp;&amp; tUser["address"]["city"]
+put "tags:" &amp;&amp; the number of elements of tUser["tags"] &amp; ", the second is" &amp;&amp; tUser["tags"][2]
+put "score doubled:" &amp;&amp; tUser["score"] * 2
+put "active:" &amp;&amp; tUser["active"]
+put "manager is empty:" &amp;&amp; (tUser["manager"] is empty)</code></pre>
+<pre class="out">Zoë lives in Lyon
+tags: 2, the second is editor
+score doubled: 7
+active: false
+manager is empty: true</pre>
+</figure>
+<p>JSON's strings are in double quotes, which end an xTalk string. To write JSON in a script, this example writes <code>'</code> for each <code>"</code> and then replaces them: a trick for examples and tests. JSON you work with usually comes from a file or a web service, already as text.</p>
+
+<h2 id="export">Writing JSON: JSONExport</h2>
+<p><code>JSONExport</code> turns an xTalk value into JSON text, escaping quotes and line breaks in strings for you:</p>
+<figure class="example" id="ex-json-export" data-run="output" data-needs="com.livecode.library.json">
+<pre class="code"><code>put "Ada said" &amp;&amp; quote &amp; "hello" &amp; quote &amp; return &amp; "and left" into tNote["text"]
+put JSONExport(tNote)
+
+put 1815 + 0 into tPerson["born"]
+put JSONExport(tPerson)
+put "1815" into tPerson["born"]
+put JSONExport(tPerson)</code></pre>
+<pre class="out">{"text": "Ada said \"hello\"\nand left"}
+{"born": 1815}
+{"born": "1815"}</pre>
+</figure>
+<p>The last two lines show a difference that matters to many services. A value that xTalk holds as a number is written as a JSON number; one it holds as text is written as a string, even when the text is digits. A value typed in a script, or read from a field or a file, is text; arithmetic (here <code>+ 0</code>) makes it a number.</p>
+<aside class="note"><p>The keys of an array have no order (<a href="../arrays/">Arrays</a>), so <code>JSONExport</code> may write an object's members in any order. JSON does not care about the order of an object's members, and any program that reads JSON properly does not either.</p></aside>
+
+<h2 id="lists">Writing a JSON list</h2>
+<p>An xTalk array is always written as a JSON object, even when its keys are 1, 2, 3, so <code>["tea", "cake"]</code> comes out as <code>{"1": "tea", "2": "cake"}</code>. When a service needs a JSON list, build it from the elements in order, each one exported on its own:</p>
+<figure class="example" id="ex-json-list" data-run="output" data-needs="com.livecode.library.json">
+<pre class="code"><code>function jsonList pArray
+   local tItems
+   repeat with i = 1 to the number of elements of pArray
+      put JSONExport(pArray[i]) &amp; "," after tItems
+   end repeat
+   delete the last char of tItems
+   return "[" &amp; tItems &amp; "]"
+end jsonList
+
+put "tea" into tOrder[1]
+put "cake" into tOrder[2]
+put "juice" into tOrder[3]
+put jsonList(tOrder) into tJSON
+put tJSON
+put JSONImport(tJSON) into tBack
+put tBack[2]</code></pre>
+<pre class="out">["tea","cake","juice"]
+cake</pre>
+</figure>
+
+<h2 id="errors">When the JSON is wrong</h2>
+<p>Text that is not valid JSON makes <code>JSONImport</code> throw an error, so wrap it in a <code>try</code> whenever the text comes from outside your program:</p>
+<figure class="example" id="ex-json-errors" data-run="output" data-needs="com.livecode.library.json">
+<pre class="code"><code>command readJSON pText, @rValue
+   try
+      put JSONImport(pText) into rValue
+   catch tError
+      return "not valid JSON" for error
+   end try
+   return empty for value
+end readJSON
+
+repeat for each line tText in "[1, 2, 3]" &amp; return &amp; "{broken"
+   readJSON tText, tValue
+   if the result is not empty then
+      put tText &amp; ":" &amp;&amp; the result
+   else
+      put tText &amp; ": read," &amp;&amp; the number of elements of tValue &amp;&amp; "elements"
+   end if
+end repeat</code></pre>
+<pre class="out">[1, 2, 3]: read, 3 elements
+{broken: not valid JSON</pre>
+</figure>
+
+<h2 id="settings">A settings file</h2>
+<p>JSON makes a good settings file: readable, and easy to edit by hand if need be. Write it as UTF-8 through <code>binfile:</code> so accented letters survive on every system (<a href="../files/#text-binary">Reading and writing files</a>):</p>
+<figure class="example" id="ex-json-settings" data-run="output" data-needs="com.livecode.library.json">
+<pre class="code"><code>put specialFolderPath("temporary") &amp; "/oxt-lesson-settings.json" into tPath
+
+put "dark" into tSettings["theme"]
+put 14 + 0 into tSettings["textSize"]
+put "Zoë" into tSettings["user"]
+put textEncode(JSONExport(tSettings), "UTF-8") into URL ("binfile:" &amp; tPath)
+
+put JSONImport(textDecode(URL ("binfile:" &amp; tPath), "UTF-8")) into tLoaded
+put tLoaded["user"] &amp;&amp; "likes" &amp;&amp; tLoaded["theme"] &amp;&amp; "at" &amp;&amp; tLoaded["textSize"] &amp;&amp; "points"
+delete file tPath</code></pre>
+<pre class="out">Zoë likes dark at 14 points</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>A web service sent this list of books: <code>[{"title": "Dune", "pages": 412}, {"title": "Emma", "pages": 474}, {"title": "Momo", "pages": 304}]</code>. Read it, put the titles sorted by pages, longest first, and the total number of pages.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-json-try" data-run="output" data-needs="com.livecode.library.json">
+<pre class="code"><code>put "[{'title': 'Dune', 'pages': 412}, {'title': 'Emma', 'pages': 474}, {'title': 'Momo', 'pages': 304}]" into tJSON
+replace "'" with quote in tJSON
+put JSONImport(tJSON) into tBooks
+
+put 0 into tTotal
+repeat with i = 1 to the number of elements of tBooks
+   put tBooks[i]["pages"] &amp; tab &amp; tBooks[i]["title"] &amp; return after tList
+   add tBooks[i]["pages"] to tTotal
+end repeat
+set the itemDelimiter to tab
+sort lines of tList numeric descending by item 1 of each
+repeat for each line tLine in tList
+   put item 2 of tLine &amp;&amp; "(" &amp; item 1 of tLine &amp;&amp; "pages)"
+end repeat
+put "total:" &amp;&amp; tTotal</code></pre>
+<pre class="out">Emma (474 pages)
+Dune (412 pages)
+Momo (304 pages)
+total: 1190</pre>
+</figure>
+</details>
+</section>

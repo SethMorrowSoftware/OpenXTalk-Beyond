@@ -1,0 +1,154 @@
+<!--
+title: Cards and going between them
+level: intermediate
+minutes: 10
+summary: Make cards, move between them, share a background of controls across cards, and keep each card's own text.
+words: card, create card, go, next, previous, first, last, back, the number of this card, cardNames, group, backgroundBehavior, sharedText, visual effect
+-->
+<h2 id="cards">A stack of cards</h2>
+<p>A stack shows one card at a time. Each card is a screen of its own: a page of a book, a step of a quiz, a record in an address list. <code>create card</code> adds a card after the current one and goes to it; <code>go</code> moves between them.</p>
+<figure class="example" id="ex-cards-go" data-run="output">
+<pre class="code"><code>set the name of this card to "Home"
+create card "Help"
+create card "About"
+put the number of cards
+put the short name of this card
+go to card "Home"
+put the short name of this card
+go next card
+put the short name of this card
+go last card
+put the short name of this card
+go next card
+put the short name of this card</code></pre>
+<pre class="out">3
+About
+Home
+Help
+About
+Home</pre>
+</figure>
+<p><code>go next card</code> on the last card goes round to the first, and <code>go previous card</code> on the first to the last, so a stack is a ring of cards. You can also <code>go first card</code>, <code>go to card 2</code>, or <code>go back</code> to the card you were on before.</p>
+
+<h2 id="which">Which card is this?</h2>
+<figure class="example" id="ex-cards-which" data-run="output">
+<pre class="code"><code>create card
+create card
+repeat with i = 1 to the number of cards
+   set the name of card i to "Page" &amp;&amp; i
+end repeat
+put the cardNames of this stack
+go to card "Page 2"
+put the number of this card
+put the short name of this card</code></pre>
+<pre class="out">Page 1
+Page 2
+Page 3
+2
+Page 2</pre>
+</figure>
+<p><code>the number of this card</code> is its place in the stack, and <code>the cardNames</code> lists every card's name, a line each.</p>
+
+<h2 id="opencard">Each card gets ready: openCard</h2>
+<p>Going to a card sends it <code>openCard</code>, and leaving it sends <code>closeCard</code>. A handler in the stack's script hears them for every card; one in a card's script, only for that card.</p>
+<figure class="example" id="ex-cards-opencard" data-run="output">
+<pre class="code"><code>on openCard
+   put "openCard on card" &amp;&amp; the number of this card
+end openCard
+
+create card
+create card
+go to card 1</code></pre>
+<pre class="out">openCard on card 2
+openCard on card 3
+openCard on card 1</pre>
+</figure>
+
+<h2 id="backgrounds">Controls on every card: backgrounds</h2>
+<p>Many stacks want the same controls on every card: a title, Next and Back buttons, a field for each part of a record. Put them in a group and set the group's <code>backgroundBehavior</code> to true: every card you create after it gets the same group. It is one group, placed on many cards.</p>
+<figure class="example" id="ex-cards-background" data-run="output" data-shot="The stage on its first card, with a large field that says First page and a Next button in the bottom right corner.">
+<pre class="code"><code>create field "Text"
+set the rect of it to 20,20,460,280
+set the textSize of it to 24
+create button "Next"
+set the rect of it to 340,300,460,340
+group field "Text" and button "Next"
+set the name of it to "Page"
+set the backgroundBehavior of group "Page" to true
+put "First page" into field "Text"
+create card
+put "Second page" into field "Text"
+put the number of this card
+put the number of controls
+go to card 1
+put field "Text"</code></pre>
+<pre class="out">2
+3
+First page</pre>
+</figure>
+<p>The field is shared, but each card keeps <em>its own text</em> in it: that is what a field's <code>sharedText</code> property, false unless you change it, means. So a stack of cards with a background is a little database, one record a card, the way HyperCard's address books worked. (The picture shows the stage as the example left it, on card 1; go to card 2 in the playground to see the other.)</p>
+<aside class="legacy"><p>In HyperCard a card's background was a layer of its own. OXT-Beyond, like LiveCode, makes a HyperCard background into a group with <code>backgroundBehavior</code> true when it imports a stack, and the scripts that said <code>background field "Name"</code> still work.</p></aside>
+<p>Set a field's <code>sharedText</code> to true when it should show the same text on every card, like a heading:</p>
+<figure class="example" id="ex-cards-sharedtext" data-run="output">
+<pre class="code"><code>create field "Heading"
+set the sharedText of field "Heading" to true
+group field "Heading"
+set the backgroundBehavior of it to true
+put "My recipes" into field "Heading"
+create card
+create card
+put field "Heading"</code></pre>
+<pre class="out">My recipes</pre>
+</figure>
+
+<h2 id="navigating-buttons">Buttons that move</h2>
+<p>Here is the script of a Next button on a background. <code>visual effect</code> animates the change of card; the effects include <code>dissolve</code>, <code>wipe</code>, <code>push</code>, <code>scroll</code> and <code>reveal</code>, with a direction where it makes sense.</p>
+<figure class="example" id="ex-cards-buttons" data-run="compile">
+<pre class="code"><code>on mouseUp
+   visual effect push left fast
+   go next card
+end mouseUp</code></pre>
+</figure>
+<p>A Back button is the same with <code>push right</code> and <code>go previous card</code>, and a Home button just says <code>go first card</code>. Each goes in its own button's script: one script can have only one handler of each name.</p>
+
+<h2 id="delete">Deleting cards</h2>
+<p><code>delete card</code> removes a card and the controls that are only on it. A stack always keeps at least one card.</p>
+<figure class="example" id="ex-cards-delete" data-run="output">
+<pre class="code"><code>set the name of this card to "Start"
+create card "Scratch"
+put the number of cards
+delete card "Scratch"
+put the number of cards
+put the short name of this card</code></pre>
+<pre class="out">2
+1
+Start</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Build a three-card flash-card stack: a background with a field <code>Word</code>, and the cards' words <code>bonjour</code>, <code>merci</code> and <code>au revoir</code>. Then go through the cards from the first, putting each card's word.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-cards-try" data-run="output" data-shot="The stage with a field in its centre showing the word bonjour in large type.">
+<pre class="code"><code>create field "Word"
+set the rect of it to 90,140,390,220
+set the textSize of it to 32
+set the textAlign of it to "center"
+group field "Word"
+set the backgroundBehavior of it to true
+put "bonjour" into field "Word"
+create card
+put "merci" into field "Word"
+create card
+put "au revoir" into field "Word"
+go first card
+repeat the number of cards times
+   put field "Word"
+   go next card
+end repeat</code></pre>
+<pre class="out">bonjour
+merci
+au revoir</pre>
+</figure>
+</details>
+</section>

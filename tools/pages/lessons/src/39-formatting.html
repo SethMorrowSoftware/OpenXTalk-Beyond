@@ -1,0 +1,127 @@
+<!--
+title: Formatting text and numbers
+level: advanced
+minutes: 9
+summary: Show numbers with the decimals you want, pad and line up columns with format, round correctly, and fill templates with merge.
+words: format, numberFormat, round, trunc, merge, %d, %s, %f
+-->
+<h2 id="numberformat">How many decimals?</h2>
+<p>When xTalk turns a number into text, to show it or put it in a field, it uses the <code>numberFormat</code>: up to six decimals unless you say otherwise. Set it to a pattern of <code>0</code> (always show a digit) and <code>#</code> (show a digit only if needed):</p>
+<figure class="example" id="ex-format-numberformat" data-run="output">
+<pre class="code"><code>put 22 / 7
+set the numberFormat to "0.00"
+put 22 / 7
+put 2 + 0
+set the numberFormat to "0.###"
+put 22 / 7
+put 2.5 + 0</code></pre>
+<pre class="out">3.142857
+3.14
+2.00
+3.143
+2.5</pre>
+</figure>
+<p>The <code>numberFormat</code> changes only how a number becomes text. The number itself keeps all its precision:</p>
+<figure class="example" id="ex-format-precision" data-run="output">
+<pre class="code"><code>set the numberFormat to "0.0"
+put 1 / 3 into tThird
+put tThird
+set the numberFormat to "0.######"
+put tThird * 3</code></pre>
+<pre class="out">0.3
+1</pre>
+</figure>
+<aside class="note"><p>Like the <code>itemDelimiter</code>, the <code>numberFormat</code> goes back to its default when the handler that set it ends, so setting it in one handler cannot surprise another.</p></aside>
+
+<h2 id="rounding">Rounding</h2>
+<p><code>round</code> rounds to the nearest whole number, or to as many decimals as you ask. Halves go away from zero. A negative number of places rounds to tens, hundreds and so on. <code>trunc</code> just cuts the decimals off.</p>
+<figure class="example" id="ex-format-round" data-run="output">
+<pre class="code"><code>put round(2.5) &amp;&amp; round(3.5) &amp;&amp; round(-2.5)
+put round(3.14159, 2)
+put round(1234.5, -2)
+put trunc(-3.7) &amp;&amp; trunc(3.7)</code></pre>
+<pre class="out">3 4 -3
+3.14
+1200
+-3 3</pre>
+</figure>
+<aside class="tip"><p>Round when you show a value, not while you calculate with it: rounding at every step lets small errors pile up. For money, many programs keep whole cents (or pence) and divide by 100 only to show the amount.</p></aside>
+
+<h2 id="format">Fill in the blanks: format</h2>
+<p><code>format</code> builds text from a template, like <code>printf</code> in C. Each <code>%</code> code in the template is replaced by the next value: <code>%d</code> a whole number, <code>%f</code> a number with decimals, <code>%s</code> text, <code>%x</code> a number in hexadecimal.</p>
+<figure class="example" id="ex-format-format" data-run="output">
+<pre class="code"><code>put format("%d items at %.2f each", 3, 4.5)
+put format("%s is %d years old", "Ada", 36)
+put format("%05d", 42)
+put format("%x in hex is %X", 255, 255)
+put format("100%%")</code></pre>
+<pre class="out">3 items at 4.50 each
+Ada is 36 years old
+00042
+ff in hex is FF
+100%</pre>
+</figure>
+<p>A number between <code>%</code> and the letter is a width, which pads the value with spaces; a minus sign pads on the right instead of the left. That is how to line up columns in plain text:</p>
+<figure class="example" id="ex-format-columns" data-run="output">
+<pre class="code"><code>put "Ada,36.5" &amp; return &amp; "Grace,112" &amp; return &amp; "Linus,7.25" into tRows
+repeat for each line tRow in tRows
+   put format("%-8s|%8.2f", item 1 of tRow, item 2 of tRow)
+end repeat</code></pre>
+<pre class="out">Ada     |   36.50
+Grace   |  112.00
+Linus   |    7.25</pre>
+</figure>
+<p><code>format</code> also turns <code>\n</code> into a new line and <code>\t</code> into a tab, so it is a compact way to write those inside a string.</p>
+
+<h2 id="thousands">Thousands separators</h2>
+<p>There is no built-in pattern for <code>1,234,567</code>, but a short function does it, and shows chunk expressions at work:</p>
+<figure class="example" id="ex-format-commas" data-run="output">
+<pre class="code"><code>function withCommas pNumber
+   put trunc(pNumber) into tWhole
+   put empty into tOut
+   repeat while the length of tWhole &gt; 3
+      put comma &amp; char -3 to -1 of tWhole before tOut
+      delete char -3 to -1 of tWhole
+   end repeat
+   return tWhole &amp; tOut
+end withCommas
+
+put withCommas(1234567)
+put withCommas(999)
+put withCommas(1000)</code></pre>
+<pre class="out">1,234,567
+999
+1,000</pre>
+</figure>
+
+<h2 id="merge">Templates: merge</h2>
+<p><code>merge</code> fills a template with the values of expressions written between double square brackets. It is the easiest way to build a long piece of text, an email or a web page, with values in it:</p>
+<figure class="example" id="ex-format-merge" data-run="output">
+<pre class="code"><code>put "Ada" into tName
+put 36 into tAge
+put merge("Hello [[tName]], next year you will be [[tAge + 1]].")
+put merge("[[toUpper(tName)]] has [[the length of tName]] letters.")</code></pre>
+<pre class="out">Hello Ada, next year you will be 37.
+ADA has 3 letters.</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Print a receipt: for each line of <code>Tea,2,1.8</code>, <code>Cake,1,3.25</code> and <code>Juice,3,2</code> (name, quantity, price), put the name padded to 8 characters, the quantity, and the line's total with two decimals, then a total line.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-format-try" data-run="output">
+<pre class="code"><code>put "Tea,2,1.8" &amp; return &amp; "Cake,1,3.25" &amp; return &amp; "Juice,3,2" into tOrder
+put 0 into tTotal
+repeat for each line tLine in tOrder
+   put item 2 of tLine * item 3 of tLine into tCost
+   add tCost to tTotal
+   put format("%-8s x%d %7.2f", item 1 of tLine, item 2 of tLine, tCost)
+end repeat
+put format("%-11s %7.2f", "Total", tTotal)</code></pre>
+<pre class="out">Tea      x2    3.60
+Cake     x1    3.25
+Juice    x3    6.00
+Total         12.85</pre>
+</figure>
+</details>
+</section>

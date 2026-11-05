@@ -1,0 +1,149 @@
+<!--
+title: Hashes, randomness and encryption
+level: expert
+minutes: 12
+summary: Fingerprint data with SHA-256, sign messages with HMAC, store passwords safely with Argon2, make secure random keys and IDs, and encrypt with libsodium and AES.
+words: messageDigest, messageAuthenticationCode, randomBytes, uuid, encrypt, decrypt, the cipherNames, sxPwHashStr, sxPwHashStrVerify, sxSecretBox, sxSecretBoxOpen, sxRandomBytes
+-->
+<h2 id="hash">Fingerprints: hashes</h2>
+<p>A <strong>hash</strong> turns any amount of data into a short fingerprint of fixed size. The same data always gives the same hash, and the smallest change gives a completely different one, so a hash tells you whether a file arrived intact or has changed since you last saw it. <code>messageDigest</code> makes one with the algorithm you name; the result is bytes, best shown in hexadecimal (<a href="../binary-data/#hex">Binary data</a>):</p>
+<figure class="example" id="ex-sec-digest" data-run="output">
+<pre class="code"><code>function sha256Hex pText
+   local tHex
+   get binaryDecode("H*", messageDigest(textEncode(pText, "UTF-8"), "SHA-256"), tHex)
+   return tHex
+end sha256Hex
+
+put sha256Hex("hello")
+put sha256Hex("hello!")
+put the length of sha256Hex("a much, much longer piece of text than the others")</code></pre>
+<pre class="out">2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824
+ce06092fb948d9ffac7d1a376e404b26b7575bcc11ee05a4615fef4fec3a308b
+64</pre>
+</figure>
+<p>Hash text by its UTF-8 bytes, as here, so the same text gives the same hash on every system. <code>"SHA-256"</code>, <code>"SHA-512"</code> and <code>"SHA3-256"</code> are good choices today.</p>
+<aside class="legacy"><p><code>md5Digest</code> and <code>sha1Digest</code> are still there for old formats that need them. Both are broken for security: people can make two different files with the same MD5 or SHA-1 hash. Use them to match an old checksum, never to protect anything.</p></aside>
+
+<h2 id="hmac">Signing a message: HMAC</h2>
+<p>A hash shows that data changed, but anyone can compute one, so an attacker who changes a message can change its hash too. An <strong>HMAC</strong> mixes a secret key into the hash: only someone with the key can make the right code, so a message that arrives with a matching code came from someone who knows the key, unchanged. Many web services sign their messages this way:</p>
+<figure class="example" id="ex-sec-hmac" data-run="output" data-needs="com.livecode.library.messageauthentication">
+<pre class="code"><code>function signHex pMessage, pKey
+   local tHex
+   get binaryDecode("H*", messageAuthenticationCode(pMessage, pKey, "HMAC-SHA-256"), tHex)
+   return tHex
+end signHex
+
+put signHex("pay Ada 10", "our shared secret") into tCode
+put the length of tCode
+put signHex("pay Ada 10", "our shared secret") is tCode
+put signHex("pay Ada 1000", "our shared secret") is tCode
+put signHex("pay Ada 10", "a guessed secret") is tCode</code></pre>
+<pre class="out">64
+true
+false
+false</pre>
+</figure>
+
+<h2 id="random">Random enough to be secret</h2>
+<p><code>random</code> is fine for games, but its numbers can be predicted, which makes them useless for anything secret. <code>randomBytes</code> takes bytes from the system's secure source, the right way to make a key, a token or a salt. <code>uuid</code> makes a unique ID, 36 characters, safe to use as the name of a record or a file without asking a server for one:</p>
+<figure class="example" id="ex-sec-random" data-run="runs">
+<pre class="code"><code>get binaryDecode("H*", randomBytes(16), tToken)
+put "a token:" &amp;&amp; tToken
+put "an ID:" &amp;&amp; uuid()</code></pre>
+<pre class="out">a token: 3f9c0e51a2b7d48c6e01f5a9b3d27c84
+an ID: 1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b</pre>
+</figure>
+<p>Both lines differ every run, which is the point.</p>
+
+<h2 id="passwords">Storing passwords</h2>
+<p>Never store a password, and never store a plain hash of one: computers can try billions of guesses at a SHA-256 hash every second. A password needs a hash made to be slow and to use a lot of memory, with a random <strong>salt</strong> so that two people with the same password get different hashes. OXT-Beyond comes with libsodium, through the SodiumXT extension, whose <code>sxPwHashStr</code> does all of this with Argon2id and gives back one line of text to store. <code>sxPwHashStrVerify</code> checks a password typed at login against it:</p>
+<figure class="example" id="ex-sec-password" data-run="output" data-needs="org.openxtalk.library.sodium">
+<pre class="code"><code>function hashPassword pPassword
+   return textDecode(sxPwHashStr(textEncode(pPassword, "UTF-8"), "2", sxPwMemInteractive()), "UTF-8")
+end hashPassword
+
+function passwordMatches pPassword, pStored
+   return sxPwHashStrVerify(pStored, textEncode(pPassword, "UTF-8"))
+end passwordMatches
+
+put hashPassword("correct horse battery") into tStored
+put word 1 of tStored begins with "$argon2id$"
+put hashPassword("correct horse battery") is tStored
+put passwordMatches("correct horse battery", tStored)
+put passwordMatches("correct horse batter", tStored)</code></pre>
+<pre class="out">true
+false
+true
+false</pre>
+</figure>
+<p>Hashing the same password twice gives two different lines, because each has its own salt, and both still match. The line records the salt and the settings, so it is all you store.</p>
+
+<h2 id="encrypt">Encrypting</h2>
+<p>To keep data secret but get it back later, <strong>encrypt</strong> it with a key. libsodium's <code>sxSecretBox</code> encrypts and also seals the data, so any change to it, or the wrong key, is refused rather than giving nonsense:</p>
+<figure class="example" id="ex-sec-secretbox" data-run="output" data-needs="org.openxtalk.library.sodium">
+<pre class="code"><code>put sxRandomBytes(32) into tKey
+put sxSecretBox(textEncode("meet at noon", "UTF-8"), tKey) into tBox
+put the number of bytes of tBox &amp;&amp; "bytes, not readable"
+put textDecode(sxSecretBoxOpen(tBox, tKey), "UTF-8")
+
+try
+   get sxSecretBoxOpen(tBox, sxRandomBytes(32))
+   put "opened with the wrong key?"
+catch tError
+   put "the wrong key is refused"
+end try</code></pre>
+<pre class="out">52 bytes, not readable
+meet at noon
+the wrong key is refused</pre>
+</figure>
+<p>The key is 32 random bytes. Keep it as safe as the data: anyone who has it can open the box. To make a key from a password instead, see <code>sxPwHash</code> in the Dictionary.</p>
+<p>The engine's own <code>encrypt</code> and <code>decrypt</code> commands use OpenSSL, with any cipher of <code>the cipherNames</code> and a password or key. They suit data that another program will decrypt with the same cipher:</p>
+<figure class="example" id="ex-sec-aes" data-run="output">
+<pre class="code"><code>encrypt "meet at noon" using "aes-256-cbc" with password "a long passphrase"
+put it into tSecret
+put tSecret is not "meet at noon"
+decrypt tSecret using "aes-256-cbc" with password "a long passphrase"
+put it
+decrypt tSecret using "aes-256-cbc" with password "a wrong guess"
+put "with the wrong password:" &amp;&amp; word 1 to -1 of the result</code></pre>
+<pre class="out">true
+meet at noon
+with the wrong password: (SSL error: bad decrypt)</pre>
+</figure>
+<aside class="warn"><p>Encryption is easy to get subtly wrong. Use these ready-made, complete tools as they are, keep keys out of your scripts (a key written in a stack can be read by anyone who has the stack), and do not invent your own scheme.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a function that says whether a file has changed: it keeps the SHA-256 hash of each file it has seen in a script local, and returns <code>new</code>, <code>same</code> or <code>changed</code>. Write a file, check it, check it again, change it, and check it once more.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-sec-try" data-run="output">
+<pre class="code"><code>local sSeen
+
+function fileStatus pPath
+   local tHash, tStatus
+   put messageDigest(URL ("binfile:" &amp; pPath), "SHA-256") into tHash
+   if sSeen[pPath] is empty then
+      put "new" into tStatus
+   else if sSeen[pPath] is tHash then
+      put "same" into tStatus
+   else
+      put "changed" into tStatus
+   end if
+   put tHash into sSeen[pPath]
+   return tStatus
+end fileStatus
+
+put specialFolderPath("temporary") &amp; "/oxt-lesson-watch.txt" into tPath
+put "version 1" into URL ("file:" &amp; tPath)
+put fileStatus(tPath)
+put fileStatus(tPath)
+put "version 2" into URL ("file:" &amp; tPath)
+put fileStatus(tPath)
+delete file tPath</code></pre>
+<pre class="out">new
+same
+changed</pre>
+</figure>
+<p>The file is read with <code>binfile:</code>, so the hash is of its exact bytes.</p>
+</details>
+</section>

@@ -1,0 +1,143 @@
+<!--
+title: Code that runs code
+level: expert
+minutes: 10
+summary: Build xTalk as text and run it: do, value, calling handlers by a name worked out at run time, merge with code in it, and when not to.
+words: do, value, send, dispatch, dispatch function, merge, matchText, the result, it
+-->
+<h2 id="do">do: run text as statements</h2>
+<p>xTalk can run xTalk it has just put together. <code>do</code> takes text and runs it as statements, one line or many, as if they were written where the <code>do</code> is, with the same variables:</p>
+<figure class="example" id="ex-dyn-do" data-run="output">
+<pre class="code"><code>put "put 6 * 7" into tCode
+do tCode
+put 5 into tA
+do "put tA * 2 into tB" &amp; return &amp; "add 1 to tB"
+put tB</code></pre>
+<pre class="out">42
+11</pre>
+</figure>
+<p>Text that is not xTalk is an error when the <code>do</code> runs it, which a <code>try</code> catches like any other (<a href="../errors/">Handling errors</a>):</p>
+<figure class="example" id="ex-dyn-do-error" data-run="output">
+<pre class="code"><code>try
+   do "put 1 +"
+catch tError
+   put "That was not a statement xTalk could run."
+end try</code></pre>
+<pre class="out">That was not a statement xTalk could run.</pre>
+</figure>
+
+<h2 id="value">value: work out an expression</h2>
+<p><code>value</code> is <code>do</code> for expressions: it works out the text as an expression and returns its value. With an object as its second parameter, the expression is worked out as if in that object's script, so <code>me</code> and its handlers are the object's:</p>
+<figure class="example" id="ex-dyn-value" data-run="output">
+<pre class="code"><code>put value("3 + 4 * 2")
+put value("the length of" &amp;&amp; quote &amp; "hello" &amp; quote)
+
+create button "Greeter"
+set the script of it to "function greet pWho" &amp; return &amp; \
+      "return " &amp; quote &amp; "Hello, " &amp; quote &amp; " &amp; pWho" &amp; return &amp; "end greet"
+put value("greet(" &amp; quote &amp; "Ada" &amp; quote &amp; ")", button "Greeter")</code></pre>
+<pre class="out">11
+5
+Hello, Ada</pre>
+</figure>
+
+<h2 id="by-name">Calling a handler by its name</h2>
+<p>Most of the time, what you want is not to run any code at all, but to call a handler whose name you work out as the program runs: the handler for a menu item, a command typed by the user, a step in a list. <code>send</code> and <code>dispatch</code> take the message as text, so the name can come from anywhere. <code>dispatch</code> leaves <code>handled</code> or <code>unhandled</code> in <code>it</code>, so a name with no handler is easy to spot:</p>
+<figure class="example" id="ex-dyn-dispatch" data-run="output">
+<pre class="code"><code>on sayHello
+   put "hello"
+end sayHello
+
+on sayGoodbye
+   put "goodbye"
+end sayGoodbye
+
+repeat for each item tWhat in "Hello,Goodbye,Thanks"
+   dispatch "say" &amp; tWhat to me
+   if it is "unhandled" then put "nobody says" &amp;&amp; tWhat
+end repeat</code></pre>
+<pre class="out">hello
+goodbye
+nobody says Thanks</pre>
+</figure>
+<p>For a function, <code>dispatch function</code> calls it with the parameters after <code>with</code>, and leaves what it returned in <code>the result</code>:</p>
+<figure class="example" id="ex-dyn-function" data-run="output">
+<pre class="code"><code>function double pN
+   return pN * 2
+end double
+
+function square pN
+   return pN * pN
+end square
+
+repeat for each item tName in "double,square"
+   dispatch function tName to me with 9
+   put tName &amp;&amp; "of 9 is" &amp;&amp; the result
+end repeat</code></pre>
+<pre class="out">double of 9 is 18
+square of 9 is 81</pre>
+</figure>
+<aside class="tip"><p>Prefer <code>dispatch</code> to <code>do</code> whenever you can. The parameters go as values, so text with quotes or returns in it cannot break the call, and nothing but the handler you named can run.</p></aside>
+
+<h2 id="merge">merge with code in it</h2>
+<p><code>merge</code> (<a href="../formatting/#merge">Formatting</a>) also runs code written between <code>&lt;?</code> and <code>?&gt;</code>: whatever the code returns takes its place. It suits a template with a decision in it:</p>
+<figure class="example" id="ex-dyn-merge" data-run="output">
+<pre class="code"><code>put 3 into tCount
+put merge("&lt;?return tCount * 2?&gt; eggs")
+put merge("&lt;?if tCount &gt; 2 then return " &amp; quote &amp; "Lots of" &amp; quote &amp; " else return " &amp; quote &amp; "A few" &amp; quote &amp; "?&gt; eggs")</code></pre>
+<pre class="out">6 eggs
+Lots of eggs</pre>
+</figure>
+
+<h2 id="safety">Never run text you did not write</h2>
+<p><code>do</code>, <code>value</code> and <code>merge</code> run whatever they are given, with all the power of your program: they can delete files, send data anywhere, or change any object. Never give them text that came from outside the program (a field the user typed in, a file, a web page) as it is. A calculator that works out what the user types must first make sure it is only a sum:</p>
+<figure class="example" id="ex-dyn-safe" data-run="output">
+<pre class="code"><code>function calculate pExpression
+   if not matchText(pExpression, "^[0-9+*/(). -]+$") then
+      return "not a sum I will work out"
+   end if
+   try
+      return value(pExpression)
+   catch tError
+      return "not a sum I can work out"
+   end try
+end calculate
+
+put calculate("(2 + 3) * 4")
+put calculate("1 / 8")
+put calculate("delete file myNotes")
+put calculate("2 +")</code></pre>
+<pre class="out">20
+0.125
+not a sum I will work out
+not a sum I can work out</pre>
+</figure>
+<p>The pattern (<a href="../regular-expressions/">Patterns</a>) lets through only digits, the four signs of arithmetic, brackets, points and spaces, so nothing the user types can be a command. Check what is let in, not what is kept out: a list of forbidden words always misses one.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a tiny command interpreter: for each line of <code>add 5</code>, <code>add 10</code>, <code>times 3</code>, <code>shout</code> and <code>add 1</code>, call the handler named <code>cmd</code> followed by the line's first word (so <code>cmdAdd</code>, <code>cmdTimes</code>), with the line's second word as its parameter. The handlers change a running total. A line with no handler puts <code>unknown command:</code> and the line. Put the total at the end.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-dyn-try" data-run="output">
+<pre class="code"><code>local sTotal
+
+on cmdAdd pN
+   add pN to sTotal
+end cmdAdd
+
+on cmdTimes pN
+   multiply sTotal by pN
+end cmdTimes
+
+put 0 into sTotal
+put "add 5" &amp; return &amp; "add 10" &amp; return &amp; "times 3" &amp; return &amp; "shout" &amp; return &amp; "add 1" into tProgram
+repeat for each line tLine in tProgram
+   dispatch ("cmd" &amp; word 1 of tLine) to me with word 2 of tLine
+   if it is "unhandled" then put "unknown command:" &amp;&amp; tLine
+end repeat
+put "total:" &amp;&amp; sTotal</code></pre>
+<pre class="out">unknown command: shout
+total: 46</pre>
+</figure>
+</details>
+</section>

@@ -1,0 +1,115 @@
+<!--
+title: Sorting lists
+level: intermediate
+minutes: 9
+summary: Put lines and items in order: alphabetically, by number or date, backwards, and by any part of each line you choose.
+words: sort, lines, items, ascending, descending, numeric, dateTime, international, by, each
+-->
+<h2 id="sort">Sorting a list</h2>
+<p>A list in xTalk is just text: items separated by commas, or lines. <code>sort</code> puts them in order, in place. Text is sorted alphabetically unless you say otherwise:</p>
+<figure class="example" id="ex-sort-basic" data-run="output">
+<pre class="code"><code>put "pear,apple,fig,banana" into tFruit
+sort items of tFruit
+put tFruit
+sort items of tFruit descending
+put tFruit</code></pre>
+<pre class="out">apple,banana,fig,pear
+pear,fig,banana,apple</pre>
+</figure>
+<p><code>sort tList</code> on its own sorts lines, so <code>sort lines of tList</code> and <code>sort tList</code> are the same.</p>
+
+<h2 id="numeric">Numbers need numeric</h2>
+<p>Sorted as text, <code>10</code> comes before <code>9</code>, because the character <code>1</code> comes before <code>9</code>, just as <code>apple</code> comes before <code>banana</code>. Say <code>numeric</code> to sort by value:</p>
+<figure class="example" id="ex-sort-numeric" data-run="output">
+<pre class="code"><code>put "10,9,100,2" into tNumbers
+sort items of tNumbers
+put tNumbers
+sort items of tNumbers numeric
+put tNumbers
+sort items of tNumbers numeric descending
+put tNumbers</code></pre>
+<pre class="out">10,100,2,9
+2,9,10,100
+100,10,9,2</pre>
+</figure>
+<p>Dates and times have a sort of their own, <code>dateTime</code>, which understands every format xTalk can read:</p>
+<figure class="example" id="ex-sort-dates" data-run="output">
+<pre class="code"><code>put "3/1/2024,1/15/2023,12/25/2023" into tDates
+sort items of tDates dateTime
+put tDates</code></pre>
+<pre class="out">1/15/2023,12/25/2023,3/1/2024</pre>
+</figure>
+
+<h2 id="by">Sorting by part of each line</h2>
+<p>The real power is <code>by</code>: sort on any expression, where <code>each</code> stands for the line or item being placed. To sort people by their age, the second item of each line:</p>
+<figure class="example" id="ex-sort-by" data-run="output">
+<pre class="code"><code>put "Ada,36" &amp; return &amp; "Alan,41" &amp; return &amp; "Grace,85" &amp; return &amp; "Linus,29" into tPeople
+sort lines of tPeople numeric by item 2 of each
+put tPeople</code></pre>
+<pre class="out">Linus,29
+Ada,36
+Alan,41
+Grace,85</pre>
+</figure>
+<p>The expression can be anything at all, even a function of your own:</p>
+<figure class="example" id="ex-sort-by-function" data-run="output">
+<pre class="code"><code>function vowelCount pWord
+   put 0 into tCount
+   repeat for each char tChar in pWord
+      if tChar is among the chars of "aeiou" then add 1 to tCount
+   end repeat
+   return tCount
+end vowelCount
+
+put "rhythm,banana,cat,queue" into tWords
+sort items of tWords numeric by vowelCount(each)
+put tWords
+sort items of tWords numeric by the length of each
+put tWords</code></pre>
+<pre class="out">rhythm,cat,banana,queue
+cat,queue,rhythm,banana</pre>
+</figure>
+<p>Look at the last line: <code>rhythm</code> and <code>banana</code> both have six letters, and they kept the order the first sort gave them. That is no accident, as the next section explains.</p>
+
+<h2 id="stable">Sorting by two things</h2>
+<p>xTalk's sort is <strong>stable</strong>: lines that compare equal keep the order they had. So to sort by two keys, sort by the less important one first, then by the more important one. Here, by age, and people of the same age by name:</p>
+<figure class="example" id="ex-sort-two-keys" data-run="output">
+<pre class="code"><code>put "Zoe,30" &amp; return &amp; "Sam,25" &amp; return &amp; "Amy,30" &amp; return &amp; "Ben,25" into tPeople
+sort lines of tPeople by item 1 of each
+sort lines of tPeople numeric by item 2 of each
+put tPeople</code></pre>
+<pre class="out">Ben,25
+Sam,25
+Amy,30
+Zoe,30</pre>
+</figure>
+
+<h2 id="case">Capitals and accents</h2>
+<p>Text sorts by the order of the characters in Unicode, which puts every capital before every small letter when <code>caseSensitive</code> is true, and puts accented letters after <code>z</code>. Ordinary sorting ignores case. For words in a human language, <code>international</code> sorts the way a dictionary of the user's language would:</p>
+<figure class="example" id="ex-sort-international" data-run="output">
+<pre class="code"><code>put "zebra,Éclair,apple,eagle" into tWords
+sort items of tWords
+put tWords
+sort items of tWords international
+put tWords</code></pre>
+<pre class="out">apple,eagle,zebra,Éclair
+apple,eagle,Éclair,zebra</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Here are the scores of a game, a line each: <code>name,points</code>. Sort them into a leaderboard, highest score first, and put the winner's name on a line of its own after the board.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-sort-try" data-run="output">
+<pre class="code"><code>put "Kim,340" &amp; return &amp; "Raj,1200" &amp; return &amp; "Lee,875" &amp; return &amp; "Ana,95" into tScores
+sort lines of tScores numeric descending by item 2 of each
+put tScores
+put "Winner:" &amp;&amp; item 1 of line 1 of tScores</code></pre>
+<pre class="out">Raj,1200
+Lee,875
+Kim,340
+Ana,95
+Winner: Raj</pre>
+</figure>
+</details>
+</section>
