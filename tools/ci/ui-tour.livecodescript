@@ -82,7 +82,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,menubar,menubar-modern,menubar-mac,menu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -1769,6 +1769,96 @@ on tour_menu_marks
    end if
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_menu_marks
+
+-- The words of a menu's items as the engine draws them on Linux, as for
+-- tour_menu_marks: they must stand out from the menu behind them, on the
+-- theme's colour and on a window's own colours, dark and light. A menu
+-- takes the first colour above its button, and until rc.6.16 its words
+-- were the theme's whatever that colour was: the theme's dark grey on a
+-- dark window in the light appearance (Adwaita's on 48,52,58 differed by
+-- 2 in luma) and its light grey on a light window in the dark one. What
+-- differs between two snapshots of a menu with an item of words and the
+-- same menu with that item blank is the words, and the most one of their
+-- pixels differs from the menu there must be more than half the range of
+-- luma, as for a mark. A step of its own, so that the two take less than
+-- the watchdog's 20 seconds each
+on tour_menu_words
+   local tName, tDefault, tFails, tColours, tColour, tPass
+   if the platform is not "Linux" then
+      tourRecord "INFO menu-words: the engine draws its menus' words so on Linux only"
+      exit tour_menu_words
+   end if
+   if shell("command -v xdotool") is empty then
+      tourRecord "INFO menu-words: there is no xdotool to close the menu with"
+      exit tour_menu_words
+   end if
+   put "OXT Tour Menu Words" into tName
+   put the defaultStack into tDefault
+   lock messages
+   if there is a stack tName then delete stack tName
+   create stack tName
+   set the rect of stack tName to "300,200,700,500"
+   set the defaultStack to tName
+   create button "Words"
+   set the style of it to "menu"
+   set the menuMode of it to "popup"
+   set the rect of it to "20,20,140,46"
+   set the text of it to "The first item, plain" & return & "Readable words" & return & "The last item, plain"
+   create button "No words"
+   set the style of it to "menu"
+   set the menuMode of it to "popup"
+   set the rect of it to "160,20,280,46"
+   set the text of it to "The first item, plain" & return & space & return & "The last item, plain"
+   close stack tName
+   set the defaultStack to tDefault
+   unlock messages
+   go stack tName
+   tourWait 800
+   tourMarksPopup tName, "Words", "03f-menu-words"
+   tourMarksPopup tName, "No words", "03g-menu-no-words"
+   put tourWordsCheck("03f-menu-words", "03g-menu-no-words", "the theme's colour") after tFails
+   put "48,52,58" & return & "236,236,236" into tColours
+   put 0 into tPass
+   repeat for each line tColour in tColours
+      add 1 to tPass
+      set the backgroundColor of stack tName to tColour
+      tourWait 300
+      tourMarksPopup tName, "Words", "03h-menu-words-own-colour-" & tPass
+      tourMarksPopup tName, "No words", "03i-menu-no-words-own-colour-" & tPass
+      put tourWordsCheck("03h-menu-words-own-colour-" & tPass, "03i-menu-no-words-own-colour-" & tPass, \
+            "the window's own colour" && tColour) after tFails
+   end repeat
+   -- (closed, not deleted, as in tour_menu_marks)
+   close stack tName
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_menu_words
+
+-- Empty if the words of an item stand out from the menu: the snapshot
+-- pWords (a menu with an item of words) against pNoWords (the same menu
+-- with that item blank), the menu's colour named pWhat; else a line that
+-- says by how little they do
+function tourWordsCheck pWords, pNoWords, pWhat
+   local tGroups, tGroup, tMost, tPixels
+   put tourMarksGroups(sOut & slash & pWords & ".png", sOut & slash & pNoWords & ".png") into tGroups
+   put 0 into tMost
+   put 0 into tPixels
+   repeat for each line tGroup in tGroups
+      add item 5 of tGroup to tPixels
+      put max(tMost, item 6 of tGroup) into tMost
+   end repeat
+   tourRecord "INFO menu-words:" && pWhat & ": an item's words," && tPixels && \
+         "pixels, differ from the menu by at most" && tMost && "in luma"
+   -- the words are some hundreds of pixels
+   if tPixels < 20 then
+      return "on" && pWhat & ", the menus' snapshots differ in" && tPixels && \
+            "pixels, not in an item's words" & return
+   end if
+   if tMost <= 127 then
+      return "on" && pWhat & ", an item's words differ from the menu by" && tMost && \
+            "in luma (0 to 255): they cannot be read" & return
+   end if
+   return empty
+end tourWordsCheck
 
 -- File > New Stack's preset sizes, the ones Preferences lists with "Show a
 -- list of preset new stack sizes in File menu > New Stack": among them
