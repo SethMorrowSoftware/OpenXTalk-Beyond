@@ -34,7 +34,11 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --   Form      fields that stay above the on-screen keyboard
 --             (mwViewportChanged)
 --   Gestures  swipe, pinch and long press on a pad (a group, "Play", whose
---             script takes its own gestures)
+--             script takes its own gestures), and a ring under each finger
+--             on it (the touch messages)
+--   Phone     a photo from the camera, the share sheet, the location, a
+--             ball that rolls as the phone tilts, the screen kept on, and
+--             the browser's bars hidden
 -- A swipe left or right goes to the next or the previous tab, except on
 -- the pad, which keeps its swipes. On a desktop the stack is a
 -- phone-sized window that can be resized; in a phone's browser it fills
@@ -44,7 +48,7 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 
 constant kWidth = 390
 constant kHeight = 760
-constant kTabs = "Home,List,Form,Gestures"
+constant kTabs = "Home,List,Form,Gestures,Phone"
 
 on startup
    local tFile, tError
@@ -114,6 +118,8 @@ private command buildStack pFile
    buildForm
    create card "Gestures"
    buildGestures
+   create card "Phone"
+   buildPhone
    go card "Home"
 
    -- (made invisible while it is built; it opens visible)
@@ -157,7 +163,7 @@ private command setTab pButton, pName
    set the traversalOn of pButton to false
    set the autoHilite of pButton to false
    set the label of pButton to pName
-   set the textSize of pButton to 15
+   set the textSize of pButton to 14
    set the textStyle of pButton to "bold"
    set the textColor of pButton to "#6B6F86"
    set the script of pButton to "on mouseUp" & return & \
@@ -173,6 +179,10 @@ private command setButton pButton, pLabel, pColor
    set the showFocusBorder of pButton to false
    set the traversalOn of pButton to false
    set the backgroundColor of pButton to pColor
+   -- (a roundrect button draws its edge whatever showBorder says: in
+   -- the fill's colour, and as thin as it goes)
+   set the borderColor of pButton to pColor
+   set the borderWidth of pButton to 0
    set the textColor of pButton to "#FFFFFF"
    set the textStyle of pButton to "bold"
    set the label of pButton to pLabel
@@ -198,7 +208,8 @@ private command buildHome
          "A stack made for phones." & return & return & \
          "It fills the screen, and fills it again when the phone turns. The tabs below are big " & \
          "enough for a thumb, a swipe left or right changes tab, the list scrolls with a finger, " & \
-         "and the form stays above the keyboard." & return & return & \
+         "the form stays above the keyboard, and the Phone tab uses the camera, the share sheet, " & \
+         "the location and the tilt." & return & return & \
          "Copy it, then change it: one line, mwStart, makes it a phone stack, and every card " & \
          "lays itself out in the stack's psLayout handler.", \
          17, "#1F2240", "plain"
@@ -279,19 +290,63 @@ private command buildGestures
    set the backgroundColor of graphic "Dot" to "#F59E0B"
    create field "Said"
    setLabel the long id of field "Said", \
-         "Swipe on the pad, pinch the dot bigger or smaller, or hold a finger still on the pad.", \
+         "Swipe on the pad, pinch the dot bigger or smaller, hold a finger still, or put fingers down.", \
          16, "#1F2240", "plain"
    set the textAlign of field "Said" to "center"
 end buildGestures
 
+private command buildPhone
+   local tName, tLabel
+   create field "Phone Said"
+   setLabel the long id of field "Phone Said", "What the phone can do, from a stack in its browser.", 15, "#1F2240", "plain"
+   repeat for each line tLabel in "Camera|Take a photo" & return & "Share|Share" & return & \
+         "Where|Where am I?" & return & "Tilt|Roll the ball" & return & "Awake|Keep screen on" & return & \
+         "Full|Full screen"
+      set the itemDelimiter to "|"
+      put item 1 of tLabel into tName
+      create button tName
+      setButton the long id of button tName, item 2 of tLabel, "#E0E7FF"
+      set the textColor of button tName to "#3730A3"
+      -- (a second tap soon after the first is a double click: it
+      -- toggles again)
+      set the script of button tName to "on mouseUp" & return & \
+            "   psPhone" && quote & tName & quote & return & "end mouseUp" & return & \
+            "on mouseDoubleUp" & return & "   psPhone" && quote & tName & quote & return & "end mouseDoubleUp"
+      set the itemDelimiter to comma
+   end repeat
+   create graphic "Frame"
+   set the style of graphic "Frame" to "roundrect"
+   set the roundRadius of graphic "Frame" to 20
+   set the opaque of graphic "Frame" to true
+   set the lineSize of graphic "Frame" to 0
+   set the backgroundColor of graphic "Frame" to "#E4E6F6"
+   create field "Frame Hint"
+   setLabel the long id of field "Frame Hint", "Your photo goes here.", 15, "#6B6F86", "plain"
+   set the textAlign of field "Frame Hint" to "center"
+   create graphic "Ball"
+   set the style of graphic "Ball" to "oval"
+   set the opaque of graphic "Ball" to true
+   set the lineSize of graphic "Ball" to 0
+   set the backgroundColor of graphic "Ball" to "#F59E0B"
+   set the width of graphic "Ball" to 36
+   set the height of graphic "Ball" to 36
+end buildPhone
+
 -- The play area's gestures: they come to the control under the finger
 -- (the pad or the dot) and up to the group, which keeps them
 private function playScript
-   return "on swipe pDirection" & return & "   psPlaySwipe pDirection" & return & "end swipe" & return & \
+   local tScript
+   put "on swipe pDirection" & return & "   psPlaySwipe pDirection" & return & "end swipe" & return & \
          "on pinchStart" & return & "   psPlayPinchStart" & return & "end pinchStart" & return & \
          "on pinch pScale" & return & "   psPlayPinch pScale" & return & "end pinch" & return & \
          "on pinchEnd" & return & "   psPlayPinchEnd" & return & "end pinchEnd" & return & \
-         "on longPress pX, pY" & return & "   psPlayLongPress pX, pY" & return & "end longPress"
+         "on longPress pX, pY" & return & "   psPlayLongPress pX, pY" & return & "end longPress" & return & \
+         "on touchStart pId, pX, pY" & return & "   psPlayTouch ~start~, pId, pX, pY" & return & "end touchStart" & return & \
+         "on touchMove pId, pX, pY" & return & "   psPlayTouch ~move~, pId, pX, pY" & return & "end touchMove" & return & \
+         "on touchEnd pId" & return & "   psPlayTouch ~end~, pId" & return & "end touchEnd" & return & \
+         "on touchRelease pId" & return & "   psPlayTouch ~end~, pId" & return & "end touchRelease" into tScript
+   replace "~" with quote in tScript
+   return tScript
 end playScript
 
 private function listScript

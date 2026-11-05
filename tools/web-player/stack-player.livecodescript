@@ -837,6 +837,7 @@ end playerForgetFolder
 
 command playerOpenFile pPath
    local tRect, tName, tError, tResult, tFolder, tOpenError, tHyperCard, tStack
+   local tResizable, tOnPhone, tTookTheScreen
    -- With a stack open, first home, and the stack opened after the one
    -- that goes is forgotten (as playerReload does): until then it is in
    -- memory, and a stack of the same name from another file (a newer copy
@@ -866,6 +867,7 @@ command playerOpenFile pPath
       if tHyperCard then
          put the long id of stack pPath into tStack
          put the rect of tStack into tRect
+         put the resizable of tStack into tResizable
          put the short name of tStack into tName
          -- where it came from, as File > Import Stack notes it
          set the uHyperCard["file"] of tStack to pPath
@@ -879,6 +881,7 @@ command playerOpenFile pPath
          playerFixHyperCard tStack
       else
          put the rect of stack pPath into tRect
+         put the resizable of stack pPath into tResizable
          put the short name of stack pPath into tName
       end if
    catch tError
@@ -900,6 +903,15 @@ command playerOpenFile pPath
    playerLinkResources tFolder
    put tName into sCurrent
    put pPath into sCurrentFile
+   -- On a phone the stack has the whole screen: "go ... in window" gives
+   -- the stack the player's window, its size and whether it can be
+   -- resized, so the player's window is first made the screen, resizable.
+   -- A stack made for phones that calls mwStart in its openStack then
+   -- fills it, as it fills the page of its own standalone.
+   put playerOnPhone() and sMode is "page" into tOnPhone
+   if tOnPhone then
+      playerTakeTheScreen
+   end if
    try
       if tHyperCard and sMode is "page" then
          go tStack in window (the short name of me)
@@ -940,9 +952,16 @@ command playerOpenFile pPath
       playerStatus "Could not open" && pPath & ":" && tResult, "error"
       exit playerOpenFile
    end if
+   put tOnPhone and playerLibraryFilled() into tTookTheScreen
    lock screen
    set the itemDelimiter to comma
-   if the mode of stack tName > 0 then
+   if tTookTheScreen then
+      -- a stack made for phones that filled the screen itself keeps it
+      playerLog "fills the screen" && tName
+   else if the mode of stack tName > 0 then
+      if tOnPhone then
+         set the resizable of stack tName to tResizable
+      end if
       set the width of stack tName to item 3 of tRect - item 1 of tRect
       set the height of stack tName to item 4 of tRect - item 2 of tRect
       if sMode is not "page" then
@@ -950,6 +969,9 @@ command playerOpenFile pPath
       end if
    end if
    unlock screen
+   if tOnPhone and not tTookTheScreen and the mode of stack tName > 0 then
+      playerFitToPhone tName
+   end if
    playerLog "opened" && tName && "cards=" & the number of cards of stack tName && \
          "rect=" & the rect of stack tName
    playerTellPage "opened", tName & return & the number of cards of stack tName & return & the width of stack tName & "x" & the height of stack tName
@@ -963,6 +985,7 @@ end playerOpenFile
 command playerGoHome
    local tStack, tStacks, tPlayer, tInPage
    put the short name of me into tPlayer
+   playerStopMobileWeb
    if sCurrent is empty then
       if the mode of me is 0 then
          go stack tPlayer
@@ -996,6 +1019,83 @@ command playerGoHome
    playerStatus empty
    playerTellPage "home", empty
 end playerGoHome
+
+-- On a phone a stack has the whole screen (index.html takes
+-- data-mobile-web-fill="no" off the page there, and shows it full page).
+-- A stack made for phones takes it itself, with the Mobile Web library's
+-- mwStart in its openStack (playerLibraryFilled). Any other stack, at its
+-- own size again, is fitted to it here (mwFitStack: scaled to the screen,
+-- and fitted again when the phone turns), so that all of it can be seen
+-- and tapped. Only on a phone (playerOnPhone): anywhere else, and in the
+-- IDE, a stack is shown at its own size, as it always was.
+private command playerFitToPhone pStack
+   local tView, tError
+   try
+      put mwViewport() into tView
+      mwFitStack pStack
+      if the result is empty then
+         playerLog "fitted" && pStack && "to" && tView["width"] & "x" & tView["height"]
+      end if
+   catch tError
+      -- a player without the Mobile Web library shows the stack as before
+   end try
+end playerFitToPhone
+
+-- Whether the Mobile Web library filled the page while the stack opened
+-- (a stack made for phones calls mwStart, or mwFillScreen or mwFitStack,
+-- in its openStack): its style for a filled page is on the page then.
+-- playerStopMobileWeb takes it away again whenever a stack is left.
+private function playerLibraryFilled
+   local tError
+   try
+      do "document.getElementById('oxt-mobile-web-fill') ? 'yes' : 'no'" as "JavaScript"
+      return the result is "yes"
+   catch tError
+   end try
+   return false
+end playerLibraryFilled
+
+-- The player's window made the phone's screen, and resizable, for the
+-- stack about to open in it
+private command playerTakeTheScreen
+   local tError, tView
+   try
+      put mwViewport() into tView
+      set the resizable of me to true
+      set the rect of me to 0, 0, tView["width"], tView["height"]
+   catch tError
+   end try
+end playerTakeTheScreen
+
+-- Whether the page gives a stack the whole screen: on a phone, where
+-- index.html takes data-mobile-web-fill="no" off its body before a stack
+-- opens. Anywhere else, and in the IDE, a stack is shown in its window,
+-- at its own size, as it always was.
+private function playerOnPhone
+   local tError
+   if the platform is not "HTML5" then
+      return false
+   end if
+   try
+      do "document.body.hasAttribute('data-mobile-web-fill') ? 'no' : 'yes'" as "JavaScript"
+      return the result is "yes"
+   catch tError
+   end try
+   return false
+end playerOnPhone
+
+-- Leaving a stack stops what the Mobile Web library was doing for it
+-- (its gestures, sensors, the screen kept on, the page filled), so that
+-- the library is the page's again.
+private command playerStopMobileWeb
+   local tError
+   try
+      if mwIsWeb() then
+         mwStop
+      end if
+   catch tError
+   end try
+end playerStopMobileWeb
 
 -- specialFolderPath("resources") is the player's own folder in the
 -- browser (/boot/standalone), but a stack's scripts expect the files that

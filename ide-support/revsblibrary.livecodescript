@@ -20,6 +20,10 @@ on extensionFinalize
    end if
 end extensionFinalize
 
+-- OXT-Beyond: the libraries that "Search for required inclusions" keeps
+-- when a stack's scripts call one of their handlers (revCheckObject)
+constant kSBLibrariesKeptWhenFound = "com.livecode.library.mobileweb"
+
 local sScriptLibraries
 
 -- Some higher level wrappers..
@@ -3073,6 +3077,14 @@ private command revCheckObject pObject,pUserLibraries, @xSettings, @xWidgetKinds
       
       -- Detect use of library extensions
       local tHandlers
+      -- OXT-Beyond: a library found here was added to
+      -- xSettings["extensions"], which revSmartChecking then writes over
+      -- with the set it keeps in xWidgetKinds, so no library found by its
+      -- handlers was ever included. The libraries of
+      -- kSBLibrariesKeptWhenFound (the Mobile Web library) now go into
+      -- that set and are kept; every other library is left as it was, so
+      -- that the standalones of stacks made before get the inclusions
+      -- they got before.
       repeat for each key tLibrary in revIDEExtensions("library","installed", false) 
          if tLibrary is among the lines of xSettings["extensions"] then
             next repeat
@@ -3082,6 +3094,10 @@ private command revCheckObject pObject,pUserLibraries, @xSettings, @xWidgetKinds
          repeat for each line tHandler in tHandlers
             if lineOffset(tHandler, tScript) is not 0 then
                revSBAddInclusion tLibrary, "extensions", xSettings
+               if tLibrary is among the items of kSBLibrariesKeptWhenFound then
+                  put true into xWidgetKinds[tLibrary]
+               end if
+               exit repeat
             end if
          end repeat
          

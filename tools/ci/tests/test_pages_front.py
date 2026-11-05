@@ -44,7 +44,8 @@ sys.path.insert(0, PAGES)
 
 import build_pages  # noqa: E402
 
-FOLDERS = {'GAMES': 'games/', 'IDE': 'ide/', 'DICTIONARY': 'dictionary/', 'PLAYER': 'player/', 'MAP': 'map/'}
+FOLDERS = {'GAMES': 'games/', 'IDE': 'ide/', 'DICTIONARY': 'dictionary/', 'PLAYER': 'player/', 'MAP': 'map/',
+           'EXTENSIONS': 'extensions/'}
 # The links the page may make to other hosts
 EXTERNAL = {
     'https://github.com/SethMorrowSoftware/OpenXTalk-Beyond',
@@ -469,7 +470,8 @@ class TheBuiltPage(unittest.TestCase):
     def test_the_buttons_say_where_they_go(self):
         text = self.check({k: '9' for k in FOLDERS})
         for label, folder in (('Open the Web IDE', 'ide/'), ('Open the Dictionary', 'dictionary/'),
-                              ('Open the Stack Player', 'player/'), ('Open the codebase map', 'map/')):
+                              ('Open the Stack Player', 'player/'), ('Open the codebase map', 'map/'),
+                              ('See the extensions', 'extensions/')):
             self.assertIn('<a class="button" href="%s">%s</a>' % (folder, label), text)
 
     def test_the_downloads(self):
@@ -543,6 +545,12 @@ class TheBuiltPage(unittest.TestCase):
                 self.assertEqual(f.read(), g.read(), name)
         self.assertNotIn('Launch the Web IDE', text)
         self.assertNotIn('id="downloads"', text)
+        # the extensions page goes up with every site, its card with it;
+        # without a suite release it links no package
+        self.assertIn('href="extensions/"', text)
+        self.assertIn('<p class="version">xTalk Suite</p>', text)
+        with open(os.path.join(out, 'extensions', 'index.html'), encoding='utf-8') as f:
+            self.assertNotIn('.lce"', f.read())
 
         # and with a release, as pages.yml gives it
         listing = os.path.join(self.work, 'assets.txt')

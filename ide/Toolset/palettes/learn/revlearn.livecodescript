@@ -2454,8 +2454,8 @@ private function leShowcaseInfo pName
                "The browser does the pixel work, so it runs in a browser.|image|pink|photos javascript"
       case "Phone Starter"
          return "small|A stack to copy for phones, made with the Mobile Web library: tabs for a thumb, " & \
-               "swipes, a list that scrolls with a finger and a form above the keyboard. Build it for " & \
-               "HTML5 and open it on a phone.|smartphone|indigo|phones touch"
+               "swipes, pinches and every finger, a form above the keyboard, and the camera, location, " & \
+               "tilt and share sheet. Build it for HTML5 and open it on a phone.|smartphone|indigo|phones touch"
    end switch
    return "small|A small sample made for the Stack Player: open it, then read its scripts.|layers|indigo|sample"
 end leShowcaseInfo

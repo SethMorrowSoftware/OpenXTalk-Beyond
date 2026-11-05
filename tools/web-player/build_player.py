@@ -54,6 +54,11 @@ stack file with no extension, which the player must import with its
 scripts fixed as File > Import Stack fixes them, and Stacks.dc42, a
 DiskCopy 4.2 image, whose stacks it must list and open the one chosen.
 
+Then the bare player (play/, check_bare): a sample by ?play= in the middle
+of the page with no bar or window around it, a stack of the site by
+?stack=, another site's refused, and the Phone Starter filling an iPhone's
+window (Chromium, and WebKit where it is installed).
+
 The first page also has other scripts' errors raised while the player
 starts and once it has (tools/ci/stray_errors.py: a browser extension's
 script in the page, another site's): the player must start and say
@@ -89,6 +94,10 @@ import ui_tour  # noqa: E402
 BUILD_SCRIPT = os.path.join(HERE, 'build-player.livecodescript')
 PLAYER_SCRIPT = os.path.join(HERE, 'stack-player.livecodescript')
 PAGE = os.path.join(HERE, 'index.html')
+# The bare player (play.html): the stack and nothing else, beside the
+# player as play/index.html, on the same engine and player stack
+BARE_PAGE = os.path.join(HERE, 'play.html')
+BARE = 'play'
 BUILT_PAGE = 'StackPlayer.html'
 
 
@@ -213,10 +222,20 @@ def put_page(site):
         with open(os.path.join(site, name), 'rb') as f:
             for block in iter(lambda: f.read(1 << 20), b''):
                 digest.update(block)
+    stamp = digest.hexdigest()[:16]
     with open(PAGE, encoding='utf-8') as f:
         page = f.read()
     with open(os.path.join(site, 'index.html'), 'w', encoding='utf-8', newline='\n') as f:
-        f.write(page.replace('@ENGINE_JS@', engines[0]).replace('@STAMP@', digest.hexdigest()[:16]))
+        f.write(page.replace('@ENGINE_JS@', engines[0]).replace('@STAMP@', stamp))
+    # the bare player, one folder down: its meta oxt-player-base ("../")
+    # finds the engine, standalone.zip, the samples and the assets
+    with open(BARE_PAGE, encoding='utf-8') as f:
+        page = f.read()
+    bare = os.path.join(site, BARE)
+    shutil.rmtree(bare, ignore_errors=True)
+    os.makedirs(bare)
+    with open(os.path.join(bare, 'index.html'), 'w', encoding='utf-8', newline='\n') as f:
+        f.write(page.replace('@ENGINE_JS@', engines[0]).replace('@STAMP@', stamp))
     built = os.path.join(site, BUILT_PAGE)
     if os.path.exists(built):
         os.remove(built)
@@ -315,7 +334,8 @@ SAMPLES = [
     {'title': 'Phone Starter', 'source': 'stacks',
      'files': ['Phone Starter.oxtstack'], 'image': 'Phone Starter.webp',
      'description': 'A stack to copy for phones, made with the Mobile Web library: tabs for a '
-                    'thumb, swipes, a list that scrolls with a finger, a form above the keyboard.',
+                    'thumb, swipes, pinches and every finger, a list that scrolls with a finger, a '
+                    'form above the keyboard, and the camera, location, tilt and share sheet.',
      'tags': ['Phones', 'Touch', 'Starter']},
     {'title': 'Tour', 'files': ['Tour.livecode'],
      'description': 'Cards, a widget, a palette window and a script error, caught and shown.',
@@ -730,6 +750,9 @@ def check(site, samples, work):
 
         third_context.close()
 
+        # The bare player (play/): the stack and nothing else
+        check_bare(p, browser, url.replace('index.html', BARE + '/'), shots, expect, wait_for)
+
         # An error of the page's own while the engine starts still shows
         own_context = browser.new_context(viewport={'width': 1000, 'height': 700})
         own = own_context.new_page()
@@ -746,6 +769,86 @@ def check(site, samples, work):
     with open(os.path.join(shots, 'console.txt'), 'w', encoding='utf-8') as f:
         f.write('\n'.join(lines) + '\n')
     return passed, problems
+
+
+def check_bare(p, browser, url, shots, expect, wait_for):
+    """The bare player (play.html, LittleNemo's p=26036): a sample by
+    ?play= in the middle of the window with no bar, frame or library
+    around it; a stack of the site by ?stack=; another site's refused; and
+    on a phone (Playwright's iPhone 13 in Chromium, and in WebKit when it
+    is installed) the Phone Starter fills the window, as its own page
+    would let it, where the player's page keeps it a phone-sized window."""
+    import stray_errors
+
+    def visit(context, query, what, shot, stray=False):
+        page = context.new_page()
+        lines = []
+        page.on('console', lambda m: lines.append(m.text))
+        if stray:
+            # other scripts' errors while it starts, as the player's own
+            # page is given them: they are not the bare player's
+            page.add_init_script(stray_errors.STRAY_ERRORS)
+        page.goto(url + query)
+        wait_for(page, lambda: any(x.startswith('PLAYER opened') for x in lines)
+                 or page.evaluate("!document.getElementById('note').hidden"), what, 120)
+        page.wait_for_timeout(2500)
+        state = page.evaluate("""() => {
+            const c = document.getElementById('canvas').getBoundingClientRect();
+            return {playing: document.body.classList.contains('playing'), title: document.title,
+                    note: document.getElementById('note').hidden ? '' : document.getElementById('note').textContent,
+                    chrome: document.querySelectorAll('.menubar, .window, #toasts, .desk').length,
+                    fill: document.body.getAttribute('data-mobile-web-fill'),
+                    canvas: [c.left, c.top, c.width, c.height], view: [innerWidth, innerHeight],
+                    loadingError: document.getElementById('loading-error').hidden ? '' :
+                        document.getElementById('loading-error').textContent,
+                    scrollWidth: document.documentElement.scrollWidth}; }""")
+        page.screenshot(path=os.path.join(shots, shot))
+        log('  bare %s: %s' % (query, state))
+        return page, lines, state
+
+    desk = browser.new_context(viewport={'width': 1000, 'height': 700})
+    page, lines, st = visit(desk, '?play=2048', 'the bare player opening 2048', '20-bare-2048.png', stray=True)
+    left, top, width, height = st['canvas']
+    expect('bare-opens', st['playing'] and st['title'] == '2048'
+           and any(x.startswith('PLAYER opened 2048') for x in lines), str(st))
+    expect('bare-no-chrome', st['chrome'] == 0 and st['fill'] is None, str(st))
+    expect('bare-stray-errors', st['loadingError'] == '', st['loadingError'])
+    expect('bare-centred', width > 0 and abs(left - (1000 - width) / 2) <= 1 and abs(top - (700 - height) / 2) <= 1,
+           str(st['canvas']))
+    page.close()
+    page, lines, st = visit(desk, '?stack=../samples/Tour.livecode&align=top-left', 'the bare player opening Tour',
+                            '21-bare-tour.png')
+    expect('bare-stack-of-the-site', st['playing'] and st['canvas'][:2] == [0, 0]
+           and any(x.startswith('PLAYER opened Tour') for x in lines), str(st))
+    page.close()
+    page, lines, st = visit(desk, '?stack=https://example.com/x.livecode', 'the bare player refusing',
+                            '22-bare-other-site.png')
+    expect('bare-other-site-refused', not st['playing'] and 'must be on this site' in st['note'], str(st))
+    page.close()
+    desk.close()
+
+    def phone(engine, kind):
+        context = engine.new_context(**p.devices['iPhone 13'])
+        page, lines, st = visit(context, '?play=Phone%20Starter', 'the Phone Starter in ' + kind,
+                                '23-bare-phone-%s.png' % kind)
+        vw, vh = st['view']
+        width, height = st['canvas'][2:]
+        expect('bare-phone-fills-' + kind, st['playing'] and abs(width - vw) <= 1
+               and abs(height - vh) <= 1 and st['scrollWidth'] <= vw, str(st))
+        page.close()
+        context.close()
+
+    phone(browser, 'chromium')
+    # WebKit, Safari's engine, where Playwright's is installed
+    try:
+        webkit = p.webkit.launch()
+    except Exception as e:
+        log('  bare: no WebKit to check the phone in (%s)' % str(e).splitlines()[0][:120])
+        return
+    try:
+        phone(webkit, 'webkit')
+    finally:
+        webkit.close()
 
 
 def main(argv=None):

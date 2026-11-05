@@ -23,7 +23,9 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- (mwcState), open a stack laid out for a desktop, fitted to the phone
 -- (mwcFit), fit it again with mwFitStack alone (mwcFitAlone), and stop
 -- the library and fill again in a page that keeps its own layout
--- (mwcStopAndKeep). It changes nothing in the Phone Starter.
+-- (mwcStopAndKeep), and ask for the camera, the share sheet and the
+-- whole screen other than from a tap (mwcNotFromATap). It changes nothing
+-- in the Phone Starter.
 
 constant kStack = "Phone Starter"
 
@@ -41,6 +43,8 @@ function mwcState
    put "name=" & field "Name" of card "Form" of stack kStack & return after tState
    put "notestop=" & the top of field "Notes" of card "Form" of stack kStack & return after tState
    put "namerect=" & the rect of field "Name" of card "Form" of stack kStack & return after tState
+   put "notesleft=" & the left of field "Notes" of card "Form" of stack kStack & comma & \
+         the right of field "Notes" of card "Form" of stack kStack & return after tState
    put "saverect=" & the rect of button "Save" of card "Form" of stack kStack & return after tState
    put "screen=" & mwcOneLine(field "Screen" of card "Home" of stack kStack) & return after tState
    put "tabs=" & the top of graphic "Tabs Back" of card "Home" of stack kStack & return after tState
@@ -50,9 +54,54 @@ function mwcState
    if there is a stack "Wide Check" then
       put the fullscreen of stack "Wide Check" into tFull
    end if
-   put "fullscreen=" & tFull after tState
+   put "fullscreen=" & tFull & return after tState
+   -- the touch messages' rings on the Gestures pad, and the Phone card
+   put "fingers=" & mwcFingers() & return after tState
+   put "phonesaid=" & mwcOneLine(field "Phone Said" of card "Phone" of stack kStack) & return after tState
+   put "ball=" & the loc of graphic "Ball" of card "Phone" of stack kStack & return after tState
+   put "frame=" & the rect of graphic "Frame" of card "Phone" of stack kStack & return after tState
+   if there is an image "Photo" of card "Phone" of stack kStack then
+      put "photo=" & the formattedWidth of image "Photo" of card "Phone" of stack kStack & comma & \
+            the formattedHeight of image "Photo" of card "Phone" of stack kStack & comma & \
+            the rect of image "Photo" of card "Phone" of stack kStack & return after tState
+   else
+      put "photo=" & return after tState
+   end if
+   put "labels=" & mwcLabels() & return after tState
+   put "buttons=" & mwcButtons() after tState
    return tState
 end mwcState
+
+private function mwcFingers
+   local tCount
+   put 0 into tCount
+   repeat with i = 1 to the number of graphics of group "Play" of card "Gestures" of stack kStack
+      if the short name of graphic i of group "Play" of card "Gestures" of stack kStack begins with "Finger " then
+         add 1 to tCount
+      end if
+   end repeat
+   return tCount
+end mwcFingers
+
+-- The Phone card's buttons, "name:left,top,right,bottom" separated by ;
+private function mwcButtons
+   local tList, tName
+   repeat for each item tName in "Camera,Share,Where,Tilt,Awake,Full"
+      put tName & ":" & the rect of button tName of card "Phone" of stack kStack & ";" after tList
+   end repeat
+   delete the last char of tList
+   return tList
+end mwcButtons
+
+-- and their labels, "name:label" separated by ;
+private function mwcLabels
+   local tList, tName
+   repeat for each item tName in "Camera,Share,Where,Tilt,Awake,Full"
+      put tName & ":" & the label of button tName of card "Phone" of stack kStack & ";" after tList
+   end repeat
+   delete the last char of tList
+   return tList
+end mwcLabels
 
 -- The lowest bottom of the current card's own controls (not the header's
 -- or the tab bar's), which must be above the tab bar
@@ -126,6 +175,21 @@ private function mwcHasFillStyle
    do "document.getElementById('oxt-mobile-web-fill') ? 'true' : 'false'" as "JavaScript"
    return the result
 end mwcHasFillStyle
+
+-- The camera, the share sheet and the whole screen asked for other than
+-- from a tap, as from a timer: a browser opens none of them then, and
+-- mwPickPhoto waited for a photo that could not come. Each says "not from
+-- a tap" at once where the browser can tell. Items 1 to 3.
+function mwcNotFromATap
+   local tPhoto, tShare, tFull
+   mwPickPhoto "library", 100, 100
+   put the result into tPhoto
+   mwShare "From the check"
+   put the result into tShare
+   mwFullScreen true
+   put the result into tFull
+   return tPhoto & comma & tShare & comma & tFull
+end mwcNotFromATap
 
 -- The Phone Starter's own script, to compare with the file it is built
 -- from (tools/web-player/phone-starter-stack.livecodescript)

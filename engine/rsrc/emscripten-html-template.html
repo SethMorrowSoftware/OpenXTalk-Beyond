@@ -87,7 +87,72 @@
           return;
         }
         Module.setStatus('Something went wrong. The browser console has the details.');
+        // The engine's own JavaScript not understood: a browser older
+        // than the engine needs (an iPhone or an iPad before iOS 15)
+        if (e.error instanceof SyntaxError && oxtTooOld()) {
+          showStopped(oxtTooOldText);
+        }
       });
+
+      // Whether the browser is older than the engine needs: Safari 15 (iOS
+      // 15) is the first Safari with what the engine uses, BigInt64Array
+      // among it. A newer browser that cannot read the engine has a
+      // damaged file, or a server that sent something else in its place.
+      function oxtTooOld() {
+        return typeof BigInt64Array == 'undefined';
+      }
+      var oxtTooOldText = 'This browser is too old to run the stack: it needs Safari 15 or later ' +
+        '(iOS 15 or later on an iPhone or an iPad), or an up-to-date Chrome, Edge or Firefox.';
+
+      // A note above everything, with the browser's own words and which
+      // browser it is, so that whoever sees it can tell what happened:
+      // the canvas covers the status once the engine has started.
+      function showStopped(text) {
+        if (document.getElementById('stopped')) {
+          return;
+        }
+        var note = document.createElement('div');
+        note.id = 'stopped';
+        note.setAttribute('role', 'alert');
+        note.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:2147483647;padding:16px 20px;' +
+          'background:#fff4f0;color:#7a1d00;border-bottom:2px solid #e8590c;' +
+          'font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;text-align:left';
+        note.textContent = text + ' (' + navigator.userAgent + ')';
+        document.body.appendChild(note);
+      }
+
+      // When the engine itself stops (it ran out of the browser's stack,
+      // as on an iPhone or an iPad, which give a page far less than a
+      // desktop, or WebAssembly failed), it does so in a promise that
+      // nothing catches, and the page stayed blank. Only the engine's own
+      // count, as oxtOwnError has it: a RangeError raised in its
+      // WebAssembly (whose stack names wasm functions), or a
+      // WebAssembly.RuntimeError. Other unhandled rejections (a stack's
+      // own JavaScript, a browser extension's) are left as they were.
+      window.addEventListener('unhandledrejection', function(event) {
+        var reason = event.reason;
+        var stopped = (reason instanceof RangeError && /wasm/.test(String(reason.stack || ''))) ||
+          (typeof WebAssembly == 'object' && WebAssembly.RuntimeError && reason instanceof WebAssembly.RuntimeError);
+        if (stopped) {
+          var said = reason.message || String(reason);
+          if (!/CompileError/.test(said)) {
+            showStopped('The stack stopped in this browser: ' + said);
+          } else if (oxtTooOld()) {
+            showStopped(oxtTooOldText + ' (' + said + ')');
+          } else {
+            showStopped('This browser could not read the engine: its .wasm file is damaged, or the server ' +
+              'sent something else in its place. Upload the files again as they were built. (' + said + ')');
+          }
+        }
+      });
+
+      // A browser without WebAssembly cannot run the engine at all, and
+      // the page said "Loading..." for ever. An iPhone's or an iPad's
+      // Lockdown Mode turns WebAssembly off.
+      if (typeof WebAssembly != 'object') {
+        showStopped('This browser cannot run the stack: WebAssembly is turned off in it. ' +
+          'On an iPhone or an iPad, Lockdown Mode turns it off, and Safari can leave this site out of Lockdown Mode.');
+      }
     </script>
     {{{ SCRIPT }}}
   </body>

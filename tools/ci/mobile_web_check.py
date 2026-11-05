@@ -49,23 +49,31 @@ emulate) opens the page with a touch screen and a phone's window, and:
      keyboard covers the bottom of the window, and the form moves up so
      that Notes is above it (mwViewportChanged)
   6. on Gestures, two fingers spread on the pad make the dot bigger
-     (mwPinch), a swipe on the pad is reported and stays on the card, and
-     a finger held still is a long press (mwLongPress)
-  7. the phone turns: the stack fills the window again, in landscape,
+     (pinch), a swipe on the pad is reported and stays on the card, a
+     finger held still is a long press (longPress), and two fingers held
+     down are two rings, gone when they let go (touchStart, touchEnd)
+  7. on Phone: "Where am I?" says where the browser is (locationChanged),
+     "Take a photo" opens the file chooser and the photo, made 1000
+     pixels wide, is put in the frame (mwPickPhoto), "Roll the ball" and
+     a tilt roll the ball (accelerationChanged), "Keep screen on" keeps
+     it on (mwKeepAwake), and "Share" says what it did (mwShare)
+  8. the phone turns: the stack fills the window again, in landscape,
      and on each card its controls end above the tab bar
-  8. a stack laid out for a desktop (800 by 500), of a fixed size, is
+  9. a stack laid out for a desktop (800 by 500), of a fixed size, is
      fitted to the window by mwStart alone, as it is too big for it: a
      tap where its far corner's button is drawn reaches the button; when
      the phone turns, the stack filled before is left as it was; fitted
      by mwFitStack alone and turned back, it is fitted again
-  9. mwStop takes away the style that filling gave the page, and in a
+  10. mwStop takes away the style that filling gave the page, and in a
      page that keeps its own layout (data-mobile-web-fill="no", as the
      Stack Player's page has) mwFillScreen fills nothing
 
 Playwright's WebKit on Linux makes no touch events (no Touch
 constructor, no touch points), so there the taps and drags are the
-mouse's and the gestures (3, and 6 but for the tab) are left out: WebKit
-checks the layout, the fill, the keyboard, the turns and the fit. A
+mouse's and the gestures (3, and 6 but for the tab) are left out, and
+the page has no motion sensor to tilt: WebKit checks the layout, the
+fill, the keyboard, the Phone card but for the tilt, the turns and the
+fit. A
 real iPhone's Safari has touch events; Chromium checks every step.
 WebKit runs with as little JavaScript stack as an iPhone gives a page
 (IPHONE_STACK).
@@ -97,6 +105,9 @@ CHECK_STACK = os.path.join(HERE, 'mobile-web-check.livecodescript')
 DEPLOY_SCRIPT = os.path.join(HERE, 'mobile-web-deploy.livecodescript')
 PAGE = 'PhoneStarter.html'
 DEFAULT_DEVICES = {'chromium': ['Pixel 7', 'iPhone 13'], 'webkit': ['iPhone 13']}
+TABS = ['Home', 'List', 'Form', 'Gestures', 'Phone']
+# where the check's browser says it is
+WHERE = {'latitude': 51.50735, 'longitude': -0.12776}
 
 
 class CheckError(Exception):
@@ -228,7 +239,10 @@ class Fingers:
                 var touches = points.map(function(p, i) {
                     return new Touch({identifier: i + 1, target: target, clientX: p[0], clientY: p[1]}); });
                 var type = {touchStart: 'touchstart', touchMove: 'touchmove', touchEnd: 'touchend'}[kind];
-                var changed = touches.length ? touches : (window.__mwcLast || []);
+                // (a touchstart's changed touches are the new fingers only)
+                var was = window.__mwcLast || [];
+                var changed = !touches.length ? was : kind === 'touchStart' && touches.length > was.length
+                    ? touches.slice(was.length) : touches;
                 target.dispatchEvent(new TouchEvent(type, {bubbles: true, cancelable: true, composed: true,
                     touches: kind === 'touchEnd' ? [] : touches, targetTouches: kind === 'touchEnd' ? [] : touches,
                     changedTouches: changed}));
@@ -252,6 +266,15 @@ class Fingers:
         time.sleep(seconds)
         self._send('touchEnd', [])
 
+    def down(self, points):
+        """Fingers put down one after another, and left there"""
+        for i in range(1, len(points) + 1):
+            self._send('touchStart', points[:i])
+            time.sleep(0.05)
+
+    def up(self):
+        self._send('touchEnd', [])
+
     def spread(self, x, y, start=30, by=70, steps=6):
         self._send('touchStart', [(x - start, y)])
         self._send('touchStart', [(x - start, y), (x + start, y)])
@@ -260,6 +283,58 @@ class Fingers:
             self._send('touchMove', [(x - d, y), (x + d, y)])
             time.sleep(0.04)
         self._send('touchEnd', [])
+
+
+def png(width, height):
+    """A PNG picture, width by height, of a gradient: a phone's photo, for
+    the file chooser"""
+    import struct
+    import zlib
+    rows = b''.join(b'\x00' + bytes(v for x in range(width) for v in (x * 255 // width, y * 255 // height, 160))
+                    for y in range(height))
+
+    def chunk(kind, data):
+        return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data) & 0xffffffff)
+    return (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0))
+            + chunk(b'IDAT', zlib.compress(rows, 6)) + chunk(b'IEND', b''))
+
+
+def not_from_a_tap_expected(whole_screen):
+    """What mwcNotFromATap answers when not from a tap: the camera, the
+    share sheet and the whole screen each say "not from a tap", except
+    that a browser with no whole screen at all says "not supported" for
+    it first (mobileweb's fullScreen asks that before the tap)."""
+    return ','.join(['not from a tap', 'not from a tap',
+                     'not from a tap' if whole_screen else 'not supported'])
+
+
+def notes_middle(s, width):
+    """Where the middle of Notes is across (state's notesleft: its left
+    and right), or the middle of the window where the stack does not say."""
+    try:
+        left, right = (int(v) for v in s.get('notesleft', '').split(','))
+    except ValueError:
+        return width / 2
+    return (left + right) / 2
+
+
+def buttons(s):
+    """The Phone card's buttons, by name, as rectangles"""
+    out = {}
+    for part in s.get('buttons', '').split(';'):
+        if ':' in part:
+            name, value = part.split(':', 1)
+            out[name] = value
+    return out
+
+
+def labels(s):
+    out = {}
+    for part in s.get('labels', '').split(';'):
+        if ':' in part:
+            name, value = part.split(':', 1)
+            out[name] = value
+    return out
 
 
 def wait_for(page, test, seconds=6.0):
@@ -272,7 +347,7 @@ def wait_for(page, test, seconds=6.0):
         time.sleep(0.2)
 
 
-def check_device(playwright, browser_name, device, url, timeout, shots, touch='auto', check_script=False):
+def check_device(playwright, browser_name, device, url, timeout, shots, touch='auto', check_script=False, work=None):
     problems = []
 
     def expect(what, ok, s):
@@ -286,7 +361,10 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
     profile.pop('default_browser_type', None)
     browser = getattr(playwright, browser_name).launch(**launch_options(browser_name))
     try:
-        context = browser.new_context(**profile)
+        # (a permission not granted here is denied: Chromium's motion
+        # sensors too)
+        permissions = ['geolocation'] + (['accelerometer', 'gyroscope'] if browser_name == 'chromium' else [])
+        context = browser.new_context(geolocation=WHERE, permissions=permissions, **profile)
         page = context.new_page()
         page.on('pageerror', lambda e: log('  page error: %s' % e))
         page.on('console', lambda m: log('  console.%s: %s' % (m.type, m.text)) if m.type == 'error' else None)
@@ -335,7 +413,7 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
             return s
 
         def tab(i):
-            fingers.tap(width * (i + 0.5) / 4, tab_y)
+            fingers.tap(width * (i + 0.5) / len(TABS), tab_y)
 
         # 2. the list
         tab(1)
@@ -379,7 +457,9 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
         # told that a keyboard covers the window from 60 pixels below the
         # top of Notes (so Notes, 120 high, is under it on any phone)
         before = int(s.get('notestop') or 0)
-        fingers.tap(width / 2, before + 40)
+        # (where Notes is across: a tablet lays the form out in two columns)
+        notes_x = notes_middle(s, width)
+        fingers.tap(notes_x, before + 40)
         time.sleep(0.5)
         keyboard = height - before - 60
         page.evaluate("""([w, h, k]) => {
@@ -408,7 +488,7 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
         time.sleep(1)
         s = state(page)
         expect('the form stays put for Name, above the keyboard', s.get('notestop') == str(before), s)
-        fingers.tap(width / 2, before + 40)
+        fingers.tap(notes_x, before + 40)
         s = wait_for(page, lambda s: s.get('notestop', '').lstrip('-').isdigit() and int(s['notestop']) < before)
         top = int(s.get('notestop') or 0)
         expect('Notes tapped while the keyboard is up moves the form up', top < before and top + 120 <= height - keyboard, s)
@@ -436,10 +516,115 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
             fingers.hold(width / 2 - 60, height / 2 + 60)
             s = wait_for(page, lambda s: s.get('said', '').startswith('A long press'))
             expect('a finger held still is a long press', s.get('said', '').startswith('A long press at'), s)
+            # (put down away from the dot, so that the pinch they also
+            # make leaves it be)
+            fingers.down([(width * 0.3, height / 2 + 90), (width * 0.7, height / 2 + 90)])
+            s = wait_for(page, lambda s: s.get('fingers') == '2')
+            shot('4-fingers')
+            expect('two fingers down are two rings (touchStart)', s.get('fingers') == '2', s)
+            fingers.up()
+            s = wait_for(page, lambda s: s.get('fingers') == '0')
+            expect('and the rings go when they let go (touchEnd)', s.get('fingers') == '0', s)
         else:
             shot('4-gestures')
 
-        # 7. the phone turns
+        # 7. the Phone card
+        tab(4)
+        s = on_card('Phone')
+        expect('the Phone tab goes to Phone', s.get('card') == 'Phone', s)
+
+        def press(name):
+            fingers.tap(*middle(buttons(state(page)).get(name, '')))
+
+        press('Where')
+        s = wait_for(page, lambda s: s.get('phonesaid', '').startswith('You are at'))
+        expect('"Where am I?" says where the browser is (locationChanged)',
+               s.get('phonesaid') == 'You are at %s, %s.' % (WHERE['latitude'], WHERE['longitude']), s)
+
+        picture = os.path.join(work or tempfile.gettempdir(), 'photo.png')
+        with open(picture, 'wb') as f:
+            f.write(png(1600, 1200))
+        try:
+            with page.expect_file_chooser(timeout=8000) as chooser:
+                press('Camera')
+            chooser.value.set_files(picture)
+            s = wait_for(page, lambda s: s.get('photo', '') != '', seconds=15)
+        except Exception as e:  # the chooser never opened
+            log('  (no file chooser: %s)' % str(e).splitlines()[0])
+            s = state(page)
+        shot('7-photo')
+        photo = (s.get('photo') or '').split(',')
+        frame = rect(s.get('frame', ''))
+        expect('"Take a photo" puts the photo in, made 1000 by 750 (mwPickPhoto)', photo[:2] == ['1000', '750'], s)
+        expect('in the frame', len(photo) == 6 and frame is not None and frame[0] <= int(photo[2])
+               and frame[1] <= int(photo[3]) and int(photo[4]) <= frame[2] and int(photo[5]) <= frame[3], s)
+        expect('and says so', s.get('phonesaid') == 'A photo, 1000 by 750 pixels.', s)
+
+        if fingers.touches:
+            press('Tilt')
+            s = wait_for(page, lambda s: labels(s).get('Tilt') == 'Stop the ball')
+            expect('"Roll the ball" starts the motion sensor', labels(s).get('Tilt') == 'Stop the ball', s)
+            before = rect(s.get('ball', ''))
+            # the phone lying flat, tipped to its right
+            for _ in range(20):
+                page.evaluate("""() => window.dispatchEvent(new DeviceMotionEvent('devicemotion', {
+                    accelerationIncludingGravity: {x: -4, y: 0, z: 9}, interval: 16}))""")
+                time.sleep(0.07)
+            s = wait_for(page, lambda s: rect(s.get('ball', '')) and before and rect(s['ball'])[0] > before[0] + 20)
+            shot('7-tilt')
+            after = rect(s.get('ball', ''))
+            expect('the ball rolls to the side tipped down (accelerationChanged)',
+                   before and after and after[0] > before[0] + 20, s)
+            press('Tilt')
+            s = wait_for(page, lambda s: labels(s).get('Tilt') == 'Roll the ball')
+            expect('and stops', labels(s).get('Tilt') == 'Roll the ball', s)
+        else:
+            # (a browser without touch events may have the motion
+            # sensor's events, with no sensor behind them)
+            press('Tilt')
+            s = wait_for(page, lambda s: 'no motion sensor' in s.get('phonesaid', '') or labels(s).get('Tilt') == 'Stop the ball')
+            started = labels(s).get('Tilt') == 'Stop the ball'
+            expect('"Roll the ball" starts the motion sensor, or says there is none',
+                   started or 'no motion sensor' in s.get('phonesaid', ''), s)
+            if started:
+                press('Tilt')
+                s = wait_for(page, lambda s: labels(s).get('Tilt') == 'Roll the ball')
+                expect('and stops', labels(s).get('Tilt') == 'Roll the ball', s)
+
+        press('Awake')
+        s = wait_for(page, lambda s: s.get('phonesaid', '').startswith(('The screen stays on', 'This browser cannot keep')))
+        expect('"Keep screen on" keeps it on, or says it cannot (mwKeepAwake)',
+               (s.get('phonesaid', '').startswith('The screen stays on') and labels(s).get('Awake') == 'Screen stays on')
+               or s.get('phonesaid', '').startswith('This browser cannot keep'), s)
+        press('Share')
+        s = wait_for(page, lambda s: s.get('phonesaid') in ('Sent to the share sheet.', 'Copied, ready to paste.',
+                                                             'This browser cannot share.'))
+        expect('"Share" says what it did (mwShare)', s.get('phonesaid') in (
+            'Sent to the share sheet.', 'Copied, ready to paste.', 'This browser cannot share.'), s)
+        shot('7-phone')
+
+        # 7b. the camera, the share sheet and the whole screen asked for
+        # other than from a tap (as from a timer): where the browser can tell,
+        # each says "not from a tap" at once; mwPickPhoto waited for ever
+        # (Playwright runs page.evaluate as if from a tap, which a browser
+        # keeps for 5 seconds at most: the call is made from a timer after
+        # that)
+        if page.evaluate("() => 'userActivation' in navigator"):
+            # a browser with no whole screen at all (an iPhone's Safari,
+            # Playwright's WebKit) says "not supported" first, as it should
+            whole = page.evaluate("""() => { var el = document.documentElement;
+                return !!(el.requestFullscreen || el.webkitRequestFullscreen) &&
+                    document.fullscreenEnabled !== false; }""")
+            got = str(page.evaluate("""() => new Promise(function(done) { setTimeout(function() {
+                done(navigator.userActivation.isActive ? 'still a tap' :
+                     String(document.liveCode.findStackWithName('MobileWebCheck').mwcNotFromATap()));
+            }, 6500); })"""))
+            expect('not from a tap, the camera, the share sheet and the whole screen say so at once',
+                   got == not_from_a_tap_expected(whole), {'not-from-a-tap': got, 'whole-screen': whole})
+        else:
+            log('  (this browser cannot tell a tap: no navigator.userActivation)')
+
+        # 8. the phone turns
         tab(0)
         page.set_viewport_size({'width': height, 'height': width})
         s = wait_for(page, lambda s: rect(s.get('rect', '')) == [0, 0, height, width] and 'landscape' in s.get('screen', ''))
@@ -447,54 +632,61 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
         expect('turned, the stack fills the window again (%dx%d)' % (height, width),
                rect(s.get('rect', '')) == [0, 0, height, width], s)
         expect('Home says landscape', 'landscape' in s.get('screen', ''), s)
-        for i, name in enumerate(['Home', 'List', 'Form', 'Gestures']):
+        for i, name in enumerate(TABS):
             if i:
-                fingers.tap(height * (i + 0.5) / 4, width - 24)
+                fingers.tap(height * (i + 0.5) / len(TABS), width - 24)
             s = on_card(name)
             shot('5-landscape-%s' % name.lower())
             expect('in landscape, %s ends above the tab bar' % name,
                    s.get('card') == name and s.get('contentbottom', '').isdigit() and s.get('tabs', '').isdigit()
                    and int(s['contentbottom']) <= int(s['tabs']), s)
-        fingers.tap(height * 0.5 / 4, width - 24)
+        fingers.tap(height * 0.5 / len(TABS), width - 24)
         s = on_card('Home')
         page.set_viewport_size({'width': width, 'height': height})
         s = wait_for(page, lambda s: rect(s.get('rect', '')) == [0, 0, width, height])
         expect('turned back, it fills the window again', rect(s.get('rect', '')) == [0, 0, width, height], s)
 
-        # 8. a desktop stack fitted to the phone: the button at 680,420 to
+        # 9. a desktop stack fitted to the phone: the button at 680,420 to
         # 780,480 of an 800x500 stack, shown as big as fits and centred
-        page.evaluate("() => document.liveCode.findStackWithName('MobileWebCheck').mwcFit()")
-        s = wait_for(page, lambda s: s.get('fullscreen') == 'true')
-        expect('the desktop stack is made fullscreen', s.get('fullscreen') == 'true', s)
-        time.sleep(1)
-        scale = min(width / 800.0, height / 500.0)
-        x = (width - 800 * scale) / 2 + 730 * scale
-        y = (height - 500 * scale) / 2 + 450 * scale
-        fingers.tap(x, y)
-        s = wait_for(page, lambda s: s.get('farhit') == 'true')
-        shot('6-fit')
-        expect('a tap reaches the fitted stack\'s far button', s.get('farhit') == 'true', s)
-        # turned, it is fitted again, and the Phone Starter, filled
-        # before, is left as it was: the window is the new stack's now
-        page.set_viewport_size({'width': height, 'height': width})
-        time.sleep(2)
-        s = state(page)
-        expect('turned, the stack filled before is left as it was',
-               rect(s.get('rect', '')) == [0, 0, width, height], s)
+        # (a tablet: the desktop stack fits, the right way up or turned,
+        # and by design is left as it is then; the library's own tests
+        # hold that. The turns below need it too big both ways.)
+        fits = max(width, height) >= 800 and min(width, height) >= 500
+        if fits:
+            log('  (the 800x500 stack fits this %dx%d screen, or turned: nothing to fit)' % (width, height))
+        else:
+            page.evaluate("() => document.liveCode.findStackWithName('MobileWebCheck').mwcFit()")
+            s = wait_for(page, lambda s: s.get('fullscreen') == 'true')
+            expect('the desktop stack is made fullscreen', s.get('fullscreen') == 'true', s)
+            time.sleep(1)
+            scale = min(width / 800.0, height / 500.0)
+            x = (width - 800 * scale) / 2 + 730 * scale
+            y = (height - 500 * scale) / 2 + 450 * scale
+            fingers.tap(x, y)
+            s = wait_for(page, lambda s: s.get('farhit') == 'true')
+            shot('6-fit')
+            expect('a tap reaches the fitted stack\'s far button', s.get('farhit') == 'true', s)
+            # turned, it is fitted again, and the Phone Starter, filled
+            # before, is left as it was: the window is the new stack's now
+            page.set_viewport_size({'width': height, 'height': width})
+            time.sleep(2)
+            s = state(page)
+            expect('turned, the stack filled before is left as it was',
+                   rect(s.get('rect', '')) == [0, 0, width, height], s)
 
-        # the same stack fitted by mwFitStack alone (after mwStop), then
-        # turned back: fitted again for the new window
-        got = str(page.evaluate("() => document.liveCode.findStackWithName('MobileWebCheck').mwcFitAlone()"))
-        expect('mwFitStack alone fits it', got == '', {'result': got})
-        time.sleep(1)
-        page.set_viewport_size({'width': width, 'height': height})
-        time.sleep(2)
-        fingers.tap(x, y)
-        s = wait_for(page, lambda s: s.get('farhit') == 'true')
-        expect('turned back, mwFitStack alone has fitted it again: a tap reaches the far button',
-               s.get('farhit') == 'true', s)
+            # the same stack fitted by mwFitStack alone (after mwStop), then
+            # turned back: fitted again for the new window
+            got = str(page.evaluate("() => document.liveCode.findStackWithName('MobileWebCheck').mwcFitAlone()"))
+            expect('mwFitStack alone fits it', got == '', {'result': got})
+            time.sleep(1)
+            page.set_viewport_size({'width': width, 'height': height})
+            time.sleep(2)
+            fingers.tap(x, y)
+            s = wait_for(page, lambda s: s.get('farhit') == 'true')
+            expect('turned back, mwFitStack alone has fitted it again: a tap reaches the far button',
+                   s.get('farhit') == 'true', s)
 
-        # 9. mwStop gives the page back its own look, and a page that keeps
+        # 10. mwStop gives the page back its own look, and a page that keeps
         # its own layout (as the Stack Player's does) is not filled
         got = str(page.evaluate("() => document.liveCode.findStackWithName('MobileWebCheck').mwcStopAndKeep()"))
         items = got.split(',')
@@ -554,7 +746,7 @@ def main(argv=None):
             for device in args.device or DEFAULT_DEVICES[args.browser]:
                 log('%s, %s:' % (args.browser, device))
                 problems += check_device(p, args.browser, device, url, args.timeout, args.shots, args.touch,
-                                         check_script=not args.rebuild)
+                                         check_script=not args.rebuild, work=work)
         server.shutdown()
     except (CheckError, web_check.CheckError, subprocess.TimeoutExpired) as e:
         log('FAILED: %s' % e)

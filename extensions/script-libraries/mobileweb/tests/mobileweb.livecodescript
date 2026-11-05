@@ -40,7 +40,11 @@ on TestSetup
          "on longPress pX, pY" & return & "   put ~longpress ~ & pX & comma & pY & return after gGot" & return & "end longPress" & return & \
          "on orientationChanged" & return & "   put ~orientation~ & return after gGot" & return & "end orientationChanged" & return & \
          "on keyboardActivated" & return & "   put ~keyboard up~ & return after gGot" & return & "end keyboardActivated" & return & \
-         "on keyboardDeactivated" & return & "   put ~keyboard down~ & return after gGot" & return & "end keyboardDeactivated" into tScript
+         "on keyboardDeactivated" & return & "   put ~keyboard down~ & return after gGot" & return & "end keyboardDeactivated" & return & \
+         "on touchStart pId, pX, pY" & return & "   put ~touchstart ~ & pId & comma & pX & comma & pY & return after gGot" & return & "end touchStart" & return & \
+         "on touchMove pId, pX, pY" & return & "   put ~touchmove ~ & pId & comma & pX & comma & pY & return after gGot" & return & "end touchMove" & return & \
+         "on touchEnd pId, pX, pY" & return & "   put ~touchend ~ & pId & comma & pX & comma & pY & return after gGot" & return & "end touchEnd" & return & \
+         "on touchRelease pId" & return & "   put ~touchrelease ~ & pId & return after gGot" & return & "end touchRelease" into tScript
    replace "~" with quote in tScript
    set the script of card 1 of stack "MobileWebTest" to tScript
    -- a button that takes swipes and passes pinches on to the card, as a
@@ -48,7 +52,8 @@ on TestSetup
    put "global gGot" & return & \
          "on swipe p" & return & "   put ~button swipe ~ & p & return after gGot" & return & "end swipe" & return & \
          "on pinchStart pX, pY" & return & "   put ~button pinchstart~ & return after gGot" & return & "   pass pinchStart" & return & "end pinchStart" & return & \
-         "on pinchEnd pS" & return & "   put ~button pinchend~ & return after gGot" & return & "   pass pinchEnd" & return & "end pinchEnd" into tScript
+         "on pinchEnd pS" & return & "   put ~button pinchend~ & return after gGot" & return & "   pass pinchEnd" & return & "end pinchEnd" & return & \
+         "on touchStart pId" & return & "   put ~button touchstart ~ & pId & return after gGot" & return & "   pass touchStart" & return & "end touchStart" into tScript
    replace "~" with quote in tScript
    create button "Pad" in card 1 of stack "MobileWebTest"
    set the rect of button "Pad" of card 1 of stack "MobileWebTest" to 250, 150, 350, 250
@@ -78,8 +83,8 @@ private command _ClearGot
    put empty into gGot
 end _ClearGot
 
-private command _FromBrowser pKind, p1, p2, p3
-   dispatch "mwFromBrowser" to stack sLib with pKind, p1, p2, p3
+private command _FromBrowser pKind, p1, p2, p3, p4
+   dispatch "mwFromBrowser" to stack sLib with pKind, p1, p2, p3, p4
 end _FromBrowser
 
 on TestOffTheWeb
@@ -243,3 +248,97 @@ on TestDragScroll
    mwDragScroll "field" && quote & "Nowhere" & quote && "of stack" && quote & "MobileWebTest" & quote
    TestAssert "an object that is not there is refused", the result begins with "no such object"
 end TestDragScroll
+
+on TestTouchMessages
+   mwStart "MobileWebTest"
+   _ClearGot
+   _FromBrowser "touchstart", 1, 300, 200
+   _FromBrowser "touchstart", 2, 10, 380
+   _FromBrowser "touchmove", 1, 20, 30
+   _FromBrowser "touchmove", 2, 12, 370
+   _FromBrowser "touchend", 1, 22, 31
+   _FromBrowser "touchrelease", 2, 12, 370
+   TestAssert "each finger's messages go to the control it touched first, and on up when passed", _Got() is \
+         "button touchstart 1" & return & "touchstart 1,300,200" & return & \
+         "touchstart 2,10,380" & return & \
+         "touchmove 1,20,30" & return & "touchmove 2,12,370" & return & \
+         "touchend 1,22,31" & return & "touchrelease 2" & return
+   _ClearGot
+   _FromBrowser "touchmove", 7, 5, 5
+   TestAssert "a finger the library does not know of goes to the card", _Got() is "touchmove 7,5,5" & return
+   mwStop
+   _ClearGot
+   _FromBrowser "touchstart", 3, 300, 200
+   TestAssert "no touch messages after mwStop", _Got() is empty
+end TestTouchMessages
+
+on TestSensorsOffTheWeb
+   local tSensor
+   repeat for each item tSensor in "location,heading,acceleration,rotation rate"
+      TestAssert "no" && tSensor && "on a desktop", mwSensorAvailable(tSensor) is false
+      mwStartSensor tSensor
+      TestAssert tSensor && "cannot be started on a desktop", the result is "not available"
+      TestAssert "no" && tSensor && "reading", mwSensorReading(tSensor) is empty
+      mwStopSensor tSensor
+      TestAssert tSensor && "can be stopped", the result is empty
+   end repeat
+   TestAssert "an unknown sensor is not available", mwSensorAvailable("smell") is false
+   mwStartSensor "smell"
+   TestAssert "an unknown sensor is refused", the result is "unknown sensor: smell"
+   mwStopSensor "smell"
+   TestAssert "an unknown sensor cannot be stopped", the result is "unknown sensor: smell"
+   mwStartSensor "location", "maybe"
+   TestAssert "loosely must be true or false", the result begins with "loosely is not true or false"
+end TestSensorsOffTheWeb
+
+on TestSensorMessagesOnlyWhileStarted
+   mwStart "MobileWebTest"
+   _ClearGot
+   _FromBrowser "sensor", "location", "51.5,-0.12,30,5,,,,1700000000.000"
+   _FromBrowser "sensorerror", "location", "permission denied"
+   TestAssert "a sensor that was not started sends nothing", _Got() is empty
+   TestAssert "and has no reading", mwSensorReading("location", true) is empty
+end TestSensorMessagesOnlyWhileStarted
+
+on TestShareOffTheWeb
+   local tWas
+   mwShare empty, empty
+   TestAssert "nothing to share is refused", the result is "nothing to share"
+   put the clipboardData["text"] into tWas
+   mwShare "My score is 12", "https://example.com"
+   TestAssert "on a desktop the text and link are copied", the result is "copied"
+   TestAssert "to the clipboard", the clipboardData["text"] is "My score is 12 https://example.com"
+   set the clipboardData["text"] to tWas
+end TestShareOffTheWeb
+
+on TestKeepAwakeAndFullScreenOffTheWeb
+   mwKeepAwake "maybe"
+   TestAssert "keep awake takes true or false", the result begins with "not true or false"
+   mwKeepAwake true
+   TestAssert "a desktop is not kept awake", the result is "not supported"
+   mwFullScreen "maybe"
+   TestAssert "full screen takes true or false", the result begins with "not true or false"
+   mwFullScreen true
+   TestAssert "no full screen on a desktop", the result is "not supported"
+   TestAssert "and it is not full screen", mwIsFullScreen() is false
+end TestKeepAwakeAndFullScreenOffTheWeb
+
+on TestPickPhotoChecksItsParameters
+   local tImages
+   put the number of images of card 1 of stack "MobileWebTest" into tImages
+   mwPickPhoto "selfie stick"
+   TestAssert "an unknown source is refused", the result is "unknown source: selfie stick"
+   mwPickPhoto "library", 0
+   TestAssert "a width of 0 is refused", the result begins with "not a size"
+   mwPickPhoto "camera", 600, "tall"
+   TestAssert "a height that is not a number is refused", the result begins with "not a size"
+   mwPickPhoto "camera"
+   TestAssert "no camera in the IDE", the result is "not supported"
+   mwPickPhoto "front camera", 300, 300
+   TestAssert "no front camera in the IDE", the result is "not supported"
+   mwStart "MobileWebTest"
+   _FromBrowser "photo", "AAAA"
+   _FromBrowser "photocancel"
+   TestAssert "a photo nobody waits for makes no image", \
+         the number of images of card 1 of stack "MobileWebTest" is tImages
+end TestPickPhotoChecksItsParameters

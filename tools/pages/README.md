@@ -10,6 +10,8 @@ Pages site, so that anyone can open them with nothing to download:
 | `.../ide/` | the web IDE |
 | `.../dictionary/` | the IDE's Dictionary (xTalk Script and xTalk Builder), which Help > Dictionary Online opens |
 | `.../player/` | the Stack Player |
+| `.../extensions/` | the xTalk Suite's extensions, built into OXT-Beyond, each with its `.lce` packages to download ([extensions/index.html](extensions/index.html)) |
+| `.../play/` | the bare player: a stack and nothing around it (`?stack=`, `?play=`; see [tools/web-player](../web-player/README.md)), on the Stack Player's engine |
 | `.../games/` | web games, such as Pixel Platformer Maker: each page runs its `standalone.zip` on the Stack Player's engine |
 | `.../map/` | the [codebase map](../codebase-map/README.md), for contributors, with the binary stacks' scripts as files beside it (`stack-scripts/`, `stack-scripts.zip`) |
 
@@ -25,12 +27,31 @@ that are there, its own anchors and the project on GitHub;
 and narrow, light and dark (the Web IDE workflow runs it beside the
 Dictionary's check).
 [check_site_rest.py](check_site_rest.py) holds the gallery, the Stack
-Player's home and the codebase map to the front page's rule at rest:
+Player's home, the bare player with no stack and the codebase map to the front page's rule at rest:
 nothing big moves without end unless it is pointed at, no frame is drawn,
 and the browser keeps at most 10% of a core busy (pages.yml runs it on
 the site it is about to deploy, as a warning;
 [test_pages_at_rest.py](../ci/tests/test_pages_at_rest.py) holds the
 pages without a browser).
+
+The extensions page has a card for each xTalk Suite extension (sodiumxt,
+torrentxt, enetxt, datachannelxt, box2dxt, coinxt, onionxt and nostrxt),
+in the web stacks gallery's look, with its own repository and a link to
+each of its `.lce` packages. The packages are the files that the suite's
+`lce-packages.yml` attaches to a suite release, named
+`<package>-<version>.lce`; pages.yml finds the suite's newest release
+that has any and gives its file names to `build_pages.py`
+(`--suite-release TAG --suite-assets FILE`), so the page links the files
+of the newest packaged release each time the site is built. Only the
+files the release has get a link; a package the page's table
+(`EXTENSIONS` in `build_pages.py`) does not name is linked under "More
+from the suite"; and without a release with packages each card links the
+suite's releases page instead. After them come OXT-Beyond's own two
+plugins, the xTalk Assistant and the xTalk MCP Bridge (`PLUGINS`), each
+linked to its `.lce` in the release the front page's Downloads links
+(`--release`), or to OXT-Beyond's releases without one. The page goes
+up with every site, and the front page has its card. [test_pages_extensions.py](../ci/tests/test_pages_extensions.py)
+holds it.
 
 With a release (`--release TAG --release-assets FILE`, which pages.yml
 gives: the release on the site, or the newest when the site has a test

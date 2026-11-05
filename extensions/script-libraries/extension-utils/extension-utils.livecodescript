@@ -1380,6 +1380,31 @@ private command addXML @xXML, pDepth, pTag, pContent, pAttributesA
    put return after xXML
 end addXML
 
+-- OXT-Beyond: the script libraries whose manifests name their handlers
+-- (see extensionGenerateManifestForLCSExtension), by library id.
+constant kLibrariesFoundByHandlers = "com.livecode.library.mobileweb"
+
+-- The commands and functions that a library's docs describe, one a line,
+-- in the order the docs give them, each once.
+private function __LCSDocumentedHandlers pDocA
+   local tHandlers, tSeenA, tName
+   repeat with tIndex = 1 to the number of elements of pDocA["doc"]
+      if pDocA["doc"][tIndex]["type"] is not among the items of "command,function" then
+         next repeat
+      end if
+      put pDocA["doc"][tIndex]["display name"] into tName
+      if tName is empty or tSeenA[tName] then
+         next repeat
+      end if
+      put true into tSeenA[tName]
+      if tHandlers is not empty then
+         put return after tHandlers
+      end if
+      put tName after tHandlers
+   end repeat
+   return tHandlers
+end __LCSDocumentedHandlers
+
 /**
 Generate manifest for LiveCode Script extension
 
@@ -1416,6 +1441,22 @@ command extensionGenerateManifestForLCSExtension pDocsParser, pSourceFolder
       addXML tPackageXML, 1, "requires", "", tAttrA
       put empty into tAttrA
    end repeat
+   
+   -- OXT-Beyond: name the handlers of a library that asks for it, so
+   -- that "Search for required inclusions" in the standalone builder
+   -- finds the library in a stack that calls them (revCheckObject in
+   -- revsblibrary asks revIDEExtensionLibraryHandlers, which reads them
+   -- from here). It is opt-in, by kLibrariesFoundByHandlers: a manifest
+   -- without handlers leaves a library out of that search, as it always
+   -- has, so a stack that was built before is built with the same
+   -- inclusions now.
+   if tDataA["name"] is among the items of kLibrariesFoundByHandlers then
+      repeat for each line tHandler in __LCSDocumentedHandlers(tDocA)
+         put tHandler into tAttrA["name"]
+         addXML tPackageXML, 1, "handler", "", tAttrA
+         put empty into tAttrA
+      end repeat
+   end if
    
    repeat for each item tMetadata in "svgicon"
       local tValue

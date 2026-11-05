@@ -611,6 +611,33 @@ COLOURS = (
 )
 
 
+def mobile_web_found_problem(found, json_found=None):
+    """What is wrong with web-deploy.livecodescript's mobileweb-found and
+    json-found lines (found and json_found: kind -> whether the standalone
+    builder's search for inclusions put the Mobile Web library, or the JSON
+    library, in the extensions setting), or None. The Mobile Web library
+    must be found in the stack that calls mwStart ("phone") and in no
+    other; the JSON library, which a stack calling JsonImport ("json")
+    never got from the search, must not be found in any, as before."""
+    kinds = {'phone', 'plain', 'json'}
+    if set(found) != kinds or set(json_found or {}) != kinds:
+        return ('the build did not report whether "Search for required inclusions" finds the Mobile Web '
+                'library (INFO mobileweb-found- and json-found- lines for phone, plain and json): %s, %s'
+                % (sorted(found) or 'none', sorted(json_found or {}) or 'none'))
+    if not found['phone']:
+        return ('"Search for required inclusions" did not find the Mobile Web library in a stack that '
+                'calls mwStart: is <handler> in its manifest.xml (extension-utils '
+                'kLibrariesFoundByHandlers), kept by the IDE (revideextensionlibrary) and kept by '
+                'the builder (revsblibrary revCheckObject)?')
+    if found['plain'] or found['json']:
+        return '"Search for required inclusions" put the Mobile Web library in a stack that does not call it'
+    if any(json_found.values()):
+        return ('"Search for required inclusions" now puts the JSON library in a stack that calls JsonImport, '
+                'which it never did before: old stacks\' standalones would change (revsblibrary '
+                'kSBLibrariesKeptWhenFound names the Mobile Web library alone)')
+    return None
+
+
 def log(msg=''):
     print(msg, flush=True)
 
@@ -999,6 +1026,9 @@ def build_with_ide(args, work, timeout):
             finally:
                 ui_tour.stop(proc)
         browser = drawing = None
+        found = {}
+        json_found = {}
+        built_ok = False
         for line in ui_tour.read_lines(results):
             log('  ide: %s' % line)
             if line.startswith('BUILD FAILED') or line.startswith('ERROR'):
@@ -1007,6 +1037,20 @@ def build_with_ide(args, work, timeout):
                 browser = line.split()[-1] == 'true'
             if line.startswith('INFO drawing-extension-loaded '):
                 drawing = line.split()[-1] == 'true'
+            if line.startswith('BUILD OK'):
+                built_ok = True
+            if line.startswith('INFO mobileweb-found-'):
+                found[line.split()[1][len('mobileweb-found-'):]] = line.split()[-1] == 'true'
+            if line.startswith('INFO json-found-'):
+                json_found[line.split()[1][len('json-found-'):]] = line.split()[-1] == 'true'
+        if not status and built_ok:
+            problem = mobile_web_found_problem(found, json_found)
+            if problem:
+                problems.append('the IDE\'s web build: %s' % problem)
+            else:
+                lines.append('"Search for required inclusions" found the Mobile Web library in a stack '
+                             'that calls mwStart, and not in one that does not, and left the JSON library '
+                             'out of one that calls JsonImport, as before')
         if status:
             problems.append('the IDE\'s web build %s' % status)
             for line in ui_tour.read_lines(os.path.join(work, 'ide-output.txt'))[-40:]:

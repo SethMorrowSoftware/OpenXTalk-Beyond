@@ -25,6 +25,24 @@ same names never starts them with this version's. Its scripts carry
 are. Behind a CDN, purge its cache when the site is updated from a release
 before this one, which had no stamp.
 
+On a phone (a touch screen whose short side is 600 pixels or less) a
+stack has the whole screen. The page takes `data-mobile-web-fill="no"`
+off its body there, so a stack made for phones that calls `mwStart` fills
+the screen as it does in a standalone of its own; any other stack is
+fitted to the screen (`mwFitStack`: scaled to it, and fitted again when
+the phone turns), and taps land on the controls under them. The menu bar
+and the window's title step aside for one round button, back to the
+library, which leaving a stack also gives back the page's own look
+(`mwStop`). Anywhere else a stack is shown in its window, at its own size,
+as before.
+
+If the engine stops in a browser (it runs out of the stack the browser
+gives a page, as on an older build on an iPhone or an iPad, or
+WebAssembly fails), a note across the top of the page says so, with the
+browser's words and its user agent, instead of a blank page. A
+standalone's page (`engine/rsrc/emscripten-html-template.html`) does the
+same.
+
 The home page offers **Open a stack**, **Open a folder** and a drop zone
 (a stack file, a folder, or a `.zip` holding a stack and the files it
 uses), three whole stacks to play (**OXT-Beyond on the Web**, a tour of
@@ -102,12 +120,43 @@ run JavaScript, read and write what other stacks saved for that site, and
 make requests with that site's cookies. Host the player on a site of its
 own that holds nothing else of value.
 
+## The bare player
+
+`play/` beside the player (`<site>/play/` on the web site) is a second
+page on the same engine and player stack that shows the stack and nothing
+else: no bar, no window around it, no library or logo, on a plain black
+page (LittleNemo, openxtalk.org p=26036). It is for putting a stack on a
+page of its own, as an HTML5 standalone would be, without building one.
+What it plays is in the address:
+
+| Address | What |
+| --- | --- |
+| `play/?stack=games/my.oxtstack` | a stack file, or a `.zip` of a stack and its files, on the same site (relative to the page, or from the site's root). Another site's file is refused: the stack would run as this site, with what other stacks saved here |
+| `play/?play=2048` | one of the player's samples, by its title |
+| `&align=top-left` | the stack at the top left; by default it is in the middle of the window, scrolled from its top left when it is bigger |
+| `&bg=white` | the colour around the stack (any CSS colour) |
+| `&mode=window` | as in the player: the stack in a window of its own |
+
+With neither `stack` nor `play` it offers one Open button, and takes a
+stack dropped on it. The page has no `data-mobile-web-fill="no"`, so a
+stack that calls the Mobile Web library's `mwStart`, `mwFillScreen` or
+`mwFitStack` fills the browser's window there, as on its own page; the
+Phone Starter does. It keeps out of a phone's notch and home bar
+(`viewport-fit=cover` and the safe-area insets) and uses `100dvh`, which
+iOS Safari's toolbar does not cover. The stacks it opens go into the
+same library as the player's (the browser's storage for the site).
+`build_player.py --check` opens it (`check_bare`: a sample in the middle
+with nothing around it, a stack of the site, another site's refused, the
+Phone Starter filling an iPhone's window in Chromium and, where
+Playwright's WebKit is installed, in WebKit).
+
 ## Files
 
 | File | What it is |
 |---|---|
 | `stack-player.livecodescript` | the player stack's script |
 | `build-player.livecodescript` | run by the IDE: makes the player stack (and the sample stacks) and builds it with `revSaveAsEmscriptenStandalone` |
+| `play.html` | the bare player (above), written as `play/index.html` |
 | `index.html` | the page: the home, library, About panel and bar in HTML, and the engine's canvas for the stack; it writes the files it is given into the engine's `/uploads` and calls the player stack's `playerFromPage` |
 | `stacks/` | the three stacks the home page features and the small samples with a picture, each with a picture of its first card (`.webp`, 960 wide at most); each one before the Phone Starter carries the colourized Script Viewer as a substack |
 | `phone-starter.livecodescript`, `phone-starter-stack.livecodescript` | build `stacks/Phone Starter.oxtstack` (see below) |
@@ -118,16 +167,19 @@ own that holds nothing else of value.
 
 `stacks/Phone Starter.oxtstack` is a stack to copy for a stack made for
 phones, with the Mobile Web library
-(`extensions/script-libraries/mobileweb`): a header, four cards under a
-tab bar a thumb can reach (Home, List, Form, Gestures), a swipe left or
-right to change tab, a list that scrolls with a finger, a form that stays
-above the on-screen keyboard, and a pad (a group with its own `swipe`,
-`pinch` and `longPress` handlers) for gestures. One line, `mwStart`,
+(`extensions/script-libraries/mobileweb`): a header, five cards under a
+tab bar a thumb can reach (Home, List, Form, Gestures, Phone), a swipe
+left or right to change tab, a list that scrolls with a finger, a form
+that stays above the on-screen keyboard, a pad (a group with its own
+`swipe`, `pinch`, `longPress` and touch handlers, which draw a ring under
+each finger) for gestures, and a Phone card that takes a photo, shares,
+finds where the phone is, rolls a ball as it tilts, keeps the screen on
+and hides the browser's bars. One line, `mwStart`,
 makes it a phone stack: in a page of its own (an HTML5 standalone) it
 fills the browser's window and fills it again when the phone turns, in
 portrait or landscape (two columns, smaller bars, out of the notch); in
-the player, whose page keeps its own layout, and on a desktop, it is a
-phone-sized window. Without the library (an engine before 0.2.7) it still
+the player on a desktop, whose page keeps its own layout, it is a
+phone-sized window, and in the player on a phone it fills the screen. Without the library (an engine before 0.2.7) it still
 opens and works, without the gestures.
 
 The stack is never edited by hand. Its script is
@@ -141,8 +193,10 @@ OXT-Beyond engine:
 
 `tools/ci/mobile_web_check.py` opens it on emulated phones (Playwright's
 Pixel 7 and iPhone 13, in Chromium and WebKit) and checks the taps,
-drags, swipes, pinch, long press, keyboard and turns (every card in
-landscape must end above the tab bar); it fails if the
+drags, swipes, pinch, long press, fingers, keyboard, the Phone card (a
+location it is given, a photo through the file chooser, a tilt it
+makes) and turns (every card in landscape must end above the tab bar);
+it fails if the
 committed stack's script is not `phone-starter-stack.livecodescript`'s.
 CI runs it in web.yml, after the web runtime check. To run it yourself:
 
