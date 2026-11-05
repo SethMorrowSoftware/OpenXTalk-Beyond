@@ -1558,6 +1558,7 @@ python3 tools/ci/android_check.py ide --install <folder> --work <work> --sdk <sd
 python3 tools/ci/android_check.py verify --work <work> --sdk <sdk>
 python3 tools/ci/android_check.py compare --old <work of the released IDE> --new <work> --sdk <sdk>
 python3 tools/ci/android_check.py device --apk <work>/out/debug.apk --serial emulator-5554 --sdk <sdk>
+python3 tools/ci/android_check.py boot --serial emulator-5554 --sdk <sdk> --log <the emulator's log>
 ```
 
 `verify` checks each package against what Android and Google Play ask:
@@ -1576,7 +1577,10 @@ meant (the signatures, the push receiver's `android:exported`).
 release, so that one release can be run with both builders. `device`
 installs a package with adb, starts it, and waits until the screen turns
 the probe's green, which only the probe's `openStack` makes; `ide
---device <serial>` does what the IDE's Test does for that device.
+--device <serial>` does what the IDE's Test does for that device. `boot`
+waits for an emulator to finish booting, and when it gives up it prints
+whether the emulator still runs, `/dev/kvm`, adb's devices, the free disk
+and the end of the emulator's log.
 
 The workflow "Android builder" (`android.yml`) runs all of it on the
 latest release's IDE, with this checkout's builder put in, on Windows,

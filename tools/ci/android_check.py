@@ -71,6 +71,12 @@ android-check.livecodescript), which only the probe's openStack makes: the
 engine loaded, opened the stack and ran its script. The screen is saved as
 a PNG (--out), and the device's log is searched for the app's crash.
 
+boot waits until an emulator has booted (adb sees it and
+sys.boot_completed is 1), saying where it is every minute. When it gives
+up it prints what might say why: whether the emulator still runs, /dev/kvm,
+adb's devices, the free disk and the end of the emulator's log (--log),
+which otherwise only reaches the workflow's artifact.
+
 Exit status 0 when every check passed, 1 otherwise. Only the Python 3
 standard library is used (3.8 or later), with the Android SDK's adb,
 apksigner, aapt and zipalign.
@@ -894,6 +900,94 @@ def device(args):
 
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# boot
+
+def tail(path, lines=60):
+    """The last lines of a text file, or why there are none."""
+    try:
+        with open(path, 'rb') as f:
+            text = f.read().decode('utf-8', 'replace')
+    except OSError as e:
+        return '(no log: %s)' % e
+    return '\n'.join(text.splitlines()[-lines:]) or '(the log is empty)'
+
+
+def boot_state(adb, serial):
+    """(adb's state of the device, its sys.boot_completed), each '' when
+    adb gives none."""
+    try:
+        _, state = run([adb, '-s', serial, 'get-state'], timeout=30)
+    except CheckError:
+        return '', ''
+    state = state.strip().splitlines()[-1].strip() if state.strip() else ''
+    if state != 'device':
+        return state, ''
+    try:
+        _, booted = run([adb, '-s', serial, 'shell', 'getprop', 'sys.boot_completed'], timeout=30)
+    except CheckError:
+        return state, ''
+    return state, booted.strip()
+
+
+def boot_diagnostics(adb, sdk, log_path):
+    """What may say why an emulator did not boot, as lines."""
+    out = []
+    try:
+        _, ps = run(['ps', '-eo', 'pid,etime,args'], timeout=30)
+        procs = [x.strip()[:300] for x in ps.splitlines() if 'qemu-system' in x or '/emulator' in x]
+        out.append('emulator processes: %s' % ('; '.join(procs) if procs else 'none (it is not running)'))
+    except CheckError as e:
+        out.append('emulator processes: %s' % e)
+    try:
+        st = os.stat('/dev/kvm')
+        out.append('/dev/kvm: mode %o, %s' % (st.st_mode & 0o777,
+                                            'readable and writable' if os.access('/dev/kvm', os.R_OK | os.W_OK)
+                                            else 'NOT readable and writable by this user'))
+    except OSError as e:
+        out.append('/dev/kvm: %s' % e)
+    try:
+        _, devices = run([adb, 'devices', '-l'], timeout=30)
+        out.append('adb devices: %s' % ' / '.join(x.strip() for x in devices.splitlines() if x.strip()))
+    except CheckError as e:
+        out.append('adb devices: %s' % e)
+    for path in (sdk, os.path.dirname(os.path.abspath(log_path)) if log_path else None):
+        if path and os.path.isdir(path):
+            du = shutil.disk_usage(path)
+            out.append('free disk at %s: %.1f GB of %.1f GB' % (path, du.free / 1e9, du.total / 1e9))
+    if log_path:
+        out.append('the end of %s:' % log_path)
+        out.append(tail(log_path))
+    return out
+
+
+def boot(args):
+    adb = adb_path(args.sdk)
+    if not adb:
+        raise CheckError('no adb')
+    start = time.monotonic()
+    deadline = start + args.minutes * 60
+    report = start
+    state = booted = ''
+    while True:
+        state, booted = boot_state(adb, args.serial)
+        now = time.monotonic()
+        if booted == '1':
+            log('%s booted after %d s' % (args.serial, now - start))
+            return []
+        if now >= report:
+            log('waiting for %s (%d s): adb says %s, sys.boot_completed is %s' % (
+                args.serial, now - start, state or 'nothing', booted or 'not there'))
+            report = now + 60
+        if now >= deadline:
+            break
+        time.sleep(args.interval)
+    for line in boot_diagnostics(adb, args.sdk, args.log):
+        log(line)
+    return ['%s did not boot in %g minutes (adb says %s, sys.boot_completed is %s); see the lines above' % (
+        args.serial, args.minutes, state or 'nothing', booted or 'not there')]
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     sub = ap.add_subparsers(dest='command', required=True)
@@ -933,10 +1027,16 @@ def main(argv=None):
     d.add_argument('--out')
     d.add_argument('--log-out')
     d.add_argument('--timeout', type=int, default=90)
+    b = sub.add_parser('boot')
+    b.add_argument('--serial', required=True)
+    b.add_argument('--sdk', required=True)
+    b.add_argument('--log', help="the emulator's own log, whose end is printed when it does not boot")
+    b.add_argument('--minutes', type=float, default=10)
+    b.add_argument('--interval', type=float, default=5)
     args = ap.parse_args(argv)
     try:
         problems = {'extract': extract, 'overlay': overlay, 'ide': ide, 'verify': verify, 'compare': compare,
-                    'device': device}[args.command](args)
+                    'device': device, 'boot': boot}[args.command](args)
     except CheckError as e:
         problems = [str(e)]
     log()

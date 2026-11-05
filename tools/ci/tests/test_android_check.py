@@ -22,6 +22,7 @@ same builds, colours and files. No Android SDK or engine is needed.
   python3 -m unittest discover -s tools/ci/tests
 """
 
+import contextlib
 import io
 import os
 import re
@@ -390,6 +391,75 @@ class VerifyWithoutTools(unittest.TestCase):
                                   ('lib/armeabi-v7a/librevandroid.so', elf32([0x1000]))], spec)
         self.assertEqual(len(problems), 1)
         self.assertIn('did not warn "built for armv7 and not arm64"', problems[0])
+
+
+@unittest.skipIf(os.name == 'nt', 'the stand-in adb is a shell script')
+class Boot(unittest.TestCase):
+    """boot with a stand-in adb: done once the emulator has booted, and
+    when it never does, a problem and the lines that may say why"""
+
+    BOOTED = ('case "$*" in\n'
+              '  *get-state*) echo device ;;\n'
+              '  *getprop*) echo 1 ;;\n'
+              'esac\n')
+    ABSENT = ('case "$*" in\n'
+              '  *get-state*) echo "error: device \'emulator-5554\' not found"; exit 1 ;;\n'
+              '  *devices*) printf "List of devices attached\\n" ;;\n'
+              'esac\n')
+    BOOTING = ('case "$*" in\n'
+               '  *get-state*) echo device ;;\n'
+               '  *getprop*) echo ;;\n'
+               '  *devices*) printf "List of devices attached\\nemulator-5554 device\\n" ;;\n'
+               'esac\n')
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.sdk = self.tmp.name
+        os.makedirs(os.path.join(self.sdk, 'platform-tools'))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def boot(self, script, *extra):
+        adb = os.path.join(self.sdk, 'platform-tools', 'adb')
+        with open(adb, 'w') as f:
+            f.write('#!/bin/sh\n' + script)
+        os.chmod(adb, 0o755)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            status = ac.main(['boot', '--serial', 'emulator-5554', '--sdk', self.sdk, '--minutes', '0.002',
+                              '--interval', '0.05'] + list(extra))
+        return status, out.getvalue()
+
+    def test_booted(self):
+        status, out = self.boot(self.BOOTED)
+        self.assertEqual(status, 0, out)
+        self.assertIn('emulator-5554 booted', out)
+
+    def test_not_there(self):
+        log = os.path.join(self.sdk, 'emulator.log')
+        with open(log, 'w') as f:
+            f.write('INFO | starting\nERROR | x86_64 emulation currently requires hardware acceleration!\n')
+        status, out = self.boot(self.ABSENT, '--log', log)
+        self.assertEqual(status, 1)
+        self.assertIn("did not boot in 0.002 minutes (adb says error: device 'emulator-5554' not found", out)
+        # what may say why: the processes, /dev/kvm, adb, the disk, the log
+        for part in ('emulator processes:', '/dev/kvm:', 'adb devices: List of devices attached',
+                     'free disk at', 'the end of %s:' % log, 'requires hardware acceleration'):
+            self.assertIn(part, out)
+
+    def test_still_booting(self):
+        status, out = self.boot(self.BOOTING)
+        self.assertEqual(status, 1)
+        self.assertIn('adb says device, sys.boot_completed is not there', out)
+        self.assertIn('waiting for emulator-5554', out)
+
+    def test_tail(self):
+        log = os.path.join(self.sdk, 'long.log')
+        with open(log, 'w') as f:
+            f.write('\n'.join(str(i) for i in range(100)))
+        self.assertEqual(ac.tail(log, 3), '97\n98\n99')
+        self.assertTrue(ac.tail(os.path.join(self.sdk, 'none.log')).startswith('(no log:'))
 
 
 class OneSystem(unittest.TestCase):
