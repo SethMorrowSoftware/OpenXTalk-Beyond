@@ -186,7 +186,14 @@ brings Learn stacks for the Box2Dxt Kit and the rest of the xTalk Suite
 the Phone Starter, shows animations that wait 0 ms in the browser,
 gives the Inspector's colours a Clear button, names the tools, lets
 the web IDE and the website rest, and sends write to process's text
-as written (see [0.2.7-rc.6.15](#027-rc615-the-bug-hunt-round-fifteen));
+as written (see [0.2.7-rc.6.15](#027-rc615-the-bug-hunt-round-fifteen)), and
+0.2.7-rc.6.16 lays one stack out for a phone, a tablet and a desktop
+with the Responsive Starter, lets a phone stack use the phone's touch,
+sensors, camera and share sheet, plays a stack with nothing around it,
+makes Android packages that install again, gives the website an
+Extensions page, and ends the Script Editor's black words on grey, a
+blank Dictionary on Windows and menu words that couldn't be read (see
+[0.2.7-rc.6.16](#027-rc616-the-bug-hunt-round-sixteen));
 0.2.6 stays the main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
@@ -203,7 +210,7 @@ as written (see [0.2.7-rc.6.15](#027-rc615-the-bug-hunt-round-fifteen));
   x86-64, macOS for Apple Silicon and Intel, Linux x86-64), and so are
   the standalone runtimes that every package carries for Windows
   (x86-64 and x86) and Linux (x86-64 and x86): CI builds the 32-bit
-  engines for them, and a release asset (`oxt-runtimes-0.2.7-rc.6.15.zip`)
+  engines for them, and a release asset (`oxt-runtimes-0.2.7-rc.6.16b.zip`)
   brings each platform's runtimes into the other packages. The web
   engine of HTML5 standalones, which every package carries, is built
   from this repository too (see [The engine](#the-engine)). The Android
@@ -346,8 +353,9 @@ requirements too.
 
 Releases whose tags do not start with `v`, such as `prebuilts-v1`,
 `runtimes-1.15`, `runtimes-0.2.5-rc.2`, `runtimes-0.2.7-rc.6.13`,
-`runtimes-0.2.7-rc.6.14` and `runtimes-0.2.7-rc.6.15`, are not programs. They hold
-files that the build and the packager download: the prebuilt
+`runtimes-0.2.7-rc.6.14`, `runtimes-0.2.7-rc.6.15` and
+`runtimes-0.2.7-rc.6.16b`, are not programs. They hold files that the
+build and the packager download: the prebuilt
 third-party libraries of earlier versions and the standalone runtimes
 for other platforms.
 
@@ -1663,6 +1671,167 @@ undo, and the folders where it keeps copies of stacks before changing
 them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
+
+#### 0.2.7-rc.6.16: the Bug Hunt, round sixteen
+
+OXT-Beyond 0.2.7-rc.6.16 has everything in 0.2.7-rc.6.15. In the spirit
+of the Bug Hunt, here is every change since then, each listed as the bug
+it squashes:
+
+- **A phone stack that only fitted phones.** The Mobile Web library lays
+  one stack out for a phone, a tablet and a desktop: mwLayoutClass and
+  mwSetBreakpoints say which the window is, mwResponsive sends
+  layoutChanged when it changes, layout rules kept on the controls
+  (mwLayout custom properties, followed by mwApplyLayout) place them for
+  each, mwFlow reflows a grid, and mwPointer and mwAppearance say
+  whether there is a mouse and whether the look is dark. The Responsive
+  Starter, in Home's gallery and the Stack Player, is a stack to copy
+  made with it: a tab bar on a phone, a rail on a tablet, a sidebar on a
+  desktop, a grid that reflows, details in a sheet or a pane, and a dark
+  look. The new guide "Stacks for Every Screen" shows how. A stack that
+  uses none of it is laid out as before (#350).
+- **A phone stack that couldn't use the phone.** The Mobile Web library
+  gives each finger its own touchStart, touchMove, touchEnd and
+  touchRelease; reads the location, heading, acceleration and rotation
+  rate (mwStartSensor); takes a photo from the camera or the library
+  (mwPickPhoto); opens the share sheet (mwShare); keeps the screen on
+  (mwKeepAwake); and hides the browser's bars (mwFullScreen). Each does
+  nothing on a desktop, and says "not from a tap" when the browser needs
+  a tap first. The Phone Starter has a Phone card that uses them, and the
+  new guide "Stacks for Phones" shows how. "Search for required
+  inclusions" finds the library in a stack that calls it (#348).
+- **A blank page where a stack should be.** When the engine stops in a
+  browser (out of the stack space an iPhone or an iPad gives a page,
+  WebAssembly turned off by an iPhone's Lockdown Mode, a browser older
+  than Safari 15 and iOS 15, or a damaged engine file), an HTML5
+  standalone and the Stack Player say which instead of showing a blank
+  page. On a phone, the Stack Player gives a stack the whole screen,
+  with a button back to the library (#348).
+- **A stack with a frame around it.** The bare player, at play/ beside
+  the Stack Player and on the website, shows a stack and nothing else:
+  no bar, no window, no library, in the middle of the page or at its top
+  left. It plays a stack of the same site (?stack=) or one of the
+  player's samples (?play=). On a phone it gives a Mobile Web stack the
+  whole screen and keeps it out of the notch; on a desktop it shows a
+  stack at its own size, as the Stack Player does. The Stack Player's
+  own page on a desktop is unchanged (LittleNemo) (#349, #355).
+- **Android packages that wouldn't install.** Test builds and "Sign for
+  development only" builds are signed with the Android SDK's debug key,
+  as LiveCode's builder signed them (before, they were not signed at
+  all); "Sign with my key" builds keep the v2 and v3 signatures Android
+  11 and newer need, and their passwords no longer go on apksigner's
+  command line; an app with a push sender ID installs on Android 12 and
+  newer (its push receiver says android:exported="true"); and a stack
+  whose Android card opens with no architecture saved gets arm64 ticked
+  beside armv7. The builder makes its packages without zip, sh and find,
+  so it builds on Windows, finds a keystore chosen there, and runs the
+  SDK's tools with the JDK of Preferences even when JAVA_HOME names an
+  older Java. It takes an SDK whose platform is newer than Android 13,
+  warns about what Google Play or Android 12 would refuse, and says what
+  an SDK lacks and how to install it (#353).
+- **No page for the extensions.** The website has an Extensions page
+  with a card for each xTalk Suite extension OXT-Beyond ships built in
+  (SodiumXT, TorrentXT, enetxt, DataChannelXT, Box2Dxt, CoinXT, OnionXT,
+  NostrXT), with what it does, its repository and a download button for
+  each of its .lce packages from the suite's newest release that has
+  them (a link to the suite's releases until there is one), and cards
+  for the xTalk Assistant and the xTalk MCP Bridge with their .lce
+  packages (#351).
+- **A Responsive Starter cut off on an iPad.** On a tablet, the Stack
+  Player and the bare player give a stack made with the Mobile Web
+  library the whole screen, so the Responsive Starter is laid out as a
+  tablet's instead of opening at its desktop size and cut off at the
+  right. Every other stack opens on a tablet as before, at its own size
+  (#361).
+- **A pattern the Inspector's Clear couldn't take away.** The Clear
+  beside a colour is enabled when the row's fill is a pattern, and takes
+  the pattern away with the colour, so a pattern no longer needs the
+  right-click menu to remove (LittleNemo) (#356).
+- **Black words on grey in the Script Editor.** The built-in light
+  colour scheme on a dark editor background, or the built-in dark one on
+  a light background, gave black text on grey. Each now loads the other
+  for the background drawn, keeping the saved scheme's name; custom and
+  other named schemes are unchanged (richmond62) (#357).
+- **A grey box in the Menu Builder.** On macOS's dark appearance, a light
+  grey box sat after the option menus of the menu's and the item's
+  Mnemonic letter. Each was an empty button whose icon no stack has;
+  both are transparent now, keep their tooltip and draw nothing on any
+  platform (#358).
+- **Menu words you couldn't read on Linux.** In a window with a colour
+  of its own, a menu's items took the theme's text colour: light grey on
+  a light window in a dark theme, dark grey on a dark one in a light
+  theme. Where the theme's text cannot be read on that colour, the words
+  are drawn black or white by it, as the item's tick is; menus on the
+  theme's colour are unchanged (#359).
+- **A blank Dictionary on Windows.** LiveCode's Dictionary could open
+  blank, in its window's own colour, when it opened where it was last:
+  its page was fitted to the window only when the window changed size.
+  It is fitted once the window is open (#360).
+- **Option menu lists you couldn't read.** On Windows, Linux and the web,
+  an option menu's or a combo box's list took the theme's list colour
+  and the button's words, so light words on a dark button were light
+  grey on white (SVG Lab's dark look on the web), and black words were
+  black on Windows' dark list. Where the two cannot be read against each
+  other, the list takes the button's background colour, or else the
+  theme's words; every list that could be read is drawn as before, and
+  the Mac's lists are unchanged (#360).
+- **A stack that wouldn't leave memory.** If the Project Browser had
+  been opened while a stack was still unsaved, even if it was closed
+  again, File > Close and Remove From Memory left that stack in memory
+  once it was saved: the browser, which keeps listening when closed,
+  looked the stack up in a way that read it back from its file. It now
+  looks only for the stack's own row; with none, an open browser lists
+  what is in memory again and a closed one does nothing. 0.2.6 did the
+  same (#362).
+- **An App Browser that missed changes.** The App Browser (the
+  Application Browser) never heard about new, renamed or removed stacks:
+  the IDE still sent its news to the browser's old name, so a stack
+  removed from memory stayed listed until Refresh. The open browser now
+  hears it, leaves out the IDE's own File Selector, and its names can be
+  read on a dark window. A stack of yours named "App Browser" or "File
+  Selector" is not mistaken for the IDE's. 0.2.6 did the same (#364).
+- **A hidden error on every stack open.** The extension library failed
+  quietly each time a stack opened while no extension's sample stack was
+  opening; only an IDE run from the source showed it, as an ERROR line
+  in the Message Box. Now it returns at once in that case, and nothing
+  else changes (#365).
+
+Behind the scenes, the Responsive Starter is checked in a browser on an
+iPhone, an iPad and a desktop, light and dark, with a notch, turned on
+its side and in a narrowed window; the bare player is opened by the
+player's check, which reads the drawn stack from its screenshot (at its
+own size on a desktop, to every edge on an iPhone), and held at rest by
+the site's; the new "Android builder"
+workflow builds packages with the released builder and with this one on
+Windows, Linux and macOS, checks their signatures, alignment and
+android:exported, compares them file by file, and on Linux runs them on
+an Android 13 emulator and on one with 16 KB pages; the player's check
+opens the Responsive Starter and 2048 on an iPad, portrait and
+landscape, the one drawn to the window's corners and the other exactly
+where and how big it was before; the IDE tour clears a pattern with the
+Inspector's Clear and fails on a Menu Builder button that draws only a
+bare box; the editor theme check covers a saved dark background in a
+light appearance and a light one in a dark appearance; the IDE tour
+draws a menu in a window of its own colour under three dark GTK themes
+and reads the Dictionary's page off the screen; the web check reads
+option menu lists on a light and a dark page; the IDE's tests remove
+a saved stack from memory with the Stack Inspector open on it and after
+the Project Browser was opened and closed, or left open; new IDE tests
+watch the App Browser hear about new, renamed and removed stacks and
+send a stack open past the extension library without an error; the
+changelog check refuses a fragment that was folded already; the WebKit
+checks fetch their browser's packages with a time limit and keep them
+in a cache, so a slow mirror no longer holds them past their time; and
+the runtimes that every package carries for the other platforms are
+rebuilt from this release's engine (#348, #349, #350, #353, #354, #355,
+#356, #357, #358, #359, #360, #361, #362, #364, #365).
+
+One bug found this round is not fixed in it. An Android app made with
+OXT-Beyond closes when Android makes its screen again without ending
+the app, as after a change of font size or language: the Android
+engine, carried over from LiveCode Community 9.6.3, opens its input a
+second time then. Packages from earlier releases do the same. Fixing it
+needs that engine built here, which is next on the Android list.
 
 #### 0.2.7-rc.6.15: the Bug Hunt, round fifteen
 
