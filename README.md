@@ -1775,6 +1775,14 @@ it squashes:
   other, the list takes the button's background colour, or else the
   theme's words; every list that could be read is drawn as before, and
   the Mac's lists are unchanged (#360).
+- **A stack that wouldn't leave memory.** If the Project Browser had
+  been opened while a stack was still unsaved, even if it was closed
+  again, File > Close and Remove From Memory left that stack in memory
+  once it was saved: the browser, which keeps listening when closed,
+  looked the stack up in a way that read it back from its file. It now
+  looks only for the stack's own row; with none, an open browser lists
+  what is in memory again and a closed one does nothing. 0.2.6 did the
+  same (#362).
 
 Behind the scenes, the Responsive Starter is checked in a browser on an
 iPhone, an iPad and a desktop, light and dark, with a notch, turned on
@@ -1794,11 +1802,15 @@ bare box; the editor theme check covers a saved dark background in a
 light appearance and a light one in a dark appearance; the IDE tour
 draws a menu in a window of its own colour under three dark GTK themes
 and reads the Dictionary's page off the screen; the web check reads
-option menu lists on a light and a dark page; the changelog check
-refuses a fragment that was folded already; and the runtimes that every
-package carries for the other platforms are rebuilt from this release's
-engine (#348, #349, #350, #353, #354, #355, #356, #357, #358, #359,
-#360, #361).
+option menu lists on a light and a dark page; the IDE's tests remove
+a saved stack from memory with the Stack Inspector open on it and after
+the Project Browser was opened and closed, or left open; the changelog
+check refuses a fragment that was folded already; the WebKit checks
+fetch their browser's packages with a time limit and keep them in a
+cache, so a slow mirror no longer holds them past their time; and the
+runtimes that every package carries for the other platforms are rebuilt
+from this release's engine (#348, #349, #350, #353, #354, #355, #356,
+#357, #358, #359, #360, #361, #362).
 
 One bug found this round is not fixed in it. An Android app made with
 OXT-Beyond closes when Android makes its screen again without ending
