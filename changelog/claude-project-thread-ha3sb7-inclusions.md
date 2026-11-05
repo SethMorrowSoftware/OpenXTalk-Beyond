@@ -1,0 +1,2 @@
+- Standalone Settings, Inclusions: the rows are listed in the alphabetical order of their names, the same every time; they came in the order the extensions were loaded, which changed from one run to the next (Palette Actions first in one, Clock in another). Which inclusions a stack has, and what is saved, are unchanged (#366)
+- Tests: revSBInclusionsByTitle, and the Inclusions pane's rows in title order with the stack's own inclusion still ticked (ide/tests/standalonesettings); the IDE tour checks the order on every platform (#366)

@@ -12,7 +12,9 @@ on preOpenCard
       put the viewProp["vscroll"] of group "extensionList" of me into tScroll
    end if
    
-   put revSBAvailableInclusions() into sExtensionData
+   -- OXT-Beyond: in the order of their titles, the same every run (the
+   -- list followed the order the extensions were loaded in)
+   put revSBInclusionsByTitle(revSBAvailableInclusions()) into sExtensionData
    setUpExtensionList
    
    send "renderView" to group "extensionList" of me

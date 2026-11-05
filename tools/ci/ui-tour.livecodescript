@@ -5356,6 +5356,31 @@ function tourInclusionIcons pStack
    return empty
 end tourInclusionIcons
 
+-- The Inclusions card of the Standalone Settings lists its rows in the
+-- order of their titles. They followed the order the extensions were
+-- loaded in, which changed from run to run (Palette Actions first in one
+-- run, Clock in another). Empty, or what failed
+function tourInclusionOrder pStack
+   local tCard, tCount, tData, tStyle, tTitles, tSorted, i
+   put the long id of card "Inclusions" of stack pStack into tCard
+   dispatch function "NumberOfRows" to tCard
+   put the result into tCount
+   if tCount is not an integer or tCount < 1 then return "the Inclusions card lists no rows"
+   repeat with i = 1 to tCount
+      put empty into tData
+      dispatch "DataForRow" to tCard with i, tData, tStyle
+      put tData["title"] & return after tTitles
+   end repeat
+   delete the last char of tTitles
+   put tTitles into tSorted
+   sort lines of tSorted
+   tourRecord "INFO Inclusions: first rows" && tourJoin(line 1 to 3 of tTitles)
+   if tTitles is not tSorted then
+      return "the Inclusions card's rows are not in the order of their titles:" && tourJoin(line 1 to 5 of tTitles)
+   end if
+   return empty
+end tourInclusionOrder
+
 function tourSelectedLineInk pStack, pWhat
    local tDefault, tLine, tTabs, tLeft, tRight, tRect, tHilite, tData, tW, tH, tAt, tBest, tBestRGB, tRGB, tLum, i, tRatio
    local tAside, tError
@@ -6029,6 +6054,9 @@ on tour_standalone_settings
       -- each row's icon is seen on its row
       if tCard is "Inclusions" then
          get tourInclusionIcons(tStack)
+         if it is not empty then put it & return after tFails
+         -- and the rows are in the order of their titles, the same every run
+         get tourInclusionOrder(tStack)
          if it is not empty then put it & return after tFails
       end if
       -- the Web card makes its page's settings when it first opens: the
