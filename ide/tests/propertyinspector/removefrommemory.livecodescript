@@ -133,3 +133,61 @@ on TestLockedInspectorAfterRemoveFromMemory
    TestAssert "a locked Inspector keeps showing what it showed", \
          __InspectedObjects() is tButton
 end TestLockedInspectorAfterRemoveFromMemory
+
+-- OXT-Beyond: the Project Browser, opened once and closed again, still
+-- hears ideDestroyStack. For a stack it listed under its name and that was
+-- saved since, the long id it was given names the stack's file, it had no
+-- row for that, and asking the engine about that long id read the stack
+-- from its file again: after File > Close and Remove From Memory the
+-- saved stack stayed in memory (found by tools/ci/everyday-tasks on
+-- 0.2.7-rc.6.15, with the Stack Inspector open on the stack itself)
+private command __ListThenSave pCloseBrowser
+   create stack kStack
+   set the defaultStack to kStack
+   create button "B1"
+   go stack kStack
+   -- The Project Browser lists the stack under its name, unsaved
+   if not revIDEPaletteIsVisible("Project Browser") then
+      revIDETogglePalette "Project Browser"
+   end if
+   wait 500 milliseconds with messages
+   TestAssert "the Project Browser opened", revIDEPaletteIsVisible("Project Browser") is true
+   if pCloseBrowser then
+      revIDETogglePalette "Project Browser"
+      wait 200 milliseconds with messages
+   end if
+   save stack kStack as (sFolder & slash & kStack & ".oxtstack")
+   -- The Stack Inspector on the stack itself
+   choose pointer tool
+   select empty
+   revIDEInspectObjects the long id of stack kStack
+   wait 500 milliseconds with messages
+   revIDESetUnedited kStack
+end __ListThenSave
+
+private command __CloseBrowser
+   if revIDEPaletteIsVisible("Project Browser") then
+      revIDETogglePalette "Project Browser"
+   end if
+end __CloseBrowser
+
+on TestRemoveSavedFromMemoryAfterProjectBrowserClosed
+   __ListThenSave true
+   TestAssert "the saved stack is in memory", kStack is among the lines of the mainStacks
+
+   revIDECloseStack the long id of stack kStack, true
+   wait 200 milliseconds with messages
+   TestAssert "the saved stack is removed from memory, and not read from its file again", \
+         kStack is not among the lines of the mainStacks
+end TestRemoveSavedFromMemoryAfterProjectBrowserClosed
+
+on TestRemoveSavedFromMemoryWithProjectBrowserOpen
+   __ListThenSave false
+   TestAssert "the saved stack is in memory", kStack is among the lines of the mainStacks
+
+   revIDECloseStack the long id of stack kStack, true
+   wait 500 milliseconds with messages
+   TestAssert "the saved stack is removed from memory, and not read from its file again", \
+         kStack is not among the lines of the mainStacks
+   __CloseBrowser
+end TestRemoveSavedFromMemoryWithProjectBrowserOpen

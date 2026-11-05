@@ -124,7 +124,7 @@ Code its authors knew to be wrong or incomplete. 64 notes, by part of the reposi
 
 ### FIXME: ide (1)
 
-- [ide/Toolset/libraries/revidelibrary.8.livecodescript:12745](ide/Toolset/libraries/revidelibrary.8.livecodescript#L12745) FIXME There is some inconsistency in the guide's files that we
+- [ide/Toolset/libraries/revidelibrary.8.livecodescript:12841](ide/Toolset/libraries/revidelibrary.8.livecodescript#L12841) FIXME There is some inconsistency in the guide's files that we
 
 <a id="fixme-ide-support"></a>
 
@@ -393,15 +393,15 @@ Work left for later. 432 notes, by part of the repository:
 - [engine/src/module-canvas.h:320](engine/src/module-canvas.h#L320) TODO - Implement image operations
 - [engine/src/module-canvas.h:363](engine/src/module-canvas.h#L363) TODO - add skew?"
 - [engine/src/module-engine.cpp:527](engine/src/module-engine.cpp#L527) TODO[C++11] This should be "static" but MSVC2010 doesn't support
-- [engine/src/object.cpp:676](engine/src/object.cpp#L676) TODO: filter out the C1 control codes too
-- [engine/src/object.cpp:1135](engine/src/object.cpp#L1135) TODO[19681]: This can be removed when all engine messages are sent with
-- [engine/src/object.h:1758](engine/src/object.h#L1758) TODO[C++11] uint32_t m_part_id = 0;
-- [engine/src/object.h:1761](engine/src/object.h#L1761) TODO[2017-04-27] These constructors should be constexpr
-- [engine/src/object.h:1762](engine/src/object.h#L1762) TODO[C++11] constexpr MCObjectPartHandle() = default;
-- [engine/src/object.h:1767](engine/src/object.h#L1767) TODO[C++11] MCObjectPartHandle(const MCObjectPartHandle&) = default;
-- [engine/src/object.h:1770](engine/src/object.h#L1770) TODO[C++11] MCObjectPartHandle(MCObjectPartHandle&& other) = deafult;
-- [engine/src/object.h:1781](engine/src/object.h#L1781) TODO[C++11] MCObjectPartHandle& operator=(const MCObjectPartHandle&) = default;
-- [engine/src/object.h:1788](engine/src/object.h#L1788) TODO[C++11] MCObjectPartHandle& operator=(MCObjectPartHandle&&) = default;
+- [engine/src/object.cpp:678](engine/src/object.cpp#L678) TODO: filter out the C1 control codes too
+- [engine/src/object.cpp:1137](engine/src/object.cpp#L1137) TODO[19681]: This can be removed when all engine messages are sent with
+- [engine/src/object.h:1761](engine/src/object.h#L1761) TODO[C++11] uint32_t m_part_id = 0;
+- [engine/src/object.h:1764](engine/src/object.h#L1764) TODO[2017-04-27] These constructors should be constexpr
+- [engine/src/object.h:1765](engine/src/object.h#L1765) TODO[C++11] constexpr MCObjectPartHandle() = default;
+- [engine/src/object.h:1770](engine/src/object.h#L1770) TODO[C++11] MCObjectPartHandle(const MCObjectPartHandle&) = default;
+- [engine/src/object.h:1773](engine/src/object.h#L1773) TODO[C++11] MCObjectPartHandle(MCObjectPartHandle&& other) = deafult;
+- [engine/src/object.h:1784](engine/src/object.h#L1784) TODO[C++11] MCObjectPartHandle& operator=(const MCObjectPartHandle&) = default;
+- [engine/src/object.h:1791](engine/src/object.h#L1791) TODO[C++11] MCObjectPartHandle& operator=(MCObjectPartHandle&&) = default;
 - [engine/src/paragraf.cpp:168](engine/src/paragraf.cpp#L168) TODO: trunctation
 - [engine/src/paragraf.cpp:2243](engine/src/paragraf.cpp#L2243) TODO: truncation if the paragraph would be too long
 - [engine/src/paragraf.cpp:2401](engine/src/paragraf.cpp#L2401) TODO: find out if ICU break iterator makes this redundant
