@@ -13,7 +13,9 @@ script "OXTLearnBox2DClicks"
 -- card, the line of numbers, the call explained, the bodies drawn, where
 -- each button and call is, where the bodies that move are, and so on.
 -- The driver reads it after each click. Every error the engine reports
--- (errorDialog) is added to $OXT_CLICKS_STATE.errors.
+-- (errorDialog) is added to $OXT_CLICKS_STATE.errors. When the driver
+-- writes a number of milliseconds into $OXT_CLICKS_STATE.hold, the engine
+-- does nothing for that long (clicksHold), as on a busy machine.
 
 local sStack, sOut
 
@@ -43,6 +45,9 @@ end errorDialog
 -- Everything the driver checks, now
 on clicksDump
    local tS, tError
+   if there is a file (sOut & ".hold") then
+      clicksHold
+   end if
    try
       put clicksState() into tS
    catch tError
@@ -52,6 +57,27 @@ on clicksDump
    rename (sOut & ".tmp") to sOut
    send "clicksDump" to me in 100 milliseconds
 end clicksDump
+
+-- The driver's hold: the engine runs this loop for the milliseconds
+-- $OXT_CLICKS_STATE.hold names and handles no event meanwhile, as when a
+-- long frame or the Scripts panel holds it up. A press and a drag the
+-- driver makes then are handled after it, when the mouse has already
+-- moved on: the press must still grab what was under it (the clickLoc),
+-- not what is under the mouse by then. $OXT_CLICKS_STATE.busy is there
+-- while it lasts
+private command clicksHold
+   local tFor, tEnd
+   put URL ("file:" & sOut & ".hold") into tFor
+   delete file (sOut & ".hold")
+   if tFor is not an integer then
+      put 1500 into tFor
+   end if
+   put "busy" into URL ("file:" & sOut & ".busy")
+   put the milliseconds + tFor into tEnd
+   repeat until the milliseconds >= tEnd
+   end repeat
+   delete file (sOut & ".busy")
+end clicksHold
 
 private function clicksState
    local tS, tCard, tIndex, tList, tDocs, tBody, tCount, tLab
