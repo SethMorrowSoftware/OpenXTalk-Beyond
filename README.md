@@ -191,8 +191,8 @@ as written (see [0.2.7-rc.6.15](#027-rc615-the-bug-hunt-round-fifteen)), and
 with the Responsive Starter, lets a phone stack use the phone's touch,
 sensors, camera and share sheet, plays a stack with nothing around it,
 makes Android packages that install again, gives the website an
-Extensions page, and ends the Script Editor's black words on grey and
-the Inspector's Clear that left a pattern behind (see
+Extensions page, and ends the Script Editor's black words on grey, a
+blank Dictionary on Windows and menu words that couldn't be read (see
 [0.2.7-rc.6.16](#027-rc616-the-bug-hunt-round-sixteen));
 0.2.6 stays the main download until it has held up.
 
@@ -1757,6 +1757,24 @@ it squashes:
   Mnemonic letter. Each was an empty button whose icon no stack has;
   both are transparent now, keep their tooltip and draw nothing on any
   platform (#358).
+- **Menu words you couldn't read on Linux.** In a window with a colour
+  of its own, a menu's items took the theme's text colour: light grey on
+  a light window in a dark theme, dark grey on a dark one in a light
+  theme. Where the theme's text cannot be read on that colour, the words
+  are drawn black or white by it, as the item's tick is; menus on the
+  theme's colour are unchanged (#359).
+- **A blank Dictionary on Windows.** LiveCode's Dictionary could open
+  blank, in its window's own colour, when it opened where it was last:
+  its page was fitted to the window only when the window changed size.
+  It is fitted once the window is open (#360).
+- **Option menu lists you couldn't read.** On Windows, Linux and the web,
+  an option menu's or a combo box's list took the theme's list colour
+  and the button's words, so light words on a dark button were light
+  grey on white (SVG Lab's dark look on the web), and black words were
+  black on Windows' dark list. Where the two cannot be read against each
+  other, the list takes the button's background colour, or else the
+  theme's words; every list that could be read is drawn as before, and
+  the Mac's lists are unchanged (#360).
 
 Behind the scenes, the Responsive Starter is checked in a browser on an
 iPhone, an iPad and a desktop, light and dark, with a notch, turned on
@@ -1773,11 +1791,14 @@ landscape, the one drawn to the window's corners and the other exactly
 where and how big it was before; the IDE tour clears a pattern with the
 Inspector's Clear and fails on a Menu Builder button that draws only a
 bare box; the editor theme check covers a saved dark background in a
-light appearance and a light one in a dark appearance; the changelog
-check refuses a fragment that was folded already; and the runtimes that
-every package carries for the other platforms are rebuilt from this
-release's engine (#348, #349, #350, #353, #354, #355, #356, #357, #358,
-#361).
+light appearance and a light one in a dark appearance; the IDE tour
+draws a menu in a window of its own colour under three dark GTK themes
+and reads the Dictionary's page off the screen; the web check reads
+option menu lists on a light and a dark page; the changelog check
+refuses a fragment that was folded already; and the runtimes that every
+package carries for the other platforms are rebuilt from this release's
+engine (#348, #349, #350, #353, #354, #355, #356, #357, #358, #359,
+#360, #361).
 
 One bug found this round is not fixed in it. An Android app made with
 OXT-Beyond closes when Android makes its screen again without ending
