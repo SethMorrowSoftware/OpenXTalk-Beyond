@@ -72,6 +72,9 @@ function rcState
          card "Explore" of stack kStack & ";" & the rect of graphic "Tile Back" of group "Tile 1" of group "Grid" of \
          card "Explore" of stack kStack & return after tState
    put "tile1name=" & the rect of field "Name" of group "Tile 1" of group "Grid" of card "Explore" of stack kStack & return after tState
+   -- the last place in the grid, below the window on a phone: its back
+   -- and its blurb laid out within all of it, not only the part that shows
+   put "lasttile=" & rcLastTile() & return after tState
    put "try=" & the visible of group "Try" of card "Guide" of stack kStack & return after tState
    put "live=" & rcOneLine(field "Live" of card "Guide" of stack kStack) & return after tState
    put "guide=" & the rect of field "Guide Text" of card "Guide" of stack kStack & return after tState
@@ -96,6 +99,14 @@ private function rcTiles pCard, pGrid
    delete the last char of tList
    return tList
 end rcTiles
+
+private function rcLastTile
+   local tGrid, tTile
+   put the long id of group "Grid" of card "Explore" of stack kStack into tGrid
+   put the long id of group "Tile 8" of tGrid into tTile
+   return the rect of tTile & ";" & the rect of graphic "Tile Back" of tTile & ";" & \
+         the rect of field "Blurb" of tTile
+end rcLastTile
 
 private function rcOneLine pText
    replace return with "|" in pText

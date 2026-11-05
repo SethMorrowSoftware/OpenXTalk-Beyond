@@ -375,6 +375,27 @@ on TestWithinAGroup
    TestAssert "filling its group", the rect of button "Inner" of tNest is "100,300,300,400"
 end TestWithinAGroup
 
+on TestWithinAGroupOutsideTheWindow
+   -- a card of a grid that is below the window (or scrolled above it) is
+   -- laid out within itself, all of it, not within the part that shows
+   local tNest
+   put the long id of group "Nest" of card 1 of stack "ResponsiveTest" into tNest
+   set the mwLayout["all"] of tNest to "left 100, top 650, width 200, height 100"
+   set the mwLayout["all"] of button "Inner" of tNest to "within, left 0, top 0, right 0, bottom 0"
+   mwApplyLayout "ResponsiveTest"
+   TestAssert "below the window: the whole group", the rect of button "Inner" of tNest is "100,650,300,750"
+   set the mwLayout["all"] of tNest to "left 100, top 900, width 200, height 100"
+   mwApplyLayout "ResponsiveTest"
+   TestAssert "all of it below the window: the whole group", the rect of button "Inner" of tNest is "100,900,300,1000"
+   set the mwLayout["all"] of tNest to "left 100, top -60, width 200, height 100"
+   mwApplyLayout "ResponsiveTest"
+   TestAssert "above the window: the whole group", the rect of button "Inner" of tNest is "100,-60,300,40"
+   set the mwLayout["all"] of button "Inner" of tNest to "within, left 10, right 10, bottom 0, height 20"
+   set the mwLayout["all"] of tNest to "left 100, top 900, width 200, height 100"
+   mwApplyLayout "ResponsiveTest"
+   TestAssert "from the bottom of a group below the window", the rect of button "Inner" of tNest is "110,980,290,1000"
+end TestWithinAGroupOutsideTheWindow
+
 on TestWithinACardOfAGrid
    -- a card of a grid lays itself out for its new width after the flow
    local tGroup

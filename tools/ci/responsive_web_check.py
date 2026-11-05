@@ -334,7 +334,18 @@ def check_phone(screen):
     screen.expect('notch: the tab bar reaches the bottom of the screen',
                   nav_back and nav_back[3] == screen.height, s)
     screen.expect('notch: the tabs are above the home bar', explore and explore[3] <= screen.height - HOME_BAR, s)
-    call(screen.page, 'rcInsets', 0, 0, 0, 0)
+    # the last place, below the window: laid out within all of itself
+    # (its back the whole place, its blurb in it), with a notch and without
+    for _ in range(2):
+        parts = [rect(p) for p in s.get('lasttile', '').split(';')]
+        whole = len(parts) == 3 and all(parts) and parts[0][1] > screen.height
+        screen.expect('the last place, below the window: its back is all of it',
+                      whole and parts[1] == parts[0], s)
+        screen.expect('the last place, below the window: its blurb is in it',
+                      whole and parts[2][3] - parts[2][1] > 0 and parts[0][1] < parts[2][1] < parts[2][3] <= parts[0][3], s)
+        call(screen.page, 'rcInsets', 0, 0, 0, 0)
+        s = wait_for(screen.page, lambda s: (rect(s.get('titlerect', '')) or [0, NOTCH])[1] < NOTCH)
+    # (the insets are 0 again)
 
     # turned: a tablet's layout (a phone on its side is 600 or wider)
     s = screen.resize(screen.height, screen.width)

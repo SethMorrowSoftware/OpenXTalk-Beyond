@@ -2086,10 +2086,27 @@ private function mwFollowRule pControl, pRule, pStack, pKey
          put the rect of tOwner into tBox
       end if
    end if
-   put max(item 1 of tBox, item 8 of pKey) into tL
-   put max(item 2 of tBox, item 5 of pKey) into tT
-   put min(item 3 of tBox, item 1 of pKey - item 6 of pKey) into tR
-   put min(item 4 of tBox, item 2 of pKey - item 7 of pKey) into tB
+   -- An edge of the box that lies in the strip a notch or the home bar
+   -- covers (from the stack's edge to the inset) is moved out of it. An
+   -- edge outside the stack, as a card of a grid below the window or
+   -- scrolled above it has, is left where it is: measuring it against the
+   -- window would leave the card's controls no room at all
+   put item 1 of tBox into tL
+   if tL >= 0 and tL < item 8 of pKey then
+      put item 8 of pKey into tL
+   end if
+   put item 2 of tBox into tT
+   if tT >= 0 and tT < item 5 of pKey then
+      put item 5 of pKey into tT
+   end if
+   put item 3 of tBox into tR
+   if tR <= item 1 of pKey and tR > item 1 of pKey - item 6 of pKey then
+      put item 1 of pKey - item 6 of pKey into tR
+   end if
+   put item 4 of tBox into tB
+   if tB <= item 2 of pKey and tB > item 2 of pKey - item 7 of pKey then
+      put item 2 of pKey - item 7 of pKey into tB
+   end if
    put max(0, tR - tL) into tAreaW
    put max(0, tB - tT) into tAreaH
    repeat for each item tWord in kRuleEdges
