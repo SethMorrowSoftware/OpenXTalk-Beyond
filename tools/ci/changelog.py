@@ -35,7 +35,9 @@ one "- " line per change ending with the pull request's number:
 check (CI checks, on every pull request and push): changelog/ holds
 only .md files (a folder, as a branch name with a "/" would make, is an
 error, since fold would miss it), every fragment holds at least one line, every line that is not empty starts with "- ", none is
-a heading, and CHANGELOG.md has at most one "## Unreleased" section.
+a heading, no line of it is in CHANGELOG.md already (a fragment folded
+once and come back, as two did after 0.2.7-rc.6.15's squash), and
+CHANGELOG.md has at most one "## Unreleased" section.
 
 fold (the pull request that sets a release's version, before it renames
 "## Unreleased" to the version; BUILDING.md, "Making a release"): appends
