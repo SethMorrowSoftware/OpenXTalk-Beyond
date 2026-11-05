@@ -119,11 +119,20 @@ def check(repo):
     """Every problem found, as a list of messages (empty when none)."""
     problems = ['%s/%s is not a fragment: write changelog/<name>.md, with no "/" in the name'
                 % (FRAGMENTS, name) for name in strays(repo)]
+    # A fragment whose lines CHANGELOG.md already holds was folded and has
+    # come back (a squash that took an older merge base restored two that
+    # 0.2.7-rc.6.15's fold deleted): the next fold would write them twice
+    entered = set(line.rstrip() for line in read_changelog(repo))
     for name in fragment_names(repo):
         try:
-            fragment_lines(repo, name)
+            lines = fragment_lines(repo, name)
         except ChangelogError as e:
             problems.append(str(e))
+            continue
+        folded_already = [line for line in lines if line in entered]
+        if folded_already:
+            problems.append('%s/%s: %d of its lines are already in %s (%r): it was folded, delete it'
+                            % (FRAGMENTS, name, len(folded_already), CHANGELOG, folded_already[0]))
     if unreleased_count(read_changelog(repo)) > 1:
         problems.append('%s has more than one "%s" section' % (CHANGELOG, UNRELEASED))
     return problems
