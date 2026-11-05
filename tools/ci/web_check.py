@@ -1001,6 +1001,43 @@ COLORS_FIELDS_LIKE_CARD = '200x100:240,240,240:240,240,240'
 CHECKS_LIGHT = '200x100:255,255,255:255,255,255:0,0,0'
 CHECKS_DARK = '200x100:32,32,32:32,32,32:255,255,255'
 
+# The colours of the controls of a card with a colour of its own, 120,170,230
+# (probeCardColors in web-probe.livecodescript): the snapshot's size, then a
+# push button, a default button, a rectangle button, one with a colour of its
+# own, a push button with white words, a disabled push button, a tab panel's
+# pane and its selected tab, then the push button's effective
+# backgroundColor. Windows, the Mac and Linux draw push buttons and tab
+# panels in their theme's face whatever the card's colour; the web engine has
+# no theme to draw them, and filled them with the card's (TerryL,
+# openxtalk.org p=25957 and p=26095). Now they are in the web theme's face
+# (em-theme.cpp), as on a card that sets no colour; the rectangle button,
+# the button's own colour and the effective backgroundColor are as before,
+# and so is the push button whose white words could not be read on the
+# light face.
+CARD_COLORS_LIGHT = ('400x180|240,240,240|240,240,240|120,170,230|255,200,120|120,170,230|'
+                     '240,240,240|240,240,240|240,240,240|120,170,230')
+CARD_COLORS_DARK = ('400x180|32,32,32|32,32,32|120,170,230|255,200,120|32,32,32|'
+                    '32,32,32|32,32,32|32,32,32|120,170,230')
+CARD_COLOR_NAMES = ('push button', 'default button', 'rectangle button', 'button with its own colour',
+                    'push button with white words', 'disabled push button', 'tab panel\'s pane',
+                    'tab panel\'s selected tab', 'push button\'s effective backgroundColor')
+
+
+def card_colors_problem(where, seen, want):
+    """What is wrong with the colours probeCardColors read on the page where
+    (seen), against want, or None"""
+    if seen == want:
+        return None
+    seen_parts, want_parts = str(seen).split('|'), want.split('|')
+    if len(seen_parts) != len(want_parts) or seen_parts[0] != want_parts[0]:
+        return 'on the page %s, the controls of a card with a colour of its own read %r, expected %r' % (
+            where, seen, want)
+    wrong = ['the %s rgb(%s), expected rgb(%s)' % (name, got, expected)
+             for name, got, expected in zip(CARD_COLOR_NAMES, seen_parts[1:], want_parts[1:]) if got != expected]
+    card = 'rgb(120,170,230)'
+    return ('on the page %s, on a card coloured %s: %s (a push button and a tab panel take the theme\'s face '
+            'as on the desktop, not the card\'s colour)' % (where, card, '; '.join(wrong)))
+
 
 def write_fields_page(page):
     """Writes the probe's page with FIELDS_META beside it."""
@@ -2487,6 +2524,29 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                                                '; a white box on a dark card looks ticked'
                                                if want_boxes == CHECKS_DARK else ''))
                         tab.evaluate(checks_js.replace("'checks'", "'colors-close'"))
+                    # the controls of a card with a colour of its own: a
+                    # push button and a tab panel in the theme's face, as on
+                    # the desktop, not in the card's colour
+                    want_cards = CARD_COLORS_DARK if name == 'following the browser' else CARD_COLORS_LIGHT
+                    opened = tab.evaluate(checks_js.replace("'checks'", "'card-colors-open'"))
+                    if opened != 'opened':
+                        problems.append('in a browser set to dark, the page %s could not open a stack with a '
+                                        'coloured card: %r' % (name, opened))
+                    else:
+                        cards = [None]
+
+                        def cards_drawn(want=want_cards):
+                            cards[0] = tab.evaluate(checks_js.replace("'checks'", "'card-colors'"))
+                            return cards[0] == want
+                        if wait_for(cards_drawn, 'the coloured card of the page %s' % name, 10):
+                            lines.append('on the page %s, a push button and a tab panel on a coloured card are in '
+                                         'the theme\'s face, a rectangle button and a coloured one as they were'
+                                         % name)
+                        else:
+                            # wait_for has said what did not happen; this
+                            # says what was drawn instead
+                            problems.append(card_colors_problem(name, cards[0], want_cards))
+                        tab.evaluate(checks_js.replace("'checks'", "'card-colors-close'"))
                     # the colours of option menus' lists on the page that
                     # follows the dark browser
                     for where, kind, least, want_back in MENU_LISTS:

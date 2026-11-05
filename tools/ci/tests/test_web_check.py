@@ -308,6 +308,111 @@ class TheCheckBoxes(unittest.TestCase):
         self.assertLess(block.index('boxes_drawn'), block.index("tab.emulate_media(color_scheme='light')"))
 
 
+class TheCardColours(unittest.TestCase):
+    """A push button and a tab panel on a card with a colour of its own: the
+    web engine has no theme to draw them (em-theme.cpp's MCWebTheme does not
+    load), so they were filled with the card's colour, where Windows, the Mac
+    and Linux draw their theme's face (TerryL, openxtalk.org p=25957 and
+    p=26095, the web IDE on Windows 11). web_check.py reads them in the
+    browser on a card coloured 120,170,230; these tests hold what it expects
+    to the engine's colours, the probe's report and the engine's rule."""
+
+    def parts(self, report):
+        return report.split('|')
+
+    def test_light_is_the_face_where_the_desktop_draws_its_theme(self):
+        parts = self.parts(web_check.CARD_COLORS_LIGHT)
+        self.assertEqual(len(parts), 1 + len(web_check.CARD_COLOR_NAMES))
+        size, push, default, rect, own, white, off, pane, tab, effective = parts
+        self.assertEqual(size, '400x180')
+        # kMCWebThemeFace, 0xF0F0F0: a card that sets no colour's too
+        self.assertIn('#define kMCWebThemeFace             0xF0F0F0', read('engine', 'src', 'em-theme.cpp'))
+        for drawn in (push, default, off, pane, tab):
+            self.assertEqual(drawn, '240,240,240')
+        # as before: Windows' theme has no rectangle button either, a
+        # colour of the button's own wins, white words could not be read on
+        # the light face, and a script reads the inherited colour
+        self.assertEqual(rect, '120,170,230')
+        self.assertEqual(own, '255,200,120')
+        self.assertEqual(white, '120,170,230')
+        self.assertEqual(effective, '120,170,230')
+
+    def test_dark_is_the_dark_face(self):
+        size, push, default, rect, own, white, off, pane, tab, effective = self.parts(web_check.CARD_COLORS_DARK)
+        self.assertEqual(size, '400x180')
+        for drawn in (push, default, white, off, pane, tab):
+            # (kMCWebThemeDarkFace, 0x202020): white words read on it
+            self.assertEqual(drawn, '32,32,32')
+        self.assertEqual((rect, own, effective), ('120,170,230', '255,200,120', '120,170,230'))
+
+    def test_a_problem_names_what_took_the_card_colour(self):
+        self.assertIsNone(web_check.card_colors_problem('as built', web_check.CARD_COLORS_LIGHT,
+                                                        web_check.CARD_COLORS_LIGHT))
+        # what the engine drew before: the card's colour in every one
+        before = '400x180|' + '|'.join(['120,170,230'] * 3 + ['255,200,120'] + ['120,170,230'] * 5)
+        problem = web_check.card_colors_problem('as built', before, web_check.CARD_COLORS_LIGHT)
+        for name in ('push button', 'default button', 'disabled push button', "tab panel's pane",
+                     "tab panel's selected tab"):
+            self.assertIn('the %s rgb(120,170,230), expected rgb(240,240,240)' % name, problem)
+        self.assertNotIn('rectangle button', problem)
+        self.assertIn('could not', web_check.card_colors_problem('as built', 'no stack', web_check.CARD_COLORS_LIGHT)
+                      .replace('read', 'could not'))
+
+    def test_the_probe_reports_them(self):
+        probe = read('tools', 'ci', 'web-probe.livecodescript')
+        report = probe.split('function probeReport pWhat', 1)[1]
+        self.assertIn('if pWhat is "card-colors-open" then\n      return probeCardColorsOpen()', report)
+        self.assertIn('if pWhat is "card-colors" then\n      return probeCardColors()', report)
+        opened = probe.split('private function probeCardColorsOpen', 1)[1].split('end probeCardColorsOpen', 1)[0]
+        self.assertIn('set the backgroundColor of card 1 of stack "Probe Card Colors" to "120,170,230"', opened)
+        for name, rect in (('Push', '10,10,110,36'), ('Default', '130,10,230,36'), ('Rect', '250,10,350,36'),
+                           ('Own', '10,50,110,76'), ('White Words', '130,50,230,76'), ('Off', '250,50,350,76')):
+            self.assertIn('probeCardButton "%s", "%s"' % (name, rect), opened)
+        self.assertIn('set the menuMode of button "Tabs" of stack "Probe Card Colors" to "tabbed"', opened)
+        self.assertIn('set the rect of button "Tabs" of stack "Probe Card Colors" to 10,90,250,170', opened)
+        # each area is inside its control, clear of its border (4 points in)
+        # and of its words (centred)
+        read_ = probe.split('private function probeCardColors\n', 1)[1].split('end probeCardColors\n', 1)[0]
+        areas = re.search(r'repeat for each item tArea in "([^"]+)"', read_).group(1).split(',')
+        self.assertEqual(len(areas), len(web_check.CARD_COLOR_NAMES) - 1)
+        rects = [(10, 10, 110, 36), (130, 10, 230, 36), (250, 10, 350, 36), (10, 50, 110, 76),
+                 (130, 50, 230, 76), (250, 50, 350, 76)]
+        for area, (left, top, right, bottom) in zip(areas, rects):
+            x0, y0, x1, y1 = (int(v) for v in area.split())
+            self.assertGreaterEqual(x0, left + 4)
+            self.assertGreaterEqual(y0, top + 4)
+            self.assertLessEqual(y1, bottom - 4)
+            self.assertLessEqual(x1, left + 14)
+
+    def test_the_engine_fills_them_with_the_face_on_the_web_only(self):
+        draw = read('engine', 'src', 'buttondraw.cpp')
+        helper = draw.split('bool MCButton::getwebthemeface(MCContextType p_type, MCColor &r_face)\n{', 1)[1]
+        helper = helper.split('\n}\n', 1)[0]
+        web, other = helper.split('#else', 1)
+        self.assertIn('#ifdef __EMSCRIPTEN__', web)
+        self.assertEqual(other.strip().splitlines()[0].strip(), 'return false;')
+        # only with no theme, no colour or pattern of its own, words that
+        # read on the face; a push button or a tab panel
+        self.assertIn('if (MCcurtheme != NULL || MClook == LF_MOTIF || !(flags & F_OPAQUE))', web)
+        self.assertIn('if (getcindex(DI_BACK, i) || getpindex(DI_BACK, i))', web)
+        self.assertIn('if (MCObjectColorContrast(t_words, t_face) < 4.5)', web)
+        self.assertIn('bool t_tabs = t_style == F_MENU && menumode == WM_TOP_LEVEL;', web)
+        self.assertNotIn('F_RECTANGLE', web)
+        # the fill takes it unless the button is hilited, and so do the tabs
+        self.assertIn('if (!t_fill_rev && !t_fill_hilite && getwebthemeface(dc -> gettype(), t_web_face))', draw)
+        tabs = draw.split('void MCButton::drawtabs(', 1)[1]
+        self.assertIn('if (getwebthemeface(dc -> gettype(), t_web_face))', tabs)
+
+    def test_the_check_reads_them_in_a_dark_browser(self):
+        check = read('tools', 'ci', 'web_check.py')
+        block = check.split("browser_waiting[0] = 'the systemAppearance'", 1)[1].split(
+            "browser_waiting[0] = 'the default colours'", 1)[0]
+        self.assertIn("want_cards = CARD_COLORS_DARK if name == 'following the browser' else CARD_COLORS_LIGHT",
+                      block)
+        self.assertIn("if wait_for(cards_drawn, 'the coloured card of the page %s' % name, 10):", block)
+        self.assertLess(block.index('cards_drawn'), block.index("tab.emulate_media(color_scheme='light')"))
+
+
 class TheSvgCheck(unittest.TestCase):
     """An HTML5 standalone that the IDE builds compiles SVG with the
     drawing library: the builder must carry the library's resources folder,
