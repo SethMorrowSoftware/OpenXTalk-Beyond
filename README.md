@@ -190,8 +190,10 @@ as written (see [0.2.7-rc.6.15](#027-rc615-the-bug-hunt-round-fifteen)), and
 0.2.7-rc.6.16 lays one stack out for a phone, a tablet and a desktop
 with the Responsive Starter, lets a phone stack use the phone's touch,
 sensors, camera and share sheet, plays a stack with nothing around it,
-makes Android packages that install again, and gives the website an
-Extensions page (see [0.2.7-rc.6.16](#027-rc616-the-bug-hunt-round-sixteen));
+makes Android packages that install again, gives the website an
+Extensions page, and ends the Script Editor's black words on grey and
+the Inspector's Clear that left a pattern behind (see
+[0.2.7-rc.6.16](#027-rc616-the-bug-hunt-round-sixteen));
 0.2.6 stays the main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
@@ -1735,6 +1737,26 @@ it squashes:
   them (a link to the suite's releases until there is one), and cards
   for the xTalk Assistant and the xTalk MCP Bridge with their .lce
   packages (#351).
+- **A Responsive Starter cut off on an iPad.** On a tablet, the Stack
+  Player and the bare player give a stack made with the Mobile Web
+  library the whole screen, so the Responsive Starter is laid out as a
+  tablet's instead of opening at its desktop size and cut off at the
+  right. Every other stack opens on a tablet as before, at its own size
+  (#361).
+- **A pattern the Inspector's Clear couldn't take away.** The Clear
+  beside a colour is enabled when the row's fill is a pattern, and takes
+  the pattern away with the colour, so a pattern no longer needs the
+  right-click menu to remove (LittleNemo) (#356).
+- **Black words on grey in the Script Editor.** The built-in light
+  colour scheme on a dark editor background, or the built-in dark one on
+  a light background, gave black text on grey. Each now loads the other
+  for the background drawn, keeping the saved scheme's name; custom and
+  other named schemes are unchanged (richmond62) (#357).
+- **A grey box in the Menu Builder.** On macOS's dark appearance, a light
+  grey box sat after the option menus of the menu's and the item's
+  Mnemonic letter. Each was an empty button whose icon no stack has;
+  both are transparent now, keep their tooltip and draw nothing on any
+  platform (#358).
 
 Behind the scenes, the Responsive Starter is checked in a browser on an
 iPhone, an iPad and a desktop, light and dark, with a notch, turned on
@@ -1745,10 +1767,17 @@ the site's; the new "Android builder"
 workflow builds packages with the released builder and with this one on
 Windows, Linux and macOS, checks their signatures, alignment and
 android:exported, compares them file by file, and on Linux runs them on
-an Android 13 emulator and on one with 16 KB pages; the changelog check
-refuses a fragment that was folded already; and the runtimes that every
-package carries for the other platforms are rebuilt from this release's
-engine (#348, #349, #350, #353, #354, #355).
+an Android 13 emulator and on one with 16 KB pages; the player's check
+opens the Responsive Starter and 2048 on an iPad, portrait and
+landscape, the one drawn to the window's corners and the other exactly
+where and how big it was before; the IDE tour clears a pattern with the
+Inspector's Clear and fails on a Menu Builder button that draws only a
+bare box; the editor theme check covers a saved dark background in a
+light appearance and a light one in a dark appearance; the changelog
+check refuses a fragment that was folded already; and the runtimes that
+every package carries for the other platforms are rebuilt from this
+release's engine (#348, #349, #350, #353, #354, #355, #356, #357, #358,
+#361).
 
 One bug found this round is not fixed in it. An Android app made with
 OXT-Beyond closes when Android makes its screen again without ending
