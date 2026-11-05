@@ -311,6 +311,8 @@ jobs:
           echo no | "$SDK/cmdline-tools/latest/bin/avdmanager" create avd -n pages16k -k "$IMAGE_16K" \
             -d pixel_5 --force
           echo "The emulator's AVDs (in $ANDROID_AVD_HOME): $("$SDK/emulator/emulator" -list-avds | tr '\n' ' ')"
+          # its memory and cores, for the account device prints if the probe dies
+          grep -h -e '^hw.ramSize' -e '^hw.cpu.ncore' "$ANDROID_AVD_HOME/pages16k.avd/config.ini" || true
           nohup "$SDK/emulator/emulator" -avd pages16k -no-window -no-audio -no-boot-anim -no-snapshot \
             -gpu swiftshader_indirect -camera-back none -camera-front none \
             > "$WORK/emulator-16k.log" 2>&1 &

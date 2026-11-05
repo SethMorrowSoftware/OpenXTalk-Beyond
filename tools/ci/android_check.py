@@ -71,7 +71,10 @@ android-check.livecodescript), which only the probe's openStack makes: the
 engine loaded, opened the stack and ran its script. The screen is saved as
 a PNG (--out), and the probe's own lines in the device's log are searched
 for its crash (the engine's caught attempt at an SSL library the package
-does not hold is expected, and only then: crash_lines).
+does not hold is expected, and only then: crash_lines). When it is not
+running, crashed or was started more than once, it prints the logs'
+account of its processes, how each ended (dumpsys activity exit-info) and
+the memory left.
 
 boot waits until an emulator has booted (adb sees it and
 sys.boot_completed is 1), saying where it is every minute. It gives up
@@ -411,6 +414,38 @@ def crash_lines(logcat, apk_names, pids):
         else:
             crash.append(line.strip())
     return crash, expected, others
+
+
+def probe_story(logcat, events, pids, keep=60):
+    """What the device's logs say happened to the probe's processes, as
+    (heading, lines) pairs, for when it is not running, crashed or was
+    started more than once: its own lines at every level, the system's
+    lines about it (the probe named, or "pid N" of one of its processes:
+    lowmemorykiller, libprocessgroup, ActivityManager, a tombstone), the
+    events buffer's (am_proc_start, am_proc_died, am_kill, am_crash, ...),
+    and any line about page sizes (Android 15's 16 KB compatibility)."""
+    own, system, pages = [], [], []
+    pid_word = re.compile(r'\bpid[:=]?\s*(\d+)')
+    for line in logcat.splitlines():
+        line = line.rstrip()
+        if not line:
+            continue
+        if pids and log_pid(line) in pids:
+            own.append(line)
+        elif IDENTIFIER in line or any(m in pids for m in pid_word.findall(line)):
+            system.append(line)
+        if re.search(r'(?i)16 ?kb|page.?size', line):
+            pages.append(line)
+    ev = []
+    for line in events.splitlines():
+        line = line.rstrip()
+        fields = set(re.findall(r'(?<=[\[,])\s*(\d+)\s*(?=[,\]])', line))
+        if IDENTIFIER in line or (re.match(r'[VDIWEFS]/am_', line) and fields & set(pids)):
+            ev.append(line)
+    return [("the probe's own lines (every level)", own[-keep:]),
+            ('the system on the probe', system[-keep:]),
+            ('the events buffer on the probe', ev[-keep:]),
+            ('lines about page sizes', pages[-20:])]
 
 
 def ide_results(lines):
@@ -959,6 +994,25 @@ def device(args):
         problems.append('the app is not running')
     if crash:
         problems.append('the device\'s log: %s' % ' | '.join(crash[:8]))
+    if problems or len(pids) > 1:
+        # why, before anything is changed: the logs' account of the probe's
+        # processes, how each one ended (ApplicationExitInfo, Android 11 and
+        # newer) and the memory left
+        if len(pids) > 1:
+            log('NOTE: the probe was started %d times (processes %s)' % (len(pids), ', '.join(sorted(pids))))
+        _, events = a('logcat', '-d', '-b', 'events', '-v', 'brief')
+        for heading, lines in probe_story(logcat, events, pids):
+            log('%s:%s' % (heading, '' if lines else ' none'))
+            for line in lines:
+                log('  ' + line)
+        _, exits = a('shell', 'dumpsys', 'activity', 'exit-info', IDENTIFIER)
+        exits = [x.rstrip() for x in exits.splitlines() if x.strip()]
+        log('how its processes ended (dumpsys activity exit-info):%s' % ('' if exits else ' none'))
+        for line in exits[:60]:
+            log('  ' + line)
+        _, mem = a('shell', 'cat', '/proc/meminfo')
+        log('memory: %s' % ', '.join(' '.join(x.split()) for x in mem.splitlines()
+                                     if x.split(':')[0] in ('MemTotal', 'MemAvailable', 'SwapFree')))
     return problems
 
 

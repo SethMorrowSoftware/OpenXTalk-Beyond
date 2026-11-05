@@ -327,6 +327,148 @@ class CrashLines(unittest.TestCase):
         self.assertEqual(self.lines(self.log()), ([], [], 0))
 
 
+class ProbeStory(unittest.TestCase):
+    """What is printed when the probe is not running, crashed or was
+    started again: its own lines, the system's about it, the events
+    buffer's and any line about page sizes"""
+
+    LOG = '\n'.join((
+        'I/ActivityManager(  590): Start proc 3475:org.openxtalk.check.androidprobe/u0a190 for next-top-activity',
+        'D/revandroid( 3475): engine started',
+        'I/NearbySharing( 2676): Fast Initiation Scanning has stopped',
+        'I/lowmemorykiller(  301): Kill \'org.openxtalk.check.androidprobe\' (3475), uid 10190, oom_score_adj 0',
+        'I/libprocessgroup(  590): Successfully killed process cgroup uid 10190 pid 3475 in 5ms',
+        'I/libprocessgroup(  590): Successfully killed process cgroup uid 10111 pid 2676 in 3ms',
+        'W/PackageManager(  590): org.openxtalk.check.androidprobe: 16 KB page size compat mode',
+        'I/ActivityManager(  590): Start proc 3612:org.openxtalk.check.androidprobe/u0a190 for activity',
+        'V/revandroid( 3612): surface created',
+        '',
+    ))
+    EVENTS = '\n'.join((
+        'I/am_proc_start(  590): [0,3475,10190,org.openxtalk.check.androidprobe,next-top-activity,{x}]',
+        'I/am_kill (  590): [0,3475,org.openxtalk.check.androidprobe,0,lmk]',
+        'I/am_proc_died(  590): [0,3612,10190,0,0]',
+        'I/am_proc_died(  590): [0,2676,10111,0,0]',
+        'I/am_pss  (  590): [3612,10190,org.openxtalk.check.androidprobe,1,2,3]',
+        'I/sysui_multi_action(  800): [757,804,799,3612]',
+    ))
+
+    def story(self, pids=('3475', '3612')):
+        return dict(ac.probe_story(self.LOG, self.EVENTS, set(pids)))
+
+    def test_sections(self):
+        story = self.story()
+        self.assertEqual(story["the probe's own lines (every level)"],
+                         ['D/revandroid( 3475): engine started', 'V/revandroid( 3612): surface created'])
+        self.assertEqual(story['the system on the probe'], [
+            'I/ActivityManager(  590): Start proc 3475:org.openxtalk.check.androidprobe/u0a190 for next-top-activity',
+            "I/lowmemorykiller(  301): Kill 'org.openxtalk.check.androidprobe' (3475), uid 10190, oom_score_adj 0",
+            'I/libprocessgroup(  590): Successfully killed process cgroup uid 10190 pid 3475 in 5ms',
+            'W/PackageManager(  590): org.openxtalk.check.androidprobe: 16 KB page size compat mode',
+            'I/ActivityManager(  590): Start proc 3612:org.openxtalk.check.androidprobe/u0a190 for activity'])
+        # the probe named, or one of its pids in an am_ event; not another
+        # process's death, nor a number that is not an am_ event's
+        self.assertEqual(story['the events buffer on the probe'], [
+            'I/am_proc_start(  590): [0,3475,10190,org.openxtalk.check.androidprobe,next-top-activity,{x}]',
+            'I/am_kill (  590): [0,3475,org.openxtalk.check.androidprobe,0,lmk]',
+            'I/am_proc_died(  590): [0,3612,10190,0,0]',
+            'I/am_pss  (  590): [3612,10190,org.openxtalk.check.androidprobe,1,2,3]'])
+        self.assertEqual(story['lines about page sizes'],
+                         ['W/PackageManager(  590): org.openxtalk.check.androidprobe: 16 KB page size compat mode'])
+
+    def test_no_pid_known(self):
+        story = self.story(())
+        self.assertEqual(story["the probe's own lines (every level)"], [])
+        self.assertIn("I/lowmemorykiller(  301): Kill 'org.openxtalk.check.androidprobe' (3475), uid 10190, "
+                      "oom_score_adj 0", story['the system on the probe'])
+
+    def test_keeps_the_last(self):
+        log = '\n'.join('D/revandroid( 3475): line %d' % i for i in range(100))
+        own = dict(ac.probe_story(log, '', {'3475'}, keep=5))["the probe's own lines (every level)"]
+        self.assertEqual(own, ['D/revandroid( 3475): line %d' % i for i in range(95, 100)])
+
+
+@unittest.skipIf(os.name == 'nt', 'the stand-in adb is a shell script')
+class Device(unittest.TestCase):
+    """device with a stand-in adb: the probe drew its green, and then its
+    process is gone, or was started twice: the check fails as before (or
+    passes), and first prints the logs' account of the probe"""
+
+    LOG = ('I/ActivityManager(  590): Start proc 3475:org.openxtalk.check.androidprobe/u0a190 for activity\n'
+           'I/revandroid( 3475): java.lang.UnsatisfiedLinkError: dlopen failed: library "librevsecurity.so" not found\n'
+           'I/lowmemorykiller(  301): Kill \'org.openxtalk.check.androidprobe\' (3475), uid 10190\n'
+           'I/ActivityManager(  590): Start proc 3612:org.openxtalk.check.androidprobe/u0a190 for activity\n')
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        d = self.tmp.name
+        os.makedirs(os.path.join(d, 'platform-tools'))
+        self.apk = os.path.join(d, 'debug.apk')
+        with zipfile.ZipFile(self.apk, 'w') as z:
+            z.writestr('lib/x86_64/librevandroid.so', b'')
+        with open(os.path.join(d, 'screen.raw'), 'wb') as f:
+            f.write(struct.pack('<IIII', 4, 4, 1, 0) + bytes(list(ac.RUN_COLOR) + [255]) * 16)
+        with open(os.path.join(d, 'logcat.txt'), 'w') as f:
+            f.write(self.LOG)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def device(self, pidof):
+        d = self.tmp.name
+        adb = os.path.join(d, 'platform-tools', 'adb')
+        with open(adb, 'w') as f:
+            f.write('#!/bin/sh\n'
+                    'shift 2\n'
+                    'case "$*" in\n'
+                    '  "shell getprop ro.build.version.sdk") echo 35 ;;\n'
+                    '  "shell getconf PAGE_SIZE") echo 16384 ;;\n'
+                    '  "shell getprop ro.product.cpu.abi") echo x86_64 ;;\n'
+                    '  install*) echo Success ;;\n'
+                    '  "shell am start"*) echo "Status: ok" ;;\n'
+                    '  "exec-out screencap") cat "%s/screen.raw" ;;\n'
+                    '  "shell pidof"*) %s ;;\n'
+                    '  "logcat -d -v brief") cat "%s/logcat.txt" ;;\n'
+                    '  "logcat -d -b events -v brief") echo "I/am_kill (  590): [0,3475,org.openxtalk.check.androidprobe,0,lmk]" ;;\n'
+                    '  "shell dumpsys activity exit-info"*) printf "  ApplicationExitInfo #0:\\n    pid=3612 reason=3 (LOW_MEMORY)\\n" ;;\n'
+                    '  "shell cat /proc/meminfo") printf "MemTotal: 2000000 kB\\nMemFree: 1 kB\\nMemAvailable: 90000 kB\\n" ;;\n'
+                    'esac\n' % (d, pidof, d))
+        os.chmod(adb, 0o755)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            status = ac.main(['device', '--apk', self.apk, '--serial', 'emulator-5554', '--sdk', d, '--timeout', '10'])
+        return status, out.getvalue()
+
+    def test_gone_after_drawing(self):
+        status, out = self.device('true')
+        self.assertEqual(status, 1, out)
+        self.assertIn('the app is not running', out)
+        self.assertIn('NOTE: the probe was started 2 times (processes 3475, 3612)', out)
+        for part in ("the probe's own lines (every level):\n  I/revandroid( 3475)",
+                     "the system on the probe:\n  I/ActivityManager(  590): Start proc 3475",
+                     "  I/lowmemorykiller(  301): Kill 'org.openxtalk.check.androidprobe' (3475)",
+                     'the events buffer on the probe:\n  I/am_kill (  590): [0,3475,',
+                     'lines about page sizes: none',
+                     'how its processes ended (dumpsys activity exit-info):\n    ApplicationExitInfo #0:',
+                     '\n      pid=3612 reason=3 (LOW_MEMORY)',
+                     'memory: MemTotal: 2000000 kB, MemAvailable: 90000 kB'):
+            self.assertIn(part, out)
+
+    def test_started_twice_and_running_passes_with_the_account(self):
+        status, out = self.device('echo 3612')
+        self.assertEqual(status, 0, out)
+        self.assertIn('NOTE: the probe was started 2 times', out)
+        self.assertIn('reason=3 (LOW_MEMORY)', out)
+
+    def test_once_and_running_prints_no_account(self):
+        with open(os.path.join(self.tmp.name, 'logcat.txt'), 'w') as f:
+            f.write(self.LOG.split('I/lowmemorykiller')[0])
+        status, out = self.device('echo 3475')
+        self.assertEqual(status, 0, out)
+        self.assertNotIn('exit-info', out)
+        self.assertNotIn('NOTE:', out)
+
+
 class Screen(unittest.TestCase):
     def raw(self, w, h, colour, header=16):
         head = struct.pack('<III', w, h, 1) + (struct.pack('<I', 0) if header == 16 else b'')
