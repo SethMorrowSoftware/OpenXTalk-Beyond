@@ -1745,6 +1745,13 @@ refuses a fragment that was folded already; and the runtimes that every
 package carries for the other platforms are rebuilt from this release's
 engine (#348, #349, #350, #353, #354).
 
+One bug found this round is not fixed in it. An Android app made with
+OXT-Beyond closes when Android makes its screen again without ending
+the app, as after a change of font size or language: the Android
+engine, carried over from LiveCode Community 9.6.3, opens its input a
+second time then. Packages from earlier releases do the same. Fixing it
+needs that engine built here, which is next on the Android list.
+
 #### 0.2.7-rc.6.15: the Bug Hunt, round fifteen
 
 OXT-Beyond 0.2.7-rc.6.15 has everything in 0.2.7-rc.6.14. In the spirit
