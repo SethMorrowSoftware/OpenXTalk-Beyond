@@ -462,6 +462,13 @@ function revStackNameIsIDEStack pStackName
       return true
    else if pStackName is among the items of "message box,answer dialog,ask dialog,home" then
       return true
+   else if pStackName is "File Selector" \
+         and pStackName is among the lines of the mainStacks \
+         and the effective filename of stack pStackName ends with "/revfileselector.rev" then
+      -- OXT-Beyond: the IDE's own file dialog (Toolset/palettes/
+      -- revfileselector.rev, opened when the systemFileSelector is false),
+      -- not a user's stack of that name
+      return true
    else if pStackName begins with "com.livecode." then
       return true
    else if pStackName is among the lines of revInternal__ListLoadedLibraries() then
