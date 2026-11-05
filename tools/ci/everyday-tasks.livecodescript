@@ -39,7 +39,7 @@ script "oxt_everyday"
 -- <name> ok | FAILED <why>, DONE). OXT_TOUR_ONLY names tasks; the tasks
 -- before a named one that it needs (the stack, its controls) run too.
 
-constant kTasks = "start,new-stack,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-open,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,finish"
+constant kTasks = "start,new-stack,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,finish"
 -- (the names the tasks give what they make)
 constant kStack = "Everyday Stack"
 constant kFile = "everyday.oxtstack"
@@ -72,7 +72,7 @@ on edWhenStarted pTries
 end edWhenStarted
 
 on edRun
-   local tTask, tHandler, tError, tWanted
+   local tTask, tHandler, tError, tWanted, tStarted
    edRecord "STARTED"
    edRecord "INFO platform" && the platform && the systemVersion && the processor
    edRecord "INFO version" && the version && the buildNumber
@@ -84,6 +84,7 @@ on edRun
       put "ed_" & tTask into tHandler
       replace "-" with "_" in tHandler
       put 0 into sWatchdogCount
+      put the milliseconds into tStarted
       -- (no dialog answer still waiting from the task before)
       edCancelPending "edAnswerWith,edKitDialogAnswer,edFileDialogAnswer"
       send "edWatchdog" && quote & tTask & quote to me in 30 seconds
@@ -103,6 +104,7 @@ on edRun
          end try
       end try
       cancel sWatchdog
+      edRecord "INFO time" && tTask && the milliseconds - tStarted && "ms"
       put empty into sReport
       put empty into sSkip
       edUnlockScreen tTask
@@ -735,6 +737,46 @@ function edABControlLoc pLine
    return (the left of button "Control" of group "Control Tabs" of card "Cards and Controls" of stack kAB + 24) & "," & ((item 2 of tRect + item 4 of tRect) div 2)
 end edABControlLoc
 
+-- The App Browser left open on the new stack's card, its Cards and
+-- Controls, while the tasks after it make controls, edit them in the
+-- Inspector, change tools, add, go to and delete cards, rename the stack
+-- and save it: the IDE sends the browser each change (#364), and a script
+-- error in it would be logged as an ERROR and fail the run. It sits in a
+-- corner of the screen, clear of the stack and the palettes
+on ed_appbrowser_watch
+   local tLine, tCard, tScreen
+   ed_appbrowser_open
+   ed_appbrowser_expand
+   put edABLine(the short name of stack sStack, 0) into tLine
+   put edABCardLine(tLine, 1) into tCard
+   if tCard is 0 then throw "the stack is not expanded"
+   edABClickName tCard
+   if not edWaitFor("the short name of this card of stack pAx is " & quote & "Cards and Controls" & quote, 3000, kAB) then
+      throw "a click on the card did not show its Cards and Controls (" & the short name of this card of stack kAB & ")"
+   end if
+   put the working screenRect into tScreen
+   put the rect of stack kAB into sKeep["abRect"]
+   set the rect of stack kAB to (item 3 of tScreen - 440) & "," & (item 4 of tScreen - 300) & "," & (item 3 of tScreen - 8) & "," & (item 4 of tScreen - 8)
+   go stack sStack
+   edShotScreen "02a-app-browser-watching"
+end ed_appbrowser_watch
+
+-- still open after those tasks, listing the stack under the name it has
+-- now (on Cards and Controls, or on its blank card once the card it showed
+-- was deleted, as it does), then closed and put back where it was
+on ed_appbrowser_still_open
+   if not edOpen(kAB) then throw "the App Browser left open is no longer open"
+   if not edWaitFor("edABLine(pAx, 0) is not 0", 3000, the short name of stack sStack) then
+      throw "the App Browser left open does not list" && the short name of stack sStack & ":" && edJoin(the text of edABTree())
+   end if
+   edRecord "INFO the App Browser left open is on its card" && the short name of this card of stack kAB
+   edShotStack kAB, "26d-app-browser-still-open"
+   close stack kAB
+   if sKeep["abRect"] is not empty and kAB is among the lines of the mainStacks then
+      set the rect of stack kAB to sKeep["abRect"]
+   end if
+end ed_appbrowser_still_open
+
 -- Development > Plugins > App Browser: the window opens and lists the
 -- stack
 on ed_appbrowser_open
@@ -750,6 +792,62 @@ on ed_appbrowser_open
    end if
    edShotStack kAB, "27a-app-browser"
 end ed_appbrowser_open
+
+-- the names in its tree read on its window: light, in the plugin's own
+-- grey as always; dark, in a grey with the contrast of body text (4.5 to 1)
+-- against the tree's background
+on ed_appbrowser_names
+   local tLinks, tBack, tContrast
+   if not edOpen(kAB) then throw "the App Browser is not open"
+   put the effective linkColor of stack kAB into tLinks
+   if not revIDEAppearanceIsDark() then
+      if tLinks is not "127,127,127" then throw "light: the App Browser's names are" && tLinks & ", not its own grey 127,127,127"
+      edShotStack kAB, "27a2-app-browser-names"
+      return empty
+   end if
+   put edRGB(the effective backgroundColor of field "Cards" of group "Cards" of card 1 of stack kAB) into tBack
+   if tBack is empty then put edRGB(the effective backgroundColor of stack kAB) into tBack
+   if tBack is empty or edRGB(tLinks) is empty then
+      put "the colours are not numbers (names:" && tLinks && "on" && the effective backgroundColor of stack kAB & ")" into sSkip
+      return "skipped"
+   end if
+   put edContrast(edRGB(tLinks), tBack) into tContrast
+   edRecord "INFO the App Browser's names:" && tLinks && "on" && tBack & ", contrast" && format("%.1f", tContrast)
+   edShotStack kAB, "27a2-app-browser-names"
+   if tContrast < 4.5 then throw "dark: the App Browser's names" && tLinks && "on" && tBack && "have a contrast of" && format("%.1f", tContrast) & ", under 4.5"
+end ed_appbrowser_names
+
+-- pColour as r,g,b, or empty when it is not three numbers
+function edRGB pColour
+   if the number of items of pColour is 3 and item 1 of pColour is an integer \
+         and item 2 of pColour is an integer and item 3 of pColour is an integer then
+      return pColour
+   end if
+   return empty
+end edRGB
+
+-- the WCAG contrast ratio of two r,g,b colours
+function edContrast pA, pB
+   local tA, tB
+   put edLuminance(pA) + 0.05 into tA
+   put edLuminance(pB) + 0.05 into tB
+   return max(tA, tB) / min(tA, tB)
+end edContrast
+
+function edLuminance pRGB
+   local tSum, tC, tWeights
+   put "0.2126,0.7152,0.0722" into tWeights
+   repeat with i = 1 to 3
+      put item i of pRGB / 255 into tC
+      if tC <= 0.03928 then
+         put tC / 12.92 into tC
+      else
+         put ((tC + 0.055) / 1.055) ^ 2.4 into tC
+      end if
+      add item i of tWeights * tC to tSum
+   end repeat
+   return tSum
+end edLuminance
 
 -- a click on the stack's icon expands it: its card listed under it
 on ed_appbrowser_expand
@@ -863,13 +961,11 @@ on ed_close_reopen
    if not edWaitFor("not edInMemory(sStack)", 5000) then
       throw "File > Close and Remove From Memory left the stack in memory (open:" && edJoin(the openStacks) & "; the question:" && sReport["answer"] & ")"
    end if
-   -- the App Browser (opened by the tasks before) no longer lists it once
-   -- its Refresh is clicked: it is not told of a stack removed, and lists
-   -- what is in memory when refreshed
+   -- the App Browser (opened by the tasks before) no longer lists it,
+   -- without its Refresh: the IDE tells it of a stack removed (#364)
    if edOpen(kAB) then
-      edClickAt kAB, the loc of button "Refresh" of group "Cards" of this card of stack kAB
       if not edWaitFor("edABLine(pAx, 0) is 0", 3000, kStack) then
-         throw "the App Browser, refreshed, still lists the stack removed:" && edJoin(the text of edABTree())
+         throw "the App Browser still lists the stack removed, until Refresh:" && edJoin(the text of edABTree())
       end if
       edShotStack kAB, "27f-app-browser-removed"
       close stack kAB
