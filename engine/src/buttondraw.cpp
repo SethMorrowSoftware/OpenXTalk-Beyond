@@ -440,7 +440,18 @@ void MCButton::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool 
 			if ((white && state & CS_KFOCUSED && !(state & CS_SUBMENU)) ||
 				(isstdbtn && noback && (MCcurtheme == NULL || (MCcurtheme->getthemeid() != LF_NATIVEWIN && MCcurtheme->getthemeid() != LF_NATIVEGTK)) && state & CS_HILITED && !MCaqua) ||
 				(MClook != LF_MOTIF && style == F_MENU && flags & F_OPAQUE && state & CS_ARMED && !(flags & F_SHOW_BORDER)))
+			{
 				setforeground(dc, DI_PSEUDO_BUTTON_TEXT_SEL, False, True);
+				// OXT-Beyond: a menu item hilited on the theme's hilite in
+				// the theme's hilited words when the colour it takes
+				// cannot be read there (getmenuitemarmedink)
+				MCColor t_armed_ink;
+				if (getmenuitemarmedink(dc, t_armed_ink))
+				{
+					dc->setforeground(t_armed_ink);
+					dc->setfillstyle(FillSolid, nil, 0, 0);
+				}
+			}
 			else
 			{
 				setforeground(dc, DI_FORE, ((state & CS_HILITED && flags & F_HILITE_FILL)
@@ -1712,6 +1723,71 @@ bool MCButton::getwebthemeface(MCContextType p_type, MCColor &r_face)
 		return false;
 
 	r_face = t_face;
+	return true;
+#else
+	return false;
+#endif
+}
+
+/* OXT-Beyond: the words of a menu item that is hilited (armed, by the mouse
+ * or the keyboard: both give it the keyboard focus) on Linux, where the
+ * engine draws a GTK theme's menus: the item is filled with the theme's
+ * hilite, GTK's selection colour (draw, WTHEME_TYPE_MENUITEMHIGHLIGHT, for
+ * an item with no background of its own), and its words are
+ * DI_PSEUDO_BUTTON_TEXT_SEL, which inherits as a background colour does:
+ * the first background colour from the item up, else the theme's hilited
+ * words. So a window's colour of its own reached the hilited item's words,
+ * and until 0.2.7-rc.6.17 a dark one drew them dark on the selection blue
+ * (48,52,58 on Adwaita's 74,144,217 and Adwaita-dark's 33,93,156, where
+ * the theme draws white: rc.6.16's screenshot review). When the colour
+ * the words would take and the theme's hilited words are not both dark or
+ * both light (Rec. 601 luma, as MCButtonMenuItemTextInkOnOwnColour), the
+ * words are the theme's. Nothing changes for a colour that is (a light
+ * window's 236,236,236 on that blue, as before), for a pattern, for an
+ * item with a background of its own (not on the theme's hilite), for one
+ * that is not hilited, nor off Linux's GTK theme. Only the drawing
+ * changes. */
+bool MCButton::getmenuitemarmedink(MCDC *dc, MCColor &r_ink)
+{
+#if defined(TARGET_PLATFORM_LINUX)
+	if (menucontrol != MENUCONTROL_ITEM)
+		return false;
+	if (MCcurtheme == NULL || MCcurtheme -> getthemeid() != LF_NATIVEGTK)
+		return false;
+	if (!(state & CS_ARMED) || (flags & F_SHOW_BORDER))
+		return false;
+	uint2 t_index;
+	if (getcindex(DI_BACK, t_index) || getpindex(DI_BACK, t_index))
+		return false;
+
+	// The words it would take, as draw sets them
+	MCColor t_words;
+	MCPatternRef t_pattern = nil;
+	int2 t_x, t_y;
+	if (!getforecolor(DI_PSEUDO_BUTTON_TEXT_SEL, False, True, t_words, t_pattern, t_x, t_y, dc -> gettype(), this) ||
+	    t_pattern != nil)
+		return false;
+
+	// The theme's hilited words, as getforecolor reaches them when nothing
+	// on the way has a background colour of its own
+	MCColor t_theme;
+	MCPlatformControlType t_type;
+	MCPlatformControlPart t_part;
+	MCPlatformControlState t_state;
+	MCPlatformThemeProperty t_prop;
+	MCPlatformThemePropertyType t_prop_type;
+	if (!getthemeselectorsforprop(P_FORE_COLOR, t_type, t_part, t_state, t_prop, t_prop_type) ||
+	    !MCPlatformGetControlThemePropColor(t_type, t_part, MCPlatformControlState(t_state | kMCPlatformControlStateSelected), t_prop, t_theme))
+		return false;
+
+	// Rec. 601 luma, out of 65535
+	uint32_t t_words_luma, t_theme_luma;
+	t_words_luma = (299 * uint32_t(t_words . red) + 587 * uint32_t(t_words . green) + 114 * uint32_t(t_words . blue)) / 1000;
+	t_theme_luma = (299 * uint32_t(t_theme . red) + 587 * uint32_t(t_theme . green) + 114 * uint32_t(t_theme . blue)) / 1000;
+	if ((t_words_luma < 32768) == (t_theme_luma < 32768))
+		return false;
+
+	r_ink = t_theme;
 	return true;
 #else
 	return false;

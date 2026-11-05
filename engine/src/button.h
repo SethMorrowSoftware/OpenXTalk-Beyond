@@ -337,6 +337,9 @@ public:
 	// OXT-Beyond: the web theme's face for a push button or a tab panel
 	// that would take its colour from the card (buttondraw.cpp)
 	bool getwebthemeface(MCContextType p_type, MCColor &r_face);
+	// OXT-Beyond: the theme's words for a menu item hilited on its hilite
+	// when the ones it would take cannot be read there (buttondraw.cpp)
+	bool getmenuitemarmedink(MCDC *dc, MCColor &r_ink);
 	void drawstandardbutton(MCDC *dc, MCRectangle &srect);
 	void drawmacdefault(MCDC *dc, const MCRectangle &srect);
 	void drawmacborder(MCDC *dc, MCRectangle &srect);
