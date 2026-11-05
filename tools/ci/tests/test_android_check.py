@@ -234,47 +234,97 @@ class SignerDN(unittest.TestCase):
 
 
 class CrashLines(unittest.TestCase):
-    """The device's log: the engine's caught attempt at SSL is expected
-    only in a package without librevsecurity.so"""
+    """The device's log: only the probe's processes, and the engine's
+    caught attempt at SSL expected only in a package without
+    librevsecurity.so"""
 
     NO_SSL = 'I/revandroid( 7092): java.lang.UnsatisfiedLinkError: dlopen failed: library "librevsecurity.so" not found'
-    NO_SSL_OLD = ('I/revandroid( 812): java.lang.UnsatisfiedLinkError: dalvik.system.PathClassLoader'
+    NO_SSL_OLD = ('I/revandroid( 7092): java.lang.UnsatisfiedLinkError: dalvik.system.PathClassLoader'
                   '[DexPathList[[zip file "/data/app/x.apk"]]] couldn\'t find "librevsecurity.so"')
+    # API 35, the same miss as the system's class loader sees it
+    NO_SSL_35 = ('D/nativeloader( 7092): Load librevsecurity.so using ns clns-7 from class loader (caller=/data/app/'
+                 '~~agU2hcVAStTVQscibh91ig==/org.openxtalk.check.androidprobe-tIAu8CJc7PpLUa6OtXSyAw==/base.apk): '
+                 'dlopen failed: library "librevsecurity.so" not found')
     PLAIN = ['AndroidManifest.xml', 'classes.dex', 'lib/arm64-v8a/librevandroid.so', 'lib/x86_64/librevandroid.so']
     WITH_SSL = PLAIN + ['lib/arm64-v8a/librevsecurity.so', 'lib/x86_64/librevsecurity.so']
+    # other processes, as the API 35 image logs them while the probe starts
+    SYSTEM = ('D/nativeloader( 3398): Load libtextclassifier3_jni_agsa.so using ns product-clns-7 from class loader '
+              '(caller=/product/priv-app/DevicePersonalizationPrebuiltPixel2021-aiai_20240329.00_RC16/'
+              'DevicePersonalizationPrebuiltPixel2021-aiai_20240329.00_RC16.apk!classes2.dex): dlopen failed: library '
+              '"libtextclassifier3_jni_agsa.so" not found',
+              'I/NearbySharing( 2676): Fast Initiation Scanning has stopped [CONTEXT service_id=194 ]')
 
     def log(self, *lines):
-        return '\n'.join(('I/ActivityManager(  500): Start proc 7092:org.openxtalk.check.androidprobe',)
+        return '\n'.join(('I/ActivityManager(  500): Start proc 7092:org.openxtalk.check.androidprobe/u0a190 for '
+                          'next-top-activity {org.openxtalk.check.androidprobe/org.openxtalk.check.androidprobe.mblandroid}',)
                          + lines + ('D/revandroid( 7092): done',))
 
+    def lines(self, log, names=None, pidof='7092'):
+        return ac.crash_lines(log, self.PLAIN if names is None else names, ac.probe_pids(log, pidof))
+
     def test_expected_without_ssl(self):
-        for line in (self.NO_SSL, self.NO_SSL_OLD):
-            self.assertEqual(ac.crash_lines(self.log(line), self.PLAIN), ([], [line]))
+        for line in (self.NO_SSL, self.NO_SSL_OLD, self.NO_SSL_35):
+            self.assertEqual(self.lines(self.log(line)), ([], [line], 0))
+        self.assertEqual(self.lines(self.log(self.NO_SSL_35, self.NO_SSL)), ([], [self.NO_SSL_35, self.NO_SSL], 0))
 
     def test_a_problem_with_ssl(self):
         # the package holds it and the engine could not load it
-        self.assertEqual(ac.crash_lines(self.log(self.NO_SSL), self.WITH_SSL), ([self.NO_SSL], []))
+        for line in (self.NO_SSL, self.NO_SSL_35):
+            self.assertEqual(self.lines(self.log(line), self.WITH_SSL), ([line], [], 0))
         bad = ('I/revandroid( 7092): java.lang.UnsatisfiedLinkError: dlopen failed: "/data/app/lib/x86_64/'
                'librevsecurity.so" program alignment (4096) cannot be smaller than system page size (16384)')
-        self.assertEqual(ac.crash_lines(self.log(bad), self.WITH_SSL), ([bad], []))
-        self.assertEqual(ac.crash_lines(self.log(bad), self.PLAIN), ([bad], []))
+        self.assertEqual(self.lines(self.log(bad), self.WITH_SSL), ([bad], [], 0))
+        self.assertEqual(self.lines(self.log(bad)), ([bad], [], 0))
 
     def test_other_libraries_and_levels_still_count(self):
         for line in ('I/revandroid( 7092): java.lang.UnsatisfiedLinkError: dlopen failed: library "librevdb.so" not found',
+                     'D/nativeloader( 7092): Load librevdb.so using ns clns-7 from class loader (caller=/data/app/'
+                     'x/base.apk): dlopen failed: library "librevdb.so" not found',
                      'E/revandroid( 7092): java.lang.UnsatisfiedLinkError: dlopen failed: library "librevsecurity.so" not found',
                      'E/AndroidRuntime( 7092): java.lang.UnsatisfiedLinkError: dlopen failed: library '
                      '"librevsecurity.so" not found',
                      'E/AndroidRuntime( 7092): FATAL EXCEPTION: main',
-                     'F/libc    ( 7092): Fatal signal 11 (SIGSEGV), code 1',
-                     'E/ActivityManager(  500): ANR in org.openxtalk.check.androidprobe'):
-            self.assertEqual(ac.crash_lines(self.log(line), self.PLAIN), ([line], []), line)
+                     'F/libc    ( 7092): Fatal signal 11 (SIGSEGV), code 1'):
+            self.assertEqual(self.lines(self.log(line)), ([line], [], 0), line)
 
-    def test_both_at_once(self):
-        fatal = 'E/AndroidRuntime( 7092): FATAL EXCEPTION: main'
-        self.assertEqual(ac.crash_lines(self.log(self.NO_SSL, fatal), self.PLAIN), ([fatal], [self.NO_SSL]))
+    def test_other_processes_left_out(self):
+        self.assertEqual(self.lines(self.log(self.NO_SSL_35, *self.SYSTEM)), ([], [self.NO_SSL_35], 2))
+        # even a librevsecurity miss of another app's
+        other = self.NO_SSL.replace('7092', '3398')
+        self.assertEqual(self.lines(self.log(other)), ([], [], 1))
+
+    def test_the_system_naming_the_probe_counts(self):
+        anr = 'E/ActivityManager(  500): ANR in org.openxtalk.check.androidprobe (org.openxtalk.check.androidprobe/.mblandroid)'
+        self.assertEqual(self.lines(self.log(anr, *self.SYSTEM)), ([anr], [], 2))
+
+    def test_a_probe_started_again(self):
+        # crashed in 7092, started again as 7311: both are the probe's
+        log = self.log('E/AndroidRuntime( 7092): FATAL EXCEPTION: main',
+                       'I/ActivityManager(  500): Start proc 7311:org.openxtalk.check.androidprobe/u0a190 for activity',
+                       'F/libc    ( 7311): Fatal signal 6 (SIGABRT), code -1')
+        self.assertEqual(ac.probe_pids(log, '7311\n'), {'7092', '7311'})
+        crash, _, others = self.lines(log, pidof='7311')
+        self.assertEqual(len(crash), 2)
+        self.assertEqual(others, 0)
+
+    def test_no_pid_known_reads_every_line(self):
+        log = '\n'.join(self.SYSTEM + (self.NO_SSL,))
+        self.assertEqual(ac.probe_pids(log, ''), set())
+        crash, expected, others = ac.crash_lines(log, self.PLAIN, set())
+        self.assertEqual((crash, expected, others), (list(self.SYSTEM), [self.NO_SSL], 0))
+
+    def test_pids(self):
+        self.assertEqual(ac.log_pid('F/libc    ( 7092): Fatal signal 11'), '7092')
+        self.assertEqual(ac.log_pid('I/ActivityManager(  500): Start proc'), '500')
+        self.assertIsNone(ac.log_pid('--------- beginning of main'))
+        # a process of another app whose name begins with the probe's is not the probe
+        log = 'I/ActivityManager(  500): Start proc 4000:org.openxtalk.check.androidprobe2/u0a191 for activity'
+        self.assertEqual(ac.probe_pids(log), set())
+        log = 'I/ActivityManager(  500): Start proc 4001:org.openxtalk.check.androidprobe:remote/u0a190 for service'
+        self.assertEqual(ac.probe_pids(log), {'4001'})
 
     def test_a_quiet_log(self):
-        self.assertEqual(ac.crash_lines(self.log(), self.PLAIN), ([], []))
+        self.assertEqual(self.lines(self.log()), ([], [], 0))
 
 
 class Screen(unittest.TestCase):

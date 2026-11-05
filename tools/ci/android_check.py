@@ -69,9 +69,9 @@ device installs a package on a device or emulator with adb, starts it and
 waits until the screen is the probe's green (kRunColor in
 android-check.livecodescript), which only the probe's openStack makes: the
 engine loaded, opened the stack and ran its script. The screen is saved as
-a PNG (--out), and the device's log is searched for the app's crash (the
-engine's caught attempt at an SSL library the package does not hold is
-expected, and only then: crash_lines).
+a PNG (--out), and the probe's own lines in the device's log are searched
+for its crash (the engine's caught attempt at an SSL library the package
+does not hold is expected, and only then: crash_lines).
 
 boot waits until an emulator has booted (adb sees it and
 sys.boot_completed is 1), saying where it is every minute. It gives up
@@ -366,26 +366,51 @@ CRASH = r'FATAL EXCEPTION|UnsatisfiedLinkError|dlopen failed|Fatal signal|has st
 # Engine.loadExternalLibrary catches the UnsatisfiedLinkError, logs it at
 # info level and the engine runs on without SSL. A package built without
 # SSL ("android,include revsecurity" false: the probe's) has no
-# librevsecurity.so, so the line is expected there and only there: in a
-# package that holds one, a failure to load it is a problem.
+# librevsecurity.so, so the miss is expected there and only there: in a
+# package that holds one, a failure to load it is a problem. It is logged
+# twice on newer Android (API 35): the engine's line, and before it the
+# system's nativeloader at debug level.
 NO_SSL = (r'^I/revandroid\(\s*\d+\): java\.lang\.UnsatisfiedLinkError: '
-          r'(?:dlopen failed: library "librevsecurity\.so" not found|.*couldn\'t find "librevsecurity\.so")\s*$')
+          r'(?:dlopen failed: library "librevsecurity\.so" not found|.*couldn\'t find "librevsecurity\.so")\s*$',
+          r'^D/nativeloader\(\s*\d+\): Load librevsecurity\.so using .*: '
+          r'dlopen failed: library "librevsecurity\.so" not found\s*$')
 
 
-def crash_lines(logcat, apk_names):
-    """(the device's log lines that say the app crashed or could not load
-    its code, the lines left out as expected), for a package whose zip
-    entries are apk_names."""
+def log_pid(line):
+    """The process id of a device log line in logcat's brief form
+    (P/tag( pid): text), or None."""
+    m = re.match(r'[VDIWEFS]/[^\n]*?\(\s*(\d+)\):', line)
+    return m.group(1) if m else None
+
+
+def probe_pids(logcat, pidof=''):
+    """The probe's processes: the ids pidof gave, and every one the system
+    started for it in this log (a crashed app may be started again)."""
+    pids = set(pidof.split())
+    pids.update(re.findall(r'Start proc (\d+):' + re.escape(IDENTIFIER) + r'(?=[/:\s]|$)', logcat))
+    return pids
+
+
+def crash_lines(logcat, apk_names, pids):
+    """(the device's log lines that say the probe crashed or could not load
+    its code, the lines left out as expected, how many matching lines of
+    other processes were left out), for a package whose zip entries are
+    apk_names. A line is the probe's when its process is one of pids or it
+    names the probe (the system's "ANR in ..."); with no pid known, every
+    line is (the stricter reading)."""
     has_ssl = any(n.startswith('lib/') and n.endswith('/librevsecurity.so') for n in apk_names)
     crash, expected = [], []
+    others = 0
     for line in logcat.splitlines():
         if not re.search(CRASH, line):
             continue
-        if not has_ssl and re.search(NO_SSL, line):
+        if pids and log_pid(line) not in pids and IDENTIFIER not in line:
+            others += 1
+        elif not has_ssl and any(re.search(x, line) for x in NO_SSL):
             expected.append(line.strip())
         else:
             crash.append(line.strip())
-    return crash, expected
+    return crash, expected, others
 
 
 def ide_results(lines):
@@ -908,10 +933,15 @@ def device(args):
             break
     _, pid = a('shell', 'pidof', IDENTIFIER)
     _, logcat = a('logcat', '-d', '-v', 'brief')
+    pids = probe_pids(logcat, pid)
     with zipfile.ZipFile(args.apk) as z:
-        crash, expected = crash_lines(logcat, z.namelist())
+        crash, expected, others = crash_lines(logcat, z.namelist(), pids)
+    log('The probe\'s processes in the log: %s' % (', '.join(sorted(pids)) or
+                                                  'none known, so every line is read as its'))
     for line in expected:
         log('Expected (the package has no SSL library, and the engine runs on without it): %s' % line)
+    if others:
+        log('Left out: %d such line(s) of other processes (the full log: --log-out)' % others)
     if args.out and rgba:
         with open(args.out, 'wb') as f:
             f.write(png_from_rgba(w, h, rgba))
