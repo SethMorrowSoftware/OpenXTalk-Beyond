@@ -6009,6 +6009,7 @@ on tour_menu_builder
       end repeat
       put tourButtonsWhole(tMM) after tFails
       put tourMbLayout(tMM) after tFails
+      put tourBareBoxes(tMM) after tFails
    end if
    -- The Menu Builder is closed and the stack deleted however it went, so
    -- that a Menu Builder stopped halfway (rc.6.3) is not left open for the
@@ -6448,6 +6449,53 @@ function tourMenuWordsClear pMenu, pWords
    end if
    return empty
 end tourMenuWordsClear
+
+-- The buttons that show on the card of the stack pStack and draw nothing
+-- but a box of their inherited background colour: opaque, of no style that
+-- the theme draws, with no border, no words and no icon that can be found,
+-- and no background colour or pattern of their own (a swatch has one). On
+-- macOS's dark appearance that box is a light grey: the inherited colour
+-- of a disabled control is not the theme's (engine/src/object.cpp). The
+-- Menu Builder had two, 18 by 10, after the option menus of the menu's
+-- and the item's Mnemonic letter: buttons once showing icon 200606, which
+-- no stack has, their only use the tooltip "Unix and Windows systems
+-- only" (ide-stack-patches, revmenumanager-mnemonic-boxes.txt). Empty,
+-- or a line for each such button
+function tourBareBoxes pStack
+   local tDefault, tFails, tId, i
+   put the defaultStack into tDefault
+   set the defaultStack to pStack
+   repeat with i = 1 to the number of buttons of this card
+      put the long id of button i of this card into tId
+      if not tourControlShown(tId) then next repeat
+      if not the opaque of tId or the showBorder of tId then next repeat
+      if the style of tId is among the items of "menu,checkbox,radioButton,standard" then next repeat
+      if the backColor of tId is not empty or the backPattern of tId is not empty then next repeat
+      if the showName of tId and (the label of tId is not empty or the short name of tId is not empty) then next repeat
+      if the showIcon of tId and tourIconFound(the icon of tId, pStack) then next repeat
+      put "the Menu Builder's" && the name of tId && "(" & the rect of tId & ") draws a bare box: opaque, with no words," && \
+            "no border and no icon (icon" && the icon of tId & ")" & return after tFails
+   end repeat
+   set the defaultStack to tDefault
+   if tFails is empty then return empty
+   return tFails
+end tourBareBoxes
+
+-- Whether an image of the id pIcon is in the stack pStack, its main stack
+-- and the substacks of that, or another open or main stack: where a
+-- button's icon is looked for
+function tourIconFound pIcon, pStack
+   local tStacks, tStack
+   if pIcon is empty or pIcon is 0 then return false
+   put pStack & return & the mainStack of stack pStack & return & \
+         the substacks of stack (the mainStack of stack pStack) & return & \
+         the openStacks & return & the mainStacks into tStacks
+   repeat for each line tStack in tStacks
+      if tStack is empty or there is not a stack tStack then next repeat
+      if there is an image id pIcon of stack tStack then return true
+   end repeat
+   return false
+end tourIconFound
 
 -- Whether the control pControl shows: it is visible, and so is each group
 -- it is in, and it is in the window of the defaultStack (some palettes keep

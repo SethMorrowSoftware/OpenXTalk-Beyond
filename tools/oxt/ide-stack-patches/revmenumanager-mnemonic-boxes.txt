@@ -1,0 +1,26 @@
+# Menu Builder: after the option menu of the menu's Mnemonic letter, and
+# after the item's, is a button 18 by 10 pixels (ids 4886 and 4868) that
+# was made to show icon 200606, which no stack of the IDE has any more,
+# with the tooltip "Unix and Windows systems only". Opaque, disabled and
+# with nothing else to show, it drew only its background, and on macOS's
+# dark appearance that is a light grey box (the IDE tour's Mac shots of
+# the Menu Builder, rc.6.15). Made transparent, the buttons draw nothing
+# on any platform, as they already seemed to on Windows, Linux and the
+# Mac's light appearance, and keep their tooltip. Nothing else of the
+# Menu Builder, and no other option menu, changes. The tour's menu-builder
+# step fails on such a box (tourBareBoxes).
+file: Toolset/palettes/revmenumanager.rev
+object: button id 4886 of card "Menu Manager"
+property: style
+from: opaque
+to: transparent
+property: opaque
+from: true
+to: false
+object: button id 4868 of card "Menu Manager"
+property: style
+from: opaque
+to: transparent
+property: opaque
+from: true
+to: false
