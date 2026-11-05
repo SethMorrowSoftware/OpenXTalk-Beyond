@@ -75,6 +75,12 @@ function rcState
    -- the last place in the grid, below the window on a phone: its back
    -- and its blurb laid out within all of it, not only the part that shows
    put "lasttile=" & rcLastTile() & return after tState
+   -- a line in its pill or its box: "the box;the line's box", for the
+   -- badge, the search's hint and the search
+   put "badgeline=" & the rect of graphic "Badge Back" of stack kStack & ";" & \
+         the formattedRect of line 1 of field "Badge Text" of stack kStack & return after tState
+   put "hintline=" & the rect of graphic "Search Back" of stack kStack & ";" & \
+         the formattedRect of line 1 of field "Search Hint" of stack kStack & return after tState
    put "try=" & the visible of group "Try" of card "Guide" of stack kStack & return after tState
    put "live=" & rcOneLine(field "Live" of card "Guide" of stack kStack) & return after tState
    put "guide=" & the rect of field "Guide Text" of card "Guide" of stack kStack & return after tState

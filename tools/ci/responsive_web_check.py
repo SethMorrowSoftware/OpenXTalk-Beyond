@@ -229,7 +229,19 @@ class Screen:
         self.expect('the stack fills the window (%dx%d)' % (self.width, self.height),
                     rect(s.get('rect', '')) == [0, 0, self.width, self.height], s)
 
+    def lines_centred(self, s, layout):
+        """The badge's line in the middle of its pill, and the search's
+        hint in the middle of its box, within a pixel or two"""
+        for key, what in (('badgeline', 'the badge'), ('hintline', 'the search\'s hint')):
+            parts = [rect(p) for p in s.get(key, '').split(';')]
+            ok = len(parts) == 2 and all(parts) and parts[1][3] > parts[1][1]
+            if ok:
+                box, line = parts
+                ok = abs((box[1] + box[3]) / 2 - (line[1] + line[3]) / 2) <= 2
+            self.expect('%s: %s is in the middle of its box' % (layout, what), ok, s)
+
     def phone_layout(self, s):
+        self.lines_centred(s, 'phone')
         nav = rect(s.get('nav', ''))
         self.expect('phone: the class is phone', s.get('class') == 'phone', s)
         self.expect('phone: the badge says so', s.get('badge', '').startswith('phone'), s)
@@ -240,6 +252,7 @@ class Screen:
         self.expect('phone: no sidebar name', s.get('brand') == 'false', s)
 
     def tablet_layout(self, s):
+        self.lines_centred(s, 'tablet')
         nav = rect(s.get('nav', ''))
         detail = rect(s.get('detail', ''))
         grid = rect(s.get('grid', ''))
@@ -253,6 +266,7 @@ class Screen:
         self.expect('tablet: no Close in the pane', s.get('close', '').startswith('false'), s)
 
     def desktop_layout(self, s):
+        self.lines_centred(s, 'desktop')
         nav = rect(s.get('nav', ''))
         detail = rect(s.get('detail', ''))
         self.expect('desktop: the class is desktop', s.get('class') == 'desktop', s)

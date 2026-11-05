@@ -216,6 +216,11 @@ command rsAfterLayout
    end repeat
    rsShowDetail
    rsShowBadge
+   -- the one line of the badge and of the search, in the middle of its
+   -- pill or its box, whatever height the layout gives it
+   rsCentreLine the long id of field "Badge Text"
+   rsCentreLine the long id of field "Search Hint"
+   rsCentreLine the long id of field "Search"
    if tCard is "Guide" then
       rsShowLive
    end if
@@ -244,6 +249,22 @@ private command rsShowDetail
    end repeat
    set the visible of field "Detail Hint" of tDetail to sPicked is empty
 end rsShowDetail
+
+-- A field of one line: its line in the middle of the field, from top to
+-- bottom (a field puts its text at the top, below its topMargin)
+private command rsCentreLine pField
+   local tLine, tMid, tWas
+   set the bottomMargin of pField to 0
+   put the topMargin of pField into tWas
+   put the formattedRect of line 1 of pField into tLine
+   if item 4 of tLine <= item 2 of tLine then
+      -- (an empty field: a line of its text size)
+      put item 2 of the rect of pField + tWas into item 2 of tLine
+      put item 2 of tLine + the effective textHeight of pField into item 4 of tLine
+   end if
+   put (item 2 of the rect of pField + item 4 of the rect of pField) / 2 into tMid
+   set the topMargin of pField to max(0, round(tWas + tMid - (item 2 of tLine + item 4 of tLine) / 2))
+end rsCentreLine
 
 -- The badge: what the layout is now, as the library sees it
 private command rsShowBadge
