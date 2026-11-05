@@ -10,9 +10,7 @@ Use GitHub's private reporting form:
 report. GitHub's documentation explains
 [how private reporting works](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability).
 
-At the time of writing, private reporting has not been turned on for
-this repository yet, so the form may say that it is not available. In
-that case, open an ordinary
+If the form ever says that it is not available, open an ordinary
 [issue](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/issues) that says
 only that you have a security report and would like a private way to
 send it. Do not include any details of the problem in that issue. A
