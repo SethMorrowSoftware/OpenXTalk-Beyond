@@ -1528,10 +1528,65 @@ all` takes every runtime of the layout (Windows x86-64 and x86, Linux
 x86-64 and x86, the Mac's universal one), building each standalone with
 the layout's engine, since any engine deploys for every platform:
 Windows runs both Windows standalones, Linux and macOS their own. Android
-standalones need the Android SDK and are not checked. The CI jobs run
+standalones need the Android SDK, and have a check of their own
+([Android standalone check](#android-standalone-check)). The CI jobs run
 it with `--targets all` on every package (the Windows portable zip, the
 Linux tar.xz and the macOS app on both Mac architectures), and on the
 32-bit builds with `--engine` and `--runtime`.
+
+### Android standalone check
+
+[`tools/ci/android_check.py`](tools/ci/android_check.py) builds Android
+packages with the IDE's own Android builder, from a probe stack, with an
+Android SDK, and checks them. The IDE starts as a user starts it, with
+[`tools/ci/android-check.livecodescript`](tools/ci/android-check.livecodescript)
+named on its command line (under `xvfb-run` on Linux without a
+`DISPLAY`), which first runs the units of the builder's handlers that
+need no SDK (the manifest's components without `android:exported`, the
+64-bit and extension warnings, the SDK check on made-up SDK folders),
+then builds the probe four times as File > Save as Standalone
+Application does: `debug` ("Sign for development only", all four
+architectures, a push sender ID), `release` ("Sign with my key", with a
+keystore the check makes; the script answers the builder's three
+questions in its ask dialogs), `unsigned` ("Do not sign") and `legacy`
+(a stack that never opened the Android card). It needs Python 3.8 or
+later, a JDK, and an Android SDK with `platforms;android-33`, build-tools
+and platform-tools:
+
+```sh
+python3 tools/ci/android_check.py ide --install <folder> --work <work> --sdk <sdk> --jdk <jdk>
+python3 tools/ci/android_check.py verify --work <work> --sdk <sdk>
+python3 tools/ci/android_check.py compare --old <work of the released IDE> --new <work> --sdk <sdk>
+python3 tools/ci/android_check.py device --apk <work>/out/debug.apk --serial emulator-5554 --sdk <sdk>
+python3 tools/ci/android_check.py boot --serial emulator-5554 --sdk <sdk> --log <the emulator's log>
+```
+
+`verify` checks each package against what Android and Google Play ask:
+the architectures it has, its signature (apksigner, with a v2 or v3
+signature, signed by the debug key or the keystore; none for the other
+two), zipalign, `resources.arsc` stored and aligned, every activity,
+service and receiver with an intent-filter saying `android:exported`,
+the 64-bit engine libraries aligned for 16 KB memory pages, the package
+name and target API, and the builder's warnings (the `legacy` build must
+be told that it has no arm64 build). `compare` takes the packages a
+released IDE made of the same probe stack (`ide --no-units --stack
+<work>/AndroidProbe.livecode`: the stack goes into the engine library)
+and fails on any file that differs, apart from what the builder's change
+meant (the signatures, the push receiver's `android:exported`).
+`overlay --root <folder>` puts the checkout's builder into an unpacked
+release, so that one release can be run with both builders. `device`
+installs a package with adb, starts it, and waits until the screen turns
+the probe's green, which only the probe's `openStack` makes; `ide
+--device <serial>` does what the IDE's Test does for that device. `boot`
+waits for an emulator to finish booting, and when it gives up it prints
+whether the emulator still runs, `/dev/kvm`, adb's devices, the free disk
+and the end of the emulator's log.
+
+The workflow "Android builder" (`android.yml`) runs all of it on the
+latest release's IDE, with this checkout's builder put in, on Windows,
+Linux and macOS, on a pull request or push that changes the builder or
+the check, and on the Linux runner also Test, and the packages on an
+Android 13 emulator and on one with 16 KB pages.
 
 ### Browser and player check
 

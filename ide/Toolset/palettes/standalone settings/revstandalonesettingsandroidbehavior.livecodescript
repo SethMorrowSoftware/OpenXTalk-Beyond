@@ -20,9 +20,17 @@ on initialize
       end if
    end repeat
    
+   -- OXT-Beyond: a stack with Android on and no architecture saved gets
+   -- arm64 beside armv7, because Google Play refuses an app without its
+   -- 64-bit build and newer phones run no 32-bit code. Only this card's
+   -- first pick changes: a stack that saved its architectures keeps them,
+   -- and the builder still falls back to armv7 alone for one that never
+   -- opened this card.
    if not tEnabled and tSettings["android"] is true then
       set the hilite of button "Android armv7" of group "Android targets" of me to true
       put true into tSettings["Android,armv7"]
+      set the hilite of button "Android arm64" of group "Android targets" of me to true
+      put true into tSettings["Android,arm64"]
       setSettings tSettings
    end if
    

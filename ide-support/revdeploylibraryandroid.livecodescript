@@ -216,48 +216,83 @@ function deployRequiredSDK
    put deployGetVersionsMap() into tMap
    local tAndroidVersion
    put word 1 of tMap[kDeployAndroidTargetSDK] into tAndroidVersion
-   return format("%s (API %s)", tAndroidVersion, kDeployAndroidTargetSDK)
+   -- OXT-Beyond: any platform from the target API up will do (pathToRootPlatform)
+   return format("Android %s (API %s) or newer", tAndroidVersion, kDeployAndroidTargetSDK)
 end deployRequiredSDK
 
-function deployIsValidSDK pPath 
-   if there is no folder (pPath & slash & "platforms") or \
-         there is no folder (pPath & slash & "platform-tools") then
-      --return "could not find platforms or platform-tools folders at that path."
-      return false
-   end if
-   
-   if there is no folder pathToRootPlatform(pPath) then
-      --return "could not find install of required target SDK, make sure it has been installed with the Android SDK Manager"
-      return false
-   end if
-   
-   if there is no file pathToRootClasses(pPath) then
-      --return "missing root classes, make sure your SDK install has not become corrupted"
-      return false
-   end if
-   
-   if there is no file pathToAapt(pPath) then
-      --return "missing aapt tool, make sure your SDK install has not become corrupted"
-      return false
-   end if
-   
-   if there is no file pathToAdb(pPath) then
-      --return "missing adb tool, make sure your SDK install has not become corrupted"
-      return false
-   end if
-   
-   if there is no file pathToZipAlign(pPath) then
-      --return "missing zipalign tool, make sure your SDK install has not become corrupted"
-      return false
-   end if
-   
-   if there is no file pathToDex(pPath) then
-      --return "missing dex tool, make sure your SDK install has not become corrupted"
-      return false
-   end if
-   
-   return true
+function deployIsValidSDK pPath
+   -- OXT-Beyond: deployCheckSDK says what is missing; this keeps its old answer
+   return deployCheckSDK(pPath) is empty
 end deployIsValidSDK
+
+-- OXT-Beyond: what an Android SDK folder lacks of what the standalone builder
+-- uses, as a sentence for the user, or empty when it has everything. The
+-- checks are deployIsValidSDK's old ones in the same order, with apksigner
+-- added: the builder signs with it, and every build-tools release that has d8
+-- (28 and newer, which the builder already needed) has apksigner too. Before,
+-- the IDE could only say that a folder "is not a valid Android SDK".
+function deployCheckSDK pPath
+   local tHint
+   put "install it with Android Studio's SDK Manager or sdkmanager" into tHint
+   if pPath is empty or there is no folder pPath then
+      return "there is no folder" && quote & pPath & quote
+   end if
+   if there is no folder (pPath & slash & "platforms") then
+      return "it has no Android platform (no folder" && pPath & "/platforms):" && tHint
+   end if
+   if there is no folder (pPath & slash & "platform-tools") then
+      return "it has no Android SDK Platform-Tools (no folder" && pPath & "/platform-tools):" && tHint
+   end if
+   if there is no folder pathToRootPlatform(pPath) then
+      return "it has no Android platform for API" && kDeployAndroidTargetSDK && "or newer in" && \
+            pPath & "/platforms (it has:" && listPlatforms(pPath) & "):" && tHint && \
+            "(" & quote & "platforms;android-" & kDeployAndroidTargetSDK & quote && "or newer)"
+   end if
+   if there is no file pathToRootClasses(pPath) then
+      return "its platform" && pathToRootPlatform(pPath) && "has no android.jar:" && tHint && "again"
+   end if
+   if there is no file pathToAapt(pPath) then
+      return missingBuildTool(pPath, "aapt") && tHint
+   end if
+   if there is no file pathToAdb(pPath) then
+      return "it has no adb (no file" && pathToAdb(pPath) & "): install the Android SDK Platform-Tools again"
+   end if
+   if there is no file pathToZipAlign(pPath) then
+      return missingBuildTool(pPath, "zipalign") && tHint
+   end if
+   if there is no file pathToDex(pPath) then
+      return missingBuildTool(pPath, "d8") && tHint
+   end if
+   if there is no file pathToApkSigner(pPath) then
+      return missingBuildTool(pPath, "apksigner") && tHint
+   end if
+   return empty
+end deployCheckSDK
+
+private function missingBuildTool pRoot, pTool
+   local tVersions
+   if there is a folder (pRoot & slash & "build-tools") then
+      put folders(pRoot & slash & "build-tools") into tVersions
+      filter tVersions without ".*"
+      replace return with ", " in tVersions
+   end if
+   if tVersions is empty then
+      put "none" into tVersions
+   end if
+   return "it has no" && pTool && "in" && pRoot & "/build-tools (versions there:" && tVersions & "): the Android SDK Build-Tools 28 or newer have it;"
+end missingBuildTool
+
+-- The platform folders of an SDK, for the message above
+private function listPlatforms pRoot
+   local tPlatforms
+   put folders(pRoot & slash & "platforms") into tPlatforms
+   filter tPlatforms without ".*"
+   replace return with ", " in tPlatforms
+   if tPlatforms is empty then
+      return "none"
+   end if
+   return tPlatforms
+end listPlatforms
 
 function deployGetSDK
    return sAndroidRoot
@@ -353,7 +388,47 @@ function pathToRootPlatform pRoot
       put sAndroidRoot into pRoot
    end if
 
-   return pRoot & slash & "platforms/android-" & kDeployAndroidTargetSDK
+   -- OXT-Beyond: the platform of the target API, as before, or when the SDK
+   -- does not have that one, the lowest newer platform it has, which compiles
+   -- the app's classes and links its resources the same way for the target
+   -- (the manifest's targetSdkVersion decides how Android treats the app, not
+   -- the platform it was built against). An SDK set up today often has only
+   -- the newest platform, and the builder refused it. With no platform from the
+   -- target up, the path is the target's, which does not exist, as before.
+   local tPath
+   put pRoot & slash & "platforms/android-" & kDeployAndroidTargetSDK into tPath
+   if there is a folder tPath then
+      return tPath
+   end if
+
+   local tBest, tBestAPI, tAPI, tMajor
+   set the itemDelimiter to "."
+   repeat for each line tFolder in folders(pRoot & slash & "platforms")
+      -- android-34, android-36.1; not previews named by a letter (android-Baklava)
+      if not (tFolder begins with "android-") then
+         next repeat
+      end if
+      put char 9 to -1 of tFolder into tAPI
+      put item 1 of tAPI into tMajor
+      if tMajor is not an integer or tAPI is not a number then
+         next repeat
+      end if
+      if tAPI < kDeployAndroidTargetSDK then
+         next repeat
+      end if
+      if there is no file (pRoot & slash & "platforms" & slash & tFolder & slash & "android.jar") then
+         next repeat
+      end if
+      if tBest is empty or tAPI < tBestAPI then
+         put tFolder into tBest
+         put tAPI into tBestAPI
+      end if
+   end repeat
+
+   if tBest is not empty then
+      return pRoot & slash & "platforms" & slash & tBest
+   end if
+   return tPath
 end pathToRootPlatform
 
 function pathToRootClasses pRoot
@@ -524,6 +599,35 @@ function pathToApkSigner pRoot
    if the platform is "win32" then put ".bat" after tCommand
    return pathToPlatformTool(pRoot, tCommand)
 end pathToApkSigner
+
+-- OXT-Beyond: the JDK's keytool, which makes the debug keystore
+function pathToKeytool pRoot
+   if pRoot is empty then
+      put sJavaRoot into pRoot
+   end if
+   return pRoot & slash & "bin" & slash & executableName("keytool")
+end pathToKeytool
+
+-- OXT-Beyond: the keystore that Test builds and builds "for development only"
+-- are signed with: the Android SDK's debug keystore, which Android Studio
+-- makes and uses too, so that an app built by either can replace the other's
+-- on a device. LiveCode's builder signed these builds with it through the
+-- SDK's ApkBuilder, which signed with the debug key unless told not to; when
+-- ApkBuilder was taken out of the SDK, its replacement here signed nothing.
+-- ANDROID_USER_HOME, when set, is the folder that holds it (as for the SDK's
+-- own tools).
+function deployDebugKeystore
+   local tFolder
+   if $ANDROID_USER_HOME is not empty then
+      put $ANDROID_USER_HOME into tFolder
+   else if the platform is "win32" then
+      put $USERPROFILE & slash & ".android" into tFolder
+   else
+      put $HOME & slash & ".android" into tFolder
+   end if
+   replace backslash with slash in tFolder
+   return tFolder & slash & "debug.keystore"
+end deployDebugKeystore
 
 function pathToJar pRoot
    if pRoot is empty then
