@@ -3,6 +3,12 @@ contact_links:
   - name: OpenXTalk forums
     url: https://openxtalk.org/forum/
     about: Questions and general discussion about xTalk programming and the OpenXTalk projects.
+  - name: Learn and try OXT-Beyond
+    url: https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/
+    about: The website, with the downloads, the web IDE, the Stack Player, the Dictionary and the Extensions page.
+  - name: xTalk Suite extensions
+    url: https://github.com/SethMorrowSoftware/xtalk-suite/issues
+    about: Problems with SodiumXT, TorrentXT, ENetXT, DataChannelXT, OnionXT, NostrXT, Box2DXT or CoinXT that happen outside OXT-Beyond too.
   - name: Security problems
     url: https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/security/policy
     about: Please report security problems privately, as described in the security policy, not in a public issue.

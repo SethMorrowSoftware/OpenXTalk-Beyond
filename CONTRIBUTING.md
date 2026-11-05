@@ -6,7 +6,12 @@ in the
 [README](README.md#known-limitations-and-plans) are all welcome.
 
 This project is small and run by volunteers. Please be patient with
-reviews, and be kind to each other.
+reviews, and be kind to each other: everyone taking part is expected to
+follow the [Code of Conduct](CODE_OF_CONDUCT.md). Questions about using
+OXT-Beyond are best asked on the
+[OpenXTalk forums](https://openxtalk.org/forum/) (see
+[SUPPORT.md](SUPPORT.md)); this repository's issues are for bugs and
+feature requests.
 
 ## Licence of contributions
 
@@ -37,10 +42,13 @@ Commits do not need a `Signed-off-by` line.
   into your clone, but the IDE compile check and packaging need
   Python 3.
 - This project builds, packages and tests Windows x86-64, macOS (one
-  universal app for Apple Silicon and Intel) and Linux x86-64, and
-  builds Linux arm64 without packaging it. Code for other platforms
-  (Android and others) is still in the tree; try not to break it,
-  but CI does not build it. iOS is not supported and its build is gone
+  universal app for Apple Silicon and Intel), Linux x86-64 and Linux
+  arm64, builds the 32-bit Windows and Linux engines for their
+  standalone runtimes, and builds the web engine for HTML5 standalones,
+  the Stack Player and the web IDE. The Android engine is not built
+  here yet (its runtime is still a prebuilt one, see the
+  [README](README.md#known-limitations-and-plans)), but its code is
+  still in the tree; try not to break it. iOS is not supported and its build is gone
   from the tree (the iOS Native Button widget stays, for the stacks that
   use it); please don't add iOS code back. The Linux and macOS builds run in CI (see
   [BUILDING.md](BUILDING.md#12-building-on-linux), sections 12 and 13),

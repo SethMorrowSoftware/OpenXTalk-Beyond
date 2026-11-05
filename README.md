@@ -1,16 +1,103 @@
 # OXT-Beyond
 
-![OXT-Beyond 0.2.7 "Bug Hunt"](Installer/oxt-beyond/branding/art/oxt-beyond-banner.png)
+<p align="center">
+  <img src="Installer/oxt-beyond/branding/art/oxt-beyond-banner.png" alt="OXT-Beyond 0.2.7 &quot;Bug Hunt&quot;">
+</p>
 
-[![Build (Windows)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-windows.yml/badge.svg)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-windows.yml)
-[![Build (macOS)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-macos.yml/badge.svg)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-macos.yml)
-[![Build (Linux)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-linux.yml/badge.svg)](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-linux.yml)
+<p align="center">
+  <a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/SethMorrowSoftware/OpenXTalk-Beyond?include_prereleases&amp;label=latest&amp;sort=semver"></a>
+  <a href="LICENSE"><img alt="Licence: GPL v3" src="https://img.shields.io/badge/licence-GPLv3-blue"></a>
+  <a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-windows.yml"><img alt="Build (Windows)" src="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-windows.yml/badge.svg"></a>
+  <a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-macos.yml"><img alt="Build (macOS)" src="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-macos.yml/badge.svg"></a>
+  <a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-linux.yml"><img alt="Build (Linux)" src="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-linux.yml/badge.svg"></a>
+  <a href="https://openxtalk.org/forum/"><img alt="Community: OpenXTalk forums" src="https://img.shields.io/badge/community-OpenXTalk%20forums-orange"></a>
+</p>
+
+<p align="center">
+  <a href="https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/"><b>Website</b></a> ·
+  <a href="https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/#downloads"><b>Download</b></a> ·
+  <a href="https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/ide/">Web IDE</a> ·
+  <a href="https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/player/">Stack Player</a> ·
+  <a href="https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/dictionary/">Dictionary</a> ·
+  <a href="https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/extensions/">Extensions</a> ·
+  <a href="https://openxtalk.org/forum/">Forum</a> ·
+  <a href="CHANGELOG.md">Changelog</a>
+</p>
 
 OXT-Beyond is a free, open source development environment for Windows,
 macOS and Linux in which you build programs with an English-like
 scripting language in the HyperCard/HyperTalk tradition ("xTalk"). You
 lay out stacks of cards with buttons, fields and other controls, and
-write scripts that respond to what the user does.
+write scripts that respond to what the user does:
+
+```
+on mouseUp
+   put "Hello, world!" into field "Greeting"
+end mouseUp
+```
+
+Compatibility comes first: stacks and scripts made with LiveCode
+Community 9 and OpenXTalk Lite keep working as they did, and the whole
+thing is built, packaged and tested in the open from this repository.
+
+<p align="center">
+  <img src=".github/images/home-light.png" alt="OXT-Beyond's Home window, light appearance" width="49%">
+  <img src=".github/images/home-dark.png" alt="OXT-Beyond's Home window on macOS, dark appearance" width="49%">
+</p>
+
+## Contents
+
+- [Highlights](#highlights)
+- [Where OXT-Beyond comes from](#where-oxt-beyond-comes-from)
+- [Status](#status) and [Release notes by version](#release-notes-by-version)
+- [Download](#download) and [Quick start](#quick-start)
+- [What is in it](#what-is-in-it): [the IDE](#the-ide),
+  [xTalk Suite extensions](#xtalk-suite-extensions),
+  [the engine](#the-engine)
+- [Building from source](#building-from-source) and
+  [repository layout](#repository-layout)
+- [Known limitations and plans](#known-limitations-and-plans)
+- [Getting help and reporting problems](#getting-help-and-reporting-problems)
+- [Contributing](#contributing), [Credits](#credits),
+  [Licence](#licence)
+
+## Highlights
+
+- **Desktop IDE for Windows, macOS and Linux**, including 64-bit ARM
+  Linux such as a Raspberry Pi, with a light and a dark appearance
+  throughout, a modern Tools palette and toolbar, and Home: one window
+  for getting started, the lessons and the examples.
+- **Learn to program in it.** The xTalk Academy is a course in
+  programming for complete beginners, with a live playground in every
+  lesson, and Learn holds 74 how-to lessons and remastered examples.
+- **HyperCard stacks come in.** File > Import Stack > HyperCard Stack brings in
+  cards, scripts, pictures, palettes, colour and sound, reads Mac disk
+  images, and makes the imported scripts compile and run.
+- **Stacks on the web.** HTML5 standalones work, the
+  [Stack Player](https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/player/)
+  opens any stack in a browser, the Responsive Starter lays one stack
+  out for a phone, a tablet and a desktop, and the whole IDE runs in a
+  web page as the
+  [web IDE](https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/ide/).
+- **The xTalk Suite built in**: cryptography, BitTorrent, reliable UDP,
+  WebRTC, Tor, Bitcoin and Ethereum primitives, 2-D physics and Nostr,
+  as ready-to-use xTalk handlers (see
+  [xTalk Suite extensions](#xtalk-suite-extensions)).
+- **AI help that stays yours.** The xTalk Assistant writes, runs and
+  debugs xTalk with the model you choose, a local one included, and the
+  xTalk MCP Bridge lets Claude build stacks in the IDE. Both are off
+  until you turn them on.
+- **OXT-Beyond Server** (experimental) runs `.lc` pages on a web
+  server, as LiveCode Server did.
+- **Current libraries**: OpenSSL 3.5, curl, ICU, libxml2, libzip and
+  the image libraries are built from source for every platform.
+
+<p align="center">
+  <img src=".github/images/academy.png" alt="The xTalk Academy: lessons on the left, a lesson in the middle, a live playground on the right" width="49%">
+  <img src=".github/images/learn.png" alt="Learn: 74 how-to lessons with code to copy" width="49%">
+</p>
+
+## Where OXT-Beyond comes from
 
 OXT-Beyond continues **OpenXTalk Lite**. OpenXTalk Lite was (to my understanding) initiated by
 **Terry Little** (TerryL) in September 2023 as a debranded LiveCode
@@ -47,154 +134,62 @@ clone at the new one.
 
 ## Status
 
-OXT-Beyond 0.2.6 "Frankenstein" is an early release of a young project,
-for Windows, macOS and Linux (see what 0.2.1 adds, what 0.2.2 fixes,
-what 0.2.3 adds, what 0.2.4 changes, what 0.2.5 adds and what 0.2.6
-adds, under [The IDE](#the-ide)). Please read this before you download
-it. 0.2.6 adds the xTalk MCP Bridge, which lets Claude, signed in with
-your own Claude plan in the Claude desktop app or Claude Code, build
-stacks in the IDE and stays off until you turn it on (see
-[0.2.6-rc.1](#026-rc1-the-xtalk-mcp-bridge),
-[0.2.6-rc.2](#026-rc2-the-bridge-asks-before-every-run) and
-[0.2.6-rc.3](#026-rc3-setting-up-the-claude-desktop-app)), fixes
-HyperCard import and the installer's file dates on Windows, brings the
-xTalk Assistant and the bridge to other xTalks' IDEs (see
-[0.2.6-rc.4](#026-rc4-hypercard-import-a-quick-start-on-windows-and-plugins)),
-and makes HTML5 standalones work (see
-[0.2.6-rc.5](#026-rc5-web-standalones) and
-[0.2.6-rc.6](#026-rc6-the-web-panes-page-settings)). Two of those
-changes can be seen by a script: on Linux a period typed while a
-handler runs no longer stops it (Control-period does, as on Windows),
-and `do ... in widget` and the other widget commands that crashed the
-engine for a widget whose extension is not loaded now do nothing.
-0.2.7-rc.1 is a test release (a pre-release) of a new font for HTML5
-standalones, with a bold face, of their tests in Firefox and WebKit as
-well as Chromium, of the Linux clipboard fix withdrawn with the first
-0.2.6-rc.4, and of xTalk Suite extensions that load on older Linux and
-macOS (see
-[0.2.7-rc.1](#027-rc1-a-new-web-font-and-firefox-and-safari)), and
-0.2.7-rc.2 adds a File menu item for importing HyperCard stacks and
-de-branded macOS app settings (see
-[0.2.7-rc.2](#027-rc2-importing-hypercard-stacks)), and 0.2.7-rc.3
-adds the Stack Player, a web page that opens any stack, the IDE itself
-in a web page, Learn, one window for the lessons, guides and examples,
-and a HyperCard import that brings in pictures, palettes, colour and
-sound and reads Mac disk images (see
-[0.2.7-rc.3](#027-rc3-stacks-and-the-ide-on-the-web-learn-and-more-of-hypercard)),
-and 0.2.7-rc.4 connects the web IDE to Claude through the xTalk MCP
-Bridge, closes a web menu when the page around it is clicked, brings
-over OXT DPE's Extension Manager, lets a stack in the Stack Player find
-its files through `specialFolderPath("resources")` and polishes the
-stacks new in 0.2.7 (see
-[0.2.7-rc.4](#027-rc4-claude-in-the-web-ide-the-extension-manager-and-polish)),
-and 0.2.7-rc.5 makes the scripts of
-imported HyperCard stacks compile, and adds xTalk Chat, three xTalk
-Suite apps in Learn and a new About window, and fixes the
-Standalone Settings' Web card on macOS 26 (see
-[0.2.7-rc.5](#027-rc5-hypercard-scripts-that-compile-xtalk-chat-and-the-xtalk-suites-apps)),
-and 0.2.7-rc.6 "Bug Hunt", the candidate frozen for play testing, adds
-the xTalk Academy, a course in programming for beginners, Home and a
-Release Notes window on the desktop, a modern Tools palette and the
-IDE's questions in Learn's look, and makes File > Import Stack work in
-the IDE again and imported HyperCard stacks open on the web (see
-[0.2.7-rc.6](#027-rc6-bug-hunt-the-xtalk-academy-and-the-ide-in-learns-look)),
-and 0.2.7-rc.6.1 fixes what its play testers reported: Linux at HiDPI
-and its audio clips, Safari reloading the web IDE, the Mac menu bar and
-external editor, and the modern Tools palette's labels, and moves the
-macOS user folder to `~/Documents/OXT-Beyond` (see
-[0.2.7-rc.6.1](#027-rc61-the-bug-hunts-fixes)), and 0.2.7-rc.6.2 fixes
-the Mac IDE's start-up stall, Linux's browser widget, the modern Tools
-palette and many more imported HyperCard scripts, brings the xTalk
-Suite and a downloadable zip to the web IDE, and lets the xTalk
-Assistant use a local model (see
-[0.2.7-rc.6.2](#027-rc62-the-bug-hunt-round-two)), and 0.2.7-rc.6.3
-brings in imported HyperCard stacks' MACE sounds, HyperCard's message
-order for them and many more of their scripts, keeps two web tabs from
-deleting each other's files, fixes the dark appearance's rows and
-switching, and gives the xTalk Assistant many more services (see
-[0.2.7-rc.6.3](#027-rc63-the-bug-hunt-round-three)), and 0.2.7-rc.6.4
-fixes what the Bug Hunt's testers reported on rc.6.3: the Tools
-palette's icons, the Inspector and the Message Box in the dark, the Menu
-Builder, Linux's menu ticks and players, the Mac's field frames, tabs
-and sliders, the Mac menu bar made a window, the Geometry Manager and
-vertical sliders on the web, and the time zone library on 32-bit Linux,
-and brings back mergJSON and some of HyperXTalk's syntax (see
-[0.2.7-rc.6.4](#027-rc64-the-bug-hunt-round-four)), and 0.2.7-rc.6.5
-fixes what they reported on rc.6.4: a Mac IDE that seemed to freeze
-after a click on its backdrop, the paint tools' names in the Tools
-palette and the IDE's messages that called it LiveCode, ends a crash on
-a file that is not a stack and one on invisible direction marks in a
-field, shows a card's border as soon as a script changes it, keeps the
-Windows icons out of the Linux and Mac packages, draws the palette's
-controls and tools, gives the toolbar a modern look, and brings the dark
-appearance to Home, Learn, the xTalk Academy, About, xTalk Chat, the
-xTalk Assistant and the Dictionary (see
-[0.2.7-rc.6.5](#027-rc65-the-bug-hunt-round-five)), and 0.2.7-rc.6.6
-fixes what they reported on rc.6.5: crashes printing PDFs with links,
-typing after Close and Remove From Memory and showing 0 cards, pieces of
-lines left along a scrolled field, the Inspector's image ID, Gravity and
-Scrollbar width, the Tools palette's settings, the Dictionary's filters,
-the Message Box's Pending Messages and the IDE's own file dialog, brings
-the dark appearance to Release Notes, the Extension Manager, the script
-error window and the remastered examples, gives imported HyperCard
-stacks HyperCard's text properties, text styles, round, characters and
-card ids, and their controls their own Inspector and right-click menu,
-imports HyperCard stacks from disk images again, and lets scripts write
-literal arrays, as in LiveCode 10 (see
-[0.2.7-rc.6.6](#027-rc66-the-bug-hunt-round-six)), and 0.2.7-rc.6.7
-lays out right-to-left and mixed text in the order ICU gives, ends a
-crash on the next background of a card with none, keeps the web IDE in
-the browser between visits, draws the modern Tools palette's buttons as
-buttons, and runs many more of imported HyperCard stacks' scripts (see
-[0.2.7-rc.6.7](#027-rc67-the-bug-hunt-round-seven)), and 0.2.7-rc.6.8
-lets the Script Editor follow the dark appearance, makes the Project
-Browser's script counts and the Tools palette's icons easier to read,
-runs the xTalk Suite's libraries in web standalones and the Stack
-Player, and stops more imported HyperCard stacks from hanging (see
-[0.2.7-rc.6.8](#027-rc68-the-bug-hunt-round-eight)), and 0.2.7-rc.6.9
-shows the docs of externals you add in the Dictionary, lets a web
-standalone follow the browser's dark mode, and keeps web standalones
-that use none of the xTalk Suite's libraries as small as before (see
-[0.2.7-rc.6.9](#027-rc69-the-bug-hunt-round-nine)), and 0.2.7-rc.6.10
-follows every switch between light and dark on the Mac, lets the web
-IDE follow the browser's dark mode, and fixes a hilite on Linux, the
-Dictionary's links and the Inspector's colours (see
-[0.2.7-rc.6.10](#027-rc610-the-bug-hunt-round-ten)), and 0.2.7-rc.6.11
-lets the Mac's colours and the IDE's widgets follow light and dark,
-ends a crash in the Script Editor's Breakpoints pane, makes saves
-safer, and fixes rolling back PostgreSQL and MySQL's encrypted
-connections (see
-[0.2.7-rc.6.11](#027-rc611-the-bug-hunt-round-eleven)), and
-0.2.7-rc.6.12 calls the engine BeyondEngine, brings the welcome, the
-Academy and Learn into one Home window, opens more HyperCard stacks,
-imports SVGs with their colours and clip paths and turns them into
-graphics, and pastes Copy Graphics as SVG Paths into Illustrator as
-curves (see
-[0.2.7-rc.6.12](#027-rc612-the-bug-hunt-round-twelve)), and
-0.2.7-rc.6.13 sets the Menu Builder's controls out where none runs
-into another, ends a crash on the Mac when typed text is committed,
-puts the OXT-Beyond logo in Home's sidebar, adds two preset sizes for
-new stacks, converts an SVG image to graphics from the Object menu, and
-brings Learn Box2D, thirteen live lessons in Box2D physics (see
-[0.2.7-rc.6.13](#027-rc613-the-bug-hunt-round-thirteen)), and
-0.2.7-rc.6.14 keeps the Inspector's colours up to date in the web IDE,
-opens Windows' full colour dialog, makes Linux menu ticks visible on dark
-menus, calms the website's front page, gives the IDE a new splash, and
-brings Learn stacks for the Box2Dxt Kit and the rest of the xTalk Suite
-(see [0.2.7-rc.6.14](#027-rc614-the-bug-hunt-round-fourteen)), and
-0.2.7-rc.6.15 brings stacks to phones with the Mobile Web library and
-the Phone Starter, shows animations that wait 0 ms in the browser,
-gives the Inspector's colours a Clear button, names the tools, lets
-the web IDE and the website rest, and sends write to process's text
-as written (see [0.2.7-rc.6.15](#027-rc615-the-bug-hunt-round-fifteen)), and
-0.2.7-rc.6.16 lays one stack out for a phone, a tablet and a desktop
-with the Responsive Starter, lets a phone stack use the phone's touch,
-sensors, camera and share sheet, plays a stack with nothing around it,
-makes Android packages that install again, gives the website an
-Extensions page, and ends the Script Editor's black words on grey, a
-blank Dictionary on Windows and menu words that couldn't be read (see
-[0.2.7-rc.6.16](#027-rc616-the-bug-hunt-round-sixteen));
-0.2.6 stays the main download until it has held up.
+**OXT-Beyond 0.2.6 "Frankenstein"** is the current release and stays
+the main download until 0.2.7 has held up. **0.2.7 "Bug Hunt"** is in
+public testing: its release candidates are pre-releases on the
+[Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases),
+and every round fixes what the testers on the
+[OpenXTalk forums](https://openxtalk.org/forum/) report. This is a
+young project; please read the notes below before you download it.
+
+Two changes in 0.2.6 can be seen by a script: on Linux a period typed
+while a handler runs no longer stops it (Control-period does, as on
+Windows), and `do ... in widget` and the other widget commands that
+crashed the engine for a widget whose extension is not loaded now do
+nothing.
+
+### Release notes by version
+
+Each version's notes are under [The IDE](#the-ide), and the IDE's
+Release Notes window shows them too; [CHANGELOG.md](CHANGELOG.md) lists
+every change, release by release.
+
+| Version | What it brings |
+| --- | --- |
+| [0.2.7-rc.6.16](#027-rc616-the-bug-hunt-round-sixteen) | The Responsive Starter lays one stack out for a phone, a tablet and a desktop; phone stacks use touch, sensors, the camera and the share sheet; a stack plays with nothing around it; Android packages install again; the website gets an Extensions page; the Script Editor's black words on grey, a blank Dictionary on Windows and unreadable menu words are fixed |
+| [0.2.7-rc.6.15](#027-rc615-the-bug-hunt-round-fifteen) | The Mobile Web library and the Phone Starter bring stacks to phones; animations that wait 0 ms show in the browser; a Clear button for the Inspector's colours; named tools; the web IDE and the website rest; `write to process` sends text as written |
+| [0.2.7-rc.6.14](#027-rc614-the-bug-hunt-round-fourteen) | The Inspector's colours stay up to date in the web IDE; Windows' full colour dialog; visible Linux menu ticks on dark menus; a calmer website front page; a new splash; Learn stacks for the Box2Dxt Kit and the rest of the xTalk Suite |
+| [0.2.7-rc.6.13](#027-rc613-the-bug-hunt-round-thirteen) | A Menu Builder whose controls no longer overlap; no crash on the Mac when typed text is committed; the logo in Home's sidebar; two preset sizes for new stacks; SVG-to-graphics from the Object menu; Learn Box2D, thirteen live physics lessons |
+| [0.2.7-rc.6.12](#027-rc612-the-bug-hunt-round-twelve) | The engine is called BeyondEngine; the welcome, the Academy and Learn become one Home window; more HyperCard stacks open; SVGs import with their colours and clip paths and turn into graphics; Copy Graphics as SVG Paths pastes into Illustrator as curves |
+| [0.2.7-rc.6.11](#027-rc611-the-bug-hunt-round-eleven) | The Mac's colours and the IDE's widgets follow light and dark; no crash in the Script Editor's Breakpoints pane; safer saves; `revRollBackDatabase` rolls back instead of committing (PostgreSQL, SQLite, ODBC) and MySQL connects over TLS 1.2 and 1.3 |
+| [0.2.7-rc.6.10](#027-rc610-the-bug-hunt-round-ten) | Every switch between light and dark is followed on the Mac; the web IDE follows the browser's dark mode; fixes for a Linux hilite, the Dictionary's links and the Inspector's colours |
+| [0.2.7-rc.6.9](#027-rc69-the-bug-hunt-round-nine) | The Dictionary shows the docs of externals you add; web standalones follow the browser's dark mode and stay small when they use none of the xTalk Suite |
+| [0.2.7-rc.6.8](#027-rc68-the-bug-hunt-round-eight) | A dark Script Editor; easier-to-read Project Browser counts and Tools palette icons; the xTalk Suite's libraries in web standalones and the Stack Player; fewer imported HyperCard stacks hang |
+| [0.2.7-rc.6.7](#027-rc67-the-bug-hunt-round-seven) | Right-to-left and mixed text laid out in ICU's order; no crash on the next background of a card with none; the web IDE stays in the browser between visits; many more imported HyperCard scripts run |
+| [0.2.7-rc.6.6](#027-rc66-the-bug-hunt-round-six) | Crash and redraw fixes (PDF printing with links, Close and Remove From Memory, scrolled fields); Inspector, Dictionary, Message Box and file dialog fixes; the dark appearance in Release Notes, the Extension Manager and the examples; imported HyperCard stacks get HyperCard's text properties and their own Inspector; literal arrays, as in LiveCode 10 |
+| [0.2.7-rc.6.5](#027-rc65-the-bug-hunt-round-five) | A Mac IDE that seemed to freeze, two crashes, the IDE's messages that said LiveCode; a modern toolbar; the dark appearance in Home, Learn, the Academy, About, xTalk Chat, the xTalk Assistant and the Dictionary |
+| [0.2.7-rc.6.4](#027-rc64-the-bug-hunt-round-four) | The Tools palette's icons, the Inspector and the Message Box in the dark, the Menu Builder, Linux menus and players, Mac controls, the Geometry Manager on the web; mergJSON and some of HyperXTalk's syntax come back |
+| [0.2.7-rc.6.3](#027-rc63-the-bug-hunt-round-three) | Imported HyperCard stacks get their MACE sounds and HyperCard's message order; two web tabs keep each other's files; the dark appearance's rows and switching; many more services for the xTalk Assistant |
+| [0.2.7-rc.6.2](#027-rc62-the-bug-hunt-round-two) | The Mac IDE's start-up stall, Linux's browser widget, the modern Tools palette and many more imported HyperCard scripts; the xTalk Suite and a zip download in the web IDE; a local model for the xTalk Assistant |
+| [0.2.7-rc.6.1](#027-rc61-the-bug-hunts-fixes) | Linux at HiDPI and its audio clips, Safari reloading the web IDE, the Mac menu bar and external editor, the Tools palette's labels; the macOS user folder moves to `~/Documents/OXT-Beyond` |
+| [0.2.7-rc.6](#027-rc6-bug-hunt-the-xtalk-academy-and-the-ide-in-learns-look) | "Bug Hunt", frozen for play testing: the xTalk Academy, Home and Release Notes on the desktop, a modern Tools palette, File > Import Stack works again, imported HyperCard stacks open on the web |
+| [0.2.7-rc.5](#027-rc5-hypercard-scripts-that-compile-xtalk-chat-and-the-xtalk-suites-apps) | Imported HyperCard scripts compile; xTalk Chat; three xTalk Suite apps in Learn; a new About window; the Web card on macOS 26 |
+| [0.2.7-rc.4](#027-rc4-claude-in-the-web-ide-the-extension-manager-and-polish) | Claude in the web IDE through the xTalk MCP Bridge; OXT DPE's Extension Manager; `specialFolderPath("resources")` in the Stack Player |
+| [0.2.7-rc.3](#027-rc3-stacks-and-the-ide-on-the-web-learn-and-more-of-hypercard) | The Stack Player, the IDE in a web page, Learn, and HyperCard import with pictures, palettes, colour, sound and Mac disk images |
+| [0.2.7-rc.2](#027-rc2-importing-hypercard-stacks) | A File menu item for importing HyperCard stacks; de-branded macOS app settings |
+| [0.2.7-rc.1](#027-rc1-a-new-web-font-and-firefox-and-safari) | A new web font with a bold face; web tests in Firefox and WebKit; the Linux clipboard fix; xTalk Suite extensions that load on older Linux and macOS |
+| [0.2.6-rc.6](#026-rc6-the-web-panes-page-settings) | The Web pane's page settings |
+| [0.2.6-rc.5](#026-rc5-web-standalones) | HTML5 standalones work |
+| [0.2.6-rc.4](#026-rc4-hypercard-import-a-quick-start-on-windows-and-plugins) | HyperCard import, a quick start on Windows, and the xTalk Assistant and the bridge for other xTalks' IDEs |
+| [0.2.6-rc.3](#026-rc3-setting-up-the-claude-desktop-app) | Setting up the Claude desktop app |
+| [0.2.6-rc.2](#026-rc2-the-bridge-asks-before-every-run) | The bridge asks before every run |
+| [0.2.6-rc.1](#026-rc1-the-xtalk-mcp-bridge) | The xTalk MCP Bridge |
+
+Earlier versions, from 0.2.1 to 0.2.5, are described under
+[The IDE](#the-ide), and [HISTORY.md](HISTORY.md) tells the story up to
+0.0.1.
+
+### Before you download
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
   packages for 64-bit Windows, for macOS (one universal app for Apple
@@ -4134,7 +4129,13 @@ Issues and pull requests for any of these are welcome.
 - **Security problems:** report them privately, as described in
   [SECURITY.md](SECURITY.md).
 - **Questions and discussion about xTalk and OpenXTalk in general:** the
-  [OpenXTalk forums](https://openxtalk.org/forum/).
+  [OpenXTalk forums](https://openxtalk.org/forum/), where each release
+  of OXT-Beyond has its own thread.
+- **Learning:** the xTalk Academy, the how-to lessons and the examples
+  in Home, the
+  [Dictionary online](https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/dictionary/),
+  and [SUPPORT.md](SUPPORT.md), which says where to take which
+  question.
 
 Please report problems with OXT-Beyond here, not to Terry Little, Tom
 Perry or LiveCode Ltd.
@@ -4143,7 +4144,8 @@ Perry or LiveCode Ltd.
 
 Contributions are welcome. There is no contributor licence agreement;
 contributions are accepted under the same licence as the project. See
-[CONTRIBUTING.md](CONTRIBUTING.md).
+[CONTRIBUTING.md](CONTRIBUTING.md), and please follow the
+[Code of Conduct](CODE_OF_CONDUCT.md) in the project's spaces.
 
 ## Credits
 

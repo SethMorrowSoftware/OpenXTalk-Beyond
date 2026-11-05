@@ -150,7 +150,7 @@ These are still old and have publicly known vulnerabilities:
 | Component | Version in this build | Status |
 | --- | --- | --- |
 | CEF / Chromium | CEF 74.1.19, Chromium 74.0.3729.157 (2019) | Years of unpatched browser vulnerabilities. Used by the browser widget and revBrowser on Windows and Linux. Do not use them to display content you do not trust. |
-| MySQL Connector/C | 6.0.0 | Old client library used by the MySQL database driver. It speaks TLS 1.0 only, which OpenSSL 3 refuses, so its encrypted connections fail. |
+| MySQL Connector/C | 6.0.0 | Old client library used by the MySQL database driver. Up to 0.2.7-rc.6.10 the driver asked for TLS 1.0 only, which OpenSSL 3 and current MySQL and MariaDB servers refuse, so its encrypted connections failed; from 0.2.7-rc.6.11 it connects over TLS 1.2 or 1.3 (#290). The library itself is still old. |
 | libpq (PostgreSQL) | from PostgreSQL 9.4.5 (2015) | Old client library used by the PostgreSQL database driver. |
 
 Other libraries in `thirdparty/` (cairo 1.9.4 and others) are
