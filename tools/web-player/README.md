@@ -138,17 +138,25 @@ What it plays is in the address:
 | `&mode=window` | as in the player: the stack in a window of its own |
 
 With neither `stack` nor `play` it offers one Open button, and takes a
-stack dropped on it. The page has no `data-mobile-web-fill="no"`, so a
-stack that calls the Mobile Web library's `mwStart`, `mwFillScreen` or
-`mwFitStack` fills the browser's window there, as on its own page; the
-Phone Starter does. It keeps out of a phone's notch and home bar
+stack dropped on it. On a phone (a coarse pointer and a short side of 600
+or less, the test the player's own page makes) the page takes off its
+`data-mobile-web-fill="no"`, so the player stack gives a stack the whole
+screen (#348): one that calls the Mobile Web library's `mwStart`,
+`mwFillScreen` or `mwFitStack` fills it, as on its own page, and the
+Phone Starter does. Anywhere else the page keeps the attribute and shows
+every stack at its own size, as the player does; without it the player
+took a desktop browser for a phone and scaled every stack up to the
+window. It keeps out of a phone's notch and home bar
 (`viewport-fit=cover` and the safe-area insets) and uses `100dvh`, which
 iOS Safari's toolbar does not cover. The stacks it opens go into the
 same library as the player's (the browser's storage for the site).
-`build_player.py --check` opens it (`check_bare`: a sample in the middle
-with nothing around it, a stack of the site, another site's refused, the
-Phone Starter filling an iPhone's window in Chromium and, where
-Playwright's WebKit is installed, in WebKit).
+`build_player.py --check` opens it (`check_bare`: a sample at its own
+size in the middle with nothing around it, the page's colour just past
+the edges of what is drawn and not just inside them, a stack of the site
+at the top left, another site's refused, and the Phone Starter drawn to
+both sides, the top and the bottom of an iPhone's window, read from the
+screenshot's pixels and not only the canvas's size, in Chromium and,
+where Playwright's WebKit is installed, in WebKit).
 
 ## Files
 
@@ -160,6 +168,7 @@ Playwright's WebKit is installed, in WebKit).
 | `index.html` | the page: the home, library, About panel and bar in HTML, and the engine's canvas for the stack; it writes the files it is given into the engine's `/uploads` and calls the player stack's `playerFromPage` |
 | `stacks/` | the three stacks the home page features and the small samples with a picture, each with a picture of its first card (`.webp`, 960 wide at most); each one before the Phone Starter carries the colourized Script Viewer as a substack |
 | `phone-starter.livecodescript`, `phone-starter-stack.livecodescript` | build `stacks/Phone Starter.oxtstack` (see below) |
+| `responsive-starter.livecodescript`, `responsive-starter-stack.livecodescript` | build `stacks/Responsive Starter.oxtstack` (see below) |
 | `assets/` | the page's logo and pictures, copied beside it |
 | `build_player.py` | starts the IDE with the script above, puts the page in place, packs the zip and, with `--check`, drives the player in headless Chromium |
 
@@ -228,3 +237,37 @@ not reach earthquake.usgs.gov).
 `OXT_CHROMIUM` names a Chromium to use instead of Playwright's.
 Screenshots and the browser's console go to `<work>/check`. CI runs it in
 build-linux.yml ("Web Stack Player") and attaches the zip to releases.
+
+## The Responsive Starter
+
+`stacks/Responsive Starter.oxtstack` is a stack to copy for one stack
+that is laid out for a phone, a tablet and a desktop, with the Mobile Web
+library's layout rules (`mwResponsive`; the guide *Stacks for Every
+Screen*): Places, three cards (Explore, Saved, How it works) under a tab
+bar on a phone, a rail on a tablet and a sidebar on a desktop; a grid of
+places in one, two or three columns; a place's details in a sheet over
+the grid on a phone and a pane beside it on a tablet or a desktop; a
+search, keys and hover for a mouse, and a dark look. Every control's
+place is a rule in its `mwLayout` custom properties, which the builder
+sets; the stack's script does only what a rule cannot say, in
+`rsAfterLayout` and `layoutChanged`.
+
+The stack is never edited by hand. Its script is
+`responsive-starter-stack.livecodescript` and its controls are made by
+`responsive-starter.livecodescript`; change them, then build it again
+with any OXT-Beyond engine:
+
+```sh
+<engine> -ui tools/web-player/responsive-starter.livecodescript
+```
+
+`tools/ci/responsive_web_check.py` opens it on an iPhone 13, an iPad Mini
+and a desktop (light and dark), in Chromium and WebKit, and checks each
+layout, the sheet and the pane, a turn, a notch, the keys, a narrow
+window and the look; it fails if the committed stack's script is not
+`responsive-starter-stack.livecodescript`'s. CI runs it in web.yml, after
+the Mobile Web check. To run it yourself:
+
+```sh
+python3 tools/ci/responsive_web_check.py --runtime <web runtime> --engine-cache <folder> --shots <folder>
+```

@@ -64,10 +64,23 @@ class ThePage(unittest.TestCase):
             self.assertNotIn(chrome, body.split('<script')[0], chrome)
         self.assertIn('<canvas id="canvas"', body)
 
-    def test_a_mobile_web_stack_may_fill_the_window(self):
-        # the player's page says no (it keeps its own layout); this one
-        # leaves the window to the stack, as its own HTML5 page would
-        self.assertNotIn('data-mobile-web-fill', re.sub(r'<!--.*?-->', '', self.page, flags=re.S))
+    def test_the_whole_screen_only_on_a_phone(self):
+        # The player stack takes a body without data-mobile-web-fill for a
+        # phone (playerOnPhone, #348) and scales every stack to the window
+        # there: the page starts with the attribute, and takes it off only
+        # where the player's own page does, by the same test
+        self.assertIn('<body data-mobile-web-fill="no">', self.page)
+        player = read(os.path.join(PLAYER, 'index.html'))
+        is_phone = re.compile(r'function isPhone\(\) \{\n(.*?)\n  \}', re.S)
+        self.assertEqual(is_phone.search(self.page).group(1), is_phone.search(player).group(1))
+        choose = self.page[self.page.index('function choosePhone'):]
+        choose = choose[:choose.index('\n  }\n')]
+        self.assertIn("if (playing) return;", choose)
+        self.assertIn("if (isPhone()) document.body.removeAttribute('data-mobile-web-fill');", choose)
+        self.assertIn("else document.body.setAttribute('data-mobile-web-fill', 'no');", choose)
+        script = read(os.path.join(PLAYER, 'stack-player.livecodescript'))
+        self.assertIn("document.body.hasAttribute('data-mobile-web-fill') ? 'no' : 'yes'", script)
+        # a phone's notch and toolbar
         self.assertIn('viewport-fit=cover', self.page)
         self.assertIn('env(safe-area-inset-top)', self.page)
         self.assertIn('100dvh', self.page)
@@ -76,6 +89,7 @@ class ThePage(unittest.TestCase):
         player = read(os.path.join(PLAYER, 'index.html'))
         self.assertIn('<body data-tone="1" data-mobile-web-fill="no">', player)
         self.assertNotIn('play.html', player)
+        self.assertNotIn('play/', player)
         self.assertNotIn('oxt-player-base', player)
 
     def test_only_what_the_player_stack_takes(self):

@@ -68,3 +68,32 @@ and the builder wrote the extension it found over. Only the Mobile Web
 library's manifest names its handlers, so no other stack's inclusions
 change.) The guide *Stacks for Phones* in the Dictionary shows how to
 make a stack for phones.
+
+## One stack for every screen
+
+A stack can now lay itself out for a phone, a tablet and a desktop, as a
+web page does with its breakpoints, in the IDE as in a browser:
+
+- `mwLayoutClass()` names the layout for a width: "phone" under 600
+  pixels, "tablet" to 1023, "desktop" from 1024. `mwSetBreakpoints`
+  changes the two widths and `mwBreakpoints()` gives them.
+- `mwResponsive` lays the stack out each time its size changes and sends
+  the card `layoutChanged pClass, pOrientation` when the layout or the
+  orientation changes.
+- Rules kept on the controls, in their `mwLayout` custom properties (by
+  "phone", "tablet landscape", "all" and so on), say where each goes:
+  `left`, `top`, `right`, `bottom`, `width` and `height` in pixels or
+  percentages, `hidden`, `within` its group, `bleed` past a phone's notch,
+  and `flow N` for a grid of N columns. `mwApplyLayout` follows them now,
+  and says which rule it could not read.
+- `mwFlow` sets a group's controls out in columns from a script.
+- `mwPointer()` says whether the stack is used with a finger, a mouse or
+  both, and `mwAppearance()` whether the browser or the computer is dark.
+
+Nothing changes for a stack that does not call `mwResponsive` or
+`mwApplyLayout`, nor for a control with no rules. The Responsive Starter
+(in Home's gallery and the Stack Player) is a stack to copy that uses
+all of it: a tab bar on a phone, a rail on a tablet and a sidebar on a
+desktop, a grid of places in one, two or three columns, details in a
+sheet or a pane, and a dark look. The guide *Stacks for Every Screen* in
+the Dictionary shows how.

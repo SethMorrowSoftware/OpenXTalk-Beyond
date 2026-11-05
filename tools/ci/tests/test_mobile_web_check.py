@@ -114,7 +114,9 @@ class Ships(unittest.TestCase):
         self.assertIn('packaged_extensions/com.livecode.library.mobileweb', read('Installer', 'package.txt'))
 
     def test_the_library_has_its_tests(self):
-        tests = read('extensions', 'script-libraries', 'mobileweb', 'tests', 'mobileweb.livecodescript')
+        # (the layout handlers' tests are in tests/responsive.livecodescript)
+        tests = ''.join(read('extensions', 'script-libraries', 'mobileweb', 'tests', name)
+                        for name in ('mobileweb.livecodescript', 'responsive.livecodescript'))
         library = read(*LIBRARY[len(REPO) + 1:].split(os.sep))
         public = set(re.findall(r'^(?:command|function) (mw\w+)', library, re.M))
         self.assertIn('mwStart', public)
@@ -424,7 +426,7 @@ class PhoneStarterOffered(unittest.TestCase):
 
     def test_in_homes_gallery(self):
         learn = read('ide', 'Toolset', 'palettes', 'learn', 'revlearn.livecodescript')
-        self.assertRegex(learn, r'"Markdown Notes,UI Gallery,Photo Lab,Phone Starter"')
+        self.assertRegex(learn, r'"Markdown Notes,UI Gallery,Photo Lab,Phone Starter[,"]')
         self.assertIn('case "Phone Starter"', learn)
 
     def test_the_check_finds_its_files(self):

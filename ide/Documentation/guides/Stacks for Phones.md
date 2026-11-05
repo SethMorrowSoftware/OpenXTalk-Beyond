@@ -95,6 +95,12 @@ columns there and makes its bars thinner.
 
 The current card gets `orientationChanged` when the phone turns.
 
+For one stack that is a phone's, a tablet's and a desktop's, with a tab
+bar, a rail or a sidebar and a grid that reflows, see the guide
+*Stacks for Every Screen*: the library can lay the controls out from
+rules kept on them, with no `resizeStack` code, and it starts from the
+Responsive Starter.
+
 ## Touch
 
 A finger is the mouse. A tap sends `mouseDown` and `mouseUp`, a drag

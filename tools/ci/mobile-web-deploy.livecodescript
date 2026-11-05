@@ -30,6 +30,11 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- script's template, $OXT_MW_VERSION the web engine's version and
 -- $OXT_MW_OUTPUT the file to write. It prints "DEPLOY OK <file>" or
 -- "DEPLOY FAILED <why>".
+--
+-- tools/ci/responsive_web_check.py deploys the Responsive Starter with
+-- it too: $OXT_MW_CHECK_NAME names its check stack (ResponsiveCheck) and
+-- $OXT_MW_HANDLERS the handlers the page may call, separated by commas.
+-- Without them, they are the Phone Starter check's, as before.
 
 private function fileText pPath
    local tText
@@ -44,7 +49,7 @@ private function fileText pPath
 end fileText
 
 on startup
-   local tParams, tResult, tError, tStartup
+   local tParams, tResult, tError, tStartup, tHandler, tHandlers
    try
       if $OXT_MW_VERSION is empty then
          throw "OXT_MW_VERSION is not set"
@@ -58,6 +63,16 @@ on startup
             "& return &" && quote & "mwcFitAlone" & quote && \
             "& return &" && quote & "mwcStarterScript" & quote && \
             "& return &" && quote & "mwcNotFromATap" & quote into tStartup
+      if $OXT_MW_HANDLERS is not empty then
+         repeat for each item tHandler in $OXT_MW_HANDLERS
+            if tHandlers is not empty then
+               put " & return & " after tHandlers
+            end if
+            put quote & word 1 to -1 of tHandler & quote after tHandlers
+         end repeat
+         put line 1 to 2 of tStartup & return & "set the cJavascriptHandlers of stack" && \
+               quote & $OXT_MW_CHECK_NAME & quote && "to" && tHandlers into tStartup
+      end if
       put fileText($OXT_MW_TEMPLATE) into tParams["startup_script"]
       replace "@ENGINE_VERSION@" with $OXT_MW_VERSION in tParams["startup_script"]
       replace "@STARTUP_SCRIPT@" with tStartup in tParams["startup_script"]
