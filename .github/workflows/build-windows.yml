@@ -862,6 +862,30 @@ jobs:
           VERSION: ${{ steps.product.outputs.version }}
         run: python tools/ci/ui_tour.py --install "dist/stage/OXT-Beyond-$env:VERSION" --platform win-x86_64 --appearance dark --out "$env:RUNNER_TEMP\build-logs\ui-tour\dark"
 
+      # Everyday tasks a person does in the IDE, through its own windows
+      # with the system's mouse and keyboard: a new stack, the common
+      # controls from the Tools palette, Inspector edits, the Script
+      # Editor, the Message Box, undo, copy, group, align, cards, Save As,
+      # Close and Remove From Memory and opening it again, Revert, the
+      # Dictionary, the Geometry Manager, Preferences and the Application
+      # Browser; each asserted and snapshot
+      # (tools/ci/everyday-tasks.livecodescript). A task that fails, or a
+      # script error, fails the step
+      - name: Everyday IDE tasks, light
+        id: everyday_light
+        if: ${{ !cancelled() && steps.ui_tour_light.conclusion != 'skipped' }}
+        timeout-minutes: 20
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: python tools/ci/ui_tour.py --install "dist/stage/OXT-Beyond-$env:VERSION" --platform win-x86_64 --script tools/ci/everyday-tasks.livecodescript --timeout 900 --appearance light --out "$env:RUNNER_TEMP\build-logs\ui-tour\everyday-light"
+
+      - name: Everyday IDE tasks, dark
+        if: ${{ !cancelled() && steps.everyday_light.conclusion != 'skipped' }}
+        timeout-minutes: 20
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: python tools/ci/ui_tour.py --install "dist/stage/OXT-Beyond-$env:VERSION" --platform win-x86_64 --script tools/ci/everyday-tasks.livecodescript --timeout 900 --appearance dark --out "$env:RUNNER_TEMP\build-logs\ui-tour\everyday-dark"
+
       # For a person to look through: a page with each window light and
       # dark side by side (tools/ci/ui_tour_page.py), uploaded with the
       # snapshots and the tour's lines as an artifact of their own, which

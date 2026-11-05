@@ -1815,6 +1815,34 @@ a published release (by hand, for any tag), and on the latest release for
 a pull request that changes the tour, where the release's own problems
 only warn.
 
+The same tool runs
+[`tools/ci/everyday-tasks.livecodescript`](tools/ci/everyday-tasks.livecodescript)
+(`--script`): about fifty things a person does in the IDE, each through
+the IDE's own windows with the system's mouse and keyboard where they
+reach it (xdotool on Linux, `mouse_event` on Windows, CGEvent on macOS):
+a new stack, each common control dragged from the Tools palette, edits in
+the Inspector, a handler typed and applied in the Script Editor, a
+compile error in its Errors pane and its fix, the handler run in browse
+mode, the Message Box, undo and redo, copy, paste, duplicate, group,
+ungroup and align, cards with the Project Browser, find and replace and a
+breakpoint in the Script Editor, Save As, Close and Remove From Memory
+and opening the stack again, Revert to Saved, a Dictionary search, an
+image as a button's icon, the Geometry Manager, a preference changed and
+restored, and the Application Browser. Each task asserts what a person
+would see, waits for it rather than sleeping, and snapshots it
+(`everyday-*.png`); `--only` runs the tasks up to the last one named.
+Builds run it on Linux light and dark at once (two Xvfb screens), on
+Windows light then dark, and on the Macs one appearance each (light on
+Apple silicon, dark on Intel); `ui-tour.yml` runs it light and dark on a
+release. Its snapshots go in the same artifact, under `everyday-light/`
+and `everyday-dark/`.
+
+```sh
+sudo apt-get install xvfb xdotool gnome-themes-extra gtk2-engines-pixbuf
+python3 tools/ci/ui_tour.py --install <folder> --script tools/ci/everyday-tasks.livecodescript \
+  --appearance light --timeout 900 --out <folder>
+```
+
 To look through them, each of those jobs uploads the snapshots, with the
 script's lines of each appearance (`tour.txt`), as an artifact of their
 own, `ide-screenshots-<platform>` in a build
