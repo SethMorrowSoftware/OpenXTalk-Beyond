@@ -203,6 +203,18 @@ class SignerDN(unittest.TestCase):
         out = 'Signer (minSdkVersion=34 (dev release=true), maxSdkVersion=2147483647) certificate DN: CN=A\n'
         self.assertEqual(ac.signer_dn(out), 'CN=A')
 
+    def test_v3_signer_label(self):
+        # the SDK's build-tools on GitHub's Windows runner print only this
+        out = self.VERIFIED + ('V3.0 Signer: certificate DN: CN=Android Debug, O=Android, C=US\r\n'
+                               'V3.0 Signer: certificate SHA-256 digest: 00ff\r\n')
+        self.assertEqual(ac.signer_dn(out), 'CN=Android Debug, O=Android, C=US')
+
+    def test_stamp_and_lineage_are_other_keys(self):
+        out = ('Signer #1 certificate DN: CN=A, C=US\n'
+               'Source Stamp Signer certificate DN: CN=Stamp\n'
+               'Signer #1 in lineage certificate DN: CN=Old\n')
+        self.assertEqual(ac.signer_dn(out), 'CN=A, C=US')
+
     def test_one_key_named_twice(self):
         out = ('Signer #1 certificate DN: CN=A, C=US\n'
                'Signer (minSdkVersion=33, maxSdkVersion=2147483647) certificate DN: CN=A, C=US\n')

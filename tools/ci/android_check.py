@@ -552,15 +552,22 @@ def ide(args):
 
 def signer_dn(out):
     """The signer's DN in apksigner verify --print-certs output, or None.
-    apksigner names a signer "Signer #1" or, for the signers of a v3 (or
-    v3.1) block, "Signer (minSdkVersion=24, maxSdkVersion=2147483647)"
-    (the build-tools of GitHub's runners do); a package signed with one key
-    has one DN however many lines name it. Two different DNs give both,
-    joined by " | ", which no expected signer matches."""
+    apksigner labels the line differently from one version to the next:
+    "Signer #1 certificate DN: ..." (Ubuntu's, and the SDK's older ones),
+    "Signer (minSdkVersion=24, maxSdkVersion=...) certificate DN: ..."
+    (for v3.1 signers), and "V3.0 Signer: certificate DN: ..." (the SDK's
+    build-tools on GitHub's Windows runner). Any line whose label names a
+    signer counts, bar a source stamp's or a lineage's (another key's). A
+    package signed with one key has one DN however many lines name it; two
+    different DNs give both, joined by " | ", which no expected signer
+    matches."""
     dns = []
-    for m in re.finditer(r'(?m)^Signer (?:#\d+|\([^)\n]*\))[^:\n]* certificate DN: (.*?)\s*$', out):
-        if m.group(1) not in dns:
-            dns.append(m.group(1))
+    for m in re.finditer(r'(?mi)^([^\n]*?)\s*certificate DN:\s*(.*?)\s*$', out):
+        label = m.group(1).lower()
+        if not re.search(r'\bsigner\b', label) or 'stamp' in label or 'lineage' in label:
+            continue
+        if m.group(2) not in dns:
+            dns.append(m.group(2))
     return ' | '.join(dns) if dns else None
 
 
