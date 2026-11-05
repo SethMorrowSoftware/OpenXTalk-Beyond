@@ -469,6 +469,14 @@ function revStackNameIsIDEStack pStackName
       -- revfileselector.rev, opened when the systemFileSelector is false),
       -- not a user's stack of that name
       return true
+   else if pStackName is "App Browser" \
+         and pStackName is among the lines of the mainStacks \
+         and the effective filename of stack pStackName ends with "/Plugins/App Browser.livecode" then
+      -- OXT-Beyond: the IDE's Application Browser, the App Browser plugin
+      -- (Plugins/App Browser.livecode), as it was when it was the stack
+      -- revApplicationOverview: until 0.2.7-rc.6.17 it listed itself
+      -- among the user's stacks. Not a user's stack of that name
+      return true
    else if pStackName begins with "com.livecode." then
       return true
    else if pStackName is among the lines of revInternal__ListLoadedLibraries() then
