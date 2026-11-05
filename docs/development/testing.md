@@ -192,10 +192,13 @@ The compilertest files use directives beginning with '%' to describe how the dif
        : '%ERROR' <Message: String> 'AT' <Position: Identifier>
        | '%WARNING' <Message: String> 'AT' <Position: Identifier>
        | '%SUCCESS'
+       | '%NOWARNINGS'
 
 Each %TEST clause indicates a separate test. Within the code fragments the '%{...}' clauses indicate named positions within the code which are used to check the position information provided for an error or a warning.
 
 At least one assertion must be present, and you cannot have an %ERROR and %SUCCESS assertion present in the same test.
+
+%SUCCESS asserts only that the compile succeeded, whatever warnings it printed. %NOWARNINGS asserts that it succeeded and printed no warning at all: use it to test the cases a warning's rule allows (for example, `tests/lcb/compiler/frontend/namespace.compilertest` holds that a digit in a namespace component, as in `html5`, draws no warning).
 
 For each test present in the compilertest file, the code fragment is extracted, the positions of the '%{...}' references are noted and then references are removed. The resulting code is passed to lc-compile and its stderr output evaluated. The output is checked to ensure that each claimed assertion exists, and is in the correct position. When checking for assertion matches, the type (error or warning) must match, the position must match and the asserted string must be within the output message the compiler generates.
 

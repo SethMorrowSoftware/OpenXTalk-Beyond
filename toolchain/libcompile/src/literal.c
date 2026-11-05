@@ -886,12 +886,20 @@ IsNameSuitableForNamespace(NameRef p_id)
             return 0;
         }
         
-        if (isalnum(t_id[i]))
+        /* A digit is allowed after the first character (the rule above
+         * holds the first), so only an uppercase letter is unsuitable:
+         * !islower() alone also refused the digits, and warned that
+         * html5, utf8 or md5 were "non-lowercase". */
+        if (isalpha(t_id[i]))
         {
             if (!islower(t_id[i]))
             {
                 return 0;
             }
+        }
+        else if (isdigit(t_id[i]))
+        {
+            /* allowed */
         }
         else if ('_' != t_id[i])
         {

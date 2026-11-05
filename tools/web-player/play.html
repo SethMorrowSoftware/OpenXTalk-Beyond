@@ -1,0 +1,361 @@
+<!doctype html>
+<!--
+Copyright (C) 2026 OXT-Beyond contributors.
+
+This file is part of OXT-Beyond, licensed under the GNU General Public
+License v3; see LICENSE in the repository.
+
+The bare Stack Player (LittleNemo, openxtalk.org p=26036): the stack and
+nothing else. No bar, no window around the stack, no library, no logo:
+the page is the stack's, as an HTML5 standalone's page is, with the
+stack in the middle of it (or at its top left, ?align=top-left) on a
+plain background.
+
+It is the Stack Player's own engine and stack (stack-player.livecodescript),
+driven by a second, smaller page: build_player.py writes it from this
+file as play/index.html in the player's folder, with the site's stamp in
+place of @STAMP@ and the engine's file name in place of @ENGINE_JS@, and
+build_pages.py gives the web site its copy at <site>/play/. The meta
+oxt-player-base names the player's folder, relative to this page: "../"
+beside the player, "../player/" on the site. The player's own page
+(index.html) is not changed by it.
+
+What to play is in the address:
+
+  ?stack=<path>   a stack file, or a .zip of a stack and its files, on
+                  this same site (a path relative to this page, or from
+                  the site's root). Another site's file is refused: the
+                  stack would run as this site, with what other stacks
+                  saved here.
+  ?play=<title>   one of the player's samples (samples/samples.json), as
+                  the player's own ?play= opens it
+  ?align=top-left the stack at the top left, not in the middle
+  ?bg=<colour>    the page's colour around the stack (a CSS colour);
+                  black by default
+  ?mode=window    as in the player: the stack in a window of its own
+
+With none of ?stack and ?play, the page offers one Open button (and takes
+a stack dropped on it). A stack that calls the Mobile Web library's
+mwStart, mwFillScreen or mwFitStack fills the browser's window here (this
+page has no data-mobile-web-fill="no"): the naked display LittleNemo
+asked for, which the stack chooses itself.
+
+The page talks to the player stack as index.html does: playerFromPage
+(take, home) one way, window.oxtPlayer.event the other.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="oxt-player-base" content="../">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Stack Player</title>
+<link rel="icon" type="image/png" id="icon">
+<style>
+:root{--bg:#000;--fg:#e8edf4;--muted:#9aa8ba;--accent:#ff7a00;color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;background:var(--bg)}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,sans-serif;
+  overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+/* The stack: in the middle of the window, or at its top left. A stack
+   bigger than the window is scrolled from its top left (margin:auto, not
+   justify-content:center, which would cut its far side off), and kept
+   out of a phone's notch and home bar. 100dvh where the browser has it:
+   iOS Safari's 100vh is taller than what shows under its toolbar. */
+#stage{display:flex;min-height:100vh;min-height:100dvh;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#stack{margin:auto;flex:none;touch-action:manipulation}
+body.top-left #stack{margin:0}
+body.top-left #stage{padding:0}
+#canvas{display:block;border:0 none;padding:0;outline:0}
+/* Until a stack is open, the player's own card is not shown */
+body:not(.playing) #stage{position:absolute;left:0;top:0;width:100%;height:0;min-height:0;padding:0;overflow:hidden;visibility:hidden;pointer-events:none}
+
+/* Loading, the Open button and a message: small and plain, in the middle */
+.center{position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding:1rem;text-align:center;background:var(--bg)}
+.center p{margin:.4rem 0;color:var(--muted)}
+.track{width:min(16rem,70vw);height:3px;margin:.6rem auto 0;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden}
+.track i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+.track.wait i{width:30%;animation:wait 1.2s ease-in-out infinite alternate}
+@keyframes wait{from{transform:translateX(-100%)}to{transform:translateX(330%)}}
+@media (prefers-reduced-motion:reduce){.track.wait i{animation:none;width:100%;opacity:.4}}
+button{font:inherit;color:inherit}
+.btn{min-height:44px;padding:.5rem 1.4rem;border:1px solid rgba(255,255,255,.25);border-radius:999px;background:none;cursor:pointer}
+.btn:hover,.btn:focus-visible{border-color:var(--accent);outline:0}
+#choices{display:flex;flex-direction:column;gap:.5rem;margin-top:.8rem}
+#note{position:fixed;z-index:20;left:50%;transform:translateX(-50%);bottom:calc(1rem + env(safe-area-inset-bottom));
+  max-width:min(36rem,calc(100vw - 2rem));padding:.6rem 1rem;border-radius:12px;background:rgba(20,29,44,.95);
+  border:1px solid rgba(255,61,0,.6);font-size:.95rem;cursor:pointer}
+body.dropping .center#open{outline:2px dashed var(--accent);outline-offset:-1rem}
+</style>
+</head>
+<body>
+
+<section id="stage" aria-label="The stack">
+  <div id="stack"><canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas></div>
+</section>
+
+<div class="center" id="loading" role="status" aria-live="polite">
+  <div>
+    <p id="loading-text">Loading...</p>
+    <div class="track wait" id="loading-bar"><i></i></div>
+    <p id="loading-error" hidden></p>
+  </div>
+</div>
+
+<div class="center" id="open" hidden>
+  <div>
+    <button class="btn" id="open-button">Open a stack</button>
+    <p id="open-text">or drop one here</p>
+    <div id="choices"></div>
+  </div>
+</div>
+
+<div id="note" role="alert" hidden></div>
+<input type="file" id="pick-files" multiple hidden>
+
+<script data-cfasync="false">
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var params;
+  try { params = new URLSearchParams(location.search); } catch (e) { params = { get: function () { return null; } }; }
+  var BASE = (document.querySelector('meta[name=oxt-player-base]') || {}).content || '';
+  var STAMP = '@STAMP@';
+  $('icon').href = BASE + 'assets/oxt-beyond-128.png';
+
+  if (params.get('align') == 'top-left') document.body.classList.add('top-left');
+  // the page's colour: a CSS colour, or the default
+  var bg = params.get('bg');
+  if (bg && window.CSS && CSS.supports && CSS.supports('color', bg)) {
+    document.documentElement.style.setProperty('--bg', bg);
+    var theme = document.querySelector('meta[name=theme-color]');
+    if (theme) theme.content = bg;
+  }
+
+  function note(text) {
+    $('note').textContent = text;
+    $('note').hidden = !text;
+  }
+  $('note').addEventListener('click', function () { note(''); });
+
+  // ---------------------------------------------------------------- the engine
+  var ready = false, playing = false;
+  window.Module = {
+    canvas: $('canvas'),
+    // The engine's WebAssembly comes with the folder of its script; its
+    // standalone.zip with none, so from the player's folder here too. Each
+    // with the site's stamp, as the player's page asks for them.
+    locateFile: function (path, folder) { return (folder || BASE) + path + '?v=' + STAMP; },
+    print: function (t) { console.log(t); },
+    printErr: function (t) { console.error(t); },
+    setStatus: function (t) {
+      if (ready || !t) return;
+      var m = /\(([\d.]+)\/([\d.]+)\)/.exec(t);
+      if (m && +m[2] > 0) {
+        $('loading-bar').classList.remove('wait');
+        $('loading-bar').firstElementChild.style.width = Math.min(100, 100 * m[1] / m[2]).toFixed(1) + '%';
+      } else {
+        $('loading-bar').classList.add('wait');
+      }
+    }
+  };
+  // An error of the page's own while the engine starts says the stack
+  // could not start; another script's (a browser extension's in the page,
+  // another site's) is not the player's: the same oxtOwnError as the
+  // player's page (tools/ci/stray_errors.py holds them alike)
+  function oxtOwnError(e) {
+    var file = String(e.filename || '');
+    var site = location.protocol === 'file:' ? 'file:' : location.origin + '/';
+    if (e.error && typeof WebAssembly === 'object' &&
+        (e.error instanceof WebAssembly.RuntimeError ||
+         e.error instanceof WebAssembly.CompileError ||
+         e.error instanceof WebAssembly.LinkError)) {
+      return true;
+    }
+    return file !== '' && (file.indexOf(site) === 0 || file.indexOf('wasm:') === 0);
+  }
+  window.addEventListener('error', function (e) {
+    if (ready) return;
+    if (!oxtOwnError(e)) {
+      console.warn('The Stack Player goes on starting after an error that is not its own: ' +
+        (e.message || 'an error') + (e.filename ? ' (' + e.filename + ')' : ''));
+      return;
+    }
+    $('loading-error').hidden = false;
+    $('loading-error').textContent = 'The stack could not start in this browser. ' +
+      (location.protocol == 'file:' ? 'Open this page from a web server, not from a file on disk.' : 'Try an up-to-date Chrome, Edge, Firefox or Safari.');
+  });
+
+  // ---------------------------------------------------------------- the player stack
+  function call(what) {
+    var stack = document.liveCode && document.liveCode.findStackWithName('Stack Player');
+    return stack ? stack.playerFromPage(what) : false;
+  }
+  function showOpen(on) {
+    $('open').hidden = !on;
+    if (on) $('choices').innerHTML = '';
+  }
+  function setPlaying(name) {
+    playing = name !== '';
+    document.body.classList.toggle('playing', playing);
+    document.title = playing ? name : 'Stack Player';
+    if (playing) {
+      showOpen(false);
+      window.scrollTo(0, 0);
+      $('canvas').focus({ preventScroll: true });
+    }
+  }
+
+  window.oxtPlayer = {
+    event: function (name, detail) {
+      var lines = String(detail || '').split('\n');
+      if (name == 'ready') {
+        ready = true;
+        $('loading').hidden = true;
+        start();
+      } else if (name == 'opened') {
+        note('');
+        setPlaying(lines[0]);
+      } else if (name == 'home') {
+        // the stack went home (a HyperCard stack's "go home"): nothing to
+        // show but the Open button
+        setPlaying('');
+        showOpen(true);
+      } else if (name == 'choices') {
+        showChoices(lines);
+      } else if (name == 'status') {
+        if (lines[0] == 'error') {
+          note(lines.slice(1).join(' ').replace(/\/livecode\/Documents\/Stack Player\//g, ''));
+          if (!playing) showOpen(true);
+        }
+      }
+    },
+    call: function (what) { return call(what); }
+  };
+
+  function showChoices(lines) {
+    showOpen(true);
+    $('open-text').textContent = 'Choose the stack to open';
+    lines.filter(Boolean).forEach(function (l) {
+      var f = l.split('\t');
+      var b = document.createElement('button');
+      b.className = 'btn';
+      b.textContent = f[0];
+      b.onclick = function () { $('choices').innerHTML = ''; call('openpath\n' + f[1]); };
+      $('choices').appendChild(b);
+    });
+  }
+
+  // ---------------------------------------------------------------- giving the player files
+  var upload = 0;
+  function engineFS() { return window.FS || (window.Module && window.Module.FS) || null; }
+  function mkdirs(fs, path) {
+    var parts = path.split('/'), at = '';
+    for (var i = 1; i < parts.length; i++) {
+      at += '/' + parts[i];
+      try { fs.mkdir(at); } catch (e) { /* there already */ }
+    }
+  }
+  // items: [{ path: 'name', file: Blob }], written into /uploads as the
+  // player's page writes them, then handed to the stack
+  function give(items) {
+    var fs = engineFS();
+    if (!items.length || !fs) return;
+    var base = '/uploads/play-' + (++upload) + '-' + Date.now();
+    var tops = [];
+    items.forEach(function (it) {
+      var top = base + '/' + it.path.split('/')[0];
+      if (tops.indexOf(top) < 0) tops.push(top);
+    });
+    Promise.all(items.map(function (it) {
+      return it.file.arrayBuffer().then(function (buf) {
+        var path = base + '/' + it.path;
+        mkdirs(fs, path.substring(0, path.lastIndexOf('/')));
+        fs.writeFile(path, new Uint8Array(buf));
+      });
+    })).then(function () { call('take\n' + tops.join('\n')); },
+      function (e) { note('Could not read the files: ' + e); showOpen(true); });
+  }
+
+  // A stack named in the address: only this site's own files. Another
+  // site's stack would run as this site, with what other stacks saved here.
+  function sameSite(path) {
+    var url;
+    try { url = new URL(path, location.href); } catch (e) { return null; }
+    if (url.origin !== location.origin || !/^https?:$/.test(url.protocol)) return null;
+    return url;
+  }
+  function fetchStack(path) {
+    var url = sameSite(path);
+    if (!url) {
+      note('The stack must be on this site: ' + path);
+      showOpen(true);
+      return;
+    }
+    var name = decodeURIComponent(url.pathname.split('/').pop()) || 'stack';
+    fetch(url.href).then(function (r) {
+      if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
+      return r.blob();
+    }).then(function (b) { give([{ path: name, file: b }]); }, function (e) {
+      note('Could not get ' + name + ': ' + e.message);
+      showOpen(true);
+    });
+  }
+  function playSample(title) {
+    fetch(BASE + 'samples/samples.json').then(function (r) { return r.ok ? r.json() : []; }).then(function (list) {
+      var s = (list || []).filter(function (x) { return x.title == title; })[0];
+      if (!s) throw new Error('there is no sample "' + title + '"');
+      return Promise.all(s.files.map(function (f) {
+        return fetch(BASE + 'samples/' + encodeURIComponent(f)).then(function (r) {
+          if (!r.ok) throw new Error(f + ': ' + r.status);
+          return r.blob();
+        }).then(function (b) { return { path: f, file: b }; });
+      }));
+    }).then(give, function (e) { note('Could not open the sample: ' + e.message); showOpen(true); });
+  }
+  function start() {
+    var stack = params.get('stack'), sample = params.get('play');
+    if (stack) fetchStack(stack);
+    else if (sample) playSample(sample);
+    else showOpen(true);
+  }
+
+  $('open-button').addEventListener('click', function () { if (ready) $('pick-files').click(); });
+  $('pick-files').addEventListener('change', function () {
+    var items = Array.prototype.map.call(this.files, function (f) { return { path: f.name, file: f }; });
+    this.value = '';
+    give(items);
+  });
+  // a stack dropped on the Open button's page (not on a stack that plays:
+  // the stack has its own dragDrop)
+  function dropping(e) { return !playing && e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types, 'Files') >= 0; }
+  document.addEventListener('dragover', function (e) {
+    if (!dropping(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    document.body.classList.add('dropping');
+  });
+  document.addEventListener('dragleave', function () { document.body.classList.remove('dropping'); });
+  document.addEventListener('drop', function (e) {
+    document.body.classList.remove('dropping');
+    if (!dropping(e) || !ready) return;
+    e.preventDefault();
+    give(Array.prototype.map.call(e.dataTransfer.files, function (f) { return { path: f.name, file: f }; }));
+  });
+
+  // the engine's script, from the player's folder
+  var engine = document.createElement('script');
+  engine.setAttribute('data-cfasync', 'false');
+  engine.async = true;
+  engine.src = BASE + '@ENGINE_JS@?v=' + STAMP;
+  document.body.appendChild(engine);
+})();
+</script>
+</body>
+</html>

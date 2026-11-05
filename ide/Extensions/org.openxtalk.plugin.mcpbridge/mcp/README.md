@@ -109,7 +109,8 @@ Claude can do the same things the xTalk Assistant's tools do:
 - **Read and look:** read the guide to xTalk Script, list your open
   stacks, see what you have selected, the script open in the Script
   Editor and the last error the IDE showed you, read a stack's outline
-  or its cards and controls, search its scripts, look at a picture of a
+  or its cards and controls (and the sounds and videos it keeps),
+  search its scripts, look at a picture of a
   card (with each control's id written on it, if Claude asks), look up
   the Dictionary, check that code compiles, and read a script that is
   paused in the debugger. A long script is read in parts, with line
@@ -119,14 +120,25 @@ Claude can do the same things the xTalk Assistant's tools do:
   rest of it as it is. Each request is checked first and is made
   completely or not at all.
 - **Run and save:** run code in a sandbox or on your stack, and save a
-  stack.
+  stack, to its file or, when you tell Claude where, as a new file
+  (never over another file), giving a stack never saved its name as it
+  is saved. Close a stack when Claude is done with it: one Claude made
+  and never saved closes at once, with a copy kept in the temporary
+  folder; any other is closed only after you say yes, if it has changes
+  it would lose.
 - **When OXT-Beyond is held up:** say what a call waits for (a question
   of OXT-Beyond's behind other windows, a script paused in the debugger,
   a dialog open in front of you), stop a paused script as Stop in the
   Script Editor does, and press a button of an `answer` or `ask` dialog
-  one of your stacks opened. Claude never answers OXT-Beyond's own
+  one of your stacks opened (these two go ahead even while another call
+  waits). Claude never answers OXT-Beyond's own
   questions. A client that asks for progress is told every 15 seconds
   what a long call waits for (`OXT_MCP_STATUS_INTERVAL_MS` changes it).
+  Claude's apps give up on a call after about a minute, so a call still
+  waiting for your answer to OXT-Beyond's question after 40 seconds is
+  answered that it waits: your answer still counts, and Claude gets what
+  came of it with `pending_result` instead of asking again
+  (`OXT_MCP_ANSWER_WAIT_MS` changes the 40 seconds; 0 waits as before).
 - **Import from HyperCard:** a stack's file, or a stack on a Mac disk
   image, imported with messages locked so none of its scripts run.
 

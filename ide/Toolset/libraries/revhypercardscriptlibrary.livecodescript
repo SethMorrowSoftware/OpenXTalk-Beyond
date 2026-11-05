@@ -176,6 +176,13 @@ script "revHyperCardScriptLibrary"
 -- confirms it is refused (_VariableRefused).
 constant kRefused = "ac address angle arm arrow at avg backscripts bottom bottommargin brush btn button bytes cantmodify card cardnames cards cds checkmark clickline clickloc clickv colors cr current currentcard currentpage currentwindow date dateformat default disabled documents done duration editmode elements enabled endtime eps exp exp1 exp2 externals field fields filename filetype filled first fld floor format from graphic group hand header height hilited hostname icon id in ink item items keyboardtype kind label labelwidth layer left leftmargin len length lf line lineinc lineindex lines linesize ln loc location lower machine mainstack mark max maxheight maxwidth me menu menubar menuitem menuitems menuname mid min mode name nodes num number of offset orientation params partnumber password pattern player players points processor project rect result right rightmargin scale script scroll sec second seconds selected selectedfield selectedline selectedlines selection size slash sound stack stacks stacksinuse starttime status style sum systemversion target tempname temporary text textarrows the theme this time title titlewidth to tool top topmargin upper userlevel value version vis visible volumes watch wd width windowid windows xscale yscale"
 
+-- T77: names of this engine's functions that it refuses as a variable
+-- ("put x into exists" and "if not exists" do not compile: "exists" here
+-- is the function exists()), where HyperCard had no such function and a
+-- script put into a variable of the name in the text of a do (the Colour
+-- Text stacks' functions); measured on 0.2.7-rc.6.13
+constant kRefusedFunctions = "exists"
+
 -- Words that are part of HyperTalk's own grammar too: never renamed as
 -- variables, and never quoted as an object's name
 constant kStructural = "at btn button card cd field fld from in item line me of the this to first second id stack menu arrow hand target selection tool scroll password menuitem"
@@ -1645,6 +1652,14 @@ private function _Rewrite pScript, pDefines, pExternals, pCompiled
             put "where" into tRename[tWord]
          end if
       end repeat
+      -- T77: a variable only a do puts into ("do "put there is a" &&
+      -- fspec && "into exists""), named by one of this engine's
+      -- functions it refuses as a variable
+      repeat for each key tWord in _DoTargets(tLines, tSpans[i]["start"], tSpans[i]["end"])
+         if tWord is among the words of kRefusedFunctions then
+            put true into tRename[tWord]
+         end if
+      end repeat
       -- (tContinued: the line before ends with \, so this one goes on with
       -- its statement and starts none, "drag from a to b \" then "with
       -- optionKey")
@@ -1657,6 +1672,7 @@ private function _Rewrite pScript, pDefines, pExternals, pCompiled
          put empty into tThen
          if tGoesOn and tKey < tSpans[i]["end"] then put _FirstCode(tLines[tKey + 1]) into tThen
          put _RewriteLine(tLines[tKey], tVars, tRename, pExternals, tRenameHandlers, tContinued, tThen) into tLines[tKey]
+         put _DoTextsRenamed(tLines[tKey], tRename) into tLines[tKey]
          put _RenamedMessages(tLines[tKey], tRenameHandlers) into tLines[tKey]
          put tGoesOn into tContinued
       end repeat
@@ -2047,7 +2063,8 @@ end _CodeSpaced
 -- \ at the end of a line, HyperCard's option-return): the statement is
 -- put on its first line, and the lines it took after that are left empty,
 -- so that the lines after it keep their numbers. An answer continued over
--- lines also gets _ParserForms' rules for its replies (T34)
+-- lines also gets _ParserForms' rules for its replies (T34), and a play
+-- its rules for the notes (T35)
 private command _ContinuedCommands @pLines, pStart, pEnd, pVars
    local i, j, tMerged, tNew, tCode
    put pStart into i
@@ -2065,7 +2082,10 @@ private command _ContinuedCommands @pLines, pStart, pEnd, pVars
          put space & word 1 to -1 of pLines[j] after tMerged
       end repeat
       put _LineCommands(tMerged) into tNew
-      if tNew is tMerged and _Lower(word 1 of _CodeText(tMerged)) is "answer" then
+      -- (and a play continued over lines, its notes not in quotes on the
+      -- line after its tempo, T35: "play (field "Name") tempo 220 \",
+      -- then "cq e f gw gq ...", Resource Library's)
+      if tNew is tMerged and _Lower(word 1 of _CodeText(tMerged)) is among the words of "answer play" then
          put _ParserForms(tMerged, pVars) into tNew
       end if
       if tNew is not tMerged then
@@ -2328,6 +2348,83 @@ private function _HandlerVariables pLines, pStart, pEnd
    return tVars
 end _HandlerVariables
 
+-- T77: the names the text of a do puts into, in the lines pStart to
+-- pEnd: a do whose text, a string or the last of several joined, ends
+-- with "into" and a name ("do "put there is a" && fspec && "into
+-- exists""), as HyperCard ran it in the handler, the handler's variable
+private function _DoTargets pLines, pStart, pEnd
+   local tTargets, i, tTokens, tIndex, tName
+   repeat with i = pStart to pEnd
+      put _Tokens(pLines[i]) into tTokens
+      repeat for each item tIndex in _DoTexts(tTokens)
+         put _DoTextTarget(tTokens[tIndex]["t"]) into tName
+         if tName is not empty then put true into tTargets[_Lower(tName)]
+      end repeat
+   end repeat
+   return tTargets
+end _DoTargets
+
+-- T77: the tokens of the strings that end the do statements of a line
+-- (a do starts the line, or follows "then" or "else"): the last of the
+-- statement's code, before its end, "then" or "else"
+private function _DoTexts pTokens
+   local tCode, tIndex, tLast, tInDo, tTexts
+   put _Code(pTokens) into tCode
+   put false into tInDo
+   repeat for each item tIndex in tCode
+      if pTokens[tIndex]["k"] is "w" and _T(pTokens, tIndex) is among the words of "then else" then
+         if tInDo and pTokens[tLast]["k"] is "s" then put tLast & comma after tTexts
+         put false into tInDo
+      else if pTokens[tIndex]["k"] is "w" and _T(pTokens, tIndex) is "do" \
+            and (tLast is empty or _T(pTokens, tLast) is among the words of "then else") then
+         put true into tInDo
+      end if
+      put tIndex into tLast
+   end repeat
+   if tInDo and pTokens[tLast]["k"] is "s" then put tLast & comma after tTexts
+   delete the last char of tTexts
+   return tTexts
+end _DoTexts
+
+-- T77: the name a do's string puts into, its last word after "into"
+-- ("into exists""), or empty
+private function _DoTextTarget pString
+   local tText
+   if char 1 of pString is not quote or char -1 of pString is not quote or the number of chars of pString < 2 then return empty
+   put char 2 to -2 of pString into tText
+   if the number of words of tText < 2 or word -2 of tText is not "into" then return empty
+   if not _IsName(word -1 of tText) then return empty
+   return word -1 of tText
+end _DoTextTarget
+
+-- T77: pLine with the name a do's string puts into renamed where the
+-- handler renames the variable (T2's name), so that the do puts into the
+-- variable the code reads
+private function _DoTextsRenamed pLine, pRename
+   local tTokens, tIndex, tName, tChanged, tText, tAfter
+   if "do" is not among the words of _Lower(pLine) then return pLine
+   put _Tokens(pLine) into tTokens
+   put false into tChanged
+   repeat for each item tIndex in _DoTexts(tTokens)
+      put _DoTextTarget(tTokens[tIndex]["t"]) into tName
+      if tName is empty or pRename[_Lower(tName)] is not true then next repeat
+      -- (by its characters, as a word of a string in quotes is the
+      -- string; before any space or tab after the name, "into exists "")
+      put char 1 to -2 of tTokens[tIndex]["t"] into tText
+      put empty into tAfter
+      repeat while char -1 of tText is space or char -1 of tText is tab
+         put char -1 of tText before tAfter
+         delete char -1 of tText
+      end repeat
+      put "hc_" before char -(the number of chars of tName) of tText
+      put tText & tAfter & quote into tTokens[tIndex]["t"]
+      put true into tChanged
+      _Fire "T77 a variable a do puts into"
+   end repeat
+   if not tChanged then return pLine
+   return _Join(tTokens)
+end _DoTextsRenamed
+
 -- Whether the script being fixed is a field's or a button's, whose "me"
 -- is the control's text, here as in HyperCard: its long id begins "field
 -- id" or "button id" ("card field id", "bkgnd button id" with HyperCard's
@@ -2546,7 +2643,10 @@ private function _RewriteLine pLine, pVars, pRename, pExternals, pRenameHandlers
          -- handler with a variable named seconds, On This Date's)
          -- (nor the menu bar a hide or a show names, "hide menuBar" in a
          -- handler with a variable named menuBar, Battle of Britain's)
+         -- (T77: nor a call of the function the name is here,
+         -- "exists(card field 1)")
          if _T(tTokens, tPrev) is not among the words of "the set long short abbreviated abbrev abbr english" \
+               and not (tWord is among the words of kRefusedFunctions and _T(tTokens, tNext) is "(") \
                and not (_T(tTokens, tPrev) is "of" and _T(tTokens, tNext) is "in") \
                and not (tWord is "menubar" and _T(tTokens, tPrev) is among the words of "hide show") \
                and not (_T(tTokens, tNext) is "of" and _T(tTokens, tPrev) is not among the words of "char character word item line to into" \

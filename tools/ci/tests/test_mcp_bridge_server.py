@@ -71,11 +71,14 @@ class FakeOXT:
     """OXT-Beyond's side: answers each line with handler(request)."""
 
     def __init__(self, handler, token='0123456789abcdef0123456789abcdef', tools=None, hello_delay=0, status=None,
-                 held_up=False):
+                 held_up=False, asking=None):
         self.handler = handler
         # What a status says (mcbStatusText); None answers it as an
         # OXT-Beyond that has no status does
         self.status = status
+        # Its "asking" (whether it asks the user a question of its own);
+        # None leaves it out, as an OXT-Beyond before 0.2.7-rc.6.15 does
+        self.asking = asking
         # True: a status gets no answer at all, as from an OXT-Beyond held
         # up in code that does not end, which reads nothing meanwhile
         self.held_up = held_up
@@ -133,6 +136,8 @@ class FakeOXT:
                             reply = {'ok': False, 'error': 'There is no method "status".'}
                         else:
                             reply = {'ok': True, 'busy': True, 'text': self.status}
+                            if self.asking is not None:
+                                reply['asking'] = self.asking
                     else:
                         reply = self.handler(request)
                     with self.lock:
@@ -444,7 +449,9 @@ class McpBridgeServerTest(McpBridgeServerBase):
         with open(os.path.join(PLUGIN, 'mcpbridge-tools.livecodescript'), encoding='utf-8') as f:
             match = re.search(r'^constant kTools = "([^"]*)"', f.read(), re.M)
         self.assertIsNotNone(match, 'kTools in mcpbridge-tools.livecodescript')
-        self.assertEqual(names, match.group(1).split(','))
+        # pending_result is the server's own: OXT-Beyond does not have it
+        self.assertEqual([n for n in names if n != 'pending_result'], match.group(1).split(','))
+        self.assertIn('pending_result', names)
         with open(os.path.join(PLUGIN, 'mcp', 'manifest.json'), encoding='utf-8') as f:
             manifest = json.load(f)
         self.assertEqual([t['name'] for t in manifest['tools']], names)
@@ -723,6 +730,139 @@ class McpBridgeServerTest(McpBridgeServerBase):
         self.assertEqual(self.receive()['id'], ping)
         self.assertEqual([r.get('tool') for r in self.oxt.requests if r['method'] == 'call'], ['list_stacks'])
 
+    # --- what holds a call up -------------------------------------------------
+
+    def test_a_tool_that_unblocks_goes_past_the_call_it_unblocks(self):
+        # OXT-Beyond answers stop_paused_script and answer_dialog while an
+        # earlier call waits (its kUnblockingTools). Until 0.2.7-rc.6.15 they
+        # waited their turn here behind that call and were refused as busy.
+        def handler(request):
+            if request['tool'] == 'run_code':
+                time.sleep(1.5)
+            return {'ok': True, 'isError': False, 'text': request['tool']}
+        self.start_oxt(handler, status='OXT-Beyond is waiting for the user to answer its question "Claude asks to run code."')
+        self.start_server(OXT_MCP_BUSY_WAIT_MS='300', OXT_MCP_ANSWER_WAIT_MS='0')
+        self.initialize()
+        first = self.send('tools/call', {'name': 'run_code', 'arguments': {'code': 'put 1'}})
+        time.sleep(0.2)
+        second = self.send('tools/call', {'name': 'answer_dialog', 'arguments': {'button': 'OK'}})
+        third = self.send('tools/call', {'name': 'stop_paused_script', 'arguments': {}})
+        order = []
+        replies = {}
+        for _ in range(3):
+            reply = self.receive()
+            order.append(reply['id'])
+            replies[reply['id']] = reply['result']
+        self.assertEqual(order[-1], first)
+        self.assertEqual(replies[second]['content'][0]['text'], 'answer_dialog')
+        self.assertFalse(replies[second]['isError'])
+        self.assertEqual(replies[third]['content'][0]['text'], 'stop_paused_script')
+        self.assertEqual(replies[first]['content'][0]['text'], 'run_code')
+        calls = [r for r in self.oxt.requests if r['method'] == 'call']
+        self.assertEqual(sorted(r['tool'] for r in calls), ['answer_dialog', 'run_code', 'stop_paused_script'])
+        self.assertTrue(all(r['token'] == self.oxt.token for r in calls))
+        self.assertGreaterEqual(self.oxt.connections, 3)
+
+    def test_a_tool_that_unblocks_with_nothing_before_it_goes_as_before(self):
+        self.start_oxt(lambda request: {'ok': True, 'isError': False, 'text': request['tool']})
+        self.start_server()
+        self.initialize()
+        self.assertEqual(self.call('stop_paused_script')['content'][0]['text'], 'stop_paused_script')
+        self.assertEqual(self.oxt.connections, 1)
+
+    def test_a_call_waiting_for_the_users_answer_is_answered_and_kept(self):
+        # Claude's apps give up on a call after about a minute; a run the
+        # user allows after that ran with nobody told. The call is answered
+        # that it waits, goes on, and pending_result gives what came of it.
+        def handler(request):
+            time.sleep(1.5)
+            return {'ok': True, 'isError': False, 'text': '42'}
+        self.start_oxt(handler, status='OXT-Beyond is waiting for the user to answer its question "Claude asks to run code."')
+        self.start_server(OXT_MCP_ANSWER_WAIT_MS='300')
+        self.initialize()
+        started = time.time()
+        result = self.call('run_code', {'code': 'put 6 * 7'})
+        self.assertLess(time.time() - started, 1.4)
+        self.assertFalse(result['isError'])
+        text = result['content'][0]['text']
+        self.assertIn('Not done yet', text)
+        self.assertIn('pending_result with request 1', text)
+        self.assertIn('Do not send', text)
+        self.assertIn('Claude asks to run code.', text)
+        # Sent once, and not again
+        self.assertEqual([r.get('tool') for r in self.oxt.requests if r['method'] == 'call'], ['run_code'])
+        result = self.call('pending_result', {'request': 1, 'wait_seconds': 5})
+        self.assertFalse(result['isError'])
+        self.assertIn('Call 1 (run_code) is done', result['content'][0]['text'])
+        self.assertIn('42', result['content'][0]['text'])
+        # Read once
+        result = self.call('pending_result', {'request': 1})
+        self.assertTrue(result['isError'])
+        self.assertIn('There is no call 1', result['content'][0]['text'])
+        result = self.call('pending_result')
+        self.assertFalse(result['isError'])
+        self.assertIn('No call is waiting', result['content'][0]['text'])
+
+    def test_pending_result_says_what_a_call_still_waits_for(self):
+        def handler(request):
+            time.sleep(2)
+            return {'ok': True, 'isError': True, 'text': 'Nothing ran: the user did not allow the run.'}
+        self.start_oxt(handler, status='OXT-Beyond is waiting for the user to answer its question "Claude asks to run code."', asking=True)
+        self.start_server(OXT_MCP_ANSWER_WAIT_MS='200')
+        self.initialize()
+        self.assertIn('request 1', self.call('run_code', {'code': 'put 1'})['content'][0]['text'])
+        result = self.call('pending_result', {'wait_seconds': 0})
+        self.assertFalse(result['isError'])
+        self.assertIn('Call 1 (run_code) is not done yet', result['content'][0]['text'])
+        self.assertIn('waiting for the user', result['content'][0]['text'])
+        # The user's no comes back as the call's own error
+        result = self.call('pending_result', {'wait_seconds': 10})
+        self.assertTrue(result['isError'])
+        self.assertIn('did not allow the run', result['content'][0]['text'])
+
+    def test_a_call_not_waiting_for_the_user_is_not_answered_early(self):
+        # A run that takes long, with no question open, and an OXT-Beyond
+        # that says it is not asking although its text reads as if it were
+        def handler(request):
+            time.sleep(1)
+            return {'ok': True, 'isError': False, 'text': 'ran'}
+        self.start_oxt(handler, status='OXT-Beyond is waiting for the user to answer its question "Claude asks to run code."', asking=False)
+        self.start_server(OXT_MCP_ANSWER_WAIT_MS='200')
+        self.initialize()
+        self.assertEqual(self.call('run_code', {'code': 'put 1'})['content'][0]['text'], 'ran')
+
+    def test_an_ide_without_a_status_is_waited_for_as_before(self):
+        def handler(request):
+            time.sleep(0.8)
+            return {'ok': True, 'isError': False, 'text': 'ran'}
+        self.start_oxt(handler)
+        self.start_server(OXT_MCP_ANSWER_WAIT_MS='200')
+        self.initialize()
+        self.assertEqual(self.call('run_code', {'code': 'put 1'})['content'][0]['text'], 'ran')
+
+    def test_answer_wait_0_waits_for_the_user_as_before(self):
+        def handler(request):
+            time.sleep(0.8)
+            return {'ok': True, 'isError': False, 'text': 'ran'}
+        self.start_oxt(handler, status='OXT-Beyond is waiting for the user to answer its question "Claude asks to run code."')
+        self.start_server(OXT_MCP_ANSWER_WAIT_MS='0')
+        self.initialize()
+        self.assertEqual(self.call('run_code', {'code': 'put 1'})['content'][0]['text'], 'ran')
+
+    def test_a_call_cancelled_once_sent_is_kept_for_pending_result(self):
+        def handler(request):
+            time.sleep(1)
+            return {'ok': True, 'isError': False, 'text': 'saved'}
+        self.start_oxt(handler)
+        self.start_server(OXT_MCP_ANSWER_WAIT_MS='0')
+        self.initialize()
+        sent = self.send('tools/call', {'name': 'save_stack', 'arguments': {}})
+        time.sleep(0.3)
+        self.send('notifications/cancelled', {'requestId': sent, 'reason': 'timed out'}, notify=True)
+        result = self.call('pending_result', {'wait_seconds': 5})
+        self.assertIn('Call 1 (save_stack) is done', result['content'][0]['text'])
+        self.assertIn('saved', result['content'][0]['text'])
+
 
 @unittest.skipUnless(NODE, 'Node.js is not installed')
 class McpBridgeWebServerTest(McpBridgeServerBase):
@@ -752,7 +892,17 @@ class McpBridgeWebServerTest(McpBridgeServerBase):
         result = self.initialize()['result']
         self.assertEqual(result['serverInfo']['name'], 'oxt-beyond-web')
         names = [t['name'] for t in self.request('tools/list')['result']['tools']]
-        self.assertEqual(names, ide_tools().split(','))
+        self.assertEqual(names, ide_tools().split(',') + ['pending_result'])
+
+    def test_web_a_call_is_never_answered_early(self):
+        # The tab has one connection: no status to ask, no call past the queue
+        def handler(request):
+            time.sleep(0.6)
+            return {'ok': True, 'isError': False, 'text': request['tool']}
+        self.start_web(OXT_MCP_ANSWER_WAIT_MS='100')
+        self.initialize()
+        self.tab(handler)
+        self.assertEqual(self.call('run_code', {'code': 'put 1'})['content'][0]['text'], 'run_code')
 
     def test_web_a_server_loaded_by_another_script_still_serves(self):
         self.start_web(loaded=True)

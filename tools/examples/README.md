@@ -169,6 +169,29 @@ and an explanation are checked on the Reference card. It ends with
 `DONE` or `FAILED`; `OXT_LEARN_KIT` names another copy of the stack, and
 `OXT_LEARN_KIT_SNAPS` a folder for a picture of each card.
 
+### What the two Box2D stacks cost
+
+```sh
+python3 tools/examples/perf-learn-box2d.py --install <install> \
+    [--before-box2d <old Learn Box2D> --before-kit <old Learn Box2Dxt Kit>]
+```
+
+opens both stacks in the install's engine (Linux, under `xvfb-run`:
+[perf-learn-box2d.livecodescript](perf-learn-box2d.livecodescript)
+reads the engine's processor time from `/proc`) and prints, for each
+card, the share of a core it uses running, paused and with its window
+hidden, and the milliseconds of one frame, also on Terrain filled with
+bodies. With `--before-...` it measures older copies too, side by side.
+Paused or hidden, a lesson must cost next to nothing, and a frame must
+keep within a budget (`BUDGET` in the script); CI runs it after the
+lessons. Both stacks' Labs keep it so: Learn Box2D draws a body only when
+it moved, draws nothing while paused, asks Box2D for a joint's anchors
+once and leaves a line or dot that did not change alone; in both, a
+lesson waits while its window is hidden or made an icon, and the
+switches' lights are found once a card.
+`tools/ci/tests/test_learn_box2d_speed.py` checks that the builders keep
+those on every pull request.
+
 ## Learn stacks: the xTalk Suite's extensions
 
 A Learn stack teaches one of the extensions of the

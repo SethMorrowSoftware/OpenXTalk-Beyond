@@ -40,6 +40,10 @@ constant kTmIconBox = 44
 constant kTmMinWidth = 96
 constant kTmMinHeight = 160
 constant kTmDefaultWidth = 120
+-- The first width with names: one column of icons with their names, which
+-- two columns of kTmNameCell (with the pads, the thumb and the gap) would
+-- take more than 300 points for
+constant kTmNamesWidth = 200
 constant kTmWheel = 36
 -- How much larger Large Icons makes the icons and tiles
 constant kTmLargeScale = 1.5
@@ -3380,8 +3384,20 @@ private command tmFitLabel pLabel, pCellH
    set the height of pLabel to min(pCellH, the formattedHeight of pLabel)
 end tmFitLabel
 
+-- OXT-Beyond 0.2.7-rc.6.15: the names are on by default. A profile that
+-- never chose (revTools_modernNames empty) is settled once, and the
+-- choice saved: a fresh one, which has kept no size of the modern look
+-- either, shows the names; one that has used the modern look already
+-- (a size kept) keeps the icons alone it has always shown. A saved true
+-- or false is the user's own, and is kept as it is
 private function tmShowNames
-   return revIDEGetPreference("revTools_modernNames") is true
+   local tNames
+   put revIDEGetPreference("revTools_modernNames") into tNames
+   if tNames is empty then
+      put revIDEGetPreference("revTools_modernSize") is empty into tNames
+      revIDESetPreference "revTools_modernNames", tNames
+   end if
+   return tNames is true
 end tmShowNames
 
 -- The menu's Large Icons (revTools_modernLarge): the icons and the tiles
@@ -3656,8 +3672,9 @@ private function tmKeptSize
 end tmKeptSize
 
 -- The size the window opens at: the one kept, else as wide as two
--- columns and as tall as what it shows, on the screen; it lays the
--- palette out again only when it changed the size and pLayout is not false
+-- columns (with names, one: kTmNamesWidth) and as tall as what it shows,
+-- on the screen; it lays the palette out again only when it changed the
+-- size and pLayout is not false
 private command tmApplySize pLayout
    local tSize, tW, tH, tRect, tScreen
    put tmKeptSize() into tSize
@@ -3665,7 +3682,8 @@ private command tmApplySize pLayout
       put item 1 of tSize into tW
       put item 2 of tSize into tH
    else
-      put kTmDefaultWidth into tW
+      if tmShowNames() then put kTmNamesWidth into tW
+      else put kTmDefaultWidth into tW
       put kTmHeadHeight + kTmSearchHeight + kTmPad * 2 + sTmContentHeight into tH
    end if
    put line (the screen of me) of the working screenRects into tScreen

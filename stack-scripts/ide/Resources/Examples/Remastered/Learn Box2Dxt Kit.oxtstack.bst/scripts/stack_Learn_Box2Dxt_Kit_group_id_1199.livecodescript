@@ -32,14 +32,18 @@ local sCard, sStack
 local sReady
 -- True while the Pause button holds the game still
 local sPaused
+-- The number of the last labWatch sent, which waits for a hidden window
+-- to be back: a newer one, or the card closing, stops the one before
+local sWatch
 -- What a card asked the Lab to take away when it closes (labKeep)
 local sKept
 -- When the line at the court's top last changed, and what it says
 local sSaidAt, sSaid
 -- True while a click in the court is handed to the card's mouseDown
 local sForwarding
--- The button of the card's that is lit for a moment (labShowButtons)
-local sFlashed, sLightTicks
+-- The button of the card's that is lit for a moment (labShowButtons),
+-- and the card's switches, after the card's long id (labSwitchLights)
+local sFlashed, sLightTicks, sSwitches
 -- The card being opened, until labOpenNow makes its lesson
 local sOpening
 
@@ -159,6 +163,7 @@ command labClose
    local tId, tError
    if sReady then
       put false into sReady
+      add 1 to sWatch
       try
          b2kRelease
          -- (the keyboard, if a lesson read it)
@@ -207,6 +212,14 @@ on b2kFrame
    if not sReady then
       exit b2kFrame
    end if
+   -- (while the window is hidden, or made an icon, the game waits, held
+   -- by b2kPause, and goes on when the window is back: labWatch)
+   if the visible of stack sStack is false or the iconic of stack sStack then
+      b2kPause
+      add 1 to sWatch
+      send ("labWatch" && sWatch) to me in 250 milliseconds
+      exit b2kFrame
+   end if
    try
       dispatch "labStep" to sCard
    catch tError
@@ -216,9 +229,22 @@ on b2kFrame
    -- lights follow, five times a second)
    add 1 to sLightTicks
    if sLightTicks mod 12 is 0 then
-      labShowButtons empty
+      labSwitchLights
    end if
 end b2kFrame
+
+-- The game held while the window is hidden goes on when it is back
+-- (unless Pause was pressed meanwhile)
+command labWatch pWatch
+   if pWatch is not sWatch or not sReady then
+      exit labWatch
+   end if
+   if the visible of stack sStack is false or the iconic of stack sStack then
+      send ("labWatch" && pWatch) to me in 250 milliseconds
+   else if not sPaused then
+      b2kResume
+   end if
+end labWatch
 
 -- The Reset button
 command labRestart
@@ -507,6 +533,35 @@ command labShowButtons pHandler
       end if
    end repeat
 end labShowButtons
+
+-- Every switch's light right, five times a second while the lesson
+-- runs: the card's switches are found once, when it opens, not each time
+command labSwitchLights
+   local tObj, tOn, tError
+   if sCard is empty then
+      exit labSwitchLights
+   end if
+   -- (a line each: a long id holds the stack's path, which can hold a
+   -- comma)
+   if line 1 of sSwitches is not sCard then
+      put sCard into sSwitches
+      repeat with tObj = 1 to the number of groups of sCard
+         if the short name of group tObj of sCard begins with "Do" and the cDo of group tObj of sCard is not empty \
+               and the cSwitch of group tObj of sCard is true then
+            put return & the long id of group tObj of sCard after sSwitches
+         end if
+      end repeat
+   end if
+   repeat for each line tObj in line 2 to -1 of sSwitches
+      put false into tOn
+      try
+         dispatch function "labLit" to sCard with the cDo of tObj
+         put (the result is true) into tOn
+      catch tError
+      end try
+      labLight tObj, tOn
+   end repeat
+end labSwitchLights
 
 -- The end of a button's flash
 command labUnflash

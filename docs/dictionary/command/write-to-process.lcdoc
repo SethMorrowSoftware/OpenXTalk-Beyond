@@ -40,6 +40,18 @@ error message.
 Description:
 Use the <write to process> <command> to send input to another program.
 
+The text is sent in the encoding the process was opened with (see
+<open process>). In binary mode the bytes are sent as they are. Text
+opened as plain text or native text is sent in the platform's native
+charset: ISO-8859-1 on Linux and CP1252 on Windows. On macOS it is sent
+as UTF-8, as it has been since LiveCode 7.0, and not in MacRoman.
+
+>*Note:* Until OXT-Beyond 0.2.7-rc.6.15, text and binary data written to
+>a process on Linux were sent as UTF-16, binary data on macOS was sent
+>UTF-8 encoded, and a process opened for "UTF-8" text was sent UTF-16 on
+>every platform. Text and binary written on Windows, and plain text
+>written on macOS, are sent as before.
+
 References: open process (command), read from process (command),
 write to driver (command), result (function), command (glossary), 
 process (glossary), return (glossary), stdout (keyword)
