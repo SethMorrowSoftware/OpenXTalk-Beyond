@@ -81,7 +81,10 @@ sys.boot_completed is 1), saying where it is every minute. It gives up
 at --minutes, or within seconds once no emulator runs and adb has no such
 device, and then prints what might say why: whether the emulator still
 runs, /dev/kvm, adb's devices, the free disk and the end of the emulator's
-log (--log), which otherwise only reaches the workflow's artifact.
+log (--log), which otherwise only reaches the workflow's artifact. With
+--settle it then waits, and says for what, until a fresh image's first
+minute's work is done (settle): broadcast queues idle, the package
+manager idle, the enabled overlays unchanged.
 
 Exit status 0 when every check passed, 1 otherwise. Only the Python 3
 standard library is used (3.8 or later), with the Android SDK's adb,
@@ -1096,6 +1099,78 @@ def boot_diagnostics(adb, sdk, log_path):
     return out
 
 
+def enabled_overlays(listing):
+    """The enabled overlays in `cmd overlay list`'s output ([x] lines)."""
+    return sorted(x.split(']', 1)[1].strip() for x in listing.splitlines() if x.strip().startswith('[x]'))
+
+
+def settle(adb, serial, minutes, interval, polls=3):
+    """After boot, wait for what Android does once in a fresh image's first
+    minute (the BOOT_COMPLETED receivers; the package manager's queue; the
+    overlays the device and gesture navigation enable, which change every
+    app's ApplicationInfo and so recreate a running activity): until the
+    broadcast queues are idle (am wait-for-broadcast-idle), the package
+    manager's handler is idle (pm wait-for-handler), and the enabled
+    overlays have not changed over `polls` polls `interval` seconds apart.
+    Prints each condition and when it held. A condition that does not hold
+    in `minutes` is said, and the run goes on: this decides nothing."""
+    start = time.monotonic()
+    deadline = start + minutes * 60
+
+    def left():
+        return max(1, int(deadline - time.monotonic()))
+
+    def shell(*cmd):
+        return run([adb, '-s', serial, 'shell'] + list(cmd), timeout=left())
+
+    held, missed = [], []
+    for what, cmd in (('the broadcast queues are idle', ('am', 'wait-for-broadcast-idle')),
+                      ("the package manager's handler is idle", ('pm', 'wait-for-handler', '--timeout',
+                                                                  str(left() * 1000)))):
+        try:
+            status, out = shell(*cmd)
+        except CheckError as e:
+            missed.append(what)
+            log('settling: %s: not in %g minutes (%s)' % (what, minutes, ' '.join(cmd[:2])))
+            continue
+        said = ' '.join(out.split())[:200]
+        if status != 0 or re.search(r'(?i)unknown (command|option)|error', out):
+            log('settling: %s: %s cannot say on this image (%s)' % (what, ' '.join(cmd[:2]), said or status))
+            continue
+        held.append('%s (%s, %d s)' % (what, ' '.join(cmd[:2]), time.monotonic() - start))
+        log('settling: %s after %d s (%s%s)' % (what, time.monotonic() - start, ' '.join(cmd[:2]),
+                                                ': ' + said if said else ''))
+    last = None
+    same = 0
+    while True:
+        try:
+            _, listing = shell('cmd', 'overlay', 'list')
+            now = enabled_overlays(listing)
+        except CheckError:
+            now = None
+        if now is not None and now == last:
+            same += 1
+        else:
+            if last is not None and now is not None:
+                log('settling: the enabled overlays changed: %s' % '; '.join(
+                    ['+' + x for x in now if x not in last] + ['-' + x for x in last if x not in now]))
+            same = 1
+        last = now
+        if same >= polls or time.monotonic() >= deadline:
+            break
+        time.sleep(interval)
+    what = 'the enabled overlays are unchanged over %d polls %g s apart' % (polls, interval)
+    if same >= polls and last is not None:
+        held.append('%s (cmd overlay list, %d enabled, %d s)' % (what, len(last), time.monotonic() - start))
+        log('settling: %s after %d s (%d enabled)' % (what, time.monotonic() - start, len(last)))
+    else:
+        missed.append(what)
+        log('settling: %s: not in %g minutes' % (what, minutes))
+    log('%s settled after %d s: %s%s' % (serial, time.monotonic() - start, '; '.join(held) or 'nothing held',
+                                         ('; not: ' + '; '.join(missed)) if missed else ''))
+    return held, missed
+
+
 def boot(args):
     adb = adb_path(args.sdk)
     if not adb:
@@ -1115,6 +1190,8 @@ def boot(args):
         now = time.monotonic()
         if booted == '1':
             log('%s booted after %d s' % (args.serial, now - start))
+            if args.settle:
+                settle(adb, args.serial, args.settle_minutes, args.interval, args.settle_polls)
             return []
         if args.serial.startswith('emulator-') and state != 'device' and emulator_processes() == []:
             gone += 1
@@ -1181,6 +1258,10 @@ def main(argv=None):
     b.add_argument('--log', help="the emulator's own log, whose end is printed when it does not boot")
     b.add_argument('--minutes', type=float, default=10)
     b.add_argument('--interval', type=float, default=5)
+    b.add_argument('--settle', action='store_true',
+                   help="then wait for the first minute's work of a fresh image (settle)")
+    b.add_argument('--settle-minutes', type=float, default=5)
+    b.add_argument('--settle-polls', type=int, default=3)
     args = ap.parse_args(argv)
     try:
         problems = {'extract': extract, 'overlay': overlay, 'ide': ide, 'verify': verify, 'compare': compare,

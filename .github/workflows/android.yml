@@ -330,7 +330,7 @@ jobs:
 
       - name: Run the package with 16 KB pages
         if: runner.os == 'Linux'
-        timeout-minutes: 20
+        timeout-minutes: 25
         run: |
           adb="$SDK/platform-tools/adb"
           "$adb" -s emulator-5554 emu kill || true
@@ -344,8 +344,13 @@ jobs:
           nohup "$SDK/emulator/emulator" -avd pages16k -no-window -no-audio -no-boot-anim -no-snapshot \
             -gpu swiftshader_indirect -camera-back none -camera-front none \
             > "$WORK/emulator-16k.log" 2>&1 &
+          # --settle: a just-booted image enables overlays in its first
+          # minute, which recreates a running activity, and the carried
+          # Android runtime aborts on a second start in one process (see
+          # "The probe across a font size change"); this step is for 16 KB
+          # loading, so the probe starts once the image is done
           "$PY" tools/ci/android_check.py boot --serial emulator-5554 --sdk "$SDK" \
-            --log "$WORK/emulator-16k.log" --minutes 12
+            --log "$WORK/emulator-16k.log" --minutes 12 --settle
           "$adb" shell input keyevent 82 || true
           page=$("$adb" shell getconf PAGE_SIZE | tr -d '\r')
           echo "Page size: $page"

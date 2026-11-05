@@ -765,6 +765,73 @@ class Boot(unittest.TestCase):
         finally:
             ac.run = saved
 
+    # booted, and settling: the overlays change once, then hold
+    SETTLING = ('echo "$*" >> "$(dirname "$0")/calls"\n'
+                'case "$*" in\n'
+                '  *get-state*) echo device ;;\n'
+                '  *getprop*) echo 1 ;;\n'
+                '  *wait-for-broadcast-idle*) echo "All broadcast queues are idle!" ;;\n'
+                '  *wait-for-handler*) echo Success ;;\n'
+                '  *"overlay list"*)\n'
+                '    n=$(grep -c "overlay list" "$(dirname "$0")/calls")\n'
+                '    echo "android"\n'
+                '    echo "[x] com.android.internal.display.cutout.emulation.corner"\n'
+                '    if [ "$n" -ge 2 ]; then echo "[x] com.android.internal.systemui.navbar.gestural"; '
+                'else echo "[ ] com.android.internal.systemui.navbar.gestural"; fi ;;\n'
+                'esac\n')
+
+    def calls(self):
+        with open(os.path.join(self.sdk, 'platform-tools', 'calls')) as f:
+            return [x.split(' ', 2)[2] for x in f.read().splitlines()]
+
+    def test_settles_after_booting(self):
+        status, out = self.boot(self.SETTLING, '--settle', '--settle-polls', '3')
+        self.assertEqual(status, 0, out)
+        calls = self.calls()
+        # booted first, then each condition in turn
+        first = calls.index('shell am wait-for-broadcast-idle')
+        self.assertTrue(all('getprop' in x or 'get-state' in x for x in calls[:first]))
+        self.assertTrue(calls[first + 1].startswith('shell pm wait-for-handler --timeout '))
+        self.assertEqual(calls[first + 2:], ['shell cmd overlay list'] * 4)
+        for part in ('emulator-5554 booted after',
+                     'settling: the broadcast queues are idle after 0 s (am wait-for-broadcast-idle: '
+                     'All broadcast queues are idle!)',
+                     "settling: the package manager's handler is idle after 0 s (pm wait-for-handler: Success)",
+                     'settling: the enabled overlays changed: +com.android.internal.systemui.navbar.gestural',
+                     'settling: the enabled overlays are unchanged over 3 polls 0.05 s apart after 0 s (2 enabled)',
+                     'emulator-5554 settled after 0 s: the broadcast queues are idle (am wait-for-broadcast-idle, '
+                     "0 s); the package manager's handler is idle (pm wait-for-handler, 0 s); the enabled "
+                     'overlays are unchanged over 3 polls 0.05 s apart (cmd overlay list, 2 enabled, 0 s)'):
+            self.assertIn(part, out)
+        self.assertNotIn('not:', out)
+
+    def test_no_settling_unless_asked(self):
+        status, out = self.boot(self.SETTLING)
+        self.assertEqual(status, 0, out)
+        self.assertNotIn('settl', out)
+        self.assertFalse([x for x in self.calls() if 'wait-for' in x or 'overlay' in x])
+
+    def test_settling_never_fails_the_boot(self):
+        # an image without the commands, whose overlays never hold still
+        script = ('n_file="$(dirname "$0")/n"\n'
+                  'case "$*" in\n'
+                  '  *get-state*) echo device ;;\n'
+                  '  *getprop*) echo 1 ;;\n'
+                  '  *wait-for*) echo "Unknown command: wait-for"; exit 255 ;;\n'
+                  '  *"overlay list"*) echo x >> "$n_file"; echo "[x] overlay$(wc -l < "$n_file")" ;;\n'
+                  'esac\n')
+        status, out = self.boot(script, '--settle', '--settle-minutes', '0.003')
+        self.assertEqual(status, 0, out)
+        self.assertIn('settling: the broadcast queues are idle: am wait-for-broadcast-idle cannot say on this image',
+                      out)
+        self.assertIn('settling: the enabled overlays are unchanged over 3 polls 0.05 s apart: not in 0.003 minutes',
+                      out)
+        self.assertIn('; not: the enabled overlays are unchanged', out)
+
+    def test_enabled_overlays(self):
+        listing = ('android\n[x] com.a\n[ ] com.b\n---- \ncom.android.systemui\n[x] com.c\n')
+        self.assertEqual(ac.enabled_overlays(listing), ['com.a', 'com.c'])
+
     def test_tail(self):
         log = os.path.join(self.sdk, 'long.log')
         with open(log, 'w') as f:
@@ -791,6 +858,16 @@ class OneSystem(unittest.TestCase):
     def test_overlay_files_exist(self):
         for rel in ac.OVERLAY:
             self.assertTrue(os.path.isfile(os.path.join(REPO, *rel.split('/'))), rel)
+
+    def test_16k_step_settles_before_the_probe_starts(self):
+        # the 16 KB step is for loading with 16 KB pages: the probe starts
+        # only after boot --settle, never on a just-booted image
+        workflow = read('.github', 'workflows', 'android.yml')
+        step = re.search(r'(?s)- name: Run the package with 16 KB pages\n(.*?)\n      - name:', workflow).group(1)
+        boot = re.search(r'android_check\.py boot [^\n]*\\\n[^\n]*', step)
+        self.assertTrue(boot, 'the 16 KB step waits for the emulator')
+        self.assertIn('--settle', boot.group(0))
+        self.assertLess(boot.start(), step.index('android_check.py device'))
 
     def test_workflow_runs_on_a_change_to_the_builder(self):
         workflow = read('.github', 'workflows', 'android.yml')
