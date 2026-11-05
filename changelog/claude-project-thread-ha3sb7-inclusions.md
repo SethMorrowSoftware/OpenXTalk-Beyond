@@ -1,2 +1,4 @@
 - Standalone Settings, Inclusions: the rows are listed in the alphabetical order of their names, the same every time; they came in the order the extensions were loaded, which changed from one run to the next (Palette Actions first in one, Clock in another). Which inclusions a stack has, and what is saved, are unchanged (#366)
 - Tests: revSBInclusionsByTitle, and the Inclusions pane's rows in title order with the stack's own inclusion still ticked (ide/tests/standalonesettings); the IDE tour checks the order on every platform (#366)
+- Standalone Settings, Inclusions, dark appearance: the ticked rows are drawn in a dark version of the selection colour (72,60,54 from the community edition's 240,200,180), so their white name and icon can be read; on the light selection colour they were nearly invisible. The light appearance is unchanged (#366)
+- Tests: the ticked rows' colour in both appearances, and the pane using it (ide/tests/standalonesettings) (#366)

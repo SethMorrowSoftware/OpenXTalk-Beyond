@@ -142,3 +142,42 @@ on TestInclusionsPaneOrder
    TestAssert "the row of the widget the stack includes is ticked", \
          tWidget["id"] is not empty and tTicked
 end TestInclusionsPaneOrder
+
+-- The ticked rows are drawn in the hilite colour under a name and icon in
+-- revIDEColor("text_1"), white in the dark appearance. There the edition's
+-- light selection colour (240,200,180) left them unreadable: it is
+-- darkened, keeping its hue; in the light appearance it is as it was
+on TestInclusionsHiliteColor
+   local tCard, tLight, tDark, tSum, tExpected, tSelected
+   create stack kStack
+   save stack kStack as (sFolder & slash & kStack & ".oxtstack")
+   revIDEStandaloneSettingsForStack the long id of stack kStack
+   wait 500 milliseconds with messages
+   TestAssert "the Standalone Settings are open", there is a stack "revStandaloneSettings"
+   dispatch "navigateToCard" to stack "revStandaloneSettings" with "Inclusions"
+   wait 500 milliseconds with messages
+   put the long id of card "Inclusions" of stack "revStandaloneSettings" into tCard
+   put "240,200,180" into tLight
+   dispatch function "inclusionsHiliteColor" to tCard with tLight, false
+   TestAssert "the light appearance keeps the selection colour", the result is tLight
+   dispatch function "inclusionsHiliteColor" to tCard with tLight, true
+   put the result into tDark
+   TestDiagnostic "dark:" && tDark
+   TestAssert "the dark appearance darkens the selection colour", tDark is "72,60,54"
+   put item 1 of tDark + item 2 of tDark + item 3 of tDark into tSum
+   -- white text on it, and apart from the dark rows (126 and 97)
+   TestAssert "white is readable on the dark selection colour", 255 - tSum / 3 > 150
+   TestAssert "the dark rows and the dark selection colour differ", 97 - tSum / 3 > 25
+   dispatch function "inclusionsHiliteColor" to tCard with "red", true
+   TestAssert "a colour name is left as it is", the result is "red"
+
+   -- and the pane uses it, in the appearance the test runs in
+   dispatch function "ideColorGet" to tCard with "pb_line_selected"
+   put the result into tSelected
+   TestDiagnostic "selection colour:" && tSelected && "appearance:" && the systemAppearance
+   dispatch function "inclusionsHiliteColor" to tCard with \
+         tSelected, the systemAppearance is "dark"
+   put the result into tExpected
+   TestAssert "the pane's hilite colour follows the appearance", \
+         the viewProp["hilite color"] of group "extensionList" of tCard is tExpected
+end TestInclusionsHiliteColor
