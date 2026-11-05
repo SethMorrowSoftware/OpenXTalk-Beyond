@@ -5379,7 +5379,7 @@ end tourLuminance
 -- no browser widget (revIDEBrowserWidgetUnavailable); the text dictionary
 -- when Preferences > Dictionary chooses it (cDictionaryDisplayMethod)
 on tour_dictionary
-   local tBefore, tNew
+   local tBefore, tNew, tBlank
    put the openStacks into tBefore
    send "tNewDictionaryDisplay" to stack "revMenuBar"
    if the cDictionaryDisplayMethod of stack "revPreferences" is not true and revIDEBrowserWidgetUnavailable() then
@@ -5395,12 +5395,110 @@ on tour_dictionary
    tourWait 4000
    if tNew is revIDEPaletteToStackName("dictionary") then
       tourDictionaryData tNew
+      put tourDictionaryBlank(tNew, "as it opened") into tBlank
    else
       tourDictionaryEntry tNew, "try control structure.txt"
    end if
    tourShotStack tNew, "13-dictionary"
+   if tBlank is not empty then tourDictionaryWhy tNew
    close stack tNew
+   if tBlank is not empty then throw tBlank
 end tour_dictionary
+
+-- LiveCode's Dictionary must draw its page, which on Windows in the dark
+-- appearance it did not: its window was blank in the tour's 13-dictionary
+-- from rc.6.11 to rc.6.15 (the window at 14,100, where it opens once a
+-- run has moved it to fit the 1024-point screen), while the page's data
+-- checks passed (tourDictionaryData reads the page, not the screen). The
+-- page's part of the screen (the palette's contentRect, less the Tools
+-- palette where it is in front) must hold more than one colour: a blank
+-- page is a single one. Empty when it does; else what is wrong, with what
+-- the window and its browser widget were (pWhen: when it was read)
+function tourDictionaryBlank pStack, pWhen
+   local tSpread
+   tourUnlockScreen "dictionary"
+   put tourDictionarySpread(pStack) into tSpread
+   tourRecord "INFO LiveCode's Dictionary" && pWhen & ":" && tourDictionaryState(pStack) & \
+         "; its page's lightness spreads over" && tSpread
+   if tSpread is not a number then return "LiveCode's Dictionary: its page could not be read (" & tSpread & ")"
+   if tSpread >= 48 then return empty
+   return "LiveCode's Dictionary draws nothing where its page is" && pWhen && "(lightness spread" && \
+         tSpread & ";" && tourDictionaryState(pStack) & ")"
+end tourDictionaryBlank
+
+-- The rects of the Dictionary's window and of its browser widget, whether
+-- the widget is shown, the lockScreen and the page's address
+function tourDictionaryState pStack
+   local tWidget
+   if there is not a widget "Dictionary" of stack pStack then return "no browser widget"
+   put the long id of widget "Dictionary" of stack pStack into tWidget
+   return "window" && the rect of stack pStack && "content" && the contentRect of stack pStack && \
+         "widget" && the rect of tWidget && "visible" && the visible of tWidget && \
+         "lockScreen" && the lockScreen && "url" && the url of tWidget
+end tourDictionaryState
+
+-- How far the lightness of the page's part of the screen spreads (the
+-- lightest point less the darkest, of points 6 apart): 0 for one colour.
+-- The part is the window's contentRect, on the screen, 8 points in, less
+-- what the Tools palette covers at its left
+function tourDictionarySpread pStack
+   local tRect, tContent, tScreen, tTools, tDefault, tImage, tMin, tMax, tX, tY, tLum
+   put the rect of stack pStack into tRect
+   put the contentRect of stack pStack into tContent
+   put the screenRect into tScreen
+   put item 1 of tRect + item 1 of tContent + 8, item 2 of tRect + item 2 of tContent + 8, \
+         min(item 1 of tRect + item 3 of tContent - 8, item 3 of tScreen - 4), \
+         min(item 2 of tRect + item 4 of tContent - 8, item 4 of tScreen - 4) into tRect
+   if there is a stack "revTools" and the mode of stack "revTools" is not 0 and the visible of stack "revTools" then
+      put the effective rect of stack "revTools" into tTools
+      if item 1 of tTools <= item 1 of tRect and item 3 of tTools > item 1 of tRect \
+            and item 2 of tTools < item 4 of tRect and item 4 of tTools > item 2 of tRect then
+         put item 3 of tTools + 4 into item 1 of tRect
+      end if
+   end if
+   if item 3 of tRect - item 1 of tRect < 40 or item 4 of tRect - item 2 of tRect < 40 then
+      return "no room: the page's part is" && tRect
+   end if
+   put the defaultStack into tDefault
+   set the defaultStack to "oxt_ui_tour"
+   lock messages
+   import snapshot from rect tRect
+   put the long id of last image of card 1 of stack "oxt_ui_tour" into tImage
+   put the width of tImage into sPixWidth
+   put the height of tImage into sPixHeight
+   put the imageData of tImage into sPixData
+   delete tImage
+   unlock messages
+   set the defaultStack to tDefault
+   if sPixWidth < 1 or the number of bytes of sPixData < sPixWidth * sPixHeight * 4 then
+      return "no pixels of" && tRect
+   end if
+   put 255 into tMin
+   put 0 into tMax
+   repeat with tY = 0 to sPixHeight - 1 step 6
+      repeat with tX = 0 to sPixWidth - 1 step 6
+         put tourLum(tX, tY) into tLum
+         put min(tMin, tLum) into tMin
+         put max(tMax, tLum) into tMax
+      end repeat
+   end repeat
+   return tMax - tMin
+end tourDictionarySpread
+
+-- After a blank page's snapshot, for the record: whether the page draws
+-- once the window gets a resizeStack, as browserNavigateComplete gives it
+-- (revdictionarybehavior.livecodescript sets the widget's rect to 0,0,0,0
+-- as the window opens, and to the contentRect on that message)
+command tourDictionaryWhy pStack
+   local tError
+   try
+      dispatch "resizeStack" to stack pStack
+      tourWait 1500
+      get tourDictionaryBlank(pStack, "after a resizeStack")
+   catch tError
+      tourRecord "INFO LiveCode's Dictionary after a resizeStack:" && tourJoin(tError)
+   end try
+end tourDictionaryWhy
 
 -- Tom Perry's text dictionary, as Help > Dictionary opens it when
 -- Preferences > Dictionary chooses it, on an entry that

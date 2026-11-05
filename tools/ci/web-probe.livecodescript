@@ -1125,6 +1125,35 @@ command probeMenuSaw pItem
    probeInfo "menu-pick", pItem
 end probeMenuSaw
 
+-- web_check.py reads the colours of an option menu's list, which the
+-- engine draws as a list field of its own (probeReport("menu-colors
+-- <kind>"), which returns the button's rect): "light-text" has light words
+-- on a dark button, as SVG Lab's dark look had them (its list was light
+-- grey words on white, seth's report of rc.6.12); "black-text" black words
+-- and no background colour, which on a page that follows a dark browser
+-- were black on the dark list; "plain" sets no colour. The list must be
+-- readable in each, and a plain one as it always was. "menu-colors-done"
+-- deletes the button.
+function probeMenuColors pKind
+   if there is not a button "Probe List Menu" then
+      create button "Probe List Menu"
+      set the style of button "Probe List Menu" to "menu"
+      set the menuMode of button "Probe List Menu" to "option"
+      set the text of button "Probe List Menu" to "One" & return & "Two" & return & "Three" & return & "Four"
+      set the rect of button "Probe List Menu" to 170,20,290,44
+   end if
+   set the menuHistory of button "Probe List Menu" to 1
+   set the textColor of button "Probe List Menu" to empty
+   set the backgroundColor of button "Probe List Menu" to empty
+   if pKind is "light-text" then
+      set the textColor of button "Probe List Menu" to "230,230,235"
+      set the backgroundColor of button "Probe List Menu" to "48,52,62"
+   else if pKind is "black-text" then
+      set the textColor of button "Probe List Menu" to "0,0,0"
+   end if
+   return the rect of button "Probe List Menu"
+end probeMenuColors
+
 -- Once the dialog is open where the engine put it: where its field and
 -- its OK button are on the screen
 command probeDialogOpened
@@ -1209,6 +1238,15 @@ function probeReport pWhat
    if pWhat is "menu-done" then
       if there is a button "Probe Menu" then
          delete button "Probe Menu"
+      end if
+      return "done"
+   end if
+   if word 1 of pWhat is "menu-colors" then
+      return probeMenuColors(word 2 of pWhat)
+   end if
+   if pWhat is "menu-colors-done" then
+      if there is a button "Probe List Menu" then
+         delete button "Probe List Menu"
       end if
       return "done"
    end if

@@ -391,3 +391,35 @@ class InspectorTabClicks(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class DictionaryPage(unittest.TestCase):
+    """LiveCode's Dictionary opened blank on Windows in the dark appearance
+    (the tour's 13-dictionary, rc.6.11 to rc.6.15) while the step passed:
+    its checks read the page, not the screen. The step now reads the
+    page's part of the screen, and fails when it is one colour, after the
+    snapshot that shows it."""
+
+    def setUp(self):
+        with open(TOUR, encoding='utf-8') as f:
+            self.script = f.read()
+
+    def test_the_step_reads_the_screen_and_fails_after_the_snapshot(self):
+        step = handler(self.script, 'on', 'tour_dictionary')
+        read = step.index('tourDictionaryBlank(tNew, "as it opened")')
+        shot = step.index('tourShotStack tNew, "13-dictionary"')
+        throw = step.index('if tBlank is not empty then throw tBlank')
+        self.assertLess(read, shot)
+        self.assertLess(shot, throw)
+
+    def test_one_colour_is_blank(self):
+        blank = handler(self.script, 'function', 'tourDictionaryBlank')
+        self.assertIn('tourDictionarySpread(pStack)', blank)
+        self.assertIn('if tSpread >= 48 then return empty', blank)
+        self.assertIn('tourUnlockScreen', blank)
+
+    def test_the_tools_palette_is_left_out(self):
+        spread = handler(self.script, 'function', 'tourDictionarySpread')
+        self.assertIn('the contentRect of stack pStack', spread)
+        self.assertIn('the effective rect of stack "revTools"', spread)
+        self.assertIn('import snapshot from rect tRect', spread)
