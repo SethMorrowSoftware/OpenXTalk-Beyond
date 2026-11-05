@@ -773,11 +773,20 @@ def check(site, samples, work):
 
 def check_bare(p, browser, url, shots, expect, wait_for):
     """The bare player (play.html, LittleNemo's p=26036): a sample by
-    ?play= in the middle of the window with no bar, frame or library
-    around it; a stack of the site by ?stack=; another site's refused; and
-    on a phone (Playwright's iPhone 13 in Chromium, and in WebKit when it
-    is installed) the Phone Starter fills the window, as its own page
-    would let it, where the player's page keeps it a phone-sized window."""
+    ?play= in the middle of the window, at its own size, with no bar,
+    frame or library around it; a stack of the site by ?stack=; another
+    site's refused; and on a phone (Playwright's iPhone 13 in Chromium,
+    and in WebKit when it is installed) the Phone Starter fills the window.
+
+    What is measured is the stack as it is drawn, not only the canvas: the
+    canvas filled the window on a desktop when the player took every
+    browser for a phone (#348), while the stack was scaled up into it, and
+    on rc.6.15's player the canvas filled an iPhone's window while the
+    Phone Starter was drawn scaled down inside it, a strip of page at each
+    side. So: the canvas is the size the player says the stack is, the
+    page's colour is just outside it and the stack's just inside it; and on
+    the phone, the stack's header and tab bar are the same colour at the
+    window's left edge, its middle and its right edge."""
     import stray_errors
 
     def visit(context, query, what, shot, stray=False):
@@ -799,42 +808,78 @@ def check_bare(p, browser, url, shots, expect, wait_for):
                     chrome: document.querySelectorAll('.menubar, .window, #toasts, .desk').length,
                     fill: document.body.getAttribute('data-mobile-web-fill'),
                     canvas: [c.left, c.top, c.width, c.height], view: [innerWidth, innerHeight],
+                    ratio: window.devicePixelRatio,
                     loadingError: document.getElementById('loading-error').hidden ? '' :
                         document.getElementById('loading-error').textContent,
                     scrollWidth: document.documentElement.scrollWidth}; }""")
-        page.screenshot(path=os.path.join(shots, shot))
+        png = page.screenshot(path=os.path.join(shots, shot))
+        # the stack's own size, as the player read it from its file
+        opened = [x for x in lines if x.startswith('PLAYER opened')]
+        m = re.search(r'rect=(-?\d+),(-?\d+),(-?\d+),(-?\d+)', opened[-1]) if opened else None
+        state['stack'] = [int(m.group(3)) - int(m.group(1)), int(m.group(4)) - int(m.group(2))] if m else None
         log('  bare %s: %s' % (query, state))
-        return page, lines, state
+        return page, lines, state, png
 
+    def pixel(png, st, x, y):
+        r = st['ratio'] or 1
+        return png_pixel(png, int(x * r), int(y * r))
+
+    def near(a, b, tolerance=24):
+        return all(abs(i - j) <= tolerance for i, j in zip(a, b))
+
+    page_colour = (0, 0, 0)
     desk = browser.new_context(viewport={'width': 1000, 'height': 700})
-    page, lines, st = visit(desk, '?play=2048', 'the bare player opening 2048', '20-bare-2048.png', stray=True)
+    page, lines, st, png = visit(desk, '?play=2048', 'the bare player opening 2048', '20-bare-2048.png', stray=True)
     left, top, width, height = st['canvas']
     expect('bare-opens', st['playing'] and st['title'] == '2048'
            and any(x.startswith('PLAYER opened 2048') for x in lines), str(st))
-    expect('bare-no-chrome', st['chrome'] == 0 and st['fill'] is None, str(st))
+    # a desktop browser is not a phone: the stack keeps its size
+    expect('bare-no-chrome', st['chrome'] == 0 and st['fill'] == 'no', str(st))
     expect('bare-stray-errors', st['loadingError'] == '', st['loadingError'])
+    expect('bare-own-size', st['stack'] is not None and [round(width), round(height)] == st['stack'],
+           'canvas %s, stack %s' % (st['canvas'], st['stack']))
     expect('bare-centred', width > 0 and abs(left - (1000 - width) / 2) <= 1 and abs(top - (700 - height) / 2) <= 1,
            str(st['canvas']))
+    if width > 0 and left >= 4 and top >= 4:
+        mid = top + height / 2
+        outside, inside = pixel(png, st, left - 3, mid), pixel(png, st, left + 3, mid)
+        below, above = pixel(png, st, left + width / 2, top + height + 3), pixel(png, st, left + width / 2, top + height - 3)
+        expect('bare-drawn-in-its-place', near(outside, page_colour) and near(below, page_colour)
+               and not near(inside, page_colour, 6) and not near(above, page_colour, 6),
+               'outside %s, inside %s, below %s, above %s' % (outside, inside, below, above))
+    else:
+        expect('bare-drawn-in-its-place', False, 'the stack fills the window: %s' % st['canvas'])
     page.close()
-    page, lines, st = visit(desk, '?stack=../samples/Tour.livecode&align=top-left', 'the bare player opening Tour',
-                            '21-bare-tour.png')
+    page, lines, st, png = visit(desk, '?stack=../samples/Tour.livecode&align=top-left', 'the bare player opening Tour',
+                                 '21-bare-tour.png')
     expect('bare-stack-of-the-site', st['playing'] and st['canvas'][:2] == [0, 0]
+           and st['stack'] is not None and [round(v) for v in st['canvas'][2:]] == st['stack']
            and any(x.startswith('PLAYER opened Tour') for x in lines), str(st))
     page.close()
-    page, lines, st = visit(desk, '?stack=https://example.com/x.livecode', 'the bare player refusing',
-                            '22-bare-other-site.png')
+    page, lines, st, png = visit(desk, '?stack=https://example.com/x.livecode', 'the bare player refusing',
+                                 '22-bare-other-site.png')
     expect('bare-other-site-refused', not st['playing'] and 'must be on this site' in st['note'], str(st))
     page.close()
     desk.close()
 
     def phone(engine, kind):
         context = engine.new_context(**p.devices['iPhone 13'])
-        page, lines, st = visit(context, '?play=Phone%20Starter', 'the Phone Starter in ' + kind,
-                                '23-bare-phone-%s.png' % kind)
+        page, lines, st, png = visit(context, '?play=Phone%20Starter', 'the Phone Starter in ' + kind,
+                                     '23-bare-phone-%s.png' % kind)
         vw, vh = st['view']
         width, height = st['canvas'][2:]
-        expect('bare-phone-fills-' + kind, st['playing'] and abs(width - vw) <= 1
+        expect('bare-phone-fills-' + kind, st['playing'] and st['fill'] is None and abs(width - vw) <= 1
                and abs(height - vh) <= 1 and st['scrollWidth'] <= vw, str(st))
+        # the header (its top) and the tab bar (its bottom) are drawn from
+        # edge to edge: the same colour at the left edge, in the middle and
+        # at the right edge, and not the page's
+        rows = []
+        for y in (8, vh - 6):
+            row = [pixel(png, st, x, y) for x in (1, vw / 2, vw - 2)]
+            rows.append(row)
+        expect('bare-phone-edge-to-edge-' + kind,
+               all(near(r[0], r[1], 8) and near(r[2], r[1], 8) and not near(r[1], page_colour, 6) for r in rows),
+               ' | '.join(' '.join('#%02X%02X%02X' % c for c in r) for r in rows))
         page.close()
         context.close()
 

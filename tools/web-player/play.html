@@ -35,10 +35,16 @@ What to play is in the address:
   ?mode=window    as in the player: the stack in a window of its own
 
 With none of ?stack and ?play, the page offers one Open button (and takes
-a stack dropped on it). A stack that calls the Mobile Web library's
-mwStart, mwFillScreen or mwFitStack fills the browser's window here (this
-page has no data-mobile-web-fill="no"): the naked display LittleNemo
-asked for, which the stack chooses itself.
+a stack dropped on it).
+
+On a phone the stack has the whole screen, as in the player's own page
+(index.html, isPhone, the same test): the body has no
+data-mobile-web-fill="no", so a stack that calls the Mobile Web library's
+mwStart fills the screen, and the player fits one that does not
+(stack-player.livecodescript, playerOnPhone, reads the attribute). Anywhere
+else the body has data-mobile-web-fill="no" and the stack is shown at its
+own size: without it, the player took every desktop browser for a phone
+from 0.2.7-rc.6.16 (#348) and scaled each stack up to the window.
 
 The page talks to the player stack as index.html does: playerFromPage
 (take, home) one way, window.oxtPlayer.event the other.
@@ -93,7 +99,7 @@ button{font:inherit;color:inherit}
 body.dropping .center#open{outline:2px dashed var(--accent);outline-offset:-1rem}
 </style>
 </head>
-<body>
+<body data-mobile-web-fill="no">
 
 <section id="stage" aria-label="The stack">
   <div id="stack"><canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas></div>
@@ -201,9 +207,25 @@ body.dropping .center#open{outline:2px dashed var(--accent);outline-offset:-1rem
     $('open').hidden = !on;
     if (on) $('choices').innerHTML = '';
   }
+  // A phone: a touch screen whose short side is a phone's (the player's
+  // own page's isPhone). Only there does the body lose
+  // data-mobile-web-fill="no", before a stack opens; it is not changed
+  // while one plays.
+  function isPhone() {
+    return window.matchMedia('(pointer: coarse)').matches && Math.min(window.innerWidth, window.innerHeight) <= 600;
+  }
+  function choosePhone() {
+    if (playing) return;
+    if (isPhone()) document.body.removeAttribute('data-mobile-web-fill');
+    else document.body.setAttribute('data-mobile-web-fill', 'no');
+  }
+  choosePhone();
+  window.addEventListener('resize', choosePhone);
+
   function setPlaying(name) {
     playing = name !== '';
     document.body.classList.toggle('playing', playing);
+    if (!playing) choosePhone();
     document.title = playing ? name : 'Stack Player';
     if (playing) {
       showOpen(false);

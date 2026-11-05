@@ -138,17 +138,25 @@ What it plays is in the address:
 | `&mode=window` | as in the player: the stack in a window of its own |
 
 With neither `stack` nor `play` it offers one Open button, and takes a
-stack dropped on it. The page has no `data-mobile-web-fill="no"`, so a
-stack that calls the Mobile Web library's `mwStart`, `mwFillScreen` or
-`mwFitStack` fills the browser's window there, as on its own page; the
-Phone Starter does. It keeps out of a phone's notch and home bar
+stack dropped on it. On a phone (a coarse pointer and a short side of 600
+or less, the test the player's own page makes) the page takes off its
+`data-mobile-web-fill="no"`, so the player stack gives a stack the whole
+screen (#348): one that calls the Mobile Web library's `mwStart`,
+`mwFillScreen` or `mwFitStack` fills it, as on its own page, and the
+Phone Starter does. Anywhere else the page keeps the attribute and shows
+every stack at its own size, as the player does; without it the player
+took a desktop browser for a phone and scaled every stack up to the
+window. It keeps out of a phone's notch and home bar
 (`viewport-fit=cover` and the safe-area insets) and uses `100dvh`, which
 iOS Safari's toolbar does not cover. The stacks it opens go into the
 same library as the player's (the browser's storage for the site).
-`build_player.py --check` opens it (`check_bare`: a sample in the middle
-with nothing around it, a stack of the site, another site's refused, the
-Phone Starter filling an iPhone's window in Chromium and, where
-Playwright's WebKit is installed, in WebKit).
+`build_player.py --check` opens it (`check_bare`: a sample at its own
+size in the middle with nothing around it, the page's colour just past
+the edges of what is drawn and not just inside them, a stack of the site
+at the top left, another site's refused, and the Phone Starter drawn to
+both sides, the top and the bottom of an iPhone's window, read from the
+screenshot's pixels and not only the canvas's size, in Chromium and,
+where Playwright's WebKit is installed, in WebKit).
 
 ## Files
 
