@@ -116,3 +116,17 @@ end module
 %EXPECT PASS
 %WARNING "Non-lowercase namespace component 'FOO' may cause future syntax error" AT POS
 %ENDTEST
+
+%TEST NoWarningOnNamespaceContainingDigits
+module compiler_test.html5.utf8_md5
+end module
+%EXPECT PASS
+%NOWARNINGS
+%ENDTEST
+
+%TEST WarnOnInvalidNamespaceUppercaseBesideDigit
+module %{POS}compiler_test.Html5
+end module
+%EXPECT PASS
+%WARNING "Non-lowercase namespace component 'Html5' may cause future syntax error" AT POS
+%ENDTEST

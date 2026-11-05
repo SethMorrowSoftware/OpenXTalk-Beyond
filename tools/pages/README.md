@@ -11,6 +11,7 @@ Pages site, so that anyone can open them with nothing to download:
 | `.../dictionary/` | the IDE's Dictionary (xTalk Script and xTalk Builder), which Help > Dictionary Online opens |
 | `.../player/` | the Stack Player |
 | `.../extensions/` | the xTalk Suite's extensions, built into OXT-Beyond, each with its `.lce` packages to download ([extensions/index.html](extensions/index.html)) |
+| `.../play/` | the bare player: a stack and nothing around it (`?stack=`, `?play=`; see [tools/web-player](../web-player/README.md)), on the Stack Player's engine |
 | `.../games/` | web games, such as Pixel Platformer Maker: each page runs its `standalone.zip` on the Stack Player's engine |
 | `.../map/` | the [codebase map](../codebase-map/README.md), for contributors, with the binary stacks' scripts as files beside it (`stack-scripts/`, `stack-scripts.zip`) |
 
@@ -26,7 +27,7 @@ that are there, its own anchors and the project on GitHub;
 and narrow, light and dark (the Web IDE workflow runs it beside the
 Dictionary's check).
 [check_site_rest.py](check_site_rest.py) holds the gallery, the Stack
-Player's home and the codebase map to the front page's rule at rest:
+Player's home, the bare player with no stack and the codebase map to the front page's rule at rest:
 nothing big moves without end unless it is pointed at, no frame is drawn,
 and the browser keeps at most 10% of a core busy (pages.yml runs it on
 the site it is about to deploy, as a warning;

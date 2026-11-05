@@ -16,8 +16,8 @@
 # along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
 """Check in a browser that the site's other pages rest as its front page
 does (tools/pages/check_front_page.py): the web stacks gallery, the
-extensions page, the Stack Player's home and the codebase map, those of
-them the site has:
+extensions page, the Stack Player's home, the bare player (play/, with no
+stack) and the codebase map, those of them the site has:
 
   python3 tools/pages/check_site_rest.py --site DIR [--out DIR]
       [--browser chromium|firefox|webkit] [--timeout S]
@@ -61,6 +61,8 @@ PAGES = (
     ('the web stacks gallery', 'games/', 'gallery'),
     ('the extensions page', 'extensions/', 'extensions'),
     ('the Stack Player', 'player/', 'player'),
+    # with nothing to play: its Open button, on the player's engine
+    ('the bare player', 'play/', 'play'),
     ('the codebase map', 'map/', 'map'),
 )
 

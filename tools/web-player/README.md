@@ -102,12 +102,43 @@ run JavaScript, read and write what other stacks saved for that site, and
 make requests with that site's cookies. Host the player on a site of its
 own that holds nothing else of value.
 
+## The bare player
+
+`play/` beside the player (`<site>/play/` on the web site) is a second
+page on the same engine and player stack that shows the stack and nothing
+else: no bar, no window around it, no library or logo, on a plain black
+page (LittleNemo, openxtalk.org p=26036). It is for putting a stack on a
+page of its own, as an HTML5 standalone would be, without building one.
+What it plays is in the address:
+
+| Address | What |
+| --- | --- |
+| `play/?stack=games/my.oxtstack` | a stack file, or a `.zip` of a stack and its files, on the same site (relative to the page, or from the site's root). Another site's file is refused: the stack would run as this site, with what other stacks saved here |
+| `play/?play=2048` | one of the player's samples, by its title |
+| `&align=top-left` | the stack at the top left; by default it is in the middle of the window, scrolled from its top left when it is bigger |
+| `&bg=white` | the colour around the stack (any CSS colour) |
+| `&mode=window` | as in the player: the stack in a window of its own |
+
+With neither `stack` nor `play` it offers one Open button, and takes a
+stack dropped on it. The page has no `data-mobile-web-fill="no"`, so a
+stack that calls the Mobile Web library's `mwStart`, `mwFillScreen` or
+`mwFitStack` fills the browser's window there, as on its own page; the
+Phone Starter does. It keeps out of a phone's notch and home bar
+(`viewport-fit=cover` and the safe-area insets) and uses `100dvh`, which
+iOS Safari's toolbar does not cover. The stacks it opens go into the
+same library as the player's (the browser's storage for the site).
+`build_player.py --check` opens it (`check_bare`: a sample in the middle
+with nothing around it, a stack of the site, another site's refused, the
+Phone Starter filling an iPhone's window in Chromium and, where
+Playwright's WebKit is installed, in WebKit).
+
 ## Files
 
 | File | What it is |
 |---|---|
 | `stack-player.livecodescript` | the player stack's script |
 | `build-player.livecodescript` | run by the IDE: makes the player stack (and the sample stacks) and builds it with `revSaveAsEmscriptenStandalone` |
+| `play.html` | the bare player (above), written as `play/index.html` |
 | `index.html` | the page: the home, library, About panel and bar in HTML, and the engine's canvas for the stack; it writes the files it is given into the engine's `/uploads` and calls the player stack's `playerFromPage` |
 | `stacks/` | the three stacks the home page features and the small samples with a picture, each with a picture of its first card (`.webp`, 960 wide at most); each one before the Phone Starter carries the colourized Script Viewer as a substack |
 | `phone-starter.livecodescript`, `phone-starter-stack.livecodescript` | build `stacks/Phone Starter.oxtstack` (see below) |

@@ -181,7 +181,12 @@ brings Learn Box2D, thirteen live lessons in Box2D physics (see
 opens Windows' full colour dialog, makes Linux menu ticks visible on dark
 menus, calms the website's front page, gives the IDE a new splash, and
 brings Learn stacks for the Box2Dxt Kit and the rest of the xTalk Suite
-(see [0.2.7-rc.6.14](#027-rc614-the-bug-hunt-round-fourteen));
+(see [0.2.7-rc.6.14](#027-rc614-the-bug-hunt-round-fourteen)), and
+0.2.7-rc.6.15 brings stacks to phones with the Mobile Web library and
+the Phone Starter, shows animations that wait 0 ms in the browser,
+gives the Inspector's colours a Clear button, names the tools, lets
+the web IDE and the website rest, and sends write to process's text
+as written (see [0.2.7-rc.6.15](#027-rc615-the-bug-hunt-round-fifteen));
 0.2.6 stays the main download until it has held up.
 
 - **Windows, macOS and Linux.** From 0.1.0 on, every release has
@@ -198,7 +203,7 @@ brings Learn stacks for the Box2Dxt Kit and the rest of the xTalk Suite
   x86-64, macOS for Apple Silicon and Intel, Linux x86-64), and so are
   the standalone runtimes that every package carries for Windows
   (x86-64 and x86) and Linux (x86-64 and x86): CI builds the 32-bit
-  engines for them, and a release asset (`oxt-runtimes-0.2.7-rc.6.14.zip`)
+  engines for them, and a release asset (`oxt-runtimes-0.2.7-rc.6.15.zip`)
   brings each platform's runtimes into the other packages. The web
   engine of HTML5 standalones, which every package carries, is built
   from this repository too (see [The engine](#the-engine)). The Android
@@ -338,8 +343,8 @@ OpenSSL 3 for DataChannelXT); see [macOS](#macos) and
 requirements too.
 
 Releases whose tags do not start with `v`, such as `prebuilts-v1`,
-`runtimes-1.15`, `runtimes-0.2.5-rc.2`, `runtimes-0.2.7-rc.6.13` and
-`runtimes-0.2.7-rc.6.14`, are not programs. They hold
+`runtimes-1.15`, `runtimes-0.2.5-rc.2`, `runtimes-0.2.7-rc.6.13`,
+`runtimes-0.2.7-rc.6.14` and `runtimes-0.2.7-rc.6.15`, are not programs. They hold
 files that the build and the packager download: the prebuilt
 third-party libraries of earlier versions and the standalone runtimes
 for other platforms.
@@ -1656,6 +1661,125 @@ undo, and the folders where it keeps copies of stacks before changing
 them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
+
+#### 0.2.7-rc.6.15: the Bug Hunt, round fifteen
+
+OXT-Beyond 0.2.7-rc.6.15 has everything in 0.2.7-rc.6.14. In the spirit
+of the Bug Hunt, here is every change since then, each listed as the bug
+it squashes:
+
+- **No way to make a stack for a phone.** The new Mobile Web library
+  (com.livecode.library.mobileweb) is for stacks built for HTML5 and
+  played on phones. One line, mwStart, makes a resizable stack fill the
+  phone's screen, again when the phone turns, and scales a stack too big
+  for it; swipe, pinch and longPress go to the control under the finger
+  as mouse messages do; orientationChanged, keyboardActivated and
+  keyboardDeactivated arrive as on iOS and Android; and fingers scroll.
+  On a desktop it does nothing. The Phone Starter, in the Stack Player
+  and Home's gallery, is a stack to copy that is made with it, in
+  portrait and landscape (#339).
+- **An animation the browser never showed.** In a web standalone or the
+  web IDE, a loop that waited 0 milliseconds with messages between its
+  frames drew nothing until it ended, and took no clicks. The browser
+  now gets a turn when a frame has gone by, so the animation is seen as
+  it runs and the loop takes clicks, as on the desktop (OpenXTalkPaul)
+  (#346).
+- **A web IDE that kept the browser busy.** Home's four drifting lights
+  were drawn again every frame, and Home kept drawing behind other
+  windows and while the browser was not in use. They are drawn once into
+  pictures, and Home holds still behind other windows: from up to 39% of
+  a core at rest to 0.5%. Home's Examples, How-to, Guides and Academy
+  pages hold still the same way, and on the desktop Home holds still
+  behind other windows too (#345).
+- **A website that kept moving.** The Web Stacks gallery, the Stack
+  Player's home page and the codebase map no longer move without end at
+  rest: the gallery and the player went from more than two cores to none
+  at rest, and the map from over half a core to none. They light up and
+  move while pointed at, as the front page does since 0.2.7-rc.6.14
+  (tperry2x) (#343).
+- **Stopped by a browser extension.** An error from a script that is not
+  the page's, such as a browser extension's, no longer stops the web IDE
+  starting with "Something went wrong", or shows "The engine could not
+  start" over a web stack that runs well; an error of the page's own
+  still does (#341).
+- **A zero byte after every letter.** On Linux, write to process sent
+  text as UTF-16, so a program reading its input as text, such as an MCP
+  server, got a zero byte after every character; on macOS binary data
+  went out UTF-8 encoded, and a process opened for "UTF-8" text was sent
+  UTF-16 everywhere, all since LiveCode 7. It sends the text written, in
+  the encoding the process was opened with. Windows' text and binary
+  writes and macOS's plain text writes are unchanged (#342).
+- **No Clear button beside a colour.** Each colour in the Inspector's
+  Colors section has a Clear button beside its swatch again, as LiveCode
+  7's Inspector had: it takes the object's own colour away so it shows
+  its owner's, and is greyed out while there is none to take (LittleNemo,
+  TerryL) (#334).
+- **Tools without names.** The modern Tools palette shows each tool's
+  name beside its icon by default, in one column. A profile that has
+  used the modern look already, or saved a choice of Show Names, keeps
+  its look (#347).
+- **A Dictionary that stayed light.** The online Dictionary follows the
+  reader's light or dark setting, and search matches are readable in the
+  dark (#338).
+- **No server download, and a crash on a second require.** Each release
+  has the server engine for Windows, macOS and Linux as a zip in the
+  layout of LiveCode Community's server zips, with a README on setting it
+  up with Apache, IIS or nginx (experimental). A second require of the
+  same file no longer crashes the server engine (#337).
+- **A warning about html5.** lc-compile warned "Non-lowercase namespace
+  component" about a digit, as in html5, utf8 or md5. A digit is fine
+  now; an uppercase letter still draws the warning (OpenXTalkPaul)
+  (#346).
+- **A slow start with many extensions.** Loading extensions ran the dark
+  mode hook once for every extension, leaving hundreds of messages
+  waiting in a slow start; it runs once a batch now (#336).
+- **One card's picture in another.** In the Launch Editor, a card's image
+  and a background's of the same number (HyperCard stacks) shared one
+  temporary file, so Update gave one the other's picture. Each has its
+  own now (#336).
+- **A library that lost its name.** A script library's first doc block
+  is the library's even when a handler follows it, so a library like
+  PhotonJson keeps its name, title and version in the docs (Skids)
+  (#336).
+- **HyperCard handlers left out.** The HyperCard import handles a `do`
+  that puts into a variable named by a word this engine refuses, and a
+  `play` whose notes are on the next line: 11 more handlers in 6 stacks
+  of the 2,202-stack corpus compile, and 4 lines in 2 stacks are no
+  longer left out (#336).
+- **Claude's MCP calls stuck behind the user.** In the xTalk MCP Bridge,
+  stop_paused_script and answer_dialog go ahead while another call waits;
+  a call still waiting for your Run or Save after 40 seconds says so and
+  goes on, and pending_result gives what came of it, so a late yes is no
+  longer lost; save_stack can save to a full path; and the new
+  close_stack closes a stack Claude is done with, asking first if you'd
+  lose changes (#340).
+- **Physics lessons that kept a core busy.** Learn Box2D draws only the
+  bodies that moved and nothing while paused (a paused lesson went from
+  up to 5% of a core to almost none), and in Learn Box2D and Learn
+  Box2Dxt Kit a lesson waits while its window is hidden. The Body Types
+  lesson's shelf falls where it can be seen again (#344).
+- **Not seeing what OXT-Beyond does with SVG.** Home's Examples has SVG
+  Lab: the logo as live SVG compiled every frame, the old compile beside
+  the new either side of a line you drag, each compile option on and off
+  with Convert to Graphics and Export SVG, a drawing against a bitmap of
+  it, and recolouring, on the logo or an SVG of your own (#335).
+
+Behind the scenes, the Mobile Web library and the Phone Starter are
+checked on emulated phones (Chromium's Pixel 7 and iPhone 13, and
+WebKit as an iPhone) in portrait and landscape; the web check counts the
+browser's frames during `wait 0 milliseconds with messages`; the web IDE
+at rest is measured, Home's lights checked pixel for pixel against their
+gradients; the site's pages are measured at rest in a browser; the Web
+IDE starts in Chromium and Firefox with other scripts' errors thrown at
+it, and a newer web IDE must open a kept profile's stack and preference;
+the bytes write to process sends are tested in every mode on Linux and
+macOS, and cmd.exe on Windows; every build runs its server zip as a web
+server does, through Apache on Linux; the IDE tour checks each Clear
+button, the Tools palette's names on fresh and kept profiles, and waits
+for what a click on the Inspector shows; the compiler tests gain a
+%NOWARNINGS assertion; and the runtimes that every package carries for
+the other platforms are rebuilt from this release's engine (#334, #337,
+#339, #341, #342, #343, #345, #346, #347).
 
 #### 0.2.7-rc.6.14: the Bug Hunt, round fourteen
 

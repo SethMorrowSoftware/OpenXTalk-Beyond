@@ -15,7 +15,7 @@ git grep -n -I -i -w -E 'FIXME|TODO|HACK' -- . ':!thirdparty' ':!prebuilt/fetche
 | --- | --- |
 | [FIXME](#fixme) | 64 |
 | [HACK](#hack) | 32 |
-| [TODO](#todo) | 428 |
+| [TODO](#todo) | 432 |
 
 ## FIXME
 
@@ -124,7 +124,7 @@ Code its authors knew to be wrong or incomplete. 64 notes, by part of the reposi
 
 ### FIXME: ide (1)
 
-- [ide/Toolset/libraries/revidelibrary.8.livecodescript:12732](ide/Toolset/libraries/revidelibrary.8.livecodescript#L12732) FIXME There is some inconsistency in the guide's files that we
+- [ide/Toolset/libraries/revidelibrary.8.livecodescript:12745](ide/Toolset/libraries/revidelibrary.8.livecodescript#L12745) FIXME There is some inconsistency in the guide's files that we
 
 <a id="fixme-ide-support"></a>
 
@@ -213,13 +213,13 @@ Workarounds their authors were not happy with. 32 notes, by part of the reposito
 
 ### HACK: extensions (1)
 
-- [extensions/extensions.gyp:202](extensions/extensions.gyp#L202) hack because gyp wants an output
+- [extensions/extensions.gyp:203](extensions/extensions.gyp#L203) hack because gyp wants an output
 
 ## TODO
 
-Work left for later. 428 notes, by part of the repository:
+Work left for later. 432 notes, by part of the repository:
 
-[engine](#todo-engine) (261), [libfoundation](#todo-libfoundation) (46), [revbrowser](#todo-revbrowser) (19), [toolchain](#todo-toolchain) (14), [ide](#todo-ide) (13), [tests](#todo-tests) (13), [libgraphics](#todo-libgraphics) (12), [libbrowser](#todo-libbrowser) (10), [libscript](#todo-libscript) (8), [stack-scripts](#todo-stack-scripts) (8), [builder](#todo-builder) (5), [(top level)](#todo-top-level) (3), [revmobile](#todo-revmobile) (3), [revxml](#todo-revxml) (3), [prebuilt](#todo-prebuilt) (2), [revdb](#todo-revdb) (2), [config](#todo-config) (1), [extensions](#todo-extensions) (1), [lcidlc](#todo-lcidlc) (1), [revspeech](#todo-revspeech) (1), [revvideograbber](#todo-revvideograbber) (1), [tools](#todo-tools) (1)
+[engine](#todo-engine) (261), [libfoundation](#todo-libfoundation) (46), [revbrowser](#todo-revbrowser) (19), [toolchain](#todo-toolchain) (14), [ide](#todo-ide) (13), [tests](#todo-tests) (13), [libgraphics](#todo-libgraphics) (12), [libbrowser](#todo-libbrowser) (10), [libscript](#todo-libscript) (8), [stack-scripts](#todo-stack-scripts) (8), [builder](#todo-builder) (5), [tools](#todo-tools) (5), [(top level)](#todo-top-level) (3), [revmobile](#todo-revmobile) (3), [revxml](#todo-revxml) (3), [prebuilt](#todo-prebuilt) (2), [revdb](#todo-revdb) (2), [config](#todo-config) (1), [extensions](#todo-extensions) (1), [lcidlc](#todo-lcidlc) (1), [revspeech](#todo-revspeech) (1), [revvideograbber](#todo-revvideograbber) (1)
 
 <a id="todo-engine"></a>
 
@@ -603,7 +603,7 @@ Work left for later. 428 notes, by part of the repository:
 
 ### TODO: tests (13)
 
-- [tests/_compilertestrunner.livecodescript:165](tests/_compilertestrunner.livecodescript#L165) TODO the marker position should come from the position
+- [tests/_compilertestrunner.livecodescript:179](tests/_compilertestrunner.livecodescript#L179) TODO the marker position should come from the position
 - [tests/_testlib.livecodescript:727](tests/_testlib.livecodescript#L727) TODO: make externals tests work in standalone test builder
 - [tests/lcb/stdlib/char.lcb:277](tests/lcb/stdlib/char.lcb#L277) test diagnostic "TODO 'y' is not in 'xyz'"
 - [tests/lcb/stdlib/sort.lcb:42](tests/lcb/stdlib/sort.lcb#L42) TODO allow generation of *any* codepoint
@@ -685,6 +685,16 @@ Work left for later. 428 notes, by part of the repository:
 - [builder/package_compiler.livecodescript:168](builder/package_compiler.livecodescript#L168) TODO: Make sure this resolves to the final 'base' file since we don't support
 - [builder/tools_builder.livecodescript:410](builder/tools_builder.livecodescript#L410) TODO: Add the initialisation library and init libs in same way as normal standalone building
 
+<a id="todo-tools"></a>
+
+### TODO: tools (5)
+
+- [tools/SymbolicatorScript.livecodescript:492](tools/SymbolicatorScript.livecodescript#L492) TODO: disable echo for password
+- [tools/pages/check_front_page.py:144](tools/pages/check_front_page.py#L144) found, todo = [], [root]
+- [tools/pages/check_front_page.py:145](tools/pages/check_front_page.py#L145) while todo:
+- [tools/pages/check_front_page.py:146](tools/pages/check_front_page.py#L146) for child in children.get(todo.pop(), []):
+- [tools/pages/check_front_page.py:148](tools/pages/check_front_page.py#L148) todo.append(child)
+
 <a id="todo-top-level"></a>
 
 ### TODO: (top level) (3)
@@ -752,9 +762,3 @@ Work left for later. 428 notes, by part of the repository:
 ### TODO: revvideograbber (1)
 
 - [revvideograbber/src/qtxcapture.mm:318](revvideograbber/src/qtxcapture.mm#L318) TODO: Query for audio outputs!
-
-<a id="todo-tools"></a>
-
-### TODO: tools (1)
-
-- [tools/SymbolicatorScript.livecodescript:492](tools/SymbolicatorScript.livecodescript#L492) TODO: disable echo for password

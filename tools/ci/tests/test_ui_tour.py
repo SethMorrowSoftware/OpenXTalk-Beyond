@@ -341,5 +341,53 @@ class GtkTheme(unittest.TestCase):
         self.assertIn('menu-marks', steps.split('"')[1].split(','))
 
 
+class InspectorTabClicks(unittest.TestCase):
+    """inspector-tabs clicks the icons in the Inspector's header with the
+    system's mouse and reads the section shown. It read 1.5 s after each
+    click, and on macOS 26 (#340's run 41757813518, 4 November) it read
+    "Effects" after the click on Icons. That click came after the step's
+    20-second watchdog, whose full-screen shot ran inside the step's
+    "wait ... with messages" and used up the wait: the click was handled
+    after the read. (The same job passed on a re-run.) The step now waits
+    for the section, a quarter second at a time, each time back through
+    the event loop, for up to 6 s; a click that never shows its section
+    still fails. tourClickWorks waits the same way for its button's
+    mouseUp, since a late one there would leave the header unclicked
+    without a failure."""
+
+    def setUp(self):
+        with open(TOUR, encoding='utf-8-sig') as f:
+            self.script = f.read()
+
+    def test_the_step_waits_for_the_section_it_clicked(self):
+        step = handler(self.script, 'on', 'tour_inspector_tabs')
+        self.assertIn('put tourInspectorSectionAfterClick(tPI, tLabel, 6000) into tShown', step)
+        # not a fixed wait and then one read
+        self.assertNotIn('dispatch function "inspectorSectionGetName"', step)
+
+    def test_a_click_that_never_shows_its_section_still_fails(self):
+        step = handler(self.script, 'on', 'tour_inspector_tabs')
+        self.assertIn('if tShown is not tLabel then', step)
+        self.assertIn('throw "a click on a section\'s icon in the inspector\'s header did not show it', step)
+
+    def test_the_wait_goes_back_through_the_event_loop_each_time(self):
+        wait = handler(self.script, 'function', 'tourInspectorSectionAfterClick')
+        loop = wait.split('repeat', 1)[1].split('end repeat', 1)[0]
+        self.assertIn('tourWait 250', loop)
+        self.assertIn('dispatch function "inspectorSectionGetName" to stack pStack', loop)
+        self.assertIn('if tShown is pSection then exit repeat', loop)
+        # counted in turns of the loop, not by the clock, which a watchdog
+        # inside a turn would run down
+        self.assertIn('repeat (pMilliseconds div 250) times', wait)
+
+    def test_the_click_check_waits_for_the_mouseUp(self):
+        check = handler(self.script, 'function', 'tourClickWorks')
+        after = check.split('tourClick item 1 of tLoc, item 2 of tLoc', 1)[1]
+        loop = after.split('end repeat', 1)[0]
+        self.assertIn('repeat 24 times', loop)
+        self.assertIn('tourWait 250', loop)
+        self.assertIn('if the cTourClicked of button "Click" of card 1 of stack tStack is true then exit repeat', loop)
+
+
 if __name__ == '__main__':
     unittest.main()

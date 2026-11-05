@@ -459,11 +459,29 @@ on revDocsExtractDocBlocks pText, pSource, @rAPIData, @rLibraryData
       # By default, the entry doesn't end on this line
       put false into tEntryEnded
       
-      # If we are neither in a comment block or in handler / syntax then 
+      # If we are neither in a comment block or in handler / syntax then
       if not tInComment and not tInEntry then
+         # In a script, the first comment block is the library's when
+         # another one follows it (below, at the next /**). A library block
+         # with a handler after it instead (an extensionInitialize, or a
+         # handler with no docs of its own) is the library's too, and the
+         # handler has none: it used to take the library block as its own,
+         # so the library lost its name, title and version. A block is the
+         # library's only if it has a Title or a Version and no Summary or
+         # Syntax, so a first handler's own docs stay that handler's
+         if tIsScript and tAPIData is empty and tLibraryData is empty and \
+               tComment is not empty and \
+               tFirstWord is among the items of "on,command,function,private,before,after,getProp,setProp" and \
+               revDocsIsLibraryBlock(tComment) then
+            put "library" into tLibraryData["type"]
+            put tComment into tLibraryData["comments"]
+            put the short name of pSource into tLibraryData["name"]
+            put empty into tComment
+         end if
+
          # In almost all cases, we will be in a new entry
          put true into tInEntry
-         
+
          switch tFirstWord
             case "external"
                put true into tIsLCIDL
@@ -729,6 +747,30 @@ on revDocsExtractDocBlocks pText, pSource, @rAPIData, @rLibraryData
    put tAPIData into rAPIData
    put tLibraryData into rLibraryData
 end revDocsExtractDocBlocks 
+
+/*
+Whether a comment block is a script library's own block (a Title or a
+Version, and no Summary or Syntax), rather than a handler's docs
+
+pComment: The comment block, without its /** and */
+Returns (boolean): true for a library block
+*/
+private function revDocsIsLibraryBlock pComment
+   local tLine, tLibrary
+   put false into tLibrary
+   repeat for each line tLine in pComment
+      switch word 1 of tLine
+         case "Title:"
+         case "Version:"
+            put true into tLibrary
+            break
+         case "Summary:"
+         case "Syntax:"
+            return false
+      end switch
+   end repeat
+   return tLibrary
+end revDocsIsLibraryBlock
 
 private command log pOutput
    write pOutput & return to stdout

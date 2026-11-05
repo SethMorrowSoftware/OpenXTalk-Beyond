@@ -22,6 +22,8 @@
 #   <site>/          the front page (tools/pages/index.html)
 #   <site>/ide/      the web IDE
 #   <site>/player/   the Stack Player
+#   <site>/play/     the bare player: a stack and nothing around it (the
+#                    player zip's play/, on the player's engine)
 #   <site>/map/      the codebase map (tools/codebase-map)
 #
 # Both are taken as a release ships them, from its files

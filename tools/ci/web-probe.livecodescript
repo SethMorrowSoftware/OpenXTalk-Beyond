@@ -105,7 +105,7 @@ on probeRun
 end probeRun
 
 command probeWaits
-   local tStart, tElapsed, tDeadline
+   local tStart, tElapsed, tDeadline, tCount, tFrames
    -- A wait in a handler that a timer sent
    put the milliseconds into tStart
    wait 100 milliseconds
@@ -129,6 +129,27 @@ command probeWaits
    wait until sInner is "flag" or the milliseconds > tDeadline with messages
    put the milliseconds - tStart into tElapsed
    probeCheck "wait-until", sInner is "flag" and tElapsed >= 45, tElapsed & " ms"
+
+   -- "wait 0 milliseconds with messages" gives the browser a turn, as a
+   -- desktop engine shows what was drawn and takes the user's clicks
+   -- during it: a page shows its canvas and gets its events only between
+   -- the engine's turns. An animation that waited 0 ms between its frames
+   -- showed nothing until it ended, though one that waited 0.1 ms
+   -- animated (OpenXTalkPaul, openxtalk.org p=26041). The browser's
+   -- frames are counted with requestAnimationFrame while a loop of such
+   -- waits runs for 400 ms: with no turn for the browser there are none
+   do "window.oxtProbeFrames = 0; window.oxtProbeFrame = function () { window.oxtProbeFrames++; window.oxtProbeRaf = requestAnimationFrame(window.oxtProbeFrame); }; window.oxtProbeRaf = requestAnimationFrame(window.oxtProbeFrame); 0" as "JavaScript"
+   put 0 into tCount
+   put the milliseconds into tStart
+   put tStart + 400 into tDeadline
+   repeat until the milliseconds > tDeadline
+      wait 0 milliseconds with messages
+      add 1 to tCount
+   end repeat
+   put the milliseconds - tStart into tElapsed
+   do "cancelAnimationFrame(window.oxtProbeRaf); window.oxtProbeFrames" as "JavaScript"
+   put the result into tFrames
+   probeCheck "wait-zero", tFrames >= 3, tFrames && "frames during" && tCount && "waits of 0 ms in" && tElapsed && "ms"
 end probeWaits
 
 on probeInner

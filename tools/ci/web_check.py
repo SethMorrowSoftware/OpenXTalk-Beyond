@@ -76,7 +76,7 @@ Then:
 2. Headless Chromium (Playwright) opens the page. The probe writes PROBE
    lines to the console (see web-probe.livecodescript): its checks of
    waits (in openStack, in handlers, nested, with messages, until a
-   condition), "send ... in", "do ... as JavaScript", files, a font file
+   condition, and of 0 ms, which give the browser its frames), "send ... in", "do ... as JavaScript", files, a font file
    that it starts and stops using, URLs (get, post, put, load with
    message, a missing page), the page's dialogs (answer, answer with two
    buttons, ask), whose default buttons this script clicks, typing "Ada"
@@ -246,7 +246,7 @@ browser_waiting = ['']
 
 # The checks the probe makes before it is ready, in its order
 PROBE_CHECKS = (
-    'platform', 'wait-openstack', 'wait-handler', 'wait-nested', 'wait-until', 'send-in-time',
+    'platform', 'wait-openstack', 'wait-handler', 'wait-nested', 'wait-until', 'wait-zero', 'send-in-time',
     'javascript', 'file-roundtrip', 'standalone-folder', 'font-file', 'font-bold', 'url-get', 'url-post', 'url-put',
     'url-missing', 'url-load', 'answer', 'answer-confirm', 'ask', 'folders', 'home-alias', 'download-written',
     'address', 'random-bytes', 'modifiers', 'cursor', 'sound', 'player', 'browser', 'objects',
