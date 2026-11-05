@@ -121,6 +121,43 @@ class Signing(unittest.TestCase):
         self.assertIn('delete file (pApkFile & ".idsig")', self.src)
 
 
+class JavaForSdkScripts(unittest.TestCase):
+    """d8 and apksigner are scripts that run JAVA_HOME's java before the
+    PATH's: the JDK of Preferences must reach them through JAVA_HOME too
+    (Windows runners: JAVA_HOME at Java 8 made d8 fail), and never replace
+    a newer one"""
+
+    def setUp(self):
+        self.src = code(read(BUILDER))
+        self.shell = handler(self.src, 'doShellCommand')
+
+    def test_java_home_set_around_the_command_and_put_back(self):
+        choose = self.shell.find('put androidJavaHomeFor(sJavaRoot, tOldJavaHome) into tJavaHome')
+        set_ = self.shell.find('put tJavaHome into $JAVA_HOME')
+        run = self.shell.find('get shell(')
+        back = self.shell.find('put tOldJavaHome into $JAVA_HOME')
+        self.assertGreater(choose, 0)
+        self.assertGreater(set_, choose)
+        self.assertGreater(run, set_, 'JAVA_HOME is set before the command runs')
+        self.assertGreater(back, run, 'and put back after it')
+        # only a JAVA_HOME that was changed is put back (an unset one stays unset)
+        self.assertRegex(self.shell, r'put tJavaHome is not tOldJavaHome into tSetJavaHome')
+        self.assertEqual(len(re.findall(r'if tSetJavaHome then', self.shell)), 2)
+
+    def test_never_an_older_java(self):
+        choose = handler(self.src, 'androidJavaHomeFor')
+        self.assertRegex(choose, r'if pJdk is empty or pJavaHome is empty then\s+return pJavaHome')
+        self.assertRegex(choose, r'if tJdkVersion is empty or tHomeVersion is empty then\s+return pJavaHome')
+        self.assertRegex(choose, r'if tJdkVersion >= tHomeVersion then\s+return pJdk\s+end if\s+return pJavaHome')
+
+    def test_version_from_the_release_file(self):
+        version = handler(self.src, 'javaMajorVersion')
+        self.assertIn('put "/release" after tFile', version)
+        self.assertIn('if tLine begins with "JAVA_VERSION=" then', version)
+        # 1.8.0_x is 8
+        self.assertRegex(version, r'if item 1 of tVersion is "1" then\s+put item 2 of tVersion into tVersion')
+
+
 class NoShellTools(unittest.TestCase):
     def test_no_zip_sh_or_find(self):
         src = code(read(BUILDER))

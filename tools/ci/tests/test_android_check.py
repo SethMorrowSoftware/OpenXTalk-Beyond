@@ -180,6 +180,45 @@ class PackageReaders(unittest.TestCase):
                          ['  E: activity', '    A: x="y"'])
 
 
+class SignerDN(unittest.TestCase):
+    """apksigner verify --print-certs, as two apksigner versions print it"""
+    VERIFIED = ('Verifies\nVerified using v1 scheme (JAR signing): true\n'
+                'Verified using v2 scheme (APK Signature Scheme v2): true\n'
+                'Verified using v3 scheme (APK Signature Scheme v3): true\nNumber of signers: 1\n')
+
+    def test_numbered_signer(self):
+        # Ubuntu's apksigner, and the SDK's for a v1 and v2 signature
+        out = self.VERIFIED + ('Signer #1 certificate DN: CN=Android Debug, O=Android, C=US\n'
+                               'Signer #1 certificate SHA-256 digest: 00ff\n')
+        self.assertEqual(ac.signer_dn(out), 'CN=Android Debug, O=Android, C=US')
+
+    def test_signer_with_sdk_range(self):
+        # the SDK's newer build-tools, for the signers of a v3 block
+        out = self.VERIFIED + (
+            'Signer (minSdkVersion=24, maxSdkVersion=2147483647) certificate DN: CN=OXT Android Check, '
+            'O=OXT-Beyond, C=US\r\n'
+            'Signer (minSdkVersion=24, maxSdkVersion=2147483647) certificate SHA-256 digest: 00ff\r\n')
+        self.assertEqual(ac.signer_dn(out), 'CN=OXT Android Check, O=OXT-Beyond, C=US')
+        # a v3.1 signer for a development release of Android
+        out = 'Signer (minSdkVersion=34 (dev release=true), maxSdkVersion=2147483647) certificate DN: CN=A\n'
+        self.assertEqual(ac.signer_dn(out), 'CN=A')
+
+    def test_one_key_named_twice(self):
+        out = ('Signer #1 certificate DN: CN=A, C=US\n'
+               'Signer (minSdkVersion=33, maxSdkVersion=2147483647) certificate DN: CN=A, C=US\n')
+        self.assertEqual(ac.signer_dn(out), 'CN=A, C=US')
+
+    def test_two_keys(self):
+        out = ('Signer (minSdkVersion=24, maxSdkVersion=32) certificate DN: CN=A, C=US\n'
+               'Signer (minSdkVersion=33, maxSdkVersion=2147483647) certificate DN: CN=B, C=US\n')
+        self.assertEqual(ac.signer_dn(out), 'CN=A, C=US | CN=B, C=US')
+
+    def test_none(self):
+        self.assertIsNone(ac.signer_dn(self.VERIFIED))
+        # a key's DN mentioned elsewhere is not the signer's
+        self.assertIsNone(ac.signer_dn('WARNING: the certificate DN: CN=X is old\n'))
+
+
 class Screen(unittest.TestCase):
     def raw(self, w, h, colour, header=16):
         head = struct.pack('<III', w, h, 1) + (struct.pack('<I', 0) if header == 16 else b'')

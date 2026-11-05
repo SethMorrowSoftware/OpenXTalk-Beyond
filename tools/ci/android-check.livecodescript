@@ -176,6 +176,7 @@ private command androidUnits
    unitExtensionCode
    unitCheckSDK tWork
    unitDebugKeystore
+   unitJavaHome tWork
    androidUnit "required-sdk", deployCall("deployRequiredSDK") is "Android 13 (API 33) or newer", \
          "deployRequiredSDK() is" && deployCall("deployRequiredSDK")
 end androidUnits
@@ -365,6 +366,49 @@ private command unitCheckSDK pWork
    androidUnit "sdk-valid", deployCall("deployIsValidSDK", tSDK) is true, deployCall("deployIsValidSDK", tSDK)
    removeTree tSDK
 end unitCheckSDK
+
+-- The JAVA_HOME that the SDK's d8 and apksigner get: the JDK of
+-- Preferences when it is at least as new as JAVA_HOME's, and JAVA_HOME as
+-- it was otherwise (unset, newer, or of a version that cannot be read)
+private command unitJavaHome pWork
+   local tRoot, tJdk17, tJdk8, tJdk21, tNoRelease, tEarly
+   put pWork & "/java" into tRoot
+   removeTree tRoot
+   put tRoot & "/jdk-17" into tJdk17
+   put tRoot & "/jdk-8" into tJdk8
+   put tRoot & "/jdk-21" into tJdk21
+   put tRoot & "/jre" into tNoRelease
+   put tRoot & "/jdk-22-ea" into tEarly
+   touchFile tJdk17 & "/release"
+   put "IMPLEMENTOR=" & quote & "Eclipse Adoptium" & quote & return & "JAVA_VERSION=" & quote & "17.0.20" & quote & return \
+         into url ("file:" & tJdk17 & "/release")
+   touchFile tJdk8 & "/release"
+   put "JAVA_VERSION=" & quote & "1.8.0_462" & quote & numToChar(13) & numToChar(10) \
+         into url ("binfile:" & tJdk8 & "/release")
+   touchFile tJdk21 & "/release"
+   put "JAVA_VERSION=" & quote & "21.0.9" & quote & return into url ("file:" & tJdk21 & "/release")
+   revSBEnsureFolder tNoRelease
+   touchFile tEarly & "/release"
+   put "JAVA_VERSION=" & quote & "22-ea" & quote & return into url ("file:" & tEarly & "/release")
+   
+   androidUnit "java-home-unset", builderCall("androidJavaHomeFor", tJdk17, empty) is empty, \
+         builderCall("androidJavaHomeFor", tJdk17, empty)
+   androidUnit "java-home-older", builderCall("androidJavaHomeFor", tJdk17, tJdk8) is tJdk17, \
+         builderCall("androidJavaHomeFor", tJdk17, tJdk8)
+   androidUnit "java-home-newer", builderCall("androidJavaHomeFor", tJdk17, tJdk21) is tJdk21, \
+         builderCall("androidJavaHomeFor", tJdk17, tJdk21)
+   androidUnit "java-home-same", builderCall("androidJavaHomeFor", tJdk21, tJdk21) is tJdk21, \
+         builderCall("androidJavaHomeFor", tJdk21, tJdk21)
+   androidUnit "java-home-unreadable", builderCall("androidJavaHomeFor", tJdk17, tNoRelease) is tNoRelease, \
+         builderCall("androidJavaHomeFor", tJdk17, tNoRelease)
+   androidUnit "java-home-old-preferences", builderCall("androidJavaHomeFor", tJdk8, tJdk17) is tJdk17, \
+         builderCall("androidJavaHomeFor", tJdk8, tJdk17)
+   androidUnit "java-home-early-access", builderCall("androidJavaHomeFor", tEarly, tJdk21) is tEarly, \
+         builderCall("androidJavaHomeFor", tEarly, tJdk21)
+   androidUnit "java-home-no-preferences", builderCall("androidJavaHomeFor", empty, tJdk8) is tJdk8, \
+         builderCall("androidJavaHomeFor", empty, tJdk8)
+   removeTree tRoot
+end unitJavaHome
 
 private command unitDebugKeystore
    local tSaved, tAnswer

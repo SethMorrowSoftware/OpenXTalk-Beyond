@@ -1800,6 +1800,20 @@ private function doShellCommand pCommand, pArguments
       put tCommandPath & ":" & sJavaRoot & "/bin" & ":" before $PATH
    end if
    
+   -- OXT-Beyond: and JAVA_HOME, which the SDK's scripts read before the
+   -- PATH, names that JDK too when it is at least as new (see
+   -- androidJavaHomeFor)
+   local tOldJavaHome, tJavaHome, tSetJavaHome
+   put $JAVA_HOME into tOldJavaHome
+   put androidJavaHomeFor(sJavaRoot, tOldJavaHome) into tJavaHome
+   put tJavaHome is not tOldJavaHome into tSetJavaHome
+   if tSetJavaHome then
+      if the platform is "win32" then
+         replace slash with backslash in tJavaHome
+      end if
+      put tJavaHome into $JAVA_HOME
+   end if
+   
    set the hideConsoleWindows to true
    write item -1 of pCommand && pArguments & return to stderr
    get shell(item -1 of pCommand && pArguments)
@@ -1808,6 +1822,9 @@ private function doShellCommand pCommand, pArguments
    put the result into sShellStatus
    
    put tOldPath into $PATH
+   if tSetJavaHome then
+      put tOldJavaHome into $JAVA_HOME
+   end if
    
    return it
 end doShellCommand
@@ -2247,6 +2264,73 @@ command androidWarnMissingExtensionCode pArchs, pCodeResources
       end if
    end repeat
 end androidWarnMissingExtensionCode
+
+-- OXT-Beyond: the JAVA_HOME that the SDK's d8 and apksigner get. They are
+-- scripts that start the java of JAVA_HOME when it is set (the .bat files
+-- of Windows and the shell scripts alike), and otherwise the first java on
+-- the PATH, where doShellCommand puts the JDK chosen in Preferences first.
+-- A JAVA_HOME left at an older Java than that JDK defeated it: on GitHub's
+-- Windows runners (JAVA_HOME at Java 8, Preferences at JDK 17) d8 failed
+-- with "UnsupportedClassVersionError: com/android/tools/r8/D8 has been
+-- compiled by a more recent version of the Java Runtime". The JDK of
+-- Preferences, pJdk, takes JAVA_HOME's place only when it is at least as
+-- new as the one pJavaHome names, by the JAVA_VERSION of their release
+-- files, so no script gets an older Java than it did before. An unset
+-- JAVA_HOME, or one whose version cannot be read, is left as it is.
+function androidJavaHomeFor pJdk, pJavaHome
+   if pJdk is empty or pJavaHome is empty then
+      return pJavaHome
+   end if
+   local tJdkVersion, tHomeVersion
+   put javaMajorVersion(pJdk) into tJdkVersion
+   put javaMajorVersion(pJavaHome) into tHomeVersion
+   if tJdkVersion is empty or tHomeVersion is empty then
+      return pJavaHome
+   end if
+   if tJdkVersion >= tHomeVersion then
+      return pJdk
+   end if
+   return pJavaHome
+end androidJavaHomeFor
+
+-- The major version of the JDK at pRoot, from its release file
+-- (JAVA_VERSION="17.0.20" is 17, JAVA_VERSION="1.8.0_462" is 8), or empty
+private function javaMajorVersion pRoot
+   local tFile, tText, tVersion, tLine, i
+   put pRoot into tFile
+   replace backslash with slash in tFile
+   put "/release" after tFile
+   if there is no file tFile then
+      return empty
+   end if
+   put url ("file:" & tFile) into tText
+   replace numToChar(13) with empty in tText
+   repeat for each line tLine in tText
+      if tLine begins with "JAVA_VERSION=" then
+         put char 14 to -1 of tLine into tVersion
+         exit repeat
+      end if
+   end repeat
+   replace quote with empty in tVersion
+   set the itemDelimiter to "."
+   if item 1 of tVersion is "1" then
+      put item 2 of tVersion into tVersion
+   else
+      put item 1 of tVersion into tVersion
+   end if
+   set the itemDelimiter to comma
+   -- "21-ea" and the like
+   repeat with i = 1 to the number of chars of tVersion
+      if char i of tVersion is not in "0123456789" then
+         delete char i to -1 of tVersion
+         exit repeat
+      end if
+   end repeat
+   if tVersion is empty or tVersion is not an integer then
+      return empty
+   end if
+   return tVersion
+end javaMajorVersion
 
 /*
 Handlers for converting XML text to LiveCode arrays and vice versa. 

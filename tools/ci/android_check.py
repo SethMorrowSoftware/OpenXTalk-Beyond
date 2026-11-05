@@ -550,12 +550,25 @@ def ide(args):
 # ---------------------------------------------------------------------------
 # verify
 
+def signer_dn(out):
+    """The signer's DN in apksigner verify --print-certs output, or None.
+    apksigner names a signer "Signer #1" or, for the signers of a v3 (or
+    v3.1) block, "Signer (minSdkVersion=24, maxSdkVersion=2147483647)"
+    (the build-tools of GitHub's runners do); a package signed with one key
+    has one DN however many lines name it. Two different DNs give both,
+    joined by " | ", which no expected signer matches."""
+    dns = []
+    for m in re.finditer(r'(?m)^Signer (?:#\d+|\([^)\n]*\))[^:\n]* certificate DN: (.*?)\s*$', out):
+        if m.group(1) not in dns:
+            dns.append(m.group(1))
+    return ' | '.join(dns) if dns else None
+
+
 def signing(apksigner, apk):
     """(verified, schemes verified, signer DN) by apksigner."""
     status, out = run([apksigner, 'verify', '--verbose', '--print-certs', apk])
     schemes = sorted(set(re.findall(r'Verified using (v\d) scheme[^:]*: true', out)))
-    dn = re.search(r'Signer #1 certificate DN: (.*)', out)
-    return status == 0, schemes, dn.group(1).strip() if dn else None, out
+    return status == 0, schemes, signer_dn(out), out
 
 
 def zipalign_supports_pages(zipalign):
@@ -626,7 +639,12 @@ def verify_apk(name, apk, spec, tools, warnings):
             problems.append('%s: apksigner does not verify it: %s' % (name, out.strip()[-800:]))
         if 'v2' not in schemes and 'v3' not in schemes:
             problems.append('%s: no v2 or v3 signature verifies (verified: %s)' % (name, ', '.join(schemes)))
-        if dn != spec['signer']:
+        if dn is None:
+            # what apksigner said of the signer, for a format not read yet
+            said = [x.strip() for x in out.splitlines() if 'DN' in x or x.lower().startswith('signer')]
+            problems.append('%s: no signer DN in apksigner\'s output (its signer lines: %s)'
+                            % (name, ' / '.join(said[:6]) or 'none'))
+        elif dn != spec['signer']:
             problems.append('%s is signed by %s, not %s' % (name, dn, spec['signer']))
         if ok:
             notes.append('signed by %s (%s)' % (dn, ', '.join(schemes)))
