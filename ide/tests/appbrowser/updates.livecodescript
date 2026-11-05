@@ -20,8 +20,9 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 -- IDE's changes. The back and front scripts sent them to the stack
 -- "revApplicationOverview", the browser's old name, so the plugin heard of
 -- no new stack and no stack removed until Refresh. The IDE's own File
--- Selector is left out of its list like the IDE's other stacks, and its
--- names (links) read on a dark window while a light one is as before.
+-- Selector is left out of its list like the IDE's other stacks, and so is
+-- the browser itself; its names (links) read on a dark window while a
+-- light one is as before.
 
 constant kStack = "TestAppBrowserStack"
 constant kBrowser = "App Browser"
@@ -166,6 +167,32 @@ on TestFileSelectorIsAnIDEStack
    TestAssert "lists of stacks leave the IDE's File Selector out", \
          revFilterStacksList("File Selector" & return & kStack) is kStack
 end TestFileSelectorIsAnIDEStack
+
+-- The App Browser plugin is one of the IDE's stacks, as it was when it was
+-- the stack revApplicationOverview: it leaves itself out of its own list
+-- (and the IDE's other lists of stacks). Until rc.6.17 it listed itself
+-- (seen in the everyday check with #364 in). A user's stack of that name
+-- is the user's
+on TestAppBrowserIsAnIDEStack
+   if kBrowser is among the lines of the openStacks then
+      close stack kBrowser
+   end if
+   if kBrowser is among the lines of the mainStacks then
+      delete stack kBrowser
+   end if
+   create stack kBrowser
+   TestAssert "a user's stack named App Browser is not taken for the IDE's", \
+         not revStackNameIsIDEStack(kBrowser)
+   delete stack kBrowser
+
+   create stack kStack
+   __OpenBrowser
+   TestAssert "the App Browser plugin is one of the IDE's stacks", revStackNameIsIDEStack(kBrowser)
+   TestAssert "lists of stacks leave the App Browser out", \
+         revFilterStacksList(kBrowser & return & kStack) is kStack
+   TestAssert "the App Browser does not list itself", kBrowser is not among the lines of __ListedStacks()
+   TestAssert "the App Browser lists the user's stack", kStack is among the lines of __ListedStacks()
+end TestAppBrowserIsAnIDEStack
 
 on TestAppBrowserLinksReadOnDark
    __OpenBrowser
