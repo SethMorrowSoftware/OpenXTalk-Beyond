@@ -195,9 +195,21 @@ jobs:
           sudo udevadm trigger --name-match=kvm
           echo no | "$SDK/cmdline-tools/latest/bin/avdmanager" create avd -n api33 \
             -k "system-images;android-33;google_apis;x86_64" -d pixel_5 --force
+          # adb's server first: it makes ~/.android/adbkey, which the
+          # emulator hands to the image as it starts
+          "$SDK/platform-tools/adb" start-server
           nohup "$SDK/emulator/emulator" -avd api33 -no-window -no-audio -no-boot-anim -no-snapshot \
             -gpu swiftshader_indirect -camera-back none -camera-front none \
             > "$WORK/emulator-api33.log" 2>&1 &
+          # An emulator that cannot start says why in its first seconds
+          # (its log otherwise only reaches the artifact); the wait for it
+          # says more if it never boots
+          sleep 20
+          df -h / | tail -n 1
+          if ! pgrep -f 'qemu-system|emulator.*-avd api33' > /dev/null; then
+            echo "::warning::the Android 13 emulator stopped within 20 s of starting; the end of its log:"
+            tail -n 40 "$WORK/emulator-api33.log"
+          fi
 
       - name: This builder (units and builds)
         run: |
