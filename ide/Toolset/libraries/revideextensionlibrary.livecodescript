@@ -1765,6 +1765,17 @@ end revIDEExtensionShowSnippet
 local sSampleFileName
 local sOpenedStacksA
 on ideOpenStack pCard
+   -- OXT-Beyond: this library is in the message path, so an ideOpenStack
+   -- sent to a subscriber with no handler of its own (OXT Lite's functions,
+   -- DevGuides) ends here on every stack open, almost always with no
+   -- sample stack opening. `the long id of stack ""` then threw, which the
+   -- IDE's message sender caught and returned as an error. With no sample
+   -- stack opening there is nothing to do; the message stops here as it
+   -- did when it threw, so nothing further sees it. While a sample stack is
+   -- opening, everything is as before.
+   if sSampleFileName is empty then
+      exit ideOpenStack
+   end if
    local tStack
    put the long id of the owner of pCard into tStack
    if tStack is the long id of stack sSampleFileName then
