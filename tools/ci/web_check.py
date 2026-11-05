@@ -201,6 +201,7 @@ for the browser, the Python package playwright with its browser
 """
 
 import argparse
+import base64
 import glob
 import hashlib
 import http.server
@@ -521,6 +522,15 @@ def contrast_ratio(a, b):
     """The WCAG's contrast ratio of two colours, 1 to 21"""
     la, lb = relative_luminance(a), relative_luminance(b)
     return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+
+def print_image(name, data):
+    """Prints PNG data into the log as tools/ci/print_images.py reads it."""
+    text = base64.b64encode(data).decode('ascii')
+    parts = [text[i:i + 4000] for i in range(0, len(text), 4000)] or ['']
+    for i, part in enumerate(parts):
+        print('IMAGE %s %d/%d %s' % (name, i + 1, len(parts), part))
+    sys.stdout.flush()
 
 
 def menu_list_colours(width, height, rows):
@@ -1739,9 +1749,23 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
             return None, 'on the page %s, a click on an option menu with %s showed no list' % (
                 where, MENU_KINDS[kind])
         tab.wait_for_timeout(500)
-        picture = tab.locator('canvas[data-lc-window-id="%s"]' % opened[0]).screenshot()
-        with open(os.path.join(work, 'menu-list-%s-%s.png' % (where.replace(' ', '-'), kind)), 'wb') as f:
+        listed = tab.locator('canvas[data-lc-window-id="%s"]' % opened[0])
+        picture = listed.screenshot()
+        name = 'menu-list-%s-%s.png' % (where.replace(' ', '-'), kind)
+        with open(os.path.join(work, name), 'wb') as f:
             f.write(picture)
+        # For a person to look at: the menu and its open list on the page,
+        # printed into the log (tools/ci/print_images.py writes it back),
+        # since the job's artifact is not always at hand
+        box = listed.bounding_box()
+        if box:
+            x0 = min(canvas['x'] + left, box['x']) - 12
+            y0 = min(canvas['y'] + top, box['y']) - 12
+            x1 = max(canvas['x'] + right, box['x'] + box['width']) + 12
+            y1 = max(canvas['y'] + bottom, box['y'] + box['height']) + 12
+            x0, y0 = max(x0, 0), max(y0, 0)
+            seen = tab.screenshot(clip={'x': x0, 'y': y0, 'width': x1 - x0, 'height': y1 - y0})
+            print_image('%s/%s' % (browser_name, name), seen)
         tab.mouse.click(*outside)
         tab.wait_for_timeout(300)
         tab.evaluate('%s.probeReport("menu-colors-done")' % stack)

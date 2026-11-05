@@ -628,6 +628,26 @@ class TheMenuLists(unittest.TestCase):
             for x in range(7):
                 self.assertEqual(rows[y][x], (x * 30, y * 20, (x * y) % 256))
 
+    def test_a_printed_picture_comes_back_from_the_log(self):
+        import contextlib
+        import io
+        import tempfile
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        import print_images
+        data = _png(90, 70, lambda x, y: (x, y, 200))
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            web_check.print_image('webkit/menu-list-as-built-plain.png', data)
+        self.assertTrue(out.getvalue().startswith('IMAGE webkit/menu-list-as-built-plain.png 1/'))
+        with tempfile.TemporaryDirectory() as folder:
+            log = os.path.join(folder, 'log.txt')
+            with open(log, 'w') as f:
+                f.write(''.join('2026-11-05T12:00:00.0Z ' + line + '\n' for line in out.getvalue().splitlines()))
+            with contextlib.redirect_stdout(io.StringIO()):
+                print_images.main([log, os.path.join(folder, 'out')])
+            with open(os.path.join(folder, 'out', 'webkit-menu-list-as-built-plain.png'), 'rb') as f:
+                self.assertEqual(f.read(), data)
+
     def test_png_pixels_refuses_what_it_cannot_read(self):
         with self.assertRaises(ValueError):
             web_check.png_pixels(b'GIF89a')
