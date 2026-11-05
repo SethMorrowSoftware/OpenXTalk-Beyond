@@ -14,7 +14,7 @@ described in [HISTORY.md](HISTORY.md). What each release adds, in
 words, is in the [README](README.md#the-ide) and on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases).
 
-## 0.2.7-rc.6.16 (2026-11-06, pre-release)
+## 0.2.7-rc.6.16 (2026-11-05, pre-release)
 
 - CI: changelog.py check refuses a fragment whose lines CHANGELOG.md already holds (one folded and come back), and the two that 0.2.7-rc.6.15's squash left on main, changelog/346.md and #340's, are deleted (#354)
 - Mobile Web library: each finger's touchStart, touchMove, touchEnd and touchRelease; the location, heading, acceleration and rotation-rate sensors (mwStartSensor); a photo from the camera or the library (mwPickPhoto), the share sheet (mwShare), the screen kept on (mwKeepAwake) and the browser's bars hidden (mwFullScreen); each does nothing on a desktop, and the Phone Starter has a Phone card that uses them (#348)
