@@ -52,7 +52,7 @@ on editorInitialize
       set the ink of it to "srcCopy"
       set the layerMode of it to "static"
       set the visible of it to true
-      set the toolTip of it to "Clear: no color of its own, so it takes its owner's"
+      set the toolTip of it to "Clear: no color or pattern of its own, so it takes its owner's"
    end if
    put the formattedWidth of button kClearButton of me into tWidth
    if tWidth < 40 then put 40 into tWidth
@@ -65,15 +65,62 @@ end editorInitialize
 
 -- Whether Clear has a colour to take away: the objects inspected have a
 -- colour of their own (not one inherited, shown as the effective value),
--- or have different colours
+-- or have different colours. Or a pattern: a colour's row may hold its
+-- pattern beside it (backgroundColor and backgroundPattern share
+-- "Background fill", and so on for each colour with a pattern), and a
+-- pattern fills where the colour would, so Clear takes it away too. In
+-- rc.6.15 Clear looked only at the colour, and a fill that was a pattern
+-- could be taken away only from the pattern's right-click menu
+-- (LittleNemo, openxtalk.org p=26076)
 getProp editorClearable
    if not the editorEnabled of me then return false
    if the editorProperty["read_only"] of me is true then return false
    if ";" is in the editorProperty["property_name"] of me then return false
+   if editorPatternClearable() then return true
    if the editorConflicted of me is true then return true
    if the editorEffective of me then return false
    return the editorValue of me is not empty
 end editorClearable
+
+-- The long id of the pattern editor in this colour's row (the group named
+-- for the property, as the row names each of its editors), or empty: a
+-- row with no pattern, or a property not named "...Color"
+private function editorPatternSibling
+   local tProperty
+   put the editorProperty["property_name"] of me into tProperty
+   if char -5 to -1 of tProperty is not "Color" then return empty
+   put char 1 to -6 of tProperty & "Pattern" into tProperty
+   if there is not a group tProperty of the owner of me then return empty
+   if the editorProperty["editor"] of group tProperty of the owner of me is not "com.livecode.pi.pattern" then
+      return empty
+   end if
+   return the long id of group tProperty of the owner of me
+end editorPatternSibling
+
+-- Whether this colour's row has a pattern Clear can take away: one of the
+-- objects' own, or different patterns, as for the colour
+private function editorPatternClearable
+   local tPattern
+   put editorPatternSibling() into tPattern
+   if tPattern is empty then return false
+   if the editorProperty["read_only"] of tPattern is true then return false
+   if not the editorEnabled of tPattern then return false
+   if the editorConflicted of tPattern is true then return true
+   if the editorEffective of tPattern then return false
+   return the editorValue of tPattern is not empty
+end editorPatternClearable
+
+-- Sent by the pattern editor beside this colour when it shows a new
+-- pattern: the rows update their editors in no set order, so the colour's
+-- own editorUpdate may have come first, with the pattern as it was
+on editorPatternUpdated
+   local tClearable
+   if there is not a button kClearButton of me then exit editorPatternUpdated
+   put the editorClearable of me into tClearable
+   lock messages
+   set the enabled of button kClearButton of me to tClearable
+   unlock messages
+end editorPatternUpdated
 
 on editorUpdate
    lock screen
@@ -141,11 +188,23 @@ end valueChanged
 -- shown at once, rather than waiting for the engine to say the property
 -- changed (the Reset that stayed on screen, p=25968)
 command editorClearColour
+   local tPattern
    if not the editorClearable of me then exit editorClearColour
    lock screen
+   -- the pattern first, read before the colour is set: setting it may
+   -- have the inspector show the row again
+   if editorPatternClearable() then put editorPatternSibling() into tPattern
    set the editorValue of me to empty
    put false into sNamedColor
    updateProperty
+   -- an empty colour leaves a pattern in place (MCObject::SetColor), so
+   -- the pattern is set to empty too, through its own editor, as its
+   -- right-click menu's "Reset to default" does
+   if tPattern is not empty and exists(tPattern) then
+      set the editorValue of tPattern to empty
+      dispatch "updateProperty" to tPattern with true
+      dispatch "editorUpdate" to tPattern
+   end if
    lock messages
    set the swatchcolor of control 1 of me to empty
    set the enabled of button kClearButton of me to false
