@@ -1,0 +1,2 @@
+- IDE: opening a stack no longer makes the extension library's ideOpenStack fail on `stack ""` when no extension sample stack is opening; the IDE caught the error, so nothing showed it except, in an IDE run from a source checkout, an ERROR line in the Message Box on every stack open (#365)
+- Tests: ideOpenStack sent to an IDE subscriber with no handler for it comes back without an error, and an extension's sample stack still loses its filename once open and opens once (#365)
