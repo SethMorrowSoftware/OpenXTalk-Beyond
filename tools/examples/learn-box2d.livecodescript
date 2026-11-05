@@ -813,6 +813,18 @@ function labMouseY
    return labMY(the mouseV)
 end labMouseY
 
+-- Where the mouse was pressed, in metres: the clickLoc, kept from the
+-- press itself. A press is handled a moment after it is made, and on a
+-- busy machine the mouse may have moved on by then, so a mouseDown that
+-- asks where the mouse is now can miss what was pressed
+function labClickX
+   return labMX(the clickH)
+end labClickX
+
+function labClickY
+   return labMY(the clickV)
+end labClickY
+
 -- A number with pPlaces decimals, for the line at the court's top
 function labNum pNumber, pPlaces
    return format("%." & pPlaces & "f", pNumber)
@@ -1361,7 +1373,7 @@ on mouseDown pButton
       exit mouseDown
    end if
    if pButton is 1 and sWorld is not empty and the cOwnDrag of this card is not true \
-         and the mouseLoc is within the rect of graphic "Court" then
+         and the clickLoc is within the rect of graphic "Court" then
       labGrab
    end if
    -- A click in the court or on Reset, Pause or Step goes to the card's
@@ -1439,8 +1451,11 @@ end mouseRelease
 
 private command labGrab
    local tX, tY, tBody
-   put labMouseX() into tX
-   put labMouseY() into tY
+   -- (the body where the mouse was pressed: until 0.2.7-rc.6.17 it was
+   -- the one under the mouse when the press was handled, and a press on
+   -- a busy machine, with the mouse already moving, grabbed nothing)
+   put labClickX() into tX
+   put labClickY() into tY
    put b2BodyAtPoint(sWorld, tX, tY) into tBody
    -- (only a dynamic body: static and kinematic ones go where they go)
    if tBody is 0 or b2BodyType(tBody) is not 2 then
@@ -2919,8 +2934,8 @@ end labBuild
 -- pull with, is 1000 times the body's mass
 on mouseDown pButton
    local tX, tY, tBody
-   put labMouseX() into tX
-   put labMouseY() into tY
+   put labClickX() into tX
+   put labClickY() into tY
    put b2BodyAtPoint(sWorld, tX, tY) into tBody
    if pButton is 1 and tBody is not 0 and b2BodyType(tBody) is 2 then
       put b2MouseJoint(sWorld, sGround, tBody, tX, tY, sHertz, 0.7, 1000 * b2BodyMass(tBody)) into sGrab
@@ -3158,9 +3173,9 @@ end switchAim
 -- A click on empty space: which shapes are within a metre of it?
 on mouseDown pButton
    local tX, tY, tIndex
-   put labMouseX() into tX
-   put labMouseY() into tY
-   if pButton is 1 and b2BodyAtPoint(sWorld, tX, tY) is 0 and the mouseLoc is within the rect of graphic "Court" then
+   put labClickX() into tX
+   put labClickY() into tY
+   if pButton is 1 and b2BodyAtPoint(sWorld, tX, tY) is 0 and the clickLoc is within the rect of graphic "Court" then
       get b2OverlapCircle(sWorld, tX, tY, 1)
       put b2QueryCount() into sFound
       repeat with tIndex = 1 to sFound
@@ -3302,9 +3317,9 @@ end blast
 
 -- A click on empty space sets off a blast there
 on mouseDown pButton
-   if pButton is 1 and the mouseLoc is within the rect of graphic "Court" and \
-         b2BodyAtPoint(sWorld, labMouseX(), labMouseY()) is 0 then
-      blast labMouseX(), labMouseY()
+   if pButton is 1 and the clickLoc is within the rect of graphic "Court" and \
+         b2BodyAtPoint(sWorld, labClickX(), labClickY()) is 0 then
+      blast labClickX(), labClickY()
    end if
    pass mouseDown
 end mouseDown
