@@ -348,6 +348,57 @@ class GtkTheme(unittest.TestCase):
         names = steps.split('"')[1].split(',')
         self.assertEqual(names.index('menu-words'), names.index('menu-marks') + 1)
 
+    def test_the_hilited_words_on_a_windows_own_colours(self):
+        # the words of the item a menu opens with hilited, on the theme's
+        # hilite: until rc.6.17 a window's own colour, so 48,52,58 on the
+        # selection blue (darker than it in both appearances, where the
+        # theme's own words are lighter: rc.6.16's 03h, own colour 1)
+        with open(TOUR, encoding='utf-8') as f:
+            tour = f.read()
+        step = tour.split('on tour_menu_armed_words', 1)[1].split('end tour_menu_armed_words', 1)[0]
+        self.assertIn('if the platform is not "Linux" then', step)
+        self.assertIn('put "48,52,58" & return & "236,236,236" into tColours', step)
+        self.assertIn('set the backgroundColor of stack tName to tColour', step)
+        # the two menus differ in the first (hilited) item's words alone
+        self.assertIn('"Readable words" & return & "The second item, plain" & return & "The last item, plain"', step)
+        self.assertIn('space & return & "The second item, plain" & return & "The last item, plain"', step)
+        self.assertIn('put tourArmedWords("03j-menu-armed-words", "03k-menu-armed-no-words") into tTheme', step)
+        self.assertIn('tourArmedWordsCheck(tourArmedWords("03l-menu-armed-words-own-colour-" & tPass', step)
+        self.assertIn('if item 1 of tTheme < 20 or item 2 of tTheme is 0 then', step)
+        self.assertIn('throw "failed:"', step)
+        # the same side of the hilite as the theme's own words, and at
+        # least half as far from it
+        check = tour.split('function tourArmedWordsCheck', 1)[1].split('end tourArmedWordsCheck', 1)[0]
+        self.assertIn('if (item 2 of pSeen > 0) is not (pTheme > 0) or abs(item 2 of pSeen) * 2 < abs(pTheme) then', check)
+        self.assertIn('if item 1 of pSeen < 20 then', check)
+        # the signed difference: the words' snapshot less the blank one's
+        groups = tour.split('function tourMarksGroups', 1)[1].split('end tourMarksGroups', 1)[0]
+        self.assertIn('put round((tLumaA - tLumaB) / 1000) into tSigned[', groups)
+        self.assertIn('(tMost - tLeast) & "," & tSignedMost & return after tGroups', groups)
+        words = tour.split('function tourArmedWords', 1)[1].split('end tourArmedWords', 1)[0]
+        self.assertIn('if abs(item 8 of tGroup) > abs(tMost) then put item 8 of tGroup into tMost', words)
+        # its own step, after menu-words, for the watchdog
+        steps = [line for line in tour.splitlines() if line.startswith('constant kSteps')][0]
+        names = steps.split('"')[1].split(',')
+        self.assertEqual(names.index('menu-armed-words'), names.index('menu-words') + 1)
+
+    def test_the_hilited_words_check_on_rc616s_colours(self):
+        # the rule of tourArmedWordsCheck on the colours rc.6.16's Linux
+        # snapshots show: the hilite, the theme's hilited words (white),
+        # and a window's own colours as the words were before rc.6.17
+        def luma(rgb):
+            return round((299 * rgb[0] + 587 * rgb[1] + 114 * rgb[2]) / 1000)
+
+        def passes(seen, theme):
+            return (seen > 0) == (theme > 0) and abs(seen) * 2 >= abs(theme)
+        for hilite in ((74, 144, 217), (33, 93, 156)):
+            theme = luma((255, 255, 255)) - luma(hilite)
+            self.assertTrue(passes(theme, theme))
+            # 48,52,58 on the hilite: failed, in both appearances
+            self.assertFalse(passes(luma((48, 52, 58)) - luma(hilite), theme))
+            # 236,236,236 could be read and still can
+            self.assertTrue(passes(luma((236, 236, 236)) - luma(hilite), theme))
+
     def test_the_linux_package_runs_the_marks_under_them(self):
         repo = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..')
         with open(os.path.join(repo, '.github', 'workflows', 'build-linux.yml'), encoding='utf-8') as f:
@@ -355,7 +406,7 @@ class GtkTheme(unittest.TestCase):
         self.assertIn('mate-themes ubuntu-mate-themes yaru-theme-gtk gtk2-engines-murrine', text)
         step = text.split('- name: Menu marks, other dark GTK themes', 1)[1].split('\n      - name:', 1)[0]
         self.assertIn('for theme in Yaru-MATE-dark Yaru-dark HighContrastInverse; do', step)
-        self.assertIn('--appearance dark --gtk-theme "$theme" --only menu-marks,menu-words', step)
+        self.assertIn('--appearance dark --gtk-theme "$theme" --only menu-marks,menu-words,menu-armed-words', step)
         self.assertIn('exit 1', step)
         with open(TOUR, encoding='utf-8') as f:
             tour = f.read()

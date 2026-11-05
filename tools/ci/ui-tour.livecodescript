@@ -82,7 +82,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -1860,6 +1860,112 @@ function tourWordsCheck pWords, pNoWords, pWhat
    return empty
 end tourWordsCheck
 
+-- The words of the item a menu opens with hilited (the one under the
+-- mouse), as the engine draws them on Linux on the theme's hilite: GTK's
+-- selection colour. The theme draws its own hilited words lighter than
+-- its hilite (Adwaita's white on 74,144,217, Adwaita-dark's on 33,93,156),
+-- and on a window's own colour the item's must be lighter too, and by at
+-- least half as much. Until rc.6.17 they were the first background
+-- colour from the item up (the engine's DI_PSEUDO_BUTTON_TEXT_SEL
+-- inherits as a background does), so in a window of a dark colour of its
+-- own they were that colour on the selection blue: 48,52,58, darker than
+-- the hilite in both appearances (rc.6.16's screenshots 03h, own colour
+-- 1). The two menus differ in that item's words alone. A step of its own,
+-- as tour_menu_words, for the watchdog's 20 seconds
+on tour_menu_armed_words
+   local tName, tDefault, tFails, tColours, tColour, tPass, tTheme
+   if the platform is not "Linux" then
+      tourRecord "INFO menu-armed-words: the engine draws its menus' words so on Linux only"
+      exit tour_menu_armed_words
+   end if
+   if shell("command -v xdotool") is empty then
+      tourRecord "INFO menu-armed-words: there is no xdotool to close the menu with"
+      exit tour_menu_armed_words
+   end if
+   put "OXT Tour Menu Armed Words" into tName
+   put the defaultStack into tDefault
+   lock messages
+   if there is a stack tName then delete stack tName
+   create stack tName
+   set the rect of stack tName to "300,200,700,500"
+   set the defaultStack to tName
+   create button "Armed words"
+   set the style of it to "menu"
+   set the menuMode of it to "popup"
+   set the rect of it to "20,20,140,46"
+   set the text of it to "Readable words" & return & "The second item, plain" & return & "The last item, plain"
+   create button "No armed words"
+   set the style of it to "menu"
+   set the menuMode of it to "popup"
+   set the rect of it to "160,20,280,46"
+   set the text of it to space & return & "The second item, plain" & return & "The last item, plain"
+   close stack tName
+   set the defaultStack to tDefault
+   unlock messages
+   go stack tName
+   tourWait 800
+   tourMarksPopup tName, "Armed words", "03j-menu-armed-words"
+   tourMarksPopup tName, "No armed words", "03k-menu-armed-no-words"
+   put tourArmedWords("03j-menu-armed-words", "03k-menu-armed-no-words") into tTheme
+   tourRecord "INFO menu-armed-words: the theme's colour: the hilited item's words," && item 1 of tTheme && \
+         "pixels, differ from the hilite by at most" && item 2 of tTheme && "in luma (signed, words less hilite)"
+   if item 1 of tTheme < 20 or item 2 of tTheme is 0 then
+      put "on the theme's colour, the menus' snapshots differ in" && item 1 of tTheme && \
+            "pixels, not in the hilited item's words" & return after tFails
+   else
+      put "48,52,58" & return & "236,236,236" into tColours
+      put 0 into tPass
+      repeat for each line tColour in tColours
+         add 1 to tPass
+         set the backgroundColor of stack tName to tColour
+         tourWait 300
+         tourMarksPopup tName, "Armed words", "03l-menu-armed-words-own-colour-" & tPass
+         tourMarksPopup tName, "No armed words", "03m-menu-armed-no-words-own-colour-" & tPass
+         put tourArmedWordsCheck(tourArmedWords("03l-menu-armed-words-own-colour-" & tPass, \
+               "03m-menu-armed-no-words-own-colour-" & tPass), item 2 of tTheme, \
+               "the window's own colour" && tColour) after tFails
+      end repeat
+   end if
+   -- (closed, not deleted, as in tour_menu_marks)
+   close stack tName
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_menu_armed_words
+
+-- What differs between the snapshot pWords (a menu whose hilited item has
+-- words) and pNoWords (the same menu with that item blank): the number of
+-- pixels that differ, and the difference in luma (Rec. 601, 0 to 255) of
+-- the one that differs most, signed: the words' luma less the hilite's
+-- there, so above 0 where the words are the lighter
+function tourArmedWords pWords, pNoWords
+   local tGroups, tGroup, tPixels, tMost
+   put tourMarksGroups(sOut & slash & pWords & ".png", sOut & slash & pNoWords & ".png") into tGroups
+   put 0 into tPixels
+   put 0 into tMost
+   repeat for each line tGroup in tGroups
+      add item 5 of tGroup to tPixels
+      if abs(item 8 of tGroup) > abs(tMost) then put item 8 of tGroup into tMost
+   end repeat
+   return tPixels & "," & tMost
+end tourArmedWords
+
+-- Empty if the hilited item's words, as tourArmedWords measured them
+-- (pSeen) on the colour named pWhat, are on the same side of the hilite as
+-- the theme's own (pTheme, signed) and at least half as far from it; else
+-- a line that says how they are not
+function tourArmedWordsCheck pSeen, pTheme, pWhat
+   tourRecord "INFO menu-armed-words:" && pWhat & ": the hilited item's words," && item 1 of pSeen && \
+         "pixels, differ from the hilite by at most" && item 2 of pSeen && "in luma (the theme's own by" && pTheme & ")"
+   if item 1 of pSeen < 20 then
+      return "on" && pWhat & ", the menus' snapshots differ in" && item 1 of pSeen && \
+            "pixels, not in the hilited item's words" & return
+   end if
+   if (item 2 of pSeen > 0) is not (pTheme > 0) or abs(item 2 of pSeen) * 2 < abs(pTheme) then
+      return "on" && pWhat & ", the hilited item's words differ from the hilite by" && item 2 of pSeen && \
+            "in luma, where the theme's own differ by" && pTheme & ": they cannot be read as the theme's" & return
+   end if
+   return empty
+end tourArmedWordsCheck
+
 -- File > New Stack's preset sizes, the ones Preferences lists with "Show a
 -- list of preset new stack sizes in File menu > New Stack": among them
 -- SVGA's 800 x 600 and three quarters of the main screen's width and
@@ -2024,13 +2130,14 @@ end tourMarksShot
 -- at most 2 away from one of a group is in it). Returns a line for each
 -- group: its left, top, right and bottom in the snapshots, its number of
 -- pixels, the largest difference in luma (Rec. 601, 0 to 255) of one of
--- its pixels between the two snapshots, and how far apart in luma its
--- pixels are in the second snapshot (0 where that one shows only the
--- menu's own colour, as under a mark)
+-- its pixels between the two snapshots, how far apart in luma its pixels
+-- are in the second snapshot (0 where that one shows only the menu's own
+-- colour, as under a mark), and the largest difference again with its
+-- sign: the first snapshot's luma less the second's (tourArmedWords)
 function tourMarksGroups pFileA, pFileB
    local tDefault, tA, tB, tW, tH, tAt, tLumaA, tLumaB, tDiff, tKey, tSeen
    local tQueue, tHead, tTail, tPoint, tX, tY, tNext, tBounds, tCount, tMax, tGroups, tError, i, dx, dy
-   local tLumaOfB, tLeast, tMost
+   local tLumaOfB, tLeast, tMost, tSigned, tSignedMost
    if there is not a file pFileA or there is not a file pFileB then
       throw "there are not both snapshots," && pFileA && "and" && pFileB
    end if
@@ -2065,6 +2172,7 @@ function tourMarksGroups pFileA, pFileB
       put 299 * byteToNum(byte tAt + 2 of tA) + 587 * byteToNum(byte tAt + 3 of tA) + 114 * byteToNum(byte tAt + 4 of tA) into tLumaA
       put 299 * byteToNum(byte tAt + 2 of tB) + 587 * byteToNum(byte tAt + 3 of tB) + 114 * byteToNum(byte tAt + 4 of tB) into tLumaB
       put round(abs(tLumaA - tLumaB) / 1000) into tDiff[(i mod tW) & "," & (i div tW)]
+      put round((tLumaA - tLumaB) / 1000) into tSigned[(i mod tW) & "," & (i div tW)]
       put round(tLumaB / 1000) into tLumaOfB[(i mod tW) & "," & (i div tW)]
    end repeat
    repeat for each key tKey in tDiff
@@ -2078,11 +2186,13 @@ function tourMarksGroups pFileA, pFileB
       put 0 into tMax
       put 255 into tLeast
       put 0 into tMost
+      put 0 into tSignedMost
       repeat while tHead <= tTail
          put tQueue[tHead] into tPoint
          add 1 to tHead
          add 1 to tCount
          put max(tMax, tDiff[tPoint]) into tMax
+         if abs(tSigned[tPoint]) > abs(tSignedMost) then put tSigned[tPoint] into tSignedMost
          put min(tLeast, tLumaOfB[tPoint]) into tLeast
          put max(tMost, tLumaOfB[tPoint]) into tMost
          put item 1 of tPoint into tX
@@ -2102,7 +2212,7 @@ function tourMarksGroups pFileA, pFileB
          end repeat
       end repeat
       delete variable tQueue
-      put tBounds & "," & tCount & "," & tMax & "," & (tMost - tLeast) & return after tGroups
+      put tBounds & "," & tCount & "," & tMax & "," & (tMost - tLeast) & "," & tSignedMost & return after tGroups
    end repeat
    return line 1 to -1 of tGroups
 end tourMarksGroups
