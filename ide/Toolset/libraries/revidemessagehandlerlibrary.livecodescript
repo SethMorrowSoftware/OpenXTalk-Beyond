@@ -493,6 +493,12 @@ on systemAppearanceChanged
    catch tError
    end try
    send "ideMessageSend ideSystemAppearanceChanged" to stack "revIDELibrary" in 0 milliseconds
+   -- OXT-Beyond: the App Browser's names in a grey that reads on the
+   -- window it now has
+   try
+      revIDEAppBrowserAppearance
+   catch tError
+   end try
    pass systemAppearanceChanged
 end systemAppearanceChanged
 

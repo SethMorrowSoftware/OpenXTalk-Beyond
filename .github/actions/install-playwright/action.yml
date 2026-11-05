@@ -1,0 +1,116 @@
+# Playwright, pinned, in a virtual environment of its own, with the
+# browsers and the system packages that they need (what `playwright
+# install --with-deps` installs), for the Linux jobs whose browsers
+# include WebKit.
+#
+# Why the packages are fetched first: on 5 November 2026 Ubuntu's mirror
+# for the runners (azure.archive.ubuntu.com) served them to some runners at
+# 40 to 60 KB/s, while its lists came at 8 MB/s. WebKit's packages are
+# 114 MB, so four of eleven WebKit installs that afternoon ran past their
+# jobs' 30 minutes (the check never started, and the Linux packages that
+# wait on it were never made). As build-linux.yml does for its own
+# packages: the downloads (never the install, which must not be stopped
+# half-way) have a time limit and are tried three times, each try on new
+# connections, keeping every package the one before finished; and the
+# packages are kept in the Actions cache, one entry per runner image,
+# Playwright version and browsers. apt still updates its lists and checks
+# every cached package against them, so an outdated one is downloaded
+# again, never installed. Playwright's own install then finds every
+# package in apt's cache and installs as before. If Playwright's dry run
+# names no packages (a version that prints it differently), or the fetch
+# does not finish, its install runs exactly as it did before this.
+name: Install Playwright
+description: Playwright, pinned, in a virtual environment, with browsers and their system packages
+inputs:
+  version:
+    description: The Playwright version, from PyPI
+    required: true
+  browsers:
+    description: The browsers, separated by spaces
+    required: true
+  venv:
+    description: The virtual environment's folder
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Compute the browsers' packages cache key
+      id: key
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        BROWSERS: ${{ inputs.browsers }}
+      run: |
+        read -r -a browsers <<< "$BROWSERS"
+        IFS=- ; names="${browsers[*]}" ; unset IFS
+        prefix="playwright-debs-${ImageOS:-linux}-$(uname -m)-${VERSION}-${names}-"
+        echo "prefix=$prefix" >> "$GITHUB_OUTPUT"
+        echo "key=${prefix}${ImageVersion:-$(date -u +%G-W%V)}" >> "$GITHUB_OUTPUT"
+
+    - name: Restore the browsers' packages
+      id: cache
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ runner.temp }}/playwright-debs
+        key: ${{ steps.key.outputs.key }}
+        restore-keys: ${{ steps.key.outputs.prefix }}
+
+    - name: Install Playwright and ${{ inputs.browsers }}
+      id: install
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        BROWSERS: ${{ inputs.browsers }}
+        VENV: ${{ inputs.venv }}
+        HIT: ${{ steps.cache.outputs.cache-hit }}
+      run: |
+        python3 -m venv "$VENV"
+        "$VENV/bin/python" -m pip install --quiet "playwright==$VERSION"
+        read -r -a browsers <<< "$BROWSERS"
+        debs="$RUNNER_TEMP/playwright-debs"
+        if compgen -G "$debs/*.deb" > /dev/null; then
+          echo "From the cache: $(compgen -G "$debs/*.deb" | wc -l) packages"
+          sudo cp "$debs"/*.deb /var/cache/apt/archives/
+        fi
+        # The packages that Playwright's install asks apt for: its dry run
+        # prints the command, sh -c "apt-get update&& apt-get install -y
+        # --no-install-recommends <packages>"
+        list=$("$VENV/bin/python" -m playwright install-deps --dry-run "${browsers[@]}" \
+          | sed -n 's/.*--no-install-recommends \([^"]*\)".*/\1/p')
+        read -r -a pkgs <<< "$list"
+        fetched=false
+        if [ ${#pkgs[@]} -gt 0 ]; then
+          echo "Fetching ${#pkgs[@]} packages: ${pkgs[*]}"
+          # (sudo does not pass the job's environment on)
+          apt=(sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30)
+          for i in 1 2 3; do
+            if timeout 300 "${apt[@]}" update &&
+               timeout 300 "${apt[@]}" install -y --no-install-recommends --download-only "${pkgs[@]}"; then
+              fetched=true
+              break
+            fi
+            echo "::warning::Fetching the packages for ${browsers[*]}: try $i of 3 did not finish"
+            sleep 15
+          done
+        else
+          echo "::warning::Playwright's dry run named no packages; installing without fetching them first"
+        fi
+        "$VENV/bin/python" -m playwright install --with-deps "${browsers[@]}"
+        if [ "$fetched" = true ] && [ "$HIT" != true ]; then
+          # Only what the current lists still offer
+          sudo apt-get autoclean
+          rm -rf "$debs"
+          mkdir -p "$debs"
+          if compgen -G "/var/cache/apt/archives/*.deb" > /dev/null; then
+            cp /var/cache/apt/archives/*.deb "$debs/"
+            echo "save=true" >> "$GITHUB_OUTPUT"
+          fi
+        fi
+
+    - name: Save the browsers' packages to the cache
+      if: steps.install.outputs.save == 'true'
+      continue-on-error: true
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ runner.temp }}/playwright-debs
+        key: ${{ steps.key.outputs.key }}

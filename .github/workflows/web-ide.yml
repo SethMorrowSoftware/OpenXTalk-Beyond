@@ -74,6 +74,7 @@ on:
     branches: [ main ]
     paths:
       - .github/workflows/web-ide.yml
+      - .github/actions/install-playwright/**
       - tools/ci/web_ide_tour.py
       - tools/ci/stray_errors.py
       - tools/ci/web_ide_soak.py
@@ -105,6 +106,7 @@ on:
     branches: [ main ]
     paths:
       - .github/workflows/web-ide.yml
+      - .github/actions/install-playwright/**
       - tools/ci/web_ide_tour.py
       - tools/ci/stray_errors.py
       - tools/ci/web_ide_soak.py
@@ -749,15 +751,15 @@ jobs:
           python3 tools/web-ide/build_site.py --install "$OXT_ROOT" \
             --engine "$RUNNER_TEMP/web-ide-engine" --out "$RUNNER_TEMP/site" --repo .
 
-      # Playwright, pinned (web.yml's version), with the browser
+      # Playwright, pinned (web.yml's version), with the browser; its
+      # system libraries are fetched first, with a time limit and from the
+      # cache (.github/actions/install-playwright says why)
       - name: Install Playwright and ${{ matrix.browser }}
-        env:
-          PLAYWRIGHT_VERSION: 1.56.0
-          BROWSER: ${{ matrix.browser }}
-        run: |
-          python3 -m venv "$RUNNER_TEMP/playwright"
-          "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
-          "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps "$BROWSER"
+        uses: ./.github/actions/install-playwright
+        with:
+          version: 1.56.0
+          browsers: ${{ matrix.browser }}
+          venv: ${{ runner.temp }}/playwright
 
       # In WebKit the soak runs a second time if it fails, as web.yml's
       # check does (tools/ci/retry_check.py: the first try's record is
@@ -844,13 +846,11 @@ jobs:
             --engine "$RUNNER_TEMP/web-ide-engine" --out "$RUNNER_TEMP/site" --repo .
 
       - name: Install Playwright and ${{ matrix.browser }}
-        env:
-          PLAYWRIGHT_VERSION: 1.56.0
-          BROWSER: ${{ matrix.browser }}
-        run: |
-          python3 -m venv "$RUNNER_TEMP/playwright"
-          "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
-          "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps "$BROWSER"
+        uses: ./.github/actions/install-playwright
+        with:
+          version: 1.56.0
+          browsers: ${{ matrix.browser }}
+          venv: ${{ runner.temp }}/playwright
 
       # In WebKit the check runs a second time if it fails, as web.yml's
       # check does (tools/ci/retry_check.py, with the first try's record

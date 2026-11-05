@@ -730,9 +730,9 @@ on newPlayer
 end newPlayer
 
 on newCard
-   if there is a stack "revApplicationOverview" then
-      if the mode of stack "revApplicationOverview" is not 0
-      then send "revUpdateCards revTargetStack(the long id of the target)" to stack "revApplicationOverview"
+   if revIDEAppBrowserStack() is not empty then
+      if the mode of stack (revIDEAppBrowserStack()) is not 0
+      then send "revUpdateCards revTargetStack(the long id of the target)" to stack (revIDEAppBrowserStack())
       if not gREVSuppressMessages or (gREVSuppressMessages and revOKTarget()) then pass newCard
    end if
 end newCard
@@ -758,9 +758,9 @@ on newStack
       set the name of the target to tName
    end if
    send "revUpdatePaletteStack" to me in 100 milliseconds
-   if there is a stack "revApplicationOverview" then
-      if the mode of stack "revApplicationOverview" is not 0
-      then send "revNewStack the short name of the target" to stack "revApplicationOverview"
+   if revIDEAppBrowserStack() is not empty then
+      if the mode of stack (revIDEAppBrowserStack()) is not 0
+      then send "revNewStack the short name of the target" to stack (revIDEAppBrowserStack())
    end if
    unlock screen
    unlock messages
@@ -843,9 +843,9 @@ end deleteImage
 
 on deleteCard
    revDeleteLinkedObject
-   if there is a stack "revApplicationOverview" then
-      if the mode of stack "revApplicationOverview" is not 0 then
-         send "revUpdateCards revTargetStack(the long id of the target)" to stack "revApplicationOverview" in 500 milliseconds
+   if revIDEAppBrowserStack() is not empty then
+      if the mode of stack (revIDEAppBrowserStack()) is not 0 then
+         send "revUpdateCards revTargetStack(the long id of the target)" to stack (revIDEAppBrowserStack()) in 500 milliseconds
       end if
    end if
    revIDEUpdateScriptEditorOnObjectDeletion the long id of the target
@@ -884,10 +884,10 @@ on newTool
    if the tool is "browse tool" then
       set the defaultStack to the topStack
       if the editBg then set the editBg to false
-      if there is a stack "revApplicationOverview" then
-         if the mode of stack "revApplicationOverview" is not 0 \
-               and the short name of this cd of stack "revApplicationOverview" is "Cards and Controls" then
-            send "revRefreshControls true, true" to stack "revApplicationOverview"
+      if revIDEAppBrowserStack() is not empty then
+         if the mode of stack (revIDEAppBrowserStack()) is not 0 \
+               and the short name of this cd of stack (revIDEAppBrowserStack()) is "Cards and Controls" then
+            send "revRefreshControls true, true" to stack (revIDEAppBrowserStack())
          end if
       end if
    end if
@@ -997,19 +997,19 @@ on reloadStack pStackName, pFileName
       go to stack pFileName
    end if
    
-   if there is a stack "revApplicationOverview" then
-      send "revNewStack the short name of stack pFileName" to stack "revApplicationOverview"
+   if revIDEAppBrowserStack() is not empty then
+      send "revNewStack the short name of stack pFileName" to stack (revIDEAppBrowserStack())
    end if
 end reloadStack
 
 on revAOUpdateForDeleteStack pStackName
-   if there is a stack "revApplicationOverview" then
-      if the mode of stack "revApplicationOverview" is not 0 then
+   if revIDEAppBrowserStack() is not empty then
+      if the mode of stack (revIDEAppBrowserStack()) is not 0 then
          local tStacks
          put pStackName into tStacks
          if the substacks of stack pStackName is not empty
          then put cr & the substacks of stack pStackName after tStacks
-         send "revAODeleteStack pStackName, tStacks" to stack "revApplicationOverview"
+         send "revAODeleteStack pStackName, tStacks" to stack (revIDEAppBrowserStack())
       end if
    end if
 end revAOUpdateForDeleteStack
@@ -1246,9 +1246,9 @@ on keyDown pWhich
 end keyDown
 
 on mainStackChanged
-   if there is a stack "revApplicationOverview" then
-      if the mode of stack "revApplicationOverview" is not 0
-      then send "revMainStackChanged the long id of the target" to stack "revApplicationOverview" 
+   if revIDEAppBrowserStack() is not empty then
+      if the mode of stack (revIDEAppBrowserStack()) is not 0
+      then send "revMainStackChanged the long id of the target" to stack (revIDEAppBrowserStack()) 
    end if
 end mainStackChanged
 
@@ -2232,14 +2232,14 @@ on revUpdateAOControls pTarget
    set the hcAddressing of stack tTargetStack to false
    if pTarget is empty then put the long id of the target into pTarget
    else put the long id of pTarget into pTarget -- id with HCAddressing false
-   if there is a stack "revApplicationOverview" then
-      send "revClearControlCache pTarget" to stack "revApplicationOverview"
-      if the mode of stack "revApplicationOverview" is not 0 \
+   if revIDEAppBrowserStack() is not empty then
+      send "revClearControlCache pTarget" to stack (revIDEAppBrowserStack())
+      if the mode of stack (revIDEAppBrowserStack()) is not 0 \
             and revTargetStack(pTarget) is gREVStackName \
-            and the short name of this cd of stack "revApplicationOverview" is "Cards and Controls" then
+            and the short name of this cd of stack (revIDEAppBrowserStack()) is "Cards and Controls" then
          
          if lUpdateAOControlsTimerID is not empty then cancel lUpdateAOControlsTimerID
-         send "revRefreshControls true, false" to cd "Cards and Controls" of stack "revApplicationOverview" in 1 second
+         send "revRefreshControls true, false" to cd "Cards and Controls" of stack (revIDEAppBrowserStack()) in 1 second
          put the result into lUpdateAOControlsTimerID
       end if
    end if
@@ -2310,11 +2310,11 @@ function revExternalVersion pExternal
 end revExternalVersion
 
 on revUpdateAB
-   if there is a stack "revApplicationOverview" then
-      if the mode of stack "revApplicationOverview" is not 0 then
+   if revIDEAppBrowserStack() is not empty then
+      if the mode of stack (revIDEAppBrowserStack()) is not 0 then
          lock screen
-         send "revRetainStacks" to stack "revApplicationOverview"
-         send "revInitAppBrowser" to stack "revApplicationOverview"
+         send "revRetainStacks" to stack (revIDEAppBrowserStack())
+         send "revInitAppBrowser" to stack (revIDEAppBrowserStack())
          unlock screen
       end if
    end if
@@ -3166,10 +3166,10 @@ command revIDEHandleNewStack pTarget
    revSetActiveStacks
    
    local tStack
-   if there is a stack "revApplicationOverview" then
-      if the mode of stack "revApplicationOverview" is not 0 then
+   if revIDEAppBrowserStack() is not empty then
+      if the mode of stack (revIDEAppBrowserStack()) is not 0 then
          put revTargetStack(the long id of stack tStackName) into tStack
-         send "revNewStack tStack" to stack "revApplicationOverview"
+         send "revNewStack tStack" to stack (revIDEAppBrowserStack())
       end if
    end if
    

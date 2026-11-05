@@ -91,6 +91,26 @@ class ChangelogTest(unittest.TestCase):
             self.fragment('b.md', bad)
             self.assertEqual(len(changelog.check(self.repo)), 1, repr(bad))
 
+    def test_check_refuses_a_fragment_already_folded(self):
+        # A fragment whose lines CHANGELOG.md already holds was folded
+        # once and came back: the squash of 0.2.7-rc.6.15's version change
+        # (#352) took a merge base older than two fragments it had folded
+        # and deleted, so main kept changelog/346.md and the MCP Bridge's
+        # fragment beside the lines folded from them, and the next fold
+        # would have written those lines twice
+        self.changelog(HEAD + '## 0.1.1 (2026-01-02)\n\n- Folded (#2)\n\n' + RELEASED)
+        self.fragment('a.md', '- New (#3)\n')
+        self.assertEqual(changelog.check(self.repo), [])
+        self.fragment('b.md', '- New in b (#4)\n- Folded (#2)\n')
+        problems = changelog.check(self.repo)
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn('b.md', problems[0])
+        self.assertIn('already', problems[0])
+        # the same line in two fragments is not a fold left behind, and
+        # neither is a line that only begins like one in CHANGELOG.md
+        self.fragment('b.md', '- New (#3)\n- Folded\n')
+        self.assertEqual(changelog.check(self.repo), [])
+
     def test_check_refuses_two_unreleased_sections(self):
         self.changelog(HEAD + '## Unreleased\n\n- A\n\n## Unreleased\n\n' + RELEASED)
         self.assertEqual(len(changelog.check(self.repo)), 1)

@@ -7136,6 +7136,93 @@ function revIDEPlugins
    return sPluginsA
 end revIDEPlugins
 
+/*
+OXT-Beyond: the name of the open Application Browser, for the IDE's
+messages that keep its lists up to date, or empty when it is not open.
+
+Returns (string): "App Browser" (the plugin, Plugins/App Browser.livecode)
+or "revApplicationOverview" (the stack it was once called) when that stack
+is open; else empty.
+
+Description:
+The back and front scripts sent their updates (a new card, a new stack, a
+stack deleted, a name changed, the controls changed) to the stack
+"revApplicationOverview", the Application Browser's name before it became
+the App Browser plugin, so the plugin was never told: a stack removed from
+memory stayed in its list until Refresh. They now send them to the stack
+this names. Only an open browser gets them, as the old one got most of
+them, and only the plugin's own stack (by its file) is taken for it, not a
+user's stack of the same name. Asking loads no stack: it reads the
+mainStacks and the openStacks.
+
+References: revIDEAppBrowserAppearance (command)
+*/
+function revIDEAppBrowserStack
+   if "App Browser" is among the lines of the openStacks then
+      if the effective filename of stack "App Browser" ends with "/App Browser.livecode" then
+         return "App Browser"
+      end if
+   end if
+   if "revApplicationOverview" is among the lines of the openStacks then
+      return "revApplicationOverview"
+   end if
+   return empty
+end revIDEAppBrowserStack
+
+-- OXT-Beyond: the stacks pStacks (a main stack and its substacks, by
+-- name, a line each), just removed from memory, leave the open
+-- Application Browser's list. The stacks are gone, so they are named, never
+-- asked about: asking about a stack that is not in memory reads it from
+-- its file
+command revIDEAppBrowserStacksRemoved pStacks
+   local tBrowser, tError
+   put revIDEAppBrowserStack() into tBrowser
+   if tBrowser is empty or pStacks is empty then
+      exit revIDEAppBrowserStacksRemoved
+   end if
+   try
+      send "revAODeleteStack line 1 of pStacks, pStacks" to stack tBrowser
+   catch tError
+   end try
+end revIDEAppBrowserStacksRemoved
+
+/*
+OXT-Beyond: the open Application Browser's names (its tree's links) in a
+grey that reads on a dark window, and in its own grey when it is light.
+
+Description:
+The App Browser plugin shows the names of stacks and cards as links in
+mid grey (127,127,127), which reads on its light window and hardly at all
+on a dark one. With the desktop dark (revIDEAppearanceIsDark), its stack's
+linkColor is a light grey; light, the plugin's own grey is put back, so a
+light IDE looks as before. It is run when the plugin opens and when the
+system's appearance changes. The plugin's file is not changed and it is not
+marked as edited.
+
+Parameters:
+pDark (boolean): true for a dark window, false for a light one; empty asks
+revIDEAppearanceIsDark
+
+References: revIDEAppBrowserStack (function)
+*/
+command revIDEAppBrowserAppearance pDark
+   local tBrowser
+   put revIDEAppBrowserStack() into tBrowser
+   if tBrowser is not "App Browser" then
+      exit revIDEAppBrowserAppearance
+   end if
+   if pDark is not among the items of "true,false" then
+      put revIDEAppearanceIsDark() into pDark
+   end if
+   if pDark then
+      if the linkColor of stack tBrowser is "127,127,127" then
+         set the linkColor of stack tBrowser to "208,208,208"
+      end if
+   else if the linkColor of stack tBrowser is "208,208,208" then
+      set the linkColor of stack tBrowser to "127,127,127"
+   end if
+end revIDEAppBrowserAppearance
+
 on revIDEOpenPlugin pName
    local tStackPath
    put sPluginsA[pName]["path"] into tStackPath
@@ -7156,6 +7243,9 @@ on revIDEOpenPlugin pName
       go invisible stack tStackPath
    else 
       do "go stack" && quote &  tStackPath & quote && "as" && tMode
+   end if
+   if pName is "App Browser" then
+      revIDEAppBrowserAppearance
    end if
 end revIDEOpenPlugin
 
@@ -8132,6 +8222,12 @@ on revIDERemoveFromMemory pStackID
    
    # Send the 'ideDestroyStack' message
    ideMessageSend "ideDestroyStack", pStackID
+   
+   -- OXT-Beyond: the stack was deleted with messages locked, so the
+   -- Application Browser heard nothing of it
+   if tMainstack is not among the lines of the mainStacks then
+      revIDEAppBrowserStacksRemoved tStacks
+   end if
 end revIDERemoveFromMemory
 
 on revIDEActionCloseStack

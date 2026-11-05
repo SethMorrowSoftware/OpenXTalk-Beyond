@@ -370,15 +370,15 @@ jobs:
           fi
 
       # Playwright, pinned, in a virtual environment of its own, with the
-      # browser and the system libraries that it needs
+      # browser and the system libraries that it needs; the libraries are
+      # fetched first, with a time limit and from the cache
+      # (.github/actions/install-playwright says why)
       - name: Install Playwright and ${{ matrix.browser }}
-        env:
-          PLAYWRIGHT_VERSION: 1.56.0
-          BROWSER: ${{ matrix.browser }}
-        run: |
-          python3 -m venv "$RUNNER_TEMP/playwright"
-          "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
-          "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps "$BROWSER"
+        uses: ./.github/actions/install-playwright
+        with:
+          version: 1.56.0
+          browsers: ${{ matrix.browser }}
+          venv: ${{ runner.temp }}/playwright
 
       # The fonts of every HTML5 standalone are what tools/oxt/build_web_fonts.py
       # makes from the Ubuntu 24.04 packages it names (each file pinned by its
