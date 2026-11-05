@@ -10,6 +10,7 @@ words: behavior, me, pass, before, after, script only stack, the long id, dispat
 <p>A <strong>behavior</strong> is the answer. It is an object (usually a button, or a script-only stack) whose script works for every object whose <code>behavior</code> property is set to it. Change the behavior's script, and every object that uses it changes at once.</p>
 
 <h2 id="first">A first behavior</h2>
+<aside class="note"><p>The examples in this lesson make their controls with <code>create</code> (<a href="../stacks-cards-controls/#script-made">Making controls from a script</a>), so that each one runs in the playground in one piece. In a stack of your own you would drag the same controls from the Tools palette, name them in the Property Inspector, and put the handlers into their scripts: the code works the same either way.</p></aside>
 <p>In a stack you would type the behavior's script into a button with the Script Editor and hide the button. So that the example runs by itself, it sets the script from text, a line at a time:</p>
 <figure class="example" id="ex-beh-first" data-run="output" data-shot="The stage, with three buttons in a row: Tally 1 says 2 clicks, Tally 2 says 0 clicks, and Tally 3 says 1 click.">
 <pre class="code"><code>put "local sClicks" &amp; return into tScript
@@ -119,7 +120,7 @@ A THING!</pre>
 <p><code>value</code> with an object works out an expression as if in that object's script, which is one way to call an object's function from outside it. <code>dispatch function</code> is the other (<a href="../events/">Messages and events</a>).</p>
 
 <h2 id="script-only">Behaviors in script-only stacks</h2>
-<p>In a real project, behaviors usually live in <strong>script-only stacks</strong>: stacks with nothing but a script, saved as plain text files (<code>.livecodescript</code>) that version control can compare line by line. A behavior's long id can be a stack's as well as a button's:</p>
+<p>In a real project, behaviors usually live in <strong>script-only stacks</strong>: stacks with nothing but a script, saved as plain text files (<code>.livecodescript</code>) that version control can compare line by line (<a href="../shipping/#script-only">Shipping your program</a> shows how a program finds them). A behavior's long id can be a stack's as well as a button's:</p>
 <figure class="example" id="ex-beh-script-only" data-run="output">
 <pre class="code"><code>create script only stack "Greeter"
 set the script of stack "Greeter" to "on mouseUp" &amp; return &amp; "put " &amp; quote &amp; "Hello from " &amp; quote &amp; " &amp; the short name of me" &amp; return &amp; "end mouseUp"

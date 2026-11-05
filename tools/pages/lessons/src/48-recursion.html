@@ -151,6 +151,7 @@ put fib(50)</code></pre>
 </figure>
 
 <h2 id="drawing">Drawing with recursion</h2>
+<aside class="note"><p>The examples in this lesson make their controls with <code>create</code> (<a href="../stacks-cards-controls/#script-made">Making controls from a script</a>), so that each one runs in the playground in one piece. In a stack of your own you would drag the same controls from the Tools palette, name them in the Property Inspector, and put the handlers into their scripts: the code works the same either way.</p></aside>
 <p>A tree is a trunk with two smaller trees on top of it. Written that way, a few lines draw one: each call draws a branch, then calls itself twice for two shorter branches, turned left and right. One graphic holds every branch: in a graphic's <code>points</code>, an empty line lifts the pen, so the branches need not join up.</p>
 <figure class="example" id="ex-rec-tree" data-run="output" data-shot="The stage, with a green tree drawn from straight lines: a trunk rising from the bottom middle that splits into two branches again and again, into a round crown of fine twigs.">
 <pre class="code"><code>local sPoints

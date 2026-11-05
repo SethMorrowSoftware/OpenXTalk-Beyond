@@ -1,29 +1,55 @@
 <!--
 title: Buttons and menus
 level: intermediate
-minutes: 9
-summary: The many kinds of button: push buttons, checkboxes and radio buttons, and the menus a button can be, from pop-ups to tabs.
-words: button, style, hilite, checkbox, radioButton, radioBehavior, hilitedButtonName, menuMode, menuHistory, menuPick, label, enabled, default
+minutes: 12
+summary: The many kinds of button in the Tools palette: push buttons, check boxes and radio buttons, and the menus a button can be, from option menus to tabs.
+words: button, style, hilite, checkbox, radioButton, radioBehavior, hilitedButtonName, menuMode, menuHistory, menuPick, label, enabled, default, Check Box, Radio Button, Option Menu, Tab Panel
 -->
 <h2 id="styles">A button of every kind</h2>
-<p>A button's <code>style</code> decides what it is. A plain push button is <code>standard</code>; the same object becomes a checkbox, a radio button, a flat transparent hot spot, a rounded button or a menu just by changing its style.</p>
-<figure class="example" id="ex-buttons-styles" data-run="output" data-shot="The stage, with a column of buttons of different styles: standard, rectangle, roundrect, shadow, a checkbox and a radio button, each labelled with its style.">
-<pre class="code"><code>repeat for each item tStyle in "standard,rectangle,roundrect,shadow,checkbox,radioButton"
-   add 1 to tCount
-   create button tStyle
-   set the style of it to tStyle
-   set the rect of it to 40, tCount * 48 - 28, 220, tCount * 48 + 4
-end repeat
-put the style of button "shadow"
+<p>The Tools palette has a tile for each common kind of button: <strong>Standard Button</strong>, <strong>Rectangle Button</strong>, <strong>Default Button</strong>, <strong>Check Box</strong>, <strong>Radio Button</strong>, and the menus, <strong>Option Menu</strong>, <strong>Pulldown Menu</strong>, <strong>Combo Box</strong>, <strong>Popup Menu</strong> and <strong>Tab Panel</strong>. They are all the same kind of object, a button, and its <code>style</code> property (<strong>Style</strong> in the Inspector's <strong>Basic</strong> section) decides what it is: change the style and a push button becomes a checkbox.</p>
+<div class="build" id="build-styles">
+<ol>
+<li>On a new card, drag a <strong>Standard Button</strong>, a <strong>Rectangle Button</strong>, a <strong>Check Box</strong> and a <strong>Radio Button</strong> into a column, each about 180 points wide.</li>
+<li>Name them <code>standard</code>, <code>rectangle</code>, <code>checkbox</code> and <code>radio</code>.</li>
+</ol>
+<pre class="setup">create button "standard"
+set the rect of it to 40,20,220,52
+create button "rectangle"
+set the style of it to "rectangle"
+set the rect of it to 40,68,220,100
+create button "checkbox"
+set the style of it to "checkbox"
+set the showBorder of it to false
+set the hiliteBorder of it to false
+set the opaque of it to false
+set the rect of it to 40,116,220,148
+create button "radio"
+set the style of it to "radioButton"
+set the hiliteBorder of it to false
+set the opaque of it to false
+set the rect of it to 40,164,220,196</pre>
+</div>
+<figure class="example" id="ex-buttons-styles" data-run="output" data-card="build-styles" data-in="message" data-shot="Your card: a column of buttons of different styles, a standard button, a rectangle, a checkbox, a radio button and a rounded button, each labelled with its name.">
+<pre class="code"><code>put the style of button "rectangle"
+put the style of button "radio"
+create button "roundrect"
+set the style of it to "roundrect"
+set the rect of it to 40,212,220,244
 put the number of buttons</code></pre>
-<pre class="out">shadow
-6</pre>
+<pre class="out">rectangle
+radiobutton
+5</pre>
 </figure>
+<p>A style reads back in lower case, whichever way it was written: <code>radioButton</code> and <code>radiobutton</code> are the same style. The last lines make a button style the palette has no tile for: a rounded one. You could make it by hand too, from a Standard Button, by choosing <code>roundrect</code> as its <strong>Style</strong> in the Inspector.</p>
 
-<h2 id="checkboxes">Checkboxes and hilite</h2>
-<p>A checkbox is on or off, and its <code>hilite</code> says which. Clicking it turns it on and off by itself (its <code>autoHilite</code> is true), and a script can read or set it. A button made with <code>create</code> starts out with a push button's border, and draws it when it is highlighted, which a checkbox does not want, so these examples turn both off:</p>
-<figure class="example" id="ex-buttons-checkbox" data-run="output" data-shot="The stage, with two checkboxes: Send me the newsletter, ticked, and Remember me, not ticked.">
-<pre class="code"><code>create button "Send me the newsletter"
+<h2 id="checkboxes">Check boxes and hilite</h2>
+<p>A check box is on or off, and its <code>hilite</code> says which. Clicking it in Run mode turns it on and off by itself (its <code>autoHilite</code> is true), and a script can read or set it.</p>
+<div class="build" id="build-checkboxes">
+<ol>
+<li>On a new card, drag two <strong>Check Boxes</strong>, one under the other, and make each about 280 points wide.</li>
+<li>Name them <code>Send me the newsletter</code> and <code>Remember me</code>. The name is what a check box shows beside its box.</li>
+</ol>
+<pre class="setup">create button "Send me the newsletter"
 set the rect of it to 40,40,320,70
 create button "Remember me"
 set the rect of it to 40,80,320,110
@@ -31,92 +57,131 @@ repeat with i = 1 to 2
    set the style of button i to "checkbox"
    set the showBorder of button i to false
    set the hiliteBorder of button i to false
-end repeat
-put the hilite of button "Send me the newsletter"
-set the hilite of button "Send me the newsletter" to true
-put the hilite of button "Send me the newsletter"</code></pre>
+   set the opaque of button i to false
+end repeat</pre>
+</div>
+<p>Give the first one this script, and click it three times in Run mode:</p>
+<figure class="example" id="ex-buttons-checkbox" data-run="output" data-card="build-checkboxes" data-script='button "Send me the newsletter"' data-click='button "Send me the newsletter";button "Send me the newsletter";button "Send me the newsletter"' data-shot="Your card: two checkboxes: Send me the newsletter, ticked, and Remember me, not ticked.">
+<pre class="code"><code>on mouseUp
+   put the hilite of me
+end mouseUp</code></pre>
+<pre class="out">true
+false
+true</pre>
+</figure>
+<p>By the time <code>mouseUp</code> arrives, the box has already changed, so the handler sees the new state. A script sets it the same way:</p>
+<figure class="example" id="ex-buttons-checkbox-set" data-run="output" data-card="build-checkboxes" data-in="message">
+<pre class="code"><code>put the hilite of button "Remember me"
+set the hilite of button "Remember me" to true
+put the hilite of button "Remember me"</code></pre>
 <pre class="out">false
 true</pre>
 </figure>
 
 <h2 id="radio">Radio buttons</h2>
-<p>Radio buttons offer a choice of one. Put them in a group and set the group's <code>radioBehavior</code>: choosing one then un-chooses the others, and the group's <code>hilitedButtonName</code> says which is on.</p>
-<figure class="example" id="ex-buttons-radio" data-run="output" data-shot="The stage, with three radio buttons, Small, Medium and Large, with Large chosen.">
-<pre class="code"><code>create group "Size"
+<p>Radio buttons offer a choice of one. Put them in a group whose <code>radioBehavior</code> is true (the Inspector's <strong>Hilite one radio button at a time</strong>, which a new group has already): choosing one then un-chooses the others, and the group's <code>hilitedButtonName</code> says which is on.</p>
+<div class="build" id="build-radio">
+<ol>
+<li>On a new card, drag three <strong>Radio Buttons</strong> into a column, and name them <code>Small</code>, <code>Medium</code> and <code>Large</code>.</li>
+<li>Select all three and choose <kbd>Object &gt; Group Selected</kbd>. With the group selected, name it <code>Size</code> in the Property Inspector.</li>
+</ol>
+<pre class="setup">create group "Size"
 repeat for each item tSize in "Small,Medium,Large"
    add 1 to tCount
    create button tSize in group "Size"
    set the style of it to "radioButton"
-   set the showBorder of it to false
    set the hiliteBorder of it to false
+   set the opaque of it to false
    set the rect of it to 40, tCount * 36, 200, tCount * 36 + 28
 end repeat
-set the radioBehavior of group "Size" to true
-set the hilite of button "Medium" to true
-put the hilitedButtonName of group "Size"
-set the hilite of button "Large" to true
-put the hilitedButtonName of group "Size"
-put the hilite of button "Medium"</code></pre>
+set the radioBehavior of group "Size" to true</pre>
+</div>
+<p>One handler in the group's script hears every radio button in it. Give it this one, then click <code>Medium</code> and then <code>Large</code>:</p>
+<figure class="example" id="ex-buttons-radio" data-run="output" data-card="build-radio" data-script='group "Size"' data-click='button "Medium";button "Large"' data-shot="Your card: three radio buttons, Small, Medium and Large, with Large chosen.">
+<pre class="code"><code>on mouseUp
+   put the hilitedButtonName of me
+end mouseUp</code></pre>
 <pre class="out">Medium
-Large
+Large</pre>
+</figure>
+<figure class="example" id="ex-buttons-radio-set" data-run="output" data-card="build-radio" data-in="message">
+<pre class="code"><code>set the hilitedButtonName of group "Size" to "Small"
+put the hilite of button "Small"
+put the hilite of button "Large"</code></pre>
+<pre class="out">true
 false</pre>
 </figure>
 
 <h2 id="menus">Buttons that are menus</h2>
-<p>A button with the style <code>menu</code> shows a menu, and its <code>menuMode</code> says which kind: <code>option</code> (a pop-up list that shows the choice), <code>comboBox</code> (a list you can also type into), <code>pulldown</code>, <code>popup</code> and <code>tabbed</code>. The lines of the button's <code>text</code> are the menu's items.</p>
-<figure class="example" id="ex-buttons-option" data-run="output" data-shot="The stage, with an option menu showing Green, its chosen item.">
-<pre class="code"><code>create button "Colour"
+<p>A button with the style <code>menu</code> shows a menu, and its <code>menuMode</code> says which kind: <code>option</code> (a pop-up list that shows the choice), <code>comboBox</code> (a list you can also type into), <code>pulldown</code>, <code>popup</code> and <code>tabbed</code>. The lines of the button's <code>text</code> are the menu's items: the Inspector calls them <strong>Menu Items</strong>.</p>
+<div class="build" id="build-colour">
+<ol>
+<li>On a new card, drag an <strong>Option Menu</strong> and name it <code>Colour</code>.</li>
+<li>In the Property Inspector's <strong>Basic</strong> section, replace its <strong>Menu Items</strong>, <code>Choice 1</code> to <code>Choice 3</code>, with <code>Red</code>, <code>Green</code> and <code>Blue</code>, a line each.</li>
+</ol>
+<pre class="setup">create button "Colour"
 set the style of it to "menu"
 set the menuMode of it to "option"
 set the rect of it to 40,40,220,70
-set the text of button "Colour" to "Red" &amp; return &amp; "Green" &amp; return &amp; "Blue"
-set the menuHistory of button "Colour" to 2
+set the label of it to "Choice 1"
+set the text of it to "Red" &amp; return &amp; "Green" &amp; return &amp; "Blue"</pre>
+</div>
+<figure class="example" id="ex-buttons-option" data-run="output" data-card="build-colour" data-in="message" data-shot="Your card: an option menu showing Green, its chosen item.">
+<pre class="code"><code>set the menuHistory of button "Colour" to 2
 put the label of button "Colour"
 put the menuHistory of button "Colour"</code></pre>
 <pre class="out">Green
 2</pre>
 </figure>
-<p><code>the menuHistory</code> is the number of the chosen item, and the button's <code>label</code> shows its text.</p>
+<p><code>the menuHistory</code> is the number of the chosen item, and the button's <code>label</code> shows its text. Until something is chosen the label still says <code>Choice 1</code>, from the palette.</p>
 
 <h2 id="menupick">Answering a choice: menuPick</h2>
-<p>When the user picks an item, the button gets the message <code>menuPick</code>, with the item's text as its parameter. Setting the <code>menuHistory</code> from a script sends it too:</p>
-<figure class="example" id="ex-buttons-menupick" data-run="output">
-<pre class="code"><code>create button "Colour"
-set the style of it to "menu"
-set the menuMode of it to "option"
-set the text of button "Colour" to "Red" &amp; return &amp; "Green" &amp; return &amp; "Blue"
-
-on menuPick pItem
+<p>When the user picks an item, the button gets the message <code>menuPick</code>, with the item's text as its parameter. Give the menu <code>Colour</code> this script, and in Run mode choose <code>Blue</code>:</p>
+<figure class="example" id="ex-buttons-menupick-script" data-run="compile" data-card="build-colour" data-script='button "Colour"'>
+<pre class="code"><code>on menuPick pItem
    put "You picked" &amp;&amp; pItem
-end menuPick
-
-set the menuHistory of button "Colour" to 3</code></pre>
+end menuPick</code></pre>
+</figure>
+<p>Setting the <code>menuHistory</code> from a script sends <code>menuPick</code> too, as if the user had chosen:</p>
+<figure class="example" id="ex-buttons-menupick" data-run="output" data-card="build-colour" data-in="message" data-after="ex-buttons-menupick-script">
+<pre class="code"><code>set the menuHistory of button "Colour" to 3</code></pre>
 <pre class="out">You picked Blue</pre>
 </figure>
 <p>A menu's script usually has one <code>menuPick</code> handler with a <code>switch</code> on <code>pItem</code>, one <code>case</code> for each item.</p>
 
 <h2 id="tabs">Tabs</h2>
-<p>A tabbed button draws a row of tabs; picking one sends <code>menuPick</code>, and the script shows the controls that belong to that tab (often a group for each) and hides the others.</p>
-<figure class="example" id="ex-buttons-tabs" data-run="output" data-shot="The stage, with a tab panel whose tabs read General, Display and Advanced, with Display chosen.">
-<pre class="code"><code>create button "Settings"
+<p>The palette's <strong>Tab Panel</strong> is a button whose <code>menuMode</code> is <code>tabbed</code>: it draws a row of tabs, one for each line of its text. Picking one sends <code>menuPick</code>, and the script shows the controls that belong to that tab (often a group for each) and hides the others.</p>
+<div class="build" id="build-tabs">
+<ol>
+<li>On a new card, drag a <strong>Tab Panel</strong>, make it nearly as big as the card, and name it <code>Settings</code>.</li>
+<li>Replace its <strong>Menu Items</strong>, <code>Tab 1</code> to <code>Tab 3</code>, with <code>General</code>, <code>Display</code> and <code>Advanced</code>.</li>
+</ol>
+<pre class="setup">create button "Settings"
 set the style of it to "menu"
 set the menuMode of it to "tabbed"
-set the text of it to "General" &amp; return &amp; "Display" &amp; return &amp; "Advanced"
-set the rect of it to 20,20,460,220
 set the showName of it to false
-set the menuHistory of button "Settings" to 2
+set the text of it to "General" &amp; return &amp; "Display" &amp; return &amp; "Advanced"
+set the rect of it to 20,20,460,220</pre>
+</div>
+<figure class="example" id="ex-buttons-tabs" data-run="output" data-card="build-tabs" data-in="message" data-shot="Your card: a tab panel whose tabs read General, Display and Advanced, with Display chosen.">
+<pre class="code"><code>set the menuHistory of button "Settings" to 2
 put line (the menuHistory of button "Settings") of the text of button "Settings"</code></pre>
 <pre class="out">Display</pre>
 </figure>
 
 <h2 id="enabled">Enabled, disabled and default</h2>
-<p>A button that cannot be used right now should say so: set its <code>enabled</code> to false (or <code>disable</code> it) and it greys out and ignores clicks. The <code>default</code> button of a dialog, the one Return presses, is drawn with a heavier outline on some systems.</p>
-<figure class="example" id="ex-buttons-enabled" data-run="output" data-shot="The stage, with two buttons side by side: Save, greyed out, and Close.">
-<pre class="code"><code>create button "Save"
+<p>A button that cannot be used right now should say so: set its <code>enabled</code> to false (or <code>disable</code> it, or tick <strong>Disabled</strong> in the Inspector) and it greys out and ignores clicks. The <code>default</code> button of a dialog, the one Return presses, is drawn with a heavier outline on some systems: the palette's <strong>Default Button</strong> is a Standard Button with <code>default</code> already true.</p>
+<div class="build" id="build-save-close">
+<ol>
+<li>On a new card, drag two <strong>Standard Buttons</strong> side by side and name them <code>Save</code> and <code>Close</code>.</li>
+</ol>
+<pre class="setup">create button "Save"
 set the rect of it to 40,40,180,76
 create button "Close"
-set the rect of it to 200,40,340,76
-set the enabled of button "Save" to false
+set the rect of it to 200,40,340,76</pre>
+</div>
+<figure class="example" id="ex-buttons-enabled" data-run="output" data-card="build-save-close" data-in="message" data-shot="Your card: two buttons side by side: Save, greyed out, and Close.">
+<pre class="code"><code>set the enabled of button "Save" to false
 put the enabled of button "Save"
 enable button "Save"
 disable button "Save"
@@ -127,29 +192,38 @@ true</pre>
 
 <section class="try" aria-labelledby="try-it">
 <h2 id="try-it">Try it yourself</h2>
-<p>Make an option menu called <code>Pizza</code> with Margherita, Funghi and Diavola, and a checkbox <code>Extra cheese</code>. Write a <code>menuPick</code> handler that puts the order, such as <code>Funghi with extra cheese</code> when the box is ticked. Tick the box, then pick Funghi.</p>
-<details class="solution"><summary>Show a solution</summary>
-<figure class="example" id="ex-buttons-try" data-run="output" data-shot="The stage, with an option menu showing Funghi and a ticked checkbox labelled Extra cheese.">
-<pre class="code"><code>create button "Pizza"
+<p>On a new card, drag an <strong>Option Menu</strong> named <code>Pizza</code> with the items Margherita, Funghi and Diavola, and a <strong>Check Box</strong> named <code>Extra cheese</code>. Write a <code>menuPick</code> handler for the menu that puts the order, such as <code>Funghi with extra cheese</code> when the box is ticked. Then tick the box, and pick Funghi.</p>
+<div class="build" id="build-pizza">
+<ol>
+<li>Drag an <strong>Option Menu</strong>, about 200 points wide, name it <code>Pizza</code>, and make its <strong>Menu Items</strong> <code>Margherita</code>, <code>Funghi</code> and <code>Diavola</code>.</li>
+<li>Drag a <strong>Check Box</strong> under it, about 200 points wide, and name it <code>Extra cheese</code>.</li>
+</ol>
+<pre class="setup">create button "Pizza"
 set the style of it to "menu"
 set the menuMode of it to "option"
 set the rect of it to 40,40,240,70
+set the label of it to "Choice 1"
 set the text of it to "Margherita" &amp; return &amp; "Funghi" &amp; return &amp; "Diavola"
 create button "Extra cheese"
 set the style of it to "checkbox"
 set the showBorder of it to false
 set the hiliteBorder of it to false
-set the rect of it to 40,90,240,120
-
-on menuPick pItem
+set the opaque of it to false
+set the rect of it to 40,90,240,120</pre>
+</div>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-buttons-try-script" data-run="compile" data-card="build-pizza" data-script='button "Pizza"'>
+<pre class="code"><code>on menuPick pItem
    if the hilite of button "Extra cheese" then
       put pItem &amp;&amp; "with extra cheese"
    else
       put pItem
    end if
-end menuPick
-
-set the hilite of button "Extra cheese" to true
+end menuPick</code></pre>
+</figure>
+<p>To try it from the Message Box instead of the mouse:</p>
+<figure class="example" id="ex-buttons-try" data-run="output" data-card="build-pizza" data-in="message" data-after="ex-buttons-try-script" data-shot="Your card: an option menu showing Funghi and a ticked checkbox labelled Extra cheese.">
+<pre class="code"><code>set the hilite of button "Extra cheese" to true
 set the menuHistory of button "Pizza" to 2</code></pre>
 <pre class="out">Funghi with extra cheese</pre>
 </figure>

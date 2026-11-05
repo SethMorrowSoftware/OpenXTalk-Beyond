@@ -67,12 +67,16 @@ palette and names them in the Property Inspector, so a lesson about
 controls says how to build the card, in a <div class="build" id="build-...">
 of steps, and its examples work on that card (data-card="build-..."):
 lines for the Message Box (data-in="message"), or the script of one of
-its controls (data-script='button "Go"') that the reader clicks in Run
-mode (data-click, the controls clicked in order, separated by ";"). The
+its controls (data-script='button "Go"', or a card's) that the reader clicks in Run
+mode (data-click, the controls clicked in order, separated by ";"); and
+data-after names the examples before it whose scripts the reader has
+put in already (ids, separated by ";"). The
 build box also has, in <pre class="setup">, the xTalk that makes the same
 card, as the palette makes it: the check runs it before the example (and
 installs the script and clicks), and the page leaves it out. Such an
-example's Output is what the Message Box shows after each line or click.
+example's Output is what the Message Box shows: what each line put, or,
+for a script, what it shows after each click (a put replaces the one
+before, so a click that puts twice shows the second).
 
 build_pages.py makes the lessons with every site; the Web IDE and the
 Dictionary are linked only when the site has them (the IDE and DICTIONARY
@@ -123,7 +127,7 @@ RESERVED = {'lesson', 'words', 'search-results'}
 BUILD = re.compile(r'<div class="build" id="([^"]*)">(.*?)</div>', re.S)
 SETUP = re.compile(r'\s*<pre class="setup">(.*?)</pre>', re.S)
 # What a palette example names: a control or the card, as a script does
-OBJECT = re.compile(r'^(button|field|graphic|image|scrollbar|player|group) "[^"]+"$|^this card$')
+OBJECT = re.compile(r'^(button|field|graphic|image|scrollbar|player|group|card) "[^"]+"$|^this card$|^this stack$')
 # A line that does not stand alone in the Message Box's single line
 BLOCK_LINE = re.compile(r'^\s*(on|end|repeat|else|function|command|switch|case|default|try|catch|finally)\b'
                         r'|\bthen\s*$|\\\s*$')
@@ -176,7 +180,8 @@ class Examples(html.parser.HTMLParser):
                            'shot': attrs.get('data-shot'), 'at': self.getpos()[0],
                            'card': attrs.get('data-card') or '', 'script': attrs.get('data-script') or '',
                            'click': [c.strip() for c in (attrs.get('data-click') or '').split(';') if c.strip()],
-                           'in': attrs.get('data-in') or ''}
+                           'in': attrs.get('data-in') or '',
+                           'after': [a.strip() for a in (attrs.get('data-after') or '').split(';') if a.strip()]}
             self.depth = 1
             return
         if self.figure is not None:
@@ -274,7 +279,7 @@ def examples(text, builders=None, cards=None):
         cards, more = builds(text)
         problems += more
     seen = set()
-    for e in found:
+    for n, e in enumerate(found):
         where = e['id'] or 'the example at line %d' % e['at']
         if not re.match(r'^ex-[a-z0-9]+(-[a-z0-9]+)*$', e['id']):
             problems.append('%s: an example\'s id is ex- and lower-case words with "-"' % where)
@@ -319,22 +324,39 @@ def examples(text, builders=None, cards=None):
                                     % (where, need, ', '.join(sorted(EXTERNALS))))
             elif not re.match(r'^[a-z0-9]+(\.[a-z0-9-]+)+$', need):
                 problems.append('%s: needs %r, which is not an extension\'s id' % (where, need))
-        problems += palette_problems(e, where, cards)
+        problems += palette_problems(e, where, cards, found[:n])
     if problems:
         raise BuildError('\n'.join(problems))
     return found
 
 
-def palette_problems(e, where, cards):
+def palette_problems(e, where, cards, earlier=()):
     """What is wrong with how example e uses a card the reader builds
-    (and its 'setup', the card's xTalk, is set)."""
+    (and its 'setup', the card's xTalk, is set). earlier: the examples
+    before it on its page, which data-after names: scripts of the same
+    card that the reader has put in before this example (the check puts
+    them in after the card's setup, and e['scripts'] is [(object, script)]
+    for them)."""
     problems = []
     e['setup'] = ''
+    e['scripts'] = []
+    by_id = {x['id']: x for x in earlier}
+    for ident in e['after']:
+        before = by_id.get(ident)
+        if before is None:
+            problems.append('%s: data-after %s is not an example before it on this page' % (where, ident))
+        elif not before['script'] or before['card'] != e['card'] or not e['card']:
+            problems.append('%s: data-after %s is not an object\'s script on the same card (data-card, data-script)'
+                            % (where, ident))
+        else:
+            e['scripts'].append((before['script'], before['code']))
     if e['card']:
         if e['card'] not in cards:
             problems.append('%s: data-card %s is not a build of this page' % (where, e['card']))
         else:
             e['setup'] = cards[e['card']]
+    if 'this stack' in e['click']:
+        problems.append('%s: the reader clicks a control or the card, not the stack' % where)
     for name in ([e['script']] if e['script'] else []) + e['click']:
         if not OBJECT.match(name):
             problems.append('%s: %r is not a control of the card (such as button "Go") or this card' % (where, name))
@@ -354,12 +376,6 @@ def palette_problems(e, where, cards):
         for n, line in enumerate(e['code'].split('\n'), 1):
             if BLOCK_LINE.search(line):
                 problems.append('%s: line %d does not stand alone in the Message Box: make it a script' % (where, n))
-    # the Message Box shows one value at a time: what the last put put
-    # after each click
-    if e['script'] and e['run'] == 'output' and e['out'] is not None:
-        if len(e['out'].split('\n')) > max(1, len(e['click'])):
-            problems.append('%s: the Message Box shows one value a click: an Output of at most %d line(s)'
-                            % (where, max(1, len(e['click']))))
     if e['script'] and e['run'] in ('output', 'runs') and not e['click']:
         problems.append('%s: an object\'s script that runs needs data-click, the controls the reader clicks' % where)
     return problems
@@ -396,6 +412,8 @@ environment version label rect loc width height top left bottom right visible ba
 textcolor textstyle textsize textfont htmltext styledtext hilite behavior pendingmessages
 string number boolean list array data any nothing pointer'''.split())
 DECLARES = {'on', 'command', 'function', 'getprop', 'setprop', 'before', 'after', 'handler'}
+# the blocks "end" also closes, which are not handlers
+BLOCKS = {'if', 'repeat', 'switch', 'try'}
 TOKEN = re.compile(r'''
     (?P<blk>/\*.*?\*/)
   | (?P<str>"[^"\n]*"?)
@@ -408,32 +426,44 @@ TOKEN = re.compile(r'''
 def highlight(code):
     """The code as HTML, its parts in spans: c a comment, s a string, n a
     number, k one of xTalk's words, b a built-in value, h the name a
-    handler is given. Without the spans it is exactly the code, escaped."""
+    handler is given. Without the spans it is exactly the code, escaped.
+
+    A handler's name follows a word that begins a line ("on mouseUp",
+    "private function f", "end mouseUp"), so "put x after msg" leaves
+    msg alone, and "end if" colours if as the word it is."""
     out = []
     declared = False   # the last word began a handler (or ended one)
+    first = True       # no word on this line yet, or only "private"
     for m in TOKEN.finditer(code):
         kind, text = m.lastgroup, m.group()
         esc = html.escape(text, quote=False)
         if kind == 'word':
             low = text.lower()
             if declared:
-                out.append('<span class="h">%s</span>' % esc)
                 declared = False
-                continue
+                if low not in BLOCKS:
+                    out.append('<span class="h">%s</span>' % esc)
+                    first = False
+                    continue
+            starts, first = first, first and low == 'private'
             if low in KEYWORDS:
                 out.append('<span class="k">%s</span>' % esc)
-                # "on mouseUp", "end mouseUp", "private function f"
-                if low in DECLARES or low == 'end':
+                if starts and (low in DECLARES or low == 'end'):
                     declared = True
                 continue
             out.append('<span class="b">%s</span>' % esc if low in BUILTINS else esc)
             continue
         if kind == 'other':
-            if text not in ' \t':
+            if text == '\n':
+                first = True
                 declared = False
+            elif text not in ' \t':
+                declared = first = False
             out.append(esc)
             continue
         declared = False
+        if kind != 'cmt':
+            first = False
         cls = {'blk': 'c', 'cmt': 'c', 'str': 's', 'num': 'n'}[kind]
         out.append('<span class="%s">%s</span>' % (cls, esc))
     return ''.join(out)
@@ -664,6 +694,8 @@ def decorate(body, lesson):
             kind, note = 'Message Box', 'Type each line in the Message Box and press Return'
             if e['run'] == 'error':
                 note = 'It stops with an error'
+            if e['after']:
+                note += ', with the script%s above in place' % ('s' if len(e['after']) > 1 else '')
         elif e['script']:
             kind = 'Script'
             note = 'The script of %s' % html.escape(e['script'])
@@ -685,9 +717,9 @@ def decorate(body, lesson):
         if e['out'] is not None:
             label = OUT_LABEL[e['run']]
             if e['card'] or e['in']:
-                label = ('Message Box <small>(%s)</small>' % ('after each click' if len(e['click']) > 1 else
-                                                               'what it shows' if e['script'] else
-                                                               'what each line shows'))
+                label = ('Message Box <small>(%s)</small>' % ('what it shows after each click' if len(e['click']) > 1
+                                                               else 'what it shows' if e['script'] else
+                                                               'what each put shows'))
             inner = inner.replace('<pre class="out">', '<div class="out-bar">%s</div><pre class="out">'
                                   % label, 1)
         if e['shot'] is not None:

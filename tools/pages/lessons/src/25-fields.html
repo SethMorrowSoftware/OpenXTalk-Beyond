@@ -1,15 +1,21 @@
 <!--
 title: Fields
 level: intermediate
-minutes: 10
-summary: Put text into fields and take it out, style any chunk of it, use a field as a label, a table or a list to choose from.
-words: field, text, htmlText, textStyle, lockText, listBehavior, hilitedLine, selectedText, tabStops, vScrollbar, showBorder
+minutes: 13
+summary: Put text into fields and take it out, style any chunk of it, and use the palette's Label Field, Scrolling Field and Scrolling List Field for labels, long text and lists to choose from.
+words: field, text, htmlText, textStyle, lockText, listBehavior, hilitedLine, selectedText, tabStops, vScrollbar, showBorder, Label Field, Scrolling Field, Scrolling List Field, Text menu
 -->
 <h2 id="containers">A field is a container</h2>
-<p>A <strong>field</strong> holds text the user can read and, unless you lock it, edit. In a script a field works like a variable: you <code>put</code> into it, <code>put</code> after it, read it, and use every chunk expression you know on it.</p>
-<figure class="example" id="ex-fields-container" data-run="output">
-<pre class="code"><code>create field "Notes"
-put "one two three" into field "Notes"
+<p>A <strong>field</strong> holds text the user can read and, unless you lock it, edit: in Run mode, click into a field and type. In a script a field works like a variable: you <code>put</code> into it, <code>put</code> after it, read it, and use every chunk expression you know on it.</p>
+<div class="build" id="build-notes">
+<ol>
+<li>On a new card, drag a <strong>Field</strong>, make it wide, and name it <code>Notes</code>.</li>
+</ol>
+<pre class="setup">create field "Notes"
+set the rect of it to 40,40,340,61</pre>
+</div>
+<figure class="example" id="ex-fields-container" data-run="output" data-card="build-notes" data-in="message">
+<pre class="code"><code>put "one two three" into field "Notes"
 put the number of words of field "Notes"
 put "TWO" into word 2 of field "Notes"
 put " four" after field "Notes"
@@ -18,22 +24,41 @@ put field "Notes"</code></pre>
 one TWO three four</pre>
 </figure>
 <p>A field holding a number can be used in sums, and changed in place:</p>
-<figure class="example" id="ex-fields-number" data-run="output">
-<pre class="code"><code>create field "Score"
+<div class="build" id="build-score">
+<ol>
+<li>On a new card, drag a <strong>Field</strong> and name it <code>Score</code>. In Run mode, click into it and type <code>10</code>.</li>
+<li>Drag a <strong>Standard Button</strong> beside it and name it <code>Add 5</code>.</li>
+</ol>
+<pre class="setup">create field "Score"
+set the rect of it to 40,40,140,61
 put 10 into field "Score"
-add 5 to field "Score"
-put field "Score" * 2</code></pre>
-<pre class="out">30</pre>
+create button "Add 5"
+set the rect of it to 160,40,242,63</pre>
+</div>
+<figure class="example" id="ex-fields-number" data-run="output" data-card="build-score" data-script='button "Add 5"' data-click='button "Add 5";button "Add 5"'>
+<pre class="code"><code>on mouseUp
+   add 5 to field "Score"
+   put field "Score" * 2
+end mouseUp</code></pre>
+<pre class="out">30
+40</pre>
 </figure>
+<p>The field says 15 after the first click and 20 after the second, and the Message Box shows twice that.</p>
 
 <h2 id="styling">Styling part of the text</h2>
-<p>Every text property can be set for a chunk of a field, not just the whole field: a word in bold, a line in another colour, a few characters bigger. A field gives every line the same height unless its <code>fixedLineHeight</code> is false, so turn that off when some lines are bigger than others.</p>
-<figure class="example" id="ex-fields-chunk-style" data-run="output" data-shot="The stage, with a field holding three lines: The rain in Spain with rain in bold, falls mainly in large type, and on the plain in blue.">
-<pre class="code"><code>create field "Poem"
+<p>Every text property can be set for a chunk of a field, not just the whole field: a word in bold, a line in another colour, a few characters bigger. By hand, select the text in Run mode and choose from the <strong>Text</strong> menu: <kbd>Text &gt; Bold</kbd>, <kbd>Text &gt; Size</kbd>, <kbd>Text &gt; Color</kbd>. A script names the chunk. A field gives every line the same height unless its <code>fixedLineHeight</code> (the Inspector's <strong>Fixed line height</strong>, in <strong>Text</strong>) is false, so turn that off when some lines are bigger than others.</p>
+<div class="build" id="build-poem">
+<ol>
+<li>On a new card, drag a <strong>Field</strong>, make it big, and name it <code>Poem</code>. In the Property Inspector's <strong>Text</strong> section, turn off <strong>Fixed line height</strong>.</li>
+<li>In Run mode, type three lines into it: <code>The rain in Spain</code>, <code>falls mainly</code>, <code>on the plain</code>.</li>
+</ol>
+<pre class="setup">create field "Poem"
 set the rect of it to 40,40,440,200
 set the fixedLineHeight of it to false
-put "The rain in Spain" &amp; return &amp; "falls mainly" &amp; return &amp; "on the plain" into field "Poem"
-set the textStyle of word 2 of line 1 of field "Poem" to "bold"
+put "The rain in Spain" &amp; return &amp; "falls mainly" &amp; return &amp; "on the plain" into field "Poem"</pre>
+</div>
+<figure class="example" id="ex-fields-chunk-style" data-run="output" data-card="build-poem" data-in="message" data-shot="Your card: a field holding three lines: The rain in Spain with rain in bold, falls mainly in large type, and on the plain in blue with plain on yellow.">
+<pre class="code"><code>set the textStyle of word 2 of line 1 of field "Poem" to "bold"
 set the textSize of line 2 of field "Poem" to 24
 set the textColor of line 3 of field "Poem" to "blue"
 set the backgroundColor of word 2 of line 3 of field "Poem" to "yellow"
@@ -42,24 +67,36 @@ put the textStyle of word 2 of line 1 of field "Poem"</code></pre>
 </figure>
 
 <h2 id="htmltext">Text with its styles: htmlText</h2>
-<p><code>the text</code> of a field is its plain characters. <code>the htmlText</code> is the same text with its styles, in a small dialect of HTML. You can read it to save a field's look, and set it to fill a field with styled text in one go:</p>
-<figure class="example" id="ex-fields-htmltext" data-run="output" data-shot="The stage, with a field that reads Some bold and italic and red, each word in its style.">
-<pre class="code"><code>create field "Styled"
+<p><code>the text</code> of a field is its plain characters. <code>the htmlText</code> is the same text with its styles, in a small dialect of HTML. You can read it to save a field's look, and set it to fill a field with styled text in one go.</p>
+<div class="build" id="build-styled">
+<ol>
+<li>On a new card, drag a <strong>Field</strong>, make it wide, name it <code>Styled</code>, and set its <strong>Text size</strong> to 18.</li>
+<li>In Run mode, type <code>Some bold and italic and red</code>. Double-click the word <code>bold</code> and choose <kbd>Text &gt; Bold</kbd>, the word <code>italic</code> and choose <kbd>Text &gt; Italic</kbd>, and the word <code>red</code> and choose <kbd>Text &gt; Color &gt; Red</kbd>.</li>
+</ol>
+<pre class="setup">create field "Styled"
 set the rect of it to 40,40,440,100
 set the textSize of it to 18
-set the htmlText of field "Styled" to "&lt;p&gt;Some &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt; and" &amp;&amp; \
-      "&lt;font color=" &amp; quote &amp; "#FF0000" &amp; quote &amp; "&gt;red&lt;/font&gt;&lt;/p&gt;"
-put the text of field "Styled"
+put "Some bold and italic and red" into field "Styled"
+set the textStyle of word 2 of field "Styled" to "bold"
+set the textStyle of word 4 of field "Styled" to "italic"
+set the textColor of word 6 of field "Styled" to "#FF0000"</pre>
+</div>
+<figure class="example" id="ex-fields-htmltext" data-run="output" data-card="build-styled" data-in="message" data-shot="Your card: a field that reads Some bold and italic and red, each word in its style.">
+<pre class="code"><code>put the text of field "Styled"
 put the htmlText of field "Styled"</code></pre>
 <pre class="out">Some bold and italic and red
 &lt;p&gt;Some &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt; and &lt;font color="#FF0000"&gt;red&lt;/font&gt;&lt;/p&gt;</pre>
 </figure>
 <aside class="tip"><p>To copy text with its styles from one field to another, <code>set the htmlText of field "B" to the htmlText of field "A"</code>. A plain <code>put field "A" into field "B"</code> copies only the characters.</p></aside>
 
-<h2 id="labels">Fields as labels</h2>
-<p>Most text you see in a program that the user cannot change, titles, captions, a score, is a field with its border and background turned off and its text locked:</p>
-<figure class="example" id="ex-fields-label" data-run="output" data-shot="The stage, with a large bold title Weekly report written straight onto the card, and a smaller caption below it.">
-<pre class="code"><code>create field "Title"
+<h2 id="labels">Label fields</h2>
+<p>Most text you see in a program that the user cannot change, titles, captions, a score, is a field with its border and background turned off and its text locked. The Tools palette has one ready made: the <strong>Label Field</strong>.</p>
+<div class="build" id="build-labels">
+<ol>
+<li>On a new card, drag a <strong>Label Field</strong> to the top, make it wide, and name it <code>Title</code>. In the Property Inspector's <strong>Text</strong> section set its <strong>Text size</strong> to 30, its <strong>Text style</strong> to bold and its <strong>Text align</strong> to left, and in <strong>Contents</strong> replace <code>Label:</code> with <code>Weekly report</code>.</li>
+<li>Drag a second <strong>Label Field</strong> under it, name it <code>Caption</code>, align it left, set its <strong>Text color</strong> (in <strong>Colors</strong>) to a slate grey, and make its contents <code>Everything sold this week, by day</code>.</li>
+</ol>
+<pre class="setup">create field "Title"
 set the rect of it to 30,30,450,80
 set the textSize of it to 30
 set the textStyle of it to "bold"
@@ -70,74 +107,127 @@ repeat for each item tField in "Title,Caption"
    set the showBorder of field tField to false
    set the opaque of field tField to false
    set the lockText of field tField to true
+   set the dontWrap of field tField to true
+   set the textAlign of field tField to "left"
 end repeat
 put "Weekly report" into field "Title"
-put "Everything sold this week, by day" into field "Caption"
-put the lockText of field "Title"</code></pre>
-<pre class="out">true</pre>
+put "Everything sold this week, by day" into field "Caption"</pre>
+</div>
+<figure class="example" id="ex-fields-label" data-run="output" data-card="build-labels" data-in="message" data-shot="Your card: a large bold title Weekly report written straight onto the card, and a smaller grey caption below it.">
+<pre class="code"><code>put the lockText of field "Title"
+put the showBorder of field "Title"
+put the opaque of field "Title"</code></pre>
+<pre class="out">true
+false
+false</pre>
 </figure>
-<p>With <code>lockText</code> true the user cannot type into the field, and a click on it sends <code>mouseUp</code> to it like a button's.</p>
+<p>Those three properties are all that makes a field a label, and you can set them on any field: <strong>Lock text</strong>, <strong>Show border</strong> and <strong>Opaque</strong> in the Inspector's <strong>Basic</strong> section. With <code>lockText</code> true the user cannot type into the field, and a click on it sends <code>mouseUp</code> to it like a button's.</p>
 
 <h2 id="tables">Columns with tabs</h2>
-<p>A tab character moves the text on to the next <strong>tab stop</strong>. Set a field's <code>tabStops</code> and lines with tabs between their parts line up as a table. In the script, set the <code>itemDelimiter</code> to tab and each column is an item:</p>
-<figure class="example" id="ex-fields-tabs" data-run="output" data-shot="The stage, with a field showing a small table with the columns Name, Age and Town in bold, and rows for Ada and Alan.">
-<pre class="code"><code>create field "Table"
+<p>A tab character moves the text on to the next <strong>tab stop</strong>. Set a field's <code>tabStops</code> (the Inspector's <strong>Tab stops</strong>, in its <strong>Table</strong> section) and lines with tabs between their parts line up as a table. In a script, set the <code>itemDelimiter</code> to tab and each column is an item.</p>
+<div class="build" id="build-table">
+<ol>
+<li>On a new card, drag a <strong>Field</strong> to the top, make it nearly as wide as the card and about 90 points high, and name it <code>Table</code>. In the Property Inspector's <strong>Table</strong> section set its <strong>Tab stops</strong> to <code>150,300</code>.</li>
+<li>Drag a <strong>Standard Button</strong> under it and name it <code>Fill</code>.</li>
+</ol>
+<pre class="setup">create field "Table"
 set the rect of it to 20,20,460,110
-set the tabStops of field "Table" to 150,300
-put "Name" &amp; tab &amp; "Age" &amp; tab &amp; "Town" &amp; return &amp; \
-      "Ada" &amp; tab &amp; "36" &amp; tab &amp; "London" &amp; return &amp; \
-      "Alan" &amp; tab &amp; "41" &amp; tab &amp; "Manchester" into field "Table"
-set the textStyle of line 1 of field "Table" to "bold"
-set the itemDelimiter to tab
-put item 3 of line 3 of field "Table"</code></pre>
+set the tabStops of it to 150,300
+create button "Fill"
+set the rect of it to 20,130,102,153</pre>
+</div>
+<figure class="example" id="ex-fields-tabs" data-run="output" data-card="build-table" data-script='button "Fill"' data-click='button "Fill"' data-shot="Your card: a field showing a small table with the columns Name, Age and Town in bold, and rows for Ada and Alan, with the Fill button below.">
+<pre class="code"><code>on mouseUp
+   put "Name" &amp; tab &amp; "Age" &amp; tab &amp; "Town" &amp; return &amp; \
+         "Ada" &amp; tab &amp; "36" &amp; tab &amp; "London" &amp; return &amp; \
+         "Alan" &amp; tab &amp; "41" &amp; tab &amp; "Manchester" into field "Table"
+   set the textStyle of line 1 of field "Table" to "bold"
+   set the itemDelimiter to tab
+   put item 3 of line 3 of field "Table"
+end mouseUp</code></pre>
 <pre class="out">Manchester</pre>
 </figure>
-<p>For bigger tables, with columns the user can sort and resize, OXT-Beyond has the Data Grid, which its own guide covers in Help &gt; Guides.</p>
+<p>The backslashes join three lines of the script into one statement, as in <a href="../text-and-numbers/#long-lines">Text and numbers</a>. For bigger tables, with columns the user can sort and resize, drag a <strong>Data Grid</strong> from the palette: its own guide is in Help &gt; Guides.</p>
 
 <h2 id="lists">A list to choose from</h2>
-<p>Set a locked field's <code>listBehavior</code> to true and it becomes a list: a click highlights a whole line. <code>the hilitedLine</code> says which line is chosen (and setting it chooses one), and <code>the selectedText</code> gives its text.</p>
-<figure class="example" id="ex-fields-list" data-run="output" data-shot="The stage, with a list field of three fruits, Apple, Pear and Plum, with Pear highlighted.">
-<pre class="code"><code>create field "Fruit"
+<p>A locked field whose <code>listBehavior</code> is true is a list: a click highlights a whole line. The palette's <strong>Scrolling List Field</strong> is one, with a scroll bar. <code>the hilitedLine</code> says which line is chosen (and setting it chooses one), and <code>the selectedText</code> gives its text.</p>
+<div class="build" id="build-fruit-list">
+<ol>
+<li>On a new card, drag a <strong>Scrolling List Field</strong>, make it about 200 points wide and 90 high, and name it <code>Fruit</code>.</li>
+<li>In the Property Inspector's <strong>Contents</strong> section, replace <code>Choice 1</code>, <code>Choice 2</code> and <code>Choice 3</code> with <code>Apple</code>, <code>Pear</code> and <code>Plum</code>, a line each.</li>
+</ol>
+<pre class="setup">create field "Fruit"
 set the rect of it to 40,40,240,130
 set the lockText of it to true
 set the listBehavior of it to true
-put "Apple" &amp; return &amp; "Pear" &amp; return &amp; "Plum" into field "Fruit"
-set the hilitedLine of field "Fruit" to 2
+set the vScrollbar of it to true
+put "Apple" &amp; return &amp; "Pear" &amp; return &amp; "Plum" into field "Fruit"</pre>
+</div>
+<figure class="example" id="ex-fields-list" data-run="output" data-card="build-fruit-list" data-in="message" data-shot="Your card: a scrolling list field of three fruits, Apple, Pear and Plum, with Pear highlighted.">
+<pre class="code"><code>set the hilitedLine of field "Fruit" to 2
 put the hilitedLine of field "Fruit"
 put the selectedText of field "Fruit"</code></pre>
 <pre class="out">2
 Pear</pre>
 </figure>
-<p>A list field sends <code>mouseUp</code> when a line is clicked, so its script can read <code>the selectedText of me</code> and act on the choice.</p>
+<p>A list field sends <code>mouseUp</code> when a line is clicked, so its own script can read <code>the selectedText of me</code> and act on the choice. Give the list this script, and click a fruit in Run mode:</p>
+<figure class="example" id="ex-fields-list-script" data-run="compile" data-card="build-fruit-list" data-script='field "Fruit"'>
+<pre class="code"><code>on mouseUp
+   put "You chose" &amp;&amp; the selectedText of me
+end mouseUp</code></pre>
+</figure>
+<figure class="example" id="ex-fields-list-click" data-run="output" data-card="build-fruit-list" data-in="message" data-after="ex-fields-list-script">
+<pre class="code"><code>set the hilitedLine of field "Fruit" to 3
+send "mouseUp" to field "Fruit"</code></pre>
+<pre class="out">You chose Plum</pre>
+</figure>
+<p>The Message Box lines do what a click on <code>Plum</code> does: choose the line, then send <code>mouseUp</code>.</p>
 
 <h2 id="long-text">Long text: scrolling</h2>
-<p>A field with more text than fits can have a scroll bar: set its <code>vScrollbar</code> to true. Its <code>scroll</code> property is how far down it is scrolled, in points.</p>
-<figure class="example" id="ex-fields-scroll" data-run="output" data-shot="The stage, with a field showing the first lines of a long list, Line 1, Line 2 and so on, with a scroll bar on its right.">
-<pre class="code"><code>create field "Long"
+<p>A field with more text than fits needs a scroll bar: the palette's <strong>Scrolling Field</strong> has one, and on any field you can turn on <strong>Vertical scrollbar</strong> in the Inspector (the <code>vScrollbar</code> property). Its <code>scroll</code> property is how far down it is scrolled, in points.</p>
+<div class="build" id="build-long">
+<ol>
+<li>On a new card, drag a <strong>Scrolling Field</strong>, make it about 260 points wide and 160 high, and name it <code>Long</code>.</li>
+<li>Drag a <strong>Standard Button</strong> beside it and name it <code>Fill</code>.</li>
+</ol>
+<pre class="setup">create field "Long"
 set the rect of it to 40,40,300,200
 set the vScrollbar of it to true
-repeat with i = 1 to 30
-   put "Line" &amp;&amp; i &amp; return after tText
-end repeat
-put tText into field "Long"
-put the number of lines of field "Long"</code></pre>
+create button "Fill"
+set the rect of it to 320,40,402,63</pre>
+</div>
+<figure class="example" id="ex-fields-scroll" data-run="output" data-card="build-long" data-script='button "Fill"' data-click='button "Fill"' data-shot="Your card: a field showing the first lines of a long list, Line 1, Line 2 and so on, with a scroll bar on its right, and the Fill button beside it.">
+<pre class="code"><code>on mouseUp
+   repeat with i = 1 to 30
+      put "Line" &amp;&amp; i &amp; return after tText
+   end repeat
+   put tText into field "Long"
+   put the number of lines of field "Long"
+end mouseUp</code></pre>
 <pre class="out">30</pre>
 </figure>
 <aside class="tip"><p>Build long text in a variable and put it into the field once, as here. Putting into a field a line at a time makes it redraw every time, which is much slower when there are thousands of lines.</p></aside>
 
 <section class="try" aria-labelledby="try-it">
 <h2 id="try-it">Try it yourself</h2>
-<p>Make a list field of the days of the week, with Wednesday chosen, and every day of the weekend in red.</p>
-<details class="solution"><summary>Show a solution</summary>
-<figure class="example" id="ex-fields-try" data-run="output" data-shot="The stage, with a list of the seven days of the week, Wednesday highlighted and Saturday and Sunday in red.">
-<pre class="code"><code>create field "Days"
+<p>Make a list of the days of the week: drag a <strong>Scrolling List Field</strong>, name it <code>Days</code>, make it tall enough for seven lines, and type the days into its <strong>Contents</strong>, Monday first. Then, in the Message Box, choose Wednesday, make the weekend red, and put the chosen day.</p>
+<div class="build" id="build-days">
+<ol>
+<li>Drag a <strong>Scrolling List Field</strong>, about 200 points wide and 140 high, and name it <code>Days</code>.</li>
+<li>In its <strong>Contents</strong>, type the days of the week from Monday to Sunday, a line each.</li>
+</ol>
+<pre class="setup">create field "Days"
 set the rect of it to 40,30,240,170
 set the lockText of it to true
 set the listBehavior of it to true
+set the vScrollbar of it to true
 put "Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday" into tDays
 replace comma with return in tDays
-put tDays into field "Days"
-set the textColor of line 6 to 7 of field "Days" to "red"
+put tDays into field "Days"</pre>
+</div>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-fields-try" data-run="output" data-card="build-days" data-in="message" data-shot="Your card: a list of the seven days of the week, Wednesday highlighted and Saturday and Sunday in red.">
+<pre class="code"><code>set the textColor of line 6 to 7 of field "Days" to "red"
 set the hilitedLine of field "Days" to 3
 put the selectedText of field "Days"</code></pre>
 <pre class="out">Wednesday</pre>

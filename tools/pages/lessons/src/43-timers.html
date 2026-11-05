@@ -33,7 +33,7 @@ waited for it</pre>
 <aside class="warn"><p>A <code>wait until</code> without <code>with messages</code> waits forever for a condition that only a message could change: nothing can run to change it.</p></aside>
 
 <h2 id="send-in">Later: send in</h2>
-<p>Usually you do not want to wait at all: you want something to happen later while the program goes on. <code>send</code> with <code>in</code> and a time does exactly that. It sets a <strong>timer</strong> and returns at once; when the time comes, the message arrives like any other:</p>
+<p>Usually you do not want to wait at all: you want something to happen later while the program goes on. <code>send</code> (<a href="../events/#send-dispatch">Messages and events</a>) with <code>in</code> and a time does exactly that. It sets a <strong>timer</strong> and returns at once; when the time comes, the message arrives like any other:</p>
 <figure class="example" id="ex-timers-send" data-run="output" data-wait="1">
 <pre class="code"><code>on ring pTimes
    put "Ring!" &amp;&amp; pTimes &amp;&amp; "times"

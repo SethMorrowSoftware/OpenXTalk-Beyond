@@ -1,15 +1,21 @@
 <!--
 title: Custom properties
 level: intermediate
-minutes: 8
+minutes: 10
 summary: Give any object properties of your own, which it keeps when the stack is saved, and group them in sets and arrays.
 words: custom property, set, the, customKeys, customProperties, customPropertySet, customPropertySets
 -->
 <h2 id="your-own">Properties of your own</h2>
 <p>Besides the properties xTalk gives every object, an object can hold <strong>custom properties</strong>: any name you choose, any value you like. You set and read them exactly like built-in ones. The usual habit is to start their names with <code>c</code> (or <code>u</code>, for "user"), so they never clash with a property xTalk may add one day.</p>
-<figure class="example" id="ex-custom-first" data-run="output">
-<pre class="code"><code>create button "Lamp"
-set the cIsOn of button "Lamp" to true
+<div class="build" id="build-lamp">
+<ol>
+<li>On a new card, drag a <strong>Standard Button</strong> and name it <code>Lamp</code>.</li>
+</ol>
+<pre class="setup">create button "Lamp"
+set the rect of it to 40,40,122,63</pre>
+</div>
+<figure class="example" id="ex-custom-first" data-run="output" data-card="build-lamp" data-in="message">
+<pre class="code"><code>set the cIsOn of button "Lamp" to true
 set the cWatts of button "Lamp" to 60
 put the cIsOn of button "Lamp"
 put the cWatts of button "Lamp" * 2
@@ -18,71 +24,89 @@ put "[" &amp; the cColour of button "Lamp" &amp; "]"</code></pre>
 120
 []</pre>
 </figure>
-<p>A custom property nobody has set is simply empty.</p>
+<p>A custom property nobody has set is simply empty. Select the button and open the Property Inspector's <strong>Custom Properties</strong> section: <code>cIsOn</code> and <code>cWatts</code> are listed there with their values, and you can add, change and delete custom properties by hand too.</p>
 
 <h2 id="why">Why not a variable?</h2>
-<p>A variable lasts as long as the program runs. A custom property belongs to its object, so it is <strong>saved with the stack</strong>: close the stack, open it next week, and the value is still there. That makes custom properties the natural place for:</p>
+<p>A variable lasts no longer than the program runs (<a href="../scope/">Where variables live</a>). A custom property belongs to its object, so it is <strong>saved with the stack</strong>: close the stack, open it next week, and the value is still there. That makes custom properties the natural place for:</p>
 <ul>
 <li>settings and preferences: <code>the cSoundOn of this stack</code></li>
 <li>the state of an object: how many times a button was clicked, which page a book was left open at</li>
 <li>data an object carries: the price of a product card, the answer to a quiz question</li>
 </ul>
-<figure class="example" id="ex-custom-state" data-run="output" data-shot="The stage, with a wide button labelled Clicked 4 times.">
-<pre class="code"><code>create button "Counter"
-set the rect of it to 140,150,340,200
-set the cClicks of button "Counter" to 0
-
-on mouseUp
-   set the cClicks of the target to the cClicks of the target + 1
-   set the label of the target to "Clicked" &amp;&amp; the cClicks of the target &amp;&amp; "times"
-end mouseUp
-
-repeat 4 times
-   send "mouseUp" to button "Counter"
-end repeat
-put the label of button "Counter"</code></pre>
-<pre class="out">Clicked 4 times</pre>
+<div class="build" id="build-counter">
+<ol>
+<li>On a new card, drag a <strong>Standard Button</strong>, make it about 200 points wide and 50 high, and name it <code>Counter</code>.</li>
+</ol>
+<pre class="setup">create button "Counter"
+set the rect of it to 140,150,340,200</pre>
+</div>
+<figure class="example" id="ex-custom-state" data-run="output" data-card="build-counter" data-script='button "Counter"' data-click='button "Counter";button "Counter";button "Counter";button "Counter"' data-shot="Your card: a wide button labelled Clicked 4 times.">
+<pre class="code"><code>on mouseUp
+   set the cClicks of me to the cClicks of me + 1
+   set the label of me to "Clicked" &amp;&amp; the cClicks of me &amp;&amp; "times"
+   put the cClicks of me
+end mouseUp</code></pre>
+<pre class="out">1
+2
+3
+4</pre>
 </figure>
-<p>Click the button on the stage and it goes on counting: the count lives in the button, not in a variable of the script.</p>
-<aside class="note"><p>Only a stack that is saved keeps its values. The stage is made anew at every run, so its properties last only until the next one; in your own stacks they last for good.</p></aside>
+<p>The first click finds <code>cClicks</code> empty, which counts as 0 in a sum. The count lives in the button, not in a variable of the script: save the stack (<kbd>File &gt; Save</kbd>), close it, open it again, and the next click says 5.</p>
 
 <h2 id="customkeys">Listing them</h2>
 <p><code>the customKeys</code> of an object lists the names of its custom properties, and <code>the customProperties</code> gives them all as an array. Setting <code>the customProperties</code> to an array replaces them all at once:</p>
-<figure class="example" id="ex-custom-keys" data-run="output">
-<pre class="code"><code>create button "Product"
-put "Teapot" into tProps["cName"]
-put 24.5 into tProps["cPrice"]
-set the customProperties of button "Product" to tProps
-put the cPrice of button "Product"
-put the customKeys of button "Product" into tKeys
-sort tKeys
-put tKeys</code></pre>
-<pre class="out">24.5
-cName
+<div class="build" id="build-product">
+<ol>
+<li>On a new card, drag a <strong>Standard Button</strong> and name it <code>Product</code>.</li>
+</ol>
+<pre class="setup">create button "Product"
+set the rect of it to 40,40,122,63</pre>
+</div>
+<figure class="example" id="ex-custom-keys" data-run="output" data-card="build-product" data-script='button "Product"' data-click='button "Product"'>
+<pre class="code"><code>on mouseUp
+   put "Teapot" into tProps["cName"]
+   put 24.5 into tProps["cPrice"]
+   set the customProperties of me to tProps
+   put the customKeys of me into tKeys
+   sort tKeys
+   put tKeys
+end mouseUp</code></pre>
+<pre class="out">cName
 cPrice</pre>
 </figure>
+<p>After the click, <code>put the cPrice of button "Product"</code> in the Message Box says 24.5.</p>
 
 <h2 id="arrays">Properties with keys</h2>
-<p>A custom property can be read and set a key at a time, which groups related values under one name. The group is called a <strong>custom property set</strong>, and <code>the customProperties</code> with its name gives the whole set as an array:</p>
-<figure class="example" id="ex-custom-set-keys" data-run="output">
-<pre class="code"><code>create button "Book"
-set the cInfo["title"] of button "Book" to "Alice"
+<p>A custom property can be read and set a key at a time, which groups related values under one name. The group is called a <strong>custom property set</strong>: <code>the customProperties</code> with its name gives the whole set as an array, and <code>the customKeys</code> with its name lists its keys.</p>
+<div class="build" id="build-book">
+<ol>
+<li>On a new card, drag a <strong>Standard Button</strong> and name it <code>Book</code>.</li>
+</ol>
+<pre class="setup">create button "Book"
+set the rect of it to 40,40,122,63</pre>
+</div>
+<figure class="example" id="ex-custom-set-keys" data-run="output" data-card="build-book" data-in="message">
+<pre class="code"><code>set the cInfo["title"] of button "Book" to "Alice"
 set the cInfo["year"] of button "Book" to 1865
 put the cInfo["title"] of button "Book"
-put the customProperties["cInfo"] of button "Book" into tInfo
-put the keys of tInfo into tKeys
-sort tKeys
-put tKeys</code></pre>
+put the cInfo["year"] of button "Book"
+put the number of lines of the customKeys["cInfo"] of button "Book"</code></pre>
 <pre class="out">Alice
-title
-year</pre>
+1865
+2</pre>
 </figure>
 
 <h2 id="sets">Switching sets</h2>
 <p>An object can have several sets, and its <code>customPropertySet</code> says which one plain <code>the cName</code> reads and writes. One use is translation: a set for each language, with the same names in each, and the stack switches between them.</p>
-<figure class="example" id="ex-custom-sets" data-run="output">
-<pre class="code"><code>create button "Greeting"
-set the customPropertySet of button "Greeting" to "French"
+<div class="build" id="build-greeting-button">
+<ol>
+<li>On a new card, drag a <strong>Standard Button</strong> and name it <code>Greeting</code>.</li>
+</ol>
+<pre class="setup">create button "Greeting"
+set the rect of it to 40,40,122,63</pre>
+</div>
+<figure class="example" id="ex-custom-sets" data-run="output" data-card="build-greeting-button" data-in="message">
+<pre class="code"><code>set the customPropertySet of button "Greeting" to "French"
 set the cHello of button "Greeting" to "Bonjour"
 set the customPropertySet of button "Greeting" to "English"
 set the cHello of button "Greeting" to "Hello"
@@ -92,6 +116,7 @@ put the cHello of button "Greeting"</code></pre>
 <pre class="out">Hello
 Bonjour</pre>
 </figure>
+<p>The Inspector's <strong>Custom Properties</strong> section has a menu of the object's sets, to look at each one.</p>
 
 <h2 id="typos">The other side of the coin</h2>
 <p>Because any unknown name makes a custom property, a misspelled built-in property quietly creates one instead of failing, as <a href="../properties/#typos">Properties</a> showed. The <code>c</code> at the front of your own names helps here too: a property without it should be one of xTalk's.</p>
@@ -99,21 +124,33 @@ Bonjour</pre>
 
 <section class="try" aria-labelledby="try-it">
 <h2 id="try-it">Try it yourself</h2>
-<p>Make three buttons for products, each with a <code>cPrice</code>: a pen at 1.5, a notebook at 4 and a bag at 25. Then go through the buttons and put the total price.</p>
-<details class="solution"><summary>Show a solution</summary>
-<figure class="example" id="ex-custom-try" data-run="output">
-<pre class="code"><code>put "pen=1.5,notebook=4,bag=25" into tPrices
-split tPrices by comma and "="
-repeat for each key tProduct in tPrices
+<p>On a new card, drag three <strong>Standard Buttons</strong> for products, <code>Pen</code>, <code>Notebook</code> and <code>Bag</code>, and give each a <code>cPrice</code> in the Inspector's <strong>Custom Properties</strong>: 1.5, 4 and 25. Then add a fourth button, <code>Total</code>, whose script goes through the buttons and puts the total price.</p>
+<div class="build" id="build-products">
+<ol>
+<li>Drag three <strong>Standard Buttons</strong> in a row and name them <code>Pen</code>, <code>Notebook</code> and <code>Bag</code>.</li>
+<li>For each, in the Property Inspector's <strong>Custom Properties</strong>, add a property <code>cPrice</code>: 1.5 for the pen, 4 for the notebook and 25 for the bag.</li>
+<li>Drag a fourth <strong>Standard Button</strong> under them and name it <code>Total</code>.</li>
+</ol>
+<pre class="setup">repeat for each item tProduct in "Pen,Notebook,Bag"
+   add 1 to tCount
    create button tProduct
-   set the cPrice of it to tPrices[tProduct]
+   set the rect of it to tCount * 100 - 60, 40, tCount * 100 + 22, 63
+   set the cPrice of it to item tCount of "1.5,4,25"
 end repeat
-put 0 into tTotal
-repeat with i = 1 to the number of buttons
-   add the cPrice of button i to tTotal
-end repeat
-put tTotal</code></pre>
+create button "Total"
+set the rect of it to 40,80,122,103</pre>
+</div>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-custom-try" data-run="output" data-card="build-products" data-script='button "Total"' data-click='button "Total"'>
+<pre class="code"><code>on mouseUp
+   put 0 into tTotal
+   repeat with i = 1 to the number of buttons
+      add the cPrice of button i to tTotal
+   end repeat
+   put tTotal
+end mouseUp</code></pre>
 <pre class="out">30.5</pre>
 </figure>
+<p>The button <code>Total</code> has no <code>cPrice</code>, and an empty value adds nothing.</p>
 </details>
 </section>

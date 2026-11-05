@@ -45,7 +45,7 @@ delete file tPath</code></pre>
 <pre class="out">9
 café ☕</pre>
 </figure>
-<aside class="tip"><p>For text in any language, the safe pair is <code>textEncode(tText, "UTF-8")</code> into a <code>binfile:</code> URL to write, and <code>textDecode(URL ("binfile:" &amp; tPath), "UTF-8")</code> to read, so the encoding is always UTF-8, whatever system the stack runs on.</p></aside>
+<aside class="tip"><p>For text in any language, the safe pair is <code>textEncode(tText, "UTF-8")</code> into a <code>binfile:</code> URL to write (<a href="../unicode/#encodings">Unicode and text encodings</a>), and <code>textDecode(URL ("binfile:" &amp; tPath), "UTF-8")</code> to read, so the encoding is always UTF-8, whatever system the stack runs on.</p></aside>
 
 <h2 id="where">Where to keep files</h2>
 <p>A program should not scatter files anywhere. <code>specialFolderPath</code> gives the right folder on every system:</p>

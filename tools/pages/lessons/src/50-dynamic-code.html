@@ -77,7 +77,7 @@ end repeat</code></pre>
 <pre class="out">double of 9 is 18
 square of 9 is 81</pre>
 </figure>
-<aside class="tip"><p>Prefer <code>dispatch</code> to <code>do</code> whenever you can. The parameters go as values, so text with quotes or returns in it cannot break the call, and nothing but the handler you named can run.</p></aside>
+<aside class="tip"><p>Prefer <code>dispatch</code> (<a href="../events/#send-dispatch">Messages and events</a>) to <code>do</code> whenever you can. The parameters go as values, so text with quotes or returns in it cannot break the call, and nothing but the handler you named can run.</p></aside>
 
 <h2 id="merge">merge with code in it</h2>
 <p><code>merge</code> (<a href="../formatting/#merge">Formatting</a>) also runs code written between <code>&lt;?</code> and <code>?&gt;</code>: whatever the code returns takes its place. It suits a template with a decision in it:</p>

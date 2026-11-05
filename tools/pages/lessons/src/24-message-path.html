@@ -1,9 +1,9 @@
 <!--
 title: The message path
 level: intermediate
-minutes: 9
+minutes: 11
 summary: Where a message goes when its object does not handle it, how pass sends it further, and how to use the path to share code.
-words: message path, pass, the target, me, group, card, stack, set the script of
+words: message path, pass, the target, me, group, Group Selected, card script, stack script, put after msg
 -->
 <h2 id="the-path">The road a message takes</h2>
 <p>A message does not stop at the object it was sent to. If that object has no handler for it, it travels along the <strong>message path</strong>, through every object that holds it, until a handler answers it or it reaches the engine:</p>
@@ -16,92 +16,121 @@ words: message path, pass, the target, me, group, card, stack, set the script of
 <li>libraries and back scripts the program has added (<a href="../libraries/">Libraries</a> shows how)</li>
 <li>the engine, which does its default job for messages it knows, and nothing for the rest</li>
 </ol>
-<p>The first handler on the way runs, and the message stops there.</p>
-<figure class="example" id="ex-path-stops" data-run="output">
-<pre class="code"><code>create button "B"
-set the script of this card to \
-      "on mouseUp" &amp; return &amp; \
-      "   put" &amp;&amp; quote &amp; "the card handled it" &amp; quote &amp; return &amp; \
-      "end mouseUp"
-
-on mouseUp
+<p>The first handler on the way runs, and the message stops there. Every object on the path has a script of its own: the Object menu opens them (<kbd>Object &gt; Object Script</kbd> for what is selected, <kbd>Object &gt; Card Script</kbd>, <kbd>Object &gt; Stack Script</kbd>).</p>
+<div class="build" id="build-path">
+<ol>
+<li>On a new card, drag a <strong>Standard Button</strong> and name it <code>B</code>. Leave its script empty.</li>
+<li>Put the first handler below in the stack's script (<kbd>Object &gt; Stack Script</kbd>), and the second in the card's (<kbd>Object &gt; Card Script</kbd>).</li>
+</ol>
+<pre class="setup">create button "B"
+set the rect of it to 40,40,122,63</pre>
+</div>
+<figure class="example" id="ex-path-stack-script" data-run="compile" data-card="build-path" data-script="this stack">
+<pre class="code"><code>on mouseUp
    put "the stack handled it"
-end mouseUp
-
-send "mouseUp" to button "B"</code></pre>
+end mouseUp</code></pre>
+</figure>
+<figure class="example" id="ex-path-stops" data-run="output" data-card="build-path" data-script="this card" data-click='button "B"' data-after="ex-path-stack-script">
+<pre class="code"><code>on mouseUp
+   put "the card handled it"
+end mouseUp</code></pre>
 <pre class="out">the card handled it</pre>
 </figure>
-<p>The button has no script, so the message went to the card. The card had a handler, so the stack's handler, further along, never heard of the click.</p>
+<p>Click <code>B</code> in Run mode. The button has no script, so the message went to the card. The card had a handler, so the stack's handler, further along, never heard of the click. Click the card itself, away from the button, and the card's handler answers that click too.</p>
 
 <h2 id="pass">Sending it on with pass</h2>
-<p>A handler that has done its part can let the message carry on with <code>pass</code>. Each object on the path gets its turn:</p>
-<figure class="example" id="ex-path-pass" data-run="output">
-<pre class="code"><code>create button "B"
-set the script of button "B" to \
-      "on mouseUp" &amp; return &amp; \
-      "   put 1 &amp;&amp; the short name of me" &amp; return &amp; \
-      "   pass mouseUp" &amp; return &amp; \
-      "end mouseUp"
-set the script of this card to \
-      "on mouseUp" &amp; return &amp; \
-      "   put 2 &amp;&amp; word 1 of the name of me" &amp; return &amp; \
-      "   pass mouseUp" &amp; return &amp; \
-      "end mouseUp"
-
-on mouseUp
-   put 3 &amp;&amp; "the stack"
-end mouseUp
-
-send "mouseUp" to button "B"</code></pre>
+<p>A handler that has done its part can let the message carry on with <code>pass</code>, and each object on the path gets its turn. To see every turn in the Message Box at once, these handlers add to what it shows with <code>put ... after msg</code> (<code>msg</code> is short for the Message Box) instead of replacing it:</p>
+<div class="build" id="build-pass">
+<ol>
+<li>On a new card, drag a <strong>Standard Button</strong> and name it <code>B</code>.</li>
+<li>Put the three scripts below in the stack, the card and the button.</li>
+</ol>
+<pre class="setup">create button "B"
+set the rect of it to 40,40,122,63</pre>
+</div>
+<figure class="example" id="ex-path-pass-stack" data-run="compile" data-card="build-pass" data-script="this stack">
+<pre class="code"><code>on mouseUp
+   put return &amp; "3 the stack" after msg
+end mouseUp</code></pre>
+</figure>
+<figure class="example" id="ex-path-pass-card" data-run="compile" data-card="build-pass" data-script="this card">
+<pre class="code"><code>on mouseUp
+   put return &amp; "2" &amp;&amp; word 1 of the name of me after msg
+   pass mouseUp
+end mouseUp</code></pre>
+</figure>
+<figure class="example" id="ex-path-pass" data-run="output" data-card="build-pass" data-script='button "B"' data-click='button "B"' data-after="ex-path-pass-stack;ex-path-pass-card">
+<pre class="code"><code>on mouseUp
+   put "1" &amp;&amp; the short name of me into msg
+   pass mouseUp
+end mouseUp</code></pre>
 <pre class="out">1 B
 2 card
 3 the stack</pre>
 </figure>
-<p>Inside each handler, <code>me</code> is the object whose script is running: first the button, then the card. <code>the target</code> stays the button all the way.</p>
+<p>Inside each handler, <code>me</code> is the object whose script is running: first the button, then the card. <code>the target</code> stays the button all the way. Take <code>pass mouseUp</code> out of the card's script, click again, and the stack's line is gone.</p>
 <aside class="warn"><p>A handler for a message the engine itself acts on, such as <code>keyDown</code> or <code>closeStack</code>, <em>stops</em> that action unless it passes the message. A <code>keyDown</code> handler without <code>pass keyDown</code> means the field never gets the key.</p></aside>
 
 <h2 id="groups">Groups on the path</h2>
 <p>A group sits between its controls and the card, so a group's script can serve every control inside it. That is a neat way to build a panel of buttons that share one handler:</p>
-<figure class="example" id="ex-path-group" data-run="output" data-shot="The stage, with a group of three buttons labelled Small, Medium and Large in a column.">
-<pre class="code"><code>create group "Sizes"
+<div class="build" id="build-sizes">
+<ol>
+<li>On a new card, drag three <strong>Standard Buttons</strong> into a column, about 160 points wide, and name them <code>Small</code>, <code>Medium</code> and <code>Large</code>.</li>
+<li>Select all three (drag a rectangle around them in Edit mode, or click each with <kbd>Shift</kbd> held) and choose <kbd>Object &gt; Group Selected</kbd>.</li>
+<li>With the group selected, name it <code>Sizes</code> in the Property Inspector, and open its script with <kbd>Object &gt; Object Script</kbd>.</li>
+</ol>
+<pre class="setup">create group "Sizes"
 repeat for each item tSize in "Small,Medium,Large"
    add 1 to tCount
    create button tSize in group "Sizes"
    set the rect of it to 60, tCount * 50, 220, tCount * 50 + 36
-end repeat
-set the script of group "Sizes" to \
-      "on mouseUp" &amp; return &amp; \
-      "   put" &amp;&amp; quote &amp; "Size chosen:" &amp; quote &amp;&amp; "&amp;&amp; the short name of the target" &amp; return &amp; \
-      "end mouseUp"
-send "mouseUp" to button "Medium"
-put the number of controls of group "Sizes"</code></pre>
+end repeat</pre>
+</div>
+<figure class="example" id="ex-path-group" data-run="output" data-card="build-sizes" data-script='group "Sizes"' data-click='button "Medium";button "Large"' data-shot="Your card: a group of three buttons labelled Small, Medium and Large in a column.">
+<pre class="code"><code>on mouseUp
+   put "Size chosen:" &amp;&amp; the short name of the target
+end mouseUp</code></pre>
 <pre class="out">Size chosen: Medium
-3</pre>
+Size chosen: Large</pre>
 </figure>
+<p>Clicking a grouped control in Edit mode selects the whole group. To change one of its buttons, choose <kbd>Object &gt; Edit Group</kbd> first, or turn on <kbd>Edit &gt; Select Grouped Controls</kbd>.</p>
 
 <h2 id="sharing">Sharing handlers up the path</h2>
 <p>Commands and functions travel the same path. A function in the stack's script can be called from any button, field or card in the stack, so the stack is the natural home for code that many objects use:</p>
-<figure class="example" id="ex-path-shared-function" data-run="output">
+<div class="build" id="build-shared">
+<ol>
+<li>On a new card, drag a <strong>Standard Button</strong> and name it <code>B</code>.</li>
+<li>Put the function below in the stack's script, and the handler after it in the button's.</li>
+</ol>
+<pre class="setup">create button "B"
+set the rect of it to 40,40,122,63</pre>
+</div>
+<figure class="example" id="ex-path-shared-stack" data-run="compile" data-card="build-shared" data-script="this stack">
 <pre class="code"><code>function doubled pN
    return pN * 2
-end doubled
-
-create button "B"
-set the script of button "B" to \
-      "on mouseUp" &amp; return &amp; \
-      "   put doubled(21)" &amp; return &amp; \
-      "end mouseUp"
-send "mouseUp" to button "B"</code></pre>
+end doubled</code></pre>
+</figure>
+<figure class="example" id="ex-path-shared-function" data-run="output" data-card="build-shared" data-script='button "B"' data-click='button "B"' data-after="ex-path-shared-stack">
+<pre class="code"><code>on mouseUp
+   put doubled(21)
+end mouseUp</code></pre>
 <pre class="out">42</pre>
 </figure>
-<p>The reverse is not true: the stack cannot call a handler that lives in a button's script by name, because the stack is not on the button's path. To run it, <code>send</code> the message to the button.</p>
-<figure class="example" id="ex-path-down" data-run="output">
-<pre class="code"><code>create button "Helper"
-set the script of button "Helper" to \
-      "on tidyUp" &amp; return &amp; \
-      "   put" &amp;&amp; quote &amp; "tidied by the button" &amp; quote &amp; return &amp; \
-      "end tidyUp"
-send "tidyUp" to button "Helper"</code></pre>
+<p>The reverse is not true: the stack cannot call a handler that lives in a button's script by name, because the stack is not on the button's path. To run it, <code>send</code> (<a href="../events/#send-dispatch">Messages and events</a>) the message to the button. Drag another <strong>Standard Button</strong>, name it <code>Helper</code>, and give it a handler of its own:</p>
+<div class="build" id="build-helper">
+<ol>
+<li>Drag a <strong>Standard Button</strong> onto a card and name it <code>Helper</code>.</li>
+</ol>
+<pre class="setup">create button "Helper"
+set the rect of it to 40,40,122,63</pre>
+</div>
+<figure class="example" id="ex-path-helper" data-run="compile" data-card="build-helper" data-script='button "Helper"'>
+<pre class="code"><code>on tidyUp
+   put "tidied by the button"
+end tidyUp</code></pre>
+</figure>
+<figure class="example" id="ex-path-down" data-run="output" data-card="build-helper" data-in="message" data-after="ex-path-helper">
+<pre class="code"><code>send "tidyUp" to button "Helper"</code></pre>
 <pre class="out">tidied by the button</pre>
 </figure>
 
@@ -109,32 +138,37 @@ send "tidyUp" to button "Helper"</code></pre>
 <ul>
 <li>In the <strong>control</strong>, when it is about that control alone: what this button does when clicked.</li>
 <li>In a <strong>group</strong>, for controls that work together, like a set of tool buttons.</li>
-<li>In the <strong>card</strong>, for what belongs to one screen: getting it ready in <code>openCard</code>.</li>
+<li>In the <strong>card</strong>, for what belongs to one screen: getting it ready in <code>openCard</code> (<a href="../cards-navigation/#opencard">Cards and going between them</a>).</li>
 <li>In the <strong>stack</strong>, for anything the whole program needs: helper functions, saving, starting up.</li>
 </ul>
 <aside class="legacy"><p>The message path is one of HyperCard's big ideas, and it has hardly changed since 1987: button, card, background, stack, Home. In OXT-Beyond a HyperCard background becomes a group shared by several cards, and keeps its place on the path.</p></aside>
 
 <section class="try" aria-labelledby="try-it">
 <h2 id="try-it">Try it yourself</h2>
-<p>Give a button a <code>mouseUp</code> handler that puts <code>button first</code> and passes the message, and give the card one that puts <code>card next</code> and does not pass it. Put a <code>mouseUp</code> handler in the playground's code that puts <code>stack last</code>. Send <code>mouseUp</code> to the button: which lines appear, and why?</p>
+<p>On a new card, drag a <strong>Standard Button</strong> named <code>B</code>. Give it a <code>mouseUp</code> handler that puts <code>button first</code> into the Message Box and passes the message; give the card one that adds <code>card next</code> on a new line and does not pass it; and give the stack one that adds <code>stack last</code>. Click the button: which lines appear, and why?</p>
+<div class="build" id="build-try-path">
+<ol>
+<li>Drag a <strong>Standard Button</strong> onto a card and name it <code>B</code>.</li>
+</ol>
+<pre class="setup">create button "B"
+set the rect of it to 40,40,122,63</pre>
+</div>
 <details class="solution"><summary>Show a solution</summary>
-<figure class="example" id="ex-path-try" data-run="output">
-<pre class="code"><code>create button "B"
-set the script of button "B" to \
-      "on mouseUp" &amp; return &amp; \
-      "   put" &amp;&amp; quote &amp; "button first" &amp; quote &amp; return &amp; \
-      "   pass mouseUp" &amp; return &amp; \
-      "end mouseUp"
-set the script of this card to \
-      "on mouseUp" &amp; return &amp; \
-      "   put" &amp;&amp; quote &amp; "card next" &amp; quote &amp; return &amp; \
-      "end mouseUp"
-
-on mouseUp
-   put "stack last"
-end mouseUp
-
-send "mouseUp" to button "B"</code></pre>
+<figure class="example" id="ex-path-try-stack" data-run="compile" data-card="build-try-path" data-script="this stack">
+<pre class="code"><code>on mouseUp
+   put return &amp; "stack last" after msg
+end mouseUp</code></pre>
+</figure>
+<figure class="example" id="ex-path-try-card" data-run="compile" data-card="build-try-path" data-script="this card">
+<pre class="code"><code>on mouseUp
+   put return &amp; "card next" after msg
+end mouseUp</code></pre>
+</figure>
+<figure class="example" id="ex-path-try" data-run="output" data-card="build-try-path" data-script='button "B"' data-click='button "B"' data-after="ex-path-try-stack;ex-path-try-card">
+<pre class="code"><code>on mouseUp
+   put "button first" into msg
+   pass mouseUp
+end mouseUp</code></pre>
 <pre class="out">button first
 card next</pre>
 </figure>

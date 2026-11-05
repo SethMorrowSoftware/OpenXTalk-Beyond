@@ -153,25 +153,61 @@ def xt_text(text):
                                for line in text.split('\n'))
 
 
-def palette_code(e):
+# Between two values the Message Box showed, in an example's .msg file
+SHOWN = '\x1e'
+
+
+# After a script is put into an object: it must compile
+COMPILED = 'if the result is not empty then throw "the script of %s does not compile:" && the result'
+
+
+def palette_code(e, shown=None):
     """What the check runs for an example on a card the reader builds
     (build_lessons.py: data-card): the xTalk that makes the card as the
     Tools palette and the Property Inspector do, then the example's lines
     for the Message Box, or its script put into its object; then the
     clicks the reader makes in Run mode. Its second value is how many
-    lines come before the example's own, for the line of an error."""
-    lines = e['setup'].split('\n')
-    if e['script']:
+    lines come before the example's own, for the line of an error. The
+    scripts the reader put in before it (data-after) go in after the
+    card's setup.
+
+    After each click it keeps what the Message Box shows (msg: a put
+    replaces the one before), and writes them to the file shown, each
+    followed by SHOWN: that, not every put, is what the page's Output
+    says a click shows."""
+    # the card is built, and the scripts put in, with messages locked: as
+    # the reader builds it before the scripts that would answer them are
+    # there (a new card's openCard to the stack's script, say)
+    lines = ['lock messages'] + e['setup'].split('\n')
+    # the stack's script: the check's card is the playground's stage, whose
+    # script the Academy makes from the handlers of the code it runs (and
+    # its own, which keep what the code puts), so the stack's handlers go
+    # at the end of the code, where the Academy takes them from
+    stack = []
+    for name, script in e.get('scripts', []):
+        if name == 'this stack':
+            stack.append(script)
+        else:
+            lines.append('set the script of %s to %s' % (name, xt_text(script)))
+            lines.append(COMPILED % name.replace('"', "'"))
+    if e['script'] == 'this stack':
+        stack.append(e['code'])
+    elif e['script']:
         lines.append('set the script of %s to %s' % (e['script'], xt_text(e['code'])))
-        lines.append('if the result is not empty then throw "the script of %s does not compile:" && the result'
-                     % e['script'].replace('"', "'"))
-        before = len(lines)
-    else:
-        before = len(lines)
+        lines.append(COMPILED % e['script'].replace('"', "'"))
+    lines.append('unlock messages')
+    before = len(lines)
+    if not e['script']:
         lines += e['code'].split('\n')
-    for name in e['click']:
-        lines.append('oxtLessonClick the long id of %s' % name)
-    return '\n'.join(lines) + '\n' + CLICK.strip('\n'), before
+    if e['click']:
+        lines.append('put empty into msg')
+        lines.append('put empty into tOxtShown')
+        for name in e['click']:
+            lines.append('oxtLessonClick the long id of %s' % name)
+            lines.append('put msg & numToChar(%d) after tOxtShown' % ord(SHOWN))
+        if shown:
+            lines.append('put textEncode(tOxtShown, "UTF-8") into URL %s' % xt_text('binfile:' + shown))
+    return '\n'.join(lines + [CLICK.strip('\n')] + stack), before
 
 
 def compare(example, res, out):
@@ -196,7 +232,8 @@ def compare(example, res, out):
     if not ok:
         return ['it stopped with an error%s' % why]
     if run == 'output' and out != example['out']:
-        return ['it put\n%s\nnot\n%s' % (indent(out), indent(example['out']))]
+        return ['%s\n%s\nnot\n%s' % ('after each click the Message Box showed' if example.get('click') else 'it put',
+                                      indent(out), indent(example['out']))]
     if run == 'runs' and len(out.split('\n')) != len(example['out'].split('\n')):
         return ['it put %d lines, not %d as its Output shows:\n%s'
                 % (len(out.split('\n')), len(example['out'].split('\n')), indent(out))]
@@ -562,7 +599,7 @@ def run(found, engine, toolset, extensions, args, work):
                 needs.append(need)
         code = e['code']
         if e.get('card') and e['run'] != 'compile':
-            code, e['before'] = palette_code(e)
+            code, e['before'] = palette_code(e, os.path.join(work, name + '.msg').replace('\\', '/'))
         with open(os.path.join(work, name + '.xt'), 'w', encoding='utf-8', newline='\n') as f:
             f.write(code)
         with open(os.path.join(work, name + '.how'), 'w', encoding='utf-8', newline='\n') as f:
@@ -608,7 +645,15 @@ def run(found, engine, toolset, extensions, args, work):
             res = f.read().replace('\r\n', '\n').split('\n')
         with open(os.path.join(work, name + '.out'), encoding='utf-8', newline='') as f:
             put = f.read().replace('\r\n', '\n')
+        # an example the reader clicks: what the Message Box showed after
+        # each click (palette_code)
+        shown = os.path.join(work, name + '.msg')
+        if e.get('click') and e['run'] != 'compile' and os.path.isfile(shown):
+            with open(shown, encoding='utf-8', newline='') as f:
+                put = '\n'.join(f.read().replace('\r\n', '\n').split(SHOWN)[:-1])
         found_problems = compare(e, res, put)
+        if e.get('click') and e['run'] != 'compile' and res[:1] == ['ok'] and not os.path.isfile(shown):
+            found_problems.append('the check kept no record of what the Message Box showed after each click')
         if e['shot'] is not None:
             found_problems += check_shot(e, os.path.join(work, name + '.png'), pinned, args, bool(found_problems))
         if found_problems:

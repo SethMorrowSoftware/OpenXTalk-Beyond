@@ -96,7 +96,7 @@ put "Score:" &amp;&amp; gScore</code></pre>
 <pre class="out">Score: 15</pre>
 </figure>
 <p>A global nobody has put anything into is <code>empty</code>, and it lasts until you quit, even after the stack that made it closes.</p>
-<aside class="warn"><p>Globals are easy to reach for and hard to live with: any script anywhere can change them, so when one holds the wrong value it is hard to find out who did it. Prefer parameters and script locals, and keep globals for the few things that truly belong to the whole program. The <code>g</code> at the front of a global's name is a warning to every reader.</p></aside>
+<aside class="warn"><p>Globals are easy to reach for and hard to live with: any script anywhere can change them, so when one holds the wrong value it is hard to find out who did it. Prefer parameters, script locals and, for what belongs to an object, <a href="../custom-properties/">custom properties</a>, and keep globals for the few things that truly belong to the whole program. The <code>g</code> at the front of a global's name is a warning to every reader.</p></aside>
 
 <h2 id="constants">Constants: names that never change</h2>
 <p>A <strong>constant</strong> is a name for a value that stays the same while the program runs. Write it once, at the top, and use its name everywhere. When the value changes in a later version, you change one line.</p>

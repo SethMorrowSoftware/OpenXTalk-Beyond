@@ -96,12 +96,12 @@ ok ""</pre>
 <h2 id="usual-suspects">5. The usual suspects</h2>
 <p>Most bugs in xTalk are one of a handful. Check these first:</p>
 <ul>
-<li><strong>A misspelled variable</strong>, which xTalk reads as its own name, as text. Turn on Variable Checking (<kbd>Edit &gt; Options &gt; Variable Checking</kbd> in the Script Editor) and these become errors.</li>
+<li><strong>A misspelled variable</strong>, which xTalk reads as its own name, as text. Turn on Variable Checking (<kbd>Edit &gt; Options &gt; Variable Checking</kbd> in the Script Editor) and these become errors (<a href="../scope/#declaring">Where variables live</a>).</li>
 <li><strong>A misspelled property</strong>, which silently becomes a custom property (<a href="../properties/#typos">Properties</a>).</li>
 <li><strong>The wrong order of operations</strong>, as above: add brackets.</li>
 <li><strong>A trailing return or space</strong> in a value, which makes <code>is</code> say false: compare <code>the length</code> of the two values.</li>
-<li><strong>A message that never arrives</strong>: a handler further down the message path caught it and did not <code>pass</code> it.</li>
-<li><strong>The wrong itemDelimiter</strong>, left set to something else by earlier code.</li>
+<li><strong>A message that never arrives</strong>: a handler further along the <a href="../message-path/">message path</a> caught it and did not <code>pass</code> it.</li>
+<li><strong>The wrong itemDelimiter</strong> (<a href="../chunks/#delimiters">Chunks</a>), left set to something else by earlier code.</li>
 </ul>
 <figure class="example" id="ex-debug-trailing" data-run="output">
 <pre class="code"><code>put "yes" &amp; return into tAnswer

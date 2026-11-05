@@ -6,6 +6,7 @@ summary: Move controls smoothly with move, animate frame by frame with a timer, 
 words: move, without waiting, the movingControls, lock screen, unlock screen, arrowKey, keyDown, intersect, randomSeed, loc, the long id
 -->
 <h2 id="move">Moving a control: move</h2>
+<aside class="note"><p>The examples in this lesson make their controls with <code>create</code> (<a href="../stacks-cards-controls/#script-made">Making controls from a script</a>), so that each one runs in the playground in one piece. In a stack of your own you would drag the same controls from the Tools palette, name them in the Property Inspector, and put the handlers into their scripts: the code works the same either way.</p></aside>
 <p>The simplest animation is one command. <code>move</code> slides a control to a point over a time you give, and the engine draws every step between. Give it a list of points, such as a graphic's <code>points</code>, and it follows them one after another:</p>
 <figure class="example" id="ex-anim-move" data-run="output" data-shot="The stage, with a grey dashed zigzag line from the bottom left to the top right, and an orange ball at its top right end, where the move finished.">
 <pre class="code"><code>create graphic "Path"
@@ -81,7 +82,7 @@ stepBall</code></pre>
 <ul>
 <li><strong>Keep the long id.</strong> After <code>create</code>, <code>it</code> is the new control's long id (<a href="../referring-to-objects/">Referring to objects</a>). Kept in a script local, it finds the control from any handler, whichever stack is in front when the timer fires. A name such as <code>graphic "Ball"</code> is looked for on the card in front, which, when a timer fires, may be another window's.</li>
 <li><strong>Measure from <code>me</code>.</strong> <code>the width of me</code> is the width of the card or stack whose script this is, which is the same whichever window is in front.</li>
-<li><strong>Lock the screen.</strong> <code>lock screen</code> holds what is drawn until <code>unlock screen</code>, so the ball's two moves and the trail's new point appear together, as one frame, never half done.</li>
+<li><strong>Lock the screen.</strong> <code>lock screen</code> (<a href="../performance/#screen">Making code fast</a>) holds what is drawn until <code>unlock screen</code>, so the ball's two moves and the trail's new point appear together, as one frame, never half done.</li>
 </ul>
 
 <h2 id="keys">The arrow keys</h2>

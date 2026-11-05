@@ -65,6 +65,7 @@ put the cName of button "Forgetful" is empty</code></pre>
 </figure>
 
 <h2 id="path">One handler for many objects</h2>
+<aside class="note"><p>The examples in this lesson make their controls with <code>create</code> (<a href="../stacks-cards-controls/#script-made">Making controls from a script</a>), so that each one runs in the playground in one piece. In a stack of your own you would drag the same controls from the Tools palette, name them in the Property Inspector, and put the handlers into their scripts: the code works the same either way.</p></aside>
 <p><code>getprop</code> and <code>setprop</code> are messages, sent to the object whose property is used, so they travel the message path like any other. A handler further along it, in a card, a stack, a <a href="../behaviors/">behavior</a> or a library, can serve every object below it. <code>the target</code> is the object whose property it is:</p>
 <figure class="example" id="ex-gp-path" data-run="output">
 <pre class="code"><code>set the script of this card to \

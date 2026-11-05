@@ -73,7 +73,7 @@ delete file tPath</code></pre>
 </figure>
 
 <h2 id="base64">base64: bytes as text</h2>
-<p>Some places only take text: an email, a JSON document, a URL, a field. <code>base64Encode</code> writes any data as plain letters, digits, <code>+</code> and <code>/</code>, a third longer than the data, and <code>base64Decode</code> gives the bytes back exactly:</p>
+<p>Some places only take text: an email, a <a href="../json/">JSON</a> document, a <a href="../internet/#parameters">URL</a>, a field. <code>base64Encode</code> writes any data as plain letters, digits, <code>+</code> and <code>/</code>, a third longer than the data, and <code>base64Decode</code> gives the bytes back exactly:</p>
 <figure class="example" id="ex-bin-base64" data-run="output">
 <pre class="code"><code>put numToByte(0) &amp; numToByte(1) &amp; numToByte(254) &amp; numToByte(255) into tData
 put base64Encode(tData) into tText

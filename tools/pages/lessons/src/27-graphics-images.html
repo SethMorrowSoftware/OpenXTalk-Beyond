@@ -1,140 +1,199 @@
 <!--
 title: Graphics and images
 level: intermediate
-minutes: 10
-summary: Draw shapes, lines and polygons with graphics, fill them with colours and gradients, and paint an image pixel by pixel.
-words: graphic, style, points, polySides, roundRadius, arcAngle, lineSize, filled, fillGradient, endArrow, blendLevel, image, imageData
+minutes: 13
+summary: Draw shapes, lines and polygons from the palette's Shapes, change them from xTalk, fill them with colours and gradients, and paint an image pixel by pixel.
+words: graphic, style, points, polySides, roundRadius, arcAngle, lineSize, filled, opaque, fillGradient, endArrow, blendLevel, image, imageData, Shapes
 -->
 <h2 id="shapes">Shapes</h2>
-<p>A <strong>graphic</strong> is a shape the engine draws: it stays sharp at any size, and you can change it at any time by setting its properties. Its <code>style</code> is one of <code>rectangle</code>, <code>roundRect</code>, <code>oval</code>, <code>line</code>, <code>polygon</code>, <code>curve</code> and <code>regular</code> (a regular polygon).</p>
-<figure class="example" id="ex-gfx-shapes" data-run="output" data-shot="The stage, with four filled shapes in a row: a violet rounded rectangle, a teal hexagon, a gold circle with a quarter cut out, and an orange triangle.">
-<pre class="code"><code>create graphic "Rounded"
+<p>A <strong>graphic</strong> is a shape the engine draws: it stays sharp at any size, and you can change it at any time by setting its properties. The <strong>Shapes</strong> section of the Tools palette has a tile for each kind, from a <strong>Rectangle Graphic</strong> to a <strong>Five Point Star Graphic</strong>. Whichever you drag, its <code>style</code> is one of <code>rectangle</code>, <code>roundRect</code>, <code>oval</code>, <code>line</code>, <code>polygon</code>, <code>curve</code> and <code>regular</code> (a regular polygon), and the Inspector's <strong>Basic</strong> section has the properties of that style.</p>
+<div class="build" id="build-shapes">
+<ol>
+<li>On a new card, drag four shapes into a row, each about 100 points square: a <strong>Round Rectangle Graphic</strong> named <code>Rounded</code>, a <strong>Regular Polygon Graphic</strong> named <code>Hex</code>, an <strong>Oval Graphic</strong> named <code>Pie</code>, and another <strong>Regular Polygon Graphic</strong> named <code>Triangle</code>.</li>
+<li>In the Property Inspector's <strong>Basic</strong> section, set the <strong>Corner radius</strong> of <code>Rounded</code> to 24, the <strong>Sides</strong> of <code>Hex</code> to 6 and of <code>Triangle</code> to 3, and the <strong>Arc</strong> of <code>Pie</code> to 270.</li>
+<li>Give each a <strong>Fill color</strong>: violet, teal, gold and orange.</li>
+</ol>
+<pre class="setup">create graphic "Rounded"
 set the style of it to "roundRect"
 set the roundRadius of it to 24
 set the rect of it to 20,120,120,220
 set the backgroundColor of it to "#B69CFF"
-
 create graphic "Hex"
 set the style of it to "regular"
 set the polySides of it to 6
 set the rect of it to 135,120,235,220
 set the backgroundColor of it to "#5FE0CF"
-
 create graphic "Pie"
 set the style of it to "oval"
 set the arcAngle of it to 270
 set the rect of it to 250,120,350,220
 set the backgroundColor of it to "gold"
-
 create graphic "Triangle"
-set the style of it to "polygon"
-set the points of it to "415,120" &amp; return &amp; "465,220" &amp; return &amp; "365,220" &amp; return &amp; "415,120"
+set the style of it to "regular"
+set the polySides of it to 3
+set the rect of it to 365,120,465,220
 set the backgroundColor of it to "#FF7A00"
-
-repeat with i = 1 to the number of graphics
-   set the filled of graphic i to true
-end repeat
+repeat with i = 1 to 4
+   set the opaque of graphic i to true
+end repeat</pre>
+</div>
+<figure class="example" id="ex-gfx-shapes" data-run="output" data-card="build-shapes" data-in="message" data-shot="Your card: four filled shapes in a row: a violet rounded rectangle, a teal hexagon, a gold circle with a quarter cut out, and an orange triangle.">
+<pre class="code"><code>put the style of graphic "Hex"
+put the polySides of graphic "Hex"
+put the arcAngle of graphic "Pie"
 put the number of graphics</code></pre>
-<pre class="out">4</pre>
+<pre class="out">regular
+6
+270
+4</pre>
 </figure>
-<p>A shape is filled with its <code>backgroundColor</code> when its <code>filled</code> is true, and drawn round with its <code>foregroundColor</code> (or <code>borderColor</code>) at its <code>lineSize</code>. Set the <code>lineSize</code> to 0 for a shape with no outline.</p>
+<p>A shape is filled with its <code>backgroundColor</code> when its <code>filled</code> (or <code>opaque</code>: they are the same property) is true, as it is for the palette's shapes, and drawn round with its <code>foregroundColor</code> at its <code>lineSize</code> (<strong>Line thickness</strong>). Set the <code>lineSize</code> to 0 for a shape with no outline.</p>
 
 <h2 id="lines-and-points">Lines, polygons and points</h2>
-<p>A line or polygon is a list of <strong>points</strong>, one <code>x,y</code> a line. A line can have an arrowhead at either end:</p>
-<figure class="example" id="ex-gfx-arrow" data-run="output" data-shot="The stage, with a thick horizontal arrow pointing right across the middle.">
-<pre class="code"><code>create graphic "Arrow"
+<p>A line or polygon is a list of <strong>points</strong>, one <code>x,y</code> a line, which the Inspector shows in its <strong>Points</strong> box. A line can have an arrowhead at either end (<strong>Start arrow</strong> and <strong>End arrow</strong>):</p>
+<div class="build" id="build-arrow">
+<ol>
+<li>On a new card, drag a <strong>Line Graphic</strong> and name it <code>Arrow</code>.</li>
+<li>In the Property Inspector's <strong>Basic</strong> section, set its <strong>Line thickness</strong> to 6 and tick <strong>End arrow</strong>.</li>
+</ol>
+<pre class="setup">create graphic "Arrow"
 set the style of it to "line"
-set the points of it to "60,180" &amp; return &amp; "420,180"
+set the points of it to "40,40" &amp; return &amp; "140,40"
 set the lineSize of it to 6
-set the endArrow of it to true
+set the endArrow of it to true</pre>
+</div>
+<figure class="example" id="ex-gfx-arrow" data-run="output" data-card="build-arrow" data-in="message" data-shot="Your card: a thick horizontal arrow pointing right across the middle.">
+<pre class="code"><code>set the points of graphic "Arrow" to "60,180" &amp; return &amp; "420,180"
 put the style of graphic "Arrow"
 put the points of graphic "Arrow"</code></pre>
 <pre class="out">line
 60,180
 420,180</pre>
 </figure>
-<p>Points are numbers, so a script can work them out. Here a little trigonometry from <a href="../math-functions/#trigonometry">Math functions</a> places the ten corners of a star:</p>
-<figure class="example" id="ex-gfx-star" data-run="output" data-shot="The stage, with a large five-pointed yellow star in the middle.">
-<pre class="code"><code>repeat with i = 0 to 9
-   if i mod 2 is 0 then
-      put 140 into tRadius
-   else
-      put 56 into tRadius
-   end if
-   put round(240 + tRadius * sin(i * pi / 5)) &amp; comma &amp; \
-         round(190 - tRadius * cos(i * pi / 5)) &amp; return after tPoints
-end repeat
-put line 1 of tPoints after tPoints
-create graphic "Star"
-set the style of it to "polygon"
-set the points of it to tPoints
-set the filled of it to true
+<p>Setting the points moved the arrow and stretched it to run between them. Points are numbers, so a script can work them out. Here a little trigonometry from <a href="../math-functions/#trigonometry">Math functions</a> places the ten corners of a star, and turns a palette shape into it:</p>
+<div class="build" id="build-star">
+<ol>
+<li>On a new card, drag any shape, a <strong>Regular Polygon Graphic</strong> say, and name it <code>Star</code>. Give it a pale yellow <strong>Fill color</strong>.</li>
+<li>Drag a <strong>Standard Button</strong> to a corner and name it <code>Draw</code>.</li>
+</ol>
+<pre class="setup">create graphic "Star"
+set the style of it to "regular"
+set the opaque of it to true
 set the backgroundColor of it to "#FFD479"
-put the number of lines of the points of graphic "Star"</code></pre>
+set the rect of it to 40,40,140,140
+create button "Draw"
+set the rect of it to 20,320,102,343</pre>
+</div>
+<figure class="example" id="ex-gfx-star" data-run="output" data-card="build-star" data-script='button "Draw"' data-click='button "Draw"' data-shot="Your card: a large five-pointed yellow star in the middle, and the Draw button in a corner.">
+<pre class="code"><code>on mouseUp
+   repeat with i = 0 to 9
+      if i mod 2 is 0 then
+         put 140 into tRadius
+      else
+         put 56 into tRadius
+      end if
+      put round(240 + tRadius * sin(i * pi / 5)) &amp; comma &amp; \
+            round(190 - tRadius * cos(i * pi / 5)) &amp; return after tPoints
+   end repeat
+   put line 1 of tPoints after tPoints
+   set the style of graphic "Star" to "polygon"
+   set the points of graphic "Star" to tPoints
+   put the number of lines of the points of graphic "Star"
+end mouseUp</code></pre>
 <pre class="out">11</pre>
 </figure>
-<p>The last point repeats the first, which closes the shape.</p>
+<p>The last point repeats the first, which closes the shape. (For a star by hand, the palette's <strong>Five Point Star Graphic</strong> is a polygon with its points already in place.)</p>
 
 <h2 id="gradients">Gradients and see-through colours</h2>
-<p>A graphic can be filled with a <strong>gradient</strong> instead of one colour. Its <code>fillGradient</code> is an array: the <code>type</code> (<code>linear</code>, <code>radial</code> and others), the <code>ramp</code> of colours, each line a position from 0 to 1 followed by red, green and blue, and the points it runs <code>from</code> and <code>to</code>, with <code>via</code> giving its other direction.</p>
-<figure class="example" id="ex-gfx-gradient" data-run="output" data-shot="The stage, filled with a gradient from deep night blue at the top to orange at the bottom, like a sunset.">
-<pre class="code"><code>create graphic "Sky"
-set the rect of it to 0,0,480,360
-set the filled of it to true
+<p>A graphic can be filled with a <strong>gradient</strong> instead of one colour: in the Inspector, <strong>Fill gradient</strong> in the <strong>Colors</strong> section opens a gradient editor. In xTalk, its <code>fillGradient</code> is an array: the <code>type</code> (<code>linear</code>, <code>radial</code> and others), the <code>ramp</code> of colours, each line a position from 0 to 1 followed by red, green and blue, and the points it runs <code>from</code> and <code>to</code>, with <code>via</code> giving its other direction.</p>
+<div class="build" id="build-sky">
+<ol>
+<li>On a new card, drag a <strong>Rectangle Graphic</strong>, name it <code>Sky</code>, and make it cover the whole card. Set its <strong>Line thickness</strong> to 0.</li>
+<li>Drag a <strong>Standard Button</strong> onto it and name it <code>Sunset</code>.</li>
+</ol>
+<pre class="setup">create graphic "Sky"
+set the style of it to "rectangle"
+set the opaque of it to true
 set the lineSize of it to 0
-put "linear" into tGradient["type"]
-put "0.0,10,15,26" &amp; return &amp; "0.6,122,46,142" &amp; return &amp; "1.0,255,122,0" into tGradient["ramp"]
-put "240,0" into tGradient["from"]
-put "240,360" into tGradient["to"]
-put "480,0" into tGradient["via"]
-set the fillGradient of graphic "Sky" to tGradient
-put the fillGradient["type"] of graphic "Sky"</code></pre>
+set the rect of it to 0,0,480,360
+create button "Sunset"
+set the rect of it to 20,20,102,43</pre>
+</div>
+<figure class="example" id="ex-gfx-gradient" data-run="output" data-card="build-sky" data-script='button "Sunset"' data-click='button "Sunset"' data-shot="Your card, filled with a gradient from deep night blue at the top to orange at the bottom, like a sunset, with the Sunset button at the top left.">
+<pre class="code"><code>on mouseUp
+   put "linear" into tGradient["type"]
+   put "0.0,10,15,26" &amp; return &amp; "0.6,122,46,142" &amp; return &amp; "1.0,255,122,0" into tGradient["ramp"]
+   put "240,0" into tGradient["from"]
+   put "240,360" into tGradient["to"]
+   put "480,0" into tGradient["via"]
+   set the fillGradient of graphic "Sky" to tGradient
+   put the fillGradient["type"] of graphic "Sky"
+end mouseUp</code></pre>
 <pre class="out">linear</pre>
 </figure>
-<p>The <code>blendLevel</code> of any control makes it see-through: 0 is solid, 100 invisible.</p>
-<figure class="example" id="ex-gfx-blend" data-run="output" data-shot="The stage, with a red square and a blue square overlapping, both half see-through, so the overlap is purple.">
-<pre class="code"><code>create graphic "Red"
+<p>The <code>blendLevel</code> of any control (<strong>Blend level</strong>, in the Inspector's <strong>Colors</strong>) makes it see-through: 0 is solid, 100 invisible.</p>
+<div class="build" id="build-red-blue-squares">
+<ol>
+<li>On a new card, drag two <strong>Rectangle Graphics</strong>, about 140 points square, so that they overlap. Name them <code>Red</code> and <code>Blue</code>, fill them red and blue, and set the <strong>Line thickness</strong> of each to 0.</li>
+</ol>
+<pre class="setup">create graphic "Red"
 set the rect of it to 140,80,280,220
 set the backgroundColor of it to "red"
 create graphic "Blue"
 set the rect of it to 200,140,340,280
 set the backgroundColor of it to "blue"
 repeat for each item tName in "Red,Blue"
-   set the filled of graphic tName to true
+   set the style of graphic tName to "rectangle"
+   set the opaque of graphic tName to true
    set the lineSize of graphic tName to 0
-   set the blendLevel of graphic tName to 50
-end repeat
+end repeat</pre>
+</div>
+<figure class="example" id="ex-gfx-blend" data-run="output" data-card="build-red-blue-squares" data-in="message" data-shot="Your card: a red square and a blue square overlapping, both half see-through, so the overlap is purple.">
+<pre class="code"><code>set the blendLevel of graphic "Red" to 50
+set the blendLevel of graphic "Blue" to 50
 put the blendLevel of graphic "Blue"</code></pre>
 <pre class="out">50</pre>
 </figure>
 
 <h2 id="images">Images</h2>
-<p>An <strong>image</strong> holds pixels: a photo, an icon, a drawing. You usually bring one in with <kbd>File &gt; Import As Control &gt; Image File</kbd>, or set an image's <code>filename</code> to a file. A script can also paint one: its <code>imageData</code> is four bytes for every pixel, row by row, the last three of each being red, green and blue.</p>
-<figure class="example" id="ex-gfx-imagedata" data-run="output" data-shot="The stage, with a square image in the middle shading smoothly between its corners: deep blue at the top left, pink at the top right, green at the bottom left and pale yellow at the bottom right.">
-<pre class="code"><code>create image "Pixels"
+<p>An <strong>image</strong> holds pixels: a photo, an icon, a drawing. You usually bring one in with <kbd>File &gt; Import As Control &gt; Image File</kbd>, or drag an <strong>Image</strong> from the palette and choose its file as its <strong>Source</strong> in the Inspector (the <code>filename</code> property). An image is also something to paint on: with an empty one selected, the palette's <strong>Paint Tools</strong> draw into it, and a script can paint it too. Its <code>imageData</code> is four bytes for every pixel, row by row, the last three of each being red, green and blue.</p>
+<div class="build" id="build-pixels">
+<ol>
+<li>On a new card, drag an <strong>Image</strong> to the middle, name it <code>Pixels</code>, and in the Property Inspector's <strong>Position</strong> section set its <strong>Width</strong> and <strong>Height</strong> to 128.</li>
+<li>Drag a <strong>Standard Button</strong> to a corner and name it <code>Paint</code>.</li>
+</ol>
+<pre class="setup">create image "Pixels"
 set the width of it to 128
 set the height of it to 128
-repeat with y = 0 to 127
-   repeat with x = 0 to 127
-      put numToByte(0) &amp; numToByte(x * 2) &amp; numToByte(y * 2) &amp; numToByte(160) after tData
+set the loc of it to 240,180
+create button "Paint"
+set the rect of it to 20,20,102,43</pre>
+</div>
+<figure class="example" id="ex-gfx-imagedata" data-run="output" data-card="build-pixels" data-script='button "Paint"' data-click='button "Paint"' data-shot="Your card: a square image in the middle shading smoothly between its corners: deep blue at the top left, pink at the top right, green at the bottom left and pale yellow at the bottom right, with the Paint button in a corner.">
+<pre class="code"><code>on mouseUp
+   repeat with y = 0 to 127
+      repeat with x = 0 to 127
+         put numToByte(0) &amp; numToByte(x * 2) &amp; numToByte(y * 2) &amp; numToByte(160) after tData
+      end repeat
    end repeat
-end repeat
-set the imageData of image "Pixels" to tData
-set the loc of image "Pixels" to 240,180
-put the width of image "Pixels" &amp;&amp; the height of image "Pixels"
-put the number of bytes of the imageData of image "Pixels"</code></pre>
-<pre class="out">128 128
-65536</pre>
+   set the imageData of image "Pixels" to tData
+   put the number of bytes of the imageData of image "Pixels"
+end mouseUp</code></pre>
+<pre class="out">65536</pre>
 </figure>
 <p>That is 128 times 128 pixels, at four bytes each. Each pixel's red grows from left to right and its green from top to bottom, so the corners show the four mixes.</p>
-<aside class="tip"><p><code>export snapshot</code> turns anything on a card into an image or a PNG file, which is how the pictures of the stage in these lessons are made.</p></aside>
+<aside class="tip"><p><code>export snapshot</code> turns anything on a card into an image or a PNG file, which is how the pictures of the cards in these lessons are made.</p></aside>
 
 <section class="try" aria-labelledby="try-it">
 <h2 id="try-it">Try it yourself</h2>
-<p>Draw a traffic light: a dark grey rounded rectangle, standing upright, with three circles in it, red, amber and green.</p>
-<details class="solution"><summary>Show a solution</summary>
-<figure class="example" id="ex-gfx-try" data-run="output" data-shot="The stage, with a traffic light: a tall dark grey rounded box holding a red, an amber and a green circle from top to bottom.">
-<pre class="code"><code>create graphic "Box"
+<p>Build a traffic light with the palette: a tall dark grey <strong>Round Rectangle Graphic</strong> named <code>Box</code>, with three <strong>Oval Graphics</strong> in it named <code>Lamp 1</code>, <code>Lamp 2</code> and <code>Lamp 3</code>, red, amber and green from the top. Then add a <strong>Standard Button</strong> named <code>Next</code> whose script lights one lamp at a time, in turn: the lit lamp has a <code>blendLevel</code> of 0, and the others of 80.</p>
+<div class="build" id="build-traffic">
+<ol>
+<li>Drag a <strong>Round Rectangle Graphic</strong>, about 100 points wide and 320 high, name it <code>Box</code>, set its <strong>Corner radius</strong> to 30 and its <strong>Fill color</strong> to dark grey.</li>
+<li>Drag three <strong>Oval Graphics</strong> into it, each 70 points across, and name them <code>Lamp 1</code>, <code>Lamp 2</code> and <code>Lamp 3</code> from the top. Fill them red, orange and green.</li>
+<li>Drag a <strong>Standard Button</strong> beside it and name it <code>Next</code>.</li>
+</ol>
+<pre class="setup">create graphic "Box"
 set the style of it to "roundRect"
 set the roundRadius of it to 30
 set the rect of it to 190,20,290,340
@@ -147,10 +206,28 @@ repeat for each item tColour in "red,orange,#22C55E"
    set the rect of it to 205, tCount * 100 - 65, 275, tCount * 100 + 5
 end repeat
 repeat with i = 1 to the number of graphics
-   set the filled of graphic i to true
+   set the opaque of graphic i to true
 end repeat
-put the number of graphics</code></pre>
-<pre class="out">4</pre>
+create button "Next"
+set the rect of it to 320,20,402,43</pre>
+</div>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-gfx-try" data-run="output" data-card="build-traffic" data-script='button "Next"' data-click='button "Next";button "Next";button "Next"' data-shot="Your card: a traffic light, a tall dark grey rounded box holding a red, an amber and a green circle from top to bottom, the green one lit and the others dimmed, with the Next button beside it.">
+<pre class="code"><code>on mouseUp
+   repeat with i = 1 to 3
+      if the blendLevel of graphic ("Lamp" &amp;&amp; i) is 0 then put i into tLit
+   end repeat
+   put tLit mod 3 + 1 into tNext
+   repeat with i = 1 to 3
+      set the blendLevel of graphic ("Lamp" &amp;&amp; i) to 80
+   end repeat
+   set the blendLevel of graphic ("Lamp" &amp;&amp; tNext) to 0
+   put "Lamp" &amp;&amp; tNext &amp;&amp; "is lit"
+end mouseUp</code></pre>
+<pre class="out">Lamp 1 is lit
+Lamp 2 is lit
+Lamp 3 is lit</pre>
 </figure>
+<p>At first every lamp has a <code>blendLevel</code> of 0, so the loop finds the last one, and the first click lights <code>Lamp 1</code>. After <code>Lamp 3</code>, <code>mod</code> brings it back round to 1.</p>
 </details>
 </section>

@@ -9,7 +9,7 @@ words: start using, stop using, the stacksInUse, libraryStack, releaseStack, pri
 <p>A handler in a stack's script serves that stack's cards and controls (<a href="../message-path/#sharing">The message path</a>). A <strong>library</strong> goes further: a stack whose handlers every script of the program can call, in any stack, as if they were built in. Text tools, a settings store, the code that talks to a server: anything several stacks need belongs in one.</p>
 
 <h2 id="start-using">start using</h2>
-<p><code>start using</code> puts a stack's script on the message path of everything, after each stack's own script. <code>stop using</code> takes it off again. A library is usually a script-only stack, saved as a <code>.livecodescript</code> file beside the program; here the example makes one:</p>
+<p><code>start using</code> puts a stack's script on the <a href="../message-path/">message path</a> of everything, after each stack's own script. <code>stop using</code> takes it off again. A library is usually a script-only stack, saved as a <code>.livecodescript</code> file beside the program; here the example makes one:</p>
 <figure class="example" id="ex-lib-start" data-run="output">
 <pre class="code"><code>create script only stack "TextTools"
 put "function shoutText pText" &amp; return into tScript
@@ -88,7 +88,7 @@ describeCount is private</pre>
 <aside class="tip"><p>Begin every public handler of a library with a short prefix of its own: <code>ttShout</code> and <code>ttTrim</code> for TextTools, say. Two libraries that both offer <code>trimText</code> cannot both be used, and the one further along the path is silently never called.</p></aside>
 
 <h2 id="front-back">Front and back scripts</h2>
-<p>Any object's script can be inserted into the message path at either end. A <strong>front script</strong> sees every message <em>before</em> the object it is sent to: useful for logging, or for a tool that watches clicks. It should <code>pass</code> the message on, or it takes it away from everyone:</p>
+<p>Any object's script can be inserted into the message path at either end. A <strong>front script</strong> sees every message <em>before</em> the object it is sent to: useful for logging, or for a tool that watches clicks. It should <code>pass</code> the message on, or it takes it away from everyone. The examples here make their buttons with <code>create</code> (<a href="../stacks-cards-controls/#script-made">Making controls from a script</a>) and give them their scripts, so that each runs in one piece; in a stack of your own you would drag the buttons from the Tools palette and type the handlers into their scripts:</p>
 <figure class="example" id="ex-lib-front" data-run="output">
 <pre class="code"><code>create invisible button "Spy"
 set the script of it to "on mouseUp" &amp; return &amp; \

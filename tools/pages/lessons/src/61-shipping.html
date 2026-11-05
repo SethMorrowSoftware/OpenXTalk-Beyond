@@ -57,7 +57,7 @@ end openCard</code></pre>
 <p>Use <code>/</code> between folders on every platform, Windows included: the engine turns it into what the system wants (<a href="../files/#where">Reading and writing files</a>).</p>
 
 <h2 id="data">Where to keep the user's data</h2>
-<p>A program cannot save itself. Its main stack is built into the program file, and the folder it is installed in is usually read-only for the user. So anything that must outlast a run (settings, the user's work, a cache) goes in a file in one of the user's own folders. A small settings file can be a whole array, turned into bytes with <code>arrayEncode</code> and back with <code>arrayDecode</code>. This example keeps it in the temporary folder, so that it tidies up after itself:</p>
+<p>A program cannot save itself. Its main stack is built into the program file, and the folder it is installed in is usually read-only for the user. So anything that must outlast a run (settings, the user's work, a cache) goes in a file in one of the user's own folders (<a href="../files/#where">Reading and writing files</a>). A small settings file can be a whole array, turned into bytes with <code>arrayEncode</code> (<a href="../array-tools/#encode">Split, combine and friends</a>) and back with <code>arrayDecode</code>. This example keeps it in the temporary folder, so that it tidies up after itself:</p>
 <figure class="example" id="ex-ship-settings" data-run="output">
 <pre class="code"><code>local sSettings
 
@@ -145,7 +145,7 @@ end shout
 
 HELLO!</pre>
 </figure>
-<p>List the script-only stacks in the main stack's <code>stackFiles</code>, a stack name and a path relative to the main stack's file on each line, and the engine finds each by its name the first time a script refers to it, opening the file then. The Stacks pane of the settings lists them too, to build into the standalone.</p>
+<p>List the <a href="../behaviors/#script-only">script-only stacks</a> in the main stack's <code>stackFiles</code>, a stack name and a path relative to the main stack's file on each line, and the engine finds each by its name the first time a script refers to it, opening the file then. The Stacks pane of the settings lists them too, to build into the standalone.</p>
 <aside class="note"><p>A <code>.livecodescript</code> file is opened as a stack, so its first line must stay <code>script "name"</code> with the stack's name in quotes. Edit it in the IDE's script editor or any text editor, and save it as UTF-8.</p></aside>
 
 <h2 id="command-line">Programs without windows</h2>

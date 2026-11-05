@@ -102,7 +102,7 @@ tidied up</pre>
 </figure>
 
 <h2 id="the-result">Errors that do not throw</h2>
-<p>Not every problem raises an error. Commands that deal with the world outside, files, the internet, other programs, often report a problem by setting <code>the result</code> and carrying on. A <code>try</code> would not notice; you must look:</p>
+<p>Not every problem raises an error. Commands that deal with the world outside, files, the internet, other programs, often report a problem by setting <code>the result</code> (<a href="../commands/#the-result">Your own commands</a>) and carrying on. A <code>try</code> would not notice; you must look:</p>
 <figure class="example" id="ex-errors-result" data-run="output">
 <pre class="code"><code>put URL "file:/no/such/folder/notes.txt" into tText
 put the result

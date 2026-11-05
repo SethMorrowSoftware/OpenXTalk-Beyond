@@ -1,74 +1,107 @@
 <!--
 title: Referring to objects
 level: intermediate
-minutes: 9
+minutes: 11
 summary: All the ways to point at an object in a script: by name, number and id, by long id in a variable, and with me, the target and the owner.
-words: name, short name, long name, id, long id, number, me, the target, owner, there is a, exists, first, last
+words: name, short name, long name, id, long id, number, me, the target, owner, there is a, exists, first, last, card script
 -->
 <h2 id="three-ways">Name, number and id</h2>
-<p>A script can point at a control in three ways:</p>
+<p>You point at a control with the mouse. A script points at it with words, in three ways:</p>
 <ul>
-<li>By <strong>name</strong>: <code>button "OK"</code>. Easy to read, and it survives moving the control about. Two controls can share a name, though, and then xTalk finds the first.</li>
+<li>By <strong>name</strong>: <code>button "OK"</code>, the name you gave it in the Property Inspector. Easy to read, and it survives moving the control about. Two controls can share a name, though, and then xTalk finds the first.</li>
 <li>By <strong>number</strong>: <code>button 2</code>, or <code>the last field</code>. Handy in loops; it changes when controls are added, deleted or reordered.</li>
 <li>By <strong>id</strong>: <code>button id 1003</code>. A number the engine gives each object when it is made, never reused in that stack, and never changed.</li>
 </ul>
-<figure class="example" id="ex-refs-three" data-run="output">
-<pre class="code"><code>create button "OK"
-put the id of button "OK" into tId
-put the short name of button 1
-put the short name of button id tId
-put the short name of the last button</code></pre>
+<div class="build" id="build-ok">
+<ol>
+<li>On a new card, drag a <strong>Standard Button</strong> and name it <code>OK</code>.</li>
+</ol>
+<pre class="setup">create button "OK"
+set the rect of it to 40,40,122,63</pre>
+</div>
+<figure class="example" id="ex-refs-three" data-run="output" data-card="build-ok" data-in="message">
+<pre class="code"><code>put the short name of button 1
+put the short name of button id (the id of button "OK")
+put the short name of the last button
+put the id of button "OK" is a number</code></pre>
 <pre class="out">OK
 OK
-OK</pre>
+OK
+true</pre>
 </figure>
+<p>Type <code>put the id of button "OK"</code> to see its id: a number like 1003, which depends on how many objects the stack has made before.</p>
 
 <h2 id="loops">Going through every control</h2>
-<p>Numbers make it easy to visit every control on a card. <code>word 1 of the name</code> of a control says what kind it is:</p>
-<figure class="example" id="ex-refs-loop" data-run="output">
-<pre class="code"><code>create button "Save"
+<p>Numbers make it easy to visit every control on a card. <code>word 1 of the name</code> of a control says what kind it is. This button lists every control on its card, itself included:</p>
+<div class="build" id="build-list">
+<ol>
+<li>On a new card, drag a <strong>Standard Button</strong> and name it <code>Save</code>.</li>
+<li>Drag a <strong>Field</strong> under it and name it <code>Notes</code>.</li>
+<li>Drag a <strong>Line Graphic</strong> (it keeps the palette's name, <code>Line</code>).</li>
+<li>Last, drag another <strong>Standard Button</strong> and name it <code>List</code>.</li>
+</ol>
+<pre class="setup">create button "Save"
+set the rect of it to 40,40,122,63
 create field "Notes"
+set the rect of it to 40,80,140,101
 create graphic "Line"
-repeat with i = 1 to the number of controls
-   put the short name of control i &amp;&amp; "is a" &amp;&amp; word 1 of the name of control i
-end repeat</code></pre>
+set the style of it to "line"
+set the points of it to "40,130" &amp; return &amp; "160,130"
+create button "List"
+set the rect of it to 200,40,282,63</pre>
+</div>
+<figure class="example" id="ex-refs-loop" data-run="output" data-card="build-list" data-script='button "List"' data-click='button "List"'>
+<pre class="code"><code>on mouseUp
+   repeat with i = 1 to the number of controls
+      put the short name of control i &amp;&amp; "is a" &amp;&amp; word 1 of the name of control i &amp; return after tList
+   end repeat
+   delete the last char of tList
+   put tList
+end mouseUp</code></pre>
 <pre class="out">Save is a button
 Notes is a field
-Line is a graphic</pre>
+Line is a graphic
+List is a button</pre>
 </figure>
+<p>The loop collects a line for each control in a variable, and puts it once at the end, so the Message Box shows all four lines together. <code>delete the last char</code> takes off the return after the last line.</p>
 
 <h2 id="long-id">The long id: a reference you can keep</h2>
-<p>The <code>long id</code> of an object says exactly where it is: its id, its card's and its stack's. It is the most reliable reference there is, and since it is just text, you can keep it in a variable and use the variable wherever an object can go:</p>
-<figure class="example" id="ex-refs-long-id" data-run="output">
-<pre class="code"><code>create button "One"
+<p>The <code>long id</code> of an object says exactly where it is: its id, its card's and its stack's. It is the most reliable reference there is, and since it is just text, you can keep it in a variable and use the variable wherever an object can go.</p>
+<div class="build" id="build-one-two-go">
+<ol>
+<li>On a new card, drag three <strong>Standard Buttons</strong> in a row and name them <code>One</code>, <code>Two</code> and <code>Go</code>.</li>
+</ol>
+<pre class="setup">create button "One"
+set the rect of it to 40,40,122,63
 create button "Two"
-put the long id of button "One" into tButton
-put word 1 of tButton
-put the short name of tButton
-set the label of tButton to "First"
-put the label of button 1</code></pre>
-<pre class="out">button
-One
-First</pre>
+set the rect of it to 140,40,222,63
+create button "Go"
+set the rect of it to 240,40,322,63</pre>
+</div>
+<figure class="example" id="ex-refs-long-id" data-run="output" data-card="build-one-two-go" data-script='button "Go"' data-click='button "Go"' data-shot="Your card: three buttons in a row; the first now says First, the others Two and Go.">
+<pre class="code"><code>on mouseUp
+   put the long id of button "One" into tButton
+   set the label of tButton to "First"
+   put word 1 of tButton &amp;&amp; the short name of tButton &amp;&amp; "now says" &amp;&amp; the label of button 1
+end mouseUp</code></pre>
+<pre class="out">button One now says First</pre>
 </figure>
-<p>That is what <code>it</code> holds after <code>create</code>, and what handlers usually pass to each other when they work on an object. The same works with a reference you build yourself:</p>
-<figure class="example" id="ex-refs-built" data-run="output">
-<pre class="code"><code>create button "B"
-put "button" &amp;&amp; quote &amp; "B" &amp; quote into tRef
-put tRef
-set the label of tRef to "Hi"
-put the label of button "B"</code></pre>
-<pre class="out">button "B"
-Hi</pre>
+<p>That is what handlers usually pass to each other when they work on an object (and what <code>it</code> holds after <code>create</code>). To see one, type <code>put the long id of button "One"</code> in the Message Box. A reference you build yourself as text works the same way; put this in the script of the button <code>Two</code>:</p>
+<figure class="example" id="ex-refs-built" data-run="output" data-card="build-one-two-go" data-script='button "Two"' data-click='button "Two"'>
+<pre class="code"><code>on mouseUp
+   put "button" &amp;&amp; quote &amp; "One" &amp; quote into tRef
+   set the label of tRef to "Hi"
+   put tRef &amp;&amp; "now says" &amp;&amp; the label of button "One"
+end mouseUp</code></pre>
+<pre class="out">button "One" now says Hi</pre>
 </figure>
 
 <h2 id="exists">Does it exist?</h2>
-<p><code>there is a</code>, which you met in the last lesson, and the function <code>exists</code> both say whether a reference points at something:</p>
-<figure class="example" id="ex-refs-exists" data-run="output">
-<pre class="code"><code>create button "Hello"
-put exists(button "Hello")
-put exists(button "Goodbye")
-put there is a control "Hello"</code></pre>
+<p><code>there is a</code>, which you met in the last lessons, and the function <code>exists</code> both say whether a reference points at something. Back on the card with the button <code>OK</code>:</p>
+<figure class="example" id="ex-refs-exists" data-run="output" data-card="build-ok" data-in="message">
+<pre class="code"><code>put exists(button "OK")
+put exists(button "Cancel")
+put there is a control "OK"</code></pre>
 <pre class="out">true
 false
 true</pre>
@@ -78,63 +111,85 @@ true</pre>
 <p>Three words point at objects from where a script runs:</p>
 <ul>
 <li><code>me</code> is the object whose script is running. A button's <code>mouseUp</code> handler can <code>set the label of me</code> without knowing its own name, so the same script works in any button.</li>
-<li><code>the target</code> is the object a message was first sent to: the button that was clicked, even when the handler that runs is in the card's script.</li>
+<li><code>the target</code> is the object a message was first sent to: the button that was clicked, even when the handler that runs is in the card's script (<a href="../message-path/">The message path</a>).</li>
 <li><code>the owner</code> of an object is what holds it: a control's card (or its group), a card's stack.</li>
 </ul>
-<figure class="example" id="ex-refs-target" data-run="output">
-<pre class="code"><code>create button "Red"
+<div class="build" id="build-red-blue">
+<ol>
+<li>On a new card, drag two <strong>Standard Buttons</strong> and name them <code>Red</code> and <code>Blue</code>. Leave their scripts empty.</li>
+<li>Open the card's script with <kbd>Object &gt; Card Script</kbd>.</li>
+</ol>
+<pre class="setup">create button "Red"
+set the rect of it to 40,40,122,63
 create button "Blue"
-
-on mouseUp
+set the rect of it to 140,40,222,63</pre>
+</div>
+<figure class="example" id="ex-refs-target" data-run="output" data-card="build-red-blue" data-script="this card" data-click='button "Red";button "Blue"'>
+<pre class="code"><code>on mouseUp
    put "You clicked" &amp;&amp; the short name of the target
-end mouseUp
-
-send "mouseUp" to button "Red"
-send "mouseUp" to button "Blue"</code></pre>
+end mouseUp</code></pre>
 <pre class="out">You clicked Red
 You clicked Blue</pre>
 </figure>
-<p>Neither button has a script of its own, so the <code>mouseUp</code> sent to each goes on to the stack, whose script is the playground's code. One handler serves every button, and <code>the target</code> tells them apart. The lesson <a href="../message-path/">The message path</a> explains this journey.</p>
-<figure class="example" id="ex-refs-owner" data-run="output">
-<pre class="code"><code>create button "B"
-put word 1 of the owner of button "B"
-create card "Second"
-put the short name of this card
+<p>Neither button has a script of its own, so the <code>mouseUp</code> each click sends goes on to the card, whose script handles it. One handler serves every button, and <code>the target</code> tells them apart. (Click the card itself, away from the buttons, and it names the card.) The lesson <a href="../message-path/">The message path</a> explains this journey.</p>
+<figure class="example" id="ex-refs-owner" data-run="output" data-card="build-red-blue" data-in="message">
+<pre class="code"><code>put word 1 of the owner of button "Red"
+put word 1 of the owner of this card
 put the number of cards</code></pre>
 <pre class="out">card
-Second
-2</pre>
+stack
+1</pre>
 </figure>
 
 <h2 id="of">Objects somewhere else</h2>
 <p>A reference with no card or stack means the current card of the current stack. Add <code>of</code> to reach further: <code>field "Score" of card "Results"</code>, <code>button 1 of card 3 of stack "Tools"</code>. You can read and set the properties of objects on any card of any open stack without going there.</p>
-<figure class="example" id="ex-refs-of-card" data-run="output">
-<pre class="code"><code>create field "Total"
+<div class="build" id="build-results">
+<ol>
+<li>On a new card, drag a <strong>Field</strong> and name it <code>Total</code>.</li>
+<li>Choose <kbd>Object &gt; New Card</kbd>. In the Card Inspector (<kbd>Object &gt; Card Inspector</kbd>) name the new card <code>Results</code>, then drag a <strong>Field</strong> onto it and name it <code>Score</code>.</li>
+<li>Go back to the first card with <kbd>View &gt; Go Prev</kbd>.</li>
+</ol>
+<pre class="setup">create field "Total"
+set the rect of it to 40,40,140,61
 create card "Results"
 create field "Score"
-put 42 into field "Score" of card "Results"
-go to card 1
+set the rect of it to 40,40,140,61
+go to card 1</pre>
+</div>
+<figure class="example" id="ex-refs-of-card" data-run="output" data-card="build-results" data-in="message">
+<pre class="code"><code>put 42 into field "Score" of card "Results"
 put the number of fields
+put the number of cards
 put field "Score" of card "Results"</code></pre>
 <pre class="out">1
+2
 42</pre>
 </figure>
+<p>The first card has one field; the 42 went to the other card's field without leaving this one. Choose <kbd>View &gt; Go Next</kbd> to see it there.</p>
 
 <section class="try" aria-labelledby="try-it">
 <h2 id="try-it">Try it yourself</h2>
-<p>Make three buttons named <code>Red</code>, <code>Green</code> and <code>Blue</code>. Then, in a loop over the number of buttons, set each button's label to its name in capitals, and put the labels.</p>
+<p>On a new card, drag four <strong>Standard Buttons</strong> and name them <code>Red</code>, <code>Green</code>, <code>Blue</code> and <code>Go</code>. Give <code>Go</code> a script that, in a loop over the number of buttons, sets each button's label to its name in capitals, and then puts the labels, with commas between them.</p>
+<div class="build" id="build-four">
+<ol>
+<li>Drag four <strong>Standard Buttons</strong> in a row and name them <code>Red</code>, <code>Green</code>, <code>Blue</code> and <code>Go</code>.</li>
+</ol>
+<pre class="setup">repeat with i = 1 to 4
+   create button (item i of "Red,Green,Blue,Go")
+   set the rect of it to i * 100 - 60, 40, i * 100 + 22, 63
+end repeat</pre>
+</div>
 <details class="solution"><summary>Show a solution</summary>
-<figure class="example" id="ex-refs-try" data-run="output">
-<pre class="code"><code>repeat for each item tName in "Red,Green,Blue"
-   create button tName
-end repeat
-repeat with i = 1 to the number of buttons
-   set the label of button i to toUpper(the short name of button i)
-   put the label of button i
-end repeat</code></pre>
-<pre class="out">RED
-GREEN
-BLUE</pre>
+<figure class="example" id="ex-refs-try" data-run="output" data-card="build-four" data-script='button "Go"' data-click='button "Go"' data-shot="Your card: four buttons in a row labelled RED, GREEN, BLUE and GO.">
+<pre class="code"><code>on mouseUp
+   repeat with i = 1 to the number of buttons
+      set the label of button i to toUpper(the short name of button i)
+      put the label of button i &amp; comma after tLabels
+   end repeat
+   delete the last char of tLabels
+   put tLabels
+end mouseUp</code></pre>
+<pre class="out">RED,GREEN,BLUE,GO</pre>
 </figure>
 </details>
 </section>

@@ -30,6 +30,7 @@ release's when a lesson changes.
   python3 -m unittest discover -s tools/ci/tests
 """
 
+import html
 import json
 import os
 import re
@@ -120,6 +121,38 @@ class TheLessons(unittest.TestCase):
         count = sum(len(build_lessons.LINK.findall(x['body'])) for x in self.lessons)
         self.assertGreater(count, 100)
 
+    def test_the_object_lessons_build_their_cards_with_the_tools_palette(self):
+        # a beginner drags controls from the Tools palette and names them in
+        # the Property Inspector: the lessons about objects say so, and
+        # their examples work on cards built that way (data-card), bar the
+        # section that makes controls from a script
+        by_slug = {x['slug']: x for x in self.lessons}
+        first = by_slug['stacks-cards-controls']
+        self.assertIn('tools-palette', first['ids'])
+        self.assertIn('Tools palette', first['body'])
+        self.assertIn('Property Inspector', first['body'])
+        made = first['body'].index('id="script-made"')
+        objects = ['stacks-cards-controls', 'properties', 'referring-to-objects', 'events', 'message-path',
+                   'fields', 'buttons-menus', 'graphics-images', 'cards-navigation', 'custom-properties']
+        for slug in objects:
+            lesson = by_slug[slug]
+            self.assertTrue(lesson['cards'], slug)
+            for e in lesson['examples']:
+                if e['card']:
+                    continue
+                self.assertEqual(slug, 'stacks-cards-controls', e['id'])
+                self.assertGreater(first['body'].index('id="%s"' % e['id']), made, e['id'])
+        # a later lesson whose examples make their controls with create
+        # says how the palette does the same
+        for lesson in self.lessons:
+            if lesson['slug'] in objects:
+                continue
+            making = [e for e in lesson['examples']
+                      if re.search(r'^\s*create (button|field|graphic|image|group)', e['code'], re.M)]
+            if len(making) >= 2:
+                self.assertIn('../stacks-cards-controls/#script-made', lesson['body'], lesson['file'])
+                self.assertIn('Tools palette', lesson['body'], lesson['file'])
+
     def test_the_needs_are_ones_the_check_can_load(self):
         for lesson in self.lessons:
             for e in lesson['examples']:
@@ -176,7 +209,12 @@ class TheBuild(unittest.TestCase):
                 self.assertTrue(anchor.startswith('#'), row['u'])
                 self.assertIn(anchor[1:], by_slug[slug]['ids'], row['u'])
             if row['h']:
-                self.assertFalse(row['x'].startswith(row['h']), row['u'])
+                # what follows the heading, not the heading again
+                body = by_slug[slug]['body']
+                after = body[body.index('id="%s"' % anchor[1:]):]
+                after = re.split(r'</h[1-6]>', after, maxsplit=1)[1]
+                after = ' '.join(html.unescape(re.sub(r'<[^>]+>', ' ', after)).split())
+                self.assertTrue(row['x'][:40] and after.startswith(row['x'][:40]), row['u'])
 
     def test_the_parts_of_the_site_it_links(self):
         alone, _, _ = self.build()
@@ -254,6 +292,204 @@ class TheExampleRules(unittest.TestCase):
             self.assertEqual(problems(text), [], text)
         # a module of another lesson, when its id is given
         self.assertEqual(problems(figure('id="ex-a" data-run="output" data-needs="builder:ex-m"'), {'ex-m'}), [])
+
+
+def build(ident='build-a', setup='create button "Go"', steps='<ol><li>Drag a button.</li></ol>'):
+    """A card the reader builds, as a lesson writes it."""
+    return '<div class="build" id="%s">%s%s</div>' % (
+        ident, steps, '' if setup is None else '<pre class="setup">%s</pre>' % setup)
+
+
+class TheCardsTheReaderBuilds(unittest.TestCase):
+    """build_lessons.builds() and the rules for an example on a card the
+    reader builds with the Tools palette (palette_problems)."""
+
+    def test_a_build(self):
+        found, wrong = build_lessons.builds(build(setup='put &quot;a&quot; &amp; 1 into field "X"'))
+        self.assertEqual(wrong, [])
+        self.assertEqual(found, {'build-a': 'put "a" & 1 into field "X"'})
+
+    def test_what_a_build_refuses(self):
+        cases = [
+            (build(ident='Build_A'), "a build's id"),
+            (build(setup=None), 'one <pre class="setup">'),
+            (build(setup='  '), 'one <pre class="setup">'),
+            (build(setup='put 1</pre><pre class="setup">put 2'), 'one <pre class="setup">'),
+            (build(steps='<p>Drag a button.</p>'), 'as a list'),
+            (build() + build(), 'used twice'),
+            ('<div class="build">' + build()[len('<div class="build" id="build-a">'):], 'no id'),
+        ]
+        for text, says in cases:
+            wrong = build_lessons.builds(text)[1]
+            self.assertTrue(any(says in p for p in wrong), '%s: %s' % (text, wrong))
+
+    def test_an_example_on_a_card(self):
+        text = (build(setup='create button "Go"\nset the rect of it to 0,0,82,23')
+                + figure('id="ex-msg" data-run="output" data-card="build-a" data-in="message"',
+                         'put the short name of button 1', 'Go')
+                + figure('id="ex-card" data-run="compile" data-card="build-a" data-script="this stack"',
+                         'on openCard\n   put 1\nend openCard', None)
+                + figure('id="ex-go" data-run="output" data-card="build-a" data-script=\'button "Go"\' '
+                         'data-click=\'button "Go";button "Go"\' data-after="ex-card"',
+                         'on mouseUp\n   put 2\nend mouseUp', '2\n2'))
+        found = build_lessons.examples(text)
+        self.assertEqual([e['setup'] for e in found], ['create button "Go"\nset the rect of it to 0,0,82,23'] * 3)
+        self.assertEqual(found[0]['in'], 'message')
+        self.assertEqual(found[2]['click'], ['button "Go"', 'button "Go"'])
+        self.assertEqual(found[2]['scripts'], [('this stack', 'on openCard\n   put 1\nend openCard')])
+        # an example on no card has no setup
+        self.assertEqual(build_lessons.examples(figure('id="ex-a" data-run="output"'))[0]['setup'], '')
+
+    def test_what_it_refuses_on_a_card(self):
+        card = 'data-card="build-a"'
+        script = '\non mouseUp\n   put 1\nend mouseUp'
+        cases = [
+            (figure('id="ex-a" data-run="output" data-card="build-b" data-in="message"'), 'not a build of this page'),
+            (figure('id="ex-a" data-run="compile" %s data-script=\'the button "Go"\'' % card, out=None),
+             'not a control of the card'),
+            (figure('id="ex-a" data-run="output" %s data-script="this card" data-click="this stack"' % card),
+             'not the stack'),
+            (figure('id="ex-a" data-run="compile" data-script=\'button "Go"\'', out=None), 'data-card'),
+            (figure('id="ex-a" data-run="output" %s data-in="keyboard"' % card), 'data-in is "message"'),
+            (figure('id="ex-a" data-run="output" %s data-in="message" data-script="this card" '
+                    'data-click="this card"' % card), 'not both'),
+            (figure('id="ex-a" data-run="error" %s data-script="this card"' % card, out=None),
+             "checked by what a click puts"),
+            (figure('id="ex-a" data-run="compile" %s data-in="message"' % card, out=None),
+             'lines for the Message Box run'),
+            (figure('id="ex-a" data-run="error" %s' % card, out=None), 'a mistake on a card'),
+            (figure('id="ex-a" data-run="output" %s data-in="message"' % card, 'repeat 2 times\nput 1\nend repeat'),
+             'line 1 does not stand alone'),
+            (figure('id="ex-a" data-run="output" %s data-in="message"' % card, 'if 1 then\nput 1'),
+             'line 1 does not stand alone'),
+            (figure('id="ex-a" data-run="output" %s data-script="this card"' % card, script), 'needs data-click'),
+            (figure('id="ex-a" data-run="output" %s data-script="this card" data-click="this card" '
+                    'data-after="ex-later"' % card, script)
+             + figure('id="ex-later" data-run="compile" %s data-script="this stack"' % card, script, None),
+             'not an example before it'),
+            (figure('id="ex-msg" data-run="output" %s data-in="message"' % card)
+             + figure('id="ex-a" data-run="output" %s data-script="this card" data-click="this card" '
+                      'data-after="ex-msg"' % card, script), "not an object's script on the same card"),
+        ]
+        for text, says in cases:
+            found = problems(build() + text)
+            self.assertTrue(any(says in p for p in found), '%s: %s' % (text, found))
+
+    def test_what_it_lets_through_on_a_card(self):
+        card = 'data-card="build-a"'
+        ok = [
+            # a line of the Message Box that puts several lines at once
+            figure('id="ex-a" data-run="output" %s data-in="message"' % card,
+                   'put "a" &amp; return &amp; "b"', 'a\nb'),
+            # a mistake typed into the Message Box
+            figure('id="ex-a" data-run="error" %s data-in="message"' % card, 'put nosuch(1)', None),
+            # a script that only compiles: a dialog, say
+            figure('id="ex-a" data-run="compile" %s data-script=\'group "Sizes"\'' % card,
+                   'on mouseUp\n   answer "Hi"\nend mouseUp', None),
+            # a click on the card itself
+            figure('id="ex-a" data-run="output" %s data-script="this card" data-click="this card"' % card,
+                   'on mouseUp\n   put 1\nend mouseUp'),
+        ]
+        for text in ok:
+            self.assertEqual(problems(build() + text), [], text)
+
+
+def card_example(**given):
+    """An example on a card the reader builds, as palette_problems leaves it."""
+    e = dict(id='ex-a', run='output', setup='create button "Go"', scripts=[], script='', click=[],
+             code='put 1', out='1')
+    e.update(given)
+    return e
+
+
+class WhatTheCheckRunsOnACard(unittest.TestCase):
+    """lessons_check.palette_code(): the card built as the palette builds
+    it, the scripts the reader put in, the clicks, and what the Message
+    Box showed after each."""
+
+    def test_xt_text(self):
+        self.assertEqual(lessons_check.xt_text('a'), '"a"')
+        self.assertEqual(lessons_check.xt_text('say "hi"'), '"say " & quote & "hi" & quote & ""')
+        self.assertEqual(lessons_check.xt_text('a\nb'), '"a" & return & "b"')
+
+    def test_the_card_is_built_with_messages_locked(self):
+        code, before = lessons_check.palette_code(card_example(code='put 1\nput 2'))
+        lines = code.split('\n')
+        self.assertEqual(lines[:3], ['lock messages', 'create button "Go"', 'unlock messages'])
+        self.assertEqual(before, 3)
+        self.assertEqual(lines[before:before + 2], ['put 1', 'put 2'])
+        # the click handler is there, after the example's own lines
+        self.assertEqual(lines[before + 2], 'on oxtLessonClick pObject')
+        self.assertIn('dispatch "mouseUp" to pObject with 1', code)
+        self.assertNotIn('send "mouseUp', code)
+
+    def test_the_scripts_go_into_their_objects(self):
+        stack_script = 'on openCard\n   put "here"\nend openCard'
+        e = card_example(script='button "Go"', code='on mouseUp\n   put 2\nend mouseUp', click=['button "Go"'],
+                         scripts=[('this card', 'on mouseUp\n   put 3\nend mouseUp'), ('this stack', stack_script)])
+        code, before = lessons_check.palette_code(e, '/tmp/x.msg')
+        lines = code.split('\n')
+        self.assertEqual(lines[0], 'lock messages')
+        self.assertEqual(lines[2], 'set the script of this card to "on mouseUp" & return & "   put 3" & return & "end mouseUp"')
+        self.assertEqual(lines[3], lessons_check.COMPILED % 'this card')
+        self.assertEqual(lines[4], 'set the script of button "Go" to "on mouseUp" & return & "   put 2" & return & "end mouseUp"')
+        self.assertEqual(lines[5], lessons_check.COMPILED % "button 'Go'")
+        self.assertEqual(lines[6], 'unlock messages')
+        self.assertEqual(before, 7)
+        # an object's script is not run as lines of its own
+        self.assertNotIn('put 2', lines[before:before + 1])
+        # the stack's script: handlers at the end, where the playground takes them from
+        self.assertTrue(code.endswith('end oxtLessonClick\n' + stack_script))
+        # a stack's script as the example itself goes there too
+        code = lessons_check.palette_code(card_example(script='this stack', code=stack_script, run='compile'))[0]
+        self.assertTrue(code.endswith('end oxtLessonClick\n' + stack_script))
+        self.assertNotIn('set the script of this stack', code)
+
+    def test_what_the_message_box_shows_after_each_click(self):
+        e = card_example(script='this card', code='on mouseUp\n   put 2\nend mouseUp',
+                         click=['button "Go"', 'this card'])
+        code, before = lessons_check.palette_code(e, '/tmp/x.msg')
+        lines = code.split('\n')
+        self.assertEqual(lines[before:before + 6], [
+            'put empty into msg',
+            'put empty into tOxtShown',
+            'oxtLessonClick the long id of button "Go"',
+            'put msg & numToChar(30) after tOxtShown',
+            'oxtLessonClick the long id of this card',
+            'put msg & numToChar(30) after tOxtShown'])
+        self.assertEqual(lines[before + 6], 'put textEncode(tOxtShown, "UTF-8") into URL "binfile:/tmp/x.msg"')
+        self.assertEqual(lessons_check.SHOWN, chr(30))
+        # with no file to keep them in, nothing is written
+        self.assertNotIn('binfile:', lessons_check.palette_code(e)[0])
+
+    def test_a_click_on_a_check_box_or_a_radio_button(self):
+        # as autoHilite does in Run mode, before mouseDown and mouseUp
+        self.assertIn('set the hilite of pObject to not the hilite of pObject', lessons_check.CLICK)
+        self.assertIn('set the hilitedButtonId of the owner of pObject to the short id of pObject',
+                      lessons_check.CLICK)
+        self.assertLess(lessons_check.CLICK.index('hilite'), lessons_check.CLICK.index('dispatch "mouseDown"'))
+
+
+class TheColours(unittest.TestCase):
+    """build_lessons.highlight(): the code coloured, and nothing else changed."""
+
+    def spans(self, code, cls):
+        return re.findall(r'<span class="%s">([^<]*)</span>' % cls, build_lessons.highlight(code))
+
+    def test_it_is_the_code(self):
+        for code in ['on mouseUp\n   put "a < b" & 1 -- note\nend mouseUp', 'put 1.5 into x /* a\nb */']:
+            self.assertEqual(html.unescape(re.sub(r'<[^>]+>', '', build_lessons.highlight(code))), code)
+
+    def test_a_handler_name(self):
+        self.assertEqual(self.spans('on mouseUp\n   beep\nend mouseUp', 'h'), ['mouseUp', 'mouseUp'])
+        self.assertEqual(self.spans('private function twice pN\nend twice', 'h'), ['twice', 'twice'])
+        self.assertEqual(self.spans('after mouseUp\n   pass mouseUp\nend mouseUp', 'h'), ['mouseUp', 'mouseUp'])
+
+    def test_not_a_handler_name(self):
+        # "after" and "before" put into a container, "end" closes a block
+        self.assertEqual(self.spans('put return & "a" after msg\nput "b" before field 1', 'h'), [])
+        self.assertEqual(self.spans('if x then\n   beep\nend if\nrepeat 2\nend repeat', 'h'), [])
+        self.assertIn('if', self.spans('end if', 'k'))
 
 
 class TheLinks(unittest.TestCase):

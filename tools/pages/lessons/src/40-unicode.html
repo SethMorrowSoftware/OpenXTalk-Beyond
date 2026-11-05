@@ -85,7 +85,7 @@ put the number of bytes of textEncode(tText, "UTF-16")</code></pre>
 4
 8</pre>
 </figure>
-<p>The rule to remember: <strong>decode as text comes in, encode as it goes out</strong>. Read a file's bytes and <code>textDecode</code> them; <code>textEncode</code> text before you write it to a file or send it. The next lessons do exactly that.</p>
+<p>The rule to remember: <strong>decode as text comes in, encode as it goes out</strong>. Read a file's bytes and <code>textDecode</code> them; <code>textEncode</code> text before you write it to a file or send it. The next lessons, <a href="../files/#text-binary">Reading and writing files</a> and <a href="../file-streams/">Files a piece at a time</a>, do exactly that.</p>
 <aside class="warn"><p>Decoding with the wrong encoding does not fail: it gives the wrong characters, such as <code>cafÃ©</code> for <code>café</code>. When text from a file looks like that, it is UTF-8 read as something else.</p></aside>
 
 <section class="try" aria-labelledby="try-it">

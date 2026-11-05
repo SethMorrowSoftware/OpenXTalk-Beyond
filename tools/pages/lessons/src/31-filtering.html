@@ -69,7 +69,7 @@ room 101</pre>
 </figure>
 
 <h2 id="unique">Removing duplicates</h2>
-<p>Filtering cannot see whether a line has appeared before, but an array can: each value becomes a key, and a key can only be there once. <code>split</code> with <code>as set</code> does exactly that, and <code>the keys</code> gives the list back. The keys of an array come in no particular order, so sort them:</p>
+<p>Filtering cannot see whether a line has appeared before, but an <a href="../arrays/">array</a> can: each value becomes a key, and a key can only be there once. <code>split</code> with <code>as set</code> does exactly that, and <code>the keys</code> gives the list back. The keys of an array come in no particular order, so sort them:</p>
 <figure class="example" id="ex-filter-unique" data-run="output">
 <pre class="code"><code>put "pear" &amp; return &amp; "fig" &amp; return &amp; "pear" &amp; return &amp; "apple" &amp; return &amp; "fig" into tList
 split tList by return as set
