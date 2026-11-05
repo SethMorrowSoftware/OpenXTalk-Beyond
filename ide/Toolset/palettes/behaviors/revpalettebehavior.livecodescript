@@ -580,7 +580,15 @@ after openStack
    if revEnvironmentIsWeb() and sHideFrame is not true then
       revIDEEnsureOnscreen the short name of me
    end if
-   if the visible of me is false then
+   -- OXT-Beyond: unless it was opened to stay hidden. While the IDE
+   -- starts it opens the Tools palette and the Message Box invisible
+   -- (revInternal__InitialiseTools in home.livecodescript, the Message
+   -- Box's ensureMBcorrect), with this set on the stack, and shows them
+   -- once the splash has gone, as it chooses. Shown here, each came up for
+   -- a moment and was hidden again: "ghost windows" before the IDE settled
+   -- (LittleNemo, openxtalk.org p=25967), seen on Linux, where nothing
+   -- makes a window at a blendLevel of 99 see-through
+   if the visible of me is false and the cOXTOpenHidden of me is not true then
       show me
    end if
 end openStack

@@ -1,0 +1,28 @@
+# Message Box: no window that comes and goes while the IDE starts. At every
+# start ideInitialiseMessageBox hides the Message Box, opens it as a palette
+# and closes it again (ensureMBcorrect), so that it is set up before it is
+# first shown. Opened, it was shown (by the palette command, and by the
+# palette behavior's openStack, which shows a palette that opened
+# invisible), so for a moment it was on the screen, a "ghost window" before
+# the IDE settled (LittleNemo, openxtalk.org p=25967), seen on Linux, where
+# nothing makes a window at a blendLevel of 99 see-through. It is opened
+# invisible as a palette now, marked to stay hidden (cOXTOpenHidden, which
+# revpalettebehavior.livecodescript reads), with the same messages, and left
+# visible once closed, as the palette command left it, so that it shows
+# when it is next opened.
+file: Toolset/palettes/message box/revmessagebox.8.rev
+object: stack
+replace:
+|      hide stack tStackName|
+|      palette stack tStackName|
+|      close stack tStackName|
+with:
+|      hide stack tStackName|
+|      -- OXT-Beyond: opened invisible and marked to stay hidden, so that it|
+|      -- does not show for a moment at every start, and left visible, as|
+|      -- the palette command left it|
+|      set the cOXTOpenHidden of stack tStackName to true|
+|      go invisible stack tStackName as palette|
+|      close stack tStackName|
+|      set the cOXTOpenHidden of stack tStackName to empty|
+|      set the visible of stack tStackName to true|

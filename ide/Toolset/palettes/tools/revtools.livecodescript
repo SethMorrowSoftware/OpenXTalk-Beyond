@@ -128,7 +128,11 @@ on openStack
    lock screen
    layoutpalette
    registerForMessages
-   set the visible of me to true
+   -- OXT-Beyond: not when it is opened to stay hidden (cOXTOpenHidden,
+   -- revpalettebehavior.livecodescript)
+   if the cOXTOpenHidden of me is not true then
+      set the visible of me to true
+   end if
    unlock screen
    
    -- is this the last thing that gets called?

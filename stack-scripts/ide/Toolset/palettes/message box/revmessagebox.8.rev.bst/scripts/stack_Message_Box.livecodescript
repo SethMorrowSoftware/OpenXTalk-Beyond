@@ -20,8 +20,14 @@ on ensureMBcorrect
    put revIDEPaletteToStackName("Message Box") into tStackName
    if there is a stack tStackName then
       hide stack tStackName
-      palette stack tStackName
+      -- OXT-Beyond: opened invisible and marked to stay hidden, so that it
+      -- does not show for a moment at every start, and left visible, as
+      -- the palette command left it
+      set the cOXTOpenHidden of stack tStackName to true
+      go invisible stack tStackName as palette
       close stack tStackName
+      set the cOXTOpenHidden of stack tStackName to empty
+      set the visible of stack tStackName to true
       set the blendlevel of stack "message box" to 0
    end if
 end ensureMBcorrect
