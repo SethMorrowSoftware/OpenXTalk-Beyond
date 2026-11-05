@@ -1707,9 +1707,10 @@ it squashes:
   the Stack Player and on the website, shows a stack and nothing else:
   no bar, no window, no library, in the middle of the page or at its top
   left. It plays a stack of the same site (?stack=) or one of the
-  player's samples (?play=), lets a Mobile Web stack fill the window, and
-  keeps out of a phone's notch. The Stack Player's own page is unchanged
-  (LittleNemo) (#349).
+  player's samples (?play=). On a phone it gives a Mobile Web stack the
+  whole screen and keeps it out of the notch; on a desktop it shows a
+  stack at its own size, as the Stack Player does. The Stack Player's
+  own page on a desktop is unchanged (LittleNemo) (#349, #355).
 - **Android packages that wouldn't install.** Test builds and "Sign for
   development only" builds are signed with the Android SDK's debug key,
   as LiveCode's builder signed them (before, they were not signed at
@@ -1736,14 +1737,16 @@ it squashes:
 Behind the scenes, the Responsive Starter is checked in a browser on an
 iPhone, an iPad and a desktop, light and dark, with a notch, turned on
 its side and in a narrowed window; the bare player is opened by the
-player's check and held at rest by the site's; the new "Android builder"
+player's check, which reads the drawn stack from its screenshot (at its
+own size on a desktop, to every edge on an iPhone), and held at rest by
+the site's; the new "Android builder"
 workflow builds packages with the released builder and with this one on
 Windows, Linux and macOS, checks their signatures, alignment and
 android:exported, compares them file by file, and on Linux runs them on
 an Android 13 emulator and on one with 16 KB pages; the changelog check
 refuses a fragment that was folded already; and the runtimes that every
 package carries for the other platforms are rebuilt from this release's
-engine (#348, #349, #350, #353, #354).
+engine (#348, #349, #350, #353, #354, #355).
 
 One bug found this round is not fixed in it. An Android app made with
 OXT-Beyond closes when Android makes its screen again without ending
