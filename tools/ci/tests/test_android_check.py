@@ -414,7 +414,7 @@ class Device(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def device(self, pidof):
+    def device(self, pidof, timeout='10'):
         d = self.tmp.name
         adb = os.path.join(d, 'platform-tools', 'adb')
         with open(adb, 'w') as f:
@@ -432,11 +432,15 @@ class Device(unittest.TestCase):
                     '  "logcat -d -b events -v brief") echo "I/am_kill (  590): [0,3475,org.openxtalk.check.androidprobe,0,lmk]" ;;\n'
                     '  "shell dumpsys activity exit-info"*) printf "  ApplicationExitInfo #0:\\n    pid=3612 reason=3 (LOW_MEMORY)\\n" ;;\n'
                     '  "shell cat /proc/meminfo") printf "MemTotal: 2000000 kB\\nMemFree: 1 kB\\nMemAvailable: 90000 kB\\n" ;;\n'
+                    '  "shell dumpsys window") printf "  mCurrentFocus=Window{1f u0 Application Not Responding: '
+                    'com.android.systemui}\\n  mFocusedApp=ActivityRecord{2e u0 '
+                    'org.openxtalk.check.androidprobe/.mblandroid t9}\\n" ;;\n'
                     'esac\n' % (d, pidof, d))
         os.chmod(adb, 0o755)
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
-            status = ac.main(['device', '--apk', self.apk, '--serial', 'emulator-5554', '--sdk', d, '--timeout', '10'])
+            status = ac.main(['device', '--apk', self.apk, '--serial', 'emulator-5554', '--sdk', d,
+                              '--timeout', timeout])
         return status, out.getvalue()
 
     def test_gone_after_drawing(self):
@@ -469,7 +473,40 @@ class Device(unittest.TestCase):
         self.assertNotIn('NOTE:', out)
 
 
+    def test_not_green_says_what_stood_in_front(self):
+        # the probe's green dimmed under another app's dialog: the check
+        # fails as before, and says what was in front and what showed
+        dim = tuple(c * 2 // 5 for c in ac.RUN_COLOR)
+        with open(os.path.join(self.tmp.name, 'screen.raw'), 'wb') as f:
+            f.write(struct.pack('<IIII', 4, 4, 1, 0) + bytes(list(dim) + [255]) * 12 +
+                    bytes([255, 255, 255, 255]) * 4)
+        with open(os.path.join(self.tmp.name, 'logcat.txt'), 'w') as f:
+            f.write(self.LOG.split('I/lowmemorykiller')[0] +
+                    'E/ActivityManager(  590): ANR in com.android.systemui\n'
+                    'I/ActivityManager(  590): Killing 1234:com.android.chrome/u0a50 (adj 900): empty\n')
+        status, out = self.device('echo 3475', timeout='1')
+        self.assertEqual(status, 1, out)
+        for part in ("the screen never turned the probe's green (0% green, 0% red: the stack never showed)",
+                     'in front (dumpsys window): mCurrentFocus=Window{1f u0 Application Not Responding: '
+                     'com.android.systemui}; mFocusedApp=ActivityRecord{2e u0 org.openxtalk.check.androidprobe/'
+                     '.mblandroid t9}',
+                     'dialogs in the log (any process):\n  E/ActivityManager(  590): ANR in com.android.systemui\n',
+                     "the screen's commonest colours: #0c3f24 "):
+            self.assertIn(part, out)
+        self.assertNotIn('Killing 1234', out)
+
+    def test_green_says_nothing_of_what_was_in_front(self):
+        status, out = self.device('true')
+        self.assertNotIn('in front', out)
+        self.assertNotIn('commonest colours', out)
+
+
 class Screen(unittest.TestCase):
+    def test_screen_colours(self):
+        rgba = bytes([1, 2, 3, 255]) * 3 + bytes([9, 9, 9, 255])
+        self.assertEqual(ac.screen_colours(rgba, step=1), [((1, 2, 3), 0.75), ((9, 9, 9), 0.25)])
+        self.assertEqual(ac.screen_colours(b''), [])
+
     def raw(self, w, h, colour, header=16):
         head = struct.pack('<III', w, h, 1) + (struct.pack('<I', 0) if header == 16 else b'')
         return head + bytes(list(colour) + [255]) * (w * h)

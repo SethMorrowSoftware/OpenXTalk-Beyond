@@ -93,6 +93,7 @@ apksigner, aapt and zipalign.
 """
 
 import argparse
+import collections
 import os
 import re
 import shutil
@@ -116,6 +117,9 @@ LOG_NAME = 'android-check.txt'
 IDENTIFIER = 'org.openxtalk.check.androidprobe'
 # kRunColor and kSavedColor of android-check.livecodescript
 RUN_COLOR = (31, 158, 90)
+# A dialog that may stand in front of the probe, in any process's lines:
+# another app's or the system's "isn't responding" or "keeps stopping"
+DIALOGS = r"ANR in |isn't responding|keeps stopping|Showing crash dialog|Application Not Responding"
 SAVED_COLOR = (204, 34, 0)
 TARGET_SDK = '33'
 KEY_ALIAS = 'oxtcheck'
@@ -355,6 +359,18 @@ def colour_share(rgba, colour, tolerance=24, step=7):
                 abs(rgba[i + 2] - b0) <= tolerance:
             hits += 1
     return hits / total if total else 0.0
+
+
+def screen_colours(rgba, top=4, step=7):
+    """The screen's commonest colours (every step-th pixel), most common
+    first, as [((r, g, b), share)]: what the screen showed when it was not
+    the probe's green (its green dimmed under a dialog, black, white)."""
+    counts = collections.Counter()
+    total = 0
+    for i in range(0, len(rgba) - 3, 4 * step):
+        counts[(rgba[i], rgba[i + 1], rgba[i + 2])] += 1
+        total += 1
+    return [(c, n / total) for c, n in counts.most_common(top)] if total else []
 
 
 def png_from_rgba(w, h, rgba):
@@ -1017,6 +1033,21 @@ def device(args):
         _, mem = a('shell', 'cat', '/proc/meminfo')
         log('memory: %s' % ', '.join(' '.join(x.split()) for x in mem.splitlines()
                                      if x.split(':')[0] in ('MemTotal', 'MemAvailable', 'SwapFree')))
+        if share < 0.25:
+            # not green: what stood in front of the probe (the focused
+            # window: a dialog names itself), any process's dialogs in the
+            # log, and what the screen showed instead
+            _, windows = a('shell', 'dumpsys', 'window')
+            front = [' '.join(x.split()) for x in windows.splitlines()
+                     if re.search(r'\bm(CurrentFocus|FocusedApp)=', x)]
+            log('in front (dumpsys window): %s' % ('; '.join(front[:4]) or 'it did not say'))
+            dialogs = [x for x in logcat.splitlines() if re.search(DIALOGS, x)]
+            log('dialogs in the log (any process):%s' % ('' if dialogs else ' none'))
+            for line in dialogs[:12]:
+                log('  ' + line)
+            if rgba:
+                log("the screen's commonest colours: %s" % ', '.join(
+                    '#%02x%02x%02x %.0f%%' % (c + (part * 100,)) for c, part in screen_colours(rgba)))
     return problems
 
 
