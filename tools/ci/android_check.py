@@ -84,7 +84,8 @@ runs, /dev/kvm, adb's devices, the free disk and the end of the emulator's
 log (--log), which otherwise only reaches the workflow's artifact. With
 --settle it then waits, and says for what, until a fresh image's first
 minute's work is done (settle): broadcast queues idle, the package
-manager idle, the enabled overlays unchanged.
+manager idle, the enabled overlays unchanged, each waiting through a
+system server that is not serving, and says if that server restarted.
 
 Exit status 0 when every check passed, 1 otherwise. Only the Python 3
 standard library is used (3.8 or later), with the Android SDK's adb,
@@ -1104,6 +1105,20 @@ def enabled_overlays(listing):
     return sorted(x.split(']', 1)[1].strip() for x in listing.splitlines() if x.strip().startswith('[x]'))
 
 
+# What a command says while the system server is not serving (it is
+# restarting, or not yet up): `cmd` cannot find the service, or the call
+# died with it. An answer from no one, which settling waits through
+# rather than reads.
+NOT_SERVING = r"Can't find service|Failure calling service|DeadObjectException|DeadSystemException"
+
+
+def answer(out, keep=300):
+    """A command's answer on one line, cut to its END if long: a waiting
+    command prints progress first and says how it ended last."""
+    said = ' '.join(out.split())
+    return said if len(said) <= keep else '...' + said[-keep:]
+
+
 def settle(adb, serial, minutes, interval, polls=3):
     """After boot, wait for what Android does once in a fresh image's first
     minute (the BOOT_COMPLETED receivers; the package manager's queue; the
@@ -1112,8 +1127,14 @@ def settle(adb, serial, minutes, interval, polls=3):
     broadcast queues are idle (am wait-for-broadcast-idle), the package
     manager's handler is idle (pm wait-for-handler), and the enabled
     overlays have not changed over `polls` polls `interval` seconds apart.
-    Prints each condition and when it held. A condition that does not hold
-    in `minutes` is said, and the run goes on: this decides nothing."""
+    While the system server is not serving (NOT_SERVING: on an API 35
+    image, 24 s after sys.boot_completed, `pm` could not find the package
+    service and `cmd overlay list` listed nothing), a condition waits for
+    it, and a listing it did not give counts for nothing. The system
+    server's process is read before and after, so a restart is said.
+    Prints each condition and when it held, and how a command that cannot
+    say ended. A condition that does not hold in `minutes` is said, and
+    the run goes on: this decides nothing."""
     start = time.monotonic()
     deadline = start + minutes * 60
 
@@ -1123,49 +1144,84 @@ def settle(adb, serial, minutes, interval, polls=3):
     def shell(*cmd):
         return run([adb, '-s', serial, 'shell'] + list(cmd), timeout=left())
 
-    held, missed = [], []
-    for what, cmd in (('the broadcast queues are idle', ('am', 'wait-for-broadcast-idle')),
-                      ("the package manager's handler is idle", ('pm', 'wait-for-handler', '--timeout',
-                                                                  str(left() * 1000)))):
+    def system_server():
         try:
-            status, out = shell(*cmd)
-        except CheckError as e:
+            out = shell('pidof', 'system_server')[1].strip()
+        except CheckError:
+            return ''
+        return out if re.fullmatch(r'\d+', out) else ''
+
+    server = system_server()
+    held, missed = [], []
+    for what, cmd, extra in (('the broadcast queues are idle', ('am', 'wait-for-broadcast-idle'), lambda: ()),
+                             ("the package manager's handler is idle", ('pm', 'wait-for-handler'),
+                              lambda: ('--timeout', str(left() * 1000)))):
+        name = ' '.join(cmd)
+        said_waiting = False
+        try:
+            while True:
+                status, out = shell(*(cmd + extra()))
+                if not re.search(NOT_SERVING, out) or time.monotonic() >= deadline:
+                    break
+                if not said_waiting:
+                    log('settling: %s: the system server is not serving (%s: %s); waiting for it' % (
+                        what, name, answer(out, 120)))
+                    said_waiting = True
+                time.sleep(interval)
+        except CheckError:
             missed.append(what)
-            log('settling: %s: not in %g minutes (%s)' % (what, minutes, ' '.join(cmd[:2])))
+            log('settling: %s: not in %g minutes (%s)' % (what, minutes, name))
             continue
-        said = ' '.join(out.split())[:200]
-        if status != 0 or re.search(r'(?i)unknown (command|option)|error', out):
-            log('settling: %s: %s cannot say on this image (%s)' % (what, ' '.join(cmd[:2]), said or status))
-            continue
-        held.append('%s (%s, %d s)' % (what, ' '.join(cmd[:2]), time.monotonic() - start))
-        log('settling: %s after %d s (%s%s)' % (what, time.monotonic() - start, ' '.join(cmd[:2]),
-                                                ': ' + said if said else ''))
+        if re.search(NOT_SERVING, out):
+            missed.append(what)
+            log('settling: %s: not in %g minutes: the system server was not serving (%s: %s)' % (
+                what, minutes, name, answer(out, 120)))
+        elif status != 0 or re.search(r'(?i)unknown (command|option)|error', out):
+            log('settling: %s: %s cannot say on this image (exit status %d: %s)' % (
+                what, name, status, answer(out) or 'nothing'))
+        else:
+            held.append('%s (%s, %d s)' % (what, name, time.monotonic() - start))
+            log('settling: %s after %d s (%s%s)' % (what, time.monotonic() - start, name,
+                                                    ': ' + answer(out) if out.strip() else ''))
     last = None
     same = 0
+    silent = False
     while True:
         try:
-            _, listing = shell('cmd', 'overlay', 'list')
-            now = enabled_overlays(listing)
-        except CheckError:
-            now = None
-        if now is not None and now == last:
-            same += 1
+            status, listing = shell('cmd', 'overlay', 'list')
+        except CheckError as e:
+            status, listing = None, str(e)
+        if status != 0 or re.search(NOT_SERVING, listing):
+            # no answer: not a list of none, and not a poll that held
+            if not silent:
+                log('settling: cmd overlay list gave no answer (%s); waiting' % (
+                    answer(listing, 120) or 'exit status %s' % status))
+                silent = True
+            same = 0
         else:
-            if last is not None and now is not None:
-                log('settling: the enabled overlays changed: %s' % '; '.join(
-                    ['+' + x for x in now if x not in last] + ['-' + x for x in last if x not in now]))
-            same = 1
-        last = now
+            silent = False
+            now = enabled_overlays(listing)
+            if now == last:
+                same += 1
+            else:
+                if last is not None:
+                    log('settling: the enabled overlays changed: %s' % '; '.join(
+                        ['+' + x for x in now if x not in last] + ['-' + x for x in last if x not in now]))
+                same = 1
+            last = now
         if same >= polls or time.monotonic() >= deadline:
             break
         time.sleep(interval)
     what = 'the enabled overlays are unchanged over %d polls %g s apart' % (polls, interval)
-    if same >= polls and last is not None:
+    if same >= polls:
         held.append('%s (cmd overlay list, %d enabled, %d s)' % (what, len(last), time.monotonic() - start))
         log('settling: %s after %d s (%d enabled)' % (what, time.monotonic() - start, len(last)))
     else:
         missed.append(what)
         log('settling: %s: not in %g minutes' % (what, minutes))
+    after = system_server()
+    if server and after and server != after:
+        log('settling: the system server restarted while settling (process %s, then %s)' % (server, after))
     log('%s settled after %d s: %s%s' % (serial, time.monotonic() - start, '; '.join(held) or 'nothing held',
                                          ('; not: ' + '; '.join(missed)) if missed else ''))
     return held, missed

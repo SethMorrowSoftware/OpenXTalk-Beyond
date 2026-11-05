@@ -788,11 +788,13 @@ class Boot(unittest.TestCase):
         status, out = self.boot(self.SETTLING, '--settle', '--settle-polls', '3')
         self.assertEqual(status, 0, out)
         calls = self.calls()
-        # booted first, then each condition in turn
+        # booted first, then the system server's process, each condition
+        # in turn, and the system server's process again
         first = calls.index('shell am wait-for-broadcast-idle')
-        self.assertTrue(all('getprop' in x or 'get-state' in x for x in calls[:first]))
+        self.assertTrue(all('getprop' in x or 'get-state' in x for x in calls[:first - 1]))
+        self.assertEqual(calls[first - 1], 'shell pidof system_server')
         self.assertTrue(calls[first + 1].startswith('shell pm wait-for-handler --timeout '))
-        self.assertEqual(calls[first + 2:], ['shell cmd overlay list'] * 4)
+        self.assertEqual(calls[first + 2:], ['shell cmd overlay list'] * 4 + ['shell pidof system_server'])
         for part in ('emulator-5554 booted after',
                      'settling: the broadcast queues are idle after 0 s (am wait-for-broadcast-idle: '
                      'All broadcast queues are idle!)',
@@ -827,6 +829,84 @@ class Boot(unittest.TestCase):
         self.assertIn('settling: the enabled overlays are unchanged over 3 polls 0.05 s apart: not in 0.003 minutes',
                       out)
         self.assertIn('; not: the enabled overlays are unchanged', out)
+
+    # booted, then the system server restarts: two answers from no one,
+    # then the same answers as ever, and a new system server process
+    RESTARTING = ('echo "$*" >> "$(dirname "$0")/calls"\n'
+                  'c() { grep -c "$1" "$(dirname "$0")/calls"; }\n'
+                  'case "$*" in\n'
+                  '  *get-state*) echo device ;;\n'
+                  '  *getprop*) echo 1 ;;\n'
+                  '  *"pidof system_server"*) if [ "$(c "pidof system_server")" -ge 2 ]; then echo 1234; '
+                  'else echo 574; fi ;;\n'
+                  '  *wait-for-broadcast-idle*) if [ "$(c wait-for-broadcast-idle)" -ge 3 ]; then '
+                  'echo "All broadcast queues are idle!"; else echo "cmd: Can\'t find service: activity"; '
+                  'exit 20; fi ;;\n'
+                  '  *wait-for-handler*) echo Success ;;\n'
+                  '  *"overlay list"*) if [ "$(c "overlay list")" -ge 3 ]; then echo android; '
+                  'echo "[x] com.android.internal.systemui.navbar.gestural"; '
+                  'else echo "cmd: Can\'t find service: overlay"; exit 20; fi ;;\n'
+                  'esac\n')
+
+    def test_settling_waits_for_the_system_server(self):
+        status, out = self.boot(self.RESTARTING, '--settle', '--settle-polls', '3')
+        self.assertEqual(status, 0, out)
+        calls = self.calls()
+        # each condition asked again until the system server answered
+        self.assertEqual(calls.count('shell am wait-for-broadcast-idle'), 3)
+        # the two listings it did not give counted for nothing: three more
+        self.assertEqual(calls.count('shell cmd overlay list'), 5)
+        self.assertEqual(out.count('the system server is not serving'), 1)
+        self.assertEqual(out.count('gave no answer'), 1)
+        for part in ("settling: the broadcast queues are idle: the system server is not serving "
+                     "(am wait-for-broadcast-idle: cmd: Can't find service: activity); waiting for it",
+                     'settling: the broadcast queues are idle after 0 s (am wait-for-broadcast-idle: '
+                     'All broadcast queues are idle!)',
+                     "settling: cmd overlay list gave no answer (cmd: Can't find service: overlay); waiting",
+                     'settling: the enabled overlays are unchanged over 3 polls 0.05 s apart after 0 s (1 enabled)',
+                     'settling: the system server restarted while settling (process 574, then 1234)'):
+            self.assertIn(part, out)
+        # a listing of no one is not a change to report
+        self.assertNotIn('the enabled overlays changed', out)
+        self.assertNotIn('not:', out)
+
+    def test_settling_says_when_the_system_server_never_answers(self):
+        script = ('case "$*" in\n'
+                  '  *get-state*) echo device ;;\n'
+                  '  *getprop*) echo 1 ;;\n'
+                  '  *pidof*) echo 574 ;;\n'
+                  '  *) echo "cmd: Failure calling service activity: Broken pipe (32)"; exit 20 ;;\n'
+                  'esac\n')
+        status, out = self.boot(script, '--settle', '--settle-minutes', '0.003')
+        self.assertEqual(status, 0, out)
+        self.assertIn('settling: the broadcast queues are idle: not in 0.003 minutes: the system server was not '
+                      'serving (am wait-for-broadcast-idle: cmd: Failure calling service activity: Broken pipe (32))',
+                      out)
+        self.assertIn('settling: the enabled overlays are unchanged over 3 polls 0.05 s apart: not in 0.003 minutes',
+                      out)
+        self.assertIn('settled after 0 s: nothing held; not: the broadcast queues are idle; ', out)
+        self.assertNotIn('restarted', out)
+
+    def test_cannot_say_shows_how_the_command_ended(self):
+        # a waiting command prints progress, then how it ended: the end is kept
+        progress = 'Test idle failed due to 8adc4b0 runnable at -1s243ms because CONTAINS_MANIFEST. ' * 8
+        script = ('case "$*" in\n'
+                  '  *get-state*) echo device ;;\n'
+                  '  *getprop*) echo 1 ;;\n'
+                  '  *wait-for-broadcast-idle*) echo "%s"; echo "it ended this way"; exit 3 ;;\n'
+                  '  *wait-for-handler*) echo Success ;;\n'
+                  '  *"overlay list"*) echo "[x] com.a" ;;\n'
+                  'esac\n' % progress)
+        status, out = self.boot(script, '--settle', '--settle-polls', '2')
+        self.assertEqual(status, 0, out)
+        line = [x for x in out.splitlines() if 'cannot say' in x][0]
+        self.assertIn('am wait-for-broadcast-idle cannot say on this image (exit status 3: ...', line)
+        self.assertTrue(line.endswith('because CONTAINS_MANIFEST. it ended this way)'), line)
+        self.assertLess(len(line), 450)
+
+    def test_answer(self):
+        self.assertEqual(ac.answer(' a\n b  '), 'a b')
+        self.assertEqual(ac.answer('x' * 10 + 'end', keep=5), '...xxend')
 
     def test_enabled_overlays(self):
         listing = ('android\n[x] com.a\n[ ] com.b\n---- \ncom.android.systemui\n[x] com.c\n')
