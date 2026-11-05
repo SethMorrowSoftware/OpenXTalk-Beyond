@@ -230,16 +230,25 @@ void MCButton::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool 
 			else
 				if (flags & F_SHOW_BORDER)
 					trect = MCU_reduce_rect(trect, borderwidth >> 1);
-			setforeground(dc, DI_BACK,
-			              (((state & CS_HILITED && flags & F_HILITE_FILL)
+			bool t_fill_rev = (((state & CS_HILITED && flags & F_HILITE_FILL)
 			               || (state & CS_ARMED && flags & F_ARM_FILL)
 			               || (state & CS_ARMED && !(flags & F_SHOW_BORDER)
 			               && MClook != LF_MOTIF)) && loff == 0
 			              && (flags & F_SHOW_ICON || !indicator))
 			              || (white && state & CS_KFOCUSED && !(state & CS_SUBMENU))
-			              || (macoption && state & CS_SUBMENU),
-                          (white || ((state & CS_ARMED && !(flags & F_SHOW_BORDER))
-                                     && !macoption)));
+			              || (macoption && state & CS_SUBMENU);
+			bool t_fill_hilite = (white || ((state & CS_ARMED && !(flags & F_SHOW_BORDER))
+			                                && !macoption));
+			setforeground(dc, DI_BACK, t_fill_rev, t_fill_hilite);
+			// OXT-Beyond: on the web, a push button or a tab panel that would
+			// take its colour from the card takes the theme's face instead
+			// (getwebthemeface); its hilited fill is as before
+			MCColor t_web_face;
+			if (!t_fill_rev && !t_fill_hilite && getwebthemeface(dc -> gettype(), t_web_face))
+			{
+				dc -> setforeground(t_web_face);
+				dc -> setfillstyle(FillSolid, nil, 0, 0);
+			}
 			switch (style)
 			{
 			case F_MENU:
@@ -1638,6 +1647,77 @@ void MCButton::drawcombo(MCDC *dc, MCRectangle &srect)
 	}
 }
 
+/* OXT-Beyond: the web engine has no theme that draws controls: its
+ * MCWebTheme (em-theme.cpp) does not load, so MCcurtheme is NULL there, and
+ * a push button or a tab panel with no colour of its own was filled with the
+ * colour it inherits, the card's (or its group's or stack's). Windows, the
+ * Mac and Linux draw both with their theme, in its own face, whatever the
+ * card's colour; on the web a card's backgroundColor (or backgroundPattern)
+ * filled every push button, default button and tab panel on it (TerryL,
+ * openxtalk.org p=25957 and p=26095, the web IDE on Windows 11).
+ *
+ * True with the web theme's face (em-theme.cpp: 240,240,240, or 32,32,32 on
+ * a page that follows a dark browser) for an opaque push button (a standard
+ * button, threeD, its border shown, no shadow, not a menu's item) or a tab
+ * panel, with no background colour or pattern of its own, whose words can
+ * be read on that face as the WCAG asks of words (4.5): it is then filled
+ * with the face in place of the inherited colour, the button's hilited fill
+ * aside. A stack, card and group that set no colour give their controls that
+ * face already, so they look as before; so does a button whose words could
+ * not be read on the face (white words of a dark card: they keep its
+ * colour), a rectangle button (Windows' theme has none either), and every
+ * control off the web. Only the drawing changes: the effective
+ * backgroundColor is still the inherited one. */
+bool MCButton::getwebthemeface(MCContextType p_type, MCColor &r_face)
+{
+#ifdef __EMSCRIPTEN__
+	if (MCcurtheme != NULL || MClook == LF_MOTIF || !(flags & F_OPAQUE))
+		return false;
+	uint2 t_style = getstyleint(flags);
+	bool t_push = t_style == F_STANDARD && (flags & F_3D) && (flags & F_SHOW_BORDER) &&
+	              !(flags & F_SHADOW) && !(flags & F_AUTO_ARM);
+	bool t_tabs = t_style == F_MENU && menumode == WM_TOP_LEVEL;
+	if (!t_push && !t_tabs)
+		return false;
+	uint2 i;
+	if (getcindex(DI_BACK, i) || getpindex(DI_BACK, i))
+		return false;
+	if (!parent.IsValid())
+		return false;
+
+	MCColor t_face;
+	MCPlatformControlType t_type;
+	MCPlatformControlPart t_part;
+	MCPlatformControlState t_state;
+	MCPlatformThemeProperty t_prop;
+	MCPlatformThemePropertyType t_prop_type;
+	if (!getthemeselectorsforprop(P_BACK_COLOR, t_type, t_part, t_state, t_prop, t_prop_type) ||
+	    !MCPlatformGetControlThemePropColor(t_type, t_part, MCPlatformControlState(t_state & ~kMCPlatformControlStateSelected), t_prop, t_face))
+		return false;
+
+	// The words, their own colour or the one they inherit: the enabled
+	// one, so that a disabled button (grey words) is filled as an enabled
+	// one is
+	MCColor t_words;
+	MCPatternRef t_pattern = nil;
+	int2 t_x, t_y;
+	if (getcindex(DI_FORE, i))
+		t_words = colors[i];
+	else if (getpindex(DI_FORE, i))
+		return false;
+	else if (!parent -> getforecolor(DI_FORE, False, False, t_words, t_pattern, t_x, t_y, p_type, this) ||
+	         t_pattern != nil)
+		return false;
+	if (MCObjectColorContrast(t_words, t_face) < 4.5)
+		return false;
+
+	r_face = t_face;
+	return true;
+#else
+	return false;
+#endif
+}
+
 void MCButton::drawtabs(MCDC *dc, MCRectangle &srect)
 {
 	MCPoint p[10];  //polygon for each tab
@@ -1872,7 +1952,18 @@ void MCButton::drawtabs(MCDC *dc, MCRectangle &srect)
 				uint2 index;
 				if (i + 1 == menuhistory
 				        || (!getcindex(DI_SHADOW, index) && !getpindex(DI_SHADOW, index)))
+				{
 					setforeground(dc, DI_BACK, False); //fill with background color
+					// OXT-Beyond: on the web, the theme's face rather than
+					// the card's colour, as the tab panel's pane
+					// (getwebthemeface)
+					MCColor t_web_face;
+					if (getwebthemeface(dc -> gettype(), t_web_face))
+					{
+						dc -> setforeground(t_web_face);
+						dc -> setfillstyle(FillSolid, nil, 0, 0);
+					}
+				}
 				else
 					setforeground(dc, DI_SHADOW, False);
 				MCRectangle trect;

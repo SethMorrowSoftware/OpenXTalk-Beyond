@@ -395,13 +395,13 @@ Work left for later. 432 notes, by part of the repository:
 - [engine/src/module-engine.cpp:527](engine/src/module-engine.cpp#L527) TODO[C++11] This should be "static" but MSVC2010 doesn't support
 - [engine/src/object.cpp:678](engine/src/object.cpp#L678) TODO: filter out the C1 control codes too
 - [engine/src/object.cpp:1137](engine/src/object.cpp#L1137) TODO[19681]: This can be removed when all engine messages are sent with
-- [engine/src/object.h:1761](engine/src/object.h#L1761) TODO[C++11] uint32_t m_part_id = 0;
-- [engine/src/object.h:1764](engine/src/object.h#L1764) TODO[2017-04-27] These constructors should be constexpr
-- [engine/src/object.h:1765](engine/src/object.h#L1765) TODO[C++11] constexpr MCObjectPartHandle() = default;
-- [engine/src/object.h:1770](engine/src/object.h#L1770) TODO[C++11] MCObjectPartHandle(const MCObjectPartHandle&) = default;
-- [engine/src/object.h:1773](engine/src/object.h#L1773) TODO[C++11] MCObjectPartHandle(MCObjectPartHandle&& other) = deafult;
-- [engine/src/object.h:1784](engine/src/object.h#L1784) TODO[C++11] MCObjectPartHandle& operator=(const MCObjectPartHandle&) = default;
-- [engine/src/object.h:1791](engine/src/object.h#L1791) TODO[C++11] MCObjectPartHandle& operator=(MCObjectPartHandle&&) = default;
+- [engine/src/object.h:1764](engine/src/object.h#L1764) TODO[C++11] uint32_t m_part_id = 0;
+- [engine/src/object.h:1767](engine/src/object.h#L1767) TODO[2017-04-27] These constructors should be constexpr
+- [engine/src/object.h:1768](engine/src/object.h#L1768) TODO[C++11] constexpr MCObjectPartHandle() = default;
+- [engine/src/object.h:1773](engine/src/object.h#L1773) TODO[C++11] MCObjectPartHandle(const MCObjectPartHandle&) = default;
+- [engine/src/object.h:1776](engine/src/object.h#L1776) TODO[C++11] MCObjectPartHandle(MCObjectPartHandle&& other) = deafult;
+- [engine/src/object.h:1787](engine/src/object.h#L1787) TODO[C++11] MCObjectPartHandle& operator=(const MCObjectPartHandle&) = default;
+- [engine/src/object.h:1794](engine/src/object.h#L1794) TODO[C++11] MCObjectPartHandle& operator=(MCObjectPartHandle&&) = default;
 - [engine/src/paragraf.cpp:168](engine/src/paragraf.cpp#L168) TODO: trunctation
 - [engine/src/paragraf.cpp:2243](engine/src/paragraf.cpp#L2243) TODO: truncation if the paragraph would be too long
 - [engine/src/paragraf.cpp:2401](engine/src/paragraf.cpp#L2401) TODO: find out if ICU break iterator makes this redundant

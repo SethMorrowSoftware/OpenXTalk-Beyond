@@ -334,6 +334,9 @@ public:
 	void drawcascade(MCDC *dc, MCRectangle &srect);
 	void drawcombo(MCDC *dc, MCRectangle &srect);
 	void drawtabs(MCDC *dc, MCRectangle &srect);
+	// OXT-Beyond: the web theme's face for a push button or a tab panel
+	// that would take its colour from the card (buttondraw.cpp)
+	bool getwebthemeface(MCContextType p_type, MCColor &r_face);
 	void drawstandardbutton(MCDC *dc, MCRectangle &srect);
 	void drawmacdefault(MCDC *dc, const MCRectangle &srect);
 	void drawmacborder(MCDC *dc, MCRectangle &srect);
