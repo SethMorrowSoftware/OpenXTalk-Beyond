@@ -82,7 +82,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,menubar,menubar-modern,menubar-mac,menu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,menubar,menubar-modern,menubar-mac,menu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -4828,6 +4828,87 @@ on tour_inspector_clear_button
    if tWidget is not empty and exists(tWidget) then delete tWidget
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_inspector_clear_button
+
+-- The Clear beside a colour takes away the pattern its row holds beside
+-- it too (LittleNemo, openxtalk.org p=26076: in rc.6.15 Clear stayed
+-- disabled while the Background fill was a pattern, so a pattern fill
+-- could be taken away only from the pattern's right-click menu). The
+-- button with no fill of its own: Clear is disabled; a pattern a script
+-- gives it (which takes away its colour, so only the pattern can enable
+-- Clear): Clear is enabled; a click on it, as a user's, leaves the button
+-- with no backgroundPattern and no backgroundColor, Clear disabled and
+-- the pattern's swatch empty. Built-in pattern 3, which the engine keeps
+-- as an id of its own (136 + 3), needs no image
+on tour_inspector_clear_pattern
+   local tButton, tPI, tEditor, tPatternEditor, tClear, tDefault, tFails, tError
+   put tourSample("Push") into tButton
+   set the backgroundColor of tButton to empty
+   set the backgroundPattern of tButton to empty
+   try
+      put tourInspect(tButton) into tPI
+      get tourInspectorSection(tPI, "Colors")
+      put tourInspectorEditor(tPI, "backgroundColor") into tEditor
+      if tEditor is empty then throw "the button's inspector has no Background fill"
+      put tourInspectorEditor(tPI, "backgroundPattern") into tPatternEditor
+      if tPatternEditor is empty then throw "the button's Background fill has no Fill pattern"
+      if there is not a button "clearColour" of tEditor then throw "the Background fill has no Clear button"
+      put the long id of button "clearColour" of tEditor into tClear
+      if the enabled of tClear then
+         put "Clear is enabled though the button has no colour or pattern of its own" & return after tFails
+      end if
+      set the backgroundPattern of tButton to 3
+      tourRecord "INFO inspector-clear-pattern a script set pattern 3: backgroundPattern" && \
+            quote & the backgroundPattern of tButton & quote && "backgroundColor" && quote & the backgroundColor of tButton & quote
+      repeat 30 times
+         if the enabled of tClear then exit repeat
+         tourWait 100
+      end repeat
+      tourRecord "INFO inspector-clear-pattern Clear enabled with a pattern:" && the enabled of tClear
+      if not the enabled of tClear then
+         put "Clear is not enabled once a script gave the button a pattern fill" & return after tFails
+      else
+         put the defaultStack into tDefault
+         set the defaultStack to tPI
+         tourUnlockScreen "inspector-clear-pattern"
+         click at the loc of tClear
+         set the defaultStack to tDefault
+         repeat 30 times
+            if the backgroundPattern of tButton is empty then exit repeat
+            tourWait 100
+         end repeat
+         tourWait 200
+         tourRecord "INFO inspector-clear-pattern after a click on Clear: backgroundPattern" && \
+               quote & the backgroundPattern of tButton & quote && "backgroundColor" && \
+               quote & the backgroundColor of tButton & quote && "Clear enabled" && the enabled of tClear
+         if the backgroundPattern of tButton is not empty then
+            put "a click on Clear left the backgroundPattern" && the backgroundPattern of tButton & return after tFails
+         end if
+         if the backgroundColor of tButton is not empty then
+            put "a click on Clear gave the button a backgroundColor" && the backgroundColor of tButton & return after tFails
+         end if
+         if the enabled of tClear then
+            put "Clear is still enabled after it cleared the pattern" & return after tFails
+         end if
+         if there is a graphic 1 of tPatternEditor and \
+               the backgroundPattern of graphic 1 of tPatternEditor is not empty then
+            put "after Clear the Fill pattern still shows" && the backgroundPattern of graphic 1 of tPatternEditor & return after tFails
+         end if
+      end if
+      -- the pattern the script gives it again, for the picture
+      set the backgroundPattern of tButton to 3
+      repeat 30 times
+         if the enabled of tClear then exit repeat
+         tourWait 100
+      end repeat
+      tourShotStack tPI, "08-inspector-clear-pattern"
+   catch tError
+      put tError & return after tFails
+   end try
+   set the backgroundPattern of tButton to empty
+   set the backgroundColor of tButton to empty
+   tourCloseInspectors
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_inspector_clear_pattern
 
 -- The first visible open stack but pStack whose window takes in the point
 -- pPoint of the screen, in front of pStack or behind it, or empty

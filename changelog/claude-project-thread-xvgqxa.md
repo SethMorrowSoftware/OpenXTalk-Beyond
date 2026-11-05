@@ -1,0 +1,1 @@
+- Inspector: the Clear beside a colour is enabled when the row's fill is a pattern, and takes the pattern away with the colour, so a pattern fill no longer needs the right-click menu to remove (LittleNemo, openxtalk.org p=26076)
