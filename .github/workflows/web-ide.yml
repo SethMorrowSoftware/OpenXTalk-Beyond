@@ -86,6 +86,8 @@ on:
       - tools/web-ide/**
       - tools/pages/build_pages.py
       - tools/pages/build_dictionary.py
+      - tools/pages/build_lessons.py
+      - tools/pages/lessons/**
       - tools/pages/check_dictionary.py
       - tools/pages/check_front_page.py
       - tools/pages/index.html
@@ -118,6 +120,8 @@ on:
       - tools/web-ide/**
       - tools/pages/build_pages.py
       - tools/pages/build_dictionary.py
+      - tools/pages/build_lessons.py
+      - tools/pages/lessons/**
       - tools/pages/check_dictionary.py
       - tools/pages/check_front_page.py
       - tools/pages/index.html

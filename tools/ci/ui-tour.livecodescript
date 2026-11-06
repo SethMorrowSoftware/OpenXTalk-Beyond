@@ -33,7 +33,8 @@
 -- empty value and sets it, and nothing for two buttons whose gravities
 -- differ (inspector-gravity), the controls of a stack with HyperCard's
 -- names, as an imported one has, with their own types, right-click menus
--- and Inspector sections (inspector-hypercard), the Colors section of a graphic and of several
+-- and Inspector sections (inspector-hypercard), the list of a disk image's
+-- HyperCard stacks and the stack imported from it (hypercard-disk-image), the Colors section of a graphic and of several
 -- objects, and the graphic's Fill gradient popup, which must open beside
 -- the Inspector and off the graphic, and a player made with the IDE and
 -- inspected, with the Player tool turned off and on again: player), the
@@ -82,7 +83,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -106,7 +107,7 @@ constant kChatMain = "org.openxtalk.plugin.xtalkchat"
 constant kChatCore = "org.openxtalk.plugin.xtalkchat-core"
 constant kChatWindow = "revXTalkChat"
 
-local sOut, sLog, sOnly, sCount, sStarted, sWatchdog, sWatchdogCount, sReport
+local sOut, sLog, sOnly, sCount, sStarted, sWatchdog, sWatchdogCount, sReport, sStep
 
 on openStack
    if sStarted is not true then
@@ -135,24 +136,36 @@ on tourWhenStarted pTries
    end if
 end tourWhenStarted
 
-on tourRun
-   local tStep, tHandler, tError
-   put 0 into sCount
-   tourRecord "STARTED"
-   tourRecord "INFO platform" && the platform && the systemVersion && the processor
-   tourRecord "INFO version" && the version && the buildNumber
-   tourRecord "INFO screenRect" && the screenRect
-   tourRecord "INFO openStacks" && tourJoin(the openStacks)
-   tourCatchErrors
-   -- The Tools palette opens in its modern look, the default; the steps
-   -- before the modern look's take it in its classic look, as they always
-   -- have, and the modern look's steps turn it on themselves
-   tourRecord "INFO tools look at start" && quote & revIDEGetPreference("revTools_look") & quote
-   tourToolsClassic
+-- pAfter: the step after which the tour goes on, when an error ended
+-- every handler of it (tourWatchdog)
+on tourRun pAfter
+   local tStep, tHandler, tError, tSkip
+   if pAfter is empty then
+      put 0 into sCount
+      tourRecord "STARTED"
+      tourRecord "INFO platform" && the platform && the systemVersion && the processor
+      tourRecord "INFO version" && the version && the buildNumber
+      tourRecord "INFO screenRect" && the screenRect
+      tourRecord "INFO openStacks" && tourJoin(the openStacks)
+      tourCatchErrors
+      -- The Tools palette opens in its modern look, the default; the steps
+      -- before the modern look's take it in its classic look, as they always
+      -- have, and the modern look's steps turn it on themselves
+      tourRecord "INFO tools look at start" && quote & revIDEGetPreference("revTools_look") & quote
+      tourToolsClassic
+   else
+      put true into tSkip
+      tourRecord "INFO the tour goes on after" && pAfter
+   end if
    repeat for each item tStep in kSteps
+      if tSkip is true then
+         if tStep is pAfter then put false into tSkip
+         next repeat
+      end if
       if sOnly is not empty and tStep is not among the items of sOnly then next repeat
       put "tour_" & tStep into tHandler
       replace "-" with "_" in tHandler
+      put tStep into sStep
       put 0 into sWatchdogCount
       send "tourWatchdog" && quote & tStep & quote to me in 20 seconds
       put the result into sWatchdog
@@ -166,6 +179,7 @@ on tourRun
       -- whatever a step left in the way
       tourCloseDialogs
    end repeat
+   put empty into sStep
    tourRecord "INFO openStacks at the end" && tourJoin(the openStacks)
    tourRecord "DONE"
 end tourRun
@@ -194,8 +208,12 @@ command tourCatchErrors
    end try
 end tourCatchErrors
 
+-- with the handlers running when it came, the error's own first: an
+-- error with no text (Windows, the hypercard-disk-image step's first run)
+-- said nothing of where it came from
 on tourScriptError pError
    tourRecord "ERROR" && tourJoin(pError)
+   tourRecord "INFO the handlers running at the error:" && tourJoin(the executionContexts)
 end tourScriptError
 
 ----------------------------------------------------------------
@@ -4332,6 +4350,161 @@ on tour_inspector_hypercard
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_inspector_hypercard
 
+-- File > Import Stack > HyperCard Stack... with a disk image, after the
+-- file dialog (revIDEActionImportHyperCardStack calls
+-- revIDEImportHyperCardFromDiskImage with the file chosen): the list of
+-- the image's stacks opens as a modal dialog, shown, with its first stack
+-- picked (where it opens is logged: the engine may place a modal dialog
+-- over the window in front), and Import imports that stack,
+-- opened and marked with where it came from. Up to 0.2.7-rc.6.5 the list
+-- was made invisible and modal neither showed it nor waited for it, so
+-- the import did nothing at all, on every platform (OpenXTalkPaul, #261).
+-- The image is the DiskCopy 4.2 image of the IDE's tests
+-- (tests/lcs-input-files/hypercard/forks), which ui_tour.py names in
+-- OXT_TOUR_HYPERCARD_IMAGE. The import runs in a message of its own
+-- (tourHyperCardImageImport), as a menu item's does: once the imported
+-- stack has opened, the dynamic path would take the tour's own handlers
+-- to its card, where they are not found. The list is looked at and
+-- answered from a timer (tourHyperCardImageAnswer), which runs in the
+-- modal dialog's own wait: a wait of this step's would go on only once
+-- the dialog had closed
+local sHciDone, sHciResult, sHciSeen, sHciShotDone, sHciShotError
+
+on tour_hypercard_disk_image
+   local tImage, tChosen, tName, tStack, tFails, tSet
+   put $OXT_TOUR_HYPERCARD_IMAGE into tImage
+   if tImage is empty or there is not a file tImage then
+      throw "no disk image at" && quote & tImage & quote && "(OXT_TOUR_HYPERCARD_IMAGE)"
+   end if
+   put false into sHciDone
+   put empty into sHciResult
+   put empty into sHciSeen
+   send "tourHyperCardImageImport" && quote & tImage & quote to me in 0 milliseconds
+   send "tourHyperCardImageAnswer 0" to me in 500 milliseconds
+   repeat 160 times
+      if sHciDone is true then exit repeat
+      tourWait 250
+   end repeat
+   if sHciDone is not true then throw "the import did not end in 40 s"
+   if sHciSeen["mode"] is empty then
+      throw "the import ended without the list of stacks (result" && quote & tourJoin(sHciResult) & quote & ")"
+   end if
+   tourRecord "INFO hypercard-disk-image list: mode" && sHciSeen["mode"] && "loc" && sHciSeen["loc"] && \
+         "screenLoc" && sHciSeen["screenLoc"] && "picked line" && sHciSeen["hilitedLine"] && \
+         "title" && quote & sHciSeen["title"] & quote
+   tourRecord "INFO hypercard-disk-image stacks:" && tourJoin(sHciSeen["list"])
+   if sHciSeen["shot"] is not empty then tourRecord "INFO hypercard-disk-image list snapshot:" && tourJoin(sHciSeen["shot"])
+   if sHciSeen["mode"] is not 5 then
+      put "the list was open in mode" && sHciSeen["mode"] & ", not as a modal dialog (5)" & return after tFails
+   end if
+   if sHciSeen["visible"] is not true then put "the list was not shown" & return after tFails
+   if sHciSeen["hilitedLine"] is not 1 then
+      put "the list's picked line was" && quote & sHciSeen["hilitedLine"] & quote & ", not its first" & return after tFails
+   end if
+   put line 1 of sHciSeen["list"] into tChosen
+   tourRecord "INFO hypercard-disk-image imported" && quote & tChosen & quote & ", result" && quote & tourJoin(sHciResult) & quote
+   if sHciResult is not empty then put "the import's result is" && quote & tourJoin(sHciResult) & quote & return after tFails
+   if there is a stack "revHyperCardImageChooser" then put "the list is still there" & return after tFails
+   set the itemDelimiter to colon
+   put the last item of tChosen into tName
+   set the itemDelimiter to comma
+   if tName is empty or there is not a stack tName then
+      throw "failed:" && tourJoin(tFails & "no stack" && quote & tName & quote && "was imported (open:" && tourJoin(the openStacks) & ")")
+   end if
+   put the long id of stack tName into tStack
+   if the mode of tStack is 0 then put "the imported stack" && tName && "is not open" & return after tFails
+   -- the custom property set uHyperCard (revIDEImportHyperCardStack)
+   put the customProperties["uHyperCard"] of tStack into tSet
+   if tSet["image"] is not tImage then
+      put "the imported stack's image is" && quote & tSet["image"] & quote & return after tFails
+   end if
+   if tSet["imagepath"] is not tChosen then
+      put "the imported stack's path on the image is" && quote & tSet["imagepath"] & quote & return after tFails
+   end if
+   -- The snapshot of the imported stack is taken in a message of its own
+   -- (tourHyperCardImageShot), waited for at most 20 s: on Windows
+   -- (0.2.7-rc.6.15, the pull request's first run) the step went no
+   -- further once it had unlocked the screen for it, with an empty error,
+   -- until the job's 900 s ran out, and every step after it was lost. A
+   -- snapshot that does not end is a failure of this step, and the stack
+   -- is deleted all the same
+   -- The import keeps HyperCard's dynamic path (the dynamicPaths of the
+   -- stack): once its window comes to the front, as unlocking the screen
+   -- for the snapshot brought it on Windows, a handler's call of another
+   -- goes to the stack's card, not to the caller's own script, and the
+   -- tour's tourWait was not found ("can't find handler", 0.2.7-rc.6.15,
+   -- #377's second run). The snapshot is the tour's, not the import's: the
+   -- path is turned off for it, after the checks above
+   tourRecord "INFO hypercard-disk-image: the dynamicPaths of the imported stack" && the dynamicPaths of tStack
+   set the dynamicPaths of tStack to false
+   if the mode of tStack is not 0 and the visible of tStack then
+      tourWait 500
+      put false into sHciShotDone
+      put empty into sHciShotError
+      tourRecord "INFO hypercard-disk-image: the snapshot of the imported stack"
+      send "tourHyperCardImageShot" && quote & tName & quote to me in 0 milliseconds
+      repeat 80 times
+         if sHciShotDone is true then exit repeat
+         tourWait 250
+      end repeat
+      if sHciShotDone is not true then
+         put "the snapshot of the imported stack did not end in 20 s" & return after tFails
+      else if sHciShotError is not empty then
+         put "the snapshot of the imported stack:" && tourJoin(sHciShotError) & return after tFails
+      end if
+   end if
+   tourRecord "INFO hypercard-disk-image: the imported stack deleted"
+   lock messages
+   if there is a stack tName then delete stack tName
+   unlock messages
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_hypercard_disk_image
+
+-- The imported stack's snapshot, in a message of its own (see above)
+on tourHyperCardImageShot pName
+   local tError
+   try
+      tourShotStack pName, "06g-hypercard-disk-image-stack"
+   catch tError
+      put tError into sHciShotError
+   end try
+   put true into sHciShotDone
+end tourHyperCardImageShot
+
+-- The import, in a message of its own, as File > Import Stack's: a
+-- handler of the tour's that finds the IDE's command through the message
+-- path, then notes how it ended
+on tourHyperCardImageImport pImage
+   revIDEImportHyperCardFromDiskImage pImage
+   put the result into sHciResult
+   put true into sHciDone
+end tourHyperCardImageImport
+
+-- The list of stacks, once it is open: how it is open, a snapshot, then
+-- Import, as a person clicks it. Tried every 250 ms for 10 s
+on tourHyperCardImageAnswer pTries
+   local tChooser, tError
+   put "revHyperCardImageChooser" into tChooser
+   if sHciDone is true then exit tourHyperCardImageAnswer
+   if there is not a stack tChooser or the mode of stack tChooser is 0 then
+      if pTries < 40 then send "tourHyperCardImageAnswer" && pTries + 1 to me in 250 milliseconds
+      exit tourHyperCardImageAnswer
+   end if
+   put the mode of stack tChooser into sHciSeen["mode"]
+   put the visible of stack tChooser into sHciSeen["visible"]
+   put the loc of stack tChooser into sHciSeen["loc"]
+   put the screenLoc into sHciSeen["screenLoc"]
+   put the title of stack tChooser into sHciSeen["title"]
+   put the hilitedLine of field "List" of stack tChooser into sHciSeen["hilitedLine"]
+   put field "List" of stack tChooser into sHciSeen["list"]
+   try
+      tourShotStack tChooser, "06f-hypercard-disk-image-list"
+   catch tError
+      put tError into sHciSeen["shot"]
+   end try
+   send "mouseUp" to button "Import" of stack tChooser
+end tourHyperCardImageAnswer
+
 -- Launch Editor (an image's right-click menu, and revEditImage pImages
 -- from a script) exports each image to a temporary file named after its
 -- number, waits while the editor changes it, and on Update reads it back.
@@ -5356,6 +5529,31 @@ function tourInclusionIcons pStack
    return empty
 end tourInclusionIcons
 
+-- The Inclusions card of the Standalone Settings lists its rows in the
+-- order of their titles. They followed the order the extensions were
+-- loaded in, which changed from run to run (Palette Actions first in one
+-- run, Clock in another). Empty, or what failed
+function tourInclusionOrder pStack
+   local tCard, tCount, tData, tStyle, tTitles, tSorted, i
+   put the long id of card "Inclusions" of stack pStack into tCard
+   dispatch function "NumberOfRows" to tCard
+   put the result into tCount
+   if tCount is not an integer or tCount < 1 then return "the Inclusions card lists no rows"
+   repeat with i = 1 to tCount
+      put empty into tData
+      dispatch "DataForRow" to tCard with i, tData, tStyle
+      put tData["title"] & return after tTitles
+   end repeat
+   delete the last char of tTitles
+   put tTitles into tSorted
+   sort lines of tSorted
+   tourRecord "INFO Inclusions: first rows" && tourJoin(line 1 to 3 of tTitles)
+   if tTitles is not tSorted then
+      return "the Inclusions card's rows are not in the order of their titles:" && tourJoin(line 1 to 5 of tTitles)
+   end if
+   return empty
+end tourInclusionOrder
+
 function tourSelectedLineInk pStack, pWhat
    local tDefault, tLine, tTabs, tLeft, tRight, tRect, tHilite, tData, tW, tH, tAt, tBest, tBestRGB, tRGB, tLum, i, tRatio
    local tAside, tError
@@ -6030,6 +6228,9 @@ on tour_standalone_settings
       if tCard is "Inclusions" then
          get tourInclusionIcons(tStack)
          if it is not empty then put it & return after tFails
+         -- and the rows are in the order of their titles, the same every run
+         get tourInclusionOrder(tStack)
+         if it is not empty then put it & return after tFails
       end if
       -- the Web card makes its page's settings when it first opens: the
       -- HTML5 option and those settings are there
@@ -6401,6 +6602,7 @@ on tour_extension_manager
    tourWait 2500
    if tStack is empty or there is not a stack tStack then throw "no stack for the palette extension manager"
    if not the visible of stack tStack then throw "the palette extension manager (" & tStack & ") is not visible"
+   tourClearOfTools tStack
    tourShotStack tStack, "17-extension-manager"
    if $OXT_TOUR_APPEARANCE is "dark" then
       put "255,255,255" into tWant
@@ -8797,6 +8999,48 @@ command tourInFront pStack
    tourWait 300
 end tourInFront
 
+-- A window wider than the screen right of the Tools palette is made that
+-- wide, at most down to its minWidth, so that tourOnScreen can move it
+-- clear of the palette. On the Apple silicon Mac's 1024 by 768 screen the
+-- Extension Manager opened 1004 wide at left 20 (rc.6.14; rc.6.12: 866 at
+-- 158), and the palette covered its left edge in 17-extension-manager in
+-- the dark appearance. Only the tour's own snapshot is affected: the
+-- window is the IDE's, as it opened, until this narrows it. When it could
+-- be narrowed enough and is still under the palette, that is the tour's
+-- fault, and it says so
+command tourClearOfTools pStack
+   local tScreen, tTools, tRect, tRoom, tFrame
+   if there is not a stack "revTools" then exit tourClearOfTools
+   if the mode of stack "revTools" is 0 or not the visible of stack "revTools" then exit tourClearOfTools
+   put the working screenRect into tScreen
+   put the effective rect of stack "revTools" into tTools
+   put the effective rect of stack pStack into tRect
+   if not (item 1 of tRect < item 3 of tTools and item 3 of tRect > item 1 of tTools \
+         and item 2 of tRect < item 4 of tTools and item 4 of tRect > item 2 of tTools) then
+      exit tourClearOfTools
+   end if
+   -- the window's frame, the effective rect less the rect, on both sides
+   put (item 3 of tRect - item 1 of tRect) - the width of stack pStack into tFrame
+   -- 20 pixels clear of the palette, as tourOnScreen moves it
+   put item 3 of tScreen - (item 3 of tTools + 20) - tFrame into tRoom
+   if the width of stack pStack > tRoom and tRoom >= the minWidth of stack pStack then
+      tourRecord "INFO" && pStack && "is" && the width of stack pStack && "wide, more than the" \
+            && tRoom && "right of the Tools palette: made" && tRoom && "wide"
+      set the width of stack pStack to tRoom
+      tourWait 500
+   end if
+   tourOnScreen pStack
+   put the effective rect of stack pStack into tRect
+   if item 1 of tRect < item 3 of tTools and item 3 of tRect > item 1 of tTools \
+         and item 2 of tRect < item 4 of tTools and item 4 of tRect > item 2 of tTools then
+      if the width of stack pStack <= tRoom then
+         throw pStack && "(" & tRect & ") fits right of the Tools palette (" & tTools & ") but is still under it"
+      end if
+      tourRecord "INFO" && pStack && "cannot be narrowed below its minWidth" && the minWidth of stack pStack \
+            && "to clear the Tools palette (" & tRoom && "room)"
+   end if
+end tourClearOfTools
+
 -- A window as wide as the screen cannot move clear of the Tools palette
 -- (tourOnScreen): OXT-Beyond Home is 1024 wide on the Apple silicon Mac's
 -- 1024 by 768 screen, and the palette, which floats over every window,
@@ -8851,9 +9095,12 @@ end tourShotScreen
 command tourUnlockScreen pWhat
    if the lockScreen then
       tourRecord "INFO" && pWhat & ": the screen was locked"
-      repeat while the lockScreen
+      -- at most 100 times: a loop that waits for nothing must end
+      repeat 100 times
+         if not the lockScreen then exit repeat
          unlock screen
       end repeat
+      if the lockScreen then tourRecord "INFO" && pWhat & ": the screen is still locked after 100 unlocks"
       tourWait 300
    end if
 end tourUnlockScreen
@@ -8895,9 +9142,22 @@ function tourFileName pName
 end tourFileName
 
 -- A step has run for 20 seconds: the screen and the open stacks, and any
--- modal dialog it waits on is closed
+-- modal dialog it waits on is closed. A step whose handlers have all
+-- ended without the tour going on (an error that ends every handler
+-- running, not one a try catches: Windows, the hypercard-disk-image
+-- step's first run, which then sat until the job's 900 s ran out) is
+-- failed, and the tour goes on after it. A watchdog of a step that is not
+-- the one running does nothing
 on tourWatchdog pStep
    local tError
+   if pStep is not sStep then exit tourWatchdog
+   if not tourRunning() then
+      tourRecord "STEP" && pStep && "FAILED the tour stopped in it: an error ended every handler of the tour's"
+      put empty into sStep
+      tourCloseDialogs true
+      send "tourRun" && quote & pStep & quote to me in 0 milliseconds
+      exit tourWatchdog
+   end if
    add 1 to sWatchdogCount
    tourRecord "INFO" && pStep && "still running after" && 20 * sWatchdogCount && "s; open stacks:" && tourJoin(the openStacks)
    try
@@ -8910,6 +9170,16 @@ on tourWatchdog pStep
       put the result into sWatchdog
    end if
 end tourWatchdog
+
+-- True while tourRun is among the handlers running, as it is under every
+-- step, waits and all
+function tourRunning
+   local tContext
+   repeat for each line tContext in the executionContexts
+      if tContext contains ",tourRun," then return true
+   end repeat
+   return false
+end tourRunning
 
 -- Snapshot of the modal dialog on top, then closes it
 on tourShotDialog pFile

@@ -22,8 +22,9 @@ constant kSoft = "#E0E7FF"
 constant kSoftText = "#3730A3"
 
 -- whether the Mobile Web library is there, how far the form is moved up
--- for the keyboard, and the dot's size (and its size when a pinch began)
-local sLibrary, sFormShift, sDotSize, sPinchFrom
+-- for the keyboard, the dot's size and centre, and where a pinch began
+-- (the dot's size and centre then, and the point between the fingers)
+local sLibrary, sFormShift, sDotSize, sDotX, sDotY, sPinchFrom, sPinchDot, sPinchMid
 -- the Phone card: whether the ball rolls (and its speed, and which way
 -- the browser's gravity points), and whether the screen is kept on
 local sTilting, sBallSpeed, sTiltSign, sAwake
@@ -227,10 +228,25 @@ private command psLayoutGestures pRect
    set the rect of group "Play" to tL, tT + 60, tR, tB - 16
    set the rect of graphic "Pad" to the rect of group "Play"
    put min(sDotSize, min(the width of graphic "Pad", the height of graphic "Pad") - 20) into sDotSize
-   set the width of graphic "Dot" to sDotSize
-   set the height of graphic "Dot" to sDotSize
-   set the loc of graphic "Dot" to the loc of graphic "Pad"
+   put item 1 of the loc of graphic "Pad" into sDotX
+   put item 2 of the loc of graphic "Pad" into sDotY
+   psPlaceDot
 end psLayoutGestures
+
+-- The dot drawn at its size, round its centre, kept on the pad. Its rect
+-- is set from the centre the script keeps, never by setting its width
+-- and height: those keep the centre only to the nearest pixel, the
+-- odd half always up and to the left, so a pinch (a size for each move
+-- of the fingers) walked the dot up and to the left, off the pad
+private command psPlaceDot
+   local tHalf, tPad
+   put sDotSize div 2 into tHalf
+   put the rect of graphic "Pad" into tPad
+   put max(item 1 of tPad + tHalf, min(item 3 of tPad - (sDotSize - tHalf), sDotX)) into sDotX
+   put max(item 2 of tPad + tHalf, min(item 4 of tPad - (sDotSize - tHalf), sDotY)) into sDotY
+   set the rect of graphic "Dot" to sDotX - tHalf, sDotY - tHalf, \
+         sDotX - tHalf + sDotSize, sDotY - tHalf + sDotSize
+end psPlaceDot
 
 -- Six buttons, two to a row, under what was said; the frame for the
 -- photo (and the ball) below them, or beside them when there is room
@@ -419,24 +435,40 @@ command psPlaySwipe pDirection
    set the text of field "Said" to "A swipe" && pDirection & "."
 end psPlaySwipe
 
-command psPlayPinchStart
+-- A pinch sizes the dot round its own centre, and the fingers moving
+-- together move it: the dot follows the point between them (pX, pY,
+-- where it was when the pinch began and where it is now)
+command psPlayPinchStart pX, pY
    put sDotSize into sPinchFrom
+   put sDotX, sDotY into sPinchDot
+   if pX is a number and pY is a number then
+      put pX, pY into sPinchMid
+   else
+      put empty into sPinchMid
+   end if
 end psPlayPinchStart
 
-command psPlayPinch pScale
-   if sPinchFrom is not a number then exit psPlayPinch
+command psPlayPinch pScale, pX, pY
+   if sPinchFrom is not a number or pScale is not a number then exit psPlayPinch
    put max(40, min(min(the width of graphic "Pad", the height of graphic "Pad") - 20, round(sPinchFrom * pScale))) into sDotSize
-   set the width of graphic "Dot" to sDotSize
-   set the height of graphic "Dot" to sDotSize
+   if sPinchMid is not empty and pX is a number and pY is a number then
+      put item 1 of sPinchDot + round(pX - item 1 of sPinchMid) into sDotX
+      put item 2 of sPinchDot + round(pY - item 2 of sPinchMid) into sDotY
+   end if
+   psPlaceDot
    set the text of field "Said" to "A pinch:" && round(pScale * 100) & "%"
 end psPlayPinch
 
 command psPlayPinchEnd
    put empty into sPinchFrom
+   put empty into sPinchDot
+   put empty into sPinchMid
 end psPlayPinchEnd
 
 command psPlayLongPress pX, pY
-   set the loc of graphic "Dot" to pX, pY
+   put pX into sDotX
+   put pY into sDotY
+   psPlaceDot
    set the text of field "Said" to "A long press at" && pX & comma & pY & "."
    mwVibrate 20
 end psPlayLongPress

@@ -1,0 +1,163 @@
+<!--
+title: Stacks, cards and controls
+level: intermediate
+minutes: 14
+summary: The objects a program is made of: drawing controls with the Tools palette, naming them in the Property Inspector, asking about them in the Message Box, and making them from a script.
+words: stack, card, button, field, graphic, control, Tools palette, Property Inspector, Message Box, Edit mode, Run mode, the number of, name, create, delete
+-->
+<h2 id="objects">A program you can see</h2>
+<p>Most languages start with text on a screen and leave windows for later. xTalk starts with the windows. Everything you see in a program is an <strong>object</strong>, and every object can hold a script:</p>
+<ul>
+<li>A <strong>stack</strong> is a window, and the file it is saved in.</li>
+<li>A stack holds one or more <strong>cards</strong>. You see one card at a time, like the pages of a book.</li>
+<li>On a card go the <strong>controls</strong>: <strong>buttons</strong>, <strong>fields</strong> for text, <strong>graphics</strong> (shapes and lines), <strong>images</strong>, <strong>scrollbars</strong>, <strong>players</strong> for sound and video, <strong>widgets</strong>, and <strong>groups</strong>, which hold other controls.</li>
+</ul>
+<p>You make most controls the way you would in a drawing program: you drag them from the <strong>Tools palette</strong> onto a card, and set how they look in the <strong>Property Inspector</strong>. This lesson builds a small card that way, then asks about it from the Message Box and from a button's script. At the end you will see how a script can make controls itself, for the times a program has to.</p>
+
+<h2 id="tools-palette">The Tools palette</h2>
+<p>The Tools palette holds every kind of control. If it is not showing, choose <kbd>Tools &gt; Tools Palette</kbd>. At its top are two modes, and you will switch between them all the time:</p>
+<ul>
+<li><strong>Edit</strong> (the arrow) is for building. Click a control to select it, drag it to move it, drag the small squares at its corners to change its size, and double-click it to open the Property Inspector. Clicking a button in Edit mode does not run its script.</li>
+<li><strong>Run</strong> (the hand) is for using. The card works as the people who use your program will see it: buttons click, fields take typing, and scripts run.</li>
+</ul>
+<p>Below the modes are the controls, in sections: <strong>Controls</strong> (buttons, fields, menus and the other classic controls), <strong>Shapes</strong> (graphics), <strong>Widgets</strong>, and the tools for drawing. To make a control, drag its tile onto your card. If you cannot find one, type part of its name in the palette's filter box.</p>
+<aside class="tip"><p>Hold the pointer over a tile and its full name appears. The lessons give the names the palette uses, such as <strong>Standard Button</strong> and <strong>Oval Graphic</strong>.</p></aside>
+
+<h2 id="build">Build a card</h2>
+<p>Here is the card the rest of this lesson uses. Each step takes a few seconds:</p>
+<div class="build" id="build-first-card">
+<ol>
+<li>Choose <kbd>File &gt; New Stack &gt; Default Size</kbd>. A new, empty window opens: your stack, with one card.</li>
+<li>In Edit mode, drag a <strong>Standard Button</strong> onto the top left of the card. Double-click it to open the Property Inspector, and in its <strong>Basic</strong> section change the <strong>Name</strong> to <code>Hello</code>.</li>
+<li>Drag a <strong>Field</strong> under the button. Drag its bottom right corner to make it wider and taller, and in the Property Inspector name it <code>Notes</code>.</li>
+<li>Drag an <strong>Oval Graphic</strong> to the right of them. Name it <code>Sun</code>, and in the Property Inspector's <strong>Colors</strong> section set its <strong>Fill color</strong> to orange.</li>
+</ol>
+<pre class="setup">create button "Hello"
+set the rect of it to 40,40,122,63
+create field "Notes"
+set the rect of it to 40,90,300,170
+create graphic "Sun"
+set the style of it to "oval"
+set the opaque of it to true
+set the backgroundColor of it to "orange"
+set the rect of it to 340,40,460,160</pre>
+</div>
+<p>The Property Inspector shows the <strong>properties</strong> of whatever is selected: its name, its colours, its size and place, and much more. The next lesson, <a href="../properties/">Properties</a>, is all about them. The name matters most for now, because it is how a script finds a control.</p>
+
+<h2 id="first-script">A button's script</h2>
+<p>In Edit mode, select the button and choose <kbd>Object &gt; Object Script</kbd> (or right-click it and choose <strong>Edit Script</strong>). The Script Editor opens with the button's script. Type this in it and press <strong>Apply</strong>:</p>
+<figure class="example" id="ex-objects-hello" data-run="output" data-card="build-first-card" data-script='button "Hello"' data-click='button "Hello"' data-shot="Your card: a button labelled Hello at the top left, a text field under it that says Hello from my first card, and an orange circle on the right.">
+<pre class="code"><code>on mouseUp
+   put "Hello from my first card." into field "Notes"
+   put the number of controls
+end mouseUp</code></pre>
+<pre class="out">3</pre>
+</figure>
+<p>Now click <strong>Run</strong> at the top of the Tools palette, and click the button. Its first line puts the words into the field on your card. The second line has no container, so its value goes to the <strong>Message Box</strong>, which opens if it is not showing: there are three controls on the card.</p>
+<aside class="note"><p>Buttons take the look of the system they run on, so on your computer the button will look like your other programs' buttons. The pictures in these lessons are taken by the OXT-Beyond engine on Linux each time the lessons are checked: it builds the same card as the steps, puts in the script, and clicks.</p></aside>
+
+<h2 id="message-box">Asking in the Message Box</h2>
+<p>You do not need a button to ask about your card. Choose <kbd>Tools &gt; Message Box</kbd>, type a line and press <kbd>Return</kbd>: it runs at once, on the card in front, and a <code>put</code> shows its value. The examples marked <strong>Message Box</strong> are lines to type there one at a time. Each value replaces the last, so the lesson shows what each line shows, in order.</p>
+<aside class="tip"><p>Press the up arrow in the Message Box to bring back the line you typed before, change it and press <kbd>Return</kbd> again.</p></aside>
+
+<h2 id="counting">Counting objects</h2>
+<p><code>the number of</code> counts objects of any kind on the current card: <code>buttons</code>, <code>fields</code>, <code>graphics</code>, <code>images</code>, <code>groups</code>, or every kind at once with <code>controls</code>. It also counts the <code>cards</code> of a stack.</p>
+<figure class="example" id="ex-objects-count" data-run="output" data-card="build-first-card" data-in="message">
+<pre class="code"><code>put the number of buttons
+put the number of fields
+put the number of graphics
+put the number of controls
+put the number of cards</code></pre>
+<pre class="out">1
+1
+1
+3
+1</pre>
+</figure>
+
+<h2 id="names-and-numbers">Names and numbers</h2>
+<p>Every control has a <strong>name</strong>, which you chose in the Property Inspector, and a <strong>number</strong>, its place among the controls of its kind on the card, counting from the back: the one you made first is number 1, until you move another behind it (<kbd>Object &gt; Send to Back</kbd>). You can refer to it by either:</p>
+<figure class="example" id="ex-objects-numbers" data-run="output" data-card="build-first-card" data-in="message">
+<pre class="code"><code>put the short name of button 1
+put the short name of control 2
+put the short name of the last control
+put the name of field 1</code></pre>
+<pre class="out">Hello
+Notes
+Sun
+field "Notes"</pre>
+</figure>
+<p><code>the name</code> gives the kind and the name, <code>the short name</code> just the name. A number changes when you add, delete or reorder controls, so in scripts names are usually the safer choice. A control the palette made keeps the palette's name (<code>Button</code>, <code>Field</code>, <code>Oval</code>) until you change it, and a card with three controls all called <code>Button</code> is hard to talk about: name each control as you make it. The lesson <a href="../referring-to-objects/">Referring to objects</a> shows more ways to point at one.</p>
+
+<h2 id="there-is">Is it there?</h2>
+<p>Asking for a control that does not exist stops your script with an error. <code>there is a</code> lets you check first:</p>
+<figure class="example" id="ex-objects-there-is" data-run="output" data-card="build-first-card" data-in="message">
+<pre class="code"><code>put there is a button "Hello"
+put there is a button "Goodbye"
+put there is no field "Notes"</code></pre>
+<pre class="out">true
+false
+false</pre>
+</figure>
+<figure class="example" id="ex-objects-missing" data-run="error" data-line="1" data-card="build-first-card" data-in="message">
+<pre class="code"><code>set the width of button "Goodbye" to 200</code></pre>
+</figure>
+
+<h2 id="script-made">Making controls from a script</h2>
+<p>Dragging from the palette is how you will make most controls. Sometimes, though, a program has to make them as it runs: a button for each file in a folder, a square for each player in a game. For that a script uses <code>create</code>, which makes a new control on the current card. Give it a name in quotes, then set where it goes with its <code>rect</code>: the left, top, right and bottom of the rectangle it fills, counted in points from the card's top left corner.</p>
+<p>The examples in this section are code for the xTalk Academy's playground (<kbd>Help &gt; xTalk Academy</kbd>): what they make appears on the playground's <strong>stage</strong>, a small window of its own, and each run makes a new stage, so you never have to clear up after one. The lesson shows you a picture of it.</p>
+<figure class="example" id="ex-objects-create" data-run="output" data-shot="The stage, with a button labelled Hello, a white text field that says Fields hold text you can edit, and an orange circle on the right.">
+<pre class="code"><code>create button "Hello"
+set the rect of button "Hello" to 40,40,180,76
+create field "Notes"
+set the rect of field "Notes" to 40,100,300,180
+put "Fields hold text you can edit." into field "Notes"
+create graphic "Sun"
+set the style of graphic "Sun" to "oval"
+set the filled of graphic "Sun" to true
+set the backgroundColor of graphic "Sun" to "orange"
+set the rect of graphic "Sun" to 340,40,440,140
+put the number of controls</code></pre>
+<pre class="out">3</pre>
+</figure>
+<p>It is the card you built with the palette, made in eleven lines. Click into the field on the stage and type: it is a real field.</p>
+
+<h2 id="it">The new control is "it"</h2>
+<p>Straight after <code>create</code>, the variable <code>it</code> holds a reference to the control just made (its <code>long id</code>, which the lesson <a href="../referring-to-objects/">Referring to objects</a> explains), so you can set its properties without repeating its name:</p>
+<figure class="example" id="ex-objects-it" data-run="output" data-shot="The stage, with a wide button labelled Start in the top left corner.">
+<pre class="code"><code>create button "Start"
+put the short name of it
+set the rect of it to 20,20,260,60
+put the width of button "Start"</code></pre>
+<pre class="out">Start
+240</pre>
+</figure>
+
+<h2 id="delete">Deleting controls</h2>
+<p>To delete a control by hand, select it in Edit mode and press <kbd>Delete</kbd>. A script uses <code>delete</code>, which removes a control with whatever it holds. Deleting a group deletes the controls inside it too.</p>
+<figure class="example" id="ex-objects-delete" data-run="output" data-shot="The stage, with only a button labelled Keep me.">
+<pre class="code"><code>create button "Keep me"
+set the rect of it to 40,40,200,76
+create button "Throw me away"
+put the number of buttons
+delete button "Throw me away"
+put the number of buttons</code></pre>
+<pre class="out">2
+1</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>In the playground, make a row of five buttons named <code>Button 1</code> to <code>Button 5</code>, each 80 points wide and 30 high, 10 points apart, starting 20 points from the left and top of the card. Then put how many buttons there are. (Five buttons are quick to drag from the palette, but fifty are not: this is where a script earns its keep.)</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-objects-try" data-run="output" data-shot="The stage, with a row of five buttons labelled Button 1 to Button 5 along the top.">
+<pre class="code"><code>repeat with i = 1 to 5
+   create button ("Button" &amp;&amp; i)
+   put 20 + (i - 1) * 90 into tLeft
+   set the rect of it to tLeft, 20, tLeft + 80, 50
+end repeat
+put the number of buttons</code></pre>
+<pre class="out">5</pre>
+</figure>
+</details>
+</section>

@@ -1,0 +1,242 @@
+<!--
+title: Cryptography with SodiumXT
+level: extensions
+minutes: 16
+summary: Keep data secret and prove it genuine with SodiumXT, the xTalk Suite's layer over libsodium: secure random bytes, fingerprints and seals, locked boxes, public-key boxes, signatures, key exchange, files and streams.
+words: sxRandomBytes, sxRandomUniform, sxBin2Hex, sxBin2Base64, sxHash, sxHashKeyed, sxHmacSha256, sxMemEqual, sxSecretBox, sxSecretBoxOpen, sxAeadEncrypt, sxAeadDecrypt, sxBoxKeypair, sxBox, sxBoxOpen, sxSeal, sxSealOpen, sxSignKeypair, sxSignDetached, sxSignVerifyDetached, sxKeyExchangeKeypair, sxEncryptFile, sxDecryptFile, sxHashFile, sxSecretStreamInitPush, sxSecretStreamPush, sxSecretStreamPull, sxKdfDerive, sxPad
+-->
+<h2 id="what">libsodium, from xTalk</h2>
+<p><strong>SodiumXT</strong> brings <strong>libsodium</strong>, the cryptography library that thousands of programs trust, to xTalk. Its handlers begin with <code>sx</code>, and each does one job the safe way, with modern methods chosen for you: you never pick an algorithm, a mode or a padding, which is where most home-made cryptography goes wrong. <a href="../hashing-security/">Hashes, randomness and encryption</a> met two of them; this lesson takes the whole tour.</p>
+<p>Everything here works on <strong>bytes</strong>, not text. <code>textEncode(tText, "UTF-8")</code> turns text into bytes before it is locked, and <code>textDecode</code> turns them back after (<a href="../unicode/#encodings">Unicode</a>). Keys, fingerprints and locked boxes are bytes too, which look like gibberish when you put them, so the examples show them as hex or base64:</p>
+<figure class="example" id="ex-sx-bytes" data-run="output" data-needs="org.openxtalk.library.sodium">
+<pre class="code"><code>put textEncode("Hello, world", "UTF-8") into tBytes
+put the number of bytes in tBytes
+put sxBin2Hex(tBytes)
+put sxBin2Base64(tBytes)
+put textDecode(sxHex2Bin(sxBin2Hex(tBytes)), "UTF-8")</code></pre>
+<pre class="out">12
+48656c6c6f2c20776f726c64
+SGVsbG8sIHdvcmxk
+Hello, world</pre>
+</figure>
+<p>Hex takes two letters a byte and is easy to read; base64 takes four letters for three bytes, so it is shorter. Both survive an email, a field or a web form, which raw bytes may not.</p>
+
+<h2 id="random">Random bytes nobody can predict</h2>
+<p>Every key starts as random bytes, and they must come from the computer's secure source, never from <code>random</code>, whose numbers follow a pattern. <code>sxRandomBytes</code> gives as many as you ask for, and <code>sxRandomUniform(n)</code> a fair whole number from 0 to n - 1, a die with any number of sides:</p>
+<figure class="example" id="ex-sx-random" data-run="runs" data-needs="org.openxtalk.library.sodium">
+<pre class="code"><code>put sxBin2Hex(sxRandomBytes(16))
+put sxRandomUniform(6) + 1
+put the number of bytes in sxRandomBytes(32)</code></pre>
+<pre class="out">9f1c0b7e52d4a8e36c01f5a2b4d39e70
+4
+32</pre>
+</figure>
+<p>The first two lines differ every run, which is the point.</p>
+
+<h2 id="hashes">Fingerprints and seals</h2>
+<p>A <strong>hash</strong> is a fingerprint of data: always the same size, always the same for the same data, completely different for the smallest change, and impossible to work back from. <code>sxHash</code> makes a BLAKE2b fingerprint of the length you ask for (32 bytes is usual), and <code>sxSha3_256</code> a SHA-3 one:</p>
+<figure class="example" id="ex-sx-hash" data-run="output" data-needs="org.openxtalk.library.sodium">
+<pre class="code"><code>put sxBin2Hex(sxHash(textEncode("cat", "UTF-8"), 32))
+put sxBin2Hex(sxHash(textEncode("bat", "UTF-8"), 32))
+put the length of sxBin2Hex(sxSha3_256(textEncode("cat", "UTF-8")))</code></pre>
+<pre class="out">6a7178d382cfb186b49fd344db9231f636975548d72c4d2541d1f5655b8983e1
+f58660315cf2f229520ab4f3a762c76ebbebeb8e14d71097fa919426b54f004e
+64</pre>
+</figure>
+<p>Anyone can make a plain fingerprint, so a changed message can come with a changed fingerprint. A <strong>seal</strong> (a keyed hash) needs a secret key as well: only someone with the key can make one that matches. <code>sxHashKeyed</code> makes a BLAKE2b seal and <code>sxHmacSha256</code> the HMAC-SHA256 seal that many web services ask for. Compare seals with <code>sxMemEqual</code>, never with <code>is</code>: it takes as long however much of them matches, so its timing gives nothing away:</p>
+<figure class="example" id="ex-sx-seal" data-run="output" data-needs="org.openxtalk.library.sodium">
+<pre class="code"><code>put sxRandomBytes(32) into tKey
+put sxHashKeyed(textEncode("Pay Sam 10 dollars", "UTF-8"), tKey, 32) into tSeal
+put sxHashKeyed(textEncode("Pay Sam 10 dollars", "UTF-8"), tKey, 32) into tCheck
+put sxMemEqual(tSeal, tCheck)
+put sxHashKeyed(textEncode("Pay Sam 99 dollars", "UTF-8"), tKey, 32) into tCheck
+put sxMemEqual(tSeal, tCheck)
+put the number of bytes in sxHmacSha256(tKey, textEncode("Pay Sam 10 dollars", "UTF-8"))</code></pre>
+<pre class="out">true
+false
+32</pre>
+</figure>
+
+<h2 id="boxes">Secret boxes</h2>
+<p>A <strong>secret box</strong> locks a message with a key of 32 random bytes. With the key, <code>sxSecretBoxOpen</code> opens it; without it, the box is noise. It also notices tampering: change one byte, and it refuses to open, with an error you catch with <code>try</code> (<a href="../errors/">Errors</a>), rather than hand back nonsense:</p>
+<figure class="example" id="ex-sx-box" data-run="output" data-needs="org.openxtalk.library.sodium">
+<pre class="code"><code>put sxRandomBytes(32) into tKey
+put sxSecretBox(textEncode("Meet at noon", "UTF-8"), tKey) into tBox
+put the number of bytes in tBox
+put textDecode(sxSecretBoxOpen(tBox, tKey), "UTF-8")
+
+-- change one byte of the box
+put numToByte((byteToNum(byte 30 of tBox) + 1) mod 256) into byte 30 of tBox
+try
+   get sxSecretBoxOpen(tBox, tKey)
+   put "opened?!"
+catch tError
+   put "a changed box will not open"
+end try
+
+try
+   get sxSecretBoxOpen(sxSecretBox(textEncode("hi", "UTF-8"), tKey), sxRandomBytes(32))
+catch tError
+   put "the wrong key will not open it"
+end try</code></pre>
+<pre class="out">52
+Meet at noon
+a changed box will not open
+the wrong key will not open it</pre>
+</figure>
+<p>The box is 40 bytes longer than the message: a random <strong>nonce</strong>, so that the same message locked twice looks different each time, and a tag that proves it is untouched. SodiumXT makes the nonce and keeps it in the box, so there is nothing for you to get wrong.</p>
+<p>Sometimes part of a message must stay readable, like the address on an envelope, but nobody may swap it. <code>sxAeadEncrypt</code> locks a message and ties a readable <strong>label</strong> to it; <code>sxAeadDecrypt</code> opens it only with the very same label, so nobody can move a locked box to another record:</p>
+<figure class="example" id="ex-sx-aead" data-run="output" data-needs="org.openxtalk.library.sodium">
+<pre class="code"><code>put sxRandomBytes(32) into tKey
+put textEncode("to: Sam, note 7", "UTF-8") into tLabel
+put sxAeadEncrypt(textEncode("Gate code: 4417", "UTF-8"), tLabel, tKey) into tBox
+put textDecode(sxAeadDecrypt(tBox, tLabel, tKey), "UTF-8")
+try
+   get sxAeadDecrypt(tBox, textEncode("to: Max, note 7", "UTF-8"), tKey)
+catch tError
+   put "another label: it will not open"
+end try</code></pre>
+<pre class="out">Gate code: 4417
+another label: it will not open</pre>
+</figure>
+
+<h2 id="public">Public keys</h2>
+<p>With a secret box, both people need the same key, and handing it over safely is the hard part. With <strong>public-key</strong> cryptography each person makes a <strong>keypair</strong>: a public key to give to anyone, and a secret key to keep. <code>sxBoxKeypair</code> makes one, putting the two keys into the variables you give it, which must be declared first with <code>local</code> (<a href="../scope/">Scope</a>): a name that is not yet a variable is passed as the text of its name. <code>sxBox</code> locks a message for one person, with your secret key and their public key, and <code>sxBoxOpen</code> opens it and proves who sent it. <code>sxSeal</code> needs only the reader's public key: like a postbox, anyone can post and only the owner can open:</p>
+<figure class="example" id="ex-sx-public" data-run="output" data-needs="org.openxtalk.library.sodium">
+<pre class="code"><code>local tAnnPublic, tAnnSecret, tBobPublic, tBobSecret
+sxBoxKeypair tAnnPublic, tAnnSecret
+sxBoxKeypair tBobPublic, tBobSecret
+put the number of bytes in tAnnPublic &amp;&amp; the number of bytes in tAnnSecret
+
+-- Ann writes to Bob; Bob opens it with Ann's public key
+put sxBox(textEncode("Hi Bob, it is Ann", "UTF-8"), tBobPublic, tAnnSecret) into tBox
+put textDecode(sxBoxOpen(tBox, tAnnPublic, tBobSecret), "UTF-8")
+
+-- anyone can seal a note that only Bob can open
+put sxSeal(textEncode("A secret tip", "UTF-8"), tBobPublic) into tBox
+put textDecode(sxSealOpen(tBox, tBobPublic, tBobSecret), "UTF-8")</code></pre>
+<pre class="out">32 32
+Hi Bob, it is Ann
+A secret tip</pre>
+</figure>
+
+<h2 id="signing">Signatures</h2>
+<p>A <strong>signature</strong> hides nothing: it proves who wrote something, and that nobody has changed it since. You sign with your secret key, and anyone with your public key can check. Software updates, licences and Nostr posts are signed this way:</p>
+<figure class="example" id="ex-sx-sign" data-run="output" data-needs="org.openxtalk.library.sodium">
+<pre class="code"><code>local tPublic, tSecret
+sxSignKeypair tPublic, tSecret
+put textEncode("Version 2.0 is out", "UTF-8") into tMessage
+put sxSignDetached(tMessage, tSecret) into tSignature
+put the number of bytes in tSignature
+put sxSignVerifyDetached(tSignature, tMessage, tPublic)
+put sxSignVerifyDetached(tSignature, textEncode("Version 6.6 is out", "UTF-8"), tPublic)</code></pre>
+<pre class="out">64
+true
+false</pre>
+</figure>
+
+<h2 id="exchange">Agreeing on keys in the open</h2>
+<p>Public-key boxes are slow for a long conversation. With a <strong>key exchange</strong>, two programs each mix their own keypair with the other's public key, and both get the same pair of fast secret keys without ever sending them: one to send with and one to receive with. One side plays the client and the other the server, and the client's send key is the server's receive key:</p>
+<figure class="example" id="ex-sx-exchange" data-run="output" data-needs="org.openxtalk.library.sodium">
+<pre class="code"><code>local tClientPublic, tClientSecret, tServerPublic, tServerSecret
+local tClientRx, tClientTx, tServerRx, tServerTx
+sxKeyExchangeKeypair tClientPublic, tClientSecret
+sxKeyExchangeKeypair tServerPublic, tServerSecret
+-- each side needs only the other's public key
+sxKeyExchangeClient tClientPublic, tClientSecret, tServerPublic, tClientRx, tClientTx
+sxKeyExchangeServer tServerPublic, tServerSecret, tClientPublic, tServerRx, tServerTx
+put sxMemEqual(tClientTx, tServerRx)
+put sxMemEqual(tServerTx, tClientRx)
+put sxSecretBox(textEncode("hello, server", "UTF-8"), tClientTx) into tBox
+put textDecode(sxSecretBoxOpen(tBox, tServerRx), "UTF-8")</code></pre>
+<pre class="out">true
+true
+hello, server</pre>
+</figure>
+
+<h2 id="files">Files and streams</h2>
+<p>A big file need not fit in memory. <code>sxEncryptFile</code> and <code>sxDecryptFile</code> lock and unlock a file of any size a piece at a time, so its bytes never pass through your variables, and the locked file notices tampering as a box does. <code>sxHashFile</code> fingerprints a whole file, to check a copy or a download:</p>
+<figure class="example" id="ex-sx-files" data-run="output" data-needs="org.openxtalk.library.sodium">
+<pre class="code"><code>put sxRandomBytes(32) into tKey
+put specialFolderPath("temporary") &amp; "/oxt-lesson-diary" into tFile
+put "Dear diary: crypto is fun." into URL ("file:" &amp; tFile)
+sxEncryptFile tFile, tFile &amp; ".locked", tKey
+sxDecryptFile tFile &amp; ".locked", tFile &amp; ".back", tKey
+put URL ("file:" &amp; tFile &amp; ".locked") contains "diary"
+put URL ("file:" &amp; tFile &amp; ".back")
+put sxMemEqual(sxHashFile(tFile, 32), sxHashFile(tFile &amp; ".back", 32))
+delete file tFile
+delete file (tFile &amp; ".locked")
+delete file (tFile &amp; ".back")</code></pre>
+<pre class="out">false
+Dear diary: crypto is fun.
+true</pre>
+</figure>
+<p>Data from a network or a recording arrives in pieces. A <strong>secret stream</strong> locks each piece with one key, in order, and marks the last; the reader opens them in the same order and notices a piece that is missing, swapped, repeated or cut short. <code>sxSecretStreamInitPush</code> starts one and gives a header to send first, <code>sxSecretStreamPush</code> locks a piece (true for the last), <code>sxSecretStreamPull</code> opens one, and <code>sxFreeStream</code> lets the stream go:</p>
+<figure class="example" id="ex-sx-stream" data-run="output" data-needs="org.openxtalk.library.sodium">
+<pre class="code"><code>local tHeader, tTag
+put sxRandomBytes(32) into tKey
+put sxSecretStreamInitPush(tKey, tHeader) into tStream
+put sxSecretStreamPush(tStream, textEncode("Part one", "UTF-8"), empty, false) into tOne
+put sxSecretStreamPush(tStream, textEncode("part two", "UTF-8"), empty, true) into tTwo
+sxFreeStream tStream
+
+put sxSecretStreamInitPull(tKey, tHeader) into tStream
+put textDecode(sxSecretStreamPull(tStream, tOne, empty, tTag), "UTF-8") &amp; ":" &amp;&amp; sxIsFinalTag(tTag)
+put textDecode(sxSecretStreamPull(tStream, tTwo, empty, tTag), "UTF-8") &amp; ":" &amp;&amp; sxIsFinalTag(tTag)
+sxFreeStream tStream</code></pre>
+<pre class="out">Part one: false
+part two: true</pre>
+</figure>
+
+<h2 id="subkeys">Many keys from one, and lengths that tell less</h2>
+<p><code>sxKdfDerive</code> makes many keys from one master key: give it the master, a number and a label of exactly 8 bytes, and each number gives an unrelated key, none of which gives the master away. One key for files, another for messages, and only the master to keep safe. A locked message still shows its length, and "yes" and "no thanks" are easy to tell apart by size alone, so <code>sxPad</code> grows data to a whole number of blocks and <code>sxUnpad</code> takes the padding off:</p>
+<figure class="example" id="ex-sx-subkeys" data-run="output" data-needs="org.openxtalk.library.sodium">
+<pre class="code"><code>put sxRandomBytes(32) into tMaster
+put textEncode("MyApp-v1", "UTF-8") into tLabel
+put sxKdfDerive(tMaster, "1", tLabel, 32) into tFilesKey
+put sxKdfDerive(tMaster, "2", tLabel, 32) into tMessagesKey
+put sxMemEqual(tFilesKey, tMessagesKey)
+put sxMemEqual(tFilesKey, sxKdfDerive(tMaster, "1", tLabel, 32))
+
+repeat for each item tWord in "yes,no thanks"
+   put tWord &amp; ":" &amp;&amp; the number of bytes in sxPad(textEncode(tWord, "UTF-8"), 16) &amp;&amp; "bytes"
+end repeat
+put textDecode(sxUnpad(sxPad(textEncode("no thanks", "UTF-8"), 16), 16), "UTF-8")</code></pre>
+<pre class="out">false
+true
+yes: 16 bytes
+no thanks: 16 bytes
+no thanks</pre>
+</figure>
+<aside class="note"><p>A key is only as safe as where you keep it. Never put one in a script, where anyone with the stack can read it; derive it from a password with <code>sxPwHash</code> (<a href="../hashing-security/#passwords">Storing passwords</a>), or keep it in the system's own key store. The Dictionary has every SodiumXT handler, and the <strong>Learn SodiumXT</strong> stack (<kbd>Help &gt; Examples</kbd>, under The xTalk Suite) has these ideas as scripts to change and run.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write <code>encryptText</code> and <code>unencryptText</code>: the first locks text with a key and returns it as base64, safe to keep in a field or a file; the second takes that base64 back to the text, or returns empty when the key is wrong or the text was changed.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-sx-try" data-run="output" data-needs="org.openxtalk.library.sodium">
+<pre class="code"><code>function encryptText pText, pKey
+   return sxBin2Base64(sxSecretBox(textEncode(pText, "UTF-8"), pKey))
+end encryptText
+
+function unencryptText pBase64, pKey
+   try
+      return textDecode(sxSecretBoxOpen(sxBase642Bin(pBase64), pKey), "UTF-8")
+   catch tError
+      return empty
+   end try
+end unencryptText
+
+put sxRandomBytes(32) into tKey
+put encryptText("The treasure is under the oak", tKey) into tLocked
+put unencryptText(tLocked, tKey)
+put unencryptText(tLocked, sxRandomBytes(32)) is empty
+put tLocked is encryptText("The treasure is under the oak", tKey)</code></pre>
+<pre class="out">The treasure is under the oak
+true
+false</pre>
+</figure>
+<p>The last line is false because each box has its own random nonce: the same text locked twice never looks the same.</p>
+</details>
+</section>

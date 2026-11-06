@@ -1,0 +1,109 @@
+<!--
+title: Comparisons and logic
+level: beginner
+minutes: 9
+summary: Every way to compare values in xTalk, from = and < to contains and is among, and how to combine conditions with and, or and not.
+words: =, is, <>, is not, <, >, <=, >=, contains, is in, begins with, ends with, is among, and, or, not, caseSensitive
+-->
+<h2 id="operators">Comparing values</h2>
+<p>Each comparison answers <code>true</code> or <code>false</code>. Most have a symbol and a word you can use instead, whichever reads better.</p>
+<div class="table-scroll"><table>
+<thead><tr><th>Write</th><th>Or</th><th>True when</th></tr></thead>
+<tbody>
+<tr><td><code>=</code></td><td><code>is</code></td><td>the two are the same</td></tr>
+<tr><td><code>&lt;&gt;</code></td><td><code>is not</code></td><td>they differ</td></tr>
+<tr><td><code>&lt;</code> <code>&gt;</code></td><td></td><td>less than, greater than</td></tr>
+<tr><td><code>&lt;=</code> <code>&gt;=</code></td><td></td><td>at most, at least</td></tr>
+</tbody></table></div>
+<figure class="example" id="ex-cmp-ops" data-run="output">
+<pre class="code"><code>put 5 &gt; 3
+put 5 &gt;= 5
+put 5 &lt;&gt; 3
+put 5 is not 3
+put 5 = 5.0
+put "cat" is "dog"</code></pre>
+<pre class="out">true
+true
+true
+true
+true
+false</pre>
+</figure>
+
+<h2 id="text">Comparing text</h2>
+<p>Text is compared in alphabetical order, and xTalk does not mind capital letters unless you ask it to, with the property <code>caseSensitive</code>.</p>
+<figure class="example" id="ex-cmp-text" data-run="output">
+<pre class="code"><code>put "ABC" is "abc"
+put "apple" &lt; "banana"
+set the caseSensitive to true
+put "ABC" is "abc"</code></pre>
+<pre class="out">true
+true
+false</pre>
+</figure>
+<aside class="note"><p>A property like <code>caseSensitive</code> that you set in a handler goes back to its default when the handler ends, so it cannot surprise the rest of your program.</p></aside>
+
+<h2 id="contains">Is it in there?</h2>
+<p>xTalk has comparisons for text inside text that read like English. These are some of its most used words.</p>
+<figure class="example" id="ex-cmp-contains" data-run="output">
+<pre class="code"><code>put "Hello world" contains "world"
+put "world" is in "Hello world"
+put "Hello world" begins with "Hell"
+put "report.pdf" ends with ".pdf"
+put "z" is not in "abc"</code></pre>
+<pre class="out">true
+true
+true
+true
+true</pre>
+</figure>
+<p><code>is among</code> is stricter: it looks for a whole word, item or line, not just some characters.</p>
+<figure class="example" id="ex-cmp-among" data-run="output">
+<pre class="code"><code>put "b" is among the items of "a,b,c"
+put "bc" is among the items of "a,b,c"
+put "bc" is in "a,b,c"
+put "fox" is among the words of "the quick brown fox"
+put "Fri" is not among the items of "Sat,Sun"</code></pre>
+<pre class="out">true
+false
+false
+true
+true</pre>
+</figure>
+
+<h2 id="logic">And, or, not</h2>
+<p>Combine conditions with <code>and</code> (both must be true), <code>or</code> (at least one) and <code>not</code> (the opposite). Brackets make your meaning plain.</p>
+<figure class="example" id="ex-cmp-logic" data-run="output">
+<pre class="code"><code>put 7 into tAge
+put tAge &gt;= 5 and tAge &lt;= 12
+put tAge &lt; 5 or tAge &gt; 65
+put not (tAge = 7)</code></pre>
+<pre class="out">true
+false
+false</pre>
+</figure>
+<p>xTalk stops as soon as it knows the answer: if the left side of an <code>and</code> is false, the right side is never worked out. That lets you guard a test that would otherwise fail:</p>
+<figure class="example" id="ex-cmp-guard" data-run="output">
+<pre class="code"><code>put 0 into tCount
+if tCount &gt; 0 and 100 / tCount &gt; 10 then
+   put "Big share"
+else
+   put "Nothing to share"
+end if</code></pre>
+<pre class="out">Nothing to share</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>A year is a leap year when it divides by 4, unless it divides by 100, except that one that divides by 400 is a leap year after all. Write one expression that puts whether <code>tYear</code> is a leap year, and try it with 1900 and 2000.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-cmp-try" data-run="output">
+<pre class="code"><code>put 1900 into tYear
+put (tYear mod 4 is 0 and tYear mod 100 is not 0) or tYear mod 400 is 0
+put 2000 into tYear
+put (tYear mod 4 is 0 and tYear mod 100 is not 0) or tYear mod 400 is 0</code></pre>
+<pre class="out">false
+true</pre>
+</figure>
+</details>
+</section>

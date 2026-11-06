@@ -1,0 +1,143 @@
+<!--
+title: Charts, clocks and calendars
+level: extensions
+minutes: 12
+summary: Show numbers as pictures with the Line Graph and the Pie Chart widgets, answer a click on a slice of the pie, show the time in any city with the Clock, and let people pick a day with the Calendar.
+words: Line Graph, graphData, graphColors, markerStyles, hilitedCoordinates, Pie Chart, sectorValues, sectorLabels, sectorColors, sectorClicked, Clock, timeZone, Calendar, selectedDate, dateChanged
+-->
+<h2 id="line">A line graph</h2>
+<p>A column of numbers says little at a glance; a line that climbs and falls says it at once. The <strong>Line Graph</strong> widget draws one or more lines from its <code>graphData</code>: a line of text for each point along the bottom, its label first and then a value for each line of the graph, separated by commas. It works out the scale and labels its axes itself:</p>
+<figure class="example" id="ex-wg-line" data-run="output" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.linegraph" data-shot="A line graph filling most of the card: the days Mon to Sun along the bottom and temperatures from 8 to 31 up the side, a red line with round dots for Madrid above a blue line with square ones for Oslo.">
+<pre class="code"><code>put "Mon,24,9" &amp; return &amp; "Tue,26,11" &amp; return &amp; "Wed,27,8" &amp; return &amp; "Thu,25,12" &amp; return &amp; \
+      "Fri,29,14" &amp; return &amp; "Sat,31,13" &amp; return &amp; "Sun,30,10" into tWeek
+create widget "Week" as "com.livecode.widget.linegraph"
+set the rect of it to 20, 20, 460, 340
+set the graphData of it to tWeek
+set the graphColors of it to "214,40,57,255" &amp; return &amp; "40,110,200,255"
+put the number of lines of the graphData of widget "Week"
+put item 2 of line 6 of the graphData of widget "Week"</code></pre>
+<pre class="out">7
+31</pre>
+</figure>
+<p>Here the first value of each day is Madrid's temperature and the second Oslo's. <code>graphColors</code> gives each line its colour, a line of text each, as red, green, blue and opacity; <code>markerStyles</code> gives each its dots, a line each too, such as <code>filled circle</code>, <code>square</code> or the name of an icon, or none at all when it is empty. It starts as <code>filled circle</code>, <code>filled square</code> and <code>filled diamond</code>, which is why Oslo has squares.</p>
+<p>The side runs from the smallest value to the largest, in as many steps as there are points along the bottom, and each label is rounded to a whole number: seven days make six steps from 8 to 31, so the labels are 8, 12, 16, 20 and so on.</p>
+<p>The data can come from a calculation as well as a list. Savings of 1000 that grow by 5% a year are worth 1000 times 1.05 to the power of the number of years, <code>1000 * 1.05 ^ tYear</code>. Here they are every second year for twenty years, with one point marked by <code>hilitedCoordinates</code>, which draws a dot there and dashed lines to the axes:</p>
+<figure class="example" id="ex-wg-growth" data-run="output" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.linegraph" data-shot="A line graph of one green line curving gently upward from 1000 to 2653 over the years 0 to 20, with the point at year 10 marked by a dot and dashed lines to both axes.">
+<pre class="code"><code>put empty into tData
+repeat with tYear = 0 to 20 step 2
+   put tYear &amp; comma &amp; round(1000 * 1.05 ^ tYear) &amp; return after tData
+end repeat
+create widget "Savings" as "com.livecode.widget.linegraph"
+set the rect of it to 20, 20, 460, 340
+set the graphData of it to line 1 to -1 of tData
+set the graphColors of it to "30,150,90,255"
+set the markerStyles of it to empty
+set the hilitedCoordinates of it to "10," &amp; item 2 of line 6 of tData
+put the hilitedCoordinates of widget "Savings"</code></pre>
+<pre class="out">10,1629</pre>
+</figure>
+<p>Line 6 of the data is year 10, because the years start at 0 and go up in twos. After ten years the money has grown by more than half, and after twenty it has more than doubled: the line curves up because each year's growth is on a bigger sum.</p>
+
+<h2 id="pie">A pie chart</h2>
+<p>A <strong>Pie Chart</strong> shows how a whole is shared out. Build a card with one:</p>
+<div class="build" id="build-pie">
+<ol>
+<li>Make a new stack, or go to an empty card. In Edit mode, drag a <strong>Pie Chart</strong> from the widgets of the Tools palette to the left of the card, make it about 260 pixels square, and name it <code>Budget</code>.</li>
+<li>Drag a classic <strong>Field</strong> to the right of it and name it <code>Info</code>.</li>
+</ol>
+<pre class="setup">create widget "Budget" as "com.livecode.widget.piechart"
+set the rect of it to 20,40,280,300
+create field "Info"
+set the rect of it to 300,40,460,100</pre>
+</div>
+<p>Its <code>sectorValues</code> are the sizes of the slices, and it works out each one's share of the whole; its <code>sectorLabels</code> name them, and its <code>sectorColors</code> colour them, a line each:</p>
+<figure class="example" id="ex-wg-pie" data-run="output" data-card="build-pie" data-in="message" data-needs="com.livecode.library.widgetutils com.livecode.widget.piechart" data-shot="Your card: a pie chart at the left in four slices, Rent the biggest in blue, then Food in orange, Travel in green and Fun in purple, with their names beside it; the empty field at the right.">
+<pre class="code"><code>set the sectorValues of widget "Budget" to "900,450,250,150"
+set the sectorLabels of widget "Budget" to "Rent,Food,Travel,Fun"
+set the sectorColors of widget "Budget" to "52,120,200" &amp; return &amp; "235,140,40" &amp; return &amp; "60,160,110" &amp; return &amp; "150,80,190"
+put the sectorLabels of widget "Budget"</code></pre>
+<pre class="out">Rent,Food,Travel,Fun</pre>
+</figure>
+<p>A click on a slice sends <code>sectorClicked</code> with the slice's number. Put this in the Pie Chart's script, to say what share of the whole a slice is:</p>
+<figure class="example" id="ex-wg-pie-script" data-run="compile" data-card="build-pie" data-script='widget "Budget"' data-needs="com.livecode.library.widgetutils com.livecode.widget.piechart">
+<pre class="code"><code>on sectorClicked pSector
+   local tValues, tTotal, tValue
+   put the sectorValues of me into tValues
+   put 0 into tTotal
+   repeat for each item tValue in tValues
+      add tValue to tTotal
+   end repeat
+   put item pSector of the sectorLabels of me &amp; ":" &amp;&amp; \
+         round(item pSector of tValues / tTotal * 100) &amp; "%" into field "Info"
+end sectorClicked</code></pre>
+</figure>
+<p>Click a slice in Run mode, or send the message from the Message Box, with the slice's number after its name:</p>
+<figure class="example" id="ex-wg-pie-send" data-run="output" data-card="build-pie" data-in="message" data-after="ex-wg-pie-script" data-needs="com.livecode.library.widgetutils com.livecode.widget.piechart">
+<pre class="code"><code>set the sectorValues of widget "Budget" to "900,450,250,150"
+set the sectorLabels of widget "Budget" to "Rent,Food,Travel,Fun"
+send "sectorClicked 2" to widget "Budget"
+put field "Info"</code></pre>
+<pre class="out">Food: 26%</pre>
+</figure>
+
+<h2 id="clock">A clock</h2>
+<p>The <strong>Clock</strong> widget is a clock face with hands that move, and a darker face at night, from eight in the evening until six in the morning. It shows the computer's own time unless its <code>timeZone</code> is set, to the seconds that zone is ahead of UTC. The Time Zone library (<a href="../time-zones/">Time zones</a>) knows that number for every city, summer time included, so a wall of clocks for the world takes a few lines:</p>
+<figure class="example" id="ex-wg-clock" data-run="output" data-needs="com.livecode.library.widgetutils com.livecode.widget.clock com.livecode.library.timezone">
+<pre class="code"><code>put 1768478400 into tMoment -- 12:00 UTC on 15 January 2026
+put 20 into tLeft
+repeat for each item tZone in "Europe/London,Asia/Tokyo,America/New_York"
+   create widget tZone as "com.livecode.widget.clock"
+   set the rect of it to tLeft, 40, tLeft + 130, 170
+   set the timeZone of it to FromUniversalTime(tMoment, tZone) - tMoment
+   add 150 to tLeft
+end repeat
+put the timeZone of widget "Asia/Tokyo"
+put the timeZone of widget "America/New_York" / 3600</code></pre>
+<pre class="out">32400
+-5</pre>
+</figure>
+<p>A real world clock would use <code>the seconds</code> for the moment, and set the offsets again now and then, since they change with summer time. The hands move by themselves; the page shows no picture of them because they would be at a different time each time it was checked.</p>
+
+<h2 id="calendar">A calendar</h2>
+<p>The <strong>Calendar</strong> widget shows a month, with arrows to go to the one before or after, and lets people choose a day with a click, which sends <code>dateChanged</code> with that day. Its <code>selectedDate</code> is the chosen day, written year, month and day, <code>2024-02-14</code>, which sorts and compares correctly as text and is how databases write dates too. Setting it shows that day's month:</p>
+<figure class="example" id="ex-wg-calendar" data-run="output" data-needs="com.livecode.library.widgetutils com.livecode.widget.calendar" data-shot="A calendar of February 2024, with the 14th highlighted, and the month's name between arrows at its top.">
+<pre class="code"><code>create widget "Date" as "com.livecode.widget.calendar"
+set the rect of it to 20, 20, 300, 300
+set the selectedDate of it to "2024-02-14"
+put the selectedDate of widget "Date"
+set the itemDelimiter to "-"
+put item 2 of the selectedDate of widget "Date"</code></pre>
+<pre class="out">2024-02-14
+02</pre>
+</figure>
+<p>A handler of <code>dateChanged</code> in the Calendar's script gets the day as its parameter: <code>on dateChanged pDate</code>. To turn that into one of xTalk's own forms of date, replace the dashes with commas and <code>convert</code> it from <code>dateItems</code> (<a href="../dates-times/">Dates and times</a>).</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a function <code>graphOf</code> that takes an array of counts, such as how many people chose each drink, and returns <code>graphData</code> for a Line Graph: a line a key, in alphabetical order, each its key and its count.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-wg-try" data-run="output" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.linegraph" data-shot="A line graph of one pink line over the drinks coffee, juice, tea and water along the bottom and the counts 1 to 4 up the side, with its peak at tea.">
+<pre class="code"><code>function graphOf pCounts
+   local tKeys, tKey, tData
+   put the keys of pCounts into tKeys
+   sort lines of tKeys
+   repeat for each line tKey in tKeys
+      put tKey &amp; comma &amp; pCounts[tKey] &amp; return after tData
+   end repeat
+   return line 1 to -1 of tData
+end graphOf
+
+repeat for each word tDrink in "tea coffee tea juice coffee tea water tea coffee"
+   add 1 to tCounts[tDrink]
+end repeat
+create widget "Drinks" as "com.livecode.widget.linegraph"
+set the rect of it to 20, 20, 460, 340
+set the graphData of it to graphOf(tCounts)
+put the graphData of widget "Drinks"</code></pre>
+<pre class="out">coffee,3
+juice,1
+tea,4
+water,1</pre>
+</figure>
+</details>
+</section>

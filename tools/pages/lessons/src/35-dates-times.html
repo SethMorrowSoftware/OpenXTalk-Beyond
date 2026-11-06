@@ -1,0 +1,131 @@
+<!--
+title: Dates and times
+level: intermediate
+minutes: 10
+summary: Read the clock, show a date the way you want, work out what day a date was, and count the days between two dates.
+words: the date, the time, the seconds, the milliseconds, convert, dateItems, long date, short date, abbreviated date, is a date, format
+-->
+<h2 id="clock">Reading the clock</h2>
+<p>xTalk has functions for now: <code>the date</code>, <code>the time</code>, and the same in <code>long</code> and <code>abbreviated</code> forms. <code>the seconds</code> counts seconds since the start of 1970, and <code>the milliseconds</code> thousandths of a second, which are handy for timing things.</p>
+<figure class="example" id="ex-dates-now" data-run="runs">
+<pre class="code"><code>put the date
+put the long date
+put the time
+put the seconds</code></pre>
+<pre class="out">11/5/26
+Thursday, November 5, 2026
+9:55 PM
+1793915714</pre>
+</figure>
+<p><code>the date</code> uses the American order, month first, so that scripts always read and write it the same way, wherever they run. <code>the system date</code> gives it in the order of the user's own settings, for showing to people.</p>
+
+<h2 id="convert">Changing a date's form: convert</h2>
+<p><code>convert</code> turns a date or time from any form xTalk understands into another: <code>short date</code>, <code>long date</code>, <code>abbreviated date</code>, <code>seconds</code>, <code>internet date</code> or <code>dateItems</code>. It changes the variable in place.</p>
+<figure class="example" id="ex-dates-convert" data-run="output">
+<pre class="code"><code>put "7/20/1969" into tDate
+convert tDate to long date
+put tDate
+convert tDate to abbreviated date
+put tDate
+put "1/15/2024" is a date
+put "2/30/2024" is a date</code></pre>
+<pre class="out">Sunday, July 20, 1969
+Sun, Jul 20, 1969
+true
+false</pre>
+</figure>
+
+<h2 id="dateitems">Taking a date apart: dateItems</h2>
+<p>In <code>dateItems</code> form a date is seven items: year, month, day, hour, minute, second, and the day of the week (1 is Sunday). It is the form to use for arithmetic:</p>
+<figure class="example" id="ex-dates-items" data-run="output">
+<pre class="code"><code>put "3/1/2024 2:30 PM" into tWhen
+convert tWhen to dateItems
+put tWhen
+put "Year" &amp;&amp; item 1 of tWhen &amp; ", hour" &amp;&amp; item 4 of tWhen
+put item 7 of tWhen is 6</code></pre>
+<pre class="out">2024,3,1,14,30,0,6
+Year 2024, hour 14
+true</pre>
+</figure>
+<p>1 March 2024 was day 6 of its week, a Friday.</p>
+
+<h2 id="adding">Adding days and months</h2>
+<p>To move a date, add to an item of its <code>dateItems</code> and convert it back. You need not worry about the ends of months or years: a day 32 or a month 13 rolls over into the next one.</p>
+<figure class="example" id="ex-dates-add" data-run="output">
+<pre class="code"><code>put "12/31/2023" into tDate
+convert tDate to dateItems
+add 1 to item 3 of tDate
+convert tDate to long date
+put tDate
+put "3/1/2024" into tDue
+convert tDue to dateItems
+add 30 to item 3 of tDue
+convert tDue to short date
+put tDue</code></pre>
+<pre class="out">Monday, January 1, 2024
+3/31/24</pre>
+</figure>
+<aside class="warn"><p>Adding a month to 31 January gives "31 February", which rolls over into March. Decide what your program means by "a month later" before you add one.</p></aside>
+<figure class="example" id="ex-dates-month" data-run="output">
+<pre class="code"><code>put "1/31/2024" into tDate
+convert tDate to dateItems
+add 1 to item 2 of tDate
+convert tDate to short date
+put tDate</code></pre>
+<pre class="out">3/2/24</pre>
+</figure>
+
+<h2 id="between">Days between two dates</h2>
+<p>Convert both dates to seconds, subtract, and divide by the seconds in a day:</p>
+<figure class="example" id="ex-dates-between" data-run="output">
+<pre class="code"><code>function daysBetween pFirst, pSecond
+   convert pFirst to seconds
+   convert pSecond to seconds
+   return round((pSecond - pFirst) / (24 * 60 * 60))
+end daysBetween
+
+put daysBetween("1/1/2024", "3/1/2024")
+put daysBetween("1/1/2023", "1/1/2024")</code></pre>
+<pre class="out">60
+365</pre>
+</figure>
+<p>The <code>round</code> is there for the days the clocks change, which are an hour longer or shorter than the rest.</p>
+
+<h2 id="format">Your own format</h2>
+<p>For a form of your own, such as the international <code>2024-01-05</code>, take the date apart and put it together with <code>format</code>, which pads the numbers with zeros:</p>
+<figure class="example" id="ex-dates-iso" data-run="output">
+<pre class="code"><code>function isoDate pDate
+   convert pDate to dateItems
+   return format("%04d-%02d-%02d", item 1 of pDate, item 2 of pDate, item 3 of pDate)
+end isoDate
+
+put isoDate("1/5/2024")
+put isoDate("12/25/2023")</code></pre>
+<pre class="out">2024-01-05
+2023-12-25</pre>
+</figure>
+
+<h2 id="timing">Timing your code</h2>
+<p>Subtract <code>the milliseconds</code> before from <code>the milliseconds</code> after to see how long something took. The lesson <a href="../performance/">Making it fast</a> uses it a lot.</p>
+<figure class="example" id="ex-dates-timing" data-run="runs">
+<pre class="code"><code>put the milliseconds into tStart
+repeat 100000 times
+   add 1 to tCount
+end repeat
+put the milliseconds - tStart &amp;&amp; "ms"</code></pre>
+<pre class="out">12 ms</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>On what day of the week was the first Moon landing, 20 July 1969? Put the name of the day, worked out from item 7 of its <code>dateItems</code> and a list of the names of the days.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-dates-try" data-run="output">
+<pre class="code"><code>put "Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday" into tDays
+put "7/20/1969" into tDate
+convert tDate to dateItems
+put item (item 7 of tDate) of tDays</code></pre>
+<pre class="out">Sunday</pre>
+</figure>
+</details>
+</section>

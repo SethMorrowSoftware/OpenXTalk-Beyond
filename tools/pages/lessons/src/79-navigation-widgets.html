@@ -1,0 +1,139 @@
+<!--
+title: Header bars, tabs and tiles
+level: extensions
+minutes: 12
+summary: The widgets that lay out an app the way phones do: a Header Bar with a title and actions, a Navigation Bar of tabs along the bottom, Tiles to choose from, and the Palette Actions bar the IDE's own palettes use.
+words: Header Bar, label, itemNames, itemLabels, itemIcons, mouseAction, Navigation Bar, hilitedItem, hilitedItemName, hiliteChanged, Tile, tileLabel, iconName, Palette Actions, actionNames, actionSelected
+-->
+<h2 id="card">An app's card</h2>
+<p>Most apps on a phone look alike for a reason: a bar across the top with the page's title and a button or two, a row of <strong>tabs</strong> across the bottom to move between pages, and the page itself between them. People know where to look. Three widgets make this layout, and they work on a desktop just as well. Build the card:</p>
+<div class="build" id="build-app">
+<ol>
+<li>Make a new stack, or go to an empty card. In Edit mode, drag a <strong>Header Bar</strong> from the widgets of the Tools palette to the top of the card, stretch it from edge to edge, and name it <code>Header</code>.</li>
+<li>Drag a <strong>Navigation Bar</strong> to the bottom of the card, stretch it from edge to edge too, and name it <code>Tabs</code>.</li>
+<li>Drag a classic <strong>Field</strong> into the space between them and name it <code>Page</code>.</li>
+</ol>
+<pre class="setup">create widget "Header" as "com.livecode.widget.headerbar"
+set the rect of it to 0,0,480,44
+create widget "Tabs" as "com.livecode.widget.navbar"
+set the rect of it to 0,304,480,360
+create field "Page"
+set the rect of it to 20,60,460,290</pre>
+</div>
+<p>Each bar comes with items to show what it can do: the Header Bar says <code>Title</code>, with a back arrow and a plus, and the Navigation Bar has four tabs with an icon each. They are set in the Property Inspector, or from a script, as properties: a list of <strong>names</strong> for scripts, of <strong>labels</strong> for people, and of <strong>icons</strong>, each a name from the icon library that comes with OXT-Beyond (<a href="../icon-widgets/">Icons and SVG</a>). The Header Bar's title is its <code>label</code>:</p>
+<figure class="example" id="ex-wn-bars" data-run="output" data-card="build-app" data-in="message" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.headerbar com.livecode.widget.navbar" data-shot="Your card: a header bar at the top titled Contacts, with a back arrow at the left and a plus at the right; the empty field; and a bar of four tabs at the bottom, Contacts, Favourites, Music and Search, each with its icon, Contacts lit.">
+<pre class="code"><code>put the itemNames of widget "Tabs"
+put the itemLabels of widget "Tabs"
+put the itemIcons of widget "Tabs"
+put the hilitedItemName of widget "Tabs"
+set the label of widget "Header" to "Contacts"</code></pre>
+<pre class="out">contacts,favourites,music,search
+Contacts,Favourites,Music,Search
+user,star empty,music,search
+contacts</pre>
+</figure>
+<p>The three lists go together, item by item: to make the tabs your own, set all three, such as the <code>itemNames</code> to <code>home,search,favourites,settings</code>, the <code>itemLabels</code> to <code>Home,Search,Favourites,Settings</code> and the <code>itemIcons</code> to <code>home,search,heart,cog</code>, as the Try it yourself at the end does. <code>itemStyle</code> chooses what a tab shows: <code>icons</code>, <code>names</code> (the labels) or <code>both</code>.</p>
+
+<h2 id="tabs">Tabs: the Navigation Bar</h2>
+<p>One tab of a Navigation Bar is always lit, the page the reader is on. A click on another lights it and sends <code>hiliteChanged</code>, as setting its <code>hilitedItem</code> does; <code>hilitedItemName</code> says which. In a real app each tab would go to a card of its own (<a href="../cards-navigation/">Cards and navigation</a>), with the bars in a group shown on every card. Here one field stands in for the pages. Put this in the Navigation Bar's script:</p>
+<figure class="example" id="ex-wn-tabs-script" data-run="compile" data-card="build-app" data-script='widget "Tabs"' data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.headerbar com.livecode.widget.navbar">
+<pre class="code"><code>on hiliteChanged
+   put the hilitedItemName of me into tPage
+   put "This is the" &amp;&amp; tPage &amp;&amp; "page." into field "Page"
+   set the label of widget "Header" to item (the hilitedItem of me) of the itemLabels of me
+end hiliteChanged</code></pre>
+</figure>
+<figure class="example" id="ex-wn-tabs-send" data-run="output" data-card="build-app" data-in="message" data-after="ex-wn-tabs-script" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.headerbar com.livecode.widget.navbar" data-shot="Your card: the header bar titled Music, the field saying This is the music page, and the third of the four tabs at the bottom, Music, lit.">
+<pre class="code"><code>set the hilitedItem of widget "Tabs" to 3
+wait 0 milliseconds with messages
+put field "Page"
+put the label of widget "Header"</code></pre>
+<pre class="out">This is the music page.
+Music</pre>
+</figure>
+<p>As with the Segmented Control (<a href="../choice-widgets/#segmented">Switches, choices and colours</a>), the widget sends its message once the script that changed it is done, so the <code>wait</code> lets it through before the next line looks. In Run mode, click a tab and watch the title change.</p>
+
+<h2 id="header">Actions: the Header Bar</h2>
+<p>A Header Bar's items are <strong>actions</strong>, small buttons at its ends, such as Back and Add. A click anywhere on the bar sends it <code>mouseUp</code>, and its <code>mouseAction</code> is the name of the action under the pointer, or empty when the click was on the title. Put this in the Header Bar's script:</p>
+<figure class="example" id="ex-wn-header-script" data-run="compile" data-card="build-app" data-script='widget "Header"' data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.headerbar com.livecode.widget.navbar">
+<pre class="code"><code>on mouseUp
+   switch the mouseAction of me
+      case "back"
+         go back
+         break
+      case "add"
+         ask "What would you like to add?"
+         if it is not empty then put return &amp; it after field "Page"
+         break
+   end switch
+end mouseUp</code></pre>
+</figure>
+<p>The actions' names and icons are lists, as the tabs' are: set the <code>itemNames</code> to <code>back,add</code> and the <code>itemIcons</code> to <code>angle left,plus</code> for the two it starts with. The first action sits at the left when <code>firstItemLeft</code> is true, as a back arrow should.</p>
+
+<h2 id="tiles">Tiles</h2>
+<p>A <strong>Tile</strong> is a square button with a big icon and a title, the kind of thing a home screen or a settings page shows in a grid. It lights up when the pointer is over it, and sends <code>mouseUp</code> when clicked. Tiles are easy to make by the dozen from a script (<a href="../stacks-cards-controls/#script-made">Making controls from a script</a>), as here; from the Tools palette each is dragged and set like any widget:</p>
+<figure class="example" id="ex-wn-tiles" data-run="output" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.tile" data-shot="Six square tiles in two rows of three, each with a white icon and its title on a coloured square: Photos, Music, Books, Settings, Friends and Saved.">
+<pre class="code"><code>put "Photos,camera;Music,music;Books,book;Settings,cog;Friends,user;Saved,heart" into tTiles
+put "52,120,200;220,80,90;60,160,110;110,110,130;230,140,40;150,80,190" into tColours
+repeat with tIndex = 1 to 6
+   set the itemDelimiter to ";"
+   put item tIndex of tTiles into tTile
+   put item tIndex of tColours into tColour
+   set the itemDelimiter to comma
+   create widget (item 1 of tTile) as "com.livecode.widget.tile"
+   set the tileLabel of it to item 1 of tTile
+   set the iconName of it to item 2 of tTile
+   set the bgColor of it to tColour
+   set the fgColor of it to "255,255,255"
+   put 30 + ((tIndex - 1) mod 3) * 145 into tLeft
+   put 30 + ((tIndex - 1) div 3) * 155 into tTop
+   set the rect of it to tLeft, tTop, tLeft + 130, tTop + 130
+end repeat
+put the number of widgets
+put the iconName of widget "Books"</code></pre>
+<pre class="out">6
+book</pre>
+</figure>
+<p>A single <code>mouseUp</code> handler in the card's script can answer them all, since a message a tile does not handle goes on to its card: <code>the short name of the target</code> says which was clicked.</p>
+
+<h2 id="palette">Palette Actions</h2>
+<p>The IDE's own palettes, such as the Project Browser, have a bar of small icon buttons along their top; it is the <strong>Palette Actions</strong> widget, and it is in the Tools palette for your own palettes too. It has two sets of items: <strong>nav</strong> items on the left, of which one is chosen, like tabs, and <strong>action</strong> items on the right, like buttons. The nav items show their labels, or their icons when <code>showNavIcons</code> is true. Choosing one sends <code>navSelected</code> or <code>actionSelected</code> with its name:</p>
+<figure class="example" id="ex-wn-palette" data-run="output" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.paletteactions" data-shot="A thin grey bar across the top of the card: two tabs at its left, List and Grid, with List chosen, and a trash can and a plus at its right.">
+<pre class="code"><code>create widget "Bar" as "com.livecode.widget.paletteactions"
+set the rect of it to 0, 0, 480, 34
+set the navNames of it to "list,grid"
+set the navIcons of it to "list,th"
+set the navLabels of it to "List,Grid"
+set the actionNames of it to "add,delete"
+set the actionIcons of it to "plus,trash"
+set the selectedNavItem of it to "list"
+put the navNames of widget "Bar"
+put the selectedNavItem of widget "Bar"</code></pre>
+<pre class="out">list,grid
+list</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a command <code>makeTabs</code> that takes a widget name and a list of tab names, such as <code>"home,search,cog"</code>, and makes a Navigation Bar across the bottom of the card with those tabs, each using its name as its icon and, with a capital first letter, as its label.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-wn-try" data-run="output" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.navbar" data-shot="A bar of three tabs across the bottom of the card, Home, Search and Cog, each with its icon, Home lit.">
+<pre class="code"><code>command makeTabs pName, pTabs
+   local tLabels, tTab
+   repeat for each item tTab in pTabs
+      put toUpper(char 1 of tTab) &amp; char 2 to -1 of tTab &amp; comma after tLabels
+   end repeat
+   create widget pName as "com.livecode.widget.navbar"
+   set the itemNames of it to pTabs
+   set the itemLabels of it to char 1 to -2 of tLabels
+   set the itemIcons of it to pTabs
+   set the hilitedItem of it to 1
+   set the rect of it to 0, the height of this card - 56, the width of this card, the height of this card
+end makeTabs
+
+makeTabs "Tabs", "home,search,cog"
+put the itemLabels of widget "Tabs"</code></pre>
+<pre class="out">Home,Search,Cog</pre>
+</figure>
+</details>
+</section>

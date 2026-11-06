@@ -26,7 +26,15 @@
 #
 # The output folder gets the engine's output, two screenshots and, if the
 # IDE ended, the crash report macOS wrote, whose faulting thread is also
-# printed. Exit status 0 when the IDE was still running at the end.
+# printed. It also gets the windows that came and went while the IDE
+# started (tools/ci/startup_windows.py watches the IDE's windows on the
+# screen from before it starts): a window that showed and was taken away
+# again is a "ghost window" (LittleNemo, openxtalk.org p=25967; the splash
+# is meant to go), as tools/ci/linux_ide_start.sh checks on Linux. Exit
+# status 0 when the IDE was still running at the end and no window came
+# and went. With OXT_GHOST_WINDOWS=warn, windows that came and went are a
+# warning: media-check.yml starts a published release, which the change
+# that runs it did not build.
 
 app=$1
 out=$2
@@ -40,6 +48,21 @@ echo "Machine: $(uname -m), macOS $(sw_vers -productVersion)"
 
 reports=~/Library/Logs/DiagnosticReports
 ls "$reports" > "$out/reports-before.txt" 2>/dev/null
+
+# The windows that come and go while the IDE starts, watched from before
+# it starts
+here=$(cd "$(dirname "$0")" && pwd)
+watch_seconds=$(( seconds < 60 ? seconds : 60 ))
+rm -f "$out/startup-windows-ready"
+python3 "$here/startup_windows.py" --process OXT-Beyond --seconds "$watch_seconds" \
+  --log "$out/startup-windows.txt" --ready "$out/startup-windows-ready" \
+  > "$out/startup-windows-errors.txt" 2>&1 &
+watcher=$!
+watching=no
+for i in $(seq 1 50); do
+  if [ -e "$out/startup-windows-ready" ]; then watching=yes; break; fi
+  sleep 0.1
+done
 
 "$app/Contents/MacOS/OXT-Beyond" > "$out/ide-output.txt" 2>&1 &
 pid=$!
@@ -61,7 +84,33 @@ kill -9 "$pid" 2>/dev/null
 echo "--- the engine's output"
 head -c 20000 "$out/ide-output.txt"
 echo
-[ "$status" = running ] && exit 0
+
+wait "$watcher"
+ghost_status=$?
+echo "--- windows while the IDE started (tools/ci/startup_windows.py)"
+cat "$out/startup-windows.txt" 2>/dev/null
+windows=ok
+if [ "$watching" != yes ]; then
+  echo "The window watcher's output:"
+  tail -n 20 "$out/startup-windows-errors.txt"
+  echo "::error title=IDE start::The window watcher (tools/ci/startup_windows.py) did not start, so the start was not checked for windows that came and went"
+  windows=failed
+elif [ "$ghost_status" != 0 ]; then
+  echo "The window watcher's output:"
+  tail -n 20 "$out/startup-windows-errors.txt"
+  ghosts=$(grep '^GHOST' "$out/startup-windows.txt" 2>/dev/null | sed 's/^GHOST //' | tr '\n' ';')
+  ghosts=${ghosts:-the watcher ended with exit status $ghost_status}
+  if [ "${OXT_GHOST_WINDOWS:-error}" = warn ]; then
+    echo "::warning title=IDE start::Windows came and went while the IDE started (a release this change did not build): $ghosts"
+  else
+    echo "::error title=IDE start::Windows came and went while the IDE started: $ghosts"
+    windows=failed
+  fi
+fi
+if [ "$status" = running ]; then
+  [ "$windows" = ok ] && exit 0
+  exit 1
+fi
 
 # macOS writes the crash report a few seconds after the crash
 for i in $(seq 1 30); do

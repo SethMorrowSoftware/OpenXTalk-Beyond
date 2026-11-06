@@ -1,0 +1,143 @@
+<!--
+title: Handling errors
+level: advanced
+minutes: 10
+summary: Catch errors with try and catch so a program can recover, raise your own with throw, and know which commands report problems in the result instead.
+words: try, catch, finally, end try, throw, the result, errorDialog
+-->
+<h2 id="errors">When something goes wrong</h2>
+<p>Some mistakes are found before a script runs: a misspelled <code>end if</code>, a missing quote. Others only show up as it runs: a division by zero, a number that turns out to be a word, a file that is not there. These <strong>runtime errors</strong> stop the handler, and every handler that called it, and xTalk reports where it happened.</p>
+<figure class="example" id="ex-errors-stop" data-run="error" data-line="2">
+<pre class="code"><code>put "ten" into tCount
+put tCount + 1</code></pre>
+</figure>
+<p>That is the right thing while you are writing a program. In a finished one, you would rather the program noticed the problem and dealt with it.</p>
+
+<h2 id="try">Catching errors: try and catch</h2>
+<p>Put the lines that might fail between <code>try</code> and <code>catch</code>. If any of them raises an error, xTalk jumps straight to the lines after <code>catch</code>, and the program carries on after <code>end try</code>:</p>
+<figure class="example" id="ex-errors-try" data-run="output">
+<pre class="code"><code>try
+   put "ten" + 1 into tAnswer
+   put "this line is never reached"
+catch tError
+   put "Something went wrong"
+end try
+put "and the program carries on"</code></pre>
+<pre class="out">Something went wrong
+and the program carries on</pre>
+</figure>
+<p>The variable after <code>catch</code> receives a description of the error. For xTalk's own errors, each line of it is a set of numbers: the first item of the first line is the error's code, the second the line it happened on.</p>
+
+<h2 id="functions">Errors inside functions</h2>
+<p>A <code>try</code> often goes inside a small function that gives back something sensible whatever happens:</p>
+<figure class="example" id="ex-errors-safe-divide" data-run="output">
+<pre class="code"><code>function safeDivide pA, pB
+   try
+      return pA / pB
+   catch tError
+      return "n/a"
+   end try
+end safeDivide
+
+put safeDivide(10, 4)
+put safeDivide(1, 0)
+put safeDivide("lots", 2)</code></pre>
+<pre class="out">2.5
+n/a
+n/a</pre>
+</figure>
+
+<h2 id="throw">Raising your own: throw</h2>
+<p><code>throw</code> raises an error of your own, with any text you like. It travels up through the handlers that called it, just like one of xTalk's, until a <code>try</code> catches it, and then the text arrives in the catch variable exactly as thrown:</p>
+<figure class="example" id="ex-errors-throw" data-run="output">
+<pre class="code"><code>command checkAge pAge
+   if pAge is not a number then throw "Age must be a number"
+   if pAge &lt; 0 then throw "Age cannot be negative"
+   put "Age" &amp;&amp; pAge &amp;&amp; "is fine"
+end checkAge
+
+try
+   checkAge 30
+   checkAge -2
+   checkAge 50
+catch tProblem
+   put "Problem:" &amp;&amp; tProblem
+end try</code></pre>
+<pre class="out">Age 30 is fine
+Problem: Age cannot be negative</pre>
+</figure>
+<p>The third check never ran: the error jumped straight to <code>catch</code>. An error can travel a long way up:</p>
+<figure class="example" id="ex-errors-deep" data-run="output">
+<pre class="code"><code>command loadSettings
+   readTheFile
+end loadSettings
+
+command readTheFile
+   throw "the settings file is damaged"
+end readTheFile
+
+try
+   loadSettings
+catch tProblem
+   put "Could not start:" &amp;&amp; tProblem
+end try</code></pre>
+<pre class="out">Could not start: the settings file is damaged</pre>
+</figure>
+<aside class="tip"><p>Throw where you find the problem, catch where you can do something about it, often far apart. The handler that reads a file knows it is damaged; only the handler that started the program knows to show a message and use the defaults.</p></aside>
+
+<h2 id="finally">Tidying up: finally</h2>
+<p>Lines after <code>finally</code> run whether or not there was an error: the place to close a file, unlock the screen, or put the cursor back.</p>
+<figure class="example" id="ex-errors-finally" data-run="output">
+<pre class="code"><code>try
+   put "working"
+   throw "a problem"
+catch tError
+   put "caught" &amp;&amp; tError
+finally
+   put "tidied up"
+end try</code></pre>
+<pre class="out">working
+caught a problem
+tidied up</pre>
+</figure>
+
+<h2 id="the-result">Errors that do not throw</h2>
+<p>Not every problem raises an error. Commands that deal with the world outside, files, the internet, other programs, often report a problem by setting <code>the result</code> (<a href="../commands/#the-result">Your own commands</a>) and carrying on. A <code>try</code> would not notice; you must look:</p>
+<figure class="example" id="ex-errors-result" data-run="output">
+<pre class="code"><code>put URL "file:/no/such/folder/notes.txt" into tText
+put the result
+put "[" &amp; tText &amp; "]"
+open file "/no/such/folder/notes.txt" for read
+put the result</code></pre>
+<pre class="out">can't open file
+[]
+can't open that file</pre>
+</figure>
+<p>So after any command that reaches outside your program, check <code>the result</code> on the very next line, before another command replaces it.</p>
+<aside class="note"><p>An error nobody catches reaches the engine, which sends the message <code>errorDialog</code>; in a standalone application with no handler for it, the user sees the engine's error dialog. A stack can handle <code>errorDialog</code> to log errors its own way.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a function <code>toNumber</code> that gives back its parameter if it is a number, and throws <code>not a number:</code> followed by the parameter if not. Then add up the list <code>4,x,10,oops,6</code> with it, skipping anything that is not a number and putting a warning for each.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-errors-try-it" data-run="output">
+<pre class="code"><code>function toNumber pValue
+   if pValue is not a number then throw "not a number:" &amp;&amp; pValue
+   return pValue
+end toNumber
+
+put 0 into tTotal
+repeat for each item tItem in "4,x,10,oops,6"
+   try
+      add toNumber(tItem) to tTotal
+   catch tProblem
+      put "Skipped," &amp;&amp; tProblem
+   end try
+end repeat
+put "Total:" &amp;&amp; tTotal</code></pre>
+<pre class="out">Skipped, not a number: x
+Skipped, not a number: oops
+Total: 20</pre>
+</figure>
+</details>
+</section>

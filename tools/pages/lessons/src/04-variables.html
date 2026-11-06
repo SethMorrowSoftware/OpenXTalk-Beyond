@@ -1,0 +1,99 @@
+<!--
+title: Variables
+level: beginner
+minutes: 8
+summary: Give values names, keep them, change them, and choose names that make code easy to read.
+words: put, into, after, before, local
+-->
+<h2 id="named-boxes">A named place for a value</h2>
+<p>A <strong>variable</strong> is a name that holds a value. You put a value into it, and from then on you use the name wherever you want the value.</p>
+<figure class="example" id="ex-vars-first" data-run="output">
+<pre class="code"><code>put "Ada" into tName
+put 36 into tAge
+put tName &amp;&amp; "is" &amp;&amp; tAge</code></pre>
+<pre class="out">Ada is 36</pre>
+</figure>
+<p><code>put ... into</code> keeps the value instead of showing it. Notice that <code>tName</code> has no quotes: it is a name, and xTalk swaps it for the value it holds.</p>
+
+<h2 id="changing">Putting something new into a variable</h2>
+<p>A variable holds one value at a time. Putting a new value into it replaces the old one. The right-hand side is worked out first, so a variable can even be used to change itself.</p>
+<figure class="example" id="ex-vars-change" data-run="output">
+<pre class="code"><code>put "red" into tColour
+put "blue" into tColour
+put tColour
+put 10 into tScore
+put tScore + 5 into tScore
+put tScore</code></pre>
+<pre class="out">blue
+15</pre>
+</figure>
+
+<h2 id="after-before">Adding to the end or the front</h2>
+<p><code>put ... after</code> adds to the end of what a variable holds, and <code>put ... before</code> adds to the front. The variable keeps what it had.</p>
+<figure class="example" id="ex-vars-after" data-run="output">
+<pre class="code"><code>put "middle" into tWord
+put "start-" before tWord
+put "-end" after tWord
+put tWord</code></pre>
+<pre class="out">start-middle-end</pre>
+</figure>
+
+<h2 id="naming">Choosing names</h2>
+<p>A variable's name starts with a letter and has no spaces; it can have letters, digits and underscores. Capitals do not matter to xTalk (<code>tname</code> and <code>tName</code> are the same variable), but they help people read long names.</p>
+<p>Many xTalk programmers start every name with a letter that says what kind of variable it is. You will see this in the IDE's own scripts and in these lessons:</p>
+<div class="table-scroll"><table>
+<thead><tr><th>Starts with</th><th>Means</th><th>Example</th></tr></thead>
+<tbody>
+<tr><td><code>t</code></td><td>a temporary variable, used in one handler</td><td><code>tTotal</code></td></tr>
+<tr><td><code>p</code></td><td>a parameter, given to a handler</td><td><code>pName</code></td></tr>
+<tr><td><code>s</code></td><td>a script local, shared by a script's handlers</td><td><code>sCount</code></td></tr>
+<tr><td><code>g</code></td><td>a global, shared by every script</td><td><code>gSettings</code></td></tr>
+<tr><td><code>k</code></td><td>a constant</td><td><code>kMaxLives</code></td></tr>
+<tr><td><code>c</code></td><td>a custom property of an object</td><td><code>cScore</code></td></tr>
+</tbody></table></div>
+<p>It is a convention, not a rule, but it has a real benefit: a name like <code>tLength</code> can never clash with xTalk's own words, such as <code>length</code>.</p>
+<aside class="warn"><p>Do not name a variable after one of xTalk's own words, like <code>sum</code>, <code>length</code>, <code>name</code> or <code>the</code>. The script may not compile, or worse, may quietly mean something else.</p></aside>
+
+<h2 id="unset">A name xTalk has never seen</h2>
+<p>In the playground (and in the IDE, unless you turn on Variable Checking), a variable comes into being the first time you put something into it. But a name you have <em>never</em> put anything into is not a variable at all: xTalk reads it as the word itself, as if it were in quotes. Programmers call this an <strong>unquoted literal</strong>, and it is a habit HyperCard started.</p>
+<figure class="example" id="ex-vars-unset" data-run="output">
+<pre class="code"><code>put 5 into tApples
+put tApples + 1
+put tPears
+put hello</code></pre>
+<pre class="out">6
+tPears
+hello</pre>
+</figure>
+<p>That is handy for quick sums in the <a href="../stacks-cards-controls/#message-box">Message Box</a>, and it is also a classic source of bugs: a misspelt name is not a variable, so it is just a word, and a word in a sum stops the script.</p>
+<figure class="example" id="ex-vars-typo" data-run="error" data-line="2">
+<pre class="code"><code>put 5 into tApples
+put tAples + 1   -- a typing mistake: tAples is just a word</code></pre>
+</figure>
+<aside class="tip"><p>Declaring your variables with <code>local</code> at the top of a handler, and turning on <strong>Variable Checking</strong> in the Script Editor (<kbd>Edit &gt; Options &gt; Variable Checking</kbd>), makes xTalk refuse a name you never declared, which catches typing mistakes before the script runs. The lesson <a href="../scope/">Where values live</a> shows how.</p></aside>
+
+<h2 id="it">The variable called it</h2>
+<p>xTalk has one variable it fills for you: <code>it</code>. Commands like <code>get</code>, <code>ask</code>, <code>answer</code> and <code>read</code> put their answer there. <code>get</code> is a short way of putting a value into <code>it</code>.</p>
+<figure class="example" id="ex-vars-it" data-run="output">
+<pre class="code"><code>get 6 * 7
+put it
+get "The answer is" &amp;&amp; it
+put it</code></pre>
+<pre class="out">42
+The answer is 42</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Put your first name into <code>tFirst</code> and your last name into <code>tLast</code>. Then build <code>tFull</code> from them with a space between, add <code>Dr. </code> to its front, and put it.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-vars-try" data-run="output">
+<pre class="code"><code>put "Grace" into tFirst
+put "Hopper" into tLast
+put tFirst &amp;&amp; tLast into tFull
+put "Dr. " before tFull
+put tFull</code></pre>
+<pre class="out">Dr. Grace Hopper</pre>
+</figure>
+</details>
+</section>

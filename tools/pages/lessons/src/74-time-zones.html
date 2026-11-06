@@ -1,0 +1,139 @@
+<!--
+title: Time zones
+level: extensions
+minutes: 10
+summary: The time anywhere in the world with the Time Zone library: the zones it knows, their offsets from UTC, summer time, a zone's clock for any moment, and a meeting time from one city to another.
+words: TimeZones, FromUniversalTime, ToUniversalTime, the seconds, format, mod, div, convert
+-->
+<h2 id="zones">The world's time zones</h2>
+<p>It is noon in London when it is nine at night in Tokyo, and the difference changes twice a year in many places, on dates each country chooses. The <strong>Time Zone</strong> library carries the <strong>tz database</strong>, the list of every zone's rules that phones and computers everywhere use, so a program can know the time anywhere. Each zone has a name, a region and its biggest city: <code>Europe/Paris</code>, <code>America/New_York</code>. <code>TimeZones</code> lists them:</p>
+<figure class="example" id="ex-tz-zones" data-run="output" data-needs="com.livecode.library.timezone">
+<pre class="code"><code>put TimeZones() into tZones
+put the number of lines of tZones &gt; 300
+put "Europe/Paris" is among the lines of tZones
+put "Asia/Kolkata" is among the lines of tZones
+put "Mars/Olympus_Mons" is among the lines of tZones</code></pre>
+<pre class="out">true
+true
+true
+false</pre>
+</figure>
+<p>Use these names, not abbreviations like <code>EST</code> or <code>CET</code>: an abbreviation can mean different zones in different countries, and does not say whether summer time applies.</p>
+
+<h2 id="offsets">Offsets from UTC</h2>
+<p>Every zone's clock is a number of hours ahead of or behind <strong>UTC</strong>, the world's reference time, which is the time in London in winter. <code>the seconds</code> counts in UTC, the same at that moment everywhere. <code>FromUniversalTime</code> takes a moment in UTC seconds and a zone, and gives that zone's clock as seconds, so the difference is the zone's <strong>offset</strong>:</p>
+<figure class="example" id="ex-tz-offset" data-run="output" data-needs="com.livecode.library.timezone">
+<pre class="code"><code>put 1768478400 into tMoment -- 12:00 UTC on 15 January 2026
+repeat for each item tZone in "Europe/London,America/New_York,Asia/Tokyo,Asia/Kolkata,Asia/Kathmandu,Australia/Sydney"
+   put tZone &amp;&amp; (FromUniversalTime(tMoment, tZone) - tMoment) / 3600
+end repeat</code></pre>
+<pre class="out">Europe/London 0
+America/New_York -5
+Asia/Tokyo 9
+Asia/Kolkata 5.5
+Asia/Kathmandu 5.75
+Australia/Sydney 11</pre>
+</figure>
+<p>An offset is not always whole hours: India is five and a half hours ahead, Nepal five and three quarters. Sydney is eleven ahead in January because it is summer there.</p>
+
+<h2 id="summer">Summer time</h2>
+<p>Many zones put their clocks forward an hour in summer, and each does it on its own dates; the south's summer is the north's winter. The same zone at two moments half a year apart:</p>
+<figure class="example" id="ex-tz-summer" data-run="output" data-needs="com.livecode.library.timezone">
+<pre class="code"><code>function offsetHours pZone, pMoment
+   return (FromUniversalTime(pMoment, pZone) - pMoment) / 3600
+end offsetHours
+
+put 1768478400 into tJanuary -- 12:00 UTC on 15 January 2026
+put 1784116800 into tJuly -- 12:00 UTC on 15 July 2026
+repeat for each item tZone in "Europe/London,America/New_York,Australia/Sydney,Asia/Tokyo"
+   put tZone &amp;&amp; offsetHours(tZone, tJanuary) &amp;&amp; offsetHours(tZone, tJuly)
+end repeat</code></pre>
+<pre class="out">Europe/London 0 1
+America/New_York -5 -4
+Australia/Sydney 11 10
+Asia/Tokyo 9 9</pre>
+</figure>
+<p>London and New York go forward in July, Sydney goes back, and Japan has no summer time at all. The library knows the rules for past years too, as they were, so old dates come out right.</p>
+
+<h2 id="clock">A zone's clock</h2>
+<p>The seconds <code>FromUniversalTime</code> gives are a clock reading: read as if they were UTC, they show that zone's time. A day is 86400 seconds and an hour 3600, so <code>mod</code> and <code>div</code> take the hours and minutes out, and comparing whole days says whether the zone is already in the next day, or still in the day before:</p>
+<figure class="example" id="ex-tz-clock" data-run="output" data-needs="com.livecode.library.timezone">
+<pre class="code"><code>function clockOf pSeconds
+   return format("%02d:%02d", (pSeconds mod 86400) div 3600, (pSeconds mod 3600) div 60)
+end clockOf
+
+function dayOf pLocal, pMoment
+   put (pLocal div 86400) - (pMoment div 86400) into tDays
+   if tDays &gt; 0 then return "the next day"
+   if tDays &lt; 0 then return "the day before"
+   return "the same day"
+end dayOf
+
+put 1768478400 into tMoment -- 12:00 UTC on 15 January 2026
+put "UTC" &amp;&amp; clockOf(tMoment)
+repeat for each item tZone in "America/Los_Angeles,Asia/Tokyo,Pacific/Auckland"
+   put FromUniversalTime(tMoment, tZone) into tLocal
+   put tZone &amp;&amp; clockOf(tLocal) &amp;&amp; dayOf(tLocal, tMoment)
+end repeat</code></pre>
+<pre class="out">UTC 12:00
+America/Los_Angeles 04:00 the same day
+Asia/Tokyo 21:00 the same day
+Pacific/Auckland 01:00 the next day</pre>
+</figure>
+<aside class="warn"><p>Do not <code>convert</code> the seconds <code>FromUniversalTime</code> gives. <code>convert</code> reads seconds as UTC and turns them into <em>your computer's</em> time, so it adds your own zone's offset on top of the other zone's. On a computer set to UTC the answer looks right; on your users' computers it is hours out. Take the clock out with <code>mod</code> and <code>div</code>, as here.</p></aside>
+<p>With <code>the seconds</code> in place of the fixed moment, it is a world clock, a different answer every minute:</p>
+<figure class="example" id="ex-tz-now" data-run="runs" data-needs="com.livecode.library.timezone">
+<pre class="code"><code>function clockOf pSeconds
+   return format("%02d:%02d", (pSeconds mod 86400) div 3600, (pSeconds mod 3600) div 60)
+end clockOf
+
+put the seconds into tNow
+repeat for each item tZone in "Europe/London,America/New_York,Asia/Tokyo"
+   put tZone &amp;&amp; clockOf(FromUniversalTime(tNow, tZone))
+end repeat</code></pre>
+<pre class="out">Europe/London 14:05
+America/New_York 09:05
+Asia/Tokyo 23:05</pre>
+</figure>
+
+<h2 id="meeting">A meeting across zones</h2>
+<p><code>ToUniversalTime</code> goes the other way: from a zone's clock reading, as seconds, to the moment in UTC. A clock reading as seconds is the day's midnight, counted as if in UTC, plus the hours and minutes. A call set for nine in the morning in New York on 15 June 2026, from Paris and Tokyo:</p>
+<figure class="example" id="ex-tz-meeting" data-run="output" data-needs="com.livecode.library.timezone">
+<pre class="code"><code>function clockOf pSeconds
+   return format("%02d:%02d", (pSeconds mod 86400) div 3600, (pSeconds mod 3600) div 60)
+end clockOf
+
+put 1781481600 into tDay -- midnight at the start of 15 June 2026, as UTC seconds
+put tDay + 9 * 3600 into tNine -- 9:00 on that day, on a clock
+put ToUniversalTime(tNine, "America/New_York") into tMoment
+put "UTC" &amp;&amp; clockOf(tMoment)
+put "Paris" &amp;&amp; clockOf(FromUniversalTime(tMoment, "Europe/Paris"))
+put "Tokyo" &amp;&amp; clockOf(FromUniversalTime(tMoment, "Asia/Tokyo"))</code></pre>
+<pre class="out">UTC 13:00
+Paris 15:00
+Tokyo 22:00</pre>
+</figure>
+<p>Store moments in UTC seconds, as <code>the seconds</code> gives them, and turn them into a zone's clock only to show them. Then a list of events from people in many zones sorts into the right order, and summer time never makes one an hour out.</p>
+<aside class="note"><p>Twice a year a clock that changes for summer skips an hour or repeats one, so some readings, such as 2:30 in the morning on the day the clocks go forward, never happen in that zone, and others happen twice. Avoid setting things for those hours.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a function <code>isWorkingHours</code> that takes a zone and a moment in UTC seconds, and returns true when that zone's clock is from 9:00 up to but not including 17:00, so a program can say whom it is a good time to call.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-tz-try" data-run="output" data-needs="com.livecode.library.timezone">
+<pre class="code"><code>function isWorkingHours pZone, pMoment
+   local tHour
+   put (FromUniversalTime(pMoment, pZone) mod 86400) div 3600 into tHour
+   return tHour &gt;= 9 and tHour &lt; 17
+end isWorkingHours
+
+put 1768478400 into tMoment -- 12:00 UTC on 15 January 2026
+repeat for each item tZone in "Europe/Berlin,America/Chicago,Asia/Singapore"
+   put tZone &amp;&amp; isWorkingHours(tZone, tMoment)
+end repeat</code></pre>
+<pre class="out">Europe/Berlin true
+America/Chicago false
+Asia/Singapore false</pre>
+</figure>
+</details>
+</section>

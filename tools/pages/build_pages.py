@@ -40,6 +40,11 @@ given.
                      dictionary data (tools/pages/build_dictionary.py), so
                      it is the IDE's of the same release; left out, with a
                      note, when the web IDE has none (one before 0.2.7)
+  DIR/lessons/       the lessons, from the first line of xTalk to
+                     extensions in xTalk Builder: a page a lesson, with a
+                     search (tools/pages/build_lessons.py, from
+                     tools/pages/lessons); they link the web IDE and the
+                     Dictionary when the site has them
   DIR/extensions/    the xTalk Suite's extensions, built into OXT-Beyond,
                      each with its .lce package for the other IDEs built
                      on LiveCode Community 9: the files of the suite
@@ -88,10 +93,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 import build_dictionary  # noqa: E402
+import build_lessons  # noqa: E402
 
 # The parts of the site, each with its card on the front page, and the
 # Downloads section (from a release's files, not a folder of the site)
-PARTS = ('IDE', 'DICTIONARY', 'PLAYER', 'GAMES', 'MAP', 'DOWNLOADS', 'EXTENSIONS')
+PARTS = ('IDE', 'DICTIONARY', 'LESSONS', 'PLAYER', 'GAMES', 'MAP', 'DOWNLOADS', 'EXTENSIONS')
 REPOSITORY = 'https://github.com/SethMorrowSoftware/OpenXTalk-Beyond'
 # The Downloads section: (platform, what it needs, [(link, file suffix)]);
 # a file is OXT-Beyond-<version>-<suffix>, as release.yml names them
@@ -614,6 +620,14 @@ def build(args):
             print('no dictionary: %s' % e)
         except build_dictionary.DictionaryError as e:
             raise BuildError('the dictionary: %s' % e)
+    # The lessons go up with every site: they are written here, in
+    # tools/pages/lessons, not taken from a release
+    try:
+        count, shown = build_lessons.build(os.path.join(out, 'lessons'),
+                                           [p for p in build_lessons.PARTS if p in parts])
+    except build_lessons.BuildError as e:
+        raise BuildError('the lessons: %s' % e)
+    parts['LESSONS'] = '%d lessons · %d examples' % (count, shown)
     if args.player:
         unpack(args.player, os.path.join(out, 'player'))
         parts['PLAYER'] = args.player_version or ''

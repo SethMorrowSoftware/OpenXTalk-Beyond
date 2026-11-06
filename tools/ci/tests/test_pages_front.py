@@ -45,7 +45,7 @@ sys.path.insert(0, PAGES)
 import build_pages  # noqa: E402
 
 FOLDERS = {'GAMES': 'games/', 'IDE': 'ide/', 'DICTIONARY': 'dictionary/', 'PLAYER': 'player/', 'MAP': 'map/',
-           'EXTENSIONS': 'extensions/'}
+           'EXTENSIONS': 'extensions/', 'LESSONS': 'lessons/'}
 # The links the page may make to other hosts
 EXTERNAL = {
     'https://github.com/SethMorrowSoftware/OpenXTalk-Beyond',
@@ -471,7 +471,7 @@ class TheBuiltPage(unittest.TestCase):
         text = self.check({k: '9' for k in FOLDERS})
         for label, folder in (('Open the Web IDE', 'ide/'), ('Open the Dictionary', 'dictionary/'),
                               ('Open the Stack Player', 'player/'), ('Open the codebase map', 'map/'),
-                              ('See the extensions', 'extensions/')):
+                              ('See the extensions', 'extensions/'), ('Open the lessons', 'lessons/')):
             self.assertIn('<a class="button" href="%s">%s</a>' % (folder, label), text)
 
     def test_the_downloads(self):

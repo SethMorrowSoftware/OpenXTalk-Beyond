@@ -1,0 +1,93 @@
+<!--
+title: Changing text
+level: beginner
+minutes: 8
+summary: Put new text into a chunk, add before and after it, delete it, replace every copy of something, and change case.
+words: put into, put before, put after, delete, replace, toUpper, toLower
+-->
+<h2 id="put-into-chunk">Put into a chunk</h2>
+<p>Chunks are not only for reading. You can put text <em>into</em> a chunk to replace it, or before or after it to add to it, and xTalk changes just that piece of the variable.</p>
+<figure class="example" id="ex-change-put" data-run="output">
+<pre class="code"><code>put "I like cats" into tText
+put "dogs" into word 3 of tText
+put tText
+put "really " before word 2 of tText
+put "!" after tText
+put tText
+put "Y" into char 1 of tText
+put tText</code></pre>
+<pre class="out">I like dogs
+I really like dogs!
+Y really like dogs!</pre>
+</figure>
+
+<h2 id="items-grow">Lists grow to fit</h2>
+<p>Put something into an item or line that does not exist yet, and xTalk adds the separators needed to reach it.</p>
+<figure class="example" id="ex-change-grow" data-run="output">
+<pre class="code"><code>put "a,b" into tList
+put "e" into item 5 of tList
+put tList
+put "first" into line 3 of tLines
+put the number of lines of tLines</code></pre>
+<pre class="out">a,b,,,e
+3</pre>
+</figure>
+
+<h2 id="delete">Delete a chunk</h2>
+<p><code>delete</code> removes a chunk, and the separator with it, so a list stays a tidy list.</p>
+<figure class="example" id="ex-change-delete" data-run="output">
+<pre class="code"><code>put "I really like dogs!" into tText
+delete word 2 of tText
+put tText
+put "red,green,blue" into tColours
+delete item 2 of tColours
+put tColours
+put "Hello" into tWord
+delete the first char of tWord
+put tWord</code></pre>
+<pre class="out">I like dogs!
+red,blue
+ello</pre>
+</figure>
+
+<h2 id="replace">Replace every copy</h2>
+<p><code>replace</code> changes every copy of one string into another, all through a variable or a field.</p>
+<figure class="example" id="ex-change-replace" data-run="output">
+<pre class="code"><code>put "the cat sat on the mat" into tText
+replace "at" with "og" in tText
+put tText
+put "1,234,567" into tNumber
+replace comma with empty in tNumber
+put tNumber + 1</code></pre>
+<pre class="out">the cog sog on the mog
+1234568</pre>
+</figure>
+<aside class="tip"><p><code>replace</code> is the quickest way to change one separator into another: <code>replace comma with return in tList</code> turns a list of items into a list of lines.</p></aside>
+
+<h2 id="case">Capitals</h2>
+<p><code>toUpper</code> and <code>toLower</code> give a copy of a string in capitals or in small letters. They know the accented letters of other languages too, though a letter with no single capital, like the German <code>ß</code>, stays as it is.</p>
+<figure class="example" id="ex-change-case" data-run="output">
+<pre class="code"><code>put toUpper("shout") &amp;&amp; toLower("QUIET")
+put toUpper("café") &amp;&amp; toLower("ÉCOLE") &amp;&amp; toUpper("straße")
+put "ada" into tName
+put toUpper(char 1 of tName) into char 1 of tName
+put tName</code></pre>
+<pre class="out">SHOUT quiet
+CAFÉ école STRAßE
+Ada</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Take <code>the quick brown fox</code> and give every word a capital first letter, so it reads <code>The Quick Brown Fox</code>.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-change-try" data-run="output">
+<pre class="code"><code>put "the quick brown fox" into tText
+repeat with i = 1 to the number of words of tText
+   put toUpper(char 1 of word i of tText) into char 1 of word i of tText
+end repeat
+put tText</code></pre>
+<pre class="out">The Quick Brown Fox</pre>
+</figure>
+</details>
+</section>

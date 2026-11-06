@@ -1,0 +1,152 @@
+<!--
+title: Binary data
+level: expert
+minutes: 11
+summary: Work with bytes, not text: read and write bytes, see them in hexadecimal, pack and unpack numbers with binaryEncode and binaryDecode, read a file's header, base64, compression and bits.
+words: byte, byteToNum, numToByte, binaryEncode, binaryDecode, base64Encode, base64Decode, compress, decompress, bitAnd, bitOr, bitXor, baseConvert, binfile:
+-->
+<h2 id="bytes">Bytes, not characters</h2>
+<p>A picture, a sound, a zip file or a network message is <strong>binary data</strong>: a row of bytes, each a number from 0 to 255, that is not text and must not be treated as text. xTalk keeps such data as it is, and chunk expressions with <code>byte</code> work on it. <code>byteToNum</code> and <code>numToByte</code> go between a byte and its number:</p>
+<figure class="example" id="ex-bin-bytes" data-run="output">
+<pre class="code"><code>put numToByte(72) &amp; numToByte(105) &amp; numToByte(0) &amp; numToByte(255) into tData
+put the number of bytes of tData
+put byteToNum(byte 1 of tData) &amp;&amp; byteToNum(byte -1 of tData)
+put textDecode(byte 1 to 2 of tData, "UTF-8")</code></pre>
+<pre class="out">4
+72 255
+Hi</pre>
+</figure>
+<p>Text becomes bytes through an encoding, and bytes become text again only through one (<a href="../unicode/#encodings">Unicode</a>). Read a binary file with <code>URL "binfile:"</code>, never <code>URL "file:"</code>, which changes line endings and so changes the bytes (<a href="../files/#text-binary">Reading and writing files</a>).</p>
+
+<h2 id="hex">Seeing bytes: hexadecimal</h2>
+<p>Bytes are easiest to read in <strong>hexadecimal</strong>, two digits a byte from <code>00</code> to <code>ff</code>. <code>binaryDecode</code> with the format <code>H*</code> turns data into hexadecimal, and <code>binaryEncode</code> with <code>H*</code> turns it back:</p>
+<figure class="example" id="ex-bin-hex" data-run="output">
+<pre class="code"><code>put textEncode("Hi!", "UTF-8") into tData
+get binaryDecode("H*", tData, tHex)
+put tHex
+put textDecode(binaryEncode("H*", "4f58542d4265796f6e64"), "UTF-8")</code></pre>
+<pre class="out">486921
+OXT-Beyond</pre>
+</figure>
+<p><code>binaryDecode</code> puts its results into the variables named after the data, and returns how many it filled, here into <code>it</code>.</p>
+
+<h2 id="encode">Packing numbers: binaryEncode and binaryDecode</h2>
+<p>Binary formats store numbers in a fixed number of bytes. <code>binaryEncode</code> packs values into bytes by a format, a letter for each value, and <code>binaryDecode</code> unpacks them with the same format. The letters you will use most:</p>
+<div class="table-scroll"><table>
+<thead><tr><th>Letter</th><th>Packs</th><th>Bytes</th></tr></thead>
+<tbody>
+<tr><td><code>C</code></td><td>a whole number from 0 to 255</td><td>1</td></tr>
+<tr><td><code>n</code></td><td>a whole number from 0 to 65,535, biggest byte first</td><td>2</td></tr>
+<tr><td><code>N</code></td><td>a whole number up to about 4 billion, biggest byte first</td><td>4</td></tr>
+<tr><td><code>f</code>, <code>d</code></td><td>a number with decimals, in the computer's own order</td><td>4, 8</td></tr>
+<tr><td><code>a</code></td><td>characters, as many as the count after it (<code>a3</code>)</td><td>the count</td></tr>
+<tr><td><code>H</code></td><td>hexadecimal digits, two a byte (<code>H*</code>: all of them)</td><td>half the digits</td></tr>
+</tbody></table></div>
+<figure class="example" id="ex-bin-encode" data-run="output">
+<pre class="code"><code>put binaryEncode("CnNa3", 1, 513, 1000000, "abc") into tData
+put the number of bytes of tData
+get binaryDecode("H*", tData, tHex)
+put tHex
+get binaryDecode("CnNa3", tData, tOne, tTwo, tFour, tText)
+put tOne &amp;&amp; tTwo &amp;&amp; tFour &amp;&amp; tText</code></pre>
+<pre class="out">10
+010201000f4240616263
+1 513 1000000 abc</pre>
+</figure>
+<p>In the hexadecimal you can see each value: <code>01</code>, then 513 as <code>0201</code> (2 × 256 + 1), then a million as <code>000f4240</code>, then the codes of <code>abc</code>.</p>
+
+<h2 id="file-header">Reading a file's header</h2>
+<p>Every file format begins with a <strong>header</strong> that says what it is. A PNG picture begins with the byte 137 and the letters <code>PNG</code>, and keeps its width and height as two 4-byte numbers from its 17th byte. This example makes a picture, saves it as PNG, and reads its size back from the bytes:</p>
+<figure class="example" id="ex-bin-png" data-run="output">
+<pre class="code"><code>put specialFolderPath("temporary") &amp; "/oxt-lesson.png" into tPath
+create graphic "Box"
+set the rect of it to 0,0,30,20
+export snapshot from graphic "Box" to file tPath as PNG
+
+put URL ("binfile:" &amp; tPath) into tData
+put byteToNum(byte 1 of tData) &amp;&amp; byte 2 to 4 of tData
+get binaryDecode("NN", byte 17 to 24 of tData, tWidth, tHeight)
+put tWidth &amp;&amp; "by" &amp;&amp; tHeight
+delete file tPath</code></pre>
+<pre class="out">137 PNG
+30 by 20</pre>
+</figure>
+
+<h2 id="base64">base64: bytes as text</h2>
+<p>Some places only take text: an email, a <a href="../json/">JSON</a> document, a <a href="../internet/#parameters">URL</a>, a field. <code>base64Encode</code> writes any data as plain letters, digits, <code>+</code> and <code>/</code>, a third longer than the data, and <code>base64Decode</code> gives the bytes back exactly:</p>
+<figure class="example" id="ex-bin-base64" data-run="output">
+<pre class="code"><code>put numToByte(0) &amp; numToByte(1) &amp; numToByte(254) &amp; numToByte(255) into tData
+put base64Encode(tData) into tText
+put tText
+put base64Decode(tText) is tData
+put base64Encode("hello, world")</code></pre>
+<pre class="out">AAH+/w==
+true
+aGVsbG8sIHdvcmxk</pre>
+</figure>
+
+<h2 id="compress">Compression</h2>
+<p><code>compress</code> squeezes data with gzip, the same compression as a <code>.gz</code> file, and <code>decompress</code> gives it back. Text that repeats itself shrinks a lot; data that is already compressed (a PNG, a zip) hardly at all:</p>
+<figure class="example" id="ex-bin-compress" data-run="output">
+<pre class="code"><code>repeat 100 times
+   put "the same words again and again " after tText
+end repeat
+put compress(tText) into tSmall
+put the number of bytes of tText &amp;&amp; "bytes became" &amp;&amp; the number of bytes of tSmall
+put decompress(tSmall) is tText</code></pre>
+<pre class="out">3100 bytes became 68
+true</pre>
+</figure>
+
+<h2 id="bits">Bits</h2>
+<p>Inside a byte are 8 <strong>bits</strong>, each 0 or 1. Formats often pack several yes-or-no flags into one number, a bit each. <code>bitAnd</code>, <code>bitOr</code> and <code>bitXor</code> work on numbers bit by bit, and <code>baseConvert</code> shows a number in base 2 (or any base up to 36):</p>
+<figure class="example" id="ex-bin-bits" data-run="output">
+<pre class="code"><code>put baseConvert(12, 10, 2) &amp;&amp; baseConvert(10, 10, 2)
+put (12 bitAnd 10) &amp;&amp; (12 bitOr 10) &amp;&amp; (12 bitXor 10)
+put baseConvert(255, 10, 16) &amp;&amp; baseConvert("1010", 2, 10)
+
+-- flags: 1 is bold, 2 is italic, 4 is underlined
+put 1 bitOr 4 into tStyle
+put "underlined?" &amp;&amp; ((tStyle bitAnd 4) is not 0)
+put "italic?" &amp;&amp; ((tStyle bitAnd 2) is not 0)</code></pre>
+<pre class="out">1100 1010
+8 14 6
+FF 10
+underlined? true
+italic? false</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Design a tiny binary save file for a game: one byte for the length of the player's name, the name's UTF-8 bytes, a 2-byte level and a 4-byte score. Write a function that packs a player into it and one that unpacks it into an array. Pack Zoë at level 7 with 123456 points, put the size and the hexadecimal, and unpack it again.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-bin-try" data-run="output">
+<pre class="code"><code>function packPlayer pName, pLevel, pScore
+   local tName
+   put textEncode(pName, "UTF-8") into tName
+   return binaryEncode("C", the number of bytes of tName) &amp; tName &amp; binaryEncode("nN", pLevel, pScore)
+end packPlayer
+
+function unpackPlayer pData
+   local tLength, tPlayer, tLevel, tScore
+   put byteToNum(byte 1 of pData) into tLength
+   put textDecode(byte 2 to tLength + 1 of pData, "UTF-8") into tPlayer["name"]
+   get binaryDecode("nN", byte tLength + 2 to -1 of pData, tLevel, tScore)
+   put tLevel into tPlayer["level"]
+   put tScore into tPlayer["score"]
+   return tPlayer
+end unpackPlayer
+
+put packPlayer("Zoë", 7, 123456) into tSave
+put the number of bytes of tSave &amp;&amp; "bytes"
+get binaryDecode("H*", tSave, tHex)
+put tHex
+put unpackPlayer(tSave) into tPlayer
+put tPlayer["name"] &amp;&amp; tPlayer["level"] &amp;&amp; tPlayer["score"]</code></pre>
+<pre class="out">11 bytes
+045a6fc3ab00070001e240
+Zoë 7 123456</pre>
+</figure>
+<p>The name's length comes first so that the reader knows where the name ends: a format that stores text of any length needs either a length before it or a byte after it that marks its end.</p>
+</details>
+</section>

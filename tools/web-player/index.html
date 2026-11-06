@@ -893,7 +893,7 @@ dialog.answer .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:
         showChoices(lines);
       } else if (name == 'status') {
         var kind = lines[0], text = lines.slice(1).join(' ');
-        if (kind == 'error') { busy(null); toast(text.replace(/\/livecode\/Documents\/Stack Player\//g, ''), 'error'); }
+        if (kind == 'error') { busy(null); toast(text.replace(/\/(?:openxtalk|livecode)\/Documents\/Stack Player\//g, ''), 'error'); }
         else if (/^Opening /.test(text)) busy('Opening ' + text.replace(/^Opening /, '').split('/').pop() + '...');
         else if (/^Removed /.test(text)) toast(text);
       }

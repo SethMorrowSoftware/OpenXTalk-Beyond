@@ -1,0 +1,101 @@
+<!--
+title: Arithmetic
+level: beginner
+minutes: 8
+summary: Sums with + - * / and ^, whole-number division with div and mod, and the commands that change a number in place.
+words: +, -, *, /, ^, div, mod, add, subtract, multiply, divide
+-->
+<h2 id="operators">The operators</h2>
+<p>xTalk uses the symbols you know from maths, with <code>*</code> for times, <code>/</code> for divide and <code>^</code> for "to the power of".</p>
+<figure class="example" id="ex-arith-ops" data-run="output">
+<pre class="code"><code>put 7 + 5
+put 7 - 5
+put 7 * 5
+put 7 / 5
+put 2 ^ 10</code></pre>
+<pre class="out">12
+2
+35
+1.4
+1024</pre>
+</figure>
+
+<h2 id="div-and-mod">Whole numbers: div and mod</h2>
+<p><code>div</code> divides and drops the part left over. <code>mod</code> gives only what is left over. They are more useful than they look: <code>mod 2</code> tells you whether a number is even, and the pair turns seconds into minutes and seconds.</p>
+<figure class="example" id="ex-arith-divmod" data-run="output">
+<pre class="code"><code>put 17 div 5
+put 17 mod 5
+put 10 mod 2 -- 0: 10 is even
+put 125 div 60 &amp; ":" &amp; 125 mod 60
+put 200 div 60 &amp;&amp; "hours" &amp;&amp; 200 mod 60 &amp;&amp; "minutes"</code></pre>
+<pre class="out">3
+2
+0
+2:5
+3 hours 20 minutes</pre>
+</figure>
+<aside class="note"><p>With a negative number, <code>div</code> rounds towards zero and <code>mod</code> takes the sign of the number divided: <code>-7 div 2</code> is <code>-3</code> and <code>-7 mod 2</code> is <code>-1</code>.</p></aside>
+
+<h2 id="order">Which goes first</h2>
+<p>As in maths, <code>^</code> comes first, then <code>*</code>, <code>/</code>, <code>div</code> and <code>mod</code>, then <code>+</code> and <code>-</code>. Operators of the same kind go from left to right. Brackets change the order, and make a long sum easier to read even when they do not.</p>
+<figure class="example" id="ex-arith-order" data-run="output">
+<pre class="code"><code>put 2 + 3 * 4
+put (2 + 3) * 4
+put 10 - 4 - 3
+put 2 * 3 ^ 2
+put (2 * 3) ^ 2</code></pre>
+<pre class="out">14
+20
+3
+18
+36</pre>
+</figure>
+
+<h2 id="decimals">Decimals</h2>
+<p>Division gives decimals when it needs them. xTalk keeps many digits, but shows at most six decimal places unless you ask for more.</p>
+<figure class="example" id="ex-arith-decimals" data-run="output">
+<pre class="code"><code>put 10 / 4
+put 10 / 3
+put 0.1 + 0.2
+put 0.1 + 0.2 = 0.3</code></pre>
+<pre class="out">2.5
+3.333333
+0.3
+true</pre>
+</figure>
+<aside class="legacy"><p>Many languages say <code>0.1 + 0.2</code> is <code>0.30000000000000004</code>, and that it is not equal to <code>0.3</code>. xTalk compares numbers the way people do, as HyperCard did, so the sum is <code>0.3</code>.</p></aside>
+
+<h2 id="commands">Changing a number in place</h2>
+<p>Four commands change the number in a variable directly. They read like the sentences you would say:</p>
+<figure class="example" id="ex-arith-commands" data-run="output">
+<pre class="code"><code>put 100 into tMoney
+add 20 to tMoney
+subtract 5 from tMoney
+multiply tMoney by 2
+divide tMoney by 10
+put tMoney</code></pre>
+<pre class="out">23</pre>
+</figure>
+<p><code>add 1 to tCount</code> is the xTalk way of counting: you will see it in nearly every program with a loop. A variable that has nothing in it counts as 0, so you do not even need to start it at 0 first.</p>
+
+<h2 id="divide-by-zero">Dividing by zero</h2>
+<p>A number divided by zero has no answer, so xTalk stops with an error rather than make one up.</p>
+<figure class="example" id="ex-arith-zero" data-run="error" data-line="2">
+<pre class="code"><code>put 0 into tPlayers
+put 100 / tPlayers</code></pre>
+</figure>
+<p>When a value might be zero, check it first with <code>if</code> (the subject of <a href="../if-then-else/">Making decisions</a>).</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>A film lasts 137 minutes. Put its length in hours and minutes, like <code>2 hours 17 minutes</code>. Then work out how many seconds there are in a week.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-arith-try" data-run="output">
+<pre class="code"><code>put 137 into tMinutes
+put tMinutes div 60 &amp;&amp; "hours" &amp;&amp; tMinutes mod 60 &amp;&amp; "minutes"
+put 7 * 24 * 60 * 60</code></pre>
+<pre class="out">2 hours 17 minutes
+604800</pre>
+</figure>
+</details>
+</section>

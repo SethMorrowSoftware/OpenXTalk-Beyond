@@ -1,0 +1,184 @@
+<!--
+title: Nostr with NostrXT
+level: extensions
+minutes: 14
+summary: Post to Nostr, the open social network with no accounts, with NostrXT: key pairs and npub names, events and their ids, signatures, JSON on the wire, tags and replies, profiles, links, private messages and the filters relays answer.
+words: nxKeyGenerate, nxKeyPublic, nxKeyIsValid, nxNpubEncode, nxNpubDecode, nxEventBuild, nxEventId, nxEventSign, nxEventVerify, nxEventToJson, nxEventFromJson, nxJsonGet, nxTagsFromText, nxTagFirst, nxTagValues, nxReplyBuild, nxReactionBuild, nxMetadataBuild, nxNeventEncode, nxUriEncode, nxEntityDecode, nxNip44Encrypt, nxNip44Decrypt, nxFilterBuild, nxFilterMatches, nxClientReq, nxRelayParse
+-->
+<h2 id="what">A network of signed notes</h2>
+<p><strong>Nostr</strong> is a social network with no company in the middle and no accounts. Everything on it is a short, <strong>signed</strong> piece of JSON called an <strong>event</strong>, and <strong>relays</strong>, servers anyone can run, keep events and pass them on. Because every event is signed, a reader can check who wrote it whichever relay it came from. <strong>NostrXT</strong> is the xTalk Suite's Nostr library, written in xTalk over CoinXT's signatures and SodiumXT's encryption; its handlers begin with <code>nx</code>.</p>
+<p>The examples make keys from phrases, so that every run gives the same answers; a real app calls <code>nxKeyGenerate()</code> for a random one.</p>
+
+<h2 id="keys">You are a key pair</h2>
+<p>On Nostr your <strong>secret key</strong> is 64 hex digits that only you hold, and your <strong>public key</strong>, which comes from it, is who you are to everyone. People share keys as <strong>npub</strong> names (and back them up as <strong>nsec</strong> names), which have a typo check built in:</p>
+<figure class="example" id="ex-nx-keys" data-run="output" data-needs="org.openxtalk.library.coin coinxt org.openxtalk.library.sodium nostrxt">
+<pre class="code"><code>-- for learning only: a real app calls nxKeyGenerate()
+put nxHexEncode(cxSha256(textEncode("alice learns nostr", "UTF-8"))) into tSecret
+put nxKeyIsValid(tSecret)
+put nxKeyPublic(tSecret) into tPublic
+put tPublic
+put nxNpubEncode(tPublic) into tNpub
+put tNpub
+put nxNpubDecode(tNpub) is tPublic
+put char 1 to 5 of nxNsecEncode(tSecret)</code></pre>
+<pre class="out">true
+4c03b4839d256423f8601551d16f46d9251d29f294cc79cfd51676542d78267a
+npub1fspmfquay4jz87rqz4gazm6xmyj3620jjnx8nn74zem9gttcyeaqtkq2jp
+true
+nsec1</pre>
+</figure>
+<aside class="warn"><p>An nsec is your secret key in another spelling: anyone who sees it can post as you, for ever. Never paste it into a website or a chat. NostrXT's <code>nxUriEncode</code> refuses to make a link to one.</p></aside>
+
+<h2 id="events">Events, ids and signatures</h2>
+<p>An event has a <strong>kind</strong> (1 is a short note, 0 a profile, 7 a reaction), a time in seconds since 1970, its text, tags and its author. <code>nxEventBuild</code> makes one, and <code>nxEventSign</code> fills in the author, the <strong>id</strong> (the SHA-256 fingerprint of its exact text) and a Schnorr <strong>signature</strong>. <code>nxEventVerify</code> says true only when both check out, so treat anything else as fake:</p>
+<figure class="example" id="ex-nx-sign" data-run="output" data-needs="org.openxtalk.library.coin coinxt org.openxtalk.library.sodium nostrxt">
+<pre class="code"><code>put nxHexEncode(cxSha256(textEncode("alice learns nostr", "UTF-8"))) into tSecret
+put nxEventBuild(1, "Hello, Nostr!", empty, 1700000000) into tEvent
+put nxEventSign(tEvent, tSecret, empty) into tEvent
+put tEvent["kind"] &amp;&amp; tEvent["created_at"]
+put the length of tEvent["id"] &amp;&amp; "hex digits of id," &amp;&amp; the length of tEvent["sig"] &amp;&amp; "of signature"
+put nxEventVerify(tEvent)
+-- someone changes the note on its way
+put "Hello! Send me coins." into tEvent["content"]
+put nxEventVerify(tEvent)</code></pre>
+<pre class="out">1 1700000000
+64 hex digits of id, 128 of signature
+true
+false</pre>
+</figure>
+<p>The empty third parameter of <code>nxEventSign</code> asks for fresh randomness in the signature, so the same note signed twice has two different signatures, and both check.</p>
+
+<h2 id="wire">On the wire: JSON</h2>
+<p>To travel, an event becomes JSON. <code>nxEventToJson</code> writes it, <code>nxEventFromJson</code> reads it back into an array, and <code>nxJsonGet</code> takes one value out by its name. Text from the internet could say anything, so verify what you read before you trust it:</p>
+<figure class="example" id="ex-nx-json" data-run="output" data-needs="org.openxtalk.library.coin coinxt org.openxtalk.library.sodium nostrxt">
+<pre class="code"><code>put nxHexEncode(cxSha256(textEncode("alice learns nostr", "UTF-8"))) into tSecret
+put nxEventSign(nxEventBuild(1, "Hello, Nostr!", empty, 1700000000), tSecret, empty) into tEvent
+put nxEventToJson(tEvent) into tJson
+put char 1 to 10 of tJson
+put nxJsonGet(tJson, "content")
+put nxJsonGet(tJson, "kind")
+put nxEventVerify(nxEventFromJson(tJson))</code></pre>
+<pre class="out">{"id":"4ff
+Hello, Nostr!
+1
+true</pre>
+</figure>
+
+<h2 id="tags">Tags, replies and reactions</h2>
+<p><strong>Tags</strong> label an event: "t" for a topic, "p" for a person mentioned, "e" for another event. <code>nxTagsFromText</code> makes them from text, a line each with a tab between the parts, and <code>nxTagFirst</code> and <code>nxTagValues</code> read them back. A conversation is events that point at each other with tags: <code>nxReplyBuild</code> makes a reply with an "e" tag for the post and a "p" tag for its author, and <code>nxReactionBuild</code> a reaction, kind 7, with "+" for a like:</p>
+<figure class="example" id="ex-nx-tags" data-run="output" data-needs="org.openxtalk.library.coin coinxt org.openxtalk.library.sodium nostrxt">
+<pre class="code"><code>put nxHexEncode(cxSha256(textEncode("alice learns nostr", "UTF-8"))) into tSecret
+put "t" &amp; tab &amp; "openxtalk" &amp; return &amp; "t" &amp; tab &amp; "learning" into tTags
+put nxEventBuild(1, "Hi #openxtalk", nxTagsFromText(tTags), 1700000000) into tPost
+put nxEventSign(tPost, tSecret, empty) into tPost
+put nxTagCount(tPost) &amp;&amp; "tags"
+put nxTagFirst(tPost, "t")
+put nxTagValues(tPost, "t")
+
+put nxReplyBuild(tPost, "Me too!", 1700000060) into tReply
+put nxTagFirst(tReply, "e") is tPost["id"]
+put nxTagFirst(tReply, "p") is nxKeyPublic(tSecret)
+put nxReactionBuild(tPost, empty, 1700000090) into tLike
+put tLike["kind"] &amp;&amp; tLike["content"]</code></pre>
+<pre class="out">2 tags
+openxtalk
+openxtalk
+learning
+true
+true
+7 +</pre>
+</figure>
+<p>A reply and a reaction come back unsigned, ready to sign with <code>nxEventSign</code> as any event.</p>
+
+<h2 id="profiles">Profiles and links</h2>
+<p>Your profile is an event too, of kind 0, with your name and a few words about you; post a new one to change it. <code>nxMetadataBuild</code> makes one, and <code>nxMetadataParse</code> reads it. To share a note, <code>nxNeventEncode</code> packs its id with a relay that has it, and <code>nxUriEncode</code> makes a <code>nostr:</code> link that apps open; <code>nxEntityDecode</code> reads any such name back:</p>
+<figure class="example" id="ex-nx-profile" data-run="output" data-needs="org.openxtalk.library.coin coinxt org.openxtalk.library.sodium nostrxt">
+<pre class="code"><code>put nxHexEncode(cxSha256(textEncode("alice learns nostr", "UTF-8"))) into tSecret
+put nxEventSign(nxMetadataBuild("Alice", "Learning xTalk", empty, 1700000000), tSecret, empty) into tProfile
+put tProfile["kind"]
+put nxMetadataParse(tProfile) into tFields
+put tFields["name"] &amp; ":" &amp;&amp; tFields["about"]
+
+put nxEventSign(nxEventBuild(1, "Hello, Nostr!", empty, 1700000000), tSecret, empty) into tNote
+put nxUriEncode(nxNeventEncode(tNote["id"], "wss://relay.example.com", nxKeyPublic(tSecret), 1)) into tLink
+put char 1 to 14 of tLink
+put nxEntityDecode(tLink) into tFields
+put tFields["type"] &amp;&amp; tFields["relays"]
+put tFields["id"] is tNote["id"]</code></pre>
+<pre class="out">0
+Alice: Learning xTalk
+nostr:nevent1q
+nevent wss://relay.example.com
+true</pre>
+</figure>
+
+<h2 id="private">Private messages</h2>
+<p>Notes are public. For a private message, NIP-44 locks it so that only one person can read it. <code>nxNip44ConversationKey</code> shows the trick: your secret key with their public key gives the same shared key as their secret key with yours, and it is never sent. <code>nxNip44Encrypt</code> locks a message for them, and <code>nxNip44Decrypt</code> opens it, or gives empty with the wrong keys:</p>
+<figure class="example" id="ex-nx-private" data-run="output" data-needs="org.openxtalk.library.coin coinxt org.openxtalk.library.sodium nostrxt">
+<pre class="code"><code>put nxHexEncode(cxSha256(textEncode("alice learns nostr", "UTF-8"))) into tAlice
+put nxHexEncode(cxSha256(textEncode("bob learns too", "UTF-8"))) into tBob
+put nxNip44ConversationKey(tAlice, nxKeyPublic(tBob)) is nxNip44ConversationKey(tBob, nxKeyPublic(tAlice))
+-- Alice locks a message for Bob (empty: a fresh random nonce)
+put nxNip44Encrypt(tAlice, nxKeyPublic(tBob), "Meet at noon", empty) into tLocked
+put tLocked contains "noon"
+put nxNip44Decrypt(tBob, nxKeyPublic(tAlice), tLocked)
+put nxNip44Decrypt(tAlice, nxKeyPublic(tAlice), tLocked) is empty</code></pre>
+<pre class="out">true
+false
+Meet at noon
+true</pre>
+</figure>
+
+<h2 id="relays">Asking a relay</h2>
+<p>A relay answers <strong>filters</strong>: whose events, which kinds, how many. <code>nxFilterBuild</code> makes one from an array, and <code>nxFilterMatches</code> says whether an event fits, as a relay would decide. You talk to a relay in short JSON messages over a websocket: <code>nxClientEvent</code> publishes an event, <code>nxClientReq</code> asks with a filter under a name of your choice, and <code>nxRelayParse</code> reads the relay's answers, such as EOSE, "that is all, for now":</p>
+<figure class="example" id="ex-nx-relay" data-run="output" data-needs="org.openxtalk.library.coin coinxt org.openxtalk.library.sodium nostrxt">
+<pre class="code"><code>put nxHexEncode(cxSha256(textEncode("alice learns nostr", "UTF-8"))) into tSecret
+put nxKeyPublic(tSecret) into tAsk["authors"]
+put "1" into tAsk["kinds"]
+put 10 into tAsk["limit"]
+put nxFilterBuild(tAsk) into tFilter
+put nxEventSign(nxEventBuild(1, "A note", empty, 1700000000), tSecret, empty) into tNote
+put nxEventSign(nxReactionBuild(tNote, empty, 1700000060), tSecret, empty) into tLike
+put nxFilterMatches(tFilter, tNote)
+put nxFilterMatches(tFilter, tLike)
+
+put char 1 to 16 of nxClientReq("feed", tFilter)
+put nxClientClose("feed")
+put nxRelayParse("[" &amp; quote &amp; "EOSE" &amp; quote &amp; "," &amp; quote &amp; "feed" &amp; quote &amp; "]") into tMessage
+put tMessage["type"] &amp;&amp; tMessage["subId"]</code></pre>
+<pre class="out">true
+false
+["REQ","feed",{"
+["CLOSE","feed"]
+EOSE feed</pre>
+</figure>
+<p>The <code>nostr-relay</code> library that comes with NostrXT opens the websockets and sends these for you; <strong>Learn NostrXT</strong> (<kbd>Help &gt; Examples</kbd>) and the Dictionary have the rest, proof of work included.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a function <code>trustedNotes</code> that takes a list of events as JSON, a line each, and returns the text of only those that verify, a line each.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-nx-try" data-run="output" data-needs="org.openxtalk.library.coin coinxt org.openxtalk.library.sodium nostrxt">
+<pre class="code"><code>function trustedNotes pLines
+   local tNotes, tEvent
+   repeat for each line tJson in pLines
+      put nxEventFromJson(tJson) into tEvent
+      if nxEventVerify(tEvent) then
+         put tEvent["content"] &amp; return after tNotes
+      end if
+   end repeat
+   return line 1 to -1 of tNotes
+end trustedNotes
+
+put nxHexEncode(cxSha256(textEncode("alice learns nostr", "UTF-8"))) into tSecret
+put nxEventSign(nxEventBuild(1, "first", empty, 1700000000), tSecret, empty) into tOne
+put nxEventSign(nxEventBuild(1, "second", empty, 1700000060), tSecret, empty) into tTwo
+put "forged" into tTwo["content"]
+put nxEventSign(nxEventBuild(1, "third", empty, 1700000120), tSecret, empty) into tThree
+put nxEventToJson(tOne) &amp; return &amp; nxEventToJson(tTwo) &amp; return &amp; nxEventToJson(tThree) into tFeed
+put trustedNotes(tFeed)</code></pre>
+<pre class="out">first
+third</pre>
+</figure>
+</details>
+</section>

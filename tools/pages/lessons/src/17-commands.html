@@ -1,0 +1,151 @@
+<!--
+title: Your own commands
+level: beginner
+minutes: 9
+summary: Give a job a name with a command handler, hand it values with parameters, and get an answer back from it.
+words: on, command, end, parameters, paramCount, param, the result, return, exit, @
+-->
+<h2 id="handlers">Naming a job</h2>
+<p>So far every example has been a list of lines that run once, top to bottom. As soon as a program does the same job twice, you want to give the job a name and write its lines once. In xTalk a named job is a <strong>handler</strong>, and the simplest kind is a <strong>command</strong>.</p>
+<p>A command handler starts with <code>on</code> and its name, and ends with <code>end</code> and the same name. To run it, write its name as a line of its own, just like <code>put</code> or <code>add</code>:</p>
+<figure class="example" id="ex-cmd-first" data-run="output">
+<pre class="code"><code>on countDown
+   repeat with i = 3 down to 1
+      put i
+   end repeat
+   put "Lift off!"
+end countDown
+
+countDown
+countDown</code></pre>
+<pre class="out">3
+2
+1
+Lift off!
+3
+2
+1
+Lift off!</pre>
+</figure>
+<p>Writing the handler does nothing by itself; it only teaches xTalk a new word. The lines run each time something <strong>calls</strong> it, here twice.</p>
+<aside class="note"><p>The playground lets you write handlers and the lines that call them side by side, so that you can try them quickly. In an object's script every line lives inside some handler: the calls would go in a <code>mouseUp</code> handler, or in another command of your own.</p></aside>
+
+<h2 id="parameters">Handing it values: parameters</h2>
+<p>A command becomes far more useful when you can tell it what to work on. List names after the handler's name, separated by commas: these are its <strong>parameters</strong>. When you call it, put the values after the command's name in the same order, and each parameter holds one of them while the handler runs.</p>
+<figure class="example" id="ex-cmd-params" data-run="output">
+<pre class="code"><code>on greet pName, pGreeting
+   if pGreeting is empty then put "Hello" into pGreeting
+   put pGreeting &amp; "," &amp;&amp; pName &amp; "!"
+end greet
+
+greet "Ada"
+greet "Grace", "Good morning"</code></pre>
+<pre class="out">Hello, Ada!
+Good morning, Grace!</pre>
+</figure>
+<p>A parameter you leave out is simply <code>empty</code>, so a handler can give it a sensible value of its own, as <code>greet</code> does. Many xTalk programmers start parameter names with <code>p</code>, so that you can tell at a glance which values came in from outside.</p>
+
+<h2 id="any-number">Any number of values</h2>
+<p>A handler can also take as many values as you care to give it. <code>the paramCount</code> says how many came, and <code>param(n)</code> gives the n-th one, whether or not it has a name.</p>
+<figure class="example" id="ex-cmd-paramcount" data-run="output">
+<pre class="code"><code>on showAll
+   repeat with i = 1 to the paramCount
+      put i &amp; ":" &amp;&amp; param(i)
+   end repeat
+end showAll
+
+showAll "red", "green", "blue"</code></pre>
+<pre class="out">1: red
+2: green
+3: blue</pre>
+</figure>
+
+<h2 id="the-result">Getting an answer back</h2>
+<p>A command can report back with <code>return</code>. The value does not appear where you called it; it goes into <code>the result</code>, which you read on the very next line, before anything else changes it. The usual habit is to return <code>empty</code> when all went well and a message when something did not:</p>
+<figure class="example" id="ex-cmd-result" data-run="output">
+<pre class="code"><code>command checkAge pAge
+   if pAge &lt; 0 then return "An age cannot be negative"
+   return empty
+end checkAge
+
+checkAge -3
+put the result
+checkAge 30
+put the result is empty</code></pre>
+<pre class="out">An age cannot be negative
+true</pre>
+</figure>
+<p>Here the handler starts with <code>command</code> rather than <code>on</code>. The two mean the same thing; some people use <code>command</code> for handlers they call themselves and keep <code>on</code> for messages like <code>mouseUp</code> that xTalk sends.</p>
+
+<h2 id="exit">Stopping early</h2>
+<p><code>return</code> also ends the handler at once. When there is nothing to report, <code>exit</code> followed by the handler's name does the same:</p>
+<figure class="example" id="ex-cmd-exit" data-run="output">
+<pre class="code"><code>on describe pNumber
+   if pNumber &gt; 100 then
+      put pNumber &amp;&amp; "is too big to describe"
+      exit describe
+   end if
+   put pNumber &amp;&amp; "has" &amp;&amp; the number of chars of pNumber &amp;&amp; "digits"
+end describe
+
+describe 42
+describe 5000</code></pre>
+<pre class="out">42 has 2 digits
+5000 is too big to describe</pre>
+</figure>
+
+<h2 id="copies">Parameters are copies</h2>
+<p>A parameter holds a <em>copy</em> of the value you passed. Changing it inside the handler does not change the variable you called it with:</p>
+<figure class="example" id="ex-cmd-copies" data-run="output">
+<pre class="code"><code>on double pN
+   multiply pN by 2
+   put "inside:" &amp;&amp; pN
+end double
+
+put 5 into tN
+double tN
+put "outside:" &amp;&amp; tN</code></pre>
+<pre class="out">inside: 10
+outside: 5</pre>
+</figure>
+<p>That is almost always what you want: a handler cannot spoil your variables by accident. When you really do want a handler to change one, put <code>@</code> before the parameter's name. The parameter then <em>is</em> the caller's variable, not a copy:</p>
+<figure class="example" id="ex-cmd-reference" data-run="output">
+<pre class="code"><code>on addTax @pPrice
+   multiply pPrice by 1.2
+end addTax
+
+put 10 into tCost
+addTax tCost
+put tCost</code></pre>
+<pre class="out">12</pre>
+</figure>
+<aside class="tip"><p>Use <code>@</code> sparingly. A function that returns a new value (the next lesson) is usually clearer, because the line that calls it shows where the value goes.</p></aside>
+
+<h2 id="unknown">A name xTalk does not know</h2>
+<p>If you call a command that has no handler anywhere, perhaps because of a typing slip, xTalk stops and says so:</p>
+<figure class="example" id="ex-cmd-unknown" data-run="error" data-line="1">
+<pre class="code"><code>greet "Ada"</code></pre>
+</figure>
+<p>The playground tells you it does not know a command called <code>greet</code>: the handler is missing from the code you ran.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a command <code>drawLine</code> that takes a character and a count, and puts a line made of that many copies of the character. If the count is left out, use 10. Call it as <code>drawLine "*", 5</code> and as <code>drawLine "="</code>.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-cmd-try" data-run="output">
+<pre class="code"><code>on drawLine pChar, pCount
+   if pCount is empty then put 10 into pCount
+   put empty into tLine
+   repeat pCount times
+      put pChar after tLine
+   end repeat
+   put tLine
+end drawLine
+
+drawLine "*", 5
+drawLine "="</code></pre>
+<pre class="out">*****
+==========</pre>
+</figure>
+</details>
+</section>

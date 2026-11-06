@@ -1,0 +1,190 @@
+<!--
+title: Making code fast
+level: expert
+minutes: 10
+summary: Measure before you change anything, then the handful of habits that make xTalk fast: repeat for each, arrays for lookups, the built-in commands, variables instead of fields, and lock screen.
+words: the milliseconds, repeat for each, line, array, filter, sort, split, lock screen, lock messages, is among
+-->
+<h2 id="measure">Measure first</h2>
+<p>Most code is fast enough, and the slow part of a program is rarely where you would guess. So before changing anything for speed, <strong>measure</strong>: <code>the milliseconds</code> before and after (<a href="../timers/#measure">Timers and waiting</a>), on data as big as the real thing. The examples here time two ways of doing the same work and check that the faster really is faster; each says how the two compared on the computer that checked this page.</p>
+<figure class="example" id="ex-perf-measure" data-run="runs">
+<pre class="code"><code>function timeIt pHandler
+   local tStart
+   put the milliseconds into tStart
+   dispatch pHandler to me
+   return the milliseconds - tStart
+end timeIt
+
+on countToAMillion
+   repeat with i = 1 to 1000000
+   end repeat
+end countToAMillion
+
+put "a million empty loops:" &amp;&amp; timeIt("countToAMillion") &amp;&amp; "ms"</code></pre>
+<pre class="out">a million empty loops: 1139 ms</pre>
+</figure>
+
+<h2 id="for-each">Going through lines: repeat for each</h2>
+<p>This is the biggest one. <code>line i of tText</code> has to count returns from the start of the text every time, so a loop over all the lines with it counts the first lines again and again: twice the lines takes four times as long. <code>repeat for each line</code> walks through the text once:</p>
+<figure class="example" id="ex-perf-for-each" data-run="output">
+<pre class="code"><code>repeat with i = 1 to 10000
+   put "line number" &amp;&amp; i &amp; return after tText
+end repeat
+
+put the milliseconds into tStart
+repeat with i = 1 to the number of lines of tText
+   get line i of tText
+end repeat
+put the milliseconds - tStart into tByNumber
+
+put the milliseconds into tStart
+repeat for each line tLine in tText
+   get tLine
+end repeat
+put the milliseconds - tStart into tForEach
+
+put "for each is at least 5 times faster:" &amp;&amp; (tByNumber &gt; 5 * max(1, tForEach))</code></pre>
+<pre class="out">for each is at least 5 times faster: true</pre>
+</figure>
+<p>With 20,000 lines, the check took about 1700 milliseconds by number and 35 with <code>for each</code>. The same goes for <code>item i</code>, <code>word i</code> and <code>char i</code>. When you need the number too, count it yourself inside a <code>for each</code> loop. And put the text into an array with <code>split</code> when you must jump to any line by its number many times (<a href="../algorithms/#search">Algorithms</a>).</p>
+
+<h2 id="arrays">Looking things up: arrays</h2>
+<p><code>is among the lines of</code>, <code>lineOffset</code> and <code>contains</code> search from the start each time. To ask "have I seen this?" many times, keep the things as the <em>keys</em> of an array: finding a key takes the same short time however big the array is.</p>
+<figure class="example" id="ex-perf-lookup" data-run="output">
+<pre class="code"><code>repeat with i = 1 to 5000
+   put "user" &amp; i &amp; return after tList
+   put true into tSet["user" &amp; i]
+end repeat
+
+put the milliseconds into tStart
+repeat with i = 1 to 5000
+   get ("user" &amp; i) is among the lines of tList
+end repeat
+put the milliseconds - tStart into tSearch
+
+put the milliseconds into tStart
+repeat with i = 1 to 5000
+   get tSet["user" &amp; i] is true
+end repeat
+put the milliseconds - tStart into tKeys
+
+put "the array is at least 3 times faster:" &amp;&amp; (tSearch &gt; 3 * max(1, tKeys))</code></pre>
+<pre class="out">the array is at least 3 times faster: true</pre>
+</figure>
+
+<h2 id="built-ins">Let the engine do the loop</h2>
+<p><code>filter</code>, <code>sort</code>, <code>replace</code>, <code>split</code>, <code>combine</code>, <code>offset</code> and the array commands (<a href="../array-tools/">Array tools</a>) loop inside the engine, in compiled code, much faster than a <code>repeat</code> written in xTalk can:</p>
+<figure class="example" id="ex-perf-filter" data-run="output">
+<pre class="code"><code>repeat with i = 1 to 50000
+   put i &amp; return after tNumbers
+end repeat
+
+put the milliseconds into tStart
+repeat for each line tN in tNumbers
+   if tN ends with "7" then put tN &amp; return after tByHand
+end repeat
+put the milliseconds - tStart into tLoop
+
+put the milliseconds into tStart
+put tNumbers into tFiltered
+filter tFiltered with "*7"
+put the milliseconds - tStart into tFilter
+
+put the number of lines of tByHand &amp;&amp; the number of lines of tFiltered
+put "filter is at least 5 times faster:" &amp;&amp; (tLoop &gt; 5 * max(1, tFilter))</code></pre>
+<pre class="out">5000 5000
+filter is at least 5 times faster: true</pre>
+</figure>
+
+<h2 id="variables">Work in variables, not in fields</h2>
+<p>A field is an object on the screen: every change to its text is laid out, and drawn when the screen next updates. Build the text in a variable, and put it into the field once:</p>
+<figure class="example" id="ex-perf-field" data-run="output">
+<pre class="code"><code>create field "Log"
+
+put the milliseconds into tStart
+repeat 2000 times
+   put "x" after field "Log"
+end repeat
+put the milliseconds - tStart into tField
+
+put empty into field "Log"
+put the milliseconds into tStart
+repeat 2000 times
+   put "x" after tText
+end repeat
+put tText into field "Log"
+put the milliseconds - tStart into tVariable
+
+put "the variable is at least 10 times faster:" &amp;&amp; (tField &gt; 10 * max(1, tVariable))</code></pre>
+<pre class="out">the variable is at least 10 times faster: true</pre>
+</figure>
+<p>The same holds for any property read in a loop: <code>the number of lines of field "Log"</code> or <code>the text of</code> a field asked for on every pass. Read it once into a variable before the loop.</p>
+
+<h2 id="screen">Changing many controls: lock screen</h2>
+<p>When a handler moves, hides or recolours many controls, the screen may be redrawn after each change. <code>lock screen</code> holds the drawing until the handler ends or <code>unlock screen</code>, so the user sees one finished change, sooner (<a href="../animation-games/#frames">Animation and games</a> uses it for every frame). <code>lock messages</code> similarly stops <code>openCard</code>, <code>setProp</code> and other messages while a script goes through many cards or objects, for a script that only needs to look at them.</p>
+<figure class="example" id="ex-perf-lock" data-run="compile">
+<pre class="code"><code>on recolourEverything pColour
+   lock screen
+   repeat with i = 1 to the number of controls of this card
+      set the backgroundColor of control i of this card to pColour
+   end repeat
+   unlock screen
+end recolourEverything
+
+on countAllFields
+   local tCount
+   lock messages
+   repeat with i = 1 to the number of cards of this stack
+      add the number of fields of card i of this stack to tCount
+   end repeat
+   unlock messages
+   return tCount
+end countAllFields</code></pre>
+</figure>
+<aside class="tip"><p>Once code is fast enough, stop. Clear code that is fast enough beats clever code that is a little faster: the next person to read it may be you, in a year.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>This function finds the words that appear more than once in a text, but it looks each word up in a list of the words so far, and gets slow as the text grows. Rewrite it with an array of counts, check that both give the same answer for <code>the cat saw the dog and the dog saw the cat</code>, and put the repeated words, sorted.</p>
+<figure class="example" id="ex-perf-slow" data-run="output">
+<pre class="code"><code>function repeatedWords pText
+   local tSeen, tRepeated
+   repeat for each word tWord in pText
+      if tWord is among the lines of tSeen and tWord is not among the lines of tRepeated then
+         put tWord &amp; return after tRepeated
+      end if
+      put tWord &amp; return after tSeen
+   end repeat
+   sort tRepeated
+   return line 1 to -1 of tRepeated
+end repeatedWords
+
+put repeatedWords("the cat saw the dog and the dog saw the cat")</code></pre>
+<pre class="out">cat
+dog
+saw
+the</pre>
+</figure>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-perf-try" data-run="output">
+<pre class="code"><code>function repeatedWords pText
+   local tCount, tWord, tRepeated
+   repeat for each word tWord in pText
+      add 1 to tCount[tWord]
+   end repeat
+   repeat for each key tWord in tCount
+      if tCount[tWord] &gt; 1 then put tWord &amp; return after tRepeated
+   end repeat
+   sort tRepeated
+   return line 1 to -1 of tRepeated
+end repeatedWords
+
+put repeatedWords("the cat saw the dog and the dog saw the cat")</code></pre>
+<pre class="out">cat
+dog
+saw
+the</pre>
+</figure>
+<p>Each word is now looked up as a key, in the same short time however many words came before, so twice the text takes about twice as long, not four times.</p>
+</details>
+</section>

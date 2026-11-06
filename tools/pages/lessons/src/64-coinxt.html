@@ -1,0 +1,191 @@
+<!--
+title: Keys and coins with CoinXT
+level: extensions
+minutes: 15
+summary: How Bitcoin and Ethereum keep coins safe, with CoinXT: hashes, private and public keys, addresses and their checksums, recovery words and wallets that grow from them, signatures, and transactions.
+words: cxSha256, cxHash256, cxKeccak256, cxHexEncode, cxHexDecode, cxPublicKey, cxSeckeyIsValid, cxBtcAddressP2PKH, cxBtcAddressP2WPKH, cxBtcAddressP2TRFromInternal, cxXOnlyPubkey, cxEthAddress, cxEthAddressChecksum, cxWifEncode, cxSegwitAddressDecode, cxMnemonicFromEntropy, cxMnemonicValidate, cxMnemonicToSeed, cxHdFromSeed, cxHdDerivePath, cxSign, cxVerify, cxSignRecoverable, cxRecover, cxSchnorrSign, cxSchnorrVerify, cxBtcTxid
+-->
+<h2 id="what">Coins are keys</h2>
+<p>Nobody holds a bitcoin the way you hold a coin. What you hold is a <strong>private key</strong>, 32 secret bytes, and whoever has the key can spend what it controls. <strong>CoinXT</strong> is the xTalk Suite's layer over trezor-crypto and libsecp256k1, the code that hardware wallets and Bitcoin itself run: it makes keys, addresses, recovery words and signatures for Bitcoin and Ethereum. Its handlers begin with <code>cx</code>.</p>
+<aside class="warn"><p>The keys in this lesson are made from phrases and famous test values, so that every run gives the same answers to check. Anyone can make them again. They are for learning: never send real coins to them. A real key comes from secure random bytes, and lives in a wallet, not a script.</p></aside>
+
+<h2 id="hashes">Hashes</h2>
+<p>Coins run on <strong>hashes</strong> (<a href="../hashing-security/#hash">fingerprints</a>), 32 bytes each. <code>cxSha256</code> is the hash Bitcoin uses, <code>cxHash256</code> runs it twice, which is how Bitcoin names blocks and transactions, and <code>cxKeccak256</code> is Ethereum's. <code>cxHexEncode</code> spells bytes as hex:</p>
+<figure class="example" id="ex-cx-hash" data-run="output" data-needs="org.openxtalk.library.coin coinxt">
+<pre class="code"><code>put textEncode("Hello, Bitcoin", "UTF-8") into tData
+put cxHexEncode(cxSha256(tData))
+put cxHexEncode(cxHash256(tData))
+put cxHexEncode(cxKeccak256(tData))
+put the number of bytes in cxSha256(empty)</code></pre>
+<pre class="out">d8125d715a1f87012093af8dfd389e1d96d9c68ab58bf024a7a8d9e73056724b
+644055e4a5a523bccf09f7295e56e8d4aa60dfbb8eb028a1cd6c8b805df3e907
+1d6bbf77c5ed6566afd8bc4c95de519455d0623c00525b3bfd7d8d341558e9f8
+32</pre>
+</figure>
+
+<h2 id="keys">Private and public keys</h2>
+<p>A private key is 32 bytes, almost any 32 bytes; <code>cxSeckeyIsValid</code> checks. From it, <code>cxPublicKey</code> makes the <strong>public key</strong>, which is safe to share and from which nobody can work back to the private one: 33 bytes in its short (compressed) form, 65 in its long form, which Ethereum uses:</p>
+<figure class="example" id="ex-cx-keys" data-run="output" data-needs="org.openxtalk.library.coin coinxt">
+<pre class="code"><code>-- a key made from a phrase: for learning only
+put cxSha256(textEncode("my first key", "UTF-8")) into tKey
+put cxSeckeyIsValid(tKey)
+put cxPublicKey(tKey, true) into tPublic
+put the number of bytes in tPublic
+put cxHexEncode(tPublic)
+put the number of bytes in cxPublicKey(tKey, false)</code></pre>
+<pre class="out">true
+33
+03e47416d316a13dbbdde7a3060f9438c9c3028c256af835194bf29acd91866165
+65</pre>
+</figure>
+
+<h2 id="addresses">Addresses</h2>
+<p>An <strong>address</strong> is where people send you coins, made from your public key. One Bitcoin key has several kinds, and the first letters say which: <code>cxBtcAddressP2PKH</code> gives the oldest kind, starting with 1; <code>cxBtcAddressP2WPKH</code> gives SegWit, starting with bc1q, cheaper to spend from; and <code>cxBtcAddressP2TRFromInternal</code> gives Taproot, starting with bc1p, from the 32-byte "x-only" key of <code>cxXOnlyPubkey</code>. An Ethereum address is the end of the Keccak hash of the long public key, after 0x:</p>
+<figure class="example" id="ex-cx-addresses" data-run="output" data-needs="org.openxtalk.library.coin coinxt">
+<pre class="code"><code>put cxSha256(textEncode("my first key", "UTF-8")) into tKey
+put cxPublicKey(tKey, true) into tPublic
+put cxBtcAddressP2PKH(tPublic)
+put cxBtcAddressP2WPKH(tPublic)
+put cxBtcAddressP2TRFromInternal(cxXOnlyPubkey(tKey), empty)
+put cxEthAddress(cxPublicKey(tKey, false))</code></pre>
+<pre class="out">18GvyZLsvxUY7WgPANwnNzqxkvDy9DNeQa
+bc1qflxz6y7ej9ccyn87pxtn3yv4ylvcrycxghpq2u
+bc1pnc3xf8pvf9kgaslxwrer4ady8d9hq5z2gkl2cxrdvmfanl803uzqcg72du
+0x740c064c79e895ef9617cca9cf7079f2bb1e7526</pre>
+</figure>
+
+<h2 id="checksums">Catching typos</h2>
+<p>A mistyped address sends coins nowhere, for ever, so each kind carries a <strong>checksum</strong>: letters worked out from the rest, which a typo makes disagree. Ethereum hides its checksum in the capital letters: <code>cxEthAddressChecksum</code> writes them, and <code>cxEthAddressIsChecksummed</code> checks them. <code>cxWifEncode</code> writes a private key as WIF text, which wallets import, and <code>cxBase58CheckDecode</code> stops with an error when a letter of such text is wrong:</p>
+<figure class="example" id="ex-cx-checksums" data-run="output" data-needs="org.openxtalk.library.coin coinxt">
+<pre class="code"><code>put cxSha256(textEncode("my first key", "UTF-8")) into tKey
+put cxEthAddressChecksum(cxEthAddress(cxPublicKey(tKey, false))) into tAddress
+put tAddress
+put cxEthAddressIsChecksummed(tAddress)
+put "c" into char 6 of tAddress
+put cxEthAddressIsChecksummed(tAddress)
+
+put cxWifEncode(cxHexEncode(tKey), "mainnet", true) into tWif
+put cxWifDecode(tWif) into tDecoded
+put tDecoded["seckey"] is cxHexEncode(tKey)
+put "X" into char 10 of tWif
+try
+   get cxBase58CheckDecode(tWif)
+   put "a typo got through!"
+catch tError
+   put "a typo: refused"
+end try</code></pre>
+<pre class="out">0x740C064c79E895eF9617CCa9cF7079F2BB1E7526
+true
+false
+true
+a typo: refused</pre>
+</figure>
+<p>A SegWit address checks its network as well: <code>cxSegwitAddressDecode</code> takes one apart for the network you name, "bc" for real Bitcoin or "tb" for the test network, and refuses the other, so a test wallet cannot send real coins by mistake:</p>
+<figure class="example" id="ex-cx-segwit" data-run="output" data-needs="org.openxtalk.library.coin coinxt">
+<pre class="code"><code>put "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4" into tAddress
+put cxSegwitAddressDecode("bc", tAddress) into tParts
+put "version" &amp;&amp; tParts["version"] &amp; "," &amp;&amp; the number of bytes in tParts["program"] &amp;&amp; "bytes"
+put cxSegwitAddressEncode("bc", 0, tParts["program"]) is tAddress
+try
+   get cxSegwitAddressDecode("tb", tAddress)
+catch tError
+   put "the wrong network: refused"
+end try</code></pre>
+<pre class="out">version 0, 20 bytes
+true
+the wrong network: refused</pre>
+</figure>
+
+<h2 id="recovery">Twelve words</h2>
+<p>A wallet is backed up as a <strong>recovery phrase</strong>: twelve or twenty-four ordinary words, written on paper, that rebuild it on any device. <code>cxMnemonicFromEntropy</code> turns 16 random bytes into 12 words from a list of 2048, and <code>cxMnemonicValidate</code> checks them: the last word holds a checksum, so a wrong word is caught. Sixteen zero bytes are a famous test value:</p>
+<figure class="example" id="ex-cx-mnemonic" data-run="output" data-needs="org.openxtalk.library.coin coinxt">
+<pre class="code"><code>put cxMnemonicFromEntropy(cxHexDecode("00000000000000000000000000000000")) into tWords
+put the number of words of tWords
+put tWords
+put cxMnemonicValidate(tWords)
+put "zoo" into word -1 of tWords
+put cxMnemonicValidate(tWords)</code></pre>
+<pre class="out">12
+abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about
+true
+false</pre>
+</figure>
+<p>One phrase grows a whole tree of keys. <code>cxMnemonicToSeed</code> turns the words (and an optional passphrase) into a 64-byte <strong>seed</strong>, <code>cxHdFromSeed</code> makes the root of the tree, and <code>cxHdDerivePath</code> walks a <strong>path</strong> such as <code>m/84'/0'/0'/0/0</code> to one key. The last number counts up, a new address each time, and the same words always grow the same tree, which is how a new wallet finds every old address:</p>
+<figure class="example" id="ex-cx-hd" data-run="output" data-needs="org.openxtalk.library.coin coinxt">
+<pre class="code"><code>put "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" into tWords
+put cxMnemonicToSeed(tWords, empty) into tSeed
+put the number of bytes in tSeed
+put cxHdFromSeed(tSeed) into tRoot
+repeat with tIndex = 0 to 2
+   put cxHdDerivePath(tRoot, "m/84'/0'/0'/0/" &amp; tIndex) into tNode
+   put tIndex &amp; ":" &amp;&amp; cxBtcAddressP2WPKH(tNode["pubkey"])
+end repeat</code></pre>
+<pre class="out">64
+0: bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu
+1: bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g
+2: bc1qp59yckz4ae5c4efgw2s5wfyvrz0ala7rgvuz8z</pre>
+</figure>
+
+<h2 id="signing">Signing</h2>
+<p>To spend, you <strong>sign</strong>: you prove you hold the private key without showing it. A signature covers exactly 32 bytes, so you sign the hash of the message. <code>cxSign</code> signs, and <code>cxVerify</code> checks with the public key: anyone can check, nobody else can sign. Ethereum's <code>cxSignRecoverable</code> adds one byte from which <code>cxRecover</code> finds the signer's public key, so a message need not say who sent it; and Taproot's <strong>Schnorr signatures</strong> (<code>cxSchnorrSign</code>, <code>cxSchnorrVerify</code>) use the 32-byte x-only key:</p>
+<figure class="example" id="ex-cx-sign" data-run="output" data-needs="org.openxtalk.library.coin coinxt">
+<pre class="code"><code>put cxSha256(textEncode("my first key", "UTF-8")) into tKey
+put cxPublicKey(tKey, true) into tPublic
+put cxSha256(textEncode("Pay Bob 5", "UTF-8")) into tDigest
+put cxSign(tKey, tDigest) into tSignature
+put the number of bytes in tSignature
+put cxVerify(tPublic, tDigest, tSignature)
+put cxVerify(tPublic, cxSha256(textEncode("Pay Bob 500", "UTF-8")), tSignature)
+
+put cxSignRecoverable(tKey, tDigest) into tSignature
+put cxEthAddress(cxRecover(tSignature, tDigest)) is cxEthAddress(cxPublicKey(tKey, false))
+
+put cxSchnorrSign(tKey, tDigest, empty) into tSignature
+put cxSchnorrVerify(cxXOnlyPubkey(tKey), tDigest, tSignature)</code></pre>
+<pre class="out">64
+true
+false
+true
+true</pre>
+</figure>
+<p>Always compare a recovered key with the one you expected: any 65 bytes recover <em>some</em> key.</p>
+
+<h2 id="transactions">Transactions</h2>
+<p>A Bitcoin <strong>transaction</strong> spends earlier outputs and makes new ones. An input points at an earlier output, by its transaction's id and its number (<code>cxBtcOutpoint</code>); an output is an amount in satoshi, a hundred-millionth of a bitcoin, and the script that locks it (<code>cxBtcOutput</code>). <code>cxBtcTxid</code> gives the new transaction's id, the hash that names it on every block explorer:</p>
+<figure class="example" id="ex-cx-tx" data-run="output" data-needs="org.openxtalk.library.coin coinxt">
+<pre class="code"><code>put "4ce18f49ba153a51bcda9bb80d7f978e3de6e81b5fc326f00465d4a9b0d32a2b" into tPrevious
+put cxHexEncode(cxBtcOutpoint(tPrevious, 0)) into tInput
+put cxHexEncode(cxBtcOutput(50000, "0014751e76e8199196d454941c45d1b3a323f1433bd6")) into tOutput
+put the length of tInput / 2 &amp;&amp; "bytes in"
+put the length of tOutput / 2 &amp;&amp; "bytes out"
+-- version 2, the input's sequence, then the output, and lock time 0
+put cxBtcTxid(2, tInput, empty, 4294967295, tOutput, 0)</code></pre>
+<pre class="out">36 bytes in
+31 bytes out
+c73feaa3700e7091e724775123c4955d710a10319bbbc900553f7e576bad9dd3</pre>
+</figure>
+<p>CoinXT also builds and signs Ethereum payments (<code>cxEth1559Sighash</code>, <code>cxEth1559Encode</code>); the Dictionary has every handler, and <strong>Learn CoinXT</strong> (<kbd>Help &gt; Examples</kbd>) walks through them.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a function <code>looksLikeBitcoinAddress</code> that says whether text is a valid SegWit address on the real Bitcoin network, without stopping with an error for text that is not.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-cx-try" data-run="output" data-needs="org.openxtalk.library.coin coinxt">
+<pre class="code"><code>function looksLikeBitcoinAddress pText
+   try
+      get cxSegwitAddressDecode("bc", pText)
+      return true
+   catch tError
+      return false
+   end try
+end looksLikeBitcoinAddress
+
+put looksLikeBitcoinAddress("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4")
+put looksLikeBitcoinAddress("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5")
+put looksLikeBitcoinAddress("hello")</code></pre>
+<pre class="out">true
+false
+false</pre>
+</figure>
+</details>
+</section>

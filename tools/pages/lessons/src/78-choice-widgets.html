@@ -1,0 +1,160 @@
+<!--
+title: Switches, choices and colours
+level: extensions
+minutes: 12
+summary: The widgets for choosing: the Segmented Control for one of a few options, the Switch Button for on or off, the Color Swatch, the Gradient Ramp Editor for a gradient's colours, and the Spinner that says "please wait".
+words: widget, Segmented Control, itemLabels, itemNames, hilitedItems, hilitedItemNames, multipleHilites, hiliteChanged, Switch Button, highlight, Color Swatch, swatchColor, answer color, Gradient Ramp Editor, gradientStops, fillGradient, Spinner
+-->
+<h2 id="card">A card of choices</h2>
+<p>Classic buttons can be radio buttons and check boxes (<a href="../buttons-menus/">Buttons and menus</a>), but phones and today's programs have taught people other shapes for choosing: a row of segments, a switch that slides, a swatch of colour. These are widgets (<a href="../using-extensions/#widgets">Using extensions</a>), and they are dragged onto a card from the Tools palette like any control. Build a card that styles a line of text:</p>
+<div class="build" id="build-choices">
+<ol>
+<li>Make a new stack, or go to an empty card. In Edit mode, scroll the Tools palette down to its widgets and drag a <strong>Segmented Control</strong> to the top left of the card. Double-click it, name it <code>Size</code>, and in its Property Inspector set the labels of its three segments to <code>Small</code>, <code>Medium</code> and <code>Large</code>.</li>
+<li>Drag a <strong>Switch Button</strong> under it, and name it <code>Bold</code>.</li>
+<li>Drag a <strong>Color Swatch</strong> to the right of the switch, and name it <code>Ink</code>.</li>
+<li>Drag a classic <strong>Field</strong> across the card under them, name it <code>Sample</code>, and type <code>Hello there</code> into it.</li>
+</ol>
+<pre class="setup">create widget "Size" as "com.livecode.widget.segmented"
+set the rect of it to 40,40,280,72
+set the itemLabels of it to "Small,Medium,Large"
+create widget "Bold" as "com.livecode.widget.switchbutton"
+set the rect of it to 40,100,100,132
+create widget "Ink" as "com.livecode.widget.colorswatch"
+set the rect of it to 140,96,180,136
+create field "Sample"
+set the rect of it to 40,170,440,300
+set the text of it to "Hello there"</pre>
+</div>
+
+<h2 id="segmented">One of a few: the Segmented Control</h2>
+<p>A <strong>Segmented Control</strong> is a row of buttons joined into one, of which one is lit, like radio buttons that take less room. Each segment has a <strong>label</strong>, the word the reader sees, and a <strong>name</strong>, for scripts. <code>hilitedItems</code> is the number of the lit segment, and <code>hilitedItemNames</code> its name:</p>
+<figure class="example" id="ex-wc-segmented" data-run="output" data-card="build-choices" data-in="message" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.library.scriptitems com.livecode.widget.segmented com.livecode.widget.switchbutton com.livecode.widget.colorswatch" data-shot="Your card: Small, Medium and Large in a row of segments at the top, Medium lit; under it a switch, turned off, and a colour swatch of pale, see-through green; and the field with Hello there.">
+<pre class="code"><code>put the itemLabels of widget "Size"
+put the itemNames of widget "Size"
+set the hilitedItems of widget "Size" to 2
+put the hilitedItems of widget "Size"
+put the hilitedItemNames of widget "Size"</code></pre>
+<pre class="out">Small,Medium,Large
+segment1,segment2,segment3
+2
+segment2</pre>
+</figure>
+<p>The names are made up for you as <code>segment1</code> and so on; give them names of your own in the Property Inspector when a script will use them. A click on a segment lights it and sends <code>hiliteChanged</code>, and so does setting <code>hilitedItems</code> from a script. Put this in the Segmented Control's script:</p>
+<figure class="example" id="ex-wc-size-script" data-run="compile" data-card="build-choices" data-script='widget "Size"' data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.library.scriptitems com.livecode.widget.segmented com.livecode.widget.switchbutton com.livecode.widget.colorswatch">
+<pre class="code"><code>on hiliteChanged
+   set the textSize of field "Sample" to item (the hilitedItems of me) of "12,20,32"
+end hiliteChanged</code></pre>
+</figure>
+<p>In Run mode a click on <strong>Large</strong> makes the text big. The Message Box can do the same:</p>
+<figure class="example" id="ex-wc-size-send" data-run="output" data-card="build-choices" data-in="message" data-after="ex-wc-size-script" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.library.scriptitems com.livecode.widget.segmented com.livecode.widget.switchbutton com.livecode.widget.colorswatch" data-shot="Your card with Large lit at the top right of the segments, and Hello there in big letters in the field.">
+<pre class="code"><code>set the hilitedItems of widget "Size" to 3
+wait 0 milliseconds with messages
+put the textSize of field "Sample"</code></pre>
+<pre class="out">32</pre>
+</figure>
+<p>A widget sends its messages once the script that changed it has finished, not at the moment it changes, so the handler has not run yet on the line straight after the <code>set</code>. <code>wait 0 milliseconds with messages</code> lets the message through first. A script that changes a widget and then needs what its handler did must do the same; lines typed into the Message Box one at a time each finish before the next, so there it happens by itself.</p>
+<p>Set <code>multipleHilites</code> to true and any number of segments can be lit at once, like check boxes, with <code>hilitedItems</code> a list such as <code>1,3</code>. Set <code>itemStyle</code> to <code>icons</code> and the segments show <code>itemIcons</code> instead of words, as the Property Inspector's own text alignment does.</p>
+
+<h2 id="switch">On or off: the Switch Button</h2>
+<p>A <strong>Switch Button</strong> is a check box that slides. Its <code>highlight</code> is true when it is on. A click turns it over and sends <code>hiliteChanged</code>; setting its <code>highlight</code> from a script does not, so send the message too when a script should act as a click. Put this in the switch's script:</p>
+<figure class="example" id="ex-wc-bold-script" data-run="compile" data-card="build-choices" data-script='widget "Bold"' data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.library.scriptitems com.livecode.widget.segmented com.livecode.widget.switchbutton com.livecode.widget.colorswatch">
+<pre class="code"><code>on hiliteChanged
+   if the highlight of me then
+      set the textStyle of field "Sample" to "bold"
+   else
+      set the textStyle of field "Sample" to "plain"
+   end if
+end hiliteChanged</code></pre>
+</figure>
+<figure class="example" id="ex-wc-bold-send" data-run="output" data-card="build-choices" data-in="message" data-after="ex-wc-size-script;ex-wc-bold-script" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.library.scriptitems com.livecode.widget.segmented com.livecode.widget.switchbutton com.livecode.widget.colorswatch" data-shot="Your card with Medium lit, the switch turned on, and Hello there in bold, middle-sized letters.">
+<pre class="code"><code>set the hilitedItems of widget "Size" to 2
+set the highlight of widget "Bold" to true
+wait 0 milliseconds with messages
+put the textStyle of field "Sample" is "bold"
+send "hiliteChanged" to widget "Bold"
+put the textStyle of field "Sample" is "bold"</code></pre>
+<pre class="out">false
+true</pre>
+</figure>
+
+<h2 id="swatch">A colour: the Color Swatch</h2>
+<p>A <strong>Color Swatch</strong> shows a colour, its <code>swatchColor</code>: red, green, blue and an <strong>alpha</strong>, how solid it is, each from 0 to 255. It does not choose a colour by itself: a click sends it <code>mouseUp</code>, and its script asks with <code>answer color</code>, the system's colour picker (<a href="../dialogs/">Dialogs</a>). Put this in the swatch's script:</p>
+<figure class="example" id="ex-wc-ink-script" data-run="compile" data-card="build-choices" data-script='widget "Ink"' data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.library.scriptitems com.livecode.widget.segmented com.livecode.widget.switchbutton com.livecode.widget.colorswatch">
+<pre class="code"><code>on mouseUp
+   answer color with item 1 to 3 of the swatchColor of me
+   if it is empty then exit mouseUp
+   set the swatchColor of me to it
+   set the textColor of field "Sample" to it
+end mouseUp</code></pre>
+</figure>
+<p><code>it</code> is empty when the person cancels, so the colour stays as it was. A script can set the swatch's colour as any property:</p>
+<figure class="example" id="ex-wc-ink" data-run="output" data-card="build-choices" data-in="message" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.library.scriptitems com.livecode.widget.segmented com.livecode.widget.switchbutton com.livecode.widget.colorswatch" data-shot="Your card with a dark red colour swatch, and Hello there in the same dark red.">
+<pre class="code"><code>set the swatchColor of widget "Ink" to "170,30,60"
+put the swatchColor of widget "Ink"
+set the textColor of field "Sample" to item 1 to 3 of the swatchColor of widget "Ink"
+put the textColor of field "Sample"</code></pre>
+<pre class="out">170,30,60,255
+170,30,60</pre>
+</figure>
+
+<h2 id="gradient">A gradient's colours: the Gradient Ramp Editor</h2>
+<p>A gradient, a colour that fades into others across a graphic (<a href="../graphics-images/">Graphics and images</a>), has <strong>stops</strong>: at each point along it, a colour. The <strong>Gradient Ramp Editor</strong> is the strip the Property Inspector shows for a gradient, where the stops can be dragged and recoloured. Its <code>gradientStops</code> are a line a stop, its place from 0 to 1 and then its red, green, blue and alpha, which is how a graphic's <code>fillGradient["ramp"]</code> holds them too:</p>
+<figure class="example" id="ex-wc-ramp" data-run="output" data-needs="com.livecode.widget.gradientrampeditor" data-shot="A strip from orange through yellow to teal at the top of the card, with a scale from 0 to 100 and a marker under each of its three stops, and a rounded box below it filled with the same gradient from left to right.">
+<pre class="code"><code>create widget "Ramp" as "com.livecode.widget.gradientrampeditor"
+set the rect of it to 40, 30, 440, 80
+set the gradientStops of it to "0,255,122,0,255" &amp; return &amp; "0.5,255,214,0,255" &amp; return &amp; "1,0,170,160,255"
+
+create graphic "Sky"
+set the style of it to "roundrect"
+set the filled of it to true
+set the rect of it to 40, 110, 440, 300
+set the fillGradient["type"] of it to "linear"
+set the fillGradient["from"] of it to 40, 205
+set the fillGradient["to"] of it to 440, 205
+set the fillGradient["via"] of it to 40, 110
+set the fillGradient["ramp"] of it to the gradientStops of widget "Ramp"
+put the number of lines of the fillGradient["ramp"] of graphic "Sky"</code></pre>
+<pre class="out">3</pre>
+</figure>
+<p>When someone drags a stop, the editor sends <code>gradientStopsChanged</code>; a handler of it that copies the stops to the graphic, as the last line here does, makes a live gradient designer.</p>
+
+<h2 id="spinner">Please wait: the Spinner</h2>
+<p>The <strong>Spinner</strong> is a ring of marks that turns for as long as it is shown, the sign that a program is busy. Show it before something slow and hide it after; <code>markerCount</code> is the number of its marks. It only turns while the program waits with messages, so in a long loop of your own, <code>wait 0 milliseconds with messages</code> now and then lets it move:</p>
+<figure class="example" id="ex-wc-spinner" data-run="output" data-needs="com.livecode.widget.spinner">
+<pre class="code"><code>create widget "Busy" as "com.livecode.widget.spinner"
+set the rect of it to 220, 160, 260, 200
+set the markerCount of it to 12
+show widget "Busy"
+put 0 into tTotal
+repeat with tIndex = 1 to 100000
+   add tIndex to tTotal
+   if tIndex mod 10000 is 0 then wait 0 milliseconds with messages
+end repeat
+hide widget "Busy"
+put tTotal
+put the visible of widget "Busy"</code></pre>
+<pre class="out">5000050000
+false</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a command <code>makeChoice</code> that takes a name and a list of labels, such as <code>"Tea,Coffee,Water"</code>, and makes a Segmented Control with that name and one segment a label, with the first one lit.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-wc-try" data-run="output" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.library.scriptitems com.livecode.widget.segmented" data-shot="A row of four segments at the top left, Tea, Coffee, Water and Juice, with Tea lit.">
+<pre class="code"><code>command makeChoice pName, pLabels
+   create widget pName as "com.livecode.widget.segmented"
+   set the itemCount of it to the number of items of pLabels
+   set the itemLabels of it to pLabels
+   set the hilitedItems of it to 1
+   set the rect of it to 40, 40, 40 + 80 * the number of items of pLabels, 72
+end makeChoice
+
+makeChoice "Drink", "Tea,Coffee,Water,Juice"
+put the itemCount of widget "Drink"
+put the hilitedItems of widget "Drink"</code></pre>
+<pre class="out">4
+1</pre>
+</figure>
+</details>
+</section>

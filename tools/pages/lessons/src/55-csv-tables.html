@@ -1,0 +1,199 @@
+<!--
+title: Tables and CSV
+level: expert
+minutes: 11
+summary: Keep tables as tab-separated text, read and write CSV correctly (quotes, commas and line breaks inside values), and show a table in a field with columns and grid lines.
+words: tab, itemDelimiter, CSV, tabStops, vGrid, hGrid, textStyle of line, sort by item, quote, replace
+-->
+<h2 id="tsv">A table is lines and items</h2>
+<p>The xTalk way to keep a table is text: a line for each row, and the row's values as items, separated by tabs. Tabs, because values often contain commas but almost never tabs. Every chunk expression then works on the table: <code>line 3</code> is the third row, and <code>item 2 of line 3</code>, with the <code>itemDelimiter</code> set to <code>tab</code>, one value.</p>
+<figure class="example" id="ex-csv-tsv" data-run="output">
+<pre class="code"><code>put "Tea" &amp; tab &amp; "2" &amp; tab &amp; "1.80" &amp; return &amp; \
+      "Cake" &amp; tab &amp; "1" &amp; tab &amp; "3.25" &amp; return &amp; \
+      "Juice" &amp; tab &amp; "3" &amp; tab &amp; "2.00" into tOrder
+set the itemDelimiter to tab
+
+put item 1 of line 2 of tOrder
+put 0 into tTotal
+repeat for each line tRow in tOrder
+   add item 2 of tRow * item 3 of tRow to tTotal
+end repeat
+put "total:" &amp;&amp; tTotal
+sort lines of tOrder numeric descending by item 3 of each
+put item 1 of line 1 of tOrder &amp;&amp; "costs the most"</code></pre>
+<pre class="out">Cake
+total: 12.85
+Cake costs the most</pre>
+</figure>
+
+<h2 id="csv">CSV: comma-separated values</h2>
+<p>Spreadsheets and databases swap tables as <strong>CSV</strong>. It looks simple, a comma between values, but a value can itself hold a comma, a quote or even a line break. Then the value is put in double quotes, and a quote inside it is doubled:</p>
+<pre class="sample">Name,Note
+Ada,"Lovelace, Countess"
+Grace,"She said ""hi"""</pre>
+<p>So splitting at every comma breaks such a file. Reading CSV properly means going through it a character at a time, remembering whether you are inside quotes. This function turns CSV into the xTalk table, tab-separated:</p>
+<figure class="example" id="ex-csv-read" data-run="output">
+<pre class="code"><code>function csvToTable pCSV
+   local tTable, tValue, tInQuotes, tChar, tPrevious
+   put false into tInQuotes
+   repeat for each char tChar in pCSV
+      if tInQuotes then
+         if tChar is quote then
+            put false into tInQuotes
+         else
+            put tChar after tValue
+         end if
+      else
+         switch tChar
+            case quote
+               -- a quote straight after a closing one is a quote in the value
+               if tPrevious is quote then put quote after tValue
+               put true into tInQuotes
+               break
+            case comma
+               put tValue &amp; tab after tTable
+               put empty into tValue
+               break
+            case return
+               put tValue &amp; return after tTable
+               put empty into tValue
+               break
+            default
+               put tChar after tValue
+         end switch
+      end if
+      put tChar into tPrevious
+   end repeat
+   return tTable &amp; tValue
+end csvToTable
+
+put "Name,Note" &amp; return &amp; "Ada,'Lovelace, Countess'" &amp; return &amp; "Grace,'She said ''hi'''" into tCSV
+replace "'" with quote in tCSV
+put csvToTable(tCSV) into tTable
+set the itemDelimiter to tab
+put the number of lines of tTable &amp;&amp; "rows"
+put item 2 of line 2 of tTable
+put item 2 of line 3 of tTable</code></pre>
+<pre class="out">3 rows
+Lovelace, Countess
+She said "hi"</pre>
+</figure>
+<p>A line break inside quotes is kept in the value too, since only a <code>return</code> outside quotes ends a row. (A tab inside a value would split it in the table; replace tabs in values first if your data may have them.)</p>
+<aside class="tip"><p>CSV files from Windows end their lines with a carriage return and a line feed. Read them with <code>URL "file:"</code>, which turns those into xTalk's <code>return</code>, or replace <code>numToChar(13)</code> with empty after reading with <code>binfile:</code>.</p></aside>
+
+<h2 id="write-csv">Writing CSV</h2>
+<p>Writing is easier: put a value in quotes when it holds a comma, a quote or a line break, doubling any quotes inside it:</p>
+<figure class="example" id="ex-csv-write" data-run="output">
+<pre class="code"><code>function csvValue pText
+   if pText contains comma or pText contains quote or pText contains return then
+      replace quote with quote &amp; quote in pText
+      return quote &amp; pText &amp; quote
+   end if
+   return pText
+end csvValue
+
+function tableToCSV pTable
+   local tCSV, tRow, tValue
+   set the itemDelimiter to tab
+   repeat for each line tRow in pTable
+      repeat for each item tValue in tRow
+         put csvValue(tValue) &amp; comma after tCSV
+      end repeat
+      put return into the last char of tCSV
+   end repeat
+   delete the last char of tCSV
+   return tCSV
+end tableToCSV
+
+put "Name" &amp; tab &amp; "Note" &amp; return &amp; "Ada" &amp; tab &amp; "Lovelace, Countess" &amp; return &amp; \
+      "Grace" &amp; tab &amp; "She said" &amp;&amp; quote &amp; "hi" &amp; quote into tTable
+put tableToCSV(tTable)</code></pre>
+<pre class="out">Name,Note
+Ada,"Lovelace, Countess"
+Grace,"She said ""hi"""</pre>
+</figure>
+<p>Reading that back with <code>csvToTable</code> gives the same table: the round trip loses nothing, which is the test of a CSV reader and writer.</p>
+
+<h2 id="table-field">Showing a table in a field</h2>
+<p>A field shows tab-separated text as columns when you set its <code>tabStops</code>, the positions of the columns from its left edge. <code>vGrid</code> and <code>hGrid</code> draw lines between columns and rows, and a line can have its own style and colour, which makes a header row:</p>
+<figure class="example" id="ex-csv-field" data-run="output" data-shot="The stage, with a table field of four rows and three columns, Name, Born and Known for, with grid lines, a bold header on a light grey band, and a row each for Ada Lovelace, Grace Hopper and Alan Turing.">
+<pre class="code"><code>put "Name" &amp; tab &amp; "Born" &amp; tab &amp; "Known for" &amp; return &amp; \
+      "Ada Lovelace" &amp; tab &amp; "1815" &amp; tab &amp; "the first program" &amp; return &amp; \
+      "Grace Hopper" &amp; tab &amp; "1906" &amp; tab &amp; "the first compiler" &amp; return &amp; \
+      "Alan Turing" &amp; tab &amp; "1912" &amp; tab &amp; "the Turing machine" into tTable
+
+create field "People"
+set the rect of it to 20,20,460,92
+set the tabStops of it to 140,200,440
+set the vGrid of it to true
+set the hGrid of it to true
+set the text of it to tTable
+set the textStyle of line 1 of it to "bold"
+set the backgroundColor of line 1 of it to "#E2E8F0"
+
+set the itemDelimiter to tab
+put item 3 of line 3 of field "People"</code></pre>
+<pre class="out">the first compiler</pre>
+</figure>
+<p>The field's text is still the plain table, so everything in this lesson works on it directly. For tables the user edits cell by cell, with sorting by a click on a column, the IDE's Tools palette has the <strong>Data Grid</strong>, built on the same ideas.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>This CSV lists sales: <code>Region,Month,Amount</code>, then <code>North,Jan,120</code>, <code>South,Jan,80</code>, <code>North,Feb,95</code>, <code>"South, coast",Feb,60</code> and <code>South,Feb,40</code>. Read it with <code>csvToTable</code> and put the total for each region, a line each, sorted by region.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-csv-try" data-run="output">
+<pre class="code"><code>function csvToTable pCSV
+   local tTable, tValue, tInQuotes, tChar, tPrevious
+   put false into tInQuotes
+   repeat for each char tChar in pCSV
+      if tInQuotes then
+         if tChar is quote then
+            put false into tInQuotes
+         else
+            put tChar after tValue
+         end if
+      else
+         switch tChar
+            case quote
+               if tPrevious is quote then put quote after tValue
+               put true into tInQuotes
+               break
+            case comma
+               put tValue &amp; tab after tTable
+               put empty into tValue
+               break
+            case return
+               put tValue &amp; return after tTable
+               put empty into tValue
+               break
+            default
+               put tChar after tValue
+         end switch
+      end if
+      put tChar into tPrevious
+   end repeat
+   return tTable &amp; tValue
+end csvToTable
+
+put "Region,Month,Amount" &amp; return &amp; "North,Jan,120" &amp; return &amp; "South,Jan,80" &amp; return &amp; \
+      "North,Feb,95" &amp; return &amp; "'South, coast',Feb,60" &amp; return &amp; "South,Feb,40" into tCSV
+replace "'" with quote in tCSV
+put csvToTable(tCSV) into tTable
+delete line 1 of tTable
+
+set the itemDelimiter to tab
+repeat for each line tRow in tTable
+   add item 3 of tRow to tTotals[item 1 of tRow]
+end repeat
+put the keys of tTotals into tRegions
+sort tRegions
+repeat for each line tRegion in tRegions
+   put tRegion &amp; ":" &amp;&amp; tTotals[tRegion]
+end repeat</code></pre>
+<pre class="out">North: 215
+South: 120
+South, coast: 60</pre>
+</figure>
+<p><code>South, coast</code> is a region of its own: with a plain split at commas, it would have become a region called <code>"South</code> and broken the row.</p>
+</details>
+</section>

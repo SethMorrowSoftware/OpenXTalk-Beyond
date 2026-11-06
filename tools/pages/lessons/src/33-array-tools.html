@@ -1,0 +1,148 @@
+<!--
+title: Split, combine and friends
+level: intermediate
+minutes: 9
+summary: Turn text into arrays and back with split and combine, merge arrays with union and intersect, and do sums over a whole array.
+words: split, combine, by, with, and, as set, union, intersect, recursively, extents, sum, max, arrayEncode, arrayDecode
+-->
+<h2 id="split">Text into an array: split</h2>
+<p><code>split</code> cuts text into the elements of an array. Split by one delimiter and the pieces are numbered from 1:</p>
+<figure class="example" id="ex-split-numbered" data-run="output">
+<pre class="code"><code>put "Name,Age" &amp; return &amp; "Ada,36" &amp; return &amp; "Alan,41" into tTable
+split tTable by return
+put the number of elements of tTable
+put tTable[2]
+put item 1 of tTable[3]</code></pre>
+<pre class="out">3
+Ada,36
+Alan</pre>
+</figure>
+<p>Split by two delimiters and each piece becomes a key with its value: the first delimiter separates the pairs, the second the key from the value.</p>
+<figure class="example" id="ex-split-pairs" data-run="output">
+<pre class="code"><code>put "apple=3,pear=5,fig=1" into tStock
+split tStock by comma and "="
+put tStock["pear"]
+put the number of elements of tStock
+add 10 to tStock["fig"]
+put tStock["fig"]</code></pre>
+<pre class="out">5
+3
+11</pre>
+</figure>
+<p>That makes settings files, query strings and simple records easy to read.</p>
+
+<h2 id="combine">An array into text: combine</h2>
+<p><code>combine</code> is the reverse: it joins the elements into text. With one delimiter you get the values, in the order of their keys when the keys are numbers; with two, the keys and values.</p>
+<figure class="example" id="ex-combine" data-run="output">
+<pre class="code"><code>put "red" into tColours[1]
+put "green" into tColours[2]
+put "blue" into tColours[3]
+combine tColours with comma
+put tColours
+put 3 into tStock["apple"]
+put 5 into tStock["pear"]
+combine tStock with return and ": "
+sort tStock
+put tStock</code></pre>
+<pre class="out">red,green,blue
+apple: 3
+pear: 5</pre>
+</figure>
+<aside class="tip"><p>The words <code>by</code> and <code>with</code> mean the same in both commands; use whichever reads better. Remember that combining an array with text keys gives the pairs in no fixed order, so sort the text afterwards when the order matters.</p></aside>
+
+<h2 id="set">Split as a set</h2>
+<p><code>as set</code> makes every piece a key, with <code>true</code> as its value: a quick way to ask "is this one of them?", and to drop duplicates, as <a href="../filtering/#unique">Filtering lists</a> showed.</p>
+<figure class="example" id="ex-split-set" data-run="output">
+<pre class="code"><code>put "mon,tue,wed,thu,fri" into tWorkdays
+split tWorkdays by comma as set
+put tWorkdays["wed"]
+put tWorkdays["sat"] is true</code></pre>
+<pre class="out">true
+false</pre>
+</figure>
+
+<h2 id="union-intersect">Merging arrays</h2>
+<p><code>union</code> adds to an array every key of another that it does not have yet; the keys it already has keep their values. <code>intersect</code> keeps only the keys both arrays have.</p>
+<figure class="example" id="ex-union-intersect" data-run="output">
+<pre class="code"><code>put 1 into tA["x"]
+put 2 into tA["y"]
+put 3 into tB["y"]
+put 4 into tB["z"]
+put tA into tBoth
+union tBoth with tB
+put the keys of tBoth into tKeys
+sort tKeys
+put tKeys
+put tBoth["y"]
+put tA into tShared
+intersect tShared with tB
+put the keys of tShared</code></pre>
+<pre class="out">x
+y
+z
+2
+y</pre>
+</figure>
+<p>Add <code>recursively</code> to merge arrays inside arrays too, a key at a time, which is how you lay a user's settings over the defaults:</p>
+<figure class="example" id="ex-union-recursive" data-run="output">
+<pre class="code"><code>put 12 into tDefaults["text"]["size"]
+put "black" into tDefaults["text"]["colour"]
+put 18 into tSettings["text"]["size"]
+union tSettings with tDefaults recursively
+put tSettings["text"]["size"] &amp;&amp; tSettings["text"]["colour"]</code></pre>
+<pre class="out">18 black</pre>
+</figure>
+
+<h2 id="maths">Sums over an array</h2>
+<p>The list functions you met in <a href="../math-functions/">Math functions</a> take an array as well as a list, and work on its elements:</p>
+<figure class="example" id="ex-array-maths" data-run="output">
+<pre class="code"><code>put "4,8,15,16,23,42" into tNumbers
+split tNumbers by comma
+put sum(tNumbers)
+put max(tNumbers) &amp;&amp; min(tNumbers)
+put average(tNumbers)</code></pre>
+<pre class="out">108
+42 4
+18</pre>
+</figure>
+
+<h2 id="extents">How far a numbered array goes</h2>
+<p>A numbered array can have gaps. <code>the extents</code> gives the smallest and largest number used, which can differ from the number of elements:</p>
+<figure class="example" id="ex-array-extents" data-run="output">
+<pre class="code"><code>put "a" into tA[1]
+put "b" into tA[2]
+put "c" into tA[3]
+delete variable tA[2]
+put the extents of tA
+put the number of elements of tA</code></pre>
+<pre class="out">1,3
+2</pre>
+</figure>
+
+<h2 id="encode">Saving an array</h2>
+<p>An array cannot be written to a file or kept in a field as it is. <code>arrayEncode</code> turns it into binary data that can, and <code>arrayDecode</code> brings it back, nested arrays and all. (For data other programs must read, JSON is the usual choice: see <a href="../json/">JSON</a>.)</p>
+<figure class="example" id="ex-array-encode" data-run="output">
+<pre class="code"><code>put "Ada" into tRecord["name"]
+put 36 into tRecord["age"]
+put arrayEncode(tRecord) into tData
+put arrayDecode(tData) into tBack
+put tBack["name"] &amp;&amp; tBack["age"]</code></pre>
+<pre class="out">Ada 36</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Read the settings <code>width=640;height=480;title=Demo</code> into an array, change the title to <code>My game</code>, and turn the array back into the same kind of text, with its keys in alphabetical order.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-split-try" data-run="output">
+<pre class="code"><code>put "width=640;height=480;title=Demo" into tSettings
+split tSettings by ";" and "="
+put "My game" into tSettings["title"]
+combine tSettings by return and "="
+sort tSettings
+replace return with ";" in tSettings
+put tSettings</code></pre>
+<pre class="out">height=480;title=My game;width=640</pre>
+</figure>
+</details>
+</section>

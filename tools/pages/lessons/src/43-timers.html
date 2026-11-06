@@ -1,0 +1,142 @@
+<!--
+title: Timers and waiting
+level: advanced
+minutes: 9
+summary: Make something happen later, or again and again, without freezing the program: wait, send in, the pendingMessages and cancel.
+words: wait, with messages, send in, milliseconds, seconds, the pendingMessages, cancel, the result, the milliseconds
+-->
+<h2 id="wait">Waiting</h2>
+<p><code>wait</code> pauses the handler for a time, in <code>seconds</code>, <code>milliseconds</code> or <code>ticks</code> (sixtieths of a second):</p>
+<figure class="example" id="ex-timers-wait" data-run="output">
+<pre class="code"><code>put the milliseconds into tStart
+wait 250 milliseconds
+put the milliseconds - tStart into tTook
+put tTook &gt;= 240 and tTook &lt; 1000</code></pre>
+<pre class="out">true</pre>
+</figure>
+<p>While a plain <code>wait</code> lasts, the whole program waits with it: a click is not answered, and a timer does not fire. That is fine for a moment's pause, but not for anything longer. <code>wait ... with messages</code> lets the rest of the program carry on during the wait, and <code>wait until</code> waits for a condition to become true:</p>
+<figure class="example" id="ex-timers-until" data-run="output" data-wait="1">
+<pre class="code"><code>local sDone
+
+on finish
+   put true into sDone
+   put "finished"
+end finish
+
+put false into sDone
+send "finish" to me in 300 milliseconds
+wait until sDone with messages
+put "waited for it"</code></pre>
+<pre class="out">finished
+waited for it</pre>
+</figure>
+<aside class="warn"><p>A <code>wait until</code> without <code>with messages</code> waits forever for a condition that only a message could change: nothing can run to change it.</p></aside>
+
+<h2 id="send-in">Later: send in</h2>
+<p>Usually you do not want to wait at all: you want something to happen later while the program goes on. <code>send</code> (<a href="../events/#send-dispatch">Messages and events</a>) with <code>in</code> and a time does exactly that. It sets a <strong>timer</strong> and returns at once; when the time comes, the message arrives like any other:</p>
+<figure class="example" id="ex-timers-send" data-run="output" data-wait="1">
+<pre class="code"><code>on ring pTimes
+   put "Ring!" &amp;&amp; pTimes &amp;&amp; "times"
+end ring
+
+send "ring 3" to me in 300 milliseconds
+put "The timer is set."</code></pre>
+<pre class="out">The timer is set.
+Ring! 3 times</pre>
+</figure>
+<p>The message is text, so the values for its parameters go after its name, as you would type them: here <code>3</code>. To pass a value from a variable, join it in: <code>send "ring" &amp;&amp; tCount to me in 1 second</code>.</p>
+
+<h2 id="again">Again and again</h2>
+<p>A handler that sets a timer for itself runs again and again: this is how a clock ticks, a game moves, or a program checks for new mail. Give it a way to stop, or it goes on until the stack closes:</p>
+<figure class="example" id="ex-timers-repeat" data-run="output" data-wait="2">
+<pre class="code"><code>local sCount
+
+on countUp
+   add 1 to sCount
+   put "count" &amp;&amp; sCount
+   if sCount &lt; 5 then
+      send "countUp" to me in 100 milliseconds
+   end if
+end countUp
+
+put 0 into sCount
+countUp</code></pre>
+<pre class="out">count 1
+count 2
+count 3
+count 4
+count 5</pre>
+</figure>
+<p>Unlike a <code>repeat</code> loop, a handler that sends itself lets everything else happen between its runs: clicks are answered, fields can be typed in, and other timers fire. It is the right shape for anything that goes on over time.</p>
+<aside class="tip"><p>Keep what a timer handler needs in script locals, as <code>sCount</code> here: a handler's own variables are gone when it ends, and the next run starts again with none.</p></aside>
+
+<h2 id="pending">Timers still to come: cancel</h2>
+<p><code>send ... in</code> leaves the timer's id in <code>the result</code>. <code>the pendingMessages</code> lists every timer still to fire, a line each (its id, when it fires, the message and where it goes), and <code>cancel</code> stops one by its id:</p>
+<figure class="example" id="ex-timers-cancel" data-run="output" data-wait="1">
+<pre class="code"><code>on alarm
+   put "alarm!"
+end alarm
+
+on nudge
+   put "the nudge arrived"
+end nudge
+
+send "alarm" to me in 5 seconds
+put the result into tAlarmID
+send "nudge" to me in 200 milliseconds
+put the pendingMessages into tPending
+filter tPending with "*,alarm,*"
+put the number of lines of tPending
+cancel tAlarmID
+put the pendingMessages into tPending
+filter tPending with "*,alarm,*"
+put the number of lines of tPending</code></pre>
+<pre class="out">1
+0
+the nudge arrived</pre>
+</figure>
+<p>The IDE has timers of its own, which is why the example filters the list to its own message. A program that stops (a game that ends, a window that closes) should cancel its timers, so none fires into something that is no longer there:</p>
+<figure class="example" id="ex-timers-cancel-all" data-run="compile">
+<pre class="code"><code>on closeCard
+   repeat for each line tLine in the pendingMessages
+      if item 3 of tLine is "countUp" then
+         cancel item 1 of tLine
+      end if
+   end repeat
+end closeCard</code></pre>
+</figure>
+
+<h2 id="measure">Measuring time</h2>
+<p><code>the milliseconds</code> counts thousandths of a second, and <code>the seconds</code> whole seconds, both from a fixed moment long ago. One reading means little; the difference between two is a length of time:</p>
+<figure class="example" id="ex-timers-measure" data-run="runs">
+<pre class="code"><code>put the milliseconds into tStart
+repeat 100000 times
+   add 1 to tCount
+end repeat
+put "That took" &amp;&amp; the milliseconds - tStart &amp;&amp; "ms"</code></pre>
+<pre class="out">That took 21 ms</pre>
+</figure>
+<p>The number depends on the computer, so the example's Output is only one run's. <a href="../performance/">Making code fast</a> uses this to compare two ways of doing the same thing.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a countdown: a handler <code>countDown</code> that puts its number, then sends itself the number one less, 200 milliseconds later, and puts <code>Go!</code> when it reaches 0. Start it from 3.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-timers-try" data-run="output" data-wait="2">
+<pre class="code"><code>on countDown pFrom
+   if pFrom &gt; 0 then
+      put pFrom
+      send "countDown" &amp;&amp; pFrom - 1 to me in 200 milliseconds
+   else
+      put "Go!"
+   end if
+end countDown
+
+countDown 3</code></pre>
+<pre class="out">3
+2
+1
+Go!</pre>
+</figure>
+</details>
+</section>

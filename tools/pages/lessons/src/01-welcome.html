@@ -1,0 +1,69 @@
+<!--
+title: Welcome to xTalk
+level: beginner
+minutes: 6
+summary: What xTalk is, where scripts live, and how to run your very first line.
+words: put, on, end, mouseUp, answer
+-->
+<h2 id="what-is-xtalk">What is xTalk?</h2>
+<p>xTalk is a family of programming languages that read almost like English. It began in 1987 with HyperTalk, the language of Apple's HyperCard, which let teachers, artists and shopkeepers build their own programs. It lives on in LiveCode, OpenXTalk and OXT-Beyond, which is free and runs on Windows, macOS, Linux and in your browser.</p>
+<p>Here is a whole xTalk program. Even if you have never programmed, you can probably guess what it does:</p>
+<figure class="example" id="ex-welcome-guess" data-run="output">
+<pre class="code"><code>put "The total is" &amp;&amp; 12 + 30</code></pre>
+<pre class="out">The total is 42</pre>
+</figure>
+<p>It works out 12 plus 30, joins the answer to some words, and shows the result. That is the idea behind xTalk: you spend your time on what you want the computer to do, not on punctuation.</p>
+
+<h2 id="stacks-and-scripts">Stacks, cards and scripts</h2>
+<p>An xTalk program is called a <strong>stack</strong>. A stack is a window, and it holds one or more <strong>cards</strong>, like a stack of index cards. On each card you place <strong>controls</strong>: buttons, text fields, pictures, menus and so on. You drag them onto the card from the <strong>Tools palette</strong> and arrange them with the mouse, much as you would in a drawing program, then set their colours, words and names in the <strong>Property Inspector</strong>. You do not need a line of code to lay out a window.</p>
+<p>Every object, from a button to the stack itself, can have a <strong>script</strong>: the xTalk that says what it does. A button's script usually waits for a click:</p>
+<figure class="example" id="ex-welcome-button" data-run="compile">
+<pre class="code"><code>on mouseUp
+   answer "Hello from Beyond!"
+end mouseUp</code></pre>
+</figure>
+<p>When you click the button and let go, xTalk sends it the message <code>mouseUp</code>. The script has a <strong>handler</strong> for that message (everything from <code>on mouseUp</code> to <code>end mouseUp</code>), so its lines run: <code>answer</code> shows a little dialog with the words in quotes. You will meet handlers and messages properly in later lessons, and drag out a button and give it a script like this one in <a href="../stacks-cards-controls/#first-script">Stacks, cards and controls</a>; for now, notice how readable it is.</p>
+<aside class="legacy"><p>A HyperCard stack from the 1990s used the same words: <code>on mouseUp</code>, <code>answer</code>, <code>put</code>. OXT-Beyond still understands them, and can even open old HyperCard stacks (File &gt; Import Stack &gt; HyperCard Stack).</p></aside>
+
+<h2 id="first-line">Your first line</h2>
+<p>The first command most people learn is <code>put</code>. With nothing after it, <code>put</code> shows a value. Text goes inside double quotes; numbers do not need them.</p>
+<figure class="example" id="ex-welcome-first" data-run="output">
+<pre class="code"><code>put "Hello, world!"
+put 2026
+put 7 * 6</code></pre>
+<pre class="out">Hello, world!
+2026
+42</pre>
+</figure>
+<p>The program runs from the top, one line at a time. Each line is one instruction, which xTalk calls a <strong>statement</strong>.</p>
+
+<h2 id="where-to-run">Where to run the examples</h2>
+<p>You can try every example in these lessons yourself, in OXT-Beyond. The bar on top of each one says where it goes:</p>
+<ul>
+<li><strong>Example: run it in the playground.</strong> Choose <kbd>Help &gt; xTalk Academy</kbd>. The playground on the right of the window runs whatever you type when you press <strong>Run</strong> (or <kbd>Ctrl</kbd>+<kbd>Enter</kbd>), and shows every <code>put</code> on a line of its own in the Output, exactly as the lessons do. The first part of the course, about values, text and handlers, happens here.</li>
+<li><strong>Build it: your own stack.</strong> From the lesson <a href="../stacks-cards-controls/">Stacks, cards and controls</a> on, you build a card of your own, the way most xTalk programs are made: choose <kbd>File &gt; New Stack &gt; Default Size</kbd>, drag controls from the Tools palette (<kbd>Tools &gt; Tools Palette</kbd>) onto the card, and name them in the Property Inspector (double-click a control). A box marked <strong>Build it</strong> lists the steps.</li>
+<li><strong>Message Box: lines to type.</strong> Choose <kbd>Tools &gt; Message Box</kbd>, type a line and press <kbd>Return</kbd>: it runs at once, on the card in front. A <code>put</code> shows its value there, and each one replaces the last, so these examples show what each <code>put</code> shows, in turn.</li>
+<li><strong>Script: what an object does.</strong> In Edit mode (the arrow at the top of the Tools palette), select the object and choose <kbd>Object &gt; Object Script</kbd>, or right-click it and choose <strong>Edit Script</strong>. Paste the script and press <strong>Apply</strong>. Then click <strong>Run</strong> (the hand) at the top of the Tools palette, and click the object.</li>
+</ul>
+<aside class="tip"><p>Nothing you type in the playground can harm your computer or your files, and the Academy keeps your work between visits. Experiment freely: change a number, run it again, see what happens. Save your own stack with <kbd>File &gt; Save</kbd> to keep it.</p></aside>
+
+<h2 id="reading-the-lessons">How to read the lessons</h2>
+<p>Each example has a bar on top that says what it is, and a <strong>Copy</strong> button. Under it, <strong>Output</strong> shows exactly what the playground shows when you run it, and <strong>Message Box</strong> what the Message Box shows. The lessons are checked by running every example on the OXT-Beyond engine (on a card built as the steps say, for the ones on your own card), so what you see here is what you get.</p>
+<p>Some examples are mistakes on purpose, so that you know what an error looks like. This one asks xTalk to add 1 to a word, which has no number value:</p>
+<figure class="example" id="ex-welcome-mistake" data-run="error" data-line="1">
+<pre class="code"><code>put "ten" + 1</code></pre>
+</figure>
+<p>The playground stops, highlights the line, and explains what went wrong in plain words. Errors are normal: every programmer meets several an hour. The lesson <a href="../debugging/">Debugging</a> is all about finding and fixing them.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Open the playground and make the Output show your name on the first line and your favourite number on the second.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-welcome-try" data-run="output">
+<pre class="code"><code>put "Ada"
+put 7</code></pre>
+<pre class="out">Ada
+7</pre>
+</figure>
+</details>
+</section>

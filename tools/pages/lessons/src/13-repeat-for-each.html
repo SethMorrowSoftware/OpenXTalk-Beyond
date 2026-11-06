@@ -1,0 +1,83 @@
+<!--
+title: Repeat for each
+level: beginner
+minutes: 8
+summary: Walk through every character, word, item or line of a value, the fastest and clearest loop in xTalk.
+words: repeat for each, char, word, item, line, key, element
+-->
+<h2 id="each">One piece at a time</h2>
+<p>Very often you want to do something with every part of a value: each word of a sentence, each line of a list. <code>repeat for each</code> hands you the parts one by one, in a variable you name.</p>
+<figure class="example" id="ex-each-word" data-run="output">
+<pre class="code"><code>repeat for each word tWord in "the quick brown fox"
+   put tWord &amp;&amp; "has" &amp;&amp; the number of chars of tWord &amp;&amp; "letters"
+end repeat</code></pre>
+<pre class="out">the has 3 letters
+quick has 5 letters
+brown has 5 letters
+fox has 3 letters</pre>
+</figure>
+
+<h2 id="chars">Every character</h2>
+<p>Counting vowels, and turning a word round, one character at a time:</p>
+<figure class="example" id="ex-each-char" data-run="output">
+<pre class="code"><code>put 0 into tVowels
+repeat for each char tChar in "programming is fun"
+   if tChar is among the chars of "aeiou" then add 1 to tVowels
+end repeat
+put tVowels &amp;&amp; "vowels"
+repeat for each char tChar in "stressed"
+   put tChar before tBackwards
+end repeat
+put tBackwards</code></pre>
+<pre class="out">5 vowels
+desserts</pre>
+</figure>
+
+<h2 id="items-and-lines">Items and lines</h2>
+<p>An <strong>item</strong> is a piece of a list separated by commas; a <strong>line</strong> is a piece separated by new lines. Both are everywhere in xTalk: the <a href="../chunks/">next lesson</a> is about them. Looping over them is how you work through a list:</p>
+<figure class="example" id="ex-each-item" data-run="output">
+<pre class="code"><code>put 0 into tTotal
+repeat for each item tPrice in "2.50,3.75,1.25"
+   add tPrice to tTotal
+end repeat
+put "Total:" &amp;&amp; tTotal
+put "Ada,36" &amp; return &amp; "Grace,85" into tPeople
+repeat for each line tPerson in tPeople
+   put item 1 of tPerson &amp;&amp; "is" &amp;&amp; item 2 of tPerson
+end repeat</code></pre>
+<pre class="out">Total: 7.5
+Ada is 36
+Grace is 85</pre>
+</figure>
+
+<h2 id="why">Why it is the best loop for a list</h2>
+<p>You could write the same with <code>repeat with i = 1 to the number of lines of tList</code> and <code>line i of tList</code>, but for a long list that is much slower: to find line 5,000, xTalk has to count through the 4,999 before it, every time. <code>repeat for each</code> walks the list once. On a list of thousands of lines the difference is seconds against a blink.</p>
+<aside class="warn"><p>Do not change the value you are looping over inside the loop. Build the result in a second variable instead, as the examples above do.</p></aside>
+
+<h2 id="keys">Arrays: each key, each element</h2>
+<p>The same loop works on arrays, which you will meet in <a href="../arrays/#each-key">Arrays</a>: <code>repeat for each key tKey in tArray</code> gives each key, and <code>repeat for each element tValue in tArray</code> each value.</p>
+<figure class="example" id="ex-each-element" data-run="output">
+<pre class="code"><code>put 12 into tScores["Ada"]
+put 30 into tScores["Grace"]
+put 0 into tTotal
+repeat for each element tScore in tScores
+   add tScore to tTotal
+end repeat
+put tTotal</code></pre>
+<pre class="out">42</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Make the initials of a name: put the first character of each word of <code>Grace Brewster Murray Hopper</code> after a variable, and put it.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-each-try" data-run="output">
+<pre class="code"><code>put empty into tInitials
+repeat for each word tWord in "Grace Brewster Murray Hopper"
+   put char 1 of tWord after tInitials
+end repeat
+put tInitials</code></pre>
+<pre class="out">GBMH</pre>
+</figure>
+</details>
+</section>

@@ -1,0 +1,146 @@
+<!--
+title: Text tools
+level: extensions
+minutes: 10
+summary: Three libraries for everyday text work: Diff to see what changed between two versions and apply the change, GetOpt to read a command line's options, and MIME for file types, email encodings and whole emails.
+words: DiffCompare, DiffPatch, DiffCompareFiles, GetOpt, the commandArguments, mimeTheMIMETypeOfExtension, mimeTheExtensionsOfMIMEType, mimeEncodeForMIMETransfer, mimeEncodeAsMIMEEmail
+-->
+<h2 id="diff">What changed: Diff</h2>
+<p>Two versions of a text, a note before and after someone edited it, look alike but differ somewhere. The <strong>Diff</strong> library finds where. <code>DiffCompare</code> takes the old text, the new text and how many unchanged lines of <strong>context</strong> to show around each change, and gives back a <strong>diff</strong>: a line starting with <code>-</code> was taken out, one starting with <code>+</code> was put in, and one starting with a space is context, unchanged:</p>
+<figure class="example" id="ex-diff-compare" data-run="output" data-needs="com.livecode.library.diff">
+<pre class="code"><code>put "apples" &amp; return &amp; "bread" &amp; return &amp; "milk" &amp; return into tOld
+put "apples" &amp; return &amp; "butter" &amp; return &amp; "milk" &amp; return &amp; "tea" &amp; return into tNew
+put DiffCompare(tOld, tNew, 1) into tChange
+put line 1 to -1 of tChange</code></pre>
+<pre class="out">@@ -1,3 +1,4 @@
+ apples
+-bread
++butter
+ milk
++tea</pre>
+</figure>
+<p>This is the <strong>unified diff</strong> format that programmers' tools such as <code>git</code> use, so a diff made here can be read there. The <code>@@</code> line says where the change sits: lines 1 to 3 of the old text became lines 1 to 4 of the new one. Each line here ends with a <code>return</code>, as the lines of a text file do; a last line without one is told apart with a line <code>\ No newline at end of file</code>, so it shows as changed when a line is added after it. The diff's own lines end with a <code>return</code> too, and <code>line 1 to -1 of</code> leaves off the last one, so the Message Box shows no empty line after it.</p>
+<p>A diff is also a recipe. <code>DiffPatch</code> applies one to the old text and gives the new text, so a program can keep the first version and the small diffs after it, rather than every version whole:</p>
+<figure class="example" id="ex-diff-patch" data-run="output" data-needs="com.livecode.library.diff">
+<pre class="code"><code>put "apples" &amp; return &amp; "bread" &amp; return &amp; "milk" into tOld
+put "apples" &amp; return &amp; "butter" &amp; return &amp; "milk" &amp; return &amp; "tea" into tNew
+put DiffCompare(tOld, tNew, 1) into tChange
+put DiffPatch(tOld, tChange) is tNew
+put DiffCompare(tOld, tOld, 1) is empty</code></pre>
+<pre class="out">true
+true</pre>
+</figure>
+<p>Two texts that are the same give an empty diff, which is a quick way to ask "did anything change?". <code>DiffCompareFiles</code> does the same as <code>DiffCompare</code> with two file paths, reading the files for you.</p>
+<p>Because every changed line starts with its sign, a script can count the changes, or show them in colour:</p>
+<figure class="example" id="ex-diff-count" data-run="output" data-needs="com.livecode.library.diff">
+<pre class="code"><code>put "one" &amp; return &amp; "two" &amp; return &amp; "three" &amp; return &amp; "four" into tOld
+put "one" &amp; return &amp; "2" &amp; return &amp; "three" &amp; return &amp; "4" &amp; return &amp; "five" into tNew
+put 0 into tAdded
+put 0 into tRemoved
+repeat for each line tLine in DiffCompare(tOld, tNew, 0)
+   if tLine begins with "@@" or tLine begins with "---" or tLine begins with "+++" then next repeat
+   if char 1 of tLine is "+" then add 1 to tAdded
+   if char 1 of tLine is "-" then add 1 to tRemoved
+end repeat
+put tAdded &amp;&amp; "added," &amp;&amp; tRemoved &amp;&amp; "removed"</code></pre>
+<pre class="out">3 added, 2 removed</pre>
+</figure>
+<p>A changed line counts as one taken out and one put in, which is how diffs see the world: <code>two</code> did not become <code>2</code>, it was removed and <code>2</code> was added in its place.</p>
+
+<h2 id="getopt">A command line's options: GetOpt</h2>
+<p>A program run from a terminal is given its settings as <strong>options</strong> after its name: <code>report -v --output=summary.txt notes.txt</code>. Short options are a dash and a letter (<code>-v</code>), long ones two dashes and a word (<code>--verbose</code>), and what is left, here <code>notes.txt</code>, are the <strong>arguments</strong>. <code>GetOpt</code> sorts them out. Its first parameter, the <strong>grammar</strong>, lists the options it should know, separated by spaces, each with its other names before it after commas; a <code>=</code> at the end means that option takes a value:</p>
+<figure class="example" id="ex-getopt" data-run="output" data-needs="com.livecode.library.getopt">
+<pre class="code"><code>local tCommandLine
+put "-v" into tCommandLine[1]
+put "--output=summary.txt" into tCommandLine[2]
+put "notes.txt" into tCommandLine[3]
+
+put GetOpt("v,verbose o,output=", tCommandLine) into tParsed
+put tParsed["options"] into tOptions
+put "verbose" is among the keys of tOptions
+put tOptions["output"]
+put tParsed["arguments"][1]
+put the number of elements in tParsed["errors"]</code></pre>
+<pre class="out">true
+summary.txt
+notes.txt
+0</pre>
+</figure>
+<p>The answer is an array of three: <code>options</code>, keyed by each option's last name in the grammar, however it was written; <code>arguments</code>, numbered; and <code>errors</code>. <code>-o summary.txt</code>, <code>-osummary.txt</code> and <code>--output summary.txt</code> all mean the same, and short options can share one dash: <code>-hv</code> is <code>-h -v</code>.</p>
+<p>A real program leaves out the second parameter, and <code>GetOpt</code> reads <code>the commandArguments</code>, the words the program was started with. Anything it cannot make sense of goes into <code>errors</code>, a message each, so a program can say what is wrong and stop:</p>
+<figure class="example" id="ex-getopt-errors" data-run="output" data-needs="com.livecode.library.getopt">
+<pre class="code"><code>local tCommandLine
+put "-x" into tCommandLine[1]
+put "--output" into tCommandLine[2]
+
+put GetOpt("v,verbose o,output=", tCommandLine) into tParsed
+put the number of elements in tParsed["errors"]
+put tParsed["errors"][1]
+put tParsed["errors"][2]</code></pre>
+<pre class="out">2
+Unknown option '-x'
+Missing argument for 'output' option</pre>
+</figure>
+<aside class="tip"><p>A <code>--</code> on its own ends the options: everything after it is an argument, even a file that happens to be called <code>--help</code>. That is the same rule every Unix tool follows, so people who use terminals will expect it.</p></aside>
+
+<h2 id="mime">File types and email: MIME</h2>
+<p>The MIME library, met in <a href="../using-extensions/">Using extensions</a>, knows the <strong>MIME type</strong> of each kind of file, the label a web server or an email gives it. It also works the other way, from a type to the file endings that have it:</p>
+<figure class="example" id="ex-mime-types" data-run="output" data-needs="com.livecode.library.mime">
+<pre class="code"><code>put mimeTheMIMETypeOfExtension("jpg")
+put mimeTheMIMETypeOfExtension("JSON")
+put mimeTheExtensionsOfMIMEType("image/jpeg")</code></pre>
+<pre class="out">image/jpeg
+application/json
+jpe
+jpeg
+jpg</pre>
+</figure>
+<p>An email can carry only plain letters, digits and a few signs, so anything else is <strong>encoded</strong> first. <code>mimeEncodeForMIMETransfer</code> does both of email's encodings: <code>quoted-printable</code>, which leaves plain letters alone and writes the rest as <code>=</code> and two hex digits, and <code>base64</code>, which turns any bytes into letters. Text is encoded as UTF-8 first:</p>
+<figure class="example" id="ex-mime-encode" data-run="output" data-needs="com.livecode.library.mime">
+<pre class="code"><code>put mimeEncodeForMIMETransfer("Café au lait", "quoted-printable")
+put mimeEncodeForMIMETransfer("Café au lait", "base64")</code></pre>
+<pre class="out">Caf=C3=A9 au lait
+Q2Fmw6kgYXUgbGFpdA==</pre>
+</figure>
+<p><code>mimeEncodeAsMIMEEmail</code> builds a whole email, headers, body and attachments, and puts it in <code>it</code>, ready to hand to a mail server. Each attachment is an element of an array, with its <code>name</code> and its <code>data</code> (or a <code>filepath</code>), and its type comes from its name:</p>
+<figure class="example" id="ex-mime-email" data-run="output" data-needs="com.livecode.library.mime">
+<pre class="code"><code>local tAttachments
+put "notes.txt" into tAttachments[1]["name"]
+put "Bring the map." into tAttachments[1]["data"]
+put mimeEncodeForMIMETransfer("See you at noon.", "quoted-printable") into tBody
+mimeEncodeAsMIMEEmail tBody, "ada@example.com", "grace@example.com", empty, "Lunch", tAttachments
+put it into tEmail
+
+repeat for each line tLine in tEmail
+   if tLine begins with "From:" or tLine begins with "To:" or tLine begins with "Subject:" then put tLine
+end repeat
+put "notes.txt" is in tEmail
+put "text/plain" is in tEmail</code></pre>
+<pre class="out">From: ada@example.com
+To: grace@example.com
+Subject: Lunch
+true
+true</pre>
+</figure>
+<p>Sending it is another job, for a mail server and its password; the IDE's <code>tsNet</code> library can do it, as the Dictionary's page for <code>mimeEncodeAsMIMEEmail</code> shows. Never put a mail password in a stack you give away.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a function <code>changedLines</code> that takes two versions of a text and returns just the new lines that were put in, without their <code>+</code>, a line each. Use <code>DiffCompare</code> with no context.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-text-tools-try" data-run="output" data-needs="com.livecode.library.diff">
+<pre class="code"><code>function changedLines pOld, pNew
+   local tAdded, tLine
+   repeat for each line tLine in DiffCompare(pOld, pNew, 0)
+      if tLine begins with "+++" then next repeat
+      if char 1 of tLine is "+" then put char 2 to -1 of tLine &amp; return after tAdded
+   end repeat
+   return line 1 to -1 of tAdded
+end changedLines
+
+put changedLines("red" &amp; return &amp; "green", "red" &amp; return &amp; "blue" &amp; return &amp; "gold")</code></pre>
+<pre class="out">blue
+gold</pre>
+</figure>
+</details>
+</section>

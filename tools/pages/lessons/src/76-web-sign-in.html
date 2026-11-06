@@ -1,0 +1,170 @@
+<!--
+title: Signing in to web services
+level: extensions
+minutes: 12
+summary: Let people sign your program in to a web service with OAuth2, send the access token it gives with each request, refresh it when it runs out, use Dropbox, and check that a message a service sends you is really from it.
+words: OAuth2, OAuth2Refresh, the httpHeaders, Authorization, dropboxListFolder, dropboxUpload, dropboxDownload, messageAuthenticationCode, httpdStart
+-->
+<h2 id="oauth2">Signing in without a password: OAuth2</h2>
+<p>A program that reads someone's files on Dropbox, or posts to their team's Slack, needs their permission, but should never see their password. <strong>OAuth2</strong> is how almost every web service handles this. Your program opens the service's own sign-in page; the person signs in there and agrees to what your program asks for, its <strong>scopes</strong>; and the service gives your program an <strong>access token</strong>, a long random string that stands for that permission and nothing more. The person can take it back at any time from the service's settings.</p>
+<p>First you register your program with the service, on its developer pages. It gives you a <strong>client id</strong> and a <strong>client secret</strong>, and the addresses of its sign-in page and its token page. You also give it a <strong>redirect address</strong>, where the sign-in page sends the person when they are done: for a desktop program it is <code>http://127.0.0.1:</code> and a port, because the OAuth2 library listens there itself. Then one command does the whole dance:</p>
+<figure class="example" id="ex-auth-oauth" data-run="compile" data-needs="com.livecode.library.oauth2">
+<pre class="code"><code>constant kAuthURL = "https://www.dropbox.com/oauth2/authorize"
+constant kTokenURL = "https://api.dropboxapi.com/oauth2/token"
+constant kClientID = "your client id"
+constant kClientSecret = "your client secret"
+
+on mouseUp
+   local tAuth
+   OAuth2 kAuthURL, kTokenURL, kClientID, kClientSecret, empty, 54303
+   if the result is not empty then
+      answer error "Not signed in:" &amp;&amp; the result
+      exit mouseUp
+   end if
+   put it into tAuth
+   set the cAccessToken of this stack to tAuth["access_token"]
+   set the cRefreshToken of this stack to tAuth["refresh_token"]
+   answer "Signed in."
+end mouseUp</code></pre>
+</figure>
+<p><code>OAuth2</code> shows the sign-in page in a window of its own and waits. When the person is done, <code>it</code> is an array of what the token page sent: <code>access_token</code>, and often <code>refresh_token</code> and <code>expires_in</code>, the seconds the access token lasts. If they close the window or say no, <code>the result</code> says so. The port, 54303 here, must match the redirect address you registered; one from 49152 to 65535 is unlikely to be in use.</p>
+<aside class="warn"><p>Anyone who has your client secret can pretend to be your program. Do not put it in a stack you give away unprotected: put it in a script of a password-protected stack, or ask each person to register the program themselves and type in their own id and secret. And keep tokens as you would passwords: anyone holding one has the permission it stands for.</p></aside>
+
+<h2 id="token">Using the token</h2>
+<p>With each request to the service, send the token in an <code>Authorization</code> header, as <code>Bearer</code> and the token. A service answers a request without a good token with status 401. Here a small server of our own (<a href="../web-server/">A web server of your own</a>) plays the part of the service:</p>
+<figure class="example" id="ex-auth-bearer" data-run="output" data-needs="com.livecode.library.httpd">
+<pre class="code"><code>on serve pSocket, pRequest
+   if pRequest["headers"]["Authorization"] is "Bearer sl.abc123" then
+      httpdResponse pSocket, 200, "Your files: notes.txt, photo.jpg"
+   else
+      httpdResponse pSocket, 401, "Sign in first"
+   end if
+end serve
+
+httpdStart "serve", 0
+put "http://127.0.0.1:" &amp; it &amp; "/files" into tFiles
+get URL tFiles
+put the result
+set the httpHeaders to "Authorization: Bearer sl.abc123"
+put URL tFiles
+set the httpHeaders to empty
+httpdStop</code></pre>
+<pre class="out">error 401 Unauthorized
+Your files: notes.txt, photo.jpg</pre>
+</figure>
+<p><code>the httpHeaders</code> goes with every request after it is set, so set it back to empty when you are done, or the token goes to every server you ask for anything.</p>
+
+<h2 id="refresh">When the token runs out</h2>
+<p>An access token usually lasts hours, not months. When the service starts answering 401, the <strong>refresh token</strong> gets a new one without asking the person again: <code>OAuth2Refresh</code> takes the token page, your id and secret, the refresh token and the port, and puts a new array in <code>it</code>:</p>
+<figure class="example" id="ex-auth-refresh" data-run="compile" data-needs="com.livecode.library.oauth2">
+<pre class="code"><code>constant kTokenURL = "https://api.dropboxapi.com/oauth2/token"
+constant kClientID = "your client id"
+constant kClientSecret = "your client secret"
+
+function fetchWithToken pURL
+   local tPage, tAuth
+   set the httpHeaders to "Authorization: Bearer" &amp;&amp; the cAccessToken of this stack
+   put URL pURL into tPage
+   if the result contains "401" then
+      OAuth2Refresh kTokenURL, kClientID, kClientSecret, the cRefreshToken of this stack, 54303
+      if the result is empty then
+         put it into tAuth
+         set the cAccessToken of this stack to tAuth["access_token"]
+         set the httpHeaders to "Authorization: Bearer" &amp;&amp; tAuth["access_token"]
+         put URL pURL into tPage
+      end if
+   end if
+   set the httpHeaders to empty
+   return tPage
+end fetchWithToken</code></pre>
+</figure>
+<p>If the refresh fails too, the person has taken the permission back, or the refresh token has run out as well, and only signing in again with <code>OAuth2</code> will do.</p>
+
+<h2 id="dropbox">Dropbox</h2>
+<p>The Dropbox library wraps Dropbox's whole API, a command for each thing it can do: <code>dropboxListFolder</code>, <code>dropboxUpload</code>, <code>dropboxDownload</code>, <code>dropboxCreateFolder</code>, <code>dropboxMove</code>, <code>dropboxDelete</code>, sharing links and more. Each takes the access token first. With no callback it waits for the answer, which is JSON in <code>it</code>, encoded as UTF-8:</p>
+<figure class="example" id="ex-auth-dropbox" data-run="compile" data-needs="com.livecode.library.dropbox com.livecode.library.json">
+<pre class="code"><code>function dropboxNames pToken, pFolder
+   local tList, tEntry, tNames
+   dropboxListFolder pToken, pFolder, false, false
+   if the result is not empty then
+      return "error:" &amp;&amp; the result
+   end if
+   put JSONImport(textDecode(it, "UTF-8")) into tList
+   repeat for each element tEntry in tList["entries"]
+      put tEntry["name"] &amp; return after tNames
+   end repeat
+   return line 1 to -1 of tNames
+end dropboxNames
+
+command saveNote pToken, pText
+   dropboxUpload pToken, "/Notes/today.txt", "overwrite", false, false, textEncode(pText, "UTF-8")
+end saveNote</code></pre>
+</figure>
+<p>Dropbox paths start with a slash, and the top of the person's Dropbox is the empty path. Register your program in the Dropbox App Console to get its id and secret; its pages also say what each call sends back.</p>
+
+<h2 id="webhooks">Messages from a service: checking the signature</h2>
+<p>Many services can also call <em>you</em>: when something happens, they send a <strong>webhook</strong>, a request to a server of yours. Anyone could send such a request, so the service <strong>signs</strong> each one with an HMAC of its content and a secret you both know (<a href="../hashing-security/#hmac">Hashing and security</a>), in a header. Work out the signature yourself and compare: only a request from the service matches:</p>
+<figure class="example" id="ex-auth-webhook" data-run="output" data-needs="com.livecode.library.httpd com.livecode.library.messageauthentication">
+<pre class="code"><code>constant kSecret = "whsec_our_shared_secret"
+
+function signatureOf pBody
+   local tHex
+   get binaryDecode("H*", messageAuthenticationCode(pBody, kSecret, "HMAC-SHA-256"), tHex)
+   return tHex
+end signatureOf
+
+on serve pSocket, pRequest
+   if pRequest["headers"]["X-Signature"] is signatureOf(pRequest["content"]) then
+      httpdResponse pSocket, 200, "accepted:" &amp;&amp; pRequest["content"]
+   else
+      httpdResponse pSocket, 403, "refused"
+   end if
+end serve
+
+httpdStart "serve", 0
+put "http://127.0.0.1:" &amp; it &amp; "/hook" into tHook
+put "order 1042 paid" into tBody
+set the httpHeaders to "Content-Type: text/plain" &amp; return &amp; "X-Signature:" &amp;&amp; signatureOf(tBody)
+post tBody to URL tHook
+put it
+post "order 1042 refunded" to URL tHook
+put the result
+set the httpHeaders to empty
+httpdStop</code></pre>
+<pre class="out">accepted: order 1042 paid
+error 403 Forbidden</pre>
+</figure>
+<p>The second request carries a real signature, copied from the first, but for a different message, so it is refused. The <code>Content-Type</code> matters too: <code>post</code> sends form data unless told otherwise, and the server library takes form data apart into <code>parameters</code> and leaves <code>content</code> empty, so the signature would be worked out over nothing. Each service says how it signs (which hash, which header, whether a time is mixed in to stop an old message being sent again), so follow its documentation exactly.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>A token array from <code>OAuth2</code> has <code>expires_in</code>, the seconds it lasts from when it was given. Write a command <code>keepToken</code> that stores the array with the moment it arrived, and a function <code>tokenIsFresh</code> that takes that moment and is true while there is more than a minute left, so a program can refresh before a request fails rather than after.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-auth-try" data-run="output">
+<pre class="code"><code>global gAuth
+
+command keepToken pAuth, pNow
+   global gAuth
+   put pAuth into gAuth
+   put pNow into gAuth["obtained"]
+end keepToken
+
+function tokenIsFresh pNow
+   global gAuth
+   return pNow &lt; gAuth["obtained"] + gAuth["expires_in"] - 60
+end tokenIsFresh
+
+local tAuth
+put "sl.abc123" into tAuth["access_token"]
+put 14400 into tAuth["expires_in"]
+keepToken tAuth, 1000000
+put tokenIsFresh(1000000)
+put tokenIsFresh(1000000 + 14000)
+put tokenIsFresh(1000000 + 14400)</code></pre>
+<pre class="out">true
+true
+false</pre>
+</figure>
+<p>A real program passes <code>the seconds</code> as the moment; passing it in as a parameter, as here, lets you test the function with any moment you like.</p>
+</details>
+</section>

@@ -129,6 +129,11 @@ jobs:
           path: ${{ runner.temp }}/package
 
       - name: Install and start it as on a Pi
+        env:
+          # On a pull request the package is the newest from main, built
+          # before the change under review: windows that come and go while
+          # it starts are reported, not failed (tools/ci/linux_ide_start.sh)
+          OXT_GHOST_WINDOWS: ${{ github.event_name == 'pull_request' && 'warn' || 'error' }}
         run: |
           package=$(bash -c 'source tools/ci/pi_os_check.sh; package_tarball "$1"' x "$RUNNER_TEMP/package")
           [ -n "$package" ] || { ls -l "$RUNNER_TEMP/package"; exit 1; }
@@ -211,12 +216,14 @@ jobs:
       - name: Install and start it as on a ${{ matrix.board }}
         env:
           CPU: ${{ matrix.cpu }}
+          # as in the native jobs: a warning on a pull request
+          OXT_GHOST_WINDOWS: ${{ github.event_name == 'pull_request' && 'warn' || 'error' }}
         run: |
           package=$(bash -c 'source tools/ci/pi_os_check.sh; package_tarball "$1"' x "$RUNNER_TEMP/package")
           [ -n "$package" ] || { ls -l "$RUNNER_TEMP/package"; exit 1; }
           mkdir -p "$RUNNER_TEMP/out"
           docker run --rm --platform linux/arm64 --ulimit core=0 \
-            -e QEMU_CPU="$CPU" \
+            -e QEMU_CPU="$CPU" -e OXT_GHOST_WINDOWS="$OXT_GHOST_WINDOWS" \
             -v "$GITHUB_WORKSPACE:/src:ro" -v "$(dirname "$package"):/package:ro" -v "$RUNNER_TEMP/out:/out" \
             debian:bookworm \
             bash /src/tools/ci/pi_os_check.sh "/package/$(basename "$package")" /out 360

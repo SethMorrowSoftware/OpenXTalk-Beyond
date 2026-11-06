@@ -74,7 +74,7 @@ would: every script library (the Data Grid, Animation, Geometry, Internet,
 Printing, Table, XML-RPC), the externals the web engine has (revXML,
 revZip, revDB with SQLite, revSpeech) and every widget and library
 extension whose platforms include the web. A stack's files go into the
-browser's storage for the site (`/livecode/Documents/Stack Player`), so
+browser's storage for the site (`/openxtalk/Documents/Stack Player`), so
 the list, and whatever the stacks saved, are still there on the next
 visit. A stack finds the files that came with it (opened with it, in its
 folder, or in its `.zip`) as it would on the desktop: by paths relative to
@@ -191,7 +191,8 @@ tab bar a thumb can reach (Home, List, Form, Gestures, Phone), a swipe
 left or right to change tab, a list that scrolls with a finger, a form
 that stays above the on-screen keyboard, a pad (a group with its own
 `swipe`, `pinch`, `longPress` and touch handlers, which draw a ring under
-each finger) for gestures, and a Phone card that takes a photo, shares,
+each finger; a pinch sizes the dot round its centre and moves it with the
+fingers) for gestures, and a Phone card that takes a photo, shares,
 finds where the phone is, rolls a ball as it tilts, keeps the screen on
 and hides the browser's bars. One line, `mwStart`,
 makes it a phone stack: in a page of its own (an HTML5 standalone) it

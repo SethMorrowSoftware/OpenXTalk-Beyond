@@ -886,6 +886,35 @@ jobs:
           VERSION: ${{ steps.product.outputs.version }}
         run: python tools/ci/ui_tour.py --install "dist/stage/OXT-Beyond-$env:VERSION" --platform win-x86_64 --script tools/ci/everyday-tasks.livecodescript --timeout 900 --appearance dark --out "$env:RUNNER_TEMP\build-logs\ui-tour\everyday-dark"
 
+      # The IDE as a user starts it, with no document, watched from before
+      # it starts for windows that showed and were taken away again: "ghost
+      # windows" (LittleNemo, openxtalk.org p=25967; the splash is meant to
+      # go). tools/ci/startup_windows.py hears each top-level window of the
+      # IDE's process shown, hidden and destroyed for 60 seconds, then stops
+      # the IDE; it fails on a ghost and on an IDE that ended by itself. On
+      # Linux tools/ci/linux_ide_start.sh, on macOS tools/ci/mac_ide_start.sh
+      # do the same. After the tours, so neither starts on what this left.
+      - name: Start the IDE
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        timeout-minutes: 5
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: |
+          $log = "$env:RUNNER_TEMP\build-logs\ide-start\startup-windows.txt"
+          New-Item -ItemType Directory -Force -Path (Split-Path $log) | Out-Null
+          $exe = Join-Path (Resolve-Path "dist/stage/OXT-Beyond-$env:VERSION") 'OXT-Beyond.exe'
+          python tools/ci/startup_windows.py --seconds 60 --log $log --launch $exe
+          $status = $LASTEXITCODE
+          if ($status -eq 1) {
+            $ghosts = (Select-String -Path $log -Pattern '^GHOST ' | ForEach-Object { $_.Line.Substring(6) }) -join '; '
+            Write-Output "::error title=IDE start::Windows came and went while the IDE started: $ghosts"
+          } elseif ($status -eq 2) {
+            Write-Output "::error title=IDE start::The IDE ended by itself within 60 seconds of starting"
+          } elseif ($status -ne 0) {
+            Write-Output "::error title=IDE start::The window watcher (tools/ci/startup_windows.py) ended with exit status $status"
+          }
+          exit $status
+
       # For a person to look through: a page with each window light and
       # dark side by side (tools/ci/ui_tour_page.py), uploaded with the
       # snapshots and the tour's lines as an artifact of their own, which
