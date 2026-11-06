@@ -110,7 +110,14 @@ class StartCheckTest(unittest.TestCase):
             self.assertIn('OXT_GHOST_WINDOWS="${OXT_GHOST_WINDOWS:-}"', f.read())
         wf = os.path.join(CI, '..', '..', '.github', 'workflows')
         with open(os.path.join(wf, 'pi-os-check.yml')) as f:
-            self.assertIn("github.event_name == 'pull_request' && 'warn' || 'error'", f.read())
+            pi_wf = f.read()
+        # every job that runs pi_os_check.sh sets it: the native jobs and
+        # the QEMU jobs, which pass it into their container
+        runs = pi_wf.count('bash /src/tools/ci/pi_os_check.sh "') + \
+            pi_wf.count('bash tools/ci/pi_os_check.sh "$package"')
+        self.assertEqual(runs, 2)
+        self.assertEqual(pi_wf.count("github.event_name == 'pull_request' && 'warn' || 'error'"), runs)
+        self.assertIn('-e OXT_GHOST_WINDOWS="$OXT_GHOST_WINDOWS"', pi_wf)
         for name in ('build-linux.yml', 'build-macos.yml', 'build-windows.yml'):
             with open(os.path.join(wf, name)) as f:
                 self.assertNotIn('OXT_GHOST_WINDOWS', f.read(), name)
