@@ -996,6 +996,14 @@ on ed_close_reopen
    -- stack as edited at any click on a control in Edit mode, as when the
    -- field is selected for the Inspector, so Close first asks to save it,
    -- and the answer is Don't Save, as a person who changed nothing would)
+   -- (the App Browser, kept open to see the stack leave it, below the
+   -- stack's window: over it, it would cover the question asked as a
+   -- sheet of that window, and a click on its buttons would land on the
+   -- browser, as on macOS)
+   if edOpen(kAB) then
+      set the top of stack kAB to the bottom of stack sStack + 40
+      set the left of stack kAB to the left of stack sStack
+   end if
    if sEditedBy is not empty then
       edRecord "INFO close-reopen: the stack is marked as edited since" && sEditedBy & ": Don't Save"
       send "edAnswerWith" && quote & "Don't Save,OK" & quote to me in 300 milliseconds
