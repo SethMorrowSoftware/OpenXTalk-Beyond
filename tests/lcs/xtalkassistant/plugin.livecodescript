@@ -751,6 +751,39 @@ on TestSettingsKeepEverything
    TestAssert "and no tools", not (tBody contains TestQ("tools"))
 end TestSettingsKeepEverything
 
+-- The context length a local model is loaded with: empty unless the user
+-- sets it (so nothing changes for anyone who does not), checked, kept, and
+-- shown again
+on TestSettingsContextLength
+   local tPrefs
+   TestOpenTheWindow "http://127.0.0.1:1"
+   dispatch "xtaSettingsPrepare" to stack kMain with empty
+   TestAssert "the dialog is built", there is a stack kSettings
+   TestAssert "empty unless set", field "Context Length" of stack kSettings is empty
+   TestAssert "the note says what empty means", field "Context Length Note" of stack kSettings contains "empty: as LM Studio loads it"
+   put "100" into field "Context Length" of stack kSettings
+   send "mouseUp 1" to button "Save" of stack kSettings
+   TestDiagnostic field "Result" of stack kSettings
+   TestAssert "too little keeps the dialog open and says why", there is a stack kSettings \
+         and field "Result" of stack kSettings contains "context length"
+   put "lots" into field "Context Length" of stack kSettings
+   send "mouseUp 1" to button "Save" of stack kSettings
+   TestAssert "not a number neither", there is a stack kSettings and field "Result" of stack kSettings contains "context length"
+   put " 16384 " into field "Context Length" of stack kSettings
+   send "mouseUp 1" to button "Save" of stack kSettings
+   dispatch function "xtaSettingsDone" to stack kMain
+   TestAssert "saved", the result is true
+   put xtaTestPrefs() into tPrefs
+   TestAssert "kept", tPrefs["cXTalkAssistant,contextLength"] is 16384
+   dispatch "xtaSettingsPrepare" to stack kMain with empty
+   TestAssert "shown again", field "Context Length" of stack kSettings is 16384
+   put empty into field "Context Length" of stack kSettings
+   send "mouseUp 1" to button "Save" of stack kSettings
+   dispatch function "xtaSettingsDone" to stack kMain
+   put xtaTestPrefs() into tPrefs
+   TestAssert "and emptied again", tPrefs["cXTalkAssistant,contextLength"] is empty
+end TestSettingsContextLength
+
 -- A key pasted in the dialog (where 0.2.5-rc.3's dialog dropped it) is the
 -- one used, the dialog shows only its end afterwards, and Forget Key
 -- forgets it; the other provider's settings are its own
