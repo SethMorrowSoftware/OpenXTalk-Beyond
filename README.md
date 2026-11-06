@@ -1791,7 +1791,7 @@ this repository's sources and checked against the shipped one (it ships
 in a later release); and the runtimes that every package carries for
 the other platforms are rebuilt from this release's engine (#366, #367,
 #369, #370, #372, #373, #374, #375, #376, #377, #379, #380, #381, #382,
-#388, #389, #NNN).
+#388, #389, #392).
 
 The Android bug found last round is still open: an Android app made
 with OXT-Beyond closes when Android makes its screen again without
