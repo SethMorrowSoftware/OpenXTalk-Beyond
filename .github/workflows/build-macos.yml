@@ -879,7 +879,8 @@ jobs:
       # Only what the steps below read: the scripts and their files in
       # tools/ (tools/ci, and the tools/oxt modules they import), the
       # root's version file and sqlite3.h (the versions the checks
-      # expect, run_livecode_check.read_expectations)
+      # expect, run_livecode_check.read_expectations), and the disk image
+      # the IDE screenshots import a HyperCard stack from
       - name: Check out
         uses: actions/checkout@v7
         with:
@@ -887,6 +888,7 @@ jobs:
           sparse-checkout: |
             tools
             thirdparty/libsqlite/include
+            tests/lcs-input-files/hypercard/forks
 
       # A download stalled for 22 minutes once: a time limit, and one more try
       - name: Download the disk image
@@ -1275,6 +1277,7 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             tools
+            tests/lcs-input-files/hypercard/forks
 
       - name: Download the disk image
         timeout-minutes: 10
@@ -1323,7 +1326,7 @@ jobs:
         timeout-minutes: 20
         run: |
           python3 tools/ci/ui_tour.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
-            --appearance light --only sample,controls,field-scroll,image-frames,inspector,inspector-tabs,inspector-gravity,inspector-hypercard,dictionary,preferences,standalone-settings --out "$RUNNER_TEMP/ui-tour"
+            --appearance light --only sample,controls,field-scroll,image-frames,inspector,inspector-tabs,inspector-gravity,inspector-hypercard,hypercard-disk-image,dictionary,preferences,standalone-settings --out "$RUNNER_TEMP/ui-tour"
 
       # As the test job runs it (see there), on macOS 26
       - name: Menu and backdrop check

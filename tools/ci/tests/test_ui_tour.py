@@ -241,6 +241,118 @@ def handler(script, kind, name):
     return script[start:script.index('\nend %s\n' % name, start)]
 
 
+class HyperCardDiskImage(unittest.TestCase):
+    """The step hypercard-disk-image: File > Import Stack's list of a disk
+    image's stacks, shown and answered, and the stack imported (#261)."""
+
+    def setUp(self):
+        with open(TOUR, encoding='utf-8') as f:
+            self.tour = f.read()
+        self.step = self.tour.split('on tour_hypercard_disk_image', 1)[1].split('end tour_hypercard_disk_image', 1)[0]
+
+    def test_the_step_is_in_the_tour_after_the_inspectors_hypercard_step(self):
+        steps = [line for line in self.tour.splitlines() if line.startswith('constant kSteps')][0]
+        names = steps.split('"')[1].split(',')
+        self.assertEqual(names.index('hypercard-disk-image'), names.index('inspector-hypercard') + 1)
+
+    def test_the_import_runs_in_a_message_of_its_own(self):
+        # once the imported stack opens, the dynamic path would take the
+        # tour's own handlers to its card
+        self.assertIn('send "tourHyperCardImageImport" && quote & tImage & quote to me in 0 milliseconds', self.step)
+        self.assertIn('revIDEImportHyperCardFromDiskImage pImage', self.tour)
+
+    def test_the_list_is_answered_from_inside_its_modal_wait(self):
+        # a wait of the step's own goes on only once the modal dialog has
+        # closed: the list is looked at and answered from a timer
+        self.assertIn('send "tourHyperCardImageAnswer 0" to me in 500 milliseconds', self.step)
+        answer = self.tour.split('on tourHyperCardImageAnswer', 1)[1].split('end tourHyperCardImageAnswer', 1)[0]
+        self.assertIn('send "mouseUp" to button "Import" of stack tChooser', answer)
+        self.assertIn('tourShotStack tChooser, "06f-hypercard-disk-image-list"', answer)
+        self.assertIn('send "tourHyperCardImageAnswer" && pTries + 1 to me in 250 milliseconds', answer)
+
+    def test_a_list_never_shown_fails(self):
+        # up to 0.2.7-rc.6.5 the import ended without showing the list
+        self.assertIn('throw "the import ended without the list of stacks', self.step)
+        self.assertIn('if sHciSeen["mode"] is not 5 then', self.step)
+        self.assertIn('if sHciSeen["hilitedLine"] is not 1 then', self.step)
+        self.assertIn('the customProperties["uHyperCard"] of tStack', self.step)
+
+    def test_the_image_is_the_ide_tests_and_ui_tour_names_it(self):
+        self.assertTrue(os.path.isfile(ui_tour.HYPERCARD_IMAGE), ui_tour.HYPERCARD_IMAGE)
+        self.assertTrue(ui_tour.HYPERCARD_IMAGE.endswith('Stacks.dc42'))
+        with open(ui_tour.__file__, encoding='utf-8') as f:
+            self.assertIn("'OXT_TOUR_HYPERCARD_IMAGE': os.path.abspath(HYPERCARD_IMAGE)", f.read())
+
+    def test_the_mac_jobs_check_out_the_image_and_macos_26_runs_the_step(self):
+        repo = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..')
+        with open(os.path.join(repo, '.github', 'workflows', 'build-macos.yml'), encoding='utf-8') as f:
+            text = f.read()
+        # each sparse checkout that runs ui_tour.py has the image
+        jobs = text.split('sparse-checkout: |')[1:]
+        self.assertEqual(len(jobs), 2)
+        for job in jobs:
+            self.assertIn('tests/lcs-input-files/hypercard/forks', job.split('\n\n', 1)[0])
+        self.assertIn('inspector-hypercard,hypercard-disk-image,', text)
+
+    def test_the_imported_stacks_snapshot_runs_in_a_message_of_its_own(self):
+        # on Windows the step went no further once it had unlocked the
+        # screen for that snapshot, until the job's 900 s ran out
+        self.assertIn('send "tourHyperCardImageShot" && quote & tName & quote to me in 0 milliseconds', self.step)
+        self.assertIn('the snapshot of the imported stack did not end in 20 s', self.step)
+        self.assertIn('if there is a stack tName then delete stack tName', self.step)
+        shot = self.tour.split('on tourHyperCardImageShot', 1)[1].split('end tourHyperCardImageShot', 1)[0]
+        self.assertIn('tourShotStack pName, "06g-hypercard-disk-image-stack"', shot)
+        self.assertIn('put true into sHciShotDone', shot.split('end try', 1)[1])
+
+    def test_the_dynamic_path_is_off_for_the_snapshot(self):
+        # with it on, the tour's call of tourWait went to the imported
+        # stack's card on Windows: "can't find handler"
+        off = self.step.index('set the dynamicPaths of tStack to false')
+        self.assertLess(off, self.step.index('send "tourHyperCardImageShot"'))
+        self.assertGreater(off, self.step.index('the customProperties["uHyperCard"] of tStack'))
+
+
+class TourGoesOn(unittest.TestCase):
+    """An error that ends every handler of the tour's (not one a try
+    catches) left the Windows tour sitting until the job's 900 s ran out
+    (#377's first run): the watchdog fails that step and the tour goes on
+    after it."""
+
+    def setUp(self):
+        with open(TOUR, encoding='utf-8') as f:
+            self.tour = f.read()
+        self.run_ = self.tour.split('\non tourRun pAfter', 1)[1].split('\nend tourRun', 1)[0]
+        self.dog = self.tour.split('\non tourWatchdog pStep', 1)[1].split('\nend tourWatchdog', 1)[0]
+
+    def test_the_watchdog_goes_on_after_a_step_whose_handlers_all_ended(self):
+        self.assertIn('if not tourRunning() then', self.dog)
+        self.assertIn('send "tourRun" && quote & pStep & quote to me in 0 milliseconds', self.dog)
+        self.assertIn('FAILED the tour stopped in it', self.dog)
+        running = self.tour.split('function tourRunning', 1)[1].split('end tourRunning', 1)[0]
+        self.assertIn('the executionContexts', running)
+        self.assertIn('",tourRun,"', running)
+
+    def test_a_watchdog_of_another_step_does_nothing(self):
+        self.assertIn('if pStep is not sStep then exit tourWatchdog', self.dog)
+        self.assertIn('put tStep into sStep', self.run_)
+
+    def test_going_on_skips_the_steps_run_and_starts_nothing_again(self):
+        self.assertIn('if tStep is pAfter then put false into tSkip', self.run_)
+        head, rest = self.run_.split('else', 1)
+        self.assertIn('tourRecord "STARTED"', head)
+        self.assertIn('put 0 into sCount', head)
+        self.assertNotIn('tourRecord "STARTED"', rest)
+
+    def test_the_unlock_loop_ends(self):
+        unlock = self.tour.split('command tourUnlockScreen', 1)[1].split('end tourUnlockScreen', 1)[0]
+        self.assertIn('repeat 100 times', unlock)
+        self.assertNotIn('repeat while the lockScreen', unlock)
+
+    def test_a_script_error_says_where_it_came_from(self):
+        err = self.tour.split('on tourScriptError', 1)[1].split('end tourScriptError', 1)[0]
+        self.assertIn('the executionContexts', err)
+
+
 class SystemSwitch(unittest.TestCase):
     """A post through osascript never reached an observer on a CI Mac
     (probe, macos-15, 2026-10-31), so the step saw no
