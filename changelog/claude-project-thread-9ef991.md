@@ -1,0 +1,2 @@
+- Mobile Web library: unloading it (as when the IDE reloads its extensions) forgets the stacks `mwResponsive` lays out, as it was meant to; its `extensionFinalize` cleared two handler locals of the same names instead, because the script locals are declared below it (#385)
+- CI: no handler in any of the tree's scripts uses a script local or constant declared further down its script (#385)

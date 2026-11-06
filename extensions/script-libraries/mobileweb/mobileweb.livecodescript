@@ -92,8 +92,11 @@ on extensionFinalize
    end if
 
    mwStop
-   put empty into sResponsive
-   put empty into sApplied
+   -- the stacks mwResponsive lays out forgotten. Not with put here:
+   -- sResponsive and sApplied are declared further down the script, and
+   -- a handler sees a script local only below its declaration, so here
+   -- the two names were new handler locals and the stacks were kept
+   mwForgetLayouts
    remove the script of me from back
 end extensionFinalize
 
@@ -180,6 +183,14 @@ local sDragStartV, sDragMoved, sDragActive
 -- name]: width, height, class, orientation and insets), and the
 -- breakpoints mwSetBreakpoints set (empty for kBreakpoints)
 local sResponsive, sApplied, sBreakpoints
+
+-- What extensionFinalize forgets of mwResponsive, below the declaration
+-- above so that it reaches the script locals; the breakpoints are kept,
+-- as they always were
+private command mwForgetLayouts
+   put empty into sResponsive
+   put empty into sApplied
+end mwForgetLayouts
 
 /**
 Whether the stack runs in a web browser.
