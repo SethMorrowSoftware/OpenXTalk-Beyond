@@ -138,5 +138,20 @@ class EverydayTasksInCI(unittest.TestCase):
         self.assertIn('everyday-dark', text)
 
 
+
+class MessageBoxKeptLine(unittest.TestCase):
+    """The dark run comes after the light one in one Windows profile, and
+    the Message Box keeps its last line: the dark run's click put the
+    caret inside it, and "put 6 * 7" went into its middle (#363,
+    0.2.7-rc.6.16)."""
+
+    def test_the_line_is_typed_over_what_it_kept(self):
+        text = read(SCRIPT)
+        body = text.split('\non ed_message_box_line', 1)[1].split('\nend ed_message_box_line', 1)[0]
+        select = body.index('select text of field "message" of card "Single Line" of stack tMB')
+        self.assertLess(select, body.index('edType tMB, "put 6 * 7"'))
+        self.assertGreater(select, body.index('edClickAt tMB'))
+
+
 if __name__ == '__main__':
     unittest.main()

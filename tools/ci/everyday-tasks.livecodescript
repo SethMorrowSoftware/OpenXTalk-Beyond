@@ -410,6 +410,12 @@ on ed_message_box_line
    if not edWaitFor("edOpen(pAx)", 3000, tMB) then throw "Tools > Message Box opened no Message Box"
    dispatch "showCard" to stack tMB with "Single Line"
    edClickAt tMB, the loc of field "message" of card "Single Line" of stack tMB
+   -- (the line the Message Box kept from the IDE's last session, the
+   -- light run's on Windows, where both runs share one profile: the click
+   -- put the caret inside it and "put 6 * 7" went into its middle, "put:
+   -- preposition must be 'before', 'into' or 'after'" (0.2.7-rc.6.16, the
+   -- dark run). It is selected, as a person selects it to type over it)
+   select text of field "message" of card "Single Line" of stack tMB
    edType tMB, "put 6 * 7" & return
    if not edWaitFor("field " & quote & "results" & quote & " of card " & quote & "Single Line" & quote & " of stack pAx is 42", 3000, tMB) then
       throw "the Message Box did not show 42 for put 6 * 7:" && field "results" of card "Single Line" of stack tMB
