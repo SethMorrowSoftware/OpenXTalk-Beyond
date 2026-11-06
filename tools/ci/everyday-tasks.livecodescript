@@ -916,9 +916,9 @@ on ed_appbrowser_script
    go stack kAB
    -- (the menu is a popup: its second item picked with the arrow keys,
    -- as a person can)
-   send "edABPickSecond" to me in 1200 milliseconds
-   edRealClickAt kAB, tLoc, 3
-   if not edWaitFor("edStackNamed(" & quote & "revNewScriptEditor" & quote & ") is not empty", 5000) then
+   put "picked" into sReport["popup"]
+   edRealClickAt kAB, tLoc, 3, "Down,Down,Return"
+   if not edWaitFor("edStackNamed(" & quote & "revNewScriptEditor" & quote & ") is not empty", 10000) then
       throw "Edit Script in the App Browser's menu opened no Script Editor (" & sReport["popup"] & ")"
    end if
    put edStackNamed("revNewScriptEditor") into tSE
@@ -931,11 +931,6 @@ on ed_appbrowser_script
    edCloseScriptEditors
    edCloseInspectors
 end ed_appbrowser_script
-
-on edABPickSecond
-   put "picked" into sReport["popup"]
-   edSystemKeys "Down,Down,Return"
-end edABPickSecond
 
 -- a click on the expanded stack's icon collapses it
 on ed_appbrowser_collapse
@@ -1917,11 +1912,18 @@ end edClickAt
 -- pLoc in the window of pStack, where it reaches the IDE (the App
 -- Browser reads where the mouse is, not where the engine's click was);
 -- else the engine's click
-command edRealClickAt pStack, pLoc, pButton
-   local tScreen, tCommand, tScript
+-- pKeys (a right click only): keys pressed once the menu the click opens
+-- is up, in the same system script as the click, so that they never come
+-- first: sent on a timer they could reach the IDE before a slow click (a
+-- PowerShell's start on Windows), where Down moved the control selected
+command edRealClickAt pStack, pLoc, pButton, pKeys
+   local tScreen, tCommand, tScript, tKey, tCodes
    if pButton is empty then put 1 into pButton
    if sInput is not true then
       if pButton is 3 then
+         if pKeys is not empty then
+            send "edSystemKeys pKeys" to me in 1200 milliseconds
+         end if
          edRightClickAt pStack, pLoc
       else
          edClickAt pStack, pLoc
@@ -1938,6 +1940,15 @@ command edRealClickAt pStack, pLoc, pButton
       case "MacOS"
          put "ObjC.import('CoreGraphics'); function ev(t, x, y) { var e = $.CGEventCreateMouseEvent(null, t, {x: x, y: y}, 1); " & \
                "$.CGEventPost(0, e); } delay(0.3); ev(5," & tScreen & "); delay(0.15); ev(3," & tScreen & "); delay(0.1); ev(4," & tScreen & ");" into tScript
+         if pKeys is not empty then
+            repeat for each item tKey in pKeys
+               put edMacKeyCode(tKey) & "," after tCodes
+            end repeat
+            delete the last char of tCodes
+            put " delay(0.8); [" & tCodes & "].forEach(function (k) { " & \
+                  "$.CGEventPost(0, $.CGEventCreateKeyboardEvent(null, k, true)); delay(0.1); " & \
+                  "$.CGEventPost(0, $.CGEventCreateKeyboardEvent(null, k, false)); delay(0.15); });" after tScript
+         end if
          get shell("osascript -l JavaScript -e " & quote & tScript & quote & " >/dev/null 2>&1 &")
          break
       case "Win32"
@@ -1950,12 +1961,26 @@ command edRealClickAt pStack, pLoc, pButton
                "[OxtEd.Mouse3]::mouse_event(8, 0, 0, 0, 0)" & return & \
                "Start-Sleep -Milliseconds 100" & return & \
                "[OxtEd.Mouse3]::mouse_event(16, 0, 0, 0, 0)" into tScript
+         if pKeys is not empty then
+            put return & "Add-Type -AssemblyName System.Windows.Forms" & return & \
+                  "Start-Sleep -Milliseconds 800" after tScript
+            repeat for each item tKey in pKeys
+               put return & "[System.Windows.Forms.SendKeys]::SendWait('{" & edWinKeyName(tKey) & "}'); Start-Sleep -Milliseconds 150" after tScript
+            end repeat
+         end if
          put base64Encode(textEncode(tScript, "UTF-16LE")) into tScript
          replace return with empty in tScript
          launch "powershell -NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand" && tScript
          break
       default
-         get shell("(sleep 0.3; xdotool mousemove" && item 1 of tScreen && item 2 of tScreen && "sleep 0.15 click 3) >/dev/null 2>&1 &")
+         put "(sleep 0.3; xdotool mousemove" && item 1 of tScreen && item 2 of tScreen && "sleep 0.15 click 3" into tCommand
+         if pKeys is not empty then
+            put " sleep 0.8" after tCommand
+            repeat for each item tKey in pKeys
+               put " key" && tKey && "sleep 0.15" after tCommand
+            end repeat
+         end if
+         get shell(tCommand & ") >/dev/null 2>&1 &")
          break
    end switch
    edPause 1200
@@ -1978,20 +2003,7 @@ command edSystemKeys pKeys
    switch the platform
       case "MacOS"
          repeat for each item tKey in pKeys
-            switch tKey
-               case "Down"
-                  put "125," after tCodes
-                  break
-               case "Up"
-                  put "126," after tCodes
-                  break
-               case "Return"
-                  put "36," after tCodes
-                  break
-               case "Escape"
-                  put "53," after tCodes
-                  break
-            end switch
+            put edMacKeyCode(tKey) & "," after tCodes
          end repeat
          delete the last char of tCodes
          put "ObjC.import('CoreGraphics'); [" & tCodes & "].forEach(function (k) { " & \
@@ -2002,9 +2014,7 @@ command edSystemKeys pKeys
       case "Win32"
          put "Add-Type -AssemblyName System.Windows.Forms" & return into tCommand
          repeat for each item tKey in pKeys
-            if tKey is "Return" then put "ENTER" into tKey
-            if tKey is "Escape" then put "ESC" into tKey
-            put "[System.Windows.Forms.SendKeys]::SendWait('{" & toUpper(tKey) & "}'); Start-Sleep -Milliseconds 150" & return after tCommand
+            put "[System.Windows.Forms.SendKeys]::SendWait('{" & edWinKeyName(tKey) & "}'); Start-Sleep -Milliseconds 150" & return after tCommand
          end repeat
          put base64Encode(textEncode(tCommand, "UTF-16LE")) into tCommand
          replace return with empty in tCommand
@@ -2019,6 +2029,28 @@ command edSystemKeys pKeys
          break
    end switch
 end edSystemKeys
+
+-- a key's virtual key code on macOS (Down, Up, Return, Escape)
+function edMacKeyCode pKey
+   switch pKey
+      case "Down"
+         return 125
+      case "Up"
+         return 126
+      case "Return"
+         return 36
+      case "Escape"
+         return 53
+   end switch
+   return empty
+end edMacKeyCode
+
+-- a key's name for Windows' SendKeys (Down, Up, Return, Escape)
+function edWinKeyName pKey
+   if pKey is "Return" then return "ENTER"
+   if pKey is "Escape" then return "ESC"
+   return toUpper(pKey)
+end edWinKeyName
 
 command edDragIn pStack, pFrom, pTo
    local tDefault
