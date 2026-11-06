@@ -126,9 +126,13 @@ local sSplashStartTime
 -- (richmond62, openxtalk.org; seth 2026-11-06), where they were hidden. The
 -- preference is set to the default only when it has never been set: a
 -- preferences file that already holds true or false keeps it, so an IDE
--- that has run before keeps the menu it had.
-function revInternal__ShowPresetSizesDefault pValue
-   if pValue is empty then return true
+-- that has run before keeps the menu it had. In the web IDE (pWeb true)
+-- they stay hidden by default, as before: with them, New Stack's cascade
+-- is as wide as a phone's page, opens over the File menu under the finger
+-- that tapped New Stack, and the lifted finger picks one of its sizes
+-- (tools/ci/web-ide-tour.livecodescript, touch-menu).
+function revInternal__ShowPresetSizesDefault pValue, pWeb
+   if pValue is empty then return pWeb is not true
    return pValue
 end revInternal__ShowPresetSizesDefault
 
@@ -310,7 +314,7 @@ on revInternal__openStack
    -- OXT-Beyond: shown unless the user has said otherwise
    -- (revInternal__ShowPresetSizesDefault)
    set the cShowPresetSizes of stack "revPreferences" to \
-         revInternal__ShowPresetSizesDefault(the cShowPresetSizes of stack "revPreferences")
+         revInternal__ShowPresetSizesDefault(the cShowPresetSizes of stack "revPreferences", revEnvironmentIsWeb())
    -- (cDisableBrowserWidget and cDisablePlayerTool: revInternal__InitialiseMediaTools)
    if the cScrnSharedMem of stack "revPreferences" is empty then 
       if the platform contains "linux" then 
