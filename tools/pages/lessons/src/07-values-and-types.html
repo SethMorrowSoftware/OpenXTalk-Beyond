@@ -1,0 +1,86 @@
+<!--
+title: Everything is text
+level: beginner
+minutes: 7
+summary: Why "5" + 3 is 8 in xTalk, how to ask what kind of value you have, and what true, false and empty are.
+words: is a number, is an integer, is a boolean, true, false, empty, is a, is not a
+-->
+<h2 id="one-kind">One kind of value</h2>
+<p>Many languages make you say whether a value is text or a number, and refuse to mix them. xTalk does not: every value can be read as text, and a value that looks like a number can be used as one. It works out what you mean from what you do with it.</p>
+<figure class="example" id="ex-types-mix" data-run="output">
+<pre class="code"><code>put "5" + 3
+put 10 &amp; 5
+put "3" * "4"
+put "007" + 0
+put empty + 5</code></pre>
+<pre class="out">8
+105
+12
+7
+5</pre>
+</figure>
+<p><code>+</code> wants numbers, so the text <code>"5"</code> is read as one. <code>&amp;</code> wants text, so 10 and 5 are joined into <code>105</code>. And <code>empty</code>, in a sum, counts as 0.</p>
+
+<h2 id="asking">Asking what a value is</h2>
+<p>Because anything can be text, you often want to check that a value really is a number before you do sums with it: what someone typed into a field, say. <code>is a</code> asks:</p>
+<figure class="example" id="ex-types-is-a" data-run="output">
+<pre class="code"><code>put "12" is a number
+put "twelve" is a number
+put 3.5 is an integer
+put "3.0" is an integer
+put "true" is a boolean
+put empty is a number
+put "hello" is not a number</code></pre>
+<pre class="out">true
+false
+false
+true
+true
+false
+true</pre>
+</figure>
+
+<h2 id="booleans">True and false</h2>
+<p>A comparison gives <code>true</code> or <code>false</code>, which are just the words "true" and "false". xTalk calls them <strong>booleans</strong>. You can keep one in a variable and use it later in an <code>if</code>.</p>
+<figure class="example" id="ex-types-booleans" data-run="output">
+<pre class="code"><code>put 3 &gt; 2
+put not (3 &gt; 2)
+put 10 &gt; 20 into tIsBig
+put tIsBig
+put tIsBig is false</code></pre>
+<pre class="out">true
+false
+false
+true</pre>
+</figure>
+<aside class="warn"><p>Only the word <code>true</code> is true. In some languages <code>1</code> or <code>"yes"</code> count as true too; in xTalk <code>if 1 then</code> does nothing. Compare with what you mean: <code>if tCount is 1 then</code>.</p></aside>
+
+<h2 id="comparing">Numbers compare as numbers</h2>
+<p>When both sides look like numbers, xTalk compares them as numbers, even when they are written differently. Otherwise it compares them as text, in alphabetical order, and without minding capital letters.</p>
+<figure class="example" id="ex-types-compare" data-run="output">
+<pre class="code"><code>put "10" &lt; "9"
+put "10" = "10.0"
+put "apple" &lt; "banana"
+put "Zebra" &lt; "apple"</code></pre>
+<pre class="out">false
+true
+true
+false</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Someone typed <code>42</code> into a form, and someone else typed <code>forty</code>. For each, put whether it is a number, and if it is, the number doubled.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-types-try" data-run="output">
+<pre class="code"><code>put "42" into tFirst
+put "forty" into tSecond
+put tFirst is a number
+put tFirst * 2
+put tSecond is a number</code></pre>
+<pre class="out">true
+84
+false</pre>
+</figure>
+</details>
+</section>

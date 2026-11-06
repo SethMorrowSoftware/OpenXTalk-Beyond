@@ -1,0 +1,100 @@
+<!--
+title: Making decisions
+level: beginner
+minutes: 8
+summary: Let a program choose what to do with if, then, else and else if.
+words: if, then, else, end if, else if
+-->
+<h2 id="if">If this, then that</h2>
+<p>Programs become interesting when they decide. <code>if</code> checks a condition, and runs the lines up to <code>end if</code> only when it is true.</p>
+<figure class="example" id="ex-if-basic" data-run="output">
+<pre class="code"><code>put 72 into tScore
+if tScore &gt;= 50 then
+   put "You passed"
+end if
+if tScore &gt;= 90 then
+   put "With distinction"
+end if
+put "Done"</code></pre>
+<pre class="out">You passed
+Done</pre>
+</figure>
+<p>The condition is anything that is <code>true</code> or <code>false</code>: a comparison, or a variable holding one. The lines inside are indented by three spaces so that you can see at a glance what belongs to the <code>if</code>; the Script Editor does that for you.</p>
+
+<h2 id="else">Otherwise: else</h2>
+<p><code>else</code> gives the lines to run when the condition is false. One of the two always runs, never both.</p>
+<figure class="example" id="ex-if-else" data-run="output">
+<pre class="code"><code>put 7 into tNumber
+if tNumber mod 2 is 0 then
+   put tNumber &amp;&amp; "is even"
+else
+   put tNumber &amp;&amp; "is odd"
+end if</code></pre>
+<pre class="out">7 is odd</pre>
+</figure>
+
+<h2 id="else-if">Several choices: else if</h2>
+<p>To choose between more than two things, chain <code>else if</code>. xTalk checks each condition in turn, from the top, and runs the first one that is true; the final <code>else</code> catches everything else.</p>
+<figure class="example" id="ex-if-chain" data-run="output">
+<pre class="code"><code>put 64 into tTemperature
+if tTemperature &gt;= 80 then
+   put "Hot"
+else if tTemperature &gt;= 60 then
+   put "Warm"
+else if tTemperature &gt;= 40 then
+   put "Cool"
+else
+   put "Cold"
+end if</code></pre>
+<pre class="out">Warm</pre>
+</figure>
+<aside class="tip"><p>Order matters. 64 is also <code>&gt;= 40</code>, but the <code>&gt;= 60</code> test comes first and wins. Put the strictest test at the top.</p></aside>
+
+<h2 id="one-line">Short forms</h2>
+<p>When there is only one thing to do, the whole <code>if</code> can go on one line, with no <code>end if</code>. An <code>else</code> then goes at the start of the next line.</p>
+<figure class="example" id="ex-if-short" data-run="output">
+<pre class="code"><code>put 7 into tLives
+if tLives &gt; 5 then put "Plenty of lives"
+if tLives &gt; 10 then put "Too many lives"
+else put "Not too many"</code></pre>
+<pre class="out">Plenty of lives
+Not too many</pre>
+</figure>
+<aside class="warn"><p>Keep a one-line <code>if</code> with <code>put</code> and <code>else</code> on two lines, as above. On one line, xTalk reads the <code>else</code> as part of the <code>put</code> and the script will not compile. When in doubt, use the full form with <code>end if</code>: it is never wrong.</p></aside>
+
+<h2 id="nesting">Decisions inside decisions</h2>
+<p>An <code>if</code> can hold another <code>if</code>. The indentation shows which <code>else</code> belongs to which.</p>
+<figure class="example" id="ex-if-nested" data-run="output">
+<pre class="code"><code>put true into tSignedIn
+put "admin" into tRole
+if tSignedIn then
+   if tRole is "admin" then
+      put "Welcome back, administrator"
+   else
+      put "Welcome back"
+   end if
+else
+   put "Please sign in"
+end if</code></pre>
+<pre class="out">Welcome back, administrator</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Turn a test score into a grade: 90 or more is A, 80 or more is B, 70 or more is C, and anything lower is D. Try it with a score of 83.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-if-try" data-run="output">
+<pre class="code"><code>put 83 into tScore
+if tScore &gt;= 90 then
+   put "A"
+else if tScore &gt;= 80 then
+   put "B"
+else if tScore &gt;= 70 then
+   put "C"
+else
+   put "D"
+end if</code></pre>
+<pre class="out">B</pre>
+</figure>
+</details>
+</section>

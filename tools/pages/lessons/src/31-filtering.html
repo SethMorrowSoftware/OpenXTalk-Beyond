@@ -1,0 +1,100 @@
+<!--
+title: Filtering lists
+level: intermediate
+minutes: 8
+summary: Keep only the lines or items that match a pattern, or throw them away, with wildcards or regular expressions, and remove duplicates.
+words: filter, with, without, matching, wildcard, regex pattern, into, items, lines, split, as set
+-->
+<h2 id="filter">Keep what matches</h2>
+<p><code>filter</code> goes through a list and keeps only the lines that match a <strong>pattern</strong>. In a pattern, <code>*</code> stands for any run of characters (or none) and <code>?</code> for exactly one:</p>
+<figure class="example" id="ex-filter-with" data-run="output">
+<pre class="code"><code>put "apple" &amp; return &amp; "banana" &amp; return &amp; "cherry" &amp; return &amp; "avocado" into tFruit
+filter tFruit with "a*"
+put tFruit</code></pre>
+<pre class="out">apple
+avocado</pre>
+</figure>
+<p><code>without</code> does the opposite, and throws the matches away:</p>
+<figure class="example" id="ex-filter-without" data-run="output">
+<pre class="code"><code>put "apple" &amp; return &amp; "banana" &amp; return &amp; "cherry" &amp; return &amp; "avocado" into tFruit
+filter tFruit without "a*"
+put tFruit</code></pre>
+<pre class="out">banana
+cherry</pre>
+</figure>
+
+<h2 id="patterns">Wildcard patterns</h2>
+<p>The pattern must match the whole line. Put <code>*</code> on both sides to find lines that contain something anywhere:</p>
+<figure class="example" id="ex-filter-patterns" data-run="output">
+<pre class="code"><code>put "x1" &amp; return &amp; "y22" &amp; return &amp; "x333" &amp; return &amp; "box" into tCodes
+filter tCodes with "x?" into tShort
+put tShort
+filter tCodes with "*x*" into tAnyX
+put tAnyX</code></pre>
+<pre class="out">x1
+x1
+x333
+box</pre>
+</figure>
+<p><code>into</code> puts the result in another variable and leaves the list as it was, so you can filter the same list several ways. Square brackets match one of a set of characters: <code>[aeiou]*</code> keeps lines that start with a vowel.</p>
+
+<h2 id="items">Items, and empty lines</h2>
+<p>Say <code>items of</code> to filter a comma-separated list. A very common job is dropping the blank lines from text: filter it <code>without empty</code>.</p>
+<figure class="example" id="ex-filter-items" data-run="output">
+<pre class="code"><code>put "cat,dog,cow,horse" into tAnimals
+filter items of tAnimals with "c*"
+put tAnimals
+put "one" &amp; return &amp; return &amp; "two" &amp; return &amp; return &amp; "three" into tText
+filter tText without empty
+put tText</code></pre>
+<pre class="out">cat,cow
+one
+two
+three</pre>
+</figure>
+
+<h2 id="regex">Filtering with regular expressions</h2>
+<p>For patterns a wildcard cannot say, filter with a <strong>regular expression</strong>. Unlike a wildcard, a regular expression matches anywhere in the line unless you anchor it with <code>^</code> (the start) or <code>$</code> (the end). The lesson <a href="../regular-expressions/">Regular expressions</a> teaches the language of these patterns.</p>
+<figure class="example" id="ex-filter-regex" data-run="output">
+<pre class="code"><code>put "alpha" &amp; return &amp; "beta" &amp; return &amp; "gamma" &amp; return &amp; "delta" into tWords
+filter tWords with regex pattern "^[ab]"
+put tWords
+put "order 66" &amp; return &amp; "no number" &amp; return &amp; "room 101" into tLines
+filter tLines with regex pattern "[0-9]+$"
+put tLines</code></pre>
+<pre class="out">alpha
+beta
+order 66
+room 101</pre>
+</figure>
+
+<h2 id="unique">Removing duplicates</h2>
+<p>Filtering cannot see whether a line has appeared before, but an <a href="../arrays/">array</a> can: each value becomes a key, and a key can only be there once. <code>split</code> with <code>as set</code> does exactly that, and <code>the keys</code> gives the list back. The keys of an array come in no particular order, so sort them:</p>
+<figure class="example" id="ex-filter-unique" data-run="output">
+<pre class="code"><code>put "pear" &amp; return &amp; "fig" &amp; return &amp; "pear" &amp; return &amp; "apple" &amp; return &amp; "fig" into tList
+split tList by return as set
+put the keys of tList into tUnique
+sort lines of tUnique
+put tUnique</code></pre>
+<pre class="out">apple
+fig
+pear</pre>
+</figure>
+<p>Arrays are the subject of the next two lessons.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>From this list of files, keep only the pictures, those ending in <code>.png</code> or <code>.jpg</code>, sorted by name: <code>notes.txt</code>, <code>cat.png</code>, <code>song.mp3</code>, <code>beach.jpg</code>, <code>apple.png</code>.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-filter-try" data-run="output">
+<pre class="code"><code>put "notes.txt,cat.png,song.mp3,beach.jpg,apple.png" into tFiles
+replace comma with return in tFiles
+filter tFiles with regex pattern "\.(png|jpg)$"
+sort tFiles
+put tFiles</code></pre>
+<pre class="out">apple.png
+beach.jpg
+cat.png</pre>
+</figure>
+</details>
+</section>

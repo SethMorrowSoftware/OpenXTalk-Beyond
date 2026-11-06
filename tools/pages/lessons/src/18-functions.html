@@ -1,0 +1,155 @@
+<!--
+title: Your own functions
+level: beginner
+minutes: 9
+summary: Write handlers that work out a value and hand it back, so that you can use them in any expression, just like round or max.
+words: function, return, end, private, param, paramCount
+-->
+<h2 id="function">A handler that gives a value</h2>
+<p>A command does a job. A <strong>function</strong> works out a value and gives it back, like the built-in <code>round</code> or <code>max</code>. You write one with <code>function</code> instead of <code>on</code>, and send the value back with <code>return</code>. To use it, write its name with brackets around the values, anywhere a value can go.</p>
+<figure class="example" id="ex-fn-first" data-run="output">
+<pre class="code"><code>function areaOf pWidth, pHeight
+   return pWidth * pHeight
+end areaOf
+
+put areaOf(3, 4)
+put areaOf(10, 2.5) + 1
+put "A 6 by 7 room has" &amp;&amp; areaOf(6, 7) &amp;&amp; "square metres"</code></pre>
+<pre class="out">12
+26
+A 6 by 7 room has 42 square metres</pre>
+</figure>
+<p>The brackets are what tell xTalk you are calling a function. They are needed even when there are no values to pass: <code>pickColour()</code>.</p>
+
+<h2 id="choosing">Functions that decide</h2>
+<p>A function can hold any lines you like: decisions, loops, other calls. As soon as a <code>return</code> runs, the function ends and hands back that value, so a function with several answers often has several <code>return</code> lines:</p>
+<figure class="example" id="ex-fn-decide" data-run="output">
+<pre class="code"><code>function parity pN
+   if pN mod 2 is 0 then return "even"
+   return "odd"
+end parity
+
+put 7 &amp;&amp; parity(7)
+put 10 &amp;&amp; parity(10)</code></pre>
+<pre class="out">7 odd
+10 even</pre>
+</figure>
+
+<h2 id="building-blocks">Functions built from functions</h2>
+<p>Small functions that each do one thing are easy to test and easy to reuse. Bigger ones are then built out of them:</p>
+<figure class="example" id="ex-fn-compose" data-run="output">
+<pre class="code"><code>function fahrenheit pCelsius
+   return pCelsius * 9 / 5 + 32
+end fahrenheit
+
+function describeTemp pCelsius
+   return pCelsius &amp; "C is" &amp;&amp; fahrenheit(pCelsius) &amp; "F"
+end describeTemp
+
+put describeTemp(100)
+put describeTemp(-40)
+put describeTemp(37)</code></pre>
+<pre class="out">100C is 212F
+-40C is -40F
+37C is 98.6F</pre>
+</figure>
+<p>A function's value can go straight into another call, as <code>fahrenheit(pCelsius)</code> does inside <code>describeTemp</code>, or into a <a href="../chunks/">chunk expression</a>:</p>
+<figure class="example" id="ex-fn-nest" data-run="output">
+<pre class="code"><code>function shout pText
+   return toUpper(pText) &amp; "!"
+end shout
+
+put shout("hi") &amp;&amp; shout("there")
+put the number of chars of shout("abc")
+put char 1 of shout("wow")</code></pre>
+<pre class="out">HI! THERE!
+4
+W</pre>
+</figure>
+
+<h2 id="many-values">Giving back more than one value</h2>
+<p>A function returns one value, but a value can be a list. Return the parts as items or lines, and take them apart with chunk expressions where you use them:</p>
+<figure class="example" id="ex-fn-two" data-run="output">
+<pre class="code"><code>function minMax pList
+   return min(pList) &amp; comma &amp; max(pList)
+end minMax
+
+put minMax("4,9,1,7") into tBoth
+put "smallest" &amp;&amp; item 1 of tBoth &amp; ", biggest" &amp;&amp; item 2 of tBoth</code></pre>
+<pre class="out">smallest 1, biggest 9</pre>
+</figure>
+<p>For many named parts, an array is clearer. The lesson <a href="../arrays/">Arrays</a> shows how.</p>
+
+<h2 id="any-number">Any number of values</h2>
+<p>Like commands, functions can read <code>the paramCount</code> and <code>param(n)</code>, so one function can add up two numbers or twenty:</p>
+<figure class="example" id="ex-fn-total" data-run="output">
+<pre class="code"><code>function total
+   put 0 into tSum
+   repeat with i = 1 to the paramCount
+      add param(i) to tSum
+   end repeat
+   return tSum
+end total
+
+put total(1, 2, 3, 4)
+put total(2.5, 2.5)
+put total()</code></pre>
+<pre class="out">10
+5
+0</pre>
+</figure>
+
+<h2 id="no-return">A function with no return</h2>
+<p>If a function ends without a <code>return</code>, it gives back <code>empty</code>. That is rarely what you meant, so when a function's value looks blank, check that every path through it reaches a <code>return</code>.</p>
+<figure class="example" id="ex-fn-noreturn" data-run="output">
+<pre class="code"><code>function forgetful pN
+   put pN * 2 into tDouble
+end forgetful
+
+put "[" &amp; forgetful(4) &amp; "]"</code></pre>
+<pre class="out">[]</pre>
+</figure>
+
+<h2 id="the-form">Brackets or "the"</h2>
+<p>Many of xTalk's own functions have two spellings: <code>length(tName)</code> and <code>the length of tName</code> are the same call. Your own functions always use brackets.</p>
+<figure class="example" id="ex-fn-the" data-run="output">
+<pre class="code"><code>put "Lovelace" into tName
+put length(tName)
+put the length of tName
+put the number of chars of tName</code></pre>
+<pre class="out">8
+8
+8</pre>
+</figure>
+
+<h2 id="private">Private handlers</h2>
+<p>Put <code>private</code> before <code>function</code> or <code>command</code> and the handler can only be called from the same script. It is a way of saying "this is a helper; nothing else should rely on it", and xTalk can also call it a little faster.</p>
+<figure class="example" id="ex-fn-private" data-run="output">
+<pre class="code"><code>private function secretNumber
+   return 42
+end secretNumber
+
+put secretNumber()</code></pre>
+<pre class="out">42</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a function <code>initials</code> that takes a full name and gives back the first letter of each word, in capitals. <code>initials("ada augusta lovelace")</code> should give <code>AAL</code>.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-fn-try" data-run="output">
+<pre class="code"><code>function initials pName
+   put empty into tLetters
+   repeat for each word tWord in pName
+      put toUpper(char 1 of tWord) after tLetters
+   end repeat
+   return tLetters
+end initials
+
+put initials("ada augusta lovelace")
+put initials("Grace Hopper")</code></pre>
+<pre class="out">AAL
+GH</pre>
+</figure>
+</details>
+</section>

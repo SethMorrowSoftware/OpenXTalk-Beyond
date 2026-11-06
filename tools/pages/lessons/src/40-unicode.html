@@ -1,0 +1,108 @@
+<!--
+title: Unicode and text encodings
+level: advanced
+minutes: 10
+summary: Text in every language and emoji: characters, codepoints and bytes, converting text to and from UTF-8, and comparing accented text safely.
+words: textEncode, textDecode, codepoint, codepointToNum, numToCodepoint, codeunit, byte, normalizeText, formSensitive, UTF-8, charToNum, numToChar
+-->
+<h2 id="any-language">Text in any language</h2>
+<p>xTalk text is <strong>Unicode</strong>: it can hold every writing system in use, and emoji. Chunk expressions work on characters as a reader sees them, whatever the language:</p>
+<figure class="example" id="ex-unicode-chars" data-run="output">
+<pre class="code"><code>put "héllo wörld" into tText
+put the number of chars of tText
+put toUpper(tText)
+put "日本語のテキスト" into tJapanese
+put the number of chars of tJapanese
+put char 1 to 3 of tJapanese</code></pre>
+<pre class="out">11
+HÉLLO WÖRLD
+8
+日本語</pre>
+</figure>
+
+<h2 id="codepoints">Codepoints</h2>
+<p>Unicode gives every character a number, its <strong>codepoint</strong>. <code>codepointToNum</code> and <code>numToCodepoint</code> go between the two:</p>
+<figure class="example" id="ex-unicode-codepoints" data-run="output">
+<pre class="code"><code>put codepointToNum("A") &amp;&amp; codepointToNum("é") &amp;&amp; codepointToNum("€")
+put numToCodepoint(9731)
+put numToCodepoint(128512)</code></pre>
+<pre class="out">65 233 8364
+☃
+😀</pre>
+</figure>
+<aside class="legacy"><p><code>charToNum</code> and <code>numToChar</code> come from the days of one byte a character. They still work for plain English text, but use <code>codepointToNum</code> and <code>numToCodepoint</code> for anything else.</p></aside>
+
+<h2 id="chars-vs-codepoints">Characters, codepoints and code units</h2>
+<p>What a reader sees as one character can be more than one codepoint: an <code>e</code> followed by a combining accent is one character, <code>é</code>, made of two codepoints. And inside the engine some codepoints take two <strong>code units</strong>. Usually you want <code>chars</code>; the others are there when you need them:</p>
+<figure class="example" id="ex-unicode-units" data-run="output">
+<pre class="code"><code>put "e" &amp; numToCodepoint(769) into tAccented
+put the number of chars of tAccented
+put the number of codepoints of tAccented
+put numToCodepoint(128512) into tSmile
+put the number of chars of tSmile
+put the number of codeunits of tSmile</code></pre>
+<pre class="out">1
+2
+1
+2</pre>
+</figure>
+
+<h2 id="normalize">Comparing accented text</h2>
+<p>The same word can be stored in two ways: with <code>é</code> as one codepoint, or as <code>e</code> plus an accent. They look identical, and xTalk treats them as the same, as it ignores case: <code>is</code>, <code>offset</code> and array keys all see one word. But their bytes differ, so once the text leaves xTalk, written to a file, hashed or sent to a server, they are two different words. Set <code>the formSensitive</code> to true to compare the forms exactly, and use <code>normalizeText</code> to put text into one standard form, <code>NFC</code>:</p>
+<figure class="example" id="ex-unicode-normalize" data-run="output">
+<pre class="code"><code>put "caf" &amp; "e" &amp; numToCodepoint(769) into tDecomposed
+put tDecomposed is "café"
+put the number of bytes of textEncode(tDecomposed, "UTF-8") &amp;&amp; the number of bytes of textEncode("café", "UTF-8")
+set the formSensitive to true
+put tDecomposed is "café"
+put normalizeText(tDecomposed, "NFC") is "café"</code></pre>
+<pre class="out">true
+6 5
+false
+true</pre>
+</figure>
+<aside class="tip"><p>Text typed on a Mac and text from a web form can arrive in different forms. Normalize text from outside before you save it, hash it or send it on, so the same word always becomes the same bytes.</p></aside>
+
+<h2 id="encodings">Text and bytes: encodings</h2>
+<p>Files and networks carry <strong>bytes</strong>, not characters. An <strong>encoding</strong> is the rule that turns one into the other, and today's standard is <strong>UTF-8</strong>, which uses one byte for plain English letters and two to four for the rest. <code>textEncode</code> turns text into bytes, and <code>textDecode</code> turns bytes back into text:</p>
+<figure class="example" id="ex-unicode-encode" data-run="output">
+<pre class="code"><code>put "naïve café" into tText
+put textEncode(tText, "UTF-8") into tBytes
+put the number of chars of tText
+put the number of bytes of tBytes
+put textDecode(tBytes, "UTF-8") is tText</code></pre>
+<pre class="out">10
+12
+true</pre>
+</figure>
+<p>Ten characters made twelve bytes: <code>ï</code> and <code>é</code> take two each. Other encodings make other bytes from the same text:</p>
+<figure class="example" id="ex-unicode-encodings" data-run="output">
+<pre class="code"><code>put "café" into tText
+put the number of bytes of textEncode(tText, "UTF-8")
+put the number of bytes of textEncode(tText, "ISO-8859-1")
+put the number of bytes of textEncode(tText, "UTF-16")</code></pre>
+<pre class="out">5
+4
+8</pre>
+</figure>
+<p>The rule to remember: <strong>decode as text comes in, encode as it goes out</strong>. Read a file's bytes and <code>textDecode</code> them; <code>textEncode</code> text before you write it to a file or send it. The next lessons, <a href="../files/#text-binary">Reading and writing files</a> and <a href="../file-streams/">Files a piece at a time</a>, do exactly that.</p>
+<aside class="warn"><p>Decoding with the wrong encoding does not fail: it gives the wrong characters, such as <code>cafÃ©</code> for <code>café</code>. When text from a file looks like that, it is UTF-8 read as something else.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a function that gives the codepoints of a piece of text, written the way Unicode charts write them: <code>U+</code> and four or more hexadecimal digits. Try it on <code>Añ€</code>.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-unicode-try" data-run="output">
+<pre class="code"><code>function codepointList pText
+   put empty into tList
+   repeat for each codepoint tPoint in pText
+      put format("U+%04X", codepointToNum(tPoint)) &amp; space after tList
+   end repeat
+   return word 1 to -1 of tList
+end codepointList
+
+put codepointList("Añ€")</code></pre>
+<pre class="out">U+0041 U+00F1 U+20AC</pre>
+</figure>
+</details>
+</section>

@@ -1,0 +1,199 @@
+<!--
+title: Recursion
+level: advanced
+minutes: 10
+summary: Handlers that call themselves: the base case, working through folders and nested arrays, remembering answers, and drawing a tree.
+words: recursion, base case, the recursionLimit, files, folders, is an array, memoization
+-->
+<h2 id="idea">A handler that calls itself</h2>
+<p>Some problems contain smaller copies of themselves. The factorial of 5 (5 × 4 × 3 × 2 × 1) is 5 times the factorial of 4; a folder holds files and smaller folders, which hold files and smaller folders. A handler can solve such a problem by calling <strong>itself</strong> on the smaller copy: this is <strong>recursion</strong>.</p>
+<figure class="example" id="ex-rec-factorial" data-run="output">
+<pre class="code"><code>function factorial pN
+   if pN &lt;= 1 then return 1
+   return pN * factorial(pN - 1)
+end factorial
+
+put factorial(5)
+put factorial(20)</code></pre>
+<pre class="out">120
+2432902008176640000</pre>
+</figure>
+<p>Every recursive handler has two parts: a <strong>base case</strong>, small enough to answer at once (<code>pN &lt;= 1</code>), and a <strong>recursive case</strong>, which makes the problem smaller and calls itself. Each call has its own <code>pN</code>, so <code>factorial(5)</code> waits for <code>factorial(4)</code>, which waits for <code>factorial(3)</code>, down to the base case, and the answers come back up.</p>
+
+<h2 id="base-case">No base case, no end</h2>
+<p>Without a base case, or with one it never reaches, a handler calls itself until xTalk runs out of room and stops it with an error, on the line of the call:</p>
+<figure class="example" id="ex-rec-limit" data-run="error" data-line="2">
+<pre class="code"><code>function countDown pN
+   return countDown(pN - 1)
+end countDown
+
+put countDown(10)</code></pre>
+</figure>
+<p>The engine's <code>recursionLimit</code> property sets how deep calls may go. Raising it is rarely the fix: check that each call really makes the problem smaller, and that the base case catches it.</p>
+
+<h2 id="hanoi">Thinking recursively</h2>
+<p>Recursion shines when the answer is easy to describe in terms of a smaller answer. The Tower of Hanoi moves a pile of disks from one peg to another, one disk at a time, never a big disk on a small one. Hard to plan move by move, it is three lines recursively: move all but the bottom disk out of the way, move the bottom disk, and move the others back on top of it:</p>
+<figure class="example" id="ex-rec-hanoi" data-run="output">
+<pre class="code"><code>local sMoves
+
+command hanoi pDisks, pFrom, pTo, pVia
+   if pDisks is 0 then exit hanoi
+   hanoi pDisks - 1, pFrom, pVia, pTo
+   put pFrom &amp;&amp; "to" &amp;&amp; pTo &amp; return after sMoves
+   hanoi pDisks - 1, pVia, pTo, pFrom
+end hanoi
+
+put empty into sMoves
+hanoi 3, "A", "C", "B"
+put the number of lines of sMoves &amp;&amp; "moves:"
+put line 1 to 3 of sMoves</code></pre>
+<pre class="out">7 moves:
+A to C
+A to B
+C to B</pre>
+</figure>
+
+<h2 id="folders">Walking through folders</h2>
+<p>Folders inside folders are recursion's home ground. This function lists everything in a folder, then calls itself for each folder inside, indenting a step at each level. <code>folders()</code> includes <code>..</code>, the folder above, which must be skipped, or the walk would climb back up for ever:</p>
+<figure class="example" id="ex-rec-folders" data-run="output">
+<pre class="code"><code>function listTree pFolder, pIndent
+   local tList, tNames, tName
+   put files(pFolder) into tNames
+   sort tNames
+   repeat for each line tName in tNames
+      put pIndent &amp; tName &amp; return after tList
+   end repeat
+   put folders(pFolder) into tNames
+   sort tNames
+   repeat for each line tName in tNames
+      if tName is ".." then next repeat
+      put pIndent &amp; tName &amp; "/" &amp; return after tList
+      put listTree(pFolder &amp; "/" &amp; tName, pIndent &amp; "   ") after tList
+   end repeat
+   return tList
+end listTree
+
+function deleteTree pFolder
+   local tName, tCount
+   repeat for each line tName in files(pFolder)
+      delete file (pFolder &amp; "/" &amp; tName)
+      add 1 to tCount
+   end repeat
+   repeat for each line tName in folders(pFolder)
+      if tName is ".." then next repeat
+      add deleteTree(pFolder &amp; "/" &amp; tName) to tCount
+   end repeat
+   delete folder pFolder
+   return tCount
+end deleteTree
+
+put specialFolderPath("temporary") &amp; "/oxt-lesson-tree" into tRoot
+create folder tRoot
+create folder (tRoot &amp; "/docs")
+create folder (tRoot &amp; "/docs/old")
+put "x" into URL ("file:" &amp; tRoot &amp; "/readme.txt")
+put "x" into URL ("file:" &amp; tRoot &amp; "/docs/guide.txt")
+put "x" into URL ("file:" &amp; tRoot &amp; "/docs/old/notes.txt")
+put "x" into URL ("file:" &amp; tRoot &amp; "/docs/old/draft.txt")
+
+put listTree(tRoot, "")
+put deleteTree(tRoot) &amp;&amp; "files deleted"</code></pre>
+<pre class="out">readme.txt
+docs/
+   guide.txt
+   old/
+      draft.txt
+      notes.txt
+
+4 files deleted</pre>
+</figure>
+<p>The empty line comes from the list's last <code>return</code>. Each call works on one folder and trusts the calls it makes to deal with the folders inside: that trust is the whole trick of recursion.</p>
+
+<h2 id="arrays">Arrays inside arrays</h2>
+<p>An array's elements can be arrays themselves, to any depth (<a href="../arrays/">Arrays</a>), and a recursive handler is the natural way to visit them all:</p>
+<figure class="example" id="ex-rec-arrays" data-run="output">
+<pre class="code"><code>function countValues pArray
+   local tKey, tCount
+   if pArray is not an array then return 1
+   repeat for each key tKey in pArray
+      add countValues(pArray[tKey]) to tCount
+   end repeat
+   return tCount
+end countValues
+
+put "Ada" into tPerson["name"]
+put "London" into tPerson["address"]["city"]
+put "UK" into tPerson["address"]["country"]
+put "maths" into tPerson["likes"][1]
+put "machines" into tPerson["likes"][2]
+put "poetry" into tPerson["likes"][3]
+put countValues(tPerson)</code></pre>
+<pre class="out">6</pre>
+</figure>
+
+<h2 id="memo">Remembering answers</h2>
+<p>A recursive handler can do the same work many times. The Fibonacci numbers (each the sum of the two before) are a famous case: <code>fib(30)</code> worked out plainly calls itself well over a million times, mostly to work out the same few values again. Keep each answer in an array the first time, and every later call is a lookup. This is called <strong>memoization</strong>:</p>
+<figure class="example" id="ex-rec-memo" data-run="output">
+<pre class="code"><code>local sKnown
+
+function fib pN
+   if pN &lt; 2 then return pN
+   if sKnown[pN] is empty then
+      put fib(pN - 1) + fib(pN - 2) into sKnown[pN]
+   end if
+   return sKnown[pN]
+end fib
+
+put fib(30)
+put fib(50)</code></pre>
+<pre class="out">832040
+12586269025</pre>
+</figure>
+
+<h2 id="drawing">Drawing with recursion</h2>
+<aside class="note"><p>The examples in this lesson make their controls with <code>create</code> (<a href="../stacks-cards-controls/#script-made">Making controls from a script</a>), so that each one runs in the playground in one piece. In a stack of your own you would drag the same controls from the Tools palette, name them in the Property Inspector, and put the handlers into their scripts: the code works the same either way.</p></aside>
+<p>A tree is a trunk with two smaller trees on top of it. Written that way, a few lines draw one: each call draws a branch, then calls itself twice for two shorter branches, turned left and right. One graphic holds every branch: in a graphic's <code>points</code>, an empty line lifts the pen, so the branches need not join up.</p>
+<figure class="example" id="ex-rec-tree" data-run="output" data-shot="The stage, with a green tree drawn from straight lines: a trunk rising from the bottom middle that splits into two branches again and again, into a round crown of fine twigs.">
+<pre class="code"><code>local sPoints
+
+command branch pX, pY, pLength, pAngle, pDepth
+   if pDepth is 0 then exit branch
+   put pX + pLength * cos(pAngle) into tX
+   put pY - pLength * sin(pAngle) into tY
+   put round(pX) &amp; comma &amp; round(pY) &amp; return after sPoints
+   put round(tX) &amp; comma &amp; round(tY) &amp; return &amp; return after sPoints
+   branch tX, tY, pLength * 0.75, pAngle + pi / 7, pDepth - 1
+   branch tX, tY, pLength * 0.75, pAngle - pi / 7, pDepth - 1
+end branch
+
+put empty into sPoints
+branch 240, 350, 80, pi / 2, 9
+create graphic "Tree"
+set the style of it to "polygon"
+set the points of it to sPoints
+set the foregroundColor of it to "#15803D"
+set the lineSize of it to 2
+put the number of lines of sPoints div 3 &amp;&amp; "branches"</code></pre>
+<pre class="out">511 branches</pre>
+</figure>
+<p>Nine levels of two calls each make 2<sup>9</sup> − 1 = 511 branches. Change the angle, the 0.75 or the depth, and the tree changes shape.</p>
+<aside class="tip"><p>Everything recursion does, a loop can do too, with a list of the work still to do. A loop is the better choice when the depth could be huge (a folder tree made by a program, a list of a million items): the next lesson's search uses a loop and a queue.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a recursive function <code>reverseText</code> that reverses text: the reverse of a text is the reverse of everything after its first character, followed by the first character. What is the base case? Reverse <code>stressed</code>.</p>
+<details class="solution"><summary>Show a solution</summary>
+<p>The base case is text of one character or none, which is its own reverse.</p>
+<figure class="example" id="ex-rec-try" data-run="output">
+<pre class="code"><code>function reverseText pText
+   if the length of pText &lt;= 1 then return pText
+   return reverseText(char 2 to -1 of pText) &amp; char 1 of pText
+end reverseText
+
+put reverseText("stressed")
+put reverseText("racecar")</code></pre>
+<pre class="out">desserts
+racecar</pre>
+</figure>
+</details>
+</section>

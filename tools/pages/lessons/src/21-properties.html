@@ -1,0 +1,224 @@
+<!--
+title: Properties
+level: intermediate
+minutes: 12
+summary: Read and change what an object looks like and how it behaves, in the Property Inspector and from xTalk: its size and place, its colours and text, whether it shows.
+words: set, the, Property Inspector, rect, loc, width, height, topLeft, label, backgroundColor, textColor, foregroundColor, textSize, textStyle, textAlign, visible, show, hide, effective, me
+-->
+<h2 id="get-and-set">Every object has properties</h2>
+<p>A <strong>property</strong> is one fact about an object: its name, its size, its colour, the text on it, whether it can be seen. The Property Inspector shows the properties of what you have selected, with friendly labels, and lets you change them by hand. xTalk reaches the same properties by their own names: you read one with <code>the</code> and change one with <code>set</code>.</p>
+<div class="build" id="build-big-button">
+<ol>
+<li>Start a new stack (<kbd>File &gt; New Stack &gt; Default Size</kbd>), or add a card to yours (<kbd>Object &gt; New Card</kbd>).</li>
+<li>In Edit mode, drag a <strong>Standard Button</strong> to the top left of the card, and in the Property Inspector name it <code>Big</code>.</li>
+<li>Drag its bottom right corner until it is about 200 points wide and 60 high. The Property Inspector's <strong>Position</strong> section shows its <strong>Width</strong> and <strong>Height</strong> as you drag.</li>
+</ol>
+<pre class="setup">create button "Big"
+set the rect of it to 40,40,240,100</pre>
+</div>
+<p>Now open the Message Box (<kbd>Tools &gt; Message Box</kbd>) and type these lines, pressing <kbd>Return</kbd> after each. Watch the button change as you go:</p>
+<figure class="example" id="ex-props-set" data-run="output" data-card="build-big-button" data-in="message" data-shot="Your card: a large button whose label says Press me! in big bold letters.">
+<pre class="code"><code>set the textSize of button "Big" to 24
+set the textStyle of button "Big" to "bold"
+set the label of button "Big" to "Press me!"
+put the name of button "Big"
+put the label of button "Big"</code></pre>
+<pre class="out">button "Big"
+Press me!</pre>
+</figure>
+<p>Select the button in Edit mode and the Property Inspector shows the new values too: <strong>Label</strong> in its <strong>Basic</strong> section, <strong>Text size</strong> and <strong>Text style</strong> in its <strong>Text</strong> section. The Inspector and xTalk are two doors into the same room: what you set in one, the other sees. Hold the pointer over a label in the Inspector to see the property's xTalk name.</p>
+<p>A button's <code>label</code> is the text it shows; its <code>name</code> is what scripts call it. Keeping them apart lets you change the words on a button, or translate them, without breaking a single script.</p>
+
+<h2 id="size-and-place">Size and place</h2>
+<p>When you drag a control or its corners, you are changing several properties at once, and they all stay in step: change one and the others follow.</p>
+<ul>
+<li><code>rect</code>: left, top, right, bottom</li>
+<li><code>loc</code>: the point at its centre (<strong>Location</strong> in the Inspector)</li>
+<li><code>width</code> and <code>height</code></li>
+<li><code>left</code>, <code>top</code>, <code>right</code>, <code>bottom</code>, and the corners <code>topLeft</code>, <code>bottomRight</code> and so on</li>
+</ul>
+<div class="build" id="build-box">
+<ol>
+<li>Drag a <strong>Rectangle Graphic</strong> onto a card and name it <code>Box</code>.</li>
+<li>In the Property Inspector's <strong>Position</strong> section, set its <strong>Width</strong> to 200 and its <strong>Height</strong> to 100.</li>
+<li>In its <strong>Colors</strong> section, set the <strong>Fill color</strong> to a light teal, and in <strong>Basic</strong>, set the <strong>Line thickness</strong> to 4.</li>
+</ol>
+<pre class="setup">create graphic "Box"
+set the style of it to "rectangle"
+set the opaque of it to true
+set the backgroundColor of it to "#5FE0CF"
+set the lineSize of it to 4
+set the rect of it to 60,60,260,160</pre>
+</div>
+<figure class="example" id="ex-props-geometry" data-run="output" data-card="build-box" data-in="message" data-shot="Your card: a teal rectangle with a thick navy border, its centre at 200,150.">
+<pre class="code"><code>put the width of graphic "Box" &amp;&amp; the height of graphic "Box"
+set the foregroundColor of graphic "Box" to "navy"
+set the loc of graphic "Box" to 200,150
+put the rect of graphic "Box"</code></pre>
+<pre class="out">200 100
+100,100,300,200</pre>
+</figure>
+<p>Moving the centre to 200,150 moved the whole rectangle and kept its size. (A graphic draws its line in its <code>foregroundColor</code>; buttons and fields use it for their text.) A <code>rect</code> is a list of four items, so a script can change it with chunk expressions and set it back. Drag a <strong>Standard Button</strong> to the top left of a card and name it <code>Step</code>:</p>
+<div class="build" id="build-step">
+<ol>
+<li>Drag a <strong>Standard Button</strong> to the top left corner of a card, about 100 points wide, and name it <code>Step</code>.</li>
+</ol>
+<pre class="setup">create button "Step"
+set the rect of it to 10,10,110,40</pre>
+</div>
+<p>Give it this script. <code>me</code> is the object whose script is running, here the button itself:</p>
+<figure class="example" id="ex-props-rect-items" data-run="output" data-card="build-step" data-script='button "Step"' data-click='button "Step";button "Step"'>
+<pre class="code"><code>on mouseUp
+   put the rect of me into tRect
+   add 50 to item 1 of tRect
+   add 50 to item 3 of tRect
+   set the rect of me to tRect
+   put the rect of me
+end mouseUp</code></pre>
+<pre class="out">60,10,160,40
+110,10,210,40</pre>
+</figure>
+<p>Each click moves the button 50 points to the right. Back in Edit mode, drag it home again.</p>
+
+<h2 id="colours">Colours</h2>
+<p>A colour can be a name (<code>"orange"</code>, <code>"navy"</code>, <code>"darkred"</code>), a web-style hex code (<code>"#5FE0CF"</code>) or three numbers from 0 to 255 for red, green and blue. <code>backgroundColor</code> fills a control (the Inspector's <strong>Fill color</strong>), <code>textColor</code> colours its text, and <code>borderColor</code> the edge of a button or field. In the Inspector, clicking a colour opens a colour chooser.</p>
+<div class="build" id="build-squares">
+<ol>
+<li>Drag three <strong>Rectangle Graphics</strong> onto a card, in a row, each about 100 points square.</li>
+<li>Name them <code>Square 1</code>, <code>Square 2</code> and <code>Square 3</code>, from left to right.</li>
+</ol>
+<pre class="setup">repeat with i = 1 to 3
+   create graphic ("Square" &amp;&amp; i)
+   set the style of it to "rectangle"
+   set the opaque of it to true
+   set the rect of it to i * 120 - 80, 120, i * 120 + 20, 220
+end repeat</pre>
+</div>
+<figure class="example" id="ex-props-colours" data-run="output" data-card="build-squares" data-in="message" data-shot="Your card: three filled squares in a row, red, teal and gold.">
+<pre class="code"><code>set the backgroundColor of graphic "Square 1" to 255,0,0
+set the backgroundColor of graphic "Square 2" to "#5FE0CF"
+set the backgroundColor of graphic "Square 3" to "gold"
+put the backgroundColor of graphic "Square 1"
+put the backgroundColor of graphic "Square 2"</code></pre>
+<pre class="out">255,0,0
+#5FE0CF</pre>
+</figure>
+<p>A colour reads back the way it was set: three numbers stay three numbers, and a hex code stays a hex code.</p>
+
+<h2 id="text">Text properties</h2>
+<p>Fields and buttons share a set of text properties, in the Inspector's <strong>Text</strong> section: <code>textFont</code>, <code>textSize</code>, <code>textStyle</code> (<code>plain</code>, <code>bold</code>, <code>italic</code>, <code>underline</code> and more, joined with commas) and <code>textAlign</code> (<code>left</code>, <code>center</code> or <code>right</code>), and in <strong>Colors</strong>, <code>textColor</code>.</p>
+<div class="build" id="build-greeting">
+<ol>
+<li>Drag a <strong>Field</strong> to the top of a card, name it <code>Greeting</code>, and make it nearly as wide as the card and about 60 points high.</li>
+</ol>
+<pre class="setup">create field "Greeting"
+set the rect of it to 20,40,380,100</pre>
+</div>
+<figure class="example" id="ex-props-text" data-run="output" data-card="build-greeting" data-in="message" data-shot="Your card: a wide field across the top showing Hello, card! in large dark red bold italic letters, centred.">
+<pre class="code"><code>set the textSize of field "Greeting" to 28
+set the textColor of field "Greeting" to "darkred"
+set the textAlign of field "Greeting" to "center"
+put "Hello, card!" into field "Greeting"
+set the textStyle of field "Greeting" to "bold,italic"
+put the textStyle of field "Greeting"</code></pre>
+<pre class="out">bold,italic</pre>
+</figure>
+
+<h2 id="visible">Showing and hiding</h2>
+<p>A control's <code>visible</code> property says whether it shows (the <strong>Visible</strong> box in the Inspector's <strong>Basic</strong> section). <code>hide</code> and <code>show</code> are short ways to set it. A hidden control is still there, with all its properties and its script: it is only out of sight.</p>
+<div class="build" id="build-two-circles">
+<ol>
+<li>Drag two <strong>Oval Graphics</strong> onto a card, side by side. Name the left one <code>Shown</code> and the right one <code>Hidden</code>, and set the <strong>Fill color</strong> of both to royal blue.</li>
+<li>Drag a <strong>Standard Button</strong> under them and name it <code>Peek</code>.</li>
+</ol>
+<pre class="setup">create graphic "Shown"
+create graphic "Hidden"
+repeat for each item tName in "Shown,Hidden"
+   set the style of graphic tName to "oval"
+   set the opaque of graphic tName to true
+   set the backgroundColor of graphic tName to "royalblue"
+end repeat
+set the rect of graphic "Shown" to 60,60,180,180
+set the rect of graphic "Hidden" to 240,60,360,180
+create button "Peek"
+set the rect of it to 159,220,241,243</pre>
+</div>
+<figure class="example" id="ex-props-visible" data-run="output" data-card="build-two-circles" data-in="message" data-shot="Your card: a single blue circle and a button labelled Peek; a second circle is there but hidden.">
+<pre class="code"><code>hide graphic "Hidden"
+put the visible of graphic "Shown"
+put the visible of graphic "Hidden"
+put the number of graphics</code></pre>
+<pre class="out">true
+false
+2</pre>
+</figure>
+<p>The hidden circle still counts. Now give the button <code>Peek</code> a script that turns the circle on and off: <code>not</code> turns <code>true</code> into <code>false</code> and back.</p>
+<figure class="example" id="ex-props-peek" data-run="output" data-card="build-two-circles" data-script='button "Peek"' data-click='button "Peek";button "Peek"'>
+<pre class="code"><code>on mouseUp
+   set the visible of graphic "Hidden" to not the visible of graphic "Hidden"
+   put the visible of graphic "Hidden"
+end mouseUp</code></pre>
+<pre class="out">false
+true</pre>
+</figure>
+<aside class="tip"><p>A hidden control is easy to lose in Edit mode. The Project Browser (<kbd>Tools &gt; Project Browser</kbd>) lists every control of every card, hidden or not, and selects the one you click.</p></aside>
+
+<h2 id="inheritance">Inherited properties</h2>
+<p>Text properties that a control leaves empty come from the object that holds it: its card, then its stack. Set the <code>textSize</code> of a card and every field on it follows, unless a field sets its own. <code>the effective</code> asks for the value the control really uses:</p>
+<div class="build" id="build-two-fields">
+<ol>
+<li>Drag two <strong>Fields</strong> onto a card and name them <code>A</code> and <code>B</code>.</li>
+</ol>
+<pre class="setup">create field "A"
+set the rect of it to 40,40,140,61
+create field "B"
+set the rect of it to 40,80,140,101</pre>
+</div>
+<figure class="example" id="ex-props-effective" data-run="output" data-card="build-two-fields" data-in="message">
+<pre class="code"><code>set the textSize of this card to 20
+set the textSize of field "B" to 12
+put "[" &amp; the textSize of field "A" &amp; "]"
+put the effective textSize of field "A"
+put the effective textSize of field "B"</code></pre>
+<pre class="out">[]
+20
+12</pre>
+</figure>
+<p>This is how a whole stack gets one font: set its <code>textFont</code> once, on the stack (in the Stack Inspector, <kbd>Object &gt; Stack Inspector</kbd>), and leave the controls' own empty. A stack made with <kbd>File &gt; New Stack</kbd> starts with a <code>textSize</code> of 16, which its controls use until you set one of theirs.</p>
+
+<h2 id="typos">A misspelled property</h2>
+<p>One surprise: setting a property xTalk does not know is not an error. It quietly makes a <strong>custom property</strong> of that name, a feature the lesson <a href="../custom-properties/">Custom properties</a> puts to good use. So a typing slip like this, on the button <code>Big</code> from the start of the lesson, does nothing you can see, and says nothing either:</p>
+<figure class="example" id="ex-props-typo" data-run="output" data-card="build-big-button" data-in="message">
+<pre class="code"><code>set the lable of button "Big" to "Oops"
+put "[" &amp; the label of button "Big" &amp; "]"
+put the lable of button "Big"</code></pre>
+<pre class="out">[]
+Oops</pre>
+</figure>
+<p>When a <code>set</code> seems to do nothing, check the property's spelling first. The Inspector cannot make this slip, which is one reason to use it while you learn the names.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Drag a <strong>Field</strong> onto a card and name it <code>Badge</code>. Then, in the Message Box, make it 200 by 60 points, put its centre at the centre of the card (<code>the loc of this card</code>), give it a gold background and the text <code>WINNER</code> in bold 30-point type, centred. Last, put whether its <code>loc</code> is the card's. (You could do all of it in the Property Inspector too: doing it in xTalk is practice for scripts.)</p>
+<div class="build" id="build-badge">
+<ol>
+<li>Drag a <strong>Field</strong> onto a card and name it <code>Badge</code>.</li>
+</ol>
+<pre class="setup">create field "Badge"
+set the rect of it to 40,40,140,61</pre>
+</div>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-props-try" data-run="output" data-card="build-badge" data-in="message" data-shot="Your card: a gold field in its centre that says WINNER in large bold letters.">
+<pre class="code"><code>set the width of field "Badge" to 200
+set the height of field "Badge" to 60
+set the loc of field "Badge" to the loc of this card
+set the backgroundColor of field "Badge" to "gold"
+set the textSize of field "Badge" to 30
+set the textStyle of field "Badge" to "bold"
+set the textAlign of field "Badge" to "center"
+put "WINNER" into field "Badge"
+put the loc of field "Badge" is the loc of this card</code></pre>
+<pre class="out">true</pre>
+</figure>
+</details>
+</section>

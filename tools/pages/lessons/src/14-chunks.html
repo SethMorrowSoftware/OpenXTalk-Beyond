@@ -1,0 +1,111 @@
+<!--
+title: Chunks: chars, words, items and lines
+level: beginner
+minutes: 10
+summary: xTalk's superpower for text: pick out any character, word, item or line by its number, count them, and use the same words on fields and files.
+words: char, word, item, line, the number of, the last, itemDelimiter, lineDelimiter, trueWord
+-->
+<h2 id="chunk-expressions">Asking for a piece</h2>
+<p>Most languages make you count positions and cut strings with functions. xTalk lets you ask for a piece of text in words: <code>word 2 of</code>, <code>char 1 to 3 of</code>, <code>the last line of</code>. These are called <strong>chunk expressions</strong>, and they are one of the reasons people love the language.</p>
+<figure class="example" id="ex-chunk-words" data-run="output">
+<pre class="code"><code>put "The quick brown fox jumps" into tText
+put word 2 of tText
+put word 2 to 3 of tText
+put char 1 to 3 of tText
+put the last word of tText
+put the first char of tText
+put the number of words of tText</code></pre>
+<pre class="out">quick
+quick brown
+The
+jumps
+T
+5</pre>
+</figure>
+
+<h2 id="kinds">The four chunks</h2>
+<div class="table-scroll"><table>
+<thead><tr><th>Chunk</th><th>A piece of text separated by</th></tr></thead>
+<tbody>
+<tr><td><code>char</code></td><td>nothing: one character (<code>character</code> also works)</td></tr>
+<tr><td><code>word</code></td><td>spaces, tabs or new lines (and a quoted phrase counts as one word)</td></tr>
+<tr><td><code>item</code></td><td>commas, or the <code>itemDelimiter</code></td></tr>
+<tr><td><code>line</code></td><td>new lines, or the <code>lineDelimiter</code></td></tr>
+</tbody></table></div>
+<figure class="example" id="ex-chunk-items-lines" data-run="output">
+<pre class="code"><code>put "red,green,blue" into tColours
+put item 2 of tColours
+put the number of items of tColours
+put "apples" &amp; return &amp; "pears" &amp; return &amp; "plums" into tFruit
+put line 3 of tFruit
+put the number of lines of tFruit</code></pre>
+<pre class="out">green
+3
+plums
+3</pre>
+</figure>
+
+<h2 id="from-the-end">Counting from the end</h2>
+<p>A negative number counts from the end: <code>-1</code> is the last, <code>-2</code> the one before. <code>the last</code> and <code>the first</code> read even better when that is what you mean.</p>
+<figure class="example" id="ex-chunk-negative" data-run="output">
+<pre class="code"><code>put "The quick brown fox jumps" into tText
+put word -2 of tText
+put char -3 to -1 of tText
+put the last char of word 1 of tText</code></pre>
+<pre class="out">fox
+mps
+e</pre>
+</figure>
+<p>As the last line shows, chunks go inside chunks: a character of a word of a line of a field is a perfectly good thing to ask for.</p>
+
+<h2 id="delimiters">Other separators</h2>
+<p>Not every list uses commas. Set the <code>itemDelimiter</code> to any character to split on it. Like <code>caseSensitive</code>, it goes back to a comma when the handler ends. (The <code>lineDelimiter</code> works the same way for lines.)</p>
+<figure class="example" id="ex-chunk-delimiter" data-run="output">
+<pre class="code"><code>put "home/ada/notes.txt" into tPath
+set the itemDelimiter to "/"
+put item -1 of tPath
+put item 1 to -2 of tPath
+set the itemDelimiter to tab
+put item 2 of ("Ada" &amp; tab &amp; "36" &amp; tab &amp; "London")</code></pre>
+<pre class="out">notes.txt
+home/ada
+36</pre>
+</figure>
+
+<h2 id="truewords">Words and punctuation</h2>
+<p>A <code>word</code> is anything between spaces, punctuation and all. When you want the words a person would count, use <code>trueWord</code>, which knows about punctuation (and about languages without spaces).</p>
+<figure class="example" id="ex-chunk-truewords" data-run="output">
+<pre class="code"><code>put "Hello, world! (again)" into tText
+put word 2 of tText
+put trueWord 2 of tText
+put the number of trueWords of tText</code></pre>
+<pre class="out">world!
+world
+3</pre>
+</figure>
+
+<h2 id="missing">Asking for too much</h2>
+<p>Asking for a chunk that is not there is not an error: you just get empty. That makes loops and checks simple.</p>
+<figure class="example" id="ex-chunk-missing" data-run="output">
+<pre class="code"><code>put "one two" into tText
+put word 5 of tText is empty
+put the number of items of "a,b,"</code></pre>
+<pre class="out">true
+2</pre>
+</figure>
+<aside class="note"><p>A list that ends with its separator has no empty item at the end: <code>"a,b,"</code> has 2 items, not 3. That way a list built with <code>put tItem &amp; comma after tList</code> counts right.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>From the file name <code>holiday.photo.2026.jpg</code>, put the file's extension (the part after the last dot) and then its name without the extension.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-chunk-try" data-run="output">
+<pre class="code"><code>put "holiday.photo.2026.jpg" into tFile
+set the itemDelimiter to "."
+put item -1 of tFile
+put item 1 to -2 of tFile</code></pre>
+<pre class="out">jpg
+holiday.photo.2026</pre>
+</figure>
+</details>
+</section>

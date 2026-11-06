@@ -1,0 +1,166 @@
+<!--
+title: Databases
+level: expert
+minutes: 12
+summary: Keep many records in SQLite: open a database, create tables, insert safely with placeholders, query into text or walk a cursor, transactions, errors, and other database servers.
+words: revOpenDatabase, revExecuteSQL, revDataFromQuery, revQueryDatabase, revDatabaseColumnNamed, revMoveToNextRecord, revQueryIsAtEnd, revCloseCursor, revCloseDatabase, SQL, SQLite
+-->
+<h2 id="why">When a file is not enough</h2>
+<p>A text file or a JSON file holds a few hundred records well. Thousands of records that you search, sort, update one at a time and must never lose belong in a <strong>database</strong>. <strong>SQLite</strong> keeps a whole database in one file, needs no server, and comes with OXT-Beyond; you talk to it in <strong>SQL</strong>, the language every relational database understands.</p>
+<p>The database commands begin with <code>rev</code>, and come from an external the IDE loads as it starts, so a standalone that uses them needs <strong>Database</strong> and the <strong>SQLite</strong> driver ticked in its settings (<a href="../shipping/">Shipping your program</a>).</p>
+
+<h2 id="open">Opening a database and making a table</h2>
+<p><code>revOpenDatabase("sqlite", path)</code> opens the file, making it if it is not there, and returns a connection number to use with every other command; anything that is not a number is an error. <code>revExecuteSQL</code> runs SQL that changes something, and leaves the number of rows changed, or an error, in <code>the result</code>:</p>
+<figure class="example" id="ex-db-open" data-run="output" data-needs="external:revdb">
+<pre class="code"><code>put specialFolderPath("temporary") &amp; "/oxt-lesson.sqlite" into tPath
+put revOpenDatabase("sqlite", tPath) into tDB
+if tDB is not an integer then
+   put "could not open it:" &amp;&amp; tDB
+else
+   revExecuteSQL tDB, "CREATE TABLE IF NOT EXISTS people (name TEXT, born INTEGER)"
+   revExecuteSQL tDB, "INSERT INTO people VALUES ('Ada Lovelace', 1815)"
+   put "rows added:" &amp;&amp; the result
+   revCloseDatabase tDB
+   put "the file is there:" &amp;&amp; (there is a file tPath)
+   delete file tPath
+end if</code></pre>
+<pre class="out">rows added: 1
+the file is there: true</pre>
+</figure>
+<p>For a database that lasts only while the program runs (a cache, a quick sort of a big list), open <code>":memory:"</code> instead of a path, as the rest of this lesson does.</p>
+
+<h2 id="placeholders">Inserting safely: placeholders</h2>
+<p>Never build SQL by joining in values: a name such as <code>O'Brien</code> breaks it, and a value typed by a stranger can turn into SQL of their own, which is called <strong>SQL injection</strong>. Write <code>:1</code>, <code>:2</code> and so on where the values go, and give the <em>names</em> of the variables that hold them after the SQL. The values then never become part of the SQL, whatever they contain:</p>
+<figure class="example" id="ex-db-insert" data-run="output" data-needs="external:revdb">
+<pre class="code"><code>put revOpenDatabase("sqlite", ":memory:") into tDB
+revExecuteSQL tDB, "CREATE TABLE people (name TEXT, born INTEGER)"
+
+put "Ada Lovelace,1815" &amp; return &amp; "Grace Hopper,1906" &amp; return &amp; \
+      "Alan Turing,1912" &amp; return &amp; "Seán O'Brien,1970" into tPeople
+repeat for each line tPerson in tPeople
+   put item 1 of tPerson into tName
+   put item 2 of tPerson into tBorn
+   revExecuteSQL tDB, "INSERT INTO people (name, born) VALUES (:1, :2)", "tName", "tBorn"
+end repeat
+
+put revDataFromQuery(comma, return, tDB, "SELECT count(*) FROM people")
+put revDataFromQuery(comma, return, tDB, "SELECT name FROM people WHERE born &gt; 1900 ORDER BY born")
+revCloseDatabase tDB</code></pre>
+<pre class="out">4
+Grace Hopper
+Alan Turing
+Seán O'Brien</pre>
+</figure>
+
+<h2 id="query">Asking questions: revDataFromQuery</h2>
+<p><code>revDataFromQuery</code> runs a <code>SELECT</code> and returns the answer as text: the columns separated by the first delimiter, the rows by the second. With a tab and a return, that is the xTalk table of <a href="../csv-tables/">Tables and CSV</a>, ready for a table field. Placeholders work here too:</p>
+<figure class="example" id="ex-db-query" data-run="output" data-needs="external:revdb" data-shot="The stage, with a table field listing three people born before 1950, oldest first: Ada Lovelace 1815, Grace Hopper 1906 and Alan Turing 1912, under a bold header row.">
+<pre class="code"><code>put revOpenDatabase("sqlite", ":memory:") into tDB
+revExecuteSQL tDB, "CREATE TABLE people (name TEXT, born INTEGER)"
+revExecuteSQL tDB, "INSERT INTO people VALUES ('Alan Turing', 1912), ('Ada Lovelace', 1815), ('Linus Torvalds', 1969), ('Grace Hopper', 1906)"
+
+put 1950 into tBefore
+put revDataFromQuery(tab, return, tDB, "SELECT name, born FROM people WHERE born &lt; :1 ORDER BY born", "tBefore") into tRows
+revCloseDatabase tDB
+
+create field "Results"
+set the rect of it to 20,20,300,92
+set the tabStops of it to 180,280
+set the vGrid of it to true
+set the hGrid of it to true
+set the text of it to "Name" &amp; tab &amp; "Born" &amp; return &amp; tRows
+set the textStyle of line 1 of it to "bold"
+set the backgroundColor of line 1 of it to "#E2E8F0"
+put the number of lines of tRows &amp;&amp; "people born before" &amp;&amp; tBefore</code></pre>
+<pre class="out">3 people born before 1950</pre>
+</figure>
+
+<h2 id="cursor">Record by record: cursors</h2>
+<p>For a big answer, or when you want each column by its name, <code>revQueryDatabase</code> returns a <strong>cursor</strong>: a place in the answer that you move through a record at a time. <code>revDatabaseColumnNamed</code> reads a column of the current record, <code>revMoveToNextRecord</code> moves on, and <code>revQueryIsAtEnd</code> says when there are no more. Close the cursor when you are done:</p>
+<figure class="example" id="ex-db-cursor" data-run="output" data-needs="external:revdb">
+<pre class="code"><code>put revOpenDatabase("sqlite", ":memory:") into tDB
+revExecuteSQL tDB, "CREATE TABLE people (name TEXT, born INTEGER)"
+revExecuteSQL tDB, "INSERT INTO people VALUES ('Ada Lovelace', 1815), ('Grace Hopper', 1906)"
+
+put revQueryDatabase(tDB, "SELECT name, born FROM people ORDER BY born DESC") into tCursor
+repeat until revQueryIsAtEnd(tCursor)
+   put revDatabaseColumnNamed(tCursor, "name") &amp;&amp; "was born in" &amp;&amp; revDatabaseColumnNamed(tCursor, "born")
+   revMoveToNextRecord tCursor
+end repeat
+revCloseCursor tCursor
+revCloseDatabase tDB</code></pre>
+<pre class="out">Grace Hopper was born in 1906
+Ada Lovelace was born in 1815</pre>
+</figure>
+
+<h2 id="errors">Errors</h2>
+<p>SQL with a mistake in it does not stop the script: <code>revExecuteSQL</code> leaves the database's words in <code>the result</code>, and <code>revDataFromQuery</code> returns them, starting with <code>revdberr</code>. Check both:</p>
+<figure class="example" id="ex-db-errors" data-run="output" data-needs="external:revdb">
+<pre class="code"><code>put revOpenDatabase("sqlite", ":memory:") into tDB
+revExecuteSQL tDB, "INSERT INTO nowhere VALUES (1)"
+put "execute:" &amp;&amp; the result
+put revDataFromQuery(comma, return, tDB, "SELECT * FROM nowhere") into tAnswer
+if tAnswer begins with "revdberr" then put "query:" &amp;&amp; item 2 to -1 of tAnswer
+revCloseDatabase tDB</code></pre>
+<pre class="out">execute: no such table: nowhere
+query: Database Error: no such table: nowhere</pre>
+</figure>
+
+<h2 id="transactions">Many changes at once: transactions</h2>
+<p>A <strong>transaction</strong> groups changes so that they all happen, or none do: a transfer takes from one account and adds to another, never just one of the two. Begin one with <code>BEGIN</code>, and end it with <code>COMMIT</code> to keep the changes or <code>ROLLBACK</code> to undo them. It is also much faster for many inserts, because the file is written once instead of once a row:</p>
+<figure class="example" id="ex-db-transaction" data-run="output" data-needs="external:revdb">
+<pre class="code"><code>put revOpenDatabase("sqlite", ":memory:") into tDB
+revExecuteSQL tDB, "CREATE TABLE numbers (n INTEGER)"
+revExecuteSQL tDB, "BEGIN"
+repeat with i = 1 to 1000
+   revExecuteSQL tDB, "INSERT INTO numbers VALUES (:1)", "i"
+end repeat
+revExecuteSQL tDB, "COMMIT"
+put revDataFromQuery(comma, return, tDB, "SELECT count(*), sum(n) FROM numbers")
+
+revExecuteSQL tDB, "BEGIN"
+revExecuteSQL tDB, "DELETE FROM numbers"
+revExecuteSQL tDB, "ROLLBACK"
+put revDataFromQuery(comma, return, tDB, "SELECT count(*) FROM numbers") &amp;&amp; "rows survived the undone delete"
+revCloseDatabase tDB</code></pre>
+<pre class="out">1000,500500
+1000 rows survived the undone delete</pre>
+</figure>
+
+<h2 id="servers">Other databases</h2>
+<p>The same commands work with database servers: <code>"mysql"</code> (and MariaDB), <code>"postgresql"</code> and <code>"odbc"</code>, with a host, a database name, a user and a password. Only the opening changes:</p>
+<figure class="example" id="ex-db-server" data-run="compile">
+<pre class="code"><code>on mouseUp
+   local tDB
+   put revOpenDatabase("postgresql", "db.example.com", "shop", "reader", the cPassword of me) into tDB
+   if tDB is not an integer then
+      answer "Could not connect:" &amp;&amp; tDB
+      exit mouseUp
+   end if
+   put revDataFromQuery(tab, return, tDB, "SELECT name, price FROM products ORDER BY name") into field "Products"
+   revCloseDatabase tDB
+end mouseUp</code></pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Make a <code>scores</code> table (player and points) in memory, add the scores <code>Kim 40</code>, <code>Lee 75</code>, <code>Kim 55</code>, <code>Raj 60</code> and <code>Lee 20</code> with placeholders, then ask SQL for each player's total, highest first, and put the answer as <code>name: total</code> lines.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-db-try" data-run="output" data-needs="external:revdb">
+<pre class="code"><code>put revOpenDatabase("sqlite", ":memory:") into tDB
+revExecuteSQL tDB, "CREATE TABLE scores (player TEXT, points INTEGER)"
+repeat for each item tScore in "Kim 40,Lee 75,Kim 55,Raj 60,Lee 20"
+   put word 1 of tScore into tPlayer
+   put word 2 of tScore into tPoints
+   revExecuteSQL tDB, "INSERT INTO scores VALUES (:1, :2)", "tPlayer", "tPoints"
+end repeat
+put revDataFromQuery(": ", return, tDB, \
+      "SELECT player, sum(points) AS total FROM scores GROUP BY player ORDER BY total DESC, player")
+revCloseDatabase tDB</code></pre>
+<pre class="out">Kim: 95
+Lee: 95
+Raj: 60</pre>
+</figure>
+<p>Kim and Lee tie on 95. SQL leaves tied rows in no fixed order, so the query adds a second rule after the comma: ties go in order of the player's name.</p>
+</details>
+</section>

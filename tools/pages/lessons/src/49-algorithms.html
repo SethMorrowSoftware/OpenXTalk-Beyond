@@ -1,0 +1,227 @@
+<!--
+title: Algorithms
+level: advanced
+minutes: 14
+summary: Classic recipes in xTalk: Euclid's greatest common divisor, the sieve of primes, linear and binary search, stacks and queues, and the shortest way through a maze.
+words: algorithm, binary search, split, stack, queue, breadth-first search, mod, repeat with step
+-->
+<h2 id="what">Recipes that last</h2>
+<p>An <strong>algorithm</strong> is a recipe for a problem: steps that always reach the answer. Many of the best are old, and work the same in every language. This lesson writes a handful in xTalk, each a pattern you will meet again.</p>
+
+<h2 id="gcd">Euclid's algorithm</h2>
+<p>The greatest common divisor of two numbers, the biggest number that divides both, is what you need to simplify a fraction. Euclid wrote this method down around 300 BC: replace the pair by the smaller number and the remainder of dividing one by the other, until the remainder is 0.</p>
+<figure class="example" id="ex-algo-gcd" data-run="output">
+<pre class="code"><code>function gcd pA, pB
+   local tRemainder
+   repeat while pB is not 0
+      put pA mod pB into tRemainder
+      put pB into pA
+      put tRemainder into pB
+   end repeat
+   return pA
+end gcd
+
+put gcd(1071, 462)
+put gcd(48, 180)
+put 48 / gcd(48, 180) &amp; "/" &amp; 180 / gcd(48, 180)</code></pre>
+<pre class="out">21
+12
+4/15</pre>
+</figure>
+
+<h2 id="sieve">The sieve of primes</h2>
+<p>To find every prime below a limit, do not test each number. The sieve of Eratosthenes crosses out the multiples of each prime as it finds it; whatever is not crossed out when you reach it is prime. An array marks the crossed-out numbers, and <code>repeat with ... step</code> counts through the multiples:</p>
+<figure class="example" id="ex-algo-sieve" data-run="output">
+<pre class="code"><code>function primesBelow pLimit
+   local tCrossed, tPrimes, tN, tMultiple
+   repeat with tN = 2 to pLimit - 1
+      if tCrossed[tN] is true then next repeat
+      put tN &amp; comma after tPrimes
+      repeat with tMultiple = tN * tN to pLimit - 1 step tN
+         put true into tCrossed[tMultiple]
+      end repeat
+   end repeat
+   delete the last char of tPrimes
+   return tPrimes
+end primesBelow
+
+put primesBelow(50)
+put the number of items of primesBelow(100000)</code></pre>
+<pre class="out">2,3,5,7,11,13,17,19,23,29,31,37,41,43,47
+9592</pre>
+</figure>
+<p>Crossing out starts at <code>tN * tN</code>, because the smaller multiples were crossed out already by smaller primes.</p>
+
+<h2 id="search">Searching: linear and binary</h2>
+<p>To find a value in a list, a <strong>linear search</strong> looks at each item in turn. In a list of 100,000 items, that can mean 100,000 looks. If the list is <em>sorted</em>, a <strong>binary search</strong> does far better: look at the middle item, and you know which half the value must be in; look at the middle of that half, and so on. Each look halves what is left, so 100,000 items take at most 17 looks.</p>
+<figure class="example" id="ex-algo-binary" data-run="output">
+<pre class="code"><code>local sLooks
+
+function findLinear pList, pWanted
+   local tIndex
+   repeat with tIndex = 1 to the number of elements of pList
+      add 1 to sLooks
+      if pList[tIndex] = pWanted then return tIndex
+   end repeat
+   return 0
+end findLinear
+
+function findBinary pList, pWanted
+   local tLow, tHigh, tMiddle
+   put 1 into tLow
+   put the number of elements of pList into tHigh
+   repeat while tLow &lt;= tHigh
+      add 1 to sLooks
+      put (tLow + tHigh) div 2 into tMiddle
+      if pList[tMiddle] = pWanted then return tMiddle
+      if pList[tMiddle] &lt; pWanted then
+         put tMiddle + 1 into tLow
+      else
+         put tMiddle - 1 into tHigh
+      end if
+   end repeat
+   return 0
+end findBinary
+
+repeat with i = 1 to 100000
+   put i * 3 into tNumbers[i]
+end repeat
+
+put 0 into sLooks
+put "linear found it at" &amp;&amp; findLinear(tNumbers, 299997) &amp;&amp; "after" &amp;&amp; sLooks &amp;&amp; "looks"
+put 0 into sLooks
+put "binary found it at" &amp;&amp; findBinary(tNumbers, 299997) &amp;&amp; "after" &amp;&amp; sLooks &amp;&amp; "looks"</code></pre>
+<pre class="out">linear found it at 99999 after 99999 looks
+binary found it at 99999 after 16 looks</pre>
+</figure>
+<aside class="tip"><p>The numbers are in an array, numbered from 1, not in lines of text. <code>line 50000 of tList</code> has to count 49,999 returns to find its line, every time, so a binary search over lines of text would lose most of its speed. <code>split tList by return</code> turns lines into such an array in one step (<a href="../arrays/">Arrays</a>).</p></aside>
+
+<h2 id="stacks-queues">Stacks and queues</h2>
+<p>Two shapes of to-do list come up again and again. A <strong>stack</strong> is last in, first out, like a pile of plates: you add to the top and take from the top. A <strong>queue</strong> is first in, first out, like a line at a shop. With lines of text, both are a line or two:</p>
+<figure class="example" id="ex-algo-stack-queue" data-run="output">
+<pre class="code"><code>-- a stack: add at the end, take from the end
+repeat for each word tPlate in "red green blue"
+   put tPlate &amp; return after tStack
+end repeat
+put line -1 of tStack into tTaken
+delete line -1 of tStack
+put "from the stack:" &amp;&amp; tTaken
+
+-- a queue: add at the end, take from the front
+repeat for each word tPerson in "Ada Grace Linus"
+   put tPerson &amp; return after tQueue
+end repeat
+put line 1 of tQueue into tServed
+delete line 1 of tQueue
+put "from the queue:" &amp;&amp; tServed</code></pre>
+<pre class="out">from the stack: blue
+from the queue: Ada</pre>
+</figure>
+<p>An undo list is a stack: the last change made is the first undone. A list of files to download is a queue: the first asked for is the first fetched. The try-it below uses a stack; the maze uses a queue.</p>
+
+<h2 id="maze">The shortest way through a maze</h2>
+<p>A <strong>breadth-first search</strong> finds the shortest path through a maze, a map or a network. Start with a queue holding the start. Take the first cell from the queue, and add each open neighbour not seen before, noting the cell it was reached from. Because the queue is first in, first out, cells are reached in order of distance, so the first time the search reaches the end, it got there by a shortest way. Following the notes back from the end gives the path.</p>
+<figure class="example" id="ex-algo-maze" data-run="output" data-shot="The stage, with a maze of dark grey walls; a violet square marks the start at the top left, an orange square the end at the bottom right, and a line of teal dots shows the shortest path, down the left side, along the bottom, up through a gap in the middle, and over and down to the end.">
+<pre class="code"><code>function shortestPath pMaze
+   local tStart, tEnd, tRow, tQueue, tFrom, tCell, tStep, tNext, tPath
+   repeat with tRow = 1 to the number of lines of pMaze
+      if "S" is in line tRow of pMaze then put tRow &amp; comma &amp; offset("S", line tRow of pMaze) into tStart
+      if "E" is in line tRow of pMaze then put tRow &amp; comma &amp; offset("E", line tRow of pMaze) into tEnd
+   end repeat
+   put tStart &amp; return into tQueue
+   put "start" into tFrom[tStart]
+   repeat while tQueue is not empty
+      put line 1 of tQueue into tCell
+      delete line 1 of tQueue
+      if tCell is tEnd then exit repeat
+      repeat for each item tStep in "-1 0,1 0,0 -1,0 1"
+         put item 1 of tCell + word 1 of tStep &amp; comma &amp; item 2 of tCell + word 2 of tStep into tNext
+         if char (item 2 of tNext) of line (item 1 of tNext) of pMaze is "#" then next repeat
+         if tFrom[tNext] is not empty then next repeat
+         put tCell into tFrom[tNext]
+         put tNext &amp; return after tQueue
+      end repeat
+   end repeat
+   -- follow the notes back from the end
+   put tFrom[tEnd] into tCell
+   repeat until tCell is tStart
+      put tCell &amp; return before tPath
+      put tFrom[tCell] into tCell
+   end repeat
+   return tPath
+end shortestPath
+
+command paintCell pRow, pCol, pColour, pInset
+   create graphic
+   set the filled of it to true
+   set the lineSize of it to 0
+   set the backgroundColor of it to pColour
+   if pInset &gt; 0 then set the style of it to "oval"
+   set the rect of it to 60 + 24 * (pCol - 1) + pInset, 72 + 24 * (pRow - 1) + pInset, \
+         60 + 24 * pCol - pInset, 72 + 24 * pRow - pInset
+end paintCell
+
+put "###############" &amp; return &amp; \
+      "#S....#.......#" &amp; return &amp; \
+      "#.###.#.#####.#" &amp; return &amp; \
+      "#.#...#.#...#.#" &amp; return &amp; \
+      "#.#.###.#.#.#.#" &amp; return &amp; \
+      "#.#.....#.#...#" &amp; return &amp; \
+      "#.#######.###.#" &amp; return &amp; \
+      "#.........#..E#" &amp; return &amp; \
+      "###############" into tMaze
+
+put shortestPath(tMaze) into tPath
+repeat with tRow = 1 to the number of lines of tMaze
+   repeat with tCol = 1 to the length of line tRow of tMaze
+      switch char tCol of line tRow of tMaze
+         case "#"
+            paintCell tRow, tCol, "#334155", 0
+            break
+         case "S"
+            paintCell tRow, tCol, "#8B5CF6", 0
+            break
+         case "E"
+            paintCell tRow, tCol, "#FF7A00", 0
+            break
+      end switch
+   end repeat
+end repeat
+repeat for each line tCell in tPath
+   paintCell item 1 of tCell, item 2 of tCell, "#14B8A6", 7
+end repeat
+put "the shortest path takes" &amp;&amp; the number of lines of tPath + 1 &amp;&amp; "steps"</code></pre>
+<pre class="out">the shortest path takes 26 steps</pre>
+</figure>
+<p>The maze is lines of text, one character a cell, so a cell is a row and a column: <code>char (column) of line (row)</code>. The search never needs to check for the edge of the map, because the map is walled all round. The path holds the cells between the start and the end, so the steps are one more than its lines.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Use a stack to check brackets: go through the text a character at a time; push each opening bracket <code>( [ {</code>; at each closing bracket, pop the last opening one and check that the two match. The brackets balance if nothing failed to match and the stack ends empty. Try <code>(a[b]{c})</code>, <code>(a[b)]</code> and <code>((</code>.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-algo-try" data-run="output">
+<pre class="code"><code>function balanced pText
+   local tStack, tChar, tOpen
+   repeat for each char tChar in pText
+      if tChar is among the chars of "([{" then
+         put tChar after tStack
+      else if tChar is among the chars of ")]}" then
+         if tStack is empty then return false
+         put the last char of tStack into tOpen
+         delete the last char of tStack
+         if tOpen &amp; tChar is not among the items of "(),[],{}" then return false
+      end if
+   end repeat
+   return tStack is empty
+end balanced
+
+put balanced("(a[b]{c})")
+put balanced("(a[b)]")
+put balanced("((")</code></pre>
+<pre class="out">true
+false
+false</pre>
+</figure>
+<p>Here the stack is plain text, a character an item, since each thing pushed is one character.</p>
+</details>
+</section>

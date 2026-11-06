@@ -1,0 +1,192 @@
+<!--
+title: The web and the internet
+level: expert
+minutes: 12
+summary: Fetch pages and data with URL, send forms and JSON with post, set headers, load in the background, download files, and run a small web server of your own.
+words: URL, http:, https:, the result, urlEncode, post, the httpHeaders, libURLLastRHHeaders, load URL, unload URL, launch url, httpdStart, httpdResponse, httpdStop
+-->
+<h2 id="server">A web server for the examples</h2>
+<p>So that this lesson's examples run anywhere, even with no internet, each one starts a tiny <strong>web server</strong> on your own computer first, with the HTTP server library that comes with OXT-Beyond: <code>httpdStart</code> names the handler that answers each request and a port (0 lets the system choose a free one, which it puts in <code>it</code>), and the handler answers with <code>httpdResponse</code>. The address is then <code>http://127.0.0.1:</code> and the port: 127.0.0.1 always means this computer.</p>
+<p>Everything on the client side works the same with any address on the internet, such as <code>https://example.com/</code>. And the server side is useful too: a program can serve a page to a phone on the same network, or answer another program.</p>
+
+<h2 id="get">Fetching: URL</h2>
+<p><code>URL</code> with an <code>http:</code> or <code>https:</code> address is a container, like <code>URL "file:"</code> (<a href="../files/#url">Reading and writing files</a>): reading it fetches the page. The script waits until it arrives, and <code>the result</code> says what went wrong, if anything:</p>
+<figure class="example" id="ex-net-get" data-run="output" data-needs="com.livecode.library.httpd">
+<pre class="code"><code>on serve pSocket, pRequest
+   if pRequest["resource"] is "/hello" then
+      httpdResponse pSocket, 200, "Hello, web"
+   else
+      httpdResponse pSocket, 404, "No such page"
+   end if
+end serve
+
+httpdStart "serve", 0
+put it into tPort
+
+put URL ("http://127.0.0.1:" &amp; tPort &amp; "/hello")
+put URL ("http://127.0.0.1:" &amp; tPort &amp; "/missing") into tPage
+if the result is not empty then put "problem:" &amp;&amp; the result
+
+httpdStop tPort</code></pre>
+<pre class="out">Hello, web
+problem: error 404 Not Found</pre>
+</figure>
+<aside class="warn"><p>Check <code>the result</code> after every fetch. A server that answers with an error still sends a page (here, <code>No such page</code>), and a server that cannot be reached sends nothing, so the page alone does not tell you whether it worked.</p></aside>
+
+<h2 id="parameters">Asking with parameters</h2>
+<p>A request can carry values in its address, after a <code>?</code>: <code>?q=tea&amp;page=2</code>. A value with spaces, <code>&amp;</code> or accents must be encoded first. Encode text as UTF-8 and then with <code>urlEncode</code>, which is what servers expect today:</p>
+<figure class="example" id="ex-net-params" data-run="output" data-needs="com.livecode.library.httpd">
+<pre class="code"><code>on serve pSocket, pRequest
+   httpdResponse pSocket, 200, "you searched for" &amp;&amp; textDecode(pRequest["parameters"]["q"], "UTF-8") &amp;&amp; \
+         "on page" &amp;&amp; pRequest["parameters"]["page"]
+end serve
+
+httpdStart "serve", 0
+put it into tPort
+
+put urlEncode(textEncode("café &amp; tea", "UTF-8")) into tQuery
+put tQuery
+put URL ("http://127.0.0.1:" &amp; tPort &amp; "/search?q=" &amp; tQuery &amp; "&amp;page=2")
+httpdStop tPort</code></pre>
+<pre class="out">caf%C3%A9+%26+tea
+you searched for café &amp; tea on page 2</pre>
+</figure>
+
+<h2 id="post">Sending: post</h2>
+<p><code>post</code> sends data to a server, as a form does, and puts the server's answer in <code>it</code>. Form data is <code>name=value</code> pairs joined with <code>&amp;</code>, each value encoded. To send JSON, say so with a <code>Content-Type</code> header in <code>the httpHeaders</code>, the extra headers sent with each request:</p>
+<figure class="example" id="ex-net-post" data-run="output" data-needs="com.livecode.library.httpd">
+<pre class="code"><code>on serve pSocket, pRequest
+   if pRequest["content"] is empty then
+      httpdResponse pSocket, 200, "form: name is" &amp;&amp; pRequest["parameters"]["name"]
+   else
+      httpdResponse pSocket, 200, "body:" &amp;&amp; pRequest["content"]
+   end if
+end serve
+
+httpdStart "serve", 0
+put it into tPort
+
+post "name=" &amp; urlEncode("Ada Lovelace") to URL ("http://127.0.0.1:" &amp; tPort &amp; "/save")
+put it
+
+set the httpHeaders to "Content-Type: application/json"
+post "{" &amp; quote &amp; "name" &amp; quote &amp; ":" &amp; quote &amp; "Ada" &amp; quote &amp; "}" to URL ("http://127.0.0.1:" &amp; tPort &amp; "/save")
+set the httpHeaders to empty
+put it
+
+httpdStop tPort</code></pre>
+<pre class="out">form: name is Ada Lovelace
+body: {"name":"Ada"}</pre>
+</figure>
+<p>Set <code>the httpHeaders</code> back to empty when you are done, or the headers go with every later request too. A web service that needs a key usually takes it in a header: <code>Authorization: Bearer</code> and the key.</p>
+
+<h2 id="headers">What the server sent back</h2>
+<p>The server's answer starts with headers of its own: the kind of data, its size, cookies. <code>libURLLastRHHeaders()</code> gives those of the last request, a header a line. HTTP ends each line with a carriage return before the line feed, so take those out first:</p>
+<figure class="example" id="ex-net-headers" data-run="output" data-needs="com.livecode.library.httpd">
+<pre class="code"><code>on serve pSocket, pRequest
+   httpdResponse pSocket, 200, "{}", "Content-Type: application/json"
+end serve
+
+httpdStart "serve", 0
+put it into tPort
+get URL ("http://127.0.0.1:" &amp; tPort &amp; "/data")
+put libURLLastRHHeaders() into tHeaders
+replace numToChar(13) with empty in tHeaders
+put line 1 of tHeaders
+filter tHeaders with "Content-Type:*"
+put tHeaders
+httpdStop tPort</code></pre>
+<pre class="out">HTTP/1.1 200 OK
+Content-Type: application/json</pre>
+</figure>
+
+<h2 id="background">Loading in the background</h2>
+<p>Reading <code>URL</code> makes the script wait, and a slow server makes the program wait with it. <code>load URL</code> starts the download and returns at once; when it has finished, the message you name arrives with the address and its status, and the page is then in the cache, where <code>URL</code> reads it at once. <code>unload URL</code> frees the cache:</p>
+<figure class="example" id="ex-net-load" data-run="output" data-wait="3" data-needs="com.livecode.library.httpd">
+<pre class="code"><code>local sPort
+
+on serve pSocket, pRequest
+   httpdResponse pSocket, 200, "loaded in the background"
+end serve
+
+on pageLoaded pAddress, pStatus
+   put "status:" &amp;&amp; pStatus
+   put URL pAddress
+   unload URL pAddress
+   httpdStop sPort
+end pageLoaded
+
+httpdStart "serve", 0
+put it into sPort
+load URL ("http://127.0.0.1:" &amp; sPort &amp; "/news") with message "pageLoaded"
+put "the program carries on while it loads"</code></pre>
+<pre class="out">the program carries on while it loads
+status: cached
+loaded in the background</pre>
+</figure>
+<p>The status is <code>cached</code> when the download worked, and <code>error</code>, <code>timeout</code> or <code>contacted</code> when it did not get that far. <code>URLStatus(address)</code> gives the same while it is still going, with how much has arrived, for a progress bar.</p>
+
+<h2 id="download">Downloading a file</h2>
+<p>A download is a fetch put straight into a <code>binfile:</code> URL, which keeps the bytes exactly as they came (<a href="../binary-data/">Binary data</a>):</p>
+<figure class="example" id="ex-net-download" data-run="output" data-needs="com.livecode.library.httpd">
+<pre class="code"><code>on serve pSocket, pRequest
+   httpdResponse pSocket, 200, binaryEncode("CCa3", 0, 255, "PNG")
+end serve
+
+httpdStart "serve", 0
+put it into tPort
+put specialFolderPath("temporary") &amp; "/oxt-lesson-download.bin" into tPath
+
+put URL ("http://127.0.0.1:" &amp; tPort &amp; "/file") into tData
+if the result is empty then
+   put tData into URL ("binfile:" &amp; tPath)
+   put the number of bytes of URL ("binfile:" &amp; tPath) &amp;&amp; "bytes saved"
+end if
+delete file tPath
+httpdStop tPort</code></pre>
+<pre class="out">5 bytes saved</pre>
+</figure>
+
+<h2 id="browser">Opening the user's browser</h2>
+<p><code>launch url</code> opens an address in the user's own web browser, or a <code>mailto:</code> address in their email program. It does not fetch anything for the script:</p>
+<figure class="example" id="ex-net-launch" data-run="compile">
+<pre class="code"><code>on mouseUp
+   launch url "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond"
+end mouseUp</code></pre>
+</figure>
+<aside class="tip"><p>Real services are on <code>https:</code>, which encrypts the connection and checks the server's certificate. Use <code>https:</code> addresses whenever a service offers them, and never send a password or a key over plain <code>http:</code>.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Build a tiny web service and its client. The server answers <code>/square?n=</code> with JSON such as <code>{"n": 12, "square": 144}</code>, and a 400 error when <code>n</code> is not a number. The client asks for 12 and for <code>twelve</code>, reads the JSON, and puts the square or the problem.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-net-try" data-run="output" data-needs="com.livecode.library.httpd com.livecode.library.json">
+<pre class="code"><code>on serve pSocket, pRequest
+   local tN, tAnswer
+   put pRequest["parameters"]["n"] into tN
+   if tN is not a number then
+      httpdResponse pSocket, 400, "n must be a number"
+      exit serve
+   end if
+   put tN + 0 into tAnswer["n"]
+   put tN * tN into tAnswer["square"]
+   httpdResponse pSocket, 200, JSONExport(tAnswer), "Content-Type: application/json"
+end serve
+
+httpdStart "serve", 0
+put it into tPort
+repeat for each item tAsk in "12,twelve"
+   put URL ("http://127.0.0.1:" &amp; tPort &amp; "/square?n=" &amp; urlEncode(tAsk)) into tReply
+   if the result is not empty then
+      put tAsk &amp; ":" &amp;&amp; the result &amp; "," &amp;&amp; tReply
+   else
+      put JSONImport(tReply) into tData
+      put tData["n"] &amp;&amp; "squared is" &amp;&amp; tData["square"]
+   end if
+end repeat
+httpdStop tPort</code></pre>
+<pre class="out">12 squared is 144
+twelve: error 400 Bad Request, n must be a number</pre>
+</figure>
+</details>
+</section>

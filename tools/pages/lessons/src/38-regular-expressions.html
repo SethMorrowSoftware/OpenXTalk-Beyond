@@ -1,0 +1,123 @@
+<!--
+title: Regular expressions
+level: advanced
+minutes: 11
+summary: Describe patterns of text, then find them, pull out their parts and replace them, with matchText, matchChunk, replaceText and filter.
+words: matchText, matchChunk, replaceText, filter, regex pattern, (?i)
+-->
+<h2 id="what">Patterns for text</h2>
+<p>A <strong>regular expression</strong> (a <em>regex</em>) is a small language for describing text: "one or more digits", "a word at the start of the line", "something that looks like an email address". xTalk uses the same regular expressions as Perl, Python and most other languages (PCRE), so what you learn here works almost everywhere.</p>
+<div class="table-scroll"><table>
+<thead><tr><th>Pattern</th><th>Matches</th></tr></thead>
+<tbody>
+<tr><td><code>cat</code></td><td>the letters <code>cat</code>, anywhere</td></tr>
+<tr><td><code>.</code></td><td>any one character</td></tr>
+<tr><td><code>[aeiou]</code>, <code>[0-9]</code>, <code>[^,]</code></td><td>one character from a set, a range, or not in a set</td></tr>
+<tr><td><code>\d</code>, <code>\s</code>, <code>\w</code></td><td>a digit, a space or tab, a letter or digit or <code>_</code></td></tr>
+<tr><td><code>*</code>, <code>+</code>, <code>?</code></td><td>after something: any number of it, one or more, none or one</td></tr>
+<tr><td><code>{3}</code>, <code>{2,4}</code></td><td>exactly 3 of it, from 2 to 4</td></tr>
+<tr><td><code>^</code>, <code>$</code></td><td>the start and the end of the text</td></tr>
+<tr><td><code>(</code>...<code>)</code></td><td>a group, which you can capture</td></tr>
+<tr><td><code>a|b</code></td><td>either a or b</td></tr>
+<tr><td><code>\.</code>, <code>\$</code></td><td>a character that means something, taken literally</td></tr>
+</tbody></table></div>
+
+<h2 id="matchtext">Is it there? matchText</h2>
+<p><code>matchText</code> says whether a pattern is found anywhere in some text:</p>
+<figure class="example" id="ex-regex-match" data-run="output">
+<pre class="code"><code>put matchText("Order 66 shipped", "[0-9]+")
+put matchText("No numbers here", "[0-9]+")
+put matchText("2024", "^\d{4}$")
+put matchText("12024", "^\d{4}$")</code></pre>
+<pre class="out">true
+false
+true
+false</pre>
+</figure>
+<p>The last two show why <code>^</code> and <code>$</code> matter: without them, "four digits" would be found inside a longer number.</p>
+
+<h2 id="capture">Taking parts out: groups</h2>
+<p>Give <code>matchText</code> variables after the pattern, and each bracketed group's text is put into one of them, in order. This is how you pull a date, a price or a name out of a line:</p>
+<figure class="example" id="ex-regex-capture" data-run="output">
+<pre class="code"><code>put "Order 66 shipped on 2024-05-01" into tLine
+if matchText(tLine, "(\d{4})-(\d{2})-(\d{2})", tYear, tMonth, tDay) then
+   put "Year" &amp;&amp; tYear &amp; ", month" &amp;&amp; tMonth &amp; ", day" &amp;&amp; tDay
+end if
+get matchText("Ada Lovelace", "(\w+)\s+(\w+)", tFirst, tLast)
+put tLast &amp; "," &amp;&amp; tFirst</code></pre>
+<pre class="out">Year 2024, month 05, day 01
+Lovelace, Ada</pre>
+</figure>
+
+<h2 id="matchchunk">Where is it? matchChunk</h2>
+<p><code>matchChunk</code> is the same, but gives the positions of each group, the first and last character, so you can work on that chunk of the text. Here it finds every price in a line and adds them up:</p>
+<figure class="example" id="ex-regex-chunk" data-run="output">
+<pre class="code"><code>put "price: $12.50, tax: $1.25, tip: $2" into tRest
+put 0 into tTotal
+repeat while matchChunk(tRest, "\$([0-9.]+)", tStart, tEnd)
+   add char tStart to tEnd of tRest to tTotal
+   delete char 1 to tEnd of tRest
+end repeat
+put tTotal</code></pre>
+<pre class="out">15.75</pre>
+</figure>
+
+<h2 id="replacetext">Replacing: replaceText</h2>
+<p><code>replaceText</code> gives a copy of the text with every match of the pattern replaced. It is <code>replace</code> with patterns:</p>
+<figure class="example" id="ex-regex-replace" data-run="output">
+<pre class="code"><code>put replaceText("too   many    spaces", " +", " ")
+put replaceText("Call 555-1234 or 555-9876", "\d{3}-\d{4}", "XXX-XXXX")
+put replaceText("one,two;three four", "[,; ]", "|")</code></pre>
+<pre class="out">too many spaces
+Call XXX-XXXX or XXX-XXXX
+one|two|three|four</pre>
+</figure>
+<aside class="note"><p>The replacement is plain text: <code>replaceText</code> does not fill in captured groups the way some languages' <code>$1</code> does. To rearrange parts, capture them with <code>matchText</code> and join them yourself, as in the "Lovelace, Ada" example above.</p></aside>
+
+<h2 id="case">Ignoring case</h2>
+<p>Regular expressions care about capitals. Start the pattern with <code>(?i)</code> to make it ignore case:</p>
+<figure class="example" id="ex-regex-case" data-run="output">
+<pre class="code"><code>put matchText("Hello", "^hello$")
+put matchText("Hello", "(?i)^hello$")</code></pre>
+<pre class="out">false
+true</pre>
+</figure>
+
+<h2 id="validating">Checking input</h2>
+<p>A common use is checking that what someone typed has the right shape:</p>
+<figure class="example" id="ex-regex-validate" data-run="output">
+<pre class="code"><code>function looksLikeEmail pText
+   return matchText(pText, "^[^@\s]+@[^@\s]+\.[a-zA-Z]{2,}$")
+end looksLikeEmail
+
+function looksLikePostcode pText
+   return matchText(pText, "(?i)^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$")
+end looksLikePostcode
+
+put looksLikeEmail("ada@example.com")
+put looksLikeEmail("not an email")
+put looksLikePostcode("SW1A 1AA")
+put looksLikePostcode("12345")</code></pre>
+<pre class="out">true
+false
+true
+false</pre>
+</figure>
+<aside class="warn"><p>A pattern can say whether text has the right shape, not whether it is real: <code>nobody@example.com</code> looks fine and goes nowhere. And a pattern with a mistake in it, such as an unclosed bracket, is an error that stops the script.</p></aside>
+<figure class="example" id="ex-regex-bad" data-run="error" data-line="1">
+<pre class="code"><code>put matchText("abc", "[a-z")</code></pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>From the log line <code>2026-11-05 21:30:07 ERROR disk full on /dev/sda1</code>, pull out the time, the level and the message, and put them as <code>[ERROR at 21:30:07] disk full on /dev/sda1</code>.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-regex-try" data-run="output">
+<pre class="code"><code>put "2026-11-05 21:30:07 ERROR disk full on /dev/sda1" into tLine
+if matchText(tLine, "^\S+ (\S+) (\w+) (.*)$", tTime, tLevel, tMessage) then
+   put "[" &amp; tLevel &amp;&amp; "at" &amp;&amp; tTime &amp; "]" &amp;&amp; tMessage
+end if</code></pre>
+<pre class="out">[ERROR at 21:30:07] disk full on /dev/sda1</pre>
+</figure>
+</details>
+</section>

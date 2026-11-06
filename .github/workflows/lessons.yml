@@ -1,0 +1,131 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+# The website's lessons (tools/pages/lessons), checked when they change: every
+# example run as a reader runs it, in the xTalk Academy's own runner (this
+# checkout's ide/Toolset), by the engine of the latest OXT-Beyond release for
+# Linux with that release's extensions, externals and lc-compile, and what it
+# puts compared with the Output its page shows; an example whose page shows
+# the stage has it drawn again and compared with the page's picture
+# (tools/ci/lessons_check.py). The engine's pictures, with what changed beside
+# any that differs, are uploaded.
+#
+# The Linux build checks the lessons too, with the engine it has just built
+# (build-linux.yml, "Lessons check"), on every change to the engine or the
+# IDE. It skips a change to tools/pages alone, which is why this workflow
+# exists: a lesson is checked on its own pull request, in minutes, without a
+# build. A lesson that needs what only a newer engine has fails here until
+# that engine is released; run the build's check then.
+
+name: Lessons
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - .github/workflows/lessons.yml
+      - tools/pages/build_lessons.py
+      - tools/pages/lessons/**
+      - tools/ci/lessons_check.py
+      - tools/ci/lessons-check.livecodescript
+  pull_request:
+    branches: [ main ]
+    paths:
+      - .github/workflows/lessons.yml
+      - tools/pages/build_lessons.py
+      - tools/pages/lessons/**
+      - tools/ci/lessons_check.py
+      - tools/ci/lessons-check.livecodescript
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release whose engine runs the lessons (for example v0.2.7-rc.6.15); empty for the latest one
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lessons-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lessons check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [ -z "$TAG" ]; then
+            TAG=$(gh release list --repo "$REPO" --limit 30 --json tagName --jq '.[].tagName' | grep -E '^v[0-9]' | head -n 1)
+          fi
+          echo "Release: $TAG"
+          mkdir -p "$RUNNER_TEMP/dist" "$RUNNER_TEMP/oxt"
+          gh release download "$TAG" --repo "$REPO" --pattern '*-linux-x86_64.tar.xz' --dir "$RUNNER_TEMP/dist"
+          ls -l "$RUNNER_TEMP/dist"
+          tar -xJf "$RUNNER_TEMP"/dist/*-linux-x86_64.tar.xz -C "$RUNNER_TEMP/oxt"
+          engine=$(find "$RUNNER_TEMP/oxt" -maxdepth 2 -type f -name oxt-beyond | head -n 1)
+          if [ -z "$engine" ]; then
+            echo "::error::The release $TAG has no oxt-beyond in its Linux package"
+            exit 1
+          fi
+          echo "OXT_ENGINE=$engine" >> "$GITHUB_ENV"
+
+      # The engine's runtime libraries, as a desktop Linux has them
+      # (Installer/linux/libraries.txt), and fontconfig, which the check
+      # points at the checkout's fonts so that the pictures do not depend
+      # on the machine's
+      - name: Install the runtime libraries
+        run: |
+          sudo apt-get update
+          pkgs=(fontconfig)
+          while read -r soname use deb rpm rest; do
+            case $soname in ''|'#'*) continue ;; esac
+            if apt-cache show --no-all-versions "${deb}t64" > /dev/null 2>&1; then
+              deb="${deb}t64"
+            fi
+            case " ${pkgs[*]} " in *" $deb "*) ;; *) pkgs+=("$deb") ;; esac
+          done < Installer/linux/libraries.txt
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}"
+
+      - name: Lessons check
+        run: |
+          mkdir -p "$RUNNER_TEMP/lessons"
+          timeout 1500 python3 tools/ci/lessons_check.py --engine "$OXT_ENGINE" --timeout 1200 \
+            --shots-out "$RUNNER_TEMP/lessons/shots" --log "$RUNNER_TEMP/lessons/lessons-check.log"
+
+      - name: Upload the pictures and the log
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: lessons-check
+          path: ${{ runner.temp }}/lessons
+          if-no-files-found: ignore
+          retention-days: 14

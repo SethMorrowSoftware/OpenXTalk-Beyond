@@ -1,0 +1,235 @@
+<!--
+title: Cards and going between them
+level: intermediate
+minutes: 13
+summary: Make cards, move between them, share a background of controls across cards, and keep each card's own text.
+words: card, New Card, Card Inspector, create card, go, next, previous, first, last, back, the number of this card, cardNames, group, backgroundBehavior, sharedText, visual effect
+-->
+<h2 id="cards">A stack of cards</h2>
+<p>A stack shows one card at a time. Each card is a screen of its own: a page of a book, a step of a quiz, a record in an address list. <kbd>Object &gt; New Card</kbd> adds a card after the one you are on and goes to it, <kbd>Object &gt; Card Inspector</kbd> names it, and the <strong>View</strong> menu moves between them: <kbd>Go First</kbd>, <kbd>Go Prev</kbd>, <kbd>Go Next</kbd> and <kbd>Go Last</kbd>. In a script, <code>create card</code> adds one and <code>go</code> moves.</p>
+<div class="build" id="build-home-help-about">
+<ol>
+<li>Start a new stack. In the Card Inspector (<kbd>Object &gt; Card Inspector</kbd>), name its card <code>Home</code>.</li>
+<li>Choose <kbd>Object &gt; New Card</kbd> and name the new card <code>Help</code>; then again, and name the third card <code>About</code>. You are left on <code>About</code>.</li>
+</ol>
+<pre class="setup">set the name of this card to "Home"
+create card "Help"
+create card "About"</pre>
+</div>
+<figure class="example" id="ex-cards-go" data-run="output" data-card="build-home-help-about" data-in="message">
+<pre class="code"><code>put the number of cards
+put the short name of this card
+go to card "Home"
+put the short name of this card
+go next card
+put the short name of this card
+go last card
+put the short name of this card
+go next card
+put the short name of this card</code></pre>
+<pre class="out">3
+About
+Home
+Help
+About
+Home</pre>
+</figure>
+<p><code>go next card</code> on the last card goes round to the first, and <code>go previous card</code> on the first to the last, so a stack is a ring of cards. You can also <code>go first card</code>, <code>go to card 2</code>, or <code>go back</code> to the card you were on before.</p>
+
+<h2 id="which">Which card is this?</h2>
+<div class="build" id="build-pages">
+<ol>
+<li>Start a new stack with three cards (<kbd>Object &gt; New Card</kbd> twice), and name them <code>Page 1</code>, <code>Page 2</code> and <code>Page 3</code> in the Card Inspector.</li>
+</ol>
+<pre class="setup">set the name of this card to "Page 1"
+create card "Page 2"
+create card "Page 3"</pre>
+</div>
+<figure class="example" id="ex-cards-which" data-run="output" data-card="build-pages" data-in="message">
+<pre class="code"><code>put the cardNames of this stack
+go to card "Page 2"
+put the number of this card
+put the short name of this card</code></pre>
+<pre class="out">Page 1
+Page 2
+Page 3
+2
+Page 2</pre>
+</figure>
+<p><code>the number of this card</code> is its place in the stack, and <code>the cardNames</code> lists every card's name, a line each. The Project Browser (<kbd>Tools &gt; Project Browser</kbd>) shows the same list, and goes to a card when you double-click it.</p>
+
+<h2 id="opencard">Each card gets ready: openCard</h2>
+<p>Going to a card sends it <code>openCard</code>, and leaving it sends <code>closeCard</code>. A handler in a card's script hears them only for that card; one in the stack's script hears them for every card that does not handle them itself. On a stack of three cards, put this in the stack's script (<kbd>Object &gt; Stack Script</kbd>):</p>
+<div class="build" id="build-three-cards">
+<ol>
+<li>Start a new stack with three cards (<kbd>Object &gt; New Card</kbd> twice), and go back to the first (<kbd>View &gt; Go First</kbd>).</li>
+</ol>
+<pre class="setup">create card
+create card
+go to card 1</pre>
+</div>
+<figure class="example" id="ex-cards-opencard-script" data-run="compile" data-card="build-three-cards" data-script="this stack">
+<pre class="code"><code>on openCard
+   put "openCard on card" &amp;&amp; the number of this card
+end openCard</code></pre>
+</figure>
+<figure class="example" id="ex-cards-opencard" data-run="output" data-card="build-three-cards" data-in="message" data-after="ex-cards-opencard-script">
+<pre class="code"><code>go next card
+go next card
+go first card</code></pre>
+<pre class="out">openCard on card 2
+openCard on card 3
+openCard on card 1</pre>
+</figure>
+
+<h2 id="backgrounds">Controls on every card: backgrounds</h2>
+<p>Many stacks want the same controls on every card: a title, Next and Back buttons, a field for each part of a record. Put them in a group and tick <strong>Behave like a background</strong> in the group's Inspector (its <code>backgroundBehavior</code>): every card you make after it gets the same group. It is one group, placed on many cards.</p>
+<div class="build" id="build-page">
+<ol>
+<li>Start a new stack. Drag a <strong>Field</strong>, make it fill most of the card, name it <code>Text</code>, and set its <strong>Text size</strong> to 24. Drag a <strong>Standard Button</strong> to the bottom right corner and name it <code>Next</code>.</li>
+<li>Select both and choose <kbd>Object &gt; Group Selected</kbd>. Name the group <code>Page</code>, and in its <strong>Basic</strong> section tick <strong>Behave like a background</strong>.</li>
+<li>In Run mode, type <code>First page</code> into the field. Choose <kbd>Object &gt; New Card</kbd>: the new card has the field and the button too. Type <code>Second page</code> into the field there.</li>
+</ol>
+<pre class="setup">create field "Text"
+set the rect of it to 20,20,460,280
+set the textSize of it to 24
+create button "Next"
+set the rect of it to 340,300,460,340
+group field "Text" and button "Next"
+set the name of it to "Page"
+set the backgroundBehavior of group "Page" to true
+put "First page" into field "Text"
+create card
+put "Second page" into field "Text"</pre>
+</div>
+<figure class="example" id="ex-cards-background" data-run="output" data-card="build-page" data-in="message" data-shot="Your card, the first of the stack: a large field that says First page and a Next button in the bottom right corner.">
+<pre class="code"><code>put the number of this card
+put the number of controls
+put field "Text"
+go to card 1
+put field "Text"</code></pre>
+<pre class="out">2
+3
+Second page
+First page</pre>
+</figure>
+<p>Three controls: the field, the button and the group that holds them. The field is shared, but each card keeps <em>its own text</em> in it: that is what a field's <code>sharedText</code> (<strong>Share text</strong>), false unless you change it, means. So a stack of cards with a background is a little database, one record a card, the way HyperCard's address books worked.</p>
+<aside class="legacy"><p>In HyperCard a card's background was a layer of its own. OXT-Beyond, like LiveCode, makes a HyperCard background into a group with <code>backgroundBehavior</code> true when it imports a stack, and the scripts that said <code>background field "Name"</code> still work.</p></aside>
+<p>Tick <strong>Share text</strong> for a field that should show the same text on every card, like a heading:</p>
+<div class="build" id="build-heading">
+<ol>
+<li>Start a new stack. Drag a <strong>Field</strong>, name it <code>Heading</code>, and tick <strong>Share text</strong> in its <strong>Basic</strong> section.</li>
+<li>Group it (<kbd>Object &gt; Group Selected</kbd>) and tick the group's <strong>Behave like a background</strong>.</li>
+<li>Type <code>My recipes</code> into the field in Run mode, then add two cards with <kbd>Object &gt; New Card</kbd>.</li>
+</ol>
+<pre class="setup">create field "Heading"
+set the sharedText of field "Heading" to true
+group field "Heading"
+set the backgroundBehavior of it to true
+put "My recipes" into field "Heading"
+create card
+create card</pre>
+</div>
+<figure class="example" id="ex-cards-sharedtext" data-run="output" data-card="build-heading" data-in="message">
+<pre class="code"><code>put the number of this card
+put field "Heading"
+go first card
+put field "Heading"</code></pre>
+<pre class="out">3
+My recipes
+My recipes</pre>
+</figure>
+
+<h2 id="navigating-buttons">Buttons that move</h2>
+<p>The <code>Next</code> button of the background above needs a script. Back on its first card (<kbd>View &gt; Go First</kbd>), give it this one and click it twice in Run mode:</p>
+<div class="build" id="build-page-first">
+<ol>
+<li>The stack with the background <code>Page</code> from above, on its first card.</li>
+</ol>
+<pre class="setup">create field "Text"
+set the rect of it to 20,20,460,280
+set the textSize of it to 24
+create button "Next"
+set the rect of it to 340,300,460,340
+group field "Text" and button "Next"
+set the name of it to "Page"
+set the backgroundBehavior of group "Page" to true
+put "First page" into field "Text"
+create card
+put "Second page" into field "Text"
+go first card</pre>
+</div>
+<figure class="example" id="ex-cards-next" data-run="output" data-card="build-page-first" data-script='button "Next"' data-click='button "Next";button "Next"'>
+<pre class="code"><code>on mouseUp
+   go next card
+   put field "Text"
+end mouseUp</code></pre>
+<pre class="out">Second page
+First page</pre>
+</figure>
+<p>The button is on every card, so the same script works from each, and the second click goes round from the last card to the first. <code>visual effect</code> animates the change of card; the effects include <code>dissolve</code>, <code>wipe</code>, <code>push</code>, <code>scroll</code> and <code>reveal</code>, with a direction where it makes sense:</p>
+<figure class="example" id="ex-cards-buttons" data-run="compile" data-card="build-page-first" data-script='button "Next"'>
+<pre class="code"><code>on mouseUp
+   visual effect push left fast
+   go next card
+end mouseUp</code></pre>
+</figure>
+<p>A Back button is the same with <code>push right</code> and <code>go previous card</code>, and a Home button just says <code>go first card</code>. Each goes in its own button's script: one script can have only one handler of each name.</p>
+
+<h2 id="delete">Deleting cards</h2>
+<p><kbd>Object &gt; Delete Card</kbd> removes the card you are on, and <code>delete card</code> does the same from a script, with the controls that are only on it. A stack always keeps at least one card.</p>
+<div class="build" id="build-scratch">
+<ol>
+<li>Start a new stack and name its card <code>Start</code>. Add a card with <kbd>Object &gt; New Card</kbd> and name it <code>Scratch</code>, then go back to the first (<kbd>View &gt; Go First</kbd>).</li>
+</ol>
+<pre class="setup">set the name of this card to "Start"
+create card "Scratch"
+go to card "Start"</pre>
+</div>
+<figure class="example" id="ex-cards-delete" data-run="output" data-card="build-scratch" data-in="message">
+<pre class="code"><code>put the number of cards
+delete card "Scratch"
+put the number of cards
+put the short name of this card</code></pre>
+<pre class="out">2
+1
+Start</pre>
+</figure>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Build a three-card flash-card stack: a background group with a field <code>Word</code> in large, centred type and a button <code>Next</code>, and the words <code>bonjour</code>, <code>merci</code> and <code>au revoir</code> typed on the three cards. Give <code>Next</code> a script that goes to the next card and puts its word. Then, from the first card, click <code>Next</code> three times.</p>
+<div class="build" id="build-flash">
+<ol>
+<li>Start a new stack. Drag a <strong>Field</strong> to the middle, name it <code>Word</code>, set its <strong>Text size</strong> to 32 and its <strong>Text align</strong> to center. Drag a <strong>Standard Button</strong> under it and name it <code>Next</code>.</li>
+<li>Group the two and tick <strong>Behave like a background</strong>. Type <code>bonjour</code> into the field.</li>
+<li>Add a card with <kbd>Object &gt; New Card</kbd> and type <code>merci</code>; add another and type <code>au revoir</code>. Go back to the first card.</li>
+</ol>
+<pre class="setup">create field "Word"
+set the rect of it to 90,140,390,220
+set the textSize of it to 32
+set the textAlign of it to "center"
+create button "Next"
+set the rect of it to 199,240,281,263
+group field "Word" and button "Next"
+set the backgroundBehavior of it to true
+put "bonjour" into field "Word"
+create card
+put "merci" into field "Word"
+create card
+put "au revoir" into field "Word"
+go first card</pre>
+</div>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-cards-try" data-run="output" data-card="build-flash" data-script='button "Next"' data-click='button "Next";button "Next";button "Next"' data-shot="Your card: a field in its centre showing the word bonjour in large type, with the Next button below it.">
+<pre class="code"><code>on mouseUp
+   go next card
+   put field "Word"
+end mouseUp</code></pre>
+<pre class="out">merci
+au revoir
+bonjour</pre>
+</figure>
+<p>The third click goes round from the last card to the first.</p>
+</details>
+</section>

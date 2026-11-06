@@ -1,0 +1,96 @@
+<!--
+title: Math functions
+level: beginner
+minutes: 8
+summary: Rounding, the biggest and smallest of a list, averages, square roots, trigonometry and random numbers.
+words: round, trunc, abs, sqrt, max, min, sum, average, median, random, any, sin, cos, pi
+-->
+<h2 id="calling">Calling a function</h2>
+<p>A <strong>function</strong> takes some values, works something out and gives back the answer. xTalk has hundreds built in. You call one with its name and its values in brackets, separated by commas. A function's answer can go wherever a value can: into <code>put</code>, a variable, a sum, or another function.</p>
+<figure class="example" id="ex-math-round" data-run="output">
+<pre class="code"><code>put round(3.7)
+put round(2.5)
+put round(3.14159, 2)
+put trunc(9.99)
+put abs(-12)</code></pre>
+<pre class="out">4
+3
+3.14
+9
+12</pre>
+</figure>
+<p><code>round</code> rounds a half away from zero, as you learnt at school; its second value says how many decimal places to keep. <code>trunc</code> just drops the decimals, and <code>abs</code> drops the minus sign.</p>
+<aside class="legacy"><p>A function with one value can also be written the HyperCard way, with <code>the</code> and <code>of</code>: <code>the sqrt of 81</code> is the same as <code>sqrt(81)</code>.</p></aside>
+
+<h2 id="lists-of-numbers">Biggest, smallest, total, average</h2>
+<p>These take any number of values, or one value that is a list separated by commas, which is handy when the numbers are in a variable.</p>
+<figure class="example" id="ex-math-many" data-run="output">
+<pre class="code"><code>put max(4, 19, 7)
+put min(4, 19, 7)
+put sum(1, 2, 3, 4)
+put "4,8,15,16,23,42" into tNumbers
+put average(tNumbers)
+put median(tNumbers)
+put max(tNumbers) - min(tNumbers)</code></pre>
+<pre class="out">19
+4
+10
+18
+15.5
+38</pre>
+</figure>
+
+<h2 id="roots-and-powers">Roots, powers and pi</h2>
+<figure class="example" id="ex-math-roots" data-run="output">
+<pre class="code"><code>put sqrt(81)
+put 27 ^ (1/3) -- a cube root
+put pi
+put round(pi * 3 ^ 2, 2) -- the area of a circle of radius 3</code></pre>
+<pre class="out">9
+3
+3.141593
+28.27</pre>
+</figure>
+
+<h2 id="trigonometry">Angles</h2>
+<p>The trigonometry functions work in <strong>radians</strong>, where a whole turn is <code>2 * pi</code>. To use degrees, multiply by <code>pi / 180</code> on the way in, and by <code>180 / pi</code> on the way out. They are what you need to move something in a circle, or point it at the mouse.</p>
+<figure class="example" id="ex-math-trig" data-run="output">
+<pre class="code"><code>put sin(pi / 2)
+put cos(pi)
+put round(sin(30 * pi / 180), 2)
+put atan2(1, 1) * 180 / pi</code></pre>
+<pre class="out">1
+-1
+0.5
+45</pre>
+</figure>
+
+<h2 id="random">Random numbers</h2>
+<p><code>random(n)</code> gives a whole number from 1 to <code>n</code>, a different one each time. Games are made of it. <code>any</code> picks something at random from a list. Run this a few times and watch it change:</p>
+<figure class="example" id="ex-math-random" data-run="runs">
+<pre class="code"><code>put "You rolled a" &amp;&amp; random(6)
+put "Two dice:" &amp;&amp; random(6) + random(6)
+put "Between 10 and 20:" &amp;&amp; random(11) + 9
+put "I choose" &amp;&amp; any item of "rock,paper,scissors"</code></pre>
+<pre class="out">You rolled a 4
+Two dice: 9
+Between 10 and 20: 13
+I choose paper</pre>
+</figure>
+<aside class="tip"><p>To get the same "random" numbers every time (useful when testing a game), set <code>the randomSeed</code> to a number first.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Five friends' heights in centimetres are 162, 175, 158, 181 and 170. Put the tallest, the shortest, and the average rounded to one decimal place.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-math-try" data-run="output">
+<pre class="code"><code>put "162,175,158,181,170" into tHeights
+put max(tHeights)
+put min(tHeights)
+put round(average(tHeights), 1)</code></pre>
+<pre class="out">181
+158
+169.2</pre>
+</figure>
+</details>
+</section>

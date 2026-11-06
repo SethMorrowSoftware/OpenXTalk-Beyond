@@ -1,0 +1,130 @@
+<!--
+title: Talking to the user
+level: intermediate
+minutes: 8
+summary: Tell the user something with answer, ask a question with ask, offer choices, and let them pick a file or a folder.
+words: answer, ask, it, the result, with, titled, answer file, answer folder, ask password, answer error, cancel
+-->
+<h2 id="answer">Saying something: answer</h2>
+<p><code>answer</code> shows a small dialog with a message and an OK button, and waits until the user clicks it. You met it in the very first lesson. Add <code>with</code> and a list of buttons, separated by <code>or</code>, and the button the user clicks comes back in <code>it</code>:</p>
+<figure class="example" id="ex-dialogs-answer" data-run="compile">
+<pre class="code"><code>on mouseUp
+   answer "Save the changes to this stack?" with "Don't Save" or "Cancel" or "Save"
+   switch it
+      case "Save"
+         save this stack
+         break
+      case "Don't Save"
+         break
+      case "Cancel"
+         exit mouseUp
+   end switch
+   close this stack
+end mouseUp</code></pre>
+</figure>
+<p>The last button is the default, the one the Return key presses. Put the safest choice last when a mistake would be costly.</p>
+<aside class="note"><p>Dialogs wait for a person, so the examples in this lesson are scripts to try in a button, and are only checked to compile. They all work in the playground too: press Run and answer the dialogs.</p></aside>
+
+<h2 id="kinds">Kinds of answer</h2>
+<p>A word after <code>answer</code> gives the dialog an icon that says what kind of message it is: <code>information</code>, <code>question</code>, <code>warning</code> or <code>error</code>. <code>titled</code> sets the dialog's title.</p>
+<figure class="example" id="ex-dialogs-kinds" data-run="compile">
+<pre class="code"><code>on mouseUp
+   answer information "The report is ready." titled "Report"
+   answer warning "The disk is almost full."
+   answer error "The file could not be opened."
+end mouseUp</code></pre>
+</figure>
+
+<h2 id="ask">Asking a question: ask</h2>
+<p><code>ask</code> shows a question with a box to type in. What the user typed comes back in <code>it</code>. If they click Cancel, <code>it</code> is empty and <code>the result</code> is <code>Cancel</code>, so always check before you use the answer:</p>
+<figure class="example" id="ex-dialogs-ask" data-run="compile">
+<pre class="code"><code>on mouseUp
+   ask "What is your name?" with "Ada"
+   if the result is "Cancel" then exit mouseUp
+   put it into tName
+   if tName is empty then
+      answer "A name, please!"
+   else
+      answer "Hello," &amp;&amp; tName &amp; "!"
+   end if
+end mouseUp</code></pre>
+</figure>
+<p>The text after <code>with</code> is already in the box when the dialog opens. <code>ask password</code> is the same, but shows dots in place of what is typed.</p>
+
+<h2 id="checking">Checking what was typed</h2>
+<p>People type all sorts of things. Keep the checking in a function of its own, which you can test without a dialog, and keep the handler that asks short:</p>
+<figure class="example" id="ex-dialogs-check" data-run="output">
+<pre class="code"><code>function ageProblem pText
+   if pText is empty then return "Please type your age."
+   if pText is not an integer then return "Your age is a whole number, like 42."
+   if pText &lt; 0 or pText &gt; 130 then return "That age does not look right."
+   return empty
+end ageProblem
+
+put ageProblem("")
+put ageProblem("forty")
+put ageProblem("200")
+put ageProblem("42") is empty</code></pre>
+<pre class="out">Please type your age.
+Your age is a whole number, like 42.
+That age does not look right.
+true</pre>
+</figure>
+<figure class="example" id="ex-dialogs-loop" data-run="compile">
+<pre class="code"><code>on mouseUp
+   repeat forever
+      ask "How old are you?"
+      if the result is "Cancel" then exit mouseUp
+      put ageProblem(it) into tProblem
+      if tProblem is empty then exit repeat
+      answer tProblem
+   end repeat
+   answer "Thank you."
+end mouseUp</code></pre>
+</figure>
+
+<h2 id="files">Choosing a file or a folder</h2>
+<p><code>answer file</code> shows the system's dialog for opening a file, and <code>ask file</code> the one for saving. Each puts the chosen file's full path in <code>it</code>, or sets <code>the result</code> to <code>Cancel</code>. <code>answer folder</code> chooses a folder.</p>
+<figure class="example" id="ex-dialogs-files" data-run="compile">
+<pre class="code"><code>on mouseUp
+   answer file "Choose a text file to open:" with type "Text files|txt|TEXT"
+   if the result is "Cancel" then exit mouseUp
+   put it into tPath
+   put URL ("file:" &amp; tPath) into field "Contents"
+
+   ask file "Save a copy as:" with "copy.txt"
+   if the result is "Cancel" then exit mouseUp
+   put field "Contents" into URL ("file:" &amp; it)
+end mouseUp</code></pre>
+</figure>
+<p>The lesson <a href="../files/">Reading and writing files</a> explains <code>URL "file:"</code>.</p>
+
+<h2 id="other-dialogs">More dialogs</h2>
+<ul>
+<li><code>answer color</code> shows a colour picker, and puts the colour chosen in <code>it</code>.</li>
+<li><code>answer printer</code> shows the printer settings.</li>
+<li>A stack of your own can be a dialog too: <code>modal stack "Options"</code> opens it and waits until it closes, and it can hand back a value in <code>the dialogData</code>.</li>
+</ul>
+<aside class="tip"><p>Dialogs interrupt. Use them for questions that need an answer before anything else can happen. For news the user can read when they like, a line in a status field is kinder.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a button script that asks for two numbers, one after the other, and answers their sum. If either dialog is cancelled, stop quietly; if either answer is not a number, say so and stop.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-dialogs-try" data-run="compile">
+<pre class="code"><code>on mouseUp
+   ask "First number:"
+   if the result is "Cancel" then exit mouseUp
+   put it into tFirst
+   ask "Second number:"
+   if the result is "Cancel" then exit mouseUp
+   put it into tSecond
+   if tFirst is not a number or tSecond is not a number then
+      answer error "Those are not both numbers."
+      exit mouseUp
+   end if
+   answer tFirst &amp;&amp; "+" &amp;&amp; tSecond &amp;&amp; "=" &amp;&amp; tFirst + tSecond
+end mouseUp</code></pre>
+</figure>
+</details>
+</section>

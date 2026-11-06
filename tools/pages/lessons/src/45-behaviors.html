@@ -1,0 +1,178 @@
+<!--
+title: Behaviors
+level: advanced
+minutes: 11
+summary: Write a script once and give it to many objects: behaviors, me inside them, their own script locals, pass, before and after, chains, and script-only stacks.
+words: behavior, me, pass, before, after, script only stack, the long id, dispatch function, value
+-->
+<h2 id="why">One script, many objects</h2>
+<p>A game has twenty enemies; a form has a dozen fields that check what is typed; a toolbar has eight buttons that light up under the pointer. Copying the same script into each works until you find a bug in it, and must fix it twenty times.</p>
+<p>A <strong>behavior</strong> is the answer. It is an object (usually a button, or a script-only stack) whose script works for every object whose <code>behavior</code> property is set to it. Change the behavior's script, and every object that uses it changes at once.</p>
+
+<h2 id="first">A first behavior</h2>
+<aside class="note"><p>The examples in this lesson make their controls with <code>create</code> (<a href="../stacks-cards-controls/#script-made">Making controls from a script</a>), so that each one runs in the playground in one piece. In a stack of your own you would drag the same controls from the Tools palette, name them in the Property Inspector, and put the handlers into their scripts: the code works the same either way.</p></aside>
+<p>In a stack you would type the behavior's script into a button with the Script Editor and hide the button. So that the example runs by itself, it sets the script from text, a line at a time:</p>
+<figure class="example" id="ex-beh-first" data-run="output" data-shot="The stage, with three buttons in a row: Tally 1 says 2 clicks, Tally 2 says 0 clicks, and Tally 3 says 1 click.">
+<pre class="code"><code>put "local sClicks" &amp; return into tScript
+put "on mouseUp" &amp; return after tScript
+put "   add 1 to sClicks" &amp; return after tScript
+put "   showClicks" &amp; return after tScript
+put "end mouseUp" &amp; return after tScript
+put "command showClicks" &amp; return after tScript
+put "   if sClicks is 1 then" &amp; return after tScript
+put "      set the label of me to the short name of me &amp; colon &amp;&amp; sClicks &amp;&amp; " &amp; quote &amp; "click" &amp; quote &amp; return after tScript
+put "   else" &amp; return after tScript
+put "      set the label of me to the short name of me &amp; colon &amp;&amp; (sClicks + 0) &amp;&amp; " &amp; quote &amp; "clicks" &amp; quote &amp; return after tScript
+put "   end if" &amp; return after tScript
+put "end showClicks" after tScript
+
+create invisible button "Tally Behavior"
+set the script of it to tScript
+put it into tBehavior
+
+repeat with i = 1 to 3
+   create button ("Tally" &amp;&amp; i)
+   set the rect of it to 20 + 150 * (i - 1), 40, 160 + 150 * (i - 1), 76
+   set the behavior of it to tBehavior
+   send "showClicks" to it
+end repeat
+
+send "mouseUp" to button "Tally 1"
+send "mouseUp" to button "Tally 1"
+send "mouseUp" to button "Tally 3"
+put the label of button "Tally 1"
+put the label of button "Tally 2"
+put the label of button "Tally 3"</code></pre>
+<pre class="out">Tally 1: 2 clicks
+Tally 2: 0 clicks
+Tally 3: 1 click</pre>
+</figure>
+<p>Three things to notice:</p>
+<ul>
+<li>Inside a behavior, <strong><code>me</code> is the object using it</strong>, not the behavior's button. The one script sets each button's own label.</li>
+<li><strong>Each object has its own script locals.</strong> <code>sClicks</code> counts each button's clicks apart: Tally 1's two clicks did not touch Tally 3's count. (<code>sClicks + 0</code> shows a count still empty as 0.)</li>
+<li>The buttons' own scripts are empty. A message that finds no handler in an object goes on to its behavior, before anything further along the <a href="../message-path/">message path</a>.</li>
+</ul>
+
+<h2 id="own-and-pass">The object's own handler, then the behavior's</h2>
+<p>An object can still have a script of its own. Its handlers run first, and a handler that ends with <code>pass</code> hands the message on to the behavior, so an object can add to what all of them do:</p>
+<figure class="example" id="ex-beh-pass" data-run="output">
+<pre class="code"><code>create invisible button "Shared"
+set the script of it to "on mouseUp" &amp; return &amp; "put the short name of me &amp;&amp; " &amp; quote &amp; "does what all buttons do" &amp; quote &amp; return &amp; "end mouseUp"
+put it into tBehavior
+
+create button "Special"
+set the behavior of it to tBehavior
+set the script of it to "on mouseUp" &amp; return &amp; "put " &amp; quote &amp; "Special does its own thing first" &amp; quote &amp; return &amp; "pass mouseUp" &amp; return &amp; "end mouseUp"
+
+send "mouseUp" to button "Special"</code></pre>
+<pre class="out">Special does its own thing first
+Special does what all buttons do</pre>
+</figure>
+<p>Without the <code>pass</code>, the object's handler would replace the behavior's for that object: a simple way to make one exception.</p>
+
+<h2 id="before-after">Before and after</h2>
+<p>A behavior can also have <code>before</code> and <code>after</code> handlers, which run around the object's own handler, whether or not it passes the message. They suit work that must always happen, such as logging, or a sound on every click:</p>
+<figure class="example" id="ex-beh-before-after" data-run="output">
+<pre class="code"><code>put "before mouseUp" &amp; return into tScript
+put "   put " &amp; quote &amp; "before: the behavior" &amp; quote &amp; return after tScript
+put "end mouseUp" &amp; return after tScript
+put "after mouseUp" &amp; return after tScript
+put "   put " &amp; quote &amp; "after: the behavior" &amp; quote &amp; return after tScript
+put "end mouseUp" after tScript
+create invisible button "Logger"
+set the script of it to tScript
+put it into tBehavior
+
+create button "Save"
+set the behavior of it to tBehavior
+set the script of it to "on mouseUp" &amp; return &amp; "put " &amp; quote &amp; "the button saves" &amp; quote &amp; return &amp; "end mouseUp"
+send "mouseUp" to button "Save"</code></pre>
+<pre class="out">before: the behavior
+the button saves
+after: the behavior</pre>
+</figure>
+
+<h2 id="chains">Behaviors of behaviors</h2>
+<p>A behavior can have a behavior of its own, which makes a <strong>chain</strong>: from the most particular to the most general. A message goes along the chain until a handler takes it. Here the general behavior knows how to <code>shout</code> a description, and the particular one says what the description is. A call from the general script still finds the particular handler first, because the search starts again at the object:</p>
+<figure class="example" id="ex-beh-chain" data-run="output">
+<pre class="code"><code>put "function describe" &amp; return &amp; "return " &amp; quote &amp; "a thing" &amp; quote &amp; return &amp; "end describe" &amp; return into tScript
+put "function shout" &amp; return &amp; "return toUpper(describe()) &amp; " &amp; quote &amp; "!" &amp; quote &amp; return &amp; "end shout" after tScript
+create invisible button "Thing"
+set the script of it to tScript
+put it into tThing
+
+create invisible button "Animal"
+set the behavior of it to tThing
+set the script of it to "function describe" &amp; return &amp; "return " &amp; quote &amp; "an animal called " &amp; quote &amp; " &amp; the short name of me" &amp; return &amp; "end describe"
+put it into tAnimal
+
+create button "Rex"
+set the behavior of it to tAnimal
+create button "Box"
+set the behavior of it to tThing
+
+put value("shout()", button "Rex")
+put value("shout()", button "Box")</code></pre>
+<pre class="out">AN ANIMAL CALLED REX!
+A THING!</pre>
+</figure>
+<p><code>value</code> with an object works out an expression as if in that object's script, which is one way to call an object's function from outside it. <code>dispatch function</code> is the other (<a href="../events/">Messages and events</a>).</p>
+
+<h2 id="script-only">Behaviors in script-only stacks</h2>
+<p>In a real project, behaviors usually live in <strong>script-only stacks</strong>: stacks with nothing but a script, saved as plain text files (<code>.livecodescript</code>) that version control can compare line by line (<a href="../shipping/#script-only">Shipping your program</a> shows how a program finds them). A behavior's long id can be a stack's as well as a button's:</p>
+<figure class="example" id="ex-beh-script-only" data-run="output">
+<pre class="code"><code>create script only stack "Greeter"
+set the script of stack "Greeter" to "on mouseUp" &amp; return &amp; "put " &amp; quote &amp; "Hello from " &amp; quote &amp; " &amp; the short name of me" &amp; return &amp; "end mouseUp"
+
+create button "Ada"
+set the behavior of it to the long id of stack "Greeter"
+send "mouseUp" to button "Ada"
+put the scriptOnly of stack "Greeter"
+delete stack "Greeter"</code></pre>
+<pre class="out">Hello from Ada
+true</pre>
+</figure>
+<p>A program opens its behavior stacks before the objects that use them: list them in the stack's <code>stackFiles</code>, or <code>start using</code> them as <a href="../libraries/">libraries</a>, which the next lesson explains.</p>
+<aside class="tip"><p>Cards and stacks can have behaviors too. A card behavior is a good home for what every card of a kind does when it opens: set the behavior of each card to one script, and its <code>openCard</code> handler runs for each.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write one behavior for toggle buttons: a click flips the button's <code>hilite</code> and sets its label to its name followed by <code>on</code> or <code>off</code>. Give it to three buttons, Sound, Music and Hints, click Sound and Hints, and put the three labels.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-beh-try" data-run="output" data-shot="The stage, with three buttons down the left side, labelled Sound on, Music off and Hints on; Sound and Hints are highlighted.">
+<pre class="code"><code>put "local sOn" &amp; return into tScript
+put "on mouseUp" &amp; return after tScript
+put "   put not (sOn is true) into sOn" &amp; return after tScript
+put "   set the hilite of me to sOn" &amp; return after tScript
+put "   if sOn then" &amp; return after tScript
+put "      set the label of me to the short name of me &amp;&amp; " &amp; quote &amp; "on" &amp; quote &amp; return after tScript
+put "   else" &amp; return after tScript
+put "      set the label of me to the short name of me &amp;&amp; " &amp; quote &amp; "off" &amp; quote &amp; return after tScript
+put "   end if" &amp; return after tScript
+put "end mouseUp" after tScript
+create invisible button "Toggle"
+set the script of it to tScript
+put it into tToggle
+
+put 0 into tCount
+repeat for each item tName in "Sound,Music,Hints"
+   add 1 to tCount
+   create button tName
+   set the rect of it to 20, 40 * tCount, 160, 40 * tCount + 30
+   set the label of it to tName &amp;&amp; "off"
+   set the behavior of it to tToggle
+end repeat
+
+send "mouseUp" to button "Sound"
+send "mouseUp" to button "Hints"
+repeat for each item tName in "Sound,Music,Hints"
+   put the label of button tName
+end repeat</code></pre>
+<pre class="out">Sound on
+Music off
+Hints on</pre>
+</figure>
+<p>The solution keeps each button's state in a script local, <code>sOn</code>, rather than reading its <code>hilite</code> back: a real click lights a button up while it is pressed and turns it off again as the mouse comes up, so the <code>hilite</code> says nothing about the toggle by the time <code>mouseUp</code> arrives.</p>
+</details>
+</section>

@@ -1,0 +1,86 @@
+<!doctype html>
+<!-- A lesson of OXT-Beyond's GitHub Pages site (lessons/<slug>/), made by
+     tools/pages/build_lessons.py from its source in lessons/src: the
+     lesson's title, level and summary in the header, every lesson in the
+     sidebar, the lesson in the reading column, and the lessons before
+     and after it. The IDE and DICTIONARY blocks are kept only when the
+     site has the Web IDE and the Dictionary. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>@TITLE@ · Lessons · OXT-Beyond</title>
+<link rel="icon" type="image/svg+xml" href="../../brand/icon.svg">
+<link rel="stylesheet" href="../lessons.css">
+<meta name="description" content="@SUMMARY@ Lesson @NUMBER@ of @COUNT@ in xTalk, with examples that run in OXT-Beyond.">
+<meta name="theme-color" content="#0a0f1a">
+</head>
+<body data-root="../">
+<a class="skip" href="#lesson">Skip to the lesson</a>
+<header class="sky small">
+  <div class="art" aria-hidden="true"></div>
+  <div class="wrap">
+    <nav class="top" aria-label="Site">
+      <a class="brand" href="../../"><img src="../../brand/icon.svg" alt="" width="36" height="36"><span>OXT-<b>Beyond</b> <span class="sub">Lessons</span></span></a>
+      <div class="search" role="search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+        <input type="search" placeholder="Search the lessons" aria-label="Search the lessons" autocomplete="off" aria-expanded="false" aria-controls="search-results">
+        <ul class="results" id="search-results" hidden></ul>
+      </div>
+      <div class="links">
+        <a href="../">All lessons</a>
+        <!-- @DICTIONARY@ -->
+        <a class="optional" href="../../dictionary/">Dictionary</a>
+        <!-- /@DICTIONARY@ -->
+        <!-- @IDE@ -->
+        <a class="optional" href="../../ide/">Web IDE</a>
+        <!-- /@IDE@ -->
+      </div>
+    </nav>
+    <div class="lesson-head lv-@LEVEL@">
+      <p class="crumbs"><a href="../">Lessons</a><span aria-hidden="true">/</span><a href="../#@LEVEL@">@LEVEL_NAME@: @LEVEL_TITLE@</a><span aria-hidden="true">/</span><span>Lesson @NUMBER@</span></p>
+      <h1>@TITLE@</h1>
+      <p class="lead">@SUMMARY@</p>
+      <ul class="chips">
+        <li class="level">@LEVEL_NAME@</li>
+        <li>Lesson @NUMBER@ of @COUNT@</li>
+        <li>About @MINUTES@ minutes</li>
+        <li>@EXAMPLES@</li>
+      </ul>
+    </div>
+  </div>
+</header>
+
+<div class="wrap layout">
+  <aside class="side" aria-label="Lessons">
+    <button class="side-toggle" type="button" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Every lesson</button>
+    <nav class="lessons-nav">
+@SIDEBAR@
+    </nav>
+  </aside>
+
+  <main id="lesson">
+    <article class="lesson">
+@BODY@
+      <section class="words" aria-labelledby="words">
+        <h2 id="words">Words in this lesson</h2>
+        <div class="list">@WORDS@</div>
+        <p>Each one finds every lesson that uses it.<!-- @DICTIONARY@ --> The <a href="../../dictionary/">Dictionary</a> has the whole story of each, with its syntax and more examples.<!-- /@DICTIONARY@ --></p>
+      </section>
+      <nav class="steps-nav" aria-label="Lessons before and after">
+        @PREV@
+        @NEXT@
+      </nav>
+    </article>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <span>OXT-Beyond is free and open source (GPLv3). Every example in these lessons is run by the OXT-Beyond engine each time the lessons change.</span>
+    <a href="../../">Back to OXT-Beyond</a>
+  </div>
+</footer>
+<script src="../lessons.js"></script>
+</body>
+</html>

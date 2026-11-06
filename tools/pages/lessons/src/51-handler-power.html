@@ -1,0 +1,168 @@
+<!--
+title: More from your handlers
+level: expert
+minutes: 10
+summary: Handlers that take any number of values, change the caller's variables, give back several values at once, and report failure cleanly with return for error.
+words: paramCount, param, the params, @, return for value, return for error, the result, it
+-->
+<h2 id="any-number">Any number of values</h2>
+<p>A handler can be called with more values than it names, or fewer. <code>the paramCount</code> says how many it was given, and <code>param(n)</code> gives the n<sup>th</sup>, named or not. A function that adds up whatever it is given:</p>
+<figure class="example" id="ex-hp-paramcount" data-run="output">
+<pre class="code"><code>function total
+   local tSum
+   put 0 into tSum
+   repeat with i = 1 to the paramCount
+      add param(i) to tSum
+   end repeat
+   return tSum
+end total
+
+put total(1, 2, 3)
+put total(10)
+put total()</code></pre>
+<pre class="out">6
+10
+0</pre>
+</figure>
+<p>A named parameter that was not given is empty, and extra values beyond the names are still there for <code>param</code>. <code>the params</code> shows the whole call, which is handy in a trace:</p>
+<figure class="example" id="ex-hp-params" data-run="output">
+<pre class="code"><code>command showCall pA, pB
+   put the params &amp;&amp; "with" &amp;&amp; the paramCount &amp;&amp; "values; pB is" &amp;&amp; quote &amp; pB &amp; quote
+end showCall
+
+showCall "x"
+showCall "x", 2, "extra"</code></pre>
+<pre class="out">showCall "x" with 1 values; pB is ""
+showCall "x","2","extra" with 3 values; pB is "2"</pre>
+</figure>
+
+<h2 id="defaults">Values you may leave out</h2>
+<p>xTalk has no special syntax for a default value: test for empty, and fill it in at the top of the handler. Callers can then leave out the values that are usually the same:</p>
+<figure class="example" id="ex-hp-defaults" data-run="output">
+<pre class="code"><code>function greet pName, pGreeting
+   if pGreeting is empty then put "Hello" into pGreeting
+   return pGreeting &amp; "," &amp;&amp; pName
+end greet
+
+put greet("Ada")
+put greet("Ada", "Good morning")</code></pre>
+<pre class="out">Hello, Ada
+Good morning, Ada</pre>
+</figure>
+
+<h2 id="by-reference">Changing the caller's variable: @</h2>
+<p>A parameter is normally a copy: changing it changes nothing outside the handler. Put <code>@</code> before its name and the parameter <em>is</em> the caller's variable, passed <strong>by reference</strong>, so the handler can change it. By custom such a parameter's name begins with <code>r</code>:</p>
+<figure class="example" id="ex-hp-reference" data-run="output">
+<pre class="code"><code>command addTax @rPrice, pRate
+   multiply rPrice by 1 + pRate / 100
+end addTax
+
+command addItem @rList, pItem
+   put pItem into rList[the number of elements of rList + 1]
+end addItem
+
+put 100 into tPrice
+addTax tPrice, 20
+put tPrice
+
+addItem tFruit, "apple"
+addItem tFruit, "pear"
+put the number of elements of tFruit &amp;&amp; tFruit[2]</code></pre>
+<pre class="out">120
+2 pear</pre>
+</figure>
+<p>By reference is also quicker for big values: a large array passed with <code>@</code> is not copied. Use it for that, or when changing the caller's variable is the whole point, as with <code>addItem</code>; otherwise a function that returns a new value is easier to follow.</p>
+
+<h2 id="several">Giving back several values</h2>
+<p>A handler returns one value, but the value can be an array with as many elements as you like:</p>
+<figure class="example" id="ex-hp-array" data-run="output">
+<pre class="code"><code>function summary pList
+   local tResult
+   put min(pList) into tResult["lowest"]
+   put max(pList) into tResult["highest"]
+   put average(pList) into tResult["mean"]
+   return tResult
+end summary
+
+put summary("3,9,6,2") into tStats
+put tStats["lowest"] &amp;&amp; "to" &amp;&amp; tStats["highest"] &amp;&amp; "averaging" &amp;&amp; tStats["mean"]</code></pre>
+<pre class="out">2 to 9 averaging 5</pre>
+</figure>
+
+<h2 id="for-error">Reporting failure: return for error</h2>
+<p>xTalk's own commands report a problem in <code>the result</code> (<a href="../files/#errors">Reading and writing files</a>), and yours can too. <code>return ... for error</code> leaves the problem in <code>the result</code>, and the call's value empty; <code>return ... for value</code> gives back the answer and leaves <code>the result</code> empty. The caller checks <code>the result</code> straight after the call:</p>
+<figure class="example" id="ex-hp-for-error" data-run="output">
+<pre class="code"><code>function safeDivide pA, pB
+   if pB is 0 then return "cannot divide by zero" for error
+   return pA / pB for value
+end safeDivide
+
+repeat for each item tDivisor in "4,0"
+   put safeDivide(10, tDivisor) into tAnswer
+   if the result is not empty then
+      put "10 /" &amp;&amp; tDivisor &amp; ":" &amp;&amp; the result
+   else
+      put "10 /" &amp;&amp; tDivisor &amp;&amp; "=" &amp;&amp; tAnswer
+   end if
+end repeat</code></pre>
+<pre class="out">10 / 4 = 2.5
+10 / 0: cannot divide by zero</pre>
+</figure>
+<p>A command works the same way, with its value in <code>it</code>:</p>
+<figure class="example" id="ex-hp-command" data-run="output">
+<pre class="code"><code>command lookUpColour pName
+   switch pName
+      case "sky"
+         return "blue" for value
+      case "grass"
+         return "green" for value
+   end switch
+   return "no colour for" &amp;&amp; pName for error
+end lookUpColour
+
+repeat for each item tThing in "sky,sea"
+   lookUpColour tThing
+   if the result is not empty then
+      put "problem:" &amp;&amp; the result
+   else
+      put tThing &amp;&amp; "is" &amp;&amp; it
+   end if
+end repeat</code></pre>
+<pre class="out">sky is blue
+problem: no colour for sea</pre>
+</figure>
+<aside class="warn"><p>Read <code>the result</code> at once, or put it into a variable: the next command may change it. And give a function that can fail <code>for value</code> on its normal <code>return</code> too, because a plain <code>return</code> from a function also leaves its value in <code>the result</code>, where a check would take it for a problem.</p></aside>
+<p>Return for error suits problems the caller should expect and handle, such as a missing file or a bad value typed in. For a mistake that means the program itself is wrong, <code>throw</code> (<a href="../errors/">Handling errors</a>) is better: it cannot be ignored by accident.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a command <code>parseDate</code> that takes text such as <code>2026-03-14</code> and puts its parts into an array passed by reference (keys <code>year</code>, <code>month</code>, <code>day</code>), or returns <code>for error</code> when the text is not three numbers joined by <code>-</code>. Try it on <code>2026-03-14</code> and <code>14 March</code>.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-hp-try" data-run="output">
+<pre class="code"><code>command parseDate pText, @rDate
+   set the itemDelimiter to "-"
+   if the number of items of pText is not 3 then
+      return "not a date like 2026-03-14:" &amp;&amp; pText for error
+   end if
+   repeat for each item tPart in pText
+      if tPart is not an integer then return "not a number:" &amp;&amp; tPart for error
+   end repeat
+   put item 1 of pText into rDate["year"]
+   put item 2 of pText into rDate["month"]
+   put item 3 of pText into rDate["day"]
+   return empty for value
+end parseDate
+
+repeat for each line tText in "2026-03-14" &amp; return &amp; "14 March"
+   parseDate tText, tDate
+   if the result is not empty then
+      put "problem:" &amp;&amp; the result
+   else
+      put "day" &amp;&amp; tDate["day"] + 0 &amp;&amp; "of month" &amp;&amp; tDate["month"] + 0 &amp;&amp; "in" &amp;&amp; tDate["year"]
+   end if
+end repeat</code></pre>
+<pre class="out">day 14 of month 3 in 2026
+problem: not a date like 2026-03-14: 14 March</pre>
+</figure>
+</details>
+</section>
