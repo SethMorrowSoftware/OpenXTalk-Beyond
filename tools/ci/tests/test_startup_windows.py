@@ -99,6 +99,22 @@ class StartCheckTest(unittest.TestCase):
         self.assertLess(text.index('if [ "$watching" != yes ]'),
                         text.index('if [ "$ghost_status" != 0 ]'))
 
+    def test_ghosts_warn_only_for_a_package_the_change_did_not_build(self):
+        # The Raspberry Pi OS check on a pull request tests the newest
+        # package from main; its ghosts are a warning there, an error
+        # everywhere else (the default)
+        with open(os.path.join(CI, 'linux_ide_start.sh')) as f:
+            text = f.read()
+        self.assertIn('"${OXT_GHOST_WINDOWS:-error}" = warn', text)
+        with open(os.path.join(CI, 'pi_os_check.sh')) as f:
+            self.assertIn('OXT_GHOST_WINDOWS="${OXT_GHOST_WINDOWS:-}"', f.read())
+        wf = os.path.join(CI, '..', '..', '.github', 'workflows')
+        with open(os.path.join(wf, 'pi-os-check.yml')) as f:
+            self.assertIn("github.event_name == 'pull_request' && 'warn' || 'error'", f.read())
+        for name in ('build-linux.yml', 'build-macos.yml', 'build-windows.yml'):
+            with open(os.path.join(wf, name)) as f:
+                self.assertNotIn('OXT_GHOST_WINDOWS', f.read(), name)
+
     def test_every_check_that_runs_it_installs_xlib(self):
         # build-linux.yml installs python3-xlib in its package job; the
         # Raspberry Pi OS check installs its own screen tools

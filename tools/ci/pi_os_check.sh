@@ -226,6 +226,7 @@ main() {
   fi
   dpkg-query -W -f='${Package} ${Version}\n' libgtk2.0-0 libgtk2.0-0t64 libc6 libcairo2 libpango-1.0-0 2>/dev/null > "$out/versions.txt"
   if ! runuser -u pi -- env GTK2_RC_FILES="${GTK2_RC_FILES:-}" GITHUB_STEP_SUMMARY= \
+       OXT_GHOST_WINDOWS="${OXT_GHOST_WINDOWS:-}" \
        bash "$here/linux_ide_start.sh" "$root" "$out/ide-start" "$seconds"; then
     failed=1
   fi

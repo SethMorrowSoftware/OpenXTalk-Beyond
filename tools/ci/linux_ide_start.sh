@@ -126,12 +126,25 @@ if [ "$watching" != yes ]; then
   echo "::error title=IDE start::The window watcher (tools/ci/startup_windows.py) did not start, so the start was not checked for windows that came and went (python3-xlib installed?)"
   exit 1
 fi
+# OXT_GHOST_WINDOWS=warn reports them as a warning: for a package that this
+# change did not build (the Raspberry Pi OS check on a pull request tests
+# the newest package from main, which can predate the fix under review)
 if [ "$ghost_status" != 0 ]; then
-  echo "::error title=IDE start::Windows came and went while the IDE started: $(grep '^GHOST' "$out/startup-windows.txt" 2>/dev/null | sed 's/^GHOST //' | tr '\n' ';')"
-  exit 1
+  ghosts=$(grep '^GHOST' "$out/startup-windows.txt" 2>/dev/null | sed 's/^GHOST //' | tr '\n' ';')
+  if [ "${OXT_GHOST_WINDOWS:-error}" = warn ]; then
+    echo "::warning title=IDE start::Windows came and went while the IDE started (a package this change did not build): $ghosts"
+  else
+    echo "::error title=IDE start::Windows came and went while the IDE started: $ghosts"
+    exit 1
+  fi
 fi
 if [ -n "$GITHUB_STEP_SUMMARY" ]; then
-  printf '### IDE start (%s)\n\nThe IDE was still running after %s s, with %s named windows on the screen, and no window came and went while it started.\n\n' \
-    "$(uname -m)" "$seconds" "$windows" >> "$GITHUB_STEP_SUMMARY"
+  if [ "$ghost_status" != 0 ]; then
+    came="windows came and went while it started (reported as a warning: $ghosts)"
+  else
+    came="no window came and went while it started"
+  fi
+  printf '### IDE start (%s)\n\nThe IDE was still running after %s s, with %s named windows on the screen, and %s.\n\n' \
+    "$(uname -m)" "$seconds" "$windows" "$came" >> "$GITHUB_STEP_SUMMARY"
 fi
 exit 0

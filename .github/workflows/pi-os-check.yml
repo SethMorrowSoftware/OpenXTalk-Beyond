@@ -129,6 +129,11 @@ jobs:
           path: ${{ runner.temp }}/package
 
       - name: Install and start it as on a Pi
+        env:
+          # On a pull request the package is the newest from main, built
+          # before the change under review: windows that come and go while
+          # it starts are reported, not failed (tools/ci/linux_ide_start.sh)
+          OXT_GHOST_WINDOWS: ${{ github.event_name == 'pull_request' && 'warn' || 'error' }}
         run: |
           package=$(bash -c 'source tools/ci/pi_os_check.sh; package_tarball "$1"' x "$RUNNER_TEMP/package")
           [ -n "$package" ] || { ls -l "$RUNNER_TEMP/package"; exit 1; }
