@@ -1147,6 +1147,7 @@ on ed_debug_breakpoint
    edToolTile "com.livecode.tool.Browse"
    dispatch "revSetTestEnvironment" to stack "Home" with false
    put empty into sDebug["seen"]
+   put 0 into sDebug["varTries"]
    send "edDebugStopped" && quote & tSE & quote to me in 300 milliseconds
    try
       edClickAt sStack, the loc of tButton
@@ -1193,6 +1194,13 @@ on edDebugStopped pSE, pTries
       end if
    end if
    put edSeVariables(pSE) into tVars
+   -- (the Variables pane is filled a moment after the stop: on the Intel
+   -- Mac it was still empty when first read, so it is waited for)
+   if not (tVars contains "tCount=5") and sDebug["varTries"] < 12 then
+      add 1 to sDebug["varTries"]
+      send "edDebugStopped" && quote & pSE & quote & "," && pTries to me in 250 milliseconds
+      exit edDebugStopped
+   end if
    put "variables" && tVars & ";" after sDebug["seen"]
    if tVars contains "tCount=5" then put true into sDebug["variable"]
    try
