@@ -59,6 +59,11 @@ script "org.openxtalk.plugin.xtalkassistant-core"
 --    xtaLocalServerHint(pBaseUrl, pStatus, pError)
 --                                          what to try when a server of the
 --                                          user's own did not answer
+--    xtaLocalServerRoot(pBaseUrl), xtaContextPlan(pBody, pModel, pWanted),
+--    xtaEnsureContext(pSettings)           a local model loaded with the
+--                                          context the user set (see "The
+--                                          context a local model is loaded
+--                                          with")
 --    xtaParseModels(pProvider, pStatus, pBody)
 --    xtaDefaultModel(pProvider, pIds, pCreated)  the model to begin with
 --    xtaSuggestedModels(pProvider), xtaModelMenu(pProvider, pIds)
@@ -120,6 +125,11 @@ constant kRequestTimeoutMilliseconds = 600000
 constant kTokensAnHour = 128000
 -- Asking for the models takes a moment, so it is not given as long
 constant kListTimeoutSeconds = 180
+-- How long LM Studio's list of the loaded models may take to come, and a
+-- model to load (a big one takes a minute or more from a slow disk), when
+-- the user set a context length (xtaEnsureContext)
+constant kContextAskSeconds = 30
+constant kContextLoadSeconds = 600
 -- How deeply JSON may nest before the reader refuses it.
 constant kJsonMaxDepth = 64
 -- The hidden stack whose button the compile checks set the script of. Its
@@ -1109,7 +1119,7 @@ function xtaLocalServerHint pBaseUrl, pStatus, pError
       return empty
    end if
    if pError contains "context" or pError contains "n_ctx" or pError contains "tokens to keep" then
-      return "The model's context is too short for the assistant's guide. Load it with a longer one (in LM Studio, Context Length, 16000 or more), or tick Short guide in the Settings."
+      return "The model's context is too short for the assistant's guide. Load it with a longer one (in LM Studio, Context Length, 16000 or more, or set Context length in the Settings: LM Studio 0.4 and later then load the model with it), or tick Short guide in the Settings."
    end if
    if pStatus is empty and pError contains "could not be reached" then
       if the platform is "HTML5" then
@@ -1119,6 +1129,219 @@ function xtaLocalServerHint pBaseUrl, pStatus, pError
    end if
    return empty
 end xtaLocalServerHint
+
+--------------------------------------------------------------------------------
+-- The context a local model is loaded with
+--
+-- OpenAI's API has no way to say how long a context a request needs: the
+-- server loads a model with a context of its own (LM Studio 4096 or 8192
+-- unless the user changes it), and the assistant's guide alone is longer,
+-- so the request is refused. LM Studio 0.4 and later have an API of their
+-- own beside OpenAI's, at <server>/api/v1, which lists the models with the
+-- context each is loaded with (GET /api/v1/models) and loads one with the
+-- context it is given (POST /api/v1/models/load, context_length). When the
+-- user sets a context length (xtaAsk's "contextLength"), a request to a
+-- server of their own first makes sure the model is loaded with at least
+-- that much (xtaEnsureContext): nothing is done when it is, and nothing is
+-- asked when the setting is empty, so a request goes exactly as before.
+-- Ollama, llama.cpp and the others take the context only when they start
+-- (Ollama's OLLAMA_CONTEXT_LENGTH, llama.cpp's -c), and their servers have
+-- no such list, so nothing changes for them.
+
+-- The server of a base URL that speaks LM Studio's own API: the base URL
+-- without its /v1, for a plain http:// one (a server on this computer or
+-- the user's network); empty for any other, so an online service is never
+-- asked
+function xtaLocalServerRoot pBaseUrl
+   put word 1 to -1 of pBaseUrl into pBaseUrl
+   if not (pBaseUrl begins with "http://") then
+      return empty
+   end if
+   repeat while pBaseUrl ends with "/"
+      delete char -1 of pBaseUrl
+   end repeat
+   if not (pBaseUrl ends with "/v1") then
+      return empty
+   end if
+   delete char -3 to -1 of pBaseUrl
+   if the number of chars of pBaseUrl <= the number of chars of "http://" then
+      return empty
+   end if
+   return pBaseUrl
+end xtaLocalServerRoot
+
+-- What to do so that pModel is loaded with a context of pWanted tokens,
+-- from pBody, LM Studio's answer to GET /api/v1/models: an array with
+-- "action", one of
+--    "none"    it is loaded with at least that much (or pWanted is no
+--              number of tokens)
+--    "load"    it is not loaded: load it with "context" tokens
+--    "reload"  it is loaded with less: unload the instances in "unload"
+--              (one per line), then load it with "context" tokens
+--    "unknown" the answer is not LM Studio's list, or the model is not in it
+-- and "loaded", the most context it is loaded with now (empty when it is
+-- not). "context" is pWanted, or the model's own most when it takes less.
+-- An entry is pModel's when its key, one of its variants or one of its
+-- instances is pModel; its instances that are pModel, when it has any,
+-- are the ones that count, since the request names that one.
+function xtaContextPlan pBody, pModel, pWanted
+   local tPlan, tDoc, tError, tModels, tIndex, tEntry, tFound, tInstances, tCount
+   local tVariants, tItem, tId, tMine, tLoaded, tMost, tContext, tSmaller
+   put "unknown" into tPlan["action"]
+   if not (pWanted is an integer and pWanted > 0) then
+      put "none" into tPlan["action"]
+      return tPlan
+   end if
+   put word 1 to -1 of pModel into pModel
+   if pModel is empty then
+      return tPlan
+   end if
+   try
+      put xtaJsonParse(pBody) into tDoc
+   catch tError
+      return tPlan
+   end try
+   put xtaJsonMember(tDoc, "models") into tModels
+   if xtaJsonType(tModels) is not "array" then
+      return tPlan
+   end if
+   repeat with tIndex = 1 to xtaJsonCount(tModels)
+      put xtaJsonItem(tModels, tIndex) into tEntry
+      put xtaJsonText(xtaJsonMember(tEntry, "key")) is pModel into tFound
+      put xtaJsonMember(tEntry, "variants") into tVariants
+      repeat with tItem = 1 to xtaJsonCount(tVariants)
+         if xtaJsonText(xtaJsonItem(tVariants, tItem)) is pModel then
+            put true into tFound
+         end if
+      end repeat
+      put xtaJsonMember(tEntry, "loaded_instances") into tInstances
+      put empty into tMine
+      repeat with tItem = 1 to xtaJsonCount(tInstances)
+         if xtaJsonText(xtaJsonGet(tInstances, tItem & "/id")) is pModel then
+            put tItem & return after tMine
+         end if
+      end repeat
+      if tMine is not empty then
+         put true into tFound
+      end if
+      if tFound then
+         exit repeat
+      end if
+   end repeat
+   if not tFound then
+      return tPlan
+   end if
+   -- The instances that count: pModel's own, else all of the entry's
+   if tMine is empty then
+      repeat with tItem = 1 to xtaJsonCount(tInstances)
+         put tItem & return after tMine
+      end repeat
+   end if
+   put pWanted into tContext
+   put xtaJsonText(xtaJsonMember(tEntry, "max_context_length")) into tMost
+   if tMost is an integer and tMost > 0 and tMost < tContext then
+      put tMost into tContext
+   end if
+   put tContext into tPlan["context"]
+   put 0 into tCount
+   repeat for each line tItem in tMine
+      put xtaJsonText(xtaJsonGet(tInstances, tItem & "/config/context_length")) into tLoaded
+      if not (tLoaded is an integer) then
+         put 0 into tLoaded
+      end if
+      if tPlan["loaded"] is empty or tLoaded > tPlan["loaded"] then
+         put tLoaded into tPlan["loaded"]
+      end if
+      if tLoaded < tContext then
+         put xtaJsonText(xtaJsonGet(tInstances, tItem & "/id")) into tId
+         if tId is not empty then
+            put tId & return after tSmaller
+         end if
+      end if
+      add 1 to tCount
+   end repeat
+   if tCount is 0 then
+      put "load" into tPlan["action"]
+   else if tPlan["loaded"] >= tContext then
+      put "none" into tPlan["action"]
+   else
+      put "reload" into tPlan["action"]
+      delete char -1 of tSmaller
+      put tSmaller into tPlan["unload"]
+   end if
+   return tPlan
+end xtaContextPlan
+
+-- Makes sure the model of pSettings ("provider", "baseUrl", "key",
+-- "model" and "contextLength") is loaded with a context of at least
+-- "contextLength" tokens, in a server that speaks LM Studio's own API
+-- (above). Returns an array: "action", what xtaContextPlan said and was
+-- done ("none" when nothing was asked: the setting is empty, the provider
+-- Anthropic, or the base URL not a server of the user's own); "context",
+-- the context it was loaded with; and "error", in words for the user, when
+-- the model could not be loaded with it. A server that does not answer
+-- the list as LM Studio does is left as it is.
+function xtaEnsureContext pSettings
+   local tResult, tRoot, tHeaders, tAnswer, tPlan, tId, tError, tBody, tModel
+   put "none" into tResult["action"]
+   if pSettings["provider"] is not "openai" then
+      return tResult
+   end if
+   if not (pSettings["contextLength"] is an integer and pSettings["contextLength"] > 0) then
+      return tResult
+   end if
+   put xtaLocalServerRoot(pSettings["baseUrl"]) into tRoot
+   put word 1 to -1 of pSettings["model"] into tModel
+   if tRoot is empty or tModel is empty then
+      return tResult
+   end if
+   try
+      put xtaRequestHeaders("openai", pSettings["key"]) into tHeaders
+   catch tError
+      return tResult
+   end try
+   put xtaHttpGet(tRoot & "/api/v1/models", tHeaders, kContextAskSeconds) into tAnswer
+   if tAnswer["status"] is not 200 then
+      put "unknown" into tResult["action"]
+      return tResult
+   end if
+   put xtaContextPlan(tAnswer["body"], tModel, pSettings["contextLength"]) into tPlan
+   put tPlan["action"] into tResult["action"]
+   put tPlan["context"] into tResult["context"]
+   if tPlan["action"] is not "load" and tPlan["action"] is not "reload" then
+      return tResult
+   end if
+   -- An instance with less goes first: two of one model would leave which
+   -- one answers to its name to the server
+   repeat for each line tId in tPlan["unload"]
+      put xtaHttpPost(tRoot & "/api/v1/models/unload", tHeaders, \
+            "{" & xtaJsonPair("instance_id", xtaJsonString(tId)) & "}", kContextLoadSeconds) into tAnswer
+   end repeat
+   put "{" & xtaJsonPair("model", xtaJsonString(tModel)) & comma & \
+         xtaJsonPair("context_length", tPlan["context"] + 0) & "}" into tBody
+   put xtaHttpPost(tRoot & "/api/v1/models/load", tHeaders, tBody, kContextLoadSeconds) into tAnswer
+   put empty into tHeaders
+   if tAnswer["status"] is 200 then
+      return tResult
+   end if
+   if tAnswer["status"] is empty then
+      put tAnswer["error"] into tError
+   else
+      put xtaApiError("openai", tAnswer["status"], tAnswer["body"], xtaContextDoc(tAnswer["body"])) into tError
+   end if
+   put "The server could not load" && tModel && "with a context of" && tPlan["context"] && "tokens:" && line 1 to -1 of tError into tResult["error"]
+   return tResult
+end xtaEnsureContext
+
+private function xtaContextDoc pBody
+   local tDoc, tError
+   try
+      put xtaJsonParse(pBody) into tDoc
+   catch tError
+      put empty into tDoc
+   end try
+   return tDoc
+end xtaContextDoc
 
 -- The arguments of a call as JSON text, from their parsed value in pBody:
 -- an object exactly as it was sent, anything else as no arguments
@@ -1409,12 +1632,16 @@ function xtaRequestWait pTimeout, pMaxTokens
 end xtaRequestWait
 
 -- One round trip: sends the conversation and returns what xtaParseReply
--- does. pSettings has "provider", "baseUrl", "key", "model", "maxTokens"
--- and "timeout" (seconds; the last two may be empty); pTools, when given,
--- are the tools the model may ask for (xtaRequestBody).
+-- does. pSettings has "provider", "baseUrl", "key", "model", "maxTokens",
+-- "timeout" (seconds) and "contextLength" (the last three may be empty);
+-- pTools, when given, are the tools the model may ask for
+-- (xtaRequestBody). With a context length, a server of the user's own
+-- that speaks LM Studio's API first loads the model with at least that
+-- much (xtaEnsureContext); without one, nothing is asked but the request.
 function xtaAsk pSettings, pSystem, pTurns, pTools
-   local tProvider, tHeaders, tBody, tAnswer, tReply, tError, tTokensName
+   local tProvider, tHeaders, tBody, tAnswer, tReply, tError, tTokensName, tContext
    put pSettings["provider"] into tProvider
+   put xtaEnsureContext(pSettings) into tContext
    -- OpenAI's own API takes the limit as max_completion_tokens (its newer
    -- models refuse max_tokens); a server of the user's own, as max_tokens
    if tProvider is "openai" and pSettings["baseUrl"] is not empty then
@@ -1438,9 +1665,15 @@ function xtaAsk pSettings, pSystem, pTurns, pTools
       put xtaParseReply(tProvider, tAnswer["status"], tAnswer["body"]) into tReply
    end if
    if tReply["ok"] is not true and tProvider is "openai" then
-      put xtaLocalServerHint(pSettings["baseUrl"], tAnswer["status"], tReply["error"]) into tError
-      if tError is not empty then
-         put return & tError after tReply["error"]
+      -- Why the model was not loaded with the context asked for says more
+      -- than the general hint
+      if tContext["error"] is not empty then
+         put return & tContext["error"] after tReply["error"]
+      else
+         put xtaLocalServerHint(pSettings["baseUrl"], tAnswer["status"], tReply["error"]) into tError
+         if tError is not empty then
+            put return & tError after tReply["error"]
+         end if
       end if
    end if
    return tReply

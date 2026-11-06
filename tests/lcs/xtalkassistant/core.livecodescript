@@ -8,6 +8,10 @@ script "TestXTalkAssistantCore"
 -- The test server's answer, the request it read, and how long libURL
 -- would wait for the answer to it (the socketTimeoutInterval then)
 local sResponse, sRequest, sWaitDuring
+-- The routed test server (TestStartRoutes): its answers by request line
+-- ("GET /api/v1/models"), the request lines it read, one per line, and
+-- the body of each, by number
+local sRoutes, sRouteLog, sRouteBodies
 
 on TestSetup
    local tCore, tLibUrl
@@ -1118,6 +1122,95 @@ on TestNearest
 end TestNearest
 
 --------------------------------------------------------------------------------
+-- The context a local model is loaded with
+
+-- Only a plain http:// base URL ending in /v1 is a server that may speak
+-- LM Studio's own API: an online service is never asked
+on TestLocalServerRoot
+   TestAssert "LM Studio's", xtaLocalServerRoot("http://localhost:1234/v1") is "http://localhost:1234"
+   TestAssert "with a slash after it", xtaLocalServerRoot(" http://192.168.1.5:1234/v1/ ") is "http://192.168.1.5:1234"
+   TestAssert "not https", xtaLocalServerRoot("https://openrouter.ai/api/v1") is empty
+   TestAssert "not without /v1", xtaLocalServerRoot("http://localhost:1234") is empty
+   TestAssert "not Google's /v1beta", xtaLocalServerRoot("http://example.com/v1beta/openai") is empty
+   TestAssert "not empty", xtaLocalServerRoot(empty) is empty
+   TestAssert "not /v1 alone", xtaLocalServerRoot("http:///v1") is empty
+end TestLocalServerRoot
+
+-- An LM Studio model list with one model, pKey, its most context pMost
+-- and its loaded instances pInstances (id <tab> context, one per line)
+private function TestModelList pKey, pMost, pInstances
+   local tLine, tList
+   set the itemDelimiter to tab
+   repeat for each line tLine in pInstances
+      if tList is not empty then
+         put comma after tList
+      end if
+      put "{" & TestQ("id") & ":" & TestQ(item 1 of tLine) & "," & TestQ("config") & ":{" & \
+            TestQ("context_length") & ":" & item 2 of tLine & "," & TestQ("flash_attention") & ":true}}" after tList
+   end repeat
+   return "{" & TestQ("models") & ":[{" & TestQ("type") & ":" & TestQ("embedding") & "," & TestQ("key") & ":" & TestQ("text-embed") & "," & \
+         TestQ("loaded_instances") & ":[]}," & "{" & TestQ("type") & ":" & TestQ("llm") & "," & TestQ("key") & ":" & TestQ(pKey) & "," & \
+         TestQ("variants") & ":[" & TestQ(pKey & "@q4_k_m") & "," & TestQ(pKey & "@q8_0") & "]," & \
+         TestQ("loaded_instances") & ":[" & tList & "]," & TestQ("max_context_length") & ":" & pMost & "}]}"
+end TestModelList
+
+private function TestAction pPlan
+   return pPlan["action"]
+end TestAction
+
+on TestContextPlan
+   local tPlan
+   put xtaContextPlan(TestModelList("qwen/qwen3-8b", 32768, empty), "qwen/qwen3-8b", 16384) into tPlan
+   TestAssert "not loaded: load it", tPlan["action"] is "load" and tPlan["context"] is 16384 and tPlan["loaded"] is empty
+   put xtaContextPlan(TestModelList("qwen/qwen3-8b", 32768, "qwen/qwen3-8b" & tab & 4096), "qwen/qwen3-8b", 16384) into tPlan
+   TestDiagnostic tPlan["action"] && tPlan["loaded"] && tPlan["unload"]
+   TestAssert "loaded with less: reload it", tPlan["action"] is "reload" and tPlan["loaded"] is 4096 \
+         and tPlan["unload"] is "qwen/qwen3-8b" and tPlan["context"] is 16384
+   put xtaContextPlan(TestModelList("qwen/qwen3-8b", 32768, "qwen/qwen3-8b" & tab & 16384), "qwen/qwen3-8b", 16384) into tPlan
+   TestAssert "loaded with as much: nothing", tPlan["action"] is "none" and tPlan["loaded"] is 16384
+   put xtaContextPlan(TestModelList("qwen/qwen3-8b", 32768, "qwen/qwen3-8b" & tab & 32768), "qwen/qwen3-8b", 16384) into tPlan
+   TestAssert "loaded with more: nothing (never made shorter)", tPlan["action"] is "none"
+   put xtaContextPlan(TestModelList("qwen/qwen3-8b", 8192, empty), "qwen/qwen3-8b", 16384) into tPlan
+   TestAssert "no more than the model takes", tPlan["action"] is "load" and tPlan["context"] is 8192
+   put xtaContextPlan(TestModelList("qwen/qwen3-8b", 8192, "qwen/qwen3-8b" & tab & 8192), "qwen/qwen3-8b", 16384) into tPlan
+   TestAssert "already all it takes: nothing", tPlan["action"] is "none"
+   put xtaContextPlan(TestModelList("qwen/qwen3-8b", 32768, empty), "qwen/qwen3-8b@q8_0", 16384) into tPlan
+   TestAssert "a variant is the model's", tPlan["action"] is "load"
+   put xtaContextPlan(TestModelList("qwen/qwen3-8b", 32768, "qwen/qwen3-8b" & tab & 32768 & return & "qwen/qwen3-8b:2" & tab & 4096), "qwen/qwen3-8b:2", 16384) into tPlan
+   TestAssert "an instance named: only it counts", tPlan["action"] is "reload" and tPlan["unload"] is "qwen/qwen3-8b:2"
+   put xtaContextPlan(TestModelList("qwen/qwen3-8b", 32768, "qwen/qwen3-8b" & tab & 4096 & return & "qwen/qwen3-8b:2" & tab & 32768), "qwen/qwen3-8b", 16384) into tPlan
+   TestAssert "the instance the request names has less: only it is reloaded", tPlan["action"] is "reload" and tPlan["unload"] is "qwen/qwen3-8b"
+   put xtaContextPlan(TestModelList("qwen/qwen3-8b", 32768, "qwen/qwen3-8b:1" & tab & 4096 & return & "qwen/qwen3-8b:2" & tab & 32768), "qwen/qwen3-8b", 16384) into tPlan
+   TestAssert "none named, one of the model's has enough: nothing", tPlan["action"] is "none" and tPlan["loaded"] is 32768
+   put xtaContextPlan(TestModelList("qwen/qwen3-8b", 32768, empty), "another-model", 16384) into tPlan
+   TestAssert "a model not in the list: unknown", tPlan["action"] is "unknown"
+   TestAssert "an answer that is not LM Studio's: unknown", TestAction(xtaContextPlan("{" & TestQ("data") & ":[]}", "m", 16384)) is "unknown"
+   TestAssert "an answer that is not JSON: unknown", TestAction(xtaContextPlan("<html>404</html>", "m", 16384)) is "unknown"
+   TestAssert "no context asked for: nothing", TestAction(xtaContextPlan(TestModelList("m", 32768, empty), "m", empty)) is "none"
+end TestContextPlan
+
+-- Nothing is asked of the server but the request when no context length
+-- is set, for Anthropic, or for a base URL that is not a server of the
+-- user's own: requests go exactly as before
+on TestEnsureContextAsksNothingWithoutIt
+   local tSettings
+   put "openai" into tSettings["provider"]
+   put "http://127.0.0.1:1/v1" into tSettings["baseUrl"]
+   put "m" into tSettings["model"]
+   TestAssert "no context length", TestAction(xtaEnsureContext(tSettings)) is "none"
+   put "lots" into tSettings["contextLength"]
+   TestAssert "not a number", TestAction(xtaEnsureContext(tSettings)) is "none"
+   put 16384 into tSettings["contextLength"]
+   put "anthropic" into tSettings["provider"]
+   TestAssert "not for Anthropic", TestAction(xtaEnsureContext(tSettings)) is "none"
+   put "openai" into tSettings["provider"]
+   put "https://openrouter.ai/api/v1" into tSettings["baseUrl"]
+   TestAssert "not for an online service", TestAction(xtaEnsureContext(tSettings)) is "none"
+   put empty into tSettings["baseUrl"]
+   TestAssert "not for OpenAI's own", TestAction(xtaEnsureContext(tSettings)) is "none"
+end TestEnsureContextAsksNothingWithoutIt
+
+--------------------------------------------------------------------------------
 -- Round trips through libURL to a server of this process
 
 private function TestStartServer pStatus, pBody
@@ -1294,3 +1387,146 @@ on TestListModels
    TestAssert "with the key", TestRequestHeader("x-api-key") is "sk-local"
    TestAssert "the list", tResult["models"] is "model-a"
 end TestListModels
+
+--------------------------------------------------------------------------------
+-- Round trips to a server that answers each request line as it was told
+
+private function TestStartRoutes
+   put empty into sRouteLog
+   put empty into sRouteBodies
+   TestSkipIfNot "sockets"
+   accept connections on port 0 with message "xtaTestRouteAccept"
+   return it
+end TestStartRoutes
+
+private command TestRoute pRequestLine, pStatus, pBody
+   local tBytes
+   put textEncode(pBody, "UTF-8") into tBytes
+   put "HTTP/1.1" && pStatus & crlf & "Content-Type: application/json" & crlf & \
+         "Content-Length:" && the number of bytes of tBytes & crlf & "Connection: close" & crlf & crlf & tBytes into sRoutes[pRequestLine]
+end TestRoute
+
+on xtaTestRouteAccept pSocket
+   read from socket pSocket until crlf & crlf with message "xtaTestRouteHeaders"
+end xtaTestRouteAccept
+
+on xtaTestRouteHeaders pSocket, pData
+   local tLength, tLine
+   put word 1 to 2 of line 1 of pData & return after sRouteLog
+   repeat for each line tLine in pData
+      if tLine begins with "Content-Length:" then
+         put word 2 of tLine into tLength
+      end if
+   end repeat
+   if tLength is an integer and tLength > 0 then
+      read from socket pSocket for tLength bytes with message "xtaTestRouteBody"
+   else
+      xtaTestRouteBody pSocket, empty
+   end if
+end xtaTestRouteHeaders
+
+on xtaTestRouteBody pSocket, pData
+   local tLine, tResponse
+   put the number of lines of sRouteLog into tLine
+   put textDecode(pData, "UTF-8") into sRouteBodies[tLine]
+   put sRoutes[line tLine of sRouteLog] into tResponse
+   if tResponse is empty then
+      put "HTTP/1.1 404 Not Found" & crlf & "Content-Length: 0" & crlf & "Connection: close" & crlf & crlf into tResponse
+   end if
+   write tResponse to socket pSocket
+   close socket pSocket
+end xtaTestRouteBody
+
+private function TestChatAnswer
+   return "{" & TestQ("choices") & ":[{" & TestQ("message") & ":{" & TestQ("role") & ":" & TestQ("assistant") & "," & \
+         TestQ("content") & ":" & TestQ("Hello") & "}," & TestQ("finish_reason") & ":" & TestQ("stop") & "}]}"
+end TestChatAnswer
+
+private function TestLocalSettings pPort, pContext
+   local tSettings
+   put "openai" into tSettings["provider"]
+   put "http://127.0.0.1:" & pPort & "/v1" into tSettings["baseUrl"]
+   put "qwen/qwen3-8b" into tSettings["model"]
+   put pContext into tSettings["contextLength"]
+   return tSettings
+end TestLocalSettings
+
+-- Without a context length, only the request goes, as before
+on TestAskLocalWithoutContextLength
+   local tPort, tReply
+   delete variable sRoutes
+   put TestStartRoutes() into tPort
+   TestRoute "POST /v1/chat/completions", "200 OK", TestChatAnswer()
+   TestRoute "GET /api/v1/models", "200 OK", TestModelList("qwen/qwen3-8b", 32768, "qwen/qwen3-8b" & tab & 4096)
+   put xtaAsk(TestLocalSettings(tPort, empty), "System text", TestTurns()) into tReply
+   close socket tPort
+   TestDiagnostic sRouteLog
+   TestAssert "the answer", tReply["ok"] is true and tReply["text"] is "Hello"
+   TestAssert "only the request", sRouteLog is ("POST /v1/chat/completions" & return)
+   TestAssert "and the request has no new member", not (sRouteBodies[1] contains "context")
+end TestAskLocalWithoutContextLength
+
+-- LM Studio has the model loaded with less: it is unloaded and loaded with
+-- the context the user set, then the request goes
+on TestAskLocalReloadsWithTheContext
+   local tPort, tReply, tDoc
+   delete variable sRoutes
+   put TestStartRoutes() into tPort
+   TestRoute "GET /api/v1/models", "200 OK", TestModelList("qwen/qwen3-8b", 32768, "qwen/qwen3-8b" & tab & 4096)
+   TestRoute "POST /api/v1/models/unload", "200 OK", "{" & TestQ("instance_id") & ":" & TestQ("qwen/qwen3-8b") & "}"
+   TestRoute "POST /api/v1/models/load", "200 OK", "{" & TestQ("type") & ":" & TestQ("llm") & "," & TestQ("instance_id") & ":" & TestQ("qwen/qwen3-8b") & "," & TestQ("status") & ":" & TestQ("loaded") & "}"
+   TestRoute "POST /v1/chat/completions", "200 OK", TestChatAnswer()
+   put xtaAsk(TestLocalSettings(tPort, 16384), "System text", TestTurns()) into tReply
+   close socket tPort
+   TestDiagnostic sRouteLog
+   TestAssert "the answer", tReply["ok"] is true and tReply["text"] is "Hello"
+   TestAssert "asked for the list, unloaded, loaded, then asked", sRouteLog is \
+         ("GET /api/v1/models" & return & "POST /api/v1/models/unload" & return & "POST /api/v1/models/load" & return & "POST /v1/chat/completions" & return)
+   TestAssert "unloaded the instance with less", xtaJsonText(xtaJsonMember(xtaJsonParse(sRouteBodies[2]), "instance_id")) is "qwen/qwen3-8b"
+   put xtaJsonParse(sRouteBodies[3]) into tDoc
+   TestAssert "loaded the model with the context", xtaJsonText(xtaJsonMember(tDoc, "model")) is "qwen/qwen3-8b" \
+         and xtaJsonText(xtaJsonMember(tDoc, "context_length")) is 16384
+   TestAssert "and the request has no new member", not (sRouteBodies[4] contains "context")
+end TestAskLocalReloadsWithTheContext
+
+-- Loaded with enough: only the list is asked for
+on TestAskLocalAlreadyLoaded
+   local tPort, tReply
+   delete variable sRoutes
+   put TestStartRoutes() into tPort
+   TestRoute "GET /api/v1/models", "200 OK", TestModelList("qwen/qwen3-8b", 32768, "qwen/qwen3-8b" & tab & 16384)
+   TestRoute "POST /v1/chat/completions", "200 OK", TestChatAnswer()
+   put xtaAsk(TestLocalSettings(tPort, 16384), empty, TestTurns()) into tReply
+   close socket tPort
+   TestAssert "the answer", tReply["ok"] is true
+   TestAssert "nothing loaded", sRouteLog is ("GET /api/v1/models" & return & "POST /v1/chat/completions" & return)
+end TestAskLocalAlreadyLoaded
+
+-- A server with no such list (Ollama, llama.cpp: 404) is left as it is
+on TestAskLocalServerWithoutTheList
+   local tPort, tReply
+   delete variable sRoutes
+   put TestStartRoutes() into tPort
+   TestRoute "POST /v1/chat/completions", "200 OK", TestChatAnswer()
+   put xtaAsk(TestLocalSettings(tPort, 16384), empty, TestTurns()) into tReply
+   close socket tPort
+   TestAssert "the answer", tReply["ok"] is true and tReply["text"] is "Hello"
+   TestAssert "the list was asked for, nothing loaded", sRouteLog is ("GET /api/v1/models" & return & "POST /v1/chat/completions" & return)
+end TestAskLocalServerWithoutTheList
+
+-- The model could not be loaded with the context, and the request was
+-- refused: the error says why it was not loaded
+on TestAskLocalLoadFails
+   local tPort, tReply
+   delete variable sRoutes
+   put TestStartRoutes() into tPort
+   TestRoute "GET /api/v1/models", "200 OK", TestModelList("qwen/qwen3-8b", 32768, empty)
+   TestRoute "POST /api/v1/models/load", "500 Internal Server Error", "{" & TestQ("error") & ":{" & TestQ("message") & ":" & TestQ("Not enough memory") & "}}"
+   TestRoute "POST /v1/chat/completions", "400 Bad Request", "{" & TestQ("error") & ":" & TestQ("the model is loaded with context length of only 4096 tokens") & "}"
+   put xtaAsk(TestLocalSettings(tPort, 16384), empty, TestTurns()) into tReply
+   close socket tPort
+   TestDiagnostic tReply["error"]
+   TestAssert "not ok", tReply["ok"] is false
+   TestAssert "says the model could not be loaded, and why", tReply["error"] contains "could not load qwen/qwen3-8b with a context of 16384 tokens" \
+         and tReply["error"] contains "Not enough memory"
+end TestAskLocalLoadFails
