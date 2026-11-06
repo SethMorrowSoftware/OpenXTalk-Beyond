@@ -33,7 +33,8 @@
 -- empty value and sets it, and nothing for two buttons whose gravities
 -- differ (inspector-gravity), the controls of a stack with HyperCard's
 -- names, as an imported one has, with their own types, right-click menus
--- and Inspector sections (inspector-hypercard), the Colors section of a graphic and of several
+-- and Inspector sections (inspector-hypercard), the list of a disk image's
+-- HyperCard stacks and the stack imported from it (hypercard-disk-image), the Colors section of a graphic and of several
 -- objects, and the graphic's Fill gradient popup, which must open beside
 -- the Inspector and off the graphic, and a player made with the IDE and
 -- inspected, with the Player tool turned off and on again: player), the
@@ -82,7 +83,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -4331,6 +4332,121 @@ on tour_inspector_hypercard
    set the defaultStack to tDefault
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_inspector_hypercard
+
+-- File > Import Stack > HyperCard Stack... with a disk image, after the
+-- file dialog (revIDEActionImportHyperCardStack calls
+-- revIDEImportHyperCardFromDiskImage with the file chosen): the list of
+-- the image's stacks opens as a modal dialog, shown, with its first stack
+-- picked (where it opens is logged: the engine may place a modal dialog
+-- over the window in front), and Import imports that stack,
+-- opened and marked with where it came from. Up to 0.2.7-rc.6.5 the list
+-- was made invisible and modal neither showed it nor waited for it, so
+-- the import did nothing at all, on every platform (OpenXTalkPaul, #261).
+-- The image is the DiskCopy 4.2 image of the IDE's tests
+-- (tests/lcs-input-files/hypercard/forks), which ui_tour.py names in
+-- OXT_TOUR_HYPERCARD_IMAGE. The import runs in a message of its own
+-- (tourHyperCardImageImport), as a menu item's does: once the imported
+-- stack has opened, the dynamic path would take the tour's own handlers
+-- to its card, where they are not found. The list is looked at and
+-- answered from a timer (tourHyperCardImageAnswer), which runs in the
+-- modal dialog's own wait: a wait of this step's would go on only once
+-- the dialog had closed
+local sHciDone, sHciResult, sHciSeen
+
+on tour_hypercard_disk_image
+   local tImage, tChosen, tName, tStack, tFails, tSet
+   put $OXT_TOUR_HYPERCARD_IMAGE into tImage
+   if tImage is empty or there is not a file tImage then
+      throw "no disk image at" && quote & tImage & quote && "(OXT_TOUR_HYPERCARD_IMAGE)"
+   end if
+   put false into sHciDone
+   put empty into sHciResult
+   put empty into sHciSeen
+   send "tourHyperCardImageImport" && quote & tImage & quote to me in 0 milliseconds
+   send "tourHyperCardImageAnswer 0" to me in 500 milliseconds
+   repeat 160 times
+      if sHciDone is true then exit repeat
+      tourWait 250
+   end repeat
+   if sHciDone is not true then throw "the import did not end in 40 s"
+   if sHciSeen["mode"] is empty then
+      throw "the import ended without the list of stacks (result" && quote & tourJoin(sHciResult) & quote & ")"
+   end if
+   tourRecord "INFO hypercard-disk-image list: mode" && sHciSeen["mode"] && "loc" && sHciSeen["loc"] && \
+         "screenLoc" && sHciSeen["screenLoc"] && "picked line" && sHciSeen["hilitedLine"] && \
+         "title" && quote & sHciSeen["title"] & quote
+   tourRecord "INFO hypercard-disk-image stacks:" && tourJoin(sHciSeen["list"])
+   if sHciSeen["shot"] is not empty then tourRecord "INFO hypercard-disk-image list snapshot:" && tourJoin(sHciSeen["shot"])
+   if sHciSeen["mode"] is not 5 then
+      put "the list was open in mode" && sHciSeen["mode"] & ", not as a modal dialog (5)" & return after tFails
+   end if
+   if sHciSeen["visible"] is not true then put "the list was not shown" & return after tFails
+   if sHciSeen["hilitedLine"] is not 1 then
+      put "the list's picked line was" && quote & sHciSeen["hilitedLine"] & quote & ", not its first" & return after tFails
+   end if
+   put line 1 of sHciSeen["list"] into tChosen
+   tourRecord "INFO hypercard-disk-image imported" && quote & tChosen & quote & ", result" && quote & tourJoin(sHciResult) & quote
+   if sHciResult is not empty then put "the import's result is" && quote & tourJoin(sHciResult) & quote & return after tFails
+   if there is a stack "revHyperCardImageChooser" then put "the list is still there" & return after tFails
+   set the itemDelimiter to colon
+   put the last item of tChosen into tName
+   set the itemDelimiter to comma
+   if tName is empty or there is not a stack tName then
+      throw "failed:" && tourJoin(tFails & "no stack" && quote & tName & quote && "was imported (open:" && tourJoin(the openStacks) & ")")
+   end if
+   put the long id of stack tName into tStack
+   if the mode of tStack is 0 then put "the imported stack" && tName && "is not open" & return after tFails
+   -- the custom property set uHyperCard (revIDEImportHyperCardStack)
+   put the customProperties["uHyperCard"] of tStack into tSet
+   if tSet["image"] is not tImage then
+      put "the imported stack's image is" && quote & tSet["image"] & quote & return after tFails
+   end if
+   if tSet["imagepath"] is not tChosen then
+      put "the imported stack's path on the image is" && quote & tSet["imagepath"] & quote & return after tFails
+   end if
+   if the mode of tStack is not 0 and the visible of tStack then
+      tourWait 500
+      tourShotStack tName, "06g-hypercard-disk-image-stack"
+   end if
+   lock messages
+   delete stack tName
+   unlock messages
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_hypercard_disk_image
+
+-- The import, in a message of its own, as File > Import Stack's: a
+-- handler of the tour's that finds the IDE's command through the message
+-- path, then notes how it ended
+on tourHyperCardImageImport pImage
+   revIDEImportHyperCardFromDiskImage pImage
+   put the result into sHciResult
+   put true into sHciDone
+end tourHyperCardImageImport
+
+-- The list of stacks, once it is open: how it is open, a snapshot, then
+-- Import, as a person clicks it. Tried every 250 ms for 10 s
+on tourHyperCardImageAnswer pTries
+   local tChooser, tError
+   put "revHyperCardImageChooser" into tChooser
+   if sHciDone is true then exit tourHyperCardImageAnswer
+   if there is not a stack tChooser or the mode of stack tChooser is 0 then
+      if pTries < 40 then send "tourHyperCardImageAnswer" && pTries + 1 to me in 250 milliseconds
+      exit tourHyperCardImageAnswer
+   end if
+   put the mode of stack tChooser into sHciSeen["mode"]
+   put the visible of stack tChooser into sHciSeen["visible"]
+   put the loc of stack tChooser into sHciSeen["loc"]
+   put the screenLoc into sHciSeen["screenLoc"]
+   put the title of stack tChooser into sHciSeen["title"]
+   put the hilitedLine of field "List" of stack tChooser into sHciSeen["hilitedLine"]
+   put field "List" of stack tChooser into sHciSeen["list"]
+   try
+      tourShotStack tChooser, "06f-hypercard-disk-image-list"
+   catch tError
+      put tError into sHciSeen["shot"]
+   end try
+   send "mouseUp" to button "Import" of stack tChooser
+end tourHyperCardImageAnswer
 
 -- Launch Editor (an image's right-click menu, and revEditImage pImages
 -- from a script) exports each image to a temporary file named after its
