@@ -88,6 +88,28 @@ class StartCheckTest(unittest.TestCase):
         self.assertLess(text.index('startup-windows-ready'), text.index('"$root/oxt-beyond"'))
         self.assertIn('Windows came and went while the IDE started', text)
 
+    def test_a_watcher_that_never_began_is_its_own_failure(self):
+        # On Raspberry Pi OS the watcher once died on a missing python3-xlib
+        # and the check reported an empty list of windows that came and went
+        with open(os.path.join(CI, 'linux_ide_start.sh')) as f:
+            text = f.read()
+        self.assertIn('watching=yes', text)
+        self.assertIn('The window watcher (tools/ci/startup_windows.py) did not start', text)
+        # and it is decided before the windows that came and went are read
+        self.assertLess(text.index('if [ "$watching" != yes ]'),
+                        text.index('if [ "$ghost_status" != 0 ]'))
+
+    def test_every_check_that_runs_it_installs_xlib(self):
+        # build-linux.yml installs python3-xlib in its package job; the
+        # Raspberry Pi OS check installs its own screen tools
+        with open(os.path.join(CI, 'pi_os_check.sh')) as f:
+            pi = f.read()
+        step = next(line for line in pi.splitlines()
+                    if 'install xvfb' in line)
+        self.assertIn('python3-xlib', step)
+        with open(os.path.join(CI, '..', '..', '.github', 'workflows', 'build-linux.yml')) as f:
+            self.assertIn('python3-xlib', f.read())
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -64,10 +64,12 @@ here=$(cd "$(dirname "$0")" && pwd)
 watch_seconds=$(( seconds < 60 ? seconds : 60 ))
 rm -f "$out/startup-windows-ready"
 python3 "$here/startup_windows.py" --display "$DISPLAY" --seconds "$watch_seconds" \
-  --log "$out/startup-windows.txt" --ready "$out/startup-windows-ready" > /dev/null 2>&1 &
+  --log "$out/startup-windows.txt" --ready "$out/startup-windows-ready" \
+  > "$out/startup-windows-errors.txt" 2>&1 &
 watcher=$!
+watching=no
 for i in $(seq 1 50); do
-  [ -e "$out/startup-windows-ready" ] && break
+  if [ -e "$out/startup-windows-ready" ]; then watching=yes; break; fi
   sleep 0.1
 done
 
@@ -114,6 +116,14 @@ if [ "$status" != running ]; then
 fi
 if [ "$windows" -lt 1 ]; then
   echo "::error title=IDE start::The IDE was running but had no window on the screen after $seconds s"
+  exit 1
+fi
+# A watcher that never began (python3-xlib missing, no screen) is its own
+# failure: reported as one, not as an empty list of windows that came and went
+if [ "$watching" != yes ]; then
+  echo "The window watcher's output:"
+  sed 's/^/  /' "$out/startup-windows-errors.txt" 2>/dev/null | tail -n 20
+  echo "::error title=IDE start::The window watcher (tools/ci/startup_windows.py) did not start, so the start was not checked for windows that came and went (python3-xlib installed?)"
   exit 1
 fi
 if [ "$ghost_status" != 0 ]; then

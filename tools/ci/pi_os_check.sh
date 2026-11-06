@@ -207,8 +207,10 @@ main() {
     echo "Library check: the launcher found every library it needs with only $gtk installed"
   fi
 
-  # 3. A screen, a window manager and the Raspberry Pi desktop's GTK theme
-  "${apt[@]}" install xvfb xauth openbox x11-utils imagemagick >> "$out/apt.txt" 2>&1 || { echo "::error::cannot install the screen tools"; exit 1; }
+  # 3. A screen, a window manager and the Raspberry Pi desktop's GTK theme,
+  # and python3-xlib for the start check's window watcher
+  # (tools/ci/startup_windows.py)
+  "${apt[@]}" install xvfb xauth openbox x11-utils imagemagick python3 python3-xlib >> "$out/apt.txt" 2>&1 || { echo "::error::cannot install the screen tools"; exit 1; }
   theme=
   for t in $(apt-cache search --names-only '^(pixflat-theme|rpd-theme|rpd-gtk-theme)$' 2>/dev/null | cut -d' ' -f1); do
     "${apt[@]}" install "$t" >> "$out/apt.txt" 2>&1 && break
