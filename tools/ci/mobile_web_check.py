@@ -49,7 +49,8 @@ emulate) opens the page with a touch screen and a phone's window, and:
      keyboard covers the bottom of the window, and the form moves up so
      that Notes is above it (mwViewportChanged)
   6. on Gestures, two fingers spread on the pad make the dot bigger
-     (pinch), a swipe on the pad is reported and stays on the card, a
+     (pinch) and leave it where it was, two fingers moved together move
+     it, a swipe on the pad is reported and stays on the card, a
      finger held still is a long press (longPress), and two fingers held
      down are two rings, gone when they let go (touchStart, touchEnd)
   7. on Phone: "Where am I?" says where the browser is (locationChanged),
@@ -275,6 +276,17 @@ class Fingers:
     def up(self):
         self._send('touchEnd', [])
 
+    def pan(self, x, y, dx, dy, apart=40, steps=6):
+        """Two fingers put down either side of x, y and moved together
+        by dx, dy"""
+        self._send('touchStart', [(x - apart, y)])
+        self._send('touchStart', [(x - apart, y), (x + apart, y)])
+        for i in range(1, steps + 1):
+            ox, oy = dx * i / steps, dy * i / steps
+            self._send('touchMove', [(x - apart + ox, y + oy), (x + apart + ox, y + oy)])
+            time.sleep(0.04)
+        self._send('touchEnd', [])
+
     def spread(self, x, y, start=30, by=70, steps=6):
         self._send('touchStart', [(x - start, y)])
         self._send('touchStart', [(x - start, y), (x + start, y)])
@@ -316,6 +328,25 @@ def notes_middle(s, width):
     except ValueError:
         return width / 2
     return (left + right) / 2
+
+
+def point(text):
+    """x, y from "x,y", or None"""
+    try:
+        x, y = (int(v) for v in text.split(','))
+    except ValueError:
+        return None
+    return x, y
+
+
+def moved(was, text, dx, dy):
+    """Whether the point text is was moved by about dx, dy (the stack's
+    pixels may not be the page's: at least half as far, at most twice,
+    each way)"""
+    now = point(text)
+    if was is None or now is None:
+        return False
+    return all(d / 2 <= n - w <= d * 2 for w, n, d in zip(was, now, (dx, dy)))
 
 
 def buttons(s):
@@ -504,11 +535,20 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
         s = on_card('Gestures')
         expect('the Gestures tab goes to Gestures', s.get('card') == 'Gestures', s)
         if fingers.touches:
-            fingers.spread(width / 2, height / 2 + 30)
+            was = point(state(page).get('dotloc', ''))
+            # (not so big that it has no room to move on the pad)
+            fingers.spread(width / 2, height / 2 + 30, by=20)
             s = wait_for(page, lambda s: s.get('dot', '').isdigit() and int(s['dot']) > 120)
             expect('a pinch makes the dot bigger', s.get('dot', '').isdigit() and int(s['dot']) > 120, s)
             expect('the pinch is reported', s.get('said', '').startswith('A pinch'), s)
+            # (the dot once walked up and to the left with each move of
+            # the fingers, off the pad in the end)
+            expect('and the dot stays where it was', was is not None and point(s.get('dotloc', '')) == was, s)
             shot('4-gestures')
+            # two fingers moved together move the dot with them
+            fingers.pan(width / 2, height / 2 + 30, 40, 50)
+            s = wait_for(page, lambda s: moved(was, s.get('dotloc', ''), 40, 50))
+            expect('two fingers moved together move the dot', moved(was, s.get('dotloc', ''), 40, 50), s)
             fingers.drag(width * 0.8, height / 2, width * 0.2, height / 2, steps=5, pause=0.016)
             s = wait_for(page, lambda s: s.get('said', '').startswith('A swipe'))
             expect('a swipe on the pad is reported', s.get('said') == 'A swipe left.', s)
