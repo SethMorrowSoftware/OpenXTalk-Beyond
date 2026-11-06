@@ -74,7 +74,7 @@ would: every script library (the Data Grid, Animation, Geometry, Internet,
 Printing, Table, XML-RPC), the externals the web engine has (revXML,
 revZip, revDB with SQLite, revSpeech) and every widget and library
 extension whose platforms include the web. A stack's files go into the
-browser's storage for the site (`/livecode/Documents/Stack Player`), so
+browser's storage for the site (`/openxtalk/Documents/Stack Player`), so
 the list, and whatever the stacks saved, are still there on the next
 visit. A stack finds the files that came with it (opened with it, in its
 folder, or in its `.zip`) as it would on the desktop: by paths relative to

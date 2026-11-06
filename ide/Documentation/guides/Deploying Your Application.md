@@ -419,11 +419,15 @@ user's disk:
   * `specialFolderPath("resources")` is `/boot/standalone`, where the files
 of the **Copy Files** pane are, and is the `defaultFolder` when the
 standalone starts.
-  * `specialFolderPath("home")` is `/livecode`, with the `documents`,
+  * `specialFolderPath("home")` is `/openxtalk`, with the `documents`,
 `desktop`, `preferences` and `support` folders in it. The browser keeps
 this folder for the web site, so what a stack writes there is still there
 on the user's next visit, in the same browser. (A page can turn this off;
-see **The Module object** below.)
+see **The Module object** below.) Until 0.2.7-rc.6.2 the home folder was
+`/livecode`. That name is still there, as a link to `/openxtalk`, so a
+script or a saved path that names `/livecode` or `~livecode` finds the
+same files, and what the browser kept for `/livecode` is copied to
+`/openxtalk` on the first visit.
   * `specialFolderPath("temporary")` is `/tmp`. It, and every folder but
 the home folder, starts afresh on each visit.
   * `answer file`, `answer files` and `answer folder` show the browser's
