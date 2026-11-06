@@ -105,6 +105,7 @@ on edRun
       end try
       cancel sWatchdog
       edRecord "INFO time" && tTask && the milliseconds - tStarted && "ms"
+      edNoteEdited tTask
       put empty into sReport
       put empty into sSkip
       edUnlockScreen tTask
@@ -112,6 +113,30 @@ on edRun
    end repeat
    edRecord "DONE"
 end edRun
+
+-- The task after which the IDE first marked the stack as edited since it
+-- was last saved, logged: a task that only looks (the App Browser's) must
+-- not mark it, or Close asks to save changes nobody made
+local sEditedBy
+
+command edNoteEdited pTask
+   local tEdited, tError
+   if sStack is empty or not edInMemory(sStack) then
+      exit edNoteEdited
+   end if
+   try
+      put revIDEStackIsEdited(the short name of stack sStack) into tEdited
+   catch tError
+      exit edNoteEdited
+   end try
+   if tEdited is true and sEditedBy is empty then
+      put pTask into sEditedBy
+      edRecord "INFO the stack is marked as edited after" && pTask
+   else if tEdited is not true and sEditedBy is not empty then
+      put empty into sEditedBy
+      edRecord "INFO the stack is no longer marked as edited after" && pTask
+   end if
+end edNoteEdited
 
 -- The tasks to run: all, or those named and every task before them that
 -- they build on (start and finish always)
@@ -690,6 +715,9 @@ end edABCardLine
 -- it (the browser acts on a click on the words of the name only)
 command edABClickName pLine
    local tRect
+   -- (the browser in front: on a small screen the stack's window or a
+   -- palette can be over it, and the click would land there)
+   go stack kAB
    -- (the field's place for a line can be empty for a moment while the
    -- browser lays it out again)
    get edWaitFor("the number of items of edABNameRect(pAx) is 4", 2000, pLine)
@@ -711,6 +739,9 @@ end edABNameRect
 -- a click on the icon that expands or collapses the stack of line pLine
 command edABClickIcon pLine
    local tRect
+   -- (the browser in front: on a small screen the stack's window or a
+   -- palette can be over it, and the click would land there)
+   go stack kAB
    put the formattedRect of char 1 of line pLine of field "Cards" of group "Cards" of this card of stack kAB into tRect
    edRealClickAt kAB, ((item 1 of tRect + item 3 of tRect) div 2) & "," & ((item 2 of tRect + item 4 of tRect) div 2)
 end edABClickIcon
@@ -955,7 +986,16 @@ on ed_close_reopen
    put the script of button id sKeep["okay"] of card 1 of stack sStack into tScript
    put the backgroundColor of button id sKeep["okay"] of card 1 of stack sStack into tColour
    -- (it asks whether to remove it: OK)
-   send "edAnswerWith" && quote & "OK" & quote to me in 300 milliseconds
+   -- (saved by save-as, and changed by nothing since: but the IDE marks a
+   -- stack as edited at any click on a control in Edit mode, as when the
+   -- field is selected for the Inspector, so Close first asks to save it,
+   -- and the answer is Don't Save, as a person who changed nothing would)
+   if sEditedBy is not empty then
+      edRecord "INFO close-reopen: the stack is marked as edited since" && sEditedBy & ": Don't Save"
+      send "edAnswerWith" && quote & "Don't Save,OK" & quote to me in 300 milliseconds
+   else
+      send "edAnswerWith" && quote & "OK" & quote to me in 300 milliseconds
+   end if
    edMenu "File", "Close and Remove From Memory"
    -- (the mainStacks, not "there is a stack": asked about a stack that
    -- is not in memory, the engine reads it from its file)
@@ -1717,28 +1757,51 @@ command edCancelPending pNames
 end edCancelPending
 
 -- the answer dialog open now answered with its button pButton (clicked)
-on edAnswerWith pButton, pTries
-   local tAD, tButton, i
+-- pButton: the button to click, or several (a comma between them) to
+-- click in the questions asked one after the other; a question without
+-- the button wanted is waited out while an earlier one in the list is
+-- still on its way away
+on edAnswerWith pButton, pTries, pAfter
+   local tAD, tButton, i, tWanted, tIndex
    put "Answer Dialog" into tAD
+   put item 1 of pButton into tWanted
    if pTries is empty then put 0 into pTries
    if not (there is a stack tAD and the mode of stack tAD is not 0 and the visible of stack tAD) then
-      if pTries < 30 then send "edAnswerWith" && quote & pButton & quote & "," && pTries + 1 to me in 200 milliseconds
+      if pTries < 30 then send "edAnswerWith" && quote & pButton & quote & "," && pTries + 1 & "," && pAfter to me in 200 milliseconds
       exit edAnswerWith
    end if
    put the text of field 1 of card 1 of stack tAD into sReport["answer"]
-   repeat with i = 1 to the number of buttons of card 1 of stack tAD
-      if the visible of button i of card 1 of stack tAD and the short name of button i of card 1 of stack tAD is pButton then
-         put the long id of button i of card 1 of stack tAD into tButton
+   -- (the first of the buttons wanted that this question has: a question
+   -- of the list may not be asked, as Close asks to save only an edited
+   -- stack)
+   repeat with tIndex = 1 to the number of items of pButton
+      repeat with i = 1 to the number of buttons of card 1 of stack tAD
+         if the visible of button i of card 1 of stack tAD and the short name of button i of card 1 of stack tAD is item tIndex of pButton then
+            put the long id of button i of card 1 of stack tAD into tButton
+         end if
+      end repeat
+      if tButton is not empty then
+         put item tIndex of pButton into tWanted
+         delete item 1 to tIndex of pButton
+         exit repeat
       end if
    end repeat
+   if tButton is empty and pAfter is true and pTries < 30 then
+      -- (the question answered before, not yet gone)
+      send "edAnswerWith" && quote & pButton & quote & "," && pTries + 1 & ", true" to me in 200 milliseconds
+      exit edAnswerWith
+   end if
    try
-      edShotStack tAD, "zz-answer-" & toLower(pButton)
+      edShotStack tAD, "zz-answer-" & toLower(replaceText(tWanted, "[^A-Za-z]", ""))
    catch tError
    end try
    if tButton is empty then
-      put " (no button" && pButton & ")" after sReport["answer"]
+      put " (no button" && tWanted & ")" after sReport["answer"]
       close stack tAD
       exit edAnswerWith
+   end if
+   if pButton is not empty then
+      send "edAnswerWith" && quote & pButton & quote & ", 0, true" to me in 400 milliseconds
    end if
    -- the system's click where it reaches the IDE: the engine's own click
    -- closed the question that File > Close and Remove From Memory asks
