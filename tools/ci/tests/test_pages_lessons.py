@@ -99,10 +99,16 @@ class TheLessons(unittest.TestCase):
 
     def test_most_examples_are_checked_by_what_they_put(self):
         # "compile" (not run) is for a dialog, a click or the internet: the
-        # rest run, and nearly all are held to exactly what they put
-        runs = [e['run'] for x in self.lessons for e in x['examples']]
+        # rest run, and nearly all are held to exactly what they put. A
+        # script the reader puts into a widget only compiles (the check
+        # cannot click one), but the example after it that sends its
+        # message from the Message Box (data-after) runs it
+        examples = [e for x in self.lessons for e in x['examples']]
+        runs = [e['run'] for e in examples]
         self.assertGreater(runs.count('output'), 0.85 * len(runs))
-        self.assertLess(runs.count('compile'), 0.08 * len(runs))
+        later = {ident for e in examples for ident in e['after']}
+        compiled = [e['id'] for e in examples if e['run'] == 'compile' and e['id'] not in later]
+        self.assertLess(len(compiled), 0.08 * len(runs))
 
     def test_every_picture_is_there_at_twice_the_stage(self):
         shots = [e for x in self.lessons for e in x['examples'] if e['shot'] is not None]
@@ -508,6 +514,21 @@ class WhatTheCheckRunsOnACard(unittest.TestCase):
         code = lessons_check.palette_code(card_example(script='this stack', code=stack_script, run='compile'))[0]
         self.assertTrue(code.endswith('end oxtLessonClick\n' + stack_script))
         self.assertNotIn('set the script of this stack', code)
+
+    def test_between_two_lines_of_the_message_box(self):
+        # the IDE handles what came in and draws the card again before the
+        # reader types the next line: on the same line, so that an error's
+        # line is the line's; a comment or an empty line is left alone
+        e = card_example(**{'in': 'message', 'code': 'put 1\n\n-- a note\nput 2'})
+        code, before = lessons_check.palette_code(e)
+        lines = code.split('\n')
+        self.assertEqual(lines[before:before + 4],
+                         ['put 1; oxtLessonIdle', '', '-- a note', 'put 2; oxtLessonIdle'])
+        self.assertIn('on oxtLessonIdle', code)
+        self.assertIn('wait 0 milliseconds with messages', lessons_check.IDLE)
+        self.assertIn('export snapshot from this card of stack "revAcademyStage"', lessons_check.IDLE)
+        # not for an object's script, nor lines that are not for the Message Box
+        self.assertNotIn('oxtLessonIdle', lessons_check.palette_code(card_example(code='put 1'))[0])
 
     def test_what_the_message_box_shows_after_each_click(self):
         e = card_example(script='this card', code='on mouseUp\n   put 2\nend mouseUp',

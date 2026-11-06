@@ -146,6 +146,31 @@ on oxtLessonClick pObject
 end oxtLessonClick"""
 
 
+# What the IDE does between two lines typed into the Message Box: it
+# handles the messages that came in meanwhile (a widget posts its
+# hiliteChanged, so that it comes once the line that changed it is done)
+# and draws the card again (a widget works out what it shows as it draws:
+# the Tree View's rows, which its hilitedElement needs). The check's stage
+# is never on a screen, so a snapshot draws it. After each line of an
+# example for the Message Box, on the same line, so that an error's line
+# is still the line's (see palette_code)
+IDLE = r"""
+on oxtLessonIdle
+   local tPicture
+   wait 0 milliseconds with messages
+   export snapshot from this card of stack "revAcademyStage" to tPicture as PNG
+end oxtLessonIdle"""
+
+
+def typed(line):
+    """A line for the Message Box as the check runs it: then what the IDE
+    does before the reader types the next (IDLE). A line that is all
+    comment, or empty, is left as it is."""
+    if not line.strip() or line.lstrip().startswith(('--', '#', '//')):
+        return line
+    return line + '; oxtLessonIdle'
+
+
 def xt_text(text):
     """text as an xTalk expression, a line of code: its lines joined with
     return, and each quote as quote."""
@@ -165,7 +190,8 @@ def palette_code(e, shown=None):
     """What the check runs for an example on a card the reader builds
     (build_lessons.py: data-card): the xTalk that makes the card as the
     Tools palette and the Property Inspector do, then the example's lines
-    for the Message Box, or its script put into its object; then the
+    for the Message Box, each followed by what the IDE does before the
+    next is typed (IDLE), or its script put into its object; then the
     clicks the reader makes in Run mode. Its second value is how many
     lines come before the example's own, for the line of an error. The
     scripts the reader put in before it (data-after) go in after the
@@ -197,8 +223,9 @@ def palette_code(e, shown=None):
         lines.append(COMPILED % e['script'].replace('"', "'"))
     lines.append('unlock messages')
     before = len(lines)
+    message = e.get('in') == 'message'
     if not e['script']:
-        lines += e['code'].split('\n')
+        lines += [typed(line) if message else line for line in e['code'].split('\n')]
     if e['click']:
         lines.append('put empty into msg')
         lines.append('put empty into tOxtShown')
@@ -207,7 +234,7 @@ def palette_code(e, shown=None):
             lines.append('put msg & numToChar(%d) after tOxtShown' % ord(SHOWN))
         if shown:
             lines.append('put textEncode(tOxtShown, "UTF-8") into URL %s' % xt_text('binfile:' + shown))
-    return '\n'.join(lines + [CLICK.strip('\n')] + stack), before
+    return '\n'.join(lines + [CLICK.strip('\n')] + ([IDLE.strip('\n')] if message else []) + stack), before
 
 
 def compare(example, res, out):

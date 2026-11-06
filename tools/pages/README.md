@@ -151,7 +151,10 @@ scripts in, makes the clicks as the engine does (a check box or radio
 button changes first), and holds the example to what the Message Box
 shows after each click. A widget is built the same way, but the check
 cannot click one as a reader does, so an example sends a widget's message
-from the Message Box instead.
+from the Message Box instead. Between two lines typed into the Message
+Box the IDE lets the engine handle what is waiting and paint the card,
+so the check does the same after each line (`oxtLessonIdle`): a widget
+paints only then, and the messages it posts arrive only then.
 
 The Extensions level teaches the extensions that come with OXT-Beyond:
 the libraries, the widgets and the xTalk Suite. An example names the ones
