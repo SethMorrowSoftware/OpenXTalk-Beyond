@@ -39,6 +39,7 @@ function mwcState
    put "vscroll=" & the vScroll of field "Items" of card "List" of stack kStack & return after tState
    put "said=" & field "Said" of card "Gestures" of stack kStack & return after tState
    put "dot=" & the width of graphic "Dot" of card "Gestures" of stack kStack & return after tState
+   put "dotloc=" & the loc of graphic "Dot" of card "Gestures" of stack kStack & return after tState
    put "saved=" & field "Saved" of card "Form" of stack kStack & return after tState
    put "name=" & field "Name" of card "Form" of stack kStack & return after tState
    put "notestop=" & the top of field "Notes" of card "Form" of stack kStack & return after tState

@@ -467,6 +467,26 @@ class PhoneCard(unittest.TestCase):
         for name in built:
             self.assertIn('case "%s"' % name, phone)
 
+    def test_the_pad_passes_the_point_between_the_fingers(self):
+        # a pinch moves the dot with the fingers, so the pad's script
+        # passes on where they are (tests/lcs/webplayer/phone-starter
+        # checks what the dot does in the engine)
+        builder = read('tools', 'web-player', 'phone-starter.livecodescript')
+        play = re.search(r'^private function playScript\n(.*?)^end playScript', builder, re.M | re.S).group(1)
+        self.assertIn('"on pinchStart pX, pY" & return & "   psPlayPinchStart pX, pY"', play)
+        self.assertIn('"on pinch pScale, pX, pY" & return & "   psPlayPinch pScale, pX, pY"', play)
+        script = read('tools', 'web-player', 'phone-starter-stack.livecodescript')
+        self.assertIn('command psPlayPinchStart pX, pY', script)
+        self.assertIn('command psPlayPinch pScale, pX, pY', script)
+
+    def test_the_dot_is_never_sized_by_its_width(self):
+        # setting a graphic's width or height keeps its centre only to the
+        # nearest pixel, the odd half up and to the left: sized that way
+        # for each move of a pinch, the dot walked off the pad
+        script = read('tools', 'web-player', 'phone-starter-stack.livecodescript')
+        self.assertNotRegex(script, r'set the (width|height) of graphic "Dot"')
+        self.assertIn('set the rect of graphic "Dot"', script)
+
     def test_the_pad_takes_the_touch_messages(self):
         builder = read('tools', 'web-player', 'phone-starter.livecodescript')
         play = re.search(r'^private function playScript\n(.*?)^end playScript', builder, re.M | re.S).group(1)
@@ -520,6 +540,20 @@ class Helpers(unittest.TestCase):
         self.assertEqual(mobile_web_check.rect('-4,10,20,30'), [-4, 10, 20, 30])
         self.assertIsNone(mobile_web_check.rect(''))
         self.assertIsNone(mobile_web_check.rect('a,b'))
+
+    def test_point(self):
+        self.assertEqual(mobile_web_check.point('195,400'), (195, 400))
+        self.assertIsNone(mobile_web_check.point(''))
+        self.assertIsNone(mobile_web_check.point('1,2,3'))
+
+    def test_moved(self):
+        self.assertTrue(mobile_web_check.moved((100, 200), '140,250', 40, 50))
+        self.assertTrue(mobile_web_check.moved((100, 200), '121,226', 40, 50))
+        self.assertFalse(mobile_web_check.moved((100, 200), '100,200', 40, 50))
+        self.assertFalse(mobile_web_check.moved((100, 200), '140,200', 40, 50))
+        self.assertFalse(mobile_web_check.moved((100, 200), '60,150', 40, 50))
+        self.assertFalse(mobile_web_check.moved(None, '140,250', 40, 50))
+        self.assertFalse(mobile_web_check.moved((100, 200), '', 40, 50))
 
     def test_png(self):
         import struct
