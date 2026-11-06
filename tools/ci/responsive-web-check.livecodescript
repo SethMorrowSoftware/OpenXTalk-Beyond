@@ -46,6 +46,7 @@ function rcState
    put "navback=" & the rect of graphic "Nav Back" of stack kStack & return after tState
    put "topback=" & the rect of graphic "Top Back" of stack kStack & return after tState
    put "titlerect=" & the rect of field "Title" of stack kStack & return after tState
+   put "theme=" & the rect of button "Theme" of stack kStack & return after tState
    put "navexplore=" & the rect of button "Nav Explore" of stack kStack & return after tState
    put "navguide=" & the rect of button "Nav Guide" of stack kStack & ";" & \
          the label of button "Nav Guide" of stack kStack & return after tState
@@ -68,6 +69,8 @@ function rcState
    put "grid=" & the rect of group "Grid" of card "Explore" of stack kStack & return after tState
    put "tiles=" & rcTiles("Explore", "Grid") & return after tState
    put "saved=" & rcTiles("Saved", "Saved Grid") & return after tState
+   -- the names of the places on the Saved card, as they show there
+   put "savednames=" & rcSavedNames() & return after tState
    put "tile1back=" & the backgroundColor of graphic "Tile Back" of group "Tile 1" of group "Grid" of \
          card "Explore" of stack kStack & ";" & the rect of graphic "Tile Back" of group "Tile 1" of group "Grid" of \
          card "Explore" of stack kStack & return after tState
@@ -113,6 +116,18 @@ private function rcLastTile
    return the rect of tTile & ";" & the rect of graphic "Tile Back" of tTile & ";" & \
          the rect of field "Blurb" of tTile
 end rcLastTile
+
+private function rcSavedNames
+   local tGrid, tNames, i
+   put the long id of group "Saved Grid" of card "Saved" of stack kStack into tGrid
+   repeat with i = 1 to the number of groups of tGrid
+      if the short name of group i of tGrid begins with "Tile" then
+         put field "Name" of group i of tGrid & "," after tNames
+      end if
+   end repeat
+   delete the last char of tNames
+   return tNames
+end rcSavedNames
 
 private function rcOneLine pText
    replace return with "|" in pText

@@ -325,6 +325,7 @@ def check_phone(screen):
     s = screen.on_card('Saved')
     screen.shot('3-phone-saved')
     screen.expect('phone: the Saved tab has the place saved', list(tiles(s.get('saved'))) == [1], s)
+    screen.expect('phone: the place saved shows its name there', s.get('savednames') == 'Kyoto', s)
     if screen.fingers and screen.fingers.touches:
         screen.fingers.drag(screen.width * 0.8, screen.height * 0.6, screen.width * 0.2, screen.height * 0.6, steps=6)
         s = screen.on_card('Guide')
@@ -368,6 +369,19 @@ def check_phone(screen):
     screen.fills(s)
     screen.tablet_layout(s)
     screen.expect('turned: the place still open is in the pane', s.get('place') == 'Kyoto', s)
+    # turned, with the notch at a side and the home bar below (as an
+    # iPhone on its side reports them): the look button and the rail's
+    # tabs stay out of both sides' strips
+    call(screen.page, 'rcInsets', 0, NOTCH, 21, NOTCH)
+    s = wait_for(screen.page, lambda s: (rect(s.get('theme', '')) or [0, 0, 1e9])[2] <= screen.width - NOTCH)
+    screen.shot('7-phone-landscape-notch')
+    theme, explore = rect(s.get('theme', '')), rect(s.get('navexplore', ''))
+    screen.expect('turned, notch at the side: the look button is clear of the notch',
+                  theme and theme[2] <= screen.width - NOTCH, s)
+    screen.expect('turned, notch at the side: the rail\'s tabs are clear of the notch',
+                  explore and explore[0] >= NOTCH, s)
+    call(screen.page, 'rcInsets', 0, 0, 0, 0)
+    s = wait_for(screen.page, lambda s: (rect(s.get('theme', '')) or [0, 0, 0])[2] > screen.width - NOTCH)
     s = screen.resize(screen.height, screen.width)
     s = wait_for(screen.page, lambda s: s.get('class') == 'phone')
     screen.expect('turned back: a phone\'s layout again', s.get('class') == 'phone'
@@ -416,11 +430,24 @@ def check_desktop(screen, dark=False):
     s = wait_for(page, lambda s: s.get('place') == 'Kyoto')
     screen.shot('1-desktop')
     screen.expect('desktop: a click shows the place in the pane', s.get('place') == 'Kyoto', s)
+    # two places saved, one after the other (the second was once joined
+    # to the first, as a place "13" that is not there)
+    for number, name in ((1, 'Kyoto'), (3, 'Lisbon')):
+        if number != 1:
+            page.mouse.click(*screen.tile_centre(s, number))
+            s = wait_for(page, lambda s: s.get('place') == name)
+        save = rect(s.get('save', '').split(';')[-1])
+        if save:
+            page.mouse.click(*centre(save))
+            s = wait_for(page, lambda s: s.get('save', '').startswith('Saved;'))
+        screen.expect('desktop: %s is saved' % name, s.get('save', '').startswith('Saved;'), s)
     # the keys: 2 goes to Saved, / to the search
     page.mouse.move(screen.width - 10, screen.height - 10)
     page.keyboard.press('2')
     s = screen.on_card('Saved')
     screen.expect('desktop: the key 2 goes to Saved', s.get('card') == 'Saved', s)
+    screen.expect('desktop: the Saved tab has both places', list(tiles(s.get('saved'))) == [1, 3], s)
+    screen.expect('desktop: both show their names there', s.get('savednames') == 'Kyoto,Lisbon', s)
     page.keyboard.press('1')
     s = screen.on_card('Explore')
     page.keyboard.press('/')
