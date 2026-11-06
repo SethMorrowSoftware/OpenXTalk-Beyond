@@ -107,7 +107,7 @@ constant kChatMain = "org.openxtalk.plugin.xtalkchat"
 constant kChatCore = "org.openxtalk.plugin.xtalkchat-core"
 constant kChatWindow = "revXTalkChat"
 
-local sOut, sLog, sOnly, sCount, sStarted, sWatchdog, sWatchdogCount, sReport
+local sOut, sLog, sOnly, sCount, sStarted, sWatchdog, sWatchdogCount, sReport, sStep
 
 on openStack
    if sStarted is not true then
@@ -136,24 +136,36 @@ on tourWhenStarted pTries
    end if
 end tourWhenStarted
 
-on tourRun
-   local tStep, tHandler, tError
-   put 0 into sCount
-   tourRecord "STARTED"
-   tourRecord "INFO platform" && the platform && the systemVersion && the processor
-   tourRecord "INFO version" && the version && the buildNumber
-   tourRecord "INFO screenRect" && the screenRect
-   tourRecord "INFO openStacks" && tourJoin(the openStacks)
-   tourCatchErrors
-   -- The Tools palette opens in its modern look, the default; the steps
-   -- before the modern look's take it in its classic look, as they always
-   -- have, and the modern look's steps turn it on themselves
-   tourRecord "INFO tools look at start" && quote & revIDEGetPreference("revTools_look") & quote
-   tourToolsClassic
+-- pAfter: the step after which the tour goes on, when an error ended
+-- every handler of it (tourWatchdog)
+on tourRun pAfter
+   local tStep, tHandler, tError, tSkip
+   if pAfter is empty then
+      put 0 into sCount
+      tourRecord "STARTED"
+      tourRecord "INFO platform" && the platform && the systemVersion && the processor
+      tourRecord "INFO version" && the version && the buildNumber
+      tourRecord "INFO screenRect" && the screenRect
+      tourRecord "INFO openStacks" && tourJoin(the openStacks)
+      tourCatchErrors
+      -- The Tools palette opens in its modern look, the default; the steps
+      -- before the modern look's take it in its classic look, as they always
+      -- have, and the modern look's steps turn it on themselves
+      tourRecord "INFO tools look at start" && quote & revIDEGetPreference("revTools_look") & quote
+      tourToolsClassic
+   else
+      put true into tSkip
+      tourRecord "INFO the tour goes on after" && pAfter
+   end if
    repeat for each item tStep in kSteps
+      if tSkip is true then
+         if tStep is pAfter then put false into tSkip
+         next repeat
+      end if
       if sOnly is not empty and tStep is not among the items of sOnly then next repeat
       put "tour_" & tStep into tHandler
       replace "-" with "_" in tHandler
+      put tStep into sStep
       put 0 into sWatchdogCount
       send "tourWatchdog" && quote & tStep & quote to me in 20 seconds
       put the result into sWatchdog
@@ -167,6 +179,7 @@ on tourRun
       -- whatever a step left in the way
       tourCloseDialogs
    end repeat
+   put empty into sStep
    tourRecord "INFO openStacks at the end" && tourJoin(the openStacks)
    tourRecord "DONE"
 end tourRun
@@ -195,8 +208,12 @@ command tourCatchErrors
    end try
 end tourCatchErrors
 
+-- with the handlers running when it came, the error's own first: an
+-- error with no text (Windows, the hypercard-disk-image step's first run)
+-- said nothing of where it came from
 on tourScriptError pError
    tourRecord "ERROR" && tourJoin(pError)
+   tourRecord "INFO the handlers running at the error:" && tourJoin(the executionContexts)
 end tourScriptError
 
 ----------------------------------------------------------------
@@ -4351,7 +4368,7 @@ end tour_inspector_hypercard
 -- answered from a timer (tourHyperCardImageAnswer), which runs in the
 -- modal dialog's own wait: a wait of this step's would go on only once
 -- the dialog had closed
-local sHciDone, sHciResult, sHciSeen
+local sHciDone, sHciResult, sHciSeen, sHciShotDone, sHciShotError
 
 on tour_hypercard_disk_image
    local tImage, tChosen, tName, tStack, tFails, tSet
@@ -4404,15 +4421,46 @@ on tour_hypercard_disk_image
    if tSet["imagepath"] is not tChosen then
       put "the imported stack's path on the image is" && quote & tSet["imagepath"] & quote & return after tFails
    end if
+   -- The snapshot of the imported stack is taken in a message of its own
+   -- (tourHyperCardImageShot), waited for at most 20 s: on Windows
+   -- (0.2.7-rc.6.15, the pull request's first run) the step went no
+   -- further once it had unlocked the screen for it, with an empty error,
+   -- until the job's 900 s ran out, and every step after it was lost. A
+   -- snapshot that does not end is a failure of this step, and the stack
+   -- is deleted all the same
    if the mode of tStack is not 0 and the visible of tStack then
       tourWait 500
-      tourShotStack tName, "06g-hypercard-disk-image-stack"
+      put false into sHciShotDone
+      put empty into sHciShotError
+      tourRecord "INFO hypercard-disk-image: the snapshot of the imported stack"
+      send "tourHyperCardImageShot" && quote & tName & quote to me in 0 milliseconds
+      repeat 80 times
+         if sHciShotDone is true then exit repeat
+         tourWait 250
+      end repeat
+      if sHciShotDone is not true then
+         put "the snapshot of the imported stack did not end in 20 s" & return after tFails
+      else if sHciShotError is not empty then
+         put "the snapshot of the imported stack:" && tourJoin(sHciShotError) & return after tFails
+      end if
    end if
+   tourRecord "INFO hypercard-disk-image: the imported stack deleted"
    lock messages
-   delete stack tName
+   if there is a stack tName then delete stack tName
    unlock messages
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_hypercard_disk_image
+
+-- The imported stack's snapshot, in a message of its own (see above)
+on tourHyperCardImageShot pName
+   local tError
+   try
+      tourShotStack pName, "06g-hypercard-disk-image-stack"
+   catch tError
+      put tError into sHciShotError
+   end try
+   put true into sHciShotDone
+end tourHyperCardImageShot
 
 -- The import, in a message of its own, as File > Import Stack's: a
 -- handler of the tour's that finds the IDE's command through the message
@@ -8967,9 +9015,12 @@ end tourShotScreen
 command tourUnlockScreen pWhat
    if the lockScreen then
       tourRecord "INFO" && pWhat & ": the screen was locked"
-      repeat while the lockScreen
+      -- at most 100 times: a loop that waits for nothing must end
+      repeat 100 times
+         if not the lockScreen then exit repeat
          unlock screen
       end repeat
+      if the lockScreen then tourRecord "INFO" && pWhat & ": the screen is still locked after 100 unlocks"
       tourWait 300
    end if
 end tourUnlockScreen
@@ -9011,9 +9062,22 @@ function tourFileName pName
 end tourFileName
 
 -- A step has run for 20 seconds: the screen and the open stacks, and any
--- modal dialog it waits on is closed
+-- modal dialog it waits on is closed. A step whose handlers have all
+-- ended without the tour going on (an error that ends every handler
+-- running, not one a try catches: Windows, the hypercard-disk-image
+-- step's first run, which then sat until the job's 900 s ran out) is
+-- failed, and the tour goes on after it. A watchdog of a step that is not
+-- the one running does nothing
 on tourWatchdog pStep
    local tError
+   if pStep is not sStep then exit tourWatchdog
+   if not tourRunning() then
+      tourRecord "STEP" && pStep && "FAILED the tour stopped in it: an error ended every handler of the tour's"
+      put empty into sStep
+      tourCloseDialogs true
+      send "tourRun" && quote & pStep & quote to me in 0 milliseconds
+      exit tourWatchdog
+   end if
    add 1 to sWatchdogCount
    tourRecord "INFO" && pStep && "still running after" && 20 * sWatchdogCount && "s; open stacks:" && tourJoin(the openStacks)
    try
@@ -9026,6 +9090,16 @@ on tourWatchdog pStep
       put the result into sWatchdog
    end if
 end tourWatchdog
+
+-- True while tourRun is among the handlers running, as it is under every
+-- step, waits and all
+function tourRunning
+   local tContext
+   repeat for each line tContext in the executionContexts
+      if tContext contains ",tourRun," then return true
+   end repeat
+   return false
+end tourRunning
 
 -- Snapshot of the modal dialog on top, then closes it
 on tourShotDialog pFile

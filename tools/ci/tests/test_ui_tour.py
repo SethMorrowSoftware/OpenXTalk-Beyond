@@ -294,6 +294,57 @@ class HyperCardDiskImage(unittest.TestCase):
             self.assertIn('tests/lcs-input-files/hypercard/forks', job.split('\n\n', 1)[0])
         self.assertIn('inspector-hypercard,hypercard-disk-image,', text)
 
+    def test_the_imported_stacks_snapshot_runs_in_a_message_of_its_own(self):
+        # on Windows the step went no further once it had unlocked the
+        # screen for that snapshot, until the job's 900 s ran out
+        self.assertIn('send "tourHyperCardImageShot" && quote & tName & quote to me in 0 milliseconds', self.step)
+        self.assertIn('the snapshot of the imported stack did not end in 20 s', self.step)
+        self.assertIn('if there is a stack tName then delete stack tName', self.step)
+        shot = self.tour.split('on tourHyperCardImageShot', 1)[1].split('end tourHyperCardImageShot', 1)[0]
+        self.assertIn('tourShotStack pName, "06g-hypercard-disk-image-stack"', shot)
+        self.assertIn('put true into sHciShotDone', shot.split('end try', 1)[1])
+
+
+class TourGoesOn(unittest.TestCase):
+    """An error that ends every handler of the tour's (not one a try
+    catches) left the Windows tour sitting until the job's 900 s ran out
+    (#377's first run): the watchdog fails that step and the tour goes on
+    after it."""
+
+    def setUp(self):
+        with open(TOUR, encoding='utf-8') as f:
+            self.tour = f.read()
+        self.run_ = self.tour.split('\non tourRun pAfter', 1)[1].split('\nend tourRun', 1)[0]
+        self.dog = self.tour.split('\non tourWatchdog pStep', 1)[1].split('\nend tourWatchdog', 1)[0]
+
+    def test_the_watchdog_goes_on_after_a_step_whose_handlers_all_ended(self):
+        self.assertIn('if not tourRunning() then', self.dog)
+        self.assertIn('send "tourRun" && quote & pStep & quote to me in 0 milliseconds', self.dog)
+        self.assertIn('FAILED the tour stopped in it', self.dog)
+        running = self.tour.split('function tourRunning', 1)[1].split('end tourRunning', 1)[0]
+        self.assertIn('the executionContexts', running)
+        self.assertIn('",tourRun,"', running)
+
+    def test_a_watchdog_of_another_step_does_nothing(self):
+        self.assertIn('if pStep is not sStep then exit tourWatchdog', self.dog)
+        self.assertIn('put tStep into sStep', self.run_)
+
+    def test_going_on_skips_the_steps_run_and_starts_nothing_again(self):
+        self.assertIn('if tStep is pAfter then put false into tSkip', self.run_)
+        head, rest = self.run_.split('else', 1)
+        self.assertIn('tourRecord "STARTED"', head)
+        self.assertIn('put 0 into sCount', head)
+        self.assertNotIn('tourRecord "STARTED"', rest)
+
+    def test_the_unlock_loop_ends(self):
+        unlock = self.tour.split('command tourUnlockScreen', 1)[1].split('end tourUnlockScreen', 1)[0]
+        self.assertIn('repeat 100 times', unlock)
+        self.assertNotIn('repeat while the lockScreen', unlock)
+
+    def test_a_script_error_says_where_it_came_from(self):
+        err = self.tour.split('on tourScriptError', 1)[1].split('end tourScriptError', 1)[0]
+        self.assertIn('the executionContexts', err)
+
 
 class SystemSwitch(unittest.TestCase):
     """A post through osascript never reached an observer on a CI Mac
