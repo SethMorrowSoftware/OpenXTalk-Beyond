@@ -1199,6 +1199,27 @@ class OneSystem(unittest.TestCase):
         self.assertIn('--settle', boot.group(0))
         self.assertLess(boot.start(), step.index('android_check.py device'))
 
+    def test_android_13_settles_before_any_probe_starts(self):
+        # the Android 13 image boots while the IDE builds; every probe on it
+        # (the IDE's Test, the packages, the Java layer's probe) starts only
+        # after boot --settle, never while it still enables its overlays
+        workflow = read('.github', 'workflows', 'android.yml')
+        step = re.search(r'(?s)- name: Wait for the emulator\n(.*?)\n      - name:', workflow)
+        self.assertTrue(step, 'the workflow waits for the Android 13 emulator')
+        boot = re.search(r'android_check\.py boot [^\n]*\\\n[^\n]*', step.group(1))
+        self.assertTrue(boot)
+        self.assertIn('--settle', boot.group(0))
+        self.assertIn('emulator-api33.log', boot.group(0))
+        # its step timeout leaves room for the boot's 10 minutes and the
+        # settling's 5, so the check's own account comes first
+        self.assertGreaterEqual(int(re.search(r'timeout-minutes: (\d+)', step.group(1)).group(1)), 16)
+        wait = workflow.index('- name: Wait for the emulator')
+        before = workflow[:wait]
+        start = before.index('- name: Start an Android 13 emulator')
+        for use in ('android_check.py device', '--device emulator-5554'):
+            self.assertNotIn(use, before[start:], use)
+        self.assertIn('--device emulator-5554', workflow[wait:])
+
     def test_workflow_runs_on_a_change_to_the_builder(self):
         workflow = read('.github', 'workflows', 'android.yml')
         paths = re.search(r'(?s)paths: &android-paths\n(.*?)\n  push:', workflow).group(1)
