@@ -1,1 +1,1 @@
-- Phone Starter: a pinch on the Gestures pad sizes the dot round its own centre instead of walking it up and to the left off the pad, two fingers moved together move the dot, and it stays on the pad (#381)
+- Phone Starter: a pinch on the Gestures pad sizes the dot round its own centre instead of walking it up and to the left off the pad, two fingers moved together move the dot, and it stays on the pad (#382)
