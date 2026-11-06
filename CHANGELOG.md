@@ -60,6 +60,7 @@ words, is in the [README](README.md#the-ide) and on the
 - CI: the Windows IDE start check knows a window the engine makes again by showing the new one before it takes the old one away, as it does when a shown stack's blendLevel goes back to 0. Since #380 the Tools palette's window is made again that way as the IDE starts, and the check no longer calls it a ghost. A window that comes and goes is still one (#388)
 - CI: the Android boot tests give the check a clock that moves only by its own sleeps, so a slow runner no longer turns "settled after 0 s" into "after 1 s" and fails them (#388)
 - Windows: a stack hidden by its own openStack script stays hidden as the IDE starts; a stack going back to blendLevel 0 keeps its activation, and no stack is suspended or resumed (#389)
+- Standalone runtimes for the other platforms (Windows x86 and x86-64, Linux x86 and x86-64) rebuilt from 0.2.7-rc.6.17's engine, so they carry its fixes: the asset `oxt-runtimes-0.2.7-rc.6.17` replaces `oxt-runtimes-0.2.7-rc.6.16b` (#NNN)
 
 ## 0.2.7-rc.6.16 (2026-11-05, pre-release)
 

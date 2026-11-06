@@ -206,7 +206,7 @@ Earlier versions, from 0.2.1 to 0.2.5, are described under
   x86-64, macOS for Apple Silicon and Intel, Linux x86-64), and so are
   the standalone runtimes that every package carries for Windows
   (x86-64 and x86) and Linux (x86-64 and x86): CI builds the 32-bit
-  engines for them, and a release asset (`oxt-runtimes-0.2.7-rc.6.16b.zip`)
+  engines for them, and a release asset (`oxt-runtimes-0.2.7-rc.6.17.zip`)
   brings each platform's runtimes into the other packages. The web
   engine of HTML5 standalones, which every package carries, is built
   from this repository too (see [The engine](#the-engine)). The Android
@@ -349,8 +349,8 @@ requirements too.
 
 Releases whose tags do not start with `v`, such as `prebuilts-v1`,
 `runtimes-1.15`, `runtimes-0.2.5-rc.2`, `runtimes-0.2.7-rc.6.13`,
-`runtimes-0.2.7-rc.6.14`, `runtimes-0.2.7-rc.6.15` and
-`runtimes-0.2.7-rc.6.16b`, are not programs. They hold files that the
+`runtimes-0.2.7-rc.6.14`, `runtimes-0.2.7-rc.6.15`,
+`runtimes-0.2.7-rc.6.16b` and `runtimes-0.2.7-rc.6.17`, are not programs. They hold files that the
 build and the packager download: the prebuilt
 third-party libraries of earlier versions and the standalone runtimes
 for other platforms.
