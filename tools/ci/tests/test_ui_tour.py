@@ -604,6 +604,62 @@ class AppBrowser(unittest.TestCase):
         self.assertEqual(ratio((208, 208, 208), (35, 39, 41)), 9.77)
 
 
+class CardNavigator(unittest.TestCase):
+    """The Card Navigator (Tools > Card Navigator, the stack "Card
+    Navigator" of navigatorIDE.oxtstack) is one of the IDE's windows. Its
+    name does not begin with "rev", so until rc.6.17 the lists of the
+    user's stacks showed it (OpenXTalkPaul, openxtalk.org p=26111). The
+    step fails on rc.6.16's IDE and passes with rc.6.17's."""
+
+    def setUp(self):
+        with open(TOUR, encoding='utf-8') as f:
+            self.step = handler(f.read(), 'on', 'tour_navigator')
+
+    def test_it_opens_as_the_menu_does(self):
+        self.assertIn('send "tOpenNavigator" to stack "revMenuBar"', self.step)
+
+    def test_not_among_the_users_stacks(self):
+        self.assertIn('if tNew is among the lines of revFilterStacksList(the mainStacks) then', self.step)
+        self.assertIn('throw "the IDE lists the Card Navigator among the user\'s stacks"', self.step)
+
+    def test_the_shot_first_and_the_window_closed_either_way(self):
+        shot = self.step.index('tourShotStack tNew, "23-navigator"')
+        check = self.step.index('revFilterStacksList')
+        self.assertLess(shot, check)
+        thrown = self.step.index('throw "the IDE lists')
+        self.assertLess(self.step.rindex('close stack tNew', 0, thrown), thrown)
+        self.assertGreater(self.step.rindex('close stack tNew'), thrown)
+
+
+class IDEStacks(unittest.TestCase):
+    """After the tour has opened nearly every window, no stack in memory
+    from the IDE's own folders is among the user's stacks as the IDE lists
+    them (revFilterStacksList). On rc.6.16's IDE the step found four: the
+    App Browser, the Card Navigator (openxtalk.org p=26111), userguides
+    and allguides; it passes with rc.6.17's."""
+
+    def setUp(self):
+        with open(TOUR, encoding='utf-8') as f:
+            self.script = f.read()
+        self.step = handler(self.script, 'on', 'tour_ide_stacks')
+
+    def test_late_in_the_tour(self):
+        steps = [line for line in self.script.splitlines() if line.startswith('constant kSteps')][0]
+        names = steps.split('"')[1].split(',')
+        self.assertEqual(names[-2:], ['ide-stacks', 'screen-end'])
+        for opened in ('app-browser', 'navigator', 'guides', 'learn', 'home-places', 'about', 'release-notes'):
+            self.assertLess(names.index(opened), names.index('ide-stacks'), opened)
+
+    def test_every_stack_from_the_ides_folders(self):
+        self.assertIn('put revEnvironmentToolsetPath() & slash into tToolset', self.step)
+        self.assertIn('put revEnvironmentPluginsPath() & slash into tPlugins', self.step)
+        self.assertIn('repeat for each line tStack in the mainStacks', self.step)
+        self.assertIn('if tStack is among the lines of revFilterStacksList(tStack) then', self.step)
+
+    def test_it_fails_naming_them(self):
+        self.assertIn('throw "the IDE lists its own stacks among the user\'s:" && char 1 to -3 of tWrong', self.step)
+
+
 class DictionaryFitsItsPage(unittest.TestCase):
     """The fix for the blank Dictionary: the browser widget, set to
     0,0,0,0 as the window opens, is fitted to the window once it is open,

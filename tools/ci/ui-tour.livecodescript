@@ -82,7 +82,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,ide-stacks,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -7283,6 +7283,14 @@ on tour_navigator
    put tourNewStack(tBefore) into tNew
    if tNew is empty then throw "no Card Navigator opened"
    tourShotStack tNew, "23-navigator"
+   -- one of the IDE's windows, not a user's stack: its name does not
+   -- begin with "rev", and until 0.2.7-rc.6.17 the lists of the user's
+   -- stacks (the App Browser's, Standalone Settings') showed it
+   -- (OpenXTalkPaul, openxtalk.org p=26111)
+   if tNew is among the lines of revFilterStacksList(the mainStacks) then
+      close stack tNew
+      throw "the IDE lists the Card Navigator among the user's stacks"
+   end if
    close stack tNew
 end tour_navigator
 
@@ -8534,6 +8542,37 @@ function tourThemePoster
    put tBinary into sThemePoster
    return sThemePoster
 end tourThemePoster
+
+-- No window of the IDE's is taken for one of the user's stacks. After the
+-- tour has opened nearly every window, no stack in memory from the IDE's
+-- own folders (Toolset, Plugins) is among the user's stacks as the IDE
+-- lists them (revFilterStacksList: the App Browser's list, Standalone
+-- Settings', the stacks the IDE hides its own from). On 0.2.7-rc.6.16 it
+-- found four: the App Browser (listing itself), the Card Navigator
+-- (openxtalk.org p=26111), and the lessons and the guides that Learn and
+-- Home read their pages from (userguides, allguides)
+on tour_ide_stacks
+   local tToolset, tPlugins, tStack, tFile, tWrong, tCount
+   put revEnvironmentToolsetPath() & slash into tToolset
+   put revEnvironmentPluginsPath() & slash into tPlugins
+   put 0 into tCount
+   repeat for each line tStack in the mainStacks
+      put the effective filename of stack tStack into tFile
+      if not (tFile begins with tToolset or tFile begins with tPlugins) then
+         next repeat
+      end if
+      add 1 to tCount
+      if tStack is among the lines of revFilterStacksList(tStack) then
+         put tStack & " (" & tFile & ")" & return after tWrong
+      end if
+   end repeat
+   tourRecord "INFO ide-stacks" && tCount && "of the IDE's stacks in memory," && \
+         the number of lines of tWrong && "listed as the user's"
+   if tWrong is not empty then
+      replace return with "; " in tWrong
+      throw "the IDE lists its own stacks among the user's:" && char 1 to -3 of tWrong
+   end if
+end tour_ide_stacks
 
 on tour_screen_end
    tourShotScreen "99-screen-end"
