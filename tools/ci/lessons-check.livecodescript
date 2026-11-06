@@ -78,6 +78,16 @@ on startup
    else
       write "INFO no libURL beside the Toolset: an example that uses the internet will fail" & return to stdout
    end if
+   -- The Drawing, OAuth2 and Dropbox libraries call the IDE's standalone
+   -- builder (revsblibrary) as they start, with
+   -- revSBAddDependencyForInclusion, so that a standalone that uses them
+   -- takes the externals they need: here, with no IDE, a stand-in in the
+   -- message path that does nothing, or they could not be loaded
+   create invisible stack "oxtLessonsBuilder"
+   set the script of stack "oxtLessonsBuilder" to \
+         "on revSBAddDependencyForInclusion" & return & \
+         "end revSBAddDependencyForInclusion"
+   start using stack "oxtLessonsBuilder"
    -- (the output a timer puts after the run comes here: see runExample)
    create invisible stack "oxtLessonsHost"
    set the script of stack "oxtLessonsHost" to \

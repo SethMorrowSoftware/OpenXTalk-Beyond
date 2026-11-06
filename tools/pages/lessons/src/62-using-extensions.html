@@ -39,7 +39,7 @@ text/html
 audio/mpeg
 application/octet-stream</pre>
 </figure>
-<p>An unknown ending gets <code>application/octet-stream</code>, the type that means "just bytes".@@TEXTTOOLS@@</p>
+<p>An unknown ending gets <code>application/octet-stream</code>, the type that means "just bytes". The page <a href="../text-tools/">Text tools</a> has more of this library.</p>
 <p>A script library is a stack, and the IDE puts its script into the <strong>backScripts</strong> as it loads it, at the very end of the <a href="../message-path/">message path</a>. So a handler of your own with the same name comes first, and wins:</p>
 <figure class="example" id="ex-ext-first" data-run="output" data-needs="com.livecode.library.mime">
 <pre class="code"><code>function mimeTheMIMETypeOfExtension pExtension
