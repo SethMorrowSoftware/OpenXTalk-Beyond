@@ -1906,7 +1906,11 @@ command revInternal__InitialiseTools
    revIDESetTool "pointer"
    
    lock screen
+   -- OXT-Beyond: opened to stay hidden; shown below when the IDE is not
+   -- starting (revpalettebehavior.livecodescript's openStack)
+   set the cOXTOpenHidden of stack tToolsStackName to true
    go invisible stack tToolsStackName as palette
+   set the cOXTOpenHidden of stack tToolsStackName to empty
    
    
    if the cRevLaunching of stack "home" is true then
