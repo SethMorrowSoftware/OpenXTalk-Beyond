@@ -1,0 +1,3 @@
+- Deploying Your Application, the specialFolderPath dictionary entry and the Stack Player's README: a web standalone's home folder is /openxtalk (it has been since 0.2.7-rc.6.2), not /livecode; they now say so, and that /livecode is still a link to it; the engine is unchanged (#381)
+- Stack Player: an error about a stack in its library shows the stack's name without the folder again, now that the folder is /openxtalk/Documents/Stack Player; the old /livecode path is still trimmed too (#381)
+- CI: a check holds the guide, the dictionary entry and the Stack Player to the home folder the web engine uses, and keeps "LiveCode" out of the guide's prose (#381)
