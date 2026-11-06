@@ -155,8 +155,18 @@ on:
       - 'tools/ci/win_crashtrace.py'
       - 'tools/ci/window-frame-check.livecodescript'
       - 'tools/ci/window_frame_check.py'
+  # DRAFT PULL REQUESTS (2026-11-06). A draft runs none of this workflow's
+  # jobs: each job's `if:` ends in `github.event.pull_request.draft != true`,
+  # and marking the pull request ready (ready_for_review, below) starts the
+  # whole run on its newest commit. A draft is work in progress whose commits
+  # land minutes apart, and each one used to start this full build only for
+  # the next to cancel it (26 of 52 builds on 2026-11-06 00:38-02:15 UTC). CI
+  # checks still run on every draft commit. A push, a dispatch and a call from
+  # release.yml have no pull request, so the condition is always true there.
+  # tools/ci/tests/test_draft_builds.py holds every job to it.
   pull_request:
     branches: [ main ]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore: *build-paths-ignore
   workflow_dispatch:
   workflow_call:
@@ -199,6 +209,7 @@ defaults:
 jobs:
   build:
     name: Build mac-${{ matrix.arch }}
+    if: ${{ github.event.pull_request.draft != true }}
     strategy:
       fail-fast: false
       matrix:
@@ -539,6 +550,7 @@ jobs:
   # engines build
   docs:
     name: Docs
+    if: ${{ github.event.pull_request.draft != true }}
     uses: ./.github/workflows/docs.yml
     with:
       artifact: OXT-Beyond-docs-macos
@@ -546,6 +558,7 @@ jobs:
   # The web runtime of the package (web.yml), made while the engines build
   web:
     name: Web
+    if: ${{ github.event.pull_request.draft != true }}
     uses: ./.github/workflows/web.yml
     with:
       artifact: OXT-Beyond-web-macos
@@ -558,7 +571,7 @@ jobs:
   package:
     name: Package mac-universal
     needs: [build, docs, web]
-    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    if: ${{ (!cancelled() && needs.build.result == 'success') && github.event.pull_request.draft != true }}
     runs-on: macos-15
     timeout-minutes: 90
     env:
@@ -864,6 +877,7 @@ jobs:
   # repository mode).
   test:
     name: Test mac-universal (${{ matrix.arch }})
+    if: ${{ github.event.pull_request.draft != true }}
     needs: package
     strategy:
       fail-fast: false
@@ -1268,6 +1282,7 @@ jobs:
   # (inspector-hypercard).
   tour-macos-26:
     name: IDE tour on macOS 26 (arm64)
+    if: ${{ github.event.pull_request.draft != true }}
     needs: package
     runs-on: macos-26
     timeout-minutes: 30
