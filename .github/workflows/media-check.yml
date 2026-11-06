@@ -128,9 +128,13 @@ jobs:
             --log "$RUNNER_TEMP/media-check.log"
 
       # The IDE as a user starts it, with its menus and palettes
-      # (tools/ci/mac_ide_start.sh); the build workflow runs it too
+      # (tools/ci/mac_ide_start.sh); the build workflow runs it too. A
+      # published release's windows that came and went while it started
+      # are a warning here: the build workflow fails on them
       - name: Start the IDE
         if: always() && runner.os == 'macOS'
+        env:
+          OXT_GHOST_WINDOWS: warn
         run: |
           tools/ci/mac_ide_start.sh "$RUNNER_TEMP/oxt-test/OXT-Beyond.app" "$RUNNER_TEMP/ide-start"
 

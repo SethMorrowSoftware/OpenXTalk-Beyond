@@ -14,32 +14,49 @@
 # You should have received a copy of the GNU General Public License
 # along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
 
-"""Watch the windows that come and go on an X screen while the IDE starts,
-and name every window that showed and was taken away again: the "ghost
-windows" of a start (LittleNemo, openxtalk.org p=25967: "a succession of
-fleeting windows" before the IDE settles).
+"""Watch the windows that come and go while the IDE starts, and name
+every window that showed and was taken away again: the "ghost windows" of
+a start (LittleNemo, openxtalk.org p=25967: "a succession of fleeting
+windows" before the IDE settles).
 
-  python3 tools/ci/startup_windows.py --display :91 --seconds 60
-      --log FILE [--ready FILE]
+  python3 tools/ci/startup_windows.py --seconds 60 --log FILE
+      [--ready FILE] [--display :91] [--process NAME]
+      [--launch PROGRAM [ARGUMENT ...]]
 
-It follows the window manager's list of the windows it manages
+On Linux it follows the window manager's list of the windows it manages
 (_NET_CLIENT_LIST on the root window, which openbox, xfwm4 and mutter
 keep), so it sees what a user sees: a window that is mapped, framed and
-given a place in the taskbar, however briefly. A window that leaves the
-list is a ghost, unless it is the splash, which is meant to go.
+given a place in the taskbar, however briefly. Needs python3-xlib.
 
-Each change is a line of the log: the time in seconds since the watch
-began, "+" for a window that came or "-" for one that went, its id and
-its title. Then a summary, and one "GHOST" line for each window that
-went; the exit status is 1 when there was any, 0 otherwise. --ready
-names a file written once the watch has begun, so the IDE starts only
-after that. Needs python3-xlib.
+On Windows it hears each top-level window of the IDE's process shown,
+hidden and destroyed (SetWinEventHook, EVENT_OBJECT_SHOW, _HIDE and
+_DESTROY), menus and tooltips aside. On macOS it asks for the windows on
+the screen every few milliseconds (CGWindowListCopyWindowInfo) and keeps
+the IDE's below the menu bar's level, so menus, the menu bar and tooltips
+aside; a window that is up for less than that can be missed. Both through
+ctypes alone. Which process is the IDE's: --process names it (the
+program's file name, as "OXT-Beyond"), or --launch starts it once the
+watch has begun and stops it at the end (on Windows, --launch only).
 
-The start check (tools/ci/linux_ide_start.sh) runs it beside the IDE.
+A window that went is a ghost, unless it is the splash, which is meant
+to go, or another window of the IDE's came in its place at once (on
+Windows, where the engine makes a stack's window anew when its
+decorations change: a "RECREATED" line, RECREATED_WITHIN). Each change is a line of the log: the time in seconds since the
+watch began, "+" for a window that came or "-" for one that went, its id
+and its title. Then a summary, and one "GHOST" line for each window that
+went; with --launch, an "ENDED" line if the program ended before the
+watch did. The exit status is 1 when there was a ghost, 2 when the
+launched program ended early (and no ghost), 0 otherwise. --ready names a
+file written once the watch has begun, so the IDE starts only after that.
+
+The start checks run it beside the IDE: tools/ci/linux_ide_start.sh,
+tools/ci/mac_ide_start.sh, and on Windows the step "Start the IDE" of
+.github/workflows/build-windows.yml, with --launch.
 """
 
 import argparse
 import os
+import subprocess
 import sys
 import time
 
@@ -47,30 +64,76 @@ import time
 SPLASH_TITLES = ('revSplash',)
 
 
+# A window taken away and another of the IDE's shown in its place, its
+# content where the first one's was, within this many seconds, is one
+# window made again (the engine on Windows makes a stack's window anew when
+# its decorations change): RECREATED, not a ghost. Only where the watch
+# knows the windows' places (Windows)
+RECREATED_WITHIN = 0.25
+
+
+def _event(e):
+    """(time, sign, id, title, place): an event with its place, None when
+    the watch does not know it"""
+    return tuple(e[:4]) + ((e[4] if len(e) > 4 else None),)
+
+
+def _same_place(a, b, slack=2):
+    return a is not None and b is not None and len(a) == len(b) and \
+        all(abs(x - y) <= slack for x, y in zip(a, b))
+
+
+def recreations(events):
+    """The windows made again: (id that went, id that came in its place,
+    when it went), for each window that went with another coming at its
+    place within RECREATED_WITHIN seconds after"""
+    events = [_event(e) for e in events]
+    found = []
+    taken = set()
+    for i, (when, sign, wid, title, place) in enumerate(events):
+        if sign != '-' or place is None:
+            continue
+        for later, sign2, wid2, title2, place2 in events[i + 1:]:
+            if later - when > RECREATED_WITHIN:
+                break
+            if sign2 == '+' and wid2 != wid and wid2 not in taken and _same_place(place, place2):
+                found.append((wid, wid2, when))
+                taken.add(wid2)
+                break
+    return found
+
+
 def ghosts(events, allowed=SPLASH_TITLES):
-    """The windows that came and went, from (time, sign, id, title)
-    events in order, sign "+" or "-": a list of (id, title, came, went),
-    one for each time a window went that is not among the allowed titles.
-    A window that came back after it went is a ghost all the same."""
+    """The windows that came and went, from (time, sign, id, title[,
+    place]) events in order, sign "+" or "-": a list of (id, title, came,
+    went), one for each time a window went that is not among the allowed
+    titles and was not made again in its place (recreations). A window
+    that came back after it went is a ghost all the same."""
+    remade = set((wid, when) for wid, _, when in recreations(events))
     found = []
     came = {}
     titles = {}
-    for when, sign, wid, title in events:
+    for when, sign, wid, title, place in (_event(e) for e in events):
         if sign == '+':
             came[wid] = when
             if title:
                 titles[wid] = title
         elif sign == '-':
             title = titles.get(wid, title)
-            if title in allowed:
+            if title in allowed or (wid, when) in remade:
                 continue
             found.append((wid, title, came.get(wid), when))
     return found
 
 
 def report(events, found):
-    lines = ['%8.3f %s %#x %s' % (when, sign, wid, title or '(no title)')
-             for when, sign, wid, title in events]
+    lines = []
+    for e in events:
+        when, sign, wid, title, place = _event(e)
+        where = '' if place is None else ' at %s' % ','.join(str(v) for v in place)
+        lines.append('%8.3f %s %#x %s%s' % (when, sign, wid, title or '(no title)', where))
+    for wid, wid2, when in recreations(events):
+        lines.append('RECREATED %#x went at %.3f s and %#x came in its place' % (wid, when, wid2))
     if found:
         for wid, title, came, went in found:
             shown = '' if came is None else ' after %.3f s' % (went - came)
@@ -81,7 +144,7 @@ def report(events, found):
     return lines
 
 
-def watch(display_name, seconds, ready=None):
+def watch_x11(display_name, seconds, ready=None, on_ready=None):
     from Xlib import X, display
     d = display.Display(display_name)
     root = d.screen().root
@@ -111,9 +174,7 @@ def watch(display_name, seconds, ready=None):
     now = clients()
     for wid in now:
         events.append((0.0, '+', wid, title(wid)))
-    if ready:
-        with open(ready, 'w') as f:
-            f.write('ready\n')
+    began(ready, on_ready)
     end = start + seconds
     while time.time() < end:
         while d.pending_events():
@@ -132,22 +193,309 @@ def watch(display_name, seconds, ready=None):
     return events
 
 
+def began(ready, on_ready):
+    """The watch has begun: say so in the --ready file, then start the
+    program with --launch"""
+    if ready:
+        with open(ready, 'w') as f:
+            f.write('ready\n')
+    if on_ready:
+        on_ready()
+
+
+def program_name(path):
+    """A program's name as --process gives it: its file name without the
+    folder or ".exe", any case"""
+    name = os.path.basename(path.replace('\\', '/'))
+    if name.lower().endswith('.exe'):
+        name = name[:-4]
+    return name.lower()
+
+
+# Windows: the classes of top-level windows that are not a window of the
+# IDE's in the sense here: menus and tooltips, the system's and the
+# engine's (engine/src/w32dc.h), the IME's, and the engine's snapshot
+WIN32_IGNORED_CLASSES = ('#32768', 'tooltips_class32', 'MCMenuWinClass',
+                         'MCPopupWinClass', 'MCSnapshotWinClass', 'IME',
+                         'MSCTFIME UI')
+
+EVENT_OBJECT_DESTROY = 0x8001
+EVENT_OBJECT_SHOW = 0x8002
+EVENT_OBJECT_HIDE = 0x8003
+
+
+def win32_events(raw, keep):
+    """The (time, sign, id, title, place) events from what the Windows
+    hook heard: (time, event, hwnd, pid, class name, title, top-level,
+    place), in order, the place being the window's content on the screen
+    (left, top, right, bottom) or None. A window counts once it is shown,
+    if it is top-level, is the IDE's (keep(pid)) and not of an ignored
+    class; it went when it is hidden or destroyed while shown. Its pid,
+    class and place are the ones it had when shown: a destroyed window has
+    none."""
+    shown = {}
+    events = []
+    for item in raw:
+        when, event, hwnd, pid, cls, title, top = item[:7]
+        place = item[7] if len(item) > 7 else None
+        if event == EVENT_OBJECT_SHOW:
+            if hwnd in shown or not top or cls in WIN32_IGNORED_CLASSES or not keep(pid):
+                continue
+            shown[hwnd] = (title, place)
+            events.append((when, '+', hwnd, title, place))
+        elif event in (EVENT_OBJECT_HIDE, EVENT_OBJECT_DESTROY):
+            if hwnd not in shown:
+                continue
+            was_title, was_place = shown.pop(hwnd)
+            events.append((when, '-', hwnd, title or was_title, was_place))
+    return events
+
+
+def watch_win32(seconds, keep, ready=None, on_ready=None):
+    import ctypes
+    from ctypes import wintypes
+    user32 = ctypes.WinDLL('user32', use_last_error=True)
+    WINEVENTPROC = ctypes.WINFUNCTYPE(
+        None, wintypes.HANDLE, wintypes.DWORD, wintypes.HWND, wintypes.LONG,
+        wintypes.LONG, wintypes.DWORD, wintypes.DWORD)
+    user32.SetWinEventHook.restype = wintypes.HANDLE
+    user32.SetWinEventHook.argtypes = [
+        wintypes.DWORD, wintypes.DWORD, wintypes.HMODULE, WINEVENTPROC,
+        wintypes.DWORD, wintypes.DWORD, wintypes.DWORD]
+    user32.UnhookWinEvent.argtypes = [wintypes.HANDLE]
+    user32.GetAncestor.restype = wintypes.HWND
+    user32.GetAncestor.argtypes = [wintypes.HWND, wintypes.UINT]
+    user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+    user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+    user32.GetClassNameW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+    user32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+    user32.GetClientRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+    user32.ClientToScreen.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.POINT)]
+    user32.PeekMessageW.argtypes = [ctypes.POINTER(wintypes.MSG), wintypes.HWND,
+                                    wintypes.UINT, wintypes.UINT, wintypes.UINT]
+    user32.TranslateMessage.argtypes = [ctypes.POINTER(wintypes.MSG)]
+    user32.DispatchMessageW.argtypes = [ctypes.POINTER(wintypes.MSG)]
+    OBJID_WINDOW, GA_ROOT = 0, 2
+    WINEVENT_OUTOFCONTEXT, WINEVENT_SKIPOWNPROCESS = 0, 2
+    PM_REMOVE = 1
+
+    start = time.time()
+    raw = []
+
+    def heard(hook, event, hwnd, id_object, id_child, thread, ms):
+        if id_object != OBJID_WINDOW or id_child != 0 or not hwnd:
+            return
+        try:
+            when = time.time() - start
+            if event == EVENT_OBJECT_DESTROY:
+                raw.append((when, event, hwnd, 0, '', '', False))
+                return
+            pid = wintypes.DWORD()
+            user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+            cls = ctypes.create_unicode_buffer(256)
+            user32.GetClassNameW(hwnd, cls, 256)
+            text = ctypes.create_unicode_buffer(512)
+            user32.GetWindowTextW(hwnd, text, 512)
+            top = user32.GetAncestor(hwnd, GA_ROOT) == hwnd
+            # where its content is on the screen
+            place = None
+            rect = wintypes.RECT()
+            corner = wintypes.POINT(0, 0)
+            if user32.GetClientRect(hwnd, ctypes.byref(rect)) and \
+                    user32.ClientToScreen(hwnd, ctypes.byref(corner)):
+                place = (corner.x, corner.y, corner.x + rect.right, corner.y + rect.bottom)
+            raw.append((when, event, hwnd, pid.value, cls.value, text.value, top, place))
+        except Exception as e:  # nothing may escape a callback
+            sys.stderr.write('startup_windows: %r\n' % e)
+
+    callback = WINEVENTPROC(heard)  # kept alive until the hook is gone
+    hook = user32.SetWinEventHook(EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE, None, callback,
+                                  0, 0, WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS)
+    if not hook:
+        raise OSError('SetWinEventHook failed: %d' % ctypes.get_last_error())
+    try:
+        began(ready, on_ready)
+        msg = wintypes.MSG()
+        end = start + seconds
+        # an out-of-context hook is called from this thread's message loop
+        while time.time() < end:
+            while user32.PeekMessageW(ctypes.byref(msg), None, 0, 0, PM_REMOVE):
+                user32.TranslateMessage(ctypes.byref(msg))
+                user32.DispatchMessageW(ctypes.byref(msg))
+            time.sleep(0.002)
+    finally:
+        user32.UnhookWinEvent(hook)
+    return win32_events(raw, keep)
+
+
+# macOS: windows at this level and above are the menu bar's, the menus',
+# the Dock's and tooltips (CGWindowLevel.h: the Dock 20, the main menu 24,
+# pop-up menus 101, help 200); a palette is at 3, a modal panel at 8
+MAC_TOP_LEVEL = 20
+
+
+def mac_changes(before, after, when):
+    """The (time, sign, id, title) events between two looks at the
+    windows on the screen, each {id: title}: those that came, then those
+    that went, with the newest title each had"""
+    events = [(when, '+', wid, after[wid]) for wid in sorted(after) if wid not in before]
+    events += [(when, '-', wid, before[wid]) for wid in sorted(before) if wid not in after]
+    return events
+
+
+def watch_mac(seconds, keep, ready=None, on_ready=None):
+    import ctypes
+    cg = ctypes.CDLL('/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics')
+    cf = ctypes.CDLL('/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation')
+    vp = ctypes.c_void_p
+    cg.CGWindowListCopyWindowInfo.restype = vp
+    cg.CGWindowListCopyWindowInfo.argtypes = [ctypes.c_uint32, ctypes.c_uint32]
+    cf.CFArrayGetCount.restype = ctypes.c_long
+    cf.CFArrayGetCount.argtypes = [vp]
+    cf.CFArrayGetValueAtIndex.restype = vp
+    cf.CFArrayGetValueAtIndex.argtypes = [vp, ctypes.c_long]
+    cf.CFDictionaryGetValue.restype = vp
+    cf.CFDictionaryGetValue.argtypes = [vp, vp]
+    cf.CFNumberGetValue.restype = ctypes.c_bool
+    cf.CFNumberGetValue.argtypes = [vp, ctypes.c_int, vp]
+    cf.CFStringGetCString.restype = ctypes.c_bool
+    cf.CFStringGetCString.argtypes = [vp, ctypes.c_char_p, ctypes.c_long, ctypes.c_uint32]
+    cf.CFRelease.argtypes = [vp]
+    key = dict((k, vp.in_dll(cg, k).value) for k in (
+        'kCGWindowNumber', 'kCGWindowOwnerPID', 'kCGWindowOwnerName',
+        'kCGWindowName', 'kCGWindowLayer'))
+    ON_SCREEN_ONLY, EXCLUDE_DESKTOP = 1, 16
+    SINT64, UTF8 = 4, 0x08000100
+
+    def number(d, k):
+        v = cf.CFDictionaryGetValue(d, key[k])
+        n = ctypes.c_int64(0)
+        if v:
+            cf.CFNumberGetValue(v, SINT64, ctypes.byref(n))
+        return n.value
+
+    def string(d, k):
+        v = cf.CFDictionaryGetValue(d, key[k])
+        if not v:
+            return ''
+        buf = ctypes.create_string_buffer(1024)
+        if not cf.CFStringGetCString(v, buf, 1024, UTF8):
+            return ''
+        return buf.value.decode('utf-8', 'replace')
+
+    libc = ctypes.CDLL('/usr/lib/libSystem.B.dylib')
+    libc.proc_pidpath.restype = ctypes.c_int
+    libc.proc_pidpath.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_uint32]
+
+    def program(pid, owner):
+        # the program's file name (Contents/MacOS/OXT-Beyond), which
+        # --process names; the owner name is the bundle's
+        buf = ctypes.create_string_buffer(4096)
+        if libc.proc_pidpath(pid, buf, 4096) > 0:
+            return buf.value.decode('utf-8', 'replace')
+        return owner
+
+    names = {}
+
+    def look():
+        windows = {}
+        a = cg.CGWindowListCopyWindowInfo(ON_SCREEN_ONLY | EXCLUDE_DESKTOP, 0)
+        if not a:
+            return windows
+        try:
+            for i in range(cf.CFArrayGetCount(a)):
+                d = cf.CFArrayGetValueAtIndex(a, i)
+                if number(d, 'kCGWindowLayer') >= MAC_TOP_LEVEL:
+                    continue
+                pid = number(d, 'kCGWindowOwnerPID')
+                if pid not in names:
+                    names[pid] = program(pid, string(d, 'kCGWindowOwnerName'))
+                if not keep(pid, names[pid]):
+                    continue
+                # the title is there only with the screen recording
+                # permission
+                windows[number(d, 'kCGWindowNumber')] = string(d, 'kCGWindowName')
+        finally:
+            cf.CFRelease(a)
+        return windows
+
+    start = time.time()
+    events = []
+    now = look()
+    events += mac_changes({}, now, 0.0)
+    began(ready, on_ready)
+    end = start + seconds
+    while time.time() < end:
+        after = look()
+        when = time.time() - start
+        # a title set after the window came is kept for when it goes
+        for wid in after:
+            if not after[wid] and now.get(wid):
+                after[wid] = now[wid]
+        events += mac_changes(now, after, when)
+        now = after
+        time.sleep(0.005)
+    return events
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
-    ap.add_argument('--display', default=os.environ.get('DISPLAY', ':0'))
+    ap.add_argument('--display', default=os.environ.get('DISPLAY', ':0'),
+                    help='the X screen (Linux)')
     ap.add_argument('--seconds', type=float, default=60.0)
     ap.add_argument('--log', help='where the lines go too')
     ap.add_argument('--ready', help='a file written once the watch has begun')
+    ap.add_argument('--process', help='the IDE\'s program name, as "OXT-Beyond" (macOS)')
+    ap.add_argument('--launch', nargs=argparse.REMAINDER,
+                    help='the program to start once the watch has begun, and its arguments')
     args = ap.parse_args(argv)
-    events = watch(args.display, args.seconds, args.ready)
+
+    proc = []
+    on_ready = None
+    if args.launch:
+        def on_ready():
+            proc.append(subprocess.Popen(args.launch, stdout=subprocess.DEVNULL,
+                                         stderr=subprocess.STDOUT))
+    wanted = program_name(args.process) if args.process else None
+    if sys.platform == 'win32' and not args.launch:
+        ap.error('on Windows, start the IDE with --launch: its windows are those of its process')
+    if sys.platform == 'darwin' and not (args.launch or wanted):
+        ap.error('on macOS, name the IDE with --process or start it with --launch')
+
+    def keep(pid, name=None):
+        # with --launch, only the launched program's, and none before it
+        # starts
+        if args.launch and (not proc or pid != proc[0].pid):
+            return False
+        if wanted and name is not None and program_name(name) != wanted:
+            return False
+        return True
+
+    ended = None
+    try:
+        if sys.platform == 'win32':
+            events = watch_win32(args.seconds, keep, args.ready, on_ready)
+        elif sys.platform == 'darwin':
+            events = watch_mac(args.seconds, keep, args.ready, on_ready)
+        else:
+            events = watch_x11(args.display, args.seconds, args.ready, on_ready)
+    finally:
+        if proc:
+            if proc[0].poll() is not None:
+                ended = proc[0].returncode
+            else:
+                proc[0].kill()
+                proc[0].wait()
     found = ghosts(events)
     lines = report(events, found)
+    if ended is not None:
+        lines.append('ENDED the program ended before the watch did, with exit status %s' % ended)
     text = '\n'.join(lines) + '\n'
     sys.stdout.write(text)
     if args.log:
         with open(args.log, 'w') as f:
             f.write(text)
-    return 1 if found else 0
+    return 1 if found else 2 if ended is not None else 0
 
 
 if __name__ == '__main__':
