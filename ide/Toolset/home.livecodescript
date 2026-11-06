@@ -122,6 +122,16 @@ on openStack
 end openStack
 
 local sSplashStartTime
+-- OXT-Beyond: File > New Stack's preset sizes are shown by default
+-- (richmond62, openxtalk.org; seth 2026-11-06), where they were hidden. The
+-- preference is set to the default only when it has never been set: a
+-- preferences file that already holds true or false keeps it, so an IDE
+-- that has run before keeps the menu it had.
+function revInternal__ShowPresetSizesDefault pValue
+   if pValue is empty then return true
+   return pValue
+end revInternal__ShowPresetSizesDefault
+
 on revInternal__openStack
    revInternal__Log "Enter", "revInternal__openStack"
    
@@ -297,7 +307,10 @@ on revInternal__openStack
       -- an engine without the property
    end try
    -- added as of 13-4-24 (tperry)
-   if the cShowPresetSizes of stack "revPreferences" is empty then set the cShowPresetSizes of stack "revPreferences" to false
+   -- OXT-Beyond: shown unless the user has said otherwise
+   -- (revInternal__ShowPresetSizesDefault)
+   set the cShowPresetSizes of stack "revPreferences" to \
+         revInternal__ShowPresetSizesDefault(the cShowPresetSizes of stack "revPreferences")
    -- (cDisableBrowserWidget and cDisablePlayerTool: revInternal__InitialiseMediaTools)
    if the cScrnSharedMem of stack "revPreferences" is empty then 
       if the platform contains "linux" then 
