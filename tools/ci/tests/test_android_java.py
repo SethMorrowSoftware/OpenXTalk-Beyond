@@ -479,7 +479,8 @@ class Build(unittest.TestCase):
                 f.write(ClassWriter('a/B').bytes())
             with open(os.path.join(classes, 'A.class'), 'wb') as f:
                 f.write(ClassWriter('a/A').bytes())
-            one, two = os.path.join(d, '1.jar'), os.path.join(d, '2.jar')
+            # the folder the jar goes in is made when it is not there
+            one, two = os.path.join(d, 'out', '1.jar'), os.path.join(d, '2.jar')
             self.assertEqual(aj.write_jar(os.path.join(d, 'classes'), one), 2)
             os.utime(os.path.join(classes, 'A.class'), (1, 1))
             aj.write_jar(os.path.join(d, 'classes'), two)
@@ -506,7 +507,8 @@ class Build(unittest.TestCase):
                         'mkdir -p "$2/com/runrev/android" && cp "%s/A.class" "$2/com/runrev/android/A.class"\n'
                         % (d, d))
             os.chmod(javac, 0o755)
-            out = os.path.join(d, 'Classes')
+            # in a folder not made yet, as android.yml gives it
+            out = os.path.join(d, 'java', 'Classes')
             log = io.StringIO()
             with contextlib.redirect_stdout(log):
                 status = aj.main(['build', '--sdk', os.path.join(d, 'sdk'), '--jdk', os.path.join(d, 'jdk'),

@@ -783,6 +783,8 @@ def write_jar(classes_dir, out):
                 path = os.path.join(root, x)
                 files.append((os.path.relpath(path, classes_dir).replace(os.sep, '/'), path))
     files.sort()
+    folder = os.path.dirname(os.path.abspath(out))
+    os.makedirs(folder, exist_ok=True)
     with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as z:
         info = zipfile.ZipInfo('META-INF/MANIFEST.MF', JAR_TIME)
         info.compress_type = zipfile.ZIP_DEFLATED
