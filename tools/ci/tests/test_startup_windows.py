@@ -77,6 +77,107 @@ class GhostsTest(unittest.TestCase):
         self.assertEqual(found, [(7, 'Other', 0.0, 3.0)])
 
 
+S, H, D = (startup_windows.EVENT_OBJECT_SHOW, startup_windows.EVENT_OBJECT_HIDE,
+           startup_windows.EVENT_OBJECT_DESTROY)
+IDE = 4242
+
+
+def ide_only(pid):
+    return pid == IDE
+
+
+class Win32EventsTest(unittest.TestCase):
+    # what the Windows hook heard: (time, event, hwnd, pid, class, title,
+    # top-level)
+
+    def test_a_window_shown_and_hidden_is_a_ghost(self):
+        raw = [(0.5, S, 10, IDE, 'MCWinClassW', 'revSplash', True),
+               (6.9, S, 11, IDE, 'MCWinClassW', 'Tools', True),
+               (7.0, H, 11, IDE, 'MCWinClassW', 'Tools', True),
+               (8.0, H, 10, IDE, 'MCWinClassW', 'revSplash', True)]
+        events = startup_windows.win32_events(raw, ide_only)
+        self.assertEqual(events, [(0.5, '+', 10, 'revSplash'), (6.9, '+', 11, 'Tools'),
+                                  (7.0, '-', 11, 'Tools'), (8.0, '-', 10, 'revSplash')])
+        found = startup_windows.ghosts(events)
+        self.assertEqual([title for _, title, _, _ in found], ['Tools'])
+
+    def test_a_window_destroyed_while_shown_went(self):
+        # a destroyed window has no title, class or process any more
+        raw = [(1.0, S, 12, IDE, 'MCWinClassW', 'Message Box', True),
+               (1.1, D, 12, 0, '', '', False)]
+        self.assertEqual(startup_windows.win32_events(raw, ide_only),
+                         [(1.0, '+', 12, 'Message Box'), (1.1, '-', 12, 'Message Box')])
+
+    def test_what_is_not_a_window_of_the_ides(self):
+        raw = [(1.0, S, 20, IDE, 'MCMenuWinClass', 'File', True),
+               (1.0, S, 21, IDE, '#32768', '', True),
+               (1.0, S, 22, IDE, 'tooltips_class32', '', True),
+               (1.0, S, 23, IDE, 'Button', 'OK', False),
+               (1.0, S, 24, 99, 'ConsoleWindowClass', 'cmd', True),
+               (2.0, H, 20, IDE, 'MCMenuWinClass', 'File', True),
+               (2.0, H, 21, IDE, '#32768', '', True),
+               (2.0, H, 22, IDE, 'tooltips_class32', '', True),
+               (2.0, H, 23, IDE, 'Button', 'OK', False),
+               (2.0, H, 24, 99, 'ConsoleWindowClass', 'cmd', True),
+               # destroyed, never shown: a window the engine keeps hidden
+               (3.0, D, 25, 0, '', '', False)]
+        self.assertEqual(startup_windows.win32_events(raw, ide_only), [])
+
+    def test_a_window_shown_twice_came_once(self):
+        raw = [(1.0, S, 30, IDE, 'MCWinClassW', 'Untitled 1', True),
+               (1.5, S, 30, IDE, 'MCWinClassW', 'Untitled 1', True),
+               (2.0, H, 30, IDE, 'MCWinClassW', '', True),
+               (2.1, H, 30, IDE, 'MCWinClassW', '', True)]
+        self.assertEqual(startup_windows.win32_events(raw, ide_only),
+                         [(1.0, '+', 30, 'Untitled 1'), (2.0, '-', 30, 'Untitled 1')])
+
+
+class MacChangesTest(unittest.TestCase):
+
+    def test_what_came_and_what_went(self):
+        self.assertEqual(startup_windows.mac_changes({1: 'revSplash'}, {1: 'revSplash', 2: 'Tools'}, 6.9),
+                         [(6.9, '+', 2, 'Tools')])
+        self.assertEqual(startup_windows.mac_changes({1: 'revSplash', 2: 'Tools'}, {1: 'revSplash'}, 7.0),
+                         [(7.0, '-', 2, 'Tools')])
+        self.assertEqual(startup_windows.mac_changes({}, {}, 1.0), [])
+
+    def test_a_ghost_on_macos(self):
+        events = (startup_windows.mac_changes({}, {5: 'revSplash'}, 0.4)
+                  + startup_windows.mac_changes({5: 'revSplash'}, {5: 'revSplash', 6: 'Tools'}, 6.9)
+                  + startup_windows.mac_changes({5: 'revSplash', 6: 'Tools'}, {5: 'revSplash'}, 7.0)
+                  + startup_windows.mac_changes({5: 'revSplash'}, {}, 8.0))
+        found = startup_windows.ghosts(events)
+        self.assertEqual([title for _, title, _, _ in found], ['Tools'])
+
+
+class OptionsTest(unittest.TestCase):
+
+    def test_program_names(self):
+        self.assertEqual(startup_windows.program_name('OXT-Beyond'), 'oxt-beyond')
+        self.assertEqual(startup_windows.program_name(r'C:\a\OXT-Beyond.EXE'), 'oxt-beyond')
+        self.assertEqual(startup_windows.program_name('/x/OXT-Beyond.app/Contents/MacOS/OXT-Beyond'),
+                         'oxt-beyond')
+
+    def refused(self, platform, argv):
+        saved, err = sys.platform, sys.stderr
+        sys.platform = platform
+        sys.stderr = open(os.devnull, 'w')
+        try:
+            with self.assertRaises(SystemExit) as e:
+                startup_windows.main(argv)
+            return e.exception.code
+        finally:
+            sys.stderr.close()
+            sys.platform, sys.stderr = saved, err
+
+    def test_on_windows_the_ide_is_launched(self):
+        # every process's windows would count otherwise
+        self.assertEqual(self.refused('win32', ['--seconds', '1']), 2)
+
+    def test_on_macos_the_ide_is_named_or_launched(self):
+        self.assertEqual(self.refused('darwin', ['--seconds', '1']), 2)
+
+
 class StartCheckTest(unittest.TestCase):
 
     def test_the_start_check_runs_the_watch(self):
@@ -132,6 +233,40 @@ class StartCheckTest(unittest.TestCase):
         self.assertIn('python3-xlib', step)
         with open(os.path.join(CI, '..', '..', '.github', 'workflows', 'build-linux.yml')) as f:
             self.assertIn('python3-xlib', f.read())
+
+    def test_the_macos_start_check_runs_the_watch(self):
+        with open(os.path.join(CI, 'mac_ide_start.sh')) as f:
+            text = f.read()
+        self.assertIn('startup_windows.py" --process OXT-Beyond', text)
+        self.assertIn('--ready "$out/startup-windows-ready"', text)
+        # the IDE starts only once the watch has begun
+        self.assertLess(text.index('startup-windows-ready'),
+                        text.index('"$app/Contents/MacOS/OXT-Beyond" >'))
+        self.assertIn('The window watcher (tools/ci/startup_windows.py) did not start', text)
+        self.assertIn('Windows came and went while the IDE started', text)
+        # a ghost fails a start that is otherwise fine
+        self.assertIn('[ "$windows" = ok ] && exit 0', text)
+        with open(os.path.join(CI, '..', '..', '.github', 'workflows', 'build-macos.yml')) as f:
+            self.assertIn('tools/ci/mac_ide_start.sh "$APP"', f.read())
+        # a published release's ghosts are a warning in the media check
+        self.assertIn('"${OXT_GHOST_WINDOWS:-error}" = warn', text)
+        with open(os.path.join(CI, '..', '..', '.github', 'workflows', 'media-check.yml')) as f:
+            media = f.read()
+        step = media[media.index('- name: Start the IDE'):]
+        step = step[:step.index('\n      - name:')]
+        self.assertIn('OXT_GHOST_WINDOWS: warn', step)
+        self.assertIn('tools/ci/mac_ide_start.sh', step)
+
+    def test_the_windows_build_starts_the_ide_under_the_watch(self):
+        with open(os.path.join(CI, '..', '..', '.github', 'workflows', 'build-windows.yml')) as f:
+            wf = f.read()
+        step = wf[wf.index('- name: Start the IDE'):]
+        step = step[:step.index('\n      - name:')]
+        self.assertIn('python tools/ci/startup_windows.py --seconds 60', step)
+        self.assertIn("--launch $exe", step)
+        self.assertIn("'OXT-Beyond.exe'", step)
+        self.assertIn('Windows came and went while the IDE started', step)
+        self.assertIn('exit $status', step)
 
 
 if __name__ == '__main__':

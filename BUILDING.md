@@ -2315,6 +2315,18 @@ with its home stack, menu bar and palettes and fails if it is not still
 running after 90 seconds, printing the faulting thread of the crash
 report macOS wrote; every other step runs the engine with `-ui` or with a
 test stack of its own.
+
+Each build workflow also watches the IDE start for "ghost windows", a
+window other than the splash that comes up and goes again while the IDE
+starts: [`tools/ci/startup_windows.py`](tools/ci/startup_windows.py)
+watches the window manager's list on Linux (in
+[`tools/ci/linux_ide_start.sh`](tools/ci/linux_ide_start.sh)), each
+top-level window of the IDE's process shown and hidden on Windows (the
+step "Start the IDE" of `build-windows.yml`, after the IDE screenshots),
+and the IDE's windows on the screen on macOS (in `mac_ide_start.sh`), and
+the step fails on one. The Raspberry Pi OS check on a pull request and the
+media check, which start a package the change did not build, report them
+as a warning (`OXT_GHOST_WINDOWS=warn`).
 The repository variables `OXT_NO_EXTERNAL_ASSETS` and
 `OXT_NO_XTALK_EXTENSIONS` work there too.
 
