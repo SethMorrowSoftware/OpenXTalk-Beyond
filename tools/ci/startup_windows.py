@@ -39,10 +39,12 @@ program's file name, as "OXT-Beyond"), or --launch starts it once the
 watch has begun and stops it at the end (on Windows, --launch only).
 
 A window that went is a ghost, unless it is the splash, which is meant
-to go, or another window of the IDE's came in its place at once (on
-Windows, where the engine makes a stack's window anew when its
-decorations change: a "RECREATED" line, RECREATED_WITHIN). Each change is a line of the log: the time in seconds since the
-watch began, "+" for a window that came or "-" for one that went, its id
+to go, or another window of the IDE's came in its place just before or
+just after it went (on Windows, where the engine makes a stack's window
+anew when its decorations change or a shown stack's blendLevel crosses 0:
+a "RECREATED" line, RECREATED_WITHIN). Each change is a line of the log:
+the time in seconds since the watch began, "+" for a window that came or
+"-" for one that went, its id
 and its title. Then a summary, and one "GHOST" line for each window that
 went; with --launch, an "ENDED" line if the program ended before the
 watch did. The exit status is 1 when there was a ghost, 2 when the
@@ -65,10 +67,11 @@ SPLASH_TITLES = ('revSplash',)
 
 
 # A window taken away and another of the IDE's shown in its place, its
-# content where the first one's was, within this many seconds, is one
-# window made again (the engine on Windows makes a stack's window anew when
-# its decorations change): RECREATED, not a ghost. Only where the watch
-# knows the windows' places (Windows)
+# content where the first one's was, within this many seconds before or
+# after, is one window made again (the engine on Windows makes a stack's
+# window anew when its decorations change or a shown stack's blendLevel
+# crosses 0): RECREATED, not a ghost. Only where the watch knows the
+# windows' places (Windows)
 RECREATED_WITHIN = 0.25
 
 
@@ -86,20 +89,37 @@ def _same_place(a, b, slack=2):
 def recreations(events):
     """The windows made again: (id that went, id that came in its place,
     when it went), for each window that went with another coming at its
-    place within RECREATED_WITHIN seconds after"""
+    place within RECREATED_WITHIN seconds. The engine makes a window anew
+    in either order: it takes the old one away and then shows the new one
+    when a stack's decorations change, and shows the new one and then
+    takes the old one away when a shown stack's blendLevel crosses 0
+    (MCStack::setopacity in engine/src/w32stack.cpp). A window shown
+    before stands in only when it came after the window that went did and
+    was still up when that one went. Each window stands in for one at
+    most: the window that went first takes the one nearest in time (on
+    main after #380 the Tools palette was made again both ways, 123 ms
+    apart, and looking only after a window went paired the first with the
+    third and called the second a ghost)"""
     events = [_event(e) for e in events]
     found = []
     taken = set()
     for i, (when, sign, wid, title, place) in enumerate(events):
         if sign != '-' or place is None:
             continue
-        for later, sign2, wid2, title2, place2 in events[i + 1:]:
-            if later - when > RECREATED_WITHIN:
-                break
-            if sign2 == '+' and wid2 != wid and wid2 not in taken and _same_place(place, place2):
-                found.append((wid, wid2, when))
-                taken.add(wid2)
-                break
+        # when the window that went came: its last "+" before it went
+        came = max([j for j in range(i) if events[j][1] == '+' and events[j][2] == wid], default=-1)
+        best = None
+        for j, (at, sign2, wid2, title2, place2) in enumerate(events):
+            if sign2 != '+' or wid2 == wid or wid2 in taken or abs(at - when) > RECREATED_WITHIN \
+                    or not _same_place(place, place2):
+                continue
+            if j < i and (j < came or any(e[1] == '-' and e[2] == wid2 for e in events[j + 1:i])):
+                continue
+            if best is None or abs(at - when) < abs(best[0] - when):
+                best = (at, wid2)
+        if best is not None:
+            found.append((wid, best[1], when))
+            taken.add(best[1])
     return found
 
 
