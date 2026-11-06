@@ -1,0 +1,136 @@
+<!--
+title: Using extensions
+level: extensions
+minutes: 10
+summary: What the libraries, widgets and xTalk Suite that come with OXT-Beyond are, where to find them, how to call a library, and how to put a widget on a card from the Tools palette or a script.
+words: the loadedExtensions, Extension Manager, library, widget, create widget, the kind, the backScripts, load extension, unload extension
+-->
+<h2 id="what">What an extension is</h2>
+<p>An <strong>extension</strong> adds to xTalk without changing the engine. OXT-Beyond comes with dozens, and loads every one in its Extensions folder as the IDE starts, so they are ready before your first line. They come in three kinds:</p>
+<ul>
+<li><strong>Libraries</strong> add commands and functions: time zones, QR codes, comparing text, a web server, signing in with OAuth2. Once loaded, you call them just as you call <code>put</code> or <code>the date</code>.</li>
+<li><strong>Widgets</strong> are new kinds of control, such as a switch, a tree view or a chart. They sit in the Tools palette under the classic controls, and you drag them onto a card the same way.</li>
+<li><strong>The xTalk Suite</strong> is OXT-Beyond's own family of libraries, each a thin layer over a well-known native library: SodiumXT for cryptography, CoinXT for Bitcoin and Ethereum keys, NostrXT for the Nostr network, ENet, dataChannelXT and TorrentXT for peer-to-peer networking, OnionXT for Tor, and Box2Dxt for physics.</li>
+</ul>
+<p>Some extensions are written in xTalk Builder (<a href="../xtalk-builder/">Extensions in xTalk Builder</a>) and compiled; others, the <strong>script libraries</strong>, are plain xTalk in a stack. To a script that calls them, the two look the same. The lessons after this one take them a few at a time, and every example in them runs on the engine with the extension it needs.</p>
+
+<h2 id="manager">Finding them</h2>
+<p>Choose <kbd>Tools &gt; Extension Manager</kbd> to see what is installed: each library and widget with its name, version and author. Its <strong>Install extension</strong> button adds one that someone gives you as a package, a <code>.lce</code> file, and the IDE loads it at once. Every command, function, property and message an extension adds has its page in the Dictionary (<kbd>Help &gt; Dictionary</kbd>), as the language's own words do.</p>
+<p>A script can ask what is loaded. <code>the loadedExtensions</code> lists the extensions written in xTalk Builder, a line each, by their <strong>id</strong>: a name in reverse-domain form, such as <code>com.livecode.library.json</code>, that no two extensions share:</p>
+<figure class="example" id="ex-ext-loaded" data-run="output" data-needs="com.livecode.library.json com.livecode.library.timezone">
+<pre class="code"><code>put "com.livecode.library.json" is among the lines of the loadedExtensions
+put "com.livecode.library.timezone" is among the lines of the loadedExtensions
+put "com.example.library.nothing" is among the lines of the loadedExtensions</code></pre>
+<pre class="out">true
+true
+false</pre>
+</figure>
+<p>A program that needs an extension can check like this as it starts, and say so plainly when one is missing, rather than stop at the first call with an error.</p>
+
+<h2 id="library">Calling a library</h2>
+<p>A library's handlers need nothing to set up. The MIME library knows which <strong>type</strong> a web server or an email gives each kind of file, the label that says "this is a PNG picture":</p>
+<figure class="example" id="ex-ext-mime" data-run="output" data-needs="com.livecode.library.mime">
+<pre class="code"><code>put mimeTheMIMETypeOfExtension("png")
+put mimeTheMIMETypeOfExtension("html")
+put mimeTheMIMETypeOfExtension("mp3")
+put mimeTheMIMETypeOfExtension("nonsense")</code></pre>
+<pre class="out">image/png
+text/html
+audio/mpeg
+application/octet-stream</pre>
+</figure>
+<p>An unknown ending gets <code>application/octet-stream</code>, the type that means "just bytes".@@TEXTTOOLS@@</p>
+<p>A script library is a stack, and the IDE puts its script into the <strong>backScripts</strong> as it loads it, at the very end of the <a href="../message-path/">message path</a>. So a handler of your own with the same name comes first, and wins:</p>
+<figure class="example" id="ex-ext-first" data-run="output" data-needs="com.livecode.library.mime">
+<pre class="code"><code>function mimeTheMIMETypeOfExtension pExtension
+   return "my own answer"
+end mimeTheMIMETypeOfExtension
+
+put mimeTheMIMETypeOfExtension("png")
+put "com.livecode.library.mime" is in the backScripts</code></pre>
+<pre class="out">my own answer
+true</pre>
+</figure>
+<p>That lets you change what a library does for one stack, but it is also an easy mistake to make by accident. Each library starts its handlers' names with its own few letters (<code>mime</code>, <code>sx</code>, <code>b2k</code>), and your own should not.</p>
+
+<h2 id="widgets">A widget from the Tools palette</h2>
+<p>The widgets are at the bottom of the Tools palette, below the classic controls. Build a card with one:</p>
+<div class="build" id="build-switch">
+<ol>
+<li>Make a new stack, or go to an empty card. In Edit mode, scroll the Tools palette down to its widgets and drag a <strong>Switch Button</strong> onto the top left of the card.</li>
+<li>Double-click it to open the Property Inspector, and name it <code>Dark mode</code>. Its other sections are the switch's own properties: whether it is on, its colours and its theme.</li>
+</ol>
+<pre class="setup">create widget "Dark mode" as "com.livecode.widget.switchbutton"
+set the rect of it to 40,40,100,72</pre>
+</div>
+<p>A widget is a control like any other: it has a name, a <code>rect</code> and a script, and the Message Box can ask about it. Its <code>kind</code> is the id of the extension that draws it, and its own properties are set as any property is:</p>
+<figure class="example" id="ex-ext-switch" data-run="output" data-card="build-switch" data-in="message" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.switchbutton" data-shot="Your card: a switch at the top left, turned on, its knob at the right.">
+<pre class="code"><code>put the kind of widget "Dark mode"
+put the number of widgets
+set the highlight of widget "Dark mode" to true
+put the highlight of widget "Dark mode"</code></pre>
+<pre class="out">com.livecode.widget.switchbutton
+1
+true</pre>
+</figure>
+<p>Click the switch in Run mode and it turns over by itself, and sends a message, <code>hiliteChanged</code>, as a button sends <code>mouseUp</code>. Each widget's page in the Dictionary lists its messages. Open the switch's script and handle it:</p>
+<figure class="example" id="ex-ext-switch-script" data-run="compile" data-card="build-switch" data-script='widget "Dark mode"' data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.switchbutton">
+<pre class="code"><code>on hiliteChanged
+   if the highlight of me then
+      set the backgroundColor of this card to "#1b2435"
+   else
+      set the backgroundColor of this card to empty
+   end if
+end hiliteChanged</code></pre>
+</figure>
+<p>A message can also be sent from the Message Box, which tries a handler without clicking:</p>
+<figure class="example" id="ex-ext-switch-send" data-run="output" data-card="build-switch" data-in="message" data-after="ex-ext-switch-script" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.switchbutton" data-shot="Your card, now dark navy, with the switch at the top left turned on.">
+<pre class="code"><code>set the highlight of widget "Dark mode" to true
+send "hiliteChanged" to widget "Dark mode"
+put the backgroundColor of this card</code></pre>
+<pre class="out">#1b2435</pre>
+</figure>
+
+<h2 id="create">A widget from a script</h2>
+<p><code>create widget</code> makes one from a script, given a name and the kind, as <a href="../stacks-cards-controls/#script-made">Making controls from a script</a> makes a button:</p>
+<figure class="example" id="ex-ext-create" data-run="output" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.switchbutton" data-shot="Three switches in a column on the left, the first and third turned on.">
+<pre class="code"><code>repeat with tIndex = 1 to 3
+   create widget ("Option" &amp;&amp; tIndex) as "com.livecode.widget.switchbutton"
+   set the rect of it to 40, 30 + 50 * tIndex, 100, 62 + 50 * tIndex
+   set the highlight of it to (tIndex is not 2)
+end repeat
+put the number of widgets
+put the highlight of widget "Option 2"
+put the short name of widget 3</code></pre>
+<pre class="out">3
+false
+Option 3</pre>
+</figure>
+<p>A widget whose extension is not loaded cannot be made: <code>create widget</code> stops with an error, which is why a careful program checks <code>the loadedExtensions</code> first.</p>
+
+<h2 id="own">Extensions of your own</h2>
+<p>An extension you write, or download as source, is compiled in the Extension Builder (<kbd>Tools &gt; Extension Builder</kbd>), which can also install it. A script can load a compiled module itself with <code>load extension from file</code> and drop it with <code>unload extension</code>, as <a href="../xtalk-builder/">Extensions in xTalk Builder</a> shows. A standalone carries only the extensions ticked on the Inclusions pane of its settings (<a href="../shipping/#inclusions">Shipping your program</a>), so tick every one your program uses.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a function <code>missingExtensions</code> that takes a list of extension ids, a line each, and returns those that are not loaded, so a program can tell its user what to install.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-ext-try" data-run="output" data-needs="com.livecode.library.json com.livecode.library.timezone">
+<pre class="code"><code>function missingExtensions pIds
+   local tMissing
+   repeat for each line tId in pIds
+      if tId is not among the lines of the loadedExtensions then
+         put tId &amp; return after tMissing
+      end if
+   end repeat
+   return line 1 to -1 of tMissing
+end missingExtensions
+
+put "com.livecode.library.json" &amp; return &amp; "com.example.widget.gauge" &amp; return &amp; "com.livecode.library.timezone" into tWanted
+put missingExtensions(tWanted)
+put the number of lines of missingExtensions("com.livecode.library.json")</code></pre>
+<pre class="out">com.example.widget.gauge
+0</pre>
+</figure>
+</details>
+</section>

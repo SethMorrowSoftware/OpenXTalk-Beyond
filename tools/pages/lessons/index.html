@@ -43,7 +43,7 @@
         <ul class="stats">
           <li><b>@LESSON_COUNT@</b> lessons</li>
           <li><b>@EXAMPLE_COUNT@</b> examples</li>
-          <li><b>4</b> levels, beginner to expert</li>
+          <li><b>@LEVEL_COUNT@</b> levels, from the first line to extensions</li>
         </ul>
         <div class="ctas">
           <a class="cta" href="@FIRST@/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Start with lesson 1</a>
@@ -72,11 +72,7 @@
   </section>
 
   <div class="filters" role="group" aria-label="Show the lessons of a level">
-    <button type="button" data-level="all" aria-pressed="true">All levels</button>
-    <button type="button" class="lv-beginner" data-level="beginner" aria-pressed="false">Beginner</button>
-    <button type="button" class="lv-intermediate" data-level="intermediate" aria-pressed="false">Intermediate</button>
-    <button type="button" class="lv-advanced" data-level="advanced" aria-pressed="false">Advanced</button>
-    <button type="button" class="lv-expert" data-level="expert" aria-pressed="false">Expert</button>
+    <button type="button" data-level="all" aria-pressed="true">All levels</button>@LEVEL_BUTTONS@
   </div>
 
 @LEVEL_LIST@

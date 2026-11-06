@@ -1,0 +1,101 @@
+<!--
+title: Tor with OnionXT
+level: extensions
+minutes: 10
+summary: Reach and run onion services through Tor with OnionXT: what an onion address is, checking one, the public key inside it, an address of your own from a seed, dialling, and the services others dial.
+words: oxVersion, oxTransportInfo, oxIsReady, oxIsValidAddress, oxPublicKeyFromAddress, oxAddressFromPublicKey, sxSignKeypairFromSeed, oxDial, oxSetStreamCallback, oxWrite, oxStreamState, oxCloseStream, oxConnectControl, oxCreateService, oxCreateServiceFromSeed, oxShutdown
+-->
+<h2 id="what">Who talks to whom</h2>
+<p><strong>Tor</strong> hides who talks to whom: a connection hops through three computers, and none of them knows both ends. An <strong>onion service</strong> goes further, a program reachable only inside Tor at an <strong>onion address</strong>, whose own location stays hidden too. <strong>OnionXT</strong>, the xTalk Suite's Tor library, is written in xTalk and drives a <strong>tor</strong> program running beside your app (Tor Browser has one); its handlers begin with <code>ox</code>.</p>
+<p>Everything in this lesson works without Tor, so every example runs here. Dialling and running services need Tor itself, and the last section says how they go.</p>
+<figure class="example" id="ex-ox-version" data-run="runs" data-needs="org.openxtalk.library.sodium onionxt">
+<pre class="code"><code>put oxVersion()
+put oxTransportInfo() into tInfo
+put tInfo["offlineAddress"]
+put tInfo["deterministicOnion"]
+put oxIsReady() is among the items of "true,false"</code></pre>
+<pre class="out">1.0.0
+true
+true
+true</pre>
+</figure>
+<p><code>oxVersion</code> gives OnionXT's version, and Tor's after it when Tor is running. <code>oxTransportInfo</code> says what works here: with SodiumXT loaded, addresses can be made and checked offline. <code>oxIsReady</code> is true only once Tor is running and connected.</p>
+
+<h2 id="addresses">Onion addresses</h2>
+<p>An onion address is 56 letters and digits, then <code>.onion</code>. Nobody registers it: it is made from a <strong>key</strong>, and has a version and a <strong>checksum</strong> built in. <code>oxIsValidAddress</code> checks all of it, so a typo is caught before you try to connect. The old 16-letter addresses (version 2) stopped working in 2021, so they are not valid either:</p>
+<figure class="example" id="ex-ox-valid" data-run="output" data-needs="org.openxtalk.library.sodium onionxt">
+<pre class="code"><code>put "duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion" into tAddress
+put oxIsValidAddress(tAddress)
+put "e" into char 1 of tAddress
+put oxIsValidAddress(tAddress)
+put oxIsValidAddress("expyuzz4wqqyqhjn.onion")</code></pre>
+<pre class="out">true
+false
+false</pre>
+</figure>
+<p>The address <em>is</em> a public key, 32 bytes, written in base32 (the letters a to z and the digits 2 to 7) with the checksum and version after it. <code>oxPublicKeyFromAddress</code> takes the key out, and <code>oxAddressFromPublicKey</code> turns a key back into its address. Only whoever holds the matching secret key can run that address, which is how Tor knows it has reached the right place:</p>
+<figure class="example" id="ex-ox-key" data-run="output" data-needs="org.openxtalk.library.sodium onionxt">
+<pre class="code"><code>put "duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion" into tAddress
+put oxPublicKeyFromAddress(tAddress) into tKey
+put the number of bytes in tKey
+put sxBin2Hex(tKey)
+put oxAddressFromPublicKey(tKey) is tAddress</code></pre>
+<pre class="out">32
+1d04a1d04a338c6e6ae970bfabee49049d6702250984ca950c01673f4ec034ad
+true</pre>
+</figure>
+
+<h2 id="own">An address of your own</h2>
+<p>Your app can have an address of its own, the same every time it starts. It comes from a <strong>seed</strong>, 32 secret bytes: SodiumXT's <code>sxSignKeypairFromSeed</code> makes a key pair from it, <code>oxAddressFromPublicKey</code> turns the public key into the address without any need for Tor, and <code>oxCreateServiceFromSeed</code> later asks Tor to run it. Keep the seed secret, because anyone who has it can run your address:</p>
+<figure class="example" id="ex-ox-seed" data-run="output" data-needs="org.openxtalk.library.sodium onionxt">
+<pre class="code"><code>local tPublic, tSecret
+-- for learning: a real app uses sxRandomBytes(32), kept safe
+put sxHash(textEncode("my seed", "UTF-8"), 32) into tSeed
+sxSignKeypairFromSeed tSeed, tPublic, tSecret
+put oxAddressFromPublicKey(tPublic) into tAddress
+put tAddress
+put oxIsValidAddress(tAddress)</code></pre>
+<pre class="out">cyhitagktc4hrm3w62o62zveuuyruejtwy4m45uaejjdnyogby6dd4ad.onion
+true</pre>
+</figure>
+
+<h2 id="dial">Dialling and serving</h2>
+<p>To reach an address, <strong>dial</strong> it through Tor. <code>oxDial</code> takes a host (an onion address, or an ordinary name) and a port, and gives a <strong>stream</strong> handle at once; Tor then connects, and the handler you named with <code>oxSetStreamCallback</code> hears "open", then "data" as it arrives, or "error". <code>oxWrite</code> sends, <code>oxStreamState</code> says how a stream is, and <code>oxCloseStream</code> ends it. An <strong>onion service</strong> lets others dial you: after <code>oxConnectControl</code> reaches Tor's control port, <code>oxCreateService</code> makes a new address each time and <code>oxCreateServiceFromSeed</code> keeps one, and Tor forwards each visitor to a port on this computer. <code>oxShutdown</code> closes everything when your app quits.</p>
+<p>Without Tor, the calls still check what they are given, and say what is wrong in <code>the result</code>, starting with <code>OnionXT:</code>:</p>
+<figure class="example" id="ex-ox-refuse" data-run="output" data-needs="org.openxtalk.library.sodium onionxt">
+<pre class="code"><code>oxDial empty, 80
+put the result begins with "OnionXT:"
+oxDial "duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion", 0
+put the result begins with "OnionXT:"
+put oxStreamState(999999)
+oxCreateService 80, 0
+put the result begins with "OnionXT:"
+oxCreateServiceFromSeed "too short", 80, 8080
+put the result begins with "OnionXT:"</code></pre>
+<pre class="out">true
+true
+unknown
+true
+true</pre>
+</figure>
+<aside class="note"><p>Tor protects who talks to whom, not what you say: send only what you would be happy for a stranger to read, unless you also encrypt it, as SodiumXT does (<a href="../sodiumxt/">Cryptography with SodiumXT</a>). <strong>Learn OnionXT</strong> (<kbd>Help &gt; Examples</kbd>) and the Dictionary have every handler, and <code>onion-httpd</code>, which comes with OnionXT, serves web pages at an onion address.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a function <code>cleanOnion</code> for a field where people paste addresses: it trims spaces, makes the letters small, adds <code>.onion</code> if it is missing, and returns the address if it is valid, or empty if not.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-ox-try" data-run="output" data-needs="org.openxtalk.library.sodium onionxt">
+<pre class="code"><code>function cleanOnion pText
+   put toLower(word 1 to -1 of pText) into pText
+   if not (pText ends with ".onion") then put ".onion" after pText
+   if oxIsValidAddress(pText) then return pText
+   return empty
+end cleanOnion
+
+put cleanOnion("  DUCKDUCKGOGG42XJOC72X3SJASOWOARFBGCMVFIMAFTT6TWAGSWZCZAD  ")
+put cleanOnion("expyuzz4wqqyqhjn") is empty</code></pre>
+<pre class="out">duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion
+true</pre>
+</figure>
+</details>
+</section>

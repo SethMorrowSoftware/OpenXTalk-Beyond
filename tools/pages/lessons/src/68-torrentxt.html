@@ -1,0 +1,219 @@
+<!--
+title: Sharing files with TorrentXT
+level: extensions
+minutes: 13
+summary: Share files among many computers at once with BitTorrent, through TorrentXT: the one session, its settings, making a torrent, seeding, magnet links, the events a session reports, the files in a torrent, and stopping.
+words: btStartSession, btStopSession, btSetBool, btSetInt, btGetSetting, btCreateTorrent, btAddTorrentFile, btAddMagnet, btTorrentStatus, btStateName, btFormatBytes, btInfoHash, btPoll, btFileList, btSetFilePriority, btPause, btResume, btRemoveTorrent, btTorrentCount
+-->
+<h2 id="what">Everyone shares</h2>
+<p><strong>BitTorrent</strong> shares a file among many computers at once. Each one, a <strong>peer</strong>, fetches pieces from the others and gives its own pieces back, so no single server carries it all, and the more people want a file, the faster it spreads. The xTalk Suite's <strong>TorrentXT</strong> brings libtorrent, the engine inside many BitTorrent programs, to xTalk; its handlers begin with <code>bt</code>.</p>
+<p>The examples stay on this computer: they share tiny files of their own, in a folder of their own, and turn off the ways a session finds peers on the internet.</p>
+
+<h2 id="session">The session</h2>
+<p><code>btStartSession</code> starts the one <strong>session</strong> that runs everything; only one may run at a time, and a second call gives 0. <code>btStopSession</code> stops it, and you must always stop it when you are done: nothing does it for you. The examples keep the session in a global (<a href="../scope/#globals">Scope</a>), so a run that stops halfway with an error is cleaned up by the next:</p>
+<figure class="example" id="ex-bt-session" data-run="output" data-needs="org.openxtalk.library.torrent torrentHelpers">
+<pre class="code"><code>global gLessonTorrents
+if gLessonTorrents is an integer then btStopSession gLessonTorrents
+put btStartSession() into gLessonTorrents
+put gLessonTorrents &gt; 0
+put btStartSession() &amp;&amp; "for a second session"
+put btListenPort(gLessonTorrents) &gt; 0
+btStopSession gLessonTorrents
+put empty into gLessonTorrents</code></pre>
+<pre class="out">true
+0 for a second session
+true</pre>
+</figure>
+<p>A session has hundreds of <strong>settings</strong>, each with a name. <code>btSetBool</code> turns one on or off, <code>btSetInt</code> sets a number and <code>btSetString</code> some text; each gives 0 when it works and -3 for a name it does not know, and <code>btGetSetting</code> reads one back. Turning off the <strong>DHT</strong> (how peers find each other on the internet) and <strong>local peer discovery</strong> keeps a session to itself:</p>
+<figure class="example" id="ex-bt-settings" data-run="output" data-needs="org.openxtalk.library.torrent torrentHelpers">
+<pre class="code"><code>global gLessonTorrents
+if gLessonTorrents is an integer then btStopSession gLessonTorrents
+put btStartSession() into gLessonTorrents
+put btSetBool(gLessonTorrents, "enable_dht", false)
+put btSetBool(gLessonTorrents, "enable_lsd", false)
+put btSetInt(gLessonTorrents, "upload_rate_limit", 51200)
+put btFormatBytes(btGetSetting(gLessonTorrents, "upload_rate_limit")) &amp;&amp; "a second, at most"
+put btSetInt(gLessonTorrents, "speed", 1)
+btStopSession gLessonTorrents
+put empty into gLessonTorrents</code></pre>
+<pre class="out">0
+0
+0
+50 KiB a second, at most
+-3</pre>
+</figure>
+
+<h2 id="create">Making a torrent</h2>
+<p>A <strong>torrent</strong> describes what is shared: the names and sizes of the files, and a fingerprint of each <strong>piece</strong>, so every piece can be checked as it arrives. <code>btCreateTorrent</code> makes one from a file or a folder and gives its bytes, to save as a <code>.torrent</code> file and give to others. It needs no session. Its other parameters are the piece size (0 lets it choose), options (0 for the usual) and <strong>trackers</strong>, servers that introduce peers:</p>
+<figure class="example" id="ex-bt-create" data-run="output" data-needs="org.openxtalk.library.torrent torrentHelpers">
+<pre class="code"><code>put specialFolderPath("temporary") &amp; "/oxt-lesson-torrents" into tFolder
+create folder tFolder
+put "Hello, swarm!" into URL ("file:" &amp; tFolder &amp; "/hello.txt")
+put btCreateTorrent(tFolder &amp; "/hello.txt", 0, 0, empty) into tTorrent
+put the number of bytes in tTorrent &gt; 100
+put tTorrent contains "hello.txt"
+put tTorrent into URL ("binfile:" &amp; tFolder &amp; "/hello.torrent")
+put there is a file (tFolder &amp; "/hello.torrent")</code></pre>
+<pre class="out">true
+true
+true</pre>
+</figure>
+
+<h2 id="seeding">Seeding</h2>
+<p>To share a file, add its torrent to the session with <code>btAddTorrentFile</code>, saving into the folder that already holds the file. The session checks every piece, finds that it has them all, and starts <strong>seeding</strong>: giving pieces to whoever asks. <code>btTorrentStatus</code> gives an array about a torrent: its "state" (which <code>btStateName</code> says in words), its "progress" from 0 to 1, its "name", its "totalSize" and more:</p>
+<figure class="example" id="ex-bt-seed" data-run="output" data-needs="org.openxtalk.library.torrent torrentHelpers">
+<pre class="code"><code>global gLessonTorrents
+if gLessonTorrents is an integer then btStopSession gLessonTorrents
+put btStartSession() into gLessonTorrents
+get btSetBool(gLessonTorrents, "enable_dht", false)
+get btSetBool(gLessonTorrents, "enable_lsd", false)
+put specialFolderPath("temporary") &amp; "/oxt-lesson-torrents" into tFolder
+create folder tFolder
+put "Hello, swarm!" into URL ("file:" &amp; tFolder &amp; "/hello.txt")
+put btCreateTorrent(tFolder &amp; "/hello.txt", 0, 0, empty) into tTorrent
+put btAddTorrentFile(gLessonTorrents, tTorrent, tFolder) into tHandle
+repeat 100 times
+   put btTorrentStatus(tHandle) into tStatus
+   if tStatus["isSeeding"] is 1 then exit repeat
+   wait 20 milliseconds
+end repeat
+put tStatus["name"]
+put btStateName(tStatus["state"])
+put 100 * tStatus["progress"] &amp; "% done," &amp;&amp; btFormatBytes(tStatus["totalSize"])
+put the length of btInfoHash(tHandle) &amp;&amp; "hex digits of info hash"
+btStopSession gLessonTorrents
+put empty into gLessonTorrents</code></pre>
+<pre class="out">hello.txt
+seeding
+100% done, 13 B
+40 hex digits of info hash</pre>
+</figure>
+<p>The <strong>info hash</strong> names a torrent everywhere: two people with the same hash are sharing the same files.</p>
+
+<h2 id="magnets">Magnet links</h2>
+<p>A <strong>magnet link</strong> is a torrent in one line of text: its info hash and a name. Anyone with the link can fetch the rest from peers. <code>btAddMagnet</code> adds one, with the folder to save into. Here the state stays "fetching metadata", because with the DHT off and no trackers no peer can send the torrent; online, one would:</p>
+<figure class="example" id="ex-bt-magnet" data-run="output" data-needs="org.openxtalk.library.torrent torrentHelpers">
+<pre class="code"><code>global gLessonTorrents
+if gLessonTorrents is an integer then btStopSession gLessonTorrents
+put btStartSession() into gLessonTorrents
+get btSetBool(gLessonTorrents, "enable_dht", false)
+get btSetBool(gLessonTorrents, "enable_lsd", false)
+put "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&amp;dn=demo" into tLink
+put btAddMagnet(gLessonTorrents, tLink, specialFolderPath("temporary") &amp; "/oxt-lesson-torrents") into tHandle
+wait 200 milliseconds
+put btTorrentStatus(tHandle) into tStatus
+put tStatus["name"]
+put btInfoHash(tHandle)
+put btStateName(tStatus["state"])
+get btPause(tHandle)
+wait 100 milliseconds
+put btTorrentStatus(tHandle) into tStatus
+put "paused:" &amp;&amp; (tStatus["isPaused"] is 1)
+btStopSession gLessonTorrents
+put empty into gLessonTorrents</code></pre>
+<pre class="out">demo
+0123456789abcdef0123456789abcdef01234567
+fetching metadata
+paused: true</pre>
+</figure>
+<p><code>btPause</code> stops a torrent and <code>btResume</code> starts it again; <code>btSetTorrentLimits</code> limits its speed, and the queue handlers (<code>btQueueUp</code>, <code>btQueueTop</code> and the rest) decide which goes first.</p>
+
+<h2 id="events">Events</h2>
+<p>The session works on threads of its own and keeps a queue of what happened: a torrent added, resumed, finished, paused, an error. <code>btPoll</code> gives every event since the last poll, oldest first, as an array, each with a "name" and the "torrent" it is about. In an app, poll on a timer, or let <code>btStartPolling</code> send each event to your stack as a message with the event's name:</p>
+<figure class="example" id="ex-bt-events" data-run="output" data-needs="org.openxtalk.library.torrent torrentHelpers">
+<pre class="code"><code>global gLessonTorrents
+if gLessonTorrents is an integer then btStopSession gLessonTorrents
+put btStartSession() into gLessonTorrents
+get btSetBool(gLessonTorrents, "enable_dht", false)
+get btSetBool(gLessonTorrents, "enable_lsd", false)
+put specialFolderPath("temporary") &amp; "/oxt-lesson-torrents" into tFolder
+create folder tFolder
+put "Hello, swarm!" into URL ("file:" &amp; tFolder &amp; "/hello.txt")
+put btCreateTorrent(tFolder &amp; "/hello.txt", 0, 0, empty) into tTorrent
+put btAddTorrentFile(gLessonTorrents, tTorrent, tFolder) into tHandle
+repeat 50 times
+   repeat for each element tEvent in btPoll(gLessonTorrents)
+      if tEvent["torrent"] is tHandle and tEvent["name"] is not "stateChanged" then
+         put tEvent["name"]
+      end if
+   end repeat
+   wait 20 milliseconds
+end repeat
+btStopSession gLessonTorrents
+put empty into gLessonTorrents</code></pre>
+<pre class="out">torrentAdded
+torrentResumed
+torrentFinished</pre>
+</figure>
+
+<h2 id="files">The files in a torrent, and stopping</h2>
+<p>A torrent of a folder holds every file in it. <code>btFileList</code> lists them, each with its "path", "size", "progress" and "priority", and <code>btSetFilePriority</code> sets one, counting files from 0: 0 skips the file, 4 is usual and 7 comes first. (A path with <code>.pad</code> in it is a padding file, empty space that lines files up with pieces, and nothing is saved for it.) <code>btRemoveTorrent</code> takes a torrent out of the session, deleting its files with true and keeping them with false:</p>
+<figure class="example" id="ex-bt-files" data-run="output" data-needs="org.openxtalk.library.torrent torrentHelpers">
+<pre class="code"><code>global gLessonTorrents
+if gLessonTorrents is an integer then btStopSession gLessonTorrents
+put btStartSession() into gLessonTorrents
+get btSetBool(gLessonTorrents, "enable_dht", false)
+get btSetBool(gLessonTorrents, "enable_lsd", false)
+put specialFolderPath("temporary") &amp; "/oxt-lesson-torrents" into tFolder
+create folder tFolder
+create folder tFolder &amp; "/pics"
+put "aaaa" into URL ("file:" &amp; tFolder &amp; "/pics/a.txt")
+put "bb" into URL ("file:" &amp; tFolder &amp; "/pics/b.txt")
+put btAddTorrentFile(gLessonTorrents, btCreateTorrent(tFolder &amp; "/pics", 0, 0, empty), tFolder) into tHandle
+get btSetFilePriority(tHandle, 0, 0)
+wait 300 milliseconds
+repeat for each element tFile in btFileList(tHandle)
+   if tFile["path"] contains ".pad" then next repeat
+   replace backslash with slash in tFile["path"]
+   put tFile["path"] &amp;&amp; tFile["size"] &amp;&amp; "bytes, priority" &amp;&amp; tFile["priority"]
+end repeat
+put btTorrentCount(gLessonTorrents) &amp;&amp; "torrent"
+get btRemoveTorrent(gLessonTorrents, tHandle, true)
+wait 300 milliseconds
+put btTorrentCount(gLessonTorrents) &amp;&amp; "torrents"
+put there is a file (tFolder &amp; "/pics/a.txt")
+btStopSession gLessonTorrents
+put empty into gLessonTorrents</code></pre>
+<pre class="out">pics/a.txt 4 bytes, priority 0
+pics/b.txt 2 bytes, priority 4
+1 torrent
+0 torrents
+false</pre>
+</figure>
+<aside class="note"><p>Share only what you have the right to share, and remember that peers see each other's addresses. An app should stop its session in <code>closeStack</code>, before it quits. <strong>Learn TorrentXT</strong> (<kbd>Help &gt; Examples</kbd>) and the Dictionary have every handler.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a function <code>magnetFor</code> that takes a file, makes its torrent, adds it to a session to read its info hash, and returns a magnet link with the file's name, ready to send to a friend.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-bt-try" data-run="output" data-needs="org.openxtalk.library.torrent torrentHelpers">
+<pre class="code"><code>global gLessonTorrents
+
+function magnetFor pFile
+   local tFolder, tName, tHandle
+   set the itemDelimiter to slash
+   put item 1 to -2 of pFile into tFolder
+   put item -1 of pFile into tName
+   put btAddTorrentFile(gLessonTorrents, btCreateTorrent(pFile, 0, 0, empty), tFolder) into tHandle
+   return "magnet:?xt=urn:btih:" &amp; btInfoHash(tHandle) &amp; "&amp;dn=" &amp; urlEncode(tName)
+end magnetFor
+
+if gLessonTorrents is an integer then btStopSession gLessonTorrents
+put btStartSession() into gLessonTorrents
+get btSetBool(gLessonTorrents, "enable_dht", false)
+get btSetBool(gLessonTorrents, "enable_lsd", false)
+put specialFolderPath("temporary") &amp; "/oxt-lesson-torrents" into tFolder
+create folder tFolder
+put "My holiday notes" into URL ("file:" &amp; tFolder &amp; "/notes.txt")
+put magnetFor(tFolder &amp; "/notes.txt") into tLink
+put char 1 to 20 of tLink
+put the length of tLink
+put tLink ends with "&amp;dn=notes.txt"
+btStopSession gLessonTorrents
+put empty into gLessonTorrents</code></pre>
+<pre class="out">magnet:?xt=urn:btih:
+73
+true</pre>
+</figure>
+</details>
+</section>
