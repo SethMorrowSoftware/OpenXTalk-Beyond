@@ -35,7 +35,14 @@
 #   - Linux only, on emulators (KVM): the IDE's Test for an Android 13
 #     (API 33) emulator, the packages installed and started there until the
 #     probe's screen shows that its script ran, and then the same on the
-#     first emulator image with 16 KB memory pages (Android 15 and newer).
+#     first emulator image with 16 KB memory pages (Android 15 and newer);
+#   - Linux only, the Java layer built from this checkout
+#     (tools/ci/android_java.py build; android-java.yml checks it without a
+#     device) in a third copy of the release, with this builder: the Java
+#     layer's probe (android_check.py ide --probe java), which schedules a
+#     local notification before it turns green, built and run on both
+#     emulators, and for the record the same probe with the release's own
+#     Java layer, whose notification call throws on Android 12 and newer.
 #
 # The released builder's builds are the comparison's other half; where
 # they fail (its shell zip is not there on Windows), the job says so and
@@ -52,6 +59,9 @@ on:
       - ide-support/revsaveasandroidstandalone.livecodescript
       - ide-support/revdeploylibraryandroid.livecodescript
       - 'ide/Toolset/palettes/standalone settings/revstandalonesettingsandroidbehavior.livecodescript'
+      - tools/ci/android_java.py
+      - engine/engine-sources.gypi
+      - 'engine/src/java/**'
   push:
     branches: [ main ]
     paths: *android-paths
@@ -143,7 +153,8 @@ jobs:
       # SDK that the builder needs: the platform of its target API (the
       # released builder takes no other), build-tools and platform-tools.
       # On Linux also the emulator, an Android 13 image and the first image
-      # with 16 KB pages, whose name sdkmanager lists
+      # with 16 KB pages, whose name sdkmanager lists, and the platform the
+      # Java layer is built against (API 36)
       - name: Set up the JDK and the Android SDK
         run: |
           for v in JAVA_HOME_17_X64 JAVA_HOME_17_arm64 JAVA_HOME_21_X64 JAVA_HOME_21_arm64; do
@@ -170,7 +181,7 @@ jobs:
               sort -u -t';' -k2,2V | head -n 1)
             [ -n "$img16" ] || { echo "::error::sdkmanager lists no x86_64 image with 16 KB pages"; exit 1; }
             echo "IMAGE_16K=$img16" >> "$GITHUB_ENV"
-            parts+=("emulator" "system-images;android-33;google_apis;x86_64" "$img16")
+            parts+=("emulator" "system-images;android-33;google_apis;x86_64" "$img16" "platforms;android-36")
           fi
           "$sm" --install "${parts[@]}" > "$RUNNER_TEMP/sdkmanager.log" 2>&1 ||
             { tail -40 "$RUNNER_TEMP/sdkmanager.log"; exit 1; }
@@ -184,6 +195,18 @@ jobs:
           "$PY" tools/ci/android_check.py extract --package "$PACKAGE" --dest "$WORK/changed-ide" \
             --platform "$PLATFORM" --env CHANGED
           "$PY" tools/ci/android_check.py overlay --root "$WORK/changed-ide"
+
+      - name: Build the Java layer, and unpack the release a third time
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_java.py build --sdk "$SDK" --jdk "$JDK" --api 36 --out "$WORK/java/Classes"
+          "$PY" tools/ci/android_check.py extract --package "$PACKAGE" --dest "$WORK/java-ide" \
+            --platform "$PLATFORM" --env JAVA_IDE
+
+      - name: Put this builder and the Java layer into the third
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_check.py overlay --root "$JAVA_IDE" --classes "$WORK/java/Classes"
 
       # Started now: it boots while the IDE builds
       - name: Start an Android 13 emulator
@@ -252,6 +275,24 @@ jobs:
         run: |
           "$PY" tools/ci/android_check.py compare --old "$WORK/released" --new "$WORK/changed" --sdk "$SDK"
 
+      # The Java layer's probe, by this builder with the Java layer built
+      # here: a debug build, as the IDE's Test makes
+      - name: The Java layer's probe, with this Java layer
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_check.py ide --install "$JAVA_IDE" --platform "$PLATFORM" \
+            --work "$WORK/java-new" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug --probe java
+          "$PY" tools/ci/android_check.py verify --work "$WORK/java-new" --sdk "$SDK" --builds debug
+
+      # The same stack, by the same builder, with the release's own Java
+      # layer: the "before" of the comparison
+      - name: The Java layer's probe, with the release's Java layer
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_check.py ide --install "$CHANGED" --platform "$PLATFORM" \
+            --work "$WORK/java-old" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug --probe java \
+            --stack "$WORK/java-new/AndroidJavaProbe.livecode"
+
       # boot gives up after 10 minutes, or within seconds once the
       # emulator has exited, with what may say why (the emulator's
       # processes, /dev/kvm, adb's devices, the disk, the end of its log),
@@ -283,6 +324,29 @@ jobs:
             "$PY" tools/ci/android_check.py device --apk "$WORK/changed/out/$build.apk" --serial emulator-5554 \
               --sdk "$SDK" --out "$WORK/screen-api33-$build.png" --log-out "$WORK/logcat-api33-$build.txt"
           done
+
+      - name: Run the Java layer's probe on Android 13
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_check.py device --apk "$WORK/java-new/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-api33-java.png" --log-out "$WORK/logcat-api33-java.txt"
+
+      # For the record, not a check (no annotations, so the run's account
+      # stays the checks'): the same probe with the release's own Java
+      # layer, whose local notification throws on Android 12 and newer
+      # (its PendingIntent says neither FLAG_IMMUTABLE nor FLAG_MUTABLE)
+      - name: The Java layer's probe with the release's Java layer, on Android 13
+        if: runner.os == 'Linux'
+        run: |
+          set +e
+          out=$(env -u GITHUB_ACTIONS -u GITHUB_STEP_SUMMARY "$PY" tools/ci/android_check.py device \
+            --apk "$WORK/java-old/out/debug.apk" --serial emulator-5554 --sdk "$SDK" \
+            --out "$WORK/screen-api33-java-released.png" --log-out "$WORK/logcat-api33-java-released.txt" 2>&1)
+          status=$?
+          echo "$out"
+          said=$(echo "$out" | grep -E '^PROBLEM: ' | head -n 3 | sed 's/^PROBLEM: //' | tr '\n' ' ')
+          echo "- the Java layer's probe with the release's Java layer on Android 13: $([ $status = 0 ] && echo 'green' || echo "not green: $said")" >> "$GITHUB_STEP_SUMMARY"
+          exit 0
 
       # For the record, not a check: what Android 13 says to the released
       # builder's packages (its "Sign with my key" one lost its v2 and v3
@@ -357,6 +421,8 @@ jobs:
           [ "$page" = 16384 ] || { echo "::error::$IMAGE_16K has pages of $page bytes, not 16384"; exit 1; }
           "$PY" tools/ci/android_check.py device --apk "$WORK/changed/out/debug.apk" --serial emulator-5554 \
             --sdk "$SDK" --out "$WORK/screen-16k-debug.png" --log-out "$WORK/logcat-16k-debug.txt"
+          "$PY" tools/ci/android_check.py device --apk "$WORK/java-new/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-16k-java.png" --log-out "$WORK/logcat-16k-java.txt"
 
       - name: Upload the packages and logs
         if: always()

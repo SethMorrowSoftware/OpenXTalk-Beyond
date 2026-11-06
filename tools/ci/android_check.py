@@ -19,10 +19,10 @@
 compare them with what another builder made, and run them on a device.
 
   python3 tools/ci/android_check.py extract --package FILE --dest DIR [--platform P] [--env NAME]
-  python3 tools/ci/android_check.py overlay --root DIR
+  python3 tools/ci/android_check.py overlay --root DIR [--classes FILE]
   python3 tools/ci/android_check.py ide (--install DIR | --package FILE | --bin DIR)
       --work DIR [--sdk DIR] [--jdk DIR] [--platform P] [--device SERIAL]
-      [--stack FILE] [--builds NAMES] [--no-units] [--timeout SECONDS]
+      [--stack FILE] [--builds NAMES] [--no-units] [--probe java] [--timeout SECONDS]
   python3 tools/ci/android_check.py verify --work DIR --sdk DIR
   python3 tools/ci/android_check.py compare --old DIR --new DIR --sdk DIR
   python3 tools/ci/android_check.py device --apk FILE --serial SERIAL --sdk DIR
@@ -35,7 +35,9 @@ symbolic links kept) and prints the folder to give --install, and with
 overlay puts this checkout's Android builder (OVERLAY) into an installed
 OXT-Beyond (a released one), over the files of the same names, so that the
 release's IDE runs the changed builder, and the comparison is of the
-builders alone, with the same engine and runtimes.
+builders alone, with the same engine and runtimes. --classes also puts a
+Java layer (tools/ci/android_java.py build) in place of the release's
+Runtime/Android/Classes.
 
 ide starts the IDE as a user starts it (as tools/ci/web_check.py does, under
 xvfb-run on Linux without a DISPLAY) with tools/ci/android-check.livecodescript
@@ -48,7 +50,9 @@ with a keystore made here with the JDK's keytool (<work>/check.keystore).
 --stack gives a probe stack file saved by an earlier run, so that two
 builders build the same stack (the stack goes into the engine library).
 --no-units is for a released builder, which has none of the units'
-handlers.
+handlers. --probe java builds the Java layer's probe instead
+(AndroidJavaProbe.livecode: it schedules and cancels a local notification
+before it turns green, and turns FAIL_COLOR when the call answers none).
 
 verify checks each package in <work>/out against BUILDS and the lines the
 IDE wrote: the architectures it has, the signature (apksigner, and the APK
@@ -68,7 +72,9 @@ android:exported (see EXPECTED_MANIFEST). Every difference is printed.
 device installs a package on a device or emulator with adb, starts it and
 waits until the screen is the probe's green (kRunColor in
 android-check.livecodescript), which only the probe's openStack makes: the
-engine loaded, opened the stack and ran its script. The screen is saved as
+engine loaded, opened the stack and ran its script. The Java layer's
+probe's FAIL_COLOR ends the wait too, as a failure: its script ran and a
+call into the Java layer failed. The screen is saved as
 a PNG (--out), and the probe's own lines in the device's log are searched
 for its crash (the engine's caught attempt at an SSL library the package
 does not hold is expected, and only then: crash_lines). When it is not
@@ -121,6 +127,13 @@ RUN_COLOR = (31, 158, 90)
 # another app's or the system's "isn't responding" or "keeps stopping"
 DIALOGS = r"ANR in |isn't responding|keeps stopping|Showing crash dialog|Application Not Responding"
 SAVED_COLOR = (204, 34, 0)
+# kFailColor: the Java layer's probe ran, and a call into the Java layer
+# failed
+FAIL_COLOR = (230, 160, 0)
+# The probes (--probe): the stack file each is saved as
+PROBES = {'app': 'AndroidProbe.livecode', 'java': 'AndroidJavaProbe.livecode'}
+# Where a release's Java layer is (overlay --classes)
+CLASSES = ('Runtime', 'Android', 'Classes')
 TARGET_SDK = '33'
 KEY_ALIAS = 'oxtcheck'
 KEY_PASSWORD = 'oxtcheck-pass'
@@ -537,6 +550,14 @@ def overlay(args):
             continue
         shutil.copyfile(os.path.join(REPO, *rel.split('/')), places[0])
         log('%s -> %s' % (rel, os.path.relpath(places[0], root)))
+    if args.classes:
+        places = [x for x in found.get(CLASSES[-1], [])
+                  if tuple(os.path.normpath(x).split(os.sep)[-len(CLASSES):]) == CLASSES]
+        if len(places) != 1:
+            problems.append('%s: %d files %s, not one' % (root, len(places), '/'.join(CLASSES)))
+        else:
+            shutil.copyfile(args.classes, places[0])
+            log('%s -> %s' % (args.classes, os.path.relpath(places[0], root)))
     return problems
 
 
@@ -569,7 +590,7 @@ def ide(args):
     # the document the IDE opens: a copy, as web_check.py opens its script
     document = os.path.join(work, 'oxt_android_check.livecodescript')
     shutil.copyfile(CHECK_SCRIPT, document)
-    stack = os.path.join(work, 'AndroidProbe.livecode')
+    stack = os.path.join(work, PROBES[args.probe])
     if args.stack:
         if os.path.abspath(args.stack) != stack:
             shutil.copyfile(args.stack, stack)
@@ -597,7 +618,8 @@ def ide(args):
                    OXT_ANDROID_BUILDS=args.builds or '', OXT_ANDROID_KEYSTORE=path(keystore),
                    OXT_ANDROID_ALIAS=KEY_ALIAS, OXT_ANDROID_PASSWORD=KEY_PASSWORD,
                    OXT_ANDROID_DEVICE=args.device or '', OXT_ANDROID_WORK=path(os.path.join(work, 'units')),
-                   OXT_ANDROID_UNITS='skip' if args.no_units else '')
+                   OXT_ANDROID_UNITS='skip' if args.no_units else '',
+                   OXT_ANDROID_PROBE='java' if args.probe == 'java' else '')
         cmd = [lay.engine, document]
         if p.family == 'linux':
             cef = os.path.join(lay.root, 'Externals') if lay.kind == 'development' else lay.externals
@@ -971,7 +993,7 @@ def device(args):
     if 'Error' in out:
         problems.append('the app does not start: %s' % out.strip()[-500:])
     started = time.time()
-    share = saved = 0.0
+    share = saved = failed = 0.0
     w = h = 0
     rgba = b''
     while time.time() - started < args.timeout:
@@ -984,7 +1006,8 @@ def device(args):
             log('  screencap: %s' % e)
             continue
         share, saved = colour_share(rgba, RUN_COLOR), colour_share(rgba, SAVED_COLOR)
-        if share >= 0.25:
+        failed = colour_share(rgba, FAIL_COLOR)
+        if share >= 0.25 or failed >= 0.25:
             break
     _, pid = a('shell', 'pidof', IDENTIFIER)
     _, logcat = a('logcat', '-d', '-v', 'brief')
@@ -1006,7 +1029,10 @@ def device(args):
             f.write(logcat)
     log('After %.0f s: %.0f%% of the screen is the probe\'s green, %.0f%% its saved red; process %s' % (
         time.time() - started, share * 100, saved * 100, pid.strip() or 'not running'))
-    if share < 0.25:
+    if failed >= 0.25:
+        problems.append('the probe\'s script ran, and a call it makes into the Java layer failed (the screen '
+                        'is its fail colour, %.0f%%)' % (failed * 100))
+    elif share < 0.25:
         problems.append('the screen never turned the probe\'s green (%.0f%% green, %.0f%% red: %s)' % (
             share * 100, saved * 100, 'the stack showed and its script did not run' if saved >= 0.25 else
             'the stack never showed'))
@@ -1310,6 +1336,7 @@ def main(argv=None):
     e.add_argument('--env')
     o = sub.add_parser('overlay')
     o.add_argument('--root', required=True)
+    o.add_argument('--classes', help='a Java layer to put in place of the release\'s Runtime/Android/Classes')
     i = sub.add_parser('ide')
     i.add_argument('--bin', dest='bin_dir')
     i.add_argument('--install')
@@ -1322,6 +1349,8 @@ def main(argv=None):
     i.add_argument('--stack')
     i.add_argument('--builds')
     i.add_argument('--no-units', action='store_true')
+    i.add_argument('--probe', choices=sorted(PROBES), default='app',
+                   help='java: the Java layer\'s probe (AndroidJavaProbe)')
     i.add_argument('--timeout', type=int, default=1500)
     v = sub.add_parser('verify')
     v.add_argument('--work', required=True)

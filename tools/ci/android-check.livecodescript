@@ -68,11 +68,23 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --                          and the one password of the store and the key
 --    OXT_ANDROID_DEVICE    the serial of the device for Test (optional)
 --    OXT_ANDROID_WORK      a folder for the units' made-up SDKs
+--    OXT_ANDROID_PROBE     "java" for the Java layer's probe (see below)
+--
+-- The Java layer's probe, AndroidJavaProbe, is the probe with more to do
+-- before it turns green: it asks the Java layer of the runtime for what
+-- Android 12 and newer refuse unless the Java says more (the Android
+-- plan's phase 1), each step a call a script makes. Today that is a local
+-- notification an hour away (mobileCreateLocalNotification: the alarm's
+-- PendingIntent), cancelled again at once. A Java layer that throws there
+-- stops the app (the exception reaches the engine's thread), so the screen
+-- never turns green; a call that answers no notification turns it
+-- kFailColor.
 
 -- The probe's colours: the stack is saved red, and its openStack makes it
 -- green, so a screen of green says that the engine ran the stack's script
 constant kSavedColor = "204,34,0"
 constant kRunColor = "31,158,90"
+constant kFailColor = "230,160,0"
 constant kIdentifier = "org.openxtalk.check.androidprobe"
 
 local sStarted
@@ -434,32 +446,59 @@ end unitDebugKeystore
 -- file saved by an earlier run is used as it is (loaded, not opened), so
 -- that two builders can be given the same one: two stacks made the same
 -- way differ in a few bytes, and the stack goes into the engine library.
+-- With OXT_ANDROID_PROBE "java" it is the Java layer's probe (see the
+-- header), a stack of its own name.
+private function probeName
+   if $OXT_ANDROID_PROBE is "java" then
+      return "AndroidJavaProbe"
+   end if
+   return "AndroidProbe"
+end probeName
+
+private function probeScript
+   local tScript
+   put "on openStack" & return into tScript
+   if probeName() is "AndroidJavaProbe" then
+      put "   local tId" & return & \
+            "   mobileCreateLocalNotification" && quote & "OXT-Beyond Android check" & quote & comma && \
+            quote & "Open" & quote & comma && quote & "probe" & quote & ", the seconds + 3600, false, 0" & return & \
+            "   put the result into tId" & return & \
+            "   if tId is not an integer or tId < 1 then" & return & \
+            "      set the backgroundColor of me to" && quote & kFailColor & quote & return & \
+            "      exit openStack" & return & \
+            "   end if" & return & \
+            "   mobileCancelLocalNotification tId" & return after tScript
+   end if
+   put "   set the backgroundColor of me to" && quote & kRunColor & quote & return & \
+         "end openStack" after tScript
+   return tScript
+end probeScript
+
 private command makeProbeStack
+   local tProbe
+   put probeName() into tProbe
    if there is a file $OXT_ANDROID_STACK then
       lock messages
       get the short name of stack $OXT_ANDROID_STACK
       unlock messages
-      if it is not "AndroidProbe" then
-         throw $OXT_ANDROID_STACK && "is not the probe stack:" && it
+      if it is not tProbe then
+         throw $OXT_ANDROID_STACK && "is not the probe stack" && tProbe & ":" && it
       end if
       exit makeProbeStack
    end if
-   create stack "AndroidProbe"
-   set the rect of stack "AndroidProbe" to 0,0,320,480
-   set the backgroundColor of stack "AndroidProbe" to kSavedColor
-   set the fullscreenMode of stack "AndroidProbe" to "exactFit"
-   set the script of stack "AndroidProbe" to \
-         "on openStack" & return & \
-         "   set the backgroundColor of me to" && quote & kRunColor & quote & return & \
-         "end openStack"
+   create stack tProbe
+   set the rect of stack tProbe to 0,0,320,480
+   set the backgroundColor of stack tProbe to kSavedColor
+   set the fullscreenMode of stack tProbe to "exactFit"
+   set the script of stack tProbe to probeScript()
    local tDefault
    put the defaultStack into tDefault
-   set the defaultStack to "AndroidProbe"
+   set the defaultStack to tProbe
    create field "Probe"
-   set the rect of field "Probe" of stack "AndroidProbe" to 20,20,300,60
-   set the text of field "Probe" of stack "AndroidProbe" to "OXT-Beyond Android check"
+   set the rect of field "Probe" of stack tProbe to 20,20,300,60
+   set the text of field "Probe" of stack tProbe to "OXT-Beyond Android check"
    set the defaultStack to tDefault
-   save stack "AndroidProbe" as $OXT_ANDROID_STACK
+   save stack tProbe as $OXT_ANDROID_STACK
    if the result is not empty then
       throw "cannot save the probe stack as" && $OXT_ANDROID_STACK & ":" && the result
    end if
@@ -468,9 +507,9 @@ end makeProbeStack
 -- The settings of one build (see the header)
 private function buildSettings pName
    local tSettings, tArch
-   put revSBGetSettings("AndroidProbe", true) into tSettings
+   put revSBGetSettings(probeName(), true) into tSettings
    put true into tSettings["android"]
-   put "AndroidProbe" into tSettings["name"]
+   put probeName() into tSettings["name"]
    put kIdentifier into tSettings["android,identifier"]
    put "Android Probe" into tSettings["android,label"]
    repeat for each item tArch in "armv7,arm64,x86,x86_64"
@@ -533,7 +572,7 @@ private command androidBuilds
       end if
       try
          dispatch "revSaveAsMobileStandalone" to stack "revSaveAsAndroidStandalone" with \
-               "AndroidProbe", tApk, "Build", buildSettings(tName)
+               probeName(), tApk, "Build", buildSettings(tName)
       catch tError
       end try
       if sAskMessage is not empty then
@@ -554,11 +593,11 @@ private command androidBuilds
    put $OXT_ANDROID_DEVICE into tSerial
    if tSerial is not empty then
       -- Test reads the stack's own settings: those of the debug build
-      revSBSetSettings "AndroidProbe", buildSettings("debug")
-      save stack "AndroidProbe"
+      revSBSetSettings probeName(), buildSettings("debug")
+      save stack probeName()
       put empty into tError
       try
-         dispatch "deployDo" to stack "revDeployLibraryAndroid" with "AndroidProbe", "Android" && tSerial
+         dispatch "deployDo" to stack "revDeployLibraryAndroid" with probeName(), "Android" && tSerial
          put the result into tError
       catch tError
       end try

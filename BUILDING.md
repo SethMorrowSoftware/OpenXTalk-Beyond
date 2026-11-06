@@ -1574,9 +1574,17 @@ released IDE made of the same probe stack (`ide --no-units --stack
 and fails on any file that differs, apart from what the builder's change
 meant (the signatures, the push receiver's `android:exported`).
 `overlay --root <folder>` puts the checkout's builder into an unpacked
-release, so that one release can be run with both builders. `device`
+release, so that one release can be run with both builders, and with
+`--classes <jar>` also a Java layer in place of the release's
+`Runtime/Android/Classes` (see [Android Java layer](#android-java-layer)).
+`ide --probe java` builds the Java layer's probe (`AndroidJavaProbe`)
+instead: before it turns green its `openStack` schedules a local
+notification an hour away and cancels it, which goes through the Java
+layer's `PendingIntent`s, and it turns orange (its fail colour) when the
+notification gets no id. `device`
 installs a package with adb, starts it, and waits until the screen turns
-the probe's green, which only the probe's `openStack` makes; `ide
+the probe's green, which only the probe's `openStack` makes (or the
+fail colour, which fails at once); `ide
 --device <serial>` does what the IDE's Test does for that device. `boot`
 waits for an emulator to finish booting, and when it gives up it prints
 whether the emulator still runs, `/dev/kvm`, adb's devices, the free disk
@@ -1586,7 +1594,74 @@ The workflow "Android builder" (`android.yml`) runs all of it on the
 latest release's IDE, with this checkout's builder put in, on Windows,
 Linux and macOS, on a pull request or push that changes the builder or
 the check, and on the Linux runner also Test, and the packages on an
-Android 13 emulator and on one with 16 KB pages.
+Android 13 emulator and on one with 16 KB pages. On Linux it also builds
+the Java layer from this checkout and makes the Java layer's probe twice
+from the same stack, once with that layer and once with the release's,
+and runs both on the Android 13 emulator: the rebuilt layer's must turn
+green; the release's is only recorded (LiveCode 9.6.3's `PendingIntent`s
+throw on Android 12 and newer, so that probe stops).
+
+### Android Java layer
+
+The Android runtime's Java layer (`Runtime/Android/Classes`, a jar that
+the builder dexes into every package as `LiveCode.jar`) is still the one
+LiveCode Community 9.6.3 shipped, carried over from OpenXTalk Lite 1.15
+in the runtimes asset, as is the engine beside it.
+[`tools/ci/android_java.py`](tools/ci/android_java.py) builds it from
+this checkout's sources (`engine/src/java`, the files
+`engine/engine-sources.gypi` lists) and checks it against that runtime.
+It needs Python 3.8 or later; `build` needs a JDK and an Android SDK
+platform (36 by default), the rest nothing but the files:
+
+```sh
+python3 tools/ci/android_java.py build --sdk <sdk> --jdk <jdk> --api 36 --out <work>/Classes
+python3 tools/ci/android_java.py compare --old <runtime>/Classes --new <work>/Classes
+python3 tools/ci/android_java.py jni --classes <work>/Classes --runtime <runtime> --android-jar <sdk>/platforms/android-36/android.jar
+python3 tools/ci/android_java.py rules --classes <work>/Classes
+```
+
+where `<runtime>` is the runtimes asset's `Runtime/Android` folder.
+
+- `build` compiles for Java 8 (as the builder compiles its own classes)
+  with each AIDL interface's committed `.java` beside its `.aidl`, so no
+  `aidl` tool is needed, and writes a jar whose bytes depend only on the
+  classes (sorted entries, one fixed time): the same sources give the
+  same jar.
+- `compare` reads both jars class by class, member by member and
+  instruction by instruction (the constant pool's order, `ldc` against
+  `ldc_w`, the names javac gives locals and a few other ways two
+  compilers write the same code are read as the same), and fails on any
+  difference the `EXPECTED` table of the script does not name with its
+  reason, and on an `EXPECTED` entry that no longer differs. It names
+  every addition too; with a runtime the table does not know, an
+  addition is a failure.
+- `jni` checks the jar against the engine that will load it: every
+  `native` method has its `Java_*` function in each architecture's
+  engine and every such function a method (`UNEXPORTED` names the methods
+  9.6.3 declared and never implemented); every call the engine's C++
+  makes into Java (`MCAndroid*Call` with its signature letters, and
+  `GetMethodID`) finds its method with that signature in the jar or in
+  Android's classes (`KNOWN_CALLS` names the calls that never found one,
+  in 9.6.3's jar too); every LCB binding to `com.runrev` classes; every
+  class the builder and the manifest name; and the OpenGL ES version the
+  jar's `OpenGLView` asks for against the library the engine draws with
+  (9.6.3's engine draws with OpenGL ES 1, this tree's with 3, so the
+  view asks for 1 while the runtime carries 9.6.3's engine). The
+  workflow runs it on the release's jar as well, so that each statement
+  is known to hold of the jar that ships.
+- `rules` checks what Android asks of the code: today, that every
+  `PendingIntent` says whether it is mutable (Android 12 and newer throw
+  otherwise), through `Utils.immutablePendingIntentFlags` or
+  `Utils.mutablePendingIntentFlags`, which add the flag only on those
+  versions.
+
+The workflow "Android Java layer" (`android-java.yml`) runs all four on
+a pull request or push that changes the Java sources, the engine's
+calls into Java, the LCB extensions, the builder or the check, in a few
+minutes on one Linux runner with no build of the engine, and keeps the
+jar it built for 14 days. The Android builder workflow runs that jar on
+an emulator (above). Nothing a package ships changes until a runtimes
+asset carries the rebuilt jar.
 
 ### Browser and player check
 

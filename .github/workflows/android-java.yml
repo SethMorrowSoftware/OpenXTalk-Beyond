@@ -1,0 +1,161 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+# The Android runtime's Java layer, built from this checkout's sources
+# (engine/src/java) and checked against the Android runtime that the
+# checkout's packages ship (the runtimes asset of tools/oxt/external-
+# assets.json, whose Runtime/Android is LiveCode Community 9.6.3's, carried
+# from OpenXTalk Lite 1.15), with tools/ci/android_java.py (the Android
+# plan's phase 1):
+#
+#   - build: javac for Java 8 against Android 16's android.jar (API 36);
+#   - compare: with the shipped Classes, class by class, member by member
+#     and instruction by instruction; every difference must be one that
+#     android_java.py's EXPECTED names, with its reason (the "no breaking
+#     changes" record of CLAUDE.md);
+#   - jni: the engines' Java_* functions against the jar's native methods,
+#     the engine's C++ calls into Java against the jar's methods and
+#     signatures, the LCB extensions' bindings to the jar, the classes the
+#     manifest and the builder name, and the OpenGL ES version of the
+#     contexts against the library the engine draws with. The shipped
+#     Classes is checked the same way, so that what is said of the new
+#     jar is known to be true of the old one;
+#   - rules: what Android asks of the code (every PendingIntent says
+#     whether it is mutable).
+#
+# It needs no build of the engine and no IDE: the "Android builder"
+# workflow (android.yml) runs the jar on emulators.
+name: Android Java layer
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths: &java-paths
+      - .github/workflows/android-java.yml
+      - tools/ci/android_java.py
+      - tools/oxt/external-assets.json
+      - engine/engine-sources.gypi
+      - 'engine/src/java/**'
+      - 'engine/src/mblandroid*.cpp'
+      - engine/src/mcssl.cpp
+      - engine/src/mode_standalone.cpp
+      - engine/src/native-layer-android.cpp
+      - libbrowser/src/libbrowser_android.cpp
+      - libfoundation/src/foundation-java-private.cpp
+      - 'extensions/**/*.lcb'
+      - ide-support/revsaveasandroidstandalone.livecodescript
+  push:
+    branches: [ main ]
+    paths: *java-paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-java-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  java:
+    name: Android Java layer
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # The JDK whose javac builds the jar (as android.yml chooses one), and
+      # the platform it is built against
+      - name: Set up the JDK and the Android SDK
+        run: |
+          for v in JAVA_HOME_17_X64 JAVA_HOME_21_X64; do
+            if [ -n "${!v}" ] && [ -d "${!v}/bin" ]; then
+              jdk="${!v}"
+              break
+            fi
+          done
+          [ -n "$jdk" ] || { echo "::error::no JDK 17 or 21 on the runner"; exit 1; }
+          sdk="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          [ -d "$sdk" ] || { echo "::error::no Android SDK on the runner (ANDROID_HOME)"; exit 1; }
+          echo "JDK=$jdk" >> "$GITHUB_ENV"
+          echo "SDK=$sdk" >> "$GITHUB_ENV"
+          sm="$sdk/cmdline-tools/latest/bin/sdkmanager"
+          (yes || true) | "$sm" --licenses > /dev/null
+          "$sm" --install "platforms;android-36" > "$RUNNER_TEMP/sdkmanager.log" 2>&1 ||
+            { tail -40 "$RUNNER_TEMP/sdkmanager.log"; exit 1; }
+          echo "JDK: $jdk"; "$jdk/bin/javac" -version 2>&1 | head -n 1
+          ls -l "$sdk/platforms/android-36/android.jar"
+
+      # The Android runtime the checkout's packages ship
+      - name: Fetch the runtimes asset
+        run: |
+          python3 tools/oxt/fetch_assets.py --assets-cache "$RUNNER_TEMP/assets"
+          zip=$(ls "$RUNNER_TEMP"/assets/oxt-runtimes-*.zip | head -n 1)
+          mkdir -p "$RUNNER_TEMP/runtimes"
+          unzip -q "$zip" '*/Runtime/Android/*' -d "$RUNNER_TEMP/runtimes"
+          android=$(ls -d "$RUNNER_TEMP"/runtimes/*/Runtime/Android | head -n 1)
+          [ -f "$android/Classes" ] || { echo "::error::no Runtime/Android/Classes in $zip"; exit 1; }
+          echo "RUNTIME=$android" >> "$GITHUB_ENV"
+          ls -l "$android" "$android"/*/Standalone
+
+      - name: Build the Java layer
+        run: |
+          mkdir -p "$RUNNER_TEMP/java"
+          python3 tools/ci/android_java.py build --sdk "$SDK" --jdk "$JDK" --api 36 --out "$RUNNER_TEMP/java/Classes"
+
+      - name: Compare it with the shipped one
+        run: |
+          python3 tools/ci/android_java.py compare --old "$RUNTIME/Classes" --new "$RUNNER_TEMP/java/Classes"
+
+      - name: Check it against the engine (JNI)
+        run: |
+          python3 tools/ci/android_java.py jni --classes "$RUNNER_TEMP/java/Classes" --runtime "$RUNTIME" \
+            --android-jar "$SDK/platforms/android-36/android.jar"
+
+      # What jni says of the new jar is said of the old one too: a check
+      # that only ever reads the new jar could be blind
+      - name: The same check of the shipped Java layer
+        run: |
+          python3 tools/ci/android_java.py jni --classes "$RUNTIME/Classes" --runtime "$RUNTIME" \
+            --android-jar "$SDK/platforms/android-36/android.jar"
+
+      - name: Check what Android asks of the code
+        run: |
+          python3 tools/ci/android_java.py rules --classes "$RUNNER_TEMP/java/Classes"
+
+      # For the record, not a check (no annotations, so the run's account
+      # stays the checks'): what the rules say of the shipped jar, whose
+      # PendingIntents throw on Android 12 and newer
+      - name: The rules of the shipped Java layer
+        run: |
+          env -u GITHUB_ACTIONS -u GITHUB_STEP_SUMMARY \
+            python3 tools/ci/android_java.py rules --classes "$RUNTIME/Classes" || true
+
+      - name: Upload the Java layer
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-java-classes
+          path: ${{ runner.temp }}/java/Classes
+          if-no-files-found: warn
+          retention-days: 14
