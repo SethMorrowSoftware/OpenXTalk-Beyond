@@ -7188,16 +7188,18 @@ end revIDEAppBrowserStacksRemoved
 
 /*
 OXT-Beyond: the open Application Browser's names (its tree's links) in a
-grey that reads on a dark window, and in its own grey when it is light.
+grey that reads on a dark window, and in a dark grey on a light one.
 
 Description:
-The App Browser plugin shows the names of stacks and cards as links in
-mid grey (127,127,127), which reads on its light window and hardly at all
-on a dark one. With the desktop dark (revIDEAppearanceIsDark), its stack's
-linkColor is a light grey; light, the plugin's own grey is put back, so a
-light IDE looks as before. It is run when the plugin opens and when the
-system's appearance changes. The plugin's file is not changed and it is not
-marked as edited.
+The App Browser plugin shows the names of stacks, cards and controls as
+links in mid grey (127,127,127), which hardly reads on a dark window and
+is only 4 to 1 against its light one, under the 4.5 to 1 that text needs
+(richmond62 asked for clearer text, openxtalk.org p=26048). With the
+desktop dark (revIDEAppearanceIsDark), its stack's linkColor is a light
+grey (208,208,208); light, a dark grey (64,64,64), 10 to 1 against white.
+A linkColor that is none of the three (set by hand) is kept. It is run
+when the plugin opens and when the system's appearance changes. The
+plugin's file is not changed and it is not marked as edited.
 
 Parameters:
 pDark (boolean): true for a dark window, false for a light one; empty asks
@@ -7215,13 +7217,61 @@ command revIDEAppBrowserAppearance pDark
       put revIDEAppearanceIsDark() into pDark
    end if
    if pDark then
-      if the linkColor of stack tBrowser is "127,127,127" then
+      if the linkColor of stack tBrowser is among the lines of ("127,127,127" & return & "64,64,64") then
          set the linkColor of stack tBrowser to "208,208,208"
       end if
-   else if the linkColor of stack tBrowser is "208,208,208" then
-      set the linkColor of stack tBrowser to "127,127,127"
+   else if the linkColor of stack tBrowser is among the lines of ("127,127,127" & return & "208,208,208") then
+      set the linkColor of stack tBrowser to "64,64,64"
    end if
 end revIDEAppBrowserAppearance
+
+/*
+OXT-Beyond: the Application Browser's lists in bigger text.
+
+Description:
+The App Browser plugin lists stacks, cards, controls and clips in
+11-point text, which richmond62 asked to be larger (openxtalk.org
+p=26048). Before the plugin opens, its four lists (the fields "Cards",
+"Controls", "AudioClips" and "Videoclips") are put in 13-point text, and
+so is the field it measures their columns with ("measure width", 12
+points), so that a column still fits its widest name. The rows stay 22
+pixels high, as the plugin lays them out. A list whose size is not the
+plugin's own (set by hand) is kept. The plugin's file is not changed and
+it is not marked as edited.
+
+Parameters:
+pStack: the App Browser plugin's stack, by its name or its file; any other
+stack is left as it is
+
+References: revIDEAppBrowserAppearance (command)
+*/
+command revIDEAppBrowserText pStack
+   local tCard, tField
+   if there is not a stack pStack then
+      exit revIDEAppBrowserText
+   end if
+   if the short name of stack pStack is not "App Browser" or \
+         not (the effective filename of stack pStack ends with "/App Browser.livecode") then
+      exit revIDEAppBrowserText
+   end if
+   lock messages
+   repeat with tCard = 1 to the number of cards of stack pStack
+      repeat for each item tField in "Cards,Controls,AudioClips,Videoclips"
+         if there is a field tField of card tCard of stack pStack then
+            if the textSize of field tField of card tCard of stack pStack is 11 then
+               set the textSize of field tField of card tCard of stack pStack to 13
+               set the textHeight of field tField of card tCard of stack pStack to 22
+            end if
+         end if
+      end repeat
+      if there is a field "measure width" of card tCard of stack pStack then
+         if the textSize of field "measure width" of card tCard of stack pStack is empty then
+            set the textSize of field "measure width" of card tCard of stack pStack to 13
+         end if
+      end if
+   end repeat
+   unlock messages
+end revIDEAppBrowserText
 
 on revIDEOpenPlugin pName
    local tStackPath
@@ -7239,6 +7289,11 @@ on revIDEOpenPlugin pName
       put "palette" into tMode
    end if
    
+   -- OXT-Beyond: the App Browser's lists in bigger text, before it
+   -- draws them
+   if pName is "App Browser" then
+      revIDEAppBrowserText tStackPath
+   end if
    if tMode is "invisible" then
       go invisible stack tStackPath
    else 
