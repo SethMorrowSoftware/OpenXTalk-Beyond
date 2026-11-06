@@ -9,7 +9,7 @@ Pages site, so that anyone can open them with nothing to download:
 | `https://<owner>.github.io/<repository>/` | the front page ([index.html](index.html)), which links to both |
 | `.../ide/` | the web IDE |
 | `.../dictionary/` | the IDE's Dictionary (xTalk Script and xTalk Builder), which Help > Dictionary Online opens |
-| `.../lessons/` | the lessons: xTalk from the first line to extensions in xTalk Builder, a page a lesson, searchable ([lessons/](lessons/)) |
+| `.../lessons/` | the lessons: xTalk from the first line to xTalk Builder, and the extensions that come with OXT-Beyond, a page a lesson, searchable ([lessons/](lessons/)) |
 | `.../player/` | the Stack Player |
 | `.../extensions/` | the xTalk Suite's extensions, built into OXT-Beyond, each with its `.lce` packages to download ([extensions/index.html](extensions/index.html)) |
 | `.../play/` | the bare player: a stack and nothing around it (`?stack=`, `?play=`; see [tools/web-player](../web-player/README.md)), on the Stack Player's engine |
@@ -149,7 +149,24 @@ Run mode (`data-click`); `data-after` names the scripts the reader put in
 before it. The check builds the card with messages locked, puts the
 scripts in, makes the clicks as the engine does (a check box or radio
 button changes first), and holds the example to what the Message Box
-shows after each click.
+shows after each click. A widget is built the same way, but the check
+cannot click one as a reader does, so an example sends a widget's message
+from the Message Box instead.
+
+The Extensions level teaches the extensions that come with OXT-Beyond:
+the libraries, the widgets and the xTalk Suite. An example names the ones
+it needs in `data-needs`: an extension by its id
+(`com.livecode.library.qr`, `com.livecode.widget.switchbutton`), one of
+the xTalk Suite's script libraries by its folder in the package (`coinxt`,
+`onionxt`: [xtalk-extensions.json](../oxt/xtalk-extensions.json)), or an
+external (`external:revxml`). The check loads each as the IDE does: a
+compiled module with its code libraries and resources, from a folder
+named with its version too, and a script library by sending it
+`extensionInitialize`, with a stand-in for the standalone builder that
+some call as they start. A widget's needs include the libraries it uses
+(`com.livecode.library.iconsvg com.livecode.library.widgetutils`). The
+levels are listed once, in `LEVELS` in build_lessons.py, which makes the
+front page's filters from it.
 
 ```sh
 python3 tools/pages/build_lessons.py --out /tmp/lessons      # the pages alone
