@@ -500,6 +500,109 @@ class Device(unittest.TestCase):
         self.assertNotIn('in front', out)
         self.assertNotIn('commonest colours', out)
 
+    def test_the_fail_colour_is_a_failure_and_ends_the_wait(self):
+        # the Java layer's probe turns kFailColor when a call it makes into
+        # the Java layer answers nothing: the wait ends there (well inside
+        # its time), and the check fails saying so, even with the app running
+        with open(os.path.join(self.tmp.name, 'screen.raw'), 'wb') as f:
+            f.write(struct.pack('<IIII', 4, 4, 1, 0) + bytes(list(ac.FAIL_COLOR) + [255]) * 16)
+        with open(os.path.join(self.tmp.name, 'logcat.txt'), 'w') as f:
+            f.write(self.LOG.split('I/lowmemorykiller')[0])
+        started = time.time()
+        status, out = self.device('echo 3475', timeout='60')
+        self.assertLess(time.time() - started, 30)
+        self.assertEqual(status, 1, out)
+        self.assertIn("the probe's script ran, and a call it makes into the Java layer failed (the screen is its "
+                      "fail colour, 100%)", out)
+        self.assertNotIn('never turned the probe', out)
+
+    def test_a_little_of_the_fail_colour_is_not_a_failure(self):
+        # a green screen with a strip of the fail colour (an icon, a bar)
+        # is the probe's green: 2 of the 10 pixels read are that colour
+        with open(os.path.join(self.tmp.name, 'screen.raw'), 'wb') as f:
+            f.write(struct.pack('<IIII', 8, 8, 1, 0) + bytes(list(ac.RUN_COLOR) + [255]) * 56 +
+                    bytes(list(ac.FAIL_COLOR) + [255]) * 8)
+        status, out = self.device('true')
+        self.assertIn("80% of the screen is the probe's green", out)
+        self.assertNotIn('Java layer failed', out)
+        self.assertIn('the app is not running', out)
+
+
+class Overlay(unittest.TestCase):
+    """overlay puts this checkout's builder over a release's, and with
+    --classes a Java layer over the release's Runtime/Android/Classes"""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = os.path.join(self.tmp.name, 'release')
+        for rel in ac.OVERLAY:
+            path = os.path.join(self.root, 'Tools', 'x', os.path.basename(rel))
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'w') as f:
+                f.write('old')
+        self.classes = os.path.join(self.root, 'Runtime', 'Android', 'Classes')
+        os.makedirs(os.path.dirname(self.classes))
+        with open(self.classes, 'wb') as f:
+            f.write(b'old jar')
+        self.new = os.path.join(self.tmp.name, 'Classes')
+        with open(self.new, 'wb') as f:
+            f.write(b'new jar')
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def overlay(self, classes=None):
+        import argparse
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            problems = ac.overlay(argparse.Namespace(root=self.root, classes=classes))
+        return problems, out.getvalue()
+
+    def jar(self):
+        with open(self.classes, 'rb') as f:
+            return f.read()
+
+    def test_builder_only(self):
+        problems, _ = self.overlay()
+        self.assertEqual(problems, [])
+        self.assertEqual(self.jar(), b'old jar')
+        for rel in ac.OVERLAY:
+            with open(os.path.join(self.root, 'Tools', 'x', os.path.basename(rel)), encoding='utf-8') as f:
+                self.assertEqual(f.read(), read(*rel.split('/')))
+
+    def test_classes(self):
+        problems, out = self.overlay(self.new)
+        self.assertEqual(problems, [])
+        self.assertEqual(self.jar(), b'new jar')
+        self.assertIn('-> %s' % os.path.join('Runtime', 'Android', 'Classes'), out)
+
+    def test_another_file_named_classes_is_left_alone(self):
+        other = os.path.join(self.root, 'Runtime', 'Other', 'Classes')
+        os.makedirs(os.path.dirname(other))
+        with open(other, 'wb') as f:
+            f.write(b'other')
+        problems, _ = self.overlay(self.new)
+        self.assertEqual(problems, [])
+        self.assertEqual(self.jar(), b'new jar')
+        with open(other, 'rb') as f:
+            self.assertEqual(f.read(), b'other')
+
+    def test_two_java_layers_is_a_problem(self):
+        second = os.path.join(self.root, 'more', 'Runtime', 'Android', 'Classes')
+        os.makedirs(os.path.dirname(second))
+        with open(second, 'wb') as f:
+            f.write(b'second')
+        problems, _ = self.overlay(self.new)
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn('2 files Runtime/Android/Classes, not one', problems[0])
+        self.assertEqual(self.jar(), b'old jar')
+
+    def test_no_java_layer_is_a_problem(self):
+        os.remove(self.classes)
+        problems, _ = self.overlay(self.new)
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn('0 files Runtime/Android/Classes, not one', problems[0])
+
 
 class Screen(unittest.TestCase):
     def test_screen_colours(self):
@@ -614,6 +717,74 @@ class Compare(unittest.TestCase):
         problems, _ = ac.compare_apks('debug', old, new)
         self.assertEqual(problems, ["debug: the manifest is the same, and should have "
                                     "['receiver PushReceiver: android:exported=true']"])
+
+    def with_trees(self, trees):
+        """compare_apks with an aapt that answers trees[path of the apk]"""
+        saved = ac.run
+
+        def fake(cmd, timeout=300, check=False):
+            self.assertEqual(cmd[1:3], ['dump', 'xmltree'])
+            return 0, trees[cmd[3]]
+        ac.run = fake
+        self.addCleanup(setattr, ac, 'run', saved)
+
+    PUSH_EXPORTED = AAPT1_TREE.replace(
+        '        A: android:permission(0x01010006)="com.google.android.c2dm.permission.SEND" (Raw: "x")\n',
+        '        A: android:exported(0x01010010)=(type 0x12)0xffffffff\n'
+        '        A: android:permission(0x01010006)="com.google.android.c2dm.permission.SEND" (Raw: "x")\n')
+
+    def test_the_change_against_a_release_without_it(self):
+        # the released builder's manifest has no android:exported on the
+        # push receiver, this one's says true: the expected difference
+        self.assertNotEqual(self.PUSH_EXPORTED, AAPT1_TREE)
+        old = self.apk('old.apk', self.BASE)
+        new = self.apk('new.apk', [('AndroidManifest.xml', b'exported')] + self.BASE[1:])
+        self.with_trees({old: AAPT1_TREE, new: self.PUSH_EXPORTED})
+        problems, notes = ac.compare_apks('debug', old, new, aapt='aapt')
+        self.assertEqual(problems, [])
+        self.assertIn('manifest: - receiver PushReceiver: android:exported=(not set); '
+                      '+ receiver PushReceiver: android:exported=true', notes)
+
+    def test_a_release_that_carries_the_change(self):
+        # 0.2.7-rc.6.16 and later: the released builder makes the same
+        # manifest, which already says it; nothing is expected to differ
+        old = self.apk('old.apk', self.BASE)
+        new = self.apk('new.apk', self.BASE)
+        self.with_trees({old: self.PUSH_EXPORTED, new: self.PUSH_EXPORTED})
+        problems, notes = ac.compare_apks('debug', old, new, aapt='aapt')
+        self.assertEqual(problems, [])
+        self.assertIn('manifest: the same, and the old one has receiver PushReceiver: android:exported=true already '
+                      '(its builder carries the change)', notes)
+
+    def test_the_same_manifest_without_the_change_is_a_problem(self):
+        # neither builder says it: the change is gone
+        old = self.apk('old.apk', self.BASE)
+        new = self.apk('new.apk', self.BASE)
+        self.with_trees({old: AAPT1_TREE, new: AAPT1_TREE})
+        problems, _ = ac.compare_apks('debug', old, new, aapt='aapt')
+        self.assertEqual(problems, ["debug: the manifest is the same, and should have "
+                                    "['receiver PushReceiver: android:exported=true']"])
+
+    def test_against_a_release_that_carries_the_change_any_change_is_a_problem(self):
+        # the release has the line already, so this builder must not change
+        # the manifest's components at all
+        old = self.apk('old.apk', self.BASE)
+        new = self.apk('new.apk', [('AndroidManifest.xml', b'other')] + self.BASE[1:])
+        changed = self.PUSH_EXPORTED.replace('"AppReceiver" (Raw: "AppReceiver")\n'
+                                             '        A: android:exported(0x01010010)=(type 0x12)0x0',
+                                             '"AppReceiver" (Raw: "AppReceiver")\n'
+                                             '        A: android:exported(0x01010010)=(type 0x12)0xffffffff')
+        self.assertNotEqual(changed, self.PUSH_EXPORTED)
+        self.with_trees({old: self.PUSH_EXPORTED, new: changed})
+        problems, _ = ac.compare_apks('debug', old, new, aapt='aapt')
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn('debug: the manifest changed: - receiver AppReceiver: android:exported=false; '
+                      '+ receiver AppReceiver: android:exported=true', problems[0])
+
+    def test_expected_manifest(self):
+        self.assertEqual(ac.expected_manifest('debug', []), ['receiver PushReceiver: android:exported=true'])
+        self.assertEqual(ac.expected_manifest('debug', ['receiver PushReceiver: android:exported=true']), [])
+        self.assertEqual(ac.expected_manifest('release', []), [])
 
     def test_manifest_change_needs_aapt(self):
         old = self.apk('old.apk', self.BASE)
@@ -964,7 +1135,49 @@ class OneSystem(unittest.TestCase):
         script = read('tools', 'ci', 'android-check.livecodescript')
         self.assertIn('constant kRunColor = "%d,%d,%d"' % ac.RUN_COLOR, script)
         self.assertIn('constant kSavedColor = "%d,%d,%d"' % ac.SAVED_COLOR, script)
+        self.assertIn('constant kFailColor = "%d,%d,%d"' % ac.FAIL_COLOR, script)
         self.assertIn('constant kIdentifier = "%s"' % ac.IDENTIFIER, script)
+        # three colours the screen tells apart
+        colours = (ac.RUN_COLOR, ac.SAVED_COLOR, ac.FAIL_COLOR)
+        self.assertEqual(len(set(colours)), 3)
+
+    def test_probes(self):
+        # the stack ide --probe names is the one the script makes: its file
+        # is the stack's name, and OXT_ANDROID_PROBE picks it
+        script = read('tools', 'ci', 'android-check.livecodescript')
+        self.assertEqual(ac.PROBES, {'app': 'AndroidProbe.livecode', 'java': 'AndroidJavaProbe.livecode'})
+        name = re.search(r'(?s)private function probeName\n(.*?)\nend probeName', script).group(1)
+        self.assertIn('if $OXT_ANDROID_PROBE is "java" then\n      return "AndroidJavaProbe"', name)
+        self.assertIn('return "AndroidProbe"', name)
+        self.assertIn("OXT_ANDROID_PROBE='java' if args.probe == 'java' else ''", read('tools', 'ci', 'android_check.py'))
+        # the stack's name is said once, there: every use goes through it
+        self.assertEqual(script.count('"AndroidProbe"'), 1)
+        self.assertEqual(script.count('"AndroidJavaProbe"'), 2)
+
+    def test_java_probe_script(self):
+        # the Java layer's probe: a notification an hour away (the alarm's
+        # PendingIntent), its id checked, cancelled, and only then green;
+        # the plain probe turns green at once, as before
+        script = read('tools', 'ci', 'android-check.livecodescript')
+        body = re.search(r'(?s)private function probeScript\n(.*?)\nend probeScript', script).group(1)
+        java = body.split('end if\n   put "   set the backgroundColor of me to"')[0]
+        for part in ('mobileCreateLocalNotification', 'the seconds + 3600, false, 0',
+                     'put the result into tId', 'tId is not an integer or tId < 1',
+                     'kFailColor', 'exit openStack', 'mobileCancelLocalNotification tId'):
+            self.assertIn(part, java)
+        self.assertLess(java.index('mobileCreateLocalNotification'), java.index('mobileCancelLocalNotification'))
+        self.assertIn('if probeName() is "AndroidJavaProbe" then', body)
+        self.assertTrue(body.rstrip().endswith('"end openStack" after tScript\n   return tScript'))
+        self.assertIn('set the script of stack tProbe to probeScript()', script)
+
+    def test_builds_take_the_probes_name(self):
+        script = read('tools', 'ci', 'android-check.livecodescript')
+        for part in ('put revSBGetSettings(probeName(), true) into tSettings',
+                     'put probeName() into tSettings["name"]',
+                     'probeName(), tApk, "Build", buildSettings(tName)',
+                     'revSBSetSettings probeName(), buildSettings("debug")',
+                     'with probeName(), "Android" && tSerial'):
+            self.assertIn(part, script)
 
     def test_builds(self):
         script = read('tools', 'ci', 'android-check.livecodescript')
@@ -985,6 +1198,27 @@ class OneSystem(unittest.TestCase):
         self.assertTrue(boot, 'the 16 KB step waits for the emulator')
         self.assertIn('--settle', boot.group(0))
         self.assertLess(boot.start(), step.index('android_check.py device'))
+
+    def test_android_13_settles_before_any_probe_starts(self):
+        # the Android 13 image boots while the IDE builds; every probe on it
+        # (the IDE's Test, the packages, the Java layer's probe) starts only
+        # after boot --settle, never while it still enables its overlays
+        workflow = read('.github', 'workflows', 'android.yml')
+        step = re.search(r'(?s)- name: Wait for the emulator\n(.*?)\n      - name:', workflow)
+        self.assertTrue(step, 'the workflow waits for the Android 13 emulator')
+        boot = re.search(r'android_check\.py boot [^\n]*\\\n[^\n]*', step.group(1))
+        self.assertTrue(boot)
+        self.assertIn('--settle', boot.group(0))
+        self.assertIn('emulator-api33.log', boot.group(0))
+        # its step timeout leaves room for the boot's 10 minutes and the
+        # settling's 5, so the check's own account comes first
+        self.assertGreaterEqual(int(re.search(r'timeout-minutes: (\d+)', step.group(1)).group(1)), 16)
+        wait = workflow.index('- name: Wait for the emulator')
+        before = workflow[:wait]
+        start = before.index('- name: Start an Android 13 emulator')
+        for use in ('android_check.py device', '--device emulator-5554'):
+            self.assertNotIn(use, before[start:], use)
+        self.assertIn('--device emulator-5554', workflow[wait:])
 
     def test_workflow_runs_on_a_change_to_the_builder(self):
         workflow = read('.github', 'workflows', 'android.yml')

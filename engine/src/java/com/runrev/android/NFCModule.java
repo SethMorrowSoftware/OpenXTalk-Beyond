@@ -124,7 +124,7 @@ public class NFCModule
 				Intent intent = new Intent(m_engine.getActivity().getApplicationContext(), m_engine.getActivity().getClass());
 				intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
 				
-				PendingIntent pendingIntent = PendingIntent.getActivity(m_engine.getActivity().getApplicationContext(), 0, intent, 0);
+				PendingIntent pendingIntent = PendingIntent.getActivity(m_engine.getActivity().getApplicationContext(), 0, intent, Utils.mutablePendingIntentFlags(0));
 				m_nfc.enableForegroundDispatch(m_engine.getActivity(), pendingIntent, null, null);
 			}
 			catch (SecurityException e)

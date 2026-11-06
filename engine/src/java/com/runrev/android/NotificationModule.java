@@ -85,7 +85,7 @@ public class NotificationModule
         
         Intent t_intent = new Intent(context, t_receiver_class);
         t_intent.setAction(ACTION_DISPATCH_NOTIFICATIONS);
-        PendingIntent t_pending_intent = PendingIntent.getBroadcast(context, 0, t_intent, 0);
+        PendingIntent t_pending_intent = PendingIntent.getBroadcast(context, 0, t_intent, Utils.immutablePendingIntentFlags(0));
 
         long t_next_notification = getEarliestNotificationTime(context);
         
@@ -502,7 +502,7 @@ public class NotificationModule
         
         Intent t_intent = new Intent(context, t_activity_class);
         
-        return PendingIntent.getActivity(context, 0, t_intent, 0);
+        return PendingIntent.getActivity(context, 0, t_intent, Utils.immutablePendingIntentFlags(0));
     }
     
     private static PendingIntent createNotificationCancelIntent(Context context, int p_id)
@@ -511,7 +511,7 @@ public class NotificationModule
         t_intent.setAction(ACTION_CANCEL_NOTIFICATION);
         t_intent.putExtra(NOTIFY_ID, p_id);
         
-        return PendingIntent.getBroadcast(context, 0, t_intent, 0);
+        return PendingIntent.getBroadcast(context, 0, t_intent, Utils.immutablePendingIntentFlags(0));
     }
     
     public static void showStatusBarNotification(Context context, int p_id, String p_body, String p_title, boolean p_play_sound, int p_badge_value)
@@ -578,7 +578,7 @@ public class NotificationModule
             // Needed for registering devices that run Android Oreo+
             t_registration_intent.setPackage("com.google.android.gms");
             
-            t_registration_intent.putExtra("app", PendingIntent.getBroadcast(m_engine.getContext(), 0, new Intent(), 0));
+            t_registration_intent.putExtra("app", PendingIntent.getBroadcast(m_engine.getContext(), 0, new Intent(), Utils.immutablePendingIntentFlags(0)));
             t_registration_intent.putExtra("sender", senderEmail);
             m_engine.getContext().startService(t_registration_intent);
         }

@@ -36,6 +36,17 @@ public class OpenGLView extends SurfaceView implements SurfaceHolder.Callback
 	
 	private static final int EGL_CONTEXT_CLIENT_VERSION = 0x00003098;
 	
+	// OXT-Beyond: the OpenGL ES version of the context that start() makes,
+	// which must be the one the native engine draws with. The engine that
+	// ships with this Java layer (LiveCode Community 9.6.3's, carried in the
+	// runtime) draws with OpenGL ES 1 (it loads libGLESv1_CM), which wants a
+	// context made with no attributes, as its own Java made it; an engine
+	// built from this tree draws with OpenGL ES 3 (tilecachegl3.x.cpp, linked
+	// with -lGLESv3), whose context asks for version 3. Change it with the
+	// engine: tools/ci/android_java.py jni checks it against the OpenGL ES
+	// library the runtime's engine loads.
+	private static final int GLES_VERSION = 1;
+	
 	private EGL10 m_egl;
 	private EGLDisplay m_egl_display;
 	private EGLSurface m_egl_surface;
@@ -129,13 +140,18 @@ public class OpenGLView extends SurfaceView implements SurfaceHolder.Callback
 		// For debugging.
 		dumpConfig("Using EGLConfig", m_egl, m_egl_display, m_egl_config);
 		
-		int[] t_attr = new int[] {
-			EGL_CONTEXT_CLIENT_VERSION, 3,
-			EGL10.EGL_NONE,
-		};
-		
-		// Now create the OpenGL ES context.
-		m_egl_context = m_egl . eglCreateContext(m_egl_display, m_egl_config, EGL10 . EGL_NO_CONTEXT, t_attr);
+		// Now create the OpenGL ES context (javac keeps only the branch that
+		// GLES_VERSION takes).
+		if (GLES_VERSION > 1)
+		{
+			int[] t_attr = new int[] {
+				EGL_CONTEXT_CLIENT_VERSION, GLES_VERSION,
+				EGL10.EGL_NONE,
+			};
+			m_egl_context = m_egl . eglCreateContext(m_egl_display, m_egl_config, EGL10 . EGL_NO_CONTEXT, t_attr);
+		}
+		else
+			m_egl_context = m_egl . eglCreateContext(m_egl_display, m_egl_config, EGL10 . EGL_NO_CONTEXT, null);
 		
 		// We don't have a surface (just yet).
 		m_egl_surface = null;

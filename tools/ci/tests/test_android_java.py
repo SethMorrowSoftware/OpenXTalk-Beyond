@@ -1,0 +1,1070 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+"""tools/ci/android_java.py on made-up class files, jars, ELF files and C++
+and LCB sources: its reading of each, its comparison of two jars as the
+code means it, its JNI checks and Android's rules, each shown to fail on
+what it is for; and that the Java sources, the check's lists and the
+workflows agree. No JDK, Android SDK or engine is needed.
+
+  python3 -m unittest discover -s tools/ci/tests
+"""
+
+import contextlib
+import io
+import os
+import re
+import struct
+import sys
+import tempfile
+import unittest
+import zipfile
+
+CI = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = os.path.dirname(os.path.dirname(CI))
+sys.path.insert(0, CI)
+
+import android_java as aj  # noqa: E402
+
+
+def read(*path):
+    with open(os.path.join(REPO, *path), encoding='utf-8') as f:
+        return f.read()
+
+
+# ---------------------------------------------------------------------------
+# Made-up class files
+
+class ClassWriter(object):
+    """A class file, written as javac writes one, from what a test gives:
+    fields, and methods whose code is a list of items, each a byte, or a
+    tuple: ('u2', n), ('i4', n), ('ref', 'method'|'imethod'|'field', owner,
+    name, descriptor), ('class', name), ('string', text) and ('int', n) as
+    a constant pool index (two bytes), ('string1', text) as a one-byte
+    index (ldc)."""
+
+    def __init__(self, name, super_name='java/lang/Object', access=0x0021, interfaces=(), major=52,
+                 reverse_pool=False):
+        self.name = name
+        self.super_name = super_name
+        self.access = access
+        self.interfaces = interfaces
+        self.major = major
+        self.entries = []
+        self.index = {}
+        self.fields = []
+        self.methods = []
+        self.reverse_pool = reverse_pool
+
+    def const(self, key, body):
+        if key not in self.index:
+            self.entries.append(body)
+            self.index[key] = len(self.entries)
+        return self.index[key]
+
+    def utf8(self, text):
+        data = text.encode('utf-8')
+        return self.const(('utf8', text), b'\x01' + struct.pack('>H', len(data)) + data)
+
+    def cls(self, name):
+        return self.const(('class', name), b'\x07' + struct.pack('>H', self.utf8(name)))
+
+    def string(self, text):
+        return self.const(('string', text), b'\x08' + struct.pack('>H', self.utf8(text)))
+
+    def integer(self, n):
+        return self.const(('int', n), b'\x03' + struct.pack('>i', n))
+
+    def nat(self, name, desc):
+        return self.const(('nat', name, desc), b'\x0c' + struct.pack('>HH', self.utf8(name), self.utf8(desc)))
+
+    def ref(self, kind, owner, name, desc):
+        tag = {'field': 9, 'method': 10, 'imethod': 11}[kind]
+        return self.const(('ref', kind, owner, name, desc),
+                          bytes([tag]) + struct.pack('>HH', self.cls(owner), self.nat(name, desc)))
+
+    def field(self, name, desc, access=0x0002, value=None):
+        self.fields.append((access, name, desc, value))
+
+    def method(self, name, desc, access=0x0001, code=None, handlers=()):
+        self.methods.append((access, name, desc, code, handlers))
+
+    def assemble(self, code):
+        out = bytearray()
+        for item in code:
+            if isinstance(item, int):
+                out.append(item)
+            elif item[0] == 'u2':
+                out += struct.pack('>H', item[1])
+            elif item[0] == 'i4':
+                out += struct.pack('>i', item[1])
+            elif item[0] == 'ref':
+                out += struct.pack('>H', self.ref(*item[1:]))
+            elif item[0] == 'class':
+                out += struct.pack('>H', self.cls(item[1]))
+            elif item[0] == 'string':
+                out += struct.pack('>H', self.string(item[1]))
+            elif item[0] == 'string1':
+                out.append(self.string(item[1]))
+            elif item[0] == 'int':
+                out += struct.pack('>H', self.integer(item[1]))
+            else:
+                raise ValueError(item)
+        return bytes(out)
+
+    def bytes(self):
+        if self.reverse_pool:
+            # the same constants, written in another order (as another
+            # compiler might): fill the pool backwards first
+            for kind, args in reversed(self.pool_plan()):
+                getattr(self, kind)(*args)
+        this = self.cls(self.name)
+        sup = self.cls(self.super_name) if self.super_name else 0
+        ifaces = [self.cls(x) for x in self.interfaces]
+        members = []
+        for access, name, desc, value in self.fields:
+            attrs = b''
+            count = 0
+            if value is not None:
+                attrs = struct.pack('>HIH', self.utf8('ConstantValue'), 2, self.integer(value))
+                count = 1
+            members.append(('f', struct.pack('>HHHH', access, self.utf8(name), self.utf8(desc), count) + attrs))
+        for access, name, desc, code, handlers in self.methods:
+            attrs = b''
+            count = 0
+            if code is not None:
+                body = self.assemble(code)
+                table = struct.pack('>H', len(handlers)) + b''.join(
+                    struct.pack('>HHHH', s, e, h, self.cls(t) if t else 0) for s, e, h, t in handlers)
+                inner = struct.pack('>HHI', 10, 10, len(body)) + body + table + struct.pack('>H', 0)
+                attrs = struct.pack('>HI', self.utf8('Code'), len(inner)) + inner
+                count = 1
+            members.append(('m', struct.pack('>HHHH', access, self.utf8(name), self.utf8(desc), count) + attrs))
+        fields = [x for k, x in members if k == 'f']
+        methods = [x for k, x in members if k == 'm']
+        out = b'\xca\xfe\xba\xbe' + struct.pack('>HH', 0, self.major)
+        out += struct.pack('>H', len(self.entries) + 1) + b''.join(self.entries)
+        out += struct.pack('>HHH', self.access, this, sup)
+        out += struct.pack('>H', len(ifaces)) + b''.join(struct.pack('>H', x) for x in ifaces)
+        out += struct.pack('>H', len(fields)) + b''.join(fields)
+        out += struct.pack('>H', len(methods)) + b''.join(methods)
+        out += struct.pack('>H', 0)
+        return out
+
+    def pool_plan(self):
+        """What the methods' code will put in the pool, in order."""
+        plan = []
+        for _a, _n, _d, code, _h in self.methods:
+            for item in code or ():
+                if isinstance(item, tuple) and item[0] == 'ref':
+                    plan.append(('ref', item[1:]))
+                elif isinstance(item, tuple) and item[0] in ('class', 'string', 'int'):
+                    plan.append(({'class': 'cls', 'string': 'string', 'int': 'integer'}[item[0]], item[1:]))
+        return plan
+
+
+def parse(writer):
+    return aj.parse_class(writer.bytes())
+
+
+def listing(writer, name, desc, static=False):
+    c = parse(writer)
+    m = c.methods[(name, desc)]
+    return aj.code_listing(c, m[1], m[2], desc, static)
+
+
+def jar(path, writers):
+    with zipfile.ZipFile(path, 'w') as z:
+        for w in writers:
+            z.writestr(w.name + '.class', w.bytes())
+    return path
+
+
+# Java's opcodes, for the code the tests write
+ICONST_0, ICONST_2, BIPUSH, SIPUSH, LDC, LDC_W = 0x03, 0x05, 0x10, 0x11, 0x12, 0x13
+ALOAD_0, ALOAD_1, ALOAD, ASTORE, ASTORE_1, ISTORE, ILOAD = 0x2a, 0x2b, 0x19, 0x3a, 0x4c, 0x36, 0x15
+ACONST_NULL, RETURN, ARETURN, IRETURN, POP = 0x01, 0xb1, 0xb0, 0xac, 0x57
+GOTO, GOTO_W, IFEQ, IFNULL = 0xa7, 0xc8, 0x99, 0xc6
+INVOKEVIRTUAL, INVOKESTATIC, INVOKEINTERFACE, CHECKCAST, GETFIELD = 0xb6, 0xb8, 0xb9, 0xc0, 0xb4
+TABLESWITCH, LOOKUPSWITCH = 0xaa, 0xab
+
+
+class ClassFiles(unittest.TestCase):
+    def test_reads_a_class(self):
+        w = ClassWriter('a/B', 'a/Base', interfaces=('a/I',))
+        w.field('X', 'I', 0x001a, value=7)
+        w.method('n', '(Ljava/lang/String;)V', 0x0101)
+        w.method('m', '()V', code=[RETURN])
+        c = parse(w)
+        self.assertEqual((c.name, c.super_name, c.interfaces, c.major), ('a/B', 'a/Base', ['a/I'], 52))
+        self.assertEqual(c.pool[c.fields[('X', 'I')][1]], ('int', 7))
+        self.assertTrue(c.methods[('n', '(Ljava/lang/String;)V')][0] & aj.ACC_NATIVE)
+        self.assertIsNone(c.methods[('n', '(Ljava/lang/String;)V')][1])
+        self.assertEqual(c.methods[('m', '()V')][1], bytes([RETURN]))
+
+    def test_not_a_class(self):
+        with self.assertRaises(aj.CheckError):
+            aj.parse_class(b'PK\x03\x04')
+
+    def test_read_jar(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = jar(os.path.join(d, 'x.jar'), [ClassWriter('a/A'), ClassWriter('a/B')])
+            self.assertEqual(sorted(aj.read_jar(path)), ['a/A', 'a/B'])
+            bad = os.path.join(d, 'bad.jar')
+            with open(bad, 'wb') as f:
+                f.write(b'not a zip')
+            with self.assertRaises(aj.CheckError):
+                aj.read_jar(bad)
+
+    def test_parameters(self):
+        self.assertEqual(aj.parameter_types('(I[JLa/B;[[Ljava/lang/String;D)V'),
+                         ['I', '[J', 'La/B;', '[[Ljava/lang/String;', 'D'])
+        self.assertEqual(aj.parameter_slots('(IJD)V'), 5)
+        with self.assertRaises(aj.CheckError):
+            aj.parameter_types('I')
+
+
+class CodeListing(unittest.TestCase):
+    """Two ways of writing the same code list the same; a change does not"""
+
+    def same(self, code_a, code_b, desc='()V', static=False, **kw):
+        a = ClassWriter('a/A', **kw)
+        a.method('m', desc, code=code_a)
+        b = ClassWriter('a/A')
+        b.method('m', desc, code=code_b)
+        la, lb = listing(a, 'm', desc, static), listing(b, 'm', desc, static)
+        return la, lb
+
+    def test_ldc_and_ldc_w(self):
+        la, lb = self.same([LDC, ('string1', 'hi'), POP, RETURN], [LDC_W, ('string', 'hi'), POP, RETURN])
+        self.assertEqual(la, lb)
+        self.assertEqual(la[0], "ldc string 'hi'")
+
+    def test_pool_order_does_not_matter(self):
+        code = [ALOAD_0, INVOKEVIRTUAL, ('ref', 'method', 'a/A', 'f', '()V'),
+                LDC_W, ('string', 'x'), POP, RETURN]
+        a = ClassWriter('a/A')
+        a.method('m', '()V', code=code)
+        b = ClassWriter('a/A', reverse_pool=True)
+        b.method('m', '()V', code=code)
+        self.assertNotEqual(a.bytes(), b.bytes())
+        self.assertEqual(listing(a, 'm', '()V'), listing(b, 'm', '()V'))
+
+    def test_small_constants_by_value(self):
+        la, lb = self.same([ICONST_2, POP, RETURN], [BIPUSH, 2, POP, RETURN])
+        self.assertEqual(la, lb)
+        la, lc = self.same([ICONST_2, POP, RETURN], [SIPUSH, ('u2', 2), POP, RETURN])
+        self.assertEqual(la, lc)
+        self.assertEqual(la[0], 'const 2')
+
+    def test_goto_and_goto_w_by_instruction(self):
+        # goto +3 (to RETURN) against goto_w +5: the same target
+        la, lb = self.same([GOTO, ('u2', 3), RETURN], [GOTO_W, ('i4', 5), RETURN])
+        self.assertEqual(la, lb)
+        self.assertEqual(la, ['goto L1', 'return'])
+
+    def test_locals_numbered_by_first_use(self):
+        # one compiler puts the local in slot 2, another in slot 5
+        la, lb = self.same([ACONST_NULL, ASTORE, 2, ALOAD, 2, ARETURN],
+                           [ACONST_NULL, ASTORE, 5, ALOAD, 5, ARETURN], desc='()Ljava/lang/Object;')
+        self.assertEqual(la, lb)
+        self.assertEqual(la, ['aconst_null', 'astore v0', 'aload v0', 'areturn'])
+
+    def test_parameters_keep_their_slots(self):
+        la, lb = self.same([ALOAD_1, ARETURN], [ALOAD_0, ARETURN], desc='(Ljava/lang/Object;)Ljava/lang/Object;')
+        self.assertEqual(la, ['aload p1', 'areturn'])
+        self.assertNotEqual(la, lb)
+
+    def test_object_methods_by_name(self):
+        la, lb = self.same(
+            [ALOAD_1, INVOKEVIRTUAL, ('ref', 'method', 'java/lang/Object', 'toString', '()Ljava/lang/String;'),
+             POP, RETURN],
+            [ALOAD_1, INVOKEINTERFACE, ('ref', 'imethod', 'java/util/Set', 'toString', '()Ljava/lang/String;'), 1, 0,
+             POP, RETURN], desc='(Ljava/util/Set;)V')
+        self.assertEqual(la, lb)
+        self.assertEqual(la[1], 'invoke-object toString:()Ljava/lang/String;')
+
+    def test_other_interface_calls_are_kept(self):
+        la, lb = self.same(
+            [ALOAD_1, INVOKEINTERFACE, ('ref', 'imethod', 'java/util/Set', 'size', '()I'), 1, 0, POP, RETURN],
+            [ALOAD_1, INVOKEINTERFACE, ('ref', 'imethod', 'java/util/List', 'size', '()I'), 1, 0, POP, RETURN],
+            desc='(Ljava/util/Set;)V')
+        self.assertNotEqual(la, lb)
+
+    def test_checkcast_left_out_and_branches_kept(self):
+        # ifnull jumps to the checkcast; without it the target is the pop
+        la, lb = self.same([ALOAD_1, IFNULL, ('u2', 3), ALOAD_1, CHECKCAST, ('class', 'a/B'), POP, RETURN],
+                           [ALOAD_1, IFNULL, ('u2', 3), ALOAD_1, POP, RETURN], desc='(Ljava/lang/Object;)V')
+        self.assertEqual(la, lb)
+
+    def test_switches_by_key_and_target(self):
+        # tableswitch 0..1 against lookupswitch {0, 1}, both to the same
+        # instructions: the opcode is at 2, so one byte pads its operands
+        # to 4, and the offsets are from the opcode
+        table = [ILOAD, 1, TABLESWITCH, 0, ('i4', 26), ('i4', 0), ('i4', 1), ('i4', 22), ('i4', 24),
+                 ICONST_0, IRETURN, ICONST_2, IRETURN, ICONST_0, IRETURN]
+        look = [ILOAD, 1, LOOKUPSWITCH, 0, ('i4', 30), ('i4', 2), ('i4', 0), ('i4', 26), ('i4', 1), ('i4', 28),
+                ICONST_0, IRETURN, ICONST_2, IRETURN, ICONST_0, IRETURN]
+        la, lb = self.same(table, look, desc='(I)I')
+        self.assertEqual(la, lb)
+        self.assertEqual(la[1], "switch L6 [(0, 'L2'), (1, 'L4')]")
+
+    def test_a_real_change_differs(self):
+        la, lb = self.same([ACONST_NULL, ARETURN], [ALOAD_0, ARETURN], desc='()Ljava/lang/Object;')
+        self.assertNotEqual(la, lb)
+
+    def test_exception_table(self):
+        a = ClassWriter('a/A')
+        a.method('m', '()V', code=[ALOAD_0, POP, RETURN, POP, RETURN], handlers=[(0, 2, 3, 'java/lang/Exception')])
+        self.assertEqual(listing(a, 'm', '()V')[-1], 'catch java/lang/Exception L0-L2 -> L3')
+
+    def test_unknown_instruction(self):
+        a = ClassWriter('a/A')
+        a.method('m', '()V', code=[0xfe])
+        with self.assertRaises(aj.CheckError):
+            listing(a, 'm', '()V')
+
+
+# ---------------------------------------------------------------------------
+
+def simple(name='a/A', code=(ACONST_NULL, ARETURN), **kw):
+    w = ClassWriter(name, **kw)
+    w.field('f', 'I')
+    w.method('m', '()Ljava/lang/Object;', code=list(code))
+    w.method('n', '(I)V', 0x0101)
+    return w
+
+
+class CompareJars(unittest.TestCase):
+    def jars(self, old, new):
+        return ({w.name: parse(w) for w in old}, {w.name: parse(w) for w in new})
+
+    def test_same(self):
+        gone, added = aj.compare_jars(*self.jars([simple()], [simple()]))
+        self.assertEqual((gone, added), ([], []))
+
+    def test_class_gone_and_added(self):
+        gone, added = aj.compare_jars(*self.jars([simple(), simple('a/Old')], [simple(), simple('a/New')]))
+        self.assertEqual([k for k, _ in gone], ['class a/Old'])
+        self.assertEqual(added, ['class a/New'])
+
+    def test_member_gone_changed_and_added(self):
+        old = simple()
+        new = ClassWriter('a/A')
+        new.field('f', 'J')
+        new.method('m', '()Ljava/lang/Object;', 0x0009, code=[ACONST_NULL, ARETURN])
+        new.method('n', '(I)V', 0x0101)
+        gone, added = aj.compare_jars(*self.jars([old], [new]))
+        keys = [k for k, _ in gone]
+        self.assertIn('member a/A.f:I', keys)
+        self.assertIn('member a/A.m:()Ljava/lang/Object;', keys)
+        self.assertIn('a/A.field f:J (private)', added)
+        text = dict(gone)['member a/A.m:()Ljava/lang/Object;']
+        self.assertIn('was public, is public static', text)
+
+    def test_constant_value_change(self):
+        a = ClassWriter('a/A')
+        a.field('V', 'I', 0x001a, value=1)
+        b = ClassWriter('a/A')
+        b.field('V', 'I', 0x001a, value=3)
+        gone, _ = aj.compare_jars(*self.jars([a], [b]))
+        self.assertEqual([k for k, _ in gone], ['member a/A.V:I'])
+        self.assertIn('was int 1, is int 3', gone[0][1])
+
+    def test_code_change(self):
+        gone, _ = aj.compare_jars(*self.jars([simple()], [simple(code=(ALOAD_0, ARETURN))]))
+        self.assertEqual([k for k, _ in gone], ['code a/A.m:()Ljava/lang/Object;'])
+        self.assertIn('-aconst_null', gone[0][1])
+        self.assertIn('+aload p0', gone[0][1])
+
+    def test_class_header(self):
+        gone, _ = aj.compare_jars(*self.jars([simple()], [simple(super_name='a/Other')]))
+        self.assertEqual([k for k, _ in gone], ['class a/A'])
+
+    def test_anonymous_class_final_is_left_out(self):
+        gone, _ = aj.compare_jars(*self.jars([simple('a/A$1', access=0x0030)], [simple('a/A$1', access=0x0020)]))
+        self.assertEqual(gone, [])
+        gone, _ = aj.compare_jars(*self.jars([simple('a/A', access=0x0031)], [simple('a/A', access=0x0021)]))
+        self.assertEqual([k for k, _ in gone], ['class a/A'])
+
+    def test_synthetic_members_are_left_out(self):
+        old = simple()
+        old.method('access$000', '()V', 0x1008, code=[RETURN])
+        new = simple()
+        new.method('access$100', '(I)V', 0x1008, code=[RETURN])
+        gone, added = aj.compare_jars(*self.jars([old], [new]))
+        self.assertEqual((gone, added), ([], []))
+
+
+class Compare(unittest.TestCase):
+    """compare's verdict: EXPECTED by the old jar's SHA-256"""
+
+    def run_compare(self, old, new, expected):
+        with tempfile.TemporaryDirectory() as d:
+            a = jar(os.path.join(d, 'old.jar'), old)
+            b = jar(os.path.join(d, 'new.jar'), new)
+            saved = aj.EXPECTED
+            aj.EXPECTED = {aj.sha256(a): expected} if expected is not None else {}
+            out = io.StringIO()
+            try:
+                with contextlib.redirect_stdout(out):
+                    status = aj.main(['compare', '--old', a, '--new', b])
+            finally:
+                aj.EXPECTED = saved
+        return status, out.getvalue()
+
+    def test_expected_differences_pass(self):
+        status, out = self.run_compare([simple()], [simple(code=(ALOAD_0, ARETURN)), simple('a/New')],
+                                       {'code a/A.m:()Ljava/lang/Object;': 'meant'})
+        self.assertEqual(status, 0, out)
+        self.assertIn('EXPECTED: the code of a/A.m:()Ljava/lang/Object; differs', out)
+        self.assertIn('because meant', out)
+        self.assertIn('  class a/New', out)
+
+    def test_an_unexpected_difference_fails(self):
+        status, out = self.run_compare([simple()], [simple(code=(ALOAD_0, ARETURN))], {})
+        self.assertEqual(status, 1)
+        self.assertIn('PROBLEM: the code of a/A.m:()Ljava/lang/Object; differs', out)
+
+    def test_a_stale_entry_fails(self):
+        status, out = self.run_compare([simple()], [simple()], {'code a/A.m:()Ljava/lang/Object;': 'meant'})
+        self.assertEqual(status, 1)
+        self.assertIn('but it does not differ', out)
+
+    def test_an_unknown_old_jar_fails_on_additions_too(self):
+        status, out = self.run_compare([simple()], [simple(), simple('a/New')], None)
+        self.assertEqual(status, 1)
+        self.assertIn('PROBLEM: only the new jar has class a/New', out)
+
+
+# ---------------------------------------------------------------------------
+# build
+
+class Build(unittest.TestCase):
+    def test_sources(self):
+        java, aidl = aj.java_sources()
+        self.assertGreater(len(java), 40)
+        self.assertNotIn('src/java/com/runrev/android/billing/ResponseHandler.java', java,
+                         'a source the .gypi comments out')
+        for x in java + aidl:
+            self.assertTrue(os.path.isfile(os.path.join(aj.ENGINE_DIR, x)), x)
+        for x in aidl:
+            self.assertTrue(os.path.isfile(os.path.join(aj.ENGINE_DIR, os.path.splitext(x)[0] + '.java')),
+                            '%s has no Java beside it' % x)
+
+    def test_gyp_list(self):
+        text = "{ 'x': [\n  'a.java',\n  #'b.java',\n  'c.java',\n], 'y': ['d'] }"
+        self.assertEqual(aj.gyp_list(text, 'x'), ['a.java', 'c.java'])
+        with self.assertRaises(aj.CheckError):
+            aj.gyp_list(text, 'z')
+
+    def test_jar_bytes_depend_only_on_the_classes(self):
+        with tempfile.TemporaryDirectory() as d:
+            classes = os.path.join(d, 'classes', 'a')
+            os.makedirs(classes)
+            with open(os.path.join(classes, 'B.class'), 'wb') as f:
+                f.write(ClassWriter('a/B').bytes())
+            with open(os.path.join(classes, 'A.class'), 'wb') as f:
+                f.write(ClassWriter('a/A').bytes())
+            # the folder the jar goes in is made when it is not there
+            one, two = os.path.join(d, 'out', '1.jar'), os.path.join(d, '2.jar')
+            self.assertEqual(aj.write_jar(os.path.join(d, 'classes'), one), 2)
+            os.utime(os.path.join(classes, 'A.class'), (1, 1))
+            aj.write_jar(os.path.join(d, 'classes'), two)
+            with open(one, 'rb') as f1, open(two, 'rb') as f2:
+                self.assertEqual(f1.read(), f2.read())
+            with zipfile.ZipFile(one) as z:
+                self.assertEqual(z.namelist(), ['META-INF/MANIFEST.MF', 'a/A.class', 'a/B.class'])
+
+    @unittest.skipIf(os.name == 'nt', 'the stand-in javac is a shell script')
+    def test_build_runs_javac_as_the_gyp_build_did(self):
+        with tempfile.TemporaryDirectory() as d:
+            platform = os.path.join(d, 'sdk', 'platforms', 'android-36')
+            os.makedirs(platform)
+            open(os.path.join(platform, 'android.jar'), 'wb').close()
+            bin_dir = os.path.join(d, 'jdk', 'bin')
+            os.makedirs(bin_dir)
+            with open(os.path.join(d, 'A.class'), 'wb') as f:
+                f.write(ClassWriter('com/runrev/android/A').bytes())
+            javac = os.path.join(bin_dir, 'javac')
+            with open(javac, 'w') as f:
+                f.write('#!/bin/sh\n'
+                        'echo "$@" > "%s/args.txt"\n'
+                        'while [ "$1" != "-d" ]; do shift; done\n'
+                        'mkdir -p "$2/com/runrev/android" && cp "%s/A.class" "$2/com/runrev/android/A.class"\n'
+                        % (d, d))
+            os.chmod(javac, 0o755)
+            # in a folder not made yet, as android.yml gives it
+            out = os.path.join(d, 'java', 'Classes')
+            log = io.StringIO()
+            with contextlib.redirect_stdout(log):
+                status = aj.main(['build', '--sdk', os.path.join(d, 'sdk'), '--jdk', os.path.join(d, 'jdk'),
+                                  '--out', out])
+            self.assertEqual(status, 0, log.getvalue())
+            with open(os.path.join(d, 'args.txt')) as f:
+                args = f.read().split()
+            for flag in ('-source', '-target', '-implicit:none', '-bootclasspath', '-sourcepath'):
+                self.assertIn(flag, args)
+            self.assertEqual(args[args.index('-source') + 1], '8')
+            self.assertEqual(args[args.index('-bootclasspath') + 1], os.path.join(platform, 'android.jar'))
+            # the AIDL interfaces' Java first, as config/java.gypi had it
+            first = [x for x in args if x.endswith('.java')][0]
+            self.assertTrue(first.endswith('IInAppBillingService.java'), first)
+            self.assertIn('com/runrev/android/A', aj.read_jar(out))
+
+    def test_build_without_the_platform(self):
+        with tempfile.TemporaryDirectory() as d:
+            log = io.StringIO()
+            with contextlib.redirect_stdout(log):
+                status = aj.main(['build', '--sdk', d, '--out', os.path.join(d, 'x.jar')])
+            self.assertEqual(status, 1)
+            self.assertIn('platforms;android-36', log.getvalue())
+
+
+# ---------------------------------------------------------------------------
+# Made-up ELF files
+
+def elf(exports, needed, is64=True, undefined=('memcpy',)):
+    """An ELF shared library's bytes with a .dynsym, .dynstr and .dynamic:
+    the names it exports (defined), those it imports (undefined) and the
+    libraries it needs."""
+    end = '<'
+    strtab = bytearray(b'\0')
+
+    def s(text):
+        at = len(strtab)
+        strtab.extend(text.encode() + b'\0')
+        return at
+    syms = [b'\0' * (24 if is64 else 16)]
+    for name, shndx in [(x, 9) for x in exports] + [(x, 0) for x in undefined]:
+        if is64:
+            syms.append(struct.pack(end + 'IBBHQQ', s(name), 0x12, 0, shndx, 0, 0))
+        else:
+            syms.append(struct.pack(end + 'IIIBBH', s(name), 0, 0, 0x12, 0, shndx))
+    dyn = b''.join(struct.pack(end + ('qQ' if is64 else 'iI'), 1, s(x)) for x in needed)
+    dyn += struct.pack(end + ('qQ' if is64 else 'iI'), 0, 0)
+    dynsym = b''.join(syms)
+    ehsize, shentsize = (64, 64) if is64 else (52, 40)
+    body = bytearray()
+    off_sym = ehsize
+    body += dynsym
+    off_str = ehsize + len(body)
+    body += strtab
+    off_dyn = ehsize + len(body)
+    body += dyn
+    shoff = ehsize + len(body)
+
+    def sh(sh_type, off, size, link, entsize):
+        if is64:
+            return struct.pack(end + 'IIQQQQIIQQ', 0, sh_type, 0, 0, off, size, link, 0, 8, entsize)
+        return struct.pack(end + 'IIIIIIIIII', 0, sh_type, 0, 0, off, size, link, 0, 4, entsize)
+    sections = [sh(0, 0, 0, 0, 0), sh(11, off_sym, len(dynsym), 2, 24 if is64 else 16),
+                sh(3, off_str, len(strtab), 0, 0), sh(6, off_dyn, len(dyn), 2, 16 if is64 else 8)]
+    ident = b'\x7fELF' + bytes([2 if is64 else 1, 1, 1]) + b'\0' * 9
+    if is64:
+        header = ident + struct.pack(end + 'HHIQQQIHHHHHH', 3, 183, 1, 0, 0, shoff, 0, ehsize, 0, 0, shentsize,
+                                     len(sections), 0)
+    else:
+        header = ident + struct.pack(end + 'HHIIIIIHHHHHH', 3, 40, 1, 0, 0, shoff, 0, ehsize, 0, 0, shentsize,
+                                     len(sections), 0)
+    return header + bytes(body) + b''.join(sections)
+
+
+class Elf(unittest.TestCase):
+    def test_64_and_32_bits(self):
+        for is64 in (True, False):
+            exports, needed = aj.elf_dynamic(elf(['Java_a_B_n', 'other'], ['libGLESv1_CM.so', 'libc.so'], is64))
+            self.assertEqual(exports, {'Java_a_B_n', 'other'}, is64)
+            self.assertEqual(needed, ['libGLESv1_CM.so', 'libc.so'], is64)
+
+    def test_not_elf(self):
+        with self.assertRaises(aj.CheckError):
+            aj.elf_dynamic(b'MZ')
+
+
+# ---------------------------------------------------------------------------
+# jni
+
+def engine_classes(extra_natives=(), gles=None):
+    """A made-up Java layer: an Engine with natives and methods the engine
+    calls, an OpenGLView, and a listener interface."""
+    e = ClassWriter('com/runrev/android/Engine', 'android/view/View')
+    e.method('doProcess', '(Z)V', 0x010a)
+    e.method('doName_x', '(Ljava/lang/String;)V', 0x0101)
+    for name, desc in extra_natives:
+        e.method(name, desc, 0x0101)
+    e.method('getEngine', '()Lcom/runrev/android/Engine;', 0x0009, code=[ACONST_NULL, ARETURN])
+    e.method('current', '()Ljava/lang/Object;', 0x0009, code=[ACONST_NULL, ARETURN])
+    e.method('showAlert', '(Ljava/lang/String;I)V', code=[RETURN])
+    e.method('pick', '(Ljava/lang/String;)Ljava/lang/String;', code=[ACONST_NULL, ARETURN])
+    v = ClassWriter('com/runrev/android/OpenGLView', 'android/view/SurfaceView')
+    if gles is None:
+        v.method('start', '()V', code=[ALOAD_0, ACONST_NULL, POP, POP, RETURN])
+    else:
+        # new int[] {EGL_CONTEXT_CLIENT_VERSION, gles, EGL_NONE}
+        v.method('start', '()V', code=[0x06, 0xbc, 10, 0x59, ICONST_0, SIPUSH, ('u2', 0x3098), 0x4f,
+                                       0x59, 0x04, BIPUSH, gles, 0x4f, 0x59, ICONST_2, SIPUSH, ('u2', 0x3038), 0x4f,
+                                       ASTORE_1, RETURN])
+    i = ClassWriter('com/runrev/android/Engine$Listener', access=0x0601)
+    return [e, v, i]
+
+
+def android_jar(path):
+    """A stand-in android.jar: View, with setVisibility, above Engine, and
+    Object at the top (without it every lookup that reaches the top is one
+    that cannot be answered)."""
+    top = ClassWriter('java/lang/Object', None)
+    view = ClassWriter('android/view/View')
+    view.method('setVisibility', '(I)V', code=[RETURN])
+    sv = ClassWriter('android/view/SurfaceView', 'android/view/View')
+    obj = ClassWriter('java/lang/Boolean')
+    obj.method('booleanValue', '()Z', code=[ICONST_0, IRETURN])
+    return jar(path, [top, view, sv, obj])
+
+
+class RepoPath(unittest.TestCase):
+    def test_in_and_out_of_the_checkout(self):
+        self.assertEqual(aj.repo_path(os.path.join(REPO, 'tools', 'ci', 'x.py')), 'tools/ci/x.py')
+        saved = os.path.relpath
+        try:
+            def other_drive(path, start=None):
+                raise ValueError('path is on mount C:, start on mount D:')
+            os.path.relpath = other_drive
+            self.assertEqual(aj.repo_path(os.path.join('elsewhere', 'x.cpp')), 'elsewhere/x.cpp')
+        finally:
+            os.path.relpath = saved
+
+
+class Mangle(unittest.TestCase):
+    def test_names(self):
+        self.assertEqual(aj.jni_mangle('com/runrev/android/Engine'), 'com_runrev_android_Engine')
+        self.assertEqual(aj.jni_mangle('do_it'), 'do_1it')
+        self.assertEqual(aj.jni_mangle('a$B'), 'a_00024B')
+        self.assertEqual(aj.jni_mangle('[Ljava/lang/String;'), '_3Ljava_lang_String_2')
+        self.assertEqual(aj.jni_names('a/B', 'n', '(ILa/C;)V'), ('Java_a_B_n', 'Java_a_B_n__ILa_C_2'))
+
+
+class Exports(unittest.TestCase):
+    def setUp(self):
+        self.saved = aj.UNEXPORTED
+        aj.UNEXPORTED = {}
+
+    def tearDown(self):
+        aj.UNEXPORTED = self.saved
+
+    def classes(self, *extra):
+        return {w.name: parse(w) for w in engine_classes(extra)}
+
+    def test_every_native_exported(self):
+        engines = {'arm64-v8a': {'Java_com_runrev_android_Engine_doProcess', 'Java_com_runrev_android_Engine_doName_1x',
+                                 'JNI_OnLoad'}}
+        problems, lines = aj.check_exports(self.classes(), engines)
+        self.assertEqual(problems, [])
+        self.assertIn('arm64-v8a: 2 Java_* exports, 2 native methods, 0 of them not in the engine', lines[0])
+
+    def test_overloaded_name(self):
+        engines = {'x86': {'Java_com_runrev_android_Engine_doProcess__Z', 'Java_com_runrev_android_Engine_doName_1x'}}
+        self.assertEqual(aj.check_exports(self.classes(), engines)[0], [])
+
+    def test_a_native_with_no_function(self):
+        engines = {'x86': {'Java_com_runrev_android_Engine_doProcess'}}
+        problems, _ = aj.check_exports(self.classes(), engines)
+        self.assertEqual(problems, ['x86: the native method com/runrev/android/Engine.doName_x:(Ljava/lang/String;)V '
+                                    'has no function in the engine'])
+        aj.UNEXPORTED = {'com/runrev/android/Engine.doName_x:(Ljava/lang/String;)V': 'never called'}
+        self.assertEqual(aj.check_exports(self.classes(), engines)[0], [])
+
+    def test_an_export_with_no_native(self):
+        engines = {'x86': {'Java_com_runrev_android_Engine_doProcess', 'Java_com_runrev_android_Engine_doName_1x',
+                           'Java_com_runrev_android_Engine_doGone'}}
+        problems, _ = aj.check_exports(self.classes(), engines)
+        self.assertEqual(len(problems), 1)
+        self.assertIn('exports Java_com_runrev_android_Engine_doGone, which no native method', problems[0])
+
+    def test_a_stale_unexported_entry(self):
+        aj.UNEXPORTED = {'com/runrev/android/Engine.doProcess:(Z)V': 'was missing once'}
+        engines = {'x86': {'Java_com_runrev_android_Engine_doProcess', 'Java_com_runrev_android_Engine_doName_1x'}}
+        problems, _ = aj.check_exports(self.classes(), engines)
+        self.assertEqual(len(problems), 1)
+        self.assertIn('UNEXPORTED names com/runrev/android/Engine.doProcess:(Z)V', problems[0])
+
+
+CPP = r'''
+// MCAndroidEngineRemoteCall("commented", "v", nil);
+/* MCAndroidEngineCall("alsoCommented", "v", nil); */
+void f()
+{
+    const char *s = "not // a comment";
+    MCAndroidEngineRemoteCall("showAlert", "vxi", nil, p_message, 3);
+    MCAndroidEngineCall("pick", "x@", &r, p_value);
+    MCAndroidObjectRemoteCall(t_view, "setVisibility", "vi", nil, 1);
+    MCAndroidObjectRemoteCall(get(view), "missing", "v", nil);
+    MCAndroidStaticRemoteCall("com/runrev/android/Engine", "current", "o", &r);
+    jclass t_boolean_class = env->FindClass("java/lang/Boolean");
+    s_boolean_class = (jclass)env->NewGlobalRef(t_boolean_class);
+    s_value = env->GetMethodID(s_boolean_class, "booleanValue", "()Z");
+    s_other = env->GetMethodID(env->GetObjectClass(view), "nowhere", "(IZ)V");
+}
+'''
+
+
+class Calls(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.cpp = os.path.join(self.tmp.name, 'made_up_calls.cpp')
+        with open(self.cpp, 'w') as f:
+            f.write(CPP)
+        self.file = aj.repo_path(self.cpp)
+        self.android = android_jar(os.path.join(self.tmp.name, 'android.jar'))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def calls(self):
+        return {c.name: c for c in aj.source_calls([self.cpp])}
+
+    def test_reads_the_calls(self):
+        calls = self.calls()
+        self.assertNotIn('commented', calls)
+        self.assertNotIn('alsoCommented', calls)
+        self.assertEqual(sorted(calls), ['booleanValue', 'current', 'missing', 'nowhere', 'pick', 'setVisibility',
+                                         'showAlert'])
+        self.assertEqual(calls['showAlert'].cls, 'com/runrev/android/Engine')
+        self.assertTrue(re.match(calls['showAlert'].pattern, '(Ljava/lang/String;I)V'))
+        self.assertIsNone(calls['setVisibility'].cls)
+        self.assertEqual(calls['current'].cls, 'com/runrev/android/Engine')
+        self.assertTrue(calls['current'].static)
+        self.assertEqual(calls['booleanValue'].cls, 'java/lang/Boolean', 'through NewGlobalRef')
+        self.assertIsNone(calls['nowhere'].cls)
+        self.assertEqual(calls['showAlert'].where, self.file + ':7')
+        self.assertEqual(calls['showAlert'].file, self.file)
+
+    def test_signature_letters(self):
+        self.assertTrue(re.match(aj.signature_pattern('x@'), '(Ljava/lang/Object;)Ljava/lang/String;'))
+        self.assertTrue(re.match(aj.signature_pattern('x@'), '(I)Ljava/lang/String;'))
+        self.assertTrue(re.match(aj.signature_pattern('@'), '()Ljava/lang/Object;'))
+        self.assertFalse(re.match(aj.signature_pattern('vi'), '(J)V'))
+        with self.assertRaises(aj.CheckError):
+            aj.signature_pattern('vq')
+
+    def check(self, strings=None, known=None):
+        jarred = {w.name: parse(w) for w in engine_classes()}
+        classes = aj.Classes(jarred, self.android)
+        return aj.check_calls(aj.source_calls([self.cpp]), classes, strings, known or {})
+
+    def test_found_and_not_found(self):
+        problems, lines = self.check()
+        self.assertEqual(len(problems), 2, problems)
+        self.assertIn('calls missing with the signature v', problems[0])
+        self.assertIn('calls nowhere with the signature (IZ)V', problems[1])
+        self.assertIn('7 calls into Java checked', lines[-1])
+
+    def test_not_in_the_engine_is_listed_only(self):
+        strings = b'\0showAlert\0pick\0setVisibility\0current\0booleanValue\0nowhere\0'
+        problems, lines = self.check(strings)
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn('nowhere', problems[0])
+        self.assertTrue(any(x.startswith("not in the runtime's engine:") and 'missing' in x for x in lines))
+
+    def test_known_calls(self):
+        f = self.file
+        known = {(f, 'missing', 'v'): 'never worked', (f, 'nowhere', '(IZ)V'): 'never worked'}
+        problems, lines = self.check(known=known)
+        self.assertEqual(problems, [])
+        self.assertTrue(any(x.startswith('KNOWN:') for x in lines))
+        known[(f, 'showAlert', 'vxi')] = 'once missing'
+        known[(f, 'gone', 'v')] = 'no longer made'
+        problems, _ = self.check(known=known)
+        self.assertEqual(len(problems), 2, problems)
+        self.assertIn('which finds its method now', problems[0])
+        self.assertIn('which the source no longer makes', problems[1])
+
+    def test_the_return_type_is_exact(self):
+        # 'o' asks JNI for ()Ljava/lang/Object; and nothing else: a method
+        # that returns an Engine is not found by it, as on a device
+        call = aj.Call('x.cpp:1', 'static', 'com/runrev/android/Engine', 'getEngine', aj.signature_pattern('o'),
+                       True, 'o')
+        jarred = {w.name: parse(w) for w in engine_classes()}
+        problems, _ = aj.check_calls([call], aj.Classes(jarred, self.android), None, {})
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn('calls getEngine with the signature o', problems[0])
+
+    def test_without_android_jar(self):
+        jarred = {w.name: parse(w) for w in engine_classes()}
+        problems, lines = aj.check_calls(aj.source_calls([self.cpp]), aj.Classes(jarred), None, {})
+        self.assertTrue(any(x.startswith('cannot say (no android.jar)') and 'booleanValue' in x for x in lines))
+
+    def test_the_real_sources_are_read(self):
+        calls = aj.source_calls([os.path.join(REPO, 'engine', 'src', 'mblandroidnotification.cpp')])
+        self.assertIn(('createLocalNotification', 'jxxxibi'), [(c.name, c.text) for c in calls])
+
+
+class Bindings(unittest.TestCase):
+    LCB = '''
+foreign handler _A() returns JObject binds to "java:com.runrev.android.Engine>getEngine()Lcom/runrev/android/Engine;!static"
+foreign handler _B() returns JObject binds to "java:com.runrev.android.Engine$Listener>interface()"
+foreign handler _C() returns nothing binds to "java:com.runrev.android.Engine>showAlert(Ljava/lang/String;I)V"
+foreign handler _D() returns nothing binds to "java:android.widget.Button>new(Landroid/content/Context;)"
+'''
+
+    def bindings(self, text):
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, 'x.lcb'), 'w') as f:
+                f.write(text)
+            return aj.lcb_bindings(d)
+
+    def check(self, text, with_android=True):
+        with tempfile.TemporaryDirectory() as d:
+            android = android_jar(os.path.join(d, 'android.jar')) if with_android else None
+            classes = aj.Classes({w.name: parse(w) for w in engine_classes()}, android)
+            try:
+                return aj.check_bindings(self.bindings(text), classes)
+            finally:
+                if classes.android is not None:
+                    classes.android.close()
+
+    def test_read(self):
+        # in the order of the source (the Button is not the Java layer's)
+        b = self.bindings(self.LCB)
+        self.assertEqual([(x[0].rsplit(':', 1)[1], x[1], x[2], x[5]) for x in b],
+                         [('2', 'com/runrev/android/Engine', 'getEngine', 'static'),
+                          ('3', 'com/runrev/android/Engine$Listener', 'interface', 'instance'),
+                          ('4', 'com/runrev/android/Engine', 'showAlert', 'instance')])
+        self.assertEqual(b[2][3:5], ('Ljava/lang/String;I', 'V'))
+
+    def test_lines_in_number_order(self):
+        b = self.bindings('\n'.join('binds to "java:com.runrev.android.Engine>m%d()V"' % i for i in range(12)))
+        self.assertEqual([x[2] for x in b], ['m%d' % i for i in range(12)])
+
+    def test_good(self):
+        problems, lines = self.check(self.LCB)
+        self.assertEqual(problems, [])
+        self.assertEqual(lines, ['3 LCB bindings to the Java layer checked'])
+
+    def test_bad(self):
+        problems, _ = self.check('binds to "java:com.runrev.android.Engine>interface()"\n'
+                                 'binds to "java:com.runrev.android.Engine>showAlert(Ljava/lang/String;)V"\n'
+                                 'binds to "java:com.runrev.android.Engine>showAlert(Ljava/lang/String;I)V!static"\n'
+                                 'binds to "java:com.runrev.android.Gone>x()V"\n'
+                                 'binds to "java:com.runrev.android.Engine>x()V!special"\n')
+        self.assertEqual(len(problems), 5, problems)
+        self.assertIn(':1 binds to com/runrev/android/Engine as an interface, which it is not', problems[0])
+        self.assertIn(':2 binds to com/runrev/android/Engine.showAlert:(Ljava/lang/String;)V (instance)', problems[1])
+        self.assertIn(':3 binds to com/runrev/android/Engine.showAlert:(Ljava/lang/String;I)V (static)', problems[2])
+        self.assertIn(':4 binds to com/runrev/android/Gone, which the jar does not have', problems[3])
+        self.assertIn(':5: a binding of the call type special', problems[4])
+
+    def test_new(self):
+        problems, _ = self.check('binds to "java:com.runrev.android.Engine>new(I)"\n')
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn('Engine.<init>:(I)V', problems[0])
+
+    def test_without_android_jar_it_says_so(self):
+        # a lookup that reaches classes it cannot read is not a pass
+        problems, lines = self.check('binds to "java:com.runrev.android.Engine>showAlert(Ljava/lang/String;)V"\n',
+                                     with_android=False)
+        self.assertEqual(problems, [])
+        self.assertTrue(any(x.startswith('cannot say (no android.jar):') for x in lines), lines)
+
+    def test_the_real_bindings(self):
+        b = aj.lcb_bindings(os.path.join(REPO, 'extensions'))
+        self.assertIn('getEngine', [x[2] for x in b])
+
+
+class Named(unittest.TestCase):
+    def test_comment_lines_are_left_out(self):
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, 'Manifest.xml'), 'w') as f:
+                f.write('<receiver android:name="com.runrev.android.PushReceiver"/>')
+            saved = aj.BUILDER
+            aj.BUILDER = os.path.join(d, 'b.livecodescript')
+            with open(aj.BUILDER, 'w') as f:
+                f.write('put "import com.runrev.android.LiveCodeService;" after x\n'
+                        '      --  put "import com.runrev.android.billing.BillingService;" after x\n')
+            try:
+                named = aj.named_classes(d)
+            finally:
+                aj.BUILDER = saved
+        self.assertEqual(named, [('Manifest.xml', 'com/runrev/android/PushReceiver'),
+                                 ('b.livecodescript', 'com/runrev/android/LiveCodeService')])
+        classes = aj.Classes({w.name: parse(w) for w in engine_classes()})
+        problems, _ = aj.check_named(named, classes)
+        self.assertEqual(len(problems), 2)
+
+
+class Gles(unittest.TestCase):
+    def classes(self, gles):
+        return aj.Classes({w.name: parse(w) for w in engine_classes(gles=gles)})
+
+    def test_no_attributes_is_es_1(self):
+        self.assertEqual(aj.gles_version(self.classes(None)), 1)
+        problems, lines = aj.check_gles(self.classes(None), {'arm64-v8a': ['libGLESv1_CM.so', 'libc.so']})
+        self.assertEqual(problems, [])
+        self.assertIn('OpenGLView makes OpenGL ES 1 contexts', lines)
+
+    def test_es_3_context_with_an_es_1_engine(self):
+        self.assertEqual(aj.gles_version(self.classes(3)), 3)
+        problems, _ = aj.check_gles(self.classes(3), {'arm64-v8a': ['libGLESv1_CM.so']})
+        self.assertEqual(problems, ['arm64-v8a: the engine draws with OpenGL ES 1 (libGLESv1_CM.so), and OpenGLView '
+                                    'makes OpenGL ES 3 contexts'])
+        self.assertEqual(aj.check_gles(self.classes(3), {'arm64-v8a': ['libGLESv3.so', 'libEGL.so']})[0], [])
+
+    def test_no_view(self):
+        self.assertEqual(aj.check_gles(aj.Classes({}), {})[0], ['the jar has no com/runrev/android/OpenGLView.start'])
+
+
+class Rules(unittest.TestCase):
+    GET = ('ref', 'method', 'android/app/PendingIntent', 'getBroadcast',
+           '(Landroid/content/Context;ILandroid/content/Intent;I)Landroid/app/PendingIntent;')
+
+    def classes(self, flags):
+        w = ClassWriter('com/runrev/android/NotificationModule')
+        w.method('make', '(Landroid/content/Context;Landroid/content/Intent;)V', 0x0009,
+                 code=[ALOAD_0 + 0, ICONST_0, ALOAD_1] + flags + [INVOKESTATIC, self.GET, POP, RETURN])
+        return {w.name: parse(w)}
+
+    def test_flags_from_utils(self):
+        flags = [ICONST_0, INVOKESTATIC, ('ref', 'method', 'com/runrev/android/Utils', 'immutablePendingIntentFlags',
+                                          '(I)I')]
+        problems, lines = aj.check_pending_intents(self.classes(flags))
+        self.assertEqual(problems, [])
+        self.assertEqual(lines, ['1 PendingIntent.get* calls checked'])
+
+    def test_bare_flags(self):
+        problems, _ = aj.check_pending_intents(self.classes([ICONST_0]))
+        self.assertEqual(len(problems), 1)
+        self.assertIn('(the instruction before: const 0)', problems[0])
+
+
+# ---------------------------------------------------------------------------
+
+def glob_regex(pattern):
+    """GitHub's path filter glob: * and ? stop at /, ** does not."""
+    out = []
+    i = 0
+    while i < len(pattern):
+        if pattern.startswith('**', i):
+            out.append('.*')
+            i += 2
+            continue
+        out.append({'*': '[^/]*', '?': '[^/]'}.get(pattern[i], re.escape(pattern[i])))
+        i += 1
+    return re.compile('^' + ''.join(out) + '$')
+
+
+def workflow_paths(workflow, anchor):
+    """The paths list a workflow anchors as &anchor."""
+    block = re.search(r'(?s)paths: &%s\n(.*?)\n  \w+:' % anchor, workflow).group(1)
+    return [line.strip()[2:].strip().strip("'") for line in block.splitlines() if line.strip().startswith('- ')]
+
+
+def starts(paths, rel):
+    return any(glob_regex(p).match(rel) for p in paths)
+
+
+class OneSystem(unittest.TestCase):
+    """The Java sources, the check's lists and the workflows agree"""
+
+    def test_every_pending_intent_says_its_mutability(self):
+        root = os.path.join(REPO, 'engine', 'src', 'java')
+        calls = 0
+        for folder, _dirs, names in os.walk(root):
+            if os.sep + 'sample' in folder:
+                continue
+            for name in names:
+                if not name.endswith('.java'):
+                    continue
+                with open(os.path.join(folder, name), encoding='utf-8') as f:
+                    text = f.read()
+                for m in re.finditer(r'PendingIntent\.get(?:Activity|Activities|Broadcast|Service|ForegroundService)'
+                                     r'\(([^;]*)\);', text):
+                    calls += 1
+                    self.assertRegex(m.group(1), r'Utils\.(im)?mutablePendingIntentFlags\(',
+                                     '%s: %s' % (name, m.group(0)))
+        self.assertGreaterEqual(calls, 5)
+
+    def test_opengl_view_asks_for_the_shipped_engines_version(self):
+        # the runtime's engine is LiveCode Community 9.6.3's, which draws
+        # with OpenGL ES 1 (android-java.yml's jni checks it on the engine):
+        # while the runtimes asset carries that engine, the view asks for 1
+        java = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'OpenGLView.java')
+        self.assertIn('private static final int GLES_VERSION = 1;', java)
+        import json
+        assets = json.loads(read('tools', 'oxt', 'external-assets.json'))
+        runtimes = [a for a in assets['assets'] if a['id'].startswith('oxt-runtimes-')]
+        self.assertEqual(len(runtimes), 1)
+        self.assertIn('Android runtime', runtimes[0]['description'])
+        self.assertIn('oxt-runtimes-1.15', runtimes[0]['source'])
+
+    def test_expected_and_known_entries_are_well_formed(self):
+        for sha, entries in aj.EXPECTED.items():
+            self.assertRegex(sha, r'^[0-9a-f]{64}$')
+            for key, reason in entries.items():
+                self.assertRegex(key, r'^(class|member|code) [\w/$]+(\.[\w$<>]+:\S+)?$', key)
+                self.assertTrue(reason.strip())
+        for key, reason in aj.UNEXPORTED.items():
+            self.assertRegex(key, r'^[\w/$]+\.\w+:\(.*\)\S+$')
+            self.assertTrue(reason.strip())
+        for (path, name, sig), reason in aj.KNOWN_CALLS.items():
+            self.assertTrue(os.path.isfile(os.path.join(REPO, path)), path)
+            self.assertIn('"%s", "%s"' % (name, sig), read(*path.split('/')))
+            self.assertTrue(reason.strip())
+
+    def test_native_sources_exist(self):
+        import glob
+        for pattern in aj.NATIVE_SOURCES:
+            self.assertTrue(glob.glob(os.path.join(REPO, pattern)), pattern)
+
+    def test_java_workflow_runs_every_check(self):
+        workflow = read('.github', 'workflows', 'android-java.yml')
+        for command in ('build', 'compare', 'jni', 'rules'):
+            self.assertIn('android_java.py %s ' % command, workflow)
+        paths = workflow_paths(workflow, 'java-paths')
+        for rel in ('tools/ci/android_java.py', 'engine/src/java/x/Y.java', 'engine/engine-sources.gypi',
+                    '.github/workflows/android-java.yml', 'tools/oxt/external-assets.json',
+                    'ide-support/revsaveasandroidstandalone.livecodescript'):
+            self.assertTrue(starts(paths, rel), rel)
+
+    def test_a_change_to_a_call_starts_the_check(self):
+        # every source the jni check finds a call into Java in, and every
+        # LCB binding to the jar, is one whose change starts it (a new file
+        # with calls in it fails here until the paths name it)
+        import glob
+        paths = workflow_paths(read('.github', 'workflows', 'android-java.yml'), 'java-paths')
+        sources = []
+        for pattern in aj.NATIVE_SOURCES:
+            sources += glob.glob(os.path.join(REPO, pattern))
+        files = sorted({c.file for c in aj.source_calls(sources)})
+        files += sorted({b[0].rsplit(':', 1)[0] for b in aj.lcb_bindings(os.path.join(REPO, aj.LCB_SOURCES))})
+        self.assertGreater(len(files), 30)
+        for rel in files:
+            self.assertTrue(starts(paths, rel), rel)
+        self.assertTrue(starts(paths, 'engine/src/mblandroidnew.cpp'))
+        self.assertFalse(starts(paths, 'engine/src/mcstring.cpp'))
+
+    def test_builder_workflow_runs_the_java_layer(self):
+        workflow = read('.github', 'workflows', 'android.yml')
+        self.assertIn('android_java.py build', workflow)
+        self.assertIn('overlay --root "$JAVA_IDE" --classes', workflow)
+        self.assertIn('--probe java', workflow)
+        paths = workflow_paths(workflow, 'android-paths')
+        for rel in ('tools/ci/android_java.py', 'engine/src/java/com/runrev/android/Utils.java',
+                    'engine/engine-sources.gypi'):
+            self.assertTrue(starts(paths, rel), rel)
+
+
+if __name__ == '__main__':
+    unittest.main()
