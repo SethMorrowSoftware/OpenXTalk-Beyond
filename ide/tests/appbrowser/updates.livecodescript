@@ -22,8 +22,9 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 -- no new stack and no stack removed until Refresh. The IDE's own File
 -- Selector is left out of its list like the IDE's other stacks, and so is
 -- the browser itself; its names (links) read on a dark window and, in a
--- darker grey than its own, on a light one; and its lists are in bigger
--- text.
+-- darker grey than its own, on a light one; its lists are in bigger
+-- text; its icons are larger, drawn from SVG; and it is in the Tools menu
+-- again.
 
 constant kStack = "TestAppBrowserStack"
 constant kBrowser = "App Browser"
@@ -233,8 +234,8 @@ on TestAppBrowserTextIsBigger
    repeat for each item tField in "Cards,Controls"
       TestAssert "the App Browser's" && tField && "list is in 13 points", \
             the textSize of field tField of card 1 of stack kBrowser is 13
-      TestAssert "its rows are still 22 pixels high", \
-            the textHeight of field tField of card 1 of stack kBrowser is 22
+      TestAssert "its rows are 24 pixels high, for the larger icons", \
+            the textHeight of field tField of card 1 of stack kBrowser is 24
    end repeat
    TestAssert "the audio clips list is in 13 points", \
          the textSize of field "AudioClips" of card "Audioclips" of stack kBrowser is 13
@@ -250,11 +251,22 @@ on TestAppBrowserTextIsBigger
    TestAssert "a list's size set by hand is kept", \
          the textSize of field "Controls" of card 1 of stack kBrowser is 15
    set the textSize of field "Controls" of card 1 of stack kBrowser to 13
-   set the textHeight of field "Controls" of card 1 of stack kBrowser to 22
+   set the textHeight of field "Controls" of card 1 of stack kBrowser to 24
    revIDEAppBrowserText kBrowser
    TestAssert "a second time, the lists stay in 13 points", \
          the textSize of field "Cards" of card 1 of stack kBrowser is 13 and \
-         the textHeight of field "Cards" of card 1 of stack kBrowser is 22
+         the textHeight of field "Cards" of card 1 of stack kBrowser is 24
+   -- the plugin's own 22, set as it first opens, becomes 24; a row
+   -- height set by hand is kept
+   set the textHeight of field "Controls" of card 1 of stack kBrowser to 22
+   revIDEAppBrowserText kBrowser
+   TestAssert "the plugin's own 22-pixel rows become 24", \
+         the textHeight of field "Controls" of card 1 of stack kBrowser is 24
+   set the textHeight of field "Controls" of card 1 of stack kBrowser to 30
+   revIDEAppBrowserText kBrowser
+   TestAssert "a row height set by hand is kept", \
+         the textHeight of field "Controls" of card 1 of stack kBrowser is 30
+   set the textHeight of field "Controls" of card 1 of stack kBrowser to 24
 
    -- a user's stack of that name is left alone
    close stack kBrowser
@@ -276,3 +288,103 @@ on TestAppBrowserKeepsAChosenLinkColor
    revIDEAppBrowserAppearance false
    TestAssert "light: a link colour set by hand is kept", the linkColor of stack kBrowser is "1,2,3"
 end TestAppBrowserKeepsAChosenLinkColor
+
+-- richmond62 asked for larger icons in the Application Browser
+-- (openxtalk.org p=26048): its pictures were bitmaps 9 to 14 points high.
+-- Each icon the plugin names is drawn again, larger, in the plugin's own
+-- stack, so that its own image is found before any other of that ID
+on TestAppBrowserIconsAreLarger
+   local tProp, tId, tIds, tSize, tText, tLight
+   __OpenBrowser
+   repeat for each item tProp in revIDEAppBrowserIconProps()
+      put the tProp of stack kBrowser into tId
+      TestAssert tProp && "names an image of the plugin's own stack", \
+            tId is an integer and there is an image id tId of stack kBrowser
+      if not (tId is an integer and there is an image id tId of stack kBrowser) then next repeat
+      TestAssert tProp && "is the drawn icon", \
+            the short name of image id tId of stack kBrowser is ("oxt" & tProp)
+      put revIDEAppBrowserIconSize(tProp) into tSize
+      TestAssert tProp && "is" && tSize && "points square", \
+            the width of image id tId of stack kBrowser is tSize and \
+            the height of image id tId of stack kBrowser is tSize
+      TestAssert tProp && "is drawn", the text of image id tId of stack kBrowser is not empty
+      put tId & comma after tIds
+   end repeat
+   TestAssert "a stack, a card and a control are 20 points, the triangles 12", \
+         revIDEAppBrowserIconSize("cMainStackIcon") is 20 and revIDEAppBrowserIconSize("cCardIcon") is 20 and \
+         revIDEAppBrowserIconSize("cButtonIcon") is 20 and revIDEAppBrowserIconSize("cWindowsInIcon") is 12
+   TestAssert "each icon is larger than the plugin's own picture of it was (14 points high at most)", \
+         revIDEAppBrowserIconSize("cMainStackIcon") > 14 and revIDEAppBrowserIconSize("cWindowsOutIcon") > 9
+   TestAssert "nothing is drawn for an unticked box, as before", \
+         "cUnTickIcon" is not among the items of revIDEAppBrowserIconProps()
+   TestAssert "the icons are in one hidden group", \
+         there is an image ("oxtcMainStackIcon") of group "oxtAppBrowserIcons" of card 1 of stack kBrowser and \
+         not the visible of group "oxtAppBrowserIcons" of card 1 of stack kBrowser
+   TestAssert "the plugin is not marked as edited", not revIDEStackIsEdited(kBrowser)
+
+   -- drawn again (an appearance change, or opening it again): the same
+   -- images, no new ones, inked for the window
+   put the text of image id (the cMainStackIcon of stack kBrowser) of stack kBrowser into tLight
+   revIDEAppBrowserIcons kBrowser, true
+   TestAssert "dark: the same images are drawn again", \
+         the cMainStackIcon of stack kBrowser & comma is item 1 of tIds & comma
+   TestAssert "dark: they are inked again", \
+         the text of image id (the cMainStackIcon of stack kBrowser) of stack kBrowser is not tLight
+   TestAssert "dark: no new image is made", \
+         the number of images of group "oxtAppBrowserIcons" of card 1 of stack kBrowser is \
+         the number of items of tIds
+   revIDEAppBrowserAppearance false
+   TestAssert "light again: inked as at first", \
+         the text of image id (the cMainStackIcon of stack kBrowser) of stack kBrowser is tLight
+   TestAssert "light again: no new image is made", \
+         the number of images of group "oxtAppBrowserIcons" of card 1 of stack kBrowser is \
+         the number of items of tIds
+   TestAssert "the plugin is still not marked as edited", not revIDEStackIsEdited(kBrowser)
+
+   -- a user's stack of that name is left alone
+   close stack kBrowser
+   create stack "OXT Not The App Browser"
+   set the cMainStackIcon of stack "OXT Not The App Browser" to 200083
+   revIDEAppBrowserIcons "OXT Not The App Browser"
+   TestAssert "another stack's icon property is left as it is", \
+         the cMainStackIcon of stack "OXT Not The App Browser" is 200083
+   TestAssert "and nothing is made in it", \
+         the number of images of stack "OXT Not The App Browser" is 0
+   delete stack "OXT Not The App Browser"
+end TestAppBrowserIconsAreLarger
+
+-- richmond62 asked for the Application Browser back in the Tools menu
+-- (openxtalk.org p=26074). It is there beside the Project Browser, checked
+-- when it is shown, and it opens and closes the plugin; every item the
+-- menu had is still there
+on TestAppBrowserInToolsMenu
+   local tMenu, tItem
+   if kBrowser is among the lines of the openStacks then
+      close stack kBrowser
+   end if
+   dispatch function "revMenubarBuildMenu" to stack "revMenuBar" with "Tools"
+   put the result into tMenu
+   TestAssert "the Tools menu has Application Browser", tMenu contains "Application Browser"
+   repeat for each item tItem in "Browse Tool,Pointer Tool,Tools Palette,Paint and Draw Tools,Project Browser," & \
+         "Message Box,Extension Manager,Extension Builder,Menu Builder"
+      TestAssert "the Tools menu still has" && tItem, tMenu contains tItem
+   end repeat
+   TestAssert "Application Browser is right after the Project Browser", \
+         lineOffset("Application Browser", tMenu) is lineOffset("Project Browser", tMenu) + 1
+   TestAssert "unchecked while the App Browser is closed", \
+         "!nApplication Browser" is among the lines of tMenu
+
+   dispatch "revMenubarToolsMenuPick" to stack "revMenuBar" with "Application Browser"
+   wait 500 milliseconds with messages
+   TestAssert "Tools > Application Browser opens the App Browser plugin", \
+         revIDEAppBrowserStack() is kBrowser and the visible of stack kBrowser
+   if kBrowser is among the lines of the openStacks then
+      put the linkColor of stack kBrowser into sLinkColor
+   end if
+   dispatch function "revMenubarBuildMenu" to stack "revMenuBar" with "Tools"
+   TestAssert "checked while it is shown", "!cApplication Browser" is among the lines of the result
+
+   dispatch "revMenubarToolsMenuPick" to stack "revMenuBar" with "Application Browser"
+   wait 200 milliseconds with messages
+   TestAssert "Tools > Application Browser closes it again", revIDEAppBrowserStack() is empty
+end TestAppBrowserInToolsMenu

@@ -5833,7 +5833,8 @@ on tour_project_browser
    close stack tStack
 end tour_project_browser
 
--- The Application Browser, the App Browser plugin (Tools > Plugins): it
+-- The Application Browser, the App Browser plugin (Tools > Application
+-- Browser since 0.2.7-rc.6.18, and Development > Plugins): it
 -- lists the user's stacks and leaves itself out (until 0.2.7-rc.6.17 it
 -- listed itself among them); its lists are in 13 points (richmond62,
 -- openxtalk.org p=26048: they were 11); and its names, links in its
@@ -5885,6 +5886,27 @@ on tour_app_browser
       throw "the App Browser's lists are in" && the textSize of field "Cards" of card 1 of stack tStack && \
             "and" && the textSize of field "Controls" of card 1 of stack tStack && "points, not 13"
    end if
+   -- its icons larger (richmond62 again; until 0.2.7-rc.6.18 bitmaps 9
+   -- to 14 points high): drawn, 20 points for a stack or a control, in
+   -- its own stack, in rows 24 high
+   tourRecord "INFO the App Browser's rows" && the textHeight of field "Cards" of card 1 of stack tStack && \
+         "high; a stack's icon" && tourAppBrowserIcon(tStack, "cMainStackIcon") && \
+         "and a button's" && tourAppBrowserIcon(tStack, "cButtonIcon")
+   if tourAppBrowserIcon(tStack, "cMainStackIcon") is not "20x20" or \
+         tourAppBrowserIcon(tStack, "cButtonIcon") is not "20x20" then
+      close stack tStack
+      throw "the App Browser's icons are not drawn at 20 points"
+   end if
+   if the textHeight of field "Cards" of card 1 of stack tStack is not 24 then
+      close stack tStack
+      throw "the App Browser's rows are" && the textHeight of field "Cards" of card 1 of stack tStack && "high, not 24"
+   end if
+   -- and in the Tools menu again (richmond62, p=26074), checked while
+   -- it is shown
+   if not (tourTmMenuChecked("Application Browser") is true) then
+      close stack tStack
+      throw "Tools > Application Browser is missing, or not checked with the App Browser shown"
+   end if
    -- the list's colour, as drawn: the commonest colour inside it (its
    -- left 160 points, without its scroll bars), which its rows' words,
    -- icons and one hilited row leave the most of
@@ -5933,6 +5955,18 @@ on tour_app_browser
       throw "the App Browser's names" && tLink && "do not read on its list" && tBack && "(contrast" && tRatio & ")"
    end if
 end tour_app_browser
+
+-- The size of the App Browser's icon its property pProp names, as
+-- "<width>x<height>", when it is the icon drawn in its own stack
+-- (revIDEAppBrowserIcons); else empty
+function tourAppBrowserIcon pStack, pProp
+   local tId
+   put the pProp of stack pStack into tId
+   if tId is not an integer then return empty
+   if there is not an image id tId of stack pStack then return empty
+   if the short name of image id tId of stack pStack is not ("oxt" & pProp) then return empty
+   return the width of image id tId of stack pStack & "x" & the height of image id tId of stack pStack
+end tourAppBrowserIcon
 
 -- The WCAG contrast ratio of two RGB colours
 function tourContrast pOne, pTwo

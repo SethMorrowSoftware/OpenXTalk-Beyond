@@ -1981,6 +1981,12 @@ private function revMenubarToolsMenu pContext
    put toggleMenuItem("Modern Tools Palette", revIDEGetPreference("revTools_look") is not "classic") & return after tTools
    put "-" & return after tTools
    put toggleMenuItem("Project Browser/^@P", revIDEPaletteIsVisible("project browser")) & return after tTools -- tperry, 21-12-23 added shortcut for project browser
+   -- OXT-Beyond: the Application Browser (the App Browser plugin) back in
+   -- the Tools menu, where LiveCode's IDE had it before it became a plugin
+   -- (richmond62, openxtalk.org p=26074); it stays in Development > Plugins
+   -- (greyed when the plugin is not in the Plugins folder)
+   put toggleMenuItem(enableMenuItem("Application Browser", "App Browser" is among the keys of revIDEPlugins()), \
+         revMenubarAppBrowserIsOpen()) & return after tTools
    put toggleMenuItem("&Message Box/M", revIDEPaletteIsVisible("message box")) & return after tTools
    put toggleMenuItem("Extension Manager", revIDEPaletteIsVisible("extension manager")) & return after tTools
    put toggleMenuItem("Extension Builder", revIDEPaletteIsVisible("extension builder")) & return after tTools
@@ -3280,8 +3286,26 @@ on revMenubarToolsMenuPick pWhich
       case "Extension Builder"
          revIDETogglePalette pWhich
          break
+      case "Application Browser"
+         -- shown, it closes, as the other palettes of this menu do; else it
+         -- opens as Development > Plugins opens it
+         if revMenubarAppBrowserIsOpen() then
+            close stack revIDEAppBrowserStack()
+         else if "App Browser" is among the keys of revIDEPlugins() then
+            revIDEOpenPlugin "App Browser"
+         end if
+         break
    end switch
 end revMenubarToolsMenuPick
+
+-- OXT-Beyond: whether the Application Browser is open and shown, for the
+-- check beside Tools > Application Browser
+function revMenubarAppBrowserIsOpen
+   local tBrowser
+   put revIDEAppBrowserStack() into tBrowser
+   if tBrowser is empty then return false
+   return the visible of stack tBrowser and the mode of stack tBrowser is not 0
+end revMenubarAppBrowserIsOpen
 
 on revMenubarObjectMenuPick pWhich
    set the itemdelimiter to "|"
