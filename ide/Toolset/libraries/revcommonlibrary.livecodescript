@@ -477,6 +477,14 @@ function revStackNameIsIDEStack pStackName
       -- revApplicationOverview: until 0.2.7-rc.6.17 it listed itself
       -- among the user's stacks. Not a user's stack of that name
       return true
+   else if revInternal__IDEToolsetStackFile(pStackName) is not empty \
+         and pStackName is among the lines of the mainStacks \
+         and the effective filename of stack pStackName ends with revInternal__IDEToolsetStackFile(pStackName) then
+      -- OXT-Beyond: the IDE's windows from OpenXTalk Lite, whose names do
+      -- not begin with "rev" (below): until 0.2.7-rc.6.17 the rest of the
+      -- IDE took them for the user's stacks (openxtalk.org p=26111). Not a
+      -- user's stack of the same name
+      return true
    else if pStackName begins with "com.livecode." then
       return true
    else if pStackName is among the lines of revInternal__ListLoadedLibraries() then
@@ -485,6 +493,23 @@ function revStackNameIsIDEStack pStackName
       return pStackName begins with "rev"
    end if   
 end revStackNameIsIDEStack
+
+-- OXT-Beyond: the IDE's own stacks in its Toolset whose names do not begin
+-- with "rev", each by its name and the end of its file's path: the Card
+-- Navigator (Tools > Card Navigator), and the lessons and the guides that
+-- Learn and Home read their pages from (Help's lessons and guides). Empty
+-- for any other name
+private function revInternal__IDEToolsetStackFile pStackName
+   switch pStackName
+      case "Card Navigator"
+         return "/Toolset/palettes/navigatorIDE.oxtstack"
+      case "userguides"
+         return "/Toolset/palettes/userguides/userguides.oxtstack"
+      case "allguides"
+         return "/Toolset/palettes/userguides/allguides.oxtstack"
+   end switch
+   return empty
+end revInternal__IDEToolsetStackFile
 
 -- MW-2010-09-29: Slight tweak to this so that IDE stacks never appear in lists - regardless of mode.
 function revFilterStacksList pStacks
