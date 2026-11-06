@@ -1,0 +1,198 @@
+<!--
+title: Games with the Box2Dxt Kit
+level: extensions
+minutes: 13
+summary: Give the controls of a card real physics with the Box2Dxt Kit, in pixels and degrees: a world in a few lines, shapes that fall, your own graphics and buttons as bodies, pushes and kicks, hinges, and the messages that say when things touch.
+words: b2kQuickStart, b2kSetup, b2kAddWalls, b2kStart, b2kStop, b2kPause, b2kStepOnce, b2kTeardown, b2kSpawnBall, b2kSpawnBox, b2kAddBox, b2kAddBall, b2kAddStatic, b2kPosition, b2kPush, b2kImpulse, b2kHinge, b2kContactTarget, b2kContact, b2kBodyCount
+-->
+<h2 id="what">Physics for the controls of a card</h2>
+<p>Box2D's own handlers (<a href="../box2d/">Physics with Box2Dxt</a>) work in metres, and leave the drawing to you. The <strong>Box2Dxt Kit</strong>, a library that comes with Box2Dxt, does the rest: it works in <strong>pixels</strong>, screen coordinates and degrees, gives the controls of a card bodies, and moves each control to where its body is, 60 times a second. Its handlers begin with <code>b2k</code>. Beyond physics it reads the keyboard, plays sprite animations, runs a platform-game player, scrolls a camera and makes sounds; this lesson keeps to the physics.</p>
+<p>On a card of your own, these few lines are a whole toy: everything that falls, lands, rolls and piles up, and the mouse can grab and throw it.</p>
+<figure class="example" id="ex-b2k-card" data-run="compile" data-needs="org.openxtalk.box2dxt box2dxt-kit">
+<pre class="code"><code>on openCard
+   b2kQuickStart
+   b2kSpawnBall 200, 80, 50, "red"
+   b2kSpawnBox 260, 40, 80, 40, "orange"
+end openCard
+
+on mouseDown
+   get b2kGrab(the mouseH, the mouseV)
+end mouseDown
+
+on mouseUp
+   b2kRelease
+end mouseUp
+
+on closeCard
+   b2kStop
+end closeCard</code></pre>
+</figure>
+<p><code>b2kQuickStart</code> makes a world with gravity, puts invisible walls round the card's edges, and starts the loop that steps the world and moves the controls. <code>b2kSpawnBall</code> and <code>b2kSpawnBox</code> make filled graphics with bodies, given their middle and size in pixels and a colour. <code>b2kStop</code> stops the loop when the card closes.</p>
+
+<h2 id="steps">A step at a time</h2>
+<p><code>b2kQuickStart</code> is <code>b2kSetup</code> (a new world), <code>b2kAddWalls</code> and <code>b2kStart</code> (the loop). To see exactly what happens, a script can <code>b2kPause</code> the loop and move it on itself with <code>b2kStepOnce</code>, one sixtieth of a second each, which is how the examples here run. <code>b2kPosition</code> says where a body's middle is, in pixels, and <code>b2kTeardown</code> ends it all:</p>
+<figure class="example" id="ex-b2k-steps" data-run="output" data-needs="org.openxtalk.box2dxt box2dxt-kit" data-shot="A teal ball resting on the bottom of the card at the left, an orange box resting on the bottom at the right, and a long violet plank lying across the top of the box.">
+<pre class="code"><code>b2kSetup
+b2kAddWalls
+b2kSpawnBall 120, 60, 60, "#2bb5a5"
+put the result into tBall
+b2kSpawnBox 320, 120, 80, 60, "#ff9b3d"
+b2kSpawnBox 320, 20, 160, 20, "#b69cff"
+b2kStart
+b2kPause
+repeat 180 times
+   b2kStepOnce
+end repeat
+put b2kBodyCount() &amp;&amp; "bodies"
+put "the ball rests at" &amp;&amp; round(item 1 of b2kPosition(tBall)) &amp; "," &amp;&amp; round(item 2 of b2kPosition(tBall))
+put "and its graphic is there:" &amp;&amp; the loc of tBall
+b2kTeardown</code></pre>
+<pre class="out">3 bodies
+the ball rests at 120, 330
+and its graphic is there: 120,330</pre>
+</figure>
+<p>The walls run along the card's edges, so the ball, 60 pixels across, rests with its middle 30 pixels above the bottom of the card, which is 360 high. Underneath, the Kit still works in metres: <code>b2kSetScale</code> says how many pixels make a metre (40, to begin with), and <code>b2kSetOrigin</code> where on the card the world's 0,0 is.</p>
+
+<h2 id="controls">Your own controls</h2>
+<p>A body can belong to any control you drag onto a card. <code>b2kAddBox</code> gives a control a box the size of its rectangle, <code>b2kAddBall</code> a circle, and <code>b2kAddStatic</code> a body that never moves, for floors and shelves. After that the Kit moves the control. Build a card:</p>
+<div class="build" id="build-shelf">
+<ol>
+<li>In Edit mode, drag a <strong>Rectangle Graphic</strong> to the left of the card, wide and thin, for a shelf. Name it <code>Shelf</code> in the Property Inspector, tick <strong>Opaque</strong> and give it a grey fill.</li>
+<li>Drag a smaller <strong>Rectangle Graphic</strong> above the shelf, name it <code>Crate</code>, and give it an orange fill.</li>
+<li>Drag an <strong>Oval Graphic</strong> to the right, high up, name it <code>Ball</code>, and give it a teal fill.</li>
+<li>Drag a <strong>Standard Button</strong> to the top right and name it <code>Drop</code>.</li>
+</ol>
+<pre class="setup">create graphic "Shelf"
+set the opaque of it to true
+set the backgroundColor of it to "#9eabbd"
+set the rect of it to 40,200,240,216
+create graphic "Crate"
+set the opaque of it to true
+set the backgroundColor of it to "#ff9b3d"
+set the rect of it to 100,60,160,110
+create graphic "Ball"
+set the style of it to "oval"
+set the opaque of it to true
+set the backgroundColor of it to "#2bb5a5"
+set the rect of it to 330,40,380,90
+create button "Drop"
+set the rect of it to 380,10,462,33</pre>
+</div>
+<p>Give the button this script, then click it in Run mode. The crate falls onto the shelf and the ball to the floor, live:</p>
+<figure class="example" id="ex-b2k-drop" data-run="output" data-card="build-shelf" data-script='button "Drop"' data-click='button "Drop"' data-wait="3" data-needs="org.openxtalk.box2dxt box2dxt-kit" data-shot="Your card: a grey shelf at the left with an orange crate resting on it, a teal ball resting at the bottom right, and the Drop button at the top right.">
+<pre class="code"><code>on mouseUp
+   b2kSetup
+   b2kAddWalls
+   b2kAddStatic the long id of graphic "Shelf"
+   b2kAddBox the long id of graphic "Crate"
+   b2kAddBall the long id of graphic "Ball"
+   b2kStart
+   put b2kBodyCount() &amp;&amp; "bodies"
+end mouseUp</code></pre>
+<pre class="out">3 bodies</pre>
+</figure>
+<p>The loop runs on a timer, so the script ends at once and the card stays live: you can click other buttons while things fall. A button or a field can have a body too, and still works when clicked; it moves without turning, so its text stays upright.</p>
+
+<h2 id="moving">Pushes, kicks and hinges</h2>
+<p>There are three ways to make a body go, and they feel different. <code>b2kSetVelocity</code> sets its speed outright; <code>b2kPush</code> adds to its speed, the same for a pebble as a boulder; and <code>b2kImpulse</code> kicks it, so a heavy body moves less. Speeds are in pixels a second, and a negative y is up. <code>b2kHinge</code> pins a control to the world, or to another control, at a point, for doors, pendulums and wheels:</p>
+<figure class="example" id="ex-b2k-moves" data-run="output" data-needs="org.openxtalk.box2dxt box2dxt-kit" data-shot="A violet plank swinging from a pin near the top left of the card, and an orange box back on the floor at the right.">
+<pre class="code"><code>b2kSetup
+b2kAddWalls
+b2kSpawnBox 360, 300, 50, 50, "#ff9b3d"
+put the result into tBox
+b2kSpawnBox 200, 60, 160, 16, "#b69cff"
+put the result into tPlank
+-- pin the plank's left end to the world: it swings down
+b2kHinge tPlank, empty, 120, 60
+b2kStart
+b2kPause
+repeat 60 times
+   b2kStepOnce
+end repeat
+put "the box rests at y" &amp;&amp; round(item 2 of b2kPosition(tBox))
+b2kPush tBox, 0, -500
+repeat 20 times
+   b2kStepOnce
+end repeat
+put "kicked up, it is at y" &amp;&amp; round(item 2 of b2kPosition(tBox))
+repeat 400 times
+   b2kStepOnce
+end repeat
+put "the plank swings below its pin:" &amp;&amp; (item 2 of b2kPosition(tPlank) &gt; 60)
+b2kTeardown</code></pre>
+<pre class="out">the box rests at y 335
+kicked up, it is at y 191
+the plank swings below its pin: true</pre>
+</figure>
+
+<h2 id="contacts">When things touch</h2>
+<p>A game needs to know when a ball reaches the goal or a player lands on a spike. Tell the Kit which object should hear about it with <code>b2kContactTarget</code>, and after each frame it sends that object <code>b2kContact</code>, with the two controls that began touching (a control is empty for a wall or the ground). Put the handler in the card's script:</p>
+<figure class="example" id="ex-b2k-contact" data-run="compile" data-needs="org.openxtalk.box2dxt box2dxt-kit">
+<pre class="code"><code>on openCard
+   b2kQuickStart
+   b2kContactTarget the long id of this card
+   b2kSpawnBall 200, 60, 40, "red"
+end openCard
+
+on b2kContact pControlA, pControlB
+   if pControlA is empty or pControlB is empty then
+      put "something hit a wall or the floor"
+   end if
+end b2kContact</code></pre>
+</figure>
+<p>A script can also ask after each step, with <code>b2kContactCount</code>, <code>b2kContactA</code> and <code>b2kContactB</code>, which is easier when the steps are your own:</p>
+<figure class="example" id="ex-b2k-poll" data-run="output" data-needs="org.openxtalk.box2dxt box2dxt-kit">
+<pre class="code"><code>b2kSetup
+b2kAddWalls
+b2kSpawnBall 240, 40, 40, "#2bb5a5"
+put the result into tBall
+b2kStart
+b2kPause
+put 0 into tSteps
+repeat until b2kContactCount() &gt; 0 or tSteps &gt; 300
+   b2kStepOnce
+   add 1 to tSteps
+end repeat
+put "it touched after about" &amp;&amp; round(tSteps / 60, 1) &amp;&amp; "seconds"
+put b2kContactA(1) is tBall or b2kContactB(1) is tBall
+put (b2kContactA(1) is empty or b2kContactB(1) is empty) &amp;&amp; "that the other is the floor"
+b2kTeardown</code></pre>
+<pre class="out">it touched after about 1.3 seconds
+true
+true that the other is the floor</pre>
+</figure>
+<aside class="tip"><p><strong>Learn Box2Dxt Kit</strong> (<kbd>Help &gt; Examples</kbd>) has a live lesson for each part of the Kit, with sprites, a keyboard-driven player, a camera and sound, and every Kit handler has its page in the Dictionary. Each lesson's Code tab has lines to change and run in place.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Build a tower of five boxes, 40 pixels square, one on another in the middle of the floor, let it settle, then fire a heavy ball at it from the left with <code>b2kSetVelocity</code>. How many boxes are still higher than the floor's first row two seconds later?</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-b2k-try" data-run="runs" data-needs="org.openxtalk.box2dxt box2dxt-kit">
+<pre class="code"><code>b2kSetup
+b2kAddWalls
+repeat with tLevel = 1 to 5
+   b2kSpawnBox 300, 320 - 40 * tLevel + 20, 40, 40, "#ff9b3d"
+   put the result &amp; return after tBoxes
+end repeat
+b2kStart
+b2kPause
+repeat 60 times
+   b2kStepOnce
+end repeat
+b2kSpawnBall 40, 260, 40, "#1b2435"
+put the result into tBall
+b2kSetVelocity tBall, 900, -100
+repeat 120 times
+   b2kStepOnce
+end repeat
+put 0 into tUp
+repeat for each line tBox in tBoxes
+   if item 2 of b2kPosition(tBox) &lt; 280 then add 1 to tUp
+end repeat
+put "boxes still up:" &amp;&amp; tUp
+b2kTeardown</code></pre>
+<pre class="out">boxes still up: 1</pre>
+</figure>
+<p>The answer depends on how hard the ball is thrown and where it hits; try other speeds, and a ball with <code>b2kSetDensity</code> made heavier.</p>
+</details>
+</section>

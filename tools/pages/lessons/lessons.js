@@ -186,7 +186,7 @@
     return (start > 0 ? '…' : '') + text + (start + 170 < row.x.length ? '…' : '');
   }
 
-  var LEVELS = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced', expert: 'Expert' };
+  var LEVELS = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced', expert: 'Expert', extensions: 'Extensions' };
 
   function render(list, query) {
     var found = search(query);

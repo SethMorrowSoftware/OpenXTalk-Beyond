@@ -1,0 +1,190 @@
+<!--
+title: Peer to peer with dataChannelXT
+level: extensions
+minutes: 13
+summary: Let two programs talk directly, with no server carrying their messages, through WebRTC data channels: peers, the offer and answer they swap, channels that open, text and bytes, events, and closing down.
+words: dcInit, dcCreatePeer, dcCreateChannel, dcCreateChannelEx, dcGatheringState, dcLocalDescription, dcLocalDescriptionType, dcSetRemoteDescription, dcChannelIsOpen, dcSendText, dcSendData, dcPoll, dcPeerState, dcStateName, dcBufferedAmount, dcCloseChannel, dcClosePeer, dcFreePeer
+-->
+<h2 id="what">Straight from one program to another</h2>
+<p><strong>WebRTC</strong> lets two programs talk directly, peer to peer, even when both sit behind home routers, with no server in the middle carrying their messages. Browsers use it for video calls. The xTalk Suite's <strong>dataChannelXT</strong> uses its <strong>data channels</strong>, through libdatachannel, to send text and bytes; its handlers begin with <code>dc</code>, and its helpers, such as <code>dcStateName</code>, come with it.</p>
+<p>The examples run both peers in one script on one computer, so each waits a moment for the other with <code>wait until</code>, never more than five seconds. In an app each peer is a different program, and events tell it when something happens.</p>
+
+<h2 id="peers">A peer</h2>
+<p>A <strong>peer</strong> is your end of one connection. <code>dcCreatePeer</code> makes one; its text names <strong>ICE servers</strong>, helpers that find a way through routers (empty is enough on one computer, and a line such as <code>stun:stun.l.google.com:19302</code> helps across the internet). Its state and how far it has got finding its addresses are numbers, which <code>dcStateName</code> and <code>dcGatheringName</code> say in words. <code>dcFreePeer</code> frees it, and its handle stops working:</p>
+<figure class="example" id="ex-dc-peer" data-run="output" data-needs="org.openxtalk.library.datachannel dataChannelHelpers">
+<pre class="code"><code>put dcInit() &amp;&amp; "(0 is good)"
+put dcLibraryVersion() begins with "libdatachannel"
+put dcCreatePeer(empty) into tPeer
+put tPeer &gt; 0
+put dcStateName(dcPeerState(tPeer))
+put dcGatheringName(dcGatheringState(tPeer))
+get dcFreePeer(tPeer)
+put dcStateName(dcPeerState(tPeer))</code></pre>
+<pre class="out">0 (0 is good)
+true
+true
+new
+new
+unknown</pre>
+</figure>
+
+<h2 id="signalling">Offer and answer</h2>
+<p>Before two peers can talk they swap two short texts: an <strong>offer</strong> and an <strong>answer</strong>. Each lists the addresses its peer can be reached at, its <strong>candidates</strong>. Making a channel makes a peer write its offer, which is complete when <code>dcGatheringState</code> is 2; <code>dcLocalDescription</code> gives the text. How the text travels is up to you, a web server, a chat, an email or a QR code, and is called <strong>signalling</strong>:</p>
+<figure class="example" id="ex-dc-offer" data-run="output" data-needs="org.openxtalk.library.datachannel dataChannelHelpers">
+<pre class="code"><code>put dcCreatePeer(empty) into tA
+put dcCreateChannel(tA, "chat") into tChannel
+put the milliseconds + 5000 into tUntil
+wait until dcGatheringState(tA) = 2 or the milliseconds &gt; tUntil with messages
+put dcLocalDescriptionType(tA)
+put dcLocalDescription(tA) into tOffer
+put line 1 of tOffer
+put tOffer contains "a=candidate"
+get dcFreePeer(tA)</code></pre>
+<pre class="out">offer
+v=0
+true</pre>
+</figure>
+
+<h2 id="connect">Connecting the two</h2>
+<p>With both peers in one script, the texts go straight across: A writes its offer, B takes it with <code>dcSetRemoteDescription</code> and writes its answer, and A takes B's answer the same way. The peers then try each other's addresses, and the channel opens:</p>
+<figure class="example" id="ex-dc-connect" data-run="output" data-needs="org.openxtalk.library.datachannel dataChannelHelpers">
+<pre class="code"><code>put dcCreatePeer(empty) into tA
+put dcCreatePeer(empty) into tB
+put dcCreateChannel(tA, "chat") into tChannel
+put the milliseconds + 5000 into tUntil
+wait until dcGatheringState(tA) = 2 or the milliseconds &gt; tUntil with messages
+get dcSetRemoteDescription(tB, dcLocalDescription(tA), "offer")
+get dcSetRemoteDescription(tA, dcLocalDescription(tB), "answer")
+wait until dcChannelIsOpen(tChannel) or the milliseconds &gt; tUntil with messages
+put "A is" &amp;&amp; dcStateName(dcPeerState(tA))
+put dcChannelIsOpen(tChannel)
+put dcChannelLabel(tChannel)
+get dcFreePeer(tA)
+get dcFreePeer(tB)
+get dcPoll()</code></pre>
+<pre class="out">A is connected
+true
+chat</pre>
+</figure>
+<p>The last line reads and drops the events the run left over, so that they do not reach the next example.</p>
+
+<h2 id="messages">Messages are events</h2>
+<p><code>dcSendText</code> sends text on an open channel, and <code>dcSendData</code> sends bytes, up to 60000 a message (-4 means too big). On the other side each message is an <strong>event</strong>: <code>dcPoll</code> gives every event since the last poll, oldest first, as an array, each with a "name", the "peer" and "channel" it is about, and more. A message is a "dcMessage" event, with its text under "text" and bytes under "payload". In an app, poll on a timer, or let <code>dcStartPolling</code> do it:</p>
+<figure class="example" id="ex-dc-send" data-run="output" data-needs="org.openxtalk.library.datachannel dataChannelHelpers">
+<pre class="code"><code>put dcCreatePeer(empty) into tA
+put dcCreatePeer(empty) into tB
+put dcCreateChannel(tA, "chat") into tChannel
+put the milliseconds + 5000 into tUntil
+wait until dcGatheringState(tA) = 2 or the milliseconds &gt; tUntil with messages
+get dcSetRemoteDescription(tB, dcLocalDescription(tA), "offer")
+get dcSetRemoteDescription(tA, dcLocalDescription(tB), "answer")
+wait until dcChannelIsOpen(tChannel) or the milliseconds &gt; tUntil with messages
+put dcSendText(tChannel, "Hello, B!") &amp;&amp; "(0 is good)"
+put dcSendData(tChannel, numToByte(0) &amp; numToByte(255)) &amp;&amp; "(0 is good)"
+put dcSendData(tChannel, binaryEncode("x60001", "")) &amp;&amp; "for 60001 bytes"
+repeat until the number of lines of tGot is 2 or the milliseconds &gt; tUntil
+   wait 20 milliseconds with messages
+   repeat for each element tEvent in dcPoll()
+      if tEvent["name"] is "dcMessage" and tEvent["text"] is not empty then
+         put "B got the text" &amp;&amp; tEvent["text"] &amp; return after tGot
+      else if tEvent["name"] is "dcMessage" then
+         put "B got" &amp;&amp; the number of bytes in tEvent["payload"] &amp;&amp; "bytes" &amp; return after tGot
+      end if
+   end repeat
+end repeat
+put line 1 to -1 of tGot
+get dcFreePeer(tA)
+get dcFreePeer(tB)
+get dcPoll()</code></pre>
+<pre class="out">0 (0 is good)
+0 (0 is good)
+-4 for 60001 bytes
+B got the text Hello, B!
+B got 2 bytes</pre>
+</figure>
+
+<h2 id="channels">Channels your way</h2>
+<p><code>dcCreateChannelEx</code> makes a channel with its options: a <strong>protocol</strong> name; <strong>unordered</strong>, so a message need not wait for the one before it; <strong>retries</strong> and a time limit in milliseconds (0 retries means a lost message stays lost, fine for game moves where only the newest counts, and -1 means no limit); and <strong>negotiated</strong> with a stream id, so both sides make the channel themselves and nothing is announced:</p>
+<figure class="example" id="ex-dc-options" data-run="output" data-needs="org.openxtalk.library.datachannel dataChannelHelpers">
+<pre class="code"><code>put dcCreatePeer(empty) into tA
+-- label, protocol, unordered, retries, time limit, negotiated, stream id
+put dcCreateChannelEx(tA, "moves", "game", true, 0, -1, false, -1) into tChannel
+put dcChannelLabel(tChannel) &amp;&amp; dcChannelProtocol(tChannel)
+put dcChannelPeer(tChannel) = tA
+put dcCreateChannelEx(tA, "control", empty, false, -1, -1, true, 5) into tChannel
+put dcChannelStreamId(tChannel)
+get dcFreePeer(tA)</code></pre>
+<pre class="out">moves game
+true
+5</pre>
+</figure>
+
+<h2 id="closing">Closing down</h2>
+<p><code>dcCloseChannel</code> closes a channel, and both ends get a "dcChannelClosed" event. <code>dcClosePeer</code> hangs up the whole connection, and the other side sees its state go to closed. <code>dcFreePeer</code> then frees the peer and its channels:</p>
+<figure class="example" id="ex-dc-close" data-run="output" data-needs="org.openxtalk.library.datachannel dataChannelHelpers">
+<pre class="code"><code>put dcCreatePeer(empty) into tA
+put dcCreatePeer(empty) into tB
+put dcCreateChannel(tA, "chat") into tChannel
+put the milliseconds + 5000 into tUntil
+wait until dcGatheringState(tA) = 2 or the milliseconds &gt; tUntil with messages
+get dcSetRemoteDescription(tB, dcLocalDescription(tA), "offer")
+get dcSetRemoteDescription(tA, dcLocalDescription(tB), "answer")
+wait until dcChannelIsOpen(tChannel) or the milliseconds &gt; tUntil with messages
+get dcCloseChannel(tChannel)
+get dcClosePeer(tA)
+wait until dcPeerState(tB) = 5 or the milliseconds &gt; tUntil with messages
+put dcChannelIsOpen(tChannel)
+put "B is" &amp;&amp; dcStateName(dcPeerState(tB))
+get dcFreePeer(tA)
+get dcFreePeer(tB)
+get dcPoll()</code></pre>
+<pre class="out">false
+B is closed</pre>
+</figure>
+<aside class="warn"><p>Never call <code>dcCleanup</code> while another stack might use dataChannelXT: it ends every peer in OXT-Beyond, not just yours. Free your own peers with <code>dcFreePeer</code>.</p></aside>
+<p>Across the internet, two peers also need a way to swap their offer and answer, and sometimes a <strong>TURN</strong> server to relay for them when no direct route exists. <strong>Learn dataChannelXT</strong> (<kbd>Help &gt; Examples</kbd>) and the Dictionary say more.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a command <code>connectPair</code> that makes two peers and a channel, connects them and returns the three handles as items (A, B, channel), or empty after five seconds without an open channel. Use it to send three numbered lines from A to B, and put what B gets.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-dc-try" data-run="output" data-needs="org.openxtalk.library.datachannel dataChannelHelpers">
+<pre class="code"><code>function connectPair
+   local tA, tB, tChannel, tUntil
+   put dcCreatePeer(empty) into tA
+   put dcCreatePeer(empty) into tB
+   put dcCreateChannel(tA, "chat") into tChannel
+   put the milliseconds + 5000 into tUntil
+   wait until dcGatheringState(tA) = 2 or the milliseconds &gt; tUntil with messages
+   get dcSetRemoteDescription(tB, dcLocalDescription(tA), "offer")
+   get dcSetRemoteDescription(tA, dcLocalDescription(tB), "answer")
+   wait until dcChannelIsOpen(tChannel) or the milliseconds &gt; tUntil with messages
+   if not dcChannelIsOpen(tChannel) then
+      get dcFreePeer(tA)
+      get dcFreePeer(tB)
+      return empty
+   end if
+   return tA, tB, tChannel
+end connectPair
+
+put connectPair() into tPair
+repeat with tIndex = 1 to 3
+   get dcSendText(item 3 of tPair, "line" &amp;&amp; tIndex)
+end repeat
+put the milliseconds + 5000 into tUntil
+repeat until the number of lines of tGot is 3 or the milliseconds &gt; tUntil
+   wait 20 milliseconds with messages
+   repeat for each element tEvent in dcPoll()
+      if tEvent["name"] is "dcMessage" then put tEvent["text"] &amp; return after tGot
+   end repeat
+end repeat
+put line 1 to -1 of tGot
+get dcFreePeer(item 1 of tPair)
+get dcFreePeer(item 2 of tPair)
+get dcPoll()</code></pre>
+<pre class="out">line 1
+line 2
+line 3</pre>
+</figure>
+</details>
+</section>

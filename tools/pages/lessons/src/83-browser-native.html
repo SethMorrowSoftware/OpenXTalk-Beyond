@@ -1,0 +1,129 @@
+<!--
+title: Web pages and native controls
+level: extensions
+minutes: 12
+summary: Show a web page, or a page of your own, in a card with the Browser widget, answer what happens in it, let the page call your scripts, and use the buttons and fields each system draws itself with the native widgets.
+words: Browser, url, htmlText, browserNavigateBegin, browserDocumentLoadComplete, browserDocumentLoadFailed, javascriptHandlers, liveCode, do in widget, native button, native field, Mac Native Button, iOS Native Button, Android Native Button, HTML5 Native Button, label, returnKey, the platform
+-->
+<h2 id="browser">A web page in a card</h2>
+<p>The <strong>Browser</strong> widget is a whole web browser in a rectangle of the card: it shows pages from the internet, runs their JavaScript, follows their links and plays their videos. Build a card with one:</p>
+<div class="build" id="build-web">
+<ol>
+<li>Make a new stack, or go to an empty card. In Edit mode, drag a classic <strong>Field</strong> to the top of the card, stretch it from edge to edge, make it one line high, and name it <code>Address</code>.</li>
+<li>Drag a <strong>Browser</strong> from the widgets of the Tools palette below it, make it fill the rest of the card, and name it <code>Web</code>.</li>
+</ol>
+<pre class="setup">create field "Address"
+set the rect of it to 10,8,470,32
+create widget "Web" as "com.livecode.widget.browser"
+set the rect of it to 0,40,480,360</pre>
+</div>
+<p>The page it shows is its <code>url</code>. Put this in the Address field's script, so that typing an address and pressing <kbd>Return</kbd> goes there, as a browser's address bar does:</p>
+<figure class="example" id="ex-wb-address" data-run="compile" data-card="build-web" data-script='field "Address"' data-needs="com.livecode.library.widgetutils com.livecode.widget.browser">
+<pre class="code"><code>on returnInField
+   local tAddress
+   put word 1 to -1 of me into tAddress
+   if tAddress is empty then exit returnInField
+   if "://" is not in tAddress then put "https://" before tAddress
+   set the url of widget "Web" to tAddress
+end returnInField</code></pre>
+</figure>
+<p>In Run mode, type <code>example.com</code> in the field and press <kbd>Return</kbd>. The page is drawn by the system on top of the card, so keep other controls out from under the widget: where they overlap, they cannot be seen.</p>
+
+<h2 id="messages">What happens in the page</h2>
+<p>The page loads on its own, while your scripts go on, and the widget sends messages as it does: <code>browserNavigateBegin</code> when it starts to go to a new address, whether a script set it or someone clicked a link; <code>browserDocumentLoadComplete</code> when the page is there; and <code>browserDocumentLoadFailed</code>, with the reason, when it could not be loaded. Each comes with the page's address. Put this in the Browser widget's script, to keep the Address field up to date and say when a page fails:</p>
+<figure class="example" id="ex-wb-messages" data-run="compile" data-card="build-web" data-script='widget "Web"' data-needs="com.livecode.library.widgetutils com.livecode.widget.browser">
+<pre class="code"><code>on browserNavigateBegin pUrl
+   put pUrl into field "Address"
+end browserNavigateBegin
+
+on browserDocumentLoadComplete pUrl
+   set the title of this stack to pUrl
+end browserDocumentLoadComplete
+
+on browserDocumentLoadFailed pUrl, pError
+   put "Could not open" &amp;&amp; pUrl &amp; ":" &amp;&amp; pError into field "Address"
+end browserDocumentLoadFailed</code></pre>
+</figure>
+<p>Click a link in the page and the field follows it, because the click starts a new navigation as typing an address does.</p>
+
+<h2 id="own-page">A page of your own</h2>
+<p>The widget shows HTML you make as readily as a page from the internet: set its <code>htmlText</code> and it shows that, with no address at all. HTML is a good way to show a list or a table with styles, links and pictures, and a script can make it from your data. Here is a function that makes a page of names, each a line of a list:</p>
+<figure class="example" id="ex-wb-page" data-run="output">
+<pre class="code"><code>function peoplePage pNames
+   local tPage, tName
+   put "&lt;h2&gt;People&lt;/h2&gt;&lt;ul&gt;" into tPage
+   repeat for each line tName in pNames
+      replace "&amp;" with "&amp;amp;" in tName
+      replace "&lt;" with "&amp;lt;" in tName
+      put "&lt;li onclick='liveCode.personClicked(this.textContent)'&gt;" &amp; tName &amp; "&lt;/li&gt;" after tPage
+   end repeat
+   return tPage &amp; "&lt;/ul&gt;"
+end peoplePage
+
+put peoplePage("Ada" &amp; return &amp; "Tom &amp; Jerry")</code></pre>
+<pre class="out">&lt;h2&gt;People&lt;/h2&gt;&lt;ul&gt;&lt;li onclick='liveCode.personClicked(this.textContent)'&gt;Ada&lt;/li&gt;&lt;li onclick='liveCode.personClicked(this.textContent)'&gt;Tom &amp;amp; Jerry&lt;/li&gt;&lt;/ul&gt;</pre>
+</figure>
+<p>The two <code>replace</code> lines write <code>&amp;</code> and <code>&lt;</code> the way HTML needs them, so a name with one in it shows as it is, rather than being read as HTML. Each line of the list also says what happens when it is clicked: <code>liveCode.personClicked</code>, with the line's text.</p>
+
+<h2 id="javascript">The page and your scripts</h2>
+<p>JavaScript in a page can call handlers of yours, but only those you name in the widget's <code>javascriptHandlers</code>, a line each. Each becomes a function of a JavaScript object named <code>liveCode</code>, and calling it sends the message, with what it was given, to the widget, from where it goes on to the card and the stack as any message does. Put <code>peoplePage</code> in the stack's script, with these:</p>
+<figure class="example" id="ex-wb-handlers" data-run="compile" data-card="build-web" data-script="this stack" data-needs="com.livecode.library.widgetutils com.livecode.widget.browser">
+<pre class="code"><code>on openCard
+   set the javascriptHandlers of widget "Web" to "personClicked"
+   set the htmlText of widget "Web" to peoplePage("Ada" &amp; return &amp; "Grace" &amp; return &amp; "Alan")
+end openCard
+
+on personClicked pName
+   put "You chose" &amp;&amp; pName into field "Address"
+end personClicked</code></pre>
+</figure>
+<p>Go to the card again in Run mode, and click a name. The other way round, <code>do</code> runs JavaScript in the page: <code>do "document.body.style.background = 'lightyellow'" in widget "Web"</code> colours its background. A page that can call your handlers can do whatever they do, so name only handlers that are safe for it to call, and only for pages you made.</p>
+
+<h2 id="native">Native buttons and fields</h2>
+<p>A classic button looks much the same on every system. A <strong>native</strong> widget is the system's own control, drawn and worked by the system, so it looks and behaves exactly as the rest of the system does. There are native buttons for the Mac, iOS, Android and HTML5, and native one-line fields for the Mac and Android. Each is the real thing only on its own system; anywhere else it is a grey stand-in with the system's logo and its label, or a field's name, so a card for the Mac can be laid out on any computer:</p>
+<figure class="example" id="ex-wb-native" data-run="output" data-needs="com.livecode.library.widgetutils com.livecode.library.scriptitems com.livecode.library.androidutils com.livecode.widget.native.mac.button com.livecode.widget.native.mac.textfield com.livecode.widget.native.ios.button com.livecode.widget.native.android.button com.livecode.widget.native.android.field com.livecode.widget.native.emscripten.button" data-shot="Five grey stand-ins in two columns, each with its label over a system's logo: Save over a Mac, a thin field named Name, and Open over the HTML5 shield at the left; Send over iOS and Share over the Android robot at the right.">
+<pre class="code"><code>create widget "Save" as "com.livecode.widget.native.mac.button"
+set the label of it to "Save"
+set the rect of it to 20, 20, 220, 100
+create widget "Name" as "com.livecode.widget.native.mac.textfield"
+set the text of it to "Ada"
+set the rect of it to 20, 120, 220, 160
+create widget "Open" as "com.livecode.widget.native.emscripten.button"
+set the label of it to "Open"
+set the rect of it to 20, 180, 220, 260
+create widget "Send" as "com.livecode.widget.native.ios.button"
+set the label of it to "Send"
+set the rect of it to 260, 20, 460, 100
+create widget "Share" as "com.livecode.widget.native.android.button"
+set the label of it to "Share"
+set the rect of it to 260, 120, 460, 200
+put the platform
+put the label of widget "Save"
+put the text of widget "Name"</code></pre>
+<pre class="out">Linux
+Save
+Ada</pre>
+</figure>
+<p>A native button sends <code>mouseUp</code> when it is clicked, as any button does, and its <code>label</code> is its text. A native field's text is its <code>text</code>, and the Mac's sends <code>returnKey</code> when <kbd>Return</kbd> is pressed in it. On a phone a native field brings up the system's own keyboard, and the Android one has properties for which keyboard, such as <code>keyboardType</code>.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>A card has a native Mac button and a classic button that do the same thing. Write a command <code>showButtons</code> that shows the native one only on a Mac and the classic one everywhere else, to call as the card opens.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-wb-try" data-run="output" data-needs="com.livecode.library.widgetutils com.livecode.widget.native.mac.button">
+<pre class="code"><code>command showButtons
+   set the visible of widget "Mac Save" to the platform is "MacOS"
+   set the visible of button "Save" to the platform is not "MacOS"
+end showButtons
+
+create widget "Mac Save" as "com.livecode.widget.native.mac.button"
+set the label of it to "Save"
+create button "Save"
+showButtons
+put the visible of widget "Mac Save"
+put the visible of button "Save"</code></pre>
+<pre class="out">false
+true</pre>
+</figure>
+</details>
+</section>

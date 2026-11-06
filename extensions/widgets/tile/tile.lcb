@@ -71,8 +71,8 @@ metadata colorStep.default is "0"
 The label to display
 
 Syntax:
-set the titleLabel of <widget> to <pLabel>
-get the titleLabel of <widget>
+set the tileLabel of <widget> to <pLabel>
+get the tileLabel of <widget>
 
 Value:
 The label string

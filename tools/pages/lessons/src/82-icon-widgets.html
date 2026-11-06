@@ -1,0 +1,174 @@
+<!--
+title: Icons and SVG
+level: extensions
+minutes: 12
+summary: Find the icons that come with OXT-Beyond with the Icon SVG library, draw, colour, turn and light them with the SVG Icon widget, draw a shape of your own from an SVG path, and let people choose an icon with the Icon Picker.
+words: SVG Icon, SVG path, iconPresetName, iconName, iconPath, foreColor, hiliteColor, highlight, angle, flipped, maintainAspectRatio, scaledWidth, Icon SVG library, iconNames, iconSVGPathFromName, iconFamilies, addIcon, Icon Picker, selectedIcon, filterString, popup widget
+-->
+<h2 id="icons">The icons</h2>
+<p>OXT-Beyond comes with a few hundred icons, the ones the Header Bar, the Navigation Bar and the Tile show (<a href="../navigation-widgets/">Header bars, tabs and tiles</a>). Each is a drawing written as an <strong>SVG path</strong>, a line of text that tells a pen where to go, so it stays sharp at any size. The <strong>Icon SVG</strong> library knows them all: <code>iconNames</code> gives their names, a line each, and <code>iconSVGPathFromName</code> gives the path of one:</p>
+<figure class="example" id="ex-wi-names" data-run="output" data-needs="com.livecode.library.iconsvg">
+<pre class="code"><code>put iconNames() into tNames
+put the number of lines of tNames
+put "heart" is among the lines of tNames
+filter tNames with "*arrow*"
+put the number of lines of tNames
+put line 1 to 4 of tNames
+put char 1 to 12 of iconSVGPathFromName("heart")</code></pre>
+<pre class="out">369
+true
+13
+arrow down
+arrow left
+arrow right
+arrow up
+M896 1664Q87</pre>
+</figure>
+<p>The names are in lower case, with spaces between words, such as <code>thumbs up</code> or <code>circle arrow up</code>. A name the library does not know gives an empty path. To see them all, put <code>iconNames()</code> in the Message Box, or look through the Icon Picker at the end of this lesson.</p>
+
+<h2 id="svg-icon">The SVG Icon widget</h2>
+<p>The <strong>SVG Icon</strong> widget draws one icon, as big as its rectangle. In the Property Inspector its <strong>Preset</strong> chooses the icon from a menu of them all; from a script it is the <code>iconPresetName</code>. Its colour is its <code>foreColor</code>, as for a field's text; its <code>angle</code> turns it, in degrees clockwise; and <code>flipped</code> turns it upside down. A row of weather icons, made from a script:</p>
+<figure class="example" id="ex-wi-weather" data-run="output" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.svgpath" data-shot="A row of five orange icons across the top of the card: a sun, a cloud, an umbrella leaning to the right, a lightning bolt and a moon.">
+<pre class="code"><code>put "sun,cloud,umbrella,bolt,moon" into tWeather
+repeat with tIndex = 1 to 5
+   create widget (item tIndex of tWeather) as "com.livecode.widget.svgpath"
+   set the iconPresetName of it to item tIndex of tWeather
+   set the foreColor of it to "230,140,40"
+   set the rect of it to 20 + (tIndex - 1) * 90, 40, 90 + (tIndex - 1) * 90, 110
+end repeat
+set the angle of widget "umbrella" to 45
+put the number of widgets
+put the iconPresetName of widget "cloud"</code></pre>
+<pre class="out">5
+cloud</pre>
+</figure>
+<p>An icon keeps its shape when its widget is stretched, as big as fits and in the middle, so a wide SVG Icon draws a cloud no wider than a square one.</p>
+
+<h2 id="path">A shape of your own</h2>
+<p>The <code>iconPath</code> is the drawing itself, and it can be one of your own. An SVG path is a list of commands, each a letter and then numbers: <code>M</code> moves the pen to a point without drawing, <code>L</code> draws a straight line to a point, and <code>Z</code> draws back to the start and closes the shape. Points are across and then down, as on a card, so this house starts at the top of its roof:</p>
+<figure class="example" id="ex-wi-path" data-run="output" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.svgpath" data-shot="Two green houses side by side, each a roof on a square: the one at the left in its true shape, the one at the right stretched twice as wide.">
+<pre class="code"><code>put "M 50 0 L 100 45 L 85 45 L 85 100 L 15 100 L 15 45 L 0 45 Z" into tHouse
+create widget "House" as "com.livecode.widget.svgpath"
+set the rect of it to 20, 40, 160, 180
+set the iconPath of it to tHouse
+set the foreColor of it to "60,160,110"
+create widget "Wide" as "com.livecode.widget.svgpath"
+set the rect of it to 190, 40, 470, 180
+set the maintainAspectRatio of it to false
+set the iconPath of it to tHouse
+set the foreColor of it to "60,160,110"
+put the scaledWidth of widget "House", the scaledHeight of widget "House"
+put the scaledWidth of widget "Wide", the scaledHeight of widget "Wide"</code></pre>
+<pre class="out">140,140
+280,140</pre>
+</figure>
+<p>The numbers only have to be right among themselves: the widget scales the drawing to fit. With <code>maintainAspectRatio</code> false it fills the widget instead, stretched as the widget is; <code>scaledWidth</code> and <code>scaledHeight</code> say how big the drawing came out. SVG paths have curves too, and any drawing program that saves SVG makes them.</p>
+<p>To use a shape of your own by name, as the icons that come with OXT-Beyond are used, give it to the library with <code>addIcon</code>, its name, its path, and an empty third value, which matters only to icon fonts:</p>
+<figure class="example" id="ex-wi-add" data-run="output" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.svgpath">
+<pre class="code"><code>addIcon "house", "M 50 0 L 100 45 L 85 45 L 85 100 L 15 100 L 15 45 L 0 45 Z", empty
+put char 1 to 6 of iconSVGPathFromName("house")
+put "custom" is among the lines of iconFamilies()
+create widget "Home" as "com.livecode.widget.svgpath"
+set the iconPresetName of it to "custom/house"
+put the iconName of widget "Home"</code></pre>
+<pre class="out">M 50 0
+true
+custom/house</pre>
+</figure>
+<p>Icons you add go in a <strong>family</strong> of their own named <code>custom</code>, apart from the <code>fontawesome</code> family the others are in, and a name can say which family it means, as <code>custom/house</code> does. A widget that takes an icon's name, such as a Tile or a Navigation Bar, can then use it too. The library forgets the icons you add when OXT-Beyond quits, so a stack that uses one adds it each time it opens, in <code>preOpenStack</code>.</p>
+
+<h2 id="like">A button that lights</h2>
+<p>An SVG Icon sends <code>mouseUp</code> when it is clicked, so it can be a button. Its <code>highlight</code> draws it in its <code>hiliteColor</code> instead of its <code>foreColor</code>, which suits a button that stays on, such as a heart for liking something. Build a card with one:</p>
+<div class="build" id="build-like">
+<ol>
+<li>Make a new stack, or go to an empty card. In Edit mode, drag an <strong>SVG Icon</strong> from the widgets of the Tools palette to the card, make it about 100 pixels square, and name it <code>Like</code>.</li>
+<li>In the Property Inspector, choose <strong>heart empty</strong> as its Preset, and a red as its Hilite color.</li>
+</ol>
+<pre class="setup">create widget "Like" as "com.livecode.widget.svgpath"
+set the rect of it to 40,40,140,140
+set the iconPresetName of it to "heart empty"
+set the hiliteColor of it to "214,40,57"</pre>
+</div>
+<p>Put this in the SVG Icon's script. Each click lights it or puts it out, and shows a full heart while it is lit:</p>
+<figure class="example" id="ex-wi-like-script" data-run="compile" data-card="build-like" data-script='widget "Like"' data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.svgpath">
+<pre class="code"><code>on mouseUp
+   set the highlight of me to not the highlight of me
+   if the highlight of me then
+      set the iconPresetName of me to "heart"
+   else
+      set the iconPresetName of me to "heart empty"
+   end if
+end mouseUp</code></pre>
+</figure>
+<p>Click it in Run mode, or send it the message from the Message Box:</p>
+<figure class="example" id="ex-wi-like" data-run="output" data-card="build-like" data-in="message" data-after="ex-wi-like-script" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.svgpath" data-shot="Your card: a big red heart, filled in.">
+<pre class="code"><code>send "mouseUp" to widget "Like"
+put the highlight of widget "Like"
+put the iconName of widget "Like"
+send "mouseUp" to widget "Like"
+put the highlight of widget "Like"
+send "mouseUp" to widget "Like"</code></pre>
+<pre class="out">true
+heart
+false</pre>
+</figure>
+
+<h2 id="picker">The Icon Picker</h2>
+<p>The <strong>Icon Picker</strong> shows the icons in a grid to scroll through, and lets people choose one with a click, which sets its <code>selectedIcon</code> and sends <code>mouseUp</code>. A second click on the chosen icon unchooses it, and leaves <code>selectedIcon</code> empty. Its <code>filterString</code> shows only the icons whose names contain it. Build a card with one:</p>
+<div class="build" id="build-picker">
+<ol>
+<li>Make a new stack, or go to an empty card. In Edit mode, drag an <strong>Icon Picker</strong> from the widgets of the Tools palette to the left of the card, make it about 300 pixels square, and name it <code>Picker</code>.</li>
+<li>Drag an <strong>SVG Icon</strong> to the right of it, make it about 120 pixels square, and name it <code>Preview</code>.</li>
+</ol>
+<pre class="setup">create widget "Picker" as "com.livecode.widget.iconpicker"
+set the rect of it to 20,20,320,340
+create widget "Preview" as "com.livecode.widget.svgpath"
+set the rect of it to 340,40,460,160</pre>
+</div>
+<p>Put this in the Icon Picker's script, so the Preview shows each icon that is chosen:</p>
+<figure class="example" id="ex-wi-picker-script" data-run="compile" data-card="build-picker" data-script='widget "Picker"' data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.iconpicker com.livecode.widget.svgpath">
+<pre class="code"><code>on mouseUp
+   if the selectedIcon of me is not empty then
+      set the iconPresetName of widget "Preview" to the selectedIcon of me
+   end if
+end mouseUp</code></pre>
+</figure>
+<figure class="example" id="ex-wi-picker" data-run="output" data-card="build-picker" data-in="message" data-after="ex-wi-picker-script" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.iconpicker com.livecode.widget.svgpath" data-shot="Your card: the icon picker at the left showing only arrows, the circle arrow up lit and named in a bar along its top, and the same arrow drawn big at the right.">
+<pre class="code"><code>set the filterString of widget "Picker" to "arrow"
+set the selectedIcon of widget "Picker" to "circle arrow up"
+send "mouseUp" to widget "Picker"
+put the selectedIcon of widget "Picker"
+put the iconName of widget "Preview"</code></pre>
+<pre class="out">circle arrow up
+circle arrow up</pre>
+</figure>
+<p>Setting <code>selectedIcon</code> from a script sends nothing, so the example sends the <code>mouseUp</code> a click would. An Icon Picker can also appear only when it is wanted, as a menu does: <code>popup widget "com.livecode.widget.iconpicker" at the mouseLoc</code> shows one under the pointer, waits for a choice, and puts the icon's name in <code>the result</code>, or empty when the choice was abandoned.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a command <code>showIcons</code> that takes a word and makes an SVG Icon for every icon whose name contains it, in rows of six across the card, each named after its icon.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-wi-try" data-run="output" data-needs="com.livecode.library.iconsvg com.livecode.library.widgetutils com.livecode.widget.svgpath" data-shot="Thirteen black arrow icons in rows of six: plain arrows, arrows in circles, a location arrow and long arrows, pointing every way.">
+<pre class="code"><code>command showIcons pWord
+   local tNames, tName, tCount, tLeft, tTop
+   put iconNames() into tNames
+   filter tNames with "*" &amp; pWord &amp; "*"
+   put 0 into tCount
+   repeat for each line tName in tNames
+      put 20 + (tCount mod 6) * 75 into tLeft
+      put 20 + (tCount div 6) * 75 into tTop
+      create widget tName as "com.livecode.widget.svgpath"
+      set the iconPresetName of it to tName
+      set the rect of it to tLeft, tTop, tLeft + 55, tTop + 55
+      add 1 to tCount
+   end repeat
+end showIcons
+
+showIcons "arrow"
+put the number of widgets
+put the short name of widget 1</code></pre>
+<pre class="out">13
+arrow down</pre>
+</figure>
+</details>
+</section>

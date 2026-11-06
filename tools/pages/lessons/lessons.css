@@ -16,7 +16,7 @@
   --text: #e8edf4; --soft: #c9d3e2; --muted: #9eabbd; --line: #26324a;
   --code-bg: #0d1320; --code-line: #1f2a3f;
   --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, "DejaVu Sans Mono", monospace;
-  --beginner: #5fe0cf; --intermediate: #ffb347; --advanced: #ff7a00; --expert: #b69cff;
+  --beginner: #5fe0cf; --intermediate: #ffb347; --advanced: #ff7a00; --expert: #b69cff; --extensions: #ff7b9c;
 }
 * { box-sizing: border-box; }
 html { background: var(--night); scroll-padding-top: 20px; }
@@ -97,6 +97,7 @@ nav.top .links a:hover, nav.top .links a[aria-current] { opacity: 1; color: var(
 .lv-intermediate { --c: var(--intermediate); }
 .lv-advanced { --c: var(--advanced); }
 .lv-expert { --c: var(--expert); }
+.lv-extensions { --c: var(--extensions); }
 
 /* The headings: the eyebrow, the flame, the seam */
 .eyebrow {
@@ -208,6 +209,7 @@ nav.top .links a:hover, nav.top .links a[aria-current] { opacity: 1; color: var(
 .lesson-card[data-level="intermediate"] .num { --c: var(--intermediate); }
 .lesson-card[data-level="advanced"] .num { --c: var(--advanced); }
 .lesson-card[data-level="expert"] .num { --c: var(--expert); }
+.lesson-card[data-level="extensions"] .num { --c: var(--extensions); }
 .lesson-card .body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .lesson-card b { font-size: 1.08rem; letter-spacing: -.01em; }
 .lesson-card .sum { color: var(--soft); font-size: .92rem; line-height: 1.5; }
