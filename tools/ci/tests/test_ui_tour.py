@@ -304,6 +304,13 @@ class HyperCardDiskImage(unittest.TestCase):
         self.assertIn('tourShotStack pName, "06g-hypercard-disk-image-stack"', shot)
         self.assertIn('put true into sHciShotDone', shot.split('end try', 1)[1])
 
+    def test_the_dynamic_path_is_off_for_the_snapshot(self):
+        # with it on, the tour's call of tourWait went to the imported
+        # stack's card on Windows: "can't find handler"
+        off = self.step.index('set the dynamicPaths of tStack to false')
+        self.assertLess(off, self.step.index('send "tourHyperCardImageShot"'))
+        self.assertGreater(off, self.step.index('the customProperties["uHyperCard"] of tStack'))
+
 
 class TourGoesOn(unittest.TestCase):
     """An error that ends every handler of the tour's (not one a try

@@ -4428,6 +4428,15 @@ on tour_hypercard_disk_image
    -- until the job's 900 s ran out, and every step after it was lost. A
    -- snapshot that does not end is a failure of this step, and the stack
    -- is deleted all the same
+   -- The import keeps HyperCard's dynamic path (the dynamicPaths of the
+   -- stack): once its window comes to the front, as unlocking the screen
+   -- for the snapshot brought it on Windows, a handler's call of another
+   -- goes to the stack's card, not to the caller's own script, and the
+   -- tour's tourWait was not found ("can't find handler", 0.2.7-rc.6.15,
+   -- #377's second run). The snapshot is the tour's, not the import's: the
+   -- path is turned off for it, after the checks above
+   tourRecord "INFO hypercard-disk-image: the dynamicPaths of the imported stack" && the dynamicPaths of tStack
+   set the dynamicPaths of tStack to false
    if the mode of tStack is not 0 and the visible of tStack then
       tourWait 500
       put false into sHciShotDone
