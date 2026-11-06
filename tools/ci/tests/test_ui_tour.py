@@ -538,6 +538,72 @@ class DictionaryPage(unittest.TestCase):
         self.assertIn('import snapshot from rect tRect', spread)
 
 
+class AppBrowser(unittest.TestCase):
+    """The Application Browser (the App Browser plugin), which the tour did
+    not open until rc.6.17: it listed itself among the user's stacks, its
+    lists were in 11 points (richmond62, openxtalk.org p=26048), and its
+    names were mid grey, 4 to 1 on its white list. The step fails on
+    rc.6.16's IDE, light and dark ("lists itself"), and passes with
+    rc.6.17's (10.4 to 1 light, 9.8 to 1 dark on Linux)."""
+
+    def setUp(self):
+        with open(TOUR, encoding='utf-8') as f:
+            self.script = f.read()
+        self.step = handler(self.script, 'on', 'tour_app_browser')
+
+    def test_a_step_after_the_project_browser(self):
+        steps = [line for line in self.script.splitlines() if line.startswith('constant kSteps')][0]
+        names = steps.split('"')[1].split(',')
+        self.assertEqual(names.index('app-browser'), names.index('project-browser') + 1)
+
+    def test_it_opens_the_plugin_as_the_menu_does(self):
+        self.assertIn('revIDEOpenPlugin tStack', self.step)
+        self.assertIn('go stack kSample', self.step)
+
+    def test_the_shot_before_the_checks(self):
+        shot = self.step.index('tourShotStack tStack, "12b-app-browser"')
+        for throw in ('throw "the App Browser does not list the stack"',
+                      'throw "the App Browser lists itself among the user\'s stacks"',
+                      'not 13"', 'do not read on its list'):
+            self.assertLess(shot, self.step.index(throw), throw)
+
+    def test_it_must_not_list_itself(self):
+        self.assertIn('if tStack is among the lines of tListed then', self.step)
+        # a stack's line is one with no card number
+        self.assertIn('if word 1 to -1 of item 2 of it is empty then', self.step)
+
+    def test_its_lists_in_13_points(self):
+        self.assertIn('the textSize of field "Cards" of card 1 of stack tStack is not 13', self.step)
+        self.assertIn('the textSize of field "Controls" of card 1 of stack tStack is not 13', self.step)
+
+    def test_its_names_read_on_its_list_as_drawn(self):
+        # the list's colour from the screen, inside its scroll bars, and
+        # the names' colour against it at 4.5 to 1
+        self.assertIn('import snapshot from rect tRect', self.step)
+        self.assertIn('subtract the scrollbarWidth of field "Cards" of card 1 of stack tStack from item 3 of tRect',
+                      self.step)
+        self.assertIn('put tourRGB(the effective linkColor of stack tStack) into tLink', self.step)
+        self.assertIn('put tourContrast(tLink, tBack) into tRatio', self.step)
+        self.assertIn('if tRatio < 4.5 then', self.step)
+
+    def test_contrast_of_rc616s_and_rc617s_colours(self):
+        def lum(c):
+            out = []
+            for v in c:
+                v = v / 255
+                out.append(v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4)
+            return 0.2126 * out[0] + 0.7152 * out[1] + 0.0722 * out[2]
+
+        def ratio(a, b):
+            la, lb = lum(a), lum(b)
+            return round((max(la, lb) + 0.05) / (min(la, lb) + 0.05), 2)
+        # the plugin's own mid grey on its white list: under 4.5
+        self.assertLess(ratio((127, 127, 127), (255, 255, 255)), 4.5)
+        # rc.6.17's dark grey on white, and light grey on Linux's dark list
+        self.assertEqual(ratio((64, 64, 64), (255, 255, 255)), 10.37)
+        self.assertEqual(ratio((208, 208, 208), (35, 39, 41)), 9.77)
+
+
 class DictionaryFitsItsPage(unittest.TestCase):
     """The fix for the blank Dictionary: the browser widget, set to
     0,0,0,0 as the window opens, is fitted to the window once it is open,

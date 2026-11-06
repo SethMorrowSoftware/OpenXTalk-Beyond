@@ -82,7 +82,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,screen-end"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -5634,6 +5634,107 @@ on tour_project_browser
    end if
    close stack tStack
 end tour_project_browser
+
+-- The Application Browser, the App Browser plugin (Tools > Plugins): it
+-- lists the user's stacks and leaves itself out (until 0.2.7-rc.6.17 it
+-- listed itself among them); its lists are in 13 points (richmond62,
+-- openxtalk.org p=26048: they were 11); and its names, links in its
+-- stack's linkColor, read on its list, light or dark: the plugin's own
+-- mid grey was 4 to 1 on its white list, and on a dark one hardly read
+on tour_app_browser
+   local tStack, tLine, tCard, tListed, tRect, tTopLeft, tImage, tData, tCount, tBack, tMost, i, tKey, tLink, tRatio
+   get tourSample("Push")
+   go stack kSample
+   tourWait 300
+   put "App Browser" into tStack
+   revIDEOpenPlugin tStack
+   tourWait 1500
+   if there is not a stack tStack or not the visible of stack tStack then throw "the App Browser did not open"
+   -- the stacks it lists (a stack's line has no card number, its item 2)
+   -- and the sample's first card, so that its controls show too
+   set the itemDelimiter to tab
+   put 0 into tCard
+   repeat with tLine = 1 to the number of lines of field "Cards" of card 1 of stack tStack
+      get line tLine of field "Cards" of card 1 of stack tStack
+      if word 1 to -1 of item 2 of it is empty then
+         put word 1 to -1 of item 1 of it & return after tListed
+      else if tCard is 0 and kSample is among the lines of tListed then
+         put tLine into tCard
+      end if
+   end repeat
+   set the itemDelimiter to comma
+   if tCard is not 0 then
+      send "revSelectTree" && tCard to field "Cards" of card 1 of stack tStack
+      tourWait 800
+   end if
+   tourShotStack tStack, "12b-app-browser"
+   put line 1 to -1 of tListed into tLine
+   replace return with ", " in tLine
+   tourRecord "INFO the App Browser lists" && tLine & "; its lists in" && \
+         the textSize of field "Cards" of card 1 of stack tStack && "and" && \
+         the textSize of field "Controls" of card 1 of stack tStack && "points; its links" && the linkColor of stack tStack
+   if kSample is not among the lines of tListed then
+      close stack tStack
+      throw "the App Browser does not list the stack" && kSample
+   end if
+   if tStack is among the lines of tListed then
+      close stack tStack
+      throw "the App Browser lists itself among the user's stacks"
+   end if
+   if the textSize of field "Cards" of card 1 of stack tStack is not 13 or \
+         the textSize of field "Controls" of card 1 of stack tStack is not 13 then
+      close stack tStack
+      throw "the App Browser's lists are in" && the textSize of field "Cards" of card 1 of stack tStack && \
+            "and" && the textSize of field "Controls" of card 1 of stack tStack && "points, not 13"
+   end if
+   -- the list's colour, as drawn: the commonest colour inside it (its
+   -- left 160 points, without its scroll bars), which its rows' words,
+   -- icons and one hilited row leave the most of
+   put the rect of field "Cards" of card 1 of stack tStack into tRect
+   if the vScrollbar of field "Cards" of card 1 of stack tStack then
+      subtract the scrollbarWidth of field "Cards" of card 1 of stack tStack from item 3 of tRect
+   end if
+   if the hScrollbar of field "Cards" of card 1 of stack tStack then
+      subtract the scrollbarWidth of field "Cards" of card 1 of stack tStack from item 4 of tRect
+   end if
+   put item 1 of tRect + 3 into item 1 of tRect
+   put item 2 of tRect + 3 into item 2 of tRect
+   put min(item 3 of tRect - 3, item 1 of tRect + 160) into item 3 of tRect
+   put item 4 of tRect - 3 into item 4 of tRect
+   set the defaultStack to tStack
+   put globalLoc(item 1 to 2 of tRect) into tTopLeft
+   put item 1 of tTopLeft, item 2 of tTopLeft, item 1 of tTopLeft + item 3 of tRect - item 1 of tRect, \
+         item 2 of tTopLeft + item 4 of tRect - item 2 of tRect into tRect
+   set the defaultStack to "oxt_ui_tour"
+   lock messages
+   import snapshot from rect tRect
+   put the long id of last image of card 1 of stack "oxt_ui_tour" into tImage
+   put the imageData of tImage into tData
+   delete tImage
+   unlock messages
+   repeat with i = 0 to the number of bytes of tData div 4 - 1
+      put byteToNum(byte i * 4 + 2 of tData) & comma & byteToNum(byte i * 4 + 3 of tData) & comma & \
+            byteToNum(byte i * 4 + 4 of tData) into tKey
+      add 1 to tCount[tKey]
+   end repeat
+   put 0 into tMost
+   repeat for each key tKey in tCount
+      if tCount[tKey] > tMost then
+         put tCount[tKey] into tMost
+         put tKey into tBack
+      end if
+   end repeat
+   put tourRGB(the effective linkColor of stack tStack) into tLink
+   close stack tStack
+   if tBack is empty or the number of items of tLink is not 3 then
+      throw "no colour for the App Browser's list (" & tBack & ") or its links (" & tLink & ")"
+   end if
+   put tourContrast(tLink, tBack) into tRatio
+   tourRecord "INFO the App Browser's links" && tLink && "on its list" && tBack && "(contrast" && tRatio & ")"
+   if tRatio < 4.5 then
+      throw "the App Browser's names" && tLink && "do not read on its list" && tBack && "(contrast" && tRatio & ")"
+   end if
+end tour_app_browser
 
 -- The WCAG contrast ratio of two RGB colours
 function tourContrast pOne, pTwo
