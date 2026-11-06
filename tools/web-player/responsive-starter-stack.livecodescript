@@ -443,7 +443,7 @@ end rsSaveLook
 -- The Saved card's grid: a copy of each saved place's card from the
 -- Explore grid, laid out by the same rules
 private command rsFillSaved
-   local tGrid, tPlace
+   local tGrid, tPlace, i
    lock screen
    put the long id of group "Saved Grid" of card "Saved" of me into tGrid
    repeat with i = the number of groups of tGrid down to 1
@@ -454,6 +454,19 @@ private command rsFillSaved
    repeat for each line tPlace in sSaved
       copy group ("Tile" && tPlace) of group "Grid" of card "Explore" of me to tGrid
    end repeat
+   -- without the library (an engine before 0.2.7-rc.6.16) the grid is
+   -- not flowed: the saved places take the first places of Explore's
+   -- grid, in turn
+   if not sLibrary then
+      put 0 into tPlace
+      repeat with i = 1 to the number of groups of tGrid
+         if the short name of group i of tGrid begins with "Tile" then
+            add 1 to tPlace
+            set the topLeft of group i of tGrid to \
+                  the topLeft of group ("Tile" && tPlace) of group "Grid" of card "Explore" of me
+         end if
+      end repeat
+   end if
    if sLibrary then
       mwApplyLayout the short name of me
    end if

@@ -325,6 +325,7 @@ def check_phone(screen):
     s = screen.on_card('Saved')
     screen.shot('3-phone-saved')
     screen.expect('phone: the Saved tab has the place saved', list(tiles(s.get('saved'))) == [1], s)
+    screen.expect('phone: the place saved shows its name there', s.get('savednames') == 'Kyoto', s)
     if screen.fingers and screen.fingers.touches:
         screen.fingers.drag(screen.width * 0.8, screen.height * 0.6, screen.width * 0.2, screen.height * 0.6, steps=6)
         s = screen.on_card('Guide')
@@ -446,6 +447,7 @@ def check_desktop(screen, dark=False):
     s = screen.on_card('Saved')
     screen.expect('desktop: the key 2 goes to Saved', s.get('card') == 'Saved', s)
     screen.expect('desktop: the Saved tab has both places', list(tiles(s.get('saved'))) == [1, 3], s)
+    screen.expect('desktop: both show their names there', s.get('savednames') == 'Kyoto,Lisbon', s)
     page.keyboard.press('1')
     s = screen.on_card('Explore')
     page.keyboard.press('/')
