@@ -15,7 +15,7 @@ git grep -n -I -i -w -E 'FIXME|TODO|HACK' -- . ':!thirdparty' ':!prebuilt/fetche
 | --- | --- |
 | [FIXME](#fixme) | 64 |
 | [HACK](#hack) | 32 |
-| [TODO](#todo) | 432 |
+| [TODO](#todo) | 434 |
 
 ## FIXME
 
@@ -217,9 +217,9 @@ Workarounds their authors were not happy with. 32 notes, by part of the reposito
 
 ## TODO
 
-Work left for later. 432 notes, by part of the repository:
+Work left for later. 434 notes, by part of the repository:
 
-[engine](#todo-engine) (261), [libfoundation](#todo-libfoundation) (46), [revbrowser](#todo-revbrowser) (19), [toolchain](#todo-toolchain) (14), [ide](#todo-ide) (13), [tests](#todo-tests) (13), [libgraphics](#todo-libgraphics) (12), [libbrowser](#todo-libbrowser) (10), [libscript](#todo-libscript) (8), [stack-scripts](#todo-stack-scripts) (8), [builder](#todo-builder) (5), [tools](#todo-tools) (5), [(top level)](#todo-top-level) (3), [revmobile](#todo-revmobile) (3), [revxml](#todo-revxml) (3), [prebuilt](#todo-prebuilt) (2), [revdb](#todo-revdb) (2), [config](#todo-config) (1), [extensions](#todo-extensions) (1), [lcidlc](#todo-lcidlc) (1), [revspeech](#todo-revspeech) (1), [revvideograbber](#todo-revvideograbber) (1)
+[engine](#todo-engine) (261), [libfoundation](#todo-libfoundation) (46), [revbrowser](#todo-revbrowser) (19), [toolchain](#todo-toolchain) (14), [ide](#todo-ide) (13), [tests](#todo-tests) (13), [libgraphics](#todo-libgraphics) (12), [libbrowser](#todo-libbrowser) (10), [libscript](#todo-libscript) (8), [stack-scripts](#todo-stack-scripts) (8), [tools](#todo-tools) (7), [builder](#todo-builder) (5), [(top level)](#todo-top-level) (3), [revmobile](#todo-revmobile) (3), [revxml](#todo-revxml) (3), [prebuilt](#todo-prebuilt) (2), [revdb](#todo-revdb) (2), [config](#todo-config) (1), [extensions](#todo-extensions) (1), [lcidlc](#todo-lcidlc) (1), [revspeech](#todo-revspeech) (1), [revvideograbber](#todo-revvideograbber) (1)
 
 <a id="todo-engine"></a>
 
@@ -675,6 +675,18 @@ Work left for later. 432 notes, by part of the repository:
 - [stack-scripts/ide/Toolset/palettes/revCore.8.livecode.bst/scripts/stack_revDataViewControl_button_id_1003.livecodescript:3767](stack-scripts/ide/Toolset/palettes/revCore.8.livecode.bst/scripts/stack_revDataViewControl_button_id_1003.livecodescript#L3767) TODO: is this reliable? What if user renders view again? Will the cache update?
 - [stack-scripts/ide/Toolset/palettes/revpreferencesgui.rev.bst/scripts/stack_revPreferencesGUI.livecodescript:22](stack-scripts/ide/Toolset/palettes/revpreferencesgui.rev.bst/scripts/stack_revPreferencesGUI.livecodescript#L22) TODO we need the screen the user has used the menubar on on mac not the screen the menubar is on
 
+<a id="todo-tools"></a>
+
+### TODO: tools (7)
+
+- [tools/SymbolicatorScript.livecodescript:492](tools/SymbolicatorScript.livecodescript#L492) TODO: disable echo for password
+- [tools/pages/check_front_page.py:144](tools/pages/check_front_page.py#L144) found, todo = [], [root]
+- [tools/pages/check_front_page.py:145](tools/pages/check_front_page.py#L145) while todo:
+- [tools/pages/check_front_page.py:146](tools/pages/check_front_page.py#L146) for child in children.get(todo.pop(), []):
+- [tools/pages/check_front_page.py:148](tools/pages/check_front_page.py#L148) todo.append(child)
+- [tools/pages/lessons/src/41-files.html:60](tools/pages/lessons/src/41-files.html#L60) <pre class="code"><code>put "/home/ada/notes/todo.txt" into tPath
+- [tools/pages/lessons/src/41-files.html:66](tools/pages/lessons/src/41-files.html#L66) <pre class="out">todo.txt
+
 <a id="todo-builder"></a>
 
 ### TODO: builder (5)
@@ -684,16 +696,6 @@ Work left for later. 432 notes, by part of the repository:
 - [builder/package_compiler.livecodescript:127](builder/package_compiler.livecodescript#L127) TODO: Normalize manifest by adding missing folders
 - [builder/package_compiler.livecodescript:168](builder/package_compiler.livecodescript#L168) TODO: Make sure this resolves to the final 'base' file since we don't support
 - [builder/tools_builder.livecodescript:410](builder/tools_builder.livecodescript#L410) TODO: Add the initialisation library and init libs in same way as normal standalone building
-
-<a id="todo-tools"></a>
-
-### TODO: tools (5)
-
-- [tools/SymbolicatorScript.livecodescript:492](tools/SymbolicatorScript.livecodescript#L492) TODO: disable echo for password
-- [tools/pages/check_front_page.py:144](tools/pages/check_front_page.py#L144) found, todo = [], [root]
-- [tools/pages/check_front_page.py:145](tools/pages/check_front_page.py#L145) while todo:
-- [tools/pages/check_front_page.py:146](tools/pages/check_front_page.py#L146) for child in children.get(todo.pop(), []):
-- [tools/pages/check_front_page.py:148](tools/pages/check_front_page.py#L148) todo.append(child)
 
 <a id="todo-top-level"></a>
 
