@@ -4,14 +4,6 @@
   <img src="Installer/oxt-beyond/branding/art/oxt-beyond-banner.png" alt="OXT-Beyond 0.2.7 &quot;Bug Hunt&quot;">
 </p>
 
-<p align="center">
-  <a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/SethMorrowSoftware/OpenXTalk-Beyond?include_prereleases&amp;label=latest&amp;sort=semver"></a>
-  <a href="LICENSE"><img alt="Licence: GPL v3" src="https://img.shields.io/badge/licence-GPLv3-blue"></a>
-  <a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-windows.yml"><img alt="Build (Windows)" src="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-windows.yml/badge.svg"></a>
-  <a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-macos.yml"><img alt="Build (macOS)" src="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-macos.yml/badge.svg"></a>
-  <a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-linux.yml"><img alt="Build (Linux)" src="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/actions/workflows/build-linux.yml/badge.svg"></a>
-  <a href="https://openxtalk.org/forum/"><img alt="Community: OpenXTalk forums" src="https://img.shields.io/badge/community-OpenXTalk%20forums-orange"></a>
-</p>
 
 <p align="center">
   <a href="https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/"><b>Website</b></a> ·
