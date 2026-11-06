@@ -96,8 +96,8 @@ class Win32EventsTest(unittest.TestCase):
                (7.0, H, 11, IDE, 'MCWinClassW', 'Tools', True),
                (8.0, H, 10, IDE, 'MCWinClassW', 'revSplash', True)]
         events = startup_windows.win32_events(raw, ide_only)
-        self.assertEqual(events, [(0.5, '+', 10, 'revSplash'), (6.9, '+', 11, 'Tools'),
-                                  (7.0, '-', 11, 'Tools'), (8.0, '-', 10, 'revSplash')])
+        self.assertEqual(events, [(0.5, '+', 10, 'revSplash', None), (6.9, '+', 11, 'Tools', None),
+                                  (7.0, '-', 11, 'Tools', None), (8.0, '-', 10, 'revSplash', None)])
         found = startup_windows.ghosts(events)
         self.assertEqual([title for _, title, _, _ in found], ['Tools'])
 
@@ -106,7 +106,7 @@ class Win32EventsTest(unittest.TestCase):
         raw = [(1.0, S, 12, IDE, 'MCWinClassW', 'Message Box', True),
                (1.1, D, 12, 0, '', '', False)]
         self.assertEqual(startup_windows.win32_events(raw, ide_only),
-                         [(1.0, '+', 12, 'Message Box'), (1.1, '-', 12, 'Message Box')])
+                         [(1.0, '+', 12, 'Message Box', None), (1.1, '-', 12, 'Message Box', None)])
 
     def test_what_is_not_a_window_of_the_ides(self):
         raw = [(1.0, S, 20, IDE, 'MCMenuWinClass', 'File', True),
@@ -129,7 +129,44 @@ class Win32EventsTest(unittest.TestCase):
                (2.0, H, 30, IDE, 'MCWinClassW', '', True),
                (2.1, H, 30, IDE, 'MCWinClassW', '', True)]
         self.assertEqual(startup_windows.win32_events(raw, ide_only),
-                         [(1.0, '+', 30, 'Untitled 1'), (2.0, '-', 30, 'Untitled 1')])
+                         [(1.0, '+', 30, 'Untitled 1', None), (2.0, '-', 30, 'Untitled 1', None)])
+
+    def test_a_window_made_again_in_its_place_is_not_a_ghost(self):
+        # Windows, rc.6.16 with #369: the Tools palette's window was taken
+        # away 33 ms after it was shown and another shown in its place 4
+        # ms later (the engine makes a stack's window anew when its
+        # decorations change); the place is the window's content
+        tools = (1200, 80, 1260, 500)
+        raw = [(0.683, S, 0x7301fe, IDE, 'MCWinClassW', 'revSplash', True, (300, 200, 800, 500)),
+               (2.452, S, 0x12023c, IDE, 'MCWinClassW', 'OXT-Beyond 0.2.7-rc.6.16', True, (0, 0, 1024, 30)),
+               (3.603, H, 0x7301fe, IDE, 'MCWinClassW', 'revSplash', True, (300, 200, 800, 500)),
+               (3.606, S, 0x5f00ca, IDE, 'MCWinClassW', 'Tools', True, tools),
+               (3.639, D, 0x5f00ca, 0, '', '', False),
+               (3.643, S, 0x6000ca, IDE, 'MCWinClassW', 'revTools', True, tools)]
+        events = startup_windows.win32_events(raw, ide_only)
+        self.assertEqual(startup_windows.ghosts(events), [])
+        self.assertEqual(startup_windows.recreations(events), [(0x5f00ca, 0x6000ca, 3.639)])
+        lines = startup_windows.report(events, [])
+        self.assertIn('RECREATED 0x5f00ca went at 3.639 s and 0x6000ca came in its place', lines)
+        self.assertIn('   3.606 + 0x5f00ca Tools at 1200,80,1260,500', lines)
+
+    def test_a_window_in_another_place_or_later_is_a_ghost(self):
+        # another place, or the same place too late, or no place known
+        for place2, later in (((1200, 80, 1260, 400), 3.643), ((1200, 80, 1260, 500), 3.95)):
+            raw = [(3.606, S, 1, IDE, 'MCWinClassW', 'Tools', True, (1200, 80, 1260, 500)),
+                   (3.639, H, 1, IDE, 'MCWinClassW', 'Tools', True, (1200, 80, 1260, 500)),
+                   (later, S, 2, IDE, 'MCWinClassW', 'revTools', True, place2)]
+            events = startup_windows.win32_events(raw, ide_only)
+            self.assertEqual([title for _, title, _, _ in startup_windows.ghosts(events)], ['Tools'])
+        events = [(3.606, '+', 1, 'Tools'), (3.639, '-', 1, ''), (3.643, '+', 2, 'revTools')]
+        self.assertEqual([title for _, title, _, _ in startup_windows.ghosts(events)], ['Tools'])
+
+    def test_one_new_window_stands_in_for_one_that_went(self):
+        place = (10, 10, 50, 50)
+        events = [(1.0, '+', 1, 'A', place), (1.1, '+', 2, 'B', place),
+                  (2.0, '-', 1, 'A', place), (2.0, '-', 2, 'B', place),
+                  (2.1, '+', 3, 'C', place)]
+        self.assertEqual([title for _, title, _, _ in startup_windows.ghosts(events)], ['B'])
 
 
 class MacChangesTest(unittest.TestCase):

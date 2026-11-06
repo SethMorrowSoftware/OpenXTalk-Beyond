@@ -39,7 +39,9 @@ program's file name, as "OXT-Beyond"), or --launch starts it once the
 watch has begun and stops it at the end (on Windows, --launch only).
 
 A window that went is a ghost, unless it is the splash, which is meant
-to go. Each change is a line of the log: the time in seconds since the
+to go, or another window of the IDE's came in its place at once (on
+Windows, where the engine makes a stack's window anew when its
+decorations change: a "RECREATED" line, RECREATED_WITHIN). Each change is a line of the log: the time in seconds since the
 watch began, "+" for a window that came or "-" for one that went, its id
 and its title. Then a summary, and one "GHOST" line for each window that
 went; with --launch, an "ENDED" line if the program ended before the
@@ -62,30 +64,76 @@ import time
 SPLASH_TITLES = ('revSplash',)
 
 
+# A window taken away and another of the IDE's shown in its place, its
+# content where the first one's was, within this many seconds, is one
+# window made again (the engine on Windows makes a stack's window anew when
+# its decorations change): RECREATED, not a ghost. Only where the watch
+# knows the windows' places (Windows)
+RECREATED_WITHIN = 0.25
+
+
+def _event(e):
+    """(time, sign, id, title, place): an event with its place, None when
+    the watch does not know it"""
+    return tuple(e[:4]) + ((e[4] if len(e) > 4 else None),)
+
+
+def _same_place(a, b, slack=2):
+    return a is not None and b is not None and len(a) == len(b) and \
+        all(abs(x - y) <= slack for x, y in zip(a, b))
+
+
+def recreations(events):
+    """The windows made again: (id that went, id that came in its place,
+    when it went), for each window that went with another coming at its
+    place within RECREATED_WITHIN seconds after"""
+    events = [_event(e) for e in events]
+    found = []
+    taken = set()
+    for i, (when, sign, wid, title, place) in enumerate(events):
+        if sign != '-' or place is None:
+            continue
+        for later, sign2, wid2, title2, place2 in events[i + 1:]:
+            if later - when > RECREATED_WITHIN:
+                break
+            if sign2 == '+' and wid2 != wid and wid2 not in taken and _same_place(place, place2):
+                found.append((wid, wid2, when))
+                taken.add(wid2)
+                break
+    return found
+
+
 def ghosts(events, allowed=SPLASH_TITLES):
-    """The windows that came and went, from (time, sign, id, title)
-    events in order, sign "+" or "-": a list of (id, title, came, went),
-    one for each time a window went that is not among the allowed titles.
-    A window that came back after it went is a ghost all the same."""
+    """The windows that came and went, from (time, sign, id, title[,
+    place]) events in order, sign "+" or "-": a list of (id, title, came,
+    went), one for each time a window went that is not among the allowed
+    titles and was not made again in its place (recreations). A window
+    that came back after it went is a ghost all the same."""
+    remade = set((wid, when) for wid, _, when in recreations(events))
     found = []
     came = {}
     titles = {}
-    for when, sign, wid, title in events:
+    for when, sign, wid, title, place in (_event(e) for e in events):
         if sign == '+':
             came[wid] = when
             if title:
                 titles[wid] = title
         elif sign == '-':
             title = titles.get(wid, title)
-            if title in allowed:
+            if title in allowed or (wid, when) in remade:
                 continue
             found.append((wid, title, came.get(wid), when))
     return found
 
 
 def report(events, found):
-    lines = ['%8.3f %s %#x %s' % (when, sign, wid, title or '(no title)')
-             for when, sign, wid, title in events]
+    lines = []
+    for e in events:
+        when, sign, wid, title, place = _event(e)
+        where = '' if place is None else ' at %s' % ','.join(str(v) for v in place)
+        lines.append('%8.3f %s %#x %s%s' % (when, sign, wid, title or '(no title)', where))
+    for wid, wid2, when in recreations(events):
+        lines.append('RECREATED %#x went at %.3f s and %#x came in its place' % (wid, when, wid2))
     if found:
         for wid, title, came, went in found:
             shown = '' if came is None else ' after %.3f s' % (went - came)
@@ -177,25 +225,29 @@ EVENT_OBJECT_HIDE = 0x8003
 
 
 def win32_events(raw, keep):
-    """The (time, sign, id, title) events from what the Windows hook
-    heard: (time, event, hwnd, pid, class name, title, top-level), in
-    order. A window counts once it is shown, if it is top-level, is the
-    IDE's (keep(pid)) and not of an ignored class; it went when it is
-    hidden or destroyed while shown. Its pid and class are the ones it had
-    when shown: a destroyed window has none."""
+    """The (time, sign, id, title, place) events from what the Windows
+    hook heard: (time, event, hwnd, pid, class name, title, top-level,
+    place), in order, the place being the window's content on the screen
+    (left, top, right, bottom) or None. A window counts once it is shown,
+    if it is top-level, is the IDE's (keep(pid)) and not of an ignored
+    class; it went when it is hidden or destroyed while shown. Its pid,
+    class and place are the ones it had when shown: a destroyed window has
+    none."""
     shown = {}
     events = []
-    for when, event, hwnd, pid, cls, title, top in raw:
+    for item in raw:
+        when, event, hwnd, pid, cls, title, top = item[:7]
+        place = item[7] if len(item) > 7 else None
         if event == EVENT_OBJECT_SHOW:
             if hwnd in shown or not top or cls in WIN32_IGNORED_CLASSES or not keep(pid):
                 continue
-            shown[hwnd] = title
-            events.append((when, '+', hwnd, title))
+            shown[hwnd] = (title, place)
+            events.append((when, '+', hwnd, title, place))
         elif event in (EVENT_OBJECT_HIDE, EVENT_OBJECT_DESTROY):
             if hwnd not in shown:
                 continue
-            events.append((when, '-', hwnd, title or shown[hwnd]))
-            del shown[hwnd]
+            was_title, was_place = shown.pop(hwnd)
+            events.append((when, '-', hwnd, title or was_title, was_place))
     return events
 
 
@@ -217,6 +269,8 @@ def watch_win32(seconds, keep, ready=None, on_ready=None):
     user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
     user32.GetClassNameW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
     user32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+    user32.GetClientRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+    user32.ClientToScreen.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.POINT)]
     user32.PeekMessageW.argtypes = [ctypes.POINTER(wintypes.MSG), wintypes.HWND,
                                     wintypes.UINT, wintypes.UINT, wintypes.UINT]
     user32.TranslateMessage.argtypes = [ctypes.POINTER(wintypes.MSG)]
@@ -243,7 +297,14 @@ def watch_win32(seconds, keep, ready=None, on_ready=None):
             text = ctypes.create_unicode_buffer(512)
             user32.GetWindowTextW(hwnd, text, 512)
             top = user32.GetAncestor(hwnd, GA_ROOT) == hwnd
-            raw.append((when, event, hwnd, pid.value, cls.value, text.value, top))
+            # where its content is on the screen
+            place = None
+            rect = wintypes.RECT()
+            corner = wintypes.POINT(0, 0)
+            if user32.GetClientRect(hwnd, ctypes.byref(rect)) and \
+                    user32.ClientToScreen(hwnd, ctypes.byref(corner)):
+                place = (corner.x, corner.y, corner.x + rect.right, corner.y + rect.bottom)
+            raw.append((when, event, hwnd, pid.value, cls.value, text.value, top, place))
         except Exception as e:  # nothing may escape a callback
             sys.stderr.write('startup_windows: %r\n' % e)
 
