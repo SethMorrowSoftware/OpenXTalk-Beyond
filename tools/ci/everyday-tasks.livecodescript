@@ -724,6 +724,7 @@ command edABClickName pLine
    -- (the browser in front: on a small screen the stack's window or a
    -- palette can be over it, and the click would land there)
    go stack kAB
+   edABMouseAway
    -- (the field's place for a line can be empty for a moment while the
    -- browser lays it out again)
    get edWaitFor("the number of items of edABNameRect(pAx) is 4", 2000, pLine)
@@ -733,6 +734,19 @@ command edABClickName pLine
    end if
    edRealClickAt kAB, ((item 1 of tRect + item 3 of tRect) div 2) & "," & ((item 2 of tRect + item 4 of tRect) div 2)
 end edABClickName
+
+-- the pointer off the tree for a moment: resting on a line, it has the
+-- tree's tooltip (the line's stack or card) shown under it, and on Windows
+-- a click there went to the tooltip, not the tree (the second click on
+-- the same icon, or the first when the pointer was left there)
+command edABMouseAway
+   local tError
+   try
+      set the screenMouseLoc to (the left of stack kAB + 8) & "," & (the bottom of stack kAB - 4)
+   catch tError
+   end try
+   edPause 700
+end edABMouseAway
 
 function edABNameRect pLine
    local tWords
@@ -748,6 +762,7 @@ command edABClickIcon pLine
    -- (the browser in front: on a small screen the stack's window or a
    -- palette can be over it, and the click would land there)
    go stack kAB
+   edABMouseAway
    put the formattedRect of char 1 of line pLine of field "Cards" of group "Cards" of this card of stack kAB into tRect
    edRealClickAt kAB, ((item 1 of tRect + item 3 of tRect) div 2) & "," & ((item 2 of tRect + item 4 of tRect) div 2)
 end edABClickIcon
