@@ -4877,7 +4877,23 @@ on revIDEPositionPaletteDefault pStackName
          
          ## If the stack is a Script Editor ensure it will fit on screen
          if pStackName begins with revIDEScriptEditorPrefix() then 
-            set the rect of stack pStackName to item 1 of tScreenRect+ tScreenWidth * 0.3,  item 2 of tScreenRect+tScreenHeight * 0.2,item 1 of tScreenRect+ tScreenWidth * 0.7,  item 2 of tScreenRect+tScreenHeight * 0.8
+            -- OXT-Beyond: no smaller than the editor's minWidth and
+            -- minHeight (500 by 250), as far as the screen allows. On a
+            -- screen under 1250 wide the middle 40% was narrower than the
+            -- minWidth; the engine keeps a rect a script sets, but Windows
+            -- sometimes made the window its minimum width as it showed, and
+            -- that rect was then kept, so the editor opened 410 wide one
+            -- time and 500 the next on a 1024 screen
+            local tSELeft, tSETop, tSEWidth, tSEHeight
+            put max(round(tScreenWidth * 0.4), the minWidth of stack pStackName) into tSEWidth
+            put max(round(tScreenHeight * 0.6), the minHeight of stack pStackName) into tSEHeight
+            put min(tSEWidth, tScreenWidth) into tSEWidth
+            put min(tSEHeight, tScreenHeight) into tSEHeight
+            put item 1 of tScreenRect + round(tScreenWidth * 0.3) into tSELeft
+            put item 2 of tScreenRect + round(tScreenHeight * 0.2) into tSETop
+            put min(tSELeft, item 3 of tScreenRect - tSEWidth) into tSELeft
+            put min(tSETop, item 4 of tScreenRect - tSEHeight) into tSETop
+            set the rect of stack pStackName to tSELeft, tSETop, tSELeft + tSEWidth, tSETop + tSEHeight
          else
             set the loc of stack pStackName to item 1 of tScreenRect+ tScreenWidth * 0.5, item 2 of tScreenRect+tScreenHeight * 0.5
          end if
