@@ -571,7 +571,7 @@ command mwFillScreen pStack
       return empty
    end if
    mwInstallBrowserSide
-   if mwJS("return window.__oxtMobileWeb.fillPage();") is "no" then
+   if mwJS("return window.__oxtMobileWeb.fillPage(false, 'fill');") is "no" then
       return "the page keeps its own layout"
    end if
    put the short name of stack pStack into sOptions["fill"]
@@ -2564,7 +2564,7 @@ private function mwBrowserScript
    -- blank page)
    put "var lib = " & mwQuote(kLibrary) & ";" & return after tScript
    put "var mw = {gestures: {}, on: false, fingers: {}, nextFinger: 1, moveFrame: null, start0: null, pinch: null, press: null," & return after tScript
-   put "  pressed: false, queue: [], timer: null, probe: null, lastView: '', sensors: {}, wantWake: false, wake: null, waking: false, photo: null};" & return after tScript
+   put "  pressed: false, queue: [], timer: null, probe: null, lastView: '', sensors: {}, wantWake: false, wake: null, waking: false, photo: null, tallest: {}};" & return after tScript
    put "function call(kind, a, b, c, d) {" & return after tScript
    put "  mw.queue.push([kind, a, b, c, d]);" & return after tScript
    put "  if (mw.timer === null) mw.timer = setTimeout(flush, 0);" & return after tScript
@@ -2602,15 +2602,40 @@ private function mwBrowserScript
    put "  mw.insetWatch = new ResizeObserver(function() { viewSoon(); });" & return after tScript
    put "  mw.insetWatch.observe(mw.insetBox);" & return after tScript
    put "}" & return after tScript
+   put "// A web app opened from an iPhone's Home Screen (navigator.standalone) has" & return after tScript
+   put "// no toolbar to come and go, and Safari takes nothing from innerHeight for" & return after tScript
+   put "// the keyboard: its page is as tall at a width as it ever was. Yet once it" & return after tScript
+   put "// has turned and turned back, WebKit can say the page is shorter, for as" & return after tScript
+   put "// long as the app runs (the stack's bottom up, black under it). There the" & return after tScript
+   put "// tallest height seen at a width stands, while the page is as wide as the" & return after tScript
+   put "// screen (an iPad's window can be any size); everywhere else innerHeight" & return after tScript
+   put "function homeScreenApp(lw) {" & return after tScript
+   put "  if (window.navigator.standalone !== true || !window.screen) return false;" & return after tScript
+   put "  return lw === screen.width || lw === screen.height;" & return after tScript
+   put "}" & return after tScript
+   put "function pageHeight(lw) {" & return after tScript
+   put "  var lh = window.innerHeight;" & return after tScript
+   put "  if (!homeScreenApp(lw)) return lh;" & return after tScript
+   put "  var best = mw.tallest[lw] || 0, most = Math.max(screen.width, screen.height);" & return after tScript
+   put "  if (lh > best && lh <= most) { mw.tallest[lw] = lh; best = lh; }" & return after tScript
+   put "  return Math.max(lh, best);" & return after tScript
+   put "}" & return after tScript
+   put "// the fill's html and body as tall as pageHeight, where it is more than" & return after tScript
+   put "// innerHeight (100% everywhere else, as before)" & return after tScript
+   put "function fillHeight(lh, ph) {" & return after tScript
+   put "  var s = document.documentElement.style;" & return after tScript
+   put "  if (ph > lh) s.setProperty('--oxt-mobile-web-height', ph + 'px');" & return after tScript
+   put "  else s.removeProperty('--oxt-mobile-web-height');" & return after tScript
+   put "}" & return after tScript
    put "function viewport() {" & return after tScript
    put "  var vv = window.visualViewport;" & return after tScript
    put "  var lw = document.documentElement.clientWidth || window.innerWidth;" & return after tScript
-   put "  var lh = window.innerHeight;" & return after tScript
-   put "  var w = vv ? vv.width * vv.scale : lw, h = vv ? vv.height * vv.scale : lh;" & return after tScript
+   put "  var lh = window.innerHeight, ph = pageHeight(lw);" & return after tScript
+   put "  var w = vv ? vv.width * vv.scale : lw, h = (vv ? vv.height * vv.scale : lh) + ph - lh;" & return after tScript
    put "  var kb = vv ? Math.max(0, lh - vv.height * vv.scale - vv.offsetTop) : 0;" & return after tScript
    put "  if (kb < 60) kb = 0;" & return after tScript
    put "  var i = insets();" & return after tScript
-   put "  return [Math.round(w), Math.round(h), Math.round(kb), i[0], i[1], i[2], i[3], lw > lh ? 'landscape' : 'portrait'].join(',');" & return after tScript
+   put "  return [Math.round(w), Math.round(h), Math.round(kb), i[0], i[1], i[2], i[3], lw > ph ? 'landscape' : 'portrait'].join(',');" & return after tScript
    put "}" & return after tScript
    put "function viewChanged() {" & return after tScript
    put "  if (!mw.on) return;" & return after tScript
@@ -2958,9 +2983,13 @@ private function mwBrowserScript
    put "  share: share," & return after tScript
    put "  pickPhoto: pickPhoto," & return after tScript
    put "  cancelPhoto: function() { if (mw.photo) mw.photo.finish('photocancel', ''); }," & return after tScript
-   put "  pageSize: function() { return [document.documentElement.clientWidth || window.innerWidth, window.innerHeight].join(','); }," & return after tScript
+   put "  pageSize: function() {" & return after tScript
+   put "    var lw = document.documentElement.clientWidth || window.innerWidth, ph = pageHeight(lw);" & return after tScript
+   put "    if (document.getElementById('oxt-mobile-web-fill')) fillHeight(window.innerHeight, ph);" & return after tScript
+   put "    return [lw, ph].join(',');" & return after tScript
+   put "  }," & return after tScript
    put "  longPressed: function() { return mw.pressed; }," & return after tScript
-   put "  fillPage: function(ask) {" & return after tScript
+   put "  fillPage: function(ask, how) {" & return after tScript
    put "    var keep = function(el) { return el && el.getAttribute('data-mobile-web-fill') === 'no'; };" & return after tScript
    put "    if (keep(document.documentElement) || keep(document.body)) return 'no';" & return after tScript
    put "    if (ask) return 'yes';" & return after tScript
@@ -2973,16 +3002,22 @@ private function mwBrowserScript
    put "    var css = document.getElementById('oxt-mobile-web-fill');" & return after tScript
    put "    if (!css) {" & return after tScript
    put "      css = document.createElement('style'); css.id = 'oxt-mobile-web-fill';" & return after tScript
-   put "      css.textContent = 'html,body{margin:0;padding:0;height:100%;overflow:hidden;overscroll-behavior:none}' +" & return after tScript
+   put "      css.textContent = 'html,body{margin:0;padding:0;height:var(--oxt-mobile-web-height,100%);overflow:hidden;overscroll-behavior:none}' +" & return after tScript
    put "        '#stack{margin:0!important}';" & return after tScript
    put "      document.head.appendChild(css);" & return after tScript
    put "    }" & return after tScript
+   put "    // the html element says how: 'fill' for a stack as big as the page, which" & return after tScript
+   put "    // keeps out of the notch itself (the Stack Player's play.html then takes" & return after tScript
+   put "    // its own padding off), 'fit' for one the engine scales" & return after tScript
+   put "    document.documentElement.setAttribute('data-mobile-web-filled', how === 'fill' ? 'fill' : 'fit');" & return after tScript
    put "    window.scrollTo(0, 0);" & return after tScript
    put "    return 'yes';" & return after tScript
    put "  }," & return after tScript
    put "  unfillPage: function() {" & return after tScript
    put "    var css = document.getElementById('oxt-mobile-web-fill');" & return after tScript
    put "    if (css) css.parentNode.removeChild(css);" & return after tScript
+   put "    document.documentElement.removeAttribute('data-mobile-web-filled');" & return after tScript
+   put "    document.documentElement.style.removeProperty('--oxt-mobile-web-height');" & return after tScript
    put "    var meta = document.querySelector('meta[data-oxt-mobile-web]');" & return after tScript
    put "    if (meta) {" & return after tScript
    put "      var was = meta.getAttribute('data-oxt-mobile-web');" & return after tScript

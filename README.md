@@ -156,6 +156,7 @@ every change, release by release.
 
 | Version | What it brings |
 | --- | --- |
+| [0.2.7-rc.6.17](#027-rc617-the-bug-hunt-round-seventeen) | The round to squash what was left before 0.2.7 is stable: buttons on a coloured card in the web IDE, a dark menu item on Linux, a main window that wouldn't minimize on Windows 11, an App Browser that listed itself (and the Card Navigator), windows that flashed at start, Inclusions in a new order every run, the Responsive Starter's second save and the Phone Starter's pinch; and Lessons, a course in xTalk, on the website |
 | [0.2.7-rc.6.16](#027-rc616-the-bug-hunt-round-sixteen) | The Responsive Starter lays one stack out for a phone, a tablet and a desktop; phone stacks use touch, sensors, the camera and the share sheet; a stack plays with nothing around it; Android packages install again; the website gets an Extensions page; the Script Editor's black words on grey, a blank Dictionary on Windows and unreadable menu words are fixed |
 | [0.2.7-rc.6.15](#027-rc615-the-bug-hunt-round-fifteen) | The Mobile Web library and the Phone Starter bring stacks to phones; animations that wait 0 ms show in the browser; a Clear button for the Inspector's colours; named tools; the web IDE and the website rest; `write to process` sends text as written |
 | [0.2.7-rc.6.14](#027-rc614-the-bug-hunt-round-fourteen) | The Inspector's colours stay up to date in the web IDE; Windows' full colour dialog; visible Linux menu ticks on dark menus; a calmer website front page; a new splash; Learn stacks for the Box2Dxt Kit and the rest of the xTalk Suite |
@@ -205,7 +206,7 @@ Earlier versions, from 0.2.1 to 0.2.5, are described under
   x86-64, macOS for Apple Silicon and Intel, Linux x86-64), and so are
   the standalone runtimes that every package carries for Windows
   (x86-64 and x86) and Linux (x86-64 and x86): CI builds the 32-bit
-  engines for them, and a release asset (`oxt-runtimes-0.2.7-rc.6.16b.zip`)
+  engines for them, and a release asset (`oxt-runtimes-0.2.7-rc.6.17.zip`)
   brings each platform's runtimes into the other packages. The web
   engine of HTML5 standalones, which every package carries, is built
   from this repository too (see [The engine](#the-engine)). The Android
@@ -348,8 +349,8 @@ requirements too.
 
 Releases whose tags do not start with `v`, such as `prebuilts-v1`,
 `runtimes-1.15`, `runtimes-0.2.5-rc.2`, `runtimes-0.2.7-rc.6.13`,
-`runtimes-0.2.7-rc.6.14`, `runtimes-0.2.7-rc.6.15` and
-`runtimes-0.2.7-rc.6.16b`, are not programs. They hold files that the
+`runtimes-0.2.7-rc.6.14`, `runtimes-0.2.7-rc.6.15`,
+`runtimes-0.2.7-rc.6.16b` and `runtimes-0.2.7-rc.6.17`, are not programs. They hold files that the
 build and the packager download: the prebuilt
 third-party libraries of earlier versions and the standalone runtimes
 for other platforms.
@@ -1666,6 +1667,137 @@ undo, and the folders where it keeps copies of stacks before changing
 them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
+
+#### 0.2.7-rc.6.17: the Bug Hunt, round seventeen
+
+OXT-Beyond 0.2.7-rc.6.17 has everything in 0.2.7-rc.6.16. This round
+set out to squash every bug still open before 0.2.7 is called stable,
+so here is each change since then, listed as the bug it squashes:
+
+- **Buttons that took the card's colour in the web IDE.** On a coloured
+  card, a push button, a default button and a tab panel with no colour
+  of their own filled themselves with the card's colour in the browser,
+  where Windows draws them in the theme's face. They now take the
+  theme's face on the web too, in a light or a dark browser, enabled or
+  disabled, wherever their words can be read on it; rectangle buttons,
+  buttons with a colour of their own, and white words on a dark card keep
+  the card's colour. Only the drawing changes: a script still gets the
+  same backgroundColor (TerryL) (#372).
+- **A dark menu item you couldn't read on Linux.** In a window with a
+  dark colour of its own, the hilited item of a menu drew its words in
+  that dark colour on GTK's selection blue. It now uses the theme's
+  hilited words (white), as menus on the theme's own colour do; a light
+  window's colour, which reads fine there, is kept (#372).
+- **A main window that wouldn't minimize on Windows 11.** A click on the
+  IDE's menu bar's minimize button did nothing: Windows kept the title
+  bar it had laid out while the window faded in at start, with its
+  buttons one place off. A window with a title bar that stops being
+  translucent is now made again in the same place, as one that starts
+  being translucent always has been, and the new window stays the active
+  one, so no stack is suspended or resumed and a stack that hid itself
+  stays hidden. A script can see one thing: such a stack gets a new
+  windowID when its blendLevel goes back to 0, as it already did when
+  its blendLevel went above 0 (#380, #389).
+- **An App Browser that listed itself.** The App Browser showed itself
+  among your stacks, and so did three more of the IDE's own: the Card
+  Navigator and the two stacks that Learn and Home read their lessons and
+  guides from. Their names don't begin with "rev", so the IDE took them
+  for yours. They are the IDE's stacks again, by name and by their files
+  in the IDE's folders; a stack of yours with the same name is still
+  yours (OpenXTalkPaul) (#372).
+- **Small, faint text in the App Browser.** Its lists of stacks, cards,
+  controls and clips are in 13-point text instead of 11, and its names
+  are dark grey on a light window instead of a mid grey that was too
+  faint to read comfortably; on a dark window they stay light grey. A
+  size or colour you set yourself is kept (richmond62) (#372).
+- **A Box2D body that wouldn't be grabbed.** In Learn Box2D, a quick
+  press and drag on a busy machine could grab nothing: the lesson looked
+  for a body where the mouse was when it got round to the press, not
+  where you pressed. It now looks where you pressed (#372).
+- **Windows that flashed while the IDE started.** The Tools palette and
+  the Message Box came up for a moment and went again while the splash
+  was showing, most visibly on Linux. They now stay hidden until the IDE
+  shows them, and every other palette opens as before (LittleNemo)
+  (#369, #375).
+- **A Script Editor that opened at two different widths.** On a screen
+  under 1250 pixels wide, the Script Editor opened narrower than its own
+  minimum the first time, and Windows sometimes widened it as it showed,
+  so on a 1024 by 768 screen it opened 410 wide one time and 500 the
+  next. The first time, it now opens at least at its minimum (500 by
+  250) as far as the screen allows; a size kept from before is used as
+  it was (#370).
+- **Inclusions in a different order every time.** Standalone Settings'
+  Inclusions pane listed its rows in the order the extensions happened
+  to load, which changed from one run to the next. They are now A to Z,
+  the same every time. In the dark appearance the ticked rows were
+  nearly invisible under their white names; they are drawn in a dark
+  version of the selection colour now. Which inclusions a stack has, and
+  what is saved, are unchanged (#366).
+- **Preset stack sizes hidden on a first run.** File > New Stack's preset
+  sizes are shown the first time the desktop IDE runs. An IDE that has
+  run before keeps your setting, and the web IDE keeps them hidden, as
+  the list is too wide for a phone's page (richmond62) (#374).
+- **A Responsive Starter that stopped on its second save.** Saving a
+  second place stopped with "can't find background", and the Saved card
+  didn't show its places' names and words. Both work now, with or
+  without the Mobile Web library. On an iPhone turned on its side, the
+  library reads the safe area again once it has changed, so a control
+  near the notch moves out of it (bwmilby) (#379).
+- **A pinch that walked the dot off the pad.** On the Phone Starter's
+  Gestures pad, a pinch sized the dot round its corner, so it walked up
+  and to the left and off the pad. It now sizes round its own centre,
+  two fingers moved together move it, and it stays on the pad (bwmilby)
+  (#382).
+- **A guide that named the wrong folder.** Deploying Your Application,
+  the specialFolderPath entry and the Stack Player's README said a web
+  standalone's home folder is /livecode. It has been /openxtalk since
+  0.2.7-rc.6.2 (/livecode still links to it), and they say so now. The
+  Stack Player's errors about a stack in its library show the stack's
+  name without the folder again (bwmilby) (#381).
+- **A wrong name in the Dictionary.** The Tile widget's label is its
+  tileLabel; its page said titleLabel (#376).
+- **No course to learn xTalk from on the website.** The website has
+  Lessons: a course in 83 lessons, from the first line of a script to
+  xTalk Builder extensions and shipping a program, with over 600
+  examples to copy and run, a try-it-yourself with a solution in every
+  lesson, and a search. The lessons about objects build their cards the way a beginner
+  does, with the Tools palette and the Property Inspector. Its last
+  level, Extensions, covers the extensions that come with OXT-Beyond:
+  the xTalk Suite, the text, QR code, SVG, time zone, web server and
+  sign-in libraries, and the widgets (#371, #376).
+- **A repository that was hard to find your way into.** The README opens
+  with a front page (links, screenshots, highlights) and a table of
+  every version's notes, there is a code of conduct and a SUPPORT page,
+  and the bug form knows Linux arm64, browsers and Android (#368).
+
+Behind the scenes, every example in the new lessons runs on the engine
+and must put exactly what its page shows; the web check draws a
+coloured card in a light and a dark browser and reads its buttons off
+the screen; the IDE tour reads a hilited menu item in a window of its
+own dark and light colour, opens and checks the App Browser, fails when
+any of the IDE's own stacks is listed among the user's, imports a
+HyperCard stack from a disk image, and moves a window that would sit
+under the Tools palette; the Windows, macOS and Linux builds watch the
+IDE start for windows that come and go, and know a window the engine
+makes again in either order; the Windows builds check that every
+stack's title bar is as tall as a plain stack's, and that a window
+going opaque suspends no stack and shows no hidden one; Learn Box2D's
+mouse check holds the engine while it presses and drags; the Android
+boot tests keep a clock of their own; new IDE tests cover the Script
+Editor's first size, the Inclusions order and colours, the preset sizes
+and the startup palettes; a check holds the deploying guide to the web
+engine's home folder; the Android runtime's Java layer is built from
+this repository's sources and checked against the shipped one (it ships
+in a later release); and the runtimes that every package carries for
+the other platforms are rebuilt from this release's engine (#366, #367,
+#369, #370, #372, #373, #374, #375, #376, #377, #379, #380, #381, #382,
+#388, #389, #392).
+
+The Android bug found last round is still open: an Android app made
+with OXT-Beyond closes when Android makes its screen again without
+ending the app, as after a change of font size or language. Fixing it
+needs the Android engine built here; this round's Java layer is the
+first step.
 
 #### 0.2.7-rc.6.16: the Bug Hunt, round sixteen
 

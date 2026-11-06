@@ -58,6 +58,15 @@ operating sytem and delivers the <alertPayload> to the application. The
 <alertPayload> is delivered using the <localNotificationReceived>
 message. 
 
+On Android 13 and newer, an app shows its notifications only once the
+user allows it to post them. Tick "Post Notifications" among the
+Application Permissions of the Android standalone settings: the app then
+asks the user the first time in each run that it schedules a
+notification and may not post them yet. The notification is scheduled
+either way, and an app without the permission is never asked. (This
+needs the Android runtime's Java layer built from OXT-Beyond's source;
+LiveCode 9.6.3's never asks.)
+
 References: mobileCancelAllLocalNotifications (command),
 mobileCancelLocalNotification (command), result (function),
 command (glossary), localNotificationReceived (message),

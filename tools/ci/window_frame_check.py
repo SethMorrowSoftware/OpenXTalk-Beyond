@@ -332,12 +332,45 @@ def follow_steps(w, log_path, go_path, seconds, lines):
     return read_log(log_path)
 
 
+# The steps at which a stack goes back to blendLevel 0, by the step before
+# them (window-frame-check.livecodescript's stepPoint labels)
+OPAQUE_STEPS = (('faded-decorated', 'faded-opaque'), ('titled-sized', 'titled-opaque'))
+
+
+def check_focus(log, check):
+    """No stack is suspended or resumed while one goes back to blendLevel 0
+    (its new window takes over its activation), and the stack opened
+    invisible stays so. Up to the first build of #380 Windows could pick
+    another window when the old one went, and the IDE, answering
+    resumeStack, showed a hidden stack."""
+    def step_index(label):
+        for i, x in enumerate(log):
+            parts = x.split()
+            if len(parts) >= 3 and parts[0] == 'STEP' and parts[2] == label:
+                return i
+        return None
+
+    for before, after in OPAQUE_STEPS:
+        a, b = step_index(before), step_index(after)
+        if a is None or b is None:
+            check(after, 'no stack suspended or resumed', False, 'the steps %s and %s were not both logged'
+                  % (before, after))
+            continue
+        seen = [x for x in log[a + 1:b] if x.split()[0] in ('SUSPEND', 'RESUME')]
+        check(after, 'no stack suspended or resumed', not seen, ', '.join(seen) or 'none')
+    hidden = [x.split()[2] for x in log if x.startswith('HIDDEN FrameHidden ')]
+    check('FrameHidden', 'a stack opened invisible stays hidden', hidden == ['false'],
+          'its visible: %s' % (hidden[0] if hidden else 'not logged'))
+
+
 def check_windows(w, windows, log_path, lines, problems):
     def check(name, what, ok, detail):
         line = '%s %s: %s (%s)' % ('PASS' if ok else 'FAIL', name, what, detail)
         lines.append(line)
         if not ok:
             problems.append(line[5:])
+
+    check_focus(read_log(log_path), check)
 
     frames = {}
     for name in STACKS:
@@ -456,8 +489,9 @@ def main(argv=None):
         else:
             windows = {}
             for x in got:
-                if x.startswith('WINDOW '):
-                    parts = x.split()
+                parts = x.split()
+                # (a stack that was never shown may have no window yet)
+                if parts[0] == 'WINDOW' and len(parts) == 3 and parts[2].isdigit():
                     windows[parts[1]] = int(parts[2])
             check_windows(Win32(), windows, log_path, lines, problems)
         with open(go_path, 'w') as f:

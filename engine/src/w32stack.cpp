@@ -423,6 +423,21 @@ void MCStack::setopacity(uint1 p_level)
 		if (t_old_window != NULL)
 		{
 			RedrawWindow((HWND)window -> handle . window, NULL, NULL, RDW_INVALIDATE | RDW_FRAME | RDW_UPDATENOW);
+
+			// OXT-Beyond: a window that stops being translucent and was the
+			// active one hands that to its replacement before it goes, so the
+			// stack stays active. Destroyed while active, it left Windows to
+			// pick the next window, which could be another application's or
+			// none of this one's: the stacks were suspended and resumed, and
+			// a script answering that ran as if the user had switched away
+			// and back (the IDE's menubar then showed the topStack, a stack
+			// hidden by its own openStack script, at startup). Activation
+			// moving between the stack's own two windows sends no message:
+			// the old one is no longer the stack's, and the stack was never
+			// suspended.
+			if ((t_new_long & WS_EX_LAYERED) == 0 && GetActiveWindow() == t_old_window)
+				SetActiveWindow((HWND)window -> handle . window);
+
 			DestroyWindow(t_old_window);
 		}
 	}

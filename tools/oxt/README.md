@@ -16,7 +16,7 @@ development engine without a user interface.
 | `fetch_assets.py` | downloads, caches and verifies the external assets listed in `external-assets.json` (see [External assets](#external-assets)) |
 | `xtalk_extensions.py` | pins, fetches and builds the xTalk Suite extensions listed in `xtalk-extensions.json` (see [xTalk Suite extensions](#xtalk-suite-extensions-xtalk_extensionspy)) |
 | `make_runtimes_asset.py` | builds an `oxt-runtimes-<label>.zip` asset from this repository's CI builds (`--builds`), or from an installed OXT Lite as for 1.15 (see [The runtimes asset](#the-runtimes-asset)) |
-| `ide-stack-patch.sh`, `ide-stack-patch.livecodescript` | apply the script, property and image patches in `ide-stack-patches/` to the binary IDE stacks, verified (see [Binary IDE stacks](#binary-ide-stacks)) |
+| `ide-stack-patch.sh`, `ide-stack-patch.livecodescript` | apply the script, property, image and clone patches in `ide-stack-patches/` to the binary IDE stacks, verified (see [Binary IDE stacks](#binary-ide-stacks)) |
 | `stack-scripts.sh`, `stack_scripts.py` | keep every object script of the binary IDE stacks as a text file in `stack-scripts/`, or check that they match (see [The stacks' scripts as text](#the-stacks-scripts-as-text-stack-scripts)) |
 | `ide-stack-dump.livecodescript` | writes every object of a stack file as text, to compare two versions of a stack |
 | `legacy_todo.py` | writes [LEGACY-TODO.md](../../LEGACY-TODO.md), the FIXME, TODO and HACK notes in the inherited code, linked to their lines; `--check` tells whether it is up to date |
@@ -539,7 +539,7 @@ Intended differences from OXT Lite 1.15:
 | the 3 junk and 2 excluded files | see [Classes](#classes) |
 | `LICENSE`, `LICENSE-EXCEPTION.md`, `THIRD-PARTY-NOTICES.md` | added: OXT-Beyond's licence files |
 | `Ext/mergJSON/**` | added: mergJSON, built from its source in `mergjson/` (the external, its library and the licences of its code) |
-| `PROVENANCE-oxt-runtimes-*.md` | added: provenance of the runtimes asset (`PROVENANCE-oxt-runtimes-0.2.7-rc.6.16b.md`, and `PROVENANCE-oxt-runtimes-1.15.md` for its Android files) |
+| `PROVENANCE-oxt-runtimes-*.md` | added: provenance of the runtimes asset (`PROVENANCE-oxt-runtimes-0.2.7-rc.6.17.md`, and `PROVENANCE-oxt-runtimes-1.15.md` for its Android files) |
 | `Runtime/Windows/x86-32/**`, `Runtime/Linux/**`, timezone `code/**` and `resources/**` | with a runtimes asset made from this repository's builds (any but `oxt-runtimes-1.15`), these may differ from 1.15's files, lack what 1.15's Linux runtimes bundled in `lib/` (shared libraries of other projects) and its iOS and macOS 10.9 timezone code, or have new files (the externals lists of the 64-bit Linux runtime, for example); `Runtime/Android/**`, carried over unchanged, is compared byte for byte |
 | `Extensions/<xTalk folders>/**`, `Extensions/XTALK-EXTENSIONS.txt` | added: the xTalk Suite extensions (class `xtalk`); against a reference that has them they are compared like build outputs, and `--no-xtalk-extensions` makes them intended differences |
 
@@ -773,14 +773,14 @@ xTalk Suite extensions are not assets: see
 {
   "assets": [
     {
-      "id": "oxt-runtimes-0.2.7-rc.6.16b",
-      "url": "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/runtimes-0.2.7-rc.6.16b/oxt-runtimes-0.2.7-rc.6.16b.zip",
+      "id": "oxt-runtimes-0.2.7-rc.6.17",
+      "url": "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/runtimes-0.2.7-rc.6.17/oxt-runtimes-0.2.7-rc.6.17.zip",
       "sha256": "<64 lowercase hex digits>",
       "size": 123456789,
       "kind": "zip",
       "strip": 1,
       "dest": "",
-      "rename": { "PROVENANCE.md": "PROVENANCE-oxt-runtimes-0.2.7-rc.6.16b.md" },
+      "rename": { "PROVENANCE.md": "PROVENANCE-oxt-runtimes-0.2.7-rc.6.17.md" },
       "exclude": { "win-x86_64": ["Runtime/Windows/x86-64/**", "..."], "...": ["..."] },
       "description": "...", "licence": "...", "source": "..."
     }
@@ -813,7 +813,7 @@ xTalk Suite extensions are not assets: see
 The runtimes asset excludes, per platform, what that platform's own build
 makes (`make_runtimes_asset.py` writes these; `OWN_PARTS` there):
 
-| platform | left out of `oxt-runtimes-0.2.7-rc.6.16b` | why |
+| platform | left out of `oxt-runtimes-0.2.7-rc.6.17` | why |
 |---|---|---|
 | `win-x86_64` | `Runtime/Windows/x86-64/**`, timezone `code/x86_64-win32/**` | the build's own runtime and timezone code |
 | `linux-x86_64` | `Runtime/Linux/x86-64/**`, timezone `code/x86_64-linux/**`, timezone `resources/**` | the build's own runtime and timezone code, and the zoneinfo data (tz.gyp `tzdata`, which the Windows builds do not make) |
@@ -1061,8 +1061,9 @@ or a cache that holds the zip is given.
 Most of the IDE is script-only stacks (`*.livecodescript`), which are
 edited as text. Some code lives in binary stacks (`*.livecode`, `*.rev`),
 for example the dataView behaviour in `ide/Toolset/palettes/revCore.8.livecode`.
-Those are changed only through the script, property and image patches in
-`ide-stack-patches/`, applied by a headless engine, so that every change is
+Those are changed only through the script, property, image and clone
+patches in `ide-stack-patches/`, applied by a headless engine, so that every
+change is
 reviewable text and the result is verified:
 
 ```
@@ -1109,9 +1110,38 @@ image: Installer/oxt-beyond/branding/png/oxt-beyond-64.png
 from-sha1: 0f68ea29bec282ccb97aa734914244242d1561c6
 ```
 
+A clone patch file adds a control: a copy of one the stack has, in the same
+card or group, with its own name, a unique id (`cREVGeneral["revUniqueID"]`,
+13 digits: the milliseconds when the patch was written, as the IDE gives a
+new object) and the properties it gets its own value of. The Android card's
+"Post Notifications" box is one:
+
+```
+file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
+object: button "AD" of group "permissions" of group "Application Permissions" of group "Android Settings" of card "Android"
+clone: POST_NOTIFICATIONS
+unique-id: 1793989825265
+property: label
+to: Post Notifications
+property: rect
+to: 589,643,728,666
+```
+
+A clone patch is a file of its own. It is applied when the owner has no
+control of that name, and already applied when it has one with the
+unique id and every `to:` value. The copy goes on top of its owner's
+controls, so the objects of the card above it move up a layer, and the
+engine puts it 32 pixels right of and below its source, so the patch sets
+its `rect`. When the copy lies outside its groups, they grow to hold it: a
+property patch in a later file (by name) declares each of their rectangles,
+from the file's value to the one the copy gives it.
+
 For each stack file the tool dumps every object
 (`ide-stack-dump.livecodescript`), applies the patches, checks that only the
-patched scripts and properties differ, saves the stack, loads the saved file
+patched scripts and properties differ (and, with a clone, that the copy is
+its source but for its id, name, layer, unique id and patched properties,
+that the objects above it moved up one layer and that the stack's last id is
+the copy's), saves the stack, loads the saved file
 again and checks that it dumps exactly like the patched stack and keeps its
 file format (for example `REVO7000`); otherwise it writes the original back.
 
@@ -1127,7 +1157,8 @@ OXT_DUMP_FILE=<stack file> OXT_DUMP_OUT=<text file> \
 
 `tools/ci/check_ide_stacks.py` (run in CI before the build) checks that
 every script and image patch is applied, from the stack files' bytes,
-without an engine. Property patches cannot be seen in the bytes that way, so
+without an engine, and that each clone's name and unique id are in its
+stack file. Property patches cannot be seen in the bytes that way, so
 the Linux build checks every patch with the engine it built
 (`tools/oxt/ide-stack-patch.sh <engine> --check`).
 

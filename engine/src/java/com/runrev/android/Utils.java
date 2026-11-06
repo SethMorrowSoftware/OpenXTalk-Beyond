@@ -80,4 +80,24 @@ public class Utils
             return p_flags | PendingIntent.FLAG_MUTABLE;
         return p_flags;
     }
+    
+    // OXT-Beyond: whether the app's manifest asks for a permission
+    // (<uses-permission>): Android refuses a runtime permission that it does
+    // not, without asking the user.
+    public static boolean declaresPermission(Context p_context, String p_permission)
+    {
+        try
+        {
+            PackageInfo t_info = p_context.getPackageManager().getPackageInfo(p_context.getPackageName(),
+                                                                             PackageManager.GET_PERMISSIONS);
+            if (t_info.requestedPermissions != null)
+                for (String t_permission : t_info.requestedPermissions)
+                    if (p_permission.equals(t_permission))
+                        return true;
+        }
+        catch (PackageManager.NameNotFoundException e)
+        {
+        }
+        return false;
+    }
 }

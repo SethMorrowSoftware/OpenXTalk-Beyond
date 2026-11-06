@@ -1,0 +1,20 @@
+# Android card: a "Post Notifications" box among the application
+# permissions. Android 13 and newer show an app's notifications only once
+# the user lets it post them (the runtime permission POST_NOTIFICATIONS),
+# and the Java layer asks for it as a local notification is scheduled when
+# the app declares it. The permissions group stores every box it holds by
+# its name (android,application permissions[POST_NOTIFICATIONS]), the card
+# sets each box from the stack's settings, and the builder declares every
+# name it is given as android.permission.<name>: a box is all it takes. A
+# stack that never ticks it is built as before.
+#
+# A copy of "Ad Support", in the right-hand column's free row beside "NFC
+# Tag Reading" (the left-hand column is full), as wide as "Ad Support".
+file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
+object: button "AD" of group "permissions" of group "Application Permissions" of group "Android Settings" of card "Android"
+clone: POST_NOTIFICATIONS
+unique-id: 1793989825265
+property: label
+to: Post Notifications
+property: rect
+to: 589,643,728,666

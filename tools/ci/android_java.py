@@ -175,6 +175,33 @@ EXPECTED = {
         'code com/runrev/android/NFCModule.startDispatch:()V':
             'NFC foreground dispatch\'s PendingIntent says FLAG_MUTABLE on Android 12 and newer (Android adds '
             'the tag to it), which threw without it (Utils.mutablePendingIntentFlags)',
+        # OXT-Beyond's changes for API 33 and newer
+        'code com/runrev/android/NotificationModule.createLocalNotification:(Ljava/lang/String;Ljava/lang/String;'
+        'Ljava/lang/String;JZI)J':
+            'on Android 13 and newer, an app whose manifest declares POST_NOTIFICATIONS (the Android card\'s '
+            '"Post Notifications") asks the user once a run to let it post notifications when it schedules one '
+            'and may not (requestPostNotifications); an app that does not declare it is never asked, as before, '
+            'and the notification is scheduled as before either way',
+        'code com/runrev/android/Engine.onRequestPermissionsResult:(I[Ljava/lang/String;[I)V':
+            'only androidRequestPermission\'s request code answers it, not the notification module\'s; and '
+            'a request that Android answers with no results (interrupted, or made while another showed) answers '
+            'false, where reading the first result threw',
+        'code com/runrev/android/Engine.askPermission:(Ljava/lang/String;)Z':
+            'on Android 13 and newer, WRITE_EXTERNAL_STORAGE counts as granted without asking for an app that '
+            'declares it (the Android card\'s "Write External Storage") and targets API 30 or newer '
+            '(grantedWithoutAsking): Android refuses it there without asking, and it gives such an app nothing, '
+            'so what the engine asks for it first (specialFolderPath("external documents") and ("external '
+            'cache"), mobileExportImageToAlbum, androidRequestPermission) failed; every other permission, an app '
+            'that does not declare it, and Android 12 and older are asked as before',
+        'code com/runrev/android/Engine.checkHasPermissionGranted:(Ljava/lang/String;)Z':
+            'the same: androidHasPermission answers true for WRITE_EXTERNAL_STORAGE there',
+        'code com/runrev/android/Engine.exportImageToAlbum:([BLjava/lang/String;Ljava/lang/String;)'
+        'Ljava/lang/String;':
+            'on Android 10 and newer the image is added to the shared Pictures folder through MediaStore '
+            '(exportImageToMediaStore), as Android asks; writing the file there failed on Android 10, and on '
+            'Android 11 and newer for a name that another app\'s picture has (MediaStore names the new one '
+            'apart). The same folder, name and answer otherwise, a picture the app added before is written over '
+            'as before, and Android 9 and older write the file as before',
     },
 }
 

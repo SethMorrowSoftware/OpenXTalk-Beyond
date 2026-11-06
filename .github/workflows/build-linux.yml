@@ -583,7 +583,7 @@ jobs:
           python3 tools/ci/run_livecode_check.py compile --repo-layout --bin "linux-$ARCH-bin" \
             --log ide-compile-check.log
 
-      # The property and image patches of tools/oxt/ide-stack-patches are
+      # The property, image and clone patches of tools/oxt/ide-stack-patches are
       # applied to the binary IDE stacks, checked with the engine just built
       # (tools/oxt/ide-stack-patch.sh --check; tools/ci/check_ide_stacks.py
       # checks the script patches without an engine)
@@ -1583,6 +1583,43 @@ jobs:
         run: |
           python3 tools/ci/ui_tour.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
             --appearance dark --out "$RUNNER_TEMP/logs/ui-tour/dark"
+
+      # Everyday tasks a person does in the IDE, through its own windows
+      # with the system's mouse and keyboard (xdotool): a new stack, each
+      # common control from the Tools palette, Inspector edits, the
+      # Script Editor (Apply, a compile error, find and replace, a
+      # breakpoint), the Message Box, undo and redo, copy, group, align,
+      # cards, Save As, Close and Remove From Memory and opening it again,
+      # Revert, the Dictionary, an image as a button's icon, the Geometry
+      # Manager, Preferences and the Application Browser; each asserted
+      # and snapshot (tools/ci/everyday-tasks.livecodescript). Light and
+      # dark at once, each on its own Xvfb screen, so that the step adds
+      # one run's time; a task that fails, or a script error, fails it
+      - name: Everyday IDE tasks, light and dark
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 20
+        run: |
+          pids=()
+          for appearance in light dark; do
+            python3 tools/ci/ui_tour.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
+              --script tools/ci/everyday-tasks.livecodescript --timeout 900 \
+              --appearance "$appearance" --out "$RUNNER_TEMP/logs/ui-tour/everyday-$appearance" \
+              > "$RUNNER_TEMP/everyday-$appearance.txt" 2>&1 &
+            pids+=($!)
+          done
+          failed=()
+          for i in 0 1; do
+            appearance=$([ $i = 0 ] && echo light || echo dark)
+            if ! wait "${pids[$i]}"; then failed+=("$appearance"); fi
+            echo "::group::Everyday IDE tasks, $appearance"
+            cat "$RUNNER_TEMP/everyday-$appearance.txt"
+            echo "::endgroup::"
+          done
+          if [ ${#failed[@]} -gt 0 ]; then
+            grep -h -E '^(STEP .* FAILED|ERROR)' "$RUNNER_TEMP"/everyday-*.txt | sed 's/^/::error::/' || true
+            echo "::error::the everyday IDE tasks failed in ${failed[*]}"
+            exit 1
+          fi
 
       # The tour's menu-marks step again under dark GTK 2 themes a desktop
       # ships, beside the Adwaita-dark of the run above: Ubuntu MATE's own

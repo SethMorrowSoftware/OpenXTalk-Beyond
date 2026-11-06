@@ -62,6 +62,17 @@ album. On Android, images are saved to the default Pictures folder (the
 Write External Storage permission must be enabled to allow the
 application to write in the public folder).
 
+On Android 10 and newer the image is added to the Pictures folder
+through Android's media store, as Android asks of an app there. Saving
+under the name of an image the application saved before replaces it, as
+on older Android; when another application's image has that name,
+Android saves this one under a name of its own (such as
+"my_file (1).png") where older OpenXTalk versions failed. On Android 13
+and newer, which no longer grant the Write External Storage permission,
+it counts as granted for an application that has it enabled, so saving
+works there too (needs the Java layer built from OXT-Beyond's source,
+which the runtimes asset carries from its next release).
+
 >*Note:* When running in the iOS simulator, there needs to be at least
 > one image in the photo album for exporting to succeed. You can add
 > images to the photo album in a simulator by dragging an image on the

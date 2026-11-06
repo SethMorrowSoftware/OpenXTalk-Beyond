@@ -168,6 +168,62 @@ class Win32EventsTest(unittest.TestCase):
                   (2.1, '+', 3, 'C', place)]
         self.assertEqual([title for _, title, _, _ in startup_windows.ghosts(events)], ['B'])
 
+    def test_a_window_made_again_twice_in_its_place_is_not_a_ghost(self):
+        # Windows, main after #380 (6b6350253, Build (Windows) run
+        # 42241026907): the Tools palette, shown at a blendLevel of 99, went
+        # to 0 and the engine showed a new window before it took the old
+        # one away (MCStack::setopacity); 123 ms later its decorations
+        # changed and the engine took that window away before it showed the
+        # next. Looking only after a window went, the watch paired the
+        # first with the third and called the second a ghost
+        tools = (10, 120, 105, 662)
+        raw = [(0.582, S, 0x9301b4, IDE, 'MCWinClassW', 'revSplash', True, (217, 231, 808, 537)),
+               (2.106, S, 0x5c01c2, IDE, 'MCWinClassW', 'OXT-Beyond 0.2.7-rc.6.16', True, (0, 0, 850, 75)),
+               (3.135, D, 0x9301b4, 0, '', '', False),
+               (3.138, S, 0xc101f8, IDE, 'MCWinClassW', 'Tools', True, tools),
+               (3.144, S, 0x300222, IDE, 'MCWinClassW', 'Tools', True, tools),
+               (3.147, D, 0xc101f8, 0, '', '', False),
+               (3.270, D, 0x300222, 0, '', '', False),
+               (3.273, S, 0x310222, IDE, 'MCWinClassW', 'Tools', True, tools)]
+        events = startup_windows.win32_events(raw, ide_only)
+        self.assertEqual(startup_windows.ghosts(events), [])
+        self.assertEqual(startup_windows.recreations(events),
+                         [(0xc101f8, 0x300222, 3.147), (0x300222, 0x310222, 3.270)])
+        lines = startup_windows.report(events, [])
+        self.assertIn('RECREATED 0xc101f8 went at 3.147 s and 0x300222 came in its place', lines)
+        self.assertIn('RECREATED 0x300222 went at 3.270 s and 0x310222 came in its place', lines)
+
+    def test_a_window_shown_just_before_one_went_stands_in_for_it(self):
+        # the engine's other order: the new window first, then the old one
+        # taken away (a shown stack's blendLevel crossing 0)
+        place = (10, 10, 50, 50)
+        events = [(1.0, '+', 1, 'Tools', place), (1.2, '+', 2, 'Tools', place),
+                  (1.203, '-', 1, 'Tools', place)]
+        self.assertEqual(startup_windows.ghosts(events), [])
+        self.assertEqual(startup_windows.recreations(events), [(1, 2, 1.203)])
+
+    def test_a_window_shown_before_is_no_stand_in_for_a_ghost(self):
+        place = (10, 10, 50, 50)
+        cases = {
+            # a window that came over one already in its place, and went
+            'came over another': [(1.0, '+', 2, 'Other', place), (1.1, '+', 1, 'Tools', place),
+                                  (1.2, '-', 1, 'Tools', place)],
+            # the window shown in its place came too long before it went
+            'too long before': [(1.0, '+', 1, 'Tools', place), (1.1, '+', 2, 'Other', place),
+                                (1.1 + startup_windows.RECREATED_WITHIN + 0.05, '-', 1, 'Tools', place)],
+            # the window shown in its place had gone already
+            'gone already': [(1.0, '+', 1, 'Tools', place), (1.05, '+', 2, 'Other', place),
+                             (1.06, '-', 2, 'Other', place), (1.1, '-', 1, 'Tools', place)],
+            # in another place
+            'another place': [(1.0, '+', 1, 'Tools', place), (1.1, '+', 2, 'Other', (10, 10, 50, 90)),
+                              (1.103, '-', 1, 'Tools', place)],
+        }
+        for name, events in cases.items():
+            with self.subTest(name):
+                self.assertIn('Tools', [title for _, title, _, _ in startup_windows.ghosts(events)])
+        self.assertEqual([title for _, title, _, _ in startup_windows.ghosts(cases['gone already'])],
+                         ['Other', 'Tools'])
+
 
 class MacChangesTest(unittest.TestCase):
 

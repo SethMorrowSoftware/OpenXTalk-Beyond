@@ -64,3 +64,12 @@ Description:
 Use the <androidRequestPermission> function to find out if permission <permissionName> has been granted by the user.
 
 >*Note:* Permission names are case sensitive.
+
+>*Note:* Android 13 and newer refuse "android.permission.WRITE_EXTERNAL_STORAGE"
+> without asking the user, and it gives an application that targets Android 11
+> or newer nothing that it does not have already. For an application that has
+> "Write External Storage" checked in its standalone settings, it counts as
+> granted there: <androidRequestPermission> asks the user nothing and
+> <androidHasPermission> returns true (older OpenXTalk versions returned false
+> there; needs the Java layer built from OXT-Beyond's source, which the runtimes
+> asset carries from its next release).
