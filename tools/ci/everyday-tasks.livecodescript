@@ -880,6 +880,10 @@ on ed_appbrowser_select
    else
       set the right of stack tPI to the left of stack kAB - 8
    end if
+   -- (inspecting the field brings its stack to the front, over the
+   -- browser on a small screen, 1024 x 768 on Windows: the browser is
+   -- brought back in front, as a person would click its window)
+   go stack kAB
    put edABLine(the short name of stack sStack, 0) into tLine
    put edABCardLine(tLine, 1) into tCard
    if tCard is 0 then throw "the stack is not expanded"
@@ -908,6 +912,8 @@ on ed_appbrowser_script
    put edABControlLine(edOkay()) into tControl
    if tControl is 0 then throw "the App Browser does not list Okay"
    put edABControlLoc(tControl) into tLoc
+   -- (the browser in front of the stack and the Inspector)
+   go stack kAB
    -- (the menu is a popup: its second item picked with the arrow keys,
    -- as a person can)
    send "edABPickSecond" to me in 1200 milliseconds
