@@ -203,6 +203,13 @@ class Win32:
         self.user32.SendMessageW(hwnd, self.WM_GETTITLEBARINFOEX, 0, self.ct.addressof(info))
         return self.rect(info.rgrect[2])
 
+    def title_bar(self, hwnd):
+        """The title bar's screen rect as the window manager has it."""
+        info = self.TITLEBARINFOEX()
+        info.cbSize = self.ct.sizeof(info)
+        self.user32.SendMessageW(hwnd, self.WM_GETTITLEBARINFOEX, 0, self.ct.addressof(info))
+        return self.rect(info.rcTitleBar)
+
     def dwm_buttons(self, hwnd):
         """The caption buttons DWM draws, in screen coordinates, or None."""
         if self.dwmapi is None:
@@ -252,8 +259,9 @@ def frame_of(w, hwnd):
 
     def rel(r):
         return None if r is None else (r[0] - win[2], r[1] - win[1], r[2] - win[2], r[3] - win[1])
+    bar = w.title_bar(hwnd)
     return {'window': win, 'region': w.region(hwnd), 'button': button, 'dwm': dwm,
-            'button_rel': rel(button), 'dwm_rel': rel(dwm)}
+            'button_rel': rel(button), 'dwm_rel': rel(dwm), 'bar_height': bar[3] - bar[1]}
 
 
 def dwm_minimize(dwm):
@@ -339,8 +347,8 @@ def check_windows(w, windows, log_path, lines, problems):
             continue
         frames[name] = frame_of(w, hwnd)
         f = frames[name]
-        lines.append('INFO %s: window %s, region %s, minimize button %s, DWM caption buttons %s'
-                     % (name, f['window'], f['region'], f['button'], f['dwm']))
+        lines.append('INFO %s: window %s, region %s, title bar %s px, minimize button %s, DWM caption buttons %s'
+                     % (name, f['window'], f['region'], f['bar_height'], f['button'], f['dwm']))
     control = frames.get(STACKS[0])
     if control is None:
         return
@@ -371,6 +379,11 @@ def check_windows(w, windows, log_path, lines, problems):
         # never was
         check(name, 'no window region', f['region'] == control['region'],
               'GetWindowRgn: %s, the plain stack\'s: %s' % (f['region'], control['region']))
+        # Up to 0.2.7-rc.6.16 the menubar, on Windows 11, kept the title bar
+        # laid out while it was translucent: shorter than a plain window's,
+        # with smaller buttons further right
+        check(name, 'title bar as tall as the plain stack\'s', abs(f['bar_height'] - control['bar_height']) <= 1,
+              'WM_GETTITLEBARINFOEX: %s px, the plain stack\'s %s px' % (f['bar_height'], control['bar_height']))
         same = all(abs(a - b) <= 2 for a, b in zip(f['button_rel'], control['button_rel']))
         check(name, 'minimize button placed as the plain stack\'s', same,
               'from the top right corner %s, the plain stack\'s %s' % (f['button_rel'], control['button_rel']))
