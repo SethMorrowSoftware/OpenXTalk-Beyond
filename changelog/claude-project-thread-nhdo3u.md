@@ -1,2 +1,0 @@
-- CI: the Windows IDE start check knows a window the engine makes again by showing the new one before it takes the old one away, as it does when a shown stack's blendLevel goes back to 0. Since #380 the Tools palette's window is made again that way as the IDE starts, and the check no longer calls it a ghost. A window that comes and goes is still one (#388)
-- CI: the Android boot tests give the check a clock that moves only by its own sleeps, so a slow runner no longer turns "settled after 0 s" into "after 1 s" and fails them (#388)
