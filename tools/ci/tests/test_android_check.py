@@ -718,6 +718,74 @@ class Compare(unittest.TestCase):
         self.assertEqual(problems, ["debug: the manifest is the same, and should have "
                                     "['receiver PushReceiver: android:exported=true']"])
 
+    def with_trees(self, trees):
+        """compare_apks with an aapt that answers trees[path of the apk]"""
+        saved = ac.run
+
+        def fake(cmd, timeout=300, check=False):
+            self.assertEqual(cmd[1:3], ['dump', 'xmltree'])
+            return 0, trees[cmd[3]]
+        ac.run = fake
+        self.addCleanup(setattr, ac, 'run', saved)
+
+    PUSH_EXPORTED = AAPT1_TREE.replace(
+        '        A: android:permission(0x01010006)="com.google.android.c2dm.permission.SEND" (Raw: "x")\n',
+        '        A: android:exported(0x01010010)=(type 0x12)0xffffffff\n'
+        '        A: android:permission(0x01010006)="com.google.android.c2dm.permission.SEND" (Raw: "x")\n')
+
+    def test_the_change_against_a_release_without_it(self):
+        # the released builder's manifest has no android:exported on the
+        # push receiver, this one's says true: the expected difference
+        self.assertNotEqual(self.PUSH_EXPORTED, AAPT1_TREE)
+        old = self.apk('old.apk', self.BASE)
+        new = self.apk('new.apk', [('AndroidManifest.xml', b'exported')] + self.BASE[1:])
+        self.with_trees({old: AAPT1_TREE, new: self.PUSH_EXPORTED})
+        problems, notes = ac.compare_apks('debug', old, new, aapt='aapt')
+        self.assertEqual(problems, [])
+        self.assertIn('manifest: - receiver PushReceiver: android:exported=(not set); '
+                      '+ receiver PushReceiver: android:exported=true', notes)
+
+    def test_a_release_that_carries_the_change(self):
+        # 0.2.7-rc.6.16 and later: the released builder makes the same
+        # manifest, which already says it; nothing is expected to differ
+        old = self.apk('old.apk', self.BASE)
+        new = self.apk('new.apk', self.BASE)
+        self.with_trees({old: self.PUSH_EXPORTED, new: self.PUSH_EXPORTED})
+        problems, notes = ac.compare_apks('debug', old, new, aapt='aapt')
+        self.assertEqual(problems, [])
+        self.assertIn('manifest: the same, and the old one has receiver PushReceiver: android:exported=true already '
+                      '(its builder carries the change)', notes)
+
+    def test_the_same_manifest_without_the_change_is_a_problem(self):
+        # neither builder says it: the change is gone
+        old = self.apk('old.apk', self.BASE)
+        new = self.apk('new.apk', self.BASE)
+        self.with_trees({old: AAPT1_TREE, new: AAPT1_TREE})
+        problems, _ = ac.compare_apks('debug', old, new, aapt='aapt')
+        self.assertEqual(problems, ["debug: the manifest is the same, and should have "
+                                    "['receiver PushReceiver: android:exported=true']"])
+
+    def test_against_a_release_that_carries_the_change_any_change_is_a_problem(self):
+        # the release has the line already, so this builder must not change
+        # the manifest's components at all
+        old = self.apk('old.apk', self.BASE)
+        new = self.apk('new.apk', [('AndroidManifest.xml', b'other')] + self.BASE[1:])
+        changed = self.PUSH_EXPORTED.replace('"AppReceiver" (Raw: "AppReceiver")\n'
+                                             '        A: android:exported(0x01010010)=(type 0x12)0x0',
+                                             '"AppReceiver" (Raw: "AppReceiver")\n'
+                                             '        A: android:exported(0x01010010)=(type 0x12)0xffffffff')
+        self.assertNotEqual(changed, self.PUSH_EXPORTED)
+        self.with_trees({old: self.PUSH_EXPORTED, new: changed})
+        problems, _ = ac.compare_apks('debug', old, new, aapt='aapt')
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn('debug: the manifest changed: - receiver AppReceiver: android:exported=false; '
+                      '+ receiver AppReceiver: android:exported=true', problems[0])
+
+    def test_expected_manifest(self):
+        self.assertEqual(ac.expected_manifest('debug', []), ['receiver PushReceiver: android:exported=true'])
+        self.assertEqual(ac.expected_manifest('debug', ['receiver PushReceiver: android:exported=true']), [])
+        self.assertEqual(ac.expected_manifest('release', []), [])
+
     def test_manifest_change_needs_aapt(self):
         old = self.apk('old.apk', self.BASE)
         new = self.apk('new.apk', [('AndroidManifest.xml', b'other')] + self.BASE[1:])

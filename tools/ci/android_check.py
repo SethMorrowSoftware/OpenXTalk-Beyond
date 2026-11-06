@@ -165,10 +165,18 @@ EXPECTED_SIGNING = {
                'signatures to zipalign',
 }
 # compare: the manifest lines (aapt's xmltree, without line numbers) the
-# change added, per build
+# change added, per build. A line the old package already has is not
+# expected to differ: that release's builder carries the change (0.2.7-
+# rc.6.16 and later carry this one)
 EXPECTED_MANIFEST = {
     'debug': ['receiver PushReceiver: android:exported=true'],
 }
+
+
+def expected_manifest(name, old_summary):
+    """The lines of EXPECTED_MANIFEST that the change adds to this build's
+    manifest: those the old package's manifest (manifest_summary) lacks."""
+    return [x for x in EXPECTED_MANIFEST.get(name, []) if x not in old_summary]
 
 
 def log(msg=''):
@@ -908,7 +916,7 @@ def compare_apks(name, old, new, aapt=None):
             mn = manifest_summary(run([aapt, 'dump', 'xmltree', new, 'AndroidManifest.xml'], check=True)[1])
             added = [x for x in mn if x not in mo]
             removed = [x for x in mo if x not in mn]
-            expected = EXPECTED_MANIFEST.get(name, [])
+            expected = expected_manifest(name, mo)
             if sorted(added) != sorted(expected) or len(removed) != len(added):
                 problems.append('%s: the manifest changed: %s' % (
                     name, '; '.join(['- ' + x for x in removed] + ['+ ' + x for x in added]) or
@@ -924,7 +932,16 @@ def compare_apks(name, old, new, aapt=None):
                 problems.append('%s: other manifest lines changed: %s' % (
                     name, '; '.join(['- ' + x.strip() for x in gone] + ['+ ' + x.strip() for x in extra])))
     elif name in EXPECTED_MANIFEST:
-        problems.append('%s: the manifest is the same, and should have %s' % (name, EXPECTED_MANIFEST[name]))
+        if not aapt:
+            problems.append('%s: the manifest is the same, and should have %s' % (name, EXPECTED_MANIFEST[name]))
+        else:
+            mo = manifest_summary(run([aapt, 'dump', 'xmltree', old, 'AndroidManifest.xml'], check=True)[1])
+            missing = expected_manifest(name, mo)
+            if missing:
+                problems.append('%s: the manifest is the same, and should have %s' % (name, missing))
+            else:
+                notes.append('manifest: the same, and the old one has %s already (its builder carries the '
+                             'change)' % '; '.join(EXPECTED_MANIFEST[name]))
     so = {i.filename for i in zo.infolist() if i.filename.startswith('META-INF/')}
     sn = {i.filename for i in zn.infolist() if i.filename.startswith('META-INF/')}
     sig_same = so == sn and all(zo.read(x) == zn.read(x) for x in so)
