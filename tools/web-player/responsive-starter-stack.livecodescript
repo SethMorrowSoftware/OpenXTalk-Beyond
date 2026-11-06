@@ -417,7 +417,9 @@ command rsToggleSave
    if sPicked is among the lines of sSaved then
       filter sSaved without sPicked
    else
-      put sPicked & return after sSaved
+      -- (a line of its own: filter leaves the list without a last
+      -- return, so "after" would join the place to the last one)
+      put sPicked into line (the number of lines of sSaved + 1) of sSaved
       filter sSaved without empty
    end if
    rsSaveLook

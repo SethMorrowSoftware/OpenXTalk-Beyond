@@ -1,0 +1,2 @@
+- Responsive Starter: saving a second place no longer stops with "can't find background" (#PR)
+- Mobile Web library: the safe area is read again when it changes after a phone has turned, so a control near the notch moves out of it on an iPhone turned on its side (#PR)

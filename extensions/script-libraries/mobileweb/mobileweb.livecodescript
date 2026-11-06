@@ -2586,6 +2586,22 @@ private function mwBrowserScript
    put "  var s = getComputedStyle(mw.probe);" & return after tScript
    put "  return [s.paddingTop, s.paddingRight, s.paddingBottom, s.paddingLeft].map(function(v) { return Math.round(parseFloat(v) || 0); });" & return after tScript
    put "}" & return after tScript
+   put "// The safe area can change after the last event of a turn (Safari on an" & return after tScript
+   put "// iPhone moves the notch's inset to the side once the turn has settled):" & return after tScript
+   put "// a box sized by the insets tells of each change as a resize" & return after tScript
+   put "function watchInsets(on) {" & return after tScript
+   put "  if (!on) { if (mw.insetWatch) { mw.insetWatch.disconnect(); mw.insetWatch = null; } return; }" & return after tScript
+   put "  if (mw.insetWatch || typeof ResizeObserver !== 'function') return;" & return after tScript
+   put "  if (!mw.insetBox) {" & return after tScript
+   put "    mw.insetBox = document.createElement('div');" & return after tScript
+   put "    mw.insetBox.style.cssText = 'position:fixed;left:0;top:0;visibility:hidden;pointer-events:none;' +" & return after tScript
+   put "      'width:calc(1px + env(safe-area-inset-left) + 3 * env(safe-area-inset-right));' +" & return after tScript
+   put "      'height:calc(1px + env(safe-area-inset-top) + 3 * env(safe-area-inset-bottom))';" & return after tScript
+   put "    document.body.appendChild(mw.insetBox);" & return after tScript
+   put "  }" & return after tScript
+   put "  mw.insetWatch = new ResizeObserver(function() { viewSoon(); });" & return after tScript
+   put "  mw.insetWatch.observe(mw.insetBox);" & return after tScript
+   put "}" & return after tScript
    put "function viewport() {" & return after tScript
    put "  var vv = window.visualViewport;" & return after tScript
    put "  var lw = document.documentElement.clientWidth || window.innerWidth;" & return after tScript
@@ -2918,6 +2934,7 @@ private function mwBrowserScript
    put "    touchEvents.forEach(function(x) { document.addEventListener(x[0], x[1], {capture: true, passive: true}); });" & return after tScript
    put "    viewEvents.forEach(function(x) { window.addEventListener(x, viewSoon); });" & return after tScript
    put "    if (window.visualViewport) { visualViewport.addEventListener('resize', viewSoon); visualViewport.addEventListener('scroll', viewSoon); }" & return after tScript
+   put "    watchInsets(true);" & return after tScript
    put "    viewSoon();" & return after tScript
    put "  }," & return after tScript
    put "  stop: function() {" & return after tScript
@@ -2928,6 +2945,7 @@ private function mwBrowserScript
    put "    touchEvents.forEach(function(x) { document.removeEventListener(x[0], x[1], {capture: true, passive: true}); });" & return after tScript
    put "    viewEvents.forEach(function(x) { window.removeEventListener(x, viewSoon); });" & return after tScript
    put "    if (window.visualViewport) { visualViewport.removeEventListener('resize', viewSoon); visualViewport.removeEventListener('scroll', viewSoon); }" & return after tScript
+   put "    watchInsets(false);" & return after tScript
    put "  }," & return after tScript
    put "  viewport: viewport," & return after tScript
    put "  sensorAvailable: function(name) { return sensorAvailable(name) ? 'true' : 'false'; }," & return after tScript

@@ -46,6 +46,7 @@ function rcState
    put "navback=" & the rect of graphic "Nav Back" of stack kStack & return after tState
    put "topback=" & the rect of graphic "Top Back" of stack kStack & return after tState
    put "titlerect=" & the rect of field "Title" of stack kStack & return after tState
+   put "theme=" & the rect of button "Theme" of stack kStack & return after tState
    put "navexplore=" & the rect of button "Nav Explore" of stack kStack & return after tState
    put "navguide=" & the rect of button "Nav Guide" of stack kStack & ";" & \
          the label of button "Nav Guide" of stack kStack & return after tState
