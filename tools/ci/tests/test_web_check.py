@@ -396,6 +396,16 @@ class TheCardColours(unittest.TestCase):
         self.assertIn('if (MCcurtheme != NULL || MClook == LF_MOTIF || !(flags & F_OPAQUE))', web)
         self.assertIn('if (getcindex(DI_BACK, i) || getpindex(DI_BACK, i))', web)
         self.assertIn('if (MCObjectColorContrast(t_words, t_face) < 4.5)', web)
+        # the words read are the enabled ones: getforecolor gives a disabled
+        # button or group the theme's grey, which does not read on the dark
+        # face (the web check's disabled push button in a dark browser,
+        # 0.2.7-rc.6.17), so the words are the first foregroundColor up the
+        # chain, else the theme's with the disabled state left out
+        self.assertNotIn('getforecolor(', web)
+        self.assertIn('t_object -> getcindex(DI_FORE, i)', web)
+        self.assertIn('else if (t_object -> getpindex(DI_FORE, i))', web)
+        self.assertIn('t_state & ~(kMCPlatformControlStateDisabled | kMCPlatformControlStateSelected)', web)
+        self.assertNotIn('F_DISABLED', web)
         self.assertIn('bool t_tabs = t_style == F_MENU && menumode == WM_TOP_LEVEL;', web)
         self.assertNotIn('F_RECTANGLE', web)
         # the fill takes it unless the button is hilited, and so do the tabs

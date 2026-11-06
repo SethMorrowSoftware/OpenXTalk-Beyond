@@ -1708,16 +1708,35 @@ bool MCButton::getwebthemeface(MCContextType p_type, MCColor &r_face)
 
 	// The words, their own colour or the one they inherit: the enabled
 	// one, so that a disabled button (grey words) is filled as an enabled
-	// one is
+	// one is. The first foregroundColor from the button up to its stack,
+	// as getforecolor finds it, else the theme's words for the button with
+	// its disabled state left out. getforecolor gives a disabled button or
+	// group's words the theme's grey (6D6D6D, or the screen's grey) instead,
+	// which reads on the light face (4.53) but not on the dark one (3.15):
+	// until 0.2.7-rc.6.17's web check, a disabled push button on a coloured
+	// card in a dark browser kept the card's colour
 	MCColor t_words;
-	MCPatternRef t_pattern = nil;
-	int2 t_x, t_y;
+	bool t_have_words = false;
 	if (getcindex(DI_FORE, i))
+	{
 		t_words = colors[i];
+		t_have_words = true;
+	}
 	else if (getpindex(DI_FORE, i))
 		return false;
-	else if (!parent -> getforecolor(DI_FORE, False, False, t_words, t_pattern, t_x, t_y, p_type, this) ||
-	         t_pattern != nil)
+	for (MCObject *t_object = parent; !t_have_words && t_object != nil && t_object != MCdispatcher; t_object = t_object -> getparent())
+	{
+		if (t_object -> getcindex(DI_FORE, i))
+		{
+			t_words = t_object -> getcolors()[i];
+			t_have_words = true;
+		}
+		else if (t_object -> getpindex(DI_FORE, i))
+			return false;
+	}
+	if (!t_have_words &&
+	    (!getthemeselectorsforprop(P_FORE_COLOR, t_type, t_part, t_state, t_prop, t_prop_type) ||
+	     !MCPlatformGetControlThemePropColor(t_type, t_part, MCPlatformControlState(t_state & ~(kMCPlatformControlStateDisabled | kMCPlatformControlStateSelected)), t_prop, t_words)))
 		return false;
 	if (MCObjectColorContrast(t_words, t_face) < 4.5)
 		return false;
