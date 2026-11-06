@@ -37,6 +37,8 @@ words, is in the [README](README.md#the-ide) and on the
 - Responsive Starter: saving a second place no longer stops with "can't find background", and the places on the Saved card show their names and words, laid out in the grid with or without the Mobile Web library (#379)
 - Mobile Web library: the safe area is read again when it changes after a phone has turned, so a control near the notch moves out of it on an iPhone turned on its side (#379)
 - Phone Starter: a pinch on the Gestures pad sizes the dot round its own centre instead of walking it up and to the left off the pad, two fingers moved together move the dot, and it stays on the pad (#382)
+- Stack Player: the Phone Starter, and any stack the Mobile Web library makes as big as the bare player's page, no longer has a gap on the left and its right side cut off on an iPhone turned on its side (#387)
+- Mobile Web library: a web app opened from an iPhone's Home Screen keeps its full height after the phone turns and turns back, instead of leaving its bottom where a browser's toolbar would be with black under it (#387)
 - Deploying Your Application, the specialFolderPath dictionary entry and the Stack Player's README: a web standalone's home folder is /openxtalk (it has been since 0.2.7-rc.6.2), not /livecode; they now say so, and that /livecode is still a link to it; the engine is unchanged (#381)
 - Stack Player: an error about a stack in its library shows the stack's name without the folder again, now that the folder is /openxtalk/Documents/Stack Player; the old /livecode path is still trimmed too (#381)
 - CI: a check holds the guide, the dictionary entry and the Stack Player to the home folder the web engine uses, and keeps "LiveCode" out of the guide's prose (#381)

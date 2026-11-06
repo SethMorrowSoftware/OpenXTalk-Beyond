@@ -1,2 +1,0 @@
-- Stack Player: the Phone Starter, and any stack the Mobile Web library makes as big as the bare player's page, no longer has a gap on the left and its right side cut off on an iPhone turned on its side (#387)
-- Mobile Web library: a web app opened from an iPhone's Home Screen keeps its full height after the phone turns and turns back, instead of leaving its bottom where a browser's toolbar would be with black under it (#387)

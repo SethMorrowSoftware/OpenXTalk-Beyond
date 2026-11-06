@@ -156,7 +156,7 @@ every change, release by release.
 
 | Version | What it brings |
 | --- | --- |
-| [0.2.7-rc.6.17](#027-rc617-the-bug-hunt-round-seventeen) | The round to squash what was left before 0.2.7 is stable: buttons on a coloured card in the web IDE, a dark menu item on Linux, a main window that wouldn't minimize on Windows 11, an App Browser that listed itself (and the Card Navigator), windows that flashed at start, Inclusions in a new order every run, the Responsive Starter's second save and the Phone Starter's pinch; and Lessons, a course in xTalk, on the website |
+| [0.2.7-rc.6.17](#027-rc617-the-bug-hunt-round-seventeen) | The round to squash what was left before 0.2.7 is stable: buttons on a coloured card in the web IDE, a dark menu item on Linux, a main window that wouldn't minimize on Windows 11, an App Browser that listed itself (and the Card Navigator), windows that flashed at start, Inclusions in a new order every run, the Responsive Starter's second save, the Phone Starter's pinch and its fit on an iPhone's Home Screen; and Lessons, a course in xTalk, on the website |
 | [0.2.7-rc.6.16](#027-rc616-the-bug-hunt-round-sixteen) | The Responsive Starter lays one stack out for a phone, a tablet and a desktop; phone stacks use touch, sensors, the camera and the share sheet; a stack plays with nothing around it; Android packages install again; the website gets an Extensions page; the Script Editor's black words on grey, a blank Dictionary on Windows and unreadable menu words are fixed |
 | [0.2.7-rc.6.15](#027-rc615-the-bug-hunt-round-fifteen) | The Mobile Web library and the Phone Starter bring stacks to phones; animations that wait 0 ms show in the browser; a Clear button for the Inspector's colours; named tools; the web IDE and the website rest; `write to process` sends text as written |
 | [0.2.7-rc.6.14](#027-rc614-the-bug-hunt-round-fourteen) | The Inspector's colours stay up to date in the web IDE; Windows' full colour dialog; visible Linux menu ticks on dark menus; a calmer website front page; a new splash; Learn stacks for the Box2Dxt Kit and the rest of the xTalk Suite |
@@ -1748,6 +1748,12 @@ so here is each change since then, listed as the bug it squashes:
   and to the left and off the pad. It now sizes round its own centre,
   two fingers moved together move it, and it stays on the pad (bwmilby)
   (#382).
+- **A Phone Starter that didn't fit an iPhone's Home Screen.** Saved to
+  the Home Screen and turned on its side, the Phone Starter left a gap
+  on the left and lost its right edge, and once turned back, its
+  footer sat where a browser's toolbar would be, with black under it.
+  It fills the screen either way now, and so does any stack the Mobile
+  Web library makes as big as the page (bwmilby) (#387).
 - **A guide that named the wrong folder.** Deploying Your Application,
   the specialFolderPath entry and the Stack Player's README said a web
   standalone's home folder is /livecode. It has been /openxtalk since
@@ -1773,8 +1779,10 @@ so here is each change since then, listed as the bug it squashes:
 Behind the scenes, every example in the new lessons runs on the engine
 and must put exactly what its page shows; the web check draws a
 coloured card in a light and a dark browser and reads its buttons off
-the screen; the IDE tour reads a hilited menu item in a window of its
-own dark and light colour, opens and checks the App Browser, fails when
+the screen; a check runs the Mobile Web library's page code with the
+sizes an iPhone gives a Home Screen app, turned both ways; the IDE
+tour reads a hilited menu item in a window of its own dark and light
+colour, opens and checks the App Browser, fails when
 any of the IDE's own stacks is listed among the user's, imports a
 HyperCard stack from a disk image, and moves a window that would sit
 under the Tools palette; the Windows, macOS and Linux builds watch the
@@ -1791,7 +1799,7 @@ this repository's sources and checked against the shipped one (it ships
 in a later release); and the runtimes that every package carries for
 the other platforms are rebuilt from this release's engine (#366, #367,
 #369, #370, #372, #373, #374, #375, #376, #377, #379, #380, #381, #382,
-#388, #389, #392).
+#387, #388, #389, #392).
 
 The Android bug found last round is still open: an Android app made
 with OXT-Beyond closes when Android makes its screen again without
