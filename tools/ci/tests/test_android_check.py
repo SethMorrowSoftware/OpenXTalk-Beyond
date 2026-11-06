@@ -838,6 +838,27 @@ class VerifyWithoutTools(unittest.TestCase):
         self.assertIn('did not warn "built for armv7 and not arm64"', problems[0])
 
 
+class StepClock:
+    """The check's clock in the Boot tests (in place of the time module):
+    it moves only by the check's own sleeps, so the seconds the check
+    prints ("settled after 0 s") and the deadlines it keeps are the same
+    however long the stand-in adb takes to start. On real time, a busy
+    macOS runner took over a second for one settle of a few calls, and
+    "after 0 s" read "after 1 s" (CI checks on main's 782a01d0f)."""
+
+    def __init__(self):
+        self.now = 1000.0
+
+    def monotonic(self):
+        return self.now
+
+    def time(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.now += seconds
+
+
 @unittest.skipIf(os.name == 'nt', 'the stand-in adb is a shell script')
 class Boot(unittest.TestCase):
     """boot with a stand-in adb: done once the emulator has booted, and
@@ -874,7 +895,9 @@ class Boot(unittest.TestCase):
         os.chmod(adb, 0o755)
         procs = {True: ['4242 01:00 /sdk/emulator/emulator -avd api33'], False: [], None: None}[running]
         saved = ac.emulator_processes
+        saved_time = ac.time
         ac.emulator_processes = lambda: procs
+        ac.time = StepClock()
         out = io.StringIO()
         try:
             with contextlib.redirect_stdout(out):
@@ -882,6 +905,7 @@ class Boot(unittest.TestCase):
                                   '--interval', '0.05'] + list(extra))
         finally:
             ac.emulator_processes = saved
+            ac.time = saved_time
         return status, out.getvalue()
 
     def test_booted(self):
