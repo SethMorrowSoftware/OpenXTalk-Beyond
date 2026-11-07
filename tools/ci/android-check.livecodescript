@@ -96,13 +96,19 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- Allow and checks that the package holds it), and WRITE_EXTERNAL_STORAGE
 -- ("Write External Storage"), which Android 13 and newer refuse without
 -- asking and the Java layer counts as granted there (Engine.java,
--- grantedWithoutAsking).
+-- grantedWithoutAsking). Once green, its backKey turns it kBackColor,
+-- and it does not pass the message, so the app stays (android_check.py
+-- device --back presses the back key: Android 16 sends it to the back
+-- callback of an app that targets API 36, which the builder makes of a
+-- runtime whose Java layer is ready for it).
 
 -- The probe's colours: the stack is saved red, and its openStack makes it
 -- green, so a screen of green says that the engine ran the stack's script
 constant kSavedColor = "204,34,0"
 constant kRunColor = "31,158,90"
 constant kFailColor = "230,160,0"
+-- kBackColor: the Java layer's probe got backKey
+constant kBackColor = "40,90,200"
 constant kIdentifier = "org.openxtalk.check.androidprobe"
 -- The Java layer's probe's picture: one pixel, a PNG, as base64
 constant kProbePicture = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
@@ -209,9 +215,59 @@ private command androidUnits
    unitCheckSDK tWork
    unitDebugKeystore
    unitJavaHome tWork
+   unitTargetAPI tWork
    androidUnit "required-sdk", deployCall("deployRequiredSDK") is "Android 13 (API 33) or newer", \
          "deployRequiredSDK() is" && deployCall("deployRequiredSDK")
 end androidUnits
+
+-- The API a package targets: the newest when the runtime's Java layer is
+-- ready for it (its jar names the back callback and the system bars'
+-- padding), 33 as before when it is not, and a stack's pin from 33 to the
+-- newest; the large-screen property at 36 and only there
+private command unitTargetAPI pWork
+   local tRuntime, tSettings, tAnswer, tError, tManifest, tPin
+   put pWork & "/runtime" into tRuntime
+   removeTree tRuntime
+   revSBEnsureFolder tRuntime
+   androidUnit "target-no-java-layer", builderCall("androidTargetAPI", tSettings, tRuntime) is 33, \
+         builderCall("androidTargetAPI", tSettings, tRuntime)
+   -- 9.6.3's jar has neither name; one of the two is not enough
+   put textEncode("PK" & "com/runrev/android/LiveCodeActivity.class" & \
+         "com/runrev/android/LiveCodeActivity$BackCallback.class", "UTF-8") into url ("binfile:" & tRuntime & "/Classes")
+   androidUnit "target-java-layer-not-ready", builderCall("androidJavaLayerIsReady", tRuntime) is false and \
+         builderCall("androidTargetAPI", tSettings, tRuntime) is 33, builderCall("androidTargetAPI", tSettings, tRuntime)
+   put textEncode("PK" & "com/runrev/android/LiveCodeActivity$BackCallback.class" & numToByte(0) & \
+         "com/runrev/android/LiveCodeActivity$SystemBarsPadding.class", "UTF-8") into url ("binfile:" & tRuntime & "/Classes")
+   put builderCall("androidTargetAPI", tSettings, tRuntime) into tAnswer
+   androidUnit "target-java-layer-ready", builderCall("androidJavaLayerIsReady", tRuntime) is true and \
+         tAnswer is deployCall("deployNewestTargetSdkVersion") and tAnswer is 36, tAnswer
+   -- a pin, with the layer ready or not
+   repeat for each item tPin in "33,34,35,36"
+      put tPin into tSettings["android,target sdk"]
+      androidUnit "target-pinned-" & tPin, builderCall("androidTargetAPI", tSettings, tRuntime) is tPin and \
+            builderCall("androidTargetAPI", tSettings, pWork & "/no-runtime") is tPin, \
+            builderCall("androidTargetAPI", tSettings, tRuntime)
+   end repeat
+   repeat for each item tPin in "32,37,thirty,35.5"
+      put tPin into tSettings["android,target sdk"]
+      put empty into tError
+      try
+         get builderCall("androidTargetAPI", tSettings, tRuntime)
+      catch tError
+      end try
+      androidUnit "target-pin-refused-" & tPin, tError contains "is not one the builder can make: from 33 to 36", \
+            "answered" && it & ", threw" && tError
+   end repeat
+   removeTree tRuntime
+   -- the large-screen property: at 36, once, in the application; below, nothing
+   put "<manifest>" & return & "  <application>" & return & "  </application>" & return & "</manifest>" into tManifest
+   androidUnit "large-screen-below-36", builderCall("androidKeepLargeScreenLayout", tManifest, 35) is tManifest, \
+         builderCall("androidKeepLargeScreenLayout", tManifest, 35)
+   put builderCall("androidKeepLargeScreenLayout", tManifest, 36) into tAnswer
+   androidUnit "large-screen-36", tAnswer is "<manifest>" & return & "  <application>" & return & \
+         "    <property android:name=" & quote & "android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY" & quote && \
+         "android:value=" & quote & "true" & quote && "/>" & return & "  </application>" & return & "</manifest>", tAnswer
+end unitTargetAPI
 
 -- androidComponentsWithoutExported over a manifest with every case
 private command unitExported pWork
@@ -510,6 +566,12 @@ private function probeScript
    end if
    put "   set the backgroundColor of me to" && quote & kRunColor & quote & return & \
          "end openStack" after tScript
+   if probeName() is "AndroidJavaProbe" then
+      -- the back key, not passed (see the header)
+      put return & "on backKey" & return & \
+            "   set the backgroundColor of me to" && quote & kBackColor & quote & return & \
+            "end backKey" after tScript
+   end if
    return tScript
 end probeScript
 

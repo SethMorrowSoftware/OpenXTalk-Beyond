@@ -29,7 +29,8 @@ From this repository's builds (--builds; the current asset)
       --bin win-x86=PATH --bin win-x86_64=PATH
       --bin linux-x86=PATH --bin linux-x86_64=PATH
       [--carry ZIP] [--assets-cache DIR] [--commit SHA]
-      [--run BUILDS=URL]... [--update-manifest [FILE]]
+      [--run BUILDS=URL]... [--android-classes JAR]
+      [--update-manifest [FILE]]
 
 Each PATH is a build output folder or the CI archive that holds one
 (OXT-Beyond-win-x86-bin.zip, OXT-Beyond-<ver>-win-x86_64-binaries.zip,
@@ -57,6 +58,19 @@ downloaded into the assets cache (prebuilt/fetched-assets, or
 be the one recorded here (CARRY_ASSET). Its PROVENANCE.md goes into the
 new archive as PROVENANCE-oxt-runtimes-1.15.md.
 
+--android-classes JAR puts the Android runtime's Java layer built from this
+repository (tools/ci/android_java.py build, from engine/src/java at the
+builds' commit) in place of the carried one, Runtime/Android/Classes,
+which is LiveCode Community 9.6.3's. The jar must hold only class files
+(and its manifest), among them the classes the engines and the Android
+builder name (JAVA_CLASSES), and every PendingIntent it makes must say
+whether it is mutable (android_java.py rules); it gets the date of the
+builds' newest file, so that the archive does not depend on when the jar
+was built. The manifest entry then names the file ("java_layer"), and
+PROVENANCE.md says what it is and how it was checked. The rest of
+Runtime/Android (the engines with their externals, the manifest and the
+rest) is still carried over.
+
 Every .exe, .dll, .so and engine must be a PE or ELF file of its build's
 architecture, and every Standalone must carry this source tree's engine
 version (BUILD_SHORT_VERSION in the file "version"), so that a mislabelled
@@ -66,7 +80,8 @@ PROVENANCE.md. The release tag is runtimes-<LABEL>; --update-manifest
 replaces the oxt-runtimes-* entries of the manifest with this asset's,
 whose "exclude" leaves out what each package builds itself (OWN_PARTS).
 .github/workflows/runtimes.yml runs this on the artifacts of a Windows and
-a Linux CI run and can publish the result.
+a Linux CI run, with the Java layer it builds and checks from the same
+commit, and can publish the result.
 
 From an installed OpenXTalk Lite folder (how oxt-runtimes-1.15 was made)
 ------------------------------------------------------------------------
@@ -593,6 +608,16 @@ CARRY_ASSET = collections.OrderedDict([
 CARRY = ('Runtime/Android/', TZ + 'code/arm64-android/', TZ + 'code/armv7-android/',
          TZ + 'code/x86-android/', TZ + 'code/x86_64-android/')
 
+# The Android runtime's Java layer, which --android-classes replaces with
+# one built from this repository (tools/ci/android_java.py build). The
+# classes it must hold: the one whose native methods the engines' JNI
+# functions are, and the ones whose subclasses the Android builder writes
+# into every app (ide-support/revsaveasandroidstandalone.livecodescript)
+JAVA_LAYER = 'Runtime/Android/Classes'
+JAVA_FROM = 'android-java'
+JAVA_CLASSES = ('com/runrev/android/Engine', 'com/runrev/android/LiveCodeActivity',
+                'com/runrev/android/LiveCodeService', 'com/runrev/android/EngineReceiver')
+
 # What each package's own build makes, which it therefore leaves out of
 # the asset (the asset's "exclude" in external-assets.json). linux-arm64
 # and macOS make the zoneinfo data; their own runtimes are not in the
@@ -800,6 +825,55 @@ def carried_infos(path):
     return infos, provenance_text
 
 
+def android_java():
+    """tools/ci/android_java.py, which builds the Java layer and reads class
+    files."""
+    ci = os.path.join(os.path.dirname(HERE), 'ci')
+    if ci not in sys.path:
+        sys.path.append(ci)
+    import android_java as aj
+    return aj
+
+
+def java_layer(path, mtime):
+    """(file record, problems) of the Java layer at path (--android-classes):
+    a jar of class files and its manifest, holding JAVA_CLASSES, whose every
+    PendingIntent says whether it is mutable. The record is dated mtime."""
+    aj = android_java()
+    what = '--android-classes %s' % path
+    if not os.path.isfile(path):
+        return None, ['%s: no such file' % what]
+    try:
+        with zipfile.ZipFile(path) as z:
+            names = [i.filename for i in z.infolist() if not i.filename.endswith('/')]
+        classes = aj.read_jar(path)
+    except (zipfile.BadZipFile, aj.CheckError, struct.error, IndexError, KeyError, TypeError) as e:
+        return None, ['%s is not a jar of class files (%s)' % (what, e)]
+    problems = []
+    others = sorted(n for n in names if not n.endswith('.class') and n != 'META-INF/MANIFEST.MF')
+    if others:
+        problems.append('%s holds files that are not class files: %s' % (what, ', '.join(others)))
+    missing = [c for c in JAVA_CLASSES if c not in classes]
+    if missing:
+        problems.append('%s lacks %s, so it is not the Java layer' % (what, ', '.join(missing)))
+    found, _ = aj.check_pending_intents(classes)
+    problems += ['%s: %s' % (what, x) for x in found]
+    size, sha, _ = digest(path)
+    return {'path': JAVA_LAYER, 'size': size, 'sha256': sha, 'mtime': mtime, 'elf': False, 'from': JAVA_FROM,
+            'source': path, 'classes': len(classes),
+            'majors': sorted({c.major for c in classes.values()})}, problems
+
+
+def replace_java_layer(carried, path, mtime):
+    """(carried records without the Java layer, the new layer's record, the
+    carried layer's record, problems): --android-classes path in place of
+    the carried Runtime/Android/Classes."""
+    old = [i for i in carried if i['path'] == JAVA_LAYER]
+    problems = [] if old else ['%s has no %s for --android-classes to replace' % (CARRY_ASSET['id'], JAVA_LAYER)]
+    new, found = java_layer(path, mtime)
+    return [i for i in carried if i['path'] != JAVA_LAYER], new, (old or [None])[0], problems + found
+
+
 def write_builds_zip(path, name, infos, carry_zip, extra):
     """The archive: every record under <name>/, sorted, then the extra
     (file name, bytes, mtime) files. Carried members keep their dates and
@@ -844,11 +918,15 @@ def parse_pairs(values, what):
     return out
 
 
-def builds_provenance(name, version, commit, runs, sources, infos):
+def builds_provenance(name, version, commit, runs, sources, infos, replaced=None):
+    """PROVENANCE.md of an asset made with --builds; replaced is the record
+    of the carried Java layer that --android-classes replaced."""
     by_from = collections.OrderedDict((b, []) for b in BUILDS)
+    by_from[JAVA_FROM] = []
     by_from[CARRY_ASSET['id']] = []
     for i in infos:
         by_from[i['from']].append(i)
+    java = (by_from[JAVA_FROM] or [None])[0]
     L = []
     add = L.append
     add('# %s: standalone runtimes for OXT-Beyond' % name)
@@ -890,12 +968,43 @@ def builds_provenance(name, version, commit, runs, sources, infos):
         add('| `%s` | %s | %d | %s | %s |' % (b, ', '.join('`%s`' % f for f in folders), len(items),
                                             '{:,}'.format(sum(i['size'] for i in items)), where))
     add('')
+    if java:
+        add('## The Android runtime\'s Java layer')
+        add('')
+        add('`%s` is the Java layer of the Android runtime, which the IDE\'s Android' % JAVA_LAYER)
+        add('builder compiles into every Android app. It was built from OXT-Beyond\'s source')
+        add('(the Java and AIDL sources that `engine/engine-sources.gypi` lists, in')
+        add('`engine/src/java`) at the commit above, by `tools/ci/android_java.py build`:')
+        add('%d classes (class file version %s), %s bytes, SHA-256 `%s`.'
+            % (java['classes'], ', '.join(str(m) for m in java['majors']), '{:,}'.format(java['size']),
+               java['sha256']))
+        if replaced:
+            add('It takes the place of the Java layer carried over from `%s`' % CARRY_ASSET['id'])
+            add('(LiveCode Community 9.6.3\'s, %s bytes, SHA-256 `%s`).'
+                % ('{:,}'.format(replaced['size']), replaced['sha256']))
+        add('')
+        add('`tools/oxt/make_runtimes_asset.py` checked that it holds only class files,')
+        add('among them %s, and that every PendingIntent it makes says' % ', '.join('`%s`' % c for c in JAVA_CLASSES))
+        add('whether it is mutable (as `android_java.py rules` does). The "Runtimes asset"')
+        add('workflow (`.github/workflows/runtimes.yml`), which makes the published assets,')
+        add('builds it and, before it makes the archive, compares it with the Java layer of')
+        add('the runtimes asset pinned at that commit, class by class and method by method')
+        add('(every difference must be one that `android_java.py`\'s EXPECTED names, with its')
+        add('reason), and checks it against the Android engines across JNI and against what')
+        add('Android asks of the code (`android_java.py compare`, `jni` and `rules`).')
+        add('')
     carried = by_from[CARRY_ASSET['id']]
     add('## Carried over from %s' % CARRY_ASSET['id'])
     add('')
-    add('OXT-Beyond does not build the Android runtime yet. `Runtime/Android` and the')
-    add('timezone library\'s Android code (`code/*-android`) are taken unchanged from the')
-    add('earlier runtimes asset `%s`' % CARRY_ASSET['id'])
+    if java:
+        add('OXT-Beyond does not build the Android engines yet. The rest of `Runtime/Android`')
+        add('(the engines with their externals, the manifest and the rest) and the timezone')
+        add('library\'s Android code (`code/*-android`) are taken unchanged from the earlier')
+        add('runtimes asset `%s`' % CARRY_ASSET['id'])
+    else:
+        add('OXT-Beyond does not build the Android runtime yet. `Runtime/Android` and the')
+        add('timezone library\'s Android code (`code/*-android`) are taken unchanged from the')
+        add('earlier runtimes asset `%s`' % CARRY_ASSET['id'])
     add('(%s, %s bytes,' % (CARRY_ASSET['url'], '{:,}'.format(CARRY_ASSET['size'])))
     add('SHA-256 `%s`): %d files, %s bytes.' % (CARRY_ASSET['sha256'], len(carried),
                                                  '{:,}'.format(sum(i['size'] for i in carried))))
@@ -925,12 +1034,19 @@ def builds_provenance(name, version, commit, runs, sources, infos):
     add('  Chromium and its components (see THIRD-PARTY-NOTICES.md).')
     add('- Timezone data (`resources/zoneinfo`): compiled with `zic` from the IANA time')
     add('  zone database, which is in the public domain (`extensions/libraries/timezone/tz`).')
-    add('- The Android runtime and the timezone library\'s Android code: see')
+    if java:
+        add('- The Android runtime\'s Java layer (`%s`): GNU GPL v3, with the' % JAVA_LAYER)
+        add('  exception in LICENSE-EXCEPTION.md; the source is `engine/src/java` of')
+        add('  %s at the commit above.' % REPO_URL)
+        add('- The rest of the Android runtime and the timezone library\'s Android code: see')
+    else:
+        add('- The Android runtime and the timezone library\'s Android code: see')
     add('  `PROVENANCE-%s.md`.' % CARRY_ASSET['id'])
     add('')
     add('## Files')
     add('')
-    add('Times are the files\' modification times in the builds or in %s (UTC).' % CARRY_ASSET['id'])
+    add('Times are the files\' modification times in the builds or in %s (UTC)%s.'
+        % (CARRY_ASSET['id'], '; the Java layer has the builds\' newest' if java else ''))
     add('')
     add('| path | bytes | SHA-256 | modified | from |')
     add('|---|---:|---|---|---|')
@@ -943,9 +1059,25 @@ def builds_provenance(name, version, commit, runs, sources, infos):
     return '\n'.join(L)
 
 
-def builds_manifest_entry(name, label, sha, size, commit):
+def builds_manifest_entry(name, label, sha, size, commit, java_layer=False):
+    """The asset's entry for external-assets.json; java_layer: the Android
+    runtime's Java layer was built from the commit (--android-classes)."""
     tag = RELEASE_TAG_FMT.format(version=label)
-    return collections.OrderedDict([
+    if java_layer:
+        android = ('; the Android runtime\'s Java layer (%s), built from the same source; and the rest of '
+                   'the Android runtime with the timezone library\'s Android code, carried over unchanged from '
+                   'oxt-runtimes-1.15 (OpenXTalk Lite 1.15)' % JAVA_LAYER)
+        licence = ('GPL-3.0 with the exception in LICENSE-EXCEPTION.md (OXT-Beyond builds, the Android Java '
+                   'layer among them); GPL-3.0 (the rest of the Android runtime, from LiveCode Community 9.6.3)')
+        source = ('; the Android Java layer built from the same commit by tools/ci/android_java.py build; the '
+                  'other Android parts from oxt-runtimes-1.15')
+    else:
+        android = ('; and the Android runtime with the timezone library\'s Android code, carried over unchanged '
+                   'from oxt-runtimes-1.15 (OpenXTalk Lite 1.15)')
+        licence = ('GPL-3.0 with the exception in LICENSE-EXCEPTION.md (OXT-Beyond builds); GPL-3.0 '
+                   '(the Android runtime from LiveCode Community 9.6.3)')
+        source = '; the Android parts from oxt-runtimes-1.15'
+    entry = collections.OrderedDict([
         ('id', name),
         ('url', '%s/releases/download/%s/%s.zip' % (REPO_URL, tag, name)),
         ('sha256', sha),
@@ -961,17 +1093,17 @@ def builds_manifest_entry(name, label, sha, size, commit):
                          'data (their own runtimes are not in this asset).'),
         ('description', 'Standalone runtimes for the platforms other than the package\'s own, built from this '
                         'repository (%s): Windows x86-32 and x86-64 and Linux x86-32 and x86-64 engines with '
-                        'their externals, the timezone library\'s code for them and its zoneinfo data; and the '
-                        'Android runtime with the timezone library\'s Android code, carried over unchanged from '
-                        'oxt-runtimes-1.15 (OpenXTalk Lite 1.15). See PROVENANCE.md in the archive.'
-                        % ('commit %s' % commit[:12] if commit else 'see PROVENANCE.md')),
-        ('licence', 'GPL-3.0 with the exception in LICENSE-EXCEPTION.md (OXT-Beyond builds); GPL-3.0 '
-                    '(the Android runtime from LiveCode Community 9.6.3); CEF: BSD-3-Clause with Chromium\'s '
-                    'licences; IANA tz data: public domain; see PROVENANCE.md'),
+                        'their externals, the timezone library\'s code for them and its zoneinfo data%s. See '
+                        'PROVENANCE.md in the archive.'
+                        % ('commit %s' % commit[:12] if commit else 'see PROVENANCE.md', android)),
+        ('licence', '%s; CEF: BSD-3-Clause with Chromium\'s licences; IANA tz data: public domain; see '
+                    'PROVENANCE.md' % licence),
         ('source', 'OXT-Beyond\'s CI builds win-x86, win-x86_64, linux-x86 and linux-x86_64%s, made with '
-                   'tools/oxt/make_runtimes_asset.py --builds; the Android parts from oxt-runtimes-1.15'
-                   % (' of commit %s' % commit if commit else '')),
+                   'tools/oxt/make_runtimes_asset.py --builds%s' % (' of commit %s' % commit if commit else '', source)),
     ])
+    if java_layer:
+        entry['java_layer'] = JAVA_LAYER
+    return entry
 
 
 def replace_runtimes_entry(path, entry):
@@ -1029,6 +1161,15 @@ def builds_main(args, p):
             except fetch_assets.AssetError as e:
                 raise SystemExit('error: %s' % e)
         carried, carried_provenance = carried_infos(carry_path)
+        java = replaced = None
+        if args.android_classes:
+            built = max([i['mtime'] for i in infos] or [ZIP_EPOCH])
+            carried, java, replaced, found = replace_java_layer(carried, args.android_classes, built)
+            problems += found
+            if java:
+                infos.append(java)
+                print('%s: %s, %d classes (SHA-256 %s), in place of the carried one'
+                      % (JAVA_FROM, JAVA_LAYER, java['classes'], java['sha256']))
         infos += carried
         print('%s: %d files carried over' % (CARRY_ASSET['id'], len(carried)))
         seen = {}
@@ -1042,7 +1183,7 @@ def builds_main(args, p):
                 print('error: %s' % x)
             raise SystemExit('error: %d problems; no archive written' % len(problems))
 
-        text = builds_provenance(name, version, args.commit, runs, sources, infos)
+        text = builds_provenance(name, version, args.commit, runs, sources, infos, replaced)
         newest = max(i['mtime'] for i in infos)
         os.makedirs(args.out, exist_ok=True)
         zip_path = os.path.join(args.out, name + '.zip')
@@ -1054,7 +1195,7 @@ def builds_main(args, p):
     with open(os.path.join(args.out, 'PROVENANCE.md'), 'w', encoding='utf-8', newline='\n') as f:
         f.write(text)
     size, sha, _ = digest(zip_path)
-    entry = builds_manifest_entry(name, args.label, sha, size, args.commit)
+    entry = builds_manifest_entry(name, args.label, sha, size, args.commit, java_layer=java is not None)
     with open(os.path.join(args.out, name + '.manifest.json'), 'w', encoding='utf-8', newline='\n') as f:
         json.dump(entry, f, indent=2, ensure_ascii=False)
         f.write('\n')
@@ -1093,6 +1234,9 @@ def main(argv=None):
     p.add_argument('--run', action='append', metavar='BUILDS=URL',
                    help='--builds: the CI run that made these builds (names separated by commas), for '
                         'PROVENANCE.md')
+    p.add_argument('--android-classes', metavar='JAR',
+                   help='--builds: the Android runtime\'s Java layer built from this repository (tools/ci/'
+                        'android_java.py build), in place of the carried %s' % JAVA_LAYER)
     p.add_argument('--stock-setup', metavar='PATH',
                    help='.setup.exe of stock LiveCode Community 9.6.3 for Windows, to compare against (read only)')
     p.add_argument('--source-archive', metavar='NAME', help='file name of the release archive, for PROVENANCE.md')
@@ -1101,8 +1245,8 @@ def main(argv=None):
     args = p.parse_args(argv)
     if args.builds:
         return builds_main(args, p)
-    if args.label or args.bin or args.carry or args.assets_cache or args.commit or args.run:
-        p.error('--label, --bin, --carry, --assets-cache, --commit and --run go with --builds')
+    if args.label or args.bin or args.carry or args.assets_cache or args.commit or args.run or args.android_classes:
+        p.error('--label, --bin, --carry, --assets-cache, --commit, --run and --android-classes go with --builds')
 
     root = args.installed_root
     if not root:

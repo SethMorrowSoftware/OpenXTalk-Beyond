@@ -495,7 +495,9 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
       replace "${ORIENTATION}" with tInitialOrientation in tManifest
       
       replace "${MIN_SDK_VERSION}" with pSettings["android,minimum version"] in tManifest
-      replace "${TARGET_SDK_VERSION}" with targetSDKVersion() in tManifest
+      local tTargetAPI
+      put androidTargetAPI(pSettings, revMobileRuntimeFolder(pTarget)) into tTargetAPI
+      replace "${TARGET_SDK_VERSION}" with tTargetAPI in tManifest
       
       local tUsesFeature, tUsesPermission, tFeatures, tPermissions, tAd
       repeat for each key tFeature in pSettings["android,device capabilities"]
@@ -679,6 +681,8 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
          put empty into tAllowHttpConnections
       end if
       replace "${ALLOW_HTTP_CONNECTIONS}" with tAllowHttpConnections in tManifest
+      
+      put androidKeepLargeScreenLayout(tManifest, tTargetAPI) into tManifest
       
       put tManifest into url ("binfile:" & tManifestFile)
       
@@ -1836,6 +1840,78 @@ private function targetSDKVersion
    dispatch function "deployTargetSdkVersion" to stack kDeployLibrary
    return the result
 end targetSDKVersion
+
+private function newestTargetSDKVersion
+   dispatch function "deployNewestTargetSdkVersion" to stack kDeployLibrary
+   return the result
+end newestTargetSDKVersion
+
+-- OXT-Beyond: the API a package targets, its manifest's targetSdkVersion,
+-- which decides how Android treats the app (Google Play takes only the
+-- newest). A stack may pin one, "android,target sdk", from the API the
+-- builder has always targeted (33) to the newest it knows (36), as for a
+-- package that is not for Google Play; a pin outside that is an error.
+-- Otherwise it is the newest when the runtime's Java layer is ready for
+-- it, and 33, as before, when it is not (androidJavaLayerIsReady)
+function androidTargetAPI pSettings, pRuntimeFolder
+   local tPin
+   put pSettings["android,target sdk"] into tPin
+   if tPin is not empty then
+      if tPin is not an integer or tPin < targetSDKVersion() or tPin > newestTargetSDKVersion() then
+         throw "the stack's Android target API (" & tPin & ") is not one the builder can make: from" && \
+               targetSDKVersion() && "to" && newestTargetSDKVersion()
+      end if
+      return tPin + 0
+   end if
+   if androidJavaLayerIsReady(pRuntimeFolder) then
+      return newestTargetSDKVersion()
+   end if
+   return targetSDKVersion()
+end androidTargetAPI
+
+-- OXT-Beyond: whether the runtime's Java layer (its Classes jar) is ready
+-- for the newest target: it sends the back callback to the stack's backKey
+-- (Android 16 calls nothing else for an app that targets 36) and keeps the
+-- stack out of the system bars (Android 15 and newer draw an app that
+-- targets 35 edge to edge). LiveCode Community 9.6.3's layer, which the
+-- runtimes carried until the layer was built from OXT-Beyond's source, has
+-- neither, and throws on its PendingIntents at target 31 and newer. A jar
+-- keeps its entries' names as they are, so the names are looked for in it
+constant kJavaLayerReady = "com/runrev/android/LiveCodeActivity$BackCallback.class,com/runrev/android/LiveCodeActivity$SystemBarsPadding.class"
+function androidJavaLayerIsReady pRuntimeFolder
+   local tJar
+   put mapFilePath(pRuntimeFolder & slash & "Classes") into tJar
+   if there is no file tJar then
+      return false
+   end if
+   put url ("binfile:" & tJar) into tJar
+   repeat for each item tEntry in kJavaLayerReady
+      if byteOffset(textEncode(tEntry, "UTF-8"), tJar) is 0 then
+         return false
+      end if
+   end repeat
+   return true
+end androidJavaLayerIsReady
+
+-- OXT-Beyond: Android 16 and newer ignore an app's orientation and its
+-- resizability on large screens (600 dp wide and more) once it targets
+-- API 36. This property keeps them, as the stack's settings give them,
+-- until an app targets 37 (the engine does not yet lay a stack out again
+-- for every size and rotation a tablet may give it). Below 36 the manifest
+-- is left as it was
+constant kRestrictedResizability = "android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY"
+function androidKeepLargeScreenLayout pManifest, pTargetAPI
+   if pTargetAPI < 36 then
+      return pManifest
+   end if
+   local tProperty
+   put "  <property android:name=" & quote & kRestrictedResizability & quote && \
+         "android:value=" & quote & "true" & quote && "/>" & return into tProperty
+   if pManifest contains "</application>" then
+      replace "</application>" with tProperty & "  </application>" in pManifest
+   end if
+   return pManifest
+end androidKeepLargeScreenLayout
 
 private function pathToRootClasses pRoot
    dispatch function "pathToRootClasses" to stack kDeployLibrary with pRoot

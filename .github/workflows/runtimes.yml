@@ -22,10 +22,15 @@
 #             made with), downloads the four builds' outputs
 #             (OXT-Beyond-win-x86-bin, the binaries zip in OXT-Beyond-
 #             win-x86_64, OXT-Beyond-linux-x86-bin and
-#             OXT-Beyond-linux-x86_64-bin) and the earlier asset whose
-#             Android parts are carried over, and makes the archive, its
-#             PROVENANCE.md and the entry for tools/oxt/external-assets.json
-#             (in the job summary and the artifact runtimes-asset);
+#             OXT-Beyond-linux-x86_64-bin), builds the Android runtime's
+#             Java layer from that commit and checks it as the "Android
+#             Java layer" workflow (android-java.yml) checks a pull
+#             request's (against the runtimes asset pinned at that commit:
+#             compare, jni and rules of tools/ci/android_java.py), downloads
+#             the earlier asset whose other Android parts are carried over,
+#             and makes the archive, its PROVENANCE.md and the entry for
+#             tools/oxt/external-assets.json (in the job summary and the
+#             artifact runtimes-asset);
 #   publish   creates the release with the archive and checks the upload.
 #             A tag that exists already is never changed: an asset is
 #             published once, and a new one gets a new label.
@@ -163,8 +168,63 @@ jobs:
           run-id: ${{ inputs.linux-run }}
           github-token: ${{ github.token }}
 
-      # The earlier asset with the Android parts is downloaded by the tool
-      # and checked against the SHA-256 it records
+      # The Android runtime's Java layer, built from this commit's sources
+      # (engine/src/java) and checked as android-java.yml checks a pull
+      # request's, before the archive takes it (--android-classes): the
+      # same JDK, platform and commands
+      - name: Set up the JDK and the Android SDK
+        run: |
+          for v in JAVA_HOME_17_X64 JAVA_HOME_21_X64; do
+            if [ -n "${!v}" ] && [ -d "${!v}/bin" ]; then
+              jdk="${!v}"
+              break
+            fi
+          done
+          [ -n "$jdk" ] || { echo "::error::no JDK 17 or 21 on the runner"; exit 1; }
+          sdk="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          [ -d "$sdk" ] || { echo "::error::no Android SDK on the runner (ANDROID_HOME)"; exit 1; }
+          echo "JDK=$jdk" >> "$GITHUB_ENV"
+          echo "SDK=$sdk" >> "$GITHUB_ENV"
+          sm="$sdk/cmdline-tools/latest/bin/sdkmanager"
+          (yes || true) | "$sm" --licenses > /dev/null
+          "$sm" --install "platforms;android-36" > "$RUNNER_TEMP/sdkmanager.log" 2>&1 ||
+            { tail -40 "$RUNNER_TEMP/sdkmanager.log"; exit 1; }
+          echo "JDK: $jdk"; "$jdk/bin/javac" -version 2>&1 | head -n 1
+          ls -l "$sdk/platforms/android-36/android.jar"
+
+      # The Android runtime that this commit's packages ship: the Java
+      # layer is compared with its own, and checked against its engines
+      - name: Fetch the runtimes asset pinned at this commit
+        run: |
+          python3 tools/oxt/fetch_assets.py --assets-cache "$RUNNER_TEMP/pinned-asset"
+          zip=$(ls "$RUNNER_TEMP"/pinned-asset/oxt-runtimes-*.zip | head -n 1)
+          mkdir -p "$RUNNER_TEMP/pinned"
+          unzip -q "$zip" '*/Runtime/Android/*' -d "$RUNNER_TEMP/pinned"
+          android=$(ls -d "$RUNNER_TEMP"/pinned/*/Runtime/Android | head -n 1)
+          [ -f "$android/Classes" ] || { echo "::error::no Runtime/Android/Classes in $zip"; exit 1; }
+          echo "RUNTIME=$android" >> "$GITHUB_ENV"
+          ls -l "$android" "$android"/*/Standalone
+
+      - name: Build the Java layer
+        run: |
+          mkdir -p "$RUNNER_TEMP/java"
+          python3 tools/ci/android_java.py build --sdk "$SDK" --jdk "$JDK" --api 36 --out "$RUNNER_TEMP/java/Classes"
+
+      - name: Compare it with the pinned one
+        run: |
+          python3 tools/ci/android_java.py compare --old "$RUNTIME/Classes" --new "$RUNNER_TEMP/java/Classes"
+
+      - name: Check it against the engine (JNI)
+        run: |
+          python3 tools/ci/android_java.py jni --classes "$RUNNER_TEMP/java/Classes" --runtime "$RUNTIME" \
+            --android-jar "$SDK/platforms/android-36/android.jar"
+
+      - name: Check what Android asks of the code
+        run: |
+          python3 tools/ci/android_java.py rules --classes "$RUNNER_TEMP/java/Classes"
+
+      # The earlier asset with the other Android parts is downloaded by the
+      # tool and checked against the SHA-256 it records
       - name: Make the archive
         env:
           COMMIT: ${{ steps.runs.outputs.commit }}
@@ -182,7 +242,8 @@ jobs:
             --assets-cache "$RUNNER_TEMP/assets-cache" \
             --commit "$COMMIT" \
             --run "win-x86,win-x86_64=$runs/$WINDOWS_RUN" \
-            --run "linux-x86,linux-x86_64=$runs/$LINUX_RUN"
+            --run "linux-x86,linux-x86_64=$runs/$LINUX_RUN" \
+            --android-classes "$RUNNER_TEMP/java/Classes"
           ls -l "$RUNNER_TEMP/asset"
           {
             echo "### oxt-runtimes-$LABEL"
@@ -251,8 +312,9 @@ jobs:
           {
             echo "Standalone runtimes that OXT-Beyond packages install for the platforms other than their own,"
             echo "built from commit $COMMIT by OXT-Beyond's CI: Windows x86-32 and x86-64, Linux x86-32 and x86-64,"
-            echo "with the Android runtime carried over from runtimes-1.15. Not an OXT-Beyond release by itself:"
-            echo "tools/oxt/external-assets.json pins it, and PROVENANCE.md in the archive lists every file."
+            echo "and the Android runtime's Java layer, with the rest of the Android runtime carried over from"
+            echo "runtimes-1.15. Not an OXT-Beyond release by itself: tools/oxt/external-assets.json pins it,"
+            echo "and PROVENANCE.md in the archive lists every file."
             echo
             echo "- \`$name.zip\`: $size bytes, SHA-256 \`$sha\`"
             echo

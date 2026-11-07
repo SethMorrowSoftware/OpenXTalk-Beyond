@@ -206,10 +206,21 @@ function deployIsValidJDK pPath
    return true
 end deployIsValidJDK
 
+-- OXT-Beyond: kDeployAndroidTargetSDK is the API the builder has always
+-- targeted, still the oldest a stack may pin and the target with a runtime
+-- whose Java layer is not ready for newer, and the oldest platform it
+-- compiles against (pathToRootPlatform); kDeployAndroidNewestTargetSDK is
+-- the newest it can target, which Google Play asks for (the builder's
+-- androidTargetAPI chooses between them)
 constant kDeployAndroidTargetSDK = "33"
+constant kDeployAndroidNewestTargetSDK = "36"
 function deployTargetSdkVersion
    return kDeployAndroidTargetSDK
 end deployTargetSdkVersion
+
+function deployNewestTargetSdkVersion
+   return kDeployAndroidNewestTargetSDK
+end deployNewestTargetSdkVersion
 
 function deployRequiredSDK
    local tMap

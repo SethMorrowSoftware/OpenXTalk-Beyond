@@ -18,8 +18,11 @@
 # (engine/src/java) and checked against the Android runtime that the
 # checkout's packages ship (the runtimes asset of tools/oxt/external-
 # assets.json, whose Runtime/Android is LiveCode Community 9.6.3's, carried
-# from OpenXTalk Lite 1.15), with tools/ci/android_java.py (the Android
-# plan's phase 1):
+# from OpenXTalk Lite 1.15, apart from the Java layer of an asset whose
+# entry names one, "java_layer": that one was built here, from the asset's
+# commit), with tools/ci/android_java.py (the Android plan's phase 1). The
+# "Runtimes asset" workflow (runtimes.yml) runs the same checks on the jar
+# it puts into a new asset:
 #
 #   - build: javac for Java 8 against Android 16's android.jar (API 36);
 #   - compare: with the shipped Classes, class by class, member by member
@@ -144,8 +147,8 @@ jobs:
           python3 tools/ci/android_java.py rules --classes "$RUNNER_TEMP/java/Classes"
 
       # For the record, not a check (no annotations, so the run's account
-      # stays the checks'): what the rules say of the shipped jar, whose
-      # PendingIntents throw on Android 12 and newer
+      # stays the checks'): what the rules say of the shipped jar (LiveCode
+      # 9.6.3's PendingIntents throw on Android 12 and newer)
       - name: The rules of the shipped Java layer
         run: |
           env -u GITHUB_ACTIONS -u GITHUB_STEP_SUMMARY \

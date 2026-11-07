@@ -845,15 +845,16 @@ on ed_appbrowser_open
    edShotStack kAB, "27a-app-browser"
 end ed_appbrowser_open
 
--- the names in its tree read on its window: light, in the plugin's own
--- grey as always; dark, in a grey with the contrast of body text (4.5 to 1)
--- against the tree's background
+-- the names in its tree read on its window: light, in the dark grey the
+-- IDE gives them since rc.6.17 (64,64,64, revIDEAppBrowserAppearance, #372;
+-- the plugin's own 127,127,127 is only 4 to 1 on white); dark, in a grey
+-- with the contrast of body text (4.5 to 1) against the tree's background
 on ed_appbrowser_names
    local tLinks, tBack, tContrast
    if not edOpen(kAB) then throw "the App Browser is not open"
    put the effective linkColor of stack kAB into tLinks
    if not revIDEAppearanceIsDark() then
-      if tLinks is not "127,127,127" then throw "light: the App Browser's names are" && tLinks & ", not its own grey 127,127,127"
+      if tLinks is not "64,64,64" then throw "light: the App Browser's names are" && tLinks & ", not the IDE's dark grey 64,64,64"
       edShotStack kAB, "27a2-app-browser-names"
       return empty
    end if

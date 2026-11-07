@@ -120,6 +120,19 @@ class EverydayTasksScript(unittest.TestCase):
         self.assertIn('edInMemory', body)
         self.assertNotIn('there is not a stack sStack', body)
 
+    def test_app_browser_light_names_are_the_ides(self):
+        # appbrowser-names asks, light, for the colour the IDE gives the App
+        # Browser's names, read from revIDEAppBrowserAppearance itself: rc.6.17
+        # (#372) made it 64,64,64 while the task still asked for the plugin's
+        # own 127,127,127, and every Windows build failed on it
+        lib = read(os.path.join(ROOT, 'ide', 'Toolset', 'libraries', 'revidelibrary.8.livecodescript'))
+        m = re.search(r'^command revIDEAppBrowserAppearance pDark\n(.*?)^end revIDEAppBrowserAppearance', lib, re.M | re.S)
+        self.assertIsNotNone(m, 'revIDEAppBrowserAppearance not found')
+        light = re.search(r'else if .*\n\s*set the linkColor of stack tBrowser to "([\d,]+)"', m.group(1))
+        self.assertIsNotNone(light, 'its light branch not found')
+        body = self.handlers['ed_appbrowser_names']
+        self.assertIn('if tLinks is not "%s" then throw' % light.group(1), body)
+
 
 class EverydayTasksInCI(unittest.TestCase):
 

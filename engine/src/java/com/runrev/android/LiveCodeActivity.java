@@ -25,6 +25,8 @@ import android.widget.*;
 import android.util.*;
 import android.content.pm.PackageManager;
 import android.graphics.*;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 
 // This is the main activity exported by the application. This is
 // split into two parts, a customizable sub-class that gets dynamically
@@ -86,7 +88,80 @@ public class LiveCodeActivity extends Activity
                 s_main_view.updateKeyboardVisible();
             }
         });
+        
+        // OXT-Beyond: the back button and gesture on Android 13 and newer
+        // (registerBackCallback), and the stack kept out of the system bars
+        // where Android draws an app edge to edge (keepOutOfSystemBars)
+        if (Build.VERSION.SDK_INT >= 33)
+            registerBackCallback();
+        if (Build.VERSION.SDK_INT >= 35 && getApplicationInfo().targetSdkVersion >= 35)
+            keepOutOfSystemBars();
 	}
+    
+    // OXT-Beyond: Android 16 and newer give an app that targets API 36 or
+    // newer no onBackPressed and no KEYCODE_BACK: the back button and gesture
+    // call the window's OnBackInvokedCallback instead, which does what
+    // onBackPressed does (the stack's backKey). Below that, Android ignores
+    // the callback (unless the manifest says enableOnBackInvokedCallback) and
+    // calls onBackPressed as before
+    protected void registerBackCallback()
+    {
+        getOnBackInvokedDispatcher().registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                                                                  new BackCallback(this));
+    }
+    
+    // A back press, as onBackPressed has it
+    protected static class BackCallback implements OnBackInvokedCallback
+    {
+        protected Activity m_activity;
+        
+        public BackCallback(Activity p_activity)
+        {
+            m_activity = p_activity;
+        }
+        
+        @Override
+        public void onBackInvoked()
+        {
+            m_activity.onBackPressed();
+        }
+    }
+    
+    // OXT-Beyond: Android 15 and newer draw an app that targets API 35 or
+    // newer edge to edge: its window goes under the status and navigation
+    // bars and into the display's cutout, and the keyboard no longer resizes
+    // it (SOFT_INPUT_ADJUST_RESIZE, the engine's keyboard display "over").
+    // The view that holds the stack is padded by them instead, as they stand
+    // at each change (the status bar shown or hidden, the keyboard, a
+    // rotation), so that the stack has the area it had before; by the
+    // keyboard only while the window is to resize for it, as before (with
+    // "pan", SOFT_INPUT_ADJUST_PAN, Android moves the window instead)
+    protected void keepOutOfSystemBars()
+    {
+        s_main_layout.setOnApplyWindowInsetsListener(new SystemBarsPadding(this));
+    }
+    
+    protected static class SystemBarsPadding implements View.OnApplyWindowInsetsListener
+    {
+        protected Activity m_activity;
+        
+        public SystemBarsPadding(Activity p_activity)
+        {
+            m_activity = p_activity;
+        }
+        
+        @Override
+        public WindowInsets onApplyWindowInsets(View p_view, WindowInsets p_insets)
+        {
+            int t_types = WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout();
+            if ((m_activity.getWindow().getAttributes().softInputMode & WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST) ==
+                WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+                t_types |= WindowInsets.Type.ime();
+            Insets t_bars = p_insets.getInsets(t_types);
+            p_view.setPadding(t_bars.left, t_bars.top, t_bars.right, t_bars.bottom);
+            return WindowInsets.CONSUMED;
+        }
+    }
 
 	@Override
 	protected void onDestroy()

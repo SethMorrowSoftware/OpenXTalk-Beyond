@@ -178,6 +178,33 @@ class PackageReaders(unittest.TestCase):
         self.assertTrue(comps[('service', 'S')]['filter'])
         self.assertIs(comps[('activity-alias', 'AA')]['exported'], False)
 
+    def test_manifest_properties(self):
+        # aapt's form (a boolean's true is 0xffffffff), as a build at
+        # target 36 has it, and aapt2's; another element's name and value
+        # are not a property's
+        prop = ('      E: property (line=11)\n'
+                '        A: android:name(0x01010003)="%s" (Raw: "%s")\n'
+                '        A: android:value(0x01010024)=(type 0x12)0xffffffff\n' % ((ac.LARGE_SCREEN_PROPERTY,) * 2))
+        tree = AAPT1_TREE.replace('      E: service (line=9)\n', prop + '      E: service (line=9)\n')
+        self.assertEqual(ac.manifest_properties(tree), {ac.LARGE_SCREEN_PROPERTY: '0xffffffff'})
+        self.assertEqual(ac.manifest_properties(AAPT1_TREE), {})
+        tree2 = AAPT2_TREE + ('      E: property (line=40)\n'
+                              '        A: http://schemas.android.com/apk/res/android:name(0x01010003)="p.q" (Raw: "p.q")\n'
+                              '        A: http://schemas.android.com/apk/res/android:value(0x01010024)=true\n'
+                              '      E: property (line=41)\n'
+                              '        A: http://schemas.android.com/apk/res/android:name(0x01010003)="p.s" (Raw: "p.s")\n'
+                              '        A: http://schemas.android.com/apk/res/android:value(0x01010024)="text" (Raw: "text")\n'
+                              '      E: meta-data (line=42)\n'
+                              '        A: http://schemas.android.com/apk/res/android:name(0x01010003)="m" (Raw: "m")\n'
+                              '        A: http://schemas.android.com/apk/res/android:value(0x01010024)="v" (Raw: "v")\n')
+        self.assertEqual(ac.manifest_properties(tree2), {'p.q': 'true', 'p.s': 'text'})
+        # the attributes of an element inside a property are not its own
+        nested = ('      E: property (line=1)\n'
+                  '        E: other (line=2)\n'
+                  '          A: android:name(0x01010003)="x" (Raw: "x")\n'
+                  '          A: android:value(0x01010024)="y" (Raw: "y")\n')
+        self.assertEqual(ac.manifest_properties(nested), {})
+
     def test_manifest_lines_drop_line_numbers(self):
         self.assertEqual(ac.manifest_lines('  E: activity (line=9)\n\n    A: x="y"\n'),
                          ['  E: activity', '    A: x="y"'])
@@ -417,7 +444,7 @@ class Device(unittest.TestCase):
 
     EVENTS = 'echo "I/am_kill (  590): [0,3475,org.openxtalk.check.androidprobe,0,lmk]"'
 
-    def device(self, pidof, timeout='10', power='true', events=EVENTS, cases='', argv=()):
+    def device(self, pidof, timeout='10', power='true', events=EVENTS, cases='', argv=(), screencap=''):
         d = self.tmp.name
         adb = os.path.join(d, 'platform-tools', 'adb')
         with open(adb, 'w') as f:
@@ -429,7 +456,7 @@ class Device(unittest.TestCase):
                     '  "shell getprop ro.product.cpu.abi") echo x86_64 ;;\n'
                     '  install*) echo Success ;;\n'
                     '  "shell am start"*) echo "Status: ok" ;;\n'
-                    '  "exec-out screencap") cat "%s/screen.raw" ;;\n'
+                    '  "exec-out screencap") %scat "%s/screen.raw" ;;\n'
                     '  "shell pidof"*) %s ;;\n'
                     '  "logcat -d -v brief") cat "%s/logcat.txt" ;;\n'
                     '  "shell dumpsys power") %s ;;\n'
@@ -440,7 +467,7 @@ class Device(unittest.TestCase):
                     'com.android.systemui}\\n  mFocusedApp=ActivityRecord{2e u0 '
                     'org.openxtalk.check.androidprobe/.mblandroid t9}\\n" ;;\n'
                     '%s'
-                    'esac\n' % (d, pidof, d, power, events, cases))
+                    'esac\n' % (screencap, d, pidof, d, power, events, cases))
         os.chmod(adb, 0o755)
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
@@ -966,6 +993,123 @@ class DevicePicture(unittest.TestCase):
                       "export failed)", out)
 
 
+@unittest.skipIf(os.name == 'nt', 'the stand-in adb is a shell script')
+class DeviceBackAndBars(unittest.TestCase):
+    """device --within-bars and --back with a stand-in adb: once green, the
+    screen's first and last rows must not be the probe's green (the stack
+    is not drawn under the system bars), and the back key must reach the
+    probe's backKey, which turns it its back colour"""
+
+    setUp = Device.setUp
+    tearDown = Device.tearDown
+    device = Device.device
+    LOG = Device.LOG
+    EVENTS = Device.EVENTS
+
+    @staticmethod
+    def screen(rows):
+        """a raw screencap 4 pixels wide, a row of each colour"""
+        return struct.pack('<IIII', 4, len(rows), 1, 0) + b''.join(bytes(list(c) + [255]) * 4 for c in rows)
+
+    def run_probe(self, before, after=None, gone=False, argv=('--back', '--within-bars'), out=False):
+        """the probe shows before, and after once the back key is pressed
+        (unchanged when None); gone: its process ends with the key"""
+        d = self.tmp.name
+        for name in ('calls', 'gone', 'shots'):
+            if os.path.exists(os.path.join(d, name)):
+                os.remove(os.path.join(d, name))
+        with open(os.path.join(d, 'logcat.txt'), 'w') as f:
+            f.write(Device.LOG.split('I/lowmemorykiller')[0])
+        with open(os.path.join(d, 'screen.raw'), 'wb') as f:
+            f.write(self.screen(before))
+        with open(os.path.join(d, 'back.raw'), 'wb') as f:
+            f.write(self.screen(after if after is not None else before))
+        cases = ('  "shell input keyevent KEYCODE_BACK") echo "$*" >> "%(d)s/calls"; echo key >> "%(d)s/shots"; '
+                 'cp "%(d)s/back.raw" "%(d)s/screen.raw"; %(gone)s ;;\n'
+                 % {'d': d, 'gone': 'touch "%s/gone"' % d if gone else 'true'})
+        pidof = '[ -f "%s/gone" ] || echo 3475' % d
+        extra = list(argv) + (['--out', os.path.join(d, 'screen.png')] if out else [])
+        ac.BACK_WAIT, saved = 3, ac.BACK_WAIT
+        try:
+            status, text = self.device(pidof, timeout='10', cases=cases, argv=extra,
+                                       screencap='echo shot >> "%s/shots"; ' % d)
+        finally:
+            ac.BACK_WAIT = saved
+        try:
+            with open(os.path.join(d, 'calls')) as f:
+                calls = f.read().splitlines()
+        except FileNotFoundError:
+            calls = []
+        with open(os.path.join(d, 'shots')) as f:
+            self.shots = f.read().splitlines()
+        return status, text, calls
+
+    G, K, B, F = ac.RUN_COLOR, (0, 0, 0), ac.BACK_COLOR, ac.FAIL_COLOR
+    INSIDE = (K, G, G, K)
+
+    def test_inside_the_bars_and_back_passes(self):
+        status, out, calls = self.run_probe(self.INSIDE, (self.K, self.B, self.B, self.K), out=True)
+        self.assertEqual(status, 0, out)
+        self.assertEqual(calls, ['shell input keyevent KEYCODE_BACK'])
+        self.assertIn('The bars: the stack is inside them (the first and last rows are not its green)', out)
+        self.assertRegex(out, r"After the back key: [1-9]\d*% of the screen is the probe's back colour; process 3475")
+        # the first screen after the key that shows it ends the wait
+        self.assertEqual(self.shots[self.shots.index('key'):], ['key', 'shot'])
+        # the screen after the key, beside the first
+        back = os.path.join(self.tmp.name, 'screen-back.png')
+        self.assertIn('Screen after the back key: %s' % back, out)
+        with open(back, 'rb') as f:
+            self.assertEqual(f.read(8), b'\x89PNG\r\n\x1a\n')
+
+    def test_drawn_under_the_bars_fails(self):
+        status, out, _ = self.run_probe((self.G,) * 4, (self.B,) * 4)
+        self.assertEqual(status, 1, out)
+        self.assertIn("PROBLEM: the stack is drawn under the system bars (its green in the screen's top 100% and "
+                      "bottom 100% row)", out)
+        status, out, _ = self.run_probe((self.G, self.G, self.G, self.K), (self.B,) * 4)
+        self.assertIn("(its green in the screen's top 100% row)", out)
+
+    def test_back_not_reaching_backkey_fails(self):
+        status, out, calls = self.run_probe(self.INSIDE)
+        self.assertEqual(status, 1, out)
+        self.assertEqual(calls, ['shell input keyevent KEYCODE_BACK'])
+        self.assertIn("PROBLEM: the back key did not reach the stack's backKey (0% of the screen its back colour; "
+                      "the app is running)", out)
+        # it looked again until BACK_WAIT (3 s here) had passed
+        self.assertEqual(self.shots[self.shots.index('key'):], ['key', 'shot', 'shot'])
+
+    def test_back_ending_the_app_fails(self):
+        # an unhandled back key ends the app: the stack never got it
+        status, out, _ = self.run_probe(self.INSIDE, (self.K,) * 4, gone=True)
+        self.assertEqual(status, 1, out)
+        self.assertIn("PROBLEM: the back key did not reach the stack's backKey (0% of the screen its back colour; "
+                      "the app is gone)", out)
+        self.assertIn("process not running", out)
+
+    def test_neither_unless_asked(self):
+        status, out, calls = self.run_probe((self.G,) * 4, argv=())
+        self.assertEqual(status, 0, out)
+        self.assertEqual(calls, [])
+        self.assertNotIn('The bars:', out)
+        self.assertNotIn('back key', out)
+
+    def test_not_green_is_not_asked_more(self):
+        # the fail colour fails as before, and neither check runs
+        status, out, calls = self.run_probe((self.F,) * 4)
+        self.assertEqual(status, 1, out)
+        self.assertEqual(calls, [])
+        self.assertNotIn('The bars:', out)
+        self.assertIn("a call it makes into the Java layer failed", out)
+
+    def test_each_alone(self):
+        status, out, calls = self.run_probe((self.G,) * 4, (self.B,) * 4, argv=('--back',))
+        self.assertEqual(status, 0, out)
+        self.assertEqual(calls, ['shell input keyevent KEYCODE_BACK'])
+        status, out, calls = self.run_probe(self.INSIDE, argv=('--within-bars',))
+        self.assertEqual(status, 0, out)
+        self.assertEqual(calls, [])
+
+
 class Overlay(unittest.TestCase):
     """overlay puts this checkout's builder over a release's, and with
     --classes a Java layer over the release's Runtime/Android/Classes"""
@@ -1066,6 +1210,25 @@ class Screen(unittest.TestCase):
     def test_share_of_a_half_green_screen(self):
         rgba = bytes(list(ac.RUN_COLOR) + [255]) * 50 + bytes([0, 0, 0, 255]) * 50
         self.assertAlmostEqual(ac.colour_share(rgba, ac.RUN_COLOR, step=1), 0.5)
+
+    def test_bars_drawn_over(self):
+        # a 4x4 screen: green but for its first and last rows (the bars
+        # drawn as before), all green (drawn under them), green to the top
+        # (under the status bar alone), and a top row half green
+        green, black = bytes(list(ac.RUN_COLOR) + [255]), bytes([0, 0, 0, 255])
+        row = lambda c, n=4: c * n
+        inside = row(black) + row(green) * 2 + row(black)
+        self.assertEqual(ac.bars_drawn_over(inside, 4, 4), [])
+        self.assertEqual(ac.bars_drawn_over(row(green) * 4, 4, 4), ['top 100%', 'bottom 100%'])
+        self.assertEqual(ac.bars_drawn_over(row(green) * 3 + row(black), 4, 4), ['top 100%'])
+        self.assertEqual(ac.bars_drawn_over(row(green, 2) + row(black, 2) + row(green) * 3, 4, 4),
+                         ['top 50%', 'bottom 100%'])
+        self.assertEqual(ac.bars_drawn_over(row(green, 1) + row(black, 3) + row(green) * 2 + row(black), 4, 4), [])
+        self.assertEqual(ac.bars_drawn_over(b'', 0, 0), [])
+        # a colour of one's own
+        self.assertEqual(ac.bars_drawn_over(row(black) * 4, 4, 4, (0, 0, 0)), ['top 100%', 'bottom 100%'])
+        self.assertAlmostEqual(ac.row_share(row(green, 3) + row(black, 1) + row(black), 4, 0, ac.RUN_COLOR), 0.75)
+        self.assertEqual(ac.row_share(row(green, 3) + row(black, 1) + row(black), 4, 1, ac.RUN_COLOR), 0.0)
 
     def test_png(self):
         png = ac.png_from_rgba(2, 2, bytes([1, 2, 3, 255]) * 4)
@@ -1274,6 +1437,98 @@ class VerifyWithoutTools(unittest.TestCase):
                                   ('lib/armeabi-v7a/librevandroid.so', elf32([0x1000]))], spec)
         self.assertEqual(len(problems), 1)
         self.assertIn('did not warn "built for armv7 and not arm64"', problems[0])
+
+
+class VerifyTarget(unittest.TestCase):
+    """verify_apk with an aapt that answers a badging and a manifest: the
+    API the package targets is the one asked for (33 unless --target says
+    otherwise), and at 36, and only there, the manifest keeps the stack's
+    orientation on large screens"""
+
+    SPEC = VerifyWithoutTools.SPEC
+    # a manifest without the push receiver (SPEC has no push)
+    TREE = AAPT1_TREE.split('      E: receiver (line=9)\n        A: android:name(0x01010003)="PushReceiver"')[0] + \
+        '      E: service (line=9)\n        A: android:name(0x01010003)=".mblandroidservice" (Raw: "x")\n'
+    PROPERTY = ('      E: property (line=11)\n'
+                '        A: android:name(0x01010003)="%s" (Raw: "x")\n'
+                '        A: android:value(0x01010024)=(type 0x12)%%s\n' % ac.LARGE_SCREEN_PROPERTY)
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.apk = os.path.join(self.dir, 'p.apk')
+        with open(self.apk, 'wb') as f:
+            f.write(zip_bytes([('AndroidManifest.xml', b'm'), ('classes.dex', b'd'), ('resources.arsc', b'r'),
+                               ('lib/arm64-v8a/librevandroid.so', elf64([0x10000]))], stored=('resources.arsc',)))
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def check(self, targets, value=None, *target):
+        """verify_apk of a package that targets targets, with the large
+        screen property of value (none when None)"""
+        tree = self.TREE + (self.PROPERTY % value if value is not None else '')
+        saved = ac.run
+
+        def fake(cmd, timeout=300, check=False):
+            if cmd[1:3] == ['dump', 'badging']:
+                return 0, ("package: name='%s' versionCode='1'\nsdkVersion:'21'\ntargetSdkVersion:'%s'\n"
+                           % (ac.IDENTIFIER, targets))
+            self.assertEqual(cmd[1:3], ['dump', 'xmltree'])
+            return 0, tree
+        ac.run = fake
+        try:
+            return ac.verify_apk('unsigned', self.apk, self.SPEC, {'aapt': 'aapt'}, {}, *target)[0]
+        finally:
+            ac.run = saved
+
+    def test_33_as_before(self):
+        self.assertEqual(ac.TARGET_SDK, '33')
+        self.assertEqual(self.check('33'), [])
+        self.assertEqual(self.check('33', None, '33'), [])
+        self.assertEqual(self.check('36'), ['unsigned does not target API 33'])
+
+    def test_36_with_the_property(self):
+        self.assertEqual(ac.NEWEST_TARGET_SDK, '36')
+        self.assertEqual(self.check('36', '0xffffffff', '36'), [])
+        self.assertEqual(self.check('33', None, '36'), [
+            'unsigned does not target API 36',
+            "unsigned targets API 36, and its manifest does not keep the stack's orientation on large screens "
+            "(%s is not there)" % ac.LARGE_SCREEN_PROPERTY])
+
+    def test_36_without_the_property_or_false(self):
+        self.assertEqual(self.check('36', None, '36'), [
+            "unsigned targets API 36, and its manifest does not keep the stack's orientation on large screens "
+            "(%s is not there)" % ac.LARGE_SCREEN_PROPERTY])
+        self.assertEqual(self.check('36', '0x0', '36'), [
+            "unsigned targets API 36, and its manifest does not keep the stack's orientation on large screens "
+            "(%s is 0x0)" % ac.LARGE_SCREEN_PROPERTY])
+
+    def test_the_property_below_36(self):
+        self.assertEqual(self.check('33', '0xffffffff'), [
+            'unsigned: the manifest has %s, which is for a package that targets API 36 or newer (this one must '
+            'target 33)' % ac.LARGE_SCREEN_PROPERTY])
+
+    def test_verify_takes_the_target(self):
+        # verify's --target reaches verify_apk; without it, 33
+        work = os.path.join(self.dir, 'work')
+        os.makedirs(os.path.join(work, 'out'))
+        with open(os.path.join(work, ac.LOG_NAME), 'w') as f:
+            f.write('')
+        with open(os.path.join(work, 'out', 'debug.apk'), 'wb') as f:
+            f.write(b'apk')
+        seen = []
+        saved = ac.find_tools, ac.verify_apk
+        ac.find_tools = lambda sdk: {}
+        ac.verify_apk = lambda name, apk, spec, tools, warnings, target=None: (seen.append(target) or ([], []))
+        try:
+            for extra, want in (((), '33'), (('--target', '36'), '36')):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    status = ac.main(['verify', '--work', work, '--sdk', self.dir, '--builds', 'debug'] + list(extra))
+                self.assertEqual(status, 0)
+                self.assertEqual(seen.pop(), want)
+        finally:
+            ac.find_tools, ac.verify_apk = saved
 
 
 class StepClock:
@@ -1690,10 +1945,16 @@ class OneSystem(unittest.TestCase):
         self.assertIn('constant kRunColor = "%d,%d,%d"' % ac.RUN_COLOR, script)
         self.assertIn('constant kSavedColor = "%d,%d,%d"' % ac.SAVED_COLOR, script)
         self.assertIn('constant kFailColor = "%d,%d,%d"' % ac.FAIL_COLOR, script)
+        self.assertIn('constant kBackColor = "%d,%d,%d"' % ac.BACK_COLOR, script)
         self.assertIn('constant kIdentifier = "%s"' % ac.IDENTIFIER, script)
-        # three colours the screen tells apart
-        colours = (ac.RUN_COLOR, ac.SAVED_COLOR, ac.FAIL_COLOR)
-        self.assertEqual(len(set(colours)), 3)
+        # four colours the screen tells apart: none within another's
+        # tolerance of colour_share
+        colours = (ac.RUN_COLOR, ac.SAVED_COLOR, ac.FAIL_COLOR, ac.BACK_COLOR)
+        self.assertEqual(len(set(colours)), 4)
+        for a in colours:
+            for b in colours:
+                if a != b:
+                    self.assertEqual(ac.colour_share(bytes(list(a) + [255]), b, step=1), 0.0, (a, b))
 
     def test_probes(self):
         # the stack ide --probe names is the one the script makes: its file
@@ -1705,11 +1966,11 @@ class OneSystem(unittest.TestCase):
         self.assertIn('return "AndroidProbe"', name)
         self.assertIn("OXT_ANDROID_PROBE='java' if args.probe == 'java' else ''", read('tools', 'ci', 'android_check.py'))
         # the stack's name is said once, there: every use goes through it,
-        # bar the two that ask probeName() which probe this is (its script,
-        # and its build's notification permission)
+        # bar the three that ask probeName() which probe this is (its
+        # openStack, its backKey, and its build's permissions)
         self.assertEqual(script.count('"AndroidProbe"'), 1)
-        self.assertEqual(script.count('"AndroidJavaProbe"'), 3)
-        self.assertEqual(script.count('if probeName() is "AndroidJavaProbe" then'), 2)
+        self.assertEqual(script.count('"AndroidJavaProbe"'), 4)
+        self.assertEqual(script.count('if probeName() is "AndroidJavaProbe" then'), 3)
 
     def test_java_probe_script(self):
         # the Java layer's probe takes every step, each answer checked and
@@ -1742,8 +2003,30 @@ class OneSystem(unittest.TestCase):
         # only the end decides: no step leaves early
         self.assertEqual(java.count('exit openStack'), 1)
         self.assertIn('if probeName() is "AndroidJavaProbe" then', body)
-        self.assertTrue(body.rstrip().endswith('"end openStack" after tScript\n   return tScript'))
+        self.assertTrue(body.rstrip().endswith('"end backKey" after tScript\n   end if\n   return tScript'))
         self.assertIn('set the script of stack tProbe to probeScript()', script)
+
+    def test_java_probe_back_key(self):
+        # the Java layer's probe, and only it, handles backKey after its
+        # openStack: it turns its back colour (device --back) and does not
+        # pass the message, so the app stays
+        script = read('tools', 'ci', 'android-check.livecodescript')
+        body = re.search(r'(?s)private function probeScript\n(.*?)\nend probeScript', script).group(1)
+        tail = body.split('"end openStack" after tScript')[1]
+        self.assertEqual(tail,
+                         '\n   if probeName() is "AndroidJavaProbe" then\n'
+                         '      -- the back key, not passed (see the header)\n'
+                         '      put return & "on backKey" & return & \\\n'
+                         '            "   set the backgroundColor of me to" && quote & kBackColor & quote & return & '
+                         '\\\n'
+                         '            "end backKey" after tScript\n'
+                         '   end if\n'
+                         '   return tScript')
+        self.assertNotIn('pass backKey', tail)
+        # in code, the constant and its one use
+        uses = [x.strip() for x in script.splitlines() if 'kBackColor' in x and not x.lstrip().startswith('--')]
+        self.assertEqual(len(uses), 2, uses)
+        self.assertTrue(uses[0].startswith('constant kBackColor = '), uses)
 
     def test_java_probe_picture(self):
         # the probe's picture is a real PNG (what the engine sends to the
@@ -1866,6 +2149,43 @@ class OneSystem(unittest.TestCase):
     def test_target_api(self):
         lib = read('ide-support', 'revdeploylibraryandroid.livecodescript')
         self.assertIn('constant kDeployAndroidTargetSDK = "%s"' % ac.TARGET_SDK, lib)
+        self.assertIn('constant kDeployAndroidNewestTargetSDK = "%s"' % ac.NEWEST_TARGET_SDK, lib)
+        builder = read('ide-support', 'revsaveasandroidstandalone.livecodescript')
+        self.assertIn('constant kRestrictedResizability = "%s"' % ac.LARGE_SCREEN_PROPERTY, builder)
+
+    def test_back_and_bars_runs(self):
+        # every run of this checkout's Java layer (which targets 36) presses
+        # the back key and checks the bars; the builder's other packages
+        # (which target 33) check the bars alone; the release's Java layer,
+        # only recorded, neither
+        workflow = read('.github', 'workflows', 'android.yml')
+        runs = re.findall(r'android_check\.py device(?:[^\n]*\\\n)*[^\n]*', workflow)
+        self.assertEqual(sum('/java-new/' in r for r in runs), 2, runs)
+        self.assertEqual(sum('/changed/' in r for r in runs), 2, runs)
+        for run in runs:
+            self.assertEqual('--back' in run, '/java-new/' in run, run)
+            self.assertEqual('--within-bars' in run, '/java-new/' in run or '/changed/' in run, run)
+
+    def test_java_probe_verified_at_the_newest_target(self):
+        # the Java layer's probe is built with a Java layer ready for 36, so
+        # it targets 36; the other packages target 33, as verify's default
+        workflow = read('.github', 'workflows', 'android.yml')
+        verifies = re.findall(r'android_check\.py verify [^\n]*', workflow)
+        self.assertEqual(len(verifies), 2, verifies)
+        for v in verifies:
+            if '/java-new"' in v:
+                self.assertTrue(v.endswith('--target %s' % ac.NEWEST_TARGET_SDK), v)
+            else:
+                self.assertNotIn('--target', v)
+
+    def test_16k_image_at_the_newest_target(self):
+        # the 16 KB image is the first at API 36 or newer (Android 16),
+        # where the back key of an app that targets 36 goes only to its
+        # back callback
+        workflow = read('.github', 'workflows', 'android.yml')
+        pick = re.search(r'(?s)img16=\$\((.*?)\)\n', workflow).group(1)
+        self.assertIn("if (v + 0 >= %s) print" % ac.NEWEST_TARGET_SDK, pick)
+        self.assertTrue(pick.rstrip().endswith('head -n 1'), pick)
 
 
 if __name__ == '__main__':

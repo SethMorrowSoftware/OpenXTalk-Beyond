@@ -140,11 +140,21 @@ SAVED_COLOR = (204, 34, 0)
 # kFailColor: the Java layer's probe ran, and a call into the Java layer
 # failed
 FAIL_COLOR = (230, 160, 0)
+# kBackColor: the Java layer's probe got backKey (device --back), which
+# it must show within BACK_WAIT seconds of the key
+BACK_COLOR = (40, 90, 200)
+BACK_WAIT = 20
 # The probes (--probe): the stack file each is saved as
 PROBES = {'app': 'AndroidProbe.livecode', 'java': 'AndroidJavaProbe.livecode'}
 # Where a release's Java layer is (overlay --classes)
 CLASSES = ('Runtime', 'Android', 'Classes')
+# The API the builder targets with a runtime whose Java layer is not ready
+# for newer (as before), and the newest, which it targets when it is
+# (androidTargetAPI); at 36 the manifest keeps the stack's orientation on
+# large screens (LARGE_SCREEN_PROPERTY)
 TARGET_SDK = '33'
+NEWEST_TARGET_SDK = '36'
+LARGE_SCREEN_PROPERTY = 'android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY'
 KEY_ALIAS = 'oxtcheck'
 KEY_PASSWORD = 'oxtcheck-pass'
 KEY_DNAME = 'CN=OXT Android Check, O=OXT-Beyond, C=US'
@@ -359,6 +369,31 @@ def manifest_components(xmltree):
     return components
 
 
+def manifest_properties(xmltree):
+    """The <property> elements in aapt's xmltree (aapt's or aapt2's form),
+    name to value as aapt prints it: a boolean's true is 0xffffffff or
+    true, a string's value is unquoted."""
+    props, prop = {}, None
+    for line in xmltree.splitlines():
+        m = re.match(r'^(\s*)(E|A): (.*)$', line)
+        if not m:
+            continue
+        depth, kind, rest = len(m.group(1)), m.group(2), m.group(3)
+        if kind == 'E':
+            # the attributes that follow are this element's
+            prop = {'depth': depth} if rest.split()[0] == 'property' else None
+            continue
+        if prop is None or depth <= prop['depth']:
+            continue
+        a = re.match(r'^(?:\S*:)?(name|value)\(0x[0-9a-f]+\)=(?:\(type 0x[0-9a-f]+\))?(.*?)(?: \(Raw: .*\))?$', rest)
+        if a:
+            q = re.match(r'^"([^"]*)"$', a.group(2))
+            prop[a.group(1)] = q.group(1) if q else a.group(2)
+            if 'name' in prop and 'value' in prop:
+                props[prop['name']] = prop['value']
+    return props
+
+
 def manifest_lines(xmltree):
     """aapt's xmltree with the line numbers taken out, which move when a
     line of the manifest template moves"""
@@ -390,6 +425,25 @@ def colour_share(rgba, colour, tolerance=24, step=7):
                 abs(rgba[i + 2] - b0) <= tolerance:
             hits += 1
     return hits / total if total else 0.0
+
+
+def row_share(rgba, width, y, colour, tolerance=24):
+    """The share of the pixels of row y within tolerance of colour."""
+    row = rgba[y * width * 4:(y + 1) * width * 4]
+    return colour_share(row, colour, tolerance, step=1)
+
+
+def bars_drawn_over(rgba, width, height, colour=RUN_COLOR):
+    """Where the stack's colour shows in the screen's first or last row
+    (where the status and navigation bars are): a list of 'top' and
+    'bottom', each with its share, empty when neither row is mostly the
+    stack's."""
+    over = []
+    for where, y in (('top', 0), ('bottom', height - 1)):
+        part = row_share(rgba, width, y, colour) if height else 0.0
+        if part >= 0.5:
+            over.append('%s %.0f%%' % (where, part * 100))
+    return over
 
 
 def screen_colours(rgba, top=4, step=7):
@@ -860,8 +914,9 @@ def zipalign_supports_pages(zipalign):
     return '-P' in out
 
 
-def verify_apk(name, apk, spec, tools, warnings):
-    """The problems of one package, and lines saying what was checked."""
+def verify_apk(name, apk, spec, tools, warnings, target=TARGET_SDK):
+    """The problems of one package, and lines saying what was checked:
+    target is the API it must target."""
     problems, notes = [], []
     with open(apk, 'rb') as f:
         data = f.read()
@@ -943,8 +998,8 @@ def verify_apk(name, apk, spec, tools, warnings):
         status, badging = run([aapt, 'dump', 'badging', apk])
         if "package: name='%s'" % IDENTIFIER not in badging:
             problems.append('%s: aapt does not name the package %s' % (name, IDENTIFIER))
-        if "targetSdkVersion:'%s'" % TARGET_SDK not in badging:
-            problems.append('%s does not target API %s' % (name, TARGET_SDK))
+        if "targetSdkVersion:'%s'" % target not in badging:
+            problems.append('%s does not target API %s' % (name, target))
         status, tree = run([aapt, 'dump', 'xmltree', apk, 'AndroidManifest.xml'])
         if status != 0:
             problems.append('%s: aapt cannot read the manifest: %s' % (name, tree.strip()[-300:]))
@@ -961,6 +1016,14 @@ def verify_apk(name, apk, spec, tools, warnings):
             if not spec['push'] and push:
                 problems.append('%s has a push receiver' % name)
             notes.append('%d components, every one with an intent-filter says android:exported' % len(comps))
+            # the stack's orientation kept on large screens at 36, and only there
+            large = manifest_properties(tree).get(LARGE_SCREEN_PROPERTY)
+            if int(target) >= 36 and large not in ('0xffffffff', 'true'):
+                problems.append('%s targets API %s, and its manifest does not keep the stack\'s orientation on large '
+                                'screens (%s is %s)' % (name, target, LARGE_SCREEN_PROPERTY, large or 'not there'))
+            elif int(target) < 36 and large is not None:
+                problems.append('%s: the manifest has %s, which is for a package that targets API 36 or newer '
+                                '(this one must target %s)' % (name, LARGE_SCREEN_PROPERTY, target))
     # the builder's warnings
     said = warnings.get(name, '')
     for w in spec['warnings']:
@@ -992,7 +1055,7 @@ def verify(args):
         if not os.path.isfile(apk):
             problems.append('there is no %s' % apk)
             continue
-        p, notes = verify_apk(name, apk, BUILDS[name], tools, r['warnings'])
+        p, notes = verify_apk(name, apk, BUILDS[name], tools, r['warnings'], args.target)
         log('%s.apk (%.1f MB): %s' % (name, os.path.getsize(apk) / 1e6, '; '.join(notes)))
         for x in p:
             log('  PROBLEM: %s' % x)
@@ -1209,6 +1272,49 @@ def device(args):
         problems.append('the screen never turned the probe\'s green (%.0f%% green, %.0f%% red: %s)' % (
             share * 100, saved * 100, 'the stack showed and its script did not run' if saved >= 0.25 else
             'the stack never showed'))
+    green = failed < 0.25 and share >= 0.25
+    if args.within_bars and green:
+        # the stack inside the system bars: the screen's first and last
+        # rows are not its green (Android 15 and newer draw an app that
+        # targets API 35 edge to edge, and the Java layer pads the stack)
+        over = bars_drawn_over(rgba, w, h)
+        log('The bars: %s' % ('the stack is drawn under them (%s)' % ', '.join(over) if over else
+                              'the stack is inside them (the first and last rows are not its green)'))
+        if over:
+            problems.append('the stack is drawn under the system bars (its green in the screen\'s %s row)'
+                            % ' and '.join(over))
+    if args.back and green and pid.strip():
+        # the back key: the probe's backKey turns the screen its back colour
+        # (Android 16 sends it to the window's back callback for an app that
+        # targets API 36, older Android to onBackPressed)
+        a('shell', 'input', 'keyevent', 'KEYCODE_BACK')
+        back = 0.0
+        brgba = b''
+        pressed = time.time()
+        while time.time() - pressed < BACK_WAIT:
+            time.sleep(2)
+            try:
+                proc = subprocess.run([adb, '-s', args.serial, 'exec-out', 'screencap'], stdout=subprocess.PIPE,
+                                      stderr=subprocess.DEVNULL, timeout=60)
+                bw, bh, brgba = screen_from_raw(proc.stdout)
+            except (CheckError, subprocess.TimeoutExpired) as e:
+                log('  screencap: %s' % e)
+                continue
+            back = colour_share(brgba, BACK_COLOR)
+            if back >= 0.25:
+                break
+        _, after = a('shell', 'pidof', IDENTIFIER)
+        if args.out and brgba:
+            # the screen after the back key, beside the first
+            path = os.path.splitext(args.out)[0] + '-back.png'
+            with open(path, 'wb') as f:
+                f.write(png_from_rgba(bw, bh, brgba))
+            log('Screen after the back key: %s' % path)
+        log('After the back key: %.0f%% of the screen is the probe\'s back colour; process %s' % (
+            back * 100, after.strip() or 'not running'))
+        if back < 0.25:
+            problems.append('the back key did not reach the stack\'s backKey (%.0f%% of the screen its back colour; '
+                            'the app is %s)' % (back * 100, 'running' if after.strip() else 'gone'))
     if not pid.strip():
         problems.append('the app is not running')
     if args.allow:
@@ -1642,6 +1748,9 @@ def main(argv=None):
     v.add_argument('--work', required=True)
     v.add_argument('--sdk', required=True)
     v.add_argument('--builds')
+    v.add_argument('--target', default=TARGET_SDK,
+                   help='the API the packages must target (%s with a runtime whose Java layer is not ready for '
+                        'newer, %s when it is)' % (TARGET_SDK, NEWEST_TARGET_SDK))
     c = sub.add_parser('compare')
     c.add_argument('--old', required=True)
     c.add_argument('--new', required=True)
@@ -1657,6 +1766,10 @@ def main(argv=None):
     d.add_argument('--allow', metavar='PERMISSION',
                    help='the probe must ask for this runtime permission; allow it in Android\'s dialog, and '
                         'check that the package holds it')
+    d.add_argument('--back', action='store_true',
+                   help='once green, press the back key: the probe\'s backKey must turn the screen its back colour')
+    d.add_argument('--within-bars', action='store_true',
+                   help='once green, the screen\'s first and last rows (the system bars) must not be the stack\'s')
     d.add_argument('--picture', metavar='NAME',
                    help='the probe exports a picture of this file name: it must be in the shared Pictures '
                         'folder as the package\'s own (MediaStore)')

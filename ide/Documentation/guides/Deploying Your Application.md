@@ -301,6 +301,24 @@ Figure 8 – Standalone Settings – Android
 | **Ad Support**                  | Request permission for ad support                                                                                                                                                                                                     |
 | **Post Notifications**          | Request permission to post notifications: Android 13 and newer show an app's notifications only once the user allows it, and ask the first time the app schedules a local notification                                                |
 
+The API level an Android application targets decides how Android treats
+it, and Google Play takes new applications and updates only when they
+target API 36. The standalone builder targets API 36 when the Android
+runtime it builds with is ready for it, and API 33, as before, when it
+is not (the runtime's Java layer built from OXT-Beyond's source is
+ready; the one that earlier runtimes carried is not). At API 36 the stack still gets
+`backKey` for the back button and gesture, it is kept out of the status
+and navigation bars, which Android 15 and newer would otherwise draw over
+it, and Android 16 keeps its orientation on tablets and other large
+screens. To build for a target of your choice, from 33 to 36, set it on
+the stack before you build, for example for an application that is not
+for Google Play:
+
+    set the cRevStandaloneSettings["android,target sdk"] of stack "My App" to 33
+
+Empty leaves it to the runtime; any other value stops the build with an
+error.
+
 Related lessons:
 
 * [OpenXTalk and Android Studio](http://lessons.livecode.com/m/4069/l/985962-livecode-and-android-studio)

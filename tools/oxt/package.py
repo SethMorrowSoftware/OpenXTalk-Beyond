@@ -1792,7 +1792,9 @@ def reference_engine(paths):
 # rather than copies: with such an asset their files may differ from the
 # reference, be missing (1.15's Linux runtimes bundled shared libraries
 # of other projects in lib/) or be new. Runtime/Android is carried over
-# unchanged, so it is still compared byte for byte.
+# unchanged, so it is still compared byte for byte, apart from the Java
+# layer that the asset's record names ("java_layer"): that one is built from
+# this repository too (make_runtimes_asset.py --android-classes).
 REBUILT_RUNTIMES = ('Runtime/Windows/x86-32/', 'Runtime/Linux/',
                     'Extensions/com.livecode.library.timezone/')
 RUNTIMES_1_15 = 'oxt-runtimes-1.15'
@@ -1805,8 +1807,10 @@ def compare(stage, items, ref, no_assets, report=None, no_xtalk=False, platform=
     exe_name = (platform or PLATFORMS[DEFAULT_PLATFORM]).engine
     # A runtimes asset other than 1.15's is made from this repository's
     # builds (see REBUILT_RUNTIMES)
-    rebuilt = any(it.origin == 'asset' and str(it.asset.get('id', '')).startswith('oxt-runtimes-')
-                  and it.asset.get('id') != RUNTIMES_1_15 for it in items)
+    runtimes = [it.asset for it in items if it.origin == 'asset'
+                and str(it.asset.get('id', '')).startswith('oxt-runtimes-') and it.asset.get('id') != RUNTIMES_1_15]
+    rebuilt = bool(runtimes)
+    java = {a['java_layer'] for a in runtimes if a.get('java_layer')}
 
     def replaced(path):
         return rebuilt and path.startswith(REBUILT_RUNTIMES)
@@ -1877,7 +1881,7 @@ def compare(stage, items, ref, no_assets, report=None, no_xtalk=False, platform=
             elif cls == layout.IDE:
                 if not layout.same_content(p, ref_file, staged):
                     status = 'IDE change: modified'
-            elif cls == layout.EXTERNAL and replaced(p):
+            elif cls == layout.EXTERNAL and (replaced(p) or p in java):
                 status = 'present (identical)' if _same_bytes(ref_file, staged) else 'present (rebuilt)'
             elif cls == layout.EXTERNAL:
                 if not _same_bytes(ref_file, staged):

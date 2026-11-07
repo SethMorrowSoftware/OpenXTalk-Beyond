@@ -26,8 +26,12 @@ would not notice going back:
   - no shell zip, sh or find (none of them is there on Windows);
   - the push receiver says android:exported;
   - a stack that saved no architecture still builds for armv7 alone (the
-    card, not the builder, ticks arm64 for a new one), and the target API
-    and the minimum API list stay as they were.
+    card, not the builder, ticks arm64 for a new one), and the minimum API
+    list stays as it was;
+  - the target API: 33, as before, with a runtime whose Java layer is not
+    ready for newer, 36 with one that is (known by the classes it has for
+    it), or the stack's pin from 33 to 36; and at 36 the manifest keeps the
+    stack's orientation on large screens.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -232,6 +236,88 @@ class Compatibility(unittest.TestCase):
         scan = root.find('repeat for each line tFolder in folders(')
         self.assertGreater(first, 0)
         self.assertGreater(scan, first, 'the target API\'s platform is taken before any newer one')
+
+
+JAVA = ('engine', 'src', 'java', 'com', 'runrev', 'android')
+UNITS = ('tools', 'ci', 'android-check.livecodescript')
+
+
+class TargetAPI(unittest.TestCase):
+    """The API a package targets (androidTargetAPI). The IDE units
+    (unitTargetAPI in tools/ci/android-check.livecodescript) run these
+    handlers on made-up runtimes; android.yml builds and runs a package of
+    each kind"""
+
+    def setUp(self):
+        self.src = code(read(BUILDER))
+        self.deploy = code(read(DEPLOY))
+
+    def test_oldest_and_newest(self):
+        self.assertIn('constant kDeployAndroidTargetSDK = "33"', self.deploy)
+        self.assertIn('constant kDeployAndroidNewestTargetSDK = "36"', self.deploy)
+        self.assertRegex(handler(self.deploy, 'deployNewestTargetSdkVersion'),
+                         r'return kDeployAndroidNewestTargetSDK\s+end')
+        self.assertRegex(handler(self.src, 'newestTargetSDKVersion'),
+                         r'dispatch function "deployNewestTargetSdkVersion" to stack kDeployLibrary\s+'
+                         r'return the result')
+
+    def test_the_manifest_takes_it(self):
+        main = handler(self.src, 'revSaveAsMobileStandaloneMain')
+        choose = main.find('put androidTargetAPI(pSettings, revMobileRuntimeFolder(pTarget)) into tTargetAPI')
+        use = main.find('replace "${TARGET_SDK_VERSION}" with tTargetAPI in tManifest')
+        large = main.find('put androidKeepLargeScreenLayout(tManifest, tTargetAPI) into tManifest')
+        saved = main.find('put tManifest into url ("binfile:" & tManifestFile)')
+        self.assertGreater(choose, 0)
+        self.assertGreater(use, choose)
+        self.assertGreater(large, use)
+        self.assertGreater(saved, large, 'the property is in the manifest that is saved')
+        self.assertNotIn('with targetSDKVersion() in tManifest', main)
+
+    def test_the_choice(self):
+        choose = handler(self.src, 'androidTargetAPI')
+        # a pin first: an integer from the oldest to the newest, else an
+        # error that stops the build; then the newest for a ready Java
+        # layer, else the oldest, as before
+        self.assertRegex(choose, r'put pSettings\["android,target sdk"\] into tPin\s+if tPin is not empty then\s+'
+                                 r'if tPin is not an integer or tPin < targetSDKVersion\(\) or '
+                                 r'tPin > newestTargetSDKVersion\(\) then\s+throw ')
+        self.assertRegex(choose, r'return tPin \+ 0\s+end if\s+'
+                                 r'if androidJavaLayerIsReady\(pRuntimeFolder\) then\s+'
+                                 r'return newestTargetSDKVersion\(\)\s+end if\s+return targetSDKVersion\(\)\s+end')
+
+    def test_ready_is_known_by_classes_the_java_layer_has(self):
+        # the names the builder looks for are classes of this checkout's
+        # Java layer (LiveCodeActivity's back callback and its padding of
+        # the stack inside the system bars): renamed, the builder would
+        # quietly target 33 again
+        names = re.search(r'constant kJavaLayerReady = "([^"]+)"', self.src).group(1).split(',')
+        self.assertEqual(len(names), 2)
+        activity = read(JAVA + ('LiveCodeActivity.java',))
+        for name in names:
+            m = re.match(r'^com/runrev/android/LiveCodeActivity\$(\w+)\.class$', name)
+            self.assertTrue(m, name)
+            self.assertRegex(activity, r'(?m)^\s+(?:protected |private |public )?static class %s\b' % m.group(1))
+        ready = handler(self.src, 'androidJavaLayerIsReady')
+        self.assertIn('put mapFilePath(pRuntimeFolder & slash & "Classes") into tJar', ready)
+        self.assertRegex(ready, r'if there is no file tJar then\s+return false')
+        self.assertRegex(ready, r'if byteOffset\(textEncode\(tEntry, "UTF-8"\), tJar\) is 0 then\s+return false')
+
+    def test_large_screens_only_at_36(self):
+        keep = handler(self.src, 'androidKeepLargeScreenLayout')
+        self.assertIn('constant kRestrictedResizability = '
+                      '"android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY"', self.src)
+        self.assertRegex(keep, r'^function androidKeepLargeScreenLayout pManifest, pTargetAPI\s+'
+                               r'if pTargetAPI < 36 then\s+return pManifest\s+end if')
+        self.assertIn('replace "</application>" with tProperty & "  </application>" in pManifest', keep)
+
+    def test_units_run(self):
+        units = read(UNITS)
+        body = handler(units, 'androidUnits')
+        self.assertIn('unitTargetAPI tWork', body)
+        target = handler(units, 'unitTargetAPI')
+        for case in ('target-no-java-layer', 'target-java-layer-not-ready', 'target-java-layer-ready',
+                     'target-pinned-', 'target-pin-refused-', 'large-screen-below-36', 'large-screen-36'):
+            self.assertIn(case, target)
 
 
 if __name__ == '__main__':

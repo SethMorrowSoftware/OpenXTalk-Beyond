@@ -141,8 +141,18 @@ on:
       - 'tools/ci/web-tests-baseline.txt'
       - 'tools/ci/web-tests.livecodescript'
       - 'tools/ci/web_tests.py'
+  # DRAFT PULL REQUESTS (2026-11-06). A draft runs none of this workflow's
+  # jobs: each job's `if:` ends in `github.event.pull_request.draft != true`,
+  # and marking the pull request ready (ready_for_review, below) starts the
+  # whole run on its newest commit. A draft is work in progress whose commits
+  # land minutes apart, and each one used to start this full build only for
+  # the next to cancel it (26 of 52 builds on 2026-11-06 00:38-02:15 UTC). CI
+  # checks still run on every draft commit. A push, a dispatch and a call from
+  # release.yml have no pull request, so the condition is always true there.
+  # tools/ci/tests/test_draft_builds.py holds every job to it.
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore: *build-paths-ignore
   workflow_dispatch:
     inputs:
@@ -197,6 +207,7 @@ jobs:
   # packages: it takes a few minutes, before the build starts
   docs:
     name: Docs
+    if: ${{ github.event.pull_request.draft != true }}
     uses: ./.github/workflows/docs.yml
     with:
       artifact: OXT-Beyond-docs-windows
@@ -206,6 +217,7 @@ jobs:
   # the build starts
   web:
     name: Web
+    if: ${{ github.event.pull_request.draft != true }}
     uses: ./.github/workflows/web.yml
     with:
       artifact: OXT-Beyond-web-windows
@@ -213,7 +225,7 @@ jobs:
   build:
     name: Build win-x86_64
     needs: [docs, web]
-    if: ${{ !cancelled() }}
+    if: ${{ (!cancelled()) && github.event.pull_request.draft != true }}
     runs-on: windows-2022
     timeout-minutes: 300
     defaults:
@@ -1143,6 +1155,7 @@ jobs:
   # Windows 11.
   window-frame-win11:
     name: Window frame check (Windows 11 title bars)
+    if: ${{ github.event.pull_request.draft != true }}
     needs: [build]
     runs-on: windows-2025
     timeout-minutes: 20
@@ -1194,6 +1207,7 @@ jobs:
   # nothing is packaged.
   build-x86:
     name: Build win-x86
+    if: ${{ github.event.pull_request.draft != true }}
     runs-on: windows-2022
     timeout-minutes: 300
     defaults:

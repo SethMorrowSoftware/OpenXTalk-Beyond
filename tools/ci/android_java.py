@@ -202,6 +202,20 @@ EXPECTED = {
             'Android 11 and newer for a name that another app\'s picture has (MediaStore names the new one '
             'apart). The same folder, name and answer otherwise, a picture the app added before is written over '
             'as before, and Android 9 and older write the file as before',
+        # OXT-Beyond's changes for API 35 and 36
+        'code com/runrev/android/LiveCodeActivity.onCreate:(Landroid/os/Bundle;)V':
+            'on Android 13 and newer it registers a back callback that does what onBackPressed does '
+            '(registerBackCallback): Android 16 and newer call only that for an app that targets API 36, and '
+            'ignore it below that, where onBackPressed is called as before; and on Android 15 and newer, for an '
+            'app that targets API 35 or newer, which Android draws edge to edge, it pads the view that holds the '
+            'stack by the system bars, the cutout and the keyboard (keepOutOfSystemBars), so the stack keeps the '
+            'area it had; an app that targets less is laid out as before',
+        'code com/runrev/android/BusyIndicator.showBusyIndicator:(Ljava/lang/String;)V':
+            'the busy indicator\'s dialog gets the same back callback on Android 13 and newer (Android 16 sends '
+            'an app that targets API 36 no KEYCODE_BACK), which does what its key listener does',
+        'code com/runrev/android/BusyIndicator$1.onKey:(Landroid/content/DialogInterface;ILandroid/view/KeyEvent;)Z':
+            'the key listener calls backPressed, which does what it did (every busy indicator dismissed, then '
+            'the stack\'s backKey), so that the back callback can do the same',
     },
 }
 

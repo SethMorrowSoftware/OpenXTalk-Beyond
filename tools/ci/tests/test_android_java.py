@@ -1154,6 +1154,77 @@ class OneSystem(unittest.TestCase):
                'Ljava/lang/String;')
         self.assertTrue([sha for sha, entries in aj.EXPECTED.items() if key in entries], key)
 
+    def test_back_reaches_backkey_through_the_back_callback(self):
+        # Android 16 and newer call only the window's back callback for an
+        # app that targets API 36: it does what onBackPressed does, which
+        # is what it did; registered from Android 13 on (where Android
+        # ignores it below target 36, and calls onBackPressed as before)
+        activity = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'LiveCodeActivity.java')
+        create = re.search(r'(?s)protected void onCreate\(Bundle p_saved_state\)\n\t{\n(.*?)\n\t}\n', activity).group(1)
+        self.assertRegex(create, r'if \(Build\.VERSION\.SDK_INT >= 33\)\s+registerBackCallback\(\);')
+        register = re.search(r'(?s)protected void registerBackCallback\(\)\n    {\n(.*?)\n    }\n', activity).group(1)
+        self.assertEqual(register.split(), (
+            'getOnBackInvokedDispatcher().registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, '
+            'new BackCallback(this));').split())
+        invoked = re.search(r'(?s)protected static class BackCallback implements OnBackInvokedCallback\n    {\n(.*?)'
+                            r'\n    }\n', activity).group(1)
+        self.assertRegex(invoked, r'public void onBackInvoked\(\)\s*{\s*m_activity\.onBackPressed\(\);\s*}')
+        # onBackPressed is the stack's backKey, as before
+        self.assertRegex(activity, r'public void onBackPressed\(\)\s*{\s*s_main_view\.onBackPressed\(\);\s*}')
+        # the busy indicator's dialog: its key listener and its callback do
+        # one thing, what the listener did
+        busy = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'BusyIndicator.java')
+        show = re.search(r'(?s)public void showBusyIndicator\(String p_label\)\n    {\n(.*?)\n    }\n', busy).group(1)
+        self.assertRegex(show, r'event\.getRepeatCount\(\) == 0\)\s*{\s*backPressed\(\);\s*return true;\s*}')
+        self.assertRegex(show, r'if \(Build\.VERSION\.SDK_INT >= 33\)\s+registerBackCallback\(t_dialog\);')
+        self.assertLess(show.index('setOnKeyListener'), show.index('registerBackCallback(t_dialog)'))
+        pressed = re.search(r'(?s)protected void backPressed\(\)\n    {\n(.*?)\n    }\n', busy).group(1)
+        self.assertEqual(pressed.split(), 'for (ProgressDialog t_dialog : m_dialog) t_dialog.dismiss(); '
+                                          'm_engine.doBackPressed();'.split())
+        self.assertIn('p_dialog.getOnBackInvokedDispatcher().registerOnBackInvokedCallback('
+                      'OnBackInvokedDispatcher.PRIORITY_DEFAULT,', busy)
+        self.assertRegex(busy, r'public void onBackInvoked\(\)\s*{\s*m_indicator\.backPressed\(\);\s*}')
+        for key in ('code com/runrev/android/LiveCodeActivity.onCreate:(Landroid/os/Bundle;)V',
+                    'code com/runrev/android/BusyIndicator.showBusyIndicator:(Ljava/lang/String;)V',
+                    'code com/runrev/android/BusyIndicator$1.onKey:(Landroid/content/DialogInterface;ILandroid/view/'
+                    'KeyEvent;)Z'):
+            self.assertTrue([sha for sha, entries in aj.EXPECTED.items() if key in entries], key)
+
+    def test_edge_to_edge_keeps_the_stack_out_of_the_bars(self):
+        # an app that targets API 35 or newer is drawn edge to edge on
+        # Android 15 and newer: the view that holds the stack (and the
+        # native controls' layers, its children) is padded by the bars, the
+        # cutout and, while the window is to resize for it, the keyboard;
+        # an app that targets less is laid out as before
+        activity = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'LiveCodeActivity.java')
+        create = re.search(r'(?s)protected void onCreate\(Bundle p_saved_state\)\n\t{\n(.*?)\n\t}\n', activity).group(1)
+        self.assertRegex(create, r'if \(Build\.VERSION\.SDK_INT >= 35 && getApplicationInfo\(\)\.targetSdkVersion >= '
+                                 r'35\)\s+keepOutOfSystemBars\(\);')
+        self.assertLess(create.index('setContentView('), create.index('keepOutOfSystemBars();'))
+        self.assertIn('s_main_layout.setOnApplyWindowInsetsListener(new SystemBarsPadding(this));', activity)
+        pad = re.search(r'(?s)public WindowInsets onApplyWindowInsets\(View p_view, WindowInsets p_insets\)\n'
+                        r'        {\n(.*?)\n        }\n', activity).group(1)
+        self.assertEqual(pad.split(), (
+            'int t_types = WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout(); '
+            'if ((m_activity.getWindow().getAttributes().softInputMode & '
+            'WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST) == WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE) '
+            't_types |= WindowInsets.Type.ime(); '
+            'Insets t_bars = p_insets.getInsets(t_types); '
+            'p_view.setPadding(t_bars.left, t_bars.top, t_bars.right, t_bars.bottom); '
+            'return WindowInsets.CONSUMED;').split())
+        # the window resizes for the keyboard unless the stack says "pan"
+        self.assertIn('getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);', activity)
+        # everything the stack shows is a child of that view, filling it
+        engine = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'Engine.java')
+        self.assertIn('new NativeControlModule(this, ((LiveCodeActivity)getContext()).s_main_layout)', engine)
+        self.assertIn('t_main_view.addView(m_view_layout, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.'
+                      'MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));', engine)
+        native = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'nativecontrol', 'NativeControlModule.java')
+        self.assertRegex(native, r'm_parent \. addView\(m_layout,\s*new FrameLayout\.LayoutParams\(FrameLayout\.'
+                                 r'LayoutParams\.MATCH_PARENT,\s*FrameLayout\.LayoutParams\.MATCH_PARENT\)\);')
+        self.assertRegex(activity, r's_main_layout \. addView\(s_main_view,\s*new FrameLayout\.LayoutParams\('
+                                   r'FrameLayout\.LayoutParams\.MATCH_PARENT,\s*FrameLayout\.LayoutParams\.MATCH_PARENT\)\);')
+
     def test_opengl_view_asks_for_the_shipped_engines_version(self):
         # the runtime's engine is LiveCode Community 9.6.3's, which draws
         # with OpenGL ES 1 (android-java.yml's jni checks it on the engine):

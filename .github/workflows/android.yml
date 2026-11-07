@@ -35,13 +35,18 @@
 #   - Linux only, on emulators (KVM): the IDE's Test for an Android 13
 #     (API 33) emulator, the packages installed and started there until the
 #     probe's screen shows that its script ran, and then the same on the
-#     first emulator image with 16 KB memory pages (Android 15 and newer);
+#     first emulator image with 16 KB memory pages at API 36 (Android 16)
+#     or newer, the stack inside the system bars on both;
 #   - Linux only, the Java layer built from this checkout
 #     (tools/ci/android_java.py build; android-java.yml checks it without a
 #     device) in a third copy of the release, with this builder: the Java
 #     layer's probe (android_check.py ide --probe java), which schedules a
 #     local notification before it turns green, built and run on both
-#     emulators, and for the record the same probe with the release's own
+#     emulators; the builder makes it target API 36, as it does with a
+#     runtime whose Java layer is ready for that, so on Android 16 the back
+#     key reaches its backKey through the back callback, and the stack is
+#     kept inside the bars Android 15 and newer draw it under. For the
+#     record, the same probe with the release's own
 #     Java layer, whose notification call throws on Android 12 and newer
 #     (the engine clears the exception, so the call answers no id and the
 #     probe turns its fail colour).
@@ -179,9 +184,13 @@ jobs:
           (yes || true) | "$sm" --licenses > /dev/null
           parts=("platforms;android-33" "build-tools;35.0.0" "platform-tools")
           if [ "$RUNNER_OS" = Linux ]; then
+            # the first image with 16 KB pages at API 36 or newer: Android
+            # 16, which sends the back key of an app that targets API 36
+            # only to its back callback (the Java layer's probe, --back)
             img16=$("$sm" --list 2>/dev/null | grep -oE 'system-images;android-[0-9.]+;google_apis_ps16k;x86_64' |
+              awk -F';' '{ v = $2; sub(/^android-/, "", v); if (v + 0 >= 36) print }' |
               sort -u -t';' -k2,2V | head -n 1)
-            [ -n "$img16" ] || { echo "::error::sdkmanager lists no x86_64 image with 16 KB pages"; exit 1; }
+            [ -n "$img16" ] || { echo "::error::sdkmanager lists no x86_64 image with 16 KB pages at API 36 or newer"; exit 1; }
             echo "IMAGE_16K=$img16" >> "$GITHUB_ENV"
             parts+=("emulator" "system-images;android-33;google_apis;x86_64" "$img16" "platforms;android-36")
           fi
@@ -278,13 +287,15 @@ jobs:
           "$PY" tools/ci/android_check.py compare --old "$WORK/released" --new "$WORK/changed" --sdk "$SDK"
 
       # The Java layer's probe, by this builder with the Java layer built
-      # here: a debug build, as the IDE's Test makes
+      # here: a debug build, as the IDE's Test makes. The Java layer is
+      # ready for API 36, so the builder targets it (androidTargetAPI), and
+      # the manifest keeps the stack's orientation on large screens
       - name: The Java layer's probe, with this Java layer
         if: runner.os == 'Linux'
         run: |
           "$PY" tools/ci/android_check.py ide --install "$JAVA_IDE" --platform "$PLATFORM" \
             --work "$WORK/java-new" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug --probe java
-          "$PY" tools/ci/android_check.py verify --work "$WORK/java-new" --sdk "$SDK" --builds debug
+          "$PY" tools/ci/android_check.py verify --work "$WORK/java-new" --sdk "$SDK" --builds debug --target 36
 
       # The same stack, by the same builder, with the release's own Java
       # layer: the "before" of the comparison
@@ -328,25 +339,31 @@ jobs:
             --work "$WORK/test" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug \
             --stack "$WORK/changed/AndroidProbe.livecode" --device emulator-5554
 
+      # --within-bars: the stack is not drawn under the status and
+      # navigation bars (an app that targets API 33 never is)
       - name: Run the packages on Android 13
         if: runner.os == 'Linux'
         run: |
           for build in debug release; do
             "$PY" tools/ci/android_check.py device --apk "$WORK/changed/out/$build.apk" --serial emulator-5554 \
-              --sdk "$SDK" --out "$WORK/screen-api33-$build.png" --log-out "$WORK/logcat-api33-$build.txt"
+              --sdk "$SDK" --out "$WORK/screen-api33-$build.png" --log-out "$WORK/logcat-api33-$build.txt" \
+              --within-bars
           done
 
       # It declares POST_NOTIFICATIONS, so as it schedules its notification
       # the Java layer asks the user to allow it: --allow waits for
       # Android's dialog, taps Allow and checks that the package holds it.
       # It exports a picture: --picture finds it among the shared pictures
-      # (MediaStore) as the package's own
+      # (MediaStore) as the package's own. --back: once green, the back key
+      # must reach its backKey (Android 13 sends it to onBackPressed, as
+      # before); --within-bars: it targets API 36, and Android 13 does not
+      # draw it under the bars
       - name: Run the Java layer's probe on Android 13
         if: runner.os == 'Linux'
         run: |
           "$PY" tools/ci/android_check.py device --apk "$WORK/java-new/out/debug.apk" --serial emulator-5554 \
             --sdk "$SDK" --out "$WORK/screen-api33-java.png" --log-out "$WORK/logcat-api33-java.txt" \
-            --allow android.permission.POST_NOTIFICATIONS --picture oxt-beyond-probe.png
+            --allow android.permission.POST_NOTIFICATIONS --picture oxt-beyond-probe.png --back --within-bars
 
       # For the record, not a check (no annotations, so the run's account
       # stays the checks'): the same probe with the release's own Java
@@ -446,11 +463,15 @@ jobs:
           page=$("$adb" shell getconf PAGE_SIZE | tr -d '\r')
           echo "Page size: $page"
           [ "$page" = 16384 ] || { echo "::error::$IMAGE_16K has pages of $page bytes, not 16384"; exit 1; }
+          # the package that targets API 33 inside the bars, as on older
+          # Android; the Java layer's probe, which targets API 36, too:
+          # Android 16 draws it edge to edge and the Java layer pads it,
+          # and sends its back key only to the back callback
           "$PY" tools/ci/android_check.py device --apk "$WORK/changed/out/debug.apk" --serial emulator-5554 \
-            --sdk "$SDK" --out "$WORK/screen-16k-debug.png" --log-out "$WORK/logcat-16k-debug.txt"
+            --sdk "$SDK" --out "$WORK/screen-16k-debug.png" --log-out "$WORK/logcat-16k-debug.txt" --within-bars
           "$PY" tools/ci/android_check.py device --apk "$WORK/java-new/out/debug.apk" --serial emulator-5554 \
             --sdk "$SDK" --out "$WORK/screen-16k-java.png" --log-out "$WORK/logcat-16k-java.txt" \
-            --allow android.permission.POST_NOTIFICATIONS --picture oxt-beyond-probe.png
+            --allow android.permission.POST_NOTIFICATIONS --picture oxt-beyond-probe.png --back --within-bars
 
       - name: Upload the packages and logs
         if: always()

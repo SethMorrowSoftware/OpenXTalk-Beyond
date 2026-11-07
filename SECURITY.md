@@ -153,7 +153,8 @@ These are still old and have publicly known vulnerabilities:
 
 Other libraries in `thirdparty/` (cairo 1.9.4 and others) are
 also several years old. SQLite was updated
-to 3.51.1.
+to 3.51.1, and to 3.51.3 in 0.2.7-rc.6.18 (the fix for the WAL-reset
+database corruption bug).
 
 Upgrading these libraries is planned. Until then, treat the browser
 components and any network or file-parsing features as unsafe for
