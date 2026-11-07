@@ -8888,13 +8888,22 @@ end tour_screen_end
 -- the background (red, green and blue within 24 of each other; the accent
 -- colour is far from grey); then it reads a snapshot of the button at the
 -- usual height (21 points, which the engine's first rule paints white
--- while active) and taller (26, which only its second rule does): the
--- label's colour farthest from the face must be 200 or more from it (red,
--- green and blue added; a white label on a white face is under 30). It is
--- the tour's last step, since it leaves the IDE in the background. The
--- Mac only: elsewhere a default button has no accent colour.
+-- while active) and taller (26, which only its second rule does), and
+-- of an ordinary button beside it with the same label: the label's
+-- colour farthest from the face must be 200 or more from it (red, green
+-- and blue added; a white label on a white face is under 30). Where the
+-- ordinary button's own label is under 230 from its face in the same
+-- snapshot, the default button's needs to be no more than 30 nearer to
+-- its face than that one's: what the step holds is that in the
+-- background a default button's label is as easy to see as any other
+-- button's. (The dark appearance: on the screen a button is a dark grey
+-- with a light label, but a snapshot taken with the app in the
+-- background drew the face of both kinds white, rc.6.17, 2026-11-07.)
+-- It is the tour's last step, since it leaves the IDE in the
+-- background. The Mac only: elsewhere a default button has no accent
+-- colour.
 on tour_background_default
-   local tDefault, tFace, tTries, tHeight, tMeasure, tFails
+   local tDefault, tFace, tTries, tHeight, tMeasure, tPlain, tNeed, tFails
    if the platform is not "MacOS" then
       tourRecord "INFO background-default: the Mac only"
       exit tour_background_default
@@ -8908,17 +8917,20 @@ on tour_background_default
    create button "OK"
    set the rect of it to "60,40,180,61"
    set the default of it to true
+   create button "Plain"
+   set the label of it to "OK"
+   set the rect of it to "60,80,180,101"
    unlock messages
    set the defaultStack to tDefault
    go stack kBackground
    tourWait 800
-   put tourBgFace() into tFace
+   put tourBgFace("OK") into tFace
    tourRecord "INFO background-default: the default button's face with the IDE in front" && tFace
    launch "/System/Library/CoreServices/Finder.app"
    tourRecord "INFO background-default: launched the Finder (" & the result & ")"
    repeat with tTries = 1 to 40
       tourWait 250
-      put tourBgFace() into tFace
+      put tourBgFace("OK") into tFace
       if tourBgGrey(tFace) then exit repeat
    end repeat
    if not tourBgGrey(tFace) then
@@ -8929,26 +8941,31 @@ on tour_background_default
    tourShotStack kBackground, "99b-background-default"
    repeat for each item tHeight in "21,26"
       set the rect of button "OK" of stack kBackground to "60,40,180," & (40 + tHeight)
-      put tourBgLabel() into tMeasure
+      set the rect of button "Plain" of stack kBackground to "60,80,180," & (80 + tHeight)
+      put tourBgLabel("OK") into tMeasure
+      put tourBgLabel("Plain") into tPlain
       tourRecord "INFO background-default: a default button" && tHeight && "points high: the face" && \
-            (item 1 to 3 of tMeasure) & ", the label's colour farthest from it" && (item 4 of tMeasure) && "apart"
-      if item 4 of tMeasure < 200 then
+            (item 1 to 3 of tMeasure) & ", the label's colour farthest from it" && (item 4 of tMeasure) && \
+            "apart; an ordinary button: the face" && (item 1 to 3 of tPlain) & "," && (item 4 of tPlain) && "apart"
+      put min(200, item 4 of tPlain - 30) into tNeed
+      if item 4 of tMeasure < tNeed then
          put "a default button" && tHeight && "points high has a label that cannot be seen in the background (" & \
-               (item 4 of tMeasure) && "apart from its face" && (item 1 to 3 of tMeasure) & ")" & return after tFails
+               (item 4 of tMeasure) && "apart from its face" && (item 1 to 3 of tMeasure) & "; an ordinary button's" && \
+               (item 4 of tPlain) && "apart from its face" && (item 1 to 3 of tPlain) & ")" & return after tFails
       end if
    end repeat
    delete stack kBackground
    if tFails is not empty then throw tourJoin(line 1 to -1 of tFails)
 end tour_background_default
 
--- The snapshot of the button "OK" of the stack kBackground, as it is
+-- The snapshot of the button pButton of the stack kBackground, as it is
 -- drawn now, in sPixWidth, sPixHeight and sPixData
-command tourBgGrab
+command tourBgGrab pButton
    local tDefault, tImage
    put the defaultStack into tDefault
    set the defaultStack to "oxt_ui_tour"
    lock messages
-   import snapshot from button "OK" of stack kBackground
+   import snapshot from button pButton of stack kBackground
    put the long id of last image of card 1 of stack "oxt_ui_tour" into tImage
    put the width of tImage into sPixWidth
    put the height of tImage into sPixHeight
@@ -8956,13 +8973,13 @@ command tourBgGrab
    delete tImage
    unlock messages
    set the defaultStack to tDefault
-   if sPixWidth < 1 or the number of bytes of sPixData < sPixWidth * sPixHeight * 4 then throw "no pixels for the default button"
+   if sPixWidth < 1 or the number of bytes of sPixData < sPixWidth * sPixHeight * 4 then throw "no pixels for the button" && pButton
 end tourBgGrab
 
--- The colour of the default button's face: left of its label, half way
--- down
-function tourBgFace
-   tourBgGrab
+-- The colour of the face of the button pButton: left of its label, half
+-- way down
+function tourBgFace pButton
+   tourBgGrab pButton
    return tourRgbAt(sPixWidth div 6, sPixHeight div 2)
 end tourBgFace
 
@@ -8972,12 +8989,12 @@ function tourBgGrey pRGB
          min(item 1 of pRGB, item 2 of pRGB, item 3 of pRGB) <= 24
 end tourBgGrey
 
--- The default button's face and how far the label's colour farthest from
--- it is (red, green and blue added), within the middle of the button,
--- where "OK" is drawn: r,g,b,apart
-function tourBgLabel
+-- The face of the button pButton and how far the label's colour
+-- farthest from it is (red, green and blue added), within the middle of
+-- the button, where "OK" is drawn: r,g,b,apart
+function tourBgLabel pButton
    local tFace, tFarthest, tX, tY, tRGB
-   put tourBgFace() into tFace
+   put tourBgFace(pButton) into tFace
    put 0 into tFarthest
    repeat with tY = sPixHeight div 4 to (3 * sPixHeight) div 4
       repeat with tX = (35 * sPixWidth) div 100 to (65 * sPixWidth) div 100

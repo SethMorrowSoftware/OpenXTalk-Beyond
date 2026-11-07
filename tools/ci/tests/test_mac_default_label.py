@@ -96,13 +96,26 @@ class TheDefaultLabelInTheBackground(unittest.TestCase):
                       'the default button\'s face is still" && tFace', step)
         # both rules: the usual height and a taller button
         self.assertIn('repeat for each item tHeight in "21,26"', step)
-        self.assertIn('if item 4 of tMeasure < 200 then', step)
+        # an ordinary button with the same label beside it: the default
+        # button's label must be 200 from its face, or where the snapshot
+        # draws even the ordinary one's label nearer than 230 (the dark
+        # appearance's snapshot drew every face white), no more than 30
+        # nearer than that one's. Never more than 200
+        self.assertIn('create button "Plain"', step)
+        self.assertIn('set the label of it to "OK"', step)
+        self.assertIn('put tourBgLabel("OK") into tMeasure', step)
+        self.assertIn('put tourBgLabel("Plain") into tPlain', step)
+        self.assertIn('put min(200, item 4 of tPlain - 30) into tNeed', step)
+        self.assertIn('if item 4 of tMeasure < tNeed then', step)
         self.assertIn('if tFails is not empty then throw', step)
         grey = tour[tour.index('function tourBgGrey pRGB'):tour.index('end tourBgGrey')]
         self.assertIn('min(item 1 of pRGB, item 2 of pRGB, item 3 of pRGB) <= 24', grey)
         # the snapshot is of the button as drawn now, with the app's state
         grab = tour[tour.index('command tourBgGrab'):tour.index('end tourBgGrab')]
-        self.assertIn('import snapshot from button "OK" of stack kBackground', grab)
+        self.assertIn('import snapshot from button pButton of stack kBackground', grab)
+        # the background is read from the default button's face
+        self.assertIn('if tourBgGrey(tFace) then exit repeat', step)
+        self.assertEqual(step.count('put tourBgFace("OK") into tFace'), 2)
         # declared before the handlers that use them
         self.assertLess(tour.index('constant kBackground = "OXT Tour Background"'), tour.index('on tour_background_default'))
         self.assertLess(tour.index('local sCtlChecks, sCtlFails, sPixWidth, sPixHeight, sPixData'),

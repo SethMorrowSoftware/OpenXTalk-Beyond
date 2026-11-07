@@ -687,10 +687,19 @@ void MCButton::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool 
                     t_should_use_white_text = true;
                 
                 // tperry 18th October 2025: Default button with accent color needs white text
+                // OXT-Beyond: only while the app is active, as above. In
+                // the background the theme draws a default button plain,
+                // without its accent colour (drawstandardbutton:
+                // WTHEME_STATE_SUPPRESSDEFAULT), and a white label on it
+                // could not be seen: after a script launched another app
+                // every default button was white on white (Skids,
+                // openxtalk.org p=26152). It has the label's own colour
+                // there, as any other button has
                 uint2 t_index;
-                if ((state & CS_SHOW_DEFAULT) && !(flags & F_DISABLED) && isstdbtn 
+                if ((state & CS_SHOW_DEFAULT) && !(flags & F_DISABLED) && isstdbtn
                     && getstyleint(flags) == F_STANDARD
-                    && !getcindex(DI_FORE, t_index) && !getpindex(DI_FORE, t_index))
+                    && !getcindex(DI_FORE, t_index) && !getpindex(DI_FORE, t_index)
+                    && MCappisactive)
                 {
                     t_should_use_white_text = true;
                 }
