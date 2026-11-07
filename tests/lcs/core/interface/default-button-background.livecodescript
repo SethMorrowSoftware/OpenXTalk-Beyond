@@ -31,12 +31,19 @@ The test puts the engine in the background by bringing the Finder to the
 front (launch, as the report's script launched its app), so it acts on
 the desktop of the computer it runs on: tools/ci/run_engine_tests.py
 lists it among the INTRUSIVE tests, which run in CI or with
---desktop-tests. Then it takes a snapshot of a default button and asks
-whether its label can be seen on its face: the colour farthest from the
-face's within the middle of the button, where "OK" is drawn, must differ
-from it by 200 or more (red, green and blue added; a black label on a
-white face is 765 apart, the accent colour's white label on its blue
-about 390, and a white label on a white face under 30).
+--desktop-tests. Then it takes a snapshot of a default button. Its face
+says whether the app is in the background: grey (its red, green and blue
+within 24 of each other) when the theme draws the button plain, the
+accent colour while the app is active. The suspend message alone cannot
+say it: an app that was never active gets none. When the face is still
+the accent colour the test is skipped, with the reason, rather than
+passed, since an active default button's white label shows whether or
+not the bug is there. In the background it asks whether the label can
+be seen on the face: the colour farthest from the face's within the
+middle of the button, where "OK" is drawn, must differ from it by 200 or
+more (red, green and blue added; a black label on a white face is 765
+apart, the accent colour's white label on its blue about 390, and a
+white label on a white face under 30).
 */
 
 on TestDefaultButtonLabelInTheBackground
@@ -48,12 +55,16 @@ on TestDefaultButtonLabelInTheBackground
    create stack tStack
    set the defaultStack to tStack
    -- the engine sends suspend to the default stack's card when the app
-   -- goes into the background
+   -- goes into the background, and resume when it comes back
    set the script of card 1 of stack tStack to \
          "on suspend" & return & \
          "   set the cSuspended of me to true" & return & \
          "   pass suspend" & return & \
-         "end suspend"
+         "end suspend" & return & \
+         "on resume" & return & \
+         "   set the cSuspended of me to false" & return & \
+         "   pass resume" & return & \
+         "end resume"
    create button "OK"
    set the style of button "OK" to "standard"
    set the rect of button "OK" to 20,20,120,41
@@ -71,10 +82,11 @@ on TestDefaultButtonLabelInTheBackground
       wait 100 milliseconds with messages
    end repeat
    if tSuspended is true then
-      TestDiagnostic "the app went into the background (suspend)"
+      put "the app went into the background (suspend)" into tSuspended
    else
-      TestDiagnostic "no suspend in 5 seconds: the app was not active (the result of launch:" && tLaunched & ")"
+      put "no suspend in 5 seconds (the result of launch:" && tLaunched & ")" into tSuspended
    end if
+   TestDiagnostic tSuspended
 
    import snapshot from button "OK" of stack tStack
    put the width of the last image into tWidth
@@ -86,6 +98,14 @@ on TestDefaultButtonLabelInTheBackground
 
    -- the face, left of the label, halfway down
    put __Pixel(tImage, tWidth, tWidth div 6, tHeight div 2) into tFace
+   if max(item 1 of tFace, item 2 of tFace, item 3 of tFace) - \
+         min(item 1 of tFace, item 2 of tFace, item 3 of tFace) > 24 then
+      TestSkip "a default button's label can be seen on its face in the background", \
+            "the app could not be put in the background: the default button's face is" && \
+            tFace & ", the accent colour (" & tSuspended & ")"
+      delete stack tStack
+      exit TestDefaultButtonLabelInTheBackground
+   end if
    put 0 into tFarthest
    repeat with tY = tHeight div 4 to (3 * tHeight) div 4
       repeat with tX = (35 * tWidth) div 100 to (65 * tWidth) div 100

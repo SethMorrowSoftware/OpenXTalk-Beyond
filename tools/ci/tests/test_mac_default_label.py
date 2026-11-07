@@ -82,6 +82,13 @@ class TheDefaultLabelInTheBackground(unittest.TestCase):
         self.assertIn('launch "/System/Library/CoreServices/Finder.app"', test)
         self.assertIn('TestAssert "a default button\'s label can be seen on its face in the background", '
                       'tFarthest >= 200', test)
+        # it asserts only in the background, which the face shows (grey,
+        # not the accent colour); an active app's test is skipped, not
+        # passed
+        face = test[test.index('-- the face, left of the label'):test.index('put 0 into tFarthest')]
+        self.assertIn('min(item 1 of tFace, item 2 of tFace, item 3 of tFace) > 24 then', face)
+        self.assertIn('TestSkip "a default button\'s label can be seen on its face in the background"', face)
+        self.assertIn('exit TestDefaultButtonLabelInTheBackground', face)
         # it launches the Finder: one of the tests that act on the desktop
         runner = read('tools', 'ci', 'run_engine_tests.py')
         intrusive = runner[runner.index('INTRUSIVE = ('):]
