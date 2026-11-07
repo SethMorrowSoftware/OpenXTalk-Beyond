@@ -3307,8 +3307,18 @@ chooses it for the engine, and `prebuilt/scripts/android.inc` for the
 libraries, when there is no standalone toolchain (`ANDROID_TOOLCHAIN`, or
 `~/android/toolchain/standalone-<arch>`); with one, both build as before.
 `ANDROID_FUSE_LD` names the linker to `config/android-settings.gypi`
-(`bfd` with a standalone toolchain, `lld` without). Like the web engine's
-script, it builds the prebuilt libraries that no server publishes:
+(`bfd` with a standalone toolchain, `lld` without), and `engine/engine.gyp`
+gives the engine's link the linker script for it: GNU ld takes
+`engine/standalone-android.link` as before, and lld a copy,
+`engine/standalone-android-lld.link`, that puts `.got` inside RELRO
+(lld counts it as RELRO wherever a script puts it, and with the old
+script RELRO ended in the page `.data` starts in, which Android's loader
+makes read-only whole: the engine died loading on the emulator). On
+that route the settings also keep code's checks of a null `this`
+(`-fno-delete-null-pointer-checks`), which a current Clang deletes and
+which the bundled HarfBuzz makes for every null object it destroys: the
+engine died on its first text without it, where NDK r16's Clang, which
+built the 9.6.3 engine, kept them. Like the web engine's script, it builds the prebuilt libraries that no server publishes:
 OpenSSL, ICU and the Thirdparty libraries for Android, into
 `prebuilt/lib/android/<arch>/ndk21r<NDK major>`, and ICU, libz and libffi
 for the build's host tools.
@@ -3318,6 +3328,9 @@ builder will take it: the right machine and word size; every LOAD segment
 of a 64-bit one aligned to 16 KB (Android 15's devices with 16 KB pages
 load nothing aligned to less, and Google Play asks it of apps that target
 Android 15); no text relocations, which Android 6.0 and later refuse;
+nothing writable but RELRO in the pages RELRO starts and ends in, at 16 KB
+for the 64-bit ABIs and 4 KB for the others (Android's loader makes those
+pages read-only whole, so the first write to what shares them crashes);
 only Android's own system libraries needed (never `libc++_shared.so`);
 API 21 in the note the NDK writes; and in the engine, the `.project`
 section that the builder writes the stack into, last in memory and at the
@@ -3332,3 +3345,24 @@ Android SDK, on a pull request or push that changes what the engine is
 built from, and keeps each folder for 14 days as
 `android-engine-<abi>`. The libraries come from a cache keyed by what
 they are built with, so a change to the engine builds only the engine.
+
+Its "Android engine on the emulator" job then runs the engine. It puts
+the four folders, as one runtime, and this checkout's builder into the
+latest release's IDE:
+
+```sh
+python3 tools/ci/android_check.py overlay --root <ide> --engine <runtime>
+```
+
+`--engine` puts every architecture's engine and externals over the
+release's, and the Java layer and the files beside them, and changes
+nothing when the runtime or the release lacks one of them, so that no
+package mixes the two engines. The builder there builds the app probe and
+the Java layer's probe (debug, for all four architectures), and `verify
+--engine <runtime>` checks that each package's engine is the one built
+here: the same code (its `.text` section, which the builder's deploy
+writes out as it was). Both probes then run on an Android 13 emulator
+and on the first image with 16 KB pages, with the checks that the
+[Android standalone check](#android-standalone-check) makes of them with
+the 9.6.3 engine: the Java layer's probe's notification permission, its
+picture and its back key; neither probe drawn under the system bars.

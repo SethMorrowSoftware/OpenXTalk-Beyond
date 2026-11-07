@@ -33,6 +33,13 @@ those --abi names (which must then be there):
     targets Android 15 (the 32-bit ABIs have no such devices);
   - none has text relocations (DT_TEXTREL, or DF_TEXTREL in DT_FLAGS),
     which Android 6.0 and later refuse to load;
+  - none has anything writable but RELRO in the pages that RELRO
+    (PT_GNU_RELRO) starts and ends in, at the largest page the ABI's
+    devices have (16 KB for the 64-bit ABIs, 4 KB for the others):
+    Android's loader makes those pages read-only whole once it has
+    relocated the library, and the first write to what shares them
+    crashes (the engine built with lld and the old linker script died
+    so, loading, in a static constructor that writes .data);
   - none needs a library that Android does not have, or one that an app
     would have to carry: only the NDK's stable system libraries
     (SYSTEM_LIBRARIES; never libc++_shared.so, since each library links
@@ -76,6 +83,7 @@ TOP_FILES = ('Classes', 'Manifest.xml', 'livecode_inputcontrol.xml', 'nfc_tech_f
 # The lowest Android the engine is built for (build-android.sh's
 # ANDROID_MIN_API)
 MIN_API = 21
+PAGE_4K = 4096
 PAGE_16K = 16384
 # The NDK's stable system libraries (the NDK's "Native APIs"), which every
 # Android of MIN_API and later has, or has from the API level that an app
@@ -91,9 +99,12 @@ SYSTEM_LIBRARIES = frozenset((
 ET_DYN = 3
 PT_LOAD = 1
 PT_DYNAMIC = 2
+PT_GNU_RELRO = 0x6474e552
 SHT_NOTE = 7
 SHT_NOBITS = 8
+SHF_WRITE = 1
 SHF_ALLOC = 2
+SHF_TLS = 0x400
 DT_NULL = 0
 DT_NEEDED = 1
 DT_STRTAB = 5
@@ -267,6 +278,7 @@ def check_library(path, abi, engine=False):
                                 'does not load it' % (name, ', '.join(str(a) for a in small)))
         if elf.text_relocations():
             problems.append('%s has text relocations, which Android 6.0 and later refuse' % name)
+        problems += check_relro(elf, name, PAGE_16K if is64 else PAGE_4K)
         needed = elf.needed()
         foreign = [n for n in needed if n not in SYSTEM_LIBRARIES]
         if foreign:
@@ -286,7 +298,40 @@ def check_library(path, abi, engine=False):
         name, len(data), 64 if elf.is64 else 32,
         '/'.join(str(a) for a in sorted(set(s['align'] for s in loads))) or 'nothing',
         api, ', '.join(needed) or 'nothing')
+    relro = ['0x%x to 0x%x' % (s['vaddr'], s['vaddr'] + s['memsz'])
+             for s in elf.segments if s['type'] == PT_GNU_RELRO]
+    if relro:
+        seen += '; RELRO %s' % ', '.join(relro)
     return problems, seen
+
+
+def check_relro(elf, name, page):
+    """What Android's loader does with RELRO (bionic's
+    phdr_table_protect_gnu_relro): once it has relocated the library it
+    makes read-only every page from the one PT_GNU_RELRO starts in to the
+    one it ends in, whole. A writable section that is not RELRO but has
+    bytes in those pages goes read-only with it, and the first write to
+    it crashes (SIGSEGV, SEGV_ACCERR). `page` is the largest page of the
+    ABI's devices; a library that passes at it passes at any smaller one.
+    TLS's .tbss is left out: it takes no room in the image (its address
+    only says where its template would go)."""
+    problems = []
+    for r in elf.segments:
+        if r['type'] != PT_GNU_RELRO or not r['memsz']:
+            continue
+        start, end = r['vaddr'], r['vaddr'] + r['memsz']
+        first = start - start % page
+        last = -(-end // page) * page
+        caught = [s['name'] or '(unnamed)' for s in elf.sections
+                  if s['flags'] & SHF_ALLOC and s['flags'] & SHF_WRITE and s['size']
+                  and not (s['flags'] & SHF_TLS and s['type'] == SHT_NOBITS)
+                  and s['addr'] < last and first < s['addr'] + s['size']
+                  and not (start <= s['addr'] and s['addr'] + s['size'] <= end)]
+        if caught:
+            problems.append('%s: RELRO (0x%x to 0x%x) shares its %d KB pages with %s, which is writable and '
+                            'not RELRO: Android makes it read-only with RELRO, and the first write to it '
+                            'crashes' % (name, start, end, page // 1024, ', '.join(caught)))
+    return problems
 
 
 def check_project_section(elf, name):

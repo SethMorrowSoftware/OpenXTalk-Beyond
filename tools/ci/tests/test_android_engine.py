@@ -987,6 +987,27 @@ def gyp_link_flags(node, names, wanted):
     return found
 
 
+def gyp_lists(node, names, keys):
+    """Every item a gyp tree can put in the lists named `keys` (sources, say)
+    where `names` hold, in order, as gyp_link_flags walks it."""
+    found = []
+    if isinstance(node, list):
+        for item in node:
+            found += gyp_lists(item, names, keys)
+    elif isinstance(node, dict):
+        nested = []
+        for key, value in node.items():
+            if key in ('conditions', 'target_conditions'):
+                nested += [b for entry in value for b in condition_branches(entry, names)]
+            elif key.rstrip('!/+=') in keys:
+                found += list(value)
+            else:
+                found += gyp_lists(value, names, keys)
+        for branch in nested:
+            found += gyp_lists(branch, names, keys)
+    return found
+
+
 def gyp_files():
     """Every gyp file of the tree (not gyp's own tests, nor a build's)."""
     found = []
@@ -1202,13 +1223,16 @@ class AidlInterfaces(unittest.TestCase):
 
 
 def elf(is64=True, machine=183, align=16384, needed=('libc.so', 'liblog.so'), textrel=None, api=21,
-        project='last', exports=('JNI_OnLoad',), etype=3):
+        project='last', exports=('JNI_OnLoad',), etype=3, relro=None, writable=()):
     """A small ELF file with what android_engine.py reads: LOAD and DYNAMIC
     segments, .dynstr, .dynsym, .dynamic, .note.android.ident and .project.
     Addresses are file offsets. project: None (no .project), 'last',
     'section-after' (an allocated section after it), 'segment-after' (an
     empty LOAD segment after its own) or 'padded' (its segment's data goes
-    on after it)."""
+    on after it). relro: (start, end) of a PT_GNU_RELRO segment; writable:
+    sections only the section table names, (name, address, size) and
+    optionally their flags (SHF_WRITE | SHF_ALLOC by default) and type
+    (SHT_PROGBITS by default)."""
     e = '<'
     word = 'Q' if is64 else 'I'
     ehsize, phentsize, shentsize = (64, 56, 64) if is64 else (52, 32, 40)
@@ -1229,7 +1253,7 @@ def elf(is64=True, machine=183, align=16384, needed=('libc.so', 'liblog.so'), te
     dynsym = sym(0, 0) + b''.join(sym(names[n], 7) for n in exports) + sym(names['abort'], 0)
     note = struct.pack(e + 'III', 8, 4, 1) + b'Android\0' + struct.pack(e + 'I', api) if api is not None else b''
 
-    phnum = 2 + (1 if project == 'segment-after' else 0)
+    phnum = 2 + (1 if project == 'segment-after' else 0) + (1 if relro else 0)
     off = ehsize + phnum * phentsize
     blobs = []
 
@@ -1259,6 +1283,10 @@ def elf(is64=True, machine=183, align=16384, needed=('libc.so', 'liblog.so'), te
         place('.after', b'\0' * 16, 1, flags=3)
     load_end = off + (16 if project == 'padded' else 0)
     off = load_end
+    for w in writable:
+        w = tuple(w) + (3, 1)[len(w) - 3:]
+        blobs.append({'name': w[0], 'data': b'', 'size': w[2], 'type': w[4], 'flags': w[3], 'addr': w[1],
+                      'offset': 0, 'link': 0, 'entsize': 0})
     shstrtab = b'\0'
     sections = [{'name': '', 'type': 0, 'flags': 0, 'addr': 0, 'offset': 0, 'data': b'', 'link': 0,
                  'entsize': 0}] + blobs
@@ -1293,6 +1321,8 @@ def elf(is64=True, machine=183, align=16384, needed=('libc.so', 'liblog.so'), te
     if project == 'segment-after':
         later = (load_end + 0xFFFF) & ~0xFFFF
         phdr(2, 1, load_end, later, 0, 16, 6, align)
+    if relro:
+        phdr(phnum - 1, 0x6474e552, 0, relro[0], relro[1] - relro[0], relro[1] - relro[0], 4, 1)
     for s in sections:
         if s['data']:
             out[s['offset']:s['offset'] + len(s['data'])] = s['data']
@@ -1300,10 +1330,10 @@ def elf(is64=True, machine=183, align=16384, needed=('libc.so', 'liblog.so'), te
         at = shoff + i * shentsize
         if is64:
             struct.pack_into(e + 'IIQQQQIIQQ', out, at, s['name_at'], s['type'], s['flags'], s['addr'], s['offset'],
-                             len(s['data']), s['link'], 0, 8, s['entsize'])
+                             s.get('size', len(s['data'])), s['link'], 0, 8, s['entsize'])
         else:
             struct.pack_into(e + 'IIIIIIIIII', out, at, s['name_at'], s['type'], s['flags'], s['addr'],
-                             s['offset'], len(s['data']), s['link'], 0, 4, s['entsize'])
+                             s['offset'], s.get('size', len(s['data'])), s['link'], 0, 4, s['entsize'])
     return bytes(out)
 
 
@@ -1386,6 +1416,26 @@ class Runtime(unittest.TestCase):
         shutil.rmtree(self.root)
         self.make(abis=('armeabi-v7a', 'x86'), engine={'align': 4096}, external={'align': 4096})
         self.assertEqual(self.problems(), [])
+
+    def test_relro_pages(self):
+        """A library whose RELRO ends in a page that .data starts in (the
+        engine that lld linked with the old script, at 16 KB) is refused,
+        on the 64-bit ABIs at 16 KB and on the others at 4 KB; one whose
+        .data starts on the next page passes, and the summary line names
+        RELRO."""
+        old = dict(relro=(0x4000, 0x8030), writable=[('.got', 0x8000, 0x30), ('.data', 0x8030, 0x18)])
+        self.make(abis=('x86_64', 'x86'), external=old)
+        problems = self.problems()
+        self.assertProblem(problems, 'x86_64/RevDb: RELRO (0x4000 to 0x8030) shares its 16 KB pages with .data,')
+        self.assertProblem(problems, 'x86/RevZip: RELRO (0x4000 to 0x8030) shares its 4 KB pages with .data,')
+        self.assertFalse([p for p in problems if '.got' in p])
+        shutil.rmtree(self.root)
+        self.make(abis=('x86_64', 'x86'),
+                  external=dict(relro=(0x4000, 0x5000), writable=[('.got', 0x4190, 0x30), ('.data', 0x8000, 0x18)]))
+        problems, seen = ae.check(self.root)
+        self.assertEqual(problems, [])
+        self.assertTrue(seen[1].endswith('; RELRO 0x4000 to 0x5000'), seen[1])
+        self.assertFalse(seen[0].endswith('0x5000'), seen[0])  # the engine has no RELRO here
 
     def test_text_relocations(self):
         for how in ('tag', 'flag'):
@@ -1482,6 +1532,312 @@ class Runtime(unittest.TestCase):
 # .github/workflows/android-engine.yml
 
 
+# ---------------------------------------------------------------------------
+# RELRO and the engine's linker script. Android's loader makes RELRO's pages
+# read-only whole; the engine that lld linked with the old GNU ld script
+# (engine/standalone-android.link, which puts .got after
+# DATA_SEGMENT_RELRO_END) had RELRO end inside .data's first page, and died
+# loading on the emulator (SEGV_ACCERR in MCScriptRegisterBuiltinModule).
+# engine/engine.gyp gives lld a copy with .got inside RELRO.
+
+
+WRITE_ALLOC = 3
+SHT_PROGBITS = 1
+SHT_NOBITS = 8
+SHF_TLS = 0x400
+
+
+class Relro(unittest.TestCase):
+    """android_engine.py's check_relro on made-up ELF files."""
+
+    def problems(self, relro, writable, is64=True, page=None):
+        f = ae.Elf(elf(is64=is64, project=None, relro=relro, writable=writable))
+        return ae.check_relro(f, 'x86_64/Standalone', page or (ae.PAGE_16K if is64 else ae.PAGE_4K))
+
+    def test_the_old_script_under_lld(self):
+        """RELRO from .data.rel.ro to the end of .got, which lld put after
+        the page boundary DATA_SEGMENT_RELRO_END set: .data and .bss share
+        .got's page."""
+        problems = self.problems((0x4000, 0x8030), [('.data.rel.ro', 0x4000, 0x190), ('.got', 0x8000, 0x30),
+                                                    ('.data', 0x8030, 0x18), ('.bss', 0x8048, 0x10, WRITE_ALLOC,
+                                                                              SHT_NOBITS)])
+        self.assertEqual(len(problems), 1)
+        self.assertIn('x86_64/Standalone: RELRO (0x4000 to 0x8030) shares its 16 KB pages with .data, .bss, '
+                      'which is writable and not RELRO', problems[0])
+        self.assertNotIn('.got', problems[0])
+        self.assertNotIn('.data.rel.ro', problems[0])
+
+    def test_the_lld_script(self):
+        """RELRO ends with .got; .data starts on the next page."""
+        self.assertEqual(self.problems((0x4000, 0x5000), [('.data.rel.ro', 0x4000, 0x190), ('.got', 0x4190, 0x30),
+                                                          ('.data', 0x8000, 0x18)]), [])
+
+    def test_gnu_ld(self):
+        """The standalone route: GNU ld ends RELRO on the page boundary and
+        puts .got (not RELRO there) and .data after it."""
+        self.assertEqual(self.problems((0x7e68, 0x8000), [('.data.rel.ro', 0x7e68, 0x190), ('.got', 0x8000, 0x30),
+                                                          ('.data', 0x8030, 0x18)]), [])
+
+    def test_the_page_of_the_abi(self):
+        """.data a page of 4 KB after RELRO's: fine on 4 KB pages, which the
+        32-bit ABIs have, and not on the 16 KB the 64-bit ones can have."""
+        layout = ((0x4000, 0x4100), [('.got', 0x4000, 0x100), ('.data', 0x5000, 0x18)])
+        self.assertEqual(self.problems(*layout, is64=False), [])
+        self.assertEqual(self.problems(*layout, is64=True, page=ae.PAGE_4K), [])
+        problems = self.problems(*layout, is64=True)
+        self.assertEqual(len(problems), 1)
+        self.assertIn('16 KB pages with .data,', problems[0])
+
+    def test_relros_first_page(self):
+        """Writable data in the page RELRO starts in is caught too."""
+        problems = self.problems((0x4100, 0x5000), [('.data.early', 0x4000, 0x10), ('.got', 0x4100, 0x30)],
+                                 is64=False)
+        self.assertEqual(len(problems), 1)
+        self.assertIn('4 KB pages with .data.early,', problems[0])
+
+    def test_a_section_across_relros_end(self):
+        problems = self.problems((0x4000, 0x4100), [('.across', 0x40f0, 0x20)], is64=False)
+        self.assertIn('with .across,', problems[0])
+
+    def test_what_is_not_caught(self):
+        """Read-only sections, empty ones and TLS's .tbss (which takes no
+        room in the image) in RELRO's pages; and no RELRO at all."""
+        self.assertEqual(self.problems((0x4000, 0x4100), [
+            ('.rodata', 0x4100, 0x40, 2), ('.empty', 0x4200, 0, WRITE_ALLOC),
+            ('.tbss', 0x4100, 0x40, WRITE_ALLOC | SHF_TLS, SHT_NOBITS)]), [])
+        self.assertIn('.tdata', self.problems((0x4000, 0x4100), [
+            ('.tdata', 0x4100, 0x40, WRITE_ALLOC | SHF_TLS, SHT_PROGBITS)])[0])
+        self.assertEqual(self.problems(None, [('.data', 0x4000, 0x18)]), [])
+
+
+def find_lld():
+    """An ELF lld: on PATH (by any version's name), or the NDK's that
+    ANDROID_NDK_HOME or ANDROID_NDK_LATEST_HOME (GitHub's runners) names."""
+    for name in ['ld.lld'] + ['ld.lld-%d' % v for v in range(30, 13, -1)]:
+        path = shutil.which(name)
+        if path:
+            return path
+    for var in ('ANDROID_NDK_HOME', 'ANDROID_NDK_LATEST_HOME', 'ANDROID_NDK_ROOT'):
+        ndk = os.environ.get(var)
+        if ndk:
+            path = os.path.join(llvm_bin(ndk, 'linux-x86_64'), 'ld.lld')
+            if os.path.isfile(path):
+                return path
+    return None
+
+
+LINKABLE = sys.platform.startswith('linux') and shutil.which('cc')
+LLD = find_lld() if LINKABLE else None
+BFD = shutil.which('ld.bfd') if LINKABLE else None
+
+# What MCScriptRegisterBuiltinModule and the module loaders lc-compile
+# writes do: a static constructor writes a module's info, in .data (it holds
+# relocated pointers), and a list's head; and what .got, .data.rel.ro and
+# .project hold
+RELRO_SOURCE = r"""
+extern int ext_var;
+struct info { struct info *next; const char *name; void (*fn)(void); };
+static void f(void) {}
+struct info module_info = { 0, "x", f };
+const struct info ro_info = { 0, "y", f };
+static struct info *head;
+void reg(struct info *p) { p->next = head; head = p; }
+__attribute__((constructor)) static void ctor(void) { reg(&module_info); }
+int get(void) { return ext_var; }
+__attribute__((section(".project"))) char project[16] = "project";
+"""
+
+
+class LinkScript(unittest.TestCase):
+    """The two linker scripts: engine/engine.gyp's choice of one, their one
+    difference, and (with this host's linkers) what each makes."""
+
+    OLD = 'engine/standalone-android.link'
+    LLD_SCRIPT = 'engine/standalone-android-lld.link'
+
+    def scripts(self, **names):
+        target = gyp_target(gyp('engine', 'engine.gyp'), 'standalone')
+        found = gyp_link_flags(target, dict(ANDROID_TARGET, **names), ('-Wl,-T,$(abs_srcdir)/' + self.OLD,
+                                                                       '-Wl,-T,$(abs_srcdir)/' + self.LLD_SCRIPT))
+        sources = gyp_lists(target, dict(ANDROID_TARGET, **names), ('sources',))
+        return found, [x for x in sources if x.endswith('.link')]
+
+    def test_the_choice(self):
+        """lld (a current NDK's own toolchain) takes the copy; GNU ld, or a
+        linker set by hand, the script as before; -no-undefined first."""
+        self.assertEqual(self.scripts(android_fuse_ld='lld'),
+                         (['-Wl,-T,$(abs_srcdir)/' + self.LLD_SCRIPT], [self.LLD_SCRIPT]))
+        for linker in ('bfd', 'gold'):
+            self.assertEqual(self.scripts(android_fuse_ld=linker),
+                             (['-Wl,-T,$(abs_srcdir)/' + self.OLD], [self.OLD]), linker)
+        target = gyp_target(gyp('engine', 'engine.gyp'), 'standalone')
+        for linker in ('lld', 'bfd'):
+            flags = gyp_link_flags(target, dict(ANDROID_TARGET, android_fuse_ld=linker),
+                                   ('-Wl,-no-undefined', '-Wl,-T,$(abs_srcdir)/' + self.OLD,
+                                    '-Wl,-T,$(abs_srcdir)/' + self.LLD_SCRIPT))
+            self.assertEqual(flags[0], '-Wl,-no-undefined', linker)
+            self.assertEqual(len(flags), 2, linker)
+        # (and no other platform takes either)
+        self.assertEqual(self.scripts(android_fuse_ld='lld', OS='linux', toolset_os='linux'), ([], []))
+
+    def test_the_one_difference(self):
+        """The copy is the script with its OXT-Beyond comments and .got
+        moved before DATA_SEGMENT_RELRO_END, and nothing else."""
+        old = read(*self.OLD.split('/'))
+        new = read(*self.LLD_SCRIPT.split('/'))
+        self.assertNotIn('OXT-Beyond', old)
+        comments = re.findall(r'[ \t]*/\* OXT-Beyond:.*?\*/\n\n?', new, re.S)
+        self.assertEqual(len(comments), 2)
+        for c in comments:
+            new = new.replace(c, '', 1)
+        got = '  .got            : { *(.got.plt) *(.igot.plt) *(.got) *(.igot) }\n'
+        end = '  . = DATA_SEGMENT_RELRO_END (0, .);\n'
+        self.assertIn(end + got, old)
+        self.assertEqual(new, old.replace(end + got, got + end))
+        self.assertIn("lld counts .got as RELRO", read(*self.LLD_SCRIPT.split('/')))
+
+    def link(self, tmp, linker, script, page):
+        out = os.path.join(tmp, '%s-%d-%s.so' % (os.path.basename(linker), page, os.path.basename(script)))
+        subprocess.run([linker, '-shared', '-z', 'max-page-size=%d' % page, '-z', 'now', '-z', 'relro',
+                        '-T', os.path.join(REPO, *script.split('/')), os.path.join(tmp, 't.o'), '-o', out],
+                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        with open(out, 'rb') as f:
+            return ae.Elf(f.read())
+
+    def compiled(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        with open(os.path.join(tmp, 't.c'), 'w') as f:
+            f.write(RELRO_SOURCE)
+        subprocess.run(['cc', '-c', '-fPIC', '-O1', os.path.join(tmp, 't.c'), '-o', os.path.join(tmp, 't.o')],
+                       check=True)
+        return tmp
+
+    @staticmethod
+    def section(f, name):
+        return [s for s in f.sections if s['name'] == name][0]
+
+    @unittest.skipUnless(LLD, 'needs Linux, cc and lld')
+    def test_lld_links_each(self):
+        """lld with the old script ends RELRO with .got, in .data's page,
+        which the check refuses; with the copy, .data starts on the next
+        page at either page size, and the check passes."""
+        tmp = self.compiled()
+        for page in (ae.PAGE_4K, ae.PAGE_16K):
+            with self.subTest(page=page):
+                f = self.link(tmp, LLD, self.OLD, page)
+                got, data = self.section(f, '.got'), self.section(f, '.data')
+                relro = [s for s in f.segments if s['type'] == ae.PT_GNU_RELRO][0]
+                self.assertEqual(relro['vaddr'] + relro['memsz'], got['addr'] + got['size'])
+                self.assertEqual(data['addr'] // page, got['addr'] // page)
+                problems = ae.check_relro(f, 'x', page)
+                self.assertEqual(len(problems), 1)
+                self.assertIn('pages with .data,', problems[0])
+
+                f = self.link(tmp, LLD, self.LLD_SCRIPT, page)
+                self.assertEqual(ae.check_relro(f, 'x', page), [])
+                self.assertEqual(self.section(f, '.data')['addr'] % page, 0)
+                project = self.section(f, '.project')
+                self.assertEqual(max(s['addr'] for s in f.sections if s['flags'] & 2), project['addr'])
+
+    @unittest.skipUnless(BFD, 'needs Linux, cc and GNU ld')
+    def test_gnu_ld_as_before(self):
+        """GNU ld with the old script, the standalone route's, passes."""
+        tmp = self.compiled()
+        for page in (ae.PAGE_4K, ae.PAGE_16K):
+            with self.subTest(page=page):
+                self.assertEqual(ae.check_relro(self.link(tmp, BFD, self.OLD, page), 'x', page), [])
+
+
+# ---------------------------------------------------------------------------
+# Null `this`: a current NDK's Clang deletes checks of it, which the bundled
+# HarfBuzz makes for every null object it destroys or references; the engine
+# built here died on its first text (SIGSEGV at 0 in
+# hb_unicode_funcs_destroy, from hb_buffer_create). The lld route's settings
+# keep such checks.
+
+
+NULL_CHECKS = '-fno-delete-null-pointer-checks'
+HARFBUZZ = os.path.join(REPO, 'thirdparty', 'libharfbuzz', 'src')
+# hb_buffer_create's path: a new buffer's reset destroys its (null) unicode
+# functions
+HARFBUZZ_MAIN = r"""
+#include "hb.h"
+int main(void)
+{
+    hb_buffer_t *b = hb_buffer_create();
+    hb_buffer_add_utf8(b, "probe", -1, 0, -1);
+    unsigned int n = hb_buffer_get_length(b);
+    hb_buffer_destroy(b);
+    return n == 5 ? 0 : 3;
+}
+"""
+
+
+def clang_major():
+    """This host's clang++ major version, or None."""
+    if not (sys.platform.startswith('linux') and shutil.which('clang++') and shutil.which('clang')):
+        return None
+    out = subprocess.run(['clang++', '-dumpversion'], stdout=subprocess.PIPE, universal_newlines=True).stdout
+    return int(out.split('.')[0]) if out.strip() else None
+
+
+CLANG = clang_major()
+
+
+class NullThis(unittest.TestCase):
+
+    def cflags(self, linker):
+        settings = gyp('config', 'android-settings.gypi')
+        return gyp_lists(settings, dict(ANDROID_TARGET, android_fuse_ld=linker), ('cflags',))
+
+    def test_the_lld_route_keeps_the_checks(self):
+        self.assertIn(NULL_CHECKS, self.cflags('lld'))
+        for linker in ('bfd', 'gold'):
+            self.assertNotIn(NULL_CHECKS, self.cflags(linker), linker)
+        # (a static library, which the Thirdparty libraries are, too)
+        settings = gyp('config', 'android-settings.gypi')
+        self.assertIn(NULL_CHECKS, gyp_lists(settings, dict(ANDROID_TARGET, android_fuse_ld='lld',
+                                                            _type='static_library'), ('cflags',)))
+
+    def test_harfbuzz_checks_this(self):
+        """What the flag is for is still there: HarfBuzz checks `this`."""
+        with open(os.path.join(HARFBUZZ, 'hb-object-private.hh'), encoding='utf-8') as f:
+            self.assertIn('if (unlikely (!this || this->is_inert ()))', f.read())
+
+    @unittest.skipUnless(CLANG, 'needs Linux and clang')
+    def test_harfbuzz_with_this_hosts_clang(self):
+        """The bundled HarfBuzz, built as the lld route builds it (-O3, the
+        flags the settings give), creates a buffer; and, with a Clang that
+        marks `this` nonnull (13 and later), crashes there without the
+        flag, as the engine did."""
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        with open(os.path.join(tmp, 'main.cc'), 'w') as f:
+            f.write(HARFBUZZ_MAIN)
+        flags = [x for x in self.cflags('lld') if x == NULL_CHECKS]
+        self.assertEqual(flags, [NULL_CHECKS])
+
+        def build(extra):
+            out = os.path.join(tmp, 'hb%d' % len(extra))
+            common = ['-O3', '-w', '-DHB_NO_MT', '-DHAVE_UCDN', '-I', HARFBUZZ, '-I',
+                      os.path.join(HARFBUZZ, 'hb-ucdn')] + extra
+            objects = []
+            for name in ('hb-buffer.cc', 'hb-unicode.cc', 'hb-common.cc', 'hb-ucdn.cc', 'hb-ucdn/ucdn.c'):
+                obj = os.path.join(tmp, '%s-%d.o' % (os.path.basename(name), len(extra)))
+                cc = ['clang', '-std=gnu99'] if name.endswith('.c') else \
+                    ['clang++', '-std=c++11', '-fno-exceptions', '-fno-rtti']
+                subprocess.run(cc + common + ['-c', os.path.join(HARFBUZZ, name), '-o', obj], check=True)
+                objects.append(obj)
+            subprocess.run(['clang++'] + common + [os.path.join(tmp, 'main.cc')] + objects + ['-o', out],
+                           check=True)
+            return subprocess.run([out], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
+
+        self.assertEqual(build(flags), 0)
+        if CLANG >= 13:
+            self.assertLess(build([]), 0)    # killed by a signal
+
+
 class Workflow(unittest.TestCase):
 
     @classmethod
@@ -1531,8 +1887,18 @@ class Workflow(unittest.TestCase):
         self.assertEqual(upload['path'], 'android-runtime/')
 
     def test_nothing_is_published(self):
+        # the device job downloads the latest release's IDE to run the
+        # builder in; nothing is written to a release, a package or the
+        # repository
         self.assertEqual(self.wf['permissions'], {'contents': 'read'})
-        self.assertNotIn('release', self.text.lower().replace('nothing here\n# goes into a package or a release', ''))
+        for job in self.wf['jobs'].values():
+            self.assertNotIn('permissions', job)
+        self.assertNotRegex(self.text, r':\s*write\b')
+        runs = ' '.join(s.get('run', '') for job in self.wf['jobs'].values() for s in job['steps'])
+        self.assertEqual(re.findall(r'gh release (\w+)', runs), ['list', 'download'])
+        uses = [s['uses'].split('@')[0] for job in self.wf['jobs'].values() for s in job['steps'] if 'uses' in s]
+        self.assertEqual(sorted(set(uses)), ['actions/cache/restore', 'actions/cache/save', 'actions/checkout',
+                                             'actions/download-artifact', 'actions/upload-artifact'])
 
     def test_what_starts_it(self):
         on = self.wf[True]
@@ -1545,6 +1911,75 @@ class Workflow(unittest.TestCase):
         # the files the build runs, outside the folders it builds from
         for name in re.findall(r"'\.\./tools/([\w.-]+\.sh)'", read('config', 'java.gypi')):
             self.assertIn('tools/' + name, paths)
+
+    def test_the_device_job(self):
+        """The engine built here runs: the device job takes the four build
+        jobs' folders as one runtime, puts it and this builder into the
+        release's IDE, builds both probes with it, checks each package's
+        engine is the one built here, and runs them on Android 13 and with
+        16 KB pages"""
+        import fnmatch
+        job = self.wf['jobs']['device']
+        self.assertEqual(job['needs'], 'build')
+        self.assertEqual(job['runs-on'], 'ubuntu-24.04')
+        self.assertNotIn('container', job)
+        self.assertNotIn('if', job)
+        steps = dict((s.get('name'), s) for s in job['steps'])
+        download = steps['Download the runtime']
+        self.assertTrue(download['uses'].startswith('actions/download-artifact@'))
+        pattern = download['with']['pattern']
+        self.assertTrue(download['with']['merge-multiple'])
+        self.assertEqual(download['with']['path'], '${{ runner.temp }}/android/engine')
+        # every build job's folder, and not the device job's own upload
+        for abi in bash_assoc(read('tools', 'ci', 'build-android.sh'), 'ABIS').values():
+            name = self.steps['Upload the runtime']['with']['name'].replace('${{ matrix.abi }}', abi)
+            self.assertTrue(fnmatch.fnmatchcase(name, pattern), name)
+        own = steps['Upload the packages and logs']['with']['name']
+        self.assertFalse(fnmatch.fnmatchcase(own, pattern), own)
+        self.assertIn('echo "WORK=$RUNNER_TEMP/android" >> "$GITHUB_ENV"', steps['Download the IDE']['run'])
+
+        def lines(step):
+            return [' '.join(x.split()) for x in steps[step]['run'].replace('\\\n', ' ').splitlines() if x.strip()]
+
+        unpack = lines('Unpack the IDE, and put this builder and the runtime into it')
+        self.assertIn('python3 tools/ci/android_check.py overlay --root "$WORK/ide" --engine "$WORK/engine"', unpack)
+        built = lines('Build the probes with this engine')
+        self.assertEqual([x for x in built if ' ide ' in x], [
+            'python3 tools/ci/android_check.py ide --install "$IDE" --platform "$PLATFORM" --work "$WORK/app" '
+            '--sdk "$SDK" --jdk "$JDK" --no-units --builds debug',
+            'python3 tools/ci/android_check.py ide --install "$IDE" --platform "$PLATFORM" --work "$WORK/java" '
+            '--sdk "$SDK" --jdk "$JDK" --no-units --builds debug --probe java'])
+        self.assertIn('for probe in app java; do', built)
+        self.assertIn('python3 tools/ci/android_check.py verify --work "$WORK/$probe" --sdk "$SDK" --jdk "$JDK" '
+                      '--builds debug --target 36 --engine "$WORK/engine"', built)
+        # the debug build has every architecture, so verify --engine checks
+        # every engine built here
+        sys.path.insert(0, os.path.join(REPO, 'tools', 'ci'))
+        import android_check as ac
+        self.assertEqual(ac.BUILDS['debug']['abis'], set(ae.ABIS))
+        app = '--within-bars'
+        java = '--allow android.permission.POST_NOTIFICATIONS --picture oxt-beyond-probe.png --back --within-bars'
+        for step, where in (('Run the probes on Android 13', 'api33'), ('Run the probes with 16 KB pages', '16k')):
+            runs = [x for x in lines(step) if ' device ' in x]
+            self.assertEqual(runs, [
+                'python3 tools/ci/android_check.py device --apk "$WORK/app/out/debug.apk" --serial emulator-5554 '
+                '--sdk "$SDK" --out "$WORK/screen-%s-app.png" --log-out "$WORK/logcat-%s-app.txt" %s'
+                % (where, where, app),
+                'python3 tools/ci/android_check.py device --apk "$WORK/java/out/debug.apk" --serial emulator-5554 '
+                '--sdk "$SDK" --out "$WORK/screen-%s-java.png" --log-out "$WORK/logcat-%s-java.txt" %s'
+                % (where, where, java)], step)
+        # options the check has
+        for flag in set(re.findall(r'(--[a-z-]+)', app + ' ' + java)):
+            self.assertIn("d.add_argument('%s'" % flag, read('tools', 'ci', 'android_check.py'), flag)
+        sixteen = steps['Run the probes with 16 KB pages']['run']
+        self.assertIn('[ "$page" = 16384 ]', sixteen)
+        self.assertIn('--awake --settle', sixteen)
+        self.assertIn('--awake --settle', steps['Wait for the emulator']['run'])
+        setup = steps['Set up the JDK and the Android SDK']['run']
+        for part in ('"platforms;android-36"', '"system-images;android-33;google_apis;x86_64"', '"$img16"',
+                     'google_apis_ps16k;x86_64', '"emulator"'):
+            self.assertIn(part, setup)
+        self.assertEqual(steps['Upload the packages and logs']['if'], 'always()')
 
     def test_the_desktop_builds_skip_it(self):
         import yaml

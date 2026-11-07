@@ -323,16 +323,45 @@
 						'product_dir': '<(PRODUCT_DIR)',	# Shared libraries are not placed in PRODUCT_DIR by default
 						'type': 'loadable_module',		# Shared library imples --whole-archive
 						
-						'sources':
-						[
-							'engine/standalone-android.link',
-						],
-						
 						'ldflags':
 						[
 							# Helpful for catching build problems
 							'-Wl,-no-undefined',
-							'-Wl,-T,$(abs_srcdir)/engine/standalone-android.link',
+						],
+
+						# OXT-Beyond: the linker script for the linker in use. lld
+						# (a current NDK's own toolchain, config.py) takes a copy
+						# with .got inside RELRO, as lld puts it there wherever
+						# it is written; the copy's top says why. A standalone
+						# toolchain's GNU ld takes standalone-android.link, as
+						# before.
+						'conditions':
+						[
+							[
+								'android_fuse_ld == "lld"',
+								{
+									'sources':
+									[
+										'engine/standalone-android-lld.link',
+									],
+
+									'ldflags':
+									[
+										'-Wl,-T,$(abs_srcdir)/engine/standalone-android-lld.link',
+									],
+								},
+								{
+									'sources':
+									[
+										'engine/standalone-android.link',
+									],
+
+									'ldflags':
+									[
+										'-Wl,-T,$(abs_srcdir)/engine/standalone-android.link',
+									],
+								},
+							],
 						],
 
 						'actions':

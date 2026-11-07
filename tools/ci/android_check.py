@@ -19,11 +19,12 @@
 compare them with what another builder made, and run them on a device.
 
   python3 tools/ci/android_check.py extract --package FILE --dest DIR [--platform P] [--env NAME]
-  python3 tools/ci/android_check.py overlay --root DIR [--classes FILE]
+  python3 tools/ci/android_check.py overlay --root DIR [--classes FILE | --engine DIR]
   python3 tools/ci/android_check.py ide (--install DIR | --package FILE | --bin DIR)
       --work DIR [--sdk DIR] [--jdk DIR] [--platform P] [--device SERIAL]
       [--stack FILE] [--builds NAMES] [--no-units] [--probe java] [--timeout SECONDS]
   python3 tools/ci/android_check.py verify --work DIR --sdk DIR [--jdk DIR] [--builds NAMES] [--target API]
+      [--engine DIR]
   python3 tools/ci/android_check.py compare --old DIR --new DIR --sdk DIR
   python3 tools/ci/android_check.py device --apk FILE --serial SERIAL --sdk DIR
       [--out FILE] [--abi ABI] [--timeout SECONDS] [--allow PERMISSION]
@@ -40,7 +41,12 @@ OXT-Beyond (a released one), over the files of the same names, so that the
 release's IDE runs the changed builder, and the comparison is of the
 builders alone, with the same engine and runtimes. --classes also puts a
 Java layer (tools/ci/android_java.py build) in place of the release's
-Runtime/Android/Classes.
+Runtime/Android/Classes. --engine puts a runtime folder that
+tools/ci/build-android.sh wrote (the engine built here with a current NDK)
+in place of the release's Android runtime: each architecture's engine and
+externals over the release's, which must all be there, so that no package
+mixes the two engines, and the Java layer built with them and the files
+beside it.
 
 ide starts the IDE as a user starts it (as tools/ci/web_check.py does, under
 xvfb-run on Linux without a DISPLAY) with tools/ci/android-check.livecodescript
@@ -74,6 +80,10 @@ packages, be signed by the package's signer (the JDK's jarsigner and
 keytool: --jdk, or those on the PATH), and with <work>/bundletool.jar
 (which must be the version the builder pins) say the package name and
 target API in its manifest; no other build may leave an App Bundle.
+With --engine DIR (the folder overlay --engine took), each package's
+engine must be the one built there for its architecture: the same code
+(the .text section, which the builder's deploy leaves as it is when it
+writes the stack into the .project section).
 
 compare checks that two sets of packages (the released builder's and the
 changed one's, of the same probe stack) hold the same files with the same
@@ -92,7 +102,9 @@ call into the Java layer failed. With --allow PERMISSION the probe must
 ask for that runtime permission: the wait goes on past its green until
 Android's dialog asking for it is in front (dumpsys activity), its Allow
 button is tapped (found in a uiautomator dump), and afterwards the package
-must hold the permission (dumpsys package). The screen is saved as
+must hold the permission (dumpsys package). Another app's "isn't
+responding" dialog over the probe, or over that dialog, is answered with
+its Wait button (at most ANR_TAPS times). The screen is saved as
 a PNG (--out), and the probe's own lines in the device's log are searched
 for its crash (the engine's caught attempt at an SSL library the package
 does not hold is expected, and only then: crash_lines). When it is not
@@ -170,6 +182,9 @@ BARS_INTERVAL = 1
 PROBES = {'app': 'AndroidProbe.livecode', 'java': 'AndroidJavaProbe.livecode'}
 # Where a release's Java layer is (overlay --classes)
 CLASSES = ('Runtime', 'Android', 'Classes')
+# The name the builder gives the engine (a runtime's <abi>/Standalone) in a
+# package (verify --engine)
+PACKAGE_ENGINE = 'librevandroid.so'
 # The API the builder targets with a runtime whose Java layer is not ready
 # for newer (as before), and the newest, which it targets when it is
 # (androidTargetAPI); at 36 the manifest keeps the stack's orientation on
@@ -947,14 +962,48 @@ def overlay(args):
             continue
         shutil.copyfile(os.path.join(REPO, *rel.split('/')), places[0])
         log('%s -> %s' % (rel, os.path.relpath(places[0], root)))
-    if args.classes:
+    if args.classes or args.engine:
         places = [x for x in found.get(CLASSES[-1], [])
                   if tuple(os.path.normpath(x).split(os.sep)[-len(CLASSES):]) == CLASSES]
         if len(places) != 1:
             problems.append('%s: %d files %s, not one' % (root, len(places), '/'.join(CLASSES)))
+        elif args.engine:
+            problems += overlay_engine(os.path.abspath(args.engine), os.path.dirname(places[0]), root)
         else:
             shutil.copyfile(args.classes, places[0])
             log('%s -> %s' % (args.classes, os.path.relpath(places[0], root)))
+    return problems
+
+
+def overlay_engine(engine, android, root):
+    """Puts the runtime folder ENGINE (tools/ci/build-android.sh's) in place
+    of the release's Runtime/Android (ANDROID): every architecture's engine
+    and externals, each over the release's file of that name, and the files
+    beside them (the Java layer among them). Every architecture of the
+    release must be in ENGINE, and every file there: a package would
+    otherwise mix the two engines, or the runtime built here would lack what
+    the release has."""
+    import android_engine as ae
+    problems, copies = [], []
+    for abi in sorted(ae.ABIS):
+        names = [os.path.join(abi, x) for x in (ae.ENGINE,) + ae.EXTERNALS]
+        if not os.path.isdir(os.path.join(android, abi)):
+            problems.append('%s has no %s folder' % (os.path.relpath(android, root), abi))
+            continue
+        copies += names
+    copies += list(ae.TOP_FILES)
+    for rel in copies:
+        src, dst = os.path.join(engine, rel), os.path.join(android, rel)
+        if not os.path.isfile(src):
+            problems.append('%s has no %s' % (engine, rel.replace(os.sep, '/')))
+        elif not os.path.isfile(dst):
+            problems.append('%s has no %s to put it in place of' % (os.path.relpath(android, root),
+                                                                   rel.replace(os.sep, '/')))
+    if problems:
+        return problems
+    for rel in copies:
+        shutil.copyfile(os.path.join(engine, rel), os.path.join(android, rel))
+        log('%s -> %s' % (os.path.join(engine, rel), os.path.relpath(os.path.join(android, rel), root)))
     return problems
 
 
@@ -1406,6 +1455,9 @@ def verify(args):
             problems.append('there is no %s' % apk)
             continue
         p, notes = verify_apk(name, apk, BUILDS[name], tools, r['warnings'], args.target)
+        if args.engine:
+            more, said = verify_engine(name, apk, os.path.abspath(args.engine))
+            p, notes = p + more, notes + said
         log('%s.apk (%.1f MB): %s' % (name, os.path.getsize(apk) / 1e6, '; '.join(notes)))
         for x in p:
             log('  PROBLEM: %s' % x)
@@ -1426,6 +1478,50 @@ def verify(args):
     if leftovers:
         problems.append('the builder left other files beside the packages: %s' % ', '.join(sorted(leftovers)))
     return problems
+
+
+def engine_code(data):
+    """An engine library's code: its .text section, which the builder's
+    deploy (MCDeployToELF) writes out as it was, since it changes only what
+    comes from the .project section on"""
+    import android_engine as ae
+    elf = ae.Elf(data)
+    for s in elf.sections:
+        if s['name'] == '.text' and s['type'] != ae.SHT_NOBITS:
+            if s['offset'] + s['size'] > len(data):
+                raise ae.ElfError('.text runs past the end of the file')
+            return data[s['offset']:s['offset'] + s['size']]
+    raise ae.ElfError('no .text section')
+
+
+def verify_engine(name, apk, engine):
+    """The problems of a package whose engine is not, for each of its
+    architectures, the one in the runtime folder ENGINE (overlay --engine),
+    and a line saying what was checked."""
+    import android_engine as ae
+    problems, abis = [], []
+    with zipfile.ZipFile(apk) as z:
+        for n in sorted(z.namelist()):
+            m = re.match(r'^lib/([^/]+)/%s$' % re.escape(PACKAGE_ENGINE), n)
+            if not m:
+                continue
+            abi = m.group(1)
+            built = os.path.join(engine, abi, ae.ENGINE)
+            try:
+                with open(built, 'rb') as f:
+                    want = engine_code(f.read())
+                have = engine_code(z.read(n))
+            except (OSError, ae.ElfError) as e:
+                problems.append('%s: %s against %s: %s' % (name, n, built, e))
+                continue
+            if have != want:
+                problems.append('%s: %s is not the engine built in %s (its code is not %s/%s\'s)'
+                                % (name, n, engine, abi, ae.ENGINE))
+            else:
+                abis.append(abi)
+    if not abis and not problems:
+        problems.append('%s has no engine (lib/<abi>/%s)' % (name, PACKAGE_ENGINE))
+    return problems, (['the engine built here (%s)' % ', '.join(abis)] if abis and not problems else [])
 
 
 # ---------------------------------------------------------------------------
@@ -1740,6 +1836,11 @@ def device(args):
                     allowed = True
                 else:
                     log('  no Allow button in the dialog yet')
+                    # another app's "isn't responding" dialog can stand
+                    # over it: System UI's on Android 13 in run
+                    # 42376416337, for 90 s, and the probe failed
+                    if anr_taps < ANR_TAPS and answer_other_anr(a):
+                        anr_taps += 1
                 continue
         try:
             proc = subprocess.run([adb, '-s', args.serial, 'exec-out', 'screencap'], stdout=subprocess.PIPE,
@@ -2255,7 +2356,10 @@ def main(argv=None):
     e.add_argument('--env')
     o = sub.add_parser('overlay')
     o.add_argument('--root', required=True)
-    o.add_argument('--classes', help='a Java layer to put in place of the release\'s Runtime/Android/Classes')
+    what = o.add_mutually_exclusive_group()
+    what.add_argument('--classes', help='a Java layer to put in place of the release\'s Runtime/Android/Classes')
+    what.add_argument('--engine', help='a runtime folder that tools/ci/build-android.sh wrote, to put in place '
+                                       'of the release\'s Runtime/Android')
     i = sub.add_parser('ide')
     i.add_argument('--bin', dest='bin_dir')
     i.add_argument('--install')
@@ -2279,6 +2383,8 @@ def main(argv=None):
     v.add_argument('--target', default=TARGET_SDK,
                    help='the API the packages must target (%s with a runtime whose Java layer is not ready for '
                         'newer, %s when it is)' % (TARGET_SDK, NEWEST_TARGET_SDK))
+    v.add_argument('--engine', help='the runtime folder that overlay --engine took: each package\'s engine must be '
+                                    'the one built there')
     c = sub.add_parser('compare')
     c.add_argument('--old', required=True)
     c.add_argument('--new', required=True)

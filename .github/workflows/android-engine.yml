@@ -27,11 +27,17 @@
 #   - tools/ci/android_java.py jni: the engine's Java_* functions against
 #     the Java layer built with it, and its calls into Java.
 #
+# Then the engine runs (the device job): the IDE's builder of this checkout,
+# in the latest release's IDE with this runtime in place of its own,
+# builds both probes, and they run on an Android 13 emulator and on the
+# first image with 16 KB pages, with the checks android.yml makes of them
+# with the released engine.
+#
 # The folders are artifacts only: the packages keep shipping the Android
 # runtime of the runtimes asset (LiveCode 9.6.3's engine), and nothing here
 # goes into a package or a release.
 #
-# Each job runs in an Ubuntu 22.04 container, as web.yml's does (the
+# Each build job runs in an Ubuntu 22.04 container, as web.yml's does (the
 # newest Ubuntu with the Python 2.7 that gyp and config.py need), with the
 # runner's Android SDK mounted into it; the NDK, the platform the Java layer
 # compiles against and the build tools are installed into that SDK with
@@ -269,4 +275,199 @@ jobs:
           path: |
             prebuilt/build/**/config.log
           if-no-files-found: ignore
+          retention-days: 14
+
+  # The engine built here, run. The IDE's builder of this checkout, in the
+  # latest release's IDE with the four architectures' runtime in place of
+  # the release's (overlay --engine: the engine, the externals, the Java
+  # layer built with them and the files beside them), builds the app probe
+  # and the Java layer's probe as the IDE's Test does (debug, for every
+  # architecture); verify --engine checks that each package's engine is
+  # the one built here. They run on x86_64 emulators (the runner's
+  # architecture, with KVM): Android 13, and the first image with 16 KB
+  # pages, with the checks android.yml makes of them with the released
+  # engine (see there for what each says)
+  device:
+    name: Android engine on the emulator
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      PLATFORM: linux-x86_64
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # The four build jobs' folders, merged into one runtime folder
+      - name: Download the runtime
+        uses: actions/download-artifact@v8
+        with:
+          pattern: android-engine-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/android/engine
+
+      # The IDE whose builder runs, as android.yml takes it: the latest
+      # release's, which only runs here (nothing is uploaded to it)
+      - name: Download the IDE
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          tag=$(gh release list --repo "$REPO" --limit 30 --json tagName --jq '.[].tagName' | grep -E '^v[0-9]' | head -n 1)
+          [ -n "$tag" ] || { echo "::error::no release tagged v<version> to take the IDE from"; exit 1; }
+          echo "The IDE of $tag"
+          echo "### The Android engine built here, in the IDE of $tag" >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p "$RUNNER_TEMP/dist"
+          gh release download "$tag" --repo "$REPO" --pattern "*-$PLATFORM.tar.xz" --dir "$RUNNER_TEMP/dist"
+          echo "PACKAGE=$(ls "$RUNNER_TEMP"/dist/*-"$PLATFORM".tar.xz)" >> "$GITHUB_ENV"
+          echo "WORK=$RUNNER_TEMP/android" >> "$GITHUB_ENV"
+          ls "$RUNNER_TEMP/android/engine"
+
+      # The IDE's runtime libraries and Xvfb, as android.yml installs them
+      - name: Install Xvfb and the runtime libraries
+        run: |
+          sudo apt-get update
+          pkgs=(xvfb xauth fonts-dejavu-core)
+          while read -r soname use deb rpm rest; do
+            case $soname in ''|'#'*) continue ;; esac
+            if apt-cache show --no-all-versions "${deb}t64" > /dev/null 2>&1; then
+              deb="${deb}t64"
+            fi
+            case " ${pkgs[*]} " in *" $deb "*) ;; *) pkgs+=("$deb") ;; esac
+          done < Installer/linux/libraries.txt
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}"
+
+      # As android.yml's: the JDK, the platform the builder targets with
+      # this Java layer (API 36), build-tools, platform-tools, the
+      # emulator, an Android 13 image and the first image with 16 KB pages
+      # at API 36 or newer
+      - name: Set up the JDK and the Android SDK
+        run: |
+          for v in JAVA_HOME_17_X64 JAVA_HOME_21_X64; do
+            if [ -n "${!v}" ] && [ -d "${!v}/bin" ]; then
+              jdk="${!v}"
+              break
+            fi
+          done
+          [ -n "$jdk" ] || { echo "::error::no JDK 17 or 21 on the runner"; exit 1; }
+          sdk="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          [ -d "$sdk" ] || { echo "::error::no Android SDK on the runner (ANDROID_HOME)"; exit 1; }
+          echo "JDK=$jdk" >> "$GITHUB_ENV"
+          echo "SDK=$sdk" >> "$GITHUB_ENV"
+          sm="$sdk/cmdline-tools/latest/bin/sdkmanager"
+          (yes || true) | "$sm" --licenses > /dev/null
+          img16=$("$sm" --list 2>/dev/null | grep -oE 'system-images;android-[0-9.]+;google_apis_ps16k;x86_64' |
+            awk -F';' '{ v = $2; sub(/^android-/, "", v); if (v + 0 >= 36) print }' |
+            sort -u -t';' -k2,2V | head -n 1)
+          [ -n "$img16" ] || { echo "::error::sdkmanager lists no x86_64 image with 16 KB pages at API 36 or newer"; exit 1; }
+          echo "IMAGE_16K=$img16" >> "$GITHUB_ENV"
+          "$sm" --install "platforms;android-36" "build-tools;35.0.0" "platform-tools" "emulator" \
+            "system-images;android-33;google_apis;x86_64" "$img16" > "$RUNNER_TEMP/sdkmanager.log" 2>&1 ||
+            { tail -40 "$RUNNER_TEMP/sdkmanager.log"; exit 1; }
+          echo "JDK: $jdk"; "$jdk/bin/java" -version 2>&1 | head -n 1
+          echo "SDK: $sdk"; ls "$sdk/platforms" "$sdk/build-tools"
+
+      - name: Unpack the IDE, and put this builder and the runtime into it
+        run: |
+          python3 tools/ci/android_check.py extract --package "$PACKAGE" --dest "$WORK/ide" \
+            --platform "$PLATFORM" --env IDE
+          python3 tools/ci/android_check.py overlay --root "$WORK/ide" --engine "$WORK/engine"
+
+      # Started now, as android.yml's: it boots while the IDE builds
+      - name: Start an Android 13 emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
+            sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/avd"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo no | "$SDK/cmdline-tools/latest/bin/avdmanager" create avd -n api33 \
+            -k "system-images;android-33;google_apis;x86_64" -d pixel_5 --force
+          "$SDK/platform-tools/adb" start-server
+          nohup "$SDK/emulator/emulator" -avd api33 -no-window -no-audio -no-boot-anim -no-snapshot \
+            -gpu swiftshader_indirect -camera-back none -camera-front none \
+            > "$WORK/emulator-api33.log" 2>&1 &
+          sleep 20
+          if ! pgrep -f 'qemu-system|emulator.*-avd api33' > /dev/null; then
+            echo "::warning::the Android 13 emulator stopped within 20 s of starting; the end of its log:"
+            tail -n 40 "$WORK/emulator-api33.log"
+          fi
+
+      # The Java layer built with the engine is ready for API 36, so the
+      # builder targets it
+      - name: Build the probes with this engine
+        run: |
+          python3 tools/ci/android_check.py ide --install "$IDE" --platform "$PLATFORM" \
+            --work "$WORK/app" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug
+          python3 tools/ci/android_check.py ide --install "$IDE" --platform "$PLATFORM" \
+            --work "$WORK/java" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug --probe java
+          for probe in app java; do
+            python3 tools/ci/android_check.py verify --work "$WORK/$probe" --sdk "$SDK" --jdk "$JDK" \
+              --builds debug --target 36 --engine "$WORK/engine"
+          done
+
+      - name: Wait for the emulator
+        timeout-minutes: 20
+        run: |
+          python3 tools/ci/android_check.py boot --serial emulator-5554 --sdk "$SDK" \
+            --log "$WORK/emulator-api33.log" --minutes 10 --awake --settle
+
+      # As android.yml's runs of the release's IDE: the app probe; the
+      # Java layer's probe, its notification permission allowed, its
+      # picture among the shared pictures as its own, its back key; neither
+      # drawn under the bars
+      - name: Run the probes on Android 13
+        run: |
+          python3 tools/ci/android_check.py device --apk "$WORK/app/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-api33-app.png" --log-out "$WORK/logcat-api33-app.txt" \
+            --within-bars
+          python3 tools/ci/android_check.py device --apk "$WORK/java/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-api33-java.png" --log-out "$WORK/logcat-api33-java.txt" \
+            --allow android.permission.POST_NOTIFICATIONS --picture oxt-beyond-probe.png --back --within-bars
+
+      # As android.yml's 16 KB step (3 GB of memory, --awake and --settle:
+      # see there why)
+      - name: Run the probes with 16 KB pages
+        timeout-minutes: 25
+        run: |
+          adb="$SDK/platform-tools/adb"
+          "$adb" -s emulator-5554 emu kill || true
+          for i in $(seq 1 60); do "$adb" devices | grep -q emulator-5554 || break; sleep 2; done
+          echo "Image: $IMAGE_16K"
+          echo no | "$SDK/cmdline-tools/latest/bin/avdmanager" create avd -n pages16k -k "$IMAGE_16K" \
+            -d pixel_5 --force
+          sed -i '/^hw.ramSize=/d' "$ANDROID_AVD_HOME/pages16k.avd/config.ini"
+          echo 'hw.ramSize=3072M' >> "$ANDROID_AVD_HOME/pages16k.avd/config.ini"
+          nohup "$SDK/emulator/emulator" -avd pages16k -no-window -no-audio -no-boot-anim -no-snapshot \
+            -gpu swiftshader_indirect -camera-back none -camera-front none \
+            > "$WORK/emulator-16k.log" 2>&1 &
+          python3 tools/ci/android_check.py boot --serial emulator-5554 --sdk "$SDK" \
+            --log "$WORK/emulator-16k.log" --minutes 12 --awake --settle
+          page=$("$adb" shell getconf PAGE_SIZE | tr -d '\r')
+          echo "Page size: $page"
+          [ "$page" = 16384 ] || { echo "::error::$IMAGE_16K has pages of $page bytes, not 16384"; exit 1; }
+          python3 tools/ci/android_check.py device --apk "$WORK/app/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-16k-app.png" --log-out "$WORK/logcat-16k-app.txt" \
+            --within-bars
+          python3 tools/ci/android_check.py device --apk "$WORK/java/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-16k-java.png" --log-out "$WORK/logcat-16k-java.txt" \
+            --allow android.permission.POST_NOTIFICATIONS --picture oxt-beyond-probe.png --back --within-bars
+
+      - name: Upload the packages and logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-device-run
+          path: |
+            ${{ env.WORK }}/*/android-check.txt
+            ${{ env.WORK }}/*/ide-output.txt
+            ${{ env.WORK }}/*/out/*.apk
+            ${{ env.WORK }}/*.png
+            ${{ env.WORK }}/*.log
+            ${{ env.WORK }}/logcat-*.txt
+          if-no-files-found: warn
           retention-days: 14

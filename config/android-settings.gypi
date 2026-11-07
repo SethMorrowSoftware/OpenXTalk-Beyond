@@ -43,6 +43,25 @@
 	'target_conditions':
 	[
 		[
+			# OXT-Beyond: a current NDK's Clang (lld's route, config.py)
+			# takes `this` as never null (Clang 13 and later mark it
+			# nonnull) and deletes code's checks of it. The bundled
+			# HarfBuzz (0.9) checks it in hb_object_header_t, which every
+			# hb_*_destroy and hb_*_reference of a null object goes
+			# through, and the engine built here died on its first text:
+			# SIGSEGV at 0 in hb_unicode_funcs_destroy, from
+			# hb_buffer_create (android-engine.yml's emulator run). This
+			# keeps such checks, as NDK r16's Clang 5, which built the
+			# 9.6.3 engine, did. A standalone toolchain builds as before.
+			'android_fuse_ld == "lld"',
+			{
+				'cflags':
+				[
+					'-fno-delete-null-pointer-checks',
+				],
+			},
+		],
+		[
 			'_type == "loadable_module"',
 			{
 				# OXT-Beyond: -lstdc++ only with a standalone toolchain, as

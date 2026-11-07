@@ -27,6 +27,7 @@ import contextlib
 import io
 import os
 import re
+import shutil
 import struct
 import sys
 import tempfile
@@ -1492,6 +1493,73 @@ class DeviceAnotherAppsAnr(unittest.TestCase):
         self.assertEqual(calls, [])
 
 
+@unittest.skipIf(os.name == 'nt', 'the stand-in adb is a shell script')
+class DevicePermissionUnderAnr(unittest.TestCase):
+    """device --allow with another app's "isn't responding" dialog over
+    Android's permission dialog (run 42376416337: System UI's, on Android
+    13, the whole wait, so the Allow button was never in the dump): it taps
+    the other dialog's Wait, then Allow, and passes; a dialog that stays is
+    answered at most ANR_TAPS times, and the probe's own never"""
+
+    setUp = Device.setUp
+    tearDown = Device.tearDown
+    device = Device.device
+    calls = Device.calls
+    LOG = Device.LOG
+    EVENTS = Device.EVENTS
+    PERMISSION = DevicePermission.PERMISSION
+
+    def run_probe(self, wait_closes=True, package='com.android.systemui'):
+        d = self.tmp.name
+        with open(os.path.join(d, 'logcat.txt'), 'w') as f:
+            f.write(Device.LOG.split('I/lowmemorykiller')[0])
+        for name, text in (('activities.txt', DevicePermission.ACTIVITIES),
+                           ('probe.txt', DevicePermission.PROBE_IN_FRONT),
+                           ('anr.xml', PermissionReaders.ANR_UI), ('ui.xml', DevicePermission.UI),
+                           ('package.txt', DevicePermission.PACKAGE % 'false'),
+                           ('package-after.txt', DevicePermission.PACKAGE % 'true')):
+            with open(os.path.join(d, name), 'w') as f:
+                f.write(text)
+        # the other dialog has the focus, and is all a dump shows, until its
+        # Wait is tapped (when it closes)
+        window = ('[ -f "%s/answered" ] || printf "  mCurrentFocus=Window{e076711 u0 Application Not Responding: '
+                  '%s}\\n"' % (d, package))
+        answer = 'touch "%s/answered"' % d if wait_closes else 'true'
+        cases = ('  "shell dumpsys activity activities")\n'
+                 '    if [ -f "%(d)s/allowed" ]; then cat "%(d)s/probe.txt"; else cat "%(d)s/activities.txt"; fi ;;\n'
+                 '  "shell uiautomator dump /sdcard/oxt-ui.xml") true ;;\n'
+                 '  "shell cat /sdcard/oxt-ui.xml")\n'
+                 '    if [ -f "%(d)s/answered" ]; then cat "%(d)s/ui.xml"; else cat "%(d)s/anr.xml"; fi ;;\n'
+                 '  "shell input tap 540 1280") %(answer)s ;;\n'
+                 '  "shell input tap 540 1490") touch "%(d)s/allowed" ;;\n'
+                 '  "shell dumpsys package org.openxtalk.check.androidprobe")\n'
+                 '    if [ -f "%(d)s/allowed" ]; then cat "%(d)s/package-after.txt"; '
+                 'else cat "%(d)s/package.txt"; fi ;;\n' % {'d': d, 'answer': answer})
+        status, out = self.device('echo 3475', timeout='20', cases=cases, window=window,
+                                  argv=('--allow', self.PERMISSION))
+        return status, out, [c for c in self.calls() if c.startswith('shell input')]
+
+    def test_wait_then_allow(self):
+        status, out, taps = self.run_probe()
+        self.assertEqual(status, 0, out)
+        self.assertEqual(taps, ['shell input tap 540 1280', 'shell input tap 540 1490'])
+        self.assertIn("  com.android.systemui isn't responding, its dialog in front of the probe: tapped Wait at "
+                      "540,1280", out)
+        self.assertIn('tapped Allow at 540,1490', out)
+        self.assertIn('Android device: passed', out)
+
+    def test_a_dialog_that_stays_is_answered_three_times(self):
+        status, out, taps = self.run_probe(wait_closes=False)
+        self.assertEqual(status, 1, out)
+        self.assertEqual(taps, ['shell input tap 540 1280'] * ac.ANR_TAPS)
+        self.assertIn('dialog had no Allow button to tap', out)
+
+    def test_the_probes_own_is_not_answered(self):
+        status, out, taps = self.run_probe(package=ac.IDENTIFIER)
+        self.assertEqual(status, 1, out)
+        self.assertEqual(taps, [])
+
+
 @unittest.skipIf(os.name == 'nt', 'the stand-in adb and JDK are scripts')
 class DeviceBundle(unittest.TestCase):
     """device with an App Bundle, a stand-in adb and a stand-in JDK whose
@@ -1676,7 +1744,7 @@ class Overlay(unittest.TestCase):
         import argparse
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
-            problems = ac.overlay(argparse.Namespace(root=self.root, classes=classes))
+            problems = ac.overlay(argparse.Namespace(root=self.root, classes=classes, engine=None))
         return problems, out.getvalue()
 
     def jar(self):
@@ -1723,6 +1791,212 @@ class Overlay(unittest.TestCase):
         problems, _ = self.overlay(self.new)
         self.assertEqual(len(problems), 1, problems)
         self.assertIn('0 files Runtime/Android/Classes, not one', problems[0])
+
+
+def text_elf(code, project=b'#!project'):
+    """A 64-bit ELF file with sections only: .text (CODE) and .project
+    (PROJECT) after it, as an engine library's code and the stack the
+    builder's deploy writes into it"""
+    names = b'\0.text\0.project\0.shstrtab\0'
+    text_at = 64
+    project_at = text_at + len(code)
+    names_at = project_at + len(project)
+    shoff = (names_at + len(names) + 7) & ~7
+    out = bytearray(shoff + 4 * 64)
+    out[0:16] = b'\x7fELF' + bytes([2, 1, 1]) + b'\0' * 9
+    struct.pack_into('<HHIQQQIHHHHHH', out, 16, 3, 62, 1, 0, 0, shoff, 0, 64, 56, 0, 64, 4, 3)
+    out[text_at:project_at] = code
+    out[project_at:names_at] = project
+    out[names_at:names_at + len(names)] = names
+    for i, (name, sh_type, at, size) in enumerate(((0, 0, 0, 0), (1, 1, text_at, len(code)),
+                                                   (7, 1, project_at, len(project)),
+                                                   (16, 3, names_at, len(names)))):
+        struct.pack_into('<IIQQQQIIQQ', out, shoff + i * 64, name, sh_type, 0, at, at, size, 0, 0, 1, 0)
+    return bytes(out)
+
+
+class OverlayEngine(unittest.TestCase):
+    """overlay --engine puts a runtime folder that build-android.sh wrote in
+    place of the release's Runtime/Android: every architecture's engine and
+    externals, and the files beside them, or nothing when one is missing"""
+
+    def setUp(self):
+        import android_engine as ae
+        self.ae = ae
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = os.path.join(self.tmp.name, 'release')
+        for rel in ac.OVERLAY:
+            path = os.path.join(self.root, 'Tools', 'x', os.path.basename(rel))
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'w') as f:
+                f.write('old')
+        self.android = os.path.join(self.root, 'Runtime', 'Android')
+        self.engine = os.path.join(self.tmp.name, 'android-runtime')
+        for folder, what in ((self.android, b'old'), (self.engine, b'new')):
+            for rel in self.names():
+                path = os.path.join(folder, rel)
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with open(path, 'wb') as f:
+                    f.write(what + b' ' + rel.encode())
+        # build-android.sh's unstripped copies, which stay out
+        os.makedirs(os.path.join(self.engine, 'debug', 'x86_64'))
+        with open(os.path.join(self.engine, 'debug', 'x86_64', 'Standalone'), 'wb') as f:
+            f.write(b'unstripped')
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def names(self):
+        out = list(self.ae.TOP_FILES)
+        for abi in sorted(self.ae.ABIS):
+            out += [abi + '/' + x for x in (self.ae.ENGINE,) + self.ae.EXTERNALS]
+        return out
+
+    def overlay(self):
+        import argparse
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            problems = ac.overlay(argparse.Namespace(root=self.root, classes=None, engine=self.engine))
+        return problems, out.getvalue()
+
+    def release(self):
+        out = {}
+        for folder, _, names in os.walk(self.android):
+            for n in names:
+                with open(os.path.join(folder, n), 'rb') as f:
+                    out[os.path.relpath(os.path.join(folder, n), self.android).replace(os.sep, '/')] = f.read()
+        return out
+
+    def test_every_file(self):
+        problems, out = self.overlay()
+        self.assertEqual(problems, [])
+        files = self.release()
+        self.assertEqual(sorted(files), sorted(self.names()))
+        for rel, data in files.items():
+            self.assertEqual(data, b'new ' + rel.encode(), rel)
+        self.assertEqual(len(self.names()), 4 * 8 + 6)
+        self.assertIn('-> %s' % os.path.join('Runtime', 'Android', 'x86_64', 'Standalone'), out)
+        self.assertIn('-> %s' % os.path.join('Runtime', 'Android', 'Classes'), out)
+        # and the builder too
+        with open(os.path.join(self.root, 'Tools', 'x', os.path.basename(ac.OVERLAY[0])), encoding='utf-8') as f:
+            self.assertEqual(f.read(), read(*ac.OVERLAY[0].split('/')))
+
+    def test_a_missing_architecture_changes_nothing(self):
+        shutil.rmtree(os.path.join(self.engine, 'armeabi-v7a'))
+        problems, _ = self.overlay()
+        self.assertEqual(len(problems), 8, problems)
+        self.assertIn('%s has no armeabi-v7a/Standalone' % self.engine, problems)
+        for rel, data in self.release().items():
+            self.assertEqual(data, b'old ' + rel.encode(), rel)
+
+    def test_a_missing_external_or_java_layer(self):
+        os.remove(os.path.join(self.engine, 'x86', 'RevZip'))
+        os.remove(os.path.join(self.engine, 'Classes'))
+        problems, _ = self.overlay()
+        self.assertEqual(problems, ['%s has no x86/RevZip' % self.engine, '%s has no Classes' % self.engine])
+        self.assertEqual(self.release()['x86_64/Standalone'], b'old x86_64/Standalone')
+
+    def test_the_release_without_an_architecture_or_file(self):
+        shutil.rmtree(os.path.join(self.android, 'x86'))
+        os.remove(os.path.join(self.android, 'arm64-v8a', 'RevPdfPrinter'))
+        problems, _ = self.overlay()
+        self.assertEqual(problems, [
+            '%s has no x86 folder' % os.path.join('Runtime', 'Android'),
+            '%s has no arm64-v8a/RevPdfPrinter to put it in place of' % os.path.join('Runtime', 'Android')])
+        self.assertEqual(self.release()['arm64-v8a/Standalone'], b'old arm64-v8a/Standalone')
+
+    def test_not_with_classes(self):
+        with contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                ac.main(['overlay', '--root', self.root, '--engine', self.engine, '--classes', 'x'])
+
+    def test_by_its_command_line(self):
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(ac.main(['overlay', '--root', self.root, '--engine', self.engine]), 0)
+        self.assertEqual(self.release()['x86/Standalone'], b'new x86/Standalone')
+
+
+class VerifyEngine(unittest.TestCase):
+    """verify --engine: each package's engine is the one built in the
+    runtime folder (the same .text), whatever stack the builder wrote"""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.engine = os.path.join(self.tmp.name, 'android-runtime')
+        for abi in ('arm64-v8a', 'x86_64'):
+            os.makedirs(os.path.join(self.engine, abi))
+            with open(os.path.join(self.engine, abi, 'Standalone'), 'wb') as f:
+                f.write(text_elf(b'code of ' + abi.encode(), b'#!project'))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def apk(self, libs):
+        path = os.path.join(self.tmp.name, 'debug.apk')
+        with zipfile.ZipFile(path, 'w') as z:
+            z.writestr('classes.dex', b'dex')
+            for name, data in libs:
+                z.writestr(name, data)
+        return path
+
+    def test_the_engine_built_here(self):
+        # the builder wrote a stack into it: .project differs, .text not
+        apk = self.apk([('lib/%s/librevandroid.so' % abi, text_elf(b'code of ' + abi.encode(), b'#!stack' * 40))
+                        for abi in ('arm64-v8a', 'x86_64')] + [('lib/x86_64/librevzip.so', b'external')])
+        self.assertEqual(ac.verify_engine('debug', apk, self.engine),
+                         ([], ['the engine built here (arm64-v8a, x86_64)']))
+
+    def test_another_engine(self):
+        apk = self.apk([('lib/arm64-v8a/librevandroid.so', text_elf(b'code of arm64-v8a')),
+                        ('lib/x86_64/librevandroid.so', text_elf(b'LiveCode 9.6.3'))])
+        problems, notes = ac.verify_engine('debug', apk, self.engine)
+        self.assertEqual(problems, ['debug: lib/x86_64/librevandroid.so is not the engine built in %s (its code '
+                                    'is not x86_64/Standalone\'s)' % self.engine])
+        self.assertEqual(notes, [])
+
+    def test_an_architecture_not_built(self):
+        apk = self.apk([('lib/x86/librevandroid.so', text_elf(b'code'))])
+        problems, _ = ac.verify_engine('debug', apk, self.engine)
+        self.assertEqual(len(problems), 1, problems)
+        self.assertTrue(problems[0].startswith('debug: lib/x86/librevandroid.so against %s: '
+                                               % os.path.join(self.engine, 'x86', 'Standalone')), problems)
+
+    def test_not_an_engine(self):
+        apk = self.apk([('lib/x86_64/librevandroid.so', b'not ELF')])
+        self.assertEqual(ac.verify_engine('debug', apk, self.engine)[0], [
+            'debug: lib/x86_64/librevandroid.so against %s: not an ELF file'
+            % os.path.join(self.engine, 'x86_64', 'Standalone')])
+
+    def test_no_engine(self):
+        apk = self.apk([('lib/x86_64/librevzip.so', b'external')])
+        self.assertEqual(ac.verify_engine('debug', apk, self.engine),
+                         (['debug has no engine (lib/<abi>/librevandroid.so)'], []))
+
+    def test_engine_code(self):
+        self.assertEqual(ac.engine_code(text_elf(b'abc', b'x' * 100)), b'abc')
+        import android_engine as ae
+        with self.assertRaises(ae.ElfError):
+            ac.engine_code(text_elf(b'abc').replace(b'.text\0', b'.txet\0'))
+
+    def test_verify_asks_it_with_engine(self):
+        work = os.path.join(self.tmp.name, 'work')
+        os.makedirs(os.path.join(work, 'out'))
+        with open(os.path.join(work, ac.LOG_NAME), 'w') as f:
+            f.write('')
+        apk = self.apk([('lib/x86_64/librevandroid.so', text_elf(b'something else'))])
+        shutil.copyfile(apk, os.path.join(work, 'out', 'debug.apk'))
+        saved = ac.find_tools, ac.verify_apk
+        ac.find_tools = lambda sdk: {}
+        ac.verify_apk = lambda name, apk, spec, tools, warnings, target=None: ([], ['checked'])
+        try:
+            for extra, status in (((), 0), (('--engine', self.engine), 1)):
+                out = io.StringIO()
+                with contextlib.redirect_stdout(out):
+                    self.assertEqual(ac.main(['verify', '--work', work, '--sdk', self.tmp.name, '--builds', 'debug']
+                                             + list(extra)), status)
+            self.assertIn('is not the engine built in', out.getvalue())
+        finally:
+            ac.find_tools, ac.verify_apk = saved
 
 
 class Screen(unittest.TestCase):
