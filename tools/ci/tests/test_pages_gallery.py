@@ -19,7 +19,7 @@ with a card for each of the Stack Player's samples that has a picture,
 each opening a page of its own that runs the sample in the player through
 ?play=<title>; the big
 ones (Pixel Platformer Maker, SVG Lab) keep their own cards; a sample with
-a big one's page of its own (OWN_PAGES: Nova Rescue) has that page and its
+a big one's page of its own (OWN_PAGES: Nova Rescue, Wobble Forts) has that page and its
 card, and no small one, when the player has the sample and the site the
 bare player, and otherwise no page of its own; and a page or a player from
 before the gallery is built as it was.
@@ -154,6 +154,27 @@ class TheGallery(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.work, 'games', 'nova-rescue', 'poster.webp')))
         # the markers' lines go, and nothing of them is left
         self.assertNotRegex(text, r'\n[ \t]*\n[ \t]*<a class="stack" href="nova-rescue/">')
+
+    def test_two_samples_with_pages_of_their_own(self):
+        # Nova Rescue and Wobble Forts in the player: both pages, both
+        # cards with the big ones, in the gallery's order
+        self.samples([{'title': 'Nova Rescue', 'image': 'Nova Rescue.webp', 'tags': ['Game']},
+                      {'title': 'Wobble Forts', 'image': 'Wobble Forts.webp', 'tags': ['Game']},
+                      {'title': 'Beat Box', 'image': 'Beat Box.webp'}])
+        text = self.built(bare=True)
+        self.assertEqual(self.big_ones(text), ['nova-rescue', 'wobble-forts', 'pixel-maker', 'svg-lab', 'waterwheel'])
+        self.assertEqual(self.cards(text), [(' spot', 'beat-box')])
+        self.assertEqual(text.count('href="wobble-forts/"'), 1)
+        self.assertNotIn('@OWN_PAGE:', text)
+        page = read(os.path.join(self.work, 'games', 'wobble-forts', 'index.html'))
+        self.assertIn("var PLAY = '../../play/?play=Wobble%20Forts", page)
+        self.assertTrue(os.path.isfile(os.path.join(self.work, 'games', 'wobble-forts', 'poster.webp')))
+        # and with only one of them in the player, only its own
+        shutil.rmtree(os.path.join(self.work, 'games'))
+        self.samples([{'title': 'Wobble Forts', 'image': 'Wobble Forts.webp'}])
+        text = self.built(bare=True)
+        self.assertEqual(self.big_ones(text), ['wobble-forts', 'pixel-maker', 'svg-lab', 'waterwheel'])
+        self.assertFalse(os.path.exists(os.path.join(self.work, 'games', 'nova-rescue')))
 
     def test_a_page_of_its_own_needs_the_bare_player(self):
         # a site without play/: the sample is a small one like the rest

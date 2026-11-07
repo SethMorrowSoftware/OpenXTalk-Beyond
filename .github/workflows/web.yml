@@ -495,6 +495,27 @@ jobs:
             --engine-cache "$RUNNER_TEMP/engine" --work "$RUNNER_TEMP/web-check/nova-rescue" \
             --shots "$RUNNER_TEMP/web-check/nova-rescue/shots" --browser "$BROWSER"
 
+      # Wobble Forts (tools/web-player/stacks), the physics game made for
+      # phones, played on emulated phones: How to play, the map, a pull and
+      # a shot, the frame rate, Pause, a fort cleared and its stars, the
+      # next level, a turn and no script error
+      # (tools/ci/wobble_forts_check.py, which says what it checks). Its
+      # standalone has Box2Dxt's module, built from the pinned xTalk Suite
+      # with the engine's lc-compile. Chromium and WebKit, as above; its
+      # files go in wobble-forts.
+      - name: Play Wobble Forts on phones in ${{ matrix.browser }}
+        if: matrix.browser != 'firefox'
+        timeout-minutes: ${{ matrix.browser == 'webkit' && 20 || 10 }}
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TRIES: ${{ matrix.browser == 'webkit' && 2 || 1 }}
+        run: |
+          python3 tools/ci/retry_check.py --tries "$TRIES" --files "$RUNNER_TEMP/web-check/wobble-forts" \
+            --what "The Wobble Forts check in $BROWSER" -- \
+            "$RUNNER_TEMP/playwright/bin/python" tools/ci/wobble_forts_check.py --runtime "$RUNNER_TEMP/web-runtime" \
+            --engine-cache "$RUNNER_TEMP/engine" --work "$RUNNER_TEMP/web-check/wobble-forts" \
+            --shots "$RUNNER_TEMP/web-check/wobble-forts/shots" --browser "$BROWSER"
+
       - name: Upload the check's files
         if: always()
         uses: actions/upload-artifact@v7

@@ -13,7 +13,7 @@ Pages site, so that anyone can open them with nothing to download:
 | `.../player/` | the Stack Player |
 | `.../extensions/` | the xTalk Suite's extensions, built into OXT-Beyond, each with its `.lce` packages to download ([extensions/index.html](extensions/index.html)) |
 | `.../play/` | the bare player: a stack and nothing around it (`?stack=`, `?play=`; see [tools/web-player](../web-player/README.md)), on the Stack Player's engine |
-| `.../games/` | the web stacks gallery: the big ones on pages of their own (Pixel Platformer Maker and the others run their `standalone.zip` on the Stack Player's engine; Nova Rescue plays the player's own sample in the bare player), and a card and a page for each of the Stack Player's samples |
+| `.../games/` | the web stacks gallery: the big ones on pages of their own (Pixel Platformer Maker and the others run their `standalone.zip` on the Stack Player's engine; Nova Rescue and Wobble Forts play the player's own samples in the bare player), and a card and a page for each of the Stack Player's samples |
 | `.../map/` | the [codebase map](../codebase-map/README.md), for contributors, with the binary stacks' scripts as files beside it (`stack-scripts/`, `stack-scripts.zip`) |
 
 The front page is one self-contained file: its look (a night sky over an
@@ -68,6 +68,25 @@ Chromium, on two computer windows and two phones, from a built player
 
 ```sh
 python3 tools/pages/check_nova_rescue_page.py --player <StackPlayer folder or web-player zip> --shots <folder>
+```
+
+Wobble Forts has a page of its own the same way
+([games/wobble-forts/](games/wobble-forts/index.html),
+`play/?play=Wobble%20Forts`). The game is played on its side, so on a
+computer its frame is a phone turned on its side, at the stack's own
+size (960 by 540), and it comes first on the page, under the site's bar,
+made smaller to fit the window; its keys play it at once (Space goes from
+the title through How to play and the map into the first fort). On a
+phone the picture of its title is dimmed under one Tap to play button.
+Its font, Kenney Future Narrow, draws K and X much as it draws H, so it
+writes no word with either.
+[test_pages_wobble_forts.py](../ci/tests/test_pages_wobble_forts.py) and
+[test_pages_gallery.py](../ci/tests/test_pages_gallery.py) hold it, and
+[check_wobble_forts_page.py](check_wobble_forts_page.py) plays it as
+the other's check does, a shot fired with the mouse included:
+
+```sh
+python3 tools/pages/check_wobble_forts_page.py --player <StackPlayer folder or web-player zip> --shots <folder>
 ```
 
 The extensions page has a card for each xTalk Suite extension (sodiumxt,

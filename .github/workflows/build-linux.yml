@@ -1547,6 +1547,31 @@ jobs:
           "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_tests.py --runtime "$RUNNER_TEMP/web-runtime" \
             --bin "$bin_dir/linux-$ARCH-bin" --work "$RUNNER_TEMP/web-tests" --log "$RUNNER_TEMP/logs/web-tests.log"
 
+      # Wobble Forts' tests of play (tests/lcs/webplayer/wobble-forts.livecodescript),
+      # which the engine tests above skip: the game is on Box2D, and a
+      # desktop engine has it only as an extension. Here the build's
+      # standalone engine runs them with the package's Box2Dxt
+      # (OXT_BOX2DXT: the test finds Extensions/org.openxtalk.box2dxt in
+      # it). A package made without the xTalk Suite's extensions has none:
+      # then the step says so and does nothing.
+      - name: Wobble Forts with Box2Dxt
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
+        timeout-minutes: 10
+        env:
+          BIN_TAR: ${{ runner.temp }}/ci-build/OXT-Beyond-linux-${{ matrix.arch }}-bin.tar.xz
+        run: |
+          if [ ! -f "$OXT_ROOT/Extensions/org.openxtalk.box2dxt/module.lcm" ]; then
+            echo "::notice title=Wobble Forts::the package has no Box2Dxt, so its tests of play were not run"
+            exit 0
+          fi
+          bin_dir="$RUNNER_TEMP/wobble-forts-bin"
+          rm -rf "$bin_dir"
+          mkdir -p "$bin_dir"
+          tar -xJf "$BIN_TAR" -C "$bin_dir"
+          OXT_BOX2DXT="$OXT_ROOT" python3 tools/ci/run_engine_tests.py --bin "$bin_dir/linux-$ARCH-bin" --suite lcs \
+            --filter '^lcs: webplayer/wobble-forts:' --log "$RUNNER_TEMP/logs/wobble-forts-tests.log"
+          tail -n 1 "$RUNNER_TEMP/logs/wobble-forts-tests.log" | grep -q ' 0 skip$'
+
       # The IDE's own windows, as a user sees them under the Adwaita GTK
       # theme, light and dark: tools/ci/ui_tour.py starts the package's IDE
       # (on an Xvfb screen) with tools/ci/ui-tour.livecodescript, which

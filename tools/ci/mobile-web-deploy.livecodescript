@@ -35,6 +35,10 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- it too: $OXT_MW_CHECK_NAME names its check stack (ResponsiveCheck) and
 -- $OXT_MW_HANDLERS the handlers the page may call, separated by commas.
 -- Without them, they are the Phone Starter check's, as before.
+--
+-- $OXT_MW_MODULES, if set, names the module.lcm files of LCB extensions
+-- to include, one a line (tools/ci/wobble_forts_check.py gives Box2Dxt's);
+-- without it, none are, as before.
 
 private function fileText pPath
    local tText
@@ -80,6 +84,12 @@ on startup
       put $OXT_MW_OUTPUT into tParams["output"]
       put empty into tParams["engine"]
       put $OXT_MW_LIBRARY & return & $OXT_MW_CHECK into tParams["auxiliary_stackfiles"]
+      -- the LCB extensions the main stack uses, if any: their module.lcm
+      -- files, one a line, each after those it uses (Wobble Forts' check
+      -- gives Box2Dxt's, whose library the web engine has built in)
+      if $OXT_MW_MODULES is not empty then
+         put $OXT_MW_MODULES into tParams["modules"]
+      end if
       _internal deploy emscripten tParams
       put the result into tResult
    catch tError

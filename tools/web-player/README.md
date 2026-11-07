@@ -185,6 +185,7 @@ answering no.
 | `phone-starter.livecodescript`, `phone-starter-stack.livecodescript` | build `stacks/Phone Starter.oxtstack` (see below) |
 | `responsive-starter.livecodescript`, `responsive-starter-stack.livecodescript` | build `stacks/Responsive Starter.oxtstack` (see below) |
 | `nova-rescue.livecodescript`, `nova-rescue-stack.livecodescript`, `nova-rescue/` | build `stacks/Nova Rescue.oxtstack` from Kenney's pictures, sounds and font (see below) |
+| `wobble-forts.livecodescript`, `wobble-forts-stack.livecodescript`, `wobble-forts/` | build `stacks/Wobble Forts.oxtstack` from Kenney's pictures, sounds and font and its levels (see below) |
 | `assets/` | the page's logo and pictures, copied beside it |
 | `build_player.py` | starts the IDE with the script above, puts the page in place, packs the zip and, with `--check`, drives the player in headless Chromium |
 
@@ -353,3 +354,76 @@ builds. To run the phone check yourself:
 ```sh
 python3 tools/ci/nova_rescue_check.py --runtime <web runtime> --engine-cache <folder> --shots <folder>
 ```
+
+## Wobble Forts
+
+`stacks/Wobble Forts.oxtstack` is a slower game for a phone, on Box2D
+(the Box2Dxt extension): the round Bloops are pulled back in a launcher
+and let go at the wobbly forts of the square Grumps, built of wood,
+glass, stone, metal and TNT. A Grump pops when it is hit hard enough or
+falls; a block breaks as it is hit, a little at a time, glass soonest and
+metal hardly at all, and TNT goes off. Each Bloop has a trick, done by a
+tap in flight: the blue one dashes, the pink one splits in three, the
+green one slams down, the beige one bursts; the yellow one has none.
+Fifteen forts in three lands (the Meadow, the Dunes and Shroom Hollow),
+each land ending in a boss; a fort cleared with Bloops to spare earns up
+to three stars, and the stars, best scores and settings are kept between
+visits. Upright or turned, the world is drawn to fit the window, under
+the notch; P or Esc pauses, R plays the level again.
+
+How it is made: one card; every screen a group over the world; a set of
+buttons for the pieces, each showing a picture of a hidden "Art" card as
+its icon, and a few more for the dust, the debris and the points that
+fly; one loop that steps the world by a sixtieth of a second at a time
+and moves only the buttons whose piece moved (a fort at rest costs
+almost nothing). The levels are text, `wobble-forts/levels.txt`, one line
+a piece; the tests hold that every one stands still until it is hit. The
+sounds are mixed by the browser's Web Audio, faster for a small piece's
+knock than a big one's. In headless Chromium emulating a phone it kept
+60 to 80 frames a second, the game's own work about a millisecond of
+each (wfState's fps, work, draw and step say so).
+
+Without Box2Dxt (an engine or a page without the extension) the game
+says so on its first card and plays nothing; a web standalone needs the
+extension's module among its deploy's modules, as the check below does.
+
+Its pictures, sounds and font are Kenney's (https://kenney.nl), CC0, in
+`wobble-forts/` with each pack's licence and `SOURCES.md`, which says
+where each comes from. `wobble-forts/make_assets.py` made them from the
+packs: the pictures drawn again at twice their size from Kenney's vector
+sheets, the sounds as WAV files, and the title's words drawn from Kenney
+Blocks. None of them is used by Nova Rescue, the platformer or Pixel
+Maker.
+
+The stack is never edited by hand. Its script is
+`wobble-forts-stack.livecodescript` and its controls are made by
+`wobble-forts.livecodescript`; change them, then build it again with any
+OXT-Beyond engine:
+
+```sh
+<engine> -ui tools/web-player/wobble-forts.livecodescript
+```
+
+`tests/lcs/webplayer/wobble-forts.livecodescript` plays it on a desktop
+engine with the clock in the test's hands: every level read and standing
+still, a shot and the next Bloop, a fort cleared and the stars kept, out
+of Bloops, every trick, a pause, a saved file that makes no sense and the
+screens at six sizes. Its tests of play need Box2Dxt: `OXT_BOX2DXT`
+names its folder (or an installed IDE's folder), and without it they are
+skipped. `tools/ci/wobble_forts_check.py` builds a standalone with
+Box2Dxt and plays it on emulated phones (Pixel 7 and iPhone 13, in
+Chromium and WebKit) with real touches: Play, How to play, the map, a
+pull and a shot, the frame rate, Pause, a fort cleared and its stars, the
+next level, a turn upright and no script error. CI runs it in web.yml,
+after Nova Rescue's check. To run it yourself:
+
+```sh
+python3 tools/ci/wobble_forts_check.py --runtime <web runtime> --engine-cache <folder> --shots <folder>
+```
+
+It also has a page of its own on the web site's gallery
+(`games/wobble-forts/`, see [tools/pages](../pages/README.md)), which
+plays this sample in the bare player. The stack's `cJavascriptHandlers`
+are `wfPageHidden` (the page is hidden: a level pauses) and `wfState`, so
+that `tools/pages/check_wobble_forts_page.py` can ask the game how it is
+there; `build_player.py --check` runs that check on the player it builds.

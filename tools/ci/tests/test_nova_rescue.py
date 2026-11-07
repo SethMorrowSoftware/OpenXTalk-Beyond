@@ -221,7 +221,7 @@ class Offered(unittest.TestCase):
     def test_in_homes_gallery_with_an_icon(self):
         learn = read('ide', 'Toolset', 'palettes', 'learn', 'revlearn.livecodescript')
         kit = read('ide', 'Toolset', 'palettes', 'learn', 'revlearnkit.livecodescript')
-        self.assertIn('Responsive Starter,Nova Rescue"', learn)
+        self.assertIn('Responsive Starter,Nova Rescue,', learn)
         case = re.search(r'case "Nova Rescue"\n(.*?)\n      case', learn, re.S)
         self.assertIsNotNone(case)
         icon = re.search(r'\|([a-z0-9-]+)\|[a-z]+\|[^|"]+"', case.group(0)).group(1)

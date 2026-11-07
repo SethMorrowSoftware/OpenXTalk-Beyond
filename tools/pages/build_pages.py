@@ -38,7 +38,7 @@ given.
   DIR/games/         the web stacks gallery (tools/pages/games), on the
                      player's engine: the big ones on pages of their own,
                      and a card and a page for each of the player's samples
-                     with a picture; a sample in OWN_PAGES (Nova Rescue)
+                     with a picture; a sample in OWN_PAGES (Nova Rescue, Wobble Forts)
                      has a big one's page instead, which plays it in the
                      bare player, and only when the site has both
   DIR/dictionary/    the Dictionary that the IDE's Help > Dictionary Online
@@ -453,7 +453,7 @@ SPOTLIGHT = ('Beat Box', 'Fireworks', 'Live Weather')
 # lines of their own. Without them (a site built from a player before
 # the sample), the page and its card are left out, so no page on the site
 # plays a stack its player lacks.
-OWN_PAGES = {'Nova Rescue': 'nova-rescue'}
+OWN_PAGES = {'Nova Rescue': 'nova-rescue', 'Wobble Forts': 'wobble-forts'}
 
 
 def player_samples(player, featured=False):
