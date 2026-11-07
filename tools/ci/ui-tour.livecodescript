@@ -6452,6 +6452,25 @@ on tour_standalone_settings
          if there is not a field "emscriptenTitle" of card "Emscripten" of stack tStack then
             throw "the Web card has no settings for its page"
          end if
+         -- the Splash setting (bwmilby's request, openxtalk.org p=26115):
+         -- its field and buttons in their row, above the pane's text, and
+         -- empty for a stack that has none
+         if there is not a field "emscriptenSplash" of card "Emscripten" of stack tStack or \
+               there is not a button "emscriptenSplashNone" of card "Emscripten" of stack tStack or \
+               there is not a button "emscriptenSplashChoose" of card "Emscripten" of stack tStack then
+            throw "the Web card has no Splash setting"
+         end if
+         if not the visible of field "emscriptenSplash" of card "Emscripten" of stack tStack or \
+               item 4 of the rect of button "emscriptenSplashChoose" of card "Emscripten" of stack tStack > \
+               item 2 of the rect of field "emscriptenDeploymentInfoLabel" of card "Emscripten" of stack tStack then
+            throw "the Splash setting is hidden or under the pane's text:" && \
+                  the rect of button "emscriptenSplashChoose" of card "Emscripten" of stack tStack
+         end if
+         if the text of field "emscriptenSplash" of card "Emscripten" of stack tStack is not empty or \
+               the cRevStandaloneSettings["emscripten,splash"] of stack kSample is not empty then
+            throw "the Splash setting of a stack that has none is not empty:" && \
+                  the text of field "emscriptenSplash" of card "Emscripten" of stack tStack
+         end if
          -- the Fields setting (seth's choice 9A): white, or the card's grey
          if there is not a button "emscriptenFields" of card "Emscripten" of stack tStack then
             throw "the Web card has no Fields setting"

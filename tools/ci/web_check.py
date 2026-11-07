@@ -210,6 +210,7 @@ import os
 import re
 import shutil
 import socketserver
+import struct
 import subprocess
 import sys
 import tarfile
@@ -983,6 +984,96 @@ def fields_page_name():
     return STACK_NAME + '-fields.html'
 
 
+# The probe's page with a splash image, as the web builder writes it with
+# the HTML5 pane's Splash setting (getSplashHead and getSplashMarkup in
+# ide-support/revsaveasemscriptenstandalone.livecodescript; bwmilby's
+# request, openxtalk.org p=26115): web-deploy.livecodescript gives it its
+# 24x24 green PNG. The builder copies the image as splash.png beside the
+# page and adds one <style> and one <script> to its head
+SPLASH_IMAGE = 'splash.png'
+SPLASH_SIZE = (24, 24)
+SPLASH_HEAD_RE = re.compile(r'<style>\.oxt-splash #status\{[^<]*</style><script>[^<]*</script>')
+
+
+def splash_page_name():
+    return STACK_NAME + '-splash.html'
+
+
+def png_size(data):
+    """The width and height of a PNG from its IHDR, or None."""
+    if len(data) < 24 or data[:8] != b'\x89PNG\r\n\x1a\n' or data[12:16] != b'IHDR':
+        return None
+    return struct.unpack('>II', data[16:24])
+
+
+def splash_page_from_ide(site, splash_site):
+    """Puts the page of the standalone that the IDE's builder made with the
+    HTML5 pane's Splash setting (web-deploy.livecodescript, in
+    <splash_site>) beside the page as built in <site>, as
+    splash_page_name(), with its image, after checking that the builder
+    copied the image as SPLASH_IMAGE and that the page is the page as built
+    with the splash's style and script in its head and nothing else
+    changed. Returns a line for the summary; CheckError if it is not so."""
+    page = os.path.join(site, STACK_NAME + '.html')
+    splash_page = os.path.join(splash_site, STACK_NAME + '.html')
+    image = os.path.join(splash_site, SPLASH_IMAGE)
+    said = 'the page that the IDE\'s builder wrote with the Splash setting'
+    if not os.path.isfile(splash_page):
+        raise CheckError('the IDE\'s builder wrote no page with the Splash setting (%s)' % splash_page)
+    if not os.path.isfile(image):
+        raise CheckError('the IDE\'s builder did not copy the splash image as %s' % image)
+    with open(image, 'rb') as f:
+        data = f.read()
+    if png_size(data) != SPLASH_SIZE:
+        raise CheckError('the splash image that the IDE\'s builder copied is not the %dx%d PNG it was given (%r)'
+                         % (SPLASH_SIZE + (png_size(data),)))
+    with open(page, 'r', encoding='utf-8') as f:
+        built = f.read()
+    with open(splash_page, 'r', encoding='utf-8') as f:
+        text = f.read()
+    head = text.split('</head>', 1)[0]
+    found = SPLASH_HEAD_RE.findall(text)
+    if len(found) != 1 or found[0] not in head:
+        raise CheckError('%s has not one splash style and script in its head' % said)
+    for want in ('url(%s)' % SPLASH_IMAGE, 'width:%dpx;height:%dpx' % SPLASH_SIZE):
+        if want not in found[0]:
+            raise CheckError('%s has no %s in its splash style' % (said, want))
+    if text.replace(found[0], '', 1) != built:
+        raise CheckError('%s differs from the page as built by more than its splash' % said)
+    with open(os.path.join(site, splash_page_name()), 'w', encoding='utf-8') as f:
+        f.write(text)
+    with open(os.path.join(site, SPLASH_IMAGE), 'wb') as f:
+        f.write(data)
+    return 'the IDE\'s builder wrote the Splash setting into the page, with its image as %s' % SPLASH_IMAGE
+
+
+# What a page with a splash shows when its document has loaded, long before
+# its engine has downloaded (an init script, so that it is read before the
+# engine can start): the page's root has the class oxt-splash, the status
+# covers the window and draws the image
+SPLASH_SEEN_JS = ("document.addEventListener('DOMContentLoaded', function() {"
+                  " var s = document.getElementById('status');"
+                  " window.oxtSplashSeen = [document.documentElement.className,"
+                  " s ? getComputedStyle(s).position : '',"
+                  " s ? getComputedStyle(s, '::before').backgroundImage : ''];"
+                  " });")
+# ... and once the stack is open: the class gone and the status hidden
+SPLASH_AFTER_JS = ("[document.documentElement.className,"
+                   " getComputedStyle(document.getElementById('status')).display]")
+
+
+def splash_seen_problem(loading, started):
+    """None when a page with a splash showed it while loading (loading, as
+    SPLASH_SEEN_JS has it) and took it away once its stack was open
+    (started, as SPLASH_AFTER_JS has it); else what was wrong."""
+    if (not loading or len(loading) != 3 or 'oxt-splash' not in str(loading[0]).split()
+            or loading[1] != 'fixed' or SPLASH_IMAGE not in str(loading[2])):
+        return 'the page with a splash did not show it while it loaded: %r' % (loading,)
+    if not started or 'oxt-splash' in str(started[0]).split() or started[1] != 'none':
+        return 'the page with a splash still showed it once its stack was open: %r' % (started,)
+    return None
+
+
 # What the probe's snapshot of a stack whose colours are all unset reports
 # (probeReport("colors")): its size, a point in its field, a point on its
 # card. White fields on a light grey card (Windows 10's colours) on the
@@ -1138,6 +1229,9 @@ def build_with_ide(args, work, timeout):
     # (the standalone with the Fields setting: see fields_page_from_ide)
     fields_site = site + '-fields'
     shutil.rmtree(fields_site, ignore_errors=True)
+    # (and the one with the Splash setting: see splash_page_from_ide)
+    splash_site = site + '-splash'
+    shutil.rmtree(splash_site, ignore_errors=True)
     results = os.path.join(work, 'ide-build.txt')
     if os.path.exists(results):
         os.remove(results)
@@ -1238,6 +1332,10 @@ def build_with_ide(args, work, timeout):
             lines.append('the IDE built the standalone in %.0f s' % (time.time() - started))
             try:
                 lines.append(fields_page_from_ide(site, fields_site))
+            except CheckError as e:
+                problems.append(str(e))
+            try:
+                lines.append(splash_page_from_ide(site, splash_site))
             except CheckError as e:
                 problems.append(str(e))
             if drawing:
@@ -2641,6 +2739,35 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                 light.close()
             except (PlaywrightError, PlaywrightTimeoutError) as e:
                 problems.append('the check of the default colours failed: %s%s' % (e, extra_said()))
+                del extra_events[:]
+        if 'ready' in probes:
+            # the page with a splash (the IDE's builder's, from the Splash
+            # setting; none in a standalone made without the IDE): the
+            # splash while it loads, and the stack once it is open
+            try:
+                browser_waiting[0] = 'the splash'
+                del extra_events[:]
+                splash_url = urllib.parse.urljoin(url, splash_page_name())
+                plain = browser.new_context()
+                if plain.request.get(splash_url).ok:
+                    def prepare_splash(tab, name):
+                        prepare_extra(tab, name)
+                        tab.add_init_script(SPLASH_SEEN_JS)
+                    tab = open_ready_page(plain, splash_url + ('&' if '?' in splash_url else '?') + 'tab=splash',
+                                          'the page with a splash', timeout, prepare_splash, reopened_extra,
+                                          PlaywrightError, PlaywrightTimeoutError)
+                    problem = splash_seen_problem(tab.evaluate('window.oxtSplashSeen || null'),
+                                                  tab.evaluate(SPLASH_AFTER_JS))
+                    if problem:
+                        problems.append(problem)
+                    else:
+                        lines.append('the page with a splash showed its image over the window while it loaded, '
+                                     'and its stack once open')
+                    tab.close()
+                del extra_events[:]
+                plain.close()
+            except (PlaywrightError, PlaywrightTimeoutError) as e:
+                problems.append('the check of the splash failed: %s%s' % (e, extra_said()))
                 del extra_events[:]
         if 'ready' in probes and not crashed:
             # Other scripts' errors, raised while the engine started (open_page)

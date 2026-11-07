@@ -335,6 +335,7 @@ Figure 9 – Standalone Settings – Web (HTML5)
 | **Build for HTML5**             | Build a standalone for HTML5                                                                                                                                                                                                                          |
 | **Title**                       | The page's title, which the browser shows in its tab, its history and its bookmarks. Empty: the stack's label or, without one, its name                                                                                                               |
 | **Icon**                        | An image that the browser shows as the page's icon, in its tab and its bookmarks: a PNG, ICO, SVG, GIF, JPEG or WebP file, which the standalone gets a copy of. **Use None** removes it                                                               |
+| **Splash**                      | An image shown in the middle of the browser's window, on the page's **Background**, with what is loading under it, while the engine and the stacks download and the engine starts: a PNG, SVG, GIF, JPEG or WebP file, which the standalone gets a copy of. It shows at its own size, smaller on a window too small for it. Empty, or **Use None**: no splash, and the page says "Loading..." as before |
 | **Background**                  | The colour of the page around the main stack: click the swatch or **Choose...** to change it. **Use White** puts back the page's own white                                                                                                            |
 | **Position**                    | Where the main stack is in the page: **Centered at the top** (the page's own place), **Centered in the window** of the browser, or **At the top left**                                                                                                |
 | **Appearance**                  | **Light**: the stacks keep the light colours whatever the browser's colour scheme, as before. **Follow the browser**: the `systemAppearance` is the browser's scheme, controls without colours of their own are drawn dark in a dark scheme, the card gets `systemAppearanceChanged` when the scheme changes, and so does a page without its own background |
@@ -367,7 +368,8 @@ OXT-Beyond's own tests run the standalones in Chromium.
 
 ##### Contents of the HTML5 standalone
 
-The HTML5 standalone is a folder of four files (five with an icon), which
+The HTML5 standalone is a folder of four files (one more with an icon,
+and one more with a splash image), which
 a web site serves together:
 
 * `<name>.html`, the page, named after the standalone (the **General**
@@ -376,6 +378,9 @@ one, the stack's label or name) and the pane's other settings. It says
 "Loading..." until the engine starts, then shows the main stack.
 * `icon.<extension>`, the page's icon, a copy of the image that the
 **Icon** setting names.
+* `splash.<extension>`, the splash image, a copy of the image that the
+**Splash** setting names, which the page shows in the middle of the
+window, over everything, until the engine starts.
 * `standalone-community-<version>.js` and
 `standalone-community-<version>.wasm`, the engine. They are the same for
 every standalone made with the same version of OXT-Beyond.

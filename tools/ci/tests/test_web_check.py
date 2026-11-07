@@ -35,6 +35,7 @@ needed.
 import os
 import re
 import shutil
+import struct
 import sys
 import tempfile
 import unittest
@@ -131,6 +132,141 @@ class FieldsPageFromIde(unittest.TestCase):
         web_check.write_fields_page(page)
         with open(os.path.join(self.site, web_check.fields_page_name()), encoding='utf-8') as f:
             self.assertEqual(f.read(), PAGE.replace('</head>', web_check.FIELDS_META + '</head>'))
+
+
+# getSplashMarkup's answer (ide-support/revsaveasemscriptenstandalone.livecodescript)
+# for web-deploy.livecodescript's 24x24 PNG, as the engine gives it:
+# tests/lcs/standalonebuilder/web-splash.livecodescript asserts the same text
+SPLASH_HEAD = ("<style>.oxt-splash #status{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1;margin:0;box-sizing:border-box;background-color:inherit;padding:0 16px;padding-top:calc(50vh + min(24px,60vh)/2 + 12px);padding-top:calc(50dvh + min(24px,60vh)/2 + 12px)}.oxt-splash #status::before{content:'';position:absolute;left:50%;top:50%;width:24px;height:24px;max-width:calc(100% - 32px);max-height:60%;transform:translate(-50%,-50%);background:url(splash.png) center/contain no-repeat}</style><script>(function(){var r=document.documentElement;r.classList.add('oxt-splash');document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('status'),o;function done(){if(s&&s.style.display!=='none'){return false;}r.classList.remove('oxt-splash');if(o){o.disconnect();}return true;}if(!done()){o=new MutationObserver(done);o.observe(s,{attributes:true,attributeFilter:['style']});}});})();</script>")
+
+
+def png(width, height):
+    """The start of a PNG of that size: its signature and IHDR."""
+    return (b'\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR' + struct.pack('>II', width, height)
+            + b'\x08\x06\x00\x00\x00')
+
+
+class SplashPageFromIde(unittest.TestCase):
+    """splash_page_from_ide: the page that the IDE's builder wrote with the
+    Splash setting is the page as built and the splash's style and script,
+    with the image beside it, and both go beside the page as built."""
+
+    def setUp(self):
+        self.work = tempfile.mkdtemp(prefix='test-web-check-')
+        self.site = os.path.join(self.work, 'site')
+        self.splash = self.site + '-splash'
+        os.makedirs(self.site)
+        os.makedirs(self.splash)
+        self.write(self.site, PAGE)
+        self.image(png(24, 24))
+
+    def tearDown(self):
+        shutil.rmtree(self.work, ignore_errors=True)
+
+    def write(self, folder, text):
+        with open(os.path.join(folder, web_check.STACK_NAME + '.html'), 'w', encoding='utf-8') as f:
+            f.write(text)
+
+    def image(self, data):
+        with open(os.path.join(self.splash, web_check.SPLASH_IMAGE), 'wb') as f:
+            f.write(data)
+
+    def test_the_fixture_is_what_the_check_finds(self):
+        self.assertEqual(web_check.SPLASH_HEAD_RE.findall(SPLASH_HEAD), [SPLASH_HEAD])
+
+    def test_the_page_with_the_splash(self):
+        text = PAGE.replace('</head>', SPLASH_HEAD + '</head>')
+        self.write(self.splash, text)
+        line = web_check.splash_page_from_ide(self.site, self.splash)
+        self.assertIn(web_check.SPLASH_IMAGE, line)
+        with open(os.path.join(self.site, web_check.splash_page_name()), encoding='utf-8') as f:
+            self.assertEqual(f.read(), text)
+        with open(os.path.join(self.site, web_check.SPLASH_IMAGE), 'rb') as f:
+            self.assertEqual(f.read(), png(24, 24))
+
+    def test_no_page(self):
+        with self.assertRaisesRegex(web_check.CheckError, 'wrote no page'):
+            web_check.splash_page_from_ide(self.site, self.splash)
+        self.assertFalse(os.path.exists(os.path.join(self.site, web_check.splash_page_name())))
+
+    def test_no_image(self):
+        self.write(self.splash, PAGE.replace('</head>', SPLASH_HEAD + '</head>'))
+        os.remove(os.path.join(self.splash, web_check.SPLASH_IMAGE))
+        with self.assertRaisesRegex(web_check.CheckError, 'did not copy the splash image'):
+            web_check.splash_page_from_ide(self.site, self.splash)
+
+    def test_another_image(self):
+        self.write(self.splash, PAGE.replace('</head>', SPLASH_HEAD + '</head>'))
+        self.image(png(48, 24))
+        with self.assertRaisesRegex(web_check.CheckError, 'not the 24x24 PNG'):
+            web_check.splash_page_from_ide(self.site, self.splash)
+
+    def test_no_splash(self):
+        # (the builder left the setting out: the page as built)
+        self.write(self.splash, PAGE)
+        with self.assertRaisesRegex(web_check.CheckError, 'has not one splash'):
+            web_check.splash_page_from_ide(self.site, self.splash)
+        self.assertFalse(os.path.exists(os.path.join(self.site, web_check.splash_page_name())))
+
+    def test_splash_in_the_body(self):
+        self.write(self.splash, PAGE.replace('<canvas', SPLASH_HEAD + '<canvas'))
+        with self.assertRaisesRegex(web_check.CheckError, 'has not one splash'):
+            web_check.splash_page_from_ide(self.site, self.splash)
+
+    def test_splash_twice(self):
+        self.write(self.splash, PAGE.replace('</head>', SPLASH_HEAD * 2 + '</head>'))
+        with self.assertRaisesRegex(web_check.CheckError, 'has not one splash'):
+            web_check.splash_page_from_ide(self.site, self.splash)
+
+    def test_another_size(self):
+        self.write(self.splash, PAGE.replace('</head>', SPLASH_HEAD.replace('24px', '25px') + '</head>'))
+        with self.assertRaisesRegex(web_check.CheckError, 'width:24px;height:24px'):
+            web_check.splash_page_from_ide(self.site, self.splash)
+
+    def test_more_changed(self):
+        text = PAGE.replace('</head>', SPLASH_HEAD + '</head>').replace('WebProbe', 'Other')
+        self.write(self.splash, text)
+        with self.assertRaisesRegex(web_check.CheckError, 'differs from the page as built'):
+            web_check.splash_page_from_ide(self.site, self.splash)
+
+
+class SplashSeen(unittest.TestCase):
+    """splash_seen_problem: the splash over the window while the page
+    loads, gone once its stack is open."""
+
+    LOADING = ['oxt-splash', 'fixed', 'url("http://127.0.0.1:8000/splash.png")']
+    STARTED = ['', 'none']
+
+    def test_shown_then_gone(self):
+        self.assertIsNone(web_check.splash_seen_problem(self.LOADING, self.STARTED))
+
+    def test_never_shown(self):
+        for loading in (None, ['', 'static', 'none'], ['oxt-splash', 'static', self.LOADING[2]],
+                        ['oxt-splash', 'fixed', 'none']):
+            self.assertIn('did not show it', web_check.splash_seen_problem(loading, self.STARTED))
+
+    def test_still_shown(self):
+        for started in (None, ['oxt-splash', 'none'], ['', 'block']):
+            self.assertIn('still showed it', web_check.splash_seen_problem(self.LOADING, started))
+
+    def test_the_deploy_builds_it_and_the_check_reads_it(self):
+        deploy = read('tools', 'ci', 'web-deploy.livecodescript')
+        self.assertIn('put $OXT_WEB_OUTPUT & "-splash" into tSplashFolder', deploy)
+        self.assertIn('put tSplashFolder & "-image.png" into tSplashSettings["emscripten,splash"]', deploy)
+        self.assertIn('with "WebProbe", tSplashFolder, tSplashSettings', deploy)
+        check = read('tools', 'ci', 'web_check.py')
+        self.assertIn("splash_site = site + '-splash'", check)
+        self.assertIn('lines.append(splash_page_from_ide(site, splash_site))', check)
+        self.assertIn('tab.add_init_script(SPLASH_SEEN_JS)', check)
+
+    def test_the_pane_sets_it(self):
+        pane = read('ide', 'Toolset', 'palettes', 'standalone settings',
+                    'revstandalonesettingsemscriptenbehavior.livecodescript')
+        self.assertIn('setSetting "emscripten,splash", tFile', pane)
+        self.assertIn('setSetting "emscripten,splash", empty', pane)
+        controls = re.search(r'^constant kWebSettingsControls = "([^"]+)"', pane, re.M).group(1).split(',')
+        for name in ('emscriptenSplashLabel', 'emscriptenSplash', 'emscriptenSplashNone', 'emscriptenSplashChoose'):
+            self.assertIn(name, controls)
 
 
 class OneNameAndValue(unittest.TestCase):

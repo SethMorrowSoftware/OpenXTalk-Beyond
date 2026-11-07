@@ -66,7 +66,8 @@ end emscriptenBuyNow
 --------------------------------------------------------------------------------
 -- OXT-Beyond: the settings of the page that the builder writes
 -- (revsaveasemscriptenstandalone.livecodescript): its title, its icon, its
--- colour, where the main stack is in it and its appearance, each under the key
+-- splash image, its colour, where the main stack is in it and its
+-- appearance, each under the key
 -- "emscripten,<setting>" of the standalone settings. OpenXTalk Lite moved
 -- the HTML5 checkbox out of the window and wrote a note about Webtalk, an
 -- interpreter of its own, in its place. The stack file has no controls for
@@ -77,7 +78,7 @@ end emscriptenBuyNow
 
 -- The controls that the page's settings use, which are enabled while the
 -- standalone is built for HTML5
-constant kWebSettingsControls = "emscriptenPageHeading,emscriptenPageLine,emscriptenTitleLabel,emscriptenTitle,emscriptenTitleHint,emscriptenIconLabel,emscriptenIcon,emscriptenIconNone,emscriptenIconChoose,emscriptenColorLabel,emscriptenColorSwatch,emscriptenColorDefault,emscriptenColorChoose,emscriptenPositionLabel,emscriptenPosition,emscriptenAppearanceLabel,emscriptenAppearance,emscriptenFieldsLabel,emscriptenFields"
+constant kWebSettingsControls = "emscriptenPageHeading,emscriptenPageLine,emscriptenTitleLabel,emscriptenTitle,emscriptenTitleHint,emscriptenIconLabel,emscriptenIcon,emscriptenIconNone,emscriptenIconChoose,emscriptenSplashLabel,emscriptenSplash,emscriptenSplashNone,emscriptenSplashChoose,emscriptenColorLabel,emscriptenColorSwatch,emscriptenColorDefault,emscriptenColorChoose,emscriptenPositionLabel,emscriptenPosition,emscriptenAppearanceLabel,emscriptenAppearance,emscriptenFieldsLabel,emscriptenFields"
 
 -- The places of the main stack in the page: the menu's items, and the
 -- settings' values (empty for the first, the page's own place)
@@ -115,7 +116,7 @@ private command __EnsureWebSettings
    put __CopyControl(the long id of graphic id 1620 of tWindows, "emscriptenPageLine") into tControl
    
    -- A label for each setting, as the Windows card's "Application Icon:"
-   repeat for each item tSetting in "Title,Icon,Color,Position,Appearance,Fields"
+   repeat for each item tSetting in "Title,Icon,Splash,Color,Position,Appearance,Fields"
       put __CopyControl(the long id of field id 1135 of tWindows, "emscripten" & tSetting & "Label") into tControl
       if tSetting is "Color" then
          set the text of tControl to "Background:"
@@ -138,6 +139,16 @@ private command __EnsureWebSettings
    put __CopyControl(the long id of button "Use None" of tWindows, "emscriptenIconNone") into tControl
    set the label of tControl to "Use None"
    put __CopyControl(the long id of button "Choose..." of tWindows, "emscriptenIconChoose") into tControl
+   set the label of tControl to "Choose..."
+   
+   -- The splash image (bwmilby's request, openxtalk.org p=26115): shown
+   -- in the middle of the browser's window while the stack loads, chosen
+   -- and cleared as the icon is
+   put __CopyControl(the long id of field "iconFile" of tWindows, "emscriptenSplash") into tControl
+   set the text of tControl to empty
+   put __CopyControl(the long id of button "Use None" of tWindows, "emscriptenSplashNone") into tControl
+   set the label of tControl to "Use None"
+   put __CopyControl(the long id of button "Choose..." of tWindows, "emscriptenSplashChoose") into tControl
    set the label of tControl to "Choose..."
    
    -- The colour: a swatch, which a click on it or on Choose... changes
@@ -175,6 +186,9 @@ private command __EnsureWebSettings
    set the tooltip of field "emscriptenIcon" of me to "The image that the browser shows as the page's icon on its tab"
    set the tooltip of button "emscriptenIconNone" of me to "Don't give the page an icon and empty the field"
    set the tooltip of button "emscriptenIconChoose" of me to "Choose an image (.png, .ico, .svg, .gif, .jpg or .webp) for the page's icon"
+   set the tooltip of field "emscriptenSplash" of me to "The image shown in the middle of the browser's window, on the page's colour, while the stack loads (empty: none, the page says Loading...)"
+   set the tooltip of button "emscriptenSplashNone" of me to "Don't show a splash image while the stack loads and empty the field"
+   set the tooltip of button "emscriptenSplashChoose" of me to "Choose an image (.png, .svg, .gif, .jpg or .webp) to show while the stack loads"
    set the tooltip of graphic "emscriptenColorSwatch" of me to "The colour of the page around the stack: click to choose another"
    set the tooltip of button "emscriptenColorDefault" of me to "Use white, the page's colour when none is chosen"
    set the tooltip of button "emscriptenColorChoose" of me to "Choose the colour of the page around the stack"
@@ -227,6 +241,12 @@ private command __LayoutWebSettings pTop
    set the rect of button "emscriptenIconChoose" of me to 649, tTop + 1, 739, tTop + 24
    
    add 32 to tTop
+   set the rect of field "emscriptenSplashLabel" of me to 2, tTop, 142, tTop + 24
+   set the rect of field "emscriptenSplash" of me to 150, tTop, 533, tTop + 24
+   set the rect of button "emscriptenSplashNone" of me to 543, tTop + 1, 643, tTop + 24
+   set the rect of button "emscriptenSplashChoose" of me to 649, tTop + 1, 739, tTop + 24
+   
+   add 32 to tTop
    set the rect of field "emscriptenColorLabel" of me to 2, tTop, 142, tTop + 24
    set the rect of graphic "emscriptenColorSwatch" of me to 150, tTop + 1, 190, tTop + 23
    set the rect of button "emscriptenColorDefault" of me to 543, tTop + 1, 643, tTop + 24
@@ -263,6 +283,7 @@ private command __ShowWebSettings pSettings
    lock messages
    set the text of field "emscriptenTitle" of me to pSettings["emscripten,title"]
    set the text of field "emscriptenIcon" of me to pSettings["emscripten,icon"]
+   set the text of field "emscriptenSplash" of me to pSettings["emscripten,splash"]
    set the backgroundColor of graphic "emscriptenColorSwatch" of me to \
          __PageColor(pSettings["emscripten,backgroundColor"])
    set the wholeMatches to true
@@ -349,6 +370,13 @@ on mouseUp pButton
          setSetting "emscripten,icon", empty
          set the text of field "emscriptenIcon" of me to empty
          break
+      case "emscriptenSplashChoose"
+         __ChooseSplash
+         break
+      case "emscriptenSplashNone"
+         setSetting "emscripten,splash", empty
+         set the text of field "emscriptenSplash" of me to empty
+         break
       case "emscriptenColorSwatch"
       case "emscriptenColorChoose"
          __ChooseColor
@@ -408,3 +436,20 @@ private command __ChooseColor
    setSetting "emscripten,backgroundColor", tColor
    set the backgroundColor of graphic "emscriptenColorSwatch" of me to tColor
 end __ChooseColor
+
+-- The splash image: an image that browsers show, kept relative to the
+-- stack's folder when it is in it, as the icon is
+private command __ChooseSplash
+   local tFile, tFolder
+   answer file "Choose the image to show while the stack loads:" with type "Images|png,svg,gif,jpg,jpeg,webp|" or type "All files|*|"
+   put it into tFile
+   if tFile is empty then
+      exit __ChooseSplash
+   end if
+   put utilityTargetStackPath() into tFolder
+   if tFolder is not slash then
+      put utilityMakePathRelative(tFile, tFolder) into tFile
+   end if
+   setSetting "emscripten,splash", tFile
+   set the text of field "emscriptenSplash" of me to tFile
+end __ChooseSplash
