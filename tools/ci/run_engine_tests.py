@@ -84,8 +84,9 @@ with the failures that are in neither the shared one nor the
 architecture's.
 
 Some tests act on the desktop of the computer they run on: they launch
-Notepad or TextEdit and then end every running copy of it, write a file to
-the Desktop, or replace what is on the system clipboard (INTRUSIVE). They
+Notepad or TextEdit and then end every running copy of it, bring the
+Finder to the front, write a file to the Desktop, or replace what is on
+the system clipboard (INTRUSIVE). They
 run in CI (when the environment variable CI is "true", as in GitHub
 Actions) or with --desktop-tests, and are reported as skipped elsewhere, so
 that running the suites on a developer's computer leaves their work alone.
@@ -146,6 +147,9 @@ INTRUSIVE = (
     # set the clipboardData and the fullClipboardData
     r'^lcs: core/engine/clipboard: ',
     r'^lcs: core/chunks/cut: TestCutVar$',
+    # launch the Finder, to put the engine in the background (a default
+    # button's label in the background, Skids, openxtalk.org p=26152)
+    r'^lcs: core/interface/default-button-background: ',
 )
 
 
