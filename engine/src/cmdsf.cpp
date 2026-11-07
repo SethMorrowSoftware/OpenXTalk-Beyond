@@ -34,6 +34,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "object.h"
 #include "mccontrol.h"
 #include "aclip.h"
+#include "aclipexport.h"
 #include "vclip.h"
 #include "eps.h"
 #include "image.h"
@@ -427,6 +428,31 @@ Parse_stat MCExport::parse(MCScriptPoint &sp)
 		sformat = (Export_format)te->which;
         // MERG-2014-07-17: Bugfix because export JPEG etc was failing to set the format
         format = sformat;
+
+		// OXT-Beyond: `export audioClip "x" to file "x.wav"` (and videoClip).
+		// The words were in the export table, but what followed one was
+		// never parsed, so these lines did not compile: an audioClip or
+		// videoClip that names an object after it is new syntax, and every
+		// line that compiled before means what it did ("export audioClip
+		// to ...", with nothing after the word, still parses as it did).
+		if (sformat == EX_AUDIO_CLIP || sformat == EX_VIDEO_CLIP)
+		{
+			Parse_stat t_to = sp.skip_token(SP_FACTOR, TT_TO);
+			if (t_to == PS_NORMAL)
+				sp.backup();
+			else if (t_to == PS_NO_MATCH)
+			{
+				// back to the clip's own word, which begins the chunk
+				sp.backup();
+				format = EX_UNDEFINED;
+				image = new (nothrow) MCChunk(False);
+				if (image->parse(sp, False) != PS_NORMAL)
+				{
+					MCperror->add(PE_EXPORT_BADTYPE, sp);
+					return PS_ERROR;
+				}
+			}
+		}
     }
 	else
 	{
@@ -747,6 +773,13 @@ void MCExport::exec_ctxt(MCExecContext &ctxt)
         }
 	}
 
+	// OXT-Beyond: an audioClip or videoClip named after its own word
+	if ((sformat == EX_AUDIO_CLIP || sformat == EX_VIDEO_CLIP) && optr != NULL)
+	{
+		exec_clip(ctxt, optr, *t_filename);
+		return;
+	}
+
 	// Without "snapshot" the object is exported as an image, so it must be
 	// one: 'export group "x" to file "x.png" as PNG' used to treat the group
 	// as an image and crash the engine. Another object exports nothing and
@@ -885,6 +918,100 @@ void MCExport::exec_ctxt(MCExecContext &ctxt)
             return;
         }
     }
+}
+
+// OXT-Beyond: `export audioClip "x" to file "x.wav" [as wave|aiff|ulaw]`
+// writes the clip as a sound file with its header, WAV, AIFF or AU (Sun's
+// .au, which "ulaw" names, as MetaCard's import did), as `as` says or else
+// as the file's extension does (".aif", ".aiff", ".aifc"; ".au", ".snd";
+// any other is WAV); `to <container>` puts a WAV file's bytes there unless
+// `as` says otherwise. `export videoClip "x" to file "x.mov"` writes the
+// bytes of the file the clip was imported from, which is all a videoClip
+// keeps. An export that cannot be made writes nothing and says why in the
+// result, as an export of an object that is not an image does.
+void MCExport::exec_clip(MCExecContext &ctxt, MCObject *p_object, MCStringRef p_filename)
+{
+	Chunk_term t_want = sformat == EX_AUDIO_CLIP ? CT_AUDIO_CLIP : CT_VIDEO_CLIP;
+	if (p_object -> gettype() != t_want)
+	{
+		ctxt . SetTheResultToStaticCString(sformat == EX_AUDIO_CLIP ?
+		                                   "export: selected object is not an audioClip" :
+		                                   "export: selected object is not a videoClip");
+		return;
+	}
+
+	MCAutoDataRef t_data;
+	if (sformat == EX_AUDIO_CLIP)
+	{
+		MCAudioFileContainer t_container;
+		switch (format)
+		{
+		case EX_UNDEFINED:
+			t_container = kMCAudioFileWave;
+			if (p_filename != nil)
+			{
+				MCAutoStringRefAsUTF8String t_name;
+				if (t_name . Lock(p_filename))
+					t_container = MCAudioFileContainerForName(*t_name);
+			}
+			break;
+		case EX_WAVE:
+			t_container = kMCAudioFileWave;
+			break;
+		case EX_AIFF:
+			t_container = kMCAudioFileAiff;
+			break;
+		case EX_ULAW:
+			t_container = kMCAudioFileAu;
+			break;
+		default:
+			ctxt . SetTheResultToStaticCString("export: an audioClip exports as wave, aiff or ulaw");
+			return;
+		}
+
+		uint8_t *t_file;
+		size_t t_file_size;
+		if (!static_cast<MCAudioClip *>(p_object) -> exportfile(t_container, t_file, t_file_size))
+		{
+			ctxt . SetTheResultToStaticCString("export: the audioClip's samples can't be written as a sound file");
+			return;
+		}
+		bool t_made = MCDataCreateWithBytesAndRelease((byte_t *)t_file, t_file_size, &t_data);
+		if (!t_made)
+		{
+			free(t_file);
+			ctxt . Throw();
+			return;
+		}
+	}
+	else
+	{
+		if (format != EX_UNDEFINED)
+		{
+			ctxt . SetTheResultToStaticCString("export: a videoClip exports as the file it was imported from");
+			return;
+		}
+		uint4 t_size;
+		const uint1 *t_bytes = static_cast<MCVideoClip *>(p_object) -> getdata(t_size);
+		if (!MCDataCreateWithBytes(t_bytes, t_bytes != nil ? t_size : 0, &t_data))
+		{
+			ctxt . Throw();
+			return;
+		}
+	}
+
+	if (p_filename != nil)
+	{
+		if (!ctxt . EnsureDiskAccessIsAllowed())
+			return;
+		if (!MCS_savebinaryfile(p_filename, *t_data))
+			ctxt . LegacyThrow(EE_EXPORT_CANTOPEN);
+		return;
+	}
+
+	dest->set(ctxt, PT_INTO, *t_data);
+	if (ctxt . HasError())
+		ctxt . LegacyThrow(EE_EXPORT_CANTWRITE);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

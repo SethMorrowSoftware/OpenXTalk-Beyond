@@ -84,7 +84,7 @@ or another control, use <export snapshot>:
 
     export snapshot from group "Collage" to file "collage.png" as PNG
 
-References: export (command), export snapshot (command), import (command),
+References: export (command), export snapshot (command), export audioClip (command), import (command),
 JPEG (glossary), GIF (glossary), export (glossary), PBM (glossary),
 container (glossary), PPM (glossary), PNG (glossary), BMP (glossary),
 command (glossary), file (keyword), image (keyword), paint (keyword),
