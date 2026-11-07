@@ -26,10 +26,11 @@ white whether the app was active or not, so after a script launched
 another app every default button was white on white. The label is white
 only while the app is active, in each of the two places that decide it.
 
-The engine test tests/lcs/core/interface/default-button-background
-measures it on the Mac: it puts the engine in the background and reads a
-default button's label against its face. This test reads the source, so
-that every platform's checks hold the rule.
+The IDE tour's last step, background-default
+(tools/ci/ui-tour.livecodescript), measures it on the Mac: it brings the
+Finder to the front, waits for a default button's face to turn grey, and
+reads its label against the face at two heights. This test reads the
+source, so that every platform's checks hold the rule and the step.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -76,25 +77,36 @@ class TheDefaultLabelInTheBackground(unittest.TestCase):
         # drawn without its accent colour
         self.assertIn('if (!MCappisactive)\n\t\t\t\twinfo.state |= WTHEME_STATE_SUPPRESSDEFAULT;', self.source)
 
-    def test_the_engine_test_is_in_ci(self):
-        test = read('tests', 'lcs', 'core', 'interface', 'default-button-background.livecodescript')
-        self.assertIn('on TestDefaultButtonLabelInTheBackground', test)
-        self.assertIn('launch "/System/Library/CoreServices/Finder.app"', test)
-        self.assertIn('TestAssert "a default button\'s label can be seen on its face in the background", '
-                      'tFarthest >= 200', test)
-        # it asserts only in the background, which the face shows (grey,
-        # not the accent colour); an active app's test is skipped, not
-        # passed
-        face = test[test.index('-- the face, left of the label'):test.index('put 0 into tFarthest')]
-        self.assertIn('min(item 1 of tFace, item 2 of tFace, item 3 of tFace) > 24 then', face)
-        self.assertIn('TestSkip "a default button\'s label can be seen on its face in the background"', face)
-        self.assertIn('exit TestDefaultButtonLabelInTheBackground', face)
-        # it launches the Finder: one of the tests that act on the desktop
-        runner = read('tools', 'ci', 'run_engine_tests.py')
-        intrusive = runner[runner.index('INTRUSIVE = ('):]
-        intrusive = intrusive[:intrusive.index('\n)\n')]
-        self.assertIn("r'^lcs: core/interface/default-button-background: '", intrusive)
-
+    def test_the_tour_measures_it(self):
+        # The IDE tour runs the real IDE on the Mac, where the app is
+        # active (its screenshots show the accent colour); the engine
+        # tests run with no user interface (-ui), so they could not
+        tour = read('tools', 'ci', 'ui-tour.livecodescript')
+        steps = re.search(r'^constant kSteps = "([^"]+)"', tour, re.M).group(1).split(',')
+        # last: it leaves the IDE in the background
+        self.assertEqual(steps[-1], 'background-default')
+        step = tour[tour.index('\non tour_background_default\n'):tour.index('\nend tour_background_default\n')]
+        self.assertIn('if the platform is not "MacOS" then', step)
+        self.assertIn('set the default of it to true', step)
+        self.assertIn('launch "/System/Library/CoreServices/Finder.app"', step)
+        # the face turned grey says the IDE is in the background; when it
+        # never does the step fails rather than measuring an active button
+        self.assertIn('if tourBgGrey(tFace) then exit repeat', step)
+        self.assertIn('throw "the IDE could not be put in the background: '
+                      'the default button\'s face is still" && tFace', step)
+        # both rules: the usual height and a taller button
+        self.assertIn('repeat for each item tHeight in "21,26"', step)
+        self.assertIn('if item 4 of tMeasure < 200 then', step)
+        self.assertIn('if tFails is not empty then throw', step)
+        grey = tour[tour.index('function tourBgGrey pRGB'):tour.index('end tourBgGrey')]
+        self.assertIn('min(item 1 of pRGB, item 2 of pRGB, item 3 of pRGB) <= 24', grey)
+        # the snapshot is of the button as drawn now, with the app's state
+        grab = tour[tour.index('command tourBgGrab'):tour.index('end tourBgGrab')]
+        self.assertIn('import snapshot from button "OK" of stack kBackground', grab)
+        # declared before the handlers that use them
+        self.assertLess(tour.index('constant kBackground = "OXT Tour Background"'), tour.index('on tour_background_default'))
+        self.assertLess(tour.index('local sCtlChecks, sCtlFails, sPixWidth, sPixHeight, sPixData'),
+                        tour.index('command tourBgGrab'))
 
 if __name__ == '__main__':
     unittest.main()
