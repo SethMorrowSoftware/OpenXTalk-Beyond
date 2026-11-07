@@ -53,8 +53,8 @@
 -- example run in its playground), the xTalk Assistant's window, Settings
 -- and Memory (no key, no request: only the windows), xTalk Chat before it
 -- goes online, the answer and ask dialogs and the icon chooser, and last,
-on the Mac, a default button with the IDE put in the background, whose
-label must still be seen (background-default). Not the Start Center: OpenXTalk Lite 1.15
+-- on the Mac, a default button with the IDE put in the background, whose
+-- label must still be seen (background-default). Not the Start Center: OpenXTalk Lite 1.15
 -- turned it off (no menu opens it and its Preferences are greyed out),
 -- and opened by a script it is an empty window. For each it
 -- writes a snapshot of the screen around the window (the effective rect
