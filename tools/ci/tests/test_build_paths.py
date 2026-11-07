@@ -66,8 +66,9 @@ def ignored(patterns, path):
 def repo_files():
     out = []
     # the folders the lists name files in (engine/src/java: the Android
-    # runtime's Java layer, which no desktop build compiles)
-    for top in ('.github', 'tools', 'changelog', os.path.join('engine', 'src', 'java')):
+    # runtime's Java layer, which no desktop build compiles; config: the
+    # NDK version that only the Android engine's build reads)
+    for top in ('.github', 'tools', 'changelog', 'config', os.path.join('engine', 'src', 'java')):
         for root, dirs, files in os.walk(os.path.join(REPO, top)):
             dirs[:] = [d for d in dirs if d != '__pycache__']
             for f in files:

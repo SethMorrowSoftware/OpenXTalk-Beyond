@@ -95,10 +95,11 @@
 				[
 					# hb-icu.cc includes ICU's headers, and ICU 75 and
 					# later need C++17 for them (as libfoundation does).
-					# A web build merges in its build settings, -std among
-					# them, at this late stage (config/emscripten.gypi), so
-					# the flag goes here, after them: a later -std wins.
-					'toolset_os == "emscripten"',
+					# A web or Android build merges in its build settings,
+					# -std among them, at this late stage
+					# (config/emscripten.gypi, config/android.gypi), so the
+					# flag goes here, after them: a later -std wins.
+					'toolset_os in ("emscripten", "android")',
 					{
 						'cflags_cc':
 						[

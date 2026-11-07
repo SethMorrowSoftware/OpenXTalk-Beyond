@@ -163,6 +163,9 @@ bool MCFileSystemPathExists(const char *p_path, bool p_folder, bool& r_exists)
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
+// OXT-Beyond: PATH_MAX, from where POSIX puts it, not through whichever
+// header brought it in with NDK r15's headers
+#include <limits.h>
 
 #ifdef _LINUX
 #define PATH_MAX 4096

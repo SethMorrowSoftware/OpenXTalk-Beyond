@@ -598,9 +598,20 @@ class Elf(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # jni
 
-def engine_classes(extra_natives=(), gles=None):
+# OpenGLView.startGLES(int) as this tree's javac writes it: the context of
+# the version asked for from OpenGL ES 2 on, else one with no attributes
+#   if (p > 1) m_egl_context = eglCreateContext(..., new int[] {
+#       EGL_CONTEXT_CLIENT_VERSION, p, EGL_NONE}); else ...(null)
+STARTGLES_CODE = [0x1b, 0x04, 0xa4, ('u2', 26), 0x06, 0xbc, 10, 0x59, ICONST_0, SIPUSH, ('u2', 0x3098), 0x4f,
+                  0x59, 0x04, 0x1b, 0x4f, 0x59, ICONST_2, SIPUSH, ('u2', 0x3038), 0x4f, 0x4d, GOTO, ('u2', 5),
+                  ACONST_NULL, 0x4d, RETURN]
+
+
+def engine_classes(extra_natives=(), gles=None, delegate=None):
     """A made-up Java layer: an Engine with natives and methods the engine
-    calls, an OpenGLView, and a listener interface."""
+    calls, an OpenGLView, and a listener interface. The view's start()
+    makes its context (with gles, of that version) or, with delegate, calls
+    startGLES(delegate)."""
     e = ClassWriter('com/runrev/android/Engine', 'android/view/View')
     e.method('doProcess', '(Z)V', 0x010a)
     e.method('doName_x', '(Ljava/lang/String;)V', 0x0101)
@@ -611,7 +622,12 @@ def engine_classes(extra_natives=(), gles=None):
     e.method('showAlert', '(Ljava/lang/String;I)V', code=[RETURN])
     e.method('pick', '(Ljava/lang/String;)Ljava/lang/String;', code=[ACONST_NULL, ARETURN])
     v = ClassWriter('com/runrev/android/OpenGLView', 'android/view/SurfaceView')
-    if gles is None:
+    if delegate is not None:
+        v.method('start', '()V', code=[ALOAD_0, BIPUSH, delegate, INVOKEVIRTUAL,
+                                       ('ref', 'method', 'com/runrev/android/OpenGLView', 'startGLES', '(I)V'),
+                                       RETURN])
+        v.method('startGLES', '(I)V', code=STARTGLES_CODE)
+    elif gles is None:
         v.method('start', '()V', code=[ALOAD_0, ACONST_NULL, POP, POP, RETURN])
     else:
         # new int[] {EGL_CONTEXT_CLIENT_VERSION, gles, EGL_NONE}
@@ -906,24 +922,138 @@ class Named(unittest.TestCase):
 
 
 class Gles(unittest.TestCase):
-    def classes(self, gles):
-        return aj.Classes({w.name: parse(w) for w in engine_classes(gles=gles)})
+    def classes(self, gles=None, delegate=None):
+        return aj.Classes({w.name: parse(w) for w in engine_classes(gles=gles, delegate=delegate)})
 
     def test_no_attributes_is_es_1(self):
         self.assertEqual(aj.gles_version(self.classes(None)), 1)
         problems, lines = aj.check_gles(self.classes(None), {'arm64-v8a': ['libGLESv1_CM.so', 'libc.so']})
         self.assertEqual(problems, [])
-        self.assertIn('OpenGLView makes OpenGL ES 1 contexts', lines)
+        self.assertIn('OpenGLView.start() makes OpenGL ES 1 contexts', lines)
+        self.assertIn('arm64-v8a: it calls OpenGLView.start(), which makes OpenGL ES 1 contexts', lines)
 
     def test_es_3_context_with_an_es_1_engine(self):
         self.assertEqual(aj.gles_version(self.classes(3)), 3)
         problems, _ = aj.check_gles(self.classes(3), {'arm64-v8a': ['libGLESv1_CM.so']})
-        self.assertEqual(problems, ['arm64-v8a: the engine draws with OpenGL ES 1 (libGLESv1_CM.so), and OpenGLView '
-                                    'makes OpenGL ES 3 contexts'])
+        self.assertEqual(problems, ['arm64-v8a: the engine draws with OpenGL ES 1 (libGLESv1_CM.so), and '
+                                    'OpenGLView.start() makes OpenGL ES 3 contexts'])
         self.assertEqual(aj.check_gles(self.classes(3), {'arm64-v8a': ['libGLESv3.so', 'libEGL.so']})[0], [])
 
     def test_no_view(self):
         self.assertEqual(aj.check_gles(aj.Classes({}), {})[0], ['the jar has no com/runrev/android/OpenGLView.start'])
+
+    def test_start_calls_startgles(self):
+        """This tree's view: start() calls startGLES(1), which makes its
+        context with no attributes for 1 and of the version for more."""
+        classes = self.classes(delegate=1)
+        self.assertEqual(aj.gles_contexts(classes), (1, None))
+        self.assertEqual(aj.gles_contexts(classes, 3), (1, 3))
+        self.assertEqual(aj.gles_contexts(classes, 2), (1, 2))
+        self.assertEqual(aj.gles_contexts(self.classes(delegate=3)), (3, None))
+        # what this check cannot read: a start() that passes startGLES a
+        # value from elsewhere, or a startGLES without the version it asks
+        view = ClassWriter('com/runrev/android/OpenGLView', 'android/view/SurfaceView')
+        view.method('start', '()V', code=[ALOAD_0, ALOAD_0, GETFIELD,
+                                          ('ref', 'field', 'com/runrev/android/OpenGLView', 'm_version', 'I'),
+                                          INVOKEVIRTUAL,
+                                          ('ref', 'method', 'com/runrev/android/OpenGLView', 'startGLES', '(I)V'),
+                                          RETURN])
+        view.method('startGLES', '(I)V', code=STARTGLES_CODE)
+        self.assertEqual(aj.gles_contexts(aj.Classes({view.name: parse(view)}), 3), (0, 3))
+        view = ClassWriter('com/runrev/android/OpenGLView', 'android/view/SurfaceView')
+        view.method('start', '()V', code=[ALOAD_0, ICONST_2, INVOKEVIRTUAL,
+                                          ('ref', 'method', 'com/runrev/android/OpenGLView', 'startGLES', '(I)V'),
+                                          RETURN])
+        view.method('startGLES', '(I)V', code=[0x06, 0xbc, 10, 0x59, ICONST_0, SIPUSH, ('u2', 0x3098), 0x4f,
+                                               0x59, ICONST_0, 0x1b, 0x4f, 0x4d, RETURN])
+        self.assertEqual(aj.gles_contexts(aj.Classes({view.name: parse(view)}), 3), (0, 0))
+        problems, _ = aj.check_gles(aj.Classes({view.name: parse(view)}), {'x86': ['libGLESv3.so']}, 3)
+        self.assertEqual(problems, ['com/runrev/android/OpenGLView.start asks for an OpenGL ES version this check '
+                                    'cannot read',
+                                    'x86: OpenGLView.startGLES(3) asks for an OpenGL ES version this check cannot '
+                                    'read'])
+
+    def test_both_engines_with_this_trees_view(self):
+        """One Java layer, two engines: 9.6.3's (libGLESv1_CM) calls start()
+        and gets OpenGL ES 1; one built from this tree (libGLESv3) calls
+        startGLES with the source's version and gets OpenGL ES 3."""
+        classes = self.classes(delegate=1)
+        old = {'arm64-v8a': ['libGLESv1_CM.so', 'libc.so']}
+        new = {'arm64-v8a': ['libGLESv3.so', 'libEGL.so'], 'x86': ['libGLESv3.so']}
+        problems, lines = aj.check_gles(classes, old, 3)
+        self.assertEqual(problems, [])
+        self.assertIn('arm64-v8a: it calls OpenGLView.start(), which makes OpenGL ES 1 contexts', lines)
+        problems, lines = aj.check_gles(classes, new, 3)
+        self.assertEqual(problems, [])
+        self.assertIn('arm64-v8a: it calls OpenGLView.startGLES(3), which makes OpenGL ES 3 contexts', lines)
+        self.assertIn('x86: it calls OpenGLView.startGLES(3), which makes OpenGL ES 3 contexts', lines)
+        # the engine of this tree, had its source kept calling start()
+        self.assertEqual(aj.check_gles(classes, new, None)[0],
+                         ['arm64-v8a: the engine draws with OpenGL ES 3 (libGLESv3.so), and OpenGLView.start() '
+                          'makes OpenGL ES 1 contexts',
+                          'x86: the engine draws with OpenGL ES 3 (libGLESv3.so), and OpenGLView.start() makes '
+                          'OpenGL ES 1 contexts'])
+        # or asked for a version the library is not
+        self.assertEqual(aj.check_gles(classes, {'x86': ['libGLESv3.so']}, 2)[0],
+                         ['x86: the engine draws with OpenGL ES 3 (libGLESv3.so), and OpenGLView.startGLES(2) '
+                          'makes OpenGL ES 2 contexts'])
+        # and a source this check cannot read
+        self.assertEqual(aj.check_gles(classes, {'x86': ['libGLESv3.so']}, 0)[0],
+                         ['x86: engine/src/mblandroiddc.cpp asks OpenGLView for an OpenGL ES version this check '
+                          'cannot read'])
+
+    def test_the_config_can_make_the_context(self):
+        """The view's source: for OpenGL ES 1, the config LiveCode's Java
+        always chose (findConfig of four sizes, which says nothing of the
+        renderable type); from OpenGL ES 2 on, one that says it can make
+        that version's context, or none so that the next sizes are tried
+        (the EGL default, OpenGL ES 1 alone, may give a config that cannot
+        make an OpenGL ES 3 context first)"""
+        src = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'OpenGLView.java')
+        four = re.search(r'(?s)private EGLConfig findConfig\(int r, int g, int b, int a\)\s*\{(.*?)\n\t\}', src)
+        self.assertNotIn('RENDERABLE', four.group(1))
+        self.assertIn('return t_configs[0];', four.group(1))
+        five = re.search(r'(?s)private EGLConfig findConfig\(int r, int g, int b, int a, int p_gles_version\)\s*'
+                         r'\{(.*?)\n\t\}', src).group(1)
+        self.assertRegex(five, r'^\s*if \(p_gles_version <= 1\)\s+return findConfig\(r, g, b, a\);')
+        self.assertIn('EGL_RENDERABLE_TYPE, p_gles_version >= 3 ? EGL_OPENGL_ES3_BIT_KHR : EGL_OPENGL_ES2_BIT,', five)
+        self.assertEqual(five.count('return null;'), 2)
+        # EGL's values (EGL 1.5 and EGL_KHR_create_context)
+        for name, value in (('EGL_RENDERABLE_TYPE', '0x3040'), ('EGL_OPENGL_ES2_BIT', '0x0004'),
+                            ('EGL_OPENGL_ES3_BIT_KHR', '0x0040')):
+            self.assertIn('private static final int %s = %s;' % (name, value), src)
+        start = re.search(r'(?s)public void startGLES\(int p_gles_version\)\s*\{(.*?)\n\t\}', src).group(1)
+        sizes = re.findall(r'findConfig\((\d+, \d+, \d+, \d+)(, p_gles_version)?\)', start)
+        self.assertEqual(sizes, [(x, ', p_gles_version') for x in ('8, 8, 8, 8', '5, 6, 5, 0', '5, 5, 5, 0',
+                                                                     '4, 4, 4, 4', '0, 0, 0, 0')])
+        self.assertRegex(src, r'public void start\(\)\s*\{\s*startGLES\(1\);\s*\}')
+
+    def test_the_shipped_view_with_each_engine(self):
+        """LiveCode 9.6.3's view has no startGLES: right for its own engine,
+        and an engine built from this tree could not draw with it."""
+        classes = self.classes(None)
+        self.assertEqual(aj.check_gles(classes, {'x86': ['libGLESv1_CM.so']}, 3)[0], [])
+        self.assertEqual(aj.check_gles(classes, {'x86': ['libGLESv3.so']}, 3)[0],
+                         ['x86: the engine calls OpenGLView.startGLES(3) (engine/src/mblandroiddc.cpp), which the '
+                          'jar does not have'])
+
+    def test_the_source_reader(self):
+        call = ('static const jint kMCAndroidOpenGLESVersion = 3;\n'
+                's_openglview_start_method = env -> GetMethodID(t_view_class, "startGLES", "(I)V");\n'
+                's_java_env -> CallVoidMethod(s_android_opengl_view, s_openglview_start_method, '
+                'kMCAndroidOpenGLESVersion);\n')
+        self.assertEqual(aj.source_gles_version(call), 3)
+        self.assertEqual(aj.source_gles_version(call.replace('= 3;', '= 2;')), 2)
+        # LiveCode's own call
+        self.assertIsNone(aj.source_gles_version(
+            's_openglview_start_method = env -> GetMethodID(t_view_class, "start", "()V");\n'
+            's_java_env -> CallVoidMethod(s_android_opengl_view, s_openglview_start_method);\n'))
+        # what it cannot read: no version, or one not passed
+        self.assertEqual(aj.source_gles_version(call.replace('kMCAndroidOpenGLESVersion = 3', 'kOther = 3')), 0)
+        self.assertEqual(aj.source_gles_version(call.replace(', kMCAndroidOpenGLESVersion)', ', 3)')), 0)
+        self.assertEqual(aj.source_gles_version('nothing'), 0)
+        # and the tree's
+        self.assertEqual(aj.source_gles_version(), 3)
 
 
 class Rules(unittest.TestCase):
@@ -1225,12 +1355,28 @@ class OneSystem(unittest.TestCase):
         self.assertRegex(activity, r's_main_layout \. addView\(s_main_view,\s*new FrameLayout\.LayoutParams\('
                                    r'FrameLayout\.LayoutParams\.MATCH_PARENT,\s*FrameLayout\.LayoutParams\.MATCH_PARENT\)\);')
 
-    def test_opengl_view_asks_for_the_shipped_engines_version(self):
+    def test_opengl_view_serves_both_engines(self):
         # the runtime's engine is LiveCode Community 9.6.3's, which draws
-        # with OpenGL ES 1 (android-java.yml's jni checks it on the engine):
-        # while the runtimes asset carries that engine, the view asks for 1
+        # with OpenGL ES 1 and calls start() (android-java.yml's jni checks
+        # it on the engine): while the runtimes asset carries that engine,
+        # start() makes the context it made, with no attributes
         java = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'OpenGLView.java')
-        self.assertIn('private static final int GLES_VERSION = 1;', java)
+        self.assertRegex(java, r'public void start\(\)\s*{\s*startGLES\(1\);\s*}')
+        self.assertIn('public void startGLES(int p_gles_version)', java)
+        self.assertRegex(java, r'if \(p_gles_version > 1\)\s*{\s*int\[\] t_attr = new int\[\] {\s*'
+                               r'EGL_CONTEXT_CLIENT_VERSION, p_gles_version,\s*EGL10.EGL_NONE,\s*};\s*'
+                               r'm_egl_context = m_egl \. eglCreateContext\(m_egl_display, m_egl_config, '
+                               r'EGL10 \. EGL_NO_CONTEXT, t_attr\);\s*}\s*else\s*m_egl_context = m_egl \. '
+                               r'eglCreateContext\(m_egl_display, m_egl_config, EGL10 \. EGL_NO_CONTEXT, null\);')
+        self.assertNotIn('GLES_VERSION', java)
+        # an engine built from this tree draws with OpenGL ES 3, which it
+        # links, and asks startGLES for that (android-engine.yml's jni
+        # checks it on the engine built)
+        self.assertEqual(aj.source_gles_version(), 3)
+        kernel = read('engine', 'kernel.gyp')
+        self.assertIn("'-lGLESv3',", kernel)
+        self.assertNotIn("'-lGLESv1_CM',", kernel)
+        self.assertNotIn('"start", "()V"', read('engine', 'src', 'mblandroiddc.cpp'))
         import json
         assets = json.loads(read('tools', 'oxt', 'external-assets.json'))
         runtimes = [a for a in assets['assets'] if a['id'].startswith('oxt-runtimes-')]

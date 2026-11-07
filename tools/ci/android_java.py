@@ -216,6 +216,11 @@ EXPECTED = {
         'code com/runrev/android/BusyIndicator$1.onKey:(Landroid/content/DialogInterface;ILandroid/view/KeyEvent;)Z':
             'the key listener calls backPressed, which does what it did (every busy indicator dismissed, then '
             'the stack\'s backKey), so that the back callback can do the same',
+        # OXT-Beyond's engine built from this tree (the Android plan's phase 2)
+        'code com/runrev/android/OpenGLView.start:()V':
+            'start() calls startGLES(1), whose code is start()\'s with one branch added: for 1 it makes the '
+            'same context, OpenGL ES 1 asked for with no attributes, which this engine draws in; startGLES(3) '
+            'makes the OpenGL ES 3 context an engine built from this tree asks for (mblandroiddc.cpp)',
     },
 }
 
@@ -1300,51 +1305,137 @@ def check_named(named, classes):
 
 
 # The OpenGL ES library an engine loads, and the version of the context
-# OpenGLView must make for it
+# OpenGLView must make for it. One Java layer serves two engines: LiveCode
+# 9.6.3's, which the runtime carries, loads libGLESv1_CM and calls start();
+# one built from this tree loads a later OpenGL ES library and calls what
+# its source says, startGLES(kMCAndroidOpenGLESVersion)
 GLES_LIBRARIES = {'libGLESv1_CM.so': 1, 'libGLESv2.so': 2, 'libGLESv3.so': 3}
 GLES_CLASS = 'com/runrev/android/OpenGLView'
+GLES_SOURCE = 'engine/src/mblandroiddc.cpp'
+GLES_WITH_VERSION = 'startGLES'
 EGL_CONTEXT_CLIENT_VERSION = 0x3098
 
 
-def gles_version(classes):
-    """The OpenGL ES version of the contexts OpenGLView.start makes, read in
-    its code: the value it puts after EGL_CONTEXT_CLIENT_VERSION in the
-    attributes it gives eglCreateContext, or 1 when it gives none (EGL's
-    default). None when there is no such class or method."""
-    c = classes.get(GLES_CLASS)
-    method = c.methods.get(('start', '()V')) if c is not None else None
-    if method is None:
-        return None
-    listing = code_listing(c, method[1], method[2], '()V', False)
+def context_version(listing, argument=None):
+    """The OpenGL ES version of the context a start method's code makes: the
+    value it puts after EGL_CONTEXT_CLIENT_VERSION in the attributes it
+    gives eglCreateContext (`argument` where that is its int parameter), or
+    1 when it gives none (EGL's default); 0 when this check cannot read
+    it."""
     for i, insn in enumerate(listing):
         # dup, const 0, const EGL_CONTEXT_CLIENT_VERSION, iastore, dup,
-        # const 1, const <version>, iastore
+        # const 1, <the version>, iastore
         if insn == 'const %d' % EGL_CONTEXT_CLIENT_VERSION and i + 4 < len(listing):
+            if listing[i + 3] != 'const 1':
+                return 0
             m = re.match(r'const (\d+)$', listing[i + 4])
-            if listing[i + 3] == 'const 1' and m:
+            if m:
                 return int(m.group(1))
+            if listing[i + 4] == 'iload p1' and argument is not None:
+                return argument
             return 0
     return 1
 
 
-def check_gles(classes, needed):
-    """Problems and lines for the OpenGL ES version of OpenGLView's contexts
-    against the library each engine loads ({abi: [the libraries it
-    needs]})."""
-    version = gles_version(classes)
-    if version is None:
+def gles_contexts(classes, argument=None):
+    """The OpenGL ES versions of the contexts OpenGLView makes: (start()'s,
+    startGLES(argument)'s), each None where the view has no such method (or
+    no argument is given) and 0 where this check cannot read it. start()
+    may call startGLES with a constant, as this tree's does."""
+    c = classes.get(GLES_CLASS)
+    if c is None:
+        return None, None
+
+    def listing(name, desc):
+        m = c.methods.get((name, desc))
+        return None if m is None else code_listing(c, m[1], m[2], desc, False)
+    plain, with_version = listing('start', '()V'), listing(GLES_WITH_VERSION, '(I)V')
+
+    def started(value):
+        return context_version(with_version, value) if with_version is not None else 0
+    of_plain = None
+    if plain is not None:
+        call = 'invokevirtual %s.%s:(I)V' % (GLES_CLASS, GLES_WITH_VERSION)
+        if call in plain:
+            i = plain.index(call)
+            m = re.match(r'const (\d+)$', plain[i - 1]) if i else None
+            of_plain = started(int(m.group(1))) if m else 0
+        else:
+            of_plain = context_version(plain)
+    of_version = started(argument) if argument is not None and with_version is not None else None
+    return of_plain, of_version
+
+
+def gles_version(classes):
+    """The OpenGL ES version of the contexts OpenGLView.start() makes (see
+    gles_contexts)."""
+    return gles_contexts(classes)[0]
+
+
+def source_gles_version(text=None):
+    """The OpenGL ES version the engine's source asks OpenGLView for: None
+    when it calls start(), kMCAndroidOpenGLESVersion when it calls
+    startGLES with it, 0 when this check cannot tell."""
+    if text is None:
+        with open(os.path.join(REPO, GLES_SOURCE), encoding='utf-8', errors='replace') as f:
+            text = f.read()
+    if re.search(r'GetMethodID\(\s*\w+\s*,\s*"start"\s*,\s*"\(\)V"\s*\)', text):
+        return None
+    if not re.search(r'GetMethodID\(\s*\w+\s*,\s*"%s"\s*,\s*"\(I\)V"\s*\)' % GLES_WITH_VERSION, text):
+        return 0
+    m = re.search(r'static const jint kMCAndroidOpenGLESVersion = (\d+);', text)
+    if not m or not re.search(r'CallVoidMethod\(\s*s_android_opengl_view\s*,\s*s_openglview_start_method\s*,'
+                              r'\s*kMCAndroidOpenGLESVersion\s*\)', text):
+        return 0
+    return int(m.group(1))
+
+
+def check_gles(classes, needed, source=None):
+    """Problems and lines for the OpenGL ES version of the contexts
+    OpenGLView makes against the library each engine loads ({abi: [the
+    libraries it needs]}). An engine that loads libGLESv1_CM (or none) is
+    LiveCode 9.6.3's, which calls start(); one that loads a later library
+    is built from this tree, whose source asks for `source`
+    (source_gles_version: None when it calls start())."""
+    of_plain = gles_contexts(classes)[0]
+    if of_plain is None:
         return ['the jar has no %s.start' % GLES_CLASS], []
-    if not version:
-        return ['%s.start asks for an OpenGL ES version this check cannot read' % GLES_CLASS], []
     problems = []
-    lines = ['OpenGLView makes OpenGL ES %d contexts' % version]
+    lines = []
+    if of_plain:
+        lines.append('OpenGLView.start() makes OpenGL ES %d contexts' % of_plain)
+    else:
+        problems.append('%s.start asks for an OpenGL ES version this check cannot read' % GLES_CLASS)
     for abi in sorted(needed):
         libs = [x for x in needed[abi] if x in GLES_LIBRARIES]
         engine = max(GLES_LIBRARIES[x] for x in libs) if libs else None
+        drawn = '%s (%s)' % (engine, ', '.join(libs) or 'no OpenGL ES library')
         lines.append('%s: the engine loads %s' % (abi, ', '.join(libs) or 'no OpenGL ES library'))
-        if engine != version:
-            problems.append('%s: the engine draws with OpenGL ES %s (%s), and OpenGLView makes OpenGL ES %d contexts'
-                            % (abi, engine, ', '.join(libs) or 'no OpenGL ES library', version))
+        if engine is not None and engine > 1 and source is not None:
+            # built from this tree: it calls what its source says
+            if not source:
+                problems.append('%s: %s asks OpenGLView for an OpenGL ES version this check cannot read'
+                                % (abi, GLES_SOURCE))
+                continue
+            call = '%s(%d)' % (GLES_WITH_VERSION, source)
+            made = gles_contexts(classes, source)[1]
+            if made is None:
+                problems.append('%s: the engine calls OpenGLView.%s (%s), which the jar does not have'
+                                % (abi, call, GLES_SOURCE))
+                continue
+            if not made:
+                problems.append('%s: OpenGLView.%s asks for an OpenGL ES version this check cannot read'
+                                % (abi, call))
+                continue
+        else:
+            call, made = 'start()', of_plain
+            if not made:
+                continue
+        if engine != made:
+            problems.append('%s: the engine draws with OpenGL ES %s, and OpenGLView.%s makes OpenGL ES %d '
+                            'contexts' % (abi, drawn, call, made))
+        else:
+            lines.append('%s: it calls OpenGLView.%s, which makes OpenGL ES %d contexts' % (abi, call, made))
     return problems, lines
 
 
@@ -1391,7 +1482,7 @@ def jni(args):
     sections.append(('LCB bindings', p, lines))
     p, lines = check_named(named_classes(args.runtime), classes)
     sections.append(('classes named by the manifest and the builder', p, lines))
-    p, lines = check_gles(classes, needed)
+    p, lines = check_gles(classes, needed, source_gles_version())
     sections.append(('OpenGL ES', p, lines))
     return report(sections)
 

@@ -3,12 +3,23 @@
 	{
 		'c++_std': '<!(echo ${CXX_STD:-c++11})',
 		'android_lib_path%': '<!(echo ${ANDROID_LIB_PATH:+-L${ANDROID_LIB_PATH}})',
+		# OXT-Beyond: the linker, config/android.gypi's (which config.py
+		# names), again here for this file's target_conditions, which see
+		# a target's own variables and not a gyp file's
+		'android_fuse_ld%': '<(android_fuse_ld)',
 	},
 
 	'cflags':
 	[
 		'-fstrict-aliasing',
 		'-fvisibility=hidden',
+		# OXT-Beyond: position-independent code, as everything here ends up
+		# in a shared library (the engine, the externals) and as a Linux
+		# build asks for it (linux-settings.gypi). A current NDK's Clang
+		# makes PIE code by default, which lld refuses to link into one
+		# where it refers to a symbol another library could stand in for
+		# (CI's x86 build stopped on DbSqlite and libc++'s typeinfo).
+		'-fPIC',
 	],
 	
 	'cflags_c':
@@ -26,7 +37,7 @@
 	
 	'ldflags':
 	[
-		'-fuse-ld=bfd',
+		'-fuse-ld=<(android_fuse_ld)',
 	],
 	
 	'target_conditions':
@@ -34,13 +45,33 @@
 		[
 			'_type == "loadable_module"',
 			{
-				'ldflags':
+				# OXT-Beyond: -lstdc++ only with a standalone toolchain, as
+				# before. lld is a current NDK's linker (config.py), whose
+				# clang++ links the C++ library into each library itself
+				# (-static-libstdc++ in LINK); there -lstdc++ also named the
+				# NDK's shared libc++, libc++_shared.so, which Android does
+				# not have (CI's first whole arm64 build asked for it).
+				'target_conditions':
 				[
-					'<(android_lib_path)',
-					'-lstdc++',
-					'-landroid',
+					[
+						'android_fuse_ld == "lld"',
+						{
+							'ldflags':
+							[
+								'<(android_lib_path)',
+								'-landroid',
+							],
+						},
+						{
+							'ldflags':
+							[
+								'<(android_lib_path)',
+								'-lstdc++',
+								'-landroid',
+							],
+						},
+					],
 				],
-
 			},
 		],
 		[

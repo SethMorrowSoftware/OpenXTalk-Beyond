@@ -221,15 +221,36 @@
 											'lib/android/<(target_arch)/<(android_subplatform)',
 										],
 										
-										'libraries':
+										# OXT-Beyond: -lstdc++ only with a standalone toolchain, as
+										# before (config/android-settings.gypi says why)
+										'conditions':
 										[
-											'-licui18n',
-											'-licuio',
-											'-licuuc',
-											'-licudata',
-											'-lstdc++',
-											'-lm',
-											'-latomic',
+											[
+												'android_fuse_ld == "lld"',
+												{
+													'libraries':
+													[
+														'-licui18n',
+														'-licuio',
+														'-licuuc',
+														'-licudata',
+														'-lm',
+														'-latomic',
+													],
+												},
+												{
+													'libraries':
+													[
+														'-licui18n',
+														'-licuio',
+														'-licuuc',
+														'-licudata',
+														'-lstdc++',
+														'-lm',
+														'-latomic',
+													],
+												},
+											],
 										],
 									},
 								],

@@ -1,0 +1,272 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+# The Android engine of the checkout and the externals an Android standalone
+# can include, built for every architecture with the NDK of
+# config/android-ndk-version (its own Clang, LLVM tools and lld) by
+# tools/ci/build-android.sh, which says what the folder holds and how it is
+# built, and checked (the Android plan's phase 2):
+#
+#   - tools/ci/android_engine.py check: what Android and the IDE's builder
+#     ask of each library (the right machine, 16 KB pages for the 64-bit
+#     ones, no text relocations, only Android's own libraries, Android 5.0
+#     as the lowest, and the section the builder writes the stack into);
+#   - tools/ci/android_java.py jni: the engine's Java_* functions against
+#     the Java layer built with it, and its calls into Java.
+#
+# The folders are artifacts only: the packages keep shipping the Android
+# runtime of the runtimes asset (LiveCode 9.6.3's engine), and nothing here
+# goes into a package or a release.
+#
+# Each job runs in an Ubuntu 22.04 container, as web.yml's does (the
+# newest Ubuntu with the Python 2.7 that gyp and config.py need), with the
+# runner's Android SDK mounted into it; the NDK, the platform the Java layer
+# compiles against and the build tools are installed into that SDK with
+# its sdkmanager when the runner's image has not got them.
+#
+# Caches (the GitHub Actions cache), each filled again by the job when it
+# misses: the build tools' packages (as web.yml's), and the libraries
+# build-android.sh builds for each architecture (OpenSSL, ICU and the
+# Thirdparty libraries for Android, ICU, libz and libffi for the build's
+# host tools), keyed by what they are built with.
+name: Android engine
+
+on:
+  pull_request:
+    branches: [ main ]
+    # What the engine and its externals are built from, and this
+    # workflow's own files: not the IDE, the documentation, the tests, the
+    # installers or the other workflows and CI scripts
+    paths: &engine-paths
+      - '**'
+      - '!ide/**'
+      - '!ide-support/**'
+      - '!docs/**'
+      - '!tests/**'
+      - '!Installer/**'
+      - '!changelog/**'
+      - '!**.md'
+      - '!.github/**'
+      - '!tools/**'
+      - .github/workflows/android-engine.yml
+      - tools/ci/build-android.sh
+      - tools/ci/android_engine.py
+      - tools/ci/android_java.py
+      - tools/javac_wrapper.sh
+      - tools/pathify.sh
+  push:
+    branches: [ main ]
+    paths: *engine-paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-engine-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: Android engine (${{ matrix.arch }})
+    runs-on: ubuntu-24.04
+    # Ubuntu 22.04 through Google's mirror of Docker Hub, as web.yml takes
+    # it, with the runner's Android SDK
+    container:
+      image: mirror.gcr.io/library/ubuntu:22.04
+      volumes:
+        - /usr/local/lib/android:/usr/local/lib/android
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            abi: arm64-v8a
+          - arch: armv7
+            abi: armeabi-v7a
+          - arch: x86_64
+            abi: x86_64
+          - arch: x86
+            abi: x86
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      ARCH: ${{ matrix.arch }}
+      ABI: ${{ matrix.abi }}
+      # The packages the first step installs (part of its cache key): those
+      # of web.yml's, and a JDK for the Java layer and the SDK's sdkmanager
+      BUILD_PKGS: >-
+        build-essential gcc g++ make perl bison flex gawk pkg-config
+        python2 python3 git curl ca-certificates
+        bzip2 xz-utils zstd zip unzip file openjdk-17-jdk-headless
+      ANDROID_SDK: /usr/local/lib/android/sdk
+      # The platform whose android.jar the Java layer compiles against
+      # (android-java.yml's)
+      ANDROID_API_VERSION: '36'
+    steps:
+      - name: Compute the build tools cache key
+        id: apt-key
+        run: |
+          hash=$(printf '%s\n' 'mirror.gcr.io/library/ubuntu:22.04' "$BUILD_PKGS" | sha256sum | cut -c1-16)
+          echo "key=apt-jammy-android-$(date -u +%Y-%m)-${hash}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the build tools' packages
+        id: apt-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            /var/cache/apt/archives/*.deb
+            /var/lib/apt/lists
+          key: ${{ steps.apt-key.outputs.key }}
+
+      - name: Install build tools
+        env:
+          CACHE_HIT: ${{ steps.apt-cache.outputs.cache-hit }}
+        run: |
+          rm -f /etc/apt/apt.conf.d/docker-clean
+          if [ "$CACHE_HIT" != true ]; then
+            apt-get -o Acquire::Retries=3 update
+          fi
+          # shellcheck disable=SC2086 # BUILD_PKGS is a list
+          apt-get -o Acquire::Retries=3 install -y --no-install-recommends $BUILD_PKGS
+          # gyp and config.py run "python", which must be Python 2.7
+          ln -sf /usr/bin/python2 /usr/local/bin/python
+          gcc --version | sed -n 1p
+          python --version
+          javac -version
+          echo "Processors: $(nproc)"
+
+      - name: Save the build tools' packages to the cache
+        if: steps.apt-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main' && matrix.arch == 'arm64'
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            /var/cache/apt/archives/*.deb
+            /var/lib/apt/lists
+          key: ${{ steps.apt-key.outputs.key }}
+
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Mark the workspace safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # The NDK of config/android-ndk-version, the platform and build tools
+      # (which config.py asks for), from the runner's SDK, or installed into it
+      - name: Set up the NDK and the SDK
+        run: |
+          ndk=$(head -n 1 config/android-ndk-version | tr -d '[:space:]')
+          if [ -z "$ndk" ]; then echo "::error::config/android-ndk-version is empty"; exit 1; fi
+          [ -d "$ANDROID_SDK" ] || { echo "::error::no Android SDK in $ANDROID_SDK (the runner's)"; exit 1; }
+          wanted=()
+          [ -f "$ANDROID_SDK/ndk/$ndk/source.properties" ] || wanted+=("ndk;$ndk")
+          [ -f "$ANDROID_SDK/platforms/android-$ANDROID_API_VERSION/android.jar" ] ||
+            wanted+=("platforms;android-$ANDROID_API_VERSION")
+          tools=$(find "$ANDROID_SDK/build-tools" -mindepth 2 -maxdepth 2 -name aidl 2>/dev/null | sort -V | tail -n 1)
+          [ -n "$tools" ] || wanted+=("build-tools;$ANDROID_API_VERSION.0.0")
+          if [ ${#wanted[@]} -gt 0 ]; then
+            echo "Installing ${wanted[*]}"
+            sm="$ANDROID_SDK/cmdline-tools/latest/bin/sdkmanager"
+            (yes || true) | "$sm" --licenses > /dev/null
+            "$sm" --install "${wanted[@]}" > /tmp/sdkmanager.log 2>&1 ||
+              { tail -40 /tmp/sdkmanager.log; exit 1; }
+          fi
+          echo "ANDROID_NDK=$ANDROID_SDK/ndk/$ndk" >> "$GITHUB_ENV"
+          sed -n 's/^Pkg\.Revision *= *//p' "$ANDROID_SDK/ndk/$ndk/source.properties"
+          "$ANDROID_SDK/ndk/$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" --version | sed -n 1p
+          ls "$ANDROID_SDK/build-tools"
+
+      # The libraries' key, from what they are built with: the prebuilt
+      # scripts and versions, the vendored thirdparty/ tree, the gyp
+      # settings and config.py, the NDK's version and build-android.sh
+      - name: Compute the cache key
+        id: keys
+        run: |
+          scripts=$(cat prebuilt/versions/* prebuilt/scripts/*.sh prebuilt/scripts/*.inc \
+                        prebuilt/build-libraries.sh prebuilt/*.gyp config/*.gypi config.py \
+                        config/android-ndk-version tools/ci/build-android.sh | sha256sum | cut -c1-16)
+          thirdparty=$(git rev-parse HEAD:thirdparty | cut -c1-12)
+          echo "libraries=prebuilt-android-${ARCH}-jammy-${scripts}-${thirdparty}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the libraries
+        id: libraries-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            prebuilt/lib
+            prebuilt/bin
+            prebuilt/include
+            prebuilt/share
+          key: ${{ steps.keys.outputs.libraries }}
+
+      # A step of its own, so that the libraries are kept whether the
+      # engine then builds or not
+      - name: Build the libraries
+        id: libraries
+        if: steps.libraries-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 120
+        run: tools/ci/build-android.sh "$ARCH" --libraries
+
+      - name: Save the libraries to the cache
+        if: steps.libraries.outcome == 'success'
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            prebuilt/lib
+            prebuilt/bin
+            prebuilt/include
+            prebuilt/share
+          key: ${{ steps.keys.outputs.libraries }}
+
+      - name: Build the engine and the externals
+        timeout-minutes: 120
+        run: tools/ci/build-android.sh "$ARCH" android-runtime
+
+      - name: Check what Android and the builder ask of them
+        run: python3 tools/ci/android_engine.py check android-runtime --abi "$ABI"
+
+      - name: Check the engine against its Java layer (JNI)
+        run: |
+          python3 tools/ci/android_java.py jni --classes android-runtime/Classes --runtime android-runtime \
+            --android-jar "$ANDROID_SDK/platforms/android-$ANDROID_API_VERSION/android.jar"
+
+      # A path in the workspace: in a container job runner.temp names the
+      # host's folder, which the upload action does not see
+      - name: Upload the runtime
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-engine-${{ matrix.abi }}
+          path: android-runtime/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload the build logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-engine-${{ matrix.abi }}-logs
+          path: |
+            prebuilt/build/**/config.log
+          if-no-files-found: ignore
+          retention-days: 14

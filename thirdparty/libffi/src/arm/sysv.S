@@ -326,6 +326,13 @@ ARM_FUNC_START(ffi_closure_SYSV)
 #ifdef __ARM_EABI__
 	.fpu	vfp
 
+	@ OXT-Beyond: the loads and stores of several VFP registers are in the
+	@ unified syntax (vldmia, vstmia, vstmdb) and not in the old one
+	@ (fldmiad, fstmiad, fstmfdd), as later libffi writes them: the same
+	@ instructions and encodings, which GNU as takes either way and
+	@ Clang's integrated assembler (the only one in an NDK from r24 on)
+	@ takes only so.
+
 	@ r0:   fn
 	@ r1:   &ecif
 	@ r2:   cif->bytes
@@ -362,7 +369,7 @@ ARM_FUNC_START(ffi_call_VFP)
 	cmp	r0, #3
 	sub	ip, fp, #64
 	flddle	d0, [ip]
-	fldmiadgt	ip, {d0-d7}
+	vldmiagt	ip, {d0-d7}
 
 LSYM(Lbase_args):
 	@ move first 4 parameters in registers
@@ -411,7 +418,7 @@ LSYM(Lbase_args):
 
 	cmp	r3, #FFI_TYPE_STRUCT_VFP_FLOAT
 	cmpne	r3, #FFI_TYPE_STRUCT_VFP_DOUBLE
-	fstmiadeq	r2, {d0-d3}
+	vstmiaeq	r2, {d0-d3}
 
 LSYM(Lepilogue_vfp):
 	RETLDM	"r0-r3,fp"
@@ -422,7 +429,7 @@ LSYM(Lepilogue_vfp):
 
 
 ARM_FUNC_START(ffi_closure_VFP)
-	fstmfdd	sp!, {d0-d7}
+	vstmdb	sp!, {d0-d7}
 	@ r0-r3, then d0-d7
 	UNWIND .pad #80
 	add	ip, sp, #80
@@ -472,10 +479,10 @@ ARM_FUNC_START(ffi_closure_VFP)
 	ldmia	sp, {r0, r1}
 	b	.Lclosure_epilogue_vfp
 .Lretfloat_struct_vfp:
-	fldmiad	sp, {d0-d1}
+	vldmia	sp, {d0-d1}
 	b	.Lclosure_epilogue_vfp
 .Lretdouble_struct_vfp:
-	fldmiad	sp, {d0-d3}
+	vldmia	sp, {d0-d3}
 	b	.Lclosure_epilogue_vfp
 
 .ffi_closure_VFP_end:

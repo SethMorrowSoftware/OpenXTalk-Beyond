@@ -44,6 +44,7 @@ Contents:
 12. [Building on Linux](#12-building-on-linux)
 13. [Building on macOS](#13-building-on-macos)
 14. [Building the web engine](#14-building-the-web-engine)
+15. [Building the Android engine](#15-building-the-android-engine)
 
 ## 1. Quick reference
 
@@ -1731,10 +1732,12 @@ where `<runtime>` is the runtimes asset's `Runtime/Android` folder.
   `GetMethodID`) finds its method with that signature in the jar or in
   Android's classes (`KNOWN_CALLS` names the calls that never found one,
   in 9.6.3's jar too); every LCB binding to `com.runrev` classes; every
-  class the builder and the manifest name; and the OpenGL ES version the
-  jar's `OpenGLView` asks for against the library the engine draws with
-  (9.6.3's engine draws with OpenGL ES 1, this tree's with 3, so the
-  view asks for 1 while the runtime carries 9.6.3's engine). The
+  class the builder and the manifest name; and the OpenGL ES version of
+  the context `OpenGLView` makes for each engine against the library the
+  engine draws with. One jar serves both engines: 9.6.3's draws with
+  OpenGL ES 1 and calls `start()`, which makes the context it always
+  had; an engine built from this tree draws with OpenGL ES 3 and calls
+  `startGLES(3)` (`kMCAndroidOpenGLESVersion` in `mblandroiddc.cpp`). The
   workflow runs it on the release's jar as well, so that each statement
   is known to hold of the jar that ships.
 - `rules` checks what Android asks of the code: today, that every
@@ -3268,3 +3271,64 @@ loopback in the page) and the refusals of TorrentXT and ENetXT, with the
 apps, that harness and NostrXT's relay
 library (which has a browser transport) taken from the suite at the
 pinned commit (`xtalk_web_libraries.py test-files`).
+
+## 15. Building the Android engine
+
+Packages ship the Android engines of the runtimes asset, LiveCode
+Community 9.6.3's, built with NDK r15 and its standalone toolchains (GNU
+binutils, the bfd linker, Android 4.1 as the lowest). This tree also builds
+them itself with a current NDK (the Android plan's phase 2), as artifacts
+for now: nothing of it goes into a package until it has run on the
+emulators beside the 9.6.3 engine, which stays the default.
+
+[`tools/ci/build-android.sh`](tools/ci/build-android.sh) builds the
+engine (`Standalone`) and the externals an Android standalone can include
+(`RevDb`, `DbSqlite`, `DbMysql`, `RevXml`, `RevZip`, `RevSecurity`,
+`RevPdfPrinter`) for one architecture, with the Java layer and the files
+the builder puts beside them, into a folder laid out as
+`Runtime/Android` (the libraries stripped of their debug information,
+which `debug/<abi>` keeps):
+
+```sh
+export ANDROID_SDK=<sdk>       # with ndk;<config/android-ndk-version>, platforms;android-36 and build tools
+tools/ci/build-android.sh arm64 android-runtime     # or armv7, x86_64, x86
+tools/ci/build-android.sh arm64 --libraries         # only the libraries
+python3 tools/ci/android_engine.py check android-runtime --abi arm64-v8a
+python3 tools/ci/android_java.py jni --classes android-runtime/Classes --runtime android-runtime
+```
+
+It needs Linux x86_64 with the tools of a Linux build (Python 2.7 as
+`python` among them), a JDK, and the SDK with the NDK of
+[`config/android-ndk-version`](config/android-ndk-version). The NDK's own
+toolchain builds everything: Clang with the lowest Android in its target
+(API 21, Android 5.0, the lowest a current NDK builds for), the LLVM
+tools, the lld linker, and libc++ linked into each library. `config.py`
+chooses it for the engine, and `prebuilt/scripts/android.inc` for the
+libraries, when there is no standalone toolchain (`ANDROID_TOOLCHAIN`, or
+`~/android/toolchain/standalone-<arch>`); with one, both build as before.
+`ANDROID_FUSE_LD` names the linker to `config/android-settings.gypi`
+(`bfd` with a standalone toolchain, `lld` without). Like the web engine's
+script, it builds the prebuilt libraries that no server publishes:
+OpenSSL, ICU and the Thirdparty libraries for Android, into
+`prebuilt/lib/android/<arch>/ndk21r<NDK major>`, and ICU, libz and libffi
+for the build's host tools.
+
+`android_engine.py check` checks each library as Android and the IDE's
+builder will take it: the right machine and word size; every LOAD segment
+of a 64-bit one aligned to 16 KB (Android 15's devices with 16 KB pages
+load nothing aligned to less, and Google Play asks it of apps that target
+Android 15); no text relocations, which Android 6.0 and later refuse;
+only Android's own system libraries needed (never `libc++_shared.so`);
+API 21 in the note the NDK writes; and in the engine, the `.project`
+section that the builder writes the stack into, last in memory and at the
+end of the last LOAD segment (as `MCDeployToELF` in
+`engine/src/deploy_linux.cpp` requires), and `JNI_OnLoad`. `android_java.py
+jni` checks the engine against the Java layer built with it.
+
+The workflow "Android engine"
+([`android-engine.yml`](.github/workflows/android-engine.yml)) runs both
+for each architecture in an Ubuntu 22.04 container with the runner's
+Android SDK, on a pull request or push that changes what the engine is
+built from, and keeps each folder for 14 days as
+`android-engine-<abi>`. The libraries come from a cache keyed by what
+they are built with, so a change to the engine builds only the engine.

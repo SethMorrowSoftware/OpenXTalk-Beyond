@@ -344,7 +344,11 @@ ffi_call_win64(unsigned int (*)(char *, extended_cif *), extended_cif *,
 extern void
 ffi_call_win32(unsigned int (*)(char *, extended_cif *), extended_cif *,
                unsigned, unsigned, unsigned, unsigned *, void (*fn)(void));
-extern void ffi_call_SYSV(void (*)(char *, extended_cif *), extended_cif *,
+/* OXT-Beyond: the function it calls first returns unsigned int, as
+   ffi_prep_args and ffi_prep_args_raw do and as ffi_call_win32 says (it
+   said void, which Clang from 16 on refuses as a mismatch); the assembly
+   calls it the same either way. */
+extern void ffi_call_SYSV(unsigned int (*)(char *, extended_cif *), extended_cif *,
                           unsigned, unsigned, unsigned *, void (*fn)(void));
 #endif
 

@@ -117,17 +117,14 @@ inline SkFixed SkFixedMul_longlong(SkFixed a, SkFixed b) {
             );
         return y;
     }
+    /* OXT-Beyond: the portable product, which is what the assembly here
+       worked out (bits 16 to 47 of the 64-bit product, from smull) and
+       what upstream Skia uses on ARM too. Its operands let Clang give the
+       product's two halves one register, which the ARM architecture leaves
+       unpredictable and Clang's integrated assembler (the NDK's) refuses. */
     inline SkFixed SkFixedMul_arm(SkFixed x, SkFixed y)
     {
-        int32_t t;
-        asm("smull  %0, %2, %1, %3          \n"
-            "mov    %0, %0, lsr #16         \n"
-            "orr    %0, %0, %2, lsl #16     \n"
-            : "=r"(x), "=&r"(y), "=r"(t)
-            : "r"(x), "1"(y)
-            :
-            );
-        return x;
+        return SkFixedMul_longlong(x, y);
     }
     #undef SkFixedMul
     #define SkFixedMul(x, y)        SkFixedMul_arm(x, y)

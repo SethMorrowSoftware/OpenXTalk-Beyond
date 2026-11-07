@@ -94,6 +94,14 @@ static jmethodID s_openglview_finish_method = 0;
 static jmethodID s_openglview_swap_method = 0;
 static jmethodID s_openglview_configure_method = 0;
 
+// OXT-Beyond: the OpenGL ES version of the context this engine draws in
+// (glcontext.cpp and tilecachegl3.x.cpp are OpenGL ES 3 code, and
+// kernel.gyp links -lGLESv3), which OpenGLView.startGLES(int) makes. Its
+// start() makes the OpenGL ES 1 context of LiveCode 9.6.3's engine, which
+// the Java layer also serves. tools/ci/android_java.py jni checks this
+// against the OpenGL ES library a built engine loads.
+static const jint kMCAndroidOpenGLESVersion = 3;
+
 // The Java VM that we are bound to. This is set in the JNI_OnLoad startup
 // function.
 static JavaVM *s_java_vm = nullptr;
@@ -2793,7 +2801,7 @@ JNIEXPORT void JNICALL Java_com_runrev_android_OpenGLView_doSurfaceCreated(JNIEn
 	{
 		jclass t_view_class;
 		t_view_class = env -> GetObjectClass(p_view);
-		s_openglview_start_method = env -> GetMethodID(t_view_class, "start", "()V");
+		s_openglview_start_method = env -> GetMethodID(t_view_class, "startGLES", "(I)V");
 		s_openglview_finish_method = env -> GetMethodID(t_view_class, "finish", "()V");
 		s_openglview_configure_method = env -> GetMethodID(t_view_class, "configure", "()V");
 		s_openglview_swap_method = env -> GetMethodID(t_view_class, "swap", "()V");
@@ -2837,7 +2845,7 @@ static void doSurfaceChangedCallback(void *p_is_init)
 
 	// If the view is nil, then this must be an initializing change.
 	if (t_is_init)
-		s_java_env -> CallVoidMethod(s_android_opengl_view, s_openglview_start_method);
+		s_java_env -> CallVoidMethod(s_android_opengl_view, s_openglview_start_method, kMCAndroidOpenGLESVersion);
 
 	// Make sure we have a valid surface.
 	s_java_env -> CallVoidMethod(s_android_opengl_view, s_openglview_configure_method);

@@ -19,7 +19,17 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
  * define this before including foundation.h because it pulls in
  * stdio.h, but this means that the platform identification macros
  * aren't available yet. */
+/* OXT-Beyond: not for 32-bit Android below Android 7.0 (API 24), whose C
+ * library has no 64-bit stdio offsets (fseeko64 and ftello64 came in API
+ * 24): a current NDK's headers then declare no fseeko or ftello at all,
+ * where NDK r15's ignored the request and gave the 32-bit ones. Those are
+ * what such a build keeps. The compiler names the lowest Android it builds
+ * for (__ANDROID_MIN_SDK_VERSION__); a standalone toolchain's older Clang
+ * does not, and builds as before. */
+#if !defined(__ANDROID__) || defined(__LP64__) || \
+    (defined(__ANDROID_MIN_SDK_VERSION__) && __ANDROID_MIN_SDK_VERSION__ >= 24)
 #define _FILE_OFFSET_BITS 64
+#endif
 
 #include "system-private.h"
 

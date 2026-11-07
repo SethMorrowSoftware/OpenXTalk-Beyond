@@ -26,6 +26,9 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "mblandroid.h"
 #include "mblandroidutil.h"
 
+// OXT-Beyond: gettimeofday, from where POSIX puts it
+#include <sys/time.h>
+
 // MM-2015-06-08: [[ MobileSockets ]] curtime global is required by opensslsocket.cpp
 real8 curtime;
 

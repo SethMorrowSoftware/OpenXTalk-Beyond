@@ -34,6 +34,13 @@
 		'android_ndk_path%': '<(android_ndk_path)',
 		'android_subplatform%': 'ndk<(android_ndk_platform_version)<(android_ndk_version)',
 
+		# OXT-Beyond: the linker, which config.py names: bfd with a
+		# standalone toolchain (as before), lld with a current NDK's own
+		# toolchain, which has no other. Here for every gyp file:
+		# android-settings.gypi links with it, and it and libicu.gyp give
+		# -lstdc++ only with a standalone toolchain
+		'android_fuse_ld%': '<!(echo ${ANDROID_FUSE_LD:-bfd})',
+
 		'android_play_path': '<(android_sdk_path)/extras/google/m2repository/com/google/android/gms',
 	},
 

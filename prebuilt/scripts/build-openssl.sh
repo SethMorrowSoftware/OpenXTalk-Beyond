@@ -67,11 +67,48 @@ function buildOpenSSL {
 			;;
 		android)
 			configureAndroidToolchain "${ARCH}"
-			export ANDROID_NDK_HOME="${ANDROID_TOOLCHAIN_BASE}"
-			export PATH="${ANDROID_NDK_HOME}/bin:${PATH}"
 			CONFIGURE_CC_FOR_TARGET=0
 
-			if [ "${ARCH}" == "x86_64" ] ; then
+			if [ -n "${ANDROID_LLVM_BIN}" ] ; then
+				# OXT-Beyond: the NDK's own toolchain (android.inc). OpenSSL's
+				# android-* targets find it themselves: the NDK by
+				# ANDROID_NDK_ROOT, its Clang on PATH (whose folder must be
+				# the NDK's), and the lowest Android to build for by
+				# __ANDROID_API__, which names their compiler
+				# (<triple><api>-clang) and the LLVM tools. No sysroot of
+				# their own: CROSS_SYSROOT would make them look for the
+				# NDK's old platforms folder.
+				export ANDROID_NDK_ROOT="${ANDROID_NDK}"
+				unset ANDROID_NDK_HOME CROSS_SYSROOT
+				export PATH="${ANDROID_LLVM_BIN}:${PATH}"
+				EXTRA_OPTIONS="-D__ANDROID_API__=${ANDROID_API}"
+				case "${ARCH}" in
+					x86_64)
+						SPEC="android-x86_64"
+						;;
+					x86)
+						SPEC="android-x86"
+						;;
+					arm64)
+						SPEC="android-arm64"
+						;;
+					armv7)
+						SPEC="android-arm"
+						;;
+					*)
+						echo >&2 "Error: no OpenSSL target for Android ${ARCH}"
+						exit 1
+						;;
+				esac
+			else
+				# a standalone toolchain
+				export ANDROID_NDK_HOME="${ANDROID_TOOLCHAIN_BASE}"
+				export PATH="${ANDROID_NDK_HOME}/bin:${PATH}"
+			fi
+
+			if [ -n "${ANDROID_LLVM_BIN}" ] ; then
+				:
+			elif [ "${ARCH}" == "x86_64" ] ; then
 				SPEC="android-x86_64"
 			elif [[ "${ARCH}" =~ (x|i[3-6])86 ]] ; then
 				# Work around a linker crash using the i686 gold linker in Android NDK r14

@@ -1,0 +1,16 @@
+Files in this folder are Skia (<https://skia.org>), as LiveCode's
+livecode-thirdparty carried it: the sources of revision 20471894
+(git-revision.txt), with what LiveCode's gyp build compiles
+(libskia.gyp).
+
+One local change, marked "OXT-Beyond" in the source:
+
+- In include/private/SkFixed.h, SkFixedMul_arm, which 32-bit ARM builds
+  use for SkFixedMul, returns the portable product (SkFixedMul_longlong)
+  where it had inline assembly (smull, then two instructions putting
+  bits 16 to 47 of the 64-bit product together): the same result for
+  every input, and what upstream Skia uses on ARM since. The assembly's
+  operands let Clang give the product's two halves one register, which
+  the ARM architecture leaves unpredictable and Clang's integrated
+  assembler, the only assembler in an Android NDK from r24 on, refuses.
+  tools/ci/tests/test_android_engine.py compares the two products.
