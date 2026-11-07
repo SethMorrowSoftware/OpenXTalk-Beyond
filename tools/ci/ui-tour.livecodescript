@@ -52,7 +52,9 @@
 -- Learn's lessons, the xTalk Academy (its courses, and a lesson with an
 -- example run in its playground), the xTalk Assistant's window, Settings
 -- and Memory (no key, no request: only the windows), xTalk Chat before it
--- goes online, the answer and ask dialogs and the icon chooser. Not the Start Center: OpenXTalk Lite 1.15
+-- goes online, the answer and ask dialogs and the icon chooser, and last,
+-- on the Mac, a default button with the IDE put in the background, whose
+-- label must still be seen (background-default). Not the Start Center: OpenXTalk Lite 1.15
 -- turned it off (no menu opens it and its Preferences are greyed out),
 -- and opened by a script it is an empty window. For each it
 -- writes a snapshot of the screen around the window (the effective rect
@@ -83,7 +85,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,ide-stacks,screen-end"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,ide-stacks,screen-end,background-default"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -106,6 +108,8 @@ constant kXtaMemory = "revXTalkAssistantMemory"
 constant kChatMain = "org.openxtalk.plugin.xtalkchat"
 constant kChatCore = "org.openxtalk.plugin.xtalkchat-core"
 constant kChatWindow = "revXTalkChat"
+-- The stack of the step background-default, with a default button
+constant kBackground = "OXT Tour Background"
 
 local sOut, sLog, sOnly, sCount, sStarted, sWatchdog, sWatchdogCount, sReport, sStep
 
@@ -8871,6 +8875,136 @@ end tour_ide_stacks
 on tour_screen_end
    tourShotScreen "99-screen-end"
 end tour_screen_end
+
+-- The Mac's default buttons with the IDE in the background (Skids,
+-- openxtalk.org p=26152). While the app is active a default button wears
+-- the accent colour and a white label; in the background the Mac draws it
+-- plain (engine/src/buttondraw.cpp, drawstandardbutton:
+-- WTHEME_STATE_SUPPRESSDEFAULT), and the label of one with no text colour
+-- of its own stayed white on it: after a script launched another app,
+-- every default button was white on white. The step brings the Finder to
+-- the front (launch, as the report's script launched its app) and waits
+-- for the default button's face to turn grey, which says the IDE is in
+-- the background (red, green and blue within 24 of each other; the accent
+-- colour is far from grey); then it reads a snapshot of the button at the
+-- usual height (21 points, which the engine's first rule paints white
+-- while active) and taller (26, which only its second rule does), and
+-- of an ordinary button beside it with the same label: the label's
+-- colour farthest from the face must be 200 or more from it (red, green
+-- and blue added; a white label on a white face is under 30). Where the
+-- ordinary button's own label is under 230 from its face in the same
+-- snapshot, the default button's needs to be no more than 30 nearer to
+-- its face than that one's: what the step holds is that in the
+-- background a default button's label is as easy to see as any other
+-- button's. (The dark appearance: on the screen a button is a dark grey
+-- with a light label, but a snapshot taken with the app in the
+-- background drew the face of both kinds white, rc.6.17, 2026-11-07.)
+-- It is the tour's last step, since it leaves the IDE in the
+-- background. The Mac only: elsewhere a default button has no accent
+-- colour.
+on tour_background_default
+   local tDefault, tFace, tTries, tHeight, tMeasure, tPlain, tNeed, tFails
+   if the platform is not "MacOS" then
+      tourRecord "INFO background-default: the Mac only"
+      exit tour_background_default
+   end if
+   put the defaultStack into tDefault
+   lock messages
+   if there is a stack kBackground then delete stack kBackground
+   create stack kBackground
+   set the rect of it to "240,160,480,280"
+   set the defaultStack to kBackground
+   create button "OK"
+   set the rect of it to "60,40,180,61"
+   set the default of it to true
+   create button "Plain"
+   set the label of it to "OK"
+   set the rect of it to "60,80,180,101"
+   unlock messages
+   set the defaultStack to tDefault
+   go stack kBackground
+   tourWait 800
+   put tourBgFace("OK") into tFace
+   tourRecord "INFO background-default: the default button's face with the IDE in front" && tFace
+   launch "/System/Library/CoreServices/Finder.app"
+   tourRecord "INFO background-default: launched the Finder (" & the result & ")"
+   repeat with tTries = 1 to 40
+      tourWait 250
+      put tourBgFace("OK") into tFace
+      if tourBgGrey(tFace) then exit repeat
+   end repeat
+   if not tourBgGrey(tFace) then
+      delete stack kBackground
+      throw "the IDE could not be put in the background: the default button's face is still" && tFace
+   end if
+   tourRecord "INFO background-default: the IDE is in the background after" && tTries * 250 && "ms (the face" && tFace & ")"
+   tourShotStack kBackground, "99b-background-default"
+   repeat for each item tHeight in "21,26"
+      set the rect of button "OK" of stack kBackground to "60,40,180," & (40 + tHeight)
+      set the rect of button "Plain" of stack kBackground to "60,80,180," & (80 + tHeight)
+      put tourBgLabel("OK") into tMeasure
+      put tourBgLabel("Plain") into tPlain
+      tourRecord "INFO background-default: a default button" && tHeight && "points high: the face" && \
+            (item 1 to 3 of tMeasure) & ", the label's colour farthest from it" && (item 4 of tMeasure) && \
+            "apart; an ordinary button: the face" && (item 1 to 3 of tPlain) & "," && (item 4 of tPlain) && "apart"
+      put min(200, item 4 of tPlain - 30) into tNeed
+      if item 4 of tMeasure < tNeed then
+         put "a default button" && tHeight && "points high has a label that cannot be seen in the background (" & \
+               (item 4 of tMeasure) && "apart from its face" && (item 1 to 3 of tMeasure) & "; an ordinary button's" && \
+               (item 4 of tPlain) && "apart from its face" && (item 1 to 3 of tPlain) & ")" & return after tFails
+      end if
+   end repeat
+   delete stack kBackground
+   if tFails is not empty then throw tourJoin(line 1 to -1 of tFails)
+end tour_background_default
+
+-- The snapshot of the button pButton of the stack kBackground, as it is
+-- drawn now, in sPixWidth, sPixHeight and sPixData
+command tourBgGrab pButton
+   local tDefault, tImage
+   put the defaultStack into tDefault
+   set the defaultStack to "oxt_ui_tour"
+   lock messages
+   import snapshot from button pButton of stack kBackground
+   put the long id of last image of card 1 of stack "oxt_ui_tour" into tImage
+   put the width of tImage into sPixWidth
+   put the height of tImage into sPixHeight
+   put the imageData of tImage into sPixData
+   delete tImage
+   unlock messages
+   set the defaultStack to tDefault
+   if sPixWidth < 1 or the number of bytes of sPixData < sPixWidth * sPixHeight * 4 then throw "no pixels for the button" && pButton
+end tourBgGrab
+
+-- The colour of the face of the button pButton: left of its label, half
+-- way down
+function tourBgFace pButton
+   tourBgGrab pButton
+   return tourRgbAt(sPixWidth div 6, sPixHeight div 2)
+end tourBgFace
+
+-- Whether the colour pRGB is a grey: red, green and blue within 24
+function tourBgGrey pRGB
+   return max(item 1 of pRGB, item 2 of pRGB, item 3 of pRGB) - \
+         min(item 1 of pRGB, item 2 of pRGB, item 3 of pRGB) <= 24
+end tourBgGrey
+
+-- The face of the button pButton and how far the label's colour
+-- farthest from it is (red, green and blue added), within the middle of
+-- the button, where "OK" is drawn: r,g,b,apart
+function tourBgLabel pButton
+   local tFace, tFarthest, tX, tY, tRGB
+   put tourBgFace(pButton) into tFace
+   put 0 into tFarthest
+   repeat with tY = sPixHeight div 4 to (3 * sPixHeight) div 4
+      repeat with tX = (35 * sPixWidth) div 100 to (65 * sPixWidth) div 100
+         put tourRgbAt(tX, tY) into tRGB
+         put max(tFarthest, abs(item 1 of tRGB - item 1 of tFace) + abs(item 2 of tRGB - item 2 of tFace) + \
+               abs(item 3 of tRGB - item 3 of tFace)) into tFarthest
+      end repeat
+   end repeat
+   return tFace & comma & tFarthest
+end tourBgLabel
 
 ----------------------------------------------------------------
 -- Helpers

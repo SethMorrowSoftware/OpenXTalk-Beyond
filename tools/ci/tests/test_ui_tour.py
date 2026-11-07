@@ -758,7 +758,9 @@ class IDEStacks(unittest.TestCase):
     def test_late_in_the_tour(self):
         steps = [line for line in self.script.splitlines() if line.startswith('constant kSteps')][0]
         names = steps.split('"')[1].split(',')
-        self.assertEqual(names[-2:], ['ide-stacks', 'screen-end'])
+        # then only the Mac's default button in the background, which
+        # leaves the IDE behind the Finder (test_mac_default_label.py)
+        self.assertEqual(names[-3:], ['ide-stacks', 'screen-end', 'background-default'])
         for opened in ('app-browser', 'navigator', 'guides', 'learn', 'home-places', 'about', 'release-notes'):
             self.assertLess(names.index(opened), names.index('ide-stacks'), opened)
 
