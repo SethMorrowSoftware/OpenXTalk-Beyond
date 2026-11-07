@@ -667,8 +667,10 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
       
       // SN-2015-09-24: [[ Bug 15875 ]] Add the screenSize configChanges value for API > 12
       //  Otherwise the app restarts on orientation change.
+      // OXT-Beyond: and the other changes the app goes on through
+      //  (androidConfigChanges)
       local tConfigChangesProp
-      put "keyboardHidden|orientation|uiMode|screenSize" into tConfigChangesProp
+      put androidConfigChanges() into tConfigChangesProp
       replace "${CONFIG_CHANGES}" with tConfigChangesProp in tManifest
       
       // SN-2015-09-30: [[ Bug 10267 ]] Hardware Acceleration option added
@@ -693,6 +695,7 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
       replace "${ALLOW_HTTP_CONNECTIONS}" with tAllowHttpConnections in tManifest
       
       put androidKeepLargeScreenLayout(tManifest, tTargetAPI) into tManifest
+      put androidDeclareRelaunch(tManifest, revMobileRuntimeFolder(pTarget)) into tManifest
       
       put tManifest into url ("binfile:" & tManifestFile)
       
@@ -1927,18 +1930,7 @@ end androidTargetAPI
 -- keeps its entries' names as they are, so the names are looked for in it
 constant kJavaLayerReady = "com/runrev/android/LiveCodeActivity$BackCallback.class,com/runrev/android/LiveCodeActivity$SystemBarsPadding.class"
 function androidJavaLayerIsReady pRuntimeFolder
-   local tJar
-   put mapFilePath(pRuntimeFolder & slash & "Classes") into tJar
-   if there is no file tJar then
-      return false
-   end if
-   put url ("binfile:" & tJar) into tJar
-   repeat for each item tEntry in kJavaLayerReady
-      if byteOffset(textEncode(tEntry, "UTF-8"), tJar) is 0 then
-         return false
-      end if
-   end repeat
-   return true
+   return androidJavaLayerHas(pRuntimeFolder, kJavaLayerReady)
 end androidJavaLayerIsReady
 
 -- OXT-Beyond: Android 16 and newer ignore an app's orientation and its
@@ -1960,6 +1952,77 @@ function androidKeepLargeScreenLayout pManifest, pTargetAPI
    end if
    return pManifest
 end androidKeepLargeScreenLayout
+
+-- OXT-Beyond: the configuration changes the app's activity goes on
+-- through (its manifest's android:configChanges), where Android would
+-- otherwise end it and make it again. The engine runs once in a process
+-- (com.runrev.android.RelaunchActivity says why): made again in the same
+-- process, it stopped there on Android 11 and newer, for an app that
+-- targets API 30 or newer (which the builder always makes), as soon as the
+-- user changed the font size, the language or the bold text setting,
+-- attached a keyboard, or resized the app's window.
+--
+-- LiveCode's four, as before: the keyboard shown or hidden, a rotation,
+-- night mode (which the engine passes on as systemAppearanceChanged) and
+-- the screen's size (the stack is resized, as for a rotation). Then those
+-- that come with a window resized (smallestScreenSize, screenLayout, as
+-- Android asks of an app that handles screenSize), and those that change
+-- nothing the engine has read: the font size and weight (the engine draws
+-- its own text, at the sizes the stack gives), the language and its
+-- direction (the engine asks for them as it needs them), a keyboard or
+-- navigation device attached, the touch screen, the display's colour
+-- mode, and the SIM's country and network.
+--
+-- Not the screen's density (the display size setting): the engine reads it
+-- as it starts, so the app starts again for it (RelaunchActivity), in a
+-- new process, as for a change no value can name (the theme overlays that
+-- Android 12 and newer make of the wallpaper). Every value is one that
+-- Android 12L's attributes know (API 32), below the oldest target (33)
+constant kConfigChanges = "keyboardHidden|orientation|uiMode|screenSize|smallestScreenSize|screenLayout|fontScale|fontWeightAdjustment|locale|layoutDirection|keyboard|navigation|touchscreen|colorMode|mcc|mnc"
+function androidConfigChanges
+   return kConfigChanges
+end androidConfigChanges
+
+-- OXT-Beyond: the activity that starts the app again in a new process
+-- (com.runrev.android.RelaunchActivity), declared in a process of its own
+-- where the runtime's Java layer has it (LiveCode Community 9.6.3's has
+-- not; the app's activity then starts the engine again as before). It has
+-- no intent filter, so no other app can start it
+constant kRelaunchClass = "com/runrev/android/RelaunchActivity.class"
+function androidDeclareRelaunch pManifest, pRuntimeFolder
+   if not androidJavaLayerHas(pRuntimeFolder, kRelaunchClass) then
+      return pManifest
+   end if
+   local tActivity
+   put "  <activity android:name=" & quote & "com.runrev.android.RelaunchActivity" & quote & return & \
+         "      android:process=" & quote & ":relaunch" & quote & return & \
+         "      android:theme=" & quote & "@android:style/Theme.Translucent.NoTitleBar" & quote & return & \
+         "      android:excludeFromRecents=" & quote & "true" & quote & return & \
+         "      android:noHistory=" & quote & "true" & quote & return & \
+         "      android:exported=" & quote & "false" & quote && "/>" & return into tActivity
+   if pManifest contains "</application>" then
+      replace "</application>" with tActivity & "  </application>" in pManifest
+   end if
+   return pManifest
+end androidDeclareRelaunch
+
+-- OXT-Beyond: whether the runtime's Java layer (its Classes jar) has each
+-- of the class files pClasses (a list of items), by their names, which a
+-- jar keeps as they are
+function androidJavaLayerHas pRuntimeFolder, pClasses
+   local tJar
+   put mapFilePath(pRuntimeFolder & slash & "Classes") into tJar
+   if there is no file tJar then
+      return false
+   end if
+   put url ("binfile:" & tJar) into tJar
+   repeat for each item tEntry in pClasses
+      if byteOffset(textEncode(tEntry, "UTF-8"), tJar) is 0 then
+         return false
+      end if
+   end repeat
+   return true
+end androidJavaLayerHas
 
 ################################################################################
 -- OXT-Beyond: the Android App Bundle (.aab), which Google Play takes for new

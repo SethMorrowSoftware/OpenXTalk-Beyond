@@ -1588,13 +1588,19 @@ app's native library folder and opens its files at their place in the
 installed package), and says bundletool 1.18.3; it is signed by the
 package's signer (the JDK's `jarsigner` verifies it, `keytool` names the
 signer); and `bundletool validate` takes it, its manifest naming the
-package and the target API. The bundletool jar must be the one the
+package and the target API. Every package's activity must list the
+configuration changes the builder gives it (`android:configChanges`
+`0x50006fff`: see "The engine runs once in a process" below), and its
+manifest must declare `com.runrev.android.RelaunchActivity`, in a
+process of its own (`:relaunch`) and not exported, exactly when its dex
+has that class. The bundletool jar must be the one the
 builder pins (its SHA-256), and no other build may leave an `.aab`.
 `compare` takes the packages a
 released IDE made of the same probe stack (`ide --no-units --stack
 <work>/AndroidProbe.livecode`: the stack goes into the engine library)
 and fails on any file that differs, apart from what the builder's change
-meant (the signatures, the push receiver's `android:exported`).
+meant (the signatures, the push receiver's `android:exported`, the
+activity's `android:configChanges`, which must have the new value).
 `overlay --root <folder>` puts the checkout's builder into an unpacked
 release, so that one release can be run with both builders, and with
 `--classes <jar>` also a Java layer in place of the release's
@@ -1647,17 +1653,30 @@ green screen of a package that passes in other runs, soon after a cold
 start, once had its green in the bottom row). With `--back` `device`
 then presses the back key,
 and the probe's `backKey` must turn the screen blue (`-back.png` beside
-`--out` keeps that screen). `ide --device <serial>` does what the IDE's
+`--out` keeps that screen). Three more check that the engine runs once in
+a process, each once the probe is green, in this order, the first that
+fails ending them: `--font-scale` sets the font size to 1.3 (`settings
+put system font_scale`, put back after) and the app must go on in the
+same process, still green; `--density` sets the screen's density to 85%
+of its own (`wm density`, reset after), which no manifest can list, and
+the app must start again in a new process and turn green there; and
+`--relaunch` presses the back key, which the app probe passes, so its
+stack quits: its process must end within 20 seconds, and the app opened
+again (`am start`) must turn green in a new one. Each fails on a crash or
+an fdsan line of the probe in the device's log, and keeps its screen
+beside `--out` (`-font-scale.png`, `-density.png`, `-again.png`).
+`ide --device <serial>` does what the IDE's
 Test does for that device. `boot`
 waits for an emulator to finish booting, and when it gives up it prints
 whether the emulator still runs, `/dev/kvm`, adb's devices, the free disk
 and the end of the emulator's log. With `--settle` it then waits for a
 fresh image's first minute's work (its overlays and broadcasts), and with
 `--awake` it first puts the image to sleep once, wakes it, unlocks it and
-keeps it awake. The carried Android runtime does not survive a second
-start in one process, and Android relaunches a running app's activity
-when, for example, the screen goes off and the system's theme overlays
-change, so the workflow starts no probe until both are done. When a
+keeps it awake. The release's Java layer does not survive a second
+start of the engine in one process, and Android relaunches a running
+app's activity when, for example, the screen goes off and the system's
+theme overlays change, so the workflow starts no probe until both are
+done. When a
 probe dies, `device` says whether Android paused it for sleep, changed
 its `ApplicationInfo` or relaunched it.
 
@@ -1687,7 +1706,48 @@ target 33, and must stay inside the bars on both emulators too.
 LiveCode 9.6.3's `PendingIntent`s throw on Android 12 and newer, and the
 engine clears the exception without a word in the log, so that probe's
 notification call answers no id and the probe turns its fail colour
-instead of green.
+instead of green. The app probe is also built with the rebuilt layer
+(`<work>/java-app`), which has `RelaunchActivity`, and run on both
+emulators with `--font-scale --density --relaunch`; the debug package
+with the release's layer is run with `--font-scale` on the Android 13
+emulator, and with `--density` and with `--relaunch` only for the
+record.
+
+#### The engine runs once in a process
+
+The Android engine starts once in its process. Started a second time
+there, it opens stdin, stdout and stderr again
+(`MCAndroidSystem::Initialize`, `fdopen`), which the first start's
+streams still hold, and Android 11 and newer stop an app that targets
+API 30 or newer for it (fdsan: "fd 0 is owned by FILE*"). Android makes
+the app's activity again in the same process for a configuration change
+its manifest does not list, and when the app is opened again after its
+stack quit while the process is still there; so an app closed when the
+user changed the font size or the language, or opened it again after
+the back key quit it. Three things keep the engine to one start:
+
+- The builder's manifest lists the changes the app goes on through
+  (`androidConfigChanges`): LiveCode's four as before (`keyboardHidden`,
+  `orientation`, `uiMode`, `screenSize`), then `smallestScreenSize` and
+  `screenLayout` (which come with a resized window), and those that
+  change nothing the engine has read: `fontScale`,
+  `fontWeightAdjustment`, `locale`, `layoutDirection`, `keyboard`,
+  `navigation`, `touchscreen`, `colorMode`, `mcc` and `mnc`. Not
+  `density`, which the engine reads as it starts. This holds with any
+  Java layer.
+- With a Java layer that has `com.runrev.android.RelaunchActivity` (this
+  checkout's), the builder declares it in a process of its own
+  (`android:process=":relaunch"`, translucent, not in the recents list,
+  not exported; `androidDeclareRelaunch`). `LiveCodeActivity`, made again
+  in a process whose engine has run, starts it with its own Intent and
+  process id and finishes; it ends that process, starts the Intent, which
+  Android starts in a new process, and ends its own (the pattern of
+  ProcessPhoenix). Without the declaration (a manifest of the app's own),
+  the activity starts the engine as before.
+- `LiveCodeActivity.onDestroy`, once the engine has finished and the
+  activity is finishing (not for a configuration change), ends the
+  process, so that the app opened again starts in a new one, as it does
+  once Android has ended the process.
 
 ### Android Java layer
 
@@ -1704,7 +1764,7 @@ platform (36 by default), the rest nothing but the files:
 ```sh
 python3 tools/ci/android_java.py build --sdk <sdk> --jdk <jdk> --api 36 --out <work>/Classes
 python3 tools/ci/android_java.py compare --old <runtime>/Classes --new <work>/Classes
-python3 tools/ci/android_java.py jni --classes <work>/Classes --runtime <runtime> --android-jar <sdk>/platforms/android-36/android.jar
+python3 tools/ci/android_java.py jni --classes <work>/Classes --runtime <runtime> --android-jar <sdk>/platforms/android-36/android.jar --every-named
 python3 tools/ci/android_java.py rules --classes <work>/Classes
 ```
 
@@ -1731,7 +1791,10 @@ where `<runtime>` is the runtimes asset's `Runtime/Android` folder.
   `GetMethodID`) finds its method with that signature in the jar or in
   Android's classes (`KNOWN_CALLS` names the calls that never found one,
   in 9.6.3's jar too); every LCB binding to `com.runrev` classes; every
-  class the builder and the manifest name; and the OpenGL ES version the
+  class the builder and the manifest name (bar a class the builder looks
+  for in the jar before it names it, as it does `RelaunchActivity`, which
+  a jar without it is said to lack and no more; `--every-named` asks for
+  those too, of the jar built here); and the OpenGL ES version the
   jar's `OpenGLView` asks for against the library the engine draws with
   (9.6.3's engine draws with OpenGL ES 1, this tree's with 3, so the
   view asks for 1 while the runtime carries 9.6.3's engine). The

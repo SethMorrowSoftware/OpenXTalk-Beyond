@@ -231,6 +231,7 @@ private command androidUnits
    unitDebugKeystore
    unitJavaHome tWork
    unitTargetAPI tWork
+   unitRelaunch tWork
    unitAppBundle tWork
    androidUnit "required-sdk", deployCall("deployRequiredSDK") is "Android 13 (API 33) or newer", \
          "deployRequiredSDK() is" && deployCall("deployRequiredSDK")
@@ -284,6 +285,43 @@ private command unitTargetAPI pWork
          "    <property android:name=" & quote & "android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY" & quote && \
          "android:value=" & quote & "true" & quote && "/>" & return & "  </application>" & return & "</manifest>", tAnswer
 end unitTargetAPI
+
+-- The engine runs once in a process: the configuration changes the app
+-- goes on through (LiveCode's four first, as before, and not the density,
+-- for which it starts again), and the activity that starts it again in a
+-- new process, declared once in the application where the runtime's Java
+-- layer has it and not otherwise (9.6.3's has not), on made-up runtimes
+private command unitRelaunch pWork
+   local tRuntime, tAnswer, tManifest, tWanted
+   put builderCall("androidConfigChanges") into tAnswer
+   set the itemDelimiter to "|"
+   androidUnit "config-changes", item 1 to 4 of tAnswer is "keyboardHidden|orientation|uiMode|screenSize" and \
+         "fontScale" is among the items of tAnswer and "locale" is among the items of tAnswer and \
+         "smallestScreenSize" is among the items of tAnswer and "density" is not among the items of tAnswer, tAnswer
+   set the itemDelimiter to comma
+   put "<manifest>" & return & "  <application>" & return & "  </application>" & return & "</manifest>" into tManifest
+   put pWork & "/relaunch-runtime" into tRuntime
+   removeTree tRuntime
+   revSBEnsureFolder tRuntime
+   androidUnit "relaunch-no-java-layer", builderCall("androidDeclareRelaunch", tManifest, tRuntime) is tManifest, \
+         builderCall("androidDeclareRelaunch", tManifest, tRuntime)
+   put textEncode("PK" & "com/runrev/android/LiveCodeActivity.class", "UTF-8") into url ("binfile:" & tRuntime & "/Classes")
+   androidUnit "relaunch-java-layer-without-it", builderCall("androidDeclareRelaunch", tManifest, tRuntime) is tManifest, \
+         builderCall("androidDeclareRelaunch", tManifest, tRuntime)
+   put textEncode("PK" & "com/runrev/android/LiveCodeActivity.class" & numToByte(0) & \
+         "com/runrev/android/RelaunchActivity.class", "UTF-8") into url ("binfile:" & tRuntime & "/Classes")
+   put builderCall("androidDeclareRelaunch", tManifest, tRuntime) into tAnswer
+   put "<manifest>" & return & "  <application>" & return & \
+         "    <activity android:name=" & quote & "com.runrev.android.RelaunchActivity" & quote & return & \
+         "      android:process=" & quote & ":relaunch" & quote & return & \
+         "      android:theme=" & quote & "@android:style/Theme.Translucent.NoTitleBar" & quote & return & \
+         "      android:excludeFromRecents=" & quote & "true" & quote & return & \
+         "      android:noHistory=" & quote & "true" & quote & return & \
+         "      android:exported=" & quote & "false" & quote && "/>" & return & \
+         "  </application>" & return & "</manifest>" into tWanted
+   androidUnit "relaunch-declared", tAnswer is tWanted, tAnswer
+   removeTree tRuntime
+end unitRelaunch
 
 -- The App Bundle: its name beside the package, where each file of the
 -- package goes in the bundle's base module, bundletool's settings, a

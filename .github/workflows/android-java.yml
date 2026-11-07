@@ -130,13 +130,17 @@ jobs:
         run: |
           python3 tools/ci/android_java.py compare --old "$RUNTIME/Classes" --new "$RUNNER_TEMP/java/Classes"
 
+      # --every-named: this checkout's jar has every class the builder can
+      # name, those it names only where the jar has them too
       - name: Check it against the engine (JNI)
         run: |
           python3 tools/ci/android_java.py jni --classes "$RUNNER_TEMP/java/Classes" --runtime "$RUNTIME" \
-            --android-jar "$SDK/platforms/android-36/android.jar"
+            --android-jar "$SDK/platforms/android-36/android.jar" --every-named
 
       # What jni says of the new jar is said of the old one too: a check
-      # that only ever reads the new jar could be blind
+      # that only ever reads the new jar could be blind. A release's jar
+      # may lack a class the builder names only where the jar has it
+      # (RelaunchActivity), which jni then says and does not fail on
       - name: The same check of the shipped Java layer
         run: |
           python3 tools/ci/android_java.py jni --classes "$RUNTIME/Classes" --runtime "$RUNTIME" \

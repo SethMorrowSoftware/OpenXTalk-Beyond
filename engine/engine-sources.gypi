@@ -896,6 +896,7 @@
 			'src/java/com/runrev/android/NotificationModule.java',
 			'src/java/com/runrev/android/OpenGLView.java',
 			'src/java/com/runrev/android/PushReceiver.java',
+			'src/java/com/runrev/android/RelaunchActivity.java',
 			'src/java/com/runrev/android/ScreenOrientationEventListener.java',
 			'src/java/com/runrev/android/SensorModule.java',
 			'src/java/com/runrev/android/ShakeEventListener.java',

@@ -1492,6 +1492,269 @@ class DeviceAnotherAppsAnr(unittest.TestCase):
         self.assertEqual(calls, [])
 
 
+class PidNow(unittest.TestCase):
+    """The probe's process ids, with adb's own failures asked again"""
+
+    def ask(self, answers, tries=None, fails=False):
+        calls = []
+
+        def a(*cmd, timeout=180):
+            calls.append(cmd)
+            if cmd[0] == 'wait-for-device':
+                if fails:
+                    raise ac.CheckError('adb wait-for-device: timed out')
+                return 0, ''
+            return 0, answers[min(sum(c[0] == 'shell' for c in calls), len(answers)) - 1]
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            got = ac.pid_now(a, tries)
+        return got, calls, out.getvalue()
+
+    def test_process_ids_and_none(self):
+        for answer, want in (('3475\n', '3475'), ('3475 3612\n', '3475 3612'), ('', ''), ('\n', '')):
+            got, calls, out = self.ask([answer])
+            self.assertEqual(got, want)
+            self.assertEqual(calls, [('shell', 'pidof', ac.IDENTIFIER)])
+            self.assertEqual(out, '')
+
+    def test_device_offline_for_a_moment(self):
+        got, calls, out = self.ask(['adb: device offline\n', '5450\n'])
+        self.assertEqual(got, '5450')
+        self.assertEqual(calls, [('shell', 'pidof', ac.IDENTIFIER), ('wait-for-device',),
+                                 ('shell', 'pidof', ac.IDENTIFIER)])
+        self.assertEqual(out, '  pidof: adb: device offline; waiting for the device\n')
+
+    def test_offline_throughout_gives_adbs_answer(self):
+        got, calls, out = self.ask(['error: device \'emulator-5554\' not found\n'], tries=2, fails=True)
+        self.assertEqual(got, "error: device 'emulator-5554' not found")
+        self.assertEqual([c[0] for c in calls], ['shell', 'wait-for-device', 'shell', 'wait-for-device'])
+        self.assertIn('  wait-for-device: adb wait-for-device: timed out\n', out)
+
+
+class GreenAgain(unittest.TestCase):
+    """green_again, the wait of --font-scale, --density and --relaunch for
+    the probe's green, answers another app's "isn't responding" dialog in
+    front of it, as device's first wait does, at most ANR_TAPS times"""
+
+    BLACK = (1, 1, bytes([0, 0, 0, 255]))
+    GREEN = (1, 1, bytes(list(ac.RUN_COLOR) + [255]))
+
+    def wait(self, shots, answer, seconds=5):
+        answered = []
+        saved = ac.screen_now, ac.answer_other_anr, ac.time.sleep
+        ac.screen_now = lambda adb, serial: shots.pop(0) if len(shots) > 1 else shots[0]
+        ac.answer_other_anr = lambda a: answered.append(a) or answer
+        ac.time.sleep = lambda seconds: None
+        try:
+            got = ac.green_again('adb', 'emulator-5554', lambda *cmd: (0, '4242\n'), seconds)
+        finally:
+            ac.screen_now, ac.answer_other_anr, ac.time.sleep = saved
+        return got, len(answered)
+
+    def test_the_dialog_answered_then_green(self):
+        (share, pid, shot), answered = self.wait([self.BLACK, self.GREEN],
+                                                 'com.google.android.apps.nexuslauncher')
+        self.assertEqual((share, pid, shot), (1.0, '4242', self.GREEN))
+        self.assertEqual(answered, 1)
+
+    def test_a_dialog_that_stays_is_answered_at_most_anr_taps_times(self):
+        (share, _, _), answered = self.wait([self.BLACK], 'com.google.android.apps.nexuslauncher', seconds=0.2)
+        self.assertEqual(share, 0.0)
+        self.assertEqual(answered, ac.ANR_TAPS)
+
+    def test_no_dialog_no_tap(self):
+        # asked on every screen that is not green, and nothing counted
+        (share, _, _), answered = self.wait([self.BLACK, self.BLACK, self.GREEN], None)
+        self.assertEqual(share, 1.0)
+        self.assertEqual(answered, 2)
+
+    def test_green_asks_nothing(self):
+        (share, _, _), answered = self.wait([self.GREEN], 'x')
+        self.assertEqual((share, answered), (1.0, 0))
+
+
+@unittest.skipIf(os.name == 'nt', 'the stand-in adb is a shell script')
+class DeviceOnceInAProcess(unittest.TestCase):
+    """device --font-scale, --density and --relaunch with a stand-in adb
+    whose probe process is a file: the engine runs once in a process, so
+    the app goes on through a font size change in its process, starts again
+    in a new one for a density change, and once its stack quits (the back
+    key) its process ends and the app opened again starts in a new one; a
+    second start in a process is stopped (fdsan) and fails each"""
+
+    setUp = Device.setUp
+    tearDown = Device.tearDown
+    device = Device.device
+    calls = Device.calls
+    LOG = Device.LOG
+    EVENTS = Device.EVENTS
+
+    FDSAN = ('F/libc    ( %s): fdsan: attempted to close file descriptor 0, expected to be unowned, actually owned '
+             'by FILE* 0x7b1c\n'
+             'F/libc    ( %s): Fatal signal 6 (SIGABRT), code -1 (SI_QUEUE) in tid %s (androidprobe)\n')
+
+    def run_probe(self, argv, font='same', density='new', back='ends', again='new', font_before='1.0',
+                  offline_at=None):
+        """What the stand-in device's probe does: for a font size change
+        (same: goes on in its process; crash: the second start stopped,
+        and no process), a density change (new: started again in a new
+        process, and again for the reset; crash), the back key (ends: its
+        process ends; stays) and the second am start (new: a new process
+        where none is left; crash: none); adb answers pidof's call number
+        offline_at with "adb: device offline" (on its output, exit status
+        1), as it did for a moment on the 16 KB image"""
+        d = self.tmp.name
+        with open(os.path.join(d, 'logcat.txt'), 'w') as f:
+            f.write(Device.LOG.split('I/lowmemorykiller')[0])
+        with open(os.path.join(d, 'pid'), 'w') as f:
+            f.write('3475\n')
+        crash = 'p=$(cat "%(d)s/pid"); : > "%(d)s/pid"; printf "%(fdsan)s" $p $p $p >> "%(d)s/logcat.txt"' % {
+            'd': d, 'fdsan': self.FDSAN.replace('\n', '\\n')}
+        new = lambda pid: 'echo %s > "%s/pid"' % (pid, d)
+        cases = (
+            '  "shell settings get system font_scale") echo %(before)s ;;\n'
+            '  "shell settings put system font_scale %(scale)s") %(font)s ;;\n'
+            '  "shell wm density") printf "Physical density: 420\\n" ;;\n'
+            '  "shell wm density reset") [ -s "%(d)s/pid" ] && %(reset)s ;;\n'
+            '  "shell wm density 357") %(density)s ;;\n'
+            '  "shell input keyevent KEYCODE_BACK") %(back)s ;;\n'
+            % {'d': d, 'before': font_before, 'scale': ac.FONT_SCALE, 'reset': new(4100),
+               'font': {'same': 'true', 'crash': crash}[font],
+               'density': {'new': new(4000), 'crash': crash}[density],
+               'back': {'ends': ': > "%s/pid"' % d, 'stays': 'true'}[back]})
+        # the second am start: a new process where the first has ended
+        started = 'grep -c "^shell am start" "%s/platform-tools/calls"' % d
+        second = {'new': '[ -s "%(d)s/pid" ] || { [ $(%(n)s) -ge 2 ] && echo 5000 > "%(d)s/pid"; }',
+                  'crash': '[ -s "%(d)s/pid" ] || { [ $(%(n)s) -ge 2 ] && [ ! -f "%(d)s/again" ] && '
+                           'touch "%(d)s/again" && printf "%(s)s%(f)s" 5000 5000 5000 5000 >> "%(d)s/logcat.txt"; }'}[again]
+        pidof = (second + '; cat "%(d)s/pid"') % {'d': d, 'n': started,
+                                                   'f': self.FDSAN.replace('\n', '\\n'),
+                                                   's': Device.LOG.splitlines()[0].replace('3475', '%s') + '\\n'}
+        if offline_at:
+            asked = 'grep -c "^shell pidof" "%s/platform-tools/calls"' % d
+            pidof = ('if [ $(%s) -eq %d ]; then echo "adb: device offline"; exit 1; fi; ' % (asked, offline_at)
+                     + pidof)
+        saved = ac.RETURN_WAIT, ac.END_WAIT, ac.FONT_SETTLE
+        ac.RETURN_WAIT, ac.END_WAIT, ac.FONT_SETTLE = 6, 3, 0
+        try:
+            status, out = self.device(pidof, timeout='10', cases=cases,
+                                      argv=list(argv) + ['--out', os.path.join(d, 'screen.png')])
+        finally:
+            ac.RETURN_WAIT, ac.END_WAIT, ac.FONT_SETTLE = saved
+        return status, out, [c for c in self.calls() if c.startswith(('shell settings', 'shell wm',
+                                                                             'shell input', 'shell am start'))]
+
+    def png(self, suffix):
+        with open(os.path.join(self.tmp.name, 'screen-%s.png' % suffix), 'rb') as f:
+            return f.read(8) == b'\x89PNG\r\n\x1a\n'
+
+    def test_through_a_font_size_change(self):
+        status, out, calls = self.run_probe(['--font-scale'])
+        self.assertEqual(status, 0, out)
+        self.assertEqual(calls[1:], ['shell settings get system font_scale',
+                                     'shell settings put system font_scale %s' % ac.FONT_SCALE,
+                                     'shell settings put system font_scale 1.0'])
+        self.assertIn("After a font size change (font_scale 1.3, then 1.0 again): 100% of the screen is the probe's "
+                      "green; process 3475 (before it: 3475)", out)
+        self.assertTrue(self.png('font-scale'))
+
+    def test_a_font_scale_never_set_is_deleted_again(self):
+        status, out, calls = self.run_probe(['--font-scale'], font_before='null')
+        self.assertEqual(status, 0, out)
+        self.assertEqual(calls[-1], 'shell settings delete system font_scale')
+        self.assertIn('(font_scale 1.3, then unset again)', out)
+
+    def test_adb_offline_for_a_moment_is_not_the_probes_process(self):
+        # run 42360582880: pidof, just before the font size change, answered
+        # "adb: device offline", taken for the probe's process; it waits for
+        # the device and asks again
+        status, out, _ = self.run_probe(['--font-scale'], offline_at=2)
+        self.assertEqual(status, 0, out)
+        self.assertIn('  pidof: adb: device offline; waiting for the device\n', out)
+        self.assertIn("process 3475 (before it: 3475)", out)
+        calls = self.calls()
+        at = [i for i, c in enumerate(calls) if c.startswith('shell pidof')]
+        self.assertEqual(calls[at[1] + 1], 'wait-for-device', calls)
+        self.assertEqual(calls[at[1] + 2], calls[at[1]], calls)
+
+    def test_stopped_by_a_font_size_change(self):
+        # the released builder's manifest: Android made the activity again,
+        # and the engine's second start in the process was stopped
+        status, out, calls = self.run_probe(['--font-scale'], font='crash')
+        self.assertEqual(status, 1, out)
+        self.assertIn('PROBLEM: the app did not go on through a font size change in its process (3475 before it, '
+                      'none after)', out)
+        self.assertIn("PROBLEM: the device's log across the font size change: F/libc    ( 3475): Fatal signal 6", out)
+        self.assertIn('fdsan: attempted to close file descriptor 0', out)
+        # the font size is put back all the same
+        self.assertEqual(calls[-1], 'shell settings put system font_scale 1.0')
+
+    def test_started_again_for_a_density_change(self):
+        status, out, calls = self.run_probe(['--density'])
+        self.assertEqual(status, 0, out)
+        self.assertEqual(calls[1:], ['shell wm density', 'shell wm density 357', 'shell wm density reset'])
+        self.assertIn("After a density change (357, from 420): 100% of the screen is the probe's green; process "
+                      "4000 (before it: 3475)", out)
+        self.assertTrue(self.png('density'))
+
+    def test_stopped_by_a_density_change(self):
+        status, out, calls = self.run_probe(['--density'], density='crash')
+        self.assertEqual(status, 1, out)
+        self.assertIn('PROBLEM: after a density change the app did not start again in a new process (3475 before '
+                      'it, none after)', out)
+        self.assertIn("PROBLEM: the device's log across the density change: F/libc    ( 3475): Fatal signal 6", out)
+        self.assertIn('| F/libc    ( 3475): fdsan: attempted to close file descriptor 0', out)
+        # the density is put back all the same
+        self.assertEqual(calls[-1], 'shell wm density reset')
+
+    def test_opened_again_after_its_stack_quit(self):
+        status, out, calls = self.run_probe(['--relaunch'])
+        self.assertEqual(status, 0, out)
+        self.assertEqual(calls[1:], ['shell input keyevent KEYCODE_BACK',
+                                     'shell am start -W -n %s/.mblandroid' % ac.IDENTIFIER])
+        self.assertIn('After the back key: process none: it ended', out)
+        self.assertIn("Opened again after its stack quit: 100% of the screen is the probe's green; process 5000 "
+                      "(the first: 3475)", out)
+        self.assertTrue(self.png('again'))
+
+    def test_a_process_left_after_its_stack_quit(self):
+        # the release's Java layer: the process stays, and the app opened
+        # again starts its engine in it a second time
+        status, out, _ = self.run_probe(['--relaunch'], back='stays')
+        self.assertEqual(status, 1, out)
+        self.assertIn('After the back key: process 3475, still there after 3 s', out)
+        self.assertIn("PROBLEM: the app's process was still there 3 s after its stack quit (the back key)", out)
+
+    def test_stopped_when_opened_again(self):
+        status, out, _ = self.run_probe(['--relaunch'], again='crash')
+        self.assertEqual(status, 1, out)
+        self.assertIn('PROBLEM: opened again after its stack quit, the app did not show its green (100%; process '
+                      'none)', out)
+        self.assertIn("PROBLEM: the device's log, opened again after its stack quit: F/libc    ( 5000): Fatal "
+                      "signal 6", out)
+        self.assertIn('| F/libc    ( 5000): fdsan: attempted to close file descriptor 0', out)
+
+    def test_all_three_in_order(self):
+        status, out, calls = self.run_probe(['--font-scale', '--density', '--relaunch'])
+        self.assertEqual(status, 0, out)
+        self.assertEqual([c.split()[1] for c in calls[1:]], ['settings'] * 3 + ['wm'] * 3 + ['input', 'am'])
+        # each takes the process the one before left: 4100 after the
+        # density's reset
+        self.assertIn('Opened again after its stack quit: 100% of the screen is the probe\'s green; process 5000 '
+                      '(the first: 4100)', out)
+
+    def test_the_first_problem_ends_them(self):
+        status, out, calls = self.run_probe(['--font-scale', '--density', '--relaunch'], font='crash')
+        self.assertEqual(status, 1, out)
+        self.assertEqual([c.split()[1] for c in calls[1:]], ['settings'] * 3)
+        self.assertNotIn('After a density change', out)
+
+    def test_none_unless_asked(self):
+        status, out, calls = self.run_probe([])
+        self.assertEqual(status, 0, out)
+        self.assertEqual(calls, ['shell am start -W -n %s/.mblandroid' % ac.IDENTIFIER])
+
+
 @unittest.skipIf(os.name == 'nt', 'the stand-in adb and JDK are scripts')
 class DeviceBundle(unittest.TestCase):
     """device with an App Bundle, a stand-in adb and a stand-in JDK whose
@@ -1928,6 +2191,55 @@ class Compare(unittest.TestCase):
         self.assertIn('debug: the manifest changed: - receiver AppReceiver: android:exported=false; '
                       '+ receiver AppReceiver: android:exported=true', problems[0])
 
+    CONFIG = '        A: android:configChanges(0x0101001f)=(type 0x11)%s\n'
+
+    def config_tree(self, value):
+        return AAPT1_TREE.replace('".mblandroid" (Raw: ".mblandroid")\n',
+                                  '".mblandroid" (Raw: ".mblandroid")\n' + self.CONFIG % value, 1)
+
+    def test_config_changes_against_a_release_without_them(self):
+        # the released builder's four (0x6a0), this one's sixteen: the
+        # expected difference, in every build
+        old = self.apk('old.apk', self.BASE)
+        new = self.apk('new.apk', [('AndroidManifest.xml', b'config')] + self.BASE[1:])
+        self.with_trees({old: self.config_tree('0x6a0'), new: self.config_tree('0x50006fff')})
+        for build in ('release', 'unsigned', 'legacy'):
+            problems, notes = ac.compare_apks(build, old, new, aapt='aapt')
+            self.assertEqual(problems, [], build)
+            self.assertIn('manifest: android:configChanges 0x50006fff, was 0x6a0', notes)
+
+    def test_other_config_changes_are_a_problem(self):
+        old = self.apk('old.apk', self.BASE)
+        new = self.apk('new.apk', [('AndroidManifest.xml', b'config')] + self.BASE[1:])
+        # the density too (0x1000): the engine reads it as it starts
+        self.with_trees({old: self.config_tree('0x6a0'), new: self.config_tree('0x50007fff')})
+        problems, _ = ac.compare_apks('release', old, new, aapt='aapt')
+        self.assertEqual(problems, ['release: android:configChanges is 0x50007fff in the new package (the old: '
+                                    '0x6a0), not 0x50006fff'])
+
+    def test_config_changes_and_another_change(self):
+        # the expected value explains its own line, and no other
+        old = self.apk('old.apk', self.BASE)
+        new = self.apk('new.apk', [('AndroidManifest.xml', b'config')] + self.BASE[1:])
+        other = self.config_tree('0x50006fff').replace('".mblandroidservice" (Raw: ".mblandroidservice")',
+                                                       '".other" (Raw: ".other")')
+        self.with_trees({old: self.config_tree('0x6a0'), new: other})
+        problems, notes = ac.compare_apks('release', old, new, aapt='aapt')
+        self.assertEqual(len(problems), 2, problems)
+        self.assertIn('release: the manifest changed: - service .mblandroidservice', problems[0])
+        self.assertIn('release: other manifest lines changed: - A: android:name(0x01010003)=".mblandroidservice"',
+                      problems[1])
+        self.assertNotIn('configChanges', problems[1])
+        self.assertIn('manifest: android:configChanges 0x50006fff, was 0x6a0', notes)
+
+    def test_config_changes_where_the_old_had_none(self):
+        old = self.apk('old.apk', self.BASE)
+        new = self.apk('new.apk', [('AndroidManifest.xml', b'config')] + self.BASE[1:])
+        self.with_trees({old: AAPT1_TREE, new: self.config_tree('0x50006fff')})
+        problems, notes = ac.compare_apks('release', old, new, aapt='aapt')
+        self.assertEqual(problems, [])
+        self.assertIn('manifest: android:configChanges 0x50006fff, was not set', notes)
+
     def test_expected_manifest(self):
         self.assertEqual(ac.expected_manifest('debug', []), ['receiver PushReceiver: android:exported=true'])
         self.assertEqual(ac.expected_manifest('debug', ['receiver PushReceiver: android:exported=true']), [])
@@ -1938,6 +2250,99 @@ class Compare(unittest.TestCase):
         new = self.apk('new.apk', [('AndroidManifest.xml', b'other')] + self.BASE[1:])
         problems, _ = ac.compare_apks('unsigned', old, new)
         self.assertEqual(problems, ['unsigned: the manifest differs (no aapt to say how)'])
+
+
+class Relaunch(unittest.TestCase):
+    """The engine runs once in a process: the manifest's configuration
+    changes are the builder's, and the activity that starts the app again
+    in a new process is declared, in a process of its own and not exported,
+    where the package's Java layer has it, and only there; read from
+    aapt's and aapt2's xmltree"""
+
+    AAPT1 = AAPT1_TREE.replace(
+        '".mblandroid" (Raw: ".mblandroid")\n',
+        '".mblandroid" (Raw: ".mblandroid")\n'
+        '        A: android:configChanges(0x0101001f)=(type 0x11)0x50006fff\n', 1) + (
+        '      E: activity (line=9)\n'
+        '        A: android:theme(0x01010000)=@0x01030010\n'
+        '        A: android:name(0x01010003)="com.runrev.android.RelaunchActivity" (Raw: "com.runrev.android.Relau'
+        'nchActivity")\n'
+        '        A: android:exported(0x01010010)=(type 0x12)0x0\n'
+        '        A: android:process(0x01010011)=":relaunch" (Raw: ":relaunch")\n'
+        '        A: android:excludeFromRecents(0x01010017)=(type 0x12)0xffffffff\n'
+        '        A: android:noHistory(0x0101022d)=(type 0x12)0xffffffff\n')
+    NS = 'http://schemas.android.com/apk/res/android:'
+    AAPT2 = AAPT2_TREE.replace(
+        '".mblandroid" (Raw: ".mblandroid")\n',
+        '".mblandroid" (Raw: ".mblandroid")\n'
+        '        A: %sconfigChanges(0x0101001f)=0x50006fff\n' % NS, 1) + (
+        '      E: activity (line=40)\n'
+        '        A: %stheme(0x01010000)=@0x01030010\n'
+        '        A: %sname(0x01010003)="com.runrev.android.RelaunchActivity" (Raw: "x")\n'
+        '        A: %sexported(0x01010010)=false\n'
+        '        A: %sprocess(0x01010011)=":relaunch" (Raw: ":relaunch")\n' % ((NS,) * 4))
+    DEX = [b'dex\n035\x00 Lcom/runrev/android/LiveCodeActivity; Lcom/runrev/android/RelaunchActivity; ']
+    OLD_DEX = [b'dex\n035\x00 Lcom/runrev/android/LiveCodeActivity; ']
+
+    def test_manifest_value(self):
+        self.assertEqual(ac.manifest_value('        A: android:configChanges(0x0101001f)=(type 0x11)0x6a0'),
+                         ('configChanges', '0x6a0'))
+        self.assertEqual(ac.manifest_value('  A: %sconfigChanges(0x0101001f)=0x50006fff' % self.NS),
+                         ('configChanges', '0x50006fff'))
+        self.assertIsNone(ac.manifest_value('        A: android:exported(0x01010010)=(type 0x12)0x0'))
+        self.assertIsNone(ac.manifest_value('      E: activity (line=9)'))
+
+    def test_manifest_element(self):
+        want = {'theme': '@0x01030010', 'name': ac.RELAUNCH_ACTIVITY, 'exported': '0x0', 'process': ':relaunch',
+                'excludeFromRecents': '0xffffffff', 'noHistory': '0xffffffff'}
+        self.assertEqual(ac.manifest_element(self.AAPT1, 'activity', ac.RELAUNCH_ACTIVITY), want)
+        self.assertEqual(ac.manifest_element(self.AAPT2, 'activity', ac.RELAUNCH_ACTIVITY),
+                         {'theme': '@0x01030010', 'name': ac.RELAUNCH_ACTIVITY, 'exported': 'false',
+                          'process': ':relaunch'})
+        # an element before the last, without its children's attributes
+        main = ac.manifest_element(self.AAPT1, 'activity', '.mblandroid')
+        self.assertEqual(main, {'name': '.mblandroid', 'exported': '0xffffffff', 'configChanges': '0x50006fff'})
+        self.assertIsNone(ac.manifest_element(AAPT1_TREE, 'activity', ac.RELAUNCH_ACTIVITY))
+        self.assertIsNone(ac.manifest_element(self.AAPT1, 'service', ac.RELAUNCH_ACTIVITY))
+
+    def test_declared_with_the_java_layer_that_has_it(self):
+        self.assertEqual(ac.relaunch_problems('debug', self.AAPT1, self.DEX), [])
+        self.assertEqual(ac.relaunch_problems('debug', self.AAPT2, self.DEX), [])
+        # in the second dex of two
+        self.assertEqual(ac.relaunch_problems('debug', self.AAPT1, self.OLD_DEX + self.DEX), [])
+
+    def test_not_declared_with_the_java_layer_that_has_not(self):
+        # the release's Java layer (LiveCode Community 9.6.3's): no activity
+        old = self.AAPT1.split('      E: activity (line=9)\n        A: android:theme')[0]
+        self.assertEqual(ac.relaunch_problems('debug', old, self.OLD_DEX), [])
+        self.assertEqual(ac.relaunch_problems('debug', self.AAPT1, self.OLD_DEX), [
+            'debug: the manifest declares %s, which its Java layer does not have' % ac.RELAUNCH_ACTIVITY])
+        self.assertEqual(ac.relaunch_problems('debug', old, self.DEX), [
+            'debug: its Java layer has %s, and the manifest does not declare it (the app would start its engine '
+            'twice in a process)' % ac.RELAUNCH_ACTIVITY])
+
+    def test_its_process_and_exported(self):
+        shared = self.AAPT1.replace('        A: android:process(0x01010011)=":relaunch" (Raw: ":relaunch")\n', '')
+        self.assertEqual(ac.relaunch_problems('debug', shared, self.DEX), [
+            'debug: %s is not in a process of its own (android:process is not set)' % ac.RELAUNCH_ACTIVITY])
+        exported = self.AAPT2.replace('exported(0x01010010)=false\n        A: %sprocess' % self.NS,
+                                      'exported(0x01010010)=true\n        A: %sprocess' % self.NS)
+        self.assertNotEqual(exported, self.AAPT2)
+        self.assertEqual(ac.relaunch_problems('debug', exported, self.DEX), [
+            'debug: %s does not say android:exported="false"' % ac.RELAUNCH_ACTIVITY])
+
+    def test_the_config_changes(self):
+        self.assertEqual(ac.EXPECTED_VALUES, {'configChanges': '0x50006fff'})
+        # LiveCode's four, as the released builder had them
+        self.assertEqual(int(ac.EXPECTED_VALUES['configChanges'], 16) & 0x6a0, 0x6a0)
+        # not the density (0x1000)
+        self.assertEqual(int(ac.EXPECTED_VALUES['configChanges'], 16) & 0x1000, 0)
+        four = self.AAPT1.replace('(type 0x11)0x50006fff', '(type 0x11)0x6a0')
+        self.assertEqual(ac.relaunch_problems('debug', four, self.DEX), [
+            'debug: android:configChanges is 0x6a0, not 0x50006fff'])
+        none = self.AAPT1.replace('        A: android:configChanges(0x0101001f)=(type 0x11)0x50006fff\n', '')
+        self.assertEqual(ac.relaunch_problems('debug', none, self.DEX), [
+            'debug: android:configChanges is not set, not 0x50006fff'])
 
 
 class VerifyWithoutTools(unittest.TestCase):
@@ -1995,6 +2400,10 @@ class VerifyTarget(unittest.TestCase):
     # a manifest without the push receiver (SPEC has no push)
     TREE = AAPT1_TREE.split('      E: receiver (line=9)\n        A: android:name(0x01010003)="PushReceiver"')[0] + \
         '      E: service (line=9)\n        A: android:name(0x01010003)=".mblandroidservice" (Raw: "x")\n'
+    # the builder's configuration changes (EXPECTED_VALUES)
+    TREE = TREE.replace('".mblandroid" (Raw: ".mblandroid")\n',
+                        '".mblandroid" (Raw: ".mblandroid")\n'
+                        '        A: android:configChanges(0x0101001f)=(type 0x11)0x50006fff\n', 1)
     PROPERTY = ('      E: property (line=11)\n'
                 '        A: android:name(0x01010003)="%s" (Raw: "x")\n'
                 '        A: android:value(0x01010024)=(type 0x12)%%s\n' % ac.LARGE_SCREEN_PROPERTY)
@@ -2049,6 +2458,19 @@ class VerifyTarget(unittest.TestCase):
         self.assertEqual(self.check('36', '0x0', '36'), [
             "unsigned targets API 36, and its manifest does not keep the stack's orientation on large screens "
             "(%s is 0x0)" % ac.LARGE_SCREEN_PROPERTY])
+
+    def test_the_relaunch_activity(self):
+        # verify_apk asks relaunch_problems, with the package's dex: this
+        # one's Java layer has no RelaunchActivity, so none may be declared
+        saved = self.TREE
+        try:
+            self.TREE = saved.replace('(type 0x11)0x50006fff', '(type 0x11)0x6a0')
+            self.assertEqual(self.check('33'), ['unsigned: android:configChanges is 0x6a0, not 0x50006fff'])
+            self.TREE = saved + Relaunch.AAPT1.split('".mblandroidservice" (Raw: ".mblandroidservice")\n')[1]
+            self.assertEqual(self.check('33'), [
+                'unsigned: the manifest declares %s, which its Java layer does not have' % ac.RELAUNCH_ACTIVITY])
+        finally:
+            self.TREE = saved
 
     def test_the_property_below_36(self):
         self.assertEqual(self.check('33', '0xffffffff'), [
@@ -3058,27 +3480,76 @@ class OneSystem(unittest.TestCase):
         self.assertIn('constant kRestrictedResizability = "%s"' % ac.LARGE_SCREEN_PROPERTY, builder)
 
     def test_back_and_bars_runs(self):
-        # every run of this checkout's Java layer (which targets 36) presses
-        # the back key and checks the bars; the builder's other packages
-        # (which target 33) check the bars alone; the release's Java layer,
-        # only recorded, neither
+        # every run of this checkout's Java layer's probe (which targets 36)
+        # presses the back key and checks the bars; the app probe with that
+        # layer and the builder's other packages (which target 33) check
+        # the bars alone; the release's Java layer, only recorded, neither
         workflow = read('.github', 'workflows', 'android.yml')
-        runs = re.findall(r'android_check\.py device(?:[^\n]*\\\n)*[^\n]*', workflow)
-        self.assertEqual(sum('/java-new/' in r for r in runs), 2, runs)
-        self.assertEqual(sum('/changed/' in r for r in runs), 2, runs)
-        for run in runs:
-            self.assertEqual('--back' in run, '/java-new/' in run, run)
-            self.assertEqual('--within-bars' in run, '/java-new/' in run or '/changed/' in run, run)
+        runs = self.device_runs(workflow)
+        self.assertEqual(sum(work == 'java-new' for _, work, _, _ in runs), 2, runs)
+        self.assertEqual(sum(work == 'java-app' for _, work, _, _ in runs), 2, runs)
+        recorded = [cmd for name, work, _, cmd in runs if name.startswith("The release's Java layer")]
+        self.assertEqual(len(recorded), 1, runs)
+        self.assertEqual(sum(work == 'changed' for _, work, _, _ in runs), 3, runs)
+        for name, work, _, cmd in runs:
+            self.assertEqual('--back' in cmd, work == 'java-new', cmd)
+            self.assertEqual('--within-bars' in cmd, work != 'java-old' and cmd not in recorded, cmd)
+
+    def test_once_in_a_process_runs(self):
+        # the engine runs once in a process: the app probe with this Java
+        # layer (which has RelaunchActivity) through a font size change, a
+        # density change and opened again after its stack quits, on both
+        # emulators; the release's Java layer through a font size change
+        # (the manifest lists it), once, and for the record (no
+        # annotations, never failing the job) across the other two
+        workflow = read('.github', 'workflows', 'android.yml')
+        runs = self.device_runs(workflow)
+        app = [(name, cmd) for name, work, _, cmd in runs if work == 'java-app']
+        self.assertEqual([name for name, _ in app], ['Run the app probe with this Java layer on Android 13',
+                                                     'Run the package with 16 KB pages'])
+        for _, cmd in app:
+            self.assertTrue(cmd.endswith('--within-bars --font-scale --density --relaunch'), cmd)
+        # --relaunch only where the probe passes the back key (the app
+        # probe): the Java layer's probe handles backKey and goes on
+        for name, work, pkgs, cmd in runs:
+            if '--relaunch' in cmd or '--density' in cmd:
+                self.assertIn(work, ('java-app', 'changed'), cmd)
+                self.assertEqual(pkgs, ['debug.apk'], cmd)
+        font = [(name, pkgs, cmd) for name, work, pkgs, cmd in runs if work == 'changed' and '--font-scale' in cmd]
+        self.assertEqual(len(font), 1, runs)
+        self.assertEqual(font[0][0], 'Run the packages on Android 13')
+        self.assertIn('$([ "$pkg" = debug.apk ] && echo --font-scale)', font[0][2])
+        step = re.search(r"(?s)- name: The release's Java layer across a density change and opened again, on "
+                         r"Android 13\n(.*?)\n      - name:", workflow).group(1)
+        self.assertIn('for check in density relaunch; do', step)
+        self.assertIn('env -u GITHUB_ACTIONS -u GITHUB_STEP_SUMMARY "$PY" tools/ci/android_check.py device', step)
+        self.assertIn('--apk "$WORK/changed/out/debug.apk"', step)
+        self.assertIn('"--$check" 2>&1)', step)
+        self.assertTrue(step.rstrip().endswith('exit 0'), step)
+        self.assertNotIn('continue-on-error', step)
+        # no step changes the font size or the density by hand any more:
+        # device's checks put them back
+        self.assertNotIn('settings put system font_scale', workflow)
+        self.assertNotIn('wm density', workflow)
+        # the app probe is built with this Java layer, from the plain
+        # probe's stack, and verified at the newest target
+        ides = [re.sub(r'\\\n\s*', '', x) for x in
+                re.findall(r'android_check\.py ide(?:[^\n]*\\\n)*[^\n]*', workflow)]
+        built = [x for x in ides if '--work "$WORK/java-app"' in x]
+        self.assertEqual(built, ['android_check.py ide --install "$JAVA_IDE" --platform "$PLATFORM" '
+                                 '--work "$WORK/java-app" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug '
+                                 '--stack "$WORK/changed/AndroidProbe.livecode"'])
 
     def test_java_probe_verified_at_the_newest_target(self):
-        # the Java layer's probe is built with a Java layer ready for 36, so
-        # it targets 36; the other packages target 33, as verify's default
+        # the Java layer's probe and the app probe are built with a Java
+        # layer ready for 36, so they target 36; the other packages target
+        # 33, as verify's default
         workflow = read('.github', 'workflows', 'android.yml')
         verifies = [re.sub(r'\\\n\s*', '', v) for v in
                     re.findall(r'android_check\.py verify(?:[^\n]*\\\n)*[^\n]*', workflow)]
-        self.assertEqual(len(verifies), 2, verifies)
+        self.assertEqual(len(verifies), 3, verifies)
         for v in verifies:
-            if '/java-new"' in v:
+            if '/java-new"' in v or '/java-app"' in v:
                 self.assertTrue(v.endswith('--target %s' % ac.NEWEST_TARGET_SDK), v)
             else:
                 self.assertNotIn('--target', v)
@@ -3160,7 +3631,12 @@ class OneSystem(unittest.TestCase):
                     re.findall(r'android_check\.py verify(?:[^\n]*\\\n)*[^\n]*', workflow)]
         for v in verifies:
             self.assertIn('--jdk "$JDK"', v)
-            self.assertNotIn('--builds', v.replace('--builds debug,bundle', ''))
+            # each verify checks the builds its ide made: all, or those it
+            # names
+            work = re.search(r'--work "([^"]+)"', v).group(1)
+            ide = [x for x in ides if '--work "%s"' % work in x]
+            self.assertEqual(len(ide), 1, (v, ides))
+            self.assertEqual(re.findall(r'--builds (\S+)', v), re.findall(r'--builds (\S+)', ide[0]), v)
         runs = self.device_runs(workflow)
         bundles = sorted((name, work) for name, work, pkgs, _ in runs if 'bundle.aab' in pkgs)
         self.assertEqual(bundles, [('Run the Java layer\'s probe on Android 13', 'java-new'),

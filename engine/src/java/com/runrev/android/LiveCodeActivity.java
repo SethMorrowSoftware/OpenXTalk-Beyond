@@ -38,6 +38,11 @@ public class LiveCodeActivity extends Activity
     public static final String TAG = "revandroid.LiveCodeActivity";
 	public static FrameLayout s_main_layout;
 	public static Engine s_main_view;
+    
+    // OXT-Beyond: whether an engine has run in this process, and whether
+    // this activity started one (see onCreate)
+    protected static boolean s_engine_ran;
+    protected boolean m_engine_started;
 
 	//////////
 
@@ -57,6 +62,16 @@ public class LiveCodeActivity extends Activity
 	{
 		super.onCreate(p_saved_state);
 		
+        // OXT-Beyond: the engine runs once in a process (RelaunchActivity
+        // says why). Made again in a process whose engine has run, for a
+        // configuration change the manifest does not list or when opened
+        // again before its process ended, the activity starts again in a new
+        // process instead, where the builder has declared RelaunchActivity
+        if (s_engine_ran && RelaunchActivity.relaunch(this))
+            return;
+        s_engine_ran = true;
+        m_engine_started = true;
+        
         s_main_layout = new FrameLayout(this);
 
 		// Create the view and notify the engine of its attachment (just in case
@@ -167,11 +182,37 @@ public class LiveCodeActivity extends Activity
 	protected void onDestroy()
 	{
 		super.onDestroy();
+        // OXT-Beyond: an activity that started the app again in a new
+        // process (onCreate) has no engine here
+        if (!m_engine_started)
+            return;
 		s_main_view.clearWakeUp();
 		s_main_view.onDestroy();
 		s_main_layout = null;
 		s_main_view = null;
+        // OXT-Beyond: the engine has finished, and runs once in a process.
+        // When the activity has finished too (the stack quit, as an unhandled
+        // backKey quits it, or the user closed the app), its process ends, so
+        // that the app opened again starts in a new one, as it does once
+        // Android has ended the process. Not for a configuration change,
+        // where Android makes the activity again at once (onCreate)
+        if (isFinishing() && !isChangingConfigurations())
+            endProcess();
 	}
+    
+    // OXT-Beyond: ends this process once the activity's destruction has been
+    // reported to Android
+    protected static void endProcess()
+    {
+        Log.i(TAG, "the engine has finished; ending the process");
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run()
+            {
+                android.os.Process.killProcess(android.os.Process.myPid());
+            }
+        });
+    }
 	
 	//////////
 

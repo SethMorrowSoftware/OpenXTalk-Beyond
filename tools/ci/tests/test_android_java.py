@@ -904,6 +904,135 @@ class Named(unittest.TestCase):
         problems, _ = aj.check_named(named, classes)
         self.assertEqual(len(problems), 2)
 
+    def builder(self, d, text, manifest=''):
+        """named_classes and looked_for_classes of a builder of text (and a
+        runtime whose manifest is manifest) in d."""
+        with open(os.path.join(d, 'Manifest.xml'), 'w') as f:
+            f.write(manifest)
+        saved = aj.BUILDER
+        aj.BUILDER = os.path.join(d, 'revsaveasandroidstandalone.livecodescript')
+        with open(aj.BUILDER, 'w') as f:
+            f.write(text)
+        try:
+            return aj.named_classes(d), aj.looked_for_classes()
+        finally:
+            aj.BUILDER = saved
+
+    # As the builder declares RelaunchActivity: only where the jar has it
+    LOOKS_FOR = ('constant kRelaunchClass = "com/runrev/android/RelaunchActivity.class"\n'
+                 'put "  <activity android:name=" & quote & "com.runrev.android.RelaunchActivity" & quote after x\n'
+                 'put "import com.runrev.android.LiveCodeService;" after x\n')
+
+    def test_a_class_named_only_where_the_jar_has_it(self):
+        # a release's jar without RelaunchActivity (LiveCode Community
+        # 9.6.3's): said, and no problem; asked of every named class (this
+        # checkout's jar), a problem
+        classes = aj.Classes({w.name: parse(w) for w in engine_classes()})
+        with tempfile.TemporaryDirectory() as d:
+            named, looked_for = self.builder(d, self.LOOKS_FOR)
+        self.assertEqual(looked_for, {'com/runrev/android/RelaunchActivity'})
+        problems, lines = aj.check_named(named, classes, looked_for)
+        self.assertEqual(problems, ['revsaveasandroidstandalone.livecodescript names '
+                                    'com/runrev/android/LiveCodeService, which the jar does not have'])
+        self.assertIn('revsaveasandroidstandalone.livecodescript names com/runrev/android/RelaunchActivity '
+                      'only where the jar has it, and this jar has not', lines)
+        problems, _ = aj.check_named(named, classes)
+        self.assertEqual(len(problems), 2)
+        self.assertTrue(any(x.endswith('com/runrev/android/RelaunchActivity, which the jar does not have')
+                            for x in problems), problems)
+
+    def test_a_jar_with_the_class_says_nothing_of_it(self):
+        relaunch = ClassWriter('com/runrev/android/RelaunchActivity', 'android/app/Activity')
+        service = ClassWriter('com/runrev/android/LiveCodeService', 'android/app/Service')
+        classes = aj.Classes({w.name: parse(w) for w in engine_classes() + [relaunch, service]})
+        with tempfile.TemporaryDirectory() as d:
+            named, looked_for = self.builder(d, self.LOOKS_FOR)
+        for kept in (looked_for, ()):
+            problems, lines = aj.check_named(named, classes, kept)
+            self.assertEqual(problems, [])
+            self.assertEqual(lines, ['2 classes named by the manifest and the builder checked'])
+
+    def test_the_manifest_naming_it_is_still_a_problem(self):
+        # the runtime's manifest declares what it names whatever the jar
+        # has: only the builder looks in the jar first
+        classes = aj.Classes({w.name: parse(w) for w in engine_classes()})
+        with tempfile.TemporaryDirectory() as d:
+            named, looked_for = self.builder(
+                d, 'constant k = "com/runrev/android/RelaunchActivity.class"\n',
+                manifest='<activity android:name="com.runrev.android.RelaunchActivity"/>')
+        self.assertEqual(named, [('Manifest.xml', 'com/runrev/android/RelaunchActivity')])
+        problems, _ = aj.check_named(named, classes, looked_for)
+        self.assertEqual(problems, ['Manifest.xml names com/runrev/android/RelaunchActivity, '
+                                    'which the jar does not have'])
+
+    def test_a_look_in_a_comment_is_no_look(self):
+        # the builder's old code, kept as comments, looks for nothing
+        classes = aj.Classes({w.name: parse(w) for w in engine_classes()})
+        with tempfile.TemporaryDirectory() as d:
+            named, looked_for = self.builder(
+                d, '-- constant kRelaunchClass = "com/runrev/android/RelaunchActivity.class"\n'
+                   'put "com.runrev.android.RelaunchActivity" after x\n')
+        self.assertEqual(looked_for, set())
+        problems, _ = aj.check_named(named, classes, looked_for)
+        self.assertEqual(len(problems), 1)
+
+    def test_the_real_builder(self):
+        # the builder names RelaunchActivity, and looks for it in the jar
+        # first; LiveCodeActivity it names whatever the jar has
+        named = [cls for where, cls in aj.named_classes(os.path.join(REPO, 'no-runtime'))]
+        looked_for = aj.looked_for_classes()
+        self.assertIn('com/runrev/android/RelaunchActivity', named)
+        self.assertIn('com/runrev/android/RelaunchActivity', looked_for)
+        self.assertIn('com/runrev/android/LiveCodeActivity', named)
+        self.assertNotIn('com/runrev/android/LiveCodeActivity', looked_for)
+
+    def run_jni(self, *flags):
+        """jni's status and output for a jar without RelaunchActivity, with
+        a builder that names it only where the jar has it, the other checks
+        stubbed (each has its own tests)"""
+        names = ('check_exports', 'source_calls', 'check_calls', 'lcb_bindings', 'check_bindings', 'check_gles')
+        saved = {x: getattr(aj, x) for x in names}
+        with tempfile.TemporaryDirectory() as d:
+            classes = jar(os.path.join(d, 'Classes'), engine_classes())
+            runtime = os.path.join(d, 'Android')
+            os.makedirs(os.path.join(runtime, 'arm64-v8a'))
+            with open(os.path.join(runtime, 'arm64-v8a', aj.ENGINE_NAME), 'wb') as f:
+                f.write(elf([], ['libGLESv1_CM.so']))
+            builder = self.LOOKS_FOR.replace('put "import com.runrev.android.LiveCodeService;" after x\n', '')
+            saved_builder = aj.BUILDER
+            aj.BUILDER = os.path.join(d, 'revsaveasandroidstandalone.livecodescript')
+            with open(aj.BUILDER, 'w') as f:
+                f.write(builder)
+            out = io.StringIO()
+            try:
+                for x in names:
+                    found = x in ('source_calls', 'lcb_bindings')
+                    setattr(aj, x, (lambda *a: []) if found else (lambda *a: ([], [])))
+                with contextlib.redirect_stdout(out):
+                    status = aj.main(['jni', '--classes', classes, '--runtime', runtime] + list(flags))
+            finally:
+                aj.BUILDER = saved_builder
+                for x in names:
+                    setattr(aj, x, saved[x])
+        return status, out.getvalue()
+
+    def test_jni_with_and_without_every_named(self):
+        status, out = self.run_jni()
+        self.assertEqual(status, 0, out)
+        self.assertIn('RelaunchActivity only where the jar has it, and this jar has not', out)
+        status, out = self.run_jni('--every-named')
+        self.assertEqual(status, 1, out)
+        self.assertIn('PROBLEM: revsaveasandroidstandalone.livecodescript names '
+                      'com/runrev/android/RelaunchActivity, which the jar does not have', out)
+
+    def test_the_workflow_asks_every_class_of_this_checkouts_jar(self):
+        # --every-named on the jar built here, not on the release's
+        workflow = read('.github', 'workflows', 'android-java.yml')
+        built = re.search(r'jni --classes "\$RUNNER_TEMP/java/Classes"[^\n]*\n[^\n]*', workflow).group(0)
+        shipped = re.search(r'jni --classes "\$RUNTIME/Classes"[^\n]*\n[^\n]*', workflow).group(0)
+        self.assertIn('--every-named', built)
+        self.assertNotIn('--every-named', shipped)
+
 
 class Gles(unittest.TestCase):
     def classes(self, gles):

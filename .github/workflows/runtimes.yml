@@ -214,10 +214,12 @@ jobs:
         run: |
           python3 tools/ci/android_java.py compare --old "$RUNTIME/Classes" --new "$RUNNER_TEMP/java/Classes"
 
+      # --every-named: the jar the asset takes has every class the builder
+      # can name (as android-java.yml asks of a pull request's)
       - name: Check it against the engine (JNI)
         run: |
           python3 tools/ci/android_java.py jni --classes "$RUNNER_TEMP/java/Classes" --runtime "$RUNTIME" \
-            --android-jar "$SDK/platforms/android-36/android.jar"
+            --android-jar "$SDK/platforms/android-36/android.jar" --every-named
 
       - name: Check what Android asks of the code
         run: |

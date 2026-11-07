@@ -40,7 +40,11 @@ would not notice going back:
     time through the JDK's own HTTP client; and an SDK without aapt2 still
     builds packages;
   - the Android card's "App Bundle" box stores the setting the builder
-    reads, and shows it; a stack that never ticks it has no bundle.
+    reads, and shows it; a stack that never ticks it has no bundle;
+  - the engine runs once in a process: the manifest lists the
+    configuration changes the app goes on through (LiveCode's four first),
+    and declares the activity that starts it again in a new process only
+    where the runtime's Java layer has it.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -704,9 +708,13 @@ class TargetAPI(unittest.TestCase):
             self.assertTrue(m, name)
             self.assertRegex(activity, r'(?m)^\s+(?:protected |private |public )?static class %s\b' % m.group(1))
         ready = handler(self.src, 'androidJavaLayerIsReady')
-        self.assertIn('put mapFilePath(pRuntimeFolder & slash & "Classes") into tJar', ready)
-        self.assertRegex(ready, r'if there is no file tJar then\s+return false')
-        self.assertRegex(ready, r'if byteOffset\(textEncode\(tEntry, "UTF-8"\), tJar\) is 0 then\s+return false')
+        self.assertRegex(ready, r'^function androidJavaLayerIsReady pRuntimeFolder\s+'
+                                r'return androidJavaLayerHas\(pRuntimeFolder, kJavaLayerReady\)\s+end')
+        has = handler(self.src, 'androidJavaLayerHas')
+        self.assertIn('put mapFilePath(pRuntimeFolder & slash & "Classes") into tJar', has)
+        self.assertRegex(has, r'if there is no file tJar then\s+return false')
+        self.assertRegex(has, r'repeat for each item tEntry in pClasses\s+'
+                              r'if byteOffset\(textEncode\(tEntry, "UTF-8"\), tJar\) is 0 then\s+return false')
 
     def test_large_screens_only_at_36(self):
         keep = handler(self.src, 'androidKeepLargeScreenLayout')
@@ -724,6 +732,135 @@ class TargetAPI(unittest.TestCase):
         for case in ('target-no-java-layer', 'target-java-layer-not-ready', 'target-java-layer-ready',
                      'target-pinned-', 'target-pin-refused-', 'large-screen-below-36', 'large-screen-36'):
             self.assertIn(case, target)
+
+
+class Relaunch(unittest.TestCase):
+    """The engine runs once in a process (RelaunchActivity in the Java layer
+    says why). The manifest lists the configuration changes the app goes on
+    through, LiveCode's four first, as before, and not the screen's density,
+    for which it starts again; the activity that starts it again in a new
+    process is declared where the runtime's Java layer has it, and only
+    there (LiveCode Community 9.6.3's has not, and its app is built as
+    before); and the Java layer starts the engine once in a process"""
+
+    def setUp(self):
+        self.src = code(read(BUILDER))
+
+    # every android:configChanges value Android 12L (API 32) knows, below
+    # the oldest target the builder makes (33): one Android added later
+    # would not link against an older target's platform
+    KNOWN = {'mcc', 'mnc', 'locale', 'touchscreen', 'keyboard', 'keyboardHidden', 'navigation', 'screenLayout',
+             'fontScale', 'uiMode', 'orientation', 'screenSize', 'smallestScreenSize', 'layoutDirection',
+             'colorMode', 'density', 'fontWeightAdjustment'}
+
+    def test_config_changes(self):
+        values = re.search(r'constant kConfigChanges = "([^"]+)"', self.src).group(1).split('|')
+        # LiveCode's four, as before, first
+        self.assertEqual(values[:4], ['keyboardHidden', 'orientation', 'uiMode', 'screenSize'])
+        self.assertEqual(len(values), len(set(values)), values)
+        self.assertLessEqual(set(values), self.KNOWN)
+        # the changes that were stopped on Android 11 and newer: the font
+        # size and weight, the language, a resized window, a keyboard
+        for value in ('fontScale', 'fontWeightAdjustment', 'locale', 'layoutDirection', 'smallestScreenSize',
+                      'screenLayout', 'keyboard', 'navigation'):
+            self.assertIn(value, values)
+        # the density the engine reads as it starts: the app starts again
+        self.assertNotIn('density', values)
+        self.assertRegex(handler(self.src, 'androidConfigChanges'),
+                         r'^function androidConfigChanges\s+return kConfigChanges\s+end')
+        main = handler(self.src, 'revSaveAsMobileStandaloneMain')
+        self.assertRegex(main, r'put androidConfigChanges\(\) into tConfigChangesProp\s+'
+                               r'replace "\$\{CONFIG_CHANGES\}" with tConfigChangesProp in tManifest')
+        self.assertNotIn('"keyboardHidden|orientation|uiMode|screenSize"', main)
+
+    def test_relaunch_declared_where_the_java_layer_has_it(self):
+        declare = handler(self.src, 'androidDeclareRelaunch')
+        self.assertIn('constant kRelaunchClass = "com/runrev/android/RelaunchActivity.class"', self.src)
+        # nothing at all without the class: the manifest as it was
+        self.assertRegex(declare, r'^function androidDeclareRelaunch pManifest, pRuntimeFolder\s+'
+                                  r'if not androidJavaLayerHas\(pRuntimeFolder, kRelaunchClass\) then\s+'
+                                  r'return pManifest\s+end if')
+        for attr in ('android:name=" & quote & "com.runrev.android.RelaunchActivity" & quote',
+                     # a process of its own, which outlives the app's
+                     'android:process=" & quote & ":relaunch" & quote',
+                     # no window to see, nothing in the recents list, and
+                     # no other app can start it
+                     'android:theme=" & quote & "@android:style/Theme.Translucent.NoTitleBar" & quote',
+                     'android:excludeFromRecents=" & quote & "true" & quote',
+                     'android:noHistory=" & quote & "true" & quote',
+                     'android:exported=" & quote & "false" & quote'):
+            self.assertIn(attr, declare)
+        self.assertNotIn('intent-filter', declare)
+        self.assertIn('replace "</application>" with tActivity & "  </application>" in pManifest', declare)
+        # the class it names is the Java layer's
+        java = read(JAVA + ('RelaunchActivity.java',))
+        self.assertIn('package com.runrev.android;', java)
+        self.assertRegex(java, r'public class RelaunchActivity extends Activity\b')
+        # declared with the runtime the package is built with, before the
+        # manifest is written
+        main = handler(self.src, 'revSaveAsMobileStandaloneMain')
+        declared = main.find('put androidDeclareRelaunch(tManifest, revMobileRuntimeFolder(pTarget)) into tManifest')
+        self.assertGreater(declared, main.find('put androidKeepLargeScreenLayout(tManifest, tTargetAPI) into tManifest'))
+        self.assertLess(declared, main.find('put tManifest into url ("binfile:" & tManifestFile)'))
+
+    def test_the_java_layer_builds_it(self):
+        gyp = read(('engine', 'engine-sources.gypi'))
+        self.assertIn("'src/java/com/runrev/android/RelaunchActivity.java',", gyp)
+
+    def test_the_engine_starts_once_in_a_process(self):
+        activity = read(JAVA + ('LiveCodeActivity.java',))
+        create = re.search(r'(?s)protected void onCreate\(Bundle p_saved_state\)\s*\{(.*?)\n\t\}', activity).group(1)
+        # the check comes first, before the engine's view is made; without
+        # the declaration (relaunch answers false) it goes on as before
+        self.assertRegex(create, r'^\s*super\.onCreate\(p_saved_state\);\s+(?://[^\n]*\s+)*'
+                                 r'if \(s_engine_ran && RelaunchActivity\.relaunch\(this\)\)\s+return;\s+'
+                                 r's_engine_ran = true;\s+m_engine_started = true;\s+'
+                                 r's_main_layout = new FrameLayout\(this\);')
+        destroy = re.search(r'(?s)protected void onDestroy\(\)\s*\{(.*?)\n\t\}', activity).group(1)
+        # an activity that started no engine has none to finish
+        self.assertRegex(destroy, r'^\s*super\.onDestroy\(\);\s+(?://[^\n]*\s+)*if \(!m_engine_started\)\s+'
+                                  r'return;\s+s_main_view\.clearWakeUp\(\);')
+        # the process ends after the engine, only when the activity is
+        # finishing and not for a configuration change
+        self.assertRegex(destroy, r's_main_view = null;\s+(?://[^\n]*\s+)*'
+                                  r'if \(isFinishing\(\) && !isChangingConfigurations\(\)\)\s+endProcess\(\);\s*$')
+        end = re.search(r'(?s)protected static void endProcess\(\)\s*\{(.*?)\n    \}', activity).group(1)
+        # after onDestroy has returned to Android, on the main thread
+        self.assertIn('new Handler(Looper.getMainLooper()).post(', end)
+        self.assertIn('android.os.Process.killProcess(android.os.Process.myPid());', end)
+
+    def test_relaunch_activity(self):
+        java = read(JAVA + ('RelaunchActivity.java',))
+        relaunch = re.search(r'(?s)public static boolean relaunch\(Activity p_activity\)\s*\{(.*?)\n    \}',
+                             java).group(1)
+        # nothing at all where the manifest does not declare it
+        self.assertRegex(relaunch, r'^\s*if \(!isDeclared\(p_activity\)\)\s+return false;')
+        for part in ('t_intent.putExtra(EXTRA_INTENT, new Intent(p_activity.getIntent()));',
+                     't_intent.putExtra(EXTRA_PID, android.os.Process.myPid());',
+                     'p_activity.startActivity(t_intent);', 'p_activity.finish();', 'return true;'):
+            self.assertIn(part, relaunch)
+        create = re.search(r'(?s)protected void onCreate\(Bundle p_saved_state\)\s*\{(.*?)\n    \}', java).group(1)
+        # the app's process first, never its own; then the app's Intent as
+        # it was started, in a new task; then its own process ends
+        kill = create.find('android.os.Process.killProcess(t_pid);')
+        start = create.find('startActivity(t_start);')
+        exit_ = create.find('Runtime.getRuntime().exit(0);')
+        self.assertTrue(0 < kill < start < exit_, create)
+        self.assertIn('if (t_pid != 0 && t_pid != android.os.Process.myPid())', create)
+        self.assertIn('t_start = new Intent(t_app_intent);', create)
+        self.assertIn('t_start.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);', create)
+        declared = re.search(r'(?s)public static boolean isDeclared\(Context p_context\)\s*\{(.*?)\n    \}',
+                             java).group(1)
+        self.assertIn('getActivityInfo(new ComponentName(p_context, RelaunchActivity.class), 0)', declared)
+        self.assertRegex(declared, r'catch \(PackageManager\.NameNotFoundException e\)\s*\{\s*return false;')
+
+    def test_units_run(self):
+        units = read(UNITS)
+        self.assertIn('unitRelaunch tWork', handler(units, 'androidUnits'))
+        relaunch = handler(units, 'unitRelaunch')
+        for case in ('config-changes', 'relaunch-no-java-layer', 'relaunch-java-layer-without-it',
+                     'relaunch-declared'):
+            self.assertIn('"%s"' % case, relaunch)
 
 
 if __name__ == '__main__':
