@@ -191,7 +191,11 @@ The following <folderIdentifier> values are supported:
 
 >*Note:* If using any external <folderIdentifier> values, ensure you 
 > have the 'Write External Storage' permission checked in the
-> application standalone settings
+> application standalone settings. Android 13 and newer no longer grant
+> that permission; for an application that has it checked it counts as
+> granted there, so the external folders are found (needs the Java layer
+> built from OXT-Beyond's source, which the runtimes asset carries from
+> its next release)
 
 **On Linux systems**, the following <folderIdentifier> values 
 are supported: 

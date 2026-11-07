@@ -288,7 +288,7 @@ Figure 8 – Standalone Settings – Android
 | **Multitouch**                  | Choose whether multitouch is required, prohibited or not applicable in order for the application to function                                                                                                                          |
 | **Multitouch Distinct**         | Choose whether multitouch distinct is required, prohibited or not applicable in order for the application to function                                                                                                                 |
 | **Multitouch Jazzhand**         | Choose whether multitouch jazzhand is required, prohibited or not applicable in order for the application to function                                                                                                                 |
-| **Write External Storage**      | Request permission to write to external storage                                                                                                                                                                                       |
+| **Write External Storage**      | Request permission to write to external storage: the external folders and Export to album ask for it; Android 13 and newer no longer grant it, and there it counts as granted                                                         |
 | **Internet**                    | Request permission to for internet access                                                                                                                                                                                             |
 | **Camera**                      | Request permission to access the camera                                                                                                                                                                                               |
 | **Read Contacts**               | Request permission to read the user's contact data                                                                                                                                                                                    |
@@ -299,6 +299,7 @@ Figure 8 – Standalone Settings – Android
 | **Vibration**                   | Request permission to vibrate the device                                                                                                                                                                                              |
 | **Idle Timer**                  | Request permission for the idle timer                                                                                                                                                                                                 |
 | **Ad Support**                  | Request permission for ad support                                                                                                                                                                                                     |
+| **Post Notifications**          | Request permission to post notifications: Android 13 and newer show an app's notifications only once the user allows it, and ask the first time the app schedules a local notification                                                |
 
 Related lessons:
 

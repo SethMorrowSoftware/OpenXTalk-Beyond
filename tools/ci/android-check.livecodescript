@@ -72,13 +72,31 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --
 -- The Java layer's probe, AndroidJavaProbe, is the probe with more to do
 -- before it turns green: it asks the Java layer of the runtime for what
--- Android 12 and newer refuse unless the Java says more (the Android
--- plan's phase 1), each step a call a script makes. Today that is a local
--- notification an hour away (mobileCreateLocalNotification: the alarm's
--- PendingIntent), cancelled again at once. A Java layer that throws there
--- stops the app (the exception reaches the engine's thread), so the screen
--- never turns green; a call that answers no notification turns it
--- kFailColor.
+-- Android 10 and newer refuse unless the Java says more (the Android
+-- plan's phase 1), each step a call a script makes:
+--   - a local notification an hour away (mobileCreateLocalNotification:
+--     the alarm's PendingIntent), cancelled again at once;
+--   - the app's own external folder (specialFolderPath("external
+--     documents")), which the engine asks WRITE_EXTERNAL_STORAGE for
+--     first, and androidHasPermission of that permission;
+--   - a picture into the shared Pictures folder (mobileExportImageToAlbum
+--     of kProbePicture as "oxt-beyond-probe": MediaStore on Android 10
+--     and newer; android_check.py device --picture finds it there).
+-- It takes every step, says what each answered in the device's log (a
+-- put with no container is the engine's log line there, tag LiveCode:
+-- android_check.py device prints them), and turns kFailColor when any
+-- failed. A Java layer that throws does not stop the app: the engine's
+-- call into Java clears the exception (engine/src/mblandroiddc.cpp; its
+-- MCLog line is compiled out of a release engine, so the log says
+-- nothing) and the call answers no notification. LiveCode 9.6.3's layer
+-- does that on Android 13 (Android builder run 42157367103). Its builds
+-- declare POST_NOTIFICATIONS (the Android card's "Post Notifications"), so
+-- that on Android 13 and newer the Java layer asks the user to allow it as
+-- the notification is scheduled (android_check.py device --allow taps
+-- Allow and checks that the package holds it), and WRITE_EXTERNAL_STORAGE
+-- ("Write External Storage"), which Android 13 and newer refuse without
+-- asking and the Java layer counts as granted there (Engine.java,
+-- grantedWithoutAsking).
 
 -- The probe's colours: the stack is saved red, and its openStack makes it
 -- green, so a screen of green says that the engine ran the stack's script
@@ -86,6 +104,8 @@ constant kSavedColor = "204,34,0"
 constant kRunColor = "31,158,90"
 constant kFailColor = "230,160,0"
 constant kIdentifier = "org.openxtalk.check.androidprobe"
+-- The Java layer's probe's picture: one pixel, a PNG, as base64
+constant kProbePicture = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
 
 local sStarted
 local sAsked
@@ -459,15 +479,34 @@ private function probeScript
    local tScript
    put "on openStack" & return into tScript
    if probeName() is "AndroidJavaProbe" then
-      put "   local tId" & return & \
+      -- every step, each answer said in the log (see the header)
+      put "   local tFailed, tId, tFolder, tHas, tExport" & return & \
+            "   put false into tFailed" & return & \
             "   mobileCreateLocalNotification" && quote & "OXT-Beyond Android check" & quote & comma && \
             quote & "Open" & quote & comma && quote & "probe" & quote & ", the seconds + 3600, false, 0" & return & \
             "   put the result into tId" & return & \
+            "   put" && quote & "OXT-Beyond probe: local notification" & quote && "&& tId" & return & \
             "   if tId is not an integer or tId < 1 then" & return & \
+            "      put true into tFailed" & return & \
+            "   else" & return & \
+            "      mobileCancelLocalNotification tId" & return & \
+            "   end if" & return & \
+            "   put specialFolderPath(" & quote & "external documents" & quote & ") into tFolder" & return & \
+            "   put" && quote & "OXT-Beyond probe: external documents" & quote && "&& tFolder" & return & \
+            "   if tFolder is empty then put true into tFailed" & return & \
+            "   put androidHasPermission(" & quote & "android.permission.WRITE_EXTERNAL_STORAGE" & quote & \
+            ") into tHas" & return & \
+            "   put" && quote & "OXT-Beyond probe: has WRITE_EXTERNAL_STORAGE" & quote && "&& tHas" & return & \
+            "   if tHas is not true then put true into tFailed" & return & \
+            "   mobileExportImageToAlbum base64Decode(" & quote & kProbePicture & quote & ")," && \
+            quote & "oxt-beyond-probe" & quote & return & \
+            "   put the result into tExport" & return & \
+            "   put" && quote & "OXT-Beyond probe: export to album" & quote && "&& tExport" & return & \
+            "   if tExport is not empty then put true into tFailed" & return & \
+            "   if tFailed then" & return & \
             "      set the backgroundColor of me to" && quote & kFailColor & quote & return & \
             "      exit openStack" & return & \
-            "   end if" & return & \
-            "   mobileCancelLocalNotification tId" & return after tScript
+            "   end if" & return after tScript
    end if
    put "   set the backgroundColor of me to" && quote & kRunColor & quote & return & \
          "end openStack" after tScript
@@ -515,6 +554,12 @@ private function buildSettings pName
    repeat for each item tArch in "armv7,arm64,x86,x86_64"
       delete variable tSettings["android," & tArch]
    end repeat
+   -- the Java layer's probe asks to post notifications, and declares
+   -- WRITE_EXTERNAL_STORAGE (see the header)
+   if probeName() is "AndroidJavaProbe" then
+      put true into tSettings["android,application permissions"]["POST_NOTIFICATIONS"]
+      put true into tSettings["android,application permissions"]["WRITE_EXTERNAL_STORAGE"]
+   end if
    switch pName
       case "debug"
          put "Sign for development only" into tSettings["android,signing"]

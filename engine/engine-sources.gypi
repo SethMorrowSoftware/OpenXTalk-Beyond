@@ -196,6 +196,7 @@
 			
 			# Group "Core - Objects"
 			'src/aclip.h',
+			'src/aclipexport.h',
 			'src/MCBlock.h',
 			'src/button.h',
 			'src/card.h',
@@ -244,6 +245,7 @@
 			'src/widget-events.h',
             'src/widget-ref.h',
 			'src/aclip.cpp',
+			'src/aclipexport.cpp',
 			'src/block.cpp',
 			'src/button.cpp',
 			'src/buttondraw.cpp',

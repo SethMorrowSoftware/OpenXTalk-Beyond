@@ -21,6 +21,7 @@ import android.app.Notification.Builder;
 import android.database.*;
 import android.database.sqlite.*;
 import android.content.*;
+import android.content.pm.PackageManager;
 import android.util.*;
 import android.os.Build;
 import android.graphics.Color;
@@ -110,7 +111,34 @@ public class NotificationModule
         // if new notification occurs before existing ones reset alarm timer
         resetTimer(m_engine.getContext());
         
+        requestPostNotifications();
+        
         return t_row_id;
+    }
+    
+    // OXT-Beyond: Android 13 (API 33) and newer show the notifications of an
+    // app that targets API 33 or newer (as every standalone has since its
+    // target became 33) only once the user has let it post them, a runtime
+    // permission. The app asks the first time in each run that it
+    // schedules a notification while it may not post them, and only when
+    // its manifest declares the permission (the Android card's "Post
+    // Notifications"): an app that does not is never asked, as before.
+    // Nothing waits for the answer: the notification is scheduled either
+    // way, and shows if the user allowed it by then.
+    public static final String POST_NOTIFICATIONS = "android.permission.POST_NOTIFICATIONS";
+    protected static boolean s_asked_to_post;
+    
+    protected void requestPostNotifications()
+    {
+        if (Build.VERSION.SDK_INT < 33 || s_asked_to_post)
+            return;
+        Context t_context = m_engine.getContext();
+        if (t_context.checkSelfPermission(POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED ||
+            !Utils.declaresPermission(t_context, POST_NOTIFICATIONS) || !(t_context instanceof Activity))
+            return;
+        s_asked_to_post = true;
+        ((Activity)t_context).requestPermissions(new String[] {POST_NOTIFICATIONS},
+                                                 Engine.POST_NOTIFICATIONS_REQUEST_CODE);
     }
     
     public String getRegisteredNotifications()

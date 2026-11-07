@@ -42,7 +42,9 @@
 #     layer's probe (android_check.py ide --probe java), which schedules a
 #     local notification before it turns green, built and run on both
 #     emulators, and for the record the same probe with the release's own
-#     Java layer, whose notification call throws on Android 12 and newer.
+#     Java layer, whose notification call throws on Android 12 and newer
+#     (the engine clears the exception, so the call answers no id and the
+#     probe turns its fail colour).
 #
 # The released builder's builds are the comparison's other half; where
 # they fail (its shell zip is not there on Windows), the job says so and
@@ -303,16 +305,18 @@ jobs:
       # probe across a font size change"). The image had booted while the
       # IDE built, and in run 42142328807 the release package's activity
       # was relaunched as it started (its screen stayed black) a minute
-      # after the debug package's ran; so the probes start once it is done
+      # after the debug package's ran; so the probes start once it is done.
+      # --awake first, as for the 16 KB image: one sleep, so that what
+      # Android keeps until the screen is off is done before the probes,
+      # then the screen woken, unlocked and kept on (it was MENU and
+      # svc power stayon here)
       - name: Wait for the emulator
         if: runner.os == 'Linux'
         timeout-minutes: 20
         run: |
           adb="$SDK/platform-tools/adb"
           "$PY" tools/ci/android_check.py boot --serial emulator-5554 --sdk "$SDK" \
-            --log "$WORK/emulator-api33.log" --minutes 10 --settle
-          "$adb" shell input keyevent 82 || true
-          "$adb" shell svc power stayon true || true
+            --log "$WORK/emulator-api33.log" --minutes 10 --awake --settle
           "$adb" devices
 
       # What Test does (deployDo): the builder makes a debug-signed package
@@ -332,16 +336,28 @@ jobs:
               --sdk "$SDK" --out "$WORK/screen-api33-$build.png" --log-out "$WORK/logcat-api33-$build.txt"
           done
 
+      # It declares POST_NOTIFICATIONS, so as it schedules its notification
+      # the Java layer asks the user to allow it: --allow waits for
+      # Android's dialog, taps Allow and checks that the package holds it.
+      # It exports a picture: --picture finds it among the shared pictures
+      # (MediaStore) as the package's own
       - name: Run the Java layer's probe on Android 13
         if: runner.os == 'Linux'
         run: |
           "$PY" tools/ci/android_check.py device --apk "$WORK/java-new/out/debug.apk" --serial emulator-5554 \
-            --sdk "$SDK" --out "$WORK/screen-api33-java.png" --log-out "$WORK/logcat-api33-java.txt"
+            --sdk "$SDK" --out "$WORK/screen-api33-java.png" --log-out "$WORK/logcat-api33-java.txt" \
+            --allow android.permission.POST_NOTIFICATIONS --picture oxt-beyond-probe.png
 
       # For the record, not a check (no annotations, so the run's account
       # stays the checks'): the same probe with the release's own Java
       # layer, whose local notification throws on Android 12 and newer
-      # (its PendingIntent says neither FLAG_IMMUTABLE nor FLAG_MUTABLE)
+      # (its PendingIntent says neither FLAG_IMMUTABLE nor FLAG_MUTABLE).
+      # The app does not stop: the engine clears the exception, the call
+      # answers no id, and the probe turns its fail colour (run
+      # 42157367103). The probe takes its other steps too and says what
+      # each answered, and the summary keeps what it said: whether Android
+      # 13 refuses that layer WRITE_EXTERNAL_STORAGE, and so its external
+      # folder and its export to the album
       - name: The Java layer's probe with the release's Java layer, on Android 13
         if: runner.os == 'Linux'
         run: |
@@ -419,17 +435,22 @@ jobs:
           # minute, which recreates a running activity, and the carried
           # Android runtime aborts on a second start in one process (see
           # "The probe across a font size change"); this step is for 16 KB
-          # loading, so the probe starts once the image is done
+          # loading, so the probe starts once the image is done.
+          # --awake: in run 42218720113 the screen went off a minute after
+          # boot, as the Java layer's probe started; SystemUI then added
+          # its theme overlays (it keeps them until the screen is off), and
+          # the probe, relaunched, aborted after its green. So the image
+          # sleeps once before settling, and then stays awake and unlocked
           "$PY" tools/ci/android_check.py boot --serial emulator-5554 --sdk "$SDK" \
-            --log "$WORK/emulator-16k.log" --minutes 12 --settle
-          "$adb" shell input keyevent 82 || true
+            --log "$WORK/emulator-16k.log" --minutes 12 --awake --settle
           page=$("$adb" shell getconf PAGE_SIZE | tr -d '\r')
           echo "Page size: $page"
           [ "$page" = 16384 ] || { echo "::error::$IMAGE_16K has pages of $page bytes, not 16384"; exit 1; }
           "$PY" tools/ci/android_check.py device --apk "$WORK/changed/out/debug.apk" --serial emulator-5554 \
             --sdk "$SDK" --out "$WORK/screen-16k-debug.png" --log-out "$WORK/logcat-16k-debug.txt"
           "$PY" tools/ci/android_check.py device --apk "$WORK/java-new/out/debug.apk" --serial emulator-5554 \
-            --sdk "$SDK" --out "$WORK/screen-16k-java.png" --log-out "$WORK/logcat-16k-java.txt"
+            --sdk "$SDK" --out "$WORK/screen-16k-java.png" --log-out "$WORK/logcat-16k-java.txt" \
+            --allow android.permission.POST_NOTIFICATIONS --picture oxt-beyond-probe.png
 
       - name: Upload the packages and logs
         if: always()

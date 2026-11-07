@@ -120,6 +120,10 @@ public:
 	// (hcnotes.h's HyperCard instruments and notes)
 	bool getmono16(int16_t *&r_samples, uint32_t &r_count, uint32_t &r_rate);
 	void setmono16(const int16_t *p_samples, uint32_t p_count, uint32_t p_rate);
+	// OXT-Beyond: the clip as a sound file of p_container (aclipexport.h's
+	// MCAudioFileContainer), with its header, in r_file (freed with free()):
+	// `export audioClip "x" to file "x.wav"`. The clip is left as it is.
+	bool exportfile(int p_container, uint8_t *&r_file, size_t &r_file_size);
 	Boolean import(MCStringRef fname, IO_handle stream);
 	Boolean open_audio();
 	Boolean play();

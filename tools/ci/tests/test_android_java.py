@@ -996,6 +996,164 @@ class OneSystem(unittest.TestCase):
                                      '%s: %s' % (name, m.group(0)))
         self.assertGreaterEqual(calls, 5)
 
+    def test_notifications_ask_to_post_only_when_declared(self):
+        # Android 13 shows an app's notifications only once the user lets it
+        # post them: scheduling one asks, once a run, and only an app whose
+        # manifest declares POST_NOTIFICATIONS (one that does not is never
+        # asked, as before); the notification is scheduled either way
+        java = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'NotificationModule.java')
+        create = re.search(r'(?s)public long createLocalNotification\(.*?\n    }\n', java).group(0)
+        self.assertRegex(create, r'resetTimer\(m_engine\.getContext\(\)\);\s*requestPostNotifications\(\);\s*'
+                                 r'return t_row_id;\s*}\n$')
+        self.assertEqual(java.count('requestPostNotifications()'), 2)
+        self.assertIn('public static final String POST_NOTIFICATIONS = "android.permission.POST_NOTIFICATIONS";',
+                      java)
+        ask = re.search(r'(?s)protected void requestPostNotifications\(\)\n    {\n(.*?)\n    }\n', java).group(1)
+        guard = ask.index('return;')
+        for part in ('Build.VERSION.SDK_INT < 33 || s_asked_to_post',
+                     't_context.checkSelfPermission(POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED ||',
+                     '!Utils.declaresPermission(t_context, POST_NOTIFICATIONS) || !(t_context instanceof Activity)'):
+            self.assertIn(part, ask)
+        # every return comes before it is marked asked, and that before it asks
+        asked = ask.index('s_asked_to_post = true;')
+        request = ask.index('((Activity)t_context).requestPermissions(new String[] {POST_NOTIFICATIONS},\n'
+                            '                                                 Engine.POST_NOTIFICATIONS_REQUEST_CODE);')
+        self.assertLess(guard, asked)
+        self.assertLess(ask.rindex('return;'), asked)
+        self.assertLess(asked, request)
+        self.assertEqual(ask.count('requestPermissions('), 1)
+        # never initialised in <clinit>: compare would see a new class initialiser
+        self.assertIn('protected static boolean s_asked_to_post;\n', java)
+        # the engine: its own request code answers androidRequestPermission,
+        # and nothing else does
+        engine = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'Engine.java')
+        codes = dict(re.findall(r'public static final int (\w+_REQUEST_CODE) = (\d+);', engine))
+        self.assertEqual(codes, {'PERMISSION_REQUEST_CODE': '1', 'POST_NOTIFICATIONS_REQUEST_CODE': '2'})
+        result = re.search(r'(?s)public void onRequestPermissionsResult\(int requestCode, String\[\] permissions, '
+                           r'int\[\] grantResults\)\n    {\n(.*?)\n    }\n', engine).group(1)
+        self.assertEqual(result.split(), (
+            'if (requestCode != PERMISSION_REQUEST_CODE) return; onAskPermissionDone(grantResults.length > 0 && '
+            'grantResults[0] == PackageManager.PERMISSION_GRANTED);').split())
+        self.assertIn('t_activity.requestPermissions(new String[]{p_permission}, PERMISSION_REQUEST_CODE);', engine)
+        # what the manifest declares, as Android reads it
+        utils = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'Utils.java')
+        declares = re.search(r'(?s)public static boolean declaresPermission\(Context p_context, String '
+                             r'p_permission\)\n    {\n(.*?)\n    }\n', utils).group(1)
+        for part in ('getPackageInfo(p_context.getPackageName(),', 'PackageManager.GET_PERMISSIONS',
+                     'if (t_info.requestedPermissions != null)', 'if (p_permission.equals(t_permission))',
+                     'return true;', 'catch (PackageManager.NameNotFoundException e)'):
+            self.assertIn(part, declares)
+        self.assertTrue(declares.rstrip().endswith('return false;'))
+        # and both changes are named, with their reasons, against the
+        # shipped jar
+        for key in ('code com/runrev/android/NotificationModule.createLocalNotification:(Ljava/lang/String;'
+                    'Ljava/lang/String;Ljava/lang/String;JZI)J',
+                    'code com/runrev/android/Engine.onRequestPermissionsResult:(I[Ljava/lang/String;[I)V'):
+            self.assertTrue([sha for sha, entries in aj.EXPECTED.items() if key in entries], key)
+
+    def test_write_external_storage_on_android_13(self):
+        # Android 13 and newer refuse WRITE_EXTERNAL_STORAGE without asking,
+        # and it gives an app that targets API 30 or newer nothing: for an
+        # app that declares it, it counts as granted there, without asking,
+        # so what the engine asks for it first works. Only that permission,
+        # only there, only declared; everything else is asked as before
+        engine = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'Engine.java')
+        self.assertIn('public static final String WRITE_EXTERNAL_STORAGE = '
+                      '"android.permission.WRITE_EXTERNAL_STORAGE";', engine)
+        rule = re.search(r'(?s)protected boolean grantedWithoutAsking\(String p_permission\)\n    {\n(.*?)\n    }\n',
+                         engine).group(1)
+        self.assertEqual(rule.split(), (
+            'return Build.VERSION.SDK_INT >= 33 && WRITE_EXTERNAL_STORAGE.equals(p_permission) && '
+            'getContext().getApplicationInfo().targetSdkVersion >= 30 && '
+            'Utils.declaresPermission(getContext(), p_permission);').split())
+        # asking: granted at once, as for one already granted, and nothing
+        # is requested; else as before
+        ask = re.search(r'(?s)public boolean askPermission\(String p_permission\)\n    {\n(.*?)\n    }\n',
+                        engine).group(1)
+        self.assertTrue(ask.lstrip().startswith('if (grantedWithoutAsking(p_permission))\n'
+                                                '            onAskPermissionDone(true);\n'
+                                                '        else if (Build.VERSION.SDK_INT >= 23 && '
+                                                'getContext().checkSelfPermission(p_permission)'), ask)
+        self.assertEqual(ask.count('requestPermissions('), 1)
+        self.assertEqual(ask.count('onAskPermissionDone(true);'), 2)
+        self.assertTrue(ask.rstrip().endswith('return true;'))
+        # androidHasPermission: the same answer
+        has = re.search(r'(?s)public boolean checkHasPermissionGranted\(String p_permission\)\n    {\n(.*?)\n    }\n',
+                        engine).group(1)
+        self.assertTrue(has.lstrip().startswith('if (grantedWithoutAsking(p_permission))\n'
+                                                '            return true;\n'
+                                                '        if (Build.VERSION.SDK_INT >= 23)'), has)
+        self.assertEqual(engine.count('grantedWithoutAsking('), 3)
+        for key in ('code com/runrev/android/Engine.askPermission:(Ljava/lang/String;)Z',
+                    'code com/runrev/android/Engine.checkHasPermissionGranted:(Ljava/lang/String;)Z'):
+            self.assertTrue([sha for sha, entries in aj.EXPECTED.items() if key in entries], key)
+
+    def test_export_to_album_through_media_store(self):
+        # Android 10 and newer: the picture goes into the shared Pictures
+        # folder through MediaStore, by the name and type the older code
+        # gave the file, answered as it answered; Android 9 and older write
+        # the file as before
+        engine = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'Engine.java')
+        export = re.search(r'(?s)public String exportImageToAlbum \(byte\[\] t_image_data, String t_file_name, '
+                           r'String t_file_type\)\n    {\n(.*?)\n    }\n', engine).group(1)
+        branch = export.index('if (Build.VERSION.SDK_INT >= 29)\n'
+                              '                return exportImageToMediaStore(t_image_data, t_filename, t_file_type);')
+        # after the name is made (as before), before any file is written
+        self.assertLess(export.rindex('t_filename = t_file_name + t_file_type;'), branch)
+        self.assertLess(export.index('t_filename = "I" + t_uuid.toString().substring(0,7) + t_file_type;'), branch)
+        self.assertLess(branch, export.index('new FileOutputStream(t_file)'))
+        self.assertLess(export.index('if (t_image_data == null)\n            return "export failed";'), branch)
+        store = re.search(r'(?s)protected String exportImageToMediaStore\(byte\[\] p_data, String p_filename, '
+                          r'String p_file_type\)\n    {\n(.*?)\n    }\n', engine).group(1)
+        for part in ('MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)',
+                     'String t_folder = Environment.DIRECTORY_PICTURES + "/";',
+                     'Uri t_uri = ownPicture(t_resolver, t_collection, p_filename, t_folder);',
+                     't_values.put(MediaStore.MediaColumns.DISPLAY_NAME, p_filename);',
+                     't_values.put(MediaStore.MediaColumns.MIME_TYPE, imageMimeType(p_file_type));',
+                     't_values.put(MediaStore.MediaColumns.RELATIVE_PATH, t_folder);',
+                     't_values.put(MediaStore.MediaColumns.IS_PENDING, 1);',
+                     't_uri = t_resolver.insert(t_collection, t_values);',
+                     'if (t_uri == null)\n                    return "export failed";',
+                     'OutputStream t_out = t_resolver.openOutputStream(t_uri, "wt");',
+                     't_out.write(p_data, 0, p_data.length);',
+                     't_values.put(MediaStore.MediaColumns.IS_PENDING, 0);',
+                     't_resolver.update(t_uri, t_values, null, null);',
+                     'catch (IOException | RuntimeException e)',
+                     't_resolver.delete(t_uri, null, null);',
+                     'return e.toString();'):
+            self.assertIn(part, store)
+        # the stream is closed however the write ends; only a picture this
+        # call inserted is marked done, or deleted when the write fails
+        self.assertRegex(store, r'(?s)try\s*{\s*t_out\.write\(.*?\}\s*finally\s*{\s*t_out\.close\(\);')
+        self.assertEqual(store.count('if (t_inserted)'), 2)
+        self.assertLess(store.index('t_inserted = true;'), store.index('openOutputStream'))
+        # null is success, as the older code answered
+        self.assertTrue(store.rstrip().endswith('return null;'))
+        # an existing picture is written over only when this app added it
+        own = re.search(r'(?s)protected Uri ownPicture\(ContentResolver p_resolver, Uri p_collection, String '
+                        r'p_filename, String p_folder\)\n    {\n(.*?)\n    }\n', engine).group(1)
+        for part in ('MediaStore.MediaColumns.OWNER_PACKAGE_NAME',
+                     'MediaStore.MediaColumns.DISPLAY_NAME + "=? AND " +',
+                     'MediaStore.MediaColumns.RELATIVE_PATH + "=?"', 'new String[] {p_filename, p_folder}',
+                     'if (getContext().getPackageName().equals(t_cursor.getString(1)))',
+                     'return ContentUris.withAppendedId(p_collection, t_cursor.getLong(0));',
+                     't_cursor.close();'):
+            self.assertIn(part, own)
+        self.assertTrue(own.rstrip().endswith('return null;'))
+        # the engine's three types (exec-misc.cpp: ".png", ".gif", ".jpg")
+        types = re.findall(r'"(\.\w+)\\n"', read('engine', 'src', 'exec-misc.cpp'))
+        self.assertEqual(sorted(set(types)), ['.gif', '.jpg', '.png'])
+        mime = re.search(r'(?s)protected static String imageMimeType\(String p_file_type\)\n    {\n(.*?)\n    }\n',
+                         engine).group(1)
+        self.assertEqual(mime.split(), ('if (".png".equalsIgnoreCase(p_file_type)) return "image/png"; '
+                                        'if (".gif".equalsIgnoreCase(p_file_type)) return "image/gif"; '
+                                        'return "image/jpeg";').split())
+        # no new class initialiser: the new fields are constants
+        self.assertNotIn('static {', engine)
+        key = ('code com/runrev/android/Engine.exportImageToAlbum:([BLjava/lang/String;Ljava/lang/String;)'
+               'Ljava/lang/String;')
+        self.assertTrue([sha for sha, entries in aj.EXPECTED.items() if key in entries], key)
+
     def test_opengl_view_asks_for_the_shipped_engines_version(self):
         # the runtime's engine is LiveCode Community 9.6.3's, which draws
         # with OpenGL ES 1 (android-java.yml's jni checks it on the engine):

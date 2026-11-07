@@ -2013,9 +2013,35 @@ public class Engine extends View implements EngineApi
 	}
 
     public static final int PERMISSION_REQUEST_CODE = 1;
+    // OXT-Beyond: the notification module's own request to post
+    // notifications (NotificationModule.requestPostNotifications), whose
+    // answer nothing waits for
+    public static final int POST_NOTIFICATIONS_REQUEST_CODE = 2;
+    // OXT-Beyond: WRITE_EXTERNAL_STORAGE on Android 13 (API 33) and newer.
+    // It gives an app that targets API 30 or newer nothing on Android 11 and
+    // newer, and from Android 13 on Android never grants it: a request is
+    // answered no without asking the user. The engine asks for it before
+    // things that need no permission there: specialFolderPath("external
+    // documents") and ("external cache"), the app's own folders, and
+    // mobileExportImageToAlbum, which adds the image through MediaStore. So
+    // on Android 13 those failed. For an app that declares it (the Android
+    // card's "Write External Storage") it counts as granted there, without
+    // asking; an app that does not declare it is answered no, as before, and
+    // on Android 12 and older nothing changes.
+    public static final String WRITE_EXTERNAL_STORAGE = "android.permission.WRITE_EXTERNAL_STORAGE";
+    
+    protected boolean grantedWithoutAsking(String p_permission)
+    {
+        return Build.VERSION.SDK_INT >= 33 && WRITE_EXTERNAL_STORAGE.equals(p_permission) &&
+            getContext().getApplicationInfo().targetSdkVersion >= 30 &&
+            Utils.declaresPermission(getContext(), p_permission);
+    }
+    
     public boolean askPermission(String p_permission)
     {
-        if (Build.VERSION.SDK_INT >= 23 && getContext().checkSelfPermission(p_permission)
+        if (grantedWithoutAsking(p_permission))
+            onAskPermissionDone(true);
+        else if (Build.VERSION.SDK_INT >= 23 && getContext().checkSelfPermission(p_permission)
             != PackageManager.PERMISSION_GRANTED)
         {
             Activity t_activity = (LiveCodeActivity)getContext();
@@ -2028,6 +2054,8 @@ public class Engine extends View implements EngineApi
     
     public boolean checkHasPermissionGranted(String p_permission)
     {
+        if (grantedWithoutAsking(p_permission))
+            return true;
         if (Build.VERSION.SDK_INT >= 23)
         {
             return getContext().checkSelfPermission(p_permission) == PackageManager.PERMISSION_GRANTED;
@@ -2123,9 +2151,16 @@ public class Engine extends View implements EngineApi
     }
     
     // sent by the callback
+    // OXT-Beyond: only androidRequestPermission (askPermission) waits for an
+    // answer, so only its request code answers it. And Android answers with
+    // no results when the request was interrupted, or when another request
+    // was showing already (the notification module's, say): that is no,
+    // where reading the first result threw.
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults)
     {
-        onAskPermissionDone(grantResults[0] == PackageManager.PERMISSION_GRANTED);
+        if (requestCode != PERMISSION_REQUEST_CODE)
+            return;
+        onAskPermissionDone(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED);
     }
     
 	public void showCamera(String p_source)
@@ -3564,6 +3599,12 @@ public class Engine extends View implements EngineApi
                 t_filename = t_file_name + t_file_type;
             }
             
+            // OXT-Beyond: Android 10 (API 29) and newer keep an app out of the
+            // shared Pictures folder (Android 10 entirely, for an app that
+            // targets it), and an app adds its pictures through MediaStore
+            if (Build.VERSION.SDK_INT >= 29)
+                return exportImageToMediaStore(t_image_data, t_filename, t_file_type);
+            
             // SN-2015-01-05: [[ Bug 11417 ]] Let File create the file with the File returned
             //  by getExternalStoragePublicDirectory and t_file_type.
             t_file = new File(t_folder, t_filename);
@@ -3587,6 +3628,105 @@ public class Engine extends View implements EngineApi
             }
             return null;
         }
+    }
+
+    // OXT-Beyond: the image in the shared Pictures folder, through MediaStore
+    // (Android 10 and newer), answered as exportImageToAlbum answers: null
+    // when it is there, else what failed. As the file the older code wrote
+    // over, a picture of that name that the app added before is written over;
+    // a name another app's picture has gets a new picture, which Android
+    // names apart (the older code failed there).
+    protected String exportImageToMediaStore(byte[] p_data, String p_filename, String p_file_type)
+    {
+        ContentResolver t_resolver = getContext().getContentResolver();
+        Uri t_collection = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
+        String t_folder = Environment.DIRECTORY_PICTURES + "/";
+        Uri t_uri = ownPicture(t_resolver, t_collection, p_filename, t_folder);
+        boolean t_inserted = false;
+        try
+        {
+            if (t_uri == null)
+            {
+                ContentValues t_values = new ContentValues();
+                t_values.put(MediaStore.MediaColumns.DISPLAY_NAME, p_filename);
+                t_values.put(MediaStore.MediaColumns.MIME_TYPE, imageMimeType(p_file_type));
+                t_values.put(MediaStore.MediaColumns.RELATIVE_PATH, t_folder);
+                t_values.put(MediaStore.MediaColumns.IS_PENDING, 1);
+                t_uri = t_resolver.insert(t_collection, t_values);
+                if (t_uri == null)
+                    return "export failed";
+                t_inserted = true;
+            }
+            OutputStream t_out = t_resolver.openOutputStream(t_uri, "wt");
+            if (t_out == null)
+                throw new IOException("no output stream for " + t_uri);
+            try
+            {
+                t_out.write(p_data, 0, p_data.length);
+            }
+            finally
+            {
+                t_out.close();
+            }
+            if (t_inserted)
+            {
+                ContentValues t_values = new ContentValues();
+                t_values.put(MediaStore.MediaColumns.IS_PENDING, 0);
+                t_resolver.update(t_uri, t_values, null, null);
+            }
+        }
+        catch (IOException | RuntimeException e)
+        {
+            if (t_inserted)
+            {
+                try
+                {
+                    t_resolver.delete(t_uri, null, null);
+                }
+                catch (RuntimeException f)
+                {
+                }
+            }
+            return e.toString();
+        }
+        return null;
+    }
+    
+    // The picture named p_filename in p_folder of the shared storage that
+    // this app added (the only ones it may write), or null
+    protected Uri ownPicture(ContentResolver p_resolver, Uri p_collection, String p_filename, String p_folder)
+    {
+        Cursor t_cursor = null;
+        try
+        {
+            t_cursor = p_resolver.query(p_collection, new String[] {MediaStore.MediaColumns._ID,
+                                                                   MediaStore.MediaColumns.OWNER_PACKAGE_NAME},
+                                        MediaStore.MediaColumns.DISPLAY_NAME + "=? AND " +
+                                        MediaStore.MediaColumns.RELATIVE_PATH + "=?",
+                                        new String[] {p_filename, p_folder}, null);
+            while (t_cursor != null && t_cursor.moveToNext())
+                if (getContext().getPackageName().equals(t_cursor.getString(1)))
+                    return ContentUris.withAppendedId(p_collection, t_cursor.getLong(0));
+        }
+        catch (RuntimeException e)
+        {
+        }
+        finally
+        {
+            if (t_cursor != null)
+                t_cursor.close();
+        }
+        return null;
+    }
+    
+    // The MIME type of the engine's file types (exec-misc.cpp)
+    protected static String imageMimeType(String p_file_type)
+    {
+        if (".png".equalsIgnoreCase(p_file_type))
+            return "image/png";
+        if (".gif".equalsIgnoreCase(p_file_type))
+            return "image/gif";
+        return "image/jpeg";
     }
 
     ////////////////////////////////////////////////////////////////////////////////

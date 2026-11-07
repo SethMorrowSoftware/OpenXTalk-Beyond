@@ -26,7 +26,10 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --                    for each stack, READY when they are all open, an
 --                    ICONIFY <name> for each iconifyStack a stack gets,
 --                    a CLICK <name> for each mouseUp in its card,
---                    then DONE
+--                    a SUSPEND <name> or RESUME <name> for each
+--                    suspendStack and resumeStack, HIDDEN <name>
+--                    <visible> for the stack that is never shown, then
+--                    DONE
 --    OXT_FRAME_GO    a file window_frame_check.py writes when it is
 --                    finished with the windows; the script then quits
 --
@@ -43,6 +46,13 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --                on Windows 11
 --    FrameFadedTitled  at blendLevel 99 with its decorations from the
 --                start, moved and sized, then set to blendLevel 0
+--    FrameHidden opened invisible and never shown: up to the first build
+--                of #380 a stack that went back to blendLevel 0 while it
+--                was active left Windows to pick the next active window,
+--                the stacks were suspended and resumed, and the IDE,
+--                answering resumeStack, showed a stack like this one. So
+--                no stack may be suspended or resumed when one goes back
+--                to blendLevel 0, and this one must stay hidden
 --
 -- Quits when OXT_FRAME_GO appears, or after 180 seconds.
 
@@ -83,6 +93,11 @@ command frameCheckClicked pName
    logLine "CLICK" && pName
 end frameCheckClicked
 
+-- Called by each stack's suspendStack and resumeStack handlers
+command frameCheckFocus pWhat, pName
+   logLine pWhat && pName
+end frameCheckFocus
+
 private function stackScript
    return "on mouseUp" & return & \
          "   dispatch" && quote & "frameCheckClicked" & quote && "to stack" && quote & "OXTWindowFrameCheck" & quote && "with the short name of me" & return & \
@@ -90,7 +105,15 @@ private function stackScript
          "on iconifyStack" & return & \
          "   dispatch" && quote & "frameCheckIconified" & quote && "to stack" && quote & "OXTWindowFrameCheck" & quote && "with the short name of me" & return & \
          "   pass iconifyStack" & return & \
-         "end iconifyStack"
+         "end iconifyStack" & return & \
+         "on suspendStack" & return & \
+         "   dispatch" && quote & "frameCheckFocus" & quote && "to stack" && quote & "OXTWindowFrameCheck" & quote && "with" && quote & "SUSPEND" & quote & ", the short name of me" & return & \
+         "   pass suspendStack" & return & \
+         "end suspendStack" & return & \
+         "on resumeStack" & return & \
+         "   dispatch" && quote & "frameCheckFocus" & quote && "to stack" && quote & "OXTWindowFrameCheck" & quote && "with" && quote & "RESUME" & quote & ", the short name of me" & return & \
+         "   pass resumeStack" & return & \
+         "end resumeStack"
 end stackScript
 
 private command makeStack pName, pRect
@@ -104,6 +127,10 @@ end makeStack
 on startup
    logLine "INFO platform=" & the platform & " version=" & the version & " systemVersion=" & the systemVersion
    try
+      makeStack "FrameHidden", "700,420,1000,600"
+      set the decorations of stack "FrameHidden" to kDecorations
+      go invisible stack "FrameHidden"
+
       makeStack "FramePlain", "80,120,580,320"
       set the decorations of stack "FramePlain" to kDecorations
       go stack "FramePlain"
@@ -148,6 +175,7 @@ on startup
       stepPoint "titled-opaque"
 
       wait 500 milliseconds with messages
+      logLine "HIDDEN FrameHidden" && the visible of stack "FrameHidden"
       repeat for each line tName in sStacks
          logLine "WINDOW" && tName && the windowID of stack tName
       end repeat

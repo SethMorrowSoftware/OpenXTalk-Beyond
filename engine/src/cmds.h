@@ -1355,6 +1355,9 @@ public:
 	virtual ~MCExport();
 	virtual Parse_stat parse(MCScriptPoint &);
     virtual void exec_ctxt(MCExecContext &ctxt);
+private:
+	// OXT-Beyond: `export audioClip ...` and `export videoClip ...`
+	void exec_clip(MCExecContext &ctxt, MCObject *p_object, MCStringRef p_filename);
 };
 
 class MCEncryptionOp : public MCStatement

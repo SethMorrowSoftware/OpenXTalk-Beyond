@@ -28,6 +28,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "sellst.h"
 #include "stack.h"
 #include "aclip.h"
+#include "aclipexport.h"
 #include "player.h"
 #include "card.h"
 #include "param.h"
@@ -428,6 +429,44 @@ void MCAudioClip::setmono16(const int16_t *p_samples, uint32_t p_count, uint32_t
 	nchannels = 1;
 	swidth = 2;
 	rate = (uint2)p_rate;
+}
+
+bool MCAudioClip::exportfile(int p_container, uint8_t *&r_file, size_t &r_file_size)
+{
+	// Playing can convert a clip's samples for the platform's audio,
+	// keeping the samples it was given in osamples (as save() writes them
+	// back): export those, as the stack would keep them
+	const int1 *t_samples = samples;
+	uint4 t_size = size;
+	uint2 t_format = format, t_channels = nchannels, t_width = swidth, t_rate = rate;
+	if (osamples != NULL)
+	{
+		t_samples = osamples;
+		t_size = osize;
+		t_format = oformat;
+		t_channels = onchannels;
+		t_width = oswidth;
+		t_rate = orate;
+	}
+	int t_sample_format;
+	switch (t_format)
+	{
+	case AF_SLINEAR:
+		t_sample_format = kMCAudioSampleSignedLinear;
+		break;
+	case AF_MULAW:
+		t_sample_format = kMCAudioSampleMulaw;
+		break;
+	case AF_ULINEAR:
+		t_sample_format = kMCAudioSampleUnsignedLinear;
+		break;
+	default:
+		return false;
+	}
+	return MCAudioEncodeFile((MCAudioFileContainer)p_container,
+	                         (const uint8_t *)t_samples, t_size,
+	                         t_sample_format, t_channels, t_width, t_rate,
+	                         r_file, r_file_size);
 }
 
 Boolean MCAudioClip::isdisposable()

@@ -989,17 +989,17 @@ asset is one zip archive with a fixed URL, size and SHA-256:
 | `rename` | Optional: members that go somewhere else, as `{"<path after strip>": "<path relative to dest>"}`. |
 | `description`, `licence`, `source` | Text for people and reports. |
 
-Today there is one asset, `oxt-runtimes-0.2.7-rc.6.16b`: the Windows (x86-64
+Today there is one asset, `oxt-runtimes-0.2.7-rc.6.17`: the Windows (x86-64
 and x86) and Linux (x86-64 and x86) runtimes and the time zone library's
 code for them and its zoneinfo data, made from this repository's CI
 builds, with the Android runtime and its time zone library code carried
 over unchanged from the earlier asset `oxt-runtimes-1.15` (OpenXTalk
 Lite 1.15's files). Its `PROVENANCE.md` (installed as
-`PROVENANCE-oxt-runtimes-0.2.7-rc.6.16b.md`) names the commit and the CI
+`PROVENANCE-oxt-runtimes-0.2.7-rc.6.17.md`) names the commit and the CI
 runs and lists every file; the 1.15 asset's provenance comes with it as
 `PROVENANCE-oxt-runtimes-1.15.md`. It is published as the file
-`oxt-runtimes-0.2.7-rc.6.16b.zip` of this repository's release
-`runtimes-0.2.7-rc.6.16b`. Each package leaves out the part its own build
+`oxt-runtimes-0.2.7-rc.6.17.zip` of this repository's release
+`runtimes-0.2.7-rc.6.17`. Each package leaves out the part its own build
 makes (the entry's `exclude`). The manifest names that release in this
 repository, so a fork downloads it from here too. To package
 without the external assets, for example while a new asset is not
@@ -1580,15 +1580,38 @@ release, so that one release can be run with both builders, and with
 `ide --probe java` builds the Java layer's probe (`AndroidJavaProbe`)
 instead: before it turns green its `openStack` schedules a local
 notification an hour away and cancels it, which goes through the Java
-layer's `PendingIntent`s, and it turns orange (its fail colour) when the
-notification gets no id. `device`
-installs a package with adb, starts it, and waits until the screen turns
-the probe's green, which only the probe's `openStack` makes (or the
-fail colour, which fails at once); `ide
+layer's `PendingIntent`s; asks for its external folder
+(`specialFolderPath("external documents")`) and whether it holds
+`WRITE_EXTERNAL_STORAGE` (`androidHasPermission`); and exports a
+one-pixel picture to the album as `oxt-beyond-probe`. It takes every
+step, says what each answered in the device's log (`OXT-Beyond probe:`
+lines, tag `LiveCode`), and turns orange (its fail colour) when any
+failed. Its builds declare `POST_NOTIFICATIONS`, so on Android 13 and
+newer the Java layer asks the user to let it post notifications as it
+schedules one, and `WRITE_EXTERNAL_STORAGE`, which Android 13 and newer
+refuse without asking and the rebuilt Java layer counts as granted there.
+`device` installs a package with adb, starts it, and waits until the
+screen turns the probe's green, which only the probe's `openStack` makes
+(or the fail colour, which fails at once), and prints what the probe said
+(kept in the failure when it turns its fail colour). With `--allow
+<permission>` the probe must ask for that runtime permission: `device`
+waits for Android's dialog, taps its Allow button (found in a
+`uiautomator` dump) and checks that the package then holds the
+permission (`dumpsys package`). With `--picture <name>` the picture the
+probe exported must be among the shared pictures (`content query` of
+MediaStore) in `Pictures/`, as the package's own; `ide
 --device <serial>` does what the IDE's Test does for that device. `boot`
 waits for an emulator to finish booting, and when it gives up it prints
 whether the emulator still runs, `/dev/kvm`, adb's devices, the free disk
-and the end of the emulator's log.
+and the end of the emulator's log. With `--settle` it then waits for a
+fresh image's first minute's work (its overlays and broadcasts), and with
+`--awake` it first puts the image to sleep once, wakes it, unlocks it and
+keeps it awake. The carried Android runtime does not survive a second
+start in one process, and Android relaunches a running app's activity
+when, for example, the screen goes off and the system's theme overlays
+change, so the workflow starts no probe until both are done. When a
+probe dies, `device` says whether Android paused it for sleep, changed
+its `ApplicationInfo` or relaunched it.
 
 The workflow "Android builder" (`android.yml`) runs all of it on the
 latest release's IDE, with this checkout's builder put in, on Windows,
@@ -1598,8 +1621,14 @@ Android 13 emulator and on one with 16 KB pages. On Linux it also builds
 the Java layer from this checkout and makes the Java layer's probe twice
 from the same stack, once with that layer and once with the release's,
 and runs both on the Android 13 emulator: the rebuilt layer's must turn
-green; the release's is only recorded (LiveCode 9.6.3's `PendingIntent`s
-throw on Android 12 and newer, so that probe stops).
+green, ask for the notification permission (`--allow
+android.permission.POST_NOTIFICATIONS`) and leave its picture in the
+shared Pictures folder (`--picture oxt-beyond-probe.png`), there and on
+the 16 KB emulator; the release's is only recorded, with what it said.
+LiveCode 9.6.3's `PendingIntent`s throw on Android 12 and newer, and the
+engine clears the exception without a word in the log, so that probe's
+notification call answers no id and the probe turns its fail colour
+instead of green.
 
 ### Android Java layer
 
@@ -1889,6 +1918,34 @@ on both architectures.
 a published release (by hand, for any tag), and on the latest release for
 a pull request that changes the tour, where the release's own problems
 only warn.
+
+The same tool runs
+[`tools/ci/everyday-tasks.livecodescript`](tools/ci/everyday-tasks.livecodescript)
+(`--script`): about fifty things a person does in the IDE, each through
+the IDE's own windows with the system's mouse and keyboard where they
+reach it (xdotool on Linux, `mouse_event` on Windows, CGEvent on macOS):
+a new stack, each common control dragged from the Tools palette, edits in
+the Inspector, a handler typed and applied in the Script Editor, a
+compile error in its Errors pane and its fix, the handler run in browse
+mode, the Message Box, undo and redo, copy, paste, duplicate, group,
+ungroup and align, cards with the Project Browser, find and replace and a
+breakpoint in the Script Editor, Save As, Close and Remove From Memory
+and opening the stack again, Revert to Saved, a Dictionary search, an
+image as a button's icon, the Geometry Manager, a preference changed and
+restored, and the Application Browser. Each task asserts what a person
+would see, waits for it rather than sleeping, and snapshots it
+(`everyday-*.png`); `--only` runs the tasks up to the last one named.
+Builds run it on Linux light and dark at once (two Xvfb screens), on
+Windows light then dark, and on the Macs one appearance each (light on
+Apple silicon, dark on Intel); `ui-tour.yml` runs it light and dark on a
+release. Its snapshots go in the same artifact, under `everyday-light/`
+and `everyday-dark/`.
+
+```sh
+sudo apt-get install xvfb xdotool gnome-themes-extra gtk2-engines-pixbuf
+python3 tools/ci/ui_tour.py --install <folder> --script tools/ci/everyday-tasks.livecodescript \
+  --appearance light --timeout 900 --out <folder>
+```
 
 To look through them, each of those jobs uploads the snapshots, with the
 script's lines of each appearance (`tour.txt`), as an artifact of their
@@ -2180,8 +2237,8 @@ build again.
 `cmd /c ..\make.cmd` rather than `..\make.cmd`.
 
 **Packaging fails to download the runtimes asset**
-(`oxt-runtimes-0.2.7-rc.6.16b.zip`). The download comes from this
-repository's `runtimes-0.2.7-rc.6.16b` release (also in a fork, which needs
+(`oxt-runtimes-0.2.7-rc.6.17.zip`). The download comes from this
+repository's `runtimes-0.2.7-rc.6.17` release (also in a fork, which needs
 no copy of its own), so a failure is usually the network:
 a proxy or firewall, or no access to `github.com` and its download
 servers. Copy the file into the cache folder, where it is used without
@@ -2695,7 +2752,8 @@ byte for byte; Git cannot show what changed inside them. Change the
 scripts and properties of their objects with patch files, so that every
 change is reviewable text that CI checks:
 
-- write a script or property patch in `tools/oxt/ide-stack-patches/`,
+- write a script, property or clone patch (a clone patch adds a copy of
+  a control, such as another check box) in `tools/oxt/ide-stack-patches/`,
   one file per change (the format is in
   [tools/oxt/README.md](tools/oxt/README.md#binary-ide-stacks));
 - apply it with `tools/oxt/ide-stack-patch.sh <development engine>`,
@@ -2710,14 +2768,15 @@ change is reviewable text that CI checks:
   [tools/oxt/README.md](tools/oxt/README.md#the-stacks-scripts-as-text-stack-scripts)),
   so the diff shows the change. CI checks
   that every script patch is applied (`tools/ci/check_ide_stacks.py`)
-  and the Linux build that every property and image patch is
+  and the Linux build that every property, image and clone patch is
   (`tools/oxt/ide-stack-patch.sh --check` with the engine it built);
 - run the IDE compile check, which also compiles the object scripts
   inside binary stacks, and try the change in the installed layout
   (`dist\stage\OXT-Beyond-<ver>\OXT-Beyond.exe`) as well.
 
-A change that a patch cannot express, such as adding or deleting
-objects, is made with the IDE built from this repository, running from
+A change that a patch cannot express, such as deleting objects or adding
+one that is not a copy of another, is made with the IDE built from this
+repository, running from
 your clone, so that the stack is loaded from `ide/` and saved back there
 by the engine this project ships. Change only that stack (saving
 rewrites the whole file, and can change its format version and the paths

@@ -154,7 +154,12 @@ tablet's, and every other stack opens as it does on a desktop, at its own
 size and never fitted; the player's own page does the same, with its bar
 out of the way only for a stack that filled the screen. It keeps out of a phone's notch and home bar
 (`viewport-fit=cover` and the safe-area insets) and uses `100dvh`, which
-iOS Safari's toolbar does not cover. The stacks it opens go into the
+iOS Safari's toolbar does not cover; a stack the library makes as big as
+the page (`mwFillScreen`, or `mwStart` with a resizable stack such as the
+Phone Starter) keeps out of them itself, so the page takes its padding off
+for it (the library marks the html element `data-mobile-web-filled="fill"`).
+Before, an iPhone on its side showed such a stack moved in from the left by
+the inset and cut off as much on the right. The stacks it opens go into the
 same library as the player's (the browser's storage for the site).
 `build_player.py --check` opens it (`check_bare`: a sample at its own
 size in the middle with nothing around it, the page's colour just past
