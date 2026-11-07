@@ -184,6 +184,7 @@ answering no.
 | `stacks/` | the three stacks the home page features and the small samples with a picture, each with a picture of its first card (`.webp`, 960 wide at most); each one before the Phone Starter carries the colourized Script Viewer as a substack |
 | `phone-starter.livecodescript`, `phone-starter-stack.livecodescript` | build `stacks/Phone Starter.oxtstack` (see below) |
 | `responsive-starter.livecodescript`, `responsive-starter-stack.livecodescript` | build `stacks/Responsive Starter.oxtstack` (see below) |
+| `nova-rescue.livecodescript`, `nova-rescue-stack.livecodescript`, `nova-rescue/` | build `stacks/Nova Rescue.oxtstack` from Kenney's pictures, sounds and font (see below) |
 | `assets/` | the page's logo and pictures, copied beside it |
 | `build_player.py` | starts the IDE with the script above, puts the page in place, packs the zip and, with `--check`, drives the player in headless Chromium |
 
@@ -286,4 +287,69 @@ the Mobile Web check. To run it yourself:
 
 ```sh
 python3 tools/ci/responsive_web_check.py --runtime <web runtime> --engine-cache <folder> --shots <folder>
+```
+
+## Nova Rescue
+
+`stacks/Nova Rescue.oxtstack` is a game made for a phone: a rescue
+cutter flies up through a dying star system, a finger dragged anywhere
+flies it (it fires on its own), and flying over the astronauts drifting
+down rescues them. Rescues in a row raise a bonus, up to five times; one
+that drifts away starts it again. Meteors split when shot, raiders dive,
+weave and fire, power-ups drop (twin lasers, a shield, a repair, stars),
+a sector ends when its crew is rescued and every fourth with a
+mothership. Its best score, stars and settings are kept between visits.
+In a page of its own it fills the phone's screen, upright or turned
+(then the play area is a column with the score beside it), keeps out of
+the notch (the Mobile Web library's safe-area insets) and pauses when the page is hidden or the phone turns; on a
+desktop it plays with the mouse and the arrow keys (P pauses).
+
+How it is made, for anyone making a game like it: one card; every screen
+a group over the play area; a fixed set of buttons for each kind of
+thing that flies, each showing a picture of a hidden "Art" card as its
+icon, moved by one loop that moves everything by the time since the last
+frame; the sounds mixed by the browser's Web Audio (the engine plays one
+at a time). The card's colour is a colour, not a pattern: a pattern cost
+most of a frame on a phone. In headless Chromium emulating a phone it
+kept 55 to 60 frames a second, the game's own work under a millisecond
+of each (nrState's fps, work and draw say so on any screen).
+
+Its pictures, sounds and font are Kenney's (https://kenney.nl), CC0, in
+`nova-rescue/` with each pack's licence and `SOURCES.md`, which says
+where each comes from. `nova-rescue/make_assets.py` made them from the
+packs: the pictures drawn again at two or three times their size from
+Kenney's vector sheets, for a phone's screen, the sounds as WAV files
+(Ogg is not played by older iPhones), and the title's NOVA drawn from the
+font with a true V (KenVector Future draws V as U). No word written in
+that font has a V; `tools/ci/tests/test_nova_rescue.py` holds it so.
+
+The stack is never edited by hand. Its script is
+`nova-rescue-stack.livecodescript` and its controls are made by
+`nova-rescue.livecodescript`; change them, then build it again with any
+OXT-Beyond engine:
+
+```sh
+<engine> -ui tools/web-player/nova-rescue.livecodescript
+```
+
+`tests/lcs/webplayer/nova-rescue.livecodescript` plays it on a desktop
+engine (and in the web engine, with the other script tests) with the
+clock in the test's hands: rescues and the bonus, hits, the end of a run,
+the best score kept, lasers, power-ups, sectors and the mothership, the
+screens at five sizes and a turn in the middle of a run.
+`tools/ci/nova_rescue_check.py` plays it on emulated phones (Pixel 7 and
+iPhone 13, in Chromium and WebKit) with real touches: Play, a finger that
+flies the ship, a rescue, Pause, the frame rate, a turn and no script
+error. CI runs it in web.yml, after the Responsive Starter's check.
+
+It also has a page of its own on the web site's gallery
+(`games/nova-rescue/`, see [tools/pages](../pages/README.md)), which
+plays this sample in the bare player. The stack's `cJavascriptHandlers`
+are `nrPageHidden` (the page is hidden: a run pauses) and `nrState`, so
+that `tools/pages/check_nova_rescue_page.py` can ask the game how it is
+there; `build_player.py --check` runs that check on the player it
+builds. To run the phone check yourself:
+
+```sh
+python3 tools/ci/nova_rescue_check.py --runtime <web runtime> --engine-cache <folder> --shots <folder>
 ```

@@ -13,7 +13,7 @@ Pages site, so that anyone can open them with nothing to download:
 | `.../player/` | the Stack Player |
 | `.../extensions/` | the xTalk Suite's extensions, built into OXT-Beyond, each with its `.lce` packages to download ([extensions/index.html](extensions/index.html)) |
 | `.../play/` | the bare player: a stack and nothing around it (`?stack=`, `?play=`; see [tools/web-player](../web-player/README.md)), on the Stack Player's engine |
-| `.../games/` | web games, such as Pixel Platformer Maker: each page runs its `standalone.zip` on the Stack Player's engine |
+| `.../games/` | the web stacks gallery: the big ones on pages of their own (Pixel Platformer Maker and the others run their `standalone.zip` on the Stack Player's engine; Nova Rescue plays the player's own sample in the bare player), and a card and a page for each of the Stack Player's samples |
 | `.../map/` | the [codebase map](../codebase-map/README.md), for contributors, with the binary stacks' scripts as files beside it (`stack-scripts/`, `stack-scripts.zip`) |
 
 The front page is one self-contained file: its look (a night sky over an
@@ -35,6 +35,40 @@ and the browser keeps at most 10% of a core busy (pages.yml runs it on
 the site it is about to deploy, as a warning;
 [test_pages_at_rest.py](../ci/tests/test_pages_at_rest.py) holds the
 pages without a browser).
+
+## The web stacks gallery
+
+[games/index.html](games/index.html) is the gallery: the big ones, each on
+a page of its own, then a card for each of the Stack Player's samples
+that has a picture, which `build_pages.py` writes from the player's
+`samples/samples.json`, each opening a page written from
+[games/stack-page.html](games/stack-page.html) that plays it in the
+player in a frame.
+
+Nova Rescue is a sample of the player with a big one's page instead
+([games/nova-rescue/](games/nova-rescue/index.html), `OWN_PAGES` in
+`build_pages.py`): it plays the sample in the bare player
+(`play/?play=Nova%20Rescue`), so it carries no engine or stack of its own
+and is always the player's. On a computer or a tablet the game is in a
+phone's frame on the page, at its own size (390 by 760, smaller to fit a
+short window), and its keys play it at once; on a phone the page loads
+no engine until its picture or Play is tapped, which opens the bare
+player on the whole screen, where the Mobile Web library fills it. The
+page and its card (between the `OWN_PAGE` markers in the gallery) go up
+only with a player that lists the sample and a site that has the bare
+player; then the sample has no small card or written page. Otherwise
+the page and its card are left out, and the sample, if the player has
+it, is a small one like the rest. Its pictures and font are the game's
+own Kenney files; the font writes no word with V, K or X, which it draws
+as U and H. [test_pages_nova_rescue.py](../ci/tests/test_pages_nova_rescue.py)
+and [test_pages_gallery.py](../ci/tests/test_pages_gallery.py) hold it,
+and [check_nova_rescue_page.py](check_nova_rescue_page.py) plays it in
+Chromium, on two computer windows and two phones, from a built player
+(`build_player.py --check` runs it on the player it builds):
+
+```sh
+python3 tools/pages/check_nova_rescue_page.py --player <StackPlayer folder or web-player zip> --shots <folder>
+```
 
 The extensions page has a card for each xTalk Suite extension (sodiumxt,
 torrentxt, enetxt, datachannelxt, box2dxt, coinxt, onionxt and nostrxt),

@@ -1,7 +1,10 @@
 <!doctype html>
 <!-- The web stacks gallery of OXT-Beyond's GitHub Pages site (games/, the
      address it kept when it was renamed). Three stacks run on their own pages
-     here (pixel-maker/, svg-lab/, waterwheel/); the Stack Player's sample stacks each
+     here (pixel-maker/, svg-lab/, waterwheel/), and one of the Stack
+     Player's samples has a page as big (nova-rescue/, which plays it in the
+     bare player; build_pages.py's OWN_PAGES keeps it and its card, between
+     the OWN_PAGE markers, only with a player that has it); the Stack Player's sample stacks each
      get a page written from stack-page.html (<name>/), and cards here, filled
      in by tools/pages/build_pages.py from the player's samples/samples.json
      between the PLAYER_SAMPLES and PLAYER_LESSONS markers, so the gallery lists only the
@@ -214,6 +217,20 @@
   <section class="shelf" aria-labelledby="own-pages">
     <h2 id="own-pages">The big ones <small>Each on a page of its own</small></h2>
     <div class="grid big">
+      <!-- @OWN_PAGE:nova-rescue@ -->
+      <a class="stack" href="nova-rescue/">
+        <div class="shot">
+          <img src="nova-rescue/poster.webp" alt="Nova Rescue on three phones: its title, a rescue under way, and the mothership">
+          <span class="where">Phones</span>
+          <span class="play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>Play</span>
+        </div>
+        <div class="words">
+          <h3>Nova Rescue</h3>
+          <p>A space rescue made for a phone: drag to fly, save the drifting crews, dodge meteors and raiders, and face a mothership every fourth sector.</p>
+          <div class="tags"><span class="tag">Game</span><span class="tag">Phones</span><span class="tag">Touch</span></div>
+        </div>
+      </a>
+      <!-- /@OWN_PAGE:nova-rescue@ -->
       <a class="stack" href="pixel-maker/">
         <div class="shot">
           <img src="pixel-maker/poster.png" alt="Pixel Platformer Maker: a level with crates, a boulder, a barrel and a wrecking ball" style="image-rendering:pixelated">

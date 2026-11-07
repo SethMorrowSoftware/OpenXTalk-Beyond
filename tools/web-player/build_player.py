@@ -66,6 +66,13 @@ drawn to its corners; 2048, which is not, opens exactly as it did before
 there was a rule for a tablet (the same rect and canvas as on the same
 iPad with the page's touch test answering no), at its own size.
 
+Then Nova Rescue's page on the web site's gallery (games/nova-rescue/,
+tools/pages/check_nova_rescue_page.py), made from this player as
+tools/pages/build_pages.py makes the site: on a computer the game opens in
+the page's phone frame at its own size and its keys play it at once; on a
+phone the page loads no engine until a tap, which opens the bare player
+with the game filling the window.
+
 The first page also has other scripts' errors raised while the player
 starts and once it has (tools/ci/stray_errors.py: a browser extension's
 script in the page, another site's): the player must start and say
@@ -350,6 +357,12 @@ SAMPLES = [
                     'phone, a rail on a tablet and a sidebar on a desktop, a grid that reflows, '
                     'details in a sheet or a pane, and a dark look. Make the window narrower to see it.',
      'tags': ['Responsive', 'Layout', 'Starter']},
+    {'title': 'Nova Rescue', 'source': 'stacks',
+     'files': ['Nova Rescue.oxtstack'], 'image': 'Nova Rescue.webp',
+     'description': 'A space rescue for a phone: drag to fly, save the drifting crews, dodge '
+                    'meteors and raiders, and face a mothership every fourth sector. Kenney\'s '
+                    'art and sounds, mixed by Web Audio; it plays with the mouse and keys too.',
+     'tags': ['Game', 'Phones', 'Touch']},
     {'title': 'Tour', 'files': ['Tour.livecode'],
      'description': 'Cards, a widget, a palette window and a script error, caught and shown.',
      'tags': ['Cards', 'Widget', 'Palette']},
@@ -768,6 +781,11 @@ def check(site, samples, work):
 
         # A tablet: a Mobile Web stack has the screen, any other is as it was
         check_tablet(p, browser, url, shots, expect, wait_for)
+
+        # Nova Rescue's page on the web site, from this player
+        sys.path.insert(0, os.path.join(REPO, 'tools', 'pages'))
+        import check_nova_rescue_page
+        check_nova_rescue_page.check_player(p, browser, site, os.path.join(work, 'nova-rescue-page'), shots, expect)
 
         # An error of the page's own while the engine starts still shows
         own_context = browser.new_context(viewport={'width': 1000, 'height': 700})

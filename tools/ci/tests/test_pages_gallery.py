@@ -18,8 +18,11 @@
 with a card for each of the Stack Player's samples that has a picture,
 each opening a page of its own that runs the sample in the player through
 ?play=<title>; the big
-ones (Pixel Platformer Maker, SVG Lab) keep their own cards; and a page
-or a player from before the gallery is built as it was.
+ones (Pixel Platformer Maker, SVG Lab) keep their own cards; a sample with
+a big one's page of its own (OWN_PAGES: Nova Rescue) has that page and its
+card, and no small one, when the player has the sample and the site the
+bare player, and otherwise no page of its own; and a page or a player from
+before the gallery is built as it was.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -65,14 +68,20 @@ class TheGallery(unittest.TestCase):
             if isinstance(s, dict) and s.get('image') and (pictures is None or s['title'] in pictures):
                 open(os.path.join(self.player, 'samples', s['image']), 'wb').close()
 
-    def built(self):
+    def built(self, bare=False, source=None):
         target = os.path.join(self.work, 'games')
-        self.assertTrue(build_pages.games(os.path.join(PAGES, 'games'), target, self.player))
+        self.assertTrue(build_pages.games(source or os.path.join(PAGES, 'games'), target, self.player, bare))
         return read(os.path.join(target, 'index.html'))
 
+    def big_ones(self, text):
+        """The big ones' cards, in their shelf"""
+        shelf = text[text.index('id="own-pages"'):text.index('</section>', text.index('id="own-pages"'))]
+        return re.findall(r'<a class="stack" href="([a-z0-9-]+)/">', shelf)
+
     def cards(self, text):
-        found = re.findall(r'<a class="stack( spot)?" href="([a-z0-9-]+)/">', text)
-        return [c for c in found if c[1] not in ('pixel-maker', 'svg-lab', 'waterwheel')]
+        """The samples' cards, after the big ones' shelf"""
+        rest = text[text.index('</section>', text.index('id="own-pages"')):]
+        return re.findall(r'<a class="stack( spot)?" href="([a-z0-9-]+)/">', rest)
 
     def test_the_players_samples_become_cards(self):
         self.samples([
@@ -126,6 +135,76 @@ class TheGallery(unittest.TestCase):
         self.samples([{'title': 'SVG Lab', 'image': 'SVG Lab.webp'}])
         with self.assertRaises(build_pages.BuildError):
             self.built()
+
+    def test_a_sample_with_a_page_of_its_own(self):
+        # Nova Rescue in the player, and the bare player on the site: its
+        # own page and its card with the big ones, and no small card or
+        # page from stack-page.html
+        self.samples([{'title': 'Nova Rescue', 'image': 'Nova Rescue.webp', 'tags': ['Game']},
+                      {'title': 'Beat Box', 'image': 'Beat Box.webp'}])
+        text = self.built(bare=True)
+        self.assertEqual(self.big_ones(text), ['nova-rescue', 'pixel-maker', 'svg-lab', 'waterwheel'])
+        self.assertEqual(self.cards(text), [(' spot', 'beat-box')])
+        self.assertEqual(text.count('href="nova-rescue/"'), 1)
+        self.assertNotIn('@OWN_PAGE:', text)
+        self.assertNotRegex(text, r'@[A-Z_]+@')
+        page = read(os.path.join(self.work, 'games', 'nova-rescue', 'index.html'))
+        self.assertIn("var PLAY = '../../play/?play=Nova%20Rescue", page)
+        self.assertNotIn('<iframe id="player"', page)
+        self.assertTrue(os.path.isfile(os.path.join(self.work, 'games', 'nova-rescue', 'poster.webp')))
+        # the markers' lines go, and nothing of them is left
+        self.assertNotRegex(text, r'\n[ \t]*\n[ \t]*<a class="stack" href="nova-rescue/">')
+
+    def test_a_page_of_its_own_needs_the_bare_player(self):
+        # a site without play/: the sample is a small one like the rest
+        self.samples([{'title': 'Nova Rescue', 'image': 'Nova Rescue.webp'}])
+        text = self.built(bare=False)
+        self.assertEqual(self.big_ones(text), ['pixel-maker', 'svg-lab', 'waterwheel'])
+        self.assertEqual(self.cards(text), [(' spot', 'nova-rescue')])
+        self.assertNotIn('@OWN_PAGE:', text)
+        page = read(os.path.join(self.work, 'games', 'nova-rescue', 'index.html'))
+        self.assertIn('src="../../player/?play=Nova%20Rescue"', page)
+        self.assertFalse(os.path.exists(os.path.join(self.work, 'games', 'nova-rescue', 'poster.webp')))
+
+    def test_a_page_of_its_own_needs_the_sample(self):
+        # a player from before Nova Rescue: no page and no card for it
+        self.samples([{'title': 'Beat Box', 'image': 'Beat Box.webp'}])
+        text = self.built(bare=True)
+        self.assertEqual(self.big_ones(text), ['pixel-maker', 'svg-lab', 'waterwheel'])
+        self.assertNotIn('href="nova-rescue/"', text)
+        self.assertNotIn('@OWN_PAGE:', text)
+        self.assertFalse(os.path.exists(os.path.join(self.work, 'games', 'nova-rescue')))
+        # nor with its picture missing, as the gallery shows no sample without one
+        shutil.rmtree(os.path.join(self.work, 'games'))
+        self.samples([{'title': 'Nova Rescue', 'image': 'Nova Rescue.webp'}], pictures=set())
+        text = self.built(bare=True)
+        self.assertNotIn('href="nova-rescue/"', text)
+
+    def test_a_page_of_its_own_and_its_card_go_together(self):
+        self.samples([{'title': 'Nova Rescue', 'image': 'Nova Rescue.webp'}])
+        source = os.path.join(self.work, 'source')
+        shutil.copytree(os.path.join(PAGES, 'games'), source)
+        # the page without its card
+        index = read(os.path.join(source, 'index.html'))
+        start = index.index('<!-- @OWN_PAGE:nova-rescue@ -->')
+        end = index.index('<!-- /@OWN_PAGE:nova-rescue@ -->') + len('<!-- /@OWN_PAGE:nova-rescue@ -->')
+        with open(os.path.join(source, 'index.html'), 'w', encoding='utf-8') as f:
+            f.write(index[:start] + index[end:])
+        with self.assertRaises(build_pages.BuildError):
+            self.built(bare=True, source=source)
+        # the card without its page
+        shutil.rmtree(os.path.join(self.work, 'games'))
+        with open(os.path.join(source, 'index.html'), 'w', encoding='utf-8') as f:
+            f.write(index)
+        shutil.rmtree(os.path.join(source, 'nova-rescue'))
+        with self.assertRaises(build_pages.BuildError):
+            self.built(bare=True, source=source)
+        # and neither: a gallery a test makes, left as it is
+        shutil.rmtree(os.path.join(self.work, 'games'))
+        with open(os.path.join(source, 'index.html'), 'w', encoding='utf-8') as f:
+            f.write(index[:start] + index[end:])
+        text = self.built(bare=True, source=source)
+        self.assertEqual(self.cards(text), [(' spot', 'nova-rescue')])
 
     def test_a_player_with_no_samples(self):
         # an older player (or none listed): the shelves are left out and

@@ -99,7 +99,7 @@ class Offered(unittest.TestCase):
     def test_in_homes_gallery_with_an_icon(self):
         learn = read('ide', 'Toolset', 'palettes', 'learn', 'revlearn.livecodescript')
         kit = read('ide', 'Toolset', 'palettes', 'learn', 'revlearnkit.livecodescript')
-        self.assertRegex(learn, r'Phone Starter,Responsive Starter"')
+        self.assertRegex(learn, r'Phone Starter,Responsive Starter[,"]')
         case = re.search(r'case "Responsive Starter"\n(.*?)\n      case|case "Responsive Starter"\n(.*?)end switch',
                          learn, re.S)
         self.assertIsNotNone(case)

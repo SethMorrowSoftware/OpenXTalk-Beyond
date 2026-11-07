@@ -35,6 +35,12 @@ given.
                      stack and nothing else, tools/web-player/play.html),
                      a site of its own beside the player, on the player's
                      engine and stack (left out for a zip without it)
+  DIR/games/         the web stacks gallery (tools/pages/games), on the
+                     player's engine: the big ones on pages of their own,
+                     and a card and a page for each of the player's samples
+                     with a picture; a sample in OWN_PAGES (Nova Rescue)
+                     has a big one's page instead, which plays it in the
+                     bare player, and only when the site has both
   DIR/dictionary/    the Dictionary that the IDE's Help > Dictionary Online
                      opens, made from the web IDE's own html_viewer and
                      dictionary data (tools/pages/build_dictionary.py), so
@@ -437,6 +443,18 @@ PLAY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5
 # The samples the gallery shows first, the first of them large
 SPOTLIGHT = ('Beat Box', 'Fireworks', 'Live Weather')
 
+# The Stack Player's samples with a page of their own in the gallery, as
+# the big ones have (title: its folder, tools/pages/games/<folder>/). The
+# page plays the sample in the bare player (play/?play=<title>), so it
+# goes up only with a player that lists the sample and a site that has
+# the bare player; then the sample gets no small card and no page from
+# stack-page.html, and its card is the one in games/index.html between
+# <!-- @OWN_PAGE:<folder>@ --> and <!-- /@OWN_PAGE:<folder>@ -->, on
+# lines of their own. Without them (a site built from a player before
+# the sample), the page and its card are left out, so no page on the site
+# plays a stack its player lacks.
+OWN_PAGES = {'Nova Rescue': 'nova-rescue'}
+
 
 def player_samples(player, featured=False):
     """The Stack Player's sample stacks that have a picture, as its
@@ -481,13 +499,16 @@ def sample_card(s, spot=False):
                              html.escape(str(s.get('description', ''))), tags))
 
 
-def sample_pages(template, target, player):
+def sample_pages(template, target, player, own=()):
     """Writes a page of its own for each sample the gallery shows, from
     games/stack-page.html: games/<slug>/index.html, which runs the sample in
-    the Stack Player in a frame (?play=<title>)."""
+    the Stack Player in a frame (?play=<title>). The titles in own have a
+    page of their own already (own_pages)."""
     with open(template, encoding='utf-8') as f:
         page = f.read()
     for s in player_samples(player, False) + player_samples(player, True):
+        if s['title'] in own:
+            continue
         folder = os.path.join(target, sample_slug(s['title']))
         if not sample_slug(s['title']) or os.path.exists(folder):
             raise BuildError('the sample %r has no folder of its own under games/' % s['title'])
@@ -502,12 +523,13 @@ def sample_pages(template, target, player):
             f.write(text)
 
 
-def gallery(page, player):
+def gallery(page, player, own=()):
     """Fills the web stacks page's blocks with a card for each of the Stack
     Player's samples, each opening its own page (sample_pages):
     PLAYER_SAMPLES (the first one large) and PLAYER_LESSONS (its featured
-    stacks). A block with no samples is left out; a page without the
-    blocks (an older one) is left as it is."""
+    stacks), but those in own, whose card is with the big ones (own_pages).
+    A block with no samples is left out; a page without the blocks (an
+    older one) is left as it is."""
     if not os.path.isfile(page):
         return
     with open(page, encoding='utf-8') as f:
@@ -517,7 +539,7 @@ def gallery(page, player):
         if start not in text or end not in text:
             continue
         cards = [sample_card(s, spot=(i == 0 and not featured))
-                 for i, s in enumerate(player_samples(player, featured))]
+                 for i, s in enumerate(t for t in player_samples(player, featured) if t['title'] not in own)]
         at, stop = text.index(start), text.index(end) + len(end)
         block = ''
         if cards:
@@ -527,8 +549,54 @@ def gallery(page, player):
         f.write(text)
 
 
-def games(source, target, player):
-    """Copies tools/pages/games, each page told the engine's file in the player."""
+def own_pages(target, player, bare):
+    """Keeps or takes out each page of OWN_PAGES in the copied gallery
+    <target>, and its card: kept when bare (the site has the bare player)
+    and the player lists the sample with its picture, as the gallery shows
+    its samples. A gallery with neither the page nor its card (one a test
+    makes) is left as it is; one with only one of them is a mistake.
+    Returns the titles kept."""
+    index = os.path.join(target, 'index.html')
+    text = ''
+    if os.path.isfile(index):
+        with open(index, encoding='utf-8') as f:
+            text = f.read()
+    listed = {s['title'] for s in player_samples(player, False) + player_samples(player, True)}
+    kept = set()
+    for title, folder in sorted(OWN_PAGES.items()):
+        start, end = '<!-- @OWN_PAGE:%s@ -->' % folder, '<!-- /@OWN_PAGE:%s@ -->' % folder
+        page = os.path.isfile(os.path.join(target, folder, 'index.html'))
+        card = text.count(start) == 1 and text.count(end) == 1 and text.index(start) < text.index(end)
+        if not page and start not in text and end not in text:
+            continue
+        if not page or not card:
+            raise BuildError('the gallery has %s for %r: it needs games/%s/index.html and its card in '
+                             'games/index.html between %s and %s'
+                             % ('a card and no page' if not page else 'a page and no card', title, folder, start, end))
+        # the marker lines, from the first one's start to the end of the last
+        at = text.rfind('\n', 0, text.index(start)) + 1
+        stop = text.find('\n', text.index(end))
+        stop = len(text) if stop < 0 else stop + 1
+        first = text.find('\n', text.index(start))
+        last = text.rfind('\n', 0, text.index(end)) + 1
+        if bare and title in listed:
+            kept.add(title)
+            text = text[:at] + text[first + 1:last] + text[stop:]
+        else:
+            text = text[:at] + text[stop:]
+            shutil.rmtree(os.path.join(target, folder))
+            print('no %s page: %s' % (folder, 'the site has no bare player' if not bare else
+                                      'the Stack Player has no sample %r with a picture' % title))
+    if text:
+        with open(index, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(text)
+    return kept
+
+
+def games(source, target, player, bare=False):
+    """Copies tools/pages/games, each page told the engine's file in the
+    player; bare says the site has the bare player (play/), which the pages
+    of OWN_PAGES need."""
     if not os.path.isdir(source):
         return False
     engines = sorted(n for n in os.listdir(player) if re.fullmatch(r'standalone-.*\.js', n))
@@ -536,10 +604,11 @@ def games(source, target, player):
         print('no games: the Stack Player has no engine for them')
         return False
     shutil.copytree(source, target)
-    gallery(os.path.join(target, 'index.html'), player)
+    own = own_pages(target, player, bare)
+    gallery(os.path.join(target, 'index.html'), player, own)
     template = os.path.join(target, 'stack-page.html')
     if os.path.isfile(template):
-        sample_pages(template, target, player)
+        sample_pages(template, target, player, own)
         os.remove(template)
     for root, _, names in os.walk(target):
         for name in names:
@@ -631,10 +700,11 @@ def build(args):
     if args.player:
         unpack(args.player, os.path.join(out, 'player'))
         parts['PLAYER'] = args.player_version or ''
-        if bare_player(out):
+        bare = bare_player(out)
+        if bare:
             print('bare player: play/')
         # The games run on the Stack Player's engine, so they go up with it
-        if games(os.path.join(HERE, 'games'), os.path.join(out, 'games'), os.path.join(out, 'player')):
+        if games(os.path.join(HERE, 'games'), os.path.join(out, 'games'), os.path.join(out, 'player'), bare):
             parts['GAMES'] = ''
     if args.map:
         os.makedirs(os.path.join(out, 'map'))

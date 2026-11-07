@@ -477,6 +477,24 @@ jobs:
             --engine-cache "$RUNNER_TEMP/engine" --work "$RUNNER_TEMP/web-check/responsive-web" \
             --shots "$RUNNER_TEMP/web-check/responsive-web/shots" --browser "$BROWSER"
 
+      # Nova Rescue (tools/web-player/stacks), the game made for phones,
+      # played on emulated phones: Play, a finger that flies the ship, a
+      # rescue, Pause, the frame rate, a turn and no script error
+      # (tools/ci/nova_rescue_check.py, which says what it checks).
+      # Chromium and WebKit, as above; its files go in nova-rescue.
+      - name: Play Nova Rescue on phones in ${{ matrix.browser }}
+        if: matrix.browser != 'firefox'
+        timeout-minutes: ${{ matrix.browser == 'webkit' && 20 || 10 }}
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TRIES: ${{ matrix.browser == 'webkit' && 2 || 1 }}
+        run: |
+          python3 tools/ci/retry_check.py --tries "$TRIES" --files "$RUNNER_TEMP/web-check/nova-rescue" \
+            --what "The Nova Rescue check in $BROWSER" -- \
+            "$RUNNER_TEMP/playwright/bin/python" tools/ci/nova_rescue_check.py --runtime "$RUNNER_TEMP/web-runtime" \
+            --engine-cache "$RUNNER_TEMP/engine" --work "$RUNNER_TEMP/web-check/nova-rescue" \
+            --shots "$RUNNER_TEMP/web-check/nova-rescue/shots" --browser "$BROWSER"
+
       - name: Upload the check's files
         if: always()
         uses: actions/upload-artifact@v7
