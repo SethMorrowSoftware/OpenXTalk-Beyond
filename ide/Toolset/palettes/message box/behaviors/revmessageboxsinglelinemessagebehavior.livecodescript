@@ -128,7 +128,10 @@ command revNextLine
       put field "message" & char (the number of chars of field "message" + 1) to (the number of chars of line lMatchingIndex of lMatchingHistory) of line lMatchingIndex of lMatchingHistory into field "auto complete"
    end if
    select after field "message" 
-    _internal script colorize char 1 to (the number of chars of me) of me
+   -- OXT-Beyond: with the scheme for the appearance, as typed text is
+   -- (revSEColorizeField); the engine's last scheme, which this used, could
+   -- be the other appearance's after a switch between light and dark
+   dispatch "revSEColorizeField" to stack "revSEUtilities" with the long id of me
    unlock messages
 end revNextLine
 
@@ -144,7 +147,10 @@ command revPrevLine
       put field "message" & char (the number of chars of field "message" + 1) to (the number of chars of line lMatchingIndex of lMatchingHistory) of line lMatchingIndex of lMatchingHistory into field "auto complete"
    end if
    select after field "message" 
-    _internal script colorize char 1 to (the number of chars of me) of me
+   -- OXT-Beyond: with the scheme for the appearance, as typed text is
+   -- (revSEColorizeField); the engine's last scheme, which this used, could
+   -- be the other appearance's after a switch between light and dark
+   dispatch "revSEColorizeField" to stack "revSEUtilities" with the long id of me
    unlock messages
 end revPrevLine
 

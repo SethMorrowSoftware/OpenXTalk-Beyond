@@ -22,7 +22,8 @@ script "oxtwebidetour"
 -- page made narrow, a cascade of the File menu on a page as narrow as a
 -- phone in portrait, File's items with a submenu tapped on a touch
 -- screen, the browser switched between light and dark and back (the
--- page follows it: index.html's oxt-appearance), a tooltip in the light
+-- page follows it: index.html's oxt-appearance), the Message Box's
+-- coloured script after each switch, a tooltip in the light
 -- and the dark appearance (its text must stand out from its background),
 -- and the page's
 -- not-saved bar as the IDE opens and when the browser's storage refuses
@@ -57,7 +58,7 @@ Screenshots of the web IDE for its CI job (tools/ci/web_ide_tour.py).
 Only CI's copy of the site has it.
 */
 
-constant kSteps = "start,storage-open,keep,kept,sample,inspector,inspector-tabs,inspector-reset-colour,script-editor,message-box,project-browser,browse,dictionary,preferences,file-menu,new-controls,narrow,phone-menu,touch-menu,appearance,tooltip,storage"
+constant kSteps = "start,storage-open,keep,kept,sample,inspector,inspector-tabs,inspector-reset-colour,script-editor,message-box,project-browser,browse,dictionary,preferences,file-menu,new-controls,narrow,phone-menu,touch-menu,appearance,message-box-colours,tooltip,storage"
 constant kSample = "Web Tour Sample"
 -- Steps that run only when web_ide_tour.py --only names them: keep, on
 -- the released web IDE, saves a stack and a preference in the home
@@ -961,6 +962,149 @@ on tour_appearance
    tourAct "scheme" && tStart
    tourCheckAppearance tStart, 5000
 end tour_appearance
+
+-- The script typed in the Message Box is coloured with the Script
+-- Editor's scheme for the appearance (revSEColorizeField: the light one
+-- in the light appearance, "dark mode" in the dark one). It kept the
+-- colours of the appearance it was typed in, so after a switch from light
+-- to dark its words were olive, purple, navy and black on the dark field
+-- (seth, the web IDE, 2026-11-08). The Message Box colours it again when
+-- the appearance changes (revMessageBoxBehavior's __RecolorizeMessages).
+-- Here a line is typed in the Single Line message, in the light
+-- appearance, and the browser is switched to dark and back; then the same
+-- with two lines in the Multiple Lines script. In each appearance every
+-- coloured word must stand out from the field's background (a WCAG
+-- contrast of at least 3; the light scheme's words were 1.1 to 2.6 on
+-- the dark field), and back in the light appearance the field must be
+-- coloured exactly as it was before the switch (light mode as it was).
+-- (Each card puts the history's last line in its field as it opens, so
+-- each is checked while it is the card shown.)
+on tour_message_box_colours
+   local tStart, tStack, tField, tCard, tLight, tProblems
+   if tourJS("window.matchMedia('(prefers-color-scheme: dark)').matches") is "true" then
+      put "dark" into tStart
+   else
+      put "light" into tStart
+   end if
+   tourAct "scheme light"
+   tourCheckAppearance "light", 5000
+   put revIDEPaletteToStackName("message box") into tStack
+   revIDEOpenPalette "message box"
+   tourWait 1000
+   if tStack is empty or there is not a stack tStack then
+      throw "the Message Box did not open"
+   end if
+   repeat for each item tCard in "Single Line,Multiple Lines"
+      dispatch "showCard" to stack tStack with tCard
+      tourWait 500
+      if tCard is "Single Line" then
+         put the long id of field "message" of card tCard of stack tStack into tField
+         set the text of tField to "put the loc of button 1 into tLoc -- a comment"
+         dispatch "revSEColorizeField" to stack "revSEUtilities" with tField
+      else
+         put the long id of field "script" of card tCard of stack tStack into tField
+         set the text of tField to "put the loc of button 1 into tLoc" & return & "answer tLoc -- a note"
+         dispatch "scriptFormat" to the owner of tField with "script"
+      end if
+      put the htmlText of tField into tLight
+      put tourColourProblem(tField, tCard & ", light") after tProblems
+      tourAct "scheme dark"
+      tourCheckAppearance "dark", 5000
+      tourWait 1000
+      put tourColourProblem(tField, tCard & ", dark") after tProblems
+      if tCard is "Single Line" then
+         tourShot "15b-message-box-dark"
+      else
+         tourShot "15c-message-box-multiple-lines-dark"
+      end if
+      tourAct "scheme light"
+      tourCheckAppearance "light", 5000
+      tourWait 1000
+      put tourColourProblem(tField, tCard & ", light again") after tProblems
+      if the htmlText of tField is not tLight then
+         put tCard & ", light again: coloured" && tourJoin(the htmlText of tField) && \
+               "instead of" && tourJoin(tLight) & "; " after tProblems
+      end if
+      set the text of tField to empty
+   end repeat
+   dispatch "showCard" to stack tStack with "Single Line"
+   close stack tStack
+   if tStart is not "light" then
+      tourAct "scheme" && tStart
+      tourCheckAppearance tStart, 5000
+   end if
+   if tProblems is not empty then
+      throw char 1 to -3 of tProblems
+   end if
+end tour_message_box_colours
+
+-- What is wrong with the colours of pField's words (followed by "; "),
+-- empty when nothing is: each run of its htmlText with a colour of its
+-- own and more than spaces must have a WCAG contrast of at least 3 with
+-- the field's effective backgroundColor. Records each run's contrast.
+function tourColourProblem pField, pLabel
+   local tHtml, tBack, tRest, tColor, tText, tContrast, tProblems, tSeen, tMin
+   put the effective backgroundColor of pField into tBack
+   if the number of items of tBack is not 3 then
+      return pLabel & ": the field's background is" && tBack & "; "
+   end if
+   put the htmlText of pField into tHtml
+   put 99 into tMin
+   repeat while matchText(tHtml, "(?s)<font color=" & quote & "#([0-9A-Fa-f]{6})" & quote & ">([^<]*)</font>(.*)", tColor, tText, tRest)
+      put tRest into tHtml
+      replace "&nbsp;" with space in tText
+      if word 1 of tText is empty then next repeat
+      put tourContrast(tColor, tBack) into tContrast
+      put tText & "=" & tContrast & " " after tSeen
+      put min(tMin, tContrast) into tMin
+      if tContrast < 3 then
+         put pLabel & ":" && quote & tText & quote && "#" & tColor && "on" && tBack && \
+               "has a contrast of" && tContrast & "; " after tProblems
+      end if
+   end repeat
+   if tSeen is empty then
+      return pLabel & ": no coloured words in" && tourJoin(the htmlText of pField) & "; "
+   end if
+   tourRecord "INFO message box" && pLabel & ": background" && tBack & ", lowest contrast" && tMin & ":" && tSeen
+   return tProblems
+end tourColourProblem
+
+-- The WCAG contrast of a colour written as hex (RRGGBB) and one written
+-- as r,g,b, to two places
+function tourContrast pHex, pRGB
+   local tA, tB, tHigh, tLow
+   put tourLuminance(baseConvert(char 1 to 2 of pHex, 16, 10), \
+         baseConvert(char 3 to 4 of pHex, 16, 10), baseConvert(char 5 to 6 of pHex, 16, 10)) into tA
+   put tourLuminance(item 1 of pRGB, item 2 of pRGB, item 3 of pRGB) into tB
+   put max(tA, tB) into tHigh
+   put min(tA, tB) into tLow
+   return round((tHigh + 0.05) / (tLow + 0.05), 2)
+end tourContrast
+
+function tourLuminance pR, pG, pB
+   local tSum, tPart, tWeight, tChannel
+   put 0 into tSum
+   repeat for each item tPart in "0.2126,0.7152,0.0722"
+      add 1 to tChannel
+      switch tChannel
+         case 1
+            put pR / 255 into tWeight
+            break
+         case 2
+            put pG / 255 into tWeight
+            break
+         default
+            put pB / 255 into tWeight
+      end switch
+      if tWeight <= 0.03928 then
+         put tWeight / 12.92 into tWeight
+      else
+         put ((tWeight + 0.055) / 1.055) ^ 2.4 into tWeight
+      end if
+      add tPart * tWeight to tSum
+   end repeat
+   return tSum
+end tourLuminance
 
 -- A tooltip, as the pointer rests on the sample's button in browse mode,
 -- must be readable in both appearances: in the dark one its background is
