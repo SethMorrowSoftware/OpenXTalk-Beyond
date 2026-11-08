@@ -53,6 +53,7 @@ words, is in the [README](README.md#the-ide) and on the
 - Tests: an IDE test asks revIDEHilitedTextColor for each platform's names on the Project Browser's hilites, and the IDE tour's project-browser step, on every platform, selects the sample's button's row, fails unless it draws its names in that colour and they can be read, and takes a shot of it (#420)
 - Script Editor: one Undo takes back a whole drag and drop of text. A word dragged to a new place was kept as three undo steps, so the first Undo deleted the dropped text and only a second put it back where it came from; a drop onto the selection itself left an Undo that did nothing (rc.6.17 Bug Hunt). Fields in stacks, which the engine undoes, are unchanged (#421)
 - Tests: one Undo after a drag in the Script Editor, moving text forward and back, dropping a copy, and dropping onto the selection (tests/lcs/scripteditor/dragdropundo) (#421)
+- Standalone runtimes for the other platforms (Windows x86 and x86-64, Linux x86 and x86-64) rebuilt from 0.2.7-rc.6.19's engine, so they carry its fixes, with the Android runtime's Java layer built from OXT-Beyond's source and, for the first time, OXT-Beyond's own Android engine beside LiveCode 9.6.3's (`Runtime/Android/Beyond`, used only by a stack whose "android,engine" setting is "beyond"): the asset `oxt-runtimes-0.2.7-rc.6.19` replaces `oxt-runtimes-0.2.7-rc.6.18b` (#423)
 
 ## 0.2.7-rc.6.18 (2026-11-07, pre-release)
 

@@ -541,8 +541,8 @@ notices.
 Every package carries standalone runtimes for the other platforms that
 the IDE's standalone builder targets, so that it can build standalones
 for them and not only for its own platform. They come from one release
-asset of this repository, `oxt-runtimes-0.2.7-rc.6.18b.zip` (release tag
-`runtimes-0.2.7-rc.6.18b`), listed with its SHA-256 in
+asset of this repository, `oxt-runtimes-0.2.7-rc.6.19.zip` (release tag
+`runtimes-0.2.7-rc.6.19`), listed with its SHA-256 in
 [`tools/oxt/external-assets.json`](tools/oxt/external-assets.json). The
 "Runtimes asset" workflow made it with
 [`tools/oxt/make_runtimes_asset.py`](tools/oxt/make_runtimes_asset.py)
@@ -551,7 +551,7 @@ commit, and so is the Android runtime's Java layer (`Runtime/Android/Classes`). 
 also carries OXT-Beyond's own Android engine, built here as a whole runtime
 of its own (`Runtime/Android/Beyond`); the rest of the Android runtime, the
 engines the builder uses by default, is not built here. Its `PROVENANCE.md`,
-installed as `PROVENANCE-oxt-runtimes-0.2.7-rc.6.18b.md` at the root of the
+installed as `PROVENANCE-oxt-runtimes-0.2.7-rc.6.19.md` at the root of the
 program folder, names that commit and the CI runs and lists every file
 with its size, SHA-256 and the build it comes from. Each package leaves
 out what its own build makes: the Windows and Linux packages their own
@@ -575,7 +575,7 @@ Licences and corresponding source:
   [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md) for OXT-Beyond's code, and
   the third-party components of the sections above (OpenSSL, curl, ICU,
   the libraries of `thirdparty/`, CEF). Source: this repository at the
-  commit that `PROVENANCE-oxt-runtimes-0.2.7-rc.6.18b.md` names.
+  commit that `PROVENANCE-oxt-runtimes-0.2.7-rc.6.19.md` names.
 - **Android files identical to LiveCode Community 9.6.3**: GPLv3.
   Source: [livecode/livecode](https://github.com/livecode/livecode), tag
   [`9.6.3`](https://github.com/livecode/livecode/tree/9.6.3). This
