@@ -1,3 +1,0 @@
-- Inspector: the SVG icon chooser (the icon picker widget) can be read in the dark appearance: on a dark Inspector its icons and names are light grey, and its frame, scrollbar and popup background dark, instead of black icons on the dark card; in the light appearance it is drawn as before (bwmilby)
-- Engine: a widget can ask whether it is drawn in the dark appearance (MCWidgetGetMyAppearanceIsDark, the decision the widgets' colours already follow)
-- Tests: the icon picker's colours in light and dark (tools/ci/tests/test_widget_appearance.py, the IDE tour's icon-picker step and extensions/widgets/iconpicker/tests/colors)
