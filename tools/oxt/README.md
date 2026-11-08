@@ -766,7 +766,8 @@ layout: files this repository does not build, kept out of git and published
 as GitHub Release assets. Now this is the runtimes asset: the other
 platforms' standalone runtimes, built from this repository, with OXT Lite
 1.15's Android runtime (its Java layer built from this repository in the
-assets that name one, `java_layer`; see
+assets that name one, `java_layer`, and OXT-Beyond's own Android engine
+beside it in those that name one, `android_engine`; see
 [The runtimes asset](#the-runtimes-asset)). (The
 xTalk Suite extensions are not assets: see
 [below](#xtalk-suite-extensions-xtalk_extensionspy).)
@@ -816,6 +817,12 @@ xTalk Suite extensions are not assets: see
   `package.py --compare` then lets it differ from 1.15's, and
   `tools/ci/runtimes_provenance.py` counts the commits since the asset's
   for it.
+* `android_engine` (optional, the runtimes asset only) names the folder of
+  OXT-Beyond's own Android engine, `Runtime/Android/Beyond`, when the
+  asset carries it (`make_runtimes_asset.py --android-engine`): the
+  Android builder takes it for a stack whose `"android,engine"` setting
+  is `"beyond"`, and `tools/ci/runtimes_provenance.py` counts the commits
+  since the asset's for it.
 * `description`, `licence` and `source` are for people.
 
 The runtimes asset excludes, per platform, what that platform's own build

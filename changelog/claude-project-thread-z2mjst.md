@@ -1,1 +1,0 @@
-- Web engine: in a dark browser, a tooltip's text is white on its dark background instead of black on it, so the IDE's tooltips (the Tools palette's, the Project Browser's) and a stack's can be read; in a light browser, and on the desktop engines, tooltips are as before (bwmilby) (#414)

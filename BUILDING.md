@@ -990,13 +990,16 @@ asset is one zip archive with a fixed URL, size and SHA-256:
 | `dest` | Folder, relative to the installed root, that the remaining paths go into (`""` for the root). |
 | `rename` | Optional: members that go somewhere else, as `{"<path after strip>": "<path relative to dest>"}`. |
 | `java_layer` | Optional, the runtimes asset only: the Android runtime's Java layer (`Runtime/Android/Classes`) when it was built from the commit `source` names rather than carried over. |
+| `android_engine` | Optional, the runtimes asset only: the folder of OXT-Beyond's own Android engine (`Runtime/Android/Beyond`) when the asset carries it, built from the commit `source` names (see [Building the Android engine](#15-building-the-android-engine)). |
 | `description`, `licence`, `source` | Text for people and reports. |
 
 Today there is one asset, `oxt-runtimes-0.2.7-rc.6.18b`: the Windows (x86-64
 and x86) and Linux (x86-64 and x86) runtimes and the time zone library's
 code for them and its zoneinfo data, made from this repository's CI
-builds, and the Android runtime's Java layer (`Runtime/Android/Classes`)
-built from the same commit, with the rest of the Android runtime and its
+builds, the Android runtime's Java layer (`Runtime/Android/Classes`)
+built from the same commit, and OXT-Beyond's own Android engine
+(`Runtime/Android/Beyond`) from that commit's "Android engine" run, with
+the rest of the Android runtime and its
 time zone library code carried over unchanged from the earlier asset
 `oxt-runtimes-1.15` (OpenXTalk Lite 1.15's files). Its `PROVENANCE.md` (installed as
 `PROVENANCE-oxt-runtimes-0.2.7-rc.6.18b.md`) names the commit and the CI
