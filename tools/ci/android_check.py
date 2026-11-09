@@ -250,6 +250,21 @@ JAVA_LAYER_READY = ('com/runrev/android/LiveCodeActivity$BackCallback.class',
 BUNDLETOOL_VERSION = '1.18.3'
 BUNDLETOOL_SHA256 = 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29'
 BUNDLETOOL_JAR = 'bundletool.jar'
+# ide --bundletool-fallback: when GitHub itself answered the builder's
+# download of bundletool from the release's web address with an HTTP 5xx,
+# for every downloader the failure names (libURL's and the JDK's), the
+# pinned jar is downloaded with gh, through GitHub's API, put where the
+# builder keeps its download (the file its failure names), and the App
+# Bundle built again, once. On 9 November 2026 that address answered "504
+# Gateway Time-out" to the runners on and off for hours (the macOS builder
+# in run 42571371034, twice, and in run 42582158750), while gh downloaded
+# releases through the API on the same runners. The builder's own download
+# is still tried first on every run, and a failure of any other kind (a
+# stall, the wrong file) stays a failure
+BUNDLETOOL_REPO = 'google/bundletool'
+BUNDLETOOL_GH = 'bundletool-gh'
+BUNDLE_AGAIN_LOG = 'android-check-bundle.txt'
+BUNDLE_AGAIN_OUTPUT = 'ide-output-bundle.txt'
 KEY_ALIAS = 'oxtcheck'
 KEY_PASSWORD = 'oxtcheck-pass'
 KEY_DNAME = 'CN=OXT Android Check, O=OXT-Beyond, C=US'
@@ -1061,6 +1076,54 @@ def ide_results(lines):
     return r
 
 
+def bundletool_refused_by_host(failure):
+    """Where the builder keeps bundletool (the file its failure says to put
+    it at), when the App Bundle's failure is its download of bundletool,
+    and every downloader the failure names got an HTTP 5xx, GitHub's own
+    error (libURL's "error 504 ...", the JDK's "Error:
+    java.io.IOException: 504 ..."); None otherwise."""
+    m = re.match(r'could not download bundletool, which makes the App Bundle, from \S+?: (.+) \(tried \d+ times\)\. '
+                 r'Download that file and put it at (.+?), or name a bundletool jar in the ', failure or '')
+    if not m:
+        return None
+    for error in m.group(1).split('; and the JDK could not download it: '):
+        if not re.match(r'(?:error |Error: java\.io\.IOException: )5\d\d\b', error):
+            return None
+    return m.group(2)
+
+
+def bundletool_with_gh(work):
+    """The pinned bundletool (BUNDLETOOL_VERSION), downloaded with gh
+    through GitHub's API into work/BUNDLETOOL_GH and checked against
+    BUNDLETOOL_SHA256: (its path, None), or (None, why there is none)."""
+    name = 'bundletool-all-%s.jar' % BUNDLETOOL_VERSION
+    gh = shutil.which('gh')
+    if not gh:
+        return None, 'there is no gh'
+    folder = os.path.join(work, BUNDLETOOL_GH)
+    os.makedirs(folder, exist_ok=True)
+    try:
+        status, out = run([gh, 'release', 'download', BUNDLETOOL_VERSION, '--repo', BUNDLETOOL_REPO,
+                           '--pattern', name, '--dir', folder, '--clobber'])
+    except CheckError as e:
+        return None, str(e)
+    jar = os.path.join(folder, name)
+    if status != 0 or not os.path.isfile(jar):
+        return None, 'gh release download: exit status %d: %s' % (status, out.strip()[-500:])
+    digest = sha256_file(jar)
+    if digest != BUNDLETOOL_SHA256:
+        return None, 'gh downloaded a %s whose SHA-256 is %s, not %s' % (name, digest, BUNDLETOOL_SHA256)
+    return jar, None
+
+
+def is_bundle_line(line):
+    """Whether one of the IDE's lines is the App Bundle's (its build, what
+    it warned and asked, the bundletool it kept)."""
+    words = line.split(' ')
+    return words[:2] in (['INFO', 'bundle'], ['BUILT', 'bundle'], ['INFO', 'bundletool']) or \
+        words[:3] == ['BUILD', 'FAILED', 'bundle']
+
+
 # ---------------------------------------------------------------------------
 # extract and overlay
 
@@ -1202,6 +1265,82 @@ def make_keystore(jdk, path):
          '-dname', KEY_DNAME.replace(', ', ',')], check=True)
 
 
+def run_ide(cmd, work, env, results, timeout, output):
+    """Runs the IDE (cmd, in work, with env) until its lines (results) say
+    DONE: None, or what went wrong. Its output goes to work/output."""
+    import ui_tour
+    if os.path.exists(results):
+        os.remove(results)
+    log('Running: %s' % ' '.join(cmd))
+    started = progress = time.time()
+    status = 'did not finish within %d seconds' % timeout
+    with open(os.path.join(work, output), 'wb') as engine_log:
+        kw = {'creationflags': subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == 'nt' else \
+            {'start_new_session': True}
+        proc = subprocess.Popen(cmd, cwd=work, env=env, stdout=engine_log, stderr=subprocess.STDOUT, **kw)
+        try:
+            while time.time() - started < timeout:
+                done = read_lines(results)
+                if any(x.startswith('DONE') for x in done):
+                    status = None
+                    break
+                if proc.poll() is not None:
+                    status = 'the IDE ended with exit status %s after %.0f s' % (
+                        proc.returncode, time.time() - started)
+                    break
+                if time.time() - progress >= 15:
+                    progress = time.time()
+                    log('  after %.0f s: %s' % (progress - started, done[-1] if done else '(no lines yet)'))
+                time.sleep(0.5)
+        finally:
+            ui_tour.stop(proc)
+    return status
+
+
+def bundle_again(cmd, work, env, results, timeout, cache, lines):
+    """ide --bundletool-fallback, when GitHub's release host refused the
+    builder's download of bundletool (bundletool_refused_by_host): the jar
+    gh downloads is put at cache, where the builder keeps its download, and
+    the IDE builds the App Bundle again, alone, with no units and no Test.
+    Its lines then take the place of the first run's App Bundle lines in
+    results (the IDE's lines, android-check.txt), so that ide's own count,
+    and verify and device after it, read the App Bundle that was made; its
+    own lines stay in work/BUNDLE_AGAIN_LOG. The problems of the run again
+    (none when the IDE finished it; whether the App Bundle was built is
+    for ide to say, from the lines)."""
+    jar, why = bundletool_with_gh(work)
+    if not jar:
+        return ['GitHub\'s release host refused the builder\'s download of bundletool, and there is none to '
+                'build the App Bundle again with: %s' % why]
+    os.makedirs(os.path.dirname(cache), exist_ok=True)
+    shutil.copyfile(jar, cache)
+    note = ('GitHub\'s release host answered the builder\'s download of bundletool with an HTTP 5xx, so gh '
+            'downloaded it through GitHub\'s API (%s, SHA-256 checked), it was put at %s, where the builder '
+            'keeps its download, and the App Bundle was built again' % (BUNDLETOOL_VERSION, cache))
+    log('NOTE: %s' % note)
+    annotate('warning', note)
+    again = os.path.join(work, BUNDLE_AGAIN_LOG)
+    # the App Bundle alone: no units, and no Test on a device (the first
+    # run's lines say how those went)
+    status = run_ide(cmd, work, dict(env, OXT_ANDROID_LOG=again.replace('\\', '/'), OXT_ANDROID_BUILDS='bundle',
+                                      OXT_ANDROID_UNITS='skip', OXT_ANDROID_DEVICE=''),
+                     again, timeout, BUNDLE_AGAIN_OUTPUT)
+    more = read_lines(again)
+    for line in more:
+        log('  ide (the App Bundle again): %s' % line)
+    kept = [x for x in lines if not is_bundle_line(x) and not x.startswith('DONE')]
+    made = [x for x in more if is_bundle_line(x)] or \
+        ['BUILD FAILED bundle the IDE did not get to it when it was built again']
+    with open(results, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(kept + made + ['DONE']) + '\n')
+    problems = ['the IDE: %s' % x for x in ide_results(more)['errors']]
+    if status:
+        problems.append('the IDE, building the App Bundle again, %s' % status)
+        for line in read_lines(os.path.join(work, BUNDLE_AGAIN_OUTPUT))[-40:]:
+            log('  ide output: %s' % line)
+    return problems
+
+
 def ide(args):
     import ui_tour
     package, rlc = ui_tour.package, ui_tour.rlc
@@ -1256,40 +1395,24 @@ def ide(args):
                 if not xvfb:
                     raise CheckError('no DISPLAY and no xvfb-run')
                 cmd = [xvfb, '-a', '-s', '-screen 0 1440x900x24'] + cmd
-        log('Running: %s' % ' '.join(cmd))
-        started = progress = time.time()
-        status = 'did not finish within %d seconds' % args.timeout
-        with open(os.path.join(work, 'ide-output.txt'), 'wb') as engine_log:
-            kw = {'creationflags': subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == 'nt' else \
-                {'start_new_session': True}
-            proc = subprocess.Popen(cmd, cwd=work, env=env, stdout=engine_log, stderr=subprocess.STDOUT, **kw)
-            try:
-                while time.time() - started < args.timeout:
-                    done = read_lines(results)
-                    if any(x.startswith('DONE') for x in done):
-                        status = None
-                        break
-                    if proc.poll() is not None:
-                        status = 'the IDE ended with exit status %s after %.0f s' % (
-                            proc.returncode, time.time() - started)
-                        break
-                    if time.time() - progress >= 15:
-                        progress = time.time()
-                        log('  after %.0f s: %s' % (progress - started, done[-1] if done else '(no lines yet)'))
-                    time.sleep(0.5)
-            finally:
-                ui_tour.stop(proc)
+        status = run_ide(cmd, work, env, results, args.timeout, 'ide-output.txt')
+        lines = read_lines(results)
+        for line in lines:
+            log('  ide: %s' % line)
+        r = ide_results(lines)
+        if status:
+            problems.append('the IDE %s' % status)
+            for line in read_lines(os.path.join(work, 'ide-output.txt'))[-40:]:
+                log('  ide output: %s' % line)
+        bundle = r['builds'].get('bundle')
+        cache = bundletool_refused_by_host(bundle[1]) if args.bundletool_fallback and bundle and \
+            bundle[0] != 'ok' else None
+        if cache:
+            problems += bundle_again(cmd, work, env, results, args.timeout, cache, lines)
+            r = ide_results(read_lines(results))
     finally:
         for d in temp_dirs:
             shutil.rmtree(d, ignore_errors=True)
-    lines = read_lines(results)
-    for line in lines:
-        log('  ide: %s' % line)
-    r = ide_results(lines)
-    if status:
-        problems.append('the IDE %s' % status)
-        for line in read_lines(os.path.join(work, 'ide-output.txt'))[-40:]:
-            log('  ide output: %s' % line)
     problems += ['the IDE: %s' % x for x in r['errors']]
     failed = {k: v for k, v in r['units'].items() if v}
     if not args.no_units:
@@ -3012,6 +3135,9 @@ def main(argv=None):
     i.add_argument('--probe', choices=sorted(PROBES), default='app',
                    help='java: the Java layer\'s probe (AndroidJavaProbe)')
     i.add_argument('--timeout', type=int, default=1500)
+    i.add_argument('--bundletool-fallback', action='store_true',
+                   help='when GitHub\'s release host answers the builder\'s download of bundletool with an HTTP '
+                        '5xx, download it with gh through GitHub\'s API and build the App Bundle again')
     v = sub.add_parser('verify')
     v.add_argument('--work', required=True)
     v.add_argument('--sdk', required=True)
