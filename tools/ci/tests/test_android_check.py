@@ -1618,6 +1618,78 @@ class GreenAgain(unittest.TestCase):
         self.assertEqual((share, answered), (1.0, 0))
 
 
+class DestroyHeld(unittest.TestCase):
+    """destroy_held, probe_focus and probe_pauses: what --density-in-wait
+    reads of the device"""
+
+    def held(self, *lines):
+        return ac.destroy_held('\n'.join(lines) + '\n', '6748')
+
+    STOP = '1794198250.200  6748  6748 I wm_on_stop_called: [165476428,org.openxtalk.check.androidprobe.mblandroid,' \
+           'handleRelaunchActivity]'
+    CREATE = '1794198262.700  6748  6748 I wm_on_create_called: [165476428,' \
+             'org.openxtalk.check.androidprobe.mblandroid,performCreate]'
+
+    def test_from_the_stop_to_the_activity_made_again(self):
+        self.assertAlmostEqual(self.held(self.STOP, self.CREATE), 12.5, places=3)
+
+    def test_the_last_stop_for_a_relaunch(self):
+        # an earlier relaunch of the same process, and a stop for another
+        # reason after it, are not this one
+        earlier = self.STOP.replace('1794198250.200', '1794198200.000')
+        other = self.STOP.replace('1794198250.200', '1794198255.000').replace('handleRelaunchActivity',
+                                                                                'STOP_ACTIVITY_ITEM')
+        self.assertAlmostEqual(self.held(earlier, self.STOP, other, self.CREATE), 12.5, places=3)
+
+    def test_other_processes_lines_are_not_its(self):
+        create = self.CREATE.replace('  6748  6748 ', '  6900  6900 ')
+        self.assertIsNone(self.held(self.STOP, create))
+        stop = self.STOP.replace('  6748  6748 ', '  6900  6900 ')
+        self.assertIsNone(self.held(stop, self.CREATE))
+
+    def test_to_the_process_dying_when_no_activity_is_made_again(self):
+        died = '1794198253.000   482   511 I am_proc_died: [0,6748,org.openxtalk.check.androidprobe,200,19]'
+        other = '1794198251.000   482   511 I am_proc_died: [0,6720,org.openxtalk.check.androidprobe:relaunch,0,2]'
+        self.assertAlmostEqual(self.held(self.STOP, other, died), 2.8, places=3)
+
+    def test_android_14_and_newer_add_the_callbacks_time(self):
+        # wm_on_*_called's fourth value, the callback's time in ms
+        self.assertAlmostEqual(self.held(self.STOP.replace('handleRelaunchActivity]', 'handleRelaunchActivity,3]'),
+                                         self.CREATE.replace('performCreate]', 'performCreate,41]')), 12.5, places=3)
+
+    def test_no_stop_for_a_relaunch_says_nothing(self):
+        self.assertIsNone(self.held(self.CREATE))
+        self.assertIsNone(self.held(self.STOP))
+        self.assertIsNone(ac.destroy_held('', '6748'))
+        self.assertIsNone(ac.destroy_held(None, '6748'))
+        # brief lines, which have no time
+        self.assertIsNone(ac.destroy_held('I/wm_on_stop_called( 6748): [1,x,handleRelaunchActivity]\n'
+                                          'I/wm_on_create_called( 6748): [1,x,performCreate]\n', '6748'))
+
+    def test_the_focus(self):
+        def a(window):
+            return lambda *cmd, timeout=180: (0, window)
+        self.assertEqual(ac.probe_focus(a('  mCurrentFocus=Window{8530cf u0 org.openxtalk.check.androidprobe/'
+                                          'org.openxtalk.check.androidprobe.mblandroid}\n')),
+                         (True, 'mCurrentFocus=Window{8530cf u0 org.openxtalk.check.androidprobe/'
+                                'org.openxtalk.check.androidprobe.mblandroid}'))
+        self.assertEqual(ac.probe_focus(a('  mCurrentFocus=Window{1f u0 NotificationShade}\n'))[0], False)
+        self.assertEqual(ac.probe_focus(a('  mCurrentFocus=null\n')), (False, 'mCurrentFocus=null'))
+        self.assertEqual(ac.probe_focus(a('')), (None, ''))
+        self.assertEqual(ac.probe_focus(a(None)), (None, ''))
+
+    def test_the_pauses(self):
+        events = ('I/wm_pause_activity(  482): [0,100411923,org.openxtalk.check.androidprobe/.mblandroid,'
+                  'userLeaving=false,sleep]\n'
+                  'I/wm_pause_activity(  482): [0,7,com.android.launcher3/.Launcher,userLeaving=false,sleep]\n'
+                  'I/wm_on_paused_called( 6900): [100411923,org.openxtalk.check.androidprobe.mblandroid,'
+                  'performPause]\n'
+                  'I/wm_pause_activity(  482): [0,100411923,org.openxtalk.check.androidprobe/.mblandroid,'
+                  'userLeaving=false,finish]\n')
+        self.assertEqual(ac.probe_pauses(lambda *cmd, timeout=180: (0, events)), 2)
+        self.assertEqual(ac.probe_pauses(lambda *cmd, timeout=180: (0, '')), 0)
+
+
 @unittest.skipIf(os.name == 'nt', 'the stand-in adb is a shell script')
 class DeviceOnceInAProcess(unittest.TestCase):
     """device --font-scale, --density and --relaunch with a stand-in adb
@@ -1645,8 +1717,13 @@ class DeviceOnceInAProcess(unittest.TestCase):
            'com.runrev.android.Engine.onConfigurationChanged(android.content.res.Configuration)\' on a null object '
            'reference\n')
 
+    # the probe's window has the focus
+    FOCUSED = ('printf "  mCurrentFocus=Window{8530cf u0 org.openxtalk.check.androidprobe/'
+               'org.openxtalk.check.androidprobe.mblandroid}\\n"')
+
     def run_probe(self, argv, font='same', density='new', back='ends', again='new', font_before='1.0',
-                  offline_at=None, tap='waits', reset='new', cleared=False):
+                  offline_at=None, tap='waits', reset='new', cleared=False, window=Device.WINDOW, held=None,
+                  relaunch_reason='handleRelaunchActivity', cut=()):
         """What the stand-in device's probe does: for a font size change
         (same: goes on in its process; crash: the second start stopped,
         and no process), a density change (new: started again in a new
@@ -1661,12 +1738,26 @@ class DeviceOnceInAProcess(unittest.TestCase):
         nothing); adb answers pidof's call number offline_at with "adb:
         device offline" (on its output, exit status 1), as it did for a
         moment on the 16 KB image; cleared: the log holds nothing of the
-        probe's start, as a device's does once the check has cleared it"""
+        probe's start, as a device's does once the check has cleared it.
+        A tap may also be lost as Android pauses the probe's activity (its
+        wm_pause_activity in the events buffer): paused, the first tap
+        only, the next waits; always-paused, every one. window: what
+        dumpsys window says (another app's dialog in front of the probe,
+        or FOCUSED); held: how long process 3475 held Android's thread as
+        its activity was made again (`logcat -v epoch`'s events, its stop's
+        reason relaunch_reason), or None: no such lines; cut: the numbers of
+        the screencaps (counted from 1) that come back cut short, as the 16
+        KB image's did in run 42578112540"""
         d = self.tmp.name
         with open(os.path.join(d, 'logcat.txt'), 'w') as f:
             f.write('' if cleared else Device.LOG.split('I/lowmemorykiller')[0])
         with open(os.path.join(d, 'pid'), 'w') as f:
             f.write('3475\n')
+        with open(os.path.join(d, 'events.txt'), 'w') as f:
+            f.write('I/am_proc_start(  590): [0,3475,10190,org.openxtalk.check.androidprobe,top-activity]\n')
+        taps = 'grep -c "^shell input tap" "%s/platform-tools/calls"' % d
+        pause = ('echo "I/wm_pause_activity(  590): [0,1,org.openxtalk.check.androidprobe/.mblandroid,'
+                 'userLeaving=false,sleep]" >> "%s/events.txt"' % d)
         for name, colour in (('green.raw', ac.RUN_COLOR), ('wait.raw', ac.WAIT_COLOR)):
             with open(os.path.join(d, name), 'wb') as f:
                 f.write(struct.pack('<IIII', 4, 4, 1, 0) + bytes(list(colour) + [255]) * 16)
@@ -1691,7 +1782,14 @@ class DeviceOnceInAProcess(unittest.TestCase):
                            'old-crash': npe + new(4000) + '; cp "%(d)s/green.raw" "%(d)s/screen.raw"' % {'d': d},
                            'crash': crash, 'hang': 'true'}[density],
                'back': {'ends': ': > "%s/pid"' % d, 'stays': 'true'}[back],
-               'tap': {'waits': 'cp "%(d)s/wait.raw" "%(d)s/screen.raw"' % {'d': d}, 'nothing': 'true'}[tap]})
+               'tap': {'waits': 'cp "%(d)s/wait.raw" "%(d)s/screen.raw"' % {'d': d}, 'nothing': 'true',
+                       'paused': 'if [ $(%(n)s) -le 1 ]; then %(pause)s; else cp "%(d)s/wait.raw" "%(d)s/screen.raw"; '
+                                 'fi' % {'d': d, 'n': taps, 'pause': pause},
+                       'always-paused': pause}[tap]})
+        if held is not None:
+            cases += ('  "logcat -d -b events -v epoch") printf "%s" ;;\n'
+                      % self.held_events(held).replace('handleRelaunchActivity', relaunch_reason)
+                      .replace('\n', '\\n'))
         # the second am start: a new process where the first has ended
         started = 'grep -c "^shell am start" "%s/platform-tools/calls"' % d
         second = {'new': '[ -s "%(d)s/pid" ] || { [ $(%(n)s) -ge 2 ] && echo 5000 > "%(d)s/pid"; }',
@@ -1704,15 +1802,40 @@ class DeviceOnceInAProcess(unittest.TestCase):
             asked = 'grep -c "^shell pidof" "%s/platform-tools/calls"' % d
             pidof = ('if [ $(%s) -eq %d ]; then echo "adb: device offline"; exit 1; fi; ' % (asked, offline_at)
                      + pidof)
-        saved = ac.RETURN_WAIT, ac.END_WAIT, ac.FONT_SETTLE, ac.WAIT_SEEN
-        ac.RETURN_WAIT, ac.END_WAIT, ac.FONT_SETTLE, ac.WAIT_SEEN = 6, 3, 0, 3
+        # the first 40 of the screen's 80 bytes
+        screencap = ('case " %s " in *" $(grep -c "^exec-out screencap" "%s/platform-tools/calls") "*) '
+                     'head -c 40 "%s/screen.raw"; exit 0 ;; esac; ' % (' '.join(map(str, cut)), d, d)) if cut else ''
+        saved = ac.RETURN_WAIT, ac.END_WAIT, ac.FONT_SETTLE, ac.WAIT_SEEN, ac.FOCUS_WAIT, ac.SCREEN_AGAIN
+        ac.RETURN_WAIT, ac.END_WAIT, ac.FONT_SETTLE, ac.WAIT_SEEN, ac.FOCUS_WAIT, ac.SCREEN_AGAIN = 6, 3, 0, 3, 2, 0
         try:
-            status, out = self.device(pidof, timeout='10', cases=cases,
+            status, out = self.device(pidof, timeout='10', cases=cases, window=window, screencap=screencap,
+                                      events='cat "%s/events.txt"' % d,
                                       argv=list(argv) + ['--out', os.path.join(d, 'screen.png')])
         finally:
-            ac.RETURN_WAIT, ac.END_WAIT, ac.FONT_SETTLE, ac.WAIT_SEEN = saved
+            ac.RETURN_WAIT, ac.END_WAIT, ac.FONT_SETTLE, ac.WAIT_SEEN, ac.FOCUS_WAIT, ac.SCREEN_AGAIN = saved
         return status, out, [c for c in self.calls() if c.startswith(('shell settings', 'shell wm',
                                                                              'shell input', 'shell am start'))]
+
+    @staticmethod
+    def held_events(held, pid='3475'):
+        """The events buffer as `logcat -d -b events -v epoch` gives it
+        (run 42558963714's lines, its process 6748 as pid) when Android
+        makes the activity again: pid stops it, gives it up and makes it
+        again `held` seconds after its stop (the new one starts the app in
+        a new process)."""
+        return ('1794198250.100   %(p)s   %(p)s I wm_on_paused_called: [165476428,'
+                'org.openxtalk.check.androidprobe.mblandroid,performPause]\n'
+                '1794198250.200   %(p)s   %(p)s I wm_on_stop_called: [165476428,'
+                'org.openxtalk.check.androidprobe.mblandroid,handleRelaunchActivity]\n'
+                '1794198250.300   590   612 I wm_finish_activity: [0,165476428,9,'
+                'org.openxtalk.check.androidprobe/.mblandroid,app-request]\n'
+                '%(d)s   %(p)s   %(p)s I wm_on_destroy_called: [165476428,'
+                'org.openxtalk.check.androidprobe.mblandroid,performDestroy]\n'
+                '%(c)s   %(p)s   %(p)s I wm_on_create_called: [165476428,'
+                'org.openxtalk.check.androidprobe.mblandroid,performCreate]\n'
+                '%(c)s   590   612 I am_proc_start: [0,4000,10190,org.openxtalk.check.androidprobe:relaunch,'
+                'top-activity]\n' % {'p': pid, 'd': '%.3f' % (1794198250.2 + held - 0.05),
+                                      'c': '%.3f' % (1794198250.2 + held)})
 
     def png(self, suffix):
         with open(os.path.join(self.tmp.name, 'screen-%s.png' % suffix), 'rb') as f:
@@ -1812,8 +1935,9 @@ class DeviceOnceInAProcess(unittest.TestCase):
     def test_started_again_for_a_density_change_while_its_script_waits(self):
         # the probe's mouseUp turns its wait colour and waits; the density
         # is changed while it waits, and the app starts again in a new
-        # process once the wait is over (the engine built here)
-        status, out, calls = self.run_probe(['--density-in-wait'])
+        # process at once, its wait ended as the activity went (the engine
+        # built here)
+        status, out, calls = self.run_probe(['--density-in-wait'], window=self.FOCUSED, held=0.4)
         self.assertEqual(status, 0, out)
         self.assertEqual(calls[1:], ['shell input tap 2 2', 'shell wm density', 'shell wm density 357',
                                      'shell wm density reset'])
@@ -1821,12 +1945,80 @@ class DeviceOnceInAProcess(unittest.TestCase):
                       '%d s)' % ac.PROBE_WAIT, out)
         self.assertIn("After a density change while the probe's script waited (357, from 420): 100% of the screen "
                       "is the probe's green; process 4000 (before it: 3475)", out)
+        self.assertIn("Process 3475 held Android's thread for 0.4 s as its activity, whose script waited, was made "
+                      "again (wm_on_stop_called to the activity made again)", out)
         self.assertTrue(self.png('density-in-wait'))
+        # the tap waited for nothing: the probe had the focus, and no
+        # dialog stood in front of it
+        self.assertNotIn('uiautomator', ' '.join(self.calls()))
+
+    def test_the_wait_waited_out_as_the_activity_went(self):
+        # attempt 1 of run 42558963714: the engine waited out the script's
+        # wait in doDestroy, holding Android's thread, and Android called
+        # the app not responding; it started again all the same
+        status, out, _ = self.run_probe(['--density-in-wait'], window=self.FOCUSED, held=12.5)
+        self.assertEqual(status, 1, out)
+        self.assertIn("PROBLEM: as the activity whose script waited was made again, its process held Android's "
+                      "thread for 12 s (at most %d s), so the engine waited out the script's wait" % ac.HELD_LIMIT,
+                      out)
+
+    def test_a_hold_the_events_buffer_does_not_tell(self):
+        # an Android whose events buffer has no wm_on_stop_called for it
+        # (before Android 10): said, and nothing decided
+        status, out, _ = self.run_probe(['--density-in-wait'], window=self.FOCUSED)
+        self.assertEqual(status, 0, out)
+        self.assertIn("NOTE: the events buffer does not say how long process 3475 held Android's thread", out)
+
+    def test_a_hold_in_a_form_it_cannot_read_shows_its_lines(self):
+        # a relaunch it does not know: the process's own wm_on_*_called
+        # lines are shown, so that the form shows itself
+        status, out, _ = self.run_probe(['--density-in-wait'], window=self.FOCUSED, held=0.4,
+                                        relaunch_reason='relaunchSomehow')
+        self.assertEqual(status, 0, out)
+        self.assertIn("NOTE: the events buffer does not say how long process 3475 held Android's thread", out)
+        self.assertIn('\n  1794198250.200   3475   3475 I wm_on_stop_called: [165476428,'
+                      'org.openxtalk.check.androidprobe.mblandroid,relaunchSomehow]\n', out)
+        self.assertNotIn('   590   612 I', out.split('NOTE: the events buffer', 1)[1])
+
+    def test_a_tap_lost_as_android_paused_the_probe_is_given_again(self):
+        # attempt 2 of run 42558963714: System UI not responding, Android
+        # paused the probe's activity for sleep just as it was tapped, and
+        # the tap was lost; tapped again, the probe waits
+        status, out, calls = self.run_probe(['--density-in-wait'], window=self.FOCUSED, tap='paused', held=0.4)
+        self.assertEqual(status, 0, out)
+        self.assertEqual(calls[1:], ['shell input tap 2 2', 'shell input tap 2 2', 'shell wm density',
+                                     'shell wm density 357', 'shell wm density reset'])
+        self.assertIn("  The tap did not reach the probe's mouseUp, as Android paused the probe's activity: tapping "
+                      "again\n", out)
+        self.assertIn('After a tap on the probe: 0% of the screen is its wait colour', out)
+        self.assertIn('After a tap on the probe: 100% of the screen is its wait colour', out)
+
+    def test_a_tap_lost_every_time_is_a_failure(self):
+        status, out, calls = self.run_probe(['--density-in-wait'], window=self.FOCUSED, tap='always-paused')
+        self.assertEqual(status, 1, out)
+        self.assertEqual(calls[1:], ['shell input tap 2 2'] * ac.TAP_TRIES)
+        self.assertIn("PROBLEM: a tap did not reach the probe's mouseUp: the screen did not turn its wait colour in "
+                      "3 s (0%); Android paused the probe's activity", out)
+
+    def test_a_dialog_in_front_of_the_probe_is_answered_and_the_tap_given_again(self):
+        # another app's "isn't responding" dialog has the focus: answered
+        # before each tap, which waits for the probe's focus (FOCUS_WAIT
+        # s) and, lost, is given again; the dialog stays in front here,
+        # so the second is a failure too
+        status, out, calls = self.run_probe(['--density-in-wait'], tap='nothing')
+        self.assertEqual(status, 1, out)
+        self.assertEqual(calls[1:], ['shell input tap 2 2'] * ac.TAP_TRIES)
+        self.assertIn("  The tap did not reach the probe's mouseUp, as the probe's window did not have the focus "
+                      "(mCurrentFocus=Window{1f u0 Application Not Responding: com.android.systemui}); "
+                      "com.android.systemui was not responding, its dialog in front of the probe: tapping again\n",
+                      out)
+        self.assertIn("com.android.systemui isn't responding, its dialog in front of the probe, which has no Wait "
+                      "button yet", out)
 
     def test_hung_by_a_density_change_while_its_script_waits(self):
         # 9.6.3's engine, and this tree's before its doDestroy finished the
         # engine: the process stays, hung, the screen its wait colour
-        status, out, calls = self.run_probe(['--density-in-wait'], density='hang')
+        status, out, calls = self.run_probe(['--density-in-wait'], window=self.FOCUSED, density='hang')
         self.assertEqual(status, 1, out)
         self.assertIn("PROBLEM: after a density change while the probe's script waited the app did not start again "
                       "in a new process (3475 before it, 3475 after)", out)
@@ -1839,10 +2031,11 @@ class DeviceOnceInAProcess(unittest.TestCase):
         # a probe without the mouseUp (a stack saved before it): the screen
         # stays green, and the density is not changed, so a pass would say
         # nothing about a script that waits
-        status, out, calls = self.run_probe(['--density-in-wait'], tap='nothing')
+        # with the focus, nothing in its way: not tapped again
+        status, out, calls = self.run_probe(['--density-in-wait'], window=self.FOCUSED, tap='nothing')
         self.assertEqual(status, 1, out)
         self.assertIn("PROBLEM: a tap did not reach the probe's mouseUp: the screen did not turn its wait colour in "
-                      "3 s (0%)", out)
+                      "3 s (0%)\n", out)
         self.assertEqual(calls[1:], ['shell input tap 2 2'])
 
     def test_the_wait_colour_seen_too_late(self):
@@ -1857,7 +2050,7 @@ class DeviceOnceInAProcess(unittest.TestCase):
             return got
         ac.screen_now = slow
         try:
-            status, out, calls = self.run_probe(['--density-in-wait'])
+            status, out, calls = self.run_probe(['--density-in-wait'], window=self.FOCUSED)
         finally:
             ac.screen_now = saved
         self.assertEqual(status, 1, out)
@@ -1883,20 +2076,52 @@ class DeviceOnceInAProcess(unittest.TestCase):
                                                            'adb', a, '3475', [])
         finally:
             ac.screen_now, ac.WAIT_SEEN = saved
-        self.assertEqual(said, [('shell', 'input', 'tap', '540', '1170')])
+        # (a device that says nothing of its focus or its events is not
+        # waited for, and its tap not given again)
+        self.assertEqual([c for c in said if c[:2] == ('shell', 'input')], [('shell', 'input', 'tap', '540', '1170')])
         self.assertEqual(len(got), 1)
 
     def test_no_screen_no_tap(self):
-        saved = ac.screen_now
-        ac.screen_now = lambda adb, serial: None
+        shots = []
+        saved = ac.screen_now, ac.SCREEN_AGAIN
+        ac.screen_now = lambda adb, serial: shots.append(serial)
+        ac.SCREEN_AGAIN = 0
         said = []
         try:
             got = ac.starts_again_for_density_in_wait(argparse.Namespace(serial='emulator-5554', out=None),
                                                        'adb', lambda *cmd, timeout=180: said.append(cmd), '3475', [])
         finally:
-            ac.screen_now = saved
-        self.assertEqual(got, ['no screen of the probe to find where to tap it'])
+            ac.screen_now, ac.SCREEN_AGAIN = saved
+        self.assertEqual(got, ['no screen of the probe to find where to tap it (screencap gave none, %d times)'
+                               % ac.SCREEN_TRIES])
+        # taken SCREEN_TRIES times, and never tapped
+        self.assertEqual(len(shots), ac.SCREEN_TRIES)
+        self.assertGreater(ac.SCREEN_TRIES, 1)
         self.assertEqual(said, [])
+
+    def test_a_screen_cut_short_is_taken_again(self):
+        # run 42578112540: the 16 KB image's screencap came back cut short
+        # (7116368 of its 10108816 bytes) just as the step was to find
+        # where to tap; the screen is taken again, and the probe tapped
+        status, out, calls = self.run_probe(['--density-in-wait'], window=self.FOCUSED, held=0.4, cut=(2,))
+        self.assertEqual(status, 0, out)
+        self.assertIn('  screencap: screencap: unexpected header (width 4, height 4, format 1, 40 bytes)\n', out)
+        self.assertEqual(calls[1:], ['shell input tap 2 2', 'shell wm density', 'shell wm density 357',
+                                     'shell wm density reset'])
+        # the cut screen was the one that says where to tap: taken again
+        # just after it, and the tap after that
+        own = [c for c in self.calls() if c.startswith(('exec-out screencap', 'shell input tap'))]
+        self.assertEqual(own[:4], ['exec-out screencap', 'exec-out screencap', 'exec-out screencap',
+                                   'shell input tap 2 2'])
+
+    def test_a_screen_cut_short_every_time_is_a_failure(self):
+        status, out, calls = self.run_probe(['--density-in-wait'], window=self.FOCUSED, held=0.4,
+                                            cut=range(2, 2 + ac.SCREEN_TRIES))
+        self.assertEqual(status, 1, out)
+        self.assertIn('PROBLEM: no screen of the probe to find where to tap it (screencap gave none, %d times)'
+                      % ac.SCREEN_TRIES, out)
+        self.assertEqual(out.count('  screencap: screencap: unexpected header'), ac.SCREEN_TRIES)
+        self.assertEqual([c for c in calls if c.startswith('shell input')], [])
 
     def test_opened_again_after_its_stack_quit(self):
         status, out, calls = self.run_probe(['--relaunch'])
@@ -2388,7 +2613,10 @@ class OverlayBeyond(unittest.TestCase):
     the builder takes it for a stack whose "android,engine" is "beyond"):
     every architecture's engine and externals, and the files beside them,
     the release's own runtime left as it was; or nothing when a file is
-    missing or a Beyond folder is there already"""
+    missing. A Beyond folder the release has (its own, as the runtimes
+    carry it from 0.2.7-rc.6.19 on) is replaced as a whole, so that the app
+    is built from this checkout's engine and none of the release's files:
+    with it there, every run of the emulator job stopped"""
 
     def setUp(self):
         import android_engine as ae
@@ -2460,11 +2688,14 @@ class OverlayBeyond(unittest.TestCase):
 
     def test_its_java_layer_is_not_a_second_one(self):
         # the release's Java layer is still the one Runtime/Android/Classes
-        # (overlay finds it by that name): a second overlay is refused for
-        # the Beyond folder, not for two Java layers
+        # (overlay finds it by that name), with the Beyond folder's beside
+        # it: a second overlay finds one and replaces the Beyond folder
         self.assertEqual(self.overlay()[0], [])
-        problems, _ = self.overlay()
-        self.assertEqual(problems, ['%s is there already' % '/'.join(('Runtime', 'Android', ac.BEYOND))])
+        problems, out = self.overlay()
+        self.assertEqual(problems, [])
+        self.assertIn('Runtime/Android/Beyond: the release\'s (%d files) taken away' % len(self.names()), out)
+        self.assertEqual(self.files(self.android)['Classes'], b'old Classes')
+        self.assertEqual(self.files(self.beyond)['Classes'], b'new Classes')
 
     def test_a_missing_architecture_or_file_changes_nothing(self):
         shutil.rmtree(os.path.join(self.engine, 'armeabi-v7a'))
@@ -2478,13 +2709,64 @@ class OverlayBeyond(unittest.TestCase):
         for rel, data in self.files(self.android).items():
             self.assertEqual(data, b'old ' + rel.encode(), rel)
 
-    def test_a_beyond_folder_there_already(self):
-        os.makedirs(self.beyond)
-        with open(os.path.join(self.beyond, 'Classes'), 'wb') as f:
-            f.write(b'someone else\'s')
+    def release_beyond(self):
+        """The release's own Beyond folder, as 0.2.7-rc.6.19's runtimes
+        carry it, with a file the runtime built here has not (an older or
+        newer engine's), which must not stay"""
+        for rel in self.names() + ['x86_64/RevOld']:
+            path = os.path.join(self.beyond, rel)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'wb') as f:
+                f.write(b'release ' + rel.encode())
+
+    def test_the_releases_beyond_folder_is_replaced_whole(self):
+        self.release_beyond()
+        problems, out = self.overlay()
+        self.assertEqual(problems, [])
+        # every file the one built here, and none of the release's
+        beyond = self.files(self.beyond)
+        self.assertEqual(sorted(beyond), sorted(self.names()))
+        for rel, data in beyond.items():
+            self.assertEqual(data, b'new ' + rel.encode(), rel)
+        self.assertIn('Runtime/Android/Beyond: the release\'s (%d files) taken away, for the one built here'
+                      % (len(self.names()) + 1), out)
+        # the release's own runtime as it was
+        release = {k: v for k, v in self.files(self.android).items() if not k.startswith(ac.BEYOND + '/')}
+        self.assertEqual(sorted(release), sorted(self.names()))
+        for rel, data in release.items():
+            self.assertEqual(data, b'old ' + rel.encode(), rel)
+
+    def test_a_missing_file_leaves_the_releases_beyond_folder(self):
+        self.release_beyond()
+        os.remove(os.path.join(self.engine, 'arm64-v8a', 'RevDb'))
         problems, _ = self.overlay()
-        self.assertEqual(problems, ['%s is there already' % '/'.join(('Runtime', 'Android', ac.BEYOND))])
-        self.assertEqual(self.files(self.beyond), {'Classes': b'someone else\'s'})
+        self.assertEqual(problems, ['%s has no arm64-v8a/RevDb' % self.engine])
+        for rel, data in self.files(self.beyond).items():
+            self.assertEqual(data, b'release ' + rel.encode(), rel)
+
+    def test_a_beyond_that_is_no_folder_is_refused(self):
+        with open(self.beyond, 'wb') as f:
+            f.write(b'a file')
+        problems, _ = self.overlay()
+        self.assertEqual(problems, ['%s is there already, and is not a folder'
+                                    % '/'.join(('Runtime', 'Android', ac.BEYOND))])
+        with open(self.beyond, 'rb') as f:
+            self.assertEqual(f.read(), b'a file')
+        os.remove(self.beyond)
+        # nor a link to a folder elsewhere, whose files are not the
+        # release's to take away
+        elsewhere = os.path.join(self.tmp.name, 'elsewhere')
+        os.makedirs(elsewhere)
+        with open(os.path.join(elsewhere, 'Classes'), 'wb') as f:
+            f.write(b'elsewhere')
+        try:
+            os.symlink(elsewhere, self.beyond, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            self.skipTest('no symbolic links here')
+        problems, _ = self.overlay()
+        self.assertEqual(problems, ['%s is there already, and is not a folder'
+                                    % '/'.join(('Runtime', 'Android', ac.BEYOND))])
+        self.assertEqual(self.files(elsewhere), {'Classes': b'elsewhere'})
 
     def test_the_release_needs_no_architecture_of_its_own(self):
         # the runtime beside it is a whole one: the release's architectures
@@ -2507,7 +2789,12 @@ class OverlayBeyond(unittest.TestCase):
             self.assertEqual(ac.main(['overlay', '--root', self.root, '--beyond', self.engine]), 0)
         self.assertEqual(self.files(self.beyond)['x86/Standalone'], b'new x86/Standalone')
         self.assertEqual(self.files(self.android)['x86/Standalone'], b'old x86/Standalone')
-        # and a second time, it says why it stops
+        # and a second time, in place of the first
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(ac.main(['overlay', '--root', self.root, '--beyond', self.engine]), 0)
+        self.assertEqual(sorted(self.files(self.beyond)), sorted(self.names()))
+        # and not with a runtime short of a file
+        os.remove(os.path.join(self.engine, 'Classes'))
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertNotEqual(ac.main(['overlay', '--root', self.root, '--beyond', self.engine]), 0)
 
