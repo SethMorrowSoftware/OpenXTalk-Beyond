@@ -541,15 +541,17 @@ notices.
 Every package carries standalone runtimes for the other platforms that
 the IDE's standalone builder targets, so that it can build standalones
 for them and not only for its own platform. They come from one release
-asset of this repository, `oxt-runtimes-0.2.7-rc.6.18b.zip` (release tag
-`runtimes-0.2.7-rc.6.18b`), listed with its SHA-256 in
+asset of this repository, `oxt-runtimes-0.2.7-rc.6.19.zip` (release tag
+`runtimes-0.2.7-rc.6.19`), listed with its SHA-256 in
 [`tools/oxt/external-assets.json`](tools/oxt/external-assets.json). The
 "Runtimes asset" workflow made it with
 [`tools/oxt/make_runtimes_asset.py`](tools/oxt/make_runtimes_asset.py)
 `--builds` from the outputs of this repository's CI builds of one
-commit, and so is the Android runtime's Java layer (`Runtime/Android/Classes`); the
-rest of the Android runtime is not built here. Its `PROVENANCE.md`,
-installed as `PROVENANCE-oxt-runtimes-0.2.7-rc.6.18b.md` at the root of the
+commit, and so is the Android runtime's Java layer (`Runtime/Android/Classes`). It
+also carries OXT-Beyond's own Android engine, built here as a whole runtime
+of its own (`Runtime/Android/Beyond`); the rest of the Android runtime, the
+engines the builder uses by default, is not built here. Its `PROVENANCE.md`,
+installed as `PROVENANCE-oxt-runtimes-0.2.7-rc.6.19.md` at the root of the
 program folder, names that commit and the CI runs and lists every file
 with its size, SHA-256 and the build it comes from. Each package leaves
 out what its own build makes: the Windows and Linux packages their own
@@ -562,17 +564,18 @@ and macOS packages the zoneinfo data (the asset's `exclude`).
 | `Runtime/Linux/x86-64/` in the Windows and macOS packages, and `Runtime/Linux/x86-32/` | Linux standalone engines, support libraries, externals and database drivers, built from this repository by the Linux workflow (x86-64 in its Ubuntu 20.04 container, x86 in its Debian 11 i386 container), with CEF in the x86-64 runtime only: the same components as the Linux package's own files (see [The Linux x86-64 package](#the-linux-x86-64-package)). There are no shared libraries of other projects in them: a Linux standalone uses the system's. |
 | `Extensions/com.livecode.library.timezone/code/<platform>/` and `.../resources/` | The time zone library's native code for Windows x86-32 and x86-64 and Linux x86-32 and x86-64, built from this repository, and its zoneinfo data, compiled by the Linux x86-64 build; the Android code (next row) is 1.15's. |
 | `Runtime/Android/Classes` | The Android runtime's Java layer, built by the "Runtimes asset" workflow from this repository's `engine/src/java` at the asset's commit, in place of 1.15's. |
+| `Runtime/Android/Beyond/` | OXT-Beyond's own Android engine, a runtime of its own that the builder uses only for a stack whose `"android,engine"` setting is `"beyond"`: the standalone engines and the externals (`RevDb`, `DbSqlite`, `DbMysql`, `RevXml`, `RevZip`, `RevSecurity`, `RevPdfPrinter`) for four ABIs, its Java layer, manifest and the files beside them, built from this repository at the asset's commit with a current NDK by the "Android engine" workflow (see [BUILDING.md](BUILDING.md#15-building-the-android-engine)). Its libraries hold OpenSSL, ICU and the libraries of `thirdparty/`, built for Android from this repository: the components of [Libraries built from `thirdparty/`](#libraries-built-from-thirdparty) and the sections above. |
 | the rest of `Runtime/Android/` and `Extensions/com.livecode.library.timezone/code/*-android/` | Carried over unchanged from the earlier asset `oxt-runtimes-1.15`, which holds OpenXTalk Lite 1.15's files: Android standalone engines for four ABIs (version string 9.6.3-rc-3) and support files, of which 31 of these 37 are identical to LiveCode's 9.6.3 installer and the others are as Tom Perry shipped them. That asset's provenance is installed as `PROVENANCE-oxt-runtimes-1.15.md`. |
 
 Licences and corresponding source:
 
 - **Built from this repository** (all but the Android files, the
-  Java layer `Classes` included): as the
+  Java layer `Classes` and the `Beyond` runtime included): as the
   packages' own files of those platforms: GPLv3 with the exception in
   [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md) for OXT-Beyond's code, and
   the third-party components of the sections above (OpenSSL, curl, ICU,
   the libraries of `thirdparty/`, CEF). Source: this repository at the
-  commit that `PROVENANCE-oxt-runtimes-0.2.7-rc.6.18b.md` names.
+  commit that `PROVENANCE-oxt-runtimes-0.2.7-rc.6.19.md` names.
 - **Android files identical to LiveCode Community 9.6.3**: GPLv3.
   Source: [livecode/livecode](https://github.com/livecode/livecode), tag
   [`9.6.3`](https://github.com/livecode/livecode/tree/9.6.3). This

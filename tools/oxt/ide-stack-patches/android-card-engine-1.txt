@@ -1,0 +1,31 @@
+# Android card: an "OXT-Beyond engine (preview)" box, which builds the
+# stack with OXT-Beyond's own Android engine (made from this tree with a
+# current NDK) instead of LiveCode 9.6.3's. The Android builder takes the
+# engine the stack's "android,engine" standalone setting names
+# (androidRuntimeFolder in ide-support/revsaveasandroidstandalone.livecodescript):
+# empty or "9.6.3" is 9.6.3's, as before, and "beyond" is the runtimes'
+# Runtime/Android/Beyond; until now only a script could set it. The box is
+# that setting: the targets group's script (patch -3) stores "beyond" when
+# it is ticked and empty when it is not, the card sets the box from the
+# stack's settings and enables it while the stack is built for Android
+# (revstandalonesettingsandroidbehavior.livecodescript). A stack that never
+# ticks it is built with the 9.6.3 engine, as before.
+#
+# A copy of "Android x86_64", whose script is empty, so a click goes to the
+# targets group's script, as "App Bundle" does (the other option of the
+# build that the group stores). The targets row has no room left, so the
+# box goes in the right-hand column's free row, under the device table
+# and above "Application Permissions", lined up with the permissions'
+# boxes, 240 wide for its words (190 in DejaVu Sans on Linux) in the
+# other systems' fonts; the group grows to hold it (patch -2). Its tooltip
+# says what it does.
+file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
+object: button "Android x86_64" of group "Android Targets" of card "Android"
+clone: Beyond Engine
+unique-id: 1794193452077
+property: label
+to: OXT-Beyond engine (preview)
+property: toolTip
+to: Build with OXT-Beyond's own Android engine, made with a current NDK, instead of LiveCode 9.6.3's
+property: rect
+to: 418,494,658,514
