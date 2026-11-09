@@ -3517,4 +3517,6 @@ made again, by the events buffer): the engine once waited out the wait
 there, and Android called the app not responding. A tap that a system
 hiccup took (another app's "isn't responding" dialog in front of the
 probe, its window without the focus, its activity paused) is given once
-more; one with nothing in its way is a failure at once.
+more; one with nothing in its way is a failure at once. The screen that
+says where to tap is taken up to three times, a second apart, as one
+screencap came back cut short on the 16 KB image.

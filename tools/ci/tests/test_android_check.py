@@ -1680,7 +1680,7 @@ class DeviceOnceInAProcess(unittest.TestCase):
 
     def run_probe(self, argv, font='same', density='new', back='ends', again='new', font_before='1.0',
                   offline_at=None, tap='waits', reset='new', cleared=False, window=Device.WINDOW, held=None,
-                  relaunch_reason='handleRelaunchActivity'):
+                  relaunch_reason='handleRelaunchActivity', cut=()):
         """What the stand-in device's probe does: for a font size change
         (same: goes on in its process; crash: the second start stopped,
         and no process), a density change (new: started again in a new
@@ -1702,7 +1702,9 @@ class DeviceOnceInAProcess(unittest.TestCase):
         dumpsys window says (another app's dialog in front of the probe,
         or FOCUSED); held: how long process 3475 held Android's thread as
         its activity was made again (`logcat -v epoch`'s events, its stop's
-        reason relaunch_reason), or None: no such lines"""
+        reason relaunch_reason), or None: no such lines; cut: the numbers of
+        the screencaps (counted from 1) that come back cut short, as the 16
+        KB image's did in run 42578112540"""
         d = self.tmp.name
         with open(os.path.join(d, 'logcat.txt'), 'w') as f:
             f.write('' if cleared else Device.LOG.split('I/lowmemorykiller')[0])
@@ -1757,14 +1759,17 @@ class DeviceOnceInAProcess(unittest.TestCase):
             asked = 'grep -c "^shell pidof" "%s/platform-tools/calls"' % d
             pidof = ('if [ $(%s) -eq %d ]; then echo "adb: device offline"; exit 1; fi; ' % (asked, offline_at)
                      + pidof)
-        saved = ac.RETURN_WAIT, ac.END_WAIT, ac.FONT_SETTLE, ac.WAIT_SEEN, ac.FOCUS_WAIT
-        ac.RETURN_WAIT, ac.END_WAIT, ac.FONT_SETTLE, ac.WAIT_SEEN, ac.FOCUS_WAIT = 6, 3, 0, 3, 2
+        # the first 40 of the screen's 80 bytes
+        screencap = ('case " %s " in *" $(grep -c "^exec-out screencap" "%s/platform-tools/calls") "*) '
+                     'head -c 40 "%s/screen.raw"; exit 0 ;; esac; ' % (' '.join(map(str, cut)), d, d)) if cut else ''
+        saved = ac.RETURN_WAIT, ac.END_WAIT, ac.FONT_SETTLE, ac.WAIT_SEEN, ac.FOCUS_WAIT, ac.SCREEN_AGAIN
+        ac.RETURN_WAIT, ac.END_WAIT, ac.FONT_SETTLE, ac.WAIT_SEEN, ac.FOCUS_WAIT, ac.SCREEN_AGAIN = 6, 3, 0, 3, 2, 0
         try:
-            status, out = self.device(pidof, timeout='10', cases=cases, window=window,
+            status, out = self.device(pidof, timeout='10', cases=cases, window=window, screencap=screencap,
                                       events='cat "%s/events.txt"' % d,
                                       argv=list(argv) + ['--out', os.path.join(d, 'screen.png')])
         finally:
-            ac.RETURN_WAIT, ac.END_WAIT, ac.FONT_SETTLE, ac.WAIT_SEEN, ac.FOCUS_WAIT = saved
+            ac.RETURN_WAIT, ac.END_WAIT, ac.FONT_SETTLE, ac.WAIT_SEEN, ac.FOCUS_WAIT, ac.SCREEN_AGAIN = saved
         return status, out, [c for c in self.calls() if c.startswith(('shell settings', 'shell wm',
                                                                              'shell input', 'shell am start'))]
 
@@ -2034,16 +2039,46 @@ class DeviceOnceInAProcess(unittest.TestCase):
         self.assertEqual(len(got), 1)
 
     def test_no_screen_no_tap(self):
-        saved = ac.screen_now
-        ac.screen_now = lambda adb, serial: None
+        shots = []
+        saved = ac.screen_now, ac.SCREEN_AGAIN
+        ac.screen_now = lambda adb, serial: shots.append(serial)
+        ac.SCREEN_AGAIN = 0
         said = []
         try:
             got = ac.starts_again_for_density_in_wait(argparse.Namespace(serial='emulator-5554', out=None),
                                                        'adb', lambda *cmd, timeout=180: said.append(cmd), '3475', [])
         finally:
-            ac.screen_now = saved
-        self.assertEqual(got, ['no screen of the probe to find where to tap it'])
+            ac.screen_now, ac.SCREEN_AGAIN = saved
+        self.assertEqual(got, ['no screen of the probe to find where to tap it (screencap gave none, %d times)'
+                               % ac.SCREEN_TRIES])
+        # taken SCREEN_TRIES times, and never tapped
+        self.assertEqual(len(shots), ac.SCREEN_TRIES)
+        self.assertGreater(ac.SCREEN_TRIES, 1)
         self.assertEqual(said, [])
+
+    def test_a_screen_cut_short_is_taken_again(self):
+        # run 42578112540: the 16 KB image's screencap came back cut short
+        # (7116368 of its 10108816 bytes) just as the step was to find
+        # where to tap; the screen is taken again, and the probe tapped
+        status, out, calls = self.run_probe(['--density-in-wait'], window=self.FOCUSED, held=0.4, cut=(2,))
+        self.assertEqual(status, 0, out)
+        self.assertIn('  screencap: screencap: unexpected header (width 4, height 4, format 1, 40 bytes)\n', out)
+        self.assertEqual(calls[1:], ['shell input tap 2 2', 'shell wm density', 'shell wm density 357',
+                                     'shell wm density reset'])
+        # the cut screen was the one that says where to tap: taken again
+        # just after it, and the tap after that
+        own = [c for c in self.calls() if c.startswith(('exec-out screencap', 'shell input tap'))]
+        self.assertEqual(own[:4], ['exec-out screencap', 'exec-out screencap', 'exec-out screencap',
+                                   'shell input tap 2 2'])
+
+    def test_a_screen_cut_short_every_time_is_a_failure(self):
+        status, out, calls = self.run_probe(['--density-in-wait'], window=self.FOCUSED, held=0.4,
+                                            cut=range(2, 2 + ac.SCREEN_TRIES))
+        self.assertEqual(status, 1, out)
+        self.assertIn('PROBLEM: no screen of the probe to find where to tap it (screencap gave none, %d times)'
+                      % ac.SCREEN_TRIES, out)
+        self.assertEqual(out.count('  screencap: screencap: unexpected header'), ac.SCREEN_TRIES)
+        self.assertEqual([c for c in calls if c.startswith('shell input')], [])
 
     def test_opened_again_after_its_stack_quit(self):
         status, out, calls = self.run_probe(['--relaunch'])

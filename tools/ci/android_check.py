@@ -194,10 +194,16 @@ WAIT_SEEN = 10
 # activity's stop to the activity made again (wm_on_stop_called to
 # wm_on_create_called): Android calls an app that does not answer a touch
 # for 5 s not responding, and the engine built here once waited out the
-# script's wait there (attempt 1 of that run: an ANR)
+# script's wait there (attempt 1 of that run: an ANR). SCREEN_TRIES: how
+# many times the screen that says where to tap is taken, SCREEN_AGAIN s
+# apart: in run 42578112540 the 16 KB image's screencap, just after the
+# probe started again at the screen's own density, came back cut short
+# (7116368 of its 10108816 bytes), and the step failed on it
 FOCUS_WAIT = 10
 TAP_TRIES = 2
 HELD_LIMIT = 5
+SCREEN_TRIES = 3
+SCREEN_AGAIN = 1
 # device --within-bars: how long the screen is taken again, every
 # BARS_INTERVAL seconds, when the first green screen has the probe's green
 # where a system bar is, before that is a failure. On the 16 KB Android 16
@@ -2252,10 +2258,18 @@ def starts_again_for_density_in_wait(args, adb, a, pid, names):
     answered. A tap that turns no wait colour is given again (TAP_TRIES in
     all) only when something stood in its way: the probe's window did not
     have the focus, Android paused its activity, or another app's dialog
-    came in front of it; else it is a failure at once."""
-    got = screen_now(adb, args.serial)
+    came in front of it; else it is a failure at once. The screen that
+    says where to tap is taken again when screencap gives none (SCREEN_TRIES
+    times in all)."""
+    got = None
+    for shot in range(SCREEN_TRIES):
+        if shot:
+            time.sleep(SCREEN_AGAIN)
+        got = screen_now(adb, args.serial)
+        if got:
+            break
     if not got:
-        return ['no screen of the probe to find where to tap it']
+        return ['no screen of the probe to find where to tap it (screencap gave none, %d times)' % SCREEN_TRIES]
     x, y = str(got[0] // 2), str(got[1] // 2)
     for tap in range(1, TAP_TRIES + 1):
         answer_other_anr(a)
