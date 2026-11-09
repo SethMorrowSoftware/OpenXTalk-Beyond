@@ -1298,6 +1298,31 @@ API_VERSIONS = """<?xml version="1.0" encoding="utf-8"?>
     <class name="android/os/NewException" since="26">
         <extends name="java/lang/Exception"/>
     </class>
+    <!-- Method's hierarchy as API 36's file gives it: on API 26 it came
+         to extend Executable, whose getName is API 26, but it implements
+         Member, whose getName is API 1 -->
+    <class name="java/lang/reflect/AccessibleObject" since="1">
+        <extends name="java/lang/Object"/>
+    </class>
+    <class name="java/lang/reflect/Member" since="1">
+        <extends name="java/lang/Object"/>
+        <method name="getName()Ljava/lang/String;"/>
+    </class>
+    <class name="java/lang/reflect/Executable" since="26">
+        <extends name="java/lang/reflect/AccessibleObject"/>
+        <implements name="java/lang/reflect/Member"/>
+        <method name="getName()Ljava/lang/String;"/>
+    </class>
+    <class name="java/lang/reflect/Method" since="1">
+        <extends name="java/lang/reflect/AccessibleObject" removed="26"/>
+        <extends name="java/lang/reflect/Executable" since="26"/>
+        <implements name="java/lang/reflect/Member"/>
+    </class>
+    <!-- a class that came to implement an interface later than it came -->
+    <class name="android/view/Late" since="1">
+        <extends name="java/lang/Object"/>
+        <implements name="java/lang/reflect/Member" since="24"/>
+    </class>
 </api>
 """
 
@@ -1328,7 +1353,12 @@ class MinSdkDatabase(unittest.TestCase):
         self.assertEqual(db['android/view/Window'][2]['setDecorFitsSystemWindows(Z)V'], 30)
         self.assertEqual(db['android/view/Window'][2]['getAttributes()Landroid/view/WindowManager$LayoutParams;'], 1)
         self.assertEqual(db['java/lang/Object'][2]['<init>()V'], 1)
-        self.assertEqual(db['android/app/Activity'][1], ['android/content/Context', 'android/view/Window$Callback'])
+        self.assertEqual(db['android/app/Activity'][1], [('android/content/Context', 1), ('android/view/Window$Callback', 1)])
+        # an extends or implements gives its own since, or the class's
+        self.assertEqual(db['java/lang/reflect/Method'][1], [
+            ('java/lang/reflect/AccessibleObject', 1), ('java/lang/reflect/Executable', 26),
+            ('java/lang/reflect/Member', 1)])
+        self.assertEqual(db['android/view/Late'][1], [('java/lang/Object', 1), ('java/lang/reflect/Member', 24)])
 
     def test_a_file_that_is_not_one(self):
         with tempfile.TemporaryDirectory() as d:
@@ -1472,6 +1502,36 @@ class MinSdk(unittest.TestCase):
             'ref', 'method', 'com/runrev/android/Cb', 'onAttachedToWindow', '()V'), RETURN])
         self.assertEqual(self.check([cb])[0], [])
         self.assertEqual(len(self.check([cb], min_api=4)[0]), 1)
+
+    def test_a_member_found_on_more_than_one_path(self):
+        # LCBInvocationHandler.invoke calls Method.getName: Executable's,
+        # API 26, is one path, Member's, API 1, another, and the call works
+        # on every Android, so the lowest counts, as lint's NewApi takes it
+        get_name = ('ref', 'method', 'java/lang/reflect/Method', 'getName', '()Ljava/lang/String;')
+        w = self.one([ACONST_NULL, INVOKEVIRTUAL, get_name, POP, RETURN])
+        problems, lines = self.check([w])
+        self.assertEqual(problems, [])
+        self.assertIn('0 of them newer', lines[0])
+        levels = aj.ApiLevels({}, api_db(), {})
+        self.assertEqual(levels.of_member('java/lang/reflect/Method', 'getName:()Ljava/lang/String;', True), 1)
+        self.assertEqual(levels.of_member('java/lang/reflect/Executable', 'getName:()Ljava/lang/String;', True), 26)
+        # and through a class of the jar that extends Method's hierarchy
+        sub = ClassWriter('com/runrev/android/M', super_name='java/lang/reflect/Executable',
+                          interfaces=['java/lang/reflect/Member'])
+        jar = {'com/runrev/android/M': parse(sub)}
+        self.assertEqual(aj.ApiLevels(jar, api_db(), {}).of_member(
+            'com/runrev/android/M', 'getName:()Ljava/lang/String;', True), 1)
+
+    def test_a_path_counts_from_its_own_since(self):
+        # Late is API 1 but came to implement Member on API 24: getName,
+        # Member's since API 1, is Late's only from 24
+        levels = aj.ApiLevels({}, api_db(), {})
+        self.assertEqual(levels.of_member('android/view/Late', 'getName:()Ljava/lang/String;', True), 24)
+        get_name = ('ref', 'method', 'android/view/Late', 'getName', '()Ljava/lang/String;')
+        problems, _ = self.check([self.one([ACONST_NULL, INVOKEVIRTUAL, get_name, POP, RETURN])])
+        self.assertEqual(problems, ['com/runrev/android/T.run:()V uses android/view/Late.getName:()Ljava/lang/String;, '
+                                    'which is API 24, where it can run on API 21 (invokevirtual)'])
+        self.assertEqual(self.check([self.one(guarded(24, [INVOKEVIRTUAL, get_name]))])[0], [])
 
     def test_a_class_of_newer_android(self):
         # new Insets-like: a class that API 21 lacks, made with no check

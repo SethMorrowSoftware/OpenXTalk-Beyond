@@ -1794,10 +1794,11 @@ def api_versions_path(sdk, api=DEFAULT_API):
 
 
 def read_api_versions(path):
-    """{class: (since, [superclass and interfaces], {member: since})} of an
-    api-versions.xml; a member is name(descriptor)return for a method,
-    its name for a field, and a since that is not given is the class's (a
-    class's own is 1)."""
+    """{class: (since, [(superclass or interface, since)], {member: since})}
+    of an api-versions.xml; a member is name(descriptor)return for a
+    method, its name for a field, and a since that is not given, of a
+    member or of an extends or implements, is the class's (a class's own
+    is 1)."""
     import xml.etree.ElementTree as ET
     out = {}
     try:
@@ -1805,7 +1806,8 @@ def read_api_versions(path):
             if el.tag != 'class':
                 continue
             since = int(el.get('since', '1'))
-            parents = [x.get('name') for x in el if x.tag in ('extends', 'implements')]
+            parents = [(x.get('name'), int(x.get('since', since)))
+                       for x in el if x.tag in ('extends', 'implements')]
             members = {}
             for x in el:
                 if x.tag in ('method', 'field'):
@@ -1823,9 +1825,13 @@ class ApiLevels(object):
     """The API level a reference of the jar needs: the jar's own classes
     and methods need none, unless REQUIRES_API names them; Android's
     (api-versions.xml) need the level that brought the class and the
-    member, looked for in the class, then its superclasses and interfaces,
-    as the virtual machine looks for it. None for a member that neither
-    knows (a hidden API, or a library the app may not have)."""
+    member, looked for in the class, then its superclasses and interfaces.
+    A member a class inherits by more than one path needs the lowest of
+    them, as lint's NewApi takes it: on API 26 Method came to extend
+    Executable, whose getName is API 26, but Method implements Member,
+    whose getName is API 1, and the call works everywhere. A path counts
+    from the level its extends or implements gives. None for a member that
+    neither knows (a hidden API, or a library the app may not have)."""
 
     def __init__(self, jar, db, requires=None):
         self.jar = jar
@@ -1846,12 +1852,25 @@ class ApiLevels(object):
         """member: name:descriptor for a method, name:type for a field"""
         name, desc = member.split(':', 1)
         key = name + desc if method else name
-        seen = set()
+        # what a class gives, whatever path reached it (the hierarchy has
+        # no cycles; a class being looked at counts as giving nothing)
+        found = {}
+
+        def lowest(paths):
+            levels = []
+            for parent, since in paths:
+                got = look(parent)
+                if got is not None:
+                    levels.append(max(since, got))
+            return min(levels) if levels else None
 
         def look(cls):
-            if cls in seen or cls is None:
+            if cls is None:
                 return None
-            seen.add(cls)
+            if cls in found:
+                return found[cls]
+            found[cls] = None
+            got = None
             if cls in self.jar:
                 c = self.jar[cls]
                 # a field of the jar's own class needs what REQUIRES_API
@@ -1860,21 +1879,17 @@ class ApiLevels(object):
                 own = self.requires.get(cls, (0,))[0] if method else 0
                 mine = (name, desc) in (c.methods if method else c.fields)
                 if mine:
-                    return max(own, self.requires.get('%s.%s' % (cls, member), (0,))[0])
-                for parent in [c.super_name] + list(c.interfaces):
-                    got = look(parent)
-                    if got is not None:
-                        return max(own, got)
-                return None
-            if cls in self.db:
+                    got = max(own, self.requires.get('%s.%s' % (cls, member), (0,))[0])
+                else:
+                    got = lowest((p, own) for p in [c.super_name] + list(c.interfaces))
+            elif cls in self.db:
                 since, parents, members = self.db[cls]
                 if key in members:
-                    return max(since, members[key])
-                for parent in parents:
-                    got = look(parent)
-                    if got is not None:
-                        return max(since, got)
-            return None
+                    got = max(since, members[key])
+                else:
+                    got = lowest((p, max(since, s)) for p, s in parents)
+            found[cls] = got
+            return got
         return look(owner)
 
 
