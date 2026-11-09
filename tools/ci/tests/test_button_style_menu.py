@@ -135,7 +135,8 @@ class TheTour(unittest.TestCase):
 
     def test_how_it_reads_the_row(self):
         check = self.handler('function', 'tourBmCheckRow')
-        self.assertIn('revIDEPropertiesInfoOfSection(pButton, "Basic")', check)
+        self.assertIn('revIDEPropertiesInfo(pButton)', check)
+        self.assertNotIn('revIDEPropertiesInfoOfSection(', check)
         self.assertIn('if tRow["user_visible"] is false then', check)
         self.assertIn('if "menu" is not among the lines of tRow["options"] then', check)
         make = self.handler('function', 'tourBmMake')
