@@ -580,7 +580,7 @@ end tourExtensionStacksNotUsers
 on tour_browse
    local tLoc
    go stack kSample
-   choose browse tool
+   set the tool to "browse tool"
    tourWait 500
    put the globalLoc of the loc of button "Push" of card 1 of stack kSample into tLoc
    tourRecord "INFO the button's loc on the page" && tLoc
@@ -831,6 +831,17 @@ on tour_import_stack_marks
       throw "File > Import Stack's ticks are not drawn: the submenu's tick strip differs in" && \
             tDiffer && "pixels between its options on and off"
    end if
+   -- An item that opens a deeper submenu, in a submenu with a mark, keeps
+   -- its arrow: drawn at the submenu's right edge, where no word reaches
+   local tInk
+   put tourStripInk(tourNestedSubmenuStrip("Plain" & return & "Sub" & return & tab & "!cTicked" & return & \
+         tab & "Deeper" & return & tab & tab & "Child", "15c-nested-submenu")) into tInk
+   tourRecord "INFO import-stack-marks: the nested submenu's arrow has" && tInk && "pixels"
+   -- the arrow is a small filled triangle
+   if tInk < 6 then
+      throw "a submenu item that opens a deeper submenu has no arrow when its submenu has a mark:" && \
+            tInk && "pixels stand out at the submenu's right edge"
+   end if
 end tour_import_stack_marks
 
 -- File > Import Stack's submenu, opened with the pointer, as a screenshot
@@ -856,15 +867,7 @@ function tourImportStackStrip pShot
    put tourMenuRects() into tRects
    tourRecord "INFO import-stack-marks: menus" && tourJoin(tRects)
    tourShot pShot
-   put tourJS("(function () { var w = Array.from(document.querySelectorAll('.oxt-window'))" & \
-         ".filter(function(e) { var r = e.getBoundingClientRect(); return e.oxtLayer === 3 && r.width > 0 && r.height > 0; })" & \
-         ".sort(function(a, b) { return a.getBoundingClientRect().left - b.getBoundingClientRect().left; });" & \
-         " if (w.length < 2) { return ''; }" & \
-         " var c = w[w.length - 1].querySelector('canvas'); if (!c) { return ''; }" & \
-         " var sw = Math.min(c.width, Math.round(c.width * 24 / c.getBoundingClientRect().width));" & \
-         " var d = c.getContext('2d').getImageData(0, 0, sw, c.height).data, o = [];" & \
-         " for (var i = 0; i < d.length; i += 4) { o.push(Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2])); }" & \
-         " return c.width + ',' + c.height + ',' + sw + ':' + o.join(' '); })()") into tStrip
+   put tourSubmenuStrip("left") into tStrip
    tourAct "key Escape"
    tourWait 500
    tourAct "key Escape"
@@ -874,6 +877,118 @@ function tourImportStackStrip pShot
    end if
    return tStrip
 end tourImportStackStrip
+
+-- The luma of each pixel of a strip pPoints wide (24 when empty) at the
+-- pSide (left or right) of the open submenu, the menu furthest right of those open:
+-- "<width>,<height>,<strip width>:" and then the lumas, a space between
+-- each; empty when no submenu is open
+function tourSubmenuStrip pSide, pPoints
+   local tFrom
+   if pPoints is empty then
+      put 24 into pPoints
+   end if
+   if pSide is "right" then
+      put "c.width - sw" into tFrom
+   else
+      put "0" into tFrom
+   end if
+   return tourJS("(function () { var w = Array.from(document.querySelectorAll('.oxt-window'))" & \
+         ".filter(function(e) { var r = e.getBoundingClientRect(); return e.oxtLayer === 3 && r.width > 0 && r.height > 0; })" & \
+         ".sort(function(a, b) { return a.getBoundingClientRect().left - b.getBoundingClientRect().left; });" & \
+         " if (w.length < 2) { return ''; }" & \
+         " var c = w[w.length - 1].querySelector('canvas'); if (!c) { return ''; }" & \
+         " var sw = Math.min(c.width, Math.round(c.width * " & pPoints & " / c.getBoundingClientRect().width));" & \
+         " var d = c.getContext('2d').getImageData(" & tFrom & ", 0, sw, c.height).data, o = [];" & \
+         " for (var i = 0; i < d.length; i += 4) { o.push(Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2])); }" & \
+         " return c.width + ',' + c.height + ',' + sw + ':' + o.join(' '); })()")
+end tourSubmenuStrip
+
+-- A submenu with a mark that also opens a deeper submenu, in a pulldown
+-- menu of a stack of the tour's, whose top level has no mark: pText is
+-- the menu's text, and the result the right strip of its submenu
+-- (tourSubmenuStrip, 14 points), the menu's second item hovered to open it. The
+-- item that opens the deeper submenu must keep its arrow when its
+-- submenu's items become check items (codex review of #425: made a
+-- check item, it lost the arrow that a menu item draws)
+function tourNestedSubmenuStrip pText, pShot
+   local tStack, tTool, tDefault, tLoc, tFirst, tRects, tStrip
+   put "Web Tour Nested Marks" into tStack
+   put the tool into tTool
+   lock messages
+   if there is a stack tStack then delete stack tStack
+   create stack tStack
+   set the rect of stack tStack to "320,160,720,460"
+   put the defaultStack into tDefault
+   set the defaultStack to tStack
+   create button "Marks"
+   set the style of it to "menu"
+   set the menuMode of it to "pulldown"
+   set the rect of it to "20,20,140,42"
+   set the text of it to pText
+   set the defaultStack to tDefault
+   unlock messages
+   go stack tStack
+   set the tool to "browse tool"
+   tourWait 800
+   put the globalLoc of the loc of button "Marks" of card 1 of stack tStack into tLoc
+   tourAct "click" && item 1 of tLoc && item 2 of tLoc
+   tourWait 1500
+   put tourMenuRects() into tFirst
+   if tFirst is not empty then
+      -- the second item, Sub
+      tourAct "move" && (item 1 of line 1 of tFirst + 30) && (item 2 of line 1 of tFirst + 30)
+      tourAct "move" && (item 1 of line 1 of tFirst + 36) && (item 2 of line 1 of tFirst + 31)
+      tourWait 1500
+      put tourMenuRects() into tRects
+      tourRecord "INFO import-stack-marks: nested menus" && tourJoin(tRects)
+      tourShot pShot
+      put tourSubmenuStrip("right", 14) into tStrip
+   end if
+   tourAct "key Escape"
+   tourWait 500
+   tourAct "key Escape"
+   tourWait 800
+   set the tool to tTool
+   lock messages
+   delete stack tStack
+   unlock messages
+   if tStrip is empty then
+      throw "the nested menu's submenu did not open:" && tourJoin(tFirst) && "|" && tourJoin(tRects)
+   end if
+   return tStrip
+end tourNestedSubmenuStrip
+
+-- How many pixels of a strip of tourSubmenuStrip stand out from the menu
+-- (differ in luma by more than a quarter of the way from black to white
+-- from the strip's commonest luma), its outer 3 pixels left out (the
+-- menu's border)
+function tourStripInk pStrip
+   local tSize, tLumas, tWidth, tHeight, tCounts, tLuma, tBack, tMost, tCount, x, y
+   set the itemDelimiter to ":"
+   put item 1 of pStrip into tSize
+   put item 2 of pStrip into tLumas
+   set the itemDelimiter to comma
+   put item 3 of tSize into tWidth
+   put item 2 of tSize into tHeight
+   split tLumas by space
+   put 0 into tMost
+   repeat for each element tLuma in tLumas
+      add 1 to tCounts[tLuma]
+      if tCounts[tLuma] > tMost then
+         put tCounts[tLuma] into tMost
+         put tLuma into tBack
+      end if
+   end repeat
+   put 0 into tCount
+   repeat with y = 3 to tHeight - 4
+      repeat with x = 0 to tWidth - 4
+         if abs(tLumas[y * tWidth + x + 1] - tBack) > 64 then
+            add 1 to tCount
+         end if
+      end repeat
+   end repeat
+   return tCount
+end tourStripInk
 
 -- How far apart the lightest and darkest pixel of a strip of
 -- tourImportStackStrip are in luma (0 to 255): the item's words reach
@@ -1110,7 +1225,7 @@ on tour_tooltip
    put tourSample("Push") into tButton
    set the toolTip of tButton to "A tooltip of the tour's sample button"
    go stack kSample
-   choose browse tool
+   set the tool to "browse tool"
    -- (the engine shows a tooltip only in the window that has the focus,
    -- or a palette: a click on the card, below its controls)
    tourAct "click" && the left of stack kSample + 100 && the top of stack kSample + 325

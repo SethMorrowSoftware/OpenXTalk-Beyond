@@ -2505,7 +2505,14 @@ public:
 			{
 				do
 				{
-					if (t_item->menucontrol == MENUCONTROL_ITEM && getstyleint(t_item->flags) != F_RADIO)
+					// An item that opens a deeper submenu (made already,
+					// which gave it the menu style that draws its arrow)
+					// keeps its style, and its words move over to the
+					// check column, as makemenu moves a cascade item's
+					// in a menu whose top level has a mark
+					if (t_item->menucontrol == MENUCONTROL_ITEM && t_item->menumode == WM_CASCADE)
+						t_item->leftmargin += CHECK_SIZE + parent->leftmargin;
+					else if (t_item->menucontrol == MENUCONTROL_ITEM && getstyleint(t_item->flags) != F_RADIO)
 						t_item->flags = (t_item->flags & ~F_STYLE) | F_CHECK;
 					t_item = (MCButton *)t_item->next();
 				}
