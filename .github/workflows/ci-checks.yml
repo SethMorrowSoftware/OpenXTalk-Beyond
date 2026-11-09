@@ -78,15 +78,25 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      # A pinned release, checked against its published SHA-256
+      # A pinned release, checked against its published SHA-256.
+      # Downloaded with gh, through GitHub's API, and only when that fails
+      # from the release's web address (github.com/.../releases/download).
+      # On 9 November 2026 the web address answered "504 Gateway Time-out"
+      # to the runners on and off for an hour, to all four of curl's tries
+      # in three jobs (run 42568140708 and its re-run, run 42571371043),
+      # while gh downloaded a 663 MB release in 10 s on the Android
+      # builder's runners in between
       - name: Lint the workflows (actionlint)
         env:
           ACTIONLINT_VERSION: 1.7.12
           ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+          GH_TOKEN: ${{ github.token }}
         run: |
           archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
-          curl -sSfL --retry 3 -o "$RUNNER_TEMP/$archive" \
-            "https://github.com/rhysd/actionlint/releases/download/v$ACTIONLINT_VERSION/$archive"
+          gh release download "v$ACTIONLINT_VERSION" --repo rhysd/actionlint \
+            --pattern "$archive" --dir "$RUNNER_TEMP" --clobber ||
+            curl -sSfL --retry 3 -o "$RUNNER_TEMP/$archive" \
+              "https://github.com/rhysd/actionlint/releases/download/v$ACTIONLINT_VERSION/$archive"
           echo "$ACTIONLINT_SHA256  $RUNNER_TEMP/$archive" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" actionlint
           "$RUNNER_TEMP/actionlint" -version

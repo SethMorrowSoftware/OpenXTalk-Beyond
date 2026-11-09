@@ -1565,7 +1565,17 @@ questions in its ask dialogs), `unsigned` ("Do not sign"), `legacy`
 (a stack that never opened the Android card) and `bundle` (as `release`,
 for arm64 and x86-64, with `"android,app bundle"`, so the builder also
 makes `bundle.aab`; it downloads bundletool the first time, and `ide`
-copies the jar it keeps to `<work>/bundletool.jar`). It needs Python 3.8
+copies the jar it keeps to `<work>/bundletool.jar`). With
+`--bundletool-fallback`, as `android.yml` runs it, a bundle build whose
+download of bundletool GitHub's release host answered with an HTTP 5xx
+(every try, from libURL and the JDK alike) is built again, once: `gh`
+downloads the pinned jar through GitHub's API (its SHA-256 checked),
+`ide` puts it where the builder keeps its download, the IDE builds the
+App Bundle alone (no units, no Test; its lines in
+`<work>/android-check-bundle.txt`), and its lines take the place of the
+failure in `android-check.txt`, with a warning on the run saying so.
+The builder's own download is still tried first, and any other failure
+of it (a stall, the wrong file, a 404) stays a failure. It needs Python 3.8
 or later, a JDK, and an Android SDK with `platforms;android-33`,
 build-tools (with aapt2) and platform-tools:
 
@@ -1651,7 +1661,10 @@ failure. With `--allow
 <permission>` the probe must ask for that runtime permission: `device`
 waits for Android's dialog, taps its Allow button (found in a
 `uiautomator` dump) and checks that the package then holds the
-permission (`dumpsys package`). With `--picture <name>` the picture the
+permission (`dumpsys package`). A dialog still in front 6 seconds after
+the tap has its Allow tapped again, at most three taps in all: in run
+42568140662 another app's "isn't responding" dialog took the tap, and
+the permission dialog stayed until the probe failed. With `--picture <name>` the picture the
 probe exported must be among the shared pictures (`content query` of
 MediaStore) in `Pictures/`, as the package's own; before it installs the
 probe again, `device` then waits (up to 60 seconds) for MediaProvider to
@@ -2517,6 +2530,12 @@ runs on every pull request and push to `main` in a minute or two:
 [actionlint](https://github.com/rhysd/actionlint) on every workflow, and
 the unit tests of the CI scripts in `tools/ci/tests`
 (`python3 -m unittest discover -s tools/ci/tests`, which needs PyYAML).
+It downloads its pinned actionlint with `gh`, through GitHub's API, and
+from the release's web address (`github.com/.../releases/download`) only
+when `gh` fails, and checks the archive's SHA-256 either way. On
+9 November 2026 the web address answered `504 Gateway Time-out` to the
+runners on and off for an hour, which ended three of these jobs before
+any check ran.
 
 It follows this guide:
 
@@ -3478,8 +3497,12 @@ checks the runtime again before the archive takes it.
 `Runtime/Android/Beyond`, where the builder takes it for a stack that asks
 for it: every architecture's engine and externals, and the Java layer and
 the files beside them, the release's own runtime left as it is. It
-changes nothing when the runtime lacks one of them or the release has a
-`Beyond` folder already, so that no package mixes the two engines.
+changes nothing when the runtime lacks one of them. A `Beyond` folder the
+release has already (its own, as the runtimes carry it from
+0.2.7-rc.6.19 on) is taken away as a whole first, so that the probes are
+built from this checkout's engine and none of the release's files, and
+no package mixes the two engines; one that is a link or a file is
+refused.
 (`--engine` instead puts them over the release's own, each over its file
 of that name.) The builder there builds the app probe and the Java
 layer's probe (debug, for all four architectures) as stacks whose
@@ -3505,4 +3528,14 @@ seconds with messages, and the density changes while it waits, so that
 the engine, let go on to finish as Android destroys the activity, yields
 to Android's thread again before it has finished: `doDestroy` (in
 `engine/src/mblandroiddc.cpp`) lets it go on until it has, where it
-once joined the engine thread at once and both waited for good.
+once joined the engine thread at once and both waited for good. The
+script's wait then ends at once (`MCScreenDC::wait`, with "wait:
+aborted"), and the check fails a process that held Android's thread for
+more than 5 seconds as its activity went (from its stop to the activity
+made again, by the events buffer): the engine once waited out the wait
+there, and Android called the app not responding. A tap that a system
+hiccup took (another app's "isn't responding" dialog in front of the
+probe, its window without the focus, its activity paused) is given once
+more; one with nothing in its way is a failure at once. The screen that
+says where to tap is taken up to three times, a second apart, as one
+screencap came back cut short on the 16 KB image.

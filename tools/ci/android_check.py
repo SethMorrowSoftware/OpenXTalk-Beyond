@@ -183,6 +183,27 @@ BACK_WAIT = 20
 WAIT_COLOR = (120, 60, 160)
 PROBE_WAIT = 20
 WAIT_SEEN = 10
+# --density-in-wait: how long the tap waits for the probe's window to have
+# the focus (FOCUS_WAIT), and how many taps it is given (TAP_TRIES): a tap
+# is given again only when something stood between it and the probe's
+# mouseUp. In run 42558963714 (attempt 2) the API 33 image's System UI was
+# not responding, three times, and Android paused the probe's activity for
+# sleep just as it was tapped: the tap was lost, and the screen stayed
+# green. HELD_LIMIT: how long the process the probe's script waits in may
+# hold Android's thread as Android makes its activity again, from its
+# activity's stop to the activity made again (wm_on_stop_called to
+# wm_on_create_called): Android calls an app that does not answer a touch
+# for 5 s not responding, and the engine built here once waited out the
+# script's wait there (attempt 1 of that run: an ANR). SCREEN_TRIES: how
+# many times the screen that says where to tap is taken, SCREEN_AGAIN s
+# apart: in run 42578112540 the 16 KB image's screencap, just after the
+# probe started again at the screen's own density, came back cut short
+# (7116368 of its 10108816 bytes), and the step failed on it
+FOCUS_WAIT = 10
+TAP_TRIES = 2
+HELD_LIMIT = 5
+SCREEN_TRIES = 3
+SCREEN_AGAIN = 1
 # device --within-bars: how long the screen is taken again, every
 # BARS_INTERVAL seconds, when the first green screen has the probe's green
 # where a system bar is, before that is a failure. On the 16 KB Android 16
@@ -229,6 +250,21 @@ JAVA_LAYER_READY = ('com/runrev/android/LiveCodeActivity$BackCallback.class',
 BUNDLETOOL_VERSION = '1.18.3'
 BUNDLETOOL_SHA256 = 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29'
 BUNDLETOOL_JAR = 'bundletool.jar'
+# ide --bundletool-fallback: when GitHub itself answered the builder's
+# download of bundletool from the release's web address with an HTTP 5xx,
+# for every downloader the failure names (libURL's and the JDK's), the
+# pinned jar is downloaded with gh, through GitHub's API, put where the
+# builder keeps its download (the file its failure names), and the App
+# Bundle built again, once. On 9 November 2026 that address answered "504
+# Gateway Time-out" to the runners on and off for hours (the macOS builder
+# in run 42571371034, twice, and in run 42582158750), while gh downloaded
+# releases through the API on the same runners. The builder's own download
+# is still tried first on every run, and a failure of any other kind (a
+# stall, the wrong file) stays a failure
+BUNDLETOOL_REPO = 'google/bundletool'
+BUNDLETOOL_GH = 'bundletool-gh'
+BUNDLE_AGAIN_LOG = 'android-check-bundle.txt'
+BUNDLE_AGAIN_OUTPUT = 'ide-output-bundle.txt'
 KEY_ALIAS = 'oxtcheck'
 KEY_PASSWORD = 'oxtcheck-pass'
 KEY_DNAME = 'CN=OXT Android Check, O=OXT-Beyond, C=US'
@@ -906,6 +942,15 @@ def allow_button(xml):
 ANR_WINDOW = re.compile(r'mCurrentFocus=Window\{[^}]*\bApplication Not Responding: ([\w.]+)\}')
 WAIT_BUTTON = 'android:id/aerr_wait'
 ANR_TAPS = 3
+# device --allow: a tap on the dialog's Allow that the dialog did not take
+# (it is still in front ALLOW_AGAIN s after the tap) is given again, at
+# most ALLOW_TAPS taps in all. In run 42568140662 (attempt 1) the 16 KB
+# image's launcher was not responding: its dialog was answered, the Allow
+# tapped 3 s later was lost, the permission dialog stayed in front for the
+# 90 s that were left, and the probe failed. A tap that was taken is not
+# given again: once the dialog has gone, Allow is not looked for
+ALLOW_TAPS = 3
+ALLOW_AGAIN = 6
 
 
 def other_anr(window):
@@ -1031,6 +1076,54 @@ def ide_results(lines):
     return r
 
 
+def bundletool_refused_by_host(failure):
+    """Where the builder keeps bundletool (the file its failure says to put
+    it at), when the App Bundle's failure is its download of bundletool,
+    and every downloader the failure names got an HTTP 5xx, GitHub's own
+    error (libURL's "error 504 ...", the JDK's "Error:
+    java.io.IOException: 504 ..."); None otherwise."""
+    m = re.match(r'could not download bundletool, which makes the App Bundle, from \S+?: (.+) \(tried \d+ times\)\. '
+                 r'Download that file and put it at (.+?), or name a bundletool jar in the ', failure or '')
+    if not m:
+        return None
+    for error in m.group(1).split('; and the JDK could not download it: '):
+        if not re.match(r'(?:error |Error: java\.io\.IOException: )5\d\d\b', error):
+            return None
+    return m.group(2)
+
+
+def bundletool_with_gh(work):
+    """The pinned bundletool (BUNDLETOOL_VERSION), downloaded with gh
+    through GitHub's API into work/BUNDLETOOL_GH and checked against
+    BUNDLETOOL_SHA256: (its path, None), or (None, why there is none)."""
+    name = 'bundletool-all-%s.jar' % BUNDLETOOL_VERSION
+    gh = shutil.which('gh')
+    if not gh:
+        return None, 'there is no gh'
+    folder = os.path.join(work, BUNDLETOOL_GH)
+    os.makedirs(folder, exist_ok=True)
+    try:
+        status, out = run([gh, 'release', 'download', BUNDLETOOL_VERSION, '--repo', BUNDLETOOL_REPO,
+                           '--pattern', name, '--dir', folder, '--clobber'])
+    except CheckError as e:
+        return None, str(e)
+    jar = os.path.join(folder, name)
+    if status != 0 or not os.path.isfile(jar):
+        return None, 'gh release download: exit status %d: %s' % (status, out.strip()[-500:])
+    digest = sha256_file(jar)
+    if digest != BUNDLETOOL_SHA256:
+        return None, 'gh downloaded a %s whose SHA-256 is %s, not %s' % (name, digest, BUNDLETOOL_SHA256)
+    return jar, None
+
+
+def is_bundle_line(line):
+    """Whether one of the IDE's lines is the App Bundle's (its build, what
+    it warned and asked, the bundletool it kept)."""
+    words = line.split(' ')
+    return words[:2] in (['INFO', 'bundle'], ['BUILT', 'bundle'], ['INFO', 'bundletool']) or \
+        words[:3] == ['BUILD', 'FAILED', 'bundle']
+
+
 # ---------------------------------------------------------------------------
 # extract and overlay
 
@@ -1127,19 +1220,28 @@ def beside_engine(engine, android, root):
     architecture's engine and externals, and the files beside them (the
     Java layer among them), the release's own runtime left as it is. A
     stack whose "android,engine" is "beyond" is built from it. Every
-    architecture and file must be in ENGINE, and ANDROID must have no
-    BEYOND yet: a runtime short of a file, or two engines' files mixed,
-    would build an app that the check did not mean."""
+    architecture and file must be in ENGINE, or nothing changes: a runtime
+    short of a file would build an app that the check did not mean. A
+    BEYOND folder that ANDROID has already (a release's own, as the
+    runtimes carry it from 0.2.7-rc.6.19 on) is taken away as a whole
+    first, so that the app is built from this checkout's engine and from
+    none of the release's files, never from the two mixed; a BEYOND that
+    is a link or a file, not a folder of its own, is refused."""
     import android_engine as ae
     beyond = os.path.join(android, BEYOND)
+    shown = os.path.relpath(beyond, root).replace(os.sep, '/')
     copies = [os.path.join(abi, x) for abi in sorted(ae.ABIS) for x in (ae.ENGINE,) + ae.EXTERNALS]
     copies += list(ae.TOP_FILES)
     problems = ['%s has no %s' % (engine, rel.replace(os.sep, '/')) for rel in copies
                 if not os.path.isfile(os.path.join(engine, rel))]
-    if os.path.exists(beyond):
-        problems.append('%s is there already' % os.path.relpath(beyond, root).replace(os.sep, '/'))
+    if os.path.islink(beyond) or (os.path.exists(beyond) and not os.path.isdir(beyond)):
+        problems.append('%s is there already, and is not a folder' % shown)
     if problems:
         return problems
+    if os.path.isdir(beyond):
+        count = sum(len(names) for _, _, names in os.walk(beyond))
+        shutil.rmtree(beyond)
+        log('%s: the release\'s (%d files) taken away, for the one built here' % (shown, count))
     for rel in copies:
         os.makedirs(os.path.dirname(os.path.join(beyond, rel)) or beyond, exist_ok=True)
         shutil.copyfile(os.path.join(engine, rel), os.path.join(beyond, rel))
@@ -1161,6 +1263,82 @@ def make_keystore(jdk, path):
     run([keytool, '-genkeypair', '-keystore', path, '-storetype', 'PKCS12', '-storepass', KEY_PASSWORD,
          '-keypass', KEY_PASSWORD, '-alias', KEY_ALIAS, '-keyalg', 'RSA', '-keysize', '2048', '-validity', '3650',
          '-dname', KEY_DNAME.replace(', ', ',')], check=True)
+
+
+def run_ide(cmd, work, env, results, timeout, output):
+    """Runs the IDE (cmd, in work, with env) until its lines (results) say
+    DONE: None, or what went wrong. Its output goes to work/output."""
+    import ui_tour
+    if os.path.exists(results):
+        os.remove(results)
+    log('Running: %s' % ' '.join(cmd))
+    started = progress = time.time()
+    status = 'did not finish within %d seconds' % timeout
+    with open(os.path.join(work, output), 'wb') as engine_log:
+        kw = {'creationflags': subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == 'nt' else \
+            {'start_new_session': True}
+        proc = subprocess.Popen(cmd, cwd=work, env=env, stdout=engine_log, stderr=subprocess.STDOUT, **kw)
+        try:
+            while time.time() - started < timeout:
+                done = read_lines(results)
+                if any(x.startswith('DONE') for x in done):
+                    status = None
+                    break
+                if proc.poll() is not None:
+                    status = 'the IDE ended with exit status %s after %.0f s' % (
+                        proc.returncode, time.time() - started)
+                    break
+                if time.time() - progress >= 15:
+                    progress = time.time()
+                    log('  after %.0f s: %s' % (progress - started, done[-1] if done else '(no lines yet)'))
+                time.sleep(0.5)
+        finally:
+            ui_tour.stop(proc)
+    return status
+
+
+def bundle_again(cmd, work, env, results, timeout, cache, lines):
+    """ide --bundletool-fallback, when GitHub's release host refused the
+    builder's download of bundletool (bundletool_refused_by_host): the jar
+    gh downloads is put at cache, where the builder keeps its download, and
+    the IDE builds the App Bundle again, alone, with no units and no Test.
+    Its lines then take the place of the first run's App Bundle lines in
+    results (the IDE's lines, android-check.txt), so that ide's own count,
+    and verify and device after it, read the App Bundle that was made; its
+    own lines stay in work/BUNDLE_AGAIN_LOG. The problems of the run again
+    (none when the IDE finished it; whether the App Bundle was built is
+    for ide to say, from the lines)."""
+    jar, why = bundletool_with_gh(work)
+    if not jar:
+        return ['GitHub\'s release host refused the builder\'s download of bundletool, and there is none to '
+                'build the App Bundle again with: %s' % why]
+    os.makedirs(os.path.dirname(cache), exist_ok=True)
+    shutil.copyfile(jar, cache)
+    note = ('GitHub\'s release host answered the builder\'s download of bundletool with an HTTP 5xx, so gh '
+            'downloaded it through GitHub\'s API (%s, SHA-256 checked), it was put at %s, where the builder '
+            'keeps its download, and the App Bundle was built again' % (BUNDLETOOL_VERSION, cache))
+    log('NOTE: %s' % note)
+    annotate('warning', note)
+    again = os.path.join(work, BUNDLE_AGAIN_LOG)
+    # the App Bundle alone: no units, and no Test on a device (the first
+    # run's lines say how those went)
+    status = run_ide(cmd, work, dict(env, OXT_ANDROID_LOG=again.replace('\\', '/'), OXT_ANDROID_BUILDS='bundle',
+                                      OXT_ANDROID_UNITS='skip', OXT_ANDROID_DEVICE=''),
+                     again, timeout, BUNDLE_AGAIN_OUTPUT)
+    more = read_lines(again)
+    for line in more:
+        log('  ide (the App Bundle again): %s' % line)
+    kept = [x for x in lines if not is_bundle_line(x) and not x.startswith('DONE')]
+    made = [x for x in more if is_bundle_line(x)] or \
+        ['BUILD FAILED bundle the IDE did not get to it when it was built again']
+    with open(results, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(kept + made + ['DONE']) + '\n')
+    problems = ['the IDE: %s' % x for x in ide_results(more)['errors']]
+    if status:
+        problems.append('the IDE, building the App Bundle again, %s' % status)
+        for line in read_lines(os.path.join(work, BUNDLE_AGAIN_OUTPUT))[-40:]:
+            log('  ide output: %s' % line)
+    return problems
 
 
 def ide(args):
@@ -1217,40 +1395,24 @@ def ide(args):
                 if not xvfb:
                     raise CheckError('no DISPLAY and no xvfb-run')
                 cmd = [xvfb, '-a', '-s', '-screen 0 1440x900x24'] + cmd
-        log('Running: %s' % ' '.join(cmd))
-        started = progress = time.time()
-        status = 'did not finish within %d seconds' % args.timeout
-        with open(os.path.join(work, 'ide-output.txt'), 'wb') as engine_log:
-            kw = {'creationflags': subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == 'nt' else \
-                {'start_new_session': True}
-            proc = subprocess.Popen(cmd, cwd=work, env=env, stdout=engine_log, stderr=subprocess.STDOUT, **kw)
-            try:
-                while time.time() - started < args.timeout:
-                    done = read_lines(results)
-                    if any(x.startswith('DONE') for x in done):
-                        status = None
-                        break
-                    if proc.poll() is not None:
-                        status = 'the IDE ended with exit status %s after %.0f s' % (
-                            proc.returncode, time.time() - started)
-                        break
-                    if time.time() - progress >= 15:
-                        progress = time.time()
-                        log('  after %.0f s: %s' % (progress - started, done[-1] if done else '(no lines yet)'))
-                    time.sleep(0.5)
-            finally:
-                ui_tour.stop(proc)
+        status = run_ide(cmd, work, env, results, args.timeout, 'ide-output.txt')
+        lines = read_lines(results)
+        for line in lines:
+            log('  ide: %s' % line)
+        r = ide_results(lines)
+        if status:
+            problems.append('the IDE %s' % status)
+            for line in read_lines(os.path.join(work, 'ide-output.txt'))[-40:]:
+                log('  ide output: %s' % line)
+        bundle = r['builds'].get('bundle')
+        cache = bundletool_refused_by_host(bundle[1]) if args.bundletool_fallback and bundle and \
+            bundle[0] != 'ok' else None
+        if cache:
+            problems += bundle_again(cmd, work, env, results, args.timeout, cache, lines)
+            r = ide_results(read_lines(results))
     finally:
         for d in temp_dirs:
             shutil.rmtree(d, ignore_errors=True)
-    lines = read_lines(results)
-    for line in lines:
-        log('  ide: %s' % line)
-    r = ide_results(lines)
-    if status:
-        problems.append('the IDE %s' % status)
-        for line in read_lines(os.path.join(work, 'ide-output.txt'))[-40:]:
-            log('  ide output: %s' % line)
     problems += ['the IDE: %s' % x for x in r['errors']]
     failed = {k: v for k, v in r['units'].items() if v}
     if not args.no_units:
@@ -2156,6 +2318,59 @@ def starts_again_for_density(args, adb, a, pid, names, what='density change', su
     return problems
 
 
+def probe_focus(a):
+    """Whether the probe's window has the focus, by `dumpsys window`'s
+    mCurrentFocus (None when it does not say), and that line."""
+    _, window = a('shell', 'dumpsys', 'window')
+    m = re.search(r'mCurrentFocus=.*', window or '')
+    if not m:
+        return None, ''
+    line = ' '.join(m.group(0).split())
+    return IDENTIFIER in line, line
+
+
+def probe_pauses(a):
+    """How many of the events buffer's lines say that Android paused the
+    probe's activity (wm_pause_activity), for whatever reason."""
+    _, events = a('logcat', '-d', '-b', 'events', '-v', 'brief')
+    return sum(1 for x in (events or '').splitlines()
+               if IDENTIFIER in x and re.search(r'\bwm_pause_activity\b', x))
+
+
+# A line of the events buffer as `logcat -v epoch` gives it: the time in
+# seconds, the process and thread, the level, the tag, and its values
+EPOCH_EVENT = re.compile(r'\s*(\d+(?:\.\d+)?)\s+(\d+)\s+\d+\s+[VDIWEFS]\s+(\w+)\s*:\s*\[(.*)\]\s*$')
+
+
+def destroy_held(events, pid):
+    """How long, in seconds, the probe's process `pid` held Android's
+    thread as Android made its activity again, by the events buffer as
+    `logcat -d -b events -v epoch` gives it: from its activity's last stop
+    for that (wm_on_stop_called, handleRelaunchActivity), which comes before
+    its onDestroy (doDestroy), to the activity made again in it
+    (wm_on_create_called, after the old one's onDestroy has returned in the
+    same turn of Android's thread), or when the buffer has no such line, to
+    the system's word that the process died (am_proc_died). None when the
+    buffer does not say. The reason is the third value: Android 14 and
+    newer add a fourth, the callback's time in ms (run 42564614783's
+    Android 16 image said nothing with the reason taken as the last)."""
+    lines = []
+    for line in (events or '').splitlines():
+        m = EPOCH_EVENT.match(line)
+        if m:
+            when, proc, tag, values = m.groups()
+            lines.append((float(when), proc, tag, [v.strip() for v in values.split(',')]))
+    stops = [i for i, (_, proc, tag, values) in enumerate(lines)
+             if proc == pid and tag == 'wm_on_stop_called' and values[2:3] == ['handleRelaunchActivity']]
+    if not stops:
+        return None
+    start = lines[stops[-1]][0]
+    for when, proc, tag, values in lines[stops[-1] + 1:]:
+        if (proc == pid and tag == 'wm_on_create_called') or (tag == 'am_proc_died' and pid in values[1:2]):
+            return when - start
+    return None
+
+
 def starts_again_for_density_in_wait(args, adb, a, pid, names):
     """--density-in-wait: --density's change while the probe's script
     waits. A tap on the probe: its mouseUp turns the screen WAIT_COLOR and
@@ -2166,31 +2381,90 @@ def starts_again_for_density_in_wait(args, adb, a, pid, names):
     on to join the engine thread, which was waiting for its turn, and the
     app hung there for good (on Android 16 in run 42416576870, where the
     engine yielded in the middle of drawing). The app must start again in
-    a new process, as for --density, once the wait is over."""
-    got = screen_now(adb, args.serial)
-    if not got:
-        return ['no screen of the probe to find where to tap it']
-    a('shell', 'input', 'tap', str(got[0] // 2), str(got[1] // 2))
-    tapped = time.time()
-    share = 0.0
-    while time.time() - tapped < WAIT_SEEN:
-        time.sleep(1)
+    a new process, as for --density, and the wait must end as the activity
+    goes (MCScreenDC::wait), not be waited out while Android's thread waits
+    for the engine: the process may hold it for HELD_LIMIT s (destroy_held).
+
+    The tap waits FOCUS_WAIT s at most for the probe's window to have the
+    focus, after another app's "isn't responding" dialog in front of it is
+    answered. A tap that turns no wait colour is given again (TAP_TRIES in
+    all) only when something stood in its way: the probe's window did not
+    have the focus, Android paused its activity, or another app's dialog
+    came in front of it; else it is a failure at once. The screen that
+    says where to tap is taken again when screencap gives none (SCREEN_TRIES
+    times in all)."""
+    got = None
+    for shot in range(SCREEN_TRIES):
+        if shot:
+            time.sleep(SCREEN_AGAIN)
         got = screen_now(adb, args.serial)
         if got:
-            share = colour_share(got[2], WAIT_COLOR)
-            if share >= 0.25:
-                break
-    seen = time.time() - tapped
-    log('After a tap on the probe: %.0f%% of the screen is its wait colour, %.0f s after the tap (it waits %d s)'
-        % (share * 100, seen, PROBE_WAIT))
-    if share < 0.25:
-        return ['a tap did not reach the probe\'s mouseUp: the screen did not turn its wait colour in %d s (%.0f%%)'
-                % (WAIT_SEEN, share * 100)]
+            break
+    if not got:
+        return ['no screen of the probe to find where to tap it (screencap gave none, %d times)' % SCREEN_TRIES]
+    x, y = str(got[0] // 2), str(got[1] // 2)
+    for tap in range(1, TAP_TRIES + 1):
+        answer_other_anr(a)
+        focused, focus = probe_focus(a)
+        asked = time.time()
+        while focused is False and time.time() - asked < FOCUS_WAIT:
+            time.sleep(1)
+            focused, focus = probe_focus(a)
+        pauses = probe_pauses(a)
+        a('shell', 'input', 'tap', x, y)
+        tapped = time.time()
+        share = 0.0
+        while time.time() - tapped < WAIT_SEEN:
+            time.sleep(1)
+            got = screen_now(adb, args.serial)
+            if got:
+                share = colour_share(got[2], WAIT_COLOR)
+                if share >= 0.25:
+                    break
+        seen = time.time() - tapped
+        log('After a tap on the probe: %.0f%% of the screen is its wait colour, %.0f s after the tap (it waits %d s)'
+            % (share * 100, seen, PROBE_WAIT))
+        if share >= 0.25:
+            break
+        # what stood between the tap and the probe's mouseUp
+        why = []
+        if focused is False:
+            why.append('the probe\'s window did not have the focus (%s)' % focus)
+        if probe_pauses(a) > pauses:
+            why.append('Android paused the probe\'s activity')
+        other = answer_other_anr(a)
+        if other:
+            why.append('%s was not responding, its dialog in front of the probe' % other)
+        if not why or tap == TAP_TRIES:
+            return ['a tap did not reach the probe\'s mouseUp: the screen did not turn its wait colour in %d s '
+                    '(%.0f%%)%s' % (WAIT_SEEN, share * 100, '; %s' % '; '.join(why) if why else '')]
+        log('  The tap did not reach the probe\'s mouseUp, as %s: tapping again' % '; '.join(why))
     if seen > WAIT_SEEN:
         return ['the probe\'s wait colour was seen %.0f s after the tap, too late to change the density while its '
                 'script surely waits (at most %d s)' % (seen, WAIT_SEEN)]
-    return starts_again_for_density(args, adb, a, pid, names, 'density change while the probe\'s script waited',
-                                    'density-in-wait')
+    problems = starts_again_for_density(args, adb, a, pid, names, 'density change while the probe\'s script waited',
+                                        'density-in-wait')
+    if problems:
+        return problems
+    _, events = a('logcat', '-d', '-b', 'events', '-v', 'epoch')
+    held = destroy_held(events, pid)
+    if held is None:
+        log('NOTE: the events buffer does not say how long process %s held Android\'s thread as its activity, '
+            'whose script waited, was made again' % pid)
+        # what it does say of that process's activities, so that a format
+        # this cannot read shows itself
+        own = [x.strip() for x in (events or '').splitlines()
+               if re.search(r'\bwm_on_\w+_called\b', x) and re.search(r'\s%s\s' % re.escape(pid), x)]
+        for line in own[-6:]:
+            log('  ' + line)
+    else:
+        log('Process %s held Android\'s thread for %.1f s as its activity, whose script waited, was made again '
+            '(wm_on_stop_called to the activity made again)' % (pid, held))
+        if held > HELD_LIMIT:
+            problems.append('as the activity whose script waited was made again, its process held Android\'s thread '
+                            'for %.0f s (at most %d s), so the engine waited out the script\'s wait (Android calls an '
+                            'app that does not answer a touch for 5 s not responding)' % (held, HELD_LIMIT))
+    return problems
 
 
 def opens_again_after_quit(args, adb, a, pid, names):
@@ -2272,24 +2546,35 @@ def device(args):
     rgba = b''
     # --allow: the probe must ask for the permission (Android's dialog in
     # front of it), which is allowed with the dialog's own button; until
-    # then its green does not end the wait
+    # then its green does not end the wait. Once Allow is tapped the check
+    # looks for the dialog until it has gone, and a dialog still in front
+    # ALLOW_AGAIN s after the tap has its Allow tapped again (ALLOW_TAPS)
     asked = allowed = False
+    allow_taps = 0
+    tapped_at = 0.0
     anr_taps = 0
     while time.time() - started < args.timeout:
         time.sleep(3)
-        if args.allow and not allowed:
+        if args.allow and allow_taps < ALLOW_TAPS:
             _, activities = a('shell', 'dumpsys', 'activity', 'activities')
             if asking_for_permission(activities):
                 if not asked:
                     log('After %.0f s: Android asks the user to allow %s' % (time.time() - started, args.allow))
                 asked = True
+                if allowed and time.time() - tapped_at < ALLOW_AGAIN:
+                    # the tap may still be closing it
+                    continue
                 a('shell', 'uiautomator', 'dump', '/sdcard/oxt-ui.xml')
                 _, xml = a('shell', 'cat', '/sdcard/oxt-ui.xml')
                 where = allow_button(xml)
                 if where:
                     a('shell', 'input', 'tap', str(where[0]), str(where[1]))
-                    log('  tapped Allow at %d,%d' % where)
+                    log('  tapped Allow at %d,%d%s' % (where + (
+                        ' again: the dialog was still in front %.0f s after the last tap' % (
+                            time.time() - tapped_at) if allowed else '',)))
                     allowed = True
+                    allow_taps += 1
+                    tapped_at = time.time()
                 else:
                     log('  no Allow button in the dialog yet')
                     # another app's "isn't responding" dialog can stand
@@ -2830,7 +3115,8 @@ def main(argv=None):
                                        'of the release\'s Runtime/Android')
     what.add_argument('--beyond', help='a runtime folder that tools/ci/build-android.sh wrote, to put beside the '
                                        'release\'s Runtime/Android as Runtime/Android/Beyond, where a stack whose '
-                                       '"android,engine" is "beyond" is built from')
+                                       '"android,engine" is "beyond" is built from (in place of a Beyond folder '
+                                       'the release has)')
     i = sub.add_parser('ide')
     i.add_argument('--bin', dest='bin_dir')
     i.add_argument('--install')
@@ -2849,6 +3135,9 @@ def main(argv=None):
     i.add_argument('--probe', choices=sorted(PROBES), default='app',
                    help='java: the Java layer\'s probe (AndroidJavaProbe)')
     i.add_argument('--timeout', type=int, default=1500)
+    i.add_argument('--bundletool-fallback', action='store_true',
+                   help='when GitHub\'s release host answers the builder\'s download of bundletool with an HTTP '
+                        '5xx, download it with gh through GitHub\'s API and build the App Bundle again')
     v = sub.add_parser('verify')
     v.add_argument('--work', required=True)
     v.add_argument('--sdk', required=True)
