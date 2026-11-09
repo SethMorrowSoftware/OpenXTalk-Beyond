@@ -1609,6 +1609,11 @@ class DestroyHeld(unittest.TestCase):
         other = '1794198251.000   482   511 I am_proc_died: [0,6720,org.openxtalk.check.androidprobe:relaunch,0,2]'
         self.assertAlmostEqual(self.held(self.STOP, other, died), 2.8, places=3)
 
+    def test_android_14_and_newer_add_the_callbacks_time(self):
+        # wm_on_*_called's fourth value, the callback's time in ms
+        self.assertAlmostEqual(self.held(self.STOP.replace('handleRelaunchActivity]', 'handleRelaunchActivity,3]'),
+                                         self.CREATE.replace('performCreate]', 'performCreate,41]')), 12.5, places=3)
+
     def test_no_stop_for_a_relaunch_says_nothing(self):
         self.assertIsNone(self.held(self.CREATE))
         self.assertIsNone(self.held(self.STOP))
@@ -1674,7 +1679,8 @@ class DeviceOnceInAProcess(unittest.TestCase):
                'org.openxtalk.check.androidprobe.mblandroid}\\n"')
 
     def run_probe(self, argv, font='same', density='new', back='ends', again='new', font_before='1.0',
-                  offline_at=None, tap='waits', reset='new', cleared=False, window=Device.WINDOW, held=None):
+                  offline_at=None, tap='waits', reset='new', cleared=False, window=Device.WINDOW, held=None,
+                  relaunch_reason='handleRelaunchActivity'):
         """What the stand-in device's probe does: for a font size change
         (same: goes on in its process; crash: the second start stopped,
         and no process), a density change (new: started again in a new
@@ -1695,8 +1701,8 @@ class DeviceOnceInAProcess(unittest.TestCase):
         only, the next waits; always-paused, every one. window: what
         dumpsys window says (another app's dialog in front of the probe,
         or FOCUSED); held: how long process 3475 held Android's thread as
-        its activity was made again (`logcat -v epoch`'s events), or None:
-        no such lines"""
+        its activity was made again (`logcat -v epoch`'s events, its stop's
+        reason relaunch_reason), or None: no such lines"""
         d = self.tmp.name
         with open(os.path.join(d, 'logcat.txt'), 'w') as f:
             f.write('' if cleared else Device.LOG.split('I/lowmemorykiller')[0])
@@ -1737,7 +1743,8 @@ class DeviceOnceInAProcess(unittest.TestCase):
                        'always-paused': pause}[tap]})
         if held is not None:
             cases += ('  "logcat -d -b events -v epoch") printf "%s" ;;\n'
-                      % self.held_events(held).replace('\n', '\\n'))
+                      % self.held_events(held).replace('handleRelaunchActivity', relaunch_reason)
+                      .replace('\n', '\\n'))
         # the second am start: a new process where the first has ended
         started = 'grep -c "^shell am start" "%s/platform-tools/calls"' % d
         second = {'new': '[ -s "%(d)s/pid" ] || { [ $(%(n)s) -ge 2 ] && echo 5000 > "%(d)s/pid"; }',
@@ -1913,6 +1920,17 @@ class DeviceOnceInAProcess(unittest.TestCase):
         status, out, _ = self.run_probe(['--density-in-wait'], window=self.FOCUSED)
         self.assertEqual(status, 0, out)
         self.assertIn("NOTE: the events buffer does not say how long process 3475 held Android's thread", out)
+
+    def test_a_hold_in_a_form_it_cannot_read_shows_its_lines(self):
+        # a relaunch it does not know: the process's own wm_on_*_called
+        # lines are shown, so that the form shows itself
+        status, out, _ = self.run_probe(['--density-in-wait'], window=self.FOCUSED, held=0.4,
+                                        relaunch_reason='relaunchSomehow')
+        self.assertEqual(status, 0, out)
+        self.assertIn("NOTE: the events buffer does not say how long process 3475 held Android's thread", out)
+        self.assertIn('\n  1794198250.200   3475   3475 I wm_on_stop_called: [165476428,'
+                      'org.openxtalk.check.androidprobe.mblandroid,relaunchSomehow]\n', out)
+        self.assertNotIn('   590   612 I', out.split('NOTE: the events buffer', 1)[1])
 
     def test_a_tap_lost_as_android_paused_the_probe_is_given_again(self):
         # attempt 2 of run 42558963714: System UI not responding, Android

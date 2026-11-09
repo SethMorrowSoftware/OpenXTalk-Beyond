@@ -2213,7 +2213,9 @@ def destroy_held(events, pid):
     (wm_on_create_called, after the old one's onDestroy has returned in the
     same turn of Android's thread), or when the buffer has no such line, to
     the system's word that the process died (am_proc_died). None when the
-    buffer does not say."""
+    buffer does not say. The reason is the third value: Android 14 and
+    newer add a fourth, the callback's time in ms (run 42564614783's
+    Android 16 image said nothing with the reason taken as the last)."""
     lines = []
     for line in (events or '').splitlines():
         m = EPOCH_EVENT.match(line)
@@ -2221,7 +2223,7 @@ def destroy_held(events, pid):
             when, proc, tag, values = m.groups()
             lines.append((float(when), proc, tag, [v.strip() for v in values.split(',')]))
     stops = [i for i, (_, proc, tag, values) in enumerate(lines)
-             if proc == pid and tag == 'wm_on_stop_called' and values[-1:] == ['handleRelaunchActivity']]
+             if proc == pid and tag == 'wm_on_stop_called' and values[2:3] == ['handleRelaunchActivity']]
     if not stops:
         return None
     start = lines[stops[-1]][0]
@@ -2303,6 +2305,12 @@ def starts_again_for_density_in_wait(args, adb, a, pid, names):
     if held is None:
         log('NOTE: the events buffer does not say how long process %s held Android\'s thread as its activity, '
             'whose script waited, was made again' % pid)
+        # what it does say of that process's activities, so that a format
+        # this cannot read shows itself
+        own = [x.strip() for x in (events or '').splitlines()
+               if re.search(r'\bwm_on_\w+_called\b', x) and re.search(r'\s%s\s' % re.escape(pid), x)]
+        for line in own[-6:]:
+            log('  ' + line)
     else:
         log('Process %s held Android\'s thread for %.1f s as its activity, whose script waited, was made again '
             '(wm_on_stop_called to the activity made again)' % (pid, held))
