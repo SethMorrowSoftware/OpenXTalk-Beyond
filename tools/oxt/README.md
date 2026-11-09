@@ -539,7 +539,7 @@ Intended differences from OXT Lite 1.15:
 | the 3 junk and 2 excluded files | see [Classes](#classes) |
 | `LICENSE`, `LICENSE-EXCEPTION.md`, `THIRD-PARTY-NOTICES.md` | added: OXT-Beyond's licence files |
 | `Ext/mergJSON/**` | added: mergJSON, built from its source in `mergjson/` (the external, its library and the licences of its code) |
-| `PROVENANCE-oxt-runtimes-*.md` | added: provenance of the runtimes asset (`PROVENANCE-oxt-runtimes-0.2.7-rc.6.18b.md`, and `PROVENANCE-oxt-runtimes-1.15.md` for its Android files) |
+| `PROVENANCE-oxt-runtimes-*.md` | added: provenance of the runtimes asset (`PROVENANCE-oxt-runtimes-0.2.7-rc.6.19.md`, and `PROVENANCE-oxt-runtimes-1.15.md` for its Android files) |
 | `Runtime/Windows/x86-32/**`, `Runtime/Linux/**`, timezone `code/**` and `resources/**` | with a runtimes asset made from this repository's builds (any but `oxt-runtimes-1.15`), these may differ from 1.15's files, lack what 1.15's Linux runtimes bundled in `lib/` (shared libraries of other projects) and its iOS and macOS 10.9 timezone code, or have new files (the externals lists of the 64-bit Linux runtime, for example); `Runtime/Android/**`, carried over unchanged, is compared byte for byte, apart from the Java layer that such an asset's `java_layer` names (`Runtime/Android/Classes`, built from this repository) |
 | `Extensions/<xTalk folders>/**`, `Extensions/XTALK-EXTENSIONS.txt` | added: the xTalk Suite extensions (class `xtalk`); against a reference that has them they are compared like build outputs, and `--no-xtalk-extensions` makes them intended differences |
 
@@ -766,7 +766,8 @@ layout: files this repository does not build, kept out of git and published
 as GitHub Release assets. Now this is the runtimes asset: the other
 platforms' standalone runtimes, built from this repository, with OXT Lite
 1.15's Android runtime (its Java layer built from this repository in the
-assets that name one, `java_layer`; see
+assets that name one, `java_layer`, and OXT-Beyond's own Android engine
+beside it in those that name one, `android_engine`; see
 [The runtimes asset](#the-runtimes-asset)). (The
 xTalk Suite extensions are not assets: see
 [below](#xtalk-suite-extensions-xtalk_extensionspy).)
@@ -775,14 +776,14 @@ xTalk Suite extensions are not assets: see
 {
   "assets": [
     {
-      "id": "oxt-runtimes-0.2.7-rc.6.18b",
-      "url": "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/runtimes-0.2.7-rc.6.18b/oxt-runtimes-0.2.7-rc.6.18b.zip",
+      "id": "oxt-runtimes-0.2.7-rc.6.19",
+      "url": "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/runtimes-0.2.7-rc.6.19/oxt-runtimes-0.2.7-rc.6.19.zip",
       "sha256": "<64 lowercase hex digits>",
       "size": 123456789,
       "kind": "zip",
       "strip": 1,
       "dest": "",
-      "rename": { "PROVENANCE.md": "PROVENANCE-oxt-runtimes-0.2.7-rc.6.18b.md" },
+      "rename": { "PROVENANCE.md": "PROVENANCE-oxt-runtimes-0.2.7-rc.6.19.md" },
       "exclude": { "win-x86_64": ["Runtime/Windows/x86-64/**", "..."], "...": ["..."] },
       "description": "...", "licence": "...", "source": "..."
     }
@@ -816,12 +817,18 @@ xTalk Suite extensions are not assets: see
   `package.py --compare` then lets it differ from 1.15's, and
   `tools/ci/runtimes_provenance.py` counts the commits since the asset's
   for it.
+* `android_engine` (optional, the runtimes asset only) names the folder of
+  OXT-Beyond's own Android engine, `Runtime/Android/Beyond`, when the
+  asset carries it (`make_runtimes_asset.py --android-engine`): the
+  Android builder takes it for a stack whose `"android,engine"` setting
+  is `"beyond"`, and `tools/ci/runtimes_provenance.py` counts the commits
+  since the asset's for it.
 * `description`, `licence` and `source` are for people.
 
 The runtimes asset excludes, per platform, what that platform's own build
 makes (`make_runtimes_asset.py` writes these; `OWN_PARTS` there):
 
-| platform | left out of `oxt-runtimes-0.2.7-rc.6.18b` | why |
+| platform | left out of `oxt-runtimes-0.2.7-rc.6.19` | why |
 |---|---|---|
 | `win-x86_64` | `Runtime/Windows/x86-64/**`, timezone `code/x86_64-win32/**` | the build's own runtime and timezone code |
 | `linux-x86_64` | `Runtime/Linux/x86-64/**`, timezone `code/x86_64-linux/**`, timezone `resources/**` | the build's own runtime and timezone code, and the zoneinfo data (tz.gyp `tzdata`, which the Windows builds do not make) |

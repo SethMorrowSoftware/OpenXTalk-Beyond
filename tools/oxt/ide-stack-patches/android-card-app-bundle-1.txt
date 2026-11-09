@@ -3,14 +3,18 @@
 # Android builder makes one beside the package for a stack whose
 # "android,app bundle" standalone setting is true; until now only a script
 # could set it. The box is that setting: the targets group's script (patch
-# -3) stores it, the card sets the box from the stack's settings and
+# -2) stores it, the card sets the box from the stack's settings and
 # enables it while the stack is built for Android
 # (revstandalonesettingsandroidbehavior.livecodescript). A stack that never
 # ticks it is built as before, with no bundle.
 #
 # A copy of "Android x86_64", whose script is empty, so a click goes to its
 # group as the architectures' do; the row has room for it to the right of
-# "Android x86_64", inside the window. Its tooltip says what it makes.
+# "Android x86_64", inside the window. The group grows to hold it (to the
+# right edge 749), which android-card-engine-2.txt declares, with its
+# growth for the engine box of android-card-engine-1.txt: the patch tool
+# takes one patch per property, applied when the property has its from:
+# value or its to: value. Its tooltip says what it makes.
 file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
 object: button "Android x86_64" of group "Android Targets" of card "Android"
 clone: App Bundle

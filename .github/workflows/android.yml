@@ -272,10 +272,17 @@ jobs:
             tail -n 40 "$WORK/emulator-api33.log"
           fi
 
+      # --bundletool-fallback: when GitHub's release host answers the
+      # builder's download of bundletool with an HTTP 5xx (as it did for
+      # hours on 9 November 2026), the pinned jar is downloaded with gh,
+      # through GitHub's API, and the App Bundle built again, with a
+      # warning; the builder's own download is still tried first
       - name: This builder (units and builds)
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           "$PY" tools/ci/android_check.py ide --install "$CHANGED" --platform "$PLATFORM" \
-            --work "$WORK/changed" --sdk "$SDK" --jdk "$JDK"
+            --work "$WORK/changed" --sdk "$SDK" --jdk "$JDK" --bundletool-fallback
 
       # They target the API the builder picks for the release's runtime:
       # 33 with LiveCode 9.6.3's Java layer, which the runtimes carried
@@ -289,10 +296,12 @@ jobs:
       - name: The released builder (builds)
         id: released
         continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           "$PY" tools/ci/android_check.py ide --install "$RELEASED" --platform "$PLATFORM" \
             --work "$WORK/released" --sdk "$SDK" --jdk "$JDK" --no-units \
-            --stack "$WORK/changed/AndroidProbe.livecode"
+            --stack "$WORK/changed/AndroidProbe.livecode" --bundletool-fallback
 
       - name: The released builder made no packages to compare
         if: steps.released.outcome != 'success'
@@ -314,9 +323,12 @@ jobs:
       # stack's orientation on large screens
       - name: The Java layer's probe, with this Java layer
         if: runner.os == 'Linux'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           "$PY" tools/ci/android_check.py ide --install "$JAVA_IDE" --platform "$PLATFORM" \
-            --work "$WORK/java-new" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug,bundle --probe java
+            --work "$WORK/java-new" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug,bundle --probe java \
+            --bundletool-fallback
           "$PY" tools/ci/android_check.py verify --work "$WORK/java-new" --sdk "$SDK" --jdk "$JDK" \
             --builds debug,bundle --target 36
 
@@ -333,6 +345,18 @@ jobs:
             --stack "$WORK/changed/AndroidProbe.livecode"
           "$PY" tools/ci/android_check.py verify --work "$WORK/java-app" --sdk "$SDK" --jdk "$JDK" \
             --builds debug --target 36
+
+      # The busy probe (kBusyTick in tools/ci/android-check.livecodescript):
+      # the app probe drawing all the time it runs, by this builder with the
+      # Java layer built here and the release's engine, LiveCode 9.6.3's,
+      # for the density changes below: Android relaunching it in the middle
+      # of drawing hung that engine for good, before the Java layer let it
+      # finish drawing first (Engine.finishDrawing)
+      - name: The busy probe, with this Java layer
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_check.py ide --install "$JAVA_IDE" --platform "$PLATFORM" \
+            --work "$WORK/java-busy" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug --probe busy
 
       # The same stack, by the same builder, with the release's own Java
       # layer: the "before" of the comparison
@@ -428,6 +452,15 @@ jobs:
           "$PY" tools/ci/android_check.py device --apk "$WORK/java-app/out/debug.apk" --serial emulator-5554 \
             --sdk "$SDK" --out "$WORK/screen-api33-java-app.png" --log-out "$WORK/logcat-api33-java-app.txt" \
             --within-bars --font-scale --density --relaunch
+
+      # The busy probe through five density changes and their returns:
+      # ten relaunches, each while it draws
+      - name: Run the busy probe across density changes on Android 13
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_check.py device --apk "$WORK/java-busy/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-api33-java-busy.png" --log-out "$WORK/logcat-api33-java-busy.txt" \
+            --within-bars --density --density-times 5
 
       # For the record, not a check (no annotations, so the run's account
       # stays the checks'): the same probe with the release's own Java
@@ -541,12 +574,17 @@ jobs:
           # and sends its back key only to the back callback; and its App
           # Bundle, as split APKs. The app probe with this Java layer as on
           # Android 13: once in a process, through a font size change, a
-          # density change, and opened again after its stack quits
+          # density change, and opened again after its stack quits; and the
+          # busy probe through density changes, as on Android 13 (Android 16
+          # is where a relaunch while it drew hung 9.6.3's engine)
           "$PY" tools/ci/android_check.py device --apk "$WORK/changed/out/debug.apk" --serial emulator-5554 \
             --sdk "$SDK" --out "$WORK/screen-16k-debug.png" --log-out "$WORK/logcat-16k-debug.txt" --within-bars
           "$PY" tools/ci/android_check.py device --apk "$WORK/java-app/out/debug.apk" --serial emulator-5554 \
             --sdk "$SDK" --out "$WORK/screen-16k-java-app.png" --log-out "$WORK/logcat-16k-java-app.txt" \
             --within-bars --font-scale --density --relaunch
+          "$PY" tools/ci/android_check.py device --apk "$WORK/java-busy/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-16k-java-busy.png" --log-out "$WORK/logcat-16k-java-busy.txt" \
+            --within-bars --density --density-times 5
           for pkg in debug.apk bundle.aab; do
             "$PY" tools/ci/android_check.py device --apk "$WORK/java-new/out/$pkg" --serial emulator-5554 \
               --sdk "$SDK" --out "$WORK/screen-16k-java-${pkg%.*}.png" --log-out "$WORK/logcat-16k-java-${pkg%.*}.txt" \
@@ -562,6 +600,8 @@ jobs:
           path: |
             ${{ env.WORK }}/*/android-check.txt
             ${{ env.WORK }}/*/ide-output.txt
+            ${{ env.WORK }}/*/android-check-bundle.txt
+            ${{ env.WORK }}/*/ide-output-bundle.txt
             ${{ env.WORK }}/*/out/*.apk
             ${{ env.WORK }}/*/out/*.aab
             ${{ env.WORK }}/*.png

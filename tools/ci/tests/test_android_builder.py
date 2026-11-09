@@ -571,11 +571,32 @@ def patch_lines(name):
     return [line for line in read(PATCHES + (name,)).split('\n') if line and not line.startswith('#')]
 
 
+def targets_group_rects():
+    """The build targets' group's rectangle in the stack file and as the
+    patches leave it ([left, top, right, bottom] each): one patch declares
+    it, android-card-engine-2.txt, as the patch tool takes a patch of a
+    property as applied only at its from: or to: value"""
+    declaring = []
+    for name in sorted(os.listdir(os.path.join(REPO, *PATCHES))):
+        if not name.endswith('.txt'):
+            continue
+        lines = patch_lines(name)
+        if 'object: group "Android Targets" of card "Android"' in lines and 'property: rect' in lines:
+            declaring.append(name)
+    if declaring != ['android-card-engine-2.txt']:
+        raise AssertionError('the targets group\'s rect is declared by %s' % declaring)
+    lines = patch_lines('android-card-engine-2.txt')
+    at = lines.index('property: rect')
+    return ([int(x) for x in lines[at + 1][len('from:'):].split(',')],
+            [int(x) for x in lines[at + 2][len('to:'):].split(',')])
+
+
 class AppBundleBox(unittest.TestCase):
     """The Android card's "App Bundle" box, made by the IDE stack patches
     android-card-app-bundle-*.txt (a copy of "Android x86_64" at the end of
-    the build targets' row, the row grown to hold it, and the row's script
-    storing it) and shown by the card's behaviour. Its setting must be the
+    the build targets' row, and the row's script storing it; the row grown
+    to hold it, which android-card-engine-2.txt declares) and shown by the
+    card's behaviour. Its setting must be the
     one the builder reads, a click on it must not be taken for an
     architecture, and a stack that never ticks it must build as before. The
     UI tour clicks it in the IDE (tourAndroidAppBundle); the patch tool
@@ -600,21 +621,18 @@ class AppBundleBox(unittest.TestCase):
 
     def test_the_box_is_right_of_x86_64_inside_the_row(self):
         box = [int(x) for x in patch_lines('android-card-app-bundle-1.txt')[-1][3:].split(',')]
-        grown = patch_lines('android-card-app-bundle-2.txt')
-        self.assertIn('object: group "Android Targets" of card "Android"', grown)
-        before = [int(x) for x in grown[grown.index('property: rect') + 1][5:].split(',')]
-        after = [int(x) for x in grown[grown.index('property: rect') + 2][3:].split(',')]
+        before, after = targets_group_rects()
         # x86_64 ends at 625 (the stack's dump); the box after it on its row
         self.assertEqual(before, [111, 70, 629, 99])
         self.assertGreater(box[0], 625)
         self.assertEqual((box[1], box[3]), (75, 95))
-        # the row grows only to the right, by the engine's margins of 4,
-        # and stays inside the window (754 wide)
-        self.assertEqual(after, before[:2] + [box[2] + 4, before[3]])
+        # the row grows to the right by the engine's margins of 4, and
+        # stays inside the window (754 wide)
+        self.assertEqual(after[:3], before[:2] + [box[2] + 4])
         self.assertLessEqual(after[2], 754)
 
     def test_a_click_stores_the_setting_the_builder_reads(self):
-        lines = patch_lines('android-card-app-bundle-3.txt')
+        lines = patch_lines('android-card-app-bundle-2.txt')
         self.assertIn('object: group "Android Targets" of card "Android"', lines)
         new = '\n'.join(line[1:-1] for line in lines[lines.index('with:') + 1:])
         box = new.index('if tTarget is "App Bundle" then')
@@ -646,7 +664,7 @@ class AppBundleBox(unittest.TestCase):
         tour = read(TOUR)
         step = handler(tour, 'tour_standalone_settings')
         self.assertRegex(step, r'if tCard is "Android" then\s+put tourAndroidAppBundle\(tStack\) after tFails')
-        self.assertIn('throw "the Android card is not shown, so its App Bundle box was not checked"', step)
+        self.assertIn('throw "the Android card is not shown, so its App Bundle and engine boxes were not checked"', step)
         check = handler(tour, 'tourAndroidAppBundle')
         for part in ('dispatch "mouseUp" to tBox with 1', 'dispatch "updateSettings" to tCard',
                      'the cRevStandaloneSettings["android,app bundle"] of stack kSample is not true',
@@ -654,6 +672,155 @@ class AppBundleBox(unittest.TestCase):
                      'set the customProperties["cRevStandaloneSettings"] of stack kSample to tWas',
                      'the enabled of tBox is not the enabled of group "Android Settings" of tCard'):
             self.assertIn(part, check)
+
+
+class EngineBox(unittest.TestCase):
+    """The Android card's "OXT-Beyond engine (preview)" box, made by the IDE
+    stack patches android-card-engine-*.txt (a copy of "Android x86_64" in
+    the build targets' group, put in the right-hand column's free row under
+    the device table; the group grown to hold it; the group's script
+    storing it) and shown by the card's behaviour. Ticked, the stack's
+    "android,engine" setting is beyond, with which the builder takes
+    OXT-Beyond's own engine; unticked it is empty, LiveCode 9.6.3's, as
+    for a stack that never had the box. The UI tour clicks it in the IDE
+    and checks that the group, grown over the card, takes no click from
+    the controls under it (tourAndroidEngine); the patch tool checks the
+    stack (tools/oxt/ide-stack-patch.sh --check)."""
+
+    def box(self):
+        lines = patch_lines('android-card-engine-1.txt')
+        return [int(x) for x in lines[lines.index('property: rect') + 1][len('to:'):].split(',')]
+
+    def test_the_box_is_a_copy_of_a_box_without_a_script(self):
+        lines = patch_lines('android-card-engine-1.txt')
+        self.assertIn('object: button "Android x86_64" of group "Android Targets" of card "Android"', lines)
+        self.assertIn('clone: Beyond Engine', lines)
+        self.assertEqual(lines[lines.index('property: label') + 1], 'to: OXT-Beyond engine (preview)')
+        tip = lines[lines.index('property: toolTip') + 1]
+        self.assertIn("OXT-Beyond's own Android engine", tip)
+        self.assertIn("LiveCode 9.6.3's", tip)
+        # a unique id of its own, as the IDE gives a new object
+        ids = {}
+        for name in os.listdir(os.path.join(REPO, *PATCHES)):
+            if name.endswith('.txt'):
+                for line in patch_lines(name):
+                    if line.startswith('unique-id:'):
+                        ids.setdefault(line, []).append(name)
+        unique = [line for line in patch_lines('android-card-engine-1.txt') if line.startswith('unique-id:')]
+        self.assertEqual(len(unique), 1)
+        self.assertRegex(unique[0], r'^unique-id: \d{13}$')
+        self.assertEqual(ids[unique[0]], ['android-card-engine-1.txt'])
+        # its source's script is empty, so a click goes to the targets
+        # group's script, and the copy (whose script the patch tool holds
+        # to its source's) has none either
+        names = [n for n in os.listdir(os.path.join(REPO, *SCRIPTS))
+                 if '> button "Beyond Engine" (id ' in read(SCRIPTS + (n,))]
+        self.assertEqual(len(names), 1, names)
+        self.assertIn('> group "Android Targets" (id 31523) > button "Beyond Engine"', read(SCRIPTS + (names[0],)))
+        self.assertEqual(code(read(SCRIPTS + (names[0],))).split('\n', 1)[1].strip(), '')
+
+    def test_the_box_is_in_the_free_row_of_the_right_column(self):
+        left, top, right, bottom = self.box()
+        # the stack's dump: the device table's last row (Multitouch
+        # Jazzhand) ends at 490, the permissions' boxes start at 418 and
+        # the "Application Permissions" group, whose title is its first
+        # line, at 516 (android-card-post-notifications-2.txt's from:)
+        self.assertGreaterEqual(top, 490)
+        self.assertEqual(left, 418)
+        grown = patch_lines('android-card-post-notifications-2.txt')
+        at = grown.index('object: group "Application Permissions" of group "Android Settings" of card "Android"')
+        permissions = [int(x) for x in grown[at + 2][len('from:'):].split(',')]
+        self.assertEqual(permissions[1], 516)
+        self.assertLessEqual(bottom, permissions[1])
+        # as tall as the other boxes of the card (20), and inside the
+        # permissions' column and the window (754 wide); 240 wide for its
+        # words, which need 190 to 211 in Linux's fonts
+        self.assertEqual(bottom - top, 20)
+        self.assertLessEqual(right, permissions[2])
+        self.assertGreaterEqual(right - left, 230)
+
+    def test_the_group_grows_to_hold_both_boxes(self):
+        before, after = targets_group_rects()
+        bundle = [int(x) for x in patch_lines('android-card-app-bundle-1.txt')[-1][3:].split(',')]
+        box = self.box()
+        # as the engine makes it: margins of 4 past the boxes, nothing else
+        self.assertEqual(before, [111, 70, 629, 99])
+        self.assertEqual(after, [before[0], before[1], bundle[2] + 4, box[3] + 4])
+        self.assertLessEqual(after[2], 754)
+        # the patch files around it in their order: the copies first, so
+        # that the group has grown when its rect is declared
+        names = sorted(n for n in os.listdir(os.path.join(REPO, *PATCHES)) if n.startswith('android-card-'))
+        self.assertLess(names.index('android-card-app-bundle-1.txt'), names.index('android-card-engine-2.txt'))
+        self.assertLess(names.index('android-card-engine-1.txt'), names.index('android-card-engine-2.txt'))
+        self.assertNotIn('android-card-app-bundle-3.txt', names)
+
+    def test_a_click_stores_the_setting_the_builder_reads(self):
+        lines = patch_lines('android-card-engine-3.txt')
+        self.assertIn('object: group "Android Targets" of card "Android"', lines)
+        old = '\n'.join(line[1:-1] for line in lines[lines.index('replace:') + 1:lines.index('with:')])
+        new = '\n'.join(line[1:-1] for line in lines[lines.index('with:') + 1:])
+        self.assertEqual(old, 'on mouseUp\n   if word 1 of the target is not "button" then')
+        self.assertTrue(new.startswith('on mouseUp\n'))
+        self.assertTrue(new.endswith('\n   if word 1 of the target is not "button" then'))
+        # the text it replaces is not in what replaces it, so that a second
+        # run finds the patch applied
+        self.assertNotIn(old, new)
+        self.assertRegex(code(new), r'if word 1 of the target is "button" and the short name of the target is '
+                                    r'"Beyond Engine" then\s+if the hilite of the target then\s+'
+                                    r'storeSetting "engine", "beyond"\s+else\s+storeSetting "engine", empty\s+'
+                                    r'end if\s+exit mouseUp\s+end if')
+        # the row's script in the stack is patched by both, the box's
+        # branch before the architectures' line, which would take its
+        # second word ("Engine") for one, and before "App Bundle"'s
+        row = read(SCRIPTS + ('stack_revStandaloneSettings_group_id_31523.livecodescript',))
+        self.assertIn(new, row)
+        bundle = patch_lines('android-card-app-bundle-2.txt')
+        self.assertIn('\n'.join(line[1:-1] for line in bundle[bundle.index('with:') + 1:]), row)
+        body = code(row)
+        self.assertLess(body.index('"Beyond Engine"'), body.index('if tTarget is "App Bundle" then'))
+        self.assertLess(body.index('"Beyond Engine"'), body.index('updateAndroidArch word 2 of tTarget'))
+        # the card stores a setting under "android," and its name; the
+        # builder takes OXT-Beyond's engine for beyond and 9.6.3's for empty
+        self.assertIn('setSetting "android," & pName, pValue', handler(code(read(CARD)), 'storeSetting'))
+        choose = handler(code(read(BUILDER)), 'androidRuntimeFolder')
+        self.assertRegex(choose, r'case empty\s+case "9.6.3"\s+return tRuntime')
+        self.assertRegex(choose, r'case "beyond"\s+if there is not a folder \(tRuntime & slash & "Beyond"\) then')
+
+    def test_the_card_shows_the_setting_and_enables_the_box_with_android(self):
+        card = code(read(CARD))
+        settings = handler(card, 'updateSettings')
+        self.assertRegex(settings, r'set the hilited of button "Beyond Engine" of group "Android targets" of me to\s+'
+                                   r'\(tSettings\["android,engine"\] is "beyond"\)')
+        state = handler(card, 'updateAndroidSettingState')
+        self.assertIn('set the enabled of button "Beyond Engine" of group "Android targets" of me to tEnabled', state)
+        self.assertLess(state.index('put true into tEnabled'), state.index('"Beyond Engine"'))
+        # an IDE whose stack has no such box opens the card as before
+        for body in (settings, state):
+            self.assertIn('if there is a button "Beyond Engine" of group "Android targets" of me then', body)
+
+    def test_the_tour_clicks_it(self):
+        tour = read(TOUR)
+        step = handler(tour, 'tour_standalone_settings')
+        self.assertRegex(step, r'if tCard is "Android" then\s+put tourAndroidAppBundle\(tStack\) after tFails\s+'
+                               r'put tourAndroidEngine\(tStack\) after tFails')
+        self.assertIn('throw "the Android card is not shown, so its App Bundle and engine boxes were not checked"', step)
+        check = handler(tour, 'tourAndroidEngine')
+        for part in ('dispatch "mouseUp" to tBox with 1', 'dispatch "updateSettings" to tCard',
+                     'set the cRevStandaloneSettings["android,engine"] of stack kSample to "beyond"',
+                     'set the cRevStandaloneSettings["android,engine"] of stack kSample to "9.6.3"',
+                     'set the cRevStandaloneSettings["android,engine"] of stack kSample to empty',
+                     'the cRevStandaloneSettings["android,engine"] of stack kSample is not "beyond"',
+                     'the cRevStandaloneSettings["android,engine"] of stack kSample is not empty',
+                     'the cRevStandaloneSettings["android,app bundle"] of stack kSample is not tWas["android,app bundle"]',
+                     'set the customProperties["cRevStandaloneSettings"] of stack kSample to tWas',
+                     'the enabled of tBox is not the enabled of tSettings',
+                     'put controlAtLoc(the loc of button tRow of tSettings) into tHit',
+                     'set the enabled of tBox to tBoxEnabledWas',
+                     'set the enabled of tSettings to tEnabledWas'):
+            self.assertIn(part, check)
+        # the clicks are looked at with the box enabled, as for a stack
+        # built for Android (a disabled control takes none)
+        self.assertLess(check.index('set the enabled of tBox to true'), check.index('controlAtLoc('))
 
 
 class TargetAPI(unittest.TestCase):
@@ -822,8 +989,11 @@ class Relaunch(unittest.TestCase):
                                  r's_main_layout = new FrameLayout\(this\);')
         destroy = re.search(r'(?s)protected void onDestroy\(\)\s*\{(.*?)\n\t\}', activity).group(1)
         # an activity that started no engine has none to finish
+        # (and the engine finishes showing what it drew, see
+        # test_android_java's test_the_engine_finishes_drawing_first)
         self.assertRegex(destroy, r'^\s*super\.onDestroy\(\);\s+(?://[^\n]*\s+)*if \(!m_engine_started\)\s+'
-                                  r'return;\s+s_main_view\.clearWakeUp\(\);')
+                                  r'return;\s+(?://[^\n]*\s+)*s_main_view\.finishDrawing\(\);\s+'
+                                  r's_main_view\.clearWakeUp\(\);')
         # the process ends after the engine, only when the activity is
         # finishing and not for a configuration change
         self.assertRegex(destroy, r's_main_view = null;\s+(?://[^\n]*\s+)*'
