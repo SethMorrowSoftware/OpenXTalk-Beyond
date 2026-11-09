@@ -1364,6 +1364,12 @@ public class Engine extends View implements EngineApi
 	private Rect getEffectiveWorkarea()
 	{
 		Rect t_workrect = new Rect();
+        // OXT-Beyond: a stack drawn edge to edge has the part of its view
+        // that no system bar, display cutout or keyboard covers
+        // (LiveCodeActivity.drawEdgeToEdge); the visible display frame
+        // leaves the cutout in
+        if (LiveCodeActivity.edgeToEdgeUncoveredArea(this, t_workrect))
+            return t_workrect;
         getWindowVisibleDisplayFrame(t_workrect);
         return t_workrect;
 	}

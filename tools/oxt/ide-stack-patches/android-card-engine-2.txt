@@ -1,19 +1,29 @@
-# Android card: the build targets' group grows to hold the "App Bundle" box
-# at the end of its row (android-card-app-bundle-1.txt) and the
-# "OXT-Beyond engine (preview)" box (patch -1), as the engine makes it:
-# its right edge 4 pixels past the "App Bundle" box's (745, and the
-# group's margins of 4), inside the window (754 wide), and its bottom edge
-# 4 pixels below the engine box's (514). One patch declares both, as the
-# group's rectangle is one property and the patch tool takes a patch of a
-# property as applied only at its from: or to: value (until this one,
-# android-card-app-bundle-2.txt declared the first, from 111,70,629,99 to
-# 111,70,749,99). The group shows nothing of its own (no border, no
-# background), and a group passes a click on a part of it that holds no
-# control of its own to what lies below (MCGroup::mfocus in
-# engine/src/group.cpp), so the controls of the card under the group work
-# as they did; nothing on the card moves.
+# Android card: a click on the "OXT-Beyond engine (preview)" box (patch
+# -1) stores the "android,engine" setting, which the Android builder reads:
+# "beyond" when the box is ticked, empty (LiveCode 9.6.3's engine, the
+# default) when it is not. The targets group's script takes it first, so it
+# is never taken for an architecture (by its second word) or for "App
+# Bundle"; the architectures' boxes and "App Bundle" do what they did. The
+# text replaced is the script's first lines, which the "App Bundle" patch
+# (android-card-app-bundle-2.txt) leaves as they were, so that each patch
+# finds its own text whichever ran first.
 file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
 object: group "Android Targets" of card "Android"
-property: rect
-from: 111,70,629,99
-to: 111,70,749,518
+replace:
+|on mouseUp|
+|   if word 1 of the target is not "button" then|
+with:
+|on mouseUp|
+|   -- OXT-Beyond: the "OXT-Beyond engine (preview)" box ("Beyond Engine")|
+|   -- is no architecture: ticked, the package is built with OXT-Beyond's|
+|   -- own Android engine ("android,engine" is beyond), else with LiveCode|
+|   -- 9.6.3's (empty, the default)|
+|   if word 1 of the target is "button" and the short name of the target is "Beyond Engine" then|
+|      if the hilite of the target then|
+|         storeSetting "engine", "beyond"|
+|      else|
+|         storeSetting "engine", empty|
+|      end if|
+|      exit mouseUp|
+|   end if|
+|   if word 1 of the target is not "button" then|

@@ -273,6 +273,7 @@ Figure 8 – Standalone Settings – Android
 | **Hardware Accelerated**        | Enable hardware acceleration of the application                                                                                                                                                                                       |
 | **Initial Orientation**         | The orientation on the device when the application initially launches                                                                                                                                                                 |
 | **Status Bar**                  | Set the visibility of the status bar                                                                                                                                                                                                  |
+| **Edge to edge**                | Draw the application under the see-through status and navigation bars, on Android 11 and newer (see below)                                                                                                                            |
 | **In App Purchasing**           | Specify the store used for the in-app purchasing API                                                                                                                                                                                  |
 | **Minimum Android Version**     | Choose the minimum version of Android the application should run on                                                                                                                                                                   |
 | **Camera**                      | Choose whether a camera is required, prohibited or not applicable in order for the application to function                                                                                                                            |
@@ -318,6 +319,26 @@ for Google Play:
 
 Empty leaves it to the runtime; any other value stops the build with an
 error.
+
+An application can also be drawn edge to edge, as current Android
+applications are: on Android 11 and newer, the stack fills the whole
+screen, under the status and navigation bars, which are see-through, and
+into the display's cutout, whatever API it targets. Tick **Edge to edge**
+at the end of the Android card's Status Bar row (it can be ticked once an
+architecture is), or set this on the stack before you build, which is
+what the box does:
+
+    set the cRevStandaloneSettings["android,edge to edge"] of stack "My App" to true
+
+`the screenRect` is then the whole screen, and `the effective working
+screenRect` the part of it that the bars, the cutout and the keyboard
+leave uncovered: keep the controls that must be seen and tapped inside
+it. The bars' icons are dark in the light appearance and light in the
+dark one. The keyboard still makes the stack smaller, unless the stack
+pans for it, as before. It takes runtimes whose Android Java layer can
+draw a stack so, as those made after 0.2.7-rc.6.19 can; with earlier
+ones the build stops and says so. A stack without the setting is laid
+out as before.
 
 OXT-Beyond's own Android engine, built from its source with a current
 NDK, is a preview beside the 9.6.3 engine that the runtimes have always

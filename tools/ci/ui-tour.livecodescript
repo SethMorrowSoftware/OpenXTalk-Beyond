@@ -6820,11 +6820,12 @@ on tour_standalone_settings
          get tourInclusionOrder(tStack)
          if it is not empty then put it & return after tFails
       end if
-      -- the Android card's App Bundle and engine boxes: where each is,
-      -- what it shows and what a click on it stores
+      -- the Android card's App Bundle, engine and edge to edge boxes:
+      -- where each is, what it shows and what a click on it stores
       if tCard is "Android" then
          put tourAndroidAppBundle(tStack) after tFails
          put tourAndroidEngine(tStack) after tFails
+         put tourAndroidEdgeToEdge(tStack) after tFails
       end if
       -- the Web card makes its page's settings when it first opens: the
       -- HTML5 option and those settings are there
@@ -6903,7 +6904,7 @@ on tour_standalone_settings
    tourRecord "INFO standalone settings: Mac targets (x86-32, x86-64, ARM64) after the cards:" && tMacNow
    tourSetMacTargets tMacWas
    if "Android" is not among the lines of tCards then
-      throw "the Android card is not shown, so its App Bundle and engine boxes were not checked"
+      throw "the Android card is not shown, so its App Bundle, engine and edge to edge boxes were not checked"
    end if
    if the platform is not "MacOS" then
       if "OS X" is not among the lines of tCards then
@@ -7136,6 +7137,108 @@ private function tourAndroidEngine pStack
    dispatch "updateSettings" to tCard
    return tFails
 end tourAndroidEngine
+
+-- The Android card's "Edge to edge" box ("Edge To Edge",
+-- tools/oxt/ide-stack-patches/android-card-status-bar-edge-*.txt), with
+-- which an app is drawn edge to edge on Android 11 and newer: in the build
+-- targets' group, as "App Bundle" is, but at the end of the Status Bar row
+-- of the User Interface Options, right of its radio buttons and in their
+-- middle, before the "Application Permissions" group and inside the
+-- window; enabled exactly when the card's settings are; ticked exactly when
+-- the stack's "android,edge to edge" setting is true, so not for a stack
+-- without it; and a click on it, as the box's group gets one, stores the
+-- setting, true or false, and nothing else (no architecture, nor the App
+-- Bundle or the engine). Its words show whole and the clicks of what the
+-- targets group covers are looked at by tourButtonsWhole and
+-- tourAndroidEngine. The sample's settings are put back as they were.
+-- Empty, or what is not so
+private function tourAndroidEdgeToEdge pStack
+   local tCard, tBox, tTargets, tSettings, tStatus, tWas, tArch, tFails, tMiddle
+   put the long id of card "Android" of stack pStack into tCard
+   if there is not a group "Android Targets" of tCard then
+      return "the Android card has no build targets' row" & return
+   end if
+   put the long id of group "Android Targets" of tCard into tTargets
+   if there is not a button "Edge To Edge" of tTargets then
+      return "the Android card has no Edge to edge box" & return
+   end if
+   put the long id of button "Edge To Edge" of tTargets into tBox
+   put the long id of group "Android Settings" of tCard into tSettings
+   put the long id of group "Status Bar" of group "User Interface Options" of tSettings into tStatus
+   tourRecord "INFO standalone settings: the Edge to edge box" && the rect of tBox && "enabled" && the enabled of tBox && \
+         "ticked" && the hilited of tBox && "label" && the label of tBox && "needs" && the formattedWidth of tBox
+   if the style of tBox is not "checkbox" or not the visible of tBox or the label of tBox is not "Edge to edge" then
+      put "the Edge to edge box is not a check box labelled Edge to edge that shows:" && the style of tBox && \
+            the visible of tBox && the label of tBox & return after tFails
+   end if
+   -- right of the Status Bar row's radio buttons, in their middle
+   put (item 2 of the rect of tBox + item 4 of the rect of tBox) / 2 into tMiddle
+   if item 1 of the rect of tBox < item 3 of the rect of tStatus or \
+         tMiddle < item 2 of the rect of button "true" of tStatus or tMiddle > item 4 of the rect of button "true" of tStatus then
+      put "the Edge to edge box is not right of the Status Bar radio buttons on their row:" && the rect of tBox && \
+            "beside" && the rect of tStatus & return after tFails
+   end if
+   if item 3 of the rect of tBox > item 1 of the rect of group "Application Permissions" of tSettings then
+      put "the Edge to edge box reaches into the Application Permissions:" && the rect of tBox && "and" && \
+            the rect of group "Application Permissions" of tSettings & return after tFails
+   end if
+   if item 3 of the rect of tBox > the width of stack pStack then
+      put "the Edge to edge box ends past the window:" && the rect of tBox && "in a window" && \
+            the width of stack pStack && "wide" & return after tFails
+   end if
+   if the enabled of tBox is not the enabled of tSettings then
+      put "the Edge to edge box is" && tourEnabledWord(the enabled of tBox) && "while the Android settings are" && \
+            tourEnabledWord(the enabled of tSettings) & return after tFails
+   end if
+   put the customProperties["cRevStandaloneSettings"] of stack kSample into tWas
+   if (the hilited of tBox) is not (tWas["android,edge to edge"] is true) then
+      put "the Edge to edge box is" && the hilited of tBox && "for a stack whose setting is" && \
+            quote & tWas["android,edge to edge"] & quote & return after tFails
+   end if
+   -- the card shows the setting
+   set the cRevStandaloneSettings["android,edge to edge"] of stack kSample to true
+   dispatch "updateSettings" to tCard
+   if not the hilited of tBox then put "the Edge to edge box is not ticked for a stack whose setting is true" & return after tFails
+   set the cRevStandaloneSettings["android,edge to edge"] of stack kSample to false
+   dispatch "updateSettings" to tCard
+   if the hilited of tBox then put "the Edge to edge box is ticked for a stack whose setting is false" & return after tFails
+   set the cRevStandaloneSettings["android,edge to edge"] of stack kSample to empty
+   dispatch "updateSettings" to tCard
+   if the hilited of tBox then put "the Edge to edge box is ticked for a stack without the setting" & return after tFails
+   -- a click stores it (sent, since a disabled box gets no click: the
+   -- sample is not built for Android)
+   set the hilited of tBox to true
+   dispatch "mouseUp" to tBox with 1
+   if the cRevStandaloneSettings["android,edge to edge"] of stack kSample is not true then
+      put "ticking the Edge to edge box stored" && quote & \
+            the cRevStandaloneSettings["android,edge to edge"] of stack kSample & quote & return after tFails
+   end if
+   set the hilited of tBox to false
+   dispatch "mouseUp" to tBox with 1
+   if the cRevStandaloneSettings["android,edge to edge"] of stack kSample is not false then
+      put "unticking the Edge to edge box stored" && quote & \
+            the cRevStandaloneSettings["android,edge to edge"] of stack kSample & quote & return after tFails
+   end if
+   -- and no architecture, nor the App Bundle or the engine: those are the
+   -- stack's as before
+   repeat for each item tArch in "armv7,arm64,x86,x86_64"
+      if the cRevStandaloneSettings["Android," & tArch] of stack kSample is not tWas["Android," & tArch] then
+         put "a click on the Edge to edge box changed the Android" && tArch && "target from" && \
+               quote & tWas["Android," & tArch] & quote && "to" && \
+               quote & the cRevStandaloneSettings["Android," & tArch] of stack kSample & quote & return after tFails
+      end if
+   end repeat
+   repeat for each item tArch in "app bundle,engine"
+      if the cRevStandaloneSettings["android," & tArch] of stack kSample is not tWas["android," & tArch] then
+         put "a click on the Edge to edge box changed the" && tArch && "setting from" && \
+               quote & tWas["android," & tArch] & quote && "to" && \
+               quote & the cRevStandaloneSettings["android," & tArch] of stack kSample & quote & return after tFails
+      end if
+   end repeat
+   set the customProperties["cRevStandaloneSettings"] of stack kSample to tWas
+   dispatch "updateSettings" to tCard
+   return tFails
+end tourAndroidEdgeToEdge
 
 -- "enabled" or "disabled"
 private function tourEnabledWord pEnabled

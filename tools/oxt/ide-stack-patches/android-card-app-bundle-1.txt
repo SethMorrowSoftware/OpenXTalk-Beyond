@@ -11,7 +11,7 @@
 # A copy of "Android x86_64", whose script is empty, so a click goes to its
 # group as the architectures' do; the row has room for it to the right of
 # "Android x86_64", inside the window. The group grows to hold it (to the
-# right edge 749), which android-card-engine-2.txt declares, with its
+# right edge 749), which android-card-targets-group.txt declares, with its
 # growth for the engine box of android-card-engine-1.txt: the patch tool
 # takes one patch per property, applied when the property has its from:
 # value or its to: value. Its tooltip says what it makes.

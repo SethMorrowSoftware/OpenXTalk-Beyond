@@ -110,11 +110,14 @@ public class LiveCodeActivity extends Activity
         });
         
         // OXT-Beyond: the back button and gesture on Android 13 and newer
-        // (registerBackCallback), and the stack kept out of the system bars
+        // (registerBackCallback), and the stack drawn edge to edge where the
+        // app asks for it (drawEdgeToEdge), else kept out of the system bars
         // where Android draws an app edge to edge (keepOutOfSystemBars)
         if (Build.VERSION.SDK_INT >= 33)
             registerBackCallback();
-        if (Build.VERSION.SDK_INT >= 35 && getApplicationInfo().targetSdkVersion >= 35)
+        if (Build.VERSION.SDK_INT >= 30 && asksForEdgeToEdge())
+            drawEdgeToEdge();
+        else if (Build.VERSION.SDK_INT >= 35 && getApplicationInfo().targetSdkVersion >= 35)
             keepOutOfSystemBars();
 	}
     
@@ -181,6 +184,122 @@ public class LiveCodeActivity extends Activity
             p_view.setPadding(t_bars.left, t_bars.top, t_bars.right, t_bars.bottom);
             return WindowInsets.CONSUMED;
         }
+    }
+
+    // OXT-Beyond: an app whose stack asks to be drawn edge to edge (the
+    // stack's "android,edge to edge" standalone setting, which the Android
+    // builder writes into the manifest as this meta-data of the application)
+    public static final String EDGE_TO_EDGE = "com.runrev.android.EDGE_TO_EDGE";
+    
+    // The stack drawn edge to edge (drawEdgeToEdge), else null
+    protected static EdgeToEdge s_edge_to_edge;
+    
+    protected boolean asksForEdgeToEdge()
+    {
+        try
+        {
+            Bundle t_meta_data = getPackageManager().getApplicationInfo(getPackageName(), PackageManager.GET_META_DATA).metaData;
+            return t_meta_data != null && t_meta_data.getBoolean(EDGE_TO_EDGE, false);
+        }
+        catch (PackageManager.NameNotFoundException e)
+        {
+            return false;
+        }
+    }
+    
+    // OXT-Beyond: the stack drawn edge to edge, on Android 11 and newer, as
+    // the app asks (asksForEdgeToEdge): its window goes under the status and
+    // navigation bars, which are see-through, and into the display's
+    // cutout, on every Android from 11, as Android 15 and newer draw an app
+    // that targets API 35 or newer (the window's colours and contrast are
+    // no longer theirs to set there). The keyboard still resizes it, as
+    // before, while the window is to resize for it
+    // (SOFT_INPUT_ADJUST_RESIZE): the view that holds the stack is padded
+    // by the keyboard, and by nothing else. A script finds the part of the
+    // screen that the bars, the cutout and the keyboard leave it in the
+    // effective working screenRect (Engine.getEffectiveWorkarea), and the
+    // bars' icons are dark in the light appearance and light in the dark
+    // (showBarsForAppearance), as the stack's systemAppearance says
+    protected void drawEdgeToEdge()
+    {
+        Window t_window = getWindow();
+        t_window.setDecorFitsSystemWindows(false);
+        t_window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS | WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION);
+        t_window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+        t_window.setStatusBarColor(Color.TRANSPARENT);
+        t_window.setNavigationBarColor(Color.TRANSPARENT);
+        t_window.setStatusBarContrastEnforced(false);
+        WindowManager.LayoutParams t_attributes = t_window.getAttributes();
+        t_attributes.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
+        t_window.setAttributes(t_attributes);
+        s_edge_to_edge = new EdgeToEdge(this);
+        s_main_layout.setOnApplyWindowInsetsListener(s_edge_to_edge);
+        showBarsForAppearance(getResources().getConfiguration());
+    }
+    
+    // The bars' icons dark over a light appearance, light over a dark one
+    protected void showBarsForAppearance(Configuration p_config)
+    {
+        int t_light = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+        boolean t_dark = (p_config.uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+        WindowInsetsController t_controller = getWindow().getInsetsController();
+        if (t_controller != null)
+            t_controller.setSystemBarsAppearance(t_dark ? 0 : t_light, t_light);
+    }
+    
+    protected static class EdgeToEdge implements View.OnApplyWindowInsetsListener
+    {
+        protected Activity m_activity;
+        // the bars', the cutout's and the keyboard's insets, as the window
+        // last had them (onApplyWindowInsets), null before
+        protected Insets m_covered;
+        
+        public EdgeToEdge(Activity p_activity)
+        {
+            m_activity = p_activity;
+        }
+        
+        @Override
+        public WindowInsets onApplyWindowInsets(View p_view, WindowInsets p_insets)
+        {
+            Insets t_keyboard = p_insets.getInsets(WindowInsets.Type.ime());
+            m_covered = Insets.max(p_insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout()),
+                                   t_keyboard);
+            int t_bottom = 0;
+            if ((m_activity.getWindow().getAttributes().softInputMode & WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST) ==
+                WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+                t_bottom = t_keyboard.bottom;
+            p_view.setPadding(0, 0, 0, t_bottom);
+            return WindowInsets.CONSUMED;
+        }
+        
+        // The part of p_view, in the screen's pixels, that no bar, cutout
+        // or keyboard covers, into r_area; false while the window has had
+        // no insets
+        public boolean uncoveredArea(View p_view, Rect r_area)
+        {
+            if (m_covered == null || s_main_layout == null)
+                return false;
+            int[] t_origin = new int[2];
+            s_main_layout.getLocationOnScreen(t_origin);
+            Rect t_uncovered = new Rect(t_origin[0] + m_covered.left, t_origin[1] + m_covered.top,
+                                        t_origin[0] + s_main_layout.getWidth() - m_covered.right,
+                                        t_origin[1] + s_main_layout.getHeight() - m_covered.bottom);
+            p_view.getLocationOnScreen(t_origin);
+            Rect t_view = new Rect(t_origin[0], t_origin[1], t_origin[0] + p_view.getWidth(), t_origin[1] + p_view.getHeight());
+            if (!t_uncovered.intersect(t_view))
+                t_uncovered.set(t_view.left, t_view.top, t_view.left, t_view.top);
+            r_area.set(t_uncovered);
+            return true;
+        }
+    }
+    
+    // OXT-Beyond: the engine's view asks for the part of it that no bar,
+    // cutout or keyboard covers (Engine.getEffectiveWorkarea): false when
+    // the stack is not drawn edge to edge
+    public static boolean edgeToEdgeUncoveredArea(View p_view, Rect r_area)
+    {
+        return s_edge_to_edge != null && s_edge_to_edge.uncoveredArea(p_view, r_area);
     }
 
 	@Override
@@ -302,6 +421,9 @@ public class LiveCodeActivity extends Activity
 		super.onConfigurationChanged(p_new_config);
         if (!m_engine_started)
             return;
+        // OXT-Beyond: the bars' icons follow the appearance (night mode)
+        if (s_edge_to_edge != null)
+            showBarsForAppearance(p_new_config);
 		s_main_view.onConfigurationChanged(p_new_config);
 	}
 

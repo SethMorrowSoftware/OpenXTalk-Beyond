@@ -574,7 +574,7 @@ def patch_lines(name):
 def targets_group_rects():
     """The build targets' group's rectangle in the stack file and as the
     patches leave it ([left, top, right, bottom] each): one patch declares
-    it, android-card-engine-2.txt, as the patch tool takes a patch of a
+    it, android-card-targets-group.txt, as the patch tool takes a patch of a
     property as applied only at its from: or to: value"""
     declaring = []
     for name in sorted(os.listdir(os.path.join(REPO, *PATCHES))):
@@ -583,9 +583,9 @@ def targets_group_rects():
         lines = patch_lines(name)
         if 'object: group "Android Targets" of card "Android"' in lines and 'property: rect' in lines:
             declaring.append(name)
-    if declaring != ['android-card-engine-2.txt']:
+    if declaring != ['android-card-targets-group.txt']:
         raise AssertionError('the targets group\'s rect is declared by %s' % declaring)
-    lines = patch_lines('android-card-engine-2.txt')
+    lines = patch_lines('android-card-targets-group.txt')
     at = lines.index('property: rect')
     return ([int(x) for x in lines[at + 1][len('from:'):].split(',')],
             [int(x) for x in lines[at + 2][len('to:'):].split(',')])
@@ -595,7 +595,7 @@ class AppBundleBox(unittest.TestCase):
     """The Android card's "App Bundle" box, made by the IDE stack patches
     android-card-app-bundle-*.txt (a copy of "Android x86_64" at the end of
     the build targets' row, and the row's script storing it; the row grown
-    to hold it, which android-card-engine-2.txt declares) and shown by the
+    to hold it, which android-card-targets-group.txt declares) and shown by the
     card's behaviour. Its setting must be the
     one the builder reads, a click on it must not be taken for an
     architecture, and a stack that never ticks it must build as before. The
@@ -664,7 +664,8 @@ class AppBundleBox(unittest.TestCase):
         tour = read(TOUR)
         step = handler(tour, 'tour_standalone_settings')
         self.assertRegex(step, r'if tCard is "Android" then\s+put tourAndroidAppBundle\(tStack\) after tFails')
-        self.assertIn('throw "the Android card is not shown, so its App Bundle and engine boxes were not checked"', step)
+        self.assertIn('throw "the Android card is not shown, so its App Bundle, engine and edge to edge boxes were not '
+                      'checked"', step)
         check = handler(tour, 'tourAndroidAppBundle')
         for part in ('dispatch "mouseUp" to tBox with 1', 'dispatch "updateSettings" to tCard',
                      'the cRevStandaloneSettings["android,app bundle"] of stack kSample is not true',
@@ -739,23 +740,32 @@ class EngineBox(unittest.TestCase):
         self.assertLessEqual(right, permissions[2])
         self.assertGreaterEqual(right - left, 230)
 
-    def test_the_group_grows_to_hold_both_boxes(self):
+    def test_the_group_grows_to_hold_the_boxes(self):
         before, after = targets_group_rects()
         bundle = [int(x) for x in patch_lines('android-card-app-bundle-1.txt')[-1][3:].split(',')]
         box = self.box()
-        # as the engine makes it: margins of 4 past the boxes, nothing else
+        edge = EdgeToEdgeBox.box()
+        # as the engine makes it: margins of 4 past the boxes (the App
+        # Bundle's right, the lowest box's bottom: the Edge to edge box's),
+        # nothing else
         self.assertEqual(before, [111, 70, 629, 99])
-        self.assertEqual(after, [before[0], before[1], bundle[2] + 4, box[3] + 4])
+        self.assertGreater(edge[3], box[3])
+        self.assertEqual(after, [before[0], before[1], bundle[2] + 4, edge[3] + 4])
         self.assertLessEqual(after[2], 754)
         # the patch files around it in their order: the copies first, so
-        # that the group has grown when its rect is declared
+        # that the group has grown when its rect is declared; and the copies
+        # in the order they were made, so that each gets the id it has
         names = sorted(n for n in os.listdir(os.path.join(REPO, *PATCHES)) if n.startswith('android-card-'))
-        self.assertLess(names.index('android-card-app-bundle-1.txt'), names.index('android-card-engine-2.txt'))
-        self.assertLess(names.index('android-card-engine-1.txt'), names.index('android-card-engine-2.txt'))
+        for copy in ('android-card-app-bundle-1.txt', 'android-card-engine-1.txt', 'android-card-status-bar-edge-1.txt'):
+            self.assertLess(names.index(copy), names.index('android-card-targets-group.txt'))
+        self.assertLess(names.index('android-card-app-bundle-1.txt'), names.index('android-card-engine-1.txt'))
+        self.assertLess(names.index('android-card-engine-1.txt'), names.index('android-card-status-bar-edge-1.txt'))
+        self.assertEqual(names[-1], 'android-card-targets-group.txt')
         self.assertNotIn('android-card-app-bundle-3.txt', names)
+        self.assertNotIn('android-card-engine-3.txt', names)
 
     def test_a_click_stores_the_setting_the_builder_reads(self):
-        lines = patch_lines('android-card-engine-3.txt')
+        lines = patch_lines('android-card-engine-2.txt')
         self.assertIn('object: group "Android Targets" of card "Android"', lines)
         old = '\n'.join(line[1:-1] for line in lines[lines.index('replace:') + 1:lines.index('with:')])
         new = '\n'.join(line[1:-1] for line in lines[lines.index('with:') + 1:])
@@ -803,7 +813,8 @@ class EngineBox(unittest.TestCase):
         step = handler(tour, 'tour_standalone_settings')
         self.assertRegex(step, r'if tCard is "Android" then\s+put tourAndroidAppBundle\(tStack\) after tFails\s+'
                                r'put tourAndroidEngine\(tStack\) after tFails')
-        self.assertIn('throw "the Android card is not shown, so its App Bundle and engine boxes were not checked"', step)
+        self.assertIn('throw "the Android card is not shown, so its App Bundle, engine and edge to edge boxes were not '
+                      'checked"', step)
         check = handler(tour, 'tourAndroidEngine')
         for part in ('dispatch "mouseUp" to tBox with 1', 'dispatch "updateSettings" to tCard',
                      'set the cRevStandaloneSettings["android,engine"] of stack kSample to "beyond"',
@@ -821,6 +832,144 @@ class EngineBox(unittest.TestCase):
         # the clicks are looked at with the box enabled, as for a stack
         # built for Android (a disabled control takes none)
         self.assertLess(check.index('set the enabled of tBox to true'), check.index('controlAtLoc('))
+
+
+class EdgeToEdgeBox(unittest.TestCase):
+    """The Android card's "Edge to edge" box, made by the IDE stack patches
+    android-card-status-bar-edge-*.txt (a copy of "Android x86_64" in the
+    build targets' group, put at the end of the User Interface Options'
+    Status Bar row; the group grown to hold it, which
+    android-card-targets-group.txt declares; the group's script storing it)
+    and shown by the card's behaviour. Ticked, the stack's "android,edge to
+    edge" setting is true, with which the builder asks the Java layer to
+    draw the app edge to edge (EdgeToEdge above); unticked it is false, and
+    a stack that never had the box is laid out as before. The UI tour clicks
+    it in the IDE (tourAndroidEdgeToEdge, and tourAndroidEngine for the
+    clicks of what the grown group covers); the patch tool checks the stack
+    (tools/oxt/ide-stack-patch.sh --check)."""
+
+    @staticmethod
+    def box():
+        lines = patch_lines('android-card-status-bar-edge-1.txt')
+        return [int(x) for x in lines[lines.index('property: rect') + 1][len('to:'):].split(',')]
+
+    def test_the_box_is_a_copy_of_a_box_without_a_script(self):
+        lines = patch_lines('android-card-status-bar-edge-1.txt')
+        self.assertIn('object: button "Android x86_64" of group "Android Targets" of card "Android"', lines)
+        self.assertIn('clone: Edge To Edge', lines)
+        self.assertEqual(lines[lines.index('property: label') + 1], 'to: Edge to edge')
+        tip = lines[lines.index('property: toolTip') + 1]
+        for words in ('Android 11 and newer', 'status and navigation bars', 'effective working screenRect'):
+            self.assertIn(words, tip)
+        # a unique id of its own, as the IDE gives a new object
+        ids = {}
+        for name in os.listdir(os.path.join(REPO, *PATCHES)):
+            if name.endswith('.txt'):
+                for line in patch_lines(name):
+                    if line.startswith('unique-id:'):
+                        ids.setdefault(line, []).append(name)
+        unique = [line for line in lines if line.startswith('unique-id:')]
+        self.assertEqual(len(unique), 1)
+        self.assertRegex(unique[0], r'^unique-id: \d{13}$')
+        self.assertEqual(ids[unique[0]], ['android-card-status-bar-edge-1.txt'])
+        # its source's script is empty, so a click goes to the targets
+        # group's script, and the copy has none either
+        names = [n for n in os.listdir(os.path.join(REPO, *SCRIPTS))
+                 if '> button "Edge To Edge" (id ' in read(SCRIPTS + (n,))]
+        self.assertEqual(len(names), 1, names)
+        self.assertIn('> group "Android Targets" (id 31523) > button "Edge To Edge"', read(SCRIPTS + (names[0],)))
+        self.assertEqual(code(read(SCRIPTS + (names[0],))).split('\n', 1)[1].strip(), '')
+
+    def test_the_box_is_at_the_end_of_the_status_bar_row(self):
+        left, top, right, bottom = self.box()
+        # the stack's dump, as standalone-settings-fit-linux.txt leaves the
+        # row: the Status Bar group ends at 270, its radio buttons run from
+        # 561 to 584; the box comes after them, in their middle
+        fit = patch_lines('standalone-settings-fit-linux.txt')
+        at = fit.index('object: group id 2246 of card "Android"')
+        status = [int(x) for x in fit[at + 3][len('to:'):].split(',')]
+        at = fit.index('object: button id 2248 of card "Android"')
+        hidden = [int(x) for x in fit[at + 3][len('to:'):].split(',')]
+        self.assertEqual((status[2], hidden[1], hidden[3]), (270, 561, 584))
+        self.assertGreater(left, status[2])
+        self.assertLessEqual(hidden[1], (top + bottom) / 2)
+        self.assertLessEqual((top + bottom) / 2, hidden[3])
+        # as tall as the other boxes of the card (20), 120 wide for its
+        # words (they need 105 in Linux's DejaVu Sans, the UI tour's
+        # tourButtonsWhole), before the "Application Permissions" group
+        # (398, android-card-post-notifications-2.txt's from:), whose
+        # boxes start at 418, and inside the window (754 wide)
+        self.assertEqual(bottom - top, 20)
+        self.assertEqual(right - left, 120)
+        grown = patch_lines('android-card-post-notifications-2.txt')
+        at = grown.index('object: group "Application Permissions" of group "Android Settings" of card "Android"')
+        permissions = [int(x) for x in grown[at + 2][len('from:'):].split(',')]
+        self.assertEqual(permissions[0], 398)
+        self.assertLess(right, permissions[0])
+
+    def test_a_click_stores_the_setting_the_builder_reads(self):
+        lines = patch_lines('android-card-status-bar-edge-2.txt')
+        self.assertIn('object: group "Android Targets" of card "Android"', lines)
+        old = '\n'.join(line[1:-1] for line in lines[lines.index('replace:') + 1:lines.index('with:')])
+        new = '\n'.join(line[1:-1] for line in lines[lines.index('with:') + 1:])
+        self.assertEqual(old, '   \n   local tTarget')
+        self.assertTrue(new.endswith('\n   local tTarget'))
+        # the text it replaces is not in what replaces it, so that a second
+        # run finds the patch applied
+        self.assertNotIn(old, new)
+        self.assertRegex(code(new), r'if the short name of the target is "Edge To Edge" then\s+'
+                                    r'storeSetting "edge to edge", the hilite of the target\s+exit mouseUp\s+end if')
+        # the row's script in the stack is patched by all three, the box's
+        # branch after the engine box's and the check that the target is a
+        # button, before the architectures' line, which would take its
+        # second word ("To") for one, and before "App Bundle"'s
+        row = read(SCRIPTS + ('stack_revStandaloneSettings_group_id_31523.livecodescript',))
+        self.assertIn(new, row)
+        for name in ('android-card-engine-2.txt', 'android-card-app-bundle-2.txt'):
+            other = patch_lines(name)
+            self.assertIn('\n'.join(line[1:-1] for line in other[other.index('with:') + 1:]), row)
+        body = code(row)
+        self.assertLess(body.index('"Beyond Engine"'), body.index('"Edge To Edge"'))
+        self.assertLess(body.index('if word 1 of the target is not "button" then'), body.index('"Edge To Edge"'))
+        self.assertLess(body.index('"Edge To Edge"'), body.index('if tTarget is "App Bundle" then'))
+        self.assertLess(body.index('"Edge To Edge"'), body.index('updateAndroidArch word 2 of tTarget'))
+        # the card stores a setting under "android," and its name; the
+        # builder asks the Java layer for edge to edge when it is true
+        self.assertIn('setSetting "android," & pName, pValue', handler(code(read(CARD)), 'storeSetting'))
+        self.assertIn('if pSettings["android,edge to edge"] is not true then',
+                      handler(code(read(BUILDER)), 'androidAskForEdgeToEdge'))
+
+    def test_the_card_shows_the_setting_and_enables_the_box_with_android(self):
+        card = code(read(CARD))
+        settings = handler(card, 'updateSettings')
+        self.assertRegex(settings, r'set the hilited of button "Edge To Edge" of group "Android targets" of me to\s+'
+                                   r'\(tSettings\["android,edge to edge"\] is true\)')
+        state = handler(card, 'updateAndroidSettingState')
+        self.assertIn('set the enabled of button "Edge To Edge" of group "Android targets" of me to tEnabled', state)
+        self.assertLess(state.index('put true into tEnabled'), state.index('"Edge To Edge"'))
+        # an IDE whose stack has no such box opens the card as before
+        for body in (settings, state):
+            self.assertIn('if there is a button "Edge To Edge" of group "Android targets" of me then', body)
+
+    def test_the_tour_clicks_it(self):
+        tour = read(TOUR)
+        step = handler(tour, 'tour_standalone_settings')
+        self.assertRegex(step, r'if tCard is "Android" then\s+put tourAndroidAppBundle\(tStack\) after tFails\s+'
+                               r'put tourAndroidEngine\(tStack\) after tFails\s+'
+                               r'put tourAndroidEdgeToEdge\(tStack\) after tFails')
+        check = handler(tour, 'tourAndroidEdgeToEdge')
+        for part in ('dispatch "mouseUp" to tBox with 1', 'dispatch "updateSettings" to tCard',
+                     'set the cRevStandaloneSettings["android,edge to edge"] of stack kSample to true',
+                     'set the cRevStandaloneSettings["android,edge to edge"] of stack kSample to false',
+                     'set the cRevStandaloneSettings["android,edge to edge"] of stack kSample to empty',
+                     'the cRevStandaloneSettings["android,edge to edge"] of stack kSample is not true',
+                     'the cRevStandaloneSettings["android,edge to edge"] of stack kSample is not false',
+                     'repeat for each item tArch in "app bundle,engine"',
+                     'set the customProperties["cRevStandaloneSettings"] of stack kSample to tWas',
+                     'the enabled of tBox is not the enabled of tSettings',
+                     'item 1 of the rect of tBox < item 3 of the rect of tStatus',
+                     'item 3 of the rect of tBox > item 1 of the rect of group "Application Permissions" of tSettings'):
+            self.assertIn(part, check)
 
 
 class TargetAPI(unittest.TestCase):
@@ -1040,8 +1189,11 @@ class Relaunch(unittest.TestCase):
         self.assertRegex(methods['onKeyDown'], r'^\s*if \(!m_engine_started\)\s+return super\.onKeyDown\(keyCode, '
                                                r'event\);')
         # an activity that started the engine goes on as before
+        # (the bars' icons of a stack drawn edge to edge between: an engine's
+        # activity, test_android_java's test_edge_to_edge_when_the_app_asks)
         self.assertRegex(methods['onConfigurationChanged'],
                          r'super\.onConfigurationChanged\(p_new_config\);\s+if \(!m_engine_started\)\s+return;\s+'
+                         r'(?://[^\n]*\n\s+)?(?:if \(s_edge_to_edge != null\)\s+showBarsForAppearance\(p_new_config\);\s+)?'
                          r's_main_view\.onConfigurationChanged\(p_new_config\);')
 
     def test_relaunch_activity(self):
@@ -1076,6 +1228,79 @@ class Relaunch(unittest.TestCase):
         for case in ('config-changes', 'relaunch-no-java-layer', 'relaunch-java-layer-without-it',
                      'relaunch-declared'):
             self.assertIn('"%s"' % case, relaunch)
+
+
+class EdgeToEdge(unittest.TestCase):
+    """A stack can ask to be drawn edge to edge (its "android,edge to edge"
+    setting, the Android card's "Edge to edge"): the manifest then asks the
+    Java layer for it with one meta-data of the application, where the
+    runtime's layer can draw it so; where it cannot (LiveCode Community
+    9.6.3's), the build stops instead of making an app that is not what the
+    stack asks for; and any other stack's manifest is left as it was"""
+
+    def setUp(self):
+        self.src = code(read(BUILDER))
+
+    def test_asked_only_where_the_stack_asks(self):
+        ask = handler(self.src, 'androidAskForEdgeToEdge')
+        self.assertIn('constant kEdgeToEdge = "com.runrev.android.EDGE_TO_EDGE"', self.src)
+        self.assertIn('constant kEdgeToEdgeClass = "com/runrev/android/LiveCodeActivity$EdgeToEdge.class"', self.src)
+        # a stack that does not ask: the manifest as it was, whatever the
+        # runtime; then the Java layer, before anything is written
+        self.assertRegex(ask, r'^function androidAskForEdgeToEdge pManifest, pSettings, pRuntimeFolder\s+'
+                              r'if pSettings\["android,edge to edge"\] is not true then\s+'
+                              r'return pManifest\s+end if\s+'
+                              r'if not androidJavaLayerHas\(pRuntimeFolder, kEdgeToEdgeClass\) then\s+'
+                              r'throw "[^"]+Java" &&\s+"layer cannot draw it so: update the runtimes, or untick '
+                              r'Edge to edge on the Android card"\s+end if')
+        # one meta-data of the application, which the Java layer reads
+        self.assertRegex(ask, r'put "  <meta-data android:name=" & quote & kEdgeToEdge & quote &&\s+'
+                              r'"android:value=" & quote & "true" & quote && "/>" & return into tMetaData')
+        self.assertIn('replace "</application>" with tMetaData & "  </application>" in pManifest', ask)
+        self.assertEqual(ask.count('replace '), 1)
+        java = read(JAVA + ('LiveCodeActivity.java',))
+        self.assertIn('public static final String EDGE_TO_EDGE = "com.runrev.android.EDGE_TO_EDGE";', java)
+        self.assertIn('t_meta_data.getBoolean(EDGE_TO_EDGE, false)', java)
+        # with the runtime the package is built with, after the relaunch
+        # activity and before the manifest is written
+        main = handler(self.src, 'revSaveAsMobileStandaloneMain')
+        asked = main.find('put androidAskForEdgeToEdge(tManifest, pSettings, tRuntime) into tManifest')
+        self.assertGreater(asked, main.find('put androidDeclareRelaunch(tManifest, tRuntime) into tManifest'))
+        self.assertLess(asked, main.find('put tManifest into url ("binfile:" & tManifestFile)'))
+        self.assertEqual(main.count('androidAskForEdgeToEdge('), 1)
+        # the build's error reaches whoever built it, as the builder's
+        # other refusals do
+        self.assertRegex(main, r'(?s)\btry\b.*?androidAskForEdgeToEdge\(.*?\bcatch\b')
+
+    def test_the_guide_says_how(self):
+        # the setting as the builder reads it, and what a script then finds
+        guide = read(('ide', 'Documentation', 'guides', 'Deploying Your Application.md'))
+        self.assertIn('    set the cRevStandaloneSettings["android,edge to edge"] of stack "My App" to true\n', guide)
+        self.assertIn('android,edge to edge', handler(self.src, 'androidAskForEdgeToEdge'))
+        flat = ' '.join(guide.split())
+        self.assertIn('`the effective working screenRect` the part of it that the bars, the cutout and the keyboard '
+                      'leave uncovered', flat)
+        self.assertIn('with earlier ones the build stops and says so. A stack without the setting is laid out as '
+                      'before.', flat)
+
+    def test_the_java_layer_has_the_class_it_looks_for(self):
+        java = read(JAVA + ('LiveCodeActivity.java',))
+        self.assertIn('package com.runrev.android;', java)
+        self.assertRegex(java, r'public class LiveCodeActivity extends Activity\b')
+        self.assertIn('    protected static class EdgeToEdge implements View.OnApplyWindowInsetsListener\n', java)
+        gyp = read(('engine', 'engine-sources.gypi'))
+        self.assertIn("'src/java/com/runrev/android/LiveCodeActivity.java',", gyp)
+
+    def test_units_run(self):
+        units = read(UNITS)
+        androidunits = handler(units, 'androidUnits')
+        self.assertIn('unitEdgeToEdge tWork', androidunits)
+        self.assertGreater(androidunits.index('unitEdgeToEdge tWork'), androidunits.index('unitRelaunch tWork'))
+        edge = handler(units, 'unitEdgeToEdge')
+        for case in ('edge-not-asked', 'edge-unticked', 'edge-asked', 'edge-asked-as-stored'):
+            self.assertIn('"%s"' % case, edge)
+        self.assertIn('androidUnit "edge-java-layer-" & tAnswer,', edge)
+        self.assertIn('repeat for each item tAnswer in "none,without"', edge)
 
 
 class Engine(unittest.TestCase):
@@ -1126,13 +1351,15 @@ class Engine(unittest.TestCase):
             '"notify_icon.png"', '"Manifest.xml"', '"Classes"', '"livecode_inputcontrol.xml"',
             '"nfc_tech_filter.xml"', '"file_provider_paths.xml"', '"Standalone"', '"revsecurity"', 'tEntry'}))
         # ten files (the externals' two lists share a line's shape), and
-        # the two functions that read its Java layer: every use there is
+        # the three functions that read its Java layer: every use there is
         self.assertEqual(len(uses), 10)
-        self.assertEqual(main.count('tRuntime'), 2 + len(uses) + 2)
-        # the target API and the relaunch activity are read from its Java
-        # layer, the one the package is built with
+        self.assertEqual(main.count('tRuntime'), 2 + len(uses) + 3)
+        # the target API, the relaunch activity and whether a stack can be
+        # drawn edge to edge are read from its Java layer, the one the
+        # package is built with
         self.assertIn('put androidTargetAPI(pSettings, tRuntime) into tTargetAPI', main)
         self.assertIn('put androidDeclareRelaunch(tManifest, tRuntime) into tManifest', main)
+        self.assertIn('put androidAskForEdgeToEdge(tManifest, pSettings, tRuntime) into tManifest', main)
 
     def test_the_runtime_folder_itself_unchanged(self):
         # revMobileRuntimeFolder answers what it did, for its other callers
