@@ -1325,6 +1325,124 @@ class DevicePicture(unittest.TestCase):
 
 
 @unittest.skipIf(os.name == 'nt', 'the stand-in adb is a shell script')
+class DeviceEdgeToEdge(unittest.TestCase):
+    """device --edge-to-edge with a stand-in adb: once green, the edge probe
+    must be drawn under the see-through status bar (the screen's first row
+    is its green), and the effective working screenRect it says, inside its
+    screenRect, must leave the status bar out"""
+
+    setUp = Device.setUp
+    tearDown = Device.tearDown
+    device = Device.device
+    LOG = Device.LOG
+    G, K = ac.RUN_COLOR, (0, 0, 0)
+
+    @staticmethod
+    def raw(rows):
+        """a raw screencap 4 pixels wide, a row of each colour"""
+        return struct.pack('<IIII', 4, len(rows), 1, 0) + b''.join(bytes(list(c) + [255]) * 4 for c in rows)
+
+    def run_edge(self, rows, said=(), argv=('--edge-to-edge',)):
+        d = self.tmp.name
+        with open(os.path.join(d, 'screen.raw'), 'wb') as f:
+            f.write(self.raw(rows))
+        with open(os.path.join(d, 'logcat.txt'), 'w') as f:
+            f.write(Device.LOG.split('I/lowmemorykiller')[0] +
+                    ''.join('I/LiveCode( 3475): OXT-Beyond probe: %s\n' % x for x in said))
+        saved = ac.EDGE_WAIT
+        ac.EDGE_WAIT = 0
+        try:
+            return self.device('echo 3475', argv=argv)
+        finally:
+            ac.EDGE_WAIT = saved
+
+    SAID = ('screenRect 0,0,412,915', 'effective working screenRect 0,24,412,867')
+
+    def test_drawn_edge_to_edge_passes(self):
+        status, out = self.run_edge((self.G,) * 4, self.SAID)
+        self.assertEqual(status, 0, out)
+        self.assertIn("Edge to edge: 100% of the screen's first row (the status bar) and 100% of its last (the "
+                      "navigation bar) are the stack's green; its screenRect 0,0,412,915, its effective working "
+                      "screenRect 0,24,412,867", out)
+        # what the probe said, as for every probe
+        self.assertIn('The probe said: effective working screenRect 0,24,412,867', out)
+
+    def test_the_last_rects_said_count(self):
+        # it says them as it turns green and again once the window has its
+        # insets: the later ones decide
+        status, out = self.run_edge((self.G,) * 4, ('screenRect 0,0,412,915',
+                                                    'effective working screenRect 0,0,412,915') + self.SAID)
+        self.assertEqual(status, 0, out)
+
+    def test_inside_the_bars_fails(self):
+        # padded inside the bars (a Java layer that does not draw it edge
+        # to edge): the first row is not its green
+        status, out = self.run_edge((self.K, self.G, self.G, self.K), self.SAID)
+        self.assertEqual(status, 1, out)
+        self.assertIn("PROBLEM: the stack is not drawn under the status bar (0% of the screen's first row is its "
+                      "green)", out)
+
+    def test_rects_not_said_fail(self):
+        status, out = self.run_edge((self.G,) * 4)
+        self.assertEqual(status, 1, out)
+        self.assertIn('PROBLEM: the edge probe did not say its screenRect and its effective working screenRect', out)
+        self.assertIn('its screenRect not said, its effective working screenRect not said', out)
+
+    def test_the_status_bar_left_in_fails(self):
+        status, out = self.run_edge((self.G,) * 4, ('screenRect 0,0,412,915',
+                                                    'effective working screenRect 0,0,412,867'))
+        self.assertEqual(status, 1, out)
+        self.assertIn('PROBLEM: its effective working screenRect (0,0,412,867) does not leave the status bar out of '
+                      'its screenRect (0,0,412,915)', out)
+
+    def test_not_both_ways(self):
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            with self.assertRaises(SystemExit):
+                ac.main(['device', '--apk', self.apk, '--serial', 'emulator-5554', '--sdk', self.tmp.name,
+                         '--within-bars', '--edge-to-edge'])
+        self.assertIn('--within-bars and --edge-to-edge ask for opposite screens: one or the other', err.getvalue())
+
+
+class EdgeRects(unittest.TestCase):
+    """edge_rects and edge_problems: what the edge probe said, and what is
+    wrong with it"""
+
+    def test_rects(self):
+        self.assertEqual(ac.edge_rects([]), (None, None))
+        self.assertEqual(ac.edge_rects(['screenRect 0,0,10,20', 'local notification 1',
+                                        'effective working screenRect 0,2,10,18', 'screenRect 0,0,20,10']),
+                         ((0, 0, 20, 10), (0, 2, 10, 18)))
+        # a rect that is not four integers is not one
+        self.assertEqual(ac.edge_rects(['screenRect 0,0,10', 'effective working screenRect a,b,c,d']), (None, None))
+        self.assertEqual(ac.edge_rects(['effective working screenRect -1,2,10,18']), (None, (-1, 2, 10, 18)))
+
+    def test_problems(self):
+        screen, inside = (0, 0, 100, 200), (0, 10, 100, 190)
+        self.assertEqual(ac.edge_problems(screen, inside, 1.0), [])
+        self.assertEqual(ac.edge_problems(screen, inside, 0.5), [])
+        self.assertEqual(ac.edge_problems(screen, inside, 0.49),
+                         ["the stack is not drawn under the status bar (49% of the screen's first row is its green)"])
+        self.assertEqual(ac.edge_problems(None, inside, 1.0),
+                         ['the edge probe did not say its screenRect and its effective working screenRect'])
+        self.assertEqual(ac.edge_problems(screen, None, 1.0),
+                         ['the edge probe did not say its screenRect and its effective working screenRect'])
+        self.assertEqual(ac.edge_problems(screen, (0, 0, 100, 190), 1.0),
+                         ['its effective working screenRect (0,0,100,190) does not leave the status bar out of its '
+                          'screenRect (0,0,100,200)'])
+        # what the Android 13 emulator said while the screenRect was still
+        # the default display's metrics, which leave the navigation bar and
+        # the cutout out (Engine.getViewport now gives the whole window)
+        self.assertEqual(ac.edge_problems((0, 0, 393, 778), (0, 49, 393, 827), 1.0),
+                         ['its effective working screenRect (0,49,393,827) is not inside its screenRect '
+                          '(0,0,393,778)'])
+        self.assertEqual(ac.edge_problems((0, 0, 393, 873), (0, 49, 393, 827), 1.0), [])
+        for outside in ((0, 10, 101, 190), (-1, 10, 100, 190), (0, 10, 100, 201), (0, 10, 0, 190), (0, 190, 100, 10)):
+            self.assertEqual(ac.edge_problems(screen, outside, 1.0),
+                             ['its effective working screenRect (%s) is not inside its screenRect (0,0,100,200)'
+                              % ','.join(map(str, outside))], outside)
+
+
+@unittest.skipIf(os.name == 'nt', 'the stand-in adb is a shell script')
 class DeviceBackAndBars(unittest.TestCase):
     """device --within-bars and --back with a stand-in adb: once green, the
     screen's first and last rows must not be the probe's green (the stack
@@ -4651,10 +4769,11 @@ class OneSystem(unittest.TestCase):
         # is the stack's name, and OXT_ANDROID_PROBE picks it
         script = read('tools', 'ci', 'android-check.livecodescript')
         self.assertEqual(ac.PROBES, {'app': 'AndroidProbe.livecode', 'java': 'AndroidJavaProbe.livecode',
-                                     'busy': 'AndroidBusyProbe.livecode'})
+                                     'busy': 'AndroidBusyProbe.livecode', 'edge': 'AndroidEdgeProbe.livecode'})
         name = re.search(r'(?s)private function probeName\n(.*?)\nend probeName', script).group(1)
         self.assertIn('if $OXT_ANDROID_PROBE is "java" then\n      return "AndroidJavaProbe"', name)
         self.assertIn('if $OXT_ANDROID_PROBE is "busy" then\n      return "AndroidBusyProbe"', name)
+        self.assertIn('if $OXT_ANDROID_PROBE is "edge" then\n      return "AndroidEdgeProbe"', name)
         self.assertIn('return "AndroidProbe"', name)
         # the app probe is the one that names none
         self.assertIn("OXT_ANDROID_PROBE='' if args.probe == 'app' else args.probe,", read('tools', 'ci', 'android_check.py'))
@@ -4662,18 +4781,58 @@ class OneSystem(unittest.TestCase):
         # bar those that ask probeName() which probe this is (the Java
         # layer's probe: its openStack, its backKey, and its build's
         # permissions; the busy probe: its openStack's first send, and its
-        # probeBusy)
+        # probeBusy; the edge probe: its openStack's rects, its probeEdge,
+        # and its build's setting)
         self.assertEqual(script.count('"AndroidProbe"'), 1)
         self.assertEqual(script.count('"AndroidJavaProbe"'), 4)
         self.assertEqual(script.count('if probeName() is "AndroidJavaProbe" then'), 3)
         self.assertEqual(script.count('"AndroidBusyProbe"'), 3)
         self.assertEqual(script.count('if probeName() is "AndroidBusyProbe" then'), 2)
+        self.assertEqual(script.count('"AndroidEdgeProbe"'), 4)
+        self.assertEqual(script.count('if probeName() is "AndroidEdgeProbe" then'), 3)
         with tempfile.TemporaryDirectory() as work:
-            for name in ('Busy', 'AndroidBusyProbe', ''):
+            for name in ('Busy', 'AndroidBusyProbe', 'Edge', 'AndroidEdgeProbe', ''):
                 with contextlib.redirect_stderr(io.StringIO()):
                     with self.assertRaises(SystemExit):
                         ac.main(['ide', '--work', work, '--probe', name])
             self.assertEqual(os.listdir(work), [])
+
+    def test_edge_probe(self):
+        # the edge probe is the app probe built to be drawn edge to edge:
+        # once green it says its screenRect and its effective working
+        # screenRect, then again kEdgeWait milliseconds later (once the
+        # window has its insets), for device --edge-to-edge
+        script = read('tools', 'ci', 'android-check.livecodescript')
+        self.assertIn('constant kEdgeWait = 1000\n', script)
+        self.assertIn('--                          "busy" for the busy probe (see kBusyTick),\n'
+                      '--                          "edge" for the edge probe (see kEdgeWait)\n', script)
+        body = re.search(r'(?s)private function probeScript\n(.*?)\nend probeScript', script).group(1)
+        # green first, then the rects, now and kEdgeWait later
+        self.assertIn('   put "   set the backgroundColor of me to" && quote & kRunColor & quote & return after '
+                      'tScript\n', body)
+        green = body.index('quote & kRunColor & quote & return after tScript\n')
+        edge = body.index('   if probeName() is "AndroidEdgeProbe" then\n      -- its screen')
+        self.assertLess(green, edge)
+        self.assertIn('      put "   probeEdge" & return & \\\n'
+                      '            "   send" && quote & "probeEdge" & quote && "to me in" && kEdgeWait && '
+                      '"milliseconds" & return after tScript\n', body)
+        self.assertIn('      put return & "on probeEdge" & return & \\\n'
+                      '            "   put" && quote & "OXT-Beyond probe: screenRect" & quote && "&& the screenRect" & '
+                      'return & \\\n'
+                      '            "   put" && quote & "OXT-Beyond probe: effective working screenRect" & quote && \\\n'
+                      '            "&& the effective working screenRect" & return & \\\n'
+                      '            "end probeEdge" after tScript\n', body)
+        # what it says is what device --edge-to-edge reads (probe_said's
+        # lines, edge_rects)
+        self.assertEqual(ac.edge_rects(['screenRect 0,0,1,2', 'effective working screenRect 0,1,1,2']),
+                         ((0, 0, 1, 2), (0, 1, 1, 2)))
+        # its build asks to be drawn edge to edge
+        settings = re.search(r'(?s)private function buildSettings pName\n(.*?)\nend buildSettings', script).group(1)
+        self.assertIn('   if probeName() is "AndroidEdgeProbe" then\n'
+                      '      put true into tSettings["android,edge to edge"]\n'
+                      '   end if\n', settings)
+        # its wait (s) is less than device's for what it says
+        self.assertLess(1000 / 1000, ac.EDGE_WAIT)
 
     def test_busy_probe(self):
         # the busy probe is the app probe that, once green, every kBusyTick
@@ -4693,7 +4852,7 @@ class OneSystem(unittest.TestCase):
         for other in (ac.SAVED_COLOR, ac.FAIL_COLOR, ac.BACK_COLOR, ac.WAIT_COLOR):
             self.assertEqual(ac.colour_share(bytes(list(busy) + [255]), other, step=1), 0.0, other)
         self.assertIn('--    OXT_ANDROID_PROBE     "java" for the Java layer\'s probe (see below),\n'
-                      '--                          "busy" for the busy probe (see kBusyTick)\n', script)
+                      '--                          "busy" for the busy probe (see kBusyTick),\n', script)
         body = re.search(r'(?s)private function probeScript\n(.*?)\nend probeScript', script).group(1)
         # its openStack turns green first, as the app probe's does, and then
         # sends the first tick
@@ -4704,7 +4863,7 @@ class OneSystem(unittest.TestCase):
                       '      put "   send" && quote & "probeBusy" & quote && "to me in" && kBusyTick && '
                       '"milliseconds" & return after tScript\n'
                       '   end if\n'
-                      '   put "end openStack" after tScript\n', body)
+                      '   if probeName() is "AndroidEdgeProbe" then\n', body)
         # each tick turns the other green, sets the field's text and sends
         # the next
         self.assertIn('   if probeName() is "AndroidBusyProbe" then\n'
@@ -5019,12 +5178,38 @@ class OneSystem(unittest.TestCase):
         self.assertEqual(sum(work == 'java-new' for _, work, _, _ in runs), 2, runs)
         self.assertEqual(sum(work == 'java-app' for _, work, _, _ in runs), 2, runs)
         self.assertEqual(sum(work == 'java-busy' for _, work, _, _ in runs), 2, runs)
+        self.assertEqual(sum(work == 'java-edge' for _, work, _, _ in runs), 2, runs)
         recorded = [cmd for name, work, _, cmd in runs if name.startswith("The release's Java layer")]
         self.assertEqual(len(recorded), 1, runs)
         self.assertEqual(sum(work == 'changed' for _, work, _, _ in runs), 3, runs)
         for name, work, _, cmd in runs:
             self.assertEqual('--back' in cmd, work == 'java-new', cmd)
-            self.assertEqual('--within-bars' in cmd, work != 'java-old' and cmd not in recorded, cmd)
+            # the edge probe is drawn under the bars, every other inside them
+            self.assertEqual('--within-bars' in cmd, work not in ('java-old', 'java-edge') and cmd not in recorded,
+                             cmd)
+            self.assertEqual('--edge-to-edge' in cmd, work == 'java-edge', cmd)
+
+    def test_edge_to_edge_runs(self):
+        # the edge probe, built with this Java layer, on both emulators:
+        # drawn under the bars, nothing else asked
+        workflow = read('.github', 'workflows', 'android.yml')
+        runs = self.device_runs(workflow)
+        edge = [(name, pkgs, cmd) for name, work, pkgs, cmd in runs if work == 'java-edge']
+        self.assertEqual([name for name, _, _ in edge], ['Run the edge probe on Android 13',
+                                                         'Run the package with 16 KB pages'])
+        for _, pkgs, cmd in edge:
+            self.assertEqual(pkgs, ['debug.apk'], cmd)
+            self.assertTrue(cmd.endswith('--edge-to-edge'), cmd)
+        step = re.search(r'(?s)- name: The edge probe, with this Java layer\n(.*?)\n\n', workflow).group(1)
+        self.assertIn("if: runner.os == 'Linux'", step)
+        self.assertIn('--work "$WORK/java-edge" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug --probe edge',
+                      step)
+        self.assertIn('ide --install "$JAVA_IDE"', step)
+        # built after this Java layer's IDE is made, run after it is built
+        self.assertLess(workflow.index('- name: The busy probe, with this Java layer'),
+                        workflow.index('- name: The edge probe, with this Java layer'))
+        self.assertLess(workflow.index('- name: The edge probe, with this Java layer'),
+                        workflow.index('- name: Run the edge probe on Android 13'))
 
     def test_once_in_a_process_runs(self):
         # the engine runs once in a process: the app probe with this Java

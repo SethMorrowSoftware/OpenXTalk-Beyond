@@ -21,7 +21,7 @@ script "oxtwebidetour"
 -- the File menu, one of each control Object > New Control makes, the
 -- page made narrow, a cascade of the File menu on a page as narrow as a
 -- phone in portrait, File's items with a submenu tapped on a touch
--- screen, the browser switched between light and dark and back (the
+-- screen, the ticks of File > Import Stack's HyperCard options, the browser switched between light and dark and back (the
 -- page follows it: index.html's oxt-appearance), a tooltip in the light
 -- and the dark appearance (its text must stand out from its background),
 -- and the page's
@@ -57,7 +57,7 @@ Screenshots of the web IDE for its CI job (tools/ci/web_ide_tour.py).
 Only CI's copy of the site has it.
 */
 
-constant kSteps = "start,storage-open,keep,kept,sample,inspector,inspector-tabs,inspector-reset-colour,script-editor,message-box,project-browser,browse,dictionary,preferences,file-menu,new-controls,narrow,phone-menu,touch-menu,appearance,tooltip,storage"
+constant kSteps = "start,storage-open,keep,kept,sample,inspector,inspector-tabs,inspector-reset-colour,script-editor,message-box,project-browser,browse,dictionary,preferences,file-menu,new-controls,narrow,phone-menu,touch-menu,import-stack-marks,appearance,tooltip,storage"
 constant kSample = "Web Tour Sample"
 -- Steps that run only when web_ide_tour.py --only names them: keep, on
 -- the released web IDE, saves a stack and a preference in the home
@@ -520,7 +520,7 @@ end tour_project_browser
 -- "dark-refresh", showed in its place while the splash was in memory, as
 -- the web IDE keeps it (littlenemo, openxtalk.org)
 function tourRefreshProblem pStack
-   local tButton, tIcon, tMain, tSub, tHits
+   local tButton, tIcon, tMain, tSub, tHits, tWant
    put the long id of button "Refresh" of card "list" of stack pStack into tButton
    -- (the tooltip is a property patch of the binary stack, which the
    -- pull requests' screenshot jobs take from the last release: its old
@@ -534,6 +534,18 @@ function tourRefreshProblem pStack
    put the icon of tButton into tIcon
    if there is not a stack "revIcons" or there is not an image id tIcon of stack "revIcons" then
       return "the Project Browser's Refresh icon" && tIcon && "is not an image of revIcons"
+   end if
+   -- white arrows in the dark appearance, dark ones in the light: on the
+   -- Mac the stack's own choice, by the window's colour, left the black
+   -- arrows in the dark (bwmilby, forum, 2026-11-09); Linux keeps that
+   -- choice, which was right there
+   if the platform is not "Linux" then
+      if revIDEAppearanceIsDark() then put "white-refresh" into tWant
+      else put "dark-refresh" into tWant
+      tourRecord "INFO the Project Browser's Refresh icon is" && the short name of image id tIcon of stack "revIcons" && "(dark:" && revIDEAppearanceIsDark() & ")"
+      if the short name of image id tIcon of stack "revIcons" is not tWant then
+         return "the Project Browser's Refresh icon is" && the short name of image id tIcon of stack "revIcons" & ", not" && tWant
+      end if
    end if
    repeat for each line tMain in the mainStacks
       repeat for each line tSub in (tMain & return & the substacks of stack tMain)
@@ -580,7 +592,7 @@ end tourExtensionStacksNotUsers
 on tour_browse
    local tLoc
    go stack kSample
-   choose browse tool
+   set the tool to "browse tool"
    tourWait 500
    put the globalLoc of the loc of button "Push" of card 1 of stack kSample into tLoc
    tourRecord "INFO the button's loc on the page" && tLoc
@@ -784,6 +796,285 @@ on tour_touch_menu
    end if
 end tour_touch_menu
 
+-- File > Import Stack's HyperCard options are ticked when they are on
+-- (revMenubar's toggleMenuItem: "!c" for on, "!n" for off), and a tick
+-- must be drawn. The marks are in a submenu of a menu whose top level has
+-- none, and until 0.2.7 the engine made a menu's items check items only
+-- when a line of its top level began with a mark, so the submenu's
+-- ticks were parsed and never drawn: the options looked off whatever
+-- they were set to (seth, the web IDE in Brave on Windows 11). The
+-- submenu is read twice, its four options on and then off: the strip of
+-- it where the ticks go must differ between the two, and the
+-- preferences are put back as they were.
+constant kImportStackPrefs = "cHyperCardFixScripts,cHyperCardMessageOrder,cHyperCardClassicLook,cHyperCardImportSummary"
+
+on tour_import_stack_marks
+   local tPref, tSaved, tOn, tOff, tDiffer, tError
+   repeat for each item tPref in kImportStackPrefs
+      put revIDEGetPreference(tPref) into tSaved[tPref]
+   end repeat
+   try
+      repeat for each item tPref in kImportStackPrefs
+         revIDESetPreference tPref, true
+      end repeat
+      put tourImportStackStrip("15-import-stack-marks") into tOn
+      repeat for each item tPref in kImportStackPrefs
+         revIDESetPreference tPref, false
+      end repeat
+      put tourImportStackStrip("15b-import-stack-no-marks") into tOff
+   catch tError
+   end try
+   repeat for each item tPref in kImportStackPrefs
+      revIDESetPreference tPref, tSaved[tPref]
+   end repeat
+   if tError is not empty then
+      throw tError
+   end if
+   -- a strip of one colour is no menu read (a canvas the page could not
+   -- read gives zeros), and would differ in nothing whatever was drawn
+   if tourStripSpread(tOff) < 64 then
+      throw "the submenu's tick strip was not read: its lumas spread by" && tourStripSpread(tOff)
+   end if
+   put tourStripsDiffer(tOn, tOff) into tDiffer
+   tourRecord "INFO import-stack-marks: the tick strip differs in" && tDiffer && "pixels, options on and off;" && \
+         "its lumas spread by" && tourStripSpread(tOff)
+   -- a tick is a filled polygon of about 30 pixels, and there are four
+   if tDiffer < 40 then
+      throw "File > Import Stack's ticks are not drawn: the submenu's tick strip differs in" && \
+            tDiffer && "pixels between its options on and off"
+   end if
+   -- An item that opens a deeper submenu, in a submenu with a mark, keeps
+   -- its arrow: drawn at the submenu's right edge, where no word reaches
+   local tInk
+   put tourStripInk(tourNestedSubmenuStrip("Plain" & return & "Sub" & return & tab & "!cTicked" & return & \
+         tab & "Deeper" & return & tab & tab & "Child", "15c-nested-submenu")) into tInk
+   tourRecord "INFO import-stack-marks: the nested submenu's arrow has" && tInk && "pixels"
+   -- the arrow is a small filled triangle
+   if tInk < 6 then
+      throw "a submenu item that opens a deeper submenu has no arrow when its submenu has a mark:" && \
+            tInk && "pixels stand out at the submenu's right edge"
+   end if
+end tour_import_stack_marks
+
+-- File > Import Stack's submenu, opened with the pointer, as a screenshot
+-- pShot; the result is the luma of each pixel of its left 24 points
+-- (where its ticks go), "<width>,<height>,<strip width>:" and then the
+-- lumas, a space between each
+function tourImportStackStrip pShot
+   local tMenu, tFirst, tRects, tStrip, tLine
+   put tourMenuButton("File") into tMenu
+   if tMenu is empty then
+      throw "no File menu in revMenuBar"
+   end if
+   -- The menus made again from the preferences just set, as a pick in a
+   -- menu has them made (revMenubarFileMenuPick): a click's mouseDown
+   -- makes them too, but not while a making of them is pending, and then
+   -- the menu that opens is the one made before (on this pull request's
+   -- engine the second read showed the first one's ticks)
+   tourWait 500
+   send "revMenubarBuildMenus" to stack "revMenubar"
+   tourWait 300
+   repeat for each line tLine in the text of tMenu
+      if tLine contains "|hypercardlook" then
+         tourRecord "INFO import-stack-marks:" && pShot & ": the File menu's line" && tourJoin(tLine)
+      end if
+   end repeat
+   tourAct "click" && item 1 of the globalLoc of the loc of tMenu && item 2 of the globalLoc of the loc of tMenu
+   tourWait 1500
+   put tourMenuRects() into tFirst
+   if tFirst is empty then
+      throw "the File menu did not open"
+   end if
+   -- Import Stack is the menu's fifth item (tour_touch_menu)
+   tourAct "move" && (item 1 of line 1 of tFirst + 40) && (item 2 of line 1 of tFirst + 100)
+   tourAct "move" && (item 1 of line 1 of tFirst + 50) && (item 2 of line 1 of tFirst + 101)
+   tourWait 1500
+   put tourMenuRects() into tRects
+   tourRecord "INFO import-stack-marks: menus" && tourJoin(tRects)
+   tourShot pShot
+   put tourSubmenuStrip("left") into tStrip
+   tourRecord "INFO import-stack-marks:" && pShot & ": the submenu's first ink in each band of rows" && tourSubmenuInkRows()
+   tourAct "key Escape"
+   tourWait 500
+   tourAct "key Escape"
+   tourWait 800
+   if the number of lines of tRects < 2 or tStrip is empty then
+      throw "File > Import Stack's submenu did not open:" && tourJoin(tRects)
+   end if
+   return tStrip
+end tourImportStackStrip
+
+-- The luma of each pixel of a strip pPoints wide (24 when empty) at the
+-- pSide (left or right) of the open submenu, the menu furthest right of those open:
+-- "<width>,<height>,<strip width>:" and then the lumas, a space between
+-- each; empty when no submenu is open
+function tourSubmenuStrip pSide, pPoints
+   local tFrom
+   if pPoints is empty then
+      put 24 into pPoints
+   end if
+   if pSide is "right" then
+      put "c.width - sw" into tFrom
+   else
+      put "0" into tFrom
+   end if
+   return tourJS("(function () { var w = Array.from(document.querySelectorAll('.oxt-window'))" & \
+         ".filter(function(e) { var r = e.getBoundingClientRect(); return e.oxtLayer === 3 && r.width > 0 && r.height > 0; })" & \
+         ".sort(function(a, b) { return a.getBoundingClientRect().left - b.getBoundingClientRect().left; });" & \
+         " if (w.length < 2) { return ''; }" & \
+         " var c = w[w.length - 1].querySelector('canvas'); if (!c) { return ''; }" & \
+         " var sw = Math.min(c.width, Math.round(c.width * " & pPoints & " / c.getBoundingClientRect().width));" & \
+         " var d = c.getContext('2d').getImageData(" & tFrom & ", 0, sw, c.height).data, o = [];" & \
+         " for (var i = 0; i < d.length; i += 4) { o.push(Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2])); }" & \
+         " return c.width + ',' + c.height + ',' + sw + ':' + o.join(' '); })()")
+end tourSubmenuStrip
+
+-- For the INFO line of each read of File > Import Stack's submenu, so that
+-- a failure shows what was drawn: for each band of rows with something
+-- drawn, "<first row>-<last row>@<x of the leftmost pixel>/<x of the
+-- leftmost pixel more than 30 points in>" (pixels of the canvas, its
+-- border left out), the background read at the canvas's right edge
+function tourSubmenuInkRows
+   return tourJS("(function () { var w = Array.from(document.querySelectorAll('.oxt-window'))" & \
+         ".filter(function(e) { var r = e.getBoundingClientRect(); return e.oxtLayer === 3 && r.width > 0 && r.height > 0; })" & \
+         ".sort(function(a, b) { return a.getBoundingClientRect().left - b.getBoundingClientRect().left; });" & \
+         " if (w.length < 2) { return 'no submenu'; }" & \
+         " var c = w[w.length - 1].querySelector('canvas'); if (!c) { return 'no canvas'; }" & \
+         " var s = c.width / c.getBoundingClientRect().width, d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;" & \
+         " function l(x, y) { var k = (y * c.width + x) * 4; return 0.299 * d[k] + 0.587 * d[k + 1] + 0.114 * d[k + 2]; }" & \
+         " var out = [], start = -1, first = -1, inner = -1;" & \
+         " for (var y = 3; y < c.height - 3; y++) { var b = l(c.width - 4, y), fx = -1, ix = -1;" & \
+         "  for (var x = 3; x < c.width - 4; x++) { if (Math.abs(l(x, y) - b) > 64) { if (fx < 0) { fx = x; } if (ix < 0 && x > 30 * s) { ix = x; } } }" & \
+         "  if (fx >= 0) { if (start < 0) { start = y; first = fx; inner = ix; } else { first = Math.min(first, fx); } }" & \
+         "  else if (start >= 0) { out.push(start + '-' + (y - 1) + '@' + first + '/' + inner); start = -1; } }" & \
+         " return 'scale ' + s.toFixed(2) + ' ' + out.join(' '); })()")
+end tourSubmenuInkRows
+
+-- A submenu with a mark that also opens a deeper submenu, in a pulldown
+-- menu of a stack of the tour's, whose top level has no mark: pText is
+-- the menu's text, and the result the right strip of its submenu
+-- (tourSubmenuStrip, 14 points), the menu's second item hovered to open it. The
+-- item that opens the deeper submenu must keep its arrow when its
+-- submenu's items become check items (codex review of #425: made a
+-- check item, it lost the arrow that a menu item draws)
+function tourNestedSubmenuStrip pText, pShot
+   local tStack, tTool, tDefault, tLoc, tFirst, tRects, tStrip
+   put "Web Tour Nested Marks" into tStack
+   put the tool into tTool
+   lock messages
+   if there is a stack tStack then delete stack tStack
+   create stack tStack
+   set the rect of stack tStack to "320,160,720,460"
+   put the defaultStack into tDefault
+   set the defaultStack to tStack
+   create button "Marks"
+   set the style of it to "menu"
+   set the menuMode of it to "pulldown"
+   set the rect of it to "20,20,140,42"
+   set the text of it to pText
+   set the defaultStack to tDefault
+   unlock messages
+   go stack tStack
+   set the tool to "browse tool"
+   tourWait 800
+   put the globalLoc of the loc of button "Marks" of card 1 of stack tStack into tLoc
+   tourAct "click" && item 1 of tLoc && item 2 of tLoc
+   tourWait 1500
+   put tourMenuRects() into tFirst
+   if tFirst is not empty then
+      -- the second item, Sub
+      tourAct "move" && (item 1 of line 1 of tFirst + 30) && (item 2 of line 1 of tFirst + 30)
+      tourAct "move" && (item 1 of line 1 of tFirst + 36) && (item 2 of line 1 of tFirst + 31)
+      tourWait 1500
+      put tourMenuRects() into tRects
+      tourRecord "INFO import-stack-marks: nested menus" && tourJoin(tRects)
+      tourShot pShot
+      put tourSubmenuStrip("right", 14) into tStrip
+   end if
+   tourAct "key Escape"
+   tourWait 500
+   tourAct "key Escape"
+   tourWait 800
+   set the tool to tTool
+   lock messages
+   delete stack tStack
+   unlock messages
+   if tStrip is empty then
+      throw "the nested menu's submenu did not open:" && tourJoin(tFirst) && "|" && tourJoin(tRects)
+   end if
+   return tStrip
+end tourNestedSubmenuStrip
+
+-- How many pixels of a strip of tourSubmenuStrip stand out from the menu
+-- (differ in luma by more than a quarter of the way from black to white
+-- from the strip's commonest luma), its outer 3 pixels left out (the
+-- menu's border)
+function tourStripInk pStrip
+   local tSize, tLumas, tWidth, tHeight, tCounts, tLuma, tBack, tMost, tCount, x, y
+   set the itemDelimiter to ":"
+   put item 1 of pStrip into tSize
+   put item 2 of pStrip into tLumas
+   set the itemDelimiter to comma
+   put item 3 of tSize into tWidth
+   put item 2 of tSize into tHeight
+   split tLumas by space
+   put 0 into tMost
+   repeat for each element tLuma in tLumas
+      add 1 to tCounts[tLuma]
+      if tCounts[tLuma] > tMost then
+         put tCounts[tLuma] into tMost
+         put tLuma into tBack
+      end if
+   end repeat
+   put 0 into tCount
+   repeat with y = 3 to tHeight - 4
+      repeat with x = 0 to tWidth - 4
+         if abs(tLumas[y * tWidth + x + 1] - tBack) > 64 then
+            add 1 to tCount
+         end if
+      end repeat
+   end repeat
+   return tCount
+end tourStripInk
+
+-- How far apart the lightest and darkest pixel of a strip of
+-- tourImportStackStrip are in luma (0 to 255): the item's words reach
+-- into it, light on dark or dark on light
+function tourStripSpread pStrip
+   local tLumas, tLuma, tMin, tMax
+   set the itemDelimiter to ":"
+   put item 2 of pStrip into tLumas
+   put 255 into tMin
+   put 0 into tMax
+   repeat for each word tLuma in tLumas
+      put min(tMin, tLuma) into tMin
+      put max(tMax, tLuma) into tMax
+   end repeat
+   return max(0, tMax - tMin)
+end tourStripSpread
+
+-- How many pixels of two strips of tourImportStackStrip differ in luma by
+-- more than a quarter of the way from black to white (0 to 255); strips
+-- of different sizes throw
+function tourStripsDiffer pA, pB
+   local tA, tB, tCount, i
+   set the itemDelimiter to ":"
+   if item 1 of pA is not item 1 of pB then
+      throw "the submenu's size changed between its options on and off:" && item 1 of pA && "and" && item 1 of pB
+   end if
+   put item 2 of pA into tA
+   put item 2 of pB into tB
+   split tA by space
+   split tB by space
+   put 0 into tCount
+   repeat with i = 1 to the number of elements of tA
+      if abs(tA[i] - tB[i]) > 64 then
+         add 1 to tCount
+      end if
+   end repeat
+   return tCount
+end tourStripsDiffer
+
 -- Opens the File menu with a tap; the result is the open menus' rects
 command tourTapFileMenu
    local tMenu
@@ -981,7 +1272,7 @@ on tour_tooltip
    put tourSample("Push") into tButton
    set the toolTip of tButton to "A tooltip of the tour's sample button"
    go stack kSample
-   choose browse tool
+   set the tool to "browse tool"
    -- (the engine shows a tooltip only in the window that has the focus,
    -- or a palette: a click on the card, below its controls)
    tourAct "click" && the left of stack kSample + 100 && the top of stack kSample + 325

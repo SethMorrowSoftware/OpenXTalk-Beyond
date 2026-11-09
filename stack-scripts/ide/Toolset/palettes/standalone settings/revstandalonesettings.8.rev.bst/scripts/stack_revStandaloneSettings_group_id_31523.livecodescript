@@ -20,7 +20,13 @@ on mouseUp
    if word 1 of the target is not "button" then
       exit mouseUp
    end if
-   
+   -- OXT-Beyond: the "Edge to edge" box ("Edge To Edge") is no
+   -- architecture: ticked, the app is drawn edge to edge on Android 11
+   -- and newer ("android,edge to edge" is true), else laid out as before
+   if the short name of the target is "Edge To Edge" then
+      storeSetting "edge to edge", the hilite of the target
+      exit mouseUp
+   end if
    local tTarget
    put the short name of the target into tTarget
    -- OXT-Beyond: "App Bundle" is no architecture: it asks the build for

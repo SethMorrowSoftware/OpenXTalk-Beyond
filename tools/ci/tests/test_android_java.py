@@ -1003,6 +1003,41 @@ class Named(unittest.TestCase):
         self.assertIn('com/runrev/android/LiveCodeActivity', named)
         self.assertNotIn('com/runrev/android/LiveCodeActivity', looked_for)
 
+    def test_meta_data_is_no_class(self):
+        # the builder writes com.runrev.android.EDGE_TO_EDGE as meta-data
+        # (META_DATA), which no jar has as a class: said, not looked for;
+        # the manifest naming it is still a problem, as is a name of the
+        # builder's that META_DATA does not keep
+        classes = aj.Classes({w.name: parse(w) for w in engine_classes()})
+        with tempfile.TemporaryDirectory() as d:
+            named, looked_for = self.builder(
+                d, 'constant kEdgeToEdge = "com.runrev.android.EDGE_TO_EDGE"\n'
+                   'constant kOther = "com.runrev.android.OTHER_KEY"\n',
+                manifest='<meta-data android:name="com.runrev.android.EDGE_TO_EDGE"/>')
+        self.assertEqual(named, [('Manifest.xml', 'com/runrev/android/EDGE_TO_EDGE'),
+                                 ('revsaveasandroidstandalone.livecodescript', 'com/runrev/android/EDGE_TO_EDGE'),
+                                 ('revsaveasandroidstandalone.livecodescript', 'com/runrev/android/OTHER_KEY')])
+        for kept in (looked_for, ()):
+            problems, lines = aj.check_named(named, classes, kept)
+            self.assertEqual(problems, ['Manifest.xml names com/runrev/android/EDGE_TO_EDGE, which the jar does not '
+                                        'have', 'revsaveasandroidstandalone.livecodescript names '
+                                        'com/runrev/android/OTHER_KEY, which the jar does not have'])
+            self.assertEqual(lines, ['revsaveasandroidstandalone.livecodescript names com/runrev/android/EDGE_TO_EDGE, '
+                                     'meta-data and no class: ' + aj.META_DATA['com/runrev/android/EDGE_TO_EDGE'],
+                                     '2 classes named by the manifest and the builder checked'])
+
+    def test_meta_data_the_builder_writes_and_the_java_layer_reads(self):
+        # every name META_DATA keeps is one the real builder names and the
+        # Java layer reads as meta-data, so that the list keeps no stale name
+        named = [cls for where, cls in aj.named_classes(os.path.join(REPO, 'no-runtime'))]
+        activity = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'LiveCodeActivity.java')
+        self.assertEqual(sorted(aj.META_DATA), ['com/runrev/android/EDGE_TO_EDGE'])
+        for name in aj.META_DATA:
+            self.assertIn(name, named)
+            constant = re.search(r'public static final String (\w+) = "%s";' % re.escape(name.replace('/', '.')),
+                                 activity).group(1)
+            self.assertIn('t_meta_data.getBoolean(%s, false)' % constant, activity)
+
     def run_jni(self, *flags):
         """jni's status and output for a jar without RelaunchActivity, with
         a builder that names it only where the jar has it, the other checks
@@ -1465,16 +1500,29 @@ class OneSystem(unittest.TestCase):
             'onBackPressed:()V', 'onKeyDown:(ILandroid/view/KeyEvent;)Z',
             'onActivityResult:(IILandroid/content/Intent;)V', 'onRequestPermissionsResult:(I[Ljava/lang/String;[I)V')]
         self.assertEqual(sorted(aj.RELAUNCH_GUARDS), sorted(keys))
+        configuration = 'code com/runrev/android/LiveCodeActivity.onConfigurationChanged:' \
+                        '(Landroid/content/res/Configuration;)V'
         for sha in ('c10841215d429fdc084025805c1abfcaef2e2f8086da4af9cf5935f36159dbc0',
                     'e28f35a674222e798ed824ab2a22b0c6370dc37e86573a34565af0dbd6050360'):
             for key in keys:
-                self.assertEqual(aj.EXPECTED[sha][key], aj.RELAUNCH_GUARDS[key], (sha, key))
+                if key == configuration:
+                    # and the bars' icons of a stack drawn edge to edge
+                    # (test_edge_to_edge_when_the_app_asks)
+                    self.assertEqual(aj.EXPECTED[sha][key], aj.RELAUNCH_GUARDS[key] + '. And ' +
+                                     aj.EDGE_TO_EDGE_ON_CONFIGURATION, (sha, key))
+                else:
+                    self.assertEqual(aj.EXPECTED[sha][key], aj.RELAUNCH_GUARDS[key], (sha, key))
         # the first Classes built here differs in nothing else, bar the
         # engine finishing what it drew (test_the_engine_finishes_drawing_first)
+        # and a stack drawn edge to edge (test_edge_to_edge_when_the_app_asks)
         self.assertEqual(aj.EXPECTED['e28f35a674222e798ed824ab2a22b0c6370dc37e86573a34565af0dbd6050360'],
-                         dict(aj.RELAUNCH_GUARDS, **aj.FINISH_DRAWING, **{
+                         dict(aj.RELAUNCH_GUARDS, **aj.FINISH_DRAWING, **aj.EDGE_TO_EDGE, **{
                              'code com/runrev/android/LiveCodeActivity.onDestroy:()V':
-                                 aj.FINISH_DRAWING_ON_DESTROY}))
+                                 aj.FINISH_DRAWING_ON_DESTROY,
+                             'code com/runrev/android/LiveCodeActivity.onCreate:(Landroid/os/Bundle;)V':
+                                 aj.EDGE_TO_EDGE_ON_CREATE,
+                             configuration: aj.RELAUNCH_GUARDS[configuration] + '. And ' +
+                                 aj.EDGE_TO_EDGE_ON_CONFIGURATION}))
 
     def test_the_engine_finishes_drawing_first(self):
         # Android 16 made the activity again for a density change while the
@@ -1548,10 +1596,15 @@ class OneSystem(unittest.TestCase):
             for key in aj.FINISH_DRAWING:
                 self.assertEqual(entries[key], aj.FINISH_DRAWING[key], (sha, key))
             self.assertIn(aj.FINISH_DRAWING_ON_DESTROY, entries['code com/runrev/android/LiveCodeActivity.onDestroy:()V'])
-        # rc.6.19's (the runtimes asset pinned now) differs in nothing else
+        # rc.6.19's (the runtimes asset pinned now) differs in nothing else,
+        # bar a stack drawn edge to edge (test_edge_to_edge_when_the_app_asks)
         self.assertEqual(aj.EXPECTED['328a531ae3d1f5845fbaa4174760187f2e7435855a5481541f9f8927880e414d'],
-                         dict(aj.FINISH_DRAWING, **{'code com/runrev/android/LiveCodeActivity.onDestroy:()V':
-                                                    aj.FINISH_DRAWING_ON_DESTROY}))
+                         dict(aj.FINISH_DRAWING, **aj.EDGE_TO_EDGE, **{
+                             'code com/runrev/android/LiveCodeActivity.onDestroy:()V': aj.FINISH_DRAWING_ON_DESTROY,
+                             'code com/runrev/android/LiveCodeActivity.onCreate:(Landroid/os/Bundle;)V':
+                                 aj.EDGE_TO_EDGE_ON_CREATE,
+                             'code com/runrev/android/LiveCodeActivity.onConfigurationChanged:'
+                             '(Landroid/content/res/Configuration;)V': aj.EDGE_TO_EDGE_ON_CONFIGURATION}))
 
     def test_edge_to_edge_keeps_the_stack_out_of_the_bars(self):
         # an app that targets API 35 or newer is drawn edge to edge on
@@ -1587,6 +1640,156 @@ class OneSystem(unittest.TestCase):
                                  r'LayoutParams\.MATCH_PARENT,\s*FrameLayout\.LayoutParams\.MATCH_PARENT\)\);')
         self.assertRegex(activity, r's_main_layout \. addView\(s_main_view,\s*new FrameLayout\.LayoutParams\('
                                    r'FrameLayout\.LayoutParams\.MATCH_PARENT,\s*FrameLayout\.LayoutParams\.MATCH_PARENT\)\);')
+
+    def test_edge_to_edge_when_the_app_asks(self):
+        # a stack can ask to be drawn edge to edge (the Android card's "Edge
+        # to edge", the stack's "android,edge to edge"), which the builder
+        # writes into the manifest as meta-data of the application
+        # (test_android_builder's EdgeToEdge): on Android 11 and newer the
+        # activity then draws it so, under the see-through bars and into the
+        # cutout, whatever API the app targets; an app that does not ask is
+        # laid out as before (test_edge_to_edge_keeps_the_stack_out_of_the_bars)
+        activity = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'LiveCodeActivity.java')
+        builder = read('ide-support', 'revsaveasandroidstandalone.livecodescript')
+        key = re.search(r'public static final String EDGE_TO_EDGE = "([^"]+)";', activity).group(1)
+        self.assertEqual(key, 'com.runrev.android.EDGE_TO_EDGE')
+        self.assertIn('constant kEdgeToEdge = "%s"\n' % key, builder)
+        # the class the builder looks for before it asks: the layer's own
+        self.assertIn('constant kEdgeToEdgeClass = "com/runrev/android/LiveCodeActivity$EdgeToEdge.class"\n', builder)
+        self.assertIn('    protected static class EdgeToEdge implements View.OnApplyWindowInsetsListener\n', activity)
+        create = re.search(r'(?s)protected void onCreate\(Bundle p_saved_state\)\n\t{\n(.*?)\n\t}\n', activity).group(1)
+        self.assertRegex(create, r'if \(Build\.VERSION\.SDK_INT >= 30 && asksForEdgeToEdge\(\)\)\s+drawEdgeToEdge\(\);\s+'
+                                 r'else if \(Build\.VERSION\.SDK_INT >= 35 && getApplicationInfo\(\)\.targetSdkVersion '
+                                 r'>= 35\)\s+keepOutOfSystemBars\(\);')
+        self.assertLess(create.index('setContentView('), create.index('drawEdgeToEdge();'))
+        self.assertEqual(activity.count('drawEdgeToEdge();'), 1)
+        # it asks the manifest, and an app without the meta-data does not ask
+        asks = re.search(r'(?s)protected boolean asksForEdgeToEdge\(\)\n    {\n(.*?)\n    }\n', activity).group(1)
+        self.assertEqual(asks.split(), (
+            'try { Bundle t_meta_data = getPackageManager().getApplicationInfo(getPackageName(), '
+            'PackageManager.GET_META_DATA).metaData; '
+            'return t_meta_data != null && t_meta_data.getBoolean(EDGE_TO_EDGE, false); } '
+            'catch (PackageManager.NameNotFoundException e) { return false; }').split())
+        # drawn so: the window under the bars, which are see-through, and
+        # into the cutout; the view padded by the insets' listener
+        draw = re.search(r'(?s)protected void drawEdgeToEdge\(\)\n    {\n(.*?)\n    }\n', activity).group(1)
+        self.assertEqual(draw.split(), (
+            'Window t_window = getWindow(); '
+            't_window.setDecorFitsSystemWindows(false); '
+            't_window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS | '
+            'WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION); '
+            't_window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS); '
+            't_window.setStatusBarColor(Color.TRANSPARENT); '
+            't_window.setNavigationBarColor(Color.TRANSPARENT); '
+            't_window.setStatusBarContrastEnforced(false); '
+            'WindowManager.LayoutParams t_attributes = t_window.getAttributes(); '
+            't_attributes.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS; '
+            't_window.setAttributes(t_attributes); '
+            's_edge_to_edge = new EdgeToEdge(this); '
+            's_main_layout.setOnApplyWindowInsetsListener(s_edge_to_edge); '
+            'showBarsForAppearance(getResources().getConfiguration());').split())
+        self.assertEqual(activity.count('s_edge_to_edge = '), 1)
+        # padded by the keyboard only, while the window resizes for it; the
+        # bars, the cutout and the keyboard are what the stack is told of
+        pad = re.search(r'(?s)class EdgeToEdge .*?public WindowInsets onApplyWindowInsets\(View p_view, WindowInsets '
+                        r'p_insets\)\n        {\n(.*?)\n        }\n', activity).group(1)
+        self.assertEqual(pad.split(), (
+            'Insets t_keyboard = p_insets.getInsets(WindowInsets.Type.ime()); '
+            'm_covered = Insets.max(p_insets.getInsets(WindowInsets.Type.systemBars() | '
+            'WindowInsets.Type.displayCutout()), t_keyboard); '
+            'int t_bottom = 0; '
+            'if ((m_activity.getWindow().getAttributes().softInputMode & WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST) == '
+            'WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE) t_bottom = t_keyboard.bottom; '
+            'p_view.setPadding(0, 0, 0, t_bottom); '
+            'return WindowInsets.CONSUMED;').split())
+        # the part of the engine's view they leave, in the screen's pixels;
+        # nothing until the window has had insets
+        area = re.search(r'(?s)public boolean uncoveredArea\(View p_view, Rect r_area\)\n        {\n(.*?)\n        }\n',
+                         activity).group(1)
+        self.assertEqual(area.split(), (
+            'if (m_covered == null || s_main_layout == null) return false; '
+            'int[] t_origin = new int[2]; '
+            's_main_layout.getLocationOnScreen(t_origin); '
+            'Rect t_uncovered = new Rect(t_origin[0] + m_covered.left, t_origin[1] + m_covered.top, '
+            't_origin[0] + s_main_layout.getWidth() - m_covered.right, '
+            't_origin[1] + s_main_layout.getHeight() - m_covered.bottom); '
+            'p_view.getLocationOnScreen(t_origin); '
+            'Rect t_view = new Rect(t_origin[0], t_origin[1], t_origin[0] + p_view.getWidth(), '
+            't_origin[1] + p_view.getHeight()); '
+            'if (!t_uncovered.intersect(t_view)) t_uncovered.set(t_view.left, t_view.top, t_view.left, t_view.top); '
+            'r_area.set(t_uncovered); '
+            'return true;').split())
+        self.assertRegex(activity, r'public static boolean edgeToEdgeUncoveredArea\(View p_view, Rect r_area\)\s*{\s*'
+                                   r'return s_edge_to_edge != null && s_edge_to_edge\.uncoveredArea\(p_view, r_area\);\s*}')
+        # which the effective working screenRect gives a script; for any
+        # other stack, the visible display frame, as before
+        engine = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'Engine.java')
+        work = re.search(r'(?s)private Rect getEffectiveWorkarea\(\)\n\t{\n(.*?)\n\t}\n', engine).group(1)
+        code = ' '.join(x.strip() for x in work.splitlines() if x.strip() and not x.strip().startswith('//'))
+        self.assertEqual(code.split(), (
+            'Rect t_workrect = new Rect(); '
+            'if (LiveCodeActivity.edgeToEdgeUncoveredArea(this, t_workrect)) return t_workrect; '
+            'getWindowVisibleDisplayFrame(t_workrect); '
+            'return t_workrect;').split())
+        native = read('engine', 'src', 'mblandroiddc.cpp')
+        self.assertIn('"getEffectiveWorkareaAsString"', native)
+        # and the screenRect of a stack drawn edge to edge is the whole of
+        # its window, so that the uncovered area lies inside it (the
+        # default display's metrics leave the navigation bar and the
+        # cutout out: on Android 13 they gave a screenRect of 0,0,393,778
+        # around an uncovered area of 0,49,393,827), where the window is on
+        # the screen, in the screen's pixels as the uncovered area is
+        # (getLocationOnScreen, above): a window that shares the screen is
+        # not at (0, 0), and its uncovered area must not leave its
+        # screenRect. For any other stack, the default display's metrics
+        # from (0, 0), as before
+        bounds = re.search(r'(?s)public static boolean edgeToEdgeWindowBounds\(Rect r_bounds\)\n    {\n(.*?)\n    }\n',
+                           activity).group(1)
+        self.assertEqual(bounds.split(), (
+            'if (s_edge_to_edge == null) return false; '
+            'r_bounds.set(s_edge_to_edge.m_activity.getWindowManager().getCurrentWindowMetrics().getBounds()); '
+            'return true;').split())
+        self.assertNotIn('edgeToEdgeWindowSize', activity + engine)
+        self.assertEqual(area.count('getLocationOnScreen(t_origin);'), 2)
+        view = re.search(r'(?s)public Rect getViewport\(\)\n\t{\n(.*?)\n\t}\n', engine).group(1)
+        code = ' '.join(x.strip() for x in view.splitlines() if x.strip() and not x.strip().startswith('//'))
+        self.assertEqual(code.split(), (
+            'Rect t_window = new Rect(); '
+            'if (LiveCodeActivity.edgeToEdgeWindowBounds(t_window)) return t_window; '
+            'DisplayMetrics t_metrics = new DisplayMetrics(); '
+            'getWindowManager().getDefaultDisplay().getMetrics(t_metrics); '
+            'return new Rect(0, 0, t_metrics.widthPixels, t_metrics.heightPixels);').split())
+        self.assertIn('"getViewportAsString"', native)
+        # getCurrentWindowMetrics is Android 11's, and only an activity
+        # that drew its stack edge to edge (on Android 11 and newer) has
+        # s_edge_to_edge
+        self.assertEqual(activity.count('s_edge_to_edge = '), 1)
+        self.assertRegex(activity, r'if \(Build\.VERSION\.SDK_INT >= 30 && asksForEdgeToEdge\(\)\)\s*drawEdgeToEdge\(\);')
+        self.assertRegex(activity, r'(?s)protected void drawEdgeToEdge\(\)\n    {\n[^}]*s_edge_to_edge = new EdgeToEdge\(this\);')
+        # the bars' icons dark over the light appearance, light over the
+        # dark, from the start and as night mode changes
+        bars = re.search(r'(?s)protected void showBarsForAppearance\(Configuration p_config\)\n    {\n(.*?)\n    }\n',
+                         activity).group(1)
+        self.assertEqual(bars.split(), (
+            'int t_light = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | '
+            'WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS; '
+            'boolean t_dark = (p_config.uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES; '
+            'WindowInsetsController t_controller = getWindow().getInsetsController(); '
+            'if (t_controller != null) t_controller.setSystemBarsAppearance(t_dark ? 0 : t_light, t_light);').split())
+        changed = re.search(r'(?s)public void onConfigurationChanged\(Configuration p_new_config\)\n\t{\n(.*?)\n\t}\n',
+                            activity).group(1)
+        code = [x.strip() for x in changed.splitlines() if x.strip() and not x.strip().startswith('//')]
+        self.assertEqual(code, ['super.onConfigurationChanged(p_new_config);', 'if (!m_engine_started)', 'return;',
+                                'if (s_edge_to_edge != null)', 'showBarsForAppearance(p_new_config);',
+                                's_main_view.onConfigurationChanged(p_new_config);'])
+        # named, with its reason, against every Classes compare knows
+        create_key = 'code com/runrev/android/LiveCodeActivity.onCreate:(Landroid/os/Bundle;)V'
+        changed_key = 'code com/runrev/android/LiveCodeActivity.onConfigurationChanged:(Landroid/content/res/Configuration;)V'
+        for sha, entries in aj.EXPECTED.items():
+            for key in aj.EDGE_TO_EDGE:
+                self.assertEqual(entries[key], aj.EDGE_TO_EDGE[key], (sha, key))
+            self.assertTrue(entries[create_key].endswith(aj.EDGE_TO_EDGE_ON_CREATE), sha)
+            self.assertTrue(entries[changed_key].endswith(aj.EDGE_TO_EDGE_ON_CONFIGURATION), sha)
 
     def test_opengl_view_serves_both_engines(self):
         # the runtime's engine is LiveCode Community 9.6.3's, which draws
