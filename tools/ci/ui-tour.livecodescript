@@ -5601,7 +5601,10 @@ end tourBmMake
 -- is right
 function tourBmCheckRow pWhat, pButton
    local tRow
-   put tourBmStyleRow(revIDEPropertiesInfoOfSection(pButton, "Basic")) into tRow
+   -- (revIDEPropertiesInfo, the Inspector's own read: its section form,
+   -- revIDEPropertiesInfoOfSection with a section, calls a handler the
+   -- library does not have)
+   put tourBmStyleRow(revIDEPropertiesInfo(pButton)) into tRow
    tourRecord "INFO inspector-button-menu the Style row of a" && pWhat & ": user_visible" && \
          quote & tRow["user_visible"] & quote && "options" && tourJoin(tRow["options"])
    if tRow is not an array then return "a" && pWhat & "'s Inspector has no Style row" & return
@@ -5617,7 +5620,7 @@ end tourBmCheckRow
 function tourBmStyleRow pInfo
    local tKey, tRow
    if pInfo is not an array then return empty
-   if pInfo["name"] is "style" and "options" is among the keys of pInfo then return pInfo
+   if pInfo["property_name"] is "style" or pInfo["name"] is "style" then return pInfo
    repeat for each key tKey in pInfo
       put tourBmStyleRow(pInfo[tKey]) into tRow
       if tRow is an array then return tRow
