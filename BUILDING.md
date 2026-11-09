@@ -1565,7 +1565,17 @@ questions in its ask dialogs), `unsigned` ("Do not sign"), `legacy`
 (a stack that never opened the Android card) and `bundle` (as `release`,
 for arm64 and x86-64, with `"android,app bundle"`, so the builder also
 makes `bundle.aab`; it downloads bundletool the first time, and `ide`
-copies the jar it keeps to `<work>/bundletool.jar`). It needs Python 3.8
+copies the jar it keeps to `<work>/bundletool.jar`). With
+`--bundletool-fallback`, as `android.yml` runs it, a bundle build whose
+download of bundletool GitHub's release host answered with an HTTP 5xx
+(every try, from libURL and the JDK alike) is built again, once: `gh`
+downloads the pinned jar through GitHub's API (its SHA-256 checked),
+`ide` puts it where the builder keeps its download, the IDE builds the
+App Bundle alone (no units, no Test; its lines in
+`<work>/android-check-bundle.txt`), and its lines take the place of the
+failure in `android-check.txt`, with a warning on the run saying so.
+The builder's own download is still tried first, and any other failure
+of it (a stall, the wrong file, a 404) stays a failure. It needs Python 3.8
 or later, a JDK, and an Android SDK with `platforms;android-33`,
 build-tools (with aapt2) and platform-tools:
 

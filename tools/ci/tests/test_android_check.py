@@ -2682,6 +2682,309 @@ class IdeLines(unittest.TestCase):
         self.assertIsNone(ac.ide_results(['DONE'])['bundletool'])
 
 
+
+# The builder's failure on the macOS runner in run 42582158750, when
+# GitHub's release host answered both of its downloaders with a 504
+BUNDLETOOL_URL = 'https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar'
+MAC_CACHE = '/Users/runner/Library/Application Support/OXT-Beyond/Cache/Android/bundletool-all-1.18.3.jar'
+
+
+def bundletool_failure(said, cache=MAC_CACHE, tries=3):
+    """The builder's failure (androidBundletool) when its downloaders said
+    said"""
+    return ('could not download bundletool, which makes the App Bundle, from %s: %s (tried %d times). Download '
+            'that file and put it at %s, or name a bundletool jar in the cMobileSupport["android.bundletool"] of '
+            'stack "revPreferences"' % (BUNDLETOOL_URL, said, tries, cache))
+
+
+BOTH_504 = 'error 504 Gateway Time-out; and the JDK could not download it: Error: java.io.IOException: 504 ' \
+    'Gateway Time-out from ' + BUNDLETOOL_URL
+
+
+class BundletoolRefusedByHost(unittest.TestCase):
+    """ide --bundletool-fallback rides out GitHub's release host refusing
+    the builder's download with an HTTP 5xx, and nothing else."""
+
+    def test_run_42582158750(self):
+        # the line as the IDE wrote it, from the run's log
+        self.assertEqual(ac.bundletool_refused_by_host(bundletool_failure(BOTH_504)), MAC_CACHE)
+
+    def test_one_downloader_or_another_5xx(self):
+        # libURL alone (no JDK, or the JDK's try was not the last to fail)
+        self.assertEqual(ac.bundletool_refused_by_host(bundletool_failure('error 503 Service Unavailable')),
+                         MAC_CACHE)
+        self.assertEqual(ac.bundletool_refused_by_host(bundletool_failure('error 502 Bad Gateway', tries=1)),
+                         MAC_CACHE)
+        # the JDK's alone, and a Windows cache
+        cache = 'C:/Users/runneradmin/AppData/Roaming/OXT-Beyond/Cache/Android/bundletool-all-1.18.3.jar'
+        self.assertEqual(ac.bundletool_refused_by_host(bundletool_failure(
+            'Error: java.io.IOException: 500 Internal Server Error from ' + BUNDLETOOL_URL, cache)), cache)
+
+    def test_other_failures_stay_failures(self):
+        for said in ['error socket timeout',
+                     'nothing came',
+                     'error 404 Not Found',
+                     'error 5040 Odd',
+                     'error 504 Gateway Time-out; and the JDK could not download it: Error: '
+                     'java.net.SocketTimeoutException: Read timed out',
+                     'error socket timeout; and the JDK could not download it: Error: java.io.IOException: 504 '
+                     'Gateway Time-out from ' + BUNDLETOOL_URL]:
+            self.assertIsNone(ac.bundletool_refused_by_host(bundletool_failure(said)), said)
+        # the wrong file came: no "(tried N times)"
+        wrong = bundletool_failure('x').replace(
+            'x (tried 3 times)', 'it is not the file this builder takes (its SHA-256 is 00, not 11)')
+        self.assertIsNone(ac.bundletool_refused_by_host(wrong))
+        for other in ['could not compile service support class', 'the builder made no /w/out/bundle.apk', '', None,
+                      'could not keep bundletool at %s: can\'t open file' % MAC_CACHE]:
+            self.assertIsNone(ac.bundletool_refused_by_host(other), other)
+
+    def test_bundle_lines(self):
+        for line in ['INFO bundle warnings ', 'INFO bundle asked Please provide the keystore alias to use;',
+                     'BUILT bundle /w/out/bundle.apk', 'BUILD FAILED bundle could not download bundletool',
+                     'INFO bundletool %s' % MAC_CACHE]:
+            self.assertTrue(ac.is_bundle_line(line), line)
+        for line in ['INFO debug warnings ', 'BUILT debug /w/out/debug.apk', 'BUILD FAILED legacy x',
+                     'INFO bundletools', 'UNIT OK bundle-path', 'UNIT OK bundletool-download', 'DONE',
+                     'TEST OK', 'ERROR 219,1,1', 'INFO version 9.7.1']:
+            self.assertFalse(ac.is_bundle_line(line), line)
+
+
+class BundletoolWithGh(unittest.TestCase):
+    """The pinned bundletool, downloaded with gh through GitHub's API,
+    with gh and its answers made up."""
+
+    def setUp(self):
+        self.work = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.work, ignore_errors=True)
+        self.calls = []
+        self.data = b'a stand-in bundletool'
+        self.status, self.said = 0, ''
+        self.which = 'gh'
+        saved = ac.run, ac.shutil.which, ac.BUNDLETOOL_SHA256
+        ac.BUNDLETOOL_SHA256 = __import__('hashlib').sha256(self.data).hexdigest()
+
+        def run(cmd, timeout=300, check=False):
+            self.calls.append(cmd)
+            if isinstance(self.status, Exception):
+                raise self.status
+            if self.data is not None:
+                folder = cmd[cmd.index('--dir') + 1]
+                with open(os.path.join(folder, cmd[cmd.index('--pattern') + 1]), 'wb') as f:
+                    f.write(self.data)
+            return self.status, self.said
+        ac.run = run
+        ac.shutil.which = lambda name: self.which if name == 'gh' else None
+
+        def restore():
+            ac.run, ac.shutil.which, ac.BUNDLETOOL_SHA256 = saved
+        self.addCleanup(restore)
+
+    def test_downloaded(self):
+        jar, why = ac.bundletool_with_gh(self.work)
+        folder = os.path.join(self.work, ac.BUNDLETOOL_GH)
+        self.assertEqual((jar, why), (os.path.join(folder, 'bundletool-all-1.18.3.jar'), None))
+        self.assertEqual(self.calls, [['gh', 'release', 'download', '1.18.3', '--repo', 'google/bundletool',
+                                       '--pattern', 'bundletool-all-1.18.3.jar', '--dir', folder, '--clobber']])
+        with open(jar, 'rb') as f:
+            self.assertEqual(f.read(), self.data)
+
+    def test_no_gh(self):
+        self.which = None
+        self.assertEqual(ac.bundletool_with_gh(self.work), (None, 'there is no gh'))
+        self.assertEqual(self.calls, [])
+
+    def test_gh_fails(self):
+        self.status, self.said, self.data = 1, 'HTTP 502: Bad Gateway\n', None
+        self.assertEqual(ac.bundletool_with_gh(self.work),
+                         (None, 'gh release download: exit status 1: HTTP 502: Bad Gateway'))
+        self.status = ac.CheckError('gh release download ...: timed out')
+        self.assertEqual(ac.bundletool_with_gh(self.work), (None, 'gh release download ...: timed out'))
+
+    def test_gh_says_nothing_and_leaves_nothing(self):
+        self.data = None
+        jar, why = ac.bundletool_with_gh(self.work)
+        self.assertIsNone(jar)
+        self.assertEqual(why, 'gh release download: exit status 0: ')
+
+    def test_the_wrong_file(self):
+        ac.BUNDLETOOL_SHA256 = '11' * 32
+        jar, why = ac.bundletool_with_gh(self.work)
+        self.assertIsNone(jar)
+        self.assertEqual(why, 'gh downloaded a bundletool-all-1.18.3.jar whose SHA-256 is %s, not %s'
+                         % (__import__('hashlib').sha256(self.data).hexdigest(), '11' * 32))
+
+
+class IdeBundletoolFallback(unittest.TestCase):
+    """ide, with the IDE's runs made up (run_ide writes the lines it would
+    write) and gh's download too: when the App Bundle failed because
+    GitHub's release host refused the builder's download of bundletool,
+    --bundletool-fallback builds it again, once, with the jar gh
+    downloaded, and the lines read after are the run again's."""
+
+    FIRST = ['INFO version 9.7.1-BeyondEngine 25923',
+             'UNIT OK sdk-complete',
+             'INFO debug warnings ', 'INFO debug asked ', 'BUILT debug {out}/debug.apk',
+             'INFO release warnings ', 'INFO release asked x;', 'BUILT release {out}/release.apk',
+             'INFO unsigned warnings ', 'INFO unsigned asked ', 'BUILT unsigned {out}/unsigned.apk',
+             'INFO legacy warnings Android: the app is built for armv7 | ', 'INFO legacy asked ',
+             'BUILT legacy {out}/legacy.apk',
+             'INFO bundle warnings ', 'INFO bundle asked ', 'BUILD FAILED bundle {failure}',
+             'DONE']
+    AGAIN = ['INFO version 9.7.1-BeyondEngine 25923', 'INFO sdk sdk', 'INFO jdk jdk',
+             'INFO bundle warnings ', 'INFO bundle asked x;', 'BUILT bundle {out}/bundle.apk',
+             'INFO bundletool {cache}', 'DONE']
+
+    def setUp(self):
+        import types
+        import ui_tour
+        self.dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.dir, ignore_errors=True)
+        self.work = os.path.join(self.dir, 'work')
+        self.out = os.path.join(self.work, 'out')
+        # where the builder keeps its download, with a space in it, as on
+        # macOS
+        self.cache = os.path.join(self.dir, 'Application Support', 'Cache', 'Android', 'bundletool-all-1.18.3.jar')
+        self.failure = bundletool_failure(BOTH_504, self.cache.replace('\\', '/'))
+        self.runs = []
+        self.again = list(self.AGAIN)
+        self.again_status = None
+        self.gh = os.path.join(self.dir, 'gh-jar')
+        with open(self.gh, 'wb') as f:
+            f.write(b'the jar gh downloaded')
+        self.gh_answer = (self.gh, None)
+        saved = (ac.run_ide, ac.bundletool_with_gh, ac.make_keystore, ui_tour.rlc.find_layout,
+                 os.environ.get('GITHUB_ACTIONS'))
+
+        def run_ide(cmd, work, env, results, timeout, output):
+            self.runs.append((env, results, output))
+            lines = self.FIRST if len(self.runs) == 1 else self.again
+            with open(results, 'w', encoding='utf-8') as f:
+                for line in lines:
+                    f.write(line.format(out=self.out.replace('\\', '/'), failure=self.failure,
+                                        cache=self.cache.replace('\\', '/')) + '\n')
+            return None if len(self.runs) == 1 else self.again_status
+        ac.run_ide = run_ide
+        ac.bundletool_with_gh = lambda work: self.gh_answer
+        ac.make_keystore = lambda jdk, path: None
+        ui_tour.rlc.find_layout = lambda args, p, temp_dirs: types.SimpleNamespace(
+            root=self.dir, engine=os.path.join(self.dir, 'engine'), kind='installed', externals=self.dir)
+        os.environ['GITHUB_ACTIONS'] = 'true'
+
+        def restore():
+            ac.run_ide, ac.bundletool_with_gh, ac.make_keystore, ui_tour.rlc.find_layout, gha = saved
+            if gha is None:
+                os.environ.pop('GITHUB_ACTIONS', None)
+            else:
+                os.environ['GITHUB_ACTIONS'] = gha
+        self.addCleanup(restore)
+
+    def ide(self, fallback=True):
+        args = argparse.Namespace(platform='win-x86_64', work=self.work, stack=None, probe='app', sdk='sdk',
+                                  jdk='jdk', builds=None, device='emulator-5554', no_units=True,
+                                  android_engine=None, timeout=60, bundletool_fallback=fallback)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            problems = ac.ide(args)
+        return problems, buf.getvalue()
+
+    def lines(self):
+        return ac.read_lines(os.path.join(self.work, ac.LOG_NAME))
+
+    def test_built_again(self):
+        problems, out = self.ide()
+        # the Test's line is the first run's: made up here without one
+        self.assertEqual(problems, ['Test on emulator-5554: the IDE did not get to it'])
+        # the jar gh downloaded is where the builder keeps its download
+        with open(self.cache, 'rb') as f:
+            self.assertEqual(f.read(), b'the jar gh downloaded')
+        # the run again: the App Bundle alone, no units, no Test, its own
+        # lines and output
+        self.assertEqual(len(self.runs), 2)
+        env, results, output = self.runs[1]
+        self.assertEqual((env['OXT_ANDROID_BUILDS'], env['OXT_ANDROID_UNITS'], env['OXT_ANDROID_DEVICE']),
+                         ('bundle', 'skip', ''))
+        self.assertEqual(results, os.path.join(self.work, ac.BUNDLE_AGAIN_LOG))
+        self.assertEqual(env['OXT_ANDROID_LOG'], results.replace('\\', '/'))
+        self.assertEqual(output, ac.BUNDLE_AGAIN_OUTPUT)
+        first = self.runs[0][0]
+        self.assertEqual((first['OXT_ANDROID_BUILDS'], first['OXT_ANDROID_UNITS'], first['OXT_ANDROID_DEVICE']),
+                         ('', 'skip', 'emulator-5554'))
+        self.assertEqual({k: v for k, v in env.items() if k not in ('OXT_ANDROID_LOG', 'OXT_ANDROID_BUILDS',
+                                                                     'OXT_ANDROID_DEVICE')},
+                         {k: v for k, v in first.items() if k not in ('OXT_ANDROID_LOG', 'OXT_ANDROID_BUILDS',
+                                                                       'OXT_ANDROID_DEVICE')})
+        # the IDE's lines now say the App Bundle the run again made, in
+        # the place of the failure, and keep the rest of the first run's
+        lines = self.lines()
+        out_dir = self.out.replace('\\', '/')
+        self.assertEqual(lines, ['INFO version 9.7.1-BeyondEngine 25923', 'UNIT OK sdk-complete',
+                                 'INFO debug warnings ', 'INFO debug asked ', 'BUILT debug %s/debug.apk' % out_dir,
+                                 'INFO release warnings ', 'INFO release asked x;',
+                                 'BUILT release %s/release.apk' % out_dir,
+                                 'INFO unsigned warnings ', 'INFO unsigned asked ',
+                                 'BUILT unsigned %s/unsigned.apk' % out_dir,
+                                 'INFO legacy warnings Android: the app is built for armv7 | ', 'INFO legacy asked ',
+                                 'BUILT legacy %s/legacy.apk' % out_dir,
+                                 'INFO bundle warnings ', 'INFO bundle asked x;',
+                                 'BUILT bundle %s/bundle.apk' % out_dir,
+                                 'INFO bundletool %s' % self.cache.replace('\\', '/'), 'DONE'])
+        r = ac.ide_results(lines)
+        self.assertEqual(r['builds']['bundle'], ('ok', out_dir + '/bundle.apk'))
+        self.assertEqual(r['warnings']['legacy'], 'Android: the app is built for armv7 | ')
+        # and the bundletool for verify and device is the one put there
+        with open(os.path.join(self.work, ac.BUNDLETOOL_JAR), 'rb') as f:
+            self.assertEqual(f.read(), b'the jar gh downloaded')
+        self.assertIn('Builds: bundle ok, debug ok, legacy ok, release ok, unsigned ok', out)
+        # said, and as a warning on the run
+        self.assertIn('NOTE: GitHub\'s release host answered the builder\'s download of bundletool with an HTTP 5xx',
+                      out)
+        self.assertIn('::warning::GitHub\'s release host answered', out)
+        self.assertIn('  ide (the App Bundle again): BUILT bundle', out)
+
+    def test_not_without_the_flag(self):
+        problems, out = self.ide(fallback=False)
+        self.assertEqual(len(self.runs), 1)
+        self.assertIn('build bundle failed: %s' % self.failure, problems)
+        self.assertFalse(os.path.exists(self.cache))
+        self.assertNotIn('NOTE:', out)
+
+    def test_not_for_another_failure(self):
+        self.failure = bundletool_failure('error socket timeout', self.cache.replace('\\', '/'))
+        problems, out = self.ide()
+        self.assertEqual(len(self.runs), 1)
+        self.assertIn('build bundle failed: %s' % self.failure, problems)
+        self.assertNotIn('NOTE:', out)
+
+    def test_no_jar_from_gh(self):
+        self.gh_answer = (None, 'there is no gh')
+        problems, out = self.ide()
+        self.assertEqual(len(self.runs), 1)
+        self.assertIn('GitHub\'s release host refused the builder\'s download of bundletool, and there is none to '
+                      'build the App Bundle again with: there is no gh', problems)
+        self.assertIn('build bundle failed: %s' % self.failure, problems)
+        self.assertFalse(os.path.exists(self.cache))
+
+    def test_failed_again(self):
+        self.again = ['INFO bundle warnings ', 'INFO bundle asked ',
+                      'BUILD FAILED bundle bundletool build-bundle failed: x', 'ERROR 1,2,3', 'DONE']
+        problems, out = self.ide()
+        self.assertEqual(len(self.runs), 2)
+        self.assertIn('build bundle failed: bundletool build-bundle failed: x', problems)
+        self.assertIn('the IDE: ERROR 1,2,3', problems)
+        self.assertNotIn(self.failure, ' '.join(problems))
+        # once: the run again's error is not also among the IDE's lines
+        self.assertEqual(problems.count('the IDE: ERROR 1,2,3'), 1)
+
+    def test_the_ide_did_not_finish_again(self):
+        self.again = ['INFO version 9.7.1-BeyondEngine 25923']
+        self.again_status = 'the IDE ended with exit status 1 after 3 s'
+        problems, out = self.ide()
+        self.assertIn('the IDE, building the App Bundle again, the IDE ended with exit status 1 after 3 s', problems)
+        self.assertIn('build bundle failed: the IDE did not get to it when it was built again', problems)
+        self.assertEqual(self.lines()[-2:], ['BUILD FAILED bundle the IDE did not get to it when it was built again',
+                                             'DONE'])
+
+
 class Compare(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp()
@@ -4427,6 +4730,30 @@ class OneSystem(unittest.TestCase):
         java_runs = [(pkgs, cmd) for _, work, pkgs, cmd in runs if work == 'java-new']
         self.assertEqual([pkgs for pkgs, _ in java_runs], [['debug.apk', 'bundle.aab']] * 2)
         self.assertIn('${{ env.WORK }}/*/out/*.aab', workflow)
+
+    def test_bundle_builds_ride_out_the_release_host(self):
+        # every ide step that builds the App Bundle (all the builds, or
+        # --builds naming it) asks for --bundletool-fallback and gives gh
+        # its token; the others do not ask. The run again's lines and the
+        # IDE's output are uploaded with the first run's
+        seen = []
+        for name in ('android.yml', 'android-engine.yml'):
+            workflow = read('.github', 'workflows', name)
+            for step in re.split(r'\n      - name: ', workflow)[1:]:
+                for cmd in [re.sub(r'\\\n\s*', '', x) for x in
+                            re.findall(r'android_check\.py ide(?:[^\n]*\\\n)*[^\n]*', step)]:
+                    builds = re.search(r'--builds (\S+)', cmd)
+                    if builds and 'bundle' not in builds.group(1).split(','):
+                        self.assertNotIn('--bundletool-fallback', cmd)
+                        continue
+                    seen.append(step.split('\n')[0])
+                    self.assertIn('--bundletool-fallback', cmd)
+                    self.assertIn('\n        env:\n          GH_TOKEN: ${{ github.token }}\n', step)
+        self.assertEqual(seen, ['This builder (units and builds)', 'The released builder (builds)',
+                                'The Java layer\'s probe, with this Java layer'])
+        workflow = read('.github', 'workflows', 'android.yml')
+        for name in (ac.LOG_NAME, 'ide-output.txt', ac.BUNDLE_AGAIN_LOG, ac.BUNDLE_AGAIN_OUTPUT):
+            self.assertIn('${{ env.WORK }}/*/%s\n' % name, workflow)
 
     def test_java_probe_runs_on_both_emulators(self):
         # the step names device_runs reads are the workflow's

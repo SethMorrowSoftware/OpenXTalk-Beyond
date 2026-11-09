@@ -272,10 +272,17 @@ jobs:
             tail -n 40 "$WORK/emulator-api33.log"
           fi
 
+      # --bundletool-fallback: when GitHub's release host answers the
+      # builder's download of bundletool with an HTTP 5xx (as it did for
+      # hours on 9 November 2026), the pinned jar is downloaded with gh,
+      # through GitHub's API, and the App Bundle built again, with a
+      # warning; the builder's own download is still tried first
       - name: This builder (units and builds)
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           "$PY" tools/ci/android_check.py ide --install "$CHANGED" --platform "$PLATFORM" \
-            --work "$WORK/changed" --sdk "$SDK" --jdk "$JDK"
+            --work "$WORK/changed" --sdk "$SDK" --jdk "$JDK" --bundletool-fallback
 
       # They target the API the builder picks for the release's runtime:
       # 33 with LiveCode 9.6.3's Java layer, which the runtimes carried
@@ -289,10 +296,12 @@ jobs:
       - name: The released builder (builds)
         id: released
         continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           "$PY" tools/ci/android_check.py ide --install "$RELEASED" --platform "$PLATFORM" \
             --work "$WORK/released" --sdk "$SDK" --jdk "$JDK" --no-units \
-            --stack "$WORK/changed/AndroidProbe.livecode"
+            --stack "$WORK/changed/AndroidProbe.livecode" --bundletool-fallback
 
       - name: The released builder made no packages to compare
         if: steps.released.outcome != 'success'
@@ -314,9 +323,12 @@ jobs:
       # stack's orientation on large screens
       - name: The Java layer's probe, with this Java layer
         if: runner.os == 'Linux'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           "$PY" tools/ci/android_check.py ide --install "$JAVA_IDE" --platform "$PLATFORM" \
-            --work "$WORK/java-new" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug,bundle --probe java
+            --work "$WORK/java-new" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug,bundle --probe java \
+            --bundletool-fallback
           "$PY" tools/ci/android_check.py verify --work "$WORK/java-new" --sdk "$SDK" --jdk "$JDK" \
             --builds debug,bundle --target 36
 
@@ -562,6 +574,8 @@ jobs:
           path: |
             ${{ env.WORK }}/*/android-check.txt
             ${{ env.WORK }}/*/ide-output.txt
+            ${{ env.WORK }}/*/android-check-bundle.txt
+            ${{ env.WORK }}/*/ide-output-bundle.txt
             ${{ env.WORK }}/*/out/*.apk
             ${{ env.WORK }}/*/out/*.aab
             ${{ env.WORK }}/*.png
