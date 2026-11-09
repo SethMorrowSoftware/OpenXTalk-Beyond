@@ -85,7 +85,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,tools-widget-install,tools-widget-builder,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,code-font,ide-stacks,screen-end,background-default"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,tools-widget-install,tools-widget-builder,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,icon-picker,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,code-font,ide-stacks,screen-end,background-default"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -3547,6 +3547,92 @@ on tour_widget_appearance
    unlock messages
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_widget_appearance
+
+-- The icon picker (the Inspector's SVG icon chooser) draws its icons in
+-- colours of its source's, with no colour properties of its own: black on
+-- a dark Inspector in the dark appearance (bwmilby, openxtalk.org
+-- p=26194). Now, in the dark appearance on a dark card, its icons are a
+-- light grey (MCWidgetGetMyAppearanceIsDark, as the other widgets decide
+-- it), and in the light appearance black, as before. The screen over the
+-- widget is read: some of it black in the light, some of it the light grey
+-- in the dark (on main, black icons: none of it)
+on tour_icon_picker
+   local tArea, tName, tDefault, tPicker, tStack, tShown, tCard, tDark, tFails, tError
+   put "oxt_icon_picker" into tName
+   put line 1 of the working screenRects into tArea
+   tourTbMake tName, item 1 of tArea + 360, item 2 of tArea + 160, empty
+   go stack tName
+   tourOnScreen tName
+   put the defaultStack into tDefault
+   try
+      create widget "Picker" as "com.livecode.widget.iconpicker" in card 1 of stack tName
+      put the long id of widget "Picker" of card 1 of stack tName into tPicker
+      if word 1 of tPicker is not "widget" then throw "no icon picker could be made"
+      set the rect of tPicker to "10,10,330,250"
+      set the showFrameBorder of tPicker to false
+      set the showSelectedElement of tPicker to false
+      set the showNames of tPicker to false
+      set the iconSize of tPicker to 40
+      tourUnlockScreen "icon-picker"
+      tourWait 500
+      put tourPickerShown(tName, tPicker) into tShown
+      put the rect of stack tName into tStack
+      put tourPixelAt(item 1 of tStack + (item 3 of tStack - item 1 of tStack) div 2, item 4 of tStack - 20) into tCard
+      put the systemAppearance is "dark" and tourSystemLight(tCard) is false into tDark
+      tourRecord "INFO icon-picker: the systemAppearance" && the systemAppearance & ", the card" && tCard & \
+            ", black and light grey pixels" && tShown
+      if tDark then
+         if item 2 of tShown < 20 then
+            put "in the dark appearance on a dark card the icon picker drew" && item 2 of tShown && \
+                  "light grey pixels, not 20 or more (its icons are not light)" & return after tFails
+         end if
+      else
+         if item 1 of tShown < 20 then
+            put "in the light appearance the icon picker drew" && item 1 of tShown && \
+                  "black pixels, not 20 or more (its icons are not black, as they were)" & return after tFails
+         end if
+      end if
+      tourShotStack tName, "04g-icon-picker"
+   catch tError
+      put tourJoin(tError) & return after tFails
+   end try
+   set the defaultStack to tDefault
+   lock messages
+   if there is a stack tName then delete stack tName
+   unlock messages
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_icon_picker
+
+-- How many pixels of the screen over the widget pWidget of the stack
+-- pStack are black (each of red, green and blue 40 or less) and how many
+-- the dark appearance's light grey of its icons (each within 16 of 219):
+-- "black,light"
+function tourPickerShown pStack, pWidget
+   local tStack, tRect, tData, tBlack, tLight, tR, tG, tB, i
+   put the rect of stack pStack into tStack
+   put the rect of pWidget into tRect
+   export snapshot from rect (item 1 of tStack + item 1 of tRect, item 2 of tStack + item 2 of tRect, \
+         item 1 of tStack + item 3 of tRect, item 2 of tStack + item 4 of tRect) to tData as PNG
+   lock messages
+   create invisible image "oxt_tour_probe" in card 1 of stack "oxt_ui_tour"
+   set the text of image "oxt_tour_probe" of stack "oxt_ui_tour" to tData
+   put the imageData of image "oxt_tour_probe" of stack "oxt_ui_tour" into tData
+   delete image "oxt_tour_probe" of stack "oxt_ui_tour"
+   unlock messages
+   put 0 into tBlack
+   put 0 into tLight
+   repeat with i = 0 to (the number of bytes of tData) div 4 - 1
+      put byteToNum(byte i * 4 + 2 of tData) into tR
+      put byteToNum(byte i * 4 + 3 of tData) into tG
+      put byteToNum(byte i * 4 + 4 of tData) into tB
+      if tR <= 40 and tG <= 40 and tB <= 40 then
+         add 1 to tBlack
+      else if abs(tR - 219) <= 16 and abs(tG - 219) <= 16 and abs(tB - 219) <= 16 then
+         add 1 to tLight
+      end if
+   end repeat
+   return tBlack & comma & tLight
+end tourPickerShown
 
 -- A segmented control made as the IDE makes one (revIDECreateObject, which
 -- gives it its light defaults as colours of its own), named pName, at

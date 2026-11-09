@@ -207,5 +207,88 @@ class TheChecks(unittest.TestCase):
         self.assertIn('_SegmentPixel(tStack, tWidget) is "200,120,40"', body)
 
 
+
+class TheIconPicker(unittest.TestCase):
+    """The icon picker (the Inspector's SVG icon chooser) has no colour
+    properties of its own: its getPaint gave black icons and names on a
+    dark Inspector in the dark appearance (bwmilby, openxtalk.org p=26194).
+    In the dark appearance on a dark card, as the engine decides it for the
+    other widgets, it now draws its dark colours; in the light appearance
+    every colour is the one it drew before."""
+
+    LIGHT = {('background', 'popup'): 'stringToColor("255,255,255,128")',
+             ('icon', 'selected'): 'stringToColor("0,150,150")',
+             ('icon', 'fill'): 'color kIconColor',
+             ('scrollbar', 'fill'): 'stringToColor("0,0,0,50")',
+             ('frame', 'stroke'): 'stringToColor("188,188,188")'}
+
+    def setUp(self):
+        self.source = read('extensions', 'widgets', 'iconpicker', 'iconpicker.lcb')
+        self.get = between(self.source, 'private handler getPaint(pLocation, pType) returns Paint', '\nend handler\n')
+
+    def test_the_engine_says_whether_it_is_dark(self):
+        syntax = read('engine', 'src', 'widget-syntax.cpp')
+        call = between(syntax, 'extern "C" MC_DLLEXPORT_DEF void MCWidgetGetMyAppearanceIsDark(bool& r_dark)', '\n}\n')
+        # the same decision as MCWidgetGetMyPaintForAppearance's, false
+        # when there is no widget
+        self.assertIn('r_dark = false;', call)
+        self.assertIn('r_dark = MCWidgetIsInDarkAppearance(MCWidgetGetHost(MCcurrentwidget));', call)
+        self.assertLess(syntax.index('static bool MCWidgetIsInDarkAppearance('),
+                        syntax.index('MCWidgetGetMyAppearanceIsDark('))
+        self.assertIn('public foreign handler MCWidgetGetMyAppearanceIsDark(out rDark as CBool) returns nothing '
+                      'binds to "<builtin>"', read('engine', 'src', 'widget.lcb'))
+
+    def test_every_colour_comes_from_getpaint(self):
+        self.assertIn('constant kIconColor is [0,0,0]', self.source)
+        body = self.source.replace(self.get, '')
+        self.assertNotIn('color kIconColor', body)
+        self.assertNotIn('stringToColor(', body)
+        self.assertEqual(body.count('getPaint("icon", "fill")'), 3)
+        self.assertIn('MCWidgetGetMyAppearanceIsDark(tDark)', self.source)
+
+    def test_the_light_colours_are_as_before(self):
+        # each colour's light return is the one before the change, and the
+        # only return after its dark one
+        for (location, kind), light in self.LIGHT.items():
+            with self.subTest(location=location, kind=kind):
+                start = self.get.index('pLocation is "%s"' % location)
+                part = self.get[start:]
+                part = part[part.index('pType is "%s"' % kind):]
+                ret = part.index('return solid paint with %s' % light)
+                self.assertNotIn('else if pType', part[:ret])
+                before = part[:ret]
+                if 'if tDark then' in before:
+                    self.assertIn('end if', before[before.index('if tDark then'):])
+        self.assertTrue(self.get.rstrip().endswith('return solid paint with stringToColor("255,100,200")'))
+
+    def test_the_dark_colours_show_on_a_dark_card(self):
+        icon = rgb(re.search(r'^constant kDarkIconColor is \[([^\]]+)\]', self.source, re.M).group(1).replace('0.86', '219'))
+        self.assertGreater(luma(icon), 180)
+        frame = rgb(re.search(r'^constant kDarkFrame is "([^"]+)"', self.source, re.M).group(1))
+        self.assertGreater(luma(frame), 64)
+        self.assertLess(luma(frame), 128)
+        self.assertIn('constant kDarkIconColor is [0.86, 0.86, 0.86]', self.source)
+
+    def test_the_tour_reads_the_screen(self):
+        tour = read('tools', 'ci', 'ui-tour.livecodescript')
+        steps = re.search(r'^constant kSteps = "([^"]+)"', tour, re.M).group(1).split(',')
+        self.assertEqual(steps.index('icon-picker'), steps.index('widget-appearance') + 1)
+        step = handler(tour, 'on', 'tour_icon_picker')
+        self.assertIn('create widget "Picker" as "com.livecode.widget.iconpicker"', step)
+        self.assertIn('the systemAppearance is "dark" and tourSystemLight(tCard) is false into tDark', step)
+        self.assertIn('if item 2 of tShown < 20 then', step)
+        self.assertIn('if item 1 of tShown < 20 then', step)
+        self.assertIn('if tFails is not empty then throw', step)
+        shown = handler(tour, 'function', 'tourPickerShown')
+        self.assertIn('abs(tR - 219) <= 16', shown)
+
+    def test_the_widgets_own_test(self):
+        test = read('extensions', 'widgets', 'iconpicker', 'tests', 'colors.livecodescript')
+        body = handler(test, 'on', 'TestFrameAndTheAppearance')
+        self.assertIn('set the backgroundColor of card 1 of stack tStack to "30,30,30"', body)
+        self.assertIn('_PickerFramePixel(tWidget) is "96,96,96"', body)
+        self.assertEqual(body.count('_PickerFramePixel(tWidget) is "188,188,188"'), 2)
+
+
 if __name__ == '__main__':
     unittest.main()
