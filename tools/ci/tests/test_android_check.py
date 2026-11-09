@@ -1435,6 +1435,7 @@ class EdgeRects(unittest.TestCase):
                               % ','.join(map(str, outside))], outside)
 
 
+@unittest.skipIf(os.name == 'nt', 'the stand-in adb is a shell script')
 class DeviceBackAndBars(unittest.TestCase):
     """device --within-bars and --back with a stand-in adb: once green, the
     screen's first and last rows must not be the probe's green (the stack
