@@ -906,6 +906,15 @@ def allow_button(xml):
 ANR_WINDOW = re.compile(r'mCurrentFocus=Window\{[^}]*\bApplication Not Responding: ([\w.]+)\}')
 WAIT_BUTTON = 'android:id/aerr_wait'
 ANR_TAPS = 3
+# device --allow: a tap on the dialog's Allow that the dialog did not take
+# (it is still in front ALLOW_AGAIN s after the tap) is given again, at
+# most ALLOW_TAPS taps in all. In run 42568140662 (attempt 1) the 16 KB
+# image's launcher was not responding: its dialog was answered, the Allow
+# tapped 3 s later was lost, the permission dialog stayed in front for the
+# 90 s that were left, and the probe failed. A tap that was taken is not
+# given again: once the dialog has gone, Allow is not looked for
+ALLOW_TAPS = 3
+ALLOW_AGAIN = 6
 
 
 def other_anr(window):
@@ -2272,24 +2281,35 @@ def device(args):
     rgba = b''
     # --allow: the probe must ask for the permission (Android's dialog in
     # front of it), which is allowed with the dialog's own button; until
-    # then its green does not end the wait
+    # then its green does not end the wait. Once Allow is tapped the check
+    # looks for the dialog until it has gone, and a dialog still in front
+    # ALLOW_AGAIN s after the tap has its Allow tapped again (ALLOW_TAPS)
     asked = allowed = False
+    allow_taps = 0
+    tapped_at = 0.0
     anr_taps = 0
     while time.time() - started < args.timeout:
         time.sleep(3)
-        if args.allow and not allowed:
+        if args.allow and allow_taps < ALLOW_TAPS:
             _, activities = a('shell', 'dumpsys', 'activity', 'activities')
             if asking_for_permission(activities):
                 if not asked:
                     log('After %.0f s: Android asks the user to allow %s' % (time.time() - started, args.allow))
                 asked = True
+                if allowed and time.time() - tapped_at < ALLOW_AGAIN:
+                    # the tap may still be closing it
+                    continue
                 a('shell', 'uiautomator', 'dump', '/sdcard/oxt-ui.xml')
                 _, xml = a('shell', 'cat', '/sdcard/oxt-ui.xml')
                 where = allow_button(xml)
                 if where:
                     a('shell', 'input', 'tap', str(where[0]), str(where[1]))
-                    log('  tapped Allow at %d,%d' % where)
+                    log('  tapped Allow at %d,%d%s' % (where + (
+                        ' again: the dialog was still in front %.0f s after the last tap' % (
+                            time.time() - tapped_at) if allowed else '',)))
                     allowed = True
+                    allow_taps += 1
+                    tapped_at = time.time()
                 else:
                     log('  no Allow button in the dialog yet')
                     # another app's "isn't responding" dialog can stand

@@ -1651,7 +1651,10 @@ failure. With `--allow
 <permission>` the probe must ask for that runtime permission: `device`
 waits for Android's dialog, taps its Allow button (found in a
 `uiautomator` dump) and checks that the package then holds the
-permission (`dumpsys package`). With `--picture <name>` the picture the
+permission (`dumpsys package`). A dialog still in front 6 seconds after
+the tap has its Allow tapped again, at most three taps in all: in run
+42568140662 another app's "isn't responding" dialog took the tap, and
+the permission dialog stayed until the probe failed. With `--picture <name>` the picture the
 probe exported must be among the shared pictures (`content query` of
 MediaStore) in `Pictures/`, as the package's own; before it installs the
 probe again, `device` then waits (up to 60 seconds) for MediaProvider to
