@@ -1348,6 +1348,14 @@ public class Engine extends View implements EngineApi
 	// IM-2013-11-15: [[ Bug 10485 ]] Refactor to return the viewport as Rect
 	public Rect getViewport()
 	{
+        // OXT-Beyond: a stack drawn edge to edge fills the whole of its
+        // window, which is its screenRect, where the window is on the
+        // screen (LiveCodeActivity.edgeToEdgeWindowBounds); for any other
+        // stack, the default display's metrics from (0, 0), as before
+        Rect t_window = new Rect();
+        if (LiveCodeActivity.edgeToEdgeWindowBounds(t_window))
+            return t_window;
+        
 		DisplayMetrics t_metrics = new DisplayMetrics();
 		getWindowManager().getDefaultDisplay().getMetrics(t_metrics);
 		
@@ -1364,6 +1372,12 @@ public class Engine extends View implements EngineApi
 	private Rect getEffectiveWorkarea()
 	{
 		Rect t_workrect = new Rect();
+        // OXT-Beyond: a stack drawn edge to edge has the part of its view
+        // that no system bar, display cutout or keyboard covers
+        // (LiveCodeActivity.drawEdgeToEdge); the visible display frame
+        // leaves the cutout in
+        if (LiveCodeActivity.edgeToEdgeUncoveredArea(this, t_workrect))
+            return t_workrect;
         getWindowVisibleDisplayFrame(t_workrect);
         return t_workrect;
 	}

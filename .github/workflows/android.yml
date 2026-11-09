@@ -358,6 +358,18 @@ jobs:
           "$PY" tools/ci/android_check.py ide --install "$JAVA_IDE" --platform "$PLATFORM" \
             --work "$WORK/java-busy" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug --probe busy
 
+      # The edge probe (kEdgeWait in tools/ci/android-check.livecodescript):
+      # the app probe built to be drawn edge to edge ("android,edge to
+      # edge", the Android card's "Edge to edge"), by this builder with the
+      # Java layer built here, which draws such an app under the
+      # see-through system bars from Android 11 on
+      # (LiveCodeActivity.drawEdgeToEdge)
+      - name: The edge probe, with this Java layer
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_check.py ide --install "$JAVA_IDE" --platform "$PLATFORM" \
+            --work "$WORK/java-edge" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug --probe edge
+
       # The same stack, by the same builder, with the release's own Java
       # layer: the "before" of the comparison
       - name: The Java layer's probe, with the release's Java layer
@@ -461,6 +473,16 @@ jobs:
           "$PY" tools/ci/android_check.py device --apk "$WORK/java-busy/out/debug.apk" --serial emulator-5554 \
             --sdk "$SDK" --out "$WORK/screen-api33-java-busy.png" --log-out "$WORK/logcat-api33-java-busy.txt" \
             --within-bars --density --density-times 5
+
+      # The edge probe: its green under the see-through status bar, and its
+      # effective working screenRect leaving the bars out (Android 13 draws
+      # no app edge to edge unless it asks, and this one asks)
+      - name: Run the edge probe on Android 13
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_check.py device --apk "$WORK/java-edge/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-api33-java-edge.png" --log-out "$WORK/logcat-api33-java-edge.txt" \
+            --edge-to-edge
 
       # For the record, not a check (no annotations, so the run's account
       # stays the checks'): the same probe with the release's own Java
@@ -576,7 +598,8 @@ jobs:
           # Android 13: once in a process, through a font size change, a
           # density change, and opened again after its stack quits; and the
           # busy probe through density changes, as on Android 13 (Android 16
-          # is where a relaunch while it drew hung 9.6.3's engine)
+          # is where a relaunch while it drew hung 9.6.3's engine); and the
+          # edge probe drawn under the bars, not padded inside them
           "$PY" tools/ci/android_check.py device --apk "$WORK/changed/out/debug.apk" --serial emulator-5554 \
             --sdk "$SDK" --out "$WORK/screen-16k-debug.png" --log-out "$WORK/logcat-16k-debug.txt" --within-bars
           "$PY" tools/ci/android_check.py device --apk "$WORK/java-app/out/debug.apk" --serial emulator-5554 \
@@ -585,6 +608,9 @@ jobs:
           "$PY" tools/ci/android_check.py device --apk "$WORK/java-busy/out/debug.apk" --serial emulator-5554 \
             --sdk "$SDK" --out "$WORK/screen-16k-java-busy.png" --log-out "$WORK/logcat-16k-java-busy.txt" \
             --within-bars --density --density-times 5
+          "$PY" tools/ci/android_check.py device --apk "$WORK/java-edge/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-16k-java-edge.png" --log-out "$WORK/logcat-16k-java-edge.txt" \
+            --edge-to-edge
           for pkg in debug.apk bundle.aab; do
             "$PY" tools/ci/android_check.py device --apk "$WORK/java-new/out/$pkg" --serial emulator-5554 \
               --sdk "$SDK" --out "$WORK/screen-16k-java-${pkg%.*}.png" --log-out "$WORK/logcat-16k-java-${pkg%.*}.txt" \

@@ -258,7 +258,7 @@ private handler drawTitleBar()
 	
 	// Draw the selected text and icon
 	variable tTextRect as Rectangle
-	set the paint of this canvas to solid paint with color kIconColor
+	set the paint of this canvas to getPaint("icon", "fill")
 
     variable tFont as Font
     put my font into tFont
@@ -282,7 +282,7 @@ private handler drawTitleBar()
 			put mPaths[mSelectedElement] into tPath
 		end if
 		constrainPathToRect(tIconRect, tPath)
-		set the paint of this canvas to solid paint with color kIconColor
+		set the paint of this canvas to getPaint("icon", "fill")
 		fill tPath on this canvas
 	end if
 end handler
@@ -307,7 +307,7 @@ private handler drawIcon(in pIcon as Integer)
 		
 	constrainPathToRect(mIconRects[pIcon], tPath)
 	
-	set the paint of this canvas to solid paint with color kIconColor
+	set the paint of this canvas to getPaint("icon", "fill")
 	fill tPath on this canvas
 	
 	if mShowNames then
@@ -594,21 +594,56 @@ end handler
 --
 --------------------------------------------------------------------------------
 
+-- OXT-Beyond: the colours this widget draws with. It has no colour
+-- properties of its own, so in the light appearance it draws what it always
+-- has (black icons and names, a light grey frame). In the dark appearance on
+-- a dark card (MCWidgetGetMyAppearanceIsDark, as the engine's
+-- widget-syntax.cpp decides it for every widget) the icons and names are a
+-- light grey, the tree view's dark text colour, and the frame, scrollbar
+-- and popup background turn to match: black icons on a dark Inspector were
+-- hard to read (bwmilby, openxtalk.org p=26194).
+constant kDarkIconColor is [0.86, 0.86, 0.86]
+constant kDarkBackground is "30,30,30,128"
+constant kDarkScrollbar is "255,255,255,60"
+constant kDarkFrame is "96,96,96"
+
+private handler isDarkAppearance() returns Boolean
+	variable tDark as Boolean
+	MCWidgetGetMyAppearanceIsDark(tDark)
+	return tDark
+end handler
+
 private handler getPaint(pLocation, pType) returns Paint
+	variable tDark as Boolean
+	put isDarkAppearance() into tDark
 	if pLocation is "background" then
 		if pType is "popup" then
+			if tDark then
+				return solid paint with stringToColor(kDarkBackground)
+			end if
 			return solid paint with stringToColor("255,255,255,128")
 		end if
 	else if pLocation is "icon" then
 		if pType is "selected" then
 			return solid paint with stringToColor("0,150,150")
+		else if pType is "fill" then
+			if tDark then
+				return solid paint with color kDarkIconColor
+			end if
+			return solid paint with color kIconColor
 		end if
 	else if pLocation is "scrollbar" then
 		if pType is "fill" then
+			if tDark then
+				return solid paint with stringToColor(kDarkScrollbar)
+			end if
 			return solid paint with stringToColor("0,0,0,50")
 		end if
 	else if pLocation is "frame" then
 		if pType is "stroke" then
+			if tDark then
+				return solid paint with stringToColor(kDarkFrame)
+			end if
 			return solid paint with stringToColor("188,188,188")
 		end if
 	end if

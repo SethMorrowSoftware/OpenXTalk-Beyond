@@ -5,7 +5,7 @@
 # (androidRuntimeFolder in ide-support/revsaveasandroidstandalone.livecodescript):
 # empty or "9.6.3" is 9.6.3's, as before, and "beyond" is the runtimes'
 # Runtime/Android/Beyond; until now only a script could set it. The box is
-# that setting: the targets group's script (patch -3) stores "beyond" when
+# that setting: the targets group's script (patch -2) stores "beyond" when
 # it is ticked and empty when it is not, the card sets the box from the
 # stack's settings and enables it while the stack is built for Android
 # (revstandalonesettingsandroidbehavior.livecodescript). A stack that never
@@ -17,8 +17,8 @@
 # box goes in the right-hand column's free row, under the device table
 # and above "Application Permissions", lined up with the permissions'
 # boxes, 240 wide for its words (190 in DejaVu Sans on Linux) in the
-# other systems' fonts; the group grows to hold it (patch -2). Its tooltip
-# says what it does.
+# other systems' fonts; the group grows to hold it
+# (android-card-targets-group.txt). Its tooltip says what it does.
 file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
 object: button "Android x86_64" of group "Android Targets" of card "Android"
 clone: Beyond Engine
