@@ -163,9 +163,10 @@ class TheSplash(unittest.TestCase):
         for field in ('moreinfo', 'Status'):
             self.assertIn('set the textAlign of field "%s" of me to "center"' % field, open_stack)
             self.assertIn('set the dontWrap of field "%s" of me to true' % field, open_stack)
-        # The version, then the release's words: "Thank you, bug hunters!" for
-        # 0.2.7 "Make It So" ("Happy hunting!" in its release candidates)
-        self.assertIn('put tVersion & "Thank you, bug hunters!" into field "moreinfo" of me', open_stack)
+        # The version, then the release's line, as the installer art and the
+        # banner say it (0.2.7 "Make It So"; "Happy hunting!" in its release
+        # candidates)
+        self.assertIn('put tVersion & "%s" into field "moreinfo" of me' % draw_branding.TAGLINE, open_stack)
         self.assertIn('hide field "Info" of me', open_stack)
         self.assertLess(open_stack.index('put 0 into sSplashSteps'), open_stack.index('splashProgressBar'))
 
@@ -296,6 +297,61 @@ class TheSideMark(unittest.TestCase):
         places = handler(tour, 'on', 'tour_home_places')
         self.assertLess(places.index('tourShotStack kHub, "24g-hub-" & tPlace'), places.index('tourHomeMark kHub, tPlace\n'))
         self.assertIn('tourHomeMark kHub, tPlace & ", redrawn"', places)
+
+
+class TheReleasesOwnArt(unittest.TestCase):
+    """The release's art names the release in ide/.codename and nothing of
+    an earlier one ships: no former release's name in the name, the art or
+    the splash's line, none of the Bug Hunt beetle's colours, and every
+    picture of the release's art rendered from the drawing as it is now
+    (rendered.json, written by draw_branding.py), so a drawing changed for
+    a new release cannot ship beside its old picture."""
+
+    def codename(self):
+        return read('ide', '.codename').strip()
+
+    def test_the_name_is_not_a_former_releases(self):
+        name = self.codename()
+        self.assertTrue(name)
+        for former in draw_branding.FORMER_NAMES:
+            self.assertNotEqual(name.lower(), former.lower())
+
+    def test_the_installer_art_and_the_banner_name_the_release(self):
+        for drawing in (draw_branding.wizard(), draw_branding.banner()):
+            self.assertIn('>%s</text>' % self.codename(), drawing)
+            self.assertIn('>%s</text>' % draw_branding.short_version(), drawing)
+
+    def test_the_art_has_nothing_of_an_earlier_release(self):
+        texts = {name: read('Installer', 'oxt-beyond', 'branding', 'svg', name)
+                 for name in ('wizard.svg', 'banner.svg', 'splash-dark.svg', 'splash-light.svg')}
+        texts['the line'] = draw_branding.TAGLINE
+        for name, text in texts.items():
+            for former in draw_branding.FORMER_NAMES + draw_branding.FORMER_ART:
+                self.assertNotIn(former.lower(), text.lower(), '%s has "%s"' % (name, former))
+
+    def test_the_splash_says_the_releases_line(self):
+        moreinfo = [line.strip() for line in TheSplash().script().splitlines()
+                    if 'into field "moreinfo" of me' in line and line.strip().startswith('put ')]
+        self.assertEqual(moreinfo, ['put tVersion & "%s" into field "moreinfo" of me' % draw_branding.TAGLINE])
+
+    def test_every_picture_is_rendered_from_its_drawing_as_it_is(self):
+        import json
+        record = json.loads(read('Installer', 'oxt-beyond', 'branding', 'rendered.json'))
+        self.assertEqual(sorted(record), sorted(out for name, out in draw_branding.RELEASE_ART))
+        for name, out in draw_branding.RELEASE_ART:
+            entry = record[out]
+            drawing = os.path.join(BRANDING, 'svg', name)
+            self.assertEqual(entry['drawing'], 'Installer/oxt-beyond/branding/svg/' + name, out)
+            self.assertEqual(entry['drawing_sha256'], draw_branding.sha256(drawing, text=True),
+                             '%s was rendered from another %s: run draw_branding.py' % (out, name))
+            self.assertEqual(entry['sha256'], draw_branding.sha256(os.path.join(REPO, *out.split('/'))),
+                             '%s is not the picture draw_branding.py rendered: run it again' % out)
+
+    def test_the_readme_banner_names_the_release(self):
+        readme = read('README.md')
+        alt = re.search(r'<img src="Installer/oxt-beyond/branding/art/oxt-beyond-banner.png" alt="([^"]+)">', readme)
+        self.assertIsNotNone(alt)
+        self.assertEqual(alt.group(1), 'OXT-Beyond %s &quot;%s&quot;' % (draw_branding.short_version(), self.codename()))
 
 
 if __name__ == '__main__':

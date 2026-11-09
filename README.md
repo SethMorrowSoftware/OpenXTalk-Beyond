@@ -1740,7 +1740,8 @@ finds:
 
 The release's name is a wink: you say what you want, in xTalk, and
 make it so. The splash, the Windows installer and the release banner
-are new for it, and the splash thanks the bug hunters.
+wear its art, as the 0.2.7 promo does: the logo in a burst of gold
+streaks on a navy sky, and the line "Say it in xTalk. Make it so."
 
 What a script can see, since 0.2.7-rc.6.19: with OXT-Beyond's own
 Android engine (the preview, chosen by the box above or the

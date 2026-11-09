@@ -35,6 +35,9 @@ Writes, from the repository root:
                                               make-wizard-images.ps1 scales
   Installer/oxt-beyond/branding/art/oxt-beyond-banner.png
                                               the release banner (1280 x 640)
+  Installer/oxt-beyond/branding/rendered.json the SHA-256 of each picture
+                                              of the release's art and of
+                                              its drawing (RELEASE_ART)
   ide/Toolset/resources/community/ideSkin/splash.png, splash-light.png
                                               and their @extra-high versions
   ide/OXT-Beyond.ico, engine/rsrc/oxt-beyond.ico
@@ -64,16 +67,25 @@ REPO = os.path.normpath(os.path.join(HERE, '..', '..', '..'))
 
 ORANGE = '#FF7700'      # the "OXT" orange of the earlier icon
 CHARCOAL = '#15171A'
-# 0.2.7 "Make It So": the splash's name, the installer art and the banner.
-# A star-streak "jump" on a night-blue sky, as in the 0.2.7 promo stills:
-# you say what you want in xTalk, and it happens. (The release candidates'
-# "Bug Hunt" beetle, magnifying glass and footprints are in the history of
-# this file.)
-SKY_TOP = '#22314F'       # the sky, lighter at the vanishing point
-SKY = '#0D1322'
-STREAK = '#CFE0FF'        # the star streaks and the stars
+# 0.2.7 "Make It So": the splash's name, the installer art and the banner,
+# drawn after the 0.2.7 promo's key art (promo/0.2.7/stills/make-it-so in
+# the project's files): wide soft rays on a navy sky, the logo in a burst of
+# gold and white streaks, "0.2.7" large in an orange-to-gold gradient,
+# "Make It So" in gold italic after a four-pointed sparkle, and the line
+# "Say it in xTalk. Make it so." No Star Trek logos or art: the name is a
+# wink. (The release candidates' "Bug Hunt" beetle, magnifying glass and
+# footprints are in the history of this file; test_branding.py fails if
+# they, or the name "Bug Hunt", come back.)
+NAVY = '#1C2B47'          # the sky, round the burst
+NAVY_DEEP = '#0E1628'     # the sky, at the edges
+RAY = '#FFFFFF'           # the wide soft rays
+STREAK_WARM = '#F3E7D3'   # the burst's streaks, warm white and gold
+STREAK_GOLD = '#E3A548'
 GOLD = '#FFB547'          # the release's name, on the dark
 GOLD_DEEP = '#A0560A'     # the release's name, on the light splash
+NUMBER_TOP = '#FFC566'    # "0.2.7", gold at the top to orange below
+NUMBER_BOTTOM = '#FF8A1E'
+TAGLINE = 'Say it in xTalk. Make it so.'
 
 ICON_SIZES = (16, 24, 32, 48, 64, 128, 256, 512, 1024)
 SMALL_ICON_MAX = 48     # sizes up to this use the icon without its lower line
@@ -91,36 +103,44 @@ def lcg(seed):
         yield state / 2147483648
 
 
-def streaks(cx, cy, count, inner, reach, seed, width=1.0, opacity=1.0):
-    """Star streaks rushing out of a vanishing point at cx, cy: thin wedges,
-    a point at the inner end and wider at the outer, the "jump"."""
+def rays(cx, cy, count, length, seed):
+    """Wide, soft rays from cx, cy across the whole drawing, as on the key
+    art's sky: thin wedges of white at a few per cent."""
+    import math
+    r = lcg(seed)
+    out = []
+    for i in range(count):
+        a = 2 * math.pi * (i + 0.5 * next(r)) / count
+        half = math.radians(0.8 + 1.6 * next(r))
+        x1, y1 = cx + math.cos(a - half) * length, cy + math.sin(a - half) * length
+        x2, y2 = cx + math.cos(a + half) * length, cy + math.sin(a + half) * length
+        out.append(f'<path d="M{cx} {cy} L{x1:.1f} {y1:.1f} L{x2:.1f} {y2:.1f} Z" '
+                   f'fill="{RAY}" fill-opacity="{0.025 + 0.035 * next(r):.3f}"/>')
+    return ''.join(out)
+
+
+def burst(cx, cy, count, inner, outer, seed, width=1.0, opacity=1.0,
+          colours=(STREAK_WARM, STREAK_GOLD), skip=None):
+    """The burst round the logo: streaks in warm white and gold, each a
+    stroke along its own spoke, starting and ending at its own radius.
+    skip, (from, to) in degrees clockwise from east, leaves a sector bare
+    (the splash's, under the logo, where its words go)."""
     import math
     r = lcg(seed)
     out = []
     for i in range(count):
         a = 2 * math.pi * (i + next(r)) / count
-        r1 = inner * (0.6 + 0.9 * next(r))
-        r2 = r1 + reach * (0.25 + 0.75 * next(r))
-        w = width * (1.2 + 3.2 * next(r))
-        op = opacity * (0.12 + 0.5 * next(r))
+        r1 = inner + (outer - inner) * 0.45 * next(r)
+        r2 = r1 + (outer - r1) * (0.25 + 0.75 * next(r))
+        colour = colours[1] if next(r) < 0.45 else colours[0]
+        op = opacity * (0.35 + 0.55 * next(r))
+        w = width * (2.2 + 2.8 * next(r))
+        if skip and skip[0] <= math.degrees(a) <= skip[1]:
+            continue
         ca, sa = math.cos(a), math.sin(a)
-        x1, y1 = cx + ca * r1, cy + sa * r1
-        x2, y2 = cx + ca * r2, cy + sa * r2
-        px, py = -sa * w / 2, ca * w / 2
-        out.append(f'<path d="M{x1:.1f} {y1:.1f} L{x2 + px:.1f} {y2 + py:.1f} L{x2 - px:.1f} {y2 - py:.1f} Z" '
-                   f'fill="{STREAK}" fill-opacity="{op:.2f}"/>')
-    return ''.join(out)
-
-
-def stars(x1, y1, x2, y2, count, seed):
-    """Still stars, small and faint, scattered over a box."""
-    r = lcg(seed)
-    out = []
-    for _ in range(count):
-        x = x1 + (x2 - x1) * next(r)
-        y = y1 + (y2 - y1) * next(r)
-        out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{0.8 + 1.6 * next(r):.1f}" '
-                   f'fill="{STREAK}" fill-opacity="{0.25 + 0.6 * next(r):.2f}"/>')
+        out.append(f'<path d="M{cx + ca * r1:.1f} {cy + sa * r1:.1f} L{cx + ca * r2:.1f} {cy + sa * r2:.1f}" '
+                   f'stroke="{colour}" stroke-opacity="{op:.2f}" '
+                   f'stroke-width="{w:.1f}" stroke-linecap="round"/>')
     return ''.join(out)
 
 
@@ -132,14 +152,54 @@ def sparkle(x, y, s, colour):
             f'Q{x - k:g} {y + k:g} {x - s:g} {y:g} Q{x - k:g} {y - k:g} {x:g} {y - s:g} Z" fill="{colour}"/>')
 
 
-def sky(w, h, cx, cy, gid):
-    """The night-blue sky, lighter round the vanishing point at cx, cy."""
+def sky(w, h, cx, cy, gid, ny1, ny2):
+    """The navy sky, lighter round cx, cy, with its gradients: gid-glow is
+    the warm glow behind the logo and gid-number the gold-to-orange of
+    "0.2.7", from ny1 at the top of its figures to ny2 at their foot
+    (CairoSVG takes a text's box for the gradient's otherwise, which
+    leaves it one colour)."""
     return (f'<defs><radialGradient id="{gid}" gradientUnits="userSpaceOnUse" cx="{cx}" cy="{cy}" r="{max(w, h)}">'
-            f'<stop offset="0" stop-color="{SKY_TOP}"/><stop offset="0.6" stop-color="{SKY}"/></radialGradient>'
-            f'<radialGradient id="{gid}-core" cx="0.5" cy="0.5" r="0.5">'
-            f'<stop offset="0" stop-color="{STREAK}" stop-opacity="0.35"/>'
-            f'<stop offset="1" stop-color="{STREAK}" stop-opacity="0"/></radialGradient></defs>'
+            f'<stop offset="0" stop-color="{NAVY}"/><stop offset="0.75" stop-color="{NAVY_DEEP}"/></radialGradient>'
+            f'<radialGradient id="{gid}-glow" cx="0.5" cy="0.5" r="0.5">'
+            f'<stop offset="0" stop-color="{ORANGE}" stop-opacity="0.38"/>'
+            f'<stop offset="0.5" stop-color="{ORANGE}" stop-opacity="0.12"/>'
+            f'<stop offset="1" stop-color="{ORANGE}" stop-opacity="0"/></radialGradient>'
+            f'<linearGradient id="{gid}-number" gradientUnits="userSpaceOnUse" x1="0" y1="{ny1}" x2="0" y2="{ny2}">'
+            f'<stop offset="0" stop-color="{NUMBER_TOP}"/><stop offset="1" stop-color="{NUMBER_BOTTOM}"/></linearGradient></defs>'
             f'<rect width="{w}" height="{h}" fill="url(#{gid})"/>')
+
+
+# "OXT-Beyond" in DejaVu Sans Bold is "OXT" (2.268 em) then "-Beyond"
+# (4.623 em); see WORDMARK_JOIN below for why it is two <text>s
+OXT_EM = 2.268
+BEYOND_EM = 4.623
+
+
+def wordmark(x, y, size, anchor='start'):
+    """"OXT" in orange and "-Beyond" in white, starting at x (or centred
+    on it)."""
+    if anchor == 'middle':
+        x = x - (OXT_EM + BEYOND_EM) * size / 2
+    join = x + OXT_EM * size
+    return (f'<text x="{join:.1f}" y="{y}" text-anchor="end" font-family="DejaVu Sans" font-weight="bold" '
+            f'font-size="{size}" fill="{ORANGE}">OXT</text>'
+            f'<text x="{join:.1f}" y="{y}" font-family="DejaVu Sans" font-weight="bold" '
+            f'font-size="{size}" fill="#F4F6F8">-Beyond</text>')
+
+
+def release_name(x, y, size, anchor='start'):
+    """The release's name (ide/.codename) in gold, slanted as italic is
+    (DejaVu Sans has no bold oblique face in most systems, so it is drawn
+    upright and slanted here, the same on every machine)."""
+    return (f'<text transform="translate({x},{y}) skewX(-12)" font-family="DejaVu Sans" font-weight="bold" '
+            f'font-size="{size}" text-anchor="{anchor}" fill="{GOLD}">{codename()}</text>')
+
+
+def short_version():
+    """The version without a pre-release part (0.2.7 for 0.2.7-rc.6.19),
+    so a release candidate's version bump does not change the art."""
+    with open(os.path.join(REPO, 'ide', '.version'), encoding='utf-8') as f:
+        return f.read().strip().split('-')[0]
 
 
 def word(x, y, size, text, fill, outline=None, width=0, anchor='start', bold=True, sx=0.82):
@@ -324,6 +384,7 @@ def splash(dark):
 <stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient></defs>
 <rect width="1182" height="612" fill="url(#desk)"/>
 <circle cx="{cx}" cy="{ly + ls // 2}" r="{ls}" fill="url(#warm)"/>
+{burst(cx, ly + ls // 2, 64, 114, 148, 21, width=0.7, opacity=0.9 if dark else 0.75, colours=(STREAK_WARM, STREAK_GOLD) if dark else ('#D9A15A', '#B86A1C'), skip=(30, 150))}
 <ellipse cx="{cx}" cy="{ly + ls - 6}" rx="{ls * 0.42:g}" ry="22" fill="url(#drop)"/>
 {nested_logo(lx, ly, ls)}<text x="{WORDMARK_JOIN}" y="336" text-anchor="end" font-family="DejaVu Sans" font-weight="bold" font-size="66" fill="{ORANGE}">OXT</text>
 <text x="{WORDMARK_JOIN}" y="336" font-family="DejaVu Sans" font-weight="bold" font-size="66" fill="{fg}">-Beyond</text>
@@ -334,33 +395,39 @@ def splash(dark):
 
 def wizard():
     # Inno Setup's tall image at 250 % (534 x 1022); 202 x 386 at 100 %.
-    # The logo at the vanishing point of the streaks, the words below.
-    cx, cy = 267, 400
-    return svg(534, 1022, f'''{sky(534, 1022, cx, cy, 'wsky')}
-{stars(0, 0, 534, 1022, 70, 7)}
-{streaks(cx, cy, 64, 150, 520, 11, width=1.2)}
-<circle cx="{cx}" cy="{cy}" r="250" fill="url(#wsky-core)"/>
-{nested_logo(cx - 175, cy - 175, 350)}
-{word(267, 720, 82, 'OXT-Beyond', ORANGE, '#000', 10, 'middle', sx=0.8)}
-{sparkle(62, 790, 18, GOLD)}{sparkle(472, 790, 18, GOLD)}
-{word(267, 812, 64, 'MAKE IT SO', GOLD, anchor='middle', sx=0.78)}
-{word(267, 900, 40, 'Version 0.2.7', '#AEB8C4', anchor='middle', bold=False, sx=0.9)}''')
+    # The key art turned upright: the logo in its burst above, the words
+    # below.
+    cx, cy = 267, 300
+    v = short_version()
+    return svg(534, 1022, f'''{sky(534, 1022, cx, cy, 'wsky', 682, 790)}
+{rays(cx, cy, 26, 1400, 7)}
+<circle cx="{cx}" cy="{cy}" r="210" fill="url(#wsky-glow)"/>
+{burst(cx, cy, 70, 150, 255, 11)}
+{nested_logo(cx - 125, cy - 125, 250)}
+{wordmark(267, 640, 62, 'middle')}
+<text x="267" y="790" text-anchor="middle" font-family="DejaVu Sans" font-weight="bold" font-size="150" fill="url(#wsky-number)">{v}</text>
+{sparkle(76, 860, 20, GOLD)}
+{release_name(290, 880, 56, 'middle')}
+{word(267, 950, 26, TAGLINE, '#C3CCD6', anchor='middle', bold=False, sx=1)}''')
 
 
 def banner():
-    # The streaks rush out from behind the logo, at the left; the words
-    # sit on the calmer sky at the right of it.
-    cx, cy = 210, 320
-    return svg(1280, 640, f'''{sky(1280, 640, cx, cy, 'bsky')}
-{stars(0, 0, 1280, 640, 110, 5)}
-{streaks(cx, cy, 90, 170, 1150, 3, width=1.4, opacity=0.8)}
-<circle cx="{cx}" cy="{cy}" r="300" fill="url(#bsky-core)"/>
-{nested_logo(cx - 170, cy - 170, 340)}
-{word(440, 250, 100, 'OXT-Beyond', ORANGE, '#000', 10, sx=0.8)}
-{sparkle(466, 318, 22, GOLD)}
-{word(506, 340, 66, 'MAKE IT SO', GOLD, sx=0.78)}
-{word(444, 430, 38, 'Version 0.2.7  ·  Thank you, bug hunters!', '#C3CCD6', bold=False, sx=1)}
-{word(444, 520, 24, 'Windows · macOS · Linux · the web  ·  free, open source xTalk', '#8A95A3', bold=False, sx=1)}''')
+    # The key art at 2 to 1: the words at the left, the logo in its burst
+    # at the right.
+    cx, cy = 1010, 320
+    v = short_version()
+    return svg(1280, 640, f'''{sky(1280, 640, cx, cy, 'bsky', 193, 330)}
+{rays(cx, cy, 34, 1800, 3)}
+<circle cx="{cx}" cy="{cy}" r="250" fill="url(#bsky-glow)"/>
+{burst(cx, cy, 84, 165, 300, 5)}
+{nested_logo(cx - 140, cy - 140, 280)}
+{nested_logo(64, 64, 92)}
+{wordmark(172, 134, 64)}
+<text x="60" y="330" font-family="DejaVu Sans" font-weight="bold" font-size="190" fill="url(#bsky-number)">{v}</text>
+{sparkle(92, 412, 24, GOLD)}
+{release_name(132, 432, 66)}
+{word(66, 520, 30, TAGLINE, '#D5DCE4', bold=False, sx=1)}
+{word(66, 568, 26, 'Windows · macOS · Linux · Raspberry Pi · the web', '#9AA6B4', bold=False, sx=1)}''')
 
 
 DRAWINGS = {
@@ -372,6 +439,56 @@ DRAWINGS = {
     'banner.svg': banner,
     'icon-animated.svg': icon_animated,
 }
+
+
+# The release's art, which names the release, and the drawing each picture
+# is rendered from (the paths from the repository root). rendered.json
+# records, for each, the SHA-256 of its drawing and of the picture when it
+# was rendered, so test_branding.py fails when a drawing changes and its
+# picture is not rendered again: no release ships a picture of an earlier
+# drawing (a "Bug Hunt" splash under a "Make It So" name).
+RELEASE_ART = (
+    ('wizard.svg', 'Installer/oxt-beyond/branding/art/oxt-beyond-wizard.png'),
+    ('banner.svg', 'Installer/oxt-beyond/branding/art/oxt-beyond-banner.png'),
+    ('banner.svg', 'tools/pages/brand/social.png'),
+    ('splash-dark.svg', 'ide/Toolset/resources/community/ideSkin/splash.png'),
+    ('splash-dark.svg', 'ide/Toolset/resources/community/ideSkin/splash@extra-high.png'),
+    ('splash-light.svg', 'ide/Toolset/resources/community/ideSkin/splash-light.png'),
+    ('splash-light.svg', 'ide/Toolset/resources/community/ideSkin/splash-light@extra-high.png'),
+)
+RENDERED = os.path.join(HERE, 'rendered.json')
+
+# Earlier releases' names, and what only their art had (the Bug Hunt
+# beetle's shell, spots and glow, its magnifying glass's lens, and the
+# splash's "Happy hunting!"): test_branding.py fails if the release's art
+# or its name brings one back. Add a release's name here when the next one
+# gets its own.
+FORMER_NAMES = ('Frankenstein', 'Bug Hunt')
+FORMER_ART = ('Happy hunting', '#4FD8C4', '#16756A', '#0E4A43', '#5FE0CF', '#BDF3FF', '#2FA897')
+
+
+def sha256(path, text=False):
+    """A file's SHA-256; for a drawing (text), with its lines ending in LF,
+    as a Windows checkout may end them in CR LF."""
+    import hashlib
+    with open(path, 'rb') as f:
+        data = f.read()
+    if text:
+        data = data.replace(b'\r\n', b'\n')
+    return hashlib.sha256(data).hexdigest()
+
+
+def record_renders():
+    import json
+    record = {}
+    for name, out in RELEASE_ART:
+        record[out] = {'drawing': 'Installer/oxt-beyond/branding/svg/' + name,
+                       'drawing_sha256': sha256(os.path.join(HERE, 'svg', name), text=True),
+                       'sha256': sha256(os.path.join(REPO, *out.split('/')))}
+    with open(RENDERED, 'w', encoding='utf-8', newline='\n') as f:
+        json.dump(record, f, indent=2, sort_keys=True)
+        f.write('\n')
+    print('wrote %s' % os.path.relpath(RENDERED, REPO))
 
 
 def render(name, out, width, height):
@@ -421,6 +538,7 @@ def main():
                       os.path.join(REPO, 'tools', 'web-player', 'assets', 'oxt-beyond-128.png'))):
         shutil.copyfile(src, out)
         print('wrote %s' % os.path.relpath(out, REPO))
+    record_renders()
     # The web IDE's favicon is in its page, so the page stays one file
     import base64
     import re

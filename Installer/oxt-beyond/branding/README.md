@@ -10,10 +10,13 @@ sparks. That file is the one source of the icon: `draw_branding.py`
 makes every icon, the logo on the splash screens, the installer and the
 banner, and the web pages' logo from it, so to change the logo, change
 `genlogo.py` and run both. In 0.2.7 "Make It So" the installer art and
-the release banner are a star-streak "jump" on a night-blue sky, as in
-the 0.2.7 promo stills: the logo at the streaks' vanishing point,
-"OXT-Beyond" in orange and "MAKE IT SO" in gold with a drawn sparkle
-(no Star Trek logos or art; the name is a wink). Its release candidates,
+the release banner are drawn after the 0.2.7 promo's key art: wide soft
+rays on a navy sky, the logo in a burst of gold and warm white streaks,
+"OXT-Beyond" with "OXT" in orange, "0.2.7" large in a gold-to-orange
+gradient, "Make It So" in slanted gold after a drawn sparkle, and the
+line "Say it in xTalk. Make it so." The splash's logo has the same
+burst, and its pill says "MAKE IT SO" in gold (no Star Trek logos or
+art; the name is a wink). Its release candidates,
 frozen for play testing, had the "Bug Hunt" drawings there (and on the
 splash screens until rc.6.13): a friendly teal beetle caught under an
 orange-handled magnifying glass, over a trail of footprints, on a
@@ -38,6 +41,7 @@ the history of this folder (up to 0.2.1-rc.6); his original stays in
 | `svg/banner.svg` | The release banner (1280 × 640), for the GitHub release, the repository's social preview and forum posts. |
 | `png/oxt-beyond-<size>.png` | The icon at 16, 24, 32, 48, 64, 128, 256, 512 and 1024 px. |
 | `art/oxt-beyond-wizard.png`, `art/oxt-beyond-banner.png` | The installer image and the banner. They are kept out of `png/`, whose every file packaging puts into the macOS icon. |
+| `rendered.json` | The SHA-256 of each picture of the release's art and of the drawing it was rendered from, which `test_branding.py` checks (see below). |
 
 Made by `draw_branding.py` elsewhere in the repository:
 
@@ -75,7 +79,7 @@ beetle beside the logo, with the words at the left.
 
 The IDE writes the rest over the art, centred
 (`ide/Toolset/palettes/splash/revsplashstackbehavior.livecodescript`, at
-1x): "<version> · Thank you, bug hunters!" in grey 13 px text
+1x): "<version> · Say it in xTalk. Make it so." in grey 13 px text
 ("Happy hunting!" in 0.2.7's release candidates) (field "moreinfo",
 0,199 to 591,225), the loading bar's orange fill over the track (graphic
 "progress", 196,242 to 395,245, which the splash makes when it opens and
@@ -109,7 +113,16 @@ they were (`git checkout` them after the run). After changing
 images' digests and run `tools/oxt/ide-stack-patch.sh` with a Linux
 development engine (a release's `linux-x86_64-binaries` has one).
 `tools/ci/tests/test_branding.py` holds the drawings to the logo and the
-web pages' copies to the drawings.
+web pages' copies to the drawings. It also keeps an earlier release's art
+from shipping: `draw_branding.py` writes `rendered.json`, the SHA-256 of
+each picture of the release's art (`RELEASE_ART`: the installer image,
+the banner and its web copy, the four splash files) and of the drawing it
+was rendered from, and the test fails when a drawing has changed since
+its picture was rendered, or a picture was replaced by hand. It fails too
+when `ide/.codename`, the drawings or the splash's line bring back an
+earlier release's name or art (`FORMER_NAMES`, `FORMER_ART`: add the
+current name there when the next release gets its own), and when the
+README's banner names another version or release.
 
 ## Colours
 
@@ -117,8 +130,9 @@ web pages' copies to the drawings.
 | --- | --- |
 | "OXT" orange (kept from the earlier icon); in the SVG logo a flame gradient | `#FF7700`; `#FFC04D` to `#FF6A00` |
 | The logo's rim | `#FFC24D` to `#FF7700` to `#FF3D00` |
-| Night sky, at the vanishing point to the edges ("Make It So") | `#22314F` to `#0D1322` |
-| Star streaks and stars | `#CFE0FF`, 12 to 62 % |
+| Navy sky, round the burst to the edges ("Make It So") | `#1C2B47` to `#0E1628`, with white rays at 2.5 to 6 % |
+| The burst's streaks | warm white `#F3E7D3` and gold `#E3A548`, 35 to 90 % (`#D9A15A` and `#B86A1C` on the light splash) |
+| "0.2.7" | `#FFC566` to `#FF8A1E`, top to foot |
 | The release's name and its sparkle | `#FFB547` (`#A0560A` on the light splash's pill) |
 | Lightning (the icon) | `#FFF9C4` to `#FFC92E` (plain `#FFE14D`), edge `#7A5A00`; arcs `#BFEFFF`, sparks `#FFF4B0` |
 | Charcoal background | `#15171A` to `#2B2F36` |
