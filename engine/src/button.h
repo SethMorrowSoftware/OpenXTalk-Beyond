@@ -69,6 +69,9 @@ typedef struct
 	uint2 f;
 	uint2 maxwidth;
 	uint2 maxaccelwidth;
+	// OXT-Beyond: whether an item of this (sub)menu has a mark (!c, !n,
+	// !r, !u: MCMenuItem::has_mark)
+	bool marked;
 }
 sublist;
 
@@ -294,7 +297,7 @@ public:
 	void getentrytext();
 	void createentry();
 	void deleteentry();
-	void makemenu(sublist *bstack, int2 &stackdepth, uint2 menuflags, MCFontRef fontref);
+	void makemenu(sublist *bstack, int2 &stackdepth, uint2 menuflags, uint2 parentmenuflags, MCFontRef fontref);
 	
 	// MW-2011-02-08: [[ Bug 9384 ]] If 'just for accel' is true, then findmenu won't create
 	//   a Mac menu as its assumed its not needed.

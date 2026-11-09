@@ -2285,7 +2285,11 @@ MCRange MCButton::getmenurange()
 	return MCRangeMakeMinMax(sptr, t_search.offset);
 }
 
-void MCButton::makemenu(sublist *bstack, int2 &stackdepth, uint2 menuflags, MCFontRef fontref)
+// OXT-Beyond: menuflags are the flags of the (sub)menu made here, and
+// parentmenuflags those of the menu its cascade item is in: they differ only
+// for a submenu with marks under a menu with none (ButtonMenuCallback::
+// closelevel)
+void MCButton::makemenu(sublist *bstack, int2 &stackdepth, uint2 menuflags, uint2 parentmenuflags, MCFontRef fontref)
 {
 	Boolean isxp = MCcurtheme && MCcurtheme->getthemeid() == LF_NATIVEWIN;
 	uint2 pwidth = 0;
@@ -2411,7 +2415,7 @@ void MCButton::makemenu(sublist *bstack, int2 &stackdepth, uint2 menuflags, MCFo
         newmenu -> addneed(m->parent);
         
 		m->parent->menumode = WM_CASCADE;
-		if (getstyleint(menuflags) == F_CHECK || getstyleint(menuflags) == F_RADIO)
+		if (getstyleint(parentmenuflags) == F_CHECK || getstyleint(parentmenuflags) == F_RADIO)
 			m->parent->leftmargin += CHECK_SIZE + leftmargin;
 		m->parent->flags = (m->parent->flags & ~F_STYLE) | F_MENU;
 	}
@@ -2473,7 +2477,49 @@ public:
 		bstack[0].f = 1;
 		bstack[0].maxwidth = 0;
 		bstack[0].maxaccelwidth = 0;
+		bstack[0].marked = false;
 		stackdepth = 0;
+	}
+
+	// OXT-Beyond: makes the (sub)menu at the top of bstack. A menu's items
+	// are check items, drawn with room for a tick, when a line of its top
+	// level begins with a mark (findmenu: menuflags), and then so are every
+	// submenu's, as before. Until 0.2.7 the marks of a submenu under a top
+	// level with none were parsed (an item of !c was hilited) but never
+	// drawn, wherever the engine draws its menus (Linux, the web, Windows'
+	// classic look): File > Import Stack's HyperCard options in the IDE
+	// looked unticked whatever they were set to (seth, the web IDE on
+	// Windows 11). Such a submenu's own items are check items now, a radio
+	// item staying one, and only its own: its parent level, the menu's top
+	// level among them, is laid out and drawn as before, and so is every
+	// menu with no mark at all, and every menu whose top level has one.
+	void closelevel()
+	{
+		uint2 t_parentflags = menuflags;
+		uint2 t_levelflags = menuflags;
+		if (stackdepth > 0 && bstack[stackdepth].marked && getstyleint(menuflags) != F_CHECK && getstyleint(menuflags) != F_RADIO)
+		{
+			t_levelflags = (menuflags & ~F_STYLE) | F_CHECK;
+			MCButton *t_item = bstack[stackdepth].buttons;
+			if (t_item != NULL)
+			{
+				do
+				{
+					// An item that opens a deeper submenu (made already,
+					// which gave it the menu style that draws its arrow)
+					// keeps its style, and its words move over to the
+					// check column, as makemenu moves a cascade item's
+					// in a menu whose top level has a mark
+					if (t_item->menucontrol == MENUCONTROL_ITEM && t_item->menumode == WM_CASCADE)
+						t_item->leftmargin += CHECK_SIZE + parent->leftmargin;
+					else if (t_item->menucontrol == MENUCONTROL_ITEM && getstyleint(t_item->flags) != F_RADIO)
+						t_item->flags = (t_item->flags & ~F_STYLE) | F_CHECK;
+					t_item = (MCButton *)t_item->next();
+				}
+				while (t_item != bstack[stackdepth].buttons);
+			}
+		}
+		parent->makemenu(bstack, stackdepth, t_levelflags, t_parentflags, fontref);
 	}
 
 	virtual bool ProcessItem(MCMenuItem *p_menuitem)
@@ -2488,9 +2534,10 @@ public:
 			bstack[stackdepth].parent = bstack[stackdepth - 1].buttons->prev();
 			bstack[stackdepth].buttons = NULL;
 			bstack[stackdepth].f = 1;
+			bstack[stackdepth].marked = false;
 		}
 		while (newdepth < stackdepth)
-			parent->makemenu(bstack, stackdepth, menuflags, fontref);
+			closelevel();
 		MCButton *newbutton = new (nothrow) MCButton;
 		newbutton->appendto(bstack[stackdepth].buttons);
 		MCNameRef t_name = nil;
@@ -2537,6 +2584,9 @@ public:
 			
 			if (p_menuitem->is_hilited)
 				newbutton->sethilite(0, True);
+
+			if (p_menuitem->has_mark)
+				bstack[stackdepth].marked = true;
 				
 			if (p_menuitem->is_radio)
 			{
@@ -2617,7 +2667,7 @@ public:
 	{
 		parent->menuhasitemtags = p_has_tags;
 		while (stackdepth >= 0)
-			parent->makemenu(bstack, stackdepth, menuflags, fontref);
+			closelevel();
 		setmenutagflag(parent, true);
 		// MW-2012-02-16: [[ FontRefs ]] Make sure we free the font we created.
 		MCFontRelease(fontref);
