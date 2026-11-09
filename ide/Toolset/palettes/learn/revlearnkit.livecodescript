@@ -36,6 +36,8 @@ script "revLearnKit"
 -- defaultStack to the kit's stack and puts it back.
 
 constant kFrame = 16
+-- (the longest a frame is taken to have lasted, for lkFrameDelay)
+constant kFrameCostCap = 250
 constant kAwayCheck = 500
 constant kWake = 2000
 constant kTextInset = 4
@@ -48,6 +50,8 @@ local sCfg, sLiveList, sHover, sHoverAmt, sEnterAmt
 local sScope, sScopeStart
 -- The pending frame, this frame's time, and the time since the last one
 local sTick, sNow, sLastFrame, sDt
+-- How long a frame has lasted lately, in milliseconds (lkFrameDelay)
+local sFrameCost
 -- True while another window is in front: no frames come (lkTick)
 local sAway
 -- True while the browser's window is not the one in use, or another of
@@ -83,6 +87,7 @@ command lkStartTicking
    put 0 into sPageCheckAt
    put false into sHeld
    put 0 into sWokeUntil
+   put empty into sFrameCost
    send "lkTick" to me in kFrame milliseconds
    put the result into sTick
 end lkStartTicking
@@ -143,6 +148,7 @@ on lkTick
    catch tError
    end try
    unlock screen
+   lkFrameCost the milliseconds - sNow
    if tSaved is not empty and there is a stack tSaved then
       set the defaultStack to tSaved
    end if
@@ -151,10 +157,35 @@ on lkTick
       put true into sHeld
       send "lkTick" to me in kAwayCheck milliseconds
    else
-      send "lkTick" to me in kFrame milliseconds
+      send "lkTick" to me in lkFrameDelay() milliseconds
    end if
    put the result into sTick
 end lkTick
+
+-- How long the stack waits after a frame before the next: kFrame, as it
+-- always has, on a computer that draws a frame in less than that; and on
+-- a slower one, as long as its frames have lately taken to draw, so that
+-- it keeps half the time for a click, a key or the user's own stack
+-- rather than a fifth or less. The animations follow the clock (sDt), so
+-- they move as far, in fewer frames. As Home does (revWebHome's
+-- hmFrameDelay, seth, 2026-11-09: Home as snappy as it can be on a
+-- low-powered computer). The cost is smoothed, so one slow frame is not a
+-- pause, and capped at kFrameCostCap.
+private command lkFrameCost pMilliseconds
+   put max(0, min(kFrameCostCap, pMilliseconds)) into pMilliseconds
+   if sFrameCost is empty then
+      put pMilliseconds into sFrameCost
+   else
+      put sFrameCost * 0.8 + pMilliseconds * 0.2 into sFrameCost
+   end if
+end lkFrameCost
+
+private function lkFrameDelay
+   if sFrameCost is empty then
+      return kFrame
+   end if
+   return max(kFrame, round(sFrameCost))
+end lkFrameDelay
 
 -- Whether the stack holds still now: another window is in front, or the
 -- browser's window is not in use, and the pointer has not woken it
