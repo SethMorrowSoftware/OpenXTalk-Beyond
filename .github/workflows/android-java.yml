@@ -114,7 +114,6 @@ jobs:
             { tail -40 "$RUNNER_TEMP/sdkmanager.log"; exit 1; }
           echo "JDK: $jdk"; "$jdk/bin/javac" -version 2>&1 | head -n 1
           ls -l "$sdk/platforms/android-36/android.jar"
-          ls -l "$sdk/platforms/android-36/data/api-versions.xml" "$sdk/platform-tools/api/api-versions.xml" || true
 
       # The Android runtime the checkout's packages ship
       - name: Fetch the runtimes asset
