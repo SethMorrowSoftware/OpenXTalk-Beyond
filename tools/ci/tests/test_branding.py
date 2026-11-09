@@ -163,8 +163,9 @@ class TheSplash(unittest.TestCase):
         for field in ('moreinfo', 'Status'):
             self.assertIn('set the textAlign of field "%s" of me to "center"' % field, open_stack)
             self.assertIn('set the dontWrap of field "%s" of me to true' % field, open_stack)
-        # What the splash said before stays: the version, then "Happy hunting!"
-        self.assertIn('put tVersion & "Happy hunting!" into field "moreinfo" of me', open_stack)
+        # The version, then the release's words: "Thank you, bug hunters!" for
+        # 0.2.7 "Make It So" ("Happy hunting!" in its release candidates)
+        self.assertIn('put tVersion & "Thank you, bug hunters!" into field "moreinfo" of me', open_stack)
         self.assertIn('hide field "Info" of me', open_stack)
         self.assertLess(open_stack.index('put 0 into sSplashSteps'), open_stack.index('splashProgressBar'))
 

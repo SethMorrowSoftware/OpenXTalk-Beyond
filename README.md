@@ -1,7 +1,7 @@
 # OXT-Beyond
 
 <p align="center">
-  <img src="Installer/oxt-beyond/branding/art/oxt-beyond-banner.png" alt="OXT-Beyond 0.2.7 &quot;Bug Hunt&quot;">
+  <img src="Installer/oxt-beyond/branding/art/oxt-beyond-banner.png" alt="OXT-Beyond 0.2.7 &quot;Make It So&quot;">
 </p>
 
 <p align="center">
@@ -134,13 +134,14 @@ clone at the new one.
 
 ## Status
 
-**OXT-Beyond 0.2.6 "Frankenstein"** is the current release and stays
-the main download until 0.2.7 has held up. **0.2.7 "Bug Hunt"** is in
-public testing: its release candidates are pre-releases on the
+**OXT-Beyond 0.2.7 "Make It So"** is the current release. It comes
+out of the Bug Hunt: nineteen rounds of release candidates, published
+as pre-releases on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases),
-and every round fixes what the testers on the
-[OpenXTalk forums](https://openxtalk.org/forum/) report. This is a
-young project; please read the notes below before you download it.
+each fixing what the testers on the
+[OpenXTalk forums](https://openxtalk.org/forum/) reported. 0.2.6
+"Frankenstein", the release before it, stays on the Releases page. This
+is a young project; please read the notes below before you download it.
 
 Two changes in 0.2.6 can be seen by a script: on Linux a period typed
 while a handler runs no longer stops it (Control-period does, as on
@@ -156,6 +157,7 @@ every change, release by release.
 
 | Version | What it brings |
 | --- | --- |
+| [0.2.7](#027-make-it-so) | The stable release that the Bug Hunt's nineteen rounds made, with the last of the forum's finds squashed: the SVG icon picker, the Message Box's colours, the Extension Manager's icons and the Project Browser's Refresh arrows in the dark; ticks in a submenu, so File > Import Stack's HyperCard options show; the "menu" button style in the Inspector; Android apps that can be drawn edge to edge, a box to build them with OXT-Beyond's own Android engine, and no hang on a density change; the "Make It So" splash, installer and banner |
 | [0.2.7-rc.6.19](#027-rc619-the-bug-hunt-round-nineteen) | Puzzle Almanac, a daily puzzle book for phones, in the Stack Player and on the website; Android apps can be built with OXT-Beyond's own Android engine, and no longer crash after a density change; macOS 11 on Intel Macs too, where Catalina hung at launch; fonts a stack loads drawn as themselves on Linux and Windows, so the Script Editor shows code in Source Code Pro; one Undo for a drag and drop in the Script Editor; readable names on a selected Project Browser row; widgets in the Tools palette as soon as they are installed; tooltips that can be read in a dark browser |
 | [0.2.7-rc.6.18](#027-rc618-the-bug-hunt-round-eighteen) | Two games made for phones in the Stack Player, Nova Rescue and Wobble Forts; Android apps ready for Google Play: target API 36, App Bundles, notifications on Android 13 and newer, pictures saved on Android 10 and newer, the back gesture on Android 16, no more closing on a font size or language change, and the Android runtime's Java layer built from OXT-Beyond's source; a stack's sounds exported as WAV, AIFF or AU files; default buttons that went blank on a Mac; the App Browser back in the Tools menu with sharp icons; a splash image while a web standalone loads; SQLite 3.51.3, and libsodium 1.0.22 and OpenSSL 3.5.9 in the xTalk Suite |
 | [0.2.7-rc.6.17](#027-rc617-the-bug-hunt-round-seventeen) | The round to squash what was left before 0.2.7 is stable: buttons on a coloured card in the web IDE, a dark menu item on Linux, a main window that wouldn't minimize on Windows 11, an App Browser that listed itself (and the Card Navigator), windows that flashed at start, Inclusions in a new order every run, the Responsive Starter's second save, the Phone Starter's pinch and its fit on an iPhone's Home Screen; and Lessons, a course in xTalk, on the website |
@@ -1679,6 +1681,89 @@ undo, and the folders where it keeps copies of stacks before changing
 them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
+
+#### 0.2.7: Make It So
+
+OXT-Beyond 0.2.7 "Make It So" is the stable release that the Bug Hunt
+made. The hunt began with 0.2.7-rc.6 on 20 October, and nineteen rounds
+of release candidates followed, to 0.2.7-rc.6.19 on 8 November; each
+round squashed what the testers on the OpenXTalk forums found, and the
+notes of every round are below. Thank you, bug hunters. This release
+has everything in 0.2.7-rc.6.19, and squashes the last of the forum's
+finds:
+
+- **An icon chooser you couldn't read in the dark.** The Inspector's SVG
+  icon chooser drew black icons on the dark card; in the dark
+  appearance its icons and names are light grey and its frame,
+  scrollbar and popup dark, and in the light appearance it is as
+  before. A widget can now ask whether it is drawn dark (bwmilby)
+  (#422).
+- **Olive and navy words in a dark Message Box.** The script typed in
+  the Message Box kept the colours of the appearance it was typed in, so
+  after a switch to dark its words were dark on the dark field, and
+  after a switch back light on white. It is coloured again on every
+  switch, with the Script Editor's colours, and so is a line recalled
+  from its history (#424).
+- **HyperCard options that looked off when they were on.** In the
+  menus the engine draws (on Linux, in the web IDE and in Windows'
+  classic look), a submenu's ticks and radio dots were never drawn
+  when its menu's top level had none, so File > Import Stack's
+  HyperCard options looked off whatever they were set to. Such a
+  submenu now shows its ticks; every other menu, and macOS's menus, are
+  drawn as before (seth) (#425).
+- **Icons lost in the Mac's dark appearance.** The Extension Manager's
+  icon for each extension was the colour of the dark selected row, and
+  the Project Browser's Refresh arrows stayed black on the dark window.
+  Both can be seen now, and the arrows follow a switch between light
+  and dark; the light appearance, and Linux, are as before (bwmilby)
+  (#433).
+- **No "menu" style in the Inspector.** The Property Inspector's Style
+  menu for buttons offers "menu", so a push button becomes a popup,
+  pulldown or option menu without a script, and a menu button shows its
+  Style row, so it can be turned back (OpenXTalkPaul) (#434).
+- **Android apps boxed in by the bars.** A stack can be drawn edge to
+  edge, as current Android apps are: tick **Edge to edge** on the
+  Android card's Status Bar row, and on Android 11 and newer it fills
+  the screen under see-through status and navigation bars, and
+  `the effective working screenRect` is the part they leave uncovered.
+  A stack that doesn't tick it is built as before (#432).
+- **OXT-Beyond's own Android engine only by script.** The Android
+  card has an **OXT-Beyond engine (preview)** box, which builds the
+  stack with the Android engine built here instead of LiveCode 9.6.3's;
+  a stack that never ticks it is built with 9.6.3's, as before (#426).
+- **Android apps that hung on a density change.** An app could hang
+  with a black screen when Android made it again, for a display size or
+  density change, while it was drawing; it now lets the engine finish
+  first (#431). With OXT-Beyond's own Android engine, a `wait` that
+  Android interrupts that way now ends at once, so Android no longer
+  calls the app not responding (#427).
+
+The release's name is a wink: you say what you want, in xTalk, and
+make it so. The splash, the Windows installer and the release banner
+are new for it, and the splash thanks the bug hunters.
+
+What a script can see, since 0.2.7-rc.6.19: with OXT-Beyond's own
+Android engine (the preview, chosen by the box above or the
+"android,engine" setting), a `wait` that Android ends by destroying the
+app's screen throws "wait: aborted", and the rest of that handler no
+longer runs (#427); with LiveCode 9.6.3's engine the app hung there.
+A stack built with **Edge to edge** ticked gets the whole screen as
+`the screenRect` (#432). No other change is meant to be seen by a
+script.
+
+Behind the scenes, the web IDE tour checks the Message Box's colours
+across a switch (#424) and File > Import Stack's ticks (#425); the IDE
+tour checks the icon chooser (#422), the Extension Manager's icons and
+the Refresh arrows (#433) in the dark, makes menu buttons through the
+Inspector (#434) and clicks the Android card's new boxes (#426, #432);
+the Android checks run an app that redraws its whole screen through
+five density changes (#431), check a stack drawn edge to edge on both
+emulators (#432), tap a permission dialog's Allow again when a tap is
+lost (#428) and build the App Bundle again when GitHub's release host
+refuses bundletool (#430); the Android engine's check runs this tree's
+engine in place of the release's (#427); the CI checks download
+actionlint through GitHub's API (#429); and the runtimes every package
+carries are rebuilt from this release's engine.
 
 #### 0.2.7-rc.6.19: the Bug Hunt, round nineteen
 

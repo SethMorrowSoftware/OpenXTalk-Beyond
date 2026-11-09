@@ -354,8 +354,8 @@ in this file.
 
 ### The OXT-Beyond icon
 
-The OXT-Beyond icon and artwork from 0.2.1 "Frankenstein" and 0.2.7
-"Bug Hunt" (`ide/OXT-Beyond.ico`,
+The OXT-Beyond icon and artwork from 0.2.1 "Frankenstein", 0.2.7's
+release candidates ("Bug Hunt") and 0.2.7 "Make It So" (`ide/OXT-Beyond.ico`,
 `engine/rsrc/oxt-beyond.ico`, the images in `Installer/oxt-beyond/branding/`,
 the macOS app's `OXT-Beyond.icns`, which packaging makes from them, the
 splash screens and the icon images in `ide/Toolset/palettes/revgeneralicons.rev`)

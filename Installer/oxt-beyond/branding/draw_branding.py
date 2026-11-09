@@ -17,8 +17,9 @@
 """Draw the OXT-Beyond artwork and write every file made from it: the
 icon (from 0.2.7 SVG Lab's SVG logo, tools/pages/games/svg-lab/beyond-logo.svg,
 still and moving), the splash screens (from rc.6.14 like the web IDE's
-loading screen), and the 0.2.7 "Bug Hunt" installer
-image and banner, each with the logo.
+loading screen), and the 0.2.7 "Make It So" installer
+image and banner, each with the logo (the release candidates had the
+"Bug Hunt" beetle there).
 
   python3 Installer/oxt-beyond/branding/draw_branding.py
 
@@ -63,12 +64,16 @@ REPO = os.path.normpath(os.path.join(HERE, '..', '..', '..'))
 
 ORANGE = '#FF7700'      # the "OXT" orange of the earlier icon
 CHARCOAL = '#15171A'
-# 0.2.7 "Bug Hunt": the splash screens, the installer art and the banner
-BUG_LIGHT = '#4FD8C4'     # the bug's shell, light to shadow
-BUG_DARK = '#16756A'
-BUG_SPOT = '#0E4A43'
-LENS = '#BDF3FF'
-GLOW = '#5FE0CF'          # glow and the trail
+# 0.2.7 "Make It So": the splash's name, the installer art and the banner.
+# A star-streak "jump" on a night-blue sky, as in the 0.2.7 promo stills:
+# you say what you want in xTalk, and it happens. (The release candidates'
+# "Bug Hunt" beetle, magnifying glass and footprints are in the history of
+# this file.)
+SKY_TOP = '#22314F'       # the sky, lighter at the vanishing point
+SKY = '#0D1322'
+STREAK = '#CFE0FF'        # the star streaks and the stars
+GOLD = '#FFB547'          # the release's name, on the dark
+GOLD_DEEP = '#A0560A'     # the release's name, on the light splash
 
 ICON_SIZES = (16, 24, 32, 48, 64, 128, 256, 512, 1024)
 SMALL_ICON_MAX = 48     # sizes up to this use the icon without its lower line
@@ -77,54 +82,64 @@ SMALL_ICON_MAX = 48     # sizes up to this use the icon without its lower line
 # for where the IDE writes over it.
 
 
-def bug(x, y, s, gid):
-    """The bug in a 200 x 250 box at x, y, scaled by s: a round, friendly
-    beetle with big eyes, glancing up at the magnifying glass."""
-    legs = ''
-    for ly, dx in ((128, 0), (162, 8), (196, 0)):
-        legs += (f'<path d="M100 {ly} L{30 - dx} {ly - 14} L{12 - dx} {ly + 10}" '
-                 f'stroke="#111" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
-                 f'<path d="M100 {ly} L{170 + dx} {ly - 14} L{188 + dx} {ly + 10}" '
-                 f'stroke="#111" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round"/>')
-    return f'''<g transform="translate({x},{y}) scale({s})">
-  <defs>
-    <linearGradient id="{gid}" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="{BUG_LIGHT}"/><stop offset="1" stop-color="{BUG_DARK}"/></linearGradient>
-  </defs>
-  {legs}
-  <path d="M84 52 Q70 18 46 14" stroke="#111" stroke-width="6" fill="none" stroke-linecap="round"/>
-  <path d="M116 52 Q130 18 154 14" stroke="#111" stroke-width="6" fill="none" stroke-linecap="round"/>
-  <circle cx="44" cy="14" r="9" fill="{BUG_LIGHT}" stroke="#111" stroke-width="4"/>
-  <circle cx="156" cy="14" r="9" fill="{BUG_LIGHT}" stroke="#111" stroke-width="4"/>
-  <ellipse cx="100" cy="166" rx="66" ry="78" fill="url(#{gid})" stroke="#111" stroke-width="6"/>
-  <path d="M100 96 V242" stroke="#111" stroke-width="5"/>
-  <circle cx="68" cy="150" r="11" fill="{BUG_SPOT}"/><circle cx="132" cy="150" r="11" fill="{BUG_SPOT}"/>
-  <circle cx="74" cy="196" r="9" fill="{BUG_SPOT}"/><circle cx="126" cy="196" r="9" fill="{BUG_SPOT}"/>
-  <path d="M58 118 Q66 104 80 100" stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="6" fill="none" stroke-linecap="round"/>
-  <ellipse cx="100" cy="76" rx="46" ry="38" fill="#2A2E33" stroke="#111" stroke-width="6"/>
-  <circle cx="80" cy="70" r="16" fill="#F4F1D0" stroke="#111" stroke-width="3"/>
-  <circle cx="120" cy="70" r="16" fill="#F4F1D0" stroke="#111" stroke-width="3"/>
-  <circle cx="86" cy="63" r="7" fill="#111"/><circle cx="126" cy="63" r="7" fill="#111"/>
-  <circle cx="88" cy="60" r="2.5" fill="#FFF"/><circle cx="128" cy="60" r="2.5" fill="#FFF"/>
-  <path d="M86 94 Q100 104 114 94" stroke="#F4F1D0" stroke-width="4" fill="none" stroke-linecap="round"/>
-</g>'''
+def lcg(seed):
+    """Numbers in [0, 1) from a fixed little generator, so the drawings
+    come out the same on every machine and every Python."""
+    state = seed
+    while True:
+        state = (state * 1103515245 + 12345) % 2147483648
+        yield state / 2147483648
 
 
-def magnifier(x, y, s):
-    """A magnifying glass, its lens centred at x, y, scaled by s."""
-    return f'''<g transform="translate({x},{y}) scale({s})">
-  <path d="M50 50 L118 118" stroke="#111" stroke-width="30" stroke-linecap="round"/>
-  <path d="M56 56 L114 114" stroke="{ORANGE}" stroke-width="20" stroke-linecap="round"/>
-  <circle cx="0" cy="0" r="72" fill="{LENS}" fill-opacity="0.16" stroke="#111" stroke-width="22"/>
-  <circle cx="0" cy="0" r="72" fill="none" stroke="#C9D1D9" stroke-width="12"/>
-  <path d="M-46 -20 A50 50 0 0 1 -20 -46" stroke="#FFFFFF" stroke-opacity="0.8" stroke-width="9" fill="none" stroke-linecap="round"/>
-</g>'''
+def streaks(cx, cy, count, inner, reach, seed, width=1.0, opacity=1.0):
+    """Star streaks rushing out of a vanishing point at cx, cy: thin wedges,
+    a point at the inner end and wider at the outer, the "jump"."""
+    import math
+    r = lcg(seed)
+    out = []
+    for i in range(count):
+        a = 2 * math.pi * (i + next(r)) / count
+        r1 = inner * (0.6 + 0.9 * next(r))
+        r2 = r1 + reach * (0.25 + 0.75 * next(r))
+        w = width * (1.2 + 3.2 * next(r))
+        op = opacity * (0.12 + 0.5 * next(r))
+        ca, sa = math.cos(a), math.sin(a)
+        x1, y1 = cx + ca * r1, cy + sa * r1
+        x2, y2 = cx + ca * r2, cy + sa * r2
+        px, py = -sa * w / 2, ca * w / 2
+        out.append(f'<path d="M{x1:.1f} {y1:.1f} L{x2 + px:.1f} {y2 + py:.1f} L{x2 - px:.1f} {y2 - py:.1f} Z" '
+                   f'fill="{STREAK}" fill-opacity="{op:.2f}"/>')
+    return ''.join(out)
 
 
-def sparks(x, y, s, colour):
-    """Little motion marks: the bug was just found."""
-    return (f'<g transform="translate({x},{y}) scale({s})" stroke="{colour}" stroke-width="6" stroke-linecap="round">'
-            '<path d="M0 0 L-18 -14"/><path d="M4 22 L-20 24"/><path d="M0 44 L-18 58"/></g>')
+def stars(x1, y1, x2, y2, count, seed):
+    """Still stars, small and faint, scattered over a box."""
+    r = lcg(seed)
+    out = []
+    for _ in range(count):
+        x = x1 + (x2 - x1) * next(r)
+        y = y1 + (y2 - y1) * next(r)
+        out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{0.8 + 1.6 * next(r):.1f}" '
+                   f'fill="{STREAK}" fill-opacity="{0.25 + 0.6 * next(r):.2f}"/>')
+    return ''.join(out)
+
+
+def sparkle(x, y, s, colour):
+    """A four-pointed sparkle centred at x, y, s from the centre to a tip
+    (drawn, so it needs no font with a sparkle in it)."""
+    k = s * 0.22
+    return (f'<path d="M{x:g} {y - s:g} Q{x + k:g} {y - k:g} {x + s:g} {y:g} Q{x + k:g} {y + k:g} {x:g} {y + s:g} '
+            f'Q{x - k:g} {y + k:g} {x - s:g} {y:g} Q{x - k:g} {y - k:g} {x:g} {y - s:g} Z" fill="{colour}"/>')
+
+
+def sky(w, h, cx, cy, gid):
+    """The night-blue sky, lighter round the vanishing point at cx, cy."""
+    return (f'<defs><radialGradient id="{gid}" gradientUnits="userSpaceOnUse" cx="{cx}" cy="{cy}" r="{max(w, h)}">'
+            f'<stop offset="0" stop-color="{SKY_TOP}"/><stop offset="0.6" stop-color="{SKY}"/></radialGradient>'
+            f'<radialGradient id="{gid}-core" cx="0.5" cy="0.5" r="0.5">'
+            f'<stop offset="0" stop-color="{STREAK}" stop-opacity="0.35"/>'
+            f'<stop offset="1" stop-color="{STREAK}" stop-opacity="0"/></radialGradient></defs>'
+            f'<rect width="{w}" height="{h}" fill="url(#{gid})"/>')
 
 
 def word(x, y, size, text, fill, outline=None, width=0, anchor='start', bold=True, sx=0.82):
@@ -260,15 +275,6 @@ def nested_logo(x, y, size):
             + '\n'.join(lines[1:]) + '\n')
 
 
-def trail(x1, x2, y, colour):
-    """A dotted trail of little bug footprints, where 0.2.1 had stitches."""
-    t = ''
-    for i, px in enumerate(range(x1 + 6, x2, 22)):
-        dy = -5 if i % 2 else 5
-        t += f'<circle cx="{px}" cy="{y + dy}" r="4" fill="{colour}"/>'
-    return t
-
-
 def codename():
     """The release's name (ide/.codename), which the splash shows."""
     with open(os.path.join(REPO, 'ide', '.codename'), encoding='utf-8') as f:
@@ -298,10 +304,10 @@ WORDMARK_JOIN = 513
 
 def splash(dark):
     if dark:
-        top, bottom, fg, track, pill, shade = '#3B4B5E', '#1D2733', '#F4F6F8', '#FFFFFF', GLOW, 0.45
+        top, bottom, fg, track, pill, shade = '#3B4B5E', '#1D2733', '#F4F6F8', '#FFFFFF', GOLD, 0.45
         track_opacity = 0.12
     else:
-        top, bottom, fg, track, pill, shade = '#FFFFFF', '#DCE3EA', '#17202A', '#17202A', '#1F8F80', 0.22
+        top, bottom, fg, track, pill, shade = '#FFFFFF', '#DCE3EA', '#17202A', '#17202A', GOLD_DEEP, 0.22
         track_opacity = 0.10
     lx, ly, ls = (2 * n for n in SPLASH_LOGO)
     cx = 591
@@ -327,31 +333,34 @@ def splash(dark):
 
 
 def wizard():
-    # Inno Setup's tall image at 250 % (534 x 1022); 202 x 386 at 100 %
-    return svg(534, 1022, f'''<rect width="534" height="1022" fill="{CHARCOAL}"/>
-<circle cx="267" cy="580" r="200" fill="{GLOW}" fill-opacity="0.14"/>
-{nested_logo(102, 40, 330)}
-{bug(152, 430, 1.15, 'shell')}
-{sparks(150, 520, 1.1, GLOW)}
-{magnifier(282, 525, 1.2)}
-{word(267, 830, 82, 'OXT-Beyond', ORANGE, '#000', 10, 'middle', sx=0.8)}
-{word(267, 915, 64, 'BUG HUNT', '#F1F3F5', anchor='middle', sx=0.78)}
-{trail(75, 460, 950, GLOW)}''')
+    # Inno Setup's tall image at 250 % (534 x 1022); 202 x 386 at 100 %.
+    # The logo at the vanishing point of the streaks, the words below.
+    cx, cy = 267, 400
+    return svg(534, 1022, f'''{sky(534, 1022, cx, cy, 'wsky')}
+{stars(0, 0, 534, 1022, 70, 7)}
+{streaks(cx, cy, 64, 150, 520, 11, width=1.2)}
+<circle cx="{cx}" cy="{cy}" r="250" fill="url(#wsky-core)"/>
+{nested_logo(cx - 175, cy - 175, 350)}
+{word(267, 720, 82, 'OXT-Beyond', ORANGE, '#000', 10, 'middle', sx=0.8)}
+{sparkle(62, 790, 18, GOLD)}{sparkle(472, 790, 18, GOLD)}
+{word(267, 812, 64, 'MAKE IT SO', GOLD, anchor='middle', sx=0.78)}
+{word(267, 900, 40, 'Version 0.2.7', '#AEB8C4', anchor='middle', bold=False, sx=0.9)}''')
 
 
 def banner():
-    return svg(1280, 640, f'''<defs><radialGradient id="g5" cx="0.76" cy="0.5" r="0.5">
-<stop offset="0" stop-color="{GLOW}" stop-opacity="0.4"/><stop offset="1" stop-color="{GLOW}" stop-opacity="0"/></radialGradient></defs>
-<rect width="1280" height="640" fill="{CHARCOAL}"/><rect width="1280" height="640" fill="url(#g5)"/>
-{bug(905, 190, 1.4, 'shell')}
-{sparks(900, 290, 1.3, GLOW)}
-{magnifier(1065, 275, 1.55)}
-{nested_logo(40, 40, 300)}
-{word(350, 170, 100, 'OXT-Beyond', ORANGE, '#000', 10, sx=0.8)}
-{word(354, 270, 90, 'BUG HUNT', '#F1F3F5', sx=0.78)}
-{trail(354, 860, 300, GLOW)}
-{word(74, 430, 44, 'Version 0.2.7  ·  Happy hunting!', '#9AA3AD', bold=False, sx=1)}
-{word(74, 560, 30, 'Windows · macOS · Linux  —  free and open source xTalk', '#6C757D', bold=False, sx=1)}''')
+    # The streaks rush out from behind the logo, at the left; the words
+    # sit on the calmer sky at the right of it.
+    cx, cy = 210, 320
+    return svg(1280, 640, f'''{sky(1280, 640, cx, cy, 'bsky')}
+{stars(0, 0, 1280, 640, 110, 5)}
+{streaks(cx, cy, 90, 170, 1150, 3, width=1.4, opacity=0.8)}
+<circle cx="{cx}" cy="{cy}" r="300" fill="url(#bsky-core)"/>
+{nested_logo(cx - 170, cy - 170, 340)}
+{word(440, 250, 100, 'OXT-Beyond', ORANGE, '#000', 10, sx=0.8)}
+{sparkle(466, 318, 22, GOLD)}
+{word(506, 340, 66, 'MAKE IT SO', GOLD, sx=0.78)}
+{word(444, 430, 38, 'Version 0.2.7  ·  Thank you, bug hunters!', '#C3CCD6', bold=False, sx=1)}
+{word(444, 520, 24, 'Windows · macOS · Linux · the web  ·  free, open source xTalk', '#8A95A3', bold=False, sx=1)}''')
 
 
 DRAWINGS = {
