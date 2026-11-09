@@ -320,8 +320,8 @@ Empty leaves it to the runtime; any other value stops the build with an
 error.
 
 OXT-Beyond's own Android engine, built from its source with a current
-NDK, is a preview beside LiveCode 9.6.3's engine, which stays the
-default. To build with it, tick **OXT-Beyond engine (preview)** on the
+NDK, is a preview beside the 9.6.3 engine that the runtimes have always
+carried, which stays the default. To build with it, tick **OXT-Beyond engine (preview)** on the
 Android card, under the device capabilities (it can be ticked once an
 architecture is), or set this on the stack before you build, which is
 what the box does:
@@ -331,8 +331,8 @@ what the box does:
 The builder then takes the engine, the externals and the Java layer from
 the runtimes' `Runtime/Android/Beyond`, which they carry from OXT-Beyond
 0.2.7-rc.6.19 on; with runtimes that do not, the build stops and says
-so. Unticked, the setting is empty and the stack is built with LiveCode
-9.6.3's engine, as a stack that never had the box is.
+so. Unticked, the setting is empty and the stack is built with the
+9.6.3 engine, as a stack that never had the box is.
 
 Google Play takes a new application as an Android App Bundle (`.aab`),
 from which it makes the packages each device installs. To have the
