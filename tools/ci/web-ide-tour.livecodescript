@@ -520,7 +520,7 @@ end tour_project_browser
 -- "dark-refresh", showed in its place while the splash was in memory, as
 -- the web IDE keeps it (littlenemo, openxtalk.org)
 function tourRefreshProblem pStack
-   local tButton, tIcon, tMain, tSub, tHits
+   local tButton, tIcon, tMain, tSub, tHits, tWant
    put the long id of button "Refresh" of card "list" of stack pStack into tButton
    -- (the tooltip is a property patch of the binary stack, which the
    -- pull requests' screenshot jobs take from the last release: its old
@@ -534,6 +534,18 @@ function tourRefreshProblem pStack
    put the icon of tButton into tIcon
    if there is not a stack "revIcons" or there is not an image id tIcon of stack "revIcons" then
       return "the Project Browser's Refresh icon" && tIcon && "is not an image of revIcons"
+   end if
+   -- white arrows in the dark appearance, dark ones in the light: on the
+   -- Mac the stack's own choice, by the window's colour, left the black
+   -- arrows in the dark (bwmilby, forum, 2026-11-09); Linux keeps that
+   -- choice, which was right there
+   if the platform is not "Linux" then
+      if revIDEAppearanceIsDark() then put "white-refresh" into tWant
+      else put "dark-refresh" into tWant
+      tourRecord "INFO the Project Browser's Refresh icon is" && the short name of image id tIcon of stack "revIcons" && "(dark:" && revIDEAppearanceIsDark() & ")"
+      if the short name of image id tIcon of stack "revIcons" is not tWant then
+         return "the Project Browser's Refresh icon is" && the short name of image id tIcon of stack "revIcons" & ", not" && tWant
+      end if
    end if
    repeat for each line tMain in the mainStacks
       repeat for each line tSub in (tMain & return & the substacks of stack tMain)

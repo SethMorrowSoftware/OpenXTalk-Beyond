@@ -448,6 +448,7 @@ command setUpProjectView
    set the viewProp["row color"] of group "objectList" of me to revIDEColor("dataView_themedRowColor")
    set the viewProp["alternate row color"] of group "objectList" of me to revIDEColor("dataView_themedRowAlternateColor")
    pbKeepRowsDark
+   pbRefreshIconForAppearance
 
    set the viewProp["fixed row height"] of group "objectList" of me to "true"
    set the viewProp["row height"] of group "objectList" of me to the effective textSize of me + 14
@@ -475,6 +476,33 @@ private command pbKeepRowsDark
       hide image "cover-square" of card "list" of me
    end if
 end pbKeepRowsDark
+
+-- OXT-Beyond: the Refresh button's icon, revIcons' "white-refresh" in the
+-- dark appearance and its "dark-refresh" in the light one. The stack's own
+-- preOpenStack (tperry, 2024) picks it by the window's colour, which is
+-- dark on Linux's dark GTK themes and on Windows, but on the Mac stays
+-- light in the dark appearance: the black arrows were left on the dark
+-- window (bwmilby, forum, 2026-11-09). On Linux the stack's choice was
+-- right and is left as it is; elsewhere the appearance decides, and as
+-- setUpProjectView runs on ideSystemAppearanceChanged, the icon follows a
+-- switch between light and dark too
+command pbRefreshIconForAppearance
+   local tName
+   if the platform is "Linux" then exit pbRefreshIconForAppearance
+   if there is not a card "list" of me then exit pbRefreshIconForAppearance
+   if there is not a button "Refresh" of card "list" of me then exit pbRefreshIconForAppearance
+   put pbRefreshIconName(revIDEAppearanceIsDark()) into tName
+   if there is not a stack "revIcons" then exit pbRefreshIconForAppearance
+   if there is not an image tName of card 1 of stack "revIcons" then exit pbRefreshIconForAppearance
+   set the icon of button "Refresh" of card "list" of me to the id of image tName of card 1 of stack "revIcons"
+end pbRefreshIconForAppearance
+
+-- the name of revIcons' image for the Refresh button: white arrows when
+-- pDark is true, dark ones otherwise
+function pbRefreshIconName pDark
+   if pDark is true then return "white-refresh"
+   return "dark-refresh"
+end pbRefreshIconName
 
 command buildProjectView pRememberExpansion
    local tStacks, tFrontScripts, tBackScripts,tRow, tVisibleROws, tChildren

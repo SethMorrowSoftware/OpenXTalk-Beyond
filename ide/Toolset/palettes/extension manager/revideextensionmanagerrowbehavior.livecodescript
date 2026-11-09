@@ -194,15 +194,24 @@ on LayoutControl pControlRect
    -- setUpExtensionList)
    -- and the line under the row a dark grey there, not the template's
    -- light one (the template's in the light appearance)
+   -- OXT-Beyond: and the extension's icon lighter there: the template's
+   -- purple (96,87,127) could hardly be seen on the dark rows and not at
+   -- all on the dark selected row (bwmilby, forum, 2026-11-09, on the
+   -- Mac); in the light appearance it is the template's, as before
+   -- (extensionsIconColor, in the list behavior)
+   local tIconColor
+   put the foregroundColor of widget "svgicon" of group "extensionRow" of card "templates" of this stack into tIconColor
    if revIDEAppearanceIsDark() then
       set the textColor of line 1 of field "description" of me to "255,255,255"
       set the textColor of line 2 of field "description" of me to "201,201,201"
       set the foregroundColor of graphic "border" of me to "58,58,58"
+      set the foregroundColor of widget "svgicon" of me to extensionsIconColor(tIconColor, true)
    else
       set the textColor of line 1 of field "description" of me to "0,0,0"
       set the textColor of line 2 of field "description" of me to "125,125,125"
       set the foregroundColor of graphic "border" of me to \
             the foregroundColor of graphic "border" of group "extensionRow" of card "templates" of this stack
+      set the foregroundColor of widget "svgicon" of me to tIconColor
    end if
 
    ## Action Icon
