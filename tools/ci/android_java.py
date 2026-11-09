@@ -170,6 +170,26 @@ RELAUNCH_GUARDS = {
         'the same as onRestart: nothing to an engine the activity did not start',
 }
 
+# compare: what the engine view and the activity do so that the engine
+# finishes showing what it drew before the activity is destroyed
+# (Engine.finishDrawing), each with the reason: a difference from LiveCode
+# 9.6.3's Classes and from every one built here before it alike
+FINISH_DRAWING = {
+    'code com/runrev/android/Engine.scheduleWakeUp:(IZ)V':
+        'it notes that the engine has not drawn as it yielded (m_wake_after_drawing), which invalidateBitmap '
+        'then notes it has, for finishDrawing; the wake-up is scheduled as before',
+    'code com/runrev/android/Engine.invalidateBitmap:(IIII)V':
+        'it notes that the engine drew as it yielded (m_wake_after_drawing, for finishDrawing); it invalidates '
+        'as before',
+}
+FINISH_DRAWING_ON_DESTROY = (
+    'before the wake-up is cleared and the engine destroyed, the activity lets the engine finish showing what it '
+    'drew (Engine.finishDrawing runs the wake-up the engine asked for as it drew, as the handler would have): '
+    'Android 16 made the activity again for a density change while the engine was in the middle of that, and '
+    'LiveCode 9.6.3\'s engine, destroyed there, went on from the drawing only to wait again, so Android\'s thread '
+    'waited for it for good and the screen stayed black. An activity whose engine yielded without drawing is '
+    'destroyed as before')
+
 # compare: what a build from this repository's sources does differently
 # from a released runtime's Classes, by the released jar's SHA-256, each
 # with the reason. A key is "class X", "member X.name:descriptor" (gone or
@@ -250,8 +270,9 @@ EXPECTED = {
             'opened again starts its engine in a new process, as after Android ends the process: opened again '
             'in the same one, its second engine was stopped on Android 11 and newer (fdsan). Not for a '
             'configuration change; and an activity that started the app again in a new process (onCreate) has '
-            'no engine to finish',
+            'no engine to finish. And ' + FINISH_DRAWING_ON_DESTROY,
         **RELAUNCH_GUARDS,
+        **FINISH_DRAWING,
         'code com/runrev/android/BusyIndicator.showBusyIndicator:(Ljava/lang/String;)V':
             'the busy indicator\'s dialog gets the same back callback on Android 13 and newer (Android 16 sends '
             'an app that targets API 36 no KEYCODE_BACK), which does what its key listener does',
@@ -269,6 +290,14 @@ EXPECTED = {
     # a Java layer of this repository's: what has changed since
     'e28f35a674222e798ed824ab2a22b0c6370dc37e86573a34565af0dbd6050360': {
         **RELAUNCH_GUARDS,
+        **FINISH_DRAWING,
+        'code com/runrev/android/LiveCodeActivity.onDestroy:()V': FINISH_DRAWING_ON_DESTROY,
+    },
+    # oxt-runtimes-0.2.7-rc.6.19's Runtime/Android/Classes, built here
+    # from commit 7f5d3e6c5 (its PROVENANCE.md gives this SHA-256)
+    '328a531ae3d1f5845fbaa4174760187f2e7435855a5481541f9f8927880e414d': {
+        **FINISH_DRAWING,
+        'code com/runrev/android/LiveCodeActivity.onDestroy:()V': FINISH_DRAWING_ON_DESTROY,
     },
 }
 

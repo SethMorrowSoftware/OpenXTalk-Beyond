@@ -226,7 +226,7 @@ END_WAIT = 20
 FONT_SCALE = '1.3'
 DENSITY_SHARE = 0.85
 # The probes (--probe): the stack file each is saved as
-PROBES = {'app': 'AndroidProbe.livecode', 'java': 'AndroidJavaProbe.livecode'}
+PROBES = {'app': 'AndroidProbe.livecode', 'java': 'AndroidJavaProbe.livecode', 'busy': 'AndroidBusyProbe.livecode'}
 # Where a release's Java layer is (overlay --classes)
 CLASSES = ('Runtime', 'Android', 'Classes')
 # The name the builder gives the engine (a runtime's <abi>/Standalone) in a
@@ -1383,7 +1383,7 @@ def ide(args):
                    OXT_ANDROID_ALIAS=KEY_ALIAS, OXT_ANDROID_PASSWORD=KEY_PASSWORD,
                    OXT_ANDROID_DEVICE=args.device or '', OXT_ANDROID_WORK=path(os.path.join(work, 'units')),
                    OXT_ANDROID_UNITS='skip' if args.no_units else '',
-                   OXT_ANDROID_PROBE='java' if args.probe == 'java' else '',
+                   OXT_ANDROID_PROBE='' if args.probe == 'app' else args.probe,
                    OXT_ANDROID_ENGINE=args.android_engine or '')
         cmd = [lay.engine, document]
         if p.family == 'linux':
@@ -2238,6 +2238,20 @@ def new_crashes(a, names, before=''):
     return crash + [x for x in fdsan if x not in crash], pids
 
 
+# The Java layer's line when, as the activity went, it let the engine
+# finish showing what it drew (Engine.finishDrawing)
+FINISHED_DRAWING = 'finishDrawing:'
+
+
+def drawing_finished(a, pid):
+    """The Java layer's FINISHED_DRAWING lines of process pid in the
+    device's log: the engine was in the middle of showing what it drew as
+    Android made pid's activity again, and finished it first (where LiveCode
+    9.6.3's engine hung, its screen black)."""
+    _, logcat = a('logcat', '-d', '-v', 'brief')
+    return [x.strip() for x in logcat.splitlines() if FINISHED_DRAWING in x and log_pid(x) == pid]
+
+
 def stays_through_font_scale(args, adb, a, pid, names):
     """--font-scale: the probe goes on through a font size change, in its
     process, still showing its green (the manifest's configChanges lists
@@ -2288,12 +2302,15 @@ def starts_again_for_density(args, adb, a, pid, names, what='density change', su
     try:
         share, after, shot = green_again(adb, args.serial, a, RETURN_WAIT, other_than=pid)
         crash, pids = new_crashes(a, names, pid)
+        finished = drawing_finished(a, pid)
     finally:
         a('shell', 'wm', 'density', 'reset')
     save_screen(args.out and os.path.splitext(args.out)[0] + '-%s.png' % suffix, shot, 'after the %s' % what)
     log('After a %s (%s, from %s): %.0f%% of the screen is the probe\'s green; process %s (before it: '
         '%s); its processes in the log: %s' % (what, density, m.group(1), share * 100, after or 'not running', pid,
                                                ', '.join(sorted(pids)) or 'none'))
+    if finished:
+        log('  The engine finished what it drew first: %s' % ' | '.join(finished))
     problems = []
     if not after or after == pid:
         problems.append('after a %s the app did not start again in a new process (%s before it, %s '
@@ -2312,10 +2329,45 @@ def starts_again_for_density(args, adb, a, pid, names, what='density change', su
         log('Back at the screen\'s own density: %.0f%% of the screen is the probe\'s green; process %s (before it: '
             '%s); its processes in the log: %s' % (back * 100, again or 'not running', after,
                                                    ', '.join(sorted(pids)) or 'none'))
+        finished = drawing_finished(a, after)
+        if finished:
+            log('  The engine finished what it drew first: %s' % ' | '.join(finished))
+        # and it must come back: an app that hung as Android made the
+        # activity again keeps its process, its screen black (LiveCode
+        # 9.6.3's engine destroyed while it drew, runs 42558963677 and
+        # 42593463112), which nothing after this would have asked about
+        # when it was the last change
+        if not again or again == after:
+            problems.append('at the return to the screen\'s own density after the %s the app did not start again '
+                            'in a new process (%s before it, %s after)' % (what, after, again or 'none'))
+        elif back < 0.25:
+            problems.append('at the return to the screen\'s own density after the %s the screen is not the '
+                            'probe\'s green (%.0f%%)' % (what, back * 100))
         if crash:
             problems.append('the device\'s log across the return to the screen\'s own density after the %s: %s'
                             % (what, ' | '.join(crash[:6])))
     return problems
+
+
+def starts_again_for_densities(args, adb, a, pid, names):
+    """--density, --density-times times over (starts_again_for_density):
+    each change, and each return to the screen's own density, makes the
+    activity again, and the app must start again in a new process for
+    each. Each time after the first is named in the log and the problems
+    ("density change 2 of 3"), and has a screen of its own; the first
+    problem ends them."""
+    times = args.density_times
+    for n in range(times):
+        if n:
+            pid = pid_now(a)
+            if not pid:
+                return ['the app is not running before density change %d of %d' % (n + 1, times)]
+        what = 'density change' if not n else 'density change %d of %d' % (n + 1, times)
+        problems = starts_again_for_density(args, adb, a, pid, names, what,
+                                            'density' if not n else 'density-%d' % (n + 1))
+        if problems:
+            return problems
+    return []
 
 
 def probe_focus(a):
@@ -2683,7 +2735,7 @@ def device(args):
     # the manifest lists, starts again in a new process for one it does
     # not (also while its script waits), and opened again after its stack
     # quit starts in a new process
-    for wanted, check in ((args.font_scale, stays_through_font_scale), (args.density, starts_again_for_density),
+    for wanted, check in ((args.font_scale, stays_through_font_scale), (args.density, starts_again_for_densities),
                           (args.density_in_wait, starts_again_for_density_in_wait),
                           (args.relaunch, opens_again_after_quit)):
         if wanted and green and pid.strip():
@@ -3133,7 +3185,8 @@ def main(argv=None):
                    help='build the probe with this "android,engine" setting: beyond, OXT-Beyond\'s own engine, '
                         'which overlay --beyond puts beside the release\'s (9.6.3\'s otherwise)')
     i.add_argument('--probe', choices=sorted(PROBES), default='app',
-                   help='java: the Java layer\'s probe (AndroidJavaProbe)')
+                   help='java: the Java layer\'s probe (AndroidJavaProbe); busy: the app probe drawing all the '
+                        'time it runs (AndroidBusyProbe)')
     i.add_argument('--timeout', type=int, default=1500)
     i.add_argument('--bundletool-fallback', action='store_true',
                    help='when GitHub\'s release host answers the builder\'s download of bundletool with an HTTP '
@@ -3177,6 +3230,9 @@ def main(argv=None):
     d.add_argument('--density', action='store_true',
                    help='once green, change the screen\'s density: the app must start again in a new process '
                         'and show its green there')
+    d.add_argument('--density-times', type=int, default=1, metavar='N',
+                   help='--density: change the density and back N times, the app starting again in a new process '
+                        'each time')
     d.add_argument('--density-in-wait', action='store_true',
                    help='once green, tap the probe, whose mouseUp waits %d s with messages, and change the '
                         'density while it waits: the app must start again in a new process and show its green '
@@ -3200,6 +3256,9 @@ def main(argv=None):
                    help='first put it to sleep once, wake it and keep it awake (awake)')
     b.add_argument('--settle-polls', type=int, default=3)
     args = ap.parse_args(argv)
+    # --density-times counts --density's changes: from 1, and only with it
+    if args.command == 'device' and (args.density_times < 1 or (args.density_times != 1 and not args.density)):
+        d.error('--density-times takes a count from 1 up, and --density with it')
     try:
         problems = {'extract': extract, 'overlay': overlay, 'ide': ide, 'verify': verify, 'compare': compare,
                     'device': device, 'boot': boot}[args.command](args)
