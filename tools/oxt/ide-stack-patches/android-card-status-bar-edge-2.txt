@@ -1,0 +1,25 @@
+# Android card: a click on the "Edge to edge" box (patch -1) stores the
+# "android,edge to edge" setting, which the Android builder reads: true
+# when the box is ticked, false when it is not; a stack that never had it
+# is laid out as one whose setting is false. The targets group's script
+# takes it before the architectures, so it is never taken for one (by its
+# second word, "To"); the architectures' boxes, "App Bundle" and
+# "OXT-Beyond engine (preview)" do what they did. The text replaced is the
+# blank line before the script's declaration of tTarget, between the texts
+# that android-card-engine-2.txt and android-card-app-bundle-2.txt give
+# the script, so that each patch finds its own text whichever ran first,
+# and the patch tool finds it applied once its text is gone.
+file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
+object: group "Android Targets" of card "Android"
+replace:
+|   |
+|   local tTarget|
+with:
+|   -- OXT-Beyond: the "Edge to edge" box ("Edge To Edge") is no|
+|   -- architecture: ticked, the app is drawn edge to edge on Android 11|
+|   -- and newer ("android,edge to edge" is true), else laid out as before|
+|   if the short name of the target is "Edge To Edge" then|
+|      storeSetting "edge to edge", the hilite of the target|
+|      exit mouseUp|
+|   end if|
+|   local tTarget|

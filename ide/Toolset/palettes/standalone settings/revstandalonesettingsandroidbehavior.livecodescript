@@ -125,6 +125,17 @@ on updateSettings
             (tSettings["android,engine"] is "beyond")
    end if
    
+   -- OXT-Beyond: the "Edge to edge" box at the end of the Status Bar row
+   -- ("Edge To Edge", tools/oxt/ide-stack-patches/
+   -- android-card-status-bar-edge-1.txt): the "android,edge to edge"
+   -- setting, with which an app is drawn edge to edge on Android 11 and
+   -- newer. A stack without it is laid out as before, and the box is not
+   -- ticked.
+   if there is a button "Edge To Edge" of group "Android targets" of me then
+      set the hilited of button "Edge To Edge" of group "Android targets" of me to \
+            (tSettings["android,edge to edge"] is true)
+   end if
+   
    -- OXT-Beyond: the Android card of this IDE has no such button (and its
    -- Android build no such setting): setting it stopped the card's update
    -- with an error
@@ -174,6 +185,10 @@ on updateAndroidSettingState
    -- and so is the engine the build takes
    if there is a button "Beyond Engine" of group "Android targets" of me then
       set the enabled of button "Beyond Engine" of group "Android targets" of me to tEnabled
+   end if
+   -- and so is whether the app is drawn edge to edge
+   if there is a button "Edge To Edge" of group "Android targets" of me then
+      set the enabled of button "Edge To Edge" of group "Android targets" of me to tEnabled
    end if
    set the visible of button "Androidchecked" to tEnabled
    set the opaque of button "Androidchecked" to false

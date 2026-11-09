@@ -27,6 +27,10 @@ struct MCMenuItem
 	bool is_hilited: 1;
     // SN-2014-07-29: [[ Bug 12998 ]] has_tag member put back
     bool has_tag: 1;
+	// OXT-Beyond: whether the line gave the item a mark of either kind,
+	// ticked or not (!c, !n, !r, !u): a submenu with such an item is drawn
+	// with room for its ticks (ButtonMenuCallback, button.cpp)
+	bool has_mark: 1;
 	uint4 accelerator;
 	MCStringRef accelerator_name;
 	uint1 modifiers;
@@ -48,6 +52,7 @@ struct MCMenuItem
 		tag = MCValueRetain(kMCEmptyString);
         // SN-2014-07-29: [[ Bug 12998 ]] has_tag member put back
         has_tag = false;
+		has_mark = false;
 		menumode = 0;
 	}
 	

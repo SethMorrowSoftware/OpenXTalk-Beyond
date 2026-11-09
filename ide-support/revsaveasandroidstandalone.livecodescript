@@ -703,6 +703,7 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
       
       put androidKeepLargeScreenLayout(tManifest, tTargetAPI) into tManifest
       put androidDeclareRelaunch(tManifest, tRuntime) into tManifest
+      put androidAskForEdgeToEdge(tManifest, pSettings, tRuntime) into tManifest
       
       put tManifest into url ("binfile:" & tManifestFile)
       
@@ -2039,6 +2040,35 @@ function androidDeclareRelaunch pManifest, pRuntimeFolder
    end if
    return pManifest
 end androidDeclareRelaunch
+
+-- OXT-Beyond: a stack whose "android,edge to edge" standalone setting is
+-- true (the Android card's "Edge to edge" box) is drawn edge to edge, on
+-- Android 11 and newer: under the see-through status and navigation bars
+-- and into the display's cutout, the keyboard still resizing it. The
+-- manifest asks the Java layer for it with this meta-data of the
+-- application (LiveCodeActivity.asksForEdgeToEdge), which a layer without
+-- drawEdgeToEdge (LiveCode Community 9.6.3's, and the runtimes' before
+-- it) would not read, so the build stops there instead of making an app
+-- that is not what the stack asks for. Any other stack's manifest is left
+-- as it was
+constant kEdgeToEdge = "com.runrev.android.EDGE_TO_EDGE"
+constant kEdgeToEdgeClass = "com/runrev/android/LiveCodeActivity$EdgeToEdge.class"
+function androidAskForEdgeToEdge pManifest, pSettings, pRuntimeFolder
+   if pSettings["android,edge to edge"] is not true then
+      return pManifest
+   end if
+   if not androidJavaLayerHas(pRuntimeFolder, kEdgeToEdgeClass) then
+      throw "the stack asks to be drawn edge to edge (android,edge to edge), and the Android runtime's Java" && \
+            "layer cannot draw it so: update the runtimes, or untick Edge to edge on the Android card"
+   end if
+   local tMetaData
+   put "  <meta-data android:name=" & quote & kEdgeToEdge & quote && \
+         "android:value=" & quote & "true" & quote && "/>" & return into tMetaData
+   if pManifest contains "</application>" then
+      replace "</application>" with tMetaData & "  </application>" in pManifest
+   end if
+   return pManifest
+end androidAskForEdgeToEdge
 
 -- OXT-Beyond: whether the runtime's Java layer (its Classes jar) has each
 -- of the class files pClasses (a list of items), by their names, which a

@@ -404,6 +404,22 @@ extern "C" MC_DLLEXPORT_DEF void MCWidgetGetMyPaintForAppearance(uinteger_t p_ty
     MCWidgetGetMyPaint(p_type, r_paint);
 }
 
+// OXT-Beyond: whether the current widget is drawn in the dark appearance,
+// as MCWidgetGetMyPaintForAppearance decides it (MCWidgetIsInDarkAppearance:
+// the systemAppearance is dark and the card behind the widget is drawn
+// dark). For a widget with no colour properties of its own, whose colours
+// are its source's, to pick its dark ones by; false in the light
+// appearance, so nothing drawn there changes (the SVG icon picker; bwmilby,
+// openxtalk.org p=26194).
+extern "C" MC_DLLEXPORT_DEF void MCWidgetGetMyAppearanceIsDark(bool& r_dark)
+{
+    r_dark = false;
+    if (!MCWidgetEnsureCurrentWidget())
+        return;
+    
+    r_dark = MCWidgetIsInDarkAppearance(MCWidgetGetHost(MCcurrentwidget));
+}
+
 extern "C" MC_DLLEXPORT_DEF void MCWidgetGetMyPixelScale(MCCanvasFloat& r_pixel_scale)
 {
     if (!MCWidgetEnsureCurrentWidget())
