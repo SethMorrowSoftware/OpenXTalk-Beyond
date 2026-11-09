@@ -55,6 +55,31 @@ on TestFrameAndTheAppearance
 	delete stack tStack
 end TestFrameAndTheAppearance
 
+-- OXT-Beyond: darkIcons, which the Inspector's SVG icon chooser sets on
+-- Linux with a dark GTK theme, where the systemAppearance is light: false
+-- on a new widget, so it is drawn as before; true, it draws its dark
+-- colours (its frame 96,96,96) whatever the appearance; false again, as
+-- before
+on TestDarkIcons
+	local tStack, tWidget, tBefore
+	put "IconPickerDarkIcons" & the milliseconds into tStack
+	create stack tStack
+	set the backgroundColor of card 1 of stack tStack to "30,30,30"
+	create widget "Picker" as "com.livecode.widget.iconpicker" in card 1 of stack tStack
+	put it into tWidget
+	set the rect of tWidget to "10,10,330,250"
+	TestAssert "darkIcons is false on a new widget", the darkIcons of tWidget is false
+	put _PickerFramePixel(tWidget) into tBefore
+	set the darkIcons of tWidget to true
+	TestAssert "darkIcons reads true once set", the darkIcons of tWidget is true
+	TestAssert "with darkIcons the frame is drawn dark", _PickerFramePixel(tWidget) is "96,96,96"
+	set the darkIcons of tWidget to false
+	TestAssert "without darkIcons the frame is drawn as before", _PickerFramePixel(tWidget) is tBefore
+	set the backgroundColor of card 1 of stack tStack to "250,250,250"
+	TestAssert "without darkIcons a light card's frame is as before", _PickerFramePixel(tWidget) is "188,188,188"
+	delete stack tStack
+end TestDarkIcons
+
 -- The red, green and blue of the left edge of the icon picker pWidget, at
 -- its middle, as a snapshot of it shows it: its frame
 private function _PickerFramePixel pWidget
