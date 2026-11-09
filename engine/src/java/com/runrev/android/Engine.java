@@ -1349,11 +1349,11 @@ public class Engine extends View implements EngineApi
 	public Rect getViewport()
 	{
         // OXT-Beyond: a stack drawn edge to edge fills the whole of its
-        // window, which is its screenRect
-        // (LiveCodeActivity.edgeToEdgeWindowSize); for any other stack, the
-        // default display's metrics, as before
+        // window, which is its screenRect, where the window is on the
+        // screen (LiveCodeActivity.edgeToEdgeWindowBounds); for any other
+        // stack, the default display's metrics from (0, 0), as before
         Rect t_window = new Rect();
-        if (LiveCodeActivity.edgeToEdgeWindowSize(t_window))
+        if (LiveCodeActivity.edgeToEdgeWindowBounds(t_window))
             return t_window;
         
 		DisplayMetrics t_metrics = new DisplayMetrics();

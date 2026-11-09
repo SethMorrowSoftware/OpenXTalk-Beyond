@@ -1280,6 +1280,12 @@ class EdgeToEdge(unittest.TestCase):
         flat = ' '.join(guide.split())
         self.assertIn('`the effective working screenRect` the part of it that the bars, the cutout and the keyboard '
                       'leave uncovered', flat)
+        # the screenRect is the window's (Engine.getViewport), and both
+        # rects are where they are on the screen, as the Java layer gives
+        # them (test_android_java's test_edge_to_edge_when_the_app_asks)
+        self.assertIn('`the screenRect` is then the whole of the application\'s window (the whole screen, unless it '
+                      'shares the screen with another application)', flat)
+        self.assertIn('both where they are on the screen, as the stack\'s own rect is', flat)
         self.assertIn('with earlier ones the build stops and says so. A stack without the setting is laid out as '
                       'before.', flat)
 

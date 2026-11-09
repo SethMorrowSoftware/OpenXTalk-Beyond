@@ -330,10 +330,12 @@ what the box does:
 
     set the cRevStandaloneSettings["android,edge to edge"] of stack "My App" to true
 
-`the screenRect` is then the whole screen, and `the effective working
-screenRect` the part of it that the bars, the cutout and the keyboard
-leave uncovered: keep the controls that must be seen and tapped inside
-it. The bars' icons are dark in the light appearance and light in the
+`the screenRect` is then the whole of the application's window (the
+whole screen, unless it shares the screen with another application), and
+`the effective working screenRect` the part of it that the bars, the
+cutout and the keyboard leave uncovered, both where they are on the
+screen, as the stack's own rect is: keep the controls that must be seen
+and tapped inside it. The bars' icons are dark in the light appearance and light in the
 dark one. The keyboard still makes the stack smaller, unless the stack
 pans for it, as before. It takes runtimes whose Android Java layer can
 draw a stack so, as those made after 0.2.7-rc.6.19 can; with earlier

@@ -1734,23 +1734,28 @@ class OneSystem(unittest.TestCase):
         native = read('engine', 'src', 'mblandroiddc.cpp')
         self.assertIn('"getEffectiveWorkareaAsString"', native)
         # and the screenRect of a stack drawn edge to edge is the whole of
-        # its window, from (0, 0), so that the uncovered area lies inside
-        # it (the default display's metrics leave the navigation bar and
-        # the cutout out: on Android 13 they gave a screenRect of
-        # 0,0,393,778 around an uncovered area of 0,49,393,827); for any
-        # other stack, the default display's metrics, as before
-        size = re.search(r'(?s)public static boolean edgeToEdgeWindowSize\(Rect r_size\)\n    {\n(.*?)\n    }\n',
-                         activity).group(1)
-        self.assertEqual(size.split(), (
+        # its window, so that the uncovered area lies inside it (the
+        # default display's metrics leave the navigation bar and the
+        # cutout out: on Android 13 they gave a screenRect of 0,0,393,778
+        # around an uncovered area of 0,49,393,827), where the window is on
+        # the screen, in the screen's pixels as the uncovered area is
+        # (getLocationOnScreen, above): a window that shares the screen is
+        # not at (0, 0), and its uncovered area must not leave its
+        # screenRect. For any other stack, the default display's metrics
+        # from (0, 0), as before
+        bounds = re.search(r'(?s)public static boolean edgeToEdgeWindowBounds\(Rect r_bounds\)\n    {\n(.*?)\n    }\n',
+                           activity).group(1)
+        self.assertEqual(bounds.split(), (
             'if (s_edge_to_edge == null) return false; '
-            'Rect t_bounds = s_edge_to_edge.m_activity.getWindowManager().getCurrentWindowMetrics().getBounds(); '
-            'r_size.set(0, 0, t_bounds.width(), t_bounds.height()); '
+            'r_bounds.set(s_edge_to_edge.m_activity.getWindowManager().getCurrentWindowMetrics().getBounds()); '
             'return true;').split())
+        self.assertNotIn('edgeToEdgeWindowSize', activity + engine)
+        self.assertEqual(area.count('getLocationOnScreen(t_origin);'), 2)
         view = re.search(r'(?s)public Rect getViewport\(\)\n\t{\n(.*?)\n\t}\n', engine).group(1)
         code = ' '.join(x.strip() for x in view.splitlines() if x.strip() and not x.strip().startswith('//'))
         self.assertEqual(code.split(), (
             'Rect t_window = new Rect(); '
-            'if (LiveCodeActivity.edgeToEdgeWindowSize(t_window)) return t_window; '
+            'if (LiveCodeActivity.edgeToEdgeWindowBounds(t_window)) return t_window; '
             'DisplayMetrics t_metrics = new DisplayMetrics(); '
             'getWindowManager().getDefaultDisplay().getMetrics(t_metrics); '
             'return new Rect(0, 0, t_metrics.widthPixels, t_metrics.heightPixels);').split())

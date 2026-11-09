@@ -200,9 +200,9 @@ EDGE_TO_EDGE = {
         'keyboard covers (LiveCodeActivity.edgeToEdgeUncoveredArea), which the effective working screenRect '
         'gives a script; for any other stack the window\'s visible display frame, as before',
     'code com/runrev/android/Engine.getViewport:()Landroid/graphics/Rect;':
-        'for a stack drawn edge to edge it is the whole of its window, the bars and the cutout included '
-        '(LiveCodeActivity.edgeToEdgeWindowSize), which the screenRect gives a script; for any other stack the '
-        'default display\'s metrics, as before',
+        'for a stack drawn edge to edge it is the whole of its window where it is on the screen, the bars and the '
+        'cutout included (LiveCodeActivity.edgeToEdgeWindowBounds), which the screenRect gives a script; for any '
+        'other stack the default display\'s metrics, as before',
 }
 EDGE_TO_EDGE_ON_CREATE = (
     'on Android 11 and newer, an app whose manifest asks for it (the meta-data com.runrev.android.EDGE_TO_EDGE, '

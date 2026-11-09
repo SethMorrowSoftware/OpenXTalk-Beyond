@@ -302,17 +302,20 @@ public class LiveCodeActivity extends Activity
         return s_edge_to_edge != null && s_edge_to_edge.uncoveredArea(p_view, r_area);
     }
     
-    // OXT-Beyond: the engine's view asks for the size of the screen that a
+    // OXT-Beyond: the engine's view asks for the part of the screen that a
     // stack drawn edge to edge fills (Engine.getViewport): the whole of its
-    // window, the bars and the cutout included, from (0, 0), where the
-    // default display's metrics leave the navigation bar and the cutout
-    // out; false when the stack is not drawn edge to edge
-    public static boolean edgeToEdgeWindowSize(Rect r_size)
+    // window, the bars and the cutout included, where the default
+    // display's metrics leave the navigation bar and the cutout out. In
+    // the screen's pixels, as uncoveredArea's rect is (getLocationOnScreen)
+    // and as the engine's view gives its own place: a window that shares
+    // the screen (the lower or right one of a split screen) is not at
+    // (0, 0), and the part of it that nothing covers stays inside it.
+    // False when the stack is not drawn edge to edge
+    public static boolean edgeToEdgeWindowBounds(Rect r_bounds)
     {
         if (s_edge_to_edge == null)
             return false;
-        Rect t_bounds = s_edge_to_edge.m_activity.getWindowManager().getCurrentWindowMetrics().getBounds();
-        r_size.set(0, 0, t_bounds.width(), t_bounds.height());
+        r_bounds.set(s_edge_to_edge.m_activity.getWindowManager().getCurrentWindowMetrics().getBounds());
         return true;
     }
 
