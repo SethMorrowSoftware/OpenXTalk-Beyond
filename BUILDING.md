@@ -2520,6 +2520,12 @@ runs on every pull request and push to `main` in a minute or two:
 [actionlint](https://github.com/rhysd/actionlint) on every workflow, and
 the unit tests of the CI scripts in `tools/ci/tests`
 (`python3 -m unittest discover -s tools/ci/tests`, which needs PyYAML).
+It downloads its pinned actionlint with `gh`, through GitHub's API, and
+from the release's web address (`github.com/.../releases/download`) only
+when `gh` fails, and checks the archive's SHA-256 either way. On
+9 November 2026 the web address answered `504 Gateway Time-out` to the
+runners on and off for an hour, which ended three of these jobs before
+any check ran.
 
 It follows this guide:
 
