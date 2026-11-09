@@ -1,0 +1,24 @@
+# Android card: the build targets' group grows to hold the boxes copied
+# into it, as the engine makes it: the "App Bundle" box at the end of its
+# row (android-card-app-bundle-1.txt), the "OXT-Beyond engine (preview)"
+# box in the right-hand column's free row (android-card-engine-1.txt) and
+# the "Edge to edge" box at the end of the Status Bar row
+# (android-card-status-bar-edge-1.txt). Its right edge is 4 pixels past the
+# "App Bundle" box's (745, and the group's margins of 4), inside the window
+# (754 wide), and its bottom edge 4 pixels below the "Edge to edge" box's
+# (582). One patch declares them all, and comes after the copies (the
+# files are applied in the order of their names), as the group's rectangle
+# is one property and the patch tool takes a patch of a property as
+# applied only at its from: or to: value (until the "Edge to edge" box, the
+# engine box's patches declared it grown to 111,70,749,518 for the first
+# two, and before the engine box, the App Bundle box's to 111,70,749,99
+# for the first). The group shows nothing of its own (no
+# border, no background), and a group passes a click on a part of it that
+# holds no control of its own to what lies below (MCGroup::mfocus in
+# engine/src/group.cpp), so the controls of the card under the group work
+# as they did; nothing on the card moves.
+file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
+object: group "Android Targets" of card "Android"
+property: rect
+from: 111,70,629,99
+to: 111,70,749,586

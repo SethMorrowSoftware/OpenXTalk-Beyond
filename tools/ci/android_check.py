@@ -213,6 +213,10 @@ SCREEN_AGAIN = 1
 # drawn over the window is not where the window is
 BARS_WAIT = 8
 BARS_INTERVAL = 1
+# device --edge-to-edge: how long after the edge probe's green the log is
+# read again for the rects it says once its window has its insets
+# (kEdgeWait in android-check.livecodescript, 1 s, and time to spare)
+EDGE_WAIT = 4
 # The engine runs once in a process (RelaunchActivity in the Java layer
 # says why): device --font-scale, --density, --density-in-wait and
 # --relaunch. How long the probe is given after a change to show its green
@@ -226,7 +230,8 @@ END_WAIT = 20
 FONT_SCALE = '1.3'
 DENSITY_SHARE = 0.85
 # The probes (--probe): the stack file each is saved as
-PROBES = {'app': 'AndroidProbe.livecode', 'java': 'AndroidJavaProbe.livecode', 'busy': 'AndroidBusyProbe.livecode'}
+PROBES = {'app': 'AndroidProbe.livecode', 'java': 'AndroidJavaProbe.livecode', 'busy': 'AndroidBusyProbe.livecode',
+          'edge': 'AndroidEdgeProbe.livecode'}
 # Where a release's Java layer is (overlay --classes)
 CLASSES = ('Runtime', 'Android', 'Classes')
 # The name the builder gives the engine (a runtime's <abi>/Standalone) in a
@@ -743,6 +748,43 @@ def bars_drawn_over(rgba, width, height, colour=RUN_COLOR):
         if part >= 0.5:
             over.append('%s %.0f%%' % (where, part * 100))
     return over
+
+
+def edge_rects(said):
+    """The edge probe's last screenRect and effective working screenRect
+    (what it said, probe_said), each as (left, top, right, bottom), or None
+    when it said none."""
+    rects = {'screenRect': None, 'effective working screenRect': None}
+    for line in said:
+        m = re.match(r'(screenRect|effective working screenRect) (-?\d+),(-?\d+),(-?\d+),(-?\d+)$', line)
+        if m:
+            rects[m.group(1)] = tuple(int(x) for x in m.groups()[1:])
+    return rects['screenRect'], rects['effective working screenRect']
+
+
+def edge_problems(screen, effective, top):
+    """device --edge-to-edge: what is wrong with the edge probe's screen,
+    given its screenRect and effective working screenRect (edge_rects) and
+    the share of the screen's first row (the status bar's) that is its
+    green: drawn edge to edge, its green shows under the see-through status
+    bar, and its effective working screenRect, inside its screenRect,
+    leaves the status bar out."""
+    problems = []
+    if top < 0.5:
+        problems.append('the stack is not drawn under the status bar (%.0f%% of the screen\'s first row is its '
+                        'green)' % (top * 100))
+    if screen is None or effective is None:
+        problems.append('the edge probe did not say its screenRect and its effective working screenRect')
+        return problems
+    sl, st, sr, sb = screen
+    el, et, er, eb = effective
+    if not (sl <= el < er <= sr and st <= et < eb <= sb):
+        problems.append('its effective working screenRect (%s) is not inside its screenRect (%s)' % (
+            ','.join(map(str, effective)), ','.join(map(str, screen))))
+    elif et <= st:
+        problems.append('its effective working screenRect (%s) does not leave the status bar out of its '
+                        'screenRect (%s)' % (','.join(map(str, effective)), ','.join(map(str, screen))))
+    return problems
 
 
 def bars_again(adb, serial, over, seconds=None):
@@ -2699,6 +2741,24 @@ def device(args):
         if over:
             problems.append('the stack is drawn under the system bars (its green in the screen\'s %s row)'
                             % ' and '.join(over))
+    if args.edge_to_edge and green:
+        # the stack drawn edge to edge (the edge probe): its green under
+        # the see-through status bar, and its effective working screenRect
+        # leaving the bars out (the rects it says kEdgeWait after its green)
+        time.sleep(EDGE_WAIT)
+        _, later = a('logcat', '-d', '-v', 'brief')
+        screen, effective = edge_rects(probe_said(later, pids))
+        top = row_share(rgba, w, 0, RUN_COLOR) if h else 0.0
+        bottom = row_share(rgba, w, h - 1, RUN_COLOR) if h else 0.0
+        if top < 0.5:
+            got = screen_now(adb, args.serial)
+            if got and colour_share(got[2], RUN_COLOR) >= 0.25:
+                top = row_share(got[2], got[0], 0, RUN_COLOR)
+        log('Edge to edge: %.0f%% of the screen\'s first row (the status bar) and %.0f%% of its last (the '
+            'navigation bar) are the stack\'s green; its screenRect %s, its effective working screenRect %s' % (
+                top * 100, bottom * 100, ','.join(map(str, screen)) if screen else 'not said',
+                ','.join(map(str, effective)) if effective else 'not said'))
+        problems.extend(edge_problems(screen, effective, top))
     if args.back and green and pid.strip():
         # the back key: the probe's backKey turns the screen its back colour
         # (Android 16 sends it to the window's back callback for an app that
@@ -3186,7 +3246,8 @@ def main(argv=None):
                         'which overlay --beyond puts beside the release\'s (9.6.3\'s otherwise)')
     i.add_argument('--probe', choices=sorted(PROBES), default='app',
                    help='java: the Java layer\'s probe (AndroidJavaProbe); busy: the app probe drawing all the '
-                        'time it runs (AndroidBusyProbe)')
+                        'time it runs (AndroidBusyProbe); edge: the app probe drawn edge to edge, which says its '
+                        'screen\'s rects (AndroidEdgeProbe)')
     i.add_argument('--timeout', type=int, default=1500)
     i.add_argument('--bundletool-fallback', action='store_true',
                    help='when GitHub\'s release host answers the builder\'s download of bundletool with an HTTP '
@@ -3225,6 +3286,9 @@ def main(argv=None):
                    help='once green, press the back key: the probe\'s backKey must turn the screen its back colour')
     d.add_argument('--within-bars', action='store_true',
                    help='once green, the screen\'s first and last rows (the system bars) must not be the stack\'s')
+    d.add_argument('--edge-to-edge', action='store_true',
+                   help='once green, the edge probe must be drawn under the status bar, and its effective working '
+                        'screenRect leave the bars out')
     d.add_argument('--font-scale', action='store_true',
                    help='once green, change the font size: the app must go on in its process, still green')
     d.add_argument('--density', action='store_true',
@@ -3259,6 +3323,9 @@ def main(argv=None):
     # --density-times counts --density's changes: from 1, and only with it
     if args.command == 'device' and (args.density_times < 1 or (args.density_times != 1 and not args.density)):
         d.error('--density-times takes a count from 1 up, and --density with it')
+    # a stack inside the bars, or drawn under them: not both
+    if args.command == 'device' and args.within_bars and args.edge_to_edge:
+        d.error('--within-bars and --edge-to-edge ask for opposite screens: one or the other')
     try:
         problems = {'extract': extract, 'overlay': overlay, 'ide': ide, 'verify': verify, 'compare': compare,
                     'device': device, 'boot': boot}[args.command](args)

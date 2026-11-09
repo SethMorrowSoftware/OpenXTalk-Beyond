@@ -73,7 +73,8 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --    OXT_ANDROID_DEVICE    the serial of the device for Test (optional)
 --    OXT_ANDROID_WORK      a folder for the units' made-up SDKs
 --    OXT_ANDROID_PROBE     "java" for the Java layer's probe (see below),
---                          "busy" for the busy probe (see kBusyTick)
+--                          "busy" for the busy probe (see kBusyTick),
+--                          "edge" for the edge probe (see kEdgeWait)
 --    OXT_ANDROID_ENGINE    the probe's "android,engine" setting ("beyond"
 --                          for OXT-Beyond's own engine; none when empty)
 --
@@ -142,6 +143,17 @@ constant kProbeWait = 20
 -- set its field's text, and none hung
 constant kBusyTick = 10
 constant kBusyColor = "31,150,90"
+-- kEdgeWait: the edge probe (OXT_ANDROID_PROBE "edge") is the app probe
+-- built to be drawn edge to edge (its "android,edge to edge" setting, the
+-- Android card's "Edge to edge"): the Java layer draws it under the
+-- see-through status and navigation bars from Android 11 on
+-- (LiveCodeActivity.drawEdgeToEdge), so its green shows where they are.
+-- Once green it says, then again kEdgeWait milliseconds later (by when
+-- Android has given the window its insets), its screenRect and its
+-- effective working screenRect, which leaves the bars, the display's
+-- cutout and the keyboard out (Engine.getEffectiveWorkarea):
+-- android_check.py device --edge-to-edge checks both
+constant kEdgeWait = 1000
 constant kIdentifier = "org.openxtalk.check.androidprobe"
 -- The Java layer's probe's picture: one pixel, a PNG, as base64
 constant kProbePicture = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
@@ -256,6 +268,7 @@ private command androidUnits
    unitJavaHome tWork
    unitTargetAPI tWork
    unitRelaunch tWork
+   unitEdgeToEdge tWork
    unitEngine
    unitAppBundle tWork
    androidUnit "required-sdk", deployCall("deployRequiredSDK") is "Android 13 (API 33) or newer", \
@@ -393,6 +406,53 @@ private command unitRelaunch pWork
    androidUnit "relaunch-declared", tAnswer is tWanted, tAnswer
    removeTree tRuntime
 end unitRelaunch
+
+-- A stack drawn edge to edge (its "android,edge to edge" setting): the
+-- manifest asks the Java layer for it with one meta-data of the
+-- application where the runtime's layer can draw it so (its jar has
+-- LiveCodeActivity$EdgeToEdge), the build stops where it cannot (9.6.3's,
+-- a made-up runtime without it), and any other stack's manifest is left
+-- as it was, on made-up runtimes
+private command unitEdgeToEdge pWork
+   local tRuntime, tSettings, tAnswer, tManifest, tError, tWanted
+   put "<manifest>" & return & "  <application>" & return & "  </application>" & return & "</manifest>" into tManifest
+   put pWork & "/edge-runtime" into tRuntime
+   removeTree tRuntime
+   revSBEnsureFolder tRuntime
+   androidUnit "edge-not-asked", builderCall("androidAskForEdgeToEdge", tManifest, tSettings, tRuntime) is tManifest, \
+         builderCall("androidAskForEdgeToEdge", tManifest, tSettings, tRuntime)
+   put false into tSettings["android,edge to edge"]
+   androidUnit "edge-unticked", builderCall("androidAskForEdgeToEdge", tManifest, tSettings, tRuntime) is tManifest, \
+         builderCall("androidAskForEdgeToEdge", tManifest, tSettings, tRuntime)
+   put true into tSettings["android,edge to edge"]
+   -- asked of a runtime with no Java layer, and of one without the class
+   repeat for each item tAnswer in "none,without"
+      if tAnswer is "without" then
+         put textEncode("PK" & "com/runrev/android/LiveCodeActivity.class" & numToByte(0) & \
+               "com/runrev/android/LiveCodeActivity$SystemBarsPadding.class", "UTF-8") into url ("binfile:" & tRuntime & "/Classes")
+      end if
+      put empty into tError
+      try
+         get builderCall("androidAskForEdgeToEdge", tManifest, tSettings, tRuntime)
+      catch tError
+      end try
+      androidUnit "edge-java-layer-" & tAnswer, tError contains "Java layer cannot draw it so" and \
+            tError contains "untick Edge to edge on the Android card", "answered" && it & ", threw" && tError
+   end repeat
+   put textEncode("PK" & "com/runrev/android/LiveCodeActivity.class" & numToByte(0) & \
+         "com/runrev/android/LiveCodeActivity$EdgeToEdge.class", "UTF-8") into url ("binfile:" & tRuntime & "/Classes")
+   put builderCall("androidAskForEdgeToEdge", tManifest, tSettings, tRuntime) into tAnswer
+   put "<manifest>" & return & "  <application>" & return & \
+         "    <meta-data android:name=" & quote & "com.runrev.android.EDGE_TO_EDGE" & quote && \
+         "android:value=" & quote & "true" & quote && "/>" & return & \
+         "  </application>" & return & "</manifest>" into tWanted
+   androidUnit "edge-asked", tAnswer is tWanted, tAnswer
+   -- as the card stores it (a string)
+   put "true" into tSettings["android,edge to edge"]
+   androidUnit "edge-asked-as-stored", builderCall("androidAskForEdgeToEdge", tManifest, tSettings, tRuntime) is tWanted, \
+         builderCall("androidAskForEdgeToEdge", tManifest, tSettings, tRuntime)
+   removeTree tRuntime
+end unitEdgeToEdge
 
 -- The App Bundle: its name beside the package, where each file of the
 -- package goes in the bundle's base module, bundletool's settings, a
@@ -815,6 +875,9 @@ private function probeName
    if $OXT_ANDROID_PROBE is "busy" then
       return "AndroidBusyProbe"
    end if
+   if $OXT_ANDROID_PROBE is "edge" then
+      return "AndroidEdgeProbe"
+   end if
    return "AndroidProbe"
 end probeName
 
@@ -860,7 +923,20 @@ private function probeScript
       -- it draws without a pause from the start (see kBusyTick)
       put "   send" && quote & "probeBusy" & quote && "to me in" && kBusyTick && "milliseconds" & return after tScript
    end if
+   if probeName() is "AndroidEdgeProbe" then
+      -- its screen's rects, now and once its window has its insets (see
+      -- kEdgeWait)
+      put "   probeEdge" & return & \
+            "   send" && quote & "probeEdge" & quote && "to me in" && kEdgeWait && "milliseconds" & return after tScript
+   end if
    put "end openStack" after tScript
+   if probeName() is "AndroidEdgeProbe" then
+      put return & "on probeEdge" & return & \
+            "   put" && quote & "OXT-Beyond probe: screenRect" & quote && "&& the screenRect" & return & \
+            "   put" && quote & "OXT-Beyond probe: effective working screenRect" & quote && \
+            "&& the effective working screenRect" & return & \
+            "end probeEdge" after tScript
+   end if
    if probeName() is "AndroidBusyProbe" then
       put return & "local sBusy" & return & "on probeBusy" & return & \
             "   add 1 to sBusy" & return & \
@@ -934,6 +1010,10 @@ private function buildSettings pName
    repeat for each item tArch in "armv7,arm64,x86,x86_64"
       delete variable tSettings["android," & tArch]
    end repeat
+   -- the edge probe is drawn edge to edge (see kEdgeWait)
+   if probeName() is "AndroidEdgeProbe" then
+      put true into tSettings["android,edge to edge"]
+   end if
    -- the Java layer's probe asks to post notifications, and declares
    -- WRITE_EXTERNAL_STORAGE (see the header)
    if probeName() is "AndroidJavaProbe" then

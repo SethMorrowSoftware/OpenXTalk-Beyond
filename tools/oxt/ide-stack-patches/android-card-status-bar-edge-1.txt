@@ -1,0 +1,35 @@
+# Android card: an "Edge to edge" box at the end of the Status Bar row of
+# the User Interface Options. On Android 11 and newer, an app whose stack
+# asks for it is drawn edge to edge, as current Android apps are: under
+# the status and navigation bars, which are see-through, and into the
+# display's cutout (LiveCodeActivity.drawEdgeToEdge in the Java layer).
+# The Android builder writes the stack's "android,edge to edge" standalone
+# setting into the manifest (androidAskForEdgeToEdge in
+# ide-support/revsaveasandroidstandalone.livecodescript); until now only a
+# script could set it. The box is that setting: the targets group's script
+# (patch -2) stores it, the card sets the box from the stack's settings and
+# enables it while the stack is built for Android
+# (revstandalonesettingsandroidbehavior.livecodescript). A stack that never
+# ticks it is laid out as before.
+#
+# A copy of "Android x86_64", whose script is empty, so a click goes to the
+# targets group's script, as "App Bundle" and "OXT-Beyond engine (preview)"
+# do (the other options of the build that the group stores). The card has
+# no free row in its left-hand column, and the Status Bar row has room past
+# "Hidden" (which ends at 266): the box goes there, 6 pixels on, in the
+# middle of the row's radio buttons (561 to 584), as tall as the card's
+# other boxes (20) and 120 wide for its words (about 105 in DejaVu Sans on
+# Linux), ending before the permissions' boxes in the right-hand column
+# (418) and the "Application Permissions" group (398). The targets group
+# grows down to hold it (android-card-targets-group.txt). Its tooltip says
+# what it does.
+file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
+object: button "Android x86_64" of group "Android Targets" of card "Android"
+clone: Edge To Edge
+unique-id: 1794230270211
+property: label
+to: Edge to edge
+property: toolTip
+to: On Android 11 and newer, draw the app under the see-through status and navigation bars; the effective working screenRect is the part they leave
+property: rect
+to: 272,562,392,582

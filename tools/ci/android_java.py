@@ -190,6 +190,29 @@ FINISH_DRAWING_ON_DESTROY = (
     'waited for it for good and the screen stayed black. An activity whose engine yielded without drawing is '
     'destroyed as before')
 
+# compare: what the activity and the engine view do to draw a stack edge to
+# edge where the app asks for it (LiveCodeActivity.drawEdgeToEdge), each
+# with the reason: a difference from LiveCode 9.6.3's Classes and from every
+# one built here before it alike
+EDGE_TO_EDGE = {
+    'code com/runrev/android/Engine.getEffectiveWorkarea:()Landroid/graphics/Rect;':
+        'for a stack drawn edge to edge it is the part of the engine view that no system bar, display cutout or '
+        'keyboard covers (LiveCodeActivity.edgeToEdgeUncoveredArea), which the effective working screenRect '
+        'gives a script; for any other stack the window\'s visible display frame, as before',
+    'code com/runrev/android/Engine.getViewport:()Landroid/graphics/Rect;':
+        'for a stack drawn edge to edge it is the whole of its window where it is on the screen, the bars and the '
+        'cutout included (LiveCodeActivity.edgeToEdgeWindowBounds), which the screenRect gives a script; for any '
+        'other stack the default display\'s metrics, as before',
+}
+EDGE_TO_EDGE_ON_CREATE = (
+    'on Android 11 and newer, an app whose manifest asks for it (the meta-data com.runrev.android.EDGE_TO_EDGE, '
+    'which the builder writes for the Android card\'s "Edge to edge") is drawn edge to edge (drawEdgeToEdge): '
+    'under the see-through status and navigation bars and into the cutout, padded by the keyboard only; an app '
+    'that does not ask is laid out as before')
+EDGE_TO_EDGE_ON_CONFIGURATION = (
+    'for a stack drawn edge to edge, the bars\' icons follow the appearance (showBarsForAppearance, dark in the '
+    'light one) when night mode changes; for any other stack it does what it did')
+
 # compare: what a build from this repository's sources does differently
 # from a released runtime's Classes, by the released jar's SHA-256, each
 # with the reason. A key is "class X", "member X.name:descriptor" (gone or
@@ -262,7 +285,8 @@ EXPECTED = {
             'area it had; an app that targets less is laid out as before. Made again in a process whose engine '
             'has run, it starts the app again in a new process (RelaunchActivity) where the manifest declares '
             'that, instead of starting the engine a second time, which Android 11 and newer stop for an app '
-            'that targets API 30 or newer (fdsan); without the declaration it starts the engine as before',
+            'that targets API 30 or newer (fdsan); without the declaration it starts the engine as before. '
+            'And ' + EDGE_TO_EDGE_ON_CREATE,
         # OXT-Beyond: the engine runs once in a process
         'code com/runrev/android/LiveCodeActivity.onDestroy:()V':
             'once the engine has finished and the activity is finishing (the stack quit, as an unhandled '
@@ -273,6 +297,10 @@ EXPECTED = {
             'no engine to finish. And ' + FINISH_DRAWING_ON_DESTROY,
         **RELAUNCH_GUARDS,
         **FINISH_DRAWING,
+        **EDGE_TO_EDGE,
+        'code com/runrev/android/LiveCodeActivity.onConfigurationChanged:(Landroid/content/res/Configuration;)V':
+            RELAUNCH_GUARDS['code com/runrev/android/LiveCodeActivity.onConfigurationChanged:'
+                            '(Landroid/content/res/Configuration;)V'] + '. And ' + EDGE_TO_EDGE_ON_CONFIGURATION,
         'code com/runrev/android/BusyIndicator.showBusyIndicator:(Ljava/lang/String;)V':
             'the busy indicator\'s dialog gets the same back callback on Android 13 and newer (Android 16 sends '
             'an app that targets API 36 no KEYCODE_BACK), which does what its key listener does',
@@ -291,13 +319,22 @@ EXPECTED = {
     'e28f35a674222e798ed824ab2a22b0c6370dc37e86573a34565af0dbd6050360': {
         **RELAUNCH_GUARDS,
         **FINISH_DRAWING,
+        **EDGE_TO_EDGE,
         'code com/runrev/android/LiveCodeActivity.onDestroy:()V': FINISH_DRAWING_ON_DESTROY,
+        'code com/runrev/android/LiveCodeActivity.onCreate:(Landroid/os/Bundle;)V': EDGE_TO_EDGE_ON_CREATE,
+        'code com/runrev/android/LiveCodeActivity.onConfigurationChanged:(Landroid/content/res/Configuration;)V':
+            RELAUNCH_GUARDS['code com/runrev/android/LiveCodeActivity.onConfigurationChanged:'
+                            '(Landroid/content/res/Configuration;)V'] + '. And ' + EDGE_TO_EDGE_ON_CONFIGURATION,
     },
     # oxt-runtimes-0.2.7-rc.6.19's Runtime/Android/Classes, built here
     # from commit 7f5d3e6c5 (its PROVENANCE.md gives this SHA-256)
     '328a531ae3d1f5845fbaa4174760187f2e7435855a5481541f9f8927880e414d': {
         **FINISH_DRAWING,
+        **EDGE_TO_EDGE,
         'code com/runrev/android/LiveCodeActivity.onDestroy:()V': FINISH_DRAWING_ON_DESTROY,
+        'code com/runrev/android/LiveCodeActivity.onCreate:(Landroid/os/Bundle;)V': EDGE_TO_EDGE_ON_CREATE,
+        'code com/runrev/android/LiveCodeActivity.onConfigurationChanged:(Landroid/content/res/Configuration;)V':
+            EDGE_TO_EDGE_ON_CONFIGURATION,
     },
 }
 
@@ -1389,20 +1426,36 @@ def looked_for_classes():
     return {m.group(1) for m in re.finditer(r'(com/runrev/android/[\w/$]+)\.class', code_of(BUILDER))}
 
 
+# The names under com.runrev.android that the builder writes and that are
+# no class: meta-data of the application that the Java layer reads, each
+# with what reads it. check_named says each, and asks the jar for none
+META_DATA = {
+    'com/runrev/android/EDGE_TO_EDGE':
+        'LiveCodeActivity.asksForEdgeToEdge reads it (LiveCodeActivity.EDGE_TO_EDGE), which the builder writes '
+        'for the Android card\'s "Edge to edge"',
+}
+
+
 def check_named(named, classes, looked_for=()):
     """Problems for the named classes the jar does not have, bar those of
     looked_for that only the builder names: it names them only where the
-    jar has them, so a jar without one is said, and is no problem."""
+    jar has them, so a jar without one is said, and is no problem. A name
+    of META_DATA is no class: said, and not looked for."""
     problems, lines = [], []
     builder = os.path.basename(BUILDER)
+    checked = 0
     for where, cls in named:
+        if where == builder and cls in META_DATA:
+            lines.append('%s names %s, meta-data and no class: %s' % (where, cls, META_DATA[cls]))
+            continue
+        checked += 1
         if classes.get(cls) is not None:
             continue
         if where == builder and cls in looked_for:
             lines.append('%s names %s only where the jar has it, and this jar has not' % (where, cls))
         else:
             problems.append('%s names %s, which the jar does not have' % (where, cls))
-    return problems, lines + ['%d classes named by the manifest and the builder checked' % len(named)]
+    return problems, lines + ['%d classes named by the manifest and the builder checked' % checked]
 
 
 # The OpenGL ES library an engine loads, and the version of the context

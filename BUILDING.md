@@ -1651,6 +1651,12 @@ background the other of two greens that `device` reads as the same
 that the engine is redrawing the whole screen, or has drawn it and is
 waiting for Android's thread to show it, much of the time. That is when a density change on Android 16 hung LiveCode 9.6.3's
 engine (see [The engine runs once in a process](#the-engine-runs-once-in-a-process)).
+`ide --probe edge` builds the edge probe (`AndroidEdgeProbe`): the app
+probe built to be drawn edge to edge (its `"android,edge to edge"`
+standalone setting, the Android card's "Edge to edge"), which, once
+green, says in the log its `screenRect` and its `effective working
+screenRect`, then again a second later (`kEdgeWait`), once Android has
+given its window the bars' insets.
 `device` installs a package with adb (an App Bundle as Google Play
 installs it: `bundletool build-apks --connected-device`, signed with a
 key made for it, then `install-apks`, and the app must be installed as
@@ -1684,7 +1690,12 @@ drawn under the bars. When the first green screen has its green there,
 `device` takes the screen again every second for up to 8 seconds, and
 fails only if the bars never come over it (on the 16 KB image the first
 green screen of a package that passes in other runs, soon after a cold
-start, once had its green in the bottom row). With `--back` `device`
+start, once had its green in the bottom row). With `--edge-to-edge`, its
+opposite (`device` refuses the two together), the edge probe must be
+drawn under the see-through status bar (the screen's first row mostly its
+green), and the last `effective working screenRect` it said must lie
+inside its `screenRect` and leave the status bar out; `device` prints
+both rects and how much of the first and last rows is its green. With `--back` `device`
 then presses the back key,
 and the probe's `backKey` must turn the screen blue (`-back.png` beside
 `--out` keeps that screen). Three more check that the engine runs once in
@@ -1754,7 +1765,10 @@ instead of green. The app probe is also built with the rebuilt layer
 (`<work>/java-app`), which has `RelaunchActivity`, and run on both
 emulators with `--font-scale --density --relaunch`, and the busy probe
 with the rebuilt layer (`<work>/java-busy`) with `--density
---density-times 5`, ten relaunches while it draws; the debug package
+--density-times 5`, ten relaunches while it draws, and the edge probe with
+the rebuilt layer (`<work>/java-edge`) with `--edge-to-edge`: the Java
+layer draws an app that asks for it edge to edge from Android 11 on, on
+Android 13 as on Android 16; the debug package
 with the release's layer is run with `--font-scale` on the Android 13
 emulator, and with `--density` and with `--relaunch` only for the
 record.
@@ -1910,6 +1924,39 @@ an empty one leaves it to the runtime. The builder compiles against
 target: the manifest's `targetSdkVersion` decides how Android treats the
 app (and build-tools 34's aapt failed on `android-36`'s resources when
 tried).
+
+Android 15 and newer draw an app that targets 35 or newer edge to edge,
+and the Java layer pads the view that holds the stack by the bars, the
+display's cutout and the keyboard (`keepOutOfSystemBars`), so the stack
+keeps the area it had. A stack with
+`set the cRevStandaloneSettings["android,edge to edge"] of stack "<name>" to true`
+(the Android card's **Edge to edge** box, at the end of its Status Bar
+row: a copy of "Android x86_64" in the build targets' group, made by the
+`android-card-status-bar-edge-*.txt` IDE stack patches, which the group's
+script stores, true when ticked and false when not, and the card's
+behaviour shows; the UI tour clicks it, and `tourAndroidEngine` checks
+that the group, grown down to hold it, takes no click from the controls
+under it; `android-card-targets-group.txt` declares the group's growth
+for its three boxes)
+asks to be drawn under the bars instead: the builder writes the
+meta-data `com.runrev.android.EDGE_TO_EDGE` into the manifest's
+application (`androidAskForEdgeToEdge`), and stops with an error when the
+runtime's Java layer has no `LiveCodeActivity$EdgeToEdge` (LiveCode 9.6.3's,
+or a runtime older than this change), and the Java layer then draws the
+stack edge to edge on every Android from 11 (`drawEdgeToEdge`): under the
+see-through status and navigation bars and into the cutout, the bars'
+icons dark in the light appearance and light in the dark, and the
+keyboard still resizing it as before. Its `the screenRect` is the whole
+of its window where the window is on the screen, the bars and the cutout
+included (`Engine.getViewport`, which for any other stack is still the
+default display's metrics from 0,0, which leave the navigation bar and
+the cutout out), and the part of it that the
+bars, the cutout and the keyboard leave is its
+`the effective working screenRect` (`Engine.getEffectiveWorkarea`, which
+for any other stack is still the window's visible display frame).
+Android 10 and older draw it as before. The units (`unitEdgeToEdge`) run
+the builder's handler on made-up runtimes, and the edge probe checks the
+rest on both emulators (above).
 
 A stack with `set the cRevStandaloneSettings["android,app bundle"] of
 stack "<name>" to true` (the Android card's **App Bundle** box, at the end
