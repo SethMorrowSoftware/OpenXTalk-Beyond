@@ -1725,6 +1725,9 @@ MIN_API = 21
 # class.name:descriptor
 A = 'com/runrev/android/LiveCodeActivity'
 REQUIRES_API = {
+    A + '.onRequestPermissionsResult:(I[Ljava/lang/String;[I)V':
+        (23, 'Android calls it only on 6.0 and newer, answering requestPermissions, which Engine calls only where '
+             'SDK_INT >= 23'),
     A + '.registerBackCallback:()V':
         (33, 'onCreate calls it only where SDK_INT >= 33: the back callback of Android 13'),
     A + '$BackCallback':
