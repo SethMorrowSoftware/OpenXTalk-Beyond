@@ -6,7 +6,7 @@ title	Option Menu
 name							Option Menu					
 label							Choice 1					
 tooltip												
-style				false			menu					
+style							menu	standard,transparent,opaque,rectangle,roundRect,shadow,menu,checkbox,radioButton				
 menuMode							option					
 menuMouseButton												
 visible							true					
