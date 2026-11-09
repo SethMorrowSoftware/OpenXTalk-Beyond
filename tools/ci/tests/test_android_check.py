@@ -730,13 +730,15 @@ class DevicePermission(unittest.TestCase):
                'USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]\n')
 
     def run_probe(self, activities=ACTIVITIES, ui=UI, after=PACKAGE % 'true', dialog_from=1, allow=True,
-                  timeout='10'):
+                  timeout='10', lost=0, closing=0):
         """device on a running, green probe whose dialog is in front from
         the dialog_from'th look until Allow is tapped; after is what
-        dumpsys package says once it is. Every command the check sends to
-        the stand-in that is about the permission is kept in calls."""
+        dumpsys package says once it is. The first `lost` taps are lost
+        (the dialog stays), and the dialog stays `closing` more looks
+        after the tap it takes. Every command the check sends to the
+        stand-in that is about the permission is kept in calls."""
         d = self.tmp.name
-        for name in ('calls', 'tapped'):
+        for name in ('calls', 'tapped', 'looked'):
             if os.path.exists(os.path.join(d, name)):
                 os.remove(os.path.join(d, name))
         with open(os.path.join(d, 'logcat.txt'), 'w') as f:
@@ -748,15 +750,18 @@ class DevicePermission(unittest.TestCase):
         with open(os.path.join(d, 'probe.txt'), 'w') as f:
             f.write(self.PROBE_IN_FRONT)
         cases = ('  "shell dumpsys activity activities") echo "$*" >> "%(d)s/calls"\n'
-                 '    if [ -f "%(d)s/tapped" ] || [ $(grep -c activities "%(d)s/calls") -lt %(from)d ]; then\n'
+                 '    [ -f "%(d)s/tapped" ] && echo >> "%(d)s/looked"\n'
+                 '    if { [ -f "%(d)s/tapped" ] && [ $(wc -l < "%(d)s/looked") -gt %(closing)d ]; } || '
+                 '[ $(grep -c activities "%(d)s/calls") -lt %(from)d ]; then\n'
                  '      cat "%(d)s/probe.txt"; else cat "%(d)s/activities.txt"; fi ;;\n'
                  '  "shell uiautomator dump /sdcard/oxt-ui.xml") echo "$*" >> "%(d)s/calls";'
                  ' echo "UI hierchary dumped to: /sdcard/oxt-ui.xml" ;;\n'
                  '  "shell cat /sdcard/oxt-ui.xml") echo "$*" >> "%(d)s/calls"; cat "%(d)s/ui.xml" ;;\n'
-                 '  "shell input tap "*) echo "$*" >> "%(d)s/calls"; echo "$*" > "%(d)s/tapped" ;;\n'
+                 '  "shell input tap "*) echo "$*" >> "%(d)s/calls"\n'
+                 '    if [ $(grep -c "input tap" "%(d)s/calls") -gt %(lost)d ]; then echo "$*" > "%(d)s/tapped"; fi ;;\n'
                  '  "shell dumpsys package org.openxtalk.check.androidprobe") echo "$*" >> "%(d)s/calls"\n'
                  '    if [ -f "%(d)s/tapped" ]; then cat "%(d)s/package-after.txt"; else cat "%(d)s/package.txt"; fi ;;\n'
-                 % {'d': d, 'from': dialog_from})
+                 % {'d': d, 'from': dialog_from, 'lost': lost, 'closing': closing})
         status, out = self.device('echo 3475', timeout=timeout, cases=cases,
                                   argv=('--allow', self.PERMISSION) if allow else ())
         return status, out, self.calls()
@@ -781,15 +786,53 @@ class DevicePermission(unittest.TestCase):
                         calls.index('shell cat /sdcard/oxt-ui.xml'))
         self.assertLess(calls.index('shell input tap 540 1490'),
                         calls.index('shell dumpsys package org.openxtalk.check.androidprobe'))
-        # once allowed, the check looks for the dialog no more
-        self.assertEqual(calls.count('shell dumpsys activity activities'), 1)
+        # once allowed, the check looks for the dialog once more: gone
+        self.assertEqual(calls.count('shell dumpsys activity activities'), 2)
+        self.assertNotIn(' again', out)
+
+    def test_a_lost_tap_on_allow_is_given_again(self):
+        # run 42568140662: another app's "isn't responding" dialog took
+        # the tap, and the permission dialog stayed in front
+        saved = ac.ALLOW_AGAIN
+        ac.ALLOW_AGAIN = 2
+        try:
+            status, out, calls = self.run_probe(lost=1, timeout='30')
+        finally:
+            ac.ALLOW_AGAIN = saved
+        self.assertEqual(status, 0, out)
+        self.assertEqual([c for c in calls if 'input tap' in c], ['shell input tap 540 1490'] * 2)
+        self.assertRegex(out, r'  tapped Allow at 540,1490 again: the dialog was still in front \d+ s after the '
+                              r'last tap\n')
+        self.assertIn('android.permission.POST_NOTIFICATIONS: granted', out)
+
+    def test_a_dialog_still_closing_is_not_tapped_again(self):
+        # still in front one look (3 s) after the tap, within ALLOW_AGAIN:
+        # left to close, and then gone
+        status, out, calls = self.run_probe(closing=1, timeout='30')
+        self.assertEqual(status, 0, out)
+        self.assertEqual([c for c in calls if 'input tap' in c], ['shell input tap 540 1490'])
+        self.assertEqual(calls.count('shell uiautomator dump /sdcard/oxt-ui.xml'), 1)
+        self.assertEqual(calls.count('shell dumpsys activity activities'), 3)
+
+    def test_allow_is_tapped_at_most_allow_taps_times(self):
+        saved = ac.ALLOW_AGAIN
+        ac.ALLOW_AGAIN = 0
+        try:
+            status, out, calls = self.run_probe(lost=99, timeout='30')
+        finally:
+            ac.ALLOW_AGAIN = saved
+        self.assertEqual(status, 1, out)
+        self.assertEqual([c for c in calls if 'input tap' in c], ['shell input tap 540 1490'] * ac.ALLOW_TAPS)
+        self.assertIn("PROBLEM: android.permission.POST_NOTIFICATIONS was allowed in Android's dialog, and the "
+                      "package does not hold it (not granted)", out)
 
     def test_green_before_the_dialog_does_not_end_the_wait(self):
         # the probe turns green at once, and the dialog comes after: the
         # wait goes on until it has been answered
         status, out, calls = self.run_probe(dialog_from=2)
         self.assertEqual(status, 0, out)
-        self.assertEqual(calls.count('shell dumpsys activity activities'), 2)
+        # (and once more after the tap: gone)
+        self.assertEqual(calls.count('shell dumpsys activity activities'), 3)
         self.assertIn('shell input tap 540 1490', calls)
 
     def test_never_asked_fails(self):
