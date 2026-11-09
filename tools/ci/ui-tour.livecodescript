@@ -6123,7 +6123,7 @@ end tourPBHiliteProblem
 -- "dark-refresh", showed in its place while the splash was in memory, as
 -- the web IDE keeps it (littlenemo, openxtalk.org)
 function tourRefreshProblem pStack
-   local tButton, tIcon, tMain, tSub, tHits
+   local tButton, tIcon, tMain, tSub, tHits, tWant
    put the long id of button "Refresh" of card "list" of stack pStack into tButton
    -- (the tooltip is a property patch of the binary stack, which the
    -- pull requests' screenshot jobs take from the last release: its old
@@ -6137,6 +6137,18 @@ function tourRefreshProblem pStack
    put the icon of tButton into tIcon
    if there is not a stack "revIcons" or there is not an image id tIcon of stack "revIcons" then
       return "the Project Browser's Refresh icon" && tIcon && "is not an image of revIcons"
+   end if
+   -- white arrows in the dark appearance, dark ones in the light: on the
+   -- Mac the stack's own choice, by the window's colour, left the black
+   -- arrows in the dark (bwmilby, forum, 2026-11-09); Linux keeps that
+   -- choice, which was right there
+   if the platform is not "Linux" then
+      if revIDEAppearanceIsDark() then put "white-refresh" into tWant
+      else put "dark-refresh" into tWant
+      tourRecord "INFO the Project Browser's Refresh icon is" && the short name of image id tIcon of stack "revIcons" && "(dark:" && revIDEAppearanceIsDark() & ")"
+      if the short name of image id tIcon of stack "revIcons" is not tWant then
+         return "the Project Browser's Refresh icon is" && the short name of image id tIcon of stack "revIcons" & ", not" && tWant
+      end if
    end if
    repeat for each line tMain in the mainStacks
       repeat for each line tSub in (tMain & return & the substacks of stack tMain)
@@ -7594,8 +7606,33 @@ on tour_extension_manager
          throw "the white name cannot be read on the Extension Manager's selected row," && tHilite && "(dark)"
       end if
    end if
+   -- the extension's icon: seen on the selected row (3 to 1, the least
+   -- for a graphic) in either appearance; the template's purple was 1 to 1
+   -- on the dark one (bwmilby, forum, 2026-11-09, on the Mac)
+   local tIcon, tRatio
+   put tourEmFirstIconColor(tStack) into tIcon
+   if the number of items of tIcon is not 3 or the number of items of tHilite is not 3 then
+      throw "the Extension Manager's first row's icon is in" && tIcon && "on" && tHilite
+   end if
+   put tourContrast(tIcon, tHilite) into tRatio
+   tourRecord "INFO the Extension Manager's first row's icon is in" && tIcon && "(contrast" && tRatio && "on the selected row)"
+   if $OXT_TOUR_APPEARANCE is "dark" and tRatio < 3 then
+      throw "the Extension Manager's icon" && tIcon && "can hardly be seen on its selected row" && tHilite && "(contrast" && tRatio & ")"
+   end if
    close stack tStack
 end tour_extension_manager
+
+-- The colour of the icon in the Extension Manager's first row
+function tourEmFirstIconColor pStack
+   local tGroup, tC
+   put the long id of group "extensionList" of card "list" of stack pStack into tGroup
+   repeat with tC = 1 to the number of controls of tGroup
+      if word 1 of the name of control tC of tGroup is "widget" and the short name of control tC of tGroup is "svgicon" then
+         return the foregroundColor of control tC of tGroup
+      end if
+   end repeat
+   return "no row"
+end tourEmFirstIconColor
 
 -- The colour of the name in the Extension Manager's first row
 function tourEmFirstInk pStack

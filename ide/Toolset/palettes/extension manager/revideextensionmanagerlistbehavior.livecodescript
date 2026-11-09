@@ -144,6 +144,26 @@ function extensionsHiliteColor pColor, pDark
    return tDark
 end extensionsHiliteColor
 
+-- OXT-Beyond: the colour of an extension's icon on its row: pColor, the
+-- row template's, as it is in the light appearance; in the dark one (pDark
+-- true) each of its channels six tenths of the way to white, so it keeps
+-- its hue and stands out on the dark rows (30 and 42) and on the dark
+-- selected row (extensionsHiliteColor). The template's 96,87,127 becomes
+-- 191,188,204: about 3.6 to 1 on the Mac's dark selection colour, where
+-- 96,87,127 was 1 to 1 (bwmilby, forum, 2026-11-09). A colour that is not
+-- three numbers is returned as it is
+function extensionsIconColor pColor, pDark
+   local tLight, tChannel
+   if pDark is not true then return pColor
+   if the number of items of pColor is not 3 then return pColor
+   repeat for each item tChannel in pColor
+      if tChannel is not a number then return pColor
+      put round(tChannel + (255 - tChannel) * 6 / 10) & comma after tLight
+   end repeat
+   delete the last char of tLight
+   return tLight
+end extensionsIconColor
+
 function NumberOfRows
    # return the number of rows in the data view
    -- return the number of lines in the keys of sDisplayArray
