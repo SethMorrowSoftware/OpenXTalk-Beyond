@@ -127,16 +127,21 @@ constant kBackColor = "40,90,200"
 -- the activity again then (the engine's doDestroy, which hung there)
 constant kWaitColor = "120,60,160"
 constant kProbeWait = 20
--- kBusyTick: the busy probe (OXT_ANDROID_PROBE "busy") is the app probe
--- that, once green, sets the text of its field every kBusyTick
--- milliseconds, so that the engine is drawing, or has drawn and yielded to
+-- kBusyTick and kBusyColor: the busy probe (OXT_ANDROID_PROBE "busy") is
+-- the app probe that, once green, every kBusyTick milliseconds turns its
+-- background the other of two greens (kRunColor and kBusyColor, which the
+-- device check reads as the same) and sets the text of its field, so that
+-- the engine redraws the whole screen, or has drawn it and yielded to
 -- Android's thread to show it (MCScreenDC's updatewindow), much of the
 -- time. Android 16 relaunching an app for a density change in the middle
 -- of that hung LiveCode 9.6.3's engine for good (runs 42558963677 and
 -- 42593463112, the app probe's field redrawing its caret); android_check.py
 -- device --density --density-times makes Android relaunch it again and
--- again (the Java layer's LiveCodeActivity.onDestroy, Engine.finishDrawing)
+-- again (the Java layer's LiveCodeActivity.onDestroy, Engine.finishDrawing).
+-- Run 42601553621 relaunched the busy probe twelve times while it only
+-- set its field's text, and none hung
 constant kBusyTick = 10
+constant kBusyColor = "31,150,90"
 constant kIdentifier = "org.openxtalk.check.androidprobe"
 -- The Java layer's probe's picture: one pixel, a PNG, as base64
 constant kProbePicture = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
@@ -857,7 +862,13 @@ private function probeScript
    end if
    put "end openStack" after tScript
    if probeName() is "AndroidBusyProbe" then
-      put return & "on probeBusy" & return & \
+      put return & "local sBusy" & return & "on probeBusy" & return & \
+            "   add 1 to sBusy" & return & \
+            "   if sBusy mod 2 is 1 then" & return & \
+            "      set the backgroundColor of me to" && quote & kBusyColor & quote & return & \
+            "   else" & return & \
+            "      set the backgroundColor of me to" && quote & kRunColor & quote & return & \
+            "   end if" & return & \
             "   set the text of field" && quote & "Probe" & quote && "to the milliseconds" & return & \
             "   send" && quote & "probeBusy" & quote && "to me in" && kBusyTick && "milliseconds" & return & \
             "end probeBusy" after tScript

@@ -1635,10 +1635,11 @@ refuse without asking and the rebuilt Java layer counts as granted there.
 Once green, its `backKey` turns it blue and does not pass the message, so
 the app stays.
 `ide --probe busy` builds the busy probe (`AndroidBusyProbe`): the app
-probe that, once green, sets the text of its field every 10 milliseconds
-(`kBusyTick`) for as long as it runs, so that the engine is drawing, or
-has drawn and is waiting for Android's thread to show it, much of the
-time. That is when a density change on Android 16 hung LiveCode 9.6.3's
+probe that, once green, every 10 milliseconds (`kBusyTick`) turns its
+background the other of two greens that `device` reads as the same
+(`kBusyColor`) and sets the text of its field, for as long as it runs, so
+that the engine is redrawing the whole screen, or has drawn it and is
+waiting for Android's thread to show it, much of the time. That is when a density change on Android 16 hung LiveCode 9.6.3's
 engine (see [The engine runs once in a process](#the-engine-runs-once-in-a-process)).
 `device` installs a package with adb (an App Bundle as Google Play
 installs it: `bundletool build-apks --connected-device`, signed with a
@@ -1743,7 +1744,7 @@ instead of green. The app probe is also built with the rebuilt layer
 (`<work>/java-app`), which has `RelaunchActivity`, and run on both
 emulators with `--font-scale --density --relaunch`, and the busy probe
 with the rebuilt layer (`<work>/java-busy`) with `--density
---density-times 3`, six relaunches while it draws; the debug package
+--density-times 5`, ten relaunches while it draws; the debug package
 with the release's layer is run with `--font-scale` on the Android 13
 emulator, and with `--density` and with `--relaunch` only for the
 record.

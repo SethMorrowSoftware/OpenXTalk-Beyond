@@ -4342,13 +4342,22 @@ class OneSystem(unittest.TestCase):
             self.assertEqual(os.listdir(work), [])
 
     def test_busy_probe(self):
-        # the busy probe is the app probe that, once green, sets the text of
-        # its field every kBusyTick milliseconds, for as long as it runs: so
-        # the engine draws, and yields to Android's thread to show what it
-        # drew, much of the time, which is when Android 16 relaunching it
-        # for a density change hung 9.6.3's engine (Engine.finishDrawing)
+        # the busy probe is the app probe that, once green, every kBusyTick
+        # milliseconds turns its background the other of two greens and
+        # sets the text of its field, for as long as it runs: so the engine
+        # redraws the whole screen, and yields to Android's thread to show
+        # what it drew, much of the time, which is when Android 16
+        # relaunching it for a density change hung 9.6.3's engine
+        # (Engine.finishDrawing)
         script = read('tools', 'ci', 'android-check.livecodescript')
         self.assertIn('constant kBusyTick = 10\n', script)
+        # its second green is the probe's green to the device check, and no
+        # other colour's
+        busy = tuple(int(x) for x in re.search(r'(?m)^constant kBusyColor = "(\d+),(\d+),(\d+)"$', script).groups())
+        self.assertNotEqual(busy, ac.RUN_COLOR)
+        self.assertEqual(ac.colour_share(bytes(list(busy) + [255]), ac.RUN_COLOR, step=1), 1.0)
+        for other in (ac.SAVED_COLOR, ac.FAIL_COLOR, ac.BACK_COLOR, ac.WAIT_COLOR):
+            self.assertEqual(ac.colour_share(bytes(list(busy) + [255]), other, step=1), 0.0, other)
         self.assertIn('--    OXT_ANDROID_PROBE     "java" for the Java layer\'s probe (see below),\n'
                       '--                          "busy" for the busy probe (see kBusyTick)\n', script)
         body = re.search(r'(?s)private function probeScript\n(.*?)\nend probeScript', script).group(1)
@@ -4362,9 +4371,18 @@ class OneSystem(unittest.TestCase):
                       '"milliseconds" & return after tScript\n'
                       '   end if\n'
                       '   put "end openStack" after tScript\n', body)
-        # each tick sets the field's text and sends the next
+        # each tick turns the other green, sets the field's text and sends
+        # the next
         self.assertIn('   if probeName() is "AndroidBusyProbe" then\n'
-                      '      put return & "on probeBusy" & return & \\\n'
+                      '      put return & "local sBusy" & return & "on probeBusy" & return & \\\n'
+                      '            "   add 1 to sBusy" & return & \\\n'
+                      '            "   if sBusy mod 2 is 1 then" & return & \\\n'
+                      '            "      set the backgroundColor of me to" && quote & kBusyColor & quote & return & '
+                      '\\\n'
+                      '            "   else" & return & \\\n'
+                      '            "      set the backgroundColor of me to" && quote & kRunColor & quote & return & '
+                      '\\\n'
+                      '            "   end if" & return & \\\n'
                       '            "   set the text of field" && quote & "Probe" & quote && "to the milliseconds" & '
                       'return & \\\n'
                       '            "   send" && quote & "probeBusy" & quote && "to me in" && kBusyTick && '
@@ -4373,10 +4391,12 @@ class OneSystem(unittest.TestCase):
                       '   end if\n', body)
         # the field it sets is the probe's own
         self.assertIn('   create field "Probe"\n', script)
-        # in code, the constant and its two uses (the first send, the next)
-        uses = [x.strip() for x in script.splitlines() if 'kBusyTick' in x and not x.lstrip().startswith('--')]
-        self.assertEqual(len(uses), 3, uses)
-        self.assertTrue(uses[0].startswith('constant kBusyTick = '), uses)
+        # in code, each constant and its uses (kBusyTick: the first send,
+        # the next; kBusyColor: the tick's)
+        for name, count in (('kBusyTick', 3), ('kBusyColor', 2)):
+            uses = [x.strip() for x in script.splitlines() if name in x and not x.lstrip().startswith('--')]
+            self.assertEqual(len(uses), count, uses)
+            self.assertTrue(uses[0].startswith('constant %s = ' % name), uses)
 
     def test_android_engine(self):
         # ide --android-engine beyond builds the probe as a stack whose
@@ -4693,14 +4713,14 @@ class OneSystem(unittest.TestCase):
                 self.assertIn(work, ('java-app', 'java-busy', 'changed'), cmd)
                 self.assertEqual(pkgs, ['debug.apk'], cmd)
             self.assertEqual('--density-times' in cmd, work == 'java-busy', cmd)
-        # the busy probe with this Java layer through three density changes
+        # the busy probe with this Java layer through five density changes
         # and their returns, on both emulators (Android 16 is where a
         # relaunch while it drew hung 9.6.3's engine), nothing else asked
         busy = [(name, cmd) for name, work, _, cmd in runs if work == 'java-busy']
         self.assertEqual([name for name, _ in busy], ['Run the busy probe across density changes on Android 13',
                                                       'Run the package with 16 KB pages'])
         for _, cmd in busy:
-            self.assertTrue(cmd.endswith('--within-bars --density --density-times 3'), cmd)
+            self.assertTrue(cmd.endswith('--within-bars --density --density-times 5'), cmd)
         font = [(name, pkgs, cmd) for name, work, pkgs, cmd in runs if work == 'changed' and '--font-scale' in cmd]
         self.assertEqual(len(font), 1, runs)
         self.assertEqual(font[0][0], 'Run the packages on Android 13')

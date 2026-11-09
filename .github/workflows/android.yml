@@ -441,14 +441,14 @@ jobs:
             --sdk "$SDK" --out "$WORK/screen-api33-java-app.png" --log-out "$WORK/logcat-api33-java-app.txt" \
             --within-bars --font-scale --density --relaunch
 
-      # The busy probe through three density changes and their returns:
-      # six relaunches, each while it draws
+      # The busy probe through five density changes and their returns:
+      # ten relaunches, each while it draws
       - name: Run the busy probe across density changes on Android 13
         if: runner.os == 'Linux'
         run: |
           "$PY" tools/ci/android_check.py device --apk "$WORK/java-busy/out/debug.apk" --serial emulator-5554 \
             --sdk "$SDK" --out "$WORK/screen-api33-java-busy.png" --log-out "$WORK/logcat-api33-java-busy.txt" \
-            --within-bars --density --density-times 3
+            --within-bars --density --density-times 5
 
       # For the record, not a check (no annotations, so the run's account
       # stays the checks'): the same probe with the release's own Java
@@ -572,7 +572,7 @@ jobs:
             --within-bars --font-scale --density --relaunch
           "$PY" tools/ci/android_check.py device --apk "$WORK/java-busy/out/debug.apk" --serial emulator-5554 \
             --sdk "$SDK" --out "$WORK/screen-16k-java-busy.png" --log-out "$WORK/logcat-16k-java-busy.txt" \
-            --within-bars --density --density-times 3
+            --within-bars --density --density-times 5
           for pkg in debug.apk bundle.aab; do
             "$PY" tools/ci/android_check.py device --apk "$WORK/java-new/out/$pkg" --serial emulator-5554 \
               --sdk "$SDK" --out "$WORK/screen-16k-java-${pkg%.*}.png" --log-out "$WORK/logcat-16k-java-${pkg%.*}.txt" \
