@@ -183,6 +183,27 @@ BACK_WAIT = 20
 WAIT_COLOR = (120, 60, 160)
 PROBE_WAIT = 20
 WAIT_SEEN = 10
+# --density-in-wait: how long the tap waits for the probe's window to have
+# the focus (FOCUS_WAIT), and how many taps it is given (TAP_TRIES): a tap
+# is given again only when something stood between it and the probe's
+# mouseUp. In run 42558963714 (attempt 2) the API 33 image's System UI was
+# not responding, three times, and Android paused the probe's activity for
+# sleep just as it was tapped: the tap was lost, and the screen stayed
+# green. HELD_LIMIT: how long the process the probe's script waits in may
+# hold Android's thread as Android makes its activity again, from its
+# activity's stop to the activity made again (wm_on_stop_called to
+# wm_on_create_called): Android calls an app that does not answer a touch
+# for 5 s not responding, and the engine built here once waited out the
+# script's wait there (attempt 1 of that run: an ANR). SCREEN_TRIES: how
+# many times the screen that says where to tap is taken, SCREEN_AGAIN s
+# apart: in run 42578112540 the 16 KB image's screencap, just after the
+# probe started again at the screen's own density, came back cut short
+# (7116368 of its 10108816 bytes), and the step failed on it
+FOCUS_WAIT = 10
+TAP_TRIES = 2
+HELD_LIMIT = 5
+SCREEN_TRIES = 3
+SCREEN_AGAIN = 1
 # device --within-bars: how long the screen is taken again, every
 # BARS_INTERVAL seconds, when the first green screen has the probe's green
 # where a system bar is, before that is a failure. On the 16 KB Android 16
@@ -1199,19 +1220,28 @@ def beside_engine(engine, android, root):
     architecture's engine and externals, and the files beside them (the
     Java layer among them), the release's own runtime left as it is. A
     stack whose "android,engine" is "beyond" is built from it. Every
-    architecture and file must be in ENGINE, and ANDROID must have no
-    BEYOND yet: a runtime short of a file, or two engines' files mixed,
-    would build an app that the check did not mean."""
+    architecture and file must be in ENGINE, or nothing changes: a runtime
+    short of a file would build an app that the check did not mean. A
+    BEYOND folder that ANDROID has already (a release's own, as the
+    runtimes carry it from 0.2.7-rc.6.19 on) is taken away as a whole
+    first, so that the app is built from this checkout's engine and from
+    none of the release's files, never from the two mixed; a BEYOND that
+    is a link or a file, not a folder of its own, is refused."""
     import android_engine as ae
     beyond = os.path.join(android, BEYOND)
+    shown = os.path.relpath(beyond, root).replace(os.sep, '/')
     copies = [os.path.join(abi, x) for abi in sorted(ae.ABIS) for x in (ae.ENGINE,) + ae.EXTERNALS]
     copies += list(ae.TOP_FILES)
     problems = ['%s has no %s' % (engine, rel.replace(os.sep, '/')) for rel in copies
                 if not os.path.isfile(os.path.join(engine, rel))]
-    if os.path.exists(beyond):
-        problems.append('%s is there already' % os.path.relpath(beyond, root).replace(os.sep, '/'))
+    if os.path.islink(beyond) or (os.path.exists(beyond) and not os.path.isdir(beyond)):
+        problems.append('%s is there already, and is not a folder' % shown)
     if problems:
         return problems
+    if os.path.isdir(beyond):
+        count = sum(len(names) for _, _, names in os.walk(beyond))
+        shutil.rmtree(beyond)
+        log('%s: the release\'s (%d files) taken away, for the one built here' % (shown, count))
     for rel in copies:
         os.makedirs(os.path.dirname(os.path.join(beyond, rel)) or beyond, exist_ok=True)
         shutil.copyfile(os.path.join(engine, rel), os.path.join(beyond, rel))
@@ -2288,6 +2318,59 @@ def starts_again_for_density(args, adb, a, pid, names, what='density change', su
     return problems
 
 
+def probe_focus(a):
+    """Whether the probe's window has the focus, by `dumpsys window`'s
+    mCurrentFocus (None when it does not say), and that line."""
+    _, window = a('shell', 'dumpsys', 'window')
+    m = re.search(r'mCurrentFocus=.*', window or '')
+    if not m:
+        return None, ''
+    line = ' '.join(m.group(0).split())
+    return IDENTIFIER in line, line
+
+
+def probe_pauses(a):
+    """How many of the events buffer's lines say that Android paused the
+    probe's activity (wm_pause_activity), for whatever reason."""
+    _, events = a('logcat', '-d', '-b', 'events', '-v', 'brief')
+    return sum(1 for x in (events or '').splitlines()
+               if IDENTIFIER in x and re.search(r'\bwm_pause_activity\b', x))
+
+
+# A line of the events buffer as `logcat -v epoch` gives it: the time in
+# seconds, the process and thread, the level, the tag, and its values
+EPOCH_EVENT = re.compile(r'\s*(\d+(?:\.\d+)?)\s+(\d+)\s+\d+\s+[VDIWEFS]\s+(\w+)\s*:\s*\[(.*)\]\s*$')
+
+
+def destroy_held(events, pid):
+    """How long, in seconds, the probe's process `pid` held Android's
+    thread as Android made its activity again, by the events buffer as
+    `logcat -d -b events -v epoch` gives it: from its activity's last stop
+    for that (wm_on_stop_called, handleRelaunchActivity), which comes before
+    its onDestroy (doDestroy), to the activity made again in it
+    (wm_on_create_called, after the old one's onDestroy has returned in the
+    same turn of Android's thread), or when the buffer has no such line, to
+    the system's word that the process died (am_proc_died). None when the
+    buffer does not say. The reason is the third value: Android 14 and
+    newer add a fourth, the callback's time in ms (run 42564614783's
+    Android 16 image said nothing with the reason taken as the last)."""
+    lines = []
+    for line in (events or '').splitlines():
+        m = EPOCH_EVENT.match(line)
+        if m:
+            when, proc, tag, values = m.groups()
+            lines.append((float(when), proc, tag, [v.strip() for v in values.split(',')]))
+    stops = [i for i, (_, proc, tag, values) in enumerate(lines)
+             if proc == pid and tag == 'wm_on_stop_called' and values[2:3] == ['handleRelaunchActivity']]
+    if not stops:
+        return None
+    start = lines[stops[-1]][0]
+    for when, proc, tag, values in lines[stops[-1] + 1:]:
+        if (proc == pid and tag == 'wm_on_create_called') or (tag == 'am_proc_died' and pid in values[1:2]):
+            return when - start
+    return None
+
+
 def starts_again_for_density_in_wait(args, adb, a, pid, names):
     """--density-in-wait: --density's change while the probe's script
     waits. A tap on the probe: its mouseUp turns the screen WAIT_COLOR and
@@ -2298,31 +2381,90 @@ def starts_again_for_density_in_wait(args, adb, a, pid, names):
     on to join the engine thread, which was waiting for its turn, and the
     app hung there for good (on Android 16 in run 42416576870, where the
     engine yielded in the middle of drawing). The app must start again in
-    a new process, as for --density, once the wait is over."""
-    got = screen_now(adb, args.serial)
-    if not got:
-        return ['no screen of the probe to find where to tap it']
-    a('shell', 'input', 'tap', str(got[0] // 2), str(got[1] // 2))
-    tapped = time.time()
-    share = 0.0
-    while time.time() - tapped < WAIT_SEEN:
-        time.sleep(1)
+    a new process, as for --density, and the wait must end as the activity
+    goes (MCScreenDC::wait), not be waited out while Android's thread waits
+    for the engine: the process may hold it for HELD_LIMIT s (destroy_held).
+
+    The tap waits FOCUS_WAIT s at most for the probe's window to have the
+    focus, after another app's "isn't responding" dialog in front of it is
+    answered. A tap that turns no wait colour is given again (TAP_TRIES in
+    all) only when something stood in its way: the probe's window did not
+    have the focus, Android paused its activity, or another app's dialog
+    came in front of it; else it is a failure at once. The screen that
+    says where to tap is taken again when screencap gives none (SCREEN_TRIES
+    times in all)."""
+    got = None
+    for shot in range(SCREEN_TRIES):
+        if shot:
+            time.sleep(SCREEN_AGAIN)
         got = screen_now(adb, args.serial)
         if got:
-            share = colour_share(got[2], WAIT_COLOR)
-            if share >= 0.25:
-                break
-    seen = time.time() - tapped
-    log('After a tap on the probe: %.0f%% of the screen is its wait colour, %.0f s after the tap (it waits %d s)'
-        % (share * 100, seen, PROBE_WAIT))
-    if share < 0.25:
-        return ['a tap did not reach the probe\'s mouseUp: the screen did not turn its wait colour in %d s (%.0f%%)'
-                % (WAIT_SEEN, share * 100)]
+            break
+    if not got:
+        return ['no screen of the probe to find where to tap it (screencap gave none, %d times)' % SCREEN_TRIES]
+    x, y = str(got[0] // 2), str(got[1] // 2)
+    for tap in range(1, TAP_TRIES + 1):
+        answer_other_anr(a)
+        focused, focus = probe_focus(a)
+        asked = time.time()
+        while focused is False and time.time() - asked < FOCUS_WAIT:
+            time.sleep(1)
+            focused, focus = probe_focus(a)
+        pauses = probe_pauses(a)
+        a('shell', 'input', 'tap', x, y)
+        tapped = time.time()
+        share = 0.0
+        while time.time() - tapped < WAIT_SEEN:
+            time.sleep(1)
+            got = screen_now(adb, args.serial)
+            if got:
+                share = colour_share(got[2], WAIT_COLOR)
+                if share >= 0.25:
+                    break
+        seen = time.time() - tapped
+        log('After a tap on the probe: %.0f%% of the screen is its wait colour, %.0f s after the tap (it waits %d s)'
+            % (share * 100, seen, PROBE_WAIT))
+        if share >= 0.25:
+            break
+        # what stood between the tap and the probe's mouseUp
+        why = []
+        if focused is False:
+            why.append('the probe\'s window did not have the focus (%s)' % focus)
+        if probe_pauses(a) > pauses:
+            why.append('Android paused the probe\'s activity')
+        other = answer_other_anr(a)
+        if other:
+            why.append('%s was not responding, its dialog in front of the probe' % other)
+        if not why or tap == TAP_TRIES:
+            return ['a tap did not reach the probe\'s mouseUp: the screen did not turn its wait colour in %d s '
+                    '(%.0f%%)%s' % (WAIT_SEEN, share * 100, '; %s' % '; '.join(why) if why else '')]
+        log('  The tap did not reach the probe\'s mouseUp, as %s: tapping again' % '; '.join(why))
     if seen > WAIT_SEEN:
         return ['the probe\'s wait colour was seen %.0f s after the tap, too late to change the density while its '
                 'script surely waits (at most %d s)' % (seen, WAIT_SEEN)]
-    return starts_again_for_density(args, adb, a, pid, names, 'density change while the probe\'s script waited',
-                                    'density-in-wait')
+    problems = starts_again_for_density(args, adb, a, pid, names, 'density change while the probe\'s script waited',
+                                        'density-in-wait')
+    if problems:
+        return problems
+    _, events = a('logcat', '-d', '-b', 'events', '-v', 'epoch')
+    held = destroy_held(events, pid)
+    if held is None:
+        log('NOTE: the events buffer does not say how long process %s held Android\'s thread as its activity, '
+            'whose script waited, was made again' % pid)
+        # what it does say of that process's activities, so that a format
+        # this cannot read shows itself
+        own = [x.strip() for x in (events or '').splitlines()
+               if re.search(r'\bwm_on_\w+_called\b', x) and re.search(r'\s%s\s' % re.escape(pid), x)]
+        for line in own[-6:]:
+            log('  ' + line)
+    else:
+        log('Process %s held Android\'s thread for %.1f s as its activity, whose script waited, was made again '
+            '(wm_on_stop_called to the activity made again)' % (pid, held))
+        if held > HELD_LIMIT:
+            problems.append('as the activity whose script waited was made again, its process held Android\'s thread '
+                            'for %.0f s (at most %d s), so the engine waited out the script\'s wait (Android calls an '
+                            'app that does not answer a touch for 5 s not responding)' % (held, HELD_LIMIT))
+    return problems
 
 
 def opens_again_after_quit(args, adb, a, pid, names):
@@ -2973,7 +3115,8 @@ def main(argv=None):
                                        'of the release\'s Runtime/Android')
     what.add_argument('--beyond', help='a runtime folder that tools/ci/build-android.sh wrote, to put beside the '
                                        'release\'s Runtime/Android as Runtime/Android/Beyond, where a stack whose '
-                                       '"android,engine" is "beyond" is built from')
+                                       '"android,engine" is "beyond" is built from (in place of a Beyond folder '
+                                       'the release has)')
     i = sub.add_parser('ide')
     i.add_argument('--bin', dest='bin_dir')
     i.add_argument('--install')

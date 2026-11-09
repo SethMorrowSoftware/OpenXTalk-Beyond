@@ -3491,8 +3491,12 @@ checks the runtime again before the archive takes it.
 `Runtime/Android/Beyond`, where the builder takes it for a stack that asks
 for it: every architecture's engine and externals, and the Java layer and
 the files beside them, the release's own runtime left as it is. It
-changes nothing when the runtime lacks one of them or the release has a
-`Beyond` folder already, so that no package mixes the two engines.
+changes nothing when the runtime lacks one of them. A `Beyond` folder the
+release has already (its own, as the runtimes carry it from
+0.2.7-rc.6.19 on) is taken away as a whole first, so that the probes are
+built from this checkout's engine and none of the release's files, and
+no package mixes the two engines; one that is a link or a file is
+refused.
 (`--engine` instead puts them over the release's own, each over its file
 of that name.) The builder there builds the app probe and the Java
 layer's probe (debug, for all four architectures) as stacks whose
@@ -3518,4 +3522,14 @@ seconds with messages, and the density changes while it waits, so that
 the engine, let go on to finish as Android destroys the activity, yields
 to Android's thread again before it has finished: `doDestroy` (in
 `engine/src/mblandroiddc.cpp`) lets it go on until it has, where it
-once joined the engine thread at once and both waited for good.
+once joined the engine thread at once and both waited for good. The
+script's wait then ends at once (`MCScreenDC::wait`, with "wait:
+aborted"), and the check fails a process that held Android's thread for
+more than 5 seconds as its activity went (from its stop to the activity
+made again, by the events buffer): the engine once waited out the wait
+there, and Android called the app not responding. A tap that a system
+hiccup took (another app's "isn't responding" dialog in front of the
+probe, its window without the focus, its activity paused) is given once
+more; one with nothing in its way is a failure at once. The screen that
+says where to tap is taken up to three times, a second apart, as one
+screencap came back cut short on the 16 KB image.

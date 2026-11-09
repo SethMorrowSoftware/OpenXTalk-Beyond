@@ -627,7 +627,15 @@ Boolean MCScreenDC::wait(real8 duration, Boolean dispatch, Boolean anyevent)
 			done = True;
 
 		// If 'quit' has been set then we must have got a finalization request
-		if (MCquit)
+		// OXT-Beyond: and so has the engine once Android has destroyed the
+		// activity (doDestroy): a wait ends there, aborted as for quit, and
+		// a script's wait raises the wait error ("wait: aborted") where it
+		// waited out its time before, while doDestroy held Android's thread,
+		// and Android called the app not responding (a density change in the
+		// probe's 20 s wait, run 42558963714 of android-engine.yml). In
+		// LiveCode 9.6.3 the app hung there for good (doDestroy says why), so
+		// no script went on after its wait either
+		if (MCquit || !s_engine_running)
 		{
 			abort = True;
 			break;
@@ -2198,8 +2206,8 @@ JNIEXPORT void JNICALL Java_com_runrev_android_Engine_doDestroy(JNIEnv *env, job
 	// so it can finish terminating
 	// OXT-Beyond: yield until it has finished (co_leave_engine), as it can
 	// yield to this thread again first: in the middle of drawing (the screen
-	// flush of MCScreenDC::updatewindow), in a script's wait, whose time it
-	// then waits out, or before it had a bitmap. After one yield, as before,
+	// flush of MCScreenDC::updatewindow), in a script's wait, which then
+	// ends at once (MCScreenDC::wait), or before it had a bitmap. After one yield, as before,
 	// this thread went on to join an engine thread that was waiting for its
 	// turn, and the app hung there for good (Android 16 relaunching the
 	// activity for a density change in run 42416576870)
