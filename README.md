@@ -156,6 +156,7 @@ every change, release by release.
 
 | Version | What it brings |
 | --- | --- |
+| [0.2.7-rc.6.19](#027-rc619-the-bug-hunt-round-nineteen) | Puzzle Almanac, a daily puzzle book for phones, in the Stack Player and on the website; Android apps can be built with OXT-Beyond's own Android engine, and no longer crash after a density change; macOS 11 on Intel Macs too, where Catalina hung at launch; fonts a stack loads drawn as themselves on Linux and Windows, so the Script Editor shows code in Source Code Pro; one Undo for a drag and drop in the Script Editor; readable names on a selected Project Browser row; widgets in the Tools palette as soon as they are installed; tooltips that can be read in a dark browser |
 | [0.2.7-rc.6.18](#027-rc618-the-bug-hunt-round-eighteen) | Two games made for phones in the Stack Player, Nova Rescue and Wobble Forts; Android apps ready for Google Play: target API 36, App Bundles, notifications on Android 13 and newer, pictures saved on Android 10 and newer, the back gesture on Android 16, no more closing on a font size or language change, and the Android runtime's Java layer built from OXT-Beyond's source; a stack's sounds exported as WAV, AIFF or AU files; default buttons that went blank on a Mac; the App Browser back in the Tools menu with sharp icons; a splash image while a web standalone loads; SQLite 3.51.3, and libsodium 1.0.22 and OpenSSL 3.5.9 in the xTalk Suite |
 | [0.2.7-rc.6.17](#027-rc617-the-bug-hunt-round-seventeen) | The round to squash what was left before 0.2.7 is stable: buttons on a coloured card in the web IDE, a dark menu item on Linux, a main window that wouldn't minimize on Windows 11, an App Browser that listed itself (and the Card Navigator), windows that flashed at start, Inclusions in a new order every run, the Responsive Starter's second save, the Phone Starter's pinch and its fit on an iPhone's Home Screen; and Lessons, a course in xTalk, on the website |
 | [0.2.7-rc.6.16](#027-rc616-the-bug-hunt-round-sixteen) | The Responsive Starter lays one stack out for a phone, a tablet and a desktop; phone stacks use touch, sensors, the camera and the share sheet; a stack plays with nothing around it; Android packages install again; the website gets an Extensions page; the Script Editor's black words on grey, a blank Dictionary on Windows and unreadable menu words are fixed |
@@ -202,20 +203,23 @@ Earlier versions, from 0.2.1 to 0.2.5, are described under
   64-bit system; see [Linux (64-bit ARM)](#linux-64-bit-arm)), without
   the browser widget. 32-bit Windows and Linux are built in CI but not
   packaged, for their standalone runtimes.
-- **The Android engines are still prebuilt ones.** Each package's
+- **The default Android engines are still prebuilt ones.** Each package's
   engine, externals and tools are built from this repository (Windows
   x86-64, macOS for Apple Silicon and Intel, Linux x86-64), and so are
   the standalone runtimes that every package carries for Windows
   (x86-64 and x86) and Linux (x86-64 and x86): CI builds the 32-bit
-  engines for them, and a release asset (`oxt-runtimes-0.2.7-rc.6.18b.zip`)
+  engines for them, and a release asset (`oxt-runtimes-0.2.7-rc.6.19.zip`)
   brings each platform's runtimes into the other packages. The web
   engine of HTML5 standalones, which every package carries, is built
   from this repository too (see [The engine](#the-engine)), and so is
   the Android runtime's Java layer (`Runtime/Android/Classes`) from
-  0.2.7-rc.6.18 on. The Android engines, though, are still OpenXTalk
-  Lite 1.15's (stock LiveCode 9.6.3 builds as Tom Perry shipped them),
-  carried over unchanged in that asset: the Android engine is built
-  here and checked in CI, but the packages do not carry it yet. Only
+  0.2.7-rc.6.18 on. The default Android engines, though, are still
+  OpenXTalk Lite 1.15's (stock LiveCode 9.6.3 builds as Tom Perry
+  shipped them), carried over unchanged in that asset. From
+  0.2.7-rc.6.19 on it carries OXT-Beyond's own Android engine beside
+  them, built here with a current NDK (`Runtime/Android/Beyond`), and a
+  stack is built with it only when its "android,engine" setting is
+  "beyond" (see [BUILDING.md](BUILDING.md#15-building-the-android-engine)). Only
   the macOS package has the macOS runtimes, OXT-Beyond does not support
   iOS and has no iOS build or runtimes (so the Standalone
   Settings have no iOS card, and a stack set to build for iOS in
@@ -354,7 +358,8 @@ Releases whose tags do not start with `v`, such as `prebuilts-v1`,
 `runtimes-1.15`, `runtimes-0.2.5-rc.2`, `runtimes-0.2.7-rc.6.13`,
 `runtimes-0.2.7-rc.6.14`, `runtimes-0.2.7-rc.6.15`,
 `runtimes-0.2.7-rc.6.16b`, `runtimes-0.2.7-rc.6.17`,
-`runtimes-0.2.7-rc.6.18` and `runtimes-0.2.7-rc.6.18b`, are not
+`runtimes-0.2.7-rc.6.18`, `runtimes-0.2.7-rc.6.18b` and
+`runtimes-0.2.7-rc.6.19`, are not
 programs. They hold files that the build and the packager download: the
 prebuilt third-party libraries of earlier versions and the standalone
 runtimes for other platforms.
@@ -1674,6 +1679,101 @@ undo, and the folders where it keeps copies of stacks before changing
 them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
+
+#### 0.2.7-rc.6.19: the Bug Hunt, round nineteen
+
+OXT-Beyond 0.2.7-rc.6.19 has everything in 0.2.7-rc.6.18. This round
+puts a puzzle book for phones in the Stack Player, lets an Android app
+be built with OXT-Beyond's own Android engine, and squashes what the
+forum found since rc.6.18; it is meant to be the last release candidate
+before 0.2.7. Here is each change, listed as the bug it squashes:
+
+- **Nothing calm to play on a phone.** Puzzle Almanac is a daily puzzle
+  book for phones, and a calm one for a child: a Number Place of 4, 6
+  or 9 squares a side that never needs a guess, with notes, a hint and
+  undo, and a Hidden Word of 4, 5 or 6 letters in six tries, whose
+  tiles carry a mark as well as a colour. There are new puzzles every
+  day, the same for everyone, stickers to collect (thirty animals, then
+  gold stars), and Practice for as many more as anyone likes, with no
+  clock and no score. It fits a phone upright or turned, the keys alone
+  play it on a computer, and it is in the Stack Player, in Home's
+  gallery and on a page of its own in the website's web stacks gallery,
+  where a phone opens it on the whole screen. Its pictures and sounds
+  are Kenney's (CC0), its font is Atkinson Hyperlegible and its words
+  are ENABLE's (#410).
+- **Android apps stuck with an engine from 2019.** A stack can be built
+  with OXT-Beyond's own Android engine, built from this repository with
+  a current NDK, instead of LiveCode 9.6.3's: `set the
+  cRevStandaloneSettings["android,engine"] of stack "<name>" to
+  "beyond"`. The runtimes every package carries hold it beside 9.6.3's,
+  in `Runtime/Android/Beyond`. LiveCode 9.6.3's engine stays the
+  default, and a stack that names no engine is built as before (#413,
+  #416).
+- **Android apps that crashed after a density change.** When Android
+  made an app's screen again for a change such as the screen's density,
+  and called that screen before the app had started again, the app
+  crashed; it now goes on (#415).
+- **An IDE that hung at launch on macOS Catalina.** On macOS 10.15 the
+  IDE hung after its menu bar showed, and no cause could be found
+  without a Mac that old. OXT-Beyond, and the standalones it builds for
+  the Mac, now need macOS 11 Big Sur or later on Intel Macs too, as on
+  Apple Silicon (10.13 High Sierra before); on an older macOS the app
+  says so instead of hanging. A stack for a Catalina or older Intel Mac
+  must be built with 0.2.7-rc.6.18 or earlier (tperry2x) (#420).
+- **Code in the wrong font in the Script Editor.** On Linux, fonts a
+  stack loads with `start using font file` were neither in the
+  fontNames nor drawn, so the Script Editor showed code in a fallback
+  face instead of the IDE's Source Code Pro. On Windows, a loaded font
+  could be drawn in another loaded font's face, varying from launch to
+  launch. On both, each loaded font is now listed and drawn as itself
+  (#420).
+- **Names you couldn't read on a selected Project Browser row.** On
+  macOS and Windows they were blue on the blue selection, in the light
+  and dark appearances alike; they are white again, as LiveCode drew
+  them, and black on the grey of a list that doesn't have the focus
+  (bwmilby). In the web IDE a selected row's names are white on its
+  blue, and so are the App Browser's, and the Project Browser's Refresh
+  button shows its arrows and names the right window in its tooltip
+  (littlenemo) (#412, #420).
+- **A drag and drop that took two Undos.** In the Script Editor, the
+  first Undo after dragging text to a new place deleted it, and only a
+  second put it back where it came from; one Undo now takes back the
+  whole move. Fields in your stacks are unchanged (Skids) (#421).
+- **Widgets that didn't show in the Tools palette.** A widget installed
+  or uninstalled, with the Extension Builder or the Extension Manager,
+  shows or goes in the Tools palette at once, as in LiveCode, instead
+  of after a restart. The Extension Manager's selected row can be read
+  in the dark appearance too (bwmilby) (#417).
+- **Black tooltips in a dark browser.** In the web engine, a tooltip's
+  text is white on its dark background when the browser is dark, so
+  the web IDE's tooltips and a stack's can be read (bwmilby) (#414).
+- **A "same name" dialog when a sample stack opened.** Launching an
+  extension's sample stack once the Project Browser had been opened
+  asked about a stack of the same name already open; it now just
+  opens. And a saved stack that a script deletes stays deleted, where
+  the Project Browser read it back from its file (#420).
+- **A game that could stall a browser's sound.** Wobble Forts plays at
+  most six sounds at once in a browser: a falling fort asked for many in
+  one moment, and WebKit (Safari's engine) on Linux stalled for about
+  30 seconds after such a burst (#420).
+
+Behind the scenes, the IDE tour reads Source Code Pro among the
+fontNames and loads and unloads font files on every platform, selects a
+Project Browser row and reads its names, and on a Mac puts the IDE in
+the background without the Finder and measures a button's dark face on
+the screen (#412, #420); the IDE tests check widget installs in the
+Tools palette (#417), a sample stack's launch and a deleted stack
+(#420), and the Script Editor's undo after a drag (#421); the release
+notes say where the Android runtime's parts come from, from the
+runtimes asset's own record (#420); the Android builder's checks
+target the API the installed runtime asks for (#418) and count a crash
+in an app's first process as the app's (#415); the Android engine's
+workflow makes its four builds one runtime and runs that on the
+emulators, and the runtimes asset can carry it (#413, #416); the CI
+checks have time to finish (#419); the Mac check of the extensions'
+native libraries holds each to its own floor (#420); and the runtimes
+every package carries are rebuilt from this release's engine, with
+OXT-Beyond's own Android engine beside LiveCode 9.6.3's.
 
 #### 0.2.7-rc.6.18: the Bug Hunt, round eighteen
 
