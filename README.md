@@ -1754,7 +1754,8 @@ script.
 
 Behind the scenes, the web IDE tour checks the Message Box's colours
 across a switch (#424) and File > Import Stack's ticks (#425); the IDE
-tour checks the icon chooser (#422), the Extension Manager's icons and
+tour checks a submenu's ticks in the menus the engine draws on Linux
+(#435), the icon chooser (#422), the Extension Manager's icons and
 the Refresh arrows (#433) in the dark, makes menu buttons through the
 Inspector (#434) and clicks the Android card's new boxes (#426, #432);
 the Android checks run an app that redraws its whole screen through

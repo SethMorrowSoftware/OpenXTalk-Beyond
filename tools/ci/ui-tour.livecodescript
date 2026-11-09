@@ -85,7 +85,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,tools-widget-install,tools-widget-builder,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,icon-picker,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,code-font,ide-stacks,screen-end,background-default"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,tools-widget-install,tools-widget-builder,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,menu-submenu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,icon-picker,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,code-font,ide-stacks,screen-end,background-default"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -2004,6 +2004,71 @@ on tour_menu_marks
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_menu_marks
 
+-- The marks of a submenu's items when the menu's top level has none, as
+-- the engine draws them on Linux. Until 0.2.7-rc.6.19 a menu's items were
+-- check items only when a line of its top level began with a mark, so the
+-- ticks and dots of a submenu under a menu with none were read and never
+-- drawn, and File > Import Stack's HyperCard options looked off whatever
+-- they were set to (seth, the web IDE; #425, whose web IDE tour step
+-- import-stack-marks reads the web engine's menus: this is the same for
+-- the menus the engine draws on Linux). As in tour_menu_marks, the marks
+-- are what differs between two snapshots: a pop-up menu with no mark on
+-- its top level, whose submenu has a ticked item, a dotted one and one
+-- that opens a deeper submenu, and the same menu with the two unticked
+-- and no deeper submenu. The tick, the dot and the arrow must each be
+-- there and stand out from the menu (on rc.6.18 the arrow alone is). The
+-- pointer opens the submenu; a step of its own, for the watchdog
+constant kSubMarksRect = "600,400,1060,640"
+
+on tour_menu_submenu_marks
+   local tName, tDefault, tFails
+   if the platform is not "Linux" then
+      tourRecord "INFO menu-submenu-marks: the engine draws its menus' marks so on Linux only"
+      exit tour_menu_submenu_marks
+   end if
+   if shell("command -v xdotool") is empty then
+      tourRecord "INFO menu-submenu-marks: there is no xdotool to open the submenu and close the menu with"
+      exit tour_menu_submenu_marks
+   end if
+   put "OXT Tour Submenu Marks" into tName
+   put the defaultStack into tDefault
+   lock messages
+   if there is a stack tName then delete stack tName
+   create stack tName
+   set the rect of stack tName to "300,200,700,500"
+   set the defaultStack to tName
+   create button "Submenu marks"
+   set the style of it to "menu"
+   set the menuMode of it to "popup"
+   set the rect of it to "20,20,140,46"
+   set the text of it to "The first item, plain" & return & "Submenu" & return & \
+         tab & "The first child, plain" & return & tab & "!cTicked" & return & tab & "!rDotted" & return & \
+         tab & "Deeper" & return & tab & tab & "Leaf" & return & tab & "The last child, plain" & return & \
+         "The last item, plain"
+   create button "Submenu no marks"
+   set the style of it to "menu"
+   set the menuMode of it to "popup"
+   set the rect of it to "160,20,280,46"
+   set the text of it to "The first item, plain" & return & "Submenu" & return & \
+         tab & "The first child, plain" & return & tab & "!nTicked" & return & tab & "!uDotted" & return & \
+         tab & "Deeper" & return & tab & "The last child, plain" & return & \
+         "The last item, plain"
+   close stack tName
+   set the defaultStack to tDefault
+   unlock messages
+   go stack tName
+   tourWait 800
+   tourSubMarksPopup tName, "Submenu marks", "03n-menu-submenu-marks"
+   tourSubMarksPopup tName, "Submenu no marks", "03o-menu-submenu-no-marks"
+   put tourMarksCheck("03n-menu-submenu-marks", "03o-menu-submenu-no-marks", \
+         "a submenu under a top level with no mark") after tFails
+   -- (the pointer back where the other menu steps leave it)
+   get shell("xdotool mousemove 340 240")
+   -- (closed, not deleted, as in tour_menu_marks)
+   close stack tName
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_menu_submenu_marks
+
 -- The words of a menu's items as the engine draws them on Linux, as for
 -- tour_menu_marks: they must stand out from the menu behind them, on the
 -- theme's colour and on a window's own colours, dark and light. A menu
@@ -2358,6 +2423,52 @@ on tourMarksShot pFile
    get shell("xdotool key Escape")
    put "done" into sMarksShot
 end tourMarksShot
+
+-- As tourMarksPopup, for a menu whose second item opens a submenu: once
+-- the menu is open the pointer moves onto that item, which opens the
+-- submenu (the menu opens with its corner at 640,440 of the screen, and
+-- its items are 21 pixels apart, as the marks of 03b-menu-marks show),
+-- the snapshot pFile is taken of the menu with its submenu, and Escape
+-- closes them. Each part comes as a message of its own, as the menu is
+-- open inside the popup command
+command tourSubMarksPopup pStack, pButton, pFile
+   set the defaultStack to pStack
+   get shell("xdotool mousemove 340 240")
+   tourWait 300
+   put empty into sMarksShot
+   send "tourSubMarksOpen" && quote & pFile & quote to me in 700 milliseconds
+   popup button pButton of stack pStack at 340,240
+   repeat 50 times
+      if sMarksShot is not empty then exit repeat
+      tourWait 100
+   end repeat
+   tourWait 500
+end tourSubMarksPopup
+
+on tourSubMarksOpen pFile
+   -- (in two moves: the engine opens a submenu as the pointer moves on
+   -- its item)
+   get shell("xdotool mousemove 690 470")
+   get shell("xdotool mousemove 700 474")
+   send "tourSubMarksShot" && quote & pFile & quote to me in 800 milliseconds
+end tourSubMarksOpen
+
+on tourSubMarksShot pFile
+   local tError
+   try
+      tourShotRect kSubMarksRect, pFile
+   catch tError
+      tourRecord "INFO" && pFile && "FAILED" && tourJoin(tError)
+   end try
+   get shell("xdotool key Escape")
+   send "tourSubMarksClose" to me in 300 milliseconds
+end tourSubMarksShot
+
+-- (the first Escape may close the submenu alone)
+on tourSubMarksClose
+   get shell("xdotool key Escape")
+   put "done" into sMarksShot
+end tourSubMarksClose
 
 -- What differs between two snapshots of the same size (PNG files): the
 -- pixels that are not the same in both, in groups of neighbours (a pixel
