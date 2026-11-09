@@ -849,11 +849,24 @@ end tour_import_stack_marks
 -- (where its ticks go), "<width>,<height>,<strip width>:" and then the
 -- lumas, a space between each
 function tourImportStackStrip pShot
-   local tMenu, tFirst, tRects, tStrip
+   local tMenu, tFirst, tRects, tStrip, tLine
    put tourMenuButton("File") into tMenu
    if tMenu is empty then
       throw "no File menu in revMenuBar"
    end if
+   -- The menus made again from the preferences just set, as a pick in a
+   -- menu has them made (revMenubarFileMenuPick): a click's mouseDown
+   -- makes them too, but not while a making of them is pending, and then
+   -- the menu that opens is the one made before (on this pull request's
+   -- engine the second read showed the first one's ticks)
+   tourWait 500
+   send "revMenubarBuildMenus" to stack "revMenubar"
+   tourWait 300
+   repeat for each line tLine in the text of tMenu
+      if tLine contains "|hypercardlook" then
+         tourRecord "INFO import-stack-marks:" && pShot & ": the File menu's line" && tourJoin(tLine)
+      end if
+   end repeat
    tourAct "click" && item 1 of the globalLoc of the loc of tMenu && item 2 of the globalLoc of the loc of tMenu
    tourWait 1500
    put tourMenuRects() into tFirst
