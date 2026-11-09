@@ -1245,6 +1245,403 @@ class Rules(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# minsdk: the code against the oldest Android an app can ask for
+
+GETSTATIC, NEW, DUP, INVOKESPECIAL, ATHROW = 0xb2, 0xbb, 0x59, 0xb7, 0xbf
+IF_ICMPLT, IF_ICMPGE, IF_ICMPLE = 0xa1, 0xa2, 0xa4
+SDK = ('ref', 'field', 'android/os/Build$VERSION', 'SDK_INT', 'I')
+SET_DECOR = ('ref', 'method', 'android/view/Window', 'setDecorFitsSystemWindows', '(Z)V')
+
+# A made-up api-versions.xml, in the form Android's platforms carry it
+API_VERSIONS = """<?xml version="1.0" encoding="utf-8"?>
+<api version="3" min="1">
+    <class name="java/lang/Object" since="1">
+        <method name="&lt;init>()V"/>
+    </class>
+    <class name="java/lang/Exception" since="1">
+        <extends name="java/lang/Object"/>
+    </class>
+    <class name="android/os/Build$VERSION" since="4">
+        <extends name="java/lang/Object"/>
+        <field name="SDK_INT"/>
+    </class>
+    <class name="android/view/Window" since="1">
+        <extends name="java/lang/Object"/>
+        <method name="setDecorFitsSystemWindows(Z)V" since="30"/>
+        <method name="getAttributes()Landroid/view/WindowManager$LayoutParams;"/>
+    </class>
+    <class name="android/content/Context" since="1">
+        <extends name="java/lang/Object"/>
+        <method name="checkSelfPermission(Ljava/lang/String;)I" since="23"/>
+    </class>
+    <class name="android/app/Activity" since="1">
+        <extends name="android/content/Context"/>
+        <implements name="android/view/Window$Callback"/>
+        <method name="getWindow()Landroid/view/Window;"/>
+        <method name="getOnBackInvokedDispatcher()Landroid/window/OnBackInvokedDispatcher;" since="33"/>
+    </class>
+    <class name="android/view/Window$Callback" since="1">
+        <extends name="java/lang/Object"/>
+        <method name="onAttachedToWindow()V" since="5"/>
+    </class>
+    <class name="android/graphics/Insets" since="29">
+        <extends name="java/lang/Object"/>
+        <field name="left"/>
+    </class>
+    <class name="android/window/OnBackInvokedCallback" since="33">
+        <extends name="java/lang/Object"/>
+        <method name="onBackInvoked()V"/>
+    </class>
+    <class name="android/os/NetworkOnMainThreadException" since="11">
+        <extends name="java/lang/Exception"/>
+    </class>
+    <class name="android/os/NewException" since="26">
+        <extends name="java/lang/Exception"/>
+    </class>
+</api>
+"""
+
+
+def api_db():
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, 'api-versions.xml')
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(API_VERSIONS)
+        return aj.read_api_versions(path)
+
+
+def guarded(level, call, op=IF_ICMPLT, const=None):
+    """A static method's code that makes call (three bytes: an invoke and
+    its ref, after aconst_null and iconst_0 as its receiver and argument)
+    only where SDK_INT compares with level as op says"""
+    return [GETSTATIC, SDK, BIPUSH, level if const is None else const, op, ('u2', 8),
+            ACONST_NULL, ICONST_0] + call + [RETURN]
+
+
+class MinSdkDatabase(unittest.TestCase):
+    def test_reads_since_parents_and_members(self):
+        db = api_db()
+        self.assertEqual(db['android/view/Window'][0], 1)
+        self.assertEqual(db['android/graphics/Insets'][0], 29)
+        # a member's since is the class's where it gives none
+        self.assertEqual(db['android/graphics/Insets'][2]['left'], 29)
+        self.assertEqual(db['android/view/Window'][2]['setDecorFitsSystemWindows(Z)V'], 30)
+        self.assertEqual(db['android/view/Window'][2]['getAttributes()Landroid/view/WindowManager$LayoutParams;'], 1)
+        self.assertEqual(db['java/lang/Object'][2]['<init>()V'], 1)
+        self.assertEqual(db['android/app/Activity'][1], ['android/content/Context', 'android/view/Window$Callback'])
+
+    def test_a_file_that_is_not_one(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'api-versions.xml')
+            with open(path, 'w') as f:
+                f.write('<api version="3"></api>')
+            with self.assertRaises(aj.CheckError):
+                aj.read_api_versions(path)
+            with open(path, 'w') as f:
+                f.write('<api><class name="a" since="x"/></api>')
+            with self.assertRaises(aj.CheckError):
+                aj.read_api_versions(path)
+
+    def test_the_platforms_own_then_platform_tools(self):
+        with tempfile.TemporaryDirectory() as sdk:
+            with self.assertRaises(aj.CheckError):
+                aj.api_versions_path(sdk)
+            tools = os.path.join(sdk, 'platform-tools', 'api')
+            os.makedirs(tools)
+            open(os.path.join(tools, 'api-versions.xml'), 'w').close()
+            self.assertEqual(aj.api_versions_path(sdk), os.path.join(tools, 'api-versions.xml'))
+            data = os.path.join(sdk, 'platforms', 'android-36', 'data')
+            os.makedirs(data)
+            open(os.path.join(data, 'api-versions.xml'), 'w').close()
+            self.assertEqual(aj.api_versions_path(sdk), os.path.join(data, 'api-versions.xml'))
+
+
+class SdkFloors(unittest.TestCase):
+    GET = 'getstatic android/os/Build$VERSION.SDK_INT:I'
+
+    def test_the_branch_that_a_compare_takes(self):
+        # if (SDK_INT >= 30) call(); after();
+        code = [self.GET, 'const 30', 'if_icmplt L5', 'aload p0', 'invokevirtual a/B.c:()V',
+                'invokestatic a/B.after:()V', 'return']
+        self.assertEqual(aj.sdk_floors(code, 21), [21, 21, 21, 30, 30, 21, 21])
+        # if (SDK_INT > 29): the same floor
+        code[1:3] = ['const 29', 'if_icmple L5']
+        self.assertEqual(aj.sdk_floors(code, 21)[3], 30)
+        # if (SDK_INT < 30) old(); else new();
+        code = [self.GET, 'const 30', 'if_icmpge L5', 'invokestatic a/B.old:()V', 'goto L6',
+                'invokestatic a/B.new:()V', 'return']
+        self.assertEqual(aj.sdk_floors(code, 21), [21, 21, 21, 21, 21, 30, 21])
+        # if (SDK_INT <= 29) ...: the jump is to API 30 and newer
+        code[1:3] = ['const 29', 'if_icmpgt L5']
+        self.assertEqual(aj.sdk_floors(code, 21)[5], 30)
+        # if (SDK_INT == 33), if (SDK_INT != 33) ... else
+        code[1:3] = ['const 33', 'if_icmpeq L5']
+        self.assertEqual(aj.sdk_floors(code, 21)[5], 33)
+        code[2] = 'if_icmpne L5'
+        self.assertEqual(aj.sdk_floors(code, 21)[3], 33)
+        self.assertEqual(aj.sdk_floors(code, 21)[5], 21)
+
+    def test_an_early_return(self):
+        # if (SDK_INT < 33) return; call();
+        code = [self.GET, 'const 33', 'if_icmpge L4', 'return', 'invokestatic a/B.c:()V', 'return']
+        self.assertEqual(aj.sdk_floors(code, 21), [21, 21, 21, 21, 33, 33])
+
+    def test_where_paths_meet_the_lowest_holds(self):
+        # if (SDK_INT < 33 || asked) { body } rest: body runs below 33
+        code = [self.GET, 'const 33', 'if_icmplt L5', 'getstatic a/B.asked:Z', 'ifeq L7',
+                'invokestatic a/B.body:()V', 'return', 'invokestatic a/B.rest:()V', 'return']
+        floors = aj.sdk_floors(code, 21)
+        self.assertEqual(floors[5], 21)
+        self.assertEqual(floors[7], 33)
+        # if (SDK_INT >= 30 && asks()) call()
+        code = [self.GET, 'const 30', 'if_icmplt L6', 'invokestatic a/B.asks:()Z', 'ifeq L6',
+                'invokestatic a/B.call:()V', 'return']
+        self.assertEqual(aj.sdk_floors(code, 21), [21, 21, 21, 30, 30, 30, 21])
+
+    def test_the_constant_first(self):
+        # if (30 <= SDK_INT): javac writes the constant first
+        code = ['const 30', self.GET, 'if_icmpgt L5', 'invokestatic a/B.c:()V', 'return', 'return']
+        self.assertEqual(aj.sdk_floors(code, 21)[3], 30)
+
+    def test_a_compare_of_something_else_raises_nothing(self):
+        code = ['getstatic a/B.level:I', 'const 30', 'if_icmplt L4', 'invokestatic a/B.c:()V', 'return']
+        self.assertEqual(aj.sdk_floors(code, 21), [21, 21, 21, 21, 21])
+        code = ['iload p0', 'const 30', 'if_icmplt L4', 'invokestatic a/B.c:()V', 'return']
+        self.assertEqual(aj.sdk_floors(code, 21), [21, 21, 21, 21, 21])
+
+    def test_handlers_switches_and_code_no_path_reaches(self):
+        code = [self.GET, 'const 30', 'if_icmplt L6', 'invokestatic a/B.c:()V', 'return', 'nop',
+                'return', 'astore v0', 'return', 'catch java/lang/Exception L3-L4 -> L7']
+        floors = aj.sdk_floors(code, 21)
+        self.assertEqual(floors[3], 30)
+        self.assertEqual(floors[5], None)
+        self.assertEqual(floors[7], 30)       # thrown only where SDK_INT >= 30
+        code = ['iload p0', "switch L3 [(1, 'L2')]", 'return', 'return']
+        self.assertEqual(aj.sdk_floors(code, 24), [24, 24, 24, 24])
+        self.assertEqual(aj.sdk_floors([], 21), [])
+
+
+class MinSdk(unittest.TestCase):
+    def check(self, writers, requires=None, elsewhere=None, min_api=21):
+        jar = {w.name: parse(w) for w in writers}
+        return aj.check_min_api(jar, api_db(), min_api, requires or {}, elsewhere or {})
+
+    def one(self, code, name='run', desc='()V'):
+        w = ClassWriter('com/runrev/android/T')
+        w.method(name, desc, 0x0009, code=code)
+        return w
+
+    def test_a_call_with_no_check_of_sdk_int(self):
+        problems, lines = self.check([self.one([ACONST_NULL, ICONST_0, INVOKEVIRTUAL, SET_DECOR, RETURN])])
+        self.assertEqual(problems, ['com/runrev/android/T.run:()V uses android/view/Window.setDecorFitsSystemWindows'
+                                    ':(Z)V, which is API 30, where it can run on API 21 (invokevirtual)'])
+        self.assertIn('checked against API 21; 0 of them newer', lines[0])
+
+    def test_a_call_behind_a_check(self):
+        problems, lines = self.check([self.one(guarded(30, [INVOKEVIRTUAL, SET_DECOR]))])
+        self.assertEqual(problems, [])
+        self.assertIn('1 of them newer, each reached only where SDK_INT is high enough', lines[0])
+        # if (SDK_INT > 29) is as good
+        self.assertEqual(self.check([self.one(guarded(29, [INVOKEVIRTUAL, SET_DECOR], IF_ICMPLE))])[0], [])
+
+    def test_a_check_that_is_too_low(self):
+        problems, _ = self.check([self.one(guarded(29, [INVOKEVIRTUAL, SET_DECOR]))])
+        self.assertEqual(problems, ['com/runrev/android/T.run:()V uses android/view/Window.setDecorFitsSystemWindows'
+                                    ':(Z)V, which is API 30, where it can run on API 29 (invokevirtual)'])
+
+    def test_the_minimum_itself(self):
+        # nothing newer than min_api is needed: a higher minimum asks less
+        w = self.one([ACONST_NULL, ICONST_0, INVOKEVIRTUAL, SET_DECOR, RETURN])
+        self.assertEqual(self.check([w], min_api=30)[0], [])
+        self.assertEqual(len(self.check([w], min_api=29)[0]), 1)
+
+    def test_a_method_found_in_a_superclass(self):
+        # javac names the receiver's class, the jar's own activity: the
+        # method is Activity's, from API 33
+        act = ClassWriter('com/runrev/android/Act', super_name='android/app/Activity')
+        act.method('back', '()V', 0x0001, code=[ALOAD_0, INVOKEVIRTUAL, (
+            'ref', 'method', 'com/runrev/android/Act', 'getOnBackInvokedDispatcher',
+            '()Landroid/window/OnBackInvokedDispatcher;'), POP, RETURN])
+        problems, _ = self.check([act])
+        self.assertEqual(problems, ['com/runrev/android/Act.back:()V uses com/runrev/android/Act.'
+                                    'getOnBackInvokedDispatcher:()Landroid/window/OnBackInvokedDispatcher;, which '
+                                    'is API 33, where it can run on API 21 (invokevirtual)'])
+        # and through the class's interfaces, in the database
+        cb = ClassWriter('com/runrev/android/Cb', super_name='android/app/Activity')
+        cb.method('attach', '()V', 0x0001, code=[ALOAD_0, INVOKEVIRTUAL, (
+            'ref', 'method', 'com/runrev/android/Cb', 'onAttachedToWindow', '()V'), RETURN])
+        self.assertEqual(self.check([cb])[0], [])
+        self.assertEqual(len(self.check([cb], min_api=4)[0]), 1)
+
+    def test_a_class_of_newer_android(self):
+        # new Insets-like: a class that API 21 lacks, made with no check
+        code = [NEW, ('class', 'android/graphics/Insets'), POP, RETURN]
+        self.assertEqual(self.check([self.one(code)])[0], [
+            'com/runrev/android/T.run:()V uses android/graphics/Insets, which is API 29, where it can run on API 21 '
+            '(new)'])
+        # a field of it, and a cast to it (the check keeps casts that
+        # compare leaves out)
+        code = [ACONST_NULL, GETFIELD, ('ref', 'field', 'android/graphics/Insets', 'left', 'I'), POP, RETURN]
+        self.assertEqual(len(self.check([self.one(code)])[0]), 1)
+        code = [ACONST_NULL, CHECKCAST, ('class', 'android/graphics/Insets'), POP, RETURN]
+        self.assertIn('(checkcast)', self.check([self.one(code)])[0][0])
+
+    def test_a_catch_of_a_newer_exception(self):
+        w = ClassWriter('com/runrev/android/T')
+        w.method('run', '()V', 0x0009, code=[RETURN, POP, RETURN],
+                 handlers=[(0, 1, 1, 'android/os/NewException')])
+        self.assertEqual(self.check([w])[0], ['com/runrev/android/T.run:()V catches android/os/NewException, which is '
+                                              'API 26, where it can run on API 21'])
+        w = ClassWriter('com/runrev/android/T')
+        w.method('run', '()V', 0x0009, code=[RETURN, POP, RETURN],
+                 handlers=[(0, 1, 1, 'android/os/NetworkOnMainThreadException')])
+        self.assertEqual(self.check([w])[0], [])
+
+    def test_a_class_that_implements_newer_android(self):
+        cb = ClassWriter('com/runrev/android/Back', interfaces=('android/window/OnBackInvokedCallback',))
+        cb.method('onBackInvoked', '()V', 0x0001, code=[RETURN])
+        self.assertEqual(self.check([cb])[0], [
+            'com/runrev/android/Back extends or implements android/window/OnBackInvokedCallback, which is API 33, '
+            'and REQUIRES_API does not say it runs only on API 33 or newer (Android cannot load it before)'])
+        req = {'com/runrev/android/Back': (33, 'made only on Android 13')}
+        self.assertEqual(self.check([cb], req)[0], [])
+        # too low an entry is no better
+        self.assertEqual(len(self.check([cb], {'com/runrev/android/Back': (30, 'x')})[0]), 1)
+        # and every use of it is checked against its level
+        make = [NEW, ('class', 'com/runrev/android/Back'), DUP, INVOKESPECIAL,
+                ('ref', 'method', 'com/runrev/android/Back', '<init>', '()V'), POP, RETURN]
+        problems, _ = self.check([cb, self.one(make)], req)
+        self.assertEqual(problems, [
+            'com/runrev/android/T.run:()V uses com/runrev/android/Back, which is API 33, where it can run on API 21 '
+            '(new)',
+            'com/runrev/android/T.run:()V uses com/runrev/android/Back.<init>:()V, which is API 33, where it can '
+            'run on API 21 (invokespecial)'])
+        make = [GETSTATIC, SDK, BIPUSH, 33, IF_ICMPLT, ('u2', 11)] + make
+        self.assertEqual(self.check([cb, self.one(make)], req)[0], [])
+
+    def test_a_method_that_runs_only_on_newer_android(self):
+        # its own code is checked at its level ...
+        w = ClassWriter('com/runrev/android/T')
+        w.method('edge', '()V', 0x0009, code=[ACONST_NULL, ICONST_0, INVOKEVIRTUAL, SET_DECOR, RETURN])
+        req = {'com/runrev/android/T.edge:()V': (30, 'onCreate calls it only on Android 11')}
+        self.assertEqual(self.check([w], req)[0], [])
+        # ... and every call of it against that level
+        call = [INVOKESTATIC, ('ref', 'method', 'com/runrev/android/T', 'edge', '()V')]
+        w.method('run', '()V', 0x0009, code=call + [RETURN])
+        self.assertEqual(self.check([w], req)[0], [
+            'com/runrev/android/T.run:()V uses com/runrev/android/T.edge:()V, which is API 30, where it can run on '
+            'API 21 (invokestatic)'])
+        w = ClassWriter('com/runrev/android/T')
+        w.method('edge', '()V', 0x0009, code=[ACONST_NULL, ICONST_0, INVOKEVIRTUAL, SET_DECOR, RETURN])
+        w.method('run', '()V', 0x0009, code=[GETSTATIC, SDK, BIPUSH, 30, IF_ICMPLT, ('u2', 6)] + call + [RETURN])
+        self.assertEqual(self.check([w], req)[0], [])
+
+    def test_a_field_of_such_a_class_is_no_use_of_its_code(self):
+        holder = ClassWriter('com/runrev/android/Edge')
+        holder.field('m_activity', 'Landroid/app/Activity;')
+        read = [ACONST_NULL, GETFIELD, ('ref', 'field', 'com/runrev/android/Edge', 'm_activity',
+                                        'Landroid/app/Activity;'), POP, RETURN]
+        self.assertEqual(self.check([holder, self.one(read)], {'com/runrev/android/Edge': (30, 'x')})[0], [])
+
+    def test_guarded_elsewhere(self):
+        code = [ACONST_NULL, ICONST_0, INVOKEVIRTUAL, SET_DECOR, RETURN]
+        use = ('com/runrev/android/T.run:()V', 'android/view/Window.setDecorFitsSystemWindows:(Z)V')
+        problems, lines = self.check([self.one(code)], elsewhere={use: 'only where the state is set, on API 30'})
+        self.assertEqual(problems, [])
+        self.assertIn('and 1 uses are kept from older Android by something other than SDK_INT', lines[1])
+        # an entry the code no longer needs fails, so that none outlives
+        # its reason
+        problems, _ = self.check([self.one(guarded(30, [INVOKEVIRTUAL, SET_DECOR]))],
+                                 elsewhere={use: 'only where the state is set, on API 30'})
+        self.assertEqual(problems, ['GUARDED_ELSEWHERE names com/runrev/android/T.run:()V using android/view/Window.'
+                                    'setDecorFitsSystemWindows:(Z)V, which it no longer does where its SDK_INT check '
+                                    'falls short'])
+
+    def test_an_entry_the_jar_does_not_have(self):
+        problems, _ = self.check([self.one([RETURN])], {'com/runrev/android/T.gone:()V': (30, 'x')})
+        self.assertEqual(problems, ['REQUIRES_API names com/runrev/android/T.gone:()V, which the jar does not have'])
+
+    def test_what_the_database_does_not_know(self):
+        code = [INVOKESTATIC, ('ref', 'method', 'com/sec/iap/Helper', 'start', '()V'), RETURN]
+        problems, lines = self.check([self.one(code)])
+        self.assertEqual(problems, [])
+        self.assertEqual(lines[2], '1 references that api-versions.xml does not know (not checked): '
+                                   'com/sec/iap/Helper.start:()V')
+
+    def test_the_command(self):
+        w = self.one([ACONST_NULL, ICONST_0, INVOKEVIRTUAL, SET_DECOR, RETURN])
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'api-versions.xml')
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(API_VERSIONS)
+            classes = jar(os.path.join(d, 'Classes'), [w])
+            out = io.StringIO()
+            saved = aj.REQUIRES_API, aj.GUARDED_ELSEWHERE
+            aj.REQUIRES_API, aj.GUARDED_ELSEWHERE = {}, {}
+            try:
+                with contextlib.redirect_stdout(out):
+                    self.assertEqual(aj.main(['minsdk', '--classes', classes, '--api-versions', path]), 1)
+                    self.assertEqual(aj.main(['minsdk', '--classes', classes, '--api-versions', path,
+                                              '--min-api', '30']), 0)
+            finally:
+                aj.REQUIRES_API, aj.GUARDED_ELSEWHERE = saved
+            self.assertIn('PROBLEM: com/runrev/android/T.run:()V uses android/view/Window.'
+                          'setDecorFitsSystemWindows:(Z)V', out.getvalue())
+            self.assertIn('Android Java minsdk: passed', out.getvalue())
+
+    def test_compare_still_leaves_casts_out(self):
+        w = self.one([ACONST_NULL, CHECKCAST, ('class', 'android/graphics/Insets'), POP, RETURN])
+        self.assertEqual(listing(w, 'run', '()V', static=True), ['aconst_null', 'pop', 'return'])
+        c = parse(w)
+        m = c.methods[('run', '()V')]
+        self.assertEqual(aj.code_listing(c, m[1], m[2], '()V', True, casts=True),
+                         ['aconst_null', 'checkcast android/graphics/Insets', 'pop', 'return'])
+
+
+class MinSdkInTheRepository(unittest.TestCase):
+    def test_the_minimum_is_the_android_cards_lowest(self):
+        # the first "Minimum Android Version" the card offers, the one the
+        # builder falls back on (item 1 of its list of APIs)
+        tsv = read('ide', 'Toolset', 'resources', 'supporting_files', 'standalone_settings', 'standaloneSettings.tsv')
+        row = [x for x in tsv.splitlines() if x.startswith('android,minimum version\t')]
+        self.assertEqual(len(row), 1)
+        self.assertEqual(row[0].split('\t')[7], '5.0 - Lollipop')
+        self.assertTrue(row[0].split('\t')[8].startswith('5.0 - Lollipop,'))
+        self.assertEqual(aj.MIN_API, 21)      # Android 5.0 is API 21
+
+    def test_every_entry_has_its_level_and_reason(self):
+        java = {}
+        for root, _dirs, files in os.walk(os.path.join(REPO, 'engine', 'src', 'java')):
+            for f in files:
+                if f.endswith('.java'):
+                    with open(os.path.join(root, f), encoding='utf-8', errors='replace') as fh:
+                        java[f] = fh.read()
+        source = '\n'.join(java.values())
+        for key, (level, reason) in aj.REQUIRES_API.items():
+            self.assertGreater(level, aj.MIN_API, key)
+            self.assertTrue(reason.strip(), key)
+            self.assertRegex(key, r'^com/runrev/android/[\w$]+(\.[\w<>]+:\(.*\)\S+)?$')
+            # the method or class is in the sources
+            name = key.split('.', 1)[1].split(':')[0] if '.' in key else key.rsplit('$', 1)[-1]
+            self.assertIn(name, source, key)
+        for (user, used), reason in aj.GUARDED_ELSEWHERE.items():
+            self.assertTrue(reason.strip(), user)
+            self.assertIn(user.split('.', 1)[1].split(':')[0], source, user)
+
+    def test_the_workflow_runs_it_on_the_jar_it_builds(self):
+        wf = read('.github', 'workflows', 'android-java.yml')
+        self.assertIn('python3 tools/ci/android_java.py minsdk --classes "$RUNNER_TEMP/java/Classes" --sdk "$SDK"\n',
+                      wf)
+        step = wf.split('- name: Check it against the oldest Android an app can ask for', 1)[1].split('- name:')[0]
+        self.assertNotIn('|| true', step)
+        self.assertNotIn('continue-on-error', step)
+        # the record of the shipped jar is not a check
+        record = wf.split('- name: The API levels of the shipped Java layer', 1)[1].split('- name:')[0]
+        self.assertIn('minsdk --classes "$RUNTIME/Classes"', record)
+        self.assertIn('|| true', record)
+
+
+# ---------------------------------------------------------------------------
 
 def glob_regex(pattern):
     """GitHub's path filter glob: * and ? stop at /, ** does not."""
