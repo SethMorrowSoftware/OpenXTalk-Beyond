@@ -1697,7 +1697,9 @@ finds:
   appearance its icons and names are light grey and its frame,
   scrollbar and popup dark, and in the light appearance it is as
   before. A widget can now ask whether it is drawn dark (bwmilby)
-  (#422).
+  (#422). On Linux with a dark GTK theme, where the IDE is dark while
+  the systemAppearance stays light, the chooser asks the widget for
+  its dark colours too (#438).
 - **Olive and navy words in a dark Message Box.** The script typed in
   the Message Box kept the colours of the appearance it was typed in, so
   after a switch to dark its words were dark on the dark field, and
@@ -1721,6 +1723,16 @@ finds:
   menu for buttons offers "menu", so a push button becomes a popup,
   pulldown or option menu without a script, and a menu button shows its
   Style row, so it can be turned back (OpenXTalkPaul) (#434).
+- **A Home that was slow on a low-powered computer.** Home builds the
+  first page of its tour as it opens and each other page the first
+  time it is shown, where it built all six, some 550 controls, before
+  its window came up. On a computer that takes longer than 16
+  milliseconds to draw a frame, Home, the Academy and Learn now wait
+  as long after each frame as it took, so about half of the time is
+  left for clicks, keys and your own stacks; their animations move as
+  far in fewer frames. A computer that draws a frame in 16 milliseconds
+  or less draws as many frames as before, and every page looks and
+  works as it did (seth) (#436).
 - **Android apps boxed in by the bars.** A stack can be drawn edge to
   edge, as current Android apps are: tick **Edge to edge** on the
   Android card's Status Bar row, and on Android 11 and newer it fills
@@ -1749,21 +1761,31 @@ Android engine (the preview, chosen by the box above or the
 app's screen throws "wait: aborted", and the rest of that handler no
 longer runs (#427); with LiveCode 9.6.3's engine the app hung there.
 A stack built with **Edge to edge** ticked gets the whole screen as
-`the screenRect` (#432). No other change is meant to be seen by a
+`the screenRect` (#432). The icon picker widget has a new property,
+`darkIcons`: false unless a script sets it, and not saved with a
+stack; set to true, the widget draws its dark colours whatever the
+systemAppearance (#438). No other change is meant to be seen by a
 script.
 
 Behind the scenes, the web IDE tour checks the Message Box's colours
 across a switch (#424) and File > Import Stack's ticks (#425); the IDE
 tour checks a submenu's ticks in the menus the engine draws on Linux
-(#435), the icon chooser (#422), the Extension Manager's icons and
-the Refresh arrows (#433) in the dark, makes menu buttons through the
-Inspector (#434) and clicks the Android card's new boxes (#426, #432);
+(#435), the icon chooser (#422) and the Inspector's own chooser by
+the colour of its card as drawn (#438), the Extension Manager's icons
+and the Refresh arrows (#433) in the dark, makes menu buttons through
+the Inspector (#434) and clicks the Android card's new boxes (#426,
+#432); a Linux check opens Home and fails when it builds more than
+its first page or, made slow, keeps a core busy (#436);
 the Android checks run an app that redraws its whole screen through
 five density changes (#431), check a stack drawn edge to edge on both
 emulators (#432), tap a permission dialog's Allow again when a tap is
 lost (#428) and build the App Bundle again when GitHub's release host
-refuses bundletool (#430); the Android engine's check runs this tree's
-engine in place of the release's (#427); the CI checks download
+refuses bundletool (#430); the Android Java layer is checked against
+Android 5.0, the oldest an app can ask for, so a call of newer Android
+that nothing keeps from an old phone fails the build (#437); the
+Android engine's check runs this tree's engine in place of the
+release's (#427); a test of the CI scripts that failed now and then
+is fixed (#435); the CI checks download
 actionlint through GitHub's API (#429); and the runtimes every package
 carries are rebuilt from this release's engine.
 
