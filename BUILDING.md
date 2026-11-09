@@ -3367,8 +3367,14 @@ binutils, the bfd linker, Android 4.1 as the lowest). This tree also builds
 them itself with a current NDK (the Android plan's phase 2), as a preview
 beside the 9.6.3 engine, which stays the default: a package has it only
 when its stack asks for it, with
-`set the cRevStandaloneSettings["android,engine"] of stack "<name>" to "beyond"`.
-The builder (`androidRuntimeFolder`) then takes every file of the
+`set the cRevStandaloneSettings["android,engine"] of stack "<name>" to "beyond"`
+(the Android card's **OXT-Beyond engine (preview)** box, under the device
+capabilities: a copy of "Android x86_64" in the build targets' group,
+made by the `android-card-engine-*.txt` IDE stack patches, which the
+group's script stores, beyond when ticked and empty when not, and the
+card's behaviour shows; the UI tour clicks it, and checks that the group,
+grown over the card to hold it, takes no click from the controls under
+it). The builder (`androidRuntimeFolder`) then takes every file of the
 runtime's from `Runtime/Android/Beyond`, where runtimes that carry this
 engine keep it as a whole runtime of its own (the folder that
 `build-android.sh` writes, below), and not one from 9.6.3's: the engines
