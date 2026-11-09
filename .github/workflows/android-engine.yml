@@ -447,7 +447,9 @@ jobs:
       # Here only, as 9.6.3's engine hangs there: the density changed while
       # the probe's script waits (--density-in-wait, a tap's mouseUp), where
       # the engine, let go on as the activity is destroyed, yields to
-      # Android's thread again (doDestroy in engine/src/mblandroiddc.cpp)
+      # Android's thread again (doDestroy in engine/src/mblandroiddc.cpp),
+      # and the wait must end then rather than hold that thread (at most
+      # HELD_LIMIT s, by the events buffer)
       - name: Run the probes on Android 13
         run: |
           python3 tools/ci/android_check.py device --apk "$WORK/app/out/debug.apk" --serial emulator-5554 \

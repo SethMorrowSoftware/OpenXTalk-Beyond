@@ -3503,4 +3503,12 @@ seconds with messages, and the density changes while it waits, so that
 the engine, let go on to finish as Android destroys the activity, yields
 to Android's thread again before it has finished: `doDestroy` (in
 `engine/src/mblandroiddc.cpp`) lets it go on until it has, where it
-once joined the engine thread at once and both waited for good.
+once joined the engine thread at once and both waited for good. The
+script's wait then ends at once (`MCScreenDC::wait`, with "wait:
+aborted"), and the check fails a process that held Android's thread for
+more than 5 seconds as its activity went (from its stop to the activity
+made again, by the events buffer): the engine once waited out the wait
+there, and Android called the app not responding. A tap that a system
+hiccup took (another app's "isn't responding" dialog in front of the
+probe, its window without the focus, its activity paused) is given once
+more; one with nothing in its way is a failure at once.
