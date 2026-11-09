@@ -85,6 +85,60 @@ class FollowsTheBrowser(unittest.TestCase):
         self.assertIn("verb == 'scheme'", self.read('tools', 'ci', 'web_ide_tour.py'))
 
 
+class MessageBoxColours(unittest.TestCase):
+    """The script typed in the Message Box kept the colours of the
+    appearance it was typed in, so after a switch from light to dark its
+    words were olive, purple, navy and black on the dark field (seth, the
+    web IDE, 2026-11-08). The Message Box colours it again as the
+    appearance changes; the tour's message-box-colours step checks the
+    contrast in both appearances in the browser, and that light mode is
+    coloured as before. These hold the pieces to each other."""
+
+    def read(self, *path):
+        with open(os.path.join(REPO, *path), encoding='utf-8') as f:
+            return f.read().lstrip('\ufeff')
+
+    def test_the_tour_has_the_step_after_appearance(self):
+        tour = self.read('tools', 'ci', 'web-ide-tour.livecodescript')
+        steps = [line for line in tour.splitlines() if line.startswith('constant kSteps')][0]
+        steps = steps.split('"')[1].split(',')
+        self.assertIn('message-box-colours', steps)
+        self.assertEqual(steps.index('message-box-colours'), steps.index('appearance') + 1)
+        step = tour.split('\non tour_message_box_colours\n', 1)[1].split('\nend tour_message_box_colours', 1)[0]
+        for card in ('Single Line', 'Multiple Lines'):
+            self.assertIn(card, step)
+        self.assertIn('tourAct "scheme dark"', step)
+        self.assertIn('tourAct "scheme light"', step)
+        # light mode as it was: the same htmlText after the switch back
+        self.assertIn('if the htmlText of tField is not tLight then', step)
+        check = tour.split('\nfunction tourColourProblem pField, pLabel\n', 1)[1].split('\nend tourColourProblem', 1)[0]
+        self.assertIn('if tContrast < 3 then', check)
+
+    def test_the_message_box_colours_again(self):
+        box = self.read('ide', 'Toolset', 'palettes', 'message box', 'behaviors',
+                        'revmessageboxbehavior.livecodescript')
+        changed = box.split('\non ideSystemAppearanceChanged\n', 1)[1].split('\nend ideSystemAppearanceChanged', 1)[0]
+        self.assertIn('__RecolorizeMessages', changed)
+        again = box.split('\ncommand __RecolorizeMessages\n', 1)[1].split('\nend __RecolorizeMessages', 1)[0]
+        self.assertEqual(again.count('dispatch "revSEColorizeField" to stack "revSEUtilities" with tField'), 2)
+        self.assertIn('field "message" of card "Single Line" of me', again)
+        self.assertIn('field "script" of card "Multiple Lines" of me', again)
+
+    def test_the_history_is_coloured_as_typed(self):
+        line = self.read('ide', 'Toolset', 'palettes', 'message box', 'behaviors',
+                         'revmessageboxsinglelinemessagebehavior.livecodescript')
+        self.assertNotIn('_internal script colorize', line)
+        for name in ('revNextLine', 'revPrevLine'):
+            body = line.split('\ncommand %s\n' % name, 1)[1].split('\nend %s' % name, 1)[0]
+            self.assertIn('dispatch "revSEColorizeField" to stack "revSEUtilities" with the long id of me', body)
+
+    def test_the_engine_test_exists(self):
+        test = self.read('tests', 'lcs', 'messagebox', 'appearancecolours.livecodescript')
+        for name in ('TestAppearanceChangeColoursBothFields', 'TestAppearanceChangeLeavesEmptyFields',
+                     'TestHistoryLineIsColouredAsTyped'):
+            self.assertIn('\non %s\n' % name, test)
+
+
 class NotSaved(unittest.TestCase):
     """The web IDE's not-saved bar (seth's choice 6A of 2026-10-31): the
     engine's storage tells the page when the browser stops or starts
