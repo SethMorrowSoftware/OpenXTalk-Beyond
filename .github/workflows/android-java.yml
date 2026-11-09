@@ -37,7 +37,13 @@
 #     Classes is checked the same way, so that what is said of the new
 #     jar is known to be true of the old one;
 #   - rules: what Android asks of the code (every PendingIntent says
-#     whether it is mutable).
+#     whether it is mutable);
+#   - minsdk: the code against the oldest Android an app can be built for
+#     (5.0, API 21): every class, method and field of Android newer than
+#     that is used only where a check of SDK_INT keeps older Android from
+#     it, or where android_java.py's REQUIRES_API or GUARDED_ELSEWHERE says
+#     why, as Android lint's NewApi check does, read from the platform's
+#     api-versions.xml. The emulators run only Android 13 and 16.
 #
 # It needs no build of the engine and no IDE: the "Android builder"
 # workflow (android.yml) runs the jar on emulators.
@@ -108,6 +114,7 @@ jobs:
             { tail -40 "$RUNNER_TEMP/sdkmanager.log"; exit 1; }
           echo "JDK: $jdk"; "$jdk/bin/javac" -version 2>&1 | head -n 1
           ls -l "$sdk/platforms/android-36/android.jar"
+          ls -l "$sdk/platforms/android-36/data/api-versions.xml" "$sdk/platform-tools/api/api-versions.xml" || true
 
       # The Android runtime the checkout's packages ship
       - name: Fetch the runtimes asset
@@ -157,6 +164,21 @@ jobs:
         run: |
           env -u GITHUB_ACTIONS -u GITHUB_STEP_SUMMARY \
             python3 tools/ci/android_java.py rules --classes "$RUNTIME/Classes" || true
+
+      # The oldest Android a standalone can be built for is 5.0 (API 21),
+      # and the emulators run only Android 13 and 16: a call of newer
+      # Android that nothing keeps from older Android would throw there,
+      # unseen
+      - name: Check it against the oldest Android an app can ask for
+        run: |
+          python3 tools/ci/android_java.py minsdk --classes "$RUNNER_TEMP/java/Classes" --sdk "$SDK"
+
+      # For the record, not a check: what minsdk says of the shipped jar,
+      # whose own methods for newer Android REQUIRES_API does not name
+      - name: The API levels of the shipped Java layer
+        run: |
+          env -u GITHUB_ACTIONS -u GITHUB_STEP_SUMMARY \
+            python3 tools/ci/android_java.py minsdk --classes "$RUNTIME/Classes" --sdk "$SDK" || true
 
       - name: Upload the Java layer
         if: always()
