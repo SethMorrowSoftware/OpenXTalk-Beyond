@@ -23,6 +23,8 @@ across JNI (the Android plan's phase 1).
   python3 tools/ci/android_java.py build --sdk DIR --out FILE [--api N] [--jdk DIR]
   python3 tools/ci/android_java.py compare --old FILE --new FILE
   python3 tools/ci/android_java.py jni --classes FILE --runtime DIR [--android-jar FILE]
+  python3 tools/ci/android_java.py rules --classes FILE
+  python3 tools/ci/android_java.py minsdk --classes FILE (--sdk DIR | --api-versions FILE) [--min-api N]
 
 build compiles the Java sources that LiveCode's own build compiled into
 Classes (engine_java_source_files and engine_aidl_source_files of
@@ -63,6 +65,20 @@ jni checks the two ways the native engine and the Java layer meet:
     says (an interface, a static method, a method);
   - every class of the jar that the runtime's Manifest.xml or the
     standalone builder names (com.runrev.android.X) is there.
+
+rules checks what Android asks of the code (every PendingIntent says
+whether it is mutable).
+
+minsdk checks the code against the oldest Android a standalone can be
+built for (MIN_API, 5.0), as Android lint's NewApi check does: every
+class, method and field of Android that the code uses must be on the API
+level the code can run on, which starts at MIN_API and rises past each
+compare of Build.VERSION.SDK_INT with a constant (sdk_floors), from
+Android's own record of the level that brought each one (the platform's
+api-versions.xml). The jar's methods and classes that run only on newer
+Android are named in REQUIRES_API, with that level and why, and every use
+of them is checked the same way; GUARDED_ELSEWHERE names the few uses that
+something other than SDK_INT keeps from older Android.
 
 Exit status 0 when every check passed, 1 otherwise. Only the Python 3
 standard library is used (3.8 or later), with the JDK's javac for build.
@@ -594,9 +610,11 @@ OBJECT_METHODS = ('toString:()Ljava/lang/String;', 'hashCode:()I', 'equals:(Ljav
                   'getClass:()Ljava/lang/Class;')
 
 
-def code_listing(cls, code, handlers, descriptor, static):
+def code_listing(cls, code, handlers, descriptor, static, casts=False):
     """A method's code as a list of instructions that two compilers that
-    mean the same thing write the same way, whatever the bytes:
+    mean the same thing write the same way, whatever the bytes (with casts,
+    checkcast is kept, for minsdk, which asks what each class it names
+    needs):
 
       - constant pool references by what they name, not their index (ldc
         and ldc_w are one instruction, as are goto and goto_w);
@@ -705,7 +723,7 @@ def code_listing(cls, code, handlers, descriptor, static):
             name = POOL_OPS[op]
             if name == 'invokevirtual' and ref.split('.', 1)[-1] in OBJECT_METHODS:
                 parts = ['invoke-object', ref.split('.', 1)[-1]]
-            elif name == 'checkcast':
+            elif name == 'checkcast' and not casts:
                 parts = None
             else:
                 parts = [name, ref]
@@ -1688,6 +1706,378 @@ def rules(args):
 
 
 # ---------------------------------------------------------------------------
+# minsdk: what the code needs of Android, against the oldest Android an app
+# can ask for
+
+# The oldest Android a standalone can be built for: the first of the
+# Android card's "Minimum Android Version" choices (5.0 - Lollipop, in
+# ide/Toolset/resources/supporting_files/standalone_settings/
+# standaloneSettings.tsv), which the builder writes into the manifest's
+# minSdkVersion. Its apps run the jar on Android this old
+MIN_API = 21
+
+# The jar's own methods and classes that run only on newer Android, each
+# with that API level and why: a method's code is checked at that level,
+# and every reference to it (a call, or for a class any use: new, a
+# static call, a cast) must itself be reached only on that level or newer,
+# so that the claim is checked where the method is called, as Android
+# lint's @RequiresApi is. A class is named alone, a method as
+# class.name:descriptor
+A = 'com/runrev/android/LiveCodeActivity'
+REQUIRES_API = {
+    A + '.onRequestPermissionsResult:(I[Ljava/lang/String;[I)V':
+        (23, 'Android calls it only on 6.0 and newer, answering requestPermissions, which Engine calls only where '
+             'SDK_INT >= 23'),
+    A + '.registerBackCallback:()V':
+        (33, 'onCreate calls it only where SDK_INT >= 33: the back callback of Android 13'),
+    A + '$BackCallback':
+        (33, 'an OnBackInvokedCallback (Android 13), made only by registerBackCallback'),
+    'com/runrev/android/BusyIndicator.registerBackCallback:(Landroid/app/Dialog;)V':
+        (33, 'showBusyIndicator calls it only where SDK_INT >= 33'),
+    'com/runrev/android/BusyIndicator$BackCallback':
+        (33, 'an OnBackInvokedCallback (Android 13), made only by BusyIndicator.registerBackCallback'),
+    A + '.keepOutOfSystemBars:()V':
+        (35, 'onCreate calls it only where SDK_INT >= 35, where Android 15 draws an app edge to edge'),
+    A + '$SystemBarsPadding':
+        (35, 'its insets are Android 11\'s; made only by keepOutOfSystemBars (Android 15 and newer)'),
+    A + '.drawEdgeToEdge:()V':
+        (30, 'onCreate calls it only where SDK_INT >= 30: the opt-in edge to edge layout is Android 11\'s'),
+    A + '.showBarsForAppearance:(Landroid/content/res/Configuration;)V':
+        (30, 'the bars\' appearance of a stack drawn edge to edge (WindowInsetsController, Android 11)'),
+    A + '$EdgeToEdge':
+        (30, 'its insets are Android 11\'s; made only by drawEdgeToEdge'),
+}
+
+# Uses of newer Android, or of REQUIRES_API's methods, that no compare of
+# SDK_INT keeps from older Android but something else does, each as (the
+# method that has the use, what it uses) with why it runs only there. The
+# check fails on an entry it no longer needs
+GUARDED_ELSEWHERE = {
+    (A + '.onConfigurationChanged:(Landroid/content/res/Configuration;)V',
+     A + '.showBarsForAppearance:(Landroid/content/res/Configuration;)V'):
+        'only where s_edge_to_edge is set, which only drawEdgeToEdge does (API 30 and newer)',
+    (A + '.edgeToEdgeUncoveredArea:(Landroid/view/View;Landroid/graphics/Rect;)Z',
+     A + '$EdgeToEdge.uncoveredArea:(Landroid/view/View;Landroid/graphics/Rect;)Z'):
+        'only where s_edge_to_edge is set, which only drawEdgeToEdge does (API 30 and newer)',
+    (A + '.edgeToEdgeWindowBounds:(Landroid/graphics/Rect;)Z',
+     'android/view/WindowManager.getCurrentWindowMetrics:()Landroid/view/WindowMetrics;'):
+        'only where s_edge_to_edge is set, which only drawEdgeToEdge does (API 30 and newer)',
+    (A + '.edgeToEdgeWindowBounds:(Landroid/graphics/Rect;)Z',
+     'android/view/WindowMetrics.getBounds:()Landroid/graphics/Rect;'):
+        'only where s_edge_to_edge is set, which only drawEdgeToEdge does (API 30 and newer)',
+}
+del A
+
+SDK_INT = 'android/os/Build$VERSION.SDK_INT:I'
+# if_icmp<cond> on SDK_INT (pushed first) and a constant: the floor its
+# jump (True) and its fall through (False) give, from the constant
+SDK_BRANCHES = {
+    'if_icmplt': lambda n: (None, n), 'if_icmpge': lambda n: (n, None),
+    'if_icmple': lambda n: (None, n + 1), 'if_icmpgt': lambda n: (n + 1, None),
+    'if_icmpeq': lambda n: (n, None), 'if_icmpne': lambda n: (None, n),
+}
+# the same with the constant pushed first (n < SDK_INT is SDK_INT > n)
+SDK_BRANCHES_SWAPPED = {'if_icmplt': 'if_icmpgt', 'if_icmpge': 'if_icmple', 'if_icmple': 'if_icmpge',
+                        'if_icmpgt': 'if_icmplt', 'if_icmpeq': 'if_icmpeq', 'if_icmpne': 'if_icmpne'}
+ENDS = ('return', 'ireturn', 'lreturn', 'freturn', 'dreturn', 'areturn', 'athrow')
+
+
+def api_versions_path(sdk, api=DEFAULT_API):
+    """Android's record of the API level that brought each class, method
+    and field (api-versions.xml, which Android lint reads): the
+    platform's own (platforms/android-N/data), else platform-tools/api."""
+    for path in (os.path.join(sdk, 'platforms', 'android-%s' % api, 'data', 'api-versions.xml'),
+                 os.path.join(sdk, 'platform-tools', 'api', 'api-versions.xml')):
+        if os.path.isfile(path):
+            return path
+    raise CheckError('no api-versions.xml in %s (platforms/android-%s/data or platform-tools/api)' % (sdk, api))
+
+
+def read_api_versions(path):
+    """{class: (since, [(superclass or interface, since)], {member: since})}
+    of an api-versions.xml; a member is name(descriptor)return for a
+    method, its name for a field, and a since that is not given, of a
+    member or of an extends or implements, is the class's (a class's own
+    is 1)."""
+    import xml.etree.ElementTree as ET
+    out = {}
+    try:
+        for _event, el in ET.iterparse(path):
+            if el.tag != 'class':
+                continue
+            since = int(el.get('since', '1'))
+            parents = [(x.get('name'), int(x.get('since', since)))
+                       for x in el if x.tag in ('extends', 'implements')]
+            members = {}
+            for x in el:
+                if x.tag in ('method', 'field'):
+                    members[x.get('name')] = int(x.get('since', since))
+            out[el.get('name')] = (since, parents, members)
+            el.clear()
+    except (ET.ParseError, ValueError) as e:
+        raise CheckError('%s: %s' % (path, e))
+    if not out:
+        raise CheckError('%s names no class' % path)
+    return out
+
+
+class ApiLevels(object):
+    """The API level a reference of the jar needs: the jar's own classes
+    and methods need none, unless REQUIRES_API names them; Android's
+    (api-versions.xml) need the level that brought the class and the
+    member, looked for in the class, then its superclasses and interfaces.
+    A member a class inherits by more than one path needs the lowest of
+    them, as lint's NewApi takes it: on API 26 Method came to extend
+    Executable, whose getName is API 26, but Method implements Member,
+    whose getName is API 1, and the call works everywhere. A path counts
+    from the level its extends or implements gives. None for a member that
+    neither knows (a hidden API, or a library the app may not have)."""
+
+    def __init__(self, jar, db, requires=None):
+        self.jar = jar
+        self.db = db
+        self.requires = REQUIRES_API if requires is None else requires
+
+    def of_class(self, name):
+        name = name.lstrip('[').strip(';')
+        if name.startswith('L'):
+            name = name[1:]
+        if name in self.jar:
+            return self.requires.get(name, (0,))[0]
+        if name in self.db:
+            return self.db[name][0]
+        return None if '/' in name else 0      # a primitive array
+
+    def of_member(self, owner, member, method, initializes=False):
+        """member: name:descriptor for a method, name:type for a field;
+        initializes: the use is getstatic or putstatic, which runs the
+        static initializer of the class that declares the field"""
+        name, desc = member.split(':', 1)
+        key = name + desc if method else name
+        # what a class gives, whatever path reached it (the hierarchy has
+        # no cycles; a class being looked at counts as giving nothing)
+        found = {}
+
+        def lowest(paths):
+            levels = []
+            for parent, since in paths:
+                got = look(parent)
+                if got is not None:
+                    levels.append(max(since, got))
+            return min(levels) if levels else None
+
+        def look(cls):
+            if cls is None:
+                return None
+            if cls in found:
+                return found[cls]
+            found[cls] = None
+            got = None
+            if cls in self.jar:
+                c = self.jar[cls]
+                # an instance field of the jar's own class needs what
+                # REQUIRES_API gives the field alone: reading one runs none
+                # of the class's code. A static field's use runs the static
+                # initializer of the class that declares it, so it needs
+                # what that class needs
+                level = self.requires.get(cls, (0,))[0]
+                own = level if method else 0
+                mine = (name, desc) in (c.methods if method else c.fields)
+                if mine:
+                    got = max(level if method or initializes else 0,
+                              self.requires.get('%s.%s' % (cls, member), (0,))[0])
+                else:
+                    got = lowest((p, own) for p in [c.super_name] + list(c.interfaces))
+            elif cls in self.db:
+                since, parents, members = self.db[cls]
+                if key in members:
+                    got = max(since, members[key])
+                else:
+                    got = lowest((p, max(since, s)) for p, s in parents)
+            found[cls] = got
+            return got
+        return look(owner)
+
+
+def sdk_floors(listing, start):
+    """The lowest API level each instruction of a method's code (a
+    code_listing, with its catch lines) can run on, given the level the
+    method starts on: every compare of Build.VERSION.SDK_INT with a
+    constant raises the floor on the branch it takes, and where paths meet
+    the lowest floor holds (so an early return, an else and || or && all
+    count). None for an instruction no path reaches."""
+    insns = [x.split(' ') for x in listing if not x.startswith('catch ')]
+    catches = []
+    for x in listing:
+        m = re.match(r'catch \S+ L(\d+)-L(\d+) -> L(\d+)$', x)
+        if m:
+            catches.append(tuple(int(g) for g in m.groups()))
+    n = len(insns)
+
+    def label(t):
+        return int(t[1:])
+
+    # where a jump or a handler enters: a compare whose operands a jump
+    # can bring from elsewhere, as in (b ? 99 : SDK_INT) >= 30, raises
+    # nothing
+    entered = set(h for _lo, _hi, h in catches)
+    for x in insns:
+        if x[0] == 'goto' or x[0].startswith('if') or x[0] == 'switch':
+            entered.update(label(t) for t in re.findall(r'L\d+', ' '.join(x[1:])))
+
+    def edges(i):
+        op = insns[i][0]
+        out = []
+        if op in ENDS or op == 'ret':
+            pass
+        elif op == 'goto':
+            out.append((label(insns[i][1]), None))
+        elif op == 'switch':
+            out.append((label(insns[i][1]), None))
+            out.extend((label(t), None) for t in re.findall(r"'(L\d+)'", ' '.join(insns[i][2:])))
+        elif op.startswith('if'):
+            taken, falls = None, None
+            if op in SDK_BRANCHES and i >= 2 and i - 1 not in entered and i not in entered:
+                a, b = insns[i - 2], insns[i - 1]
+                if a == ['getstatic', SDK_INT] and b[0] == 'const':
+                    taken, falls = SDK_BRANCHES[op](int(b[1]))
+                elif a[0] == 'const' and b == ['getstatic', SDK_INT]:
+                    taken, falls = SDK_BRANCHES[SDK_BRANCHES_SWAPPED[op]](int(a[1]))
+            out.append((label(insns[i][1]), taken))
+            out.append((i + 1, falls))
+        else:
+            out.append((i + 1, None))
+        for lo, hi, handler in catches:
+            if lo <= i < hi:
+                out.append((handler, None))
+        return [(j, f) for j, f in out if j < n]
+
+    floors = [None] * n
+    if not n:
+        return floors
+    floors[0] = start
+    work = [0]
+    while work:
+        i = work.pop()
+        for j, raised in edges(i):
+            f = floors[i] if raised is None else max(floors[i], raised)
+            if floors[j] is None or f < floors[j]:
+                floors[j] = f
+                work.append(j)
+    return floors
+
+
+REFS = {'invokevirtual': 'method', 'invokespecial': 'method', 'invokestatic': 'method',
+        'invokeinterface': 'method', 'getstatic': 'field', 'putstatic': 'field', 'getfield': 'field',
+        'putfield': 'field', 'new': 'class', 'anewarray': 'class', 'checkcast': 'class',
+        'instanceof': 'class', 'multianewarray': 'class', 'ldc': 'class'}
+
+
+def check_min_api(jar, db, min_api=MIN_API, requires=None, elsewhere=None):
+    """minsdk: every class, method and field of Android that the jar's code
+    uses is there on the API level that code can run on (sdk_floors, from
+    min_api, or the level REQUIRES_API gives the method or its class);
+    every class of the jar whose superclass or interface is newer than
+    min_api is named by REQUIRES_API, at that level or above; and every
+    entry of REQUIRES_API is in the jar and needed. Android loads a class
+    whose method calls what it lacks, and throws only when the call runs,
+    so a call that a check of SDK_INT keeps from older Android is safe."""
+    requires = REQUIRES_API if requires is None else requires
+    elsewhere = GUARDED_ELSEWHERE if elsewhere is None else elsewhere
+    levels = ApiLevels(jar, db, requires)
+    problems = []
+    lines = []
+    unknown = set()
+    used = set()
+    refs = 0
+    guarded = 0
+    for name in sorted(jar):
+        c = jar[name]
+        own = requires.get(name, (min_api,))[0]
+        for parent in [c.super_name] + list(c.interfaces):
+            need = levels.of_class(parent) if parent else 0
+            if need is not None and need > own:
+                problems.append('%s extends or implements %s, which is API %d, and REQUIRES_API does not say it '
+                                'runs only on API %d or newer (Android cannot load it before)' % (
+                                    name, parent, need, need))
+        if name in requires:
+            used.add(name)
+        for (m_name, desc), (acc, code, handlers) in sorted(c.methods.items()):
+            key = '%s.%s:%s' % (name, m_name, desc)
+            start = max(own, requires.get(key, (min_api,))[0])
+            if key in requires:
+                used.add(key)
+            listing = code_listing(c, code, handlers, desc, bool(acc & ACC_STATIC), casts=True)
+            floors = sdk_floors(listing, start)
+            insns = [x for x in listing if not x.startswith('catch ')]
+            for i, insn in enumerate(insns):
+                parts = insn.split(' ', 1)
+                kind = REFS.get(parts[0])
+                if kind is None or len(parts) < 2 or floors[i] is None:
+                    continue
+                target = parts[1]
+                if parts[0] == 'ldc':
+                    if ' ' in target or target.startswith('string'):
+                        continue                    # a number or a string
+                if parts[0] == 'multianewarray':
+                    target = target.rsplit(' ', 1)[0]
+                if kind == 'class':
+                    need = levels.of_class(target)
+                    what = target
+                else:
+                    owner, member = target.split('.', 1)
+                    need = levels.of_member(owner, member, kind == 'method',
+                                            parts[0] in ('getstatic', 'putstatic'))
+                    what = target
+                    if need is None:
+                        unknown.add(target)
+                refs += 1
+                if need is None or need <= min_api:
+                    continue
+                if need > floors[i] and (key, what) in elsewhere:
+                    used.add((key, what))
+                    guarded += 1
+                elif need > floors[i]:
+                    problems.append('%s uses %s, which is API %d, where it can run on API %d (%s)' % (
+                        key, what, need, floors[i], parts[0]))
+                else:
+                    guarded += 1
+            for line in listing:
+                m = re.match(r'catch (\S+) L', line)
+                if m and m.group(1) != 'any':
+                    need = levels.of_class(m.group(1))
+                    if need is not None and need > start:
+                        problems.append('%s catches %s, which is API %d, where it can run on API %d' % (
+                            key, m.group(1), need, start))
+    for key in sorted(requires):
+        if key not in used:
+            problems.append('REQUIRES_API names %s, which the jar does not have' % key)
+    for key in sorted(elsewhere):
+        if key not in used:
+            problems.append('GUARDED_ELSEWHERE names %s using %s, which it no longer does where its SDK_INT '
+                            'check falls short' % key)
+    lines.append('%d references to classes, methods and fields checked against API %d; %d of them newer, each '
+                 'reached only where SDK_INT is high enough' % (refs, min_api, guarded))
+    lines.append('%d of the jar\'s methods and classes run only on newer Android (REQUIRES_API), and %d uses are '
+                 'kept from older Android by something other than SDK_INT (GUARDED_ELSEWHERE)' % (
+                     len(requires), len(elsewhere)))
+    if unknown:
+        lines.append('%d references that api-versions.xml does not know (not checked): %s' % (
+            len(unknown), ', '.join(sorted(unknown)[:40]) + (' ...' if len(unknown) > 40 else '')))
+    return problems, lines
+
+
+def minsdk(args):
+    jar = read_jar(args.classes)
+    path = args.api_versions or api_versions_path(args.sdk)
+    db = read_api_versions(path)
+    log('jar: %s (%d classes); api-versions: %s (%d classes); minimum API %d' % (
+        args.classes, len(jar), path, len(db), args.min_api))
+    p, lines = check_min_api(jar, db, args.min_api)
+    return report([('API levels against API %d' % args.min_api, p, lines)])
+
+
+# ---------------------------------------------------------------------------
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
@@ -1709,9 +2099,16 @@ def main(argv=None):
                         'where the jar has them too (for a jar built from this checkout)')
     r = sub.add_parser('rules')
     r.add_argument('--classes', required=True)
+    m = sub.add_parser('minsdk')
+    m.add_argument('--classes', required=True)
+    where = m.add_mutually_exclusive_group(required=True)
+    where.add_argument('--sdk', help='an Android SDK, whose api-versions.xml it reads')
+    where.add_argument('--api-versions', help='an api-versions.xml')
+    m.add_argument('--min-api', type=int, default=MIN_API)
     args = ap.parse_args(argv)
     try:
-        problems = {'build': build, 'compare': compare, 'jni': jni, 'rules': rules}[args.command](args)
+        problems = {'build': build, 'compare': compare, 'jni': jni, 'rules': rules,
+                    'minsdk': minsdk}[args.command](args)
     except CheckError as e:
         problems = [str(e)]
     log()
