@@ -60,6 +60,7 @@ private variable mShowNames as Boolean
 private variable mIconSize as Number
 private variable mFilterString as String
 private variable mShowSelectedElement as Boolean
+private variable mDarkIcons as Boolean
 
 /**
 The preferred size of the widget.
@@ -140,6 +141,22 @@ get the showSelectedElement of <widget>
 */
 property showSelectedElement get mShowSelectedElement set setShowSelectedElement
 
+/**
+Whether the icon picker draws its dark colours (light grey icons and names,
+a dark frame, scrollbar and popup background) whatever the systemAppearance.
+For a host that knows its window is dark when the engine does not: on Linux
+the systemAppearance is light unless the IDE follows the desktop, while a
+dark GTK theme draws the card dark (the Inspector's SVG icon chooser sets it
+from revIDEAppearanceIsDark). False, the default, leaves the decision to the
+engine, as before. It is not saved with the stack.
+
+Syntax:
+set the darkIcons of <widget> to {true | false}
+get the darkIcons of <widget>
+*/
+property darkIcons get mDarkIcons set setDarkIcons
+metadata darkIcons.user_visible is "false"
+
 constant kIconColor is [0,0,0]
 
 constant kDefaultIconSize is 65
@@ -148,6 +165,7 @@ constant kMinCols is 3
 constant kMinRows is 3
 
 public handler OnCreate()
+	put false into mDarkIcons
 	put "" into mFilterString
 	SetDataList()
 	put the empty array into mPaths
@@ -174,6 +192,7 @@ public handler OnSave(out rProperties as Array)
 end handler
 
 public handler OnLoad(in pProperties as Array)
+    put false into mDarkIcons
     put pProperties["showNames"] into mShowNames
     put pProperties["iconSize"] into mIconSize
     put pProperties["showFrameBorder"] into mFrameBorder
@@ -608,9 +627,19 @@ constant kDarkScrollbar is "255,255,255,60"
 constant kDarkFrame is "96,96,96"
 
 private handler isDarkAppearance() returns Boolean
+	if mDarkIcons then
+		return true
+	end if
 	variable tDark as Boolean
 	MCWidgetGetMyAppearanceIsDark(tDark)
 	return tDark
+end handler
+
+public handler setDarkIcons(in pDark as Boolean)
+	if pDark is not mDarkIcons then
+		put pDark into mDarkIcons
+		redraw all
+	end if
 end handler
 
 private handler getPaint(pLocation, pType) returns Paint

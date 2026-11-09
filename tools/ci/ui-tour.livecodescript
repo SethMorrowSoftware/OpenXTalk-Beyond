@@ -3711,8 +3711,93 @@ on tour_icon_picker
    lock messages
    if there is a stack tName then delete stack tName
    unlock messages
+   put tourIconChooserFails() after tFails
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_icon_picker
+
+-- The Inspector's SVG icon chooser itself (the stack
+-- com.livecode.pi.svgiconfilter, its behavior set as the Inspector sets it,
+-- opened modeless rather than modal so that the tour goes on), read on the
+-- screen. What decides is the card as it is drawn, not the
+-- systemAppearance: on a dark card most of its icons must be the light
+-- grey, on a light card black. On Linux with a dark GTK theme the
+-- systemAppearance is light (unless Preferences > Appearance follows the
+-- desktop) while the card is drawn dark, and the chooser drew black icons
+-- on it (main 2f3775dc: "the card 51,57,59, black and light grey pixels
+-- 9783,2"); the IDE now asks the widget for its dark colours there (its
+-- darkIcons, svgIconFilterShowAppearance). Returns the failures, a line
+-- each
+function tourIconChooserFails
+   local tChooser, tPath, tData, tDefault, tPicker, tCard, tShown, tFails, tError
+   put "com.livecode.pi.svgiconfilter" into tChooser
+   put the dialogData into tData
+   put the defaultStack into tDefault
+   try
+      put revEnvironmentToolsetPath() & "/palettes/inspector/editors/" & tChooser into tPath
+      if there is not a stack tChooser then get the long id of stack (tPath & ".livecode")
+      if there is not a stack (tChooser & ".behavior") then get the long id of stack (tPath & ".behavior.livecodescript")
+      set the behavior of stack tChooser to the long id of stack (tChooser & ".behavior")
+      set the dialogData to empty
+      put the long id of widget "iconList" of card 1 of stack tChooser into tPicker
+      put line 1 of the working screenRects into tCard
+      set the topLeft of stack tChooser to item 1 of tCard + 360, item 2 of tCard + 160
+      palette stack tChooser
+      tourOnScreen tChooser
+      tourUnlockScreen "icon-chooser-picker"
+      tourWait 500
+      put tourCardPixel(tChooser) into tCard
+      put tourPickerShown(tChooser, tPicker) into tShown
+      tourRecord "INFO icon-picker chooser: the systemAppearance" && the systemAppearance & \
+            ", the IDE's dark" && revIDEAppearanceIsDark() & ", the card" && tCard & \
+            ", black and light grey pixels" && tShown
+      if tourSystemLight(tCard) is empty then
+         put "the icon chooser's card could not be read (" & tCard & ")" & return after tFails
+      else if tourSystemLight(tCard) then
+         if item 1 of tShown < 20 then
+            put "on its light card the icon chooser drew" && item 1 of tShown && \
+                  "black pixels, not 20 or more (its icons are not black, as they were)" & return after tFails
+         end if
+      else if item 2 of tShown < 20 or item 1 of tShown > item 2 of tShown then
+         put "on its dark card (" & tCard & ") the icon chooser drew" && item 2 of tShown && \
+               "light grey pixels and" && item 1 of tShown && "black ones: its icons can hardly be seen" & \
+               return after tFails
+      end if
+      tourShotStack tChooser, "04h-icon-chooser-picker"
+   catch tError
+      put "the icon chooser:" && tourJoin(tError) & return after tFails
+   end try
+   set the dialogData to tData
+   set the defaultStack to tDefault
+   if there is a stack tChooser then
+      lock messages
+      close stack tChooser
+      unlock messages
+   end if
+   return tFails
+end tourIconChooserFails
+
+-- The colour of the screen at a point of the card of the stack pStack
+-- that no control covers: the first of its corners, 4 points in, that is
+-- in none of its controls' rects
+function tourCardPixel pStack
+   local tStack, tWidth, tHeight, tX, tY, tFree, i
+   put the rect of stack pStack into tStack
+   put item 3 of tStack - item 1 of tStack into tWidth
+   put item 4 of tStack - item 2 of tStack into tHeight
+   repeat for each item tX in "4," & (tWidth - 5)
+      repeat for each item tY in (tHeight - 5) & ",4"
+         put true into tFree
+         repeat with i = 1 to the number of controls of card 1 of stack pStack
+            if (tX & comma & tY) is within the rect of control i of card 1 of stack pStack then
+               put false into tFree
+               exit repeat
+            end if
+         end repeat
+         if tFree then return tourPixelAt(item 1 of tStack + tX, item 2 of tStack + tY)
+      end repeat
+   end repeat
+   return empty
+end tourCardPixel
 
 -- How many pixels of the screen over the widget pWidget of the stack
 -- pStack are black (each of red, green and blue 40 or less) and how many
