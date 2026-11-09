@@ -6,7 +6,7 @@ title	Standard Button
 name							Button					
 label												
 tooltip												
-style							standard	standard,transparent,opaque,rectangle,roundRect,shadow,checkbox,radioButton				
+style							standard	standard,transparent,opaque,rectangle,roundRect,shadow,menu,checkbox,radioButton				
 visible												
 opaque							true					
 showName							true					

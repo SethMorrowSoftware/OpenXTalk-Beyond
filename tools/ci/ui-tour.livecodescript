@@ -85,7 +85,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,tools-widget-install,tools-widget-builder,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,menu-submenu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,icon-picker,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,code-font,ide-stacks,screen-end,background-default"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,tools-widget-install,tools-widget-builder,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,menu-submenu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,icon-picker,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-button-menu,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,code-font,ide-stacks,screen-end,background-default"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -5614,6 +5614,127 @@ on tour_inspector_clear_button
    if tWidget is not empty and exists(tWidget) then delete tWidget
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_inspector_clear_button
+
+-- The Inspector's Style menu offers "menu" (OpenXTalkPaul, openxtalk.org
+-- p=26206): the style that turns a button into a popup, pulldown or
+-- option menu was missing from the list, so the only way to choose it was
+-- a script. Every button kind's Style row now lists it, and the menu kinds
+-- show their Style row (it was hidden), so a button made a menu can be
+-- made a push button again from the same row. Through revIDEPropertySet,
+-- the call the Inspector makes when its Style menu is changed, a push
+-- button becomes a menu and back. The menu kinds the Tools palette makes
+-- are as they were: style menu, the same menuMode
+on tour_inspector_button_menu
+   local tCard, tKind, tMode, tMade, tButton, tType, tPI, tFails, tError
+   get tourSampleStack()
+   put the long id of card 1 of stack kSample into tCard
+   try
+      repeat for each line tKind in "PopupMenu,popup" & return & "PulldownMenu,Pulldown" & return & "OptionMenu,option"
+         put item 2 of tKind into tMode
+         put item 1 of tKind into tKind
+         put tourBmMake(tCard, tKind) into tMade
+         tourRecord "INFO inspector-button-menu a new" && tKind & ": style" && the style of tMade && \
+               "menuMode" && the menuMode of tMade && "kind" && ideObjectTypeFromObject(tMade)
+         if the style of tMade is not "menu" then
+            put "a new" && tKind && "has the style" && the style of tMade & return after tFails
+         end if
+         if the menuMode of tMade is not tMode then
+            put "a new" && tKind && "has the menuMode" && the menuMode of tMade & return after tFails
+         end if
+         if ideObjectTypeFromObject(tMade) is not "com.livecode.interface.classic." & tKind then
+            put "a new" && tKind && "is a" && ideObjectTypeFromObject(tMade) & return after tFails
+         end if
+         put tourBmCheckRow(tKind, tMade) after tFails
+         delete tMade
+      end repeat
+      put tourBmMake(tCard, "Button") into tButton
+      set the name of tButton to "oxtTourStyleMenu"
+      set the rect of tButton to "20,300,140,326"
+      put tourBmCheckRow("push button", tButton) after tFails
+      revIDEPropertySet tButton, "style", "menu"
+      put ideObjectTypeFromObject(tButton) into tType
+      tourRecord "INFO inspector-button-menu a push button set to menu: style" && the style of tButton && \
+            "kind" && tType
+      if the style of tButton is not "menu" then
+         put "Style menu left the button's style" && the style of tButton & return after tFails
+      end if
+      if tType is not among the items of "com.livecode.interface.classic.PopupMenu,com.livecode.interface.classic.PulldownMenu,com.livecode.interface.classic.OptionMenu" then
+         put "a push button set to menu is a" && tType & return after tFails
+      end if
+      put tourBmCheckRow("push button set to menu", tButton) after tFails
+      put tourInspect(tButton) into tPI
+      if tourInspectorEditor(tPI, "style") is empty then
+         put "the Inspector of a button set to menu has no Style row" & return after tFails
+      end if
+      tourShotStack tPI, "08-inspector-button-menu"
+      tourCloseInspectors
+      revIDEPropertySet tButton, "style", "standard"
+      tourRecord "INFO inspector-button-menu set back to standard: style" && the style of tButton && \
+            "kind" && ideObjectTypeFromObject(tButton)
+      if the style of tButton is not "standard" then
+         put "Style standard left the button's style" && the style of tButton & return after tFails
+      end if
+      if ideObjectTypeFromObject(tButton) is not "com.livecode.interface.classic.Button" then
+         put "a menu set back to standard is a" && ideObjectTypeFromObject(tButton) & return after tFails
+      end if
+   catch tError
+      put tourJoin(tError) & return after tFails
+   end try
+   tourCloseInspectors
+   if tButton is not empty and exists(tButton) then delete tButton
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_inspector_button_menu
+
+-- A control of the classic kind pKind (PopupMenu, Button, ...) made on the
+-- card pCard as the Tools palette makes one (revIDECreateObject, which
+-- sets every property to the kind's default); its long id
+function tourBmMake pCard, pKind
+   local tResult, tError
+   try
+      revIDECreateObject "com.livecode.interface.classic." & pKind, pCard, "400,300"
+      put the result into tResult
+   catch tError
+      put tourJoin(tError) into tResult
+   end try
+   -- (revIDECreateObject leaves messages and the screen locked when it
+   -- fails)
+   unlock messages
+   tourUnlockScreen "inspector-button-menu"
+   if word 1 of tResult is not "button" or not exists(tResult) then
+      throw "the IDE made no" && pKind && "(" & tResult & ")"
+   end if
+   tourCloseInspectors
+   return tResult
+end tourBmMake
+
+-- A line saying what is wrong when the Inspector's Style row for the
+-- button pButton (pWhat) is hidden or does not offer menu; empty when all
+-- is right
+function tourBmCheckRow pWhat, pButton
+   local tRow
+   put tourBmStyleRow(revIDEPropertiesInfoOfSection(pButton, "Basic")) into tRow
+   tourRecord "INFO inspector-button-menu the Style row of a" && pWhat & ": user_visible" && \
+         quote & tRow["user_visible"] & quote && "options" && tourJoin(tRow["options"])
+   if tRow is not an array then return "a" && pWhat & "'s Inspector has no Style row" & return
+   if tRow["user_visible"] is false then return "a" && pWhat & "'s Style row is hidden" & return
+   if "menu" is not among the lines of tRow["options"] then
+      return "a" && pWhat & "'s Style row does not offer menu" & return
+   end if
+   return empty
+end tourBmCheckRow
+
+-- The style property's row in the Inspector's property information pInfo,
+-- wherever it is grouped; empty if there is none
+function tourBmStyleRow pInfo
+   local tKey, tRow
+   if pInfo is not an array then return empty
+   if pInfo["name"] is "style" and "options" is among the keys of pInfo then return pInfo
+   repeat for each key tKey in pInfo
+      put tourBmStyleRow(pInfo[tKey]) into tRow
+      if tRow is an array then return tRow
+   end repeat
+   return empty
+end tourBmStyleRow
 
 -- The Clear beside a colour takes away the pattern its row holds beside
 -- it too (LittleNemo, openxtalk.org p=26076: in rc.6.15 Clear stayed
