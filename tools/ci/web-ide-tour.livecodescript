@@ -868,6 +868,7 @@ function tourImportStackStrip pShot
    tourRecord "INFO import-stack-marks: menus" && tourJoin(tRects)
    tourShot pShot
    put tourSubmenuStrip("left") into tStrip
+   tourRecord "INFO import-stack-marks:" && pShot & ": the submenu's first ink in each band of rows" && tourSubmenuInkRows()
    tourAct "key Escape"
    tourWait 500
    tourAct "key Escape"
@@ -902,6 +903,27 @@ function tourSubmenuStrip pSide, pPoints
          " for (var i = 0; i < d.length; i += 4) { o.push(Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2])); }" & \
          " return c.width + ',' + c.height + ',' + sw + ':' + o.join(' '); })()")
 end tourSubmenuStrip
+
+-- For the INFO line of each read of File > Import Stack's submenu, so that
+-- a failure shows what was drawn: for each band of rows with something
+-- drawn, "<first row>-<last row>@<x of the leftmost pixel>/<x of the
+-- leftmost pixel more than 30 points in>" (pixels of the canvas, its
+-- border left out), the background read at the canvas's right edge
+function tourSubmenuInkRows
+   return tourJS("(function () { var w = Array.from(document.querySelectorAll('.oxt-window'))" & \
+         ".filter(function(e) { var r = e.getBoundingClientRect(); return e.oxtLayer === 3 && r.width > 0 && r.height > 0; })" & \
+         ".sort(function(a, b) { return a.getBoundingClientRect().left - b.getBoundingClientRect().left; });" & \
+         " if (w.length < 2) { return 'no submenu'; }" & \
+         " var c = w[w.length - 1].querySelector('canvas'); if (!c) { return 'no canvas'; }" & \
+         " var s = c.width / c.getBoundingClientRect().width, d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;" & \
+         " function l(x, y) { var k = (y * c.width + x) * 4; return 0.299 * d[k] + 0.587 * d[k + 1] + 0.114 * d[k + 2]; }" & \
+         " var out = [], start = -1, first = -1, inner = -1;" & \
+         " for (var y = 3; y < c.height - 3; y++) { var b = l(c.width - 4, y), fx = -1, ix = -1;" & \
+         "  for (var x = 3; x < c.width - 4; x++) { if (Math.abs(l(x, y) - b) > 64) { if (fx < 0) { fx = x; } if (ix < 0 && x > 30 * s) { ix = x; } } }" & \
+         "  if (fx >= 0) { if (start < 0) { start = y; first = fx; inner = ix; } else { first = Math.min(first, fx); } }" & \
+         "  else if (start >= 0) { out.push(start + '-' + (y - 1) + '@' + first + '/' + inner); start = -1; } }" & \
+         " return 'scale ' + s.toFixed(2) + ' ' + out.join(' '); })()")
+end tourSubmenuInkRows
 
 -- A submenu with a mark that also opens a deeper submenu, in a pulldown
 -- menu of a stack of the tour's, whose top level has no mark: pText is
