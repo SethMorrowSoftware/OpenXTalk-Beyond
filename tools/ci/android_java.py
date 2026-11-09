@@ -1848,8 +1848,10 @@ class ApiLevels(object):
             return self.db[name][0]
         return None if '/' in name else 0      # a primitive array
 
-    def of_member(self, owner, member, method):
-        """member: name:descriptor for a method, name:type for a field"""
+    def of_member(self, owner, member, method, initializes=False):
+        """member: name:descriptor for a method, name:type for a field;
+        initializes: the use is getstatic or putstatic, which runs the
+        static initializer of the class that declares the field"""
         name, desc = member.split(':', 1)
         key = name + desc if method else name
         # what a class gives, whatever path reached it (the hierarchy has
@@ -1873,13 +1875,17 @@ class ApiLevels(object):
             got = None
             if cls in self.jar:
                 c = self.jar[cls]
-                # a field of the jar's own class needs what REQUIRES_API
-                # gives the field alone: reading one runs none of the
-                # class's code
-                own = self.requires.get(cls, (0,))[0] if method else 0
+                # an instance field of the jar's own class needs what
+                # REQUIRES_API gives the field alone: reading one runs none
+                # of the class's code. A static field's use runs the static
+                # initializer of the class that declares it, so it needs
+                # what that class needs
+                level = self.requires.get(cls, (0,))[0]
+                own = level if method else 0
                 mine = (name, desc) in (c.methods if method else c.fields)
                 if mine:
-                    got = max(own, self.requires.get('%s.%s' % (cls, member), (0,))[0])
+                    got = max(level if method or initializes else 0,
+                              self.requires.get('%s.%s' % (cls, member), (0,))[0])
                 else:
                     got = lowest((p, own) for p in [c.super_name] + list(c.interfaces))
             elif cls in self.db:
@@ -1911,6 +1917,14 @@ def sdk_floors(listing, start):
     def label(t):
         return int(t[1:])
 
+    # where a jump or a handler enters: a compare whose operands a jump
+    # can bring from elsewhere, as in (b ? 99 : SDK_INT) >= 30, raises
+    # nothing
+    entered = set(h for _lo, _hi, h in catches)
+    for x in insns:
+        if x[0] == 'goto' or x[0].startswith('if') or x[0] == 'switch':
+            entered.update(label(t) for t in re.findall(r'L\d+', ' '.join(x[1:])))
+
     def edges(i):
         op = insns[i][0]
         out = []
@@ -1923,7 +1937,7 @@ def sdk_floors(listing, start):
             out.extend((label(t), None) for t in re.findall(r"'(L\d+)'", ' '.join(insns[i][2:])))
         elif op.startswith('if'):
             taken, falls = None, None
-            if op in SDK_BRANCHES and i >= 2:
+            if op in SDK_BRANCHES and i >= 2 and i - 1 not in entered and i not in entered:
                 a, b = insns[i - 2], insns[i - 1]
                 if a == ['getstatic', SDK_INT] and b[0] == 'const':
                     taken, falls = SDK_BRANCHES[op](int(b[1]))
@@ -2012,7 +2026,8 @@ def check_min_api(jar, db, min_api=MIN_API, requires=None, elsewhere=None):
                     what = target
                 else:
                     owner, member = target.split('.', 1)
-                    need = levels.of_member(owner, member, kind == 'method')
+                    need = levels.of_member(owner, member, kind == 'method',
+                                            parts[0] in ('getstatic', 'putstatic'))
                     what = target
                     if need is None:
                         unknown.add(target)

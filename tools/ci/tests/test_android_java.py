@@ -1247,7 +1247,7 @@ class Rules(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # minsdk: the code against the oldest Android an app can ask for
 
-GETSTATIC, NEW, DUP, INVOKESPECIAL, ATHROW = 0xb2, 0xbb, 0x59, 0xb7, 0xbf
+GETSTATIC, PUTSTATIC, NEW, DUP, INVOKESPECIAL, ATHROW = 0xb2, 0xb3, 0xbb, 0x59, 0xb7, 0xbf
 IF_ICMPLT, IF_ICMPGE, IF_ICMPLE = 0xa1, 0xa2, 0xa4
 SDK = ('ref', 'field', 'android/os/Build$VERSION', 'SDK_INT', 'I')
 SET_DECOR = ('ref', 'method', 'android/view/Window', 'setDecorFitsSystemWindows', '(Z)V')
@@ -1410,6 +1410,31 @@ class SdkFloors(unittest.TestCase):
         code[2] = 'if_icmpne L5'
         self.assertEqual(aj.sdk_floors(code, 21)[3], 33)
         self.assertEqual(aj.sdk_floors(code, 21)[5], 21)
+
+    def test_a_compare_a_jump_enters(self):
+        # if ((b ? 99 : SDK_INT) >= 30) call(): javac puts the read of
+        # SDK_INT right before the 30, but the b path jumps to the 30 with
+        # 99, so the compare says nothing of SDK_INT and raises nothing
+        code = ['iload p0', 'ifeq L4', 'const 99', 'goto L5', self.GET, 'const 30', 'if_icmplt L9',
+                'aconst_null', 'invokevirtual a/B.c:()V', 'return']
+        self.assertEqual(aj.sdk_floors(code, 21), [21] * 10)
+        # nor where a jump enters at the compare itself
+        code = ['iload p0', 'ifeq L4', self.GET, 'const 30', 'if_icmplt L7', 'aconst_null', 'invokevirtual a/B.c:()V',
+                'return']
+        self.assertEqual(aj.sdk_floors(code, 21)[6], 21)
+        # or the constant first, entered at the read of SDK_INT
+        code = ['iload p0', 'ifeq L3', 'const 30', self.GET, 'if_icmpgt L7', 'aconst_null',
+                'invokevirtual a/B.c:()V', 'return']
+        self.assertEqual(aj.sdk_floors(code, 21)[6], 21)
+        # or a handler that starts at the constant
+        code = [self.GET, 'const 30', 'if_icmplt L5', 'aconst_null', 'invokevirtual a/B.c:()V', 'return',
+                'catch any L0-L1 -> L1']
+        self.assertEqual(aj.sdk_floors(code, 21)[4], 21)
+        # a jump to the read of SDK_INT is no such jump: both operands are
+        # the compare's own (if (b) x(); if (SDK_INT >= 30) call();)
+        code = ['iload p0', 'ifeq L3', 'invokestatic a/B.x:()V', self.GET, 'const 30', 'if_icmplt L8', 'aconst_null',
+                'invokevirtual a/B.c:()V', 'return']
+        self.assertEqual(aj.sdk_floors(code, 21)[7], 30)
 
     def test_an_early_return(self):
         # if (SDK_INT < 33) return; call();
@@ -1602,6 +1627,24 @@ class MinSdk(unittest.TestCase):
         read = [ACONST_NULL, GETFIELD, ('ref', 'field', 'com/runrev/android/Edge', 'm_activity',
                                         'Landroid/app/Activity;'), POP, RETURN]
         self.assertEqual(self.check([holder, self.one(read)], {'com/runrev/android/Edge': (30, 'x')})[0], [])
+
+    def test_a_static_field_of_such_a_class_runs_its_initializer(self):
+        # getstatic and putstatic run the static initializer of the class
+        # that declares the field, so they need what the class needs
+        holder = ClassWriter('com/runrev/android/Edge')
+        holder.field('s_state', 'I', 0x000a)
+        ref = ('ref', 'field', 'com/runrev/android/Edge', 's_state', 'I')
+        requires = {'com/runrev/android/Edge': (30, 'x')}
+        self.assertEqual(self.check([holder, self.one([GETSTATIC, ref, POP, RETURN])], requires)[0], [
+            'com/runrev/android/T.run:()V uses com/runrev/android/Edge.s_state:I, which is API 30, where it can run '
+            'on API 21 (getstatic)'])
+        self.assertEqual(self.check([holder, self.one([ICONST_0, PUTSTATIC, ref, RETURN])], requires)[0], [
+            'com/runrev/android/T.run:()V uses com/runrev/android/Edge.s_state:I, which is API 30, where it can run '
+            'on API 21 (putstatic)'])
+        self.assertEqual(self.check([holder, self.one(guarded(30, [GETSTATIC, ref]))], requires)[0], [])
+        # the class's own methods run on 30 and newer already
+        holder.method('read', '()V', 0x0009, code=[GETSTATIC, ref, POP, RETURN])
+        self.assertEqual(self.check([holder, self.one([RETURN])], requires)[0], [])
 
     def test_guarded_elsewhere(self):
         code = [ACONST_NULL, ICONST_0, INVOKEVIRTUAL, SET_DECOR, RETURN]
