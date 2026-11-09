@@ -1575,7 +1575,6 @@ class GreenAgain(unittest.TestCase):
         self.assertEqual((share, answered), (1.0, 0))
 
 
-@unittest.skipIf(os.name == 'nt', 'the stand-in adb is a shell script')
 class DestroyHeld(unittest.TestCase):
     """destroy_held, probe_focus and probe_pauses: what --density-in-wait
     reads of the device"""
@@ -1643,6 +1642,7 @@ class DestroyHeld(unittest.TestCase):
         self.assertEqual(ac.probe_pauses(lambda *cmd, timeout=180: (0, '')), 0)
 
 
+@unittest.skipIf(os.name == 'nt', 'the stand-in adb is a shell script')
 class DeviceOnceInAProcess(unittest.TestCase):
     """device --font-scale, --density and --relaunch with a stand-in adb
     whose probe process is a file: the engine runs once in a process, so
