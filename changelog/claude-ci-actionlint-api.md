@@ -1,1 +1,0 @@
-- CI checks: actionlint is downloaded with `gh`, through GitHub's API, and from the release's web address only when that fails, its SHA-256 checked either way; on 9 November 2026 the web address answered "504 Gateway Time-out" to the runners on and off for an hour, which failed the job before any check ran (#429)
