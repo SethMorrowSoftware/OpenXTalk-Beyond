@@ -3746,7 +3746,9 @@ function tourIconChooserFails
       tourUnlockScreen "icon-chooser-picker"
       tourWait 500
       put tourCardPixel(tChooser) into tCard
-      put tourPickerShown(tChooser, tPicker) into tShown
+      -- (the card's own pixels are not counted: a dark card can be black
+      -- by the count's measure, as Windows' 32,32,32 is)
+      put tourPickerShown(tChooser, tPicker, tCard) into tShown
       tourRecord "INFO icon-picker chooser: the systemAppearance" && the systemAppearance & \
             ", the IDE's dark" && revIDEAppearanceIsDark() & ", the card" && tCard & \
             ", black and light grey pixels" && tShown
@@ -3802,9 +3804,14 @@ end tourCardPixel
 -- How many pixels of the screen over the widget pWidget of the stack
 -- pStack are black (each of red, green and blue 40 or less) and how many
 -- the dark appearance's light grey of its icons (each within 16 of 219):
--- "black,light"
-function tourPickerShown pStack, pWidget
-   local tStack, tRect, tData, tBlack, tLight, tR, tG, tB, i
+-- "black,light". The widget paints no background of its own, so what is
+-- between its icons is the card: given the card's colour as pCard, a pixel
+-- within 8 of it in each of red, green and blue is the card, and counted
+-- as neither. Windows draws a dark card 32,32,32, itself "black" by the
+-- 40: the chooser's light icons there were 6761 light grey pixels among
+-- 74897 "black" ones, every one of them the card (#435's Windows build)
+function tourPickerShown pStack, pWidget, pCard
+   local tStack, tRect, tData, tBlack, tLight, tR, tG, tB, tCardR, tCardG, tCardB, i
    put the rect of stack pStack into tStack
    put the rect of pWidget into tRect
    export snapshot from rect (item 1 of tStack + item 1 of tRect, item 2 of tStack + item 2 of tRect, \
@@ -3817,11 +3824,22 @@ function tourPickerShown pStack, pWidget
    unlock messages
    put 0 into tBlack
    put 0 into tLight
+   -- (no card given: a card no pixel is near)
+   put -1000 into tCardR
+   put -1000 into tCardG
+   put -1000 into tCardB
+   if the number of items of pCard is 3 then
+      put item 1 of pCard into tCardR
+      put item 2 of pCard into tCardG
+      put item 3 of pCard into tCardB
+   end if
    repeat with i = 0 to (the number of bytes of tData) div 4 - 1
       put byteToNum(byte i * 4 + 2 of tData) into tR
       put byteToNum(byte i * 4 + 3 of tData) into tG
       put byteToNum(byte i * 4 + 4 of tData) into tB
-      if tR <= 40 and tG <= 40 and tB <= 40 then
+      if abs(tR - tCardR) <= 8 and abs(tG - tCardG) <= 8 and abs(tB - tCardB) <= 8 then
+         next repeat
+      else if tR <= 40 and tG <= 40 and tB <= 40 then
          add 1 to tBlack
       else if abs(tR - 219) <= 16 and abs(tG - 219) <= 16 and abs(tB - 219) <= 16 then
          add 1 to tLight

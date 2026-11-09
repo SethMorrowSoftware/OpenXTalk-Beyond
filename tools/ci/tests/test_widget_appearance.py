@@ -357,6 +357,77 @@ class TheIconChooser(unittest.TestCase):
         self.assertIn('is within the rect of control i of card 1 of stack pStack',
                       handler(tour, 'function', 'tourCardPixel'))
 
+    def test_the_card_between_the_icons_is_not_counted(self):
+        # the widget paints no background, so between its icons is the card,
+        # and Windows draws a dark card 32,32,32: "black" by the count's 40.
+        # Its light icons were 6761 light grey pixels among 74897 "black"
+        # ones, every one of them the card, and the step failed there (#435's
+        # Windows build, run 42704404828). The chooser's count is given the
+        # card, and leaves out what is within a few of it
+        tour = read('tools', 'ci', 'ui-tour.livecodescript')
+        check = handler(tour, 'function', 'tourIconChooserFails')
+        self.assertIn('put tourPickerShown(tChooser, tPicker, tCard) into tShown', check)
+        self.assertLess(check.index('put tourCardPixel(tChooser) into tCard'),
+                        check.index('put tourPickerShown(tChooser, tPicker, tCard) into tShown'))
+        # the widget alone, on the tour's own stack, is counted as it was
+        self.assertIn('put tourPickerShown(tName, tPicker) into tShown', handler(tour, 'on', 'tour_icon_picker'))
+        count = handler(tour, 'function', 'tourPickerShown')
+        self.assertTrue(count.startswith('\nfunction tourPickerShown pStack, pWidget, pCard\n'))
+        near = re.search(r'\n      if abs\(tR - tCardR\) <= (\d+) and abs\(tG - tCardG\) <= (\d+) and '
+                         r'abs\(tB - tCardB\) <= (\d+) then\n         next repeat\n'
+                         r'      else if tR <= (\d+) and tG <= (\d+) and tB <= (\d+) then\n         add 1 to tBlack\n'
+                         r'      else if abs\(tR - (\d+)\) <= (\d+) and abs\(tG - (\d+)\) <= (\d+) and '
+                         r'abs\(tB - (\d+)\) <= (\d+) then\n         add 1 to tLight\n', count)
+        self.assertIsNotNone(near, 'the count no longer reads as this test models it')
+        numbers = [int(n) for n in near.groups()]
+        self.assertEqual(len(set(numbers[0:3])), 1)
+        self.assertEqual(len(set(numbers[3:6])), 1)
+        self.assertEqual(len(set(numbers[6::2])), 1)
+        self.assertEqual(len(set(numbers[7::2])), 1)
+        tolerance, black, grey, spread = numbers[0], numbers[3], numbers[6], numbers[7]
+        # with no card given, no pixel is near it
+        nocard = re.search(r'put (-?\d+) into tCardR\n   put (-?\d+) into tCardG\n   put (-?\d+) into tCardB\n'
+                           r'   if the number of items of pCard is 3 then\n', count)
+        self.assertIsNotNone(nocard)
+        for value in nocard.groups():
+            self.assertLess(int(value) + tolerance, 0)
+
+        def shown(pixels, card=None):
+            blacks = lights = 0
+            for colour, many in pixels:
+                if card is not None and all(abs(c - k) <= tolerance for c, k in zip(colour, card)):
+                    continue
+                if all(c <= black for c in colour):
+                    blacks += many
+                elif all(abs(c - grey) <= spread for c in colour):
+                    lights += many
+            return blacks, lights
+
+        def fails_on_a_dark_card(counts):
+            # tourIconChooserFails: item 2 of tShown < 20 or item 1 of tShown > item 2 of tShown
+            return counts[1] < 20 or counts[0] > counts[1]
+
+        windows = (32, 32, 32)
+        light_icons = [(windows, 74897), ((219, 219, 219), 6761)]
+        # as it was counted, the card was black: the failure of the Windows build
+        self.assertEqual(shown(light_icons), (74897, 6761))
+        self.assertTrue(fails_on_a_dark_card(shown(light_icons)))
+        # given the card, light icons on Windows' dark card pass
+        self.assertEqual(shown(light_icons, windows), (0, 6761))
+        self.assertFalse(fails_on_a_dark_card(shown(light_icons, windows)))
+        # and black icons on that card are still black, and still fail
+        black_icons = [(windows, 74897), ((0, 0, 0), 6761)]
+        self.assertEqual(shown(black_icons, windows), (6761, 0))
+        self.assertTrue(fails_on_a_dark_card(shown(black_icons, windows)))
+        # Linux's dark card is not black by the count, and its black icons
+        # (main 2f3775dc: 9783 black, 2 light grey) fail as they did
+        linux = (51, 57, 59)
+        self.assertEqual(shown([(linux, 70000), ((0, 0, 0), 9783), ((219, 219, 219), 2)], linux), (9783, 2))
+        self.assertTrue(fails_on_a_dark_card(shown([(linux, 70000), ((0, 0, 0), 9783), ((219, 219, 219), 2)], linux)))
+        # a card is never mistaken for the icons' black or their light grey
+        self.assertGreater(black - tolerance, 0)
+        self.assertGreater(grey - spread - tolerance, black)
+
 
 if __name__ == '__main__':
     unittest.main()
