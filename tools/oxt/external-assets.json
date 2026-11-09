@@ -1,15 +1,15 @@
 {
   "assets": [
     {
-      "id": "oxt-runtimes-0.2.7-rc.6.19",
-      "url": "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/runtimes-0.2.7-rc.6.19/oxt-runtimes-0.2.7-rc.6.19.zip",
-      "sha256": "93e489b5b745c4e4e3c5425fbf00e60cd256eb6666fb4bcb71ee73f2457ec702",
-      "size": 375994280,
+      "id": "oxt-runtimes-0.2.7",
+      "url": "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/runtimes-0.2.7/oxt-runtimes-0.2.7.zip",
+      "sha256": "f5c8e5a246498968b0991631245654b19e95e59cec7748c5be8ad000127e16cf",
+      "size": 375991233,
       "kind": "zip",
       "strip": 1,
       "dest": "",
       "rename": {
-        "PROVENANCE.md": "PROVENANCE-oxt-runtimes-0.2.7-rc.6.19.md"
+        "PROVENANCE.md": "PROVENANCE-oxt-runtimes-0.2.7.md"
       },
       "exclude": {
         "win-x86_64": [
@@ -29,9 +29,9 @@
         ]
       },
       "exclude_note": "What each package's own build makes: Windows x86-64 its runtime and the timezone library's code for it; Linux x86-64 the same and the zoneinfo data (tz.gyp target tzdata, which the Windows builds do not make); Linux arm64 and macOS the zoneinfo data (their own runtimes are not in this asset).",
-      "description": "Standalone runtimes for the platforms other than the package's own, built from this repository (commit 7f5d3e6c5aeb): Windows x86-32 and x86-64 and Linux x86-32 and x86-64 engines with their externals, the timezone library's code for them and its zoneinfo data; the Android runtime's Java layer (Runtime/Android/Classes), built from the same source; and the rest of the Android runtime with the timezone library's Android code, carried over unchanged from oxt-runtimes-1.15 (OpenXTalk Lite 1.15); and OXT-Beyond's own Android engine (Runtime/Android/Beyond), built from the same source, beside LiveCode Community 9.6.3's, which stays the default. See PROVENANCE.md in the archive.",
+      "description": "Standalone runtimes for the platforms other than the package's own, built from this repository (commit 6e59f8ccffbc): Windows x86-32 and x86-64 and Linux x86-32 and x86-64 engines with their externals, the timezone library's code for them and its zoneinfo data; the Android runtime's Java layer (Runtime/Android/Classes), built from the same source; and the rest of the Android runtime with the timezone library's Android code, carried over unchanged from oxt-runtimes-1.15 (OpenXTalk Lite 1.15); and OXT-Beyond's own Android engine (Runtime/Android/Beyond), built from the same source, beside LiveCode Community 9.6.3's, which stays the default. See PROVENANCE.md in the archive.",
       "licence": "GPL-3.0 with the exception in LICENSE-EXCEPTION.md (OXT-Beyond builds, the Android Java layer among them); GPL-3.0 (the rest of the Android runtime, from LiveCode Community 9.6.3); CEF: BSD-3-Clause with Chromium's licences; IANA tz data: public domain; see PROVENANCE.md",
-      "source": "OXT-Beyond's CI builds win-x86, win-x86_64, linux-x86 and linux-x86_64 of commit 7f5d3e6c5aebf76596b8d1c4a6dbb7ff904cedff, made with tools/oxt/make_runtimes_asset.py --builds; the Android Java layer built from the same commit by tools/ci/android_java.py build; the other Android parts from oxt-runtimes-1.15; the Android engine Runtime/Android/Beyond from an Android engine run (android-engine.yml) of the same commit, its four build folders made one by tools/ci/android_engine.py merge",
+      "source": "OXT-Beyond's CI builds win-x86, win-x86_64, linux-x86 and linux-x86_64 of commit 6e59f8ccffbc85ac33be674964dd14cebb1ddc86, made with tools/oxt/make_runtimes_asset.py --builds; the Android Java layer built from the same commit by tools/ci/android_java.py build; the other Android parts from oxt-runtimes-1.15; the Android engine Runtime/Android/Beyond from an Android engine run (android-engine.yml) of the same commit, its four build folders made one by tools/ci/android_engine.py merge",
       "java_layer": "Runtime/Android/Classes",
       "android_engine": "Runtime/Android/Beyond"
     }
