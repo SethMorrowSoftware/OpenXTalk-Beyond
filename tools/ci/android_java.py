@@ -199,6 +199,10 @@ EDGE_TO_EDGE = {
         'for a stack drawn edge to edge it is the part of the engine view that no system bar, display cutout or '
         'keyboard covers (LiveCodeActivity.edgeToEdgeUncoveredArea), which the effective working screenRect '
         'gives a script; for any other stack the window\'s visible display frame, as before',
+    'code com/runrev/android/Engine.getViewport:()Landroid/graphics/Rect;':
+        'for a stack drawn edge to edge it is the whole of its window, the bars and the cutout included '
+        '(LiveCodeActivity.edgeToEdgeWindowSize), which the screenRect gives a script; for any other stack the '
+        'default display\'s metrics, as before',
 }
 EDGE_TO_EDGE_ON_CREATE = (
     'on Android 11 and newer, an app whose manifest asks for it (the meta-data com.runrev.android.EDGE_TO_EDGE, '

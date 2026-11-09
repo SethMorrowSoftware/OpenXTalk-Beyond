@@ -1429,6 +1429,13 @@ class EdgeRects(unittest.TestCase):
         self.assertEqual(ac.edge_problems(screen, (0, 0, 100, 190), 1.0),
                          ['its effective working screenRect (0,0,100,190) does not leave the status bar out of its '
                           'screenRect (0,0,100,200)'])
+        # what the Android 13 emulator said while the screenRect was still
+        # the default display's metrics, which leave the navigation bar and
+        # the cutout out (Engine.getViewport now gives the whole window)
+        self.assertEqual(ac.edge_problems((0, 0, 393, 778), (0, 49, 393, 827), 1.0),
+                         ['its effective working screenRect (0,49,393,827) is not inside its screenRect '
+                          '(0,0,393,778)'])
+        self.assertEqual(ac.edge_problems((0, 0, 393, 873), (0, 49, 393, 827), 1.0), [])
         for outside in ((0, 10, 101, 190), (-1, 10, 100, 190), (0, 10, 100, 201), (0, 10, 0, 190), (0, 190, 100, 10)):
             self.assertEqual(ac.edge_problems(screen, outside, 1.0),
                              ['its effective working screenRect (%s) is not inside its screenRect (0,0,100,200)'

@@ -1946,8 +1946,11 @@ or a runtime older than this change), and the Java layer then draws the
 stack edge to edge on every Android from 11 (`drawEdgeToEdge`): under the
 see-through status and navigation bars and into the cutout, the bars'
 icons dark in the light appearance and light in the dark, and the
-keyboard still resizing it as before. The part of the screen that the
-bars, the cutout and the keyboard leave it is its
+keyboard still resizing it as before. Its `the screenRect` is the whole
+of its window, the bars and the cutout included (`Engine.getViewport`,
+which for any other stack is still the default display's metrics, which
+leave the navigation bar and the cutout out), and the part of it that the
+bars, the cutout and the keyboard leave is its
 `the effective working screenRect` (`Engine.getEffectiveWorkarea`, which
 for any other stack is still the window's visible display frame).
 Android 10 and older draw it as before. The units (`unitEdgeToEdge`) run
