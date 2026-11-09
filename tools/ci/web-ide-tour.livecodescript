@@ -21,7 +21,7 @@ script "oxtwebidetour"
 -- the File menu, one of each control Object > New Control makes, the
 -- page made narrow, a cascade of the File menu on a page as narrow as a
 -- phone in portrait, File's items with a submenu tapped on a touch
--- screen, the browser switched between light and dark and back (the
+-- screen, the ticks of File > Import Stack's HyperCard options, the browser switched between light and dark and back (the
 -- page follows it: index.html's oxt-appearance), a tooltip in the light
 -- and the dark appearance (its text must stand out from its background),
 -- and the page's
@@ -57,7 +57,7 @@ Screenshots of the web IDE for its CI job (tools/ci/web_ide_tour.py).
 Only CI's copy of the site has it.
 */
 
-constant kSteps = "start,storage-open,keep,kept,sample,inspector,inspector-tabs,inspector-reset-colour,script-editor,message-box,project-browser,browse,dictionary,preferences,file-menu,new-controls,narrow,phone-menu,touch-menu,appearance,tooltip,storage"
+constant kSteps = "start,storage-open,keep,kept,sample,inspector,inspector-tabs,inspector-reset-colour,script-editor,message-box,project-browser,browse,dictionary,preferences,file-menu,new-controls,narrow,phone-menu,touch-menu,import-stack-marks,appearance,tooltip,storage"
 constant kSample = "Web Tour Sample"
 -- Steps that run only when web_ide_tour.py --only names them: keep, on
 -- the released web IDE, saves a stack and a preference in the home
@@ -783,6 +783,135 @@ on tour_touch_menu
       throw "a tap on a menu item with a submenu closed the menu:" && tProblems
    end if
 end tour_touch_menu
+
+-- File > Import Stack's HyperCard options are ticked when they are on
+-- (revMenubar's toggleMenuItem: "!c" for on, "!n" for off), and a tick
+-- must be drawn. The marks are in a submenu of a menu whose top level has
+-- none, and until 0.2.7 the engine made a menu's items check items only
+-- when a line of its top level began with a mark, so the submenu's
+-- ticks were parsed and never drawn: the options looked off whatever
+-- they were set to (seth, the web IDE in Brave on Windows 11). The
+-- submenu is read twice, its four options on and then off: the strip of
+-- it where the ticks go must differ between the two, and the
+-- preferences are put back as they were.
+constant kImportStackPrefs = "cHyperCardFixScripts,cHyperCardMessageOrder,cHyperCardClassicLook,cHyperCardImportSummary"
+
+on tour_import_stack_marks
+   local tPref, tSaved, tOn, tOff, tDiffer, tError
+   repeat for each item tPref in kImportStackPrefs
+      put revIDEGetPreference(tPref) into tSaved[tPref]
+   end repeat
+   try
+      repeat for each item tPref in kImportStackPrefs
+         revIDESetPreference tPref, true
+      end repeat
+      put tourImportStackStrip("15-import-stack-marks") into tOn
+      repeat for each item tPref in kImportStackPrefs
+         revIDESetPreference tPref, false
+      end repeat
+      put tourImportStackStrip("15b-import-stack-no-marks") into tOff
+   catch tError
+   end try
+   repeat for each item tPref in kImportStackPrefs
+      revIDESetPreference tPref, tSaved[tPref]
+   end repeat
+   if tError is not empty then
+      throw tError
+   end if
+   -- a strip of one colour is no menu read (a canvas the page could not
+   -- read gives zeros), and would differ in nothing whatever was drawn
+   if tourStripSpread(tOff) < 64 then
+      throw "the submenu's tick strip was not read: its lumas spread by" && tourStripSpread(tOff)
+   end if
+   put tourStripsDiffer(tOn, tOff) into tDiffer
+   tourRecord "INFO import-stack-marks: the tick strip differs in" && tDiffer && "pixels, options on and off;" && \
+         "its lumas spread by" && tourStripSpread(tOff)
+   -- a tick is a filled polygon of about 30 pixels, and there are four
+   if tDiffer < 40 then
+      throw "File > Import Stack's ticks are not drawn: the submenu's tick strip differs in" && \
+            tDiffer && "pixels between its options on and off"
+   end if
+end tour_import_stack_marks
+
+-- File > Import Stack's submenu, opened with the pointer, as a screenshot
+-- pShot; the result is the luma of each pixel of its left 24 points
+-- (where its ticks go), "<width>,<height>,<strip width>:" and then the
+-- lumas, a space between each
+function tourImportStackStrip pShot
+   local tMenu, tFirst, tRects, tStrip
+   put tourMenuButton("File") into tMenu
+   if tMenu is empty then
+      throw "no File menu in revMenuBar"
+   end if
+   tourAct "click" && item 1 of the globalLoc of the loc of tMenu && item 2 of the globalLoc of the loc of tMenu
+   tourWait 1500
+   put tourMenuRects() into tFirst
+   if tFirst is empty then
+      throw "the File menu did not open"
+   end if
+   -- Import Stack is the menu's fifth item (tour_touch_menu)
+   tourAct "move" && (item 1 of line 1 of tFirst + 40) && (item 2 of line 1 of tFirst + 100)
+   tourAct "move" && (item 1 of line 1 of tFirst + 50) && (item 2 of line 1 of tFirst + 101)
+   tourWait 1500
+   put tourMenuRects() into tRects
+   tourRecord "INFO import-stack-marks: menus" && tourJoin(tRects)
+   tourShot pShot
+   put tourJS("(function () { var w = Array.from(document.querySelectorAll('.oxt-window'))" & \
+         ".filter(function(e) { var r = e.getBoundingClientRect(); return e.oxtLayer === 3 && r.width > 0 && r.height > 0; })" & \
+         ".sort(function(a, b) { return a.getBoundingClientRect().left - b.getBoundingClientRect().left; });" & \
+         " if (w.length < 2) { return ''; }" & \
+         " var c = w[w.length - 1].querySelector('canvas'); if (!c) { return ''; }" & \
+         " var sw = Math.min(c.width, Math.round(c.width * 24 / c.getBoundingClientRect().width));" & \
+         " var d = c.getContext('2d').getImageData(0, 0, sw, c.height).data, o = [];" & \
+         " for (var i = 0; i < d.length; i += 4) { o.push(Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2])); }" & \
+         " return c.width + ',' + c.height + ',' + sw + ':' + o.join(' '); })()") into tStrip
+   tourAct "key Escape"
+   tourWait 500
+   tourAct "key Escape"
+   tourWait 800
+   if the number of lines of tRects < 2 or tStrip is empty then
+      throw "File > Import Stack's submenu did not open:" && tourJoin(tRects)
+   end if
+   return tStrip
+end tourImportStackStrip
+
+-- How far apart the lightest and darkest pixel of a strip of
+-- tourImportStackStrip are in luma (0 to 255): the item's words reach
+-- into it, light on dark or dark on light
+function tourStripSpread pStrip
+   local tLumas, tLuma, tMin, tMax
+   set the itemDelimiter to ":"
+   put item 2 of pStrip into tLumas
+   put 255 into tMin
+   put 0 into tMax
+   repeat for each word tLuma in tLumas
+      put min(tMin, tLuma) into tMin
+      put max(tMax, tLuma) into tMax
+   end repeat
+   return max(0, tMax - tMin)
+end tourStripSpread
+
+-- How many pixels of two strips of tourImportStackStrip differ in luma by
+-- more than a quarter of the way from black to white (0 to 255); strips
+-- of different sizes throw
+function tourStripsDiffer pA, pB
+   local tA, tB, tCount, i
+   set the itemDelimiter to ":"
+   if item 1 of pA is not item 1 of pB then
+      throw "the submenu's size changed between its options on and off:" && item 1 of pA && "and" && item 1 of pB
+   end if
+   put item 2 of pA into tA
+   put item 2 of pB into tB
+   split tA by space
+   split tB by space
+   put 0 into tCount
+   repeat with i = 1 to the number of elements of tA
+      if abs(tA[i] - tB[i]) > 64 then
+         add 1 to tCount
+      end if
+   end repeat
+   return tCount
+end tourStripsDiffer
 
 -- Opens the File menu with a tap; the result is the open menus' rects
 command tourTapFileMenu
