@@ -72,7 +72,8 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --                          and the one password of the store and the key
 --    OXT_ANDROID_DEVICE    the serial of the device for Test (optional)
 --    OXT_ANDROID_WORK      a folder for the units' made-up SDKs
---    OXT_ANDROID_PROBE     "java" for the Java layer's probe (see below)
+--    OXT_ANDROID_PROBE     "java" for the Java layer's probe (see below),
+--                          "busy" for the busy probe (see kBusyTick)
 --    OXT_ANDROID_ENGINE    the probe's "android,engine" setting ("beyond"
 --                          for OXT-Beyond's own engine; none when empty)
 --
@@ -126,6 +127,16 @@ constant kBackColor = "40,90,200"
 -- the activity again then (the engine's doDestroy, which hung there)
 constant kWaitColor = "120,60,160"
 constant kProbeWait = 20
+-- kBusyTick: the busy probe (OXT_ANDROID_PROBE "busy") is the app probe
+-- that, once green, sets the text of its field every kBusyTick
+-- milliseconds, so that the engine is drawing, or has drawn and yielded to
+-- Android's thread to show it (MCScreenDC's updatewindow), much of the
+-- time. Android 16 relaunching an app for a density change in the middle
+-- of that hung LiveCode 9.6.3's engine for good (runs 42558963677 and
+-- 42593463112, the app probe's field redrawing its caret); android_check.py
+-- device --density --density-times makes Android relaunch it again and
+-- again (the Java layer's LiveCodeActivity.onDestroy, Engine.finishDrawing)
+constant kBusyTick = 10
 constant kIdentifier = "org.openxtalk.check.androidprobe"
 -- The Java layer's probe's picture: one pixel, a PNG, as base64
 constant kProbePicture = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
@@ -790,10 +801,14 @@ end unitDebugKeystore
 -- that two builders can be given the same one: two stacks made the same
 -- way differ in a few bytes, and the stack goes into the engine library.
 -- With OXT_ANDROID_PROBE "java" it is the Java layer's probe (see the
--- header), a stack of its own name.
+-- header), and with "busy" the busy probe (see kBusyTick), each a stack
+-- of its own name.
 private function probeName
    if $OXT_ANDROID_PROBE is "java" then
       return "AndroidJavaProbe"
+   end if
+   if $OXT_ANDROID_PROBE is "busy" then
+      return "AndroidBusyProbe"
    end if
    return "AndroidProbe"
 end probeName
@@ -835,8 +850,18 @@ private function probeScript
             "      exit openStack" & return & \
             "   end if" & return after tScript
    end if
-   put "   set the backgroundColor of me to" && quote & kRunColor & quote & return & \
-         "end openStack" after tScript
+   put "   set the backgroundColor of me to" && quote & kRunColor & quote & return after tScript
+   if probeName() is "AndroidBusyProbe" then
+      -- it draws without a pause from the start (see kBusyTick)
+      put "   send" && quote & "probeBusy" & quote && "to me in" && kBusyTick && "milliseconds" & return after tScript
+   end if
+   put "end openStack" after tScript
+   if probeName() is "AndroidBusyProbe" then
+      put return & "on probeBusy" & return & \
+            "   set the text of field" && quote & "Probe" & quote && "to the milliseconds" & return & \
+            "   send" && quote & "probeBusy" & quote && "to me in" && kBusyTick && "milliseconds" & return & \
+            "end probeBusy" after tScript
+   end if
    -- a tap: a script waiting (kWaitColor), then green again
    put return & "on mouseUp" & return & \
          "   set the backgroundColor of me to" && quote & kWaitColor & quote & return & \

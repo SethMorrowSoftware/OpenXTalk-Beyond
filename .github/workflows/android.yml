@@ -334,6 +334,18 @@ jobs:
           "$PY" tools/ci/android_check.py verify --work "$WORK/java-app" --sdk "$SDK" --jdk "$JDK" \
             --builds debug --target 36
 
+      # The busy probe (kBusyTick in tools/ci/android-check.livecodescript):
+      # the app probe drawing all the time it runs, by this builder with the
+      # Java layer built here and the release's engine, LiveCode 9.6.3's,
+      # for the density changes below: Android relaunching it in the middle
+      # of drawing hung that engine for good, before the Java layer let it
+      # finish drawing first (Engine.finishDrawing)
+      - name: The busy probe, with this Java layer
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_check.py ide --install "$JAVA_IDE" --platform "$PLATFORM" \
+            --work "$WORK/java-busy" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug --probe busy
+
       # The same stack, by the same builder, with the release's own Java
       # layer: the "before" of the comparison
       - name: The Java layer's probe, with the release's Java layer
@@ -428,6 +440,15 @@ jobs:
           "$PY" tools/ci/android_check.py device --apk "$WORK/java-app/out/debug.apk" --serial emulator-5554 \
             --sdk "$SDK" --out "$WORK/screen-api33-java-app.png" --log-out "$WORK/logcat-api33-java-app.txt" \
             --within-bars --font-scale --density --relaunch
+
+      # The busy probe through three density changes and their returns:
+      # six relaunches, each while it draws
+      - name: Run the busy probe across density changes on Android 13
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_check.py device --apk "$WORK/java-busy/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-api33-java-busy.png" --log-out "$WORK/logcat-api33-java-busy.txt" \
+            --within-bars --density --density-times 3
 
       # For the record, not a check (no annotations, so the run's account
       # stays the checks'): the same probe with the release's own Java
@@ -541,12 +562,17 @@ jobs:
           # and sends its back key only to the back callback; and its App
           # Bundle, as split APKs. The app probe with this Java layer as on
           # Android 13: once in a process, through a font size change, a
-          # density change, and opened again after its stack quits
+          # density change, and opened again after its stack quits; and the
+          # busy probe through density changes, as on Android 13 (Android 16
+          # is where a relaunch while it drew hung 9.6.3's engine)
           "$PY" tools/ci/android_check.py device --apk "$WORK/changed/out/debug.apk" --serial emulator-5554 \
             --sdk "$SDK" --out "$WORK/screen-16k-debug.png" --log-out "$WORK/logcat-16k-debug.txt" --within-bars
           "$PY" tools/ci/android_check.py device --apk "$WORK/java-app/out/debug.apk" --serial emulator-5554 \
             --sdk "$SDK" --out "$WORK/screen-16k-java-app.png" --log-out "$WORK/logcat-16k-java-app.txt" \
             --within-bars --font-scale --density --relaunch
+          "$PY" tools/ci/android_check.py device --apk "$WORK/java-busy/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-16k-java-busy.png" --log-out "$WORK/logcat-16k-java-busy.txt" \
+            --within-bars --density --density-times 3
           for pkg in debug.apk bundle.aab; do
             "$PY" tools/ci/android_check.py device --apk "$WORK/java-new/out/$pkg" --serial emulator-5554 \
               --sdk "$SDK" --out "$WORK/screen-16k-java-${pkg%.*}.png" --log-out "$WORK/logcat-16k-java-${pkg%.*}.txt" \

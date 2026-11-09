@@ -1634,6 +1634,12 @@ schedules one, and `WRITE_EXTERNAL_STORAGE`, which Android 13 and newer
 refuse without asking and the rebuilt Java layer counts as granted there.
 Once green, its `backKey` turns it blue and does not pass the message, so
 the app stays.
+`ide --probe busy` builds the busy probe (`AndroidBusyProbe`): the app
+probe that, once green, sets the text of its field every 10 milliseconds
+(`kBusyTick`) for as long as it runs, so that the engine is drawing, or
+has drawn and is waiting for Android's thread to show it, much of the
+time. That is when a density change on Android 16 hung LiveCode 9.6.3's
+engine (see [The engine runs once in a process](#the-engine-runs-once-in-a-process)).
 `device` installs a package with adb (an App Bundle as Google Play
 installs it: `bundletool build-apks --connected-device`, signed with a
 key made for it, then `install-apks`, and the app must be installed as
@@ -1677,7 +1683,12 @@ put system font_scale`, put back after) and the app must go on in the
 same process, still green; `--density` sets the screen's density to 85%
 of its own (`wm density`, reset after), which no manifest can list, and
 the app must start again in a new process and turn green there, and
-again, without a crash, once the density is reset; and
+again in a new process, green and without a crash, once the density is
+reset (an app that hung there keeps its process, its screen black, and
+nothing after the last change would ask), and with `--density-times <n>`
+it makes that change and its return n times over, each change after the
+first named in the log and the problems ("density change 2 of 3") and
+keeping its own screen (`-density-2.png`); and
 `--relaunch` presses the back key, which the app probe passes, so its
 stack quits: its process must end within 20 seconds, and the app opened
 again (`am start`) must turn green in a new one. Each fails on a crash or
@@ -1730,7 +1741,9 @@ engine clears the exception without a word in the log, so that probe's
 notification call answers no id and the probe turns its fail colour
 instead of green. The app probe is also built with the rebuilt layer
 (`<work>/java-app`), which has `RelaunchActivity`, and run on both
-emulators with `--font-scale --density --relaunch`; the debug package
+emulators with `--font-scale --density --relaunch`, and the busy probe
+with the rebuilt layer (`<work>/java-busy`) with `--density
+--density-times 3`, six relaunches while it draws; the debug package
 with the release's layer is run with `--font-scale` on the Android 13
 emulator, and with `--density` and with `--relaunch` only for the
 record.
