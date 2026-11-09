@@ -37,11 +37,13 @@ global gTestMessageBoxColourized
 
 local sSingle, sMultiple
 
--- The handlers pNames of the file at pPath (under the IDE's folder), after
--- pStubs, as one script
+-- The handlers pNames of the file pPath, after pStubs, as one script.
+-- (The callers name each file from TestGetIDERepositoryPath() with its path,
+-- which is how tools/ci/web_tests.py finds the files to give the web
+-- engine.)
 private function __Handlers pPath, pNames, pStubs
    local tText, tScript, tName, tKind, tStart, tEnd
-   put textDecode(url ("binfile:" & TestGetIDERepositoryPath() & pPath), "UTF-8") into tText
+   put textDecode(url ("binfile:" & pPath), "UTF-8") into tText
    -- A Windows checkout has CRLF line ends, and the search below goes by
    -- returns
    replace crlf with return in tText
@@ -82,13 +84,13 @@ on TestSetup
    create field "auto complete"
    create field "message"
    put the long id of field "message" into sSingle
-   set the script of sSingle to __Handlers("/Toolset/palettes/message box/behaviors/revmessageboxsinglelinemessagebehavior.livecodescript", kLineHandlers, kLineStubs)
+   set the script of sSingle to __Handlers(TestGetIDERepositoryPath() & "/Toolset/palettes/message box/behaviors/revmessageboxsinglelinemessagebehavior.livecodescript", kLineHandlers, kLineStubs)
    TestAssert "the Single Line handlers compile", the result is empty and "revNextLine" is in the revAvailableHandlers of sSingle
    create card "Multiple Lines"
    create field "script"
    put the long id of field "script" of card "Multiple Lines" of stack kStack into sMultiple
    go card "Single Line" of stack kStack
-   set the script of stack kStack to __Handlers("/Toolset/palettes/message box/behaviors/revmessageboxbehavior.livecodescript", kBoxHandlers, kBoxStubs)
+   set the script of stack kStack to __Handlers(TestGetIDERepositoryPath() & "/Toolset/palettes/message box/behaviors/revmessageboxbehavior.livecodescript", kBoxHandlers, kBoxStubs)
    TestAssert "the Message Box handlers compile", the result is empty and "__RecolorizeMessages" is in the revAvailableHandlers of stack kStack
 end TestSetup
 
