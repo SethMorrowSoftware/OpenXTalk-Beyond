@@ -1127,19 +1127,28 @@ def beside_engine(engine, android, root):
     architecture's engine and externals, and the files beside them (the
     Java layer among them), the release's own runtime left as it is. A
     stack whose "android,engine" is "beyond" is built from it. Every
-    architecture and file must be in ENGINE, and ANDROID must have no
-    BEYOND yet: a runtime short of a file, or two engines' files mixed,
-    would build an app that the check did not mean."""
+    architecture and file must be in ENGINE, or nothing changes: a runtime
+    short of a file would build an app that the check did not mean. A
+    BEYOND folder that ANDROID has already (a release's own, as the
+    runtimes carry it from 0.2.7-rc.6.19 on) is taken away as a whole
+    first, so that the app is built from this checkout's engine and from
+    none of the release's files, never from the two mixed; a BEYOND that
+    is a link or a file, not a folder of its own, is refused."""
     import android_engine as ae
     beyond = os.path.join(android, BEYOND)
+    shown = os.path.relpath(beyond, root).replace(os.sep, '/')
     copies = [os.path.join(abi, x) for abi in sorted(ae.ABIS) for x in (ae.ENGINE,) + ae.EXTERNALS]
     copies += list(ae.TOP_FILES)
     problems = ['%s has no %s' % (engine, rel.replace(os.sep, '/')) for rel in copies
                 if not os.path.isfile(os.path.join(engine, rel))]
-    if os.path.exists(beyond):
-        problems.append('%s is there already' % os.path.relpath(beyond, root).replace(os.sep, '/'))
+    if os.path.islink(beyond) or (os.path.exists(beyond) and not os.path.isdir(beyond)):
+        problems.append('%s is there already, and is not a folder' % shown)
     if problems:
         return problems
+    if os.path.isdir(beyond):
+        count = sum(len(names) for _, _, names in os.walk(beyond))
+        shutil.rmtree(beyond)
+        log('%s: the release\'s (%d files) taken away, for the one built here' % (shown, count))
     for rel in copies:
         os.makedirs(os.path.dirname(os.path.join(beyond, rel)) or beyond, exist_ok=True)
         shutil.copyfile(os.path.join(engine, rel), os.path.join(beyond, rel))
@@ -2830,7 +2839,8 @@ def main(argv=None):
                                        'of the release\'s Runtime/Android')
     what.add_argument('--beyond', help='a runtime folder that tools/ci/build-android.sh wrote, to put beside the '
                                        'release\'s Runtime/Android as Runtime/Android/Beyond, where a stack whose '
-                                       '"android,engine" is "beyond" is built from')
+                                       '"android,engine" is "beyond" is built from (in place of a Beyond folder '
+                                       'the release has)')
     i = sub.add_parser('ide')
     i.add_argument('--bin', dest='bin_dir')
     i.add_argument('--install')

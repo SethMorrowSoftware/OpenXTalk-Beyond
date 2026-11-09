@@ -3472,8 +3472,12 @@ checks the runtime again before the archive takes it.
 `Runtime/Android/Beyond`, where the builder takes it for a stack that asks
 for it: every architecture's engine and externals, and the Java layer and
 the files beside them, the release's own runtime left as it is. It
-changes nothing when the runtime lacks one of them or the release has a
-`Beyond` folder already, so that no package mixes the two engines.
+changes nothing when the runtime lacks one of them. A `Beyond` folder the
+release has already (its own, as the runtimes carry it from
+0.2.7-rc.6.19 on) is taken away as a whole first, so that the probes are
+built from this checkout's engine and none of the release's files, and
+no package mixes the two engines; one that is a link or a file is
+refused.
 (`--engine` instead puts them over the release's own, each over its file
 of that name.) The builder there builds the app probe and the Java
 layer's probe (debug, for all four architectures) as stacks whose

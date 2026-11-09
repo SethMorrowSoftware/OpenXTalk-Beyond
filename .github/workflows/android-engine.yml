@@ -284,7 +284,9 @@ jobs:
   # latest release's IDE with the four architectures' runtime beside the
   # release's, where the runtimes carry it (overlay --beyond:
   # Runtime/Android/Beyond, with the engine, the externals, the Java layer
-  # built with them and the files beside them), builds the app probe and
+  # built with them and the files beside them, in place of the release's
+  # own Beyond folder, which its runtimes carry from 0.2.7-rc.6.19 on),
+  # builds the app probe and
   # the Java layer's probe as the IDE's Test does (debug, for every
   # architecture), each a stack that asks for that engine (ide
   # --android-engine beyond: the "android,engine" setting); verify --engine
