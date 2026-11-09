@@ -1717,6 +1717,11 @@ class DeviceOnceInAProcess(unittest.TestCase):
            'com.runrev.android.Engine.onConfigurationChanged(android.content.res.Configuration)\' on a null object '
            'reference\n')
 
+    # what the Java layer says when it let the engine finish what it drew
+    # as the activity went (Engine.finishDrawing), its process as %s
+    FINISHED = ('I/revandroid.Engine( %s): finishDrawing: the engine finished what it drew before the activity '
+                'went (1 wake-up(s))')
+
     # the probe's window has the focus
     FOCUSED = ('printf "  mCurrentFocus=Window{8530cf u0 org.openxtalk.check.androidprobe/'
                'org.openxtalk.check.androidprobe.mblandroid}\\n"')
@@ -1728,10 +1733,12 @@ class DeviceOnceInAProcess(unittest.TestCase):
         (same: goes on in its process; crash: the second start stopped,
         and no process), a density change (new: started again in a new
         process, green, and again for the reset; crash; hang: its process
-        stays, the screen as it was; old-crash: as new, and the process
-        before it crashes in Java), the density's reset (new: started again
-        in a new process; crash: as new, and the process before it crashes
-        in Java), the back key (ends: its process ends;
+        stays, the screen as it was; hang-2: as new the first time, and as
+        hang after that; old-crash: as new, and the process before it
+        crashes in Java; finished: as new, and the process before it says
+        that the engine finished what it drew first), the density's reset (new: started again in a new
+        process; crash: as new, and the process before it crashes in Java;
+        hang: its process stays), the back key (ends: its process ends;
         stays), the second am start (new: a new process where none is left;
         crash: none) and a tap at the 4 x 4 screen's middle (waits: the
         screen turns the wait colour, as the probe's mouseUp turns it;
@@ -1776,11 +1783,17 @@ class DeviceOnceInAProcess(unittest.TestCase):
             '  "shell input keyevent KEYCODE_BACK") %(back)s ;;\n'
             '  "shell input tap 2 2") %(tap)s ;;\n'
             % {'d': d, 'before': font_before, 'scale': ac.FONT_SCALE,
-               'reset': {'new': new(4100), 'crash': '{ ' + npe + new(4100) + '; }'}[reset],
+               'reset': {'new': new(4100), 'crash': '{ ' + npe + new(4100) + '; }', 'hang': 'true'}[reset],
                'font': {'same': 'true', 'crash': crash}[font],
                'density': {'new': new(4000) + '; cp "%(d)s/green.raw" "%(d)s/screen.raw"' % {'d': d},
                            'old-crash': npe + new(4000) + '; cp "%(d)s/green.raw" "%(d)s/screen.raw"' % {'d': d},
-                           'crash': crash, 'hang': 'true'}[density],
+                           'crash': crash, 'hang': 'true',
+                           'finished': 'p=$(cat "%(d)s/pid"); printf "%(line)s\\n" $p >> "%(d)s/logcat.txt"; '
+                                       '%(new)s; cp "%(d)s/green.raw" "%(d)s/screen.raw"'
+                                       % {'d': d, 'new': new(4000), 'line': self.FINISHED},
+                           'hang-2': 'if [ $(grep -c "^shell wm density 357" "%(d)s/platform-tools/calls") -ge 2 ]; '
+                                     'then true; else %(new)s; cp "%(d)s/green.raw" "%(d)s/screen.raw"; fi'
+                                     % {'d': d, 'new': new(4000)}}[density],
                'back': {'ends': ': > "%s/pid"' % d, 'stays': 'true'}[back],
                'tap': {'waits': 'cp "%(d)s/wait.raw" "%(d)s/screen.raw"' % {'d': d}, 'nothing': 'true',
                        'paused': 'if [ $(%(n)s) -le 1 ]; then %(pause)s; else cp "%(d)s/wait.raw" "%(d)s/screen.raw"; '
@@ -1931,6 +1944,95 @@ class DeviceOnceInAProcess(unittest.TestCase):
         self.assertEqual(status, 0, out)
         self.assertIn("Back at the screen's own density: 100% of the screen is the probe's green; process 4100 "
                       "(before it: 4000)", out)
+
+    def test_the_engine_finished_drawing_first(self):
+        # the Java layer let the engine finish what it drew as the activity
+        # went (where 9.6.3's engine hung): said for the change it was in,
+        # and not for the return, whose process said nothing of it
+        status, out, _ = self.run_probe(['--density'], density='finished', cleared=True)
+        self.assertEqual(status, 0, out)
+        self.assertIn("After a density change (357, from 420): 100% of the screen is the probe's green; process "
+                      "4000 (before it: 3475)", out)
+        self.assertIn('  The engine finished what it drew first: %s\n' % (self.FINISHED % '3475'), out)
+        self.assertEqual(out.count('The engine finished what it drew first'), 1)
+        # nothing said when it did not
+        status, out, _ = self.run_probe(['--density'], cleared=True)
+        self.assertEqual(status, 0, out)
+        self.assertNotIn('finished what it drew', out)
+
+    def test_drawing_finished_is_the_processs_own(self):
+        logcat = '\n'.join([self.FINISHED % '3475', self.FINISHED % '4000',
+                            'I/revandroid( 3475): finishDrawing is not this line\'s tag', 'garbage'])
+        a = lambda *args, **kw: (0, logcat)
+        self.assertEqual(ac.drawing_finished(a, '3475'), [self.FINISHED % '3475'])
+        self.assertEqual(ac.drawing_finished(a, '5000'), [])
+
+    def test_hung_at_the_return_to_the_screens_own_density(self):
+        # the return makes the activity again too: an app that hung there
+        # (LiveCode 9.6.3's engine destroyed while it drew, runs
+        # 42558963677 and 42593463112) keeps its process, and the check
+        # did not look
+        status, out, calls = self.run_probe(['--density'], reset='hang', cleared=True)
+        self.assertEqual(status, 1, out)
+        self.assertIn("After a density change (357, from 420): 100% of the screen is the probe's green; process "
+                      "4000 (before it: 3475)", out)
+        self.assertIn("PROBLEM: at the return to the screen's own density after the density change the app did not "
+                      "start again in a new process (4000 before it, 4000 after)", out)
+        self.assertEqual(calls[1:], ['shell wm density', 'shell wm density 357', 'shell wm density reset'])
+
+    def test_started_again_for_density_changes(self):
+        # --density-times 3: the change and the return three times over,
+        # the app in a new process each time, each change's screen kept
+        status, out, calls = self.run_probe(['--density', '--density-times', '3'], cleared=True)
+        self.assertEqual(status, 0, out)
+        self.assertEqual(calls[1:], ['shell wm density', 'shell wm density 357', 'shell wm density reset'] * 3)
+        self.assertIn("After a density change (357, from 420): 100% of the screen is the probe's green; process "
+                      "4000 (before it: 3475)", out)
+        for n in (2, 3):
+            self.assertIn("After a density change %d of 3 (357, from 420): 100%% of the screen is the probe's green; "
+                          "process 4000 (before it: 4100)" % n, out)
+            self.assertTrue(self.png('density-%d' % n))
+        self.assertTrue(self.png('density'))
+        self.assertEqual(out.count("Back at the screen's own density: 100% of the screen is the probe's green; "
+                                   "process 4100 (before it: 4000)"), 3)
+
+    def test_hung_at_the_second_density_change(self):
+        # the first problem ends them, and the density is put back
+        status, out, calls = self.run_probe(['--density', '--density-times', '3'], density='hang-2', cleared=True)
+        self.assertEqual(status, 1, out)
+        self.assertIn('PROBLEM: after a density change 2 of 3 the app did not start again in a new process (4100 '
+                      'before it, 4100 after)', out)
+        self.assertEqual(calls[1:], ['shell wm density', 'shell wm density 357', 'shell wm density reset'] * 2)
+        self.assertNotIn('3 of 3', out)
+
+    def test_density_times_alone_or_none(self):
+        # a count from 1 up, and only with --density: refused before the
+        # device is asked anything
+        for argv in (['--density-times', '3'], ['--density', '--density-times', '0']):
+            with contextlib.redirect_stderr(io.StringIO()) as err:
+                with self.assertRaises(SystemExit):
+                    ac.main(['device', '--apk', 'x.apk', '--serial', 'emulator-5554', '--sdk', self.tmp.name]
+                            + argv)
+            self.assertIn('--density-times takes a count from 1 up, and --density with it', err.getvalue())
+        self.assertFalse(os.path.exists(os.path.join(self.tmp.name, 'platform-tools', 'calls')))
+
+    def test_not_running_before_a_later_density_change(self):
+        # each change after the first asks for the app's process again: one
+        # that is gone by then is a problem, and no change is made
+        made = []
+        args = argparse.Namespace(density_times=3)
+
+        def once(args_, adb, a, pid, names, what='density change', suffix='density'):
+            made.append((pid, what, suffix))
+            return []
+        saved = ac.starts_again_for_density, ac.pid_now
+        ac.starts_again_for_density, ac.pid_now = once, lambda a: '' if len(made) == 2 else '4100'
+        try:
+            got = ac.starts_again_for_densities(args, 'adb', None, '3475', {'3475'})
+        finally:
+            ac.starts_again_for_density, ac.pid_now = saved
+        self.assertEqual(got, ['the app is not running before density change 3 of 3'])
+        self.assertEqual(made, [('3475', 'density change', 'density'), ('4100', 'density change 2 of 3', 'density-2')])
 
     def test_started_again_for_a_density_change_while_its_script_waits(self):
         # the probe's mouseUp turns its wait colour and waits; the density
@@ -4548,17 +4650,87 @@ class OneSystem(unittest.TestCase):
         # the stack ide --probe names is the one the script makes: its file
         # is the stack's name, and OXT_ANDROID_PROBE picks it
         script = read('tools', 'ci', 'android-check.livecodescript')
-        self.assertEqual(ac.PROBES, {'app': 'AndroidProbe.livecode', 'java': 'AndroidJavaProbe.livecode'})
+        self.assertEqual(ac.PROBES, {'app': 'AndroidProbe.livecode', 'java': 'AndroidJavaProbe.livecode',
+                                     'busy': 'AndroidBusyProbe.livecode'})
         name = re.search(r'(?s)private function probeName\n(.*?)\nend probeName', script).group(1)
         self.assertIn('if $OXT_ANDROID_PROBE is "java" then\n      return "AndroidJavaProbe"', name)
+        self.assertIn('if $OXT_ANDROID_PROBE is "busy" then\n      return "AndroidBusyProbe"', name)
         self.assertIn('return "AndroidProbe"', name)
-        self.assertIn("OXT_ANDROID_PROBE='java' if args.probe == 'java' else ''", read('tools', 'ci', 'android_check.py'))
+        # the app probe is the one that names none
+        self.assertIn("OXT_ANDROID_PROBE='' if args.probe == 'app' else args.probe,", read('tools', 'ci', 'android_check.py'))
         # the stack's name is said once, there: every use goes through it,
-        # bar the three that ask probeName() which probe this is (its
-        # openStack, its backKey, and its build's permissions)
+        # bar those that ask probeName() which probe this is (the Java
+        # layer's probe: its openStack, its backKey, and its build's
+        # permissions; the busy probe: its openStack's first send, and its
+        # probeBusy)
         self.assertEqual(script.count('"AndroidProbe"'), 1)
         self.assertEqual(script.count('"AndroidJavaProbe"'), 4)
         self.assertEqual(script.count('if probeName() is "AndroidJavaProbe" then'), 3)
+        self.assertEqual(script.count('"AndroidBusyProbe"'), 3)
+        self.assertEqual(script.count('if probeName() is "AndroidBusyProbe" then'), 2)
+        with tempfile.TemporaryDirectory() as work:
+            for name in ('Busy', 'AndroidBusyProbe', ''):
+                with contextlib.redirect_stderr(io.StringIO()):
+                    with self.assertRaises(SystemExit):
+                        ac.main(['ide', '--work', work, '--probe', name])
+            self.assertEqual(os.listdir(work), [])
+
+    def test_busy_probe(self):
+        # the busy probe is the app probe that, once green, every kBusyTick
+        # milliseconds turns its background the other of two greens and
+        # sets the text of its field, for as long as it runs: so the engine
+        # redraws the whole screen, and yields to Android's thread to show
+        # what it drew, much of the time, which is when Android 16
+        # relaunching it for a density change hung 9.6.3's engine
+        # (Engine.finishDrawing)
+        script = read('tools', 'ci', 'android-check.livecodescript')
+        self.assertIn('constant kBusyTick = 10\n', script)
+        # its second green is the probe's green to the device check, and no
+        # other colour's
+        busy = tuple(int(x) for x in re.search(r'(?m)^constant kBusyColor = "(\d+),(\d+),(\d+)"$', script).groups())
+        self.assertNotEqual(busy, ac.RUN_COLOR)
+        self.assertEqual(ac.colour_share(bytes(list(busy) + [255]), ac.RUN_COLOR, step=1), 1.0)
+        for other in (ac.SAVED_COLOR, ac.FAIL_COLOR, ac.BACK_COLOR, ac.WAIT_COLOR):
+            self.assertEqual(ac.colour_share(bytes(list(busy) + [255]), other, step=1), 0.0, other)
+        self.assertIn('--    OXT_ANDROID_PROBE     "java" for the Java layer\'s probe (see below),\n'
+                      '--                          "busy" for the busy probe (see kBusyTick)\n', script)
+        body = re.search(r'(?s)private function probeScript\n(.*?)\nend probeScript', script).group(1)
+        # its openStack turns green first, as the app probe's does, and then
+        # sends the first tick
+        self.assertIn('   put "   set the backgroundColor of me to" && quote & kRunColor & quote & return after '
+                      'tScript\n'
+                      '   if probeName() is "AndroidBusyProbe" then\n'
+                      '      -- it draws without a pause from the start (see kBusyTick)\n'
+                      '      put "   send" && quote & "probeBusy" & quote && "to me in" && kBusyTick && '
+                      '"milliseconds" & return after tScript\n'
+                      '   end if\n'
+                      '   put "end openStack" after tScript\n', body)
+        # each tick turns the other green, sets the field's text and sends
+        # the next
+        self.assertIn('   if probeName() is "AndroidBusyProbe" then\n'
+                      '      put return & "local sBusy" & return & "on probeBusy" & return & \\\n'
+                      '            "   add 1 to sBusy" & return & \\\n'
+                      '            "   if sBusy mod 2 is 1 then" & return & \\\n'
+                      '            "      set the backgroundColor of me to" && quote & kBusyColor & quote & return & '
+                      '\\\n'
+                      '            "   else" & return & \\\n'
+                      '            "      set the backgroundColor of me to" && quote & kRunColor & quote & return & '
+                      '\\\n'
+                      '            "   end if" & return & \\\n'
+                      '            "   set the text of field" && quote & "Probe" & quote && "to the milliseconds" & '
+                      'return & \\\n'
+                      '            "   send" && quote & "probeBusy" & quote && "to me in" && kBusyTick && '
+                      '"milliseconds" & return & \\\n'
+                      '            "end probeBusy" after tScript\n'
+                      '   end if\n', body)
+        # the field it sets is the probe's own
+        self.assertIn('   create field "Probe"\n', script)
+        # in code, each constant and its uses (kBusyTick: the first send,
+        # the next; kBusyColor: the tick's)
+        for name, count in (('kBusyTick', 3), ('kBusyColor', 2)):
+            uses = [x.strip() for x in script.splitlines() if name in x and not x.lstrip().startswith('--')]
+            self.assertEqual(len(uses), count, uses)
+            self.assertTrue(uses[0].startswith('constant %s = ' % name), uses)
 
     def test_android_engine(self):
         # ide --android-engine beyond builds the probe as a stack whose
@@ -4643,12 +4815,14 @@ class OneSystem(unittest.TestCase):
         self.assertTrue(uses[0].startswith('constant kBackColor = '), uses)
 
     def test_probe_mouse_up(self):
-        # both probes, after openStack: a tap turns the stack its wait
-        # colour, waits kProbeWait seconds with messages and turns it green
-        # again (device --density-in-wait changes the density meanwhile)
+        # every probe, after openStack (and the busy probe's probeBusy): a
+        # tap turns the stack its wait colour, waits kProbeWait seconds with
+        # messages and turns it green again (device --density-in-wait
+        # changes the density meanwhile)
         script = read('tools', 'ci', 'android-check.livecodescript')
         body = re.search(r'(?s)private function probeScript\n(.*?)\nend probeScript', script).group(1)
         tail = body.split('"end openStack" after tScript')[1]
+        tail = tail.split('"end probeBusy" after tScript\n   end if')[1]
         self.assertTrue(tail.startswith(
             '\n   -- a tap: a script waiting (kWaitColor), then green again\n'
             '   put return & "on mouseUp" & return & \\\n'
@@ -4836,13 +5010,15 @@ class OneSystem(unittest.TestCase):
 
     def test_back_and_bars_runs(self):
         # every run of this checkout's Java layer's probe (which targets 36)
-        # presses the back key and checks the bars; the app probe with that
-        # layer and the builder's other packages (which target 33) check
-        # the bars alone; the release's Java layer, only recorded, neither
+        # presses the back key and checks the bars; the app probe and the
+        # busy probe with that layer and the builder's other packages
+        # (which target 33) check the bars alone; the release's Java layer,
+        # only recorded, neither
         workflow = read('.github', 'workflows', 'android.yml')
         runs = self.device_runs(workflow)
         self.assertEqual(sum(work == 'java-new' for _, work, _, _ in runs), 2, runs)
         self.assertEqual(sum(work == 'java-app' for _, work, _, _ in runs), 2, runs)
+        self.assertEqual(sum(work == 'java-busy' for _, work, _, _ in runs), 2, runs)
         recorded = [cmd for name, work, _, cmd in runs if name.startswith("The release's Java layer")]
         self.assertEqual(len(recorded), 1, runs)
         self.assertEqual(sum(work == 'changed' for _, work, _, _ in runs), 3, runs)
@@ -4868,8 +5044,17 @@ class OneSystem(unittest.TestCase):
         # probe): the Java layer's probe handles backKey and goes on
         for name, work, pkgs, cmd in runs:
             if '--relaunch' in cmd or '--density' in cmd:
-                self.assertIn(work, ('java-app', 'changed'), cmd)
+                self.assertIn(work, ('java-app', 'java-busy', 'changed'), cmd)
                 self.assertEqual(pkgs, ['debug.apk'], cmd)
+            self.assertEqual('--density-times' in cmd, work == 'java-busy', cmd)
+        # the busy probe with this Java layer through five density changes
+        # and their returns, on both emulators (Android 16 is where a
+        # relaunch while it drew hung 9.6.3's engine), nothing else asked
+        busy = [(name, cmd) for name, work, _, cmd in runs if work == 'java-busy']
+        self.assertEqual([name for name, _ in busy], ['Run the busy probe across density changes on Android 13',
+                                                      'Run the package with 16 KB pages'])
+        for _, cmd in busy:
+            self.assertTrue(cmd.endswith('--within-bars --density --density-times 5'), cmd)
         font = [(name, pkgs, cmd) for name, work, pkgs, cmd in runs if work == 'changed' and '--font-scale' in cmd]
         self.assertEqual(len(font), 1, runs)
         self.assertEqual(font[0][0], 'Run the packages on Android 13')
@@ -4897,6 +5082,16 @@ class OneSystem(unittest.TestCase):
         self.assertEqual(built, ['android_check.py ide --install "$JAVA_IDE" --platform "$PLATFORM" '
                                  '--work "$WORK/java-app" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug '
                                  '--stack "$WORK/changed/AndroidProbe.livecode"'])
+        # the busy probe: by the same builder with the same Java layer, its
+        # own stack (--probe busy), on Linux, where the emulators run
+        built = [x for x in ides if '--work "$WORK/java-busy"' in x]
+        self.assertEqual(built, ['android_check.py ide --install "$JAVA_IDE" --platform "$PLATFORM" '
+                                 '--work "$WORK/java-busy" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug '
+                                 '--probe busy'])
+        step = re.search(r"(?s)- name: The busy probe, with this Java layer\n(.*?)\n      - name:", workflow).group(1)
+        self.assertIn("if: runner.os == 'Linux'", step)
+        self.assertLess(workflow.index('- name: The busy probe, with this Java layer'),
+                        workflow.index('- name: Run the busy probe across density changes on Android 13'))
 
     def test_java_probe_verified_at_the_newest_target(self):
         # the Java layer's probe and the app probe are built with a Java
