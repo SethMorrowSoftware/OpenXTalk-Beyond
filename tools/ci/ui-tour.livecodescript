@@ -6906,10 +6906,11 @@ on tour_standalone_settings
          get tourInclusionOrder(tStack)
          if it is not empty then put it & return after tFails
       end if
-      -- the Android card's App Bundle box: where it is, what it shows and
-      -- what a click on it stores
+      -- the Android card's App Bundle and engine boxes: where each is,
+      -- what it shows and what a click on it stores
       if tCard is "Android" then
          put tourAndroidAppBundle(tStack) after tFails
+         put tourAndroidEngine(tStack) after tFails
       end if
       -- the Web card makes its page's settings when it first opens: the
       -- HTML5 option and those settings are there
@@ -6988,7 +6989,7 @@ on tour_standalone_settings
    tourRecord "INFO standalone settings: Mac targets (x86-32, x86-64, ARM64) after the cards:" && tMacNow
    tourSetMacTargets tMacWas
    if "Android" is not among the lines of tCards then
-      throw "the Android card is not shown, so its App Bundle box was not checked"
+      throw "the Android card is not shown, so its App Bundle and engine boxes were not checked"
    end if
    if the platform is not "MacOS" then
       if "OS X" is not among the lines of tCards then
@@ -7078,6 +7079,149 @@ private function tourAndroidAppBundle pStack
    dispatch "updateSettings" to tCard
    return tFails
 end tourAndroidAppBundle
+
+-- The Android card's "OXT-Beyond engine (preview)" box ("Beyond Engine",
+-- tools/oxt/ide-stack-patches/android-card-engine-*.txt), with which the
+-- Android builder takes OXT-Beyond's own engine instead of LiveCode
+-- 9.6.3's: in the build targets' group, as "App Bundle" is, but in the
+-- right-hand column's free row, under the device table and above
+-- "Application Permissions", lined up with "NFC Tag Reading" and inside
+-- the window; enabled exactly when the card's settings are; ticked
+-- exactly when the stack's "android,engine" setting is beyond, so not for
+-- a stack without it or with 9.6.3; a click on it, as the box's group gets
+-- one, stores beyond or empty, and nothing else. The targets group grew
+-- down to hold it, over the card's left-hand column and the device table:
+-- the check boxes, radio buttons and menus of the Android settings it
+-- covers still get their clicks (controlAtLoc names each at its middle,
+-- with the settings and the box enabled for the look, as for a stack built
+-- for Android: a disabled control takes no click, so a disabled box over
+-- one would not show). The sample's settings, and the enabled state of the
+-- settings and of the box, are put back as they were. Empty, or what is
+-- not so
+private function tourAndroidEngine pStack
+   local tCard, tBox, tTargets, tSettings, tWas, tArch, tFails, tDefault, tEnabledWas
+   local tLowest, tRow, tPermissions, tNfc, tHit, tCovered, tBoxEnabledWas
+   put the long id of card "Android" of stack pStack into tCard
+   if there is not a group "Android Targets" of tCard then
+      return "the Android card has no build targets' row" & return
+   end if
+   put the long id of group "Android Targets" of tCard into tTargets
+   if there is not a button "Beyond Engine" of tTargets then
+      return "the Android card has no OXT-Beyond engine box" & return
+   end if
+   put the long id of button "Beyond Engine" of tTargets into tBox
+   put the long id of group "Android Settings" of tCard into tSettings
+   put 0 into tCovered
+   tourRecord "INFO standalone settings: the OXT-Beyond engine box" && the rect of tBox && "enabled" && \
+         the enabled of tBox && "ticked" && the hilited of tBox && "label" && the label of tBox && "needs" && \
+         the formattedWidth of tBox
+   if the style of tBox is not "checkbox" or not the visible of tBox or the label of tBox is not "OXT-Beyond engine (preview)" then
+      put "the OXT-Beyond engine box is not a check box labelled OXT-Beyond engine (preview) that shows:" && \
+            the style of tBox && the visible of tBox && the label of tBox & return after tFails
+   end if
+   -- under the device table's last row, above the permissions' title and
+   -- in line with their boxes
+   put 0 into tLowest
+   repeat with tRow = 1 to the number of groups of group "Device Capabilities" of tSettings
+      if the visible of group tRow of group "Device Capabilities" of tSettings then
+         put max(tLowest, item 4 of the rect of group tRow of group "Device Capabilities" of tSettings) into tLowest
+      end if
+   end repeat
+   put the long id of group "Application Permissions" of tSettings into tPermissions
+   put the long id of button "NFC Tag Reading" of tPermissions into tNfc
+   if item 2 of the rect of tBox < tLowest or item 1 of the rect of tBox is not item 1 of the rect of tNfc then
+      put "the OXT-Beyond engine box is not under the device table (its last row ends at" && tLowest & \
+            ") in line with NFC Tag Reading (" & the rect of tNfc & "):" && the rect of tBox & return after tFails
+   end if
+   repeat with tRow = 1 to the number of fields of tPermissions
+      if the visible of field tRow of tPermissions and item 4 of the rect of tBox > item 2 of the rect of field tRow of tPermissions then
+         put "the OXT-Beyond engine box reaches into the permissions' title" && the short name of field tRow of tPermissions && \
+               "(" & the rect of field tRow of tPermissions & "):" && the rect of tBox & return after tFails
+      end if
+   end repeat
+   if item 3 of the rect of tBox > the width of stack pStack then
+      put "the OXT-Beyond engine box ends past the window:" && the rect of tBox && "in a window" && \
+            the width of stack pStack && "wide" & return after tFails
+   end if
+   if the enabled of tBox is not the enabled of tSettings then
+      put "the OXT-Beyond engine box is" && tourEnabledWord(the enabled of tBox) && "while the Android settings are" && \
+            tourEnabledWord(the enabled of tSettings) & return after tFails
+   end if
+   -- what the targets group covers still gets its clicks
+   put the defaultStack into tDefault
+   set the defaultStack to pStack
+   put the enabled of tSettings into tEnabledWas
+   put the enabled of tBox into tBoxEnabledWas
+   set the enabled of tSettings to true
+   set the enabled of tBox to true
+   repeat with tRow = 1 to the number of buttons of tSettings
+      if not tourControlShown(the long id of button tRow of tSettings) then next repeat
+      if the style of button tRow of tSettings is not among the items of "checkbox,radioButton,menu" then next repeat
+      if not (the loc of button tRow of tSettings is within the rect of tTargets) then next repeat
+      add 1 to tCovered
+      put controlAtLoc(the loc of button tRow of tSettings) into tHit
+      if word 1 of tHit is not "control" or the long id of control (word 2 of tHit) of this card is not the long id of button tRow of tSettings then
+         if word 1 of tHit is "control" then put the name of control (word 2 of tHit) of this card into tHit
+         put "the targets group, grown to hold the OXT-Beyond engine box, takes the clicks of" && \
+               the short name of button tRow of tSettings && "(at" && the loc of button tRow of tSettings & \
+               "), which go to" && quote & tHit & quote & return after tFails
+      end if
+   end repeat
+   set the enabled of tBox to tBoxEnabledWas
+   set the enabled of tSettings to tEnabledWas
+   set the defaultStack to tDefault
+   tourRecord "INFO standalone settings: the targets group covers" && tCovered && \
+         "check boxes, radio buttons and menus of the Android settings, each looked at for its clicks"
+   if tCovered < 2 then
+      put "the targets group covers" && tCovered && \
+            "check boxes, radio buttons and menus of the Android settings: the check of their clicks did not run" & return after tFails
+   end if
+   put the customProperties["cRevStandaloneSettings"] of stack kSample into tWas
+   if (the hilited of tBox) is not (tWas["android,engine"] is "beyond") then
+      put "the OXT-Beyond engine box is" && the hilited of tBox && "for a stack whose setting is" && \
+            quote & tWas["android,engine"] & quote & return after tFails
+   end if
+   -- the card shows the setting
+   set the cRevStandaloneSettings["android,engine"] of stack kSample to "beyond"
+   dispatch "updateSettings" to tCard
+   if not the hilited of tBox then put "the OXT-Beyond engine box is not ticked for a stack whose setting is beyond" & return after tFails
+   set the cRevStandaloneSettings["android,engine"] of stack kSample to "9.6.3"
+   dispatch "updateSettings" to tCard
+   if the hilited of tBox then put "the OXT-Beyond engine box is ticked for a stack whose setting is 9.6.3" & return after tFails
+   set the cRevStandaloneSettings["android,engine"] of stack kSample to empty
+   dispatch "updateSettings" to tCard
+   if the hilited of tBox then put "the OXT-Beyond engine box is ticked for a stack without the setting" & return after tFails
+   -- a click stores it (sent, since a disabled box gets no click: the
+   -- sample is not built for Android)
+   set the hilited of tBox to true
+   dispatch "mouseUp" to tBox with 1
+   if the cRevStandaloneSettings["android,engine"] of stack kSample is not "beyond" then
+      put "ticking the OXT-Beyond engine box stored" && quote & \
+            the cRevStandaloneSettings["android,engine"] of stack kSample & quote & return after tFails
+   end if
+   set the hilited of tBox to false
+   dispatch "mouseUp" to tBox with 1
+   if the cRevStandaloneSettings["android,engine"] of stack kSample is not empty then
+      put "unticking the OXT-Beyond engine box stored" && quote & \
+            the cRevStandaloneSettings["android,engine"] of stack kSample & quote & return after tFails
+   end if
+   -- and no architecture, nor the App Bundle: those are the stack's as before
+   repeat for each item tArch in "armv7,arm64,x86,x86_64"
+      if the cRevStandaloneSettings["Android," & tArch] of stack kSample is not tWas["Android," & tArch] then
+         put "a click on the OXT-Beyond engine box changed the Android" && tArch && "target from" && \
+               quote & tWas["Android," & tArch] & quote && "to" && \
+               quote & the cRevStandaloneSettings["Android," & tArch] of stack kSample & quote & return after tFails
+      end if
+   end repeat
+   if the cRevStandaloneSettings["android,app bundle"] of stack kSample is not tWas["android,app bundle"] then
+      put "a click on the OXT-Beyond engine box changed the App Bundle setting from" && \
+            quote & tWas["android,app bundle"] & quote && "to" && \
+            quote & the cRevStandaloneSettings["android,app bundle"] of stack kSample & quote & return after tFails
+   end if
+   set the customProperties["cRevStandaloneSettings"] of stack kSample to tWas
+   dispatch "updateSettings" to tCard
+   return tFails
+end tourAndroidEngine
 
 -- "enabled" or "disabled"
 private function tourEnabledWord pEnabled

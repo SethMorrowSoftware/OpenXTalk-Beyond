@@ -115,6 +115,16 @@ on updateSettings
             (tSettings["android,app bundle"] is true)
    end if
    
+   -- OXT-Beyond: the "OXT-Beyond engine (preview)" box ("Beyond Engine",
+   -- tools/oxt/ide-stack-patches/android-card-engine-1.txt): the
+   -- "android,engine" setting, with which the Android builder takes
+   -- OXT-Beyond's own engine (beyond) instead of LiveCode 9.6.3's (empty or
+   -- 9.6.3, the default). The box is ticked only for beyond.
+   if there is a button "Beyond Engine" of group "Android targets" of me then
+      set the hilited of button "Beyond Engine" of group "Android targets" of me to \
+            (tSettings["android,engine"] is "beyond")
+   end if
+   
    -- OXT-Beyond: the Android card of this IDE has no such button (and its
    -- Android build no such setting): setting it stopped the card's update
    -- with an error
@@ -160,6 +170,10 @@ on updateAndroidSettingState
    -- the settings below are: it can be ticked once an architecture is
    if there is a button "App Bundle" of group "Android targets" of me then
       set the enabled of button "App Bundle" of group "Android targets" of me to tEnabled
+   end if
+   -- and so is the engine the build takes
+   if there is a button "Beyond Engine" of group "Android targets" of me then
+      set the enabled of button "Beyond Engine" of group "Android targets" of me to tEnabled
    end if
    set the visible of button "Androidchecked" to tEnabled
    set the opaque of button "Androidchecked" to false
