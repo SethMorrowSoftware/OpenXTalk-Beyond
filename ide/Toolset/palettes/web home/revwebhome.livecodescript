@@ -319,7 +319,7 @@ on hmTick
    end if
    put the defaultStack into tSaved
    set the defaultStack to the short name of me
-   put min(0.1, max(0, (sNow - sLastFrame) / 1000)) into sDt
+   put min(hmDtCap(), max(0, (sNow - sLastFrame) / 1000)) into sDt
    put sNow into sLastFrame
    lock screen
    try
@@ -362,6 +362,19 @@ private command hmFrameCost pMilliseconds
       put sFrameCost * 0.8 + pMilliseconds * 0.2 into sFrameCost
    end if
 end hmFrameCost
+
+-- The most time one frame moves the animations on, in seconds: a tenth,
+-- as always, so that a pause (a dialog, a page built) is not a leap; and
+-- on a computer whose frames are paced (hmFrameDelay) a frame comes about
+-- twice its cost after the last, so up to three times that cost, or the
+-- animations that follow sDt (the Move page's balls and sparks) would run
+-- in slow motion where frames are more than a tenth of a second apart.
+private function hmDtCap
+   if sFrameCost is empty then
+      return 0.1
+   end if
+   return max(0.1, 3 * sFrameCost / 1000)
+end hmDtCap
 
 private function hmFrameDelay
    if sFrameCost is empty then

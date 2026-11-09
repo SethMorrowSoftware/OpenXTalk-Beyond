@@ -202,6 +202,13 @@ class Source(unittest.TestCase):
         self.assertIn('min(kFrameCostCap, pMilliseconds)', cost)
         self.assertRegex(text, r'(?m)^constant kFrame = 16$')
         self.assertRegex(text, r'(?m)^constant kFrameCostCap = 250$')
+        # (a paced frame moves the animations on by the time it took, up to
+        # three times a frame's cost; a tenth of a second, as before, while
+        # frames are quick)
+        self.assertIn('put min(%sDtCap(), max(0, (sNow - sLastFrame) / 1000)) into sDt' % prefix, tick)
+        cap = handler(text, prefix + 'DtCap')
+        self.assertIn('return 0.1', cap)
+        self.assertIn('return max(0.1, 3 * sFrameCost / 1000)', cap)
         start = handler(text, prefix + 'StartTicking')
         self.assertIn('put empty into sFrameCost', start)
 
