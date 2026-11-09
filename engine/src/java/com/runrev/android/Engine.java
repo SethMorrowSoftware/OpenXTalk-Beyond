@@ -94,6 +94,12 @@ public class Engine extends View implements EngineApi
 	private Handler m_handler;
 	private boolean m_wake_on_event;
 	private boolean m_wake_scheduled;
+    // OXT-Beyond: whether the engine drew (invalidateBitmap) as it scheduled
+    // the wake-up that is scheduled (finishDrawing); volatile, as another
+    // thread can schedule one (scheduleWakeUp, MCAndroidBreakWait)
+    private volatile boolean m_wake_after_drawing;
+    // OXT-Beyond: the most wake-ups finishDrawing runs
+    private static final int FINISH_DRAWING_WAKE_UPS = 8;
 
 	private boolean m_video_is_playing;
     private VideoControl m_video_control;
@@ -328,8 +334,42 @@ public class Engine extends View implements EngineApi
 
 		m_wake_scheduled = true;
 		m_wake_on_event = p_any_event;
+        m_wake_after_drawing = false;
 		m_handler . sendEmptyMessageDelayed(0, p_in_time);
 	}
+
+    // OXT-Beyond: lets the engine finish the screen update it is in the
+    // middle of, before the activity is destroyed (LiveCodeActivity's
+    // onDestroy, before clearWakeUp and onDestroy). Once it has drawn, the
+    // engine yields to this thread, with a wake-up due at once, so that
+    // Android shows what it drew (MCScreenDC's updatewindow), and goes on
+    // when that wake-up comes. Android can make the activity again before
+    // it comes (a density change, which Android 16 delivers while the
+    // engine draws, as the probe's field redraws its caret): clearWakeUp
+    // then took the wake-up away, and LiveCode 9.6.3's engine, which yields
+    // to the engine once as it is destroyed and then joins its thread,
+    // went on from the drawing only to yield again from its wait, and the
+    // app hung for good, its screen black (runs 42416576870, 42558963677
+    // and 42593463112). So the wake-up runs here, as the handler would have
+    // run it, until the engine yields without having drawn (from its wait,
+    // where 9.6.3's engine finishes when it is destroyed), at most
+    // FINISH_DRAWING_WAKE_UPS times, and says so in the log. An engine that
+    // drew nothing as it yielded is left as it is, and so is one that does
+    // not draw into the bitmap (OpenGL).
+    public void finishDrawing()
+    {
+        int t_wake_ups = 0;
+        while (t_wake_ups < FINISH_DRAWING_WAKE_UPS && m_wake_scheduled && m_wake_after_drawing)
+        {
+            m_handler . removeMessages(0);
+            m_wake_scheduled = false;
+            t_wake_ups += 1;
+            doProcess(true);
+        }
+        if (t_wake_ups > 0)
+            Log.i(TAG, "finishDrawing: the engine finished what it drew before the activity went (" +
+                  t_wake_ups + " wake-up(s))");
+    }
 
 	public String getPackagePath()
 	{
@@ -1605,6 +1645,9 @@ public class Engine extends View implements EngineApi
 	
 	public void invalidateBitmap(int l, int t, int r, int b)
 	{
+        // OXT-Beyond: the engine drew, as it scheduled its wake-up (the
+        // engine view's co_yield_to_engine schedules it first; finishDrawing)
+        m_wake_after_drawing = true;
 		if (m_bitmap_view != null && m_bitmap_view.getVisibility() == View.VISIBLE)
 			m_bitmap_view.invalidate(l, t, r, b);
 		else if (m_opengl_view != null && m_opengl_view.getVisibility() == View.VISIBLE)

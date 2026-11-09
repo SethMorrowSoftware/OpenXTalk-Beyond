@@ -1717,6 +1717,11 @@ class DeviceOnceInAProcess(unittest.TestCase):
            'com.runrev.android.Engine.onConfigurationChanged(android.content.res.Configuration)\' on a null object '
            'reference\n')
 
+    # what the Java layer says when it let the engine finish what it drew
+    # as the activity went (Engine.finishDrawing), its process as %s
+    FINISHED = ('I/revandroid.Engine( %s): finishDrawing: the engine finished what it drew before the activity '
+                'went (1 wake-up(s))')
+
     # the probe's window has the focus
     FOCUSED = ('printf "  mCurrentFocus=Window{8530cf u0 org.openxtalk.check.androidprobe/'
                'org.openxtalk.check.androidprobe.mblandroid}\\n"')
@@ -1730,7 +1735,8 @@ class DeviceOnceInAProcess(unittest.TestCase):
         process, green, and again for the reset; crash; hang: its process
         stays, the screen as it was; hang-2: as new the first time, and as
         hang after that; old-crash: as new, and the process before it
-        crashes in Java), the density's reset (new: started again in a new
+        crashes in Java; finished: as new, and the process before it says
+        that the engine finished what it drew first), the density's reset (new: started again in a new
         process; crash: as new, and the process before it crashes in Java;
         hang: its process stays), the back key (ends: its process ends;
         stays), the second am start (new: a new process where none is left;
@@ -1782,6 +1788,9 @@ class DeviceOnceInAProcess(unittest.TestCase):
                'density': {'new': new(4000) + '; cp "%(d)s/green.raw" "%(d)s/screen.raw"' % {'d': d},
                            'old-crash': npe + new(4000) + '; cp "%(d)s/green.raw" "%(d)s/screen.raw"' % {'d': d},
                            'crash': crash, 'hang': 'true',
+                           'finished': 'p=$(cat "%(d)s/pid"); printf "%(line)s\\n" $p >> "%(d)s/logcat.txt"; '
+                                       '%(new)s; cp "%(d)s/green.raw" "%(d)s/screen.raw"'
+                                       % {'d': d, 'new': new(4000), 'line': self.FINISHED},
                            'hang-2': 'if [ $(grep -c "^shell wm density 357" "%(d)s/platform-tools/calls") -ge 2 ]; '
                                      'then true; else %(new)s; cp "%(d)s/green.raw" "%(d)s/screen.raw"; fi'
                                      % {'d': d, 'new': new(4000)}}[density],
@@ -1935,6 +1944,28 @@ class DeviceOnceInAProcess(unittest.TestCase):
         self.assertEqual(status, 0, out)
         self.assertIn("Back at the screen's own density: 100% of the screen is the probe's green; process 4100 "
                       "(before it: 4000)", out)
+
+    def test_the_engine_finished_drawing_first(self):
+        # the Java layer let the engine finish what it drew as the activity
+        # went (where 9.6.3's engine hung): said for the change it was in,
+        # and not for the return, whose process said nothing of it
+        status, out, _ = self.run_probe(['--density'], density='finished', cleared=True)
+        self.assertEqual(status, 0, out)
+        self.assertIn("After a density change (357, from 420): 100% of the screen is the probe's green; process "
+                      "4000 (before it: 3475)", out)
+        self.assertIn('  The engine finished what it drew first: %s\n' % (self.FINISHED % '3475'), out)
+        self.assertEqual(out.count('The engine finished what it drew first'), 1)
+        # nothing said when it did not
+        status, out, _ = self.run_probe(['--density'], cleared=True)
+        self.assertEqual(status, 0, out)
+        self.assertNotIn('finished what it drew', out)
+
+    def test_drawing_finished_is_the_processs_own(self):
+        logcat = '\n'.join([self.FINISHED % '3475', self.FINISHED % '4000',
+                            'I/revandroid( 3475): finishDrawing is not this line\'s tag', 'garbage'])
+        a = lambda *args, **kw: (0, logcat)
+        self.assertEqual(ac.drawing_finished(a, '3475'), [self.FINISHED % '3475'])
+        self.assertEqual(ac.drawing_finished(a, '5000'), [])
 
     def test_hung_at_the_return_to_the_screens_own_density(self):
         # the return makes the activity again too: an app that hung there

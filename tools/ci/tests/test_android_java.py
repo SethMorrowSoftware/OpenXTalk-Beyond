@@ -37,6 +37,7 @@ CI = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO = os.path.dirname(os.path.dirname(CI))
 sys.path.insert(0, CI)
 
+import android_check as ac  # noqa: E402
 import android_java as aj  # noqa: E402
 
 
@@ -1468,9 +1469,89 @@ class OneSystem(unittest.TestCase):
                     'e28f35a674222e798ed824ab2a22b0c6370dc37e86573a34565af0dbd6050360'):
             for key in keys:
                 self.assertEqual(aj.EXPECTED[sha][key], aj.RELAUNCH_GUARDS[key], (sha, key))
-        # the first Classes built here differs in nothing else
+        # the first Classes built here differs in nothing else, bar the
+        # engine finishing what it drew (test_the_engine_finishes_drawing_first)
         self.assertEqual(aj.EXPECTED['e28f35a674222e798ed824ab2a22b0c6370dc37e86573a34565af0dbd6050360'],
-                         aj.RELAUNCH_GUARDS)
+                         dict(aj.RELAUNCH_GUARDS, **aj.FINISH_DRAWING, **{
+                             'code com/runrev/android/LiveCodeActivity.onDestroy:()V':
+                                 aj.FINISH_DRAWING_ON_DESTROY}))
+
+    def test_the_engine_finishes_drawing_first(self):
+        # Android 16 made the activity again for a density change while the
+        # engine, having drawn into the bitmap, had yielded to Android's
+        # thread with a wake-up due at once to show it; onDestroy cleared
+        # that wake-up, and LiveCode 9.6.3's engine, resumed once as it is
+        # destroyed, went on from the drawing only to yield again from its
+        # wait while Android's thread joined it: hung for good, the screen
+        # black (runs 42558963677 and 42593463112). So onDestroy first runs
+        # the wake-up the engine asked for as it drew, as the handler would
+        # have, until it yields without drawing, at most eight times
+        engine = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'Engine.java')
+        self.assertIn('    private volatile boolean m_wake_after_drawing;\n', engine)
+        self.assertIn('    private static final int FINISH_DRAWING_WAKE_UPS = 8;\n', engine)
+        # scheduling a wake-up says the engine has not drawn (yet)...
+        schedule = re.search(r'(?s)public synchronized void scheduleWakeUp\(int p_in_time, boolean p_any_event\)\n\t{\n(.*?)\n\t}\n',
+                             engine).group(1)
+        self.assertTrue(' '.join(schedule.split()).endswith(
+            'm_wake_scheduled = true; m_wake_on_event = p_any_event; m_wake_after_drawing = false; '
+            'm_handler . sendEmptyMessageDelayed(0, p_in_time);'), schedule)
+        self.assertEqual(engine.count('m_wake_after_drawing = false;'), 1)
+        # ...and invalidating the bitmap, which comes after it, that it has
+        invalidate = re.search(r'(?s)public void invalidateBitmap\(int l, int t, int r, int b\)\n\t{\n(.*?)\n\t}\n',
+                               engine).group(1)
+        self.assertRegex(invalidate, r'^\s*(?://[^\n]*\s+)*m_wake_after_drawing = true;\s+'
+                                     r'if \(m_bitmap_view != null && m_bitmap_view\.getVisibility\(\) == View\.VISIBLE\)')
+        self.assertEqual(engine.count('m_wake_after_drawing = true;'), 1)
+        # the engine's side, in this tree as in 9.6.3's: as it yields to
+        # Android, the wake-up is scheduled first and the bitmap invalidated
+        # after; and only the bitmap's drawing fills the dirty region, whose
+        # updatewindow then yields with a wake-up due at once
+        native = read('engine', 'src', 'mblandroiddc.cpp')
+        to_engine = re.search(r'(?s)static void co_yield_to_engine\(void\)\n{\n(.*?)\n}\n', native).group(1)
+        self.assertLess(to_engine.index('CallVoidMethod(s_android_view, s_schedule_wakeup_method,'),
+                        to_engine.index('MCAndroidInvalidateBitmapRegion(s_android_bitmap_dirty_region);'))
+        self.assertEqual(native.count('MCAndroidInvalidateBitmapRegion(s_android_bitmap_dirty_region);'), 1)
+        self.assertEqual(len(re.findall(r'MCGRegionAdd\w+\(s_android_bitmap_dirty_region,', native)), 2)
+        update = re.search(r'(?s)void MCStack::view_device_updatewindow\(MCRegionRef p_region\)\n{\n(.*?)\n}\n',
+                           native).group(1)
+        bitmap = update.split('\n\telse\n')[0]
+        self.assertIn('if (s_updatewindow_callback != nil || !s_android_opengl_enabled)', bitmap)
+        self.assertTrue(bitmap.rstrip().endswith('co_yield_to_android_and_wait(0.0, true);\n\t}'), bitmap[-200:])
+        self.assertEqual(native.count('co_yield_to_android_and_wait(0.0, true);'), 1)
+        # finishDrawing runs the wake-up that is scheduled while it is one
+        # the engine asked for as it drew, as the handler runs it
+        finish = re.search(r'(?s)public void finishDrawing\(\)\n    {\n(.*?)\n    }\n', engine).group(1)
+        self.assertEqual(finish.split(), (
+            'int t_wake_ups = 0; '
+            'while (t_wake_ups < FINISH_DRAWING_WAKE_UPS && m_wake_scheduled && m_wake_after_drawing) { '
+            'm_handler . removeMessages(0); m_wake_scheduled = false; t_wake_ups += 1; doProcess(true); } '
+            'if (t_wake_ups > 0) Log.i(TAG, "finishDrawing: the engine finished what it drew before the activity '
+            'went (" + t_wake_ups + " wake-up(s))");').split())
+        # the line the device check looks for
+        self.assertIn('"%s ' % ac.FINISHED_DRAWING, finish)
+        self.assertEqual(re.search(r'public static final String TAG = "([^"]+)";', engine).group(1),
+                         'revandroid.Engine')
+        handler = re.search(r'(?s)public void handleMessage\(Message p_message\) {\n(.*?)\n\t\t\t}', engine).group(1)
+        self.assertEqual(handler.split(), 'm_wake_scheduled = false; doProcess(true);'.split())
+        # in onDestroy, of an activity that started the engine, before the
+        # wake-up is cleared and the engine destroyed
+        activity = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'LiveCodeActivity.java')
+        destroy = re.search(r'(?s)protected void onDestroy\(\)\n\t{\n(.*?)\n\t}\n', activity).group(1)
+        code = [x.strip() for x in destroy.splitlines() if x.strip() and not x.strip().startswith('//')]
+        self.assertEqual(code[:6], ['super.onDestroy();', 'if (!m_engine_started)', 'return;',
+                                    's_main_view.finishDrawing();', 's_main_view.clearWakeUp();',
+                                    's_main_view.onDestroy();'])
+        self.assertEqual(activity.count('finishDrawing()'), 1)
+        self.assertEqual(engine.count('finishDrawing()'), 1)
+        # named, with its reason, against every Classes compare knows
+        for sha, entries in aj.EXPECTED.items():
+            for key in aj.FINISH_DRAWING:
+                self.assertEqual(entries[key], aj.FINISH_DRAWING[key], (sha, key))
+            self.assertIn(aj.FINISH_DRAWING_ON_DESTROY, entries['code com/runrev/android/LiveCodeActivity.onDestroy:()V'])
+        # rc.6.19's (the runtimes asset pinned now) differs in nothing else
+        self.assertEqual(aj.EXPECTED['328a531ae3d1f5845fbaa4174760187f2e7435855a5481541f9f8927880e414d'],
+                         dict(aj.FINISH_DRAWING, **{'code com/runrev/android/LiveCodeActivity.onDestroy:()V':
+                                                    aj.FINISH_DRAWING_ON_DESTROY}))
 
     def test_edge_to_edge_keeps_the_stack_out_of_the_bars(self):
         # an app that targets API 35 or newer is drawn edge to edge on

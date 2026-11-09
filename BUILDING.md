@@ -1788,6 +1788,26 @@ the back key quit it. Three things keep the engine to one start:
   process, so that the app opened again starts in a new one, as it does
   once Android has ended the process.
 
+Android can make the activity again while the engine is in the middle of
+showing what it drew: the engine draws into the view's bitmap, then
+yields to Android's thread with a wake-up due at once, so that Android
+shows the bitmap, and goes on when that wake-up comes. On Android 16 a
+density change came in between (runs 42558963677 and 42593463112):
+`onDestroy` cleared the wake-up, and LiveCode 9.6.3's engine, which is
+resumed once as it is destroyed and then joined, went on from the drawing
+only to yield again from its wait, so Android's thread waited for it for
+good and the screen stayed black. So `onDestroy` first lets the engine
+finish (`Engine.finishDrawing`): while the wake-up that is scheduled is
+one the engine asked for as it drew (`invalidateBitmap` came after it),
+it runs that wake-up at once, as the handler would have, at most eight
+times, until the engine yields from its wait, which is where 9.6.3's
+engine finishes when it is destroyed. An activity whose engine yielded
+without drawing, or draws with OpenGL, is destroyed as before. When it
+runs a wake-up, it says so in the device's log (`finishDrawing:`, tag
+`revandroid.Engine`), and `device --density` prints that line for each
+change and return. The busy probe checks it on both emulators
+(`--density --density-times 5`).
+
 ### Android Java layer
 
 The Android runtime's Java layer (`Runtime/Android/Classes`, a jar that

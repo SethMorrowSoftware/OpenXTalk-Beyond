@@ -822,8 +822,11 @@ class Relaunch(unittest.TestCase):
                                  r's_main_layout = new FrameLayout\(this\);')
         destroy = re.search(r'(?s)protected void onDestroy\(\)\s*\{(.*?)\n\t\}', activity).group(1)
         # an activity that started no engine has none to finish
+        # (and the engine finishes showing what it drew, see
+        # test_android_java's test_the_engine_finishes_drawing_first)
         self.assertRegex(destroy, r'^\s*super\.onDestroy\(\);\s+(?://[^\n]*\s+)*if \(!m_engine_started\)\s+'
-                                  r'return;\s+s_main_view\.clearWakeUp\(\);')
+                                  r'return;\s+(?://[^\n]*\s+)*s_main_view\.finishDrawing\(\);\s+'
+                                  r's_main_view\.clearWakeUp\(\);')
         # the process ends after the engine, only when the activity is
         # finishing and not for a configuration change
         self.assertRegex(destroy, r's_main_view = null;\s+(?://[^\n]*\s+)*'

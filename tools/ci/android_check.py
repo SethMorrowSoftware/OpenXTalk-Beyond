@@ -2115,6 +2115,20 @@ def new_crashes(a, names, before=''):
     return crash + [x for x in fdsan if x not in crash], pids
 
 
+# The Java layer's line when, as the activity went, it let the engine
+# finish showing what it drew (Engine.finishDrawing)
+FINISHED_DRAWING = 'finishDrawing:'
+
+
+def drawing_finished(a, pid):
+    """The Java layer's FINISHED_DRAWING lines of process pid in the
+    device's log: the engine was in the middle of showing what it drew as
+    Android made pid's activity again, and finished it first (where LiveCode
+    9.6.3's engine hung, its screen black)."""
+    _, logcat = a('logcat', '-d', '-v', 'brief')
+    return [x.strip() for x in logcat.splitlines() if FINISHED_DRAWING in x and log_pid(x) == pid]
+
+
 def stays_through_font_scale(args, adb, a, pid, names):
     """--font-scale: the probe goes on through a font size change, in its
     process, still showing its green (the manifest's configChanges lists
@@ -2165,12 +2179,15 @@ def starts_again_for_density(args, adb, a, pid, names, what='density change', su
     try:
         share, after, shot = green_again(adb, args.serial, a, RETURN_WAIT, other_than=pid)
         crash, pids = new_crashes(a, names, pid)
+        finished = drawing_finished(a, pid)
     finally:
         a('shell', 'wm', 'density', 'reset')
     save_screen(args.out and os.path.splitext(args.out)[0] + '-%s.png' % suffix, shot, 'after the %s' % what)
     log('After a %s (%s, from %s): %.0f%% of the screen is the probe\'s green; process %s (before it: '
         '%s); its processes in the log: %s' % (what, density, m.group(1), share * 100, after or 'not running', pid,
                                                ', '.join(sorted(pids)) or 'none'))
+    if finished:
+        log('  The engine finished what it drew first: %s' % ' | '.join(finished))
     problems = []
     if not after or after == pid:
         problems.append('after a %s the app did not start again in a new process (%s before it, %s '
@@ -2189,6 +2206,9 @@ def starts_again_for_density(args, adb, a, pid, names, what='density change', su
         log('Back at the screen\'s own density: %.0f%% of the screen is the probe\'s green; process %s (before it: '
             '%s); its processes in the log: %s' % (back * 100, again or 'not running', after,
                                                    ', '.join(sorted(pids)) or 'none'))
+        finished = drawing_finished(a, after)
+        if finished:
+            log('  The engine finished what it drew first: %s' % ' | '.join(finished))
         # and it must come back: an app that hung as Android made the
         # activity again keeps its process, its screen black (LiveCode
         # 9.6.3's engine destroyed while it drew, runs 42558963677 and

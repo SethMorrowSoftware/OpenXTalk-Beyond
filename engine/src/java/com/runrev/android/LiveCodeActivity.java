@@ -191,6 +191,9 @@ public class LiveCodeActivity extends Activity
         // process (onCreate) has no engine here
         if (!m_engine_started)
             return;
+        // OXT-Beyond: the screen update the engine is in the middle of is
+        // finished first (Engine.finishDrawing)
+        s_main_view.finishDrawing();
 		s_main_view.clearWakeUp();
 		s_main_view.onDestroy();
 		s_main_layout = null;
