@@ -671,7 +671,13 @@ on ed_save_as
    edFileDialog kFile, "Save"
    edMenu "File", "Save As..."
    if not edWaitFor("there is a file pAx", 5000, tPath) then throw "File > Save As wrote no file" && tPath & "; the dialog:" && sReport["dialog"]
-   if the effective filename of stack sStack is not tPath then throw "the stack's file is" && the effective filename of stack sStack & ", not" && tPath
+   -- (the file is there before the save has ended: on Linux, dark, #449's
+   -- package job read the stack's filename as empty just after the file
+   -- appeared, and the same tree passed in light. So the stack's filename
+   -- is waited for too, at most 5 seconds; what is checked is the same)
+   if not edWaitFor("the effective filename of stack sStack is pAx", 5000, tPath) then
+      throw "the stack's file is" && the effective filename of stack sStack & ", not" && tPath
+   end if
    if the number of bytes of URL ("binfile:" & tPath) < 100 then throw "the file saved is" && the number of bytes of URL ("binfile:" & tPath) && "bytes"
    edRecord "INFO saved" && tPath && the number of bytes of URL ("binfile:" & tPath) && "bytes"
 end ed_save_as
