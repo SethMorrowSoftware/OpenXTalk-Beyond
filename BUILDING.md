@@ -2177,6 +2177,59 @@ while it ran.
 The Linux x86-64 package job runs it on its build and the web runtime
 it packages.
 
+### Android script tests
+
+[`tools/ci/android_tests.py`](tools/ci/android_tests.py) runs the
+LiveCode Script tests of `tests/lcs` on an Android emulator, as the
+[web engine tests](#web-engine-tests) run them in the web engine, once
+with LiveCode 9.6.3's Android engine and once with OXT-Beyond's own, so
+that what a stack would see differently with the other engine is known
+before either is the default. `prepare` puts the tests beside the stack
+that the [Android standalone check](#android-standalone-check) makes as
+its "tests" probe: the checkout's `tests/` folder, with the LiveCode
+Builder modules compiled by the IDE's own `lc-compile` and the files of
+the checkout that the tests read, and the extensions the tests load,
+from the IDE's `Extensions` folder (one the IDE does not have is noted,
+and the tests that load it fail). The IDE's builder builds the
+standalone, whose main stack is named `StandaloneTestRunnerMainstack`,
+as LiveCode's standalone test runner's is, so that tests needing the
+IDE or the LiveCode Builder compiler skip; its script,
+[`tools/ci/android-tests.livecodescript`](tools/ci/android-tests.livecodescript),
+copies the tests into the app's documents folder (so that a test can
+write beside itself), runs the test commands one after the other, each
+with the test runner's set-up and clean-up, and writes their TAP output
+to the device's log.
+
+```sh
+python3 tools/ci/android_tests.py prepare --work <work> --ide <ide>
+python3 tools/ci/android_check.py ide --install <ide> --work <work> --sdk <sdk> --jdk <jdk> \
+    --no-units --builds debug --probe tests [--android-engine beyond]
+python3 tools/ci/android_tests.py run --work <work> --serial <serial> --sdk <sdk> --engine 9.6.3
+python3 tools/ci/android_tests.py compare --old <work>/android-tests-9.6.3.json --new <work>/android-tests-beyond.json
+```
+
+`run` installs the package, starts it, and reads the log: a test that
+never ends within `--timeout` seconds (120), or stops the app, fails,
+and the app is started again at the next test (the runner keeps the
+last test that began in a file of its own), at most `--restarts` times
+(40). A test that quits is told it did: the quit is cancelled, as in
+the web engine. Failures are compared with the engine's baseline,
+`tools/ci/android-tests-baseline-<engine>.txt`, as the engine tests
+compare theirs: one not in it fails the check, an entry that passed is
+reported so that it can be taken out, and `--update-baseline` rewrites
+the file. `--check-engine <runtime>` first checks that the package's
+engine is the one built here (as `android_check.py verify --engine`
+does). `compare` says which tests fail with the second engine and pass
+with the first, and which the other way round; it decides nothing
+unless `--strict`.
+
+The "Script tests on the emulator" job of the "Android engine" workflow
+([`android-engine.yml`](.github/workflows/android-engine.yml)) runs it
+on an Android 13 emulator with each engine, after the build jobs, and
+keeps both results and logs as `android-script-tests`. The "Runtimes
+asset" workflow does not wait for it: it is evidence about the engine,
+not a gate on the asset.
+
 ### IDE screenshots
 
 [`tools/ci/ui_tour.py`](tools/ci/ui_tour.py) looks at the IDE's own

@@ -233,7 +233,9 @@ Earlier versions, from 0.2.1 to 0.2.5, are described under
   runtime a package carries, Android aside, and run those the test
   machine can run; Android packages are built by the IDE's Android
   builder with a real Android SDK, checked, and run on Android emulators
-  by a workflow of their own (see [BUILDING.md](BUILDING.md#android-standalone-check)).
+  by a workflow of their own (see [BUILDING.md](BUILDING.md#android-standalone-check)),
+  and the LiveCode Script tests run on an Android emulator with both
+  Android engines (see [BUILDING.md](BUILDING.md#android-script-tests)).
 - **Some old third-party libraries.** OpenSSL (3.5.9, a long-term
   support release), curl (8.22.0) and ICU (78.3) are current, built from
   source for every platform, and so are the image and pattern libraries
