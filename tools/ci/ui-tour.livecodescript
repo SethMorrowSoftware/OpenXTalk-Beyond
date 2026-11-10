@@ -3771,12 +3771,53 @@ function tourIconChooserFails
    set the dialogData to tData
    set the defaultStack to tDefault
    if there is a stack tChooser then
+      put the rect of stack tChooser into tShown
       lock messages
       close stack tChooser
       unlock messages
+      -- (macOS fades a closed window out after close has returned: at the
+      -- GM's 84516291 the chooser, still fading, showed through the next
+      -- step's 04g-svg-paths picture on the Apple silicon runner, light,
+      -- as that step's window opens where the chooser was. So the next
+      -- picture waits until the screen where it was has stopped changing)
+      tourScreenStill tShown, "the closed icon chooser"
    end if
    return tFails
 end tourIconChooserFails
+
+-- Waits until the screen in the rect pRect (screen coordinates) has
+-- stayed the same for kStillFor milliseconds, at most kStillMax: a window
+-- closed or hidden there can still be on the screen a moment after the
+-- script has gone on (macOS's close and hide animations), and a picture
+-- taken then shows it through the next window. It then takes the screen
+-- there once more a second later and records whether that matches, the
+-- proof that the wait was long enough (an INFO line: whatever is behind
+-- the window, a caret blinking in a field, may change on its own)
+constant kStillFor = 450
+constant kStillMax = 3000
+command tourScreenStill pRect, pWhat
+   local tLast, tNow, tStill, tWaited, tLater
+   if the number of items of pRect is not 4 then exit tourScreenStill
+   export snapshot from rect pRect to tLast as PNG
+   put 0 into tStill
+   put 0 into tWaited
+   repeat while tWaited < kStillMax
+      tourWait 150
+      add 150 to tWaited
+      export snapshot from rect pRect to tNow as PNG
+      if tNow is tLast then
+         add 150 to tStill
+         if tStill >= kStillFor then exit repeat
+      else
+         put tNow into tLast
+         put 0 into tStill
+      end if
+   end repeat
+   tourWait 1000
+   export snapshot from rect pRect to tLater as PNG
+   tourRecord "INFO screen-still:" && pWhat && "at" && pRect & ", still:" && (tStill >= kStillFor) && \
+         "after" && tWaited && "ms, the same a second later:" && (tLater is tLast)
+end tourScreenStill
 
 -- The colour of the screen at a point of the card of the stack pStack
 -- that no control covers: the first of its corners, 4 points in, that is
