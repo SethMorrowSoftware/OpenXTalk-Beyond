@@ -152,8 +152,14 @@ constant kBusyColor = "31,150,90"
 -- Android has given the window its insets), its screenRect and its
 -- effective working screenRect, which leaves the bars, the display's
 -- cutout and the keyboard out (Engine.getEffectiveWorkarea):
--- android_check.py device --edge-to-edge checks both
+-- android_check.py device --edge-to-edge checks both. It also has an
+-- adaptive icon (the "android,adaptive icon" settings), a themed one:
+-- kProbePicture as its foreground and its monochrome image
+-- (kProbeIconForeground and kProbeIconMonochrome, beside the stack) over
+-- kRunColor (android_check.py verify --adaptive-icon checks the package)
 constant kEdgeWait = 1000
+constant kProbeIconForeground = "oxt-icon-foreground.png"
+constant kProbeIconMonochrome = "oxt-icon-monochrome.png"
 constant kIdentifier = "org.openxtalk.check.androidprobe"
 -- The Java layer's probe's picture: one pixel, a PNG, as base64
 constant kProbePicture = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
@@ -269,6 +275,7 @@ private command androidUnits
    unitTargetAPI tWork
    unitRelaunch tWork
    unitEdgeToEdge tWork
+   unitAdaptiveIcon tWork
    unitEngine
    unitAppBundle tWork
    androidUnit "required-sdk", deployCall("deployRequiredSDK") is "Android 13 (API 33) or newer", \
@@ -453,6 +460,103 @@ private command unitEdgeToEdge pWork
          builderCall("androidAskForEdgeToEdge", tManifest, tSettings, tRuntime)
    removeTree tRuntime
 end unitEdgeToEdge
+
+-- The adaptive icon: none for a stack that names no foreground; its
+-- images found (relative to the stack's folder), PNG files, its colour
+-- read in the three forms it takes; a themed icon only with a foreground;
+-- the resources it writes
+private command unitAdaptiveIcon pWork
+   local tFolder, tSettings, tAnswer, tError, tPNG, tRes, tWanted, tColour
+   put pWork & "/adaptive-icon" into tFolder
+   removeTree tFolder
+   revSBEnsureFolder tFolder
+   put base64Decode(kProbePicture) into tPNG
+   put tPNG into url ("binfile:" & tFolder & "/fg.png")
+   put tPNG into url ("binfile:" & tFolder & "/mono.png")
+   put "not a picture" into url ("binfile:" & tFolder & "/fg.txt")
+   androidUnit "icon-not-asked", builderCall("androidAdaptiveIcon", tSettings, tFolder) is empty, \
+         builderCall("androidAdaptiveIcon", tSettings, tFolder)
+   repeat for each line tAnswer in "themed only|a themed icon is the monochrome layer" & return & \
+         "missing|foreground image is not there:" & return & "not a PNG|foreground image is not a PNG file:" & return & \
+         "bad colour|is not one the build can read: give it as #RRGGBB, #AARRGGBB or r,g,b"
+      set the itemDelimiter to "|"
+      put empty into tSettings
+      switch item 1 of tAnswer
+         case "themed only"
+            put "mono.png" into tSettings["android,themed icon"]
+            break
+         case "missing"
+            put "nothing.png" into tSettings["android,adaptive icon"]
+            break
+         case "not a PNG"
+            put "fg.txt" into tSettings["android,adaptive icon"]
+            break
+         case "bad colour"
+            put "fg.png" into tSettings["android,adaptive icon"]
+            put "256,0,0" into tSettings["android,adaptive icon background"]
+            break
+      end switch
+      put empty into tError
+      try
+         get builderCall("androidAdaptiveIcon", tSettings, tFolder)
+      catch tError
+      end try
+      androidUnit "icon-refused-" & word 1 of item 1 of tAnswer, tError contains item 2 of tAnswer, \
+            "answered" && it & ", threw" && tError
+      set the itemDelimiter to comma
+   end repeat
+   put empty into tSettings
+   put "fg.png" into tSettings["android,adaptive icon"]
+   put builderCall("androidAdaptiveIcon", tSettings, tFolder) into tAnswer
+   androidUnit "icon-foreground", tAnswer["foreground"] is (tFolder & "/fg.png") and \
+         tAnswer["monochrome"] is empty and tAnswer["background"] is "#FFFFFFFF", \
+         tAnswer["foreground"] && tAnswer["monochrome"] && tAnswer["background"]
+   put tFolder & "/mono.png" into tSettings["android,themed icon"]
+   put "31,158,90" into tSettings["android,adaptive icon background"]
+   put builderCall("androidAdaptiveIcon", tSettings, tFolder) into tAnswer
+   androidUnit "icon-themed", tAnswer["monochrome"] is (tFolder & "/mono.png") and \
+         tAnswer["background"] is "#FF1F9E5A", tAnswer["monochrome"] && tAnswer["background"]
+   -- the colour's forms
+   repeat for each line tColour in "|#FFFFFFFF" & return & "#1f9e5a|#FF1F9E5A" & return & \
+         "#801F9E5A|#801F9E5A" & return & " 0, 128 ,255 |#FF0080FF"
+      set the itemDelimiter to "|"
+      androidUnit "icon-colour-" & item 2 of tColour, \
+            builderCall("androidIconColour", item 1 of tColour) is item 2 of tColour, \
+            builderCall("androidIconColour", item 1 of tColour)
+      set the itemDelimiter to comma
+   end repeat
+   repeat for each line tColour in "red" & return & "#12345" & return & "1,2" & return & "-1,0,0" & return & "#GG0000"
+      put empty into tError
+      try
+         get builderCall("androidIconColour", tColour)
+      catch tError
+      end try
+      androidUnit "icon-colour-refused-" & tColour, tError contains "is not one the build can read", \
+            "answered" && it & ", threw" && tError
+   end repeat
+   -- the resources
+   put tFolder & "/res" into tRes
+   revSBEnsureFolder tRes
+   dispatch "androidAddAdaptiveIcon" to stack "revSaveAsAndroidStandalone" with tAnswer, tRes
+   put "<?xml version=" & quote & "1.0" & quote && "encoding=" & quote & "utf-8" & quote & "?>" & lf & \
+         "<adaptive-icon xmlns:android=" & quote & "http://schemas.android.com/apk/res/android" & quote & ">" & lf & \
+         "    <background android:drawable=" & quote & "@color/oxt_icon_background" & quote & "/>" & lf & \
+         "    <foreground android:drawable=" & quote & "@drawable/icon_foreground" & quote & "/>" & lf & \
+         "    <monochrome android:drawable=" & quote & "@drawable/icon_monochrome" & quote & "/>" & lf & \
+         "</adaptive-icon>" & lf into tWanted
+   androidUnit "icon-resources", \
+         url ("binfile:" & tRes & "/drawable-nodpi/icon_foreground.png") is tPNG and \
+         url ("binfile:" & tRes & "/drawable-nodpi/icon_monochrome.png") is tPNG and \
+         textDecode(url ("binfile:" & tRes & "/drawable-anydpi-v26/icon.xml"), "UTF-8") is tWanted and \
+         textDecode(url ("binfile:" & tRes & "/values/oxt_icon_background.xml"), "UTF-8") contains \
+         "<color name=" & quote & "oxt_icon_background" & quote & ">#FF1F9E5A</color>", \
+         "wrote" && files(tRes & "/drawable-nodpi")
+   -- no monochrome image: no monochrome layer
+   delete variable tAnswer["monochrome"]
+   androidUnit "icon-no-monochrome", not (builderCall("androidAdaptiveIconXML", tAnswer) contains "monochrome"), \
+         builderCall("androidAdaptiveIconXML", tAnswer)
+   removeTree tFolder
+end unitAdaptiveIcon
 
 -- The App Bundle: its name beside the package, where each file of the
 -- package goes in the bundle's base module, bundletool's settings, a
@@ -1010,9 +1114,17 @@ private function buildSettings pName
    repeat for each item tArch in "armv7,arm64,x86,x86_64"
       delete variable tSettings["android," & tArch]
    end repeat
-   -- the edge probe is drawn edge to edge (see kEdgeWait)
+   -- the edge probe is drawn edge to edge, and has an adaptive icon that
+   -- is a themed one (see kEdgeWait)
    if probeName() is "AndroidEdgeProbe" then
       put true into tSettings["android,edge to edge"]
+      set the itemDelimiter to slash
+      put base64Decode(kProbePicture) into url ("binfile:" & item 1 to -2 of $OXT_ANDROID_STACK & slash & kProbeIconForeground)
+      put base64Decode(kProbePicture) into url ("binfile:" & item 1 to -2 of $OXT_ANDROID_STACK & slash & kProbeIconMonochrome)
+      set the itemDelimiter to comma
+      put kProbeIconForeground into tSettings["android,adaptive icon"]
+      put kProbeIconMonochrome into tSettings["android,themed icon"]
+      put kRunColor into tSettings["android,adaptive icon background"]
    end if
    -- the Java layer's probe asks to post notifications, and declares
    -- WRITE_EXTERNAL_STORAGE (see the header)

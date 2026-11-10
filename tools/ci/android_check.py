@@ -1696,6 +1696,74 @@ def verify_apk(name, apk, spec, tools, warnings, target=TARGET_SDK):
     return problems, notes
 
 
+# verify --adaptive-icon: the adaptive icon the builder makes of a stack's
+# "android,adaptive icon" settings (androidAdaptiveIcon in
+# ide-support/revsaveasandroidstandalone.livecodescript): the icon the
+# manifest names is drawable/icon, an adaptive icon from Android 8.0 on
+# (drawable-anydpi-v26) and a picture before it; its layers, and their
+# pictures (drawable-nodpi)
+ADAPTIVE_ICON = 'res/drawable-anydpi-v26/icon.xml'
+ADAPTIVE_LAYERS = ('background', 'foreground', 'monochrome')
+ADAPTIVE_PICTURES = ('res/drawable-nodpi/icon_foreground.png', 'res/drawable-nodpi/icon_monochrome.png')
+
+
+def resource_configs(dump, name):
+    """The configurations that aapt's dump resources lists the resource
+    name (as "drawable/icon") in, as it names them ("default" for its
+    "(default)", "anydpi-v26", ...)."""
+    configs, config = [], None
+    for line in dump.splitlines():
+        m = re.match(r'^\s*config\s+(.+?):\s*$', line)
+        if m:
+            config = m.group(1).strip()
+            config = 'default' if config == '(default)' else config
+            continue
+        if config and not line.strip().startswith('spec ') and \
+                re.search(r'\bresource 0x[0-9a-f]+ [\w.]+:%s:' % re.escape(name), line):
+            configs.append(config)
+    return configs
+
+
+def adaptive_icon_problems(name, files, manifest, icon_tree, configs):
+    """(problems, notes) of a package's adaptive icon: files, the names in
+    the package; manifest and icon_tree, aapt's xmltree of the manifest and
+    of ADAPTIVE_ICON; configs, the configurations of drawable/icon."""
+    problems = []
+    if ADAPTIVE_ICON not in files:
+        return ['%s has no adaptive icon (%s)' % (name, ADAPTIVE_ICON)], []
+    for picture in ADAPTIVE_PICTURES:
+        if picture not in files:
+            problems.append('%s: its adaptive icon has no %s' % (name, picture))
+    if 'res/drawable/icon.png' not in files:
+        problems.append('%s has no icon for Android before 8.0 (res/drawable/icon.png)' % name)
+    if not re.search(r'E: adaptive-icon\b', icon_tree):
+        problems.append('%s: %s is not an adaptive icon' % (name, ADAPTIVE_ICON))
+    for layer in ADAPTIVE_LAYERS:
+        if not re.search(r'E: %s\b[^\n]*\n\s*A: (?:android:)?drawable\(0x01010199\)=@0x[0-9a-f]+' % layer,
+                         icon_tree):
+            problems.append('%s: its adaptive icon has no %s layer naming a resource' % (name, layer))
+    app = re.search(r'E: application\b(.*?)(?:\n\s*E: |\Z)', manifest, re.S)
+    if not app or not re.search(r'A: (?:android:)?icon\(0x01010002\)=@0x[0-9a-f]+', app.group(1)):
+        problems.append('%s: the manifest\'s application names no icon' % name)
+    for config in ('default', 'anydpi-v26'):
+        if config not in configs:
+            problems.append('%s: the resource drawable/icon has no %s configuration (it has: %s)' % (
+                name, config, ', '.join(configs) or 'none'))
+    if not problems:
+        return [], ['an adaptive icon from Android 8.0 on (background, foreground and monochrome: a themed '
+                    'icon from Android 13 on), and a picture before it']
+    return problems, []
+
+
+def verify_adaptive_icon(name, apk, aapt):
+    with zipfile.ZipFile(apk) as z:
+        files = set(z.namelist())
+    _, manifest = run([aapt, 'dump', 'xmltree', apk, 'AndroidManifest.xml'])
+    icon_tree = run([aapt, 'dump', 'xmltree', apk, ADAPTIVE_ICON])[1] if ADAPTIVE_ICON in files else ''
+    _, dump = run([aapt, 'dump', 'resources', apk])
+    return adaptive_icon_problems(name, files, manifest, icon_tree, resource_configs(dump, 'drawable/icon'))
+
+
 def verify_bundle(name, aab, apk, spec, tools, target=TARGET_SDK):
     """The problems of one build's App Bundle (aab, beside its package apk),
     and lines saying what was checked. tools may name the JDK's jarsigner,
@@ -1891,6 +1959,12 @@ def verify(args):
         p, notes = verify_apk(name, apk, BUILDS[name], tools, r['warnings'], args.target)
         if args.engine:
             more, said = verify_engine(name, apk, os.path.abspath(args.engine))
+            p, notes = p + more, notes + said
+        if args.adaptive_icon:
+            if not tools.get('aapt'):
+                more, said = ['no aapt in the SDK\'s build-tools to read the adaptive icon with'], []
+            else:
+                more, said = verify_adaptive_icon(name, apk, tools['aapt'])
             p, notes = p + more, notes + said
         log('%s.apk (%.1f MB): %s' % (name, os.path.getsize(apk) / 1e6, '; '.join(notes)))
         for x in p:
@@ -3351,6 +3425,8 @@ def main(argv=None):
                        help='an installed IDE: the packages must target the API its builder picks for its runtime')
     v.add_argument('--engine', help='the runtime folder that overlay --engine took: each package\'s engine must be '
                                     'the one built there')
+    v.add_argument('--adaptive-icon', action='store_true',
+                   help='each package must have the adaptive icon (a themed one) that the edge probe asks for')
     c = sub.add_parser('compare')
     c.add_argument('--old', required=True)
     c.add_argument('--new', required=True)
