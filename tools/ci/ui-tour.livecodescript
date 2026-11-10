@@ -8693,7 +8693,7 @@ on tour_object_library
 end tour_object_library
 
 on tour_navigator
-   local tBefore, tNew
+   local tBefore, tNew, tFail
    put the openStacks into tBefore
    -- as Tools > Card Navigator does
    send "tOpenNavigator" to stack "revMenuBar"
@@ -8709,8 +8709,145 @@ on tour_navigator
       close stack tNew
       throw "the IDE lists the Card Navigator among the user's stacks"
    end if
+   put tourNavigatorClone(tNew) into tFail
+   if tFail is empty then put tourNavigatorShowAll(tNew) into tFail
    close stack tNew
+   if tFail is not empty then throw tFail
 end tour_navigator
+
+-- The Card Navigator's "Clone Card" (OpenXTalkPaul, openxtalk.org
+-- p=26111: a flip-book is made card by card, each a copy of the last):
+-- on a stack of two cards, the first with a field, a click on it while
+-- the first is in front makes a copy of it, with its field, as card 2 and
+-- goes to it; the second card is now card 3. The window cannot be
+-- changed, and the engine refuses "clone card" while such a stack is the
+-- default, which the button's script works around: the default stack is
+-- the same after the click. Returns empty, or what went wrong
+function tourNavigatorClone pNav
+   local tStack, tDefault, tFail
+   if there is not a button "Clone Card" of stack pNav then return "the Card Navigator has no Clone Card button"
+   put "OXT Tour Flip Book" into tStack
+   if there is a stack tStack then delete stack tStack
+   create stack tStack
+   set the rect of stack tStack to 500, 200, 900, 500
+   set the defaultStack to tStack
+   create field "frame"
+   put "frame 1" into field "frame" of card 1 of stack tStack
+   new card
+   set the name of card 2 of stack tStack to "second"
+   go card 1 of stack tStack
+   put tStack into field "stackName" of stack pNav
+   put the defaultStack into tDefault
+   send "mouseDown" to button "Clone Card" of stack pNav
+   tourWait 300
+   if the number of cards of stack tStack is not 3 then
+      put "Clone Card made no copy (" & the number of cards of stack tStack && "cards)" into tFail
+   else if the number of this card of stack tStack is not 2 then
+      put "Clone Card did not go to the copy (card" && the number of this card of stack tStack & ")" into tFail
+   else if the number of fields of card 2 of stack tStack is not 1 or field 1 of card 2 of stack tStack is not "frame 1" then
+      put "the copy is not the card it was made from" into tFail
+   else if the short name of card 3 of stack tStack is not "second" then
+      put "the copy is not right after the card it was made from" into tFail
+   else if the defaultStack is not tDefault then
+      put "Clone Card left the default stack" && the defaultStack into tFail
+   end if
+   delete stack tStack
+   return tFail
+end tourNavigatorClone
+
+-- The Card Navigator's "Show All" (OpenXTalkPaul, p=26111: "show all
+-- cards" flipping through the cards as HyperCard's did, which the engine's
+-- does too fast to see): on a stack of four cards, red, green, blue and
+-- yellow, a click on it while the red one is in front opens the others in
+-- turn and comes back to the red one, at least 50 milliseconds apart (it
+-- waits 66 between cards). The stack's openCard reads the middle of the
+-- window: the card before the one opening, or that one, never an older
+-- one, so each card was on the screen. The default stack is the same after
+-- the click, and the buttons of the row do not overlap and fit the
+-- window. Returns empty, or what went wrong
+local sShowAllStack, sShowAllSeen
+
+function tourNavigatorShowAll pNav
+   local tStack, tDefault, tFail, tLast, tButton, tColours, tNames, tLine, tPrevious, tWhen, tWant, i
+   if there is not a button "Show All" of stack pNav then return "the Card Navigator has no Show All button"
+   put "OXT Tour Show All" into tStack
+   put tStack into sShowAllStack
+   if there is a stack tStack then delete stack tStack
+   create stack tStack
+   set the rect of stack tStack to 500, 200, 900, 500
+   put "red,green,blue,yellow" into tNames
+   put "255,0,0|0,255,0|0,0,255|255,255,0" into tColours
+   lock messages
+   repeat with i = 1 to 4
+      if i > 1 then create card in stack tStack
+      set the itemDelimiter to "|"
+      set the backColor of card i of stack tStack to item i of tColours
+      set the itemDelimiter to comma
+      set the name of card i of stack tStack to item i of tNames
+   end repeat
+   set the script of stack tStack to "on openCard" & return & "send " & quote & "tourShowAllSeen" & quote & " to stack " & quote & "oxt_ui_tour" & quote & return & "end openCard"
+   unlock messages
+   go card 1 of stack tStack
+   tourUnlockScreen "navigator"
+   tourWait 300
+   put tStack into field "stackName" of stack pNav
+   put the defaultStack into tDefault
+   put empty into sShowAllSeen
+   send "mouseDown" to button "Show All" of stack pNav
+   tourRecord "INFO navigator: Show All opened" && replaceText(word 1 to -1 of sShowAllSeen, return, " | ")
+   if the number of lines of sShowAllSeen is not 4 then
+      put "Show All opened" && the number of lines of sShowAllSeen && "cards, not 4" into tFail
+   else if the short name of this card of stack tStack is not "red" then
+      put "Show All did not come back to the card it began on" into tFail
+   else if the defaultStack is not tDefault then
+      put "Show All left the default stack" && the defaultStack into tFail
+   else
+      put "red" into tPrevious
+      put empty into tWhen
+      repeat with i = 1 to 4
+         put line i of sShowAllSeen into tLine
+         put (i mod 4) + 1 into tWant
+         if item 1 of tLine is not item tWant of tNames then
+            put "Show All opened" && item 1 of tLine && "as card" && i into tFail
+            exit repeat
+         end if
+         if item 3 of tLine is not tPrevious and item 3 of tLine is not item 1 of tLine then
+            put "the screen showed" && item 3 of tLine && "as" && item 1 of tLine && "opened, not" && tPrevious && "or" && item 1 of tLine into tFail
+            exit repeat
+         end if
+         if tWhen is not empty and item 2 of tLine - tWhen < 50 then
+            put "Show All opened" && item 1 of tLine && "only" && (item 2 of tLine - tWhen) && "ms after the card before it" into tFail
+            exit repeat
+         end if
+         put item 1 of tLine into tPrevious
+         put item 2 of tLine into tWhen
+      end repeat
+   end if
+   delete stack tStack
+   if tFail is not empty then return tFail
+   put 0 into tLast
+   repeat for each item tButton in "New Card,Clone Card,Show All,Delete Card"
+      if the left of button tButton of stack pNav < tLast then return "the button" && tButton && "overlaps the one before it"
+      put the right of button tButton of stack pNav into tLast
+   end repeat
+   if tLast > the width of stack pNav then return "Delete Card is past the window's right edge"
+   return empty
+end tourNavigatorShowAll
+
+-- From the openCard of the stack of tourNavigatorShowAll: a line of the
+-- card's name, the milliseconds and the colour the screen shows at the
+-- middle of the window, as a word
+on tourShowAllSeen
+   local tRect, tPixel, tWord
+   put the rect of stack sShowAllStack into tRect
+   put tourPixelAt((item 1 of tRect + item 3 of tRect) div 2, (item 2 of tRect + item 4 of tRect) div 2) into tPixel
+   put "other(" & replaceText(tPixel, comma, " ") & ")" into tWord
+   if item 1 of tPixel > 200 and item 2 of tPixel < 60 and item 3 of tPixel < 60 then put "red" into tWord
+   if item 1 of tPixel < 60 and item 2 of tPixel > 200 and item 3 of tPixel < 60 then put "green" into tWord
+   if item 1 of tPixel < 60 and item 2 of tPixel < 60 and item 3 of tPixel > 200 then put "blue" into tWord
+   if item 1 of tPixel > 200 and item 2 of tPixel > 200 and item 3 of tPixel < 60 then put "yellow" into tWord
+   put the short name of this card of stack sShowAllStack & comma & the milliseconds & comma & tWord & return after sShowAllSeen
+end tourShowAllSeen
 
 on tour_about
    local tBefore, tNew

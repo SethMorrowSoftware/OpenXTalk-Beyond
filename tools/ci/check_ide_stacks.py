@@ -27,7 +27,9 @@ one UTF-8 string, with LF line ends, so an applied patch can be seen in the
 file's bytes. For every script patch it checks that the replacement text
 occurs exactly once in the stack file and the replaced text does not occur
 (when patches of several objects with the same script write the same text,
-as the two copies of a script editor pane do, it occurs once for each).
+as the two copies of a script editor pane do, it occurs once for each; when
+a patch changes the script of a copy that a clone patch makes, the copy's
+source keeps the replaced text, once for each such patch).
 
 Property patches (a colour or another property of an object) cannot be
 seen this way: a stack file stores properties in a binary form that no
@@ -218,6 +220,18 @@ def check_patches(repo, failures):
     for patch in patches.values():
         if not isinstance(patch, Exception) and patch[0] == 'script':
             writers[(patch[1], patch[4])] = writers.get((patch[1], patch[4]), 0) + 1
+    # A script patch of a clone (the object it names is a copy that a clone
+    # patch of the same stack file makes) leaves the replaced text in the
+    # copy's source: the Card Navigator's "Clone Card" is "New Card" with
+    # one line changed. Each such patch lets the replaced text stay once
+    clones = set((p[1], p[3]) for p in patches.values()
+                 if not isinstance(p, Exception) and p[0] == 'clone')
+    kept = {}
+    for patch in patches.values():
+        if not isinstance(patch, Exception) and patch[0] == 'script':
+            first = re.match(r'^\w+ "([^"]*)"', patch[2])
+            if first and (patch[1], first.group(1)) in clones:
+                kept[(patch[1], patch[3])] = kept.get((patch[1], patch[3]), 0) + 1
     for name in names:
         rel_patch = PATCH_DIR.replace(os.sep, '/') + '/' + name
         patch = patches[name]
@@ -267,7 +281,7 @@ def check_patches(repo, failures):
         new_count = data.count(new)
         old_count = data.count(old)
         expected = writers[(stack, new)]
-        if new_count == expected and old_count == 0:
+        if new_count == expected and old_count <= kept.get((stack, old), 0):
             print('ok      %s: applied to %s, %s' % (name, rel_stack, obj))
         else:
             failures.append((rel_stack, '%s is not applied to %s (replacement found %d time(s) for %d patch(es), '
