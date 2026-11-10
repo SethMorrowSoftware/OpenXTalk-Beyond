@@ -90,6 +90,41 @@ class EvaluateTest(unittest.TestCase):
         self.assertIn('the second line was written while the read waited (no timeout)', failed([], []))
 
 
+class StageEngineTest(unittest.TestCase):
+    """A runtime keeps revsecurity in Support (tools/oxt/package.py,
+    plan_runtimes); the check runs a copy with it next to the engine, as a
+    built standalone has it. On the first CI run the runtime's Standalone
+    ran as it is and could not load SSL."""
+
+    def setUp(self):
+        self.work = tempfile.mkdtemp(prefix='oxt-tlswrite-stage-')
+        self.addCleanup(shutil.rmtree, self.work, True)
+        self.runtime = os.path.join(self.work, 'Runtime')
+        os.makedirs(os.path.join(self.runtime, 'Support'))
+        self.engine = os.path.join(self.runtime, 'Standalone')
+        with open(self.engine, 'w') as f:
+            f.write('engine')
+        self.out = os.path.join(self.work, 'out')
+        os.mkdir(self.out)
+
+    def test_from_the_support_folder(self):
+        with open(os.path.join(self.runtime, 'Support', 'revsecurity.so'), 'w') as f:
+            f.write('ssl')
+        staged = tls_write_check.stage_engine(self.engine, self.out)
+        self.assertEqual(os.path.basename(staged), 'Standalone')
+        self.assertTrue(os.path.isfile(os.path.join(os.path.dirname(staged), 'revsecurity.so')))
+
+    def test_from_next_to_the_engine(self):
+        with open(os.path.join(self.runtime, 'revsecurity.so'), 'w') as f:
+            f.write('ssl')
+        staged = tls_write_check.stage_engine(self.engine, self.out)
+        self.assertTrue(os.path.isfile(os.path.join(os.path.dirname(staged), 'revsecurity.so')))
+
+    def test_none_fails(self):
+        with self.assertRaises(RuntimeError):
+            tls_write_check.stage_engine(self.engine, self.out)
+
+
 @unittest.skipUnless(shutil.which('openssl'), 'needs the openssl command')
 class ServerTest(unittest.TestCase):
     """The check's server, with a Python client in place of the engine."""

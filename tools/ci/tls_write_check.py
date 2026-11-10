@@ -39,6 +39,10 @@ that it decides what bytes go out) sends, after the handshake and a line from
 the engine, only the first bytes of a record, and the rest only once the
 engine has written a second line. tools/ci/tls-write-check.livecodescript is
 the client, run by a standalone engine with -ui (no window, no X server).
+A package's runtime keeps revsecurity, the library the engine loads for
+SSL, in its Support folder, and the standalone builder puts it next to the
+standalone it builds; the check does the same, running a copy of the engine
+with the library next to it.
 Up to 0.2.7 the second write timed out; now it goes at once and the engine
 reads the record.
 
@@ -78,6 +82,26 @@ LINE_WAIT = 8
 
 def log(msg=''):
     print(msg, flush=True)
+
+
+SECURITY = ('revsecurity.so', 'revsecurity.dylib', 'revsecurity.dll')
+
+
+def stage_engine(engine, work):
+    """A copy of the engine in work with revsecurity next to it, from next
+    to the engine or from a runtime's Support folder, as a built standalone
+    has it."""
+    here = os.path.dirname(engine)
+    for folder in (here, os.path.join(here, 'Support')):
+        for name in SECURITY:
+            lib = os.path.join(folder, name)
+            if os.path.isfile(lib):
+                staged = os.path.join(work, 'engine')
+                os.mkdir(staged)
+                shutil.copy2(engine, os.path.join(staged, os.path.basename(engine)))
+                shutil.copy2(lib, os.path.join(staged, name))
+                return os.path.join(staged, os.path.basename(engine))
+    raise RuntimeError('no revsecurity next to %s or in its Support folder' % engine)
 
 
 def make_certificate(work):
@@ -213,6 +237,7 @@ def main(argv=None):
     work = tempfile.mkdtemp(prefix='oxt-tlswrite-')
     try:
         cert, key = make_certificate(work)
+        engine = stage_engine(engine, work)
         server = Server(cert, key)
         server.thread.start()
         result_log = os.path.join(work, 'engine.log')
