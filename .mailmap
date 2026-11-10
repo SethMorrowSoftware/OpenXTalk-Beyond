@@ -1,0 +1,10 @@
+# Who wrote a commit, for git's own log, shortlog and blame (gitmailmap(5)).
+#
+# From 2026-11-07 to 2026-11-09 one of the project's Claude sessions
+# committed with a placeholder identity, "x <x@x>": the 0.2.7 version
+# branch's 56 commits, each with that session's Claude-Session trailer.
+# They are Seth Morrow's work. GitHub credits them to an unrelated account
+# that has x@x on it, and GitHub's pages ignore this file, but main and the
+# v0.2.7 tag are published, so the history is not rewritten; this file
+# gives git the right author instead.
+Seth Morrow <140758907+SethMorrowSoftware@users.noreply.github.com> x <x@x>
