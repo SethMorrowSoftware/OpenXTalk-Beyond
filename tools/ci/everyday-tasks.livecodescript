@@ -102,6 +102,7 @@ on edRun
             edShotScreen "zz-failed-" & tTask
          catch tError
          end try
+         edTidyAfterFailure tTask
       end try
       cancel sWatchdog
       edRecord "INFO time" && tTask && the milliseconds - tStarted && "ms"
@@ -1120,15 +1121,54 @@ on ed_se_find_replace
 end ed_se_find_replace
 
 -- a combo box of the Find dialog clicked, all its text selected (Ctrl or
--- Cmd+A) and pText typed
+-- Cmd+A) and pText typed. The keys go where the keyboard focus is: on the
+-- Intel Mac (main 59072d18, the dark everyday tour) "typing in Find gave
+-- \"\"", every key lost, where the same tree passed on every other run.
+-- So the Find window (a palette) is waited for until it has the keyboard
+-- focus, and the click until the focus is in the combo box (it
+-- is clicked again, at most twice more, each time recorded, when the
+-- focus is not there yet); a miss then says where the focus was. What is
+-- checked is the same: the combo box shows what was typed
 command edTypeInCombo pStack, pCombo, pText
-   local tCombo
+   local tCombo, tTries
    put the long id of button pCombo of card "Main" of stack pStack into tCombo
-   edClickAt pStack, (the left of tCombo + 30) & "," & item 2 of the loc of tCombo
+   if not edWaitFor("edFocusIn(pAx)", 3000, pStack) then
+      edRecord "INFO" && pStack && "does not have the keyboard focus before typing in" && pCombo & \
+            ": the focus" && edJoin(the focusedObject) & ", the topStack" && the short name of the topStack
+   end if
+   put 0 into tTries
+   repeat
+      add 1 to tTries
+      edClickAt pStack, (the left of tCombo + 30) & "," & item 2 of the loc of tCombo
+      if edWaitFor("edFocusOn(pAx)", 1000, tCombo) then exit repeat
+      edRecord "INFO click" && tTries && "in" && pCombo && "left the focus at" && edJoin(the focusedObject) & \
+            "; the topStack" && the short name of the topStack
+      if tTries >= 3 then exit repeat
+   end repeat
    edType pStack, "a", "command"
    edType pStack, pText
-   if the label of tCombo is not pText then throw "typing in" && pCombo && "gave" && quote & the label of tCombo & quote
+   if not edWaitFor("the label of pAx is pBx", 1000, tCombo, pText) then
+      throw "typing in" && pCombo && "gave" && quote & the label of tCombo & quote & \
+            "; the focus" && edJoin(the focusedObject) & ", the topStack" && the short name of the topStack & \
+            ", the defaultStack" && the short name of the defaultStack
+   end if
 end edTypeInCombo
+
+-- whether the keyboard focus is in a window of the stack pStack (the
+-- focusedObject is the focused window's control with the focus, or its
+-- card)
+function edFocusIn pStack
+   local tFocus
+   put the focusedObject into tFocus
+   return tFocus is not empty and tFocus contains ("stack" && quote & pStack & quote)
+end edFocusIn
+
+-- whether the keyboard focus is on the control pControl (a long id)
+function edFocusOn pControl
+   -- (the focusedObject is a long id, as the engine spells it for
+   -- pControl)
+   return the focusedObject is pControl
+end edFocusOn
 
 -- a breakpoint set by a click in the gutter beside the handler's third
 -- line, and a click on the button in Run mode: the
@@ -1727,6 +1767,33 @@ function edFlatten pArray
    end repeat
    return tText
 end edFlatten
+
+-- What a task that failed left open of the Script Editor (its windows and
+-- its Find dialog) is closed, so that one failure does not become the
+-- next task's: on the Intel Mac (main 59072d18) se-find-replace failed
+-- with its Script Editor open, debug-breakpoint then set the button's
+-- script under it and failed too, and by dictionary-search the editor's
+-- modal revSEModifiedExternallyDialog was up. Logged, never thrown
+command edTidyAfterFailure pTask
+   local tStack, tLeft, tError
+   repeat for each line tStack in the openStacks
+      if tStack begins with "revNewScriptEditor" or tStack is "revSEFind" or \
+            tStack is "revSEModifiedExternallyDialog" then
+         put tStack & " " after tLeft
+      end if
+   end repeat
+   if tLeft is empty then exit edTidyAfterFailure
+   edRecord "INFO" && pTask && "failed with these open, closed:" && tLeft
+   try
+      if there is a stack "revSEModifiedExternallyDialog" and the mode of stack "revSEModifiedExternallyDialog" is not 0 then
+         close stack "revSEModifiedExternallyDialog"
+      end if
+      if there is a stack "revSEFind" and the mode of stack "revSEFind" is not 0 then close stack "revSEFind"
+      edCloseScriptEditors
+   catch tError
+      edRecord "INFO closing what" && pTask && "left open:" && edJoin(tError)
+   end try
+end edTidyAfterFailure
 
 command edCloseScriptEditors
    local tStack
