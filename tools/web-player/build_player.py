@@ -54,6 +54,11 @@ stack file with no extension, which the player must import with its
 scripts fixed as File > Import Stack fixes them, and Stacks.dc42, a
 DiskCopy 4.2 image, whose stacks it must list and open the one chosen.
 
+The third page then opens Fonts, a field in Arial: with the desktop fonts
+(which the build asks for, and desktop_fonts finds in standalone.zip when
+the runtime has them), the fontNames have Arial and Times, and Arial and
+Helvetica draw as wide as Arimo, Times as Tinos.
+
 Then the bare player (play/, check_bare): a sample by ?play= in the middle
 of the page with no bar or window around it, a stack of the site by
 ?stack=, another site's refused, and the Phone Starter filling an iPhone's
@@ -194,6 +199,7 @@ def build(args, work):
                 log('  ide output: %s' % line)
         if not problems:
             problems += full_engine(lay.root, out)
+            problems += desktop_fonts(lay.root, out)
         if problems:
             raise CheckError('; '.join(problems))
         log('The IDE built the player in %.0f s' % (time.time() - started))
@@ -221,6 +227,27 @@ def full_engine(root, site):
                     return ['the player\'s %s is not the engine with the xTalk Suite libraries (%s)' % (name, full)]
             log('The player has the engine with the xTalk Suite libraries (%.1f MB; %.1f MB without)' % (
                 os.path.getsize(full) / 1e6, os.path.getsize(lean) / 1e6))
+    return []
+
+
+def desktop_fonts(root, site):
+    """Problems if the player's standalone.zip does not have the desktop
+    fonts of the web runtime (emscripten-desktop-fonts/, which
+    build-player.livecodescript asks for). A runtime without them (one
+    made before 0.2.8) builds a player without them, which the builder
+    warns of."""
+    folders = glob.glob(os.path.join(glob.escape(root), '**', 'Emscripten', 'js', 'emscripten-desktop-fonts'),
+                        recursive=True)
+    if not folders:
+        log('The runtime has no desktop fonts: the player draws every font in Droid Sans')
+        return []
+    fonts = sorted(x for x in os.listdir(folders[0]) if x.endswith('.ttf'))
+    with zipfile.ZipFile(os.path.join(site, 'standalone.zip')) as z:
+        names = set(z.namelist())
+    missing = [x for x in fonts if 'boot/standalone/' + x not in names]
+    if missing:
+        return ['the player\'s standalone.zip does not have the desktop fonts %s' % ', '.join(missing)]
+    log('The player has the %d desktop fonts' % len(fonts))
     return []
 
 
@@ -784,6 +811,20 @@ def check(site, samples, work):
         expect('arrows-stay-in-stack', not came_back
                and abs(colour[0] - 0xCC) < 24 and abs(colour[1] - 0x33) < 24 and abs(colour[2] - 0x66) < 24,
                ' | '.join(came_back + ['#%02X%02X%02X' % colour]))
+        before = len(third_lines)
+        third.click('#home')
+        wait_for(third, lambda: any(x.startswith('PLAYER library') for x in third_lines[before:]), 'going home', 15)
+
+        # Fonts: the desktop names draw in the desktop fonts (Arial and
+        # Helvetica as wide as Arimo, Times as Tinos), when the player has
+        # them (desktop_fonts); without them, in Droid Sans, as before
+        with zipfile.ZipFile(os.path.join(site, 'standalone.zip')) as z:
+            has_fonts = 'boot/standalone/Arimo-Regular.ttf' in z.namelist()
+        got = open_files(third, [os.path.join(samples, 'Fonts.livecode')], 'Fonts', third_lines)
+        third.wait_for_timeout(1000)
+        fonts = [x for x in third_lines if x.startswith('SAMPLE fonts')]
+        want = 'SAMPLE fonts true,true,true' if has_fonts else 'SAMPLE fonts false,false,true'
+        expect('fonts', fonts == [want], ' | '.join(fonts or got[-3:]))
         before = len(third_lines)
         third.click('#home')
         wait_for(third, lambda: any(x.startswith('PLAYER library') for x in third_lines[before:]), 'going home', 15)

@@ -7330,6 +7330,46 @@ on tour_standalone_settings
             throw "picking White left the Fields setting at" && \
                   quote & the cRevStandaloneSettings["emscripten,fieldBackground"] of stack kSample & quote
          end if
+         -- the Fonts setting: Droid Sans for every font, as before, or the
+         -- desktop fonts; below Fields, above the pane's text
+         if there is not a button "emscriptenFonts" of card "Emscripten" of stack tStack then
+            throw "the Web card has no Fonts setting"
+         end if
+         if line 1 of the text of button "emscriptenFonts" of card "Emscripten" of stack tStack is not "Droid Sans for every font" or \
+               the number of lines of the text of button "emscriptenFonts" of card "Emscripten" of stack tStack is not 2 or \
+               not (line 2 of the text of button "emscriptenFonts" of card "Emscripten" of stack tStack begins with "Desktop fonts") then
+            throw "the Fonts setting offers" && tourJoin(the text of button "emscriptenFonts" of card "Emscripten" of stack tStack)
+         end if
+         if not the visible of button "emscriptenFonts" of card "Emscripten" of stack tStack or \
+               item 2 of the rect of button "emscriptenFonts" of card "Emscripten" of stack tStack < \
+               item 4 of the rect of button "emscriptenFields" of card "Emscripten" of stack tStack or \
+               item 4 of the rect of button "emscriptenFonts" of card "Emscripten" of stack tStack > \
+               item 2 of the rect of field "emscriptenDeploymentInfoLabel" of card "Emscripten" of stack tStack then
+            throw "the Fonts setting is hidden, over Fields or under the pane's text:" && \
+                  the rect of button "emscriptenFonts" of card "Emscripten" of stack tStack
+         end if
+         if the label of button "emscriptenFonts" of card "Emscripten" of stack tStack is not "Droid Sans for every font" or \
+               the cRevStandaloneSettings["emscripten,fonts"] of stack kSample is not empty then
+            throw "the Fonts setting of a stack that has none is not Droid Sans:" && \
+                  the label of button "emscriptenFonts" of card "Emscripten" of stack tStack
+         end if
+         lock messages
+         set the menuHistory of button "emscriptenFonts" of card "Emscripten" of stack tStack to 2
+         unlock messages
+         dispatch "menuPick" to button "emscriptenFonts" of card "Emscripten" of stack tStack with \
+               line 2 of the text of button "emscriptenFonts" of card "Emscripten" of stack tStack
+         if the cRevStandaloneSettings["emscripten,fonts"] of stack kSample is not "desktop" then
+            throw "picking Desktop fonts set the Fonts setting to" && \
+                  quote & the cRevStandaloneSettings["emscripten,fonts"] of stack kSample & quote
+         end if
+         lock messages
+         set the menuHistory of button "emscriptenFonts" of card "Emscripten" of stack tStack to 1
+         unlock messages
+         dispatch "menuPick" to button "emscriptenFonts" of card "Emscripten" of stack tStack with "Droid Sans for every font"
+         if the cRevStandaloneSettings["emscripten,fonts"] of stack kSample is not empty then
+            throw "picking Droid Sans left the Fonts setting at" && \
+                  quote & the cRevStandaloneSettings["emscripten,fonts"] of stack kSample & quote
+         end if
       end if
    end repeat
    -- each disabled check box's and radio button's words fainter than an

@@ -143,6 +143,11 @@ private function playerSettings pSettings
    -- that uses none of them is built without: the player opens stacks
    -- that may use them (revsaveasemscriptenstandalone's getEngineFiles)
    put "always" into pSettings["emscripten,xtalklibraries"]
+   -- the desktop fonts (Arimo, Tinos and Cousine), in which the web
+   -- engine draws Arial, Helvetica, Geneva, Times, Courier and the like,
+   -- so that the stacks it opens wrap their text as on the desktop
+   -- (revsaveasemscriptenstandalone's storeDesktopFonts)
+   put "desktop" into pSettings["emscripten,fonts"]
    -- the script libraries (revsblibrary's kScriptLibraries), then the
    -- titles of the externals that the web engine has
    -- (revsaveasemscriptenstandalone's kWebExternals)
@@ -321,7 +326,47 @@ private command makeSamples pFolder
    makeData pFolder & "/Data.livecode"
    makeHyper pFolder & "/Hyper.livecode"
    makeMover pFolder & "/Mover.livecode"
+   makeFonts pFolder & "/Fonts.livecode"
 end makeSamples
+
+-- A stack in the desktop's fonts: fontsReport says whether the player
+-- has Arial and Times (the desktop fonts stand in for them), and whether
+-- Arial and Helvetica draw as wide as Arimo and Times as wide as Tinos
+private command makeFonts pFile
+   local tStack, tScript
+   create stack "Fonts"
+   put the long id of stack "Fonts" into tStack
+   set the rect of tStack to 0,0,480,200
+   set the defaultStack to "Fonts"
+   create field "Probe"
+   set the rect of field "Probe" of tStack to 20,20,460,180
+   set the dontWrap of field "Probe" of tStack to true
+   set the textSize of field "Probe" of tStack to 20
+   set the textFont of field "Probe" of tStack to "Arial"
+   set the text of field "Probe" of tStack to "The quick brown fox jumps over the lazy dog"
+   put "on openStack" & return & \
+         "   send `fontsReport` to me in 10 milliseconds" & return & \
+         "end openStack" & return & \
+         "function fontsWidth pFont" & return & \
+         "   set the textFont of field `Probe` to pFont" & return & \
+         "   return the formattedWidth of field `Probe`" & return & \
+         "end fontsWidth" & return & \
+         "on fontsReport" & return & \
+         "   local tArimo, tTinos, tSame" & return & \
+         "   put fontsWidth(`Arimo`) into tArimo" & return & \
+         "   put fontsWidth(`Tinos`) into tTinos" & return & \
+         "   put fontsWidth(`Arial`) is tArimo and fontsWidth(`Helvetica`) is tArimo and fontsWidth(`Times`) is tTinos into tSame" & return & \
+         "   set the textFont of field `Probe` to `Arial`" & return & \
+         "   write `SAMPLE fonts ` & (`Arial` is among the lines of the fontNames) & comma & (`Times` is among the lines of the fontNames) & comma & tSame & return to stdout" & return & \
+         "end fontsReport" into tScript
+   replace "`" with quote in tScript
+   set the script of tStack to tScript
+   if the result is not empty then
+      throw "the Fonts sample's script: " & the result
+   end if
+   save stack "Fonts" as pFile
+   delete stack "Fonts"
+end makeFonts
 
 -- A stack that sizes and centres its own window as it opens, as the
 -- box2dxt platformer does (buildPfUI): in the page's window it must show
