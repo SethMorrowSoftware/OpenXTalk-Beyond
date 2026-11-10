@@ -105,6 +105,7 @@ on openStack
    revIDESubscribe "idePreferenceChanged:cShowRevolutionStacks"
    revIDESubscribe "idePreferenceChanged:revPaletteFrameSize"
    revIDESubscribe "idePreferenceChanged:cScriptEditor,editor,backgroundcolor"
+   revIDESubscribe "idePreferenceChanged:cScriptEditor,editor,hilitecolor"
    revIDESubscribe "idePreferenceChanged:cScriptEditor,editor,font"
    revIDESubscribe "idePreferenceChanged:cScriptEditor,editor,fontSize"
    
@@ -124,6 +125,7 @@ on openStack
    moveMsgBoxStack
    
    __UpdateMessageColors
+   __UpdateMessageHilite
    __UpdateMessageFont
    if the cREVLaunching of stack "Home" is false then set the blendlevel of stack "message box" to 0 -- a trick to make it invisible (without using visible or hide)
    
@@ -556,6 +558,9 @@ on idePreferenceChanged pPreference, pValue
       case "cScriptEditor,editor,backgroundcolor"
          __UpdateMessageColors
          break
+      case "cScriptEditor,editor,hilitecolor"
+         __UpdateMessageHilite
+         break
       case "cScriptEditor,editor,font"
       case "cScriptEditor,editor,fontSize"
          __UpdateMessageFont
@@ -587,6 +592,31 @@ private command __UpdateMessageColors
    set the backgroundColor of field "auto complete" of card "Single Line" of me to tColor
    set the backgroundColor of field "script" of card "Multiple Lines" of me to tColor
 end __UpdateMessageColors
+
+-- OXT-Beyond: the selection in the script typed in the Message Box (the
+-- Single Line message and the Multiple Lines script) is drawn in the
+-- Script Editor's highlight colour, its "editor,hilitecolor" preference
+-- as the Script Editor reads it (revSEGetPreference: the one saved, or
+-- its default, empty on macOS and 178,180,191 elsewhere). Empty is the
+-- engine's own highlight, which follows the appearance. Before, both
+-- fields kept a hiliteColor saved in the stack, much too light under the
+-- dark scheme's light words in the dark appearance (bwmilby, the forum,
+-- 2026-11-09). With no Script Editor library loaded the colour is empty.
+private command __UpdateMessageHilite
+   local tColor
+   if there is a stack "revSEUtilities" then
+      dispatch "revSEGetPreference" to stack "revSEUtilities" with "editor,hilitecolor"
+      if it is "handled" then
+         put the result into tColor
+      end if
+   end if
+   if there is a field "message" of card "Single Line" of me then
+      set the hiliteColor of field "message" of card "Single Line" of me to tColor
+   end if
+   if there is a field "script" of card "Multiple Lines" of me then
+      set the hiliteColor of field "script" of card "Multiple Lines" of me to tColor
+   end if
+end __UpdateMessageHilite
 
 command positionOpenStacksButton
    lock screen
