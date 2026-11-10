@@ -127,6 +127,28 @@ jobs:
           echo "RUNTIME=$android" >> "$GITHUB_ENV"
           ls -l "$android" "$android"/*/Standalone
 
+      # TEMPORARY (removed before the pull request is ready): what Google's
+      # Maven repository has of the Play Billing Library, its POMs and AARs
+      - name: Look at the Play Billing Library
+        run: |
+          mkdir -p "$RUNNER_TEMP/billing"
+          cd "$RUNNER_TEMP/billing"
+          root=https://dl.google.com/android/maven2
+          curl -fsSL "$root/com/android/billingclient/billing/maven-metadata.xml" -o metadata.xml && cat metadata.xml
+          for v in 8.0.0 8.3.0 9.1.0; do
+            base="$root/com/android/billingclient/billing/$v/billing-$v"
+            curl -fsSL "$base.pom" -o "billing-$v.pom" && { echo "== billing-$v.pom"; cat "billing-$v.pom"; }
+            curl -fsSL "$base.aar" -o "billing-$v.aar" && sha256sum "billing-$v.aar"
+            mkdir -p "x-$v" && (cd "x-$v" && unzip -q -o "../billing-$v.aar" && ls -lR . | head -40 && cat AndroidManifest.xml)
+          done
+
+      - name: Keep what it found
+        uses: actions/upload-artifact@v7
+        with:
+          name: play-billing
+          path: ${{ runner.temp }}/billing/*
+          retention-days: 3
+
       - name: Build the Java layer
         run: |
           mkdir -p "$RUNNER_TEMP/java"
