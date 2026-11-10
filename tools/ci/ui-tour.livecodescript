@@ -8219,9 +8219,9 @@ on tour_extension_builder_errors
       if not ("Could not build script library" is in tLog) then throw "Test does not say the script library did not build"
    catch tError
    end try
-   repeat for each item tName in "org.openxtalk.tour.brokenlib,org.openxtalk.tour.noblocklib"
-      if there is a stack tName then delete stack tName
-   end repeat
+   -- The two libraries stay in memory, as the Builder leaves a library it
+   -- built: deleting them here made the next step's error dialog fail in
+   -- Home's openStack (error-display, on Linux)
    close stack tStack
    if tError is not empty then throw tError
 end tour_extension_builder_errors
