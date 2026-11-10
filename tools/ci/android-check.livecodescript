@@ -1062,8 +1062,26 @@ private function buildSettings pName
       put kTestsIdentifier into tSettings["android,identifier"]
       put "Android Tests" into tSettings["android,label"]
       put true into tSettings["android,application permissions"]["INTERNET"]
+      -- and plain http: the card's "Allow HTTP connections", which puts
+      -- android:usesCleartextTraffic in the manifest. Without it Android
+      -- (9 and later) refuses every http:// request before it is sent, and
+      -- the tests that serve HTTP from the app itself (on 127.0.0.1) and
+      -- ask it, as the xTalk Assistant's do, never reach their server
+      put true into tSettings["android,allow http"]
       put kTestsFiles into tSettings["files"]
       replace comma with return in tSettings["files"]
+      -- and the security library, as an app that encrypts includes it
+      -- (Standalone Settings > General > SSL & Encryption, which the
+      -- builder turns into "android,include revsecurity"): the tests are
+      -- copy files, which no search for inclusions reads, and without it
+      -- randomBytes, encrypt and the rest throw error 720
+      if "SSL & Encryption" is not among the lines of tSettings["scriptLibraries"] then
+         if tSettings["scriptLibraries"] is empty then
+            put "SSL & Encryption" into tSettings["scriptLibraries"]
+         else
+            put return & "SSL & Encryption" after tSettings["scriptLibraries"]
+         end if
+      end if
    end if
    -- the engine the probe is built with: OXT-Beyond's own (android_check.py
    -- ide --android-engine beyond), or 9.6.3's as a stack that names none

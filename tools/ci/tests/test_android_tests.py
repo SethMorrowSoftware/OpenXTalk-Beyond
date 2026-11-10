@@ -507,9 +507,50 @@ class Standalone(unittest.TestCase):
     def test_the_build_settings(self):
         block = self.check[self.check.index('if probeName() is "StandaloneTestRunnerMainstack" then\n'
                                             '      put kTestsIdentifier'):]
-        block = block[:block.index('end if')]
+        block = block[:block.index('\n   end if\n')]
         self.assertIn('["android,application permissions"]["INTERNET"]', block)
         self.assertIn('put kTestsFiles into tSettings["files"]', block)
+        # plain http (to the tests' own servers on 127.0.0.1)
+        self.assertIn('put true into tSettings["android,allow http"]', block)
+        self.assertEqual(self.check.count('tSettings["android,allow http"]'), 1)
+        # the security library, as Standalone Settings' "SSL & Encryption"
+        # gives it, added once to whatever libraries the stack had
+        self.assertIn('if "SSL & Encryption" is not among the lines of tSettings["scriptLibraries"] then', block)
+        self.assertIn('put "SSL & Encryption" into tSettings["scriptLibraries"]', block)
+        self.assertIn('put return & "SSL & Encryption" after tSettings["scriptLibraries"]', block)
+        self.assertEqual(self.check.count('"SSL & Encryption"'), 3)
+
+    def test_allow_http_puts_cleartext_traffic_in_the_manifest(self):
+        # the builder writes android:usesCleartextTraffic for "android,allow
+        # http" when the app may use the network (the tests' INTERNET)
+        builder = read('ide-support', 'revsaveasandroidstandalone.livecodescript')
+        block = builder[builder.index('// Allow http connections'):
+                        builder.index('replace "${ALLOW_HTTP_CONNECTIONS}" with tAllowHttpConnections in tManifest')]
+        self.assertIn('if the keys of pSettings["android,application permissions"] contains "Internet" then', block)
+        self.assertIn('if pSettings["android,allow http"] and tHasInternetPermission then', block)
+        self.assertIn('put "android:usesCleartextTraffic=" & quote & "true" & quote into tAllowHttpConnections', block)
+
+    def test_ssl_and_encryption_puts_the_security_library_in_the_package(self):
+        # the chain the build settings rely on: the builder converts the
+        # inclusion to "android,include revsecurity" (revsblibrary's
+        # revSBInclusionToMobileKey through revSBConvertSettingsForPlatform),
+        # which copies librevsecurity.so into the package; "Internet" is the
+        # only library the Android builder takes out as built in
+        sb = read('ide-support', 'revsblibrary.livecodescript')
+        key = sb[sb.index('function revSBInclusionToMobileKey'):sb.index('end revSBInclusionToMobileKey')]
+        self.assertIn('case "SSL & Encryption"\n         put "revsecurity" into tToInclude', key)
+        self.assertIn('return pPlatform & ",include" && tToInclude', key)
+        convert = sb[sb.index('command revSBConvertSettingsForPlatform'):sb.index('end revSBConvertSettingsForPlatform')]
+        self.assertIn('repeat for each line tLine in xSettings["scriptLibraries"]', convert)
+        self.assertIn('revSBInclusionToMobileKey(tLine, "external", pPlatform)', convert)
+        builtin = sb[sb.index('private command __InitialiseBuiltInInclusions'):
+                     sb.index('end __InitialiseBuiltInInclusions')]
+        self.assertEqual(re.findall(r'revSBAddBuiltInInclusion "android", "scriptLibraries", "([^"]+)"', builtin),
+                         ['Internet'])
+        builder = read('ide-support', 'revsaveasandroidstandalone.livecodescript')
+        self.assertIn('if pSettings["android,include revsecurity"] then', builder)
+        self.assertLess(builder.index('revSBConvertSettingsForPlatform pSettings, "android"'),
+                        builder.index('if pSettings["android,include revsecurity"] then'))
 
     def test_the_runner_says_what_the_check_reads(self):
         said = re.findall(r'androidSay "([A-Z]+)"', self.runner)
@@ -549,6 +590,54 @@ class Standalone(unittest.TestCase):
                 params = set(x.strip() for x in body.split('\n', 1)[0].split(',') if x.strip())
                 used = set(re.findall(r'\bt[A-Z]\w*', body))
                 self.assertFalse(used - declared - params, '%s: %s' % (m.group(1), used - declared - params))
+
+
+class TestLibrary(unittest.TestCase):
+    """What the test library (tests/_testlib.livecodescript) says an Android
+    standalone cannot do, so that a test needing it skips there instead of
+    failing (an Android engine's shell() always fails:
+    MCAndroidSystem::Shell)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.lib = read('tests', '_testlib.livecodescript')
+
+    def test_android_has_no_shell(self):
+        self.assertIn('bool MCAndroidSystem::Shell(MCStringRef filename, MCDataRef& r_data, int& r_retcode)\n'
+                      '{\n\treturn false;\n}', read('engine', 'src', 'mblandroidprocess.cpp'))
+
+    def test_run_stack_skips_before_it_runs_a_shell(self):
+        body = self.lib[self.lib.index('command TestRunStack'):self.lib.index('end TestRunStack')]
+        android = body.index('if the platform is "android" then\n'
+                             '\t\tthrow "SKIP test runs a stack in another engine, which an Android app cannot start"')
+        self.assertLess(android, body.index('put shell(tCommand) into tOutput'))
+        # the browser's skip is still there, first
+        self.assertLess(body.index('if the platform is "HTML5" then'), android)
+
+    def test_the_shell_requirement(self):
+        body = self.lib[self.lib.index('private function __MeetsRequirements'):
+                        self.lib.index('end __MeetsRequirements')]
+        shell = body[body.index('      case "shell"\n'):]
+        self.assertTrue(shell.startswith('      case "shell"\n'
+                                         '         return the platform is not among the items of "HTML5,android"\n'))
+        # sockets: still everywhere but a browser (Android has them)
+        sockets = body[body.index('      case "sockets"\n'):]
+        self.assertTrue(sockets.startswith('      case "sockets"\n         return the platform is not "HTML5"\n'))
+
+    def test_the_tests_that_need_a_shell_say_so(self):
+        # the tests the first emulator run failed with error 539 each reach
+        # shell() only through TestRunStack or after TestSkipIfNot "shell"
+        for path, handler in (('core/debugging/log', 'TestLog'),
+                              ('core/engine/commandargs', 'TestCommandName'),
+                              ('core/engine/engine', 'TestUngroupAndQuit')):
+            text = read('tests', 'lcs', path + '.livecodescript')
+            body = re.search(r'(?ms)^on %s\b(.*?)^end %s\b' % (handler, handler), text).group(1)
+            self.assertIn('TestRunStack', body, handler)
+            self.assertNotIn('shell(', body, handler)
+        build = read('tests', 'lcs', 'xtalkassistant', 'build.livecodescript')
+        for handler in ('TestCheckpointBringsAStackBack', 'TestCleanupLeavesNothing', 'TestRunOnTheStackCanBeUndone'):
+            body = re.search(r'(?ms)^on %s\b(.*?)^end %s\b' % (handler, handler), build).group(1)
+            self.assertIn('TestSkipIfNot "shell"', body, handler)
 
 
 class Workflow(unittest.TestCase):

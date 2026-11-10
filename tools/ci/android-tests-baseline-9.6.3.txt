@@ -64,11 +64,8 @@ lcs: core/datetime/sql-date: TestSqlTextNotRecognisedUnlessNamed
 lcs: core/datetime/sql-date: TestSqlVariableNamesAProperty
 lcs: core/datetime/sql-date: TestSqlYearBefore1000
 lcs: core/datetime/sql-date: TestTheSqlDate
-lcs: core/debugging/log: TestLog  # error 539: no shell() on Android
-lcs: core/engine/commandargs: TestCommandName  # error 539: no shell() on Android
 lcs: core/engine/engine: TestEffectiveRectIsUpdatedWhileScreenIsLocked
 lcs: core/engine/engine: TestProcessor
-lcs: core/engine/engine: TestUngroupAndQuit  # error 539: no shell() on Android
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleArithmetic
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleBackgroundOrder
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleCardId
@@ -259,9 +256,6 @@ lcs: mcpbridge/tools: TestTheTokenIsComparedAsText  # error 720: could not load 
 lcs: mcpbridge/tools: TestUndoAsksWhenTheUserChangedIt  # error 720: could not load the security library
 lcs: webplayer/nova-rescue: TestTheScreensFitAPhoneOnItsSide
 lcs: webplayer/puzzle-almanac: TestTheScreensFitAPhoneOnItsSide
-lcs: xtalkassistant/build: TestCheckpointBringsAStackBack  # error 539: no shell() on Android
-lcs: xtalkassistant/build: TestCleanupLeavesNothing  # error 539: no shell() on Android
-lcs: xtalkassistant/build: TestRunOnTheStackCanBeUndone  # error 539: no shell() on Android
 lcs: xtalkassistant/build: TestUndoANewStack
 lcs: xtalkassistant/core: TestAskAnthropic
 lcs: xtalkassistant/core: TestAskOpenAI
