@@ -1177,7 +1177,16 @@ on TestContextPlan
    put xtaContextPlan(TestModelList("qwen/qwen3-8b", 32768, empty), "qwen/qwen3-8b@q8_0", 16384) into tPlan
    TestAssert "a variant is the model's", tPlan["action"] is "load"
    put xtaContextPlan(TestModelList("qwen/qwen3-8b", 32768, "qwen/qwen3-8b" & tab & 32768 & return & "qwen/qwen3-8b:2" & tab & 4096), "qwen/qwen3-8b:2", 16384) into tPlan
-   TestAssert "an instance named: only it counts", tPlan["action"] is "reload" and tPlan["unload"] is "qwen/qwen3-8b:2"
+   TestDiagnostic tPlan["action"] && tPlan["loaded"] && tPlan["key"] && tPlan["unload"]
+   TestAssert "a loaded copy named, with less: only it counts, and it is left loaded", tPlan["action"] is "instance" \
+         and tPlan["loaded"] is 4096 and tPlan["key"] is "qwen/qwen3-8b" and tPlan["unload"] is empty
+   put xtaContextPlan(TestModelList("qwen/qwen3-8b", 32768, "qwen/qwen3-8b" & tab & 4096 & return & "qwen/qwen3-8b:2" & tab & 32768), "qwen/qwen3-8b:2", 16384) into tPlan
+   TestAssert "a loaded copy named, with enough: nothing", tPlan["action"] is "none" and tPlan["loaded"] is 32768
+   put xtaContextPlan(TestModelList("qwen/qwen3-8b", 32768, "my-qwen" & tab & 4096), "my-qwen", 16384) into tPlan
+   TestAssert "a loaded copy under a name of the user's own, with less: left loaded", tPlan["action"] is "instance" \
+         and tPlan["key"] is "qwen/qwen3-8b" and tPlan["unload"] is empty
+   put xtaContextPlan(TestModelList("qwen/qwen3-8b", 32768, "qwen/qwen3-8b@q8_0" & tab & 4096), "qwen/qwen3-8b@q8_0", 16384) into tPlan
+   TestAssert "a variant's own name is the model's: reloaded", tPlan["action"] is "reload" and tPlan["unload"] is "qwen/qwen3-8b@q8_0"
    put xtaContextPlan(TestModelList("qwen/qwen3-8b", 32768, "qwen/qwen3-8b" & tab & 4096 & return & "qwen/qwen3-8b:2" & tab & 32768), "qwen/qwen3-8b", 16384) into tPlan
    TestAssert "the instance the request names has less: only it is reloaded", tPlan["action"] is "reload" and tPlan["unload"] is "qwen/qwen3-8b"
    put xtaContextPlan(TestModelList("qwen/qwen3-8b", 32768, "qwen/qwen3-8b:1" & tab & 4096 & return & "qwen/qwen3-8b:2" & tab & 32768), "qwen/qwen3-8b", 16384) into tPlan
@@ -1513,6 +1522,45 @@ on TestAskLocalServerWithoutTheList
    TestAssert "the answer", tReply["ok"] is true and tReply["text"] is "Hello"
    TestAssert "the list was asked for, nothing loaded", sRouteLog is ("GET /api/v1/models" & return & "POST /v1/chat/completions" & return)
 end TestAskLocalServerWithoutTheList
+
+-- The model is chosen by the name of a loaded copy (LM Studio names a
+-- second copy of a model "<model>:2", and the user can name one), and
+-- that copy has less. LM Studio loads a model by the model's own name
+-- and names the copy itself, so a copy unloaded could not be had back
+-- under its name: it is left loaded, the request goes to it as before,
+-- and when the request is refused the error says which name to choose
+on TestAskLocalNamedCopyIsLeftLoaded
+   local tPort, tReply, tSettings
+   delete variable sRoutes
+   put TestStartRoutes() into tPort
+   TestRoute "GET /api/v1/models", "200 OK", TestModelList("qwen/qwen3-8b", 32768, "qwen/qwen3-8b" & tab & 32768 & return & "qwen/qwen3-8b:2" & tab & 4096)
+   TestRoute "POST /api/v1/models/unload", "200 OK", "{" & TestQ("instance_id") & ":" & TestQ("qwen/qwen3-8b:2") & "}"
+   TestRoute "POST /api/v1/models/load", "404 Not Found", "{" & TestQ("error") & ":{" & TestQ("message") & ":" & TestQ("Model not found") & "}}"
+   TestRoute "POST /v1/chat/completions", "400 Bad Request", "{" & TestQ("error") & ":" & TestQ("the model is loaded with context length of only 4096 tokens") & "}"
+   put TestLocalSettings(tPort, 16384) into tSettings
+   put "qwen/qwen3-8b:2" into tSettings["model"]
+   put xtaAsk(tSettings, empty, TestTurns()) into tReply
+   close socket tPort
+   TestDiagnostic sRouteLog
+   TestDiagnostic tReply["error"]
+   TestAssert "the list was asked for, nothing unloaded or loaded, then the request", sRouteLog is \
+         ("GET /api/v1/models" & return & "POST /v1/chat/completions" & return)
+   TestAssert "the request names the copy, as before", xtaJsonText(xtaJsonMember(xtaJsonParse(sRouteBodies[2]), "model")) is "qwen/qwen3-8b:2"
+   TestAssert "not ok", tReply["ok"] is false
+   TestAssert "says what it is loaded with, and which name to choose", tReply["error"] contains "qwen/qwen3-8b:2" \
+         and tReply["error"] contains "4096 tokens" and tReply["error"] contains "Choose qwen/qwen3-8b in the Settings"
+   -- (and a request that is answered is the answer, with nothing added)
+   delete variable sRoutes
+   put TestStartRoutes() into tPort
+   TestRoute "GET /api/v1/models", "200 OK", TestModelList("qwen/qwen3-8b", 32768, "qwen/qwen3-8b" & tab & 32768 & return & "qwen/qwen3-8b:2" & tab & 4096)
+   TestRoute "POST /v1/chat/completions", "200 OK", TestChatAnswer()
+   put TestLocalSettings(tPort, 16384) into tSettings
+   put "qwen/qwen3-8b:2" into tSettings["model"]
+   put xtaAsk(tSettings, empty, TestTurns()) into tReply
+   close socket tPort
+   TestAssert "answered: the answer", tReply["ok"] is true and tReply["text"] is "Hello" and tReply["error"] is empty
+   TestAssert "answered: nothing unloaded or loaded", sRouteLog is ("GET /api/v1/models" & return & "POST /v1/chat/completions" & return)
+end TestAskLocalNamedCopyIsLeftLoaded
 
 -- The model could not be loaded with the context, and the request was
 -- refused: the error says why it was not loaded

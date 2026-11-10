@@ -1178,15 +1178,25 @@ end xtaLocalServerRoot
 --    "load"    it is not loaded: load it with "context" tokens
 --    "reload"  it is loaded with less: unload the instances in "unload"
 --              (one per line), then load it with "context" tokens
+--    "instance" pModel is the name of a loaded copy (an instance) that
+--              has less, and not the model's own name: leave it loaded
 --    "unknown" the answer is not LM Studio's list, or the model is not in it
 -- and "loaded", the most context it is loaded with now (empty when it is
--- not). "context" is pWanted, or the model's own most when it takes less.
+-- not), and "key", the model's own name. "context" is pWanted, or the
+-- model's own most when it takes less.
 -- An entry is pModel's when its key, one of its variants or one of its
 -- instances is pModel; its instances that are pModel, when it has any,
 -- are the ones that count, since the request names that one.
+-- LM Studio loads a model by the model's name (its key, or a variant's)
+-- and names the copy it makes itself: "<key>", "<key>:2" for a second
+-- one, or what the user called it in LM Studio. A request can name such
+-- a copy, and so can the Settings. A copy that is not called as the
+-- model is could not be had back under its name once unloaded (the load
+-- takes no name for it), and the model the user was using would be gone,
+-- with the request still naming it: such a copy is never unloaded.
 function xtaContextPlan pBody, pModel, pWanted
    local tPlan, tDoc, tError, tModels, tIndex, tEntry, tFound, tInstances, tCount
-   local tVariants, tItem, tId, tMine, tLoaded, tMost, tContext, tSmaller
+   local tVariants, tItem, tId, tMine, tLoaded, tMost, tContext, tSmaller, tKey, tByName
    put "unknown" into tPlan["action"]
    if not (pWanted is an integer and pWanted > 0) then
       put "none" into tPlan["action"]
@@ -1207,13 +1217,16 @@ function xtaContextPlan pBody, pModel, pWanted
    end if
    repeat with tIndex = 1 to xtaJsonCount(tModels)
       put xtaJsonItem(tModels, tIndex) into tEntry
-      put xtaJsonText(xtaJsonMember(tEntry, "key")) is pModel into tFound
+      put xtaJsonText(xtaJsonMember(tEntry, "key")) into tKey
+      put tKey is pModel into tFound
       put xtaJsonMember(tEntry, "variants") into tVariants
       repeat with tItem = 1 to xtaJsonCount(tVariants)
          if xtaJsonText(xtaJsonItem(tVariants, tItem)) is pModel then
             put true into tFound
          end if
       end repeat
+      -- (so far by the model's own name, or a variant's)
+      put tFound into tByName
       put xtaJsonMember(tEntry, "loaded_instances") into tInstances
       put empty into tMine
       repeat with tItem = 1 to xtaJsonCount(tInstances)
@@ -1243,6 +1256,7 @@ function xtaContextPlan pBody, pModel, pWanted
       put tMost into tContext
    end if
    put tContext into tPlan["context"]
+   put tKey into tPlan["key"]
    put 0 into tCount
    repeat for each line tItem in tMine
       put xtaJsonText(xtaJsonGet(tInstances, tItem & "/config/context_length")) into tLoaded
@@ -1264,6 +1278,8 @@ function xtaContextPlan pBody, pModel, pWanted
       put "load" into tPlan["action"]
    else if tPlan["loaded"] >= tContext then
       put "none" into tPlan["action"]
+   else if not tByName then
+      put "instance" into tPlan["action"]
    else
       put "reload" into tPlan["action"]
       delete char -1 of tSmaller
@@ -1280,7 +1296,9 @@ end xtaContextPlan
 -- Anthropic, or the base URL not a server of the user's own); "context",
 -- the context it was loaded with; and "error", in words for the user, when
 -- the model could not be loaded with it. A server that does not answer
--- the list as LM Studio does is left as it is.
+-- the list as LM Studio does is left as it is, and so is a model chosen
+-- by the name of a loaded copy that has less ("instance": its "error"
+-- says which name to choose instead).
 function xtaEnsureContext pSettings
    local tResult, tRoot, tHeaders, tAnswer, tPlan, tId, tError, tBody, tModel
    put "none" into tResult["action"]
@@ -1308,6 +1326,12 @@ function xtaEnsureContext pSettings
    put xtaContextPlan(tAnswer["body"], tModel, pSettings["contextLength"]) into tPlan
    put tPlan["action"] into tResult["action"]
    put tPlan["context"] into tResult["context"]
+   if tPlan["action"] is "instance" then
+      put tModel && "is loaded with a context of" && tPlan["loaded"] && "tokens, and it was left as it is:" && \
+            "that is the name of a loaded copy, and the server loads a model only by the model's own name." && \
+            "Choose" && tPlan["key"] && "in the Settings, and it is loaded with a context of" && tPlan["context"] && "tokens." into tResult["error"]
+      return tResult
+   end if
    if tPlan["action"] is not "load" and tPlan["action"] is not "reload" then
       return tResult
    end if
