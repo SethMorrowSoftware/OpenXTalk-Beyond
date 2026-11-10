@@ -815,6 +815,7 @@ class CardNavigatorClone(unittest.TestCase):
         for part in ('if the number of cards of stack tStack is not 3 then',
                      'else if the number of this card of stack tStack is not 2 then',
                      'field 1 of card 2 of stack tStack is not "frame 1"',
+                     'else if the short name of card 2 of stack tStack is not "Frame 1001" then',
                      'else if the short name of card 3 of stack tStack is not "second" then',
                      'else if the defaultStack is not tDefault then'):
             self.assertIn(part, self.check)
@@ -833,7 +834,9 @@ class CardNavigatorClone(unittest.TestCase):
         text = read_navigator_script(1029)
         self.assertIn('button "Clone Card" (id 1029)', text)
         set_default = text.index('set the defaultStack to tStack')
-        clone = text.index('clone card id (the last word of the currentCard of stack tStack) of stack tStack')
+        # by its id: the currentCard of a named card is its name
+        clone = text.index('clone card id (the short id of this card of stack tStack) of stack tStack')
+        self.assertNotIn('currentCard', text)
         restore = text.index('set the defaultStack to tDefault', clone)
         self.assertLess(set_default, clone)
         self.assertLess(clone, restore)

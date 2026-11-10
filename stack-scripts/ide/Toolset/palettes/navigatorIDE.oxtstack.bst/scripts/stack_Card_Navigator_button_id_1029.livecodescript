@@ -14,7 +14,7 @@ on mousedown
       -- default), so the shown stack is the default for the copy
       put the defaultStack into tDefault
       set the defaultStack to tStack
-      clone card id (the last word of the currentCard of stack tStack) of stack tStack
+      clone card id (the short id of this card of stack tStack) of stack tStack
       set the defaultStack to tDefault
    catch e
       if tDefault is not empty then set the defaultStack to tDefault

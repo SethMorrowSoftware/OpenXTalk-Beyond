@@ -8717,7 +8717,8 @@ end tour_navigator
 
 -- The Card Navigator's "Clone Card" (OpenXTalkPaul, openxtalk.org
 -- p=26111: a flip-book is made card by card, each a copy of the last):
--- on a stack of two cards, the first with a field, a click on it while
+-- on a stack of two cards, the first named "Frame 1001" (a number that
+-- is no card's id) and with a field, a click on it while
 -- the first is in front makes a copy of it, with its field, as card 2 and
 -- goes to it; the second card is now card 3. The window cannot be
 -- changed, and the engine refuses "clone card" while such a stack is the
@@ -8733,6 +8734,8 @@ function tourNavigatorClone pNav
    set the defaultStack to tStack
    create field "frame"
    put "frame 1" into field "frame" of card 1 of stack tStack
+   -- a named card: the stack's currentCard is then its name, not its id
+   set the name of card 1 of stack tStack to "Frame 1001"
    new card
    set the name of card 2 of stack tStack to "second"
    go card 1 of stack tStack
@@ -8746,6 +8749,8 @@ function tourNavigatorClone pNav
       put "Clone Card did not go to the copy (card" && the number of this card of stack tStack & ")" into tFail
    else if the number of fields of card 2 of stack tStack is not 1 or field 1 of card 2 of stack tStack is not "frame 1" then
       put "the copy is not the card it was made from" into tFail
+   else if the short name of card 2 of stack tStack is not "Frame 1001" then
+      put "the copy is not of the card in front (" & the short name of card 2 of stack tStack & ")" into tFail
    else if the short name of card 3 of stack tStack is not "second" then
       put "the copy is not right after the card it was made from" into tFail
    else if the defaultStack is not tDefault then
