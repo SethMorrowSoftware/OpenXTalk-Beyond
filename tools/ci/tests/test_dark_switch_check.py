@@ -29,6 +29,7 @@ import re
 import shutil
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -270,12 +271,22 @@ def now():
 def out(line):
     with open(log, 'a') as f:
         f.write(line + '\n')
+def replace(new, path):
+    # Windows refuses to replace a file that the other side has open just then
+    end = time.time() + 5
+    while True:
+        try:
+            return os.replace(new, path)
+        except PermissionError:
+            if time.time() > end:
+                raise
+            time.sleep(0.005)
 def follow(live):
     global kept
     kept = live
     with open(state + '.title.new', 'w') as f:
         f.write(live + '\n')
-    os.replace(state + '.title.new', state + '.title')
+    replace(state + '.title.new', state + '.title')
 def notices_taken():
     # a notice that has come since the last look: 1 when a message is sent
     global notices
@@ -321,6 +332,21 @@ out('DONE')
 """
 
 
+def patiently(action, wait=5):
+    """What `action` returns. Windows refuses to replace a file, or to open
+    one, while the other side has it open or is replacing it: the stand-in
+    engine and the test share two small files, so each tries again for a
+    while (PermissionError, as on the Windows runner on 10 November 2026)."""
+    end = time.time() + wait
+    while True:
+        try:
+            return action()
+        except PermissionError:
+            if time.time() > end:
+                raise
+            time.sleep(0.005)
+
+
 class FakeWindows:
     def __init__(self, state):
         self.state, self.appearance, self.told, self.forwarded = state, None, 0, []
@@ -328,7 +354,7 @@ class FakeWindows:
     def write(self):
         with open(self.state + '.new', 'w') as f:
             f.write('%s %d\n' % (self.appearance, self.told))
-        os.replace(self.state + '.new', self.state)
+        patiently(lambda: os.replace(self.state + '.new', self.state))
 
     def set_appearance(self, appearance):
         self.appearance = appearance
@@ -347,11 +373,48 @@ class FakeWindows:
         return None
 
     def dark_title_bar(self, hwnd):
-        try:
+        def read():
             with open(self.state + '.title') as f:
                 return f.read().strip() == 'dark'
+        try:
+            return patiently(read)
         except OSError:
             return None
+
+
+class Patiently(unittest.TestCase):
+    """The stand-in's file sharing on Windows."""
+
+    def test_a_refusal_is_tried_again(self):
+        calls = []
+
+        def action():
+            calls.append(1)
+            if len(calls) < 3:
+                raise PermissionError(13, 'Access is denied')
+            return 'done'
+        self.assertEqual(patiently(action), 'done')
+        self.assertEqual(len(calls), 3)
+
+    def test_a_refusal_that_stays_is_raised(self):
+        def action():
+            raise PermissionError(13, 'Access is denied')
+        with self.assertRaises(PermissionError):
+            patiently(action, wait=0.05)
+
+    def test_another_error_is_raised_at_once(self):
+        calls = []
+
+        def action():
+            calls.append(1)
+            raise FileNotFoundError(2, 'No such file')
+        with self.assertRaises(FileNotFoundError):
+            patiently(action)
+        self.assertEqual(len(calls), 1)
+
+    def test_the_stand_in_engine_tries_again_too(self):
+        self.assertIn('except PermissionError:', FAKE_ENGINE)
+        self.assertNotIn('os.replace(state', FAKE_ENGINE)
 
 
 class TheSteps(unittest.TestCase):
