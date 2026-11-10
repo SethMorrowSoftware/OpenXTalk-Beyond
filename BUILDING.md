@@ -1656,7 +1656,17 @@ probe built to be drawn edge to edge (its `"android,edge to edge"`
 standalone setting, the Android card's "Edge to edge"), which, once
 green, says in the log its `screenRect` and its `effective working
 screenRect`, then again a second later (`kEdgeWait`), once Android has
-given its window the bars' insets.
+given its window the bars' insets. It also has an adaptive icon, a
+themed one (its `"android,adaptive icon"`, `"android,adaptive icon
+background"` and `"android,themed icon"` settings, the probe's one-pixel
+picture beside the stack as the foreground and the monochrome picture),
+and `verify --adaptive-icon` reads it in the package with aapt: the icon
+the manifest names is `drawable/icon` in both the default configuration
+(a picture, for Android before 8.0) and `anydpi-v26`, which is
+`res/drawable-anydpi-v26/icon.xml`, an `adaptive-icon` whose background,
+foreground and monochrome layers each name a resource, and its pictures
+are in `res/drawable-nodpi-v4` (the builder's `res/drawable-nodpi`, which
+aapt packages under that name).
 `device` installs a package with adb (an App Bundle as Google Play
 installs it: `bundletool build-apks --connected-device`, signed with a
 key made for it, then `install-apks`, and the app must be installed as
@@ -1957,6 +1967,26 @@ for any other stack is still the window's visible display frame).
 Android 10 and older draw it as before. The units (`unitEdgeToEdge`) run
 the builder's handler on made-up runtimes, and the edge probe checks the
 rest on both emulators (above).
+
+A stack can have an adaptive launcher icon, a themed one with a
+monochrome picture (see "Deploying Your Application"), through its
+`"android,adaptive icon"` (the foreground, a PNG file), `"android,adaptive
+icon background"` (`#RRGGBB`, `#AARRGGBB` or `r,g,b`, white when empty)
+and `"android,themed icon"` (the monochrome picture) standalone settings.
+The builder reads them before it builds (`androidAdaptiveIcon`: the
+pictures found, relative to the stack's folder or full paths, and PNG
+files; the colour read, `androidIconColour`; a themed icon only with a
+foreground), and stops, saying which, when one is wrong. It writes the
+pictures into `res/drawable-nodpi`, the colour as a colour resource
+(`res/values/oxt_icon_background.xml`) and the icon as
+`res/drawable-anydpi-v26/icon.xml` (`androidAddAdaptiveIcon`), under the
+name of the icon the manifest already names (`@drawable/icon`), so that
+Android 8.0 and newer take the adaptive icon and older Android the
+picture: the stack's **Icon**, or the foreground when it has none. A
+stack that names no foreground is built as before. The units
+(`unitAdaptiveIcon`) run those handlers on made-up pictures, and the
+edge probe's package is read by `verify --adaptive-icon` (above). The
+launcher's drawing of the icon is not checked.
 
 A stack with `set the cRevStandaloneSettings["android,app bundle"] of
 stack "<name>" to true` (the Android card's **App Bundle** box, at the end

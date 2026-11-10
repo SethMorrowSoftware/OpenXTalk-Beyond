@@ -1409,5 +1409,110 @@ class Engine(unittest.TestCase):
                                    r'put \$OXT_ANDROID_ENGINE into tSettings\["android,engine"\]\s+end if')
 
 
+class AdaptiveIcon(unittest.TestCase):
+    """A stack can have an adaptive launcher icon (Android 8.0 and newer),
+    a themed one with a monochrome image (Android 13 and newer): the
+    "android,adaptive icon" settings. The build reads them before it starts
+    (androidAdaptiveIcon: the images found and PNG files, the colour read,
+    or it stops saying why), the adaptive icon takes the name of the icon
+    the manifest names, and a stack that names no foreground is built as
+    before. android-check.livecodescript's unitAdaptiveIcon runs the
+    handlers in the IDE, and the edge probe's package is read by
+    android_check.py verify --adaptive-icon"""
+
+    def setUp(self):
+        self.src = code(read(BUILDER))
+        self.main = handler(self.src, 'revSaveAsMobileStandaloneMain')
+
+    def test_the_settings(self):
+        self.assertIn('constant kAdaptiveIcon = "android,adaptive icon"', self.src)
+        self.assertIn('constant kAdaptiveIconBackground = "android,adaptive icon background"', self.src)
+        self.assertIn('constant kThemedIcon = "android,themed icon"', self.src)
+
+    def test_none_unless_the_stack_names_a_foreground(self):
+        h = handler(self.src, 'androidAdaptiveIcon')
+        self.assertRegex(h, r'if pSettings\[kAdaptiveIcon\] is empty then\s+'
+                            r'if pSettings\[kThemedIcon\] is not empty then\s+throw "a themed icon[^\n]*\n'
+                            r'\s+end if\s+return empty\s+end if')
+
+    def test_read_before_the_build(self):
+        # after the icon's path, before anything is built
+        read_at = self.main.index('put androidAdaptiveIcon(pSettings, tBaseFolder) into tAdaptiveIcon')
+        self.assertLess(self.main.index('put tBaseFolder & slash before tIcon'), read_at)
+        self.assertLess(read_at, self.main.index('create folder tBuildFolder'))
+
+    def test_the_images(self):
+        h = handler(self.src, 'androidAdaptiveIcon')
+        self.assertIn('if pathIsRelative(tPath) then', h)
+        self.assertIn('put pBaseFolder & slash before tPath', h)
+        self.assertIn('throw "the adaptive icon\'s" && tKey && "image is not there:" && tPath', h)
+        self.assertIn('numToByte(137) & "PNG" & numToByte(13) & numToByte(10) & numToByte(26) & numToByte(10)', h)
+        self.assertIn('put androidIconColour(pSettings[kAdaptiveIconBackground]) into tIcon["background"]', h)
+
+    def test_the_colour(self):
+        h = handler(self.src, 'androidIconColour')
+        self.assertIn('return "#FFFFFFFF"', h)
+        self.assertIn('matchText(tHex, "^([0-9A-F]{6}|[0-9A-F]{8})$")', h)
+        self.assertIn('format("%02X", tPart)', h)
+        self.assertIn('give it as #RRGGBB, #AARRGGBB or r,g,b', h)
+
+    def test_the_manifest_names_the_same_icon(self):
+        self.assertIn('if there is a file tIcon or tAdaptiveIcon is an array then\n'
+                      '         replace "${ICON}" with "android:icon=" & quote & "@drawable/icon" & quote in tManifest',
+                      self.main)
+
+    def test_the_resources(self):
+        # the stack's icon as before; the foreground before Android 8.0
+        # when there is none; then the adaptive icon
+        self.assertRegex(self.main, r'if there is a file tIcon then\s+put url \("binfile:" & tIcon\) into url '
+                                    r'\("binfile:" & tDrawableResBuildFolder & slash & "icon.png"\)')
+        self.assertRegex(self.main, r'else if tAdaptiveIcon is an array then\s+put url \("binfile:" & '
+                                    r'tAdaptiveIcon\["foreground"\]\) into url \("binfile:" & '
+                                    r'tDrawableResBuildFolder & slash & "icon.png"\)')
+        self.assertRegex(self.main, r'if tAdaptiveIcon is an array then\s+'
+                                    r'androidAddAdaptiveIcon tAdaptiveIcon, tResBuildFolder\s+'
+                                    r'put the result after tAssetFiles\s+end if')
+        add = handler(self.src, 'androidAddAdaptiveIcon')
+        for path in ('"/drawable-nodpi/icon_" & tKey & ".png"', '"/drawable-anydpi-v26/icon.xml"',
+                     '"/values/oxt_icon_background.xml"'):
+            self.assertIn(path, add)
+        # each file it writes is named in what it returns
+        self.assertEqual(add.count('put tFile & return after tWritten'), 3)
+        self.assertEqual(add.count('into url ("binfile:" & tFile)'), 3)
+        self.assertRegex(add, r'return tWritten\s+end androidAddAdaptiveIcon\s*$')
+
+    def test_the_build_folder_is_cleared(self):
+        # the files go with the build's other files, then their folders,
+        # before the res folder they are in
+        clear = self.main.index('repeat for each item tFolder in "drawable-nodpi,drawable-anydpi-v26,values"')
+        self.assertLess(self.main.index('if there is a file tFile then delete file tFile'), clear)
+        self.assertLess(clear, self.main.index('if there is a folder tResBuildFolder then delete folder tResBuildFolder'))
+        self.assertIn('delete folder (tResBuildFolder & slash & tFolder)', self.main[clear:])
+        # the unit checks what it names
+        check = read(('tools', 'ci', 'android-check.livecodescript'))
+        unit = handler(check, 'unitAdaptiveIcon')
+        self.assertIn('put the result into tWritten', unit)
+        self.assertIn('androidUnit "icon-written", tWritten is', unit)
+        xml = handler(self.src, 'androidAdaptiveIconXML')
+        for layer in ('background android:drawable=" & quote & "@color/oxt_icon_background"',
+                      'foreground android:drawable=" & quote & "@drawable/icon_foreground"',
+                      'monochrome android:drawable=" & quote & "@drawable/icon_monochrome"'):
+            self.assertIn(layer, xml)
+        self.assertRegex(xml, r'if pIcon\["monochrome"\] is not empty then\s+put "    <monochrome')
+
+    def test_the_check_runs_it(self):
+        check = read(('tools', 'ci', 'android-check.livecodescript'))
+        self.assertIn('   unitAdaptiveIcon tWork\n', check)
+        unit = handler(check, 'unitAdaptiveIcon')
+        for name in ('androidAdaptiveIcon', 'androidIconColour', 'androidAddAdaptiveIcon', 'androidAdaptiveIconXML'):
+            self.assertIn('"%s"' % name, unit)
+            # public, so that the check can call it
+            self.assertRegex(self.src, r'(?m)^(?:function|command) %s\b' % name)
+        # the edge probe's settings name the builder's
+        probe = handler(check, 'buildSettings')
+        for key in ('android,adaptive icon', 'android,themed icon', 'android,adaptive icon background'):
+            self.assertIn('tSettings["%s"]' % key, probe)
+
+
 if __name__ == '__main__':
     unittest.main()
