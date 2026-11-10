@@ -65,9 +65,12 @@ localize is the step fetch runs, for one archive.
 test-files writes into DIR what tools/ci/web-ide-xtalk.livecodescript (the
 browser check of these libraries) runs besides the IDE's extensions, from
 the suite at the commit the libraries are pinned at (or from SUITE): the
-Hold'em and Box2Dxt platformer apps, and NostrXT's relay library with the
-browser transport, prepared as tools/oxt/xtalk_extensions.py bundles a
-script library, to replace the IDE's.
+Hold'em and Box2Dxt platformer apps and DataChannelXT's harness; and
+NostrXT's relay library as the NostrXT member is pinned (the file the next
+release's IDE ships, checked against the pin; with --local, SUITE's),
+prepared as tools/oxt/xtalk_extensions.py bundles a script library, to
+replace the IDE's, which comes from the released package the check
+builds its site from.
 
 Python 3.8 or later, standard library only.
 """
@@ -401,7 +404,15 @@ def cmd_localize(args, log=print):
 
 
 # The suite's files the browser check needs (test-files): the name in DIR,
-# and the path in the suite
+# and the path in the suite. NostrXT's relay library (RELAY_TEST_FILE) is
+# the exception: it replaces the IDE's copy in the check, so it is the file
+# the NostrXT member is pinned at in tools/oxt/xtalk-extensions.json (what
+# the next release ships), checked against that pin, and not the suite's
+# copy at the web libraries' commit, which once let the check pass on a
+# browser transport the shipped IDE did not have.
+RELAY_TEST_FILE = 'nostr-relay.livecodescript'
+RELAY_MEMBER = 'NostrXT'
+RELAY_MEMBER_PATH = 'src/nostr-relay.livecodescript'
 TEST_FILES = [
     ('holdem.livecodescript', 'holde-em/src/holdem.livecodescript'),
     ('box2dxt-platformer.livecodescript', 'box2dxt/examples/box2dxt-platformer.livecodescript'),
@@ -410,18 +421,38 @@ TEST_FILES = [
 ]
 
 
+def pinned_member_file(data, member_name, path, log):
+    """The bytes of one file of an extension member as pinned (its
+    repository and commit, verified against its SHA-256 and size), and a
+    name for it in messages."""
+    member = next((m for m in data.get('members', []) if m.get('name') == member_name), None)
+    if member is None:
+        raise WebLibraryError('the manifest pins no member %s' % member_name)
+    f = next((f for f in member['files'] if f['path'] == path), None)
+    if f is None:
+        raise WebLibraryError('%s pins no %s' % (member_name, path))
+    repo, commit = xtalk_extensions.file_source(member, f)
+    body = xtalk_extensions._http_get('https://raw.githubusercontent.com/%s/%s/%s' % (repo, commit, path), log)
+    if len(body) != f['size'] or hashlib.sha256(body).hexdigest() != f['sha256']:
+        raise WebLibraryError('%s@%s %s is not the pinned file (SHA-256 or size differs)'
+                              % (repo, commit[:12], path))
+    return body, '%s@%s %s' % (repo, commit[:12], path)
+
+
 def cmd_test_files(args, log=print):
-    _, block = load(args.manifest)
+    data, block = load(args.manifest)
     lib = block['libraries'][0]
     os.makedirs(args.out, exist_ok=True)
     for name, path in TEST_FILES:
         if args.local:
             with open(os.path.join(args.local, *path.split('/')), 'rb') as f:
                 body = f.read()
+        elif name == RELAY_TEST_FILE:
+            body, path = pinned_member_file(data, RELAY_MEMBER, RELAY_MEMBER_PATH, log)
         else:
             body = xtalk_extensions._http_get('https://raw.githubusercontent.com/%s/%s/%s'
                                               % (lib['repository'], lib['commit'], path), log)
-        if name == 'nostr-relay.livecodescript':
+        if name == RELAY_TEST_FILE:
             body = xtalk_extensions.wrap_lcs(body, 'nostr-relay', path)[0]
         with open(os.path.join(args.out, name), 'wb') as f:
             f.write(body)

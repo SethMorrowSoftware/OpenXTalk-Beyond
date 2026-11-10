@@ -3422,8 +3422,9 @@ A browser opens no native library, so the web IDE's engine links the
 xTalk Suite's SodiumXT, Box2Dxt, CoinXT and DataChannelXT into itself,
 and the extensions the IDE ships call them unchanged
 ([`engine/src/em-xtalk-web.cpp`](engine/src/em-xtalk-web.cpp) says how
-they are registered; the web standalone engine and the desktop engines
-link none). Each member builds its library for the web as
+they are registered). The web standalone engine, which every HTML5
+standalone and the Stack Player are built on, links them too
+(`tools/ci/build-web.sh` fetches them); the desktop engines link none. Each member builds its library for the web as
 `src/code/wasm32-emscripten/<name>.a`, and `"web_libraries"` in
 [`tools/oxt/xtalk-extensions.json`](tools/oxt/xtalk-extensions.json) pins
 each archive (repository, commit, SHA-256, and the Emscripten version it
