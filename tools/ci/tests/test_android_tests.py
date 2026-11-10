@@ -605,6 +605,29 @@ class Workflow(unittest.TestCase):
         for engine in at.ENGINES:
             self.assertTrue(os.path.isfile(at.baseline_path(engine)), engine)
 
+    def test_every_baseline_entry_is_a_test_there_is(self):
+        # Each entry names a handler of a file of tests/lcs, so that one
+        # left behind by a renamed or removed test is found here, not by a
+        # baseline that silently stops meaning anything; the files are as
+        # write_baseline writes them (its header, then sorted entries)
+        for engine in at.ENGINES:
+            path = at.baseline_path(engine)
+            with open(path, encoding='utf-8') as f:
+                text = f.read()
+            self.assertTrue(text.startswith(at.BASELINE_HEADER % engine), engine)
+            entries = run_engine_tests.baseline_entries(path)
+            self.assertTrue(entries, engine)
+            idents = [line.split(' #', 1)[0].strip().lstrip('? ')
+                      for line in text.splitlines() if line.strip() and not line.startswith('#')]
+            self.assertEqual(idents, sorted(set(idents)), engine)
+            for ident in entries:
+                m = re.match(r'^lcs: (.+): (\w+)$', ident)
+                self.assertTrue(m, '%s: %s' % (engine, ident))
+                source = os.path.join(REPO, 'tests', 'lcs', m.group(1) + '.livecodescript')
+                self.assertTrue(os.path.isfile(source), '%s: %s' % (engine, ident))
+                with open(source, encoding='utf-8', errors='replace') as f:
+                    self.assertRegex(f.read(), r'(?im)^on %s\b' % m.group(2), '%s: %s' % (engine, ident))
+
     def test_the_logs_are_kept(self):
         step = self.steps['Upload the results and logs']
         self.assertEqual(step['if'], 'always()')
