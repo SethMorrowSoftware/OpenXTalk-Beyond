@@ -413,7 +413,7 @@ library, architecture and configuration:
 | `OpenSSL-3.5.9-...-PIC` | OpenSSL 3.5.9 (a long-term support release): libcrypto and libssl, static, with OpenSSL's legacy provider built in |
 | `Curl-8.22.0-...-PIC` | libcurl 8.22.0, with OpenSSL (the server engine; on macOS the server engine uses the system's libcurl) |
 | `ICU-78.3-...-1-PIC` | ICU 78.3, with its full data file, from which the build makes the cut-down copy the engines embed |
-| `Thirdparty-e5e050573c...-PIC` | static libraries built from `thirdparty/` (cairo, libffi, giflib, libjpeg, libpng, zlib, libzip, PCRE, Skia, libxml2, libxslt, MySQL Connector/C, libpq, SQLite) |
+| `Thirdparty-e5e050573c...-PIC` | static libraries built from `thirdparty/` (cairo, libffi, giflib, libjpeg, libpng, zlib, libzip, PCRE, Skia, libxml2, libxslt, MariaDB Connector/C, libpq, SQLite) |
 | `CEF-74.1.19-...-gb62bacf` | Chromium Embedded Framework 74 (Chromium 74.0.3729.157), for the browser widget and revBrowser on Windows (x86_64 and x86) and Linux x86_64 |
 
 The versions are in `prebuilt/versions/`. Every platform builds
@@ -1480,14 +1480,21 @@ they read from the environment: `OXT_TEST_MYSQL_HOST` (`host:port`),
 `OXT_TEST_MYSQL_DATABASE`, `OXT_TEST_MYSQL_USER`,
 `OXT_TEST_MYSQL_PASSWORD` and `OXT_TEST_MYSQL_TLS` (`true` when the
 server offers TLS), and the same with `POSTGRESQL`. Without them they are
-skipped, as they are in the build jobs. The Linux build's job "Databases
-linux-x86_64" starts MySQL 8.0 and PostgreSQL 16 containers with TLS and
-runs them with `--filter '^lcs: core/database/'`; its comment says how the
-servers are set up for the bundled client libraries. They pin what the
-drivers do today, including two things a script might not expect, each
-asserted as broken in the test: PostgreSQL's `revRollBackDatabase`
-commits (revdb's `REVDB_Rollback` calls `transCommit`), and the MySQL
-client speaks TLS 1.0 only, which current servers refuse.
+skipped, as they are in the build jobs. The Linux build's jobs "Databases
+linux-x86_64" start a MySQL or MariaDB and a PostgreSQL container with TLS,
+one pair to a job (MySQL 8.0 with `mysql_native_password` and PostgreSQL
+16 with md5; MySQL 8.4 and PostgreSQL 17 with their default logins,
+`caching_sha2_password` and SCRAM-SHA-256; MariaDB 11.4 and PostgreSQL
+18), and run them with `--filter '^lcs: core/database/'`, first on the
+build and then on the newest release's Linux binaries. Each job's summary
+then lists the tests whose result or output differs between the two
+(`tools/ci/compare_test_output.py`, which compares two files that
+`run_engine_tests.py --output` wrote; run it the same way to compare two
+builds of your own). The tests pin what the drivers do, including what a
+script might not expect: MySQL's `revCommitDatabase` and
+`revRollBackDatabase` do nothing, a connection's character set is latin1
+unless the script sets another, and the values `revDatabaseColumnTypes`
+gives.
 
 Every CI build runs the five suites after the IDE compile check: on
 Windows (x86-64 and x86), Linux (x86-64, arm64 and x86) and macOS

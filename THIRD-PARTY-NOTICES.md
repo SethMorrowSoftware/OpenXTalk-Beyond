@@ -102,8 +102,8 @@ licence text are in `thirdparty/`.
 | libxslt | 1.1.45, with local changes (see [`thirdparty/libxslt/ORIGIN`](thirdparty/libxslt/ORIGIN)) | revXML, web engine | MIT-style | [`thirdparty/libxslt/docs/COPYING`](thirdparty/libxslt/docs/COPYING) |
 | SQLite | 3.51.3 | `dbsqlite.dll`, web engine | Public domain | header of `thirdparty/libsqlite/include/sqlite3.h`, [sqlite.org/copyright.html](https://www.sqlite.org/copyright.html) |
 | sqlitedataset | 0.1.0 | `dbsqlite.dll`, web engine | MIT | [`thirdparty/libsqlite/docs/LICENSE`](thirdparty/libsqlite/docs/LICENSE) |
-| MySQL Connector/C | 6.0.0 | `dbmysql.dll` | GPL version 2 with the MySQL FLOSS License Exception (version 0.6) | [`thirdparty/libmysql/docs/COPYING`](thirdparty/libmysql/docs/COPYING) and [`EXCEPTIONS-CLIENT`](thirdparty/libmysql/docs/EXCEPTIONS-CLIENT) |
-| libpq (from PostgreSQL) | 9.4.5 | `dbpostgresql.dll` | PostgreSQL licence | [`thirdparty/libpq/docs/COPYRIGHT`](thirdparty/libpq/docs/COPYRIGHT) |
+| MariaDB Connector/C | 3.4.11, with local changes (see [`thirdparty/libmysql/ORIGIN`](thirdparty/libmysql/ORIGIN)) | `dbmysql.dll` | GNU LGPL version 2.1 or later | [`thirdparty/libmysql/COPYING.LIB`](thirdparty/libmysql/COPYING.LIB) |
+| libpq (from PostgreSQL) | 17.11, with local changes (see [`thirdparty/libpq/ORIGIN`](thirdparty/libpq/ORIGIN)) | `dbpostgresql.dll` | PostgreSQL licence | [`thirdparty/libpq/COPYRIGHT`](thirdparty/libpq/COPYRIGHT) |
 
 Not used by the Windows build, although present in `thirdparty/`:
 FreeType, HarfBuzz and expat (Android, Linux and HTML5 builds only; see
@@ -349,9 +349,10 @@ The IDE ships the notice file it inherited from LiveCode Community,
 with the notices of its data), iODBC, libjpeg, bzip2, libpng, libxml2,
 libzip, OpenSSL (3.5.9's licence, the Apache License 2.0), PCRE,
 PostgreSQL, Skia, sqlitedataset, zlib, WebKit and the merg externals. It
-does not cover CEF/Chromium, ANGLE, SwiftShader, libffi, libxslt, MySQL
+does not cover CEF/Chromium, ANGLE, SwiftShader, libffi, libxslt, MariaDB
 Connector/C or the components listed in this section; those are listed
-in this file.
+in this file. Its PostgreSQL notice is libpq 17.11's
+([`thirdparty/libpq/COPYRIGHT`](thirdparty/libpq/COPYRIGHT)).
 
 ### The OXT-Beyond icon
 
@@ -757,7 +758,7 @@ from the build output. Everything in it is built from this repository:
 | --- | --- | --- |
 | `livecode-community-server` (`.exe` on Windows) | the server engine, the build's `server-community` | GPLv3 with the permission in [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md). It statically links the libraries listed under [Prebuilt libraries](#prebuilt-libraries) (OpenSSL 3.5.9, ICU 78.3 and, on Windows and Linux, libcurl 8.22.0; on macOS it uses the system's libcurl) and under [Libraries built from `thirdparty/`](#libraries-built-from-thirdparty) |
 | `externals/revdb`, `revxml`, `revzip` | revDB, revXML and revZip, the build's `server-*` libraries (on Windows, where the build makes no server copy of one, its desktop DLL) | GPLv3; revXML links libxml2 and libxslt, revZip libzip and zlib (see [Libraries built from `thirdparty/`](#libraries-built-from-thirdparty)) |
-| `drivers/dbsqlite`, `dbmysql`, `dbpostgresql`, `dbodbc` | revDB's database drivers, the same way | GPLv3; with SQLite (public domain), MySQL Connector/C 6.0.0 (GPL version 2 with the MySQL FLOSS License Exception), libpq (PostgreSQL licence) and, on macOS and Linux, iODBC (LGPL 2 or BSD; the Windows driver uses the system's `odbc32.dll`), as listed in the sections above |
+| `drivers/dbsqlite`, `dbmysql`, `dbpostgresql`, `dbodbc` | revDB's database drivers, the same way | GPLv3; with SQLite (public domain), MariaDB Connector/C 3.4.11 (LGPL 2.1 or later), libpq 17.11 (PostgreSQL licence) and, on macOS and Linux, iODBC (LGPL 2 or BSD; the Windows driver uses the system's `odbc32.dll`), as listed in the sections above |
 | `README.txt` | how to set it up, from [`tools/oxt/server-readme.txt`](tools/oxt/server-readme.txt) | part of OXT-Beyond (GPLv3) |
 | `LICENSE`, `LICENSE-EXCEPTION.md`, `THIRD-PARTY-NOTICES.md`, `Open Source Licenses.txt` | the licence files and the third-party licence texts (`ide/Open Source Licenses.txt`) | as they say |
 
