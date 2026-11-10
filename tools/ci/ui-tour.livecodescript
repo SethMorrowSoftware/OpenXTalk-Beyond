@@ -9133,6 +9133,10 @@ on tour_academy
          throw "the Academy drawn again lost its playground (" & field "playWhat" of stack tWin & "|" & \
                tourJoin(the text of field "out" of stack tWin) & "|" & field "outStatus" of stack tWin & ")"
       end if
+      -- the lesson's text can be selected and copied, and its size changed
+      -- (LittleNemo, openxtalk.org p=26121); an IDE before it skips this
+      get tourAcademyText(tWin)
+      if it is not empty then throw it
       close stack tWin
    catch tError
    end try
@@ -9141,6 +9145,98 @@ on tour_academy
    set the customProperties["cAcademy"] of stack "revPreferences" to tSaved
    if tError is not empty then throw tError
 end tour_academy
+
+-- The Academy's reading text (LittleNemo, openxtalk.org p=26121), on the
+-- lesson in front: its first block of text is a locked field that takes
+-- the focus, so a drag over it selects words (and a translator or a
+-- screen reader can read them), while it still cannot be typed in; with
+-- the focus there, the arrow keys still turn the page; and A+ (a click),
+-- the action "text bigger" and Ctrl+0 make it larger and give it its own
+-- size again, its size kept in the preferences (cAcademy textScale). At
+-- its own size, 100, the text is 15 points, as it always was. Empty, or
+-- what went wrong. An Academy without the setting (0.2.7) is skipped.
+function tourAcademyText pWin
+   local tField, tName, i, tDefault, tSelected, tSelField, tTitle, tRect, tPrefs, tScale, tError
+   try
+      dispatch function "revAcademyTextScale" to stack pWin
+      if it is not "handled" then
+         tourRecord "INFO academy-text: this Academy has no text size; skipped"
+         return empty
+      end if
+      put the result into tScale
+      tourRecord "INFO academy-text: the text size is" && tScale
+      if tScale is not 100 then return "the Academy's text size starts at" && tScale & ", not 100"
+      repeat with i = 1 to 40
+         if there is a field ("p_t" & i) of this card of stack pWin then
+            put the long id of field ("p_t" & i) of this card of stack pWin into tField
+            put "p_t" & i into tName
+            exit repeat
+         end if
+      end repeat
+      if tField is empty then return "the lesson Hello, xTalk has no field of text (p_t<N>)"
+      tourRecord "INFO academy-text:" && the short name of tField && "size" && the textSize of tField && \
+            "lockText" && the lockText of tField && "traversalOn" && the traversalOn of tField
+      if the textSize of tField is not 15 then return "the lesson's text is" && the textSize of tField && "points at its own size, not 15"
+      if not the lockText of tField then return "the lesson's text can be typed in"
+      if not the traversalOn of tField then return "the lesson's text cannot be selected (traversalOn is false)"
+      -- a drag over its first line, as a reader's
+      put the rect of tField into tRect
+      put the defaultStack into tDefault
+      set the defaultStack to pWin
+      select empty
+      drag from (item 1 of tRect + 6), (item 2 of tRect + 14) to (item 1 of tRect + 160), (item 2 of tRect + 14)
+      tourWait 300
+      put the selectedText into tSelected
+      put empty into tSelField
+      if the selectedField is not empty then put the long id of the selectedField into tSelField
+      set the defaultStack to tDefault
+      tourRecord "INFO academy-text: a drag selected" && quote & tSelected & quote && "in" && tSelField
+      if tSelected is empty then return "a drag over the lesson's text selected nothing"
+      if tSelField is not tField then return "a drag over the lesson's text selected text in" && tSelField
+      -- the arrow keys still turn the page from it
+      put field "hdrTitle" of stack pWin into tTitle
+      send "arrowKey right" to tField
+      tourWait 1200
+      tourRecord "INFO academy-text: after the right arrow the lesson is" && quote & field "hdrTitle" of stack pWin & quote
+      if field "hdrTitle" of stack pWin is tTitle then return "the right arrow key did not turn the page from the lesson's selected text"
+      dispatch "acGoTo" to stack pWin with "basics", "hello"
+      tourWait 1200
+      -- bigger by the action, then by a click on A+
+      dispatch "lkAction" to stack pWin with "text bigger"
+      tourWait 600
+      dispatch function "revAcademyTextScale" to stack pWin
+      put the result into tScale
+      put the customProperties["cAcademy"] of stack "revPreferences" into tPrefs
+      put the long id of field tName of this card of stack pWin into tField
+      tourRecord "INFO academy-text: text bigger:" && tScale && "size" && the textSize of tField && "kept" && tPrefs["textScale"]
+      if tScale is not 115 or the textSize of tField is not 17 then return "text bigger made the text" && tScale & "%," && the textSize of tField && "points, not 115%, 17 points"
+      if tPrefs["textScale"] is not 115 then return "the text size was not kept in the preferences (" & tPrefs["textScale"] & ")"
+      if there is not a group "textBigger" of stack pWin or not the visible of group "textBigger" of stack pWin then return "the lesson's header has no A+"
+      set the defaultStack to pWin
+      click at the loc of group "textBigger"
+      set the defaultStack to tDefault
+      tourWait 600
+      dispatch function "revAcademyTextScale" to stack pWin
+      put the result into tScale
+      put the long id of field tName of this card of stack pWin into tField
+      tourRecord "INFO academy-text: after a click on A+:" && tScale && "size" && the textSize of tField
+      if tScale is not 130 or the textSize of tField is not 20 then return "a click on A+ made the text" && tScale & "%," && the textSize of tField && "points, not 130%, 20 points"
+      tourShotStack pWin, "24e-academy-text-larger"
+      -- Ctrl+0: its own size again
+      send "commandKeyDown 0" to stack pWin
+      tourWait 600
+      dispatch function "revAcademyTextScale" to stack pWin
+      put the result into tScale
+      put the long id of field tName of this card of stack pWin into tField
+      put the customProperties["cAcademy"] of stack "revPreferences" into tPrefs
+      tourRecord "INFO academy-text: after Ctrl+0:" && tScale && "size" && the textSize of tField && "kept" && tPrefs["textScale"]
+      if tScale is not 100 or the textSize of tField is not 15 then return "Ctrl+0 left the text" && tScale & "%," && the textSize of tField && "points, not 100%, 15 points"
+   catch tError
+      if tDefault is not empty then set the defaultStack to tDefault
+      return "academy-text:" && tourJoin(tError)
+   end try
+   return empty
+end tourAcademyText
 
 -- OXT-Beyond Home (palettes/home/revhub.livecodescript): the one window
 -- of Home's welcome, the xTalk Academy and Learn's how-to lessons, guides
