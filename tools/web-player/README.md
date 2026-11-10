@@ -136,6 +136,7 @@ What it plays is in the address:
 | `&align=top-left` | the stack at the top left; by default it is in the middle of the window, scrolled from its top left when it is bigger |
 | `&bg=white` | the colour around the stack (any CSS colour) |
 | `&mode=window` | as in the player: the stack in a window of its own |
+| `&fill=yes` | the stack fills the window on a desktop too, as on a phone: one made with the Mobile Web library fills it, and any other is scaled to fit it (its whole card, as big as fits) and fitted again when the window changes size. Without it a stack is shown at its own size, as before |
 
 With neither `stack` nor `play` it offers one Open button, and takes a
 stack dropped on it. On a phone (a coarse pointer and a short side of 600

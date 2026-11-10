@@ -76,7 +76,7 @@ class ThePage(unittest.TestCase):
         choose = self.page[self.page.index('function choosePhone'):]
         choose = choose[:choose.index('\n  }\n')]
         self.assertIn("if (playing) return;", choose)
-        self.assertIn("if (isPhone()) document.body.removeAttribute('data-mobile-web-fill');", choose)
+        self.assertIn("if (FILL || isPhone()) document.body.removeAttribute('data-mobile-web-fill');", choose)
         self.assertIn("else document.body.setAttribute('data-mobile-web-fill', 'no');", choose)
         script = read(os.path.join(PLAYER, 'stack-player.livecodescript'))
         self.assertIn("document.body.hasAttribute('data-mobile-web-fill') ? 'no' : 'yes'", script)
@@ -84,6 +84,20 @@ class ThePage(unittest.TestCase):
         self.assertIn('viewport-fit=cover', self.page)
         self.assertIn('env(safe-area-inset-top)', self.page)
         self.assertIn('100dvh', self.page)
+
+    def test_fill_yes_gives_the_stack_the_window_anywhere(self):
+        # ?fill=yes (LittleNemo, p=26036): the page takes the attribute off
+        # as on a phone, so the player fits every stack to the window; only
+        # the address turns it on, so without it a desktop's stack keeps
+        # its own size, as before
+        self.assertIn("var FILL = params.get('fill') == 'yes';", self.page)
+        choose = self.page[self.page.index('function choosePhone'):]
+        choose = choose[:choose.index('\n  }\n')]
+        self.assertIn("if (FILL || isPhone()) document.body.removeAttribute('data-mobile-web-fill');", choose)
+        self.assertEqual(self.page.count('FILL'), 2)
+        self.assertIn('?fill=yes', self.page[:self.page.index('<html')])
+        readme = read(os.path.join(PLAYER, 'README.md'))
+        self.assertIn('`&fill=yes`', readme)
 
     def test_the_players_own_page_is_unchanged(self):
         player = read(os.path.join(PLAYER, 'index.html'))

@@ -831,7 +831,8 @@ def check(site, samples, work):
 def check_bare(p, browser, url, shots, expect, wait_for):
     """The bare player (play.html, LittleNemo's p=26036): a sample by
     ?play= in the middle of the window, at its own size, with no bar,
-    frame or library around it; a stack of the site by ?stack=; another
+    frame or library around it; with ?fill=yes, fitted to the window and
+    fitted again when it changes size; a stack of the site by ?stack=; another
     site's refused; and on a phone (Playwright's iPhone 13 in Chromium,
     and in WebKit when it is installed) the Phone Starter fills the window.
 
@@ -906,6 +907,25 @@ def check_bare(p, browser, url, shots, expect, wait_for):
                'outside %s, inside %s, below %s, above %s' % (outside, inside, below, above))
     else:
         expect('bare-drawn-in-its-place', False, 'the stack fills the window: %s' % st['canvas'])
+    page.close()
+    # ?fill=yes (LittleNemo, p=26036): on a desktop too the page is given
+    # to the stack, as on a phone, and 2048 (860x600) is fitted to the
+    # window, drawn from its left edge to its right (showAll: as big as
+    # fits), and fitted again when the window changes size
+    page, lines, st, png = visit(desk, '?play=2048&fill=yes', 'the bare player filling the window with 2048',
+                                 '20-bare-2048-fill.png')
+    expect('bare-fill-opens', st['playing'] and st['fill'] is None
+           and any(x.startswith('PLAYER fitted 2048') for x in lines), str(st))
+    expect('bare-fill-canvas', [round(v) for v in st['canvas']] == [0, 0, 1000, 700], str(st['canvas']))
+    edges = [pixel(png, st, x, 350) for x in (2, 500, 997)]
+    expect('bare-fill-edge-to-edge', all(not near(c, page_colour, 6) for c in edges),
+           ' '.join('#%02X%02X%02X' % c for c in edges))
+    page.set_viewport_size({'width': 1300, 'height': 600})
+    page.wait_for_timeout(2000)
+    canvas = page.evaluate("() => { const c = document.getElementById('canvas').getBoundingClientRect();"
+                           " return [c.left, c.top, c.width, c.height]; }")
+    log('  bare ?play=2048&fill=yes at 1300x600: canvas %s' % canvas)
+    expect('bare-fill-resized', [round(v) for v in canvas] == [0, 0, 1300, 600], str(canvas))
     page.close()
     page, lines, st, png = visit(desk, '?stack=../samples/Tour.livecode&align=top-left', 'the bare player opening Tour',
                                  '21-bare-tour.png')
