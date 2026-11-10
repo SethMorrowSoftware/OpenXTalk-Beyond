@@ -1339,20 +1339,26 @@ jobs:
       # the zip's README says (mod_cgi, mod_actions, AddHandler and Action
       # for .lc), each with the same pages: $_GET, $_POST, $_FILES,
       # cookies, headers, include and require, sessions, revDB with SQLite,
-      # revXML and revZip, and the errorMode. The runner image has Apache;
-      # it is installed if not.
+      # revXML and revZip, and the errorMode; and the cookie requests under
+      # Valgrind, which must find no read outside memory (the engine read
+      # past the cookie header and, on Windows, now and then lost a session
+      # id's last character). The runner image has Apache; it and Valgrind
+      # are installed if not.
       - name: Server check
         if: ${{ !cancelled() && steps.server.outcome == 'success' }}
         timeout-minutes: 10
         env:
           SERVER_ZIP: ${{ steps.server.outputs.zip }}
         run: |
-          if ! command -v apache2 > /dev/null && [ ! -x /usr/sbin/apache2 ]; then
+          missing=""
+          if ! command -v apache2 > /dev/null && [ ! -x /usr/sbin/apache2 ]; then missing="apache2"; fi
+          if ! command -v valgrind > /dev/null; then missing="$missing valgrind"; fi
+          if [ -n "$missing" ]; then
             sudo apt-get update -q
-            sudo apt-get install -y -q --no-install-recommends apache2
+            sudo apt-get install -y -q --no-install-recommends $missing
           fi
           python3 tools/ci/server_check.py --zip "$SERVER_ZIP" --platform "linux-$ARCH" --apache yes \
-            --log "$RUNNER_TEMP/logs/server-check.log"
+            --memcheck yes --log "$RUNNER_TEMP/logs/server-check.log"
 
       # Every IDE script of the extracted package, compiled by its engine
       # started through the launcher (with -ui the launcher needs only the
