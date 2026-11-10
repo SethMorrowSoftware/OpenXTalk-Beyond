@@ -40,6 +40,10 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- screen: no click could reach one (the clicks were reported as skipped),
 -- and none was ever the active window.
 --
+-- Every stack fits a screen of 1024 by 768, the CI runners': the pointer
+-- stops at the screen's edge, so a minimize button beyond it cannot be
+-- clicked (FrameFaded's was, at x = 1119, until that day).
+--
 -- The stacks:
 --    FramePlain  a stack with a title bar and minimize box, opened as any
 --                stack is: the control
@@ -146,22 +150,22 @@ on startup
       -- As revmenubar.livecodescript's preOpenStack, then
       -- tMenuBar_AdjustWDSize and tMenuBar_WDdecorations, then
       -- home.livecodescript when the IDE has started
-      makeStack "FrameFaded", "640,120,1140,320"
+      makeStack "FrameFaded", "600,120,900,320"
       set the blendLevel of stack "FrameFaded" to 99
       set the decorations of stack "FrameFaded" to empty
       go stack "FrameFaded"
       show stack "FrameFaded"
       wait 200 milliseconds with messages
       stepPoint "faded-opened"
-      set the rect of stack "FrameFaded" to 0,0,600,110
-      set the topLeft of stack "FrameFaded" to 640,120
+      set the rect of stack "FrameFaded" to 0,0,400,110
+      set the topLeft of stack "FrameFaded" to 600,120
       wait 200 milliseconds with messages
       stepPoint "faded-sized"
       lock screen
       lock messages
       set the decorations of stack "FrameFaded" to kDecorations
       set the top of stack "FrameFaded" to 120
-      set the left of stack "FrameFaded" to 640
+      set the left of stack "FrameFaded" to 600
       unlock messages
       unlock screen
       wait 300 milliseconds with messages

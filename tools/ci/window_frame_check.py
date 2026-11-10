@@ -46,16 +46,23 @@ each window this script checks, from outside, with the Win32 API:
   5. when a click into FramePlain's card reaches it, a real click
      (SendInput) where a person would click, on the button DWM draws with
      visual styles and on the window manager's without, minimizes each
-     stack (IsIconic) and the stack gets iconifyStack. When that first
-     click does not reach the card, the clicks are reported as skipped, or
-     with --need-clicks (the CI's runs) as a failure: a skipped click
-     checks nothing.
+     stack (IsIconic) and the stack gets iconifyStack. A click is made
+     only where it would land on the stack's own window: on the screen
+     (the pointer stops at the screen's edge) with no other window over
+     the point. When the first click does not reach the card, or a
+     minimize button cannot be clicked, the clicks are reported as
+     skipped, or with --need-clicks (the CI's runs) as a failure: a
+     skipped click checks nothing.
 
 Until 10 November 2026 the script never showed its stacks (a stack made
 invisible stays hidden when it is opened), so on every run the first click
 reached nothing and the clicks were skipped, with the reason given as a
-session that takes no synthesized input. Check 4 and --need-clicks are
-there so that it cannot happen again unseen.
+session that takes no synthesized input. Once they were shown, FrameFaded's
+minimize button turned out to be beyond the right edge of the runners'
+1024 pixel wide screen: the click landed in its title bar and read as a
+click the engine ignored. Check 4, --need-clicks and the look at each
+click's point are there so that neither can happen again unseen, and the
+script's stacks fit a screen of 1024 by 768.
 
 Up to OXT-Beyond 0.2.7-rc.6.11 the IDE's menubar kept the region and
 caption-button layout Windows gave it while it was translucent, so a click
@@ -152,6 +159,25 @@ class Win32:
     def visible(self, hwnd):
         """Whether the window is shown (IsWindowVisible)."""
         return bool(self.user32.IsWindowVisible(hwnd))
+
+    def screen(self):
+        """The whole screen, every monitor: (left, top, right, bottom). The
+        pointer cannot leave it: SetCursorPos stops at its edge."""
+        SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN = 76, 77, 78, 79
+        metric = self.user32.GetSystemMetrics
+        x, y = metric(SM_XVIRTUALSCREEN), metric(SM_YVIRTUALSCREEN)
+        return (x, y, x + metric(SM_CXVIRTUALSCREEN), y + metric(SM_CYVIRTUALSCREEN))
+
+    def window_at(self, x, y):
+        """The top-level window a click at the point goes to (WindowFromPoint
+        and its root), or None."""
+        GA_ROOT = 2
+        self.user32.WindowFromPoint.argtypes = [self.wt.POINT]
+        self.user32.WindowFromPoint.restype = self.wt.HWND
+        self.user32.GetAncestor.argtypes = [self.wt.HWND, self.wt.UINT]
+        self.user32.GetAncestor.restype = self.wt.HWND
+        hwnd = self.user32.WindowFromPoint(self.wt.POINT(x, y))
+        return (self.user32.GetAncestor(hwnd, GA_ROOT) or hwnd) if hwnd else None
 
     def ex_style(self, hwnd):
         GWL_EXSTYLE = -20
@@ -409,6 +435,33 @@ def no_click(point, need_clicks, check, lines):
                      '--need-clicks makes this a failure)' % what)
 
 
+def click_fault(point, screen, at, hwnd):
+    """Why a click at `point` would not be a click on the window `hwnd`, or
+    None when it would be. screen: Win32.screen(); at: Win32.window_at(point).
+    The pointer stops at the screen's edge, so a click asked for beyond it
+    lands somewhere else in the window, or in another one: on the runners'
+    1024 pixel wide screen, on 10 November 2026, the click on a minimize
+    button at x = 1119 landed in the title bar, and read as an engine that
+    ignored it."""
+    if not (screen[0] <= point[0] < screen[2] and screen[1] <= point[1] < screen[3]):
+        return 'the point %s is off the screen %s' % (point, screen)
+    if at != hwnd:
+        return 'at %s is another window (%s), not this one (%s)' % (point, at, hwnd)
+    return None
+
+
+def cannot_click(name, fault, need_clicks, check, lines):
+    """The click on a stack's minimize button would not reach the button: a
+    failure where the clicks are needed (the CI's runs), a line for the
+    results elsewhere. Never a click that is then read as the engine's
+    answer."""
+    if need_clicks:
+        check(name, 'its minimize button can be clicked', False, fault)
+    else:
+        lines.append('SKIP %s: the click on its minimize button: %s (--need-clicks makes this a failure)'
+                     % (name, fault))
+
+
 def check_windows(w, windows, log_path, lines, problems, need_clicks=False):
     def check(name, what, ok, detail):
         line = '%s %s: %s (%s)' % ('PASS' if ok else 'FAIL', name, what, detail)
@@ -485,11 +538,18 @@ def check_windows(w, windows, log_path, lines, problems, need_clicks=False):
         no_click(point, need_clicks, check, lines)
         return
 
+    screen = w.screen()
+    lines.append('INFO the screen is %s' % (screen,))
     for name in STACKS:
         f = frames.get(name)
         if f is None:
             continue
         point = click_target(f, themed)
+        w.bring_forward(windows[name])
+        fault = click_fault(point, screen, w.window_at(*point), windows[name])
+        if fault:
+            cannot_click(name, fault, need_clicks, check, lines)
+            continue
         iconic, got = click_minimize(w, name, windows[name], point, log_path)
         check(name, 'a click on the minimize button minimizes it', iconic and got,
               'clicked at %s: IsIconic %s, iconifyStack %s' % (point, iconic, 'received' if got else 'not received'))
