@@ -119,9 +119,11 @@ account of its processes, what Android did to it that the carried runtime
 does not survive (paused for sleep, a changed ApplicationInfo, a relaunch),
 how each process ended (dumpsys activity exit-info) and the memory left.
 When that says Android's low memory killer ended one of the probe's
-processes (exit-info LOW_MEMORY) and its log has no crash and its screen
-no fail colour, the whole run is made once more, after LOW_MEMORY_PAUSE
-s, and that run decides (low_memory_kills).
+processes (exit-info LOW_MEMORY) and its log has no crash, its screen
+no fail colour and the checks of its green screen (--within-bars,
+--edge-to-edge, --back, --font-scale, --density, --density-in-wait,
+--relaunch) found nothing, the whole run is made once more, after
+LOW_MEMORY_PAUSE s, and that run decides (low_memory_kills).
 
 boot waits until an emulator has booted (adb sees it and
 sys.boot_completed is 1), saying where it is every minute. It gives up
@@ -2650,7 +2652,7 @@ def device(args):
 def device_once(args):
     """(the problems, the processes of the probe that the low memory killer
     ended where nothing else says it failed: no crash in its log, no fail
-    colour on its screen)"""
+    colour on its screen, no problem from the checks of its green screen)"""
     adb = adb_path(args.sdk)
     if not adb:
         raise CheckError('no adb')
@@ -2778,6 +2780,10 @@ def device_once(args):
             share * 100, saved * 100, 'the stack showed and its script did not run' if saved >= 0.25 else
             'the stack never showed'))
     green = failed < 0.25 and share >= 0.25
+    # where the checks of a green probe start: what they find (a crash
+    # the lifecycle checks read from a log they cleared first, bars, a
+    # back press) is the probe's failure, so no second run hides it
+    checked_from = len(problems)
     if args.within_bars and green:
         # the stack inside the system bars: the screen's first and last
         # rows are not its green (Android 15 and newer draw an app that
@@ -2857,6 +2863,7 @@ def device_once(args):
             problems += found
             if found:
                 break
+    checked = problems[checked_from:]
     if not pid.strip():
         problems.append('the app is not running')
     if args.allow:
@@ -2907,7 +2914,7 @@ def device_once(args):
             for line in lines:
                 log('  ' + line)
         _, exits = a('shell', 'dumpsys', 'activity', 'exit-info', IDENTIFIER)
-        if not crash and failed < 0.25:
+        if not crash and not checked and failed < 0.25:
             killed = low_memory_kills(exits, pids)
         exits = [x.rstrip() for x in exits.splitlines() if x.strip()]
         log('how its processes ended (dumpsys activity exit-info):%s' % ('' if exits else ' none'))
