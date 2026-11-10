@@ -71,7 +71,9 @@ enum MCEmscriptenSocketEvent
 	kMCEmscriptenSocketEventClose = 4,
 };
 
-extern real8 curtime;
+/* The desktop engines' sockets read the time from curtime, which their
+ * event loops keep (dsklnx.cpp, dskmac.cpp, dskw32.cpp): the web engine
+ * has none, and these read MCS_time() */
 
 /* The URL of the socket named p_name: the name without any "|<id>",
  * if it is a ws:// or wss:// URL (wss:// for a secure socket) */
@@ -240,7 +242,7 @@ MCEmscriptenSocketHandleEvent(uint32_t p_id, int32_t p_event, byte_t *p_bytes, u
 			memcpy(s->rbuffer + s->nread, p_bytes, p_length);
 			s->nread += p_length;
 			if (s->revents != nil)
-				s->revents->timeout = curtime + MCsockettimeout;
+				s->revents->timeout = MCS_time() + MCsockettimeout;
 			s->processreadqueue();
 		}
 		break;
@@ -349,7 +351,7 @@ MCS_open_socket(MCNameRef p_name,
 		s->waiting = True;
 		while (!s->connected && s->error == nil && s->fd != 0)
 		{
-			if (curtime > s->timeout)
+			if (MCS_time() > s->timeout)
 			{
 				s->error = strclone("timeout");
 				break;
@@ -444,7 +446,7 @@ MCS_read_socket(MCSocket *s,
 			MCresult->sets("eof");
 			break;
 		}
-		if (curtime > eptr->timeout)
+		if (MCS_time() > eptr->timeout)
 		{
 			MCresult->sets("timeout");
 			break;
@@ -510,7 +512,7 @@ MCS_write_socket(const MCStringRef p_data,
 			MCresult->sets("socket closed");
 			break;
 		}
-		if (curtime > eptr->timeout)
+		if (MCS_time() > eptr->timeout)
 		{
 			MCresult->sets("timeout");
 			break;
@@ -572,7 +574,7 @@ MCSocketread::MCSocketread(uint4 s, char *u, MCObject *o, MCNameRef m)
 {
 	size = s;
 	until = u;
-	timeout = curtime + MCsockettimeout;
+	timeout = MCS_time() + MCsockettimeout;
 	optr = o;
 	message = m != nil ? MCValueRetain(m) : nil;
 }
@@ -590,7 +592,7 @@ MCSocketwrite::MCSocketwrite(MCStringRef d, MCObject *o, MCNameRef m, Boolean se
 	/* UNCHECKED */ MCStringConvertToCString(d, t_bytes);
 	buffer = t_bytes;
 	size = MCStringGetLength(d);
-	timeout = curtime + MCsockettimeout;
+	timeout = MCS_time() + MCsockettimeout;
 	secure = securewrite;
 	optr = o;
 	done = 0;
@@ -621,7 +623,7 @@ MCSocket::MCSocket(MCNameRef n, MCNameRef f, MCObject *o, MCNameRef m, Boolean d
 	rbuffer = nil;
 	error = nil;
 	rsize = nread = 0;
-	timeout = curtime + MCsockettimeout;
+	timeout = MCS_time() + MCsockettimeout;
 	sslstate = 0;
 	sslverify = False;
 	secure = issecure;
@@ -777,7 +779,7 @@ MCSocket::processreadqueue()
 			params->setvalueref_argument(name);
 			params->setnext(new MCParameter);
 			params->getnext()->setvalueref_argument(*t_data);
-			MCscreen->addmessage(e->optr, e->message, curtime, params);
+			MCscreen->addmessage(e->optr, e->message, MCS_time(), params);
 		}
 		delete e;
 		/* (once, after the last read: at the end every read waiting

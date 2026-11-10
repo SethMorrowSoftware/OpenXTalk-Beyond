@@ -299,6 +299,13 @@ class OneLibrary(unittest.TestCase):
         queue = cpp.split('MCSocket::processreadqueue()', 1)[1].split('\n}\n', 1)[0]
         self.assertIn('if (nread == 0 && fd == 0 && revents == nil && object.IsValid())', queue)
 
+    def test_it_needs_no_desktop_time(self):
+        # curtime is defined by the desktop event loops only: the web
+        # engine's link failed on it ("undefined symbol: curtime")
+        cpp = read('engine', 'src', 'em-osspec-network.cpp')
+        code = re.sub(r'/\*.*?\*/', '', cpp, flags=re.S)
+        self.assertNotRegex(code, r'\bcurtime\b')
+
     def test_other_names_fail_as_before(self):
         cpp = read('engine', 'src', 'em-osspec-network.cpp')
         body = cpp.split('MCS_open_socket(MCNameRef p_name,', 1)[1].split('\n}\n', 1)[0]
