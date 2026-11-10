@@ -676,10 +676,13 @@ end commandKeyDown
 -- p=26121: so that a browser's or a translator's tool can read it), and
 -- not changed: a locked field that takes the focus. Its links are still
 -- clicked (linkClicked comes to a locked field), and the arrow keys still
--- turn the page (arrowKey, cAcademyText)
+-- turn the page (arrowKey, cAcademyText). Its selected words are white
+-- on the hilite, in the dark appearance too (lkSelectedInk: on Linux and
+-- Windows they took the dark window's colour)
 private command acSelectable pObj
    set the traversalOn of pObj to true
    set the autoHilite of pObj to true
+   lkSelectedInk pObj, "255,255,255"
    set the cAcademyText of pObj to true
 end acSelectable
 

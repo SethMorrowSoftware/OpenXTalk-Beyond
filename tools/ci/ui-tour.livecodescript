@@ -9179,6 +9179,10 @@ function tourAcademyText pWin
       if the textSize of tField is not 15 then return "the lesson's text is" && the textSize of tField && "points at its own size, not 15"
       if not the lockText of tField then return "the lesson's text can be typed in"
       if not the traversalOn of tField then return "the lesson's text cannot be selected (traversalOn is false)"
+      -- (its selected words white on the hilite: on Linux and Windows the
+      -- engine draws them in the field's background colour, the dark
+      -- window's when it has none)
+      if the backgroundColor of tField is not "255,255,255" then return "the lesson's selected text is drawn in" && quote & the backgroundColor of tField & quote & ", not white"
       -- a drag over its first line, as a reader's
       put the rect of tField into tRect
       put the defaultStack into tDefault
