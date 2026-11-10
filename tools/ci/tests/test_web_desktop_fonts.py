@@ -41,8 +41,9 @@ def read(*path):
         return f.read()
 
 
-def font_names(path):
-    """{name ID: text} of a TrueType file's Windows Unicode names"""
+def font_names(path, platform=3):
+    """{name ID: text} of a TrueType file's Windows Unicode names, or with
+    platform 1 its Macintosh Roman (English) ones"""
     with open(path, 'rb') as f:
         data = f.read()
     count = struct.unpack('>H', data[4:6])[0]
@@ -54,11 +55,14 @@ def font_names(path):
     _, records, strings = struct.unpack('>HHH', data[offset:offset + 6])
     names = {}
     for i in range(records):
-        platform, encoding, language, name_id, length, at = struct.unpack(
+        record_platform, encoding, language, name_id, length, at = struct.unpack(
             '>HHHHHH', data[offset + 6 + 12 * i:offset + 18 + 12 * i])
-        if platform == 3 and encoding == 1 and language == 0x409:
-            start = offset + strings + at
+        record = (record_platform, encoding, language)
+        start = offset + strings + at
+        if platform == 3 and record == (3, 1, 0x409):
             names[name_id] = data[start:start + length].decode('utf-16-be')
+        elif platform == 1 and record == (1, 0, 0):
+            names[name_id] = data[start:start + length].decode('mac_roman')
     return names
 
 
@@ -88,6 +92,17 @@ class TheFonts(unittest.TestCase):
             self.assertEqual(names.get(2, '').replace(' ', ''), style, name)
             # the licence goes with them: the SIL Open Font License
             self.assertIn('SIL Open Font License', names.get(13, ''), name)
+            # the engine skips a file without a Macintosh full name
+            # (MCFreeTypeGetFontInfoFromData, engine/src/freetype-font.cpp)
+            mac = font_names(os.path.join(FONTS, name), 1)
+            self.assertEqual(mac.get(4), names.get(4), name)
+            self.assertEqual(mac.get(4), '%s %s' % (family, names.get(2)), name)
+
+    def test_the_engine_reads_the_mac_full_name(self):
+        # what test_each_file_is_its_family holds the files to
+        source = read('engine', 'src', 'freetype-font.cpp')
+        self.assertIn('t_sft_name.name_id == 4 && t_sft_name.platform_id == 1 && '
+                      't_sft_name.encoding_id == 0 && t_sft_name.language_id == 0', source)
 
     def test_the_builder_script_makes_these_files(self):
         script = read('tools', 'oxt', 'build_web_desktop_fonts.py')
@@ -133,6 +148,10 @@ class OneFolderAndValue(unittest.TestCase):
         pane = read('ide', 'Toolset', 'palettes', 'standalone settings',
                     'revstandalonesettingsemscriptenbehavior.livecodescript')
         self.assertIn('constant kFontsValues = ",desktop"', pane)
+        # as many menu items as values: the menu is the items, a line each
+        items = re.search(r'^constant kFontsItems = "([^"]+)"', pane, re.M).group(1).split(',')
+        self.assertEqual(len(items), 2)
+        self.assertTrue(items[1].startswith('Desktop fonts'))
         self.assertIn('setSetting "emscripten,fonts", item (the menuHistory of the target) of kFontsValues', pane)
         controls = re.search(r'^constant kWebSettingsControls = "([^"]+)"', pane, re.M).group(1).split(',')
         self.assertIn('emscriptenFonts', controls)

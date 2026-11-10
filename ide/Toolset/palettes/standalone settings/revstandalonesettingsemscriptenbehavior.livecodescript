@@ -102,7 +102,8 @@ constant kFieldsValues = ",card"
 -- are as wide as Arial's, Times New Roman's and Courier New's, and the
 -- web engine draws those names (and Helvetica, Geneva, Times, New York,
 -- Courier, Monaco...) in them, so text wraps as on the desktop
-constant kFontsItems = "Droid Sans for every font,Desktop fonts (Arial, Times and Courier sizes; +1.9 MB)"
+-- (no comma in an item: the menu's lines are its items)
+constant kFontsItems = "Droid Sans for every font,Desktop fonts (Arial; Times and Courier widths; +1.9 MB)"
 constant kFontsValues = ",desktop"
 
 -- The page's colour when it has none of its own

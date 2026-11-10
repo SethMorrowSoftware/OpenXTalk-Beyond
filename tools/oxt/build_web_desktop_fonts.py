@@ -104,6 +104,16 @@ def build(path):
     subsetter = Subsetter(options=options)
     subsetter.populate(unicodes=unicodes())
     subsetter.subset(font)
+    # The engine names a font file's font by its Macintosh full name (name
+    # ID 4, platform 1, encoding 0, language 0: MCFreeTypeGetFontInfoFromData
+    # in engine/src/freetype-font.cpp), and skips a file without one. The
+    # Croscore files have only Windows names, so the subsets get Macintosh
+    # family, subfamily and full names, copied from the Windows ones (all
+    # ASCII).
+    names = font["name"]
+    for name_id in (1, 2, 4):
+        text = names.getName(name_id, 3, 1, 0x409).toUnicode()
+        names.setName(text, name_id, 1, 0, 0)
     font["head"].modified = font["head"].created
     out = io.BytesIO()
     font.save(out)
