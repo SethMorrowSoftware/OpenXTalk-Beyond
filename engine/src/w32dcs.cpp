@@ -875,20 +875,24 @@ static bool WindowsIsCompositionEnabled(void)
 //
 // OXT-Beyond: these colours are kept, while everything else asks Windows
 // for the appearance each time it draws (getsystemappearance reads the
-// registry). They were set when the engine started and when Windows said
-// the appearance had changed (WM_SETTINGCHANGE "ImmersiveColorSet"), and
-// only then. So when the appearance changed and that notice did not bring
-// the colours up to date (it came before the setting was written, or not
-// at all), the two disagreed until the engine was started again: a push
-// button, an option menu and a combo box, which the dark appearance fills
-// with the kept background (MCNativeTheme::drawwidget), stayed light grey
-// under the dark appearance's white words, a white button with white text
-// (richmond62, Windows 10, openxtalk.org p=26224), in windows whose title
-// bars stayed light. Now the colours remember the appearance they were set
-// for, and whoever reads the appearance tells them what it found
-// (MCWin32FollowSystemAppearance): when it is the other one they are set
-// again at once, and the windows are brought up to date from the message
-// loop (CWM_APPEARANCE_CHANGED), which also sends systemAppearanceChanged.
+// registry). They were set when the engine started and were to be set again
+// when Windows said the appearance had changed (WM_SETTINGCHANGE
+// "ImmersiveColorSet"), but that notice was never acted on (its name was
+// read as a wide string in a window that gets an ANSI one: MCWindowProc,
+// w32dcw32.cpp). So once the appearance changed while the engine ran, the
+// two disagreed until it was started again: a push button and an option
+// menu, which the dark appearance fills with the kept background
+// (MCNativeTheme::drawwidget), stayed light grey under the dark
+// appearance's white words, a white button with white text (richmond62,
+// Windows 10, openxtalk.org p=26224; measured in 0.2.7 by
+// tools/ci/dark_switch_check.py), in windows whose title bars stayed
+// light. Now the notice is read as it comes, and the colours remember the
+// appearance they were set for besides: whoever reads the appearance tells
+// them what it found (MCWin32FollowSystemAppearance), and when it is the
+// other one they are set again at once, and the windows are brought up to
+// date from the message loop (CWM_APPEARANCE_CHANGED), which also sends
+// systemAppearanceChanged. Whichever of the two comes first does the work,
+// once for each change (MCWin32SystemAppearanceIsStale).
 static bool s_system_colors_set = false;
 static bool s_system_colors_dark = false;
 // (true while MCWin32UpdateSystemColors itself asks for the appearance)
@@ -965,6 +969,22 @@ void MCWin32FollowSystemAppearance(bool p_is_dark)
 bool MCWin32SystemAppearanceIsPending(void)
 {
 	return s_system_appearance_pending;
+}
+
+// OXT-Beyond: whether Windows' appearance is now another than the one the
+// colours were last set for. Windows' notice asks before it does anything:
+// it is sent for more than a change of the appearance and may come more
+// than once for one change, and the windows and the scripts are to hear of
+// each change once. (When the engine found the change first, the colours
+// are already set and CWM_APPEARANCE_CHANGED is on its way to do the rest.)
+bool MCWin32SystemAppearanceIsStale(void)
+{
+	MCSystemAppearance t_appearance;
+	s_system_colors_updating = true;
+	MCscreen->getsystemappearance(t_appearance);
+	s_system_colors_updating = false;
+	
+	return !s_system_colors_set || s_system_colors_dark != (t_appearance == kMCSystemAppearanceDark);
 }
 
 //-- tperry 4th November 2025

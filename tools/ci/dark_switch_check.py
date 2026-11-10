@@ -36,27 +36,45 @@ The engine is started twice (RUNS):
                 switched to light with no notice;
   starts light  it is light when the engine starts; then it is switched to
                 dark with no notice, to light with Windows' notice, and to
-                dark with it.
+                dark with it; then the notice is sent once more with
+                nothing changed.
 
 "With Windows' notice" is how Settings does it: the value is written and
 every top-level window is sent WM_SETTINGCHANGE "ImmersiveColorSet" (here
-the engine's own windows are). "With no notice" writes the value and
-nothing else: a program that only believes the notice then draws for the
-appearance it was last told of. After each step:
+the engine's own windows are; the results name each window's class and
+whether it takes wide strings or ANSI ones). "With no notice" writes the
+value and nothing else: a program that only believes the notice then draws
+for the appearance it was last told of. After each step:
 
   1. each control's face is dark in the dark appearance and light in the
      light one, and its ink stands out from it;
   2. the systemAppearance is the appearance that was set;
-  3. after a switch, the stack was sent systemAppearanceChanged.
+  3. after a switch, the stack was sent systemAppearanceChanged; and after
+     a notice that changed nothing, it was not;
+  4. the window's title bar is the appearance's (what DWM says of it; where
+     DWM does not say, that is reported and nothing is checked).
+
+After a switch with Windows' notice, two more, taken before the script is
+told to measure, while it has drawn nothing and asked for nothing (so they
+are the notice's doing alone):
+
+  5. the title bar is already the appearance's;
+  6. the stack was already sent systemAppearanceChanged.
 
 The same reading of each control taken from the screen, after the control
-was drawn again, is reported beside them and not checked.
+was drawn again, is reported beside them and not checked (the window is
+put above every other, the runner's console too, so that it is the one
+read).
 
-Up to OXT-Beyond 0.2.7 the dark appearance filled a button, an option menu
-and a combo box with a background colour the engine kept from its start or
-from Windows' last notice, under words in the colour of the appearance read
-as they were drawn: switched to dark with no notice they were light grey
-with white words, a white button with white text (openxtalk.org p=26224).
+Up to OXT-Beyond 0.2.7 the dark appearance filled a button and an option
+menu with a background colour the engine kept from its start, under words
+in the colour of the appearance read as they were drawn, and Windows'
+notice, which was to set that colour again, was never acted on (its name
+was read as a wide string in an ANSI window). Switched to dark while the
+engine ran, with the notice or without, they were light grey with white
+words, a white button with white text (openxtalk.org p=26224), in a window
+whose title bar stayed light, and no systemAppearanceChanged was sent:
+this check, run on 0.2.7 with visual styles on, measured exactly that.
 
 The fault needs visual styles (without them the engine draws the controls
 itself, with colours it reads each time), which Windows 10 and 11 have as
@@ -92,12 +110,20 @@ PERSONALIZE = r'Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
 VALUE = 'AppsUseLightTheme'
 
 # (name, the appearance the engine starts in,
-#  ((label, the appearance to switch to, whether Windows' notice is sent), ...))
+#  ((label, the appearance to set, whether Windows' notice is sent), ...)).
+# A step that sets the appearance Windows already has, with the notice, is
+# a notice that changes nothing (Windows sends the same notice for more than
+# the appearance, and may send it more than once for one change).
 RUNS = (
     ('starts dark', 'dark', (('quiet-light', 'light', False),)),
     ('starts light', 'light', (('quiet-dark', 'dark', False), ('told-light', 'light', True),
-                               ('told-dark', 'dark', True))),
+                               ('told-dark', 'dark', True), ('told-again', 'dark', True))),
 )
+
+# Seconds the engine is given to act on Windows' notice before its title bar
+# is read and it is told to measure (it takes the notice at once; its
+# message to the script waits for the script's next wait)
+NOTICE_WAIT = 0.5
 
 # A face is dark below DARK_FACE and light above LIGHT_FACE (luma, 0-255:
 # the dark appearance's is 32, the light one's 225 to 255), and an ink
@@ -153,8 +179,14 @@ def judge(appearance, face, ink):
     return True, detail
 
 
-def check_step(log, run, label, appearance, switched, check):
-    """The checks of one step of a run, from the script's log."""
+def is_count(text):
+    return bool(text) and text.isdigit()
+
+
+def check_step(log, run, label, appearance, switched, check, told=False):
+    """The checks of one step of a run, from the script's log. switched:
+    the step set another appearance than Windows had; told: with Windows'
+    notice."""
     name = '%s, %s' % (run, label)
     found = measurements(log, label)
     for control in CONTROLS:
@@ -165,10 +197,27 @@ def check_step(log, run, label, appearance, switched, check):
         check(name, '%s is drawn for the %s appearance' % (control, appearance), ok, detail)
     got = value_of(log, 'APPEARANCE', label)
     check(name, 'the systemAppearance is %s' % appearance, got == appearance, 'it is %s' % (got or 'not logged'))
+    count = value_of(log, 'CHANGED', label)
     if switched:
-        count = value_of(log, 'CHANGED', label)
-        check(name, 'the stack was sent systemAppearanceChanged', bool(count) and count.isdigit() and int(count) >= 1,
+        if told:
+            noticed = value_of(log, 'NOTICED', label)
+            check(name, 'Windows\' notice alone sent systemAppearanceChanged',
+                  is_count(noticed) and int(noticed) >= 1, '%s times' % noticed if noticed else 'not logged')
+        check(name, 'the stack was sent systemAppearanceChanged', is_count(count) and int(count) >= 1,
               '%s times' % count if count else 'not logged')
+    elif told:
+        check(name, 'a notice that changed nothing sent no systemAppearanceChanged', count == '0',
+              '%s times' % count if count else 'not logged')
+
+
+def check_title_bar(name, what, appearance, dark, check, lines):
+    """What DWM says of the window's title bar against the appearance; where
+    DWM does not say (dark is None), a line for the results and no check."""
+    if dark is None:
+        lines.append('INFO %s: %s: DWM does not say' % (name, what))
+    else:
+        check(name, what, dark == (appearance == 'dark'),
+              'DWM says it is %s' % ('dark' if dark else 'light'))
 
 
 def screen_lines(log, run, label, appearance):
@@ -201,6 +250,8 @@ class Windows:
     WM_SETTINGCHANGE = 0x001A
     SMTO_ABORTIFHUNG = 0x0002
     DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+    HWND_TOPMOST = -1
+    SWP_NOSIZE, SWP_NOMOVE, SWP_NOACTIVATE = 0x0001, 0x0002, 0x0010
 
     def __init__(self):
         import ctypes
@@ -212,6 +263,10 @@ class Windows:
                                                     wintypes.UINT, wintypes.UINT, ctypes.POINTER(ctypes.c_size_t)]
         self.user32.SendMessageTimeoutW.restype = ctypes.c_ssize_t
         self.user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+        self.user32.GetClassNameW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+        self.user32.IsWindowUnicode.argtypes = [wintypes.HWND]
+        self.user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int,
+                                             ctypes.c_int, ctypes.c_int, wintypes.UINT]
         self.key = winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, PERSONALIZE, 0,
                                       winreg.KEY_READ | winreg.KEY_SET_VALUE)
         try:
@@ -241,7 +296,10 @@ class Windows:
 
     def tell(self, pid):
         """Send Windows' notice of a changed appearance to each top-level
-        window of a process, and wait for each to take it; how many."""
+        window of a process, and wait for each to take it. For each window:
+        (its class, whether it takes wide strings, whether it took the
+        notice). Windows hands the notice's name to a window as that window
+        takes its strings: wide, or ANSI."""
         windows = []
         proc_type = self.ct.WINFUNCTYPE(self.wt.BOOL, self.wt.HWND, self.wt.LPARAM)
 
@@ -252,11 +310,23 @@ class Windows:
                 windows.append(hwnd)
             return True
         self.user32.EnumWindows(proc_type(each), 0)
+        out = []
         for hwnd in windows:
+            name = self.ct.create_unicode_buffer(128)
+            self.user32.GetClassNameW(hwnd, name, 128)
+            wide = bool(self.user32.IsWindowUnicode(hwnd))
             result = self.ct.c_size_t()
-            self.user32.SendMessageTimeoutW(hwnd, self.WM_SETTINGCHANGE, 0, 'ImmersiveColorSet',
-                                            self.SMTO_ABORTIFHUNG, 5000, self.ct.byref(result))
-        return len(windows)
+            taken = self.user32.SendMessageTimeoutW(hwnd, self.WM_SETTINGCHANGE, 0, 'ImmersiveColorSet',
+                                                    self.SMTO_ABORTIFHUNG, 5000, self.ct.byref(result))
+            out.append((name.value, wide, bool(taken)))
+        return out
+
+    def forward(self, hwnd):
+        """Put a window above every other, without giving it the focus: the
+        runner's console is on the desktop too, and a reading of the screen
+        where the window is must read the window."""
+        return bool(self.user32.SetWindowPos(hwnd, self.wt.HWND(self.HWND_TOPMOST), 0, 0, 0, 0,
+                                             self.SWP_NOSIZE | self.SWP_NOMOVE | self.SWP_NOACTIVATE))
 
     def dark_title_bar(self, hwnd):
         """What DWM says of a window's dark title bar, where it tells
@@ -297,22 +367,40 @@ def run_engine(w, engine, work, run, start, steps, timeout, lines, problems, che
     proc = subprocess.Popen([engine, SCRIPT], cwd=work, env=env,
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     plan = (('start', start, None),) + tuple(steps)
-    number, stopped = 0, False
+    number, stopped, current = 0, False, start
     try:
         for label, appearance, told in plan:
             number += 1
+            name = '%s, %s' % (run, label)
             log, ok = wait_for(log_path, 'STEP %d' % number, timeout, proc)
             if not ok:
                 problems.append('%s: the script did not reach step %d (%s) within %d seconds'
                                 % (run, number, label, timeout))
                 stopped = True
                 break
+            window = value_of(log, 'WINDOW', 'DarkSwitch')
+            hwnd = int(window) if window and window.isdigit() else None
+            if number == 1 and hwnd is not None and not w.forward(hwnd):
+                lines.append('INFO %s: the window could not be put above the others: the readings of the '
+                             'screen may be of another window' % run)
+            switched = told is not None and appearance != current
             if told is not None:
                 w.set_appearance(appearance)
+                current = appearance
                 how = 'with no notice'
                 if told:
-                    how = 'with Windows\' notice to %d windows' % w.tell(proc.pid)
-                lines.append('INFO %s, %s: switched to %s %s' % (run, label, appearance, how))
+                    windows = w.tell(proc.pid)
+                    how = 'with Windows\' notice to %d windows (%s)' % (len(windows), ', '.join(
+                        '%s, %s%s' % (cls, 'wide' if wide else 'ANSI', '' if taken else ', NOT taken')
+                        for cls, wide, taken in windows))
+                lines.append('INFO %s: %s %s' % (name, 'switched to %s' % appearance if switched
+                                                 else 'still %s,' % appearance, how))
+                if told:
+                    # What the notice alone did, before the script draws or asks
+                    time.sleep(NOTICE_WAIT)
+                    if switched and hwnd is not None:
+                        check_title_bar(name, 'after Windows\' notice alone the title bar is %s' % appearance,
+                                        appearance, w.dark_title_bar(hwnd), check, lines)
             with open('%s.%d' % (go_path, number), 'w') as f:
                 f.write(label + '\n')
             log, ok = wait_for(log_path, 'MEASURED ' + label, timeout, proc)
@@ -320,12 +408,11 @@ def run_engine(w, engine, work, run, start, steps, timeout, lines, problems, che
                 problems.append('%s: no measurements of %s within %d seconds' % (run, label, timeout))
                 stopped = True
                 break
-            check_step(log, run, label, appearance, told is not None, check)
+            check_step(log, run, label, appearance, switched, check, bool(told))
             lines += screen_lines(log, run, label, appearance)
-            window = value_of(log, 'WINDOW', 'DarkSwitch')
-            if window and window.isdigit():
-                lines.append('INFO %s, %s: DWM says of the dark title bar: %s'
-                             % (run, label, w.dark_title_bar(int(window))))
+            if hwnd is not None:
+                check_title_bar(name, 'the title bar is %s' % appearance, appearance, w.dark_title_bar(hwnd),
+                                check, lines)
         if not stopped:
             with open('%s.%d' % (go_path, number + 1), 'w') as f:
                 f.write('quit\n')

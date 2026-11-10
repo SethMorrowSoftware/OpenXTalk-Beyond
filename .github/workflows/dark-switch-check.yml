@@ -22,9 +22,10 @@
 # visual styles on. The Windows build runs the same check on the package it
 # makes; this one shows what a release does, without a build: by hand, and
 # on a pull request that changes the check itself, where the release's
-# result is reported without failing the pull request (a release's known
-# fault would make it red), so that the check is seen to catch the fault
-# it was written for.
+# result is reported (in the step's log and the job's summary) without
+# failing the pull request's check (a release's known fault would keep it
+# red), so that the check is seen to catch the fault it was written for.
+# Run by hand, a release that fails the check fails the job.
 
 name: Dark switch check (release)
 
@@ -58,7 +59,6 @@ jobs:
         runner: [windows-2022, windows-2025]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
-    continue-on-error: ${{ github.event_name == 'pull_request' }}
     defaults:
       run:
         shell: bash
@@ -98,4 +98,5 @@ jobs:
           Get-Service -Name Themes
 
       - name: Dark switch check
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         run: python tools/ci/dark_switch_check.py --package "$PACKAGE" --platform win-x86_64 --need-visual-styles --log "$RUNNER_TEMP/dark-switch-check.log"

@@ -31,6 +31,11 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- The script logs WINDOW DarkSwitch <windowID>, and then, until it is told
 -- to quit: STEP <n>, and when the answer has come
 --
+--    NOTICED <label> <n>
+--                   how many times the stack was sent systemAppearanceChanged
+--                   between STEP and the answer, while the script only
+--                   waited: it drew nothing and asked for nothing, so what
+--                   came then came from Windows' notice alone
 --    MEASURE <label> <control> face=<r,g,b> ink=<r,g,b> size=<w>x<h>
 --                   for each control, from a snapshot of it taken at once
 --                   (the first time anything is drawn after the answer):
@@ -194,6 +199,7 @@ on startup
          end repeat
          if tLabel is "quit" or tLabel is empty then exit repeat
 
+         logLine "NOTICED" && tLabel && sChanged
          set the defaultStack to kStack
          repeat for each item tName in kControls
             logLine "MEASURE" && tLabel && tName && measureControl(tName)

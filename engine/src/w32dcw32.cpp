@@ -519,13 +519,14 @@ extern void SeedSSL(UINT iMesg, WPARAM wParam, LPARAM lParam);
 #include <crtdbg.h>
 
 // OXT-Beyond: what the engine does when Windows' appearance (light or dark)
-// may have changed: the colours it keeps for the appearance are set again,
+// has changed: the colours it keeps for the appearance are set again,
 // every stack's title bar follows and the stack is drawn again, and the
 // scripts are told (systemAppearanceChanged). It was the body of the
-// WM_SETTINGCHANGE "ImmersiveColorSet" case below, which still calls it
-// each time Windows sends that notice; CWM_APPEARANCE_CHANGED calls it too,
-// when the engine itself found the appearance changed and no notice has
-// brought it up to date since (MCWin32FollowSystemAppearance, w32dcs.cpp).
+// WM_SETTINGCHANGE "ImmersiveColorSet" case below, which calls it when
+// Windows' notice finds the appearance changed; CWM_APPEARANCE_CHANGED
+// calls it too, when the engine itself found the appearance changed and no
+// notice has brought it up to date since (MCWin32FollowSystemAppearance,
+// w32dcs.cpp).
 static void MCWin32SystemAppearanceChanged(void)
 {
 	// Dark mode changed - update system colors for unset objects
@@ -727,9 +728,26 @@ LRESULT CALLBACK MCWindowProc(HWND hwnd, UINT msg, WPARAM wParam,
 
 		//-- tperry 11th October 2025
 		// Check if this is a theme/personalization change (dark mode toggle)
+		//
+		// OXT-Beyond: the setting's name comes as the window takes its
+		// strings, and the engine's own window, the only one that gets
+		// this far, is an ANSI one (MCdummy: CreateWindowA of a class made
+		// with RegisterClassA). Up to 0.2.7 the name was always read as a
+		// wide string, which an ANSI "ImmersiveColorSet" never equals, so
+		// the notice was never acted on: no colours, no title bars and no
+		// systemAppearanceChanged when Windows was switched while the
+		// engine ran. The notice is also sent for more than the appearance
+		// and may come more than once, so the work is done when the
+		// appearance is no longer the one the colours were set for.
 		if (msg == WM_SETTINGCHANGE && lParam != NULL)
 		{
-			if (wcscmp((LPCWSTR)lParam, L"ImmersiveColorSet") == 0)
+			extern bool MCWin32SystemAppearanceIsStale(void);
+			bool t_color_set;
+			if (IsWindowUnicode(hwnd))
+				t_color_set = wcscmp((LPCWSTR)lParam, L"ImmersiveColorSet") == 0;
+			else
+				t_color_set = strcmp((LPCSTR)lParam, "ImmersiveColorSet") == 0;
+			if (t_color_set && MCWin32SystemAppearanceIsStale())
 				MCWin32SystemAppearanceChanged();
 		}
 
