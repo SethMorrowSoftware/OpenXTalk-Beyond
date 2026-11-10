@@ -54,6 +54,12 @@ What it clicks, and what must follow:
   Wheels           the right arrow key drives the car
   Back and Next    and the left and right arrow keys, between lessons
 
+What a click must show has up to five seconds to reach the state file
+(click_until): the engine writes it when it is free to, and a state read
+a fixed moment after the click is, on a busy machine, the one from
+before it. What a click must NOT change is read after the fixed moment,
+as before.
+
 It writes a line for each check, PASS or FAIL, and ends with "DONE"
 (exit status 0) or "FAILED <how many>" (exit status 1). With --shots, a
 picture of each lesson after its clicks.
@@ -73,6 +79,9 @@ PROBE = os.path.join(HERE, 'learn-box2d-clicks.livecodescript')
 STACK = os.path.join(REPO, 'ide', 'Resources', 'Examples', 'Remastered', 'Learn Box2D.oxtstack')
 # The sidebar's first line (the front page), and the room each line has
 SIDEBAR_X, SIDEBAR_Y, SIDEBAR_STEP = 100, 99, 30
+# How long what a click must show may take to reach the state file, in
+# seconds (see click_until)
+ANSWER = 5.0
 
 
 class Run:
@@ -143,6 +152,21 @@ class Run:
         self.xdo('click', 1)
         time.sleep(settle)
         return self.state()
+
+    def click_until(self, x, y, test, seconds=ANSWER, settle=0.3):
+        """A click, then the state once test(state) holds, or the last one
+        after seconds more. What a click must SHOW is waited for, never read
+        after a fixed time: the probe writes the state ten times a second
+        when the engine is free to, so on a busy runner the state read
+        `settle` after a click can still be the one from before it, and the
+        check fails on a click that worked (the Linux package job, 10
+        November 2026: "clicking b2NewBody explains it (it says:
+        b2NewWorld(...))", the line clicked before, and "Scripts opens the
+        drawer" just before "Scripts shuts it" passed). The check itself
+        stays where it was: a click that shows nothing in the time still
+        fails it."""
+        self.click(x, y, settle)
+        return self.wait_for(test, seconds)
 
     def key(self, name, hold=0.0, settle=0.4):
         if hold:
@@ -244,7 +268,7 @@ def front(run):
     tiles = [r for a, r in table(st.get('actions')) if a.startswith('go ')]
     run.check(len(tiles) == 13, 'Start: 13 tiles', '%d' % len(tiles))
     if tiles:
-        st = run.click(*middle(tiles[5]), settle=0.6)
+        st = run.click_until(*middle(tiles[5]), lambda s: s.get('card') == 'Hinges', settle=0.6)
         run.check(st.get('card') == 'Hinges', 'Start: the sixth tile goes to Hinges', st.get('card', ''))
     run.shot('00-Start')
 
@@ -272,7 +296,7 @@ def lesson(run, index, name):
     calls(run, name)
     # Pause, Step, Pause
     lab = dict(table(st.get('lab')))
-    st = run.click(*middle(lab['LabPause']), settle=0.4)
+    st = run.click_until(*middle(lab['LabPause']), lambda s: s.get('pause') == 'Play', settle=0.4)
     run.check(st.get('pause') == 'Play', '%s: Pause shows Play' % name, st.get('pause', ''))
     before = st.get('dynamic')
     time.sleep(0.5)
@@ -280,13 +304,15 @@ def lesson(run, index, name):
     run.check(st.get('dynamic') == before, '%s: paused, nothing moves' % name)
     st = run.click(*middle(lab['LabStep']), settle=0.4)
     run.check(st.get('pause') == 'Play', '%s: Step keeps it paused' % name, st.get('pause', ''))
-    st = run.click(*middle(lab['LabPause']), settle=0.4)
+    st = run.click_until(*middle(lab['LabPause']), lambda s: s.get('pause') == 'Pause', settle=0.4)
     run.check(st.get('pause') == 'Pause', '%s: Pause again runs it' % name, st.get('pause', ''))
     # Reset makes the lesson again
+    def made_again(s):
+        return not stopped(s) and abs(int(s.get('bodies', 0)) - start_bodies) <= max(3, start_bodies // 4)
     st = run.click(*middle(lab['LabReset']), settle=1.0)
     time.sleep(1.0)
-    st = run.state()
-    run.check(not stopped(st) and abs(int(st.get('bodies', 0)) - start_bodies) <= max(3, start_bodies // 4),
+    st = run.wait_for(made_again, ANSWER)
+    run.check(made_again(st),
               '%s: Reset makes the lesson again' % name,
               '%s graphics, %d at the start' % (st.get('bodies'), start_bodies))
     # A body dragged with the mouse follows it (after Reset: the buttons
@@ -302,11 +328,11 @@ def lesson(run, index, name):
     # Scripts opens the drawer, and shuts it
     scripts = [r for a, r in table(st.get('actions')) if a == 'scripts']
     if run.check(len(scripts) == 1, '%s: a Scripts button' % name):
-        st = run.click(*middle(scripts[0]), settle=0.6)
+        st = run.click_until(*middle(scripts[0]), lambda s: s.get('drawer') == 'true', settle=0.6)
         run.check(st.get('drawer') == 'true', '%s: Scripts opens the drawer' % name)
         if name == 'Hinges':
             run.shot('06-Hinges-scripts')
-        st = run.click(*middle(scripts[0]), settle=0.6)
+        st = run.click_until(*middle(scripts[0]), lambda s: s.get('drawer') == 'false', settle=0.6)
         run.check(st.get('drawer') == 'false', '%s: Scripts shuts it' % name)
     if name == 'Wheels':
         st = run.click(*middle(lab['LabReset']), settle=1.5)
@@ -327,19 +353,48 @@ def calls(run, name):
     margin = int(st.get('callsmargin', 4))
     shown = (box[3] - box[1] - 2 * margin) // height
     good = 0
+    # The scroll at which a turn of the wheel down scrolled nothing: the
+    # list's end. The last lines of a list longer than its box are below
+    # the lines counted as shown when it is scrolled to its end (the end
+    # is not a whole number of lines down), so the wheel is turned for
+    # them, and scrolls nothing. Two turns that scroll nothing, each
+    # waited for, are the end, and no later line turns the wheel there
+    # again (until November 2026 each such line turned it 30 times: the
+    # last two lines of Shapes' list and of Sliders', about ten seconds
+    # of a lesson)
+    bottom = None
     for i, call in enumerate(names):
         # (the wheel scrolls the list, a few lines a turn, until the line shows)
+        still = 0
         for _ in range(30):
             scroll = int(st.get('callsscroll', 0))
             first = scroll // height
             if first <= i < first + shown:
                 break
+            down = i >= first + shown
+            if down and scroll == bottom:
+                break
             run.move((box[0] + box[2]) // 2, (box[1] + box[3]) // 2)
-            run.xdo('click', 5 if i >= first + shown else 4)
+            run.xdo('click', 5 if down else 4)
             time.sleep(0.15)
-            st = run.state()
+            # (the line is clicked where the scroll SAYS it is: a scroll read
+            # before the wheel's turn was handled puts the click on another line)
+            st = run.wait_for(lambda s, was=scroll: int(s.get('callsscroll', 0)) != was, ANSWER / 2)
+            if int(st.get('callsscroll', 0)) != scroll:
+                still = 0
+                continue
+            still += 1
+            if still == 2:
+                if down:
+                    bottom = scroll
+                break
         y = box[1] + margin + (i - int(st.get('callsscroll', 0)) / height) * height + height // 2
-        st = run.click(box[0] + 30, y, 0.3)
+        # (a list that is slow to explain is waited for; one that explains
+        # nothing is broken, and must end in its FAIL lines, not in the
+        # job's time running out: after two lines that explained nothing,
+        # the rest of the lesson's list gets half a second each)
+        st = run.click_until(box[0] + 30, y, lambda s, call=call: s.get('calldoc', '').startswith(call),
+                             ANSWER if i - good < 2 else 0.5)
         if st.get('calldoc', '').startswith(call):
             good += 1
         else:
@@ -540,16 +595,18 @@ def keys(run):
     st = go_lesson(run, 2)
     st = run.wait_for(lambda s: s.get('card') == 'Bodies', 3)
     # (a click on the court's floor leaves the focus on the card)
-    st = run.key('Right', settle=0.8)
+    run.key('Right', settle=0.8)
+    st = run.wait_for(lambda s: s.get('card') == 'Shapes', ANSWER)
     run.check(st.get('card') == 'Shapes', 'the right arrow key goes to the next lesson', st.get('card', ''))
-    st = run.key('Left', settle=0.8)
+    run.key('Left', settle=0.8)
+    st = run.wait_for(lambda s: s.get('card') == 'Bodies', ANSWER)
     run.check(st.get('card') == 'Bodies', 'the left arrow key goes back', st.get('card', ''))
     nxt = [r for a, r in table(st.get('actions')) if a == 'next']
     back = [r for a, r in table(st.get('actions')) if a == 'back' or a == 'prev']
     if run.check(bool(nxt) and bool(back), 'Back and Next are there'):
-        st = run.click(*middle(nxt[0]), settle=0.8)
+        st = run.click_until(*middle(nxt[0]), lambda s: s.get('card') == 'Shapes', settle=0.8)
         run.check(st.get('card') == 'Shapes', 'Next goes to the next lesson', st.get('card', ''))
-        st = run.click(*middle(back[0]), settle=0.8)
+        st = run.click_until(*middle(back[0]), lambda s: s.get('card') == 'Bodies', settle=0.8)
         run.check(st.get('card') == 'Bodies', 'Back goes back', st.get('card', ''))
 
 
