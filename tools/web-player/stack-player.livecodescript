@@ -69,6 +69,10 @@ local sFromImage
 -- "asked", "declined", or "fix" for those whose HyperCard scripts it fixes
 -- as it opens them
 local sFixConverted
+-- The hidden stack playerCompiles tests scripts on (its long id), made
+-- with a name of its own so that it is never a stack of the library's
+-- that happens to share the name: only it is changed and deleted
+local sProbe
 -- True when the page's "classic look" box is unticked: HyperCard stacks
 -- then keep the engine's look (playerFixHyperCard). A page that never
 -- says (play.html) gets the classic look
@@ -836,26 +840,33 @@ end playerObjectsOf
 -- Whether pScript compiles, on a hidden stack made for the test (and
 -- deleted by playerDropProbe)
 private function playerCompiles pScript
-   local tResult, tDefault
-   if there is not a stack "Player Compile Probe" then
+   local tResult, tDefault, tName
+   if sProbe is empty or there is not a sProbe then
+      put "Player Compile Probe" && the milliseconds into tName
+      repeat while there is a stack tName
+         put "Player Compile Probe" && the milliseconds && random(1000000) into tName
+      end repeat
       put the defaultStack into tDefault
-      create invisible stack "Player Compile Probe"
+      create invisible stack tName
+      put the long id of stack tName into sProbe
       set the defaultStack to tDefault
    end if
-   set the script of stack "Player Compile Probe" to pScript
+   set the script of sProbe to pScript
    put the result into tResult
-   set the script of stack "Player Compile Probe" to empty
+   set the script of sProbe to empty
    return tResult is empty
 end playerCompiles
 
+-- Deletes the stack playerCompiles made, and only that one
 private command playerDropProbe
    local tError
    try
-      if there is a stack "Player Compile Probe" then
-         delete stack "Player Compile Probe"
+      if sProbe is not empty and there is a sProbe then
+         delete sProbe
       end if
    catch tError
    end try
+   put empty into sProbe
 end playerDropProbe
 
 private function playerShortObject pObject
