@@ -1460,6 +1460,20 @@ jobs:
           /usr/bin/python3 tools/ci/fontfile_check.py --engine "$OXT_ROOT/Runtime/Linux/$folder/Standalone" \
             --log "$RUNNER_TEMP/logs/fontfile-check.log"
 
+      # A write to a secure socket goes while a read on it waits for the
+      # rest of a TLS record: up to 0.2.7 the engine held the write back
+      # until the next read, so a request queued behind the handshake never
+      # left when a session ticket was read first, and `put url` timed out
+      # against Go servers such as Caddy (issue #461;
+      # tools/ci/tls_write_check.py)
+      - name: TLS write check
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 5
+        run: |
+          case $ARCH in x86_64) folder=x86-64 ;; *) folder=$ARCH ;; esac
+          /usr/bin/python3 tools/ci/tls_write_check.py --engine "$OXT_ROOT/Runtime/Linux/$folder/Standalone" \
+            --log "$RUNNER_TEMP/logs/tls-write-check.log"
+
       # OXT-Beyond Home opens with the first page of its tour built and
       # builds each other page when it is first shown, and on a computer
       # whose frames are slow to draw it keeps no more than about half of a
