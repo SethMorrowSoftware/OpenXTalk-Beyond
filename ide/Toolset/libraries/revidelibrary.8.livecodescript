@@ -5537,7 +5537,13 @@ function revIDEPropertiesInfoOfSection pObjectList, pSection
    if pSection is empty then
       return __orderPropArray(tSharedPropertiesA, revIDEPropertySections())
    else
-      return __orderPropSection(tSharedPropertiesA["grouplist"])
+      -- OXT-Beyond: one section's rows, ordered as that section is in the
+      -- whole list (its "grouplist" there). This called __orderPropSection,
+      -- a handler no version of the library has, so any call with a section
+      -- stopped with "can't find handler". __revIDEPropertiesInfoOfSection
+      -- gives the section itself (its "grouplist"), which __orderPropArray
+      -- hands __orderPropSubArray for each section of the whole list
+      return __orderPropSubArray(tSharedPropertiesA, true)
    end if
 end revIDEPropertiesInfoOfSection
 

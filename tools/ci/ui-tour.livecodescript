@@ -5814,11 +5814,10 @@ end tourBmMake
 -- button pButton (pWhat) is hidden or does not offer menu; empty when all
 -- is right
 function tourBmCheckRow pWhat, pButton
-   local tRow
-   -- (revIDEPropertiesInfo, the Inspector's own read: its section form,
-   -- revIDEPropertiesInfoOfSection with a section, calls a handler the
-   -- library does not have)
-   put tourBmStyleRow(revIDEPropertiesInfo(pButton)) into tRow
+   local tRow, tInfo
+   -- (revIDEPropertiesInfo, the Inspector's own read)
+   put revIDEPropertiesInfo(pButton) into tInfo
+   put tourBmStyleRow(tInfo) into tRow
    tourRecord "INFO inspector-button-menu the Style row of a" && pWhat & ": user_visible" && \
          quote & tRow["user_visible"] & quote && "options" && tourJoin(tRow["options"])
    if tRow is not an array then return "a" && pWhat & "'s Inspector has no Style row" & return
@@ -5826,8 +5825,43 @@ function tourBmCheckRow pWhat, pButton
    if "menu" is not among the lines of tRow["options"] then
       return "a" && pWhat & "'s Style row does not offer menu" & return
    end if
-   return empty
+   return tourBmCheckSection(pWhat, pButton, tInfo)
 end tourBmCheckRow
+
+-- A line saying what is wrong when revIDEPropertiesInfoOfSection, asked
+-- for the section that holds the Style row of the button pButton (pWhat),
+-- fails or gives other rows than that section has in the whole list pInfo
+-- (revIDEPropertiesInfo); empty when all is right. Up to 0.2.7 the
+-- section form called __orderPropSection, a handler the IDE library does
+-- not have, and stopped with "can't find handler"
+function tourBmCheckSection pWhat, pButton, pInfo
+   local tKey, tSection, tGroups, tError
+   repeat for each key tKey in pInfo
+      if tourBmStyleRow(pInfo[tKey]) is an array then
+         put pInfo[tKey]["label"] into tSection
+         exit repeat
+      end if
+   end repeat
+   if tSection is empty then return "a" && pWhat & "'s Style row is in no section" & return
+   try
+      put revIDEPropertiesInfoOfSection(pButton, tSection) into tGroups
+   catch tError
+      tourRecord "INFO inspector-button-menu the section" && tSection && "of a" && pWhat & ":" && \
+            tourJoin(tError)
+      return "revIDEPropertiesInfoOfSection of a" && pWhat & "'s" && tSection && "section failed:" && \
+            tourJoin(line 1 of tError) & return
+   end try
+   tourRecord "INFO inspector-button-menu the section" && tSection && "of a" && pWhat & ":" && \
+         the number of elements in tGroups && "groups"
+   if tourBmStyleRow(tGroups) is not an array then
+      return "revIDEPropertiesInfoOfSection of a" && pWhat & "'s" && tSection && "section has no Style row" & return
+   end if
+   if tGroups is not pInfo[tKey]["grouplist"] then
+      return "revIDEPropertiesInfoOfSection of a" && pWhat & "'s" && tSection && \
+            "section is not that section of revIDEPropertiesInfo" & return
+   end if
+   return empty
+end tourBmCheckSection
 
 -- The style property's row in the Inspector's property information pInfo,
 -- wherever it is grouped; empty if there is none
