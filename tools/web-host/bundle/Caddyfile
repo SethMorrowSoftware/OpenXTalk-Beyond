@@ -1,0 +1,27 @@
+# OXT-Beyond web bundle: Caddy, which gets the HTTPS certificates itself.
+# Made by tools/web-host/make_bundle.py. Change the two names (each must
+# point at this server in DNS) and the folders, then "caddy run" here.
+# The web IDE and the Stack Player get a host name each: they must not
+# share an origin (README.txt says why).
+
+(oxt-beyond-site) {
+	file_server {
+		precompressed br gzip
+	}
+	header {
+		Cache-Control "no-cache"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "no-referrer"
+	}
+}
+
+ide.example.org {
+	root * /srv/oxt-beyond/ide
+	import oxt-beyond-site
+}
+
+play.example.org {
+	root * /srv/oxt-beyond/player
+	import oxt-beyond-site
+}
