@@ -118,11 +118,26 @@ jobs:
           CACHE_HIT: ${{ steps.apt-cache.outputs.cache-hit }}
         run: |
           rm -f /etc/apt/apt.conf.d/docker-clean
-          if [ "$CACHE_HIT" != true ]; then
-            apt-get -o Acquire::Retries=3 update
-          fi
-          # shellcheck disable=SC2086 # BUILD_PKGS is a list
-          apt-get -o Acquire::Retries=3 install -y --no-install-recommends $BUILD_PKGS
+          # Acquire::Retries does not retry a 404, and a mirror in the middle
+          # of a sync answers one: security.ubuntu.com gave 404 for perl and
+          # libperl5.34 right after an update (10 Nov 2026, #383 and #449's
+          # Web runtime jobs). So a failed install is tried again after a
+          # fresh update and a wait, three passes in all
+          for pass in 1 2 3; do
+            if [ "$CACHE_HIT" != true ] || [ "$pass" -gt 1 ]; then
+              apt-get -o Acquire::Retries=3 update || true
+            fi
+            # shellcheck disable=SC2086 # BUILD_PKGS is a list
+            if apt-get -o Acquire::Retries=3 install -y --no-install-recommends $BUILD_PKGS; then
+              break
+            fi
+            if [ "$pass" = 3 ]; then
+              echo "::error::apt-get install failed on three passes"
+              exit 1
+            fi
+            echo "::warning::apt-get install failed on pass $pass of 3; it runs again after an update in $((pass * 30)) s"
+            sleep $((pass * 30))
+          done
           # gyp and config.py run "python", which must be Python 2.7. Ubuntu
           # 22.04 has no python-is-python2 (20.04 did), only python2.
           ln -sf /usr/bin/python2 /usr/local/bin/python
