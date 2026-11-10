@@ -207,22 +207,40 @@ on TestBuilderExtensionHasNoProblems
 end TestBuilderExtensionHasNoProblems
 
 -- A package that fails part way is deleted, not left beside the extension.
--- The resource here is a link to a file that is not there, which the zip
--- cannot add.
+-- The failure is made here, by this script in front of the zip external
+-- refusing the manifest, so that it does not hang on what one platform's
+-- libzip or file system refuses (a link to a missing file failed on one
+-- and was packaged on another).
+local sRefuseItem
+
+on revZipAddItemWithFile pArchive, pItem, pFile
+   if sRefuseItem is not empty and pItem is sRefuseItem then
+      return "ziperr,refused by the test"
+   end if
+   pass revZipAddItemWithFile
+end revZipAddItemWithFile
+
 on TestFailedPackageIsNotLeftBehind
-   TestSkipIf "platform", "win32"
    local tFolder, tName, tPackage, tResult
    put __NewFolder() into tFolder
    put __Name() into tName
    get __Build(tFolder, tName, "script" && quote & tName & quote & return & \
          __LibraryBlock("1.0.0") & __Handler("   return 1"))
-   create folder (tFolder & "/resources")
-   get shell("ln -s " & quote & tFolder & "/nothing-here" & quote && \
-         quote & tFolder & "/resources/gone.txt" & quote)
    put tFolder & "/" & tName & ".1.0.0.lce" into tPackage
+   
+   put "manifest.xml" into sRefuseItem
+   insert the script of me into front
+   extensionPackage tFolder, "", false
+   put the result into tResult
+   remove the script of me from front
+   put empty into sRefuseItem
+   TestDiagnostic tResult
+   TestAssert "the package fails", tResult is "couldn't add manifest"
+   TestAssert "and no package is left", there is not a file tPackage
+   
    extensionPackage tFolder, "", false
    put the result into tResult
    TestDiagnostic tResult
-   TestAssert "the package fails", tResult is not empty
-   TestAssert "and no package is left", there is not a file tPackage
+   TestAssert "the same folder packages when nothing refuses it", \
+         tResult is empty and there is a file tPackage
 end TestFailedPackageIsNotLeftBehind
