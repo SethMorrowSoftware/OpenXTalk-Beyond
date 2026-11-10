@@ -658,6 +658,46 @@ class Device(unittest.TestCase):
         self.assertNotIn('the run once more', out)
         self.assertIn('pid=3475', out)
 
+    def test_no_run_once_more_for_a_picture_missing_once_green(self):
+        # the Java probe exports its picture before it turns green: green
+        # and running with no picture of its own is the probe's failure,
+        # though the low memory killer ended its first process (3475) and
+        # Android started it again (3612), and a second query would find it
+        d = self.tmp.name
+        with open(os.path.join(d, 'pictures.txt'), 'w') as f:
+            f.write(SharedPictures.QUERY)
+        query = ('  "shell content query "*) [ $(grep -c "^shell content query" "%s/platform-tools/calls") -ge 2 ] '
+                 '&& cat "%s/pictures.txt" || echo "No result found." ;;\n' % (d, d))
+        status, out = self.device('echo 3612', cases=query, argv=('--picture', 'oxt-beyond-probe.png'),
+                                  exits='printf "  ApplicationExitInfo #0:\\n    pid=3475 reason=3 (LOW_MEMORY)\\n"')
+        self.assertEqual(status, 1, out)
+        self.assertEqual(sum(c.startswith('shell am start') for c in self.calls()), 1)
+        self.assertNotIn('the run once more', out)
+        self.assertIn("PROBLEM: the probe's picture oxt-beyond-probe.png is not in the shared Pictures folder", out)
+        self.assertIn('      pid=3475 reason=3 (LOW_MEMORY)', out)
+
+    def test_what_a_kill_before_green_explains_is_run_once_more(self):
+        # ended before its green, the probe never exported its picture
+        # either: the run once more decides
+        d = self.tmp.name
+        with open(os.path.join(d, 'pictures.txt'), 'w') as f:
+            f.write(SharedPictures.QUERY)
+        with open(os.path.join(d, 'black.raw'), 'wb') as f:
+            f.write(struct.pack('<IIII', 4, 4, 1, 0) + bytes([0, 0, 0, 255]) * 16)
+        again = '[ $(grep -c "^shell am start" "%s/platform-tools/calls") -ge 2 ]' % d
+        cases = '  "shell content query "*) %s && cat "%s/pictures.txt" || echo "No result found." ;;\n' % (again, d)
+        status, out = self.device(again + ' && echo 3612 || true', timeout='3', cases=cases,
+                                  argv=('--picture', 'oxt-beyond-probe.png'),
+                                  screencap=again + ' || { cat "%s/black.raw"; exit 0; }; ' % d,
+                                  exits=self.EXIT_INFO)
+        self.assertEqual(status, 0, out)
+        self.assertEqual(sum(c.startswith('shell am start') for c in self.calls()), 2)
+        for problem in ("the screen never turned the probe's green (0% green, 0% red: the stack never showed)",
+                        "the app is not running",
+                        "the probe's picture oxt-beyond-probe.png is not in the shared Pictures folder"):
+            self.assertIn("\n  the first run's problem: " + problem, out)
+        self.assertNotIn('PROBLEM:', out)
+
     def test_gone_after_drawing(self):
         status, out = self.device('true')
         self.assertEqual(status, 1, out)
