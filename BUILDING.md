@@ -2019,10 +2019,17 @@ python3 tools/ci/media_check.py --package dist/OXT-Beyond-<ver>-linux-x86_64.tar
 python3 tools/ci/media_check.py --install <folder> --platform mac-universal
 ```
 
-On Linux the player runs `/usr/bin/mplayer` (the `mplayer` package), the
-engine runs under `xvfb-run` when there is no `DISPLAY`, and on a machine
-without a sound card mplayer plays without sound (`ao=null` through
-`MPLAYER_HOME`). There the check also clicks the controller the engine
+On Linux the player runs `/usr/bin/mplayer` (the `mplayer` package), or
+plays through GStreamer when mplayer is not installed;
+`--player-backend mplayer` or `gstreamer` chooses one for the engine
+(`OXT_PLAYER_BACKEND`), and the Linux build checks each. The engine runs
+under `xvfb-run` when there is no `DISPLAY`, and on a machine without a
+sound card mplayer plays without sound (`ao=null` through
+`MPLAYER_HOME`), as GStreamer does by itself. The GStreamer half also has
+a check of its own, without the engine: `python3
+tools/ci/gst_player_check.py [--x11] [--sanitize]` builds
+`engine/src/lnxgstplayer.cpp` with a small driver and plays the same
+files (it needs g++ and GStreamer's base, good, libav and X plugins). There the check also clicks the controller the engine
 draws below mplayer's video (play, pause, a click in the well of the AVI
 file, whose frames are all key frames) and reads what it draws from
 snapshots of the player; `--snapshots <folder>` keeps those snapshots and

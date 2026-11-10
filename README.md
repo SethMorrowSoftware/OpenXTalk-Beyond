@@ -581,13 +581,19 @@ What it needs:
   DataChannelXT glibc 2.38 and OpenSSL 3. The 32-bit libraries that x86
   standalones get still need glibc 2.33 (SodiumXT), 2.34 (Box2Dxt), or
   2.38 and OpenSSL 3 (TorrentXT and DataChannelXT).
-- **The player** runs `/usr/bin/mplayer`: on Debian and Ubuntu
-  `sudo apt install mplayer`. Without it, players open no file, and the
-  Tools palette has no Player tool. mplayer draws only the video: the
-  controller below it (`showController`) is drawn by OXT-Beyond, with a
-  play/pause button and a well to seek in, but no volume, step or
-  selection buttons as on Windows and macOS. A click in the well of an
-  MP4 file goes to the key frame before that time, as mplayer seeks.
+- **The player** runs `/usr/bin/mplayer` when it is installed, and plays
+  through GStreamer 1.x when it is not (many distributions no longer
+  package mplayer). For GStreamer, install its plugins: on Debian and
+  Ubuntu `sudo apt install gstreamer1.0-plugins-good gstreamer1.0-libav
+  gstreamer1.0-x` (MP4 files need libav); or install mplayer (`sudo apt
+  install mplayer`). With neither, players open no file, and the Tools
+  palette has no Player tool. `OXT_PLAYER_BACKEND=gstreamer` (or
+  `mplayer`) in the environment chooses one of the two. Either draws
+  only the video: the controller below it (`showController`) is drawn by
+  OXT-Beyond, with a play/pause button and a well to seek in, but no
+  volume, step or selection buttons as on Windows and macOS. A click in
+  the well of an MP4 file goes to the key frame before that time when
+  mplayer plays it, as mplayer seeks.
 
 Either one can be turned on or off in Preferences > Compatibility ("Disable
 the Browser widget", "Disable the Player tool"); the IDE sets them when it
@@ -4571,8 +4577,10 @@ Known limitations, in rough order of importance:
 10. The player depends on what the system can play. On Windows it uses
    DirectShow, which cannot open MP4 (H.264 and AAC) files without a
    third-party DirectShow filter such as LAV Filters; AVI files play.
-   On Linux it runs mplayer, which must be installed (`sudo apt install
-   mplayer` on Debian and Ubuntu); without it no file plays. macOS
+   On Linux it runs mplayer, or GStreamer when mplayer is not installed
+   (its plugins: `sudo apt install gstreamer1.0-plugins-good
+   gstreamer1.0-libav gstreamer1.0-x` on Debian and Ubuntu); with
+   neither no file plays. macOS
    plays both. A Media Foundation player for Windows would open MP4
    files by itself; whether to write one is not decided yet.
 11. In an install for all users, a few things that save stacks inside
