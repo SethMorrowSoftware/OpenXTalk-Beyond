@@ -242,7 +242,7 @@
     {
       "name": "NostrXT",
       "repository": "SethMorrowSoftware/NostrXT",
-      "commit": "c26824300eccf7a6e19bf2dc61e20d64dae41fda",
+      "commit": "1bcdaa50f8759f72ff2125fe7044ff589825eecb",
       "version": "0.1.0",
       "version_from": {
         "path": "src/nostrxt.livecodescript",
@@ -251,7 +251,7 @@
       "licence": "MIT (Seth Morrow); pure LiveCode Script",
       "files": [
         {"path": "src/nostrxt.livecodescript", "role": "source", "sha256": "040a686ae06aa78c826926efff070a7df3923f5c91204cab8d05e2de853ac008", "size": 189545},
-        {"path": "src/nostr-relay.livecodescript", "role": "source", "sha256": "4f7701fdc2f4eb72d9afd7f17c31fb2a0dc922d0875a411f6548f9fe59f9e7dc", "size": 46132},
+        {"path": "src/nostr-relay.livecodescript", "role": "source", "sha256": "94244bac82ab7c7a0ec809bc37943b1c3c845fad6db97808f1259bfcda732b0e", "size": 56305},
         {"path": "LICENSE", "role": "licence", "sha256": "ba246fcb1ac9df433783375d2bb4abb40c782dfedb6e419ec71f6bb832968fbb", "size": 1562}
       ],
       "extensions": [
