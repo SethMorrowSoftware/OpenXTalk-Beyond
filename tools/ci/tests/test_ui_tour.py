@@ -494,6 +494,36 @@ class GtkTheme(unittest.TestCase):
         names = steps.split('"')[1].split(',')
         self.assertEqual(names.index('menu-armed-words'), names.index('menu-words') + 1)
 
+    def test_the_menu_steps_on_windows(self):
+        # menu-marks and menu-words run on Windows too, where the engine
+        # draws its menus as on Linux; the pointer and Escape go through
+        # tourMenuPointer and tourMenuEscape, xdotool on Linux as before
+        with open(TOUR, encoding='utf-8') as f:
+            tour = f.read()
+        for name in ('tour_menu_marks', 'tour_menu_words'):
+            step = tour.split('on ' + name, 1)[1].split('end ' + name, 1)[0]
+            self.assertIn('if the platform is not among the items of "Linux,Win32" then', step)
+            self.assertIn('if the platform is "Linux" and shell("command -v xdotool") is empty then', step)
+        popup = tour.split('command tourMarksPopup', 1)[1].split('end tourMarksPopup', 1)[0]
+        self.assertIn('tourMenuPointer 340, 240', popup)
+        self.assertNotIn('xdotool', popup)
+        shot = tour.split('on tourMarksShot', 1)[1].split('end tourMarksShot', 1)[0]
+        self.assertIn('tourMenuEscape', shot)
+        self.assertNotIn('xdotool', shot)
+        pointer = tour.split('command tourMenuPointer', 1)[1].split('end tourMenuPointer', 1)[0]
+        self.assertIn('set the screenMouseLoc to pX & comma & pY', pointer)
+        self.assertIn('get shell("xdotool mousemove" && pX && pY)', pointer)
+        escape = tour.split('command tourMenuEscape', 1)[1].split('end tourMenuEscape', 1)[0]
+        self.assertIn('get shell("xdotool key Escape")', escape)
+        self.assertIn('SendKeys', escape)
+        self.assertIn('set the hideConsoleWindows to true', escape)
+        self.assertIn('get shell("wscript //nologo "', escape)
+        # declared before the handler that reads it (lexical position)
+        self.assertLess(tour.index('local sMenuEscapeScript'), tour.index('command tourMenuEscape'))
+        # the armed words stay Linux's: GTK's hilite is what they measure
+        armed = tour.split('on tour_menu_armed_words', 1)[1].split('end tour_menu_armed_words', 1)[0]
+        self.assertIn('if the platform is not "Linux" then', armed)
+
     def test_the_hilited_words_check_on_rc616s_colours(self):
         # the rule of tourArmedWordsCheck on the colours rc.6.16's Linux
         # snapshots show: the hilite, the theme's hilited words (white),
