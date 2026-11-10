@@ -288,11 +288,38 @@ jobs:
           # keep them for the cache. On a hit the cached package lists are
           # the ones the cached packages came with.
           rm -f /etc/apt/apt.conf.d/docker-clean
-          if [ "$CACHE_HIT" != true ]; then
-            apt-get -o Acquire::Retries=3 update
-          fi
-          # shellcheck disable=SC2086 # BUILD_PKGS is a list
-          apt-get -o Acquire::Retries=3 install -y --no-install-recommends $BUILD_PKGS
+          # Acquire::Retries does not retry a 404, and a mirror in the middle
+          # of a sync answers one: security.ubuntu.com gave 404 for perl and
+          # libperl5.34 right after an update (10 Nov 2026, #383 and #449's
+          # Web runtime jobs). So a failed install is tried again after a
+          # fresh update and a wait, three passes in all. The same node gave
+          # the same 404 74 minutes later (#454), so from the second pass the
+          # security pocket comes from archive.ubuntu.com, which serves it too
+          # (APT_ETC is only for tools/ci/tests/test_apt_retry.py)
+          for pass in 1 2 3; do
+            if [ "$pass" -gt 1 ]; then
+              for f in "${APT_ETC:-/etc/apt}"/sources.list "${APT_ETC:-/etc/apt}"/sources.list.d/*; do
+                if [ -f "$f" ]; then
+                  sed 's|http://security.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' "$f" > "$f.new"
+                  cat "$f.new" > "$f"
+                  rm -f "$f.new"
+                fi
+              done
+            fi
+            if [ "$CACHE_HIT" != true ] || [ "$pass" -gt 1 ]; then
+              apt-get -o Acquire::Retries=3 update || true
+            fi
+            # shellcheck disable=SC2086 # BUILD_PKGS is a list
+            if apt-get -o Acquire::Retries=3 install -y --no-install-recommends $BUILD_PKGS; then
+              break
+            fi
+            if [ "$pass" = 3 ]; then
+              echo "::error::apt-get install failed on three passes"
+              exit 1
+            fi
+            echo "::warning::apt-get install failed on pass $pass of 3; it runs again after an update in $((pass * 30)) s"
+            sleep $((pass * 30))
+          done
           # (sed rather than head: GitHub's bash uses pipefail, and head
           # closing the pipe early would fail the step with SIGPIPE)
           gcc --version | sed -n 1p
