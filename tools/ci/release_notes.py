@@ -171,6 +171,10 @@ The web IDE: the OXT-Beyond IDE itself in a web page, run by its own engine buil
 
 - `{root}-web-ide.zip`: the web IDE's folder, with its README.
 
+The web bundle: the web IDE and the Stack Player together, ready to put on your own web site (shared hosting, nginx, Caddy or GitHub Pages), with compressed copies of the big files made once and the settings each of those servers needs. Put the two folders on two host names (for example ide.example.org and play.example.org), as its `README.txt` says. To keep the stacks made in the web IDE on your server instead of in each browser, run the web host on the two zips above (`tools/web-host/README.md`). New after 0.2.7 and experimental.
+
+- `{root}-web-bundle.zip`: the web IDE's and the Stack Player's sites, with their web server settings.
+
 ## Server
 
 OXT-Beyond Server runs xTalk scripts on a web server, as LiveCode Server did: a page is a `.lc` file with xTalk between `<?lc` and `?>`, which reads the request in `$_GET`, `$_POST`, `$_FILES`, `$_COOKIE` and `$_SERVER` and answers with `put header`, `put cookie` and `put`. Each zip above holds the engine `livecode-community-server` with its `externals` (revDB, revXML, revZip) and `drivers` (SQLite, MySQL, PostgreSQL, ODBC) in the layout of LiveCode Community's server zips, so a web server set up for one runs it unchanged; its `README.txt` says how to set it up with Apache, IIS or nginx and what to change before putting it on the internet. New in 0.2.7-rc.6.15 and experimental. Every build runs it as a CGI program on each platform, and through Apache on Linux.

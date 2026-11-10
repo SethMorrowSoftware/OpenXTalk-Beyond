@@ -111,6 +111,8 @@ on:
       - '.github/workflows/mac-menu-backdrop.yml'
       - '.github/workflows/pages.yml'
       - 'tools/pages/**'
+      - 'tools/web-host/**'
+      - '.github/workflows/web-host.yml'
       - 'tools/ci/changelog.py'
       - 'tools/ci/ide_screenshots_branch.py'
       - 'tools/ci/release_assets.py'

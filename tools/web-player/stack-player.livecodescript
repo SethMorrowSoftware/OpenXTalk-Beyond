@@ -69,6 +69,10 @@ local sFromImage
 -- "asked", "declined", or "fix" for those whose HyperCard scripts it fixes
 -- as it opens them
 local sFixConverted
+-- True when the page's "classic look" box is unticked: HyperCard stacks
+-- then keep the engine's look (playerFixHyperCard). A page that never
+-- says (play.html) gets the classic look
+local sNoClassicLook
 
 constant kStackExtensions = "livecode,oxtstack,rev,mc,livecodescript,lc,stack"
 constant kLibraryName = "Stack Player"
@@ -207,6 +211,13 @@ end playerJSString
 on playerFromPage pWhat
    local tVerb
    put line 1 of pWhat into tVerb
+   -- the page's "classic look" box (index.html), "on" or "off": kept at
+   -- once, as the page's next call (library, as the player gets ready)
+   -- would take the place of sPageArgs before a queued playerDo read it
+   if tVerb is "hclook" then
+      put line 2 of pWhat is "off" into sNoClassicLook
+      return true
+   end if
    if tVerb is among the items of "open,home,download,reload,library,take,openpath,forget" then
       put line 2 to -1 of pWhat into sPageArgs
       send "playerDo" && tVerb to me in 0 milliseconds
@@ -670,12 +681,15 @@ private command playerFixHyperCard pStack
    catch tError
       playerLog "hypercard-mace-failed" && playerErrorText(tError)
    end try
-   -- HyperCard's white paper and flat black-and-white buttons
-   try
-      revHyperCardClassicLook pStack
-   catch tError
-      playerLog "hypercard-look-failed" && playerErrorText(tError)
-   end try
+   -- HyperCard's white paper and flat black-and-white buttons, unless the
+   -- page's box is unticked
+   if sNoClassicLook is not true then
+      try
+         revHyperCardClassicLook pStack
+      catch tError
+         playerLog "hypercard-look-failed" && playerErrorText(tError)
+      end try
+   end if
 end playerFixHyperCard
 
 -- A script error in the stack playing that says "can't find handler",

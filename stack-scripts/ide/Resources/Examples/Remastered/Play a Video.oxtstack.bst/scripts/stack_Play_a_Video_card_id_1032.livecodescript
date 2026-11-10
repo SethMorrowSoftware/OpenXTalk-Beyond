@@ -33,7 +33,7 @@ on openCard
       end if
       loadMovie sMovie
    else if sTrouble is not empty then
-      loadMovie sMovie  --(it may play now: say, mplayer is there now)
+      loadMovie sMovie  --(it may play now: say, mplayer or GStreamer is there now)
    else
       showPoster
    end if
