@@ -4395,6 +4395,174 @@ on TestHyperCardScriptsClassicLook
    _Close tStack
 end TestHyperCardScriptsClassicLook
 
+-- The system's fonts the font tests below pretend to have: a Windows
+-- machine's faces with the look-alike of Chicago loaded, and no Mac font
+private function _StandInFonts
+   return _Lines("ChicagoFLF", "Verdana", "Times New Roman", "Lucida Console", "Palatino Linotype", "Courier New", "Arial")
+end _StandInFonts
+
+on TestHyperCardScriptsMacFonts
+   -- File > Import Stack shows the Mac fonts a stack names in look-alikes
+   -- this system has: Chicago in the public-domain ChicagoFLF, Geneva,
+   -- New York, Monaco and Palatino in faces of their kind. The objects'
+   -- fonts and the font runs of field text change, the names it had are
+   -- kept, and a font this system has, or one with no look-alike, stays
+   local tStack, tHtml, tMap
+   put "HCMacFonts" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   set the textFont of stack tStack to "Chicago"
+   create button "B"
+   set the textFont of button "B" to "geneva"
+   create field "F"
+   set the textFont of field "F" to "New York"
+   set the htmlText of field "F" to "<p>a <font face=" & quote & "Monaco" & quote & ">b</font> <font face=" & quote & "Palatino" & quote & ">c</font> <font face=" & quote & "Courier" & quote & ">d</font></p>"
+   create field "Own"
+   set the textFont of field "Own" to "Zapf Chancery"
+   create field "Literal"
+   put "face=" & quote & "Geneva" & quote into field "Literal"
+   unlock messages
+   revHyperCardMacFonts tStack, _StandInFonts()
+   TestAssert "Chicago is shown in ChicagoFLF", the textFont of stack tStack is "ChicagoFLF"
+   TestAssert "Geneva in Verdana, whatever its case", the textFont of button "B" of stack tStack is "Verdana"
+   TestAssert "New York in Times New Roman", the textFont of field "F" of stack tStack is "Times New Roman"
+   put the htmlText of field "F" of stack tStack into tHtml
+   TestAssert "a Monaco run in Lucida Console", "face=" & quote & "Lucida Console" & quote & ">b" is in tHtml
+   TestAssert "a Palatino run in Palatino Linotype", "face=" & quote & "Palatino Linotype" & quote & ">c" is in tHtml
+   TestAssert "a font that is not a Mac system font stays", "face=" & quote & "Courier" & quote & ">d" is in tHtml
+   TestAssert "the text is the same", the text of field "F" of stack tStack is "a b c d"
+   -- text that only reads like a font run is the stack's text, not a font
+   TestAssert "text that names a font is left alone", the text of field "Literal" of stack tStack is "face=" & quote & "Geneva" & quote
+   TestAssert "a font with no look-alike stays", the textFont of field "Own" of stack tStack is "Zapf Chancery"
+   put the uHyperCard["fonts"] of stack tStack into tMap
+   TestAssert "the stack keeps what each became", "Chicago" & tab & "ChicagoFLF" is among the lines of tMap \
+         and "Geneva" & tab & "Verdana" is among the lines of tMap and "Monaco" & tab & "Lucida Console" is among the lines of tMap
+   -- once only: a font set again afterwards is the stack's own choice
+   set the textFont of button "B" of stack tStack to "Geneva"
+   revHyperCardMacFonts tStack, _StandInFonts()
+   TestAssert "a second call changes nothing", the textFont of button "B" of stack tStack is "Geneva"
+   _Close tStack
+end TestHyperCardScriptsMacFonts
+
+on TestHyperCardScriptsMacFontsImported
+   -- On a real import, where "field" names a background field: the card
+   -- field set in Geneva, and its Palatino run
+   local tStack, tField
+   put _ImportFile("TestFormattedContent.stack", "TestFormattedContent.stack") into tStack
+   put the long id of card field 2 of card 1 of stack tStack into tField
+   TestAssert "the import names Geneva and Palatino", the textFont of tField is "Geneva" \
+         and the textFont of char 20 to 23 of tField is "Palatino"
+   revHyperCardMacFonts tStack, _StandInFonts()
+   TestAssert "the card field's font", the textFont of tField is "Verdana"
+   TestAssert "its Palatino run", the textFont of char 20 to 23 of tField is "Palatino Linotype"
+   TestAssert "its Courier run stays", the textFont of char 33 to 35 of tField is "Courier"
+   TestAssert "its text and other runs stay", the text of tField is "formatted content: fontsizestyleall" \
+         and the textSize of char 24 to 27 of tField is 18 and the textStyle of char 28 to 32 of tField is "bold"
+   _Close tStack
+end TestHyperCardScriptsMacFontsImported
+
+on TestHyperCardScriptsClassicLookImported
+   -- On a real import, where "button" and "field" name a background's:
+   -- the card's own buttons and fields are drawn flat too
+   local tStack, tObject, tRound
+   put _ImportFile("TestFormattedContent.stack", "TestFormattedContent.stack") into tStack
+   revHyperCardClassicLook tStack
+   TestAssert "a card field is flat", the threeD of card field 2 of card 1 of stack tStack is false
+   _Close tStack
+   put _ImportFile("TestButtonProperties.stack", "TestButtonProperties.stack") into tStack
+   revHyperCardClassicLook tStack
+   put true into tRound
+   repeat with i = 1 to the number of card buttons of card 1 of stack tStack
+      put the long id of card button i of card 1 of stack tStack into tObject
+      if the style of tObject is among the words of "rectangle roundrect shadow transparent opaque" and the threeD of tObject then
+         put false into tRound
+      end if
+      if the style of tObject is among the words of "standard default" then put false into tRound
+   end repeat
+   TestAssert "the card's buttons are flat", tRound
+   _Close tStack
+end TestHyperCardScriptsClassicLookImported
+
+on TestHyperCardScriptsMacFontsKept
+   -- A Mac font this system has is used as it is (a Mac has Geneva and
+   -- Monaco), and Chicago stays Chicago when its look-alike could not be
+   -- loaded: a name nothing shows is no better than the one it had
+   local tStack
+   put "HCMacFontsKept" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   set the textFont of stack tStack to "Chicago"
+   create button "B"
+   set the textFont of button "B" to "Geneva"
+   create button "M"
+   set the textFont of button "M" to "Monaco"
+   unlock messages
+   revHyperCardMacFonts tStack, _Lines("Geneva", "Monaco", "Verdana", "Courier New")
+   TestAssert "Geneva the system has stays", the textFont of button "B" of stack tStack is "Geneva"
+   TestAssert "Monaco the system has stays", the textFont of button "M" of stack tStack is "Monaco"
+   TestAssert "Chicago without ChicagoFLF stays", the textFont of stack tStack is "Chicago"
+   TestAssert "nothing is recorded", the uHyperCard["fonts"] of stack tStack is empty
+   _Close tStack
+end TestHyperCardScriptsMacFontsKept
+
+on TestHyperCardScriptsMacFontsBackground
+   -- A background field's text is each card's own: the font runs of
+   -- every card's text change, and a background's font
+   local tStack, tField
+   put "HCMacFontsBg" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   create field "Bg"
+   set the sharedText of field "Bg" to false
+   group field "Bg"
+   set the backgroundBehavior of group 1 to true
+   set the textFont of group 1 to "Geneva"
+   put the long id of field "Bg" into tField
+   set the htmlText of tField to "<p><font face=" & quote & "Chicago" & quote & ">one</font></p>"
+   create card
+   set the htmlText of field "Bg" of card 2 of stack tStack to "<p><font face=" & quote & "Monaco" & quote & ">two</font></p>"
+   unlock messages
+   revHyperCardMacFonts tStack, _StandInFonts()
+   TestAssert "the background's font", the textFont of group 1 of card 1 of stack tStack is "Verdana"
+   TestAssert "the first card's text", "face=" & quote & "ChicagoFLF" & quote is in the htmlText of field "Bg" of card 1 of stack tStack
+   TestAssert "the second card's text", "face=" & quote & "Lucida Console" & quote is in the htmlText of field "Bg" of card 2 of stack tStack
+   TestAssert "each card keeps its text", the text of field "Bg" of card 1 of stack tStack is "one" \
+         and the text of field "Bg" of card 2 of stack tStack is "two"
+   _Close tStack
+end TestHyperCardScriptsMacFontsBackground
+
+on TestHyperCardScriptsMacFontFile
+   -- ChicagoFLF ships beside the IDE's fonts, in a folder of its own that
+   -- the IDE does not load at startup: only an imported stack loads it.
+   -- Loading it is never an error the import stops for (a system with no
+   -- window, as here, cannot load a font file)
+   local tFile, tError
+   put revHyperCardMacFontFile() into tFile
+   TestAssert "the look-alike of Chicago is there", there is a file tFile and tFile ends with "/ChicagoFLF.ttf"
+   TestAssert "in a folder of its own", tFile contains "/fonts/hypercard/"
+   try
+      revHyperCardUseMacFonts
+   catch tError
+   end try
+   TestAssert "loading it does not throw", tError is empty
+end TestHyperCardScriptsMacFontFile
+
+on TestHyperCardScriptsMacFontsSummary
+   -- the import summary says which fonts are shown in look-alikes
+   local tStack, tSummary
+   put "HCMacFontsSummary" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   unlock messages
+   set the uHyperCard["fonts"] of stack tStack to "Chicago" & tab & "ChicagoFLF" & return & "Geneva" & tab & "Verdana"
+   put revHyperCardImportSummary(tStack, empty) into tSummary
+   TestAssert "the summary names the look-alikes", "Mac fonts shown in look-alikes: Chicago as ChicagoFLF, Geneva as Verdana" is in tSummary
+   _Close tStack
+end TestHyperCardScriptsMacFontsSummary
+
 on TestHyperCardScriptsSpeech
    -- SpeakString and Say, the speech XCMDs, end in the library
    local tStack, tError
