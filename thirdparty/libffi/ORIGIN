@@ -1,0 +1,26 @@
+Files in this folder are libffi (<https://github.com/libffi/libffi>), as
+LiveCode's livecode-thirdparty carried it: git_master/ holds the newer
+sources the arm64 Mac build uses, from commit ee718066
+(git_master/source.txt); src/ and the include_* folders hold the older
+sources, and each platform's generated headers, that the other builds
+use.
+
+Two local changes, each marked "OXT-Beyond" in the source:
+
+- In src/arm/sysv.S, the five loads and stores of several VFP registers
+  (in ffi_call_VFP and ffi_closure_VFP) are written in the unified
+  syntax: vldmiagt, vstmiaeq, vstmdb sp! and vldmia, where they were
+  fldmiadgt, fstmiadeq, fstmfdd sp! and fldmiad. They are the same
+  instructions with the same encodings; GNU as takes either spelling,
+  and Clang's integrated assembler, the only assembler in an Android NDK
+  from r24 on, takes only these. tools/ci/tests/test_android_engine.py
+  assembles every libffi assembly file the Android build compiles.
+
+- In src/x86/ffi.c, the declaration of ffi_call_SYSV gives its first
+  parameter, the function that lays out the arguments, the type that
+  function has (ffi_prep_args and ffi_prep_args_raw return unsigned
+  int), as the declaration of ffi_call_win32 beside it already did; it
+  said void. Clang from 16 on refuses a call that passes one where the
+  other is declared, as the NDK's does for the x86 Android build; the
+  assembly calls it the same either way, so nothing changes in what is
+  built. The same test file compiles ffi.c's calls of it.

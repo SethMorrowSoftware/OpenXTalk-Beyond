@@ -44,6 +44,7 @@ Contents:
 12. [Building on Linux](#12-building-on-linux)
 13. [Building on macOS](#13-building-on-macos)
 14. [Building the web engine](#14-building-the-web-engine)
+15. [Building the Android engine](#15-building-the-android-engine)
 
 ## 1. Quick reference
 
@@ -597,7 +598,7 @@ powershell -ExecutionPolicy Bypass -File tools\ci\verify-build.ps1
 
 [`tools/ci/verify-build.ps1`](tools/ci/verify-build.ps1) checks that the
 expected files exist, that `dbsqlite.dll` contains the `SQLITE_SOURCE_ID`
-from `thirdparty/libsqlite/include/sqlite3.h` (SQLite 3.51.1), and that
+from `thirdparty/libsqlite/include/sqlite3.h` (SQLite 3.51.3), and that
 `LiveCode-Community.exe` contains the version from the `version` file.
 The same checks by hand:
 
@@ -848,7 +849,8 @@ differences are:
   code and data) may differ from 1.15's, lack the shared libraries that
   1.15's Linux runtimes bundled in `lib\`, or have new files.
   `Runtime\Android`, carried over unchanged, is still compared byte for
-  byte;
+  byte, but for the Java layer that the asset's record names
+  (`java_layer`), which is built from this repository;
 - with a web runtime, `Runtime\Emscripten\js` is this repository's web
   engine: files that the reference has there and it lacks are intended
   missing, and the files it adds are intended additions.
@@ -945,7 +947,7 @@ python3 tools/ci/standalone_check.py --install <folder> --platform mac-universal
 The two floor checks read the platform matrix,
 [`tools/ci/platform-matrix.json`](tools/ci/platform-matrix.json): the
 oldest system each part of a package must run on, as this file and
-README.md state them (macOS 10.13 on Intel and 11 on Apple Silicon; the
+README.md state them (macOS 11 on Apple Silicon and Intel; the
 bundled extensions' Intel slices 10.15; glibc 2.31 on Linux, with the
 32-bit extension libraries' higher floors as named exceptions). Each
 slice of a universal file is held to its own architecture's floor, and
@@ -987,19 +989,24 @@ asset is one zip archive with a fixed URL, size and SHA-256:
 | `strip` | Number of leading path components removed from every member of the archive. |
 | `dest` | Folder, relative to the installed root, that the remaining paths go into (`""` for the root). |
 | `rename` | Optional: members that go somewhere else, as `{"<path after strip>": "<path relative to dest>"}`. |
+| `java_layer` | Optional, the runtimes asset only: the Android runtime's Java layer (`Runtime/Android/Classes`) when it was built from the commit `source` names rather than carried over. |
+| `android_engine` | Optional, the runtimes asset only: the folder of OXT-Beyond's own Android engine (`Runtime/Android/Beyond`) when the asset carries it, built from the commit `source` names (see [Building the Android engine](#15-building-the-android-engine)). |
 | `description`, `licence`, `source` | Text for people and reports. |
 
-Today there is one asset, `oxt-runtimes-0.2.7-rc.6.16b`: the Windows (x86-64
+Today there is one asset, `oxt-runtimes-0.2.7`: the Windows (x86-64
 and x86) and Linux (x86-64 and x86) runtimes and the time zone library's
 code for them and its zoneinfo data, made from this repository's CI
-builds, with the Android runtime and its time zone library code carried
-over unchanged from the earlier asset `oxt-runtimes-1.15` (OpenXTalk
-Lite 1.15's files). Its `PROVENANCE.md` (installed as
-`PROVENANCE-oxt-runtimes-0.2.7-rc.6.16b.md`) names the commit and the CI
+builds, the Android runtime's Java layer (`Runtime/Android/Classes`)
+built from the same commit, and OXT-Beyond's own Android engine
+(`Runtime/Android/Beyond`) from that commit's "Android engine" run, with
+the rest of the Android runtime and its
+time zone library code carried over unchanged from the earlier asset
+`oxt-runtimes-1.15` (OpenXTalk Lite 1.15's files). Its `PROVENANCE.md` (installed as
+`PROVENANCE-oxt-runtimes-0.2.7.md`) names the commit and the CI
 runs and lists every file; the 1.15 asset's provenance comes with it as
 `PROVENANCE-oxt-runtimes-1.15.md`. It is published as the file
-`oxt-runtimes-0.2.7-rc.6.16b.zip` of this repository's release
-`runtimes-0.2.7-rc.6.16b`. Each package leaves out the part its own build
+`oxt-runtimes-0.2.7.zip` of this repository's release
+`runtimes-0.2.7`. Each package leaves out the part its own build
 makes (the entry's `exclude`). The manifest names that release in this
 repository, so a fork downloads it from here too. To package
 without the external assets, for example while a new asset is not
@@ -1035,9 +1042,15 @@ platforms.
 ([`.github/workflows/runtimes.yml`](.github/workflows/runtimes.yml)) by
 hand with a label (the version whose packages will take the asset, for
 example `0.2.1-rc.3`) and the ids of a "Build (Windows)" and a "Build
-(Linux)" run of the same commit whose 32-bit and 64-bit builds passed.
-It makes the archive with
-[`tools/oxt/make_runtimes_asset.py --builds`](tools/oxt/README.md#the-runtimes-asset),
+(Linux)" run of the same commit whose 32-bit and 64-bit builds passed,
+and, to carry OXT-Beyond's own Android engine beside 9.6.3's, the id of
+an "Android engine" run of that commit whose builds and emulator job
+passed (`android-engine-run`; see
+[Building the Android engine](#15-building-the-android-engine)).
+It builds the Android runtime's Java layer from that commit and checks
+it as the "Android Java layer" workflow checks a pull request's (see
+[Android Java layer](#android-java-layer)), makes the archive with
+[`tools/oxt/make_runtimes_asset.py --builds --android-classes`](tools/oxt/README.md#the-runtimes-asset),
 shows the manifest entry in its summary and, with `publish` and a
 commit on `main`, publishes the pre-release `runtimes-<label>`. Then pin
 that entry in `tools/oxt/external-assets.json` in a pull request. Make
@@ -1544,20 +1557,35 @@ named on its command line (under `xvfb-run` on Linux without a
 `DISPLAY`), which first runs the units of the builder's handlers that
 need no SDK (the manifest's components without `android:exported`, the
 64-bit and extension warnings, the SDK check on made-up SDK folders),
-then builds the probe four times as File > Save as Standalone
+then builds the probe five times as File > Save as Standalone
 Application does: `debug` ("Sign for development only", all four
 architectures, a push sender ID), `release` ("Sign with my key", with a
 keystore the check makes; the script answers the builder's three
-questions in its ask dialogs), `unsigned` ("Do not sign") and `legacy`
-(a stack that never opened the Android card). It needs Python 3.8 or
-later, a JDK, and an Android SDK with `platforms;android-33`, build-tools
-and platform-tools:
+questions in its ask dialogs), `unsigned` ("Do not sign"), `legacy`
+(a stack that never opened the Android card) and `bundle` (as `release`,
+for arm64 and x86-64, with `"android,app bundle"`, so the builder also
+makes `bundle.aab`; it downloads bundletool the first time, and `ide`
+copies the jar it keeps to `<work>/bundletool.jar`). With
+`--bundletool-fallback`, as `android.yml` runs it, a bundle build whose
+download of bundletool GitHub's release host answered with an HTTP 5xx
+(every try, from libURL and the JDK alike) is built again, once: `gh`
+downloads the pinned jar through GitHub's API (its SHA-256 checked),
+`ide` puts it where the builder keeps its download, the IDE builds the
+App Bundle alone (no units, no Test; its lines in
+`<work>/android-check-bundle.txt`), and its lines take the place of the
+failure in `android-check.txt`, with a warning on the run saying so.
+The builder's own download is still tried first, and any other failure
+of it (a stall, the wrong file, a 404) stays a failure. It needs Python 3.8
+or later, a JDK, and an Android SDK with `platforms;android-33`,
+build-tools (with aapt2) and platform-tools:
 
 ```sh
 python3 tools/ci/android_check.py ide --install <folder> --work <work> --sdk <sdk> --jdk <jdk>
-python3 tools/ci/android_check.py verify --work <work> --sdk <sdk>
+python3 tools/ci/android_check.py verify --work <work> --sdk <sdk> --jdk <jdk>
 python3 tools/ci/android_check.py compare --old <work of the released IDE> --new <work> --sdk <sdk>
 python3 tools/ci/android_check.py device --apk <work>/out/debug.apk --serial emulator-5554 --sdk <sdk>
+python3 tools/ci/android_check.py device --apk <work>/out/bundle.aab --serial emulator-5554 --sdk <sdk> \
+    --bundletool <work>/bundletool.jar --jdk <jdk>
 python3 tools/ci/android_check.py boot --serial emulator-5554 --sdk <sdk> --log <the emulator's log>
 ```
 
@@ -1567,26 +1595,403 @@ signature, signed by the debug key or the keystore; none for the other
 two), zipalign, `resources.arsc` stored and aligned, every activity,
 service and receiver with an intent-filter saying `android:exported`,
 the 64-bit engine libraries aligned for 16 KB memory pages, the package
-name and target API, and the builder's warnings (the `legacy` build must
-be told that it has no arm64 build). `compare` takes the packages a
+name and target API (`--target`, 33 unless given, or with
+`--target-for <folder>` the one the builder picks for the runtime of the
+IDE installed there: 36 when its Java layer has the classes the builder
+looks for, which one built from this repository's sources has, and 33
+for LiveCode 9.6.3's; at 36 the manifest must keep the stack's
+orientation on large screens, below it must not say so), and the
+builder's warnings (the `legacy` build must be told that it
+has no arm64 build). For the `bundle` build it also checks `bundle.aab`:
+it holds the package's files with the same bytes, in the base module
+where bundletool wants them (bar the manifest, the resource table and
+the resources' XML, which aapt2 converts), and no others; its
+`BundleConfig.pb` keeps the native libraries compressed and the assets
+stored in the device's packages (the engine loads externals from the
+app's native library folder and opens its files at their place in the
+installed package), and says bundletool 1.18.3; it is signed by the
+package's signer (the JDK's `jarsigner` verifies it, `keytool` names the
+signer); and `bundletool validate` takes it, its manifest naming the
+package and the target API. Every package's activity must list the
+configuration changes the builder gives it (`android:configChanges`
+`0x50006fff`: see "The engine runs once in a process" below), and its
+manifest must declare `com.runrev.android.RelaunchActivity`, in a
+process of its own (`:relaunch`) and not exported, exactly when its dex
+has that class. The bundletool jar must be the one the
+builder pins (its SHA-256), and no other build may leave an `.aab`.
+`compare` takes the packages a
 released IDE made of the same probe stack (`ide --no-units --stack
 <work>/AndroidProbe.livecode`: the stack goes into the engine library)
 and fails on any file that differs, apart from what the builder's change
-meant (the signatures, the push receiver's `android:exported`).
+meant (the signatures, the push receiver's `android:exported`, the
+activity's `android:configChanges`, which must have the new value).
 `overlay --root <folder>` puts the checkout's builder into an unpacked
-release, so that one release can be run with both builders. `device`
-installs a package with adb, starts it, and waits until the screen turns
-the probe's green, which only the probe's `openStack` makes; `ide
---device <serial>` does what the IDE's Test does for that device. `boot`
+release, so that one release can be run with both builders, and with
+`--classes <jar>` also a Java layer in place of the release's
+`Runtime/Android/Classes` (see [Android Java layer](#android-java-layer)).
+`ide --probe java` builds the Java layer's probe (`AndroidJavaProbe`)
+instead: before it turns green its `openStack` schedules a local
+notification an hour away and cancels it, which goes through the Java
+layer's `PendingIntent`s; asks for its external folder
+(`specialFolderPath("external documents")`) and whether it holds
+`WRITE_EXTERNAL_STORAGE` (`androidHasPermission`); and exports a
+one-pixel picture to the album as `oxt-beyond-probe`. It takes every
+step, says what each answered in the device's log (`OXT-Beyond probe:`
+lines, tag `LiveCode`), and turns orange (its fail colour) when any
+failed. Its builds declare `POST_NOTIFICATIONS`, so on Android 13 and
+newer the Java layer asks the user to let it post notifications as it
+schedules one, and `WRITE_EXTERNAL_STORAGE`, which Android 13 and newer
+refuse without asking and the rebuilt Java layer counts as granted there.
+Once green, its `backKey` turns it blue and does not pass the message, so
+the app stays.
+`ide --probe busy` builds the busy probe (`AndroidBusyProbe`): the app
+probe that, once green, every 10 milliseconds (`kBusyTick`) turns its
+background the other of two greens that `device` reads as the same
+(`kBusyColor`) and sets the text of its field, for as long as it runs, so
+that the engine is redrawing the whole screen, or has drawn it and is
+waiting for Android's thread to show it, much of the time. That is when a density change on Android 16 hung LiveCode 9.6.3's
+engine (see [The engine runs once in a process](#the-engine-runs-once-in-a-process)).
+`ide --probe edge` builds the edge probe (`AndroidEdgeProbe`): the app
+probe built to be drawn edge to edge (its `"android,edge to edge"`
+standalone setting, the Android card's "Edge to edge"), which, once
+green, says in the log its `screenRect` and its `effective working
+screenRect`, then again a second later (`kEdgeWait`), once Android has
+given its window the bars' insets.
+`device` installs a package with adb (an App Bundle as Google Play
+installs it: `bundletool build-apks --connected-device`, signed with a
+key made for it, then `install-apks`, and the app must be installed as
+more than one APK), waits until the system has taken the install (the
+broadcast queues and the package manager idle: in run 42324548829
+Android 16 killed the Java layer's probe for memory while its apps were
+still taking it), starts it, and waits until the
+screen turns the probe's green, which only the probe's `openStack` makes
+(or the fail colour, which fails at once), and prints what the probe said
+(kept in the failure when it turns its fail colour). Another app's "isn't
+responding" dialog in front of the probe (an emulator's launcher's, in
+run 42354758286, its scrim dimming the probe's green) is answered with
+its Wait button, at most three times in a wait; the probe's own is a
+failure. With `--allow
+<permission>` the probe must ask for that runtime permission: `device`
+waits for Android's dialog, taps its Allow button (found in a
+`uiautomator` dump) and checks that the package then holds the
+permission (`dumpsys package`). A dialog still in front 6 seconds after
+the tap has its Allow tapped again, at most three taps in all: in run
+42568140662 another app's "isn't responding" dialog took the tap, and
+the permission dialog stayed until the probe failed. With `--picture <name>` the picture the
+probe exported must be among the shared pictures (`content query` of
+MediaStore) in `Pictures/`, as the package's own; before it installs the
+probe again, `device` then waits (up to 60 seconds) for MediaProvider to
+say in the log that it took the removal of the one before, which it does
+in a job of its own and which clears the owner of every picture of the
+package's name, the new install's too (run 42359925885). With `--within-bars`
+the screen's first and last rows, where the status and navigation bars
+are, must not be the probe's green once it is green: the stack is not
+drawn under the bars. When the first green screen has its green there,
+`device` takes the screen again every second for up to 8 seconds, and
+fails only if the bars never come over it (on the 16 KB image the first
+green screen of a package that passes in other runs, soon after a cold
+start, once had its green in the bottom row). With `--edge-to-edge`, its
+opposite (`device` refuses the two together), the edge probe must be
+drawn under the see-through status bar (the screen's first row mostly its
+green), and the last `effective working screenRect` it said must lie
+inside its `screenRect` and leave the status bar out; `device` prints
+both rects and how much of the first and last rows is its green. With `--back` `device`
+then presses the back key,
+and the probe's `backKey` must turn the screen blue (`-back.png` beside
+`--out` keeps that screen). Three more check that the engine runs once in
+a process, each once the probe is green, in this order, the first that
+fails ending them: `--font-scale` sets the font size to 1.3 (`settings
+put system font_scale`, put back after) and the app must go on in the
+same process, still green; `--density` sets the screen's density to 85%
+of its own (`wm density`, reset after), which no manifest can list, and
+the app must start again in a new process and turn green there, and
+again in a new process, green and without a crash, once the density is
+reset (an app that hung there keeps its process, its screen black, and
+nothing after the last change would ask), and with `--density-times <n>`
+it makes that change and its return n times over, each change after the
+first named in the log and the problems ("density change 2 of 3") and
+keeping its own screen (`-density-2.png`); and
+`--relaunch` presses the back key, which the app probe passes, so its
+stack quits: its process must end within 20 seconds, and the app opened
+again (`am start`) must turn green in a new one. Each fails on a crash or
+an fdsan line of the probe in the device's log, the process it started
+from counted as the probe's, and keeps its screen
+beside `--out` (`-font-scale.png`, `-density.png`, `-again.png`).
+`ide --device <serial>` does what the IDE's
+Test does for that device. `boot`
 waits for an emulator to finish booting, and when it gives up it prints
 whether the emulator still runs, `/dev/kvm`, adb's devices, the free disk
-and the end of the emulator's log.
+and the end of the emulator's log. With `--settle` it then waits for a
+fresh image's first minute's work (its overlays and broadcasts), and with
+`--awake` it first puts the image to sleep once, wakes it, unlocks it and
+keeps it awake. The release's Java layer does not survive a second
+start of the engine in one process, and Android relaunches a running
+app's activity when, for example, the screen goes off and the system's
+theme overlays change, so the workflow starts no probe until both are
+done. When a
+probe dies, `device` says whether Android paused it for sleep, changed
+its `ApplicationInfo` or relaunched it.
 
 The workflow "Android builder" (`android.yml`) runs all of it on the
 latest release's IDE, with this checkout's builder put in, on Windows,
 Linux and macOS, on a pull request or push that changes the builder or
 the check, and on the Linux runner also Test, and the packages on an
-Android 13 emulator and on one with 16 KB pages.
+Android 13 emulator and on one with 16 KB pages. On Linux it also builds
+the Java layer from this checkout and makes the Java layer's probe twice
+from the same stack, once with that layer and once with the release's,
+and runs both on the Android 13 emulator: the rebuilt layer's must turn
+green, ask for the notification permission (`--allow
+android.permission.POST_NOTIFICATIONS`), leave its picture in the shared
+Pictures folder (`--picture oxt-beyond-probe.png`), get its back key
+(`--back`) and stay inside the system bars (`--within-bars`), there and
+on the 16 KB emulator, as a package and as an App Bundle installed as
+split APKs, in which it also reads the file it carries (`oxt-probe.txt`,
+its standalone settings' `files`) from the base APK's stored assets; the
+release's is only recorded, with what it said. The other builds' App
+Bundle (`bundle.aab`) runs on the Android 13 emulator.
+That layer is ready for API 36, so the builder makes the probe target 36
+(`verify --target 36`), and the 16 KB emulator is the first such image
+at API 36 (Android 16) or newer: there Android draws an app that targets
+35 or newer edge to edge, which the Java layer pads, and sends the back
+key of one that targets 36 only to its back callback. The other packages
+target what the builder picks for the release's runtime (`verify
+--target-for`: 33 with LiveCode 9.6.3's Java layer, which the runtimes
+carried until 0.2.7-rc.6.18, and 36 with one built here), and must stay
+inside the bars on both emulators too.
+LiveCode 9.6.3's `PendingIntent`s throw on Android 12 and newer, and the
+engine clears the exception without a word in the log, so that probe's
+notification call answers no id and the probe turns its fail colour
+instead of green. The app probe is also built with the rebuilt layer
+(`<work>/java-app`), which has `RelaunchActivity`, and run on both
+emulators with `--font-scale --density --relaunch`, and the busy probe
+with the rebuilt layer (`<work>/java-busy`) with `--density
+--density-times 5`, ten relaunches while it draws, and the edge probe with
+the rebuilt layer (`<work>/java-edge`) with `--edge-to-edge`: the Java
+layer draws an app that asks for it edge to edge from Android 11 on, on
+Android 13 as on Android 16; the debug package
+with the release's layer is run with `--font-scale` on the Android 13
+emulator, and with `--density` and with `--relaunch` only for the
+record.
+
+#### The engine runs once in a process
+
+The Android engine starts once in its process. Started a second time
+there, it opens stdin, stdout and stderr again
+(`MCAndroidSystem::Initialize`, `fdopen`), which the first start's
+streams still hold, and Android 11 and newer stop an app that targets
+API 30 or newer for it (fdsan: "fd 0 is owned by FILE*"). Android makes
+the app's activity again in the same process for a configuration change
+its manifest does not list, and when the app is opened again after its
+stack quit while the process is still there; so an app closed when the
+user changed the font size or the language, or opened it again after
+the back key quit it. Three things keep the engine to one start:
+
+- The builder's manifest lists the changes the app goes on through
+  (`androidConfigChanges`): LiveCode's four as before (`keyboardHidden`,
+  `orientation`, `uiMode`, `screenSize`), then `smallestScreenSize` and
+  `screenLayout` (which come with a resized window), and those that
+  change nothing the engine has read: `fontScale`,
+  `fontWeightAdjustment`, `locale`, `layoutDirection`, `keyboard`,
+  `navigation`, `touchscreen`, `colorMode`, `mcc` and `mnc`. Not
+  `density`, which the engine reads as it starts. This holds with any
+  Java layer.
+- With a Java layer that has `com.runrev.android.RelaunchActivity` (this
+  checkout's), the builder declares it in a process of its own
+  (`android:process=":relaunch"`, translucent, not in the recents list,
+  not exported; `androidDeclareRelaunch`). `LiveCodeActivity`, made again
+  in a process whose engine has run, starts it with its own Intent and
+  process id and finishes; it ends that process, starts the Intent, which
+  Android starts in a new process, and ends its own (the pattern of
+  ProcessPhoenix). Until it is destroyed, that activity, which has no
+  engine, passes nothing to one: Android can still call it, as it did
+  with the configuration change of a density's return. Without the
+  declaration (a manifest of the app's own), the activity starts the
+  engine as before.
+- `LiveCodeActivity.onDestroy`, once the engine has finished and the
+  activity is finishing (not for a configuration change), ends the
+  process, so that the app opened again starts in a new one, as it does
+  once Android has ended the process.
+
+Android can make the activity again while the engine is in the middle of
+showing what it drew: the engine draws into the view's bitmap, then
+yields to Android's thread with a wake-up due at once, so that Android
+shows the bitmap, and goes on when that wake-up comes. On Android 16 a
+density change came in between (runs 42558963677 and 42593463112):
+`onDestroy` cleared the wake-up, and LiveCode 9.6.3's engine, which is
+resumed once as it is destroyed and then joined, went on from the drawing
+only to yield again from its wait, so Android's thread waited for it for
+good and the screen stayed black. So `onDestroy` first lets the engine
+finish (`Engine.finishDrawing`): while the wake-up that is scheduled is
+one the engine asked for as it drew (`invalidateBitmap` came after it),
+it runs that wake-up at once, as the handler would have, at most eight
+times, until the engine yields from its wait, which is where 9.6.3's
+engine finishes when it is destroyed. An activity whose engine yielded
+without drawing, or draws with OpenGL, is destroyed as before. When it
+runs a wake-up, it says so in the device's log (`finishDrawing:`, tag
+`revandroid.Engine`), and `device --density` prints that line for each
+change and return. The busy probe checks it on both emulators
+(`--density --density-times 5`).
+
+### Android Java layer
+
+The Android runtime's Java layer (`Runtime/Android/Classes`, a jar that
+the builder dexes into every package as `LiveCode.jar`) is built from
+this repository's sources in the runtimes asset from
+`oxt-runtimes-0.2.7-rc.6.18` on; until then it was the one LiveCode
+Community 9.6.3 shipped, carried over from OpenXTalk Lite 1.15, and the
+engines beside it still are.
+[`tools/ci/android_java.py`](tools/ci/android_java.py) builds it from
+this checkout's sources (`engine/src/java`, the files
+`engine/engine-sources.gypi` lists) and checks it against that runtime.
+It needs Python 3.8 or later; `build` needs a JDK and an Android SDK
+platform (36 by default), the rest nothing but the files:
+
+```sh
+python3 tools/ci/android_java.py build --sdk <sdk> --jdk <jdk> --api 36 --out <work>/Classes
+python3 tools/ci/android_java.py compare --old <runtime>/Classes --new <work>/Classes
+python3 tools/ci/android_java.py jni --classes <work>/Classes --runtime <runtime> --android-jar <sdk>/platforms/android-36/android.jar --every-named
+python3 tools/ci/android_java.py rules --classes <work>/Classes
+```
+
+where `<runtime>` is the runtimes asset's `Runtime/Android` folder.
+
+- `build` compiles for Java 8 (as the builder compiles its own classes)
+  with each AIDL interface's committed `.java` beside its `.aidl`, so no
+  `aidl` tool is needed, and writes a jar whose bytes depend only on the
+  classes (sorted entries, one fixed time): the same sources give the
+  same jar.
+- `compare` reads both jars class by class, member by member and
+  instruction by instruction (the constant pool's order, `ldc` against
+  `ldc_w`, the names javac gives locals and a few other ways two
+  compilers write the same code are read as the same), and fails on any
+  difference the `EXPECTED` table of the script does not name with its
+  reason, and on an `EXPECTED` entry that no longer differs. It names
+  every addition too; with a runtime the table does not know, an
+  addition is a failure.
+- `jni` checks the jar against the engine that will load it: every
+  `native` method has its `Java_*` function in each architecture's
+  engine and every such function a method (`UNEXPORTED` names the methods
+  9.6.3 declared and never implemented); every call the engine's C++
+  makes into Java (`MCAndroid*Call` with its signature letters, and
+  `GetMethodID`) finds its method with that signature in the jar or in
+  Android's classes (`KNOWN_CALLS` names the calls that never found one,
+  in 9.6.3's jar too); every LCB binding to `com.runrev` classes; every
+  class the builder and the manifest name (bar a class the builder looks
+  for in the jar before it names it, as it does `RelaunchActivity`, which
+  a jar without it is said to lack and no more; `--every-named` asks for
+  those too, of the jar built here); and the OpenGL ES version of the
+  context `OpenGLView` makes for each engine against the library the
+  engine draws with. One jar serves both engines: 9.6.3's draws with
+  OpenGL ES 1 and calls `start()`, which makes the context it always
+  had; an engine built from this tree draws with OpenGL ES 3 and calls
+  `startGLES(3)` (`kMCAndroidOpenGLESVersion` in `mblandroiddc.cpp`). The
+  workflow runs it on the release's jar as well, so that each statement
+  is known to hold of the jar that ships.
+- `rules` checks what Android asks of the code: today, that every
+  `PendingIntent` says whether it is mutable (Android 12 and newer throw
+  otherwise), through `Utils.immutablePendingIntentFlags` or
+  `Utils.mutablePendingIntentFlags`, which add the flag only on those
+  versions.
+
+The workflow "Android Java layer" (`android-java.yml`) runs all four on
+a pull request or push that changes the Java sources, the engine's
+calls into Java, the LCB extensions, the builder or the check, in a few
+minutes on one Linux runner with no build of the engine, and keeps the
+jar it built for 14 days. The Android builder workflow runs that jar on
+an emulator (above). The "Runtimes asset" workflow builds and checks it
+the same way and ships it: its assets carry the Java layer built from
+their commit in place of LiveCode Community 9.6.3's (the manifest entry's
+`java_layer`; see [Making the runtimes asset](#external-assets)), and the
+rest of `Runtime/Android` is still carried over from `oxt-runtimes-1.15`.
+A package ships it once such an asset is pinned. From then on `compare`
+compares a pull request's jar with that one, so a change to the Java
+layer adds its `EXPECTED` entry under that jar's SHA-256.
+
+The API a package targets follows the runtime's Java layer
+(`androidTargetAPI` in the builder): 33, as before, with a Java layer
+that is not ready for newer (LiveCode 9.6.3's), and 36 with one that is,
+which the builder knows by the two classes it has for it
+(`LiveCodeActivity$BackCallback` and `LiveCodeActivity$SystemBarsPadding`
+in `Runtime/Android/Classes`). Google Play asks for 36 of a new app or
+an update. At 36 the manifest also says
+`android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY`, so that
+Android 16 keeps the stack's orientation and size on a large screen as
+before. A stack can pin the API with
+`set the cRevStandaloneSettings["android,target sdk"] of stack "<name>" to 33`
+(any of 33 to 36; the build stops with an error for anything else), and
+an empty one leaves it to the runtime. The builder compiles against
+`platforms;android-33` when the SDK has it, as before, whatever the
+target: the manifest's `targetSdkVersion` decides how Android treats the
+app (and build-tools 34's aapt failed on `android-36`'s resources when
+tried).
+
+Android 15 and newer draw an app that targets 35 or newer edge to edge,
+and the Java layer pads the view that holds the stack by the bars, the
+display's cutout and the keyboard (`keepOutOfSystemBars`), so the stack
+keeps the area it had. A stack with
+`set the cRevStandaloneSettings["android,edge to edge"] of stack "<name>" to true`
+(the Android card's **Edge to edge** box, at the end of its Status Bar
+row: a copy of "Android x86_64" in the build targets' group, made by the
+`android-card-status-bar-edge-*.txt` IDE stack patches, which the group's
+script stores, true when ticked and false when not, and the card's
+behaviour shows; the UI tour clicks it, and `tourAndroidEngine` checks
+that the group, grown down to hold it, takes no click from the controls
+under it; `android-card-targets-group.txt` declares the group's growth
+for its three boxes)
+asks to be drawn under the bars instead: the builder writes the
+meta-data `com.runrev.android.EDGE_TO_EDGE` into the manifest's
+application (`androidAskForEdgeToEdge`), and stops with an error when the
+runtime's Java layer has no `LiveCodeActivity$EdgeToEdge` (LiveCode 9.6.3's,
+or a runtime older than this change), and the Java layer then draws the
+stack edge to edge on every Android from 11 (`drawEdgeToEdge`): under the
+see-through status and navigation bars and into the cutout, the bars'
+icons dark in the light appearance and light in the dark, and the
+keyboard still resizing it as before. Its `the screenRect` is the whole
+of its window where the window is on the screen, the bars and the cutout
+included (`Engine.getViewport`, which for any other stack is still the
+default display's metrics from 0,0, which leave the navigation bar and
+the cutout out), and the part of it that the
+bars, the cutout and the keyboard leave is its
+`the effective working screenRect` (`Engine.getEffectiveWorkarea`, which
+for any other stack is still the window's visible display frame).
+Android 10 and older draw it as before. The units (`unitEdgeToEdge`) run
+the builder's handler on made-up runtimes, and the edge probe checks the
+rest on both emulators (above).
+
+A stack with `set the cRevStandaloneSettings["android,app bundle"] of
+stack "<name>" to true` (the Android card's **App Bundle** box, at the end
+of its row of architectures: a copy of "Android x86_64" made by the
+`android-card-app-bundle-*.txt` IDE stack patches, which the row's script
+stores and the card's behaviour shows) also gets an Android App Bundle
+beside its package (`<name>.aab`), as Google Play takes a new app: a build, never
+Test, makes it (`androidBuildBundle`) from the package before zipalign.
+`aapt2 convert --output-format proto` rewrites the manifest and the
+resources as bundletool reads them; each file then goes to its place in
+the base module (`androidBundleModulePath`: the manifest to `manifest/`,
+the dex files to `dex/`, `res/`, `assets/`, `lib/<abi>/` and
+`resources.pb` as they are, anything else to `root/`, the jar files the
+builder leaves at the top of `lib/` nowhere); bundletool's `build-bundle`
+makes the bundle with `androidBundleConfig`, which keeps the native
+libraries compressed and the assets stored in the device's packages, as
+in the `.apk` (the engine loads externals from the app's native library
+folder and opens its files at their offsets in the installed package);
+and the JDK's `jarsigner` signs it with the package's key, its passwords
+in environment variables, not on its command line. The builder warns
+when the bundle is signed with the debug key or not signed, which Google
+Play refuses. bundletool is Google's jar, downloaded on the first such
+build from its GitHub release (`kBundletoolURL`, version 1.18.3, checked
+against `kBundletoolSHA256` before it is kept; a download that fails is
+tried again, up to `kBundletoolTries` times, 2 seconds apart, the second
+time with the JDK's own HTTP client through a small Java program,
+`androidDownloadJavaSource`, which java runs from the temporary folder,
+because libURL's download stalled three times in a row on the Android
+builder check's macOS runner) into
+`revEnvironmentUserCachePath()/Android`, unless
+`the cMobileSupport["android.bundletool"] of stack "revPreferences"`
+names a jar; OXT-Beyond ships no copy. aapt2 is in build-tools; the SDK
+check (`deployCheckSDK`) does not ask for it, so an SDK without it still
+builds packages, and only a bundle build stops with an error that says
+so.
 
 ### Browser and player check
 
@@ -1814,6 +2219,34 @@ on both architectures.
 a published release (by hand, for any tag), and on the latest release for
 a pull request that changes the tour, where the release's own problems
 only warn.
+
+The same tool runs
+[`tools/ci/everyday-tasks.livecodescript`](tools/ci/everyday-tasks.livecodescript)
+(`--script`): about fifty things a person does in the IDE, each through
+the IDE's own windows with the system's mouse and keyboard where they
+reach it (xdotool on Linux, `mouse_event` on Windows, CGEvent on macOS):
+a new stack, each common control dragged from the Tools palette, edits in
+the Inspector, a handler typed and applied in the Script Editor, a
+compile error in its Errors pane and its fix, the handler run in browse
+mode, the Message Box, undo and redo, copy, paste, duplicate, group,
+ungroup and align, cards with the Project Browser, find and replace and a
+breakpoint in the Script Editor, Save As, Close and Remove From Memory
+and opening the stack again, Revert to Saved, a Dictionary search, an
+image as a button's icon, the Geometry Manager, a preference changed and
+restored, and the Application Browser. Each task asserts what a person
+would see, waits for it rather than sleeping, and snapshots it
+(`everyday-*.png`); `--only` runs the tasks up to the last one named.
+Builds run it on Linux light and dark at once (two Xvfb screens), on
+Windows light then dark, and on the Macs one appearance each (light on
+Apple silicon, dark on Intel); `ui-tour.yml` runs it light and dark on a
+release. Its snapshots go in the same artifact, under `everyday-light/`
+and `everyday-dark/`.
+
+```sh
+sudo apt-get install xvfb xdotool gnome-themes-extra gtk2-engines-pixbuf
+python3 tools/ci/ui_tour.py --install <folder> --script tools/ci/everyday-tasks.livecodescript \
+  --appearance light --timeout 900 --out <folder>
+```
 
 To look through them, each of those jobs uploads the snapshots, with the
 script's lines of each appearance (`tour.txt`), as an artifact of their
@@ -2105,8 +2538,8 @@ build again.
 `cmd /c ..\make.cmd` rather than `..\make.cmd`.
 
 **Packaging fails to download the runtimes asset**
-(`oxt-runtimes-0.2.7-rc.6.16b.zip`). The download comes from this
-repository's `runtimes-0.2.7-rc.6.16b` release (also in a fork, which needs
+(`oxt-runtimes-0.2.7.zip`). The download comes from this
+repository's `runtimes-0.2.7` release (also in a fork, which needs
 no copy of its own), so a failure is usually the network:
 a proxy or firewall, or no access to `github.com` and its download
 servers. Copy the file into the cache folder, where it is used without
@@ -2178,6 +2611,12 @@ runs on every pull request and push to `main` in a minute or two:
 [actionlint](https://github.com/rhysd/actionlint) on every workflow, and
 the unit tests of the CI scripts in `tools/ci/tests`
 (`python3 -m unittest discover -s tools/ci/tests`, which needs PyYAML).
+It downloads its pinned actionlint with `gh`, through GitHub's API, and
+from the release's web address (`github.com/.../releases/download`) only
+when `gh` fails, and checks the archive's SHA-256 either way. On
+9 November 2026 the web address answered `504 Gateway Time-out` to the
+runners on and off for an hour, which ended three of these jobs before
+any check ran.
 
 It follows this guide:
 
@@ -2315,6 +2754,18 @@ with its home stack, menu bar and palettes and fails if it is not still
 running after 90 seconds, printing the faulting thread of the crash
 report macOS wrote; every other step runs the engine with `-ui` or with a
 test stack of its own.
+
+Each build workflow also watches the IDE start for "ghost windows", a
+window other than the splash that comes up and goes again while the IDE
+starts: [`tools/ci/startup_windows.py`](tools/ci/startup_windows.py)
+watches the window manager's list on Linux (in
+[`tools/ci/linux_ide_start.sh`](tools/ci/linux_ide_start.sh)), each
+top-level window of the IDE's process shown and hidden on Windows (the
+step "Start the IDE" of `build-windows.yml`, after the IDE screenshots),
+and the IDE's windows on the screen on macOS (in `mac_ide_start.sh`), and
+the step fails on one. The Raspberry Pi OS check on a pull request and the
+media check, which start a package the change did not build, report them
+as a warning (`OXT_GHOST_WINDOWS=warn`).
 The repository variables `OXT_NO_EXTERNAL_ASSETS` and
 `OXT_NO_XTALK_EXTENSIONS` work there too.
 
@@ -2363,8 +2814,9 @@ mac-x86_64", "Package mac-universal", "Test mac-universal (arm64)" and
 
 The workflow [`.github/workflows/runtimes.yml`](.github/workflows/runtimes.yml)
 ("Runtimes asset") is only started by hand: it makes the runtimes asset
-from the outputs of one Windows and one Linux run and can publish it
-(see [External assets](#external-assets)).
+from the outputs of one Windows and one Linux run, and optionally an
+"Android engine" run, and can publish it (see
+[External assets](#external-assets)).
 
 The workflow [`.github/workflows/ide-screenshots.yml`](.github/workflows/ide-screenshots.yml)
 ("IDE screenshots (branch)") runs when one of the three build workflows
@@ -2406,7 +2858,7 @@ it.
    `0.1.0-beta.1` for a pre-release. Update the README's status and
    limitations if they changed. Leave `ide/.buildnumber` at `0`.
    `ide/.codename` holds the release name ("Frankenstein" for 0.2.1,
-   "Bug Hunt" for 0.2.7),
+   "Bug Hunt" for 0.2.7's release candidates, "Make It So" for 0.2.7),
    which the About window shows and the GitHub release's title carries;
    change it for a release with a new name, together with its artwork
    (`Installer/oxt-beyond/branding/README.md`).
@@ -2608,7 +3060,8 @@ byte for byte; Git cannot show what changed inside them. Change the
 scripts and properties of their objects with patch files, so that every
 change is reviewable text that CI checks:
 
-- write a script or property patch in `tools/oxt/ide-stack-patches/`,
+- write a script, property or clone patch (a clone patch adds a copy of
+  a control, such as another check box) in `tools/oxt/ide-stack-patches/`,
   one file per change (the format is in
   [tools/oxt/README.md](tools/oxt/README.md#binary-ide-stacks));
 - apply it with `tools/oxt/ide-stack-patch.sh <development engine>`,
@@ -2623,14 +3076,15 @@ change is reviewable text that CI checks:
   [tools/oxt/README.md](tools/oxt/README.md#the-stacks-scripts-as-text-stack-scripts)),
   so the diff shows the change. CI checks
   that every script patch is applied (`tools/ci/check_ide_stacks.py`)
-  and the Linux build that every property and image patch is
+  and the Linux build that every property, image and clone patch is
   (`tools/oxt/ide-stack-patch.sh --check` with the engine it built);
 - run the IDE compile check, which also compiles the object scripts
   inside binary stacks, and try the change in the installed layout
   (`dist\stage\OXT-Beyond-<ver>\OXT-Beyond.exe`) as well.
 
-A change that a patch cannot express, such as adding or deleting
-objects, is made with the IDE built from this repository, running from
+A change that a patch cannot express, such as deleting objects or adding
+one that is not a copy of another, is made with the IDE built from this
+repository, running from
 your clone, so that the stack is loaded from `ide/` and saved back there
 by the engine this project ships. Change only that stack (saving
 rewrites the whole file, and can change its format version and the paths
@@ -2800,7 +3254,7 @@ have been run on those runners only.
 4. **Check.** The workflow checks the expected files, the architecture
    of the engines and that they link nothing outside the system, that
    every Mach-O file
-   records macOS 11.0 (arm64) or 10.13 (x86_64) as its minimum and SDK
+   records macOS 11.0 (arm64 and x86_64) as its minimum and SDK
    11.0 (`tools/ci/check_macho_floor.py`), that the server engine runs a
    script, and compiles the checkout's IDE with the new development
    engine:
@@ -3004,3 +3458,165 @@ loopback in the page) and the refusals of TorrentXT and ENetXT, with the
 apps, that harness and NostrXT's relay
 library (which has a browser transport) taken from the suite at the
 pinned commit (`xtalk_web_libraries.py test-files`).
+
+## 15. Building the Android engine
+
+Packages ship the Android engines of the runtimes asset, LiveCode
+Community 9.6.3's, built with NDK r15 and its standalone toolchains (GNU
+binutils, the bfd linker, Android 4.1 as the lowest). This tree also builds
+them itself with a current NDK (the Android plan's phase 2), as a preview
+beside the 9.6.3 engine, which stays the default: a package has it only
+when its stack asks for it, with
+`set the cRevStandaloneSettings["android,engine"] of stack "<name>" to "beyond"`
+(the Android card's **OXT-Beyond engine (preview)** box, under the device
+capabilities: a copy of "Android x86_64" in the build targets' group,
+made by the `android-card-engine-*.txt` IDE stack patches, which the
+group's script stores, beyond when ticked and empty when not, and the
+card's behaviour shows; the UI tour clicks it, and checks that the group,
+grown over the card to hold it, takes no click from the controls under
+it). The builder (`androidRuntimeFolder`) then takes every file of the
+runtime's from `Runtime/Android/Beyond`, where runtimes that carry this
+engine keep it as a whole runtime of its own (the folder that
+`build-android.sh` writes, below), and not one from 9.6.3's: the engines
+and externals, the Java layer, the manifest and the files beside them. An
+empty setting or `"9.6.3"` builds with 9.6.3's from `Runtime/Android`, as
+before; asked of runtimes without the Beyond folder, or for any other
+name, the build stops and says why.
+
+[`tools/ci/build-android.sh`](tools/ci/build-android.sh) builds the
+engine (`Standalone`) and the externals an Android standalone can include
+(`RevDb`, `DbSqlite`, `DbMysql`, `RevXml`, `RevZip`, `RevSecurity`,
+`RevPdfPrinter`) for one architecture, with the Java layer and the files
+the builder puts beside them, into a folder laid out as
+`Runtime/Android` (the libraries stripped of their debug information,
+which `debug/<abi>` keeps):
+
+```sh
+export ANDROID_SDK=<sdk>       # with ndk;<config/android-ndk-version>, platforms;android-36 and build tools
+tools/ci/build-android.sh arm64 android-runtime     # or armv7, x86_64, x86
+tools/ci/build-android.sh arm64 --libraries         # only the libraries
+python3 tools/ci/android_engine.py check android-runtime --abi arm64-v8a
+python3 tools/ci/android_java.py jni --classes android-runtime/Classes --runtime android-runtime
+```
+
+It needs Linux x86_64 with the tools of a Linux build (Python 2.7 as
+`python` among them), a JDK, and the SDK with the NDK of
+[`config/android-ndk-version`](config/android-ndk-version). The NDK's own
+toolchain builds everything: Clang with the lowest Android in its target
+(API 21, Android 5.0, the lowest a current NDK builds for), the LLVM
+tools, the lld linker, and libc++ linked into each library. `config.py`
+chooses it for the engine, and `prebuilt/scripts/android.inc` for the
+libraries, when there is no standalone toolchain (`ANDROID_TOOLCHAIN`, or
+`~/android/toolchain/standalone-<arch>`); with one, both build as before.
+`ANDROID_FUSE_LD` names the linker to `config/android-settings.gypi`
+(`bfd` with a standalone toolchain, `lld` without), and `engine/engine.gyp`
+gives the engine's link the linker script for it: GNU ld takes
+`engine/standalone-android.link` as before, and lld a copy,
+`engine/standalone-android-lld.link`, that puts `.got` inside RELRO
+(lld counts it as RELRO wherever a script puts it, and with the old
+script RELRO ended in the page `.data` starts in, which Android's loader
+makes read-only whole: the engine died loading on the emulator). On
+that route the settings also keep code's checks of a null `this`
+(`-fno-delete-null-pointer-checks`), which a current Clang deletes and
+which the bundled HarfBuzz makes for every null object it destroys: the
+engine died on its first text without it, where NDK r16's Clang, which
+built the 9.6.3 engine, kept them. Like the web engine's script, it builds the prebuilt libraries that no server publishes:
+OpenSSL, ICU and the Thirdparty libraries for Android, into
+`prebuilt/lib/android/<arch>/ndk21r<NDK major>`, and ICU, libz and libffi
+for the build's host tools.
+
+`android_engine.py check` checks each library as Android and the IDE's
+builder will take it: the right machine and word size; every LOAD segment
+of a 64-bit one aligned to 16 KB (Android 15's devices with 16 KB pages
+load nothing aligned to less, and Google Play asks it of apps that target
+Android 15); no text relocations, which Android 6.0 and later refuse;
+nothing writable but RELRO in the pages RELRO starts and ends in, at 16 KB
+for the 64-bit ABIs and 4 KB for the others (Android's loader makes those
+pages read-only whole, so the first write to what shares them crashes);
+only Android's own system libraries needed (never `libc++_shared.so`);
+API 21 in the note the NDK writes; and in the engine, the `.project`
+section that the builder writes the stack into, last in memory and at the
+end of the last LOAD segment (as `MCDeployToELF` in
+`engine/src/deploy_linux.cpp` requires), and `JNI_OnLoad`. `android_java.py
+jni` checks the engine against the Java layer built with it.
+
+The workflow "Android engine"
+([`android-engine.yml`](.github/workflows/android-engine.yml)) runs both
+for each architecture in an Ubuntu 22.04 container with the runner's
+Android SDK, on a pull request or push that changes what the engine is
+built from, and keeps each folder for 14 days as
+`android-engine-<abi>`. The "Runtimes asset" workflow takes a run's four
+folders into the runtimes asset, as `Runtime/Android/Beyond`, when it is
+given the run's id (`android-engine-run`): the run must be of the builds'
+commit, and its build jobs and emulator job must have passed. The
+workflow runs on `main` only when what the engine is built from changes,
+so for a later commit start it by hand first (Actions > Android engine >
+Run workflow). The libraries come from a cache keyed by what
+they are built with, so a change to the engine builds only the engine.
+
+Its "Android engine on the emulator" job then runs the engine. It makes
+the four folders one runtime, and puts it and this checkout's builder
+into the latest release's IDE:
+
+```sh
+python3 tools/ci/android_engine.py merge <runtime> <arm64-v8a> <armeabi-v7a> <x86> <x86_64>
+python3 tools/ci/android_check.py overlay --root <ide> --beyond <runtime>
+```
+
+`merge` takes each architecture's engine and externals from the one
+folder that has it, and the files beside them from the first folder,
+which every other folder must have the same (the Java layer, which each
+build job compiles apart, with the same files in it whatever their
+dates); nothing else (not `debug/`), and nothing at all when a file is
+missing or differs, so that the runtime the emulators run is made as
+the one a runtimes asset carries: the "Runtimes asset" workflow runs the
+same `merge` on the same run's folders, and
+[`make_runtimes_asset.py --android-engine`](tools/oxt/README.md#the-runtimes-asset)
+checks the runtime again before the archive takes it.
+
+`--beyond` puts the runtime beside the release's, as
+`Runtime/Android/Beyond`, where the builder takes it for a stack that asks
+for it: every architecture's engine and externals, and the Java layer and
+the files beside them, the release's own runtime left as it is. It
+changes nothing when the runtime lacks one of them. A `Beyond` folder the
+release has already (its own, as the runtimes carry it from
+0.2.7-rc.6.19 on) is taken away as a whole first, so that the probes are
+built from this checkout's engine and none of the release's files, and
+no package mixes the two engines; one that is a link or a file is
+refused.
+(`--engine` instead puts them over the release's own, each over its file
+of that name.) The builder there builds the app probe and the Java
+layer's probe (debug, for all four architectures) as stacks whose
+`"android,engine"` is `"beyond"` (`ide --android-engine beyond`), and
+`verify --engine <runtime>` checks that each package's engine is the one
+built here, so that the setting picked it: the same code (its `.text`
+section, which the builder's deploy writes out as it was). The Android
+standalone check's units (`unitEngine`) run the builder's choice itself,
+with the release's runtime and a `Beyond` folder they make and take away. Both probes then run on an Android 13 emulator
+and on the first image with 16 KB pages, with the checks that the
+[Android standalone check](#android-standalone-check) makes of them with
+the 9.6.3 engine: the Java layer's probe's notification permission, its
+picture and its back key; neither probe drawn under the system bars.
+And the app probe, which carries this checkout's Java layer (with
+`RelaunchActivity`), is run with `--font-scale`, `--density` and
+`--relaunch`, as that check runs it with the 9.6.3 engine: the engine
+starts once in a process, so the app goes on in its process through a
+font size change, starts again in a new one for a density change, and
+opens again in a new one once the back key has quit its stack. There
+only, and not with the 9.6.3 engine, which hangs there, it is also run
+with `--density-in-wait`: a tap makes the probe's `mouseUp` wait 20
+seconds with messages, and the density changes while it waits, so that
+the engine, let go on to finish as Android destroys the activity, yields
+to Android's thread again before it has finished: `doDestroy` (in
+`engine/src/mblandroiddc.cpp`) lets it go on until it has, where it
+once joined the engine thread at once and both waited for good. The
+script's wait then ends at once (`MCScreenDC::wait`, with "wait:
+aborted"), and the check fails a process that held Android's thread for
+more than 5 seconds as its activity went (from its stop to the activity
+made again, by the events buffer): the engine once waited out the wait
+there, and Android called the app not responding. A tap that a system
+hiccup took (another app's "isn't responding" dialog in front of the
+probe, its window without the focus, its activity paused) is given once
+more; one with nothing in its way is a failure at once. The screen that
+says where to tap is taken up to three times, a second apart, as one
+screencap came back cut short on the 16 KB image.

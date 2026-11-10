@@ -36,6 +36,7 @@ on:
       - .github/workflows/ui-tour.yml
       - tools/ci/ui_tour.py
       - tools/ci/ui-tour.livecodescript
+      - tools/ci/everyday-tasks.livecodescript
       - tools/ci/ui_tour_page.py
   workflow_dispatch:
     inputs:
@@ -74,7 +75,7 @@ jobs:
             runner: macos-26
             asset: mac-universal.zip
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 45
+    timeout-minutes: 75
     defaults:
       run:
         shell: bash
@@ -146,6 +147,28 @@ jobs:
           [ "$RUNNER_OS" = Windows ] && py=python
           "$py" tools/ci/ui_tour.py ${LAYOUT:---package=$PACKAGE} --platform "$PLATFORM" \
             --appearance dark --out "$RUNNER_TEMP/ui-tour/dark"
+
+      # Everyday tasks a person does in the IDE, through its own windows
+      # with the system's mouse and keyboard, each asserted and snapshot
+      # (tools/ci/everyday-tasks.livecodescript), light then dark
+      - name: Everyday IDE tasks
+        if: always()
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          py=python3
+          [ "$RUNNER_OS" = Windows ] && py=python
+          failed=()
+          for appearance in light dark; do
+            "$py" tools/ci/ui_tour.py ${LAYOUT:---package=$PACKAGE} --platform "$PLATFORM" \
+              --script tools/ci/everyday-tasks.livecodescript --timeout 900 \
+              --appearance "$appearance" --out "$RUNNER_TEMP/ui-tour/everyday-$appearance" || failed+=("$appearance")
+          done
+          if [ ${#failed[@]} -gt 0 ]; then
+            echo "::error::the everyday IDE tasks failed in ${failed[*]}"
+            exit 1
+          fi
 
       # For a person to look through: a page with each window light and
       # dark side by side (tools/ci/ui_tour_page.py), uploaded with the

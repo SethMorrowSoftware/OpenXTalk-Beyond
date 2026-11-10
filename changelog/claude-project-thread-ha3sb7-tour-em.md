@@ -1,1 +1,0 @@
-- CI: the IDE tour narrows a window wider than the room right of the Tools palette (down to its minWidth) and moves it clear before its screenshot, so the Extension Manager on the Apple silicon Mac's 1024 by 768 screen is no longer half under the palette; a window that fits and is still under it fails the step (#367)

@@ -104,8 +104,18 @@ on:
       - engine/src/em-*
       - engine/src/mode_development.cpp
       - config/emscripten-version
+  # DRAFT PULL REQUESTS (2026-11-06). A draft runs none of this workflow's
+  # jobs: each job's `if:` ends in `github.event.pull_request.draft != true`,
+  # and marking the pull request ready (ready_for_review, below) starts the
+  # whole run on its newest commit. A draft is work in progress whose commits
+  # land minutes apart, and each one used to start this full build only for
+  # the next to cancel it (26 of 52 builds on 2026-11-06 00:38-02:15 UTC). CI
+  # checks still run on every draft commit. A push, a dispatch and a call from
+  # release.yml have no pull request, so the condition is always true there.
+  # tools/ci/tests/test_draft_builds.py holds every job to it.
   pull_request:
     branches: [ main ]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - .github/workflows/web-ide.yml
       - .github/actions/install-playwright/**
@@ -179,6 +189,7 @@ defaults:
 jobs:
   engine:
     name: Web IDE engine
+    if: ${{ github.event.pull_request.draft != true }}
     runs-on: ubuntu-24.04
     # As web.yml: Ubuntu 22.04 through Google's mirror of Docker Hub, for
     # the Python 2.7 that gyp needs
@@ -367,7 +378,7 @@ jobs:
   tour:
     name: Web IDE screenshots (${{ matrix.scheme }})
     needs: engine
-    if: ${{ !inputs.release }}
+    if: ${{ (!inputs.release) && github.event.pull_request.draft != true }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
@@ -479,7 +490,7 @@ jobs:
   small:
     name: Web IDE small window (${{ matrix.browser }}, ${{ matrix.size }})
     needs: engine
-    if: ${{ !inputs.release }}
+    if: ${{ (!inputs.release) && github.event.pull_request.draft != true }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
@@ -621,7 +632,7 @@ jobs:
   upgrade:
     name: Web IDE update in a kept profile (${{ matrix.browser }})
     needs: engine
-    if: ${{ !inputs.release }}
+    if: ${{ (!inputs.release) && github.event.pull_request.draft != true }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     strategy:
@@ -713,7 +724,7 @@ jobs:
   soak:
     name: Web IDE soak (${{ matrix.browser }})
     needs: engine
-    if: ${{ !inputs.release }}
+    if: ${{ (!inputs.release) && github.event.pull_request.draft != true }}
     runs-on: ubuntu-24.04
     timeout-minutes: ${{ matrix.browser == 'webkit' && 40 || 30 }}
     strategy:
@@ -804,7 +815,7 @@ jobs:
   xtalk:
     name: Web IDE xTalk Suite (${{ matrix.browser }})
     needs: engine
-    if: ${{ !inputs.release }}
+    if: ${{ (!inputs.release) && github.event.pull_request.draft != true }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     strategy:
@@ -895,6 +906,7 @@ jobs:
   # (tools/ci/release_assets.py checks it against that file).
   download:
     name: Web IDE download
+    if: ${{ github.event.pull_request.draft != true }}
     needs: engine
     runs-on: ubuntu-24.04
     timeout-minutes: 30

@@ -221,6 +221,7 @@ void MCMenuItem::assignFrom(MCMenuItem *p_other)
 	menumode = p_other->menumode;
     // SN-2014-07-29: [[ Bug 12998 ]] has_tag member put back
     has_tag = p_other->has_tag;
+	has_mark = p_other->has_mark;
 }
 
 uint4 MCLookupAcceleratorKeysym(MCStringRef p_name)
@@ -343,6 +344,7 @@ void ParseMenuItemSwitches(MCStringRef p_string, uindex_t &x_offset, MCStringRef
 					}
 					else
 					{
+						p_menuitem->has_mark = true;
 						if (t_char == 'c')
 							p_menuitem->is_hilited = true;
 						else if (t_char != 'n')

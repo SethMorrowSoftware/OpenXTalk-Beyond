@@ -1,7 +1,11 @@
 <!doctype html>
 <!-- The web stacks gallery of OXT-Beyond's GitHub Pages site (games/, the
      address it kept when it was renamed). Three stacks run on their own pages
-     here (pixel-maker/, svg-lab/, waterwheel/); the Stack Player's sample stacks each
+     here (pixel-maker/, svg-lab/, waterwheel/), and three of the Stack
+     Player's samples have pages as big (nova-rescue/, wobble-forts/ and
+     puzzle-almanac/, which play them in the bare player; build_pages.py's OWN_PAGES keeps
+     each and its card, between the OWN_PAGE markers, only with a player
+     that has it); the Stack Player's sample stacks each
      get a page written from stack-page.html (<name>/), and cards here, filled
      in by tools/pages/build_pages.py from the player's samples/samples.json
      between the PLAYER_SAMPLES and PLAYER_LESSONS markers, so the gallery lists only the
@@ -214,6 +218,48 @@
   <section class="shelf" aria-labelledby="own-pages">
     <h2 id="own-pages">The big ones <small>Each on a page of its own</small></h2>
     <div class="grid big">
+      <!-- @OWN_PAGE:nova-rescue@ -->
+      <a class="stack" href="nova-rescue/">
+        <div class="shot">
+          <img src="nova-rescue/poster.webp" alt="Nova Rescue on three phones: its title, a rescue under way, and the mothership">
+          <span class="where">Phones</span>
+          <span class="play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>Play</span>
+        </div>
+        <div class="words">
+          <h3>Nova Rescue</h3>
+          <p>A space rescue made for a phone: drag to fly, save the drifting crews, dodge meteors and raiders, and face a mothership every fourth sector.</p>
+          <div class="tags"><span class="tag">Game</span><span class="tag">Phones</span><span class="tag">Touch</span></div>
+        </div>
+      </a>
+      <!-- /@OWN_PAGE:nova-rescue@ -->
+      <!-- @OWN_PAGE:wobble-forts@ -->
+      <a class="stack" href="wobble-forts/">
+        <div class="shot">
+          <img src="wobble-forts/poster.webp" alt="Wobble Forts: a yellow Bloop pulled back in the launcher, aiming along the dots at a wooden fort with two Grumps">
+          <span class="where">Phones</span>
+          <span class="play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>Play</span>
+        </div>
+        <div class="words">
+          <h3>Wobble Forts</h3>
+          <p>A physics game made for a phone: pull back and fling the round Bloops at the Grumps' wobbly forts of wood, glass, stone, metal and TNT, fifteen forts in three lands.</p>
+          <div class="tags"><span class="tag">Game</span><span class="tag">Phones</span><span class="tag">Physics</span></div>
+        </div>
+      </a>
+      <!-- /@OWN_PAGE:wobble-forts@ -->
+      <!-- @OWN_PAGE:puzzle-almanac@ -->
+      <a class="stack" href="puzzle-almanac/">
+        <div class="shot">
+          <img src="puzzle-almanac/poster.webp" alt="Puzzle Almanac: three phones, with the almanac's Home, a Hidden Word two tries in, and a Number Place half filled">
+          <span class="where">Phones</span>
+          <span class="play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>Play</span>
+        </div>
+        <div class="words">
+          <h3>Puzzle Almanac</h3>
+          <p>A daily puzzle book made for a phone: a Number Place and a Hidden Word, new every day and the same for everyone, with stickers to collect.</p>
+          <div class="tags"><span class="tag">Game</span><span class="tag">Phones</span><span class="tag">Puzzles</span></div>
+        </div>
+      </a>
+      <!-- /@OWN_PAGE:puzzle-almanac@ -->
       <a class="stack" href="pixel-maker/">
         <div class="shot">
           <img src="pixel-maker/poster.png" alt="Pixel Platformer Maker: a level with crates, a boulder, a barrel and a wrecking ball" style="image-rendering:pixelated">

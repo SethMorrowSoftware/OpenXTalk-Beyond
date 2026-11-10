@@ -71,9 +71,9 @@ end blast
 
 -- A click on empty space sets off a blast there
 on mouseDown pButton
-   if pButton is 1 and the mouseLoc is within the rect of graphic "Court" and \
-         b2BodyAtPoint(sWorld, labMouseX(), labMouseY()) is 0 then
-      blast labMouseX(), labMouseY()
+   if pButton is 1 and the clickLoc is within the rect of graphic "Court" and \
+         b2BodyAtPoint(sWorld, labClickX(), labClickY()) is 0 then
+      blast labClickX(), labClickY()
    end if
    pass mouseDown
 end mouseDown

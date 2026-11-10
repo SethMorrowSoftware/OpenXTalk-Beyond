@@ -1,0 +1,84 @@
+Name: export audioClip
+
+Type: command
+
+Syntax: export <audioClip> to {file <filePath> | <container>} [as {wave | aiff | ulaw}]
+
+Syntax: export <videoClip> to {file <filePath> | <container>}
+
+Summary:
+Writes an <audioClip> back out as a WAV, AIFF or AU sound file, or a
+<videoClip> as the file it was imported from.
+
+Introduced: 9.7.1
+
+OS: mac, windows, linux, android, html5
+
+Platforms: desktop, server, mobile
+
+Security: disk
+
+Example:
+export audioClip "Boing" to file "Boing.wav"
+
+Example:
+export audioClip 1 of stack "Old HyperCard Stack" to file "Harpsichord.aiff"
+
+Example:
+local tSound
+export audioClip "Chime" to tSound as aiff
+put tSound into URL ("binfile:" & specialFolderPath("desktop") & "/Chime.aif")
+
+Example:
+export videoClip "Intro" to file "Intro.mov"
+
+Parameters:
+audioClip:
+A chunk reference that begins with the word audioClip (or ac), such as
+audioClip "Boing" or audioClip 2 of stack "Sounds".
+
+videoClip:
+A chunk reference that begins with the word videoClip (or vc).
+
+filePath:
+The name and location of the file to write. If you specify a name but
+not a location, the file is written to the <defaultFolder>.
+
+container:
+A variable, or any other container, that is to hold the file's bytes.
+
+Description:
+Use the <export audioClip> command to get a sound back out of a stack:
+one imported with <import>, or one the HyperCard importer made from a
+stack's sound resources.
+
+An <audioClip> keeps only the samples of the file it was imported from,
+not the file itself. <export audioClip> writes them in a sound file of
+its own, with the header a sound player needs: WAV (as wave), AIFF (as
+aiff) or Sun's AU (as ulaw, the name the engine has always given that
+format). Without as, a file whose name ends in ".aif", ".aiff" or
+".aifc" is written as AIFF, one that ends in ".au" or ".snd" as AU, and
+any other as WAV; a <container> gets a WAV file.
+
+The file has the clip's rate, channels and sample size (8, 16 or 24-bit).
+A clip that keeps mu-law samples stays mu-law in an AU file and becomes
+16-bit samples in a WAV or AIFF file.
+
+A <videoClip> keeps the whole file it was imported from, so
+<export videoClip|export videoClip> writes those bytes, in whatever
+format they are; name the file with that format's extension.
+
+If the clip cannot be written (a sample size the engine does not keep,
+or a format other than wave, aiff or ulaw), nothing is written and
+<the result> says why. If the file cannot be opened, an error is thrown,
+as for an image.
+
+>*Note:* These forms are new in OXT-Beyond 9.7.1. In earlier versions
+> (and in LiveCode) a line that names an audioClip or videoClip after
+> export does not compile.
+
+References: export (command), import (command), play (command),
+audioClip (object), videoClip (object), defaultFolder (property),
+the result (function)
+
+Tags: multimedia

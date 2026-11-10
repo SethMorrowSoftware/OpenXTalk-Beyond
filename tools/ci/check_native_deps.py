@@ -57,7 +57,14 @@ architecture) holds each slice of a universal library to its own
 architecture's floor, since arm64 cannot go below 11.0 while x86_64 can;
 a plain --max-macos X.Y holds every slice to X.Y. --matrix PLATFORM/PART
 (for example mac-universal/extensions) takes the per-architecture macOS
-floors from the platform matrix, tools/ci/platform-matrix.json.
+floors from the platform matrix, tools/ci/platform-matrix.json: a library
+the part names (its "files", a pattern from the app's folder, matched
+against the end of the library's path from the root) is held to the
+part's floors, and every other library to the platform's. So the xTalk
+Suite's libraries (code/universal-mac) keep the extensions' x86_64 10.15,
+while the timezone and INI libraries, which OXT-Beyond builds with the app
+(code/universal-mac-<sdk>), hold the app's own floor (macOS 11 on Intel
+from 0.2.7-rc.6.19). A part that names no files holds every library.
 
 Build machines and CI runners have many libraries a user's machine may
 lack, so loading a library there proves little; this reads the files
@@ -73,6 +80,7 @@ Only the Python 3 standard library is used.
 """
 
 import argparse
+import fnmatch
 import json
 import os
 import posixpath
@@ -266,10 +274,38 @@ def _slice_floors(path):
     return floors
 
 
-def check_layout(root, families, max_glibc=None, max_macos=None):
+def part_matches(rel, pattern):
+    """Whether the library at rel (its path from the root, / separators:
+    the file, or the .bundle or .framework folder, in its code folder) is
+    one the matrix part's files pattern names. The pattern is from the
+    app's folder and the root is a folder in it, so the path is matched
+    against the pattern's last components, one by one."""
+    have = rel.replace(os.sep, '/').split('/')
+    want = pattern.split('/')
+    if len(have) > len(want):
+        return False
+    return all(fnmatch.fnmatchcase(h, w) for h, w in zip(have, want[len(want) - len(have):]))
+
+
+def _limit_problems(path, max_macos):
+    """The --max-macos problems of the Mach-O file at path: max_macos is
+    {arch: version} for each architecture's slices."""
+    problems = []
+    for arch, floor in sorted(_slice_floors(path).items()):
+        if arch not in max_macos:
+            problems.append('has a %s slice, for which no macOS floor is given' % arch)
+        elif floor > max_macos[arch]:
+            problems.append('[%s] needs macOS %s, newer than %s'
+                            % (arch, binfmt.version_text(floor), binfmt.version_text(max_macos[arch])))
+    return problems
+
+
+def check_layout(root, families, max_glibc=None, max_macos=None, part_macos=None):
     """[result dict] for every library of the families in root/Extensions.
     max_macos: a version for every slice, or {arch: version} for each
-    architecture's slices (an architecture missing from it fails)."""
+    architecture's slices (an architecture missing from it fails).
+    part_macos: (pattern, {arch: version}): a Mac library the pattern names
+    (part_matches) is held to those floors instead of max_macos."""
     results = []
     ext_dir = os.path.join(root, 'Extensions')
     if not os.path.isdir(ext_dir):
@@ -287,6 +323,7 @@ def check_layout(root, families, max_glibc=None, max_macos=None):
             present = {n.lower() for n in names} if fam == 'windows' else set(names)
             for name in names:
                 path = os.path.join(fdir, name)
+                entry = os.path.relpath(path, root).replace(os.sep, '/')
                 here = present
                 if os.path.isdir(path):
                     # The IDE maps folders as well as files, and the Mac
@@ -320,14 +357,10 @@ def check_layout(root, families, max_glibc=None, max_macos=None):
                 if max_glibc and 'GLIBC' in floors and floors['GLIBC'] > max_glibc:
                     r['problems'].append('needs glibc %s, newer than %s' % (binfmt.version_text(floors['GLIBC']),
                                                                               binfmt.version_text(max_glibc)))
-                if isinstance(max_macos, dict) and fam == 'mac':
-                    for arch, floor in sorted(_slice_floors(path).items()):
-                        if arch not in max_macos:
-                            r['problems'].append('has a %s slice, for which no macOS floor is given' % arch)
-                        elif floor > max_macos[arch]:
-                            r['problems'].append('[%s] needs macOS %s, newer than %s'
-                                                 % (arch, binfmt.version_text(floor),
-                                                    binfmt.version_text(max_macos[arch])))
+                if fam == 'mac' and part_macos and part_matches(entry, part_macos[0]):
+                    r['problems'].extend(_limit_problems(path, part_macos[1]))
+                elif isinstance(max_macos, dict) and fam == 'mac':
+                    r['problems'].extend(_limit_problems(path, max_macos))
                 elif max_macos and 'macOS' in floors and floors['macOS'] > max_macos:
                     r['problems'].append('needs macOS %s, newer than %s' % (binfmt.version_text(floors['macOS']),
                                                                               binfmt.version_text(max_macos)))
@@ -374,11 +407,19 @@ def main(argv=None):
         return 2
     families = FAMILIES if args.platform == 'all' else (args.platform or host_family(),)
     max_macos = None
+    part_macos = None
     if args.matrix:
         import platform_matrix
         platform, _, part = args.matrix.partition('/')
         try:
-            limits = platform_matrix.macos_limits(platform_matrix.load(args.matrix_file), platform, part or None)
+            matrix = platform_matrix.load(args.matrix_file)
+            limits = platform_matrix.macos_limits(matrix, platform, part or None)
+            files = matrix['platforms'][platform]['parts'][part].get('files') if part else None
+            if files:
+                # the part's floors for the libraries it names, the
+                # platform's for every other
+                part_macos = (files, {a: _version(v) for a, v in limits.items()})
+                limits = platform_matrix.macos_limits(matrix, platform)
         except (OSError, ValueError, platform_matrix.MatrixError) as e:
             sys.stderr.write('error: --matrix %s: %s\n' % (args.matrix, e))
             return 2
@@ -394,9 +435,16 @@ def main(argv=None):
     except argparse.ArgumentTypeError as e:
         sys.stderr.write('error: --max-macos: %s\n' % e)
         return 2
+    if args.max_macos:
+        # --max-macos holds every library, whatever the matrix's parts
+        part_macos = None
     if isinstance(max_macos, dict):
         print('macOS floors: %s' % ', '.join('%s %s' % (a, binfmt.version_text(v)) for a, v in sorted(max_macos.items())))
-    results = check_layout(args.root, families, args.max_glibc, max_macos)
+    if part_macos:
+        print('macOS floors of %s (%s): %s' % (part_macos[0], args.matrix.partition('/')[2],
+                                               ', '.join('%s %s' % (a, binfmt.version_text(v))
+                                                         for a, v in sorted(part_macos[1].items()))))
+    results = check_layout(args.root, families, args.max_glibc, max_macos, part_macos)
     if args.json:
         with open(args.json, 'w', encoding='utf-8', newline='\n') as f:
             json.dump(results, f, indent=1)

@@ -2627,29 +2627,56 @@ end revIDEPlatformVersion
 -- its purple in the light one), and the accentColor as the text was
 -- unreadable on it (bwmilby, openxtalk.org p=25550): black or white,
 -- whichever stands out more (the WCAG relative luminance of the hilite).
--- macOS and Windows keep revIDEColor("dataView_TextHiliteColor"), as do
--- colours given by name.
-function revIDEHilitedTextColor pHiliteColor
-   local tLuminance, tChannel, tValue
-   if the platform is not "Linux" or the number of items of pHiliteColor is not 3 then
+-- In the web IDE, and on macOS and Windows, it is white, as LiveCode drew
+-- it (its revIDEColor("dataView_TextHiliteColor") was "255,255,255"):
+-- OpenXTalk made it the accentColor, a blue on each of them (macOS's
+-- controlAccentColor, the hiliteColor on Windows and the web), and the
+-- names were blue on the blue hilite, the same in the light and dark
+-- appearances (bwmilby, openxtalk.org p=26171; littlenemo, p=26169; seth's
+-- decision of 2026-11-08 for the web, 0.2.7-rc.6.19). On a light hilite,
+-- as the grey (212,212,212) of a list that does not have the focus, where
+-- white would hardly show, it is black. A colour given by name answers
+-- white in the web IDE and revIDEColor("dataView_TextHiliteColor") on a
+-- desktop, as before. pWeb true answers as the web IDE does, false as a
+-- desktop does; empty asks revEnvironmentIsWeb. pPlatform answers for that
+-- platform (as the platform names it); empty is this one.
+function revIDEHilitedTextColor pHiliteColor, pWeb, pPlatform
+   local tLuminance, tChannel, tValue, tByName
+   if pWeb is not among the items of "true,false" then
+      put revEnvironmentIsWeb() is true into pWeb
+   end if
+   if pPlatform is empty then
+      put the platform into pPlatform
+   end if
+   put the number of items of pHiliteColor is not 3 into tByName
+   if not tByName then
+      put 0 into tLuminance
+      repeat with tChannel = 1 to 3
+         put item tChannel of pHiliteColor into tValue
+         if tValue is not an integer or tValue < 0 or tValue > 255 then
+            put true into tByName
+            exit repeat
+         end if
+         put tValue / 255 into tValue
+         if tValue <= 0.03928 then
+            put tValue / 12.92 into tValue
+         else
+            put ((tValue + 0.055) / 1.055) ^ 2.4 into tValue
+         end if
+         add tValue * item tChannel of "0.2126,0.7152,0.0722" to tLuminance
+      end repeat
+   end if
+   if tByName then
+      if pWeb then return "255,255,255"
       return revIDEColor("dataView_TextHiliteColor")
    end if
-   put 0 into tLuminance
-   repeat with tChannel = 1 to 3
-      put item tChannel of pHiliteColor into tValue
-      if tValue is not an integer or tValue < 0 or tValue > 255 then
-         return revIDEColor("dataView_TextHiliteColor")
-      end if
-      put tValue / 255 into tValue
-      if tValue <= 0.03928 then
-         put tValue / 12.92 into tValue
-      else
-         put ((tValue + 0.055) / 1.055) ^ 2.4 into tValue
-      end if
-      add tValue * item tChannel of "0.2126,0.7152,0.0722" to tLuminance
-   end repeat
-   -- black on it, (L + 0.05) / 0.05, against white on it, 1.05 / (L + 0.05)
-   if tLuminance > 0.179 then return "0,0,0"
+   if pPlatform is "Linux" and not pWeb then
+      -- black on it, (L + 0.05) / 0.05, against white on it, 1.05 / (L + 0.05)
+      if tLuminance > 0.179 then return "0,0,0"
+      return "255,255,255"
+   end if
+   -- white, unless it would read below about 1.9 to 1 (and black above 11)
+   if tLuminance > 0.5 then return "0,0,0"
    return "255,255,255"
 end revIDEHilitedTextColor
 
@@ -7204,16 +7231,18 @@ end revIDEAppBrowserStacksRemoved
 
 /*
 OXT-Beyond: the open Application Browser's names (its tree's links) in a
-grey that reads on a dark window, and in its own grey when it is light.
+grey that reads on a dark window, and in a dark grey on a light one.
 
 Description:
-The App Browser plugin shows the names of stacks and cards as links in
-mid grey (127,127,127), which reads on its light window and hardly at all
-on a dark one. With the desktop dark (revIDEAppearanceIsDark), its stack's
-linkColor is a light grey; light, the plugin's own grey is put back, so a
-light IDE looks as before. It is run when the plugin opens and when the
-system's appearance changes. The plugin's file is not changed and it is not
-marked as edited.
+The App Browser plugin shows the names of stacks, cards and controls as
+links in mid grey (127,127,127), which hardly reads on a dark window and
+is only 4 to 1 against its light one, under the 4.5 to 1 that text needs
+(richmond62 asked for clearer text, openxtalk.org p=26048). With the
+desktop dark (revIDEAppearanceIsDark), its stack's linkColor is a light
+grey (208,208,208); light, a dark grey (64,64,64), 10 to 1 against white.
+A linkColor that is none of the three (set by hand) is kept. It is run
+when the plugin opens and when the system's appearance changes. The
+plugin's file is not changed and it is not marked as edited.
 
 Parameters:
 pDark (boolean): true for a dark window, false for a light one; empty asks
@@ -7231,13 +7260,361 @@ command revIDEAppBrowserAppearance pDark
       put revIDEAppearanceIsDark() into pDark
    end if
    if pDark then
-      if the linkColor of stack tBrowser is "127,127,127" then
+      if the linkColor of stack tBrowser is among the lines of ("127,127,127" & return & "64,64,64") then
          set the linkColor of stack tBrowser to "208,208,208"
       end if
-   else if the linkColor of stack tBrowser is "208,208,208" then
-      set the linkColor of stack tBrowser to "127,127,127"
+   else if the linkColor of stack tBrowser is among the lines of ("127,127,127" & return & "208,208,208") then
+      set the linkColor of stack tBrowser to "64,64,64"
    end if
+   -- OXT-Beyond: its drawn icons in the ink of the window it now has
+   revIDEAppBrowserIcons tBrowser, pDark
 end revIDEAppBrowserAppearance
+
+/*
+OXT-Beyond: the Application Browser's lists in bigger text.
+
+Description:
+The App Browser plugin lists stacks, cards, controls and clips in
+11-point text, which richmond62 asked to be larger (openxtalk.org
+p=26048). Before the plugin opens, its four lists (the fields "Cards",
+"Controls", "AudioClips" and "Videoclips") are put in 13-point text, and
+so is the field it measures their columns with ("measure width", 12
+points), so that a column still fits its widest name. Their rows are 24
+pixels high instead of the plugin's 22, for its larger icons
+(revIDEAppBrowserIcons, 0.2.7-rc.6.18); the plugin sets its 22 as it
+first opens, so this is run again once it is open. A list whose size or
+row height is not the plugin's own (set by hand) is kept. A list that
+the taller rows make overflow gets its scroll bar, as the plugin gives
+one (its revSetVScrollbar). The plugin's file is not changed and it is
+not marked as edited.
+
+Parameters:
+pStack: the App Browser plugin's stack, by its name or its file; any other
+stack is left as it is
+
+References: revIDEAppBrowserAppearance (command)
+*/
+command revIDEAppBrowserText pStack
+   local tCard, tField, tTaller, tLine, tTabs, tError
+   if there is not a stack pStack then
+      exit revIDEAppBrowserText
+   end if
+   if the short name of stack pStack is not "App Browser" or \
+         not (the effective filename of stack pStack ends with "/App Browser.livecode") then
+      exit revIDEAppBrowserText
+   end if
+   lock messages
+   repeat with tCard = 1 to the number of cards of stack pStack
+      repeat for each item tField in "Cards,Controls,AudioClips,Videoclips"
+         if there is a field tField of card tCard of stack pStack then
+            if the textSize of field tField of card tCard of stack pStack is 11 then
+               set the textSize of field tField of card tCard of stack pStack to 13
+               set the textHeight of field tField of card tCard of stack pStack to 22
+            end if
+            -- rows 24 pixels high, for the larger icons
+            -- (revIDEAppBrowserIcons): the plugin sets its own 22 as it
+            -- first opens, so this is run again once it is open
+            if the textSize of field tField of card tCard of stack pStack is 13 and \
+                  the textHeight of field tField of card tCard of stack pStack is 22 then
+               set the textHeight of field tField of card tCard of stack pStack to 24
+               put the long id of field tField of card tCard of stack pStack & return after tTaller
+            end if
+         end if
+      end repeat
+      if there is a field "measure width" of card tCard of stack pStack then
+         if the textSize of field "measure width" of card tCard of stack pStack is empty then
+            set the textSize of field "measure width" of card tCard of stack pStack to 13
+         end if
+      end if
+   end repeat
+   unlock messages
+   -- taller rows can overflow a list that fitted: the plugin's
+   -- revSetVScrollbar shows its scroll bar (and fits its column
+   -- headings beside it) as the plugin does when it fills a list, so that
+   -- its last rows are not cut off with no scroll bar until a resize
+   repeat for each line tLine in tTaller
+      switch the short name of tLine
+         case "Cards"
+            put "Card Tabs" into tTabs
+            break
+         case "Controls"
+            put "Control Tabs" into tTabs
+            break
+         case "AudioClips"
+            put "Audioclip Tabs" into tTabs
+            break
+         default
+            put "Videoclip Tabs" into tTabs
+      end switch
+      put the short id of revIDEAppBrowserCardOf(tLine) into tCard
+      if there is a group tTabs of card id tCard of stack pStack then
+         try
+            dispatch "revSetVScrollbar" to stack pStack with tLine, \
+                  the long id of group tTabs of card id tCard of stack pStack
+         catch tError
+         end try
+      end if
+   end repeat
+end revIDEAppBrowserText
+
+/*
+OXT-Beyond: white names on the App Browser's selected rows, in the web
+IDE.
+
+Description:
+The App Browser plugin paints the names of the selected rows of its
+controls, audio clips and video clips black while its window is
+suspended (its cSuspended, its revHiliteControlLine), so that they read
+on the grey it gives an inactive window on Windows. Only Windows sets
+and clears cSuspended (its suspendStack and resumeStack), and the
+plugin's file was saved with it true, so on every other platform each
+selected row's name was black on the blue hilite. In the web IDE
+(littlenemo, openxtalk.org p=26169; seth's decision of 2026-11-08) it is
+set false as the plugin opens, so the engine draws the selected names
+in the list's background colour, white, as the stacks list already
+does (the plugin's revSelectLine). In memory only: the plugin's file is
+not changed and it is not marked as edited. The desktops are left as
+they were.
+
+Parameters:
+pStack: the App Browser plugin's stack, by its name or its file; any other
+stack is left as it is
+pWeb (boolean): true to act as in the web IDE, false as on a desktop;
+empty asks revEnvironmentIsWeb
+
+References: revIDEOpenPlugin (command), revIDEHilitedTextColor (function)
+*/
+command revIDEAppBrowserHilitedNames pStack, pWeb
+   if pWeb is not among the items of "true,false" then
+      put revEnvironmentIsWeb() is true into pWeb
+   end if
+   if not pWeb then
+      exit revIDEAppBrowserHilitedNames
+   end if
+   if there is not a stack pStack then
+      exit revIDEAppBrowserHilitedNames
+   end if
+   if the short name of stack pStack is not "App Browser" or \
+         not (the effective filename of stack pStack ends with "/App Browser.livecode") then
+      exit revIDEAppBrowserHilitedNames
+   end if
+   if the cSuspended of stack pStack is true then
+      lock messages
+      set the cSuspended of stack pStack to false
+      unlock messages
+   end if
+end revIDEAppBrowserHilitedNames
+
+-- The long id of the card the control pControl (a long id) is on
+function revIDEAppBrowserCardOf pControl
+   local tOwner
+   put pControl into tOwner
+   repeat while word 1 of tOwner is not "card"
+      put the long id of the owner of tOwner into tOwner
+   end repeat
+   return tOwner
+end revIDEAppBrowserCardOf
+
+/*
+OXT-Beyond: the Application Browser's icons, larger and drawn.
+
+Description:
+The App Browser plugin shows a picture beside each stack, card, clip and
+control, and a box or a triangle to open and close a stack, all from the
+IDE's icon stacks: bitmaps 9 to 14 points high, made for the 11-point
+lists of LiveCode's IDE. richmond62 asked for larger icons (openxtalk.org
+p=26048). Before the plugin opens, each is drawn again, larger: 20
+points for a stack, card, clip or control, in rows 24 high instead of 22
+(revIDEAppBrowserText); 12 for the triangles that open and close a stack
+(on every platform; Windows and Linux had a box with a plus or a minus);
+14 for a tick and the lock of a password. They are drawn as the modern
+Tools palette draws its icons, from SVG, so that they are sharp at any
+size and on a Retina screen: the controls as the Tools palette draws
+them, the rest Lucide's. They are images in a hidden group
+("oxtAppBrowserIcons") of the plugin's stack, and the plugin's custom
+properties that name its icons (cMainStackIcon and the others) name
+those images, in memory only: the plugin's file is not changed and it is
+not marked as edited. They are inked as the names are, dark grey on a
+light window and light grey on a dark one, and inked again when the
+system's appearance changes (revIDEAppBrowserAppearance). Run again, it
+draws on the images it made.
+
+Parameters:
+pStack: the App Browser plugin's stack, by its name or its file; any other
+stack is left as it is
+pDark (boolean): true for a dark window, false for a light one; empty asks
+revIDEAppearanceIsDark
+
+References: revIDEAppBrowserText (command), revIDEAppBrowserAppearance (command)
+*/
+command revIDEAppBrowserIcons pStack, pDark
+   local tInk, tHex, tProp, tSvg, tSize, tGroup, tImage, tCard, tError, tDefault, tId
+   if there is not a stack pStack then
+      exit revIDEAppBrowserIcons
+   end if
+   if the short name of stack pStack is not "App Browser" or \
+         not (the effective filename of stack pStack ends with "/App Browser.livecode") then
+      exit revIDEAppBrowserIcons
+   end if
+   if pDark is not among the items of "true,false" then
+      put revIDEAppearanceIsDark() into pDark
+   end if
+   if pDark then
+      put "208,208,208" into tInk
+   else
+      put "64,64,64" into tInk
+   end if
+   put "#" & format("%02x%02x%02x", item 1 of tInk, item 2 of tInk, item 3 of tInk) into tHex
+   put the defaultStack into tDefault
+   put the short name of stack pStack into pStack
+   lock screen
+   lock messages
+   try
+      set the defaultStack to pStack
+      -- the group the images are in, on whichever card it was made on:
+      -- a stack's images are found by their IDs on any of its cards
+      repeat with tCard = 1 to the number of cards of stack pStack
+         if there is a group "oxtAppBrowserIcons" of card tCard of stack pStack then
+            put the long id of group "oxtAppBrowserIcons" of card tCard of stack pStack into tGroup
+            exit repeat
+         end if
+      end repeat
+      if tGroup is empty then
+         create invisible group "oxtAppBrowserIcons"
+         put it into tGroup
+      end if
+      repeat for each item tProp in revIDEAppBrowserIconProps()
+         put revIDEAppBrowserIconSvg(tProp) into tSvg
+         if tSvg is empty then next repeat
+         put revIDEAppBrowserIconSize(tProp) into tSize
+         replace "@ink" with tHex in tSvg
+         put "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='" & tHex & \
+               "' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>" & \
+               tSvg & "</svg>" into tSvg
+         -- the image made before, which the property names, or a new one
+         put empty into tImage
+         put the tProp of stack pStack into tId
+         if tId is an integer and tId > 0 then
+            if there is an image id tId of stack pStack then
+               if the short name of image id tId of stack pStack is ("oxt" & tProp) then
+                  put the long id of image id tId of stack pStack into tImage
+               end if
+            end if
+         end if
+         if tImage is empty then
+            do "create invisible image" && quote & "oxt" & tProp & quote && "in" && tGroup
+            put it into tImage
+         end if
+         set the text of tImage to drawingSvgCompile(tSvg)
+         set the lockLoc of tImage to true
+         set the rect of tImage to 0, 0, tSize, tSize
+         set the tProp of stack pStack to the short id of tImage
+      end repeat
+   catch tError
+   end try
+   set the defaultStack to tDefault
+   unlock messages
+   unlock screen
+end revIDEAppBrowserIcons
+
+-- The App Browser plugin's custom properties that name its icons, which
+-- revIDEAppBrowserIcons draws again: its stacks, cards and clips, the
+-- triangles that open and close a stack (the Mac's, OS X and classic, and
+-- the box of Windows and Linux), a tick, the lock of a password, and its
+-- controls by their types (its revTreeHtml: "c" & the type & "Icon").
+-- cUnTickIcon names no image (nothing is drawn for false), and is left so
+function revIDEAppBrowserIconProps
+   return "cMainStackIcon,cSubstackIcon,cCardIcon,cAudioclipIcon,cVideoclipIcon," & \
+         "cOSXInIcon,cOSXOutIcon,cClassicInIcon,cClassicOutIcon,cWindowsInIcon,cWindowsOutIcon," & \
+         "cTickIcon,cPasswordIcon," & \
+         "cButtonIcon,cFieldIcon,cGraphicIcon,cGroupIcon,cImageIcon,cScrollbarIcon,cPlayerIcon,cWidgetIcon"
+end revIDEAppBrowserIconProps
+
+-- The size an icon of the App Browser is drawn at, in points
+function revIDEAppBrowserIconSize pProp
+   switch pProp
+      case "cOSXInIcon"
+      case "cOSXOutIcon"
+      case "cClassicInIcon"
+      case "cClassicOutIcon"
+      case "cWindowsInIcon"
+      case "cWindowsOutIcon"
+         return 12
+      case "cTickIcon"
+      case "cPasswordIcon"
+         return 14
+   end switch
+   return 20
+end revIDEAppBrowserIconSize
+
+-- An icon of the App Browser as the inside of an <svg> of 24 by 24 drawn
+-- with a stroke of 2, as Lucide's icons (ISC licence, see
+-- THIRD-PARTY-NOTICES.md) and the modern Tools palette's are; "@ink" is the
+-- ink, for a part filled with it. The controls are drawn as the Tools
+-- palette draws them (revtools.livecodescript, tmDrawnIconSvg); the stacks
+-- are Lucide's layers (a substack one layer fewer), a card its
+-- app-window, the clips its volume-2 and film, a graphic its shapes, a
+-- group its group, a widget its puzzle, the tick its check, the password
+-- its lock. Empty for a property it does not draw
+function revIDEAppBrowserIconSvg pProp
+   switch pProp
+      case "cMainStackIcon"
+         return "<path d='m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z'/>" & \
+               "<path d='m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65'/><path d='m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65'/>"
+      case "cSubstackIcon"
+         return "<path d='M13 13.74a2 2 0 0 1-2 0L2.5 8.87a1 1 0 0 1 0-1.74L11 2.26a2 2 0 0 1 2 0l8.5 4.87a1 1 0 0 1 0 1.74z'/>" & \
+               "<path d='m20 14.285 1.5.845a1 1 0 0 1 0 1.74L13 21.74a2 2 0 0 1-2 0l-8.5-4.87a1 1 0 0 1 0-1.74l1.5-.845'/>"
+      case "cCardIcon"
+         return "<rect x='2' y='4' width='20' height='16' rx='2'/><path d='M2 8h20'/><path d='M6 4v4'/><path d='M10 4v4'/>"
+      case "cAudioclipIcon"
+         return "<path d='M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z'/>" & \
+               "<path d='M16 9a5 5 0 0 1 0 6'/><path d='M19.364 18.364a9 9 0 0 0 0-12.728'/>"
+      case "cVideoclipIcon"
+         return "<rect x='3' y='3' width='18' height='18' rx='2'/><path d='M7 3v18'/><path d='M3 7.5h4'/><path d='M3 12h18'/>" & \
+               "<path d='M3 16.5h4'/><path d='M17 3v18'/><path d='M17 7.5h4'/><path d='M17 16.5h4'/>"
+      -- (closed: a triangle pointing right; open: pointing down, as the
+      -- Mac's are, on every platform)
+      case "cOSXInIcon"
+      case "cClassicInIcon"
+      case "cWindowsInIcon"
+         return "<path d='M8 4v16l11-8z' fill='@ink' stroke='none'/>"
+      case "cOSXOutIcon"
+      case "cClassicOutIcon"
+      case "cWindowsOutIcon"
+         return "<path d='M4 7h16L12 19z' fill='@ink' stroke='none'/>"
+      case "cTickIcon"
+         return "<path d='M20 6 9 17l-5-5' stroke-width='2.5'/>"
+      case "cPasswordIcon"
+         return "<rect x='3' y='11' width='18' height='11' rx='2'/><path d='M7 11V7a5 5 0 0 1 10 0v4'/>"
+      case "cButtonIcon"
+         return "<rect x='1.5' y='5.5' width='21' height='13' rx='3.5' fill='@ink' fill-opacity='0.15'/>" & \
+               "<ellipse cx='8.75' cy='12' rx='2.25' ry='3' stroke-width='1.75'/>" & \
+               "<path d='M14 9v6M17.5 9 14 12.4M15.4 11l2.3 4' stroke-width='1.75'/>"
+      case "cFieldIcon"
+         return "<rect x='2' y='6' width='20' height='12' rx='2'/><path d='M6.5 9v6'/>"
+      case "cGraphicIcon"
+         return "<path d='M8.3 10a.7.7 0 0 1-.626-1.079L11.4 3a.7.7 0 0 1 1.198-.043L16.3 8.9a.7.7 0 0 1-.572 1.1Z'/>" & \
+               "<rect x='3' y='14' width='7' height='7' rx='1'/><circle cx='17.5' cy='17.5' r='3.5'/>"
+      case "cGroupIcon"
+         return "<path d='M3 7V5c0-1.1.9-2 2-2h2'/><path d='M17 3h2c1.1 0 2 .9 2 2v2'/>" & \
+               "<path d='M21 17v2c0 1.1-.9 2-2 2h-2'/><path d='M7 21H5c-1.1 0-2-.9-2-2v-2'/>" & \
+               "<rect x='7' y='7' width='7' height='5' rx='1'/><rect x='10' y='12' width='7' height='5' rx='1'/>"
+      case "cImageIcon"
+         return "<rect x='3' y='3' width='18' height='18' rx='2'/><circle cx='9' cy='9' r='2'/>" & \
+               "<path d='m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21'/>"
+      case "cScrollbarIcon"
+         return "<rect x='2' y='8' width='20' height='8' rx='2'/>" & \
+               "<path d='M6 10.5 4.5 12 6 13.5'/><path d='m18 10.5 1.5 1.5-1.5 1.5'/>" & \
+               "<path d='M10 12h4' stroke-width='3'/>"
+      case "cPlayerIcon"
+         return "<rect x='3' y='3' width='18' height='18' rx='2'/><path d='M3 16h18'/>" & \
+               "<path d='M10 6.5v6l5-3z' fill='@ink' stroke-width='1.5'/>" & \
+               "<path d='M6.5 18.5h5' stroke-width='2.5'/>"
+      case "cWidgetIcon"
+         return "<path d='M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z'/>"
+   end switch
+   return empty
+end revIDEAppBrowserIconSvg
 
 on revIDEOpenPlugin pName
    local tStackPath
@@ -7255,12 +7632,21 @@ on revIDEOpenPlugin pName
       put "palette" into tMode
    end if
    
+   -- OXT-Beyond: the App Browser's lists in bigger text, and its icons
+   -- larger, before it draws them; in the web IDE, white names on its
+   -- selected rows
+   if pName is "App Browser" then
+      revIDEAppBrowserText tStackPath
+      revIDEAppBrowserIcons tStackPath
+      revIDEAppBrowserHilitedNames tStackPath
+   end if
    if tMode is "invisible" then
       go invisible stack tStackPath
    else 
       do "go stack" && quote &  tStackPath & quote && "as" && tMode
    end if
    if pName is "App Browser" then
+      revIDEAppBrowserText tStackPath
       revIDEAppBrowserAppearance
    end if
 end revIDEOpenPlugin

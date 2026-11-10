@@ -55,6 +55,7 @@ Only the Python 3 standard library is used.
 """
 
 import argparse
+import json
 import os
 import sys
 
@@ -62,17 +63,21 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import release_assets  # noqa: E402
 
+# The pinned runtimes asset, which every package carries: its record says
+# which parts of the Android runtime were built from this repository
+ASSETS = os.path.join(os.path.dirname(os.path.dirname(HERE)), 'tools', 'oxt', 'external-assets.json')
+
 # oxtbeyondupdater.livecodescript kExcerptLines and kExcerptChars
 EXCERPT_LINES = 12
 EXCERPT_CHARS = 700
 
 # The minimum systems, as README.md states them and the builds check them
 # (build-linux.yml: glibc 2.31 by check_elf_floor.py; build-macos.yml:
-# 10.13 and 11.0 by check_macho_floor.py; the xTalk Suite libraries'
+# 11.0 by check_macho_floor.py; the xTalk Suite libraries'
 # floors by check_native_deps.py and check_linux_libraries.py)
 WINDOWS_MIN = 'Windows 10 or later (x64)'
 # (Every Apple Silicon Mac came with macOS 11 or later)
-MAC_MIN = 'macOS 11 or later, or 10.13 or later on Intel'
+MAC_MIN = 'macOS 11 or later'
 LINUX_MIN = 'Linux x86-64 (glibc 2.31 or later)'
 
 # Twelve lines for the update check (blank lines count), with the version
@@ -109,7 +114,7 @@ The executables are not code-signed, so Windows SmartScreen may warn when they a
 
 ## macOS (Apple Silicon and Intel)
 
-One universal app, `OXT-Beyond.app`. It needs macOS 11 Big Sur or later on Apple Silicon, or macOS 10.13 High Sierra or later on an Intel Mac. The native libraries of the bundled xTalk Suite extensions SodiumXT, TorrentXT, enetxt, DataChannelXT, Box2Dxt and CoinXT need macOS 10.15 Catalina or later on an Intel Mac: on macOS 10.13 and 10.14 the IDE starts, but those extensions do not load.
+One universal app, `OXT-Beyond.app`. It needs macOS 11 Big Sur or later, on Apple Silicon and on an Intel Mac (up to 0.2.7-rc.6.18, macOS 10.13 High Sierra on Intel; on macOS 10.15 Catalina it hung at launch). Standalones built with it need macOS 11 too.
 
 - `{root}-mac-universal.dmg`: the disk image. Open it and drag OXT-Beyond onto the Applications folder next to it.
 - `{root}-mac-universal.zip`: the same app, for scripted installs (`ditto -x -k {root}-mac-universal.zip /Applications`).
@@ -187,7 +192,7 @@ Made by the "Release" workflow (`.github/workflows/release.yml`){commit}, which 
 
 The programs include the xTalk Suite extensions (SodiumXT, TorrentXT, enetxt, DataChannelXT, Box2Dxt, CoinXT, OnionXT and NostrXT) in their `Extensions` folder, taken from their own repositories at the commits listed in `Extensions/XTALK-EXTENSIONS.txt`. The Windows packages include the Microsoft Visual C++ runtime DLLs that enetxt and Box2Dxt need; the macOS and Linux packages do not, so a Windows standalone built there with either of them needs the Visual C++ Redistributable on the PC that runs it.
 
-Each package's engine, externals and tools are built from this repository, for Windows x86-64, for macOS (Apple Silicon and Intel, joined into universal files) and for Linux x86-64, and so are the standalone runtimes every package carries for Windows (x86-64 and x86) and Linux (x86-64 and x86), with the time zone library code for them. Every package also carries the HTML5 standalone runtime for web browsers, built from this repository into WebAssembly. The Android standalone runtime is not built here: it is taken unchanged from OpenXTalk Lite 1.15 (stock LiveCode 9.6.3 builds and files as Tom Perry shipped them; see THIRD-PARTY-NOTICES.md). Only the macOS package has the macOS runtimes.
+Each package's engine, externals and tools are built from this repository, for Windows x86-64, for macOS (Apple Silicon and Intel, joined into universal files) and for Linux x86-64, and so are the standalone runtimes every package carries for Windows (x86-64 and x86) and Linux (x86-64 and x86), with the time zone library code for them. Every package also carries the HTML5 standalone runtime for web browsers, built from this repository into WebAssembly. {android} Only the macOS package has the macOS runtimes.
 
 OXT-Beyond continues OpenXTalk Lite, started by Terry Little and developed by Tom Perry with contributions from the OpenXTalk community. It is based on LiveCode Community and licensed under the GNU GPL version 3.
 '''
@@ -203,13 +208,50 @@ def is_prerelease(version):
     return '-' in version
 
 
-def fill(template, version, commit):
+# Where the Android runtime's parts come from, as the pinned runtimes
+# asset's record says (tools/oxt/make_runtimes_asset.py writes it): with
+# "java_layer", the Java layer was built from the asset's commit
+# (--android-classes); with "android_engine", the asset also carries
+# OXT-Beyond's own Android engine, which a stack asks for with its
+# "android,engine" setting (--android-engine); without either, the whole
+# runtime is OpenXTalk Lite 1.15's
+ANDROID_CARRIED = ('stock LiveCode 9.6.3 builds and files as Tom Perry shipped them; '
+                   'see THIRD-PARTY-NOTICES.md')
+ANDROID_ENGINE = (' A stack can ask for OXT-Beyond\'s own Android engine instead, built from this repository '
+                  'with a current NDK, with its "android,engine" standalone setting; '
+                  'LiveCode 9.6.3\'s engines stay the default.')
+
+
+def runtimes_record(assets_file=ASSETS):
+    """The pinned runtimes asset's record (its oxt-runtimes- entry)."""
+    with open(assets_file, encoding='utf-8') as f:
+        found = [a for a in json.load(f).get('assets', []) if str(a.get('id', '')).startswith('oxt-runtimes-')]
+    if len(found) != 1:
+        raise NotesError('%s has %d oxt-runtimes- assets, not one' % (assets_file, len(found)))
+    return found[0]
+
+
+def android_sentence(assets_file=ASSETS):
+    record = runtimes_record(assets_file)
+    if record.get('java_layer'):
+        text = ('The Android standalone runtime\'s Java layer is built from this repository too; its engines '
+                'and its other files are taken unchanged from OpenXTalk Lite 1.15 (%s).' % ANDROID_CARRIED)
+    else:
+        text = ('The Android standalone runtime is not built here: it is taken unchanged from OpenXTalk '
+                'Lite 1.15 (%s).' % ANDROID_CARRIED)
+    if record.get('android_engine'):
+        text += ANDROID_ENGINE
+    return text
+
+
+def fill(template, version, commit, assets_file=ASSETS):
     return template.format(
         version=version,
         root=release_assets.package_root(version),
         pre=' This is a pre-release.' if is_prerelease(version) else '',
         windows_min=WINDOWS_MIN, mac_min=MAC_MIN, linux_min=LINUX_MIN,
-        commit=' from commit %s' % commit if commit else '')
+        commit=' from commit %s' % commit if commit else '',
+        android=android_sentence(assets_file) if '{android}' in template else '')
 
 
 def check_files(version, names):
@@ -228,11 +270,11 @@ def check_files(version, names):
         raise NotesError('the files are not the release\'s (tools/ci/release_assets.py): ' + '; '.join(problems))
 
 
-def notes(version, names, commit=None):
+def notes(version, names, commit=None, assets_file=ASSETS):
     if not release_assets.VERSION_RE.match(version):
         raise NotesError('%r is not a version such as 0.1.0 or 0.1.0-beta.1' % version)
     check_files(version, names)
-    body = fill(BODY, version, commit)
+    body = fill(BODY, version, commit, assets_file)
     for name in release_assets.release_files(version):
         # Every file is described (the table and the text must agree)
         if '`%s`' % name not in body:

@@ -74,15 +74,17 @@ Development builds (workflow artifacts on the Actions tab) are made by
 the same workflows but are not reviewed as releases.
 
 The standalone runtimes for the other platforms in each package come
-from a release asset of this repository (`runtimes-0.2.7-rc.6.16b`), which
+from a release asset of this repository (`runtimes-0.2.7`), which
 the packager downloads and refuses unless its SHA-256 matches the one
 recorded in
 [`tools/oxt/external-assets.json`](tools/oxt/external-assets.json). The
 Windows and Linux runtimes in it are built from this repository by its
-CI, with the same libraries as the packages themselves. The Android
-runtime in it is not: it is OpenXTalk Lite 1.15's, taken unchanged
-(LiveCode 9.6.3 builds and files as Tom Perry shipped them), and has
-not been rebuilt or updated. See
+CI, with the same libraries as the packages themselves, and so are the
+Android runtime's Java layer and OXT-Beyond's own Android engine
+(`Runtime/Android/Beyond`, used only for a stack that asks for it). The
+default Android engines in it are not: they are OpenXTalk Lite 1.15's,
+taken unchanged (LiveCode 9.6.3 builds and files as Tom Perry shipped
+them), and have not been rebuilt or updated. See
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md#standalone-runtimes-for-other-platforms).
 
 ## Updates
@@ -153,7 +155,8 @@ These are still old and have publicly known vulnerabilities:
 
 Other libraries in `thirdparty/` (cairo 1.9.4 and others) are
 also several years old. SQLite was updated
-to 3.51.1.
+to 3.51.1, and to 3.51.3 in 0.2.7-rc.6.18 (the fix for the WAL-reset
+database corruption bug).
 
 Upgrading these libraries is planned. Until then, treat the browser
 components and any network or file-parsing features as unsafe for

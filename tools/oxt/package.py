@@ -650,7 +650,7 @@ def mac_info_plist(plist, version, build_number, archs, executable, minimum):
       LSMinimumSystemVersion  minimum: the lowest minimum macOS of the
                               engine's slices (Xcode writes the deployment
                               target of the one build the tree came from:
-                              11.0 for arm64, 10.13 for x86_64; a universal
+                              11.0 for arm64 and x86_64; a universal
                               app must declare its lowest slice's, or
                               Intel Macs below 11 refuse it)
       CFBundleDocumentTypes   MAC_DOCUMENT_TYPES as the owner (rank Owner),
@@ -1341,7 +1341,7 @@ def check_architecture(p, bin_dir, allow_single_arch):
         # The runtime's Info.plist is staged as the build wrote it (the
         # standalone builder edits it line by line), so it must already
         # declare the lowest minimum macOS of its engine: after the merge
-        # the x86_64 build's 10.13, not the arm64 build's 11.0, or every
+        # the x86_64 build's (10.13 up to 0.2.7-rc.6.18), not the arm64 build's 11.0, or every
         # standalone would refuse Intel Macs below macOS 11
         exe = layout.native(bin_dir, 'Standalone-Community.app/Contents/MacOS/Standalone-Community')
         info = layout.native(bin_dir, 'Standalone-Community.app/Contents/Info.plist')
@@ -1792,7 +1792,12 @@ def reference_engine(paths):
 # rather than copies: with such an asset their files may differ from the
 # reference, be missing (1.15's Linux runtimes bundled shared libraries
 # of other projects in lib/) or be new. Runtime/Android is carried over
-# unchanged, so it is still compared byte for byte.
+# unchanged, so it is still compared byte for byte, apart from the Java
+# layer that the asset's record names ("java_layer"): that one is built from
+# this repository too (make_runtimes_asset.py --android-classes). OXT-Beyond's
+# own Android engine, beside it in the folder the record names
+# ("android_engine", make_runtimes_asset.py --android-engine), is built
+# here as well, and 1.15 has none of it: its files are additions.
 REBUILT_RUNTIMES = ('Runtime/Windows/x86-32/', 'Runtime/Linux/',
                     'Extensions/com.livecode.library.timezone/')
 RUNTIMES_1_15 = 'oxt-runtimes-1.15'
@@ -1805,8 +1810,11 @@ def compare(stage, items, ref, no_assets, report=None, no_xtalk=False, platform=
     exe_name = (platform or PLATFORMS[DEFAULT_PLATFORM]).engine
     # A runtimes asset other than 1.15's is made from this repository's
     # builds (see REBUILT_RUNTIMES)
-    rebuilt = any(it.origin == 'asset' and str(it.asset.get('id', '')).startswith('oxt-runtimes-')
-                  and it.asset.get('id') != RUNTIMES_1_15 for it in items)
+    runtimes = [it.asset for it in items if it.origin == 'asset'
+                and str(it.asset.get('id', '')).startswith('oxt-runtimes-') and it.asset.get('id') != RUNTIMES_1_15]
+    rebuilt = bool(runtimes)
+    java = {a['java_layer'] for a in runtimes if a.get('java_layer')}
+    android_engine = tuple(a['android_engine'].rstrip('/') + '/' for a in runtimes if a.get('android_engine'))
 
     def replaced(path):
         return rebuilt and path.startswith(REBUILT_RUNTIMES)
@@ -1877,7 +1885,7 @@ def compare(stage, items, ref, no_assets, report=None, no_xtalk=False, platform=
             elif cls == layout.IDE:
                 if not layout.same_content(p, ref_file, staged):
                     status = 'IDE change: modified'
-            elif cls == layout.EXTERNAL and replaced(p):
+            elif cls == layout.EXTERNAL and (replaced(p) or p in java):
                 status = 'present (identical)' if _same_bytes(ref_file, staged) else 'present (rebuilt)'
             elif cls == layout.EXTERNAL:
                 if not _same_bytes(ref_file, staged):
@@ -1905,6 +1913,8 @@ def compare(stage, items, ref, no_assets, report=None, no_xtalk=False, platform=
             status, why = 'intended addition', 'mergJSON, built from its source (EXT_FILES)'
         elif it.origin == 'asset' and _asset_rel(it) in it.asset.get('rename', {}):
             status, why = 'intended addition', 'notice file of an external asset (%s)' % it.note
+        elif it.origin == 'asset' and android_engine and it.target.startswith(android_engine):
+            status, why = 'intended addition', 'OXT-Beyond\'s Android engine, built from this repository (%s)' % it.note
         elif it.origin == 'asset' and rebuilt and it.target.startswith(REBUILT_RUNTIMES + ('PROVENANCE-',)):
             status, why = 'intended addition', 'a file of the runtimes built from this repository (%s)' % it.note
         elif it.origin == 'ide':

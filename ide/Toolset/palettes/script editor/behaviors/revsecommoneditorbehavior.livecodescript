@@ -2886,9 +2886,6 @@ on dragDrop
       exit dragDrop
    end if
    
-   lock screen
-   textBeginGroup "Drag"
-   
    local tDropAt
    get the dropChunk
    put word 2 of it into tDropAt
@@ -2898,34 +2895,51 @@ on dragDrop
    put word 2 of it into tSelectFrom
    put word 4 of it into tSelectTo
    
-   if tDropAt >= tSelectFrom and tDropAt <= tSelectTo then
-      exit dragDrop
+   textDropText tDropAt, tSelectFrom, tSelectTo, dragData["text"], sDragMode
+end dragDrop
+
+-- OXT-Beyond: the edit a drop makes, kept apart from dragDrop so that a
+-- test can make it without a real drag (the dropChunk and dragData exist
+-- only during one). pDropAt is the char the text is dropped before,
+-- pSelectFrom and pSelectTo the selection being dragged, and pMode
+-- "cut" (a move inside this script) or "copy".
+--
+-- Both edits go into the one undo group "Drag" (textReplace's pDontGroup),
+-- so that one Undo takes back the whole drop. Before, each edit of more
+-- than one char opened a group of its own, and the first Undo after a move
+-- deleted the dropped text, leaving it gone from both places until a
+-- second Undo (rc.6.17 Bug Hunt). A drop onto the selection itself
+-- changes nothing, so it now opens no group: it left an empty one, an
+-- Undo that did nothing.
+command textDropText pDropAt, pSelectFrom, pSelectTo, pDroppedText, pMode
+   if pDropAt >= pSelectFrom and pDropAt <= pSelectTo then
+      exit textDropText
    end if
    
-   if sDragMode is "cut" then
+   lock screen
+   textBeginGroup "Drag"
+   
+   if pMode is "cut" then
       -- Remove the selection. This will never happen on a drag that started outside the ScriptEditorPane.
       
       -- in this case, we cannot have tFrom > tTo
-      textReplace tSelectFrom, char tSelectFrom to tSelectTo of control "Script" of me, empty
+      textReplace pSelectFrom, char pSelectFrom to pSelectTo of control "Script" of me, empty, , true
       
-      if tDropAt > tSelectTo then
-         subtract tSelectTo - tSelectFrom + 1 from tDropAt
+      if pDropAt > pSelectTo then
+         subtract pSelectTo - pSelectFrom + 1 from pDropAt
       end if
    end if
    
-   
-   local tDroppedText
-   put dragData["text"] into tDroppedText
    -- There is an issue with the very last return character, for now it seams sufficient to remove this.
-   #  if char -1 of tDroppedText is return then
-   #    delete char -1 of tDroppedText
+   #  if char -1 of pDroppedText is return then
+   #    delete char -1 of pDroppedText
    #  end if
    
-   textReplace tDropAt, empty, tDroppedText
+   textReplace pDropAt, empty, pDroppedText, , true
    
    textEndGroup
    unlock screen
-end dragDrop
+end textDropText
 
 on dragStart
    if not handleEvent("dragStart", the long id of the target) then

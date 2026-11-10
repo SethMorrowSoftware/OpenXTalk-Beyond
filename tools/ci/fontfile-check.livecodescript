@@ -38,12 +38,31 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --
 -- The widths are comma-separated, in the order of kFonts, kStyles and
 -- kSizes. The Python script decides what passes: every width as BASE.
+--
+-- Then the fonts it loads must be the fonts it lists and measures (and so
+-- draws, with the same Pango font map). Up to 0.2.7-rc.6.18 a font loaded
+-- with `start using font file` on Linux was in neither: each load made a
+-- fontconfig configuration with only that one file (so the load before it
+-- was dropped), and Pango kept the configuration it first used (Pango
+-- 1.48 and later), so the IDE's code font, Source Code Pro, was drawn in
+-- the fallback face. The IDE's code font files (Regular, then Bold) and
+-- the font file above (its icon font) are loaded in turn and unloaded, and
+-- after each:
+--
+--   CODE <state> <listed>,<icons listed>,<narrow>,<wide>,<narrow bold>,<wide bold> <result>
+--
+-- <listed> is whether "Source Code Pro" is among the fontNames, <icons
+-- listed> whether the icon font's family is; the widths are of ten i and
+-- ten M in Source Code Pro, plain and bold, alike only in a monospaced
+-- face, so alike only when Source Code Pro is what measures them.
 
 constant kRounds = 10
 constant kFonts = "DejaVu Sans,DejaVu Serif,DejaVu Sans Mono"
 constant kStyles = "plain,bold,italic"
 constant kSizes = "11,13,16"
 constant kProbe = "OXTFontFileProbe"
+constant kCodeFont = "Source Code Pro"
+constant kCodeFiles = "SourceCodePro-Regular.ttf,SourceCodePro-Bold.ttf"
 
 command logLine pText
    put pText & return after URL ("binfile:" & $OXT_FONTFILE_LOG)
@@ -69,8 +88,35 @@ function probeWidths
    return tWidths
 end probeWidths
 
+-- The fontNames and the widths a CODE line gives (see the top)
+function codeProbe pIcons
+   local tFonts, tLine, tStyle
+   put the fontNames into tFonts
+   put (kCodeFont is among the lines of tFonts) & comma & (pIcons is among the lines of tFonts) into tLine
+   set the textFont of field "Code" of stack kProbe to kCodeFont
+   set the textSize of field "Code" of stack kProbe to 13
+   repeat for each item tStyle in "plain,bold"
+      set the textStyle of field "Code" of stack kProbe to tStyle
+      put comma & the formattedWidth of line 1 of field "Code" of stack kProbe after tLine
+      put comma & the formattedWidth of line 2 of field "Code" of stack kProbe after tLine
+   end repeat
+   return tLine
+end codeProbe
+
+-- Load or unload a font file and log the CODE line after it
+command codeStep pState, pAction, pFile, pIcons
+   local tResult
+   if pAction is "load" then
+      start using font file pFile
+   else
+      stop using font file pFile
+   end if
+   put the result into tResult
+   logLine "CODE" && pState && codeProbe(pIcons) && tResult
+end codeStep
+
 on runCheck
-   local tFile, tResult
+   local tFile, tResult, tCode, tIcons
    logLine "INFO platform=" & the platform & " version=" & the version & " processor=" & the processor
    try
       create invisible stack kProbe
@@ -91,6 +137,24 @@ on runCheck
          put the result into tResult
          logLine "UNLOADED" && tRound && probeWidths() && tResult
       end repeat
+
+      -- The fonts it loads are the fonts it lists and measures: the
+      -- IDE's code font, Regular then Bold, then the icon font, as the
+      -- IDE loads them; then each unloaded
+      create field "Code"
+      set the width of field "Code" to 2000
+      set the dontWrap of field "Code" to true
+      set the text of field "Code" to "iiiiiiiiii" & return & "MMMMMMMMMM"
+      put $OXT_FONTFILE_CODE into tCode
+      put $OXT_FONTFILE_ICONS into tIcons
+      logLine "INFO code font folder" && tCode && "exists=" & (there is a folder tCode) && "icons=" & tIcons
+      logLine "CODE before" && codeProbe(tIcons)
+      codeStep "regular", "load", tCode & slash & item 1 of kCodeFiles, tIcons
+      codeStep "bold", "load", tCode & slash & item 2 of kCodeFiles, tIcons
+      codeStep "icons", "load", tFile, tIcons
+      codeStep "no-regular", "unload", tCode & slash & item 1 of kCodeFiles, tIcons
+      codeStep "no-bold", "unload", tCode & slash & item 2 of kCodeFiles, tIcons
+      codeStep "after", "unload", tFile, tIcons
    catch tError
       logLine "ERROR" && line 1 of tError
    end try

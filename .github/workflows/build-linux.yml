@@ -122,6 +122,8 @@ on:
       - '.github/workflows/tag-release.yml'
       - '.github/workflows/ui-tour.yml'
       - '.github/workflows/android.yml'
+      - '.github/workflows/android-java.yml'
+      - '.github/workflows/android-engine.yml'
       - '.github/workflows/mac-menu-backdrop.yml'
       - '.github/workflows/pages.yml'
       - 'tools/pages/**'
@@ -131,6 +133,11 @@ on:
       - 'tools/ci/release_notes.py'
       - 'tools/ci/android_check.py'
       - 'tools/ci/android-check.livecodescript'
+      - 'tools/ci/android_java.py'
+      - 'tools/ci/android_engine.py'
+      - 'tools/ci/build-android.sh'
+      - 'config/android-ndk-version'
+      - 'engine/src/java/**'
       - 'tools/ci/tests/**'
       - '.github/workflows/build-macos.yml'
       - '.github/workflows/build-windows.yml'
@@ -146,8 +153,18 @@ on:
       - 'tools/ci/win_crashtrace.py'
       - 'tools/ci/window-frame-check.livecodescript'
       - 'tools/ci/window_frame_check.py'
+  # DRAFT PULL REQUESTS (2026-11-06). A draft runs none of this workflow's
+  # jobs: each job's `if:` ends in `github.event.pull_request.draft != true`,
+  # and marking the pull request ready (ready_for_review, below) starts the
+  # whole run on its newest commit. A draft is work in progress whose commits
+  # land minutes apart, and each one used to start this full build only for
+  # the next to cancel it (26 of 52 builds on 2026-11-06 00:38-02:15 UTC). CI
+  # checks still run on every draft commit. A push, a dispatch and a call from
+  # release.yml have no pull request, so the condition is always true there.
+  # tools/ci/tests/test_draft_builds.py holds every job to it.
   pull_request:
     branches: [ main ]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore: *build-paths-ignore
   workflow_dispatch:
     inputs:
@@ -204,6 +221,7 @@ defaults:
 jobs:
   build:
     name: Build linux-${{ matrix.arch }}
+    if: ${{ github.event.pull_request.draft != true }}
     strategy:
       fail-fast: false
       matrix:
@@ -569,7 +587,7 @@ jobs:
           python3 tools/ci/run_livecode_check.py compile --repo-layout --bin "linux-$ARCH-bin" \
             --log ide-compile-check.log
 
-      # The property and image patches of tools/oxt/ide-stack-patches are
+      # The property, image and clone patches of tools/oxt/ide-stack-patches are
       # applied to the binary IDE stacks, checked with the engine just built
       # (tools/oxt/ide-stack-patch.sh --check; tools/ci/check_ide_stacks.py
       # checks the script patches without an engine)
@@ -654,6 +672,7 @@ jobs:
   # nothing is packaged.
   build-x86:
     name: Build linux-x86
+    if: ${{ github.event.pull_request.draft != true }}
     runs-on: ubuntu-24.04
     timeout-minutes: 330
     env:
@@ -859,6 +878,7 @@ jobs:
   # engines build
   docs:
     name: Docs
+    if: ${{ github.event.pull_request.draft != true }}
     uses: ./.github/workflows/docs.yml
     with:
       artifact: OXT-Beyond-docs-linux
@@ -867,6 +887,7 @@ jobs:
   # build, and checked in a headless browser
   web:
     name: Web
+    if: ${{ github.event.pull_request.draft != true }}
     uses: ./.github/workflows/web.yml
     with:
       artifact: OXT-Beyond-web-linux
@@ -890,7 +911,7 @@ jobs:
   databases:
     name: Databases linux-x86_64
     needs: build
-    if: ${{ !cancelled() && needs.build.outputs.built-x86_64 == 'true' }}
+    if: ${{ (!cancelled() && needs.build.outputs.built-x86_64 == 'true') && github.event.pull_request.draft != true }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -1001,7 +1022,7 @@ jobs:
   package:
     name: Package linux-${{ matrix.arch }}
     needs: [build, docs, web]
-    if: ${{ !cancelled() && (needs.build.result == 'success' || needs.build.outputs.built-x86_64 == 'true' || needs.build.outputs.built-arm64 == 'true') }}
+    if: ${{ (!cancelled() && (needs.build.result == 'success' || needs.build.outputs.built-x86_64 == 'true' || needs.build.outputs.built-arm64 == 'true')) && github.event.pull_request.draft != true }}
     strategy:
       fail-fast: false
       matrix:
@@ -1411,7 +1432,9 @@ jobs:
       # (start using font file, as the IDE does when Home and Learn open):
       # up to 0.2.7-rc.6.12 the engine could measure a font with another
       # font's cached widths, and drew the words of bold text against each
-      # other (tools/ci/fontfile_check.py)
+      # other. And the fonts loaded are the fonts listed and measured: up
+      # to 0.2.7-rc.6.18 none was, so the IDE's code font, Source Code
+      # Pro, was drawn in the fallback face (tools/ci/fontfile_check.py)
       - name: Font file check
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         timeout-minutes: 5
@@ -1419,6 +1442,18 @@ jobs:
           case $ARCH in x86_64) folder=x86-64 ;; *) folder=$ARCH ;; esac
           /usr/bin/python3 tools/ci/fontfile_check.py --engine "$OXT_ROOT/Runtime/Linux/$folder/Standalone" \
             --log "$RUNNER_TEMP/logs/fontfile-check.log"
+
+      # OXT-Beyond Home opens with the first page of its tour built and
+      # builds each other page when it is first shown, and on a computer
+      # whose frames are slow to draw it keeps no more than about half of a
+      # core busy (tools/ci/home_speed_check.py)
+      - name: Home speed check
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 5
+        run: |
+          case $ARCH in x86_64) folder=x86-64 ;; *) folder=$ARCH ;; esac
+          /usr/bin/python3 tools/ci/home_speed_check.py --engine "$OXT_ROOT/Runtime/Linux/$folder/Standalone" \
+            --log "$RUNNER_TEMP/logs/home-speed-check.log"
 
       # The standalone engine on an Xvfb screen at 1x (nothing changes) and
       # at a desktop scale of 2 (GDK_SCALE, then an XSETTINGS manager
@@ -1544,6 +1579,31 @@ jobs:
           "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_tests.py --runtime "$RUNNER_TEMP/web-runtime" \
             --bin "$bin_dir/linux-$ARCH-bin" --work "$RUNNER_TEMP/web-tests" --log "$RUNNER_TEMP/logs/web-tests.log"
 
+      # Wobble Forts' tests of play (tests/lcs/webplayer/wobble-forts.livecodescript),
+      # which the engine tests above skip: the game is on Box2D, and a
+      # desktop engine has it only as an extension. Here the build's
+      # standalone engine runs them with the package's Box2Dxt
+      # (OXT_BOX2DXT: the test finds Extensions/org.openxtalk.box2dxt in
+      # it). A package made without the xTalk Suite's extensions has none:
+      # then the step says so and does nothing.
+      - name: Wobble Forts with Box2Dxt
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
+        timeout-minutes: 10
+        env:
+          BIN_TAR: ${{ runner.temp }}/ci-build/OXT-Beyond-linux-${{ matrix.arch }}-bin.tar.xz
+        run: |
+          if [ ! -f "$OXT_ROOT/Extensions/org.openxtalk.box2dxt/module.lcm" ]; then
+            echo "::notice title=Wobble Forts::the package has no Box2Dxt, so its tests of play were not run"
+            exit 0
+          fi
+          bin_dir="$RUNNER_TEMP/wobble-forts-bin"
+          rm -rf "$bin_dir"
+          mkdir -p "$bin_dir"
+          tar -xJf "$BIN_TAR" -C "$bin_dir"
+          OXT_BOX2DXT="$OXT_ROOT" python3 tools/ci/run_engine_tests.py --bin "$bin_dir/linux-$ARCH-bin" --suite lcs \
+            --filter '^lcs: webplayer/wobble-forts:' --log "$RUNNER_TEMP/logs/wobble-forts-tests.log"
+          tail -n 1 "$RUNNER_TEMP/logs/wobble-forts-tests.log" | grep -q ' 0 skip$'
+
       # The IDE's own windows, as a user sees them under the Adwaita GTK
       # theme, light and dark: tools/ci/ui_tour.py starts the package's IDE
       # (on an Xvfb screen) with tools/ci/ui-tour.livecodescript, which
@@ -1567,6 +1627,43 @@ jobs:
           python3 tools/ci/ui_tour.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
             --appearance dark --out "$RUNNER_TEMP/logs/ui-tour/dark"
 
+      # Everyday tasks a person does in the IDE, through its own windows
+      # with the system's mouse and keyboard (xdotool): a new stack, each
+      # common control from the Tools palette, Inspector edits, the
+      # Script Editor (Apply, a compile error, find and replace, a
+      # breakpoint), the Message Box, undo and redo, copy, group, align,
+      # cards, Save As, Close and Remove From Memory and opening it again,
+      # Revert, the Dictionary, an image as a button's icon, the Geometry
+      # Manager, Preferences and the Application Browser; each asserted
+      # and snapshot (tools/ci/everyday-tasks.livecodescript). Light and
+      # dark at once, each on its own Xvfb screen, so that the step adds
+      # one run's time; a task that fails, or a script error, fails it
+      - name: Everyday IDE tasks, light and dark
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 20
+        run: |
+          pids=()
+          for appearance in light dark; do
+            python3 tools/ci/ui_tour.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
+              --script tools/ci/everyday-tasks.livecodescript --timeout 900 \
+              --appearance "$appearance" --out "$RUNNER_TEMP/logs/ui-tour/everyday-$appearance" \
+              > "$RUNNER_TEMP/everyday-$appearance.txt" 2>&1 &
+            pids+=($!)
+          done
+          failed=()
+          for i in 0 1; do
+            appearance=$([ $i = 0 ] && echo light || echo dark)
+            if ! wait "${pids[$i]}"; then failed+=("$appearance"); fi
+            echo "::group::Everyday IDE tasks, $appearance"
+            cat "$RUNNER_TEMP/everyday-$appearance.txt"
+            echo "::endgroup::"
+          done
+          if [ ${#failed[@]} -gt 0 ]; then
+            grep -h -E '^(STEP .* FAILED|ERROR)' "$RUNNER_TEMP"/everyday-*.txt | sed 's/^/::error::/' || true
+            echo "::error::the everyday IDE tasks failed in ${failed[*]}"
+            exit 1
+          fi
+
       # The tour's menu-marks step again under dark GTK 2 themes a desktop
       # ships, beside the Adwaita-dark of the run above: Ubuntu MATE's own
       # (Yaru-MATE-dark), Yaru's and a high-contrast one. On Ubuntu MATE in
@@ -1579,7 +1676,12 @@ jobs:
       # items' words the same way: on a window's own colour that the
       # theme's text cannot be read on, they are drawn black or white by
       # that colour (MCButtonMenuItemTextInkOnOwnColour; until rc.6.16 they
-      # were the theme's whatever the colour). (MATE's BlackMATE draws them white too, but
+      # were the theme's whatever the colour). The menu-armed-words step
+      # holds the words of the item a menu opens with hilited: on the
+      # theme's hilite they must be on the same side of it as the theme's
+      # own hilited words (MCButton::getmenuitemarmedink; until rc.6.17 they
+      # were a window's own colour, dark on the selection blue).
+      # (MATE's BlackMATE draws them white too, but
       # its menus' letters break into pieces that the step's comparison of
       # two menus takes for marks, so it is left out)
       - name: Menu marks, other dark GTK themes
@@ -1589,7 +1691,7 @@ jobs:
           failed=()
           for theme in Yaru-MATE-dark Yaru-dark HighContrastInverse; do
             python3 tools/ci/ui_tour.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
-              --appearance dark --gtk-theme "$theme" --only menu-marks,menu-words \
+              --appearance dark --gtk-theme "$theme" --only menu-marks,menu-words,menu-armed-words \
               --out "$RUNNER_TEMP/logs/menu-marks/$theme" || failed+=("$theme")
           done
           if [ ${#failed[@]} -gt 0 ]; then

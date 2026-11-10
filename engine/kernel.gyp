@@ -302,19 +302,22 @@
 							'../config/java.gypi',
 						],
 						
-						# A little indirection needed to get INTERMEDIATE_DIR escaped properly
-						'intermediate_dir_escaped': '<!(["sh", "-c", "echo $1 | sed -e $2", "echo", "<(INTERMEDIATE_DIR)", "s/\\\\$/\\\\\\$/g"])',
-	
 						'sources':
 						[
-							'<@(engine_aidl_source_files)',
+							# OXT-Beyond: each AIDL interface is compiled
+							# from the Java kept beside its .aidl file, which
+							# is what LiveCode's build had the SDK's aidl make
+							# of it (tools/ci/android_java.py builds the Java
+							# layer the same way, and its compare checks that
+							# against the classes LiveCode 9.6.3 shipped). The
+							# aidl of current build tools refuses the rule in
+							# config/java.gypi (it wants a file's folder among
+							# its import paths, spelled alike), and it would
+							# write other Java than the classes apps have run.
+							'<!@((for x in <@(engine_aidl_source_files); do echo "${x}"; done) | sed -e "s/\\.aidl$/\\.java/g")',
 		
-							# Outputs from a rule don't get considered as
-							# inputs to another rule in Gyp, unfortunately
-							'<!@((for x in <@(engine_aidl_source_files); do echo "<(_intermediate_dir_escaped)/${x}"; done) | sed -e "s/\\.aidl$/\\.java/g")',
-		
-							# Some of the Java sources depend on the output
-							# from AIDL so they come last
+							# Some of the Java sources use the AIDL
+							# interfaces, so they come last
 							'<@(engine_java_source_files)',
 						],
 					}

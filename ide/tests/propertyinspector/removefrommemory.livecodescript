@@ -165,6 +165,31 @@ private command __ListThenSave pCloseBrowser
    revIDESetUnedited kStack
 end __ListThenSave
 
+-- OXT-Beyond: a script's `delete stack` sends ideStackDeleted, which the
+-- Project Browser answered as it once answered Close and Remove From
+-- Memory: with no row for the saved stack's long id, it asked the engine
+-- about it and read the stack from its file again
+on TestDeleteSavedStackAfterProjectBrowserClosed
+   __ListThenSave true
+   TestAssert "the saved stack is in memory", kStack is among the lines of the mainStacks
+
+   delete stack kStack
+   wait 200 milliseconds with messages
+   TestAssert "a saved stack deleted by a script is not read from its file again", \
+         kStack is not among the lines of the mainStacks
+end TestDeleteSavedStackAfterProjectBrowserClosed
+
+on TestDeleteSavedStackWithProjectBrowserOpen
+   __ListThenSave false
+   TestAssert "the saved stack is in memory", kStack is among the lines of the mainStacks
+
+   delete stack kStack
+   wait 500 milliseconds with messages
+   TestAssert "a saved stack deleted by a script is not read from its file again", \
+         kStack is not among the lines of the mainStacks
+   __CloseBrowser
+end TestDeleteSavedStackWithProjectBrowserOpen
+
 private command __CloseBrowser
    if revIDEPaletteIsVisible("Project Browser") then
       revIDETogglePalette "Project Browser"

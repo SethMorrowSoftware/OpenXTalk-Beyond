@@ -21,8 +21,11 @@ script "oxtwebidetour"
 -- the File menu, one of each control Object > New Control makes, the
 -- page made narrow, a cascade of the File menu on a page as narrow as a
 -- phone in portrait, File's items with a submenu tapped on a touch
--- screen, the browser switched between light and dark and back (the
--- page follows it: index.html's oxt-appearance), and the page's
+-- screen, the ticks of File > Import Stack's HyperCard options, the browser switched between light and dark and back (the
+-- page follows it: index.html's oxt-appearance), the Message Box's
+-- coloured script after each switch, a tooltip in the light
+-- and the dark appearance (its text must stand out from its background),
+-- and the page's
 -- not-saved bar as the IDE opens and when the browser's storage refuses
 -- a write and then takes one. For each it asks for a screenshot of the
 -- page. A step still running after 30 seconds (a
@@ -55,7 +58,7 @@ Screenshots of the web IDE for its CI job (tools/ci/web_ide_tour.py).
 Only CI's copy of the site has it.
 */
 
-constant kSteps = "start,storage-open,keep,kept,sample,inspector,inspector-tabs,inspector-reset-colour,script-editor,message-box,project-browser,browse,dictionary,preferences,file-menu,new-controls,narrow,phone-menu,touch-menu,appearance,storage"
+constant kSteps = "start,storage-open,keep,kept,sample,inspector,inspector-tabs,inspector-reset-colour,script-editor,message-box,project-browser,browse,dictionary,preferences,file-menu,new-controls,narrow,phone-menu,touch-menu,import-stack-marks,appearance,message-box-colours,tooltip,storage"
 constant kSample = "Web Tour Sample"
 -- Steps that run only when web_ide_tour.py --only names them: keep, on
 -- the released web IDE, saves a stack and a preference in the home
@@ -68,6 +71,14 @@ constant kKeptText = "Kept by the web IDE before the update"
 -- The classic controls of Object > New Control (revMenubar), by the last
 -- part of their kind
 constant kNewControls = "Checkbox,ComboBox,DefaultButton,OptionMenu,PopupMenu,PulldownMenu,RadioButton,RectangleButton,Button,TabPanel,DataGrid,Field,LabelField,TextArea,ListField,TableField,Arrow,FivePointStar,OvalGraphic,RectangleGraphic,RegularGraphic,RoundRectGraphic,SpeechBubble,TenPointStar,CurveGraphic,PolygonGraphic,Image,Player,LittleArrows,Progressbar,Scrollbar,Slider"
+
+-- A JavaScript function of the page (pointer x, y) that finds the window
+-- of the tooltip shown below and to the right of the pointer (a small
+-- canvas of em-dc.js's) and answers "<width>x<height> back <rgb> ink <rgb>
+-- contrast <ratio>": its commonest colour inside its border, the colour
+-- that stands out most from it, and their WCAG contrast; "none" when no
+-- tooltip shows
+constant kTooltipContrastJS = "(function (px, py) { var best = null; var list = document.querySelectorAll('.oxt-window'); for (var i = 0; i < list.length; i++) { var el = list[i]; if (getComputedStyle(el).display === 'none') continue; var cv = el.querySelector('canvas'); if (!cv) continue; var r = cv.getBoundingClientRect(); if (r.width < 8 || r.height < 8 || r.height > 120) continue; if (r.top < py - 4 || r.top > py + 60 || r.left < px - 40 || r.left > px + 60) continue; best = cv; } if (!best) return 'none'; var ctx = best.getContext('2d'); var w = best.width, h = best.height; var d = ctx.getImageData(0, 0, w, h).data; function lum(r, g, b) { var c = [r, g, b].map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; } var counts = {}, top = null, m = Math.max(3, Math.round(w / best.getBoundingClientRect().width * 3)); for (var y = m; y < h - m; y++) for (var x = m; x < w - m; x++) { var k = (y * w + x) * 4, key = d[k] + ',' + d[k + 1] + ',' + d[k + 2]; counts[key] = (counts[key] || 0) + 1; if (top === null || counts[key] > counts[top]) top = key; } var bg = top.split(',').map(Number), lb = lum(bg[0], bg[1], bg[2]), most = 1, ink = top; for (var y = m; y < h - m; y++) for (var x = m; x < w - m; x++) { var k = (y * w + x) * 4, l = lum(d[k], d[k + 1], d[k + 2]); var c = (Math.max(l, lb) + 0.05) / (Math.min(l, lb) + 0.05); if (c > most) { most = c; ink = d[k] + ',' + d[k + 1] + ',' + d[k + 2]; } } return Math.round(best.getBoundingClientRect().width) + 'x' + Math.round(best.getBoundingClientRect().height) + ' back ' + top + ' ink ' + ink + ' contrast ' + most.toFixed(2); })"
 
 local sStarted, sAct, sWatchdog, sFlag
 
@@ -463,15 +474,126 @@ on tour_project_browser
       throw "the Project Browser did not open"
    end if
    tourShot "06-project-browser"
+   -- its Refresh button: its own tooltip, and its icon, not a corner of
+   -- the splash's art (littlenemo, openxtalk.org; 0.2.7-rc.6.19)
+   local tProblem
+   put tourRefreshProblem(tStack) into tProblem
+   -- the names of a selected row are white on its blue hilite, here and
+   -- in the App Browser (littlenemo, openxtalk.org p=26169; 0.2.7-rc.6.19):
+   -- they were the accentColor, a blue, in the Project Browser, and black
+   -- in the App Browser's controls list (its cSuspended, saved true)
+   if tProblem is empty and revIDEHilitedTextColor(revIDEColor("dataView_hiliteColor")) is not "255,255,255" then
+      put "a selected Project Browser row's names are" && revIDEHilitedTextColor(revIDEColor("dataView_hiliteColor")) && \
+            "on its hilite, not white" into tProblem
+   end if
+   -- and black on the grey of a list that does not have the focus, where
+   -- white would hardly show (0.2.7-rc.6.19)
+   if tProblem is empty and revIDEHilitedTextColor("212,212,212") is not "0,0,0" then
+      put "a selected Project Browser row's names are" && revIDEHilitedTextColor("212,212,212") && \
+            "on the grey of a list without the focus, not black" into tProblem
+   end if
    close stack tStack
+   if tProblem is not empty then throw tProblem
+   if "App Browser" is among the keys of revIDEPlugins() then
+      revIDEOpenPlugin "App Browser"
+      tourWait 1000
+      if there is a stack "App Browser" then
+         if the cSuspended of stack "App Browser" is true then
+            put "the App Browser paints its selected rows' names black (its cSuspended is true)" into tProblem
+         end if
+         try
+            dispatch "revAppBrowserFinalise" to stack "App Browser"
+         end try
+         close stack "App Browser"
+      else
+         put "the App Browser did not open" into tProblem
+      end if
+      if tProblem is not empty then throw tProblem
+   end if
+   tourExtensionStacksNotUsers
 end tour_project_browser
+
+-- The Project Browser's Refresh button (pStack is its stack): empty when
+-- its tooltip names the Project Browser and its icon is revIcons' image,
+-- which no image of another stack in memory shadows; else the problem.
+-- A button's icon is found by its ID in every stack in memory, and the
+-- splash's art, which until 0.2.7-rc.6.19 took the ID of revIcons'
+-- "dark-refresh", showed in its place while the splash was in memory, as
+-- the web IDE keeps it (littlenemo, openxtalk.org)
+function tourRefreshProblem pStack
+   local tButton, tIcon, tMain, tSub, tHits, tWant
+   put the long id of button "Refresh" of card "list" of stack pStack into tButton
+   -- (the tooltip is a property patch of the binary stack, which the
+   -- pull requests' screenshot jobs take from the last release: its old
+   -- tooltip is recorded, not failed; tools/oxt/ide-stack-patch.sh --check
+   -- holds the stack in the repository to the patch)
+   if the toolTip of tButton is "Refresh the Application Browser" then
+      tourRecord "INFO the Project Browser's Refresh tooltip is the release's stack's:" && the toolTip of tButton
+   else if the toolTip of tButton is not "Refresh the Project Browser" then
+      return "the Project Browser's Refresh button's tooltip is" && quote & the toolTip of tButton & quote
+   end if
+   put the icon of tButton into tIcon
+   if there is not a stack "revIcons" or there is not an image id tIcon of stack "revIcons" then
+      return "the Project Browser's Refresh icon" && tIcon && "is not an image of revIcons"
+   end if
+   -- white arrows in the dark appearance, dark ones in the light: on the
+   -- Mac the stack's own choice, by the window's colour, left the black
+   -- arrows in the dark (bwmilby, forum, 2026-11-09); Linux keeps that
+   -- choice, which was right there
+   if the platform is not "Linux" then
+      if revIDEAppearanceIsDark() then put "white-refresh" into tWant
+      else put "dark-refresh" into tWant
+      tourRecord "INFO the Project Browser's Refresh icon is" && the short name of image id tIcon of stack "revIcons" && "(dark:" && revIDEAppearanceIsDark() & ")"
+      if the short name of image id tIcon of stack "revIcons" is not tWant then
+         return "the Project Browser's Refresh icon is" && the short name of image id tIcon of stack "revIcons" & ", not" && tWant
+      end if
+   end if
+   repeat for each line tMain in the mainStacks
+      repeat for each line tSub in (tMain & return & the substacks of stack tMain)
+         if tSub is empty or tSub is "revIcons" then next repeat
+         try
+            if there is an image id tIcon of stack tSub then
+               put tSub & ": " & the short name of image id tIcon of stack tSub & "; " after tHits
+            end if
+         catch tError
+         end try
+      end repeat
+   end repeat
+   if tHits is not empty then
+      return "the Project Browser's Refresh icon" && tIcon && "is shadowed by an image of the same ID in" && tHits
+   end if
+   return empty
+end tourRefreshProblem
+
+-- The stacks the IDE loads from its own Extensions folder are its own, not
+-- the user's: until 0.2.7-rc.6.18 the web IDE's Project Browser and App
+-- Browser listed the layout guides' library,
+-- community.ferruslogic.plugin.devguides (757 lines), first among the
+-- user's stacks (LittleNemo, openxtalk.org p=26169). The desktop IDEs' App
+-- Browsers did not list it. Both browsers take the user's stacks from
+-- revFilterStacksList
+command tourExtensionStacksNotUsers
+   local tUsers, tExtensions, tStackName, tTheirs
+   put revFilterStacksList(the mainStacks) into tUsers
+   tourRecord "INFO the user's stacks:" && tourJoin(tUsers)
+   put revIDESpecialFolderPath("extensions") & slash into tExtensions
+   repeat for each line tStackName in tUsers
+      if the effective filename of stack tStackName begins with tExtensions then
+         put tStackName & return after tTheirs
+      end if
+   end repeat
+   if tTheirs is not empty then
+      throw "the IDE lists its own extensions' stacks among the user's stacks:" && \
+            tourJoin(line 1 to -1 of tTheirs) && "(in" && tExtensions & ")"
+   end if
+end tourExtensionStacksNotUsers
 
 -- A click on the sample's button in browse mode runs its script, which
 -- opens an answer dialog: the click comes from the page, as a user's does
 on tour_browse
    local tLoc
    go stack kSample
-   choose browse tool
+   set the tool to "browse tool"
    tourWait 500
    put the globalLoc of the loc of button "Push" of card 1 of stack kSample into tLoc
    tourRecord "INFO the button's loc on the page" && tLoc
@@ -675,6 +797,285 @@ on tour_touch_menu
    end if
 end tour_touch_menu
 
+-- File > Import Stack's HyperCard options are ticked when they are on
+-- (revMenubar's toggleMenuItem: "!c" for on, "!n" for off), and a tick
+-- must be drawn. The marks are in a submenu of a menu whose top level has
+-- none, and until 0.2.7 the engine made a menu's items check items only
+-- when a line of its top level began with a mark, so the submenu's
+-- ticks were parsed and never drawn: the options looked off whatever
+-- they were set to (seth, the web IDE in Brave on Windows 11). The
+-- submenu is read twice, its four options on and then off: the strip of
+-- it where the ticks go must differ between the two, and the
+-- preferences are put back as they were.
+constant kImportStackPrefs = "cHyperCardFixScripts,cHyperCardMessageOrder,cHyperCardClassicLook,cHyperCardImportSummary"
+
+on tour_import_stack_marks
+   local tPref, tSaved, tOn, tOff, tDiffer, tError
+   repeat for each item tPref in kImportStackPrefs
+      put revIDEGetPreference(tPref) into tSaved[tPref]
+   end repeat
+   try
+      repeat for each item tPref in kImportStackPrefs
+         revIDESetPreference tPref, true
+      end repeat
+      put tourImportStackStrip("15-import-stack-marks") into tOn
+      repeat for each item tPref in kImportStackPrefs
+         revIDESetPreference tPref, false
+      end repeat
+      put tourImportStackStrip("15b-import-stack-no-marks") into tOff
+   catch tError
+   end try
+   repeat for each item tPref in kImportStackPrefs
+      revIDESetPreference tPref, tSaved[tPref]
+   end repeat
+   if tError is not empty then
+      throw tError
+   end if
+   -- a strip of one colour is no menu read (a canvas the page could not
+   -- read gives zeros), and would differ in nothing whatever was drawn
+   if tourStripSpread(tOff) < 64 then
+      throw "the submenu's tick strip was not read: its lumas spread by" && tourStripSpread(tOff)
+   end if
+   put tourStripsDiffer(tOn, tOff) into tDiffer
+   tourRecord "INFO import-stack-marks: the tick strip differs in" && tDiffer && "pixels, options on and off;" && \
+         "its lumas spread by" && tourStripSpread(tOff)
+   -- a tick is a filled polygon of about 30 pixels, and there are four
+   if tDiffer < 40 then
+      throw "File > Import Stack's ticks are not drawn: the submenu's tick strip differs in" && \
+            tDiffer && "pixels between its options on and off"
+   end if
+   -- An item that opens a deeper submenu, in a submenu with a mark, keeps
+   -- its arrow: drawn at the submenu's right edge, where no word reaches
+   local tInk
+   put tourStripInk(tourNestedSubmenuStrip("Plain" & return & "Sub" & return & tab & "!cTicked" & return & \
+         tab & "Deeper" & return & tab & tab & "Child", "15c-nested-submenu")) into tInk
+   tourRecord "INFO import-stack-marks: the nested submenu's arrow has" && tInk && "pixels"
+   -- the arrow is a small filled triangle
+   if tInk < 6 then
+      throw "a submenu item that opens a deeper submenu has no arrow when its submenu has a mark:" && \
+            tInk && "pixels stand out at the submenu's right edge"
+   end if
+end tour_import_stack_marks
+
+-- File > Import Stack's submenu, opened with the pointer, as a screenshot
+-- pShot; the result is the luma of each pixel of its left 24 points
+-- (where its ticks go), "<width>,<height>,<strip width>:" and then the
+-- lumas, a space between each
+function tourImportStackStrip pShot
+   local tMenu, tFirst, tRects, tStrip, tLine
+   put tourMenuButton("File") into tMenu
+   if tMenu is empty then
+      throw "no File menu in revMenuBar"
+   end if
+   -- The menus made again from the preferences just set, as a pick in a
+   -- menu has them made (revMenubarFileMenuPick): a click's mouseDown
+   -- makes them too, but not while a making of them is pending, and then
+   -- the menu that opens is the one made before (on this pull request's
+   -- engine the second read showed the first one's ticks)
+   tourWait 500
+   send "revMenubarBuildMenus" to stack "revMenubar"
+   tourWait 300
+   repeat for each line tLine in the text of tMenu
+      if tLine contains "|hypercardlook" then
+         tourRecord "INFO import-stack-marks:" && pShot & ": the File menu's line" && tourJoin(tLine)
+      end if
+   end repeat
+   tourAct "click" && item 1 of the globalLoc of the loc of tMenu && item 2 of the globalLoc of the loc of tMenu
+   tourWait 1500
+   put tourMenuRects() into tFirst
+   if tFirst is empty then
+      throw "the File menu did not open"
+   end if
+   -- Import Stack is the menu's fifth item (tour_touch_menu)
+   tourAct "move" && (item 1 of line 1 of tFirst + 40) && (item 2 of line 1 of tFirst + 100)
+   tourAct "move" && (item 1 of line 1 of tFirst + 50) && (item 2 of line 1 of tFirst + 101)
+   tourWait 1500
+   put tourMenuRects() into tRects
+   tourRecord "INFO import-stack-marks: menus" && tourJoin(tRects)
+   tourShot pShot
+   put tourSubmenuStrip("left") into tStrip
+   tourRecord "INFO import-stack-marks:" && pShot & ": the submenu's first ink in each band of rows" && tourSubmenuInkRows()
+   tourAct "key Escape"
+   tourWait 500
+   tourAct "key Escape"
+   tourWait 800
+   if the number of lines of tRects < 2 or tStrip is empty then
+      throw "File > Import Stack's submenu did not open:" && tourJoin(tRects)
+   end if
+   return tStrip
+end tourImportStackStrip
+
+-- The luma of each pixel of a strip pPoints wide (24 when empty) at the
+-- pSide (left or right) of the open submenu, the menu furthest right of those open:
+-- "<width>,<height>,<strip width>:" and then the lumas, a space between
+-- each; empty when no submenu is open
+function tourSubmenuStrip pSide, pPoints
+   local tFrom
+   if pPoints is empty then
+      put 24 into pPoints
+   end if
+   if pSide is "right" then
+      put "c.width - sw" into tFrom
+   else
+      put "0" into tFrom
+   end if
+   return tourJS("(function () { var w = Array.from(document.querySelectorAll('.oxt-window'))" & \
+         ".filter(function(e) { var r = e.getBoundingClientRect(); return e.oxtLayer === 3 && r.width > 0 && r.height > 0; })" & \
+         ".sort(function(a, b) { return a.getBoundingClientRect().left - b.getBoundingClientRect().left; });" & \
+         " if (w.length < 2) { return ''; }" & \
+         " var c = w[w.length - 1].querySelector('canvas'); if (!c) { return ''; }" & \
+         " var sw = Math.min(c.width, Math.round(c.width * " & pPoints & " / c.getBoundingClientRect().width));" & \
+         " var d = c.getContext('2d').getImageData(" & tFrom & ", 0, sw, c.height).data, o = [];" & \
+         " for (var i = 0; i < d.length; i += 4) { o.push(Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2])); }" & \
+         " return c.width + ',' + c.height + ',' + sw + ':' + o.join(' '); })()")
+end tourSubmenuStrip
+
+-- For the INFO line of each read of File > Import Stack's submenu, so that
+-- a failure shows what was drawn: for each band of rows with something
+-- drawn, "<first row>-<last row>@<x of the leftmost pixel>/<x of the
+-- leftmost pixel more than 30 points in>" (pixels of the canvas, its
+-- border left out), the background read at the canvas's right edge
+function tourSubmenuInkRows
+   return tourJS("(function () { var w = Array.from(document.querySelectorAll('.oxt-window'))" & \
+         ".filter(function(e) { var r = e.getBoundingClientRect(); return e.oxtLayer === 3 && r.width > 0 && r.height > 0; })" & \
+         ".sort(function(a, b) { return a.getBoundingClientRect().left - b.getBoundingClientRect().left; });" & \
+         " if (w.length < 2) { return 'no submenu'; }" & \
+         " var c = w[w.length - 1].querySelector('canvas'); if (!c) { return 'no canvas'; }" & \
+         " var s = c.width / c.getBoundingClientRect().width, d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;" & \
+         " function l(x, y) { var k = (y * c.width + x) * 4; return 0.299 * d[k] + 0.587 * d[k + 1] + 0.114 * d[k + 2]; }" & \
+         " var out = [], start = -1, first = -1, inner = -1;" & \
+         " for (var y = 3; y < c.height - 3; y++) { var b = l(c.width - 4, y), fx = -1, ix = -1;" & \
+         "  for (var x = 3; x < c.width - 4; x++) { if (Math.abs(l(x, y) - b) > 64) { if (fx < 0) { fx = x; } if (ix < 0 && x > 30 * s) { ix = x; } } }" & \
+         "  if (fx >= 0) { if (start < 0) { start = y; first = fx; inner = ix; } else { first = Math.min(first, fx); } }" & \
+         "  else if (start >= 0) { out.push(start + '-' + (y - 1) + '@' + first + '/' + inner); start = -1; } }" & \
+         " return 'scale ' + s.toFixed(2) + ' ' + out.join(' '); })()")
+end tourSubmenuInkRows
+
+-- A submenu with a mark that also opens a deeper submenu, in a pulldown
+-- menu of a stack of the tour's, whose top level has no mark: pText is
+-- the menu's text, and the result the right strip of its submenu
+-- (tourSubmenuStrip, 14 points), the menu's second item hovered to open it. The
+-- item that opens the deeper submenu must keep its arrow when its
+-- submenu's items become check items (codex review of #425: made a
+-- check item, it lost the arrow that a menu item draws)
+function tourNestedSubmenuStrip pText, pShot
+   local tStack, tTool, tDefault, tLoc, tFirst, tRects, tStrip
+   put "Web Tour Nested Marks" into tStack
+   put the tool into tTool
+   lock messages
+   if there is a stack tStack then delete stack tStack
+   create stack tStack
+   set the rect of stack tStack to "320,160,720,460"
+   put the defaultStack into tDefault
+   set the defaultStack to tStack
+   create button "Marks"
+   set the style of it to "menu"
+   set the menuMode of it to "pulldown"
+   set the rect of it to "20,20,140,42"
+   set the text of it to pText
+   set the defaultStack to tDefault
+   unlock messages
+   go stack tStack
+   set the tool to "browse tool"
+   tourWait 800
+   put the globalLoc of the loc of button "Marks" of card 1 of stack tStack into tLoc
+   tourAct "click" && item 1 of tLoc && item 2 of tLoc
+   tourWait 1500
+   put tourMenuRects() into tFirst
+   if tFirst is not empty then
+      -- the second item, Sub
+      tourAct "move" && (item 1 of line 1 of tFirst + 30) && (item 2 of line 1 of tFirst + 30)
+      tourAct "move" && (item 1 of line 1 of tFirst + 36) && (item 2 of line 1 of tFirst + 31)
+      tourWait 1500
+      put tourMenuRects() into tRects
+      tourRecord "INFO import-stack-marks: nested menus" && tourJoin(tRects)
+      tourShot pShot
+      put tourSubmenuStrip("right", 14) into tStrip
+   end if
+   tourAct "key Escape"
+   tourWait 500
+   tourAct "key Escape"
+   tourWait 800
+   set the tool to tTool
+   lock messages
+   delete stack tStack
+   unlock messages
+   if tStrip is empty then
+      throw "the nested menu's submenu did not open:" && tourJoin(tFirst) && "|" && tourJoin(tRects)
+   end if
+   return tStrip
+end tourNestedSubmenuStrip
+
+-- How many pixels of a strip of tourSubmenuStrip stand out from the menu
+-- (differ in luma by more than a quarter of the way from black to white
+-- from the strip's commonest luma), its outer 3 pixels left out (the
+-- menu's border)
+function tourStripInk pStrip
+   local tSize, tLumas, tWidth, tHeight, tCounts, tLuma, tBack, tMost, tCount, x, y
+   set the itemDelimiter to ":"
+   put item 1 of pStrip into tSize
+   put item 2 of pStrip into tLumas
+   set the itemDelimiter to comma
+   put item 3 of tSize into tWidth
+   put item 2 of tSize into tHeight
+   split tLumas by space
+   put 0 into tMost
+   repeat for each element tLuma in tLumas
+      add 1 to tCounts[tLuma]
+      if tCounts[tLuma] > tMost then
+         put tCounts[tLuma] into tMost
+         put tLuma into tBack
+      end if
+   end repeat
+   put 0 into tCount
+   repeat with y = 3 to tHeight - 4
+      repeat with x = 0 to tWidth - 4
+         if abs(tLumas[y * tWidth + x + 1] - tBack) > 64 then
+            add 1 to tCount
+         end if
+      end repeat
+   end repeat
+   return tCount
+end tourStripInk
+
+-- How far apart the lightest and darkest pixel of a strip of
+-- tourImportStackStrip are in luma (0 to 255): the item's words reach
+-- into it, light on dark or dark on light
+function tourStripSpread pStrip
+   local tLumas, tLuma, tMin, tMax
+   set the itemDelimiter to ":"
+   put item 2 of pStrip into tLumas
+   put 255 into tMin
+   put 0 into tMax
+   repeat for each word tLuma in tLumas
+      put min(tMin, tLuma) into tMin
+      put max(tMax, tLuma) into tMax
+   end repeat
+   return max(0, tMax - tMin)
+end tourStripSpread
+
+-- How many pixels of two strips of tourImportStackStrip differ in luma by
+-- more than a quarter of the way from black to white (0 to 255); strips
+-- of different sizes throw
+function tourStripsDiffer pA, pB
+   local tA, tB, tCount, i
+   set the itemDelimiter to ":"
+   if item 1 of pA is not item 1 of pB then
+      throw "the submenu's size changed between its options on and off:" && item 1 of pA && "and" && item 1 of pB
+   end if
+   put item 2 of pA into tA
+   put item 2 of pB into tB
+   split tA by space
+   split tB by space
+   put 0 into tCount
+   repeat with i = 1 to the number of elements of tA
+      if abs(tA[i] - tB[i]) > 64 then
+         add 1 to tCount
+      end if
+   end repeat
+   return tCount
+end tourStripsDiffer
+
 -- Opens the File menu with a tap; the result is the open menus' rects
 command tourTapFileMenu
    local tMenu
@@ -852,6 +1253,219 @@ on tour_appearance
    tourAct "scheme" && tStart
    tourCheckAppearance tStart, 5000
 end tour_appearance
+
+-- The script typed in the Message Box is coloured with the Script
+-- Editor's scheme for the appearance (revSEColorizeField: the light one
+-- in the light appearance, "dark mode" in the dark one). It kept the
+-- colours of the appearance it was typed in, so after a switch from light
+-- to dark its words were olive, purple, navy and black on the dark field
+-- (seth, the web IDE, 2026-11-08). The Message Box colours it again when
+-- the appearance changes (revMessageBoxBehavior's __RecolorizeMessages).
+-- Here a line is typed in the Single Line message, in the light
+-- appearance, and the browser is switched to dark and back; then the same
+-- with two lines in the Multiple Lines script. In each appearance every
+-- coloured word must stand out from the field's background (a WCAG
+-- contrast of at least 3; the light scheme's words were 1.1 to 2.6 on
+-- the dark field), and back in the light appearance the field must be
+-- coloured exactly as it was before the switch (light mode as it was).
+-- (Each card puts the history's last line in its field as it opens, so
+-- each is checked while it is the card shown.)
+on tour_message_box_colours
+   local tStart, tStack, tField, tCard, tLight, tProblems
+   if tourJS("window.matchMedia('(prefers-color-scheme: dark)').matches") is "true" then
+      put "dark" into tStart
+   else
+      put "light" into tStart
+   end if
+   tourAct "scheme light"
+   tourCheckAppearance "light", 5000
+   put revIDEPaletteToStackName("message box") into tStack
+   revIDEOpenPalette "message box"
+   tourWait 1000
+   if tStack is empty or there is not a stack tStack then
+      throw "the Message Box did not open"
+   end if
+   repeat for each item tCard in "Single Line,Multiple Lines"
+      dispatch "showCard" to stack tStack with tCard
+      tourWait 500
+      if tCard is "Single Line" then
+         put the long id of field "message" of card tCard of stack tStack into tField
+         set the text of tField to "put the loc of button 1 into tLoc -- a comment"
+         dispatch "revSEColorizeField" to stack "revSEUtilities" with tField
+      else
+         put the long id of field "script" of card tCard of stack tStack into tField
+         set the text of tField to "put the loc of button 1 into tLoc" & return & "answer tLoc -- a note"
+         dispatch "scriptFormat" to the owner of tField with "script"
+      end if
+      put the htmlText of tField into tLight
+      put tourColourProblem(tField, tCard & ", light") after tProblems
+      tourAct "scheme dark"
+      tourCheckAppearance "dark", 5000
+      tourWait 1000
+      put tourColourProblem(tField, tCard & ", dark") after tProblems
+      if tCard is "Single Line" then
+         tourShot "15b-message-box-dark"
+      else
+         tourShot "15c-message-box-multiple-lines-dark"
+      end if
+      tourAct "scheme light"
+      tourCheckAppearance "light", 5000
+      tourWait 1000
+      put tourColourProblem(tField, tCard & ", light again") after tProblems
+      if the htmlText of tField is not tLight then
+         put tCard & ", light again: coloured" && tourJoin(the htmlText of tField) && \
+               "instead of" && tourJoin(tLight) & "; " after tProblems
+      end if
+      set the text of tField to empty
+   end repeat
+   dispatch "showCard" to stack tStack with "Single Line"
+   close stack tStack
+   if tStart is not "light" then
+      tourAct "scheme" && tStart
+      tourCheckAppearance tStart, 5000
+   end if
+   if tProblems is not empty then
+      throw char 1 to -3 of tProblems
+   end if
+end tour_message_box_colours
+
+-- What is wrong with the colours of pField's words (followed by "; "),
+-- empty when nothing is: each run of its htmlText with a colour of its
+-- own and more than spaces must have a WCAG contrast of at least 3 with
+-- the field's effective backgroundColor. Records each run's contrast.
+function tourColourProblem pField, pLabel
+   local tHtml, tBack, tRest, tColor, tText, tContrast, tProblems, tSeen, tMin
+   put the effective backgroundColor of pField into tBack
+   if the number of items of tBack is not 3 then
+      return pLabel & ": the field's background is" && tBack & "; "
+   end if
+   put the htmlText of pField into tHtml
+   put 99 into tMin
+   repeat while matchText(tHtml, "(?s)<font color=" & quote & "#([0-9A-Fa-f]{6})" & quote & ">([^<]*)</font>(.*)", tColor, tText, tRest)
+      put tRest into tHtml
+      replace "&nbsp;" with space in tText
+      if word 1 of tText is empty then next repeat
+      put tourContrast(tColor, tBack) into tContrast
+      put tText & "=" & tContrast & " " after tSeen
+      put min(tMin, tContrast) into tMin
+      if tContrast < 3 then
+         put pLabel & ":" && quote & tText & quote && "#" & tColor && "on" && tBack && \
+               "has a contrast of" && tContrast & "; " after tProblems
+      end if
+   end repeat
+   if tSeen is empty then
+      return pLabel & ": no coloured words in" && tourJoin(the htmlText of pField) & "; "
+   end if
+   tourRecord "INFO message box" && pLabel & ": background" && tBack & ", lowest contrast" && tMin & ":" && tSeen
+   return tProblems
+end tourColourProblem
+
+-- The WCAG contrast of a colour written as hex (RRGGBB) and one written
+-- as r,g,b, to two places
+function tourContrast pHex, pRGB
+   local tA, tB, tHigh, tLow
+   put tourLuminance(baseConvert(char 1 to 2 of pHex, 16, 10), \
+         baseConvert(char 3 to 4 of pHex, 16, 10), baseConvert(char 5 to 6 of pHex, 16, 10)) into tA
+   put tourLuminance(item 1 of pRGB, item 2 of pRGB, item 3 of pRGB) into tB
+   put max(tA, tB) into tHigh
+   put min(tA, tB) into tLow
+   return round((tHigh + 0.05) / (tLow + 0.05), 2)
+end tourContrast
+
+function tourLuminance pR, pG, pB
+   local tSum, tPart, tWeight, tChannel
+   put 0 into tSum
+   repeat for each item tPart in "0.2126,0.7152,0.0722"
+      add 1 to tChannel
+      switch tChannel
+         case 1
+            put pR / 255 into tWeight
+            break
+         case 2
+            put pG / 255 into tWeight
+            break
+         default
+            put pB / 255 into tWeight
+      end switch
+      if tWeight <= 0.03928 then
+         put tWeight / 12.92 into tWeight
+      else
+         put ((tWeight + 0.055) / 1.055) ^ 2.4 into tWeight
+      end if
+      add tPart * tWeight to tSum
+   end repeat
+   return tSum
+end tourLuminance
+
+-- A tooltip, as the pointer rests on the sample's button in browse mode,
+-- must be readable in both appearances: in the dark one its background is
+-- dark (em-theme.cpp), and its text was black on it until the engine wrote
+-- it white (bwmilby, openxtalk.org p=26171: the Tools palette's tooltips
+-- and the Project Browser's in Safari's dark mode). The page reads the
+-- tooltip's window (its canvas) and answers the WCAG contrast of its
+-- inkiest pixel with its background, which must be at least 4.5 (AA); it
+-- was 1.29 on rc.6.17's engine. The light appearance keeps black on
+-- RGB(240,240,240).
+on tour_tooltip
+   local tStart, tButton, tScheme, tProblems
+   if tourJS("window.matchMedia('(prefers-color-scheme: dark)').matches") is "true" then
+      put "dark" into tStart
+   else
+      put "light" into tStart
+   end if
+   put tourSample("Push") into tButton
+   set the toolTip of tButton to "A tooltip of the tour's sample button"
+   go stack kSample
+   set the tool to "browse tool"
+   -- (the engine shows a tooltip only in the window that has the focus,
+   -- or a palette: a click on the card, below its controls)
+   tourAct "click" && the left of stack kSample + 100 && the top of stack kSample + 325
+   tourWait 300
+   repeat for each item tScheme in "light,dark"
+      tourAct "scheme" && tScheme
+      tourCheckAppearance tScheme, 5000
+      put tourTooltipProblem(tButton, tScheme) after tProblems
+   end repeat
+   choose pointer tool
+   set the toolTip of tButton to empty
+   if tStart is not "dark" then
+      tourAct "scheme" && tStart
+      tourCheckAppearance tStart, 5000
+   end if
+   if tProblems is not empty then
+      throw char 1 to -3 of tProblems
+   end if
+end tour_tooltip
+
+-- Rests the pointer on pControl until its tooltip shows (at most 5
+-- seconds), takes a screenshot, and answers what is wrong with the
+-- tooltip's contrast, followed by "; " (empty when nothing is)
+function tourTooltipProblem pControl, pScheme
+   local tLoc, tDeadline, tInfo
+   put the globalLoc of the loc of pControl into tLoc
+   -- (off the button and back, so that the engine opens a new tooltip)
+   tourAct "move" && item 1 of tLoc && item 2 of tLoc + 200
+   tourWait 300
+   tourAct "move" && item 1 of tLoc && item 2 of tLoc
+   put the milliseconds + 5000 into tDeadline
+   repeat
+      put tourJS(kTooltipContrastJS & "(" & item 1 of tLoc & "," & item 2 of tLoc & ")") into tInfo
+      if word 1 of tInfo is not "none" or the milliseconds > tDeadline then
+         exit repeat
+      end if
+      wait 100 milliseconds with messages
+   end repeat
+   tourShot "16-tooltip-" & pScheme
+   tourAct "move" && item 1 of tLoc && item 2 of tLoc + 200
+   tourRecord "INFO tooltip" && pScheme & ":" && tInfo
+   if word 1 of tInfo is "none" then
+      return "no tooltip showed in the" && pScheme && "appearance; "
+   end if
+   if word -1 of tInfo is not a number or word -1 of tInfo < 4.5 then
+      return "the tooltip's text does not stand out in the" && pScheme && "appearance (" & tInfo & ", want a contrast of 4.5 or more); "
+   end if
+   return empty
+end tourTooltipProblem
 
 -- A write to the browser's storage that fails (a full disk, a refused or
 -- deleted storage) shows the page's not-saved bar with the browser's

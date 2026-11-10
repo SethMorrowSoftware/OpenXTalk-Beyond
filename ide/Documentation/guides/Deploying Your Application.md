@@ -273,6 +273,7 @@ Figure 8 – Standalone Settings – Android
 | **Hardware Accelerated**        | Enable hardware acceleration of the application                                                                                                                                                                                       |
 | **Initial Orientation**         | The orientation on the device when the application initially launches                                                                                                                                                                 |
 | **Status Bar**                  | Set the visibility of the status bar                                                                                                                                                                                                  |
+| **Edge to edge**                | Draw the application under the see-through status and navigation bars, on Android 11 and newer (see below)                                                                                                                            |
 | **In App Purchasing**           | Specify the store used for the in-app purchasing API                                                                                                                                                                                  |
 | **Minimum Android Version**     | Choose the minimum version of Android the application should run on                                                                                                                                                                   |
 | **Camera**                      | Choose whether a camera is required, prohibited or not applicable in order for the application to function                                                                                                                            |
@@ -288,7 +289,7 @@ Figure 8 – Standalone Settings – Android
 | **Multitouch**                  | Choose whether multitouch is required, prohibited or not applicable in order for the application to function                                                                                                                          |
 | **Multitouch Distinct**         | Choose whether multitouch distinct is required, prohibited or not applicable in order for the application to function                                                                                                                 |
 | **Multitouch Jazzhand**         | Choose whether multitouch jazzhand is required, prohibited or not applicable in order for the application to function                                                                                                                 |
-| **Write External Storage**      | Request permission to write to external storage                                                                                                                                                                                       |
+| **Write External Storage**      | Request permission to write to external storage: the external folders and Export to album ask for it; Android 13 and newer no longer grant it, and there it counts as granted                                                         |
 | **Internet**                    | Request permission to for internet access                                                                                                                                                                                             |
 | **Camera**                      | Request permission to access the camera                                                                                                                                                                                               |
 | **Read Contacts**               | Request permission to read the user's contact data                                                                                                                                                                                    |
@@ -299,6 +300,87 @@ Figure 8 – Standalone Settings – Android
 | **Vibration**                   | Request permission to vibrate the device                                                                                                                                                                                              |
 | **Idle Timer**                  | Request permission for the idle timer                                                                                                                                                                                                 |
 | **Ad Support**                  | Request permission for ad support                                                                                                                                                                                                     |
+| **Post Notifications**          | Request permission to post notifications: Android 13 and newer show an app's notifications only once the user allows it, and ask the first time the app schedules a local notification                                                |
+
+The API level an Android application targets decides how Android treats
+it, and Google Play takes new applications and updates only when they
+target API 36. The standalone builder targets API 36 when the Android
+runtime it builds with is ready for it, and API 33, as before, when it
+is not (the runtime's Java layer built from OXT-Beyond's source is
+ready; the one that earlier runtimes carried is not). At API 36 the stack still gets
+`backKey` for the back button and gesture, it is kept out of the status
+and navigation bars, which Android 15 and newer would otherwise draw over
+it, and Android 16 keeps its orientation on tablets and other large
+screens. To build for a target of your choice, from 33 to 36, set it on
+the stack before you build, for example for an application that is not
+for Google Play:
+
+    set the cRevStandaloneSettings["android,target sdk"] of stack "My App" to 33
+
+Empty leaves it to the runtime; any other value stops the build with an
+error.
+
+An application can also be drawn edge to edge, as current Android
+applications are: on Android 11 and newer, the stack fills the whole
+screen, under the status and navigation bars, which are see-through, and
+into the display's cutout, whatever API it targets. Tick **Edge to edge**
+at the end of the Android card's Status Bar row (it can be ticked once an
+architecture is), or set this on the stack before you build, which is
+what the box does:
+
+    set the cRevStandaloneSettings["android,edge to edge"] of stack "My App" to true
+
+`the screenRect` is then the whole of the application's window (the
+whole screen, unless it shares the screen with another application), and
+`the effective working screenRect` the part of it that the bars, the
+cutout and the keyboard leave uncovered, both where they are on the
+screen, as the stack's own rect is: keep the controls that must be seen
+and tapped inside it. The bars' icons are dark in the light appearance and light in the
+dark one. The keyboard still makes the stack smaller, unless the stack
+pans for it, as before. It takes runtimes whose Android Java layer can
+draw a stack so, as those made after 0.2.7-rc.6.19 can; with earlier
+ones the build stops and says so. A stack without the setting is laid
+out as before.
+
+OXT-Beyond's own Android engine, built from its source with a current
+NDK, is a preview beside the 9.6.3 engine that the runtimes have always
+carried, which stays the default. To build with it, tick **OXT-Beyond engine (preview)** on the
+Android card, under the device capabilities (it can be ticked once an
+architecture is), or set this on the stack before you build, which is
+what the box does:
+
+    set the cRevStandaloneSettings["android,engine"] of stack "My App" to "beyond"
+
+The builder then takes the engine, the externals and the Java layer from
+the runtimes' `Runtime/Android/Beyond`, which they carry from OXT-Beyond
+0.2.7-rc.6.19 on; with runtimes that do not, the build stops and says
+so. Unticked, the setting is empty and the stack is built with the
+9.6.3 engine, as a stack that never had the box is.
+
+Google Play takes a new application as an Android App Bundle (`.aab`),
+from which it makes the packages each device installs. To have the
+standalone builder make one beside the `.apk`, with the same name, tick
+**App Bundle** at the end of the Android card's row of architectures
+(it can be ticked once an architecture is), or set this on the stack
+before you build, which is what the box does:
+
+    set the cRevStandaloneSettings["android,app bundle"] of stack "My App" to true
+
+The App Bundle holds what the package holds and is signed with the key
+that signs the package: Google Play takes it only signed with your upload
+key (**Sign with my key**), so the builder warns when it is signed with
+the debug key or not at all. The native libraries stay compressed and
+the files you add stay stored, as in the package, so an application
+installed from Google Play loads its externals and reads its files as
+before. The builder needs aapt2, which the SDK's build-tools have, and
+Google's bundletool, which it downloads the first time (version 1.18.3,
+about 32 MB, checked by its SHA-256, and tried up to three times, the
+second time with the JDK) and keeps in OXT-Beyond's cache folder. Without an internet connection, download that file yourself and
+put it where the error says, or name your copy:
+
+    set the cMobileSupport["android.bundletool"] of stack "revPreferences" to "/path/to/bundletool-all-1.18.3.jar"
+
+**Test** builds only a package, as before.
 
 Related lessons:
 
@@ -316,6 +398,7 @@ Figure 9 – Standalone Settings – Web (HTML5)
 | **Build for HTML5**             | Build a standalone for HTML5                                                                                                                                                                                                                          |
 | **Title**                       | The page's title, which the browser shows in its tab, its history and its bookmarks. Empty: the stack's label or, without one, its name                                                                                                               |
 | **Icon**                        | An image that the browser shows as the page's icon, in its tab and its bookmarks: a PNG, ICO, SVG, GIF, JPEG or WebP file, which the standalone gets a copy of. **Use None** removes it                                                               |
+| **Splash**                      | An image shown in the middle of the browser's window, on the page's **Background**, with what is loading under it, while the engine and the stacks download and the engine starts: a PNG, SVG, GIF, JPEG or WebP file, which the standalone gets a copy of. It shows at its own size, smaller on a window too small for it. Empty, or **Use None**: no splash, and the page says "Loading..." as before |
 | **Background**                  | The colour of the page around the main stack: click the swatch or **Choose...** to change it. **Use White** puts back the page's own white                                                                                                            |
 | **Position**                    | Where the main stack is in the page: **Centered at the top** (the page's own place), **Centered in the window** of the browser, or **At the top left**                                                                                                |
 | **Appearance**                  | **Light**: the stacks keep the light colours whatever the browser's colour scheme, as before. **Follow the browser**: the `systemAppearance` is the browser's scheme, controls without colours of their own are drawn dark in a dark scheme, the card gets `systemAppearanceChanged` when the scheme changes, and so does a page without its own background |
@@ -348,7 +431,8 @@ OXT-Beyond's own tests run the standalones in Chromium.
 
 ##### Contents of the HTML5 standalone
 
-The HTML5 standalone is a folder of four files (five with an icon), which
+The HTML5 standalone is a folder of four files (one more with an icon,
+and one more with a splash image), which
 a web site serves together:
 
 * `<name>.html`, the page, named after the standalone (the **General**
@@ -357,6 +441,9 @@ one, the stack's label or name) and the pane's other settings. It says
 "Loading..." until the engine starts, then shows the main stack.
 * `icon.<extension>`, the page's icon, a copy of the image that the
 **Icon** setting names.
+* `splash.<extension>`, the splash image, a copy of the image that the
+**Splash** setting names, which the page shows in the middle of the
+window, over everything, until the engine starts.
 * `standalone-community-<version>.js` and
 `standalone-community-<version>.wasm`, the engine. They are the same for
 every standalone made with the same version of OXT-Beyond.
@@ -419,11 +506,15 @@ user's disk:
   * `specialFolderPath("resources")` is `/boot/standalone`, where the files
 of the **Copy Files** pane are, and is the `defaultFolder` when the
 standalone starts.
-  * `specialFolderPath("home")` is `/livecode`, with the `documents`,
+  * `specialFolderPath("home")` is `/openxtalk`, with the `documents`,
 `desktop`, `preferences` and `support` folders in it. The browser keeps
 this folder for the web site, so what a stack writes there is still there
 on the user's next visit, in the same browser. (A page can turn this off;
-see **The Module object** below.)
+see **The Module object** below.) Until 0.2.7-rc.6.2 the home folder was
+`/livecode`. That name is still there, as a link to `/openxtalk`, so a
+script or a saved path that names `/livecode` or `~livecode` finds the
+same files, and what the browser kept for `/livecode` is copied to
+`/openxtalk` on the first visit.
   * `specialFolderPath("temporary")` is `/tmp`. It, and every folder but
 the home folder, starts afresh on each visit.
   * `answer file`, `answer files` and `answer folder` show the browser's

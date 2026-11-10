@@ -12,7 +12,9 @@ on preOpenCard
       put the viewProp["vscroll"] of group "extensionList" of me into tScroll
    end if
    
-   put revSBAvailableInclusions() into sExtensionData
+   -- OXT-Beyond: in the order of their titles, the same every run (the
+   -- list followed the order the extensions were loaded in)
+   put revSBInclusionsByTitle(revSBAvailableInclusions()) into sExtensionData
    setUpExtensionList
    
    send "renderView" to group "extensionList" of me
@@ -51,7 +53,13 @@ on setUpExtensionList
    put the long id of group "extensionRow" of card "inclusions" of this stack into theStylesA["extension"]
    
    set the viewProp["row style templates"] of tGroupLongID to theStylesA
-   set the viewProp["hilite color"] of tGroupLongID to ideColorGet("pb_line_selected")
+   -- OXT-Beyond: the ticked rows are drawn in the hilite colour, under the
+   -- row's name and icon in revIDEColor("text_1"), which is white when the
+   -- systemAppearance is dark. The edition's light selection colour
+   -- (240,200,180 in the community edition) left those two unreadable in
+   -- the dark appearance; there it is darkened (inclusionsHiliteColor)
+   set the viewProp["hilite color"] of tGroupLongID to \
+         inclusionsHiliteColor(ideColorGet("pb_line_selected"), the systemAppearance is "dark")
    set the viewProp["background color"] of tGroupLongID to empty
    
    --set the viewProp["row color"] of tGroupLongID to revIDEColor("dataView_rowColor")
@@ -73,6 +81,23 @@ on setUpExtensionList
    
    set the viewProp["scroll selections into view"] of tGroupLongID to false
 end setUpExtensionList
+
+-- The colour the ticked rows are drawn in: pColor, the edition's selection
+-- colour, as it is in the light appearance; in the dark one (pDark true)
+-- each of its channels at three tenths, so it keeps its hue, stays apart
+-- from the dark rows (126 and 97) and leaves the white name and icon on it
+-- readable. A colour that is not three numbers is returned as it is
+function inclusionsHiliteColor pColor, pDark
+   local tDark, tChannel
+   if pDark is not true then return pColor
+   if the number of items of pColor is not 3 then return pColor
+   repeat for each item tChannel in pColor
+      if tChannel is not a number then return pColor
+      put round(tChannel * 3 / 10) & comma after tDark
+   end repeat
+   delete the last char of tDark
+   return tDark
+end inclusionsHiliteColor
 
 command DataForRow pRow, @pDataA, @pTemplateStyle
    put sExtensionData[pRow] into pDataA

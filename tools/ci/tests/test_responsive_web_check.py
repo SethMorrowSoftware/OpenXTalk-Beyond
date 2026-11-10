@@ -99,7 +99,7 @@ class Offered(unittest.TestCase):
     def test_in_homes_gallery_with_an_icon(self):
         learn = read('ide', 'Toolset', 'palettes', 'learn', 'revlearn.livecodescript')
         kit = read('ide', 'Toolset', 'palettes', 'learn', 'revlearnkit.livecodescript')
-        self.assertRegex(learn, r'Phone Starter,Responsive Starter"')
+        self.assertRegex(learn, r'Phone Starter,Responsive Starter[,"]')
         case = re.search(r'case "Responsive Starter"\n(.*?)\n      case|case "Responsive Starter"\n(.*?)end switch',
                          learn, re.S)
         self.assertIsNotNone(case)
@@ -180,6 +180,23 @@ class Starter(unittest.TestCase):
         for name in ('responsive-starter.livecodescript', 'responsive-starter-stack.livecodescript'):
             self.assertLessEqual(measure.longest_statement(read('tools', 'web-player', name)),
                                  test_mobile_web_check.FitsAnIPhonesStack.LONGEST, name)
+
+
+class SafeAreaAfterATurn(unittest.TestCase):
+    """Safari on an iPhone can move the notch's inset to the side after the
+    last event of a turn; the browser side watches a box sized by the
+    insets, so the change reaches the stack as a viewport report"""
+
+    def test_the_insets_are_watched_while_started(self):
+        library = read('extensions', 'script-libraries', 'mobileweb', 'mobileweb.livecodescript')
+        watch = library[library.index('function watchInsets(on)'):library.index('function viewport()')]
+        self.assertIn('new ResizeObserver(function() { viewSoon(); })', watch)
+        for side in ('left', 'right', 'top', 'bottom'):
+            self.assertIn('env(safe-area-inset-%s)' % side, watch)
+        start = library[library.index("  start: function(gestures)"):library.index("  stop: function()")]
+        stop = library[library.index("  stop: function()"):library.index("  viewport: viewport,")]
+        self.assertIn('watchInsets(true);', start)
+        self.assertIn('watchInsets(false);', stop)
 
 
 class Guide(unittest.TestCase):

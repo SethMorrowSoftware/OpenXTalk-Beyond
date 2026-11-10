@@ -33,9 +33,9 @@ a page that lists them all and a search of every word on every page.
 
 A lesson is a fragment of HTML in lessons/src, named NN-<slug>.html (NN
 puts them in order), that begins with a comment of its own with a line for
-each of title, level (beginner, intermediate, advanced or expert, in that
-order through the files), minutes, summary and words (the xTalk words it
-teaches, comma-separated):
+each of title, level (beginner, intermediate, advanced, expert or
+extensions, in that order through the files), minutes, summary and words
+(the xTalk words it teaches, comma-separated):
 
   <!--
   title: Variables
@@ -110,6 +110,9 @@ LEVELS = (
      'Errors and debugging, patterns and Unicode, files, timers, behaviors, libraries and algorithms.'),
     ('expert', 'Expert', 'Beyond',
      'Code that runs code, binary data, JSON, the internet and databases, speed, and extensions of your own.'),
+    ('extensions', 'Extensions', 'Built in',
+     'The libraries, widgets and xTalk Suite that come with OXT-Beyond: cryptography, peer-to-peer networking, '
+     'physics, QR codes, charts and more.'),
 )
 LEVEL_KEYS = [lv[0] for lv in LEVELS]
 HEADER_KEYS = ('title', 'level', 'minutes', 'summary', 'words')
@@ -120,6 +123,18 @@ MODES = ('output', 'runs', 'error', 'compile', 'builder')
 # The externals the IDE loads as it starts (Externals/Externals.txt), which
 # an example may need as "external:<name>"
 EXTERNALS = {'revdb', 'revxml', 'revzip'}
+# The xTalk Suite's extensions written in xTalk (script libraries, such as
+# coinxt and nostrxt), whose ids have no dot: the package puts each in a
+# folder of that name (tools/oxt/xtalk-extensions.json, "kind": "lcs")
+SUITE = os.path.join(HERE, '..', 'oxt', 'xtalk-extensions.json')
+
+
+def suite_libraries():
+    with open(SUITE, encoding='utf-8') as f:
+        members = json.load(f)['members']
+    return {e['id'] for m in members for e in m['extensions'] if e['kind'] == 'lcs'}
+
+
 # The ids lesson.html gives its own elements, which a lesson cannot use
 RESERVED = {'lesson', 'words', 'search-results'}
 # A card the reader builds with the Tools palette, and the xTalk that
@@ -127,7 +142,7 @@ RESERVED = {'lesson', 'words', 'search-results'}
 BUILD = re.compile(r'<div class="build" id="([^"]*)">(.*?)</div>', re.S)
 SETUP = re.compile(r'\s*<pre class="setup">(.*?)</pre>', re.S)
 # What a palette example names: a control or the card, as a script does
-OBJECT = re.compile(r'^(button|field|graphic|image|scrollbar|player|group|card) "[^"]+"$|^this card$|^this stack$')
+OBJECT = re.compile(r'^(button|field|graphic|image|scrollbar|player|widget|group|card) "[^"]+"$|^this card$|^this stack$')
 # A line that does not stand alone in the Message Box's single line
 BLOCK_LINE = re.compile(r'^\s*(on|end|repeat|else|function|command|switch|case|default|try|catch|finally)\b'
                         r'|\bthen\s*$|\\\s*$')
@@ -279,6 +294,7 @@ def examples(text, builders=None, cards=None):
         cards, more = builds(text)
         problems += more
     seen = set()
+    libraries = None
     for n, e in enumerate(found):
         where = e['id'] or 'the example at line %d' % e['at']
         if not re.match(r'^ex-[a-z0-9]+(-[a-z0-9]+)*$', e['id']):
@@ -323,7 +339,11 @@ def examples(text, builders=None, cards=None):
                     problems.append('%s: needs %s, which is not one of the externals the IDE loads (%s)'
                                     % (where, need, ', '.join(sorted(EXTERNALS))))
             elif not re.match(r'^[a-z0-9]+(\.[a-z0-9-]+)+$', need):
-                problems.append('%s: needs %r, which is not an extension\'s id' % (where, need))
+                if libraries is None:
+                    libraries = suite_libraries()
+                if need not in libraries:
+                    problems.append('%s: needs %r, which is not an extension\'s id, or one of the xTalk Suite\'s '
+                                    'script libraries (%s)' % (where, need, ', '.join(sorted(libraries))))
         problems += palette_problems(e, where, cards, found[:n])
     if problems:
         raise BuildError('\n'.join(problems))
@@ -357,6 +377,12 @@ def palette_problems(e, where, cards, earlier=()):
             e['setup'] = cards[e['card']]
     if 'this stack' in e['click']:
         problems.append('%s: the reader clicks a control or the card, not the stack' % where)
+    # A widget's own code answers a real click (a switch turns over, and
+    # sends hiliteChanged), which the check's mouseDown and mouseUp do not
+    # reach: the reader sends the message from the Message Box instead
+    if any(name.startswith('widget ') for name in e['click']):
+        problems.append('%s: the check cannot click a widget as a reader does: send its message from the '
+                        'Message Box (data-in="message", data-after)' % where)
     for name in ([e['script']] if e['script'] else []) + e['click']:
         if not OBJECT.match(name):
             problems.append('%s: %r is not a control of the card (such as button "Go") or this card' % (where, name))
@@ -888,8 +914,12 @@ def hub_page(template, lessons, parts):
             '<h2>%s <small>%s</small></h2><p>%s</p></header>\n'
             '  <div class="lesson-grid">\n    %s\n  </div>\n</section>'
             % (key, key, key, n + 1, name, html.escape(title), html.escape(blurb), '\n    '.join(cards)))
+    buttons = ''.join('\n    <button type="button" class="lv-%s" data-level="%s" aria-pressed="false">%s</button>'
+                      % (key, key, name) for key, name, _, _ in LEVELS)
     page = keep_parts(template, parts, 'lessons/index.html')
     return fill(page, {
+        'LEVEL_COUNT': str(len(LEVELS)),
+        'LEVEL_BUTTONS': buttons,
         'LESSON_COUNT': str(len(lessons)),
         'EXAMPLE_COUNT': str(sum(len(x['examples']) for x in lessons)),
         'LEVEL_LIST': '\n'.join(groups),

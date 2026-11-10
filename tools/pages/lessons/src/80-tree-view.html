@@ -1,0 +1,145 @@
+<!--
+title: The Tree View
+level: extensions
+minutes: 12
+summary: Show an array as a tree people can open and close with the Tree View widget: its arrayData, sorting, which branches are open, the row that is chosen and the message a click sends, and a folder's files as a tree.
+words: Tree View, arrayData, sortType, readOnly, showValues, foldState, hilitedElement, hiliteChanged, actionDoubleClick, pathDelimiter, folders, files, recursion
+-->
+<h2 id="card">A tree of the books</h2>
+<p>An array of arrays (<a href="../arrays/">Arrays</a>) is a <strong>tree</strong>: each key leads either to a value, a <strong>leaf</strong>, or to another array, a <strong>branch</strong>. The <strong>Tree View</strong> widget shows one as a list whose branches open and close with a click on their triangle, as a file browser shows folders. Build a card with one:</p>
+<div class="build" id="build-tree">
+<ol>
+<li>Make a new stack, or go to an empty card. In Edit mode, drag a <strong>Tree View</strong> from the widgets of the Tools palette to the left of the card, make it tall, and name it <code>Shelf</code>.</li>
+<li>Drag a classic <strong>Field</strong> to the right of it and name it <code>Details</code>.</li>
+</ol>
+<pre class="setup">create widget "Shelf" as "com.livecode.widget.treeview"
+set the rect of it to 20,20,280,340
+create field "Details"
+set the rect of it to 300,20,460,120</pre>
+</div>
+<p>A Tree View shows its <code>arrayData</code>. Put this in the stack's script (<kbd>Object &gt; Stack Script</kbd>), so that the tree is filled each time the card opens, and <code>fillShelf</code> can be called from anywhere in the stack:</p>
+<figure class="example" id="ex-wt-fill" data-run="compile" data-card="build-tree" data-script="this stack" data-needs="com.livecode.library.widgetutils com.livecode.widget.treeview">
+<pre class="code"><code>on openCard
+   fillShelf
+end openCard
+
+command fillShelf
+   local tShelf
+   put "Frank Herbert, 1965" into tShelf["Fiction"]["Dune"]
+   put "Jane Austen, 1815" into tShelf["Fiction"]["Emma"]
+   put "Carl Sagan, 1980" into tShelf["Science"]["Cosmos"]
+   put "Richard Dawkins, 1976" into tShelf["Science"]["The Selfish Gene"]
+   put "Walt Whitman, 1855" into tShelf["Poetry"]["Leaves of Grass"]
+   set the arrayData of widget "Shelf" to tShelf
+   set the sortType of widget "Shelf" to "text"
+   set the readOnly of widget "Shelf" to true
+end fillShelf</code></pre>
+</figure>
+<p>Keys are sorted as numbers unless <code>sortType</code> is <code>text</code>, so set it for words. A Tree View lets people add and delete elements unless it is <code>readOnly</code>, which suits an array a program owns. Try it from the Message Box, and open two branches with <code>foldState</code>, an array of the branches with a <code>folded</code> of false for each one open:</p>
+<figure class="example" id="ex-wt-show" data-run="output" data-card="build-tree" data-in="message" data-after="ex-wt-fill" data-needs="com.livecode.library.widgetutils com.livecode.widget.treeview" data-shot="Your card: the tree view at the left with Fiction open, showing Dune and Emma with their authors, Poetry closed, and Science open with Cosmos and The Selfish Gene; the empty field at the right.">
+<pre class="code"><code>fillShelf
+put the arrayData of widget "Shelf" into tShelf
+put tShelf["Science"]["Cosmos"]
+put false into tOpen["Fiction"]["folded"]
+put false into tOpen["Science"]["folded"]
+set the foldState of widget "Shelf" to tOpen</code></pre>
+<pre class="out">Carl Sagan, 1980</pre>
+</figure>
+
+<h2 id="choosing">The row that is chosen</h2>
+<p>A click on a row lights it and sends <code>hiliteChanged</code>. The lit row's <code>hilitedElement</code> is its <strong>path</strong>: the keys from the top of the array down to it, separated by commas, so <code>Science,Cosmos</code> is <code>tShelf["Science"]["Cosmos"]</code>. It ends with a comma, <code>Science,Cosmos,</code>, which <code>item</code> and <code>the number of items</code> pass over. Put this in the Tree View's script:</p>
+<figure class="example" id="ex-wt-script" data-run="compile" data-card="build-tree" data-script='widget "Shelf"' data-needs="com.livecode.library.widgetutils com.livecode.widget.treeview">
+<pre class="code"><code>on hiliteChanged
+   local tPath, tShelf
+   put the hilitedElement of me into tPath
+   put the arrayData of me into tShelf
+   if the number of items of tPath is 2 then
+      put item 2 of tPath &amp; return &amp; tShelf[item 1 of tPath][item 2 of tPath] into field "Details"
+   else
+      put the number of elements of tShelf[item 1 of tPath] &amp;&amp; "books" into field "Details"
+   end if
+end hiliteChanged</code></pre>
+</figure>
+<p>A path of one key is a branch, so the field says how many books it holds; a path of two is a book. Setting <code>hilitedElement</code> from a script lights a row too:</p>
+<figure class="example" id="ex-wt-choose" data-run="output" data-card="build-tree" data-in="message" data-after="ex-wt-fill;ex-wt-script" data-needs="com.livecode.library.widgetutils com.livecode.widget.treeview" data-shot="Your card: the tree view with Science open and Cosmos lit, and the field at the right saying Cosmos and Carl Sagan, 1980.">
+<pre class="code"><code>fillShelf
+set the hilitedElement of widget "Shelf" to "Science,Cosmos"
+wait 0 milliseconds with messages
+put the hilitedElement of widget "Shelf"
+put field "Details"</code></pre>
+<pre class="out">Science,Cosmos,
+Cosmos
+Carl Sagan, 1980</pre>
+</figure>
+<p>A double-click on a leaf sends <code>actionDoubleClick</code> with the path, a good place to open the thing the row stands for. If your keys have commas in them, set the <code>pathDelimiter</code> to another character, such as <code>/</code>, and paths use that instead.</p>
+
+<h2 id="folders">A folder as a tree</h2>
+<p>A folder is a tree too: folders inside folders, with files at the ends. A function that calls itself for each folder inside (<a href="../recursion/">Recursion</a>) turns one into an array, each file with its size in bytes, ready for a Tree View:</p>
+<figure class="example" id="ex-wt-folder" data-run="output" data-needs="com.livecode.library.widgetutils com.livecode.widget.treeview" data-shot="A tree view filling the left of the card: a folder named docs, open, holding guide.txt and readme.txt with their sizes, and below it notes.txt with its size.">
+<pre class="code"><code>function treeOf pFolder
+   local tTree, tName
+   repeat for each line tName in files(pFolder)
+      put the number of bytes of URL ("binfile:" &amp; pFolder &amp; "/" &amp; tName) into tTree[tName]
+   end repeat
+   repeat for each line tName in folders(pFolder)
+      if tName is not ".." then put treeOf(pFolder &amp; "/" &amp; tName) into tTree[tName]
+   end repeat
+   return tTree
+end treeOf
+
+put specialFolderPath("temporary") &amp; "/oxt-lesson-tree" into tRoot
+create folder tRoot
+create folder tRoot &amp; "/docs"
+put "Read me first." into URL ("binfile:" &amp; tRoot &amp; "/docs/readme.txt")
+put "How to use it, step by step." into URL ("binfile:" &amp; tRoot &amp; "/docs/guide.txt")
+put "Buy tea." into URL ("binfile:" &amp; tRoot &amp; "/notes.txt")
+
+put treeOf(tRoot) into tTree
+create widget "Files" as "com.livecode.widget.treeview"
+set the rect of it to 20, 20, 300, 340
+set the sortType of it to "text"
+set the readOnly of it to true
+set the arrayData of it to tTree
+put false into tOpen["docs"]["folded"]
+set the foldState of it to tOpen
+put tTree["docs"]["guide.txt"]
+put tTree["notes.txt"]
+
+delete file tRoot &amp; "/docs/readme.txt"
+delete file tRoot &amp; "/docs/guide.txt"
+delete file tRoot &amp; "/notes.txt"
+delete folder tRoot &amp; "/docs"
+delete folder tRoot</code></pre>
+<pre class="out">28
+8</pre>
+</figure>
+<p>The files are deleted at the end, and the tree still shows them: it shows its own copy of the array, not the folder. Set its <code>arrayData</code> again to bring it up to date.</p>
+<aside class="tip"><p>Set <code>showValues</code> to false and a Tree View shows only the keys, which makes it a menu of sections, the way a help window lists its chapters. Its <code>dataChanged</code> message tells you when someone has changed an array that is not <code>readOnly</code>.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a function <code>leafCount</code> that takes an array and returns how many leaves it has, however deep its branches go, so a program could say how many books are on the shelf or files are in a folder.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-wt-try" data-run="output">
+<pre class="code"><code>function leafCount pTree
+   local tCount, tKey
+   put 0 into tCount
+   repeat for each key tKey in pTree
+      if pTree[tKey] is an array then
+         add leafCount(pTree[tKey]) to tCount
+      else
+         add 1 to tCount
+      end if
+   end repeat
+   return tCount
+end leafCount
+
+put "Frank Herbert" into tShelf["Fiction"]["Dune"]
+put "Jane Austen" into tShelf["Fiction"]["Emma"]
+put "Carl Sagan" into tShelf["Science"]["Cosmos"]
+put "Ada" into tShelf["Notes"]
+put leafCount(tShelf)</code></pre>
+<pre class="out">4</pre>
+</figure>
+</details>
+</section>

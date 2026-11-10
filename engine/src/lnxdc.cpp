@@ -51,6 +51,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "resolution.h"
 #include "stacklst.h"
 #include <fontconfig/fontconfig.h>
+#include <pango/pangofc-fontmap.h>
 #include "font.h"
 
 #include <math.h>
@@ -848,10 +849,91 @@ void MCResPlatformHandleScaleChange(void)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static bool s_fontconfig_resolved = false;
-static bool s_can_use_fontconfig = true;
+// OXT-Beyond: the fonts a script loads ("start using font file") reach
+// fontconfig as application fonts of a new configuration, made current. Two
+// things kept them from the text a stack lists and draws:
+//
+//  - loading a font made a fresh configuration with only that one file in
+//    it, so each font loaded dropped the ones loaded before it (the IDE loads
+//    its code font, its icon fonts and then the user's; only the last stayed);
+//  - Pango's font maps (the one the engine lists and measures fonts with,
+//    pango_cairo_font_map_get_default, and the one libgraphics draws with)
+//    take the configuration that is current when they are first used and
+//    keep it (Pango 1.48 and later), so a configuration made current later
+//    was never seen: the font was neither in "the fontNames" nor drawn.
+//
+// Each load or unload now makes the configuration from every font still
+// loaded, plus the one being loaded or minus the one being unloaded, and
+// hands it to the engine's font map here; libgraphics follows the current
+// configuration itself before it draws (lnxtext.cpp).
 
-////////////////////////////////////////////////////////////////////////////////
+// pango_fc_font_map_set_config is Pango 1.38's (2015): it is weak linked as
+// optional (linux.stubs), so an older Pango keeps the behaviour it had.
+typedef void (*pango_fc_font_map_set_configPTR)(PangoFcFontMap *fcfontmap, FcConfig *fcconfig);
+extern "C" pango_fc_font_map_set_configPTR pango_fc_font_map_set_config_ptr;
+
+static bool MCLinuxFontConfigLoad(MCStringRef p_adding, MCStringRef p_removing)
+{
+    if (!FcInit())
+        return false;
+    
+    // fontconfig has no function to remove one application font, so every
+    // change starts again from the system fonts.
+    FcConfig *t_config;
+    t_config = FcInitLoadConfigAndFonts();
+    if (t_config == nil)
+        return false;
+    
+    MCStringRef *t_loaded = nil;
+    uindex_t t_count = 0;
+    if (!MCFontListLoaded(t_count, t_loaded))
+        return false;
+    MCAutoStringRefArray t_files;
+    t_files . Give(t_loaded, t_count);
+    
+    for (uindex_t i = 0; i < t_files . Count(); i++)
+    {
+        if (p_removing != nil &&
+            MCStringIsEqualTo(t_files[i], p_removing, kMCStringOptionCompareCaseless))
+            continue;
+        
+        // A file that loaded once is taken as it loaded then: one that has
+        // gone since cannot stop the others loading.
+        MCAutoStringRefAsSysString t_file;
+        if (t_file . Lock(t_files[i]))
+            FcConfigAppFontAddFile(t_config, (FcChar8*)*t_file);
+    }
+    
+    // The file being loaded must load, or the load fails and the fonts stay
+    // as they were.
+    if (p_adding != nil)
+    {
+        MCAutoStringRefAsSysString t_file;
+        if (!t_file . Lock(p_adding))
+            return false;
+        if (FcFalse == FcConfigAppFontAddFile(t_config, (FcChar8*)*t_file))
+            return false;
+    }
+    
+    if (FcFalse == FcConfigSetCurrent(t_config))
+        return false;
+    
+    if (FcFalse == FcConfigBuildFonts(t_config))
+        return false;
+    
+    // The engine's font map: "the fontNames", and the fonts it measures with.
+    // On Linux Pango's cairo font map is always a fontconfig one;
+    // pango_fc_font_map_set_config checks it is and clears what it cached.
+    if (pango_fc_font_map_set_config_ptr != nil)
+    {
+        PangoFontMap *t_font_map;
+        t_font_map = pango_cairo_font_map_get_default();
+        if (t_font_map != nil)
+            pango_fc_font_map_set_config_ptr((PangoFcFontMap *)t_font_map, t_config);
+    }
+    
+    return true;
+}
 
 // AL-2015-01-20 [[ DynamicFonts ]] Implement font loading on Linux
 bool MCScreenDC::loadfont(MCStringRef p_path, bool p_globally, void*& r_loaded_font_handle)
@@ -860,25 +942,9 @@ bool MCScreenDC::loadfont(MCStringRef p_path, bool p_globally, void*& r_loaded_f
     if (p_globally)
         return false;
     
-    if (!FcInit())
-        return false;
-    
-    FcConfig *t_config;
-    t_config = FcInitLoadConfigAndFonts();
-    
-    if (t_config == nil)
-        return false;
-    
-    MCAutoStringRefAsSysString t_font_file;
-    t_font_file . Lock(p_path);
-    
-    if (FcFalse == FcConfigAppFontAddFile(t_config, (FcChar8*)*t_font_file))
-        return false;
-    
-    if (FcFalse == FcConfigSetCurrent(t_config))
-        return false;
-    
-    if (FcFalse == FcConfigBuildFonts(t_config))
+    // MCFontLoad adds the file to the loaded fonts after this succeeds, so it
+    // is not among them yet.
+    if (!MCLinuxFontConfigLoad(p_path, nil))
         return false;
     
     // We don't actually do anything with the loaded font handle at the moment.
@@ -893,44 +959,7 @@ bool MCScreenDC::unloadfont(MCStringRef p_path, bool p_globally, void *r_loaded_
     if (p_globally)
         return false;
     
-    if (!s_can_use_fontconfig)
-        return false;
-    
-    if (!FcInit())
-        return false;
-    
-    FcConfig *t_config;
-    t_config = FcInitLoadConfigAndFonts();
-    
-    if (t_config == nil)
-        return false;
-    
-    // fontconfig does not currently supply a remove file function, so we need to
-    // unload all of the fonts and reload all but the specified one.
-
-    MCStringRef *t_font_files_in_use = nil;
-    uindex_t t_count;
-    
-    if (!MCFontListLoaded(t_count, t_font_files_in_use))
-        return false;
-    
-    FcConfigAppFontClear(t_config);
-    
-    for (uindex_t i = 0; i < t_count; i++)
-    {
-        if (!MCStringIsEqualTo(t_font_files_in_use[i], p_path, kMCStringOptionCompareCaseless))
-        {
-            MCAutoStringRefAsSysString t_to_load;
-            t_to_load . Lock(t_font_files_in_use[i]);
-            FcConfigAppFontAddFile(t_config, (FcChar8*)*t_to_load);
-        }
-    }
-    
-    if (!FcConfigSetCurrent(t_config))
-        return false;
-    
-    if (!FcConfigBuildFonts(t_config))
-        return false;
-    
-    return true;
+    // MCFontUnload removes the file from the loaded fonts after this
+    // succeeds, so it is still among them: leave it out.
+    return MCLinuxFontConfigLoad(nil, p_path);
 }

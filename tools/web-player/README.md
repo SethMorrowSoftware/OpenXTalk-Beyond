@@ -74,7 +74,7 @@ would: every script library (the Data Grid, Animation, Geometry, Internet,
 Printing, Table, XML-RPC), the externals the web engine has (revXML,
 revZip, revDB with SQLite, revSpeech) and every widget and library
 extension whose platforms include the web. A stack's files go into the
-browser's storage for the site (`/livecode/Documents/Stack Player`), so
+browser's storage for the site (`/openxtalk/Documents/Stack Player`), so
 the list, and whatever the stacks saved, are still there on the next
 visit. A stack finds the files that came with it (opened with it, in its
 folder, or in its `.zip`) as it would on the desktop: by paths relative to
@@ -154,7 +154,12 @@ tablet's, and every other stack opens as it does on a desktop, at its own
 size and never fitted; the player's own page does the same, with its bar
 out of the way only for a stack that filled the screen. It keeps out of a phone's notch and home bar
 (`viewport-fit=cover` and the safe-area insets) and uses `100dvh`, which
-iOS Safari's toolbar does not cover. The stacks it opens go into the
+iOS Safari's toolbar does not cover; a stack the library makes as big as
+the page (`mwFillScreen`, or `mwStart` with a resizable stack such as the
+Phone Starter) keeps out of them itself, so the page takes its padding off
+for it (the library marks the html element `data-mobile-web-filled="fill"`).
+Before, an iPhone on its side showed such a stack moved in from the left by
+the inset and cut off as much on the right. The stacks it opens go into the
 same library as the player's (the browser's storage for the site).
 `build_player.py --check` opens it (`check_bare`: a sample at its own
 size in the middle with nothing around it, the page's colour just past
@@ -179,6 +184,9 @@ answering no.
 | `stacks/` | the three stacks the home page features and the small samples with a picture, each with a picture of its first card (`.webp`, 960 wide at most); each one before the Phone Starter carries the colourized Script Viewer as a substack |
 | `phone-starter.livecodescript`, `phone-starter-stack.livecodescript` | build `stacks/Phone Starter.oxtstack` (see below) |
 | `responsive-starter.livecodescript`, `responsive-starter-stack.livecodescript` | build `stacks/Responsive Starter.oxtstack` (see below) |
+| `nova-rescue.livecodescript`, `nova-rescue-stack.livecodescript`, `nova-rescue/` | build `stacks/Nova Rescue.oxtstack` from Kenney's pictures, sounds and font (see below) |
+| `wobble-forts.livecodescript`, `wobble-forts-stack.livecodescript`, `wobble-forts/` | build `stacks/Wobble Forts.oxtstack` from Kenney's pictures, sounds and font and its levels (see below) |
+| `puzzle-almanac.livecodescript`, `puzzle-almanac-stack.livecodescript`, `puzzle-almanac/` | build `stacks/Puzzle Almanac.oxtstack` from Kenney's pictures and sounds, Atkinson Hyperlegible, its puzzles and its words (see below) |
 | `assets/` | the page's logo and pictures, copied beside it |
 | `build_player.py` | starts the IDE with the script above, puts the page in place, packs the zip and, with `--check`, drives the player in headless Chromium |
 
@@ -191,7 +199,8 @@ tab bar a thumb can reach (Home, List, Form, Gestures, Phone), a swipe
 left or right to change tab, a list that scrolls with a finger, a form
 that stays above the on-screen keyboard, a pad (a group with its own
 `swipe`, `pinch`, `longPress` and touch handlers, which draw a ring under
-each finger) for gestures, and a Phone card that takes a photo, shares,
+each finger; a pinch sizes the dot round its centre and moves it with the
+fingers) for gestures, and a Phone card that takes a photo, shares,
 finds where the phone is, rolls a ball as it tilts, keeps the screen on
 and hides the browser's bars. One line, `mwStart`,
 makes it a phone stack: in a page of its own (an HTML5 standalone) it
@@ -281,3 +290,226 @@ the Mobile Web check. To run it yourself:
 ```sh
 python3 tools/ci/responsive_web_check.py --runtime <web runtime> --engine-cache <folder> --shots <folder>
 ```
+
+## Nova Rescue
+
+`stacks/Nova Rescue.oxtstack` is a game made for a phone: a rescue
+cutter flies up through a dying star system, a finger dragged anywhere
+flies it (it fires on its own), and flying over the astronauts drifting
+down rescues them. Rescues in a row raise a bonus, up to five times; one
+that drifts away starts it again. Meteors split when shot, raiders dive,
+weave and fire, power-ups drop (twin lasers, a shield, a repair, stars),
+a sector ends when its crew is rescued and every fourth with a
+mothership. Its best score, stars and settings are kept between visits.
+In a page of its own it fills the phone's screen, upright or turned
+(then the play area is a column with the score beside it), keeps out of
+the notch (the Mobile Web library's safe-area insets) and pauses when the page is hidden or the phone turns; on a
+desktop it plays with the mouse and the arrow keys (P pauses).
+
+How it is made, for anyone making a game like it: one card; every screen
+a group over the play area; a fixed set of buttons for each kind of
+thing that flies, each showing a picture of a hidden "Art" card as its
+icon, moved by one loop that moves everything by the time since the last
+frame; the sounds mixed by the browser's Web Audio (the engine plays one
+at a time). The card's colour is a colour, not a pattern: a pattern cost
+most of a frame on a phone. In headless Chromium emulating a phone it
+kept 55 to 60 frames a second, the game's own work under a millisecond
+of each (nrState's fps, work and draw say so on any screen).
+
+Its pictures, sounds and font are Kenney's (https://kenney.nl), CC0, in
+`nova-rescue/` with each pack's licence and `SOURCES.md`, which says
+where each comes from. `nova-rescue/make_assets.py` made them from the
+packs: the pictures drawn again at two or three times their size from
+Kenney's vector sheets, for a phone's screen, the sounds as WAV files
+(Ogg is not played by older iPhones), and the title's NOVA drawn from the
+font with a true V (KenVector Future draws V as U). No word written in
+that font has a V; `tools/ci/tests/test_nova_rescue.py` holds it so.
+
+The stack is never edited by hand. Its script is
+`nova-rescue-stack.livecodescript` and its controls are made by
+`nova-rescue.livecodescript`; change them, then build it again with any
+OXT-Beyond engine:
+
+```sh
+<engine> -ui tools/web-player/nova-rescue.livecodescript
+```
+
+`tests/lcs/webplayer/nova-rescue.livecodescript` plays it on a desktop
+engine (and in the web engine, with the other script tests) with the
+clock in the test's hands: rescues and the bonus, hits, the end of a run,
+the best score kept, lasers, power-ups, sectors and the mothership, the
+screens at five sizes and a turn in the middle of a run.
+`tools/ci/nova_rescue_check.py` plays it on emulated phones (Pixel 7 and
+iPhone 13, in Chromium and WebKit) with real touches: Play, a finger that
+flies the ship, a rescue, Pause, the frame rate, a turn and no script
+error. CI runs it in web.yml, after the Responsive Starter's check.
+
+It also has a page of its own on the web site's gallery
+(`games/nova-rescue/`, see [tools/pages](../pages/README.md)), which
+plays this sample in the bare player. The stack's `cJavascriptHandlers`
+are `nrPageHidden` (the page is hidden: a run pauses) and `nrState`, so
+that `tools/pages/check_nova_rescue_page.py` can ask the game how it is
+there; `build_player.py --check` runs that check on the player it
+builds. To run the phone check yourself:
+
+```sh
+python3 tools/ci/nova_rescue_check.py --runtime <web runtime> --engine-cache <folder> --shots <folder>
+```
+
+## Wobble Forts
+
+`stacks/Wobble Forts.oxtstack` is a slower game for a phone, on Box2D
+(the Box2Dxt extension): the round Bloops are pulled back in a launcher
+and let go at the wobbly forts of the square Grumps, built of wood,
+glass, stone, metal and TNT. A Grump pops when it is hit hard enough or
+falls; a block breaks as it is hit, a little at a time, glass soonest and
+metal hardly at all, and TNT goes off. Each Bloop has a trick, done by a
+tap in flight: the blue one dashes, the pink one splits in three, the
+green one slams down, the beige one bursts; the yellow one has none.
+Fifteen forts in three lands (the Meadow, the Dunes and Shroom Hollow),
+each land ending in a boss; a fort cleared with Bloops to spare earns up
+to three stars, and the stars, best scores and settings are kept between
+visits. Upright or turned, the world is drawn to fit the window, under
+the notch; P or Esc pauses, R plays the level again.
+
+How it is made: one card; every screen a group over the world; a set of
+buttons for the pieces, each showing a picture of a hidden "Art" card as
+its icon, and a few more for the dust, the debris and the points that
+fly; one loop that steps the world by a sixtieth of a second at a time
+and moves only the buttons whose piece moved (a fort at rest costs
+almost nothing). The levels are text, `wobble-forts/levels.txt`, one line
+a piece; the tests hold that every one stands still until it is hit. The
+sounds are mixed by the browser's Web Audio, faster for a small piece's
+knock than a big one's. In headless Chromium emulating a phone it kept
+60 to 80 frames a second, the game's own work about a millisecond of
+each (wfState's fps, work, draw and step say so).
+
+Without Box2Dxt (an engine or a page without the extension) the game
+says so on its first card and plays nothing; a web standalone needs the
+extension's module among its deploy's modules, as the check below does.
+
+Its pictures, sounds and font are Kenney's (https://kenney.nl), CC0, in
+`wobble-forts/` with each pack's licence and `SOURCES.md`, which says
+where each comes from. `wobble-forts/make_assets.py` made them from the
+packs: the pictures drawn again at twice their size from Kenney's vector
+sheets, the sounds as WAV files, and the title's words drawn from Kenney
+Blocks. None of them is used by Nova Rescue, the platformer or Pixel
+Maker.
+
+The stack is never edited by hand. Its script is
+`wobble-forts-stack.livecodescript` and its controls are made by
+`wobble-forts.livecodescript`; change them, then build it again with any
+OXT-Beyond engine:
+
+```sh
+<engine> -ui tools/web-player/wobble-forts.livecodescript
+```
+
+`tests/lcs/webplayer/wobble-forts.livecodescript` plays it on a desktop
+engine with the clock in the test's hands: every level read and standing
+still, a shot and the next Bloop, a fort cleared and the stars kept, out
+of Bloops, every trick, a pause, a saved file that makes no sense and the
+screens at six sizes. Its tests of play need Box2Dxt: `OXT_BOX2DXT`
+names its folder (or an installed IDE's folder), and without it they are
+skipped. `tools/ci/wobble_forts_check.py` builds a standalone with
+Box2Dxt and plays it on emulated phones (Pixel 7 and iPhone 13, in
+Chromium and WebKit) with real touches: Play, How to play, the map, a
+pull and a shot, the frame rate, Pause, a fort cleared and its stars, the
+next level, a turn upright and no script error. CI runs it in web.yml,
+after Nova Rescue's check. To run it yourself:
+
+```sh
+python3 tools/ci/wobble_forts_check.py --runtime <web runtime> --engine-cache <folder> --shots <folder>
+```
+
+It also has a page of its own on the web site's gallery
+(`games/wobble-forts/`, see [tools/pages](../pages/README.md)), which
+plays this sample in the bare player. The stack's `cJavascriptHandlers`
+are `wfPageHidden` (the page is hidden: a level pauses) and `wfState`, so
+that `tools/pages/check_wobble_forts_page.py` can ask the game how it is
+there; `build_player.py --check` runs that check on the player it builds.
+
+## Puzzle Almanac
+
+`stacks/Puzzle Almanac.oxtstack` is a slow game for a phone, and for a
+child as much as anyone: a daily book of two puzzles, the same for
+everyone each day. Number Place is a grid of 4, 6 or 9 squares a side in
+boxes, where every row, column and box holds each number once; every
+puzzle has one answer, found by looking alone (no guess is ever needed),
+with notes to pencil in, a hint, undo, and mistakes shown or not as the
+settings say. Hidden Word is a word of 4, 5 or 6 letters to find in six
+tries: a try's tiles turn gold for a letter in its place, blue for one in
+another place and stone for one not in the word, and gold and blue carry
+a mark as well as a colour; a try must be a word, and a word found says
+what it means. The day's puzzle of each kind earns a sticker (thirty
+animals, then gold stars) and keeps a run of days going; Practice gives
+as many more as anyone likes, of any size or length. There is no clock,
+no score and nothing lost for a wrong try. A voice can say each number
+placed. On a computer the keys play it: N and W open the puzzles, the
+arrows and 1 to 9 (or the letters and Enter) play, Esc goes back.
+
+How it is made: one card; every screen (Home, Numbers, Words, Stickers)
+a group and every panel (Done, Practice, How to play, Settings) a group
+behind a veil; the tiles and stickers are buttons showing a picture of a
+hidden "Art" card. Nothing runs while nothing moves. The puzzles are
+`puzzle-almanac/data/numbers.txt`, 496 of them made by
+`puzzle-almanac/make_puzzles.py` from a seed (`--check` makes them again
+and compares), each with one answer found by singles alone. The game
+makes the day's from one of them with its numbers renamed, its rows,
+columns, bands and stacks reordered and perhaps turned half round, with a
+random-number maker of its own, so that a day's puzzle is the same on
+every engine. The hidden words, with what each means, are
+`data/answers.txt`, written for the game; a try may be any word of
+`data/words.txt`, ENABLE's words of 4 to 6 letters. What a player has
+done is kept between visits (in the browser's storage on the web). A
+board is a string of up to 81 digits, and `is` compares two strings that
+look like numbers as numbers, to 15 digits or so, so the game compares
+boards digit for digit (`paSameDigits`).
+
+Its pictures and sounds are Kenney's (https://kenney.nl), CC0, from packs
+none of the other games use; its font is Atkinson Hyperlegible, made for
+low vision by the Braille Institute, under the SIL Open Font License.
+`puzzle-almanac/make_assets.py` made the tiles and sparkles at three
+times their size (the animals are Kenney's own, at twice theirs) and the
+sounds WAV files, and gave the font Macintosh name records
+that say what its Windows ones do: the web engine's font loader reads a
+font's name from those, and without them the font loaded in no browser.
+Each licence is in `puzzle-almanac/licenses/`, and `SOURCES.md` there says
+where each file comes from.
+
+The stack is never edited by hand. Its script is
+`puzzle-almanac-stack.livecodescript` and its controls are made by
+`puzzle-almanac.livecodescript`; change them, then build it again with
+any OXT-Beyond engine:
+
+```sh
+<engine> -ui tools/web-player/puzzle-almanac.livecodescript
+```
+
+`tests/lcs/webplayer/puzzle-almanac.livecodescript` plays it on a desktop
+engine with the clock and the day in the test's hands: the day's puzzles
+of day 310, every square of each size answering a tap, a number placed,
+a note, a hint and undo, a puzzle solved and its sticker, a word found
+and one missed, tries that are not words, the stickers, the keys, a run
+of days kept and broken, a saved file that makes no sense and the screens
+at several sizes. `tools/ci/tests/test_puzzle_almanac.py` holds the stack
+to its files and checks, with a port of the game's transform, that the
+day's puzzle of any day has one answer found by looking.
+`tools/ci/puzzle_almanac_check.py` builds a standalone and plays it on
+emulated phones (Pixel 7 and iPhone 13, in Chromium and WebKit) with real
+touches: How to play, a Number Place solved and its sticker, a Hidden
+Word typed and found, the stickers, a reload that keeps them, a turn on
+its side and no script error. CI runs it in web.yml, after Wobble Forts'
+check. To run it yourself:
+
+```sh
+python3 tools/ci/puzzle_almanac_check.py --runtime <web runtime> --engine-cache <folder> --shots <folder>
+```
+
+It also has a page of its own on the web site's gallery
+(`games/puzzle-almanac/`, see [tools/pages](../pages/README.md)), which
+plays this sample in the bare player. The stack's `cJavascriptHandlers`
+are `paPageHidden` (the page is hidden: the board is saved at once) and
+`paState`, so that `tools/pages/check_puzzle_almanac_page.py` can ask the
+game how it is there; `build_player.py --check` runs that check on the
+player it builds.

@@ -122,5 +122,52 @@ class IdeFiles(unittest.TestCase):
                 self.assertIn(rel, files)
 
 
+class TheCheckoutsExtensionScripts(unittest.TestCase):
+    """A site built with --repo takes the checkout's ide/Extensions
+    scripts where the installed IDE has the same file, as it takes its
+    Toolset's: packaging copies ide/Extensions as it is (tools/oxt/layout.py,
+    "Extensions/**" from ide/Extensions/). Until rc.6.18 the site kept the
+    released package's, so a pull request's web IDE screenshots ran the
+    last release's layout guides' library, not the pull request's
+    (LittleNemo, openxtalk.org p=26169)."""
+
+    def test_overlaid_where_installed(self):
+        with tempfile.TemporaryDirectory() as root:
+            install = os.path.join(root, 'install')
+            repo = os.path.join(root, 'repo')
+
+            def put(base, rel, text):
+                path = os.path.join(base, *rel.split('/'))
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with open(path, 'w') as f:
+                    f.write(text)
+            for rel in ('Toolset/home.livecodescript',
+                        'Extensions/community.example.plugin.guides/Guides.livecodescript',
+                        'Extensions/community.example.plugin.guides/manifest.xml'):
+                put(install, rel, 'installed')
+            put(repo, 'ide/Extensions/community.example.plugin.guides/Guides.livecodescript', 'checkout')
+            put(repo, 'ide/Extensions/community.example.plugin.guides/manifest.xml', 'checkout')
+            put(repo, 'ide/Extensions/org.example.plugin.unpackaged/Unpackaged.livecodescript', 'checkout')
+            put(repo, 'ide/Extensions/org.example.library.native/code/x86_64-linux/Native.livecodescript',
+                'checkout')
+            files = build_site.ide_files(install, repo)
+            self.assertEqual(
+                files['Extensions/community.example.plugin.guides/Guides.livecodescript'],
+                os.path.join(repo, 'ide', 'Extensions', 'community.example.plugin.guides',
+                             'Guides.livecodescript'))
+            # only scripts, and only those the installed IDE has
+            self.assertEqual(files['Extensions/community.example.plugin.guides/manifest.xml'],
+                             os.path.join(install, 'Extensions', 'community.example.plugin.guides',
+                                          'manifest.xml'))
+            self.assertNotIn('Extensions/org.example.plugin.unpackaged/Unpackaged.livecodescript', files)
+            self.assertNotIn('Extensions/org.example.library.native/code/x86_64-linux/Native.livecodescript',
+                             files)
+
+    def test_the_guides_library_is_among_them(self):
+        rel = 'Extensions/community.ferruslogic.plugin.devguides/DevGuides.livecodescript'
+        self.assertTrue(os.path.isfile(os.path.join(REPO, 'ide', *rel.split('/'))))
+        self.assertFalse(build_site.leave_out(rel))
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -81,6 +81,12 @@ body{background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,
 #stack{margin:auto;flex:none;touch-action:manipulation}
 body.top-left #stack{margin:0}
 body.top-left #stage{padding:0}
+/* A stack the Mobile Web library makes as big as the page (mwFillScreen,
+   and mwStart for a resizable stack: the library marks the html element)
+   keeps itself out of the notch and the home bar. The padding moved it
+   in by the left inset, an iPhone's in landscape whichever side the
+   notch is on, and cut as much off its right side. */
+html[data-mobile-web-filled="fill"] #stage{padding:0}
 #canvas{display:block;border:0 none;padding:0;outline:0}
 /* Until a stack is open, the player's own card is not shown */
 body:not(.playing) #stage{position:absolute;left:0;top:0;width:100%;height:0;min-height:0;padding:0;overflow:hidden;visibility:hidden;pointer-events:none}

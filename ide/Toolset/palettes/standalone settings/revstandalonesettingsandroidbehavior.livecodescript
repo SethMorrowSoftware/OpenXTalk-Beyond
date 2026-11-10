@@ -105,6 +105,37 @@ on updateSettings
    put computeDefault(tSettings["android,nfc"], false) into tNFC
    set the hilited of button "NFC Tag Reading" to tNFC
    
+   -- OXT-Beyond: the "App Bundle" box at the end of the build targets' row
+   -- (tools/oxt/ide-stack-patches/android-card-app-bundle-1.txt): the
+   -- "android,app bundle" setting, with which the Android builder makes an
+   -- Android App Bundle (.aab) beside the package. A stack without it has
+   -- none, and the box is not ticked.
+   if there is a button "App Bundle" of group "Android targets" of me then
+      set the hilited of button "App Bundle" of group "Android targets" of me to \
+            (tSettings["android,app bundle"] is true)
+   end if
+   
+   -- OXT-Beyond: the "OXT-Beyond engine (preview)" box ("Beyond Engine",
+   -- tools/oxt/ide-stack-patches/android-card-engine-1.txt): the
+   -- "android,engine" setting, with which the Android builder takes
+   -- OXT-Beyond's own engine (beyond) instead of LiveCode 9.6.3's (empty or
+   -- 9.6.3, the default). The box is ticked only for beyond.
+   if there is a button "Beyond Engine" of group "Android targets" of me then
+      set the hilited of button "Beyond Engine" of group "Android targets" of me to \
+            (tSettings["android,engine"] is "beyond")
+   end if
+   
+   -- OXT-Beyond: the "Edge to edge" box at the end of the Status Bar row
+   -- ("Edge To Edge", tools/oxt/ide-stack-patches/
+   -- android-card-status-bar-edge-1.txt): the "android,edge to edge"
+   -- setting, with which an app is drawn edge to edge on Android 11 and
+   -- newer. A stack without it is laid out as before, and the box is not
+   -- ticked.
+   if there is a button "Edge To Edge" of group "Android targets" of me then
+      set the hilited of button "Edge To Edge" of group "Android targets" of me to \
+            (tSettings["android,edge to edge"] is true)
+   end if
+   
    -- OXT-Beyond: the Android card of this IDE has no such button (and its
    -- Android build no such setting): setting it stopped the card's update
    -- with an error
@@ -146,6 +177,19 @@ on updateAndroidSettingState
       end if
    end repeat
    set the enabled of group "Android Settings" of me to tEnabled
+   -- OXT-Beyond: the "App Bundle" box is an option of the Android build, as
+   -- the settings below are: it can be ticked once an architecture is
+   if there is a button "App Bundle" of group "Android targets" of me then
+      set the enabled of button "App Bundle" of group "Android targets" of me to tEnabled
+   end if
+   -- and so is the engine the build takes
+   if there is a button "Beyond Engine" of group "Android targets" of me then
+      set the enabled of button "Beyond Engine" of group "Android targets" of me to tEnabled
+   end if
+   -- and so is whether the app is drawn edge to edge
+   if there is a button "Edge To Edge" of group "Android targets" of me then
+      set the enabled of button "Edge To Edge" of group "Android targets" of me to tEnabled
+   end if
    set the visible of button "Androidchecked" to tEnabled
    set the opaque of button "Androidchecked" to false
    

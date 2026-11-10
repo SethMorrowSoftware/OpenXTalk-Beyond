@@ -62,6 +62,13 @@ public:
 		return scale;
 	}
 	Boolean import(MCStringRef fname, IO_handle stream);
+	// OXT-Beyond: the bytes of the file the clip was imported from, as the
+	// clip keeps them: `export videoClip "x" to file "x.mov"`
+	const uint1 *getdata(uint4 &r_size)
+	{
+		r_size = size;
+		return frames;
+	}
 	
 	IO_stat load(IO_handle stream, uint32_t version);
 	IO_stat extendedload(MCObjectInputStream& p_stream, uint32_t version, uint4 p_length);

@@ -11,10 +11,10 @@
     "mac-universal": {
       "description": "macOS IDE, one app for Apple Silicon and Intel",
       "readme": [
-        "macOS 11 or later on Apple Silicon, 10.13 or later on Intel"
+        "macOS 11 or later on Apple Silicon and Intel"
       ],
       "macos": {
-        "x86_64": "10.13",
+        "x86_64": "11.0",
         "arm64": "11.0"
       },
       "parts": {

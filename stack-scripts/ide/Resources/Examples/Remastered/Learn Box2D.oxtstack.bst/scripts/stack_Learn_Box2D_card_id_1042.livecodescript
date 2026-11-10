@@ -61,9 +61,9 @@ end switchAim
 -- A click on empty space: which shapes are within a metre of it?
 on mouseDown pButton
    local tX, tY, tIndex
-   put labMouseX() into tX
-   put labMouseY() into tY
-   if pButton is 1 and b2BodyAtPoint(sWorld, tX, tY) is 0 and the mouseLoc is within the rect of graphic "Court" then
+   put labClickX() into tX
+   put labClickY() into tY
+   if pButton is 1 and b2BodyAtPoint(sWorld, tX, tY) is 0 and the clickLoc is within the rect of graphic "Court" then
       get b2OverlapCircle(sWorld, tX, tY, 1)
       put b2QueryCount() into sFound
       repeat with tIndex = 1 to sFound

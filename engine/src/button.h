@@ -69,6 +69,9 @@ typedef struct
 	uint2 f;
 	uint2 maxwidth;
 	uint2 maxaccelwidth;
+	// OXT-Beyond: whether an item of this (sub)menu has a mark (!c, !n,
+	// !r, !u: MCMenuItem::has_mark)
+	bool marked;
 }
 sublist;
 
@@ -294,7 +297,7 @@ public:
 	void getentrytext();
 	void createentry();
 	void deleteentry();
-	void makemenu(sublist *bstack, int2 &stackdepth, uint2 menuflags, MCFontRef fontref);
+	void makemenu(sublist *bstack, int2 &stackdepth, uint2 menuflags, uint2 parentmenuflags, MCFontRef fontref);
 	
 	// MW-2011-02-08: [[ Bug 9384 ]] If 'just for accel' is true, then findmenu won't create
 	//   a Mac menu as its assumed its not needed.
@@ -334,6 +337,12 @@ public:
 	void drawcascade(MCDC *dc, MCRectangle &srect);
 	void drawcombo(MCDC *dc, MCRectangle &srect);
 	void drawtabs(MCDC *dc, MCRectangle &srect);
+	// OXT-Beyond: the web theme's face for a push button or a tab panel
+	// that would take its colour from the card (buttondraw.cpp)
+	bool getwebthemeface(MCContextType p_type, MCColor &r_face);
+	// OXT-Beyond: the theme's words for a menu item hilited on its hilite
+	// when the ones it would take cannot be read there (buttondraw.cpp)
+	bool getmenuitemarmedink(MCDC *dc, MCColor &r_ink);
 	void drawstandardbutton(MCDC *dc, MCRectangle &srect);
 	void drawmacdefault(MCDC *dc, const MCRectangle &srect);
 	void drawmacborder(MCDC *dc, MCRectangle &srect);

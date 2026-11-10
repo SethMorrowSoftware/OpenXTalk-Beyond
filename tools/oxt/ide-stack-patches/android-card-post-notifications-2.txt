@@ -1,0 +1,17 @@
+# Android card: the groups around "Post Notifications" (patch -1) grow to
+# hold it, as the engine makes them: each one's bottom edge 4 pixels lower
+# (the box's bottom, 666, and each group's margins of 4). Nothing below
+# them on the card moves.
+file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
+object: group "permissions" of group "Application Permissions" of group "Android Settings" of card "Android"
+property: rect
+from: 414,548,732,651
+to: 414,548,732,670
+object: group "Application Permissions" of group "Android Settings" of card "Android"
+property: rect
+from: 398,516,736,670
+to: 398,516,736,674
+object: group "Android Settings" of card "Android"
+property: rect
+from: -43,99,740,674
+to: -43,99,740,678

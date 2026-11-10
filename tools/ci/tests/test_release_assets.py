@@ -22,6 +22,7 @@ them or took them from main's builds), on made-up artifacts.
 """
 
 import hashlib
+import json
 import os
 import shutil
 import sys
@@ -148,6 +149,68 @@ class ReleaseNotesTest(unittest.TestCase):
         names = release_assets.release_files(VERSION)[1:]
         with self.assertRaises(release_notes.NotesError):
             release_notes.notes(VERSION, names)
+
+
+class ReleaseNotesAndroidTest(unittest.TestCase):
+    """What the notes say of the Android runtime follows the runtimes asset
+    the release's packages carry (tools/oxt/external-assets.json): its Java
+    layer ("java_layer") and OXT-Beyond's own engine ("android_engine")
+    are built here once the asset says so; rc.6.18's notes said the whole
+    runtime was carried over from OpenXTalk Lite 1.15 when its Java layer
+    was not"""
+
+    CARRIED = 'The Android standalone runtime is not built here'
+
+    def manifest(self, **fields):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        path = os.path.join(tmp, 'external-assets.json')
+        asset = {'id': 'oxt-runtimes-0.0.0', 'source': 'builds of commit 0123456'}
+        asset.update(fields)
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump({'assets': [asset]}, f)
+        return path
+
+    def notes_for(self, path):
+        return release_notes.notes(VERSION, release_assets.release_files(VERSION), assets_file=path)
+
+    def test_the_pinned_asset(self):
+        with open(release_notes.ASSETS, encoding='utf-8') as f:
+            pinned = [a for a in json.load(f)['assets'] if a['id'].startswith('oxt-runtimes-')]
+        self.assertEqual(len(pinned), 1)
+        text = release_notes.notes(VERSION, release_assets.release_files(VERSION))
+        if pinned[0].get('java_layer'):
+            self.assertNotIn(self.CARRIED, text)
+            self.assertIn("The Android standalone runtime's Java layer is built from this repository too", text)
+        if pinned[0].get('android_engine'):
+            self.assertIn('"android,engine"', text)
+
+    def test_all_of_it_carried_over(self):
+        text = self.notes_for(self.manifest())
+        self.assertIn(self.CARRIED + ': it is taken unchanged from OpenXTalk Lite 1.15', text)
+        self.assertNotIn('Java layer', text)
+        self.assertNotIn('"android,engine"', text)
+
+    def test_the_java_layer_built_here(self):
+        text = self.notes_for(self.manifest(java_layer='Runtime/Android/Classes'))
+        self.assertNotIn(self.CARRIED, text)
+        self.assertIn("The Android standalone runtime's Java layer is built from this repository too; "
+                      'its engines and its other files are taken unchanged from OpenXTalk Lite 1.15', text)
+        self.assertNotIn('"android,engine"', text)
+
+    def test_and_the_engine_built_here(self):
+        text = self.notes_for(self.manifest(java_layer='Runtime/Android/Classes',
+                                            android_engine='Runtime/Android/Beyond'))
+        self.assertNotIn(self.CARRIED, text)
+        self.assertIn("The Android standalone runtime's Java layer is built from this repository too", text)
+        self.assertIn('"android,engine"', text)
+        self.assertIn('LiveCode 9.6.3', text)
+
+    def test_the_update_check_still_shows_the_opening_lines(self):
+        for fields in ({}, {'java_layer': 'Runtime/Android/Classes'},
+                       {'java_layer': 'Runtime/Android/Classes', 'android_engine': 'Runtime/Android/Beyond'}):
+            text = self.notes_for(self.manifest(**fields))
+            self.assertIsNone(release_notes.check_intro(VERSION, text), fields)
 
 
 if __name__ == '__main__':

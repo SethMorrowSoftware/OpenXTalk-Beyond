@@ -58,8 +58,8 @@
 # Signing is ad hoc (no Developer ID, no notarization): Gatekeeper blocks
 # the app until the user allows it (see the README's macOS section).
 #
-# Oldest supported macOS: 11 on Apple Silicon, 10.13 on Intel
-# (config/mac.gypi). The binaries record SDK 11.0 so both halves get the same
+# Oldest supported macOS: 11 on Apple Silicon and Intel (config/mac.gypi;
+# 10.13 on Intel up to 0.2.7-rc.6.18). The binaries record SDK 11.0 so both halves get the same
 # AppKit behaviour whatever SDK built them. The Verify step fails when a
 # Mach-O file of the output records anything else
 # (tools/ci/check_macho_floor.py).
@@ -123,6 +123,8 @@ on:
       - '.github/workflows/tag-release.yml'
       - '.github/workflows/ui-tour.yml'
       - '.github/workflows/android.yml'
+      - '.github/workflows/android-java.yml'
+      - '.github/workflows/android-engine.yml'
       - '.github/workflows/mac-menu-backdrop.yml'
       - '.github/workflows/pages.yml'
       - 'tools/pages/**'
@@ -132,6 +134,11 @@ on:
       - 'tools/ci/release_notes.py'
       - 'tools/ci/android_check.py'
       - 'tools/ci/android-check.livecodescript'
+      - 'tools/ci/android_java.py'
+      - 'tools/ci/android_engine.py'
+      - 'tools/ci/build-android.sh'
+      - 'config/android-ndk-version'
+      - 'engine/src/java/**'
       - 'tools/ci/tests/**'
       - '.github/workflows/build-linux.yml'
       - '.github/workflows/build-windows.yml'
@@ -152,8 +159,18 @@ on:
       - 'tools/ci/win_crashtrace.py'
       - 'tools/ci/window-frame-check.livecodescript'
       - 'tools/ci/window_frame_check.py'
+  # DRAFT PULL REQUESTS (2026-11-06). A draft runs none of this workflow's
+  # jobs: each job's `if:` ends in `github.event.pull_request.draft != true`,
+  # and marking the pull request ready (ready_for_review, below) starts the
+  # whole run on its newest commit. A draft is work in progress whose commits
+  # land minutes apart, and each one used to start this full build only for
+  # the next to cancel it (26 of 52 builds on 2026-11-06 00:38-02:15 UTC). CI
+  # checks still run on every draft commit. A push, a dispatch and a call from
+  # release.yml have no pull request, so the condition is always true there.
+  # tools/ci/tests/test_draft_builds.py holds every job to it.
   pull_request:
     branches: [ main ]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore: *build-paths-ignore
   workflow_dispatch:
   workflow_call:
@@ -196,6 +213,7 @@ defaults:
 jobs:
   build:
     name: Build mac-${{ matrix.arch }}
+    if: ${{ github.event.pull_request.draft != true }}
     strategy:
       fail-fast: false
       matrix:
@@ -408,13 +426,13 @@ jobs:
           # Every Mach-O file that ships (what the bin tarball holds: not
           # the static libraries, dSYM bundles and header maps), every
           # slice of it, must record the deployment target of
-          # config/mac.gypi as its minimum macOS (11.0 arm64, 10.13 x86_64:
+          # config/mac.gypi as its minimum macOS (11.0 on arm64 and x86_64:
           # the loader refuses a newer minos, so one such file would raise
           # the minimum of the product) and SDK 11.0 (-platform_version
           # there; it selects AppKit's behaviour), and hold this
           # architecture, with no exception.
           python3 tools/ci/check_macho_floor.py "$R" --arch "$ARCH" \
-            --minos arm64=11.0 --minos x86_64=10.13 --sdk 11.0 \
+            --minos arm64=11.0 --minos x86_64=11.0 --sdk 11.0 \
             --exclude '*.a' --exclude '*.dSYM' --exclude '*.hmap'
 
       - name: Smoke test (server engine)
@@ -536,6 +554,7 @@ jobs:
   # engines build
   docs:
     name: Docs
+    if: ${{ github.event.pull_request.draft != true }}
     uses: ./.github/workflows/docs.yml
     with:
       artifact: OXT-Beyond-docs-macos
@@ -543,6 +562,7 @@ jobs:
   # The web runtime of the package (web.yml), made while the engines build
   web:
     name: Web
+    if: ${{ github.event.pull_request.draft != true }}
     uses: ./.github/workflows/web.yml
     with:
       artifact: OXT-Beyond-web-macos
@@ -555,7 +575,7 @@ jobs:
   package:
     name: Package mac-universal
     needs: [build, docs, web]
-    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    if: ${{ (!cancelled() && needs.build.result == 'success') && github.event.pull_request.draft != true }}
     runs-on: macos-15
     timeout-minutes: 90
     env:
@@ -773,7 +793,7 @@ jobs:
           check CFBundleExecutable OXT-Beyond
           check CFBundleShortVersionString "$VERSION"
           check CFBundleIconFile OXT-Beyond.icns
-          check LSMinimumSystemVersion 10.13
+          check LSMinimumSystemVersion 11.0
           check LSArchitecturePriority:0 arm64
           check LSArchitecturePriority:1 x86_64
           check UTExportedTypeDeclarations:0:UTTypeTagSpecification:public.filename-extension:0 oxtstack
@@ -861,6 +881,7 @@ jobs:
   # repository mode).
   test:
     name: Test mac-universal (${{ matrix.arch }})
+    if: ${{ github.event.pull_request.draft != true }}
     needs: package
     strategy:
       fail-fast: false
@@ -879,7 +900,10 @@ jobs:
       # Only what the steps below read: the scripts and their files in
       # tools/ (tools/ci, and the tools/oxt modules they import), the
       # root's version file and sqlite3.h (the versions the checks
-      # expect, run_livecode_check.read_expectations)
+      # expect, run_livecode_check.read_expectations), the disk image
+      # the IDE screenshots import a HyperCard stack from, and the font
+      # files their code-font step loads (tools/ci/ui_tour.py
+      # TOUR_FONT_FILES; one is the IDE's)
       - name: Check out
         uses: actions/checkout@v7
         with:
@@ -887,6 +911,8 @@ jobs:
           sparse-checkout: |
             tools
             thirdparty/libsqlite/include
+            tests/lcs-input-files/hypercard/forks
+            ide/Documentation/html_viewer/fonts
 
       # A download stalled for 22 minutes once: a time limit, and one more try
       - name: Download the disk image
@@ -980,9 +1006,12 @@ jobs:
 
       # Every native library of the bundled extensions finds what it needs
       # on a user's Mac and holds both architectures, and each slice needs
-      # no newer macOS than the platform matrix allows the extensions
+      # no newer macOS than the platform matrix allows: the xTalk Suite's
+      # libraries (code/universal-mac) the extensions' floor
       # (tools/ci/platform-matrix.json: x86_64 10.15, arm64 11.0, as
-      # README.md states; up to 0.2.6 this allowed macOS 15).
+      # README.md states; up to 0.2.6 this allowed macOS 15), and the
+      # timezone and INI libraries, built here with the app, the app's
+      # (macOS 11 from 0.2.7-rc.6.19).
       - name: Check the extension libraries
         run: |
           python3 tools/ci/check_native_deps.py --root "$APP/Contents/Tools" --platform mac \
@@ -990,8 +1019,8 @@ jobs:
 
       # Every Mach-O file of the app as shipped (engine, externals, the
       # standalone runtimes, the extensions), every slice of it, records
-      # the minimum macOS of the platform matrix (arm64 11.0, x86_64
-      # 10.13; the bundled extensions' x86_64 slices 10.15) and holds both
+      # the minimum macOS of the platform matrix (arm64 and x86_64 11.0;
+      # the bundled extensions' x86_64 slices 10.15) and holds both
       # architectures: the build output is checked the same way above, but
       # this is what users get.
       - name: Check the app against the platform matrix
@@ -1144,6 +1173,27 @@ jobs:
           python3 tools/ci/ui_tour.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
             --appearance dark --out "$LOGS/ui-tour/dark"
 
+      # Everyday tasks a person does in the IDE, through its own windows
+      # with the system's mouse and keyboard (CGEvent): a new stack, the
+      # common controls from the Tools palette, Inspector edits, the Script
+      # Editor, the Message Box, undo, copy, group, align, cards, Save As,
+      # Close and Remove From Memory and opening it again, Revert, the
+      # Dictionary, the Geometry Manager, Preferences and the Application
+      # Browser; each asserted and snapshot
+      # (tools/ci/everyday-tasks.livecodescript). One appearance a Mac,
+      # light on Apple silicon and dark on Intel, so that the step adds
+      # one run's time to each; a task that fails, or a script error,
+      # fails it
+      - name: Everyday IDE tasks
+        if: ${{ !cancelled() }}
+        timeout-minutes: 20
+        env:
+          APPEARANCE: ${{ matrix.arch == 'arm64' && 'light' || 'dark' }}
+        run: |
+          python3 tools/ci/ui_tour.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
+            --script tools/ci/everyday-tasks.livecodescript --timeout 900 \
+            --appearance "$APPEARANCE" --out "$LOGS/ui-tour/everyday-$APPEARANCE"
+
       # For a person to look through: a page with each window light and
       # dark side by side (tools/ci/ui_tour_page.py), uploaded with the
       # snapshots and the tour's lines as an artifact of their own, which
@@ -1263,6 +1313,7 @@ jobs:
   # (inspector-hypercard).
   tour-macos-26:
     name: IDE tour on macOS 26 (arm64)
+    if: ${{ github.event.pull_request.draft != true }}
     needs: package
     runs-on: macos-26
     timeout-minutes: 30
@@ -1275,6 +1326,8 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             tools
+            tests/lcs-input-files/hypercard/forks
+            ide/Documentation/html_viewer/fonts
 
       - name: Download the disk image
         timeout-minutes: 10
@@ -1323,7 +1376,7 @@ jobs:
         timeout-minutes: 20
         run: |
           python3 tools/ci/ui_tour.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
-            --appearance light --only sample,controls,field-scroll,image-frames,inspector,inspector-tabs,inspector-gravity,inspector-hypercard,dictionary,preferences,standalone-settings --out "$RUNNER_TEMP/ui-tour"
+            --appearance light --only sample,controls,field-scroll,image-frames,inspector,inspector-tabs,inspector-gravity,inspector-hypercard,hypercard-disk-image,dictionary,preferences,standalone-settings --out "$RUNNER_TEMP/ui-tour"
 
       # As the test job runs it (see there), on macOS 26
       - name: Menu and backdrop check

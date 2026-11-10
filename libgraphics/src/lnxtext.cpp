@@ -18,6 +18,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "graphics-internal.h"
 
 #include <pango/pangoft2.h>
+#include <pango/pangofc-fontmap.h>
 #include <glib.h>
 #include <pthread.h>
 
@@ -72,6 +73,34 @@ static void lnx_pango_reset_matrix(void)
 	PangoMatrix t_identity;
 	t_identity = MCGAffineTransformToPangoMatrix(MCGAffineTransformMakeIdentity());
 	pango_context_set_matrix(s_pango, &t_identity);
+}
+
+// OXT-Beyond: the fonts a script loads ("start using font file") are in a
+// new fontconfig configuration that the engine makes current (lnxdc.cpp,
+// MCLinuxFontConfigLoad). Pango's font map takes the configuration current
+// when it is first used and keeps it (Pango 1.48 and later), so a font
+// loaded after that was never drawn: Pango drew the fallback face. Before
+// it lays text out, the font map takes the current configuration when it
+// has changed. The font map holds a reference to the configuration
+// remembered here, so the address cannot be freed and reused while it is
+// remembered. pango_fc_font_map_set_config is Pango 1.38's (2015), weak
+// linked as optional (engine/src/linux.stubs): without it nothing changes.
+typedef void (*pango_fc_font_map_set_configPTR)(PangoFcFontMap *fcfontmap, FcConfig *fcconfig);
+extern "C" pango_fc_font_map_set_configPTR pango_fc_font_map_set_config_ptr;
+static FcConfig *s_font_config = NULL;
+
+static void lnx_pango_follow_font_config(void)
+{
+	if (s_font_map == NULL || pango_fc_font_map_set_config_ptr == NULL)
+		return;
+
+	FcConfig *t_current;
+	t_current = FcConfigGetCurrent();
+	if (t_current == NULL || t_current == s_font_config)
+		return;
+
+	pango_fc_font_map_set_config_ptr((PangoFcFontMap *) s_font_map, t_current);
+	s_font_config = t_current;
 }
 
 // OXT-Beyond: [[ HiDPI ]] For a transform that scales uniformly, without
@@ -184,6 +213,8 @@ void MCGContextDrawPlatformText(MCGContextRef self, const unichar_t *p_text, uin
 	if (!MCGContextIsValid(self))
 		return;	
 	
+	lnx_pango_follow_font_config();
+
 	bool t_success;
 	t_success = true;
 
@@ -330,6 +361,8 @@ MCGFloat __MCGContextMeasurePlatformText(MCGContextRef self, const unichar_t *p_
 	if (!s_has_text_support)
 		return 0.0;
 	
+	lnx_pango_follow_font_config();
+
 	bool t_success;
 	t_success = true;
 	
@@ -393,7 +426,10 @@ bool MCGContextMeasurePlatformTextImageBounds(MCGContextRef self, const unichar_
 		t_success = s_layout != NULL;
 
 	if (t_success)
+	{
+		lnx_pango_follow_font_config();
 		lnx_pango_reset_matrix();
+	}
 	
 	char *t_text;
 	t_text = nil;

@@ -63,8 +63,8 @@ end labBuild
 -- pull with, is 1000 times the body's mass
 on mouseDown pButton
    local tX, tY, tBody
-   put labMouseX() into tX
-   put labMouseY() into tY
+   put labClickX() into tX
+   put labClickY() into tY
    put b2BodyAtPoint(sWorld, tX, tY) into tBody
    if pButton is 1 and tBody is not 0 and b2BodyType(tBody) is 2 then
       put b2MouseJoint(sWorld, sGround, tBody, tX, tY, sHertz, 0.7, 1000 * b2BodyMass(tBody)) into sGrab

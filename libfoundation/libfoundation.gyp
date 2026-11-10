@@ -319,9 +319,12 @@
 				[
 					# A web build merges in its build settings, -std among
 					# them, at this late stage for both of its toolsets
-					# (config/emscripten.gypi), after cflags_cc above; so
-					# C++17 is asked for again here, where it comes last.
-					'OS == "emscripten"',
+					# (config/emscripten.gypi), after cflags_cc above, and
+					# so does an Android build (config/android.gypi:
+					# android-settings.gypi for the target, linux-settings.gypi
+					# for the host); so C++17 is asked for again here, where
+					# it comes last.
+					'OS in ("emscripten", "android")',
 					{
 						'cflags_cc':
 						[

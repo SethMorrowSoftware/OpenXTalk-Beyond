@@ -28,7 +28,7 @@ records a newer one (a prebuilt, or a target that sets its own
 MACOSX_DEPLOYMENT_TARGET) would silently raise it. The SDK version selects
 AppKit's compatibility behaviour, so every file must record the same one.
 
-    check_macho_floor.py ROOT --minos arm64=11.0 --minos x86_64=10.13
+    check_macho_floor.py ROOT --minos arm64=11.0 --minos x86_64=11.0
                          [--sdk 11.0] [--arch arm64] [--allow PATH=REASON]
                          [--only-arch PATH=ARCH] [--file-minos PATH=ARCH:VERSION]
     check_macho_floor.py APP --matrix mac-universal [--arch arm64]

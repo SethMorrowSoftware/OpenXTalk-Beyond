@@ -1,0 +1,154 @@
+<!--
+title: QR codes and drawings
+level: extensions
+minutes: 12
+summary: Make QR codes a phone can scan with the QR library, in any colour or as a PNG file, and show SVG drawings sharp at any size with the Drawing library, read their shapes back, and turn them into graphics.
+words: qrCreate, qrSetColors, drawingSvgCompile, drawingSvgCompileFile, drawingDecode, drawingSvgDecompile, drawingFlatten, the text of image, the points
+-->
+<h2 id="qr">A QR code</h2>
+<p>A <strong>QR code</strong> is the square of black and white dots that a phone's camera reads as a web address, a Wi-Fi password or any short text. The QR library makes one in an image: <code>qrCreate</code> takes the image's name, the text, how much <strong>error correction</strong> to build in, and the size of each dot in pixels:</p>
+<figure class="example" id="ex-qr-create" data-run="output" data-needs="com.livecode.library.qr" data-shot="A QR code, a square of black dots on white, at the top left of the card.">
+<pre class="code"><code>create image "Code"
+qrCreate "Code", "https://openxtalk.org", "M", 4
+put the result into tInfo
+set the topLeft of image "Code" to 20, 20
+put "version" &amp;&amp; item 1 of tInfo
+put the width of image "Code" &amp; "x" &amp; the height of image "Code"</code></pre>
+<pre class="out">version 2
+132x132</pre>
+</figure>
+<p>Point a phone at the picture and it offers to open the address. <code>the result</code> says how the code came out: its first item is its <strong>version</strong>, from 1, the smallest at 21 by 21 dots, to 40. The library picks the smallest version the text fits in, and the white border around the dots, the <strong>quiet zone</strong>, is part of the code: scanners need it.</p>
+<p>The image can just as well be one you drag from the Tools palette and name in the Property Inspector: <code>qrCreate</code> sets the picture of whatever image it is given. The examples here make theirs with <code>create image</code> (<a href="../stacks-cards-controls/#script-made">Making controls from a script</a>), so that each runs on an empty card.</p>
+
+<h2 id="levels">Error correction</h2>
+<p>A code can still be read with part of it dirty, torn or covered by a logo, because it repeats what it holds. The four levels say how much it can lose: <code>L</code> about 7%, <code>M</code> 15%, <code>Q</code> 25% and <code>H</code> 30%. More correction means more dots, so a bigger version. Giving <code>!</code> as the image's name makes no image, only the result:</p>
+<figure class="example" id="ex-qr-levels" data-run="output" data-needs="com.livecode.library.qr">
+<pre class="code"><code>repeat for each item tLevel in "L,M,Q,H"
+   qrCreate "!", "https://openxtalk.org/lessons/qr-codes-drawings/", tLevel, 1
+   put tLevel &amp;&amp; "version" &amp;&amp; item 1 of line 1 of the result
+end repeat</code></pre>
+<pre class="out">L version 3
+M version 4
+Q version 5
+H version 6</pre>
+</figure>
+<p><code>M</code> suits a screen; a code printed on a box or a poster, which may get scuffed, is better at <code>Q</code> or <code>H</code>. And shorter text makes a smaller code that is easier to scan from far away, so a short address is worth having.</p>
+
+<h2 id="colours">Colours and files</h2>
+<p><code>qrSetColors</code> sets the colours of the codes made after it, the dots first and then the background. Keep the dots darker than the background, and the two far apart, or scanners give up:</p>
+<figure class="example" id="ex-qr-colours" data-run="output" data-needs="com.livecode.library.qr" data-shot="A dark blue QR code on a pale yellow square at the top left of the card.">
+<pre class="code"><code>qrSetColors "20,40,110", "255,248,220"
+create image "Code"
+qrCreate "Code", "https://openxtalk.org", "Q", 4
+put the result into tInfo
+set the topLeft of image "Code" to 20, 20
+qrSetColors "black", "white"
+put "error correction" &amp;&amp; item 2 of tInfo</code></pre>
+<pre class="out">error correction Q</pre>
+</figure>
+<p>The colours stay set until changed, so the last line puts them back for the next code. With <code>!</code>, the lines after the first line of <code>the result</code> are a PNG file's bytes, ready to save, to send to a web page, or to put in an email:</p>
+<figure class="example" id="ex-qr-png" data-run="output" data-needs="com.livecode.library.qr">
+<pre class="code"><code>qrCreate "!", "https://openxtalk.org", "M", 8
+put the result into tResult
+put line 2 to -1 of tResult into tPng
+put byte 2 to 4 of tPng
+put specialFolderPath("temporary") &amp; "/openxtalk-qr.png" into tFile
+put tPng into URL ("binfile:" &amp; tFile)
+put there is a file tFile
+delete file tFile</code></pre>
+<pre class="out">PNG
+true</pre>
+</figure>
+<p>Every PNG file starts with the bytes <code>PNG</code> after its first, which is how a program can tell one.</p>
+
+<h2 id="svg">An SVG drawing</h2>
+<p><strong>SVG</strong> is the usual way to give a picture as shapes rather than dots: a circle at this centre with this radius, a line from here to there. Because it is shapes, it is sharp at any size. The Drawing library compiles SVG into a <strong>drawing</strong>, which an image shows when you set its <code>text</code> to it, as it shows a PNG. It reads the SVG with the XML external, so that must be loaded too, as it is in the IDE:</p>
+<figure class="example" id="ex-draw-svg" data-run="output" data-needs="com.livecode.library.drawing external:revxml" data-shot="Two suns, a gold circle with an orange ring, one small at the top left and one three times bigger beside it, both sharp.">
+<pre class="code"><code>put "&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'&gt;" &amp; \
+      "&lt;circle cx='50' cy='50' r='38' fill='gold' stroke='darkorange' stroke-width='8'/&gt;" &amp; \
+      "&lt;/svg&gt;" into tSvg
+put drawingSvgCompile(tSvg) into tSun
+put the result is empty
+create image "Small"
+set the text of it to tSun
+set the rect of it to 20, 20, 80, 80
+create image "Big"
+set the text of it to tSun
+set the rect of it to 100, 20, 280, 200</code></pre>
+<pre class="out">true</pre>
+</figure>
+<p><code>the result</code> is empty, so nothing went wrong; it would say what did. The SVG's <code>viewBox</code> says its own coordinates run from 0 to 100, and setting an image's text sizes it to that, 100 by 100 pixels, so the size comes after. The drawing scales to fill each image, so the big sun is as crisp as the small one, where a PNG made bigger goes blurry. <code>drawingSvgCompileFile</code> does the same with an <code>.svg</code> file's path, and <kbd>File &gt; Import as Control &gt; Image File</kbd> takes an SVG file straight into an image.</p>
+<aside class="note"><p>The library draws most of SVG: shapes, paths, groups, colours, gradients, lines and their dashes. Text and filters are left out, so a drawing from a design program may need its text turned into paths ("outlines") first. A second parameter turns on more: <code>"all"</code> also reads style sheets, opacity and clipping, as the IDE's import does.</p></aside>
+
+<h2 id="read">Reading a drawing back</h2>
+<p>A drawing is not a black box. <code>drawingDecode</code> gives back its size and its shapes, each an array with its type, its geometry and its paint:</p>
+<figure class="example" id="ex-draw-decode" data-run="output" data-needs="com.livecode.library.drawing external:revxml">
+<pre class="code"><code>put "&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'&gt;" &amp; \
+      "&lt;rect x='10' y='40' width='80' height='50' fill='#4682b4'/&gt;" &amp; \
+      "&lt;polygon points='5,45 50,10 95,45' fill='firebrick'/&gt;" &amp; \
+      "&lt;/svg&gt;" into tSvg
+put drawingDecode(drawingSvgCompile(tSvg)) into tHouse
+put tHouse["width"] &amp;&amp; tHouse["height"]
+put the number of elements in tHouse["shapes"]
+put tHouse["shapes"][1]["type"] &amp;&amp; tHouse["shapes"][1]["width"] &amp;&amp; tHouse["shapes"][1]["height"]
+put tHouse["shapes"][2]["type"] &amp;&amp; tHouse["shapes"][2]["points"]
+put tHouse["shapes"][2]["fill"]["color"]</code></pre>
+<pre class="out">100 100
+2
+rect 80 50
+polygon 5,45 50,10 95,45
+0.698,0.1333,0.1333,1</pre>
+</figure>
+<p>A colour is red, green, blue and opacity, each from 0 to 1. <code>drawingSvgDecompile</code> goes the other way, from a drawing to SVG text again, so a program can save a drawing for other programs to open.</p>
+
+<h2 id="graphics">Drawings into graphics</h2>
+<p><code>drawingFlatten</code> turns every shape into the points of a polygon, with curves made of short straight lines no further than its second parameter from the true curve. Those points are what a polygon graphic holds, so a drawing can become graphics you can then move, colour and edit like any other (the IDE's <strong>Convert to Graphics</strong> does this):</p>
+<figure class="example" id="ex-draw-flatten" data-run="output" data-needs="com.livecode.library.drawing external:revxml" data-shot="A house drawn as two graphics: a steel blue body with a dark red roof on top, each outlined in black.">
+<pre class="code"><code>put "&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'&gt;" &amp; \
+      "&lt;rect x='10' y='40' width='80' height='50' fill='#4682b4'/&gt;" &amp; \
+      "&lt;polygon points='5,45 50,10 95,45' fill='firebrick'/&gt;" &amp; \
+      "&lt;/svg&gt;" into tSvg
+put drawingFlatten(drawingSvgCompile(tSvg), 0.5) into tFlat
+put 0 into tCount
+repeat for each element tShape in tFlat["shapes"]
+   add 1 to tCount
+   create graphic ("Part" &amp;&amp; tCount)
+   set the style of it to "polygon"
+   set the filled of it to true
+   set the points of it to tShape["points"]
+   put tShape["fill"]["color"] into tColour
+   set the backColor of it to round(item 1 of tColour * 255), \
+         round(item 2 of tColour * 255), round(item 3 of tColour * 255)
+   set the rect of it to (the left of it * 2 + 40), (the top of it * 2 + 20), \
+         (the right of it * 2 + 40), (the bottom of it * 2 + 20)
+end repeat
+put the number of graphics
+put the number of lines in the points of graphic "Part 2"</code></pre>
+<pre class="out">2
+4</pre>
+</figure>
+<p>The points come in the drawing's own units, 0 to 100 here, so the last line inside the loop doubles each graphic and moves it in from the corner. A rectangle and a triangle have no curves to flatten; a circle would have become many short lines.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a command <code>showQR</code> that takes some text and an image's name, makes the code at error correction <code>Q</code>, and sets the image's size to 200 by 200 pixels whatever the version, keeping its top left where it was. Remember that the quiet zone is part of the code.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-qr-try" data-run="output" data-needs="com.livecode.library.qr" data-shot="A QR code 200 pixels square, a little in from the top left of the card.">
+<pre class="code"><code>command showQR pText, pImage
+   local tTopLeft
+   put the topLeft of image pImage into tTopLeft
+   qrCreate pImage, pText, "Q", 1
+   set the width of image pImage to 200
+   set the height of image pImage to 200
+   set the topLeft of image pImage to tTopLeft
+end showQR
+
+create image "Ticket"
+set the topLeft of it to 30, 30
+showQR "Seat 14C, the 8:15 to Lyon", "Ticket"
+put the rect of image "Ticket"</code></pre>
+<pre class="out">30,30,230,230</pre>
+</figure>
+<p>Making it at a dot size of 1 and then stretching the image keeps the dots square only when 200 is a whole multiple of the code's width; for a sharp code at any size, choose the dot size that comes nearest instead.</p>
+</details>
+</section>

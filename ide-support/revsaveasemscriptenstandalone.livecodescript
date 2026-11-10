@@ -396,6 +396,12 @@ end createHtmlPage
 --                     (pBaseFolder) or not, which is copied into the
 --                     standalone's folder (pBuildFolder) as icon.<extension>
 --                     and is the page's icon
+--    splash           an image file, relative to the stack's folder or
+--                     not, which is copied into the standalone's folder as
+--                     splash.<extension> and is shown in the middle of the
+--                     browser's window, with what is loading under it, while
+--                     the engine and the stack download and start
+--                     (getSplashHead()); none when empty, as every page was
 --    backgroundColor  the page's colour, #RRGGBB; white when empty
 --    position         where the main stack is in the page: empty for
 --                     centered at the top (the page's own place), "center"
@@ -438,6 +444,8 @@ private function getPageHead pSettings, pBaseFolder, pBuildFolder
          revStandaloneAddWarning "HTML5: the page's icon does not exist:" && tIcon
       end if
    end if
+
+   put getSplashHead(pSettings["emscripten,splash"], pBaseFolder, pBuildFolder) after tHead
 
    put pSettings["emscripten,backgroundColor"] into tColor
    if tColor is not empty then
@@ -506,6 +514,186 @@ private function getPageHead pSettings, pBaseFolder, pBuildFolder
    end if
    return tHead
 end getPageHead
+
+-- OXT-Beyond: the splash of the HTML5 pane's Splash setting (bwmilby's
+-- request, openxtalk.org p=26115): an image in the middle of the browser's
+-- window, on the page's colour, with what is loading under it (the
+-- engine's "Downloading data..."), while the engine and standalone.zip
+-- download and the engine starts, as phone apps of old showed one. pSplash
+-- is the setting: an image file, relative to the stack's folder
+-- (pBaseFolder) or not, which is copied into the standalone's folder
+-- (pBuildFolder) as splash.<extension>. Returns what the page's head gets
+-- for it (getSplashMarkup()), or empty, with a warning, for a file that
+-- is not there or not an image that browsers show. Empty for an empty
+-- setting: the page is then the engine's as it was.
+private function getSplashHead pSplash, pBaseFolder, pBuildFolder
+   local tExtension, tData
+   if pSplash is empty then
+      return empty
+   end if
+   if there is a file (pBaseFolder & slash & pSplash) then
+      put pBaseFolder & slash before pSplash
+   end if
+   if there is not a file pSplash then
+      revStandaloneAddWarning "HTML5: the page's splash image does not exist:" && pSplash
+      return empty
+   end if
+   set the itemDelimiter to "."
+   put toLower(the last item of pSplash) into tExtension
+   set the itemDelimiter to comma
+   if tExtension is not among the items of "png,svg,gif,jpg,jpeg,webp" then
+      revStandaloneAddWarning "HTML5: the page's splash image is not a PNG, SVG, GIF, JPEG or WebP image:" && pSplash
+      return empty
+   end if
+   put url ("binfile:" & pSplash) into tData
+   put tData into url ("binfile:" & pBuildFolder & "/splash." & tExtension)
+   if the result is not empty then
+      throw "could not copy the page's splash image" && pSplash & ":" && the result
+   end if
+   return getSplashMarkup("splash." & tExtension, getImageDataSize(tData))
+end getSplashHead
+
+-- The splash's style and script, for the image file pFile of the page's
+-- folder, whose size is pSize ("<width>,<height>" in pixels, as
+-- getImageDataSize() reads it; empty when it could not be read).
+--
+-- The style draws the page's status line (#status in the engine's page,
+-- engine/rsrc/emscripten-html-template.html) over the whole window, in the
+-- page's colour, with the image in its middle at its own size (smaller on a
+-- window too small for it: never wider than the window less 16 pixels a
+-- side, nor taller than 60% of it; an image whose size is unknown in a
+-- square half the window's shorter side), and the status's text under it.
+-- It applies only while the page's root has the class oxt-splash, which
+-- the script gives it at once and takes away the first time the status is
+-- hidden: when the engine has downloaded and starts (Module.setStatus('')).
+-- So the status shows as it always did after that, when the page has
+-- something to say ("Something went wrong..."), over the stack and not
+-- with the splash.
+private function getSplashMarkup pFile, pSize
+   local tWidth, tHeight, tHalf, tStyle, tScript
+   if pSize is not empty then
+      put item 1 of pSize & "px" into tWidth
+      put item 2 of pSize & "px" into tHeight
+      put "min(" & tHeight & ",60vh)/2" into tHalf
+   else
+      put "50vmin" into tWidth
+      put "50vmin" into tHeight
+      put "25vmin" into tHalf
+   end if
+   put ".oxt-splash #status{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1;margin:0;" & \
+         "box-sizing:border-box;background-color:inherit;padding:0 16px;" & \
+         "padding-top:calc(50vh + " & tHalf & " + 12px);padding-top:calc(50dvh + " & tHalf & " + 12px)}" & \
+         ".oxt-splash #status::before{content:'';position:absolute;left:50%;top:50%;" & \
+         "width:" & tWidth & ";height:" & tHeight & ";max-width:calc(100% - 32px);max-height:60%;" & \
+         "transform:translate(-50%,-50%);background:url(" & pFile & ") center/contain no-repeat}" into tStyle
+   put "(function(){var r=document.documentElement;r.classList.add('oxt-splash');" & \
+         "document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('status'),o;" & \
+         "function done(){if(s&&s.style.display!=='none'){return false;}" & \
+         "r.classList.remove('oxt-splash');if(o){o.disconnect();}return true;}" & \
+         "if(!done()){o=new MutationObserver(done);o.observe(s,{attributes:true,attributeFilter:['style']});}});})();" into tScript
+   return "<style>" & tStyle & "</style><script>" & tScript & "</script>"
+end getSplashMarkup
+
+-- The width and height in pixels, as "<width>,<height>", of the image
+-- whose file's contents are pData, read from its header: a PNG's IHDR, a
+-- GIF's screen descriptor, a JPEG's frame header, a WebP's VP8X, VP8 or
+-- VP8L header, or an SVG's width and height (in pixels, or without
+-- units) or else its viewBox. Empty when they cannot be read.
+private function getImageDataSize pData
+   local tWidth, tHeight, tPos, tMarker, tLength, tText, tAttributes, tB1, tB2, tB3
+   set the caseSensitive to true
+   if the number of bytes of pData >= 24 and byteToNum(byte 1 of pData) is 137 and \
+         byte 2 to 4 of pData is "PNG" and byte 13 to 16 of pData is "IHDR" then
+      put getImageDataNumber(pData, 17, 4, true) into tWidth
+      put getImageDataNumber(pData, 21, 4, true) into tHeight
+   else if the number of bytes of pData >= 10 and byte 1 to 4 of pData is "GIF8" then
+      put getImageDataNumber(pData, 7, 2, false) into tWidth
+      put getImageDataNumber(pData, 9, 2, false) into tHeight
+   else if the number of bytes of pData >= 4 and byteToNum(byte 1 of pData) is 255 and \
+         byteToNum(byte 2 of pData) is 216 then
+      -- the segments after the start of image, to the first frame header
+      -- (SOF0 to SOF15, but for DHT, JPG and DAC, which share their codes)
+      put 3 into tPos
+      repeat while tPos + 8 <= the number of bytes of pData
+         if byteToNum(byte tPos of pData) is not 255 then
+            exit repeat
+         end if
+         put byteToNum(byte tPos + 1 of pData) into tMarker
+         if tMarker is 255 then
+            -- a fill byte
+            add 1 to tPos
+         else if tMarker is 1 or (tMarker >= 208 and tMarker <= 217) then
+            -- a marker without a segment
+            add 2 to tPos
+         else if tMarker >= 192 and tMarker <= 207 and tMarker is not among the items of "196,200,204" then
+            put getImageDataNumber(pData, tPos + 5, 2, true) into tHeight
+            put getImageDataNumber(pData, tPos + 7, 2, true) into tWidth
+            exit repeat
+         else
+            put getImageDataNumber(pData, tPos + 2, 2, true) into tLength
+            if tLength < 2 then
+               exit repeat
+            end if
+            add 2 + tLength to tPos
+         end if
+      end repeat
+   else if the number of bytes of pData >= 30 and byte 1 to 4 of pData is "RIFF" and \
+         byte 9 to 12 of pData is "WEBP" then
+      switch byte 13 to 16 of pData
+         case "VP8X"
+            put getImageDataNumber(pData, 25, 3, false) + 1 into tWidth
+            put getImageDataNumber(pData, 28, 3, false) + 1 into tHeight
+            break
+         case ("VP8" & space)
+            put (getImageDataNumber(pData, 27, 2, false) bitAnd 16383) into tWidth
+            put (getImageDataNumber(pData, 29, 2, false) bitAnd 16383) into tHeight
+            break
+         case "VP8L"
+            -- 14 bits of the width less 1, then 14 of the height less 1
+            put byteToNum(byte 23 of pData) into tB1
+            put byteToNum(byte 24 of pData) into tB2
+            put byteToNum(byte 25 of pData) into tB3
+            put byteToNum(byte 22 of pData) + (tB1 bitAnd 63) * 256 + 1 into tWidth
+            put tB1 div 64 + tB2 * 4 + (tB3 bitAnd 15) * 1024 + 1 into tHeight
+            break
+      end switch
+   else
+      put textDecode(byte 1 to 4096 of pData, "UTF-8") into tText
+      if matchText(tText, "(?is)<svg(\s[^>]*)>", tAttributes) then
+         if not matchText(tAttributes, "(?i)\swidth\s*=\s*[" & quote & "']\s*([0-9]+(?:\.[0-9]+)?)\s*(?:px)?\s*[" & quote & "']", tWidth) or \
+               not matchText(tAttributes, "(?i)\sheight\s*=\s*[" & quote & "']\s*([0-9]+(?:\.[0-9]+)?)\s*(?:px)?\s*[" & quote & "']", tHeight) then
+            put empty into tWidth
+            put empty into tHeight
+            get matchText(tAttributes, "(?i)\sviewBox\s*=\s*[" & quote & "']\s*-?[0-9.]+[\s,]+-?[0-9.]+[\s,]+([0-9]+(?:\.[0-9]+)?)[\s,]+([0-9]+(?:\.[0-9]+)?)\s*[" & quote & "']", tWidth, tHeight)
+         end if
+      end if
+   end if
+   if tWidth is not a number or tHeight is not a number then
+      return empty
+   end if
+   put round(tWidth) into tWidth
+   put round(tHeight) into tHeight
+   if tWidth < 1 or tHeight < 1 then
+      return empty
+   end if
+   return tWidth & comma & tHeight
+end getImageDataSize
+
+-- The unsigned number in the pCount bytes of pData from byte pFirst,
+-- the first byte the most significant when pBigEndian is true, else the
+-- least
+private function getImageDataNumber pData, pFirst, pCount, pBigEndian
+   local tNumber
+   put 0 into tNumber
+   repeat with tByte = 0 to pCount - 1
+      if pBigEndian then
+         put tNumber * 256 + byteToNum(byte pFirst + tByte of pData) into tNumber
+      else
+         put tNumber + byteToNum(byte pFirst + tByte of pData) * (256 ^ tByte) into tNumber
+      end if
+   end repeat
+   return tNumber
+end getImageDataNumber
 
 ----------------------------------------------------------------
 -- Extra files from "copy files"

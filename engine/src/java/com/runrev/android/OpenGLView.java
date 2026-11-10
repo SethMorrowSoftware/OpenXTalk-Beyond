@@ -100,7 +100,63 @@ public class OpenGLView extends SurfaceView implements SurfaceHolder.Callback
 		return t_configs[0];
 	}
 	
+	// OXT-Beyond: a config that can make contexts of the OpenGL ES version
+	// asked for. EGL's default renderable type is OpenGL ES 1 alone, so the
+	// first config the four sizes give may be one that cannot make a later
+	// version's context, where another could: from OpenGL ES 2 on, the
+	// config must say it can (EGL 1.5, 3.7.1; EGL_OPENGL_ES3_BIT_KHR from
+	// EGL_KHR_create_context). For OpenGL ES 1, the config LiveCode's Java
+	// always chose (findConfig above, unchanged). None when there is no such
+	// config, so that the next sizes are tried
+	private static final int EGL_RENDERABLE_TYPE = 0x3040;
+	private static final int EGL_OPENGL_ES2_BIT = 0x0004;
+	private static final int EGL_OPENGL_ES3_BIT_KHR = 0x0040;
+	
+	private EGLConfig findConfig(int r, int g, int b, int a, int p_gles_version)
+	{
+		if (p_gles_version <= 1)
+			return findConfig(r, g, b, a);
+		
+		int[] t_config_spec;
+		t_config_spec = new int[] {
+			EGL10 . EGL_RED_SIZE, r,
+			EGL10 . EGL_GREEN_SIZE, g,
+			EGL10 . EGL_BLUE_SIZE, b,
+			EGL10 . EGL_ALPHA_SIZE, a,
+			EGL10 . EGL_DEPTH_SIZE, 0,
+			EGL10 . EGL_STENCIL_SIZE, 0,
+			EGL_RENDERABLE_TYPE, p_gles_version >= 3 ? EGL_OPENGL_ES3_BIT_KHR : EGL_OPENGL_ES2_BIT,
+			EGL10 . EGL_NONE };
+		
+		int[] t_num_config;
+		t_num_config = new int[1];
+		if (!m_egl . eglChooseConfig(m_egl_display, t_config_spec, null, 0, t_num_config) || t_num_config[0] <= 0)
+			return null;
+		
+		EGLConfig[] t_configs;
+		t_configs = new EGLConfig[t_num_config[0]];
+		if (!m_egl . eglChooseConfig(m_egl_display, t_config_spec, t_configs, t_num_config[0], t_num_config) ||
+				t_num_config[0] <= 0)
+			return null;
+		
+		return t_configs[0];
+	}
+	
+	// OXT-Beyond: the context must be of the OpenGL ES version the native
+	// engine draws with, and one Java layer serves two engines. start() is
+	// what LiveCode Community 9.6.3's engine calls, the one the runtime
+	// carries: it draws with OpenGL ES 1 (it loads libGLESv1_CM) and gets the
+	// context its own Java made, asked for with no attributes. An engine
+	// built from this tree draws with OpenGL ES 3 (tilecachegl3.x.cpp, linked
+	// with -lGLESv3) and calls startGLES(3) (mblandroiddc.cpp), a name 9.6.3's
+	// engine does not know. tools/ci/android_java.py jni checks each engine's
+	// library against the context it asks for.
 	public void start()
+	{
+		startGLES(1);
+	}
+	
+	public void startGLES(int p_gles_version)
 	{
 		Log.i("revandroid", "OpenGLView.start");
 
@@ -115,27 +171,34 @@ public class OpenGLView extends SurfaceView implements SurfaceHolder.Callback
 		t_version = new int[2];
 		m_egl . eglInitialize(m_egl_display, t_version);
 		
-		// Search for a suitable config.
-		m_egl_config = findConfig(8, 8, 8, 8);
+		// Search for a suitable config, one that can make the context (for
+		// OpenGL ES 1 as before).
+		m_egl_config = findConfig(8, 8, 8, 8, p_gles_version);
 		if (m_egl_config == null)
-			m_egl_config = findConfig(5, 6, 5, 0);
+			m_egl_config = findConfig(5, 6, 5, 0, p_gles_version);
 		if (m_egl_config == null)
-			m_egl_config = findConfig(5, 5, 5, 0);
+			m_egl_config = findConfig(5, 5, 5, 0, p_gles_version);
 		if (m_egl_config == null)
-			m_egl_config = findConfig(4, 4, 4, 4);
+			m_egl_config = findConfig(4, 4, 4, 4, p_gles_version);
 		if (m_egl_config == null)
-			m_egl_config = findConfig(0, 0, 0, 0);
+			m_egl_config = findConfig(0, 0, 0, 0, p_gles_version);
 		
 		// For debugging.
 		dumpConfig("Using EGLConfig", m_egl, m_egl_display, m_egl_config);
 		
-		int[] t_attr = new int[] {
-			EGL_CONTEXT_CLIENT_VERSION, 3,
-			EGL10.EGL_NONE,
-		};
-		
-		// Now create the OpenGL ES context.
-		m_egl_context = m_egl . eglCreateContext(m_egl_display, m_egl_config, EGL10 . EGL_NO_CONTEXT, t_attr);
+		// Now create the OpenGL ES context: of the version asked for from
+		// OpenGL ES 2 on, and for OpenGL ES 1 with no attributes (EGL's
+		// default), as LiveCode's Java always made it.
+		if (p_gles_version > 1)
+		{
+			int[] t_attr = new int[] {
+				EGL_CONTEXT_CLIENT_VERSION, p_gles_version,
+				EGL10.EGL_NONE,
+			};
+			m_egl_context = m_egl . eglCreateContext(m_egl_display, m_egl_config, EGL10 . EGL_NO_CONTEXT, t_attr);
+		}
+		else
+			m_egl_context = m_egl . eglCreateContext(m_egl_display, m_egl_config, EGL10 . EGL_NO_CONTEXT, null);
 		
 		// We don't have a surface (just yet).
 		m_egl_surface = null;

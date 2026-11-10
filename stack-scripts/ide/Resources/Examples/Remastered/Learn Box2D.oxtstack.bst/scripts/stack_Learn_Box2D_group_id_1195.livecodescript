@@ -355,6 +355,18 @@ function labMouseY
    return labMY(the mouseV)
 end labMouseY
 
+-- Where the mouse was pressed, in metres: the clickLoc, kept from the
+-- press itself. A press is handled a moment after it is made, and on a
+-- busy machine the mouse may have moved on by then, so a mouseDown that
+-- asks where the mouse is now can miss what was pressed
+function labClickX
+   return labMX(the clickH)
+end labClickX
+
+function labClickY
+   return labMY(the clickV)
+end labClickY
+
 -- A number with pPlaces decimals, for the line at the court's top
 function labNum pNumber, pPlaces
    return format("%." & pPlaces & "f", pNumber)
@@ -903,7 +915,7 @@ on mouseDown pButton
       exit mouseDown
    end if
    if pButton is 1 and sWorld is not empty and the cOwnDrag of this card is not true \
-         and the mouseLoc is within the rect of graphic "Court" then
+         and the clickLoc is within the rect of graphic "Court" then
       labGrab
    end if
    -- A click in the court or on Reset, Pause or Step goes to the card's
@@ -981,8 +993,11 @@ end mouseRelease
 
 private command labGrab
    local tX, tY, tBody
-   put labMouseX() into tX
-   put labMouseY() into tY
+   -- (the body where the mouse was pressed: until 0.2.7-rc.6.17 it was
+   -- the one under the mouse when the press was handled, and a press on
+   -- a busy machine, with the mouse already moving, grabbed nothing)
+   put labClickX() into tX
+   put labClickY() into tY
    put b2BodyAtPoint(sWorld, tX, tY) into tBody
    -- (only a dynamic body: static and kinematic ones go where they go)
    if tBody is 0 or b2BodyType(tBody) is not 2 then

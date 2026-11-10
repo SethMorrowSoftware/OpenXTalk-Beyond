@@ -191,7 +191,11 @@ The following <folderIdentifier> values are supported:
 
 >*Note:* If using any external <folderIdentifier> values, ensure you 
 > have the 'Write External Storage' permission checked in the
-> application standalone settings
+> application standalone settings. Android 13 and newer no longer grant
+> that permission; for an application that has it checked it counts as
+> granted there, so the external folders are found (needs the Java layer
+> built from OXT-Beyond's source, which the runtimes asset carries from
+> its next release)
 
 **On Linux systems**, the following <folderIdentifier> values 
 are supported: 
@@ -212,7 +216,8 @@ are supported:
 since the whole file system is virtual and temporary. For compatibility
 purposes, the following <folderIdentifier> values are supported:
 
-* "home": Always `/livecode`
+* "home": Always `/openxtalk` (until 0.2.7-rc.6.2, `/livecode`, which
+  is still there as a link to it, so paths that name it still work)
 * "fonts": The folder that contains fonts
 * "temporary": A folder where temporary files can be placed
 * "engine": The folder where the standalone initial file system is

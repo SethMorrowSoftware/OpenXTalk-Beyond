@@ -78,6 +78,16 @@ on startup
    else
       write "INFO no libURL beside the Toolset: an example that uses the internet will fail" & return to stdout
    end if
+   -- The Drawing, OAuth2 and Dropbox libraries call the IDE's standalone
+   -- builder (revsblibrary) as they start, with
+   -- revSBAddDependencyForInclusion, so that a standalone that uses them
+   -- takes the externals they need: here, with no IDE, a stand-in in the
+   -- message path that does nothing, or they could not be loaded
+   create invisible stack "oxtLessonsBuilder"
+   set the script of stack "oxtLessonsBuilder" to \
+         "on revSBAddDependencyForInclusion" & return & \
+         "end revSBAddDependencyForInclusion"
+   start using stack "oxtLessonsBuilder"
    -- (the output a timer puts after the run comes here: see runExample)
    create invisible stack "oxtLessonsHost"
    set the script of stack "oxtLessonsHost" to \
@@ -200,7 +210,7 @@ end lessonsLateError
 -- Loads the extension pNeed (a folder of OXT_LESSONS_EXTENSIONS, or a
 -- .lcm file), once; empty, or why it did not load
 function loadExtension pNeed
-   local tFile, tFolder, tLibrary
+   local tFile, tFolder, tLibrary, tProblem
    if pNeed begins with "external:" then
       return loadExternal(char (the length of "external:") + 1 to -1 of pNeed)
    end if
@@ -217,16 +227,41 @@ function loadExtension pNeed
          return "OXT_LESSONS_EXTENSIONS is not set, and the example needs" && pNeed
       end if
       put $OXT_LESSONS_EXTENSIONS & "/" & pNeed into tFolder
+      if there is not a folder tFolder then
+         -- a folder named with its version, as the Calendar and Pie Chart
+         -- widgets' are (com.livecode.widget.piechart.1.0.0)
+         put versionedFolder($OXT_LESSONS_EXTENSIONS, pNeed) into tFolder
+      end if
+      -- the module file the IDE loads (revIDEExtensionModuleFileInFolder):
+      -- module.lcm, or else the engine's own module.2.lcm, or module.0.lcm
       put tFolder & "/module.lcm" into tFile
+      if there is not a file tFile and there is a file (tFolder & "/module.2.lcm") then
+         put tFolder & "/module.2.lcm" into tFile
+      else if there is not a file tFile and there is a file (tFolder & "/module.0.lcm") then
+         put tFolder & "/module.0.lcm" into tFile
+      end if
       if there is not a file tFile then
          -- an extension written in xTalk (a script library), which the IDE
-         -- puts into use as it starts
+         -- puts into use as it starts (revInternal__LoadLibrary): it
+         -- sends the library's stack extensionInitialize, which puts its
+         -- script into the message path and sets it up (the MIME library
+         -- fills its table of types), and starts using a stack that has
+         -- no such handler
          put files(tFolder) into tLibrary
          filter tLibrary with "*.livecodescript"
          if the number of lines of tLibrary is 1 then
-            start using stack (tFolder & "/" & tLibrary)
-            if the result is not empty then
-               return the result
+            put tFolder & "/" & tLibrary into tLibrary
+            if "extensionInitialize" is among the items of handlerNames(tLibrary) then
+               try
+                  send "extensionInitialize" to stack tLibrary
+               catch tProblem
+                  return tProblem
+               end try
+            else
+               start using stack tLibrary
+               if the result is not empty then
+                  return the result
+               end if
             end if
             set the cLoaded of me to the cLoaded of me & pNeed & return
             return empty
@@ -254,6 +289,30 @@ function loadExtension pNeed
    set the cLoaded of me to the cLoaded of me & pNeed & return
    return empty
 end loadExtension
+
+-- The names of the handlers of the stack in the file pFile, separated by
+-- commas (the revAvailableHandlers lines: "M extensionInitialize 1 9")
+function handlerNames pFile
+   local tNames, tLine
+   repeat for each line tLine in the revAvailableHandlers of stack pFile
+      put word 2 of tLine & comma after tNames
+   end repeat
+   return char 1 to -2 of tNames
+end handlerNames
+
+-- The folder in pExtensions of the extension pId when its name carries
+-- the extension's version (pId.1.0.0), or pId's own when there is none
+function versionedFolder pExtensions, pId
+   local tFolders, tFolder
+   put folders(pExtensions) into tFolders
+   filter tFolders with pId & ".[0-9]*"
+   repeat for each line tFolder in tFolders
+      if matchText(char (the length of pId) + 2 to -1 of tFolder, "^[0-9]+(\.[0-9]+)*$") then
+         return pExtensions & "/" & tFolder
+      end if
+   end repeat
+   return pExtensions & "/" & pId
+end versionedFolder
 
 -- Maps the native libraries in an extension's code folder pCode by name
 -- (the revLibraryMapping), for this platform and processor, as the IDE's

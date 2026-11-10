@@ -66,7 +66,10 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --    OXT_WEB_STACK     where to save the stack file
 --    OXT_WEB_OUTPUT    1: the startup data to write; 2: the folder to build
 --                      the standalone in, and with "-fields" after it, the
---                      folder of the one with its fields in the card's grey
+--                      folder of the one with its fields in the card's grey,
+--                      and with "-splash", that of the one with a splash
+--                      image (whose file is the folder's name and
+--                      "-image.png")
 --    OXT_WEB_TEMPLATE  1: the startup template
 --                      (engine/rsrc/emscripten-startup-template.livecodescript)
 --    OXT_WEB_VERSION   1: the web engine's version, which the startup script
@@ -308,6 +311,7 @@ end webLog
 
 on webBuild
    local tSettings, tFolder, tError, tFieldsSettings, tFieldsFolder, tExtension
+   local tSplashSettings, tSplashFolder
    webLog "INFO version" && the version && the buildNumber
    webLog "INFO platform" && the platform && the processor
    webCatchErrors
@@ -367,6 +371,24 @@ on webBuild
             with "WebProbe", tFieldsFolder, tFieldsSettings
       webLog "INFO fields-warnings" && revStandaloneGetWarnings()
       webLog "INFO fields-files" && webFiles(tFieldsFolder)
+      -- The same standalone with the HTML5 pane's Splash setting (bwmilby's
+      -- request, openxtalk.org p=26115): the green PNG, from a file outside
+      -- the stack's folder, as a path the user chose. web_check.py checks
+      -- that the builder copied it as splash.png, that the page is the one
+      -- above with the splash's style and script in its head, and that a
+      -- browser shows the splash while the page loads and the stack once
+      -- it is open
+      put tSettings into tSplashSettings
+      put $OXT_WEB_OUTPUT & "-splash" into tSplashFolder
+      if there is not a folder tSplashFolder then
+         create folder tSplashFolder
+      end if
+      put base64Decode(kGreenPNG) into url ("binfile:" & tSplashFolder & "-image.png")
+      put tSplashFolder & "-image.png" into tSplashSettings["emscripten,splash"]
+      dispatch "revSaveAsEmscriptenStandalone" to stack "revsaveasemscriptenstandalone" \
+            with "WebProbe", tSplashFolder, tSplashSettings
+      webLog "INFO splash-warnings" && revStandaloneGetWarnings()
+      webLog "INFO splash-files" && webFiles(tSplashFolder)
       webMobileWebFound
    catch tError
    end try

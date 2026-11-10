@@ -20,7 +20,10 @@ import android.util.Log;
 import android.media.*;
 import android.app.*;
 import android.content.*;
+import android.os.Build;
 import android.view.KeyEvent;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 import java.util.ArrayList;
 
 public class BusyIndicator
@@ -52,16 +55,49 @@ public class BusyIndicator
             {
                 if (keyCode == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0)
                 {
-                    // If backKey is pressed, dismiss all mobileBusyIndicators being in progress before exiting to prevent a leak.
-                    for (ProgressDialog t_dialog : m_dialog)
-                        t_dialog.dismiss();
-                    
-                    m_engine.doBackPressed();
+                    backPressed();
                     return true;
                 }
                 return false;
             }
         });
+        
+        // OXT-Beyond: Android 16 and newer send an app that targets API 36 or
+        // newer no KEYCODE_BACK: the dialog's back callback does the same
+        // (LiveCodeActivity.registerBackCallback)
+        if (Build.VERSION.SDK_INT >= 33)
+            registerBackCallback(t_dialog);
+    }
+    
+    // If backKey is pressed, dismiss all mobileBusyIndicators being in progress before exiting to prevent a leak.
+    protected void backPressed()
+    {
+        for (ProgressDialog t_dialog : m_dialog)
+            t_dialog.dismiss();
+        
+        m_engine.doBackPressed();
+    }
+    
+    protected void registerBackCallback(Dialog p_dialog)
+    {
+        p_dialog.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                                                                            new BackCallback(this));
+    }
+    
+    protected static class BackCallback implements OnBackInvokedCallback
+    {
+        protected BusyIndicator m_indicator;
+        
+        public BackCallback(BusyIndicator p_indicator)
+        {
+            m_indicator = p_indicator;
+        }
+        
+        @Override
+        public void onBackInvoked()
+        {
+            m_indicator.backPressed();
+        }
     }
 
     public void hideBusyIndicator()

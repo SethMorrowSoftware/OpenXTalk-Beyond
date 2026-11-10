@@ -106,6 +106,8 @@ on:
       - '.github/workflows/tag-release.yml'
       - '.github/workflows/ui-tour.yml'
       - '.github/workflows/android.yml'
+      - '.github/workflows/android-java.yml'
+      - '.github/workflows/android-engine.yml'
       - '.github/workflows/mac-menu-backdrop.yml'
       - '.github/workflows/pages.yml'
       - 'tools/pages/**'
@@ -115,6 +117,11 @@ on:
       - 'tools/ci/release_notes.py'
       - 'tools/ci/android_check.py'
       - 'tools/ci/android-check.livecodescript'
+      - 'tools/ci/android_java.py'
+      - 'tools/ci/android_engine.py'
+      - 'tools/ci/build-android.sh'
+      - 'config/android-ndk-version'
+      - 'engine/src/java/**'
       - 'tools/ci/tests/**'
       - '.github/workflows/build-linux.yml'
       - '.github/workflows/build-macos.yml'
@@ -138,8 +145,18 @@ on:
       - 'tools/ci/web-tests-baseline.txt'
       - 'tools/ci/web-tests.livecodescript'
       - 'tools/ci/web_tests.py'
+  # DRAFT PULL REQUESTS (2026-11-06). A draft runs none of this workflow's
+  # jobs: each job's `if:` ends in `github.event.pull_request.draft != true`,
+  # and marking the pull request ready (ready_for_review, below) starts the
+  # whole run on its newest commit. A draft is work in progress whose commits
+  # land minutes apart, and each one used to start this full build only for
+  # the next to cancel it (26 of 52 builds on 2026-11-06 00:38-02:15 UTC). CI
+  # checks still run on every draft commit. A push, a dispatch and a call from
+  # release.yml have no pull request, so the condition is always true there.
+  # tools/ci/tests/test_draft_builds.py holds every job to it.
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore: *build-paths-ignore
   workflow_dispatch:
     inputs:
@@ -194,6 +211,7 @@ jobs:
   # packages: it takes a few minutes, before the build starts
   docs:
     name: Docs
+    if: ${{ github.event.pull_request.draft != true }}
     uses: ./.github/workflows/docs.yml
     with:
       artifact: OXT-Beyond-docs-windows
@@ -203,6 +221,7 @@ jobs:
   # the build starts
   web:
     name: Web
+    if: ${{ github.event.pull_request.draft != true }}
     uses: ./.github/workflows/web.yml
     with:
       artifact: OXT-Beyond-web-windows
@@ -210,7 +229,7 @@ jobs:
   build:
     name: Build win-x86_64
     needs: [docs, web]
-    if: ${{ !cancelled() }}
+    if: ${{ (!cancelled()) && github.event.pull_request.draft != true }}
     runs-on: windows-2022
     timeout-minutes: 300
     defaults:
@@ -862,6 +881,59 @@ jobs:
           VERSION: ${{ steps.product.outputs.version }}
         run: python tools/ci/ui_tour.py --install "dist/stage/OXT-Beyond-$env:VERSION" --platform win-x86_64 --appearance dark --out "$env:RUNNER_TEMP\build-logs\ui-tour\dark"
 
+      # Everyday tasks a person does in the IDE, through its own windows
+      # with the system's mouse and keyboard: a new stack, the common
+      # controls from the Tools palette, Inspector edits, the Script
+      # Editor, the Message Box, undo, copy, group, align, cards, Save As,
+      # Close and Remove From Memory and opening it again, Revert, the
+      # Dictionary, the Geometry Manager, Preferences and the Application
+      # Browser; each asserted and snapshot
+      # (tools/ci/everyday-tasks.livecodescript). A task that fails, or a
+      # script error, fails the step
+      - name: Everyday IDE tasks, light
+        id: everyday_light
+        if: ${{ !cancelled() && steps.ui_tour_light.conclusion != 'skipped' }}
+        timeout-minutes: 20
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: python tools/ci/ui_tour.py --install "dist/stage/OXT-Beyond-$env:VERSION" --platform win-x86_64 --script tools/ci/everyday-tasks.livecodescript --timeout 900 --appearance light --out "$env:RUNNER_TEMP\build-logs\ui-tour\everyday-light"
+
+      - name: Everyday IDE tasks, dark
+        if: ${{ !cancelled() && steps.everyday_light.conclusion != 'skipped' }}
+        timeout-minutes: 20
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: python tools/ci/ui_tour.py --install "dist/stage/OXT-Beyond-$env:VERSION" --platform win-x86_64 --script tools/ci/everyday-tasks.livecodescript --timeout 900 --appearance dark --out "$env:RUNNER_TEMP\build-logs\ui-tour\everyday-dark"
+
+      # The IDE as a user starts it, with no document, watched from before
+      # it starts for windows that showed and were taken away again: "ghost
+      # windows" (LittleNemo, openxtalk.org p=25967; the splash is meant to
+      # go). tools/ci/startup_windows.py hears each top-level window of the
+      # IDE's process shown, hidden and destroyed for 60 seconds, then stops
+      # the IDE; it fails on a ghost and on an IDE that ended by itself. On
+      # Linux tools/ci/linux_ide_start.sh, on macOS tools/ci/mac_ide_start.sh
+      # do the same. After the tours, so neither starts on what this left.
+      - name: Start the IDE
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        timeout-minutes: 5
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: |
+          $log = "$env:RUNNER_TEMP\build-logs\ide-start\startup-windows.txt"
+          New-Item -ItemType Directory -Force -Path (Split-Path $log) | Out-Null
+          $exe = Join-Path (Resolve-Path "dist/stage/OXT-Beyond-$env:VERSION") 'OXT-Beyond.exe'
+          python tools/ci/startup_windows.py --seconds 60 --log $log --launch $exe
+          $status = $LASTEXITCODE
+          if ($status -eq 1) {
+            $ghosts = (Select-String -Path $log -Pattern '^GHOST ' | ForEach-Object { $_.Line.Substring(6) }) -join '; '
+            Write-Output "::error title=IDE start::Windows came and went while the IDE started: $ghosts"
+          } elseif ($status -eq 2) {
+            Write-Output "::error title=IDE start::The IDE ended by itself within 60 seconds of starting"
+          } elseif ($status -ne 0) {
+            Write-Output "::error title=IDE start::The window watcher (tools/ci/startup_windows.py) ended with exit status $status"
+          }
+          exit $status
+
       # For a person to look through: a page with each window light and
       # dark side by side (tools/ci/ui_tour_page.py), uploaded with the
       # snapshots and the tour's lines as an artifact of their own, which
@@ -1087,6 +1159,7 @@ jobs:
   # Windows 11.
   window-frame-win11:
     name: Window frame check (Windows 11 title bars)
+    if: ${{ github.event.pull_request.draft != true }}
     needs: [build]
     runs-on: windows-2025
     timeout-minutes: 20
@@ -1138,6 +1211,7 @@ jobs:
   # nothing is packaged.
   build-x86:
     name: Build win-x86
+    if: ${{ github.event.pull_request.draft != true }}
     runs-on: windows-2022
     timeout-minutes: 300
     defaults:

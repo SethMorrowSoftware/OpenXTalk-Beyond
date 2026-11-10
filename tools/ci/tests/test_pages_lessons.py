@@ -99,10 +99,16 @@ class TheLessons(unittest.TestCase):
 
     def test_most_examples_are_checked_by_what_they_put(self):
         # "compile" (not run) is for a dialog, a click or the internet: the
-        # rest run, and nearly all are held to exactly what they put
-        runs = [e['run'] for x in self.lessons for e in x['examples']]
+        # rest run, and nearly all are held to exactly what they put. A
+        # script the reader puts into a widget only compiles (the check
+        # cannot click one), but the example after it that sends its
+        # message from the Message Box (data-after) runs it
+        examples = [e for x in self.lessons for e in x['examples']]
+        runs = [e['run'] for e in examples]
         self.assertGreater(runs.count('output'), 0.85 * len(runs))
-        self.assertLess(runs.count('compile'), 0.08 * len(runs))
+        later = {ident for e in examples for ident in e['after']}
+        compiled = [e['id'] for e in examples if e['run'] == 'compile' and e['id'] not in later]
+        self.assertLess(len(compiled), 0.08 * len(runs))
 
     def test_every_picture_is_there_at_twice_the_stage(self):
         shots = [e for x in self.lessons for e in x['examples'] if e['shot'] is not None]
@@ -159,10 +165,53 @@ class TheLessons(unittest.TestCase):
                 for need in e['needs']:
                     if need.startswith('external:'):
                         self.assertIn(need[len('external:'):], build_lessons.EXTERNALS)
-                    elif not need.startswith('builder:'):
+                    elif re.match(r'^[a-z0-9]+(\.[a-z0-9-]+)+$', need):
                         # an extension the IDE comes with: its folder in
                         # extensions/ or the xTalk Suite's, by its id
-                        self.assertRegex(need, r'^[a-z0-9]+(\.[a-z0-9-]+)+$')
+                        self.assertNotIn(' ', need)
+                    elif not need.startswith('builder:'):
+                        # or one of the xTalk Suite's script libraries,
+                        # which the package puts in a folder of its name
+                        self.assertIn(need, build_lessons.suite_libraries(), e['id'])
+
+    def test_the_levels_are_the_same_everywhere(self):
+        # a level is named once, in build_lessons.LEVELS: the page's
+        # filters and its count of levels come from there, and the style
+        # sheet and the search's script know each one
+        css = read('tools', 'pages', 'lessons', 'lessons.css')
+        script = read('tools', 'pages', 'lessons', 'lessons.js')
+        hub = read('tools', 'pages', 'lessons', 'index.html')
+        self.assertIn('@LEVEL_BUTTONS@', hub)
+        self.assertIn('@LEVEL_COUNT@', hub)
+        self.assertNotRegex(hub, r'data-level="(?!all")')
+        for key, name, _, _ in build_lessons.LEVELS:
+            self.assertIn('--%s: #' % key, css)
+            self.assertIn('.lv-%s { --c: var(--%s); }' % (key, key), css)
+            self.assertIn("%s: '%s'" % (key, name), script)
+
+    def test_every_aside_is_one_the_page_styles(self):
+        css = read('tools', 'pages', 'lessons', 'lessons.css')
+        styled = set(re.findall(r'aside\.([a-z]+)::before \{ content:', css))
+        self.assertEqual(styled, {'tip', 'note', 'warn', 'legacy'})
+        for lesson in self.lessons:
+            for kind in re.findall(r'<aside class="([^"]*)"', lesson['body']):
+                self.assertIn(kind, styled, lesson['file'])
+
+    def test_the_extensions_lessons_load_what_they_teach(self):
+        # each lesson of the Extensions level runs its examples with the
+        # extensions it is about, as the IDE loads them, bar the one that
+        # starts it, whose first examples ask what is loaded
+        extensions = [x for x in self.lessons if x['level'] == 'extensions']
+        self.assertGreaterEqual(len(extensions), 15)
+        for lesson in extensions:
+            needing = [e for e in lesson['examples'] if e['needs']]
+            self.assertGreater(len(needing), len(lesson['examples']) // 2, lesson['file'])
+        needs = {n for x in extensions for e in x['examples'] for n in e['needs']}
+        # the whole xTalk Suite
+        for need in ('org.openxtalk.library.sodium', 'org.openxtalk.library.coin', 'coinxt', 'nostrxt',
+                     'org.openxtalk.library.enet', 'org.openxtalk.library.datachannel',
+                     'org.openxtalk.library.torrent', 'onionxt', 'org.openxtalk.box2dxt', 'box2dxt-kit'):
+            self.assertIn(need, needs)
 
 
 class TheBuild(unittest.TestCase):
@@ -194,6 +243,13 @@ class TheBuild(unittest.TestCase):
             self.assertIn('<title>%s · Lessons · OXT-Beyond</title>' % by_slug[slug]['title'], page)
         for e in (e for x in lessons for e in x['examples'] if e['shot'] is not None):
             self.assertTrue(os.path.isfile(os.path.join(out, 'shots', e['id'] + '.png')), e['id'])
+        # the hub: a filter for each level, in order, and how many there are
+        with open(os.path.join(out, 'index.html'), encoding='utf-8') as f:
+            hub = f.read()
+        self.assertNotRegex(hub, r'@[A-Z_]+@')
+        self.assertEqual(re.findall(r'<button type="button" class="lv-[a-z]+" data-level="([a-z]+)"', hub),
+                         list(build_lessons.LEVEL_KEYS))
+        self.assertIn('<b>%d</b> levels' % len(build_lessons.LEVELS), hub)
         # the search: a row a section, each going to a page and a place
         # that are there, its text without its heading (the heading is
         # shown above it)
@@ -273,6 +329,7 @@ class TheExampleRules(unittest.TestCase):
             (figure('id="ex-a" data-run="output" data-needs="builder:ex-nothing"'), 'not an xTalk Builder'),
             (figure('id="ex-a" data-run="output" data-needs="external:revfoo"'), 'not one of the externals'),
             (figure('id="ex-a" data-run="output" data-needs="Not An Id"'), "not an extension's id"),
+            (figure('id="ex-a" data-run="output" data-needs="nosuchxt"'), "xTalk Suite's script libraries"),
             (figure('id="ex-a" data-run="output"') * 2, 'used twice'),
         ]
         for text, says in cases:
@@ -285,6 +342,10 @@ class TheExampleRules(unittest.TestCase):
             figure('id="ex-a" data-run="error" data-line="2"', out=None),
             figure('id="ex-a" data-run="runs" data-wait="2.5" data-shot="a ball, mid bounce"'),
             figure('id="ex-a" data-run="output" data-needs="com.livecode.library.json external:revdb"'),
+            # the xTalk Suite's script libraries, by the folder the package
+            # puts each in (tools/oxt/xtalk-extensions.json)
+            figure('id="ex-a" data-run="output" data-needs="org.openxtalk.library.sodium onionxt"'),
+            figure('id="ex-a" data-run="output" data-needs="org.openxtalk.box2dxt box2dxt-kit"'),
             figure('id="ex-m" data-run="builder"', 'library x\nend library', out=None)
             + figure('id="ex-a" data-run="output" data-needs="builder:ex-m"'),
         ]
@@ -370,6 +431,10 @@ class TheCardsTheReaderBuilds(unittest.TestCase):
             (figure('id="ex-msg" data-run="output" %s data-in="message"' % card)
              + figure('id="ex-a" data-run="output" %s data-script="this card" data-click="this card" '
                       'data-after="ex-msg"' % card, script), "not an object's script on the same card"),
+            # the check cannot click a widget as a reader does: the reader
+            # sends its message from the Message Box
+            (figure('id="ex-a" data-run="output" %s data-script=\'widget "Dark"\' '
+                    'data-click=\'widget "Dark"\'' % card, script), 'cannot click a widget'),
         ]
         for text, says in cases:
             found = problems(build() + text)
@@ -389,6 +454,11 @@ class TheCardsTheReaderBuilds(unittest.TestCase):
             # a click on the card itself
             figure('id="ex-a" data-run="output" %s data-script="this card" data-click="this card"' % card,
                    'on mouseUp\n   put 1\nend mouseUp'),
+            # a widget's script, its message then sent from the Message Box
+            figure('id="ex-w" data-run="compile" %s data-script=\'widget "Dark"\'' % card,
+                   'on hiliteChanged\n   put the hilite of me\nend hiliteChanged', None)
+            + figure('id="ex-a" data-run="output" %s data-in="message" data-after="ex-w"' % card,
+                     'set the highlight of widget "Dark" to true'),
         ]
         for text in ok:
             self.assertEqual(problems(build() + text), [], text)
@@ -444,6 +514,21 @@ class WhatTheCheckRunsOnACard(unittest.TestCase):
         code = lessons_check.palette_code(card_example(script='this stack', code=stack_script, run='compile'))[0]
         self.assertTrue(code.endswith('end oxtLessonClick\n' + stack_script))
         self.assertNotIn('set the script of this stack', code)
+
+    def test_between_two_lines_of_the_message_box(self):
+        # the IDE handles what came in and draws the card again before the
+        # reader types the next line: on the same line, so that an error's
+        # line is the line's; a comment or an empty line is left alone
+        e = card_example(**{'in': 'message', 'code': 'put 1\n\n-- a note\nput 2'})
+        code, before = lessons_check.palette_code(e)
+        lines = code.split('\n')
+        self.assertEqual(lines[before:before + 4],
+                         ['put 1; oxtLessonIdle', '', '-- a note', 'put 2; oxtLessonIdle'])
+        self.assertIn('on oxtLessonIdle', code)
+        self.assertIn('wait 0 milliseconds with messages', lessons_check.IDLE)
+        self.assertIn('export snapshot from this card of stack "revAcademyStage"', lessons_check.IDLE)
+        # not for an object's script, nor lines that are not for the Message Box
+        self.assertNotIn('oxtLessonIdle', lessons_check.palette_code(card_example(code='put 1'))[0])
 
     def test_what_the_message_box_shows_after_each_click(self):
         e = card_example(script='this card', code='on mouseUp\n   put 2\nend mouseUp',
@@ -728,7 +813,12 @@ class WhereTheCheckLooks(unittest.TestCase):
         for words in ('command mapCodeLibraries', 'the revLibraryMapping', 'with resource path',
                       'function loadExternal', 'revSetDatabaseDriverPath', 'revliburl.livecodescript',
                       'wait 20 milliseconds with messages', 'revAcademyRun',
-                      'export snapshot from this card of stack "revAcademyStage"'):
+                      'export snapshot from this card of stack "revAcademyStage"',
+                      # script-library extensions set up as the IDE does,
+                      # the widgets' module files and versioned folders,
+                      # and the standalone builder the libraries call
+                      'send "extensionInitialize" to stack tLibrary', 'module.2.lcm', 'module.0.lcm',
+                      'function versionedFolder', 'on revSBAddDependencyForInclusion'):
             self.assertIn(words, script)
 
 

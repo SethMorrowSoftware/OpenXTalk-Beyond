@@ -53,8 +53,9 @@ Source Code Pro font files (the web engine cannot load them) and an
 unused archive of the Linux theme.
 
 --repo DIR copies a source checkout's script-only IDE stacks
-(ide/**/*.livecodescript, the xTalk Academy's course files, and
-ide-support's scripts into Toolset/libraries) over
+(ide/**/*.livecodescript in Toolset and Plugins, an IDE extension's
+scripts in ide/Extensions where the install has the same file, the xTalk
+Academy's course files, and ide-support's scripts into Toolset/libraries) over
 the installed ones, to try IDE script changes without packaging them, and
 puts the examples of Learn's gallery that are not in the install yet
 where packaging does: the remastered examples (ide/Resources/Examples/
@@ -209,6 +210,12 @@ def repo_scripts(repo, install):
         rel = os.path.relpath(path, ide).replace(os.sep, '/')
         # Only where the installed IDE has its scripts
         if rel.split('/')[0] in ('Toolset', 'Plugins') and not leave_out(rel):
+            scripts[rel] = path
+        # An IDE extension's scripts (packaging copies ide/Extensions as it
+        # is), where the installed IDE has the same file: until rc.6.18 a
+        # pull request's web IDE ran the release's (openxtalk.org p=26169)
+        elif rel.split('/')[0] == 'Extensions' and not leave_out(rel) and \
+                os.path.isfile(os.path.join(install, *rel.split('/'))):
             scripts[rel] = path
     for path in glob.glob(os.path.join(repo, 'ide-support', '*.livecodescript')):
         scripts['Toolset/libraries/' + os.path.basename(path)] = path

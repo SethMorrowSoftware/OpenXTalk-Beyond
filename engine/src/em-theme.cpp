@@ -158,6 +158,22 @@ MCEmscriptenThemeGetCheckBoxColor(bool p_pressed, MCColor& r_color)
 	return em_theme_color(p_pressed ? kMCWebThemeDarkHilightEdge : kMCWebThemeDarkFace, r_color);
 }
 
+/* OXT-Beyond: the text of a tooltip (MCTooltip::render, tooltip.cpp), in
+ * the dark appearance: white, as the Windows engine writes a control's text
+ * in Windows' dark mode. A tooltip's background follows the appearance
+ * (MCPlatformGetControlThemePropColor below: the dark face), but its text
+ * was always black, so in a dark browser every tooltip, the IDE's and a
+ * stack's, was black on RGB(32,32,32) (bwmilby, openxtalk.org p=26171, the
+ * web IDE in Safari's dark mode). False in the light appearance, where the
+ * text stays black, as before. */
+bool
+MCEmscriptenThemeGetTooltipTextColor(MCColor& r_color)
+{
+	if (!em_theme_is_dark())
+		return false;
+	return em_theme_color(kMCWebThemeDarkText, r_color);
+}
+
 bool
 MCPlatformGetControlThemePropColor(MCPlatformControlType p_type,
                                    MCPlatformControlPart p_part,

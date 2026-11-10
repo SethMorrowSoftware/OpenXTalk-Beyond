@@ -6,7 +6,7 @@ title	Pulldown Menu
 name							Pulldown Menu					
 label												
 tooltip												
-style				false			menu					
+style							menu	standard,transparent,opaque,rectangle,roundRect,shadow,menu,checkbox,radioButton				
 menuMode							Pulldown					
 menuMouseButton												
 visible							true					

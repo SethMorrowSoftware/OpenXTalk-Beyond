@@ -109,7 +109,7 @@ SINGLE_ARCH = ()
 DIFFER = (
     ('**/Contents/Info.plist', 'plist',
      'Xcode writes each build\'s deployment target into its bundles as LSMinimumSystemVersion '
-     '(11.0 on arm64, 10.13 on x86_64). The copy with the lower one is taken, so that a universal '
+     '(11.0 on both since 0.2.7-rc.6.19; 10.13 on x86_64 before). The copy with the lower one is taken, so that a universal '
      'bundle declares the macOS its x86_64 slice runs on, byte for byte (the standalone builder '
      'edits the runtime\'s Info.plist line by line). Any other key that differs is an error, '
      'except the build machine\'s (BUILD_MACHINE_KEYS), which are reported. One edit follows the '

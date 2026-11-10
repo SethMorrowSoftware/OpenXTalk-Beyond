@@ -1,0 +1,133 @@
+<!--
+title: More libraries
+level: extensions
+minutes: 10
+summary: The smaller libraries: HyperXTalk's iff and quoted-printable functions, a stack in a phone's browser with the Mobile Web library, a lasting reference to an object, and the libraries made for Android and the Mac.
+words: iff, quotedPrintableEncode, quotedPrintableDecode, the microseconds, mwIsWeb, mwStart, swipe, pinch, longPress, objectRepositoryStore, objectRepositoryRetrieve, mobileToast, macStatusMenuCreate, macStatusMenuSet, macStatusMenuPick, SetDockTileBadge, the platform
+-->
+<h2 id="hyperxtalk">HyperXTalk's functions</h2>
+<p><strong>HyperXTalk</strong> is another xTalk, a cousin of OXT-Beyond, which added a few words of its own. So that scripts written for it run here too, the HyperXTalk Compatibility library has them. <code>iff</code> chooses between two values in one expression, where an <code>if</code> would take several lines:</p>
+<figure class="example" id="ex-more-iff" data-run="output" data-needs="org.openxtalk.library.hxtcompat">
+<pre class="code"><code>repeat with tCount = 0 to 2
+   put tCount &amp;&amp; iff(tCount is 1, "apple", "apples")
+end repeat
+put "The file is" &amp;&amp; iff(there is a file "/no/such/file", "there", "missing")</code></pre>
+<pre class="out">0 apples
+1 apple
+2 apples
+The file is missing</pre>
+</figure>
+<p>Both values are worked out before <code>iff</code> chooses, as for any function, so a value that could fail, such as <code>1 / tCount</code> when <code>tCount</code> can be 0, fails even when it is not the one chosen. Use an <code>if</code> for that.</p>
+<p><code>quotedPrintableEncode</code> and <code>quotedPrintableDecode</code> do email's quoted-printable encoding (<a href="../text-tools/#mime">Text tools</a>) on bytes, so encode text first, and <code>the microseconds</code>, which the engine itself now has, counts millionths of a second:</p>
+<figure class="example" id="ex-more-qp" data-run="output" data-needs="org.openxtalk.library.hxtcompat">
+<pre class="code"><code>put quotedPrintableEncode(textEncode("Prix: 5 €", "UTF-8")) into tEncoded
+put tEncoded
+put textDecode(quotedPrintableDecode(tEncoded), "UTF-8")
+put abs(the microseconds div 1000 - the milliseconds) &lt; 1000</code></pre>
+<pre class="out">Prix: 5 =E2=82=AC
+Prix: 5 €
+true</pre>
+</figure>
+<p>A script of your own with a handler of one of these names keeps calling its own: a library's handlers come last in the message path (<a href="../using-extensions/#library">Using extensions</a>).</p>
+
+<h2 id="mobile-web">A stack in a phone's browser</h2>
+<p>A stack built as an <strong>HTML5 standalone</strong> runs in a web browser (<a href="../shipping/">Shipping your program</a>), on a phone's too. The <strong>Mobile Web</strong> library, made for OXT-Beyond, makes it at home there: it fills the screen with the stack and fills it again when the phone turns, says how much of the stack the on-screen keyboard covers, and turns a finger's movements into messages. On a desktop it does nothing and answers as a desktop would, so the same stack runs in both places. <code>mwIsWeb</code> says which:</p>
+<figure class="example" id="ex-more-web" data-run="output" data-needs="com.livecode.library.mobileweb">
+<pre class="code"><code>put mwIsWeb()
+put mwIsTouchScreen()</code></pre>
+<pre class="out">false
+false</pre>
+</figure>
+<p>One line in <code>openStack</code> starts it. After <code>mwStart</code>, a quick stroke of a finger sends <code>swipe</code> with its direction, two fingers send <code>pinch</code> with how far apart they have moved, and a finger held still sends <code>longPress</code>, each to the control under the finger, as <code>mouseDown</code> is:</p>
+<figure class="example" id="ex-more-swipe" data-run="compile" data-needs="com.livecode.library.mobileweb">
+<pre class="code"><code>on openStack
+   mwStart
+end openStack
+
+on swipe pDirection
+   if pDirection is "left" then go next card
+   if pDirection is "right" then go previous card
+end swipe
+
+on pinch pScale
+   set the textSize of field "Story" to max(10, min(40, round(16 * pScale)))
+end pinch</code></pre>
+</figure>
+<p>A swipe a control does not handle goes on to its card and stack, so these handlers in the stack's script turn the pages wherever the finger is. In the IDE nothing sends them, so try the stack in a phone's browser, or on a desktop browser that pretends to be a phone.</p>
+
+<h2 id="repository">A lasting reference to an object</h2>
+<p>An object's <code>long id</code> names its stack, and changes when the stack is renamed or saved somewhere else. The <strong>Object Repository</strong> library gives an object a number that lasts while the program runs: <code>objectRepositoryStore</code> gives one, and <code>objectRepositoryRetrieve</code> gives the object's long id as it is now, or empty once the object is gone. The IDE's palettes use it to keep track of the object they show:</p>
+<figure class="example" id="ex-more-repository" data-run="output" data-needs="com.livecode.library.objectrepository">
+<pre class="code"><code>create button "Keep"
+put objectRepositoryStore(the long id of button "Keep") into tKey
+put the short name of objectRepositoryRetrieve(tKey)
+delete button "Keep"
+put objectRepositoryRetrieve(tKey) is empty
+get objectRepositoryRemove(tKey)</code></pre>
+<pre class="out">Keep
+true</pre>
+</figure>
+<p>Remove a number you no longer need, so the repository does not grow; <code>objectRepositoryFlush</code> removes every number whose object is gone.</p>
+
+<h2 id="android">Android</h2>
+<p>A few libraries do things only an Android phone can. The <strong>Toast</strong> library shows a <strong>toast</strong>, the short message that appears near the bottom of the screen and fades by itself; the <strong>Android Audio Recorder</strong> records from the microphone, and <strong>Android Background Audio</strong> keeps sound playing when the app is not on screen. The <strong>Android Utilities</strong> library asks for the phone's <strong>permissions</strong> and helps the Android widgets. Ask <code>the platform</code> before you call one, so the same stack still works everywhere else:</p>
+<figure class="example" id="ex-more-android" data-run="compile" data-needs="com.livecode.library.toast">
+<pre class="code"><code>command tellUser pMessage
+   if the platform is "android" then
+      mobileToast pMessage, "short"
+   else
+      answer pMessage
+   end if
+end tellUser
+
+on mouseUp
+   tellUser "Saved."
+end mouseUp</code></pre>
+</figure>
+
+<h2 id="mac">The Mac</h2>
+<p>Two libraries reach parts of macOS that other systems do not have. The <strong>Mac Status Menu</strong> library puts a menu of your program's own in the row of icons at the right of the Mac's menu bar, and sends <code>macStatusMenuPick</code> when an item is chosen. The <strong>macOS Native App Tools</strong> library puts a badge on the program's Dock icon, posts a notification, bounces the Dock icon for attention, shows a file in the Finder, and switches the program to dark or light mode:</p>
+<figure class="example" id="ex-more-mac" data-run="compile" data-needs="com.livecode.library.native.mac.statusmenu org.openxtalk.library.macosnativeapptools">
+<pre class="code"><code>on openStack
+   if the platform is not "MacOS" then exit openStack
+   macStatusMenuCreate "timer"
+   macStatusMenuSet "timer", "title", "25:00"
+   macStatusMenuSet "timer", "items", "Start" &amp; return &amp; "Stop" &amp; return &amp; "-" &amp; return &amp; "Quit"
+end openStack
+
+on macStatusMenuPick pName, pChosen
+   switch pChosen
+      case "Start"
+         SetDockTileBadge "on"
+         break
+      case "Stop"
+         SetDockTileBadge empty
+         break
+      case "Quit"
+         macStatusMenuDelete "timer"
+         quit
+   end switch
+end macStatusMenuPick</code></pre>
+</figure>
+<p>A standalone carries only the libraries ticked on the Inclusions pane of its settings (<a href="../shipping/#inclusions">Shipping your program</a>), so tick these for the platforms that use them. The Dictionary has every handler of each, with the systems it works on.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a function <code>countWords</code> that takes some text and returns how many words it has, with the right word after the number: <code>1 word</code>, <code>2 words</code>, and <code>no words</code> for empty text. Use <code>iff</code>.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-more-try" data-run="output" data-needs="org.openxtalk.library.hxtcompat">
+<pre class="code"><code>function countWords pText
+   local tCount
+   put the number of words of pText into tCount
+   return iff(tCount is 0, "no", tCount) &amp;&amp; iff(tCount is 1, "word", "words")
+end countWords
+
+put countWords("")
+put countWords("hello")
+put countWords("the quick brown fox")</code></pre>
+<pre class="out">no words
+1 word
+4 words</pre>
+</figure>
+</details>
+</section>

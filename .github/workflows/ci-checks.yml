@@ -16,9 +16,8 @@
 
 
 # The quick checks of the workflows and of the CI scripts that need no build,
-# on every pull request and push to main, in a minute or two on one Linux
-# runner, so that a mistake in them shows before (or instead of) the hour of
-# building:
+# on every pull request and push to main, on one Linux runner, so that a
+# mistake in them shows before (or instead of) the hour of building:
 #
 #   - actionlint checks every workflow: syntax, expressions, job and step
 #     references, the inputs of reusable workflows and actions (the shell
@@ -66,7 +65,10 @@ jobs:
   checks:
     name: Workflows and CI scripts
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # The unit tests alone took 584 s here in November 2026 (1716 tests),
+    # and a limit of 10 minutes cancelled a run whose tests had all
+    # passed: twice what they take, so a slower runner is not a failure
+    timeout-minutes: 20
     steps:
       # (the whole history: the runtimes' provenance step looks back to
       # the commit the runtimes asset was built from)
@@ -76,15 +78,25 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      # A pinned release, checked against its published SHA-256
+      # A pinned release, checked against its published SHA-256.
+      # Downloaded with gh, through GitHub's API, and only when that fails
+      # from the release's web address (github.com/.../releases/download).
+      # On 9 November 2026 the web address answered "504 Gateway Time-out"
+      # to the runners on and off for an hour, to all four of curl's tries
+      # in three jobs (run 42568140708 and its re-run, run 42571371043),
+      # while gh downloaded a 663 MB release in 10 s on the Android
+      # builder's runners in between
       - name: Lint the workflows (actionlint)
         env:
           ACTIONLINT_VERSION: 1.7.12
           ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+          GH_TOKEN: ${{ github.token }}
         run: |
           archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
-          curl -sSfL --retry 3 -o "$RUNNER_TEMP/$archive" \
-            "https://github.com/rhysd/actionlint/releases/download/v$ACTIONLINT_VERSION/$archive"
+          gh release download "v$ACTIONLINT_VERSION" --repo rhysd/actionlint \
+            --pattern "$archive" --dir "$RUNNER_TEMP" --clobber ||
+            curl -sSfL --retry 3 -o "$RUNNER_TEMP/$archive" \
+              "https://github.com/rhysd/actionlint/releases/download/v$ACTIONLINT_VERSION/$archive"
           echo "$ACTIONLINT_SHA256  $RUNNER_TEMP/$archive" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" actionlint
           "$RUNNER_TEMP/actionlint" -version
@@ -112,7 +124,8 @@ jobs:
   other-os:
     name: CI scripts on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    # macos-15 took 14 of the 15 minutes this had in November 2026
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:

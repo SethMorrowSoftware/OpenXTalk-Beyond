@@ -13,6 +13,14 @@ local  sMessageID,  sGridSystem, sThisCard, sControls, sLabels
 constant kGuideLineColor = "255,0,255", kGuideLabelColor = "56,56,255", kGuideLineCardColor = "255,128,0", kGuideLabelCardColor = "0,128,0"
 
 on extensionInitialize
+   -- OXT-Beyond: one of the IDE's own stacks whether the guides are on or
+   -- off. With them off it closes itself below, but a library the IDE
+   -- loaded and never opened stays in memory, and until 0.2.7-rc.6.18 the
+   -- web IDE's Project Browser and App Browser listed it first among the
+   -- user's stacks (LittleNemo, openxtalk.org p=26169): its name does not
+   -- begin with "rev", nor is it the name the IDE loaded it by
+   -- ("devguides", its file's)
+   set the _ideoverride of me to true
    -- revised the layoutguides (22-11-2023), made this an option in prefs (tperry)
    if the cLayoutGuides of stack "revPreferences" is true then
       -- guides are on

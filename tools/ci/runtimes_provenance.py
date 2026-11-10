@@ -42,7 +42,12 @@ reach the commit (a shallow clone: check out with fetch-depth 0).
 
 The Android runtime in the asset is carried over from oxt-runtimes-1.15
 and is not built from any commit here: the report says so and counts
-nothing for it.
+nothing for it. Its Java layer is the exception when the asset record
+names one ("java_layer", make_runtimes_asset.py --android-classes): that
+is built from the asset's commit (engine/src/java), so the list counts for
+it as for the other runtimes. So is OXT-Beyond's own Android engine beside
+it, when the record names its folder ("android_engine",
+make_runtimes_asset.py --android-engine).
 """
 
 import argparse
@@ -86,6 +91,26 @@ def runtimes_asset(assets_file):
     return asset['id'], commits.pop()
 
 
+def java_layer(assets_file):
+    """The path of the runtimes asset's Java layer when it was built from
+    the asset's commit (its "java_layer"), or None when the whole Android
+    runtime is carried over."""
+    with open(assets_file, encoding='utf-8') as f:
+        data = json.load(f)
+    found = [a for a in data.get('assets', []) if str(a.get('id', '')).startswith('oxt-runtimes-')]
+    return found[0].get('java_layer') if len(found) == 1 else None
+
+
+def android_engine(assets_file):
+    """The folder of OXT-Beyond's own Android engine in the runtimes asset,
+    built from the asset's commit (its "android_engine"), or None when the
+    asset has none."""
+    with open(assets_file, encoding='utf-8') as f:
+        data = json.load(f)
+    found = [a for a in data.get('assets', []) if str(a.get('id', '')).startswith('oxt-runtimes-')]
+    return found[0].get('android_engine') if len(found) == 1 else None
+
+
 def git(repo, *args):
     out = subprocess.run(['git', '-C', repo] + list(args), capture_output=True, text=True)
     if out.returncode != 0:
@@ -105,7 +130,7 @@ def commits_since(repo, commit, paths=SOURCE_PATHS):
     return [tuple(line.split(' ', 1)) if ' ' in line else (line, '') for line in out.splitlines() if line]
 
 
-def report(asset_id, commit, commits, limit):
+def report(asset_id, commit, commits, limit, java=None, engine=None):
     lines = ['### Runtimes asset provenance', '',
              '`%s` was built from commit `%s`.' % (asset_id, commit[:12]), '']
     if not commits:
@@ -123,8 +148,22 @@ def report(asset_id, commit, commits, limit):
             lines.append('- `%s` %s' % (sha[:10], subject))
         if len(commits) > limit:
             lines.append('- ... and %d more' % (len(commits) - limit))
-    lines += ['', 'The Android runtime in the asset is carried over from oxt-runtimes-1.15, not built here: '
-              'not checked.']
+    if engine:
+        text = ('OXT-Beyond\'s own Android engine in the asset (`%s`) was built from that commit too, and the '
+                'list counts for it.' % engine)
+        if java:
+            text += (' So was the Java layer of LiveCode Community 9.6.3\'s Android runtime beside it (`%s`), '
+                     'from `engine/src/java`.' % java)
+        text += (' The rest of that runtime, 9.6.3\'s Android engines (the default), is carried over from '
+                 'oxt-runtimes-1.15, not built here: not checked.')
+        lines += ['', text]
+    elif java:
+        lines += ['', 'The Android runtime\'s Java layer in the asset (`%s`) was built from that commit too, '
+                  'from `engine/src/java`, and the list counts for it. The rest of the Android runtime is '
+                  'carried over from oxt-runtimes-1.15, not built here: not checked.' % java]
+    else:
+        lines += ['', 'The Android runtime in the asset is carried over from oxt-runtimes-1.15, not built here: '
+                  'not checked.']
     return '\n'.join(lines) + '\n'
 
 
@@ -139,13 +178,15 @@ def main(argv=None):
     actions = os.environ.get('GITHUB_ACTIONS') == 'true'
     try:
         asset_id, commit = runtimes_asset(args.assets)
+        java = java_layer(args.assets)
+        engine = android_engine(args.assets)
         commits = commits_since(args.repo, commit)
     except ProvenanceError as e:
         print('error: %s' % e, file=sys.stderr)
         if actions:
             print('::error title=Runtimes provenance::%s' % e)
         return 2
-    text = report(asset_id, commit, commits, args.list)
+    text = report(asset_id, commit, commits, args.list, java, engine)
     sys.stdout.write(text)
     summary = os.environ.get('GITHUB_STEP_SUMMARY')
     if summary:

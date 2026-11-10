@@ -94,6 +94,14 @@ static jmethodID s_openglview_finish_method = 0;
 static jmethodID s_openglview_swap_method = 0;
 static jmethodID s_openglview_configure_method = 0;
 
+// OXT-Beyond: the OpenGL ES version of the context this engine draws in
+// (glcontext.cpp and tilecachegl3.x.cpp are OpenGL ES 3 code, and
+// kernel.gyp links -lGLESv3), which OpenGLView.startGLES(int) makes. Its
+// start() makes the OpenGL ES 1 context of LiveCode 9.6.3's engine, which
+// the Java layer also serves. tools/ci/android_java.py jni checks this
+// against the OpenGL ES library a built engine loads.
+static const jint kMCAndroidOpenGLESVersion = 3;
+
 // The Java VM that we are bound to. This is set in the JNI_OnLoad startup
 // function.
 static JavaVM *s_java_vm = nullptr;
@@ -141,6 +149,10 @@ static jobject s_android_class_loader = nullptr;
 
 // If this is false, then it means the engine broke somehow.
 static bool s_engine_running = false;
+
+// OXT-Beyond: whether the engine thread has finished (co_leave_engine),
+// which doDestroy waits for
+static bool s_engine_left = false;
 
 int32_t g_android_keyboard_type = 1;
 
@@ -615,7 +627,15 @@ Boolean MCScreenDC::wait(real8 duration, Boolean dispatch, Boolean anyevent)
 			done = True;
 
 		// If 'quit' has been set then we must have got a finalization request
-		if (MCquit)
+		// OXT-Beyond: and so has the engine once Android has destroyed the
+		// activity (doDestroy): a wait ends there, aborted as for quit, and
+		// a script's wait raises the wait error ("wait: aborted") where it
+		// waited out its time before, while doDestroy held Android's thread,
+		// and Android called the app not responding (a density change in the
+		// probe's 20 s wait, run 42558963714 of android-engine.yml). In
+		// LiveCode 9.6.3 the app hung there for good (doDestroy says why), so
+		// no script went on after its wait either
+		if (MCquit || !s_engine_running)
 		{
 			abort = True;
 			break;
@@ -1385,20 +1405,26 @@ static void *mobile_main(void *arg)
 
 	// MW-2011-10-01: [[ Bug 9772 ]] Switch to the android thread until we get
 	//   a bitmap to render into!
-	while(s_android_bitmap == nil)
+	// OXT-Beyond: or until the activity is destroyed first (doDestroy): the
+	//   project is not started, and the engine finishes. Before, it waited
+	//   here for a bitmap that never came, and Android's thread with it
+	while(s_android_bitmap == nil && s_engine_running)
 		co_yield_to_android();
 
-	MCLog("Starting up project");
-	send_startup_message(false);
-    
-    // PM-2015-02-02: [[ Bug 14456 ]] Make sure the billing provider is properly initialized before a preopenstack/openstack message is sent
-    MCAndroidInitEngine();
-    
-	if (!MCquit)
-		MCdispatcher -> gethome() -> open();
-    
-	MCLog("Hiding splash screen");
-	MCAndroidEngineRemoteCall("hideSplashScreen", "v", nil);
+	if (s_engine_running)
+	{
+		MCLog("Starting up project");
+		send_startup_message(false);
+
+		// PM-2015-02-02: [[ Bug 14456 ]] Make sure the billing provider is properly initialized before a preopenstack/openstack message is sent
+		MCAndroidInitEngine();
+
+		if (!MCquit)
+			MCdispatcher -> gethome() -> open();
+
+		MCLog("Hiding splash screen");
+		MCAndroidEngineRemoteCall("hideSplashScreen", "v", nil);
+	}
 
 	while(s_engine_running)
 	{
@@ -1461,6 +1487,7 @@ static void co_enter_engine(void)
 static void co_leave_engine(void)
 {
 	pthread_mutex_lock(&s_coroutine_mutex);
+	s_engine_left = true;
 	s_coroutine_thread = &s_android_ui_thread;
 	pthread_mutex_unlock(&s_coroutine_mutex);
 
@@ -2077,6 +2104,7 @@ JNIEXPORT void JNICALL Java_com_runrev_android_Engine_doCreate(JNIEnv *env, jobj
 
 	// Make sure the engine isn't running
 	s_engine_running = false;
+	s_engine_left = false;
 
 	// The android ui thread is this one
 	MCMemoryReinit(s_android_ui_thread);
@@ -2169,11 +2197,23 @@ JNIEXPORT void JNICALL Java_com_runrev_android_Engine_doDestroy(JNIEnv *env, job
 
 	s_engine_running = false;
 
+	// OXT-Beyond: as an event breaks a wait for any event (doProcess), so
+	// that the main loop's wait ends at once
+	s_schedule_wakeup_was_broken = true;
+
 	// IM-2013-05-01: [[ BZ 10586 ]] we should now only be called when the
 	// engine thread is about to exit, so set s_engine_running to false & yield
 	// so it can finish terminating
+	// OXT-Beyond: yield until it has finished (co_leave_engine), as it can
+	// yield to this thread again first: in the middle of drawing (the screen
+	// flush of MCScreenDC::updatewindow), in a script's wait, which then
+	// ends at once (MCScreenDC::wait), or before it had a bitmap. After one yield, as before,
+	// this thread went on to join an engine thread that was waiting for its
+	// turn, and the app hung there for good (Android 16 relaunching the
+	// activity for a density change in run 42416576870)
 	MCLog("Yielding to engine thread to perform finalization phase", 0);
-	co_yield_to_engine();
+	while (!s_engine_left)
+		co_yield_to_engine();
 
 	// Finalize bitmap mutex
 	pthread_mutex_destroy(&s_android_bitmap_mutex);
@@ -2793,7 +2833,7 @@ JNIEXPORT void JNICALL Java_com_runrev_android_OpenGLView_doSurfaceCreated(JNIEn
 	{
 		jclass t_view_class;
 		t_view_class = env -> GetObjectClass(p_view);
-		s_openglview_start_method = env -> GetMethodID(t_view_class, "start", "()V");
+		s_openglview_start_method = env -> GetMethodID(t_view_class, "startGLES", "(I)V");
 		s_openglview_finish_method = env -> GetMethodID(t_view_class, "finish", "()V");
 		s_openglview_configure_method = env -> GetMethodID(t_view_class, "configure", "()V");
 		s_openglview_swap_method = env -> GetMethodID(t_view_class, "swap", "()V");
@@ -2837,7 +2877,7 @@ static void doSurfaceChangedCallback(void *p_is_init)
 
 	// If the view is nil, then this must be an initializing change.
 	if (t_is_init)
-		s_java_env -> CallVoidMethod(s_android_opengl_view, s_openglview_start_method);
+		s_java_env -> CallVoidMethod(s_android_opengl_view, s_openglview_start_method, kMCAndroidOpenGLESVersion);
 
 	// Make sure we have a valid surface.
 	s_java_env -> CallVoidMethod(s_android_opengl_view, s_openglview_configure_method);

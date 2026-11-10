@@ -45,6 +45,8 @@ constant kHeight = 640
 constant kSide = 200
 constant kPages = "home,speak,move,draw,web,app"
 constant kFrame = 16
+-- (the longest a frame is taken to have lasted, for hmFrameDelay)
+constant kFrameCostCap = 250
 constant kAwayCheck = 500
 constant kWake = 2000
 constant kPageCheck = 500
@@ -56,6 +58,8 @@ constant kTextInset = 4
 local sPage, sPageStart
 -- The pending frame, this frame's time, and the time since the last one
 local sTick, sNow, sLastFrame, sDt
+-- How long a frame has lasted lately, in milliseconds (hmFrameDelay)
+local sFrameCost
 -- True while another window is in front: Home then holds still, and
 -- leaves the browser to the window in use (hmTick)
 local sAway
@@ -177,7 +181,7 @@ end hmStageRect
 -- middle of the room on the right. Things are moved by how far they are
 -- from where they were, so it can run as often as the window changes.
 private command hmLayout pWidth, pHeight
-   local tSaved, tOX, tOY, tDX, tDY, tFoot, tPage, tName, tGroups
+   local tSaved, tOX, tOY, tDX, tDY, tFoot, tPage, tName
    if there is not a group "pg_home" of me then
       exit hmLayout
    end if
@@ -217,29 +221,12 @@ private command hmLayout pWidth, pHeight
    end if
    -- The pages, the header and the status line
    if tDX is not 0 or tDY is not 0 then
+      -- (each page, built or not yet: hmBuildPage moves one built later)
       repeat for each item tPage in kPages
-         put "pg_" & tPage & comma after tGroups
+         hmLayoutPage tPage, tDX, tDY
       end repeat
-      repeat for each item tName in tGroups & "hdr"
-         set the topLeft of group tName to the left of group tName + tDX, the top of group tName + tDY
-      end repeat
+      set the topLeft of group "hdr" to the left of group "hdr" + tDX, the top of group "hdr" + tDY
       set the topLeft of field "hdrStatus" to the left of field "hdrStatus" + tDX, the top of field "hdrStatus" + tDY
-      -- (a lit thing that slides in or lifts is put at its own top)
-      repeat for each item tPage in kPages
-         repeat for each line tName in sLiveList[tPage]
-            if sCfg[tName]["top"] is not empty then
-               add tDY to sCfg[tName]["top"]
-            end if
-         end repeat
-      end repeat
-      -- (the line the Speak page offers names a place on its stage)
-      if field "spkInput" is hmSpeakFirstTry() then
-         add tDX to sOX
-         add tDY to sOY
-         put hmSpeakFirstTry() into field "spkInput"
-         subtract tDX from sOX
-         subtract tDY from sOY
-      end if
    end if
    put tOX into sOX
    put tOY into sOY
@@ -281,6 +268,7 @@ private command hmStartTicking
    put false into sHeld
    put 0 into sWokeUntil
    put 0 into sFpsFrames
+   put empty into sFrameCost
    send "hmTick" to me in kFrame milliseconds
    put the result into sTick
 end hmStartTicking
@@ -331,7 +319,7 @@ on hmTick
    end if
    put the defaultStack into tSaved
    set the defaultStack to the short name of me
-   put min(0.1, max(0, (sNow - sLastFrame) / 1000)) into sDt
+   put min(hmDtCap(), max(0, (sNow - sLastFrame) / 1000)) into sDt
    put sNow into sLastFrame
    lock screen
    try
@@ -339,6 +327,7 @@ on hmTick
    catch tError
    end try
    unlock screen
+   hmFrameCost the milliseconds - sNow
    if tSaved is not empty and there is a stack tSaved then
       set the defaultStack to tSaved
    end if
@@ -347,10 +336,52 @@ on hmTick
       put true into sHeld
       send "hmTick" to me in kAwayCheck milliseconds
    else
-      send "hmTick" to me in kFrame milliseconds
+      send "hmTick" to me in hmFrameDelay() milliseconds
    end if
    put the result into sTick
 end hmTick
+
+-- How long Home waits after a frame before the next: kFrame, as it always
+-- has, on a computer that draws a frame in less than that; and on a slower
+-- one, as long as its frames have lately taken to draw. Every frame was
+-- followed by kFrame milliseconds whatever it cost, so on a computer that
+-- takes 60 milliseconds to draw one, Home kept the engine busy four fifths
+-- of the time, and a click, a key or the user's own stack waited behind
+-- its frames; now it keeps half the time for them. The animations follow
+-- the clock (sDt), so they move as far, in fewer frames. A computer whose
+-- frames take kFrame or less is not affected: its frames come as often as
+-- before. (seth, 2026-11-09: Home as snappy as it can be on a low-powered
+-- computer.) The frames' cost is smoothed, so one slow frame (a page
+-- built, the computer busy elsewhere for a moment) is not a pause, and
+-- capped at kFrameCostCap.
+private command hmFrameCost pMilliseconds
+   put max(0, min(kFrameCostCap, pMilliseconds)) into pMilliseconds
+   if sFrameCost is empty then
+      put pMilliseconds into sFrameCost
+   else
+      put sFrameCost * 0.8 + pMilliseconds * 0.2 into sFrameCost
+   end if
+end hmFrameCost
+
+-- The most time one frame moves the animations on, in seconds: a tenth,
+-- as always, so that a pause (a dialog, a page built) is not a leap; and
+-- on a computer whose frames are paced (hmFrameDelay) a frame comes about
+-- twice its cost after the last, so up to three times that cost, or the
+-- animations that follow sDt (the Move page's balls and sparks) would run
+-- in slow motion where frames are more than a tenth of a second apart.
+private function hmDtCap
+   if sFrameCost is empty then
+      return 0.1
+   end if
+   return max(0.1, 3 * sFrameCost / 1000)
+end hmDtCap
+
+private function hmFrameDelay
+   if sFrameCost is empty then
+      return kFrame
+   end if
+   return max(kFrame, round(sFrameCost))
+end hmFrameDelay
 
 -- Whether Home holds still now: another window is in front, or the
 -- browser's window is not in use, and the pointer has not woken it
@@ -1533,12 +1564,9 @@ private command hmBuild
       get hmGroup("pg_" & tPage, kSide & ",0," & kWidth & "," & kHeight, empty)
       hide group ("pg_" & tPage)
    end repeat
-   hmBuildHome
-   hmBuildSpeak
-   hmBuildMove
-   hmBuildDraw
-   hmBuildWeb
-   hmBuildApp
+   -- (the first page now; each of the others when it is first shown,
+   -- hmBuildPage)
+   hmBuildPage "home"
    hmBuildHeader
    unlock messages
    unlock screen
@@ -1546,6 +1574,95 @@ private command hmBuild
       set the defaultStack to tSaved
    end if
 end hmBuild
+
+-- Builds a page's controls into its group, unless they are there. Until
+-- 0.2.7 every page was built as Home opened: some 550 controls, of which
+-- the first page, the one a user sees, has a fifth. Opening Home (and
+-- coming back to it from another of OXT-Beyond Home's places, and a
+-- switch between light and dark) built all six, which a low-powered
+-- computer felt as a wait before the window came up (seth, 2026-11-09).
+-- Now Home builds its first page, and each other page the first time it
+-- is shown (hmGoPage), into the group hmBuild made for it, in its place
+-- among the layers. A page is built as before, where a 1024 by 640 window
+-- has it, and then moved to where the window has the pages now, as
+-- hmLayout moves the pages already built.
+private command hmBuildPage pPage
+   local tSaved, tOX, tOY, tGroup
+   put "pg_" & pPage into tGroup
+   if pPage is not among the items of kPages or there is not a group tGroup of me then
+      exit hmBuildPage
+   end if
+   if the number of controls of group tGroup of me > 0 then
+      exit hmBuildPage
+   end if
+   put the defaultStack into tSaved
+   set the defaultStack to the short name of me
+   lock screen
+   lock messages
+   put sOX into tOX
+   put sOY into tOY
+   put 0 into sOX
+   put 0 into sOY
+   set the rect of group tGroup to kSide & ",0," & kWidth & "," & kHeight
+   switch pPage
+      case "home"
+         hmBuildHome
+         break
+      case "speak"
+         hmBuildSpeak
+         break
+      case "move"
+         hmBuildMove
+         break
+      case "draw"
+         hmBuildDraw
+         break
+      case "web"
+         hmBuildWeb
+         break
+      case "app"
+         hmBuildApp
+         break
+   end switch
+   -- (while hmBuild builds, the window is not laid out yet, sLaidW is
+   -- empty, and hmLayout then moves the page from where it was built)
+   if sLaidW is not empty and tOX is a number and tOY is a number and (tOX is not 0 or tOY is not 0) then
+      hmLayoutPage pPage, tOX, tOY
+   end if
+   put tOX into sOX
+   put tOY into sOY
+   unlock messages
+   unlock screen
+   if tSaved is not empty and there is a stack tSaved then
+      set the defaultStack to tSaved
+   end if
+end hmBuildPage
+
+-- Moves a page pDX right and pDY down: its group, the tops its lit things
+-- slide in to, and the line the Speak page offers, which names a place on
+-- its stage. sOX and sOY are where the page was laid out for.
+private command hmLayoutPage pPage, pDX, pDY
+   local tName
+   if there is not a group ("pg_" & pPage) then
+      exit hmLayoutPage
+   end if
+   set the topLeft of group ("pg_" & pPage) to the left of group ("pg_" & pPage) + pDX, the top of group ("pg_" & pPage) + pDY
+   -- (a lit thing that slides in or lifts is put at its own top)
+   repeat for each line tName in sLiveList[pPage]
+      if sCfg[tName]["top"] is not empty then
+         add pDY to sCfg[tName]["top"]
+      end if
+   end repeat
+   if pPage is "speak" and there is a field "spkInput" then
+      if field "spkInput" is hmSpeakFirstTry() then
+         add pDX to sOX
+         add pDY to sOY
+         put hmSpeakFirstTry() into field "spkInput"
+         subtract pDX from sOX
+         subtract pDY from sOY
+      end if
+   end if
+end hmLayoutPage
 
 -- A button: a rounded box with an icon and a label, lit as its style says
 --    primary   filled with the accent
@@ -1934,6 +2051,8 @@ private command hmGoPage pWhere
    if tPage is empty or tPage is not among the items of kPages or tPage is tOld then
       exit hmGoPage
    end if
+   -- (before the screen is locked for the effect: hmBuildPage locks it too)
+   hmBuildPage tPage
    if tOld is empty then
       -- (Home opening: the page shown when it last closed is put away)
       lock screen

@@ -1,0 +1,503 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+# The Android engine of the checkout and the externals an Android standalone
+# can include, built for every architecture with the NDK of
+# config/android-ndk-version (its own Clang, LLVM tools and lld) by
+# tools/ci/build-android.sh, which says what the folder holds and how it is
+# built, and checked (the Android plan's phase 2):
+#
+#   - tools/ci/android_engine.py check: what Android and the IDE's builder
+#     ask of each library (the right machine, 16 KB pages for the 64-bit
+#     ones, no text relocations, only Android's own libraries, Android 5.0
+#     as the lowest, and the section the builder writes the stack into);
+#   - tools/ci/android_java.py jni: the engine's Java_* functions against
+#     the Java layer built with it, and its calls into Java.
+#
+# Then the engine runs (the device job): the IDE's builder of this checkout,
+# in the latest release's IDE with this runtime beside its own (as
+# Runtime/Android/Beyond), builds both probes with that engine (their
+# "android,engine" setting "beyond"), and they run on an Android 13
+# emulator and on the first image with 16 KB pages, with the checks
+# android.yml makes of them with the released engine.
+#
+# The folders are artifacts: nothing here goes into a package or a release
+# by itself. A runtimes asset can take one run's (runtimes.yml, its input
+# android-engine-run, as Runtime/Android/Beyond), and a package that pins
+# that asset ships the engine beside LiveCode 9.6.3's, which stays the
+# default.
+#
+# Each build job runs in an Ubuntu 22.04 container, as web.yml's does (the
+# newest Ubuntu with the Python 2.7 that gyp and config.py need), with the
+# runner's Android SDK mounted into it; the NDK, the platform the Java layer
+# compiles against and the build tools are installed into that SDK with
+# its sdkmanager when the runner's image has not got them.
+#
+# Caches (the GitHub Actions cache), each filled again by the job when it
+# misses: the build tools' packages (as web.yml's), and the libraries
+# build-android.sh builds for each architecture (OpenSSL, ICU and the
+# Thirdparty libraries for Android, ICU, libz and libffi for the build's
+# host tools), keyed by what they are built with.
+name: Android engine
+
+on:
+  pull_request:
+    branches: [ main ]
+    # What the engine and its externals are built from, and this
+    # workflow's own files: not the IDE, the documentation, the tests, the
+    # installers or the other workflows and CI scripts
+    paths: &engine-paths
+      - '**'
+      - '!ide/**'
+      - '!ide-support/**'
+      - '!docs/**'
+      - '!tests/**'
+      - '!Installer/**'
+      - '!changelog/**'
+      - '!**.md'
+      - '!.github/**'
+      - '!tools/**'
+      - .github/workflows/android-engine.yml
+      - tools/ci/build-android.sh
+      - tools/ci/android_engine.py
+      - tools/ci/android_java.py
+      - tools/javac_wrapper.sh
+      - tools/pathify.sh
+  push:
+    branches: [ main ]
+    paths: *engine-paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-engine-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: Android engine (${{ matrix.arch }})
+    runs-on: ubuntu-24.04
+    # Ubuntu 22.04 through Google's mirror of Docker Hub, as web.yml takes
+    # it, with the runner's Android SDK
+    container:
+      image: mirror.gcr.io/library/ubuntu:22.04
+      volumes:
+        - /usr/local/lib/android:/usr/local/lib/android
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            abi: arm64-v8a
+          - arch: armv7
+            abi: armeabi-v7a
+          - arch: x86_64
+            abi: x86_64
+          - arch: x86
+            abi: x86
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      ARCH: ${{ matrix.arch }}
+      ABI: ${{ matrix.abi }}
+      # The packages the first step installs (part of its cache key): those
+      # of web.yml's, and a JDK for the Java layer and the SDK's sdkmanager
+      BUILD_PKGS: >-
+        build-essential gcc g++ make perl bison flex gawk pkg-config
+        python2 python3 git curl ca-certificates
+        bzip2 xz-utils zstd zip unzip file openjdk-17-jdk-headless
+      ANDROID_SDK: /usr/local/lib/android/sdk
+      # The platform whose android.jar the Java layer compiles against
+      # (android-java.yml's)
+      ANDROID_API_VERSION: '36'
+    steps:
+      - name: Compute the build tools cache key
+        id: apt-key
+        run: |
+          hash=$(printf '%s\n' 'mirror.gcr.io/library/ubuntu:22.04' "$BUILD_PKGS" | sha256sum | cut -c1-16)
+          echo "key=apt-jammy-android-$(date -u +%Y-%m)-${hash}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the build tools' packages
+        id: apt-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            /var/cache/apt/archives/*.deb
+            /var/lib/apt/lists
+          key: ${{ steps.apt-key.outputs.key }}
+
+      - name: Install build tools
+        env:
+          CACHE_HIT: ${{ steps.apt-cache.outputs.cache-hit }}
+        run: |
+          rm -f /etc/apt/apt.conf.d/docker-clean
+          if [ "$CACHE_HIT" != true ]; then
+            apt-get -o Acquire::Retries=3 update
+          fi
+          # shellcheck disable=SC2086 # BUILD_PKGS is a list
+          apt-get -o Acquire::Retries=3 install -y --no-install-recommends $BUILD_PKGS
+          # gyp and config.py run "python", which must be Python 2.7
+          ln -sf /usr/bin/python2 /usr/local/bin/python
+          gcc --version | sed -n 1p
+          python --version
+          javac -version
+          echo "Processors: $(nproc)"
+
+      - name: Save the build tools' packages to the cache
+        if: steps.apt-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main' && matrix.arch == 'arm64'
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            /var/cache/apt/archives/*.deb
+            /var/lib/apt/lists
+          key: ${{ steps.apt-key.outputs.key }}
+
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Mark the workspace safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # The NDK of config/android-ndk-version, the platform and build tools
+      # (which config.py asks for), from the runner's SDK, or installed into it
+      - name: Set up the NDK and the SDK
+        run: |
+          ndk=$(head -n 1 config/android-ndk-version | tr -d '[:space:]')
+          if [ -z "$ndk" ]; then echo "::error::config/android-ndk-version is empty"; exit 1; fi
+          [ -d "$ANDROID_SDK" ] || { echo "::error::no Android SDK in $ANDROID_SDK (the runner's)"; exit 1; }
+          wanted=()
+          [ -f "$ANDROID_SDK/ndk/$ndk/source.properties" ] || wanted+=("ndk;$ndk")
+          [ -f "$ANDROID_SDK/platforms/android-$ANDROID_API_VERSION/android.jar" ] ||
+            wanted+=("platforms;android-$ANDROID_API_VERSION")
+          tools=$(find "$ANDROID_SDK/build-tools" -mindepth 2 -maxdepth 2 -name aidl 2>/dev/null | sort -V | tail -n 1)
+          [ -n "$tools" ] || wanted+=("build-tools;$ANDROID_API_VERSION.0.0")
+          if [ ${#wanted[@]} -gt 0 ]; then
+            echo "Installing ${wanted[*]}"
+            sm="$ANDROID_SDK/cmdline-tools/latest/bin/sdkmanager"
+            (yes || true) | "$sm" --licenses > /dev/null
+            "$sm" --install "${wanted[@]}" > /tmp/sdkmanager.log 2>&1 ||
+              { tail -40 /tmp/sdkmanager.log; exit 1; }
+          fi
+          echo "ANDROID_NDK=$ANDROID_SDK/ndk/$ndk" >> "$GITHUB_ENV"
+          sed -n 's/^Pkg\.Revision *= *//p' "$ANDROID_SDK/ndk/$ndk/source.properties"
+          "$ANDROID_SDK/ndk/$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" --version | sed -n 1p
+          ls "$ANDROID_SDK/build-tools"
+
+      # The libraries' key, from what they are built with: the prebuilt
+      # scripts and versions, the vendored thirdparty/ tree, the gyp
+      # settings and config.py, the NDK's version and build-android.sh
+      - name: Compute the cache key
+        id: keys
+        run: |
+          scripts=$(cat prebuilt/versions/* prebuilt/scripts/*.sh prebuilt/scripts/*.inc \
+                        prebuilt/build-libraries.sh prebuilt/*.gyp config/*.gypi config.py \
+                        config/android-ndk-version tools/ci/build-android.sh | sha256sum | cut -c1-16)
+          thirdparty=$(git rev-parse HEAD:thirdparty | cut -c1-12)
+          echo "libraries=prebuilt-android-${ARCH}-jammy-${scripts}-${thirdparty}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the libraries
+        id: libraries-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            prebuilt/lib
+            prebuilt/bin
+            prebuilt/include
+            prebuilt/share
+          key: ${{ steps.keys.outputs.libraries }}
+
+      # A step of its own, so that the libraries are kept whether the
+      # engine then builds or not
+      - name: Build the libraries
+        id: libraries
+        if: steps.libraries-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 120
+        run: tools/ci/build-android.sh "$ARCH" --libraries
+
+      - name: Save the libraries to the cache
+        if: steps.libraries.outcome == 'success'
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            prebuilt/lib
+            prebuilt/bin
+            prebuilt/include
+            prebuilt/share
+          key: ${{ steps.keys.outputs.libraries }}
+
+      - name: Build the engine and the externals
+        timeout-minutes: 120
+        run: tools/ci/build-android.sh "$ARCH" android-runtime
+
+      - name: Check what Android and the builder ask of them
+        run: python3 tools/ci/android_engine.py check android-runtime --abi "$ABI"
+
+      - name: Check the engine against its Java layer (JNI)
+        run: |
+          python3 tools/ci/android_java.py jni --classes android-runtime/Classes --runtime android-runtime \
+            --android-jar "$ANDROID_SDK/platforms/android-$ANDROID_API_VERSION/android.jar"
+
+      # A path in the workspace: in a container job runner.temp names the
+      # host's folder, which the upload action does not see
+      - name: Upload the runtime
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-engine-${{ matrix.abi }}
+          path: android-runtime/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload the build logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-engine-${{ matrix.abi }}-logs
+          path: |
+            prebuilt/build/**/config.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # The engine built here, run. The IDE's builder of this checkout, in the
+  # latest release's IDE with the four architectures' runtime beside the
+  # release's, where the runtimes carry it (overlay --beyond:
+  # Runtime/Android/Beyond, with the engine, the externals, the Java layer
+  # built with them and the files beside them, in place of the release's
+  # own Beyond folder, which its runtimes carry from 0.2.7-rc.6.19 on),
+  # builds the app probe and
+  # the Java layer's probe as the IDE's Test does (debug, for every
+  # architecture), each a stack that asks for that engine (ide
+  # --android-engine beyond: the "android,engine" setting); verify --engine
+  # checks that each package's engine is the one built here, so the setting
+  # picked it. They run on x86_64 emulators (the runner's
+  # architecture, with KVM): Android 13, and the first image with 16 KB
+  # pages, with the checks android.yml makes of them with the released
+  # engine (see there for what each says)
+  device:
+    name: Android engine on the emulator
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      PLATFORM: linux-x86_64
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # The four build jobs' folders, each in a folder of its own: the next
+      # step makes them one runtime, as the runtimes asset does
+      - name: Download the runtime
+        uses: actions/download-artifact@v8
+        with:
+          pattern: android-engine-*
+          path: ${{ runner.temp }}/android/parts
+
+      # Each architecture's libraries from its folder, the files beside them
+      # from the first, which every folder must have the same (the Java
+      # layer: the same classes): android_engine.py merge, which
+      # runtimes.yml runs on these folders too
+      - name: Make the four folders one runtime
+        run: |
+          parts="$RUNNER_TEMP/android/parts"
+          python3 tools/ci/android_engine.py merge "$RUNNER_TEMP/android/engine" \
+            "$parts/android-engine-arm64-v8a" "$parts/android-engine-armeabi-v7a" \
+            "$parts/android-engine-x86" "$parts/android-engine-x86_64"
+
+      # The IDE whose builder runs, as android.yml takes it: the latest
+      # release's, which only runs here (nothing is uploaded to it)
+      - name: Download the IDE
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          tag=$(gh release list --repo "$REPO" --limit 30 --json tagName --jq '.[].tagName' | grep -E '^v[0-9]' | head -n 1)
+          [ -n "$tag" ] || { echo "::error::no release tagged v<version> to take the IDE from"; exit 1; }
+          echo "The IDE of $tag"
+          echo "### The Android engine built here, in the IDE of $tag" >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p "$RUNNER_TEMP/dist"
+          gh release download "$tag" --repo "$REPO" --pattern "*-$PLATFORM.tar.xz" --dir "$RUNNER_TEMP/dist"
+          echo "PACKAGE=$(ls "$RUNNER_TEMP"/dist/*-"$PLATFORM".tar.xz)" >> "$GITHUB_ENV"
+          echo "WORK=$RUNNER_TEMP/android" >> "$GITHUB_ENV"
+
+      # The IDE's runtime libraries and Xvfb, as android.yml installs them
+      - name: Install Xvfb and the runtime libraries
+        run: |
+          sudo apt-get update
+          pkgs=(xvfb xauth fonts-dejavu-core)
+          while read -r soname use deb rpm rest; do
+            case $soname in ''|'#'*) continue ;; esac
+            if apt-cache show --no-all-versions "${deb}t64" > /dev/null 2>&1; then
+              deb="${deb}t64"
+            fi
+            case " ${pkgs[*]} " in *" $deb "*) ;; *) pkgs+=("$deb") ;; esac
+          done < Installer/linux/libraries.txt
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}"
+
+      # As android.yml's: the JDK, the platform the builder targets with
+      # this Java layer (API 36), build-tools, platform-tools, the
+      # emulator, an Android 13 image and the first image with 16 KB pages
+      # at API 36 or newer
+      - name: Set up the JDK and the Android SDK
+        run: |
+          for v in JAVA_HOME_17_X64 JAVA_HOME_21_X64; do
+            if [ -n "${!v}" ] && [ -d "${!v}/bin" ]; then
+              jdk="${!v}"
+              break
+            fi
+          done
+          [ -n "$jdk" ] || { echo "::error::no JDK 17 or 21 on the runner"; exit 1; }
+          sdk="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          [ -d "$sdk" ] || { echo "::error::no Android SDK on the runner (ANDROID_HOME)"; exit 1; }
+          echo "JDK=$jdk" >> "$GITHUB_ENV"
+          echo "SDK=$sdk" >> "$GITHUB_ENV"
+          sm="$sdk/cmdline-tools/latest/bin/sdkmanager"
+          (yes || true) | "$sm" --licenses > /dev/null
+          img16=$("$sm" --list 2>/dev/null | grep -oE 'system-images;android-[0-9.]+;google_apis_ps16k;x86_64' |
+            awk -F';' '{ v = $2; sub(/^android-/, "", v); if (v + 0 >= 36) print }' |
+            sort -u -t';' -k2,2V | head -n 1)
+          [ -n "$img16" ] || { echo "::error::sdkmanager lists no x86_64 image with 16 KB pages at API 36 or newer"; exit 1; }
+          echo "IMAGE_16K=$img16" >> "$GITHUB_ENV"
+          "$sm" --install "platforms;android-36" "build-tools;35.0.0" "platform-tools" "emulator" \
+            "system-images;android-33;google_apis;x86_64" "$img16" > "$RUNNER_TEMP/sdkmanager.log" 2>&1 ||
+            { tail -40 "$RUNNER_TEMP/sdkmanager.log"; exit 1; }
+          echo "JDK: $jdk"; "$jdk/bin/java" -version 2>&1 | head -n 1
+          echo "SDK: $sdk"; ls "$sdk/platforms" "$sdk/build-tools"
+
+      - name: Unpack the IDE, and put this builder and the runtime into it
+        run: |
+          python3 tools/ci/android_check.py extract --package "$PACKAGE" --dest "$WORK/ide" \
+            --platform "$PLATFORM" --env IDE
+          python3 tools/ci/android_check.py overlay --root "$WORK/ide" --beyond "$WORK/engine"
+
+      # Started now, as android.yml's: it boots while the IDE builds
+      - name: Start an Android 13 emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
+            sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/avd"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo no | "$SDK/cmdline-tools/latest/bin/avdmanager" create avd -n api33 \
+            -k "system-images;android-33;google_apis;x86_64" -d pixel_5 --force
+          "$SDK/platform-tools/adb" start-server
+          nohup "$SDK/emulator/emulator" -avd api33 -no-window -no-audio -no-boot-anim -no-snapshot \
+            -gpu swiftshader_indirect -camera-back none -camera-front none \
+            > "$WORK/emulator-api33.log" 2>&1 &
+          sleep 20
+          if ! pgrep -f 'qemu-system|emulator.*-avd api33' > /dev/null; then
+            echo "::warning::the Android 13 emulator stopped within 20 s of starting; the end of its log:"
+            tail -n 40 "$WORK/emulator-api33.log"
+          fi
+
+      # The Java layer built with the engine is ready for API 36, so the
+      # builder targets it
+      - name: Build the probes with this engine
+        run: |
+          python3 tools/ci/android_check.py ide --install "$IDE" --platform "$PLATFORM" \
+            --work "$WORK/app" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug --android-engine beyond
+          python3 tools/ci/android_check.py ide --install "$IDE" --platform "$PLATFORM" \
+            --work "$WORK/java" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug --probe java \
+            --android-engine beyond
+          for probe in app java; do
+            python3 tools/ci/android_check.py verify --work "$WORK/$probe" --sdk "$SDK" --jdk "$JDK" \
+              --builds debug --target 36 --engine "$WORK/engine"
+          done
+
+      - name: Wait for the emulator
+        timeout-minutes: 20
+        run: |
+          python3 tools/ci/android_check.py boot --serial emulator-5554 --sdk "$SDK" \
+            --log "$WORK/emulator-api33.log" --minutes 10 --awake --settle
+
+      # As android.yml's runs of the release's IDE: the app probe; the
+      # Java layer's probe, its notification permission allowed, its
+      # picture among the shared pictures as its own, its back key; neither
+      # drawn under the bars. And as its runs of this checkout's Java layer
+      # (which the runtime carries, RelaunchActivity with it), the engine
+      # once in a process: the app probe goes on in its process through a
+      # font size change (--font-scale), starts again in a new one for a
+      # density change (--density), and once the back key quits its stack
+      # its process ends and it opens again in a new one (--relaunch).
+      # Here only, as 9.6.3's engine hangs there: the density changed while
+      # the probe's script waits (--density-in-wait, a tap's mouseUp), where
+      # the engine, let go on as the activity is destroyed, yields to
+      # Android's thread again (doDestroy in engine/src/mblandroiddc.cpp),
+      # and the wait must end then rather than hold that thread (at most
+      # HELD_LIMIT s, by the events buffer)
+      - name: Run the probes on Android 13
+        run: |
+          python3 tools/ci/android_check.py device --apk "$WORK/app/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-api33-app.png" --log-out "$WORK/logcat-api33-app.txt" \
+            --within-bars --font-scale --density --density-in-wait --relaunch
+          python3 tools/ci/android_check.py device --apk "$WORK/java/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-api33-java.png" --log-out "$WORK/logcat-api33-java.txt" \
+            --allow android.permission.POST_NOTIFICATIONS --picture oxt-beyond-probe.png --back --within-bars
+
+      # As android.yml's 16 KB step (3 GB of memory, --awake and --settle:
+      # see there why)
+      - name: Run the probes with 16 KB pages
+        timeout-minutes: 25
+        run: |
+          adb="$SDK/platform-tools/adb"
+          "$adb" -s emulator-5554 emu kill || true
+          for i in $(seq 1 60); do "$adb" devices | grep -q emulator-5554 || break; sleep 2; done
+          echo "Image: $IMAGE_16K"
+          echo no | "$SDK/cmdline-tools/latest/bin/avdmanager" create avd -n pages16k -k "$IMAGE_16K" \
+            -d pixel_5 --force
+          sed -i '/^hw.ramSize=/d' "$ANDROID_AVD_HOME/pages16k.avd/config.ini"
+          echo 'hw.ramSize=3072M' >> "$ANDROID_AVD_HOME/pages16k.avd/config.ini"
+          nohup "$SDK/emulator/emulator" -avd pages16k -no-window -no-audio -no-boot-anim -no-snapshot \
+            -gpu swiftshader_indirect -camera-back none -camera-front none \
+            > "$WORK/emulator-16k.log" 2>&1 &
+          python3 tools/ci/android_check.py boot --serial emulator-5554 --sdk "$SDK" \
+            --log "$WORK/emulator-16k.log" --minutes 12 --awake --settle
+          page=$("$adb" shell getconf PAGE_SIZE | tr -d '\r')
+          echo "Page size: $page"
+          [ "$page" = 16384 ] || { echo "::error::$IMAGE_16K has pages of $page bytes, not 16384"; exit 1; }
+          python3 tools/ci/android_check.py device --apk "$WORK/app/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-16k-app.png" --log-out "$WORK/logcat-16k-app.txt" \
+            --within-bars --font-scale --density --density-in-wait --relaunch
+          python3 tools/ci/android_check.py device --apk "$WORK/java/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-16k-java.png" --log-out "$WORK/logcat-16k-java.txt" \
+            --allow android.permission.POST_NOTIFICATIONS --picture oxt-beyond-probe.png --back --within-bars
+
+      - name: Upload the packages and logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-device-run
+          path: |
+            ${{ env.WORK }}/*/android-check.txt
+            ${{ env.WORK }}/*/ide-output.txt
+            ${{ env.WORK }}/*/out/*.apk
+            ${{ env.WORK }}/*.png
+            ${{ env.WORK }}/*.log
+            ${{ env.WORK }}/logcat-*.txt
+          if-no-files-found: warn
+          retention-days: 14

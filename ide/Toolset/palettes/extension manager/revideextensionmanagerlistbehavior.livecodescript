@@ -105,7 +105,12 @@ on setUpExtensionList
    -- OXT-Beyond: the rows white and light grey, as before 0.2.7-rc.4, and
    -- in the dark appearance (revIDEAppearanceIsDark, Linux's dark GTK
    -- themes too) dark, under the light text the row behavior gives them
-   set the viewProp["hilite color"] of group "extensionList" of card "list" of this stack to ideColorGet("pb_line_selected")
+   -- OXT-Beyond: the selected row too: the edition's light selection
+   -- colour under the dark appearance's white name left it unreadable
+   -- (bwmilby, forum, 2026-11-07, on the Mac); there it is darkened
+   -- (extensionsHiliteColor). The light appearance is unchanged
+   set the viewProp["hilite color"] of group "extensionList" of card "list" of this stack to \
+         extensionsHiliteColor(ideColorGet("pb_line_selected"), revIDEAppearanceIsDark())
    set the viewProp["background color"] of group "extensionList" of card "list" of this stack to empty
    if revIDEAppearanceIsDark() then
       set the viewProp["row color"] of group "extensionList" of card "list" of this stack to "30,30,30"
@@ -119,6 +124,45 @@ on setUpExtensionList
    set the viewProp["row height"] of group "extensionList" of card "list" of this stack to 41
    set the viewProp["cache"] of group "extensionList" of card "list" of this stack to "none"
 end setUpExtensionList
+
+-- OXT-Beyond: the colour the selected row is drawn in: pColor, the
+-- edition's selection colour, as it is in the light appearance; in the
+-- dark one (pDark true) each of its channels at four tenths, so it keeps
+-- its hue, stays apart from the dark rows (30 and 42) and leaves the white
+-- name on it readable (as Standalone Settings' inclusionsHiliteColor,
+-- which takes three tenths, its rows being lighter). A
+-- colour that is not three numbers is returned as it is
+function extensionsHiliteColor pColor, pDark
+   local tDark, tChannel
+   if pDark is not true then return pColor
+   if the number of items of pColor is not 3 then return pColor
+   repeat for each item tChannel in pColor
+      if tChannel is not a number then return pColor
+      put round(tChannel * 4 / 10) & comma after tDark
+   end repeat
+   delete the last char of tDark
+   return tDark
+end extensionsHiliteColor
+
+-- OXT-Beyond: the colour of an extension's icon on its row: pColor, the
+-- row template's, as it is in the light appearance; in the dark one (pDark
+-- true) each of its channels six tenths of the way to white, so it keeps
+-- its hue and stands out on the dark rows (30 and 42) and on the dark
+-- selected row (extensionsHiliteColor). The template's 96,87,127 becomes
+-- 191,188,204: about 3.6 to 1 on the Mac's dark selection colour, where
+-- 96,87,127 was 1 to 1 (bwmilby, forum, 2026-11-09). A colour that is not
+-- three numbers is returned as it is
+function extensionsIconColor pColor, pDark
+   local tLight, tChannel
+   if pDark is not true then return pColor
+   if the number of items of pColor is not 3 then return pColor
+   repeat for each item tChannel in pColor
+      if tChannel is not a number then return pColor
+      put round(tChannel + (255 - tChannel) * 6 / 10) & comma after tLight
+   end repeat
+   delete the last char of tLight
+   return tLight
+end extensionsIconColor
 
 function NumberOfRows
    # return the number of rows in the data view

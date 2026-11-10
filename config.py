@@ -129,6 +129,7 @@ def process_env_options(opts):
         'ANDROID_NDK_PLATFORM_VERSION', 'ANDROID_PLATFORM',
         'ANDROID_SDK', 'ANDROID_NDK', 'ANDROID_BUILD_TOOLS', 'LTO',
         'ANDROID_TOOLCHAIN_DIR', 'ANDROID_TOOLCHAIN', 'ANDROID_API_VERSION',
+        'ANDROID_FUSE_LD',
         'AR', 'CC', 'CXX', 'LINK', 'OBJCOPY', 'OBJDUMP',
         'STRIP', 'JAVA_SDK', 'NODE_JS', 'BUILD_EDITION', 'CC_PREFIX', 'CROSS',
         'SYSROOT', 'AUX_SYSROOT', 'TRIPLE', 'MS_SPEECH_SDK5', 'QUICKTIME_SDK',
@@ -571,6 +572,40 @@ def android_extra_ldflags(target_arch):
         return '-Wl,--fix-cortex-a8'
     return ''
 
+# OXT-Beyond: an NDK from r19 on has a Clang toolchain of its own, with
+# every architecture's sysroot, in toolchains/llvm/prebuilt/<host>/bin; r23
+# took out the GNU tools (ar, objcopy, strip and the bfd linker) and r24
+# the make_standalone_toolchain.py that made the standalone toolchains
+# this build used. The folder of that toolchain's programs, for this host,
+# or None when the NDK has none.
+def guess_ndk_llvm_bin(ndk):
+    system = platform.system()
+    if system == 'Darwin':
+        hosts = ('darwin-x86_64',)
+    elif system == 'Windows' or system.startswith('CYGWIN'):
+        hosts = ('windows-x86_64',)
+    else:
+        hosts = ('linux-x86_64',)
+    for host in hosts:
+        dir = os.path.join(ndk, 'toolchains', 'llvm', 'prebuilt', host, 'bin')
+        if os.path.isfile(os.path.join(dir, 'clang')) or os.path.isfile(os.path.join(dir, 'clang.exe')):
+            return dir
+    return None
+
+# The target such an NDK's Clang takes for an architecture: the triple with
+# the lowest API level the build runs on (ARMv7's is armv7a-, as the NDK
+# names it)
+def ndk_clang_target(target_arch, api):
+    if target_arch == 'armv7':
+        return 'armv7a-linux-androideabi' + api
+    return guess_android_triple(target_arch) + api
+
+# The sysroot folder of such an NDK's libraries for an architecture and API
+# level (the sysroot names ARMv7's folder arm-linux-androideabi)
+def ndk_sysroot_lib_dir(llvm_bin, target_arch, api):
+    triple = guess_android_triple('armv6' if target_arch == 'armv7' else target_arch)
+    return os.path.join(os.path.dirname(llvm_bin), 'sysroot', 'usr', 'lib', triple, api)
+
 def validate_android_tools(opts):
     if opts['ANDROID_NDK_VERSION'] is None:
         opts['ANDROID_NDK_VERSION'] = 'r15'
@@ -585,6 +620,7 @@ def validate_android_tools(opts):
             error('Android NDK not found; set $ANDROID_NDK')
         opts['ANDROID_NDK'] = ndk
 
+    platform_version_guessed = opts['ANDROID_NDK_PLATFORM_VERSION'] is None
     if opts['ANDROID_NDK_PLATFORM_VERSION'] is None:
         opts['ANDROID_NDK_PLATFORM_VERSION'] = '16'
 
@@ -608,12 +644,25 @@ def validate_android_tools(opts):
             error('Android build tools not found; set $ANDROID_BUILD_TOOLS')
         opts['ANDROID_BUILD_TOOLS'] = tools
 
+    # OXT-Beyond: with no standalone toolchain (named, or in the toolchain
+    # folder), the NDK's own Clang toolchain (guess_ndk_llvm_bin), when it
+    # has one: Clang with the API level in its target, the LLVM tools, the
+    # lld linker and libc++ linked into each library (the NDK has no other
+    # C++ library: libstdc++ is only Android's operator new and delete)
+    llvm_bin = None
     if opts['ANDROID_TOOLCHAIN'] is None:
         dir = guess_android_tooldir(toolchain_dir, guess_standalone_toolchain_dir_name(opts['TARGET_ARCH']))
         if dir is None:
+            llvm_bin = guess_ndk_llvm_bin(opts['ANDROID_NDK'])
+        if dir is None and llvm_bin is None:
             error('Android toolchain not found for architecture {}; set $ANDROID_TOOLCHAIN'.format(opts['TARGET_ARCH']))
-        prefix = guess_compiler_prefix(opts['TARGET_ARCH'])
-        opts['ANDROID_TOOLCHAIN'] = os.path.join(dir,'bin',prefix)
+        if dir is not None:
+            prefix = guess_compiler_prefix(opts['TARGET_ARCH'])
+            opts['ANDROID_TOOLCHAIN'] = os.path.join(dir,'bin',prefix)
+        elif platform_version_guessed:
+            # the lowest API level the NDK's own toolchain builds for
+            # (r24 and later: Android 5.0)
+            opts['ANDROID_NDK_PLATFORM_VERSION'] = '21'
 
     def android_tool(name, env, extra=""):
         if opts[env] is None:
@@ -628,6 +677,8 @@ def validate_android_tools(opts):
     cflags = android_extra_cflags(target_arch)
     ldflags = android_extra_ldflags(target_arch)
 
+    if opts['ANDROID_LIB_PATH'] is None and llvm_bin is not None:
+        opts['ANDROID_LIB_PATH'] = ndk_sysroot_lib_dir(llvm_bin, target_arch, opts['ANDROID_NDK_PLATFORM_VERSION'])
     if opts['ANDROID_LIB_PATH'] is None:
         dir =guess_standalone_toolchain_dir_name(opts['TARGET_ARCH'])
         if dir is None:
@@ -641,6 +692,25 @@ def validate_android_tools(opts):
 
     if march != '':
         march = '-march=' + march
+
+    # OXT-Beyond: the linker config/android-settings.gypi names
+    if opts['ANDROID_FUSE_LD'] is None:
+        opts['ANDROID_FUSE_LD'] = 'bfd' if llvm_bin is None else 'lld'
+
+    if llvm_bin is not None:
+        target = ndk_clang_target(target_arch, opts['ANDROID_NDK_PLATFORM_VERSION'])
+        def llvm_tool(name, env, extra=''):
+            if opts[env] is None:
+                opts[env] = (os.path.join(llvm_bin, name) + ' ' + extra).strip()
+        llvm_tool('llvm-ar', 'AR')
+        llvm_tool('clang', 'CC', '-target {} {} {}'.format(target, march, cflags))
+        llvm_tool('clang++', 'CXX', '-target {} {} {}'.format(target, march, cflags))
+        llvm_tool('clang++', 'LINK',
+                  '-target {} {} -fuse-ld=lld -static-libstdc++ {}'.format(target, march, ldflags))
+        llvm_tool('llvm-objcopy', 'OBJCOPY')
+        llvm_tool('llvm-objdump', 'OBJDUMP')
+        llvm_tool('llvm-strip', 'STRIP')
+        return
     android_tool('ar', 'AR')
     android_tool('clang', 'CC',
                  '-target {} {} -integrated-as {}'.format(triple,march,cflags))
@@ -737,6 +807,7 @@ def configure_android(opts):
                        'ANDROID_PLATFORM', 'ANDROID_SDK',
                        'ANDROID_NDK_VERSION', 'ANDROID_NDK_PLATFORM_VERSION',
                        'ANDROID_API_VERSION', 'ANDROID_LIB_PATH',
+                       'ANDROID_FUSE_LD',
                        'JAVA_SDK', 'AR', 'CC', 'CXX', 'LINK', 'OBJCOPY',
                        'OBJDUMP', 'STRIP'))
     args = core_gyp_args(opts) + ['-Dtarget_arch=' + opts['TARGET_ARCH'],

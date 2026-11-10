@@ -1,0 +1,413 @@
+# Puzzle Almanac: the hidden words, and what each one means.
+# One a line: the word, a tab, then its meaning in a short sentence a child
+# can read. Written for this game (GPLv3, as the rest of it); every word is
+# in the ENABLE list (words.txt), and the tests hold that. Lines that begin
+# with # are notes. The game picks today's word from these by the date.
+bake	To cook food in an oven.
+band	A group of people who play music together, or a strip of material.
+bark	The rough outer skin of a tree, or the sound a dog makes.
+barn	A large farm building for animals, hay or crops.
+bead	A small ball with a hole through it, for threading on a string.
+beam	A long, strong piece of wood or metal, or a line of light.
+bean	A seed, or the pod it grows in, that we cook and eat.
+bear	A large, heavy animal with thick fur.
+bell	A hollow metal cup that rings when it is struck.
+bird	An animal with feathers and wings; most birds can fly.
+boat	A small ship for travelling on water.
+bone	One of the hard parts inside a body that make its frame.
+book	Pages with words or pictures, fastened together.
+cake	A sweet food baked from flour, eggs, sugar and butter.
+calm	Quiet and peaceful, not worried or excited.
+camp	A place where people stay in tents for a while.
+cart	A small vehicle pulled by a horse or pushed by hand.
+cave	A large hole in the side of a hill or under the ground.
+chin	The part of your face below your mouth.
+city	A large, busy town.
+clap	To hit your hands together to make a sound.
+clay	Soft, sticky earth that hardens when it is baked.
+coin	A small, flat, round piece of metal used as money.
+cool	A little cold, in a pleasant way.
+cord	A thin rope or a thick string.
+corn	A tall plant with ears of yellow seeds that we eat.
+crab	A sea animal with a hard shell, ten legs and two claws.
+crow	A large black bird with a loud, harsh call.
+dawn	The first light of the day, when the sun comes up.
+deer	A fast, gentle animal; the males often have antlers.
+desk	A table for writing, reading or working at.
+dove	A gentle bird, often grey or white, that coos.
+duck	A water bird with a wide flat beak and webbed feet.
+dune	A hill of sand piled up by the wind.
+dusk	The time of evening when it gets dark.
+echo	A sound that bounces back so that you hear it again.
+face	The front of your head.
+fair	Treating everyone the same way; also, a show with rides and games.
+farm	Land where crops are grown and animals are kept.
+fern	A green plant with feathery leaves and no flowers.
+film	A moving picture, or a very thin layer of something.
+fire	The heat, light and flames when something burns.
+fish	An animal that lives in water and breathes with gills.
+flag	A piece of cloth with a pattern that stands for a place or a group.
+foal	A young horse.
+fork	A tool with points, for picking up food.
+frog	A small jumping animal with long back legs that lives near water.
+gate	A door in a fence or a wall.
+gear	A wheel with teeth that turns another wheel.
+gift	Something given to someone; a present.
+glow	A soft, steady light.
+goat	An animal with horns and a short beard that likes to climb.
+gold	A shiny yellow metal that is worth a lot.
+grin	A wide smile.
+hail	Small balls of ice that fall from the sky.
+hall	A long passage in a building, or a large room for meetings.
+harp	A large musical instrument with strings that you pluck.
+hawk	A bird of prey with sharp eyes and a hooked beak.
+heat	Warmth, or to make something warm.
+help	To make it easier for someone to do something.
+herb	A plant used to give food flavour, or as a medicine.
+hill	A piece of land higher than the land around it.
+hive	A home for bees.
+hope	A wish that something good will happen.
+idea	A thought or a plan.
+iron	A strong metal, or a tool for pressing clothes smooth.
+isle	An island, usually a small one.
+jazz	A kind of music with strong rhythms, often made up as it is played.
+jump	To push yourself off the ground into the air.
+kind	Friendly and caring towards others.
+king	A man who rules a country.
+kite	A light frame covered with cloth or paper that flies on a string.
+knot	A place where a rope or a string is tied around itself.
+lake	A large area of water with land all around it.
+lamb	A young sheep.
+lamp	A thing that gives light.
+leaf	One of the flat green parts that grow on a plant's stem.
+lime	A small, sour green fruit like a lemon.
+lion	A large wild cat; the male has a thick mane.
+loaf	Bread baked in one piece.
+milk	The white drink that cows and other mothers make for their young.
+mint	A plant with a fresh, cool taste and smell.
+mole	A small furry animal that digs tunnels under the ground.
+moon	The ball of rock that goes around the Earth and shines at night.
+moss	A soft green plant that grows in damp places.
+mule	An animal whose mother is a horse and whose father is a donkey.
+nest	A home that a bird builds for its eggs.
+nose	The part of your face that you smell and breathe with.
+note	A short written message, or a single sound in music.
+oven	A box that is heated, for baking or roasting food.
+page	One side of a sheet of paper in a book.
+palm	The inside of your hand, or a tall tree of hot places.
+park	A public garden with grass and trees.
+path	A narrow way for walking on.
+peak	The pointed top of a mountain.
+pear	A sweet fruit, round at the bottom and narrow at the top.
+pine	A tree with needles and cones that stays green all year.
+plum	A soft, round fruit with a stone in the middle.
+poem	Writing set out in lines, often with rhythm or rhyme.
+pond	A small area of still water.
+pony	A kind of small horse.
+quiz	A short test or game of questions.
+rain	Drops of water that fall from clouds.
+reed	A tall grass that grows in wet places.
+rice	Small white or brown grains from a grass, cooked and eaten.
+ring	A small circle, often worn on a finger.
+road	A wide way for cars and other traffic.
+rock	A large piece of stone.
+roof	The top covering of a building.
+rope	Strong, thick cord made of twisted threads.
+rose	A flower with a sweet smell and thorns on its stem.
+safe	Free from danger.
+sail	A large sheet of cloth that catches the wind to move a boat.
+salt	A white powder from the sea, used to give food flavour.
+sand	Tiny grains of rock found on beaches and in deserts.
+seal	A sea animal with flippers that lives in cold places.
+seed	The small part of a plant from which a new plant grows.
+ship	A large boat that carries people or things across the sea.
+shoe	A covering for your foot.
+silk	A soft, smooth cloth made from threads spun by silkworms.
+snow	Soft white flakes of ice that fall from the sky.
+soap	Something you use with water to wash.
+song	Words and music sung together.
+soup	A liquid food made by cooking vegetables or meat in water.
+star	A ball of burning gas far away in space that shines at night.
+swan	A large white water bird with a long neck.
+tail	The part at the back end of an animal's body.
+tent	A shelter of cloth held up by poles, used for camping.
+tide	The rise and fall of the sea, twice a day.
+time	What clocks measure, in seconds, minutes and hours.
+toad	An animal like a frog, with drier, bumpy skin.
+tree	A tall plant with a wooden trunk and branches.
+tune	A pleasant set of musical notes.
+twig	A small, thin branch of a tree.
+vase	A container for flowers.
+vine	A plant that climbs or trails, like the one grapes grow on.
+wave	A moving ridge of water, or to move your hand to say hello.
+well	A deep hole in the ground for getting water; also, in good health.
+wing	The part of a bird, an insect or a plane that it uses to fly.
+wolf	A wild animal like a large dog that lives and hunts in a pack.
+wood	The hard material that trees are made of.
+wool	The soft, thick hair of sheep, spun to make yarn.
+word	A group of letters that means something.
+yard	A piece of ground next to a house; also, a length of three feet.
+yarn	Thread used for knitting or weaving.
+yolk	The yellow part of an egg.
+zero	The number 0, which means none at all.
+zoom	To move very fast.
+acorn	The nut of an oak tree, sitting in a little cup.
+adult	A grown-up person.
+amber	A clear yellow-brown stone made from old tree resin.
+angle	The space between two lines that meet, measured in degrees.
+apple	A round fruit with red, green or yellow skin.
+arrow	A thin stick with a point, shot from a bow; also, a sign that points.
+badge	A small sign worn to show who you are or what you have done.
+beach	The sandy or stony land at the edge of the sea.
+bench	A long seat for several people.
+berry	A small, juicy fruit, like a strawberry or a blueberry.
+blank	Empty, with nothing written on it.
+bloom	A flower, or to open into flowers.
+board	A flat piece of wood, or a flat surface for playing a game on.
+brave	Ready to face danger or pain without running away.
+bread	A food made from flour, water and yeast, baked in an oven.
+brick	A block of baked clay used for building walls.
+brook	A small stream.
+brush	A tool with bristles, for painting, cleaning or tidying hair.
+cabin	A small wooden house, or a room on a ship.
+camel	A desert animal with one or two humps on its back.
+canoe	A light, narrow boat moved with a paddle.
+chair	A seat with a back, for one person.
+chalk	A soft white rock used for writing on boards.
+chess	A board game for two players, with kings, queens and pawns.
+chick	A baby bird, especially a baby chicken.
+clock	A machine that shows the time.
+cloud	A white or grey mass of tiny water drops floating in the sky.
+cocoa	A brown powder made from cacao beans, used for chocolate drinks.
+coral	Hard, colourful stuff built in warm seas by tiny animals.
+count	To say numbers in order, or to find how many there are.
+crane	A tall machine for lifting heavy things, or a bird with long legs.
+crown	A ring of gold or jewels worn on the head by a king or a queen.
+daisy	A small flower with white petals and a yellow middle.
+dance	To move your body in time to music.
+dream	Pictures and stories in your mind while you sleep.
+eagle	A large bird of prey with strong wings and sharp eyes.
+earth	The planet we live on; also, the soil that plants grow in.
+eight	The number 8, one more than seven.
+equal	The same in size, number or value.
+fable	A short story that teaches a lesson, often with animals in it.
+feast	A large, special meal.
+field	An open area of land, often with grass or crops.
+flame	The bright, burning part of a fire.
+float	To rest on top of water, or to drift in the air.
+flock	A group of birds or sheep.
+flour	A powder made by grinding grain, used for baking.
+flute	A musical instrument that you hold sideways and blow across.
+fruit	The part of a plant that holds its seeds, often sweet to eat.
+giant	Very big, or a huge person in stories.
+globe	A ball with a map of the world on it.
+grape	A small round fruit that grows in bunches on a vine.
+grass	A green plant with thin leaves that covers fields and lawns.
+heart	The part of the body that pumps blood; also, a shape for love.
+honey	A sweet, sticky food made by bees.
+horse	A large animal with a mane and hooves that people ride.
+house	A building where people live.
+igloo	A dome-shaped house built from blocks of snow.
+jelly	A soft, wobbly food that sets as it cools.
+jewel	A precious stone, like a diamond or a ruby.
+juice	The liquid that comes out of fruit when it is squeezed.
+koala	An Australian animal with grey fur that eats gum leaves.
+label	A small piece of paper on something that tells about it.
+lemon	A sour yellow fruit.
+light	What lets us see, from the sun or a lamp; also, not heavy.
+llama	A South American animal with a long neck and soft wool.
+lucky	Having good things happen by chance.
+magic	Tricks that seem impossible, or special powers in fairy tales.
+mango	A sweet fruit of hot places, with orange flesh and a big stone.
+maple	A tree with wide leaves that turn red in autumn.
+march	To walk in step, like soldiers; also, the third month.
+melon	A large round fruit with juicy flesh and many seeds.
+metal	A hard, shiny material such as iron, gold or copper.
+month	One of the twelve parts of a year.
+mouse	A small animal with a long tail; also, what you move to point on a computer.
+music	Sounds arranged in a pleasing way, sung or played.
+night	The time when it is dark, between evening and morning.
+ocean	A huge area of salt water.
+olive	A small oily fruit, green or black, with a stone.
+onion	A round vegetable with a strong smell and taste.
+orbit	The path of something that goes around a planet or a star.
+otter	An animal with brown fur that swims and loves to play.
+paint	A coloured liquid that you brush onto things.
+panda	A large black and white bear from China that eats bamboo.
+paper	Thin sheets for writing, drawing and wrapping.
+peach	A soft, sweet fruit with fuzzy skin and a stone.
+pearl	A smooth, shiny gem that grows inside an oyster.
+pedal	A part that you push with your foot, as on a bicycle.
+piano	A large musical instrument with black and white keys.
+pilot	The person who flies a plane.
+plant	A living thing that grows in soil, like a tree or a flower.
+plate	A flat dish for food.
+puppy	A young dog.
+queen	A woman who rules a country.
+quiet	Making little or no noise.
+radio	A machine that plays sounds sent through the air.
+river	A large stream of water that flows to the sea.
+robin	A small bird with a red or orange breast.
+robot	A machine that can do jobs by itself.
+salad	A dish of raw vegetables, often with a dressing.
+scale	A tool for weighing; also, one of the thin plates on a fish.
+sheep	A farm animal kept for its wool.
+shell	The hard outer covering of an egg, a nut or some animals.
+smile	To turn up the corners of your mouth when you are happy.
+snail	A small, slow animal with a spiral shell on its back.
+snake	A long animal with no legs that moves by sliding.
+solve	To find the answer to a puzzle or a problem.
+space	The empty area beyond the Earth, where the stars are.
+spoon	A tool with a small bowl at the end, for eating.
+stamp	A small sticker that you put on a letter to post it.
+stone	A small piece of rock.
+storm	Strong wind with rain, snow or thunder.
+sugar	A sweet food made from plants like sugar cane.
+sunny	Bright with sunshine.
+table	A piece of furniture with a flat top and legs.
+thumb	The short, thick finger at the side of your hand.
+tiger	A large wild cat with orange fur and black stripes.
+toast	Bread browned by heat.
+tooth	One of the hard white things in your mouth that you bite and chew with.
+torch	A light that you can carry.
+tower	A tall, narrow building, or a tall part of a building.
+train	A row of carriages pulled along a railway.
+treat	Something special that gives pleasure.
+truck	A large vehicle for carrying loads.
+tulip	A bright, cup-shaped spring flower that grows from a bulb.
+uncle	The brother of your mother or father.
+voice	The sound you make when you speak or sing.
+water	The clear liquid in rivers, seas and rain.
+whale	A huge sea animal that breathes air through a hole on its head.
+wheat	A grain used to make flour.
+wheel	A round frame that turns to help things move.
+world	The Earth, and everyone and everything on it.
+write	To put letters and words on paper or a screen.
+zebra	An African animal like a horse, with black and white stripes.
+anchor	A heavy hook dropped from a ship to keep it in one place.
+animal	A living thing that can move and feel, like a dog or a fish.
+autumn	The season between summer and winter, when leaves fall.
+banana	A long curved fruit with yellow skin.
+basket	A container woven from thin strips, with a handle.
+beaver	An animal with a flat tail that builds dams in rivers.
+bottle	A container for liquids, with a narrow neck.
+branch	A part of a tree that grows out from the trunk.
+breeze	A gentle wind.
+bridge	Something built across a river or a road so that you can cross it.
+bright	Full of light, or clever.
+bubble	A thin ball of liquid filled with air.
+bucket	An open container with a handle, for carrying water.
+butter	A soft yellow food made from cream.
+button	A small round thing that fastens clothes, or that you press.
+cactus	A desert plant with thick stems and spines.
+camera	A thing for taking photographs.
+candle	A stick of wax with a string inside that burns to give light.
+canyon	A deep valley with steep sides, often with a river at the bottom.
+carrot	A long orange vegetable that grows under the ground.
+castle	A large, strong building with thick walls and towers.
+cheese	A food made from milk.
+cherry	A small, round, red fruit with a stone.
+circle	A perfectly round shape.
+clever	Quick to learn and to understand.
+cookie	A small, sweet, flat cake.
+copper	A reddish-brown metal used for wires and pans.
+cotton	Soft cloth made from the fluffy seeds of a plant.
+cousin	The child of your aunt or uncle.
+desert	A dry place with very little rain, often sandy.
+dinner	The main meal of the day.
+divide	To split into parts or groups.
+doctor	A person whose job is to help sick people get better.
+donkey	An animal like a small horse, with long ears.
+double	Twice as much, or two times the number.
+dragon	A large, fire-breathing monster in stories.
+eleven	The number 11, one more than ten.
+engine	A machine that makes something move.
+family	Parents and their children; people who are related.
+farmer	A person who grows crops or keeps animals.
+finger	One of the five long parts at the end of your hand.
+flower	The coloured part of a plant from which seeds grow.
+forest	A large area covered with trees.
+fossil	The shape of a plant or an animal from long ago, kept in rock.
+friend	Someone you know well and like.
+garden	Ground where flowers, fruit or vegetables are grown.
+gentle	Kind and careful, not rough.
+giggle	To laugh in a silly way.
+ginger	A plant root with a hot taste, or an orange-brown colour.
+glider	A plane with no engine that floats on the wind.
+gravel	Small stones, used for paths and roads.
+guitar	A musical instrument with strings and a long neck.
+hammer	A tool for hitting nails.
+helmet	A hard hat that protects your head.
+hollow	Empty inside.
+honest	Always telling the truth.
+insect	A small animal with six legs, like an ant or a bee.
+island	A piece of land with water all around it.
+jacket	A short coat.
+jigsaw	A picture cut into pieces that you fit back together.
+jungle	A thick forest in a hot, wet place.
+kettle	A pot for boiling water.
+kitten	A young cat.
+ladder	A set of steps for climbing up and down.
+listen	To pay attention to sounds.
+little	Small.
+lizard	A small animal with scaly skin, four legs and a long tail.
+magnet	A piece of metal that pulls iron and steel towards it.
+market	A place where people buy and sell things.
+meadow	A field of grass and wild flowers.
+minute	Sixty seconds.
+mirror	Glass that shows a picture of whatever is in front of it.
+monkey	A clever, playful animal that climbs trees.
+museum	A building where interesting old things are shown.
+nature	Plants, animals and the world around us that people did not make.
+noodle	A long, thin strip of pasta.
+number	A word or a sign that tells how many, like 3 or seven.
+orange	A round, juicy fruit, or the colour between red and yellow.
+oyster	A sea animal with a rough shell; some make pearls.
+paddle	A short oar for moving a canoe.
+parrot	A brightly coloured bird that can copy sounds.
+pebble	A small, smooth stone.
+pencil	A tool for writing or drawing, with a grey core inside.
+pepper	A spice with a hot taste, or a hollow vegetable.
+pillow	A soft cushion for your head in bed.
+pirate	A robber who attacks ships at sea.
+planet	A large ball of rock or gas that goes around a star.
+potato	A vegetable that grows under the ground.
+puzzle	A game or a problem that makes you think.
+rabbit	A small animal with long ears and a short, fluffy tail.
+rhythm	A strong, regular beat in music.
+rocket	A machine that flies into space.
+saddle	A seat for riding a horse or a bicycle.
+sailor	A person who works on a ship.
+school	A place where children go to learn.
+season	One of the four parts of the year: spring, summer, autumn and winter.
+shadow	A dark shape made where something blocks the light.
+shovel	A tool with a broad blade, for digging.
+silver	A shiny grey-white metal.
+singer	A person who sings.
+spider	A small animal with eight legs that spins webs.
+spring	The season when plants start to grow; also, a coil of metal.
+square	A shape with four equal sides and four corners.
+stream	A small river.
+summer	The warmest season of the year.
+sunset	The time when the sun goes down.
+teapot	A pot for making and pouring tea.
+temple	A building for worship.
+thirty	The number 30, three times ten.
+ticket	A small card that lets you travel or go into a place.
+tomato	A soft red fruit used in salads and sauces.
+travel	To go from one place to another.
+turtle	An animal with a hard shell that lives in or near water.
+twelve	The number 12, one more than eleven.
+valley	Low land between hills or mountains.
+velvet	A soft, thick cloth.
+violet	A small purple flower, or a bluish-purple colour.
+violin	A musical instrument with four strings, played with a bow.
+walnut	A nut with a hard, wrinkled shell.
+window	An opening in a wall, filled with glass, to let in light.
+winter	The coldest season of the year.
+wizard	A man with magic powers in stories.
+wonder	To be curious about something; also, something amazing.
+yellow	The colour of lemons and butter.
+yogurt	A thick, creamy food made from milk.
+zigzag	A line that turns sharply one way and then the other.
+zipper	A fastener with two rows of teeth that lock together.

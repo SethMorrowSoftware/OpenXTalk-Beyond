@@ -6,20 +6,15 @@
 
 		'output_dir': '../mac-bin',
 
-		# Oldest macOS each architecture supports: 10.13 is the oldest that
-		# current Xcode deploys to, and Apple Silicon starts at macOS 11
-		'conditions':
-		[
-			[
-				'target_arch == "arm64"',
-				{
-					'mac_deployment_target': '11.0',
-				},
-				{
-					'mac_deployment_target': '10.13',
-				},
-			],
-		],
+		# Oldest macOS supported: 11 Big Sur on Apple Silicon and Intel
+		# alike (from 0.2.7-rc.6.19). Intel Macs had 10.13, but on macOS
+		# 10.15 Catalina the IDE hung at launch, after its menu bar showed
+		# and before its splash (tperry2x, openxtalk.org p=26154, p=26162,
+		# p=26182): no crash report, no sample of the hung app to show
+		# where, and no Mac older than macOS 13 among the CI runners to
+		# find it on. So an Intel Mac below macOS 11 is now refused by
+		# macOS itself, with its own message, instead (seth, 8 Nov 2026)
+		'mac_deployment_target': '11.0',
 	},
 
 	'xcode_config_file': '../version',

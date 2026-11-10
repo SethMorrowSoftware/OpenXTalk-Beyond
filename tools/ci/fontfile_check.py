@@ -39,10 +39,26 @@ three sizes, then loads and unloads the font file ten times, measuring
 the line again after each. Every width must be what it was before the
 first. On 0.2.7-rc.6.11 most of the twenty measurements differ.
 
+Then the fonts a stack loads must be the fonts it lists and measures (and
+so draws: one Pango font map does both). Up to 0.2.7-rc.6.18 a font
+loaded with `start using font file` on Linux was in neither: each load
+made a fontconfig configuration with only that one file, dropping the
+fonts loaded before it, and Pango (1.48 and later) kept the configuration
+it first used, so the IDE's code font, Source Code Pro, was drawn in the
+fallback face. The script loads the IDE's code font files (Regular, then
+Bold) and the font file above, as the IDE loads them, then unloads each,
+and after each step reads whether "Source Code Pro" and the font file's
+family are among the fontNames and measures ten i and ten M in Source Code
+Pro, plain and bold: alike only in a monospaced face, so alike only when
+Source Code Pro is what measures them.
+
 The check fails, rather than passing blind, when the font file does not
-load (the engine would not load its fonts again) or when plain and bold
+load (the engine would not load its fonts again), when plain and bold
 DejaVu Sans or Serif measure alike (the DejaVu fonts are missing, and
-every font is the same fallback).
+every font is the same fallback), when Source Code Pro or the font file's
+family is listed before any is loaded (installed on the machine, so the
+check could not tell), or when ten i and ten M measure alike before
+(the fallback face is monospaced).
 
 Needs Xvfb and the DejaVu fonts. Exit status 0 when every check passed,
 1 otherwise. Under GitHub Actions a failure is an annotation and the
@@ -60,8 +76,13 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 SCRIPT = os.path.join(HERE, 'fontfile-check.livecodescript')
-# A font file every checkout has, which no stack in the check uses
-FONT = os.path.join(REPO, 'ide', 'Toolset', 'resources', 'supporting_files', 'fonts', 'fontawesome.ttf')
+# A font file every checkout has, which no stack in the check uses, and
+# the family it adds
+FONTS_DIR = os.path.join(REPO, 'ide', 'Toolset', 'resources', 'supporting_files', 'fonts')
+FONT = os.path.join(FONTS_DIR, 'fontawesome.ttf')
+FONT_FAMILY = 'fontawesome'
+# The IDE's code font files (kCodeFiles in the script) are in FONTS_DIR
+CODE_FILES = ('SourceCodePro-Regular.ttf', 'SourceCodePro-Bold.ttf')
 
 # As kRounds, kFonts, kStyles and kSizes in the script
 ROUNDS = 10
@@ -69,6 +90,17 @@ FONTS = ('DejaVu Sans', 'DejaVu Serif', 'DejaVu Sans Mono')
 STYLES = ('plain', 'bold', 'italic')
 SIZES = ('11', '13', '16')
 PROPORTIONAL = ('DejaVu Sans', 'DejaVu Serif')
+# The CODE lines, in the order the script logs them: whether each step
+# loads or unloads, and what is loaded after it
+CODE_STEPS = (
+    ('before', None, 'nothing'),
+    ('regular', 'load', 'the code font Regular'),
+    ('bold', 'load', 'the code font Regular and Bold'),
+    ('icons', 'load', 'the code font Regular and Bold, and the font file'),
+    ('no-regular', 'unload', 'the code font Bold and the font file'),
+    ('no-bold', 'unload', 'the font file'),
+    ('after', 'unload', 'nothing'),
+)
 
 
 def log(msg=''):
@@ -91,6 +123,83 @@ def parse_widths(text):
 def differences(base, widths):
     """'name: before -> now' for each width that is not as before."""
     return ['%s: %d -> %d' % (name, b, w) for name, b, w in zip(labels(), base, widths) if b != w]
+
+
+def parse_code(line):
+    """(listed, icons listed, (narrow, wide), (narrow bold, wide bold),
+    result) from the words after 'CODE <state>', or None."""
+    words = line.split(' ', 1)
+    values = words[0].split(',')
+    if len(values) != 6 or values[0] not in ('true', 'false') or values[1] not in ('true', 'false'):
+        return None
+    try:
+        widths = [int(x) for x in values[2:]]
+    except ValueError:
+        return None
+    return (values[0] == 'true', values[1] == 'true', (widths[0], widths[1]), (widths[2], widths[3]),
+            words[1].strip() if len(words) > 1 else '')
+
+
+def evaluate_code(result):
+    """[(name, ok, detail)] for the CODE lines: the fonts loaded are the
+    fonts listed and measured."""
+    checks = []
+    code = {}
+    for line in result:
+        words = line.split(' ', 2)
+        if words[0] == 'CODE' and len(words) > 2:
+            code[words[1]] = parse_code(words[2])
+
+    def mono(pair):
+        return pair[0] == pair[1]
+
+    def widths(pair):
+        return 'ten i %d, ten M %d' % pair
+
+    for state, action, loaded in CODE_STEPS:
+        got = code.get(state)
+        name = 'with %s loaded' % loaded
+        if got is None:
+            checks.append((name + ': listed and measured', False, 'no CODE %s line' % state))
+            continue
+        listed, icons, plain, bold, said = got
+        if action is not None:
+            checks.append((name + ': the font file %sed without an error' % action, said == '',
+                           'the result was %r' % said))
+        if state in ('before', 'after'):
+            # Before: installed on the machine, the fonts would pass blind
+            checks.append((name + ': Source Code Pro is not among the fontNames', not listed,
+                           'it is' + (' (installed on this machine, so the check cannot tell)'
+                                      if state == 'before' else '')))
+            checks.append((name + ': the font file\'s family is not among the fontNames', not icons,
+                           'it is' + (' (installed on this machine, so the check cannot tell)'
+                                      if state == 'before' else '')))
+        if state == 'before':
+            checks.append((name + ': the fallback face is proportional (the probe can tell a monospaced one)',
+                           not mono(plain), widths(plain)))
+        elif state == 'after':
+            before = code.get('before')
+            checks.append((name + ': Source Code Pro measures as before any was loaded',
+                           before is not None and (plain, bold) == (before[2], before[3]),
+                           'now %s; %s bold; before %s' % (widths(plain), widths(bold),
+                                                          before and widths(before[2]))))
+        else:
+            want = state != 'no-bold'
+            checks.append((name + ': Source Code Pro is %samong the fontNames' % ('' if want else 'not '),
+                           listed == want, 'it is' + ('' if listed else ' not')))
+            if state in ('icons', 'no-regular', 'no-bold'):
+                checks.append((name + ': the font file\'s family is among the fontNames', icons,
+                               'it is not'))
+            if state in ('regular', 'bold', 'icons'):
+                checks.append((name + ': Source Code Pro is what measures plain text (monospaced)', mono(plain),
+                               widths(plain)))
+            if state in ('bold', 'icons', 'no-regular'):
+                checks.append((name + ': Source Code Pro is what measures bold text (monospaced)', mono(bold),
+                               widths(bold)))
+            if state == 'no-bold':
+                checks.append((name + ': the fallback face measures plain text again (proportional)',
+                               not mono(plain), widths(plain)))
+    return checks
 
 
 def evaluate(result):
@@ -133,6 +242,7 @@ def evaluate(result):
                 diff = differences(base, widths)
                 checks.append((name + ': every width as before', not diff,
                                '%d of %d differ: %s' % (len(diff), len(base), '; '.join(diff[:6]))))
+    checks += evaluate_code(result)
     checks.append(('the engine quit when it was done', any(x.startswith('QUIT') for x in result), ''))
     return checks
 
@@ -163,6 +273,10 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     ap.add_argument('--engine', required=True, help='the standalone engine to run')
     ap.add_argument('--font', default=FONT, help='the font file to load and unload (default: the IDE\'s fontawesome.ttf)')
+    ap.add_argument('--font-family', default=FONT_FAMILY,
+                    help='the family the font file adds (default: %s)' % FONT_FAMILY)
+    ap.add_argument('--code-fonts', default=FONTS_DIR,
+                    help='the folder of the IDE\'s code font files (default: the IDE\'s)')
     ap.add_argument('--log', help='write the results to this file too')
     ap.add_argument('--timeout', type=int, default=120, help='seconds the engine may take')
     args = ap.parse_args(argv)
@@ -178,13 +292,18 @@ def main(argv=None):
     try:
         if not os.path.isfile(args.font):
             raise RuntimeError('the font file %s is not there' % args.font)
+        for name in CODE_FILES:
+            if not os.path.isfile(os.path.join(args.code_fonts, name)):
+                raise RuntimeError('the code font file %s is not in %s' % (name, args.code_fonts))
         result_log = os.path.join(work, 'engine.log')
         xvfb, display_name = start_xvfb()
         log('X server %s, engine %s, font file %s' % (display_name, engine, args.font))
         env = dict(os.environ)
         env.pop('WAYLAND_DISPLAY', None)
         env.update({'DISPLAY': display_name, 'OXT_FONTFILE_LOG': result_log,
-                    'OXT_FONTFILE_FONT': os.path.abspath(args.font)})
+                    'OXT_FONTFILE_FONT': os.path.abspath(args.font),
+                    'OXT_FONTFILE_CODE': os.path.abspath(args.code_fonts),
+                    'OXT_FONTFILE_ICONS': args.font_family})
         try:
             proc = subprocess.run([engine, SCRIPT], cwd=work, env=env, stdout=subprocess.PIPE,
                                   stderr=subprocess.STDOUT, timeout=args.timeout)
@@ -195,7 +314,7 @@ def main(argv=None):
         if os.path.exists(result_log):
             with open(result_log, encoding='utf-8', errors='replace') as f:
                 result = [x.rstrip('\r\n') for x in f if x.strip()]
-        lines += ['INFO engine: ' + x for x in result if x.startswith(('INFO', 'BASE', 'ERROR', 'QUIT'))]
+        lines += ['INFO engine: ' + x for x in result if x.startswith(('INFO', 'BASE', 'CODE', 'ERROR', 'QUIT'))]
         if code is None:
             lines.append('INFO the engine timed out after %d seconds' % args.timeout)
         for name, ok, detail in evaluate(result):

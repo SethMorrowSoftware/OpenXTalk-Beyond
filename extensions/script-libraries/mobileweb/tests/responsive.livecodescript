@@ -274,6 +274,22 @@ on TestResponsiveSendsLayoutChanged
    TestAssert "no such stack", the result begins with "no such stack"
 end TestResponsiveSendsLayoutChanged
 
+-- extensionFinalize (the library unloaded, as when the IDE reloads its
+-- extensions) forgets the stacks mwResponsive lays out: loaded again,
+-- the library lays out only those a stack asks for again. Until this
+-- was fixed the handler cleared two handler locals of the same names
+-- (the script locals are declared below it), so a stack started before
+-- the reload still got layoutChanged after it
+on TestFinalizeForgetsResponsiveStacks
+   mwResponsive "ResponsiveTest"
+   _ClearGot
+   send "extensionFinalize" to stack sLib
+   _Resize 800, 1000
+   TestAssert "forgotten: no layoutChanged after finalize", _Got() is empty
+   mwResponsive "ResponsiveTest"
+   TestAssert "asked again: laid out again", _Got() is "layout tablet,portrait" & return
+end TestFinalizeForgetsResponsiveStacks
+
 on TestResponsiveFollowsRulesOnResize
    set the mwLayout["all"] of button "Bar" of card 1 of stack "ResponsiveTest" to "left 0, right 0, top 0, height 56"
    _Resize 500, 700

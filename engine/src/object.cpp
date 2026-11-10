@@ -1520,7 +1520,7 @@ static double MCObjectColorLuminance(const MCColor &p_color)
 	return 0.2126 * t_rgb[0] + 0.7152 * t_rgb[1] + 0.0722 * t_rgb[2];
 }
 
-static double MCObjectColorContrast(const MCColor &p_a, const MCColor &p_b)
+double MCObjectColorContrast(const MCColor &p_a, const MCColor &p_b)
 {
 	double t_a = MCObjectColorLuminance(p_a);
 	double t_b = MCObjectColorLuminance(p_b);

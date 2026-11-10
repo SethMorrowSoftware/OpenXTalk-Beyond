@@ -49,6 +49,16 @@ archive with a fixed URL, size and SHA-256:
                    platform's own build produces: package.py treats a path
                    that comes from two places as an error.
     "exclude_note": optional text saying why (for people)
+    "java_layer":  optional, the runtimes asset only: the path of the
+                   Android runtime's Java layer when it was built from the
+                   commit "source" names, not carried over
+                   (make_runtimes_asset.py --android-classes); package.py
+                   --compare and tools/ci/runtimes_provenance.py read it
+    "android_engine": optional, the runtimes asset only: the folder of
+                   OXT-Beyond's own Android engine, built from the commit
+                   "source" names, beside the carried Android runtime
+                   (make_runtimes_asset.py --android-engine); package.py
+                   --compare and tools/ci/runtimes_provenance.py read it
     "description", "licence", "source": text for people and reports
   }
 

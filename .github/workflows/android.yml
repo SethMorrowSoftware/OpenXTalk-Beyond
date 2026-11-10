@@ -22,12 +22,17 @@
 # (android_check.py overlay):
 #
 #   - the units of the builder's handlers, which need no SDK;
-#   - four builds of a probe stack through the builder, as File > Save as
+#   - five builds of a probe stack through the builder, as File > Save as
 #     Standalone Application makes them (debug-signed, signed with a key,
-#     unsigned, and a stack that never opened the Android card), by both
-#     builders from the same stack file;
+#     unsigned, a stack that never opened the Android card, and one signed
+#     with a key that also asks for an Android App Bundle), by both
+#     builders from the same stack file (the released one makes no App
+#     Bundle);
 #   - verify: what Android and Google Play ask of a package (signature
-#     schemes, zipalign, resources.arsc, android:exported, 16 KB pages);
+#     schemes, zipalign, resources.arsc, android:exported, 16 KB pages),
+#     and of the App Bundle (the package's files, the native libraries
+#     kept compressed and the assets stored in the device's packages, the
+#     package's signer, bundletool's reading of it);
 #   - compare: the two builders' packages hold the same files with the
 #     same bytes, apart from what the change meant (the signatures, the push
 #     receiver's android:exported), every difference printed: the "no
@@ -35,7 +40,33 @@
 #   - Linux only, on emulators (KVM): the IDE's Test for an Android 13
 #     (API 33) emulator, the packages installed and started there until the
 #     probe's screen shows that its script ran, and then the same on the
-#     first emulator image with 16 KB memory pages (Android 15 and newer).
+#     first emulator image with 16 KB memory pages at API 36 (Android 16)
+#     or newer, the stack inside the system bars on both; the App Bundle
+#     installed as Google Play installs it (the device's split APKs, made
+#     by bundletool from it), on the Android 13 emulator;
+#   - Linux only, the Java layer built from this checkout
+#     (tools/ci/android_java.py build; android-java.yml checks it without a
+#     device) in a third copy of the release, with this builder: the Java
+#     layer's probe (android_check.py ide --probe java), which schedules a
+#     local notification before it turns green, built and run on both
+#     emulators; the builder makes it target API 36, as it does with a
+#     runtime whose Java layer is ready for that, so on Android 16 the back
+#     key reaches its backKey through the back callback, and the stack is
+#     kept inside the bars Android 15 and newer draw it under; its App
+#     Bundle too, as split APKs, where the probe also reads the file it
+#     carries from the base APK's stored assets. For the
+#     record, the same probe with the release's own
+#     Java layer, whose notification call throws on Android 12 and newer
+#     (the engine clears the exception, so the call answers no id and the
+#     probe turns its fail colour).
+#   - Linux only, the engine's one start in a process (RelaunchActivity in
+#     the Java layer says why): the app probe, built with this Java layer,
+#     on both emulators, goes on in its process through a font size
+#     change, starts again in a new process for a density change, and
+#     opened again after its stack quits starts in a new one; the
+#     packages with the release's Java layer go on through a font size
+#     change (the manifest lists it), and, for the record, what that
+#     layer does across a density change and opened again.
 #
 # The released builder's builds are the comparison's other half; where
 # they fail (its shell zip is not there on Windows), the job says so and
@@ -52,6 +83,9 @@ on:
       - ide-support/revsaveasandroidstandalone.livecodescript
       - ide-support/revdeploylibraryandroid.livecodescript
       - 'ide/Toolset/palettes/standalone settings/revstandalonesettingsandroidbehavior.livecodescript'
+      - tools/ci/android_java.py
+      - engine/engine-sources.gypi
+      - 'engine/src/java/**'
   push:
     branches: [ main ]
     paths: *android-paths
@@ -143,7 +177,8 @@ jobs:
       # SDK that the builder needs: the platform of its target API (the
       # released builder takes no other), build-tools and platform-tools.
       # On Linux also the emulator, an Android 13 image and the first image
-      # with 16 KB pages, whose name sdkmanager lists
+      # with 16 KB pages, whose name sdkmanager lists, and the platform the
+      # Java layer is built against (API 36)
       - name: Set up the JDK and the Android SDK
         run: |
           for v in JAVA_HOME_17_X64 JAVA_HOME_17_arm64 JAVA_HOME_21_X64 JAVA_HOME_21_arm64; do
@@ -166,11 +201,15 @@ jobs:
           (yes || true) | "$sm" --licenses > /dev/null
           parts=("platforms;android-33" "build-tools;35.0.0" "platform-tools")
           if [ "$RUNNER_OS" = Linux ]; then
+            # the first image with 16 KB pages at API 36 or newer: Android
+            # 16, which sends the back key of an app that targets API 36
+            # only to its back callback (the Java layer's probe, --back)
             img16=$("$sm" --list 2>/dev/null | grep -oE 'system-images;android-[0-9.]+;google_apis_ps16k;x86_64' |
+              awk -F';' '{ v = $2; sub(/^android-/, "", v); if (v + 0 >= 36) print }' |
               sort -u -t';' -k2,2V | head -n 1)
-            [ -n "$img16" ] || { echo "::error::sdkmanager lists no x86_64 image with 16 KB pages"; exit 1; }
+            [ -n "$img16" ] || { echo "::error::sdkmanager lists no x86_64 image with 16 KB pages at API 36 or newer"; exit 1; }
             echo "IMAGE_16K=$img16" >> "$GITHUB_ENV"
-            parts+=("emulator" "system-images;android-33;google_apis;x86_64" "$img16")
+            parts+=("emulator" "system-images;android-33;google_apis;x86_64" "$img16" "platforms;android-36")
           fi
           "$sm" --install "${parts[@]}" > "$RUNNER_TEMP/sdkmanager.log" 2>&1 ||
             { tail -40 "$RUNNER_TEMP/sdkmanager.log"; exit 1; }
@@ -184,6 +223,18 @@ jobs:
           "$PY" tools/ci/android_check.py extract --package "$PACKAGE" --dest "$WORK/changed-ide" \
             --platform "$PLATFORM" --env CHANGED
           "$PY" tools/ci/android_check.py overlay --root "$WORK/changed-ide"
+
+      - name: Build the Java layer, and unpack the release a third time
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_java.py build --sdk "$SDK" --jdk "$JDK" --api 36 --out "$WORK/java/Classes"
+          "$PY" tools/ci/android_check.py extract --package "$PACKAGE" --dest "$WORK/java-ide" \
+            --platform "$PLATFORM" --env JAVA_IDE
+
+      - name: Put this builder and the Java layer into the third
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_check.py overlay --root "$JAVA_IDE" --classes "$WORK/java/Classes"
 
       # Started now: it boots while the IDE builds
       - name: Start an Android 13 emulator
@@ -221,23 +272,36 @@ jobs:
             tail -n 40 "$WORK/emulator-api33.log"
           fi
 
+      # --bundletool-fallback: when GitHub's release host answers the
+      # builder's download of bundletool with an HTTP 5xx (as it did for
+      # hours on 9 November 2026), the pinned jar is downloaded with gh,
+      # through GitHub's API, and the App Bundle built again, with a
+      # warning; the builder's own download is still tried first
       - name: This builder (units and builds)
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           "$PY" tools/ci/android_check.py ide --install "$CHANGED" --platform "$PLATFORM" \
-            --work "$WORK/changed" --sdk "$SDK" --jdk "$JDK"
+            --work "$WORK/changed" --sdk "$SDK" --jdk "$JDK" --bundletool-fallback
 
+      # They target the API the builder picks for the release's runtime:
+      # 33 with LiveCode 9.6.3's Java layer, which the runtimes carried
+      # until 0.2.7-rc.6.18, and 36 with one built here, ready for it
       - name: Check the packages
         run: |
-          "$PY" tools/ci/android_check.py verify --work "$WORK/changed" --sdk "$SDK"
+          "$PY" tools/ci/android_check.py verify --work "$WORK/changed" --sdk "$SDK" --jdk "$JDK" \
+            --target-for "$CHANGED"
 
       # The same stack file: it goes into the engine library
       - name: The released builder (builds)
         id: released
         continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           "$PY" tools/ci/android_check.py ide --install "$RELEASED" --platform "$PLATFORM" \
             --work "$WORK/released" --sdk "$SDK" --jdk "$JDK" --no-units \
-            --stack "$WORK/changed/AndroidProbe.livecode"
+            --stack "$WORK/changed/AndroidProbe.livecode" --bundletool-fallback
 
       - name: The released builder made no packages to compare
         if: steps.released.outcome != 'success'
@@ -252,19 +316,91 @@ jobs:
         run: |
           "$PY" tools/ci/android_check.py compare --old "$WORK/released" --new "$WORK/changed" --sdk "$SDK"
 
+      # The Java layer's probe, by this builder with the Java layer built
+      # here: a debug build, as the IDE's Test makes, and an App Bundle, as
+      # Google Play takes it. The Java layer is ready for API 36, so the
+      # builder targets it (androidTargetAPI), and the manifest keeps the
+      # stack's orientation on large screens
+      - name: The Java layer's probe, with this Java layer
+        if: runner.os == 'Linux'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          "$PY" tools/ci/android_check.py ide --install "$JAVA_IDE" --platform "$PLATFORM" \
+            --work "$WORK/java-new" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug,bundle --probe java \
+            --bundletool-fallback
+          "$PY" tools/ci/android_check.py verify --work "$WORK/java-new" --sdk "$SDK" --jdk "$JDK" \
+            --builds debug,bundle --target 36
+
+      # The app probe, by this builder with the Java layer built here,
+      # which has RelaunchActivity: the builder declares it, in a process
+      # of its own, as for any stack built with this runtime (verify checks
+      # the declaration against the package's dex, and the configuration
+      # changes)
+      - name: The app probe, with this Java layer
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_check.py ide --install "$JAVA_IDE" --platform "$PLATFORM" \
+            --work "$WORK/java-app" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug \
+            --stack "$WORK/changed/AndroidProbe.livecode"
+          "$PY" tools/ci/android_check.py verify --work "$WORK/java-app" --sdk "$SDK" --jdk "$JDK" \
+            --builds debug --target 36
+
+      # The busy probe (kBusyTick in tools/ci/android-check.livecodescript):
+      # the app probe drawing all the time it runs, by this builder with the
+      # Java layer built here and the release's engine, LiveCode 9.6.3's,
+      # for the density changes below: Android relaunching it in the middle
+      # of drawing hung that engine for good, before the Java layer let it
+      # finish drawing first (Engine.finishDrawing)
+      - name: The busy probe, with this Java layer
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_check.py ide --install "$JAVA_IDE" --platform "$PLATFORM" \
+            --work "$WORK/java-busy" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug --probe busy
+
+      # The edge probe (kEdgeWait in tools/ci/android-check.livecodescript):
+      # the app probe built to be drawn edge to edge ("android,edge to
+      # edge", the Android card's "Edge to edge"), by this builder with the
+      # Java layer built here, which draws such an app under the
+      # see-through system bars from Android 11 on
+      # (LiveCodeActivity.drawEdgeToEdge)
+      - name: The edge probe, with this Java layer
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_check.py ide --install "$JAVA_IDE" --platform "$PLATFORM" \
+            --work "$WORK/java-edge" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug --probe edge
+
+      # The same stack, by the same builder, with the release's own Java
+      # layer: the "before" of the comparison
+      - name: The Java layer's probe, with the release's Java layer
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_check.py ide --install "$CHANGED" --platform "$PLATFORM" \
+            --work "$WORK/java-old" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug --probe java \
+            --stack "$WORK/java-new/AndroidJavaProbe.livecode"
+
       # boot gives up after 10 minutes, or within seconds once the
       # emulator has exited, with what may say why (the emulator's
       # processes, /dev/kvm, adb's devices, the disk, the end of its log),
-      # before the step's own timeout cuts it off saying nothing
+      # before the step's own timeout cuts it off saying nothing.
+      # --settle, as for the 16 KB image: a just-booted image enables
+      # overlays in its first minutes, which recreates a running activity,
+      # and the release's Java layer does not survive that (see "The
+      # release's Java layer across a density change"). The image had booted while the
+      # IDE built, and in run 42142328807 the release package's activity
+      # was relaunched as it started (its screen stayed black) a minute
+      # after the debug package's ran; so the probes start once it is done.
+      # --awake first, as for the 16 KB image: one sleep, so that what
+      # Android keeps until the screen is off is done before the probes,
+      # then the screen woken, unlocked and kept on (it was MENU and
+      # svc power stayon here)
       - name: Wait for the emulator
         if: runner.os == 'Linux'
-        timeout-minutes: 15
+        timeout-minutes: 20
         run: |
           adb="$SDK/platform-tools/adb"
           "$PY" tools/ci/android_check.py boot --serial emulator-5554 --sdk "$SDK" \
-            --log "$WORK/emulator-api33.log" --minutes 10
-          "$adb" shell input keyevent 82 || true
-          "$adb" shell svc power stayon true || true
+            --log "$WORK/emulator-api33.log" --minutes 10 --awake --settle
           "$adb" devices
 
       # What Test does (deployDo): the builder makes a debug-signed package
@@ -276,13 +412,100 @@ jobs:
             --work "$WORK/test" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug \
             --stack "$WORK/changed/AndroidProbe.livecode" --device emulator-5554
 
+      # --within-bars: the stack is not drawn under the status and
+      # navigation bars (Android 13 draws only an app that asks there). The App
+      # Bundle is installed as Google Play installs it: bundletool (the
+      # one the builder downloaded) makes the device's split APKs of it.
+      # --font-scale, once: the app goes on in its process through a font
+      # size change, which the manifest now lists, with the release's own
+      # Java layer too (made again in its process, it was stopped)
       - name: Run the packages on Android 13
         if: runner.os == 'Linux'
         run: |
-          for build in debug release; do
-            "$PY" tools/ci/android_check.py device --apk "$WORK/changed/out/$build.apk" --serial emulator-5554 \
-              --sdk "$SDK" --out "$WORK/screen-api33-$build.png" --log-out "$WORK/logcat-api33-$build.txt"
+          for pkg in debug.apk release.apk bundle.aab; do
+            "$PY" tools/ci/android_check.py device --apk "$WORK/changed/out/$pkg" --serial emulator-5554 \
+              --sdk "$SDK" --out "$WORK/screen-api33-${pkg%.*}.png" --log-out "$WORK/logcat-api33-${pkg%.*}.txt" \
+              --within-bars --bundletool "$WORK/changed/bundletool.jar" --jdk "$JDK" \
+              $([ "$pkg" = debug.apk ] && echo --font-scale)
           done
+
+      # It declares POST_NOTIFICATIONS, so as it schedules its notification
+      # the Java layer asks the user to allow it: --allow waits for
+      # Android's dialog, taps Allow and checks that the package holds it.
+      # It exports a picture: --picture finds it among the shared pictures
+      # (MediaStore) as the package's own. --back: once green, the back key
+      # must reach its backKey (Android 13 sends it to onBackPressed, as
+      # before); --within-bars: it targets API 36, and Android 13 does not
+      # draw it under the bars. Its App Bundle the same way, as split APKs
+      # (the probe reads its copy file from the base APK's assets)
+      - name: Run the Java layer's probe on Android 13
+        if: runner.os == 'Linux'
+        run: |
+          for pkg in debug.apk bundle.aab; do
+            "$PY" tools/ci/android_check.py device --apk "$WORK/java-new/out/$pkg" --serial emulator-5554 \
+              --sdk "$SDK" --out "$WORK/screen-api33-java-${pkg%.*}.png" \
+              --log-out "$WORK/logcat-api33-java-${pkg%.*}.txt" --bundletool "$WORK/java-new/bundletool.jar" \
+              --jdk "$JDK" --allow android.permission.POST_NOTIFICATIONS --picture oxt-beyond-probe.png --back \
+              --within-bars
+          done
+
+      # The engine runs once in a process. --font-scale: the app goes on in
+      # its process through a font size change (the manifest lists it);
+      # --density: for a change it cannot list, Android makes the activity
+      # again in its process, and the app starts again in a new one
+      # (RelaunchActivity) and shows its green there; --relaunch: the back
+      # key, which the app probe passes, quits its stack, its process ends,
+      # and the app opened again starts in a new one. Each was stopped on
+      # Android 11 and newer (fdsan) as the engine started a second time in
+      # the process
+      - name: Run the app probe with this Java layer on Android 13
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_check.py device --apk "$WORK/java-app/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-api33-java-app.png" --log-out "$WORK/logcat-api33-java-app.txt" \
+            --within-bars --font-scale --density --relaunch
+
+      # The busy probe through five density changes and their returns:
+      # ten relaunches, each while it draws
+      - name: Run the busy probe across density changes on Android 13
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_check.py device --apk "$WORK/java-busy/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-api33-java-busy.png" --log-out "$WORK/logcat-api33-java-busy.txt" \
+            --within-bars --density --density-times 5
+
+      # The edge probe: its green under the see-through status bar, and its
+      # effective working screenRect leaving the bars out (Android 13 draws
+      # no app edge to edge unless it asks, and this one asks)
+      - name: Run the edge probe on Android 13
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_check.py device --apk "$WORK/java-edge/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-api33-java-edge.png" --log-out "$WORK/logcat-api33-java-edge.txt" \
+            --edge-to-edge
+
+      # For the record, not a check (no annotations, so the run's account
+      # stays the checks'): the same probe with the release's own Java
+      # layer, whose local notification throws on Android 12 and newer
+      # (its PendingIntent says neither FLAG_IMMUTABLE nor FLAG_MUTABLE).
+      # The app does not stop: the engine clears the exception, the call
+      # answers no id, and the probe turns its fail colour (run
+      # 42157367103). The probe takes its other steps too and says what
+      # each answered, and the summary keeps what it said: whether Android
+      # 13 refuses that layer WRITE_EXTERNAL_STORAGE, and so its external
+      # folder and its export to the album
+      - name: The Java layer's probe with the release's Java layer, on Android 13
+        if: runner.os == 'Linux'
+        run: |
+          set +e
+          out=$(env -u GITHUB_ACTIONS -u GITHUB_STEP_SUMMARY "$PY" tools/ci/android_check.py device \
+            --apk "$WORK/java-old/out/debug.apk" --serial emulator-5554 --sdk "$SDK" \
+            --out "$WORK/screen-api33-java-released.png" --log-out "$WORK/logcat-api33-java-released.txt" 2>&1)
+          status=$?
+          echo "$out"
+          said=$(echo "$out" | grep -E '^PROBLEM: ' | head -n 3 | sed 's/^PROBLEM: //' | tr '\n' ' ')
+          echo "- the Java layer's probe with the release's Java layer on Android 13: $([ $status = 0 ] && echo 'green' || echo "not green: $said")" >> "$GITHUB_STEP_SUMMARY"
+          exit 0
 
       # For the record, not a check: what Android 13 says to the released
       # builder's packages (its "Sign with my key" one lost its v2 and v3
@@ -300,33 +523,30 @@ jobs:
           done
           "$adb" -s emulator-5554 uninstall org.openxtalk.check.androidprobe > /dev/null 2>&1 || true
 
-      # For the record, not a check: an activity Android recreates in the
-      # same process (here for a font size change, which the manifest's
-      # configChanges does not list) makes a second Engine, whose start
-      # opens fd 0 again (MCAndroidSystem::Initialize, fdopen); fdsan stops
-      # that on Android 11 and newer for an app that targets API 30 or
-      # newer. The carried Android runtime (1.15) does it whatever the
-      # builder; this says whether Android 13 does as the 16 KB image did
-      - name: The probe across a font size change on Android 13
+      # For the record, not a check (no annotations): the release's own Java
+      # layer, which has no RelaunchActivity, so the builder declares none,
+      # across a density change, which no manifest can list, and opened
+      # again after its stack quit (the back key). Android makes the
+      # activity again in the process whose engine ran; that layer starts
+      # the engine a second time, whose start opens fd 0 again
+      # (MCAndroidSystem::Initialize, fdopen), and fdsan stops it on
+      # Android 11 and newer for an app that targets API 30 or newer. The
+      # summary keeps what each said
+      - name: The release's Java layer across a density change and opened again, on Android 13
         if: runner.os == 'Linux'
-        continue-on-error: true
         run: |
-          a() { "$SDK/platform-tools/adb" -s emulator-5554 "$@"; }
-          id=org.openxtalk.check.androidprobe
-          a install -r "$WORK/changed/out/debug.apk" > /dev/null
-          a logcat -c
-          a shell am start -W -n "$id/.mblandroid" > /dev/null
-          sleep 5
-          before=$(a shell pidof "$id" | tr -d '\r' || true)
-          a shell settings put system font_scale 1.3
-          sleep 10
-          after=$(a shell pidof "$id" | tr -d '\r' || true)
-          a shell settings put system font_scale 1.0
-          echo "the probe's process before the change: ${before:-none}; after it: ${after:-none}"
-          a logcat -d -v brief | grep -E 'CT Calendar|fdsan|Fatal signal|has died' | head -n 20 || true
-          a shell dumpsys activity exit-info "$id" | grep -E 'pid=|reason=' | head -n 8 || true
-          echo "- the probe across a font size change on Android 13: process ${before:-none} before, ${after:-none} after" >> "$GITHUB_STEP_SUMMARY"
-          a uninstall "$id" > /dev/null 2>&1 || true
+          set +e
+          for check in density relaunch; do
+            out=$(env -u GITHUB_ACTIONS -u GITHUB_STEP_SUMMARY "$PY" tools/ci/android_check.py device \
+              --apk "$WORK/changed/out/debug.apk" --serial emulator-5554 --sdk "$SDK" \
+              --out "$WORK/screen-api33-released-java-$check.png" \
+              --log-out "$WORK/logcat-api33-released-java-$check.txt" "--$check" 2>&1)
+            status=$?
+            echo "$out"
+            said=$(echo "$out" | grep -E '^PROBLEM: ' | head -n 3 | sed 's/^PROBLEM: //' | tr '\n' ' ')
+            echo "- the release's Java layer on Android 13, --$check: $([ $status = 0 ] && echo 'passed' || echo "failed: $said")" >> "$GITHUB_STEP_SUMMARY"
+          done
+          exit 0
 
       - name: Run the package with 16 KB pages
         if: runner.os == 'Linux'
@@ -339,24 +559,64 @@ jobs:
           echo no | "$SDK/cmdline-tools/latest/bin/avdmanager" create avd -n pages16k -k "$IMAGE_16K" \
             -d pixel_5 --force
           echo "The emulator's AVDs (in $ANDROID_AVD_HOME): $("$SDK/emulator/emulator" -list-avds | tr '\n' ' ')"
+          # 3 GB of memory, not the 1536 MB avdmanager gives a Pixel 5: in
+          # run 42312203693 Android 16 ran short with 1536 MB (the low
+          # memory killer's "min watermark is breached") and killed the Java
+          # layer's probe (exit-info LOW_MEMORY) while its notification
+          # permission dialog was in front, so the probe never came back.
+          # (Run 42324548829 did the same with 3 GB: the probe had started
+          # while the system's apps were still taking its install, so
+          # device now waits for that first.)
+          sed -i '/^hw.ramSize=/d' "$ANDROID_AVD_HOME/pages16k.avd/config.ini"
+          echo 'hw.ramSize=3072M' >> "$ANDROID_AVD_HOME/pages16k.avd/config.ini"
           # its memory and cores, for the account device prints if the probe dies
           grep -h -e '^hw.ramSize' -e '^hw.cpu.ncore' "$ANDROID_AVD_HOME/pages16k.avd/config.ini" || true
           nohup "$SDK/emulator/emulator" -avd pages16k -no-window -no-audio -no-boot-anim -no-snapshot \
             -gpu swiftshader_indirect -camera-back none -camera-front none \
             > "$WORK/emulator-16k.log" 2>&1 &
           # --settle: a just-booted image enables overlays in its first
-          # minute, which recreates a running activity, and the carried
-          # Android runtime aborts on a second start in one process (see
-          # "The probe across a font size change"); this step is for 16 KB
-          # loading, so the probe starts once the image is done
+          # minute, which recreates a running activity, and the release's
+          # Java layer aborts on a second start in one process (see "The
+          # release's Java layer across a density change"); this step is
+          # for 16 KB loading, so the probe starts once the image is done.
+          # --awake: in run 42218720113 the screen went off a minute after
+          # boot, as the Java layer's probe started; SystemUI then added
+          # its theme overlays (it keeps them until the screen is off), and
+          # the probe, relaunched, aborted after its green. So the image
+          # sleeps once before settling, and then stays awake and unlocked
           "$PY" tools/ci/android_check.py boot --serial emulator-5554 --sdk "$SDK" \
-            --log "$WORK/emulator-16k.log" --minutes 12 --settle
-          "$adb" shell input keyevent 82 || true
+            --log "$WORK/emulator-16k.log" --minutes 12 --awake --settle
           page=$("$adb" shell getconf PAGE_SIZE | tr -d '\r')
           echo "Page size: $page"
           [ "$page" = 16384 ] || { echo "::error::$IMAGE_16K has pages of $page bytes, not 16384"; exit 1; }
+          # the package made with the release's runtime inside the bars:
+          # at API 33 as on older Android, at 36 padded by its Java layer;
+          # the Java layer's probe, which targets API 36, too:
+          # Android 16 draws it edge to edge and the Java layer pads it,
+          # and sends its back key only to the back callback; and its App
+          # Bundle, as split APKs. The app probe with this Java layer as on
+          # Android 13: once in a process, through a font size change, a
+          # density change, and opened again after its stack quits; and the
+          # busy probe through density changes, as on Android 13 (Android 16
+          # is where a relaunch while it drew hung 9.6.3's engine); and the
+          # edge probe drawn under the bars, not padded inside them
           "$PY" tools/ci/android_check.py device --apk "$WORK/changed/out/debug.apk" --serial emulator-5554 \
-            --sdk "$SDK" --out "$WORK/screen-16k-debug.png" --log-out "$WORK/logcat-16k-debug.txt"
+            --sdk "$SDK" --out "$WORK/screen-16k-debug.png" --log-out "$WORK/logcat-16k-debug.txt" --within-bars
+          "$PY" tools/ci/android_check.py device --apk "$WORK/java-app/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-16k-java-app.png" --log-out "$WORK/logcat-16k-java-app.txt" \
+            --within-bars --font-scale --density --relaunch
+          "$PY" tools/ci/android_check.py device --apk "$WORK/java-busy/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-16k-java-busy.png" --log-out "$WORK/logcat-16k-java-busy.txt" \
+            --within-bars --density --density-times 5
+          "$PY" tools/ci/android_check.py device --apk "$WORK/java-edge/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-16k-java-edge.png" --log-out "$WORK/logcat-16k-java-edge.txt" \
+            --edge-to-edge
+          for pkg in debug.apk bundle.aab; do
+            "$PY" tools/ci/android_check.py device --apk "$WORK/java-new/out/$pkg" --serial emulator-5554 \
+              --sdk "$SDK" --out "$WORK/screen-16k-java-${pkg%.*}.png" --log-out "$WORK/logcat-16k-java-${pkg%.*}.txt" \
+              --bundletool "$WORK/java-new/bundletool.jar" --jdk "$JDK" \
+              --allow android.permission.POST_NOTIFICATIONS --picture oxt-beyond-probe.png --back --within-bars
+          done
 
       - name: Upload the packages and logs
         if: always()
@@ -366,7 +626,10 @@ jobs:
           path: |
             ${{ env.WORK }}/*/android-check.txt
             ${{ env.WORK }}/*/ide-output.txt
+            ${{ env.WORK }}/*/android-check-bundle.txt
+            ${{ env.WORK }}/*/ide-output-bundle.txt
             ${{ env.WORK }}/*/out/*.apk
+            ${{ env.WORK }}/*/out/*.aab
             ${{ env.WORK }}/*.png
             ${{ env.WORK }}/*.log
             ${{ env.WORK }}/logcat-*.txt

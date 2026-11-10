@@ -997,6 +997,113 @@ private function probeDefaultColors
    return tResult
 end probeDefaultColors
 
+-- A stack whose card has a colour of its own, with the controls that took
+-- it on the web where Windows, the Mac and Linux draw their theme's face
+-- (TerryL, openxtalk.org p=25957 and p=26095: "card color still bleeds into
+-- buttons" in the web IDE): a push button, a default button, a disabled
+-- one, and a tab panel, which must not take it; a rectangle button and a
+-- button with a colour of its own, which keep theirs; and a push button
+-- with white words, which could not be read on the light face and keeps
+-- the card's colour. Opened by "card-colors-open" and read by
+-- "card-colors" once the page has drawn it (probeCardColors);
+-- "card-colors-close" deletes it
+private function probeCardColorsOpen
+   local tDefault, tError
+   put the defaultStack into tDefault
+   try
+      if there is a stack "Probe Card Colors" then
+         delete stack "Probe Card Colors"
+      end if
+      create stack "Probe Card Colors"
+      set the rect of stack "Probe Card Colors" to 380,300,780,480
+      set the defaultStack to "Probe Card Colors"
+      set the backgroundColor of card 1 of stack "Probe Card Colors" to "120,170,230"
+      probeCardButton "Push", "10,10,110,36"
+      probeCardButton "Default", "130,10,230,36"
+      set the default of button "Default" of stack "Probe Card Colors" to true
+      probeCardButton "Rect", "250,10,350,36"
+      set the style of button "Rect" of stack "Probe Card Colors" to "rectangle"
+      probeCardButton "Own", "10,50,110,76"
+      set the backgroundColor of button "Own" of stack "Probe Card Colors" to "255,200,120"
+      probeCardButton "White Words", "130,50,230,76"
+      set the textColor of button "White Words" of stack "Probe Card Colors" to "255,255,255"
+      probeCardButton "Off", "250,50,350,76"
+      set the enabled of button "Off" of stack "Probe Card Colors" to false
+      create button "Tabs"
+      set the style of button "Tabs" of stack "Probe Card Colors" to "menu"
+      set the menuMode of button "Tabs" of stack "Probe Card Colors" to "tabbed"
+      set the text of button "Tabs" of stack "Probe Card Colors" to "First" & return & "Second"
+      set the rect of button "Tabs" of stack "Probe Card Colors" to 10,90,250,170
+      go stack "Probe Card Colors"
+   catch tError
+      set the defaultStack to tDefault
+      return "error" && item 1 of tError
+   end try
+   set the defaultStack to tDefault
+   return "opened"
+end probeCardColorsOpen
+
+-- One of probeCardColorsOpen's buttons, as a new button is: opaque, threeD,
+-- its border shown, in the default stack
+private command probeCardButton pName, pRect
+   create button pName
+   set the rect of button pName of stack "Probe Card Colors" to pRect
+end probeCardButton
+
+-- The colours of probeCardColorsOpen's controls, from a snapshot of its
+-- stack: its size, then for each the colour most points of a small area
+-- inside it have, clear of its border and its words (probeAreaColor):
+-- push, default, rect, own, white-words, off, the tab panel's pane and its
+-- first (selected) tab; then the effective backgroundColor of the push
+-- button, which is the card's whatever is drawn:
+-- 400x180|240,240,240|240,240,240|120,170,230|255,200,120|120,170,230|
+-- 240,240,240|240,240,240|240,240,240|120,170,230 in the light appearance
+-- (em-theme.cpp's face; 32,32,32 in the dark, where white words read on it)
+private function probeCardColors
+   local tDefault, tResult, tError, tData, tWidth, tArea
+   if there is not a stack "Probe Card Colors" then
+      return "no stack"
+   end if
+   put the defaultStack into tDefault
+   try
+      set the defaultStack to "Probe Card Colors"
+      import snapshot from rect 0,0,400,180 of window (the windowID of stack "Probe Card Colors")
+      put the imageData of last image into tData
+      put the width of last image into tWidth
+      put the width of last image & "x" & the height of last image into tResult
+      repeat for each item tArea in "14 16 22 30,134 16 142 30,254 16 262 30,14 56 22 70,134 56 142 70,254 56 262 70,16 150 60 164,15 95 19 103"
+         put "|" & probeAreaColor(tData, tWidth, word 1 of tArea, word 2 of tArea, word 3 of tArea, word 4 of tArea) after tResult
+      end repeat
+      delete last image
+      put "|" & the effective backgroundColor of button "Push" of stack "Probe Card Colors" after tResult
+   catch tError
+      put "error" && item 1 of tError into tResult
+   end try
+   set the defaultStack to tDefault
+   return tResult
+end probeCardColors
+
+-- The colour most points from pLeft,pTop to pRight,pBottom (not
+-- included) of the image data pData, pWidth points wide, have: r,g,b
+private function probeAreaColor pData, pWidth, pLeft, pTop, pRight, pBottom
+   local tX, tY, tOffset, tColor, tCounts, tBest
+   repeat with tY = pTop to pBottom - 1
+      repeat with tX = pLeft to pRight - 1
+         put (tY * pWidth + tX) * 4 into tOffset
+         put byteToNum(byte tOffset + 2 of pData) & comma & byteToNum(byte tOffset + 3 of pData) \
+               & comma & byteToNum(byte tOffset + 4 of pData) into tColor
+         add 1 to tCounts[tColor]
+      end repeat
+   end repeat
+   put empty into tBest
+   repeat for each key tColor in tCounts
+      if tBest is empty or tCounts[tColor] > tCounts[tBest] then
+         put tColor into tBest
+      end if
+   end repeat
+   return tBest
+end probeAreaColor
+
 -- The size of the last image and the colours of points in it (x, y, ...),
 -- then deletes it: 100x100:204,51,0
 private function probeImage
@@ -1298,6 +1405,20 @@ function probeReport pWhat
    -- page as built and on the page that follows the browser)
    if pWhat is "checks" then
       return probeCheckBoxColors()
+   end if
+   -- the colours of the controls of a card with a colour of its own
+   -- (probeCardColors), in the same way
+   if pWhat is "card-colors-open" then
+      return probeCardColorsOpen()
+   end if
+   if pWhat is "card-colors" then
+      return probeCardColors()
+   end if
+   if pWhat is "card-colors-close" then
+      if there is a stack "Probe Card Colors" then
+         delete stack "Probe Card Colors"
+      end if
+      return "closed"
    end if
    if pWhat is "colors-close" then
       if there is a stack "Probe Colors" then

@@ -1,0 +1,342 @@
+<!doctype html>
+<!-- Puzzle Almanac's page on the web stacks gallery (games/puzzle-almanac/).
+     The game is one of the Stack Player's samples
+     (tools/web-player/puzzle-almanac.livecodescript builds it), so this
+     page carries no engine or stack of its own: it plays the sample in the
+     bare player (play/?play=Puzzle%20Almanac), the player's own engine and
+     stack. On a computer or a tablet it is in a phone's frame here, at its
+     own size (390 by 760), made smaller to fit a short window; on a phone
+     (a coarse pointer and a short side of 600 or less, the bare player's
+     own test) the page loads no engine until Play, which opens the bare
+     player on the whole screen, where the Mobile Web library fills it.
+     tools/pages/build_pages.py puts the page and its card in the gallery up
+     only with a player that has the sample and a site that has the bare
+     player (OWN_PAGES). The pictures are Kenney's (CC0) and the font is
+     Atkinson Hyperlegible (SIL Open Font License 1.1), the same files as
+     the game's (tools/web-player/puzzle-almanac/). The page is light in a
+     browser's dark mode too, as the game is: it is the game's paper. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Puzzle Almanac · OXT-Beyond web stacks</title>
+<meta name="description" content="Puzzle Almanac: a daily puzzle book made for a phone, written in xTalk Script with OXT-Beyond. A Number Place and a Hidden Word, new every day, with stickers to collect.">
+<meta name="theme-color" content="#f7f0e1">
+<link rel="icon" type="image/svg+xml" href="../../brand/icon.svg">
+<style>
+@font-face{font-family:"Atkinson Hyperlegible";src:url(AtkinsonHyperlegible-Regular.ttf) format("truetype");font-weight:400;font-display:swap}
+@font-face{font-family:"Atkinson Hyperlegible";src:url(AtkinsonHyperlegible-Bold.ttf) format("truetype");font-weight:700;font-display:swap}
+/* The game's own colours (tools/web-player/puzzle-almanac-stack.livecodescript),
+   the same in a browser's light and dark mode */
+:root{color-scheme:light;--paper:#f7f0e1;--deep:#eadfc8;--card:#fffbf2;--edge:#e2d3b5;--ink:#3b2f2a;--muted:#6f6052;
+  --leaf:#4e9a5b;--leaf-down:#3b7e47;--leaf-ink:#2f7a3c;--key:#eadfc8;--key-down:#d8c9ac;--gold:#ffcc00;--blue:#269fbd;--stone:#4c4740;
+  --written:#2f6db5;--bad:#c2412d;
+  --face:"Atkinson Hyperlegible",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{margin:0;min-height:100vh;color:var(--ink);overflow-x:hidden;font:17px/1.6 var(--face);
+  background:radial-gradient(ellipse 70% 55% at 72% 14%,rgba(255,204,0,.14),transparent 70%),
+    linear-gradient(180deg,var(--paper) 0,var(--paper) 520px,var(--deep))}
+/* a puzzle book's page: a faint grid of dots, still */
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.7;
+  background-image:radial-gradient(circle,#e2d3b5 1.2px,transparent 1.6px);background-size:24px 24px}
+a{color:var(--leaf-ink)}
+a:focus-visible,button:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+.wrap{width:min(1120px,100% - 32px);margin:0 auto}
+
+nav.top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 0 6px}
+.brand{display:inline-flex;align-items:center;gap:10px;color:var(--ink);font-weight:700;text-decoration:none}
+.brand img{width:32px;height:32px}
+.brand b{color:#d35f00}
+nav.top .links{display:flex;gap:20px;font-size:.95rem}
+nav.top .links a{color:var(--ink);opacity:.8;text-decoration:none}
+nav.top .links a:hover{opacity:1;color:var(--leaf-ink)}
+
+.hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:48px;align-items:center;padding:22px 0 30px}
+.eyebrow{display:inline-flex;align-items:center;gap:10px;margin:0 0 18px;color:var(--leaf-ink);
+  font:700 .8rem/1 var(--face);letter-spacing:.16em;text-transform:uppercase}
+.eyebrow::before{content:"";width:26px;height:2px;background:currentColor}
+h1{display:flex;align-items:center;gap:18px;margin:0 0 22px;font:700 clamp(2.3rem,5.4vw,3.6rem)/1.05 var(--face);letter-spacing:-.01em}
+h1 img{width:clamp(64px,8vw,96px);height:auto;flex:none}
+.tiles{display:flex;gap:6px;margin:0 0 22px}
+.tiles span{position:relative;display:grid;place-items:center;width:44px;height:44px;border-radius:7px;color:#fff;
+  font:700 1.45rem/1 var(--face);background:var(--stone) center/100% 100% no-repeat}
+.tiles .g{color:var(--ink);background-image:url(tile-gold.png)}
+.tiles .b{background-image:url(tile-blue.png)}
+.tiles .s{background-image:url(tile-stone.png)}
+.tiles .g::after{content:"";position:absolute;right:4px;top:4px;width:9px;height:9px;background:var(--ink);
+  clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)}
+.tiles .b::after{content:"";position:absolute;right:5px;top:5px;width:7px;height:7px;border-radius:50%;background:#fff}
+.lead{margin:0 0 26px;max-width:33em;font-size:1.15rem}
+.actions{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 26px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;padding:0 28px;border:0;border-radius:12px;
+  font:700 1.05rem/1 var(--face);text-decoration:none;cursor:pointer}
+.btn.primary{color:#fff;background:var(--leaf)}
+.btn.primary:hover{background:#56a865}
+.btn.primary:active{background:var(--leaf-down)}
+.btn.ghost{color:var(--ink);background:var(--key)}
+.btn.ghost:hover{background:#e3d6bb}
+.btn.ghost:active{background:var(--key-down)}
+.btn svg{width:16px;height:16px;fill:currentColor}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:10px 22px;margin:0;padding:0;list-style:none;color:var(--muted)}
+.controls b{color:var(--ink)}
+kbd{display:inline-block;min-width:1.8em;padding:1px 6px;margin-right:2px;text-align:center;color:var(--ink);background:var(--card);
+  border:1px solid var(--edge);border-bottom-width:2px;border-radius:5px;font:700 12px/1.6 ui-monospace,Consolas,monospace}
+html:not(.phone) .on-phone,html.phone .off-phone{display:none}
+html.phone .actions .btn{flex:1 1 100%}
+
+/* The phone: its frame 414 by 784 around the stack's 390 by 760, made
+   smaller (--s, set by the script below) to fit the window, never larger.
+   The frame keeps its size; only what is drawn is scaled. */
+.device{--s:1;position:relative;width:calc(414px * var(--s));height:calc(784px * var(--s));flex:none}
+.bezel{position:absolute;left:0;top:0;width:414px;height:784px;padding:12px;transform:scale(var(--s));transform-origin:0 0;
+  border-radius:50px;background:var(--ink);
+  box-shadow:0 0 0 2px #2a201c,0 0 0 9px rgba(59,47,42,.08),0 30px 70px rgba(59,47,42,.32)}
+.screen{position:relative;width:390px;height:760px;overflow:hidden;border-radius:38px;background:var(--paper)}
+.screen iframe{display:block;width:390px;height:760px;border:0;outline:0;background:var(--paper)}
+.cover{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:14px;padding:0 50px 46px;
+  color:var(--ink);text-decoration:none;background:var(--paper) url(cover.webp) center/100% 100% no-repeat;transition:opacity .4s ease}
+.cover>*{position:relative}
+.cover.gone{opacity:0;pointer-events:none}
+.bar{width:100%;height:8px;padding:0;overflow:hidden;border-radius:4px;background:var(--key)}
+.bar i{display:block;height:100%;width:0;border-radius:4px;background:var(--leaf);transition:width .25s ease}
+.bar.wait i{width:30%;animation:wait 1.2s ease-in-out infinite alternate}
+@keyframes wait{from{transform:translateX(-10%)}to{transform:translateX(250%)}}
+#status{min-height:1.5em;text-align:center;color:var(--muted);font:700 .85rem/1.5 var(--face);letter-spacing:.1em;text-transform:uppercase}
+#status.bad{font-size:.95rem;letter-spacing:0;text-transform:none;color:var(--bad)}
+/* on a phone: a picture to tap, and the game on the whole screen */
+.tap{display:none}
+html.phone .tap{display:flex;width:100%;min-height:58px;font-size:1.15rem;box-shadow:0 8px 24px rgba(59,47,42,.25)}
+html.phone .bar,html.phone #status{display:none}
+
+section.more{padding:34px 0 8px}
+section.more h2{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin:0 0 20px;padding-bottom:14px;
+  font:700 clamp(1.4rem,3vw,1.8rem)/1.2 var(--face);color:var(--ink);border-bottom:2px solid var(--edge)}
+section.more h2 small{font:400 .95rem/1.4 var(--face);color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px}
+.card{position:relative;padding:20px 20px 22px;border:1px solid var(--edge);border-radius:16px;background:var(--card);box-shadow:0 2px 0 var(--edge)}
+.card h3{margin:0 0 8px;font:700 1.1rem/1.35 var(--face);color:var(--ink)}
+.card p{margin:0;color:var(--muted)}
+.card .art{display:flex;align-items:flex-end;gap:8px;height:64px;margin-bottom:14px}
+.card .art img{display:block;max-height:100%;width:auto}
+.card .art .grid{display:grid;grid-template-columns:repeat(3,20px);grid-template-rows:repeat(3,20px);border:2px solid var(--leaf)}
+.card .art .grid i{display:grid;place-items:center;border:1px solid rgba(78,154,91,.5);font:700 12px/1 var(--face);font-style:normal;color:var(--ink)}
+.card .art .grid i.w{color:var(--written)}
+.card .art .tiles{margin:0}
+.card .art .tiles span{width:36px;height:36px;font-size:1.15rem}
+.made .card h3{color:var(--leaf-ink)}
+
+footer{margin-top:44px;padding:26px 0 40px;color:var(--muted);font-size:.92rem;border-top:1px solid var(--edge)}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+@media (max-width:860px){
+  .hero{grid-template-columns:1fr;gap:34px;justify-items:center;padding-top:10px}
+  .hero .pitch{justify-self:stretch}
+  nav.top .links a.optional{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<nav class="top wrap" aria-label="Site">
+  <a class="brand" href="../../"><img src="../../brand/icon.svg" alt="" width="32" height="32"><span>OXT-<b>Beyond</b></span></a>
+  <div class="links">
+    <a href="../">All web stacks</a>
+    <a class="optional" href="../../player/">Stack Player</a>
+    <a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond">GitHub</a>
+  </div>
+</nav>
+
+<main>
+  <div class="hero wrap">
+    <section class="pitch" aria-labelledby="name">
+      <p class="eyebrow">A phone game written in xTalk</p>
+      <h1 id="name"><img src="animal-owl.png" alt="" width="128" height="128">Puzzle Almanac</h1>
+      <div class="tiles" aria-hidden="true"><span class="s">D</span><span class="g">A</span><span class="b">I</span><span class="g">L</span><span class="s">Y</span></div>
+      <p class="lead">A calm puzzle book for every day. Fill a Number Place grid, find the Hidden Word in six tries, and earn a sticker for each one you solve. Tomorrow brings new ones, the same for everyone.</p>
+      <div class="actions">
+        <a class="btn primary on-phone" href="../../play/?play=Puzzle%20Almanac&amp;bg=%23f7f0e1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>Play</a>
+        <a class="btn ghost" href="../../player/?play=Puzzle%20Almanac">Open in the Stack Player</a>
+      </div>
+      <ul class="controls" aria-label="Controls">
+        <li><b>Touch:</b> tap a square, then a number; tap the letters, then Enter</li>
+        <li class="off-phone"><b>Mouse:</b> click as you would tap</li>
+        <li class="off-phone"><kbd>N</kbd> Number Place, <kbd>W</kbd> Hidden Word</li>
+        <li class="off-phone"><kbd>&larr;</kbd><kbd>&rarr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd> choose a square, <kbd>1</kbd>&ndash;<kbd>9</kbd> write</li>
+        <li class="off-phone">Type a word, <kbd>Enter</kbd> to try it</li>
+        <li class="off-phone"><kbd>Esc</kbd> back to the almanac</li>
+      </ul>
+    </section>
+
+    <section class="device" id="device" aria-label="Puzzle Almanac">
+      <div class="bezel">
+        <div class="screen">
+          <iframe id="game" title="Puzzle Almanac" allow="autoplay; fullscreen" tabindex="0" hidden></iframe>
+          <a class="cover" id="cover" href="../../play/?play=Puzzle%20Almanac&amp;bg=%23f7f0e1" tabindex="-1" aria-label="Play Puzzle Almanac">
+            <span class="btn primary tap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>Tap to play</span>
+            <div class="bar wait" id="bar"><i id="fill"></i></div>
+            <div id="status" role="status" aria-live="polite">Opening the almanac</div>
+          </a>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="more wrap" aria-labelledby="how">
+    <h2 id="how">How it plays <small>The same rules on a phone, a tablet and a computer</small></h2>
+    <div class="cards">
+      <div class="card">
+        <div class="art"><span class="grid" aria-hidden="true"><i>3</i><i></i><i>8</i><i></i><i class="w">5</i><i></i><i>1</i><i></i><i>6</i></span></div>
+        <h3>Number Place</h3>
+        <p>Fill the grid so that every row, every column and every box has each number once. Choose 4 by 4 for a young child, 6 by 6 or 9 by 9.</p>
+      </div>
+      <div class="card">
+        <div class="art"><span class="tiles" aria-hidden="true"><span class="g">B</span><span class="b">A</span><span class="s">T</span></span></div>
+        <h3>Hidden Word</h3>
+        <p>Find the word in six tries. Gold is the right letter in the right place, blue is in the word somewhere else, and stone is not in it.</p>
+      </div>
+      <div class="card">
+        <div class="art"><img src="animal-owl.png" alt="" width="128" height="128" style="height:58px"><img src="animal-panda.png" alt="" width="174" height="128" style="height:58px"><img src="animal-rabbit.png" alt="" width="129" height="176" style="height:64px"></div>
+        <h3>Collect the stickers</h3>
+        <p>Each day's puzzle you solve puts a new animal in your sticker book. Thirty of them, then gold stars.</p>
+      </div>
+      <div class="card">
+        <div class="art"><img src="star.png" alt="" width="120" height="114" style="height:44px"></div>
+        <h3>Never stuck</h3>
+        <p>Every Number Place can be solved without a guess. Notes let you pencil in a square's maybes, and a hint fills one in.</p>
+      </div>
+      <div class="card">
+        <div class="art"><span class="tiles" aria-hidden="true"><span class="s">P</span><span class="s">L</span><span class="s">A</span><span class="s">Y</span></span></div>
+        <h3>Practice too</h3>
+        <p>Practice gives as many more puzzles as you like, in every size, besides the day's own.</p>
+      </div>
+      <div class="card">
+        <div class="art"><span class="tiles" aria-hidden="true"><span class="g">1</span><span class="b">l</span><span class="s">I</span></span></div>
+        <h3>Easy to read</h3>
+        <p>Atkinson Hyperlegible, made by the Braille Institute, keeps letters and numbers that look alike in other fonts apart.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="more made wrap" aria-labelledby="made">
+    <h2 id="made">Made with OXT-Beyond <small>One stack, no web code</small></h2>
+    <div class="cards">
+      <div class="card">
+        <h3>Written in xTalk</h3>
+        <p>The whole game is one stack in xTalk Script: its screens, its puzzles and its rules. It is one of the <a href="../../player/">Stack Player</a>'s samples, so it plays there too.</p>
+      </div>
+      <div class="card">
+        <h3>The same puzzle for everyone</h3>
+        <p>Each day's puzzles are worked out from the date, so everyone gets the same ones, with nothing to download.</p>
+      </div>
+      <div class="card">
+        <h3>Kept in the browser</h3>
+        <p>Your stickers and today's board are kept in the browser's own storage, so they are there on your next visit.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Pictures and sounds by <a href="https://kenney.nl">Kenney</a> (CC0), the font Atkinson Hyperlegible by the <a href="https://www.brailleinstitute.org/freefont/">Braille Institute</a> (SIL Open Font License), words from ENABLE (public domain). Made with <a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond">OXT-Beyond</a>, free and open source.</span>
+    <a href="../">All web stacks</a>
+  </div>
+</footer>
+<script>
+(function () {
+  'use strict';
+  var root = document.documentElement;
+  var device = document.getElementById('device'), frame = document.getElementById('game');
+  var cover = document.getElementById('cover'), bar = document.getElementById('bar');
+  var fill = document.getElementById('fill'), statusText = document.getElementById('status');
+  // The bare player, as the site has it beside the gallery, and the sample
+  var PLAY = '../../play/?play=Puzzle%20Almanac&bg=%23f7f0e1';
+
+  // A phone: a touch screen whose short side is a phone's, the bare
+  // player's own test. There the game opens on the whole screen.
+  function isPhone() {
+    return window.matchMedia('(pointer: coarse)').matches && Math.min(window.innerWidth, window.innerHeight) <= 600;
+  }
+
+  // The phone's frame as large as the window lets it be, up to its own size
+  function fit() {
+    var width = device.parentElement.clientWidth;
+    if (window.innerWidth <= 860) width = Math.min(width, window.innerWidth - 32);
+    var s = Math.min(1, width / 414, Math.max(0.55, (window.innerHeight - 40) / 784));
+    device.style.setProperty('--s', s.toFixed(4));
+  }
+  fit();
+  window.addEventListener('resize', fit);
+
+  if (isPhone()) {
+    root.classList.add('phone');
+    return;
+  }
+  // Not a phone: the cover is a picture while the game loads, not a link
+  cover.removeAttribute('href');
+  cover.removeAttribute('aria-label');
+  cover.setAttribute('aria-hidden', 'true');
+
+  function say(text, bad) {
+    statusText.textContent = text;
+    statusText.classList.toggle('bad', !!bad);
+    if (bad) bar.hidden = true;
+  }
+
+  // The bare player in the frame: its loading bar, then the stack. The
+  // frame is this site's page, so this page can read it. Its own loading
+  // screen stays under the cover; the cover goes once the stack plays, or
+  // stays with the player's message if it cannot start.
+  var started = Date.now(), styled = false, done = false;
+  function watch() {
+    if (done) return;
+    var d = null;
+    try { d = frame.contentDocument; } catch (e) { d = null; }
+    if (d && d.head && !styled) {
+      // the stack is exactly as big as the frame: no scroll bars
+      var style = d.createElement('style');
+      style.textContent = 'html,body{overflow:hidden}';
+      d.head.appendChild(style);
+      styled = true;
+    }
+    if (d && d.body) {
+      var track = d.getElementById('loading-bar');
+      if (track && track.firstElementChild && !track.classList.contains('wait')) {
+        bar.classList.remove('wait');
+        fill.style.width = track.firstElementChild.style.width;
+      }
+      var error = d.getElementById('loading-error'), note = d.getElementById('note');
+      if (d.body.classList.contains('playing')) {
+        done = true;
+        cover.classList.add('gone');
+        // the keys play it at once: the frame has the focus, and in it the
+        // engine's canvas (which hands it to the engine's own text input)
+        frame.focus({ preventScroll: true });
+        var canvas = d.getElementById('canvas');
+        if (canvas) canvas.focus({ preventScroll: true });
+        return;
+      }
+      if (error && !error.hidden && error.textContent) {
+        done = true;
+        say(error.textContent, true);
+        return;
+      }
+      if (note && !note.hidden && note.textContent) {
+        done = true;
+        say(note.textContent, true);
+        return;
+      }
+    }
+    if (Date.now() - started > 90000) say('Still loading. A slow connection can take a minute.');
+    setTimeout(watch, 200);
+  }
+  frame.hidden = false;
+  frame.src = PLAY;
+  watch();
+})();
+</script>
+</body>
+</html>

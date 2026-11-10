@@ -521,6 +521,9 @@ void MCDeletedObjectsOnObjectResumeDeletion(MCObject *object, void *cookie);
 
 void MCDeletedObjectsDoDrain(void);
 
+// OXT-Beyond: the WCAG's contrast of two colours, 1 to 21 (object.cpp)
+double MCObjectColorContrast(const MCColor &p_a, const MCColor &p_b);
+
 struct MCPatternInfo
 {
 	uint32_t id;

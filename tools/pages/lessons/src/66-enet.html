@@ -1,0 +1,199 @@
+<!--
+title: Fast messages with ENet
+level: extensions
+minutes: 13
+summary: Send messages between programs the way games do, with ENet: a server and a client, events you poll for, text and bytes, reliable and unreliable channels, the health of a connection, and a polite goodbye.
+words: enInitialize, enDeinitialize, enHostCreateServer, enHostCreateClient, enHostStatus, enHostDestroy, enConnect, enPoll, enSendText, enSend, enFlush, enPeerStatus, enStateName, enDisconnect, enSetPeerTimeout, enFormatBytes, enLastError
+-->
+<h2 id="what">Messages for games</h2>
+<p>A socket (<a href="../sockets/">Sockets</a>) carries a stream of bytes. A game wants something else: short <strong>packets</strong> that arrive whole, some of which must arrive (a chat line, a move) and some of which may be dropped if a newer one is coming (where a player is now). <strong>ENet</strong> gives exactly that, over UDP, and the xTalk Suite's <strong>enetxt</strong> brings it to xTalk with handlers that begin with <code>en</code>. Its helpers, such as <code>enStateName</code> and <code>enFormatBytes</code>, come with it.</p>
+<p>ENet never calls your scripts by itself. You call <code>enPoll</code> again and again, on a timer in an app, and each call hands back what has happened since the last: a peer connected, a packet arrived, a peer left. Here the server and the client are in one script on one computer, talking through <code>127.0.0.1</code>, and a loop polls both.</p>
+
+<h2 id="hosts">Hosts and holds</h2>
+<p><code>enInitialize</code> takes a <strong>hold</strong> on the library before any other call, and <code>enDeinitialize</code> gives it back, once for each hold. A <strong>host</strong> is your end of the line: <code>enHostCreateServer</code> makes one that listens, given the address to listen on, a port (0 picks any free one), how many peers may join, how many <strong>channels</strong> each has, and speed limits in bytes a second (0 for none). <code>enHostStatus</code> says where it listens:</p>
+<figure class="example" id="ex-en-host" data-run="output" data-needs="org.openxtalk.library.enet enetHelpers">
+<pre class="code"><code>put enInitialize() into tStarted
+put tStarted &amp;&amp; "(0 is good)"
+put enLibraryVersion() begins with "enet "
+put enHostCreateServer("127.0.0.1", 0, 8, 2, 0, 0) into tServer
+put enHostStatus(tServer) into tStatus
+set the itemDelimiter to ":"
+put item 1 of tStatus["address"]
+put item 2 of tStatus["address"] &gt; 0
+put tStatus["peerCount"] &amp;&amp; "peers"
+get enHostDestroy(tServer)
+put enHostStatus(tServer) is empty
+enDeinitialize</code></pre>
+<pre class="out">0 (0 is good)
+true
+127.0.0.1
+true
+0 peers
+true</pre>
+</figure>
+<p>A closed host's handle is retired: asking about it gives empty, never another host's answer.</p>
+
+<h2 id="connect">Connecting</h2>
+<p>A <strong>client</strong> host connects to a server. <code>enConnect</code> gives a <strong>peer</strong> handle at once, but the connection is real only when an event says so. Each event that <code>enPoll</code> returns is an array with a "name": <code>enetConnect</code>, <code>enetReceive</code> or <code>enetDisconnect</code>. The last parameter of <code>enConnect</code> is a number the server receives with the connection, such as the version of your game:</p>
+<figure class="example" id="ex-en-connect" data-run="output" data-needs="org.openxtalk.library.enet enetHelpers">
+<pre class="code"><code>get enInitialize()
+put enHostCreateServer("127.0.0.1", 0, 4, 1, 0, 0) into tServer
+set the itemDelimiter to ":"
+put enHostStatus(tServer) into tStatus
+put item 2 of tStatus["address"] into tPort
+put enHostCreateClient(1, 1, 0, 0) into tClient
+put enConnect(tClient, "127.0.0.1", tPort, 1, 7) into tPeer
+-- nothing happens until the hosts are polled
+repeat 400 times
+   get enPoll(tClient)
+   put enPoll(tServer) into tEvents
+   if tEvents[1]["name"] is "enetConnect" then exit repeat
+   wait 5 milliseconds
+end repeat
+put "The server got" &amp;&amp; tEvents[1]["name"] &amp;&amp; "with" &amp;&amp; tEvents[1]["data"]
+put enPeerStatus(tPeer) into tStatus
+put "The client is" &amp;&amp; enStateName(tStatus["state"])
+get enHostDestroy(tClient)
+get enHostDestroy(tServer)
+enDeinitialize</code></pre>
+<pre class="out">The server got enetConnect with 7
+The client is connected</pre>
+</figure>
+
+<h2 id="packets">Text and bytes</h2>
+<p>Once connected, <code>enSendText</code> sends text on a channel, and the other side gets an <code>enetReceive</code> event whose "payload" is the bytes: <code>textDecode</code> turns them back into text. <code>enSend</code> sends any bytes, up to 60000 a packet, which is how games keep their messages small. Both return 0 when the packet is queued, and a negative number when not (-4: too big). Packets leave at the next poll, or at once with <code>enFlush</code>:</p>
+<figure class="example" id="ex-en-send" data-run="output" data-needs="org.openxtalk.library.enet enetHelpers">
+<pre class="code"><code>get enInitialize()
+put enHostCreateServer("127.0.0.1", 0, 4, 1, 0, 0) into tServer
+set the itemDelimiter to ":"
+put enHostStatus(tServer) into tStatus
+put item 2 of tStatus["address"] into tPort
+put enHostCreateClient(1, 1, 0, 0) into tClient
+put enConnect(tClient, "127.0.0.1", tPort, 1, 0) into tPeer
+put enSend(tPeer, 0, format("%60001s", ""), 0) &amp;&amp; "for 60001 bytes"
+repeat 400 times
+   get enPoll(tClient)
+   repeat for each element tEvent in enPoll(tServer)
+      if tEvent["name"] is "enetConnect" then
+         get enSendText(tPeer, 0, "Hello, server!", 0)
+         get enSend(tPeer, 0, numToByte(200), 0)
+      else if tEvent["name"] is "enetReceive" then
+         put tEvent["payload"] &amp; return after tReceived
+      end if
+   end repeat
+   if the number of lines of tReceived is 2 then exit repeat
+   wait 5 milliseconds
+end repeat
+put textDecode(line 1 of tReceived, "UTF-8")
+put byteToNum(line 2 of tReceived)
+get enHostDestroy(tClient)
+get enHostDestroy(tServer)
+enDeinitialize</code></pre>
+<pre class="out">-4 for 60001 bytes
+Hello, server!
+200</pre>
+</figure>
+
+<h2 id="channels">Channels and delivery</h2>
+<p>A connection can have several <strong>channels</strong>, numbered from 0, and a late packet on one never holds up another. Each send also has a <strong>delivery</strong> flag:</p>
+<ul>
+<li><code>0</code>, <strong>reliable</strong>: resent until it arrives, in order. For chat and moves.</li>
+<li><code>1</code>, <strong>unreliable</strong>: in order, but it may be dropped. For where a player is now: a newer one comes soon.</li>
+<li><code>2</code>: it may be dropped, or arrive out of order.</li>
+</ul>
+<figure class="example" id="ex-en-channels" data-run="output" data-needs="org.openxtalk.library.enet enetHelpers">
+<pre class="code"><code>get enInitialize()
+put enHostCreateServer("127.0.0.1", 0, 4, 2, 0, 0) into tServer
+set the itemDelimiter to ":"
+put enHostStatus(tServer) into tStatus
+put item 2 of tStatus["address"] into tPort
+put enHostCreateClient(1, 2, 0, 0) into tClient
+put enConnect(tClient, "127.0.0.1", tPort, 2, 0) into tPeer
+repeat 400 times
+   get enPoll(tClient)
+   put enPoll(tServer) into tEvents
+   if tEvents[1]["name"] is "enetConnect" then
+      -- where the player is: channel 1, unreliable
+      get enSendText(tPeer, 1, "x=10 y=20", 1)
+   end if
+   if tEvents[1]["name"] is "enetReceive" then exit repeat
+   wait 5 milliseconds
+end repeat
+put "channel" &amp;&amp; tEvents[1]["channel"] &amp; ":" &amp;&amp; textDecode(tEvents[1]["payload"], "UTF-8")
+get enHostDestroy(tClient)
+get enHostDestroy(tServer)
+enDeinitialize</code></pre>
+<pre class="out">channel 1: x=10 y=20</pre>
+</figure>
+
+<h2 id="goodbye">Health, and goodbye</h2>
+<p><code>enPeerStatus</code> tells a game how a connection is: its "state", the round trip in milliseconds ("rtt"), packets lost, and bytes sent and received, which <code>enFormatBytes</code> writes for people. <code>enSetPeerTimeout</code> decides when a quiet peer counts as gone. <code>enDisconnect</code> ends a connection politely: queued packets go first, then both sides get an <code>enetDisconnect</code> event, and the peer handle is retired, so a send to it is refused:</p>
+<figure class="example" id="ex-en-goodbye" data-run="output" data-needs="org.openxtalk.library.enet enetHelpers">
+<pre class="code"><code>get enInitialize()
+put enHostCreateServer("127.0.0.1", 0, 4, 1, 0, 0) into tServer
+set the itemDelimiter to ":"
+put enHostStatus(tServer) into tStatus
+put item 2 of tStatus["address"] into tPort
+put enHostCreateClient(1, 1, 0, 0) into tClient
+put enConnect(tClient, "127.0.0.1", tPort, 1, 0) into tPeer
+repeat 400 times
+   get enPoll(tClient)
+   put enPoll(tServer) into tEvents
+   if tEvents[1]["name"] is "enetConnect" then
+      put enPeerStatus(tPeer) into tStatus
+      put enStateName(tStatus["state"]) &amp; "," &amp;&amp; enFormatBytes(tStatus["bytesSent"]) &amp;&amp; "sent" into tHealth
+      -- give up on a silent peer after 5 to 30 seconds
+      get enSetPeerTimeout(tPeer, 0, 5000, 30000)
+      get enDisconnect(tPeer, 0)
+   end if
+   if tEvents[1]["name"] is "enetDisconnect" then exit repeat
+   wait 5 milliseconds
+end repeat
+put matchText(tHealth, "^connected, [0-9]+ B sent$")
+put "The server got" &amp;&amp; tEvents[1]["name"]
+put enSendText(tPeer, 0, "still there?", 0) &lt; 0
+get enHostDestroy(tClient)
+get enHostDestroy(tServer)
+enDeinitialize</code></pre>
+<pre class="out">true
+The server got enetDisconnect
+true</pre>
+</figure>
+<aside class="tip"><p>In an app, poll from a timer (<a href="../timers/">Timers</a>) rather than a loop: <code>send "pollNetwork" to me in 16 milliseconds</code> at the end of a <code>pollNetwork</code> handler that polls and handles each event keeps the window answering clicks. <strong>Learn ENet</strong> (<kbd>Help &gt; Examples</kbd>) runs each idea here as a script to change.</p></aside>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Make the server answer: when it receives text, it sends it back in capitals to the peer that sent it (the event's "peer"). The client sends <code>ping</code> and puts what comes back.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-en-try" data-run="output" data-needs="org.openxtalk.library.enet enetHelpers">
+<pre class="code"><code>get enInitialize()
+put enHostCreateServer("127.0.0.1", 0, 4, 1, 0, 0) into tServer
+set the itemDelimiter to ":"
+put enHostStatus(tServer) into tStatus
+put item 2 of tStatus["address"] into tPort
+put enHostCreateClient(1, 1, 0, 0) into tClient
+put enConnect(tClient, "127.0.0.1", tPort, 1, 0) into tPeer
+repeat 400 times
+   repeat for each element tEvent in enPoll(tServer)
+      if tEvent["name"] is "enetReceive" then
+         get enSendText(tEvent["peer"], 0, toUpper(textDecode(tEvent["payload"], "UTF-8")), 0)
+      end if
+   end repeat
+   repeat for each element tEvent in enPoll(tClient)
+      if tEvent["name"] is "enetConnect" then
+         get enSendText(tPeer, 0, "ping", 0)
+      else if tEvent["name"] is "enetReceive" then
+         put textDecode(tEvent["payload"], "UTF-8") into tAnswer
+      end if
+   end repeat
+   if tAnswer is not empty then exit repeat
+   wait 5 milliseconds
+end repeat
+put tAnswer
+get enHostDestroy(tClient)
+get enHostDestroy(tServer)
+enDeinitialize</code></pre>
+<pre class="out">PING</pre>
+</figure>
+</details>
+</section>

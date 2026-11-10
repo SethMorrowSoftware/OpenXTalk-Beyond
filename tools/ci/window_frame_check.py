@@ -203,6 +203,13 @@ class Win32:
         self.user32.SendMessageW(hwnd, self.WM_GETTITLEBARINFOEX, 0, self.ct.addressof(info))
         return self.rect(info.rgrect[2])
 
+    def title_bar(self, hwnd):
+        """The title bar's screen rect as the window manager has it."""
+        info = self.TITLEBARINFOEX()
+        info.cbSize = self.ct.sizeof(info)
+        self.user32.SendMessageW(hwnd, self.WM_GETTITLEBARINFOEX, 0, self.ct.addressof(info))
+        return self.rect(info.rcTitleBar)
+
     def dwm_buttons(self, hwnd):
         """The caption buttons DWM draws, in screen coordinates, or None."""
         if self.dwmapi is None:
@@ -252,8 +259,9 @@ def frame_of(w, hwnd):
 
     def rel(r):
         return None if r is None else (r[0] - win[2], r[1] - win[1], r[2] - win[2], r[3] - win[1])
+    bar = w.title_bar(hwnd)
     return {'window': win, 'region': w.region(hwnd), 'button': button, 'dwm': dwm,
-            'button_rel': rel(button), 'dwm_rel': rel(dwm)}
+            'button_rel': rel(button), 'dwm_rel': rel(dwm), 'bar_height': bar[3] - bar[1]}
 
 
 def dwm_minimize(dwm):
@@ -324,12 +332,45 @@ def follow_steps(w, log_path, go_path, seconds, lines):
     return read_log(log_path)
 
 
+# The steps at which a stack goes back to blendLevel 0, by the step before
+# them (window-frame-check.livecodescript's stepPoint labels)
+OPAQUE_STEPS = (('faded-decorated', 'faded-opaque'), ('titled-sized', 'titled-opaque'))
+
+
+def check_focus(log, check):
+    """No stack is suspended or resumed while one goes back to blendLevel 0
+    (its new window takes over its activation), and the stack opened
+    invisible stays so. Up to the first build of #380 Windows could pick
+    another window when the old one went, and the IDE, answering
+    resumeStack, showed a hidden stack."""
+    def step_index(label):
+        for i, x in enumerate(log):
+            parts = x.split()
+            if len(parts) >= 3 and parts[0] == 'STEP' and parts[2] == label:
+                return i
+        return None
+
+    for before, after in OPAQUE_STEPS:
+        a, b = step_index(before), step_index(after)
+        if a is None or b is None:
+            check(after, 'no stack suspended or resumed', False, 'the steps %s and %s were not both logged'
+                  % (before, after))
+            continue
+        seen = [x for x in log[a + 1:b] if x.split()[0] in ('SUSPEND', 'RESUME')]
+        check(after, 'no stack suspended or resumed', not seen, ', '.join(seen) or 'none')
+    hidden = [x.split()[2] for x in log if x.startswith('HIDDEN FrameHidden ')]
+    check('FrameHidden', 'a stack opened invisible stays hidden', hidden == ['false'],
+          'its visible: %s' % (hidden[0] if hidden else 'not logged'))
+
+
 def check_windows(w, windows, log_path, lines, problems):
     def check(name, what, ok, detail):
         line = '%s %s: %s (%s)' % ('PASS' if ok else 'FAIL', name, what, detail)
         lines.append(line)
         if not ok:
             problems.append(line[5:])
+
+    check_focus(read_log(log_path), check)
 
     frames = {}
     for name in STACKS:
@@ -339,8 +380,8 @@ def check_windows(w, windows, log_path, lines, problems):
             continue
         frames[name] = frame_of(w, hwnd)
         f = frames[name]
-        lines.append('INFO %s: window %s, region %s, minimize button %s, DWM caption buttons %s'
-                     % (name, f['window'], f['region'], f['button'], f['dwm']))
+        lines.append('INFO %s: window %s, region %s, title bar %s px, minimize button %s, DWM caption buttons %s'
+                     % (name, f['window'], f['region'], f['bar_height'], f['button'], f['dwm']))
     control = frames.get(STACKS[0])
     if control is None:
         return
@@ -371,6 +412,11 @@ def check_windows(w, windows, log_path, lines, problems):
         # never was
         check(name, 'no window region', f['region'] == control['region'],
               'GetWindowRgn: %s, the plain stack\'s: %s' % (f['region'], control['region']))
+        # Up to 0.2.7-rc.6.16 the menubar, on Windows 11, kept the title bar
+        # laid out while it was translucent: shorter than a plain window's,
+        # with smaller buttons further right
+        check(name, 'title bar as tall as the plain stack\'s', abs(f['bar_height'] - control['bar_height']) <= 1,
+              'WM_GETTITLEBARINFOEX: %s px, the plain stack\'s %s px' % (f['bar_height'], control['bar_height']))
         same = all(abs(a - b) <= 2 for a, b in zip(f['button_rel'], control['button_rel']))
         check(name, 'minimize button placed as the plain stack\'s', same,
               'from the top right corner %s, the plain stack\'s %s' % (f['button_rel'], control['button_rel']))
@@ -443,8 +489,9 @@ def main(argv=None):
         else:
             windows = {}
             for x in got:
-                if x.startswith('WINDOW '):
-                    parts = x.split()
+                parts = x.split()
+                # (a stack that was never shown may have no window yet)
+                if parts[0] == 'WINDOW' and len(parts) == 3 and parts[2].isdigit():
                     windows[parts[1]] = int(parts[2])
             check_windows(Win32(), windows, log_path, lines, problems)
         with open(go_path, 'w') as f:

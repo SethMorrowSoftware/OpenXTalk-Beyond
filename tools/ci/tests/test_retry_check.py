@@ -71,17 +71,108 @@ sys.exit(int(status.rstrip('n')))
 
 
 def alive(pid):
-    """Whether a process is running (POSIX; a zombie, which has ended and
-    waits for its parent, counts as ended)."""
+    """Whether a process is running (POSIX). One that has ended counts as
+    ended while it waits for its parent (a zombie, Z in Linux's
+    /proc/<pid>/stat), while its parent takes it (dead, X), and when it is
+    gone by the time its state is read."""
     try:
         os.kill(pid, 0)
     except OSError:
         return False
     try:
         with open('/proc/%d/stat' % pid) as f:
-            return f.read().rsplit(')', 1)[1].split()[0] != 'Z'
+            return f.read().rsplit(')', 1)[1].split()[0] not in ('Z', 'X', 'x')
     except OSError:
+        # No /proc to read (macOS), where the process is as os.kill found
+        # it; or the process went between the two looks, its new parent
+        # having taken the zombie, which os.kill now says (see AliveTest)
+        try:
+            os.kill(pid, 0)
+        except OSError:
+            return False
         return True
+
+
+class AliveTest(unittest.TestCase):
+    """alive(), which the tests below ask whether what a stopped try
+    started has ended."""
+
+    @unittest.skipIf(os.name == 'nt', 'POSIX processes')
+    def test_a_running_process_and_one_that_ended(self):
+        child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(600)'])
+        try:
+            self.assertTrue(alive(child.pid))
+        finally:
+            child.kill()
+            child.wait()
+        self.assertFalse(alive(child.pid))
+
+    def test_a_process_gone_between_the_two_looks_has_ended(self):
+        # On 9 November 2026 test_a_try_that_ignores_sigterm_is_killed
+        # failed on a pull request that changed nothing of it (run
+        # 42663055932): the killed try's child was a zombie when the
+        # test's loop looked, which ended the loop, and at the next look
+        # its new parent was taking it, which alive() answered as
+        # "running". Of 40 orphans killed on Linux and looked at until
+        # they were gone, 20 were gone after os.kill had found them and
+        # before /proc/<pid>/stat was read (this test), and 8 looks read
+        # the state X (the next test); asked in a loop, alive() came back
+        # as running after "ended" for 13 orphans of 20
+        looks = []
+
+        def kill(pid, number):
+            looks.append(pid)
+            if len(looks) > 1:
+                raise ProcessLookupError(3, 'No such process')
+
+        with mock.patch.object(os, 'kill', kill), \
+                mock.patch('builtins.open', side_effect=FileNotFoundError(2, 'No such file')):
+            self.assertFalse(alive(4321))
+        self.assertEqual(looks, [4321, 4321])
+
+    def test_a_process_whose_state_cannot_be_read_is_as_kill_finds_it(self):
+        # macOS has no /proc: the process os.kill finds twice is running
+        with mock.patch.object(os, 'kill', lambda pid, number: None), \
+                mock.patch('builtins.open', side_effect=FileNotFoundError(2, 'No such file')):
+            self.assertTrue(alive(4321))
+
+    def test_a_zombie_and_a_dead_process_have_ended(self):
+        # Z while it waits for its parent, X while the parent takes it
+        for state, running in (('Z', False), ('X', False), ('S', True), ('R', True)):
+            stat = '4321 (a) b) %s 1 4000 4000 0 -1' % state
+            with mock.patch.object(os, 'kill', lambda pid, number: None), \
+                    mock.patch('builtins.open', mock.mock_open(read_data=stat)):
+                self.assertEqual(alive(4321), running, state)
+
+    @unittest.skipIf(os.name == 'nt', 'POSIX processes')
+    def test_an_orphan_that_ended_never_comes_back_as_running(self):
+        # The real thing, as the tests below meet it: what a killed try
+        # started has no parent of its own left
+        for _ in range(3):
+            reading, writing = os.pipe()
+            parent = subprocess.Popen(
+                [sys.executable, '-c',
+                 'import os, subprocess, sys\n'
+                 'child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(600)"])\n'
+                 'os.write(%d, str(child.pid).encode())' % writing],
+                pass_fds=(writing,))
+            os.close(writing)
+            parent.wait()
+            with os.fdopen(reading) as f:
+                orphan = int(f.read())
+            self.assertTrue(alive(orphan))
+            os.kill(orphan, signal.SIGKILL)
+            ended = False
+            deadline = time.monotonic() + 0.5
+            while time.monotonic() < deadline:
+                if alive(orphan):
+                    self.assertFalse(ended, 'running after it had ended')
+                else:
+                    ended = True
+                    try:
+                        os.kill(orphan, 0)
+                    except OSError:
+                        break
 
 
 class RetryCheckTest(unittest.TestCase):

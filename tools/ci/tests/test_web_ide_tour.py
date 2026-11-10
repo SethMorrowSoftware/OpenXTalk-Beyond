@@ -27,7 +27,10 @@ on an error of its own. Playwright is not needed.
 """
 
 import argparse
+import json
 import os
+import shutil
+import subprocess
 import sys
 import unittest
 
@@ -80,6 +83,60 @@ class FollowsTheBrowser(unittest.TestCase):
         self.assertIn('appearance', steps.split('"')[1].split(','))
         self.assertIn('tourAct "scheme"', tour)
         self.assertIn("verb == 'scheme'", self.read('tools', 'ci', 'web_ide_tour.py'))
+
+
+class MessageBoxColours(unittest.TestCase):
+    """The script typed in the Message Box kept the colours of the
+    appearance it was typed in, so after a switch from light to dark its
+    words were olive, purple, navy and black on the dark field (seth, the
+    web IDE, 2026-11-08). The Message Box colours it again as the
+    appearance changes; the tour's message-box-colours step checks the
+    contrast in both appearances in the browser, and that light mode is
+    coloured as before. These hold the pieces to each other."""
+
+    def read(self, *path):
+        with open(os.path.join(REPO, *path), encoding='utf-8') as f:
+            return f.read().lstrip('\ufeff')
+
+    def test_the_tour_has_the_step_after_appearance(self):
+        tour = self.read('tools', 'ci', 'web-ide-tour.livecodescript')
+        steps = [line for line in tour.splitlines() if line.startswith('constant kSteps')][0]
+        steps = steps.split('"')[1].split(',')
+        self.assertIn('message-box-colours', steps)
+        self.assertEqual(steps.index('message-box-colours'), steps.index('appearance') + 1)
+        step = tour.split('\non tour_message_box_colours\n', 1)[1].split('\nend tour_message_box_colours', 1)[0]
+        for card in ('Single Line', 'Multiple Lines'):
+            self.assertIn(card, step)
+        self.assertIn('tourAct "scheme dark"', step)
+        self.assertIn('tourAct "scheme light"', step)
+        # light mode as it was: the same htmlText after the switch back
+        self.assertIn('if the htmlText of tField is not tLight then', step)
+        check = tour.split('\nfunction tourColourProblem pField, pLabel\n', 1)[1].split('\nend tourColourProblem', 1)[0]
+        self.assertIn('if tContrast < 3 then', check)
+
+    def test_the_message_box_colours_again(self):
+        box = self.read('ide', 'Toolset', 'palettes', 'message box', 'behaviors',
+                        'revmessageboxbehavior.livecodescript')
+        changed = box.split('\non ideSystemAppearanceChanged\n', 1)[1].split('\nend ideSystemAppearanceChanged', 1)[0]
+        self.assertIn('__RecolorizeMessages', changed)
+        again = box.split('\ncommand __RecolorizeMessages\n', 1)[1].split('\nend __RecolorizeMessages', 1)[0]
+        self.assertEqual(again.count('dispatch "revSEColorizeField" to stack "revSEUtilities" with tField'), 2)
+        self.assertIn('field "message" of card "Single Line" of me', again)
+        self.assertIn('field "script" of card "Multiple Lines" of me', again)
+
+    def test_the_history_is_coloured_as_typed(self):
+        line = self.read('ide', 'Toolset', 'palettes', 'message box', 'behaviors',
+                         'revmessageboxsinglelinemessagebehavior.livecodescript')
+        self.assertNotIn('_internal script colorize', line)
+        for name in ('revNextLine', 'revPrevLine'):
+            body = line.split('\ncommand %s\n' % name, 1)[1].split('\nend %s' % name, 1)[0]
+            self.assertIn('dispatch "revSEColorizeField" to stack "revSEUtilities" with the long id of me', body)
+
+    def test_the_engine_test_exists(self):
+        test = self.read('tests', 'lcs', 'messagebox', 'appearancecolours.livecodescript')
+        for name in ('TestAppearanceChangeColoursBothFields', 'TestAppearanceChangeLeavesEmptyFields',
+                     'TestHistoryLineIsColouredAsTyped'):
+            self.assertIn('\non %s\n' % name, test)
 
 
 class NotSaved(unittest.TestCase):
@@ -263,6 +320,247 @@ class PropertyListeners(unittest.TestCase):
             self.assertIn('dispatch "menuPick" to button "inspectMenu" of tEditor with "Reset to default"', step, name)
             self.assertIn('after Reset the swatch still shows 0,160,0', step, name)
             self.assertIn('set the backgroundColor of tButton to "0,0,200"', step, name)
+
+
+class ProjectBrowserRefresh(unittest.TestCase):
+    """The Project Browser's Refresh button showed a corner of the splash's
+    art in the web IDE, and its tooltip named the Application Browser
+    (littlenemo, openxtalk.org; 0.2.7-rc.6.19). The splash's image took
+    revIcons' ID, which is the ID of revIcons' "dark-refresh", the
+    button's icon, and the web IDE keeps the splash in memory. Both tours'
+    project-browser steps check the button in the IDE (tourRefreshProblem);
+    these hold the pieces to each other."""
+
+    def read(self, *path):
+        with open(os.path.join(REPO, *path), encoding='utf-8') as f:
+            return f.read().lstrip('\ufeff')
+
+    def test_both_tours_check_the_button(self):
+        for name in ('web-ide-tour.livecodescript', 'ui-tour.livecodescript'):
+            tour = self.read('tools', 'ci', name)
+            step = tour.split('\non tour_project_browser\n', 1)[1].split('\nend tour_project_browser', 1)[0]
+            self.assertIn('put tourRefreshProblem(tStack) into tProblem', step, name)
+            self.assertIn('if tProblem is not empty then throw tProblem', step, name)
+            check = tour.split('\nfunction tourRefreshProblem pStack\n', 1)[1].split('\nend tourRefreshProblem', 1)[0]
+            self.assertIn('"Refresh the Project Browser"', check, name)
+            # the release's binary stack (the screenshot jobs' IDE) has the
+            # old tooltip: recorded, not failed; any other text fails
+            self.assertIn('if the toolTip of tButton is "Refresh the Application Browser" then\n      tourRecord "INFO', check, name)
+            self.assertIn('else if the toolTip of tButton is not "Refresh the Project Browser" then\n      return', check, name)
+            # every stack in memory but revIcons, substacks too
+            self.assertIn('repeat for each line tMain in the mainStacks', check, name)
+            self.assertIn('the substacks of stack tMain', check, name)
+            self.assertIn('if there is an image id tIcon of stack tSub then', check, name)
+
+    def test_the_splash_takes_no_icons_id(self):
+        script = self.read('ide', 'Toolset', 'palettes', 'splash', 'revsplashstackbehavior.livecodescript')
+        self.assertIn('set the id of image "Splash" to splashImageId()', script)
+        self.assertNotIn('set the id of image "Splash" to the id of stack "revIcons"', script)
+        taken = script.split('\nprivate function splashIdIsTaken pId\n', 1)[1].split('\nend splashIdIsTaken', 1)[0]
+        self.assertIn('repeat for each item tStack in "revIcons,revGeneralIcons"', taken)
+        self.assertIn('if there is an image id pId of stack tStack then return true', taken)
+        pick = script.split('\nprivate function splashImageId\n', 1)[1].split('\nend splashImageId', 1)[0]
+        # it starts where it did, at revIcons' ID, and steps past what is taken
+        self.assertIn('put the id of stack "revIcons" into tId', pick)
+        self.assertIn('repeat while splashIdIsTaken(tId)', pick)
+
+    def test_the_tooltip_patch(self):
+        patch = self.read('tools', 'oxt', 'ide-stack-patches', 'project-browser-refresh-tooltip.txt')
+        self.assertIn('file: Toolset/palettes/project browser/revideprojectbrowser.livecode', patch)
+        self.assertIn('from: Refresh the Application Browser\nto: Refresh the Project Browser\n', patch)
+        with open(os.path.join(REPO, 'ide', 'Toolset', 'palettes', 'project browser',
+                               'revideprojectbrowser.livecode'), 'rb') as f:
+            stack = f.read()
+        self.assertIn(b'Refresh the Project Browser', stack)
+        self.assertNotIn(b'Refresh the Application Browser', stack)
+
+
+class HilitedNames(unittest.TestCase):
+    """White names on a selected row of the Project Browser and the App
+    Browser, in the web IDE (littlenemo, openxtalk.org p=26169; seth's
+    decision of 2026-11-08): the Project Browser's were the accentColor, a
+    blue, on its blue hilite, and the App Browser painted its selected
+    controls' names black (its cSuspended, saved true, cleared only on
+    Windows). The web tour's project-browser step checks both in the IDE;
+    these hold the pieces to each other. Since 0.2.7-rc.6.19 the Project
+    Browser's names are white on its blue on macOS and Windows too, and
+    black on a light hilite everywhere but Linux, which keeps its own rule
+    (test_project_browser_hilite); the App Browser's desktops are as
+    before."""
+
+    LIBRARY = ('ide', 'Toolset', 'libraries', 'revidelibrary.8.livecodescript')
+
+    def read(self, *path):
+        with open(os.path.join(REPO, *path), encoding='utf-8') as f:
+            return f.read().lstrip('\ufeff')
+
+    def handler(self, kind, name):
+        text = self.read(*self.LIBRARY)
+        return text.split('\n%s %s ' % (kind, name), 1)[1].split('\nend %s' % name, 1)[0]
+
+    def test_white_on_the_web(self):
+        body = self.handler('function', 'revIDEHilitedTextColor')
+        self.assertIn('put revEnvironmentIsWeb() is true into pWeb', body)
+        # a colour given by name: white on the web, the desktops' as before
+        self.assertIn('if pWeb then return "255,255,255"\n      return revIDEColor("dataView_TextHiliteColor")', body)
+        # the web takes the rule of macOS and Windows, white on the blue
+        # and black on a light hilite, never Linux's
+        linux = body.index('if pPlatform is "Linux" and not pWeb then')
+        self.assertIn('if tLuminance > 0.5 then return "0,0,0"\n   return "255,255,255"', body[linux:])
+
+    def test_the_app_browser_on_the_web_only(self):
+        body = self.handler('command', 'revIDEAppBrowserHilitedNames')
+        self.assertIn('if not pWeb then\n      exit revIDEAppBrowserHilitedNames', body)
+        self.assertIn('ends with "/App Browser.livecode"', body)
+        self.assertIn('set the cSuspended of stack pStack to false', body)
+        self.assertLess(body.index('lock messages'), body.index('set the cSuspended'))
+        opener = self.handler('on', 'revIDEOpenPlugin')
+        self.assertIn('revIDEAppBrowserHilitedNames tStackPath', opener)
+        self.assertLess(opener.index('revIDEAppBrowserHilitedNames tStackPath'), opener.index('go invisible stack'))
+
+    def test_the_web_tour_checks_both(self):
+        tour = self.read('tools', 'ci', 'web-ide-tour.livecodescript')
+        step = tour.split('\non tour_project_browser\n', 1)[1].split('\nend tour_project_browser', 1)[0]
+        self.assertIn('revIDEHilitedTextColor(revIDEColor("dataView_hiliteColor")) is not "255,255,255"', step)
+        self.assertIn('revIDEHilitedTextColor("212,212,212") is not "0,0,0"', step)
+        self.assertIn('if the cSuspended of stack "App Browser" is true then', step)
+        self.assertIn('close stack "App Browser"', step)
+
+    def test_the_ide_tests(self):
+        hilite = self.read('ide', 'tests', 'projectbrowser', 'hilite.livecodescript')
+        self.assertIn('on TestHilitedNamesAreWhiteOnTheWeb', hilite)
+        self.assertIn('on TestHilitedNamesAreWhiteOnMacAndWindows', hilite)
+        self.assertIn('on TestHilitedNamesOnLinuxAreAsBefore', hilite)
+        self.assertIn('on TestAppBrowserHilitedNamesOnTheWeb',
+                      self.read('ide', 'tests', 'appbrowser', 'updates.livecodescript'))
+
+
+class ExtensionStacksNotTheUsers(unittest.TestCase):
+    """The stacks the IDE loads from its own Extensions folder are its own:
+    until rc.6.18 the web IDE's Project Browser and App Browser listed the
+    layout guides' library, community.ferruslogic.plugin.devguides, first
+    among the user's stacks (LittleNemo, openxtalk.org p=26169). With the
+    guides off the library closes itself, which leaves a library the IDE
+    never opened in memory, and its name neither begins with "rev" nor is
+    the name the IDE loaded it by. The web tour's project-browser step
+    failed on rc.6.17's web IDE and passes with the library marking itself
+    the IDE's; the desktop tour's App Browser step checks its list too."""
+
+    def read(self, *path):
+        with open(os.path.join(REPO, *path), encoding='utf-8') as f:
+            return f.read()
+
+    def handler(self, text, kind, name):
+        return text.split('\n%s %s' % (kind, name), 1)[1].split('\nend %s\n' % name, 1)[0]
+
+    def test_the_web_tour_checks_after_the_project_browser(self):
+        tour = self.read('tools', 'ci', 'web-ide-tour.livecodescript')
+        step = self.handler(tour, 'on', 'tour_project_browser')
+        self.assertIn('tourExtensionStacksNotUsers', step)
+        self.assertLess(step.index('close stack tStack'), step.index('tourExtensionStacksNotUsers'))
+        check = self.handler(tour, 'command', 'tourExtensionStacksNotUsers')
+        self.assertIn('put revFilterStacksList(the mainStacks) into tUsers', check)
+        self.assertIn('put revIDESpecialFolderPath("extensions") & slash into tExtensions', check)
+        self.assertIn('if the effective filename of stack tStackName begins with tExtensions then', check)
+        self.assertIn('throw "the IDE lists its own extensions\' stacks among the user\'s stacks:"', check)
+
+    def test_the_desktop_tour_checks_the_app_browsers_list(self):
+        tour = self.read('tools', 'ci', 'ui-tour.livecodescript')
+        step = self.handler(tour, 'on', 'tour_app_browser')
+        call = step.index('get tourExtensionStacksListed(tListed)')
+        thrown = step.index('throw "the App Browser lists the IDE\'s own extensions\' stacks')
+        self.assertLess(call, thrown)
+        self.assertLess(step.rindex('close stack tStack', 0, thrown), thrown)
+        check = self.handler(tour, 'function', 'tourExtensionStacksListed')
+        self.assertIn('put revIDESpecialFolderPath("extensions") & slash into tExtensions', check)
+        self.assertIn('the effective filename of stack tStackName begins with tExtensions', check)
+
+    def test_the_guides_library_is_the_ides_with_the_guides_off(self):
+        text = self.read('ide', 'Extensions', 'community.ferruslogic.plugin.devguides',
+                         'DevGuides.livecodescript')
+        start = self.handler(text, 'on', 'extensionInitialize')
+        mark = start.index('set the _ideoverride of me to true')
+        self.assertLess(mark, start.index('if the cLayoutGuides of stack "revPreferences" is true then'))
+        self.assertLess(mark, start.index('close this stack'))
+
+
+class TooltipText(unittest.TestCase):
+    """bwmilby, openxtalk.org p=26171: in a dark browser the web engine drew
+    a tooltip's background dark and its text black. The engine now writes
+    the text white in the dark appearance only, and the tour's tooltip step
+    measures the contrast of a real tooltip in both appearances."""
+
+    def read(self, *path):
+        with open(os.path.join(REPO, *path), encoding='utf-8') as f:
+            return f.read()
+
+    def tour(self):
+        return self.read('tools', 'ci', 'web-ide-tour.livecodescript')
+
+    def contrast_js(self):
+        line = [line for line in self.tour().splitlines()
+                if line.startswith('constant kTooltipContrastJS = ')][0]
+        return line.split('"')[1]
+
+    def test_the_tour_has_the_step(self):
+        tour = self.tour()
+        steps = [line for line in tour.splitlines() if line.startswith('constant kSteps')][0]
+        steps = steps.split('"')[1].split(',')
+        self.assertIn('tooltip', steps)
+        # (after the appearance step, which leaves the page as it started)
+        self.assertGreater(steps.index('tooltip'), steps.index('appearance'))
+        step = tour.split('on tour_tooltip', 1)[1].split('end tour_tooltip', 1)[0]
+        self.assertIn('"light,dark"', step)
+        self.assertIn('word -1 of tInfo < 4.5', tour)
+
+    def test_the_engine_writes_white_only_in_the_dark(self):
+        theme = self.read('engine', 'src', 'em-theme.cpp')
+        body = theme.split('MCEmscriptenThemeGetTooltipTextColor(MCColor& r_color)\n{', 1)[1].split('\n}', 1)[0]
+        self.assertIn('if (!em_theme_is_dark())\n\t\treturn false;', body)
+        self.assertIn('kMCWebThemeDarkText', body)
+        tooltip = self.read('engine', 'src', 'tooltip.cpp')
+        render = tooltip.split('void MCTooltip::render', 1)[1].split('\n}', 1)[0]
+        guarded = render.split('#if defined(__EMSCRIPTEN__)', 1)[1].split('#endif', 1)
+        self.assertIn('MCEmscriptenThemeGetTooltipTextColor(t_text_color)', guarded[0])
+        # (every other engine, and the light appearance, keep black)
+        self.assertIn('dc -> setforeground(MCscreen -> black_pixel);', guarded[1])
+
+    def run_js(self, back, ink):
+        node = shutil.which('node')
+        if node is None:
+            self.skipTest('no node')
+        # a tooltip window 40 x 10 of colour back, its middle row of colour
+        # ink, as em-dc.js's canvas (2d context) shows one
+        script = """
+var W = 40, H = 10, back = %s, ink = %s;
+var data = new Uint8ClampedArray(W * H * 4);
+for (var y = 0; y < H; y++) for (var x = 0; x < W; x++) {
+  var c = (y === 5 && x > 5 && x < 30) ? ink : back, k = (y * W + x) * 4;
+  data[k] = c[0]; data[k + 1] = c[1]; data[k + 2] = c[2]; data[k + 3] = 255;
+}
+var canvas = { width: W, height: H,
+  getBoundingClientRect: function () { return { left: 110, top: 216, width: W, height: H }; },
+  getContext: function () { return { getImageData: function () { return { data: data }; } }; } };
+var element = { querySelector: function () { return canvas; } };
+global.document = { querySelectorAll: function () { return [element]; } };
+global.getComputedStyle = function () { return { display: 'block' }; };
+console.log(eval(%s)(100, 200));
+""" % (json.dumps(back), json.dumps(ink), json.dumps(self.contrast_js()))
+        return subprocess.run([node, '-e', script], capture_output=True, text=True,
+                              check=True).stdout.strip()
+
+    def test_the_contrast_of_rc_6_17_s_dark_tooltip(self):
+        info = self.run_js([32, 32, 32], [0, 0, 0])
+        self.assertEqual(info, '40x10 back 32,32,32 ink 0,0,0 contrast 1.29')
+
+    def test_the_contrast_of_the_fixed_dark_tooltip(self):
+        info = self.run_js([32, 32, 32], [255, 255, 255])
+        self.assertEqual(info.split()[:5], ['40x10', 'back', '32,32,32', 'ink', '255,255,255'])
+        self.assertGreaterEqual(float(info.split()[-1]), 4.5)
+
+    def test_the_contrast_of_the_light_tooltip(self):
+        info = self.run_js([240, 240, 240], [0, 0, 0])
+        self.assertEqual(info, '40x10 back 240,240,240 ink 0,0,0 contrast 18.43')
 
 
 if __name__ == '__main__':

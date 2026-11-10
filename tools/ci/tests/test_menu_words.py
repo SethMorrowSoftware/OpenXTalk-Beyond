@@ -142,6 +142,65 @@ class TheChoice(unittest.TestCase):
                     self.assertEqual(chosen == (255, 255, 255), luma(back) < 32768)
 
 
+def armed_ink(words, theme):
+    """The model of getmenuitemarmedink: the words a hilited item would
+    take and the theme's hilited words; None keeps the ones it takes."""
+    if (luma(words) < 32768) == (luma(theme) < 32768):
+        return None
+    return theme
+
+
+class TheArmedInk(unittest.TestCase):
+    """A menu item hilited on GTK's selection colour (rc.6.17): its words
+    took a window's own colour, so 48,52,58 on the selection blue."""
+
+    def setUp(self):
+        self.source = read('engine', 'src', 'buttondraw.cpp')
+        self.ink = c_function(self.source, 'MCButton::getmenuitemarmedink')
+
+    def test_declared_on_the_button(self):
+        self.assertIn('bool getmenuitemarmedink(MCDC *dc, MCColor &r_ink);', read('engine', 'src', 'button.h'))
+
+    def test_linux_only(self):
+        body = self.ink.split('{', 1)[1]
+        self.assertTrue(body.lstrip().startswith('#if defined(TARGET_PLATFORM_LINUX)'))
+        self.assertTrue(body.rstrip().endswith('#else\n\treturn false;\n#endif\n}'))
+
+    def test_only_a_hilited_item_on_the_themes_hilite(self):
+        self.assertIn('if (menucontrol != MENUCONTROL_ITEM)\n\t\treturn false;', self.ink)
+        self.assertIn('if (MCcurtheme == NULL || MCcurtheme -> getthemeid() != LF_NATIVEGTK)\n\t\treturn false;', self.ink)
+        self.assertIn("if (!(state & CS_ARMED) || (flags & F_SHOW_BORDER))\n\t\treturn false;", self.ink)
+        # an item with a background of its own is not on the theme's hilite
+        self.assertIn('if (getcindex(DI_BACK, t_index) || getpindex(DI_BACK, t_index))\n\t\treturn false;', self.ink)
+
+    def test_the_words_it_would_take_and_the_themes(self):
+        self.assertIn('getforecolor(DI_PSEUDO_BUTTON_TEXT_SEL, False, True, t_words, t_pattern, t_x, t_y, dc -> gettype(), this)', self.ink)
+        self.assertIn('t_pattern != nil)\n\t\treturn false;', self.ink)
+        self.assertIn('getthemeselectorsforprop(P_FORE_COLOR, t_type, t_part, t_state, t_prop, t_prop_type)', self.ink)
+        self.assertIn('MCPlatformControlState(t_state | kMCPlatformControlStateSelected)', self.ink)
+        self.assertIn('if ((t_words_luma < 32768) == (t_theme_luma < 32768))\n\t\treturn false;', self.ink)
+        self.assertIn('r_ink = t_theme;\n\treturn true;', self.ink)
+
+    def test_draw_uses_it_for_the_hilited_words(self):
+        draw = c_function(self.source, 'MCButton::draw')
+        call = ('setforeground(dc, DI_PSEUDO_BUTTON_TEXT_SEL, False, True);\n'
+                '\t\t\t\t// OXT-Beyond: a menu item hilited on the theme\'s hilite in\n')
+        self.assertIn(call, draw)
+        after = draw.split(call, 1)[1].split('\t\t\telse\n', 1)[0]
+        self.assertIn('if (getmenuitemarmedink(dc, t_armed_ink))\n\t\t\t\t{\n\t\t\t\t\tdc->setforeground(t_armed_ink);', after)
+
+    def test_rc616s_colours(self):
+        white = (255, 255, 255)
+        # a dark window's colour on the selection blue: the theme's white
+        self.assertEqual(armed_ink((48, 52, 58), white), white)
+        # a light one could be read, and keeps its colour
+        self.assertIsNone(armed_ink((236, 236, 236), white))
+        # nothing on the way: the words are the theme's already
+        self.assertIsNone(armed_ink(white, white))
+        # a theme with dark hilited words, and a light window's colour
+        self.assertEqual(armed_ink((236, 236, 236), (0, 0, 0)), (0, 0, 0))
+
+
 class TheTour(unittest.TestCase):
     def test_the_step_measures_it(self):
         tour = read('tools', 'ci', 'ui-tour.livecodescript')

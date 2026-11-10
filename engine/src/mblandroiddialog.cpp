@@ -107,8 +107,10 @@ JNIEXPORT void JNICALL Java_com_runrev_android_Engine_doAnswerDialogDone(JNIEnv 
 
 bool MCScreenDC::popupaskdialog(uint32_t p_type, MCStringRef p_title, MCStringRef p_message, MCStringRef p_initial, bool p_hint, MCStringRef& r_result)
 {
+	// OXT-Beyond: false, which nil (nullptr) was taken for; a current
+	// Clang refuses nullptr for a bool
 	if (s_in_popup_dialog)
-		return nil;
+		return false;
 
 	s_in_popup_dialog = true;
 	MCAndroidEngineRemoteCall("popupAskDialog", "vbxxxb", nil, p_type == AT_PASSWORD, p_title, p_message, p_initial, p_hint);

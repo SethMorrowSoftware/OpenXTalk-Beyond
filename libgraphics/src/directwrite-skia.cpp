@@ -172,6 +172,25 @@ STDMETHODIMP MCGDWRenderer<Callback>::DrawUnderline(void* context, FLOAT baselin
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// OXT-Beyond: the key that names a custom font collection to DirectWrite.
+// The factory keeps every collection it has made under its key and gives
+// the same one back when CreateCustomFontCollection is passed that key
+// again, without asking the loader. The key was the address of the list of
+// font files alone, and each font file loaded or unloaded makes a new list
+// and frees the old one, so a new list could be made at the address of one
+// freed before: DirectWrite then gave back that list's collection, without
+// the font files loaded since or with those unloaded since. Which addresses
+// came back varied from run to run, and so did what the IDE's code font
+// was drawn with once its sixteen font files were loaded: Source Code Pro,
+// a bolder face of it (a collection from before the regular face was
+// loaded), or another font altogether (one from before any of its faces
+// were). The serial makes every key new.
+struct MCGDWFontCollectionKey
+{
+	uint64_t serial;
+	MCProperListRef files;
+};
+
 class MCGDWFontCollectionLoader :
 	public IDWriteFontCollectionLoader
 {
@@ -244,8 +263,10 @@ STDMETHODIMP MCGDWFontCollectionLoader::QueryInterface(REFIID riid, void **ppvOb
 // IDWriteFontCollectionLoader
 STDMETHODIMP MCGDWFontCollectionLoader::CreateEnumeratorFromKey(IDWriteFactory* factory, void const* collectionKey, UINT32 collectionKeySize, IDWriteFontFileEnumerator** fontFileEnumerator)
 {
-	MCProperListRef t_font_files = *static_cast<MCProperListRef const*>(collectionKey);
-	MCAssert(collectionKeySize == sizeof(MCProperListRef));
+	if (collectionKey == nil || collectionKeySize != sizeof(MCGDWFontCollectionKey))
+		return E_INVALIDARG;
+
+	MCProperListRef t_font_files = static_cast<MCGDWFontCollectionKey const*>(collectionKey)->files;
 	MCAssert(MCValueGetTypeCode(t_font_files) == kMCValueTypeCodeProperList);
 
 	MCGDWFontFileEnumerator *t_enum = new(std::nothrow) MCGDWFontFileEnumerator(factory, t_font_files);
@@ -430,8 +451,16 @@ void MCGPlatformFinalize(void)
 
 bool MCGDWSetFontFiles(MCProperListRef p_files)
 {
+	// A key never used before (MCGDWFontCollectionKey): cleared first, so
+	// that the bytes DirectWrite compares hold no padding left from before
+	static uint64_t s_collection_serial = 0;
+	MCGDWFontCollectionKey t_key;
+	MCMemoryClear(&t_key, sizeof(t_key));
+	t_key.serial = ++s_collection_serial;
+	t_key.files = p_files;
+
 	IDWriteFontCollection *t_new_collection = nil;
-	if (!SUCCEEDED(s_DWFactory->CreateCustomFontCollection(s_DWFontCollectionLoader, &p_files, sizeof(MCProperListRef), &t_new_collection)))
+	if (!SUCCEEDED(s_DWFactory->CreateCustomFontCollection(s_DWFontCollectionLoader, &t_key, sizeof(t_key), &t_new_collection)))
 		return false;
 
 	MCValueAssign(s_FontFiles, p_files);

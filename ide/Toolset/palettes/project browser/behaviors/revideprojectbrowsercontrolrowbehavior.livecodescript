@@ -219,7 +219,7 @@ getProp dvRowControl
 end dvRowControl
 
 setProp dvHilite[pHiliteColor] pBoolean
-   -- OXT-Beyond: the hilited text contrasts with the hilite on Linux
+   -- OXT-Beyond: the hilited text contrasts with the hilite, on every platform
    -- (revIDEHilitedTextColor)
    -- OXT-Beyond: use the shared contrast-safe script badge palette.
    local tCPName

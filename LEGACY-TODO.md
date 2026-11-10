@@ -15,7 +15,7 @@ git grep -n -I -i -w -E 'FIXME|TODO|HACK' -- . ':!thirdparty' ':!prebuilt/fetche
 | --- | --- |
 | [FIXME](#fixme) | 64 |
 | [HACK](#hack) | 32 |
-| [TODO](#todo) | 432 |
+| [TODO](#todo) | 434 |
 
 ## FIXME
 
@@ -58,8 +58,8 @@ Code its authors knew to be wrong or incomplete. 64 notes, by part of the reposi
 - [engine/src/globals.cpp:987](engine/src/globals.cpp#L987) FIXME use MCProperListRef
 - [engine/src/mcsemaphore.h:61](engine/src/mcsemaphore.h#L61) FIXME mark as explicit
 - [engine/src/sysspec-url.cpp:341](engine/src/sysspec-url.cpp#L341) FIXME if wait() returns non-zero, cancel the URL
-- [engine/src/widget.lcb:915](engine/src/widget.lcb#L915) FIXME not actually implemented
-- [engine/src/widget.lcb:1495](engine/src/widget.lcb#L1495) FIXME not implemented
+- [engine/src/widget.lcb:918](engine/src/widget.lcb#L918) FIXME not actually implemented
+- [engine/src/widget.lcb:1498](engine/src/widget.lcb#L1498) FIXME not implemented
 
 <a id="fixme-libfoundation"></a>
 
@@ -72,9 +72,9 @@ Code its authors knew to be wrong or incomplete. 64 notes, by part of the reposi
 - [libfoundation/src/system-file-w32.cpp:286](libfoundation/src/system-file-w32.cpp#L286) FIXME Remaining weaknesses:
 - [libfoundation/src/system-file-w32.cpp:484](libfoundation/src/system-file-w32.cpp#L484) FIXME[2017-04-20] there should be a "basename" function
 - [libfoundation/src/system-file-w32.cpp:540](libfoundation/src/system-file-w32.cpp#L540) FIXME Currently, this function -- and thus the files API on Windows
-- [libfoundation/src/system-stream.cpp:51](libfoundation/src/system-stream.cpp#L51) FIXME known issues:
-- [libfoundation/src/system-stream.cpp:221](libfoundation/src/system-stream.cpp#L221) FIXME see the "known issues" at the top of this file.
-- [libfoundation/src/system-stream.cpp:280](libfoundation/src/system-stream.cpp#L280) FIXME see the "known issues" at the top of this file.
+- [libfoundation/src/system-stream.cpp:61](libfoundation/src/system-stream.cpp#L61) FIXME known issues:
+- [libfoundation/src/system-stream.cpp:231](libfoundation/src/system-stream.cpp#L231) FIXME see the "known issues" at the top of this file.
+- [libfoundation/src/system-stream.cpp:290](libfoundation/src/system-stream.cpp#L290) FIXME see the "known issues" at the top of this file.
 
 <a id="fixme-tests"></a>
 
@@ -124,7 +124,7 @@ Code its authors knew to be wrong or incomplete. 64 notes, by part of the reposi
 
 ### FIXME: ide (1)
 
-- [ide/Toolset/libraries/revidelibrary.8.livecodescript:12841](ide/Toolset/libraries/revidelibrary.8.livecodescript#L12841) FIXME There is some inconsistency in the guide's files that we
+- [ide/Toolset/libraries/revidelibrary.8.livecodescript:13243](ide/Toolset/libraries/revidelibrary.8.livecodescript#L13243) FIXME There is some inconsistency in the guide's files that we
 
 <a id="fixme-ide-support"></a>
 
@@ -160,7 +160,7 @@ Workarounds their authors were not happy with. 32 notes, by part of the reposito
 - [ide/Toolset/palettes/behaviors/revinspectorbehavior.livecodescript:41](ide/Toolset/palettes/behaviors/revinspectorbehavior.livecodescript#L41) HACK for stopping the gradient and effects palette getting stuck behind the inspector!!
 - [ide/Toolset/palettes/extension manager/revideextensionmanagerstorebehavior.livecodescript:24](ide/Toolset/palettes/extension%20manager/revideextensionmanagerstorebehavior.livecodescript#L24) Hack to get round bug 18946
 - [ide/Toolset/palettes/reverrordisplay.livecodescript:571](ide/Toolset/palettes/reverrordisplay.livecodescript#L571) attempting to highlight the appropriate line number. This is a total hack, but there doensn't seem
-- [ide/Toolset/palettes/script editor/behaviors/revsecommoneditorbehavior.livecodescript:3590](ide/Toolset/palettes/script%20editor/behaviors/revsecommoneditorbehavior.livecodescript#L3590) First wrap the script to the required width, this is a total hack as doing it properly would take quite a while.
+- [ide/Toolset/palettes/script editor/behaviors/revsecommoneditorbehavior.livecodescript:3604](ide/Toolset/palettes/script%20editor/behaviors/revsecommoneditorbehavior.livecodescript#L3604) First wrap the script to the required width, this is a total hack as doing it properly would take quite a while.
 - [ide/Toolset/palettes/script editor/behaviors/revseeditorbehavior.livecodescript:2253](ide/Toolset/palettes/script%20editor/behaviors/revseeditorbehavior.livecodescript#L2253) this is clearly a bit of a hack, but hopefully doing is this way will minimize the risk.
 - [ide/Toolset/palettes/script editor/behaviors/revsevariablespanebehavior.livecodescript:116](ide/Toolset/palettes/script%20editor/behaviors/revsevariablespanebehavior.livecodescript#L116) If the user chooses a large font, we need to increase the size of the template, for now we just hack this as
 
@@ -177,7 +177,7 @@ Workarounds their authors were not happy with. 32 notes, by part of the reposito
 ### HACK: prebuilt (3)
 
 - [prebuilt/libicu.gyp:57](prebuilt/libicu.gyp#L57) Hack required due to GYP failure / refusal to treat this as a path
-- [prebuilt/libicu.gyp:392](prebuilt/libicu.gyp#L392) Really nasty hack to prevent this from being treated as a path
+- [prebuilt/libicu.gyp:413](prebuilt/libicu.gyp#L413) Really nasty hack to prevent this from being treated as a path
 - [prebuilt/thirdparty.gyp:728](prebuilt/thirdparty.gyp#L728) Hack to put licuuc after lharfbuzz in library list
 
 <a id="hack-stack-scripts"></a>
@@ -217,9 +217,9 @@ Workarounds their authors were not happy with. 32 notes, by part of the reposito
 
 ## TODO
 
-Work left for later. 432 notes, by part of the repository:
+Work left for later. 434 notes, by part of the repository:
 
-[engine](#todo-engine) (261), [libfoundation](#todo-libfoundation) (46), [revbrowser](#todo-revbrowser) (19), [toolchain](#todo-toolchain) (14), [ide](#todo-ide) (13), [tests](#todo-tests) (13), [libgraphics](#todo-libgraphics) (12), [libbrowser](#todo-libbrowser) (10), [libscript](#todo-libscript) (8), [stack-scripts](#todo-stack-scripts) (8), [builder](#todo-builder) (5), [tools](#todo-tools) (5), [(top level)](#todo-top-level) (3), [revmobile](#todo-revmobile) (3), [revxml](#todo-revxml) (3), [prebuilt](#todo-prebuilt) (2), [revdb](#todo-revdb) (2), [config](#todo-config) (1), [extensions](#todo-extensions) (1), [lcidlc](#todo-lcidlc) (1), [revspeech](#todo-revspeech) (1), [revvideograbber](#todo-revvideograbber) (1)
+[engine](#todo-engine) (261), [libfoundation](#todo-libfoundation) (46), [revbrowser](#todo-revbrowser) (19), [toolchain](#todo-toolchain) (14), [ide](#todo-ide) (13), [tests](#todo-tests) (13), [libgraphics](#todo-libgraphics) (12), [libbrowser](#todo-libbrowser) (10), [libscript](#todo-libscript) (8), [stack-scripts](#todo-stack-scripts) (8), [tools](#todo-tools) (7), [builder](#todo-builder) (5), [(top level)](#todo-top-level) (3), [revmobile](#todo-revmobile) (3), [revxml](#todo-revxml) (3), [prebuilt](#todo-prebuilt) (2), [revdb](#todo-revdb) (2), [config](#todo-config) (1), [extensions](#todo-extensions) (1), [lcidlc](#todo-lcidlc) (1), [revspeech](#todo-revspeech) (1), [revvideograbber](#todo-revvideograbber) (1)
 
 <a id="todo-engine"></a>
 
@@ -348,7 +348,7 @@ Work left for later. 432 notes, by part of the repository:
 - [engine/src/mblandroidcalendar.cpp:186](engine/src/mblandroidcalendar.cpp#L186) TODO - IMPLEMENT SUPPORT FOR API LEVEL 14
 - [engine/src/mblandroidcalendar.cpp:205](engine/src/mblandroidcalendar.cpp#L205) TODO - IMPLEMENT SUPPORT FOR API LEVEL 14
 - [engine/src/mblandroidcalendar.cpp:213](engine/src/mblandroidcalendar.cpp#L213) TODO - IMPLEMENT SUPPORT FOR API LEVEL 14
-- [engine/src/mblandroiddialog.cpp:142](engine/src/mblandroiddialog.cpp#L142) TODO - java -> stringref conversion
+- [engine/src/mblandroiddialog.cpp:144](engine/src/mblandroiddialog.cpp#L144) TODO - java -> stringref conversion
 - [engine/src/mblandroidjava.cpp:784](engine/src/mblandroidjava.cpp#L784) TODO: check for exceptions
 - [engine/src/mblandroidjava.cpp:847](engine/src/mblandroidjava.cpp#L847) TODO: check for exceptions
 - [engine/src/mblandroidjava.cpp:1343](engine/src/mblandroidjava.cpp#L1343) TODO
@@ -395,13 +395,13 @@ Work left for later. 432 notes, by part of the repository:
 - [engine/src/module-engine.cpp:527](engine/src/module-engine.cpp#L527) TODO[C++11] This should be "static" but MSVC2010 doesn't support
 - [engine/src/object.cpp:678](engine/src/object.cpp#L678) TODO: filter out the C1 control codes too
 - [engine/src/object.cpp:1137](engine/src/object.cpp#L1137) TODO[19681]: This can be removed when all engine messages are sent with
-- [engine/src/object.h:1761](engine/src/object.h#L1761) TODO[C++11] uint32_t m_part_id = 0;
-- [engine/src/object.h:1764](engine/src/object.h#L1764) TODO[2017-04-27] These constructors should be constexpr
-- [engine/src/object.h:1765](engine/src/object.h#L1765) TODO[C++11] constexpr MCObjectPartHandle() = default;
-- [engine/src/object.h:1770](engine/src/object.h#L1770) TODO[C++11] MCObjectPartHandle(const MCObjectPartHandle&) = default;
-- [engine/src/object.h:1773](engine/src/object.h#L1773) TODO[C++11] MCObjectPartHandle(MCObjectPartHandle&& other) = deafult;
-- [engine/src/object.h:1784](engine/src/object.h#L1784) TODO[C++11] MCObjectPartHandle& operator=(const MCObjectPartHandle&) = default;
-- [engine/src/object.h:1791](engine/src/object.h#L1791) TODO[C++11] MCObjectPartHandle& operator=(MCObjectPartHandle&&) = default;
+- [engine/src/object.h:1764](engine/src/object.h#L1764) TODO[C++11] uint32_t m_part_id = 0;
+- [engine/src/object.h:1767](engine/src/object.h#L1767) TODO[2017-04-27] These constructors should be constexpr
+- [engine/src/object.h:1768](engine/src/object.h#L1768) TODO[C++11] constexpr MCObjectPartHandle() = default;
+- [engine/src/object.h:1773](engine/src/object.h#L1773) TODO[C++11] MCObjectPartHandle(const MCObjectPartHandle&) = default;
+- [engine/src/object.h:1776](engine/src/object.h#L1776) TODO[C++11] MCObjectPartHandle(MCObjectPartHandle&& other) = deafult;
+- [engine/src/object.h:1787](engine/src/object.h#L1787) TODO[C++11] MCObjectPartHandle& operator=(const MCObjectPartHandle&) = default;
+- [engine/src/object.h:1794](engine/src/object.h#L1794) TODO[C++11] MCObjectPartHandle& operator=(MCObjectPartHandle&&) = default;
 - [engine/src/paragraf.cpp:168](engine/src/paragraf.cpp#L168) TODO: trunctation
 - [engine/src/paragraf.cpp:2243](engine/src/paragraf.cpp#L2243) TODO: truncation if the paragraph would be too long
 - [engine/src/paragraf.cpp:2401](engine/src/paragraf.cpp#L2401) TODO: find out if ICU break iterator makes this redundant
@@ -461,8 +461,8 @@ Work left for later. 432 notes, by part of the repository:
 - [engine/src/w32dcw32.cpp:1076](engine/src/w32dcw32.cpp#L1076) TODO: pay attention to the CS_INSERTCHAR and CS_NOMOVECARET flags
 - [engine/src/w32dcw32.cpp:1458](engine/src/w32dcw32.cpp#L1458) TODO - look in to this further:
 - [engine/src/w32printer.cpp:539](engine/src/w32printer.cpp#L539) TODO - fix half pixels lost when insetting by odd integers
-- [engine/src/w32stack.cpp:503](engine/src/w32stack.cpp#L503) TODO - Windows 8 implementation will require getting the appropriate per-window value
-- [engine/src/w32stack.cpp:1184](engine/src/w32stack.cpp#L1184) TODO - Windows 8.1 per-monitor DPI-awareness may require the update region be in logical coords
+- [engine/src/w32stack.cpp:550](engine/src/w32stack.cpp#L550) TODO - Windows 8 implementation will require getting the appropriate per-window value
+- [engine/src/w32stack.cpp:1231](engine/src/w32stack.cpp#L1231) TODO - Windows 8.1 per-monitor DPI-awareness may require the update region be in logical coords
 - [engine/src/widget-events.cpp:190](engine/src/widget-events.cpp#L190) WIDGET-TODO: Reinstate FocusEnter
 - [engine/src/widget-events.cpp:202](engine/src/widget-events.cpp#L202) WIDGET-TODO: Reinstate FocusLeave
 - [engine/src/widget-events.cpp:206](engine/src/widget-events.cpp#L206) TODO: does the unfocus *always* happen before the next focus?
@@ -478,14 +478,14 @@ Work left for later. 432 notes, by part of the repository:
 - [engine/src/widget-events.cpp:1102](engine/src/widget-events.cpp#L1102) Todo: key gesture (shortcuts, accelerators, etc) processing
 - [engine/src/widget-popup.cpp:375](engine/src/widget-popup.cpp#L375) TODO - throw memory error
 - [engine/src/widget-popup.cpp:470](engine/src/widget-popup.cpp#L470) TODO - throw error
-- [engine/src/widget-syntax.cpp:420](engine/src/widget-syntax.cpp#L420) TODO - coordinate transform
-- [engine/src/widget-syntax.cpp:440](engine/src/widget-syntax.cpp#L440) TODO - coordinate transforms
-- [engine/src/widget-syntax.cpp:458](engine/src/widget-syntax.cpp#L458) TODO: Implement asynchronous version.
-- [engine/src/widget-syntax.cpp:470](engine/src/widget-syntax.cpp#L470) TODO: Implement asynchronous version.
-- [engine/src/widget-syntax.cpp:560](engine/src/widget-syntax.cpp#L560) TODO: implement
-- [engine/src/widget-syntax.cpp:899](engine/src/widget-syntax.cpp#L899) TODO - throw error: no native layer
-- [engine/src/widget-syntax.cpp:913](engine/src/widget-syntax.cpp#L913) TODO - throw error: no native layer
-- [engine/src/widget-syntax.cpp:937](engine/src/widget-syntax.cpp#L937) TODO - throw error
+- [engine/src/widget-syntax.cpp:436](engine/src/widget-syntax.cpp#L436) TODO - coordinate transform
+- [engine/src/widget-syntax.cpp:456](engine/src/widget-syntax.cpp#L456) TODO - coordinate transforms
+- [engine/src/widget-syntax.cpp:474](engine/src/widget-syntax.cpp#L474) TODO: Implement asynchronous version.
+- [engine/src/widget-syntax.cpp:486](engine/src/widget-syntax.cpp#L486) TODO: Implement asynchronous version.
+- [engine/src/widget-syntax.cpp:576](engine/src/widget-syntax.cpp#L576) TODO: implement
+- [engine/src/widget-syntax.cpp:915](engine/src/widget-syntax.cpp#L915) TODO - throw error: no native layer
+- [engine/src/widget-syntax.cpp:929](engine/src/widget-syntax.cpp#L929) TODO - throw error: no native layer
+- [engine/src/widget-syntax.cpp:953](engine/src/widget-syntax.cpp#L953) TODO - throw error
 
 <a id="todo-libfoundation"></a>
 
@@ -630,7 +630,7 @@ Work left for later. 432 notes, by part of the repository:
 - [libgraphics/src/graphics-internal.h:474](libgraphics/src/graphics-internal.h#L474) TODO: Shift coordinate appropriately
 - [libgraphics/src/image.cpp:154](libgraphics/src/image.cpp#L154) TODO: Implement
 - [libgraphics/src/image.cpp:160](libgraphics/src/image.cpp#L160) TODO: Implement
-- [libgraphics/src/lnxtext.cpp:178](libgraphics/src/lnxtext.cpp#L178) TODO: RTL
+- [libgraphics/src/lnxtext.cpp:207](libgraphics/src/lnxtext.cpp#L207) TODO: RTL
 - [libgraphics/src/path.cpp:39](libgraphics/src/path.cpp#L39) TODO: Implement
 - [libgraphics/src/w32text.cpp:480](libgraphics/src/w32text.cpp#L480) TODO: RTL
 
@@ -675,6 +675,18 @@ Work left for later. 432 notes, by part of the repository:
 - [stack-scripts/ide/Toolset/palettes/revCore.8.livecode.bst/scripts/stack_revDataViewControl_button_id_1003.livecodescript:3767](stack-scripts/ide/Toolset/palettes/revCore.8.livecode.bst/scripts/stack_revDataViewControl_button_id_1003.livecodescript#L3767) TODO: is this reliable? What if user renders view again? Will the cache update?
 - [stack-scripts/ide/Toolset/palettes/revpreferencesgui.rev.bst/scripts/stack_revPreferencesGUI.livecodescript:22](stack-scripts/ide/Toolset/palettes/revpreferencesgui.rev.bst/scripts/stack_revPreferencesGUI.livecodescript#L22) TODO we need the screen the user has used the menubar on on mac not the screen the menubar is on
 
+<a id="todo-tools"></a>
+
+### TODO: tools (7)
+
+- [tools/SymbolicatorScript.livecodescript:492](tools/SymbolicatorScript.livecodescript#L492) TODO: disable echo for password
+- [tools/pages/check_front_page.py:144](tools/pages/check_front_page.py#L144) found, todo = [], [root]
+- [tools/pages/check_front_page.py:145](tools/pages/check_front_page.py#L145) while todo:
+- [tools/pages/check_front_page.py:146](tools/pages/check_front_page.py#L146) for child in children.get(todo.pop(), []):
+- [tools/pages/check_front_page.py:148](tools/pages/check_front_page.py#L148) todo.append(child)
+- [tools/pages/lessons/src/41-files.html:60](tools/pages/lessons/src/41-files.html#L60) <pre class="code"><code>put "/home/ada/notes/todo.txt" into tPath
+- [tools/pages/lessons/src/41-files.html:66](tools/pages/lessons/src/41-files.html#L66) <pre class="out">todo.txt
+
 <a id="todo-builder"></a>
 
 ### TODO: builder (5)
@@ -685,23 +697,13 @@ Work left for later. 432 notes, by part of the repository:
 - [builder/package_compiler.livecodescript:168](builder/package_compiler.livecodescript#L168) TODO: Make sure this resolves to the final 'base' file since we don't support
 - [builder/tools_builder.livecodescript:410](builder/tools_builder.livecodescript#L410) TODO: Add the initialisation library and init libs in same way as normal standalone building
 
-<a id="todo-tools"></a>
-
-### TODO: tools (5)
-
-- [tools/SymbolicatorScript.livecodescript:492](tools/SymbolicatorScript.livecodescript#L492) TODO: disable echo for password
-- [tools/pages/check_front_page.py:144](tools/pages/check_front_page.py#L144) found, todo = [], [root]
-- [tools/pages/check_front_page.py:145](tools/pages/check_front_page.py#L145) while todo:
-- [tools/pages/check_front_page.py:146](tools/pages/check_front_page.py#L146) for child in children.get(todo.pop(), []):
-- [tools/pages/check_front_page.py:148](tools/pages/check_front_page.py#L148) todo.append(child)
-
 <a id="todo-top-level"></a>
 
 ### TODO: (top level) (3)
 
 - [Makefile:209](Makefile#L209) TODO Replace with real rules
 - [common.gypi:21](common.gypi#L21) TODO add windows msvc compiler and crt mode to platform id
-- [config.py:465](config.py#L465) TODO [2017-04-11]: This should be 2017, but it is not
+- [config.py:466](config.py#L466) TODO [2017-04-11]: This should be 2017, but it is not
 
 <a id="todo-revmobile"></a>
 

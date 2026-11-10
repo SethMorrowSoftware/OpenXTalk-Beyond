@@ -33,9 +33,10 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --             that picks a line
 --   Form      fields that stay above the on-screen keyboard
 --             (mwViewportChanged)
---   Gestures  swipe, pinch and long press on a pad (a group, "Play", whose
---             script takes its own gestures), and a ring under each finger
---             on it (the touch messages)
+--   Gestures  swipe, pinch (two fingers moving move the dot too) and
+--             long press on a pad (a group, "Play", whose script takes
+--             its own gestures), and a ring under each finger on it (the
+--             touch messages)
 --   Phone     a photo from the camera, the share sheet, the location, a
 --             ball that rolls as the phone tilts, the screen kept on, and
 --             the browser's bars hidden
@@ -290,7 +291,7 @@ private command buildGestures
    set the backgroundColor of graphic "Dot" to "#F59E0B"
    create field "Said"
    setLabel the long id of field "Said", \
-         "Swipe on the pad, pinch the dot bigger or smaller, hold a finger still, or put fingers down.", \
+         "Swipe on the pad, pinch the dot bigger or smaller (and move two fingers to move it), hold a finger still, or put fingers down.", \
          16, "#1F2240", "plain"
    set the textAlign of field "Said" to "center"
 end buildGestures
@@ -337,8 +338,8 @@ end buildPhone
 private function playScript
    local tScript
    put "on swipe pDirection" & return & "   psPlaySwipe pDirection" & return & "end swipe" & return & \
-         "on pinchStart" & return & "   psPlayPinchStart" & return & "end pinchStart" & return & \
-         "on pinch pScale" & return & "   psPlayPinch pScale" & return & "end pinch" & return & \
+         "on pinchStart pX, pY" & return & "   psPlayPinchStart pX, pY" & return & "end pinchStart" & return & \
+         "on pinch pScale, pX, pY" & return & "   psPlayPinch pScale, pX, pY" & return & "end pinch" & return & \
          "on pinchEnd" & return & "   psPlayPinchEnd" & return & "end pinchEnd" & return & \
          "on longPress pX, pY" & return & "   psPlayLongPress pX, pY" & return & "end longPress" & return & \
          "on touchStart pId, pX, pY" & return & "   psPlayTouch ~start~, pId, pX, pY" & return & "end touchStart" & return & \

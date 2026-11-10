@@ -28,6 +28,7 @@ replaced), so the tests run anywhere.
 
 import contextlib
 import io
+import json
 import os
 import re
 import shutil
@@ -216,6 +217,92 @@ class NativeDepsPerSlice(unittest.TestCase):
         self.assertEqual(code, 1)
 
 
+class NativeDepsMatrixPart(unittest.TestCase):
+    """--matrix PLATFORM/PART holds the libraries the part names (its
+    "files") to the part's floors and every other library to the
+    platform's: the extensions part is the xTalk Suite's libraries
+    (code/universal-mac), while the libraries OXT-Beyond builds itself, the
+    timezone and INI libraries (code/universal-mac-<sdk>), are built with
+    the app and hold its floor. With the app at macOS 11 on Intel
+    (0.2.7-rc.6.19), the timezone library's x86_64 slice records 11.0, and
+    the extensions' 10.15 failed it (#420's Mac test jobs)."""
+
+    SUITE = 'Extensions/org.openxtalk.library.sodium/code/universal-mac/sodiumxt.dylib'
+    TZ = 'Extensions/com.livecode.library.timezone/code/universal-mac-macosx10.8/tz.dylib'
+
+    def setUp(self):
+        t = TempTree([self.SUITE, self.TZ])
+        self.addCleanup(t.close)
+        self.root = t.root
+
+    def run_deps(self, suite, tz, argv=('--matrix', 'mac-universal/extensions')):
+        by_name = {'sodiumxt.dylib': suite, 'tz.dylib': tz}
+
+        def slices(path):
+            return by_name[os.path.basename(path)]
+
+        def checker(path, folder, here):
+            s = slices(path)
+            return ['arm64', 'x86_64'], [], [], [], {'macOS': max(s.values())}
+        with mock.patch.dict(check_native_deps.CHECKERS, {'mac': checker}), \
+                mock.patch.object(check_native_deps, '_slice_floors', side_effect=slices):
+            return run_main(check_native_deps, ['--root', self.root, '--platform', 'mac'] + list(argv))
+
+    def test_as_shipped_from_rc_6_19_pass(self):
+        code, out = self.run_deps({'arm64': (11, 0), 'x86_64': (10, 15)}, {'arm64': (11, 0), 'x86_64': (11, 0)})
+        self.assertEqual(code, 0, out)
+
+    def test_as_shipped_up_to_rc_6_18_pass(self):
+        code, out = self.run_deps({'arm64': (11, 0), 'x86_64': (10, 15)}, {'arm64': (11, 0), 'x86_64': (10, 13)})
+        self.assertEqual(code, 0, out)
+
+    def test_a_suite_library_is_still_held_to_the_parts_floor(self):
+        code, out = self.run_deps({'arm64': (11, 0), 'x86_64': (11, 0)}, {'arm64': (11, 0), 'x86_64': (11, 0)})
+        self.assertEqual(code, 1, out)
+        self.assertIn('sodiumxt.dylib: [x86_64] needs macOS 11.0, newer than 10.15', out)
+        self.assertNotIn('tz.dylib:', out)
+
+    def test_a_library_of_the_app_is_held_to_the_platforms_floor(self):
+        code, out = self.run_deps({'arm64': (11, 0), 'x86_64': (10, 15)}, {'arm64': (11, 0), 'x86_64': (12, 0)})
+        self.assertEqual(code, 1, out)
+        self.assertIn('tz.dylib: [x86_64] needs macOS 12.0, newer than 11.0', out)
+        code, out = self.run_deps({'arm64': (11, 0), 'x86_64': (10, 15)}, {'arm64': (12, 0), 'x86_64': (11, 0)})
+        self.assertEqual(code, 1, out)
+        self.assertIn('tz.dylib: [arm64] needs macOS 12.0, newer than 11.0', out)
+
+    def test_both_floors_are_printed(self):
+        code, out = self.run_deps({'arm64': (11, 0), 'x86_64': (10, 15)}, {'arm64': (11, 0), 'x86_64': (11, 0)})
+        self.assertIn('macOS floors: arm64 11.0, x86_64 11.0', out)
+        self.assertIn('macOS floors of Contents/Tools/Extensions/*/code/universal-mac/* (extensions): '
+                      'arm64 11.0, x86_64 10.15', out)
+
+    def test_the_part_is_matched_by_its_folder_not_a_prefix_of_it(self):
+        # universal-mac-macosx10.8 is not universal-mac
+        self.assertTrue(check_native_deps.part_matches(
+            'Extensions/x/code/universal-mac/lib.dylib', 'Contents/Tools/Extensions/*/code/universal-mac/*'))
+        self.assertFalse(check_native_deps.part_matches(
+            self.TZ, 'Contents/Tools/Extensions/*/code/universal-mac/*'))
+        # a bundle in the part's folder is the part's, by its folder's name
+        self.assertTrue(check_native_deps.part_matches(
+            'Extensions/x/code/universal-mac/x.bundle', 'Contents/Tools/Extensions/*/code/universal-mac/*'))
+        # a deeper path is not
+        self.assertFalse(check_native_deps.part_matches(
+            'Extensions/x/code/universal-mac/a/lib.dylib', 'Contents/Tools/Extensions/*/code/universal-mac/*'))
+
+    def test_a_part_naming_no_files_holds_every_library(self):
+        matrix = platform_matrix.load()
+        del matrix['platforms']['mac-universal']['parts']['extensions']['files']
+        fd, path = tempfile.mkstemp(suffix='.json')
+        os.close(fd)
+        self.addCleanup(os.remove, path)
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(matrix, f)
+        code, out = self.run_deps({'arm64': (11, 0), 'x86_64': (10, 15)}, {'arm64': (11, 0), 'x86_64': (11, 0)},
+                                  ['--matrix', 'mac-universal/extensions', '--matrix-file', path])
+        self.assertEqual(code, 1, out)
+        self.assertIn('tz.dylib: [x86_64] needs macOS 11.0, newer than 10.15', out)
+
+
 class MachoFloorMatrix(unittest.TestCase):
     def test_matrix_gives_minos_and_the_extensions_part(self):
         t = TempTree(['a'])
@@ -229,7 +316,7 @@ class MachoFloorMatrix(unittest.TestCase):
             code, out = run_main(check_macho_floor, [t.root, '--matrix', 'mac-universal'])
         self.assertEqual(code, 0, out)
         v = check_macho_floor.parse_version
-        self.assertEqual(seen['minos'], {'arm64': v('11.0'), 'x86_64': v('10.13')})
+        self.assertEqual(seen['minos'], {'arm64': v('11.0'), 'x86_64': v('11.0')})
         self.assertEqual(seen['file_minos'], [('Contents/Tools/Extensions/*/code/universal-mac/*', 'x86_64',
                                                v('10.15'))])
 

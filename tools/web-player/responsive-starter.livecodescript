@@ -68,7 +68,7 @@ on startup
 end startup
 
 private command buildStack pFile
-   local tName, tLibrary
+   local tName, tLibrary, i
    put "Responsive Starter" into tName
    if there is a stack tName then
       delete stack tName
@@ -104,6 +104,12 @@ private command buildStack pFile
    shareText the long id of group "Nav"
    shareText the long id of group "Top Bar"
    shareText the long id of group "Detail"
+   -- and the places' fields, so that a place copied to the Saved card
+   -- takes its name and its words with it (a field's text is kept for
+   -- the card it is on otherwise, and the copy would show none)
+   repeat with i = 1 to kPlaces
+      shareText the long id of group ("Tile" && i) of group "Grid"
+   end repeat
 
    -- (a new card gets the groups that behave as backgrounds)
    create card "Saved"

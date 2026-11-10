@@ -35,6 +35,7 @@ needed.
 import os
 import re
 import shutil
+import struct
 import sys
 import tempfile
 import unittest
@@ -131,6 +132,141 @@ class FieldsPageFromIde(unittest.TestCase):
         web_check.write_fields_page(page)
         with open(os.path.join(self.site, web_check.fields_page_name()), encoding='utf-8') as f:
             self.assertEqual(f.read(), PAGE.replace('</head>', web_check.FIELDS_META + '</head>'))
+
+
+# getSplashMarkup's answer (ide-support/revsaveasemscriptenstandalone.livecodescript)
+# for web-deploy.livecodescript's 24x24 PNG, as the engine gives it:
+# tests/lcs/standalonebuilder/web-splash.livecodescript asserts the same text
+SPLASH_HEAD = ("<style>.oxt-splash #status{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1;margin:0;box-sizing:border-box;background-color:inherit;padding:0 16px;padding-top:calc(50vh + min(24px,60vh)/2 + 12px);padding-top:calc(50dvh + min(24px,60vh)/2 + 12px)}.oxt-splash #status::before{content:'';position:absolute;left:50%;top:50%;width:24px;height:24px;max-width:calc(100% - 32px);max-height:60%;transform:translate(-50%,-50%);background:url(splash.png) center/contain no-repeat}</style><script>(function(){var r=document.documentElement;r.classList.add('oxt-splash');document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('status'),o;function done(){if(s&&s.style.display!=='none'){return false;}r.classList.remove('oxt-splash');if(o){o.disconnect();}return true;}if(!done()){o=new MutationObserver(done);o.observe(s,{attributes:true,attributeFilter:['style']});}});})();</script>")
+
+
+def png(width, height):
+    """The start of a PNG of that size: its signature and IHDR."""
+    return (b'\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR' + struct.pack('>II', width, height)
+            + b'\x08\x06\x00\x00\x00')
+
+
+class SplashPageFromIde(unittest.TestCase):
+    """splash_page_from_ide: the page that the IDE's builder wrote with the
+    Splash setting is the page as built and the splash's style and script,
+    with the image beside it, and both go beside the page as built."""
+
+    def setUp(self):
+        self.work = tempfile.mkdtemp(prefix='test-web-check-')
+        self.site = os.path.join(self.work, 'site')
+        self.splash = self.site + '-splash'
+        os.makedirs(self.site)
+        os.makedirs(self.splash)
+        self.write(self.site, PAGE)
+        self.image(png(24, 24))
+
+    def tearDown(self):
+        shutil.rmtree(self.work, ignore_errors=True)
+
+    def write(self, folder, text):
+        with open(os.path.join(folder, web_check.STACK_NAME + '.html'), 'w', encoding='utf-8') as f:
+            f.write(text)
+
+    def image(self, data):
+        with open(os.path.join(self.splash, web_check.SPLASH_IMAGE), 'wb') as f:
+            f.write(data)
+
+    def test_the_fixture_is_what_the_check_finds(self):
+        self.assertEqual(web_check.SPLASH_HEAD_RE.findall(SPLASH_HEAD), [SPLASH_HEAD])
+
+    def test_the_page_with_the_splash(self):
+        text = PAGE.replace('</head>', SPLASH_HEAD + '</head>')
+        self.write(self.splash, text)
+        line = web_check.splash_page_from_ide(self.site, self.splash)
+        self.assertIn(web_check.SPLASH_IMAGE, line)
+        with open(os.path.join(self.site, web_check.splash_page_name()), encoding='utf-8') as f:
+            self.assertEqual(f.read(), text)
+        with open(os.path.join(self.site, web_check.SPLASH_IMAGE), 'rb') as f:
+            self.assertEqual(f.read(), png(24, 24))
+
+    def test_no_page(self):
+        with self.assertRaisesRegex(web_check.CheckError, 'wrote no page'):
+            web_check.splash_page_from_ide(self.site, self.splash)
+        self.assertFalse(os.path.exists(os.path.join(self.site, web_check.splash_page_name())))
+
+    def test_no_image(self):
+        self.write(self.splash, PAGE.replace('</head>', SPLASH_HEAD + '</head>'))
+        os.remove(os.path.join(self.splash, web_check.SPLASH_IMAGE))
+        with self.assertRaisesRegex(web_check.CheckError, 'did not copy the splash image'):
+            web_check.splash_page_from_ide(self.site, self.splash)
+
+    def test_another_image(self):
+        self.write(self.splash, PAGE.replace('</head>', SPLASH_HEAD + '</head>'))
+        self.image(png(48, 24))
+        with self.assertRaisesRegex(web_check.CheckError, 'not the 24x24 PNG'):
+            web_check.splash_page_from_ide(self.site, self.splash)
+
+    def test_no_splash(self):
+        # (the builder left the setting out: the page as built)
+        self.write(self.splash, PAGE)
+        with self.assertRaisesRegex(web_check.CheckError, 'has not one splash'):
+            web_check.splash_page_from_ide(self.site, self.splash)
+        self.assertFalse(os.path.exists(os.path.join(self.site, web_check.splash_page_name())))
+
+    def test_splash_in_the_body(self):
+        self.write(self.splash, PAGE.replace('<canvas', SPLASH_HEAD + '<canvas'))
+        with self.assertRaisesRegex(web_check.CheckError, 'has not one splash'):
+            web_check.splash_page_from_ide(self.site, self.splash)
+
+    def test_splash_twice(self):
+        self.write(self.splash, PAGE.replace('</head>', SPLASH_HEAD * 2 + '</head>'))
+        with self.assertRaisesRegex(web_check.CheckError, 'has not one splash'):
+            web_check.splash_page_from_ide(self.site, self.splash)
+
+    def test_another_size(self):
+        self.write(self.splash, PAGE.replace('</head>', SPLASH_HEAD.replace('24px', '25px') + '</head>'))
+        with self.assertRaisesRegex(web_check.CheckError, 'width:24px;height:24px'):
+            web_check.splash_page_from_ide(self.site, self.splash)
+
+    def test_more_changed(self):
+        text = PAGE.replace('</head>', SPLASH_HEAD + '</head>').replace('WebProbe', 'Other')
+        self.write(self.splash, text)
+        with self.assertRaisesRegex(web_check.CheckError, 'differs from the page as built'):
+            web_check.splash_page_from_ide(self.site, self.splash)
+
+
+class SplashSeen(unittest.TestCase):
+    """splash_seen_problem: the splash over the window while the page
+    loads, gone once its stack is open."""
+
+    LOADING = ['oxt-splash', 'fixed', 'url("http://127.0.0.1:8000/splash.png")']
+    STARTED = ['', 'none']
+
+    def test_shown_then_gone(self):
+        self.assertIsNone(web_check.splash_seen_problem(self.LOADING, self.STARTED))
+
+    def test_never_shown(self):
+        for loading in (None, ['', 'static', 'none'], ['oxt-splash', 'static', self.LOADING[2]],
+                        ['oxt-splash', 'fixed', 'none']):
+            self.assertIn('did not show it', web_check.splash_seen_problem(loading, self.STARTED))
+
+    def test_still_shown(self):
+        for started in (None, ['oxt-splash', 'none'], ['', 'block']):
+            self.assertIn('still showed it', web_check.splash_seen_problem(self.LOADING, started))
+
+    def test_the_deploy_builds_it_and_the_check_reads_it(self):
+        deploy = read('tools', 'ci', 'web-deploy.livecodescript')
+        self.assertIn('put $OXT_WEB_OUTPUT & "-splash" into tSplashFolder', deploy)
+        self.assertIn('put tSplashFolder & "-image.png" into tSplashSettings["emscripten,splash"]', deploy)
+        self.assertIn('with "WebProbe", tSplashFolder, tSplashSettings', deploy)
+        check = read('tools', 'ci', 'web_check.py')
+        self.assertIn("splash_site = site + '-splash'", check)
+        self.assertIn('lines.append(splash_page_from_ide(site, splash_site))', check)
+        self.assertIn('tab.add_init_script(SPLASH_SEEN_JS)', check)
+
+    def test_the_pane_sets_it(self):
+        pane = read('ide', 'Toolset', 'palettes', 'standalone settings',
+                    'revstandalonesettingsemscriptenbehavior.livecodescript')
+        self.assertIn('setSetting "emscripten,splash", tFile', pane)
+        self.assertIn('setSetting "emscripten,splash", empty', pane)
+        controls = re.search(r'^constant kWebSettingsControls = "([^"]+)"', pane, re.M).group(1).split(',')
+        for name in ('emscriptenSplashLabel', 'emscriptenSplash', 'emscriptenSplashNone', 'emscriptenSplashChoose'):
+            self.assertIn(name, controls)
 
 
 class OneNameAndValue(unittest.TestCase):
@@ -306,6 +442,121 @@ class TheCheckBoxes(unittest.TestCase):
         self.assertIn('if not wait_for(boxes_drawn,', block)
         # read before the browser turns light
         self.assertLess(block.index('boxes_drawn'), block.index("tab.emulate_media(color_scheme='light')"))
+
+
+class TheCardColours(unittest.TestCase):
+    """A push button and a tab panel on a card with a colour of its own: the
+    web engine has no theme to draw them (em-theme.cpp's MCWebTheme does not
+    load), so they were filled with the card's colour, where Windows, the Mac
+    and Linux draw their theme's face (TerryL, openxtalk.org p=25957 and
+    p=26095, the web IDE on Windows 11). web_check.py reads them in the
+    browser on a card coloured 120,170,230; these tests hold what it expects
+    to the engine's colours, the probe's report and the engine's rule."""
+
+    def parts(self, report):
+        return report.split('|')
+
+    def test_light_is_the_face_where_the_desktop_draws_its_theme(self):
+        parts = self.parts(web_check.CARD_COLORS_LIGHT)
+        self.assertEqual(len(parts), 1 + len(web_check.CARD_COLOR_NAMES))
+        size, push, default, rect, own, white, off, pane, tab, effective = parts
+        self.assertEqual(size, '400x180')
+        # kMCWebThemeFace, 0xF0F0F0: a card that sets no colour's too
+        self.assertIn('#define kMCWebThemeFace             0xF0F0F0', read('engine', 'src', 'em-theme.cpp'))
+        for drawn in (push, default, off, pane, tab):
+            self.assertEqual(drawn, '240,240,240')
+        # as before: Windows' theme has no rectangle button either, a
+        # colour of the button's own wins, white words could not be read on
+        # the light face, and a script reads the inherited colour
+        self.assertEqual(rect, '120,170,230')
+        self.assertEqual(own, '255,200,120')
+        self.assertEqual(white, '120,170,230')
+        self.assertEqual(effective, '120,170,230')
+
+    def test_dark_is_the_dark_face(self):
+        size, push, default, rect, own, white, off, pane, tab, effective = self.parts(web_check.CARD_COLORS_DARK)
+        self.assertEqual(size, '400x180')
+        for drawn in (push, default, white, off, pane, tab):
+            # (kMCWebThemeDarkFace, 0x202020): white words read on it
+            self.assertEqual(drawn, '32,32,32')
+        self.assertEqual((rect, own, effective), ('120,170,230', '255,200,120', '120,170,230'))
+
+    def test_a_problem_names_what_took_the_card_colour(self):
+        self.assertIsNone(web_check.card_colors_problem('as built', web_check.CARD_COLORS_LIGHT,
+                                                        web_check.CARD_COLORS_LIGHT))
+        # what the engine drew before: the card's colour in every one
+        before = '400x180|' + '|'.join(['120,170,230'] * 3 + ['255,200,120'] + ['120,170,230'] * 5)
+        problem = web_check.card_colors_problem('as built', before, web_check.CARD_COLORS_LIGHT)
+        for name in ('push button', 'default button', 'disabled push button', "tab panel's pane",
+                     "tab panel's selected tab"):
+            self.assertIn('the %s rgb(120,170,230), expected rgb(240,240,240)' % name, problem)
+        self.assertNotIn('rectangle button', problem)
+        self.assertIn('could not', web_check.card_colors_problem('as built', 'no stack', web_check.CARD_COLORS_LIGHT)
+                      .replace('read', 'could not'))
+
+    def test_the_probe_reports_them(self):
+        probe = read('tools', 'ci', 'web-probe.livecodescript')
+        report = probe.split('function probeReport pWhat', 1)[1]
+        self.assertIn('if pWhat is "card-colors-open" then\n      return probeCardColorsOpen()', report)
+        self.assertIn('if pWhat is "card-colors" then\n      return probeCardColors()', report)
+        opened = probe.split('private function probeCardColorsOpen', 1)[1].split('end probeCardColorsOpen', 1)[0]
+        self.assertIn('set the backgroundColor of card 1 of stack "Probe Card Colors" to "120,170,230"', opened)
+        for name, rect in (('Push', '10,10,110,36'), ('Default', '130,10,230,36'), ('Rect', '250,10,350,36'),
+                           ('Own', '10,50,110,76'), ('White Words', '130,50,230,76'), ('Off', '250,50,350,76')):
+            self.assertIn('probeCardButton "%s", "%s"' % (name, rect), opened)
+        self.assertIn('set the menuMode of button "Tabs" of stack "Probe Card Colors" to "tabbed"', opened)
+        self.assertIn('set the rect of button "Tabs" of stack "Probe Card Colors" to 10,90,250,170', opened)
+        # each area is inside its control, clear of its border (4 points in)
+        # and of its words (centred)
+        read_ = probe.split('private function probeCardColors\n', 1)[1].split('end probeCardColors\n', 1)[0]
+        areas = re.search(r'repeat for each item tArea in "([^"]+)"', read_).group(1).split(',')
+        self.assertEqual(len(areas), len(web_check.CARD_COLOR_NAMES) - 1)
+        rects = [(10, 10, 110, 36), (130, 10, 230, 36), (250, 10, 350, 36), (10, 50, 110, 76),
+                 (130, 50, 230, 76), (250, 50, 350, 76)]
+        for area, (left, top, right, bottom) in zip(areas, rects):
+            x0, y0, x1, y1 = (int(v) for v in area.split())
+            self.assertGreaterEqual(x0, left + 4)
+            self.assertGreaterEqual(y0, top + 4)
+            self.assertLessEqual(y1, bottom - 4)
+            self.assertLessEqual(x1, left + 14)
+
+    def test_the_engine_fills_them_with_the_face_on_the_web_only(self):
+        draw = read('engine', 'src', 'buttondraw.cpp')
+        helper = draw.split('bool MCButton::getwebthemeface(MCContextType p_type, MCColor &r_face)\n{', 1)[1]
+        helper = helper.split('\n}\n', 1)[0]
+        web, other = helper.split('#else', 1)
+        self.assertIn('#ifdef __EMSCRIPTEN__', web)
+        self.assertEqual(other.strip().splitlines()[0].strip(), 'return false;')
+        # only with no theme, no colour or pattern of its own, words that
+        # read on the face; a push button or a tab panel
+        self.assertIn('if (MCcurtheme != NULL || MClook == LF_MOTIF || !(flags & F_OPAQUE))', web)
+        self.assertIn('if (getcindex(DI_BACK, i) || getpindex(DI_BACK, i))', web)
+        self.assertIn('if (MCObjectColorContrast(t_words, t_face) < 4.5)', web)
+        # the words read are the enabled ones: getforecolor gives a disabled
+        # button or group the theme's grey, which does not read on the dark
+        # face (the web check's disabled push button in a dark browser,
+        # 0.2.7-rc.6.17), so the words are the first foregroundColor up the
+        # chain, else the theme's with the disabled state left out
+        self.assertNotIn('getforecolor(', web)
+        self.assertIn('t_object -> getcindex(DI_FORE, i)', web)
+        self.assertIn('else if (t_object -> getpindex(DI_FORE, i))', web)
+        self.assertIn('t_state & ~(kMCPlatformControlStateDisabled | kMCPlatformControlStateSelected)', web)
+        self.assertNotIn('F_DISABLED', web)
+        self.assertIn('bool t_tabs = t_style == F_MENU && menumode == WM_TOP_LEVEL;', web)
+        self.assertNotIn('F_RECTANGLE', web)
+        # the fill takes it unless the button is hilited, and so do the tabs
+        self.assertIn('if (!t_fill_rev && !t_fill_hilite && getwebthemeface(dc -> gettype(), t_web_face))', draw)
+        tabs = draw.split('void MCButton::drawtabs(', 1)[1]
+        self.assertIn('if (getwebthemeface(dc -> gettype(), t_web_face))', tabs)
+
+    def test_the_check_reads_them_in_a_dark_browser(self):
+        check = read('tools', 'ci', 'web_check.py')
+        block = check.split("browser_waiting[0] = 'the systemAppearance'", 1)[1].split(
+            "browser_waiting[0] = 'the default colours'", 1)[0]
+        self.assertIn("want_cards = CARD_COLORS_DARK if name == 'following the browser' else CARD_COLORS_LIGHT",
+                      block)
+        self.assertIn("if wait_for(cards_drawn, 'the coloured card of the page %s' % name, 10):", block)
+        self.assertLess(block.index('cards_drawn'), block.index("tab.emulate_media(color_scheme='light')"))
 
 
 class TheSvgCheck(unittest.TestCase):

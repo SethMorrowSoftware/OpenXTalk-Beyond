@@ -1762,29 +1762,15 @@ command revIDEExtensionShowSnippet pSourceFile
    unlock screen
 end revIDEExtensionShowSnippet
 
-local sSampleFileName
 local sOpenedStacksA
+
+-- OXT-Beyond: this library is in the message path, so an ideOpenStack
+-- sent to a subscriber with no handler of its own (OXT Lite's functions,
+-- DevGuides) ends here on every stack open. The message stops here, as it
+-- always has, so nothing further sees it. (It once cleared a sample
+-- stack's filename here; revIDEExtensionLaunchSampleStack does that before
+-- the stack opens now.)
 on ideOpenStack pCard
-   -- OXT-Beyond: this library is in the message path, so an ideOpenStack
-   -- sent to a subscriber with no handler of its own (OXT Lite's functions,
-   -- DevGuides) ends here on every stack open, almost always with no
-   -- sample stack opening. `the long id of stack ""` then threw, which the
-   -- IDE's message sender caught and returned as an error. With no sample
-   -- stack opening there is nothing to do; the message stops here as it
-   -- did when it threw, so nothing further sees it. While a sample stack is
-   -- opening, everything is as before.
-   if sSampleFileName is empty then
-      exit ideOpenStack
-   end if
-   local tStack
-   put the long id of the owner of pCard into tStack
-   if tStack is the long id of stack sSampleFileName then
-      ## Clear the filename to force the user to choose save location if saving the stack
-      put the short name of tStack into sOpenedStacksA[sSampleFileName]
-      set the filename of tStack to empty
-      put empty into sSampleFileName
-      revIDEUnsubscribe "ideOpenStack"
-   end if
 end ideOpenStack
 
 command revIDEExtensionLaunchSampleStack pSampleStack
@@ -1795,13 +1781,25 @@ command revIDEExtensionLaunchSampleStack pSampleStack
         open stack sOpenedStacksA[pSampleStack]
         exit revIDEExtensionLaunchSampleStack
     end if
-    
-    // Otherwise open the stack from the file. Wait until we
-    // get the openStack message before emptying the filename
-    // otherwise we will get a long id clash
-    revIDESubscribe "ideOpenStack"
-    put pSampleStack into sSampleFileName
-    
+
+    -- OXT-Beyond: the stack is read from its file, its filename cleared
+    -- (so that saving it asks where, and the extension's copy is never
+    -- overwritten), and only then opened. Its filename was cleared while
+    -- the IDE told its subscribers that it had opened, by the long id it
+    -- had at its openStack, which names its file: a subscriber told after
+    -- that (the Project Browser, which keeps listening once it has been
+    -- opened, even closed) asked the engine about that long id, the engine
+    -- read the file again for a stack of that name already open, and the
+    -- IDE asked "A stack with the same name as the one you are trying to
+    -- load is already open". Now every subscriber is told the long id the
+    -- stack keeps. The library no longer subscribes to ideOpenStack for
+    -- it, either: its unsubscribe removed whichever subscriber the message
+    -- had come through (OXT Lite's functions), not the library
+    local tName
+    put the short name of stack pSampleStack into tName
+    put tName into sOpenedStacksA[pSampleStack]
+    set the filename of stack tName to empty
+
     ## Open the sample stack
-    open stack pSampleStack
+    open stack tName
 end revIDEExtensionLaunchSampleStack

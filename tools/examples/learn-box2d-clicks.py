@@ -44,6 +44,11 @@ What it clicks, and what must follow:
                    paused, Pause again runs it; Reset makes the lesson
                    again; a body that moves, dragged with the mouse,
                    follows it; Scripts opens the drawer and shuts it
+  Bodies and       a body pressed while the window is busy, and dragged
+  Dragging         before the press is handled, still follows the mouse:
+                   the press grabs what was under it, not what is under
+                   the mouse when it is handled (the Lab's grab, and the
+                   Dragging card's own)
   Ray Casts        a click beside a body finds it (b2OverlapCircle)
   Terrain          a click above a body blasts it (b2WorldExplode)
   Wheels           the right arrow key drives the car
@@ -161,6 +166,21 @@ class Run:
         self.xdo('mouseup', 1)
         return st
 
+    def hold(self, ms):
+        """Has the engine do nothing for ms milliseconds, as a busy
+        machine does (the probe's clicksHold): True once it has started"""
+        with open(self.state_file + '.hold', 'w', encoding='utf-8') as f:
+            f.write(str(ms))
+        end = time.time() + 3
+        while time.time() < end:
+            if self.busy():
+                return True
+            time.sleep(0.02)
+        return False
+
+    def busy(self):
+        return os.path.exists(self.state_file + '.busy')
+
     def shot(self, name):
         if self.args.shots:
             os.makedirs(self.args.shots, exist_ok=True)
@@ -273,6 +293,9 @@ def lesson(run, index, name):
     # may have blown everything against a wall)
     time.sleep(1.0)
     drag(run, name)
+    if name in ('Bodies', 'Dragging'):
+        time.sleep(0.5)
+        late_drag(run, name)
     if name in ('Rays', 'Terrain'):
         empty_click(run, name)
     st = run.state()
@@ -334,7 +357,9 @@ def dynamic(run, st=None):
             if court[0] + 30 < p[0] < court[2] - 30 and court[1] + 70 < p[1] < court[3] - 2]
 
 
-def drag(run, name):
+def to_drag(run):
+    """The bodies to try a drag on, best first, [(body, (x, y))]; the
+    court; and the bodies no joint holds"""
     st = run.state()
     court = rect(st['court'])
     # The bodies no joint holds go first, then the rest newest first: a
@@ -358,7 +383,11 @@ def drag(run, name):
         loose = sorted([b for b in bodies if b[0] in free], key=lambda b: (moved(b) // 3, b[1][1]))
         if not loose or moved(loose[0]) < 3:
             break
-    tries = (loose + [b for b in bodies if b[0] not in free])[:6]
+    return (loose + [b for b in bodies if b[0] not in free])[:6], court, free
+
+
+def drag(run, name):
+    tries, court, free = to_drag(run)
     if not run.check(bool(tries), '%s: a body to drag' % name, 'none in the court'):
         return
     why = []
@@ -383,6 +412,85 @@ def drag(run, name):
                    % (body, '' if body in free else ' (jointed)', x, y, tx, ty, nx, ny))
     run.check(False, '%s: a dragged body follows the mouse' % name, '; '.join(why))
 
+
+def late_drag(run, name):
+    """A body pressed while the window is busy (a long frame, the Scripts
+    panel, a slow machine), and dragged before the press is handled, still
+    follows the mouse. The probe holds the engine for 2 seconds; the mouse
+    goes to the body, presses and moves on to the target meanwhile, so
+    that when the engine handles the press the mouse is already at the
+    target. The press must grab the body that was under it. Until rc.6.17
+    the Lab looked for a body under the mouse as it was when the press was
+    handled (the mouseLoc, not the clickLoc), so a press handled late, on
+    a busy runner, grabbed nothing: the flake of "a dragged body follows
+    the mouse" on Hinges and Bodies.
+
+    Each try reads where the bodies are just before it holds the engine,
+    which moves nothing while it is held, so the press lands on the body;
+    a try that used the places read before the first pressed beside a
+    body riding Bodies' platform. A body the press grabbed has up to 4
+    seconds to follow: Bodies' purple platform is kinematic, so nothing
+    stops it, and it slides over the floor's boxes; a box pulled up from
+    under it stops against its underside until it passes. (In two runs of
+    the Linux package job every box a press grabbed stopped 1.4 m up, its
+    top on the platform's, after the second that the try waited then, and
+    the presses that grabbed nothing were made where a box on the
+    platform had been.) And up to six bodies are tried, as a drag on an
+    idle window tries."""
+    tried = set()
+    why = []
+    for turn in range(6):
+        tries, court, free = to_drag(run)
+        if turn == 0 and not run.check(bool(tries), '%s: a body to drag while the window is busy' % name,
+                                       'none in the court'):
+            return
+        tries = [t for t in tries if t[0] not in tried]
+        if not tries:
+            break
+        body, (x, y) = tries[0]
+        tried.add(body)
+        tx = (court[0] + court[2]) // 2 + (60 if x < (court[0] + court[2]) // 2 else -60)
+        ty = court[1] + 160
+        if not run.hold(2000):
+            why.append('the engine was not held')
+            continue
+        run.move(x, y)
+        time.sleep(0.05)
+        run.xdo('mousedown', 1)
+        for i in range(1, 13):
+            run.move(x + (tx - x) * i / 12, y + (ty - y) * i / 12)
+            time.sleep(0.02)
+        held = run.busy()
+        end = time.time() + 5
+        while run.busy() and time.time() < end:
+            time.sleep(0.05)
+        # (the engine handles the press, then pulls the body, for up to 4
+        # seconds while the mouse stays at the target)
+        end = time.time() + 4
+        while True:
+            time.sleep(0.25)
+            now = dict(table(run.state().get('dynamic')))
+            if body not in now:
+                break
+            nx, ny = now[body]
+            moved = ((nx - x) ** 2 + (ny - y) ** 2) ** 0.5
+            near = ((nx - tx) ** 2 + (ny - ty) ** 2) ** 0.5
+            if moved > 30 and near < moved or time.time() >= end:
+                break
+        run.xdo('mouseup', 1)
+        time.sleep(0.4)
+        if not held:
+            why.append('the drag took longer than the hold')
+            continue
+        if body not in now:
+            why.append('%s is gone' % body)
+            continue
+        if moved > 30 and near < moved:
+            run.check(True, '%s: a body pressed while the window is busy follows the mouse' % name)
+            return
+        why.append('%s%s from %d,%d toward %d,%d: now %d,%d'
+                   % (body, '' if body in free else ' (jointed)', x, y, tx, ty, nx, ny))
+    run.check(False, '%s: a body pressed while the window is busy follows the mouse' % name, '; '.join(why))
 
 def empty_click(run, name):
     """Rays and Terrain: a click on empty space, beside a body. A click ON a

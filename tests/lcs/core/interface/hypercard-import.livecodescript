@@ -748,9 +748,40 @@ on TestHyperCardImportSoundHeaders
    TestAssert "format 1, after a nullCmd: imported", there is an audioClip "After NullCmd 1" of stack tStack
    TestAssert "format 1, after a nullCmd: the header's samples", there is an audioClip "After NullCmd 1" of stack tStack \
       and the size of audioClip "After NullCmd 1" of stack tStack is 700
+
+   -- each comes back out as a WAV file (export audioClip, OXT-Beyond
+   -- 9.7.1): 22254 Hz, the resource's channels and bits, and its samples,
+   -- 16-bit made little-endian and 8-bit unsigned as the resource keeps them
+   local tWav
+   export audioClip "Stereo 16" of stack tStack to tWav
+   TestAssert "export: 16-bit stereo, the header", _HexOf(byte 1 to 44 of tWav) is \
+         "52494646" & _HexOf(_LE32(2036)) & "57415645666D74201000000001000200" \
+         & _HexOf(_LE32(22254)) & _HexOf(_LE32(22254 * 4)) & "04001000" & "64617461" & _HexOf(_LE32(2000))
+   -- frame 0 is 0, 0; frame 1 is 300, 29700
+   TestAssert "export: 16-bit stereo, the samples", _HexOf(byte 45 to 52 of tWav) is "000000002C010474"
+   export audioClip "Mono 8 Extended" of stack tStack to tWav
+   TestAssert "export: 8-bit mono, one channel of 8 bits", _HexOf(byte 23 to 24 of tWav) is "0100" \
+         and _HexOf(byte 35 to 36 of tWav) is "0800" and the number of bytes in tWav is 844
+   TestAssert "export: 8-bit mono, the samples", _HexOf(byte 45 to 48 of tWav) is "80818283"
+   export audioClip "IMA" of stack tStack to tWav as aiff
+   TestAssert "export: IMA as AIFF, two channels of 16 bits", byte 1 to 4 of tWav is "FORM" \
+         and _HexOf(byte 21 to 22 of tWav) is "0002" and _HexOf(byte 27 to 28 of tWav) is "0010" \
+         and the number of bytes in tWav is 54 + 512
    _Close tStack
    _DeleteFolder tFolder
 end TestHyperCardImportSoundHeaders
+
+private function _HexOf pData
+   local tHex
+   get binaryDecode("H*", pData, tHex)
+   return toUpper(tHex)
+end _HexOf
+
+-- pValue as four bytes, little-endian
+private function _LE32 pValue
+   return numToByte(pValue mod 256) & numToByte(pValue div 256 mod 256) \
+         & numToByte(pValue div 65536 mod 256) & numToByte(pValue div 16777216 mod 256)
+end _LE32
 
 -- The red, green and blue of pixel (pX, pY) of an image, as "r,g,b"
 private function _Pixel pImage, pX, pY

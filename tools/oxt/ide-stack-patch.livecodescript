@@ -76,6 +76,37 @@ script "oxt_ide_stack_patch"
 -- the image keeps its rectangle; only its "image text sha1" dump line may
 -- change.
 --
+-- A clone patch adds a control: a copy of one that the stack has, in the
+-- same owner (card or group), as the clone command makes it:
+--
+--    # comments
+--    file: <stack file, relative to OXT_PATCH_ROOT>
+--    object: <the control to copy, as for a script patch>
+--    clone: <the new control's name>
+--    unique-id: <its cREVGeneral["revUniqueID"]: 13 digits, the
+--                milliseconds when the patch was written, as the IDE
+--                gives a new object>
+--    property: <a property the copy gets its own value of, for example
+--               label or rect>
+--    to: <the value>
+--    property: ...
+--    to: ...
+--
+-- It is one patch, in a file of its own: it is applied when the owner has
+-- no control of that name, and already applied when it has one, of the
+-- same type, with the unique-id: and every to: value; anything else fails.
+-- The copy goes on top of its owner's controls (as clone puts it), so every
+-- object of the card above that layer moves up one, and 32 pixels right of
+-- and below its source (MCcloneoffset in engine/src/globals.cpp), so a
+-- clone patch sets its rect. Properties are named as the dump names them
+-- (hilited, not hilite): a line of the copy's dump that differs from its
+-- source's and that no to: sets fails the patch. A copy outside its
+-- group's rectangle makes the group, and the groups around it, grow: a
+-- property patch of a later file declares each of those rectangles, from
+-- the file's value to the one the copy gives it (already applied in the
+-- run that makes the copy). name:, id:, layer:, number: and owner: are not
+-- properties a clone patch sets.
+--
 -- Values are written as tools/oxt/ide-stack-dump.livecodescript writes them
 -- (backslash, return, line feed and tab as \\, \r, \n and \t) and compared
 -- exactly (case-sensitive), so the "from" value is the one in the stack's
@@ -93,11 +124,16 @@ script "oxt_ide_stack_patch"
 -- For each stack file the tool
 --    1. loads the file (messages locked; the stack is never opened) and
 --       dumps every object with tools/oxt/ide-stack-dump.livecodescript,
---    2. sets the patched scripts (each must compile) and properties and
---       dumps again: the two dumps must differ in exactly the scripts of the
---       objects with script patches and, for the objects with property
---       patches, in exactly one property line per patched property, which
---       now shows the new value,
+--    2. sets the patched scripts (each must compile) and properties, makes
+--       the clones, and dumps again: the two dumps must differ in exactly
+--       the scripts of the objects with script patches and, for the objects
+--       with property patches, in exactly one property line per patched
+--       property, which now shows the new value; the second dump may have
+--       the clones besides, each with its source's script and properties
+--       but for its id, name, layer, unique-id: and to: values, and the
+--       layers of the objects above a clone on its card one higher for
+--       each clone below them, and the stack's id (the last object id it
+--       gave) that of its newest clone,
 --    3. saves the stack (the engine keeps the oldest file format that holds
 --       it, 7.0 for the IDE stacks), removes it from memory, loads the saved
 --       file and dumps it: this must equal the dump of step 2 exactly, and
@@ -238,8 +274,10 @@ private function patchValue pText
 end patchValue
 
 -- The patch definitions as a numbered array of arrays with the keys name,
--- kind ("script" or "property"), file and object, and old and new for a
--- script patch or property, from and to for a property patch
+-- kind ("script", "property", "image" or "clone"), file and object, and old
+-- and new for a script patch, property, from and to for a property patch,
+-- png and fromSha1 for an image patch, and clone, uniqueId and properties
+-- ([n][property] and [n][to]) for a clone patch
 private function readPatches pDir
    local tNames, tPatches, tCount, tPatch, tSection, tLineNumber, tKind
    local tFile, tObject, tInFile, tName
@@ -265,7 +303,9 @@ private function readPatches pDir
          if tSection is empty and (tLine is empty or char 1 of tLine is "#") then next repeat
          -- In a property patch file, file: and object: apply to the
          -- property: lines that follow them, not to the one before
-         if tLine begins with "file:" then
+         if (tLine begins with "file:" or tLine begins with "object:") and tKind is "clone" then
+            throw tFileName & " line " & tLineNumber & ": a clone patch copies one object: file: and object: come before clone:"
+         else if tLine begins with "file:" then
             put word 1 to -1 of (char 6 to -1 of tLine) into tFile
             if tKind is not "property" and tKind is not "image" then
                put tFile into tPatch["file"]
@@ -275,6 +315,38 @@ private function readPatches pDir
             if tKind is not "property" and tKind is not "image" then
                put tObject into tPatch["object"]
             end if
+         else if tLine begins with "clone:" then
+            if tKind is not empty then throw tFileName & " line " & tLineNumber & ": a clone patch is a file of its own"
+            if tObject is empty then throw tFileName & " line " & tLineNumber & ": clone: before object:"
+            put "clone" into tKind
+            put "clone" into tPatch["kind"]
+            put tFile into tPatch["file"]
+            put tObject into tPatch["object"]
+            put word 1 to -1 of (char 7 to -1 of tLine) into tPatch["clone"]
+         else if tLine begins with "unique-id:" and tKind is "clone" then
+            put word 1 to -1 of (char 11 to -1 of tLine) into tPatch["uniqueId"]
+         else if tLine begins with "property:" and tKind is "clone" then
+            put word 1 to -1 of (char 10 to -1 of tLine) into tName
+            if tName is empty or not matchText(tName, "^[A-Za-z][A-Za-z0-9]*$") then
+               throw tFileName & " line " & tLineNumber & ": not a property name: " & tName
+            end if
+            -- The clone command and the stack give these
+            if tName is among the items of "name,shortName,id,altId,layer,number,owner" then
+               throw tFileName & " line " & tLineNumber & ": a clone patch does not set " & tName
+            end if
+            repeat with j = 1 to tInFile
+               if tPatch["properties"][j]["property"] is tName then
+                  throw tFileName & " line " & tLineNumber & ": " & tName & " is set twice"
+               end if
+            end repeat
+            add 1 to tInFile
+            put tName into tPatch["properties"][tInFile]["property"]
+         else if tLine begins with "to:" and tKind is "clone" then
+            if tInFile is 0 or tPatch["properties"][tInFile]["hasTo"] then
+               throw tFileName & " line " & tLineNumber & ": to: without its property:"
+            end if
+            put true into tPatch["properties"][tInFile]["hasTo"]
+            put patchValue(char 4 to -1 of tLine) into tPatch["properties"][tInFile]["to"]
          else if tLine begins with "image:" then
             if tKind is not empty and tKind is not "image" then throw tFileName & " line " & tLineNumber & ": a patch is a script, a property or an image patch"
             put "image" into tKind
@@ -322,10 +394,10 @@ private function readPatches pDir
          else if tLine begins with "to:" and tKind is "property" then
             put true into tPatch["hasTo"]
             put patchValue(char 4 to -1 of tLine) into tPatch["to"]
-         else if tLine is "replace:" and tKind is not "property" then
+         else if tLine is "replace:" and tKind is not "property" and tKind is not "clone" then
             put "script" into tKind
             put "old" into tSection
-         else if tLine is "with:" and tKind is not "property" then
+         else if tLine is "with:" and tKind is not "property" and tKind is not "clone" then
             put "script" into tKind
             put "new" into tSection
          else if tSection is not empty and char 1 of tLine is "|" and char -1 of tLine is "|" and the number of chars of tLine >= 2 then
@@ -340,6 +412,8 @@ private function readPatches pDir
          checkPropertyPatch tPatch, tFileName
       else if tKind is "image" then
          checkImagePatch tPatch, tFileName
+      else if tKind is "clone" then
+         checkClonePatch tPatch, tFileName
       else if tPatch["file"] is empty or tPatch["object"] is empty or tPatch["old"] is empty or tPatch["new"] is empty then
          throw tFileName & ": needs file:, object:, replace: and with:"
       else if occurrences(tPatch["old"], tPatch["new"]) > 0 then
@@ -353,6 +427,21 @@ private function readPatches pDir
    if tCount is 0 then throw "no *.txt patch in " & pDir
    return tPatches
 end readPatches
+
+private command checkClonePatch pPatch, pFileName
+   if pPatch["file"] is empty or pPatch["object"] is empty or pPatch["clone"] is empty \
+         or not matchText(pPatch["uniqueId"], "^[1-9][0-9]{12}$") then
+      throw pFileName & ": a clone patch needs file:, object:, clone: and unique-id: (13 digits, the milliseconds as the IDE gives a new object)"
+   end if
+   if quote is in pPatch["clone"] or " > " is in pPatch["clone"] then
+      throw pFileName & ": the name of a clone has no quote and no " & quote & " > " & quote
+   end if
+   repeat with j = 1 to the number of elements of pPatch["properties"]
+      if pPatch["properties"][j]["hasTo"] is not true then
+         throw pFileName & ": the property " & pPatch["properties"][j]["property"] & " of the clone needs to:"
+      end if
+   end repeat
+end checkClonePatch
 
 private command checkImagePatch pPatch, pFileName
    if pPatch["file"] is empty or pPatch["object"] is empty or pPatch["png"] is empty \
@@ -395,6 +484,50 @@ private function objectRef pObject, pMain
    return value("the long id of" && pObject && "of stack" && quote & pMain & quote)
 end objectRef
 
+-- The control of the owner of pSource (card or group, its own controls
+-- only) named pName, or empty
+private function cloneOf pSource, pName
+   local tOwner
+   put the long id of the owner of pSource into tOwner
+   repeat for each line tID in the childControlIDs of tOwner
+      if the short name of control id tID of tOwner is pName then
+         return the long id of control id tID of tOwner
+      end if
+   end repeat
+   return empty
+end cloneOf
+
+-- Empty when pClone is pSource's copy as the clone patch pPatch makes it
+-- (its type, its owner, its unique-id: and every to: value), else what
+-- differs
+private function cloneDifference pClone, pSource, pPatch
+   local tValue, tProperty
+   if word 1 of the name of pClone is not word 1 of the name of pSource then
+      return "it is a " & word 1 of the name of pClone & ", not a " & word 1 of the name of pSource
+   end if
+   if the long id of the owner of pClone is not the long id of the owner of pSource then
+      return "it is not in the owner of " & pPatch["object"]
+   end if
+   if the cREVGeneral["revUniqueID"] of pClone is not pPatch["uniqueId"] then
+      return "its unique id is " & the cREVGeneral["revUniqueID"] of pClone & ", not " & pPatch["uniqueId"]
+   end if
+   repeat with j = 1 to the number of elements of pPatch["properties"]
+      put pPatch["properties"][j]["property"] into tProperty
+      try
+         put propertyValue(pClone, tProperty) into tValue
+      catch tError
+         return "it has no property " & tProperty
+      end try
+      set the caseSensitive to true
+      if tValue is not pPatch["properties"][j]["to"] then
+         set the caseSensitive to false
+         return "its " & tProperty & " is " & oneLine(tValue) & ", not " & oneLine(pPatch["properties"][j]["to"])
+      end if
+      set the caseSensitive to false
+   end repeat
+   return empty
+end cloneDifference
+
 -- The value of a property of an object (pProperty is a plain name, checked
 -- by readPatches)
 private function propertyValue pObject, pProperty
@@ -407,7 +540,7 @@ private command patchFile pRel, pPatches, pCheck
    local tPath, tOriginal, tMain, tBefore, tExpected, tAfter, tChanged
    local tObject, tScript, tOld, tNew, tOldCount, tNewCount, tPatched
    local tAppliedHere, tFailedHere, tSame, tScriptObjects, tLabels, tPropertyA, tAppliedA
-   local tCompileError, tSaveError, tCurrent, tLabel
+   local tCompileError, tSaveError, tCurrent, tLabel, tCreatedA, tClone, tCloneProblem
    put sRoot & "/" & pRel into tPath
    if there is not a file tPath then throw "not found: " & tPath
    put URL ("binfile:" & tPath) into tOriginal
@@ -421,6 +554,7 @@ private command patchFile pRel, pPatches, pCheck
       put pPatches[i]["name"] & " | " & pRel & " | " & pPatches[i]["object"] into tPatched
       if pPatches[i]["kind"] is "property" then put " | " & pPatches[i]["property"] after tPatched
       if pPatches[i]["kind"] is "image" then put " | " & pPatches[i]["png"] after tPatched
+      if pPatches[i]["kind"] is "clone" then put " | clone " & pPatches[i]["clone"] after tPatched
       try
          put objectRef(pPatches[i]["object"], tMain) into tObject
       catch tError
@@ -429,6 +563,50 @@ private command patchFile pRel, pPatches, pCheck
          put true into tFailedHere
          next repeat
       end try
+
+      if pPatches[i]["kind"] is "clone" then
+         put cloneOf(tObject, pPatches[i]["clone"]) into tClone
+         if tClone is not empty then
+            put cloneDifference(tClone, tObject, pPatches[i]) into tCloneProblem
+            if tCloneProblem is empty then
+               write "PATCH " & tPatched & " | already applied" & return to stdout
+               add 1 to sAlready
+            else
+               write "PATCH " & tPatched & " | FAILED the owner has a control of that name already, and " & tCloneProblem & return to stdout
+               add 1 to sFailures
+               put true into tFailedHere
+            end if
+         else if pCheck then
+            write "PATCH " & tPatched & " | NOT APPLIED" & return to stdout
+            add 1 to sPending
+         else
+            put empty into tCloneProblem
+            try
+               clone tObject
+               put it into tClone
+               set the name of tClone to pPatches[i]["clone"]
+               set the cREVGeneral["revUniqueID"] of tClone to pPatches[i]["uniqueId"]
+               repeat with j = 1 to the number of elements of pPatches[i]["properties"]
+                  do "set the" && pPatches[i]["properties"][j]["property"] && "of tClone to pPatches[i][" & quote & "properties" & quote & "][j][" & quote & "to" & quote & "]"
+               end repeat
+               put cloneDifference(tClone, tObject, pPatches[i]) into tCloneProblem
+            catch tError
+               put "the copy cannot be made as patched (" & oneLine(tError) & ")" into tCloneProblem
+            end try
+            if tCloneProblem is not empty then
+               write "PATCH " & tPatched & " | FAILED " & tCloneProblem & return to stdout
+               add 1 to sFailures
+               put true into tFailedHere
+            else
+               write "PATCH " & tPatched & " | applied" & return to stdout
+               add 1 to sApplied
+               add 1 to tAppliedHere
+               put pPatches[i] into tCreatedA[tClone]
+               put tObject into tCreatedA[tClone]["source"]
+            end if
+         end if
+         next repeat
+      end if
 
       if pPatches[i]["kind"] is "image" then
          local tPng, tPngSha1, tCurrentSha1, tPngWidth, tPngHeight
@@ -594,7 +772,18 @@ private command patchFile pRel, pPatches, pCheck
       put tPropertyA[tObject] into tPropertyLabels[tLabel]
       put tAppliedA[tObject] into tAppliedLabels[tLabel]
    end repeat
-   put changedAsPatched(tBefore, tExpected, tLabels, tPropertyLabels, tAppliedLabels) into tChanged
+   local tCreatedLabels
+   repeat for each key tObject in tCreatedA
+      put ideStackDumpLabel(tObject) into tLabel
+      if tLabel is empty then throw "a clone is not in the dump"
+      put ideStackDumpLabel(tCreatedA[tObject]["source"]) into tCreatedLabels[tLabel]["source"]
+      if tCreatedLabels[tLabel]["source"] is empty then throw "the source of a clone is not in the dump"
+      put tCreatedA[tObject]["clone"] into tCreatedLabels[tLabel]["name"]
+      put tCreatedA[tObject]["uniqueId"] into tCreatedLabels[tLabel]["uniqueId"]
+      put tCreatedA[tObject]["properties"] into tCreatedLabels[tLabel]["properties"]
+      put the id of tObject into tCreatedLabels[tLabel]["id"]
+   end repeat
+   put changedAsPatched(tBefore, tExpected, tLabels, tPropertyLabels, tAppliedLabels, tCreatedLabels) into tChanged
 
    -- The engine saves in the oldest format that holds the stack, but not
    -- older than 7.0; a stack in an older format (REVO5500) is saved in its
@@ -723,29 +912,71 @@ private function dumpValue pValue
 end dumpValue
 
 -- Throws unless pBefore and pAfter (two ideStackDump results) have the
--- same objects and differ in the scripts of exactly the objects labelled
--- in pScriptLabels (one label per line) and, for the objects that are keys
--- of pPropertyLabels ([label][property] = new value, for every property
--- patch of the file), only in lines of patched properties, which show the
--- new value, and in the line of every property patched in this run
--- (pAppliedLabels[label][property] is true). Returns one line per change:
--- "<label> | script" or "<label> | <property>".
-private function changedAsPatched pBefore, pAfter, pScriptLabels, pPropertyLabels, pAppliedLabels
+-- same objects, but for the clones that pAfter has besides, and differ in
+-- the scripts of exactly the objects labelled in pScriptLabels (one label
+-- per line) and, for the objects that are keys of pPropertyLabels
+-- ([label][property] = new value, for every property patch of the file),
+-- only in lines of patched properties, which show the new value, and in
+-- the line of every property patched in this run
+-- (pAppliedLabels[label][property] is true). The keys of pCreatedLabels
+-- are the clones made in this run ([label][source], [name], [id],
+-- [uniqueId] and [properties]): each has its source's script and
+-- properties but for its id, name, layer, unique id and patched
+-- properties; on its card each object above it is one layer higher for
+-- each clone below it, and its stack's id is that of its stack's newest
+-- clone. Returns one line per change: "<label> | script", "<label> |
+-- <property>" or "<label> | new, a copy of <source label>".
+private function changedAsPatched pBefore, pAfter, pScriptLabels, pPropertyLabels, pAppliedLabels, pCreatedLabels
    local tBeforeA, tAfterA, tBeforeKeys, tAfterKeys, tChanged, tExpected
    local tResult, tBeforeProps, tAfterProps, tWanted, tLine, tKey, tSeen
+   local tCreatedKeys, tShiftCards, tStackIds, tCard, tLayer, tId, tShifted
    put dumpObjects(pBefore) into tBeforeA
    put dumpObjects(pAfter) into tAfterA
    put the keys of tBeforeA into tBeforeKeys
    put the keys of tAfterA into tAfterKeys
+   put the keys of pCreatedLabels into tCreatedKeys
+   if tCreatedKeys is not empty then put return & tCreatedKeys after tBeforeKeys
    sort lines of tBeforeKeys
    sort lines of tAfterKeys
    if tBeforeKeys is not tAfterKeys then throw "the objects of the stack changed"
+   put the keys of tBeforeA into tBeforeKeys
+   -- The layers of the clones on each card, and each stack's newest clone
+   repeat for each line tLabel in tCreatedKeys
+      if tBeforeA[tLabel] is an array then throw "a clone was in the stack before: " & tLabel
+      put cardOfLabel(tLabel) into tCard
+      if tCard is empty then throw "a clone is on no card: " & tLabel
+      put propertyOfDump(tAfterA[tLabel]["props"], "layer") into tLayer
+      if tLayer is not an integer then throw "a clone has no layer: " & tLabel
+      put tLayer & return after tShiftCards[tCard]
+      put stackOfCard(tCard) into tKey
+      put pCreatedLabels[tLabel]["id"] into tId
+      if tStackIds[tKey] is empty or tId > tStackIds[tKey] then put tId into tStackIds[tKey]
+   end repeat
    set the caseSensitive to true
    repeat for each line tLabel in tBeforeKeys
       if tBeforeA[tLabel]["props"] is not tAfterA[tLabel]["props"] then
          if pPropertyLabels[tLabel] is not an array then
-            set the caseSensitive to false
-            throw "properties of " & tLabel & " changed"
+            -- Only a layer moved up by a clone, or the stack's last id
+            put tBeforeA[tLabel]["props"] into tBeforeProps
+            put tAfterA[tLabel]["props"] into tAfterProps
+            if the number of lines of tBeforeProps is not the number of lines of tAfterProps then
+               set the caseSensitive to false
+               throw "properties of " & tLabel & " were added or removed"
+            end if
+            repeat with i = 1 to the number of lines of tAfterProps
+               put line i of tAfterProps into tLine
+               if tLine is line i of tBeforeProps then next repeat
+               put shiftAllowed(tLabel, line i of tBeforeProps, tLine, tShiftCards, tStackIds) into tShifted
+               if tShifted is empty then
+                  set the caseSensitive to false
+                  throw "properties of " & tLabel & " changed"
+               end if
+               put tLabel & " | " & tShifted & return after tResult
+            end repeat
+            if tBeforeA[tLabel]["script"] is not tAfterA[tLabel]["script"] then
+               put tLabel & return after tChanged
+            end if
+            next repeat
          end if
          -- The lines that differ must be those of patched properties
          put empty into tWanted
@@ -766,6 +997,11 @@ private function changedAsPatched pBefore, pAfter, pScriptLabels, pPropertyLabel
          repeat with i = 1 to the number of lines of tAfterProps
             put line i of tAfterProps into tLine
             if tLine is line i of tBeforeProps then next repeat
+            put shiftAllowed(tLabel, line i of tBeforeProps, tLine, tShiftCards, tStackIds) into tShifted
+            if tShifted is not empty then
+               put tLabel & " | " & tShifted & return after tResult
+               next repeat
+            end if
             if tLine begins with "image text sha1: " then
                put "@image" into tKey
             else if tLine begins with "field htmlText: " then
@@ -800,6 +1036,62 @@ private function changedAsPatched pBefore, pAfter, pScriptLabels, pPropertyLabel
          put tLabel & return after tChanged
       end if
    end repeat
+   -- Each clone is its source but for what the patch and the engine give it
+   repeat for each line tLabel in tCreatedKeys
+      local tSource
+      put pCreatedLabels[tLabel]["source"] into tSource
+      if tAfterA[tSource] is not an array then
+         set the caseSensitive to false
+         throw "the source of " & tLabel & " is not in the stack"
+      end if
+      if tAfterA[tLabel]["script"] is not tAfterA[tSource]["script"] then
+         set the caseSensitive to false
+         throw "the script of " & tLabel & " is not its source's"
+      end if
+      put empty into tWanted
+      put "prop id: " & pCreatedLabels[tLabel]["id"] into tWanted["id"]
+      put "prop name: " & dumpValue(pCreatedLabels[tLabel]["name"]) into tWanted["name"]
+      put "custom {cREVGeneral}[revUniqueID]: " & pCreatedLabels[tLabel]["uniqueId"] into tWanted["@uniqueId"]
+      repeat with j = 1 to the number of elements of pCreatedLabels[tLabel]["properties"]
+         put propertyKey(pCreatedLabels[tLabel]["properties"][j]["property"]) into tKey
+         put "prop " & tKey & ": " & dumpValue(pCreatedLabels[tLabel]["properties"][j]["to"]) into tWanted[tKey]
+      end repeat
+      put tAfterA[tSource]["props"] into tBeforeProps
+      put tAfterA[tLabel]["props"] into tAfterProps
+      if the number of lines of tBeforeProps is not the number of lines of tAfterProps then
+         set the caseSensitive to false
+         throw "the properties of " & tLabel & " are not those of its source"
+      end if
+      repeat with i = 1 to the number of lines of tAfterProps
+         put line i of tAfterProps into tLine
+         if tLine is line i of tBeforeProps then next repeat
+         if tLine begins with "prop layer: " then next repeat
+         if tLine begins with "custom {cREVGeneral}[revUniqueID]: " then
+            put "@uniqueId" into tKey
+         else if tLine begins with "field htmlText: " then
+            put "htmlText" into tKey
+            put "prop " & char 7 to -1 of tLine into tLine
+         else if tLine begins with "prop " then
+            put char 6 to (offset(": ", tLine) - 1) of tLine into tKey
+         else
+            put empty into tKey
+         end if
+         if tKey is empty or tWanted[tKey] is empty or tLine is not tWanted[tKey] then
+            set the caseSensitive to false
+            throw "a property of " & tLabel & " differs from its source's that the patch does not set: " & tLine
+         end if
+      end repeat
+      repeat for each key tKey in tWanted
+         if tWanted[tKey] is not among the lines of tAfterProps then
+            set the caseSensitive to false
+            throw "the " & tKey & " of " & tLabel & " is not in the dump as patched"
+         end if
+      end repeat
+      put tLabel & " | new, a copy of " & tSource & return after tResult
+      repeat with j = 1 to the number of elements of pCreatedLabels[tLabel]["properties"]
+         put tLabel & " | " & pCreatedLabels[tLabel]["properties"][j]["property"] & return after tResult
+      end repeat
+   end repeat
    delete the last char of tChanged
    -- The same object can be named by more than one patch
    repeat for each line tLabel in pScriptLabels
@@ -821,6 +1113,61 @@ private function changedAsPatched pBefore, pAfter, pScriptLabels, pPropertyLabel
    delete the last char of tResult
    return tResult
 end changedAsPatched
+
+-- The label of the card that a dump label is on ("stack "S" > card "C"
+-- (id 2)", or with a substack between them), or empty
+private function cardOfLabel pLabel
+   set the itemDelimiter to " > "
+   repeat with i = 2 to the number of items of pLabel
+      if item i of pLabel begins with "card " then return item 1 to i of pLabel
+   end repeat
+   return empty
+end cardOfLabel
+
+-- The label of the stack (or substack) of a card label
+private function stackOfCard pCard
+   set the itemDelimiter to " > "
+   return item 1 to -2 of pCard
+end stackOfCard
+
+-- The value of a property in an object's dump lines
+private function propertyOfDump pProps, pProperty
+   repeat for each line tLine in pProps
+      if tLine begins with "prop " & pProperty & ": " then
+         return char (the number of chars of pProperty) + 8 to -1 of tLine
+      end if
+   end repeat
+   return empty
+end propertyOfDump
+
+-- Whether a property line of an existing object changed only as the clones
+-- of the file make it change (pShiftCards[card label]: the layers of the
+-- clones on the card, one per line; pStackIds[stack label]: the id of the
+-- stack's newest clone): its layer one higher for each clone on its card
+-- below it, or its stack's id that of its newest clone. Returns what
+-- changed ("layer", "id") or empty.
+private function shiftAllowed pLabel, pBeforeLine, pAfterLine, pShiftCards, pStackIds
+   local tCard, tCount, tOld, tNew
+   if pBeforeLine begins with "prop layer: " and pAfterLine begins with "prop layer: " then
+      put cardOfLabel(pLabel) into tCard
+      if tCard is empty or pShiftCards[tCard] is empty then return empty
+      put char 13 to -1 of pBeforeLine into tOld
+      put char 13 to -1 of pAfterLine into tNew
+      if tOld is not an integer or tNew is not an integer then return empty
+      put 0 into tCount
+      repeat for each line tLayer in pShiftCards[tCard]
+         if tLayer < tNew then add 1 to tCount
+      end repeat
+      if tCount > 0 and tNew - tOld = tCount then return "layer"
+      return empty
+   end if
+   if pBeforeLine begins with "prop id: " and pAfterLine begins with "prop id: " and pStackIds[pLabel] is not empty then
+      put char 10 to -1 of pBeforeLine into tOld
+      put char 10 to -1 of pAfterLine into tNew
+      if tOld is an integer and tNew is an integer and tNew > tOld and tNew = pStackIds[pLabel] then return "id"
+   end if
+   return empty
+end shiftAllowed
 
 private function sha1Hex pData
    local tHex

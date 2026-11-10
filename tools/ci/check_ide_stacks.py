@@ -40,6 +40,11 @@ Image patches (an image's data replaced with a PNG file of the repository)
 are checked here too: a stack file stores an image's PNG data unchanged,
 so an applied patch shows as the PNG file's bytes in the stack file.
 
+Clone patches (a copy of a control, with its own name, unique id and some
+properties) are checked in part: the copy's name and its unique id (a
+custom property) are strings, which the stack file stores as they are, so
+each must be in its bytes; the engine check above says the rest.
+
 It also checks what the patches are for, so that a stack saved from the IDE
 cannot bring the old code back unnoticed:
   - the dataView behaviour in Toolset/palettes/revCore.8.livecode paints row
@@ -60,11 +65,17 @@ PATCH_DIR = os.path.join('tools', 'oxt', 'ide-stack-patches')
 REVCORE = os.path.join('ide', 'Toolset', 'palettes', 'revCore.8.livecode')
 
 
+# What a clone patch leaves to the clone command and the stack
+CLONE_UNSET = ('name', 'shortname', 'id', 'altid', 'layer', 'number', 'owner')
+
+
 def read_patch(path):
     """('script', file, object, old text, new text) of a script patch, or
     ('property', file, [(object, property, from, to), ...]) of a property
     patch, or ('image', file, [(object, png, from-sha1), ...]) of an image
-    patch (tools/oxt/ide-stack-patch.livecodescript describes them)."""
+    patch, or ('clone', file, object, name, unique id, [(property, to),
+    ...]) of a clone patch (tools/oxt/ide-stack-patch.livecodescript
+    describes them)."""
     fields = {}
     sections = {'old': [], 'new': []}
     section = None
@@ -75,7 +86,33 @@ def read_patch(path):
         for number, line in enumerate(f.read().splitlines(), 1):
             if section is None and (not line or line.startswith('#')):
                 continue
-            if line.startswith('file:'):
+            if kind == 'clone' and (line.startswith('file:') or line.startswith('object:')):
+                raise ValueError('%s line %d: a clone patch copies one object: file: and object: come before clone:'
+                                 % (path, number))
+            if line.startswith('clone:'):
+                if kind is not None:
+                    raise ValueError('%s line %d: a clone patch is a file of its own' % (path, number))
+                if not obj:
+                    raise ValueError('%s line %d: clone: before object:' % (path, number))
+                kind = 'clone'
+                fields['object'] = obj
+                fields['clone'] = line[6:].strip()
+            elif kind == 'clone' and line.startswith('unique-id:'):
+                fields['unique-id'] = line[10:].strip()
+            elif kind == 'clone' and line.startswith('property:'):
+                name = line[9:].strip()
+                if not re.match(r'^[A-Za-z][A-Za-z0-9]*$', name):
+                    raise ValueError('%s line %d: not a property name: %s' % (path, number, name))
+                if name.lower() in CLONE_UNSET:
+                    raise ValueError('%s line %d: a clone patch does not set %s' % (path, number, name))
+                if any(c['property'] == name for c in changes):
+                    raise ValueError('%s line %d: %s is set twice' % (path, number, name))
+                changes.append({'property': name})
+            elif kind == 'clone' and line.startswith('to:'):
+                if not changes or 'to' in changes[-1]:
+                    raise ValueError('%s line %d: to: without its property:' % (path, number))
+                changes[-1]['to'] = line[3:].strip()
+            elif line.startswith('file:'):
                 fields['file'] = line[5:].strip()
             elif line.startswith('object:'):
                 obj = line[7:].strip()
@@ -105,10 +142,10 @@ def read_patch(path):
             elif kind == 'property' and (line.startswith('from:') or line.startswith('to:')):
                 key, value = line.split(':', 1)
                 changes[-1][key] = value.strip()
-            elif line == 'replace:' and kind not in ('property', 'image'):
+            elif line == 'replace:' and kind not in ('property', 'image', 'clone'):
                 kind = 'script'
                 section = 'old'
-            elif line == 'with:' and kind not in ('property', 'image'):
+            elif line == 'with:' and kind not in ('property', 'image', 'clone'):
                 kind = 'script'
                 section = 'new'
             elif section and len(line) >= 2 and line.startswith('|') and line.endswith('|'):
@@ -124,6 +161,18 @@ def read_patch(path):
             if 'from' not in change or 'to' not in change:
                 raise ValueError('%s: the property %s of %s needs from: and to:' % (path, change['property'], change['object']))
         return 'property', fields['file'], [(c['object'], c['property'], c['from'], c['to']) for c in changes]
+    if kind == 'clone':
+        if (not fields.get('file') or not fields.get('clone')
+                or not re.match(r'^[1-9][0-9]{12}$', fields.get('unique-id', ''))):
+            raise ValueError('%s: a clone patch needs file:, object:, clone: and unique-id: (13 digits, the '
+                             'milliseconds as the IDE gives a new object)' % path)
+        if '"' in fields['clone'] or ' > ' in fields['clone']:
+            raise ValueError('%s: the name of a clone has no quote and no " > "' % path)
+        for change in changes:
+            if 'to' not in change:
+                raise ValueError('%s: the property %s of the clone needs to:' % (path, change['property']))
+        return ('clone', fields['file'], fields['object'], fields['clone'], fields['unique-id'],
+                [(c['property'], c['to']) for c in changes])
     if kind == 'image':
         if not fields.get('file'):
             raise ValueError('%s: needs file:' % path)
@@ -187,6 +236,19 @@ def check_patches(repo, failures):
             continue
         with open(path, 'rb') as f:
             data = f.read()
+        if patch[0] == 'clone':
+            clone, unique = patch[3], patch[4]
+            missing = [what for what, text in (('name', clone), ('unique id', unique))
+                       if text.encode('utf-8') not in data]
+            if missing:
+                failures.append((rel_stack, '%s is not applied: the %s of %s, the copy of %s, %s not in the '
+                                 'stack file; run tools/oxt/ide-stack-patch.sh'
+                                 % (name, ' and the '.join(missing), clone, patch[2],
+                                    'are' if len(missing) > 1 else 'is')))
+            else:
+                print('ok      %s: %s, the copy of %s, is in %s (its name and unique id; its properties are '
+                      'checked by tools/oxt/ide-stack-patch.sh --check)' % (name, clone, patch[2], rel_stack))
+            continue
         if patch[0] == 'image':
             for obj, png, _ in patch[2]:
                 try:

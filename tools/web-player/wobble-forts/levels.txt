@@ -1,0 +1,252 @@
+# Wobble Forts: the levels, built into the stack as cLevels by
+# tools/web-player/wobble-forts.livecodescript. See wfReadLevels in
+# wobble-forts-stack.livecodescript for the form:
+#   level <name> / land <1-3> / bloops <colours> / hint <words>
+#   <kind> <x> <bottom> [<angle>]     x is the piece's middle and bottom
+#   end                               how high its lowest edge is, in
+#                                     units (a cube is 70 across); the
+#                                     launcher is at x 250, the world is
+#                                     1600 wide
+# The kinds: wood, glass, stone, metal, tnt with cube (70 x 70), plank
+# (140 x 70), beam (220 x 70), post (70 x 140), pillar (70 x 220), slab
+# (140 x 140) and ball (70; wood and stone); grump-<green, blue, pink,
+# beige> (70) and boss-<green, blue, pink, yellow> (84).
+
+# ---- Land 1: the Meadow ------------------------------------------------
+
+level First Wobble
+land 1
+bloops yellow yellow yellow
+hint Pull the Bloop, aim along the dots and let go!
+wood-post 1050 0
+wood-post 1190 0
+wood-beam 1120 140
+grump-green 1120 210
+grump-green 1350 0
+end
+
+level Glass House
+land 1
+bloops yellow yellow yellow
+hint Glass shatters easily. Topple it onto the Grumps!
+glass-post 1000 0
+grump-blue 1070 0
+glass-post 1140 0
+wood-beam 1070 140
+grump-green 1070 210
+wood-cube 1300 0
+wood-cube 1300 70
+grump-blue 1300 140
+end
+
+level Twin Towers
+land 1
+bloops yellow blue yellow
+hint Zip, the blue Bloop: tap while it flies and it dashes!
+wood-pillar 960 0
+wood-pillar 1040 0
+wood-plank 1000 220
+grump-green 1000 290
+grump-pink 1150 0
+wood-pillar 1260 0
+wood-pillar 1340 0
+wood-plank 1300 220
+grump-blue 1300 290
+end
+
+level Stone Steps
+land 1
+bloops yellow blue pink
+hint Trio, the rosy Bloop: tap and it splits in three!
+stone-slab 1000 0
+grump-green 1000 140
+stone-slab 1140 0
+stone-slab 1140 140
+grump-pink 1140 280
+wood-cube 1280 0
+glass-cube 1280 70
+grump-blue 1280 140
+end
+
+level Meadow Keep
+land 1
+bloops yellow blue pink yellow
+hint The Grump boss is tough. Hit him hard, or drop the fort on him!
+wood-post 980 0
+grump-green 1050 0
+wood-post 1120 0
+grump-blue 1190 0
+wood-post 1260 0
+wood-plank 1050 140
+wood-plank 1190 140
+glass-post 1020 210
+boss-green 1120 210
+glass-post 1220 210
+wood-beam 1120 350
+grump-pink 1120 420
+end
+
+# ---- Land 2: the Dunes -------------------------------------------------
+
+level Sand Castle
+land 2
+bloops yellow green yellow
+hint Thud, the green Bloop: tap and it drops straight down!
+stone-pillar 1000 0
+tnt-cube 1100 0
+grump-green 1100 70
+stone-pillar 1200 0
+stone-beam 1100 220
+grump-beige 1100 290
+end
+
+level Crate Stack
+land 2
+bloops yellow blue green
+hint TNT goes bang when it is hit hard.
+wood-cube 1050 0
+wood-cube 1120 0
+wood-cube 1190 0
+wood-cube 1050 70
+tnt-cube 1120 70
+wood-cube 1190 70
+wood-cube 1050 140
+wood-cube 1120 140
+wood-cube 1190 140
+grump-green 1050 210
+grump-beige 1120 210
+grump-pink 1190 210
+stone-post 1380 0
+grump-blue 1380 140
+end
+
+level Dune Bridge
+land 2
+bloops pink pink yellow
+stone-pillar 950 0
+stone-pillar 1090 0
+stone-pillar 1230 0
+stone-pillar 1370 0
+grump-green 1020 0
+grump-beige 1160 0
+grump-pink 1300 0
+wood-plank 1020 220
+wood-plank 1160 220
+wood-plank 1300 220
+grump-blue 1020 290
+glass-cube 1160 290
+grump-green 1300 290
+end
+
+level Hot Seat
+land 2
+bloops yellow blue green beige
+hint Boom, the sandy Bloop: tap and it goes bang!
+glass-post 1050 0
+grump-beige 1120 0
+glass-post 1190 0
+tnt-plank 1120 140
+wood-slab 1120 210
+grump-green 1120 350
+stone-cube 1350 0
+stone-cube 1350 70
+grump-pink 1350 140
+end
+
+level Desert Keep
+land 2
+bloops blue pink green beige
+stone-slab 1000 0
+boss-yellow 1120 0
+stone-slab 1240 0
+metal-beam 1120 140
+tnt-cube 965 140
+grump-beige 1275 140
+wood-post 1050 210
+grump-green 1120 210
+wood-post 1190 210
+wood-plank 1120 350
+grump-pink 1120 420
+end
+
+# ---- Land 3: Shroom Hollow ---------------------------------------------
+
+level Spore Shed
+land 3
+bloops yellow blue blue
+hint Metal is tough. Push it over instead!
+metal-post 1000 0
+grump-green 1080 0
+grump-blue 1160 0
+metal-post 1240 0
+wood-beam 1120 140
+grump-pink 1120 210
+end
+
+level Ball Pit
+land 3
+bloops pink green yellow
+stone-cube 980 0
+wood-cube 980 70
+grump-green 980 140
+wood-ball 1050 0
+stone-post 1120 0
+stone-post 1120 140
+grump-blue 1120 280
+glass-cube 1260 0
+glass-cube 1260 70
+glass-cube 1260 140
+grump-beige 1260 210
+end
+
+level Metal Mill
+land 3
+bloops blue beige green
+metal-slab 1050 0
+tnt-cube 1155 0
+metal-slab 1260 0
+grump-green 1155 70
+wood-beam 1155 140
+grump-blue 1100 210
+grump-pink 1210 210
+glass-plank 1155 280
+grump-beige 1155 350
+end
+
+level High Rise
+land 3
+bloops yellow pink beige green
+wood-pillar 1000 0
+grump-green 1100 0
+wood-pillar 1200 0
+stone-beam 1100 220
+wood-post 1030 290
+grump-blue 1100 290
+wood-post 1170 290
+wood-plank 1100 430
+glass-cube 1100 500
+grump-pink 1100 570
+tnt-cube 1320 0
+grump-beige 1320 70
+end
+
+level Grump King
+land 3
+bloops blue pink green beige yellow
+hint The Grumps' ruler in person. Bring the house down!
+stone-slab 980 0
+boss-pink 1120 0
+stone-slab 1260 0
+metal-beam 1120 140
+wood-post 1040 210
+grump-green 1120 210
+wood-post 1200 210
+wood-beam 1120 350
+grump-blue 1050 420
+tnt-cube 1120 420
+grump-beige 1190 420
+glass-plank 1120 490
+grump-pink 1120 560
+stone-cube 1420 0
+grump-green 1420 70
+end

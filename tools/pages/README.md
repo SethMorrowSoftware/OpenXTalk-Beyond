@@ -9,11 +9,11 @@ Pages site, so that anyone can open them with nothing to download:
 | `https://<owner>.github.io/<repository>/` | the front page ([index.html](index.html)), which links to both |
 | `.../ide/` | the web IDE |
 | `.../dictionary/` | the IDE's Dictionary (xTalk Script and xTalk Builder), which Help > Dictionary Online opens |
-| `.../lessons/` | the lessons: xTalk from the first line to extensions in xTalk Builder, a page a lesson, searchable ([lessons/](lessons/)) |
+| `.../lessons/` | the lessons: xTalk from the first line to xTalk Builder, and the extensions that come with OXT-Beyond, a page a lesson, searchable ([lessons/](lessons/)) |
 | `.../player/` | the Stack Player |
 | `.../extensions/` | the xTalk Suite's extensions, built into OXT-Beyond, each with its `.lce` packages to download ([extensions/index.html](extensions/index.html)) |
 | `.../play/` | the bare player: a stack and nothing around it (`?stack=`, `?play=`; see [tools/web-player](../web-player/README.md)), on the Stack Player's engine |
-| `.../games/` | web games, such as Pixel Platformer Maker: each page runs its `standalone.zip` on the Stack Player's engine |
+| `.../games/` | the web stacks gallery: the big ones on pages of their own (Pixel Platformer Maker and the others run their `standalone.zip` on the Stack Player's engine; Nova Rescue, Wobble Forts and Puzzle Almanac play the player's own samples in the bare player), and a card and a page for each of the Stack Player's samples |
 | `.../map/` | the [codebase map](../codebase-map/README.md), for contributors, with the binary stacks' scripts as files beside it (`stack-scripts/`, `stack-scripts.zip`) |
 
 The front page is one self-contained file: its look (a night sky over an
@@ -35,6 +35,76 @@ and the browser keeps at most 10% of a core busy (pages.yml runs it on
 the site it is about to deploy, as a warning;
 [test_pages_at_rest.py](../ci/tests/test_pages_at_rest.py) holds the
 pages without a browser).
+
+## The web stacks gallery
+
+[games/index.html](games/index.html) is the gallery: the big ones, each on
+a page of its own, then a card for each of the Stack Player's samples
+that has a picture, which `build_pages.py` writes from the player's
+`samples/samples.json`, each opening a page written from
+[games/stack-page.html](games/stack-page.html) that plays it in the
+player in a frame.
+
+Nova Rescue is a sample of the player with a big one's page instead
+([games/nova-rescue/](games/nova-rescue/index.html), `OWN_PAGES` in
+`build_pages.py`): it plays the sample in the bare player
+(`play/?play=Nova%20Rescue`), so it carries no engine or stack of its own
+and is always the player's. On a computer or a tablet the game is in a
+phone's frame on the page, at its own size (390 by 760, smaller to fit a
+short window), and its keys play it at once; on a phone the page loads
+no engine until its picture or Play is tapped, which opens the bare
+player on the whole screen, where the Mobile Web library fills it. The
+page and its card (between the `OWN_PAGE` markers in the gallery) go up
+only with a player that lists the sample and a site that has the bare
+player; then the sample has no small card or written page. Otherwise
+the page and its card are left out, and the sample, if the player has
+it, is a small one like the rest. Its pictures and font are the game's
+own Kenney files; the font writes no word with V, K or X, which it draws
+as U and H. [test_pages_nova_rescue.py](../ci/tests/test_pages_nova_rescue.py)
+and [test_pages_gallery.py](../ci/tests/test_pages_gallery.py) hold it,
+and [check_nova_rescue_page.py](check_nova_rescue_page.py) plays it in
+Chromium, on two computer windows and two phones, from a built player
+(`build_player.py --check` runs it on the player it builds):
+
+```sh
+python3 tools/pages/check_nova_rescue_page.py --player <StackPlayer folder or web-player zip> --shots <folder>
+```
+
+Wobble Forts has a page of its own the same way
+([games/wobble-forts/](games/wobble-forts/index.html),
+`play/?play=Wobble%20Forts`). The game is played on its side, so on a
+computer its frame is a phone turned on its side, at the stack's own
+size (960 by 540), and it comes first on the page, under the site's bar,
+made smaller to fit the window; its keys play it at once (Space goes from
+the title through How to play and the map into the first fort). On a
+phone the picture of its title is dimmed under one Tap to play button.
+Its font, Kenney Future Narrow, draws K and X much as it draws H, so it
+writes no word with either.
+[test_pages_wobble_forts.py](../ci/tests/test_pages_wobble_forts.py) and
+[test_pages_gallery.py](../ci/tests/test_pages_gallery.py) hold it, and
+[check_wobble_forts_page.py](check_wobble_forts_page.py) plays it as
+the other's check does, a shot fired with the mouse included:
+
+```sh
+python3 tools/pages/check_wobble_forts_page.py --player <StackPlayer folder or web-player zip> --shots <folder>
+```
+
+Puzzle Almanac has a page of its own too
+([games/puzzle-almanac/](games/puzzle-almanac/index.html),
+`play/?play=Puzzle%20Almanac`), in the game's own look: paper rather than
+the night sky, and Atkinson Hyperlegible, the game's font. On a computer
+it plays on the page in the frame of an upright phone at the stack's own
+size (390 by 760), made smaller to fit a short window, and its keys play
+it at once (N and W open the puzzles; Esc goes back); on a phone a tap on
+its cover opens it on the whole screen.
+[test_pages_puzzle_almanac.py](../ci/tests/test_pages_puzzle_almanac.py)
+and [test_pages_gallery.py](../ci/tests/test_pages_gallery.py) hold it,
+and [check_puzzle_almanac_page.py](check_puzzle_almanac_page.py) plays it
+as the others' checks do:
+
+```sh
+python3 tools/pages/check_puzzle_almanac_page.py --player <StackPlayer folder or web-player zip> --shots <folder>
+```
 
 The extensions page has a card for each xTalk Suite extension (sodiumxt,
 torrentxt, enetxt, datachannelxt, box2dxt, coinxt, onionxt and nostrxt),
@@ -149,7 +219,27 @@ Run mode (`data-click`); `data-after` names the scripts the reader put in
 before it. The check builds the card with messages locked, puts the
 scripts in, makes the clicks as the engine does (a check box or radio
 button changes first), and holds the example to what the Message Box
-shows after each click.
+shows after each click. A widget is built the same way, but the check
+cannot click one as a reader does, so an example sends a widget's message
+from the Message Box instead. Between two lines typed into the Message
+Box the IDE lets the engine handle what is waiting and paint the card,
+so the check does the same after each line (`oxtLessonIdle`): a widget
+paints only then, and the messages it posts arrive only then.
+
+The Extensions level teaches the extensions that come with OXT-Beyond:
+the libraries, the widgets and the xTalk Suite. An example names the ones
+it needs in `data-needs`: an extension by its id
+(`com.livecode.library.qr`, `com.livecode.widget.switchbutton`), one of
+the xTalk Suite's script libraries by its folder in the package (`coinxt`,
+`onionxt`: [xtalk-extensions.json](../oxt/xtalk-extensions.json)), or an
+external (`external:revxml`). The check loads each as the IDE does: a
+compiled module with its code libraries and resources, from a folder
+named with its version too, and a script library by sending it
+`extensionInitialize`, with a stand-in for the standalone builder that
+some call as they start. A widget's needs include the libraries it uses
+(`com.livecode.library.iconsvg com.livecode.library.widgetutils`). The
+levels are listed once, in `LEVELS` in build_lessons.py, which makes the
+front page's filters from it.
 
 ```sh
 python3 tools/pages/build_lessons.py --out /tmp/lessons      # the pages alone

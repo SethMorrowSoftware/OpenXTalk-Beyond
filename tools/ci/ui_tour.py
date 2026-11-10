@@ -74,6 +74,15 @@ import package  # noqa: E402
 import run_livecode_check as rlc  # noqa: E402
 
 SCRIPT = os.path.join(HERE, 'ui-tour.livecodescript')
+# the disk image the step hypercard-disk-image imports from: the IDE
+# tests' DiskCopy 4.2 image of an HFS volume with two stacks
+HYPERCARD_IMAGE = os.path.join(HERE, '..', '..', 'tests', 'lcs-input-files', 'hypercard', 'forks', 'Stacks.dc42')
+# Two font files the code-font step loads and unloads (OXT_TOUR_FONT_FILES):
+# fonts no machine has installed, each of one family, which no step uses
+TOUR_FONT_FILES = (
+    os.path.join(HERE, '..', 'web-player', 'wobble-forts', 'fonts', 'kenney_future_narrow.ttf'),
+    os.path.join(HERE, '..', '..', 'ide', 'Documentation', 'html_viewer', 'fonts', 'glyphicons-halflings-regular.ttf'),
+)
 
 # GTK 2 themes for Linux: the installed Adwaita ones, else plain colours;
 # or, by --gtk-theme, one of THEMES by its name
@@ -667,6 +676,8 @@ def main(argv=None):
             'OXT_TOUR_LOG': results.replace('\\', '/'),
             'OXT_TOUR_APPEARANCE': args.appearance,
             'OXT_TOUR_ONLY': args.only,
+            'OXT_TOUR_HYPERCARD_IMAGE': os.path.abspath(HYPERCARD_IMAGE).replace('\\', '/'),
+            'OXT_TOUR_FONT_FILES': '|'.join(os.path.abspath(f).replace('\\', '/') for f in TOUR_FONT_FILES),
         })
         cmd = [lay.engine, document]
         if p.family == 'mac':

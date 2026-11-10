@@ -1,0 +1,203 @@
+<!--
+title: A web server of your own
+level: extensions
+minutes: 12
+summary: Serve web pages, files and a JSON API from your own program with the HTTP server library: routes for each address, the right status and type, a folder of files served safely, and data sent in.
+words: httpdStart, httpdResponse, httpdStop, mimeTheMIMETypeOfExtension, JSONExport, JSONImport, libURLLastRHHeaders, launch url, switch
+-->
+<h2 id="routes">One handler, many addresses</h2>
+<p><a href="../internet/#server">The web and the internet</a> started a tiny server to have something to fetch from. A server of your own can do much more: show a page to a phone on the same Wi-Fi, give data to another program, or be a whole app that people use from a browser. <code>httpdStart</code> sends every request to one handler, with an array that says what was asked: its <code>method</code> (<code>GET</code> to read, <code>POST</code> to send), its <code>resource</code> (the address's path, such as <code>/about</code>), its <code>parameters</code>, <code>headers</code> and <code>content</code>. A <code>switch</code> on the path is a list of <strong>routes</strong>:</p>
+<figure class="example" id="ex-web-routes" data-run="output" data-needs="com.livecode.library.httpd">
+<pre class="code"><code>on serve pSocket, pRequest
+   switch pRequest["resource"]
+      case "/"
+         httpdResponse pSocket, 200, "Welcome"
+         break
+      case "/about"
+         httpdResponse pSocket, 200, "Made with OXT-Beyond"
+         break
+      default
+         httpdResponse pSocket, 404, "Nothing at" &amp;&amp; pRequest["resource"]
+   end switch
+end serve
+
+httpdStart "serve", 0
+put "http://127.0.0.1:" &amp; it into tServer
+put URL (tServer &amp; "/")
+put URL (tServer &amp; "/about")
+get URL (tServer &amp; "/missing")
+put the result into tProblem
+put it
+put tProblem
+httpdStop</code></pre>
+<pre class="out">Welcome
+Made with OXT-Beyond
+Nothing at /missing
+error 404 Not Found</pre>
+</figure>
+<p>The page for a missing path still arrives, and <code>the result</code> has its status; it is read straight after the <code>get</code>, because the next command, even a <code>put</code>, clears it. The number with each answer is its <strong>status</strong>: 200 means "here it is", 404 "no such thing". Others worth knowing are 400 (the request makes no sense), 405 (not with that method), 303 (look over there, with a <code>Location</code> header) and 500 (the server went wrong; the library sends this itself if your handler stops with an error). <code>httpdStop</code> with no port stops every server this program started.</p>
+
+<h2 id="types">Saying what you send</h2>
+<p>A browser decides how to show what it gets from its <code>Content-Type</code> header: <code>text/html</code> is a page to lay out, <code>text/plain</code> is shown as it is, <code>application/json</code> is data. Give it as the fourth parameter of <code>httpdResponse</code>, a header a line, and give text as UTF-8 and say so, or accented letters arrive broken:</p>
+<figure class="example" id="ex-web-types" data-run="output" data-needs="com.livecode.library.httpd">
+<pre class="code"><code>on serve pSocket, pRequest
+   put "&lt;!DOCTYPE html&gt;&lt;title&gt;Café&lt;/title&gt;&lt;h1&gt;Bienvenue au café&lt;/h1&gt;" into tPage
+   httpdResponse pSocket, 200, textEncode(tPage, "UTF-8"), "Content-Type: text/html; charset=utf-8"
+end serve
+
+httpdStart "serve", 0
+put "http://127.0.0.1:" &amp; it into tServer
+put URL tServer into tBytes
+put textDecode(tBytes, "UTF-8") contains "café"
+put libURLLastRHHeaders() into tHeaders
+replace numToChar(13) with empty in tHeaders
+filter tHeaders with "Content-Type:*"
+put tHeaders
+httpdStop</code></pre>
+<pre class="out">true
+Content-Type: text/html; charset=utf-8</pre>
+</figure>
+<p>To see it in a real browser, start the server with a port of your choosing, such as <code>httpdStart "serve", 8080</code>, and <code>launch url "http://localhost:8080/"</code>. A phone on the same network reaches it at your computer's own address on that network, such as <code>http://192.168.1.20:8080/</code>.</p>
+<aside class="warn"><p>Anyone who can reach your computer over the network can reach the server too, so serve nothing private, and stop it when you are done. Your system's firewall may ask whether to let it be reached; say no unless other devices need it.</p></aside>
+
+<h2 id="api">A JSON API</h2>
+<p>An <strong>API</strong> is a server for programs rather than people: it answers with data, usually JSON (<a href="../json/">JSON</a>). The same path can do different things for each method: here <code>GET /notes</code> lists the notes, and <code>POST /notes</code> adds the one sent in its content:</p>
+<figure class="example" id="ex-web-api" data-run="output" data-needs="com.livecode.library.httpd com.livecode.library.json">
+<pre class="code"><code>global gNotes
+
+on serve pSocket, pRequest
+   global gNotes
+   if pRequest["resource"] is not "/notes" then
+      httpdResponse pSocket, 404, "{}", "Content-Type: application/json"
+   else if pRequest["method"] is "GET" then
+      httpdResponse pSocket, 200, JSONExport(gNotes), "Content-Type: application/json"
+   else if pRequest["method"] is "POST" then
+      put the number of elements in gNotes + 1 into tNext
+      put JSONImport(pRequest["content"]) into gNotes[tNext]
+      httpdResponse pSocket, 201, JSONExport(gNotes[tNext]), "Content-Type: application/json"
+   else
+      httpdResponse pSocket, 405, "{}", "Content-Type: application/json"
+   end if
+end serve
+
+put empty into gNotes
+httpdStart "serve", 0
+put "http://127.0.0.1:" &amp; it &amp; "/notes" into tNotes
+set the httpHeaders to "Content-Type: application/json"
+post "{" &amp; quote &amp; "text" &amp; quote &amp; ":" &amp; quote &amp; "Buy tea" &amp; quote &amp; "}" to URL tNotes
+post "{" &amp; quote &amp; "text" &amp; quote &amp; ":" &amp; quote &amp; "Call Ada" &amp; quote &amp; "}" to URL tNotes
+set the httpHeaders to empty
+put JSONImport(URL tNotes) into tList
+put the number of elements in tList
+put tList[2]["text"]
+httpdStop</code></pre>
+<pre class="out">2
+Call Ada</pre>
+</figure>
+<p>201 means "made". The notes live in a global, so they last while the program runs and are gone when it quits; a real app keeps them in a file or a database (<a href="../databases/">Databases</a>).</p>
+
+<h2 id="files">Serving a folder of files</h2>
+<p>A web site is mostly files: pages, pictures, style sheets. A route that finds the file named by the path and sends it, with the type the MIME library gives for its ending, serves a whole folder. One rule matters more than any other: <strong>never send a file outside the folder</strong>. A request for <code>/../../secret.txt</code> climbs out of it, so refuse any path with <code>..</code> in it:</p>
+<figure class="example" id="ex-web-files" data-run="output" data-needs="com.livecode.library.httpd com.livecode.library.mime">
+<pre class="code"><code>global gSite
+
+on serve pSocket, pRequest
+   global gSite
+   put pRequest["resource"] into tPath
+   if tPath is "/" then put "/index.html" into tPath
+   if ".." is in tPath or "\" is in tPath then
+      httpdResponse pSocket, 400, "Bad path"
+      exit serve
+   end if
+   if there is not a file (gSite &amp; tPath) then
+      httpdResponse pSocket, 404, "No such file"
+      exit serve
+   end if
+   set the itemDelimiter to "."
+   put mimeTheMIMETypeOfExtension(the last item of tPath) into tType
+   httpdResponse pSocket, 200, URL ("binfile:" &amp; gSite &amp; tPath), "Content-Type:" &amp;&amp; tType
+end serve
+
+put specialFolderPath("temporary") &amp; "/oxt-lesson-site" into gSite
+create folder gSite
+put "&lt;h1&gt;Home&lt;/h1&gt;" into URL ("binfile:" &amp; gSite &amp; "/index.html")
+put "h1 { color: teal }" into URL ("binfile:" &amp; gSite &amp; "/style.css")
+
+httpdStart "serve", 0
+put "http://127.0.0.1:" &amp; it into tServer
+put URL tServer
+get URL (tServer &amp; "/style.css")
+put libURLLastRHHeaders() into tHeaders
+replace numToChar(13) with empty in tHeaders
+filter tHeaders with "Content-Type:*"
+put tHeaders
+get URL (tServer &amp; "/../../etc/passwd")
+put the result
+httpdStop
+
+delete file (gSite &amp; "/index.html")
+delete file (gSite &amp; "/style.css")
+delete folder gSite</code></pre>
+<pre class="out">&lt;h1&gt;Home&lt;/h1&gt;
+Content-Type: text/css
+error 400 Bad Request</pre>
+</figure>
+<p>The browser shows a page from <code>/</code>, so it is common to send <code>index.html</code> for it, as here. Check the path before anything else: a server that forgets is one of the oldest ways of being broken into.</p>
+
+<h2 id="forms">Data from a form</h2>
+<p>An HTML form sends what was typed as <strong>parameters</strong>, which the library decodes into an array, for a <code>GET</code> in the address and for a <code>POST</code> from its content. The values arrive as UTF-8, so decode them, and when you put one back into a page, <strong>escape</strong> it, so that someone who types <code>&lt;script&gt;</code> cannot put code into your page:</p>
+<figure class="example" id="ex-web-form" data-run="output" data-needs="com.livecode.library.httpd">
+<pre class="code"><code>function escapeHTML pText
+   replace "&amp;" with "&amp;amp;" in pText
+   replace "&lt;" with "&amp;lt;" in pText
+   replace "&gt;" with "&amp;gt;" in pText
+   replace quote with "&amp;quot;" in pText
+   return pText
+end escapeHTML
+
+on serve pSocket, pRequest
+   put textDecode(pRequest["parameters"]["name"], "UTF-8") into tName
+   put "&lt;p&gt;Hello, " &amp; escapeHTML(tName) &amp; "&lt;/p&gt;" into tPage
+   httpdResponse pSocket, 200, textEncode(tPage, "UTF-8"), "Content-Type: text/html; charset=utf-8"
+end serve
+
+httpdStart "serve", 0
+put "http://127.0.0.1:" &amp; it &amp; "/hello" into tHello
+post "name=" &amp; urlEncode(textEncode("Zoë", "UTF-8")) to URL tHello
+put textDecode(it, "UTF-8")
+post "name=" &amp; urlEncode("&lt;script&gt;") to URL tHello
+put it
+httpdStop</code></pre>
+<pre class="out">&lt;p&gt;Hello, Zoë&lt;/p&gt;
+&lt;p&gt;Hello, &amp;lt;script&amp;gt;&lt;/p&gt;</pre>
+</figure>
+<p>The page that has the form needs only <code>&lt;form method="post" action="/hello"&gt;&lt;input name="name"&gt;&lt;button&gt;Send&lt;/button&gt;&lt;/form&gt;</code>, served from another route.</p>
+
+<section class="try" aria-labelledby="try-it">
+<h2 id="try-it">Try it yourself</h2>
+<p>Write a server that counts visits to each path, and answers every request with how many times that path has been asked for, counting this one: the first visit to <code>/a</code> gets <code>1</code>, the next <code>2</code>, and <code>/b</code> counts on its own.</p>
+<details class="solution"><summary>Show a solution</summary>
+<figure class="example" id="ex-web-try" data-run="output" data-needs="com.livecode.library.httpd">
+<pre class="code"><code>global gVisits
+
+on serve pSocket, pRequest
+   global gVisits
+   add 1 to gVisits[pRequest["resource"]]
+   httpdResponse pSocket, 200, gVisits[pRequest["resource"]]
+end serve
+
+put empty into gVisits
+httpdStart "serve", 0
+put "http://127.0.0.1:" &amp; it into tServer
+put URL (tServer &amp; "/a")
+put URL (tServer &amp; "/a")
+put URL (tServer &amp; "/b")
+put URL (tServer &amp; "/a")
+httpdStop</code></pre>
+<pre class="out">1
+2
+1
+3</pre>
+</figure>
+</details>
+</section>

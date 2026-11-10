@@ -305,7 +305,32 @@ void MCStack::setopacity(uint1 p_level)
 
 		if (t_new_long != t_old_long)
 		{
-			if (IsWindowVisible((HWND)window -> handle . window) && (t_new_long & WS_EX_LAYERED) != 0)
+			bool t_visible;
+			t_visible = IsWindowVisible((HWND)window -> handle . window) != FALSE;
+			if (t_visible && (t_new_long & WS_EX_LAYERED) != 0)
+				t_old_window = (HWND)window -> handle . window;
+			// OXT-Beyond: a visible window with a title bar that stops being
+			// translucent (its blendLevel back to 0) gets a new window too,
+			// as one that starts being translucent always has (above). Taking
+			// WS_EX_LAYERED off the window in place leaves the window
+			// manager with the title bar it laid out while the window was
+			// layered: on Windows 11 a shorter title bar with smaller,
+			// classic caption buttons, about one button to the right of the
+			// ones DWM draws, so a click on the minimize button DWM draws
+			// hit-tests as title bar and does nothing. The IDE's menubar
+			// opens at blendLevel 99 and goes to 0 once the IDE has started,
+			// and its minimize button did nothing (seen on Windows 11 25H2:
+			// WM_GETTITLEBARINFOEX gave a 50 px title bar with 78x46
+			// buttons where a window that was never layered had 62 px and
+			// 107x64). Dropping the window region alone (0.2.7-rc.6.12) did
+			// not fix it. A new window is laid out as any other, like the
+			// window the stack would get if it were opened opaque. Without
+			// a title bar or while hidden the window is changed in place,
+			// as before, and so is a minimized or maximized one, which a new
+			// window would show restored.
+			else if (t_visible && (t_old_long & WS_EX_LAYERED) != 0 && m_window_shape == nil &&
+					 (GetWindowLong((HWND)window -> handle . window, GWL_STYLE) & WS_CAPTION) == WS_CAPTION &&
+					 !IsIconic((HWND)window -> handle . window) && !IsZoomed((HWND)window -> handle . window))
 				t_old_window = (HWND)window -> handle . window;
 			else
 			{
@@ -336,6 +361,13 @@ void MCStack::setopacity(uint1 p_level)
 
 			RECT t_rect;
 			t_rect = getwrect(rect, t_style, t_ex_style);
+
+			// OXT-Beyond: a window that stops being translucent keeps the
+			// screen rect of the one it replaces (the stack's rect is in
+			// logical coordinates, which differ from the screen's on a scaled
+			// display), and only its translucency changes
+			if ((t_new_long & WS_EX_LAYERED) == 0)
+				GetWindowRect(t_old_window, &t_rect);
 
 			Bool t_is_xp_menu;
 			t_is_xp_menu = (mode == WM_PULLDOWN || mode == WM_POPUP || mode == WM_CASCADE) && (MCcurtheme && MCcurtheme->getthemeid() == LF_NATIVEWIN);
@@ -391,6 +423,21 @@ void MCStack::setopacity(uint1 p_level)
 		if (t_old_window != NULL)
 		{
 			RedrawWindow((HWND)window -> handle . window, NULL, NULL, RDW_INVALIDATE | RDW_FRAME | RDW_UPDATENOW);
+
+			// OXT-Beyond: a window that stops being translucent and was the
+			// active one hands that to its replacement before it goes, so the
+			// stack stays active. Destroyed while active, it left Windows to
+			// pick the next window, which could be another application's or
+			// none of this one's: the stacks were suspended and resumed, and
+			// a script answering that ran as if the user had switched away
+			// and back (the IDE's menubar then showed the topStack, a stack
+			// hidden by its own openStack script, at startup). Activation
+			// moving between the stack's own two windows sends no message:
+			// the old one is no longer the stack's, and the stack was never
+			// suspended.
+			if ((t_new_long & WS_EX_LAYERED) == 0 && GetActiveWindow() == t_old_window)
+				SetActiveWindow((HWND)window -> handle . window);
+
 			DestroyWindow(t_old_window);
 		}
 	}

@@ -215,6 +215,7 @@ end setUpDataView
 -- Message Box is the defaultStack meanwhile.)
 on ideSystemAppearanceChanged
    local tOldDefault
+   __RecolorizeMessages
    switch lSelectedCard
       case "Front Scripts"
       case "Back Scripts"
@@ -232,6 +233,34 @@ on ideSystemAppearanceChanged
          break
    end switch
 end ideSystemAppearanceChanged
+
+-- OXT-Beyond: the script typed in the Message Box (the Single Line
+-- message and the Multiple Lines script) keeps the colours it was given
+-- when it was typed, and those come from the Script Editor's scheme for
+-- the appearance of that moment (revSEColorizeField: the light one in the
+-- light appearance, "dark mode" in the dark one). After a switch from
+-- light to dark its words stayed olive, purple, navy and black on the now
+-- dark field, and after a switch back they stayed light on white (seth,
+-- the web IDE, 2026-11-08). Both are coloured again here, with the scheme
+-- for the new appearance; revSEColorizeField also gives the engine that
+-- scheme, which the Multiple Lines script's own colouring
+-- (scriptColorize) then uses. The autocomplete hint stays grey, as it is
+-- drawn. Nothing changes while the appearance stays as it is.
+command __RecolorizeMessages
+   local tField
+   if there is a field "message" of card "Single Line" of me then
+      put the long id of field "message" of card "Single Line" of me into tField
+      if the text of tField is not empty then
+         dispatch "revSEColorizeField" to stack "revSEUtilities" with tField
+      end if
+   end if
+   if there is a field "script" of card "Multiple Lines" of me then
+      put the long id of field "script" of card "Multiple Lines" of me into tField
+      if the text of tField is not empty then
+         dispatch "revSEColorizeField" to stack "revSEUtilities" with tField
+      end if
+   end if
+end __RecolorizeMessages
 
 command showCard pCard
    lock screen

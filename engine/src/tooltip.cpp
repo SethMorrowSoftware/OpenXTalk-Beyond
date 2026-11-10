@@ -220,6 +220,11 @@ void MCTooltip::closetip()
 		close();
 }
 
+#if defined(__EMSCRIPTEN__)
+// em-theme.cpp: the colour of a tooltip's text in the dark appearance
+bool MCEmscriptenThemeGetTooltipTextColor(MCColor& r_color);
+#endif
+
 void MCTooltip::render(MCContext *dc, const MCRectangle &dirty)
 {
 	// IM-2012-05-31 [[ Malte ]] fix linux crashes that can occur when the tooltip text is NULL
@@ -246,6 +251,15 @@ void MCTooltip::render(MCContext *dc, const MCRectangle &dirty)
 	{
 		setforeground(dc, DI_BACK, False);
 		dc -> fillrect(trect);
+#if defined(__EMSCRIPTEN__)
+		// OXT-Beyond: on the web, in the dark appearance, the background is
+		// dark (em-theme.cpp), so the text is white; in the light
+		// appearance it is black, as before
+		MCColor t_text_color;
+		if (MCEmscriptenThemeGetTooltipTextColor(t_text_color))
+			dc -> setforeground(t_text_color);
+		else
+#endif
 		dc -> setforeground(MCscreen -> black_pixel);
 	}
 

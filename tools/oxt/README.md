@@ -16,7 +16,7 @@ development engine without a user interface.
 | `fetch_assets.py` | downloads, caches and verifies the external assets listed in `external-assets.json` (see [External assets](#external-assets)) |
 | `xtalk_extensions.py` | pins, fetches and builds the xTalk Suite extensions listed in `xtalk-extensions.json` (see [xTalk Suite extensions](#xtalk-suite-extensions-xtalk_extensionspy)) |
 | `make_runtimes_asset.py` | builds an `oxt-runtimes-<label>.zip` asset from this repository's CI builds (`--builds`), or from an installed OXT Lite as for 1.15 (see [The runtimes asset](#the-runtimes-asset)) |
-| `ide-stack-patch.sh`, `ide-stack-patch.livecodescript` | apply the script, property and image patches in `ide-stack-patches/` to the binary IDE stacks, verified (see [Binary IDE stacks](#binary-ide-stacks)) |
+| `ide-stack-patch.sh`, `ide-stack-patch.livecodescript` | apply the script, property, image and clone patches in `ide-stack-patches/` to the binary IDE stacks, verified (see [Binary IDE stacks](#binary-ide-stacks)) |
 | `stack-scripts.sh`, `stack_scripts.py` | keep every object script of the binary IDE stacks as a text file in `stack-scripts/`, or check that they match (see [The stacks' scripts as text](#the-stacks-scripts-as-text-stack-scripts)) |
 | `ide-stack-dump.livecodescript` | writes every object of a stack file as text, to compare two versions of a stack |
 | `legacy_todo.py` | writes [LEGACY-TODO.md](../../LEGACY-TODO.md), the FIXME, TODO and HACK notes in the inherited code, linked to their lines; `--check` tells whether it is up to date |
@@ -386,7 +386,7 @@ disagree, the layout follows the IDE:
   `x86-32`. The runtime's `Info.plist` is staged as built (the builder
   edits it line by line), so it must already declare the lowest minimum
   macOS of its engine; `package.py` checks that it does (after the lipo
-  merge: the x86_64 build's 10.13).
+  merge: the x86_64 build's, 11.0 since 0.2.7-rc.6.19 as the arm64 build's).
   [`tools/ci/standalone_check.py`](../ci/standalone_check.py) checks
   these folders in an installed app (engines, architectures, minimum
   macOS, icons, `Support`, `Externals` lists, signatures) and builds and
@@ -539,8 +539,8 @@ Intended differences from OXT Lite 1.15:
 | the 3 junk and 2 excluded files | see [Classes](#classes) |
 | `LICENSE`, `LICENSE-EXCEPTION.md`, `THIRD-PARTY-NOTICES.md` | added: OXT-Beyond's licence files |
 | `Ext/mergJSON/**` | added: mergJSON, built from its source in `mergjson/` (the external, its library and the licences of its code) |
-| `PROVENANCE-oxt-runtimes-*.md` | added: provenance of the runtimes asset (`PROVENANCE-oxt-runtimes-0.2.7-rc.6.16b.md`, and `PROVENANCE-oxt-runtimes-1.15.md` for its Android files) |
-| `Runtime/Windows/x86-32/**`, `Runtime/Linux/**`, timezone `code/**` and `resources/**` | with a runtimes asset made from this repository's builds (any but `oxt-runtimes-1.15`), these may differ from 1.15's files, lack what 1.15's Linux runtimes bundled in `lib/` (shared libraries of other projects) and its iOS and macOS 10.9 timezone code, or have new files (the externals lists of the 64-bit Linux runtime, for example); `Runtime/Android/**`, carried over unchanged, is compared byte for byte |
+| `PROVENANCE-oxt-runtimes-*.md` | added: provenance of the runtimes asset (`PROVENANCE-oxt-runtimes-0.2.7.md`, and `PROVENANCE-oxt-runtimes-1.15.md` for its Android files) |
+| `Runtime/Windows/x86-32/**`, `Runtime/Linux/**`, timezone `code/**` and `resources/**` | with a runtimes asset made from this repository's builds (any but `oxt-runtimes-1.15`), these may differ from 1.15's files, lack what 1.15's Linux runtimes bundled in `lib/` (shared libraries of other projects) and its iOS and macOS 10.9 timezone code, or have new files (the externals lists of the 64-bit Linux runtime, for example); `Runtime/Android/**`, carried over unchanged, is compared byte for byte, apart from the Java layer that such an asset's `java_layer` names (`Runtime/Android/Classes`, built from this repository) |
 | `Extensions/<xTalk folders>/**`, `Extensions/XTALK-EXTENSIONS.txt` | added: the xTalk Suite extensions (class `xtalk`); against a reference that has them they are compared like build outputs, and `--no-xtalk-extensions` makes them intended differences |
 
 Result with the CI build of this repository
@@ -573,7 +573,7 @@ keys stay):
 | `CFBundleIconFile` | `OXT-Beyond.icns` | made from `Installer/oxt-beyond/branding/png/` by `icns.py` |
 | `CFBundleExecutable` | `OXT-Beyond` | the renamed executable |
 | `LSArchitecturePriority` | the layout's architectures, arm64 first | LiveCode's says `x86_64, i386`: LaunchServices starts the first listed architecture the binary has, so a universal app would run under Rosetta on Apple Silicon |
-| `LSMinimumSystemVersion` | the lowest `minos` of the engine's slices: 10.13 for `mac-universal` | Xcode writes the deployment target of the one build the tree came from (11.0 for arm64); a universal app must declare its lowest slice's, or Intel Macs below 11 refuse it |
+| `LSMinimumSystemVersion` | the lowest `minos` of the engine's slices: 11.0 for `mac-universal` (10.13 up to 0.2.7-rc.6.18) | Xcode writes the deployment target of the one build the tree came from (11.0 for arm64); a universal app must declare its lowest slice's, or Intel Macs below 11 refuse it |
 | `CFBundleDocumentTypes` | `.oxtstack` and `.oxtscript` with rank Owner; LiveCode's `.rev`, `.livecode`, `.livecodescript` entry with rank Alternate | the app opens LiveCode's files but does not take them over from an installed LiveCode, as on Windows, where the installer associates only the OXT types |
 | `UTExportedTypeDeclarations` | `io.github.sethmorrowsoftware.oxt-beyond.stack` (`.oxtstack`, public.data) and `.script` (`.oxtscript`, public.script: plain text, so Quick Look shows it) | OXT-Beyond's types; no document icon is named, so macOS 11 and later draw one from the app icon |
 | `UTImportedTypeDeclarations` | LiveCode's `com.runrev.*` types, which the engine's plist exports | LiveCode owns them; its two declarations of `com.runrev.livecode.stack` become one |
@@ -607,9 +607,9 @@ mac-universal") builds the release app from the two CI builds:
 
    | rule | files | why |
    |---|---:|---|
-   | `DIFFER` plist: `**/Contents/Info.plist` | 16 (every bundle's) | they differ only in `LSMinimumSystemVersion` (11.0 / 10.13; Xcode writes each build's deployment target); the x86_64 build's copy is taken byte for byte (the standalone builder edits the runtime's line by line), and it must match the lowest `minos` of the bundle's executable. Any other key that differs fails, except the build machine's (`DT*`, `BuildMachineOSBuild`), which are reported. After writing, one array is edited: `LiveCode-Community.app`'s `LSArchitecturePriority` says `x86_64, i386` (LiveCode's Intel days), and LaunchServices starts the first listed architecture the executable holds, so the universal development engine would run under Rosetta on Apple Silicon; it becomes `arm64, x86_64` (only that array, as text; a plist without the key, such as the runtime's, is not touched) |
+   | `DIFFER` plist: `**/Contents/Info.plist` | 16 (every bundle's) | they differ at most in `LSMinimumSystemVersion` (11.0 in both since 0.2.7-rc.6.19, before that 11.0 / 10.13; Xcode writes each build's deployment target); the x86_64 build's copy is taken byte for byte (the standalone builder edits the runtime's line by line), and it must match the lowest `minos` of the bundle's executable. Any other key that differs fails, except the build machine's (`DT*`, `BuildMachineOSBuild`), which are reported. After writing, one array is edited: `LiveCode-Community.app`'s `LSArchitecturePriority` says `x86_64, i386` (LiveCode's Intel days), and LaunchServices starts the first listed architecture the executable holds, so the universal development engine would run under Rosetta on Apple Silicon; it becomes `arm64, x86_64` (only that array, as text; a plist without the key, such as the runtime's, is not touched) |
    | `DIFFER` seal: `**/Contents/_CodeSignature/CodeResources` | 2 (`LiveCode-Community.app`, `reviphone.bundle`) | a bundle's resource seal records the code-directory hash of its nested code, which differs per architecture; it is stale after the merge either way and written again when the tree is signed |
-   | `SINGLE_ARCH`: `**/reviphoneproxy`, `**/reviphoneproxy.dSYM/**` | 2 (`reviphoneproxy`, `reviphone.bundle/Contents/MacOS/reviphoneproxy`) | the iOS simulator helper is built for x86_64 only on both runners (revmobile.gyp); the x86_64 build's copy (10.13) is taken, and nothing of the arm64 build's copy (also x86_64 only, 11.0) is lost |
+   | `SINGLE_ARCH`: `**/reviphoneproxy`, `**/reviphoneproxy.dSYM/**` | 2 (`reviphoneproxy`, `reviphone.bundle/Contents/MacOS/reviphoneproxy`) | the iOS simulator helper is built for x86_64 only on both runners (revmobile.gyp); the x86_64 build's copy is taken, and nothing of the arm64 build's copy (also x86_64 only, 11.0) is lost |
    | `ONE_SIDED`: `**/*.dSYM/Contents/Resources/Relocations/<arch>/**` | none in these builds' binaries | dsymutil writes each architecture's relocations into a folder of its own, when it writes them |
 
    `--dry-run` only reports; `--no-lipo` joins the slices with the
@@ -765,7 +765,10 @@ platform, and through Apache on Linux.
 layout: files this repository does not build, kept out of git and published
 as GitHub Release assets. Now this is the runtimes asset: the other
 platforms' standalone runtimes, built from this repository, with OXT Lite
-1.15's Android runtime (see [The runtimes asset](#the-runtimes-asset)). (The
+1.15's Android runtime (its Java layer built from this repository in the
+assets that name one, `java_layer`, and OXT-Beyond's own Android engine
+beside it in those that name one, `android_engine`; see
+[The runtimes asset](#the-runtimes-asset)). (The
 xTalk Suite extensions are not assets: see
 [below](#xtalk-suite-extensions-xtalk_extensionspy).)
 
@@ -773,14 +776,14 @@ xTalk Suite extensions are not assets: see
 {
   "assets": [
     {
-      "id": "oxt-runtimes-0.2.7-rc.6.16b",
-      "url": "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/runtimes-0.2.7-rc.6.16b/oxt-runtimes-0.2.7-rc.6.16b.zip",
+      "id": "oxt-runtimes-0.2.7",
+      "url": "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/runtimes-0.2.7/oxt-runtimes-0.2.7.zip",
       "sha256": "<64 lowercase hex digits>",
       "size": 123456789,
       "kind": "zip",
       "strip": 1,
       "dest": "",
-      "rename": { "PROVENANCE.md": "PROVENANCE-oxt-runtimes-0.2.7-rc.6.16b.md" },
+      "rename": { "PROVENANCE.md": "PROVENANCE-oxt-runtimes-0.2.7.md" },
       "exclude": { "win-x86_64": ["Runtime/Windows/x86-64/**", "..."], "...": ["..."] },
       "description": "...", "licence": "...", "source": "..."
     }
@@ -808,12 +811,24 @@ xTalk Suite extensions are not assets: see
   instead of `package.py`'s "comes from both" error; `exclude_note` says
   why. A key that matches no platform is an error, and a glob that matches
   nothing on the platform is reported (a stale glob excludes nothing).
+* `java_layer` (optional, the runtimes asset only) names the Android
+  runtime's Java layer when it was built from the commit `source` names,
+  not carried over (`make_runtimes_asset.py --android-classes`):
+  `package.py --compare` then lets it differ from 1.15's, and
+  `tools/ci/runtimes_provenance.py` counts the commits since the asset's
+  for it.
+* `android_engine` (optional, the runtimes asset only) names the folder of
+  OXT-Beyond's own Android engine, `Runtime/Android/Beyond`, when the
+  asset carries it (`make_runtimes_asset.py --android-engine`): the
+  Android builder takes it for a stack whose `"android,engine"` setting
+  is `"beyond"`, and `tools/ci/runtimes_provenance.py` counts the commits
+  since the asset's for it.
 * `description`, `licence` and `source` are for people.
 
 The runtimes asset excludes, per platform, what that platform's own build
 makes (`make_runtimes_asset.py` writes these; `OWN_PARTS` there):
 
-| platform | left out of `oxt-runtimes-0.2.7-rc.6.16b` | why |
+| platform | left out of `oxt-runtimes-0.2.7` | why |
 |---|---|---|
 | `win-x86_64` | `Runtime/Windows/x86-64/**`, timezone `code/x86_64-win32/**` | the build's own runtime and timezone code |
 | `linux-x86_64` | `Runtime/Linux/x86-64/**`, timezone `code/x86_64-linux/**`, timezone `resources/**` | the build's own runtime and timezone code, and the zoneinfo data (tz.gyp `tzdata`, which the Windows builds do not make) |
@@ -961,7 +976,8 @@ build makes (the asset's `exclude` in `external-assets.json`).
 python tools/oxt/make_runtimes_asset.py --builds --label LABEL --out DIR
     --bin win-x86=PATH --bin win-x86_64=PATH --bin linux-x86=PATH --bin linux-x86_64=PATH
     [--carry oxt-runtimes-1.15.zip] [--assets-cache DIR] [--commit SHA]
-    [--run BUILDS=URL]... [--update-manifest [FILE]]
+    [--run BUILDS=URL]... [--android-classes JAR] [--android-engine DIR]
+    [--update-manifest [FILE]]
 ```
 
 Each `PATH` is a build output folder or the CI archive that holds it
@@ -978,7 +994,30 @@ library's Android code are not built here: they are carried over unchanged
 from `oxt-runtimes-1.15` (downloaded into the assets cache and checked
 against its SHA-256, which the tool records), and that asset's
 `PROVENANCE.md` goes into the new archive as
-`PROVENANCE-oxt-runtimes-1.15.md`. Every `.exe`, `.dll`, `.so` and engine
+`PROVENANCE-oxt-runtimes-1.15.md`. With `--android-classes JAR` the
+Android runtime's Java layer built from this repository
+(`tools/ci/android_java.py build`, from `engine/src/java` at the builds'
+commit) takes the place of the carried `Runtime/Android/Classes`
+(LiveCode Community 9.6.3's): the jar must hold only class files, among
+them the classes the engines and the Android builder name, and every
+PendingIntent it makes must say whether it is mutable; it gets the date of
+the builds' newest file. The manifest entry then names it
+(`"java_layer": "Runtime/Android/Classes"`), and `PROVENANCE.md` says what
+it replaced and how it was checked. With `--android-engine DIR` the asset
+also carries OXT-Beyond's own Android engine, beside LiveCode 9.6.3's and
+not in its place, as `Runtime/Android/Beyond`: DIR is the runtime folder
+that `tools/ci/android_engine.py merge` made of the four build folders of
+the "Android engine" workflow, and it must pass `android_engine.py check`
+for every architecture, hold nothing but that runtime (the engines and
+externals of the four architectures, the Java layer, the manifest and the
+files beside them) and carry this source tree's engine version in every
+engine. The Android builder takes it from there only for a stack whose
+`"android,engine"` setting is `"beyond"`; the carried runtime, which every
+other stack is built with, is left as it is. Its files get the date of the
+builds' newest file, the manifest entry names the folder
+(`"android_engine": "Runtime/Android/Beyond"`), `--run android-engine=URL`
+records the run that built it, and `PROVENANCE.md` says what it is, how it
+was made and checked, and its licences. Every `.exe`, `.dll`, `.so` and engine
 must be a PE or ELF file of its build's architecture, and every
 `Standalone` must carry this source tree's engine version, or no archive
 is written. The generated `PROVENANCE.md` names the commit and the CI
@@ -995,7 +1034,15 @@ entries of `external-assets.json`.
 [`.github/workflows/runtimes.yml`](../../.github/workflows/runtimes.yml)
 ("Runtimes asset", started by hand) does all of this from the artifacts
 of a "Build (Windows)" and a "Build (Linux)" run of the same commit,
-whose 32-bit and 64-bit builds must have passed; it uploads the result
+whose 32-bit and 64-bit builds must have passed. It builds the Java layer
+from that commit and checks it as `android-java.yml` checks a pull
+request's (`android_java.py compare` with the Java layer of the asset
+pinned at that commit, `jni` against its Android engines, and `rules`)
+before it passes it with `--android-classes`. Given the id of an "Android
+engine" run of the same commit (`android-engine-run`, optional) whose four
+build jobs and emulator job passed, it downloads that run's four folders,
+makes them one runtime with `android_engine.py merge` as the run's emulator
+job did, and passes it with `--android-engine`. It uploads the result
 as the artifact `runtimes-asset` and, with `publish`, creates the
 pre-release `runtimes-<label>` at that commit (which must be on `main`)
 with the zip and its `PROVENANCE.md`. A published asset is never
@@ -1061,8 +1108,9 @@ or a cache that holds the zip is given.
 Most of the IDE is script-only stacks (`*.livecodescript`), which are
 edited as text. Some code lives in binary stacks (`*.livecode`, `*.rev`),
 for example the dataView behaviour in `ide/Toolset/palettes/revCore.8.livecode`.
-Those are changed only through the script, property and image patches in
-`ide-stack-patches/`, applied by a headless engine, so that every change is
+Those are changed only through the script, property, image and clone
+patches in `ide-stack-patches/`, applied by a headless engine, so that every
+change is
 reviewable text and the result is verified:
 
 ```
@@ -1109,9 +1157,38 @@ image: Installer/oxt-beyond/branding/png/oxt-beyond-64.png
 from-sha1: 0f68ea29bec282ccb97aa734914244242d1561c6
 ```
 
+A clone patch file adds a control: a copy of one the stack has, in the same
+card or group, with its own name, a unique id (`cREVGeneral["revUniqueID"]`,
+13 digits: the milliseconds when the patch was written, as the IDE gives a
+new object) and the properties it gets its own value of. The Android card's
+"Post Notifications" box is one:
+
+```
+file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
+object: button "AD" of group "permissions" of group "Application Permissions" of group "Android Settings" of card "Android"
+clone: POST_NOTIFICATIONS
+unique-id: 1793989825265
+property: label
+to: Post Notifications
+property: rect
+to: 589,643,728,666
+```
+
+A clone patch is a file of its own. It is applied when the owner has no
+control of that name, and already applied when it has one with the
+unique id and every `to:` value. The copy goes on top of its owner's
+controls, so the objects of the card above it move up a layer, and the
+engine puts it 32 pixels right of and below its source, so the patch sets
+its `rect`. When the copy lies outside its groups, they grow to hold it: a
+property patch in a later file (by name) declares each of their rectangles,
+from the file's value to the one the copy gives it.
+
 For each stack file the tool dumps every object
 (`ide-stack-dump.livecodescript`), applies the patches, checks that only the
-patched scripts and properties differ, saves the stack, loads the saved file
+patched scripts and properties differ (and, with a clone, that the copy is
+its source but for its id, name, layer, unique id and patched properties,
+that the objects above it moved up one layer and that the stack's last id is
+the copy's), saves the stack, loads the saved file
 again and checks that it dumps exactly like the patched stack and keeps its
 file format (for example `REVO7000`); otherwise it writes the original back.
 
@@ -1127,7 +1204,8 @@ OXT_DUMP_FILE=<stack file> OXT_DUMP_OUT=<text file> \
 
 `tools/ci/check_ide_stacks.py` (run in CI before the build) checks that
 every script and image patch is applied, from the stack files' bytes,
-without an engine. Property patches cannot be seen in the bytes that way, so
+without an engine, and that each clone's name and unique id are in its
+stack file. Property patches cannot be seen in the bytes that way, so
 the Linux build checks every patch with the engine it built
 (`tools/oxt/ide-stack-patch.sh <engine> --check`).
 
