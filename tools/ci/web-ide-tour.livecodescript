@@ -804,10 +804,10 @@ end tour_touch_menu
 -- when a line of its top level began with a mark, so the submenu's
 -- ticks were parsed and never drawn: the options looked off whatever
 -- they were set to (seth, the web IDE in Brave on Windows 11). The
--- submenu is read twice, its four options on and then off: the strip of
+-- submenu is read twice, its five options on and then off: the strip of
 -- it where the ticks go must differ between the two, and the
 -- preferences are put back as they were.
-constant kImportStackPrefs = "cHyperCardFixScripts,cHyperCardMessageOrder,cHyperCardClassicLook,cHyperCardImportSummary"
+constant kImportStackPrefs = "cHyperCardFixScripts,cHyperCardMessageOrder,cHyperCardClassicLook,cHyperCardMacFonts,cHyperCardImportSummary"
 
 on tour_import_stack_marks
    local tPref, tSaved, tOn, tOff, tDiffer, tError
@@ -839,7 +839,7 @@ on tour_import_stack_marks
    put tourStripsDiffer(tOn, tOff) into tDiffer
    tourRecord "INFO import-stack-marks: the tick strip differs in" && tDiffer && "pixels, options on and off;" && \
          "its lumas spread by" && tourStripSpread(tOff)
-   -- a tick is a filled polygon of about 30 pixels, and there are four
+   -- a tick is a filled polygon of about 30 pixels, and there are five
    if tDiffer < 40 then
       throw "File > Import Stack's ticks are not drawn: the submenu's tick strip differs in" && \
             tDiffer && "pixels between its options on and off"

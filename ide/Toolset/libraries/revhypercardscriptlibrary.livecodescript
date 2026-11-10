@@ -586,7 +586,8 @@ pStack (String): The imported stack.
 Description:
 File > Import Stack does this for a new import unless the preference
 cHyperCardClassicLook is false, and the web Stack Player does it for
-every HyperCard stack it opens. It sets the stack's colours (the cards
+every HyperCard stack it opens unless the box for it on its page is
+unticked. It sets the stack's colours (the cards
 and controls that set none of their own take them), turns off the 3D
 borders of its buttons and fields, and draws HyperCard's standard and
 default buttons, which this engine would draw as the platform's push
@@ -597,7 +598,7 @@ reads changes but the colours, the threeD and the style of a standard
 button.
 */
 command revHyperCardClassicLook pStack
-   local tObject, tStyle
+   local tObject, tStyle, tKind
    if word 1 of pStack is not "stack" then put the long id of stack pStack into pStack
    if the uHyperCard["classic"] of pStack is true then return empty
    lock screen
@@ -606,7 +607,12 @@ command revHyperCardClassicLook pStack
    set the borderColor of pStack to "black"
    set the shadowColor of pStack to "black"
    repeat for each line tObject in _Objects(pStack)
-      switch word 1 of tObject
+      -- (in an imported stack a card's own field's long id begins "card
+      -- field", "field" naming a background's there, and its fields were
+      -- left in 3D up to 0.2.7)
+      put word 1 of tObject into tKind
+      if tKind is "card" then put word 2 of tObject into tKind
+      switch tKind
          case "button"
             put the style of tObject into tStyle
             if tStyle is among the words of "standard default" then
@@ -626,6 +632,163 @@ command revHyperCardClassicLook pStack
    unlock screen
    return empty
 end revHyperCardClassicLook
+
+-- The Mac fonts HyperCard stacks name that other systems do not have, and
+-- the faces to show each in, best first: "Name:face,face|...". Chicago's
+-- is ChicagoFLF, which ships with the IDE (revHyperCardMacFontFile); the
+-- others are faces of the same kind that Windows, macOS or Linux come
+-- with (Geneva in a wide sans like Verdana or DejaVu Sans, Monaco in a
+-- monospaced face), until look-alikes whose licences allow it ship too
+constant kMacFontStandIns = "Chicago:ChicagoFLF|Geneva:Verdana,DejaVu Sans,Bitstream Vera Sans,Arial,Liberation Sans|New York:Times New Roman,Times,Liberation Serif,DejaVu Serif,FreeSerif|Monaco:Lucida Console,Menlo,DejaVu Sans Mono,Liberation Mono,Courier New,Courier|Palatino:Palatino Linotype,Book Antiqua,URW Palladio L,P052,TeX Gyre Pagella"
+
+/*
+The file of ChicagoFLF, the public-domain look-alike of the Mac font
+Chicago that <revHyperCardMacFonts> shows Chicago in: the IDE's
+resources/supporting_files/fonts/hypercard/ChicagoFLF.ttf. The IDE does
+not load that folder at startup; <revHyperCardUseMacFonts> loads it.
+
+Returns (String): The path, or empty when this copy of the library has
+no such file beside it (the web Stack Player's).
+*/
+function revHyperCardMacFontFile
+   local tPath
+   set the itemDelimiter to slash
+   put the effective filename of me into tPath
+   if tPath is empty or the number of items of tPath < 3 then return empty
+   put item 1 to -3 of tPath & "/resources/supporting_files/fonts/hypercard/ChicagoFLF.ttf" into tPath
+   if there is not a file tPath then return empty
+   return tPath
+end revHyperCardMacFontFile
+
+/*
+Loads ChicagoFLF (<revHyperCardMacFontFile>) for this session, unless it
+is loaded: File > Import Stack does this before <revHyperCardMacFonts>,
+and the IDE as a stack it gave the look-alikes opens again.
+
+Returns: Empty, or why the font was not loaded (the engine's "can't load
+font file", or "no font file"). A font that does not load is never an
+error: the text it would show is shown as it was.
+*/
+command revHyperCardUseMacFonts
+   local tFile, tError
+   if "ChicagoFLF" is among the lines of the fontNames then return empty
+   put revHyperCardMacFontFile() into tFile
+   if tFile is empty then return "no font file"
+   try
+      start using font file tFile
+   catch tError
+      return "can't load font file"
+   end try
+   return the result
+end revHyperCardUseMacFonts
+
+/*
+Shows the Mac fonts an imported HyperCard stack names in look-alikes
+this system has: Chicago in ChicagoFLF, and Geneva, New York, Monaco and
+Palatino in faces of their kind (Verdana or DejaVu Sans, Times New
+Roman, Lucida Console or DejaVu Sans Mono, Palatino Linotype).
+
+pStack (String): The imported stack.
+
+pFontNames (String): The fonts this system has, one a line (optional;
+the fontNames when left out).
+
+Description:
+File > Import Stack does this for a new import unless the preference
+cHyperCardMacFonts is false, after <revHyperCardUseMacFonts>. Off the
+Mac, the engine shows a font it does not have in its default face,
+whose widths differ, so that text wrapped and spilled where it did not
+in HyperCard. The textFont of the stack, its cards, backgrounds and
+controls, and the font runs of its fields' text (each card's text of a
+background field) are set to the look-alike. A font this system has
+stays as it is (a Mac has Geneva, Monaco and Palatino), and so does one
+with no look-alike here, Chicago among them when ChicagoFLF did not
+load. What each name became is kept in the stack's uHyperCard["fonts"]
+("name<tab>look-alike" lines), and uHyperCard["macfonts"] is set to
+true, so that it is not done twice. Stacks imported before are not
+changed.
+*/
+command revHyperCardMacFonts pStack, pFontNames
+   local tMap, tName, tKey, tObject, tFont, tUsed, tBgOf, tBg, i, tId, tCard, tList, tOut
+   if word 1 of pStack is not "stack" then put the long id of stack pStack into pStack
+   if the uHyperCard["macfonts"] of pStack is true then return empty
+   if pFontNames is empty then put the fontNames into pFontNames
+   -- the look-alike of each Mac font this system does not have
+   set the itemDelimiter to "|"
+   repeat for each item tName in kMacFontStandIns
+      put offset(colon, tName) into i
+      put char 1 to i - 1 of tName into tKey
+      if tKey is among the lines of pFontNames then next repeat
+      set the itemDelimiter to comma
+      repeat for each item tFont in char i + 1 to -1 of tName
+         if tFont is among the lines of pFontNames then
+            put tFont into tMap[tKey]
+            exit repeat
+         end if
+      end repeat
+      set the itemDelimiter to "|"
+   end repeat
+   lock screen
+   if the number of elements of tMap > 0 then
+      -- the fields of each background, whose text may be each card's own
+      repeat with tBg = 1 to the number of backgrounds of pStack
+         repeat with i = 1 to the number of controls of background tBg of pStack
+            put the id of background tBg of pStack into tBgOf[the id of control i of background tBg of pStack]
+         end repeat
+      end repeat
+      repeat for each line tObject in _Objects(pStack)
+         put the textFont of tObject into tFont
+         if tFont is not empty and tMap[tFont] is not empty then
+            repeat for each key tKey in tMap
+               if tKey is tFont then exit repeat
+            end repeat
+            set the textFont of tObject to tMap[tKey]
+            put true into tUsed[tKey]
+         end if
+         if not (word 1 of tObject is "field" or word 1 to 2 of tObject is "card field") then next repeat
+         put the id of tObject into tId
+         if tBgOf[tId] is not empty and not the sharedText of tObject then
+            -- (a background field's text on each card it is on)
+            put empty into tList
+            repeat for each line tCard in the cardIDs of background id tBgOf[tId] of pStack
+               -- (not its long id, which names the card it is on now)
+               put "field id" && tId && "of card id" && tCard && "of" && pStack & return after tList
+            end repeat
+         else
+            put tObject into tList
+         end if
+         repeat for each line tCard in tList
+            if tCard is not empty then _MacFontRuns tCard, tMap, tUsed
+         end repeat
+      end repeat
+   end if
+   repeat for each item tName in kMacFontStandIns
+      put char 1 to offset(colon, tName) - 1 of tName into tKey
+      if tUsed[tKey] then put tKey & tab & tMap[tKey] & return after tOut
+   end repeat
+   delete the last char of tOut
+   set the uHyperCard["fonts"] of pStack to tOut
+   set the uHyperCard["macfonts"] of pStack to true
+   unlock screen
+   return empty
+end revHyperCardMacFonts
+
+-- The font runs of the text of pField that name a font of pMap set to its
+-- look-alike; each one found is set to true in pUsed
+private command _MacFontRuns pField, pMap, @pUsed
+   local tHtml, tKey, tChanged
+   put the htmlText of pField into tHtml
+   if "face=" is not in tHtml then exit _MacFontRuns
+   repeat for each key tKey in pMap
+      -- (replace ignores case, as the engine's font names do)
+      if ("face=" & quote & tKey & quote) is in tHtml then
+         replace ("face=" & quote & tKey & quote) with ("face=" & quote & pMap[tKey] & quote) in tHtml
+         put true into pUsed[tKey]
+         put true into tChanged
+      end if
+   end repeat
+   if tChanged then set the htmlText of pField to tHtml
+end _MacFontRuns
 
 /*
 A summary of a HyperCard import for a person, a screenful at most: what
@@ -744,6 +907,18 @@ function revHyperCardImportSummary pStack, pImportLog
          put tKey && "x" & tTypes[tKey] after tNames
       end repeat
       put return & "Resources not converted:" && tNames & return after tOut
+   end if
+
+   -- the Mac fonts shown in look-alikes (revHyperCardMacFonts)
+   put empty into tNames
+   set the itemDelimiter to tab
+   repeat for each line tLine in the uHyperCard["fonts"] of pStack
+      if tNames is not empty then put ", " after tNames
+      put item 1 of tLine && "as" && item 2 of tLine after tNames
+   end repeat
+   set the itemDelimiter to comma
+   if tNames is not empty then
+      put return & "Mac fonts shown in look-alikes:" && tNames & return after tOut
    end if
 
    -- fonts the stack names that this system does not have
