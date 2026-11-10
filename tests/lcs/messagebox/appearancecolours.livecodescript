@@ -22,18 +22,25 @@ script "TestMessageBoxAppearanceColours"
 -- "revSEUtilities" whose revSEColorizeField notes the fields it was given.
 -- (The colours themselves, light and dark, are checked in the web IDE by
 -- tools/ci/web-ide-tour.livecodescript's message-box-colours step.)
+--
+-- It also tests that the selection in both fields is drawn in the Script
+-- Editor's highlight colour (__UpdateMessageHilite, from openStack and
+-- from a change to the "editor,hilitecolor" preference), which the
+-- stand-in's revSEGetPreference answers from gTestMessageBoxHilite.
+-- Before, both kept a hiliteColor saved in the stack, much too light in
+-- the dark appearance (bwmilby, the forum, 2026-11-09).
 -- In kStubs "|" stands for a return and "~" for a quote.
 constant kStack = "TestMessageBoxAppearanceColoursStack"
 
-constant kBoxHandlers = "ideSystemAppearanceChanged,__RecolorizeMessages"
-constant kBoxStubs = "local lSelectedCard|command setUpDataView|end setUpDataView"
+constant kBoxHandlers = "ideSystemAppearanceChanged,__RecolorizeMessages,idePreferenceChanged,__UpdateMessageHilite"
+constant kBoxStubs = "local lSelectedCard|command setUpDataView|end setUpDataView|command testUpdateHilite|__UpdateMessageHilite|end testUpdateHilite"
 
 constant kLineHandlers = "revNextLine,revPrevLine"
 constant kLineStubs = "local lHistory, lHistoryIndex, lNumInHistory, lMatchingHistory, lNumMatching, lMatchingIndex|command testSetHistory pHistory|put pHistory into lHistory|put the number of lines of pHistory into lNumInHistory|put 0 into lHistoryIndex|end testSetHistory"
 
-constant kUtilities = "global gTestMessageBoxColourized|command revSEColorizeField pField|put pField & return after gTestMessageBoxColourized|end revSEColorizeField"
+constant kUtilities = "global gTestMessageBoxColourized, gTestMessageBoxHilite, gTestMessageBoxPrefAsked|command revSEColorizeField pField|put pField & return after gTestMessageBoxColourized|end revSEColorizeField|command revSEGetPreference pPreference|put pPreference & return after gTestMessageBoxPrefAsked|return gTestMessageBoxHilite|end revSEGetPreference"
 
-global gTestMessageBoxColourized
+global gTestMessageBoxColourized, gTestMessageBoxHilite, gTestMessageBoxPrefAsked
 
 local sSingle, sMultiple
 
@@ -77,6 +84,8 @@ on TestSetup
       set the script of stack "revSEUtilities" to tScript
    end if
    put empty into gTestMessageBoxColourized
+   put empty into gTestMessageBoxHilite
+   put empty into gTestMessageBoxPrefAsked
 
    create stack kStack
    set the defaultStack to kStack
@@ -145,3 +154,47 @@ on TestHistoryLineIsColouredAsTyped
    TestAssert "previous line", the text of sSingle is "answer 2"
    TestAssert "previous line coloured", gTestMessageBoxColourized is sSingle & return
 end TestHistoryLineIsColouredAsTyped
+
+-- A colour as the Message Box's stack has saved for both fields
+constant kStoredHilite = "200,220,255"
+
+-- The selection in both fields takes the Script Editor's highlight colour:
+-- empty (the engine's, as the Script Editor's default on macOS) and a
+-- colour (as its default elsewhere), asked for by its preference's name
+on TestHiliteFollowsScriptEditor
+   set the hiliteColor of sSingle to kStoredHilite
+   set the hiliteColor of sMultiple to kStoredHilite
+   send "testUpdateHilite" to stack kStack
+   TestAssert "the preference asked for", gTestMessageBoxPrefAsked is "editor,hilitecolor" & return
+   TestAssert "the Single Line message's is empty", the hiliteColor of sSingle is empty
+   TestAssert "the Multiple Lines script's is empty", the hiliteColor of sMultiple is empty
+
+   put "178,180,191" into gTestMessageBoxHilite
+   send "testUpdateHilite" to stack kStack
+   TestAssert "the Single Line message's is the Script Editor's", the hiliteColor of sSingle is "178,180,191"
+   TestAssert "the Multiple Lines script's is the Script Editor's", the hiliteColor of sMultiple is "178,180,191"
+end TestHiliteFollowsScriptEditor
+
+-- A change to the Script Editor's highlight preference reaches both
+-- fields; a change to another preference leaves them as they are
+on TestHilitePreferenceChange
+   put "10,20,30" into gTestMessageBoxHilite
+   send "idePreferenceChanged" && quote & "cScriptEditor,editor,hilitecolor" & quote & ", 1" to stack kStack
+   TestAssert "the Single Line message's follows", the hiliteColor of sSingle is "10,20,30"
+   TestAssert "the Multiple Lines script's follows", the hiliteColor of sMultiple is "10,20,30"
+
+   put "40,50,60" into gTestMessageBoxHilite
+   send "idePreferenceChanged" && quote & "cScriptEditor,editor,tabdepth" & quote & ", 3" to stack kStack
+   TestAssert "not for another preference", the hiliteColor of sSingle is "10,20,30"
+end TestHilitePreferenceChange
+
+-- With no Script Editor library the selection is the engine's (empty),
+-- not the colour the stack saved
+on TestHiliteWithoutScriptEditor
+   delete stack "revSEUtilities"
+   set the hiliteColor of sSingle to kStoredHilite
+   set the hiliteColor of sMultiple to kStoredHilite
+   send "testUpdateHilite" to stack kStack
+   TestAssert "the Single Line message's is empty", the hiliteColor of sSingle is empty
+   TestAssert "the Multiple Lines script's is empty", the hiliteColor of sMultiple is empty
+end TestHiliteWithoutScriptEditor

@@ -135,8 +135,29 @@ class MessageBoxColours(unittest.TestCase):
     def test_the_engine_test_exists(self):
         test = self.read('tests', 'lcs', 'messagebox', 'appearancecolours.livecodescript')
         for name in ('TestAppearanceChangeColoursBothFields', 'TestAppearanceChangeLeavesEmptyFields',
-                     'TestHistoryLineIsColouredAsTyped'):
+                     'TestHistoryLineIsColouredAsTyped', 'TestHiliteFollowsScriptEditor',
+                     'TestHilitePreferenceChange', 'TestHiliteWithoutScriptEditor'):
             self.assertIn('\non %s\n' % name, test)
+
+    def test_the_selection_is_the_script_editors(self):
+        # bwmilby, the forum, 2026-11-09: the hiliteColor saved in the
+        # stack for both code fields was too light in the dark appearance
+        box = self.read('ide', 'Toolset', 'palettes', 'message box', 'behaviors',
+                        'revmessageboxbehavior.livecodescript')
+        hilite = box.split('\nprivate command __UpdateMessageHilite\n', 1)[1].split('\nend __UpdateMessageHilite', 1)[0]
+        self.assertIn('dispatch "revSEGetPreference" to stack "revSEUtilities" with "editor,hilitecolor"', hilite)
+        self.assertIn('set the hiliteColor of field "message" of card "Single Line" of me to tColor', hilite)
+        self.assertIn('set the hiliteColor of field "script" of card "Multiple Lines" of me to tColor', hilite)
+        opened = box.split('\non openStack \n', 1)[1].split('\nend openStack', 1)[0]
+        self.assertIn('\n   __UpdateMessageHilite\n', opened)
+        self.assertIn('revIDESubscribe "idePreferenceChanged:cScriptEditor,editor,hilitecolor"', opened)
+        changed = box.split('\non idePreferenceChanged pPreference, pValue\n', 1)[1].split('\nend idePreferenceChanged', 1)[0]
+        self.assertIn('case "cScriptEditor,editor,hilitecolor"\n         __UpdateMessageHilite', changed)
+        # the Script Editor answers the preference by that name
+        se = self.read('ide', 'Toolset', 'palettes', 'script editor', 'behaviors',
+                       'revseutilities.livecodescript')
+        self.assertIn('\ncommand revSEGetPreference pPreference\n', se)
+        self.assertIn('editor,hilitecolor', se)
 
 
 class NotSaved(unittest.TestCase):
