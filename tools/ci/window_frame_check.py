@@ -19,7 +19,7 @@
 a stack opened the way the IDE opens its menubar (translucent at first).
 
   python tools/ci/window_frame_check.py (--install DIR | --package FILE)
-      [--platform P] [--log FILE] [--timeout SECONDS]
+      [--platform P] [--log FILE] [--timeout SECONDS] [--need-clicks]
 
 The layout's standalone runtime is copied to a folder of its own
 (media_check.stage_runtime) and runs tools/ci/window-frame-check.livecodescript,
@@ -41,11 +41,21 @@ each window this script checks, from outside, with the Win32 API:
   3. the faded stacks' minimize buttons are placed as FramePlain's (from
      the window's top right corner), and with visual styles where DWM
      draws them;
-  4. when a click into FramePlain's card reaches it (a session can take no
-     synthesized input; the clicks are then reported as skipped), a real
-     click (SendInput) where a person would click, on the button
-     DWM draws with visual styles and on the window manager's without,
-     minimizes each stack (IsIconic) and the stack gets iconifyStack.
+  4. the three stacks' windows are on the screen (IsWindowVisible), and
+     the window of the stack opened invisible is not;
+  5. when a click into FramePlain's card reaches it, a real click
+     (SendInput) where a person would click, on the button DWM draws with
+     visual styles and on the window manager's without, minimizes each
+     stack (IsIconic) and the stack gets iconifyStack. When that first
+     click does not reach the card, the clicks are reported as skipped, or
+     with --need-clicks (the CI's runs) as a failure: a skipped click
+     checks nothing.
+
+Until 10 November 2026 the script never showed its stacks (a stack made
+invisible stays hidden when it is opened), so on every run the first click
+reached nothing and the clicks were skipped, with the reason given as a
+session that takes no synthesized input. Check 4 and --need-clicks are
+there so that it cannot happen again unseen.
 
 Up to OXT-Beyond 0.2.7-rc.6.11 the IDE's menubar kept the region and
 caption-button layout Windows gave it while it was translucent, so a click
@@ -114,6 +124,7 @@ class Win32:
         self.user32.SendMessageW.restype = ctypes.c_ssize_t
         self.user32.GetWindowRgn.argtypes = [wintypes.HWND, wintypes.HRGN]
         self.user32.IsIconic.argtypes = [wintypes.HWND]
+        self.user32.IsWindowVisible.argtypes = [wintypes.HWND]
         self.user32.IsWindow.argtypes = [wintypes.HWND]
         self.user32.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
         self.user32.SetForegroundWindow.argtypes = [wintypes.HWND]
@@ -137,6 +148,10 @@ class Win32:
             _fields_ = [('type', wintypes.DWORD), ('u', _U)]
 
         self.TITLEBARINFOEX, self.INPUT = TITLEBARINFOEX, INPUT
+
+    def visible(self, hwnd):
+        """Whether the window is shown (IsWindowVisible)."""
+        return bool(self.user32.IsWindowVisible(hwnd))
 
     def ex_style(self, hwnd):
         GWL_EXSTYLE = -20
@@ -363,7 +378,38 @@ def check_focus(log, check):
           'its visible: %s' % (hidden[0] if hidden else 'not logged'))
 
 
-def check_windows(w, windows, log_path, lines, problems):
+HIDDEN_STACK = 'FrameHidden'
+
+
+def check_shown(shown, check):
+    """The stacks that are to be seen have their windows on the screen, and
+    the one opened invisible has not. shown: {stack: IsWindowVisible of its
+    window, or None when it has no window}. A window that is not shown
+    takes no click and is never the active one, so every other check of it
+    would pass without checking anything."""
+    for name in STACKS:
+        got = shown.get(name)
+        check(name, 'its window is on the screen', got is True,
+              'no window' if got is None else 'IsWindowVisible: %s' % got)
+    got = shown.get(HIDDEN_STACK)
+    check(HIDDEN_STACK, 'its window is not on the screen', not got,
+          'no window' if got is None else 'IsWindowVisible: %s' % got)
+
+
+def no_click(point, need_clicks, check, lines):
+    """The first click, into the plain stack's card, did not reach it: the
+    clicks on the minimize buttons cannot be checked. A failure where they
+    are needed (the CI's runs), a line for the results elsewhere."""
+    what = 'a click into the plain stack\'s card at %s did not reach it' % (point,)
+    if need_clicks:
+        check(STACKS[0], 'a click into its card reaches it', False,
+              what + ': the clicks on the minimize buttons were not checked')
+    else:
+        lines.append('SKIP the clicks on the minimize buttons: %s (a session can take no synthesized clicks; '
+                     '--need-clicks makes this a failure)' % what)
+
+
+def check_windows(w, windows, log_path, lines, problems, need_clicks=False):
     def check(name, what, ok, detail):
         line = '%s %s: %s (%s)' % ('PASS' if ok else 'FAIL', name, what, detail)
         lines.append(line)
@@ -371,6 +417,8 @@ def check_windows(w, windows, log_path, lines, problems):
             problems.append(line[5:])
 
     check_focus(read_log(log_path), check)
+    check_shown({name: w.visible(hwnd) if hwnd and w.user32.IsWindow(hwnd) else None
+                 for name, hwnd in ((n, windows.get(n)) for n in STACKS + (HIDDEN_STACK,))}, check)
 
     frames = {}
     for name in STACKS:
@@ -434,8 +482,7 @@ def check_windows(w, windows, log_path, lines, problems):
     while time.time() < end and 'CLICK ' + STACKS[0] not in read_log(log_path):
         time.sleep(0.1)
     if 'CLICK ' + STACKS[0] not in read_log(log_path):
-        lines.append('SKIP the clicks on the minimize buttons: a click into the plain stack\'s card at %s did '
-                     'not reach it (this session takes no synthesized clicks)' % (point,))
+        no_click(point, need_clicks, check, lines)
         return
 
     for name in STACKS:
@@ -457,6 +504,9 @@ def main(argv=None):
                     help='the layout (default: this machine\'s, %s)' % rlc.default_platform())
     ap.add_argument('--log', metavar='FILE', help='write the results here too')
     ap.add_argument('--timeout', type=int, default=60, help='seconds for the stacks to open (default: %(default)s)')
+    ap.add_argument('--need-clicks', action='store_true',
+                    help='fail, instead of skipping the clicks on the minimize buttons, when a click into the '
+                         'plain stack\'s card does not reach it')
     args = ap.parse_args(argv)
     if bool(args.install) == bool(args.package):
         ap.error('pass --install or --package')
@@ -493,7 +543,7 @@ def main(argv=None):
                 # (a stack that was never shown may have no window yet)
                 if parts[0] == 'WINDOW' and len(parts) == 3 and parts[2].isdigit():
                     windows[parts[1]] = int(parts[2])
-            check_windows(Win32(), windows, log_path, lines, problems)
+            check_windows(Win32(), windows, log_path, lines, problems, args.need_clicks)
         with open(go_path, 'w') as f:
             f.write('go\n')
         try:

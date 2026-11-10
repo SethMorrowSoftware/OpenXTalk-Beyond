@@ -33,6 +33,13 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --    OXT_FRAME_GO    a file window_frame_check.py writes when it is
 --                    finished with the windows; the script then quits
 --
+-- Each stack is made invisible, so that it is first seen as it is meant to
+-- be, and a stack made that way stays hidden when it is opened: the three
+-- that are to be seen are shown as soon as they are opened ("show stack").
+-- Until 10 November 2026 they were not, so no window was ever on the
+-- screen: no click could reach one (the clicks were reported as skipped),
+-- and none was ever the active window.
+--
 -- The stacks:
 --    FramePlain  a stack with a title bar and minimize box, opened as any
 --                stack is: the control
@@ -134,6 +141,7 @@ on startup
       makeStack "FramePlain", "80,120,580,320"
       set the decorations of stack "FramePlain" to kDecorations
       go stack "FramePlain"
+      show stack "FramePlain"
 
       -- As revmenubar.livecodescript's preOpenStack, then
       -- tMenuBar_AdjustWDSize and tMenuBar_WDdecorations, then
@@ -142,6 +150,7 @@ on startup
       set the blendLevel of stack "FrameFaded" to 99
       set the decorations of stack "FrameFaded" to empty
       go stack "FrameFaded"
+      show stack "FrameFaded"
       wait 200 milliseconds with messages
       stepPoint "faded-opened"
       set the rect of stack "FrameFaded" to 0,0,600,110
@@ -165,6 +174,7 @@ on startup
       set the decorations of stack "FrameFadedTitled" to kDecorations
       set the blendLevel of stack "FrameFadedTitled" to 99
       go stack "FrameFadedTitled"
+      show stack "FrameFadedTitled"
       wait 200 milliseconds with messages
       stepPoint "titled-opened"
       set the rect of stack "FrameFadedTitled" to 80,420,640,560
