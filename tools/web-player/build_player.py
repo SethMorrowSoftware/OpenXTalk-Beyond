@@ -824,7 +824,8 @@ def check(site, samples, work):
         third.wait_for_timeout(1000)
         fonts = [x for x in third_lines if x.startswith('SAMPLE fonts')]
         want = 'SAMPLE fonts true,true,true' if has_fonts else 'SAMPLE fonts false,false,true'
-        expect('fonts', fonts == [want], ' | '.join(fonts or got[-3:]))
+        widths = [x for x in third_lines if x.startswith('SAMPLE font widths')]
+        expect('fonts', fonts == [want], ' | '.join((fonts + widths) or got[-3:]))
         before = len(third_lines)
         third.click('#home')
         wait_for(third, lambda: any(x.startswith('PLAYER library') for x in third_lines[before:]), 'going home', 15)
