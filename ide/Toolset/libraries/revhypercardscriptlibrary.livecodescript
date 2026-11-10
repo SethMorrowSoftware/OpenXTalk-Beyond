@@ -389,8 +389,10 @@ local sLeftOutLog, sLinesLeftOutLog, sObject, sLeftOutStack
 -- The pieces of the last _Match
 local sMatch
 
--- The names of the externals the last _StandIns made stand-ins for
+-- The names of the externals the last _StandIns made stand-ins for: the
+-- XCMDs (sStandInNames) and the XFCNs (sStandInFunctions)
 local sStandInNames
+local sStandInFunctions
 
 -- The IDE loads this library at startup (revInternal__LoadLibrary, which
 -- sends extensionInitialize); without these handlers it was loaded but
@@ -531,6 +533,9 @@ function revHyperCardFixScripts pStack
    if tLine begins with "Added" and sStandInNames is not empty then
       put "Stand-ins: the stack's external commands, which this engine cannot run, do nothing when called:" && sStandInNames & return after tReport
    end if
+   if tLine begins with "Added" and sStandInFunctions is not empty then
+      put "Stand-ins: the stack's external functions, which this engine cannot run, give empty when called:" && sStandInFunctions & return after tReport
+   end if
    put _QuietPalettes(sStack) into tLine
    if tLine is not empty then put tLine & return after tReport
 
@@ -629,19 +634,27 @@ end revHyperCardClassicLook
 
 /*
 A summary of a HyperCard import for a person, a screenful at most: what
-came in, what was converted, and what is missing and why, each with
-where to look. File > Import Stack shows it after an import.
+came in and was converted, what the library stands in for, and what was
+dropped and why, each with where to look. File > Import Stack shows it
+after an import.
 
 pStack (String): The imported stack, after <revHyperCardFixScripts>.
 
 pImportLog (String): The engine's import log, the hcImportStat (optional;
 the hcImportStat when left out).
 
-Returns (String): The summary, as lines of text.
+Returns (String): The summary, as lines of text: a line naming the stack,
+then up to three parts, each a heading and its lines, "Converted:" (the
+scripts rewritten; the icons, cursors, sounds, pictures and palettes the
+stack has from its resource fork), "Stood in for:" (the externals that do
+nothing, or give empty, here) and "Dropped:" (the handlers and lines left
+out, what the import could not convert, the fonts this system lacks). A
+part with nothing in it is left out.
 */
 function revHyperCardImportSummary pStack, pImportLog
    local tOut, tReport, tLine, tCount, tLeft, i, tNames, tType, tName, tLibrary, tDefines
    local tSounds, tMace, tTypes, tKind, tPicts, tFonts, tFont, tObject, tKey, tConverted
+   local tDone, tStood, tDropped, tFunctionStandIns
 
    if word 1 of pStack is not "stack" then put the long id of stack pStack into pStack
    if pImportLog is empty then put the hcImportStat into pImportLog
@@ -649,37 +662,60 @@ function revHyperCardImportSummary pStack, pImportLog
    put the short name of pStack & ":" && the number of cards of pStack && "cards," \
          && the number of backgrounds of pStack && "backgrounds" & return into tOut
 
-   -- the scripts
+   -- Converted: the scripts, and what the resource fork brought in
    put the uHyperCard["scripts"] of pStack into tReport
    put the last line of tReport into tLine
    if tLine begins with "HyperCard scripts:" then
       put word 3 of tLine into tCount
       if tCount is an integer and tCount > 0 then
-         put return & "Scripts: " & tCount && "rewritten to run here. Each keeps its HyperTalk in its object's uHyperCard[" & quote & "script" & quote & "]." & return after tOut
+         put "Scripts: " & tCount && "rewritten to run here. Each keeps its HyperTalk in its object's uHyperCard[" & quote & "script" & quote & "]." & return after tDone
       end if
    end if
+   put _ConvertedResources(pStack) into tLine
+   if tLine is not empty then put "From the resource fork:" && tLine & "." & return after tDone
+
+   -- Dropped: what still does not compile
    put revHyperCardLeftOutHandlers() into tLeft
    if the number of elements of tLeft > 0 and sLeftOutStack is pStack then
-      put return & "Left out:" && the number of elements of tLeft && _Plural(the number of elements of tLeft, "handler") && "still" \
-            && _Plural(the number of elements of tLeft, "does", "do") && "not compile here, kept commented out in a handler that passes its message:" & return after tOut
+      put "Left out:" && the number of elements of tLeft && _Plural(the number of elements of tLeft, "handler") && "still" \
+            && _Plural(the number of elements of tLeft, "does", "do") && "not compile here, kept commented out in a handler that passes its message:" & return after tDropped
       repeat with i = 1 to min(12, the number of elements of tLeft)
-         put "   " & tLeft[i]["name"] && "in" && _ShortObject(tLeft[i]["object"]) & return after tOut
+         put "   " & tLeft[i]["name"] && "in" && _ShortObject(tLeft[i]["object"]) & return after tDropped
       end repeat
-      if the number of elements of tLeft > 12 then put "   and" && the number of elements of tLeft - 12 && "more" & return after tOut
+      if the number of elements of tLeft > 12 then put "   and" && the number of elements of tLeft - 12 && "more" & return after tDropped
    end if
    put revHyperCardLeftOutLines() into tLeft
    if the number of elements of tLeft > 0 and sLeftOutStack is pStack then
-      put return & "Lines left out:" && the number of elements of tLeft && _Plural(the number of elements of tLeft, "line") && "of handlers" \
+      put "Lines left out:" && the number of elements of tLeft && _Plural(the number of elements of tLeft, "line") && "of handlers" \
             && _Plural(the number of elements of tLeft, "does", "do") && "not compile here, each kept as a comment: its handler goes on past it," \
-            && "or stops there with an error at a return, exit or pass, or inside a loop that might not end without it:" & return after tOut
+            && "or stops there with an error at a return, exit or pass, or inside a loop that might not end without it:" & return after tDropped
       repeat with i = 1 to min(8, the number of elements of tLeft)
-         put "   " & tLeft[i]["name"] && "in" && _ShortObject(tLeft[i]["object"]) & ":" && tLeft[i]["text"] & return after tOut
+         put "   " & tLeft[i]["name"] && "in" && _ShortObject(tLeft[i]["object"]) & ":" && tLeft[i]["text"] & return after tDropped
       end repeat
-      if the number of elements of tLeft > 8 then put "   and" && the number of elements of tLeft - 8 && "more" & return after tOut
+      if the number of elements of tLeft > 8 then put "   and" && the number of elements of tLeft - 8 && "more" & return after tDropped
    end if
 
-   -- the externals: the XCMDs got stand-ins; the XFCNs the library
-   -- does not have stop a script that calls them
+   -- Stood in for: the externals, which the library's stand-ins answer.
+   -- The XCMDs and XFCNs it has none for of its own were given one that
+   -- does nothing, or gives empty, each named in the report; a stack whose
+   -- import gave its XFCNs none (up to 0.2.7) stops where it calls one
+   set the itemDelimiter to colon
+   repeat for each line tLine in tReport
+      if tLine begins with "Stand-ins: the stack's external commands" then
+         put "XCMDs that do nothing here:" && word 1 to -1 of item -1 of tLine & return after tStood
+      else if tLine begins with "Stand-ins: the stack's external functions" then
+         put word 1 to -1 of item -1 of tLine into tKey
+         put "XFCNs that give empty here:" && tKey & return after tStood
+         set the itemDelimiter to comma
+         repeat for each item tName in tKey
+            put true into tFunctionStandIns[_Lower(word 1 to -1 of tName)]
+         end repeat
+         set the itemDelimiter to colon
+      end if
+   end repeat
+   set the itemDelimiter to comma
+   -- (an XFCN that got no stand-in, a name that cannot be a handler's,
+   -- is still dropped)
    repeat for each line tLine in revHyperCardLibraryScript()
       if word 1 of tLine is among the words of "on function command" then put true into tLibrary[_Lower(word 2 of tLine)]
    end repeat
@@ -695,22 +731,17 @@ function revHyperCardImportSummary pStack, pImportLog
       put word 1 to -1 of item 2 of tLine into tName
       if tType is not "XFCN" or tName is empty then next repeat
       if tLibrary[_Lower(tName)] or tLibrary["hcx_" & _Lower(tName)] or tDefines[_Lower(tName)] then next repeat
+      if tFunctionStandIns[_Lower(tName)] then next repeat
       if tName is among the items of tNames then next repeat
       if tNames is not empty then put ", " after tNames
       put tName after tNames
    end repeat
-   set the itemDelimiter to colon
-   repeat for each line tLine in tReport
-      if tLine begins with "Stand-ins:" then
-         put return & "XCMDs that do nothing here:" && word 1 to -1 of item -1 of tLine & return after tOut
-      end if
-   end repeat
    set the itemDelimiter to comma
    if tNames is not empty then
-      put return & "XFCNs that are not available (a script stops where it calls one):" && tNames & return after tOut
+      put "XFCNs that are not available (a script stops where it calls one):" && tNames & return after tDropped
    end if
 
-   -- what the engine could not convert
+   -- Dropped: what the engine could not convert
    put 0 into tSounds
    put 0 into tMace
    put 0 into tPicts
@@ -732,18 +763,18 @@ function revHyperCardImportSummary pStack, pImportLog
       end if
    end repeat
    if tSounds > 0 then
-      put return & "Sounds:" && tSounds && "not converted" after tOut
-      if tMace > 0 then put " (" & tMace && "in MACE that could not be decoded)" after tOut
-      put "." & return after tOut
+      put "Sounds:" && tSounds && "not converted" after tDropped
+      if tMace > 0 then put " (" & tMace && "in MACE that could not be decoded)" after tDropped
+      put "." & return after tDropped
    end if
-   if tPicts > 0 then put return & "Pictures:" && tPicts && "drawn without some of their parts (text or QuickTime in a PICT)." & return after tOut
+   if tPicts > 0 then put "Pictures:" && tPicts && "drawn without some of their parts (text or QuickTime in a PICT)." & return after tDropped
    if the number of elements of tTypes > 0 then
       put empty into tNames
       repeat for each key tKey in tTypes
          if tNames is not empty then put ", " after tNames
          put tKey && "x" & tTypes[tKey] after tNames
       end repeat
-      put return & "Resources not converted:" && tNames & return after tOut
+      put "Resources not converted:" && tNames & return after tDropped
    end if
 
    -- fonts the stack names that this system does not have
@@ -756,9 +787,12 @@ function revHyperCardImportSummary pStack, pImportLog
       put tFont after tNames
    end repeat
    if tNames is not empty then
-      put return & "Fonts this system does not have, shown in another face:" && tNames & return after tOut
+      put "Fonts this system does not have, shown in another face:" && tNames & return after tDropped
    end if
 
+   if tDone is not empty then put return & "Converted:" & return & tDone after tOut
+   if tStood is not empty then put return & "Stood in for:" & return & tStood after tOut
+   if tDropped is not empty then put return & "Dropped:" & return & tDropped after tOut
    put return & "The full log is the stack's uHyperCard[" & quote & "scripts" & quote & "] and the hcImportStat." after tOut
    return tOut
 end revHyperCardImportSummary
@@ -903,43 +937,63 @@ end _Externals
 -- sound, colour, a palette or a menu). A stand-in does nothing but leave
 -- "<name> is not available" in the result, which a script that checks
 -- for the external's errors sees, so that the script goes on; the report
--- names each one. An external function (XFCN) gets none: what it gave is
--- what the script goes on with, and empty in its place would be a wrong
--- value no one sees, where the error at least says where it stopped.
+-- names each one. An external function (XFCN) gets one too, which gives
+-- empty: the script goes on with empty where the external gave a value
+-- (a name, a list, a number), which the import summary says for each
+-- one, rather than stop where it calls it. (Up to 0.2.7 an XFCN got
+-- none, and a script stopped at it; a stack imported then keeps the
+-- library it was given.)
 -- None is made for a name the stack's scripts define, or the library
 -- does, or that cannot be a handler's name here; an external named like
 -- a keyword is called hcX_<name> after T13, and its stand-in is too.
 private function _StandIns pStack, pDefines
-   local tLine, tType, tName, tCall, tLibrary, tHandler, tOut, tDone
+   local tLine, tType, tName, tCall, tLibrary, tFunctions, tHandler, tOut, tDone
    put empty into sStandInNames
+   put empty into sStandInFunctions
    -- (an XCMD is called as a command, which a function of the library of
-   -- its name, hcX_Replace, does not answer)
+   -- its name, hcX_Replace, does not answer; an XFCN as a function)
    repeat for each line tLine in revHyperCardLibraryScript()
       if word 1 of tLine is among the words of "on command" then put true into tLibrary[_Lower(word 2 of tLine)]
+      if word 1 of tLine is "function" then put true into tFunctions[_Lower(word 2 of tLine)]
    end repeat
    set the itemDelimiter to tab
    repeat for each line tLine in the uHyperCard["externals"] of pStack
       put word 1 to -1 of item 1 of tLine into tType
       put word 1 to -1 of item 2 of tLine into tName
-      if tType is not "XCMD" then next repeat
+      if tType is not among the words of "XCMD XFCN" then next repeat
       if not _IsName(tName) then next repeat
-      if pDefines[_Lower(tName)] or tLibrary[_Lower(tName)] or tDone[_Lower(tName)] then next repeat
+      if pDefines[_Lower(tName)] or tDone[tType][_Lower(tName)] then next repeat
+      if tType is "XCMD" and tLibrary[_Lower(tName)] then next repeat
+      -- (the library's hcX_Files is the XFCN Files, which this engine
+      -- reads as its own function, rule T13)
+      if tType is "XFCN" and (tFunctions[_Lower(tName)] or tFunctions["hcx_" & _Lower(tName)]) then next repeat
       put tName into tCall
       if _Lower(tName) is not among the words of kHyperTalkCommands \
             and _Lower(tName) is not among the words of "set put get go if send do add show hide" \
             and (_Lower(tName) is among the words of kCommands or _Lower(tName) is among the words of kRefused or _HandlerRefused(tName)) then
          put "hcX_" & tName into tCall
       end if
-      if tLibrary[_Lower(tCall)] then next repeat
-      put "on" && tCall & return & "   return" && quote & tName && "is not available" & quote & return & "end" && tCall into tHandler
+      if tType is "XFCN" and tFunctions[_Lower(tCall)] then next repeat
+      if tType is "XCMD" and tLibrary[_Lower(tCall)] then next repeat
+      if tType is "XFCN" then
+         put "function" && tCall & return & "   return empty" & return & "end" && tCall into tHandler
+      else
+         put "on" && tCall & return & "   return" && quote & tName && "is not available" & quote & return & "end" && tCall into tHandler
+      end if
       if not _Compiles(tHandler) then next repeat
-      put true into tDone[_Lower(tName)]
+      put true into tDone[tType][_Lower(tName)]
       put return & return & "-- The" && tType && tName && "of the stack, which this engine cannot run (a stand-in)" & return & tHandler after tOut
-      if sStandInNames is not empty then put ", " after sStandInNames
-      put tName after sStandInNames
+      if tType is "XFCN" then
+         if sStandInFunctions is not empty then put ", " after sStandInFunctions
+         put tName after sStandInFunctions
+      else
+         if sStandInNames is not empty then put ", " after sStandInNames
+         put tName after sStandInNames
+      end if
    end repeat
    if tOut is not empty and not _Compiles(revHyperCardLibraryScript() & tOut) then
       put empty into sStandInNames
+      put empty into sStandInFunctions
       return empty
    end if
    return tOut
@@ -973,6 +1027,46 @@ private function _QuietPalettes pStack
    if tCount is 0 then return empty
    return "Palettes:" && tCount && "made to keep their opening and closing messages from the stack's script"
 end _QuietPalettes
+
+-- What the import made of the stack's resource fork, as the engine's
+-- importer names it: the images of the shared groups "HC Icons", "HC
+-- cursors" and "HC Pictures", the stack's audioClips, and its palettes
+-- (substacks the importer made from PLTE resources). "86 icons, 10
+-- sounds", or empty for none. (Below kPaletteFirstLine: a constant
+-- is known from where it is declared on)
+private function _ConvertedResources pStack
+   local tCounts, tName, tOut, tSub, tCount, tWord, i
+   -- (every group of the stack, placed or not: the importer's groups are
+   -- on no card)
+   repeat with i = 1 to the number of backgrounds of pStack
+      try
+         put the short name of background i of pStack into tName
+         switch tName
+            case "HC Icons"
+               add the number of images of background i of pStack to tCounts["icon"]
+               break
+            case "HC cursors"
+               add the number of images of background i of pStack to tCounts["cursor"]
+               break
+            case "HC Pictures"
+               add the number of images of background i of pStack to tCounts["picture"]
+               break
+         end switch
+      catch tError
+      end try
+   end repeat
+   put the number of audioClips of pStack into tCounts["sound"]
+   repeat for each line tSub in the substacks of pStack
+      if line 1 of the script of stack tSub of pStack is kPaletteFirstLine then add 1 to tCounts["palette"]
+   end repeat
+   repeat for each word tWord in "icon cursor sound picture palette"
+      put tCounts[tWord] into tCount
+      if tCount is not an integer or tCount < 1 then next repeat
+      if tOut is not empty then put ", " after tOut
+      put tCount && _Plural(tCount, tWord) after tOut
+   end repeat
+   return tOut
+end _ConvertedResources
 
 -- Add the library as a substack of the stack and make it the stack's
 -- behavior, and in a stack with HyperCard's message order the library's
