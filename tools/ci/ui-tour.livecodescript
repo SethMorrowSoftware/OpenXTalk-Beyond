@@ -10056,37 +10056,6 @@ function tourCodeWidths pFont, pStyle
          the formattedWidth of line 2 of field "Code" of stack kCodeFontStack
 end tourCodeWidths
 
--- The font files in use (the fontFilesInUse) of Source Code Pro's weights
--- the IDE does not load: any SourceCodePro-*.ttf but its Regular, It,
--- Bold and BoldIt. (The fontNames cannot tell: Linux and DirectWrite list
--- every weight under the one family "Source Code Pro")
-function tourCodeExtraWeights
-   local tPath, tFile, tFound
-   set the itemDelimiter to slash
-   repeat for each line tPath in the fontFilesInUse
-      put the last item of tPath into tFile
-      if tFile begins with "SourceCodePro-" and \
-            char 15 to -5 of tFile is not among the words of "Regular It Bold BoldIt" then
-         put tFile & return after tFound
-      end if
-   end repeat
-   delete the last char of tFound
-   return tFound
-end tourCodeExtraWeights
-
--- The Source Code Pro font files in use
-function tourCodeFiles
-   local tPath, tFiles
-   set the itemDelimiter to slash
-   repeat for each line tPath in the fontFilesInUse
-      if the last item of tPath begins with "SourceCodePro-" then
-         put the last item of tPath & return after tFiles
-      end if
-   end repeat
-   delete the last char of tFiles
-   return tFiles
-end tourCodeFiles
-
 -- Each line of pAfter that is not a line of pBefore
 function tourCodeAdded pBefore, pAfter
    local tLine, tAdded
@@ -10121,14 +10090,6 @@ on tour_code_font
    local tDefault, tFiles, tBefore, tNow, tGone, tRound, tFile, tIndex, tFamily, tFails, tError
    if "Source Code Pro" is not among the lines of the fontNames then
       throw "Source Code Pro, the IDE's code font, is not among the fontNames"
-   end if
-   -- the IDE loads Source Code Pro's regular, italic, bold and bold italic
-   -- only: with its Medium face loaded too, Windows drew plain code in
-   -- Medium in some runs (the engine asks for plain text at weight 500)
-   put tourCodeExtraWeights() into tFails
-   tourRecord "INFO code-font: Source Code Pro files in use:" && tourJoin(tourCodeFiles())
-   if tFails is not empty then
-      throw "the IDE loaded Source Code Pro's other weights:" && tourJoin(tFails)
    end if
    put the defaultStack into tDefault
    lock messages

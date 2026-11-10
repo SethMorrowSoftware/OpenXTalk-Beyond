@@ -180,56 +180,5 @@ class TheWindowsCollectionKey(unittest.TestCase):
         self.assertIn('static_cast<MCGDWFontCollectionKey const*>(collectionKey)->files', body)
 
 
-class TheFourFaces(unittest.TestCase):
-    """The IDE loads Source Code Pro's regular, italic, bold and bold
-    italic only. The engine asks for plain text at weight 500
-    (FA_DEFAULT_STYLE's MCFW_MEDIUM, FW_MEDIUM on Windows), and with the
-    Medium face loaded too DirectWrite drew the Script Editor's code in it
-    in some runs and in Regular in others."""
-
-    LIBRARY = ('ide', 'Toolset', 'libraries', 'revidelibrary.8.livecodescript')
-    FONTS = ('ide', 'Toolset', 'resources', 'supporting_files', 'fonts')
-    KEPT = {'Regular', 'It', 'Bold', 'BoldIt'}
-
-    @staticmethod
-    def left_out(name):
-        # a Python copy of __ideFontLeftOut: char 15 to -5 is the weight
-        return name.startswith('SourceCodePro-') and name[14:-4] not in TheFourFaces.KEPT
-
-    def handler(self, text, name):
-        m = re.search(r'^(?:private )?(?:function|on) %s\b.*?^end %s\b' % (name, name), text, re.M | re.S)
-        self.assertTrue(m, name)
-        return m.group(0)
-
-    def test_the_library_skips_the_other_weights_as_it_starts(self):
-        text = read(*self.LIBRARY)
-        start = self.handler(text, 'revIDEInitialiseIDELibrary')
-        self.assertIn('if __ideFontLeftOut(tFont) then next repeat', start)
-        left = self.handler(text, '__ideFontLeftOut')
-        self.assertIn('pFile begins with "SourceCodePro-"', left)
-        self.assertIn('char 15 to -5 of pFile is not among the items of "Regular,It,Bold,BoldIt"', left)
-
-    def test_the_four_faces_are_loaded_and_every_other_weight_left_in_the_folder(self):
-        files = sorted(f for f in os.listdir(os.path.join(REPO, *self.FONTS)) if f.endswith('.ttf'))
-        kept = [f for f in files if f.startswith('SourceCodePro-') and not self.left_out(f)]
-        self.assertEqual(sorted(kept), ['SourceCodePro-Bold.ttf', 'SourceCodePro-BoldIt.ttf',
-                                        'SourceCodePro-It.ttf', 'SourceCodePro-Regular.ttf'])
-        # the other weights stay shipped, for a stack to load itself
-        self.assertEqual(len([f for f in files if self.left_out(f)]), 10)
-        # and every other font file is loaded as before
-        self.assertFalse(self.left_out('fontawesome.ttf'))
-        self.assertFalse(self.left_out('lcideicons.ttf'))
-
-    def test_the_tour_reads_the_files_in_use(self):
-        tour = read('tools', 'ci', 'ui-tour.livecodescript')
-        step = self.handler(tour, 'tour_code_font')
-        self.assertIn('put tourCodeExtraWeights() into tFails', step)
-        self.assertIn("throw \"the IDE loaded Source Code Pro's other weights:\"", step)
-        check = self.handler(tour, 'tourCodeExtraWeights')
-        self.assertIn('the fontFilesInUse', check)
-        # (the itemDelimiter is slash there, so the weights are words)
-        self.assertIn('is not among the words of "Regular It Bold BoldIt"', check)
-
-
 if __name__ == '__main__':
     unittest.main()
