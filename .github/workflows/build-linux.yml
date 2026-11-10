@@ -121,6 +121,8 @@ on:
       - '.github/workflows/runtimes.yml'
       - '.github/workflows/tag-release.yml'
       - '.github/workflows/ui-tour.yml'
+      - '.github/workflows/cef-spike.yml'
+      - 'tools/ci/cef-spike/**'
       - '.github/workflows/android.yml'
       - '.github/workflows/android-java.yml'
       - '.github/workflows/android-engine.yml'
