@@ -576,9 +576,19 @@ class Device(unittest.TestCase):
                  '      timestamp=2026-11-09 23:05:40.000 pid=7090 realUid=10214\n'
                  '      process=org.openxtalk.check.androidprobe reason=5 (CRASH_NATIVE) subreason=0\n')
         # only this run's processes count: 4100 is an earlier run's
-        self.assertEqual(ac.low_memory_kills(exits, {'7077', '6780', '7090'}), ['7077'])
+        self.assertEqual(ac.low_memory_kills(exits, {'7077', '6780'}), ['7077'])
         self.assertEqual(ac.low_memory_kills(exits, {'6780', '7090'}), [])
         self.assertEqual(ac.low_memory_kills(exits, {'7077', '4100'}), ['4100', '7077'])
+        # and none when another of this run's crashed, whichever block
+        # comes first: 7090's CRASH_NATIVE, or an ANR or a Java crash
+        self.assertEqual(ac.low_memory_kills(exits, {'7077', '6780', '7090'}), [])
+        for reason in ('4 (CRASH)', '6 (ANR)', '7 (INITIALIZATION_FAILURE)'):
+            self.assertEqual(ac.low_memory_kills(exits.replace('5 (CRASH_NATIVE)', reason), {'7077', '7090'}), [])
+        first = exits.split('    ApplicationExitInfo #3:')[1]
+        self.assertEqual(ac.low_memory_kills('    ApplicationExitInfo #3:' + first + exits, {'7077', '7090'}), [])
+        # an earlier run's crash is that run's
+        self.assertEqual(ac.low_memory_kills(exits.replace('pid=7090', 'pid=4000'), {'7077', '7090'}), ['7077'])
+        self.assertEqual(ac.FAILED_EXITS, {4: 'CRASH', 5: 'CRASH_NATIVE', 6: 'ANR', 7: 'INITIALIZATION_FAILURE'})
         self.assertEqual(ac.low_memory_kills('', {'7077'}), [])
         self.assertEqual(ac.low_memory_kills('pid=7077 reason=3 (LOW_MEMORY)', {'7077'}), [])
         self.assertEqual((ac.LOW_MEMORY, self.pause), (3, 30))
@@ -638,6 +648,15 @@ class Device(unittest.TestCase):
         self.assertEqual(status, 1, out)
         self.assertEqual(sum(c.startswith('shell am start') for c in self.calls()), 1)
         self.assertNotIn('the run once more', out)
+        # nor when one process was ended for low memory and another of the
+        # run's crashed, its crash not in the log
+        os.remove(os.path.join(self.tmp.name, 'platform-tools', 'calls'))
+        both = self.EXIT_INFO.replace('reason=10 (USER_REQUESTED)', 'reason=5 (CRASH_NATIVE)')
+        status, out = self.device('true', exits=both)
+        self.assertEqual(status, 1, out)
+        self.assertEqual(sum(c.startswith('shell am start') for c in self.calls()), 1)
+        self.assertNotIn('the run once more', out)
+        self.assertIn('pid=3475', out)
 
     def test_gone_after_drawing(self):
         status, out = self.device('true')

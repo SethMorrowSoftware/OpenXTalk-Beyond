@@ -119,8 +119,8 @@ account of its processes, what Android did to it that the carried runtime
 does not survive (paused for sleep, a changed ApplicationInfo, a relaunch),
 how each process ended (dumpsys activity exit-info) and the memory left.
 When that says Android's low memory killer ended one of the probe's
-processes (exit-info LOW_MEMORY) and its log has no crash, its screen
-no fail colour and the checks of its green screen (--within-bars,
+processes (exit-info LOW_MEMORY), none of them crashed by exit-info's
+account, its log has no crash, its screen no fail colour and the checks of its green screen (--within-bars,
 --edge-to-edge, --back, --font-scale, --density, --density-in-wait,
 --relaunch) found nothing, the whole run is made once more, after
 LOW_MEMORY_PAUSE s, and that run decides (low_memory_kills).
@@ -2606,6 +2606,11 @@ def opens_again_after_quit(args, adb, a, pid, names):
 
 # exit-info's reason for a process the low memory killer ended
 LOW_MEMORY = 3
+# exit-info's reasons for a process that failed of itself
+# (ApplicationExitInfo.REASON_CRASH, REASON_CRASH_NATIVE, REASON_ANR and
+# REASON_INITIALIZATION_FAILURE): one of them for any of a run's
+# processes is the run's failure, whatever the log kept of it
+FAILED_EXITS = {4: 'CRASH', 5: 'CRASH_NATIVE', 6: 'ANR', 7: 'INITIALIZATION_FAILURE'}
 # How long device waits before it makes the run once more after such a
 # kill, for the device's memory to settle
 LOW_MEMORY_PAUSE = 30
@@ -2616,12 +2621,19 @@ def low_memory_kills(exits, pids):
     memory killer ended (reason=3 (LOW_MEMORY)), each of its
     ApplicationExitInfo blocks giving the pid on one line and the reason on
     another. exit-info keeps the package's earlier processes too (another
-    run's on the same emulator), and only pids, this run's, count."""
+    run's on the same emulator), and only pids, this run's, count. None
+    when another of them crashed, did not answer or did not start
+    (FAILED_EXITS): the low memory killer is then not the run's story, even
+    where the log has lost that process's crash."""
     killed = set()
     for block in re.split(r'ApplicationExitInfo #\d+:', exits)[1:]:
         pid = re.search(r'\bpid=(\d+)', block)
         reason = re.search(r'\breason=(\d+)', block)
-        if pid and reason and int(reason.group(1)) == LOW_MEMORY and pid.group(1) in pids:
+        if not (pid and reason and pid.group(1) in pids):
+            continue
+        if int(reason.group(1)) in FAILED_EXITS:
+            return []
+        if int(reason.group(1)) == LOW_MEMORY:
             killed.add(pid.group(1))
     return sorted(killed)
 
