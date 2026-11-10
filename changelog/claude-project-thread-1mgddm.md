@@ -1,0 +1,1 @@
+- Repository: a .mailmap credits the 0.2.7 version branch's commits, made as "x <x@x>", to Seth Morrow in git's log, shortlog and blame (#PR)
