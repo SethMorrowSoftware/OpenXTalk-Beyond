@@ -115,6 +115,19 @@ chosen is copied out of it, with its resource fork, into the image's
 folder of the library, beside a `Name.hcimage` file that names the image,
 so that its scripts find the image's other stacks on a later visit too.
 
+A HyperCard stack already converted to a stack file before File > Import
+Stack fixed its scripts (an import in 0.2.6 or earlier, or one with Make
+HyperTalk Scripts Compile turned off) opens as it is. Such a stack often
+stops with "can't find handler": one HyperTalk line that this engine does
+not compile takes every handler of its script with it, and its XCMDs have
+no stand-ins. When it does, and it is one (the importer's mark,
+`uHyperCard["source"]`, no behavior, and a script that does not compile or
+an XCMD of its own that it calls and nothing defines), the player says so
+and offers **Fix and Reopen**: the stack opens again with HyperCard's
+message order and its scripts fixed as the import fixes them now
+(`revHyperCardFixScripts`), only in memory; the file in the library is not
+changed. A stack that plays without such an error is never changed.
+
 **A stack is a program.** In the player it can do what the page can:
 run JavaScript, read and write what other stacks saved for that site, and
 make requests with that site's cookies. Host the player on a site of its

@@ -65,6 +65,10 @@ local sLinked
 -- to another stack of the image finds it there (the HyperCard Library's
 -- hcStackName)
 local sFromImage
+-- The stack files (paths) the player has offered to fix (playerOfferFix):
+-- "asked", "declined", or "fix" for those whose HyperCard scripts it fixes
+-- as it opens them
+local sFixConverted
 
 constant kStackExtensions = "livecode,oxtstack,rev,mc,livecodescript,lc,stack"
 constant kLibraryName = "Stack Player"
@@ -674,6 +678,196 @@ private command playerFixHyperCard pStack
    end try
 end playerFixHyperCard
 
+-- A script error in the stack playing that says "can't find handler",
+-- in a HyperCard stack saved without the fixes that File > Import Stack
+-- now makes (playerConvertedUnfixed): the player offers to fix it, and
+-- opens it again with its scripts fixed (only in memory: the file in the
+-- library is not changed). A stack that plays without such an error is
+-- never changed: Alphabet Zoo and The Haunted House play as they are, and
+-- with their stack scripts fixed their openStack runs for the first time
+-- and stops on an XFCN (Gestalt, GetSpeechManager) that nothing stands in
+-- for. Returns true when it has dealt with the error.
+private function playerOfferFix pText
+   local tStack, tLine, tShown
+   if not (pText contains "can't find handler") then return false
+   if sCurrent is empty or sCurrentFile is empty then return false
+   -- (asked once a visit: a stack that stops in its idle or mouseEnter
+   -- would ask again with every error)
+   if sFixConverted[sCurrentFile] is not empty then return false
+   if there is not a stack sCurrent then return false
+   put the long id of stack sCurrent into tStack
+   if not playerConvertedUnfixed(tStack) then return false
+   put "asked" into sFixConverted[sCurrentFile]
+   playerLog "hypercard-offer" && sCurrent
+   -- the error's own lines, without the player's (the if-then lines of
+   -- the handler that opened the stack)
+   repeat for each line tLine in pText
+      if word 1 of tLine is "if-then:" then next repeat
+      put tLine & return after tShown
+   end repeat
+   put char 1 to -2 of tShown into pText
+   answer warning quote & sCurrent & quote && "is a HyperCard stack converted by an earlier" && \
+         "version, before its HyperTalk was fixed to run here, and a script stopped:" & \
+         return & return & pText & return & return & \
+         "The player can fix its scripts as File > Import Stack does now and open it again." && \
+         "(Only here, in this browser: the stack's file is not changed.)" \
+         with "Not Now" or "Fix and Reopen"
+   if it is not "Fix and Reopen" then
+      put "declined" into sFixConverted[sCurrentFile]
+      playerLog "hypercard-offer declined"
+      return true
+   end if
+   put "fix" into sFixConverted[sCurrentFile]
+   send "playerReopenFixed" && quote & sCurrentFile & quote to me in 10 milliseconds
+   return true
+end playerOfferFix
+
+-- Home and the stack again, now to be fixed as it opens. Its closeCard
+-- and closeStack do not run as it goes: they are the scripts that stopped
+-- (HyperGASP's closeCard calls the XCMD colorizeHC), and an error in one
+-- stopped the player's "go" home
+command playerReopenFixed pPath
+   local tError
+   lock messages
+   try
+      playerGoHome
+   catch tError
+      playerLog "hypercard-home-failed" && playerErrorText(tError)
+   end try
+   unlock messages
+   -- (after playerForget, which going home sends, has taken the unfixed
+   -- copy out of memory, as playerReload waits for it)
+   send "playerOpenFile" && quote & pPath & quote to me in 10 milliseconds
+end playerReopenFixed
+
+-- Whether pStack is a HyperCard stack saved as a stack file without the
+-- fixes that File > Import Stack now makes to its scripts: the stacks
+-- converted before them (0.2.6 and earlier imports, and stacks converted
+-- with Make HyperTalk Scripts Compile turned off). In one, a single
+-- HyperTalk line this engine does not compile ("global prev") takes
+-- every handler of its script with it, and a call to an XCMD of its
+-- resource fork stops with "can't find handler": of nine HyperCard
+-- stacks played in the player for 0.2.7's videos, six stopped with a
+-- script error ("can't find handler watch" in Better U.S. Map, whose
+-- stack script defines it). The tests: the engine's importer
+-- marked it (uHyperCard["source"]); it has no behavior (the import gives
+-- it the HyperCard Library as one, and does not when it has another);
+-- and a script of it does not compile, or it calls an XCMD of its own
+-- that none of its scripts defines. It is fixed only once a script error
+-- has shown that it needs to be (playerOfferFix).
+private function playerConvertedUnfixed pStack
+   local tObjects, tObject, tScript, tLine, tDefines, tCalls, tName, tError
+   try
+      if the uHyperCard["source"] of pStack is empty then return false
+      if the behavior of pStack is not empty then return false
+      put playerScriptObjects(pStack) into tObjects
+   catch tError
+      return false
+   end try
+   repeat for each line tObject in tObjects
+      put the script of tObject into tScript
+      if tScript is empty then next repeat
+      if not playerCompiles(tScript) then
+         playerDropProbe
+         playerLog "hypercard-unfixed" && the short name of pStack & ": a script does not compile (" & playerShortObject(tObject) & ")"
+         return true
+      end if
+      repeat for each line tLine in tScript
+         if word 1 of tLine is "on" or word 1 of tLine is "function" then
+            put true into tDefines[word 2 of tLine]
+         else if word 1 of tLine is not empty then
+            put true into tCalls[word 1 of tLine]
+         end if
+      end repeat
+   end repeat
+   playerDropProbe
+   set the itemDelimiter to tab
+   repeat for each line tLine in the uHyperCard["externals"] of pStack
+      if word 1 to -1 of item 1 of tLine is not "XCMD" then next repeat
+      put word 1 to -1 of item 2 of tLine into tName
+      if tName is empty or tDefines[tName] or not tCalls[tName] then next repeat
+      playerLog "hypercard-unfixed" && the short name of pStack & ": it calls the XCMD" && tName
+      return true
+   end repeat
+   return false
+end playerConvertedUnfixed
+
+-- The stack, its cards, backgrounds and controls (and its substacks'),
+-- whose scripts playerConvertedUnfixed reads
+private function playerScriptObjects pStack
+   local tList, tSub, tStack
+   put playerObjectsOf(pStack) into tList
+   repeat for each line tSub in the substacks of pStack
+      put the long id of stack tSub of pStack into tStack
+      put return & playerObjectsOf(tStack) after tList
+   end repeat
+   return tList
+end playerScriptObjects
+
+private function playerObjectsOf pStack
+   local tList, tCard, tBg, tControl
+   put pStack into tList
+   repeat with tCard = 1 to the number of cards of pStack
+      put return & the long id of card tCard of pStack after tList
+      repeat with tControl = 1 to the number of controls of card tCard of pStack
+         put return & the long id of control tControl of card tCard of pStack after tList
+      end repeat
+   end repeat
+   repeat with tBg = 1 to the number of backgrounds of pStack
+      put return & the long id of background tBg of pStack after tList
+   end repeat
+   return tList
+end playerObjectsOf
+
+-- Whether pScript compiles, on a hidden stack made for the test (and
+-- deleted by playerDropProbe)
+private function playerCompiles pScript
+   local tResult, tDefault
+   if there is not a stack "Player Compile Probe" then
+      put the defaultStack into tDefault
+      create invisible stack "Player Compile Probe"
+      set the defaultStack to tDefault
+   end if
+   set the script of stack "Player Compile Probe" to pScript
+   put the result into tResult
+   set the script of stack "Player Compile Probe" to empty
+   return tResult is empty
+end playerCompiles
+
+private command playerDropProbe
+   local tError
+   try
+      if there is a stack "Player Compile Probe" then
+         delete stack "Player Compile Probe"
+      end if
+   catch tError
+   end try
+end playerDropProbe
+
+private function playerShortObject pObject
+   return word 1 to 3 of pObject
+end playerShortObject
+
+-- A stack playerConvertedUnfixed found: HyperCard's message order and
+-- its scripts fixed, as File > Import Stack does (playerFixHyperCard
+-- without its MACE sounds, which come from the HyperCard file's resource
+-- fork, and without the classic look, which would restyle a stack that
+-- was only missing its scripts). Only the copy in memory changes: the
+-- stack file in the library stays as it was, and Reload reads it again.
+private command playerFixConverted pStack
+   local tError
+   try
+      set the hyperTalkCompatible of pStack to true
+   catch tError
+      playerLog "hypercard-order-failed" && playerErrorText(tError)
+   end try
+   try
+      playerLog "hypercard-converted" && the last line of revHyperCardFixScripts(pStack)
+   catch tError
+      playerLog "hypercard-fix-failed" && playerErrorText(tError)
+   end try
+end playerFixConverted
+
 -- The extension of a file name (after its last full stop), or empty
 private function playerExtension pName
    set the itemDelimiter to "."
@@ -883,6 +1077,17 @@ command playerOpenFile pPath
          put the rect of stack pPath into tRect
          put the resizable of stack pPath into tResizable
          put the short name of stack pPath into tName
+         -- a HyperCard stack saved as a stack file before File > Import
+         -- Stack fixed its scripts (or with that turned off), which has
+         -- already stopped on a handler it has lost (playerOfferFix): it
+         -- gets what the import would give it now, in memory
+         if sFixConverted[pPath] is "fix" then
+            if playerConvertedUnfixed(the long id of stack pPath) then
+               lock messages
+               playerFixConverted the long id of stack pPath
+               unlock messages
+            end if
+         end if
       end if
    catch tError
       put "the file is not a stack this engine can read (" & playerErrorText(tError) & ")" into tResult
@@ -1361,6 +1566,15 @@ private command playerShowError pError, pObject
       replace the long name of stack sCurrent with "stack" && quote & sCurrent & quote in tText
    end if
    playerLog "script error in" && pObject & ":" && tText
+   if playerOfferFix(tText) then
+      exit playerShowError
+   end if
+   -- while the offer to fix the stack is up, its other errors (from its
+   -- idle or mouseEnter, again and again) are only logged: a dialog of
+   -- each would cover the offer
+   if sCurrentFile is not empty and sFixConverted[sCurrentFile] is "asked" then
+      exit playerShowError
+   end if
    if tLibrary is not empty then
       answer error "This part of" && quote & sCurrent & quote && "can't run here:" && \
             playerNativeText(tLibrary)
