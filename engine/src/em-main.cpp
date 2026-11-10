@@ -29,9 +29,13 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "dispatch.h"
 
 #include "em-font.h"
+#include "stacklst.h"
 #include "em-externals.h"
 
 #include <unistd.h>
+
+/* font.cpp */
+extern void MCFontRemap(void);
 
 /* ================================================================
  * Emscripten engine start-up
@@ -148,6 +152,15 @@ platform_main(int argc, char *argv[], char *envp[])
 
 	/* ---------- Scan list of custom fonts */
 	MCEmscriptenCustomFontsLoad();
+
+	/* OXT-Beyond: X_init has loaded the standalone's stacks, and any font
+	 * made then was made without the fonts just scanned, and is kept under
+	 * its name (a desktop name in Droid Sans although its stand-in has
+	 * loaded, em-font.cpp). As "start using font file" does (MCFontLoad),
+	 * the fonts made so far are made again, now with them. Without custom
+	 * fonts each is made as it was. */
+	MCFontRemap();
+	MCstacks->purgefonts();
 
 	/* ---------- Clean up arguments & environment */
 	for (int i = 0; i < argc; ++i)

@@ -332,20 +332,20 @@ end makeSamples
 -- A stack in the desktop's fonts: fontsReport says whether the player
 -- has Arial and Times (the desktop fonts stand in for them), and whether
 -- Arial and Helvetica draw as wide as Arimo and Times as wide as Tinos.
--- Each font has a field of its own, set here: a field whose textFont a
--- script changes is not laid out again before its formattedWidth is
--- asked for in the same handler. The widths follow, for the log
+-- Each font has a field of its own, set here. The widths follow, for the
+-- log, with Cousine's and Lucida Console's (a name nothing else in the
+-- player uses)
 private command makeFonts pFile
    local tStack, tScript, tFont, tTop
    create stack "Fonts"
    put the long id of stack "Fonts" into tStack
-   set the rect of tStack to 0,0,480,260
+   set the rect of tStack to 0,0,480,360
    set the defaultStack to "Fonts"
    put 10 into tTop
-   repeat for each item tFont in "Arimo,Arial,Helvetica,Tinos,Times"
+   repeat for each item tFont in "Arimo,Arial,Helvetica,Tinos,Times,Cousine,Lucida Console"
       create field tFont
       set the rect of field tFont of tStack to 20,tTop,460,tTop + 40
-      add 48 to tTop
+      add 46 to tTop
       set the dontWrap of field tFont of tStack to true
       set the textSize of field tFont of tStack to 20
       set the textFont of field tFont of tStack to tFont
@@ -358,11 +358,11 @@ private command makeFonts pFile
          "   return the formattedWidth of field pFont" & return & \
          "end fontsWidth" & return & \
          "on fontsReport" & return & \
-         "   local tArimo, tTinos, tSame, tWidths" & return & \
+         "   local tArimo, tTinos, tSame, tWidths, tFont" & return & \
          "   put fontsWidth(`Arimo`) into tArimo" & return & \
          "   put fontsWidth(`Tinos`) into tTinos" & return & \
          "   put fontsWidth(`Arial`) is tArimo and fontsWidth(`Helvetica`) is tArimo and fontsWidth(`Times`) is tTinos into tSame" & return & \
-         "   repeat for each item tFont in `Arimo,Arial,Helvetica,Tinos,Times`" & return & \
+         "   repeat for each item tFont in `Arimo,Arial,Helvetica,Tinos,Times,Cousine,Lucida Console`" & return & \
          "      put space & tFont & `=` & fontsWidth(tFont) after tWidths" & return & \
          "   end repeat" & return & \
          "   write `SAMPLE fonts ` & (`Arial` is among the lines of the fontNames) & comma & (`Times` is among the lines of the fontNames) & comma & tSame & return to stdout" & return & \

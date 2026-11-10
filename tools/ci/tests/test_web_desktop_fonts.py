@@ -104,6 +104,17 @@ class TheFonts(unittest.TestCase):
         self.assertIn('t_sft_name.name_id == 4 && t_sft_name.platform_id == 1 && '
                       't_sft_name.encoding_id == 0 && t_sft_name.language_id == 0', source)
 
+    def test_fonts_made_at_boot_are_made_again(self):
+        # a font X_init made before the fonts folder was scanned keeps the
+        # face it had then; the boot makes each again after the scan, as
+        # "start using font file" does
+        source = read('engine', 'src', 'em-main.cpp')
+        boot = source.split('MCEmscriptenCustomFontsLoad();', 1)
+        self.assertEqual(len(boot), 2)
+        self.assertIn('X_init(t_options)', boot[0])
+        after = boot[1].split('gethome()->open()', 1)[0]
+        self.assertIn('MCFontRemap();\n\tMCstacks->purgefonts();', after)
+
     def test_the_builder_script_makes_these_files(self):
         script = read('tools', 'oxt', 'build_web_desktop_fonts.py')
         sources = re.findall(r'^    "([A-Za-z]+-[A-Za-z]+\.ttf)": "[0-9a-f]{64}",$', script, re.M)
