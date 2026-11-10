@@ -58,6 +58,11 @@ def loop(name):
     return '\n'.join(line[len(m.group(1)):] for line in m.group(0).splitlines()) + '\n'
 
 
+# The steps run in Linux containers; the loop is run here only where bash
+# runs the fake tools as programs (not on the Windows runner)
+POSIX = unittest.skipUnless(os.name == 'posix' and shutil.which('bash'), 'the step runs in bash on Linux')
+
+
 class AptRetry(unittest.TestCase):
     def run_loop(self, name, fails, cache_hit):
         state = tempfile.mkdtemp()
@@ -86,6 +91,7 @@ class AptRetry(unittest.TestCase):
         for name in FILES:
             self.assertIsNotNone(loop(name), name)
 
+    @POSIX
     def test_a_first_pass_that_fails_runs_again_after_an_update(self):
         for name in FILES:
             status, calls, sleeps = self.run_loop(name, 1, 'true')
@@ -94,17 +100,20 @@ class AptRetry(unittest.TestCase):
             self.assertEqual([c.split()[2] for c in calls], ['install', 'update', 'install'], name)
             self.assertEqual(sleeps, ['30'], name)
 
+    @POSIX
     def test_without_the_cache_each_pass_updates_first(self):
         status, calls, sleeps = self.run_loop('web.yml', 2, '')
         self.assertEqual(status, 0)
         self.assertEqual([c.split()[2] for c in calls], ['update', 'install'] * 3)
         self.assertEqual(sleeps, ['30', '60'])
 
+    @POSIX
     def test_three_failures_fail_the_step(self):
         status, calls, sleeps = self.run_loop('web.yml', 3, 'true')
         self.assertNotEqual(status, 0)
         self.assertEqual(len([c for c in calls if ' install ' in ' %s ' % c]), 3)
 
+    @POSIX
     def test_a_pass_that_works_installs_once(self):
         status, calls, sleeps = self.run_loop('build-linux.yml', 0, '')
         self.assertEqual(status, 0)
