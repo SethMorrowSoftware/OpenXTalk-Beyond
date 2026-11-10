@@ -178,18 +178,6 @@ class Run:
         time.sleep(settle)
         return self.state()
 
-    def drag(self, x1, y1, x2, y2, steps=12, hold=0.4):
-        self.move(x1, y1)
-        time.sleep(0.1)
-        self.xdo('mousedown', 1)
-        for i in range(1, steps + 1):
-            self.move(x1 + (x2 - x1) * i / steps, y1 + (y2 - y1) * i / steps)
-            time.sleep(0.03)
-        time.sleep(hold)
-        st = self.state()
-        self.xdo('mouseup', 1)
-        return st
-
     def hold(self, ms):
         """Has the engine do nothing for ms milliseconds, as a busy
         machine does (the probe's clicksHold): True once it has started"""
@@ -442,24 +430,57 @@ def to_drag(run):
 
 
 def drag(run, name):
-    tries, court, free = to_drag(run)
-    if not run.check(bool(tries), '%s: a body to drag' % name, 'none in the court'):
-        return
+    """A body dragged with the mouse on an idle window follows it. Up to
+    six bodies are tried, as before, but each is pressed where it is just
+    before its own try, and a body the press grabbed has up to 4 seconds
+    to follow while the mouse stays at the target, as in late_drag. On a
+    loaded machine the try failed on Bodies in two runs of six: the box on
+    the floor, pulled up from under the purple platform, stops against
+    its underside until the platform has passed ("from 469,587 toward
+    535,322: now 564,531", its top on the platform's, after the 0.8 s the
+    try waited then), and the box riding the platform was pressed where
+    it had been before the first try, 1.7 s earlier. A body that has not
+    moved 5 pixels 0.8 s after the drag was not grabbed, and the next is
+    tried at once: where no press grabs anything, the check still ends
+    in its FAIL line in good time."""
+    tried = set()
     why = []
-    # (a body a joint holds, such as a lift on its motor or a flap at its
-    # limit, may not go where it is pulled: one of the first few must)
-    for body, (x, y) in tries:
+    for turn in range(6):
+        tries, court, free = to_drag(run)
+        if turn == 0 and not run.check(bool(tries), '%s: a body to drag' % name, 'none in the court'):
+            return
+        tries = [t for t in tries if t[0] not in tried]
+        if not tries:
+            break
+        body, (x, y) = tries[0]
+        tried.add(body)
         tx = (court[0] + court[2]) // 2 + (60 if x < (court[0] + court[2]) // 2 else -60)
         ty = court[1] + 160
-        st = run.drag(x, y, tx, ty, hold=0.8)
-        now = dict(table(st.get('dynamic')))
+        # (a body a joint holds, such as a lift on its motor or a flap at its
+        # limit, may not go where it is pulled: one of the first few must)
+        run.move(x, y)
+        time.sleep(0.1)
+        run.xdo('mousedown', 1)
+        for i in range(1, 13):
+            run.move(x + (tx - x) * i / 12, y + (ty - y) * i / 12)
+            time.sleep(0.03)
+        start = time.time()
+        while True:
+            time.sleep(0.2)
+            now = dict(table(run.state().get('dynamic')))
+            if body not in now:
+                break
+            nx, ny = now[body]
+            moved = ((nx - x) ** 2 + (ny - y) ** 2) ** 0.5
+            near = ((nx - tx) ** 2 + (ny - ty) ** 2) ** 0.5
+            waited = time.time() - start
+            if moved > 30 and near < moved or waited >= 4 or (waited >= 0.8 and moved < 5):
+                break
+        run.xdo('mouseup', 1)
         time.sleep(0.4)
         if body not in now:
             why.append('%s is gone' % body)
             continue
-        nx, ny = now[body]
-        moved = ((nx - x) ** 2 + (ny - y) ** 2) ** 0.5
-        near = ((nx - tx) ** 2 + (ny - ty) ** 2) ** 0.5
         if moved > 30 and near < moved:
             run.check(True, '%s: a dragged body follows the mouse' % name)
             return
