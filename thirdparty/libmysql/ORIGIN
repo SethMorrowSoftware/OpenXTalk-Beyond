@@ -44,6 +44,12 @@ Local changes, marked "OXT-Beyond" in the sources:
   TLS these logins send the password encrypted with the server's RSA key,
   which needs OpenSSL; with no SSL library loaded they fail with an error
   saying so instead of calling it.
+- libmariadb/mariadb_lib.c: mysql_server_init starts OpenSSL only when
+  the SSL library is loaded; otherwise the first connection with TLS
+  starts it.
+- plugins/auth/caching_sha2_pw.c: a connection counts as encrypted, so
+  that the password may go as it is, only when it has TLS, not when TLS
+  was asked for (a server without TLS is connected to without it).
 
 TLS is OpenSSL's (libmariadb/secure/openssl.c), through the engine's
 OpenSSL stubs (thirdparty/libopenssl/ssl.stubs).

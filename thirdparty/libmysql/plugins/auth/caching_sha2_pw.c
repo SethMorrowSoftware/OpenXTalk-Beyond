@@ -69,7 +69,11 @@
 */
 static unsigned char is_connection_secure(MYSQL *mysql)
 {
-  if (mysql->options.use_ssl ||
+  /* OXT-Beyond: TLS that the connection has, not TLS that was asked for.
+     A script that asks for TLS from a server without it is connected
+     without TLS (thirdparty/libmysql/ORIGIN), and use_ssl stays set then:
+     the password must go with RSA, not as it is. */
+  if (mysql->net.pvio->ctls ||
       mysql->net.pvio->type != PVIO_TYPE_SOCKET)
     return 1;
   return 0;

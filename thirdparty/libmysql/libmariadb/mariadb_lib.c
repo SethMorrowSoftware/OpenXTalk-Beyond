@@ -28,6 +28,7 @@
 #include <ma_string.h>
 #include <mariadb_ctype.h>
 #include <ma_common.h>
+#include <ma_crypt.h> /* OXT-Beyond: ma_oxt_openssl_loaded */
 #include "ma_priv.h"
 #include "ma_context.h"
 #include "mysql.h"
@@ -4619,7 +4620,13 @@ static void mysql_once_init()
   if (!mysql_ps_subsystem_initialized)
     mysql_init_ps_subsystem();
 #ifdef HAVE_TLS
-  ma_tls_start(0, 0);
+  /* OXT-Beyond: only once the engine's SSL library is loaded, since
+     OpenSSL is reached through stubs that are empty until then
+     (include/ma_crypt.h). Otherwise TLS starts with the first connection
+     that uses it (ma_pvio_tls_init), by which time the driver has loaded
+     the library or refused the connection. */
+  if (ma_oxt_openssl_loaded)
+    ma_tls_start(0, 0);
 #endif
   ignore_sigpipe();
   mysql_client_init = 1;
