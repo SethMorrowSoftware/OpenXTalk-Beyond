@@ -34,13 +34,17 @@
 #define HAVE_SIZE_T 1
 
 #if !defined(_WIN32)
-/* glibc, Darwin and bionic all define uint, ushort and ulong */
+/* glibc, Darwin and bionic define uint and ushort, and glibc and bionic
+   ulong; Darwin has no ulong (sys/types.h has u_long), so ma_global.h
+   makes it there */
 #  define SIZEOF_UINT 4
 #  define HAVE_UINT 1
 #  define SIZEOF_USHORT 2
 #  define HAVE_USHORT 1
-#  define SIZEOF_ULONG SIZEOF_LONG
-#  define HAVE_ULONG 1
+#  if !defined(__APPLE__)
+#    define SIZEOF_ULONG SIZEOF_LONG
+#    define HAVE_ULONG 1
+#  endif
 #endif
 
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
