@@ -470,7 +470,8 @@ class Device(unittest.TestCase):
               'org.openxtalk.check.androidprobe/.mblandroid t9}\\n"')
 
     def device(self, pidof, timeout='10', power='true', events=EVENTS, cases='', argv=(), screencap='',
-               window=WINDOW, exits='printf "  ApplicationExitInfo #0:\\n    pid=3612 reason=3 (LOW_MEMORY)\\n"'):
+               window=WINDOW, exits='printf "  ApplicationExitInfo #0:\\n    pid=3612 reason=3 (LOW_MEMORY)\\n"',
+               page='echo 16384'):
         d = self.tmp.name
         adb = os.path.join(d, 'platform-tools', 'adb')
         with open(adb, 'w') as f:
@@ -479,7 +480,7 @@ class Device(unittest.TestCase):
                     'echo "$*" >> "$(dirname "$0")/calls"\n'
                     'case "$*" in\n'
                     '  "shell getprop ro.build.version.sdk") echo 35 ;;\n'
-                    '  "shell getconf PAGE_SIZE") echo 16384 ;;\n'
+                    '  "shell getconf PAGE_SIZE") %s ;;\n'
                     '  "shell getprop ro.product.cpu.abi") echo x86_64 ;;\n'
                     '  install*) echo Success ;;\n'
                     '  "shell am start"*) echo "Status: ok" ;;\n'
@@ -492,7 +493,7 @@ class Device(unittest.TestCase):
                     '  "shell cat /proc/meminfo") printf "MemTotal: 2000000 kB\\nMemFree: 1 kB\\nMemAvailable: 90000 kB\\n" ;;\n'
                     '  "shell dumpsys window") %s ;;\n'
                     '%s'
-                    'esac\n' % (screencap, d, pidof, d, power, events, exits, window, cases))
+                    'esac\n' % (page, screencap, d, pidof, d, power, events, exits, window, cases))
         os.chmod(adb, 0o755)
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
@@ -638,6 +639,52 @@ class Device(unittest.TestCase):
         self.assertEqual(status, 1, out)
         self.assertEqual(sum(c.startswith('shell am start') for c in self.calls()), 1)
         self.assertNotIn('the run once more', out)
+
+    # ps on Android 5 (toolbox's: a state column before the name)
+    PS = ('USER     PID   PPID  VSIZE  RSS     WCHAN    PC         NAME\n'
+          'root      1     0     8904   788   ffffffff 00000000 S /init\n'
+          'u0_a57    2345  1234  1023456 45678 ffffffff 00000000 S org.openxtalk.check.androidprobe\n'
+          'u0_a57    2400  1234  1000000 40000 ffffffff 00000000 S org.openxtalk.check.androidprobe:remote\n'
+          'u0_a58    2500  1234  1000000 40000 ffffffff 00000000 S org.openxtalk.check.androidprobe2\n')
+
+    def test_pids_in_ps(self):
+        self.assertEqual(ac.pids_in_ps(self.PS), '2345')
+        self.assertEqual(ac.pids_in_ps(self.PS.replace(' 2345 ', ' 23x5 ')), '')
+        self.assertEqual(ac.pids_in_ps(self.PS + 'u0_a57    2600  1234  1 2 f 0 S org.openxtalk.check.androidprobe\n'),
+                         '2345 2600')
+        self.assertEqual(ac.pids_in_ps(''), '')
+
+    def test_no_pidof_asks_ps(self):
+        # Android 5's shell has no pidof: ps says, at once (no wait for a
+        # device that is there)
+        said = []
+
+        def a(*cmd, timeout=180):
+            said.append(cmd)
+            if cmd[:2] == ('shell', 'pidof'):
+                return 0, '/system/bin/sh: pidof: not found\n'
+            return 0, ps
+        ps = self.PS
+        self.assertEqual(ac.pid_now(a), '2345')
+        self.assertEqual(said, [('shell', 'pidof', ac.IDENTIFIER), ('shell', 'ps')])
+        ps = self.PS.replace('S org.openxtalk.check.androidprobe\n', 'S com.android.phone\n')
+        self.assertEqual(ac.pid_now(a), '')
+        # an older toybox's word for it too
+        self.assertTrue(re.search(ac.NO_PIDOF, 'pidof: inaccessible or not found'))
+        self.assertFalse(re.search(ac.NO_PIDOF, 'adb: device offline'))
+
+    def test_on_android_5(self):
+        # no pidof and no getconf: the run goes on with ps, and says the
+        # page size is not known
+        status, out = self.device('echo "/system/bin/sh: pidof: not found"', page='echo "/system/bin/sh: getconf: '
+                                  'not found"', cases='  "shell ps") printf "%s" ;;\n' % self.PS.replace('\n', '\\n'))
+        self.assertEqual(status, 0, out)
+        self.assertIn('Device emulator-5554: API 35, x86_64, its page size not said (getconf: /system/bin/sh: '
+                      'getconf: not found)\n', out)
+        self.assertIn("process 2345", out)
+        self.assertNotIn('waiting for the device', out)
+        status, out = self.device('echo 3475')
+        self.assertIn('Device emulator-5554: API 35, x86_64, pages of 16384 bytes\n', out)
 
     def test_gone_after_drawing(self):
         status, out = self.device('true')

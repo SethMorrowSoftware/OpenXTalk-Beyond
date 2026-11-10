@@ -2213,6 +2213,23 @@ PID_TRIES = 3
 DEVICE_WAIT = 60
 
 
+# The shell's answer where it has no pidof: Android 5's toolbox (toybox,
+# which has one, came with Android 6)
+NO_PIDOF = r'\bpidof: (?:inaccessible or )?not found'
+
+
+def pids_in_ps(out, name=IDENTIFIER):
+    """The process ids of `name` in a listing of ps (Android 5's toolbox:
+    USER PID PPID VSIZE RSS WCHAN PC NAME, the name last), as pidof gives
+    them: '' when it is not running."""
+    pids = []
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) > 2 and parts[-1] == name and parts[1].isdigit():
+            pids.append(parts[1])
+    return ' '.join(pids)
+
+
 def pid_now(a, tries=None):
     """The probe's process ids now, as pidof gives them ('' when it is not
     running). An answer that is not process ids is adb's own failure, not
@@ -2221,11 +2238,15 @@ def pid_now(a, tries=None):
     then took for the probe's process. So it waits for the device (adb
     wait-for-device, at most DEVICE_WAIT s) and asks again, at most
     `tries` times (PID_TRIES), and then gives adb's answer, which no process
-    id equals. `a` runs adb on the device."""
+    id equals. On a shell with no pidof (NO_PIDOF: Android 5), ps says
+    (pids_in_ps). `a` runs adb on the device."""
     tries = PID_TRIES if tries is None else tries
     out = ''
     for _ in range(tries):
         out = a('shell', 'pidof', IDENTIFIER)[1].strip()
+        if re.search(NO_PIDOF, out):
+            # Android 5's shell has no pidof: its ps says
+            return pids_in_ps(a('shell', 'ps')[1])
         if re.fullmatch(r'[\d\s]*', out):
             return out
         log('  pidof: %s; waiting for the device' % answer(out))
@@ -2662,7 +2683,9 @@ def device_once(args):
     _, props = a('shell', 'getprop', 'ro.build.version.sdk')
     _, page = a('shell', 'getconf', 'PAGE_SIZE')
     _, abi = a('shell', 'getprop', 'ro.product.cpu.abi')
-    log('Device %s: API %s, %s, pages of %s bytes' % (args.serial, props.strip(), abi.strip(), page.strip()))
+    log('Device %s: API %s, %s, %s' % (args.serial, props.strip(), abi.strip(),
+                                        'pages of %s bytes' % page.strip() if page.strip().isdigit() else
+                                        'its page size not said (getconf: %s)' % answer(page, 120)))
     state = wakefulness(a('shell', 'dumpsys', 'power')[1])
     if state and state != 'Awake':
         log('NOTE: the device is %s (dumpsys power): Android pauses an activity started now (see boot --awake)'
