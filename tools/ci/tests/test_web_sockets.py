@@ -192,8 +192,10 @@ const step = () => {
         sent.push(lib.MCEmscriptenSocketSend(id, ...put(Buffer.from('hello\n'))));
         sent.push(lib.MCEmscriptenSocketSend(id, ...put(new Uint8Array([0, 255, 10]))));
         sent.push(lib.MCEmscriptenSocketSend(id, ...put(Buffer.from('héllo\n', 'utf8'))));
+        // UTF-8 that starts with a byte order mark: it goes as it is
+        sent.push(lib.MCEmscriptenSocketSend(id, ...put(new Uint8Array([0xEF, 0xBB, 0xBF, 0x61, 10]))));
     }
-    if (datas == 3 && sent.length == 3) {
+    if (datas == 4 && sent.length == 4) {
         sent.push(lib.MCEmscriptenSocketSend(id, ...put(Buffer.from('please close'))));
     }
     if (events.some(e => e.event == 4)) {
@@ -245,13 +247,14 @@ class TheLibrary(unittest.TestCase):
         engine = [e for e in events if 'event' in e]
         self.assertTrue(all(e['name'] == 'MCEmscriptenSocketHandleEvent' for e in engine))
         self.assertTrue(all(e['id'] == engine[0]['id'] and e['id'] > 0 for e in engine))
-        self.assertEqual([e['event'] for e in engine], [1, 2, 2, 2, 4])
+        self.assertEqual([e['event'] for e in engine], [1, 2, 2, 2, 2, 4])
         # text as UTF-8, binary as it was
         self.assertEqual([bytes(e['bytes']) for e in engine if e['event'] == 2],
-                         [b'hello\n', bytes([0, 255, 10]), 'héllo\n'.encode('utf-8')])
+                         [b'hello\n', bytes([0, 255, 10]), 'héllo\n'.encode('utf-8'),
+                          bytes([0xEF, 0xBB, 0xBF, 0x61, 10])])
         # the server closed it cleanly (1000)
         self.assertEqual(engine[-1]['flag'], 1)
-        self.assertEqual(events[-2], {'sent': [True, True, True, True]})
+        self.assertEqual(events[-2], {'sent': [True, True, True, True, True]})
         self.assertEqual(events[-1], {'after': False})
 
 
@@ -277,6 +280,24 @@ class OneLibrary(unittest.TestCase):
         self.assertEqual(len(re.findall(r"'src/em-liburl\.js',\n\t+'src/em-socket\.js',", gyp)),
                          gyp.count("'src/em-liburl.js',"))
         self.assertIn("'src/em-socket.js',", read('engine', 'engine-sources.gypi'))
+
+    def test_a_waiting_write_is_its_writers(self):
+        # A write with no message waits in MCS_write_socket, which deletes
+        # it: the socket's close must not delete it under that script
+        cpp = read('engine', 'src', 'em-osspec-network.cpp')
+        body = cpp.split('MCSocket::deletewrites()', 1)[1].split('\n}\n', 1)[0]
+        self.assertIn('MCSocketwrite *eptr = wevents->remove(wevents);', body)
+        self.assertRegex(body, r'if \(eptr->message != nil\)\n\t\t\tdelete eptr;')
+
+    def test_reads_waiting_are_done_at_a_clean_close(self):
+        cpp = read('engine', 'src', 'em-osspec-network.cpp')
+        close = cpp.split('case kMCEmscriptenSocketEventClose:', 1)[1].split('break;\n\t}', 1)[0]
+        self.assertIn('else if (s->error == nil && s->revents != nil && !s->waiting)', close)
+        self.assertLess(close.index('s->deletewrites();\n\t\t\ts->processreadqueue();'),
+                        close.index('s->doclose();'))
+        # and socketClosed goes once, after the last of them
+        queue = cpp.split('MCSocket::processreadqueue()', 1)[1].split('\n}\n', 1)[0]
+        self.assertIn('if (nread == 0 && fd == 0 && revents == nil && object.IsValid())', queue)
 
     def test_other_names_fail_as_before(self):
         cpp = read('engine', 'src', 'em-osspec-network.cpp')

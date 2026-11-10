@@ -259,6 +259,15 @@ MCEmscriptenSocketHandleEvent(uint32_t p_id, int32_t p_event, byte_t *p_bytes, u
 		s->fd = 0;
 		if (s->closing)
 			s->deletewrites();
+		else if (s->error == nil && s->revents != nil && !s->waiting)
+		{
+			/* Reads with a message that wait for more than came: at the
+			 * end they are done (read_done() gives them what is left,
+			 * "eof"), and the last sends socketClosed when nothing is
+			 * left to read (processreadqueue) */
+			s->deletewrites();
+			s->processreadqueue();
+		}
 		else
 			s->doclose();
 		break;
@@ -656,7 +665,12 @@ MCSocket::deletewrites()
 	while (wevents != nil)
 	{
 		MCSocketwrite *eptr = wevents->remove(wevents);
-		delete eptr;
+		/* A write with no message belongs to the script waiting for it
+		 * (MCS_write_socket), which deletes it when the socket has
+		 * closed: deleting it here would leave that script reading
+		 * freed memory */
+		if (eptr->message != nil)
+			delete eptr;
 	}
 	if (fd != 0)
 	{
@@ -766,7 +780,9 @@ MCSocket::processreadqueue()
 			MCscreen->addmessage(e->optr, e->message, curtime, params);
 		}
 		delete e;
-		if (nread == 0 && fd == 0 && object.IsValid())
+		/* (once, after the last read: at the end every read waiting
+		 * is done at once) */
+		if (nread == 0 && fd == 0 && revents == nil && object.IsValid())
 			MCscreen->delaymessage(object, MCM_socket_closed, MCNameGetString(name));
 		added = True;
 	}

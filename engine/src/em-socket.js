@@ -92,19 +92,24 @@ mergeInto(LibraryManager.library, {
 		},
 
 		// Sends <bytes> (a Uint8Array) on socket <id>: as a text message
-		// when they are UTF-8, a binary one otherwise. Returns false if
-		// the socket is not open.
+		// when they are UTF-8, a binary one otherwise. Bytes that begin
+		// with a UTF-8 byte order mark go as binary: a text message's
+		// receiver decodes it without the mark (the WebSocket standard's
+		// "UTF-8 decode"), and the bytes must arrive as they were sent.
+		// Returns false if the socket is not open.
 		send: function(id, bytes) {
 			var ws = LiveCodeSocket._sockets[id];
 			if (!ws || ws.readyState !== 1) {
 				return false;
 			}
 			if (!LiveCodeSocket._decoder) {
-				LiveCodeSocket._decoder = new TextDecoder('utf-8', { fatal: true });
+				LiveCodeSocket._decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 			}
 			var text = null;
+			var bom = bytes.length >= 3 && bytes[0] === 0xEF &&
+			          bytes[1] === 0xBB && bytes[2] === 0xBF;
 			try {
-				text = LiveCodeSocket._decoder.decode(bytes);
+				text = bom ? null : LiveCodeSocket._decoder.decode(bytes);
 			} catch (e) {
 				text = null;
 			}
