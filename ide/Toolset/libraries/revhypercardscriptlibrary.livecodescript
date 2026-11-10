@@ -774,20 +774,27 @@ command revHyperCardMacFonts pStack, pFontNames
 end revHyperCardMacFonts
 
 -- The font runs of the text of pField that name a font of pMap set to its
--- look-alike; each one found is set to true in pUsed
+-- look-alike; each one found is set to true in pUsed. The runs are read
+-- and set as the styledText, which holds each run's font apart from its
+-- text: the htmlText leaves the quotes of the text as they are, so text
+-- that read like a font run (face="Geneva") was changed with them
 private command _MacFontRuns pField, pMap, @pUsed
-   local tHtml, tKey, tChanged
-   put the htmlText of pField into tHtml
-   if "face=" is not in tHtml then exit _MacFontRuns
-   repeat for each key tKey in pMap
-      -- (replace ignores case, as the engine's font names do)
-      if ("face=" & quote & tKey & quote) is in tHtml then
-         replace ("face=" & quote & tKey & quote) with ("face=" & quote & pMap[tKey] & quote) in tHtml
+   local tStyled, tPara, tRun, tFont, tKey, tChanged
+   put the styledText of pField into tStyled
+   repeat for each key tPara in tStyled
+      repeat for each key tRun in tStyled[tPara]["runs"]
+         put tStyled[tPara]["runs"][tRun]["style"]["textFont"] into tFont
+         if tFont is empty or pMap[tFont] is empty then next repeat
+         -- (the name as kMacFontStandIns spells it, for pUsed)
+         repeat for each key tKey in pMap
+            if tKey is tFont then exit repeat
+         end repeat
+         put pMap[tKey] into tStyled[tPara]["runs"][tRun]["style"]["textFont"]
          put true into pUsed[tKey]
          put true into tChanged
-      end if
+      end repeat
    end repeat
-   if tChanged then set the htmlText of pField to tHtml
+   if tChanged then set the styledText of pField to tStyled
 end _MacFontRuns
 
 /*

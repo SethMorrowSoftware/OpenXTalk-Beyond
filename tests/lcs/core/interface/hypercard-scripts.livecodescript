@@ -4420,6 +4420,8 @@ on TestHyperCardScriptsMacFonts
    set the htmlText of field "F" to "<p>a <font face=" & quote & "Monaco" & quote & ">b</font> <font face=" & quote & "Palatino" & quote & ">c</font> <font face=" & quote & "Courier" & quote & ">d</font></p>"
    create field "Own"
    set the textFont of field "Own" to "Zapf Chancery"
+   create field "Literal"
+   put "face=" & quote & "Geneva" & quote into field "Literal"
    unlock messages
    revHyperCardMacFonts tStack, _StandInFonts()
    TestAssert "Chicago is shown in ChicagoFLF", the textFont of stack tStack is "ChicagoFLF"
@@ -4430,6 +4432,8 @@ on TestHyperCardScriptsMacFonts
    TestAssert "a Palatino run in Palatino Linotype", "face=" & quote & "Palatino Linotype" & quote & ">c" is in tHtml
    TestAssert "a font that is not a Mac system font stays", "face=" & quote & "Courier" & quote & ">d" is in tHtml
    TestAssert "the text is the same", the text of field "F" of stack tStack is "a b c d"
+   -- text that only reads like a font run is the stack's text, not a font
+   TestAssert "text that names a font is left alone", the text of field "Literal" of stack tStack is "face=" & quote & "Geneva" & quote
    TestAssert "a font with no look-alike stays", the textFont of field "Own" of stack tStack is "Zapf Chancery"
    put the uHyperCard["fonts"] of stack tStack into tMap
    TestAssert "the stack keeps what each became", "Chicago" & tab & "ChicagoFLF" is among the lines of tMap \

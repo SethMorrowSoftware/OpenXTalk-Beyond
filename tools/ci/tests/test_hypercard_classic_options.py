@@ -151,10 +151,12 @@ class StackPlayer(unittest.TestCase):
         self.assertIn("call('hclook\\n' + (classicLook() ? 'on' : 'off'));", self.page)
         self.assertIn("localStorage.setItem('oxtHyperCardClassic', on ? 'on' : 'off')", self.page)
 
-    def test_player_takes_the_verb(self):
-        verbs = re.search(r'if tVerb is among the items of "([^"]*)" then', self.player).group(1).split(',')
-        self.assertIn('hclook', verbs)
-        self.assertRegex(handler(self.player, 'playerDo'), r'case "hclook"\s+[\s\S]*?put line 1 of tArgs is "off" into sNoClassicLook')
+    def test_player_takes_the_verb_at_once(self):
+        # not through sPageArgs and a queued playerDo: the page calls
+        # library right after it, which would take the argument's place
+        verb = handler(self.player, 'playerFromPage')
+        self.assertRegex(verb, r'if tVerb is "hclook" then\s+put line 2 of pWhat is "off" into sNoClassicLook\s+return true')
+        self.assertLess(verb.index('"hclook"'), verb.index('into sPageArgs'))
 
     def test_look_unless_unticked(self):
         fix = handler(self.player, 'playerFixHyperCard')

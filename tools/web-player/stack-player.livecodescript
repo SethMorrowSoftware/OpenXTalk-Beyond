@@ -207,7 +207,14 @@ end playerJSString
 on playerFromPage pWhat
    local tVerb
    put line 1 of pWhat into tVerb
-   if tVerb is among the items of "open,home,download,reload,library,take,openpath,forget,hclook" then
+   -- the page's "classic look" box (index.html), "on" or "off": kept at
+   -- once, as the page's next call (library, as the player gets ready)
+   -- would take the place of sPageArgs before a queued playerDo read it
+   if tVerb is "hclook" then
+      put line 2 of pWhat is "off" into sNoClassicLook
+      return true
+   end if
+   if tVerb is among the items of "open,home,download,reload,library,take,openpath,forget" then
       put line 2 to -1 of pWhat into sPageArgs
       send "playerDo" && tVerb to me in 0 milliseconds
       return true
@@ -222,10 +229,6 @@ on playerDo pWhat
    switch pWhat
       case "open"
          playerChoose
-         break
-      case "hclook"
-         -- the page's "classic look" box (index.html), "on" or "off"
-         put line 1 of tArgs is "off" into sNoClassicLook
          break
       case "home"
          playerGoHome
