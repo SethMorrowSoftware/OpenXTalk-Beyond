@@ -342,6 +342,32 @@ draw a stack so, as those made after 0.2.7-rc.6.19 can; with earlier
 ones the build stops and says so. A stack without the setting is laid
 out as before.
 
+An application can also have an adaptive icon, which Android 8.0 and
+newer draw in the launcher's own shape (a circle, a squircle or a
+rounded square, whatever the phone uses) and move in the launcher's
+animations, instead of a square picture shrunk onto a white disc. It is
+two layers: a foreground picture over a background colour. Each layer is
+108 by 108 dp, of which the launcher shows the middle 72 (a circle 66 dp
+across is always shown), so keep what matters in the middle two thirds
+of the foreground, with clear space around it; a PNG of 432 by 432
+pixels is sharp on every screen. Give it a monochrome picture too, and
+it is a themed icon on Android 13 and newer: when the user turns on
+themed icons, the launcher draws that picture in colours that match the
+wallpaper (only the picture's alpha counts: a white shape on clear
+space). Set these on the stack before you build, each picture a PNG file
+named by its path, relative to the stack's folder or full:
+
+    set the cRevStandaloneSettings["android,adaptive icon"] of stack "My App" to "icons/foreground.png"
+    set the cRevStandaloneSettings["android,adaptive icon background"] of stack "My App" to "#1F9E5A"
+    set the cRevStandaloneSettings["android,themed icon"] of stack "My App" to "icons/monochrome.png"
+
+The background colour is `#RRGGBB`, `#AARRGGBB` or `r,g,b`, and white
+when it is empty. Android before 8.0 still shows the **Icon** of the
+Android card, or the foreground when there is none. A picture that is
+not there or is not a PNG, a colour in another form, or a themed icon
+without a foreground stops the build, saying which. A stack without
+these settings has the icon it had before.
+
 OXT-Beyond's own Android engine, built from its source with a current
 NDK, is a preview beside the 9.6.3 engine that the runtimes have always
 carried, which stays the default. To build with it, tick **OXT-Beyond engine (preview)** on the

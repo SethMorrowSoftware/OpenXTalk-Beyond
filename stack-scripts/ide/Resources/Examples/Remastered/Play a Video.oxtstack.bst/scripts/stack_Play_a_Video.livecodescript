@@ -20,12 +20,26 @@ function videoTrouble pPath
    if there is no file pPath then
       return "The video is not where the script looks for it: " & pPath
    end if
-   if the platform is "Linux" and there is no file "/usr/bin/mplayer" then
-      return "On Linux, OXT-Beyond plays a video with mplayer, which this computer does not have." && \
-            "Install mplayer, then try again."
+   if the platform is "Linux" and not linuxCanPlay() then
+      return "On Linux, OXT-Beyond plays a video with mplayer or GStreamer, and this computer has neither." && \
+            "Install one of them (GStreamer's plugins, or mplayer), then try again."
    end if
    return empty
 end videoTrouble
+
+--Whether a Linux player can play a movie: through mplayer, or through GStreamer, which OXT-Beyond uses when mplayer is not there
+function linuxCanPlay
+   local tFolder
+   if there is a file "/usr/bin/mplayer" then
+      return true
+   end if
+   repeat for each item tFolder in "/usr/lib/x86_64-linux-gnu,/usr/lib/aarch64-linux-gnu,/usr/lib/i386-linux-gnu,/usr/lib/arm-linux-gnueabihf,/usr/lib64,/usr/lib,/lib/x86_64-linux-gnu,/lib/aarch64-linux-gnu,/lib64"
+      if there is a file (tFolder & "/libgstreamer-1.0.so.0") then
+         return true
+      end if
+   end repeat
+   return false
+end linuxCanPlay
 
 --Why a video that should have played did not, in words
 function whyNot
@@ -36,7 +50,7 @@ function whyNot
       case "HTML5"
          return "This browser could not play this video. Try another one, or the desktop IDE."
       case "Linux"
-         return "mplayer could not open this video. Try another one."
+         return "Linux could not open this video (with mplayer, or GStreamer and its plugins). Try another one."
    end switch
    return "This computer could not open this video. Try another one."
 end whyNot
@@ -46,7 +60,7 @@ command showHow pPath
    local tTrouble, tTry
    put videoTrouble(pPath) into tTrouble
    if tTrouble is empty and the platform is not "Linux" then
-      --(a player that can play its movie knows its length by now; on Linux it asks mplayer, so there the note says only that mplayer is there)
+      --(a player that can play its movie knows its length by now; on Linux it asks mplayer or GStreamer, so there the note says only that one of them is there)
       repeat with tTry = 1 to 30
          if the duration of player "a" > 0 then
             exit repeat
