@@ -68,6 +68,12 @@ constant kRunHandler = "academyRun"
 constant kLoopSeconds = 10
 constant kMaxOutputLines = 2000
 constant kPrefSet = "cAcademy"
+-- The sizes the reading text can be, in percent of its own (LittleNemo,
+-- openxtalk.org p=26121: on a large screen it was small): the header's
+-- A- and A+, and Ctrl (Command) with - , + and 0, step through them, and
+-- the size is kept in the preferences (cAcademy textScale). At 100 the
+-- page is drawn exactly as it was before the setting.
+constant kTextScales = "85,100,115,130,150,175"
 
 -- The courses, by number: each one's "title", "id", "icon", "accent",
 -- "blurb", "credit", "file", its units (sCourses[n]["unit"][u]: "title",
@@ -110,6 +116,8 @@ local sExtra
 local sIndexMap
 -- The answer last picked in each quick check, by its key
 local sPicked
+-- The size of the reading text, in percent (kTextScales)
+local sTextScale
 
 ################################################################################
 #
@@ -522,6 +530,7 @@ end acSetPref
 
 private command acLoadProgress
    local tKey, tDrafts, tError
+   put acScaleOf(acPref("textScale")) into sTextScale
    put empty into sDone
    put empty into sQuiz
    repeat for each line tKey in acPref("done")
@@ -561,6 +570,121 @@ private command acSaveProgress
       acSetPref "place", sCourses[sCourse]["id"] & comma & sLesson[sCourse]
    end if
 end acSaveProgress
+
+################################################################################
+#
+# The size of the reading text
+#
+
+-- One of kTextScales, or 100 for anything else (none set, or a value
+-- from a hand-edited preferences file)
+private function acScaleOf pValue
+   if pValue is among the items of kTextScales then
+      return pValue
+   end if
+   return 100
+end acScaleOf
+
+-- A size on the page (a font's, a line's height, an indent) at the
+-- reading text's size: the size itself at 100
+private function acTS pSize
+   if sTextScale is empty or sTextScale is 100 then
+      return pSize
+   end if
+   return round(pSize * sTextScale / 100)
+end acTS
+
+-- The reading text one size bigger ("bigger"), smaller ("smaller") or
+-- back to its own ("reset"); the page is drawn again where it was, and the
+-- size is kept
+command acTextSize pHow
+   local tScales, tAt, tScale
+   put acScaleOf(sTextScale) into tScale
+   put kTextScales into tScales
+   put itemOffset(tScale, tScales) into tAt
+   switch pHow
+      case "bigger"
+         put item min(tAt + 1, the number of items of tScales) of tScales into tScale
+         break
+      case "smaller"
+         put item max(tAt - 1, 1) of tScales into tScale
+         break
+      case "reset"
+         put 100 into tScale
+         break
+      default
+         if pHow is among the items of tScales then
+            put pHow into tScale
+         end if
+   end switch
+   if tScale is sTextScale then
+      acToast "The text is" && acScaleWords(tScale), empty
+      exit acTextSize
+   end if
+   put tScale into sTextScale
+   acSetPref "textScale", tScale
+   acSyncTextSize
+   acRender true
+   acToast "Text size" && acScaleWords(tScale), empty
+end acTextSize
+
+-- The size in words, for the toast and the buttons' tooltips
+private function acScaleWords pScale
+   if pScale is 100 then
+      return "100% (its own size)"
+   end if
+   if pScale is item -1 of kTextScales then
+      return pScale & "% (the largest)"
+   end if
+   if pScale is item 1 of kTextScales then
+      return pScale & "% (the smallest)"
+   end if
+   return pScale & "%"
+end acScaleWords
+
+-- The size the reading text is, in percent (tools/ci/ui-tour.livecodescript)
+function revAcademyTextScale
+   return acScaleOf(sTextScale)
+end revAcademyTextScale
+
+-- The header's A- and A+ say what they do and the size it is now
+private command acSyncTextSize
+   local tWords
+   if there is no group "textSmaller" of me then
+      exit acSyncTextSize
+   end if
+   put acScaleWords(acScaleOf(sTextScale)) into tWords
+   set the tooltip of group "textSmaller" of me to "Smaller text (now" && tWords & "). Ctrl - ; Ctrl 0 for its own size"
+   set the tooltip of group "textBigger" of me to "Larger text (now" && tWords & "). Ctrl + ; Ctrl 0 for its own size"
+end acSyncTextSize
+
+-- Ctrl (Command) with + (or =), - and 0: the reading text's size, as in a
+-- browser. Every other key goes on, as it did.
+on commandKeyDown pKey
+   if pKey is among the items of "+,=" then
+      acTextSize "bigger"
+   else if pKey is among the items of "-,_" then
+      acTextSize "smaller"
+   else if pKey is "0" then
+      acTextSize "reset"
+   else
+      pass commandKeyDown
+   end if
+end commandKeyDown
+
+-- A field of the page's text that can be selected and copied (LittleNemo,
+-- p=26121: so that a browser's or a translator's tool can read it), and
+-- not changed: a locked field that takes the focus. Its links are still
+-- clicked (linkClicked comes to a locked field), and the arrow keys still
+-- turn the page (arrowKey, cAcademyText). Its selected words are white
+-- on the hilite, in the dark appearance too (lkSelectedInk: on Linux and
+-- Windows they took the dark window's colour)
+private command acSelectable pObj
+   set the traversalOn of pObj to true
+   set the autoHilite of pObj to true
+   lkSelectedInk pObj, "255,255,255"
+   set the cAcademyText of pObj to true
+end acSelectable
 
 -- A lesson's key: its course's id and its own
 private function acKey pCourse, pLesson
@@ -1104,6 +1228,13 @@ private command acBuildHeader
    put lkLabel("hdrTag", lkR(kSide + kPad, 54, kWidth - kPlay - kPad, 72), empty, 13, lkColor("soft"), "hdr") into tObj
    set the dontWrap of tObj to true
    put lkBox("hdrLine", lkR(kSide + kPad, 78, kSide + kPad + 56, 81), lkColor("emerald"), 3, "hdr") into tObj
+   -- The reading text's size: A- and A+ at the header's right (acLayout
+   -- puts them there, and the title and tagline end before them)
+   get lkButton("textSmaller", kWidth - kPlay - kPad - 92, 22, 30, "A" & numToCodepoint(8722), empty, "ghost", lkColor("emerald"), \
+         "hdr", "text smaller", 44)
+   get lkButton("textBigger", kWidth - kPlay - kPad - 44, 22, 30, "A+", empty, "ghost", lkColor("emerald"), \
+         "hdr", "text bigger", 44)
+   acSyncTextSize
 end acBuildHeader
 
 -- The playground: the editor, Run and Check, and the output, on a dark
@@ -1262,8 +1393,12 @@ private command acLayout
    -- the page, between the two
    acColumn
    set the rect of group "hdr" to kSide, 0, tX, kHeaderHeight
-   set the rect of field "hdrTitle" to sX, the top of field "hdrTitle", tX - kPad, the bottom of field "hdrTitle"
-   set the rect of field "hdrTag" to sX, the top of field "hdrTag", tX - kPad, the bottom of field "hdrTag"
+   set the topLeft of group "textBigger" to tX - kPad - the width of group "textBigger", 22
+   lkRestAt "textBigger"
+   set the topLeft of group "textSmaller" to the left of group "textBigger" - 6 - the width of group "textSmaller", 22
+   lkRestAt "textSmaller"
+   set the rect of field "hdrTitle" to sX, the top of field "hdrTitle", the left of group "textSmaller" - 16, the bottom of field "hdrTitle"
+   set the rect of field "hdrTag" to sX, the top of field "hdrTag", the left of group "textSmaller" - 16, the bottom of field "hdrTag"
    set the left of graphic "hdrLine" to sX
    if the visible of group "hdr" then
       set the rect of group "body" to kSide, kHeaderHeight, tX, tH
@@ -1285,7 +1420,8 @@ end acPlay
 private command acColumn
    local tRoom
    put sWidth - acPlay() - kSide - 2 * kPad into tRoom
-   put min(kColumn, tRoom) into sColW
+   -- (wider for larger text, so that a line holds as many words)
+   put min(acTS(kColumn), tRoom) into sColW
    put kSide + kPad + (tRoom - sColW) div 2 into sX
 end acColumn
 
@@ -1585,7 +1721,10 @@ end acIndexClick
 on arrowKey pKey
    -- (a field keeps its arrow keys: the editor's, and one in another
    -- window, the Message Box's say)
-   if word 1 of the name of the target is "field" and the short name of the target is not "idx" then
+   -- (a field of the page's text, which can be selected now, does not
+   -- keep them: they turn the page, as they did before it could be)
+   if word 1 of the name of the target is "field" and the short name of the target is not "idx" \
+         and the cAcademyText of the target is not true then
       pass arrowKey
    end if
    switch pKey
@@ -1690,6 +1829,9 @@ private command acAction pAction
          break
       case "stage"
          acShowStage
+         break
+      case "text"
+         acTextSize tArg
          break
    end switch
 end acAction
@@ -1966,7 +2108,12 @@ private function acHtmlField pName, pLeft, pWidth, pHtml, pSize, pColor, pGroup
    if pGroup is empty then
       put "page" into pGroup
    end if
-   put lkLabel(pName, lkR(pLeft, sY, pLeft + pWidth, sY + 20), empty, pSize, pColor, pGroup) into tObj
+   put lkLabel(pName, lkR(pLeft, sY, pLeft + pWidth, sY + 20), empty, acTS(pSize), pColor, pGroup) into tObj
+   -- (the page's own text can be selected; a quick check's answers are
+   -- rows to click, in groups of their own, and are not)
+   if pGroup is "page" then
+      acSelectable tObj
+   end if
    set the htmlText of tObj to pHtml
    acFit tObj
    return tObj
@@ -2315,29 +2462,29 @@ private command acTextBlock pName, pLeft, pWidth, pLines, pGroup
       switch tKinds[tN]
          case "heading"
             if tN > 1 then
-               set the spaceAbove of line tN of tObj to 18
+               set the spaceAbove of line tN of tObj to acTS(18)
             end if
-            set the spaceBelow of line tN of tObj to 4
+            set the spaceBelow of line tN of tObj to acTS(4)
             break
          case "sub"
             if tN > 1 then
-               set the spaceAbove of line tN of tObj to 14
+               set the spaceAbove of line tN of tObj to acTS(14)
             end if
-            set the spaceBelow of line tN of tObj to 2
+            set the spaceBelow of line tN of tObj to acTS(2)
             break
          case "bullet"
          case "number"
-            set the leftIndent of line tN of tObj to 24
-            set the firstIndent of line tN of tObj to -16
+            set the leftIndent of line tN of tObj to acTS(24)
+            set the firstIndent of line tN of tObj to acTS(-16)
             if tN > 1 and tKinds[tN - 1] is not tKinds[tN] then
-               set the spaceAbove of line tN of tObj to 10
+               set the spaceAbove of line tN of tObj to acTS(10)
             else
-               set the spaceAbove of line tN of tObj to 4
+               set the spaceAbove of line tN of tObj to acTS(4)
             end if
             break
          default
             if tN > 1 then
-               set the spaceAbove of line tN of tObj to 12
+               set the spaceAbove of line tN of tObj to acTS(12)
             end if
       end switch
    end repeat
@@ -2399,11 +2546,11 @@ private function acTextHtml pLines, @rKinds
       put tItems[tN]["text"] into tText
       switch tItems[tN]["kind"]
          case "heading"
-            put "<p><font size=" & quote & "19" & quote & " color=" & quote & lkHex(lkColor("ink")) & quote & "><b>" & \
+            put "<p><font size=" & quote & acTS(19) & quote & " color=" & quote & lkHex(lkColor("ink")) & quote & "><b>" & \
                   acInline(tText) & "</b></font></p>" after tHtml
             break
          case "sub"
-            put "<p><font size=" & quote & "16" & quote & " color=" & quote & lkHex(lkAccentText(tAccent, 0.25)) & \
+            put "<p><font size=" & quote & acTS(16) & quote & " color=" & quote & lkHex(lkAccentText(tAccent, 0.25)) & \
                   quote & "><b>" & acInline(tText) & "</b></font></p>" after tHtml
             break
          case "bullet"
@@ -2508,7 +2655,8 @@ private command acCodeBlock pIndex, pBlock
       set the left of group (tName & "_try") to the left of group (tName & "_copy") - tWidth - 8
       lkRestAt tName & "_try"
    end if
-   put lkCodeField(tName & "_code", lkR(sX + 20, tTop + 42, sX + sColW - 20, tTop + 60), 13, 20, "page") into tObj
+   put lkCodeField(tName & "_code", lkR(sX + 20, tTop + 42, sX + sColW - 20, tTop + 60), acTS(13), acTS(20), "page") into tObj
+   acSelectable tObj
    set the dontWrap of tObj to false
    set the htmlText of tObj to lkCodeHtml(tCode)
    acFit tObj
@@ -2737,11 +2885,11 @@ private command acChallengeCard pIndex, pBlock
    if tHtml is not empty then
       put acHtmlField(tName & "_looks", sX + 76, sColW - 98, "<p><font color=" & quote & lkHex(lkColor("muted")) & quote & \
             "><b>CHECK LOOKS FOR</b></font></p>" & tHtml, 13, lkColor("soft")) into tObj
-      set the textSize of line 1 of tObj to 11
+      set the textSize of line 1 of tObj to acTS(11)
       repeat with tCount = 2 to the number of lines of tObj
-         set the leftIndent of line tCount of tObj to 22
-         set the firstIndent of line tCount of tObj to -18
-         set the spaceAbove of line tCount of tObj to 3
+         set the leftIndent of line tCount of tObj to acTS(22)
+         set the firstIndent of line tCount of tObj to acTS(-18)
+         set the spaceAbove of line tCount of tObj to acTS(3)
       end repeat
       acFit tObj
       put the bottom of tObj + 14 into sY
@@ -2783,7 +2931,8 @@ private command acChallengeCard pIndex, pBlock
       put lkButton(tName & "_use", sX, tTop + 7, 26, "Use this", "square-code", "dark", empty, "page", "use", 0, "page") into tWidth
       set the left of group (tName & "_use") to sX + sColW - 22 - tWidth - 10
       lkRestAt tName & "_use"
-      put lkCodeField(tName & "_solCode", lkR(sX + 94, tTop + 40, sX + sColW - 40, tTop + 60), 13, 20, "page") into tObj
+      put lkCodeField(tName & "_solCode", lkR(sX + 94, tTop + 40, sX + sColW - 40, tTop + 60), acTS(13), acTS(20), "page") into tObj
+      acSelectable tObj
       set the dontWrap of tObj to false
       set the htmlText of tObj to lkCodeHtml(pBlock["solution"])
       acFit tObj
