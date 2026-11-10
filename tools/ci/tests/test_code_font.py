@@ -180,5 +180,99 @@ class TheWindowsCollectionKey(unittest.TestCase):
         self.assertIn('static_cast<MCGDWFontCollectionKey const*>(collectionKey)->files', body)
 
 
+class TheWindowsPlainWeight(unittest.TestCase):
+    """Plain text asks DirectWrite for the regular weight, not 500.
+
+    The engine's plain weight is MCFW_MEDIUM (5), which w32flst.cpp's
+    weighttable puts in the LOGFONT as FW_MEDIUM. Up to 0.2.7 the
+    DirectWrite text format was made with that weight, so with Source Code
+    Pro Medium loaded (the IDE loads all fourteen faces) plain code was
+    drawn in Medium on Windows only. The fix maps 500 to 400 where the
+    DirectWrite format is made, and nowhere else: GDI's LOGFONT, and with
+    it the metrics, stays as it was, and no face is unloaded.
+    """
+
+    def setUp(self):
+        self.src = read('libgraphics', 'src', 'directwrite-skia.cpp')
+        start = self.src.index('static IDWriteTextFormat* MCGDWTextFormatFromHFONT(HFONT p_hfont, MCGFloat p_size)')
+        self.body = self.src[start:self.src.index('\n}\n', start)]
+
+    def test_the_engine_plain_weight_is_fw_medium(self):
+        # what the mapping rests on: if either of these moves, so must it
+        objdefs = read('engine', 'src', 'objdefs.h')
+        self.assertIn('#define FA_DEFAULT_STYLE       0x55', objdefs)
+        self.assertIn('#define FA_WEIGHT              0x0f', objdefs)
+        flst = read('engine', 'src', 'w32flst.cpp')
+        table = flst[flst.index('uint2 weighttable[] ='):]
+        table = table[:table.index('};')]
+        weights = re.findall(r'FW_[A-Z]+', table)
+        self.assertEqual(weights[5], 'FW_MEDIUM')
+        self.assertIn('logfont.lfWeight = weighttable[MCF_getweightint(style)];', flst)
+
+    def test_plain_asks_for_the_regular_weight(self):
+        mapping = ('\tif (t_font_weight == DWRITE_FONT_WEIGHT_MEDIUM)\n'
+                   '\t\tt_font_weight = DWRITE_FONT_WEIGHT_NORMAL;\n')
+        self.assertIn(mapping, self.body)
+        # after the weight is read, before either text format is made
+        self.assertLess(self.body.index('static_cast<DWRITE_FONT_WEIGHT>(t_logfont.lfWeight)'), self.body.index(mapping))
+        self.assertLess(self.body.index(mapping), self.body.index('CreateTextFormat('))
+        self.assertEqual(self.body.count('CreateTextFormat('), 2)
+        self.assertEqual(self.body.count('t_font_weight, t_font_style'), 2)
+        # only 500: every other weight (light, demibold, ultrabold) as before
+        self.assertEqual(self.body.count('\tt_font_weight = '), 1)
+
+    def test_the_ide_still_loads_every_face(self):
+        lib = read('ide', 'Toolset', 'libraries', 'revidelibrary.8.livecodescript')
+        start = lib.index('on revIDEInitialiseIDELibrary')
+        init = lib[start:lib.index('end revIDEInitialiseIDELibrary', start)]
+        self.assertIn('filter lines of tFonts with "*.ttf"', init)
+        self.assertIn('start using font file (revIDESpecialFolderPath("fonts") & slash & tFont)', init)
+        fonts = os.listdir(os.path.join(REPO, 'ide', 'Toolset', 'resources', 'supporting_files', 'fonts'))
+        self.assertEqual(len([f for f in fonts if f.startswith('SourceCodePro-') and f.endswith('.ttf')]), 14)
+
+
+class TheTourWeightCheck(unittest.TestCase):
+
+    def setUp(self):
+        self.tour = read('tools', 'ci', 'ui-tour.livecodescript')
+        self.step = self.tour[self.tour.index('\non tour_code_font\n'):self.tour.index('\nend tour_code_font\n')]
+
+    def handler(self, kind, name):
+        start = self.tour.index('\n%s %s' % (kind, name))
+        return self.tour[start:self.tour.index('\nend %s\n' % name, start)]
+
+    def test_the_step_checks_the_weight(self):
+        self.assertIn('put tourCodeWeight() into tWeight', self.step)
+        self.assertLess(self.step.index('tourShotStack kCodeFontStack, "98-code-font"'),
+                        self.step.index('put tourCodeWeight() into tWeight'))
+        self.assertIn('throw "the code font\'s weight:" && tourJoin(tWeight)', self.step)
+        self.assertIn('create image "Ink"', self.step)
+
+    def test_the_other_faces_are_the_ten(self):
+        other = self.handler('function', 'tourCodeOtherFaces')
+        self.assertIn('revIDESpecialFolderPath("fonts")', other)
+        for four in ('SourceCodePro-Regular.ttf', 'SourceCodePro-It.ttf', 'SourceCodePro-Bold.ttf',
+                     'SourceCodePro-BoldIt.ttf'):
+            self.assertIn(four, other)
+
+    def test_plain_and_bold_are_drawn_alike_with_and_without_them(self):
+        weight = self.handler('function', 'tourCodeWeight')
+        self.assertIn('if the number of lines of tOthers is not 10 then', weight)
+        self.assertEqual(weight.count('repeat for each item tStyle in "plain,bold"'), 3)
+        self.assertIn('put tourCodeShot(tStyle) into tAll[tStyle]', weight)
+        self.assertIn('put tourCodeShot(tStyle) into tFour[tStyle]', weight)
+        self.assertIn('if tAll[tStyle] is not tFour[tStyle] then', weight)
+        # every face unloaded is loaded again, failed or not: outside the try
+        unload = weight.index('stop using font file tFile')
+        reload = weight.index('start using font file tFile')
+        self.assertLess(unload, weight.index('end try'))
+        self.assertGreater(reload, weight.index('end try'))
+        self.assertIn('repeat for each line tFile in tUnloaded', weight)
+        self.assertIn('the IDE\'s fonts folder lost Source Code Pro files', weight)
+        shot = self.handler('function', 'tourCodeShot')
+        self.assertIn('export snapshot from field "Code" of stack kCodeFontStack to tData as PNG', shot)
+        self.assertIn('return tInk & comma & tData', shot)
+
+
 if __name__ == '__main__':
     unittest.main()

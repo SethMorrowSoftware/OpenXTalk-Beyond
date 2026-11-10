@@ -10152,8 +10152,98 @@ command tourCodeMeasure pWhen
    end if
 end tourCodeMeasure
 
+-- The IDE's Source Code Pro files other than its regular, italic, bold
+-- and bold italic ones (Light, Medium, Semibold and the rest), one path
+-- a line
+function tourCodeOtherFaces
+   local tFolder, tFile, tFaces
+   put revIDESpecialFolderPath("fonts") into tFolder
+   repeat for each line tFile in files(tFolder)
+      if tFile begins with "SourceCodePro-" and tFile ends with ".ttf" and \
+            tFile is not among the items of "SourceCodePro-Regular.ttf,SourceCodePro-It.ttf,SourceCodePro-Bold.ttf,SourceCodePro-BoldIt.ttf" then
+         put tFolder & slash & tFile & return after tFaces
+      end if
+   end repeat
+   delete the last char of tFaces
+   return tFaces
+end tourCodeOtherFaces
+
+-- The field of kCodeFontStack in Source Code Pro, pStyle: "<ink>,<PNG>",
+-- the ink being how far its points are from the colour of the point at
+-- 4,4 (inside the border, above the text), added up
+function tourCodeShot pStyle
+   local tData, tPixels, tIndex, tR, tG, tB, tInk
+   set the textFont of field "Code" of stack kCodeFontStack to "Source Code Pro"
+   set the textStyle of field "Code" of stack kCodeFontStack to pStyle
+   export snapshot from field "Code" of stack kCodeFontStack to tData as PNG
+   set the text of image "Ink" of stack kCodeFontStack to tData
+   put the imageData of image "Ink" of stack kCodeFontStack into tPixels
+   put (3 * the width of image "Ink" of stack kCodeFontStack + 3) * 4 into tIndex
+   put byteToNum(byte tIndex + 2 of tPixels) into tR
+   put byteToNum(byte tIndex + 3 of tPixels) into tG
+   put byteToNum(byte tIndex + 4 of tPixels) into tB
+   put 0 into tInk
+   repeat with tIndex = 1 to the number of bytes of tPixels - 3 step 4
+      add abs(byteToNum(byte tIndex + 1 of tPixels) - tR) + abs(byteToNum(byte tIndex + 2 of tPixels) - tG) + \
+            abs(byteToNum(byte tIndex + 3 of tPixels) - tB) to tInk
+   end repeat
+   return tInk & comma & tData
+end tourCodeShot
+
+-- Up to 0.2.7 on Windows, plain text asked DirectWrite for weight 500 (the
+-- engine's plain weight is FW_MEDIUM in its LOGFONT, engine/src/w32flst.cpp),
+-- so once the IDE had loaded Source Code Pro Medium, plain code was drawn
+-- in that heavier face (libgraphics/src/directwrite-skia.cpp). Plain and
+-- bold Source Code Pro are drawn the same, point for point, with the IDE's
+-- other ten faces loaded as with only its four: those ten are unloaded,
+-- the field is drawn again, and they are loaded again, all of them, so the
+-- IDE keeps every face. Empty, or what differed
+function tourCodeWeight
+   local tOthers, tFile, tStyle, tAll, tFour, tUnloaded, tProblem, tError
+   put tourCodeOtherFaces() into tOthers
+   if the number of lines of tOthers is not 10 then
+      return "the IDE's fonts folder has" && the number of lines of tOthers && \
+            "Source Code Pro files besides its regular, italic, bold and bold italic, not 10"
+   end if
+   repeat for each item tStyle in "plain,bold"
+      put tourCodeShot(tStyle) into tAll[tStyle]
+   end repeat
+   try
+      repeat for each line tFile in tOthers
+         stop using font file tFile
+         if the result is not empty then throw tFile && "did not unload:" && the result
+         put tFile & return after tUnloaded
+      end repeat
+      repeat for each item tStyle in "plain,bold"
+         put tourCodeShot(tStyle) into tFour[tStyle]
+      end repeat
+   catch tError
+      put tError & return after tProblem
+   end try
+   repeat for each line tFile in tUnloaded
+      start using font file tFile
+      if the result is not empty then
+         put tFile && "did not load again:" && the result & return after tProblem
+      end if
+   end repeat
+   if tProblem is not empty then return char 1 to -2 of tProblem
+   repeat for each item tStyle in "plain,bold"
+      tourRecord "INFO code-font:" && tStyle && "Source Code Pro's ink with all fourteen faces loaded" && \
+            item 1 of tAll[tStyle] & ", with only the four" && item 1 of tFour[tStyle]
+      if tAll[tStyle] is not tFour[tStyle] then
+         put tStyle && "Source Code Pro is drawn in another face when the IDE's other faces are loaded (ink" && \
+               item 1 of tAll[tStyle] && "with them," && item 1 of tFour[tStyle] && "without)" & return after tProblem
+      end if
+   end repeat
+   if the number of lines of tourCodeOtherFaces() is not 10 then
+      put "the IDE's fonts folder lost Source Code Pro files" & return after tProblem
+   end if
+   delete the last char of tProblem
+   return tProblem
+end tourCodeWeight
+
 on tour_code_font
-   local tDefault, tFiles, tBefore, tNow, tGone, tRound, tFile, tIndex, tFamily, tFails, tError
+   local tDefault, tFiles, tBefore, tNow, tGone, tRound, tFile, tIndex, tFamily, tFails, tError, tWeight
    if "Source Code Pro" is not among the lines of the fontNames then
       throw "Source Code Pro, the IDE's code font, is not among the fontNames"
    end if
@@ -10168,6 +10258,9 @@ on tour_code_font
    set the dontWrap of it to true
    set the textSize of it to 13
    set the text of it to "iiiiiiiiii" & return & "MMMMMMMMMM"
+   -- where tourCodeShot reads the field's points
+   create image "Ink"
+   hide it
    unlock messages
    set the defaultStack to tDefault
    try
@@ -10177,6 +10270,7 @@ on tour_code_font
       go stack kCodeFontStack
       tourWait 300
       tourShotStack kCodeFontStack, "98-code-font"
+      put tourCodeWeight() into tWeight
 
       put $OXT_TOUR_FONT_FILES into tFiles
       replace "|" with return in tFiles
@@ -10246,6 +10340,9 @@ on tour_code_font
    delete stack kCodeFontStack
    if tFails is not empty then
       throw "the fonts loaded are not the fonts listed:" && tourJoin(char 1 to -2 of tFails)
+   end if
+   if tWeight is not empty then
+      throw "the code font's weight:" && tourJoin(tWeight)
    end if
 end tour_code_font
 
