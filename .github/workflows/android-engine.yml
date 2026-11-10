@@ -32,7 +32,9 @@
 # Runtime/Android/Beyond), builds both probes with that engine (their
 # "android,engine" setting "beyond"), and they run on an Android 13
 # emulator and on the first image with 16 KB pages, with the checks
-# android.yml makes of them with the released engine.
+# android.yml makes of them with the released engine; the app probe also
+# runs on Android 5.0 (API 21), the oldest Android a standalone can be
+# built for.
 #
 # The folders are artifacts: nothing here goes into a package or a release
 # by itself. A runtimes asset can take one run's (runtimes.yml, its input
@@ -294,7 +296,8 @@ jobs:
   # picked it. They run on x86_64 emulators (the runner's
   # architecture, with KVM): Android 13, and the first image with 16 KB
   # pages, with the checks android.yml makes of them with the released
-  # engine (see there for what each says)
+  # engine (see there for what each says); and the app probe on Android
+  # 5.0, the oldest Android a standalone can be built for
   device:
     name: Android engine on the emulator
     needs: build
@@ -360,7 +363,7 @@ jobs:
       # As android.yml's: the JDK, the platform the builder targets with
       # this Java layer (API 36), build-tools, platform-tools, the
       # emulator, an Android 13 image and the first image with 16 KB pages
-      # at API 36 or newer
+      # at API 36 or newer; and an Android 5.0 image (API 21)
       - name: Set up the JDK and the Android SDK
         run: |
           for v in JAVA_HOME_17_X64 JAVA_HOME_21_X64; do
@@ -382,7 +385,8 @@ jobs:
           [ -n "$img16" ] || { echo "::error::sdkmanager lists no x86_64 image with 16 KB pages at API 36 or newer"; exit 1; }
           echo "IMAGE_16K=$img16" >> "$GITHUB_ENV"
           "$sm" --install "platforms;android-36" "build-tools;35.0.0" "platform-tools" "emulator" \
-            "system-images;android-33;google_apis;x86_64" "$img16" > "$RUNNER_TEMP/sdkmanager.log" 2>&1 ||
+            "system-images;android-33;google_apis;x86_64" "$img16" "system-images;android-21;google_apis;x86_64" \
+            > "$RUNNER_TEMP/sdkmanager.log" 2>&1 ||
             { tail -40 "$RUNNER_TEMP/sdkmanager.log"; exit 1; }
           echo "JDK: $jdk"; "$jdk/bin/java" -version 2>&1 | head -n 1
           echo "SDK: $sdk"; ls "$sdk/platforms" "$sdk/build-tools"
@@ -486,6 +490,32 @@ jobs:
           python3 tools/ci/android_check.py device --apk "$WORK/java/out/debug.apk" --serial emulator-5554 \
             --sdk "$SDK" --out "$WORK/screen-16k-java.png" --log-out "$WORK/logcat-16k-java.txt" \
             --allow android.permission.POST_NOTIFICATIONS --picture oxt-beyond-probe.png --back --within-bars
+
+      # The oldest Android a standalone can be built for: 5.0 (API 21), the
+      # Android card's first "Minimum Android Version". The Java layer is
+      # compiled against API 36 and checked against 21 without running
+      # there (android-java.yml's minsdk); here the app probe must install
+      # and draw its green with the engine built here and this Java layer.
+      # No --settle: an image this old enables no overlays in its first
+      # minute, and has none of the commands that wait for them
+      - name: Run the app probe on Android 5.0
+        timeout-minutes: 20
+        run: |
+          adb="$SDK/platform-tools/adb"
+          "$adb" -s emulator-5554 emu kill || true
+          for i in $(seq 1 60); do "$adb" devices | grep -q emulator-5554 || break; sleep 2; done
+          echo no | "$SDK/cmdline-tools/latest/bin/avdmanager" create avd -n api21 \
+            -k "system-images;android-21;google_apis;x86_64" -d pixel_5 --force
+          nohup "$SDK/emulator/emulator" -avd api21 -no-window -no-audio -no-boot-anim -no-snapshot \
+            -gpu swiftshader_indirect -camera-back none -camera-front none \
+            > "$WORK/emulator-api21.log" 2>&1 &
+          python3 tools/ci/android_check.py boot --serial emulator-5554 --sdk "$SDK" \
+            --log "$WORK/emulator-api21.log" --minutes 10 --awake
+          api=$("$adb" shell getprop ro.build.version.sdk | tr -d '\r')
+          echo "API: $api"
+          [ "$api" = 21 ] || { echo "::error::the Android 5.0 image is API $api, not 21"; exit 1; }
+          python3 tools/ci/android_check.py device --apk "$WORK/app/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-api21-app.png" --log-out "$WORK/logcat-api21-app.txt"
 
       - name: Upload the packages and logs
         if: always()
