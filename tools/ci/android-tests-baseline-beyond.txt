@@ -1,0 +1,8 @@
+# Android test suite (tools/ci/android_tests.py): LiveCode Script tests known
+# to fail in an Android standalone built with the beyond engine, run on an
+# Android emulator. One "lcs: <test>" per line; "? " before it: fails only
+# sometimes; text after " #" is a comment. A test that needs what a
+# standalone cannot have (the IDE, the documentation, the LiveCode Builder
+# compiler) skips there, through the test library's requirements
+# (tests/_testlib.livecodescript), and is not here.
+
