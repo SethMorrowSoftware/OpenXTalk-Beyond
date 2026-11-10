@@ -142,9 +142,14 @@ class OnTheScreen(unittest.TestCase):
                 return yaml.safe_load(f)
 
         def runs(job):
-            return [s['run'] for s in job['steps'] if 'window_frame_check.py' in s.get('run', '')]
-        for job in (load('build-windows.yml')['jobs']['window-frame-win11'],
-                    load('window-frame-check.yml')['jobs']['check']):
+            # (a job that calls another workflow has no steps)
+            return [s['run'] for s in job.get('steps', []) if 'window_frame_check.py' in s.get('run', '')]
+        build = load('build-windows.yml')['jobs']
+        every = [job for job in build.values() if runs(job)]
+        # the build's own run, and the one on Windows 11's title bars
+        self.assertEqual(len(every), 2)
+        self.assertIn(build['window-frame-win11'], every)
+        for job in every + [load('window-frame-check.yml')['jobs']['check']]:
             found = runs(job)
             self.assertEqual(len(found), 1)
             self.assertIn('--need-clicks', found[0])
