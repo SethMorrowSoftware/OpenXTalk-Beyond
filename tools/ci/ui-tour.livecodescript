@@ -7431,16 +7431,20 @@ private function tourAndroidAppBundle pStack
    return tFails
 end tourAndroidAppBundle
 
--- The Android card's "OXT-Beyond engine (preview)" box ("Beyond Engine",
--- tools/oxt/ide-stack-patches/android-card-engine-*.txt), with which the
--- Android builder takes OXT-Beyond's own engine instead of LiveCode
--- 9.6.3's: in the build targets' group, as "App Bundle" is, but in the
+-- The Android card's "OXT-Beyond engine" box ("Beyond Engine",
+-- tools/oxt/ide-stack-patches/android-card-engine-*.txt; "OXT-Beyond engine
+-- (preview)" until 0.2.8), with which the Android builder takes OXT-Beyond's
+-- own engine instead of LiveCode 9.6.3's: in the build targets' group, as
+-- "App Bundle" is, but in the
 -- right-hand column's free row, under the device table and above
 -- "Application Permissions", lined up with "NFC Tag Reading" and inside
 -- the window; enabled exactly when the card's settings are; ticked
 -- exactly when the stack's "android,engine" setting is beyond, so not for
 -- a stack without it or with 9.6.3; a click on it, as the box's group gets
--- one, stores beyond or empty, and nothing else. The targets group grew
+-- one, stores beyond or empty, and nothing else; and the first
+-- architecture a stack set up for Android now ticks ticks the box too when
+-- the runtimes carry that engine (tourAndroidFirstTargetEngine). The
+-- targets group grew
 -- down to hold it, over the card's left-hand column and the device table:
 -- the check boxes, radio buttons and menus of the Android settings it
 -- covers still get their clicks (controlAtLoc names each at its middle,
@@ -7466,8 +7470,8 @@ private function tourAndroidEngine pStack
    tourRecord "INFO standalone settings: the OXT-Beyond engine box" && the rect of tBox && "enabled" && \
          the enabled of tBox && "ticked" && the hilited of tBox && "label" && the label of tBox && "needs" && \
          the formattedWidth of tBox
-   if the style of tBox is not "checkbox" or not the visible of tBox or the label of tBox is not "OXT-Beyond engine (preview)" then
-      put "the OXT-Beyond engine box is not a check box labelled OXT-Beyond engine (preview) that shows:" && \
+   if the style of tBox is not "checkbox" or not the visible of tBox or the label of tBox is not "OXT-Beyond engine" then
+      put "the OXT-Beyond engine box is not a check box labelled OXT-Beyond engine that shows:" && \
             the style of tBox && the visible of tBox && the label of tBox & return after tFails
    end if
    -- under the device table's last row, above the permissions' title and
@@ -7571,8 +7575,81 @@ private function tourAndroidEngine pStack
    end if
    set the customProperties["cRevStandaloneSettings"] of stack kSample to tWas
    dispatch "updateSettings" to tCard
+   put tourAndroidFirstTargetEngine(tCard, tTargets, tBox, tWas) after tFails
    return tFails
 end tourAndroidEngine
+
+-- What the first architecture a stack ticks on the Android card does to
+-- its engine (updateAndroidArch, androidEngineOnFirstTarget in the Android
+-- builder): for a stack set up for Android now, it ticks the OXT-Beyond
+-- engine box and stores beyond when the runtimes carry that engine
+-- (Runtime/Android/Beyond), and leaves both alone when they do not; a
+-- stack set up for Android before (an architecture saved, here armv7 off)
+-- or that names 9.6.3 keeps its engine, and its box stays as it was. Each
+-- tick is a click on the "Android arm64" box, as its group gets one (sent,
+-- since a disabled box gets no click). The sample's settings, the
+-- architectures' boxes, the engine box and the card's enabled settings
+-- are put back as they were. Empty, or what is not so
+private function tourAndroidFirstTargetEngine pCard, pTargets, pBox, pWas
+   local tFails, tRuntime, tBeyond, tCase, tSettings, tWant, tArch, tKey
+   try
+      put revMobileRuntimeFolder("build") into tRuntime
+   catch tRuntime
+      return "the Android builder's revMobileRuntimeFolder cannot be called from the IDE:" && tRuntime & return
+   end try
+   put there is a folder (tRuntime & "/Beyond") into tBeyond
+   tourRecord "INFO standalone settings: the runtimes" && tRuntime && "carry OXT-Beyond's Android engine:" && tBeyond
+   repeat for each item tCase in "new,set up before,names 9.6.3"
+      put pWas into tSettings
+      repeat for each key tKey in tSettings
+         if tKey is "android" or tKey begins with "android," then
+            delete variable tSettings[tKey]
+         end if
+      end repeat
+      switch tCase
+         case "new"
+            if tBeyond then
+               put "beyond" into tWant
+            else
+               put empty into tWant
+            end if
+            break
+         case "set up before"
+            put false into tSettings["Android,armv7"]
+            put empty into tWant
+            break
+         case "names 9.6.3"
+            put "9.6.3" into tSettings["android,engine"]
+            put "9.6.3" into tWant
+            break
+      end switch
+      set the customProperties["cRevStandaloneSettings"] of stack kSample to tSettings
+      dispatch "updateSettings" to pCard
+      set the hilited of button "Android arm64" of pTargets to true
+      dispatch "mouseUp" to button "Android arm64" of pTargets with 1
+      if the cRevStandaloneSettings["Android,arm64"] of stack kSample is not true then
+         put "ticking Android arm64 for a stack" && tCase && "stored" && \
+               quote & the cRevStandaloneSettings["Android,arm64"] of stack kSample & quote & return after tFails
+      end if
+      if the cRevStandaloneSettings["android,engine"] of stack kSample is not tWant then
+         put "the first architecture a stack" && tCase && "ticks gave it the engine" && \
+               quote & the cRevStandaloneSettings["android,engine"] of stack kSample & quote & ", not" && \
+               quote & tWant & quote && "(the runtimes carry OXT-Beyond's:" && tBeyond & ")" & return after tFails
+      end if
+      if the hilited of pBox is not (tWant is "beyond") then
+         put "after the first architecture a stack" && tCase && "ticks, the OXT-Beyond engine box is" && \
+               the hilited of pBox && "for the engine" && quote & tWant & quote & return after tFails
+      end if
+   end repeat
+   set the customProperties["cRevStandaloneSettings"] of stack kSample to pWas
+   repeat for each item tArch in "armv7,arm64,x86,x86_64"
+      set the hilited of button ("Android" && tArch) of pTargets to (pWas["Android," & tArch] is true)
+   end repeat
+   dispatch "updateSettings" to pCard
+   dispatch "updateAndroidSettingState" to pCard
+   dispatch "buildForEnabled" to pCard with "android"
+   return tFails
+end tourAndroidFirstTargetEngine
 
 -- The Android card's "Edge to edge" box ("Edge To Edge",
 -- tools/oxt/ide-stack-patches/android-card-status-bar-edge-*.txt), with
