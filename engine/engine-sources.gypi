@@ -750,6 +750,7 @@
 			'src/em-liburl.h',
 			'src/em-liburl.cpp',
 			'src/em-liburl.js',
+			'src/em-socket.js',
 			'src/em-main.cpp',
 			'src/em-native-layer.h',
 			'src/em-native-layer.cpp',

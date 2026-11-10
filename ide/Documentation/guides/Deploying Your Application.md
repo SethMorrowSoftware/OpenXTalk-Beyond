@@ -640,6 +640,22 @@ printerOutput` set to `file:` and a path, write a PDF of the pages'
 pictures, with the links, anchors and bookmarks of `print link`, `print
 anchor` and `print bookmark` and the document information of `with
 options`. A PDF written into `/downloads` reaches the user as a download.
+* **Sockets over WebSocket.** From 0.2.8, `open socket to` a `ws://` or
+`wss://` URL opens a WebSocket to it, and the socket then works as one of
+the desktop's does: its name is the URL (add `|` and an id of your own to
+open more than one to the same URL), `with message` sends the message
+when it has opened, and `read from socket` (for a count, until a string,
+or all there is) and `write to socket` work with and without a message;
+`socketClosed`, `socketError` and `socketTimeout` come as on the desktop.
+What the server sends is read as one stream of bytes, its messages one
+after the other (a text message as its UTF-8 bytes), so end each message
+with a line ending, or another string, to read it with `until`. What a
+script writes is sent as one message: a text message when its bytes are
+UTF-8 (`textEncode(tText, "UTF-8")`), a binary one otherwise. `open
+secure socket to` a `ws://` URL opens a `wss://` one; an `https://` page
+may only open `wss://` ones. The server must speak WebSocket: a page
+cannot reach a plain TCP server, so `the peerAddress` of the socket is
+its URL, and `the hostAddress` is empty.
 * **JavaScript.** `do <script> as "JavaScript"` runs JavaScript in the
 page, and `the result` is its value. The page calls the handlers that a
 stack's `cJavascriptHandlers` property lists, one handler name a line:
@@ -663,8 +679,9 @@ A browser does not let a page do some of what a desktop application does,
 and some features are not done yet. They fail as they do on a desktop that
 cannot do them:
 
-* Sockets: `open socket` puts "not supported" into `the result`, and
-`accept` does nothing. Use URLs to talk to servers.
+* TCP sockets: `open socket` to a host and port puts "not supported"
+into `the result` (as do datagram sockets), and `accept` does nothing.
+Use URLs, or a WebSocket server (above), to talk to servers.
 * Other programs: `shell()` throws an error, and `open process` does
 nothing.
 * Externals other than revXML, revZip, revDB and revSpeech, so neither
