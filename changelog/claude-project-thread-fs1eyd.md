@@ -1,3 +1,0 @@
-- HyperCard import: the Mac fonts a stack names and this system lacks are shown in look-alikes (Chicago in the public-domain ChicagoFLF, loaded only for imported stacks; Geneva, New York, Monaco and Palatino in faces of their kind), turned off with File > Import Stack > Mac Font Look-alikes
-- HyperCard import: the classic look draws a card's own fields flat too, not only a background's
-- Stack Player: a box on the page turns off the classic look for HyperCard stacks
