@@ -3251,7 +3251,12 @@ private command hmMoveFrame
                end if
             else
                add 150 * sDt to sBvy[tIndex]
-               put sBvx[tIndex] * (1 - sDt * 1.2) into sBvx[tIndex]
+               -- (the air slows a spark; never past a stop. A frame moves
+               -- the animations on by up to hmDtCap, 0.75 of a second with
+               -- kFrameCostCap at 250, which leaves a tenth of the speed;
+               -- past 0.83 of a second the factor would be less than
+               -- nothing, and the spark would fly back the way it came)
+               put sBvx[tIndex] * max(0, 1 - sDt * 1.2) into sBvx[tIndex]
                add sBvx[tIndex] * sDt to sBx[tIndex]
                add sBvy[tIndex] * sDt to sBy[tIndex]
                if sBage[tIndex] >= sBlife[tIndex] then
