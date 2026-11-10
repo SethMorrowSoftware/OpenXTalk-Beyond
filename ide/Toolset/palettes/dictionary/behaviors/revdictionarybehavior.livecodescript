@@ -89,10 +89,18 @@ on showTab pTab
    if sDark is true then
       put "?appearance=dark" after tUrl
    end if
+   -- (in the web IDE it cannot read that, and reads the IDE's page)
+   dictMarkWebPage
    set the url of widget "Dictionary" of me to tUrl
 end showTab
 
 on browserNavigateComplete
+   -- OXT-Beyond: in the web IDE a page that has loaded is given the
+   -- appearance as a switch gives it too, so one that could not read the
+   -- IDE's page as it opened (dictMarkWebPage) is not left light
+   if the platform is "HTML5" then
+      dictApplyAppearance
+   end if
    if sEntry is not empty then
       do "goEntryName('" & sEntry["library"] & "','" & sEntry["entry"] & "','" & sEntry["type"] & "')" in widget "Dictionary" of me
       put empty into sEntry
@@ -181,9 +189,12 @@ end dictReadAppearance
 -- oxt-dark.css), so a switch needs no new page and loses no place. (A page
 -- as it opens takes it from its URL, ?appearance=dark: showTab. Asked as
 -- the page has just loaded, the browser widget on Windows answered
--- nothing, which it refuses as a script error.)
+-- nothing, which it refuses as a script error. In the web IDE, where the
+-- URL cannot say it, the page is asked as it has loaded:
+-- browserNavigateComplete.)
 private command dictApplyAppearance
    local tError
+   dictMarkWebPage
    if there is not a widget "Dictionary" of me then
       exit dictApplyAppearance
    end if
@@ -194,6 +205,30 @@ private command dictApplyAppearance
    catch tError
    end try
 end dictApplyAppearance
+
+-- In the web IDE the page cannot take the dark from its URL: the web
+-- engine's browser widget shows a file from an object URL, which carries
+-- no "?appearance=dark" (em-browser.js, _fileOf), so in a dark browser the
+-- page opened light, white in the dark IDE (0.2.7-rc.6.10 to 0.2.7). There
+-- the appearance read is said on the IDE's own page, which holds the
+-- Dictionary's in a frame, and the page reads it as it opens (html_viewer's
+-- templates), before it is first drawn. It is said again at each switch,
+-- for the next page
+private command dictMarkWebPage
+   local tAppearance, tError
+   if the platform is not "HTML5" then
+      exit dictMarkWebPage
+   end if
+   if sDark is true then
+      put "dark" into tAppearance
+   else
+      put "light" into tAppearance
+   end if
+   try
+      do "document.documentElement.setAttribute('data-oxt-dictionary-appearance', '" & tAppearance & "'); 'ok'" as "JavaScript"
+   catch tError
+   end try
+end dictMarkWebPage
 
 -- On macOS the systemAppearance comes from the user defaults, which can
 -- still hold the old appearance when the switch is announced: it is read
