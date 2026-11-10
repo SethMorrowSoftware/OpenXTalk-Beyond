@@ -1917,19 +1917,21 @@ end tourMbMacSettings
 -- of its pixels must differ from the menu's there by more than half the
 -- way from black to white. In rc.6.3 they were black on a dark theme's
 -- menu, so that File > Import Stack's HyperCard options looked unticked
--- (forum, tperry2x, rc.6.3 on Linux Mint). Linux only: macOS's menus are
--- the system's, and on Windows the engine draws the marks by the system's
--- appearance (tperry, January 2026). xdotool's Escape closes the menu, so
--- without xdotool the step is noted and skipped
+-- (forum, tperry2x, rc.6.3 on Linux Mint). Linux and Windows: macOS's
+-- menus are the system's. On Windows the engine draws the marks by the
+-- system's appearance (tperry, January 2026), and since 0.2.8 the step
+-- runs there too, on the theme's colour and on a window's own. Escape
+-- closes the menu (tourMenuEscape): on Linux without xdotool the step is
+-- noted and skipped
 constant kMarksRect = "600,400,900,640"
 
 on tour_menu_marks
    local tName, tDefault, tFails, tObject, tColours, tColour, tPass
-   if the platform is not "Linux" then
-      tourRecord "INFO menu-marks: the engine draws its menus' marks so on Linux only"
+   if the platform is not among the items of "Linux,Win32" then
+      tourRecord "INFO menu-marks: the engine draws its menus' marks so on Linux and Windows only"
       exit tour_menu_marks
    end if
-   if shell("command -v xdotool") is empty then
+   if the platform is "Linux" and shell("command -v xdotool") is empty then
       tourRecord "INFO menu-marks: there is no xdotool to close the menu with"
       exit tour_menu_marks
    end if
@@ -2079,15 +2081,17 @@ end tour_menu_submenu_marks
 -- differs between two snapshots of a menu with an item of words and the
 -- same menu with that item blank is the words, and the most one of their
 -- pixels differs from the menu there must be more than half the range of
--- luma, as for a mark. A step of its own, so that the two take less than
--- the watchdog's 20 seconds each
+-- luma, as for a mark. Since 0.2.8 on Windows too, where the engine
+-- draws its menus as well and its dark appearance's words are white
+-- whatever the colour behind them (w32theme.cpp). A step of its own, so
+-- that the two take less than the watchdog's 20 seconds each
 on tour_menu_words
    local tName, tDefault, tFails, tColours, tColour, tPass
-   if the platform is not "Linux" then
-      tourRecord "INFO menu-words: the engine draws its menus' words so on Linux only"
+   if the platform is not among the items of "Linux,Win32" then
+      tourRecord "INFO menu-words: the engine draws its menus' words so on Linux and Windows only"
       exit tour_menu_words
    end if
-   if shell("command -v xdotool") is empty then
+   if the platform is "Linux" and shell("command -v xdotool") is empty then
       tourRecord "INFO menu-words: there is no xdotool to close the menu with"
       exit tour_menu_words
    end if
@@ -2401,7 +2405,7 @@ end tourMarksCheck
 
 command tourMarksPopup pStack, pButton, pFile
    set the defaultStack to pStack
-   get shell("xdotool mousemove 340 240")
+   tourMenuPointer 340, 240
    tourWait 300
    put empty into sMarksShot
    send "tourMarksShot" && quote & pFile & quote to me in 700 milliseconds
@@ -2420,9 +2424,43 @@ on tourMarksShot pFile
    catch tError
       tourRecord "INFO" && pFile && "FAILED" && tourJoin(tError)
    end try
-   get shell("xdotool key Escape")
+   tourMenuEscape
    put "done" into sMarksShot
 end tourMarksShot
+
+-- The pointer to pX,pY of the screen, for the menu steps: xdotool on
+-- Linux; on Windows the engine moves it itself (SetCursorPos)
+command tourMenuPointer pX, pY
+   if the platform is "Win32" then
+      set the screenMouseLoc to pX & comma & pY
+   else
+      get shell("xdotool mousemove" && pX && pY)
+   end if
+end tourMenuPointer
+
+-- Escape, as a person presses it, to close the menu that is open: the
+-- menu steps take their snapshot from inside the popup command, which
+-- returns only once the menu closes. xdotool on Linux; on Windows a
+-- script of Windows Script Host's SendKeys (wscript has no console
+-- window, and the shell's is hidden, so the key goes to the IDE, the
+-- window in front), written once to the temporary folder
+local sMenuEscapeScript
+command tourMenuEscape
+   local tHide
+   if the platform is not "Win32" then
+      get shell("xdotool key Escape")
+      exit tourMenuEscape
+   end if
+   if sMenuEscapeScript is empty then
+      put specialFolderPath("temporary") & slash & "oxt-tour-escape.vbs" into sMenuEscapeScript
+      put "CreateObject(" & quote & "WScript.Shell" & quote & ").SendKeys " & quote & "{ESC}" & quote & return \
+            into URL ("file:" & sMenuEscapeScript)
+   end if
+   put the hideConsoleWindows into tHide
+   set the hideConsoleWindows to true
+   get shell("wscript //nologo " & quote & sMenuEscapeScript & quote)
+   set the hideConsoleWindows to tHide
+end tourMenuEscape
 
 -- As tourMarksPopup, for a menu whose second item opens a submenu: once
 -- the menu is open the pointer moves onto that item, which opens the
