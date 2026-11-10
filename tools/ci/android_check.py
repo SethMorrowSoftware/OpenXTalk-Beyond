@@ -119,9 +119,13 @@ account of its processes, what Android did to it that the carried runtime
 does not survive (paused for sleep, a changed ApplicationInfo, a relaunch),
 how each process ended (dumpsys activity exit-info) and the memory left.
 When that says Android's low memory killer ended one of the probe's
-processes (exit-info LOW_MEMORY) and its log has no crash and its screen
-no fail colour, the whole run is made once more, after LOW_MEMORY_PAUSE
-s, and that run decides (low_memory_kills).
+processes (exit-info LOW_MEMORY), none of them crashed by exit-info's
+account, and each of its problems is one such a kill explains (it never
+turned green, it is not running, and before its green it never asked
+for --allow's permission or never exported --picture's picture: no
+crash in its log, no fail colour, nothing from the checks of its green
+screen), the whole run is made once more, after LOW_MEMORY_PAUSE s, and
+that run decides (low_memory_kills).
 
 boot waits until an emulator has booted (adb sees it and
 sys.boot_completed is 1), saying where it is every minute. It gives up
@@ -2625,6 +2629,11 @@ def opens_again_after_quit(args, adb, a, pid, names):
 
 # exit-info's reason for a process the low memory killer ended
 LOW_MEMORY = 3
+# exit-info's reasons for a process that failed of itself
+# (ApplicationExitInfo.REASON_CRASH, REASON_CRASH_NATIVE, REASON_ANR and
+# REASON_INITIALIZATION_FAILURE): one of them for any of a run's
+# processes is the run's failure, whatever the log kept of it
+FAILED_EXITS = {4: 'CRASH', 5: 'CRASH_NATIVE', 6: 'ANR', 7: 'INITIALIZATION_FAILURE'}
 # How long device waits before it makes the run once more after such a
 # kill, for the device's memory to settle
 LOW_MEMORY_PAUSE = 30
@@ -2635,12 +2644,19 @@ def low_memory_kills(exits, pids):
     memory killer ended (reason=3 (LOW_MEMORY)), each of its
     ApplicationExitInfo blocks giving the pid on one line and the reason on
     another. exit-info keeps the package's earlier processes too (another
-    run's on the same emulator), and only pids, this run's, count."""
+    run's on the same emulator), and only pids, this run's, count. None
+    when another of them crashed, did not answer or did not start
+    (FAILED_EXITS): the low memory killer is then not the run's story, even
+    where the log has lost that process's crash."""
     killed = set()
     for block in re.split(r'ApplicationExitInfo #\d+:', exits)[1:]:
         pid = re.search(r'\bpid=(\d+)', block)
         reason = re.search(r'\breason=(\d+)', block)
-        if pid and reason and int(reason.group(1)) == LOW_MEMORY and pid.group(1) in pids:
+        if not (pid and reason and pid.group(1) in pids):
+            continue
+        if int(reason.group(1)) in FAILED_EXITS:
+            return []
+        if int(reason.group(1)) == LOW_MEMORY:
             killed.add(pid.group(1))
     return sorted(killed)
 
@@ -2670,13 +2686,21 @@ def device(args):
 
 def device_once(args):
     """(the problems, the processes of the probe that the low memory killer
-    ended where nothing else says it failed: no crash in its log, no fail
-    colour on its screen)"""
+    ended where nothing else says it failed: each problem one that such a
+    kill explains, unfinished's)"""
     adb = adb_path(args.sdk)
     if not adb:
         raise CheckError('no adb')
     problems = []
     killed = []
+    # the problems a probe that the low memory killer ended before it was
+    # done would have, and only those: it never turned green, it is not
+    # running, and before its green it never asked for a permission or
+    # never exported its picture (the Java probe does both first). Any
+    # other problem (a crash, the fail colour, a failed check of its green
+    # screen, a picture missing once it was green) is the probe's own, and
+    # no second run hides it
+    unfinished = []
 
     def a(*cmd, timeout=180):
         return run([adb, '-s', args.serial] + list(cmd), timeout=timeout)
@@ -2800,6 +2824,7 @@ def device_once(args):
         problems.append('the screen never turned the probe\'s green (%.0f%% green, %.0f%% red: %s)' % (
             share * 100, saved * 100, 'the stack showed and its script did not run' if saved >= 0.25 else
             'the stack never showed'))
+        unfinished.append(problems[-1])
     green = failed < 0.25 and share >= 0.25
     if args.within_bars and green:
         # the stack inside the system bars: the screen's first and last
@@ -2882,6 +2907,7 @@ def device_once(args):
                 break
     if not pid.strip():
         problems.append('the app is not running')
+        unfinished.append(problems[-1])
     if args.allow:
         _, package = a('shell', 'dumpsys', 'package', IDENTIFIER)
         granted = permission_granted(package, args.allow)
@@ -2889,6 +2915,8 @@ def device_once(args):
                                      False: 'not granted'}[granted]))
         if not asked:
             problems.append('the probe never asked the user to allow %s' % args.allow)
+            if not green:
+                unfinished.append(problems[-1])
         elif not allowed:
             problems.append('Android asked the user to allow %s, and its dialog had no Allow button to tap'
                             % args.allow)
@@ -2914,6 +2942,8 @@ def device_once(args):
                                'MediaStore listed no picture: %s' % (query.strip()[-300:] or 'no answer'),
                                '; %s%s there has no owner' % (PICTURES, unowned['_display_name'])
                                if unowned else ''))
+            if not green:
+                unfinished.append(problems[-1])
     if crash:
         problems.append('the device\'s log: %s' % ' | '.join(crash[:8]))
     if problems or len(pids) > 1:
@@ -2930,7 +2960,7 @@ def device_once(args):
             for line in lines:
                 log('  ' + line)
         _, exits = a('shell', 'dumpsys', 'activity', 'exit-info', IDENTIFIER)
-        if not crash and failed < 0.25:
+        if all(x in unfinished for x in problems):
             killed = low_memory_kills(exits, pids)
         exits = [x.rstrip() for x in exits.splitlines() if x.strip()]
         log('how its processes ended (dumpsys activity exit-info):%s' % ('' if exits else ' none'))
