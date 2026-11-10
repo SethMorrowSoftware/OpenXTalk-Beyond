@@ -4446,6 +4446,53 @@ on TestHyperCardScriptsSummary
    _Close tStack
 end TestHyperCardScriptsSummary
 
+on TestHyperCardScriptsSummaryParts
+   -- the summary's three parts: what was converted (the scripts, and the
+   -- icons, cursors and palettes the importer made of the resource
+   -- fork), what the library stands in for (XCMDs that do nothing, XFCNs
+   -- that give empty) and what was dropped, each part only when it has
+   -- something in it
+   local tStack, tSummary, tTab, tPalette
+   put numToChar(9) into tTab
+   put "HCSummaryParts" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   set the uHyperCard["externals"] of stack tStack to _Lines("XCMD" & tTab & "Glitter", "XFCN" & tTab & "Riddle")
+   create group "HC Icons"
+   create image "A" in group "HC Icons"
+   create image "B" in group "HC Icons"
+   create group "HC cursors"
+   create image "C" in group "HC cursors"
+   create invisible stack "HyperCard palette" & the milliseconds
+   put the short name of it into tPalette
+   set the mainStack of stack tPalette to tStack
+   set the script of stack tPalette to "-- HyperCard palette (PLTE resource), made by the HyperCard importer" & return & "on mouseUp" & return & "end mouseUp"
+   create button "Old"
+   set the script of button "Old" to _Lines("on mouseUp", "  put 1 +* into", "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   put revHyperCardImportSummary(tStack, "Not converting snd  id  9 " & quote & "Boo" & quote & ": MACE 3:1 compression") into tSummary
+   TestAssert "the parts, in order", "Converted:" is among the lines of tSummary and "Stood in for:" is among the lines of tSummary \
+         and "Dropped:" is among the lines of tSummary and lineOffset("Converted:", tSummary) < lineOffset("Stood in for:", tSummary) \
+         and lineOffset("Stood in for:", tSummary) < lineOffset("Dropped:", tSummary)
+   TestAssert "converted: what the resource fork brought in", "From the resource fork: 2 icons, 1 cursor, 1 palette." is among the lines of tSummary
+   TestAssert "stood in for: the XCMD", "XCMDs that do nothing here: Glitter" is among the lines of tSummary
+   TestAssert "stood in for: the XFCN, which no longer stops a script", "XFCNs that give empty here: Riddle" is among the lines of tSummary \
+         and "XFCNs that are not available" is not in tSummary
+   TestAssert "dropped: the line left out and the sound", lineOffset("Lines left out:", tSummary) > lineOffset("Dropped:", tSummary) \
+         and lineOffset("Sounds: 1 not converted", tSummary) > lineOffset("Dropped:", tSummary)
+   TestAssert "a screenful at most", the number of lines of tSummary <= 40
+   -- a stack whose import gave its XFCNs no stand-in (the report has no
+   -- line for them, as up to 0.2.7): the XFCN is dropped, as before
+   set the uHyperCard["scripts"] of stack tStack to "HyperCard scripts: 0 rewritten, 0 salvaged by handler (0 handlers left out, 0 lines left out of handlers), 0 still do not compile"
+   put revHyperCardImportSummary(tStack, "x") into tSummary
+   TestAssert "an XFCN with no stand-in: not available, under Dropped", \
+         "XFCNs that are not available (a script stops where it calls one): Riddle" is among the lines of tSummary \
+         and "Stood in for:" is not among the lines of tSummary and "Converted:" is among the lines of tSummary
+   _Close tStack
+end TestHyperCardScriptsSummaryParts
+
 on TestHyperCardScriptsLoadedByIDE
    -- the IDE loads its libraries by sending extensionInitialize
    -- (revInternal__LoadLibrary); the library must then be in the message
@@ -4654,32 +4701,103 @@ end TestHyperCardScriptsStandIns
 
 on TestHyperCardScriptsExternals
    -- the stack's external commands get stand-ins that leave a note in
-   -- the result; its external functions, and the externals its scripts
-   -- or the library define, get none. And doMenu "New Button" names the
-   -- button as HyperCard did
-   local tStack, tReport, tTab
+   -- the result, and its external functions stand-ins that give empty;
+   -- the externals its scripts or the library define get none. And
+   -- doMenu "New Button" names the button as HyperCard did
+   local tStack, tReport, tTab, tLibrary
    global gHCScriptsTest
    put "HCExternals" & the milliseconds into tStack
    put numToChar(9) into tTab
    lock messages
    create invisible stack tStack
-   set the uHyperCard["externals"] of stack tStack to _Lines("XCMD" & tTab & "FPlay", "XCMD" & tTab & "PopUp", "XFCN" & tTab & "SysEnv", "XCMD" & tTab & "Mine", "XCMD" & tTab & "Two Words")
-   set the script of stack tStack to _Lines("on Mine", "end Mine")
+   set the uHyperCard["externals"] of stack tStack to _Lines("XCMD" & tTab & "FPlay", "XCMD" & tTab & "PopUp", "XFCN" & tTab & "SysEnv", "XCMD" & tTab & "Mine", "XCMD" & tTab & "Two Words", \
+         "XFCN" & tTab & "Mystery", "XFCN" & tTab & "MineToo", "XFCN" & tTab & "Mystery", "XFCN" & tTab & "Files")
+   set the script of stack tStack to _Lines("on Mine", "end Mine", "function MineToo", "  return " & quote & "mine" & quote, "end MineToo")
    set the defaultStack to tStack
    create button "X"
    set the script of button "X" to _Lines("on mouseUp", "  global gHCScriptsTest", "  FPlay " & quote & "boing" & quote, "  put the result into gHCScriptsTest", "end mouseUp")
    create button "N"
    set the script of button "N" to _Lines("on mouseUp", "  doMenu " & quote & "new button" & quote, "  set the name of button " & quote & "new button" & quote & " to " & quote & "Made" & quote, "end mouseUp")
+   create button "F"
+   set the script of button "F" to _Lines("on mouseUp", "  global gHCScriptsTest", "  put Mystery(1, 2) into gHCScriptsTest", \
+         "  put " & quote & "|" & quote & " & MineToo() & " & quote & "|went on" & quote & " after gHCScriptsTest", "end mouseUp")
    unlock messages
    put revHyperCardFixScripts(tStack) into tReport
    TestAssert "the report names the stand-ins", "do nothing when called: FPlay" & return is in tReport
+   TestAssert "the report names the external functions' stand-ins, each once", "give empty when called: Mystery" & return is in tReport
    put empty into gHCScriptsTest
    send "mouseUp" to button "X" of stack tStack
    TestAssert "a stand-in: the script goes on, the result says why", gHCScriptsTest is "FPlay is not available"
+   put empty into gHCScriptsTest
+   send "mouseUp" to button "F" of stack tStack
+   TestAssert "an XFCN's stand-in gives empty and the script goes on; the stack's own function comes first", gHCScriptsTest is "|mine|went on"
+   put the script of stack ("HyperCard Library (" & tStack & ")") of stack tStack into tLibrary
+   TestAssert "one stand-in for an XFCN listed twice", "XFCN Mystery " is in tLibrary and "XFCN Mystery " is not in (char offset("XFCN Mystery ", tLibrary) + 1 to -1 of tLibrary)
+   TestAssert "no stand-in for an XFCN the library has (SysEnv, hcX_Files) or the stack defines", \
+         "XFCN MineToo" is not in tLibrary and "XFCN Files" is not in tLibrary and "XFCN SysEnv" is not in tLibrary
    send "mouseUp" to button "N" of stack tStack
    TestAssert "doMenu New Button: the button HyperCard named", there is a button "Made" of stack tStack
    _Close tStack
 end TestHyperCardScriptsExternals
+
+on TestHyperCardScriptsMoreStandIns
+   -- the library's stand-ins for more of the externals the corpus's
+   -- stacks carry: menus, speech, the videodisc drivers, resource
+   -- copiers and screen effects say what they did not do, or do nothing;
+   -- Phonemes and LeafName give what the external gave; killPalette
+   -- closes the palette
+   local tStack, q, tPalette
+   global gHCScriptsTest
+   put quote into q
+   put "HCMoreStandIns" & the milliseconds into tStack
+   put "HCPalette" & the milliseconds into tPalette
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   create button "Results"
+   set the script of button "Results" to _Lines("on mouseUp", "  global gHCScriptsTest", "  put empty into gHCScriptsTest", \
+         "  EnableMenu 3, 1, true", "  put the result & " & q & "|" & q & " after gHCScriptsTest", \
+         "  CheckMenu 3, 1, true", "  put the result & " & q & "|" & q & " after gHCScriptsTest", \
+         "  ChangeMenu 3, 1, " & q & "New" & q, "  put the result & " & q & "|" & q & " after gHCScriptsTest", \
+         "  AddColor colorCard", "  put the result & " & q & "|" & q & " after gHCScriptsTest", \
+         "  TurnSpeechOn", "  TurnSpeechOff", "  SetPitch 5", "  SetRate 3", "  put the result & " & q & "|" & q & " after gHCScriptsTest", \
+         "  ZoomRect " & q & "1,1,2,2" & q, "  Progress 50", "  put the result & " & q & "|" & q & " after gHCScriptsTest", \
+         "  CopyRes " & q & "ICON" & q & ", 128", "  put the result & " & q & "|" & q & " after gHCScriptsTest", \
+         "  ModResCopy " & q & "ICON" & q, "  put the result & " & q & "|" & q & " after gHCScriptsTest", \
+         "  PioneerLDV6000 " & q & "search" & q & ", 100", "  put the result & " & q & "|" & q & " after gHCScriptsTest", \
+         "  put PanasonicTQ2024F(" & q & "status" & q & ") & " & q & "|" & q & " after gHCScriptsTest", \
+         "  put Phonemes(" & q & "hello there" & q & ") & " & q & "|" & q & " after gHCScriptsTest", \
+         "  put LeafName(" & q & "Old Disk:Stacks:Home" & q & ") & " & q & "|" & q & " & LeafName(" & q & "Disk:Stacks:" & q & ") after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & LeafName(" & q & "/home/me/notes.txt" & q & ") after gHCScriptsTest", \
+         "end mouseUp")
+   create button "Kill"
+   set the script of button "Kill" to _Lines("on mouseUp pName", "  killPalette pName", "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   send "mouseUp" to button "Results" of stack tStack
+   set the itemDelimiter to "|"
+   TestAssert "EnableMenu, CheckMenu, ChangeMenu: the menus are not there, the result says so", \
+         item 1 to 3 of gHCScriptsTest is "HyperCard menus are not supported yet|HyperCard menus are not supported yet|HyperCard menus are not supported yet"
+   TestAssert "AddColor: nothing to do", item 4 of gHCScriptsTest is empty
+   TestAssert "MacinTalk's setup: nothing to do", item 5 of gHCScriptsTest is empty
+   TestAssert "ZoomRect and Progress: nothing drawn", item 6 of gHCScriptsTest is empty
+   TestAssert "CopyRes and ModResCopy say they copied nothing", \
+         item 7 of gHCScriptsTest is "CopyRes is not supported: resources are not copied" and item 8 of gHCScriptsTest is "ModResCopy is not supported: resources are not copied"
+   TestAssert "a videodisc driver as a command: no player", item 9 of gHCScriptsTest is "No videodisc player is connected"
+   TestAssert "a videodisc driver as a function: empty", item 10 of gHCScriptsTest is empty
+   TestAssert "Phonemes gives the text, which SayPhonetic says", item 11 of gHCScriptsTest is "hello there"
+   TestAssert "LeafName: a Mac path's last part, a folder's, a path here's", item 12 to 14 of gHCScriptsTest is "Home|Stacks|notes.txt"
+   -- killPalette closes the palette of that name, and leaves alone a
+   -- name that is not a stack
+   create invisible stack tPalette
+   set the mainStack of stack tPalette to tStack
+   palette stack tPalette
+   send "mouseUp" && tPalette to button "Kill" of stack tStack
+   TestAssert "killPalette closes the palette", tPalette is not among the lines of the openStacks
+   send "mouseUp" && q & "No Such Palette" & q to button "Kill" of stack tStack
+   TestAssert "killPalette of no palette: nothing", the result is empty
+   _Close tStack
+end TestHyperCardScriptsMoreStandIns
 
 on TestHyperCardScriptsImported
    -- a stack the engine imports: every script compiles afterwards, and

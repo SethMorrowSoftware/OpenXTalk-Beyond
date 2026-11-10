@@ -4676,6 +4676,147 @@ on hcX_popUp
    return "popUp is not supported"
 end hcX_popUp
 
+-- More externals the corpus's stacks carry (in 7 to 83 stacks each),
+-- with nothing like them here or nothing to do: each does what it can,
+-- and leaves a note in the result where it does nothing, as an XCMD left
+-- its error there, so that the script goes on where it stopped with
+-- "can't find handler"
+
+-- EnableMenu, CheckMenu and ChangeMenu (83, 81 and 81 stacks): the items
+-- of the menus NewMenu added, which this engine's menus do not take yet
+on EnableMenu
+   return "HyperCard menus are not supported yet"
+end EnableMenu
+
+on CheckMenu
+   return "HyperCard menus are not supported yet"
+end CheckMenu
+
+on ChangeMenu
+   return "HyperCard menus are not supported yet"
+end ChangeMenu
+
+-- AddColor (16 stacks), HyperCard 2.2's colour XCMD: the importer turns a
+-- stack's AddColor data into a colour layer, so a script's own calls have
+-- nothing left to do (as ColorizeHC)
+on AddColor
+   return empty
+end AddColor
+
+-- Phonemes(text) (56 stacks), MacinTalk's XFCN: the text as phonemes,
+-- for SayPhonetic. Speech here reads the text itself, so the text is
+-- given back as it is, and SayPhonetic(Phonemes(x)) says x
+function Phonemes pText
+   return pText
+end Phonemes
+
+-- SayPhonetic and MacinTalkSay (18 and 6 stacks): speech, as Speak
+on SayPhonetic pText
+   return _HCSpeak(pText)
+end SayPhonetic
+
+on MacinTalkSay pText
+   return _HCSpeak(pText)
+end MacinTalkSay
+
+-- TurnSpeechOn, TurnSpeechOff, SetPitch and SetRate (17 and 18 stacks):
+-- MacinTalk's setup, which speech here does not need; nothing to do
+on TurnSpeechOn
+   return empty
+end TurnSpeechOn
+
+on TurnSpeechOff
+   return empty
+end TurnSpeechOff
+
+on SetPitch pPitch
+   return empty
+end SetPitch
+
+on SetRate pRate
+   return empty
+end SetRate
+
+-- LeafName(path) (11 stacks), the XFCN: the last part of a path, the
+-- file's name, from a Mac path with colons ("Disk:Stacks:Home") or a
+-- path here with slashes
+function LeafName pPath
+   if pPath ends with colon or pPath ends with slash then delete the last char of pPath
+   if colon is in pPath then
+      set the itemDelimiter to colon
+   else
+      set the itemDelimiter to slash
+   end if
+   return item -1 of pPath
+end LeafName
+
+-- killPalette name (11 stacks): closes the palette of that name (the
+-- importer makes each PLTE resource a substack, which palette opens)
+on killPalette pName
+   if pName is empty or there is not a stack pName then return empty
+   if pName is among the lines of the openStacks then close stack pName
+   return empty
+end killPalette
+
+-- ZoomRect and Progress (10 stacks each): a zooming outline and a
+-- progress bar drawn on the screen for a moment; nothing is drawn here
+on ZoomRect
+   return empty
+end ZoomRect
+
+on Progress
+   return empty
+end Progress
+
+-- CopyRes and ModResCopy (12 and 11 stacks): resource copiers, as ResCopy
+on CopyRes
+   return "CopyRes is not supported: resources are not copied"
+end CopyRes
+
+on ModResCopy
+   return "ModResCopy is not supported: resources are not copied"
+end ModResCopy
+
+-- The videodisc players' drivers (Pioneer LD-V6000 and LVP-4200 in 57
+-- and 55 stacks, Panasonic TQ-2024F in 50, Sony in 6): a player on the
+-- Mac's serial port, which there is not here. As a command the result
+-- says so; as a function the player's answer is empty
+on PioneerLDV6000
+   return _HCNoVideodisc()
+end PioneerLDV6000
+
+function PioneerLDV6000
+   return empty
+end PioneerLDV6000
+
+on PioneerLVP4200
+   return _HCNoVideodisc()
+end PioneerLVP4200
+
+function PioneerLVP4200
+   return empty
+end PioneerLVP4200
+
+on PanasonicTQ2024F
+   return _HCNoVideodisc()
+end PanasonicTQ2024F
+
+function PanasonicTQ2024F
+   return empty
+end PanasonicTQ2024F
+
+on SonyPlayer
+   return _HCNoVideodisc()
+end SonyPlayer
+
+function SonyPlayer
+   return empty
+end SonyPlayer
+
+private function _HCNoVideodisc
+   return "No videodisc player is connected"
+end _HCNoVideodisc
+
 -- The externals stacks call most for text and lists, and their dialogs:
 -- each does what its documentation says it did (the number of stacks of
 -- the corpus that call it is given). A call of one whose name this engine

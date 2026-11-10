@@ -3930,6 +3930,22 @@ OXT-Beyond 0.2.7-rc.5, a test release and the last candidate before
   ResCopy, Search, ColorizeHC and popUp give the error an XCMD would.
   The dialogs and popups are verified statically and need a pass in the
   IDE.
+- **More stand-ins, and no XFCN stops a script.** The library also
+  answers EnableMenu, CheckMenu and ChangeMenu, AddColor, MacinTalk
+  (Phonemes, SayPhonetic, MacinTalkSay, TurnSpeechOn and Off, SetPitch,
+  SetRate), LeafName, killPalette, ZoomRect, Progress, CopyRes,
+  ModResCopy and the Pioneer, Panasonic and Sony videodisc drivers. An
+  XFCN of the stack's resource fork that the library does not answer
+  now gives empty, as an XCMD already did nothing, so the script goes
+  on; up to 0.2.7 it stopped there. A stack imported before keeps the
+  library it was given.
+- **The import summary in three parts.** The window File > Import Stack
+  shows after an import now reads Converted (the scripts rewritten, and
+  the icons, cursors, sounds, pictures and palettes made from the
+  resource fork), Stood in for (the XCMDs that do nothing and the XFCNs
+  that give empty) and Dropped (the handlers and lines left out, the
+  sounds, pictures and resources not converted, the fonts this system
+  lacks), on one screen.
 
 - **xTalk Chat** (*Development > Plugins > xTalk Chat*): a chat in the
   IDE for the people using xTalk who choose to go online, with public
