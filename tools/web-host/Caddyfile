@@ -1,0 +1,12 @@
+# The OXT-Beyond web host behind Caddy, which gets the HTTPS certificates
+# itself (README.md, "On the internet"). compose.yaml uses this file.
+# Change the two names: each must point at this server in DNS. The IDE and
+# the Player get a host name each, so they are separate origins.
+
+ide.example.org {
+	reverse_proxy oxt:8000
+}
+
+play.example.org {
+	reverse_proxy oxt:8001
+}

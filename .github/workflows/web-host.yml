@@ -1,0 +1,224 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+
+# The self-hosted web (tools/web-host/README.md), end to end, on the newest
+# release's real web IDE and Stack Player zips (or the input tag's):
+#
+#   - the web bundle (tier 1) is made from them with make_bundle.py, as the
+#     release's publish job makes it, and served by Apache with its
+#     .htaccess and by nginx with its config, two ports each;
+#   - the web host (tier 2) serves them, with a password;
+#   - tools/web-host/e2e_check.py opens both in headless Chromium: the
+#     engine's compressed copies and their types, the IDE and the Player
+#     opening from each server, and on the host a stack saved in one
+#     browser reaching the server and a fresh browser, a delete reaching
+#     both, the Player on its own origin without the storage;
+#   - the Docker image is built from tools/web-host and its container
+#     answers its health check and serves the IDE.
+#
+# The checks without a browser are tools/ci/tests/test_web_host.py, in CI
+# checks. This runs on a pull request or a push to main that changes the
+# web host, the page it adds its script to or the engine's storage it
+# relies on, and by hand. Nothing else waits on it, and it builds nothing
+# that ships.
+
+name: Web host
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - tools/web-host/**
+      - tools/web-ide/index.html
+      - engine/src/em-system.js
+      - .github/workflows/web-host.yml
+  # A draft runs none of this (each job's `if:`); marking it ready does
+  pull_request:
+    types: [ opened, synchronize, reopened, ready_for_review ]
+    paths:
+      - tools/web-host/**
+      - tools/web-ide/index.html
+      - engine/src/em-system.js
+      - .github/workflows/web-host.yml
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release whose web zips to use (empty for the newest)
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-host-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  check:
+    name: Web host and bundle
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the release's web IDE and Stack Player
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [ -z "$TAG" ]; then
+            TAG=$(gh release list --repo "$REPO" --limit 30 --json tagName --jq '.[].tagName' | grep -E '^v[0-9]' | head -n 1)
+          fi
+          echo "Release: $TAG"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/dist"
+          gh release download "$TAG" --repo "$REPO" --pattern "*-web-ide.zip" --dir "$RUNNER_TEMP/dist"
+          gh release download "$TAG" --repo "$REPO" --pattern "*-web-player.zip" --dir "$RUNNER_TEMP/dist"
+          ls -l "$RUNNER_TEMP/dist"
+
+      - name: Install Brotli, Playwright and Chromium
+        env:
+          PLAYWRIGHT_VERSION: 1.56.0
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION" "brotli==1.1.0"
+          "$RUNNER_TEMP/venv/bin/python" -m playwright install --with-deps chromium
+
+      - name: The unit tests
+        run: |
+          "$RUNNER_TEMP/venv/bin/python" -m unittest discover -s tools/ci/tests -p test_web_host.py -v
+
+      # As release.yml's publish job makes it
+      - name: Make the web bundle (tier 1)
+        run: |
+          "$RUNNER_TEMP/venv/bin/python" tools/web-host/make_bundle.py \
+            --ide "$RUNNER_TEMP"/dist/*-web-ide.zip --player "$RUNNER_TEMP"/dist/*-web-player.zip \
+            --version "$VERSION" --out "$RUNNER_TEMP/OXT-Beyond-$VERSION-web-bundle.zip" \
+            --source-url "https://github.com/$GITHUB_REPOSITORY/tree/$TAG"
+          mkdir -p "$RUNNER_TEMP/bundle"
+          unzip -q "$RUNNER_TEMP/OXT-Beyond-$VERSION-web-bundle.zip" -d "$RUNNER_TEMP/bundle"
+          echo "BUNDLE=$RUNNER_TEMP/bundle/OXT-Beyond-$VERSION-web-bundle" >> "$GITHUB_ENV"
+
+      # The bundle's own files, as a user puts them on their server: Apache
+      # with the .htaccess in each folder (mod_rewrite and mod_headers on,
+      # as shared hosting has them), nginx with its two files
+      - name: Serve the bundle with Apache and nginx
+        run: |
+          # Readable by the servers' own users
+          sudo mkdir -p /srv/oxt
+          sudo cp -a "$BUNDLE" /srv/oxt/bundle
+          sudo chmod -R a+rX /srv/oxt
+          sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends apache2 nginx > /dev/null || true
+          sudo systemctl stop apache2 nginx 2> /dev/null || true
+          sudo a2enmod rewrite headers > /dev/null
+          sudo tee /etc/apache2/sites-available/oxt.conf > /dev/null <<'EOF'
+          Listen 9080
+          Listen 9081
+          <Directory /srv/oxt/bundle>
+            AllowOverride FileInfo Indexes
+            Require all granted
+          </Directory>
+          <VirtualHost *:9080>
+            DocumentRoot /srv/oxt/bundle/ide
+          </VirtualHost>
+          <VirtualHost *:9081>
+            DocumentRoot /srv/oxt/bundle/player
+          </VirtualHost>
+          EOF
+          sudo a2dissite 000-default > /dev/null || true
+          sudo a2ensite oxt > /dev/null
+          sudo apache2ctl configtest
+          sudo systemctl start apache2
+          sudo cp /srv/oxt/bundle/nginx/nginx-common.conf /etc/nginx/oxt-beyond-web-common.conf
+          sed -e 's#/var/www/oxt-beyond#/srv/oxt/bundle#' -e '0,/listen 80;/s//listen 9180;/' \
+            -e '0,/listen 80;/s//listen 9181;/' /srv/oxt/bundle/nginx/nginx.conf |
+            sudo tee /etc/nginx/conf.d/oxt.conf > /dev/null
+          sudo rm -f /etc/nginx/sites-enabled/default
+          sudo nginx -t
+          sudo systemctl start nginx
+          for port in 9080 9081 9180 9181; do
+            curl -fsS -o /dev/null "http://localhost:$port/" || { echo "::error::port $port does not serve"; exit 1; }
+          done
+
+      # Tier 2, with a password, from the release's zips as they are
+      - name: Start the web host (tier 2)
+        run: |
+          mkdir -p "$RUNNER_TEMP/host"
+          "$RUNNER_TEMP/venv/bin/python" tools/web-host/oxt_web_host.py \
+            --ide "$RUNNER_TEMP"/dist/*-web-ide.zip --player "$RUNNER_TEMP"/dist/*-web-player.zip \
+            --data "$RUNNER_TEMP/host" --port 8700 --password ci-password \
+            > "$RUNNER_TEMP/host.log" 2>&1 &
+          for i in $(seq 1 600); do
+            if curl -fsS -o /dev/null http://localhost:8700/_host/health; then break; fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/host.log"
+          curl -fsS http://localhost:8700/_host/health
+
+      - name: Check both in Chromium
+        timeout-minutes: 15
+        run: |
+          "$RUNNER_TEMP/venv/bin/python" tools/web-host/e2e_check.py \
+            --host-ide http://localhost:8700 --host-player http://localhost:8701 \
+            --data "$RUNNER_TEMP/host" --password ci-password \
+            --static-ide http://localhost:9080 --static-player http://localhost:9081 \
+            --out "$RUNNER_TEMP/check/apache"
+          "$RUNNER_TEMP/venv/bin/python" tools/web-host/e2e_check.py \
+            --static-ide http://localhost:9180 --static-player http://localhost:9181 \
+            --out "$RUNNER_TEMP/check/nginx"
+
+      - name: Build and start the Docker image
+        timeout-minutes: 15
+        run: |
+          docker build --build-arg "OXT_VERSION=$VERSION" -t oxt-beyond-web tools/web-host
+          docker run -d --name oxt -p 8800:8000 -p 8801:8001 -e OXT_PASSWORD=ci-password oxt-beyond-web
+          for i in $(seq 1 60); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' oxt)
+            if [ "$status" = healthy ]; then break; fi
+            sleep 2
+          done
+          docker ps
+          [ "$status" = healthy ] || { docker logs oxt; echo "::error::the container is $status"; exit 1; }
+          curl -fsS -u x:ci-password -o "$RUNNER_TEMP/page.html" http://localhost:8800/
+          grep -q '/_host/sync.js' "$RUNNER_TEMP/page.html"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8800/)" = 401
+          curl -fsS -o /dev/null -H 'Accept-Encoding: br' -w '%{http_code} %{size_download}\n' \
+            -u x:ci-password http://localhost:8800/ide.zip
+          curl -fsS -o /dev/null http://localhost:8801/
+          echo "The container is healthy and serves the IDE and the Player"
+
+      - name: Keep the screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-host-check
+          path: |
+            ${{ runner.temp }}/check
+            ${{ runner.temp }}/host.log
+          if-no-files-found: ignore
+          retention-days: 14
