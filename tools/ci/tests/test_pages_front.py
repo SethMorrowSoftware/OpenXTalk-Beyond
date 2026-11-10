@@ -17,11 +17,12 @@
 """The front page of the GitHub Pages site (tools/pages/index.html, filled
 in by tools/pages/build_pages.py). Whatever parts a run puts on the site,
 the page it writes links only to folders that are there, to its own
-anchors, to the project on GitHub and to the files its release has (the
-Downloads section); it leaves no marker or placeholder
-behind; and it asks no other host for anything (no script, style, font or
-image from elsewhere). tools/pages/check_front_page.py reads the same page
-in a browser.
+anchors, to the project on GitHub and to the files its releases have (the
+Downloads section: the stable release and the preview of the next one,
+which tools/pages/pick_releases.py chooses); it leaves no marker or
+placeholder behind; and it asks no other host for anything (no script,
+style, font or image from elsewhere). tools/pages/check_front_page.py
+reads the same page in a browser.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -43,6 +44,7 @@ PAGES = os.path.join(REPO, 'tools', 'pages')
 sys.path.insert(0, PAGES)
 
 import build_pages  # noqa: E402
+import pick_releases  # noqa: E402
 
 FOLDERS = {'GAMES': 'games/', 'IDE': 'ide/', 'DICTIONARY': 'dictionary/', 'PLAYER': 'player/', 'MAP': 'map/',
            'EXTENSIONS': 'extensions/', 'LESSONS': 'lessons/'}
@@ -53,14 +55,26 @@ EXTERNAL = {
     'https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/issues/new?template=bug_report.yml',
 }
 TAG = 'v0.2.7-rc.6.11'
-# rc.6.11's files, as gh release view lists them
-ASSETS = ['OXT-Beyond-0.2.7-rc.6.11-%s' % s for s in (
-    'linux-arm64-binaries.tar.xz', 'linux-arm64-symbols.tar.xz', 'linux-arm64.tar.xz',
-    'linux-x86_64-binaries.tar.xz', 'linux-x86_64-symbols.tar.xz', 'linux-x86_64.tar.xz',
-    'mac-universal-binaries.tar.xz', 'mac-universal-symbols.zip', 'mac-universal.dmg', 'mac-universal.zip',
-    'mcp-bridge-plugin.lce', 'web-ide.zip', 'web-player.zip', 'win-x86_64-binaries.zip',
-    'win-x86_64-portable.zip', 'win-x86_64-setup.exe', 'win-x86_64-symbols.zip',
-    'xtalk-assistant-plugin.lce', 'xtalk-sources.zip')] + ['SHA256SUMS']
+
+
+def files_of(tag):
+    """A release's files, as gh release view lists them."""
+    return ['OXT-Beyond-%s-%s' % (tag[1:], s) for s in (
+        'linux-arm64-binaries.tar.xz', 'linux-arm64-symbols.tar.xz', 'linux-arm64.tar.xz',
+        'linux-x86_64-binaries.tar.xz', 'linux-x86_64-symbols.tar.xz', 'linux-x86_64.tar.xz',
+        'mac-universal-binaries.tar.xz', 'mac-universal-symbols.zip', 'mac-universal.dmg', 'mac-universal.zip',
+        'mcp-bridge-plugin.lce', 'web-ide.zip', 'web-player.zip', 'win-x86_64-binaries.zip',
+        'win-x86_64-portable.zip', 'win-x86_64-setup.exe', 'win-x86_64-symbols.zip',
+        'xtalk-assistant-plugin.lce', 'xtalk-sources.zip')] + ['SHA256SUMS']
+
+
+ASSETS = files_of(TAG)
+# The stable release and the preview of the next one, side by side
+STABLE, PREVIEW = 'v0.2.7', 'v0.2.8-dp.1'
+# The files the Downloads section links, by the end of their names
+LINKED = ('win-x86_64-setup.exe', 'win-x86_64-portable.zip', 'mac-universal.dmg', 'mac-universal.zip',
+          'linux-x86_64.tar.xz', 'linux-arm64.tar.xz', 'web-ide.zip', 'web-player.zip',
+          'xtalk-assistant-plugin.lce', 'mcp-bridge-plugin.lce')
 RELEASE = 'https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/'
 # Elements that void HTML does not close
 VOID = {'meta', 'link', 'br', 'img', 'input', 'hr', 'source', 'path', 'circle', 'rect'}
@@ -395,21 +409,32 @@ class TheBuiltPage(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.work, ignore_errors=True)
 
-    def build(self, parts, assets=ASSETS):
+    def build(self, parts, assets=ASSETS, release=TAG, preview=None):
+        """The front page with parts; its Downloads are those of release
+        (a tag, with the files assets) and of preview (a tag, with every
+        file a release has), either of them None for a page without it."""
         out = os.path.join(self.work, '-'.join(sorted(parts)) or 'none')
+        shutil.rmtree(out, ignore_errors=True)
         os.makedirs(out)
         for key in parts:
             if key in FOLDERS:
                 os.makedirs(os.path.join(out, FOLDERS[key]))
         if 'DOWNLOADS' in parts:
-            parts = dict(parts, DOWNLOADS=TAG, DOWNLOADS_LIST=build_pages.downloads_html(TAG, set(assets)))
+            blocks = build_pages.downloads_channels((release, set(assets)) if release else None,
+                                                    (preview, set(files_of(preview))) if preview else None)
+            parts = dict(parts, DOWNLOADS=' and '.join(tag for tag, _ in blocks),
+                         DOWNLOADS_LIST='\n'.join(block for _, block in blocks))
         build_pages.front_page(out, parts)
         with open(os.path.join(out, 'index.html'), encoding='utf-8') as f:
             return out, f.read()
 
-    def check(self, parts, assets=ASSETS):
-        out, text = self.build(parts, assets)
+    def check(self, parts, assets=ASSETS, release=TAG, preview=None):
+        out, text = self.build(parts, assets, release, preview)
         where = 'parts %s' % sorted(parts)
+        # each release on the page, with the files it has
+        has = {release: assets} if release else {}
+        if preview:
+            has[preview] = files_of(preview)
         self.assertNotIn('<!-- @', text, where)
         self.assertNotIn('<!-- /@', text, where)
         self.assertNotRegex(text, r'@[A-Z]+(_VERSION)?@', where)
@@ -422,10 +447,10 @@ class TheBuiltPage(unittest.TestCase):
             elif href.startswith(RELEASE + 'download/'):
                 self.assertIn('DOWNLOADS', parts, where)
                 tag, name = href[len(RELEASE + 'download/'):].split('/')
-                self.assertEqual(tag, TAG, where)
-                self.assertIn(name, assets, where)
+                self.assertIn(tag, has, where)
+                self.assertIn(name, has[tag], where)
             elif href.startswith(RELEASE + 'tag/'):
-                self.assertEqual(href, RELEASE + 'tag/' + TAG, where)
+                self.assertIn(href[len(RELEASE + 'tag/'):], has, where)
             elif href.startswith('https://'):
                 self.assertIn(href, EXTERNAL, where)
             elif href == './':
@@ -476,21 +501,94 @@ class TheBuiltPage(unittest.TestCase):
 
     def test_the_downloads(self):
         text = self.check({'IDE': '9', 'DOWNLOADS': TAG})
-        for name in ('win-x86_64-setup.exe', 'win-x86_64-portable.zip', 'mac-universal.dmg', 'mac-universal.zip',
-                     'linux-x86_64.tar.xz', 'linux-arm64.tar.xz', 'web-ide.zip', 'web-player.zip',
-                     'xtalk-assistant-plugin.lce', 'mcp-bridge-plugin.lce'):
+        for name in LINKED:
             self.assertIn('href="%sdownload/%s/OXT-Beyond-0.2.7-rc.6.11-%s"' % (RELEASE, TAG, name), text)
         # (debug symbols and build output are for the release page)
         self.assertNotIn('symbols', text)
         self.assertIn('href="%stag/%s"' % (RELEASE, TAG), text)
         self.assertIn('<span class="release">%s</span>' % TAG, text)
 
+    def blocks(self, text):
+        """The Downloads section's releases, in the page's order, as
+        (id, heading, tag, the block's text)."""
+        found = []
+        for part in re.split(r'<div class="channel(?: next)?" (?=id=")', text)[1:]:
+            ident = re.match(r'id="([^"]+)"', part).group(1)
+            heading = re.search(r'<h3>([^<]+)</h3>', part).group(1)
+            tag = re.search(r'<span class="release">([^<]+)</span>', part).group(1)
+            found.append((ident, heading, tag, part))
+        return found
+
+    def test_the_stable_release_and_the_preview(self):
+        # seth, 2026-11-10: "the website downloads should always show the
+        # current GM/stable and the current RC/DP so users have a choice".
+        # The stable release first, then the preview, each with its own
+        # files and its own release page, and its own place to link
+        text = self.check({'IDE': '9', 'DOWNLOADS': ''}, files_of(STABLE), STABLE, PREVIEW)
+        blocks = self.blocks(text)
+        self.assertEqual([b[:3] for b in blocks], [('downloads-stable', 'Stable release', STABLE),
+                                                   ('downloads-preview', 'Developer preview', PREVIEW)])
+        for (_, _, tag, block), other in zip(blocks, (PREVIEW, STABLE)):
+            for name in LINKED:
+                self.assertIn('href="%sdownload/%s/OXT-Beyond-%s-%s"' % (RELEASE, tag, tag[1:], name), block)
+            self.assertIn('href="%stag/%s"' % (RELEASE, tag), block)
+            # (nothing of the other release in this one's block)
+            self.assertNotIn('/%s/' % other, block)
+            self.assertNotIn('tag/%s"' % other, block)
+        self.assertEqual(text.count('releases/download/'), 2 * len(LINKED))
+        # the preview says what it is before anyone takes it for the release
+        self.assertIn('less tested than the stable release', blocks[1][3])
+        self.assertNotIn('less tested', blocks[0][3])
+
+    def test_one_release_alone(self):
+        # no preview newer than the stable release (the day a release is
+        # made), and a project whose every release so far is a preview
+        text = self.check({'DOWNLOADS': ''}, files_of(STABLE), STABLE)
+        self.assertEqual([b[:3] for b in self.blocks(text)], [('downloads-stable', 'Stable release', STABLE)])
+        section = text[text.index('<section id="downloads"'):]
+        self.assertNotIn('preview', section[:section.index('</section>')].lower())
+        text = self.check({'DOWNLOADS': ''}, release=None, preview=PREVIEW)
+        self.assertEqual([b[:3] for b in self.blocks(text)], [('downloads-preview', 'Developer preview', PREVIEW)])
+        text = self.check({'DOWNLOADS': ''})
+        self.assertEqual([b[:3] for b in self.blocks(text)], [('downloads-preview', 'Release candidate', TAG)])
+
+    def test_what_a_release_is_called(self):
+        for tag, name in (('v0.2.7', 'Stable release'), ('v1.0', 'Stable release'),
+                          ('v0.2.8-dp.1', 'Developer preview'), ('v0.2.8-DP.12', 'Developer preview'),
+                          ('v0.2.7-rc.6.11', 'Release candidate'), ('v0.2.8-rc1', 'Release candidate'),
+                          ('v0.3.0-beta.2', 'Preview'), ('v0.3.0-7', 'Preview')):
+            self.assertEqual(build_pages.CHANNELS[build_pages.channel(tag)][0], name, tag)
+        # what GitHub marks as a pre-release is one whatever its name
+        self.assertEqual(build_pages.CHANNELS[build_pages.channel('v0.3.0', preview=True)][0], 'Preview')
+        self.assertEqual(build_pages.channel('v0.2.8-dp.1', preview=True), 'dp')
+
+    def test_a_release_without_the_files_is_left_out(self):
+        # the other one still has its block; with neither, no section
+        full, none = set(files_of(STABLE)), {'SHA256SUMS'}
+        log = io.StringIO()
+        with redirect_stdout(log):
+            self.assertEqual([t for t, _ in build_pages.downloads_channels((STABLE, full), (PREVIEW, none))],
+                             [STABLE])
+            self.assertEqual(log.getvalue(), 'no downloads of %s: it has none of the files the page links\n' % PREVIEW)
+            self.assertEqual([t for t, _ in build_pages.downloads_channels((STABLE, none),
+                                                                           (PREVIEW, set(files_of(PREVIEW))))],
+                             [PREVIEW])
+            self.assertEqual(build_pages.downloads_channels((STABLE, none), (PREVIEW, none)), [])
+        self.assertEqual(build_pages.downloads_channels(None, None), [])
+
+    def test_two_previews_are_not_two_releases(self):
+        # each block has its own id, so a preview is never given as both
+        with self.assertRaisesRegex(build_pages.BuildError, 'preview'):
+            build_pages.downloads_channels((TAG, set(ASSETS)), (PREVIEW, set(files_of(PREVIEW))))
+
     def test_only_the_files_the_release_has(self):
         assets = [a for a in ASSETS if 'mac-' not in a and not a.endswith('-portable.zip')]
         text = self.check({'DOWNLOADS': TAG}, assets)
-        self.assertNotIn('<h3>macOS</h3>', text)
+        self.assertNotIn('<h4>macOS</h4>', text)
         self.assertNotIn('portable', text)
-        self.assertIn('<h3>Windows</h3>', text)
+        self.assertIn('<h4>Windows</h4>', text)
+        # a platform's heading is under its release's
+        self.assertNotIn('<h3>Windows</h3>', text)
 
     def test_a_release_with_none_of_them(self):
         self.assertEqual(build_pages.downloads_html(TAG, {'SHA256SUMS'}), '')
@@ -568,6 +666,139 @@ class TheBuiltPage(unittest.TestCase):
         args.release_assets = None
         with self.assertRaisesRegex(build_pages.BuildError, 'release-assets'):
             build_pages.build(args)
+
+        # and with the stable release and the preview, as pages.yml gives
+        # them: both on the front page, and the extensions page's plugins
+        # from the stable one
+        def listed(tag):
+            path = os.path.join(self.work, 'assets-%s.txt' % tag)
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write('\n'.join(files_of(tag)) + '\n')
+            return path
+
+        def built():
+            shutil.rmtree(out, ignore_errors=True)
+            log = io.StringIO()
+            with redirect_stdout(log):
+                build_pages.build(args)
+            with open(os.path.join(out, 'index.html'), encoding='utf-8') as f, \
+                    open(os.path.join(out, 'extensions', 'index.html'), encoding='utf-8') as g:
+                return f.read(), g.read(), log.getvalue()
+
+        args.release, args.release_assets = STABLE, listed(STABLE)
+        args.preview, args.preview_assets = PREVIEW, listed(PREVIEW)
+        text, extensions, log = built()
+        self.assertIn('OXT-Beyond-0.2.7-win-x86_64-setup.exe', text)
+        self.assertIn('OXT-Beyond-0.2.8-dp.1-win-x86_64-setup.exe', text)
+        self.assertLess(text.index('id="downloads-stable"'), text.index('id="downloads-preview"'))
+        self.assertIn('downloads: %s and %s\n' % (STABLE, PREVIEW), log)
+        self.assertIn('/%s/OXT-Beyond-0.2.7-mcp-bridge-plugin.lce"' % STABLE, extensions)
+        self.assertNotIn(PREVIEW, extensions)
+        # the preview alone: its files, on both pages
+        args.release = args.release_assets = None
+        text, extensions, log = built()
+        self.assertNotIn('id="downloads-stable"', text)
+        self.assertIn('OXT-Beyond-0.2.8-dp.1-win-x86_64-setup.exe', text)
+        self.assertIn('/%s/OXT-Beyond-0.2.8-dp.1-mcp-bridge-plugin.lce"' % PREVIEW, extensions)
+        shutil.rmtree(out)
+        args.preview_assets = None
+        with self.assertRaisesRegex(build_pages.BuildError, 'preview-assets'):
+            build_pages.build(args)
+
+
+def release(tag, prerelease=None):
+    """A row of gh release list --json tagName,isPrerelease."""
+    return {'tagName': tag, 'isPrerelease': ('-' in tag) if prerelease is None else prerelease}
+
+
+class TheReleasesToOffer(unittest.TestCase):
+    """tools/pages/pick_releases.py: which releases the Downloads section
+    links, from GitHub's list of them."""
+
+    def pick(self, *tags):
+        return pick_releases.pick([t if isinstance(t, dict) else release(t) for t in tags])
+
+    def test_the_stable_release_and_a_newer_preview(self):
+        # (the list is newest first, as gh gives it; the runtimes asset's
+        # release is not one of the IDE)
+        self.assertEqual(self.pick('v0.2.8-dp.1', 'oxt-runtimes-0.2.8-dp.1', 'v0.2.7', 'v0.2.7-rc.6.18'),
+                         ('v0.2.7', 'v0.2.8-dp.1'))
+
+    def test_a_preview_behind_the_stable_release_is_not_offered(self):
+        # today: 0.2.7 is out and its release candidates are behind it
+        self.assertEqual(self.pick('oxt-runtimes-0.2.7', 'v0.2.7', 'v0.2.7-rc.6.18', 'v0.2.7-rc.6.17'),
+                         ('v0.2.7', ''))
+        self.assertEqual(self.pick('v0.2.8', 'v0.2.8-rc.1', 'v0.2.8-dp.3', 'v0.2.7'), ('v0.2.8', ''))
+
+    def test_by_version_not_by_date(self):
+        # a fix to the stable release made after the next version's
+        # preview leaves that preview on the page
+        self.assertEqual(self.pick('v0.2.7.1', 'v0.2.8-dp.2', 'v0.2.8-dp.1', 'v0.2.7'),
+                         ('v0.2.7.1', 'v0.2.8-dp.2'))
+        # and the list's order decides nothing
+        self.assertEqual(self.pick('v0.2.7', 'v0.2.8-dp.1', 'v0.2.8-dp.2', 'v0.2.7.1'),
+                         ('v0.2.7.1', 'v0.2.8-dp.2'))
+
+    def test_previews_in_order(self):
+        # numbers as numbers, a developer preview before a release
+        # candidate, and a longer name after its own beginning
+        for newest, older in (('v0.2.8-dp.10', 'v0.2.8-dp.9'), ('v0.2.8-rc.1', 'v0.2.8-dp.12'),
+                              ('v0.2.7-rc.6.11', 'v0.2.7-rc.6.9'), ('v0.2.7-rc.6.1', 'v0.2.7-rc.6'),
+                              ('v0.2.10-dp.1', 'v0.2.9-rc.4'), ('v0.3.0-dp.1', 'v0.2.99-rc.9')):
+            self.assertEqual(self.pick(older, newest), ('', newest), newest)
+            self.assertEqual(self.pick(newest, older), ('', newest), newest)
+
+    def test_no_stable_release_yet(self):
+        self.assertEqual(self.pick('v0.2.7-rc.6.18', 'v0.2.7-rc.6.17'), ('', 'v0.2.7-rc.6.18'))
+        self.assertEqual(self.pick(), ('', ''))
+        self.assertEqual(self.pick('oxt-runtimes-0.2.7', 'nightly'), ('', ''))
+
+    def test_what_github_marks_decides_with_the_name(self):
+        # marked as a pre-release by hand, it is not the stable release;
+        # named as one (a version with a pre-release part), it is not either
+        self.assertEqual(self.pick(release('v0.3.0', True), 'v0.2.7'), ('v0.2.7', 'v0.3.0'))
+        self.assertEqual(self.pick(release('v0.2.8-dp.1', False), 'v0.2.7'), ('v0.2.7', 'v0.2.8-dp.1'))
+        # a draft is no release yet (pages.yml leaves them out of the list too)
+        self.assertEqual(self.pick(dict(release('v0.2.8'), isDraft=True), 'v0.2.7'), ('v0.2.7', ''))
+
+    def test_the_command(self):
+        import json
+        import subprocess
+        listing = os.path.join(tempfile.mkdtemp(prefix='test-pages-releases-'), 'releases.json')
+        self.addCleanup(shutil.rmtree, os.path.dirname(listing), ignore_errors=True)
+        with open(listing, 'w', encoding='utf-8') as f:
+            json.dump([release(t) for t in ('v0.2.8-dp.1', 'v0.2.7')], f)
+        script = os.path.join(PAGES, 'pick_releases.py')
+        done = subprocess.run([sys.executable, script, listing], capture_output=True, text=True)
+        self.assertEqual((done.returncode, done.stdout), (0, 'stable=v0.2.7\npreview=v0.2.8-dp.1\n'))
+        with open(listing, 'w', encoding='utf-8') as f:
+            f.write('not json')
+        done = subprocess.run([sys.executable, script, listing], capture_output=True, text=True)
+        self.assertEqual((done.returncode, done.stdout), (1, ''))
+        self.assertIn('pick_releases.py:', done.stderr)
+
+    def test_every_tag_it_picks_is_one_the_page_takes(self):
+        for tag in ('v0.2.7', 'v0.2.8-dp.1', 'v0.2.7-rc.6.11', 'v1.0.0+build.5'):
+            self.assertIsNotNone(pick_releases.order(tag), tag)
+            self.assertNotEqual(build_pages.downloads_html(tag, set(files_of(tag))), '', tag)
+        for tag in ('0.2.7', 'v', 'vNext', 'v0.2.7"><script>', 'v0.2.7 ', 'oxt-runtimes-0.2.7', 'v0..7', ''):
+            self.assertIsNone(pick_releases.order(tag), tag)
+
+    def test_pages_yml_asks_for_both(self):
+        # the site's workflow lists every release, takes the two this
+        # picks whatever tag the run was given, and hands both to the page
+        with open(os.path.join(REPO, '.github', 'workflows', 'pages.yml'), encoding='utf-8') as f:
+            workflow = f.read()
+        self.assertIn('--json tagName,isPrerelease > "$RUNNER_TEMP/releases.json"', workflow)
+        self.assertIn('python3 tools/pages/pick_releases.py "$RUNNER_TEMP/releases.json"', workflow)
+        self.assertIn('args+=(--release "$DOWNLOADS_TAG" --release-assets "$RUNNER_TEMP/release-assets.txt")',
+                      workflow)
+        self.assertIn('args+=(--preview "$PREVIEW_TAG" --preview-assets "$RUNNER_TEMP/preview-assets.txt")',
+                      workflow)
+        step = workflow[workflow.index('      - name: List the downloads'):]
+        step = step[:step.index('\n      - name: ', 10)]
+        self.assertNotIn('$TAG', step)
+        self.assertNotIn('inputs.tag', step)
 
 
 if __name__ == '__main__':
