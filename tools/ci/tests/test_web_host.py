@@ -407,6 +407,18 @@ class StorageTests(Running):
         # Deleting what is not there is no error
         self.assertEqual(self.call(self.url(rel), 'DELETE')[0], 200)
 
+    def test_an_older_save_does_not_replace_a_newer_one(self):
+        rel = 'Shared.oxtstack'
+        self.assertEqual(self.call(self.url(rel), 'PUT', b'newer', {'X-Mtime': '1700000200'})[0], 200)
+        status, h, _ = self.call(self.url(rel), 'PUT', b'older!', {'X-Mtime': '1700000100'})
+        self.assertEqual((status, h['X-Mtime']), (409, '1700000200'))
+        self.assertEqual(read(os.path.join(self.files, rel)), b'newer')
+        self.assertEqual(self.listing_api(), {rel: [5, 1700000200]})
+        # The same second, or later, replaces it; nothing is left half-written
+        self.assertEqual(self.call(self.url(rel), 'PUT', b'same s', {'X-Mtime': '1700000200'})[0], 200)
+        self.assertEqual(read(os.path.join(self.files, rel)), b'same s')
+        self.assertEqual(os.listdir(self.files), [rel])
+
     def test_writes_from_another_site_are_refused(self):
         for headers in ({'Origin': 'http://127.0.0.1:%d' % self.player_port},
                         {'Origin': 'https://evil.example'},
@@ -648,6 +660,20 @@ class PageContractTests(unittest.TestCase):
         # The page's own ids the end-to-end check waits on
         self.assertIn('id="loading"', page)
         self.assertIn('id="error"', page)
+
+    def test_sync_js_deletes_on_the_server_only_after_comparing(self):
+        # A failed listing, or a browser copy not loaded, makes the folder
+        # look empty: no DELETE may follow from that (review of #451)
+        sync = self.read('tools', 'web-host', 'sync.js')
+        push = sync[sync.index('function push()'):]
+        self.assertIn('if (local[rel] || !state.listed || !state.loaded) {', push)
+        pull = sync[sync.index('function pull()'):sync.index('function push()')]
+        # The listing's failure is held until the browser's copy has settled
+        self.assertIn('Promise.all([listed, copy])', pull)
+        self.assertLess(pull.index('state.loaded ='), pull.index('throw done[0].error'))
+        self.assertLess(pull.index('throw done[0].error'), pull.index('state.listed = true'))
+        # A save the server refused as older takes the server's copy
+        self.assertIn('r.status === 409', push)
 
     def test_sync_js_parses_as_plain_es5(self):
         sync = self.read('tools', 'web-host', 'sync.js')

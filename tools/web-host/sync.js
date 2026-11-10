@@ -51,7 +51,9 @@
     return;
   }
 
-  // path -> [size, mtime seconds], as the server and this browser last agreed
+  // path -> [size, mtime seconds, mtime milliseconds here], as the server
+  // and this browser last agreed (the milliseconds tell apart two saves of
+  // the same size in one second; the server keeps whole seconds)
   var known = {};
   try {
     known = JSON.parse(localStorage.getItem(MEMORY) || '{}') || {};
@@ -66,7 +68,8 @@
     }
   }
 
-  var state = { pulled: 0, pushed: 0, removed: 0, errors: 0, ready: false, busy: false, folder: '' };
+  var state = { pulled: 0, pushed: 0, removed: 0, errors: 0, ready: false, busy: false, folder: '',
+                listed: false, loaded: false, refused: 0 };
   window.oxtHostSync = state;
 
   function say(text) {
@@ -88,7 +91,7 @@
     return API + '/' + rel.split('/').map(encodeURIComponent).join('/');
   }
 
-  // Every file under the folder: rel path -> [size, mtime seconds]
+  // Every file under the folder: rel path -> [size, mtime seconds, ms]
   function walk() {
     var found = {};
     function visit(dir, rel) {
@@ -113,7 +116,8 @@
         if (FS.isDir(st.mode)) {
           visit(path, r);
         } else if (FS.isFile(st.mode)) {
-          found[r] = [st.size, Math.floor(st.mtime.getTime() / 1000)];
+          var ms = st.mtime.getTime();
+          found[r] = [st.size, Math.floor(ms / 1000), ms];
         }
       });
     }
@@ -121,8 +125,26 @@
     return found;
   }
 
+  // The same size and date; to the millisecond when both know it
   function same(a, b) {
-    return !!(a && b && a[0] === b[0] && a[1] === b[1]);
+    return !!(a && b && a[0] === b[0] && a[1] === b[1] &&
+              (a[2] === undefined || b[2] === undefined || a[2] === b[2]));
+  }
+
+  // The server's copy of rel, written here with its date: what the server
+  // has is newer than this browser's (pull, and a save the server refused)
+  function fetchInto(rel, entry) {
+    return fetch(url(rel), { cache: 'no-store', credentials: 'same-origin' }).then(checked).then(function(r) {
+      var mtime = Number(r.headers.get('X-Mtime')) || entry[1];
+      return r.arrayBuffer().then(function(data) {
+        var path = state.folder + '/' + rel;
+        mkdirs(path);
+        FS.writeFile(path, new Uint8Array(data));
+        FS.utime(path, mtime * 1000, mtime * 1000);
+        known[rel] = [data.byteLength, mtime, mtime * 1000];
+        state.pulled++;
+      });
+    });
   }
 
   function mkdirs(path) {
@@ -173,32 +195,36 @@
     var listing = fetch(API, { cache: 'no-store', credentials: 'same-origin' }).then(checked).then(function(r) {
       return r.json();
     });
-    Promise.all([listing, waitForBrowserCopy()]).then(function(done) {
-      var server = done[0].files || {};
+    // Both settle before anything is compared: after a failed listing, a
+    // push must still not compare the server with a folder not yet loaded
+    // (it would look empty, and its files deleted)
+    var copy = waitForBrowserCopy();
+    var listed = listing.then(function(value) {
+      return { ok: true, value: value };
+    }, function(error) {
+      return { ok: false, error: error };
+    });
+    Promise.all([listed, copy]).then(function(done) {
       var storage = done[1];
       state.folder = folder();
+      state.loaded = !!(storage && storage._loaded);
       hookChanges(storage);
+      if (!done[0].ok) {
+        throw done[0].error;
+      }
+      state.listed = true;
+      var server = done[0].value.files || {};
       var local = walk();
       var jobs = [];
       Object.keys(server).forEach(function(rel) {
         var mine = local[rel];
         if (mine && (same(mine, server[rel]) || mine[1] >= server[rel][1])) {
           if (same(mine, server[rel])) {
-            known[rel] = server[rel];
+            known[rel] = mine;
           }
           return;   // this browser's copy is as new or newer: it is sent later
         }
-        jobs.push(fetch(url(rel), { cache: 'no-store', credentials: 'same-origin' }).then(checked).then(function(r) {
-          return r.arrayBuffer();
-        }).then(function(data) {
-          var path = state.folder + '/' + rel;
-          mkdirs(path);
-          FS.writeFile(path, new Uint8Array(data));
-          var t = server[rel][1] * 1000;
-          FS.utime(path, t, t);
-          known[rel] = server[rel];
-          state.pulled++;
-        }));
+        jobs.push(fetchInto(rel, server[rel]));
       });
       // Deleted on the server since this browser last synced, unchanged here
       Object.keys(local).forEach(function(rel) {
@@ -209,6 +235,12 @@
           } catch (e) {
             // gone already
           }
+          delete known[rel];
+        }
+      });
+      // What the server no longer has, and this browser does not either
+      Object.keys(known).forEach(function(rel) {
+        if (!server[rel] && !local[rel]) {
           delete known[rel];
         }
       });
@@ -223,10 +255,6 @@
       say('the server\'s copy could not be read (' + (error && error.message || error) +
           '): the IDE keeps this browser\'s');
     }).then(function() {
-      if (!state.folder) {
-        state.folder = folder();
-        hookChanges(engineStorage());
-      }
       state.ready = true;
       say('in: ' + state.pulled + ' file(s) from the server, ' + state.removed + ' removed');
       Module.removeRunDependency('oxtHostSync');
@@ -291,13 +319,28 @@
       jobs.push(fetch(url(rel), {
         method: 'PUT', body: data, credentials: 'same-origin', keepalive: data.length < 60000,
         headers: { 'X-Mtime': String(entry[1]), 'Content-Type': 'application/octet-stream' },
-      }).then(checked).then(function() {
+      }).then(function(r) {
+        if (r.status === 409) {
+          // The server has a newer save (another browser's): newest wins,
+          // so this browser takes it
+          state.refused++;
+          return fetchInto(rel, entry).then(function() {
+            var storage = engineStorage();
+            if (storage && storage.changed) {
+              storage.changed();
+            }
+          });
+        }
+        checked(r);
         known[rel] = entry;
         state.pushed++;
       }));
     });
+    // A file gone from here is deleted on the server only when this page
+    // has compared the two (the listing came in, and the browser's copy was
+    // loaded): a folder that only looks empty deletes nothing
     Object.keys(known).forEach(function(rel) {
-      if (local[rel]) {
+      if (local[rel] || !state.listed || !state.loaded) {
         return;
       }
       jobs.push(fetch(url(rel), { method: 'DELETE', credentials: 'same-origin', keepalive: true })

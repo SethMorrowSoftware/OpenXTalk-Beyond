@@ -199,6 +199,20 @@ def sync_tier2(browser, a):
                   "A: the server's copy is the same bytes")
     pa.screenshot(path=os.path.join(a.out, 'tier2-A-saved.png'))
 
+    # ---- 2b. A again, with the server's listing failing --------------------
+    # This browser's copy loads, the listing does not: nothing is deleted
+    # on the server because of a folder it could not compare
+    pa2 = ctx_a.new_page()
+    pa2.route('**/_host/api/files', lambda route: route.abort())
+    pa2.goto(a.host_ide + '/')
+    pa2.wait_for_function(OPENED, timeout=300000)
+    wait_sync(pa2)
+    pa2.evaluate('window.oxtHostSync.push()')
+    pa2.wait_for_timeout(3000)
+    check(os.path.isfile(on_server) and pa2.evaluate('window.oxtHostSync.errors') >= 1,
+          'A, with the listing failing: the server keeps the stack')
+    pa2.close()
+
     # ---- 3. B, a fresh browser, gets it -------------------------------------
     ctx_b, pb, ok = open_ide(browser, a.host_ide, 'tier2-B', a.out, a.password)
     if not ok:

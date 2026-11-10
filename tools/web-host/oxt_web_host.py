@@ -546,6 +546,7 @@ def make_handler(site):
         # GET    /_host/api/files          {"files": {"rel/path": [size, mtime]}}
         # GET    /_host/api/files/<path>   the file (X-Mtime: its date)
         # PUT    /_host/api/files/<path>   body = the file, X-Mtime = seconds
+        #                                  (409 when the copy here is newer)
         # DELETE /_host/api/files/<path>
 
         def storage_path(self, rel):
@@ -634,9 +635,17 @@ def make_handler(site):
                             raise HostError('the upload stopped')
                         f.write(block)
                         left -= len(block)
+                mtime = self.headers.get('X-Mtime', '')
                 with site.lock:
+                    # Newest wins: a save older than the copy here (a slow
+                    # upload, or a retry, arriving after another browser's
+                    # newer one) is refused, and the page takes the newer
+                    if (mtime.isdigit() and os.path.isfile(full) and
+                            int(mtime) < int(os.path.getmtime(full))):
+                        os.remove(tmp)
+                        return self.send_plain(409, 'The server has a newer copy',
+                                               [('X-Mtime', str(int(os.path.getmtime(full))))])
                     os.replace(tmp, full)
-                    mtime = self.headers.get('X-Mtime', '')
                     if mtime.isdigit():
                         os.utime(full, (int(mtime), int(mtime)))
             except (OSError, HostError) as e:
