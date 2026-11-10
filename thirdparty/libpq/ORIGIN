@@ -1,3 +1,39 @@
-Files in this folder are based on postgresql-9.4.5
+Files in this folder are based on PostgreSQL 17.11.
 
-Original source archives are available from <http://www.postgresql.org>
+Original source: https://git.postgresql.org/gitweb/?p=postgresql.git, tag
+REL_17_11 (mirrored at https://github.com/postgres/postgres). Licensed under
+the PostgreSQL License (COPYRIGHT).
+
+It replaces libpq from PostgreSQL 9.4.5, the client library of the
+PostgreSQL database driver (revdb's dbpostgresql) until OXT-Beyond 0.2.8.
+libpq 17 logs in with SCRAM-SHA-256, the default of PostgreSQL servers since
+version 14, as well as with MD5 and plain passwords, and speaks to servers
+from 9.x on.
+
+Only libpq is kept: src/interfaces/libpq, the files of src/common and
+src/port that it links, and the headers they include under src/include.
+libpq-fe.h and postgres_ext.h, the headers the driver includes, are in
+include/. The server, the tools, the tests, the GSSAPI and SSPI support and
+the Meson files are left out.
+
+src/include/pg_config.h, src/include/pg_config_os.h,
+src/include/pg_config_paths.h and include/pg_config_ext.h are written for
+every platform the engine is built for, since the engine builds libpq with
+gyp (libpq.gyp) and runs no Meson; pg_config.h says from what.
+
+Local changes, marked "OXT-Beyond" in the sources:
+
+- The hashes (MD5, SHA-1, SHA-2) and HMAC are PostgreSQL's own code
+  (src/common/md5.c, sha1.c, sha2.c, cryptohash.c, hmac.c) rather than
+  OpenSSL's, and src/port/oxt_strong_random.c and
+  src/port/oxt_timingsafe_bcmp.c build pg_strong_random() and
+  timingsafe_bcmp() as PostgreSQL builds them without OpenSSL. The engine
+  reaches OpenSSL through stubs that work only once it has loaded its SSL
+  library, and a login needs these whether or not the connection uses TLS.
+- In src/interfaces/libpq/fe-secure-openssl.c, my_SSL_set_fd raises no
+  OpenSSL error when an allocation fails: in OpenSSL 3, SSLerr() calls a
+  function that takes a variable argument list, which the stubs cannot
+  pass on.
+
+TLS is OpenSSL's (fe-secure-openssl.c), through the engine's OpenSSL stubs
+(thirdparty/libopenssl/ssl.stubs).

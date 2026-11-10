@@ -78,7 +78,11 @@ end __Field
 
 private command __Connect pDriver
    put __Open(pDriver, false) into lDatabaseID
-   TestAssert pDriver & ": connects (" & lDatabaseID & ")", lDatabaseID is an integer
+   -- (a test's description is one line; an error text can have several)
+   local tShown
+   put lDatabaseID into tShown
+   replace return with " " in tShown
+   TestAssert pDriver & ": connects (" & tShown & ")", lDatabaseID is an integer
 end __Connect
 
 private command __Disconnect
@@ -395,3 +399,198 @@ end TestMySQLErrors
 on TestPostgreSQLErrors
    __TestErrors "postgresql"
 end TestPostgreSQLErrors
+
+-- The client library itself: what changing it (MySQL Connector/C 6.0
+-- and libpq 9.4 to MariaDB Connector/C 3.4 and libpq 17, OXT-Beyond
+-- 0.2.8) could change for a script. tools/ci/compare_test_output.py
+-- compares these tests' diagnostics between two builds' runs, as the
+-- Databases job does with the previous release's.
+
+-- The character sets of a MySQL connection. A script that names none
+-- gets latin1, as with Connector/C 6.0 (MariaDB Connector/C's own default
+-- is utf8mb4; thirdparty/libmysql/include/ma_config.h), and the server
+-- converts what it sends to it.
+on TestMySQLCharacterSet
+   __SkipUnlessServer "mysql"
+   __Connect "mysql"
+   local tSets
+   put revDataFromQuery(tab, return, lDatabaseID, \
+         "SELECT @@character_set_client, @@character_set_connection, @@character_set_results") into tSets
+   TestDiagnostic "mysql character sets: " & tSets
+   TestAssert "mysql: the connection's character set is latin1", \
+         tSets is "latin1" & tab & "latin1" & tab & "latin1"
+   __Disconnect
+end TestMySQLCharacterSet
+
+-- Text with letters beyond ASCII, in a utf8mb4 column, through SQL and
+-- through a placeholder: the engine gives the driver native text (ISO
+-- 8859-1 on Linux), which the server stores as UTF-8 and converts back
+on TestMySQLNativeText
+   __SkipUnlessServer "mysql"
+   __Connect "mysql"
+   __Exec "DROP TABLE IF EXISTS oxt_text"
+   __Exec "CREATE TABLE oxt_text (id integer, txt varchar(100)) CHARACTER SET utf8mb4"
+   local tText, tValues, tAnswer
+   put "caf" & numToNativeChar(233) && numToNativeChar(252) & "ber" && numToNativeChar(169) into tText
+   __Exec "INSERT INTO oxt_text VALUES (1, '" & tText & "')"
+   put 2 into tValues[1]
+   put tText into tValues[2]
+   revExecuteSQL lDatabaseID, "INSERT INTO oxt_text VALUES (:1, :2)", "tValues"
+   put revDataFromQuery(tab, return, lDatabaseID, "SELECT id, HEX(txt) FROM oxt_text ORDER BY id") into tAnswer
+   TestDiagnostic "mysql native text, as the server stores it: " & tAnswer
+   TestAssert "mysql: the server stores native text as UTF-8", \
+         tAnswer is "1" & tab & "636166C3A920C3BC62657220C2A9" & return & "2" & tab & "636166C3A920C3BC62657220C2A9"
+   TestAssert "mysql: native text comes back unchanged", \
+         revDataFromQuery(tab, return, lDatabaseID, "SELECT txt FROM oxt_text ORDER BY id") is tText & return & tText
+   __Exec "DROP TABLE oxt_text"
+   __Disconnect
+end TestMySQLNativeText
+
+-- PostgreSQL's connection takes the database's encoding unless a script
+-- sets client_encoding, with libpq 17 as with 9.4
+on TestPostgreSQLCharacterSet
+   __SkipUnlessServer "postgresql"
+   __Connect "postgresql"
+   local tEncoding
+   put revDataFromQuery(tab, return, lDatabaseID, "SHOW client_encoding") into tEncoding
+   TestDiagnostic "postgresql client_encoding: " & tEncoding
+   TestAssert "postgresql: client_encoding is the database's", \
+         tEncoding is revDataFromQuery(tab, return, lDatabaseID, \
+         "SELECT pg_encoding_to_char(encoding) FROM pg_database WHERE datname = current_database()")
+   __Disconnect
+end TestPostgreSQLCharacterSet
+
+on TestPostgreSQLNativeText
+   __SkipUnlessServer "postgresql"
+   __Connect "postgresql"
+   __Exec "SET client_encoding TO 'LATIN1'"
+   __Exec "DROP TABLE IF EXISTS oxt_text"
+   __Exec "CREATE TABLE oxt_text (id integer, txt varchar(100))"
+   local tText, tValues, tAnswer
+   put "caf" & numToNativeChar(233) && numToNativeChar(252) & "ber" && numToNativeChar(169) into tText
+   __Exec "INSERT INTO oxt_text VALUES (1, '" & tText & "')"
+   put 2 into tValues[1]
+   put tText into tValues[2]
+   revExecuteSQL lDatabaseID, "INSERT INTO oxt_text VALUES (:1, :2)", "tValues"
+   put revDataFromQuery(tab, return, lDatabaseID, \
+         "SELECT id, encode(convert_to(txt, 'UTF8'), 'hex') FROM oxt_text ORDER BY id") into tAnswer
+   TestDiagnostic "postgresql native text, as the server stores it: " & tAnswer
+   TestAssert "postgresql: the server stores LATIN1 text as UTF-8", \
+         tAnswer is "1" & tab & "636166c3a920c3bc62657220c2a9" & return & "2" & tab & "636166c3a920c3bc62657220c2a9"
+   TestAssert "postgresql: native text comes back unchanged", \
+         revDataFromQuery(tab, return, lDatabaseID, "SELECT txt FROM oxt_text ORDER BY id") is tText & return & tText
+   __Exec "DROP TABLE oxt_text"
+   __Disconnect
+end TestPostgreSQLNativeText
+
+-- Column types: the text of each value and revDatabaseColumnTypes. The
+-- values are the server's text (both drivers use the text protocol), and
+-- the types are what the drivers make of the field types the client
+-- library reports, as OXT-Beyond 0.2.7 gave them: MySQL's DECIMAL is
+-- STRING and its BIGINT INTEGER, YEAR is DATE; PostgreSQL's BIGINT,
+-- TIMESTAMP and the text types are STRING, NUMERIC is DOUBLE and
+-- INTERVAL TIME.
+
+private command __TestTypes pDriver, pCreate, pInsert, pValues, pTypes
+   __SkipUnlessServer pDriver
+   __Connect pDriver
+   __Exec "DROP TABLE IF EXISTS oxt_types"
+   __Exec pCreate
+   __Exec pInsert
+   local tRow, tCursor, tTypes
+   put revDataFromQuery(tab, return, lDatabaseID, "SELECT * FROM oxt_types") into tRow
+   TestDiagnostic pDriver & " values: " & tRow
+   TestAssert pDriver & ": the values' text", tRow is pValues
+   put revQueryDatabase(lDatabaseID, "SELECT * FROM oxt_types") into tCursor
+   TestAssert pDriver & ": a cursor on the types (" & tCursor & ")", tCursor is an integer
+   if tCursor is an integer then
+      put revDatabaseColumnTypes(tCursor) into tTypes
+      TestDiagnostic pDriver & " revDatabaseColumnTypes: " & tTypes
+      TestAssert pDriver & ": revDatabaseColumnTypes", tTypes is pTypes
+      revCloseCursor tCursor
+   end if
+   __Exec "DROP TABLE oxt_types"
+   __Disconnect
+end __TestTypes
+
+on TestMySQLTypes
+   local tValues
+   put "-5,300,70000,123456,9007199254740993,12.345,1.5,2.25,2026-11-10,13:14:15," & \
+         "2026-11-10 13:14:15,2026-11-10 13:14:15,2026,ab,abc,text,blob,b,x" into tValues
+   replace comma with tab in tValues
+   __TestTypes "mysql", \
+         "CREATE TABLE oxt_types (t tinyint, s smallint, m mediumint, i integer, b bigint," && \
+         "d decimal(10,3), f float, g double, dt date, tm time, dtm datetime, ts timestamp NULL," && \
+         "y year, c char(5), v varchar(10), tx text, bl blob, e enum('a','b'), st set('x','y'))", \
+         "INSERT INTO oxt_types VALUES (-5, 300, 70000, 123456, 9007199254740993, 12.345, 1.5, 2.25," && \
+         "'2026-11-10', '13:14:15', '2026-11-10 13:14:15', '2026-11-10 13:14:15', 2026, 'ab', 'abc'," && \
+         "'text', 'blob', 'b', 'x')", \
+         tValues, \
+         "SMALLINT,SMALLINT,INTEGER,INTEGER,INTEGER,STRING,FLOAT,DOUBLE,DATE,TIME,DATETIME," & \
+         "TIMESTAMP,DATE,STRING,STRING,BLOB,BLOB,STRING,STRING"
+end TestMySQLTypes
+
+on TestPostgreSQLTypes
+   local tValues
+   put "-5,123456,9007199254740993,12.345,1.5,2.25,t,2026-11-10,13:14:15,2026-11-10 13:14:15," & \
+         "ab   ,abc,text,1 day 02:00:00,a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" into tValues
+   replace comma with tab in tValues
+   __TestTypes "postgresql", \
+         "CREATE TABLE oxt_types (s smallint, i integer, b bigint, d numeric(10,3), f real," && \
+         "g double precision, bo boolean, dt date, tm time, ts timestamp, c char(5), v varchar(10)," && \
+         "tx text, iv interval, u uuid)", \
+         "INSERT INTO oxt_types VALUES (-5, 123456, 9007199254740993, 12.345, 1.5, 2.25, true," && \
+         "'2026-11-10', '13:14:15', '2026-11-10 13:14:15', 'ab', 'abc', 'text', '1 day 2 hours'," && \
+         "'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11')", \
+         tValues, \
+         "INTEGER,INTEGER,STRING,DOUBLE,FLOAT,DOUBLE,BOOLEAN,DATE,TIME,STRING,STRING," & \
+         "STRING,STRING,TIME,STRING"
+end TestPostgreSQLTypes
+
+-- A server that is not there: an error text from the client library, not
+-- an id. The text is the library's own, so it is a diagnostic here: MariaDB
+-- Connector/C words it "Can't connect to server on ..." where Connector/C
+-- 6.0 said "Can't connect to MySQL server on ...".
+
+private command __TestNoServer pDriver
+   __SkipUnlessServer pDriver
+   local tResult
+   put revOpenDatabase(pDriver, "127.0.0.1:1", "oxt_test", "oxt", "x") into tResult
+   TestDiagnostic pDriver & " with no server: " & tResult
+   TestAssert pDriver & ": no server gives no connection", tResult is not an integer
+   TestAssert pDriver & ": no server gives an error text", tResult is not empty
+   if tResult is an integer then
+      revCloseDatabase tResult
+   end if
+end __TestNoServer
+
+on TestMySQLNoServer
+   __TestNoServer "mysql"
+end TestMySQLNoServer
+
+on TestPostgreSQLNoServer
+   __TestNoServer "postgresql"
+end TestPostgreSQLNoServer
+
+-- The server, and how the user logged in: a diagnostic, for the
+-- comparison of two builds' runs. The Databases job runs these tests
+-- against servers whose default logins differ (MySQL 8.0 with
+-- mysql_native_password, MySQL 8.4 with caching_sha2_password, MariaDB,
+-- PostgreSQL 16 with md5 and 17 with SCRAM-SHA-256), and the connection
+-- tests above are each login's test.
+
+on TestMySQLServer
+   __SkipUnlessServer "mysql"
+   __Connect "mysql"
+   TestDiagnostic "mysql server: " & revDataFromQuery(tab, return, lDatabaseID, "SELECT VERSION()")
+   __Disconnect
+end TestMySQLServer
+
+on TestPostgreSQLServer
+   __SkipUnlessServer "postgresql"
+   __Connect "postgresql"
+   TestDiagnostic "postgresql server: " & revDataFromQuery(tab, return, lDatabaseID, "SHOW server_version")
+   TestDiagnostic "postgresql password_encryption: " & \
+         revDataFromQuery(tab, return, lDatabaseID, "SHOW password_encryption")
+   __Disconnect
+end TestPostgreSQLServer

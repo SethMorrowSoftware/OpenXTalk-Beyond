@@ -1,3 +1,49 @@
-Files in this folder are based on mysql-connector-c-6.0.0
+Files in this folder are based on MariaDB Connector/C 3.4.11.
 
-Original source archives are available from <http://www.mysql.com/>
+Original source: https://github.com/mariadb-corporation/mariadb-connector-c,
+tag v3.4.11 (commit be67a4fc1e0493913732df90e562f122bff9dfe3). Licensed
+under the GNU LGPL 2.1 or later (COPYING.LIB).
+
+It replaces MySQL Connector/C 6.0.0, the client library of the MySQL
+database driver (revdb's dbmysql) until OXT-Beyond 0.2.8. MariaDB
+Connector/C speaks the protocol of MySQL servers as well as MariaDB's,
+including MySQL 8's caching_sha2_password login, and keeps the libmysql
+API (include/mysql.h) that the driver calls.
+
+Only the client library is kept: libmariadb/, the authentication, socket,
+named pipe, shared memory and zlib plugins under plugins/, the public and
+private headers in include/, and COPYING.LIB. The tests, the unittest
+plugins, the other TLS back ends (GnuTLS, Schannel), the dialog, PAM, GSSAPI
+and clear-password plugins, the trace and replication plugins and the CMake
+files are left out.
+
+include/mariadb_version.h and libmariadb/ma_client_plugin.c are what CMake
+made from their .in files for this build; include/ma_config.h is written
+for every platform the engine is built for (it says from what), since the
+engine builds the library with gyp (libmysql.gyp) and runs no CMake.
+
+Local changes, marked "OXT-Beyond" in the sources:
+
+- include/ma_config.h: the connection's character set, when a script names
+  none, is latin1, as with Connector/C 6.0 (the library's own default is
+  utf8mb4), so that the text a server sends back is unchanged; and
+  DEFAULT_SSL_VERIFY_SERVER_CERT is left undefined, so that a connection
+  uses TLS only when a script asks for it, as before.
+- libmariadb/ma_client_plugin.c: the plugins built into the library are
+  native, old (mysql_old_password, which 6.0 allowed and so is not
+  disabled), ed25519, caching_sha2_password, sha256_password, socket, zlib,
+  and on Windows named pipe and shared memory. A plugin is never loaded
+  from a file (mysql_load_plugin_v refuses).
+- libmariadb/secure/oxt_crypt.c and include/ma_crypt.h: SHA-1 and the
+  SHA-2 hashes that the logins use are the library's own code instead of
+  OpenSSL's. The engine reaches OpenSSL through stubs that work only once
+  it has loaded its SSL library, and a login needs the hashes whether or
+  not the connection uses TLS. ma_oxt_openssl_loaded, which the driver sets
+  once the SSL library is loaded, says whether OpenSSL may be called.
+- plugins/auth/caching_sha2_pw.c and plugins/auth/sha256_pw.c: without
+  TLS these logins send the password encrypted with the server's RSA key,
+  which needs OpenSSL; with no SSL library loaded they fail with an error
+  saying so instead of calling it.
+
+TLS is OpenSSL's (libmariadb/secure/openssl.c), through the engine's
+OpenSSL stubs (thirdparty/libopenssl/ssl.stubs).
