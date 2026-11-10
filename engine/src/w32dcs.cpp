@@ -872,16 +872,36 @@ static bool WindowsIsCompositionEnabled(void)
 //-- tperry 4th November 2025
 // Update system colors based on current dark/light mode
 // This affects unset colors (objects without explicit backgroundColor/foregroundColor)
-void MCWin32UpdateSystemColors(void)
+//
+// OXT-Beyond: these colours are kept, while everything else asks Windows
+// for the appearance each time it draws (getsystemappearance reads the
+// registry). They were set when the engine started and when Windows said
+// the appearance had changed (WM_SETTINGCHANGE "ImmersiveColorSet"), and
+// only then. So when the appearance changed and that notice did not bring
+// the colours up to date (it came before the setting was written, or not
+// at all), the two disagreed until the engine was started again: a push
+// button, an option menu and a combo box, which the dark appearance fills
+// with the kept background (MCNativeTheme::drawwidget), stayed light grey
+// under the dark appearance's white words, a white button with white text
+// (richmond62, Windows 10, openxtalk.org p=26224), in windows whose title
+// bars stayed light. Now the colours remember the appearance they were set
+// for, and whoever reads the appearance tells them what it found
+// (MCWin32FollowSystemAppearance): when it is the other one they are set
+// again at once, and the windows are brought up to date from the message
+// loop (CWM_APPEARANCE_CHANGED), which also sends systemAppearanceChanged.
+static bool s_system_colors_set = false;
+static bool s_system_colors_dark = false;
+// (true while MCWin32UpdateSystemColors itself asks for the appearance)
+static bool s_system_colors_updating = false;
+// (true from the moment CWM_APPEARANCE_CHANGED is posted until the colours
+// are next updated)
+static bool s_system_appearance_pending = false;
+
+static void MCWin32SetSystemColors(bool p_is_dark)
 {
-	// Use the same function that 'the systemAppearance' uses
-	MCSystemAppearance t_appearance;
-	MCscreen->getsystemappearance(t_appearance);
-	bool t_is_dark = (t_appearance == kMCSystemAppearanceDark);
-	
 	MCScreenDC *t_screen = (MCScreenDC *)MCscreen;
 	
-	if (t_is_dark)
+	if (p_is_dark)
 	{
 		// Dark mode: background = RGB(32,32,32), foreground = white
 		t_screen->background_pixel.red = t_screen->background_pixel.green = t_screen->background_pixel.blue = 0x2020;
@@ -902,6 +922,49 @@ void MCWin32UpdateSystemColors(void)
 		t_screen->gray_pixel.red = t_screen->gray_pixel.green = t_screen->gray_pixel.blue = 0x8080;
 	}
 	
+	s_system_colors_set = true;
+	s_system_colors_dark = p_is_dark;
+}
+
+void MCWin32UpdateSystemColors(void)
+{
+	// Use the same function that 'the systemAppearance' uses
+	MCSystemAppearance t_appearance;
+	s_system_colors_updating = true;
+	MCscreen->getsystemappearance(t_appearance);
+	s_system_colors_updating = false;
+	
+	MCWin32SetSystemColors(t_appearance == kMCSystemAppearanceDark);
+	s_system_appearance_pending = false;
+}
+
+// OXT-Beyond: called with the appearance Windows has now, by whoever has
+// just read it (MCScreenDC::getsystemappearance, 'the systemAppearance').
+// Does nothing until the colours have been set once, or while they are for
+// that appearance, which is every time but the first after a change that
+// the engine has not been told of.
+void MCWin32FollowSystemAppearance(bool p_is_dark)
+{
+	if (s_system_colors_updating || !s_system_colors_set || s_system_colors_dark == p_is_dark)
+		return;
+	
+	// What is being drawn now takes the right colours
+	MCWin32SetSystemColors(p_is_dark);
+	
+	// The title bars, what the windows already show and the message to the
+	// scripts wait for the message loop: this may be the middle of a redraw
+	if (s_system_appearance_pending)
+		return;
+	HWND t_window = ((MCScreenDC *)MCscreen)->getinvisiblewindow();
+	if (t_window != NULL && PostMessageW(t_window, CWM_APPEARANCE_CHANGED, 0, 0))
+		s_system_appearance_pending = true;
+}
+
+// OXT-Beyond: whether a CWM_APPEARANCE_CHANGED still has work to do (the
+// colours have not been updated since it was posted)
+bool MCWin32SystemAppearanceIsPending(void)
+{
+	return s_system_appearance_pending;
 }
 
 //-- tperry 4th November 2025
@@ -1687,6 +1750,9 @@ void MCPlatformGetSystemProperty(MCPlatformSystemProperty p_property, MCPlatform
 				
 				RegCloseKey(hKey);
 			}
+			
+			// OXT-Beyond: the engine's colours follow what a script is told
+			MCWin32FollowSystemAppearance(t_is_dark);
 			
 			*(int32_t *)r_value = t_is_dark ? (int32_t)kMCPlatformSystemAppearanceDark : (int32_t)kMCPlatformSystemAppearanceLight;
 		}

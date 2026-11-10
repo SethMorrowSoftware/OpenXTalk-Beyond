@@ -48,6 +48,14 @@ whose card, stack or main stack (or one of their behaviors) has a
 <systemAppearanceChanged> handler. A handler in a library or a backscript
 gets the message wherever it is sent.
 
+On Windows the message is sent each time Windows announces that its light
+or dark setting has changed, and also when the engine finds the setting
+changed as it reads it (it reads it whenever it draws a control, and when
+a script gets the <systemAppearance>), in case no announcement has reached
+it. One change can therefore send the message more than once: a handler
+should set what it sets from the <systemAppearance>, as the example does,
+rather than switch it over each time.
+
 In an HTML5 standalone the message is sent when the browser's colour scheme
 changes, on a page built with **Appearance** set to **Follow the browser**
 in the Web pane of the Standalone Application Settings.
