@@ -3805,9 +3805,13 @@ command tourScreenStill pRect, pWhat
       tourWait 150
       add 150 to tWaited
       export snapshot from rect pRect to tNow as PNG
+      -- (the inner if is a block of its own: a one-line if followed by
+      -- an else takes that else, and the handler does not compile)
       if tNow is tLast then
          add 150 to tStill
-         if tStill >= kStillFor then exit repeat
+         if tStill >= kStillFor then
+            exit repeat
+         end if
       else
          put tNow into tLast
          put 0 into tStill

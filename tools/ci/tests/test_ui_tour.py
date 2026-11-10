@@ -872,6 +872,10 @@ class ClosedWindowOffTheScreen(unittest.TestCase):
         # successive pictures of the rect compared, not a fixed sleep
         self.assertIn('export snapshot from rect pRect to tNow as PNG', still)
         self.assertIn('if tNow is tLast then', still)
+        # the inner if is a block: a one-line if followed by the outer if's
+        # else took that else, the handler did not compile, and the whole
+        # tour script never started (#449's first builds, Windows and Linux)
+        self.assertRegex(still, r'if tStill >= kStillFor then\n\s+exit repeat\n\s+end if\n\s+else\n')
         self.assertIn('kStillMax', still)
         # and one taken a second later compared with the last, in the log
         self.assertIn('tourWait 1000', still)
