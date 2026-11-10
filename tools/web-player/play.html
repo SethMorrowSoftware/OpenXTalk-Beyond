@@ -33,6 +33,12 @@ What to play is in the address:
   ?bg=<colour>    the page's colour around the stack (a CSS colour);
                   black by default
   ?mode=window    as in the player: the stack in a window of its own
+  ?fill=yes       the stack scaled to fill the window, on a desktop too
+                  (LittleNemo, p=26036): the page is given to it as on a
+                  phone, so a stack made with the Mobile Web library fills
+                  it and any other is fitted to it, its whole card as big
+                  as fits, and fitted again when the window changes size.
+                  Without it a stack is shown at its own size, as before.
 
 With none of ?stack and ?play, the page offers one Open button (and takes
 a stack dropped on it).
@@ -146,6 +152,9 @@ body.dropping .center#open{outline:2px dashed var(--accent);outline-offset:-1rem
   $('icon').href = BASE + 'assets/oxt-beyond-128.png';
 
   if (params.get('align') == 'top-left') document.body.classList.add('top-left');
+  // ?fill=yes: the stack fills the window wherever the page is, as on a
+  // phone (choosePhone)
+  var FILL = params.get('fill') == 'yes';
   // the page's colour: a CSS colour, or the default
   var bg = params.get('bg');
   if (bg && window.CSS && CSS.supports && CSS.supports('color', bg)) {
@@ -234,7 +243,7 @@ body.dropping .center#open{outline:2px dashed var(--accent);outline-offset:-1rem
   }
   function choosePhone() {
     if (playing) return;
-    if (isPhone()) document.body.removeAttribute('data-mobile-web-fill');
+    if (FILL || isPhone()) document.body.removeAttribute('data-mobile-web-fill');
     else if (isTouch()) document.body.setAttribute('data-mobile-web-fill', 'touch');
     else document.body.setAttribute('data-mobile-web-fill', 'no');
   }
