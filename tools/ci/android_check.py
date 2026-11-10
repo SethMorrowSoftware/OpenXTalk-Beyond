@@ -118,6 +118,10 @@ running, crashed or was started more than once, it prints the logs'
 account of its processes, what Android did to it that the carried runtime
 does not survive (paused for sleep, a changed ApplicationInfo, a relaunch),
 how each process ended (dumpsys activity exit-info) and the memory left.
+When that says Android's low memory killer ended one of the probe's
+processes (exit-info LOW_MEMORY) and its log has no crash and its screen
+no fail colour, the whole run is made once more, after LOW_MEMORY_PAUSE
+s, and that run decides (low_memory_kills).
 
 boot waits until an emulator has booted (adb sees it and
 sys.boot_completed is 1), saying where it is every minute. It gives up
@@ -2598,11 +2602,60 @@ def opens_again_after_quit(args, adb, a, pid, names):
     return problems
 
 
+# exit-info's reason for a process the low memory killer ended
+LOW_MEMORY = 3
+# How long device waits before it makes the run once more after such a
+# kill, for the device's memory to settle
+LOW_MEMORY_PAUSE = 30
+
+
+def low_memory_kills(exits, pids):
+    """The processes of pids that dumpsys activity exit-info says the low
+    memory killer ended (reason=3 (LOW_MEMORY)), each of its
+    ApplicationExitInfo blocks giving the pid on one line and the reason on
+    another. exit-info keeps the package's earlier processes too (another
+    run's on the same emulator), and only pids, this run's, count."""
+    killed = set()
+    for block in re.split(r'ApplicationExitInfo #\d+:', exits)[1:]:
+        pid = re.search(r'\bpid=(\d+)', block)
+        reason = re.search(r'\breason=(\d+)', block)
+        if pid and reason and int(reason.group(1)) == LOW_MEMORY and pid.group(1) in pids:
+            killed.add(pid.group(1))
+    return sorted(killed)
+
+
 def device(args):
+    """The run of device_once, made once more when its probe was ended by
+    the low memory killer and nothing else says it failed. The Java layer's
+    probe on the 16 KB image at API 36 was killed so behind its
+    notification permission dialog (oom_score_adj 101, "min watermark is
+    breached even after kill", 1.7 GB available a second later) in runs
+    42312203693 and 42324548829, and again in 42714271161 after
+    quiet_after_install found the device idle at once: the emulator's
+    memory, not the engine, whose fault would be a crash (a linker refusal
+    or a native signal, exit-info CRASH or CRASH_NATIVE). A second kill,
+    or any other problem in the second run, fails as before."""
+    problems, killed = device_once(args)
+    if problems and killed:
+        log('NOTE: Android\'s low memory killer ended the probe (process %s, exit-info LOW_MEMORY), and its '
+            'log has no crash: the run once more, after %d s' % (', '.join(killed), LOW_MEMORY_PAUSE))
+        for x in problems:
+            log('  the first run\'s problem: %s' % x)
+        log()
+        time.sleep(LOW_MEMORY_PAUSE)
+        problems, _ = device_once(args)
+    return problems
+
+
+def device_once(args):
+    """(the problems, the processes of the probe that the low memory killer
+    ended where nothing else says it failed: no crash in its log, no fail
+    colour on its screen)"""
     adb = adb_path(args.sdk)
     if not adb:
         raise CheckError('no adb')
     problems = []
+    killed = []
 
     def a(*cmd, timeout=180):
         return run([adb, '-s', args.serial] + list(cmd), timeout=timeout)
@@ -2622,11 +2675,12 @@ def device(args):
     if args.apk.endswith('.aab'):
         refused = install_bundle(args, adb, a)
         if refused:
-            return refused
+            return refused, []
     else:
         status, out = a('install', '-r', args.apk, timeout=600)
         if 'Success' not in out:
-            return ['%s does not install on %s: %s' % (os.path.basename(args.apk), args.serial, out.strip()[-800:])]
+            return ['%s does not install on %s: %s' % (os.path.basename(args.apk), args.serial,
+                                                       out.strip()[-800:])], []
         log('Installed %s' % os.path.basename(args.apk))
     quiet_after_install(a)
     a('logcat', '-c')
@@ -2853,6 +2907,8 @@ def device(args):
             for line in lines:
                 log('  ' + line)
         _, exits = a('shell', 'dumpsys', 'activity', 'exit-info', IDENTIFIER)
+        if not crash and failed < 0.25:
+            killed = low_memory_kills(exits, pids)
         exits = [x.rstrip() for x in exits.splitlines() if x.strip()]
         log('how its processes ended (dumpsys activity exit-info):%s' % ('' if exits else ' none'))
         for line in exits[:60]:
@@ -2875,7 +2931,7 @@ def device(args):
             if rgba:
                 log("the screen's commonest colours: %s" % ', '.join(
                     '#%02x%02x%02x %.0f%%' % (c + (part * 100,)) for c, part in screen_colours(rgba)))
-    return problems
+    return problems, killed
 
 
 # ---------------------------------------------------------------------------

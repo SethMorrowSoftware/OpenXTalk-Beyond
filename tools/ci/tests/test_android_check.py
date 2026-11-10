@@ -440,18 +440,37 @@ class Device(unittest.TestCase):
             f.write(struct.pack('<IIII', 4, 4, 1, 0) + bytes(list(ac.RUN_COLOR) + [255]) * 16)
         with open(os.path.join(d, 'logcat.txt'), 'w') as f:
             f.write(self.LOG)
+        # the run made once more after a low memory kill starts at once
+        self.pause = ac.LOW_MEMORY_PAUSE
+        ac.LOW_MEMORY_PAUSE = 0
 
     def tearDown(self):
+        ac.LOW_MEMORY_PAUSE = self.pause
         self.tmp.cleanup()
 
     EVENTS = 'echo "I/am_kill (  590): [0,3475,org.openxtalk.check.androidprobe,0,lmk]"'
+
+    # dumpsys activity exit-info as Android 16 gives it (run 42714271161):
+    # the pid on one line, the reason on the next
+    EXIT_INFO = (
+        'printf "  ACTIVITY MANAGER PROCESS EXIT INFO (dumpsys activity exit-info)\\n'
+        '    package: org.openxtalk.check.androidprobe\\n'
+        '      Historical Process Exit for uid=10214\\n'
+        '          ApplicationExitInfo #0:\\n'
+        '            timestamp=2026-11-09 23:05:39.832 pid=3612 realUid=10214 packageUid=10214\\n'
+        '            process=org.openxtalk.check.androidprobe reason=3 (LOW_MEMORY) subreason=0 (UNKNOWN)\\n'
+        '            importance=100 pss=0.00 rss=176MB description=null state=empty trace=null\\n'
+        '          ApplicationExitInfo #1:\\n'
+        '            timestamp=2026-11-09 23:05:31.122 pid=3475 realUid=10214 packageUid=10214\\n'
+        '            process=org.openxtalk.check.androidprobe reason=10 (USER_REQUESTED) subreason=0\\n"'
+    )
 
     WINDOW = ('printf "  mCurrentFocus=Window{1f u0 Application Not Responding: '
               'com.android.systemui}\\n  mFocusedApp=ActivityRecord{2e u0 '
               'org.openxtalk.check.androidprobe/.mblandroid t9}\\n"')
 
     def device(self, pidof, timeout='10', power='true', events=EVENTS, cases='', argv=(), screencap='',
-               window=WINDOW):
+               window=WINDOW, exits='printf "  ApplicationExitInfo #0:\\n    pid=3612 reason=3 (LOW_MEMORY)\\n"'):
         d = self.tmp.name
         adb = os.path.join(d, 'platform-tools', 'adb')
         with open(adb, 'w') as f:
@@ -469,11 +488,11 @@ class Device(unittest.TestCase):
                     '  "logcat -d -v brief") cat "%s/logcat.txt" ;;\n'
                     '  "shell dumpsys power") %s ;;\n'
                     '  "logcat -d -b events -v brief") %s ;;\n'
-                    '  "shell dumpsys activity exit-info"*) printf "  ApplicationExitInfo #0:\\n    pid=3612 reason=3 (LOW_MEMORY)\\n" ;;\n'
+                    '  "shell dumpsys activity exit-info"*) %s ;;\n'
                     '  "shell cat /proc/meminfo") printf "MemTotal: 2000000 kB\\nMemFree: 1 kB\\nMemAvailable: 90000 kB\\n" ;;\n'
                     '  "shell dumpsys window") %s ;;\n'
                     '%s'
-                    'esac\n' % (screencap, d, pidof, d, power, events, window, cases))
+                    'esac\n' % (screencap, d, pidof, d, power, events, exits, window, cases))
         os.chmod(adb, 0o755)
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
@@ -542,6 +561,83 @@ class Device(unittest.TestCase):
                                 (('shell', 'pm', 'wait-for-handler', '--timeout', '7000'), 17)])
         self.assertIn('Before it starts: the broadcast queues are idle: not in 7 s', out.getvalue())
         self.assertEqual(ac.QUIET_SECONDS, 120)
+
+    def test_low_memory_kills(self):
+        exits = ('    ApplicationExitInfo #0:\n'
+                 '      timestamp=2026-11-09 23:05:39.832 pid=7077 realUid=10214\n'
+                 '      process=org.openxtalk.check.androidprobe reason=3 (LOW_MEMORY) subreason=0 (UNKNOWN)\n'
+                 '    ApplicationExitInfo #1:\n'
+                 '      timestamp=2026-11-09 23:05:31.122 pid=6780 realUid=10214\n'
+                 '      process=org.openxtalk.check.androidprobe reason=10 (USER_REQUESTED) subreason=0\n'
+                 '    ApplicationExitInfo #2:\n'
+                 '      timestamp=2026-11-09 22:05:00.000 pid=4100 realUid=10214\n'
+                 '      process=org.openxtalk.check.androidprobe reason=3 (LOW_MEMORY) subreason=0\n'
+                 '    ApplicationExitInfo #3:\n'
+                 '      timestamp=2026-11-09 23:05:40.000 pid=7090 realUid=10214\n'
+                 '      process=org.openxtalk.check.androidprobe reason=5 (CRASH_NATIVE) subreason=0\n')
+        # only this run's processes count: 4100 is an earlier run's
+        self.assertEqual(ac.low_memory_kills(exits, {'7077', '6780', '7090'}), ['7077'])
+        self.assertEqual(ac.low_memory_kills(exits, {'6780', '7090'}), [])
+        self.assertEqual(ac.low_memory_kills(exits, {'7077', '4100'}), ['4100', '7077'])
+        self.assertEqual(ac.low_memory_kills('', {'7077'}), [])
+        self.assertEqual(ac.low_memory_kills('pid=7077 reason=3 (LOW_MEMORY)', {'7077'}), [])
+        self.assertEqual((ac.LOW_MEMORY, self.pause), (3, 30))
+
+    def test_a_low_memory_kill_makes_the_run_once_more(self):
+        # run 42714271161: lmkd killed the Java layer's probe behind its
+        # permission dialog on the 16 KB image; the run made once more
+        # decides, and here its probe runs on
+        status, out = self.device(
+            '[ "$(grep -c "^shell am start" "$(dirname "$0")/calls")" -ge 2 ] && echo 3612 || true',
+            exits=self.EXIT_INFO)
+        self.assertEqual(status, 0, out)
+        calls = self.calls()
+        self.assertEqual(sum(c.startswith('shell am start') for c in calls), 2, calls)
+        self.assertEqual(sum(c == 'uninstall org.openxtalk.check.androidprobe' for c in calls), 2, calls)
+        self.assertIn("NOTE: Android's low memory killer ended the probe (process 3612, exit-info LOW_MEMORY), and "
+                      "its log has no crash: the run once more, after 0 s\n"
+                      "  the first run's problem: the app is not running\n", out)
+        self.assertNotIn('PROBLEM:', out)
+        self.assertIn('Android device: passed', out)
+        # the first run's account of the kill is in the log
+        self.assertLess(out.index('reason=3 (LOW_MEMORY)'), out.index('NOTE: Android\'s low memory killer'))
+
+    def test_a_second_low_memory_kill_fails(self):
+        # once more, and only once: the second run's problems are the result
+        status, out = self.device('true', exits=self.EXIT_INFO)
+        self.assertEqual(status, 1, out)
+        self.assertEqual(sum(c.startswith('shell am start') for c in self.calls()), 2)
+        self.assertEqual(out.count("NOTE: Android's low memory killer"), 1)
+        self.assertIn('PROBLEM: the app is not running', out)
+
+    def test_no_run_once_more_for_a_crash_or_the_fail_colour(self):
+        # a crash in the probe's log, or its fail colour, is the engine's or
+        # the Java layer's: no second run, whatever exit-info says
+        with open(os.path.join(self.tmp.name, 'logcat.txt'), 'w') as f:
+            f.write(self.LOG + 'F/libc    ( 3612): Fatal signal 11 (SIGSEGV), code 1\n')
+        status, out = self.device('true', exits=self.EXIT_INFO)
+        self.assertEqual(status, 1, out)
+        self.assertEqual(sum(c.startswith('shell am start') for c in self.calls()), 1)
+        self.assertNotIn('the run once more', out)
+        self.assertIn('Fatal signal 11', out)
+        os.remove(os.path.join(self.tmp.name, 'platform-tools', 'calls'))
+        with open(os.path.join(self.tmp.name, 'logcat.txt'), 'w') as f:
+            f.write(self.LOG)
+        with open(os.path.join(self.tmp.name, 'screen.raw'), 'wb') as f:
+            f.write(struct.pack('<IIII', 4, 4, 1, 0) + bytes(list(ac.FAIL_COLOR) + [255]) * 16)
+        status, out = self.device('true', exits=self.EXIT_INFO)
+        self.assertEqual(status, 1, out)
+        self.assertEqual(sum(c.startswith('shell am start') for c in self.calls()), 1)
+        self.assertNotIn('the run once more', out)
+        # nor for a process another reason ended
+        os.remove(os.path.join(self.tmp.name, 'platform-tools', 'calls'))
+        with open(os.path.join(self.tmp.name, 'screen.raw'), 'wb') as f:
+            f.write(struct.pack('<IIII', 4, 4, 1, 0) + bytes(list(ac.RUN_COLOR) + [255]) * 16)
+        crashed = self.EXIT_INFO.replace('reason=3 (LOW_MEMORY)', 'reason=5 (CRASH_NATIVE)')
+        status, out = self.device('true', exits=crashed)
+        self.assertEqual(status, 1, out)
+        self.assertEqual(sum(c.startswith('shell am start') for c in self.calls()), 1)
+        self.assertNotIn('the run once more', out)
 
     def test_gone_after_drawing(self):
         status, out = self.device('true')
