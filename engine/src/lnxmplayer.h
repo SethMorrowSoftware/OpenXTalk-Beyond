@@ -18,6 +18,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #ifndef MPLAYER_H
 #define MPLAYER_H
 
+class MCGstPlayer;
+
 enum MCPlayerPropertyType
 {
 	kMCPlayerPropertyTypeBool,
@@ -37,6 +39,10 @@ class MPlayer
 		bool shutdown ( void ) ;
 		// Start mplayer again, paused, for the file it played to its end
 		bool restart ( void ) ;
+		// OXT-Beyond: true once when GStreamer has played the movie to its
+		// end (or failed): the event loop then treats the player as it does
+		// one whose mplayer has ended (dsklnx.cpp, MCS_handlechildexits)
+		bool takeended ( void ) ;
 	
 		// Basic commands for manipulating the media
 		void play ( bool p_play );
@@ -84,7 +90,12 @@ class MPlayer
 		uint32_t m_loudness ;
 
 	
+		// OXT-Beyond: the movie through GStreamer, when it plays it
+		// instead of mplayer (lnxgstplayer.h); nil otherwise
+		MCGstPlayer *m_gst;
+
 		bool launch_player(void);
+		bool launch_gstreamer(void);
 		void write_command(MCStringRef p_cmd);
 		bool read_command(MCStringRef p_ans, MCStringRef& r_ret);
 		bool get_property(const char *p_prop, MCPlayerPropertyType p_type, void *r_value);

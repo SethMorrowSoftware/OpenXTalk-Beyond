@@ -1449,7 +1449,8 @@ command revInternal__InstallFileAssociations
    -- work. On Linux that is the browser widget unless the launcher turned
    -- CEF off (LIVECODE_USE_CEF=0: the package has no CEF, or a library CEF
    -- needs is missing; Installer/linux/oxt-beyond), and the Player tool when
-   -- mplayer, which the Linux player runs, is installed. Linux profiles that
+   -- the Linux player can play a movie: mplayer is installed, or GStreamer
+   -- (engine/src/lnxgstplayer.cpp; revInternal__LinuxPlayerCanPlay). Linux profiles that
    -- have the old defaults get these once (cLinuxMediaToolsDefaults), since
    -- the old defaults cannot be told apart from a choice. This runs before
    -- the libraries load the extensions, which leave out the browser widget
@@ -1458,12 +1459,26 @@ command revInternal__InstallFileAssociations
       if the platform is "Linux" and the cLinuxMediaToolsDefaults of stack "revPreferences" is empty then
          -- (an unset variable is 0 too)
          set the cDisableBrowserWidget of stack "revPreferences" to ($LIVECODE_USE_CEF is not empty and $LIVECODE_USE_CEF is 0)
-         set the cDisablePlayerTool of stack "revPreferences" to (there is not a file "/usr/bin/mplayer")
+         set the cDisablePlayerTool of stack "revPreferences" to not revInternal__LinuxPlayerCanPlay()
          set the cLinuxMediaToolsDefaults of stack "revPreferences" to true
       end if
       if the cDisableBrowserWidget of stack "revPreferences" is empty then set the cDisableBrowserWidget of stack "revPreferences" to false
       if the cDisablePlayerTool of stack "revPreferences" is empty then set the cDisablePlayerTool of stack "revPreferences" to false
    end revInternal__InitialiseMediaTools
+   
+   -- OXT-Beyond: whether the Linux player can play a movie: through
+   -- mplayer (/usr/bin/mplayer, as the engine runs it), or through
+   -- GStreamer 1.x, which the engine loads (libgstreamer-1.0.so.0) when
+   -- mplayer is not there. GStreamer's library is looked for where
+   -- Debian, Ubuntu (multiarch), Fedora (lib64) and Arch (lib) keep it.
+   function revInternal__LinuxPlayerCanPlay
+      local tFolder
+      if there is a file "/usr/bin/mplayer" then return true
+      repeat for each item tFolder in "/usr/lib/x86_64-linux-gnu,/usr/lib/aarch64-linux-gnu,/usr/lib/i386-linux-gnu,/usr/lib/arm-linux-gnueabihf,/usr/lib64,/usr/lib,/lib/x86_64-linux-gnu,/lib/aarch64-linux-gnu,/lib64"
+         if there is a file (tFolder & "/libgstreamer-1.0.so.0") then return true
+      end repeat
+      return false
+   end revInternal__LinuxPlayerCanPlay
    
    -- OXT-Beyond: Help > Dictionary opens LiveCode's Dictionary
    -- (cDictionaryDisplayMethod false) again, as in LiveCode, and Tom Perry's
