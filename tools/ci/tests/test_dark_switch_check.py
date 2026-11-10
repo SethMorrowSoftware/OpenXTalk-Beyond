@@ -23,6 +23,7 @@ the engine source it guards and the workflows that run it.
   python3 -m unittest discover -s tools/ci/tests
 """
 
+import ctypes
 import importlib.util
 import os
 import re
@@ -55,6 +56,18 @@ def measure(label, control, pair):
 def log_of(label, pair, appearance, changed=1, noticed=0):
     return (['NOTICED %s %d' % (label, noticed)] + [measure(label, c, pair) for c in dsc.CONTROLS]
             + ['APPEARANCE %s %s' % (label, appearance), 'CHANGED %s %d' % (label, changed), 'MEASURED ' + label])
+
+
+def on_screen(label, control, pair):
+    return measure(label, control, pair).replace('MEASURE', 'SCREEN', 1)
+
+
+def screen(log, label, appearance, covered=None, need_screen=True):
+    """dsc.check_screen's checks, as steps() gives them, and its lines."""
+    out, lines = [], []
+    dsc.check_screen(log, 'a run', label, appearance, covered, need_screen,
+                     lambda name, what, ok, detail: out.append((what, ok, detail)), lines)
+    return out, lines
 
 
 def steps(log, label, appearance, switched=True, told=False):
@@ -174,25 +187,159 @@ class Steps(unittest.TestCase):
         self.assertEqual(out, [])
         self.assertEqual(lines, ['INFO a run, x: the title bar is dark: DWM does not say'])
 
-    def test_the_screen_is_reported_beside_the_snapshots_and_not_mixed_with_them(self):
-        log = log_of('quiet-dark', DARK, 'dark') + [measure('quiet-dark', 'Push', FAULT).replace('MEASURE', 'SCREEN')]
-        # the snapshot's checks do not read the screen's line
+    def test_the_snapshots_checks_do_not_read_the_screens_lines(self):
+        log = log_of('quiet-dark', DARK, 'dark') + [on_screen('quiet-dark', 'Push', FAULT)]
         self.assertEqual(failed(steps(log, 'quiet-dark', 'dark')), [])
         self.assertEqual(dsc.measurements(log, 'quiet-dark', 'SCREEN'), {'Push': FAULT})
-        lines = dsc.screen_lines(log, 'a run', 'quiet-dark', 'dark')
-        self.assertEqual(len(lines), len(dsc.CONTROLS))
-        self.assertIn('on the screen Push is NOT drawn for the dark appearance', lines[0])
-        self.assertIn('240,240,240', lines[0])
-        self.assertIn('on the screen Option was not read', lines[1])
-        self.assertTrue(all(x.startswith('INFO ') for x in lines))
-        # with another window over the stack's, what was read is that window: not reported as the controls
-        self.assertEqual(dsc.screen_lines(log, 'a run', 'quiet-dark', 'dark', 'ConsoleWindowClass'),
-                         ['INFO a run, quiet-dark: the screen was not read: a window of the class '
-                          'ConsoleWindowClass is over the stack\'s there'])
+        self.assertEqual(dsc.measurements(log, 'quiet-dark'), {c: DARK for c in dsc.CONTROLS})
 
     def test_a_line_that_is_not_a_measurement_is_not_read_as_one(self):
         self.assertEqual(dsc.measurements(['MEASURE x Push face=1,2 ink=3,4,5 size=1x1', 'MEASURED x'], 'x'), {})
         self.assertEqual(dsc.measurements([measure('x', 'Push', DARK)], 'x'), {'Push': DARK})
+
+
+class TheScreen(unittest.TestCase):
+    """What the screen showed is checked as the snapshots are, and a screen
+    that could not be read does not pass for one that was."""
+
+    def seen(self, label, pair):
+        return [on_screen(label, c, pair) for c in dsc.CONTROLS]
+
+    def test_each_control_on_the_screen_is_a_check(self):
+        got, lines = screen(self.seen('quiet-dark', DARK), 'quiet-dark', 'dark')
+        self.assertEqual([(what, ok) for what, ok, _ in got],
+                         [('on the screen %s is drawn for the dark appearance' % c, True) for c in dsc.CONTROLS])
+        self.assertEqual(lines, [])
+
+    def test_the_fault_on_the_screen_fails(self):
+        # the snapshots are right and the window shows the fault: the check fails
+        log = log_of('quiet-dark', DARK, 'dark') + self.seen('quiet-dark', FAULT)
+        self.assertEqual(failed(steps(log, 'quiet-dark', 'dark')), [])
+        got, _ = screen(log, 'quiet-dark', 'dark')
+        self.assertEqual(failed(got), ['on the screen %s is drawn for the dark appearance' % c for c in dsc.CONTROLS])
+        self.assertIn('240,240,240', got[0][2])
+        # with or without --need-screen: a reading that was taken always counts
+        self.assertEqual(failed(screen(log, 'quiet-dark', 'dark', need_screen=False)[0]), failed(got))
+
+    def test_one_control_is_enough_to_fail(self):
+        log = self.seen('quiet-dark', DARK)
+        log[1] = on_screen('quiet-dark', 'Option', FAULT)
+        self.assertEqual(failed(screen(log, 'quiet-dark', 'dark')[0]),
+                         ['on the screen Option is drawn for the dark appearance'])
+
+    def test_the_snapshots_do_not_stand_in_for_the_screen(self):
+        got, _ = screen(log_of('quiet-dark', DARK, 'dark'), 'quiet-dark', 'dark')
+        self.assertEqual([(ok, detail) for _, ok, detail in got], [(False, 'not read')] * len(dsc.CONTROLS))
+
+    def test_another_steps_readings_are_not_taken_for_this_one(self):
+        got, _ = screen(self.seen('start', DARK), 'quiet-dark', 'dark')
+        self.assertEqual(len(failed(got)), len(dsc.CONTROLS))
+
+    def test_a_control_that_was_not_read_fails_when_the_screen_is_needed_and_is_reported_when_not(self):
+        log = [x for x in self.seen('quiet-dark', DARK) if ' Combo ' not in x]
+        got, lines = screen(log, 'quiet-dark', 'dark')
+        self.assertEqual([(what, detail) for what, ok, detail in got if not ok],
+                         [('on the screen Combo is drawn for the dark appearance', 'not read')])
+        self.assertEqual(lines, [])
+        got, lines = screen(log, 'quiet-dark', 'dark', need_screen=False)
+        self.assertEqual(failed(got), [])
+        self.assertEqual(len(got), len(dsc.CONTROLS) - 1)
+        self.assertEqual(lines, ['INFO a run, quiet-dark: on the screen Combo is drawn for the dark appearance: '
+                                 'not read'])
+
+    def test_with_another_window_over_the_stacks_nothing_read_is_judged(self):
+        # what was read then is that window: neither a pass nor the controls' fault
+        for seen in (self.seen('quiet-dark', DARK), self.seen('quiet-dark', FAULT)):
+            got, lines = screen(seen, 'quiet-dark', 'dark', covered='ConsoleWindowClass')
+            self.assertEqual(got, [('the screen shows the stack\'s window', False,
+                                    'a window of the class ConsoleWindowClass is over it there: '
+                                    'the screen was not read')])
+            self.assertEqual(lines, [])
+            got, lines = screen(seen, 'quiet-dark', 'dark', covered='ConsoleWindowClass', need_screen=False)
+            self.assertEqual(got, [])
+            self.assertEqual(lines, ['INFO a run, quiet-dark: the screen shows the stack\'s window: a window of '
+                                     'the class ConsoleWindowClass is over it there: the screen was not read'])
+
+    def test_the_points_asked_are_the_middle_and_near_each_corner(self):
+        self.assertEqual(dsc.inside_points(0, 0, 360, 200),
+                         [(180, 100), (8, 8), (351, 8), (8, 191), (351, 191)])
+        # every point is inside, in a rectangle too small for the inset too
+        for rect in ((0, 0, 360, 200), (0, 0, 10, 6), (0, 0, 1, 1), (5, 7, 25, 9)):
+            for x, y in dsc.inside_points(*rect):
+                self.assertTrue(rect[0] <= x < rect[2] and rect[1] <= y < rect[3], (rect, x, y))
+
+
+class FakeUser32:
+    """user32 as Windows.covering uses it: a window whose inside is at
+    (120, 190) on the screen and 360 by 200, and `others`, each a (rect on
+    the screen, root window, class) that is above it."""
+
+    def __init__(self, others=(), size=(360, 200)):
+        self.others, self.size, self.asked = list(others), size, []
+
+    def GetClientRect(self, hwnd, ref):
+        if not self.size:
+            return False
+        ref._obj.left, ref._obj.top, ref._obj.right, ref._obj.bottom = (0, 0) + self.size
+        return True
+
+    def ClientToScreen(self, hwnd, ref):
+        ref._obj.x += 120
+        ref._obj.y += 190
+        return True
+
+    def WindowFromPoint(self, point):
+        self.asked.append((point.x, point.y))
+        for (left, top, right, bottom), child, _, _ in self.others:
+            if left <= point.x < right and top <= point.y < bottom:
+                return child
+        return 1234
+
+    def GetAncestor(self, hwnd, flag):
+        assert flag == 2
+        for _, child, root, _ in self.others:
+            if child == hwnd:
+                return root
+        return hwnd
+
+    def GetClassNameW(self, hwnd, buffer, size):
+        for _, _, root, name in self.others:
+            if root == hwnd:
+                buffer.value = name
+        return len(buffer.value)
+
+
+class Covering(unittest.TestCase):
+    """Windows.covering, with user32 stood in for (the class itself needs
+    Windows; its method only needs these five calls)."""
+
+    def covering(self, user32):
+        from ctypes import wintypes
+        w = mock.Mock(ct=ctypes, wt=wintypes, user32=user32)
+        return dsc.Windows.covering(w, 1234)
+
+    def test_the_window_itself_everywhere_is_not_covered(self):
+        user32 = FakeUser32()
+        self.assertIsNone(self.covering(user32))
+        self.assertEqual(user32.asked, [(x + 120, y + 190) for x, y in dsc.inside_points(0, 0, 360, 200)])
+
+    def test_a_control_of_the_window_itself_is_the_window(self):
+        # (a child window's root is the window)
+        self.assertIsNone(self.covering(FakeUser32([((0, 0, 2000, 2000), 77, 1234, 'MCWinClassW')])))
+
+    def test_a_window_over_the_middle_is_named(self):
+        user32 = FakeUser32([((250, 250, 350, 330), 55, 50, 'ConsoleWindowClass')])
+        self.assertEqual(self.covering(user32), 'ConsoleWindowClass')
+
+    def test_a_window_over_one_corner_only_is_named(self):
+        # (it would be over the Push button, and was not seen while only the middle was asked)
+        user32 = FakeUser32([((0, 0, 200, 230), 55, 50, 'Shell_TrayWnd')])
+        self.assertEqual(self.covering(user32), 'Shell_TrayWnd')
+        user32 = FakeUser32([((400, 350, 1024, 768), 60, 60, '')])
+        self.assertEqual(self.covering(user32), 'with no name')
+
+    def test_a_window_whose_place_cannot_be_told_is_not_called_covered(self):
+        self.assertIsNone(self.covering(FakeUser32(size=())))
 
 
 class ThePlan(unittest.TestCase):
@@ -350,6 +497,8 @@ def patiently(action, wait=5):
 class FakeWindows:
     def __init__(self, state):
         self.state, self.appearance, self.told, self.forwarded = state, None, 0, []
+        # (the class of a window over the stack's, and the appearance during which it is)
+        self.over, self.over_while = None, None
 
     def write(self):
         with open(self.state + '.new', 'w') as f:
@@ -370,7 +519,7 @@ class FakeWindows:
         return True
 
     def covering(self, hwnd):
-        return None
+        return self.over if self.appearance == self.over_while else None
 
     def dark_title_bar(self, hwnd):
         def read():
@@ -421,6 +570,8 @@ class TheSteps(unittest.TestCase):
     """dark_switch_check.run_engine with the stand-in engine."""
 
     BUTTONS = ['%s is drawn for the dark appearance' % c for c in ('Push', 'Option')]
+    SEEN = ['on the screen ' + x for x in BUTTONS]
+    STEPS = sum(1 + len(run_steps) for _, _, run_steps in dsc.RUNS)
     MESSAGE = 'the stack was sent systemAppearanceChanged'
     NOTICE = 'Windows\' notice alone sent systemAppearanceChanged'
     NOTHING = 'a notice that changed nothing sent no systemAppearanceChanged'
@@ -432,18 +583,26 @@ class TheSteps(unittest.TestCase):
         with open(self.fake, 'w') as f:
             f.write(FAKE_ENGINE)
 
-    def run_all(self, mode):
+    def run_all(self, mode, need_screen=True, over=None, engine=None):
         lines, problems, results = [], [], []
-        self.windows = w = FakeWindows(os.path.join(self.work, 'state'))
+        # (a folder of its own for each call: the engine's log and the
+        # answers to its steps are files there, and a second run in one
+        # test must not find the first one's)
+        work = tempfile.mkdtemp(dir=self.work)
+        self.windows = w = FakeWindows(os.path.join(work, 'state'))
+        w.over, w.over_while = over, 'light'
+        if engine is not None:
+            with open(self.fake, 'w') as f:
+                f.write(engine)
         with mock.patch.object(dsc, 'SCRIPT', self.fake), mock.patch.object(dsc, 'NOTICE_WAIT', 0.3), \
                 mock.patch.dict(os.environ, {'FAKE_STATE': w.state, 'FAKE_MODE': mode}):
             for run, start, run_steps in dsc.RUNS:
-                dsc.run_engine(w, sys.executable, self.work, run, start, run_steps, 20, lines, problems,
-                               lambda name, what, ok, detail: results.append((name, what, ok)))
+                dsc.run_engine(w, sys.executable, work, run, start, run_steps, 20, lines, problems,
+                               lambda name, what, ok, detail: results.append((name, what, ok)), need_screen)
         return lines, problems, results
 
-    def failures(self, mode):
-        _, problems, results = self.run_all(mode)
+    def failures(self, mode, **how):
+        _, problems, results = self.run_all(mode, **how)
         self.assertEqual(problems, [])
         out = {}
         for name, what, ok in results:
@@ -460,9 +619,10 @@ class TheSteps(unittest.TestCase):
         self.assertEqual(names, sorted('%s, %s' % (run, label) for run, _, run_steps in dsc.RUNS
                                        for label in ['start'] + [x[0] for x in run_steps]))
         self.assertTrue(any('with no notice' in x for x in lines))
-        screen = [x for x in lines if 'on the screen' in x]
-        self.assertEqual(len(screen), len(dsc.CONTROLS) * sum(1 + len(run_steps) for _, _, run_steps in dsc.RUNS))
-        self.assertFalse(any('NOT drawn' in x or 'not read' in x for x in screen))
+        # the screen was checked at every step, each control, and nothing about it was only reported
+        self.assertEqual(len([x for x in results if x[1].startswith('on the screen ')]),
+                         len(dsc.CONTROLS) * self.STEPS)
+        self.assertFalse(any('screen' in x for x in lines), lines)
         # the windows the notice went to are named, with how each takes its strings
         self.assertTrue(any('switched to light with Windows\' notice to 2 windows '
                             '(MCWinClass, ANSI, MCWinClassW, wide)' in x for x in lines), lines)
@@ -485,11 +645,11 @@ class TheSteps(unittest.TestCase):
         # message ever, a title bar that stayed as it started)
         self.assertEqual(self.failures('deaf'), {
             'starts dark, quiet-light': [self.MESSAGE, 'the title bar is light'],
-            'starts light, quiet-dark': self.BUTTONS + [self.MESSAGE, 'the title bar is dark'],
+            'starts light, quiet-dark': self.BUTTONS + [self.MESSAGE] + self.SEEN + ['the title bar is dark'],
             'starts light, told-light': [self.NOTICE, self.MESSAGE],
             'starts light, told-dark': ['after Windows\' notice alone the title bar is dark'] + self.BUTTONS
-                                       + [self.NOTICE, self.MESSAGE, 'the title bar is dark'],
-            'starts light, told-again': self.BUTTONS + ['the title bar is dark'],
+                                       + [self.NOTICE, self.MESSAGE] + self.SEEN + ['the title bar is dark'],
+            'starts light, told-again': self.BUTTONS + self.SEEN + ['the title bar is dark'],
         })
 
     def test_an_engine_that_follows_only_by_reading_fails_what_the_notice_alone_must_do(self):
@@ -502,9 +662,44 @@ class TheSteps(unittest.TestCase):
         # (and sends its message for a notice that changed nothing)
         self.assertEqual(self.failures('notice-only'), {
             'starts dark, quiet-light': [self.MESSAGE, 'the title bar is light'],
-            'starts light, quiet-dark': self.BUTTONS + [self.MESSAGE, 'the title bar is dark'],
+            'starts light, quiet-dark': self.BUTTONS + [self.MESSAGE] + self.SEEN + ['the title bar is dark'],
             'starts light, told-again': [self.NOTHING],
         })
+
+    def test_a_screen_that_shows_the_fault_fails_though_the_snapshots_are_right(self):
+        # an engine whose snapshots follow the appearance and whose window does not
+        engine = FAKE_ENGINE.replace("FACE[live] if live == 'light' or control == 'Combo' else FACE[kept]",
+                                     "FACE[live] if word == 'MEASURE' or control == 'Combo' else FACE['light']")
+        self.assertNotEqual(engine, FAKE_ENGINE)
+        dark_steps = ['starts dark, start', 'starts light, quiet-dark', 'starts light, told-dark',
+                      'starts light, told-again']
+        self.assertEqual(self.failures('good', engine=engine), {name: self.SEEN for name in dark_steps})
+
+    def test_an_engine_that_gives_no_reading_of_the_screen_fails_when_the_screen_is_needed(self):
+        engine = FAKE_ENGINE.replace("for word in ('MEASURE', 'SCREEN'):", "for word in ('MEASURE',):")
+        self.assertNotEqual(engine, FAKE_ENGINE)
+        seen = ['on the screen %s is drawn for the %%s appearance' % c for c in dsc.CONTROLS]
+        got = self.failures('good', engine=engine)
+        self.assertEqual(len(got), self.STEPS)
+        self.assertEqual(got['starts dark, start'], [x % 'dark' for x in seen])
+        self.assertEqual(got['starts light, told-light'], [x % 'light' for x in seen])
+        # without --need-screen it is reported at every step, and fails nothing
+        lines, problems, results = self.run_all('good', need_screen=False, engine=engine)
+        self.assertEqual((problems, [x for x in results if not x[2]]), ([], []))
+        self.assertEqual(len([x for x in lines if x.endswith(': not read')]), len(dsc.CONTROLS) * self.STEPS)
+
+    def test_a_window_over_the_stacks_fails_the_steps_it_is_there_for(self):
+        covered = 'the screen shows the stack\'s window'
+        light_steps = ['starts dark, quiet-light', 'starts light, start', 'starts light, told-light']
+        self.assertEqual(self.failures('good', over='ConsoleWindowClass'), {name: [covered] for name in light_steps})
+        # and nothing read through it was judged: the other steps' readings were
+        _, _, results = self.run_all('good', over='ConsoleWindowClass')
+        self.assertEqual(len([x for x in results if x[1].startswith('on the screen ')]),
+                         len(dsc.CONTROLS) * (self.STEPS - len(light_steps)))
+        # without --need-screen: a line for each, no failure
+        lines, problems, results = self.run_all('good', need_screen=False, over='ConsoleWindowClass')
+        self.assertEqual((problems, [x for x in results if not x[2]]), ([], []))
+        self.assertEqual(len([x for x in lines if 'ConsoleWindowClass is over it there' in x]), len(light_steps))
 
     def test_an_engine_that_goes_away_is_a_problem_not_a_pass(self):
         with open(self.fake, 'w') as f:
@@ -610,6 +805,8 @@ class Workflows(unittest.TestCase):
         self.assertEqual((len(themes), len(checks)), (1, 1))
         self.assertLess(themes[0], checks[0])
         self.assertIn('--need-visual-styles', runs[checks[0]])
+        # a screen that cannot be read fails, wherever the check runs
+        self.assertIn('--need-screen', runs[checks[0]])
 
     def test_the_build_checks_its_package(self):
         job = self.load('build-windows.yml')['jobs']['dark-switch']

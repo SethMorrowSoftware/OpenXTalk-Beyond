@@ -21,6 +21,7 @@ starts in it, and when Windows is switched to it while the engine runs.
 
   python tools/ci/dark_switch_check.py (--install DIR | --package FILE)
       [--platform P] [--log FILE] [--timeout SECONDS] [--need-visual-styles]
+      [--need-screen]
 
 The layout's standalone runtime is copied to a folder of its own
 (media_check.stage_runtime) and runs tools/ci/dark-switch-check.livecodescript,
@@ -52,21 +53,30 @@ for the appearance it was last told of. After each step:
   3. after a switch, the stack was sent systemAppearanceChanged; and after
      a notice that changed nothing, it was not;
   4. the window's title bar is the appearance's (what DWM says of it; where
-     DWM does not say, that is reported and nothing is checked).
+     DWM does not say, that is reported and nothing is checked);
+  5. on the screen, where the window is, each control's face and ink are
+     the appearance's too, after the control was drawn again: what a
+     person sees.
 
 After a switch with Windows' notice, two more, taken before the script is
 told to measure, while it has drawn nothing and asked for nothing (so they
 are the notice's doing alone):
 
-  5. the title bar is already the appearance's;
-  6. the stack was already sent systemAppearanceChanged.
+  6. the title bar is already the appearance's;
+  7. the stack was already sent systemAppearanceChanged.
 
-The same reading of each control taken from the screen, after the control
-was drawn again, is reported beside them and not checked yet (in the first
-runs the stack's window was not shown at all, and what was read was the
-runner's console). The window is put above every other first, the
-runner's console too; when the screen still shows another window where
-the stack's is, the results say that instead of what was read.
+The snapshots of 1 are drawn by the engine for the check; the screen of 5
+is what the window shows. A reading of the screen also reads whatever else
+is on it, so the window is put above every other first, the runner's
+console too, and before a reading counts the screen is asked which window
+it shows at the middle and near each corner of the stack's inside. When
+that is another window, or the script gave no reading, the screen could
+not be read: that is reported, and with --need-screen it is a failure (a
+check that cannot look must not pass for one that looked). At first the
+screen's readings were only reported: in the check's first runs the
+stack's window was not shown at all and what was read was the runner's
+console. Since it is shown, the screen and the snapshots have agreed at
+every step, on 0.2.7 and on the fixed engine, on both Windows versions.
 
 Up to OXT-Beyond 0.2.7 the dark appearance filled a button and an option
 menu with a background colour the engine kept from its start, under words
@@ -222,26 +232,43 @@ def check_title_bar(name, what, appearance, dark, check, lines):
               'DWM says it is %s' % ('dark' if dark else 'light'))
 
 
-def screen_lines(log, run, label, appearance, covered=None):
-    """What the screen showed at a step, as lines for the results. They are
-    reported, not checked: a reading of the screen also sees whatever else
-    is on it, and the snapshots above are drawn by the same code. covered:
-    the class of another window that is over the stack's on the screen
-    (then the readings are of that window, and one line says so)."""
+def check_screen(log, run, label, appearance, covered, need_screen, check, lines):
+    """The checks of what the screen showed at a step: each control's face
+    and ink, read where the window is. covered: the class of another window
+    that the screen shows where the stack's is (then what was read is that
+    window, and is not judged). A screen that could not be read, covered
+    or with no reading from the script, is a failed check with need_screen
+    and a line for the results without it."""
+    name = '%s, %s' % (run, label)
+
+    def unread(what, detail):
+        if need_screen:
+            check(name, what, False, detail)
+        else:
+            lines.append('INFO %s: %s: %s' % (name, what, detail))
+
     if covered:
-        return ['INFO %s, %s: the screen was not read: a window of the class %s is over the stack\'s there'
-                % (run, label, covered)]
+        unread('the screen shows the stack\'s window',
+               'a window of the class %s is over it there: the screen was not read' % covered)
+        return
     found = measurements(log, label, 'SCREEN')
-    out = []
     for control in CONTROLS:
+        what = 'on the screen %s is drawn for the %s appearance' % (control, appearance)
         if control not in found:
-            out.append('INFO %s, %s: on the screen %s was not read' % (run, label, control))
+            unread(what, 'not read')
             continue
         ok, detail = judge(appearance, *found[control])
-        out.append('INFO %s, %s: on the screen %s %s (%s)'
-                   % (run, label, control, 'is drawn for the %s appearance' % appearance if ok
-                      else 'is NOT drawn for the %s appearance' % appearance, detail))
-    return out
+        check(name, what, ok, detail)
+
+
+def inside_points(left, top, right, bottom, inset=8):
+    """The points of a rectangle at which the screen is asked which window
+    it shows: the middle, and each corner inset pixels in (less in a
+    rectangle too small for that)."""
+    dx, dy = min(inset, (right - left) // 2), min(inset, (bottom - top) // 2)
+    return [((left + right) // 2, (top + bottom) // 2),
+            (left + dx, top + dy), (right - 1 - dx, top + dy),
+            (left + dx, bottom - 1 - dy), (right - 1 - dx, bottom - 1 - dy)]
 
 
 def read_log(path):
@@ -342,22 +369,24 @@ class Windows:
                                              self.SWP_NOSIZE | self.SWP_NOMOVE | self.SWP_NOACTIVATE))
 
     def covering(self, hwnd):
-        """The class of the window that the screen shows at the middle of a
-        window's inside, when it is another window; None when it is that
-        window itself (or its place cannot be told)."""
-        rect, point = self.wt.RECT(), self.wt.POINT()
+        """The class of another window that the screen shows where a
+        window's inside is: at its middle, or near one of its corners. None
+        when the screen shows that window itself at all five (or its place
+        cannot be told)."""
+        rect = self.wt.RECT()
         if not self.user32.GetClientRect(hwnd, self.ct.byref(rect)):
             return None
-        point.x, point.y = (rect.left + rect.right) // 2, (rect.top + rect.bottom) // 2
-        if not self.user32.ClientToScreen(hwnd, self.ct.byref(point)):
-            return None
-        there = self.user32.WindowFromPoint(point)
-        root = self.user32.GetAncestor(there, 2) if there else None  # (GA_ROOT)
-        if not root or root == hwnd:
-            return None
-        name = self.ct.create_unicode_buffer(128)
-        self.user32.GetClassNameW(root, name, 128)
-        return name.value or 'with no name'
+        for x, y in inside_points(rect.left, rect.top, rect.right, rect.bottom):
+            point = self.wt.POINT(x, y)
+            if not self.user32.ClientToScreen(hwnd, self.ct.byref(point)):
+                return None
+            there = self.user32.WindowFromPoint(point)
+            root = self.user32.GetAncestor(there, 2) if there else None  # (GA_ROOT)
+            if root and root != hwnd:
+                name = self.ct.create_unicode_buffer(128)
+                self.user32.GetClassNameW(root, name, 128)
+                return name.value or 'with no name'
+        return None
 
     def dark_title_bar(self, hwnd):
         """What DWM says of a window's dark title bar, where it tells
@@ -386,9 +415,10 @@ def wait_for(log_path, wanted, seconds, proc):
         time.sleep(0.05)
 
 
-def run_engine(w, engine, work, run, start, steps, timeout, lines, problems, check):
+def run_engine(w, engine, work, run, start, steps, timeout, lines, problems, check, need_screen=False):
     """One start of the engine: the appearance it starts in, then the
-    steps. Appends to lines and problems."""
+    steps. Appends to lines and problems. need_screen: a screen that could
+    not be read at a step is a failure (check_screen)."""
     slug = run.replace(' ', '-')
     log_path = os.path.join(work, 'dark-switch-%s.log' % slug)
     go_path = os.path.join(work, 'go-%s' % slug)
@@ -440,7 +470,8 @@ def run_engine(w, engine, work, run, start, steps, timeout, lines, problems, che
                 stopped = True
                 break
             check_step(log, run, label, appearance, switched, check, bool(told))
-            lines += screen_lines(log, run, label, appearance, w.covering(hwnd) if hwnd is not None else None)
+            check_screen(log, run, label, appearance, w.covering(hwnd) if hwnd is not None else None,
+                         need_screen, check, lines)
             if hwnd is not None:
                 check_title_bar(name, 'the title bar is %s' % appearance, appearance, w.dark_title_bar(hwnd),
                                 check, lines)
@@ -471,6 +502,9 @@ def main(argv=None):
     ap.add_argument('--timeout', type=int, default=60, help='seconds for each step (default: %(default)s)')
     ap.add_argument('--need-visual-styles', action='store_true',
                     help='fail when visual styles are off (the Themes service is not running)')
+    ap.add_argument('--need-screen', action='store_true',
+                    help='fail when the screen cannot be read at a step (another window is over the stack\'s, '
+                         'or the script gave no reading)')
     args = ap.parse_args(argv)
     if bool(args.install) == bool(args.package):
         ap.error('pass --install or --package')
@@ -505,7 +539,8 @@ def main(argv=None):
             if args.need_visual_styles:
                 problems.append('visual styles are off (is the Themes service running?)')
         for run, start, steps in RUNS:
-            run_engine(w, engine, work, run, start, steps, args.timeout, lines, problems, check)
+            run_engine(w, engine, work, run, start, steps, args.timeout, lines, problems, check,
+                       args.need_screen)
     except (rlc.CheckError, OSError) as e:
         problems.append(str(e))
     finally:

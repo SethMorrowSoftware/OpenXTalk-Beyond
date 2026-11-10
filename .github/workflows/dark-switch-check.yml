@@ -99,4 +99,4 @@ jobs:
 
       - name: Dark switch check
         continue-on-error: ${{ github.event_name == 'pull_request' }}
-        run: python tools/ci/dark_switch_check.py --package "$PACKAGE" --platform win-x86_64 --need-visual-styles --log "$RUNNER_TEMP/dark-switch-check.log"
+        run: python tools/ci/dark_switch_check.py --package "$PACKAGE" --platform win-x86_64 --need-visual-styles --need-screen --log "$RUNNER_TEMP/dark-switch-check.log"
