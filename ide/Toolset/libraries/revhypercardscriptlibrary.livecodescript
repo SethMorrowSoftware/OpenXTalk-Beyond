@@ -704,35 +704,41 @@ function revHyperCardImportSummary pStack, pImportLog
       if tLine begins with "Stand-ins: the stack's external commands" then
          put "XCMDs that do nothing here:" && word 1 to -1 of item -1 of tLine & return after tStood
       else if tLine begins with "Stand-ins: the stack's external functions" then
-         put "XFCNs that give empty here:" && word 1 to -1 of item -1 of tLine & return after tStood
-         put true into tFunctionStandIns
+         put word 1 to -1 of item -1 of tLine into tKey
+         put "XFCNs that give empty here:" && tKey & return after tStood
+         set the itemDelimiter to comma
+         repeat for each item tName in tKey
+            put true into tFunctionStandIns[_Lower(word 1 to -1 of tName)]
+         end repeat
+         set the itemDelimiter to colon
       end if
    end repeat
    set the itemDelimiter to comma
-   if tFunctionStandIns is not true then
-      repeat for each line tLine in revHyperCardLibraryScript()
-         if word 1 of tLine is among the words of "on function command" then put true into tLibrary[_Lower(word 2 of tLine)]
+   -- (an XFCN that got no stand-in, a name that cannot be a handler's,
+   -- is still dropped)
+   repeat for each line tLine in revHyperCardLibraryScript()
+      if word 1 of tLine is among the words of "on function command" then put true into tLibrary[_Lower(word 2 of tLine)]
+   end repeat
+   repeat for each line tObject in _Objects(pStack)
+      repeat for each line tLine in the script of tObject
+         if word 1 of tLine is among the items of "on,function" then put true into tDefines[_Lower(_Word2(tLine))]
       end repeat
-      repeat for each line tObject in _Objects(pStack)
-         repeat for each line tLine in the script of tObject
-            if word 1 of tLine is among the items of "on,function" then put true into tDefines[_Lower(_Word2(tLine))]
-         end repeat
-      end repeat
-      set the itemDelimiter to tab
-      put empty into tNames
-      repeat for each line tLine in the uHyperCard["externals"] of pStack
-         put word 1 to -1 of item 1 of tLine into tType
-         put word 1 to -1 of item 2 of tLine into tName
-         if tType is not "XFCN" or tName is empty then next repeat
-         if tLibrary[_Lower(tName)] or tLibrary["hcx_" & _Lower(tName)] or tDefines[_Lower(tName)] then next repeat
-         if tName is among the items of tNames then next repeat
-         if tNames is not empty then put ", " after tNames
-         put tName after tNames
-      end repeat
-      set the itemDelimiter to comma
-      if tNames is not empty then
-         put "XFCNs that are not available (a script stops where it calls one):" && tNames & return after tDropped
-      end if
+   end repeat
+   set the itemDelimiter to tab
+   put empty into tNames
+   repeat for each line tLine in the uHyperCard["externals"] of pStack
+      put word 1 to -1 of item 1 of tLine into tType
+      put word 1 to -1 of item 2 of tLine into tName
+      if tType is not "XFCN" or tName is empty then next repeat
+      if tLibrary[_Lower(tName)] or tLibrary["hcx_" & _Lower(tName)] or tDefines[_Lower(tName)] then next repeat
+      if tFunctionStandIns[_Lower(tName)] then next repeat
+      if tName is among the items of tNames then next repeat
+      if tNames is not empty then put ", " after tNames
+      put tName after tNames
+   end repeat
+   set the itemDelimiter to comma
+   if tNames is not empty then
+      put "XFCNs that are not available (a script stops where it calls one):" && tNames & return after tDropped
    end if
 
    -- Dropped: what the engine could not convert

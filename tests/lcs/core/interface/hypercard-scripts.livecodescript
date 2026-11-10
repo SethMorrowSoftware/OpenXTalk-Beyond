@@ -4458,7 +4458,7 @@ on TestHyperCardScriptsSummaryParts
    lock messages
    create invisible stack tStack
    set the defaultStack to tStack
-   set the uHyperCard["externals"] of stack tStack to _Lines("XCMD" & tTab & "Glitter", "XFCN" & tTab & "Riddle")
+   set the uHyperCard["externals"] of stack tStack to _Lines("XCMD" & tTab & "Glitter", "XFCN" & tTab & "Riddle", "XFCN" & tTab & "Two Words", "XFCN" & tTab & "Enigma")
    create group "HC Icons"
    create image "A" in group "HC Icons"
    create image "B" in group "HC Icons"
@@ -4478,8 +4478,10 @@ on TestHyperCardScriptsSummaryParts
          and lineOffset("Stood in for:", tSummary) < lineOffset("Dropped:", tSummary)
    TestAssert "converted: what the resource fork brought in", "From the resource fork: 2 icons, 1 cursor, 1 palette." is among the lines of tSummary
    TestAssert "stood in for: the XCMD", "XCMDs that do nothing here: Glitter" is among the lines of tSummary
-   TestAssert "stood in for: the XFCN, which no longer stops a script", "XFCNs that give empty here: Riddle" is among the lines of tSummary \
-         and "XFCNs that are not available" is not in tSummary
+   TestAssert "stood in for: the XFCNs, which no longer stop a script", "XFCNs that give empty here: Riddle, Enigma" is among the lines of tSummary
+   TestAssert "an XFCN that got no stand-in (no handler can have its name) is still dropped, alone", \
+         "XFCNs that are not available (a script stops where it calls one): Two Words" is among the lines of tSummary \
+         and lineOffset("XFCNs that are not available", tSummary) > lineOffset("Dropped:", tSummary)
    TestAssert "dropped: the line left out and the sound", lineOffset("Lines left out:", tSummary) > lineOffset("Dropped:", tSummary) \
          and lineOffset("Sounds: 1 not converted", tSummary) > lineOffset("Dropped:", tSummary)
    TestAssert "a screenful at most", the number of lines of tSummary <= 40
@@ -4488,7 +4490,7 @@ on TestHyperCardScriptsSummaryParts
    set the uHyperCard["scripts"] of stack tStack to "HyperCard scripts: 0 rewritten, 0 salvaged by handler (0 handlers left out, 0 lines left out of handlers), 0 still do not compile"
    put revHyperCardImportSummary(tStack, "x") into tSummary
    TestAssert "an XFCN with no stand-in: not available, under Dropped", \
-         "XFCNs that are not available (a script stops where it calls one): Riddle" is among the lines of tSummary \
+         "XFCNs that are not available (a script stops where it calls one): Riddle, Two Words, Enigma" is among the lines of tSummary \
          and "Stood in for:" is not among the lines of tSummary and "Converted:" is among the lines of tSummary
    _Close tStack
 end TestHyperCardScriptsSummaryParts
