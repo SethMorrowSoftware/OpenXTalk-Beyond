@@ -1,0 +1,2 @@
+- Server: a cookie header is no longer read one byte past its end, which now and then cut the last character off the last cookie's value, so a session's second request could start a new session (the Windows server check's flake)
+- CI: the Intel Mac everyday tour's Find typing waits for the keyboard focus and says where the keys went when it misses, and a failed step closes the Script Editor it left open; the IDE tour waits for the closed icon chooser to leave the screen before its next picture
