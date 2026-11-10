@@ -1,2 +1,0 @@
-- Stack Player: a HyperCard stack converted before its scripts were fixed, which stops with "can't find handler", is offered Fix and Reopen, and plays with its scripts fixed in memory (#PR)
-- Web engine: `the screenDepth` is 32, as on the desktop, instead of 0 (#PR)
