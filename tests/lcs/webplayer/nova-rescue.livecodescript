@@ -40,8 +40,8 @@ end TestTeardown
 ----------------------------------------------------------------------
 -- Helpers
 
-private command game pHandler, p1, p2, p3, p4
-   dispatch pHandler to stack kStack with p1, p2, p3, p4
+private command game pHandler, p1, p2, p3, p4, p5
+   dispatch pHandler to stack kStack with p1, p2, p3, p4, p5
 end game
 
 -- One value of the game's nrState
@@ -106,6 +106,54 @@ private command windowSize pWidth, pHeight
    set the rect of stack kStack to 0, 0, pWidth, pHeight
    game "nrResized"
 end windowSize
+
+-- The colours the player sees in rect pRect of the game's card, each
+-- once, a line each (red,green,blue)
+private function colours pRect
+   local tImage, tData, tSeen, tOut, tColour, i
+   import snapshot from rectangle pRect of card "Space" of stack kStack
+   put it into tImage
+   put the imageData of tImage into tData
+   delete tImage
+   -- (4 bytes a pixel: the first unused, then red, green, blue)
+   repeat with i = 0 to the number of bytes of tData div 4 - 1
+      put byteToNum(byte i * 4 + 2 of tData) & comma & byteToNum(byte i * 4 + 3 of tData) & \
+            comma & byteToNum(byte i * 4 + 4 of tData) into tColour
+      if tSeen[tColour] is empty then
+         put true into tSeen[tColour]
+         put tColour & return after tOut
+      end if
+   end repeat
+   return line 1 to -1 of tOut
+end colours
+
+-- Whether every one of the colours pColours is pColour, give or take
+-- what two ways of blending may differ by
+private function allAre pColours, pColour
+   local tLine, i
+   if pColours is empty or pColour is empty then
+      return false
+   end if
+   repeat for each line tLine in pColours
+      repeat with i = 1 to 3
+         if abs(item i of tLine - item i of pColour) > 3 then
+            return false
+         end if
+      end repeat
+   end repeat
+   return true
+end allAre
+
+-- The part of rect pRect left of the column (pSide "left", up to the
+-- line of its edge, which is drawn on both sides of it) or right of it
+private function outside pRect, pSide
+   local tColumn
+   put st("column") into tColumn
+   if pSide is "left" then
+      return item 1 of pRect, item 2 of pRect, item 1 of tColumn - 1, item 4 of pRect
+   end if
+   return item 3 of tColumn + 1, item 2 of pRect, item 3 of pRect, item 4 of pRect
+end outside
 
 ----------------------------------------------------------------------
 -- Opening
@@ -617,6 +665,75 @@ on TestTurningThePhoneKeepsTheRaidersCourses
    TestAssert "the ufo goes on across with the column", abs(item 1 of tNow - item 1 of tUfo - tShift) <= 4
    TestAssert "and at the height it was", abs(item 2 of tNow - item 2 of tUfo) <= 4
 end TestTurningThePhoneKeepsTheRaidersCourses
+
+-- In a window wider than the column, what leaves it goes behind its
+-- sides, as it goes off the edge of a phone held upright: a meteor half
+-- out of the column shows only its half in it, and one that drifts out
+-- is gone from sight once it is out (until November 2026 the sides were
+-- drawn under the sprites, and a meteor drifted on over them until it
+-- was 60 points past the column: forum, macOS Safari)
+on TestWhatLeavesTheColumnGoesBehindItsSides
+   local tColumn, tL, tR, tLeftSide, tRightSide, tRect
+   windowSize 1024, 700
+   if the width of stack kStack is not 1024 or the height of stack kStack is not 700 then
+      TestSkip "a wide window", "the window could not be made that size here"
+      exit TestWhatLeavesTheColumnGoesBehindItsSides
+   end if
+   put st("column") into tColumn
+   put item 1 of tColumn into tL
+   put item 3 of tColumn into tR
+   TestAssert "the column is narrower than the window", tL >= 100 and tR <= 924
+   -- the sides, dimmed, where nothing is, under the HUD at the left
+   put colours(tL - 40, 600, tL - 10, 620) into tLeftSide
+   put colours(tR + 10, 600, tR + 40, 620) into tRightSide
+   TestAssert "the sides are one colour each", the number of lines of tLeftSide is 1 and \
+         the number of lines of tRightSide is 1
+   newRun
+   TestAssert "in a run, the sides look as they did", allAre(colours(tL - 40, 600, tL - 10, 620), tLeftSide) and \
+         allAre(colours(tR + 10, 600, tR + 40, 620), tRightSide)
+   put1 "big", tL - 4, 300, 0
+   put1 "big", tR + 4, 420, 0
+   game "nrSpawnRock", "big", tL + 10, 520, -100, 0
+   step 1/60
+   TestAssert "three meteors", st("rocks") is 3
+   put the rect of button "Rock 1" of card "Space" of stack kStack into tRect
+   TestAssert "a meteor half out on the left", item 1 of tRect < tL - 10 and item 3 of tRect > tL + 10
+   TestAssert "shows in the column", the number of lines of colours(tL + 1, item 2 of tRect, item 3 of tRect, item 4 of tRect) > 4
+   TestAssert "and not beside it", allAre(colours(outside(tRect, "left")), tLeftSide)
+   put the rect of button "Rock 2" of card "Space" of stack kStack into tRect
+   TestAssert "a meteor half out on the right", item 1 of tRect < tR - 10 and item 3 of tRect > tR + 10
+   TestAssert "shows in the column", the number of lines of colours(item 1 of tRect, item 2 of tRect, tR - 1, item 4 of tRect) > 4
+   TestAssert "and not beside it", allAre(colours(outside(tRect, "right")), tRightSide)
+   step 0.5
+   put the rect of button "Rock 3" of card "Space" of stack kStack into tRect
+   TestAssert "a meteor drifting out to the left is still on its way", st("rocks") is 3 and \
+         the visible of button "Rock 3" of card "Space" of stack kStack and item 3 of tRect < tL
+   TestAssert "and out of sight", allAre(colours(outside(tRect, "left")), tLeftSide)
+   -- (paused, under the veil over everything)
+   press "Pause"
+   put colours(tL - 40, 600, tL - 10, 620) into tLeftSide
+   TestAssert "paused, the sides still hide it", st("mode") is "pause" and \
+         allAre(colours(outside(tRect, "left")), tLeftSide)
+end TestWhatLeavesTheColumnGoesBehindItsSides
+
+-- On the title of a phone on its side, the ship stands over the left
+-- side of the column, and nothing covers it, after a run too
+on TestTheTitlesShipIsNotCovered
+   local tColumn, tRect
+   windowSize 844, 390
+   if the width of stack kStack is not 844 or the height of stack kStack is not 390 then
+      TestSkip "a phone on its side", "the window could not be made that size here"
+      exit TestTheTitlesShipIsNotCovered
+   end if
+   put st("column") into tColumn
+   newRun
+   step 1/60
+   game "nrGoTitle"
+   TestAssert "the title", st("mode") is "title"
+   put the rect of button "Ship" of card "Space" of stack kStack into tRect
+   TestAssert "its ship stands over the left side", item 1 of tRect < item 1 of tColumn - 10
+   TestAssert "and is seen there", the number of lines of colours(outside(tRect, "left")) > 4
+end TestTheTitlesShipIsNotCovered
 
 ----------------------------------------------------------------------
 -- Numbers

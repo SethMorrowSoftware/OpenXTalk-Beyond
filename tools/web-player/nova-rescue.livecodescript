@@ -74,6 +74,10 @@ constant kBad = "#FF5D73"
 constant kPanel = "#221A3C"
 constant kPanelDown = "#3A2E66"
 constant kEdge = "#7C6CF0"
+-- the dimmed sides of a window wider than the column: the card's colour
+-- (#3A2E3F) under the black of "Dim Left" and "Dim Right" at blendLevel
+-- 45, as one colour, which "Clip Left" and "Clip Right" have
+constant kSide = "#1A151C"
 
 on startup
    local tFile, tError
@@ -250,8 +254,8 @@ private command importFont pStack
 end importFont
 
 -- The play area, back to front: the dimmed sides (in landscape), the
--- stars, then the sprites, each in its pool, then the floating scores
--- and the red flash of a hit
+-- stars, then the sprites, each in its pool, then the floating scores,
+-- the red flash of a hit and the covers that clip the play to the column
 private command buildPlay
    local tPool, tName, tCount, tPicture, i
    repeat for each item tName in "Dim Left,Dim Right"
@@ -326,6 +330,18 @@ private command buildPlay
    setBox the long id of graphic "Flash", kBad
    set the blendLevel of graphic "Flash" to 70
    set the visible of graphic "Flash" to false
+   -- the sides again, over all of the play and in the colour the dimmed
+   -- sides show: what goes out of the column goes behind them, as off
+   -- the edge of a phone held upright (until November 2026 a meteor
+   -- drifted on over the dimmed side of a wider window until it was 60
+   -- points past the column). The game shows them only while a run is
+   -- on the screen: on the title of a phone on its side, the ship stands
+   -- over the left side.
+   repeat for each item tName in "Clip Left,Clip Right"
+      create graphic tName
+      setBox the long id of graphic tName, kSide
+      set the visible of graphic tName to false
+   end repeat
 end buildPlay
 
 -- A sprite: a button that is only its icon
