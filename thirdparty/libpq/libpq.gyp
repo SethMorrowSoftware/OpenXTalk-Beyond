@@ -165,9 +165,12 @@
 
 							'src/port/chklocale.c',
 							'src/port/inet_net_ntop.c',
+							'src/port/noblock.c',
 							'src/port/oxt_strong_random.c',
 							'src/port/oxt_timingsafe_bcmp.c',
+							'src/port/pg_bitutils.c',
 							'src/port/pg_strong_random.c',
+							'src/port/pgsleep.c',
 							'src/port/pgstrcasecmp.c',
 							'src/port/snprintf.c',
 							'src/port/strerror.c',
