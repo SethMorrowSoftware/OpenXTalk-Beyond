@@ -34,13 +34,17 @@
 #define HAVE_SIZE_T 1
 
 #if !defined(_WIN32)
-/* glibc, Darwin and bionic define uint and ushort. ulong is left to
-   ma_global.h, which defines it unless glibc's headers did (__USE_MISC):
-   Darwin and bionic have none in the modes the library is built in */
+/* glibc, Darwin and bionic define uint; glibc and Darwin define ushort,
+   bionic does not (Android engine (x86_64) on #452), so there ma_global.h
+   defines it. ulong is left to ma_global.h everywhere, which defines it
+   unless glibc's headers did (__USE_MISC): Darwin and bionic have none in
+   the modes the library is built in */
 #  define SIZEOF_UINT 4
 #  define HAVE_UINT 1
 #  define SIZEOF_USHORT 2
-#  define HAVE_USHORT 1
+#  if !defined(__ANDROID__)
+#    define HAVE_USHORT 1
+#  endif
 #endif
 
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
