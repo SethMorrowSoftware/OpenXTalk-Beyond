@@ -76,8 +76,9 @@ constant kPanelDown = "#3A2E66"
 constant kEdge = "#7C6CF0"
 -- the dimmed sides of a window wider than the column: the card's colour
 -- (#3A2E3F) under the black of "Dim Left" and "Dim Right" at blendLevel
--- 45, as one colour, which "Clip Left" and "Clip Right" have
-constant kSide = "#1A151C"
+-- 45, as one colour (as the engine draws it: 26,20,28), which "Clip
+-- Left" and "Clip Right" have
+constant kSide = "#1A141C"
 
 on startup
    local tFile, tError

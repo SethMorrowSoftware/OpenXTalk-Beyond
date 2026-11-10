@@ -107,16 +107,20 @@ private command windowSize pWidth, pHeight
    game "nrResized"
 end windowSize
 
--- The colours the player sees in rect pRect of the game's card, each
--- once, a line each (red,green,blue)
-private function colours pRect
+-- The colours the player sees in a rect of the game's card (pRect, or
+-- its left pRect, top pTop, right pRight and bottom pBottom), each once,
+-- a line each (red,green,blue)
+private function colours pRect, pTop, pRight, pBottom
    local tImage, tData, tSeen, tOut, tColour, i
+   if pTop is not empty then
+      put pRect, pTop, pRight, pBottom into pRect
+   end if
    import snapshot from rectangle pRect of card "Space" of stack kStack
    put it into tImage
    put the imageData of tImage into tData
    delete tImage
    -- (4 bytes a pixel: the first unused, then red, green, blue)
-   repeat with i = 0 to the number of bytes of tData div 4 - 1
+   repeat with i = 0 to (the number of bytes of tData) div 4 - 1
       put byteToNum(byte i * 4 + 2 of tData) & comma & byteToNum(byte i * 4 + 3 of tData) & \
             comma & byteToNum(byte i * 4 + 4 of tData) into tColour
       if tSeen[tColour] is empty then
@@ -144,15 +148,17 @@ private function allAre pColours, pColour
    return true
 end allAre
 
--- The part of rect pRect left of the column (pSide "left", up to the
--- line of its edge, which is drawn on both sides of it) or right of it
+-- The part of rect pRect left of the column (pSide "left") or right of
+-- it, short of the line of the column's edge, which is drawn over the
+-- pixels either side of it (at the left edge x, from x - 1 to x + 1; at
+-- the right edge x, from x - 1 to x + 1 too, so from x + 2 on)
 private function outside pRect, pSide
    local tColumn
    put st("column") into tColumn
    if pSide is "left" then
       return item 1 of pRect, item 2 of pRect, item 1 of tColumn - 1, item 4 of pRect
    end if
-   return item 3 of tColumn + 1, item 2 of pRect, item 3 of pRect, item 4 of pRect
+   return item 3 of tColumn + 2, item 2 of pRect, item 3 of pRect, item 4 of pRect
 end outside
 
 ----------------------------------------------------------------------

@@ -2539,9 +2539,10 @@ command nrLayout
       set the rect of graphic "Dim Right" to tR, 0, tW, tH
       set the points of graphic "Edge Left" to tL & comma & 0 & return & tL & comma & tH
       set the points of graphic "Edge Right" to tR & comma & 0 & return & tR & comma & tH
-      -- the covers, up to the edges' lines, which stay in sight
+      -- the covers, up to the edges' lines, which stay in sight (each
+      -- line is drawn over the pixels from x - 1 to x + 1 of its x)
       set the rect of graphic "Clip Left" to 0, 0, max(0, tL - 1), tH
-      set the rect of graphic "Clip Right" to min(tW, tR + 1), 0, tW, tH
+      set the rect of graphic "Clip Right" to min(tW, tR + 2), 0, tW, tH
    end if
    repeat for each item tL in "Dim Left,Dim Right,Edge Left,Edge Right"
       set the visible of graphic tL to item 1 of sPlay > 0
