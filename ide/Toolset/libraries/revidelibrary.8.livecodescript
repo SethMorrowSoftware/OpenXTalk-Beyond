@@ -1394,12 +1394,29 @@ on revIDEFinaliseIDELibrary
    revIDEUnsubscribeAll
 end revIDEFinaliseIDELibrary
 
+-- OXT-Beyond: true for a font file of the IDE's fonts folder that the IDE
+-- does not load as it starts: Source Code Pro's weights other than its
+-- regular, italic, bold and bold italic (ExtraLight, Light, Medium,
+-- Semibold, Black and their italics). The engine asks for "plain" text at
+-- weight 500 (FA_DEFAULT_STYLE is MCFW_MEDIUM, FW_MEDIUM on Windows), and
+-- DirectWrite, given a loaded collection that has Source Code Pro Medium,
+-- drew the Script Editor's code in it in some runs and in Regular in
+-- others (the IDE tour's Windows pictures, light and dark, from rc.6.16 to
+-- 0.2.7). With only the four faces the code is always Regular and Bold,
+-- as on the Mac and Linux. The files stay in the folder: a stack can still
+-- `start using font file` one of them
+private function __ideFontLeftOut pFile
+   return pFile begins with "SourceCodePro-" and \
+         char 15 to -5 of pFile is not among the items of "Regular,It,Bold,BoldIt"
+end __ideFontLeftOut
+
 on revIDEInitialiseIDELibrary
    # Load fonts
    local tFonts
    put files(revIDESpecialFolderPath("fonts")) into tFonts
    filter lines of tFonts with "*.ttf"
    repeat for each line tFont in tFonts
+      if __ideFontLeftOut(tFont) then next repeat
       start using font file (revIDESpecialFolderPath("fonts") & slash & tFont)
    end repeat
    
