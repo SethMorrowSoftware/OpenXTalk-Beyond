@@ -270,6 +270,7 @@ private command androidUnits
    unitRelaunch tWork
    unitEdgeToEdge tWork
    unitEngine
+   unitFirstTargetEngine
    unitAppBundle tWork
    androidUnit "required-sdk", deployCall("deployRequiredSDK") is "Android 13 (API 33) or newer", \
          "deployRequiredSDK() is" && deployCall("deployRequiredSDK")
@@ -369,6 +370,58 @@ private command unitEngine
             "answered" && it & ", threw" && tError
    end repeat
 end unitEngine
+
+-- The engine a stack has once the Android card ticks its first
+-- architecture (androidEngineOnFirstTarget, from the settings before the
+-- tick): OXT-Beyond's own for a stack set up for Android now, the card's
+-- own settings of any stack that opens it notwithstanding, when the
+-- runtimes carry it; what it had for one set up before (an architecture
+-- saved, ticked or not, or the "android" setting, on or off) or that names
+-- an engine; and empty, LiveCode 9.6.3's, when the runtimes have none. As
+-- in unitEngine, a Beyond folder the unit makes it takes away again
+private command unitFirstTargetEngine
+   local tSettings, tRuntime, tBeyond, tMade, tArch, tAnswer, tEngine
+   put builderCall("revMobileRuntimeFolder", "build") into tRuntime
+   put tRuntime & "/Beyond" into tBeyond
+   put there is not a folder tBeyond into tMade
+   if tMade then
+      put builderCall("androidEngineOnFirstTarget", tSettings) into tAnswer
+      androidUnit "first-engine-no-beyond", tAnswer is empty, tAnswer
+      revSBEnsureFolder tBeyond
+   end if
+   put builderCall("androidEngineOnFirstTarget", tSettings) into tAnswer
+   androidUnit "first-engine-new", tAnswer is "beyond", tAnswer
+   put "Google" into tSettings["android,billingProvider"]
+   put "com.yourcompany.yourapp" into tSettings["android,identifier"]
+   put builderCall("androidEngineOnFirstTarget", tSettings) into tAnswer
+   androidUnit "first-engine-new-card-settings", tAnswer is "beyond", tAnswer
+   repeat for each item tArch in "armv7,arm64,x86,x86_64"
+      repeat for each item tEngine in "true,false"
+         delete variable tSettings
+         put tEngine into tSettings["Android," & tArch]
+         put builderCall("androidEngineOnFirstTarget", tSettings) into tAnswer
+         androidUnit "first-engine-had-" & tArch & "-" & tEngine, tAnswer is empty, tAnswer
+      end repeat
+   end repeat
+   repeat for each item tEngine in "true,false"
+      delete variable tSettings
+      put tEngine into tSettings["android"]
+      put builderCall("androidEngineOnFirstTarget", tSettings) into tAnswer
+      androidUnit "first-engine-android-" & tEngine, tAnswer is empty, tAnswer
+   end repeat
+   repeat for each item tEngine in "9.6.3,beyond"
+      delete variable tSettings
+      put tEngine into tSettings["android,engine"]
+      put builderCall("androidEngineOnFirstTarget", tSettings) into tAnswer
+      androidUnit "first-engine-names-" & tEngine, tAnswer is tEngine, tAnswer
+      put false into tSettings["Android,armv7"]
+      put builderCall("androidEngineOnFirstTarget", tSettings) into tAnswer
+      androidUnit "first-engine-had-armv7-names-" & tEngine, tAnswer is tEngine, tAnswer
+   end repeat
+   if tMade then
+      removeTree tBeyond
+   end if
+end unitFirstTargetEngine
 
 -- The engine runs once in a process: the configuration changes the app
 -- goes on through (LiveCode's four first, as before, and not the density,

@@ -343,11 +343,15 @@ ones the build stops and says so. A stack without the setting is laid
 out as before.
 
 OXT-Beyond's own Android engine, built from its source with a current
-NDK, is a preview beside the 9.6.3 engine that the runtimes have always
-carried, which stays the default. To build with it, tick **OXT-Beyond engine (preview)** on the
-Android card, under the device capabilities (it can be ticked once an
-architecture is), or set this on the stack before you build, which is
-what the box does:
+NDK, sits beside the 9.6.3 engine that the runtimes have always carried.
+A stack you set up for Android in OXT-Beyond 0.2.8 or later is built
+with it: when you tick its first architecture on the Android card, the
+**OXT-Beyond engine** box under the device capabilities is ticked too,
+if the runtimes carry that engine. A stack set up for Android before
+(one that has an architecture saved, ticked or not) keeps the engine it
+had, 9.6.3's unless you chose otherwise. To change the engine, tick or
+untick the box (it can be ticked once an architecture is), or set this
+on the stack before you build, which is what the box does:
 
     set the cRevStandaloneSettings["android,engine"] of stack "My App" to "beyond"
 

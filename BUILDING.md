@@ -3464,17 +3464,29 @@ pinned commit (`xtalk_web_libraries.py test-files`).
 Packages ship the Android engines of the runtimes asset, LiveCode
 Community 9.6.3's, built with NDK r15 and its standalone toolchains (GNU
 binutils, the bfd linker, Android 4.1 as the lowest). This tree also builds
-them itself with a current NDK (the Android plan's phase 2), as a preview
-beside the 9.6.3 engine, which stays the default: a package has it only
+them itself with a current NDK (the Android plan's phase 2), beside the
+9.6.3 engine, which stays the builder's default: a package has it only
 when its stack asks for it, with
 `set the cRevStandaloneSettings["android,engine"] of stack "<name>" to "beyond"`
-(the Android card's **OXT-Beyond engine (preview)** box, under the device
-capabilities: a copy of "Android x86_64" in the build targets' group,
-made by the `android-card-engine-*.txt` IDE stack patches, which the
-group's script stores, beyond when ticked and empty when not, and the
-card's behaviour shows; the UI tour clicks it, and checks that the group,
-grown over the card to hold it, takes no click from the controls under
-it). The builder (`androidRuntimeFolder`) then takes every file of the
+(the Android card's **OXT-Beyond engine** box, "OXT-Beyond engine
+(preview)" until 0.2.8, under the device capabilities: a copy of
+"Android x86_64" in the build targets' group, made by the
+`android-card-engine-*.txt` IDE stack patches, which the group's script
+stores, beyond when ticked and empty when not, and the card's behaviour
+shows; the UI tour clicks it, and checks that the group, grown over the
+card to hold it, takes no click from the controls under it). From 0.2.8
+the card asks for it for a stack set up for Android then: the first
+architecture such a stack ticks ticks the box too, and stores beyond,
+when the runtimes carry this engine (`updateAndroidArch` on the card asks
+the builder's `androidEngineOnFirstTarget`, with the settings as they
+were before the tick). Every other stack keeps what it has, so it is
+built as before: one with an architecture saved (ticked or not) or the
+`android` setting (on or off, as LiveCode saved it before it had
+architectures), one that names an engine, and any stack when the
+runtimes have no Beyond folder. The Android check's units
+(`unitFirstTargetEngine`) run the rule, and the UI tour ticks a first
+architecture for a new stack, one set up before and one that names
+9.6.3 (`tourAndroidFirstTargetEngine`). The builder (`androidRuntimeFolder`) then takes every file of the
 runtime's from `Runtime/Android/Beyond`, where runtimes that carry this
 engine keep it as a whole runtime of its own (the folder that
 `build-android.sh` writes, below), and not one from 9.6.3's: the engines

@@ -1809,6 +1809,41 @@ function androidRuntimeFolder pTarget, pSettings
    end switch
 end androidRuntimeFolder
 
+-- OXT-Beyond: the engine ("android,engine") a stack has once its first
+-- Android architecture is ticked on the Android card (updateAndroidArch in
+-- revstandalonesettingsandroidbehavior.livecodescript), from its standalone
+-- settings as they were before that tick. A stack set up for Android now,
+-- with runtimes that carry OXT-Beyond's own engine (Runtime/Android/Beyond),
+-- gets "beyond". Every other stack keeps what it has, so it is built as
+-- before: one set up for Android already (an architecture saved, ticked or
+-- not, or the "android" setting, on or off, which the card saves beside
+-- them and LiveCode saved alone before it had architectures), one that
+-- names an engine (9.6.3 included), and any stack when the runtimes have
+-- no such engine, since a build that asks for it stops
+-- (androidRuntimeFolder). Only these settings say a stack was set up for
+-- Android: the card saves others ("android,billingProvider") for any stack
+-- that opens it
+function androidEngineOnFirstTarget pSettings
+   local tArch, tRuntime, tError
+   if pSettings["android,engine"] is not empty or "android" is among the keys of pSettings then
+      return pSettings["android,engine"]
+   end if
+   repeat for each item tArch in revSBPlatformArchitectures("Android")
+      if ("Android," & tArch) is among the keys of pSettings then
+         return pSettings["android,engine"]
+      end if
+   end repeat
+   try
+      put revMobileRuntimeFolder("build") into tRuntime
+   catch tError
+      return empty
+   end try
+   if tRuntime is not empty and there is a folder (tRuntime & slash & "Beyond") then
+      return "beyond"
+   end if
+   return empty
+end androidEngineOnFirstTarget
+
 ################################################################################
 
 private command executeAdbCommand pCommand
