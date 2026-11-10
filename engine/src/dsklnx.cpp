@@ -40,6 +40,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 //#include "securemode.h"
 #include "mode.h"
 #include "player.h"
+#include "lnxgstplayer.h"
 #include "text.h"
 #include "variable.h"
 
@@ -543,9 +544,19 @@ static void handle_signal(int sig)
 // process has ended since the last call, each player whose mplayer has
 // ended stops (it gets playStopped, a disposable one is deleted), and the
 // processes of open process and shell are checked.
+//
+// A player whose movie GStreamer has played to its end (lnxgstplayer.cpp:
+// GLib's main loop, which the engine runs, hears of it) stops in the same
+// way, so a script sees the same messages whichever of the two played it.
 void MCS_handlechildexits(void)
 {
-    if (!s_child_exited)
+    bool t_child_exited = s_child_exited != 0;
+#if defined(_LINUX_DESKTOP)
+    bool t_movie_ended = MCGstPlayer::TakeAnyEnded();
+#else
+    bool t_movie_ended = false;
+#endif
+    if (!t_child_exited && !t_movie_ended)
         return;
     s_child_exited = 0;
 
@@ -555,7 +566,8 @@ void MCS_handlechildexits(void)
     {
         MCPlayerHandle t_next = t_player -> getnextplayer();
         pid_t t_pid = t_player -> getpid();
-        if (t_pid > 0 && waitpid(t_pid, NULL, WNOHANG) == t_pid)
+        if ((t_child_exited && t_pid > 0 && waitpid(t_pid, NULL, WNOHANG) == t_pid) ||
+            (t_movie_ended && t_player -> takeended()))
         {
             // (playstop deletes a disposable player)
             t_player -> shutdown();
@@ -568,7 +580,8 @@ void MCS_handlechildexits(void)
     }
 #endif /* LINUX_DESKTOP */
 
-    MCS_checkprocesses();
+    if (t_child_exited)
+        MCS_checkprocesses();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

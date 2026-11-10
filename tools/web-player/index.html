@@ -190,6 +190,8 @@ body.playing .desk{display:none}
 .drop:hover img,.drop:focus-visible img{transform:translateY(-4px) rotate(-4deg)}
 .drop .note{max-width:100%;padding:.4rem 1rem;border-radius:999px;background:var(--fire);color:var(--ink);font:700 1rem/1.35 var(--display);box-shadow:0 6px 18px rgba(255,122,0,.3)}
 .drop .exts{font:500 .72rem/1.4 var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.hc-option{display:flex;align-items:center;justify-content:center;gap:.5rem;margin:.2rem 0 .4rem;font-size:.9rem;color:var(--muted);text-align:center;cursor:pointer}
+.hc-option input{width:1.05rem;height:1.05rem;flex:none;accent-color:var(--ember)}
 
 /* ---------- Featured stacks: tiles with a fire rim that runs around them ---------- */
 .showcase{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.5rem;margin:1.1rem 0 0}
@@ -451,6 +453,7 @@ dialog.answer .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:
         <span class="note">Drop a stack, a folder or a .zip here, or click to choose</span>
         <span class="exts">.livecode · .oxtstack · .livecodescript · .rev · .zip · HyperCard stacks and disk images</span>
       </div>
+      <label class="hc-option" for="hc-classic"><input type="checkbox" id="hc-classic" checked> Show HyperCard stacks in the classic look: white cards and black-and-white buttons</label>
 
       <section id="library-section">
         <h2 class="sq">Your stacks <span class="tag" id="library-count" hidden></span></h2>
@@ -875,6 +878,7 @@ dialog.answer .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:
         $('about-version').textContent = detail ? 'OXT-Beyond web engine ' + detail : 'OXT-Beyond web engine';
         $('loading').classList.add('gone');
         setTimeout(function () { $('loading').hidden = true; }, 350);
+        call('hclook\n' + (classicLook() ? 'on' : 'off'));
         call('library');
         playWanted();
       } else if (name == 'opened') {
@@ -900,6 +904,20 @@ dialog.answer .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:
     },
     call: function (what) { return call(what); }
   };
+
+  // HyperCard stacks open in the classic look (the player's
+  // revHyperCardClassicLook) unless this is unticked, as File > Import
+  // Stack > Classic HyperCard Look on the desktop; the choice is kept in
+  // this browser
+  function classicLook() {
+    try { return localStorage.getItem('oxtHyperCardClassic') !== 'off'; } catch (e) { return true; }
+  }
+  $('hc-classic').checked = classicLook();
+  $('hc-classic').addEventListener('change', function () {
+    var on = this.checked;
+    try { localStorage.setItem('oxtHyperCardClassic', on ? 'on' : 'off'); } catch (e) {}
+    if (ready) call('hclook\n' + (on ? 'on' : 'off'));
+  });
 
   // ---------------------------------------------------------------- the library
   function sizeText(bytes) {

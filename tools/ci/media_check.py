@@ -21,6 +21,7 @@ standalone of an installed OXT-Beyond, with a user interface.
   python tools/ci/media_check.py (--install DIR | --package FILE)
       [--platform P] [--what widget,revbrowser,player] [--log FILE]
       [--snapshots DIR] [--timeout SECONDS]
+      [--player-backend auto|gstreamer|mplayer]
 
 The layout is one of run_livecode_check.py's (--install, or --package to
 extract first). Its own platform's standalone runtime (standalone_check.py
@@ -55,11 +56,15 @@ Each of the three runs in an engine of its own, as an application would
 use one of them, so that one cannot hide a failure of another (the
 browser widget and revBrowser load the same CEF).
 
-On Linux the engine runs under xvfb-run when there is no DISPLAY, and the
-player needs mplayer (/usr/bin/mplayer, as the engine runs it). On a
-machine without a sound card (no /dev/snd) mplayer is given MPLAYER_HOME
-with "ao=null", so that it plays in real time instead of skipping to the
-end of a file it cannot play the sound of.
+On Linux the engine runs under xvfb-run when there is no DISPLAY. Its
+player plays a movie through mplayer (/usr/bin/mplayer, as the engine runs
+it) or through GStreamer (engine/src/lnxgstplayer.cpp): --player-backend
+sets OXT_PLAYER_BACKEND for the engine, so that each of the two can be
+checked on a machine that has both ("auto", the default, leaves it unset:
+mplayer when it is installed, else GStreamer). On a machine without a
+sound card (no /dev/snd) mplayer is given MPLAYER_HOME with "ao=null", so
+that it plays in real time instead of skipping to the end of a file it
+cannot play the sound of; GStreamer plays without sound there by itself.
 
 Exit status 0 when every check passed, 1 otherwise. Under GitHub Actions
 failures are annotations and the results go into the job summary. Only
@@ -199,6 +204,9 @@ def main(argv=None):
     ap.add_argument('--log', metavar='FILE', help='write the results here too')
     ap.add_argument('--snapshots', metavar='DIR', help='write the snapshots of the Linux player\'s controller here')
     ap.add_argument('--timeout', type=int, default=240, help='seconds for the engine run (default: %(default)s)')
+    ap.add_argument('--player-backend', choices=('auto', 'gstreamer', 'mplayer'), default='auto',
+                    help='on Linux, what plays the movies: OXT_PLAYER_BACKEND for the engine (default: %(default)s, '
+                         'mplayer when it is installed, else GStreamer)')
     args = ap.parse_args(argv)
     if bool(args.install) == bool(args.package):
         ap.error('pass --install or --package')
@@ -246,7 +254,12 @@ def main(argv=None):
         cmd = [engine, SCRIPT]
         if p.family == 'linux':
             if 'player' in what:
-                if not os.path.exists(MPLAYER):
+                if args.player_backend == 'auto':
+                    env.pop('OXT_PLAYER_BACKEND', None)
+                else:
+                    env['OXT_PLAYER_BACKEND'] = args.player_backend
+                rlc.log('Player  : %s' % args.player_backend)
+                if args.player_backend == 'mplayer' and not os.path.exists(MPLAYER):
                     problems.append('the player needs %s, which is not installed' % MPLAYER)
                 if not os.path.exists('/dev/snd'):
                     home = os.path.join(work, 'mplayer')

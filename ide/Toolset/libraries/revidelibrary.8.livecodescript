@@ -8441,6 +8441,13 @@ Unless the preference cHyperCardClassicLook is false, the stack is then
 given HyperCard's look by <revHyperCardClassicLook>: white cards, black
 ink, and flat black-and-white buttons and fields.
 
+Unless File > Import Stack > Mac Font Look-alikes is turned off (the
+preference cHyperCardMacFonts set to false), the Mac fonts the stack
+names that this system does not have are then shown in look-alikes by
+<revHyperCardMacFonts>: Chicago in ChicagoFLF (public domain, shipped
+with the IDE and loaded only for imported stacks), and Geneva, New York,
+Monaco and Palatino in faces of their kind.
+
 Unless File > Import Stack > Make HyperTalk Scripts Compile is turned off
 (the preference cHyperCardFixScripts set to false), the stack's scripts
 that do not compile here are then rewritten by
@@ -8454,7 +8461,7 @@ The stack's uHyperCard["file"] (or, from a disk image, its
 uHyperCard["image"] and uHyperCard["imagepath"]) says where it came
 from, so that a "go" to another stack finds one beside it.
 
-References: revIDEActionImportHyperCardStack (command), revIDEOpenStack (command), revHyperCardFixScripts (function)
+References: revIDEActionImportHyperCardStack (command), revIDEOpenStack (command), revHyperCardFixScripts (function), revHyperCardMacFonts (command)
 
 Tags: ide
 */
@@ -8514,6 +8521,16 @@ on revIDEImportHyperCardStack pFilePath, pImage, pImagePath
    -- buttons, unless turned off
    if tError is empty and revIDEGetPreference("cHyperCardClassicLook") is not false then
       revHyperCardClassicLook tStack
+   end if
+   -- OXT-Beyond: the Mac fonts it names (Chicago, Geneva, New York,
+   -- Monaco, Palatino) shown in look-alikes this system has, unless
+   -- turned off; never an error the import stops for
+   if tError is empty and revIDEGetPreference("cHyperCardMacFonts") is not false then
+      try
+         revHyperCardUseMacFonts
+         revHyperCardMacFonts tStack
+      catch tMACEError
+      end try
    end if
    if tError is empty then put tStack into sHyperCardImported
    set the lockMessages to tWasLocked

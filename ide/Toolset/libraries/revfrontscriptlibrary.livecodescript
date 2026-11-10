@@ -281,6 +281,16 @@ on preOpenStack
       local tOpening
       put ideStackOfObject(tTarget) into tOpening
       send "revIDEKeepTitleBarOnScreen tOpening" to stack "revIDELibrary" in 0 milliseconds
+      -- OXT-Beyond: an imported HyperCard stack whose Chicago is shown in
+      -- ChicagoFLF (revHyperCardMacFonts) loads it before it draws; the
+      -- IDE loads it for no other stack
+      local tFontError
+      try
+         if "ChicagoFLF" is in the uHyperCard["fonts"] of tOpening then
+            revHyperCardUseMacFonts
+         end if
+      catch tFontError
+      end try
    end if
 
    if not gREVSuppressMessages or (gREVSuppressMessages and revOKTarget()) then pass preOpenStack

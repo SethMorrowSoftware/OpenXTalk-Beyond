@@ -122,7 +122,7 @@ and unicode font support)
 - lcms (optional - required for color profile support in JPEGs and
 PNGs)
 - gksu (optional - required for elevate process support)
-- mplayer (optional - required for video playback)
+- mplayer or GStreamer 1.x with its plugins (optional - required for video playback)
 - esd (optional - required for audio playback)
 
 Although impossible to test every existing Linux distribution, we are

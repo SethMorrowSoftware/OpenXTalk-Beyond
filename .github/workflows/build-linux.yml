@@ -1147,8 +1147,12 @@ jobs:
           # the clipboard check's clipboard manager; xsettingsd and the
           # DejaVu fonts: the HiDPI check's settings manager and its text;
           # gsettings-desktop-schemas (GNOME's color-scheme key): the
-          # desktop appearance check
+          # desktop appearance check; GStreamer's base, good and libav
+          # plugins and its X sinks: the player through GStreamer, for a
+          # machine without mplayer (tools/ci/gst_player_check.py and the
+          # player check with --player-backend gstreamer)
           pkgs=(desktop-file-utils shared-mime-info xz-utils mplayer xvfb xauth
+                gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav gstreamer1.0-x
                 xfwm4 openbox mutter xdotool x11-utils imagemagick
                 gnome-themes-extra gtk2-engines-pixbuf python3-xlib
                 mate-themes ubuntu-mate-themes yaru-theme-gtk gtk2-engines-murrine
@@ -1399,8 +1403,21 @@ jobs:
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         timeout-minutes: 10
         run: |
-          python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
+          python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --player-backend mplayer \
             --log "$RUNNER_TEMP/logs/media-check.log" --snapshots "$RUNNER_TEMP/logs/media-snapshots"
+
+      # The player through GStreamer, which plays a movie where mplayer is
+      # not installed (engine/src/lnxgstplayer.cpp): first on its own, built
+      # with the sanitizers and drawing into an X window, then in a
+      # standalone of the package, with the same files, messages and
+      # controller clicks as the mplayer check above
+      - name: Player check (GStreamer)
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 10
+        run: |
+          python3 tools/ci/gst_player_check.py --x11 --sanitize --log "$RUNNER_TEMP/logs/gst-player-check.log"
+          python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --what player --player-backend gstreamer \
+            --log "$RUNNER_TEMP/logs/media-check-gstreamer.log" --snapshots "$RUNNER_TEMP/logs/media-snapshots-gstreamer"
 
       # Text a standalone puts on the clipboard is still there after it
       # quits, when a clipboard manager runs (this script's own, which does

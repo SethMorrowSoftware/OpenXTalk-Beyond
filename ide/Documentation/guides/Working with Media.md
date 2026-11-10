@@ -369,7 +369,8 @@ on Windows is available in the MSDN documentation
 
 On Mac OS X systems, the player object uses the AV Foundation framework.
 
-On Linux Systems, the player object can play back video using *mplayer*.
+On Linux Systems, the player object can play back video using *mplayer*,
+or using *GStreamer* when mplayer is not installed.
 There are some functionality limitations: the **alwaysBuffer**,
 **startTime**, **endTime**, **showController** and **playSelection**
 properties have no effect, and **play step forward**/**play step back**
