@@ -184,6 +184,10 @@ class Steps(unittest.TestCase):
         self.assertIn('240,240,240', lines[0])
         self.assertIn('on the screen Option was not read', lines[1])
         self.assertTrue(all(x.startswith('INFO ') for x in lines))
+        # with another window over the stack's, what was read is that window: not reported as the controls
+        self.assertEqual(dsc.screen_lines(log, 'a run', 'quiet-dark', 'dark', 'ConsoleWindowClass'),
+                         ['INFO a run, quiet-dark: the screen was not read: a window of the class '
+                          'ConsoleWindowClass is over the stack\'s there'])
 
     def test_a_line_that_is_not_a_measurement_is_not_read_as_one(self):
         self.assertEqual(dsc.measurements(['MEASURE x Push face=1,2 ink=3,4,5 size=1x1', 'MEASURED x'], 'x'), {})
@@ -216,6 +220,19 @@ class ThePlan(unittest.TestCase):
             labels = ['start'] + [label for label, _, _ in run_steps]
             self.assertEqual(len(labels), len(set(labels)))
             self.assertNotIn('quit', labels)
+
+    def test_the_window_is_shown_and_the_screen_is_read_where_it_is(self):
+        # (the first runs read the runner's console at every step: the stack
+        # is made invisible, and going to it does not show it)
+        with open(os.path.join(ROOT, 'tools', 'ci', 'dark-switch-check.livecodescript'), encoding='utf-8') as f:
+            script = f.read()
+        make = script[script.index('private command makeStack'):script.index('end makeStack')]
+        self.assertIn('create invisible stack kStack', make)
+        self.assertLess(make.index('go stack kStack'), make.index('show stack kStack'))
+        # counted from the window itself, wherever it is
+        self.assertIn('import snapshot from rect (the rect of button pName of stack kStack) '
+                      'of window (the windowID of stack kStack)', script)
+        self.assertNotIn('globalLoc', script)
 
     def test_the_script_measures_the_controls_the_check_reads(self):
         with open(os.path.join(ROOT, 'tools', 'ci', 'dark-switch-check.livecodescript'), encoding='utf-8') as f:
@@ -325,6 +342,9 @@ class FakeWindows:
     def forward(self, hwnd):
         self.forwarded.append(hwnd)
         return True
+
+    def covering(self, hwnd):
+        return None
 
     def dark_title_bar(self, hwnd):
         try:

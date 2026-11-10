@@ -125,11 +125,11 @@ private function measureControl pName
    return readLastImage()
 end measureControl
 
--- The same from the screen, where the control is in its window
+-- The same from the screen, where the control is in its window (the rect
+-- is counted from the window's own top left, so nothing depends on where
+-- the window is or on which stack is the defaultStack)
 private function measureScreen pName
-   local tRect
-   put globalLoc(the topLeft of button pName of stack kStack) & comma & globalLoc(the bottomRight of button pName of stack kStack) into tRect
-   import snapshot from rect tRect
+   import snapshot from rect (the rect of button pName of stack kStack) of window (the windowID of stack kStack)
    return readLastImage()
 end measureScreen
 
@@ -166,7 +166,11 @@ private command makeStack
       set the traversalOn of button tName to false
    end repeat
 
+   -- (made invisible, so that it is first seen whole: a stack made that way
+   -- stays hidden when it is opened, and a window that is not shown is not
+   -- on the screen to be read)
    go stack kStack
+   show stack kStack
 end makeStack
 
 on startup

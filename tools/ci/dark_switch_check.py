@@ -62,9 +62,11 @@ are the notice's doing alone):
   6. the stack was already sent systemAppearanceChanged.
 
 The same reading of each control taken from the screen, after the control
-was drawn again, is reported beside them and not checked (the window is
-put above every other, the runner's console too, so that it is the one
-read).
+was drawn again, is reported beside them and not checked yet (in the first
+runs the stack's window was not shown at all, and what was read was the
+runner's console). The window is put above every other first, the
+runner's console too; when the screen still shows another window where
+the stack's is, the results say that instead of what was read.
 
 Up to OXT-Beyond 0.2.7 the dark appearance filled a button and an option
 menu with a background colour the engine kept from its start, under words
@@ -220,10 +222,15 @@ def check_title_bar(name, what, appearance, dark, check, lines):
               'DWM says it is %s' % ('dark' if dark else 'light'))
 
 
-def screen_lines(log, run, label, appearance):
+def screen_lines(log, run, label, appearance, covered=None):
     """What the screen showed at a step, as lines for the results. They are
     reported, not checked: a reading of the screen also sees whatever else
-    is on it, and the snapshots above are drawn by the same code."""
+    is on it, and the snapshots above are drawn by the same code. covered:
+    the class of another window that is over the stack's on the screen
+    (then the readings are of that window, and one line says so)."""
+    if covered:
+        return ['INFO %s, %s: the screen was not read: a window of the class %s is over the stack\'s there'
+                % (run, label, covered)]
     found = measurements(log, label, 'SCREEN')
     out = []
     for control in CONTROLS:
@@ -267,6 +274,12 @@ class Windows:
         self.user32.IsWindowUnicode.argtypes = [wintypes.HWND]
         self.user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int,
                                              ctypes.c_int, ctypes.c_int, wintypes.UINT]
+        self.user32.GetClientRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+        self.user32.ClientToScreen.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.POINT)]
+        self.user32.WindowFromPoint.argtypes = [wintypes.POINT]
+        self.user32.WindowFromPoint.restype = wintypes.HWND
+        self.user32.GetAncestor.argtypes = [wintypes.HWND, wintypes.UINT]
+        self.user32.GetAncestor.restype = wintypes.HWND
         self.key = winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, PERSONALIZE, 0,
                                       winreg.KEY_READ | winreg.KEY_SET_VALUE)
         try:
@@ -327,6 +340,24 @@ class Windows:
         where the window is must read the window."""
         return bool(self.user32.SetWindowPos(hwnd, self.wt.HWND(self.HWND_TOPMOST), 0, 0, 0, 0,
                                              self.SWP_NOSIZE | self.SWP_NOMOVE | self.SWP_NOACTIVATE))
+
+    def covering(self, hwnd):
+        """The class of the window that the screen shows at the middle of a
+        window's inside, when it is another window; None when it is that
+        window itself (or its place cannot be told)."""
+        rect, point = self.wt.RECT(), self.wt.POINT()
+        if not self.user32.GetClientRect(hwnd, self.ct.byref(rect)):
+            return None
+        point.x, point.y = (rect.left + rect.right) // 2, (rect.top + rect.bottom) // 2
+        if not self.user32.ClientToScreen(hwnd, self.ct.byref(point)):
+            return None
+        there = self.user32.WindowFromPoint(point)
+        root = self.user32.GetAncestor(there, 2) if there else None  # (GA_ROOT)
+        if not root or root == hwnd:
+            return None
+        name = self.ct.create_unicode_buffer(128)
+        self.user32.GetClassNameW(root, name, 128)
+        return name.value or 'with no name'
 
     def dark_title_bar(self, hwnd):
         """What DWM says of a window's dark title bar, where it tells
@@ -409,7 +440,7 @@ def run_engine(w, engine, work, run, start, steps, timeout, lines, problems, che
                 stopped = True
                 break
             check_step(log, run, label, appearance, switched, check, bool(told))
-            lines += screen_lines(log, run, label, appearance)
+            lines += screen_lines(log, run, label, appearance, w.covering(hwnd) if hwnd is not None else None)
             if hwnd is not None:
                 check_title_bar(name, 'the title bar is %s' % appearance, appearance, w.dark_title_bar(hwnd),
                                 check, lines)
