@@ -1704,7 +1704,22 @@ def verify_apk(name, apk, spec, tools, warnings, target=TARGET_SDK):
 # pictures (drawable-nodpi)
 ADAPTIVE_ICON = 'res/drawable-anydpi-v26/icon.xml'
 ADAPTIVE_LAYERS = ('background', 'foreground', 'monochrome')
-ADAPTIVE_PICTURES = ('res/drawable-nodpi/icon_foreground.png', 'res/drawable-nodpi/icon_monochrome.png')
+ADAPTIVE_PICTURES = ('icon_foreground.png', 'icon_monochrome.png')
+# The folder of the adaptive icon's pictures in the package: the builder
+# writes them into res/drawable-nodpi, which aapt packages as
+# res/drawable-nodpi-v4 (it gives a density qualifier the version that
+# brought density qualifiers, API 4)
+ADAPTIVE_PICTURE_FOLDER = r'res/drawable-nodpi(?:-v\d+)?/'
+
+
+def adaptive_picture(files, picture):
+    """The package's file of an adaptive icon's picture (ADAPTIVE_PICTURES),
+    in res/drawable-nodpi or that folder with a version
+    (ADAPTIVE_PICTURE_FOLDER), or None."""
+    for f in sorted(files):
+        if re.fullmatch(ADAPTIVE_PICTURE_FOLDER + re.escape(picture), f):
+            return f
+    return None
 
 
 def resource_configs(dump, name):
@@ -1732,8 +1747,9 @@ def adaptive_icon_problems(name, files, manifest, icon_tree, configs):
     if ADAPTIVE_ICON not in files:
         return ['%s has no adaptive icon (%s)' % (name, ADAPTIVE_ICON)], []
     for picture in ADAPTIVE_PICTURES:
-        if picture not in files:
-            problems.append('%s: its adaptive icon has no %s' % (name, picture))
+        if not adaptive_picture(files, picture):
+            problems.append('%s: its adaptive icon has no %s in res/drawable-nodpi (or res/drawable-nodpi-v4, as '
+                            'aapt packages that folder)' % (name, picture))
     if 'res/drawable/icon.png' not in files:
         problems.append('%s has no icon for Android before 8.0 (res/drawable/icon.png)' % name)
     if not re.search(r'E: adaptive-icon\b', icon_tree):

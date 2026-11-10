@@ -1665,7 +1665,8 @@ the manifest names is `drawable/icon` in both the default configuration
 (a picture, for Android before 8.0) and `anydpi-v26`, which is
 `res/drawable-anydpi-v26/icon.xml`, an `adaptive-icon` whose background,
 foreground and monochrome layers each name a resource, and its pictures
-are in `res/drawable-nodpi`.
+are in `res/drawable-nodpi-v4` (the builder's `res/drawable-nodpi`, which
+aapt packages under that name).
 `device` installs a package with adb (an App Bundle as Google Play
 installs it: `bundletool build-apks --connected-device`, signed with a
 key made for it, then `install-apks`, and the app must be installed as

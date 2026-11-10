@@ -466,7 +466,7 @@ end unitEdgeToEdge
 -- read in the three forms it takes; a themed icon only with a foreground;
 -- the resources it writes
 private command unitAdaptiveIcon pWork
-   local tFolder, tSettings, tAnswer, tError, tPNG, tRes, tWanted, tColour
+   local tFolder, tSettings, tAnswer, tError, tPNG, tRes, tWanted, tColour, tWritten
    put pWork & "/adaptive-icon" into tFolder
    removeTree tFolder
    revSBEnsureFolder tFolder
@@ -538,6 +538,7 @@ private command unitAdaptiveIcon pWork
    put tFolder & "/res" into tRes
    revSBEnsureFolder tRes
    dispatch "androidAddAdaptiveIcon" to stack "revSaveAsAndroidStandalone" with tAnswer, tRes
+   put the result into tWritten
    put "<?xml version=" & quote & "1.0" & quote && "encoding=" & quote & "utf-8" & quote & "?>" & lf & \
          "<adaptive-icon xmlns:android=" & quote & "http://schemas.android.com/apk/res/android" & quote & ">" & lf & \
          "    <background android:drawable=" & quote & "@color/oxt_icon_background" & quote & "/>" & lf & \
@@ -551,6 +552,13 @@ private command unitAdaptiveIcon pWork
          textDecode(url ("binfile:" & tRes & "/values/oxt_icon_background.xml"), "UTF-8") contains \
          "<color name=" & quote & "oxt_icon_background" & quote & ">#FF1F9E5A</color>", \
          "wrote" && files(tRes & "/drawable-nodpi")
+   -- and it names what it wrote, which the build deletes with its other
+   -- files
+   androidUnit "icon-written", tWritten is \
+         tRes & "/drawable-nodpi/icon_foreground.png" & return & \
+         tRes & "/drawable-nodpi/icon_monochrome.png" & return & \
+         tRes & "/drawable-anydpi-v26/icon.xml" & return & \
+         tRes & "/values/oxt_icon_background.xml" & return, tWritten
    -- no monochrome image: no monochrome layer
    delete variable tAnswer["monochrome"]
    androidUnit "icon-no-monochrome", not (builderCall("androidAdaptiveIconXML", tAnswer) contains "monochrome"), \

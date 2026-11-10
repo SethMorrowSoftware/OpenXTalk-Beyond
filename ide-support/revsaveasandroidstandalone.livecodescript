@@ -931,6 +931,8 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
       end if
       if tAdaptiveIcon is an array then
          androidAddAdaptiveIcon tAdaptiveIcon, tResBuildFolder
+         -- the files it wrote, which go with the build folder (below)
+         put the result after tAssetFiles
       end if
       
       if there is a file tStatusBarIcon then
@@ -1378,6 +1380,13 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
    set the itemDelimiter to comma
    repeat for each line tFIle in tAssetFiles
       if there is a file tFile then delete file tFile
+   end repeat
+   -- OXT-Beyond: the adaptive icon's folders (androidAddAdaptiveIcon), once
+   -- their files have gone
+   repeat for each item tFolder in "drawable-nodpi,drawable-anydpi-v26,values"
+      if tResBuildFolder is not empty and there is a folder (tResBuildFolder & slash & tFolder) then
+         delete folder (tResBuildFolder & slash & tFolder)
+      end if
    end repeat
    if there is a folder tLayoutResBuildFolder then delete folder tLayoutResBuildFolder
    if there is a folder tDrawableResBuildFolder then delete folder tDrawableResBuildFolder
@@ -2180,9 +2189,10 @@ function androidAdaptiveIconColourXML pIcon
 end androidAdaptiveIconColourXML
 
 -- Writes the adaptive icon's resources (androidAdaptiveIcon's array) into
--- the package's res folder
+-- the package's res folder. Returns the files it wrote, one a line (each
+-- line ending in a return), for the build to delete with its other files
 command androidAddAdaptiveIcon pIcon, pResFolder
-   local tFolder, tKey
+   local tFolder, tKey, tFile, tWritten
    repeat for each item tFolder in "drawable-nodpi,drawable-anydpi-v26,values"
       if there is no folder (pResFolder & slash & tFolder) then
          create folder (pResFolder & slash & tFolder)
@@ -2195,19 +2205,26 @@ command androidAddAdaptiveIcon pIcon, pResFolder
       if pIcon[tKey] is empty then
          next repeat
       end if
-      put url ("binfile:" & pIcon[tKey]) into url ("binfile:" & pResFolder & "/drawable-nodpi/icon_" & tKey & ".png")
+      put pResFolder & "/drawable-nodpi/icon_" & tKey & ".png" into tFile
+      put url ("binfile:" & pIcon[tKey]) into url ("binfile:" & tFile)
       if the result is not empty then
          throw "could not copy the adaptive icon's" && tKey && "image '" & pIcon[tKey] & "'"
       end if
+      put tFile & return after tWritten
    end repeat
-   put textEncode(androidAdaptiveIconXML(pIcon), "UTF-8") into url ("binfile:" & pResFolder & "/drawable-anydpi-v26/icon.xml")
+   put pResFolder & "/drawable-anydpi-v26/icon.xml" into tFile
+   put textEncode(androidAdaptiveIconXML(pIcon), "UTF-8") into url ("binfile:" & tFile)
    if the result is not empty then
       throw "could not write the adaptive icon:" && the result
    end if
-   put textEncode(androidAdaptiveIconColourXML(pIcon), "UTF-8") into url ("binfile:" & pResFolder & "/values/oxt_icon_background.xml")
+   put tFile & return after tWritten
+   put pResFolder & "/values/oxt_icon_background.xml" into tFile
+   put textEncode(androidAdaptiveIconColourXML(pIcon), "UTF-8") into url ("binfile:" & tFile)
    if the result is not empty then
       throw "could not write the adaptive icon's background colour:" && the result
    end if
+   put tFile & return after tWritten
+   return tWritten
 end androidAddAdaptiveIcon
 
 -- OXT-Beyond: a stack whose "android,edge to edge" standalone setting is

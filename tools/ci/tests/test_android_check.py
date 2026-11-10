@@ -5663,8 +5663,10 @@ class AdaptiveIconCheck(unittest.TestCase):
         '      A: android:label(0x01010001)="Android Probe" (Raw: "Android Probe")\n'
         '      A: android:icon(0x01010002)=@0x7f020000\n'
         '      E: activity (line=10)\n')
+    # as aapt packages them: the builder's res/drawable-nodpi is
+    # res/drawable-nodpi-v4 in the package
     FILES = {'AndroidManifest.xml', 'res/drawable/icon.png', 'res/drawable-anydpi-v26/icon.xml',
-             'res/drawable-nodpi/icon_foreground.png', 'res/drawable-nodpi/icon_monochrome.png'}
+             'res/drawable-nodpi-v4/icon_foreground.png', 'res/drawable-nodpi-v4/icon_monochrome.png'}
 
     def test_resource_configs(self):
         self.assertEqual(ac.resource_configs(self.DUMP, 'drawable/icon'), ['default', 'anydpi-v26'])
@@ -5680,7 +5682,7 @@ class AdaptiveIconCheck(unittest.TestCase):
     def test_what_is_wrong(self):
         self.assertIn('has no adaptive icon', ac.adaptive_icon_problems(
             'debug', self.FILES - {'res/drawable-anydpi-v26/icon.xml'}, self.MANIFEST, '', [])[0][0])
-        problems, _ = ac.adaptive_icon_problems('debug', self.FILES - {'res/drawable-nodpi/icon_monochrome.png',
+        problems, _ = ac.adaptive_icon_problems('debug', self.FILES - {'res/drawable-nodpi-v4/icon_monochrome.png',
                                                                        'res/drawable/icon.png'},
                                                 self.MANIFEST, self.ICON.replace('E: monochrome', 'E: other'),
                                                 ['anydpi-v26'])
@@ -5695,6 +5697,22 @@ class AdaptiveIconCheck(unittest.TestCase):
         text = '\n'.join(problems)
         self.assertIn('names no icon', text)
         self.assertIn('is not an adaptive icon', text)
+
+    def test_the_pictures_folder(self):
+        # the folder as aapt packages it, or as the builder writes it; a
+        # picture of that name in another folder is not the adaptive icon's
+        self.assertEqual(ac.adaptive_picture(self.FILES, 'icon_foreground.png'),
+                         'res/drawable-nodpi-v4/icon_foreground.png')
+        self.assertEqual(ac.adaptive_picture({'res/drawable-nodpi/icon_foreground.png'}, 'icon_foreground.png'),
+                         'res/drawable-nodpi/icon_foreground.png')
+        for other in ('res/drawable-hdpi-v4/icon_foreground.png', 'res/drawable/icon_foreground.png',
+                      'res/drawable-nodpi-v4/x/icon_foreground.png', 'assets/res/drawable-nodpi-v4/icon_foreground.png',
+                      'res/drawable-nodpi-v4/my_icon_foreground.png'):
+            self.assertIsNone(ac.adaptive_picture({other}, 'icon_foreground.png'), other)
+        moved = {f.replace('drawable-nodpi-v4', 'drawable-hdpi-v4') for f in self.FILES}
+        problems, _ = ac.adaptive_icon_problems('debug', moved, self.MANIFEST, self.ICON, ['default', 'anydpi-v26'])
+        self.assertEqual(len(problems), 2, problems)
+        self.assertIn('no icon_foreground.png in res/drawable-nodpi', problems[0])
 
     def test_a_layer_without_its_drawable(self):
         # the next element's drawable is not taken for it

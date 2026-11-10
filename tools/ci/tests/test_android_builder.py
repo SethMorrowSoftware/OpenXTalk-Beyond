@@ -1470,11 +1470,29 @@ class AdaptiveIcon(unittest.TestCase):
                                     r'tAdaptiveIcon\["foreground"\]\) into url \("binfile:" & '
                                     r'tDrawableResBuildFolder & slash & "icon.png"\)')
         self.assertRegex(self.main, r'if tAdaptiveIcon is an array then\s+'
-                                    r'androidAddAdaptiveIcon tAdaptiveIcon, tResBuildFolder\s+end if')
+                                    r'androidAddAdaptiveIcon tAdaptiveIcon, tResBuildFolder\s+'
+                                    r'put the result after tAssetFiles\s+end if')
         add = handler(self.src, 'androidAddAdaptiveIcon')
         for path in ('"/drawable-nodpi/icon_" & tKey & ".png"', '"/drawable-anydpi-v26/icon.xml"',
                      '"/values/oxt_icon_background.xml"'):
             self.assertIn(path, add)
+        # each file it writes is named in what it returns
+        self.assertEqual(add.count('put tFile & return after tWritten'), 3)
+        self.assertEqual(add.count('into url ("binfile:" & tFile)'), 3)
+        self.assertRegex(add, r'return tWritten\s+end androidAddAdaptiveIcon\s*$')
+
+    def test_the_build_folder_is_cleared(self):
+        # the files go with the build's other files, then their folders,
+        # before the res folder they are in
+        clear = self.main.index('repeat for each item tFolder in "drawable-nodpi,drawable-anydpi-v26,values"')
+        self.assertLess(self.main.index('if there is a file tFile then delete file tFile'), clear)
+        self.assertLess(clear, self.main.index('if there is a folder tResBuildFolder then delete folder tResBuildFolder'))
+        self.assertIn('delete folder (tResBuildFolder & slash & tFolder)', self.main[clear:])
+        # the unit checks what it names
+        check = read(('tools', 'ci', 'android-check.livecodescript'))
+        unit = handler(check, 'unitAdaptiveIcon')
+        self.assertIn('put the result into tWritten', unit)
+        self.assertIn('androidUnit "icon-written", tWritten is', unit)
         xml = handler(self.src, 'androidAdaptiveIconXML')
         for layer in ('background android:drawable=" & quote & "@color/oxt_icon_background"',
                       'foreground android:drawable=" & quote & "@drawable/icon_foreground"',
