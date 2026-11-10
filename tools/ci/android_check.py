@@ -118,6 +118,14 @@ running, crashed or was started more than once, it prints the logs'
 account of its processes, what Android did to it that the carried runtime
 does not survive (paused for sleep, a changed ApplicationInfo, a relaunch),
 how each process ended (dumpsys activity exit-info) and the memory left.
+When that says Android's low memory killer ended one of the probe's
+processes (exit-info LOW_MEMORY), none of them crashed by exit-info's
+account, and each of its problems is one such a kill explains (it never
+turned green, it is not running, and before its green it never asked
+for --allow's permission or never exported --picture's picture: no
+crash in its log, no fail colour, nothing from the checks of its green
+screen), the whole run is made once more, after LOW_MEMORY_PAUSE s, and
+that run decides (low_memory_kills).
 
 boot waits until an emulator has booted (adb sees it and
 sys.boot_completed is 1), saying where it is every minute. It gives up
@@ -2598,11 +2606,80 @@ def opens_again_after_quit(args, adb, a, pid, names):
     return problems
 
 
+# exit-info's reason for a process the low memory killer ended
+LOW_MEMORY = 3
+# exit-info's reasons for a process that failed of itself
+# (ApplicationExitInfo.REASON_CRASH, REASON_CRASH_NATIVE, REASON_ANR and
+# REASON_INITIALIZATION_FAILURE): one of them for any of a run's
+# processes is the run's failure, whatever the log kept of it
+FAILED_EXITS = {4: 'CRASH', 5: 'CRASH_NATIVE', 6: 'ANR', 7: 'INITIALIZATION_FAILURE'}
+# How long device waits before it makes the run once more after such a
+# kill, for the device's memory to settle
+LOW_MEMORY_PAUSE = 30
+
+
+def low_memory_kills(exits, pids):
+    """The processes of pids that dumpsys activity exit-info says the low
+    memory killer ended (reason=3 (LOW_MEMORY)), each of its
+    ApplicationExitInfo blocks giving the pid on one line and the reason on
+    another. exit-info keeps the package's earlier processes too (another
+    run's on the same emulator), and only pids, this run's, count. None
+    when another of them crashed, did not answer or did not start
+    (FAILED_EXITS): the low memory killer is then not the run's story, even
+    where the log has lost that process's crash."""
+    killed = set()
+    for block in re.split(r'ApplicationExitInfo #\d+:', exits)[1:]:
+        pid = re.search(r'\bpid=(\d+)', block)
+        reason = re.search(r'\breason=(\d+)', block)
+        if not (pid and reason and pid.group(1) in pids):
+            continue
+        if int(reason.group(1)) in FAILED_EXITS:
+            return []
+        if int(reason.group(1)) == LOW_MEMORY:
+            killed.add(pid.group(1))
+    return sorted(killed)
+
+
 def device(args):
+    """The run of device_once, made once more when its probe was ended by
+    the low memory killer and nothing else says it failed. The Java layer's
+    probe on the 16 KB image at API 36 was killed so behind its
+    notification permission dialog (oom_score_adj 101, "min watermark is
+    breached even after kill", 1.7 GB available a second later) in runs
+    42312203693 and 42324548829, and again in 42714271161 after
+    quiet_after_install found the device idle at once: the emulator's
+    memory, not the engine, whose fault would be a crash (a linker refusal
+    or a native signal, exit-info CRASH or CRASH_NATIVE). A second kill,
+    or any other problem in the second run, fails as before."""
+    problems, killed = device_once(args)
+    if problems and killed:
+        log('NOTE: Android\'s low memory killer ended the probe (process %s, exit-info LOW_MEMORY), and its '
+            'log has no crash: the run once more, after %d s' % (', '.join(killed), LOW_MEMORY_PAUSE))
+        for x in problems:
+            log('  the first run\'s problem: %s' % x)
+        log()
+        time.sleep(LOW_MEMORY_PAUSE)
+        problems, _ = device_once(args)
+    return problems
+
+
+def device_once(args):
+    """(the problems, the processes of the probe that the low memory killer
+    ended where nothing else says it failed: each problem one that such a
+    kill explains, unfinished's)"""
     adb = adb_path(args.sdk)
     if not adb:
         raise CheckError('no adb')
     problems = []
+    killed = []
+    # the problems a probe that the low memory killer ended before it was
+    # done would have, and only those: it never turned green, it is not
+    # running, and before its green it never asked for a permission or
+    # never exported its picture (the Java probe does both first). Any
+    # other problem (a crash, the fail colour, a failed check of its green
+    # screen, a picture missing once it was green) is the probe's own, and
+    # no second run hides it
+    unfinished = []
 
     def a(*cmd, timeout=180):
         return run([adb, '-s', args.serial] + list(cmd), timeout=timeout)
@@ -2622,11 +2699,12 @@ def device(args):
     if args.apk.endswith('.aab'):
         refused = install_bundle(args, adb, a)
         if refused:
-            return refused
+            return refused, []
     else:
         status, out = a('install', '-r', args.apk, timeout=600)
         if 'Success' not in out:
-            return ['%s does not install on %s: %s' % (os.path.basename(args.apk), args.serial, out.strip()[-800:])]
+            return ['%s does not install on %s: %s' % (os.path.basename(args.apk), args.serial,
+                                                       out.strip()[-800:])], []
         log('Installed %s' % os.path.basename(args.apk))
     quiet_after_install(a)
     a('logcat', '-c')
@@ -2723,6 +2801,7 @@ def device(args):
         problems.append('the screen never turned the probe\'s green (%.0f%% green, %.0f%% red: %s)' % (
             share * 100, saved * 100, 'the stack showed and its script did not run' if saved >= 0.25 else
             'the stack never showed'))
+        unfinished.append(problems[-1])
     green = failed < 0.25 and share >= 0.25
     if args.within_bars and green:
         # the stack inside the system bars: the screen's first and last
@@ -2805,6 +2884,7 @@ def device(args):
                 break
     if not pid.strip():
         problems.append('the app is not running')
+        unfinished.append(problems[-1])
     if args.allow:
         _, package = a('shell', 'dumpsys', 'package', IDENTIFIER)
         granted = permission_granted(package, args.allow)
@@ -2812,6 +2892,8 @@ def device(args):
                                      False: 'not granted'}[granted]))
         if not asked:
             problems.append('the probe never asked the user to allow %s' % args.allow)
+            if not green:
+                unfinished.append(problems[-1])
         elif not allowed:
             problems.append('Android asked the user to allow %s, and its dialog had no Allow button to tap'
                             % args.allow)
@@ -2837,6 +2919,8 @@ def device(args):
                                'MediaStore listed no picture: %s' % (query.strip()[-300:] or 'no answer'),
                                '; %s%s there has no owner' % (PICTURES, unowned['_display_name'])
                                if unowned else ''))
+            if not green:
+                unfinished.append(problems[-1])
     if crash:
         problems.append('the device\'s log: %s' % ' | '.join(crash[:8]))
     if problems or len(pids) > 1:
@@ -2853,6 +2937,8 @@ def device(args):
             for line in lines:
                 log('  ' + line)
         _, exits = a('shell', 'dumpsys', 'activity', 'exit-info', IDENTIFIER)
+        if all(x in unfinished for x in problems):
+            killed = low_memory_kills(exits, pids)
         exits = [x.rstrip() for x in exits.splitlines() if x.strip()]
         log('how its processes ended (dumpsys activity exit-info):%s' % ('' if exits else ' none'))
         for line in exits[:60]:
@@ -2875,7 +2961,7 @@ def device(args):
             if rgba:
                 log("the screen's commonest colours: %s" % ', '.join(
                     '#%02x%02x%02x %.0f%%' % (c + (part * 100,)) for c, part in screen_colours(rgba)))
-    return problems
+    return problems, killed
 
 
 # ---------------------------------------------------------------------------
