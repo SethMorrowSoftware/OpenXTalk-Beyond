@@ -15,7 +15,7 @@ lcs: core/interface/hypercard-import: TestHyperCardImportStack
 lcs: core/interface/image-undo: TestRotateImageGetDataWorks
 lcs: core/interface/image-undo: TestRotateImageWorks
 lcs: core/network/network: TestNetworkDNSServers
-lcs: core/network/network: TestPeerAddress
+? lcs: core/network/network: TestPeerAddress  # depends on the network: it skips unless www.livecode.com answers within 100 ms
 lcs: core/security/encrypt: TestRSA
 lcs: core/security/encrypt: TestRSAPass
 lcs: core/strings/filter: TestBug15443

@@ -187,6 +187,7 @@ lcs: core/multimedia/audioclipexport: TestExportAudioClipWaveIsTheFileImported
 lcs: core/multimedia/audioclipexport: TestExportOlderFormsCompileAsBefore
 lcs: core/multimedia/audioclipexport: TestExportVideoClip
 lcs: core/network/network: TestNetworkDNSServers
+? lcs: core/network/network: TestPeerAddress  # depends on the network: it skips unless www.livecode.com answers within 100 ms
 lcs: core/security/encrypt: TestRSA
 lcs: core/security/encrypt: TestRSAPass
 lcs: core/strings/filter: TestBug15443
