@@ -6,7 +6,7 @@ title	Radio Button
 name							Radio					
 label												
 tooltip												
-style							radiobutton	standard,transparent,opaque,rectangle,roundRect,shadow,checkbox,radioButton				
+style							radiobutton	standard,transparent,opaque,rectangle,roundRect,shadow,menu,checkbox,radioButton				
 visible							true					
 opaque							false					
 showName							true					

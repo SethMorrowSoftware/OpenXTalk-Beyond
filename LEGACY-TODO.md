@@ -58,8 +58,8 @@ Code its authors knew to be wrong or incomplete. 64 notes, by part of the reposi
 - [engine/src/globals.cpp:987](engine/src/globals.cpp#L987) FIXME use MCProperListRef
 - [engine/src/mcsemaphore.h:61](engine/src/mcsemaphore.h#L61) FIXME mark as explicit
 - [engine/src/sysspec-url.cpp:341](engine/src/sysspec-url.cpp#L341) FIXME if wait() returns non-zero, cancel the URL
-- [engine/src/widget.lcb:915](engine/src/widget.lcb#L915) FIXME not actually implemented
-- [engine/src/widget.lcb:1495](engine/src/widget.lcb#L1495) FIXME not implemented
+- [engine/src/widget.lcb:918](engine/src/widget.lcb#L918) FIXME not actually implemented
+- [engine/src/widget.lcb:1498](engine/src/widget.lcb#L1498) FIXME not implemented
 
 <a id="fixme-libfoundation"></a>
 
@@ -478,14 +478,14 @@ Work left for later. 434 notes, by part of the repository:
 - [engine/src/widget-events.cpp:1102](engine/src/widget-events.cpp#L1102) Todo: key gesture (shortcuts, accelerators, etc) processing
 - [engine/src/widget-popup.cpp:375](engine/src/widget-popup.cpp#L375) TODO - throw memory error
 - [engine/src/widget-popup.cpp:470](engine/src/widget-popup.cpp#L470) TODO - throw error
-- [engine/src/widget-syntax.cpp:420](engine/src/widget-syntax.cpp#L420) TODO - coordinate transform
-- [engine/src/widget-syntax.cpp:440](engine/src/widget-syntax.cpp#L440) TODO - coordinate transforms
-- [engine/src/widget-syntax.cpp:458](engine/src/widget-syntax.cpp#L458) TODO: Implement asynchronous version.
-- [engine/src/widget-syntax.cpp:470](engine/src/widget-syntax.cpp#L470) TODO: Implement asynchronous version.
-- [engine/src/widget-syntax.cpp:560](engine/src/widget-syntax.cpp#L560) TODO: implement
-- [engine/src/widget-syntax.cpp:899](engine/src/widget-syntax.cpp#L899) TODO - throw error: no native layer
-- [engine/src/widget-syntax.cpp:913](engine/src/widget-syntax.cpp#L913) TODO - throw error: no native layer
-- [engine/src/widget-syntax.cpp:937](engine/src/widget-syntax.cpp#L937) TODO - throw error
+- [engine/src/widget-syntax.cpp:436](engine/src/widget-syntax.cpp#L436) TODO - coordinate transform
+- [engine/src/widget-syntax.cpp:456](engine/src/widget-syntax.cpp#L456) TODO - coordinate transforms
+- [engine/src/widget-syntax.cpp:474](engine/src/widget-syntax.cpp#L474) TODO: Implement asynchronous version.
+- [engine/src/widget-syntax.cpp:486](engine/src/widget-syntax.cpp#L486) TODO: Implement asynchronous version.
+- [engine/src/widget-syntax.cpp:576](engine/src/widget-syntax.cpp#L576) TODO: implement
+- [engine/src/widget-syntax.cpp:915](engine/src/widget-syntax.cpp#L915) TODO - throw error: no native layer
+- [engine/src/widget-syntax.cpp:929](engine/src/widget-syntax.cpp#L929) TODO - throw error: no native layer
+- [engine/src/widget-syntax.cpp:953](engine/src/widget-syntax.cpp#L953) TODO - throw error
 
 <a id="todo-libfoundation"></a>
 

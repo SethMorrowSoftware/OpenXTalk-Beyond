@@ -85,7 +85,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,tools-widget-install,tools-widget-builder,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,icon-picker,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,code-font,ide-stacks,screen-end,background-default"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,tools-widget-install,tools-widget-builder,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,menu-submenu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,icon-picker,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-button-menu,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,code-font,ide-stacks,screen-end,background-default"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -2004,6 +2004,71 @@ on tour_menu_marks
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_menu_marks
 
+-- The marks of a submenu's items when the menu's top level has none, as
+-- the engine draws them on Linux. Until 0.2.7-rc.6.19 a menu's items were
+-- check items only when a line of its top level began with a mark, so the
+-- ticks and dots of a submenu under a menu with none were read and never
+-- drawn, and File > Import Stack's HyperCard options looked off whatever
+-- they were set to (seth, the web IDE; #425, whose web IDE tour step
+-- import-stack-marks reads the web engine's menus: this is the same for
+-- the menus the engine draws on Linux). As in tour_menu_marks, the marks
+-- are what differs between two snapshots: a pop-up menu with no mark on
+-- its top level, whose submenu has a ticked item, a dotted one and one
+-- that opens a deeper submenu, and the same menu with the two unticked
+-- and no deeper submenu. The tick, the dot and the arrow must each be
+-- there and stand out from the menu (on rc.6.18 the arrow alone is). The
+-- pointer opens the submenu; a step of its own, for the watchdog
+constant kSubMarksRect = "600,400,1060,640"
+
+on tour_menu_submenu_marks
+   local tName, tDefault, tFails
+   if the platform is not "Linux" then
+      tourRecord "INFO menu-submenu-marks: the engine draws its menus' marks so on Linux only"
+      exit tour_menu_submenu_marks
+   end if
+   if shell("command -v xdotool") is empty then
+      tourRecord "INFO menu-submenu-marks: there is no xdotool to open the submenu and close the menu with"
+      exit tour_menu_submenu_marks
+   end if
+   put "OXT Tour Submenu Marks" into tName
+   put the defaultStack into tDefault
+   lock messages
+   if there is a stack tName then delete stack tName
+   create stack tName
+   set the rect of stack tName to "300,200,700,500"
+   set the defaultStack to tName
+   create button "Submenu marks"
+   set the style of it to "menu"
+   set the menuMode of it to "popup"
+   set the rect of it to "20,20,140,46"
+   set the text of it to "The first item, plain" & return & "Submenu" & return & \
+         tab & "The first child, plain" & return & tab & "!cTicked" & return & tab & "!rDotted" & return & \
+         tab & "Deeper" & return & tab & tab & "Leaf" & return & tab & "The last child, plain" & return & \
+         "The last item, plain"
+   create button "Submenu no marks"
+   set the style of it to "menu"
+   set the menuMode of it to "popup"
+   set the rect of it to "160,20,280,46"
+   set the text of it to "The first item, plain" & return & "Submenu" & return & \
+         tab & "The first child, plain" & return & tab & "!nTicked" & return & tab & "!uDotted" & return & \
+         tab & "Deeper" & return & tab & "The last child, plain" & return & \
+         "The last item, plain"
+   close stack tName
+   set the defaultStack to tDefault
+   unlock messages
+   go stack tName
+   tourWait 800
+   tourSubMarksPopup tName, "Submenu marks", "03n-menu-submenu-marks"
+   tourSubMarksPopup tName, "Submenu no marks", "03o-menu-submenu-no-marks"
+   put tourMarksCheck("03n-menu-submenu-marks", "03o-menu-submenu-no-marks", \
+         "a submenu under a top level with no mark") after tFails
+   -- (the pointer back where the other menu steps leave it)
+   get shell("xdotool mousemove 340 240")
+   -- (closed, not deleted, as in tour_menu_marks)
+   close stack tName
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_menu_submenu_marks
+
 -- The words of a menu's items as the engine draws them on Linux, as for
 -- tour_menu_marks: they must stand out from the menu behind them, on the
 -- theme's colour and on a window's own colours, dark and light. A menu
@@ -2358,6 +2423,52 @@ on tourMarksShot pFile
    get shell("xdotool key Escape")
    put "done" into sMarksShot
 end tourMarksShot
+
+-- As tourMarksPopup, for a menu whose second item opens a submenu: once
+-- the menu is open the pointer moves onto that item, which opens the
+-- submenu (the menu opens with its corner at 640,440 of the screen, and
+-- its items are 21 pixels apart, as the marks of 03b-menu-marks show),
+-- the snapshot pFile is taken of the menu with its submenu, and Escape
+-- closes them. Each part comes as a message of its own, as the menu is
+-- open inside the popup command
+command tourSubMarksPopup pStack, pButton, pFile
+   set the defaultStack to pStack
+   get shell("xdotool mousemove 340 240")
+   tourWait 300
+   put empty into sMarksShot
+   send "tourSubMarksOpen" && quote & pFile & quote to me in 700 milliseconds
+   popup button pButton of stack pStack at 340,240
+   repeat 50 times
+      if sMarksShot is not empty then exit repeat
+      tourWait 100
+   end repeat
+   tourWait 500
+end tourSubMarksPopup
+
+on tourSubMarksOpen pFile
+   -- (in two moves: the engine opens a submenu as the pointer moves on
+   -- its item)
+   get shell("xdotool mousemove 690 470")
+   get shell("xdotool mousemove 700 474")
+   send "tourSubMarksShot" && quote & pFile & quote to me in 800 milliseconds
+end tourSubMarksOpen
+
+on tourSubMarksShot pFile
+   local tError
+   try
+      tourShotRect kSubMarksRect, pFile
+   catch tError
+      tourRecord "INFO" && pFile && "FAILED" && tourJoin(tError)
+   end try
+   get shell("xdotool key Escape")
+   send "tourSubMarksClose" to me in 300 milliseconds
+end tourSubMarksShot
+
+-- (the first Escape may close the submenu alone)
+on tourSubMarksClose
+   get shell("xdotool key Escape")
+   put "done" into sMarksShot
+end tourSubMarksClose
 
 -- What differs between two snapshots of the same size (PNG files): the
 -- pixels that are not the same in both, in groups of neighbours (a pixel
@@ -3600,15 +3711,107 @@ on tour_icon_picker
    lock messages
    if there is a stack tName then delete stack tName
    unlock messages
+   put tourIconChooserFails() after tFails
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_icon_picker
+
+-- The Inspector's SVG icon chooser itself (the stack
+-- com.livecode.pi.svgiconfilter, its behavior set as the Inspector sets it,
+-- opened modeless rather than modal so that the tour goes on), read on the
+-- screen. What decides is the card as it is drawn, not the
+-- systemAppearance: on a dark card most of its icons must be the light
+-- grey, on a light card black. On Linux with a dark GTK theme the
+-- systemAppearance is light (unless Preferences > Appearance follows the
+-- desktop) while the card is drawn dark, and the chooser drew black icons
+-- on it (main 2f3775dc: "the card 51,57,59, black and light grey pixels
+-- 9783,2"); the IDE now asks the widget for its dark colours there (its
+-- darkIcons, svgIconFilterShowAppearance). Returns the failures, a line
+-- each
+function tourIconChooserFails
+   local tChooser, tPath, tData, tDefault, tPicker, tCard, tShown, tFails, tError
+   put "com.livecode.pi.svgiconfilter" into tChooser
+   put the dialogData into tData
+   put the defaultStack into tDefault
+   try
+      put revEnvironmentToolsetPath() & "/palettes/inspector/editors/" & tChooser into tPath
+      if there is not a stack tChooser then get the long id of stack (tPath & ".livecode")
+      if there is not a stack (tChooser & ".behavior") then get the long id of stack (tPath & ".behavior.livecodescript")
+      set the behavior of stack tChooser to the long id of stack (tChooser & ".behavior")
+      set the dialogData to empty
+      put the long id of widget "iconList" of card 1 of stack tChooser into tPicker
+      put line 1 of the working screenRects into tCard
+      set the topLeft of stack tChooser to item 1 of tCard + 360, item 2 of tCard + 160
+      palette stack tChooser
+      tourOnScreen tChooser
+      tourUnlockScreen "icon-chooser-picker"
+      tourWait 500
+      put tourCardPixel(tChooser) into tCard
+      -- (the card's own pixels are not counted: a dark card can be black
+      -- by the count's measure, as Windows' 32,32,32 is)
+      put tourPickerShown(tChooser, tPicker, tCard) into tShown
+      tourRecord "INFO icon-picker chooser: the systemAppearance" && the systemAppearance & \
+            ", the IDE's dark" && revIDEAppearanceIsDark() & ", the card" && tCard & \
+            ", black and light grey pixels" && tShown
+      if tourSystemLight(tCard) is empty then
+         put "the icon chooser's card could not be read (" & tCard & ")" & return after tFails
+      else if tourSystemLight(tCard) then
+         if item 1 of tShown < 20 then
+            put "on its light card the icon chooser drew" && item 1 of tShown && \
+                  "black pixels, not 20 or more (its icons are not black, as they were)" & return after tFails
+         end if
+      else if item 2 of tShown < 20 or item 1 of tShown > item 2 of tShown then
+         put "on its dark card (" & tCard & ") the icon chooser drew" && item 2 of tShown && \
+               "light grey pixels and" && item 1 of tShown && "black ones: its icons can hardly be seen" & \
+               return after tFails
+      end if
+      tourShotStack tChooser, "04h-icon-chooser-picker"
+   catch tError
+      put "the icon chooser:" && tourJoin(tError) & return after tFails
+   end try
+   set the dialogData to tData
+   set the defaultStack to tDefault
+   if there is a stack tChooser then
+      lock messages
+      close stack tChooser
+      unlock messages
+   end if
+   return tFails
+end tourIconChooserFails
+
+-- The colour of the screen at a point of the card of the stack pStack
+-- that no control covers: the first of its corners, 4 points in, that is
+-- in none of its controls' rects
+function tourCardPixel pStack
+   local tStack, tWidth, tHeight, tX, tY, tFree, i
+   put the rect of stack pStack into tStack
+   put item 3 of tStack - item 1 of tStack into tWidth
+   put item 4 of tStack - item 2 of tStack into tHeight
+   repeat for each item tX in "4," & (tWidth - 5)
+      repeat for each item tY in (tHeight - 5) & ",4"
+         put true into tFree
+         repeat with i = 1 to the number of controls of card 1 of stack pStack
+            if (tX & comma & tY) is within the rect of control i of card 1 of stack pStack then
+               put false into tFree
+               exit repeat
+            end if
+         end repeat
+         if tFree then return tourPixelAt(item 1 of tStack + tX, item 2 of tStack + tY)
+      end repeat
+   end repeat
+   return empty
+end tourCardPixel
 
 -- How many pixels of the screen over the widget pWidget of the stack
 -- pStack are black (each of red, green and blue 40 or less) and how many
 -- the dark appearance's light grey of its icons (each within 16 of 219):
--- "black,light"
-function tourPickerShown pStack, pWidget
-   local tStack, tRect, tData, tBlack, tLight, tR, tG, tB, i
+-- "black,light". The widget paints no background of its own, so what is
+-- between its icons is the card: given the card's colour as pCard, a pixel
+-- within 8 of it in each of red, green and blue is the card, and counted
+-- as neither. Windows draws a dark card 32,32,32, itself "black" by the
+-- 40: the chooser's light icons there were 6761 light grey pixels among
+-- 74897 "black" ones, every one of them the card (#435's Windows build)
+function tourPickerShown pStack, pWidget, pCard
+   local tStack, tRect, tData, tBlack, tLight, tR, tG, tB, tCardR, tCardG, tCardB, i
    put the rect of stack pStack into tStack
    put the rect of pWidget into tRect
    export snapshot from rect (item 1 of tStack + item 1 of tRect, item 2 of tStack + item 2 of tRect, \
@@ -3621,11 +3824,22 @@ function tourPickerShown pStack, pWidget
    unlock messages
    put 0 into tBlack
    put 0 into tLight
+   -- (no card given: a card no pixel is near)
+   put -1000 into tCardR
+   put -1000 into tCardG
+   put -1000 into tCardB
+   if the number of items of pCard is 3 then
+      put item 1 of pCard into tCardR
+      put item 2 of pCard into tCardG
+      put item 3 of pCard into tCardB
+   end if
    repeat with i = 0 to (the number of bytes of tData) div 4 - 1
       put byteToNum(byte i * 4 + 2 of tData) into tR
       put byteToNum(byte i * 4 + 3 of tData) into tG
       put byteToNum(byte i * 4 + 4 of tData) into tB
-      if tR <= 40 and tG <= 40 and tB <= 40 then
+      if abs(tR - tCardR) <= 8 and abs(tG - tCardG) <= 8 and abs(tB - tCardB) <= 8 then
+         next repeat
+      else if tR <= 40 and tG <= 40 and tB <= 40 then
          add 1 to tBlack
       else if abs(tR - 219) <= 16 and abs(tG - 219) <= 16 and abs(tB - 219) <= 16 then
          add 1 to tLight
@@ -5503,6 +5717,130 @@ on tour_inspector_clear_button
    if tWidget is not empty and exists(tWidget) then delete tWidget
    if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
 end tour_inspector_clear_button
+
+-- The Inspector's Style menu offers "menu" (OpenXTalkPaul, openxtalk.org
+-- p=26206): the style that turns a button into a popup, pulldown or
+-- option menu was missing from the list, so the only way to choose it was
+-- a script. Every button kind's Style row now lists it, and the menu kinds
+-- show their Style row (it was hidden), so a button made a menu can be
+-- made a push button again from the same row. Through revIDEPropertySet,
+-- the call the Inspector makes when its Style menu is changed, a push
+-- button becomes a menu and back. The menu kinds the Tools palette makes
+-- are as they were: style menu, the same menuMode
+on tour_inspector_button_menu
+   local tCard, tKind, tMode, tMade, tButton, tType, tPI, tFails, tError
+   get tourSampleStack()
+   put the long id of card 1 of stack kSample into tCard
+   try
+      repeat for each line tKind in "PopupMenu,popup" & return & "PulldownMenu,Pulldown" & return & "OptionMenu,option"
+         put item 2 of tKind into tMode
+         put item 1 of tKind into tKind
+         put tourBmMake(tCard, tKind) into tMade
+         tourRecord "INFO inspector-button-menu a new" && tKind & ": style" && the style of tMade && \
+               "menuMode" && the menuMode of tMade && "kind" && ideObjectTypeFromObject(tMade)
+         if the style of tMade is not "menu" then
+            put "a new" && tKind && "has the style" && the style of tMade & return after tFails
+         end if
+         if the menuMode of tMade is not tMode then
+            put "a new" && tKind && "has the menuMode" && the menuMode of tMade & return after tFails
+         end if
+         if ideObjectTypeFromObject(tMade) is not "com.livecode.interface.classic." & tKind then
+            put "a new" && tKind && "is a" && ideObjectTypeFromObject(tMade) & return after tFails
+         end if
+         put tourBmCheckRow(tKind, tMade) after tFails
+         delete tMade
+      end repeat
+      put tourBmMake(tCard, "Button") into tButton
+      set the name of tButton to "oxtTourStyleMenu"
+      set the rect of tButton to "20,300,140,326"
+      put tourBmCheckRow("push button", tButton) after tFails
+      revIDEPropertySet tButton, "style", "menu"
+      put ideObjectTypeFromObject(tButton) into tType
+      tourRecord "INFO inspector-button-menu a push button set to menu: style" && the style of tButton && \
+            "kind" && tType
+      if the style of tButton is not "menu" then
+         put "Style menu left the button's style" && the style of tButton & return after tFails
+      end if
+      if tType is not among the items of "com.livecode.interface.classic.PopupMenu,com.livecode.interface.classic.PulldownMenu,com.livecode.interface.classic.OptionMenu" then
+         put "a push button set to menu is a" && tType & return after tFails
+      end if
+      put tourBmCheckRow("push button set to menu", tButton) after tFails
+      put tourInspect(tButton) into tPI
+      if tourInspectorEditor(tPI, "style") is empty then
+         put "the Inspector of a button set to menu has no Style row" & return after tFails
+      end if
+      tourShotStack tPI, "08-inspector-button-menu"
+      tourCloseInspectors
+      revIDEPropertySet tButton, "style", "standard"
+      tourRecord "INFO inspector-button-menu set back to standard: style" && the style of tButton && \
+            "kind" && ideObjectTypeFromObject(tButton)
+      if the style of tButton is not "standard" then
+         put "Style standard left the button's style" && the style of tButton & return after tFails
+      end if
+      if ideObjectTypeFromObject(tButton) is not "com.livecode.interface.classic.Button" then
+         put "a menu set back to standard is a" && ideObjectTypeFromObject(tButton) & return after tFails
+      end if
+   catch tError
+      put tourJoin(tError) & return after tFails
+   end try
+   tourCloseInspectors
+   if tButton is not empty and exists(tButton) then delete tButton
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_inspector_button_menu
+
+-- A control of the classic kind pKind (PopupMenu, Button, ...) made on the
+-- card pCard as the Tools palette makes one (revIDECreateObject, which
+-- sets every property to the kind's default); its long id
+function tourBmMake pCard, pKind
+   local tResult, tError
+   try
+      revIDECreateObject "com.livecode.interface.classic." & pKind, pCard, "400,300"
+      put the result into tResult
+   catch tError
+      put tourJoin(tError) into tResult
+   end try
+   -- (revIDECreateObject leaves messages and the screen locked when it
+   -- fails)
+   unlock messages
+   tourUnlockScreen "inspector-button-menu"
+   if word 1 of tResult is not "button" or not exists(tResult) then
+      throw "the IDE made no" && pKind && "(" & tResult & ")"
+   end if
+   tourCloseInspectors
+   return tResult
+end tourBmMake
+
+-- A line saying what is wrong when the Inspector's Style row for the
+-- button pButton (pWhat) is hidden or does not offer menu; empty when all
+-- is right
+function tourBmCheckRow pWhat, pButton
+   local tRow
+   -- (revIDEPropertiesInfo, the Inspector's own read: its section form,
+   -- revIDEPropertiesInfoOfSection with a section, calls a handler the
+   -- library does not have)
+   put tourBmStyleRow(revIDEPropertiesInfo(pButton)) into tRow
+   tourRecord "INFO inspector-button-menu the Style row of a" && pWhat & ": user_visible" && \
+         quote & tRow["user_visible"] & quote && "options" && tourJoin(tRow["options"])
+   if tRow is not an array then return "a" && pWhat & "'s Inspector has no Style row" & return
+   if tRow["user_visible"] is false then return "a" && pWhat & "'s Style row is hidden" & return
+   if "menu" is not among the lines of tRow["options"] then
+      return "a" && pWhat & "'s Style row does not offer menu" & return
+   end if
+   return empty
+end tourBmCheckRow
+
+-- The style property's row in the Inspector's property information pInfo,
+-- wherever it is grouped; empty if there is none
+function tourBmStyleRow pInfo
+   local tKey, tRow
+   if pInfo is not an array then return empty
+   if pInfo["property_name"] is "style" or pInfo["name"] is "style" then return pInfo
+   repeat for each key tKey in pInfo
+      put tourBmStyleRow(pInfo[tKey]) into tRow
+      if tRow is an array then return tRow
+   end repeat
+   return empty
+end tourBmStyleRow
 
 -- The Clear beside a colour takes away the pattern its row holds beside
 -- it too (LittleNemo, openxtalk.org p=26076: in rc.6.15 Clear stayed

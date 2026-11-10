@@ -1,1 +1,0 @@
-- Android check: on an emulator, a tap on the notification permission dialog's Allow that the dialog did not take (it is still in front 6 seconds later, as when another app's "isn't responding" dialog took the tap) is given again, at most three taps in all; before, the dialog stayed in front until the probe failed (#428)

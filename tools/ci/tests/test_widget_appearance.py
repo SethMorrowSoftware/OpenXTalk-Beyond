@@ -290,5 +290,144 @@ class TheIconPicker(unittest.TestCase):
         self.assertEqual(body.count('_PickerFramePixel(tWidget) is "188,188,188"'), 2)
 
 
+class TheIconChooser(unittest.TestCase):
+    """The Inspector's SVG icon chooser on Linux with a dark GTK theme: the
+    systemAppearance is light there (unless Preferences > Appearance follows
+    the desktop), so the widget drew black icons on the dark card. The IDE,
+    which reads the desktop as dark (revIDEAppearanceIsDark), sets the
+    widget's darkIcons there, and only there: wherever the systemAppearance
+    is dark the widget decides for itself, and in the light darkIcons is
+    false, the default, so macOS and Windows draw what they did. The tour's
+    icon-picker step reads the chooser on the screen, deciding by the card
+    as drawn, not by the systemAppearance."""
+
+    def setUp(self):
+        self.behavior = read('ide', 'Toolset', 'palettes', 'inspector', 'editors',
+                             'com.livecode.pi.svgiconfilter.behavior.livecodescript')
+        self.source = read('extensions', 'widgets', 'iconpicker', 'iconpicker.lcb')
+
+    def test_the_chooser_follows_the_ides_appearance(self):
+        opening = handler(self.behavior, 'on', 'preOpenStack')
+        self.assertIn('svgIconFilterShowAppearance', opening)
+        self.assertLess(opening.index('set the selectedIcon'), opening.index('svgIconFilterShowAppearance'))
+        show = handler(self.behavior, 'command', 'svgIconFilterShowAppearance')
+        self.assertIn('set the darkIcons of widget "iconList" of me to \\\n'
+                      '         svgIconFilterNeedsDark(revIDEAppearanceIsDark(), the systemAppearance)', show)
+
+    def test_only_where_the_widget_would_draw_black_on_dark(self):
+        needs = handler(self.behavior, 'function', 'svgIconFilterNeedsDark')
+        self.assertIn('return pDesktopDark is true and pAppearance is not "dark"', needs)
+
+    def test_dark_icons_is_off_unless_set(self):
+        # false on a new widget and on one loaded from a stack (it is not
+        # saved), so every widget the IDE does not ask is drawn as before
+        self.assertIn('private variable mDarkIcons as Boolean', self.source)
+        self.assertIn('property darkIcons get mDarkIcons set setDarkIcons', self.source)
+        self.assertIn('metadata darkIcons.user_visible is "false"', self.source)
+        for name in ('OnCreate()', 'OnLoad(in pProperties as Array)'):
+            body = between(self.source, 'public handler %s' % name, '\nend handler\n')
+            self.assertIn('put false into mDarkIcons', body)
+        save = between(self.source, 'public handler OnSave(out rProperties as Array)', '\nend handler\n')
+        self.assertNotIn('ark', save)
+
+    def test_dark_icons_only_adds_to_the_engines_decision(self):
+        dark = between(self.source, 'private handler isDarkAppearance() returns Boolean', '\nend handler\n')
+        self.assertLess(dark.index('if mDarkIcons then'), dark.index('MCWidgetGetMyAppearanceIsDark(tDark)'))
+        self.assertIn('return tDark', dark)
+        setter = between(self.source, 'public handler setDarkIcons(in pDark as Boolean)', '\nend handler\n')
+        self.assertIn('redraw all', setter)
+
+    def test_the_tour_decides_by_the_card(self):
+        tour = read('tools', 'ci', 'ui-tour.livecodescript')
+        step = handler(tour, 'on', 'tour_icon_picker')
+        self.assertIn('put tourIconChooserFails() after tFails', step)
+        self.assertLess(step.index('put tourIconChooserFails() after tFails'),
+                        step.index('if tFails is not empty then throw'))
+        check = handler(tour, 'function', 'tourIconChooserFails')
+        self.assertIn('set the behavior of stack tChooser to the long id of stack (tChooser & ".behavior")', check)
+        self.assertIn('put tourCardPixel(tChooser) into tCard', check)
+        self.assertIn('else if tourSystemLight(tCard) then', check)
+        self.assertIn('else if item 2 of tShown < 20 or item 1 of tShown > item 2 of tShown then', check)
+        # the decision reads the card only: the systemAppearance is recorded,
+        # never tested
+        decision = check[check.index('if tourSystemLight(tCard) is empty then'):check.index('tourShotStack')]
+        self.assertNotIn('systemAppearance', decision)
+        self.assertIn('set the dialogData to tData', check)
+        self.assertIn('close stack tChooser', check)
+        self.assertIn('is within the rect of control i of card 1 of stack pStack',
+                      handler(tour, 'function', 'tourCardPixel'))
+
+    def test_the_card_between_the_icons_is_not_counted(self):
+        # the widget paints no background, so between its icons is the card,
+        # and Windows draws a dark card 32,32,32: "black" by the count's 40.
+        # Its light icons were 6761 light grey pixels among 74897 "black"
+        # ones, every one of them the card, and the step failed there (#435's
+        # Windows build, run 42704404828). The chooser's count is given the
+        # card, and leaves out what is within a few of it
+        tour = read('tools', 'ci', 'ui-tour.livecodescript')
+        check = handler(tour, 'function', 'tourIconChooserFails')
+        self.assertIn('put tourPickerShown(tChooser, tPicker, tCard) into tShown', check)
+        self.assertLess(check.index('put tourCardPixel(tChooser) into tCard'),
+                        check.index('put tourPickerShown(tChooser, tPicker, tCard) into tShown'))
+        # the widget alone, on the tour's own stack, is counted as it was
+        self.assertIn('put tourPickerShown(tName, tPicker) into tShown', handler(tour, 'on', 'tour_icon_picker'))
+        count = handler(tour, 'function', 'tourPickerShown')
+        self.assertTrue(count.startswith('\nfunction tourPickerShown pStack, pWidget, pCard\n'))
+        near = re.search(r'\n      if abs\(tR - tCardR\) <= (\d+) and abs\(tG - tCardG\) <= (\d+) and '
+                         r'abs\(tB - tCardB\) <= (\d+) then\n         next repeat\n'
+                         r'      else if tR <= (\d+) and tG <= (\d+) and tB <= (\d+) then\n         add 1 to tBlack\n'
+                         r'      else if abs\(tR - (\d+)\) <= (\d+) and abs\(tG - (\d+)\) <= (\d+) and '
+                         r'abs\(tB - (\d+)\) <= (\d+) then\n         add 1 to tLight\n', count)
+        self.assertIsNotNone(near, 'the count no longer reads as this test models it')
+        numbers = [int(n) for n in near.groups()]
+        self.assertEqual(len(set(numbers[0:3])), 1)
+        self.assertEqual(len(set(numbers[3:6])), 1)
+        self.assertEqual(len(set(numbers[6::2])), 1)
+        self.assertEqual(len(set(numbers[7::2])), 1)
+        tolerance, black, grey, spread = numbers[0], numbers[3], numbers[6], numbers[7]
+        # with no card given, no pixel is near it
+        nocard = re.search(r'put (-?\d+) into tCardR\n   put (-?\d+) into tCardG\n   put (-?\d+) into tCardB\n'
+                           r'   if the number of items of pCard is 3 then\n', count)
+        self.assertIsNotNone(nocard)
+        for value in nocard.groups():
+            self.assertLess(int(value) + tolerance, 0)
+
+        def shown(pixels, card=None):
+            blacks = lights = 0
+            for colour, many in pixels:
+                if card is not None and all(abs(c - k) <= tolerance for c, k in zip(colour, card)):
+                    continue
+                if all(c <= black for c in colour):
+                    blacks += many
+                elif all(abs(c - grey) <= spread for c in colour):
+                    lights += many
+            return blacks, lights
+
+        def fails_on_a_dark_card(counts):
+            # tourIconChooserFails: item 2 of tShown < 20 or item 1 of tShown > item 2 of tShown
+            return counts[1] < 20 or counts[0] > counts[1]
+
+        windows = (32, 32, 32)
+        light_icons = [(windows, 74897), ((219, 219, 219), 6761)]
+        # as it was counted, the card was black: the failure of the Windows build
+        self.assertEqual(shown(light_icons), (74897, 6761))
+        self.assertTrue(fails_on_a_dark_card(shown(light_icons)))
+        # given the card, light icons on Windows' dark card pass
+        self.assertEqual(shown(light_icons, windows), (0, 6761))
+        self.assertFalse(fails_on_a_dark_card(shown(light_icons, windows)))
+        # and black icons on that card are still black, and still fail
+        black_icons = [(windows, 74897), ((0, 0, 0), 6761)]
+        self.assertEqual(shown(black_icons, windows), (6761, 0))
+        self.assertTrue(fails_on_a_dark_card(shown(black_icons, windows)))
+        # Linux's dark card is not black by the count, and its black icons
+        # (main 2f3775dc: 9783 black, 2 light grey) fail as they did
+        linux = (51, 57, 59)
+        self.assertEqual(shown([(linux, 70000), ((0, 0, 0), 9783), ((219, 219, 219), 2)], linux), (9783, 2))
+        self.assertTrue(fails_on_a_dark_card(shown([(linux, 70000), ((0, 0, 0), 9783), ((219, 219, 219), 2)], linux)))
+        # a card is never mistaken for the icons' black or their light grey
+        self.assertGreater(black - tolerance, 0)
+        self.assertGreater(grey - spread - tolerance, black)
+
+
 if __name__ == '__main__':
     unittest.main()

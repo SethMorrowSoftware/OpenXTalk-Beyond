@@ -6,7 +6,7 @@ title	Check Box
 name							Check					
 label												
 tooltip												
-style							checkbox	standard,transparent,opaque,rectangle,roundRect,shadow,checkbox,radioButton				
+style							checkbox	standard,transparent,opaque,rectangle,roundRect,shadow,menu,checkbox,radioButton				
 visible												
 opaque							false					
 showName							true					

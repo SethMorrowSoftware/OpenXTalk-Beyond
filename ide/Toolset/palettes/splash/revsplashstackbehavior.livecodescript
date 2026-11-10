@@ -36,7 +36,9 @@ on preOpenStack
    -- loading screen (tools/web-ide/index.html). The art, drawn by
    -- Installer/oxt-beyond/branding/draw_branding.py, carries the logo,
    -- "OXT-Beyond", the release's name and the loading bar's track, all
-   -- centred; under them go, centred too, "<version> · Happy hunting!"
+   -- centred; under them go, centred too, "<version> · Say it in xTalk.
+   -- Make it so." (0.2.7 "Make It So", draw_branding.py's TAGLINE;
+   -- "Happy hunting!" in its release candidates)
    -- (field "moreinfo"), the bar's orange fill (graphic "progress", which
    -- the statusMessage setProp below moves on) and the loading status
    -- (field "Status"). The places are draw_branding.py's SPLASH_MOREINFO,
@@ -67,7 +69,7 @@ on preOpenStack
    else
       set the foregroundColor of field "moreinfo" of me to 91,102,114
    end if
-   put tVersion & "Happy hunting!" into field "moreinfo" of me
+   put tVersion & "Say it in xTalk. Make it so." into field "moreinfo" of me
    -- The field's text keeps the size and style it was saved with
    set the textSize of char 1 to -1 of field "moreinfo" of me to 13
    set the textStyle of char 1 to -1 of field "moreinfo" of me to "plain"

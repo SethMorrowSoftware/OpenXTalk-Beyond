@@ -525,6 +525,49 @@ class GtkTheme(unittest.TestCase):
         steps = [line for line in tour.splitlines() if line.startswith('constant kSteps')][0]
         self.assertIn('menu-marks', steps.split('"')[1].split(','))
 
+    def test_a_submenus_marks_under_a_top_level_with_none(self):
+        # #425's fix where the engine draws Linux's menus: until
+        # 0.2.7-rc.6.19 the tick of a submenu's item was not drawn when no
+        # line of the menu's top level began with a mark. The web IDE tour
+        # alone checked it; on rc.6.18's Linux IDE this step finds the dot
+        # and the arrow and no tick, in both appearances
+        with open(TOUR, encoding='utf-8') as f:
+            tour = f.read()
+        step = tour.split('on tour_menu_submenu_marks', 1)[1].split('end tour_menu_submenu_marks', 1)[0]
+        self.assertIn('if the platform is not "Linux" then', step)
+        self.assertIn('if shell("command -v xdotool") is empty then', step)
+        # the two menus' submenus differ in the tick, the dot and the
+        # deeper submenu alone, and no top-level line has a mark: every
+        # mark comes after a tab
+        self.assertIn('tab & "The first child, plain" & return & tab & "!cTicked" & return & tab & "!rDotted"', step)
+        self.assertIn('tab & "The first child, plain" & return & tab & "!nTicked" & return & tab & "!uDotted"', step)
+        self.assertIn('tab & "Deeper" & return & tab & tab & "Leaf" & return & tab & "The last child, plain"', step)
+        self.assertIn('tab & "Deeper" & return & tab & "The last child, plain"', step)
+        self.assertEqual(step.count('"!'), 4)
+        self.assertEqual(step.count('tab & "!'), 4)
+        self.assertEqual(step.count('"The first item, plain" & return & "Submenu" & return'), 2)
+        # the tick, the dot and the arrow, each standing out (tourMarksCheck,
+        # which test_the_marks_on_a_windows_own_colours holds to three marks)
+        self.assertIn('tourMarksCheck("03n-menu-submenu-marks", "03o-menu-submenu-no-marks"', step)
+        self.assertIn('tourSubMarksPopup tName, "Submenu marks", "03n-menu-submenu-marks"', step)
+        self.assertIn('tourSubMarksPopup tName, "Submenu no marks", "03o-menu-submenu-no-marks"', step)
+        self.assertIn('throw "failed:"', step)
+        # the pointer opens the submenu on the menu's second item, and the
+        # snapshot is taken after it, wide enough for both
+        popup = tour.split('command tourSubMarksPopup', 1)[1].split('end tourSubMarksPopup', 1)[0]
+        self.assertIn('send "tourSubMarksOpen" && quote & pFile & quote to me in 700 milliseconds', popup)
+        self.assertIn('popup button pButton of stack pStack at 340,240', popup)
+        opened = tour.split('on tourSubMarksOpen', 1)[1].split('end tourSubMarksOpen', 1)[0]
+        self.assertIn('xdotool mousemove 700 474', opened)
+        self.assertIn('send "tourSubMarksShot" && quote & pFile & quote to me in 800 milliseconds', opened)
+        shot = tour.split('on tourSubMarksShot', 1)[1].split('end tourSubMarksShot', 1)[0]
+        self.assertIn('tourShotRect kSubMarksRect, pFile', shot)
+        self.assertIn('constant kSubMarksRect = "600,400,1060,640"', tour)
+        # its own step, after the other menu steps, for the watchdog
+        steps = [line for line in tour.splitlines() if line.startswith('constant kSteps')][0]
+        names = steps.split('"')[1].split(',')
+        self.assertEqual(names.index('menu-submenu-marks'), names.index('menu-armed-words') + 1)
+
 
 class InspectorTabClicks(unittest.TestCase):
     """inspector-tabs clicks the icons in the Inspector's header with the

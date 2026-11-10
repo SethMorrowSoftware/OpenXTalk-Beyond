@@ -1,0 +1,37 @@
+{
+  "Installer/oxt-beyond/branding/art/oxt-beyond-banner.png": {
+    "drawing": "Installer/oxt-beyond/branding/svg/banner.svg",
+    "drawing_sha256": "246ace9a998706b0bc1858dda89d89b116711854593f21ae886ee22664e85bec",
+    "sha256": "9d3b972fc6122cfe51865ba7f0a640c692c3f0a8f70eb4406c8b84b1596ad82a"
+  },
+  "Installer/oxt-beyond/branding/art/oxt-beyond-wizard.png": {
+    "drawing": "Installer/oxt-beyond/branding/svg/wizard.svg",
+    "drawing_sha256": "46f25688385ef437bd270b8cc4e619db0010677a455beed5a62ae951b9fa553c",
+    "sha256": "69f84fe3f5388852c4134c59f253dc5dd896bc08c64273d290b6b095346cad6c"
+  },
+  "ide/Toolset/resources/community/ideSkin/splash-light.png": {
+    "drawing": "Installer/oxt-beyond/branding/svg/splash-light.svg",
+    "drawing_sha256": "c938923159f05bbd080054db31f3ae504af37eb27e89dcce20b8352d772a6800",
+    "sha256": "d12c8f6227f92831ba671688387ef68d61e67c92d9246f005e2e9e5fb234a352"
+  },
+  "ide/Toolset/resources/community/ideSkin/splash-light@extra-high.png": {
+    "drawing": "Installer/oxt-beyond/branding/svg/splash-light.svg",
+    "drawing_sha256": "c938923159f05bbd080054db31f3ae504af37eb27e89dcce20b8352d772a6800",
+    "sha256": "76b369c44363cd7612d1aa0f601b0394a8d478bc841b18a9001a106d4f68e747"
+  },
+  "ide/Toolset/resources/community/ideSkin/splash.png": {
+    "drawing": "Installer/oxt-beyond/branding/svg/splash-dark.svg",
+    "drawing_sha256": "5459bfe6497879f25b587b37d109e895131151dcbdc59865165b621091b01980",
+    "sha256": "27deea2f70318fe8edfdc83a0769e9759b17a622b40992b19fb23d0252f740ca"
+  },
+  "ide/Toolset/resources/community/ideSkin/splash@extra-high.png": {
+    "drawing": "Installer/oxt-beyond/branding/svg/splash-dark.svg",
+    "drawing_sha256": "5459bfe6497879f25b587b37d109e895131151dcbdc59865165b621091b01980",
+    "sha256": "7ba50a6184d1daa36beca68f85921f04ba04914bca78ead96a81e7db18ca5034"
+  },
+  "tools/pages/brand/social.png": {
+    "drawing": "Installer/oxt-beyond/branding/svg/banner.svg",
+    "drawing_sha256": "246ace9a998706b0bc1858dda89d89b116711854593f21ae886ee22664e85bec",
+    "sha256": "9d3b972fc6122cfe51865ba7f0a640c692c3f0a8f70eb4406c8b84b1596ad82a"
+  }
+}

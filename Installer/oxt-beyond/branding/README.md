@@ -1,4 +1,4 @@
-# OXT-Beyond artwork: 0.2.7 "Bug Hunt"
+# OXT-Beyond artwork: 0.2.7 "Make It So"
 
 From 0.2.1 the icon is an orange "OXT" struck by lightning over a
 stitched seam and "BEYOND", on a charcoal tile with an orange rim. In
@@ -9,10 +9,18 @@ there): the words as paths, so it needs no font, a flame gradient on
 sparks. That file is the one source of the icon: `draw_branding.py`
 makes every icon, the logo on the splash screens, the installer and the
 banner, and the web pages' logo from it, so to change the logo, change
-`genlogo.py` and run both. From 0.2.7, a release frozen for play testing, the installer
-art and the release banner (and the splash screens until rc.6.13) are the "Bug Hunt"
-drawings: a friendly teal beetle caught under an orange-handled
-magnifying glass, over a trail of footprints, on a charcoal background.
+`genlogo.py` and run both. In 0.2.7 "Make It So" the installer art and
+the release banner are drawn after the 0.2.7 promo's key art: wide soft
+rays on a navy sky, the logo in a burst of gold and warm white streaks,
+"OXT-Beyond" with "OXT" in orange, "0.2.7" large in a gold-to-orange
+gradient, "Make It So" in slanted gold after a drawn sparkle, and the
+line "Say it in xTalk. Make it so." The splash's logo has the same
+burst, and its pill says "MAKE IT SO" in gold (no Star Trek logos or
+art; the name is a wink). Its release candidates,
+frozen for play testing, had the "Bug Hunt" drawings there (and on the
+splash screens until rc.6.13): a friendly teal beetle caught under an
+orange-handled magnifying glass, over a trail of footprints, on a
+charcoal background; they are in the history of `draw_branding.py`.
 0.2.1 to 0.2.6 had the "Frankenstein" drawings (a friendly flat-top
 monster with neck bolts, a stitched scar and lightning), which are in the
 history of this folder. The earlier icon,
@@ -33,6 +41,7 @@ the history of this folder (up to 0.2.1-rc.6); his original stays in
 | `svg/banner.svg` | The release banner (1280 × 640), for the GitHub release, the repository's social preview and forum posts. |
 | `png/oxt-beyond-<size>.png` | The icon at 16, 24, 32, 48, 64, 128, 256, 512 and 1024 px. |
 | `art/oxt-beyond-wizard.png`, `art/oxt-beyond-banner.png` | The installer image and the banner. They are kept out of `png/`, whose every file packaging puts into the macOS icon. |
+| `rendered.json` | The SHA-256 of each picture of the release's art and of the drawing it was rendered from, which `test_branding.py` checks (see below). |
 
 Made by `draw_branding.py` elsewhere in the repository:
 
@@ -54,7 +63,8 @@ Made from these files elsewhere:
 | The installer's wizard images | `Installer/oxt-beyond/make-wizard-images.ps1`: the tall image from `art/oxt-beyond-wizard.png`, the small one from the icon. |
 | The icon in the About window and in answer and ask dialogs | Images `oxt-l-32.png` and `oxt-l-64.png` in `ide/Toolset/palettes/revgeneralicons.rev`, replaced with `png/oxt-beyond-32.png` and `-64.png` by the image patch `tools/oxt/ide-stack-patches/branding-dialog-icons.txt`. |
 
-The release name, "Bug Hunt", is in `ide/.codename`: the About window
+The release name, "Make It So" ("Bug Hunt" for 0.2.7's release
+candidates), is in `ide/.codename`: the About window
 shows it under the version, and the Release workflow puts it in the title
 of the GitHub release.
 
@@ -69,7 +79,8 @@ beetle beside the logo, with the words at the left.
 
 The IDE writes the rest over the art, centred
 (`ide/Toolset/palettes/splash/revsplashstackbehavior.livecodescript`, at
-1x): "<version> · Happy hunting!" in grey 13 px text (field "moreinfo",
+1x): "<version> · Say it in xTalk. Make it so." in grey 13 px text
+("Happy hunting!" in 0.2.7's release candidates) (field "moreinfo",
 0,199 to 591,225), the loading bar's orange fill over the track (graphic
 "progress", 196,242 to 395,245, which the splash makes when it opens and
 moves on by one step for each status the IDE shows) and the loading
@@ -102,7 +113,16 @@ they were (`git checkout` them after the run). After changing
 images' digests and run `tools/oxt/ide-stack-patch.sh` with a Linux
 development engine (a release's `linux-x86_64-binaries` has one).
 `tools/ci/tests/test_branding.py` holds the drawings to the logo and the
-web pages' copies to the drawings.
+web pages' copies to the drawings. It also keeps an earlier release's art
+from shipping: `draw_branding.py` writes `rendered.json`, the SHA-256 of
+each picture of the release's art (`RELEASE_ART`: the installer image,
+the banner and its web copy, the four splash files) and of the drawing it
+was rendered from, and the test fails when a drawing has changed since
+its picture was rendered, or a picture was replaced by hand. It fails too
+when `ide/.codename`, the drawings or the splash's line bring back an
+earlier release's name or art (`FORMER_NAMES`, `FORMER_ART`: add the
+current name there when the next release gets its own), and when the
+README's banner names another version or release.
 
 ## Colours
 
@@ -110,8 +130,9 @@ web pages' copies to the drawings.
 | --- | --- |
 | "OXT" orange (kept from the earlier icon); in the SVG logo a flame gradient | `#FF7700`; `#FFC04D` to `#FF6A00` |
 | The logo's rim | `#FFC24D` to `#FF7700` to `#FF3D00` |
-| Beetle shell, light to shadow; its spots | `#4FD8C4` to `#16756A`; `#0E4A43` |
-| Glow and trail | `#5FE0CF` (`#2FA897` on the light splash) |
-| Magnifying glass lens, rim | `#BDF3FF` at 16 %, `#C9D1D9` |
+| Navy sky, round the burst to the edges ("Make It So") | `#1C2B47` to `#0E1628`, with white rays at 2.5 to 6 % |
+| The burst's streaks | warm white `#F3E7D3` and gold `#E3A548`, 35 to 90 % (`#D9A15A` and `#B86A1C` on the light splash) |
+| "0.2.7" | `#FFC566` to `#FF8A1E`, top to foot |
+| The release's name and its sparkle | `#FFB547` (`#A0560A` on the light splash's pill) |
 | Lightning (the icon) | `#FFF9C4` to `#FFC92E` (plain `#FFE14D`), edge `#7A5A00`; arcs `#BFEFFF`, sparks `#FFF4B0` |
 | Charcoal background | `#15171A` to `#2B2F36` |
