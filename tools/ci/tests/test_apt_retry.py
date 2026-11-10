@@ -48,6 +48,10 @@ exit 0
 '''
 
 
+SOURCES = ('deb http://archive.ubuntu.com/ubuntu/ jammy main restricted\n'
+           'deb http://security.ubuntu.com/ubuntu/ jammy-security main restricted\n')
+
+
 def loop(name):
     """The retry loop of the workflow's Install build tools step, as bash."""
     with open(os.path.join(WORKFLOWS, name), encoding='utf-8') as f:
@@ -74,7 +78,11 @@ class AptRetry(unittest.TestCase):
             with open(path, 'w') as f:
                 f.write(body)
             os.chmod(path, 0o755)
-        env = dict(os.environ, PATH=bin_dir + os.pathsep + os.environ['PATH'], STATE=state,
+        etc = os.path.join(state, 'etc')
+        os.makedirs(os.path.join(etc, 'sources.list.d'))
+        with open(os.path.join(etc, 'sources.list'), 'w') as f:
+            f.write(SOURCES)
+        env = dict(os.environ, PATH=bin_dir + os.pathsep + os.environ['PATH'], STATE=state, APT_ETC=etc,
                    FAILS=str(fails), CACHE_HIT=cache_hit, BUILD_PKGS='gcc make')
         p = subprocess.run(['bash', '-e', '-o', 'pipefail', '-c', loop(name)], env=env,
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -85,6 +93,7 @@ class AptRetry(unittest.TestCase):
                     return f.read().split('\n')[:-1]
             except OSError:
                 return []
+        self.sources = open(os.path.join(etc, 'sources.list')).read()
         return p.returncode, read('calls'), read('sleeps')
 
     def test_every_install_step_has_the_loop(self):
@@ -99,6 +108,9 @@ class AptRetry(unittest.TestCase):
             # on a cache hit the first pass does not update; the second does
             self.assertEqual([c.split()[2] for c in calls], ['install', 'update', 'install'], name)
             self.assertEqual(sleeps, ['30'], name)
+            # the second pass takes the security pocket from the archive
+            self.assertNotIn('security.ubuntu.com', self.sources, name)
+            self.assertIn('http://archive.ubuntu.com/ubuntu/ jammy-security main', self.sources, name)
 
     @POSIX
     def test_without_the_cache_each_pass_updates_first(self):
@@ -119,6 +131,7 @@ class AptRetry(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertEqual([c.split()[2] for c in calls], ['update', 'install'])
         self.assertEqual(sleeps, [])
+        self.assertEqual(self.sources, SOURCES)  # a first pass that works changes nothing
 
 
 if __name__ == '__main__':
