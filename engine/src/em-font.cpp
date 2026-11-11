@@ -81,8 +81,17 @@ static bool MCEmscriptenCustomFontLoadCallback(void *p_context, const MCSystemFo
 
 	if (!p_entry->is_folder)
 	{
+		/* OXT-Beyond: the entry's name is the file's name alone, and the
+		 * font keeps a path that it is read from again whenever a font is
+		 * made from it: by then the defaultFolder is seldom the fonts
+		 * folder, the file was not found, and the text drew in the face
+		 * that Skia finds by the family's name (so "Arimo" drew in Arimo,
+		 * but "Arimo Bold" and a desktop name in Droid Sans). It keeps the
+		 * whole path. */
+		MCAutoStringRef t_path;
 		MCCustomFont *t_font;
-		if (MCEmscriptenCreateCustomFontFromPath(p_entry->name, t_ft_library, t_font))
+		if (MCStringFormat(&t_path, "%s/%@", MCEMSCRIPTEN_FONT_FOLDER, p_entry->name) &&
+			MCEmscriptenCreateCustomFontFromPath(*t_path, t_ft_library, t_font))
 			MCCustomFontListAddFont(t_font);
 	}
 
@@ -331,9 +340,15 @@ void* MCEmscriptenFontCreate(MCStringRef p_name, uint32_t p_size, bool p_bold, b
 		// MM-2012-03-06: Check to see if we have a custom font of the given style and name available
 		if (!MCEmscriptenCustomFontsCreateTypefaceFromNameAndStyle(p_name, p_bold, p_italic, t_font->typeface))
 		{
+			/* OXT-Beyond: a desktop name, by its stand-in's family name,
+			 * as the family's own name is found below */
+			MCAutoStringRef t_stand_in;
+			bool t_made;
+			t_made = MCEmscriptenFontStandIn(p_name, &t_stand_in) &&
+				MCSkiaTypefaceCreateWithName(*t_stand_in, p_bold, p_italic, t_font->typeface);
 			// AL-2014-09-10: [[ Bug 13335 ]] If the font does not exist, fall back to the default family
 			//  but retain the styling.
-			if (!MCSkiaTypefaceCreateWithName(p_name, p_bold, p_italic, t_font->typeface))
+			if (!t_made && !MCSkiaTypefaceCreateWithName(p_name, p_bold, p_italic, t_font->typeface))
 				MCSkiaTypefaceCreateWithName(nil, p_bold, p_italic, t_font->typeface);
 		}
 		
