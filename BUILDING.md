@@ -2273,7 +2273,8 @@ still lost. Their results are those of that run (a test whose output is
 still short after them fails, and says how many lines were lost), and the log and the
 job summary name them; an app that does not take the extra (it
 resumes, or begins another test) stops the run, and what the device's log says of the lines it dropped (liblog's
-entries in its events buffer) goes into the log. With `--again-check`,
+entries in its events buffer, which is cleared when the run begins,
+those of the app's processes marked "(the app)") goes into the log. With `--again-check`,
 which the workflow passes, the app is started once more when no test was
 lost, to run again the first test that passed (whose result stays that
 of its first run), so that every run shows that the way back in works. Failures are compared with the engine's baseline,
