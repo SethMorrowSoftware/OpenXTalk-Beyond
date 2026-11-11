@@ -362,14 +362,36 @@ class EveryPackageStep(unittest.TestCase):
                     self.assertTrue(looped, '%s, job %s' % (name, job))
         self.assertGreater(seen, 1)
 
-    def test_the_script_is_run_with_bash(self):
-        # (not by its mode bits, which a checkout on Windows does not keep)
+    def test_the_script_is_called_by_its_path_in_the_checkout(self):
+        # With bash, not by its mode bits (a checkout on Windows does not
+        # keep them), and from $GITHUB_WORKSPACE, not from where the step
+        # happens to be: web.yml's font check has changed to a folder of
+        # RUNNER_TEMP by then, and a relative path failed the step there
+        # (#476's review)
+        seen = 0
         for name, job, container, runs in run_steps():
             for run in runs:
                 for line in run.split('\n'):
                     if CALL in line:
-                        self.assertRegex(line.strip(), r'^bash (tools/ci|"\$GITHUB_WORKSPACE/tools/ci)/apt-name-servers\.sh"?$',
-                                         '%s, job %s' % (name, job))
+                        seen += 1
+                        self.assertEqual(line.strip(), 'bash "$GITHUB_WORKSPACE/%s"' % CALL, '%s, job %s' % (name, job))
+        self.assertGreater(seen, 15)
+
+    def test_the_checkout_is_there_before_the_call(self):
+        # (at the workspace's root: a checkout with a path of its own would
+        # put the script somewhere else)
+        for name in sorted(os.listdir(WORKFLOWS)):
+            if not name.endswith('.yml'):
+                continue
+            with open(os.path.join(WORKFLOWS, name), encoding='utf-8') as f:
+                doc = yaml.safe_load(f)
+            for job, body in (doc.get('jobs') or {}).items():
+                checked_out = False
+                for step in body.get('steps') or []:
+                    if str(step.get('uses') or '').startswith('actions/checkout@'):
+                        checked_out = checked_out or not (step.get('with') or {}).get('path')
+                    if CALL in commands(step.get('run') or ''):
+                        self.assertTrue(checked_out, '%s, job %s, step %s' % (name, job, step.get('name')))
 
 
 if __name__ == '__main__':

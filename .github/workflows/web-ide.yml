@@ -476,7 +476,7 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/playwright"
           "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
           # (public name servers too, if the runner's own give no answer for the package servers)
-          bash tools/ci/apt-name-servers.sh
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
           "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps chromium
 
       - name: Web IDE screenshots
@@ -588,7 +588,7 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/playwright"
           "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
           # (public name servers too, if the runner's own give no answer for the package servers)
-          bash tools/ci/apt-name-servers.sh
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
           "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps "$BROWSER"
 
       - name: Web IDE in a small window
@@ -740,7 +740,7 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/playwright"
           "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
           # (public name servers too, if the runner's own give no answer for the package servers)
-          bash tools/ci/apt-name-servers.sh
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
           "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps "$BROWSER"
 
       - name: The released web IDE saves a stack and a preference
@@ -1074,7 +1074,7 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/playwright"
           "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
           # (public name servers too, if the runner's own give no answer for the package servers)
-          bash tools/ci/apt-name-servers.sh
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
           "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps chromium firefox
 
       - name: The online Dictionary

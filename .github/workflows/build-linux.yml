@@ -1259,7 +1259,7 @@ jobs:
             return 1
           }
           # (public name servers too, if the runner's own give no answer for the package servers)
-          bash tools/ci/apt-name-servers.sh
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
           # (sudo does not pass the job's environment on)
           apt=(sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30)
           retry "${apt[@]}" update
@@ -1485,7 +1485,7 @@ jobs:
           if ! command -v valgrind > /dev/null; then missing="$missing valgrind"; fi
           if [ -n "$missing" ]; then
             # (public name servers too, if the runner's own give no answer for the package servers)
-            bash tools/ci/apt-name-servers.sh
+            bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
             sudo apt-get update -q
             sudo apt-get install -y -q --no-install-recommends $missing
           fi
@@ -1678,7 +1678,7 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/playwright"
           "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
           # (public name servers too, if the runner's own give no answer for the package servers)
-          bash tools/ci/apt-name-servers.sh
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
           "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps chromium
 
       - name: Web standalone check

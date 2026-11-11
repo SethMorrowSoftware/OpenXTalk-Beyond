@@ -2,7 +2,10 @@
 # Lets a job's package steps go on when the machine's name servers give no
 # answer for the package servers.
 #
-#   bash tools/ci/apt-name-servers.sh       before a step's first apt-get
+#   bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
+#
+# before a step's first apt-get (by that path, not a relative one: a step
+# may have changed folder by then, as web.yml's font check has).
 #
 # On 11 November 2026, from about 14:00 UTC, no apt-get of any Linux job
 # could find its server ("Could not resolve 'archive.ubuntu.com'" in the
