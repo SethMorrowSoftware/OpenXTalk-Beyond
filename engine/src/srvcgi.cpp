@@ -768,8 +768,21 @@ static void cgi_store_data_urlencoded(MCVariable *p_variable, MCDataRef p_data, 
 
 		if (p_max_values > 0 && t_num_values >= p_max_values) break;
 
+        // OXT-Beyond: both whitespace loops stay inside the data. They
+        // read the byte one past its end (MCDataGetByteAtIndex does not
+        // check the index): a cookie header ending in "; " read on past
+        // its end, and the value of the last cookie, whose end is the
+        // data's end, lost its last character whenever the byte past the
+        // end happened to be a space. So the session id of a request whose
+        // only cookie was LCSESSION came to the session code one character
+        // short now and then, the session was not found, and a new one was
+        // made with that id (the Windows server check, 8 Nov 2026: "second
+        // request sees the first", a 31-character LCSESSION). Inside the
+        // data nothing changes: the trailing loop starts at the delimiter,
+        // never a space, so it trims nothing there, as before
         if (p_remove_whitespace)
-            while (MCDataGetByteAtIndex(p_data, t_encoded_index) == ' ')
+            while (t_encoded_index < t_length &&
+                   MCDataGetByteAtIndex(p_data, t_encoded_index) == ' ')
                 t_encoded_index++;
 
         t_delimiter_index = strchr_limit(p_data, p_delimiter, t_encoded_index);
@@ -796,7 +809,8 @@ static void cgi_store_data_urlencoded(MCVariable *p_variable, MCDataRef p_data, 
         t_encoded_value_end = t_delimiter_index;
 		
 		if (p_remove_whitespace)
-            while (t_encoded_value_end > t_encoded_value_index && MCDataGetByteAtIndex(p_data, t_encoded_value_end) == ' ')
+            while (t_encoded_value_end > t_encoded_value_index && t_encoded_value_end < t_length &&
+                   MCDataGetByteAtIndex(p_data, t_encoded_value_end) == ' ')
 				t_encoded_value_end--;
 		
         MCAutoDataRef t_value;

@@ -334,6 +334,61 @@ class ServerCheckTest(unittest.TestCase):
     def test_engine_version_is_major_minor_point(self):
         self.assertRegex(server_check.engine_version(REPO), r'^\d+\.\d+\.\d+$')
 
+    # The Windows server check's flake (8 Nov 2026): the engine read one
+    # byte past the cookie header, and a session id came one character
+    # short when that byte was a space. The report of the session check,
+    # the cookie cases and the memcheck pass
+    VALGRIND = (b'==12== Memcheck, a memory error detector\n'
+                b'==12== Invalid read of size 1\n'
+                b'==12==    at 0x6B9694: MCDataGetByteAtIndex (in /x/livecode-community-server)\n'
+                b'==12==    by 0x6700D2: ??? (in /x/livecode-community-server)\n'
+                b'==12==    by 0x6702A1: ??? (in /x/livecode-community-server)\n'
+                b'==12== Mismatched free() / delete / delete []\n'
+                b'==12==    at 0x484A164: operator delete(void*)\n')
+
+    def test_memcheck_names_reads_outside_memory_only(self):
+        errors = server_check.memcheck_errors(self.VALGRIND)
+        self.assertEqual(len(errors), 1)
+        self.assertIn('Invalid read of size 1', errors[0])
+        self.assertIn('MCDataGetByteAtIndex', errors[0])
+        # (the engine's "Mismatched free()" as it quits is not one)
+        self.assertEqual(server_check.memcheck_errors(b'==12== Mismatched free() / delete / delete []\n'), [])
+
+    def test_memcheck_runs_the_engine_under_valgrind(self):
+        seen = {}
+
+        def fake_run(argv, env, body, cwd):
+            seen['argv'], seen['cookie'] = argv, env.get('HTTP_COOKIE')
+            r = server_check.parse_cgi(b'Content-Type: text/html\n\nsession=x;')
+            r.returncode, r.stderr = 0, self.VALGRIND
+            return r
+
+        results = server_check.Results(quiet)
+        orig = server_check.run_cgi
+        server_check.run_cgi = fake_run
+        try:
+            server_check.run_memcheck('/srv/livecode-community-server', '/www', '/usr/bin/valgrind', results)
+        finally:
+            server_check.run_cgi = orig
+        self.assertEqual(seen['argv'][0], '/usr/bin/valgrind')
+        self.assertEqual(seen['argv'][-1], '/srv/livecode-community-server')
+        self.assertEqual(len(results.rows), len(server_check.MEMCHECK_COOKIES))
+        self.assertEqual(results.failed, len(server_check.MEMCHECK_COOKIES))
+        self.assertIn('MCDataGetByteAtIndex', results.rows[0][3])
+        # the cookies where the parser read past the header's end are asked
+        self.assertIn('LCSESSION=0123456789ABCDEF0123456789ABCDEF', server_check.MEMCHECK_COOKIES)
+        self.assertIn('one=abc; ', server_check.MEMCHECK_COOKIES)
+        self.assertIn('cookies.lc', server_check.PAGES)
+
+    def test_the_last_cookie_is_checked_whole(self):
+        cases = {name: (req, checks) for name, req, checks in server_check.CASES}
+        req, checks = cases['last cookie whole']
+        self.assertTrue(req.cookie.startswith('LCSESSION=') and ';' not in req.cookie)
+        self.assertEqual(checks[0][2], req.cookie.split('=', 1)[1])
+        self.assertGreaterEqual(server_check.SESSION_IDS, 20)
+        # and the session page says what it read of the cookie sent
+        self.assertIn('$_COOKIE["LCSESSION"]', server_check.PAGES['session.lc'])
+
 
 if __name__ == '__main__':
     unittest.main()
