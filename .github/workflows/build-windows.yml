@@ -1211,7 +1211,9 @@ jobs:
   # styles (its tour's screenshots are of the controls the engine draws
   # itself), so the Windows theme's buttons, which people have, are only
   # drawn here. Up to 0.2.7 they were light grey with white words after a
-  # switch to dark that Windows did not announce (openxtalk.org p=26224).
+  # switch to dark while the engine ran (openxtalk.org p=26224). The check
+  # reads them from the engine's snapshots and from the screen, and a screen
+  # it cannot read is a failure (--need-screen).
   dark-switch:
     name: Dark switch check (${{ matrix.runner }})
     if: ${{ github.event.pull_request.draft != true }}
@@ -1253,7 +1255,7 @@ jobs:
           package="$(pwd -W)/$(ls *-win-x86_64-portable.zip)"
           cd "$GITHUB_WORKSPACE"
           python tools/ci/dark_switch_check.py --package "$package" --platform win-x86_64 \
-            --need-visual-styles --log "$RUNNER_TEMP/dark-switch-check.log"
+            --need-visual-styles --need-screen --log "$RUNNER_TEMP/dark-switch-check.log"
 
   # The 32-bit Windows build, for the standalone runtime
   # Runtime/Windows/x86-32 (the IDE's "Windows" target), which the runtimes
