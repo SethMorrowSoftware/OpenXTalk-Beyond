@@ -571,6 +571,10 @@ def run_tests(device, count, timeout, restarts, start_timeout=START_TIMEOUT, clo
         if again is None:
             device.start()
         else:
+            # their output is that of their run again alone: their BEGIN,
+            # which resets it, can be lost as well
+            for line in again:
+                r.tap.pop(line, None)
             # after its END the app is still running, and am start would
             # only bring it to the front: its script would not start again
             device.stop()
@@ -666,7 +670,8 @@ def run_tests(device, count, timeout, restarts, start_timeout=START_TIMEOUT, clo
         else:
             kept = (list(r.tap.get(check, [])), r.details.get(check))
             follow([check])
-            ran = check in r.begun and check in r.finished
+            # its BEGIN or its DONE says it ran (either can be lost)
+            ran = check in r.begun or check in r.finished
             r.tap[check] = kept[0]
             if kept[1] is None:
                 r.details.pop(check, None)

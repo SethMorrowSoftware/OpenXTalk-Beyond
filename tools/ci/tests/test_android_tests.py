@@ -129,9 +129,10 @@ class FakeDevice:
     time it is asked for its lines; a clock moves with the check's sleep.
     Started with tests to run again (start(again)), it says AGAIN and runs
     those alone (again_behaviour: how they go then), then END, unless it
-    ignores_again. lose: {start: {line: 'all' or 'after-begin'}}, the lines
-    of a test that the device's log loses in that start (all of them, or all
-    but its BEGIN), while the app goes on."""
+    ignores_again. lose: {start: {line: 'all', 'after-begin', 'begin' or
+    'done'}}, the lines of a test that the device's log loses in that start
+    (all of them, all but its BEGIN, its BEGIN or its DONE), while the app
+    goes on."""
 
     def __init__(self, count, behaviour=None, lose_end=False, crash_at_start=0, lose=None,
                  again_behaviour=None, ignores_again=False, lose_again_said=False):
@@ -225,6 +226,10 @@ class FakeDevice:
             said = []
         elif lost == 'after-begin':
             said = said[:1]
+        elif lost == 'begin':
+            said = said[1:]
+        elif lost == 'done':
+            said = [x for x in said if ' DONE ' not in x]
         return out + said
 
     def pid(self):
@@ -354,6 +359,23 @@ class RunTests(unittest.TestCase):
         self.assertEqual(d.stops, 1)
         self.assertEqual(dict(reported), {1: 'pass', 2: 'pass', 3: 'pass'})
         self.assertEqual(at.result_of(r, 3)[3], [at.AGAIN_NOTE])
+
+    def test_a_test_run_again_keeps_none_of_its_first_output(self):
+        # the DONE of its first run was lost, and the BEGIN of its run
+        # again: its output is that of the run again alone
+        d = FakeDevice(3, {2: 'fail'}, lose={1: {2: 'done'}, 2: {2: 'begin'}})
+        r, reported = follow(d, 3)
+        self.assertEqual(d.agains, [[2]])
+        self.assertEqual(r.tap[2], ['ok - script compiles', 'ok - test 2'])
+        self.assertEqual(dict(reported), {1: 'pass', 2: 'pass', 3: 'pass'})
+        self.assertEqual(at.result_of(r, 2)[1], at.analyse_tap('ok\nok')[0])
+
+    def test_the_check_of_the_way_back_in_takes_a_lost_begin(self):
+        # the test the check runs again said DONE, its BEGIN lost: it ran
+        d = FakeDevice(3, lose={2: {1: 'begin'}})
+        r, reported = follow(d, 3, again_check=True)
+        self.assertEqual(d.agains, [[1]])
+        self.assertEqual(dict(reported), {1: 'pass', 2: 'pass', 3: 'pass'})
 
     def test_a_test_run_again_that_stops_the_app_fails_with_why(self):
         d = FakeDevice(4, lose={1: {2: 'all'}}, again_behaviour={2: 'crash'})
