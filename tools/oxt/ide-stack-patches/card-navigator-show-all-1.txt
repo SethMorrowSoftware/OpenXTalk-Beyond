@@ -1,0 +1,17 @@
+# Card Navigator: a "Show All" button after "Clone Card" (OpenXTalkPaul,
+# openxtalk.org p=26111: "show all cards" flipping through the cards as
+# HyperCard's did). A copy of "New Card" with the right arrow of "Next"
+# (image "right", id 1021) for its icon, its label and tip its own; patch
+# -2 gives it its script, and card-navigator-clone-card-3.txt makes room.
+file: Toolset/palettes/navigatorIDE.oxtstack
+object: button "New Card" of group "navbtns" of card id 1002
+clone: Show All
+unique-id: 1794318125921
+property: label
+to: Show All 
+property: toolTip
+to: Each card in turn, a flip-book, back to this one
+property: icon
+to: 1021
+property: rect
+to: 500,3,610,33

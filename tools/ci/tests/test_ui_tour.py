@@ -787,6 +787,122 @@ class CardNavigator(unittest.TestCase):
         self.assertGreater(self.step.rindex('close stack tNew'), thrown)
 
 
+class CardNavigatorClone(unittest.TestCase):
+    """The Card Navigator's "Clone Card" (OpenXTalkPaul, openxtalk.org
+    p=26111: a flip-book is made card by card). The step clicks it on a
+    stack of two cards and checks the copy: card 2, in front, with the
+    first card's field, the old second card now third, the default stack
+    as it was. It fails on 0.2.7's navigator, which has no such button."""
+
+    def setUp(self):
+        with open(TOUR, encoding='utf-8') as f:
+            script = f.read()
+        self.step = handler(script, 'on', 'tour_navigator')
+        self.check = handler(script, 'function', 'tourNavigatorClone')
+
+    def test_the_step_runs_it_and_closes_the_window_first(self):
+        run = self.step.index('put tourNavigatorClone(tNew) into tFail')
+        closed = self.step.index('close stack tNew', run)
+        self.assertLess(closed, self.step.index('if tFail is not empty then throw tFail'))
+
+    def test_a_click_on_the_button(self):
+        self.assertIn('if there is not a button "Clone Card" of stack pNav then return', self.check)
+        self.assertIn('put tStack into field "stackName" of stack pNav', self.check)
+        self.assertIn('send "mouseDown" to button "Clone Card" of stack pNav', self.check)
+        # the first card in front, so the copy goes between the two
+        self.assertLess(self.check.index('go card 1 of stack tStack'), self.check.index('send "mouseDown"'))
+
+    def test_what_it_checks(self):
+        for part in ('if the number of cards of stack tStack is not 3 then',
+                     'else if the number of this card of stack tStack is not 2 then',
+                     'field 1 of card 2 of stack tStack is not "frame 1"',
+                     'else if the short name of card 2 of stack tStack is not "Frame 1001" then',
+                     'else if the short name of card 3 of stack tStack is not "second" then',
+                     'else if the defaultStack is not tDefault then'):
+            self.assertIn(part, self.check)
+        # its scratch stack is gone either way
+        self.assertLess(self.check.index('delete stack tStack'), self.check.index('return tFail'))
+
+    def test_show_all_follows_a_clone_that_works(self):
+        clone = self.step.index('put tourNavigatorClone(tNew) into tFail')
+        show = self.step.index('if tFail is empty then put tourNavigatorShowAll(tNew) into tFail')
+        self.assertLess(clone, show)
+        self.assertLess(show, self.step.index('close stack tNew', show))
+
+    def test_the_button_works_round_the_locked_window(self):
+        # the engine will not clone a card while a stack that cannot be
+        # changed (the navigator) is the default stack
+        text = read_navigator_script(1029)
+        self.assertIn('button "Clone Card" (id 1029)', text)
+        set_default = text.index('set the defaultStack to tStack')
+        # by its id: the currentCard of a named card is its name
+        clone = text.index('clone card id (the short id of this card of stack tStack) of stack tStack')
+        self.assertNotIn('currentCard', text)
+        restore = text.index('set the defaultStack to tDefault', clone)
+        self.assertLess(set_default, clone)
+        self.assertLess(clone, restore)
+        self.assertIn('if tDefault is not empty then set the defaultStack to tDefault', text[restore + 1:])
+
+
+class CardNavigatorShowAll(unittest.TestCase):
+    """The Card Navigator's "Show All" (OpenXTalkPaul, p=26111: "show all
+    cards" flipping as HyperCard's did; the engine's goes through the
+    cards too fast to see, and is left as it is). The step clicks it on
+    four coloured cards: each opens in turn, at least 50 ms apart, the
+    screen showing each, and it comes back to the first. It fails on
+    0.2.7's navigator, which has no such button."""
+
+    def setUp(self):
+        with open(TOUR, encoding='utf-8') as f:
+            script = f.read()
+        self.check = handler(script, 'function', 'tourNavigatorShowAll')
+        self.seen = handler(script, 'on', 'tourShowAllSeen')
+        self.button = read_navigator_script(1030)
+
+    def test_a_click_on_the_button(self):
+        self.assertIn('if there is not a button "Show All" of stack pNav then return', self.check)
+        self.assertIn('send "mouseDown" to button "Show All" of stack pNav', self.check)
+        self.assertLess(self.check.index('go card 1 of stack tStack'), self.check.index('send "mouseDown"'))
+
+    def test_what_it_checks(self):
+        for part in ('if the number of lines of sShowAllSeen is not 4 then',
+                     'else if the short name of this card of stack tStack is not "red" then',
+                     'else if the defaultStack is not tDefault then',
+                     'put (i mod 4) + 1 into tWant',
+                     'if item 3 of tLine is not tPrevious and item 3 of tLine is not item 1 of tLine then',
+                     'if tWhen is not empty and item 2 of tLine - tWhen < 50 then'):
+            self.assertIn(part, self.check)
+        self.assertLess(self.check.index('delete stack tStack'),
+                        self.check.index('if tFail is not empty then return tFail'))
+        # the stack's openCard reads the screen at the middle of its window
+        self.assertIn('send " & quote & "tourShowAllSeen" & quote & " to stack', self.check)
+        self.assertIn('put tourPixelAt((item 1 of tRect + item 3 of tRect) div 2, '
+                      '(item 2 of tRect + item 4 of tRect) div 2) into tPixel', self.seen)
+        self.assertIn('& the milliseconds &', self.seen)
+
+    def test_the_row_fits(self):
+        self.assertIn('repeat for each item tButton in "New Card,Clone Card,Show All,Delete Card"', self.check)
+        self.assertIn('if tLast > the width of stack pNav then return', self.check)
+
+    def test_the_button(self):
+        self.assertIn('button "Show All" (id 1030)', self.button)
+        loop = self.button.index('repeat the number of cards of stack tStack times')
+        self.assertLess(self.button.index('set the defaultStack to tStack'), loop)
+        self.assertIn('show 1 card', self.button[loop:])
+        self.assertIn('wait 66 milliseconds', self.button[loop:])
+        self.assertIn('set the defaultStack to tDefault', self.button[loop:])
+        # the engine's command is not changed
+        self.assertNotIn('show all cards\n', self.button)
+
+
+def read_navigator_script(object_id):
+    path = os.path.join(os.path.dirname(TOUR), '..', '..', 'stack-scripts', 'ide', 'Toolset', 'palettes',
+                        'navigatorIDE.oxtstack.bst', 'scripts',
+                        'stack_Card_Navigator_button_id_%d.livecodescript' % object_id)
+    with open(path, encoding='utf-8') as f:
+        return f.read()
+
+
 class IDEStacks(unittest.TestCase):
     """After the tour has opened nearly every window, no stack in memory
     from the IDE's own folders is among the user's stacks as the IDE lists
