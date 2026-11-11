@@ -37,6 +37,10 @@
 #                                              use none of them
 #   emscripten-standalone-template/            the files every standalone
 #                                              gets (its font)
+#   emscripten-desktop-fonts/                  the desktop fonts (Arimo,
+#                                              Tinos, Cousine), which the
+#                                              builder adds for the Web
+#                                              pane's "Desktop fonts"
 #   emscripten-startup-template.livecodescript the startup script's template
 #
 # <version> is BUILD_SHORT_VERSION in the file version, which the IDE's
@@ -267,6 +271,10 @@ cp -R engine/rsrc/emscripten-standalone-template "${OUT}/"
 find "${OUT}/emscripten-standalone-template" -name '.*' -prune -exec rm -rf {} +
 [ -n "$(find "${OUT}/emscripten-standalone-template" -type f)" ] ||
 	fail "engine/rsrc/emscripten-standalone-template has no files"
+cp -R engine/rsrc/emscripten-desktop-fonts "${OUT}/"
+find "${OUT}/emscripten-desktop-fonts" -name '.*' -prune -exec rm -rf {} +
+[ "$(find "${OUT}/emscripten-desktop-fonts" -name '*.ttf' -type f | wc -l)" -eq 12 ] ||
+	fail "engine/rsrc/emscripten-desktop-fonts has not the twelve fonts"
 
 echo
 echo "Web runtime ${VERSION} in ${OUT}:"

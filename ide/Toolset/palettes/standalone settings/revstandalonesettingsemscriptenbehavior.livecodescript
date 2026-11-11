@@ -78,7 +78,7 @@ end emscriptenBuyNow
 
 -- The controls that the page's settings use, which are enabled while the
 -- standalone is built for HTML5
-constant kWebSettingsControls = "emscriptenPageHeading,emscriptenPageLine,emscriptenTitleLabel,emscriptenTitle,emscriptenTitleHint,emscriptenIconLabel,emscriptenIcon,emscriptenIconNone,emscriptenIconChoose,emscriptenSplashLabel,emscriptenSplash,emscriptenSplashNone,emscriptenSplashChoose,emscriptenColorLabel,emscriptenColorSwatch,emscriptenColorDefault,emscriptenColorChoose,emscriptenPositionLabel,emscriptenPosition,emscriptenAppearanceLabel,emscriptenAppearance,emscriptenFieldsLabel,emscriptenFields"
+constant kWebSettingsControls = "emscriptenPageHeading,emscriptenPageLine,emscriptenTitleLabel,emscriptenTitle,emscriptenTitleHint,emscriptenIconLabel,emscriptenIcon,emscriptenIconNone,emscriptenIconChoose,emscriptenSplashLabel,emscriptenSplash,emscriptenSplashNone,emscriptenSplashChoose,emscriptenColorLabel,emscriptenColorSwatch,emscriptenColorDefault,emscriptenColorChoose,emscriptenPositionLabel,emscriptenPosition,emscriptenAppearanceLabel,emscriptenAppearance,emscriptenFieldsLabel,emscriptenFields,emscriptenFontsLabel,emscriptenFonts"
 
 -- The places of the main stack in the page: the menu's items, and the
 -- settings' values (empty for the first, the page's own place)
@@ -95,6 +95,16 @@ constant kAppearanceValues = ",system"
 -- as on every page before)
 constant kFieldsItems = "White,The card's grey"
 constant kFieldsValues = ",card"
+
+-- The fonts the page draws text with: the menu's items, and the settings'
+-- values (empty for the first, Droid Sans for every font, as every page
+-- had). "desktop": the builder adds Arimo, Tinos and Cousine, whose glyphs
+-- are as wide as Arial's, Times New Roman's and Courier New's, and the
+-- web engine draws those names (and Helvetica, Geneva, Times, New York,
+-- Courier, Monaco...) in them, so text wraps as on the desktop
+-- (no comma in an item: the menu's lines are its items)
+constant kFontsItems = "Droid Sans for every font,Desktop fonts (Arial; Times and Courier widths; +1.9 MB)"
+constant kFontsValues = ",desktop"
 
 -- The page's colour when it has none of its own
 constant kDefaultPageColor = "#FFFFFF"
@@ -116,7 +126,7 @@ private command __EnsureWebSettings
    put __CopyControl(the long id of graphic id 1620 of tWindows, "emscriptenPageLine") into tControl
    
    -- A label for each setting, as the Windows card's "Application Icon:"
-   repeat for each item tSetting in "Title,Icon,Splash,Color,Position,Appearance,Fields"
+   repeat for each item tSetting in "Title,Icon,Splash,Color,Position,Appearance,Fields,Fonts"
       put __CopyControl(the long id of field id 1135 of tWindows, "emscripten" & tSetting & "Label") into tControl
       if tSetting is "Color" then
          set the text of tControl to "Background:"
@@ -180,6 +190,11 @@ private command __EnsureWebSettings
    set the text of tControl to replaceText(kFieldsItems, comma, return)
    set the label of tControl to item 1 of kFieldsItems
 
+   -- The fonts: Droid Sans for every font, or the desktop fonts as well
+   put __CopyControl(the long id of button "UAC Execution Level" of tWindows, "emscriptenFonts") into tControl
+   set the text of tControl to replaceText(kFontsItems, comma, return)
+   set the label of tControl to item 1 of kFontsItems
+
    -- Each control's own tooltip: a copy keeps its template's, which speaks
    -- of the Windows application's icon (.ico) and file description
    set the tooltip of field "emscriptenTitle" of me to "The title of the web page, which the browser shows on its tab (empty: the stack's title)"
@@ -195,6 +210,7 @@ private command __EnsureWebSettings
    set the tooltip of button "emscriptenPosition" of me to "Where the main stack is on the page"
    set the tooltip of button "emscriptenAppearance" of me to "Light: the stack draws light in every browser, as before. Follow the browser: the systemAppearance and the controls' default colours follow the browser's light or dark scheme"
    set the tooltip of button "emscriptenFields" of me to "White: fields, list fields and combo boxes that set no colour are white, as before. The card's grey: they are the grey of a card that sets none, as in the dark appearance"
+   set the tooltip of button "emscriptenFonts" of me to "Droid Sans: every font draws in Droid Sans, as before. Desktop fonts: Arial, Helvetica, Geneva, Times, New York, Courier, Monaco and the like draw in open fonts of the same widths, so text wraps as on the desktop (standalone.zip grows by 1.9 MB, about 1.2 MB over a compressed connection)"
 
    unlock messages
    unlock screen
@@ -263,6 +279,10 @@ private command __LayoutWebSettings pTop
    add 32 to tTop
    set the rect of field "emscriptenFieldsLabel" of me to 2, tTop, 142, tTop + 24
    set the rect of button "emscriptenFields" of me to 150, tTop + 1, 400, tTop + 23
+
+   add 32 to tTop
+   set the rect of field "emscriptenFontsLabel" of me to 2, tTop, 142, tTop + 24
+   set the rect of button "emscriptenFonts" of me to 150, tTop + 1, 533, tTop + 23
    
    -- the text, as tall as it is at this width
    add 38 to tTop
@@ -302,6 +322,11 @@ private command __ShowWebSettings pSettings
       put 1 into tValue
    end if
    set the menuHistory of button "emscriptenFields" of me to tValue
+   put itemOffset(pSettings["emscripten,fonts"], kFontsValues) into tValue
+   if pSettings["emscripten,fonts"] is empty or tValue is 0 then
+      put 1 into tValue
+   end if
+   set the menuHistory of button "emscriptenFonts" of me to tValue
    repeat for each item tControl in kWebSettingsControls
       set the enabled of control tControl of me to tEnabled
    end repeat
@@ -398,6 +423,9 @@ on menuPick pItem
    end if
    if the short name of the target is "emscriptenFields" then
       setSetting "emscripten,fieldBackground", item (the menuHistory of the target) of kFieldsValues
+   end if
+   if the short name of the target is "emscriptenFonts" then
+      setSetting "emscripten,fonts", item (the menuHistory of the target) of kFontsValues
    end if
    pass menuPick
 end menuPick

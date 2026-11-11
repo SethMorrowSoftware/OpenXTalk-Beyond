@@ -430,6 +430,33 @@ class Prepare(unittest.TestCase):
         self.assertEqual(files[-1], 'android-tests.txt')
         self.assertNotIn('files.txt', files)
 
+    def test_a_font_file_is_not_copied(self):
+        # the Android builder moves a copied font into assets/fonts/, where
+        # the runner does not look: the app stopped on it before any test
+        with tempfile.TemporaryDirectory() as tmp:
+            repo, ide = self.make_repo(tmp), self.make_ide(tmp)
+            os.makedirs(os.path.join(repo, 'engine', 'rsrc', 'fonts'))
+            for name in ('A.ttf', 'B.otf', 'C.ttc', 'D.txt'):
+                with open(os.path.join(repo, 'engine', 'rsrc', 'fonts', name), 'w') as f:
+                    f.write('x')
+            with open(os.path.join(repo, 'tests', 'lcs', 'core', 'fonts.livecodescript'), 'w') as f:
+                f.write('script "fonts"\non TestFonts\n' + ''.join(
+                    '   get TestGetEngineRepositoryPath() & "/engine/rsrc/fonts/%s"\n' % n
+                    for n in ('A.ttf', 'B.otf', 'C.ttc', 'D.txt')) + 'end TestFonts\n')
+            work = os.path.join(tmp, 'work')
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(at.main(['prepare', '--work', work, '--ide', ide, '--repo', repo]), 0)
+            files = open(os.path.join(work, 'oxt-tests', 'files.txt')).read().splitlines()
+        self.assertIn('engine/rsrc/fonts/D.txt', files)
+        for name in ('A.ttf', 'B.otf', 'C.ttc'):
+            self.assertNotIn('engine/rsrc/fonts/' + name, files)
+
+    def test_the_font_test_is_the_builders(self):
+        # the builder's own test, which the check follows
+        source = open(os.path.join(at.REPO,
+                                   'ide-support', 'revsblibrary.livecodescript'), encoding='utf-8').read()
+        self.assertIn('return (pFile ends with ".ttf" or pFile ends with ".ttc" or pFile ends with ".otf")', source)
+
     def test_an_extension_the_ide_lacks(self):
         # said, and the tests that load it fail on the device
         with tempfile.TemporaryDirectory() as tmp:
