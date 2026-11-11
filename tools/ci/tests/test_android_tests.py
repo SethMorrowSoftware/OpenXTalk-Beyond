@@ -124,7 +124,8 @@ class RunLines(unittest.TestCase):
 
 class FakeDevice:
     """The tests' app on a stand-in device: it plays the tests (behaviour:
-    {line: 'pass', 'fail', 'crash', 'hang' or 'quit-ends'}) as the runner
+    {line: 'pass', 'fail', 'crash', 'hang', 'quit' (the runner cancels it,
+    the test passes) or 'quit-ends'}) as the runner
     script does, resuming after the last test that began, one test each
     time it is asked for its lines; a clock moves with the check's sleep.
     Started with tests to run again (start(again)), it says AGAIN and runs
@@ -218,6 +219,8 @@ class FakeDevice:
             said.append(line('QUIT %d' % n))
             self.running = False
         else:
+            if what == 'quit':
+                said.append(line('QUIT %d' % n))
             said.append(line('TAP %d 1 ok - script compiles' % n))
             said.append(line('TAP %d 2 %s - test %d' % (n, 'ok' if what == 'pass' else 'not ok', n)))
             said.append(line('DONE %d' % n))
@@ -376,6 +379,29 @@ class RunTests(unittest.TestCase):
         r, reported = follow(d, 3, again_check=True)
         self.assertEqual(d.agains, [[1]])
         self.assertEqual(dict(reported), {1: 'pass', 2: 'pass', 3: 'pass'})
+
+    def test_a_test_run_again_keeps_no_quit_of_its_first_run(self):
+        # it quit in its first run, whose DONE was lost, and not in its
+        # run again: its result is that of the run again
+        d = FakeDevice(3, {2: 'quit'}, lose={1: {2: 'done'}})
+        r, reported = follow(d, 3)
+        self.assertEqual(d.agains, [[2]])
+        self.assertEqual(dict(reported), {1: 'pass', 2: 'pass', 3: 'pass'})
+        self.assertEqual(at.result_of(r, 2)[3], [at.AGAIN_NOTE])
+        # and one that quits in its run again too fails
+        d = FakeDevice(3, {2: 'quit'}, lose={1: {2: 'done'}}, again_behaviour={2: 'quit'})
+        r, reported = follow(d, 3)
+        self.assertEqual(dict(reported), {1: 'pass', 2: 'fail', 3: 'pass'})
+
+    def test_the_check_of_the_way_back_in_keeps_the_first_result_of_a_quit(self):
+        # the test the check runs again quits that time: its result is
+        # still that of its first run
+        d = FakeDevice(3, again_behaviour={1: 'quit-ends'})
+        r, reported = follow(d, 3, again_check=True)
+        self.assertEqual(d.agains, [[1]])
+        self.assertEqual(dict(reported), {1: 'pass', 2: 'pass', 3: 'pass'})
+        self.assertEqual([at.result_of(r, n)[0] for n in (1, 2, 3)], ['pass'] * 3)
+        self.assertEqual(at.result_of(r, 1)[3], [])
 
     def test_a_test_run_again_that_stops_the_app_fails_with_why(self):
         d = FakeDevice(4, lose={1: {2: 'all'}}, again_behaviour={2: 'crash'})

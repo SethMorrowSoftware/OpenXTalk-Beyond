@@ -571,10 +571,12 @@ def run_tests(device, count, timeout, restarts, start_timeout=START_TIMEOUT, clo
         if again is None:
             device.start()
         else:
-            # their output is that of their run again alone: their BEGIN,
-            # which resets it, can be lost as well
+            # their result is that of their run again alone: their output
+            # and whether they quit (their BEGIN, which resets the output,
+            # can be lost as well)
             for line in again:
                 r.tap.pop(line, None)
+                r.quit.discard(line)
             # after its END the app is still running, and am start would
             # only bring it to the front: its script would not start again
             device.stop()
@@ -668,7 +670,10 @@ def run_tests(device, count, timeout, restarts, start_timeout=START_TIMEOUT, clo
         if check is None:
             follow([])
         else:
-            kept = (list(r.tap.get(check, [])), r.details.get(check))
+            # all that makes its result: its output, what was said of it
+            # and whether it quit
+            details = r.details.get(check)
+            kept = (list(r.tap.get(check, [])), None if details is None else list(details), check in r.quit)
             follow([check])
             # its BEGIN or its DONE says it ran (either can be lost)
             ran = check in r.begun or check in r.finished
@@ -677,6 +682,10 @@ def run_tests(device, count, timeout, restarts, start_timeout=START_TIMEOUT, clo
                 r.details.pop(check, None)
             else:
                 r.details[check] = kept[1]
+            if kept[2]:
+                r.quit.add(check)
+            else:
+                r.quit.discard(check)
             if not ran:
                 raise CheckError('the app was started to run test %d again, and it did not run it' % check)
             log('Ran test %d again, as a check that the way back in works' % check)
