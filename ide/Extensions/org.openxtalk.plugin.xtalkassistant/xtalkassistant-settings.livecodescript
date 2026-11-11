@@ -82,7 +82,7 @@ end textChanged
 
 -- Return in a one-line field saves, as the default button would
 on returnInField
-   if the short name of the target is among the items of "Key,Base URL,Max Tokens,Fix Rounds,Timeout" then
+   if the short name of the target is among the items of "Key,Base URL,Context Length,Max Tokens,Fix Rounds,Timeout" then
       dispatch "xtaSettingsSave" to stack kMain
    else
       pass returnInField
