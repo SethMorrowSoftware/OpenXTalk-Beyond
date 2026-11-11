@@ -320,6 +320,8 @@ private command makeSamples pFolder
    makeGrid pFolder & "/Grid.livecode"
    makeData pFolder & "/Data.livecode"
    makeHyper pFolder & "/Hyper.livecode"
+   makeOldHyper pFolder & "/OldHyper.livecode"
+   makeOldQuiet pFolder & "/OldQuiet.livecode"
    makeMover pFolder & "/Mover.livecode"
 end makeSamples
 
@@ -540,6 +542,75 @@ private command makeHyper pFile
    save stack "Hyper" as pFile
    delete stack "Hyper"
 end makeHyper
+
+-- A HyperCard stack as an import before 0.2.7 saved it (or one with
+-- Make HyperTalk Scripts Compile turned off): the importer's mark
+-- (uHyperCard["source"], and an XCMD of its resource fork in
+-- uHyperCard["externals"]), and a stack script that this engine does not
+-- compile ("global prev"), so its openCard stops with "can't find handler
+-- oldHyperShow". The player offers to fix it and opens it again with its
+-- scripts fixed: then openStack runs, oldHyperShow is found and the XCMD
+-- has a stand-in
+private command makeOldHyper pFile
+   create stack "OldHyper"
+   set the rect of stack "OldHyper" to 0,0,512,342
+   set the backgroundColor of stack "OldHyper" to "#FFFFFF"
+   set the dynamicPaths of stack "OldHyper" to true
+   set the uHyperCard["source"] of stack "OldHyper" to "OldHyper (HyperCard 2.4)"
+   set the uHyperCard["externals"] of stack "OldHyper" to "XCMD" & tab & "oldHyperXCMD"
+   set the defaultStack to "OldHyper"
+   -- (it does not compile: "prev" is a word of this engine's)
+   set the script of stack "OldHyper" to \
+         "on openStack" & return & \
+         "   global prev" & return & \
+         "   put " & quote & "open" & quote & " into prev" & return & \
+         "   write " & quote & "SAMPLE oldhyper openStack" & quote & " & return to stdout" & return & \
+         "end openStack" & return & \
+         "on oldHyperShow" & return & \
+         "   write " & quote & "SAMPLE oldhyper shown " & quote & " & the hyperTalkCompatible of this stack & return to stdout" & return & \
+         "end oldHyperShow"
+   set the script of card 1 of stack "OldHyper" to \
+         "on openCard" & return & \
+         "   oldHyperShow" & return & \
+         "   oldHyperXCMD" & return & \
+         "   write " & quote & "SAMPLE oldhyper xcmd " & quote & " & the result & return to stdout" & return & \
+         "end openCard"
+   create field "Words"
+   set the rect of field "Words" to 20,20,492,80
+   set the lockText of field "Words" to true
+   set the textSize of field "Words" to 18
+   put "A HyperCard stack converted before its scripts were fixed" into field "Words"
+   lock messages
+   go card 1 of stack "OldHyper"
+   unlock messages
+   save stack "OldHyper" as pFile
+   delete stack "OldHyper"
+end makeOldHyper
+
+-- The same kind of stack whose card plays without an error, although
+-- its stack script does not compile (as Alphabet Zoo and The Haunted
+-- House do): the player must leave it exactly as it is
+private command makeOldQuiet pFile
+   create stack "OldQuiet"
+   set the rect of stack "OldQuiet" to 0,0,512,342
+   set the backgroundColor of stack "OldQuiet" to "#FFFFFF"
+   set the uHyperCard["source"] of stack "OldQuiet" to "OldQuiet (HyperCard 2.4)"
+   set the defaultStack to "OldQuiet"
+   set the script of stack "OldQuiet" to \
+         "on openStack" & return & \
+         "   global prev" & return & \
+         "   write " & quote & "SAMPLE oldquiet openStack" & quote & " & return to stdout" & return & \
+         "end openStack"
+   set the script of card 1 of stack "OldQuiet" to \
+         "on openCard" & return & \
+         "   write " & quote & "SAMPLE oldquiet card " & quote & " & the hyperTalkCompatible of this stack & return to stdout" & return & \
+         "end openCard"
+   lock messages
+   go card 1 of stack "OldQuiet"
+   unlock messages
+   save stack "OldQuiet" as pFile
+   delete stack "OldQuiet"
+end makeOldQuiet
 
 private function buildFiles pFolder
    local tFiles

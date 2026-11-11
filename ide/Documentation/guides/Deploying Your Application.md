@@ -594,7 +594,8 @@ copy. The files and folders are copied into `/uploads`, as those that
 `answer file` gives are, and `the dragData["files"]` has their copies'
 paths.
 * **The screen** is the browser's window: `the screenRect` is its size, a
-stack gets `desktopChanged` when it changes, and stacks draw at the
+stack gets `desktopChanged` when it changes, `the screenDepth` is 32 (as
+on the desktop; until 0.2.8 it was 0), and stacks draw at the
 screen's scale, so they stay sharp on high-resolution screens and when the
 page is zoomed. `import snapshot` and `export snapshot` of the screen or of
 a stack's window take what the stacks show there, and `the mouseColor` is
