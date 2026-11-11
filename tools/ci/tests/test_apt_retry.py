@@ -199,7 +199,7 @@ class AptRetry(Machine):
             status, calls, sleeps = self.run_loop(name, 0, '', dns='down')
             self.assertEqual(status, 0, name)
             # asked before the first apt-get, so the first pass already works
-            self.assertEqual(self.read('lookups')[0], 'hosts archive.ubuntu.com', name)
+            self.assertEqual(self.read('lookups')[0], 'ahostsv4 archive.ubuntu.com', name)
             self.assertEqual([c.split()[2] for c in calls], ['update', 'install'], name)
             self.assertEqual(sleeps, [], name)
             # the container's own lines stay as they were, and first
@@ -214,6 +214,8 @@ class AptRetry(Machine):
             status, calls, sleeps = self.run_loop(name, 2, '', dns='down')
             self.assertEqual(status, 0, name)
             self.assertEqual(name_servers(self.resolv()), ['127.0.0.11'] + PUBLIC, name)
+            # and the later passes ask for nothing: one lookup in all
+            self.assertEqual(self.read('lookups'), ['ahostsv4 archive.ubuntu.com'], name)
 
     @POSIX
     def test_the_arm64_containers_server_is_the_one_asked(self):
@@ -222,7 +224,7 @@ class AptRetry(Machine):
         for name in FILES:
             status, calls, sleeps = self.run_loop(name, 0, 'true', dns='down', sources=ports)
             self.assertEqual(status, 0, name)
-            self.assertEqual(self.read('lookups')[0], 'hosts ports.ubuntu.com', name)
+            self.assertEqual(self.read('lookups')[0], 'ahostsv4 ports.ubuntu.com', name)
             self.assertEqual(name_servers(self.resolv()), ['127.0.0.11'] + PUBLIC, name)
 
 
@@ -260,8 +262,8 @@ class NameServersScript(Machine):
         self.assertEqual(self.resolv(), RESOLV_HOST)
         self.assertNotIn('::warning::', out)
         # every server of the sources was asked for, and no commented one
-        self.assertEqual(self.read('lookups'), ['hosts archive.ubuntu.com', 'hosts azure.archive.ubuntu.com',
-                                                'hosts packages.microsoft.com', 'hosts security.ubuntu.com'])
+        self.assertEqual(self.read('lookups'), ['ahostsv4 ' + name for name in (
+            'archive.ubuntu.com', 'azure.archive.ubuntu.com', 'packages.microsoft.com', 'security.ubuntu.com')])
 
     def test_public_name_servers_follow_the_runners_own_when_a_server_does_not_resolve(self):
         out = self.run_script('down')
@@ -273,11 +275,14 @@ class NameServersScript(Machine):
     def test_the_first_server_that_does_not_resolve_is_enough(self):
         # (each lookup that fails takes the resolver's whole timeout)
         self.run_script('down')
-        self.assertEqual(self.read('lookups'), ['hosts archive.ubuntu.com'] * 2)
+        self.assertEqual(self.read('lookups'), ['ahostsv4 archive.ubuntu.com'] * 2)
 
-    def test_a_second_call_adds_nothing(self):
+    def test_a_second_call_adds_nothing_and_asks_nothing(self):
+        # (with the public name servers there, each lookup that the first
+        # one leaves unanswered takes 5 s: 30 s a call on a runner, measured)
         self.run_script('down', times=3)
         self.assertEqual(name_servers(self.resolv()), ['127.0.0.53'] + PUBLIC)
+        self.assertEqual(self.read('lookups'), ['ahostsv4 archive.ubuntu.com'] * 2)
 
     def test_a_last_line_without_its_newline_is_kept_whole(self):
         self.run_script('down', resolv='nameserver 127.0.0.53')

@@ -42,6 +42,13 @@
 etc="${APT_ETC:-/etc/apt}"
 resolv="${RESOLV_CONF:-/etc/resolv.conf}"
 
+# Added by an earlier step of the job: nothing more to do, and nothing to
+# ask (with them, a lookup that the first name server leaves unanswered
+# takes its timeout, 5 s, before the next one answers)
+if grep -Eq '^nameserver[[:space:]]+1\.1\.1\.1[[:space:]]*$' "$resolv" 2> /dev/null; then
+  exit 0
+fi
+
 # The servers of the sources: one-line files, deb822 files, and the mirror
 # list that the hosted runners' sources point at
 servers=$(cat "$etc"/sources.list "$etc"/sources.list.d/*.list "$etc"/sources.list.d/*.sources \
@@ -49,21 +56,17 @@ servers=$(cat "$etc"/sources.list "$etc"/sources.list.d/*.list "$etc"/sources.li
           grep -v '^[[:space:]]*#' | grep -Eo 'https?://[^/[:space:]]+' |
           sed -e 's|^[a-z]*://||' -e 's|^.*@||' -e 's|:[0-9]*$||' | sort -u)
 
-# The first one that does not resolve is enough: each lookup that fails
-# takes the resolver's whole timeout (10 s on a runner)
+# The first one that does not resolve is enough: a lookup that fails takes
+# the resolver's whole timeout (10 s on a runner that day; ahostsv4 asks
+# for the IPv4 address alone, which is the one apt connects to there)
 missing=
 for server in $servers; do
-  if ! getent hosts "$server" > /dev/null 2>&1; then
+  if ! getent ahostsv4 "$server" > /dev/null 2>&1; then
     missing=$server
     break
   fi
 done
 if [ -z "$missing" ]; then
-  exit 0
-fi
-
-if grep -Eq '^nameserver[[:space:]]+1\.1\.1\.1[[:space:]]*$' "$resolv" 2> /dev/null; then
-  echo "::warning::$missing does not resolve, with 1.1.1.1 and 9.9.9.9 in $resolv already"
   exit 0
 fi
 
@@ -74,7 +77,7 @@ if [ -w "$resolv" ]; then
 else
   printf '\nnameserver 1.1.1.1\nnameserver 9.9.9.9\n' | sudo tee -a "$resolv" > /dev/null
 fi
-if getent hosts "$missing" > /dev/null 2>&1; then
+if getent ahostsv4 "$missing" > /dev/null 2>&1; then
   echo "$missing resolves now"
 else
   echo "::warning::$missing still does not resolve"

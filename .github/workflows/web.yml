@@ -135,16 +135,16 @@ jobs:
             # before, by the same server. tools/ci/apt-name-servers.sh says more;
             # the steps on the runner call it, and there is no checkout here yet
             # (RESOLV_CONF, like APT_ETC, is only for the test)
-            for server in $(cat "${APT_ETC:-/etc/apt}"/sources.list "${APT_ETC:-/etc/apt}"/sources.list.d/* 2> /dev/null |
-                            grep -v '^[[:space:]]*#' | grep -Eo 'https?://[^/[:space:]]+' | sed 's|.*://||' | sort -u); do
-              if ! getent hosts "$server" > /dev/null 2>&1; then
-                if ! grep -q '^nameserver 1\.1\.1\.1$' "${RESOLV_CONF:-/etc/resolv.conf}"; then
+            if ! grep -q '^nameserver 1\.1\.1\.1$' "${RESOLV_CONF:-/etc/resolv.conf}"; then
+              for server in $(cat "${APT_ETC:-/etc/apt}"/sources.list "${APT_ETC:-/etc/apt}"/sources.list.d/* 2> /dev/null |
+                              grep -v '^[[:space:]]*#' | grep -Eo 'https?://[^/[:space:]]+' | sed 's|.*://||' | sort -u); do
+                if ! getent ahostsv4 "$server" > /dev/null 2>&1; then
                   echo "::warning::$server does not resolve with the container's name servers; 1.1.1.1 and 9.9.9.9 are added after them"
                   printf '\nnameserver 1.1.1.1\nnameserver 9.9.9.9\n' >> "${RESOLV_CONF:-/etc/resolv.conf}"
+                  break
                 fi
-                break
-              fi
-            done
+              done
+            fi
             if [ "$pass" -gt 1 ]; then
               for f in "${APT_ETC:-/etc/apt}"/sources.list "${APT_ETC:-/etc/apt}"/sources.list.d/*; do
                 if [ -f "$f" ]; then
