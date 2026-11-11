@@ -58,6 +58,16 @@ constant kKeySpeed = 380
 constant kShipRadius = 15
 constant kMaxStreak = 5
 constant kMaxHull = 3
+-- the tilt: how far the phone may lean from where it was held (in g,
+-- along the screen) and the ship not move, for the hand's own sway; how
+-- far for its top speed, and that speed (faster than the keys: a lean
+-- passes through the slower speeds first); and how long, as a run
+-- begins or goes on or the screen turns, the ship holds still while
+-- the phone settles in the hand
+constant kTiltDead = 0.05
+constant kTiltFull = 0.3
+constant kTiltTop = 500
+constant kTiltSettle = 0.25
 
 -- whether the Mobile Web library is there; the screen showing (title,
 -- howto, play, pause, dying, over, settings); where Settings and How to
@@ -84,8 +94,10 @@ local sShipX, sShipY, sHull, sSafeUntil, sTwinUntil, sShieldUntil, sShieldUp, sN
 -- a finger on the screen, and where it was at the last frame
 local sDragging, sDragFrom
 -- the tilt: whether the sensor runs, which way gravity points, the last
--- reading, and the reading the run started with
-local sTiltOn, sTiltSign, sTiltX, sTiltY, sTiltZero
+-- reading along the screen (its right, its up), the reading the ship
+-- holds still at, and until when that follows the phone (nrTiltZero);
+-- which way up the screen is (nrScreenAngle), and a test's for it
+local sTiltOn, sTiltSign, sTiltX, sTiltY, sTiltZero, sTiltSettle, sTiltAngle, sTestAngle
 -- the run
 local sScore, sStreak, sSector, sRescued, sRescuedRun, sStarsRun, sLostRun, sBossCount
 -- what comes next: the next astronaut, meteor or raider, and ufo; the
@@ -147,6 +159,9 @@ command nrInit
    put empty into sLoop
    put empty into sSaveFile
    put false into sTiltOn
+   put 0 into sTiltSettle
+   put 0 into sTiltAngle
+   put empty into sTestAngle
    put false into sNoSpawn
    put 0 into sClock
    put 0 into sNow
@@ -870,7 +885,7 @@ command nrNewRun
    -- (no ufo in the first sector)
    put 1000000 into sNextUfo
    put empty into sPhase
-   put empty into sTiltZero
+   nrTiltZero
    put false into sDragging
    put (item 1 of sPlay + item 3 of sPlay) / 2 into sShipX
    put item 4 of sShipBounds - 20 into sShipY
@@ -916,7 +931,7 @@ command nrResume
    nrKeepAwake true
    if sControl is "tilt" then
       nrTiltStart
-      put empty into sTiltZero
+      nrTiltZero
    end if
    put the milliseconds into sLast
    nrSchedule
@@ -1000,15 +1015,17 @@ private command nrSteer pDt
       add tVX * kKeySpeed * sU * pDt to sShipX
       add tVY * kKeySpeed * sU * pDt to sShipY
    end if
-   -- the tilt: how far the phone leans from where it was as the run began
+   -- the tilt: how far the phone leans from where it was held as the
+   -- run began, or went on, or the screen turned (until 2026-11-11 the
+   -- ship flew 80 points a second for a whole g of lean, about 21 for a
+   -- lean of 15 degrees, and the smallest lean moved it: a ship that
+   -- drifted, and crawled where it was steered)
    if sControl is "tilt" and sTiltOn and sTiltX is a number and sTiltY is a number then
-      if sTiltZero is empty then
+      if sTiltZero is empty or sNow < sTiltSettle then
          put sTiltX, sTiltY into sTiltZero
       end if
-      put max(-520, min(520, -sTiltSign * (sTiltX - item 1 of sTiltZero) * 80)) into tVX
-      put max(-520, min(520, sTiltSign * (sTiltY - item 2 of sTiltZero) * 80)) into tVY
-      add tVX * sU * pDt to sShipX
-      add tVY * sU * pDt to sShipY
+      add nrTiltSpeed(-sTiltSign * (sTiltX - item 1 of sTiltZero)) * sU * pDt to sShipX
+      add nrTiltSpeed(sTiltSign * (sTiltY - item 2 of sTiltZero)) * sU * pDt to sShipY
    end if
    put sShipBounds into tB
    put max(item 1 of tB, min(item 3 of tB, sShipX)) into sShipX
@@ -2357,18 +2374,108 @@ private command nrTiltStart
    end if
    put true into sTiltOn
    put empty into sTiltSign
-   put empty into sTiltX
-   put empty into sTiltY
-   put empty into sTiltZero
+   nrTiltZero
    return empty
 end nrTiltStart
 
+-- The ship held still where the phone is from its next reading, for a
+-- moment (kTiltSettle), and the tilt read along the screen's way up now
+-- (a reading from before may have been read along another)
+private command nrTiltZero
+   put nrScreenAngle() into sTiltAngle
+   put empty into sTiltX
+   put empty into sTiltY
+   put empty into sTiltZero
+   put sNow + kTiltSettle into sTiltSettle
+end nrTiltZero
+
+-- The window changed: if the screen turned with the phone, the tilt is
+-- read along its new way up, from where the phone is now
+private command nrTiltTurned
+   if sTiltOn and nrScreenAngle() is not sTiltAngle then
+      nrTiltZero
+   end if
+end nrTiltTurned
+
+-- How fast the ship flies (points a second, before sU) for a lean of
+-- pLean (in g): not at all inside kTiltDead, then faster with the lean,
+-- to kTiltTop at kTiltFull and on
+private function nrTiltSpeed pLean
+   local tFar
+   put (abs(pLean) - kTiltDead) / (kTiltFull - kTiltDead) into tFar
+   if tFar <= 0 then
+      return 0
+   end if
+   if pLean < 0 then
+      return -kTiltTop * min(1, tFar)
+   end if
+   return kTiltTop * min(1, tFar)
+end nrTiltSpeed
+
+-- Which way up the screen is, from the way the phone is made to be
+-- held: 0; 90, the phone turned a quarter to the left (anticlockwise);
+-- -90, to the right; 180. A test's (nrTestTilt), else the browser's
+-- (an iPhone's window.orientation, which these numbers are, else the
+-- Screen Orientation API's angle, 270 for -90); 0 off the web
+private function nrScreenAngle
+   local tAngle
+   if sTestAngle is a number then
+      put sTestAngle into tAngle
+   else if the platform is "HTML5" then
+      try
+         do "(function(){if(typeof window.orientation==='number')return window.orientation;" & \
+               "var o=screen.orientation;return o&&typeof o.angle==='number'?o.angle:0;})()" as "JavaScript"
+         put the result into tAngle
+      end try
+   end if
+   if tAngle is not a number then
+      return 0
+   end if
+   switch round(tAngle)
+      case 90
+      case -270
+         return 90
+      case -90
+      case 270
+         return -90
+      case 180
+      case -180
+         return 180
+   end switch
+   return 0
+end nrScreenAngle
+
+-- A reading, in g: the push that holds the phone up against gravity,
+-- along the phone (x across it, y up it, as it is made to be held, z
+-- out of the screen). The ship flies along the screen, which the
+-- browser turns with the phone: the reading is turned with it
 on accelerationChanged pX, pY, pZ
-   -- browsers do not agree which way gravity points: the first reading,
-   -- with the phone held up or lying flat, says
+   local tRight, tUp
+   if pX is not a number or pY is not a number or pZ is not a number then
+      exit accelerationChanged
+   end if
+   switch sTiltAngle
+      case 90
+         put -pY into tRight
+         put pX into tUp
+         break
+      case -90
+         put pY into tRight
+         put -pX into tUp
+         break
+      case 180
+         put -pX into tRight
+         put -pY into tUp
+         break
+      default
+         put pX into tRight
+         put pY into tUp
+   end switch
+   -- browsers do not agree which way the push points: the first
+   -- reading, with the phone held up or lying flat, says
    if sTiltSign is empty then
-      if abs(pY) > abs(pZ) then
-         put pY into sTiltSign
+      if abs(tUp) > abs(pZ) then
+         put tUp into sTiltSign
       else
          put pZ into sTiltSign
       end if
@@ -2378,9 +2485,16 @@ on accelerationChanged pX, pY, pZ
          put 1 into sTiltSign
       end if
    end if
-   put pX into sTiltX
-   put pY into sTiltY
+   put tRight into sTiltX
+   put tUp into sTiltY
 end accelerationChanged
+
+-- The Mobile Web library's word that the phone turned (resizeStack
+-- comes too, and may come first)
+on orientationChanged
+   nrTiltTurned
+   pass orientationChanged
+end orientationChanged
 
 on trackingError pSensor, pError
    if pSensor is "acceleration" then
@@ -2402,6 +2516,7 @@ on nrResized
    set the defaultStack to the short name of me
    put sPlay into tOld
    nrLayout
+   nrTiltTurned
    if tOld is empty or sMode is "title" then
       exit nrResized
    end if
@@ -2442,8 +2557,11 @@ on nrResized
    lock screen
    nrDrawAll
    unlock screen
-   if sMode is "play" then
-      -- a phone turned in the middle of a run: a moment to hold it again
+   -- a phone turned in the middle of a run: a moment to hold it again;
+   -- but not one flown by its tilt, where a lean far enough turns the
+   -- screen, and the run goes on (nrTiltTurned has read the tilt along
+   -- the new way up). Until 2026-11-11 that paused too
+   if sMode is "play" and not (sControl is "tilt" and sTiltOn) then
       if abs((item 3 of tOld - item 1 of tOld) - (item 3 of sPlay - item 1 of sPlay)) > 60 or \
             abs(item 4 of tOld - item 4 of sPlay) > 60 then
          nrPause
@@ -2923,15 +3041,31 @@ command nrTestPut pKind, pX, pY, pSpeed
    end switch
 end nrTestPut
 
+-- The tilt on, without a sensor (the test sends accelerationChanged
+-- itself), and the screen pAngle degrees from upright (nrScreenAngle;
+-- nrTestSet "angle" turns it later)
+command nrTestTilt pAngle
+   set the defaultStack to the short name of me
+   put pAngle into sTestAngle
+   put "tilt" into sControl
+   put true into sTiltOn
+   put empty into sTiltSign
+   nrTiltZero
+end nrTestTilt
+
 -- The ship where a test wants it
 command nrTestShip pX, pY
    put pX into sShipX
    put pY into sShipY
 end nrTestShip
 
--- A number of the run: sector, hull, streak, rescued, score, bosshp
+-- A number of the run: sector, hull, streak, rescued, score, bosshp;
+-- or angle, the screen's for the tilt (nrTestTilt)
 command nrTestSet pName, pValue
    switch pName
+      case "angle"
+         put pValue into sTestAngle
+         break
       case "sector"
          put pValue into sSector
          break
