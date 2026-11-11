@@ -74,7 +74,8 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --    OXT_ANDROID_WORK      a folder for the units' made-up SDKs
 --    OXT_ANDROID_PROBE     "java" for the Java layer's probe (see below),
 --                          "busy" for the busy probe (see kBusyTick),
---                          "edge" for the edge probe (see kEdgeWait)
+--                          "edge" for the edge probe (see kEdgeWait),
+--                          "tests" for the script tests (see kTestsScript)
 --    OXT_ANDROID_ENGINE    the probe's "android,engine" setting ("beyond"
 --                          for OXT-Beyond's own engine; none when empty)
 --
@@ -161,6 +162,20 @@ constant kEdgeWait = 1000
 constant kProbeIconForeground = "oxt-icon-foreground.png"
 constant kProbeIconMonochrome = "oxt-icon-monochrome.png"
 constant kIdentifier = "org.openxtalk.check.androidprobe"
+-- kTestsScript: the script tests (OXT_ANDROID_PROBE "tests") are the
+-- standalone that tools/ci/android_tests.py runs the LiveCode Script
+-- tests of tests/lcs in on a device: a stack named as LiveCode's standalone
+-- test runner's (StandaloneTestRunnerMainstack, which tells the test
+-- library that it runs in a standalone) whose script is that of
+-- tools/ci/android-tests.livecodescript, which android_tests.py puts
+-- beside the stack file as kTestsScript, with the copy files it names
+-- (kTestsFiles: the tests, and the extensions they load) in folders
+-- beside it too. It is its own app (kTestsIdentifier), may use the
+-- network (INTERNET: the tests of sockets and URLs), and is built as a
+-- probe is
+constant kTestsScript = "android-tests.livecodescript"
+constant kTestsFiles = "oxt-tests,packaged_extensions"
+constant kTestsIdentifier = "org.openxtalk.check.androidtests"
 -- The Java layer's probe's picture: one pixel, a PNG, as base64
 constant kProbePicture = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
 -- The Java layer's probe's copy file, oxt-probe.txt, and what it holds
@@ -1043,8 +1058,33 @@ private function probeName
    if $OXT_ANDROID_PROBE is "edge" then
       return "AndroidEdgeProbe"
    end if
+   if $OXT_ANDROID_PROBE is "tests" then
+      return "StandaloneTestRunnerMainstack"
+   end if
    return "AndroidProbe"
 end probeName
+
+-- The folder of the probe stack's file, where the script tests' script and
+-- copy files are (see kTestsScript)
+private function probeFolder
+   set the itemDelimiter to slash
+   return item 1 to -2 of $OXT_ANDROID_STACK
+end probeFolder
+
+-- The script tests' script: kTestsScript, a script-only stack's file,
+-- without its first line (script "<name>")
+private function testsScript
+   local tScript
+   put textDecode(url ("binfile:" & probeFolder() & slash & kTestsScript), "UTF-8") into tScript
+   if tScript is empty then
+      throw "no" && kTestsScript && "in" && probeFolder()
+   end if
+   replace numToChar(13) & numToChar(10) with return in tScript
+   if line 1 of tScript begins with "script " then
+      delete line 1 of tScript
+   end if
+   return tScript
+end testsScript
 
 private function probeScript
    local tScript
@@ -1144,6 +1184,20 @@ private command makeProbeStack
    create stack tProbe
    set the rect of stack tProbe to 0,0,320,480
    set the backgroundColor of stack tProbe to kSavedColor
+   if tProbe is "StandaloneTestRunnerMainstack" then
+      -- the script tests: their script, and nothing else on the card (the
+      -- tests make their own stacks)
+      set the fullscreenMode of stack tProbe to "exactFit"
+      set the script of stack tProbe to testsScript()
+      if the result is not empty then
+         throw kTestsScript && "does not compile:" && the result
+      end if
+      save stack tProbe as $OXT_ANDROID_STACK
+      if the result is not empty then
+         throw "cannot save the probe stack as" && $OXT_ANDROID_STACK & ":" && the result
+      end if
+      exit makeProbeStack
+   end if
    set the fullscreenMode of stack tProbe to "exactFit"
    set the script of stack tProbe to probeScript()
    local tDefault
@@ -1167,6 +1221,15 @@ private function buildSettings pName
    put probeName() into tSettings["name"]
    put kIdentifier into tSettings["android,identifier"]
    put "Android Probe" into tSettings["android,label"]
+   -- the script tests: their own app, the network, and their copy files
+   -- (folders beside the stack: see kTestsScript)
+   if probeName() is "StandaloneTestRunnerMainstack" then
+      put kTestsIdentifier into tSettings["android,identifier"]
+      put "Android Tests" into tSettings["android,label"]
+      put true into tSettings["android,application permissions"]["INTERNET"]
+      put kTestsFiles into tSettings["files"]
+      replace comma with return in tSettings["files"]
+   end if
    -- the engine the probe is built with: OXT-Beyond's own (android_check.py
    -- ide --android-engine beyond), or 9.6.3's as a stack that names none
    if $OXT_ANDROID_ENGINE is not empty then

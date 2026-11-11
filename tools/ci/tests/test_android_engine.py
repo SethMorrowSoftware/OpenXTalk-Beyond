@@ -1999,15 +1999,15 @@ class Workflow(unittest.TestCase):
         self.assertEqual(upload['path'], 'android-runtime/')
 
     def test_nothing_is_published(self):
-        # the device job downloads the latest release's IDE to run the
-        # builder in; nothing is written to a release, a package or the
-        # repository
+        # the device and tests jobs download the latest release's IDE to
+        # run the builder in; nothing is written to a release, a package or
+        # the repository
         self.assertEqual(self.wf['permissions'], {'contents': 'read'})
         for job in self.wf['jobs'].values():
             self.assertNotIn('permissions', job)
         self.assertNotRegex(self.text, r':\s*write\b')
         runs = ' '.join(s.get('run', '') for job in self.wf['jobs'].values() for s in job['steps'])
-        self.assertEqual(re.findall(r'gh release (\w+)', runs), ['list', 'download'])
+        self.assertEqual(set(re.findall(r'gh release (\w+)', runs)), {'list', 'download'})
         uses = [s['uses'].split('@')[0] for job in self.wf['jobs'].values() for s in job['steps'] if 'uses' in s]
         self.assertEqual(sorted(set(uses)), ['actions/cache/restore', 'actions/cache/save', 'actions/checkout',
                                              'actions/download-artifact', 'actions/upload-artifact'])

@@ -237,9 +237,11 @@ FONT_SETTLE = 5
 END_WAIT = 20
 FONT_SCALE = '1.3'
 DENSITY_SHARE = 0.85
-# The probes (--probe): the stack file each is saved as
+# The probes (--probe): the stack file each is saved as. tests is the
+# standalone of the script tests, which tools/ci/android_tests.py prepares
+# and runs (kTestsScript in android-check.livecodescript)
 PROBES = {'app': 'AndroidProbe.livecode', 'java': 'AndroidJavaProbe.livecode', 'busy': 'AndroidBusyProbe.livecode',
-          'edge': 'AndroidEdgeProbe.livecode'}
+          'edge': 'AndroidEdgeProbe.livecode', 'tests': 'StandaloneTestRunnerMainstack.livecode'}
 # Where a release's Java layer is (overlay --classes)
 CLASSES = ('Runtime', 'Android', 'Classes')
 # The name the builder gives the engine (a runtime's <abi>/Standalone) in a
@@ -3446,7 +3448,8 @@ def main(argv=None):
     i.add_argument('--probe', choices=sorted(PROBES), default='app',
                    help='java: the Java layer\'s probe (AndroidJavaProbe); busy: the app probe drawing all the '
                         'time it runs (AndroidBusyProbe); edge: the app probe drawn edge to edge, which says its '
-                        'screen\'s rects (AndroidEdgeProbe)')
+                        'screen\'s rects (AndroidEdgeProbe); tests: the script tests\' standalone, from the files '
+                        'android_tests.py prepare puts in --work')
     i.add_argument('--timeout', type=int, default=1500)
     i.add_argument('--bundletool-fallback', action='store_true',
                    help='when GitHub\'s release host answers the builder\'s download of bundletool with an HTTP '

@@ -4987,11 +4987,13 @@ class OneSystem(unittest.TestCase):
         # is the stack's name, and OXT_ANDROID_PROBE picks it
         script = read('tools', 'ci', 'android-check.livecodescript')
         self.assertEqual(ac.PROBES, {'app': 'AndroidProbe.livecode', 'java': 'AndroidJavaProbe.livecode',
-                                     'busy': 'AndroidBusyProbe.livecode', 'edge': 'AndroidEdgeProbe.livecode'})
+                                     'busy': 'AndroidBusyProbe.livecode', 'edge': 'AndroidEdgeProbe.livecode',
+                                     'tests': 'StandaloneTestRunnerMainstack.livecode'})
         name = re.search(r'(?s)private function probeName\n(.*?)\nend probeName', script).group(1)
         self.assertIn('if $OXT_ANDROID_PROBE is "java" then\n      return "AndroidJavaProbe"', name)
         self.assertIn('if $OXT_ANDROID_PROBE is "busy" then\n      return "AndroidBusyProbe"', name)
         self.assertIn('if $OXT_ANDROID_PROBE is "edge" then\n      return "AndroidEdgeProbe"', name)
+        self.assertIn('if $OXT_ANDROID_PROBE is "tests" then\n      return "StandaloneTestRunnerMainstack"', name)
         self.assertIn('return "AndroidProbe"', name)
         # the app probe is the one that names none
         self.assertIn("OXT_ANDROID_PROBE='' if args.probe == 'app' else args.probe,", read('tools', 'ci', 'android_check.py'))
@@ -5000,7 +5002,8 @@ class OneSystem(unittest.TestCase):
         # layer's probe: its openStack, its backKey, and its build's
         # permissions; the busy probe: its openStack's first send, and its
         # probeBusy; the edge probe: its openStack's rects, its probeEdge,
-        # and its build's setting)
+        # and its build's setting; the script tests: the stack that
+        # makeProbeStack makes, and its build's settings)
         self.assertEqual(script.count('"AndroidProbe"'), 1)
         self.assertEqual(script.count('"AndroidJavaProbe"'), 4)
         self.assertEqual(script.count('if probeName() is "AndroidJavaProbe" then'), 3)
@@ -5008,8 +5011,12 @@ class OneSystem(unittest.TestCase):
         self.assertEqual(script.count('if probeName() is "AndroidBusyProbe" then'), 2)
         self.assertEqual(script.count('"AndroidEdgeProbe"'), 4)
         self.assertEqual(script.count('if probeName() is "AndroidEdgeProbe" then'), 3)
+        self.assertEqual(script.count('"StandaloneTestRunnerMainstack"'), 3)
+        self.assertEqual(script.count('if tProbe is "StandaloneTestRunnerMainstack" then'), 1)
+        self.assertEqual(script.count('if probeName() is "StandaloneTestRunnerMainstack" then'), 1)
         with tempfile.TemporaryDirectory() as work:
-            for name in ('Busy', 'AndroidBusyProbe', 'Edge', 'AndroidEdgeProbe', ''):
+            for name in ('Busy', 'AndroidBusyProbe', 'Edge', 'AndroidEdgeProbe', 'Tests',
+                         'StandaloneTestRunnerMainstack', ''):
                 with contextlib.redirect_stderr(io.StringIO()):
                     with self.assertRaises(SystemExit):
                         ac.main(['ide', '--work', work, '--probe', name])
@@ -5023,7 +5030,8 @@ class OneSystem(unittest.TestCase):
         script = read('tools', 'ci', 'android-check.livecodescript')
         self.assertIn('constant kEdgeWait = 1000\n', script)
         self.assertIn('--                          "busy" for the busy probe (see kBusyTick),\n'
-                      '--                          "edge" for the edge probe (see kEdgeWait)\n', script)
+                      '--                          "edge" for the edge probe (see kEdgeWait),\n'
+                      '--                          "tests" for the script tests (see kTestsScript)\n', script)
         body = re.search(r'(?s)private function probeScript\n(.*?)\nend probeScript', script).group(1)
         # green first, then the rects, now and kEdgeWait later
         self.assertIn('   put "   set the backgroundColor of me to" && quote & kRunColor & quote & return after '
@@ -5355,10 +5363,12 @@ class OneSystem(unittest.TestCase):
             self.assertEqual('--allow android.permission.POST_NOTIFICATIONS' in run, run in java_new, run)
 
     def test_java_probe_reads_its_copy_file(self):
-        # the Java layer's probe, and only it, carries a copy file (the
-        # standalone settings' "files"), which the engine reads from the
-        # package's assets by their offsets: so a package that compressed
-        # its assets (an App Bundle without "assets/**" stored) fails here
+        # the Java layer's probe, and of the probes only it, carries a copy
+        # file (the standalone settings' "files"), which the engine reads
+        # from the package's assets by their offsets: so a package that
+        # compressed its assets (an App Bundle without "assets/**" stored)
+        # fails here. (The script tests' stack carries the tests as copy
+        # files too: test_android_tests)
         script = read('tools', 'ci', 'android-check.livecodescript')
         self.assertIn('constant kProbeCopyName = "oxt-probe.txt"\n', script)
         self.assertIn('constant kProbeCopy = "OXT-Beyond probe copy file"\n', script)
@@ -5367,7 +5377,11 @@ class OneSystem(unittest.TestCase):
         self.assertIn('      put kProbeCopy into url ("binfile:" & item 1 to -2 of $OXT_ANDROID_STACK & slash '
                       '& kProbeCopyName)\n', java)
         self.assertIn('      put kProbeCopyName into tSettings["files"]', java)
-        self.assertEqual(body.count('tSettings["files"]'), 1)
+        self.assertEqual(java.count('tSettings["files"]'), 1)
+        tests = re.search(r'(?s)   if probeName\(\) is "StandaloneTestRunnerMainstack" then\n(.*?)\n   end if\n',
+                          body).group(1)
+        self.assertEqual(tests.count('tSettings["files"]'), 2)
+        self.assertEqual(body.count('tSettings["files"]'), 3)
         # the probe reads it from the engine's folder, says what it read,
         # and fails if it is not the text written
         read_line = ('"   put url (" & quote & "binfile:" & quote && "& specialFolderPath(" & quote & "engine" & quote '
