@@ -118,6 +118,7 @@ on:
       - '.github/workflows/ide-screenshots.yml'
       - '.github/workflows/media-check.yml'
       - '.github/workflows/window-frame-check.yml'
+      - '.github/workflows/dark-switch-check.yml'
       - '.github/workflows/release.yml'
       - '.github/workflows/runtimes.yml'
       - '.github/workflows/tag-release.yml'
@@ -161,6 +162,8 @@ on:
       - 'tools/ci/win_crashtrace.py'
       - 'tools/ci/window-frame-check.livecodescript'
       - 'tools/ci/window_frame_check.py'
+      - 'tools/ci/dark-switch-check.livecodescript'
+      - 'tools/ci/dark_switch_check.py'
   # DRAFT PULL REQUESTS (2026-11-06). A draft runs none of this workflow's
   # jobs: each job's `if:` ends in `github.event.pull_request.draft != true`,
   # and marking the pull request ready (ready_for_review, below) starts the

@@ -486,6 +486,12 @@ void MCScreenDC::getsystemappearance(MCSystemAppearance &r_appearance)
 		RegCloseKey(hKey);
 	}
 	
+	// OXT-Beyond: the colours the engine keeps for the appearance follow
+	// what is read here, so that they cannot be for the other one while
+	// something is drawn (MCWin32FollowSystemAppearance, w32dcs.cpp)
+	extern void MCWin32FollowSystemAppearance(bool p_is_dark);
+	MCWin32FollowSystemAppearance(t_is_dark);
+	
 	r_appearance = t_is_dark ? kMCSystemAppearanceDark : kMCSystemAppearanceLight;
 }
 
