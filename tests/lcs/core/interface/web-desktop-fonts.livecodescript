@@ -61,7 +61,9 @@ on TestWebDesktopFontStandIns
    start using font file tFile
    TestAssert "Arimo loads", the result is empty
 
-   TestAssert "Arimo is listed", "Arimo" is among the lines of the fontNames
+   -- a loaded font is listed by its full name (the name table's, as on
+   -- Android), not its family: "Arimo Regular"
+   TestAssert "Arimo is listed", "Arimo Regular" is among the lines of the fontNames
    TestAssert "Arial is listed with Arimo loaded", "Arial" is among the lines of the fontNames
    TestAssert "Helvetica is listed with Arimo loaded", "Helvetica" is among the lines of the fontNames
    TestAssert "Geneva is listed with Arimo loaded", "Geneva" is among the lines of the fontNames
