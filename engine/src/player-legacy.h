@@ -440,6 +440,8 @@ public:
 	
 	pid_t getpid(void);
 	void  shutdown(void);
+	// OXT-Beyond: true once when GStreamer has played the movie to its end
+	bool takeended(void);
 #endif
 
 #ifdef __EMSCRIPTEN__

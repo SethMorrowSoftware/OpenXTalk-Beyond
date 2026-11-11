@@ -1,0 +1,51 @@
+# OXT-Beyond web bundle: GitHub Pages. Made by tools/web-host/make_bundle.py.
+#
+# Put this file in a repository of its own as .github/workflows/pages.yml,
+# with the files of the bundle's ide/ folder (or player/) at the top of the
+# repository, and choose "GitHub Actions" as the Pages source in the
+# repository's Settings > Pages. Every push to main publishes it.
+#
+# The web IDE and the Stack Player go in two repositories, each with its
+# own custom domain (Settings > Pages > Custom domain, for example
+# ide.example.org and play.example.org): every Pages site of one account
+# without a custom domain shares the origin <account>.github.io, and the
+# IDE and the Player must not share one (README.txt says why).
+#
+# Pages compresses with gzip itself and serves no .br files, so the
+# compressed copies are left out of what is published.
+name: Publish to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: The site, without the compressed copies
+        run: |
+          mkdir -p "$RUNNER_TEMP/site"
+          rsync -a --exclude '.git' --exclude '.github' --exclude '*.br' --exclude '*.gz' \
+            --exclude '.htaccess' ./ "$RUNNER_TEMP/site/"
+          touch "$RUNNER_TEMP/site/.nojekyll"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/site
+      - id: deployment
+        uses: actions/deploy-pages@v4

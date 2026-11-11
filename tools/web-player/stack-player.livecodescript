@@ -65,6 +65,10 @@ local sLinked
 -- to another stack of the image finds it there (the HyperCard Library's
 -- hcStackName)
 local sFromImage
+-- True when the page's "classic look" box is unticked: HyperCard stacks
+-- then keep the engine's look (playerFixHyperCard). A page that never
+-- says (play.html) gets the classic look
+local sNoClassicLook
 
 constant kStackExtensions = "livecode,oxtstack,rev,mc,livecodescript,lc,stack"
 constant kLibraryName = "Stack Player"
@@ -203,6 +207,13 @@ end playerJSString
 on playerFromPage pWhat
    local tVerb
    put line 1 of pWhat into tVerb
+   -- the page's "classic look" box (index.html), "on" or "off": kept at
+   -- once, as the page's next call (library, as the player gets ready)
+   -- would take the place of sPageArgs before a queued playerDo read it
+   if tVerb is "hclook" then
+      put line 2 of pWhat is "off" into sNoClassicLook
+      return true
+   end if
    if tVerb is among the items of "open,home,download,reload,library,take,openpath,forget" then
       put line 2 to -1 of pWhat into sPageArgs
       send "playerDo" && tVerb to me in 0 milliseconds
@@ -666,12 +677,15 @@ private command playerFixHyperCard pStack
    catch tError
       playerLog "hypercard-mace-failed" && playerErrorText(tError)
    end try
-   -- HyperCard's white paper and flat black-and-white buttons
-   try
-      revHyperCardClassicLook pStack
-   catch tError
-      playerLog "hypercard-look-failed" && playerErrorText(tError)
-   end try
+   -- HyperCard's white paper and flat black-and-white buttons, unless the
+   -- page's box is unticked
+   if sNoClassicLook is not true then
+      try
+         revHyperCardClassicLook pStack
+      catch tError
+         playerLog "hypercard-look-failed" && playerErrorText(tError)
+      end try
+   end if
 end playerFixHyperCard
 
 -- The extension of a file name (after its last full stop), or empty

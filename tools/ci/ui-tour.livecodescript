@@ -3771,12 +3771,57 @@ function tourIconChooserFails
    set the dialogData to tData
    set the defaultStack to tDefault
    if there is a stack tChooser then
+      put the rect of stack tChooser into tShown
       lock messages
       close stack tChooser
       unlock messages
+      -- (macOS fades a closed window out after close has returned: at the
+      -- GM's 84516291 the chooser, still fading, showed through the next
+      -- step's 04g-svg-paths picture on the Apple silicon runner, light,
+      -- as that step's window opens where the chooser was. So the next
+      -- picture waits until the screen where it was has stopped changing)
+      tourScreenStill tShown, "the closed icon chooser"
    end if
    return tFails
 end tourIconChooserFails
+
+-- Waits until the screen in the rect pRect (screen coordinates) has
+-- stayed the same for kStillFor milliseconds, at most kStillMax: a window
+-- closed or hidden there can still be on the screen a moment after the
+-- script has gone on (macOS's close and hide animations), and a picture
+-- taken then shows it through the next window. It then takes the screen
+-- there once more a second later and records whether that matches, the
+-- proof that the wait was long enough (an INFO line: whatever is behind
+-- the window, a caret blinking in a field, may change on its own)
+constant kStillFor = 450
+constant kStillMax = 3000
+command tourScreenStill pRect, pWhat
+   local tLast, tNow, tStill, tWaited, tLater
+   if the number of items of pRect is not 4 then exit tourScreenStill
+   export snapshot from rect pRect to tLast as PNG
+   put 0 into tStill
+   put 0 into tWaited
+   repeat while tWaited < kStillMax
+      tourWait 150
+      add 150 to tWaited
+      export snapshot from rect pRect to tNow as PNG
+      -- (the inner if is a block of its own: a one-line if followed by
+      -- an else takes that else, and the handler does not compile)
+      if tNow is tLast then
+         add 150 to tStill
+         if tStill >= kStillFor then
+            exit repeat
+         end if
+      else
+         put tNow into tLast
+         put 0 into tStill
+      end if
+   end repeat
+   tourWait 1000
+   export snapshot from rect pRect to tLater as PNG
+   tourRecord "INFO screen-still:" && pWhat && "at" && pRect & ", still:" && (tStill >= kStillFor) && \
+         "after" && tWaited && "ms, the same a second later:" && (tLater is tLast)
+end tourScreenStill
 
 -- The colour of the screen at a point of the card of the stack pStack
 -- that no control covers: the first of its corners, 4 points in, that is
@@ -7431,16 +7476,20 @@ private function tourAndroidAppBundle pStack
    return tFails
 end tourAndroidAppBundle
 
--- The Android card's "OXT-Beyond engine (preview)" box ("Beyond Engine",
--- tools/oxt/ide-stack-patches/android-card-engine-*.txt), with which the
--- Android builder takes OXT-Beyond's own engine instead of LiveCode
--- 9.6.3's: in the build targets' group, as "App Bundle" is, but in the
+-- The Android card's "OXT-Beyond engine" box ("Beyond Engine",
+-- tools/oxt/ide-stack-patches/android-card-engine-*.txt; "OXT-Beyond engine
+-- (preview)" until 0.2.8), with which the Android builder takes OXT-Beyond's
+-- own engine instead of LiveCode 9.6.3's: in the build targets' group, as
+-- "App Bundle" is, but in the
 -- right-hand column's free row, under the device table and above
 -- "Application Permissions", lined up with "NFC Tag Reading" and inside
 -- the window; enabled exactly when the card's settings are; ticked
 -- exactly when the stack's "android,engine" setting is beyond, so not for
 -- a stack without it or with 9.6.3; a click on it, as the box's group gets
--- one, stores beyond or empty, and nothing else. The targets group grew
+-- one, stores beyond or empty, and nothing else; and the first
+-- architecture a stack set up for Android now ticks ticks the box too when
+-- the runtimes carry that engine (tourAndroidFirstTargetEngine). The
+-- targets group grew
 -- down to hold it, over the card's left-hand column and the device table:
 -- the check boxes, radio buttons and menus of the Android settings it
 -- covers still get their clicks (controlAtLoc names each at its middle,
@@ -7466,8 +7515,8 @@ private function tourAndroidEngine pStack
    tourRecord "INFO standalone settings: the OXT-Beyond engine box" && the rect of tBox && "enabled" && \
          the enabled of tBox && "ticked" && the hilited of tBox && "label" && the label of tBox && "needs" && \
          the formattedWidth of tBox
-   if the style of tBox is not "checkbox" or not the visible of tBox or the label of tBox is not "OXT-Beyond engine (preview)" then
-      put "the OXT-Beyond engine box is not a check box labelled OXT-Beyond engine (preview) that shows:" && \
+   if the style of tBox is not "checkbox" or not the visible of tBox or the label of tBox is not "OXT-Beyond engine" then
+      put "the OXT-Beyond engine box is not a check box labelled OXT-Beyond engine that shows:" && \
             the style of tBox && the visible of tBox && the label of tBox & return after tFails
    end if
    -- under the device table's last row, above the permissions' title and
@@ -7571,8 +7620,81 @@ private function tourAndroidEngine pStack
    end if
    set the customProperties["cRevStandaloneSettings"] of stack kSample to tWas
    dispatch "updateSettings" to tCard
+   put tourAndroidFirstTargetEngine(tCard, tTargets, tBox, tWas) after tFails
    return tFails
 end tourAndroidEngine
+
+-- What the first architecture a stack ticks on the Android card does to
+-- its engine (updateAndroidArch, androidEngineOnFirstTarget in the Android
+-- builder): for a stack set up for Android now, it ticks the OXT-Beyond
+-- engine box and stores beyond when the runtimes carry that engine
+-- (Runtime/Android/Beyond), and leaves both alone when they do not; a
+-- stack set up for Android before (an architecture saved, here armv7 off)
+-- or that names 9.6.3 keeps its engine, and its box stays as it was. Each
+-- tick is a click on the "Android arm64" box, as its group gets one (sent,
+-- since a disabled box gets no click). The sample's settings, the
+-- architectures' boxes, the engine box and the card's enabled settings
+-- are put back as they were. Empty, or what is not so
+private function tourAndroidFirstTargetEngine pCard, pTargets, pBox, pWas
+   local tFails, tRuntime, tBeyond, tCase, tSettings, tWant, tArch, tKey
+   try
+      put revMobileRuntimeFolder("build") into tRuntime
+   catch tRuntime
+      return "the Android builder's revMobileRuntimeFolder cannot be called from the IDE:" && tRuntime & return
+   end try
+   put there is a folder (tRuntime & "/Beyond") into tBeyond
+   tourRecord "INFO standalone settings: the runtimes" && tRuntime && "carry OXT-Beyond's Android engine:" && tBeyond
+   repeat for each item tCase in "new,set up before,names 9.6.3"
+      put pWas into tSettings
+      repeat for each key tKey in tSettings
+         if tKey is "android" or tKey begins with "android," then
+            delete variable tSettings[tKey]
+         end if
+      end repeat
+      switch tCase
+         case "new"
+            if tBeyond then
+               put "beyond" into tWant
+            else
+               put empty into tWant
+            end if
+            break
+         case "set up before"
+            put false into tSettings["Android,armv7"]
+            put empty into tWant
+            break
+         case "names 9.6.3"
+            put "9.6.3" into tSettings["android,engine"]
+            put "9.6.3" into tWant
+            break
+      end switch
+      set the customProperties["cRevStandaloneSettings"] of stack kSample to tSettings
+      dispatch "updateSettings" to pCard
+      set the hilited of button "Android arm64" of pTargets to true
+      dispatch "mouseUp" to button "Android arm64" of pTargets with 1
+      if the cRevStandaloneSettings["Android,arm64"] of stack kSample is not true then
+         put "ticking Android arm64 for a stack" && tCase && "stored" && \
+               quote & the cRevStandaloneSettings["Android,arm64"] of stack kSample & quote & return after tFails
+      end if
+      if the cRevStandaloneSettings["android,engine"] of stack kSample is not tWant then
+         put "the first architecture a stack" && tCase && "ticks gave it the engine" && \
+               quote & the cRevStandaloneSettings["android,engine"] of stack kSample & quote & ", not" && \
+               quote & tWant & quote && "(the runtimes carry OXT-Beyond's:" && tBeyond & ")" & return after tFails
+      end if
+      if the hilited of pBox is not (tWant is "beyond") then
+         put "after the first architecture a stack" && tCase && "ticks, the OXT-Beyond engine box is" && \
+               the hilited of pBox && "for the engine" && quote & tWant & quote & return after tFails
+      end if
+   end repeat
+   set the customProperties["cRevStandaloneSettings"] of stack kSample to pWas
+   repeat for each item tArch in "armv7,arm64,x86,x86_64"
+      set the hilited of button ("Android" && tArch) of pTargets to (pWas["Android," & tArch] is true)
+   end repeat
+   dispatch "updateSettings" to pCard
+   dispatch "updateAndroidSettingState" to pCard
+   dispatch "buildForEnabled" to pCard with "android"
+   return tFails
+end tourAndroidFirstTargetEngine
 
 -- The Android card's "Edge to edge" box ("Edge To Edge",
 -- tools/oxt/ide-stack-patches/android-card-status-bar-edge-*.txt), with
@@ -9133,6 +9255,10 @@ on tour_academy
          throw "the Academy drawn again lost its playground (" & field "playWhat" of stack tWin & "|" & \
                tourJoin(the text of field "out" of stack tWin) & "|" & field "outStatus" of stack tWin & ")"
       end if
+      -- the lesson's text can be selected and copied, and its size changed
+      -- (LittleNemo, openxtalk.org p=26121); an IDE before it skips this
+      get tourAcademyText(tWin)
+      if it is not empty then throw it
       close stack tWin
    catch tError
    end try
@@ -9141,6 +9267,102 @@ on tour_academy
    set the customProperties["cAcademy"] of stack "revPreferences" to tSaved
    if tError is not empty then throw tError
 end tour_academy
+
+-- The Academy's reading text (LittleNemo, openxtalk.org p=26121), on the
+-- lesson in front: its first block of text is a locked field that takes
+-- the focus, so a drag over it selects words (and a translator or a
+-- screen reader can read them), while it still cannot be typed in; with
+-- the focus there, the arrow keys still turn the page; and A+ (a click),
+-- the action "text bigger" and Ctrl+0 make it larger and give it its own
+-- size again, its size kept in the preferences (cAcademy textScale). At
+-- its own size, 100, the text is 15 points, as it always was. Empty, or
+-- what went wrong. An Academy without the setting (0.2.7) is skipped.
+function tourAcademyText pWin
+   local tField, tName, i, tDefault, tSelected, tSelField, tTitle, tRect, tPrefs, tScale, tError
+   try
+      dispatch function "revAcademyTextScale" to stack pWin
+      if it is not "handled" then
+         tourRecord "INFO academy-text: this Academy has no text size; skipped"
+         return empty
+      end if
+      put the result into tScale
+      tourRecord "INFO academy-text: the text size is" && tScale
+      if tScale is not 100 then return "the Academy's text size starts at" && tScale & ", not 100"
+      repeat with i = 1 to 40
+         if there is a field ("p_t" & i) of this card of stack pWin then
+            put the long id of field ("p_t" & i) of this card of stack pWin into tField
+            put "p_t" & i into tName
+            exit repeat
+         end if
+      end repeat
+      if tField is empty then return "the lesson Hello, xTalk has no field of text (p_t<N>)"
+      tourRecord "INFO academy-text:" && the short name of tField && "size" && the textSize of tField && \
+            "lockText" && the lockText of tField && "traversalOn" && the traversalOn of tField
+      if the textSize of tField is not 15 then return "the lesson's text is" && the textSize of tField && "points at its own size, not 15"
+      if not the lockText of tField then return "the lesson's text can be typed in"
+      if not the traversalOn of tField then return "the lesson's text cannot be selected (traversalOn is false)"
+      -- (its selected words white on the hilite: on Linux and Windows the
+      -- engine draws them in the field's background colour, the dark
+      -- window's when it has none)
+      if the backgroundColor of tField is not "255,255,255" then return "the lesson's selected text is drawn in" && quote & the backgroundColor of tField & quote & ", not white"
+      -- a drag over its first line, as a reader's
+      put the rect of tField into tRect
+      put the defaultStack into tDefault
+      set the defaultStack to pWin
+      select empty
+      drag from (item 1 of tRect + 6), (item 2 of tRect + 14) to (item 1 of tRect + 160), (item 2 of tRect + 14)
+      tourWait 300
+      put the selectedText into tSelected
+      put empty into tSelField
+      if the selectedField is not empty then put the long id of the selectedField into tSelField
+      set the defaultStack to tDefault
+      tourRecord "INFO academy-text: a drag selected" && quote & tSelected & quote && "in" && tSelField
+      if tSelected is empty then return "a drag over the lesson's text selected nothing"
+      if tSelField is not tField then return "a drag over the lesson's text selected text in" && tSelField
+      -- the arrow keys still turn the page from it
+      put field "hdrTitle" of stack pWin into tTitle
+      send "arrowKey right" to tField
+      tourWait 1200
+      tourRecord "INFO academy-text: after the right arrow the lesson is" && quote & field "hdrTitle" of stack pWin & quote
+      if field "hdrTitle" of stack pWin is tTitle then return "the right arrow key did not turn the page from the lesson's selected text"
+      dispatch "acGoTo" to stack pWin with "basics", "hello"
+      tourWait 1200
+      -- bigger by the action, then by a click on A+
+      dispatch "lkAction" to stack pWin with "text bigger"
+      tourWait 600
+      dispatch function "revAcademyTextScale" to stack pWin
+      put the result into tScale
+      put the customProperties["cAcademy"] of stack "revPreferences" into tPrefs
+      put the long id of field tName of this card of stack pWin into tField
+      tourRecord "INFO academy-text: text bigger:" && tScale && "size" && the textSize of tField && "kept" && tPrefs["textScale"]
+      if tScale is not 115 or the textSize of tField is not 17 then return "text bigger made the text" && tScale & "%," && the textSize of tField && "points, not 115%, 17 points"
+      if tPrefs["textScale"] is not 115 then return "the text size was not kept in the preferences (" & tPrefs["textScale"] & ")"
+      if there is not a group "textBigger" of stack pWin or not the visible of group "textBigger" of stack pWin then return "the lesson's header has no A+"
+      set the defaultStack to pWin
+      click at the loc of group "textBigger"
+      set the defaultStack to tDefault
+      tourWait 600
+      dispatch function "revAcademyTextScale" to stack pWin
+      put the result into tScale
+      put the long id of field tName of this card of stack pWin into tField
+      tourRecord "INFO academy-text: after a click on A+:" && tScale && "size" && the textSize of tField
+      if tScale is not 130 or the textSize of tField is not 20 then return "a click on A+ made the text" && tScale & "%," && the textSize of tField && "points, not 130%, 20 points"
+      tourShotStack pWin, "24e-academy-text-larger"
+      -- Ctrl+0: its own size again
+      send "commandKeyDown 0" to stack pWin
+      tourWait 600
+      dispatch function "revAcademyTextScale" to stack pWin
+      put the result into tScale
+      put the long id of field tName of this card of stack pWin into tField
+      put the customProperties["cAcademy"] of stack "revPreferences" into tPrefs
+      tourRecord "INFO academy-text: after Ctrl+0:" && tScale && "size" && the textSize of tField && "kept" && tPrefs["textScale"]
+      if tScale is not 100 or the textSize of tField is not 15 then return "Ctrl+0 left the text" && tScale & "%," && the textSize of tField && "points, not 100%, 15 points"
+   catch tError
+      if tDefault is not empty then set the defaultStack to tDefault
+      return "academy-text:" && tourJoin(tError)
+   end try
+   return empty
+end tourAcademyText
 
 -- OXT-Beyond Home (palettes/home/revhub.livecodescript): the one window
 -- of Home's welcome, the xTalk Academy and Learn's how-to lessons, guides

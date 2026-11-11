@@ -772,6 +772,24 @@ def append_summary(markdown):
             f.write(markdown + '\n')
 
 
+OUTPUT_HEADER = '### TEST '
+
+
+def write_output(path, engine, results):
+    """Every test's result and what it printed, in the form
+    tools/ci/compare_test_output.py reads: a "### TEST <outcome> <suite>:
+    <test>" line, then the test's TAP output and details."""
+    os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
+    with open(path, 'w', encoding='utf-8', newline='\n') as f:
+        f.write('# Engine: %s\n' % engine)
+        for r in results:
+            f.write('%s%s %s\n' % (OUTPUT_HEADER, r.outcome, r.ident))
+            if r.output:
+                f.write(r.output.rstrip() + '\n')
+            for line in r.details:
+                f.write(line + '\n')
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description='Run the engine test suites of tests/ against a build and compare '
                                              'the failures with a baseline.')
@@ -787,6 +805,9 @@ def main(argv=None):
     ap.add_argument('--symbols', action='append', default=[], metavar='DIR',
                     help='Windows: folders with the .pdb files for crash traces (default: --bin)')
     ap.add_argument('--log', metavar='FILE', help='default: _tests/engine-tests.log in the checkout')
+    ap.add_argument('--output', metavar='FILE',
+                    help='also write every test\'s result and its whole TAP output to FILE, for '
+                         'tools/ci/compare_test_output.py to compare two builds\' runs')
     ap.add_argument('--jobs', type=int, default=1, metavar='N',
                     help='run the LiveCode Script tests of N files at a time (default: %(default)s)')
     ap.add_argument('--retries', type=int, default=1, metavar='N',
@@ -861,6 +882,9 @@ def main(argv=None):
                 if r.output:
                     f.write(r.output.rstrip() + '\n')
         f.write('\n%s\n' % ', '.join('%d %s' % (totals[k], k) for k in RESULT_ORDER))
+
+    if args.output:
+        write_output(os.path.abspath(args.output), tools['engine'], results)
 
     elapsed = time.monotonic() - started
     log('')

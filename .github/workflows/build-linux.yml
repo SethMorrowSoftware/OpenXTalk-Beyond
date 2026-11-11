@@ -127,6 +127,8 @@ on:
       - '.github/workflows/mac-menu-backdrop.yml'
       - '.github/workflows/pages.yml'
       - 'tools/pages/**'
+      - 'tools/web-host/**'
+      - '.github/workflows/web-host.yml'
       - 'tools/ci/changelog.py'
       - 'tools/ci/ide_screenshots_branch.py'
       - 'tools/ci/release_assets.py'
@@ -288,11 +290,38 @@ jobs:
           # keep them for the cache. On a hit the cached package lists are
           # the ones the cached packages came with.
           rm -f /etc/apt/apt.conf.d/docker-clean
-          if [ "$CACHE_HIT" != true ]; then
-            apt-get -o Acquire::Retries=3 update
-          fi
-          # shellcheck disable=SC2086 # BUILD_PKGS is a list
-          apt-get -o Acquire::Retries=3 install -y --no-install-recommends $BUILD_PKGS
+          # Acquire::Retries does not retry a 404, and a mirror in the middle
+          # of a sync answers one: security.ubuntu.com gave 404 for perl and
+          # libperl5.34 right after an update (10 Nov 2026, #383 and #449's
+          # Web runtime jobs). So a failed install is tried again after a
+          # fresh update and a wait, three passes in all. The same node gave
+          # the same 404 74 minutes later (#454), so from the second pass the
+          # security pocket comes from archive.ubuntu.com, which serves it too
+          # (APT_ETC is only for tools/ci/tests/test_apt_retry.py)
+          for pass in 1 2 3; do
+            if [ "$pass" -gt 1 ]; then
+              for f in "${APT_ETC:-/etc/apt}"/sources.list "${APT_ETC:-/etc/apt}"/sources.list.d/*; do
+                if [ -f "$f" ]; then
+                  sed 's|http://security.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' "$f" > "$f.new"
+                  cat "$f.new" > "$f"
+                  rm -f "$f.new"
+                fi
+              done
+            fi
+            if [ "$CACHE_HIT" != true ] || [ "$pass" -gt 1 ]; then
+              apt-get -o Acquire::Retries=3 update || true
+            fi
+            # shellcheck disable=SC2086 # BUILD_PKGS is a list
+            if apt-get -o Acquire::Retries=3 install -y --no-install-recommends $BUILD_PKGS; then
+              break
+            fi
+            if [ "$pass" = 3 ]; then
+              echo "::error::apt-get install failed on three passes"
+              exit 1
+            fi
+            echo "::warning::apt-get install failed on pass $pass of 3; it runs again after an update in $((pass * 30)) s"
+            sleep $((pass * 30))
+          done
           # (sed rather than head: GitHub's bash uses pipefail, and head
           # closing the pipe early would fail the step with SIGPIPE)
           gcc --version | sed -n 1p
@@ -897,23 +926,56 @@ jobs:
   # database tests of tests/lcs/core/database (server_databases and
   # db_getters, which the build's engine tests skip, as they have no
   # server) run by the x86_64 build's standalone engine
-  # (tools/ci/run_engine_tests.py, with its baselines) against MySQL 8.0
-  # and PostgreSQL 16 containers that this job starts, each with TLS. They
-  # pin what the drivers do today, so that a later change of the client
-  # libraries has a baseline (modernization plan MOD-06); a test that
-  # fails today on purpose is asserted as broken, with the reason, in the
-  # test. The servers are set up for what the bundled clients can do:
-  # Connector/C 6.0 knows MySQL's mysql_native_password, not 8.0's
-  # default caching_sha2_password, and libpq 9.4 knows md5, not SCRAM.
-  # The images come from Google's mirror of Docker Hub, as the build's
-  # does. On the runner itself, as the package job (the engine loads the
-  # drivers there as a package would).
+  # (tools/ci/run_engine_tests.py, with its baselines) against MySQL or
+  # MariaDB and PostgreSQL containers that this job starts, each with TLS.
+  # Each leg is one pair of servers, so that every login the drivers'
+  # client libraries (MariaDB Connector/C 3.4 and libpq 17 since 0.2.8,
+  # thirdparty/libmysql/ORIGIN and thirdparty/libpq/ORIGIN) must manage is
+  # a server's default somewhere: MySQL 8.0 set to mysql_native_password
+  # and PostgreSQL 16 to md5 (what the clients before 0.2.8, Connector/C
+  # 6.0 and libpq 9.4, could do, and what scripts met then), MySQL 8.4's
+  # caching_sha2_password and PostgreSQL 17's SCRAM-SHA-256, and MariaDB
+  # 11.4 with PostgreSQL 18.
+  #
+  # The same tests then run on the newest release's engine and drivers
+  # (its linux-x86_64 binaries), and tools/ci/compare_test_output.py lists
+  # in the job's summary every test whose result or output (an error text,
+  # a value) differs between the two: what a change of the drivers or
+  # their libraries changes for scripts (CLAUDE.md). Only this build's
+  # results decide the job. The images come from Google's mirror of Docker
+  # Hub, as the build's does. On the runner itself, as the package job
+  # (the engine loads the drivers there as a package would).
   databases:
-    name: Databases linux-x86_64
+    name: Databases linux-x86_64 (${{ matrix.name }})
     needs: build
     if: ${{ (!cancelled() && needs.build.outputs.built-x86_64 == 'true') && github.event.pull_request.draft != true }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: MySQL 8.0, PostgreSQL 16
+            leg: mysql80-postgres16
+            mysql_image: mysql:8.0
+            mysql_args: --default-authentication-plugin=mysql_native_password
+            mysql_client: mysql
+            postgres_image: postgres:16
+            postgres_auth: md5
+          - name: MySQL 8.4, PostgreSQL 17
+            leg: mysql84-postgres17
+            mysql_image: mysql:8.4
+            mysql_args: ''
+            mysql_client: mysql
+            postgres_image: postgres:17
+            postgres_auth: scram-sha-256
+          - name: MariaDB 11.4, PostgreSQL 18
+            leg: mariadb114-postgres18
+            mysql_image: mariadb:11.4
+            mysql_args: ''
+            mysql_client: mariadb
+            postgres_image: postgres:18
+            postgres_auth: scram-sha-256
     env:
       OXT_TEST_MYSQL_HOST: 127.0.0.1:3306
       OXT_TEST_MYSQL_DATABASE: oxt_test
@@ -925,42 +987,51 @@ jobs:
       OXT_TEST_POSTGRESQL_USER: oxt
       OXT_TEST_POSTGRESQL_PASSWORD: oxt-test-password
       OXT_TEST_POSTGRESQL_TLS: 'true'
+      MYSQL_IMAGE: ${{ matrix.mysql_image }}
+      MYSQL_ARGS: ${{ matrix.mysql_args }}
+      MYSQL_CLIENT: ${{ matrix.mysql_client }}
+      POSTGRES_IMAGE: ${{ matrix.postgres_image }}
+      POSTGRES_AUTH: ${{ matrix.postgres_auth }}
     steps:
       - name: Check out
         uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      # MySQL makes its own certificates and offers TLS; PostgreSQL uses
-      # the image's snakeoil certificate. initdb stores the user's
-      # password with SCRAM whatever the server's password_encryption, so
-      # it is set again, as md5, once the server is up.
+      # MySQL and MariaDB make their own certificates and offer TLS;
+      # PostgreSQL uses the image's snakeoil certificate. initdb stores
+      # the user's password with SCRAM whatever the server's
+      # password_encryption, so it is set again, as POSTGRES_AUTH, once
+      # the server is up. (The MariaDB image takes the MYSQL_ settings as
+      # well as its own, and its tools are called mariadb.)
       - name: Start the database servers
         timeout-minutes: 10
         run: |
-          for image in mysql:8.0 postgres:16; do
+          for image in "$MYSQL_IMAGE" "$POSTGRES_IMAGE"; do
             for i in 1 2 3; do
               if docker pull "mirror.gcr.io/library/$image"; then break; fi
               if [ "$i" = 3 ]; then echo "::error::could not pull $image"; exit 1; fi
               sleep 20
             done
           done
+          # MYSQL_ARGS is empty or one argument
           docker run -d --name oxt-mysql -p 127.0.0.1:3306:3306 \
             -e MYSQL_ROOT_PASSWORD="$OXT_TEST_MYSQL_PASSWORD" -e MYSQL_DATABASE="$OXT_TEST_MYSQL_DATABASE" \
             -e MYSQL_USER="$OXT_TEST_MYSQL_USER" -e MYSQL_PASSWORD="$OXT_TEST_MYSQL_PASSWORD" \
-            mirror.gcr.io/library/mysql:8.0 --default-authentication-plugin=mysql_native_password
+            "mirror.gcr.io/library/$MYSQL_IMAGE" $MYSQL_ARGS
           docker run -d --name oxt-postgres -p 127.0.0.1:5432:5432 \
             -e POSTGRES_USER="$OXT_TEST_POSTGRESQL_USER" -e POSTGRES_PASSWORD="$OXT_TEST_POSTGRESQL_PASSWORD" \
-            -e POSTGRES_DB="$OXT_TEST_POSTGRESQL_DATABASE" -e POSTGRES_HOST_AUTH_METHOD=md5 \
-            mirror.gcr.io/library/postgres:16 -c password_encryption=md5 -c ssl=on \
+            -e POSTGRES_DB="$OXT_TEST_POSTGRESQL_DATABASE" -e POSTGRES_HOST_AUTH_METHOD="$POSTGRES_AUTH" \
+            "mirror.gcr.io/library/$POSTGRES_IMAGE" -c password_encryption="$POSTGRES_AUTH" -c ssl=on \
             -c ssl_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem \
             -c ssl_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
           # Both images start a server of their own to initialise the
           # database first, without TCP: the TCP answers are the real ones
           for i in $(seq 1 90); do
-            if docker exec oxt-mysql mysqladmin ping -h 127.0.0.1 --silent -p"$OXT_TEST_MYSQL_PASSWORD" 2>/dev/null &&
+            if docker exec oxt-mysql "$MYSQL_CLIENT" -h 127.0.0.1 -uroot -p"$OXT_TEST_MYSQL_PASSWORD" -e 'SELECT 1' >/dev/null 2>&1 &&
                docker exec oxt-postgres pg_isready -h 127.0.0.1 -q; then
-              docker exec oxt-mysql mysql -h 127.0.0.1 -uroot -p"$OXT_TEST_MYSQL_PASSWORD" -e "SELECT VERSION(); SHOW VARIABLES LIKE 'tls_version'" 2>/dev/null
+              docker exec oxt-mysql "$MYSQL_CLIENT" -h 127.0.0.1 -uroot -p"$OXT_TEST_MYSQL_PASSWORD" \
+                -e "SELECT VERSION(); SELECT user, plugin FROM mysql.user WHERE user = '$OXT_TEST_MYSQL_USER'; SHOW VARIABLES LIKE 'tls_version'" 2>/dev/null
               docker exec -e PGPASSWORD="$OXT_TEST_POSTGRESQL_PASSWORD" oxt-postgres \
                 psql -v ON_ERROR_STOP=1 -U "$OXT_TEST_POSTGRESQL_USER" -d "$OXT_TEST_POSTGRESQL_DATABASE" \
                 -c "ALTER USER $OXT_TEST_POSTGRESQL_USER PASSWORD '$OXT_TEST_POSTGRESQL_PASSWORD'" \
@@ -987,7 +1058,36 @@ jobs:
         timeout-minutes: 15
         run: |
           python3 tools/ci/run_engine_tests.py --bin linux-x86_64-bin --suite lcs \
-            --filter '^lcs: core/database/' --log database-tests.log
+            --filter '^lcs: core/database/' --log database-tests.log --output database-tests-output.txt
+
+      # The newest release (or release candidate) with Linux binaries:
+      # its engine and drivers, on this checkout's tests
+      - name: Database tests of the newest release
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        timeout-minutes: 15
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/release"
+          for tag in $(gh release list --repo "$REPO" --exclude-drafts --limit 30 --json tagName --jq '.[].tagName' | grep -E '^v[0-9]'); do
+            if gh release download "$tag" --repo "$REPO" --pattern '*-linux-x86_64-binaries.tar.xz' --dir "$RUNNER_TEMP/release"; then
+              echo "Release: $tag"
+              break
+            fi
+          done
+          tar -xJf "$RUNNER_TEMP"/release/*-linux-x86_64-binaries.tar.xz -C "$RUNNER_TEMP/release"
+          bin=$(dirname "$(find "$RUNNER_TEMP/release" -type f -name standalone-community | head -n 1)")
+          # (its own failures do not fail this job)
+          python3 tools/ci/run_engine_tests.py --bin "$bin" --suite lcs --filter '^lcs: core/database/' \
+            --retries 0 --log release-database-tests.log --output release-database-tests-output.txt || true
+
+      - name: Compare with the newest release
+        if: ${{ !cancelled() && hashFiles('release-database-tests-output.txt') != '' && hashFiles('database-tests-output.txt') != '' }}
+        run: |
+          python3 tools/ci/compare_test_output.py release-database-tests-output.txt database-tests-output.txt \
+            --title "Database tests (${{ matrix.name }}): the newest release, then this build"
 
       - name: Server logs
         if: always()
@@ -999,9 +1099,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: database-tests-linux-x86_64
+          name: database-tests-linux-x86_64-${{ matrix.leg }}
           path: |
             database-tests.log
+            database-tests-output.txt
+            release-database-tests.log
+            release-database-tests-output.txt
             mysql.log
             postgres.log
           if-no-files-found: ignore
@@ -1147,8 +1250,12 @@ jobs:
           # the clipboard check's clipboard manager; xsettingsd and the
           # DejaVu fonts: the HiDPI check's settings manager and its text;
           # gsettings-desktop-schemas (GNOME's color-scheme key): the
-          # desktop appearance check
+          # desktop appearance check; GStreamer's base, good and libav
+          # plugins and its X sinks: the player through GStreamer, for a
+          # machine without mplayer (tools/ci/gst_player_check.py and the
+          # player check with --player-backend gstreamer)
           pkgs=(desktop-file-utils shared-mime-info xz-utils mplayer xvfb xauth
+                gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav gstreamer1.0-x
                 xfwm4 openbox mutter xdotool x11-utils imagemagick
                 gnome-themes-extra gtk2-engines-pixbuf python3-xlib
                 mate-themes ubuntu-mate-themes yaru-theme-gtk gtk2-engines-murrine
@@ -1339,20 +1446,26 @@ jobs:
       # the zip's README says (mod_cgi, mod_actions, AddHandler and Action
       # for .lc), each with the same pages: $_GET, $_POST, $_FILES,
       # cookies, headers, include and require, sessions, revDB with SQLite,
-      # revXML and revZip, and the errorMode. The runner image has Apache;
-      # it is installed if not.
+      # revXML and revZip, and the errorMode; and the cookie requests under
+      # Valgrind, which must find no read outside memory (the engine read
+      # past the cookie header and, on Windows, now and then lost a session
+      # id's last character). The runner image has Apache; it and Valgrind
+      # are installed if not.
       - name: Server check
         if: ${{ !cancelled() && steps.server.outcome == 'success' }}
         timeout-minutes: 10
         env:
           SERVER_ZIP: ${{ steps.server.outputs.zip }}
         run: |
-          if ! command -v apache2 > /dev/null && [ ! -x /usr/sbin/apache2 ]; then
+          missing=""
+          if ! command -v apache2 > /dev/null && [ ! -x /usr/sbin/apache2 ]; then missing="apache2"; fi
+          if ! command -v valgrind > /dev/null; then missing="$missing valgrind"; fi
+          if [ -n "$missing" ]; then
             sudo apt-get update -q
-            sudo apt-get install -y -q --no-install-recommends apache2
+            sudo apt-get install -y -q --no-install-recommends $missing
           fi
           python3 tools/ci/server_check.py --zip "$SERVER_ZIP" --platform "linux-$ARCH" --apache yes \
-            --log "$RUNNER_TEMP/logs/server-check.log"
+            --memcheck yes --log "$RUNNER_TEMP/logs/server-check.log"
 
       # Every IDE script of the extracted package, compiled by its engine
       # started through the launcher (with -ui the launcher needs only the
@@ -1399,8 +1512,21 @@ jobs:
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         timeout-minutes: 10
         run: |
-          python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
+          python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --player-backend mplayer \
             --log "$RUNNER_TEMP/logs/media-check.log" --snapshots "$RUNNER_TEMP/logs/media-snapshots"
+
+      # The player through GStreamer, which plays a movie where mplayer is
+      # not installed (engine/src/lnxgstplayer.cpp): first on its own, built
+      # with the sanitizers and drawing into an X window, then in a
+      # standalone of the package, with the same files, messages and
+      # controller clicks as the mplayer check above
+      - name: Player check (GStreamer)
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 10
+        run: |
+          python3 tools/ci/gst_player_check.py --x11 --sanitize --log "$RUNNER_TEMP/logs/gst-player-check.log"
+          python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --what player --player-backend gstreamer \
+            --log "$RUNNER_TEMP/logs/media-check-gstreamer.log" --snapshots "$RUNNER_TEMP/logs/media-snapshots-gstreamer"
 
       # Text a standalone puts on the clipboard is still there after it
       # quits, when a clipboard manager runs (this script's own, which does

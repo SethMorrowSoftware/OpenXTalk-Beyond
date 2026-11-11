@@ -1360,6 +1360,11 @@ void MCPlayer::shutdown(void)
     if ( m_player != NULL) m_player -> shutdown(); 
 }
 
+bool MCPlayer::takeended(void)
+{
+    return m_player != NULL && m_player -> takeended();
+}
+
 //// The controller
 //
 // mplayer only draws the video, in a window of its own (lnxmplayer.cpp):

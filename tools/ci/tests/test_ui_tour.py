@@ -27,6 +27,7 @@ And its log, on a console that cannot show every character.
 import contextlib
 import io
 import json
+import re
 import os
 import shutil
 import signal
@@ -843,3 +844,43 @@ class DictionaryFitsItsPage(unittest.TestCase):
         self.assertIn('resizeStack', fit)
         self.assertIn('set the rect of widget "Dictionary" of me to the contentRect of me',
                       handler(self.script, 'on', 'resizeStack'))
+
+
+class ClosedWindowOffTheScreen(unittest.TestCase):
+    """The icon chooser closed by the icon-picker step, still fading out
+    (macOS's close animation), showed through the svg-paths step's
+    picture, whose window opens where the chooser was (the GM's 84516291,
+    mac-universal-arm64 light 04g-svg-paths). The step now waits until
+    the screen where the chooser was has stopped changing, and records
+    whether it was still the same a second later."""
+
+    def setUp(self):
+        with open(TOUR, encoding='utf-8') as f:
+            self.tour = f.read()
+
+    def test_the_chooser_is_waited_for_after_it_closes(self):
+        fails = handler(self.tour, 'function', 'tourIconChooserFails')
+        close = fails.index('close stack tChooser')
+        rect = fails.index('put the rect of stack tChooser into')
+        still = fails.index('tourScreenStill ')
+        self.assertLess(rect, close)
+        self.assertGreater(still, close)
+        self.assertLess(still, fails.index('return tFails'))
+
+    def test_the_wait_ends_on_a_still_screen_and_is_checked(self):
+        still = handler(self.tour, 'command', 'tourScreenStill')
+        # successive pictures of the rect compared, not a fixed sleep
+        self.assertIn('export snapshot from rect pRect to tNow as PNG', still)
+        self.assertIn('if tNow is tLast then', still)
+        # the inner if is a block: a one-line if followed by the outer if's
+        # else took that else, the handler did not compile, and the whole
+        # tour script never started (#449's first builds, Windows and Linux)
+        self.assertRegex(still, r'if tStill >= kStillFor then\n\s+exit repeat\n\s+end if\n\s+else\n')
+        self.assertIn('kStillMax', still)
+        # and one taken a second later compared with the last, in the log
+        self.assertIn('tourWait 1000', still)
+        self.assertIn('the same a second later:', still)
+        self.assertIn('(tLater is tLast)', still)
+        consts = dict(re.findall(r'^constant (kStill\w+) = (\d+)$', self.tour, re.M))
+        self.assertGreaterEqual(int(consts['kStillFor']), 300)  # longer than macOS's fade
+        self.assertLess(int(consts['kStillFor']), int(consts['kStillMax']))

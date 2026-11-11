@@ -45,7 +45,13 @@ What works in it:
 - the extensions that are scripts or LiveCode Builder modules (widgets and
   libraries);
 - revXML, revZip, revDB with SQLite, and revSpeech, which the web engine
-  has built in.
+  has built in;
+- the xTalk Suite's SodiumXT, Box2Dxt (with the Box2Dxt Kit), CoinXT,
+  NostrXT and DataChannelXT (over the browser's own WebRTC), whose native
+  libraries the web engine links in (experimental; BUILDING.md's "The
+  xTalk Suite's libraries in the web IDE" says how). TorrentXT, ENetXT
+  and OnionXT need sockets or a daemon a page cannot reach: a call to
+  TorrentXT or ENetXT throws an error a script can catch.
 
 What it leaves out (`revWebIDEMenu` in
 [revwebidelibrary.livecodescript](../../ide/Toolset/libraries/revwebidelibrary.livecodescript)),

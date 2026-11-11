@@ -2113,6 +2113,41 @@ class Workflow(unittest.TestCase):
             self.assertIn(part, setup)
         self.assertEqual(steps['Upload the packages and logs']['if'], 'always()')
 
+    def test_the_app_probe_on_android_5(self):
+        """the oldest Android a standalone can be built for (the Android
+        card's first minimum version, which android_java.py's MIN_API
+        holds): the app probe, after the 16 KB step, on an API 21 image the
+        setup installs, booted awake but not settled (no overlays, nor the
+        commands settle waits with), the image's API checked"""
+        job = self.wf['jobs']['device']
+        order = [s.get('name') for s in job['steps']]
+        self.assertEqual(order.index('Run the app probe on Android 5.0'),
+                         order.index('Run the probes with 16 KB pages') + 1)
+        self.assertLess(order.index('Run the app probe on Android 5.0'), order.index('Upload the packages and logs'))
+        steps = dict((s.get('name'), s) for s in job['steps'])
+        step = steps['Run the app probe on Android 5.0']
+        run = ' '.join(step['run'].replace('\\\n', ' ').split())
+        image = '"system-images;android-21;google_apis;x86_64"'
+        self.assertIn(image, steps['Set up the JDK and the Android SDK']['run'])
+        self.assertIn('avdmanager" create avd -n api21 -k %s -d pixel_5 --force' % image, run)
+        self.assertIn('emulator" -avd api21 -no-window', run)
+        self.assertIn('--log "$WORK/emulator-api21.log" --minutes 10 --awake', run)
+        self.assertNotIn('--settle', run)
+        self.assertIn('[ "$api" = 21 ]', run)
+        self.assertEqual(re.findall(r'android_check\.py device [^\n]*?(?= python3|$)', run), [
+            'android_check.py device --apk "$WORK/app/out/debug.apk" --serial emulator-5554 --sdk "$SDK" '
+            '--out "$WORK/screen-api21-app.png" --log-out "$WORK/logcat-api21-app.txt"'])
+        # the 16 KB emulator goes first, as that step stops the Android 13 one
+        self.assertLess(run.index('emu kill'), run.index('create avd'))
+        self.assertLessEqual(step['timeout-minutes'], 20)
+        sys.path.insert(0, os.path.join(REPO, 'tools', 'ci'))
+        import android_java as aj
+        self.assertEqual(aj.MIN_API, 21)
+        # its screen and log are uploaded with the others
+        upload = steps['Upload the packages and logs']['with']['path']
+        self.assertIn('${{ env.WORK }}/*.png', upload)
+        self.assertIn('${{ env.WORK }}/*.log', upload)
+
     def test_the_desktop_builds_skip_it(self):
         import yaml
         for wf in ('build-linux.yml', 'build-macos.yml', 'build-windows.yml'):

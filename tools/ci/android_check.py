@@ -1698,6 +1698,90 @@ def verify_apk(name, apk, spec, tools, warnings, target=TARGET_SDK):
     return problems, notes
 
 
+# verify --adaptive-icon: the adaptive icon the builder makes of a stack's
+# "android,adaptive icon" settings (androidAdaptiveIcon in
+# ide-support/revsaveasandroidstandalone.livecodescript): the icon the
+# manifest names is drawable/icon, an adaptive icon from Android 8.0 on
+# (drawable-anydpi-v26) and a picture before it; its layers, and their
+# pictures (drawable-nodpi)
+ADAPTIVE_ICON = 'res/drawable-anydpi-v26/icon.xml'
+ADAPTIVE_LAYERS = ('background', 'foreground', 'monochrome')
+ADAPTIVE_PICTURES = ('icon_foreground.png', 'icon_monochrome.png')
+# The folder of the adaptive icon's pictures in the package: the builder
+# writes them into res/drawable-nodpi, which aapt packages as
+# res/drawable-nodpi-v4 (it gives a density qualifier the version that
+# brought density qualifiers, API 4)
+ADAPTIVE_PICTURE_FOLDER = r'res/drawable-nodpi(?:-v\d+)?/'
+
+
+def adaptive_picture(files, picture):
+    """The package's file of an adaptive icon's picture (ADAPTIVE_PICTURES),
+    in res/drawable-nodpi or that folder with a version
+    (ADAPTIVE_PICTURE_FOLDER), or None."""
+    for f in sorted(files):
+        if re.fullmatch(ADAPTIVE_PICTURE_FOLDER + re.escape(picture), f):
+            return f
+    return None
+
+
+def resource_configs(dump, name):
+    """The configurations that aapt's dump resources lists the resource
+    name (as "drawable/icon") in, as it names them ("default" for its
+    "(default)", "anydpi-v26", ...)."""
+    configs, config = [], None
+    for line in dump.splitlines():
+        m = re.match(r'^\s*config\s+(.+?):\s*$', line)
+        if m:
+            config = m.group(1).strip()
+            config = 'default' if config == '(default)' else config
+            continue
+        if config and not line.strip().startswith('spec ') and \
+                re.search(r'\bresource 0x[0-9a-f]+ [\w.]+:%s:' % re.escape(name), line):
+            configs.append(config)
+    return configs
+
+
+def adaptive_icon_problems(name, files, manifest, icon_tree, configs):
+    """(problems, notes) of a package's adaptive icon: files, the names in
+    the package; manifest and icon_tree, aapt's xmltree of the manifest and
+    of ADAPTIVE_ICON; configs, the configurations of drawable/icon."""
+    problems = []
+    if ADAPTIVE_ICON not in files:
+        return ['%s has no adaptive icon (%s)' % (name, ADAPTIVE_ICON)], []
+    for picture in ADAPTIVE_PICTURES:
+        if not adaptive_picture(files, picture):
+            problems.append('%s: its adaptive icon has no %s in res/drawable-nodpi (or res/drawable-nodpi-v4, as '
+                            'aapt packages that folder)' % (name, picture))
+    if 'res/drawable/icon.png' not in files:
+        problems.append('%s has no icon for Android before 8.0 (res/drawable/icon.png)' % name)
+    if not re.search(r'E: adaptive-icon\b', icon_tree):
+        problems.append('%s: %s is not an adaptive icon' % (name, ADAPTIVE_ICON))
+    for layer in ADAPTIVE_LAYERS:
+        if not re.search(r'E: %s\b[^\n]*\n\s*A: (?:android:)?drawable\(0x01010199\)=@0x[0-9a-f]+' % layer,
+                         icon_tree):
+            problems.append('%s: its adaptive icon has no %s layer naming a resource' % (name, layer))
+    app = re.search(r'E: application\b(.*?)(?:\n\s*E: |\Z)', manifest, re.S)
+    if not app or not re.search(r'A: (?:android:)?icon\(0x01010002\)=@0x[0-9a-f]+', app.group(1)):
+        problems.append('%s: the manifest\'s application names no icon' % name)
+    for config in ('default', 'anydpi-v26'):
+        if config not in configs:
+            problems.append('%s: the resource drawable/icon has no %s configuration (it has: %s)' % (
+                name, config, ', '.join(configs) or 'none'))
+    if not problems:
+        return [], ['an adaptive icon from Android 8.0 on (background, foreground and monochrome: a themed '
+                    'icon from Android 13 on), and a picture before it']
+    return problems, []
+
+
+def verify_adaptive_icon(name, apk, aapt):
+    with zipfile.ZipFile(apk) as z:
+        files = set(z.namelist())
+    _, manifest = run([aapt, 'dump', 'xmltree', apk, 'AndroidManifest.xml'])
+    icon_tree = run([aapt, 'dump', 'xmltree', apk, ADAPTIVE_ICON])[1] if ADAPTIVE_ICON in files else ''
+    _, dump = run([aapt, 'dump', 'resources', apk])
+    return adaptive_icon_problems(name, files, manifest, icon_tree, resource_configs(dump, 'drawable/icon'))
+
+
 def verify_bundle(name, aab, apk, spec, tools, target=TARGET_SDK):
     """The problems of one build's App Bundle (aab, beside its package apk),
     and lines saying what was checked. tools may name the JDK's jarsigner,
@@ -1893,6 +1977,12 @@ def verify(args):
         p, notes = verify_apk(name, apk, BUILDS[name], tools, r['warnings'], args.target)
         if args.engine:
             more, said = verify_engine(name, apk, os.path.abspath(args.engine))
+            p, notes = p + more, notes + said
+        if args.adaptive_icon:
+            if not tools.get('aapt'):
+                more, said = ['no aapt in the SDK\'s build-tools to read the adaptive icon with'], []
+            else:
+                more, said = verify_adaptive_icon(name, apk, tools['aapt'])
             p, notes = p + more, notes + said
         log('%s.apk (%.1f MB): %s' % (name, os.path.getsize(apk) / 1e6, '; '.join(notes)))
         for x in p:
@@ -2219,6 +2309,23 @@ PID_TRIES = 3
 DEVICE_WAIT = 60
 
 
+# The shell's answer where it has no pidof: Android 5's toolbox (toybox,
+# which has one, came with Android 6)
+NO_PIDOF = r'\bpidof: (?:inaccessible or )?not found'
+
+
+def pids_in_ps(out, name=IDENTIFIER):
+    """The process ids of `name` in a listing of ps (Android 5's toolbox:
+    USER PID PPID VSIZE RSS WCHAN PC NAME, the name last), as pidof gives
+    them: '' when it is not running."""
+    pids = []
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) > 2 and parts[-1] == name and parts[1].isdigit():
+            pids.append(parts[1])
+    return ' '.join(pids)
+
+
 def pid_now(a, tries=None):
     """The probe's process ids now, as pidof gives them ('' when it is not
     running). An answer that is not process ids is adb's own failure, not
@@ -2227,11 +2334,15 @@ def pid_now(a, tries=None):
     then took for the probe's process. So it waits for the device (adb
     wait-for-device, at most DEVICE_WAIT s) and asks again, at most
     `tries` times (PID_TRIES), and then gives adb's answer, which no process
-    id equals. `a` runs adb on the device."""
+    id equals. On a shell with no pidof (NO_PIDOF: Android 5), ps says
+    (pids_in_ps). `a` runs adb on the device."""
     tries = PID_TRIES if tries is None else tries
     out = ''
     for _ in range(tries):
         out = a('shell', 'pidof', IDENTIFIER)[1].strip()
+        if re.search(NO_PIDOF, out):
+            # Android 5's shell has no pidof: its ps says
+            return pids_in_ps(a('shell', 'ps')[1])
         if re.fullmatch(r'[\d\s]*', out):
             return out
         log('  pidof: %s; waiting for the device' % answer(out))
@@ -2688,7 +2799,9 @@ def device_once(args):
     _, props = a('shell', 'getprop', 'ro.build.version.sdk')
     _, page = a('shell', 'getconf', 'PAGE_SIZE')
     _, abi = a('shell', 'getprop', 'ro.product.cpu.abi')
-    log('Device %s: API %s, %s, pages of %s bytes' % (args.serial, props.strip(), abi.strip(), page.strip()))
+    log('Device %s: API %s, %s, %s' % (args.serial, props.strip(), abi.strip(),
+                                        'pages of %s bytes' % page.strip() if page.strip().isdigit() else
+                                        'its page size not said (getconf: %s)' % answer(page, 120)))
     state = wakefulness(a('shell', 'dumpsys', 'power')[1])
     if state and state != 'Awake':
         log('NOTE: the device is %s (dumpsys power): Android pauses an activity started now (see boot --awake)'
@@ -3354,6 +3467,8 @@ def main(argv=None):
                        help='an installed IDE: the packages must target the API its builder picks for its runtime')
     v.add_argument('--engine', help='the runtime folder that overlay --engine took: each package\'s engine must be '
                                     'the one built there')
+    v.add_argument('--adaptive-icon', action='store_true',
+                   help='each package must have the adaptive icon (a themed one) that the edge probe asks for')
     c = sub.add_parser('compare')
     c.add_argument('--old', required=True)
     c.add_argument('--new', required=True)

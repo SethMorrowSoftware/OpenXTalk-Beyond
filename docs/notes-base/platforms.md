@@ -33,7 +33,7 @@ requirements:
   * GTK/GDK 2.24 or later
   * Pango with Xft support
   * esd (optional, needed for audio output)
-  * mplayer (optional, needed for media player functionality)
+  * mplayer, or GStreamer 1.x with its plugins (optional, needed for media player functionality)
   * lcms (optional, required for color profile support in images)
   * gksu (optional, required for privilege elevation support)
 

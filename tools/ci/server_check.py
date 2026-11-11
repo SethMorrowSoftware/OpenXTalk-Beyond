@@ -89,6 +89,8 @@ sys.path.insert(0, os.path.join(REPO, 'tools', 'oxt'))
 import package_server  # noqa: E402
 
 TIMEOUT = 60
+# How many session ids the session check sends to be read back
+SESSION_IDS = 25
 GHA = os.environ.get('GITHUB_ACTIONS') == 'true'
 
 # The pages of the site. {sessions} is replaced by the session folder.
@@ -140,7 +142,13 @@ PAGES = collections.OrderedDict([
                    'add 1 to $_SESSION["count"]\n'
                    'put "count=" & $_SESSION["count"] & ";" & return\n'
                    'put "id=" & (the sessionID is not empty) & ";" & return\n'
+                   'put "incoming=" & $_COOKIE["LCSESSION"] & ";" & return\n'
                    'stop session\n'
+                   '?>'),
+    # The cookies a request sent, as the page reads them
+    ('cookies.lc', '<?lc\n'
+                   'put "session=" & $_COOKIE["LCSESSION"] & ";" & return\n'
+                   'put "one=" & $_COOKIE["one"] & ";" & return\n'
                    '?>'),
     ('utf8.lc', '<?lc\nput header "Content-Type: text/plain; charset=utf-8"\n'
                 'set the outputTextEncoding to "utf-8"\n'
@@ -231,6 +239,16 @@ CASES = [
         ('secure cookie', lambda r: r.cookie('flavour'), re.compile(
             r'^flavour=ginger;.*Path=/;.*Secure; HttpOnly$')),
         ('plain cookie', lambda r: r.cookie('plain'), re.compile(r'^plain=yes(;|$)'))]),
+    # The last cookie of the header, whose end is the header's end, read
+    # whole: the engine's cookie parser read one byte past the header and
+    # dropped the value's last character when that byte was a space, so
+    # now and then a session's second request came with an id one
+    # character short (Windows, 8 Nov 2026). run_session asks it again
+    # with ids of its own, as the session check does
+    ('last cookie whole', request('cookies.lc', cookie='LCSESSION=0123456789ABCDEF0123456789ABCDEF'), [
+        ('the value', lambda r: r.field('session'), '0123456789ABCDEF0123456789ABCDEF')]),
+    ('cookie header ending in "; "', request('cookies.lc', cookie='one=abc; '), [
+        ('the value', lambda r: r.field('one'), 'abc')]),
     ('Status header', request('status.lc'), [
         ('status', lambda r: r.status, 404),
         ('body', lambda r: r.body_text().strip(), 'gone')]),
@@ -328,8 +346,8 @@ def base_env():
 class CgiTransport(object):
     name = 'cgi'
 
-    def __init__(self, engine, www):
-        self.engine, self.www = engine, www
+    def __init__(self, engine, www, wrapper=()):
+        self.engine, self.www, self.wrapper = engine, www, list(wrapper)
 
     def send(self, req):
         page = os.path.join(self.www, req.page)
@@ -347,7 +365,7 @@ class CgiTransport(object):
             env['CONTENT_TYPE'] = req.content_type
         if req.cookie:
             env['HTTP_COOKIE'] = req.cookie
-        return run_cgi([self.engine], env, req.body, self.www)
+        return run_cgi(self.wrapper + [self.engine], env, req.body, self.www)
 
 
 def run_cgi(argv, env, body, cwd):
@@ -544,9 +562,66 @@ def run_cases(transport, results):
         results.add(where, 'session cookie (HttpOnly)', sid is not None and 'HttpOnly' in (first.cookie('LCSESSION') or ''),
                     first.describe())
         second = transport.send(request('session.lc', cookie=sid or ''))
-        results.add(where, 'second request sees the first', second.field('count') == '2', second.describe())
+        # (what the second request sent and what the page read of it, so
+        # that a failure says whether the cookie arrived whole)
+        sent = sid.split('=', 1)[1] if sid else ''
+        read = second.field('incoming')
+        results.add(where, 'second request sees the first', second.field('count') == '2',
+                    'sent LCSESSION %r (%d characters), the page read %r (%s); %s'
+                    % (sent, len(sent), read, 'none' if read is None else '%d characters' % len(read),
+                       second.describe()))
+        # Session ids as the engine makes them, each sent alone: every one
+        # must be read whole (the byte past the header is whatever the
+        # heap holds, so one request proves little)
+        short = []
+        for _ in range(SESSION_IDS):
+            want = uuid.uuid4().hex.upper()
+            got = transport.send(request('cookies.lc', cookie='LCSESSION=' + want)).field('session')
+            if got != want:
+                short.append('%s read as %r' % (want, got))
+        results.add(where, 'every session id read whole (%d)' % SESSION_IDS, not short, '; '.join(short[:5]))
     except (OSError, subprocess.SubprocessError, ValueError) as e:
         results.add(where, 'requests', False, str(e))
+
+
+# The requests run under Valgrind's memcheck by --memcheck: the cookie
+# parser's cases, where it read past the end of the header (each request
+# is a whole engine start under Valgrind, some seconds)
+MEMCHECK_COOKIES = ('LCSESSION=0123456789ABCDEF0123456789ABCDEF', 'one=abc; ', 'one=abc; LCSESSION=x',
+                    'one=abc;two', ' one = abc ')
+
+
+def memcheck_errors(stderr):
+    """The lines of Valgrind's report that name a read or write outside
+    memory, each with the two frames after it. (Only those: the 0.2.7
+    server engine also gives a "Mismatched free()" as it quits, on every
+    request, so Valgrind's error exit status says nothing here.)"""
+    lines = stderr.decode('utf-8', 'replace').splitlines()
+    out = []
+    for i, line in enumerate(lines):
+        if re.search(r'==\d+== Invalid (read|write)', line):
+            out.append(' / '.join(l.split('== ', 1)[-1].strip() for l in lines[i:i + 3]))
+    return out
+
+
+def run_memcheck(engine, www, valgrind, results):
+    """The engine's cookie parsing under memcheck: no request may read or
+    write outside its memory. The engine read one byte past the cookie
+    header, and the session id of a request came one character short
+    whenever that byte was a space (Windows, 8 Nov 2026); on Linux the
+    byte is rarely one, so the read itself is what is checked."""
+    where = 'memcheck'
+    transport = CgiTransport(engine, www, [valgrind, '-q'])
+    for cookie in MEMCHECK_COOKIES:
+        try:
+            r = transport.send(Request('cookies.lc', 'GET', '', b'', '', cookie))
+        except (OSError, subprocess.SubprocessError) as e:
+            results.add(where, 'cookie %r' % cookie, False, str(e))
+            continue
+        errors = memcheck_errors(r.stderr)
+        results.add(where, 'cookie %r: no read or write outside memory' % cookie,
+                    r.status is not None and not errors,
+                    '; '.join(errors[:3]) or r.describe())
 
 
 def run_command_line(engine, work, repo, results):
@@ -689,6 +764,9 @@ def main(argv=None):
     ap.add_argument('--zip', required=True, help='the server zip')
     ap.add_argument('--platform', choices=list(package_server.PLATFORMS), default=None)
     ap.add_argument('--apache', choices=('auto', 'yes', 'no'), default='auto')
+    ap.add_argument('--memcheck', choices=('auto', 'yes', 'no'), default='no',
+                    help='also run the cookie requests under Valgrind (Linux): yes fails without valgrind, '
+                         'auto skips them (default: no)')
     ap.add_argument('--work', help='folder to work in (default: a temporary one, removed after)')
     ap.add_argument('--log', help='write the log here too')
     ap.add_argument('--repo', default=REPO)
@@ -728,6 +806,16 @@ def main(argv=None):
         transports.append('as a CGI program')
         if p.family != 'windows':
             run_shebang(engine, www, results)
+        if args.memcheck != 'no':
+            valgrind = shutil.which('valgrind') if p.family == 'linux' else None
+            if valgrind:
+                log('Valgrind     : %s' % valgrind)
+                run_memcheck(engine, www, valgrind, results)
+                transports.append('under Valgrind')
+            elif args.memcheck == 'yes':
+                results.add('memcheck', 'valgrind on a Linux runner', False, 'none found')
+            else:
+                log('Valgrind     : none found, skipped')
         if args.apache != 'no':
             found = find_apache() if p.family != 'windows' else None
             if found:
