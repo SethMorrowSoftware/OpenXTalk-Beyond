@@ -726,15 +726,18 @@ jobs:
             --log "$WORK/emulator-api33.log" --minutes 10 --awake --settle
 
       # Both engines, then the comparison; the job fails after them when
-      # either run had a failure not in its baseline (or could not run)
+      # either run had a failure not in its baseline (or could not run).
+      # A test whose lines the device's log lost is run again;
+      # --again-check runs the first test that passed again when none was
+      # (its result kept), so that each run shows that the way back in works
       - name: Run the tests with each engine
         timeout-minutes: 100
         run: |
           status=0
           python3 tools/ci/android_tests.py run --work "$WORK/tests-9.6.3" --serial emulator-5554 --sdk "$SDK" \
-            --engine 9.6.3 --timeout 60 || status=1
+            --engine 9.6.3 --timeout 60 --again-check || status=1
           python3 tools/ci/android_tests.py run --work "$WORK/tests-beyond" --serial emulator-5554 --sdk "$SDK" \
-            --engine beyond --timeout 60 --check-engine "$WORK/engine" || status=1
+            --engine beyond --timeout 60 --again-check --check-engine "$WORK/engine" || status=1
           if [ -f "$WORK/tests-9.6.3/android-tests-9.6.3.json" ] && [ -f "$WORK/tests-beyond/android-tests-beyond.json" ]; then
             python3 tools/ci/android_tests.py compare --old "$WORK/tests-9.6.3/android-tests-9.6.3.json" \
               --new "$WORK/tests-beyond/android-tests-beyond.json"
