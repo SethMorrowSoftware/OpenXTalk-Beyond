@@ -191,6 +191,12 @@ def find_ide_tools(ide):
     return found
 
 
+def revsblibrary_is_font(path):
+    """Whether the standalone builder takes path for a font
+    (revsblibrary's test: .ttf, .ttc or .otf)."""
+    return path.endswith(('.ttf', '.ttc', '.otf'))
+
+
 def copy_files(repo, extensions_folder):
     """(files, extensions, missing, repo files): the copy files, as (path
     under --work, source) pairs, the names of the extensions among them, of
@@ -203,6 +209,13 @@ def copy_files(repo, extensions_folder):
     repo_files = set(ERROR_FILES)
     for text in texts:
         for path in re.findall(r'TestGetEngineRepositoryPath\(\)\s*&\s*"/([^"]+)"', text):
+            # not a font file: the Android builder takes those out of the
+            # copy files into assets/fonts/ (revsaveasandroidstandalone,
+            # "Custom fonts"), and the app then could not find it in
+            # oxt-tests and stopped before the first test. The one test that
+            # reads one (web-desktop-fonts) runs only in the web engine
+            if revsblibrary_is_font(path):
+                continue
             if os.path.isfile(os.path.join(repo, path)):
                 repo_files.add(path)
     for path in sorted(repo_files):
