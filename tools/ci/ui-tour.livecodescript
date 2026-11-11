@@ -85,7 +85,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,tools-widget-install,tools-widget-builder,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,menu-submenu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,icon-picker,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-button-menu,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,code-font,ide-stacks,screen-end,background-default"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,tools-widget-install,tools-widget-builder,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,menu-submenu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,icon-picker,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-button-menu,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,extension-builder-errors,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,code-font,ide-stacks,screen-end,background-default"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -8277,6 +8277,76 @@ end tourHookWaiting
 on tour_extension_builder
    tourPalette "extension builder", "18-extension-builder", 2000
 end tour_extension_builder
+
+-- Skids (forum p=26031): when a script library would not build, the
+-- Extension Builder's messages were poor. Its log now says what is wrong
+-- and where (extensionScriptLibraryProblems): the first compile error by
+-- its line in the file, and docs with no library block. Two libraries are
+-- built as the Builder's Test builds one (revIDEDeveloperExtension, then
+-- revIDEDeveloperExtensionTest for the one with no id, which stops before
+-- loading it) and the Builder's own log field is read
+on tour_extension_builder_errors
+   local tStack, tRoot, tFolder, tName, tLog, tLine, tText, tError
+   -- An IDE from before the change (the release tour runs a release) has
+   -- nothing to log, so the step says so and checks nothing
+   if there is not a stack "com.livecode.library.extension-utils" or \
+         "function extensionScriptLibraryProblems" is not in \
+         the script of stack "com.livecode.library.extension-utils" then
+      tourRecord "INFO extension-builder-errors: this IDE does not check script libraries; skipped"
+      exit tour_extension_builder_errors
+   end if
+   put revIDEPaletteToStackName("extension builder") into tStack
+   revIDEOpenPalette "extension builder"
+   tourWait 1500
+   if tStack is empty or there is not a stack tStack then throw "no Extension Builder stack"
+   put specialFolderPath("temporary") & "/oxt_tour_scriptlib_" & the milliseconds into tRoot
+   create folder tRoot
+   try
+      -- A library whose handler does not compile, at a known line
+      put tRoot & "/broken" into tFolder
+      create folder tFolder
+      put "org.openxtalk.tour.brokenlib" into tName
+      put "script" && quote & tName & quote & return & \
+            "/**" & return & "Title: Tour Broken Library" & return & \
+            "Version: 1.0.0" & return & "*/" & return & \
+            "/**" & return & "Summary: Does not compile." & return & "*/" & return & \
+            "function tourBroken" & return & "   put (1 into tX" & return & \
+            "end tourBroken" & return into tText
+      put lineOffset("put (1 into tX", tText) into tLine
+      put textEncode(tText, "UTF-8") into URL ("binfile:" & tFolder & "/" & tName & ".livecodescript")
+      put empty into field "console" of stack tStack
+      get revIDEDeveloperExtension(tFolder)
+      tourWait 300
+      put field "console" of stack tStack into tLog
+      tourRecord "INFO extension-builder-errors: log" && tourJoin(tLog)
+      if not (", line" && tLine & ":" is in tLog) then throw "the compile error is not logged by its line (" & tLine & ")"
+      if not ("none of its handlers" is in tLog) then throw "the log does not say what a compile error does"
+      tourShotStack tStack, "18b-extension-builder-errors"
+      
+      -- A library with no library block
+      put tRoot & "/noblock" into tFolder
+      create folder tFolder
+      put "org.openxtalk.tour.noblocklib" into tName
+      put "script" && quote & tName & quote & return & \
+            "/**" & return & "Summary: Says hello." & return & "*/" & return & \
+            "function tourHello" & return & "   return 1" & return & \
+            "end tourHello" & return into tText
+      put textEncode(tText, "UTF-8") into URL ("binfile:" & tFolder & "/" & tName & ".livecodescript")
+      put empty into field "console" of stack tStack
+      revIDEDeveloperExtensionTest tFolder
+      tourWait 300
+      put field "console" of stack tStack into tLog
+      tourRecord "INFO extension-builder-errors: log" && tourJoin(tLog)
+      if not ("No library block was found" is in tLog) then throw "a library with no library block is not explained"
+      if not ("Could not build script library" is in tLog) then throw "Test does not say the script library did not build"
+   catch tError
+   end try
+   -- The two libraries stay in memory, as the Builder leaves a library it
+   -- built: deleting them here made the next step's error dialog fail in
+   -- Home's openStack (error-display, on Linux)
+   close stack tStack
+   if tError is not empty then throw tError
+end tour_extension_builder_errors
 
 on tour_message_watcher
    tourPalette "message watcher", "19-message-watcher", 1500
