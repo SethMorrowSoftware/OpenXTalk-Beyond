@@ -59,8 +59,9 @@ app is stopped), stops the app (a crash, or a quit the runner could not
 cancel), or never begins. The app is then started again, and goes on with
 the test after the last one that began (its progress file), at most
 --restarts times in all. The device's log is not lossless (Android can drop
-a burst of lines while the app goes on), so a test that said nothing while
-the app went on past it, its lines lost, is run again: the app is started
+a burst of lines while the app goes on), so a test that said nothing, or
+fewer lines of output than its DONE says, while the app went on past it,
+its lines lost, is run again: the app is started
 with those tests' lines in the launch's extra oxttests_again, runs them
 alone and says END, at most --again-starts times (3), each time with those
 still lost, and their results are those of that run, the log saying that
@@ -146,7 +147,8 @@ LOG_BUFFER = '16M'
 # none. The device's log is not lossless: on Android 13 liblog does not
 # wait for logd, and a burst of lines can be dropped while the app goes on
 # (run 43093019217 lost every line of four tests and the DONE of a fifth
-# among ~1,600 tests in four minutes). A test that said nothing while the
+# among ~1,600 tests in four minutes). A test that said nothing, or fewer
+# lines of output than its DONE says (a lost failure would pass), while the
 # app went on past it is run again, alone, in at most AGAIN_STARTS starts
 AGAIN_EXTRA = 'oxttests_again'
 AGAIN_NONE = 'none'
@@ -332,6 +334,8 @@ class Run:
         self.current = None      # the line of the test that began and has not ended
         self.began = None        # when (time.monotonic())
         self.tap = {}            # line: [TAP line]
+        self.places = {}         # line: {the place in its output of each TAP line that came}
+        self.told = {}           # line: how many lines of output it gave, as its DONE says
         self.details = {}        # line: [what else is known of it]
         self.done = set()
         self.quit = set()
@@ -368,14 +372,21 @@ class Run:
             self.begun.append(number)
             # its output is that of its last run (a test run again)
             self.tap[number] = []
+            self.places[number] = set()
         elif kind == 'TAP' and number is not None:
             # TAP <line> <n> <TAP line>: n, the line's place in the test's
             # output, keeps two lines that are the same apart (the log
             # folds lines it takes as the same)
             self.tap.setdefault(number, []).append(words[3] if len(words) > 3 else '')
+            if len(words) > 2 and words[2].isdigit():
+                self.places.setdefault(number, set()).add(int(words[2]))
         elif kind == 'QUIT':
             self.quit.add(number if number is not None else self.current)
         elif kind == 'DONE' and number is not None:
+            # DONE <line> <n>: n, how many lines of output it gave (an
+            # app that says none is taken to have lost none)
+            if len(words) > 2 and words[2].isdigit():
+                self.told[number] = int(words[2])
             self.done.add(number)
             self.finished.append(number)
             if self.current == number:
@@ -390,6 +401,35 @@ class Run:
         if self.current is not None:
             self.details.setdefault(self.current, []).append(why)
             self.current = None
+
+    def missing(self, line):
+        """How many of the lines of output of the test on line the device's
+        log lost: its DONE says how many it gave."""
+        return max(0, self.told.get(line, 0) - len(self.places.get(line, ())))
+
+    def whole(self, line):
+        """The test on line said DONE, and every line of its output came."""
+        return line in self.done and not self.missing(line)
+
+    def forget(self, line):
+        """Forgets all that makes the result of the test on line (to run it
+        again), and returns it for keep."""
+        kept = dict((name, getattr(self, name).pop(line, None)) for name in ('tap', 'places', 'told', 'details'))
+        for name in ('done', 'quit'):
+            kept[name] = line in getattr(self, name)
+            getattr(self, name).discard(line)
+        return kept
+
+    def keep(self, line, kept):
+        """Puts back what forget(line) returned, in place of what was said
+        of the test on line since."""
+        self.forget(line)
+        for name in ('tap', 'places', 'told', 'details'):
+            if kept[name] is not None:
+                getattr(self, name)[line] = kept[name]
+        for name in ('done', 'quit'):
+            if kept[name]:
+                getattr(self, name).add(line)
 
 
 def says(line):
@@ -406,6 +446,10 @@ def result_of(run_, line):
     details = list(run_.details.get(line, []))
     if line in run_.done:
         outcome = outcome_of(counts, text)
+        missing = run_.missing(line)
+        if missing:
+            outcome = 'fail'
+            details.insert(0, "the device's log lost %d of its %d lines of output" % (missing, run_.told[line]))
     else:
         outcome = 'fail'
         if line not in run_.started:
@@ -421,16 +465,18 @@ def result_of(run_, line):
 
 
 def lost_lines(run_, count):
-    """The tests that said nothing while the app went on past them, the
-    lines of which the device's log lost: those with no DONE that no stop
-    of the app accounts for, below a test that began after them (or all, once
-    the app said END). A test after the last one that began did not run."""
+    """The tests that said nothing, or not all they said, while the app
+    went on past them, the lines of which the device's log lost: those with
+    no DONE that no stop of the app accounts for, or with a DONE and fewer
+    lines of output than it says, below a test that began after them (or
+    all, once the app said END). A test after the last one that began did
+    not run."""
     if run_.ended:
         past = count + 1
     else:
         past = max(run_.started) if run_.started else 0
     return [n for n in range(1, min(count, past - 1) + 1)
-            if n not in run_.done and not run_.details.get(n)]
+            if not run_.whole(n) and not run_.details.get(n)]
 
 
 # ---------------------------------------------------------------------------
@@ -523,7 +569,8 @@ def run_tests(device, count, timeout, restarts, start_timeout=START_TIMEOUT, clo
     again after each stop (a crash, a quit, or a test that did not end
     within timeout seconds, when it is stopped), at most restarts times
     after the first. count: the number of tests. Then the tests whose lines
-    the device's log lost (lost_lines) are run again: the app is started
+    (or some of whose lines of output) the device's log lost (lost_lines)
+    are run again: the app is started
     with them (the launch's extra AGAIN_EXTRA), runs them alone and says
     END, at most again_starts times, each time with those still lost. With
     again_check and none lost, it is started once to run again the first
@@ -537,7 +584,9 @@ def run_tests(device, count, timeout, restarts, start_timeout=START_TIMEOUT, clo
     reported = set()
 
     def finish(line):
-        if line not in reported:
+        # (a test whose output the device's log lost is run again: its
+        # result is that of the run again)
+        if line not in reported and (line not in r.done or r.whole(line)):
             reported.add(line)
             if report:
                 report(line, result_of(r, line))
@@ -571,12 +620,10 @@ def run_tests(device, count, timeout, restarts, start_timeout=START_TIMEOUT, clo
         if again is None:
             device.start()
         else:
-            # their result is that of their run again alone: their output
-            # and whether they quit (their BEGIN, which resets the output,
-            # can be lost as well)
+            # their result is that of their run again alone (their BEGIN,
+            # which resets their output, can be lost as well)
             for line in again:
-                r.tap.pop(line, None)
-                r.quit.discard(line)
+                r.forget(line)
             # after its END the app is still running, and am start would
             # only bring it to the front: its script would not start again
             device.stop()
@@ -658,7 +705,7 @@ def run_tests(device, count, timeout, restarts, start_timeout=START_TIMEOUT, clo
         log("%d test(s) said nothing while the app went on past them (the device's log lost their lines), "
             'and are run again: %s' % (len(lost), ', '.join(str(n) for n in lost)))
     for _ in range(again_starts if lost else 0):
-        todo = [n for n in lost if n not in r.done and not r.details.get(n)]
+        todo = [n for n in lost if not r.whole(n) and not r.details.get(n)]
         if not todo:
             break
         follow(todo)
@@ -670,22 +717,12 @@ def run_tests(device, count, timeout, restarts, start_timeout=START_TIMEOUT, clo
         if check is None:
             follow([])
         else:
-            # all that makes its result: its output, what was said of it
-            # and whether it quit
-            details = r.details.get(check)
-            kept = (list(r.tap.get(check, [])), None if details is None else list(details), check in r.quit)
+            # all that makes its result
+            kept = r.forget(check)
             follow([check])
             # its BEGIN or its DONE says it ran (either can be lost)
             ran = check in r.begun or check in r.finished
-            r.tap[check] = kept[0]
-            if kept[1] is None:
-                r.details.pop(check, None)
-            else:
-                r.details[check] = kept[1]
-            if kept[2]:
-                r.quit.add(check)
-            else:
-                r.quit.discard(check)
+            r.keep(check, kept)
             if not ran:
                 raise CheckError('the app was started to run test %d again, and it did not run it' % check)
             log('Ran test %d again, as a check that the way back in works' % check)

@@ -60,7 +60,8 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --                                          place there (the log folds lines
 --                                          that are the same)
 --    OXTTESTS QUIT <line>                  the test quit (see below)
---    OXTTESTS DONE <line>                  after it
+--    OXTTESTS DONE <line> <n>              after it, n the number of lines
+--                                          of its output
 --    OXTTESTS END                          after the last
 --    OXTTESTS ERROR <what>                 the run cannot go on
 --
@@ -73,7 +74,8 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --
 -- The device's log is not lossless: Android can drop a burst of lines
 -- while the app goes on (liblog does not wait for logd), and a test whose
--- lines were lost looks as if it never ran. android_tests.py then starts
+-- lines were lost looks as if it never ran, or ran with less output than
+-- its DONE says (a lost failure). android_tests.py then starts
 -- the app again with those tests' lines in the launch's extra
 -- "oxttests_again" (kAgainExtra: comma-separated, or "none"), which
 -- mobileGetLaunchData() gives the runner. It says AGAIN with them, runs
@@ -293,7 +295,7 @@ on androidTestsNext
       add 1 to tPlace
       androidSay "TAP" && sIndex && tPlace && tLine
    end repeat
-   androidSay "DONE" && sIndex
+   androidSay "DONE" && sIndex && tPlace
 
    if sAgainMode is not true then
       add 1 to sIndex
