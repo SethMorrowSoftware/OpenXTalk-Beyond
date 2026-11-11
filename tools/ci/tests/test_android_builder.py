@@ -676,7 +676,8 @@ class AppBundleBox(unittest.TestCase):
 
 
 class EngineBox(unittest.TestCase):
-    """The Android card's "OXT-Beyond engine (preview)" box, made by the IDE
+    """The Android card's "OXT-Beyond engine" box ("OXT-Beyond engine
+    (preview)" until 0.2.8), made by the IDE
     stack patches android-card-engine-*.txt (a copy of "Android x86_64" in
     the build targets' group, put in the right-hand column's free row under
     the device table; the group grown to hold it; the group's script
@@ -696,7 +697,7 @@ class EngineBox(unittest.TestCase):
         lines = patch_lines('android-card-engine-1.txt')
         self.assertIn('object: button "Android x86_64" of group "Android Targets" of card "Android"', lines)
         self.assertIn('clone: Beyond Engine', lines)
-        self.assertEqual(lines[lines.index('property: label') + 1], 'to: OXT-Beyond engine (preview)')
+        self.assertEqual(lines[lines.index('property: label') + 1], 'to: OXT-Beyond engine')
         tip = lines[lines.index('property: toolTip') + 1]
         self.assertIn("OXT-Beyond's own Android engine", tip)
         self.assertIn("LiveCode 9.6.3's", tip)
@@ -832,6 +833,112 @@ class EngineBox(unittest.TestCase):
         # the clicks are looked at with the box enabled, as for a stack
         # built for Android (a disabled control takes none)
         self.assertLess(check.index('set the enabled of tBox to true'), check.index('controlAtLoc('))
+
+
+class FirstTargetEngine(unittest.TestCase):
+    """The engine a stack has once the Android card ticks its first
+    architecture: OXT-Beyond's own for a stack set up for Android now, when
+    the runtimes carry it, and the box ticked to show it; every stack set up
+    for Android before, or that names an engine, keeps what it has, so it is
+    built as before (androidEngineOnFirstTarget in the builder, from the
+    settings as they were before the tick; updateAndroidArch on the card).
+    The Android check's units run the handler (unitFirstTargetEngine), and
+    the UI tour ticks a first architecture in the IDE for a new stack, one
+    set up before and one that names 9.6.3
+    (tourAndroidFirstTargetEngine)."""
+
+    def setUp(self):
+        self.builder = handler(code(read(BUILDER)), 'androidEngineOnFirstTarget')
+        self.card = handler(code(read(CARD)), 'updateAndroidArch')
+
+    def test_a_stack_set_up_before_keeps_its_engine(self):
+        # an engine named, or the "android" setting (on or off), or any
+        # architecture saved (ticked or not) answers what the stack has,
+        # before the runtimes are looked at
+        self.assertRegex(self.builder, r'^function androidEngineOnFirstTarget pSettings\s+'
+                                       r'local tArch, tRuntime, tError\s+'
+                                       r'if pSettings\["android,engine"\] is not empty or "android" is among the keys '
+                                       r'of pSettings then\s+return pSettings\["android,engine"\]\s+end if\s+'
+                                       r'repeat for each item tArch in revSBPlatformArchitectures\("Android"\)\s+'
+                                       r'if \("Android," & tArch\) is among the keys of pSettings then\s+'
+                                       r'return pSettings\["android,engine"\]\s+end if\s+end repeat\s+')
+        # not the settings the card saves for any stack that opens it
+        self.assertNotIn('billingProvider', self.builder)
+        self.assertNotIn('begins with', self.builder)
+
+    def test_a_new_stack_gets_the_engine_the_runtimes_carry(self):
+        # the folder androidRuntimeFolder takes for beyond, of the runtimes
+        # the build takes; without it, or without the builder's runtime
+        # path, 9.6.3's (empty), so that the build does not stop
+        self.assertRegex(self.builder, r'try\s+put revMobileRuntimeFolder\("build"\) into tRuntime\s+'
+                                       r'catch tError\s+return empty\s+end try\s+'
+                                       r'if tRuntime is not empty and there is a folder \(tRuntime & slash & "Beyond"\) then\s+'
+                                       r'return "beyond"\s+end if\s+return empty\s+end androidEngineOnFirstTarget$')
+        choose = handler(code(read(BUILDER)), 'androidRuntimeFolder')
+        self.assertIn('there is not a folder (tRuntime & slash & "Beyond")', choose)
+        self.assertIn('put revMobileRuntimeFolder(pTarget) into tRuntime', choose)
+        self.assertEqual(self.builder.count('return "beyond"'), 1)
+
+    def test_the_card_asks_before_it_saves_the_tick(self):
+        # from the settings before the architecture is saved, only for a
+        # tick, and with the builder's answer only when it can be had
+        self.assertRegex(self.card, r'put getSettings\(\) into tSettingsA\s+'
+                                    r'put tSettingsA\["android,engine"\] into tEngine\s+'
+                                    r'if pBuild is true then\s+try\s+'
+                                    r'put androidEngineOnFirstTarget\(tSettingsA\) into tEngine\s+'
+                                    r'catch tError\s+put tSettingsA\["android,engine"\] into tEngine\s+end try\s+end if\s+'
+                                    r'if tEngine is not tSettingsA\["android,engine"\] then\s+'
+                                    r'put tEngine into tSettingsA\["android,engine"\]\s+end if\s+'
+                                    r'put pBuild into tSettingsA\["Android",pArch\]')
+        self.assertIn('local tSettingsA, tEngine, tError', self.card)
+        # the box shows it once the settings are saved
+        saved = self.card.index('setSettings tSettingsA')
+        shown = self.card.index('set the hilited of button "Beyond Engine" of group "Android targets" of me to')
+        self.assertLess(saved, shown)
+        self.assertRegex(self.card[saved:], r'if there is a button "Beyond Engine" of group "Android targets" of me then\s+'
+                                            r'set the hilited of button "Beyond Engine" of group "Android targets" of me to\s+'
+                                            r'\(tSettingsA\["android,engine"\] is "beyond"\)\s+end if')
+        # the card's first pick for a stack with Android on and no
+        # architecture (initialize) saves architectures, not an engine
+        self.assertNotIn('android,engine', handler(code(read(CARD)), 'initialize'))
+        # the builder is in the IDE's back scripts, so the card reaches it
+        home = read(('ide', 'Toolset', 'home.livecodescript'))
+        self.assertIn('put return & "revsaveasandroidstandalone" after tBackList', home)
+
+    def test_the_units_run_it(self):
+        units = read(UNITS)
+        body = handler(units, 'androidUnits')
+        self.assertRegex(body, r'unitEngine\s+unitFirstTargetEngine\s+')
+        unit = handler(units, 'unitFirstTargetEngine')
+        for case in ('"first-engine-no-beyond"', '"first-engine-new"', '"first-engine-new-card-settings"',
+                     '"first-engine-had-" & tArch & "-" & tEngine', '"first-engine-android-" & tEngine',
+                     '"first-engine-names-" & tEngine', '"first-engine-had-armv7-names-" & tEngine'):
+            self.assertIn('androidUnit ' + case, unit)
+        self.assertIn('repeat for each item tArch in "armv7,arm64,x86,x86_64"', unit)
+        self.assertIn('repeat for each item tEngine in "9.6.3,beyond"', unit)
+        # a Beyond folder it made, it takes away; one there before, it leaves
+        self.assertRegex(unit, r'put there is not a folder tBeyond into tMade\s+if tMade then')
+        self.assertRegex(unit, r'if tMade then\s+removeTree tBeyond\s+end if\s+end unitFirstTargetEngine')
+        self.assertEqual(unit.count('removeTree'), 1)
+
+    def test_the_tour_ticks_a_first_architecture(self):
+        tour = read(TOUR)
+        engine = handler(tour, 'tourAndroidEngine')
+        self.assertRegex(engine, r'put tourAndroidFirstTargetEngine\(tCard, tTargets, tBox, tWas\) after tFails\s+'
+                                 r'return tFails\s+end tourAndroidEngine')
+        check = handler(tour, 'tourAndroidFirstTargetEngine')
+        self.assertIn('repeat for each item tCase in "new,set up before,names 9.6.3"', check)
+        self.assertIn('put there is a folder (tRuntime & "/Beyond") into tBeyond', check)
+        for part in ('put false into tSettings["Android,armv7"]',
+                     'put "9.6.3" into tSettings["android,engine"]',
+                     'dispatch "mouseUp" to button "Android arm64" of pTargets with 1',
+                     'if the hilited of pBox is not (tWant is "beyond") then',
+                     'set the customProperties["cRevStandaloneSettings"] of stack kSample to pWas',
+                     'dispatch "updateAndroidSettingState" to pCard'):
+            self.assertIn(part, check)
+        # each case starts from the sample without any Android setting
+        self.assertRegex(check, r'if tKey is "android" or tKey begins with "android," then\s+'
+                                r'delete variable tSettings\[tKey\]')
 
 
 class EdgeToEdgeBox(unittest.TestCase):
@@ -1407,6 +1514,111 @@ class Engine(unittest.TestCase):
         settings = handler(units, 'buildSettings')
         self.assertRegex(settings, r'if \$OXT_ANDROID_ENGINE is not empty then\s+'
                                    r'put \$OXT_ANDROID_ENGINE into tSettings\["android,engine"\]\s+end if')
+
+
+class AdaptiveIcon(unittest.TestCase):
+    """A stack can have an adaptive launcher icon (Android 8.0 and newer),
+    a themed one with a monochrome image (Android 13 and newer): the
+    "android,adaptive icon" settings. The build reads them before it starts
+    (androidAdaptiveIcon: the images found and PNG files, the colour read,
+    or it stops saying why), the adaptive icon takes the name of the icon
+    the manifest names, and a stack that names no foreground is built as
+    before. android-check.livecodescript's unitAdaptiveIcon runs the
+    handlers in the IDE, and the edge probe's package is read by
+    android_check.py verify --adaptive-icon"""
+
+    def setUp(self):
+        self.src = code(read(BUILDER))
+        self.main = handler(self.src, 'revSaveAsMobileStandaloneMain')
+
+    def test_the_settings(self):
+        self.assertIn('constant kAdaptiveIcon = "android,adaptive icon"', self.src)
+        self.assertIn('constant kAdaptiveIconBackground = "android,adaptive icon background"', self.src)
+        self.assertIn('constant kThemedIcon = "android,themed icon"', self.src)
+
+    def test_none_unless_the_stack_names_a_foreground(self):
+        h = handler(self.src, 'androidAdaptiveIcon')
+        self.assertRegex(h, r'if pSettings\[kAdaptiveIcon\] is empty then\s+'
+                            r'if pSettings\[kThemedIcon\] is not empty then\s+throw "a themed icon[^\n]*\n'
+                            r'\s+end if\s+return empty\s+end if')
+
+    def test_read_before_the_build(self):
+        # after the icon's path, before anything is built
+        read_at = self.main.index('put androidAdaptiveIcon(pSettings, tBaseFolder) into tAdaptiveIcon')
+        self.assertLess(self.main.index('put tBaseFolder & slash before tIcon'), read_at)
+        self.assertLess(read_at, self.main.index('create folder tBuildFolder'))
+
+    def test_the_images(self):
+        h = handler(self.src, 'androidAdaptiveIcon')
+        self.assertIn('if pathIsRelative(tPath) then', h)
+        self.assertIn('put pBaseFolder & slash before tPath', h)
+        self.assertIn('throw "the adaptive icon\'s" && tKey && "image is not there:" && tPath', h)
+        self.assertIn('numToByte(137) & "PNG" & numToByte(13) & numToByte(10) & numToByte(26) & numToByte(10)', h)
+        self.assertIn('put androidIconColour(pSettings[kAdaptiveIconBackground]) into tIcon["background"]', h)
+
+    def test_the_colour(self):
+        h = handler(self.src, 'androidIconColour')
+        self.assertIn('return "#FFFFFFFF"', h)
+        self.assertIn('matchText(tHex, "^([0-9A-F]{6}|[0-9A-F]{8})$")', h)
+        self.assertIn('format("%02X", tPart)', h)
+        self.assertIn('give it as #RRGGBB, #AARRGGBB or r,g,b', h)
+
+    def test_the_manifest_names_the_same_icon(self):
+        self.assertIn('if there is a file tIcon or tAdaptiveIcon is an array then\n'
+                      '         replace "${ICON}" with "android:icon=" & quote & "@drawable/icon" & quote in tManifest',
+                      self.main)
+
+    def test_the_resources(self):
+        # the stack's icon as before; the foreground before Android 8.0
+        # when there is none; then the adaptive icon
+        self.assertRegex(self.main, r'if there is a file tIcon then\s+put url \("binfile:" & tIcon\) into url '
+                                    r'\("binfile:" & tDrawableResBuildFolder & slash & "icon.png"\)')
+        self.assertRegex(self.main, r'else if tAdaptiveIcon is an array then\s+put url \("binfile:" & '
+                                    r'tAdaptiveIcon\["foreground"\]\) into url \("binfile:" & '
+                                    r'tDrawableResBuildFolder & slash & "icon.png"\)')
+        self.assertRegex(self.main, r'if tAdaptiveIcon is an array then\s+'
+                                    r'androidAddAdaptiveIcon tAdaptiveIcon, tResBuildFolder\s+'
+                                    r'put the result after tAssetFiles\s+end if')
+        add = handler(self.src, 'androidAddAdaptiveIcon')
+        for path in ('"/drawable-nodpi/icon_" & tKey & ".png"', '"/drawable-anydpi-v26/icon.xml"',
+                     '"/values/oxt_icon_background.xml"'):
+            self.assertIn(path, add)
+        # each file it writes is named in what it returns
+        self.assertEqual(add.count('put tFile & return after tWritten'), 3)
+        self.assertEqual(add.count('into url ("binfile:" & tFile)'), 3)
+        self.assertRegex(add, r'return tWritten\s+end androidAddAdaptiveIcon\s*$')
+
+    def test_the_build_folder_is_cleared(self):
+        # the files go with the build's other files, then their folders,
+        # before the res folder they are in
+        clear = self.main.index('repeat for each item tFolder in "drawable-nodpi,drawable-anydpi-v26,values"')
+        self.assertLess(self.main.index('if there is a file tFile then delete file tFile'), clear)
+        self.assertLess(clear, self.main.index('if there is a folder tResBuildFolder then delete folder tResBuildFolder'))
+        self.assertIn('delete folder (tResBuildFolder & slash & tFolder)', self.main[clear:])
+        # the unit checks what it names
+        check = read(('tools', 'ci', 'android-check.livecodescript'))
+        unit = handler(check, 'unitAdaptiveIcon')
+        self.assertIn('put the result into tWritten', unit)
+        self.assertIn('androidUnit "icon-written", tWritten is', unit)
+        xml = handler(self.src, 'androidAdaptiveIconXML')
+        for layer in ('background android:drawable=" & quote & "@color/oxt_icon_background"',
+                      'foreground android:drawable=" & quote & "@drawable/icon_foreground"',
+                      'monochrome android:drawable=" & quote & "@drawable/icon_monochrome"'):
+            self.assertIn(layer, xml)
+        self.assertRegex(xml, r'if pIcon\["monochrome"\] is not empty then\s+put "    <monochrome')
+
+    def test_the_check_runs_it(self):
+        check = read(('tools', 'ci', 'android-check.livecodescript'))
+        self.assertIn('   unitAdaptiveIcon tWork\n', check)
+        unit = handler(check, 'unitAdaptiveIcon')
+        for name in ('androidAdaptiveIcon', 'androidIconColour', 'androidAddAdaptiveIcon', 'androidAdaptiveIconXML'):
+            self.assertIn('"%s"' % name, unit)
+            # public, so that the check can call it
+            self.assertRegex(self.src, r'(?m)^(?:function|command) %s\b' % name)
+        # the edge probe's settings name the builder's
+        probe = handler(check, 'buildSettings')
+        for key in ('android,adaptive icon', 'android,themed icon', 'android,adaptive icon background'):
+            self.assertIn('tSettings["%s"]' % key, probe)
 
 
 if __name__ == '__main__':

@@ -212,6 +212,30 @@ class Source(unittest.TestCase):
         start = handler(text, prefix + 'StartTicking')
         self.assertIn('put empty into sFrameCost', start)
 
+    def test_a_long_frame_cannot_turn_an_animation_round(self):
+        # A drag written as "speed * (1 - sDt * k)" turns the speed round
+        # once sDt * k passes 1. Since frames are paced, one frame moves
+        # the animations on by up to three times kFrameCostCap, so every
+        # such factor is held at nothing or more: a later change to the
+        # cap, or to a drag, cannot make something fly backwards
+        learn = read(os.path.join(os.path.dirname(KIT), 'revlearn.livecodescript'))
+        found = 0
+        for text in (self.home, self.kit, learn):
+            cap = re.search(r'(?m)^constant kFrameCostCap = (\d+)$', text)
+            for line in text.splitlines():
+                code = line.strip()
+                if code.startswith('--'):
+                    continue
+                for factor in re.finditer(r'1 - (?:sDt|lkDt\(\)) \* ([0-9.]+)', code):
+                    found += 1
+                    self.assertIn('max(0, %s)' % factor.group(0), code, code)
+                    # (and with the cap as it is, the hold changes nothing:
+                    # the longest frame still leaves some of the speed)
+                    self.assertIsNotNone(cap, code)
+                    self.assertLess(3 * int(cap.group(1)) / 1000.0 * float(factor.group(1)), 1, code)
+        # (Home's sparks, on the Move page)
+        self.assertGreaterEqual(found, 1)
+
     def test_home_paces_its_frames(self):
         self.check_pacing(self.home, 'hm')
 

@@ -629,7 +629,7 @@ end tourPageDialog
 
 -- As Help > Dictionary does
 on tour_dictionary
-   local tBefore, tNew
+   local tBefore, tNew, tStart, tOther
    put the openStacks into tBefore
    send "tNewDictionaryDisplay" to stack "revMenuBar"
    repeat 40 times
@@ -645,8 +645,94 @@ on tour_dictionary
    -- its page loads in the browser widget
    tourWait 5000
    tourShot "08-dictionary"
+   -- The page is in the browser's appearance as it opens, and follows a
+   -- switch while it is open: in a dark browser it opened light, white
+   -- in the dark IDE, from 0.2.7-rc.6.10 to 0.2.7 (the web engine's
+   -- browser widget shows a file from an object URL, which carries no
+   -- "?appearance=dark" for the page to read)
+   if tourJS("window.matchMedia('(prefers-color-scheme: dark)').matches") is "true" then
+      put "dark" into tStart
+      put "light" into tOther
+   else
+      put "light" into tStart
+      put "dark" into tOther
+   end if
+   tourCheckDictionaryPage tStart, 0
+   tourAct "scheme" && tOther
+   tourCheckAppearance tOther, 5000
+   tourCheckDictionaryPage tOther, 5000
+   tourShot "08-dictionary-" & tOther
+   tourAct "scheme" && tStart
+   tourCheckAppearance tStart, 5000
+   tourCheckDictionaryPage tStart, 5000
    close stack tNew
 end tour_dictionary
+
+-- The colours the Dictionary's page is drawn in: its text's and its
+-- body's background ("rgb(r, g, b)" each), with a bar between, and empty
+-- while no such page is up. They are read from the IDE's own page, which
+-- holds the browser widget's page in a frame: "do ... in widget" hands
+-- back no value (the widget's OnDo drops it)
+function tourDictionaryPageColours
+   return tourJS("(function () { var f = document.querySelectorAll('iframe');" && \
+         "for (var i = 0; i < f.length; i++) { try { var d = f[i].contentDocument;" && \
+         "if (d && d.body && d.title === 'Dictionary') { var w = f[i].contentWindow;" && \
+         "return w.getComputedStyle(d.body).color + '|' + w.getComputedStyle(d.body).backgroundColor; }" && \
+         "} catch (e) {} } return ''; })()")
+end tourDictionaryPageColours
+
+-- The sum of the red, green and blue of a CSS colour "rgb(r, g, b)" or
+-- "rgba(r, g, b, a)", and empty for anything else
+function tourCssColourSum pColour
+   local tItems, i
+   if not (pColour begins with "rgb") or "(" is not in pColour then
+      return empty
+   end if
+   put char (offset("(", pColour) + 1) to -2 of pColour into tItems
+   if the number of items of tItems < 3 then
+      return empty
+   end if
+   repeat with i = 1 to 3
+      if word 1 of item i of tItems is not a number then
+         return empty
+      end if
+   end repeat
+   return word 1 of item 1 of tItems + word 1 of item 2 of tItems + word 1 of item 3 of tItems
+end tourCssColourSum
+
+-- The Dictionary's page is drawn in pAppearance (within pMilliseconds):
+-- dark, its text is light (a sum of at least 600; oxt-dark.css's
+-- 241,245,249) on a dark page (a sum of at most 150; its 16,22,36);
+-- light, its text is dark (a sum of at most 300; the page's 51,51,51) on a
+-- light page (a sum of at least 600; its white)
+command tourCheckDictionaryPage pAppearance, pMilliseconds
+   local tDeadline, tColours, tText, tPage, tOk
+   put the milliseconds + pMilliseconds into tDeadline
+   repeat
+      put tourDictionaryPageColours() into tColours
+      set the itemDelimiter to "|"
+      put tourCssColourSum(item 1 of tColours) into tText
+      put tourCssColourSum(item 2 of tColours) into tPage
+      set the itemDelimiter to comma
+      put false into tOk
+      if tText is not empty and tPage is not empty then
+         if pAppearance is "dark" then
+            put tText >= 600 and tPage <= 150 into tOk
+         else
+            put tText <= 300 and tPage >= 600 into tOk
+         end if
+      end if
+      if tOk then
+         exit repeat
+      end if
+      if the milliseconds > tDeadline then
+         throw "in the" && pAppearance && "appearance the Dictionary's page draws its text" && tText && \
+               "on" && tPage && "(the sums of red, green and blue; read" && quote & tColours & quote & ")"
+      end if
+      wait 100 milliseconds with messages
+   end repeat
+   tourRecord "INFO dictionary page" && pAppearance & ": text" && tText & ", page" && tPage
+end tourCheckDictionaryPage
 
 on tour_preferences
    local tStack
@@ -804,10 +890,10 @@ end tour_touch_menu
 -- when a line of its top level began with a mark, so the submenu's
 -- ticks were parsed and never drawn: the options looked off whatever
 -- they were set to (seth, the web IDE in Brave on Windows 11). The
--- submenu is read twice, its four options on and then off: the strip of
+-- submenu is read twice, its five options on and then off: the strip of
 -- it where the ticks go must differ between the two, and the
 -- preferences are put back as they were.
-constant kImportStackPrefs = "cHyperCardFixScripts,cHyperCardMessageOrder,cHyperCardClassicLook,cHyperCardImportSummary"
+constant kImportStackPrefs = "cHyperCardFixScripts,cHyperCardMessageOrder,cHyperCardClassicLook,cHyperCardMacFonts,cHyperCardImportSummary"
 
 on tour_import_stack_marks
    local tPref, tSaved, tOn, tOff, tDiffer, tError
@@ -839,7 +925,7 @@ on tour_import_stack_marks
    put tourStripsDiffer(tOn, tOff) into tDiffer
    tourRecord "INFO import-stack-marks: the tick strip differs in" && tDiffer && "pixels, options on and off;" && \
          "its lumas spread by" && tourStripSpread(tOff)
-   -- a tick is a filled polygon of about 30 pixels, and there are four
+   -- a tick is a filled polygon of about 30 pixels, and there are five
    if tDiffer < 40 then
       throw "File > Import Stack's ticks are not drawn: the submenu's tick strip differs in" && \
             tDiffer && "pixels between its options on and off"

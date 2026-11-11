@@ -1374,6 +1374,99 @@ def build_with_ide(args, work, timeout):
 # ---------------------------------------------------------------------------
 # 2. The web server
 
+# The WebSocket echo of the servers that make_server makes: what a page
+# opens with "open socket to ws://<host>/websocket-echo" (em-socket.js)
+# and the web engine's socket tests use
+# (tests/lcs/core/network/websocket.livecodescript). It sends back each
+# message as it came, text or binary, but "please close", for which it
+# closes the socket (code 1000), and "please drop", for which it ends the
+# connection with no close (as a server that went away).
+WEBSOCKET_ECHO_PATH = '/websocket-echo'
+WEBSOCKET_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
+
+
+def websocket_accept(key):
+    """The Sec-WebSocket-Accept of a handshake's Sec-WebSocket-Key"""
+    return base64.b64encode(hashlib.sha1((key + WEBSOCKET_GUID).encode('ascii')).digest()).decode('ascii')
+
+
+def websocket_frame(opcode, payload):
+    """A server's frame (FIN, not masked)"""
+    head = bytes([0x80 | opcode])
+    n = len(payload)
+    if n < 126:
+        head += bytes([n])
+    elif n < 65536:
+        head += bytes([126]) + struct.pack('>H', n)
+    else:
+        head += bytes([127]) + struct.pack('>Q', n)
+    return head + payload
+
+
+def websocket_read_frame(stream):
+    """(fin, opcode, payload) of the next frame from a client, or None at
+    the end of the stream"""
+    head = stream.read(2)
+    if len(head) < 2:
+        return None
+    fin, opcode = head[0] & 0x80, head[0] & 0x0f
+    masked, n = head[1] & 0x80, head[1] & 0x7f
+    if n == 126:
+        n = struct.unpack('>H', stream.read(2))[0]
+    elif n == 127:
+        n = struct.unpack('>Q', stream.read(8))[0]
+    mask = stream.read(4) if masked else b'\0\0\0\0'
+    data = stream.read(n)
+    if len(data) < n:
+        return None
+    return bool(fin), opcode, bytes(b ^ mask[i % 4] for i, b in enumerate(data))
+
+
+def websocket_echo(handler):
+    """Answers the handshake that handler (an http.server request handler)
+    has read, then echoes the client's messages until it closes"""
+    key = handler.headers.get('Sec-WebSocket-Key')
+    if not key or 'websocket' not in handler.headers.get('Upgrade', '').lower():
+        return handler.reply(400, 'not a WebSocket handshake')
+    handler.wfile.write(('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\n'
+                         'Connection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n'
+                         % websocket_accept(key)).encode('ascii'))
+    handler.wfile.flush()
+    handler.close_connection = True
+    message, kind = b'', None
+    while True:
+        frame = websocket_read_frame(handler.rfile)
+        if frame is None:
+            return
+        fin, opcode, payload = frame
+        if opcode == 8:
+            handler.wfile.write(websocket_frame(8, payload[:2]))
+            handler.wfile.flush()
+            return
+        if opcode == 9:
+            handler.wfile.write(websocket_frame(10, payload))
+            handler.wfile.flush()
+            continue
+        if opcode in (1, 2):
+            message, kind = payload, opcode
+        elif opcode == 0:
+            message += payload
+        else:
+            continue
+        if not fin:
+            continue
+        if kind == 1 and message == b'please close':
+            handler.wfile.write(websocket_frame(8, struct.pack('>H', 1000)))
+            handler.wfile.flush()
+            # the client answers with its own close
+            websocket_read_frame(handler.rfile)
+            return
+        if kind == 1 and message == b'please drop':
+            return
+        handler.wfile.write(websocket_frame(kind, message))
+        handler.wfile.flush()
+
+
 def make_server(site, probe_page=PROBE_PAGE):
     stored = {}
 
@@ -1408,6 +1501,8 @@ def make_server(site, probe_page=PROBE_PAGE):
                 return self.reply(404, 'not found')
             if self.path == '/probe-page.html':
                 return self.reply(200, probe_page, 'text/html; charset=utf-8')
+            if self.path == WEBSOCKET_ECHO_PATH:
+                return websocket_echo(self)
             return super().do_GET()
 
         def do_POST(self):

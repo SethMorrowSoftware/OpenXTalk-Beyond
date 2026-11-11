@@ -363,12 +363,16 @@ jobs:
       # edge", the Android card's "Edge to edge"), by this builder with the
       # Java layer built here, which draws such an app under the
       # see-through system bars from Android 11 on
-      # (LiveCodeActivity.drawEdgeToEdge)
+      # (LiveCodeActivity.drawEdgeToEdge). It has an adaptive icon too, a
+      # themed one (the "android,adaptive icon" settings), which verify
+      # --adaptive-icon reads in the package
       - name: The edge probe, with this Java layer
         if: runner.os == 'Linux'
         run: |
           "$PY" tools/ci/android_check.py ide --install "$JAVA_IDE" --platform "$PLATFORM" \
             --work "$WORK/java-edge" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug --probe edge
+          "$PY" tools/ci/android_check.py verify --work "$WORK/java-edge" --sdk "$SDK" --jdk "$JDK" \
+            --builds debug --target 36 --adaptive-icon
 
       # The same stack, by the same builder, with the release's own Java
       # layer: the "before" of the comparison

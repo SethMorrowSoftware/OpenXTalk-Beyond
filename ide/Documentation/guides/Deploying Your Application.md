@@ -342,12 +342,42 @@ draw a stack so, as those made after 0.2.7-rc.6.19 can; with earlier
 ones the build stops and says so. A stack without the setting is laid
 out as before.
 
+An application can also have an adaptive icon, which Android 8.0 and
+newer draw in the launcher's own shape (a circle, a squircle or a
+rounded square, whatever the phone uses) and move in the launcher's
+animations, instead of a square picture shrunk onto a white disc. It is
+two layers: a foreground picture over a background colour. Each layer is
+108 by 108 dp, of which the launcher shows the middle 72 (a circle 66 dp
+across is always shown), so keep what matters in the middle two thirds
+of the foreground, with clear space around it; a PNG of 432 by 432
+pixels is sharp on every screen. Give it a monochrome picture too, and
+it is a themed icon on Android 13 and newer: when the user turns on
+themed icons, the launcher draws that picture in colours that match the
+wallpaper (only the picture's alpha counts: a white shape on clear
+space). Set these on the stack before you build, each picture a PNG file
+named by its path, relative to the stack's folder or full:
+
+    set the cRevStandaloneSettings["android,adaptive icon"] of stack "My App" to "icons/foreground.png"
+    set the cRevStandaloneSettings["android,adaptive icon background"] of stack "My App" to "#1F9E5A"
+    set the cRevStandaloneSettings["android,themed icon"] of stack "My App" to "icons/monochrome.png"
+
+The background colour is `#RRGGBB`, `#AARRGGBB` or `r,g,b`, and white
+when it is empty. Android before 8.0 still shows the **Icon** of the
+Android card, or the foreground when there is none. A picture that is
+not there or is not a PNG, a colour in another form, or a themed icon
+without a foreground stops the build, saying which. A stack without
+these settings has the icon it had before.
+
 OXT-Beyond's own Android engine, built from its source with a current
-NDK, is a preview beside the 9.6.3 engine that the runtimes have always
-carried, which stays the default. To build with it, tick **OXT-Beyond engine (preview)** on the
-Android card, under the device capabilities (it can be ticked once an
-architecture is), or set this on the stack before you build, which is
-what the box does:
+NDK, sits beside the 9.6.3 engine that the runtimes have always carried.
+A stack you set up for Android in OXT-Beyond 0.2.8 or later is built
+with it: when you tick its first architecture on the Android card, the
+**OXT-Beyond engine** box under the device capabilities is ticked too,
+if the runtimes carry that engine. A stack set up for Android before
+(one that has an architecture saved, ticked or not) keeps the engine it
+had, 9.6.3's unless you chose otherwise. To change the engine, tick or
+untick the box (it can be ticked once an architecture is), or set this
+on the stack before you build, which is what the box does:
 
     set the cRevStandaloneSettings["android,engine"] of stack "My App" to "beyond"
 
@@ -564,7 +594,8 @@ copy. The files and folders are copied into `/uploads`, as those that
 `answer file` gives are, and `the dragData["files"]` has their copies'
 paths.
 * **The screen** is the browser's window: `the screenRect` is its size, a
-stack gets `desktopChanged` when it changes, and stacks draw at the
+stack gets `desktopChanged` when it changes, `the screenDepth` is 32 (as
+on the desktop; until 0.2.8 it was 0), and stacks draw at the
 screen's scale, so they stay sharp on high-resolution screens and when the
 page is zoomed. `import snapshot` and `export snapshot` of the screen or of
 a stack's window take what the stacks show there, and `the mouseColor` is
@@ -640,6 +671,22 @@ printerOutput` set to `file:` and a path, write a PDF of the pages'
 pictures, with the links, anchors and bookmarks of `print link`, `print
 anchor` and `print bookmark` and the document information of `with
 options`. A PDF written into `/downloads` reaches the user as a download.
+* **Sockets over WebSocket.** From 0.2.8, `open socket to` a `ws://` or
+`wss://` URL opens a WebSocket to it, and the socket then works as one of
+the desktop's does: its name is the URL (add `|` and an id of your own to
+open more than one to the same URL), `with message` sends the message
+when it has opened, and `read from socket` (for a count, until a string,
+or all there is) and `write to socket` work with and without a message;
+`socketClosed`, `socketError` and `socketTimeout` come as on the desktop.
+What the server sends is read as one stream of bytes, its messages one
+after the other (a text message as its UTF-8 bytes), so end each message
+with a line ending, or another string, to read it with `until`. What a
+script writes is sent as one message: a text message when its bytes are
+UTF-8 (`textEncode(tText, "UTF-8")`), a binary one otherwise. `open
+secure socket to` a `ws://` URL opens a `wss://` one; an `https://` page
+may only open `wss://` ones. The server must speak WebSocket: a page
+cannot reach a plain TCP server, so `the peerAddress` of the socket is
+its URL, and `the hostAddress` is empty.
 * **JavaScript.** `do <script> as "JavaScript"` runs JavaScript in the
 page, and `the result` is its value. The page calls the handlers that a
 stack's `cJavascriptHandlers` property lists, one handler name a line:
@@ -663,8 +710,9 @@ A browser does not let a page do some of what a desktop application does,
 and some features are not done yet. They fail as they do on a desktop that
 cannot do them:
 
-* Sockets: `open socket` puts "not supported" into `the result`, and
-`accept` does nothing. Use URLs to talk to servers.
+* TCP sockets: `open socket` to a host and port puts "not supported"
+into `the result` (as do datagram sockets), and `accept` does nothing.
+Use URLs, or a WebSocket server (above), to talk to servers.
 * Other programs: `shell()` throws an error, and `open process` does
 nothing.
 * Externals other than revXML, revZip, revDB and revSpeech, so neither

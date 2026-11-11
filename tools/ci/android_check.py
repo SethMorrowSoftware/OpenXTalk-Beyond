@@ -118,6 +118,14 @@ running, crashed or was started more than once, it prints the logs'
 account of its processes, what Android did to it that the carried runtime
 does not survive (paused for sleep, a changed ApplicationInfo, a relaunch),
 how each process ended (dumpsys activity exit-info) and the memory left.
+When that says Android's low memory killer ended one of the probe's
+processes (exit-info LOW_MEMORY), none of them crashed by exit-info's
+account, and each of its problems is one such a kill explains (it never
+turned green, it is not running, and before its green it never asked
+for --allow's permission or never exported --picture's picture: no
+crash in its log, no fail colour, nothing from the checks of its green
+screen), the whole run is made once more, after LOW_MEMORY_PAUSE s, and
+that run decides (low_memory_kills).
 
 boot waits until an emulator has booted (adb sees it and
 sys.boot_completed is 1), saying where it is every minute. It gives up
@@ -229,9 +237,11 @@ FONT_SETTLE = 5
 END_WAIT = 20
 FONT_SCALE = '1.3'
 DENSITY_SHARE = 0.85
-# The probes (--probe): the stack file each is saved as
+# The probes (--probe): the stack file each is saved as. tests is the
+# standalone of the script tests, which tools/ci/android_tests.py prepares
+# and runs (kTestsScript in android-check.livecodescript)
 PROBES = {'app': 'AndroidProbe.livecode', 'java': 'AndroidJavaProbe.livecode', 'busy': 'AndroidBusyProbe.livecode',
-          'edge': 'AndroidEdgeProbe.livecode'}
+          'edge': 'AndroidEdgeProbe.livecode', 'tests': 'StandaloneTestRunnerMainstack.livecode'}
 # Where a release's Java layer is (overlay --classes)
 CLASSES = ('Runtime', 'Android', 'Classes')
 # The name the builder gives the engine (a runtime's <abi>/Standalone) in a
@@ -1688,6 +1698,90 @@ def verify_apk(name, apk, spec, tools, warnings, target=TARGET_SDK):
     return problems, notes
 
 
+# verify --adaptive-icon: the adaptive icon the builder makes of a stack's
+# "android,adaptive icon" settings (androidAdaptiveIcon in
+# ide-support/revsaveasandroidstandalone.livecodescript): the icon the
+# manifest names is drawable/icon, an adaptive icon from Android 8.0 on
+# (drawable-anydpi-v26) and a picture before it; its layers, and their
+# pictures (drawable-nodpi)
+ADAPTIVE_ICON = 'res/drawable-anydpi-v26/icon.xml'
+ADAPTIVE_LAYERS = ('background', 'foreground', 'monochrome')
+ADAPTIVE_PICTURES = ('icon_foreground.png', 'icon_monochrome.png')
+# The folder of the adaptive icon's pictures in the package: the builder
+# writes them into res/drawable-nodpi, which aapt packages as
+# res/drawable-nodpi-v4 (it gives a density qualifier the version that
+# brought density qualifiers, API 4)
+ADAPTIVE_PICTURE_FOLDER = r'res/drawable-nodpi(?:-v\d+)?/'
+
+
+def adaptive_picture(files, picture):
+    """The package's file of an adaptive icon's picture (ADAPTIVE_PICTURES),
+    in res/drawable-nodpi or that folder with a version
+    (ADAPTIVE_PICTURE_FOLDER), or None."""
+    for f in sorted(files):
+        if re.fullmatch(ADAPTIVE_PICTURE_FOLDER + re.escape(picture), f):
+            return f
+    return None
+
+
+def resource_configs(dump, name):
+    """The configurations that aapt's dump resources lists the resource
+    name (as "drawable/icon") in, as it names them ("default" for its
+    "(default)", "anydpi-v26", ...)."""
+    configs, config = [], None
+    for line in dump.splitlines():
+        m = re.match(r'^\s*config\s+(.+?):\s*$', line)
+        if m:
+            config = m.group(1).strip()
+            config = 'default' if config == '(default)' else config
+            continue
+        if config and not line.strip().startswith('spec ') and \
+                re.search(r'\bresource 0x[0-9a-f]+ [\w.]+:%s:' % re.escape(name), line):
+            configs.append(config)
+    return configs
+
+
+def adaptive_icon_problems(name, files, manifest, icon_tree, configs):
+    """(problems, notes) of a package's adaptive icon: files, the names in
+    the package; manifest and icon_tree, aapt's xmltree of the manifest and
+    of ADAPTIVE_ICON; configs, the configurations of drawable/icon."""
+    problems = []
+    if ADAPTIVE_ICON not in files:
+        return ['%s has no adaptive icon (%s)' % (name, ADAPTIVE_ICON)], []
+    for picture in ADAPTIVE_PICTURES:
+        if not adaptive_picture(files, picture):
+            problems.append('%s: its adaptive icon has no %s in res/drawable-nodpi (or res/drawable-nodpi-v4, as '
+                            'aapt packages that folder)' % (name, picture))
+    if 'res/drawable/icon.png' not in files:
+        problems.append('%s has no icon for Android before 8.0 (res/drawable/icon.png)' % name)
+    if not re.search(r'E: adaptive-icon\b', icon_tree):
+        problems.append('%s: %s is not an adaptive icon' % (name, ADAPTIVE_ICON))
+    for layer in ADAPTIVE_LAYERS:
+        if not re.search(r'E: %s\b[^\n]*\n\s*A: (?:android:)?drawable\(0x01010199\)=@0x[0-9a-f]+' % layer,
+                         icon_tree):
+            problems.append('%s: its adaptive icon has no %s layer naming a resource' % (name, layer))
+    app = re.search(r'E: application\b(.*?)(?:\n\s*E: |\Z)', manifest, re.S)
+    if not app or not re.search(r'A: (?:android:)?icon\(0x01010002\)=@0x[0-9a-f]+', app.group(1)):
+        problems.append('%s: the manifest\'s application names no icon' % name)
+    for config in ('default', 'anydpi-v26'):
+        if config not in configs:
+            problems.append('%s: the resource drawable/icon has no %s configuration (it has: %s)' % (
+                name, config, ', '.join(configs) or 'none'))
+    if not problems:
+        return [], ['an adaptive icon from Android 8.0 on (background, foreground and monochrome: a themed '
+                    'icon from Android 13 on), and a picture before it']
+    return problems, []
+
+
+def verify_adaptive_icon(name, apk, aapt):
+    with zipfile.ZipFile(apk) as z:
+        files = set(z.namelist())
+    _, manifest = run([aapt, 'dump', 'xmltree', apk, 'AndroidManifest.xml'])
+    icon_tree = run([aapt, 'dump', 'xmltree', apk, ADAPTIVE_ICON])[1] if ADAPTIVE_ICON in files else ''
+    _, dump = run([aapt, 'dump', 'resources', apk])
+    return adaptive_icon_problems(name, files, manifest, icon_tree, resource_configs(dump, 'drawable/icon'))
+
+
 def verify_bundle(name, aab, apk, spec, tools, target=TARGET_SDK):
     """The problems of one build's App Bundle (aab, beside its package apk),
     and lines saying what was checked. tools may name the JDK's jarsigner,
@@ -1883,6 +1977,12 @@ def verify(args):
         p, notes = verify_apk(name, apk, BUILDS[name], tools, r['warnings'], args.target)
         if args.engine:
             more, said = verify_engine(name, apk, os.path.abspath(args.engine))
+            p, notes = p + more, notes + said
+        if args.adaptive_icon:
+            if not tools.get('aapt'):
+                more, said = ['no aapt in the SDK\'s build-tools to read the adaptive icon with'], []
+            else:
+                more, said = verify_adaptive_icon(name, apk, tools['aapt'])
             p, notes = p + more, notes + said
         log('%s.apk (%.1f MB): %s' % (name, os.path.getsize(apk) / 1e6, '; '.join(notes)))
         for x in p:
@@ -2209,6 +2309,23 @@ PID_TRIES = 3
 DEVICE_WAIT = 60
 
 
+# The shell's answer where it has no pidof: Android 5's toolbox (toybox,
+# which has one, came with Android 6)
+NO_PIDOF = r'\bpidof: (?:inaccessible or )?not found'
+
+
+def pids_in_ps(out, name=IDENTIFIER):
+    """The process ids of `name` in a listing of ps (Android 5's toolbox:
+    USER PID PPID VSIZE RSS WCHAN PC NAME, the name last), as pidof gives
+    them: '' when it is not running."""
+    pids = []
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) > 2 and parts[-1] == name and parts[1].isdigit():
+            pids.append(parts[1])
+    return ' '.join(pids)
+
+
 def pid_now(a, tries=None):
     """The probe's process ids now, as pidof gives them ('' when it is not
     running). An answer that is not process ids is adb's own failure, not
@@ -2217,11 +2334,15 @@ def pid_now(a, tries=None):
     then took for the probe's process. So it waits for the device (adb
     wait-for-device, at most DEVICE_WAIT s) and asks again, at most
     `tries` times (PID_TRIES), and then gives adb's answer, which no process
-    id equals. `a` runs adb on the device."""
+    id equals. On a shell with no pidof (NO_PIDOF: Android 5), ps says
+    (pids_in_ps). `a` runs adb on the device."""
     tries = PID_TRIES if tries is None else tries
     out = ''
     for _ in range(tries):
         out = a('shell', 'pidof', IDENTIFIER)[1].strip()
+        if re.search(NO_PIDOF, out):
+            # Android 5's shell has no pidof: its ps says
+            return pids_in_ps(a('shell', 'ps')[1])
         if re.fullmatch(r'[\d\s]*', out):
             return out
         log('  pidof: %s; waiting for the device' % answer(out))
@@ -2598,18 +2719,89 @@ def opens_again_after_quit(args, adb, a, pid, names):
     return problems
 
 
+# exit-info's reason for a process the low memory killer ended
+LOW_MEMORY = 3
+# exit-info's reasons for a process that failed of itself
+# (ApplicationExitInfo.REASON_CRASH, REASON_CRASH_NATIVE, REASON_ANR and
+# REASON_INITIALIZATION_FAILURE): one of them for any of a run's
+# processes is the run's failure, whatever the log kept of it
+FAILED_EXITS = {4: 'CRASH', 5: 'CRASH_NATIVE', 6: 'ANR', 7: 'INITIALIZATION_FAILURE'}
+# How long device waits before it makes the run once more after such a
+# kill, for the device's memory to settle
+LOW_MEMORY_PAUSE = 30
+
+
+def low_memory_kills(exits, pids):
+    """The processes of pids that dumpsys activity exit-info says the low
+    memory killer ended (reason=3 (LOW_MEMORY)), each of its
+    ApplicationExitInfo blocks giving the pid on one line and the reason on
+    another. exit-info keeps the package's earlier processes too (another
+    run's on the same emulator), and only pids, this run's, count. None
+    when another of them crashed, did not answer or did not start
+    (FAILED_EXITS): the low memory killer is then not the run's story, even
+    where the log has lost that process's crash."""
+    killed = set()
+    for block in re.split(r'ApplicationExitInfo #\d+:', exits)[1:]:
+        pid = re.search(r'\bpid=(\d+)', block)
+        reason = re.search(r'\breason=(\d+)', block)
+        if not (pid and reason and pid.group(1) in pids):
+            continue
+        if int(reason.group(1)) in FAILED_EXITS:
+            return []
+        if int(reason.group(1)) == LOW_MEMORY:
+            killed.add(pid.group(1))
+    return sorted(killed)
+
+
 def device(args):
+    """The run of device_once, made once more when its probe was ended by
+    the low memory killer and nothing else says it failed. The Java layer's
+    probe on the 16 KB image at API 36 was killed so behind its
+    notification permission dialog (oom_score_adj 101, "min watermark is
+    breached even after kill", 1.7 GB available a second later) in runs
+    42312203693 and 42324548829, and again in 42714271161 after
+    quiet_after_install found the device idle at once: the emulator's
+    memory, not the engine, whose fault would be a crash (a linker refusal
+    or a native signal, exit-info CRASH or CRASH_NATIVE). A second kill,
+    or any other problem in the second run, fails as before."""
+    problems, killed = device_once(args)
+    if problems and killed:
+        log('NOTE: Android\'s low memory killer ended the probe (process %s, exit-info LOW_MEMORY), and its '
+            'log has no crash: the run once more, after %d s' % (', '.join(killed), LOW_MEMORY_PAUSE))
+        for x in problems:
+            log('  the first run\'s problem: %s' % x)
+        log()
+        time.sleep(LOW_MEMORY_PAUSE)
+        problems, _ = device_once(args)
+    return problems
+
+
+def device_once(args):
+    """(the problems, the processes of the probe that the low memory killer
+    ended where nothing else says it failed: each problem one that such a
+    kill explains, unfinished's)"""
     adb = adb_path(args.sdk)
     if not adb:
         raise CheckError('no adb')
     problems = []
+    killed = []
+    # the problems a probe that the low memory killer ended before it was
+    # done would have, and only those: it never turned green, it is not
+    # running, and before its green it never asked for a permission or
+    # never exported its picture (the Java probe does both first). Any
+    # other problem (a crash, the fail colour, a failed check of its green
+    # screen, a picture missing once it was green) is the probe's own, and
+    # no second run hides it
+    unfinished = []
 
     def a(*cmd, timeout=180):
         return run([adb, '-s', args.serial] + list(cmd), timeout=timeout)
     _, props = a('shell', 'getprop', 'ro.build.version.sdk')
     _, page = a('shell', 'getconf', 'PAGE_SIZE')
     _, abi = a('shell', 'getprop', 'ro.product.cpu.abi')
-    log('Device %s: API %s, %s, pages of %s bytes' % (args.serial, props.strip(), abi.strip(), page.strip()))
+    log('Device %s: API %s, %s, %s' % (args.serial, props.strip(), abi.strip(),
+                                        'pages of %s bytes' % page.strip() if page.strip().isdigit() else
+                                        'its page size not said (getconf: %s)' % answer(page, 120)))
     state = wakefulness(a('shell', 'dumpsys', 'power')[1])
     if state and state != 'Awake':
         log('NOTE: the device is %s (dumpsys power): Android pauses an activity started now (see boot --awake)'
@@ -2622,11 +2814,12 @@ def device(args):
     if args.apk.endswith('.aab'):
         refused = install_bundle(args, adb, a)
         if refused:
-            return refused
+            return refused, []
     else:
         status, out = a('install', '-r', args.apk, timeout=600)
         if 'Success' not in out:
-            return ['%s does not install on %s: %s' % (os.path.basename(args.apk), args.serial, out.strip()[-800:])]
+            return ['%s does not install on %s: %s' % (os.path.basename(args.apk), args.serial,
+                                                       out.strip()[-800:])], []
         log('Installed %s' % os.path.basename(args.apk))
     quiet_after_install(a)
     a('logcat', '-c')
@@ -2723,6 +2916,7 @@ def device(args):
         problems.append('the screen never turned the probe\'s green (%.0f%% green, %.0f%% red: %s)' % (
             share * 100, saved * 100, 'the stack showed and its script did not run' if saved >= 0.25 else
             'the stack never showed'))
+        unfinished.append(problems[-1])
     green = failed < 0.25 and share >= 0.25
     if args.within_bars and green:
         # the stack inside the system bars: the screen's first and last
@@ -2805,6 +2999,7 @@ def device(args):
                 break
     if not pid.strip():
         problems.append('the app is not running')
+        unfinished.append(problems[-1])
     if args.allow:
         _, package = a('shell', 'dumpsys', 'package', IDENTIFIER)
         granted = permission_granted(package, args.allow)
@@ -2812,6 +3007,8 @@ def device(args):
                                      False: 'not granted'}[granted]))
         if not asked:
             problems.append('the probe never asked the user to allow %s' % args.allow)
+            if not green:
+                unfinished.append(problems[-1])
         elif not allowed:
             problems.append('Android asked the user to allow %s, and its dialog had no Allow button to tap'
                             % args.allow)
@@ -2837,6 +3034,8 @@ def device(args):
                                'MediaStore listed no picture: %s' % (query.strip()[-300:] or 'no answer'),
                                '; %s%s there has no owner' % (PICTURES, unowned['_display_name'])
                                if unowned else ''))
+            if not green:
+                unfinished.append(problems[-1])
     if crash:
         problems.append('the device\'s log: %s' % ' | '.join(crash[:8]))
     if problems or len(pids) > 1:
@@ -2853,6 +3052,8 @@ def device(args):
             for line in lines:
                 log('  ' + line)
         _, exits = a('shell', 'dumpsys', 'activity', 'exit-info', IDENTIFIER)
+        if all(x in unfinished for x in problems):
+            killed = low_memory_kills(exits, pids)
         exits = [x.rstrip() for x in exits.splitlines() if x.strip()]
         log('how its processes ended (dumpsys activity exit-info):%s' % ('' if exits else ' none'))
         for line in exits[:60]:
@@ -2875,7 +3076,7 @@ def device(args):
             if rgba:
                 log("the screen's commonest colours: %s" % ', '.join(
                     '#%02x%02x%02x %.0f%%' % (c + (part * 100,)) for c, part in screen_colours(rgba)))
-    return problems
+    return problems, killed
 
 
 # ---------------------------------------------------------------------------
@@ -3247,7 +3448,8 @@ def main(argv=None):
     i.add_argument('--probe', choices=sorted(PROBES), default='app',
                    help='java: the Java layer\'s probe (AndroidJavaProbe); busy: the app probe drawing all the '
                         'time it runs (AndroidBusyProbe); edge: the app probe drawn edge to edge, which says its '
-                        'screen\'s rects (AndroidEdgeProbe)')
+                        'screen\'s rects (AndroidEdgeProbe); tests: the script tests\' standalone, from the files '
+                        'android_tests.py prepare puts in --work')
     i.add_argument('--timeout', type=int, default=1500)
     i.add_argument('--bundletool-fallback', action='store_true',
                    help='when GitHub\'s release host answers the builder\'s download of bundletool with an HTTP '
@@ -3265,6 +3467,8 @@ def main(argv=None):
                        help='an installed IDE: the packages must target the API its builder picks for its runtime')
     v.add_argument('--engine', help='the runtime folder that overlay --engine took: each package\'s engine must be '
                                     'the one built there')
+    v.add_argument('--adaptive-icon', action='store_true',
+                   help='each package must have the adaptive icon (a themed one) that the edge probe asks for')
     c = sub.add_parser('compare')
     c.add_argument('--old', required=True)
     c.add_argument('--new', required=True)

@@ -301,5 +301,85 @@ class LateDrag(unittest.TestCase):
         self.assertIn('b from 400,491 toward 540,322: now 400,491', result[0][2])
 
 
+class Drag(unittest.TestCase):
+    """drag, a body dragged on an idle window, against the same stand-in.
+    Until November 2026 it read where the bodies were once, before its
+    first try, and looked at each dragged body once, 0.8 s after the drag:
+    on a loaded machine Bodies failed it in two runs of six, the floor's
+    box stopped under the platform (as in late_drag's package job runs)
+    and the box riding the platform pressed where it had been 1.7 s
+    before. It now reads the places before each try and gives a grabbed
+    body the 4 seconds late_drag gives it; a press that grabs nothing
+    still fails, and without the wait."""
+
+    LABEL = 'Bodies: a dragged body follows the mouse'
+
+    def run_it(self, world):
+        module = driver()
+        module.time = world
+        run = StandIn(world)
+        module.drag(run, 'Bodies')
+        return run, [r for r in run.results if r[1] == self.LABEL]
+
+    def test_a_box_on_the_floor_follows_at_once(self):
+        world = World([('a', (560, 587))])
+        run, result = self.run_it(world)
+        self.assertEqual(result, [(True, self.LABEL, '')])
+        self.assertEqual(world.pressed, [(560, 587)])
+        # (the quarter second that finds it still, the drag, and the
+        # first looks at it)
+        self.assertLess(world.clock, 2.5)
+
+    def test_a_box_under_the_platform_follows_once_it_has_passed(self):
+        world = World([('a', (560, 587))], under={'a': (532, 2.0)})
+        run, result = self.run_it(world)
+        self.assertEqual(result, [(True, self.LABEL, '')])
+        self.assertEqual(len(world.pressed), 1)
+
+    def test_a_box_held_down_longer_is_not_followed(self):
+        world = World([('a', (560, 587))], under={'a': (532, 99)})
+        run, result = self.run_it(world)
+        self.assertFalse(result[0][0])
+        self.assertIn('a from 560,587 toward 420,322: now', result[0][2])
+
+    def test_a_box_riding_the_platform_is_pressed_where_it_is(self):
+        # the first try's box never gets past the platform; the second,
+        # riding it, has moved on by then, and is pressed where it is now
+        world = World([('a', (560, 587)), ('b', (400, 491))], riding=['b'], under={'a': (532, 99)})
+        run, result = self.run_it(world)
+        self.assertEqual(result, [(True, self.LABEL, '')])
+        self.assertEqual(len(world.pressed), 2)
+        self.assertNotEqual(world.pressed[1], (400, 491))
+
+    def floor(self, count):
+        return [('h%d' % i, (400 + 25 * i, 587)) for i in range(count)]
+
+    def test_up_to_six_bodies(self):
+        held = self.floor(5)
+        world = World(held + [('g', (550, 590))], under={n: (532, 99) for n, _ in held})
+        run, result = self.run_it(world)
+        self.assertEqual(result, [(True, self.LABEL, '')])
+        self.assertEqual(len(world.pressed), 6)
+
+    def test_no_more_than_six(self):
+        held = self.floor(7)
+        world = World(held, under={n: (532, 99) for n, _ in held})
+        run, result = self.run_it(world)
+        self.assertFalse(result[0][0])
+        self.assertEqual(len(world.pressed), 6)
+        self.assertEqual(result[0][2].count(' from '), 6)
+
+    def test_a_press_that_grabs_nothing_fails_without_the_wait(self):
+        world = World([('a', (560, 587)), ('b', (400, 491))], grabs=False)
+        run, result = self.run_it(world)
+        self.assertFalse(result[0][0])
+        self.assertIn('a from 560,587 toward 420,322: now 560,587', result[0][2])
+        self.assertIn('b from 400,491 toward 540,322: now 400,491', result[0][2])
+        self.assertEqual(len(world.pressed), 2)
+        # each try: the places read, the drag, a second for the body to
+        # move at all, and the release; not late_drag's 4 seconds a body
+        self.assertLess(world.clock, 2 * 2.5 + 1)
+
+
 if __name__ == '__main__':
     unittest.main()

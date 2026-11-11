@@ -1859,6 +1859,8 @@ private function revMenubarFileMenu pContext, tFile
    -- and whether it gets HyperCard's message order (hyperTalkCompatible)
    put tab & toggleMenuItem("HyperCard Message Order/|hypercardorder", revIDEGetPreference("cHyperCardMessageOrder") is not false) & return after tFile
    put tab & toggleMenuItem("Classic HyperCard Look/|hypercardlook", revIDEGetPreference("cHyperCardClassicLook") is not false) & return after tFile
+   -- and whether it shows the Mac fonts in look-alikes (revHyperCardMacFonts)
+   put tab & toggleMenuItem("Mac Font Look-alikes/|hypercardfonts", revIDEGetPreference("cHyperCardMacFonts") is not false) & return after tFile
    put tab & toggleMenuItem("Show Import Summary/|hypercardsummary", revIDEGetPreference("cHyperCardImportSummary") is not false) & return after tFile
    put enableMenuItem("&Close/W", the mode of the topStack <= 3 and the short name of the topstack is not "revMenubar") & return after tFile
    put enableMenuItem("Close and Remove From Memor&y", tCanSaveStack) & return after tFile
@@ -3130,6 +3132,9 @@ on revMenubarFileMenuPick pWhich
                end if
                if item 2 of pWhich is "hypercardlook" then
                   revIDESetPreference "cHyperCardClassicLook", (revIDEGetPreference("cHyperCardClassicLook") is false)
+               end if
+               if item 2 of pWhich is "hypercardfonts" then
+                  revIDESetPreference "cHyperCardMacFonts", (revIDEGetPreference("cHyperCardMacFonts") is false)
                end if
                if item 2 of pWhich is "hypercardsummary" then
                   revIDESetPreference "cHyperCardImportSummary", (revIDEGetPreference("cHyperCardImportSummary") is false)

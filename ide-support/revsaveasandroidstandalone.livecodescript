@@ -329,6 +329,11 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
       put tBaseFolder & slash before tIcon
    end if
    
+   -- OXT-Beyond: the adaptive icon, when the stack asks for one (its
+   -- images found and its colour read before the build starts)
+   local tAdaptiveIcon
+   put androidAdaptiveIcon(pSettings, tBaseFolder) into tAdaptiveIcon
+   
    -- Compute the key path
    if tKey is not empty and pathIsRelative(tKey) then
       put tBaseFolder & slash before tKey
@@ -492,7 +497,7 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
       replace "${IDENTIFIER}" with pSettings["android,identifier"] in tManifest
       replace "${VERSION_NAME}" with pSettings["android,version name"] in tManifest
       replace "${VERSION_CODE}" with pSettings["android,version code"] in tManifest
-      if there is a file tIcon then
+      if there is a file tIcon or tAdaptiveIcon is an array then
          replace "${ICON}" with "android:icon=" & quote & "@drawable/icon" & quote in tManifest
       else
          replace "${ICON}" with empty in tManifest
@@ -916,6 +921,18 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
             throw "could not copy icon '" & tIcon & "'"
          end if
          put tDrawableResBuildFolder & slash & "icon.png" & return after tAssetFiles
+      else if tAdaptiveIcon is an array then
+         -- before Android 8.0, which has no adaptive icons: its foreground
+         put url ("binfile:" & tAdaptiveIcon["foreground"]) into url ("binfile:" & tDrawableResBuildFolder & slash & "icon.png")
+         if the result is not empty then
+            throw "could not copy icon '" & tAdaptiveIcon["foreground"] & "'"
+         end if
+         put tDrawableResBuildFolder & slash & "icon.png" & return after tAssetFiles
+      end if
+      if tAdaptiveIcon is an array then
+         androidAddAdaptiveIcon tAdaptiveIcon, tResBuildFolder
+         -- the files it wrote, which go with the build folder (below)
+         put the result after tAssetFiles
       end if
       
       if there is a file tStatusBarIcon then
@@ -1364,6 +1381,13 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
    repeat for each line tFIle in tAssetFiles
       if there is a file tFile then delete file tFile
    end repeat
+   -- OXT-Beyond: the adaptive icon's folders (androidAddAdaptiveIcon), once
+   -- their files have gone
+   repeat for each item tFolder in "drawable-nodpi,drawable-anydpi-v26,values"
+      if tResBuildFolder is not empty and there is a folder (tResBuildFolder & slash & tFolder) then
+         delete folder (tResBuildFolder & slash & tFolder)
+      end if
+   end repeat
    if there is a folder tLayoutResBuildFolder then delete folder tLayoutResBuildFolder
    if there is a folder tDrawableResBuildFolder then delete folder tDrawableResBuildFolder
    if there is a folder tResBuildFolder then delete folder tResBuildFolder
@@ -1809,6 +1833,41 @@ function androidRuntimeFolder pTarget, pSettings
    end switch
 end androidRuntimeFolder
 
+-- OXT-Beyond: the engine ("android,engine") a stack has once its first
+-- Android architecture is ticked on the Android card (updateAndroidArch in
+-- revstandalonesettingsandroidbehavior.livecodescript), from its standalone
+-- settings as they were before that tick. A stack set up for Android now,
+-- with runtimes that carry OXT-Beyond's own engine (Runtime/Android/Beyond),
+-- gets "beyond". Every other stack keeps what it has, so it is built as
+-- before: one set up for Android already (an architecture saved, ticked or
+-- not, or the "android" setting, on or off, which the card saves beside
+-- them and LiveCode saved alone before it had architectures), one that
+-- names an engine (9.6.3 included), and any stack when the runtimes have
+-- no such engine, since a build that asks for it stops
+-- (androidRuntimeFolder). Only these settings say a stack was set up for
+-- Android: the card saves others ("android,billingProvider") for any stack
+-- that opens it
+function androidEngineOnFirstTarget pSettings
+   local tArch, tRuntime, tError
+   if pSettings["android,engine"] is not empty or "android" is among the keys of pSettings then
+      return pSettings["android,engine"]
+   end if
+   repeat for each item tArch in revSBPlatformArchitectures("Android")
+      if ("Android," & tArch) is among the keys of pSettings then
+         return pSettings["android,engine"]
+      end if
+   end repeat
+   try
+      put revMobileRuntimeFolder("build") into tRuntime
+   catch tError
+      return empty
+   end try
+   if tRuntime is not empty and there is a folder (tRuntime & slash & "Beyond") then
+      return "beyond"
+   end if
+   return empty
+end androidEngineOnFirstTarget
+
 ################################################################################
 
 private command executeAdbCommand pCommand
@@ -2040,6 +2099,168 @@ function androidDeclareRelaunch pManifest, pRuntimeFolder
    end if
    return pManifest
 end androidDeclareRelaunch
+
+-- OXT-Beyond: an adaptive launcher icon, which Android 8.0 and newer draw
+-- in the launcher's own shape (a circle, a squircle, a rounded square) and
+-- move in its animations: a foreground image over a background colour,
+-- each a layer of 108 by 108 dp of which the launcher shows the middle 72
+-- (a circle 66 dp across always), so the foreground keeps what matters in
+-- its middle two thirds, with clear space around it. With a monochrome
+-- image too it is a themed icon on Android 13 and newer, which the
+-- launcher tints with the wallpaper's colours when the user turns themed
+-- icons on (only the image's alpha counts: a white shape on clear space).
+-- The standalone settings:
+--    "android,adaptive icon"             the foreground, a PNG file (a path
+--                                        relative to the stack's folder, or
+--                                        a full path): 432 by 432 pixels
+--                                        draws it sharp on every screen
+--    "android,adaptive icon background"  "#RRGGBB", "#AARRGGBB" or "r,g,b";
+--                                        white when empty
+--    "android,themed icon"               the monochrome image, a PNG file
+--                                        (needs the foreground)
+-- The adaptive icon takes the name of the icon ("@drawable/icon", for
+-- Android 8.0 and newer only: drawable-anydpi-v26), so the manifest names
+-- the same icon as before; the stack's icon ("android,icon") stays the one
+-- older Android shows, or the foreground when the stack has none. A stack
+-- that names no foreground is built as before. Returns the array that
+-- androidAddAdaptiveIcon takes (foreground, monochrome: the files;
+-- background: the colour as #AARRGGBB), or empty
+constant kAdaptiveIcon = "android,adaptive icon"
+constant kAdaptiveIconBackground = "android,adaptive icon background"
+constant kThemedIcon = "android,themed icon"
+function androidAdaptiveIcon pSettings, pBaseFolder
+   local tIcon, tKey, tPath
+   if pSettings[kAdaptiveIcon] is empty then
+      if pSettings[kThemedIcon] is not empty then
+         throw "a themed icon is the monochrome layer of an adaptive icon: name its foreground image too" && \
+               "(the" && quote & kAdaptiveIcon & quote && "standalone setting)"
+      end if
+      return empty
+   end if
+   repeat for each item tKey in "foreground,monochrome"
+      if tKey is "foreground" then
+         put pSettings[kAdaptiveIcon] into tPath
+      else
+         put pSettings[kThemedIcon] into tPath
+      end if
+      if tPath is empty then
+         put empty into tIcon[tKey]
+         next repeat
+      end if
+      if pathIsRelative(tPath) then
+         put pBaseFolder & slash before tPath
+      end if
+      if there is no file tPath then
+         throw "the adaptive icon's" && tKey && "image is not there:" && tPath
+      end if
+      if byte 1 to 8 of url ("binfile:" & tPath) is not \
+            numToByte(137) & "PNG" & numToByte(13) & numToByte(10) & numToByte(26) & numToByte(10) then
+         throw "the adaptive icon's" && tKey && "image is not a PNG file:" && tPath
+      end if
+      put tPath into tIcon[tKey]
+   end repeat
+   put androidIconColour(pSettings[kAdaptiveIconBackground]) into tIcon["background"]
+   return tIcon
+end androidAdaptiveIcon
+
+-- A colour of the standalone settings as Android's resources write it
+-- (#AARRGGBB): "#RRGGBB", "#AARRGGBB" or "r,g,b" (each 0 to 255); white
+-- when empty. Anything else stops the build, saying what it takes
+function androidIconColour pColour
+   local tHex, tPart
+   put word 1 to -1 of pColour into pColour
+   if pColour is empty then
+      return "#FFFFFFFF"
+   end if
+   if char 1 of pColour is "#" then
+      put toUpper(char 2 to -1 of pColour) into tHex
+      if tHex is not empty and matchText(tHex, "^([0-9A-F]{6}|[0-9A-F]{8})$") then
+         if the number of chars of tHex is 6 then
+            put "FF" before tHex
+         end if
+         return "#" & tHex
+      end if
+   else if the number of items of pColour is 3 then
+      put "#FF" into tHex
+      repeat for each item tPart in pColour
+         put word 1 to -1 of tPart into tPart
+         if tPart is not an integer or tPart < 0 or tPart > 255 then
+            put empty into tHex
+            exit repeat
+         end if
+         put format("%02X", tPart) after tHex
+      end repeat
+      if tHex is not empty then
+         return tHex
+      end if
+   end if
+   throw "the adaptive icon's background colour" && quote & pColour & quote && \
+         "is not one the build can read: give it as #RRGGBB, #AARRGGBB or r,g,b"
+end androidIconColour
+
+-- The adaptive icon's resource (drawable-anydpi-v26/icon.xml): the
+-- background colour (a colour resource, values/oxt_icon_background.xml),
+-- the foreground and, when there is one, the monochrome image
+-- (drawable-nodpi: each drawn at the layer's size, not scaled for the
+-- screen's density first)
+function androidAdaptiveIconXML pIcon
+   local tXML
+   put "<?xml version=" & quote & "1.0" & quote && "encoding=" & quote & "utf-8" & quote & "?>" & lf & \
+         "<adaptive-icon xmlns:android=" & quote & "http://schemas.android.com/apk/res/android" & quote & ">" & lf & \
+         "    <background android:drawable=" & quote & "@color/oxt_icon_background" & quote & "/>" & lf & \
+         "    <foreground android:drawable=" & quote & "@drawable/icon_foreground" & quote & "/>" & lf into tXML
+   if pIcon["monochrome"] is not empty then
+      put "    <monochrome android:drawable=" & quote & "@drawable/icon_monochrome" & quote & "/>" & lf after tXML
+   end if
+   put "</adaptive-icon>" & lf after tXML
+   return tXML
+end androidAdaptiveIconXML
+
+function androidAdaptiveIconColourXML pIcon
+   return "<?xml version=" & quote & "1.0" & quote && "encoding=" & quote & "utf-8" & quote & "?>" & lf & \
+         "<resources>" & lf & \
+         "    <color name=" & quote & "oxt_icon_background" & quote & ">" & pIcon["background"] & "</color>" & lf & \
+         "</resources>" & lf
+end androidAdaptiveIconColourXML
+
+-- Writes the adaptive icon's resources (androidAdaptiveIcon's array) into
+-- the package's res folder. Returns the files it wrote, one a line (each
+-- line ending in a return), for the build to delete with its other files
+command androidAddAdaptiveIcon pIcon, pResFolder
+   local tFolder, tKey, tFile, tWritten
+   repeat for each item tFolder in "drawable-nodpi,drawable-anydpi-v26,values"
+      if there is no folder (pResFolder & slash & tFolder) then
+         create folder (pResFolder & slash & tFolder)
+      end if
+      if there is no folder (pResFolder & slash & tFolder) then
+         throw "could not create the folder" && pResFolder & slash & tFolder
+      end if
+   end repeat
+   repeat for each item tKey in "foreground,monochrome"
+      if pIcon[tKey] is empty then
+         next repeat
+      end if
+      put pResFolder & "/drawable-nodpi/icon_" & tKey & ".png" into tFile
+      put url ("binfile:" & pIcon[tKey]) into url ("binfile:" & tFile)
+      if the result is not empty then
+         throw "could not copy the adaptive icon's" && tKey && "image '" & pIcon[tKey] & "'"
+      end if
+      put tFile & return after tWritten
+   end repeat
+   put pResFolder & "/drawable-anydpi-v26/icon.xml" into tFile
+   put textEncode(androidAdaptiveIconXML(pIcon), "UTF-8") into url ("binfile:" & tFile)
+   if the result is not empty then
+      throw "could not write the adaptive icon:" && the result
+   end if
+   put tFile & return after tWritten
+   put pResFolder & "/values/oxt_icon_background.xml" into tFile
+   put textEncode(androidAdaptiveIconColourXML(pIcon), "UTF-8") into url ("binfile:" & tFile)
+   if the result is not empty then
+      throw "could not write the adaptive icon's background colour:" && the result
+   end if
+   put tFile & return after tWritten
+   return tWritten
+end androidAddAdaptiveIcon
 
 -- OXT-Beyond: a stack whose "android,edge to edge" standalone setting is
 -- true (the Android card's "Edge to edge" box) is drawn edge to edge, on

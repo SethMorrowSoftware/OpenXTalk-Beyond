@@ -74,7 +74,8 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --    OXT_ANDROID_WORK      a folder for the units' made-up SDKs
 --    OXT_ANDROID_PROBE     "java" for the Java layer's probe (see below),
 --                          "busy" for the busy probe (see kBusyTick),
---                          "edge" for the edge probe (see kEdgeWait)
+--                          "edge" for the edge probe (see kEdgeWait),
+--                          "tests" for the script tests (see kTestsScript)
 --    OXT_ANDROID_ENGINE    the probe's "android,engine" setting ("beyond"
 --                          for OXT-Beyond's own engine; none when empty)
 --
@@ -152,9 +153,29 @@ constant kBusyColor = "31,150,90"
 -- Android has given the window its insets), its screenRect and its
 -- effective working screenRect, which leaves the bars, the display's
 -- cutout and the keyboard out (Engine.getEffectiveWorkarea):
--- android_check.py device --edge-to-edge checks both
+-- android_check.py device --edge-to-edge checks both. It also has an
+-- adaptive icon (the "android,adaptive icon" settings), a themed one:
+-- kProbePicture as its foreground and its monochrome image
+-- (kProbeIconForeground and kProbeIconMonochrome, beside the stack) over
+-- kRunColor (android_check.py verify --adaptive-icon checks the package)
 constant kEdgeWait = 1000
+constant kProbeIconForeground = "oxt-icon-foreground.png"
+constant kProbeIconMonochrome = "oxt-icon-monochrome.png"
 constant kIdentifier = "org.openxtalk.check.androidprobe"
+-- kTestsScript: the script tests (OXT_ANDROID_PROBE "tests") are the
+-- standalone that tools/ci/android_tests.py runs the LiveCode Script
+-- tests of tests/lcs in on a device: a stack named as LiveCode's standalone
+-- test runner's (StandaloneTestRunnerMainstack, which tells the test
+-- library that it runs in a standalone) whose script is that of
+-- tools/ci/android-tests.livecodescript, which android_tests.py puts
+-- beside the stack file as kTestsScript, with the copy files it names
+-- (kTestsFiles: the tests, and the extensions they load) in folders
+-- beside it too. It is its own app (kTestsIdentifier), may use the
+-- network (INTERNET: the tests of sockets and URLs), and is built as a
+-- probe is
+constant kTestsScript = "android-tests.livecodescript"
+constant kTestsFiles = "oxt-tests,packaged_extensions"
+constant kTestsIdentifier = "org.openxtalk.check.androidtests"
 -- The Java layer's probe's picture: one pixel, a PNG, as base64
 constant kProbePicture = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
 -- The Java layer's probe's copy file, oxt-probe.txt, and what it holds
@@ -269,7 +290,9 @@ private command androidUnits
    unitTargetAPI tWork
    unitRelaunch tWork
    unitEdgeToEdge tWork
+   unitAdaptiveIcon tWork
    unitEngine
+   unitFirstTargetEngine
    unitAppBundle tWork
    androidUnit "required-sdk", deployCall("deployRequiredSDK") is "Android 13 (API 33) or newer", \
          "deployRequiredSDK() is" && deployCall("deployRequiredSDK")
@@ -370,6 +393,58 @@ private command unitEngine
    end repeat
 end unitEngine
 
+-- The engine a stack has once the Android card ticks its first
+-- architecture (androidEngineOnFirstTarget, from the settings before the
+-- tick): OXT-Beyond's own for a stack set up for Android now, the card's
+-- own settings of any stack that opens it notwithstanding, when the
+-- runtimes carry it; what it had for one set up before (an architecture
+-- saved, ticked or not, or the "android" setting, on or off) or that names
+-- an engine; and empty, LiveCode 9.6.3's, when the runtimes have none. As
+-- in unitEngine, a Beyond folder the unit makes it takes away again
+private command unitFirstTargetEngine
+   local tSettings, tRuntime, tBeyond, tMade, tArch, tAnswer, tEngine
+   put builderCall("revMobileRuntimeFolder", "build") into tRuntime
+   put tRuntime & "/Beyond" into tBeyond
+   put there is not a folder tBeyond into tMade
+   if tMade then
+      put builderCall("androidEngineOnFirstTarget", tSettings) into tAnswer
+      androidUnit "first-engine-no-beyond", tAnswer is empty, tAnswer
+      revSBEnsureFolder tBeyond
+   end if
+   put builderCall("androidEngineOnFirstTarget", tSettings) into tAnswer
+   androidUnit "first-engine-new", tAnswer is "beyond", tAnswer
+   put "Google" into tSettings["android,billingProvider"]
+   put "com.yourcompany.yourapp" into tSettings["android,identifier"]
+   put builderCall("androidEngineOnFirstTarget", tSettings) into tAnswer
+   androidUnit "first-engine-new-card-settings", tAnswer is "beyond", tAnswer
+   repeat for each item tArch in "armv7,arm64,x86,x86_64"
+      repeat for each item tEngine in "true,false"
+         delete variable tSettings
+         put tEngine into tSettings["Android," & tArch]
+         put builderCall("androidEngineOnFirstTarget", tSettings) into tAnswer
+         androidUnit "first-engine-had-" & tArch & "-" & tEngine, tAnswer is empty, tAnswer
+      end repeat
+   end repeat
+   repeat for each item tEngine in "true,false"
+      delete variable tSettings
+      put tEngine into tSettings["android"]
+      put builderCall("androidEngineOnFirstTarget", tSettings) into tAnswer
+      androidUnit "first-engine-android-" & tEngine, tAnswer is empty, tAnswer
+   end repeat
+   repeat for each item tEngine in "9.6.3,beyond"
+      delete variable tSettings
+      put tEngine into tSettings["android,engine"]
+      put builderCall("androidEngineOnFirstTarget", tSettings) into tAnswer
+      androidUnit "first-engine-names-" & tEngine, tAnswer is tEngine, tAnswer
+      put false into tSettings["Android,armv7"]
+      put builderCall("androidEngineOnFirstTarget", tSettings) into tAnswer
+      androidUnit "first-engine-had-armv7-names-" & tEngine, tAnswer is tEngine, tAnswer
+   end repeat
+   if tMade then
+      removeTree tBeyond
+   end if
+end unitFirstTargetEngine
+
 -- The engine runs once in a process: the configuration changes the app
 -- goes on through (LiveCode's four first, as before, and not the density,
 -- for which it starts again), and the activity that starts it again in a
@@ -453,6 +528,111 @@ private command unitEdgeToEdge pWork
          builderCall("androidAskForEdgeToEdge", tManifest, tSettings, tRuntime)
    removeTree tRuntime
 end unitEdgeToEdge
+
+-- The adaptive icon: none for a stack that names no foreground; its
+-- images found (relative to the stack's folder), PNG files, its colour
+-- read in the three forms it takes; a themed icon only with a foreground;
+-- the resources it writes
+private command unitAdaptiveIcon pWork
+   local tFolder, tSettings, tAnswer, tError, tPNG, tRes, tWanted, tColour, tWritten
+   put pWork & "/adaptive-icon" into tFolder
+   removeTree tFolder
+   revSBEnsureFolder tFolder
+   put base64Decode(kProbePicture) into tPNG
+   put tPNG into url ("binfile:" & tFolder & "/fg.png")
+   put tPNG into url ("binfile:" & tFolder & "/mono.png")
+   put "not a picture" into url ("binfile:" & tFolder & "/fg.txt")
+   androidUnit "icon-not-asked", builderCall("androidAdaptiveIcon", tSettings, tFolder) is empty, \
+         builderCall("androidAdaptiveIcon", tSettings, tFolder)
+   repeat for each line tAnswer in "themed only|a themed icon is the monochrome layer" & return & \
+         "missing|foreground image is not there:" & return & "not a PNG|foreground image is not a PNG file:" & return & \
+         "bad colour|is not one the build can read: give it as #RRGGBB, #AARRGGBB or r,g,b"
+      set the itemDelimiter to "|"
+      put empty into tSettings
+      switch item 1 of tAnswer
+         case "themed only"
+            put "mono.png" into tSettings["android,themed icon"]
+            break
+         case "missing"
+            put "nothing.png" into tSettings["android,adaptive icon"]
+            break
+         case "not a PNG"
+            put "fg.txt" into tSettings["android,adaptive icon"]
+            break
+         case "bad colour"
+            put "fg.png" into tSettings["android,adaptive icon"]
+            put "256,0,0" into tSettings["android,adaptive icon background"]
+            break
+      end switch
+      put empty into tError
+      try
+         get builderCall("androidAdaptiveIcon", tSettings, tFolder)
+      catch tError
+      end try
+      androidUnit "icon-refused-" & word 1 of item 1 of tAnswer, tError contains item 2 of tAnswer, \
+            "answered" && it & ", threw" && tError
+      set the itemDelimiter to comma
+   end repeat
+   put empty into tSettings
+   put "fg.png" into tSettings["android,adaptive icon"]
+   put builderCall("androidAdaptiveIcon", tSettings, tFolder) into tAnswer
+   androidUnit "icon-foreground", tAnswer["foreground"] is (tFolder & "/fg.png") and \
+         tAnswer["monochrome"] is empty and tAnswer["background"] is "#FFFFFFFF", \
+         tAnswer["foreground"] && tAnswer["monochrome"] && tAnswer["background"]
+   put tFolder & "/mono.png" into tSettings["android,themed icon"]
+   put "31,158,90" into tSettings["android,adaptive icon background"]
+   put builderCall("androidAdaptiveIcon", tSettings, tFolder) into tAnswer
+   androidUnit "icon-themed", tAnswer["monochrome"] is (tFolder & "/mono.png") and \
+         tAnswer["background"] is "#FF1F9E5A", tAnswer["monochrome"] && tAnswer["background"]
+   -- the colour's forms
+   repeat for each line tColour in "|#FFFFFFFF" & return & "#1f9e5a|#FF1F9E5A" & return & \
+         "#801F9E5A|#801F9E5A" & return & " 0, 128 ,255 |#FF0080FF"
+      set the itemDelimiter to "|"
+      androidUnit "icon-colour-" & item 2 of tColour, \
+            builderCall("androidIconColour", item 1 of tColour) is item 2 of tColour, \
+            builderCall("androidIconColour", item 1 of tColour)
+      set the itemDelimiter to comma
+   end repeat
+   repeat for each line tColour in "red" & return & "#12345" & return & "1,2" & return & "-1,0,0" & return & "#GG0000"
+      put empty into tError
+      try
+         get builderCall("androidIconColour", tColour)
+      catch tError
+      end try
+      androidUnit "icon-colour-refused-" & tColour, tError contains "is not one the build can read", \
+            "answered" && it & ", threw" && tError
+   end repeat
+   -- the resources
+   put tFolder & "/res" into tRes
+   revSBEnsureFolder tRes
+   dispatch "androidAddAdaptiveIcon" to stack "revSaveAsAndroidStandalone" with tAnswer, tRes
+   put the result into tWritten
+   put "<?xml version=" & quote & "1.0" & quote && "encoding=" & quote & "utf-8" & quote & "?>" & lf & \
+         "<adaptive-icon xmlns:android=" & quote & "http://schemas.android.com/apk/res/android" & quote & ">" & lf & \
+         "    <background android:drawable=" & quote & "@color/oxt_icon_background" & quote & "/>" & lf & \
+         "    <foreground android:drawable=" & quote & "@drawable/icon_foreground" & quote & "/>" & lf & \
+         "    <monochrome android:drawable=" & quote & "@drawable/icon_monochrome" & quote & "/>" & lf & \
+         "</adaptive-icon>" & lf into tWanted
+   androidUnit "icon-resources", \
+         url ("binfile:" & tRes & "/drawable-nodpi/icon_foreground.png") is tPNG and \
+         url ("binfile:" & tRes & "/drawable-nodpi/icon_monochrome.png") is tPNG and \
+         textDecode(url ("binfile:" & tRes & "/drawable-anydpi-v26/icon.xml"), "UTF-8") is tWanted and \
+         textDecode(url ("binfile:" & tRes & "/values/oxt_icon_background.xml"), "UTF-8") contains \
+         "<color name=" & quote & "oxt_icon_background" & quote & ">#FF1F9E5A</color>", \
+         "wrote" && files(tRes & "/drawable-nodpi")
+   -- and it names what it wrote, which the build deletes with its other
+   -- files
+   androidUnit "icon-written", tWritten is \
+         tRes & "/drawable-nodpi/icon_foreground.png" & return & \
+         tRes & "/drawable-nodpi/icon_monochrome.png" & return & \
+         tRes & "/drawable-anydpi-v26/icon.xml" & return & \
+         tRes & "/values/oxt_icon_background.xml" & return, tWritten
+   -- no monochrome image: no monochrome layer
+   delete variable tAnswer["monochrome"]
+   androidUnit "icon-no-monochrome", not (builderCall("androidAdaptiveIconXML", tAnswer) contains "monochrome"), \
+         builderCall("androidAdaptiveIconXML", tAnswer)
+   removeTree tFolder
+end unitAdaptiveIcon
 
 -- The App Bundle: its name beside the package, where each file of the
 -- package goes in the bundle's base module, bundletool's settings, a
@@ -878,8 +1058,33 @@ private function probeName
    if $OXT_ANDROID_PROBE is "edge" then
       return "AndroidEdgeProbe"
    end if
+   if $OXT_ANDROID_PROBE is "tests" then
+      return "StandaloneTestRunnerMainstack"
+   end if
    return "AndroidProbe"
 end probeName
+
+-- The folder of the probe stack's file, where the script tests' script and
+-- copy files are (see kTestsScript)
+private function probeFolder
+   set the itemDelimiter to slash
+   return item 1 to -2 of $OXT_ANDROID_STACK
+end probeFolder
+
+-- The script tests' script: kTestsScript, a script-only stack's file,
+-- without its first line (script "<name>")
+private function testsScript
+   local tScript
+   put textDecode(url ("binfile:" & probeFolder() & slash & kTestsScript), "UTF-8") into tScript
+   if tScript is empty then
+      throw "no" && kTestsScript && "in" && probeFolder()
+   end if
+   replace numToChar(13) & numToChar(10) with return in tScript
+   if line 1 of tScript begins with "script " then
+      delete line 1 of tScript
+   end if
+   return tScript
+end testsScript
 
 private function probeScript
    local tScript
@@ -979,6 +1184,20 @@ private command makeProbeStack
    create stack tProbe
    set the rect of stack tProbe to 0,0,320,480
    set the backgroundColor of stack tProbe to kSavedColor
+   if tProbe is "StandaloneTestRunnerMainstack" then
+      -- the script tests: their script, and nothing else on the card (the
+      -- tests make their own stacks)
+      set the fullscreenMode of stack tProbe to "exactFit"
+      set the script of stack tProbe to testsScript()
+      if the result is not empty then
+         throw kTestsScript && "does not compile:" && the result
+      end if
+      save stack tProbe as $OXT_ANDROID_STACK
+      if the result is not empty then
+         throw "cannot save the probe stack as" && $OXT_ANDROID_STACK & ":" && the result
+      end if
+      exit makeProbeStack
+   end if
    set the fullscreenMode of stack tProbe to "exactFit"
    set the script of stack tProbe to probeScript()
    local tDefault
@@ -1002,6 +1221,15 @@ private function buildSettings pName
    put probeName() into tSettings["name"]
    put kIdentifier into tSettings["android,identifier"]
    put "Android Probe" into tSettings["android,label"]
+   -- the script tests: their own app, the network, and their copy files
+   -- (folders beside the stack: see kTestsScript)
+   if probeName() is "StandaloneTestRunnerMainstack" then
+      put kTestsIdentifier into tSettings["android,identifier"]
+      put "Android Tests" into tSettings["android,label"]
+      put true into tSettings["android,application permissions"]["INTERNET"]
+      put kTestsFiles into tSettings["files"]
+      replace comma with return in tSettings["files"]
+   end if
    -- the engine the probe is built with: OXT-Beyond's own (android_check.py
    -- ide --android-engine beyond), or 9.6.3's as a stack that names none
    if $OXT_ANDROID_ENGINE is not empty then
@@ -1010,9 +1238,17 @@ private function buildSettings pName
    repeat for each item tArch in "armv7,arm64,x86,x86_64"
       delete variable tSettings["android," & tArch]
    end repeat
-   -- the edge probe is drawn edge to edge (see kEdgeWait)
+   -- the edge probe is drawn edge to edge, and has an adaptive icon that
+   -- is a themed one (see kEdgeWait)
    if probeName() is "AndroidEdgeProbe" then
       put true into tSettings["android,edge to edge"]
+      set the itemDelimiter to slash
+      put base64Decode(kProbePicture) into url ("binfile:" & item 1 to -2 of $OXT_ANDROID_STACK & slash & kProbeIconForeground)
+      put base64Decode(kProbePicture) into url ("binfile:" & item 1 to -2 of $OXT_ANDROID_STACK & slash & kProbeIconMonochrome)
+      set the itemDelimiter to comma
+      put kProbeIconForeground into tSettings["android,adaptive icon"]
+      put kProbeIconMonochrome into tSettings["android,themed icon"]
+      put kRunColor into tSettings["android,adaptive icon background"]
    end if
    -- the Java layer's probe asks to post notifications, and declares
    -- WRITE_EXTERNAL_STORAGE (see the header)

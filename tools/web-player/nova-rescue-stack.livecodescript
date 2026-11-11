@@ -13,8 +13,9 @@ script "Nova Rescue"
 -- How it is made:
 --   one card, "Space": the play area is a column down the middle (the
 --     whole width on a phone held upright, a portrait column in a wide
---     window, with the HUD at its sides), and every screen (Title, Howto,
---     Paused, Over, Settings) is a group over it
+--     window, with the HUD at its sides, which cover what leaves the
+--     column), and every screen (Title, Howto, Paused, Over, Settings)
+--     is a group over it
 --   one loop: nrFrame, sent again after every frame, moves everything by
 --     the time since the last one, so the game runs at the same speed at
 --     25 frames a second as at 60
@@ -540,8 +541,20 @@ command nrShowScreen pName
    set the visible of graphic "Shade" to (pName is among the items of "howto,pause,over,settings")
    set the visible of group "HUD" to (pName is among the items of "play,pause,over") or \
          (pName is "settings" and sBack is "pause")
+   nrShowClip
    unlock screen
 end nrShowScreen
+
+-- The covers of the column's sides, over every sprite, in a window wider
+-- than the column while a run is on the screen (with the HUD): what
+-- leaves the column goes behind them. Not on the title, whose ship
+-- stands over the left side of a phone on its side.
+private command nrShowClip
+   local tOn
+   put the visible of group "HUD" and item 1 of sPlay > 0 into tOn
+   set the visible of graphic "Clip Left" to tOn
+   set the visible of graphic "Clip Right" to tOn
+end nrShowClip
 
 command nrGoTitle
    put "title" into sMode
@@ -2526,10 +2539,15 @@ command nrLayout
       set the rect of graphic "Dim Right" to tR, 0, tW, tH
       set the points of graphic "Edge Left" to tL & comma & 0 & return & tL & comma & tH
       set the points of graphic "Edge Right" to tR & comma & 0 & return & tR & comma & tH
+      -- the covers, up to the edges' lines, which stay in sight (each
+      -- line is drawn over the pixels from x - 1 to x + 1 of its x)
+      set the rect of graphic "Clip Left" to 0, 0, max(0, tL - 1), tH
+      set the rect of graphic "Clip Right" to min(tW, tR + 2), 0, tW, tH
    end if
    repeat for each item tL in "Dim Left,Dim Right,Edge Left,Edge Right"
       set the visible of graphic tL to item 1 of sPlay > 0
    end repeat
+   nrShowClip
    put item 1 of sPlay into tL
    nrLayoutHud tW, tH, tTop, tLeft, tRight
    -- where the ship may go: in the column, under the HUD, over the home bar

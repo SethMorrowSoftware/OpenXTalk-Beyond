@@ -440,18 +440,38 @@ class Device(unittest.TestCase):
             f.write(struct.pack('<IIII', 4, 4, 1, 0) + bytes(list(ac.RUN_COLOR) + [255]) * 16)
         with open(os.path.join(d, 'logcat.txt'), 'w') as f:
             f.write(self.LOG)
+        # the run made once more after a low memory kill starts at once
+        self.pause = ac.LOW_MEMORY_PAUSE
+        ac.LOW_MEMORY_PAUSE = 0
 
     def tearDown(self):
+        ac.LOW_MEMORY_PAUSE = self.pause
         self.tmp.cleanup()
 
     EVENTS = 'echo "I/am_kill (  590): [0,3475,org.openxtalk.check.androidprobe,0,lmk]"'
+
+    # dumpsys activity exit-info as Android 16 gives it (run 42714271161):
+    # the pid on one line, the reason on the next
+    EXIT_INFO = (
+        'printf "  ACTIVITY MANAGER PROCESS EXIT INFO (dumpsys activity exit-info)\\n'
+        '    package: org.openxtalk.check.androidprobe\\n'
+        '      Historical Process Exit for uid=10214\\n'
+        '          ApplicationExitInfo #0:\\n'
+        '            timestamp=2026-11-09 23:05:39.832 pid=3612 realUid=10214 packageUid=10214\\n'
+        '            process=org.openxtalk.check.androidprobe reason=3 (LOW_MEMORY) subreason=0 (UNKNOWN)\\n'
+        '            importance=100 pss=0.00 rss=176MB description=null state=empty trace=null\\n'
+        '          ApplicationExitInfo #1:\\n'
+        '            timestamp=2026-11-09 23:05:31.122 pid=3475 realUid=10214 packageUid=10214\\n'
+        '            process=org.openxtalk.check.androidprobe reason=10 (USER_REQUESTED) subreason=0\\n"'
+    )
 
     WINDOW = ('printf "  mCurrentFocus=Window{1f u0 Application Not Responding: '
               'com.android.systemui}\\n  mFocusedApp=ActivityRecord{2e u0 '
               'org.openxtalk.check.androidprobe/.mblandroid t9}\\n"')
 
     def device(self, pidof, timeout='10', power='true', events=EVENTS, cases='', argv=(), screencap='',
-               window=WINDOW):
+               window=WINDOW, exits='printf "  ApplicationExitInfo #0:\\n    pid=3612 reason=3 (LOW_MEMORY)\\n"',
+               page='echo 16384'):
         d = self.tmp.name
         adb = os.path.join(d, 'platform-tools', 'adb')
         with open(adb, 'w') as f:
@@ -460,7 +480,7 @@ class Device(unittest.TestCase):
                     'echo "$*" >> "$(dirname "$0")/calls"\n'
                     'case "$*" in\n'
                     '  "shell getprop ro.build.version.sdk") echo 35 ;;\n'
-                    '  "shell getconf PAGE_SIZE") echo 16384 ;;\n'
+                    '  "shell getconf PAGE_SIZE") %s ;;\n'
                     '  "shell getprop ro.product.cpu.abi") echo x86_64 ;;\n'
                     '  install*) echo Success ;;\n'
                     '  "shell am start"*) echo "Status: ok" ;;\n'
@@ -469,11 +489,11 @@ class Device(unittest.TestCase):
                     '  "logcat -d -v brief") cat "%s/logcat.txt" ;;\n'
                     '  "shell dumpsys power") %s ;;\n'
                     '  "logcat -d -b events -v brief") %s ;;\n'
-                    '  "shell dumpsys activity exit-info"*) printf "  ApplicationExitInfo #0:\\n    pid=3612 reason=3 (LOW_MEMORY)\\n" ;;\n'
+                    '  "shell dumpsys activity exit-info"*) %s ;;\n'
                     '  "shell cat /proc/meminfo") printf "MemTotal: 2000000 kB\\nMemFree: 1 kB\\nMemAvailable: 90000 kB\\n" ;;\n'
                     '  "shell dumpsys window") %s ;;\n'
                     '%s'
-                    'esac\n' % (screencap, d, pidof, d, power, events, window, cases))
+                    'esac\n' % (page, screencap, d, pidof, d, power, events, exits, window, cases))
         os.chmod(adb, 0o755)
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
@@ -542,6 +562,188 @@ class Device(unittest.TestCase):
                                 (('shell', 'pm', 'wait-for-handler', '--timeout', '7000'), 17)])
         self.assertIn('Before it starts: the broadcast queues are idle: not in 7 s', out.getvalue())
         self.assertEqual(ac.QUIET_SECONDS, 120)
+
+    def test_low_memory_kills(self):
+        exits = ('    ApplicationExitInfo #0:\n'
+                 '      timestamp=2026-11-09 23:05:39.832 pid=7077 realUid=10214\n'
+                 '      process=org.openxtalk.check.androidprobe reason=3 (LOW_MEMORY) subreason=0 (UNKNOWN)\n'
+                 '    ApplicationExitInfo #1:\n'
+                 '      timestamp=2026-11-09 23:05:31.122 pid=6780 realUid=10214\n'
+                 '      process=org.openxtalk.check.androidprobe reason=10 (USER_REQUESTED) subreason=0\n'
+                 '    ApplicationExitInfo #2:\n'
+                 '      timestamp=2026-11-09 22:05:00.000 pid=4100 realUid=10214\n'
+                 '      process=org.openxtalk.check.androidprobe reason=3 (LOW_MEMORY) subreason=0\n'
+                 '    ApplicationExitInfo #3:\n'
+                 '      timestamp=2026-11-09 23:05:40.000 pid=7090 realUid=10214\n'
+                 '      process=org.openxtalk.check.androidprobe reason=5 (CRASH_NATIVE) subreason=0\n')
+        # only this run's processes count: 4100 is an earlier run's
+        self.assertEqual(ac.low_memory_kills(exits, {'7077', '6780'}), ['7077'])
+        self.assertEqual(ac.low_memory_kills(exits, {'6780', '7090'}), [])
+        self.assertEqual(ac.low_memory_kills(exits, {'7077', '4100'}), ['4100', '7077'])
+        # and none when another of this run's crashed, whichever block
+        # comes first: 7090's CRASH_NATIVE, or an ANR or a Java crash
+        self.assertEqual(ac.low_memory_kills(exits, {'7077', '6780', '7090'}), [])
+        for reason in ('4 (CRASH)', '6 (ANR)', '7 (INITIALIZATION_FAILURE)'):
+            self.assertEqual(ac.low_memory_kills(exits.replace('5 (CRASH_NATIVE)', reason), {'7077', '7090'}), [])
+        first = exits.split('    ApplicationExitInfo #3:')[1]
+        self.assertEqual(ac.low_memory_kills('    ApplicationExitInfo #3:' + first + exits, {'7077', '7090'}), [])
+        # an earlier run's crash is that run's
+        self.assertEqual(ac.low_memory_kills(exits.replace('pid=7090', 'pid=4000'), {'7077', '7090'}), ['7077'])
+        self.assertEqual(ac.FAILED_EXITS, {4: 'CRASH', 5: 'CRASH_NATIVE', 6: 'ANR', 7: 'INITIALIZATION_FAILURE'})
+        self.assertEqual(ac.low_memory_kills('', {'7077'}), [])
+        self.assertEqual(ac.low_memory_kills('pid=7077 reason=3 (LOW_MEMORY)', {'7077'}), [])
+        self.assertEqual((ac.LOW_MEMORY, self.pause), (3, 30))
+
+    def test_a_low_memory_kill_makes_the_run_once_more(self):
+        # run 42714271161: lmkd killed the Java layer's probe behind its
+        # permission dialog on the 16 KB image; the run made once more
+        # decides, and here its probe runs on
+        status, out = self.device(
+            '[ "$(grep -c "^shell am start" "$(dirname "$0")/calls")" -ge 2 ] && echo 3612 || true',
+            exits=self.EXIT_INFO)
+        self.assertEqual(status, 0, out)
+        calls = self.calls()
+        self.assertEqual(sum(c.startswith('shell am start') for c in calls), 2, calls)
+        self.assertEqual(sum(c == 'uninstall org.openxtalk.check.androidprobe' for c in calls), 2, calls)
+        self.assertIn("NOTE: Android's low memory killer ended the probe (process 3612, exit-info LOW_MEMORY), and "
+                      "its log has no crash: the run once more, after 0 s\n"
+                      "  the first run's problem: the app is not running\n", out)
+        self.assertNotIn('PROBLEM:', out)
+        self.assertIn('Android device: passed', out)
+        # the first run's account of the kill is in the log
+        self.assertLess(out.index('reason=3 (LOW_MEMORY)'), out.index('NOTE: Android\'s low memory killer'))
+
+    def test_a_second_low_memory_kill_fails(self):
+        # once more, and only once: the second run's problems are the result
+        status, out = self.device('true', exits=self.EXIT_INFO)
+        self.assertEqual(status, 1, out)
+        self.assertEqual(sum(c.startswith('shell am start') for c in self.calls()), 2)
+        self.assertEqual(out.count("NOTE: Android's low memory killer"), 1)
+        self.assertIn('PROBLEM: the app is not running', out)
+
+    def test_no_run_once_more_for_a_crash_or_the_fail_colour(self):
+        # a crash in the probe's log, or its fail colour, is the engine's or
+        # the Java layer's: no second run, whatever exit-info says
+        with open(os.path.join(self.tmp.name, 'logcat.txt'), 'w') as f:
+            f.write(self.LOG + 'F/libc    ( 3612): Fatal signal 11 (SIGSEGV), code 1\n')
+        status, out = self.device('true', exits=self.EXIT_INFO)
+        self.assertEqual(status, 1, out)
+        self.assertEqual(sum(c.startswith('shell am start') for c in self.calls()), 1)
+        self.assertNotIn('the run once more', out)
+        self.assertIn('Fatal signal 11', out)
+        os.remove(os.path.join(self.tmp.name, 'platform-tools', 'calls'))
+        with open(os.path.join(self.tmp.name, 'logcat.txt'), 'w') as f:
+            f.write(self.LOG)
+        with open(os.path.join(self.tmp.name, 'screen.raw'), 'wb') as f:
+            f.write(struct.pack('<IIII', 4, 4, 1, 0) + bytes(list(ac.FAIL_COLOR) + [255]) * 16)
+        status, out = self.device('true', exits=self.EXIT_INFO)
+        self.assertEqual(status, 1, out)
+        self.assertEqual(sum(c.startswith('shell am start') for c in self.calls()), 1)
+        self.assertNotIn('the run once more', out)
+        # nor for a process another reason ended
+        os.remove(os.path.join(self.tmp.name, 'platform-tools', 'calls'))
+        with open(os.path.join(self.tmp.name, 'screen.raw'), 'wb') as f:
+            f.write(struct.pack('<IIII', 4, 4, 1, 0) + bytes(list(ac.RUN_COLOR) + [255]) * 16)
+        crashed = self.EXIT_INFO.replace('reason=3 (LOW_MEMORY)', 'reason=5 (CRASH_NATIVE)')
+        status, out = self.device('true', exits=crashed)
+        self.assertEqual(status, 1, out)
+        self.assertEqual(sum(c.startswith('shell am start') for c in self.calls()), 1)
+        self.assertNotIn('the run once more', out)
+        # nor when one process was ended for low memory and another of the
+        # run's crashed, its crash not in the log
+        os.remove(os.path.join(self.tmp.name, 'platform-tools', 'calls'))
+        both = self.EXIT_INFO.replace('reason=10 (USER_REQUESTED)', 'reason=5 (CRASH_NATIVE)')
+        status, out = self.device('true', exits=both)
+        self.assertEqual(status, 1, out)
+        self.assertEqual(sum(c.startswith('shell am start') for c in self.calls()), 1)
+        self.assertNotIn('the run once more', out)
+        self.assertIn('pid=3475', out)
+
+    def test_no_run_once_more_for_a_picture_missing_once_green(self):
+        # the Java probe exports its picture before it turns green: green
+        # and running with no picture of its own is the probe's failure,
+        # though the low memory killer ended its first process (3475) and
+        # Android started it again (3612), and a second query would find it
+        d = self.tmp.name
+        with open(os.path.join(d, 'pictures.txt'), 'w') as f:
+            f.write(SharedPictures.QUERY)
+        query = ('  "shell content query "*) [ $(grep -c "^shell content query" "%s/platform-tools/calls") -ge 2 ] '
+                 '&& cat "%s/pictures.txt" || echo "No result found." ;;\n' % (d, d))
+        status, out = self.device('echo 3612', cases=query, argv=('--picture', 'oxt-beyond-probe.png'),
+                                  exits='printf "  ApplicationExitInfo #0:\\n    pid=3475 reason=3 (LOW_MEMORY)\\n"')
+        self.assertEqual(status, 1, out)
+        self.assertEqual(sum(c.startswith('shell am start') for c in self.calls()), 1)
+        self.assertNotIn('the run once more', out)
+        self.assertIn("PROBLEM: the probe's picture oxt-beyond-probe.png is not in the shared Pictures folder", out)
+        self.assertIn('      pid=3475 reason=3 (LOW_MEMORY)', out)
+
+    def test_what_a_kill_before_green_explains_is_run_once_more(self):
+        # ended before its green, the probe never exported its picture
+        # either: the run once more decides
+        d = self.tmp.name
+        with open(os.path.join(d, 'pictures.txt'), 'w') as f:
+            f.write(SharedPictures.QUERY)
+        with open(os.path.join(d, 'black.raw'), 'wb') as f:
+            f.write(struct.pack('<IIII', 4, 4, 1, 0) + bytes([0, 0, 0, 255]) * 16)
+        again = '[ $(grep -c "^shell am start" "%s/platform-tools/calls") -ge 2 ]' % d
+        cases = '  "shell content query "*) %s && cat "%s/pictures.txt" || echo "No result found." ;;\n' % (again, d)
+        status, out = self.device(again + ' && echo 3612 || true', timeout='3', cases=cases,
+                                  argv=('--picture', 'oxt-beyond-probe.png'),
+                                  screencap=again + ' || { cat "%s/black.raw"; exit 0; }; ' % d,
+                                  exits=self.EXIT_INFO)
+        self.assertEqual(status, 0, out)
+        self.assertEqual(sum(c.startswith('shell am start') for c in self.calls()), 2)
+        for problem in ("the screen never turned the probe's green (0% green, 0% red: the stack never showed)",
+                        "the app is not running",
+                        "the probe's picture oxt-beyond-probe.png is not in the shared Pictures folder"):
+            self.assertIn("\n  the first run's problem: " + problem, out)
+        self.assertNotIn('PROBLEM:', out)
+
+    # ps on Android 5 (toolbox's: a state column before the name)
+    PS = ('USER     PID   PPID  VSIZE  RSS     WCHAN    PC         NAME\n'
+          'root      1     0     8904   788   ffffffff 00000000 S /init\n'
+          'u0_a57    2345  1234  1023456 45678 ffffffff 00000000 S org.openxtalk.check.androidprobe\n'
+          'u0_a57    2400  1234  1000000 40000 ffffffff 00000000 S org.openxtalk.check.androidprobe:remote\n'
+          'u0_a58    2500  1234  1000000 40000 ffffffff 00000000 S org.openxtalk.check.androidprobe2\n')
+
+    def test_pids_in_ps(self):
+        self.assertEqual(ac.pids_in_ps(self.PS), '2345')
+        self.assertEqual(ac.pids_in_ps(self.PS.replace(' 2345 ', ' 23x5 ')), '')
+        self.assertEqual(ac.pids_in_ps(self.PS + 'u0_a57    2600  1234  1 2 f 0 S org.openxtalk.check.androidprobe\n'),
+                         '2345 2600')
+        self.assertEqual(ac.pids_in_ps(''), '')
+
+    def test_no_pidof_asks_ps(self):
+        # Android 5's shell has no pidof: ps says, at once (no wait for a
+        # device that is there)
+        said = []
+
+        def a(*cmd, timeout=180):
+            said.append(cmd)
+            if cmd[:2] == ('shell', 'pidof'):
+                return 0, '/system/bin/sh: pidof: not found\n'
+            return 0, ps
+        ps = self.PS
+        self.assertEqual(ac.pid_now(a), '2345')
+        self.assertEqual(said, [('shell', 'pidof', ac.IDENTIFIER), ('shell', 'ps')])
+        ps = self.PS.replace('S org.openxtalk.check.androidprobe\n', 'S com.android.phone\n')
+        self.assertEqual(ac.pid_now(a), '')
+        # an older toybox's word for it too
+        self.assertTrue(re.search(ac.NO_PIDOF, 'pidof: inaccessible or not found'))
+        self.assertFalse(re.search(ac.NO_PIDOF, 'adb: device offline'))
+
+    def test_on_android_5(self):
+        # no pidof and no getconf: the run goes on with ps, and says the
+        # page size is not known
+        status, out = self.device('echo "/system/bin/sh: pidof: not found"', page='echo "/system/bin/sh: getconf: '
+                                  'not found"', cases='  "shell ps") printf "%s" ;;\n' % self.PS.replace('\n', '\\n'))
+        self.assertEqual(status, 0, out)
+        self.assertIn('Device emulator-5554: API 35, x86_64, its page size not said (getconf: /system/bin/sh: '
+                      'getconf: not found)\n', out)
+        self.assertIn("process 2345", out)
+        self.assertNotIn('waiting for the device', out)
+        status, out = self.device('echo 3475')
+        self.assertIn('Device emulator-5554: API 35, x86_64, pages of 16384 bytes\n', out)
 
     def test_gone_after_drawing(self):
         status, out = self.device('true')
@@ -1846,7 +2048,7 @@ class DeviceOnceInAProcess(unittest.TestCase):
 
     def run_probe(self, argv, font='same', density='new', back='ends', again='new', font_before='1.0',
                   offline_at=None, tap='waits', reset='new', cleared=False, window=Device.WINDOW, held=None,
-                  relaunch_reason='handleRelaunchActivity', cut=()):
+                  relaunch_reason='handleRelaunchActivity', cut=(), exits=None):
         """What the stand-in device's probe does: for a font size change
         (same: goes on in its process; crash: the second start stopped,
         and no process), a density change (new: started again in a new
@@ -1872,7 +2074,8 @@ class DeviceOnceInAProcess(unittest.TestCase):
         its activity was made again (`logcat -v epoch`'s events, its stop's
         reason relaunch_reason), or None: no such lines; cut: the numbers of
         the screencaps (counted from 1) that come back cut short, as the 16
-        KB image's did in run 42578112540"""
+        KB image's did in run 42578112540; exits: what dumpsys activity
+        exit-info says, or None: Device.device's"""
         d = self.tmp.name
         with open(os.path.join(d, 'logcat.txt'), 'w') as f:
             f.write('' if cleared else Device.LOG.split('I/lowmemorykiller')[0])
@@ -1941,7 +2144,8 @@ class DeviceOnceInAProcess(unittest.TestCase):
         try:
             status, out = self.device(pidof, timeout='10', cases=cases, window=window, screencap=screencap,
                                       events='cat "%s/events.txt"' % d,
-                                      argv=list(argv) + ['--out', os.path.join(d, 'screen.png')])
+                                      argv=list(argv) + ['--out', os.path.join(d, 'screen.png')],
+                                      **({} if exits is None else {'exits': exits}))
         finally:
             ac.RETURN_WAIT, ac.END_WAIT, ac.FONT_SETTLE, ac.WAIT_SEEN, ac.FOCUS_WAIT, ac.SCREEN_AGAIN = saved
         return status, out, [c for c in self.calls() if c.startswith(('shell settings', 'shell wm',
@@ -2012,6 +2216,20 @@ class DeviceOnceInAProcess(unittest.TestCase):
         self.assertIn('fdsan: attempted to close file descriptor 0', out)
         # the font size is put back all the same
         self.assertEqual(calls[-1], 'shell settings put system font_scale 1.0')
+
+    def test_a_crash_the_checks_found_is_not_run_again(self):
+        # the font size change stopped the probe (its crash in the log the
+        # check cleared first, so not the start's), and exit-info says the
+        # low memory killer ended that process too: the crash is the
+        # result, with no second run to hide it
+        status, out, calls = self.run_probe(
+            ['--font-scale'], font='crash',
+            exits='printf "  ApplicationExitInfo #0:\\n    pid=3475 reason=3 (LOW_MEMORY)\\n"')
+        self.assertEqual(status, 1, out)
+        self.assertIn('\n      pid=3475 reason=3 (LOW_MEMORY)', out)
+        self.assertEqual(sum(c.startswith('shell am start') for c in calls), 1, calls)
+        self.assertNotIn('the run once more', out)
+        self.assertIn("PROBLEM: the device's log across the font size change: F/libc    ( 3475): Fatal signal 6", out)
 
     def test_started_again_for_a_density_change(self):
         status, out, calls = self.run_probe(['--density'])
@@ -4769,11 +4987,13 @@ class OneSystem(unittest.TestCase):
         # is the stack's name, and OXT_ANDROID_PROBE picks it
         script = read('tools', 'ci', 'android-check.livecodescript')
         self.assertEqual(ac.PROBES, {'app': 'AndroidProbe.livecode', 'java': 'AndroidJavaProbe.livecode',
-                                     'busy': 'AndroidBusyProbe.livecode', 'edge': 'AndroidEdgeProbe.livecode'})
+                                     'busy': 'AndroidBusyProbe.livecode', 'edge': 'AndroidEdgeProbe.livecode',
+                                     'tests': 'StandaloneTestRunnerMainstack.livecode'})
         name = re.search(r'(?s)private function probeName\n(.*?)\nend probeName', script).group(1)
         self.assertIn('if $OXT_ANDROID_PROBE is "java" then\n      return "AndroidJavaProbe"', name)
         self.assertIn('if $OXT_ANDROID_PROBE is "busy" then\n      return "AndroidBusyProbe"', name)
         self.assertIn('if $OXT_ANDROID_PROBE is "edge" then\n      return "AndroidEdgeProbe"', name)
+        self.assertIn('if $OXT_ANDROID_PROBE is "tests" then\n      return "StandaloneTestRunnerMainstack"', name)
         self.assertIn('return "AndroidProbe"', name)
         # the app probe is the one that names none
         self.assertIn("OXT_ANDROID_PROBE='' if args.probe == 'app' else args.probe,", read('tools', 'ci', 'android_check.py'))
@@ -4782,7 +5002,8 @@ class OneSystem(unittest.TestCase):
         # layer's probe: its openStack, its backKey, and its build's
         # permissions; the busy probe: its openStack's first send, and its
         # probeBusy; the edge probe: its openStack's rects, its probeEdge,
-        # and its build's setting)
+        # and its build's setting; the script tests: the stack that
+        # makeProbeStack makes, and its build's settings)
         self.assertEqual(script.count('"AndroidProbe"'), 1)
         self.assertEqual(script.count('"AndroidJavaProbe"'), 4)
         self.assertEqual(script.count('if probeName() is "AndroidJavaProbe" then'), 3)
@@ -4790,8 +5011,12 @@ class OneSystem(unittest.TestCase):
         self.assertEqual(script.count('if probeName() is "AndroidBusyProbe" then'), 2)
         self.assertEqual(script.count('"AndroidEdgeProbe"'), 4)
         self.assertEqual(script.count('if probeName() is "AndroidEdgeProbe" then'), 3)
+        self.assertEqual(script.count('"StandaloneTestRunnerMainstack"'), 3)
+        self.assertEqual(script.count('if tProbe is "StandaloneTestRunnerMainstack" then'), 1)
+        self.assertEqual(script.count('if probeName() is "StandaloneTestRunnerMainstack" then'), 1)
         with tempfile.TemporaryDirectory() as work:
-            for name in ('Busy', 'AndroidBusyProbe', 'Edge', 'AndroidEdgeProbe', ''):
+            for name in ('Busy', 'AndroidBusyProbe', 'Edge', 'AndroidEdgeProbe', 'Tests',
+                         'StandaloneTestRunnerMainstack', ''):
                 with contextlib.redirect_stderr(io.StringIO()):
                     with self.assertRaises(SystemExit):
                         ac.main(['ide', '--work', work, '--probe', name])
@@ -4805,7 +5030,8 @@ class OneSystem(unittest.TestCase):
         script = read('tools', 'ci', 'android-check.livecodescript')
         self.assertIn('constant kEdgeWait = 1000\n', script)
         self.assertIn('--                          "busy" for the busy probe (see kBusyTick),\n'
-                      '--                          "edge" for the edge probe (see kEdgeWait)\n', script)
+                      '--                          "edge" for the edge probe (see kEdgeWait),\n'
+                      '--                          "tests" for the script tests (see kTestsScript)\n', script)
         body = re.search(r'(?s)private function probeScript\n(.*?)\nend probeScript', script).group(1)
         # green first, then the rects, now and kEdgeWait later
         self.assertIn('   put "   set the backgroundColor of me to" && quote & kRunColor & quote & return after '
@@ -4826,11 +5052,28 @@ class OneSystem(unittest.TestCase):
         # lines, edge_rects)
         self.assertEqual(ac.edge_rects(['screenRect 0,0,1,2', 'effective working screenRect 0,1,1,2']),
                          ((0, 0, 1, 2), (0, 1, 1, 2)))
-        # its build asks to be drawn edge to edge
+        # its build asks to be drawn edge to edge, and for an adaptive icon
+        # that is a themed one: the probe's picture, written beside the
+        # stack as the foreground and the monochrome picture (paths
+        # relative to the stack's folder), over the probe's green (read by
+        # verify --adaptive-icon)
         settings = re.search(r'(?s)private function buildSettings pName\n(.*?)\nend buildSettings', script).group(1)
         self.assertIn('   if probeName() is "AndroidEdgeProbe" then\n'
                       '      put true into tSettings["android,edge to edge"]\n'
+                      '      set the itemDelimiter to slash\n'
+                      '      put base64Decode(kProbePicture) into url ("binfile:" & item 1 to -2 of $OXT_ANDROID_STACK '
+                      '& slash & kProbeIconForeground)\n'
+                      '      put base64Decode(kProbePicture) into url ("binfile:" & item 1 to -2 of $OXT_ANDROID_STACK '
+                      '& slash & kProbeIconMonochrome)\n'
+                      '      set the itemDelimiter to comma\n'
+                      '      put kProbeIconForeground into tSettings["android,adaptive icon"]\n'
+                      '      put kProbeIconMonochrome into tSettings["android,themed icon"]\n'
+                      '      put kRunColor into tSettings["android,adaptive icon background"]\n'
                       '   end if\n', settings)
+        self.assertIn('constant kProbeIconForeground = "oxt-icon-foreground.png"\n', script)
+        self.assertIn('constant kProbeIconMonochrome = "oxt-icon-monochrome.png"\n', script)
+        # the only probe with one
+        self.assertEqual(settings.count('"android,adaptive icon"'), 1)
         # its wait (s) is less than device's for what it says
         self.assertLess(1000 / 1000, ac.EDGE_WAIT)
 
@@ -5120,10 +5363,12 @@ class OneSystem(unittest.TestCase):
             self.assertEqual('--allow android.permission.POST_NOTIFICATIONS' in run, run in java_new, run)
 
     def test_java_probe_reads_its_copy_file(self):
-        # the Java layer's probe, and only it, carries a copy file (the
-        # standalone settings' "files"), which the engine reads from the
-        # package's assets by their offsets: so a package that compressed
-        # its assets (an App Bundle without "assets/**" stored) fails here
+        # the Java layer's probe, and of the probes only it, carries a copy
+        # file (the standalone settings' "files"), which the engine reads
+        # from the package's assets by their offsets: so a package that
+        # compressed its assets (an App Bundle without "assets/**" stored)
+        # fails here. (The script tests' stack carries the tests as copy
+        # files too: test_android_tests)
         script = read('tools', 'ci', 'android-check.livecodescript')
         self.assertIn('constant kProbeCopyName = "oxt-probe.txt"\n', script)
         self.assertIn('constant kProbeCopy = "OXT-Beyond probe copy file"\n', script)
@@ -5132,7 +5377,11 @@ class OneSystem(unittest.TestCase):
         self.assertIn('      put kProbeCopy into url ("binfile:" & item 1 to -2 of $OXT_ANDROID_STACK & slash '
                       '& kProbeCopyName)\n', java)
         self.assertIn('      put kProbeCopyName into tSettings["files"]', java)
-        self.assertEqual(body.count('tSettings["files"]'), 1)
+        self.assertEqual(java.count('tSettings["files"]'), 1)
+        tests = re.search(r'(?s)   if probeName\(\) is "StandaloneTestRunnerMainstack" then\n(.*?)\n   end if\n',
+                          body).group(1)
+        self.assertEqual(tests.count('tSettings["files"]'), 2)
+        self.assertEqual(body.count('tSettings["files"]'), 3)
         # the probe reads it from the engine's folder, says what it read,
         # and fails if it is not the text written
         read_line = ('"   put url (" & quote & "binfile:" & quote && "& specialFolderPath(" & quote & "engine" & quote '
@@ -5279,17 +5528,20 @@ class OneSystem(unittest.TestCase):
                         workflow.index('- name: Run the busy probe across density changes on Android 13'))
 
     def test_java_probe_verified_at_the_newest_target(self):
-        # the Java layer's probe and the app probe are built with a Java
-        # layer ready for 36, so they target 36; the other packages, built
-        # with the release's runtime, target what the builder picks for it
-        # (33 with 9.6.3's Java layer, 36 with one built here)
+        # the Java layer's probe, the app probe and the edge probe are
+        # built with a Java layer ready for 36, so they target 36 (the edge
+        # probe's verify reads its adaptive icon too); the other packages,
+        # built with the release's runtime, target what the builder picks
+        # for it (33 with 9.6.3's Java layer, 36 with one built here)
         workflow = read('.github', 'workflows', 'android.yml')
         verifies = [re.sub(r'\\\n\s*', '', v) for v in
                     re.findall(r'android_check\.py verify(?:[^\n]*\\\n)*[^\n]*', workflow)]
-        self.assertEqual(len(verifies), 3, verifies)
+        self.assertEqual(len(verifies), 4, verifies)
         for v in verifies:
             if '/java-new"' in v or '/java-app"' in v:
                 self.assertTrue(v.endswith('--target %s' % ac.NEWEST_TARGET_SDK), v)
+            elif '/java-edge"' in v:
+                self.assertTrue(v.endswith('--target %s --adaptive-icon' % ac.NEWEST_TARGET_SDK), v)
             else:
                 self.assertEqual(v, 'android_check.py verify --work "$WORK/changed" --sdk "$SDK" --jdk "$JDK" '
                                     '--target-for "$CHANGED"')
@@ -5437,6 +5689,102 @@ class OneSystem(unittest.TestCase):
         pick = re.search(r'(?s)img16=\$\((.*?)\)\n', workflow).group(1)
         self.assertIn("if (v + 0 >= %s) print" % ac.NEWEST_TARGET_SDK, pick)
         self.assertTrue(pick.rstrip().endswith('head -n 1'), pick)
+
+
+class AdaptiveIconCheck(unittest.TestCase):
+    """verify --adaptive-icon: what aapt says of the edge probe's adaptive
+    icon (a themed one) and of the icon the manifest names"""
+
+    DUMP = (
+        'Package Groups (1)\n'
+        'Package Group 0 id=0x7f packageCount=1 name=org.openxtalk.check.androidprobe\n'
+        '  Package 0 id=0x7f name=org.openxtalk.check.androidprobe\n'
+        '    type 1 configCount=2 entryCount=3\n'
+        '      spec resource 0x7f020000 org.openxtalk.check.androidprobe:drawable/icon: flags=0x00000100\n'
+        '      spec resource 0x7f020001 org.openxtalk.check.androidprobe:drawable/icon_foreground: flags=0x0\n'
+        '      config (default):\n'
+        '        resource 0x7f020000 org.openxtalk.check.androidprobe:drawable/icon: t=0x03 d=0x00000000\n'
+        '      config nodpi-v4:\n'
+        '        resource 0x7f020001 org.openxtalk.check.androidprobe:drawable/icon_foreground: t=0x03\n'
+        '      config anydpi-v26:\n'
+        '        resource 0x7f020000 org.openxtalk.check.androidprobe:drawable/icon: t=0x03 d=0x00000002\n')
+    ICON = (
+        'N: android=http://schemas.android.com/apk/res/android\n'
+        '  E: adaptive-icon (line=2)\n'
+        '    E: background (line=3)\n'
+        '      A: android:drawable(0x01010199)=@0x7f030000\n'
+        '    E: foreground (line=4)\n'
+        '      A: android:drawable(0x01010199)=@0x7f020001\n'
+        '    E: monochrome (line=5)\n'
+        '      A: android:drawable(0x01010199)=@0x7f020002\n')
+    MANIFEST = (
+        'N: android=http://schemas.android.com/apk/res/android\n'
+        '  E: manifest (line=2)\n'
+        '    E: application (line=9)\n'
+        '      A: android:label(0x01010001)="Android Probe" (Raw: "Android Probe")\n'
+        '      A: android:icon(0x01010002)=@0x7f020000\n'
+        '      E: activity (line=10)\n')
+    # as aapt packages them: the builder's res/drawable-nodpi is
+    # res/drawable-nodpi-v4 in the package
+    FILES = {'AndroidManifest.xml', 'res/drawable/icon.png', 'res/drawable-anydpi-v26/icon.xml',
+             'res/drawable-nodpi-v4/icon_foreground.png', 'res/drawable-nodpi-v4/icon_monochrome.png'}
+
+    def test_resource_configs(self):
+        self.assertEqual(ac.resource_configs(self.DUMP, 'drawable/icon'), ['default', 'anydpi-v26'])
+        self.assertEqual(ac.resource_configs(self.DUMP, 'drawable/icon_foreground'), ['nodpi-v4'])
+        self.assertEqual(ac.resource_configs(self.DUMP, 'drawable/none'), [])
+
+    def test_a_themed_adaptive_icon(self):
+        problems, notes = ac.adaptive_icon_problems('debug', self.FILES, self.MANIFEST, self.ICON,
+                                                    ['default', 'anydpi-v26'])
+        self.assertEqual(problems, [])
+        self.assertIn('themed', notes[0])
+
+    def test_what_is_wrong(self):
+        self.assertIn('has no adaptive icon', ac.adaptive_icon_problems(
+            'debug', self.FILES - {'res/drawable-anydpi-v26/icon.xml'}, self.MANIFEST, '', [])[0][0])
+        problems, _ = ac.adaptive_icon_problems('debug', self.FILES - {'res/drawable-nodpi-v4/icon_monochrome.png',
+                                                                       'res/drawable/icon.png'},
+                                                self.MANIFEST, self.ICON.replace('E: monochrome', 'E: other'),
+                                                ['anydpi-v26'])
+        text = '\n'.join(problems)
+        self.assertIn('icon_monochrome.png', text)
+        self.assertIn('no icon for Android before 8.0', text)
+        self.assertIn('no monochrome layer', text)
+        self.assertIn('has no default configuration', text)
+        problems, _ = ac.adaptive_icon_problems(
+            'debug', self.FILES, self.MANIFEST.replace('      A: android:icon(0x01010002)=@0x7f020000\n', ''),
+            self.ICON.replace('adaptive-icon', 'layer-list'), ['default', 'anydpi-v26'])
+        text = '\n'.join(problems)
+        self.assertIn('names no icon', text)
+        self.assertIn('is not an adaptive icon', text)
+
+    def test_the_pictures_folder(self):
+        # the folder as aapt packages it, or as the builder writes it; a
+        # picture of that name in another folder is not the adaptive icon's
+        self.assertEqual(ac.adaptive_picture(self.FILES, 'icon_foreground.png'),
+                         'res/drawable-nodpi-v4/icon_foreground.png')
+        self.assertEqual(ac.adaptive_picture({'res/drawable-nodpi/icon_foreground.png'}, 'icon_foreground.png'),
+                         'res/drawable-nodpi/icon_foreground.png')
+        for other in ('res/drawable-hdpi-v4/icon_foreground.png', 'res/drawable/icon_foreground.png',
+                      'res/drawable-nodpi-v4/x/icon_foreground.png', 'assets/res/drawable-nodpi-v4/icon_foreground.png',
+                      'res/drawable-nodpi-v4/my_icon_foreground.png'):
+            self.assertIsNone(ac.adaptive_picture({other}, 'icon_foreground.png'), other)
+        moved = {f.replace('drawable-nodpi-v4', 'drawable-hdpi-v4') for f in self.FILES}
+        problems, _ = ac.adaptive_icon_problems('debug', moved, self.MANIFEST, self.ICON, ['default', 'anydpi-v26'])
+        self.assertEqual(len(problems), 2, problems)
+        self.assertIn('no icon_foreground.png in res/drawable-nodpi', problems[0])
+
+    def test_a_layer_without_its_drawable(self):
+        # the next element's drawable is not taken for it
+        icon = self.ICON.replace('      A: android:drawable(0x01010199)=@0x7f030000\n', '')
+        problems, _ = ac.adaptive_icon_problems('debug', self.FILES, self.MANIFEST, icon, ['default', 'anydpi-v26'])
+        self.assertEqual(problems, ['debug: its adaptive icon has no background layer naming a resource'])
+
+    def test_the_option(self):
+        args = ac.main.__code__  # noqa: F841 (the parser is built in main)
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            ac.main(['verify', '--work', 'x', '--sdk', 'y', '--adaptive-icon', '--no-such-option'])
 
 
 if __name__ == '__main__':

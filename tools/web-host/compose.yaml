@@ -1,0 +1,32 @@
+# The OXT-Beyond web host with Caddy in front for HTTPS (README.md).
+#
+#   OXT_VERSION=0.2.7 OXT_PASSWORD=... docker compose up -d
+#
+# Edit Caddyfile first: its two host names must point at this server.
+services:
+  oxt:
+    build:
+      context: .
+      args:
+        OXT_VERSION: ${OXT_VERSION:?set OXT_VERSION, for example 0.2.7}
+    environment:
+      OXT_PASSWORD: ${OXT_PASSWORD:?set OXT_PASSWORD: the IDE faces the internet}
+    volumes:
+      - oxt-data:/data
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - oxt
+    restart: unless-stopped
+
+volumes:
+  oxt-data:
+  caddy-data:

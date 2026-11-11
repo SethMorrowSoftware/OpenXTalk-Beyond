@@ -593,7 +593,13 @@ class Workflow(unittest.TestCase):
 
     @unittest.skipIf(shutil.which('bash') is None or os.name == 'nt', 'no bash')
     def test_the_check_step(self):
-        self.assertEqual(len(self.engine_jobs()), 5)
+        # the asset waits for the four builds and the emulator's run of the
+        # engine, not for the script tests' job (android_tests.py), whose
+        # results are judged against their baselines as evidence for the
+        # engine, not a gate on its asset
+        self.assertEqual(len(self.engine_jobs()), 6)
+        self.assertIn('Script tests on the emulator', self.engine_jobs())
+        self.assertNotIn('Script tests on the emulator', self.steps['Check the label and the runs']['run'])
         code, out, written = self.check_step(self.runs())
         self.assertEqual((code, written), (0, 'commit=%s\n' % COMMIT), out)
         self.assertNotIn('run 3', out)

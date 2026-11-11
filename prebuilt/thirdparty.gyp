@@ -1721,6 +1721,8 @@
 							'libraries':
 							[
 								'-lpq',
+								# libpq 17 uses POSIX threads (thirdparty/libpq/ORIGIN)
+								'-lpthread',
 							],
 						},
 					],
@@ -1794,6 +1796,10 @@
 							'libraries':
 							[
 								'-lmysql',
+								# MariaDB Connector/C uses POSIX threads and dlerror
+								# (thirdparty/libmysql/ORIGIN)
+								'-lpthread',
+								'-ldl',
 							],
 						},
 					],
@@ -1820,7 +1826,9 @@
 							'libraries':
 							[
 								'-ladvapi32',
+								'-lshlwapi',
 								'-luser32',
+								'-lws2_32',
 								'-llibmysql',
 							],
 						},

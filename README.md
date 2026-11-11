@@ -79,6 +79,9 @@ thing is built, packaged and tested in the open from this repository.
   out for a phone, a tablet and a desktop, and the whole IDE runs in a
   web page as the
   [web IDE](https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/ide/).
+  Both can run on your own web site: the release's web bundle drops onto
+  any web host, and the web host keeps your stacks on your own server
+  ([tools/web-host](tools/web-host/README.md)).
 - **The xTalk Suite built in**: cryptography, BitTorrent, reliable UDP,
   WebRTC, Tor, Bitcoin and Ethereum primitives, 2-D physics and Nostr,
   as ready-to-use xTalk handlers (see
@@ -233,7 +236,9 @@ Earlier versions, from 0.2.1 to 0.2.5, are described under
   runtime a package carries, Android aside, and run those the test
   machine can run; Android packages are built by the IDE's Android
   builder with a real Android SDK, checked, and run on Android emulators
-  by a workflow of their own (see [BUILDING.md](BUILDING.md#android-standalone-check)).
+  by a workflow of their own (see [BUILDING.md](BUILDING.md#android-standalone-check)),
+  and the LiveCode Script tests run on an Android emulator with both
+  Android engines (see [BUILDING.md](BUILDING.md#android-script-tests)).
 - **Some old third-party libraries.** OpenSSL (3.5.9, a long-term
   support release), curl (8.22.0) and ICU (78.3) are current, built from
   source for every platform, and so are the image and pattern libraries
@@ -581,13 +586,19 @@ What it needs:
   DataChannelXT glibc 2.38 and OpenSSL 3. The 32-bit libraries that x86
   standalones get still need glibc 2.33 (SodiumXT), 2.34 (Box2Dxt), or
   2.38 and OpenSSL 3 (TorrentXT and DataChannelXT).
-- **The player** runs `/usr/bin/mplayer`: on Debian and Ubuntu
-  `sudo apt install mplayer`. Without it, players open no file, and the
-  Tools palette has no Player tool. mplayer draws only the video: the
-  controller below it (`showController`) is drawn by OXT-Beyond, with a
-  play/pause button and a well to seek in, but no volume, step or
-  selection buttons as on Windows and macOS. A click in the well of an
-  MP4 file goes to the key frame before that time, as mplayer seeks.
+- **The player** runs `/usr/bin/mplayer` when it is installed, and plays
+  through GStreamer 1.x when it is not (many distributions no longer
+  package mplayer). For GStreamer, install its plugins: on Debian and
+  Ubuntu `sudo apt install gstreamer1.0-plugins-good gstreamer1.0-libav
+  gstreamer1.0-x` (MP4 files need libav); or install mplayer (`sudo apt
+  install mplayer`). With neither, players open no file, and the Tools
+  palette has no Player tool. `OXT_PLAYER_BACKEND=gstreamer` (or
+  `mplayer`) in the environment chooses one of the two. Either draws
+  only the video: the controller below it (`showController`) is drawn by
+  OXT-Beyond, with a play/pause button and a well to seek in, but no
+  volume, step or selection buttons as on Windows and macOS. A click in
+  the well of an MP4 file goes to the key frame before that time when
+  mplayer plays it, as mplayer seeks.
 
 Either one can be turned on or off in Preferences > Compatibility ("Disable
 the Browser widget", "Disable the Player tool"); the IDE sets them when it
@@ -3930,6 +3941,22 @@ OXT-Beyond 0.2.7-rc.5, a test release and the last candidate before
   ResCopy, Search, ColorizeHC and popUp give the error an XCMD would.
   The dialogs and popups are verified statically and need a pass in the
   IDE.
+- **More stand-ins, and no XFCN stops a script.** The library also
+  answers EnableMenu, CheckMenu and ChangeMenu, AddColor, MacinTalk
+  (Phonemes, SayPhonetic, MacinTalkSay, TurnSpeechOn and Off, SetPitch,
+  SetRate), LeafName, killPalette, ZoomRect, Progress, CopyRes,
+  ModResCopy and the Pioneer, Panasonic and Sony videodisc drivers. An
+  XFCN of the stack's resource fork that the library does not answer
+  now gives empty, as an XCMD already did nothing, so the script goes
+  on; up to 0.2.7 it stopped there. A stack imported before keeps the
+  library it was given.
+- **The import summary in three parts.** The window File > Import Stack
+  shows after an import now reads Converted (the scripts rewritten, and
+  the icons, cursors, sounds, pictures and palettes made from the
+  resource fork), Stood in for (the XCMDs that do nothing and the XFCNs
+  that give empty) and Dropped (the handlers and lines left out, the
+  sounds, pictures and resources not converted, the fonts this system
+  lacks), on one screen.
 
 - **xTalk Chat** (*Development > Plugins > xTalk Chat*): a chat in the
   IDE for the people using xTalk who choose to go online, with public
@@ -4571,8 +4598,10 @@ Known limitations, in rough order of importance:
 10. The player depends on what the system can play. On Windows it uses
    DirectShow, which cannot open MP4 (H.264 and AAC) files without a
    third-party DirectShow filter such as LAV Filters; AVI files play.
-   On Linux it runs mplayer, which must be installed (`sudo apt install
-   mplayer` on Debian and Ubuntu); without it no file plays. macOS
+   On Linux it runs mplayer, or GStreamer when mplayer is not installed
+   (its plugins: `sudo apt install gstreamer1.0-plugins-good
+   gstreamer1.0-libav gstreamer1.0-x` on Debian and Ubuntu); with
+   neither no file plays. macOS
    plays both. A Media Foundation player for Windows would open MP4
    files by itself; whether to write one is not decided yet.
 11. In an install for all users, a few things that save stacks inside

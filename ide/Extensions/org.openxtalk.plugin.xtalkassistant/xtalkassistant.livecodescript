@@ -99,6 +99,9 @@ constant kPrefShortGuide = "cXTalkAssistant,shortGuide"
 constant kPrefTools = "cXTalkAssistant,tools"
 constant kPrefMaxTokens = "cXTalkAssistant,maxTokens"
 constant kPrefTimeout = "cXTalkAssistant,timeout"
+-- The context a model on the user's own server is loaded with (empty: as
+-- the server loads it; xtaEnsureContext in the core)
+constant kPrefContextLength = "cXTalkAssistant,contextLength"
 constant kPrefBuild = "cXTalkAssistant,build"
 constant kPrefPictures = "cXTalkAssistant,pictures"
 -- The most of the open script that is sent with a question, in characters
@@ -118,6 +121,11 @@ constant kMostRoom = 32000
 -- tokens (the provider refuses more than its model takes, and says so),
 -- and how many seconds a request may go without data
 constant kMaxMaxTokens = 1000000
+-- The context length a local model may be asked to load with, in tokens:
+-- less than the short guide's room makes no sense, and no model takes more
+-- than ten million
+constant kMinContextLength = 512
+constant kMaxContextLength = 10000000
 -- What an empty wait means, as the core's kRequestTimeoutMilliseconds: at
 -- least that, and longer for an answer given more room (xtaRequestWait)
 constant kDefaultTimeout = 600
@@ -2515,6 +2523,7 @@ private function xtaSettings
    put xtaModel(tProvider) into tSettings["model"]
    put revIDEGetPreference(kPrefMaxTokens) into tSettings["maxTokens"]
    put revIDEGetPreference(kPrefTimeout) into tSettings["timeout"]
+   put revIDEGetPreference(kPrefContextLength) into tSettings["contextLength"]
    return tSettings
 end xtaSettings
 
@@ -2737,13 +2746,22 @@ private command xtaBuildSettings
    set the tooltip of button "Model" to "Choose a model, or type its name"
    create button "Get Models"
    set the rect of button "Get Models" to tRight - 100, tTop, tRight, tTop + 24
-   set the tooltip of button "Get Models" to "Ask the provider for its models (this also tries the key)"
-   add 25 to tTop
-   xtaSettingsNote "Model Note", tLeft, tTop, tRight, 31
-   put "Choose a model or type its name. Get Models asks the provider for all of them, and tells you whether the key works." \
-         into field "Model Note"
+   set the tooltip of button "Get Models" to "Ask the provider for all of its models (this also tells you whether the key works)"
 
-   add 32 to tTop
+   -- OpenAI's API cannot say how much context a request needs; LM Studio
+   -- (0.4 and later) loads the model with this much before a question
+   -- (xtaEnsureContext). The row is where a note under the model was
+   -- (what Get Models does, now its tooltip): the dialog was 639 high,
+   -- and a row more would not fit a 720p screen. 28, not 30: then the
+   -- dialog is 640.
+   add 28 to tTop
+   xtaSettingsLabel "Context length", tTop
+   xtaSettingsField "Context Length", tLeft, tTop, tLeft + 80
+   set the tooltip of field "Context Length" to "LM Studio 0.4 or later loads the model with at least this many tokens of context before each question"
+   xtaSettingsNote "Context Length Note", tLeft + 88, tTop, tRight, 20
+   put "tokens of context, for a model in LM Studio (empty: as LM Studio loads it)" into field "Context Length Note"
+
+   add 30 to tTop
    xtaSettingsSection "Section3", "3  Answers", tTop
    xtaSettingsLabel "Longest answer", tTop
    xtaSettingsField "Max Tokens", tLeft, tTop, tLeft + 80
@@ -2876,6 +2894,7 @@ private command xtaFillSettings pProvider, pAll
       put revIDEGetPreference(kPrefMaxTokens) into field "Max Tokens" of stack kSettingsWindow
       put xtaFixRounds() into field "Fix Rounds" of stack kSettingsWindow
       put revIDEGetPreference(kPrefTimeout) into field "Timeout" of stack kSettingsWindow
+      put revIDEGetPreference(kPrefContextLength) into field "Context Length" of stack kSettingsWindow
       set the hilite of button "Include" of stack kSettingsWindow to (revIDEGetPreference(kPrefIncludeScript) is not false)
       set the hilite of button "Tools" of stack kSettingsWindow to (revIDEGetPreference(kPrefTools) is not false)
       set the hilite of button "Pictures" of stack kSettingsWindow to (revIDEGetPreference(kPrefPictures) is not false)
@@ -3179,7 +3198,8 @@ end xtaSettingsGetModels
 
 -- What the dialog holds, checked: "drafts" (by provider: "key", "baseUrl"
 -- and "model", trimmed, a base URL that is the provider's own as empty),
--- "maxTokens", "fixRounds" and "timeout"; or "error", why it cannot be
+-- "maxTokens", "fixRounds", "timeout" and "contextLength"; or "error",
+-- why it cannot be
 -- kept, in words for the user. The shown provider's fields must be in
 -- sDrafts already (xtaKeepDraft).
 private function xtaSettingsChecked
@@ -3223,6 +3243,12 @@ private function xtaSettingsChecked
       return tChecked
    end if
    put tNumber into tChecked["timeout"]
+   put word 1 to -1 of field "Context Length" of stack kSettingsWindow into tNumber
+   if tNumber is not empty and not (tNumber is an integer and tNumber >= kMinContextLength and tNumber <= kMaxContextLength) then
+      put "The context length is a whole number of tokens, from" && kMinContextLength && "to" && kMaxContextLength & ", or empty." into tChecked["error"]
+      return tChecked
+   end if
+   put tNumber into tChecked["contextLength"]
    return tChecked
 end xtaSettingsChecked
 
@@ -3283,6 +3309,7 @@ on xtaSettingsSave
    revIDESetPreference kPrefMaxTokens, tChecked["maxTokens"]
    revIDESetPreference kPrefFixRounds, tChecked["fixRounds"] + 0
    revIDESetPreference kPrefTimeout, tChecked["timeout"]
+   revIDESetPreference kPrefContextLength, tChecked["contextLength"]
    revIDESetPreference kPrefIncludeScript, the hilite of button "Include" of stack kSettingsWindow
    revIDESetPreference kPrefTools, the hilite of button "Tools" of stack kSettingsWindow
    revIDESetPreference kPrefPictures, the hilite of button "Pictures" of stack kSettingsWindow

@@ -18,6 +18,11 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 extern bool load_ssl_library();
 
+// The client library (thirdparty/libmysql, MariaDB Connector/C) may call
+// OpenSSL only once this is true: the engine reaches OpenSSL through stubs
+// that are empty until its SSL library is loaded (include/ma_crypt.h)
+extern "C" int ma_oxt_openssl_loaded;
+
 #if defined(_WINDOWS)
 #define strcasecmp stricmp
 #endif
@@ -78,7 +83,17 @@ Bool DBConnection_MYSQL::connect(char **args, int numargs)
 	else
 		t_use_ssl = 0;
 		
-	if (t_use_ssl && !load_ssl_library())
+	// The SSL library is loaded whenever it can be, not only for TLS: the
+	// logins of MySQL 8 (caching_sha2_password) send the password with RSA
+	// when the connection is not encrypted. Without it, as in a standalone
+	// built without SSL & Encryption, connections without TLS still work as
+	// they did, and only those logins say that they need it.
+	bool t_have_ssl;
+	t_have_ssl = load_ssl_library();
+	if (t_have_ssl)
+		ma_oxt_openssl_loaded = 1;
+
+	if (t_use_ssl && !t_have_ssl)
 	{
 		errorMessageSet("Unable to load SSL library");
 		return false;
@@ -115,8 +130,22 @@ Bool DBConnection_MYSQL::connect(char **args, int numargs)
 			mysql_options(getMySQL(), MYSQL_OPT_CONNECT_TIMEOUT, &t_read_write_timeout))
 			return false;	
 	
+	// TLS when the script asks for it, without checking the server's
+	// certificate, as MySQL Connector/C 6.0 did: if the server does not
+	// offer TLS the connection is made without it. Connector/C 3.4 would
+	// otherwise use TLS for every connection and check the certificate
+	// (thirdparty/libmysql/include/ma_config.h leaves that default off; this
+	// says so for this driver whatever the library's default).
+	my_bool t_ssl_enforce;
+	t_ssl_enforce = t_use_ssl > 0 ? 1 : 0;
+	my_bool t_ssl_verify;
+	t_ssl_verify = 0;
+	if (mysql_optionsv(getMySQL(), MYSQL_OPT_SSL_VERIFY_SERVER_CERT, &t_ssl_verify) ||
+		mysql_optionsv(getMySQL(), MYSQL_OPT_SSL_ENFORCE, &t_ssl_enforce))
+		return False;
+
 	//connect to mysql database.
-	if (!mysql_real_connect(getMySQL(), t_host, t_user, t_password, t_dbname, t_port, t_socket, t_use_ssl > 0 ? CLIENT_SSL : 0))
+	if (!mysql_real_connect(getMySQL(), t_host, t_user, t_password, t_dbname, t_port, t_socket, 0))
 		return False;
 
 	connectionType = CT_MYSQL,

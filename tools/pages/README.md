@@ -120,18 +120,34 @@ files the release has get a link; a package the page's table
 from the suite"; and without a release with packages each card links the
 suite's releases page instead. After them come OXT-Beyond's own two
 plugins, the xTalk Assistant and the xTalk MCP Bridge (`PLUGINS`), each
-linked to its `.lce` in the release the front page's Downloads links
-(`--release`), or to OXT-Beyond's releases without one. The page goes
+linked to its `.lce` in the stable release the front page's Downloads
+links (`--release`; the preview's, `--preview`, while there is no stable
+release), or to OXT-Beyond's releases without one. The page goes
 up with every site, and the front page has its card. [test_pages_extensions.py](../ci/tests/test_pages_extensions.py)
 holds it.
 
-With a release (`--release TAG --release-assets FILE`, which pages.yml
-gives: the release on the site, or the newest when the site has a test
-build), the front page also has a Downloads section, as the forum posts
-have: the Windows, macOS and Linux packages, the web zips and the
-plugins, each linked straight to its file, with links to the release's
-page, earlier releases and a bug report. A file the release does not
-have gets no link.
+With a release (`--release TAG --release-assets FILE`), the front page
+also has a Downloads section, as the forum posts have: the Windows,
+macOS and Linux packages, the web zips and the plugins, each linked
+straight to its file, with links to the release's page, earlier releases
+and a bug report. A file the release does not have gets no link.
+
+The section offers two releases, so that a visitor can choose: the
+current stable release, and after it the current preview of the next
+version (`--preview TAG --preview-assets FILE`), each under its own
+heading ("Stable release", then "Developer preview" for a `-dp.` version
+or "Release candidate" for an `-rc.` one) with its own files, its own
+release page and its own place to link (`#downloads-stable`,
+`#downloads-preview`). pages.yml gives both whatever release or build
+the run puts on the site: [pick_releases.py](pick_releases.py) chooses
+them from the list of the project's releases, by version and not by
+date. The stable release is the highest version that is not a
+pre-release; the preview is the highest pre-release, offered only while
+it is ahead of the stable release, so a version's release candidates
+leave the page the day that version is released, and a later fix to the
+stable release does not push the next version's preview off it. Until
+there is a preview ahead of the stable release the section has the
+stable release alone.
 
 The workflow [pages.yml](../../.github/workflows/pages.yml) builds no
 part of the IDE or the player: it takes the two sites as a release ships them

@@ -194,6 +194,59 @@ class CheckClonePatches(unittest.TestCase):
         self.assertIn('unique-id: (13 digits', failures[0][1])
 
 
+class ScriptPatchOfAClone(unittest.TestCase):
+    """A script patch of a copy that a clone patch makes (the Card
+    Navigator's "Clone Card", "New Card" with one line changed) leaves the
+    replaced text in the copy's source: it may stay once for each such
+    patch, and not for a patch of an object that is no copy"""
+
+    SCRIPT = ('file: Toolset/x.rev\nobject: button "%s" of card 1\n'
+              'replace:\n|   new card|\nwith:\n|   clone this card|\n')
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        os.makedirs(os.path.join(self.tmp.name, *cis.PATCH_DIR.split(os.sep)))
+        os.makedirs(os.path.join(self.tmp.name, 'ide', 'Toolset'))
+        with open(os.path.join(self.tmp.name, cis.PATCH_DIR, 'x-1.txt'), 'w', encoding='utf-8') as f:
+            f.write(CLONE)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def check(self, target, data):
+        with open(os.path.join(self.tmp.name, cis.PATCH_DIR, 'x-2.txt'), 'w', encoding='utf-8') as f:
+            f.write(self.SCRIPT % target)
+        with open(os.path.join(self.tmp.name, 'ide', 'Toolset', 'x.rev'), 'wb') as f:
+            f.write(data)
+        failures = []
+        with contextlib.redirect_stdout(io.StringIO()):
+            cis.check_patches(self.tmp.name, failures)
+        return failures
+
+    def test_the_source_keeps_the_text(self):
+        # A ("new card") and its copy B ("clone this card")
+        self.assertEqual(self.check('B', b'REVO8100 B 1793989825265 '
+                                         b'  new card\n   clone this card\n'), [])
+
+    def test_only_once(self):
+        failures = self.check('B', b'REVO8100 B 1793989825265 '
+                                   b'\n   new card\n   new card\n   clone this card\n')
+        self.assertEqual(len(failures), 1)
+        self.assertIn('replaced text 2 time(s)', failures[0][1])
+
+    def test_not_for_an_object_that_is_no_copy(self):
+        failures = self.check('A', b'REVO8100 B 1793989825265 '
+                                   b'  new card\n   clone this card\n')
+        self.assertEqual(len(failures), 1)
+        self.assertIn('x-2.txt is not applied to button "A" of card 1', failures[0][1])
+        self.assertIn('replaced text 1 time(s)', failures[0][1])
+
+    def test_the_copy_must_be_patched(self):
+        failures = self.check('B', b'REVO8100 B 1793989825265   new card\n')
+        self.assertEqual(len(failures), 1)
+        self.assertIn('replacement found 0 time(s)', failures[0][1])
+
+
 class AndroidCardBox(unittest.TestCase):
     """The Android card's "Post Notifications" box: the patch makes it in
     the group that stores each box under its name, the builder declares

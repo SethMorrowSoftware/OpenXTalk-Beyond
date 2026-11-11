@@ -49,6 +49,12 @@ stack the home page offers, then
          and an openCard that calls an XCMD it does not have: the player
          must say it opened, report that error, and go home again
 
+  OldHyper  a HyperCard stack saved before its scripts were fixed, whose
+         openCard stops on a lost handler: the player must offer to fix
+         it and open it again, fixed, with no error
+  OldQuiet  the same kind of stack that plays without an error: the
+         player must leave it as it is
+
 and two HyperCard files from tests/lcs-input-files/hypercard: Surf, a
 stack file with no extension, which the player must import with its
 scripts fixed as File > Import Stack fixes them, and Stacks.dc42, a
@@ -695,6 +701,58 @@ def check(site, samples, work):
         expect('reopen-no-duplicate', bool(library) and 'Hyper' in library[-1] and 'Hyper 2' not in library[-1],
                library[-1] if library else '')
 
+        # OldHyper: a HyperCard stack saved before File > Import Stack fixed
+        # its scripts (six of nine such stacks stopped in the 0.2.7 player
+        # with "can't find handler"). Its openCard stops on a handler of its
+        # stack script, which does not compile: the player offers to fix it
+        # (Enter takes "Fix and Reopen") and opens it again, fixed, with no
+        # error: its openStack runs, the handler is found with HyperCard's
+        # message order, and its XCMD has a stand-in, so the openCard goes
+        # on past it
+        got = open_files(third, [os.path.join(samples, 'OldHyper.livecode')], 'OldHyper', third_lines)
+        before = len(third_lines) - len(got)
+        wait_for(third, lambda: any(x.startswith('PLAYER hypercard-offer') for x in third_lines[before:]),
+                 'the offer to fix OldHyper', 30)
+        third.wait_for_timeout(500)
+        dialog = third.locator('[class^="oxt-dialog"]')
+        expect('oldhyper-offer', dialog.count() > 0 and 'Fix and Reopen' in (dialog.first.inner_text() or ''),
+               (dialog.first.inner_text() if dialog.count() else 'no dialog')[:200].replace('\n', ' '))
+        third.screenshot(path=os.path.join(shots, '12b-oldhyper-offer.png'))
+        third.keyboard.press('Enter')
+        wait_for(third, lambda: sum(1 for x in third_lines[before:] if x.startswith('PLAYER opened OldHyper')) >= 2,
+                 'OldHyper opening again', 60)
+        third.wait_for_timeout(1500)
+        got = third_lines[before:]
+        second_open = max(i for i, x in enumerate(got) if x.startswith('PLAYER opened OldHyper'))
+        after = got[second_open:]
+        fixed = [x for x in got if x.startswith('PLAYER hypercard-converted')]
+        expect('oldhyper-fixed', len(fixed) == 1 and 'HyperCard scripts:' in fixed[0] and '0 still do not compile' in fixed[0],
+               ' | '.join(fixed or got[-3:]))
+        samples_seen = [x for x in got if x.startswith('SAMPLE oldhyper')]
+        expect('oldhyper-plays', 'SAMPLE oldhyper openStack' in got and 'SAMPLE oldhyper shown true' in got
+               and any(x.startswith('SAMPLE oldhyper xcmd') for x in got)
+               and not any(x.startswith('PLAYER script error') for x in after),
+               ' | '.join(samples_seen + [x for x in after if x.startswith('PLAYER script error')]))
+        third.screenshot(path=os.path.join(shots, '12c-oldhyper-fixed.png'))
+        before = len(third_lines)
+        third.click('#home')
+        wait_for(third, lambda: any(x.startswith('PLAYER library') for x in third_lines[before:]), 'going home', 15)
+
+        # OldQuiet: the same kind of stack that plays without an error (its
+        # stack script does not compile, but nothing calls it): it is left
+        # exactly as it is, as Alphabet Zoo and The Haunted House must be
+        before = len(third_lines)
+        open_files(third, [os.path.join(samples, 'OldQuiet.livecode')], 'OldQuiet', third_lines)
+        third.wait_for_timeout(1000)
+        got = third_lines[before:]
+        touched = [x for x in got if x.startswith('PLAYER hypercard') or x.startswith('PLAYER script error')]
+        expect('oldquiet-untouched', 'SAMPLE oldquiet card false' in got and not touched
+               and 'SAMPLE oldquiet openStack' not in got,
+               ' | '.join(touched + [x for x in got if x.startswith('SAMPLE oldquiet')]))
+        before = len(third_lines)
+        third.click('#home')
+        wait_for(third, lambda: any(x.startswith('PLAYER library') for x in third_lines[before:]), 'going home', 15)
+
         # HyperCard: a stack file with no extension, imported and its
         # scripts fixed (revHyperCardFixScripts), and a disk image whose
         # stacks the player lists, one of them then copied out and opened
@@ -831,7 +889,8 @@ def check(site, samples, work):
 def check_bare(p, browser, url, shots, expect, wait_for):
     """The bare player (play.html, LittleNemo's p=26036): a sample by
     ?play= in the middle of the window, at its own size, with no bar,
-    frame or library around it; a stack of the site by ?stack=; another
+    frame or library around it; with ?fill=yes, fitted to the window and
+    fitted again when it changes size; a stack of the site by ?stack=; another
     site's refused; and on a phone (Playwright's iPhone 13 in Chromium,
     and in WebKit when it is installed) the Phone Starter fills the window.
 
@@ -906,6 +965,25 @@ def check_bare(p, browser, url, shots, expect, wait_for):
                'outside %s, inside %s, below %s, above %s' % (outside, inside, below, above))
     else:
         expect('bare-drawn-in-its-place', False, 'the stack fills the window: %s' % st['canvas'])
+    page.close()
+    # ?fill=yes (LittleNemo, p=26036): on a desktop too the page is given
+    # to the stack, as on a phone, and 2048 (860x600) is fitted to the
+    # window, drawn from its left edge to its right (showAll: as big as
+    # fits), and fitted again when the window changes size
+    page, lines, st, png = visit(desk, '?play=2048&fill=yes', 'the bare player filling the window with 2048',
+                                 '20-bare-2048-fill.png')
+    expect('bare-fill-opens', st['playing'] and st['fill'] is None
+           and any(x.startswith('PLAYER fitted 2048') for x in lines), str(st))
+    expect('bare-fill-canvas', [round(v) for v in st['canvas']] == [0, 0, 1000, 700], str(st['canvas']))
+    edges = [pixel(png, st, x, 350) for x in (2, 500, 997)]
+    expect('bare-fill-edge-to-edge', all(not near(c, page_colour, 6) for c in edges),
+           ' '.join('#%02X%02X%02X' % c for c in edges))
+    page.set_viewport_size({'width': 1300, 'height': 600})
+    page.wait_for_timeout(2000)
+    canvas = page.evaluate("() => { const c = document.getElementById('canvas').getBoundingClientRect();"
+                           " return [c.left, c.top, c.width, c.height]; }")
+    log('  bare ?play=2048&fill=yes at 1300x600: canvas %s' % canvas)
+    expect('bare-fill-resized', [round(v) for v in canvas] == [0, 0, 1300, 600], str(canvas))
     page.close()
     page, lines, st, png = visit(desk, '?stack=../samples/Tour.livecode&align=top-left', 'the bare player opening Tour',
                                  '21-bare-tour.png')

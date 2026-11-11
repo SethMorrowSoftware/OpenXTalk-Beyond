@@ -32,7 +32,16 @@
 # Runtime/Android/Beyond), builds both probes with that engine (their
 # "android,engine" setting "beyond"), and they run on an Android 13
 # emulator and on the first image with 16 KB pages, with the checks
-# android.yml makes of them with the released engine.
+# android.yml makes of them with the released engine; the app probe also
+# runs on Android 5.0 (API 21), the oldest Android a standalone can be
+# built for.
+#
+# And the script tests (the tests job): the LiveCode Script tests of
+# tests/lcs run in an Android standalone on an Android 13 emulator, built by
+# the same IDE once with LiveCode 9.6.3's engine and once with this one,
+# each against its baseline (tools/ci/android-tests-baseline-<engine>.txt),
+# and the two engines' results compared: what a stack would see
+# differently built with the other engine.
 #
 # The folders are artifacts: nothing here goes into a package or a release
 # by itself. A runtimes asset can take one run's (runtimes.yml, its input
@@ -74,6 +83,9 @@ on:
       - tools/ci/build-android.sh
       - tools/ci/android_engine.py
       - tools/ci/android_java.py
+      - tools/ci/android_tests.py
+      - tools/ci/android-tests.livecodescript
+      - tools/ci/android-tests-baseline-*.txt
       - tools/javac_wrapper.sh
       - tools/pathify.sh
   push:
@@ -150,11 +162,38 @@ jobs:
           CACHE_HIT: ${{ steps.apt-cache.outputs.cache-hit }}
         run: |
           rm -f /etc/apt/apt.conf.d/docker-clean
-          if [ "$CACHE_HIT" != true ]; then
-            apt-get -o Acquire::Retries=3 update
-          fi
-          # shellcheck disable=SC2086 # BUILD_PKGS is a list
-          apt-get -o Acquire::Retries=3 install -y --no-install-recommends $BUILD_PKGS
+          # Acquire::Retries does not retry a 404, and a mirror in the middle
+          # of a sync answers one: security.ubuntu.com gave 404 for perl and
+          # libperl5.34 right after an update (10 Nov 2026, #383 and #449's
+          # Web runtime jobs). So a failed install is tried again after a
+          # fresh update and a wait, three passes in all. The same node gave
+          # the same 404 74 minutes later (#454), so from the second pass the
+          # security pocket comes from archive.ubuntu.com, which serves it too
+          # (APT_ETC is only for tools/ci/tests/test_apt_retry.py)
+          for pass in 1 2 3; do
+            if [ "$pass" -gt 1 ]; then
+              for f in "${APT_ETC:-/etc/apt}"/sources.list "${APT_ETC:-/etc/apt}"/sources.list.d/*; do
+                if [ -f "$f" ]; then
+                  sed 's|http://security.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' "$f" > "$f.new"
+                  cat "$f.new" > "$f"
+                  rm -f "$f.new"
+                fi
+              done
+            fi
+            if [ "$CACHE_HIT" != true ] || [ "$pass" -gt 1 ]; then
+              apt-get -o Acquire::Retries=3 update || true
+            fi
+            # shellcheck disable=SC2086 # BUILD_PKGS is a list
+            if apt-get -o Acquire::Retries=3 install -y --no-install-recommends $BUILD_PKGS; then
+              break
+            fi
+            if [ "$pass" = 3 ]; then
+              echo "::error::apt-get install failed on three passes"
+              exit 1
+            fi
+            echo "::warning::apt-get install failed on pass $pass of 3; it runs again after an update in $((pass * 30)) s"
+            sleep $((pass * 30))
+          done
           # gyp and config.py run "python", which must be Python 2.7
           ln -sf /usr/bin/python2 /usr/local/bin/python
           gcc --version | sed -n 1p
@@ -294,7 +333,8 @@ jobs:
   # picked it. They run on x86_64 emulators (the runner's
   # architecture, with KVM): Android 13, and the first image with 16 KB
   # pages, with the checks android.yml makes of them with the released
-  # engine (see there for what each says)
+  # engine (see there for what each says); and the app probe on Android
+  # 5.0, the oldest Android a standalone can be built for
   device:
     name: Android engine on the emulator
     needs: build
@@ -360,7 +400,7 @@ jobs:
       # As android.yml's: the JDK, the platform the builder targets with
       # this Java layer (API 36), build-tools, platform-tools, the
       # emulator, an Android 13 image and the first image with 16 KB pages
-      # at API 36 or newer
+      # at API 36 or newer; and an Android 5.0 image (API 21)
       - name: Set up the JDK and the Android SDK
         run: |
           for v in JAVA_HOME_17_X64 JAVA_HOME_21_X64; do
@@ -382,7 +422,8 @@ jobs:
           [ -n "$img16" ] || { echo "::error::sdkmanager lists no x86_64 image with 16 KB pages at API 36 or newer"; exit 1; }
           echo "IMAGE_16K=$img16" >> "$GITHUB_ENV"
           "$sm" --install "platforms;android-36" "build-tools;35.0.0" "platform-tools" "emulator" \
-            "system-images;android-33;google_apis;x86_64" "$img16" > "$RUNNER_TEMP/sdkmanager.log" 2>&1 ||
+            "system-images;android-33;google_apis;x86_64" "$img16" "system-images;android-21;google_apis;x86_64" \
+            > "$RUNNER_TEMP/sdkmanager.log" 2>&1 ||
             { tail -40 "$RUNNER_TEMP/sdkmanager.log"; exit 1; }
           echo "JDK: $jdk"; "$jdk/bin/java" -version 2>&1 | head -n 1
           echo "SDK: $sdk"; ls "$sdk/platforms" "$sdk/build-tools"
@@ -487,6 +528,32 @@ jobs:
             --sdk "$SDK" --out "$WORK/screen-16k-java.png" --log-out "$WORK/logcat-16k-java.txt" \
             --allow android.permission.POST_NOTIFICATIONS --picture oxt-beyond-probe.png --back --within-bars
 
+      # The oldest Android a standalone can be built for: 5.0 (API 21), the
+      # Android card's first "Minimum Android Version". The Java layer is
+      # compiled against API 36 and checked against 21 without running
+      # there (android-java.yml's minsdk); here the app probe must install
+      # and draw its green with the engine built here and this Java layer.
+      # No --settle: an image this old enables no overlays in its first
+      # minute, and has none of the commands that wait for them
+      - name: Run the app probe on Android 5.0
+        timeout-minutes: 20
+        run: |
+          adb="$SDK/platform-tools/adb"
+          "$adb" -s emulator-5554 emu kill || true
+          for i in $(seq 1 60); do "$adb" devices | grep -q emulator-5554 || break; sleep 2; done
+          echo no | "$SDK/cmdline-tools/latest/bin/avdmanager" create avd -n api21 \
+            -k "system-images;android-21;google_apis;x86_64" -d pixel_5 --force
+          nohup "$SDK/emulator/emulator" -avd api21 -no-window -no-audio -no-boot-anim -no-snapshot \
+            -gpu swiftshader_indirect -camera-back none -camera-front none \
+            > "$WORK/emulator-api21.log" 2>&1 &
+          python3 tools/ci/android_check.py boot --serial emulator-5554 --sdk "$SDK" \
+            --log "$WORK/emulator-api21.log" --minutes 10 --awake
+          api=$("$adb" shell getprop ro.build.version.sdk | tr -d '\r')
+          echo "API: $api"
+          [ "$api" = 21 ] || { echo "::error::the Android 5.0 image is API $api, not 21"; exit 1; }
+          python3 tools/ci/android_check.py device --apk "$WORK/app/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-api21-app.png" --log-out "$WORK/logcat-api21-app.txt"
+
       - name: Upload the packages and logs
         if: always()
         uses: actions/upload-artifact@v7
@@ -499,5 +566,169 @@ jobs:
             ${{ env.WORK }}/*.png
             ${{ env.WORK }}/*.log
             ${{ env.WORK }}/logcat-*.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+  # The LiveCode Script tests of tests/lcs, in an Android standalone on an
+  # Android 13 emulator (tools/ci/android_tests.py, whose header says how):
+  # the IDE's builder of this checkout, in the latest release's IDE with
+  # this runtime beside the release's (as the device job's), builds the
+  # tests' standalone twice, with LiveCode 9.6.3's engine, which a stack
+  # that names none is built with, and with this one (ide --probe tests,
+  # --android-engine beyond); each runs on the emulator against its
+  # baseline, and compare then says which tests one engine passes and the
+  # other fails. A failure not in its engine's baseline fails the job, once
+  # both runs and the comparison are done
+  tests:
+    name: Script tests on the emulator
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      PLATFORM: linux-x86_64
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the runtime
+        uses: actions/download-artifact@v8
+        with:
+          pattern: android-engine-*
+          path: ${{ runner.temp }}/android/parts
+
+      - name: Make the four folders one runtime
+        run: |
+          parts="$RUNNER_TEMP/android/parts"
+          python3 tools/ci/android_engine.py merge "$RUNNER_TEMP/android/engine" \
+            "$parts/android-engine-arm64-v8a" "$parts/android-engine-armeabi-v7a" \
+            "$parts/android-engine-x86" "$parts/android-engine-x86_64"
+
+      - name: Download the IDE
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          tag=$(gh release list --repo "$REPO" --limit 30 --json tagName --jq '.[].tagName' | grep -E '^v[0-9]' | head -n 1)
+          [ -n "$tag" ] || { echo "::error::no release tagged v<version> to take the IDE from"; exit 1; }
+          echo "The IDE of $tag"
+          echo "### The script tests on Android, built in the IDE of $tag" >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p "$RUNNER_TEMP/dist"
+          gh release download "$tag" --repo "$REPO" --pattern "*-$PLATFORM.tar.xz" --dir "$RUNNER_TEMP/dist"
+          echo "PACKAGE=$(ls "$RUNNER_TEMP"/dist/*-"$PLATFORM".tar.xz)" >> "$GITHUB_ENV"
+          echo "WORK=$RUNNER_TEMP/android" >> "$GITHUB_ENV"
+
+      - name: Install Xvfb and the runtime libraries
+        run: |
+          sudo apt-get update
+          pkgs=(xvfb xauth fonts-dejavu-core)
+          while read -r soname use deb rpm rest; do
+            case $soname in ''|'#'*) continue ;; esac
+            if apt-cache show --no-all-versions "${deb}t64" > /dev/null 2>&1; then
+              deb="${deb}t64"
+            fi
+            case " ${pkgs[*]} " in *" $deb "*) ;; *) pkgs+=("$deb") ;; esac
+          done < Installer/linux/libraries.txt
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}"
+
+      # As the device job's, with the Android 13 image only
+      - name: Set up the JDK and the Android SDK
+        run: |
+          for v in JAVA_HOME_17_X64 JAVA_HOME_21_X64; do
+            if [ -n "${!v}" ] && [ -d "${!v}/bin" ]; then
+              jdk="${!v}"
+              break
+            fi
+          done
+          [ -n "$jdk" ] || { echo "::error::no JDK 17 or 21 on the runner"; exit 1; }
+          sdk="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          [ -d "$sdk" ] || { echo "::error::no Android SDK on the runner (ANDROID_HOME)"; exit 1; }
+          echo "JDK=$jdk" >> "$GITHUB_ENV"
+          echo "SDK=$sdk" >> "$GITHUB_ENV"
+          sm="$sdk/cmdline-tools/latest/bin/sdkmanager"
+          (yes || true) | "$sm" --licenses > /dev/null
+          "$sm" --install "platforms;android-36" "build-tools;35.0.0" "platform-tools" "emulator" \
+            "system-images;android-33;google_apis;x86_64" > "$RUNNER_TEMP/sdkmanager.log" 2>&1 ||
+            { tail -40 "$RUNNER_TEMP/sdkmanager.log"; exit 1; }
+          echo "JDK: $jdk"; "$jdk/bin/java" -version 2>&1 | head -n 1
+          echo "SDK: $sdk"; ls "$sdk/platforms" "$sdk/build-tools"
+
+      - name: Unpack the IDE, and put this builder and the runtime into it
+        run: |
+          python3 tools/ci/android_check.py extract --package "$PACKAGE" --dest "$WORK/ide" \
+            --platform "$PLATFORM" --env IDE
+          python3 tools/ci/android_check.py overlay --root "$WORK/ide" --beyond "$WORK/engine"
+
+      - name: Start an Android 13 emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
+            sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/avd"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo no | "$SDK/cmdline-tools/latest/bin/avdmanager" create avd -n api33 \
+            -k "system-images;android-33;google_apis;x86_64" -d pixel_5 --force
+          sed -i '/^hw.ramSize=/d' "$ANDROID_AVD_HOME/api33.avd/config.ini"
+          echo 'hw.ramSize=3072M' >> "$ANDROID_AVD_HOME/api33.avd/config.ini"
+          "$SDK/platform-tools/adb" start-server
+          nohup "$SDK/emulator/emulator" -avd api33 -no-window -no-audio -no-boot-anim -no-snapshot \
+            -gpu swiftshader_indirect -camera-back none -camera-front none \
+            > "$WORK/emulator-api33.log" 2>&1 &
+          sleep 20
+          if ! pgrep -f 'qemu-system|emulator.*-avd api33' > /dev/null; then
+            echo "::warning::the Android 13 emulator stopped within 20 s of starting; the end of its log:"
+            tail -n 40 "$WORK/emulator-api33.log"
+          fi
+
+      # The tests and what they read, beside the stack file, for each
+      # build; the IDE's lc-compile compiles the LiveCode Builder modules of
+      # tests/ (android_tests.py prepare)
+      - name: Build the tests' standalone with each engine
+        run: |
+          for engine in 9.6.3 beyond; do
+            python3 tools/ci/android_tests.py prepare --work "$WORK/tests-$engine" --ide "$IDE"
+            flag=()
+            [ "$engine" = beyond ] && flag=(--android-engine beyond)
+            python3 tools/ci/android_check.py ide --install "$IDE" --platform "$PLATFORM" \
+              --work "$WORK/tests-$engine" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug --probe tests \
+              "${flag[@]}"
+          done
+
+      - name: Wait for the emulator
+        timeout-minutes: 20
+        run: |
+          python3 tools/ci/android_check.py boot --serial emulator-5554 --sdk "$SDK" \
+            --log "$WORK/emulator-api33.log" --minutes 10 --awake --settle
+
+      # Both engines, then the comparison; the job fails after them when
+      # either run had a failure not in its baseline (or could not run)
+      - name: Run the tests with each engine
+        timeout-minutes: 100
+        run: |
+          status=0
+          python3 tools/ci/android_tests.py run --work "$WORK/tests-9.6.3" --serial emulator-5554 --sdk "$SDK" \
+            --engine 9.6.3 --timeout 60 || status=1
+          python3 tools/ci/android_tests.py run --work "$WORK/tests-beyond" --serial emulator-5554 --sdk "$SDK" \
+            --engine beyond --timeout 60 --check-engine "$WORK/engine" || status=1
+          if [ -f "$WORK/tests-9.6.3/android-tests-9.6.3.json" ] && [ -f "$WORK/tests-beyond/android-tests-beyond.json" ]; then
+            python3 tools/ci/android_tests.py compare --old "$WORK/tests-9.6.3/android-tests-9.6.3.json" \
+              --new "$WORK/tests-beyond/android-tests-beyond.json"
+          fi
+          exit $status
+
+      - name: Upload the results and logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-script-tests
+          path: |
+            ${{ env.WORK }}/tests-*/android-check.txt
+            ${{ env.WORK }}/tests-*/ide-output.txt
+            ${{ env.WORK }}/tests-*/android-tests-*.json
+            ${{ env.WORK }}/tests-*/android-tests-*.log
+            ${{ env.WORK }}/*.log
           if-no-files-found: warn
           retention-days: 14

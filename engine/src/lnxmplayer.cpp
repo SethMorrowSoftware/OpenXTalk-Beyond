@@ -34,6 +34,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 #include "lnxdc.h"
 #include "lnxmplayer.h"
+#include "lnxgstplayer.h"
 #include "graphics_util.h"
 
 #include <sys/stat.h>
@@ -41,12 +42,36 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include <sys/wait.h>
 
 #include <unistd.h>
+#include <strings.h>
 
 #define C_PLAYER_CMD "/usr/bin/mplayer"
 #define C_PLAYER_ARG "/usr/bin/mplayer -vo x11 -slave -wid %d" 
 
 #define READ 0
 #define WRITE 1
+
+// OXT-Beyond: what plays a movie. OXT_PLAYER_BACKEND names one of the two
+// ("mplayer" or "gstreamer"); otherwise mplayer plays it when it is
+// installed, as it always has, and GStreamer when it is not (many
+// distributions no longer package mplayer, and the player then played
+// nothing). When GStreamer cannot open the movie either, mplayer is still
+// tried, so a machine with neither ends the movie at once, as before.
+enum MCPlayerBackendChoice
+{
+	kMCPlayerBackendAuto,
+	kMCPlayerBackendMPlayer,
+	kMCPlayerBackendGStreamer,
+};
+
+static MCPlayerBackendChoice MCPlayerGetBackendChoice(void)
+{
+	const char *t_choice = getenv("OXT_PLAYER_BACKEND");
+	if (t_choice != NULL && strcasecmp(t_choice, "gstreamer") == 0)
+		return kMCPlayerBackendGStreamer;
+	if (t_choice != NULL && strcasecmp(t_choice, "mplayer") == 0)
+		return kMCPlayerBackendMPlayer;
+	return kMCPlayerBackendAuto;
+}
 
 
 void handler(int sig)
@@ -87,6 +112,10 @@ MPlayer::MPlayer(void)
 	m_timescale = UINT32_MAX;
 	m_loudness = UINT32_MAX;
 
+	// OXT-Beyond: no pipes to mplayer yet (shutdown closes only open ones)
+	m_pfd_write[READ] = m_pfd_write[WRITE] = -1;
+	m_pfd_read[READ] = m_pfd_read[WRITE] = -1;
+	m_gst = NULL;
 }
 
 
@@ -107,6 +136,13 @@ MPlayer::~MPlayer(void)
 
 bool MPlayer::shutdown(void)
 {
+	// OXT-Beyond: GStreamer stops drawing into the window before it goes
+	if ( m_gst != NULL )
+	{
+		delete m_gst;
+		m_gst = NULL;
+	}
+
 	if ( m_window != DNULL)
 	{
 		gdk_window_destroy(m_window);
@@ -114,8 +150,12 @@ bool MPlayer::shutdown(void)
 		MClastvideowindow = DNULL ;
 	}
 	
+	if ( m_pfd_write[WRITE] != -1 )
 		close(m_pfd_write[WRITE]);
+	if ( m_pfd_read[READ] != -1 )
 		close(m_pfd_read[READ]);
+	m_pfd_write[WRITE] = -1;
+	m_pfd_read[READ] = -1;
 	
 	m_cpid = -1 ;
 	m_duration = -1 ;
@@ -205,9 +245,27 @@ bool MPlayer::launch_player(void)
 		// Close the ends of the two pipe that as the parent we don't want
 		close(m_pfd_write[READ]);
 		close(m_pfd_read[WRITE]);
+		m_pfd_write[READ] = -1;
+		m_pfd_read[WRITE] = -1;
 	}
 	
 	return true;
+}
+
+// OXT-Beyond: the movie through GStreamer, into the window init made, as
+// mplayer would draw it (lnxgstplayer.h)
+bool MPlayer::launch_gstreamer(void)
+{
+	if (!MCGstPlayer::IsAvailable())
+		return false;
+
+	// GStreamer draws through a connection of its own to the X server: the
+	// window must be there before it does
+	gdk_flush();
+
+	x11::Window t_xid = x11::gdk_x11_drawable_get_xid(m_window);
+	m_gst = MCGstPlayer::Create(m_filename, (unsigned long)t_xid, MCXVideo == True);
+	return m_gst != NULL;
 }
 
 
@@ -280,7 +338,18 @@ bool MPlayer::init(const char * p_filename, MCStack *p_stack, MCRectangle p_rect
 	m_player_rect = p_rect ;
 	m_stack = p_stack ;
 
-	if ( !launch_player() )
+	// OXT-Beyond: GStreamer, or mplayer (MCPlayerGetBackendChoice)
+	MCPlayerBackendChoice t_choice;
+	t_choice = MCPlayerGetBackendChoice();
+	bool t_launched;
+	t_launched = false;
+	if (t_choice == kMCPlayerBackendGStreamer ||
+		(t_choice == kMCPlayerBackendAuto && access(C_PLAYER_CMD, X_OK) != 0))
+		t_launched = launch_gstreamer();
+	if (!t_launched && t_choice != kMCPlayerBackendGStreamer)
+		t_launched = launch_player();
+
+	if ( !t_launched )
 	{
 		gdk_window_hide(m_window);
         gdk_window_destroy(m_window);
@@ -298,6 +367,11 @@ bool MPlayer::init(const char * p_filename, MCStack *p_stack, MCRectangle p_rect
 }
 
 
+
+bool MPlayer::takeended(void)
+{
+	return m_gst != NULL && m_gst -> TakeEnded();
+}
 
 bool MPlayer::restart(void)
 {
@@ -319,13 +393,21 @@ void MPlayer::resize( MCRectangle p_rect)
     t_rect = MCPlayerRectInWindow(m_stack, p_rect);
     gdk_window_move_resize(m_window, t_rect.x, t_rect.y, t_rect.width, t_rect.height);
 	m_player_rect = p_rect ;
+
+	// OXT-Beyond: GStreamer draws the frame again at the window's new size
+	if ( m_gst != NULL )
+	{
+		gdk_flush();
+		m_gst -> Redraw();
+	}
 }
 
 
 
 void MPlayer::write_command (MCStringRef p_cmd )
 {
-	if ( m_window == DNULL)
+	// OXT-Beyond: only to an mplayer (not when GStreamer plays the movie)
+	if ( m_window == DNULL || m_pfd_write[WRITE] == -1 )
 		return ;
 
 	// mplayer -slave reads one command per line: without the newline it
@@ -402,7 +484,15 @@ void MPlayer::play ( bool p_play )
 	{
 		if ( m_playing != p_play )
 		{
-			write_command(MCSTR("pause"));
+			if ( m_gst != NULL )
+			{
+				if ( p_play )
+					m_gst -> Play();
+				else
+					m_gst -> Pause();
+			}
+			else
+				write_command(MCSTR("pause"));
 			m_playing = !m_playing ;
 		}
 	}
@@ -437,6 +527,11 @@ void MPlayer::pause ( void )
 // (and so shows the frame it seeked to).
 void MPlayer::seek ( int4 p_amount )
 {
+	if ( m_gst != NULL )
+	{
+		m_gst -> Skip(p_amount);
+		return;
+	}
 	MCAutoStringRef t_seek_cmd;
 	if (MCStringFormat(&t_seek_cmd, "pausing_keep seek %d 0", p_amount))
 		write_command (*t_seek_cmd);
@@ -444,6 +539,11 @@ void MPlayer::seek ( int4 p_amount )
 
 void MPlayer::seek(void)
 {
+	if ( m_gst != NULL )
+	{
+		m_gst -> StepFrame();
+		return;
+	}
 	write_command(MCSTR("frame_step"));
 }
 
@@ -461,6 +561,18 @@ void MPlayer::osd(void)
 
 void MPlayer::quit(void)
 {
+	// OXT-Beyond: GStreamer has no process to wait for
+	if ( m_gst != NULL )
+	{
+		shutdown();
+		if ( m_filename != NULL)
+		{
+			free(m_filename) ;
+			m_filename = NULL ;
+		}
+		return;
+	}
+
 	if ( m_cpid > -1 && m_window != DNULL ) 
 	{
 		int t_status ;
@@ -520,7 +632,7 @@ void MPlayer::set_property(const char * p_prop, MCPlayerPropertyType p_type, voi
 
 bool MPlayer::get_property(const char* p_prop, MCPlayerPropertyType p_type, void *r_value) 
 {
-	if ( m_window == DNULL ) 
+	if ( m_window == DNULL || m_pfd_read[READ] == -1 ) 
 		return false;
 
 	MCAutoStringRef t_get_cmd;
@@ -570,6 +682,8 @@ static const uint4 kMPlayerTimeScale = 1000;
 
 uint4 MPlayer::getduration(void)
 {
+	if (m_gst != NULL)
+		return m_gst -> GetDuration();
 	if (m_duration == UINT32_MAX)
 	{
 		double t_length;
@@ -584,6 +698,8 @@ uint4 MPlayer::getduration(void)
 
 uint4 MPlayer::getcurrenttime(void)
 {
+	if (m_gst != NULL)
+		return m_gst -> GetCurrentTime();
 	double t_time;
 	if (!get_property("time_pos", kMCPlayerPropertyTypeDouble, &t_time) || t_time < 0)
 		return 0;
@@ -594,6 +710,11 @@ uint4 MPlayer::getcurrenttime(void)
 
 void MPlayer::setcurrenttime(uint4 p_time)
 {
+	if (m_gst != NULL)
+	{
+		m_gst -> SetCurrentTime(p_time);
+		return;
+	}
 	MCAutoStringRef t_seek_cmd;
 	if (MCStringFormat(&t_seek_cmd, "pausing_keep seek %.3f 2", (double)p_time / kMPlayerTimeScale))
 		write_command(*t_seek_cmd);
@@ -608,22 +729,37 @@ uint4 MPlayer::gettimescale(void)
 
 void MPlayer::setspeed(double p_speed)
 {
+	if (m_gst != NULL)
+	{
+		m_gst -> SetRate(p_speed);
+		return;
+	}
 	set_property("speed", kMCPlayerPropertyTypeDouble, &p_speed);
 }
 
 void MPlayer::setlooping(bool p_loop)
 {
+	if (m_gst != NULL)
+	{
+		m_gst -> SetLooping(p_loop);
+		return;
+	}
 	set_property("loop", kMCPlayerPropertyTypeBool, &p_loop);
 }	
 
 void MPlayer::setloudness(uint4 p_volume)
 {
-	set_property("volume", kMCPlayerPropertyTypeUInt, &p_volume);
+	if (m_gst != NULL)
+		m_gst -> SetLoudness(p_volume);
+	else
+		set_property("volume", kMCPlayerPropertyTypeUInt, &p_volume);
 	m_loudness = p_volume;
 }
 
 uint4 MPlayer::getloudness(void)
 {
+	if (m_loudness == UINT32_MAX && m_gst != NULL)
+		return m_gst -> GetLoudness();
 	if (m_loudness == UINT32_MAX)
 	{
 		// mplayer answers the volume as a real number (ANS_volume=100.000000)

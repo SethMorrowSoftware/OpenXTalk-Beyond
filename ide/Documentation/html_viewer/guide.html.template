@@ -14,6 +14,10 @@
     <!-- OXT-Beyond: the Dictionary palette asks for the dark appearance with
     ?appearance=dark, and switches it later with the class oxt-dark -->
     <script>if (/[?&]appearance=dark\b/.test(window.location.search)) document.documentElement.className += " oxt-dark";</script>
+    <!-- OXT-Beyond: in the web IDE the page is shown from an object URL, which
+    carries no query. There the palette says the appearance on the IDE's own
+    page, which holds this one in a frame, and it is read from there -->
+    <script>(function () { try { if (window.parent !== window && window.parent.document.documentElement.getAttribute("data-oxt-dictionary-appearance") === "dark") document.documentElement.className += " oxt-dark"; } catch (e) {} })();</script>
 </head>
 <body data-spy="scroll" data-target=".lc_docs_nav">
 

@@ -24,6 +24,7 @@ given.
       [--ide ZIP --ide-version V] [--player ZIP --player-version V]
       [--map HTML --map-version V]
       [--release TAG --release-assets FILE]
+      [--preview TAG --preview-assets FILE]
       [--suite-release TAG --suite-assets FILE]
 
   DIR/index.html     the front page (tools/pages/index.html)
@@ -71,6 +72,14 @@ the release's file names, one a line (gh release view TAG --json assets
 --jq '.assets[].name'), and a file the release does not have gets no
 link, so no link on the page leads to a missing file; a platform with
 none of its files is left out, and the section too when it has none.
+
+With --preview as well, the section offers two releases, each under its
+own heading with its own files: the stable release (--release) first,
+then the preview of the next version (--preview: a developer preview or
+a release candidate), so that a visitor can choose. pick_releases.py
+chooses the two from the project's releases, and pages.yml gives them.
+Either may be given without the other; a release with none of the files
+is left out, and the other keeps its place.
 
 Each zip holds its site in one folder (StackPlayer/, or the web IDE's
 folder named after its zip); the folder with index.html is the one taken.
@@ -120,6 +129,20 @@ DOWNLOADS = (
     ('Plugins for other xTalks', 'For LiveCode Community 9, HyperXTalk and OpenXTalk',
      (('xTalk Assistant', 'xtalk-assistant-plugin.lce'), ('MCP Bridge', 'mcp-bridge-plugin.lce'))),
 )
+# What a release is, by the pre-release part of its version (channel()):
+# its heading in the Downloads section and what the page says of it
+CHANNELS = {
+    'stable': ('Stable release', 'The finished version, and the one to use for your own work.'),
+    'dp': ('Developer preview',
+           'The next version while it is being made: the newest features and fixes, less tested than '
+           'the stable release, so keep copies of your stacks.'),
+    'rc': ('Release candidate',
+           'The next version, nearly done: it becomes the stable release when no serious bug turns up. '
+           'It is less tested than the stable release, so keep copies of your stacks.'),
+    'preview': ('Preview',
+                'A build of the next version, less tested than the stable release, so keep copies of '
+                'your stacks.'),
+}
 LIMIT = 100 * 1000 * 1000
 
 # The extensions page (extensions/, from tools/pages/extensions/index.html):
@@ -200,10 +223,10 @@ class BuildError(Exception):
 
 
 def downloads_html(tag, assets):
-    """The Downloads section's platforms, for the release tag whose files
-    are assets (their names): a link for each file it has."""
+    """A release's platforms in the Downloads section, for the release
+    tag whose files are assets (their names): a link for each file it has."""
     if not re.match(r'^v[0-9][0-9A-Za-z.+-]*$', tag):
-        raise BuildError('--release %r is not a release tag (v<version>)' % tag)
+        raise BuildError('%r is not a release tag (v<version>)' % tag)
     version = tag[1:]
     base = '%s/releases/download/%s/' % (REPOSITORY, urllib.parse.quote(tag))
     out = []
@@ -215,9 +238,58 @@ def downloads_html(tag, assets):
                 links.append('<a class="file" href="%s%s">%s</a>'
                              % (base, urllib.parse.quote(name), html.escape(label)))
         if links:
-            out.append('<div class="platform"><h3>%s</h3><p>%s</p><div class="files">%s</div></div>'
+            out.append('<div class="platform"><h4>%s</h4><p>%s</p><div class="files">%s</div></div>'
                        % (html.escape(platform), html.escape(needs), ''.join(links)))
     return '\n'.join(out)
+
+
+def channel(tag, preview=False):
+    """Which of CHANNELS a release is, from its tag: v0.2.7 is 'stable',
+    v0.2.8-dp.1 is 'dp', v0.2.8-rc.1 is 'rc', and a version with any other
+    pre-release part is 'preview'. preview: it is a pre-release whatever
+    its version says (GitHub marks it as one), so never 'stable'."""
+    pre = tag.partition('+')[0].partition('-')[2]
+    if not pre:
+        return 'preview' if preview else 'stable'
+    word = re.match(r'[A-Za-z]*', pre).group(0).lower()
+    return word if word in ('dp', 'rc') else 'preview'
+
+
+def downloads_channels(release, preview=None):
+    """The Downloads section's releases, each (tag, assets) or None: the
+    release first, then the preview of the next version. Returns
+    [(tag, its block)] for those that have files to link, so [] when the
+    page should have no Downloads section. The blocks have ids to link
+    (downloads-stable, downloads-preview), so two previews are refused."""
+    blocks = []
+    for given, is_preview in ((release, False), (preview, True)):
+        if not given:
+            continue
+        tag, assets = given
+        if is_preview and release and channel(release[0]) != 'stable':
+            raise BuildError('--preview %s with --release %s, which is a preview itself: give one of them'
+                             % (tag, release[0]))
+        listed = downloads_html(tag, assets)
+        kind = channel(tag, is_preview)
+        if not listed:
+            print('no downloads of %s: it has none of the files the page links' % tag)
+            continue
+        name, what = CHANNELS[kind]
+        blocks.append((tag,
+                       '    <div class="channel%s" id="downloads-%s">\n'
+                       '      <div class="channel-head">\n'
+                       '        <h3>%s</h3>\n'
+                       '        <span class="release">%s</span>\n'
+                       '        <p>%s</p>\n'
+                       '      </div>\n'
+                       '      <div class="platforms">\n%s\n      </div>\n'
+                       '      <p class="more"><a href="%s/releases/tag/%s">Every file, install notes and '
+                       'checksums of %s</a></p>\n'
+                       '    </div>'
+                       % ('' if kind == 'stable' else ' next', 'stable' if kind == 'stable' else 'preview',
+                          html.escape(name), html.escape(tag), html.escape(what), listed,
+                          REPOSITORY, urllib.parse.quote(tag), html.escape(tag))))
+    return blocks
 
 
 # The two plugins OXT-Beyond ships built in and also releases as .lce
@@ -659,8 +731,6 @@ def front_page(out, parts):
         else:
             page = page.replace('@%s_VERSION@' % key, html.escape(version))
             if key == 'DOWNLOADS':
-                page = page.replace('@DOWNLOADS_URL@', '%s/releases/tag/%s'
-                                    % (REPOSITORY, urllib.parse.quote(version)))
                 page = page.replace('@DOWNLOADS_LIST@', parts['DOWNLOADS_LIST'])
     for key in PARTS:
         page = page.replace('<!-- @%s@ -->' % key, '').replace('<!-- /@%s@ -->' % key, '')
@@ -718,18 +788,23 @@ def build(args):
         parts['MAP'] = args.map_version or ''
     # (getattr: callers that build an argparse.Namespace by hand, such as
     # the tests, may not give these)
-    release, release_assets = getattr(args, 'release', None), getattr(args, 'release_assets', None)
-    if release:
-        if not release_assets:
-            raise BuildError('--release needs --release-assets')
-        with open(release_assets, encoding='utf-8') as f:
-            assets = {line.strip() for line in f if line.strip()}
-        listed = downloads_html(release, assets)
-        if listed:
-            parts['DOWNLOADS'] = release
-            parts['DOWNLOADS_LIST'] = listed
-        else:
-            print('no downloads: %s has none of the files the page links' % release)
+    def listed_release(option):
+        tag, listing = getattr(args, option, None), getattr(args, option + '_assets', None)
+        if not tag:
+            return None
+        if not listing:
+            raise BuildError('--%s needs --%s-assets' % (option, option))
+        with open(listing, encoding='utf-8') as f:
+            return tag, {line.strip() for line in f if line.strip()}
+
+    stable, preview = listed_release('release'), listed_release('preview')
+    blocks = downloads_channels(stable, preview)
+    if blocks:
+        parts['DOWNLOADS'] = ' and '.join(tag for tag, _ in blocks)
+        parts['DOWNLOADS_LIST'] = '\n'.join(block for _, block in blocks)
+    # the extensions page's plugins are the stable release's, or the
+    # preview's while there is no stable release
+    release, assets = stable or preview or (None, ())
     # The extensions page goes up with every site: the extensions are
     # OXT-Beyond's own, and without a suite release its cards link the
     # suite's releases
@@ -764,6 +839,9 @@ def main():
     ap.add_argument('--map-version', metavar='V', help='shown on the front page')
     ap.add_argument('--release', metavar='TAG', help='the release whose files the Downloads section links')
     ap.add_argument('--release-assets', metavar='FILE', help="that release's file names, one a line")
+    ap.add_argument('--preview', metavar='TAG',
+                    help='the preview of the next version, which the Downloads section links after the release')
+    ap.add_argument('--preview-assets', metavar='FILE', help="that preview's file names, one a line")
     ap.add_argument('--suite-release', metavar='TAG',
                     help="the xTalk Suite release whose .lce packages the extensions page links")
     ap.add_argument('--suite-assets', metavar='FILE', help="that release's file names, one a line")

@@ -96,4 +96,4 @@ jobs:
           Get-Service -Name Themes
 
       - name: Window frame check
-        run: python tools/ci/window_frame_check.py --package "$PACKAGE" --platform win-x86_64 --log "$RUNNER_TEMP/window-frame-check.log"
+        run: python tools/ci/window_frame_check.py --package "$PACKAGE" --platform win-x86_64 --need-clicks --log "$RUNNER_TEMP/window-frame-check.log"
