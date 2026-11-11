@@ -22,9 +22,9 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "dbdrivercommon.h"
 #include "large_buffer.h"
 
+// MariaDB Connector/C (thirdparty/libmysql): mysql.h brings in what
+// MySQL Connector/C's mysql_com.h and mysql_version.h gave
 #include <mysql.h>
-#include <mysql_com.h>
-#include <mysql_version.h>
 #include <errmsg.h>
 
 #define DB_MYSQL_STRING "MYSQL";

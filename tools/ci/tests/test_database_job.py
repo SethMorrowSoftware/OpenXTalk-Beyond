@@ -18,7 +18,8 @@
 (modernization plan MOD-06): the tests read their servers from the
 environment and are skipped without one, so a job that set a different
 name, or ran a filter that matched none of them, would pass having tested
-nothing.
+nothing. Its legs are the servers whose default logins the drivers must
+manage, and each compares its results with the newest release's.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -53,24 +54,57 @@ class DatabasesJob(unittest.TestCase):
         self.assertEqual(self.job['env']['OXT_TEST_MYSQL_TLS'], 'true')
         self.assertEqual(self.job['env']['OXT_TEST_POSTGRESQL_TLS'], 'true')
 
+    def step(self, name):
+        return [s['run'] for s in self.job['steps'] if s.get('name') == name][0]
+
     def test_runs_the_database_tests_of_the_x86_64_build(self):
         self.assertEqual(self.job['needs'], 'build')
         self.assertIn("built-x86_64 == 'true'", self.job['if'])
-        run = [s['run'] for s in self.job['steps'] if s.get('name') == 'Database tests'][0]
+        run = self.step('Database tests')
         self.assertIn('run_engine_tests.py --bin linux-x86_64-bin', run)
+        self.assertIn('--output database-tests-output.txt', run)
         pattern = re.search(r"--filter '([^']+)'", run).group(1)
         for test in ('server_databases', 'db_getters'):
             self.assertRegex('lcs: core/database/%s: TestX' % test, pattern)
 
-    def test_starts_both_servers_with_tls(self):
-        run = [s['run'] for s in self.job['steps'] if s.get('name') == 'Start the database servers'][0]
-        self.assertIn('mirror.gcr.io/library/mysql:8.0', run)
-        self.assertIn('mirror.gcr.io/library/postgres:16', run)
+    def test_starts_the_servers_of_each_leg_with_tls(self):
+        run = self.step('Start the database servers')
+        self.assertIn('"mirror.gcr.io/library/$MYSQL_IMAGE" $MYSQL_ARGS', run)
+        self.assertIn('"mirror.gcr.io/library/$POSTGRES_IMAGE"', run)
         self.assertIn('-c ssl=on', run)
-        # The bundled clients' authentication (see the job's comment)
-        self.assertIn('--default-authentication-plugin=mysql_native_password', run)
-        self.assertIn('password_encryption=md5', run)
+        self.assertIn('-c password_encryption="$POSTGRES_AUTH"', run)
         self.assertIn('ALTER USER', run)
+        for name in ('MYSQL_IMAGE', 'MYSQL_ARGS', 'MYSQL_CLIENT', 'POSTGRES_IMAGE', 'POSTGRES_AUTH'):
+            self.assertIn(name, self.job['env'])
+
+    def test_every_login_is_a_servers_default_somewhere(self):
+        legs = self.job['strategy']['matrix']['include']
+        self.assertFalse(self.job['strategy']['fail-fast'])
+        images = dict((leg['mysql_image'], leg) for leg in legs)
+        # What the clients before 0.2.8 could do, and what scripts met then
+        self.assertEqual(images['mysql:8.0']['mysql_args'],
+                         '--default-authentication-plugin=mysql_native_password')
+        # MySQL 8.4's default login, caching_sha2_password, and MariaDB's
+        self.assertEqual(images['mysql:8.4']['mysql_args'], '')
+        self.assertEqual(images['mariadb:11.4']['mysql_client'], 'mariadb')
+        auth = dict((leg['postgres_image'], leg['postgres_auth']) for leg in legs)
+        self.assertEqual(auth, {'postgres:16': 'md5', 'postgres:17': 'scram-sha-256',
+                                'postgres:18': 'scram-sha-256'})
+        self.assertEqual(len(set(leg['leg'] for leg in legs)), len(legs))
+        upload = [s for s in self.job['steps'] if s.get('name') == 'Upload the logs'][0]
+        self.assertIn('${{ matrix.leg }}', upload['with']['name'])
+
+    def test_compares_with_the_newest_release(self):
+        release = [s for s in self.job['steps'] if s.get('name') == 'Database tests of the newest release'][0]
+        # the release's own failures never fail the job
+        self.assertTrue(release['continue-on-error'])
+        self.assertIn('|| true', release['run'])
+        self.assertIn("--pattern '*-linux-x86_64-binaries.tar.xz'", release['run'])
+        self.assertIn('--output release-database-tests-output.txt', release['run'])
+        compare = self.step('Compare with the newest release')
+        self.assertIn('compare_test_output.py release-database-tests-output.txt database-tests-output.txt',
+                      compare)
+        self.assertNotIn('--fail-on-difference', compare)
 
 
 class DatabaseTests(unittest.TestCase):
@@ -81,7 +115,8 @@ class DatabaseTests(unittest.TestCase):
         for name in SETTINGS:
             self.assertIn('__Env(pDriver, "%s")' % name, script)
         for driver in ('MySQL', 'PostgreSQL'):
-            for test in ('Connect', 'WrongPassword', 'TLS', 'Values', 'Binary', 'Transactions', 'Errors'):
+            for test in ('Connect', 'WrongPassword', 'TLS', 'Values', 'Binary', 'Transactions', 'Errors',
+                         'CharacterSet', 'NativeText', 'Types', 'NoServer', 'Server'):
                 self.assertIn('\non Test%s%s\n' % (driver, test), script)
 
     def test_skipped_without_a_server(self):

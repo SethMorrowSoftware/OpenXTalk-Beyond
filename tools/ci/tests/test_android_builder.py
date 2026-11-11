@@ -676,7 +676,8 @@ class AppBundleBox(unittest.TestCase):
 
 
 class EngineBox(unittest.TestCase):
-    """The Android card's "OXT-Beyond engine (preview)" box, made by the IDE
+    """The Android card's "OXT-Beyond engine" box ("OXT-Beyond engine
+    (preview)" until 0.2.8), made by the IDE
     stack patches android-card-engine-*.txt (a copy of "Android x86_64" in
     the build targets' group, put in the right-hand column's free row under
     the device table; the group grown to hold it; the group's script
@@ -696,7 +697,7 @@ class EngineBox(unittest.TestCase):
         lines = patch_lines('android-card-engine-1.txt')
         self.assertIn('object: button "Android x86_64" of group "Android Targets" of card "Android"', lines)
         self.assertIn('clone: Beyond Engine', lines)
-        self.assertEqual(lines[lines.index('property: label') + 1], 'to: OXT-Beyond engine (preview)')
+        self.assertEqual(lines[lines.index('property: label') + 1], 'to: OXT-Beyond engine')
         tip = lines[lines.index('property: toolTip') + 1]
         self.assertIn("OXT-Beyond's own Android engine", tip)
         self.assertIn("LiveCode 9.6.3's", tip)
@@ -832,6 +833,112 @@ class EngineBox(unittest.TestCase):
         # the clicks are looked at with the box enabled, as for a stack
         # built for Android (a disabled control takes none)
         self.assertLess(check.index('set the enabled of tBox to true'), check.index('controlAtLoc('))
+
+
+class FirstTargetEngine(unittest.TestCase):
+    """The engine a stack has once the Android card ticks its first
+    architecture: OXT-Beyond's own for a stack set up for Android now, when
+    the runtimes carry it, and the box ticked to show it; every stack set up
+    for Android before, or that names an engine, keeps what it has, so it is
+    built as before (androidEngineOnFirstTarget in the builder, from the
+    settings as they were before the tick; updateAndroidArch on the card).
+    The Android check's units run the handler (unitFirstTargetEngine), and
+    the UI tour ticks a first architecture in the IDE for a new stack, one
+    set up before and one that names 9.6.3
+    (tourAndroidFirstTargetEngine)."""
+
+    def setUp(self):
+        self.builder = handler(code(read(BUILDER)), 'androidEngineOnFirstTarget')
+        self.card = handler(code(read(CARD)), 'updateAndroidArch')
+
+    def test_a_stack_set_up_before_keeps_its_engine(self):
+        # an engine named, or the "android" setting (on or off), or any
+        # architecture saved (ticked or not) answers what the stack has,
+        # before the runtimes are looked at
+        self.assertRegex(self.builder, r'^function androidEngineOnFirstTarget pSettings\s+'
+                                       r'local tArch, tRuntime, tError\s+'
+                                       r'if pSettings\["android,engine"\] is not empty or "android" is among the keys '
+                                       r'of pSettings then\s+return pSettings\["android,engine"\]\s+end if\s+'
+                                       r'repeat for each item tArch in revSBPlatformArchitectures\("Android"\)\s+'
+                                       r'if \("Android," & tArch\) is among the keys of pSettings then\s+'
+                                       r'return pSettings\["android,engine"\]\s+end if\s+end repeat\s+')
+        # not the settings the card saves for any stack that opens it
+        self.assertNotIn('billingProvider', self.builder)
+        self.assertNotIn('begins with', self.builder)
+
+    def test_a_new_stack_gets_the_engine_the_runtimes_carry(self):
+        # the folder androidRuntimeFolder takes for beyond, of the runtimes
+        # the build takes; without it, or without the builder's runtime
+        # path, 9.6.3's (empty), so that the build does not stop
+        self.assertRegex(self.builder, r'try\s+put revMobileRuntimeFolder\("build"\) into tRuntime\s+'
+                                       r'catch tError\s+return empty\s+end try\s+'
+                                       r'if tRuntime is not empty and there is a folder \(tRuntime & slash & "Beyond"\) then\s+'
+                                       r'return "beyond"\s+end if\s+return empty\s+end androidEngineOnFirstTarget$')
+        choose = handler(code(read(BUILDER)), 'androidRuntimeFolder')
+        self.assertIn('there is not a folder (tRuntime & slash & "Beyond")', choose)
+        self.assertIn('put revMobileRuntimeFolder(pTarget) into tRuntime', choose)
+        self.assertEqual(self.builder.count('return "beyond"'), 1)
+
+    def test_the_card_asks_before_it_saves_the_tick(self):
+        # from the settings before the architecture is saved, only for a
+        # tick, and with the builder's answer only when it can be had
+        self.assertRegex(self.card, r'put getSettings\(\) into tSettingsA\s+'
+                                    r'put tSettingsA\["android,engine"\] into tEngine\s+'
+                                    r'if pBuild is true then\s+try\s+'
+                                    r'put androidEngineOnFirstTarget\(tSettingsA\) into tEngine\s+'
+                                    r'catch tError\s+put tSettingsA\["android,engine"\] into tEngine\s+end try\s+end if\s+'
+                                    r'if tEngine is not tSettingsA\["android,engine"\] then\s+'
+                                    r'put tEngine into tSettingsA\["android,engine"\]\s+end if\s+'
+                                    r'put pBuild into tSettingsA\["Android",pArch\]')
+        self.assertIn('local tSettingsA, tEngine, tError', self.card)
+        # the box shows it once the settings are saved
+        saved = self.card.index('setSettings tSettingsA')
+        shown = self.card.index('set the hilited of button "Beyond Engine" of group "Android targets" of me to')
+        self.assertLess(saved, shown)
+        self.assertRegex(self.card[saved:], r'if there is a button "Beyond Engine" of group "Android targets" of me then\s+'
+                                            r'set the hilited of button "Beyond Engine" of group "Android targets" of me to\s+'
+                                            r'\(tSettingsA\["android,engine"\] is "beyond"\)\s+end if')
+        # the card's first pick for a stack with Android on and no
+        # architecture (initialize) saves architectures, not an engine
+        self.assertNotIn('android,engine', handler(code(read(CARD)), 'initialize'))
+        # the builder is in the IDE's back scripts, so the card reaches it
+        home = read(('ide', 'Toolset', 'home.livecodescript'))
+        self.assertIn('put return & "revsaveasandroidstandalone" after tBackList', home)
+
+    def test_the_units_run_it(self):
+        units = read(UNITS)
+        body = handler(units, 'androidUnits')
+        self.assertRegex(body, r'unitEngine\s+unitFirstTargetEngine\s+')
+        unit = handler(units, 'unitFirstTargetEngine')
+        for case in ('"first-engine-no-beyond"', '"first-engine-new"', '"first-engine-new-card-settings"',
+                     '"first-engine-had-" & tArch & "-" & tEngine', '"first-engine-android-" & tEngine',
+                     '"first-engine-names-" & tEngine', '"first-engine-had-armv7-names-" & tEngine'):
+            self.assertIn('androidUnit ' + case, unit)
+        self.assertIn('repeat for each item tArch in "armv7,arm64,x86,x86_64"', unit)
+        self.assertIn('repeat for each item tEngine in "9.6.3,beyond"', unit)
+        # a Beyond folder it made, it takes away; one there before, it leaves
+        self.assertRegex(unit, r'put there is not a folder tBeyond into tMade\s+if tMade then')
+        self.assertRegex(unit, r'if tMade then\s+removeTree tBeyond\s+end if\s+end unitFirstTargetEngine')
+        self.assertEqual(unit.count('removeTree'), 1)
+
+    def test_the_tour_ticks_a_first_architecture(self):
+        tour = read(TOUR)
+        engine = handler(tour, 'tourAndroidEngine')
+        self.assertRegex(engine, r'put tourAndroidFirstTargetEngine\(tCard, tTargets, tBox, tWas\) after tFails\s+'
+                                 r'return tFails\s+end tourAndroidEngine')
+        check = handler(tour, 'tourAndroidFirstTargetEngine')
+        self.assertIn('repeat for each item tCase in "new,set up before,names 9.6.3"', check)
+        self.assertIn('put there is a folder (tRuntime & "/Beyond") into tBeyond', check)
+        for part in ('put false into tSettings["Android,armv7"]',
+                     'put "9.6.3" into tSettings["android,engine"]',
+                     'dispatch "mouseUp" to button "Android arm64" of pTargets with 1',
+                     'if the hilited of pBox is not (tWant is "beyond") then',
+                     'set the customProperties["cRevStandaloneSettings"] of stack kSample to pWas',
+                     'dispatch "updateAndroidSettingState" to pCard'):
+            self.assertIn(part, check)
+        # each case starts from the sample without any Android setting
+        self.assertRegex(check, r'if tKey is "android" or tKey begins with "android," then\s+'
+                                r'delete variable tSettings\[tKey\]')
 
 
 class EdgeToEdgeBox(unittest.TestCase):

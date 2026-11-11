@@ -35,7 +35,8 @@
 #             has passed (or was not needed). It downloads those five
 #             artifacts, from this run or from main's build (not the logs
 #             or the per-architecture build outputs), builds the plugin packages
-#             for other xTalks' IDEs (tools/plugins), checks each against its
+#             for other xTalks' IDEs (tools/plugins) and the web bundle from
+#             the web IDE and Stack Player zips (tools/web-host), checks each against its
 #             SHA256SUMS and the release's file list, writes one combined
 #             SHA256SUMS (tools/ci/release_assets.py) and the release notes
 #             (tools/ci/release_notes.py), then creates the release as a
@@ -465,6 +466,28 @@ jobs:
           python3 tools/plugins/build-plugin-packages.py --release --version "$VERSION" \
             --out "$RUNNER_TEMP/artifacts/OXT-Beyond-plugins"
           python3 tools/plugins/build-plugin-packages.py --check "$RUNNER_TEMP"/artifacts/OXT-Beyond-plugins/*.lce
+
+      # The web bundle (tools/web-host/README.md, tier 1): the web IDE and
+      # Stack Player zips downloaded above, unchanged, with their Brotli
+      # and gzip copies and the web servers' configs, into a folder of the
+      # same shape as a downloaded artifact (its SHA256SUMS too), so that
+      # the next step checks it as it checks the others. The zips' own
+      # SHA256SUMS are checked first: the bundle is made only from the
+      # files that are released
+      - name: Build the web bundle
+        run: |
+          (cd "$RUNNER_TEMP/artifacts/OXT-Beyond-web-ide" && sha256sum -c SHA256SUMS)
+          (cd "$RUNNER_TEMP/artifacts/OXT-Beyond-linux-x86_64" && sha256sum -c SHA256SUMS --ignore-missing)
+          python3 -m venv "$RUNNER_TEMP/bundle-venv"
+          "$RUNNER_TEMP/bundle-venv/bin/python" -m pip install --quiet "brotli==1.1.0"
+          out="$RUNNER_TEMP/artifacts/OXT-Beyond-web-bundle"
+          mkdir -p "$out"
+          "$RUNNER_TEMP/bundle-venv/bin/python" tools/web-host/make_bundle.py \
+            --ide "$RUNNER_TEMP/artifacts/OXT-Beyond-web-ide/OXT-Beyond-$VERSION-web-ide.zip" \
+            --player "$RUNNER_TEMP/artifacts/OXT-Beyond-linux-x86_64/OXT-Beyond-$VERSION-web-player.zip" \
+            --version "$VERSION" --out "$out/OXT-Beyond-$VERSION-web-bundle.zip" \
+            --source-url "https://github.com/$GITHUB_REPOSITORY/tree/$GITHUB_SHA"
+          (cd "$out" && sha256sum "OXT-Beyond-$VERSION-web-bundle.zip" > SHA256SUMS && cat SHA256SUMS)
 
       # Each artifact against its own SHA256SUMS and the release's file
       # list (none missing, none extra, the xTalk sources zip once), then

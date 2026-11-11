@@ -27,6 +27,10 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #define CWM_TASKBAR_NOTIFICATION (WM_USER + 1)
 #define CWM_RELAUNCH (WM_USER + 3)
 #define CWM_REMOTE (WM_USER + 6)
+// OXT-Beyond: posted to the invisible window when the engine finds that
+// Windows' appearance (light or dark) is not the one its colours and windows
+// were last set for (MCWin32FollowSystemAppearance, w32dcs.cpp)
+#define CWM_APPEARANCE_CHANGED (WM_USER + 7)
 
 #define MC_WIN_CLASS_NAME		"MCWinClass"
 #define MC_WIN_CLASS_NAME_W L"MCWinClassW"

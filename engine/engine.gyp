@@ -862,6 +862,7 @@
 									'src/em-url.js',
 									'src/em-standalone.js',
 									'src/em-liburl.js',
+									'src/em-socket.js',
 									'src/em-dc.js',
 								],
 
@@ -916,6 +917,7 @@
 									'src/em-url.js',
 									'src/em-standalone.js',
 									'src/em-liburl.js',
+									'src/em-socket.js',
 									'src/em-dc.js',
 								],
 							},
@@ -1021,6 +1023,7 @@
 									'src/em-url.js',
 									'src/em-standalone.js',
 									'src/em-liburl.js',
+									'src/em-socket.js',
 									'src/em-dc.js',
 								],
 
@@ -1064,6 +1067,7 @@
 									'src/em-url.js',
 									'src/em-standalone.js',
 									'src/em-liburl.js',
+									'src/em-socket.js',
 									'src/em-dc.js',
 								],
 							},

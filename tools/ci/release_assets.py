@@ -33,9 +33,11 @@ after it, as actions/download-artifact writes a named artifact:
   OXT-Beyond-web-ide        web-ide.yml, job "Web IDE download" (called
                             with the input release)
 
-and writes one more folder itself, before assemble:
+and writes two more folders itself, before assemble:
 
   OXT-Beyond-plugins        tools/plugins/build-plugin-packages.py --release
+  OXT-Beyond-web-bundle     tools/web-host/make_bundle.py, from the web IDE
+                            and Stack Player zips
 
 assemble checks each artifact folder of --artifacts:
 
@@ -146,6 +148,13 @@ ASSETS = (
     # web-ide.yml when release.yml calls it; added after 0.2.7-rc.6.1
     ('OXT-Beyond-web-ide', 'web-ide', (
         '-web-ide.zip',
+    )),
+    # The web bundle (tools/web-host, tier 1): the web IDE and Stack Player
+    # zips above with their compressed copies and the web servers' configs,
+    # to drop onto any web host; built by the publish job itself
+    # (tools/web-host/make_bundle.py) from those two zips; added after 0.2.7
+    ('OXT-Beyond-web-bundle', 'web-bundle', (
+        '-web-bundle.zip',
     )),
 )
 

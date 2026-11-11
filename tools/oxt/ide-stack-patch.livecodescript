@@ -540,7 +540,7 @@ private command patchFile pRel, pPatches, pCheck
    local tPath, tOriginal, tMain, tBefore, tExpected, tAfter, tChanged
    local tObject, tScript, tOld, tNew, tOldCount, tNewCount, tPatched
    local tAppliedHere, tFailedHere, tSame, tScriptObjects, tLabels, tPropertyA, tAppliedA
-   local tCompileError, tSaveError, tCurrent, tLabel, tCreatedA, tClone, tCloneProblem
+   local tCompileError, tSaveError, tCurrent, tLabel, tCreatedA, tClone, tCloneProblem, tLocked
    put sRoot & "/" & pRel into tPath
    if there is not a file tPath then throw "not found: " & tPath
    put URL ("binfile:" & tPath) into tOriginal
@@ -581,9 +581,16 @@ private command patchFile pRel, pPatches, pCheck
             add 1 to sPending
          else
             put empty into tCloneProblem
+            -- A stack whose cantModify is true refuses "clone" (EE-0105,
+            -- "stack is locked"), though it takes "set": the Card Navigator
+            -- is one. The copy is made with the flag down and the flag put
+            -- back at once, so the saved stack keeps it as it was.
+            put the cantModify of stack tMain into tLocked
             try
+               if tLocked then set the cantModify of stack tMain to false
                clone tObject
                put it into tClone
+               if tLocked then set the cantModify of stack tMain to true
                set the name of tClone to pPatches[i]["clone"]
                set the cREVGeneral["revUniqueID"] of tClone to pPatches[i]["uniqueId"]
                repeat with j = 1 to the number of elements of pPatches[i]["properties"]
@@ -593,6 +600,7 @@ private command patchFile pRel, pPatches, pCheck
             catch tError
                put "the copy cannot be made as patched (" & oneLine(tError) & ")" into tCloneProblem
             end try
+            if tLocked then set the cantModify of stack tMain to true
             if tCloneProblem is not empty then
                write "PATCH " & tPatched & " | FAILED " & tCloneProblem & return to stdout
                add 1 to sFailures
@@ -1044,9 +1052,15 @@ private function changedAsPatched pBefore, pAfter, pScriptLabels, pPropertyLabel
          set the caseSensitive to false
          throw "the source of " & tLabel & " is not in the stack"
       end if
+      -- ... and its script is its source's, unless a script patch of this
+      -- run names the copy (the Card Navigator's "Clone Card" is "New Card"
+      -- with one line changed); it is then a script that changed as patched
       if tAfterA[tLabel]["script"] is not tAfterA[tSource]["script"] then
-         set the caseSensitive to false
-         throw "the script of " & tLabel & " is not its source's"
+         if tLabel is not among the lines of pScriptLabels then
+            set the caseSensitive to false
+            throw "the script of " & tLabel & " is not its source's"
+         end if
+         put tLabel & return after tChanged
       end if
       put empty into tWanted
       put "prop id: " & pCreatedLabels[tLabel]["id"] into tWanted["id"]

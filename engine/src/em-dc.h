@@ -252,6 +252,13 @@ public:
     virtual void getbeep(uint4 property, int4& r_value);
     virtual void setbeep(uint4 property, int4 beep);
 
+    /* OXT-Beyond: the depth of the screen, which the page's canvas has:
+     * 32 bits (RGBA), as on the desktop engines (desktop-dc.cpp) and
+     * Android, for the screenDepth and the screenColors. The base
+     * class's 0 made a HyperCard stack that checks for colour (HyperGASP's
+     * "at least 16 colors") refuse to colour itself in a browser. */
+    virtual uint2 getdepth();
+
     /* The modifier keys and the keys that are down, as the page's
      * latest events say (em-event.js) */
     virtual uint2 querymods();

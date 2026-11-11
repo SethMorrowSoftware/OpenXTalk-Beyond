@@ -74,7 +74,8 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --    OXT_ANDROID_WORK      a folder for the units' made-up SDKs
 --    OXT_ANDROID_PROBE     "java" for the Java layer's probe (see below),
 --                          "busy" for the busy probe (see kBusyTick),
---                          "edge" for the edge probe (see kEdgeWait)
+--                          "edge" for the edge probe (see kEdgeWait),
+--                          "tests" for the script tests (see kTestsScript)
 --    OXT_ANDROID_ENGINE    the probe's "android,engine" setting ("beyond"
 --                          for OXT-Beyond's own engine; none when empty)
 --
@@ -161,6 +162,20 @@ constant kEdgeWait = 1000
 constant kProbeIconForeground = "oxt-icon-foreground.png"
 constant kProbeIconMonochrome = "oxt-icon-monochrome.png"
 constant kIdentifier = "org.openxtalk.check.androidprobe"
+-- kTestsScript: the script tests (OXT_ANDROID_PROBE "tests") are the
+-- standalone that tools/ci/android_tests.py runs the LiveCode Script
+-- tests of tests/lcs in on a device: a stack named as LiveCode's standalone
+-- test runner's (StandaloneTestRunnerMainstack, which tells the test
+-- library that it runs in a standalone) whose script is that of
+-- tools/ci/android-tests.livecodescript, which android_tests.py puts
+-- beside the stack file as kTestsScript, with the copy files it names
+-- (kTestsFiles: the tests, and the extensions they load) in folders
+-- beside it too. It is its own app (kTestsIdentifier), may use the
+-- network (INTERNET: the tests of sockets and URLs), and is built as a
+-- probe is
+constant kTestsScript = "android-tests.livecodescript"
+constant kTestsFiles = "oxt-tests,packaged_extensions"
+constant kTestsIdentifier = "org.openxtalk.check.androidtests"
 -- The Java layer's probe's picture: one pixel, a PNG, as base64
 constant kProbePicture = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
 -- The Java layer's probe's copy file, oxt-probe.txt, and what it holds
@@ -277,6 +292,7 @@ private command androidUnits
    unitEdgeToEdge tWork
    unitAdaptiveIcon tWork
    unitEngine
+   unitFirstTargetEngine
    unitAppBundle tWork
    androidUnit "required-sdk", deployCall("deployRequiredSDK") is "Android 13 (API 33) or newer", \
          "deployRequiredSDK() is" && deployCall("deployRequiredSDK")
@@ -376,6 +392,58 @@ private command unitEngine
             "answered" && it & ", threw" && tError
    end repeat
 end unitEngine
+
+-- The engine a stack has once the Android card ticks its first
+-- architecture (androidEngineOnFirstTarget, from the settings before the
+-- tick): OXT-Beyond's own for a stack set up for Android now, the card's
+-- own settings of any stack that opens it notwithstanding, when the
+-- runtimes carry it; what it had for one set up before (an architecture
+-- saved, ticked or not, or the "android" setting, on or off) or that names
+-- an engine; and empty, LiveCode 9.6.3's, when the runtimes have none. As
+-- in unitEngine, a Beyond folder the unit makes it takes away again
+private command unitFirstTargetEngine
+   local tSettings, tRuntime, tBeyond, tMade, tArch, tAnswer, tEngine
+   put builderCall("revMobileRuntimeFolder", "build") into tRuntime
+   put tRuntime & "/Beyond" into tBeyond
+   put there is not a folder tBeyond into tMade
+   if tMade then
+      put builderCall("androidEngineOnFirstTarget", tSettings) into tAnswer
+      androidUnit "first-engine-no-beyond", tAnswer is empty, tAnswer
+      revSBEnsureFolder tBeyond
+   end if
+   put builderCall("androidEngineOnFirstTarget", tSettings) into tAnswer
+   androidUnit "first-engine-new", tAnswer is "beyond", tAnswer
+   put "Google" into tSettings["android,billingProvider"]
+   put "com.yourcompany.yourapp" into tSettings["android,identifier"]
+   put builderCall("androidEngineOnFirstTarget", tSettings) into tAnswer
+   androidUnit "first-engine-new-card-settings", tAnswer is "beyond", tAnswer
+   repeat for each item tArch in "armv7,arm64,x86,x86_64"
+      repeat for each item tEngine in "true,false"
+         delete variable tSettings
+         put tEngine into tSettings["Android," & tArch]
+         put builderCall("androidEngineOnFirstTarget", tSettings) into tAnswer
+         androidUnit "first-engine-had-" & tArch & "-" & tEngine, tAnswer is empty, tAnswer
+      end repeat
+   end repeat
+   repeat for each item tEngine in "true,false"
+      delete variable tSettings
+      put tEngine into tSettings["android"]
+      put builderCall("androidEngineOnFirstTarget", tSettings) into tAnswer
+      androidUnit "first-engine-android-" & tEngine, tAnswer is empty, tAnswer
+   end repeat
+   repeat for each item tEngine in "9.6.3,beyond"
+      delete variable tSettings
+      put tEngine into tSettings["android,engine"]
+      put builderCall("androidEngineOnFirstTarget", tSettings) into tAnswer
+      androidUnit "first-engine-names-" & tEngine, tAnswer is tEngine, tAnswer
+      put false into tSettings["Android,armv7"]
+      put builderCall("androidEngineOnFirstTarget", tSettings) into tAnswer
+      androidUnit "first-engine-had-armv7-names-" & tEngine, tAnswer is tEngine, tAnswer
+   end repeat
+   if tMade then
+      removeTree tBeyond
+   end if
+end unitFirstTargetEngine
 
 -- The engine runs once in a process: the configuration changes the app
 -- goes on through (LiveCode's four first, as before, and not the density,
@@ -990,8 +1058,33 @@ private function probeName
    if $OXT_ANDROID_PROBE is "edge" then
       return "AndroidEdgeProbe"
    end if
+   if $OXT_ANDROID_PROBE is "tests" then
+      return "StandaloneTestRunnerMainstack"
+   end if
    return "AndroidProbe"
 end probeName
+
+-- The folder of the probe stack's file, where the script tests' script and
+-- copy files are (see kTestsScript)
+private function probeFolder
+   set the itemDelimiter to slash
+   return item 1 to -2 of $OXT_ANDROID_STACK
+end probeFolder
+
+-- The script tests' script: kTestsScript, a script-only stack's file,
+-- without its first line (script "<name>")
+private function testsScript
+   local tScript
+   put textDecode(url ("binfile:" & probeFolder() & slash & kTestsScript), "UTF-8") into tScript
+   if tScript is empty then
+      throw "no" && kTestsScript && "in" && probeFolder()
+   end if
+   replace numToChar(13) & numToChar(10) with return in tScript
+   if line 1 of tScript begins with "script " then
+      delete line 1 of tScript
+   end if
+   return tScript
+end testsScript
 
 private function probeScript
    local tScript
@@ -1091,6 +1184,20 @@ private command makeProbeStack
    create stack tProbe
    set the rect of stack tProbe to 0,0,320,480
    set the backgroundColor of stack tProbe to kSavedColor
+   if tProbe is "StandaloneTestRunnerMainstack" then
+      -- the script tests: their script, and nothing else on the card (the
+      -- tests make their own stacks)
+      set the fullscreenMode of stack tProbe to "exactFit"
+      set the script of stack tProbe to testsScript()
+      if the result is not empty then
+         throw kTestsScript && "does not compile:" && the result
+      end if
+      save stack tProbe as $OXT_ANDROID_STACK
+      if the result is not empty then
+         throw "cannot save the probe stack as" && $OXT_ANDROID_STACK & ":" && the result
+      end if
+      exit makeProbeStack
+   end if
    set the fullscreenMode of stack tProbe to "exactFit"
    set the script of stack tProbe to probeScript()
    local tDefault
@@ -1114,6 +1221,15 @@ private function buildSettings pName
    put probeName() into tSettings["name"]
    put kIdentifier into tSettings["android,identifier"]
    put "Android Probe" into tSettings["android,label"]
+   -- the script tests: their own app, the network, and their copy files
+   -- (folders beside the stack: see kTestsScript)
+   if probeName() is "StandaloneTestRunnerMainstack" then
+      put kTestsIdentifier into tSettings["android,identifier"]
+      put "Android Tests" into tSettings["android,label"]
+      put true into tSettings["android,application permissions"]["INTERNET"]
+      put kTestsFiles into tSettings["files"]
+      replace comma with return in tSettings["files"]
+   end if
    -- the engine the probe is built with: OXT-Beyond's own (android_check.py
    -- ide --android-engine beyond), or 9.6.3's as a stack that names none
    if $OXT_ANDROID_ENGINE is not empty then

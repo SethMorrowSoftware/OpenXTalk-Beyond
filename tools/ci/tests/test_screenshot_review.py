@@ -1004,14 +1004,14 @@ class TheAssistantNotes(unittest.TestCase):
 
     def test_the_notes_beside_a_box(self):
         build = handler(read(ASSISTANT), 'command', 'xtaBuildSettings')
-        for name in ('Max Tokens Note', 'Fix Rounds Note', 'Timeout Note'):
+        for name in ('Context Length Note', 'Max Tokens Note', 'Fix Rounds Note', 'Timeout Note'):
             # at the row's top: with the margin of 6 their words are where
             # they were, 2 points down with a margin of 4
             self.assertIn('xtaSettingsNote "%s", tLeft + 88, tTop, tRight, 20' % name, build)
 
     def test_the_notes_under_a_box(self):
         build = handler(read(ASSISTANT), 'command', 'xtaBuildSettings')
-        for name in ('Key Note', 'Base URL Note', 'Model Note'):
+        for name in ('Key Note', 'Base URL Note'):
             # a point under the box above (24 high), and tall enough for two
             # lines of 13 and the margins
             self.assertIn('add 25 to tTop\n   xtaSettingsNote "%s", tLeft, tTop, tRight, 31' % name, build)

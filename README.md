@@ -79,6 +79,9 @@ thing is built, packaged and tested in the open from this repository.
   out for a phone, a tablet and a desktop, and the whole IDE runs in a
   web page as the
   [web IDE](https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/ide/).
+  Both can run on your own web site: the release's web bundle drops onto
+  any web host, and the web host keeps your stacks on your own server
+  ([tools/web-host](tools/web-host/README.md)).
 - **The xTalk Suite built in**: cryptography, BitTorrent, reliable UDP,
   WebRTC, Tor, Bitcoin and Ethereum primitives, 2-D physics and Nostr,
   as ready-to-use xTalk handlers (see
@@ -233,7 +236,9 @@ Earlier versions, from 0.2.1 to 0.2.5, are described under
   runtime a package carries, Android aside, and run those the test
   machine can run; Android packages are built by the IDE's Android
   builder with a real Android SDK, checked, and run on Android emulators
-  by a workflow of their own (see [BUILDING.md](BUILDING.md#android-standalone-check)).
+  by a workflow of their own (see [BUILDING.md](BUILDING.md#android-standalone-check)),
+  and the LiveCode Script tests run on an Android emulator with both
+  Android engines (see [BUILDING.md](BUILDING.md#android-script-tests)).
 - **Some old third-party libraries.** OpenSSL (3.5.9, a long-term
   support release), curl (8.22.0) and ICU (78.3) are current, built from
   source for every platform, and so are the image and pattern libraries

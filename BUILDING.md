@@ -413,7 +413,7 @@ library, architecture and configuration:
 | `OpenSSL-3.5.9-...-PIC` | OpenSSL 3.5.9 (a long-term support release): libcrypto and libssl, static, with OpenSSL's legacy provider built in |
 | `Curl-8.22.0-...-PIC` | libcurl 8.22.0, with OpenSSL (the server engine; on macOS the server engine uses the system's libcurl) |
 | `ICU-78.3-...-1-PIC` | ICU 78.3, with its full data file, from which the build makes the cut-down copy the engines embed |
-| `Thirdparty-e5e050573c...-PIC` | static libraries built from `thirdparty/` (cairo, libffi, giflib, libjpeg, libpng, zlib, libzip, PCRE, Skia, libxml2, libxslt, MySQL Connector/C, libpq, SQLite) |
+| `Thirdparty-e5e050573c...-PIC` | static libraries built from `thirdparty/` (cairo, libffi, giflib, libjpeg, libpng, zlib, libzip, PCRE, Skia, libxml2, libxslt, MariaDB Connector/C, libpq, SQLite) |
 | `CEF-74.1.19-...-gb62bacf` | Chromium Embedded Framework 74 (Chromium 74.0.3729.157), for the browser widget and revBrowser on Windows (x86_64 and x86) and Linux x86_64 |
 
 The versions are in `prebuilt/versions/`. Every platform builds
@@ -1480,14 +1480,21 @@ they read from the environment: `OXT_TEST_MYSQL_HOST` (`host:port`),
 `OXT_TEST_MYSQL_DATABASE`, `OXT_TEST_MYSQL_USER`,
 `OXT_TEST_MYSQL_PASSWORD` and `OXT_TEST_MYSQL_TLS` (`true` when the
 server offers TLS), and the same with `POSTGRESQL`. Without them they are
-skipped, as they are in the build jobs. The Linux build's job "Databases
-linux-x86_64" starts MySQL 8.0 and PostgreSQL 16 containers with TLS and
-runs them with `--filter '^lcs: core/database/'`; its comment says how the
-servers are set up for the bundled client libraries. They pin what the
-drivers do today, including two things a script might not expect, each
-asserted as broken in the test: PostgreSQL's `revRollBackDatabase`
-commits (revdb's `REVDB_Rollback` calls `transCommit`), and the MySQL
-client speaks TLS 1.0 only, which current servers refuse.
+skipped, as they are in the build jobs. The Linux build's jobs "Databases
+linux-x86_64" start a MySQL or MariaDB and a PostgreSQL container with TLS,
+one pair to a job (MySQL 8.0 with `mysql_native_password` and PostgreSQL
+16 with md5; MySQL 8.4 and PostgreSQL 17 with their default logins,
+`caching_sha2_password` and SCRAM-SHA-256; MariaDB 11.4 and PostgreSQL
+18), and run them with `--filter '^lcs: core/database/'`, first on the
+build and then on the newest release's Linux binaries. Each job's summary
+then lists the tests whose result or output differs between the two
+(`tools/ci/compare_test_output.py`, which compares two files that
+`run_engine_tests.py --output` wrote; run it the same way to compare two
+builds of your own). The tests pin what the drivers do, including what a
+script might not expect: MySQL's `revCommitDatabase` and
+`revRollBackDatabase` do nothing, a connection's character set is latin1
+unless the script sets another, and the values `revDatabaseColumnTypes`
+gives.
 
 Every CI build runs the five suites after the IDE compile check: on
 Windows (x86-64 and x86), Linux (x86-64, arm64 and x86) and macOS
@@ -2213,6 +2220,59 @@ while it ran.
 
 The Linux x86-64 package job runs it on its build and the web runtime
 it packages.
+
+### Android script tests
+
+[`tools/ci/android_tests.py`](tools/ci/android_tests.py) runs the
+LiveCode Script tests of `tests/lcs` on an Android emulator, as the
+[web engine tests](#web-engine-tests) run them in the web engine, once
+with LiveCode 9.6.3's Android engine and once with OXT-Beyond's own, so
+that what a stack would see differently with the other engine is known
+before either is the default. `prepare` puts the tests beside the stack
+that the [Android standalone check](#android-standalone-check) makes as
+its "tests" probe: the checkout's `tests/` folder, with the LiveCode
+Builder modules compiled by the IDE's own `lc-compile` and the files of
+the checkout that the tests read, and the extensions the tests load,
+from the IDE's `Extensions` folder (one the IDE does not have is noted,
+and the tests that load it fail). The IDE's builder builds the
+standalone, whose main stack is named `StandaloneTestRunnerMainstack`,
+as LiveCode's standalone test runner's is, so that tests needing the
+IDE or the LiveCode Builder compiler skip; its script,
+[`tools/ci/android-tests.livecodescript`](tools/ci/android-tests.livecodescript),
+copies the tests into the app's documents folder (so that a test can
+write beside itself), runs the test commands one after the other, each
+with the test runner's set-up and clean-up, and writes their TAP output
+to the device's log.
+
+```sh
+python3 tools/ci/android_tests.py prepare --work <work> --ide <ide>
+python3 tools/ci/android_check.py ide --install <ide> --work <work> --sdk <sdk> --jdk <jdk> \
+    --no-units --builds debug --probe tests [--android-engine beyond]
+python3 tools/ci/android_tests.py run --work <work> --serial <serial> --sdk <sdk> --engine 9.6.3
+python3 tools/ci/android_tests.py compare --old <work>/android-tests-9.6.3.json --new <work>/android-tests-beyond.json
+```
+
+`run` installs the package, starts it, and reads the log: a test that
+never ends within `--timeout` seconds (120), or stops the app, fails,
+and the app is started again at the next test (the runner keeps the
+last test that began in a file of its own), at most `--restarts` times
+(40). A test that quits is told it did: the quit is cancelled, as in
+the web engine. Failures are compared with the engine's baseline,
+`tools/ci/android-tests-baseline-<engine>.txt`, as the engine tests
+compare theirs: one not in it fails the check, an entry that passed is
+reported so that it can be taken out, and `--update-baseline` rewrites
+the file. `--check-engine <runtime>` first checks that the package's
+engine is the one built here (as `android_check.py verify --engine`
+does). `compare` says which tests fail with the second engine and pass
+with the first, and which the other way round; it decides nothing
+unless `--strict`.
+
+The "Script tests on the emulator" job of the "Android engine" workflow
+([`android-engine.yml`](.github/workflows/android-engine.yml)) runs it
+on an Android 13 emulator with each engine, after the build jobs, and
+keeps both results and logs as `android-script-tests`. The "Runtimes
+asset" workflow does not wait for it: it is evidence about the engine,
+not a gate on the asset.
 
 ### IDE screenshots
 
@@ -3502,17 +3562,29 @@ pinned commit (`xtalk_web_libraries.py test-files`).
 Packages ship the Android engines of the runtimes asset, LiveCode
 Community 9.6.3's, built with NDK r15 and its standalone toolchains (GNU
 binutils, the bfd linker, Android 4.1 as the lowest). This tree also builds
-them itself with a current NDK (the Android plan's phase 2), as a preview
-beside the 9.6.3 engine, which stays the default: a package has it only
+them itself with a current NDK (the Android plan's phase 2), beside the
+9.6.3 engine, which stays the builder's default: a package has it only
 when its stack asks for it, with
 `set the cRevStandaloneSettings["android,engine"] of stack "<name>" to "beyond"`
-(the Android card's **OXT-Beyond engine (preview)** box, under the device
-capabilities: a copy of "Android x86_64" in the build targets' group,
-made by the `android-card-engine-*.txt` IDE stack patches, which the
-group's script stores, beyond when ticked and empty when not, and the
-card's behaviour shows; the UI tour clicks it, and checks that the group,
-grown over the card to hold it, takes no click from the controls under
-it). The builder (`androidRuntimeFolder`) then takes every file of the
+(the Android card's **OXT-Beyond engine** box, "OXT-Beyond engine
+(preview)" until 0.2.8, under the device capabilities: a copy of
+"Android x86_64" in the build targets' group, made by the
+`android-card-engine-*.txt` IDE stack patches, which the group's script
+stores, beyond when ticked and empty when not, and the card's behaviour
+shows; the UI tour clicks it, and checks that the group, grown over the
+card to hold it, takes no click from the controls under it). From 0.2.8
+the card asks for it for a stack set up for Android then: the first
+architecture such a stack ticks ticks the box too, and stores beyond,
+when the runtimes carry this engine (`updateAndroidArch` on the card asks
+the builder's `androidEngineOnFirstTarget`, with the settings as they
+were before the tick). Every other stack keeps what it has, so it is
+built as before: one with an architecture saved (ticked or not) or the
+`android` setting (on or off, as LiveCode saved it before it had
+architectures), one that names an engine, and any stack when the
+runtimes have no Beyond folder. The Android check's units
+(`unitFirstTargetEngine`) run the rule, and the UI tour ticks a first
+architecture for a new stack, one set up before and one that names
+9.6.3 (`tourAndroidFirstTargetEngine`). The builder (`androidRuntimeFolder`) then takes every file of the
 runtime's from `Runtime/Android/Beyond`, where runtimes that carry this
 engine keep it as a whole runtime of its own (the folder that
 `build-android.sh` writes, below), and not one from 9.6.3's: the engines

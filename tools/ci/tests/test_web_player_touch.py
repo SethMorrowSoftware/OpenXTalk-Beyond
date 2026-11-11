@@ -58,7 +58,10 @@ class ThePages(unittest.TestCase):
             choose = js_function(page, 'choosePhone')
             # the phone first (no attribute), then a tablet ("touch"), then
             # anything else ("no", as before)
-            phone = choose.index("if (isPhone()) document.body.removeAttribute('data-mobile-web-fill');")
+            # (the bare page's ?fill=yes takes the phone's way anywhere)
+            phone_line = {'index.html': "if (isPhone())",
+                          'play.html': "if (FILL || isPhone())"}[name]
+            phone = choose.index(phone_line + " document.body.removeAttribute('data-mobile-web-fill');")
             touch = choose.index("else if (isTouch()) document.body.setAttribute('data-mobile-web-fill', 'touch');")
             other = choose.index("else document.body.setAttribute('data-mobile-web-fill', 'no');")
             self.assertLess(phone, touch, name)

@@ -1,0 +1,66 @@
+# OXT-Beyond web bundle: Apache (cPanel and most shared hosting) settings
+# for this folder. Made by tools/web-host/make_bundle.py; the same file is
+# in ide/ and player/. It needs AllowOverride FileInfo (most hosts allow
+# it); mod_rewrite and mod_headers make it fast, and without them the site
+# still works, only slower to download.
+
+# The engine is WebAssembly: a browser runs it only with this type
+AddType application/wasm .wasm
+AddType text/javascript .js
+
+# The .br and .gz files beside the big files are compressed copies of them,
+# made once for the release: each browser is handed the best one it accepts
+<IfModule mod_mime.c>
+  RemoveType .br .gz
+  RemoveEncoding .br .gz
+</IfModule>
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTP:Accept-Encoding} \bbr\b
+  RewriteCond %{REQUEST_FILENAME}.br -f
+  RewriteRule ^(.+)$ $1.br [L]
+  RewriteCond %{HTTP:Accept-Encoding} \bgzip\b
+  RewriteCond %{REQUEST_FILENAME}.gz -f
+  RewriteRule ^(.+)$ $1.gz [L]
+  # Compressed already: the server must not compress them again
+  RewriteRule \.(br|gz)$ - [E=no-gzip:1,E=no-brotli:1]
+</IfModule>
+<FilesMatch "\.wasm\.(br|gz)$">
+  ForceType application/wasm
+</FilesMatch>
+<FilesMatch "\.js\.(br|gz)$">
+  ForceType text/javascript
+</FilesMatch>
+<FilesMatch "\.html\.(br|gz)$">
+  ForceType "text/html; charset=utf-8"
+</FilesMatch>
+<FilesMatch "\.zip\.(br|gz)$">
+  ForceType application/zip
+</FilesMatch>
+<FilesMatch "\.svg\.(br|gz)$">
+  ForceType image/svg+xml
+</FilesMatch>
+<FilesMatch "\.css\.(br|gz)$">
+  ForceType text/css
+</FilesMatch>
+<FilesMatch "\.json\.(br|gz)$">
+  ForceType application/json
+</FilesMatch>
+<FilesMatch "\.txt\.(br|gz)$">
+  ForceType "text/plain; charset=utf-8"
+</FilesMatch>
+<IfModule mod_headers.c>
+  <FilesMatch "\.br$">
+    Header set Content-Encoding br
+  </FilesMatch>
+  <FilesMatch "\.gz$">
+    Header set Content-Encoding gzip
+  </FilesMatch>
+  Header merge Vary Accept-Encoding
+  # Checked again on every visit, so a new release is picked up at once
+  # (the page keeps its own copy of the engine and the IDE as well)
+  Header set Cache-Control "no-cache"
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set Referrer-Policy "no-referrer"
+</IfModule>

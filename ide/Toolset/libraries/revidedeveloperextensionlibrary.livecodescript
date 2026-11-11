@@ -193,10 +193,34 @@ function revIDEDeveloperExtension pFolder
    return __revIDEDeveloperExtensionCompileAndFetchDetails(pFolder, true)
 end revIDEDeveloperExtension
 
+-- OXT-Beyond: a script library's problems in the log, each an error that
+-- says what is wrong and where (extensionScriptLibraryProblems): a script
+-- that does not compile, a main file that is not a stack, docs with no
+-- library block or no version. The docs parser's own errors go to stdout,
+-- which the IDE does not show, so a library that failed to build said only
+-- "no id found in" its file when it was packaged, and one that did not
+-- compile installed with nothing to say (Skids, forum p=26031). It is
+-- reported at each build or test, built or not, so that a second try does
+-- not hide it behind "extension is up to date". Nothing is stopped by it
+-- that was not stopped before.
+private command __revIDEDeveloperExtensionReportLCSProblems pFolder
+   local tProblems
+   put extensionScriptLibraryProblems(pFolder) into tProblems
+   repeat for each line tProblem in tProblems
+      __revIDEDeveloperExtensionSendError tProblem
+   end repeat
+   return tProblems
+end __revIDEDeveloperExtensionReportLCSProblems
+
 private function __revIDEDeveloperExtensionCompileAndFetchDetails pFolder, \
       pForceReparseManifest
    local tSource, tSupport, tType
    extensionFetchSourceFromFolder pFolder, tSource, tSupport, tType
+   -- OXT-Beyond: say why a folder's extension cannot be found (its main
+   -- file and support files cannot be told apart), which went unsaid
+   if the result is not empty then
+      __revIDEDeveloperExtensionSendError the result
+   end if
    
    revIDEExtensionUpdateAPI pFolder, tSource
    
@@ -222,6 +246,10 @@ private function __revIDEDeveloperExtensionCompileAndFetchDetails pFolder, \
       __revIDEDeveloperExtensionLog "Skipping rebuild of" && \
             pFolder & slash & tSource && "- extension is up to date"
       put false into tReparseManifest
+   end if
+   
+   if tType is "lcs" then
+      __revIDEDeveloperExtensionReportLCSProblems pFolder
    end if
    
    put tReparseManifest or pForceReparseManifest into \
@@ -303,7 +331,13 @@ command revIDEDeveloperExtensionTest pPath
    
    # AL-2015-07-15: [[ Bug ]] If the details of the extension doesn't include an ID, then the compile failed
    if tDetailsA["name"] is empty then
-      __revIDEDeveloperExtensionSendError "Could not compile module" && pPath
+      -- OXT-Beyond: a script library is not compiled: its errors, logged
+      -- just before, say why it has no id
+      if tDetailsA["source_type"] is "lcs" then
+         __revIDEDeveloperExtensionSendError "Could not build script library" && pPath
+      else
+         __revIDEDeveloperExtensionSendError "Could not compile module" && pPath
+      end if
       exit revIDEDeveloperExtensionTest
    end if
    
@@ -628,8 +662,13 @@ end revIDEDeveloperExtensionBuildPackage
 private command __revIDEDeveloperExtensionBuildPackage pFolder, pTargetFolder, @rBuiltLocation
    extensionPackage pFolder, "", pTargetFolder, false
    if the result is not empty then
-      __revIDEDeveloperExtensionSendError the result
-      return the result
+      local tError
+      put the result into tError
+      __revIDEDeveloperExtensionSendError tError
+      -- OXT-Beyond: and why, for a script library ("no id found in" its
+      -- file was all that was said)
+      __revIDEDeveloperExtensionReportLCSProblems pFolder
+      return tError
    end if
    
    put it into rBuiltLocation

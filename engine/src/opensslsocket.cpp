@@ -2008,13 +2008,25 @@ int4 MCSocket::write(const char *buffer, uint4 towrite, Boolean securewrite)
 	if (securewrite)
 	{
 		sslstate &= ~SSTATE_RETRYWRITE;
+		// OXT-Beyond: hold a write back only while the handshake has not
+		// finished. A read that ended with SSL_ERROR_WANT_READ (the
+		// SSTATE_RETRYREAD flag) is no reason to: OpenSSL lets SSL_write
+		// run while an SSL_read waits for the rest of a record, and the
+		// flag is cleared only by the next read, which comes only when the
+		// peer sends more. LiveCode (and so OXT-Beyond up to 0.2.7) waited
+		// here too, so when a server sent a record with no data for the
+		// script after the handshake (TLS 1.3 session tickets, which Go
+		// servers such as Caddy send with their side of the handshake), and
+		// the engine read it before writing the request queued behind the
+		// handshake, the request was never sent: the server waited for it
+		// and libURL timed out ("socket timeout", issue #461).
+		// tools/ci/tls_write_check.py holds this.
 #if defined(_WINDOWS_DESKTOP) || defined(_WINDOWS_SERVER)
 
-		if (sslstate & SSTATE_RETRYCONNECT ||
-		        sslstate & SSTATE_RETRYREAD)
+		if (sslstate & SSTATE_RETRYCONNECT)
 		{
 #else
-		if (sslstate & SSLRETRYFLAGS)
+		if (sslstate & (SSTATE_RETRYCONNECT | SSTATE_RETRYACCEPT))
 		{
 #endif
 			if (sslstate & SSTATE_RETRYCONNECT)

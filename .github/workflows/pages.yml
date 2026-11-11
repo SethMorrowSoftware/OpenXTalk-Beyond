@@ -60,10 +60,17 @@
 #
 # The front page's Downloads section links the desktop packages, the web
 # zips and the plugins of a release straight to their files, as the forum
-# posts do: those of the release put on the site, or of the newest one
-# when the site has a build that is not released. Only the files the
-# release has are linked (tools/pages/build_pages.py --release-assets);
-# a release that cannot be listed leaves the section out, with a warning.
+# posts do. It offers two releases side by side, so that a visitor can
+# choose: the current stable release, and the current preview of the next
+# version (a developer preview or a release candidate) while there is one
+# newer than the stable release. tools/pages/pick_releases.py chooses
+# them from the list of the project's releases, by version, whatever
+# release or build this run puts on the site: the input tag decides the
+# web IDE and the Stack Player the site runs, not what it offers to
+# download. Only the files a release has are linked
+# (tools/pages/build_pages.py --release-assets, --preview-assets); a
+# release that cannot be listed is left out with a warning, and the
+# section too when neither can.
 #
 # The extensions page (extensions/) has a card for each xTalk Suite
 # extension, which OXT-Beyond ships built in, linking its .lce packages in
@@ -250,25 +257,38 @@ jobs:
           echo "MAP_HTML=$work/out/index.html" >> "$GITHUB_ENV"
           echo "MAP_VERSION=$GITHUB_REF_NAME @ $(git rev-parse --short=8 HEAD), $(date -u +%Y-%m-%d)" >> "$GITHUB_ENV"
 
-      - name: List the release's downloads
-        # The page goes up without the Downloads section rather than not
-        # at all
+      - name: List the downloads of the stable release and the preview
+        # The Downloads section offers the current stable release and the
+        # current preview of the next version, whichever release this run
+        # puts on the site (tools/pages/pick_releases.py chooses them by
+        # version; 200 releases back is further than a stable release has
+        # ever been behind the newest preview). The page goes up without
+        # one of them, or without the section, rather than not at all
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
-          tag=$TAG
-          if [ -n "${UNRELEASED:-}" ] || ! [[ "$tag" =~ ^v[0-9] ]]; then
-            tag=$(gh release list --repo "$REPO" --exclude-drafts --limit 30 --json tagName --jq '.[].tagName' | grep -E '^v[0-9]' | head -n 1)
-          fi
-          if [ -n "$tag" ] &&
-             gh release view "$tag" --repo "$REPO" --json assets --jq '.assets[].name' > "$RUNNER_TEMP/release-assets.txt" &&
-             [ -s "$RUNNER_TEMP/release-assets.txt" ]; then
-            echo "DOWNLOADS_TAG=$tag" >> "$GITHUB_ENV"
-            wc -l < "$RUNNER_TEMP/release-assets.txt"
-          else
-            echo "::warning::could not list the files of ${tag:-the newest release}; the front page has no Downloads section"
+          gh release list --repo "$REPO" --exclude-drafts --limit 200 \
+            --json tagName,isPrerelease > "$RUNNER_TEMP/releases.json"
+          python3 tools/pages/pick_releases.py "$RUNNER_TEMP/releases.json" | tee "$RUNNER_TEMP/picked.txt"
+          stable=$(sed -n 's/^stable=//p' "$RUNNER_TEMP/picked.txt")
+          preview=$(sed -n 's/^preview=//p' "$RUNNER_TEMP/picked.txt")
+          # list <tag> <file> <name>: the release's file names in the
+          # file, and its tag under the name for the next steps
+          list() {
+            if [ -z "$1" ]; then return 0; fi
+            if gh release view "$1" --repo "$REPO" --json assets --jq '.assets[].name' > "$2" && [ -s "$2" ]; then
+              echo "$3=$1" >> "$GITHUB_ENV"
+              echo "$1: $(wc -l < "$2") files"
+            else
+              echo "::warning::could not list the files of $1; the front page's Downloads leave it out"
+            fi
+          }
+          list "$stable" "$RUNNER_TEMP/release-assets.txt" DOWNLOADS_TAG
+          list "$preview" "$RUNNER_TEMP/preview-assets.txt" PREVIEW_TAG
+          if [ -z "$stable$preview" ]; then
+            echo "::warning::no release to offer; the front page has no Downloads section"
           fi
 
       - name: The xTalk Suite release with packages
@@ -314,6 +334,9 @@ jobs:
           if [ -n "${DOWNLOADS_TAG:-}" ]; then
             args+=(--release "$DOWNLOADS_TAG" --release-assets "$RUNNER_TEMP/release-assets.txt")
           fi
+          if [ -n "${PREVIEW_TAG:-}" ]; then
+            args+=(--preview "$PREVIEW_TAG" --preview-assets "$RUNNER_TEMP/preview-assets.txt")
+          fi
           if [ -n "${SUITE_TAG:-}" ]; then
             args+=(--suite-release "$SUITE_TAG" --suite-assets "$RUNNER_TEMP/suite-assets.txt")
           fi
@@ -330,7 +353,14 @@ jobs:
             fi
             echo "- Stack Player: $(describe "$player")"
             if grep -q 'id="downloads"' "$RUNNER_TEMP/site/index.html"; then
-              echo "- Downloads: the files of $DOWNLOADS_TAG"
+              offered=()
+              if grep -q 'id="downloads-stable"' "$RUNNER_TEMP/site/index.html"; then
+                offered+=("the stable release ${DOWNLOADS_TAG:-}")
+              fi
+              if grep -q 'id="downloads-preview"' "$RUNNER_TEMP/site/index.html"; then
+                offered+=("the preview ${PREVIEW_TAG:-${DOWNLOADS_TAG:-}}")
+              fi
+              echo "- Downloads: the files of $(IFS=+; echo "${offered[*]}" | sed 's/+/ and /g')"
             else
               echo "- Downloads: not on the front page"
             fi

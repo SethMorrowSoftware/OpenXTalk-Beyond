@@ -118,8 +118,11 @@ longer than the panel), Pause (nothing moves), Step (it stays paused),
 Pause again, Reset, a body dragged with the mouse, the Scripts drawer,
 and a click on an empty court on Rays and Terrain; then the arrow keys,
 the car's on Wheels, and Back and Next. No click may raise a script
-error. It ends with `DONE` or `FAILED n`, and CI runs it after the test
-above.
+error. What a click must show (the call explained, the drawer, Play for
+Pause, the next card) has up to five seconds to reach the file, since a
+busy machine writes it late; what a click must not change is read a
+fixed moment after it. It ends with `DONE` or `FAILED n`, and CI runs it
+after the test above.
 
 Where Box2Dxt is not loaded (the web IDE, for now), each lesson says so
 at the top of its court, and the rest of the stack still opens and reads.

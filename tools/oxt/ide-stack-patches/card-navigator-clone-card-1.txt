@@ -1,0 +1,15 @@
+# Card Navigator: a "Clone Card" button between "New Card" and "Delete
+# Card" (OpenXTalkPaul, openxtalk.org p=26111: a flip-book animation is
+# made card by card, each a copy of the last with a small change). A copy
+# of "New Card", its label and tip its own; patch -2 gives it its script,
+# and patch -3 makes room for it.
+file: Toolset/palettes/navigatorIDE.oxtstack
+object: button "New Card" of group "navbtns" of card id 1002
+clone: Clone Card
+unique-id: 1794318125919
+property: label
+to: Clone Card 
+property: toolTip
+to: A copy of this card, after it
+property: rect
+to: 380,3,490,33

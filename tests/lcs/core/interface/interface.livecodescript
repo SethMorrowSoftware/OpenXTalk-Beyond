@@ -323,6 +323,17 @@ on TestScreenDepth
    TestAssert "test", the screendepth is among the items of "0,1,2,4,8,16,24,32"
 end TestScreenDepth
 
+-- The web engine draws into a canvas of 32 bits a pixel: its screenDepth
+-- was 0 (and its screenColors 1), which no screen has, until 0.2.8
+on TestScreenDepthWeb
+   if the platform is not "HTML5" then
+      TestSkip "the web engine's screenDepth", "the web engine only"
+      exit TestScreenDepthWeb
+   end if
+   TestAssert "the screenDepth is 32 in a browser", the screenDepth is 32
+   TestAssert "the screenColors is 2 ^ 32 in a browser", the screenColors is 2 ^ 32
+end TestScreenDepthWeb
+
 
 on TestScreenLoc
    local tRect, tLoc

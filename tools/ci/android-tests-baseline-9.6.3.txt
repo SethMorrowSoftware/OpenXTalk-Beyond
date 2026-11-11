@@ -1,0 +1,327 @@
+# Android test suite (tools/ci/android_tests.py): LiveCode Script tests known
+# to fail in an Android standalone built with the 9.6.3 engine, run on an
+# Android emulator. One "lcs: <test>" per line; "? " before it: fails only
+# sometimes; text after " #" is a comment. A test that needs what a
+# standalone cannot have (the IDE, the documentation, the LiveCode Builder
+# compiler) skips there, through the test library's requirements
+# (tests/_testlib.livecodescript), and is not here.
+
+lcs: core/array/literals: TestAFreshArrayEachTime
+lcs: core/array/literals: TestAnElementIsWritten
+lcs: core/array/literals: TestBadKey
+lcs: core/array/literals: TestBadValue
+lcs: core/array/literals: TestCaseSensitive
+lcs: core/array/literals: TestColonBeforeASign
+lcs: core/array/literals: TestCompileErrors
+lcs: core/array/literals: TestDuplicateKeys
+lcs: core/array/literals: TestEmpty
+lcs: core/array/literals: TestEmptyKey
+lcs: core/array/literals: TestKeyed
+lcs: core/array/literals: TestKeysAreExpressions
+lcs: core/array/literals: TestKeysOfVariablesAsBefore
+lcs: core/array/literals: TestMergeAndSendKeepTheirText
+lcs: core/array/literals: TestNested
+lcs: core/array/literals: TestSequence
+lcs: core/array/literals: TestTrailingComma
+lcs: core/array/literals: TestValueAndDo
+lcs: core/array/literals: TestValuesAreExpressions
+lcs: core/array/literals: TestWhereAnExpressionGoes
+lcs: core/array/literals: TestWithArrayOperations
+lcs: core/chunks/cut: TestCutVar
+lcs: core/control/repeat: TestRepeatForEachChar
+lcs: core/control/repeat: TestRepeatForEachDelimitedChunk
+lcs: core/control/repeat: TestRepeatForEachElementWithDecimalKeys
+lcs: core/control/repeat: TestRepeatForEachKeyInSequence
+lcs: core/control/repeat: TestRepeatForEachKeyInSequenceFromZero
+lcs: core/control/repeat: TestRepeatForEachSegment
+lcs: core/control/repeat: TestRepeatForEachTrueWord
+lcs: core/control/try: TestTryErrorInCatch
+lcs: core/control/try: TestTryErrorInFinally
+lcs: core/control/try: TestTryFinallyExitHandler
+lcs: core/control/try: TestTryFinallyNoStatements
+lcs: core/control/try: TestTryFinallyPassHandlerToTop
+lcs: core/control/try: TestTryFinallyRepeatControl
+lcs: core/control/try: TestTryFinallyReturn
+lcs: core/datetime/datetime: TestConvertDatesBefore1970
+lcs: core/datetime/microseconds: TestMicrosecondsCustomProperty
+lcs: core/datetime/microseconds: TestMicrosecondsErrorsAsBefore
+lcs: core/datetime/microseconds: TestMicrosecondsHandlers
+lcs: core/datetime/microseconds: TestMicrosecondsInDo
+lcs: core/datetime/microseconds: TestMicrosecondsInDoAndValue
+lcs: core/datetime/microseconds: TestMicrosecondsInExpressions
+lcs: core/datetime/microseconds: TestMicrosecondsIsStillAName
+lcs: core/datetime/microseconds: TestMicrosecondsModifiers
+lcs: core/datetime/microseconds: TestMicrosecondsNames
+lcs: core/datetime/microseconds: TestMicrosecondsOldReadings
+lcs: core/datetime/microseconds: TestMicrosecondsRefusals
+lcs: core/datetime/microseconds: TestTheMicroseconds
+lcs: core/datetime/sql-date: TestConvertFromSql
+lcs: core/datetime/sql-date: TestConvertFromSqlRefuses
+lcs: core/datetime/sql-date: TestConvertToSql
+lcs: core/datetime/sql-date: TestSqlCustomProperty
+lcs: core/datetime/sql-date: TestSqlIsStillAName
+lcs: core/datetime/sql-date: TestSqlTextNotRecognisedUnlessNamed
+lcs: core/datetime/sql-date: TestSqlVariableNamesAProperty
+lcs: core/datetime/sql-date: TestSqlYearBefore1000
+lcs: core/datetime/sql-date: TestTheSqlDate
+lcs: core/debugging/log: TestLog  # error 539: no shell() on Android
+lcs: core/engine/commandargs: TestCommandName  # error 539: no shell() on Android
+lcs: core/engine/engine: TestEffectiveRectIsUpdatedWhileScreenIsLocked
+lcs: core/engine/engine: TestProcessor
+lcs: core/engine/engine: TestUngroupAndQuit  # error 539: no shell() on Android
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleArithmetic
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleBackgroundOrder
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleCardId
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleChars
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleDoMenu
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleDoMenuLocked
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleDoMenuStack
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleDynamicCard
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleDynamicPath
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleGoBack
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleGroupLook
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleGroupStyle
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleMessages
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatiblePlayField
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleProperty
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleRound
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleSaved
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleSeconds
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleSetScript
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleSetScriptPreserve
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleSubstack
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleTextProperties
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleTextStyleNames
+lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleUserLevel
+lcs: core/field/autotab: TestAutoTabReturnGoesRound
+lcs: core/field/bidi-isolates: TestPDIAfterAClosedIsolate
+lcs: core/field/bidi-isolates: TestTheForumString
+lcs: core/field/bidi-order: TestEmbeddingWithOnlyABN
+lcs: core/field/bidi-order: TestEmptyEmbedding
+lcs: core/field/bidi-order: TestIsolateBetweenAWordAndANumber
+lcs: core/field/bidi-order: TestLeftToRightText
+lcs: core/field/bidi-order: TestSoftHyphenInAWord
+lcs: core/field/bidi-order: TestTerminatorAfterANumber
+lcs: core/field/bidi-order: TestTerminatorBeforeANumberAndAWord
+lcs: core/field/bidi-order: TestTextAfterAClosedEmbedding
+lcs: core/field/bidi-order: TestTextAfterAClosedIsolate
+lcs: core/field/bidi-order: TestZWNJInAWord
+lcs: core/field/return-before-image: TestReturnBeforeFirstCharImage
+lcs: core/field/return-before-image: TestReturnBeforeImageInParagraph
+lcs: core/field/return-before-image: TestReturnBeforeImageKeepsStyles
+lcs: core/field/return-before-image: TestReturnBetweenImages
+lcs: core/field/return-before-image: TestTypeReturnBeforeImage
+lcs: core/field/return-before-image: TestUndoDeletionBringsImageBack
+lcs: core/field/return-before-image: TestUndoJoinKeepsImage
+lcs: core/field/undo-records: TestUndoInAFieldWithoutTheFocus
+lcs: core/field/undo-records: TestUndoTwiceInAFieldWithoutTheFocus
+lcs: core/field/undo-records: TestUndoWithLinesSelected
+lcs: core/field/undo-typed-return: TestUndoReturnAfterTypingElsewhere
+lcs: core/field/undo-typed-return: TestUndoReturnInSecondLine
+lcs: core/field/undo-typed-return: TestUndoReturnThenText
+lcs: core/field/undo-typed-return: TestUndoReturnTypedFirst
+lcs: core/field/undo-typed-return: TestUndoReturnTypedInALine
+lcs: core/field/undo-typed-return: TestUndoTextThenReturn
+lcs: core/filters/filters: TestFiltersMessageDigestUnknownType
+lcs: core/graphics/drawing: TestDrawingClip
+lcs: core/graphics/drawing: TestDrawingClipMalformed
+lcs: core/graphics/drawing: TestDrawingPolygonCounts
+lcs: core/interface/go: TestGoBackground
+lcs: core/interface/go: TestGoCardOfBackgroundNotFound
+lcs: core/interface/go: TestGoNextBackgroundFromCardWithNone
+lcs: core/interface/hypercard-import: TestHyperCardImportAddColor
+lcs: core/interface/hypercard-import: TestHyperCardImportAppleDouble
+lcs: core/interface/hypercard-import: TestHyperCardImportAppleSingle
+lcs: core/interface/hypercard-import: TestHyperCardImportBackgroundProperties
+lcs: core/interface/hypercard-import: TestHyperCardImportBinHex
+lcs: core/interface/hypercard-import: TestHyperCardImportBuiltinSounds
+lcs: core/interface/hypercard-import: TestHyperCardImportButtons
+lcs: core/interface/hypercard-import: TestHyperCardImportCardOrder
+lcs: core/interface/hypercard-import: TestHyperCardImportCardProperties
+lcs: core/interface/hypercard-import: TestHyperCardImportCardsAndBackgrounds
+lcs: core/interface/hypercard-import: TestHyperCardImportContents
+lcs: core/interface/hypercard-import: TestHyperCardImportFields
+lcs: core/interface/hypercard-import: TestHyperCardImportGame
+lcs: core/interface/hypercard-import: TestHyperCardImportIdClashes
+lcs: core/interface/hypercard-import: TestHyperCardImportInventory
+lcs: core/interface/hypercard-import: TestHyperCardImportMacBinary
+lcs: core/interface/hypercard-import: TestHyperCardImportMacBinaryResourceFork
+lcs: core/interface/hypercard-import: TestHyperCardImportMacRomanText
+lcs: core/interface/hypercard-import: TestHyperCardImportMacZip
+lcs: core/interface/hypercard-import: TestHyperCardImportNewStackCard
+lcs: core/interface/hypercard-import: TestHyperCardImportNewStackControl
+lcs: core/interface/hypercard-import: TestHyperCardImportNoUsableSidecar
+lcs: core/interface/hypercard-import: TestHyperCardImportNotAStack
+lcs: core/interface/hypercard-import: TestHyperCardImportOddStacks
+lcs: core/interface/hypercard-import: TestHyperCardImportPalettes
+lcs: core/interface/hypercard-import: TestHyperCardImportPicture
+lcs: core/interface/hypercard-import: TestHyperCardImportPictures
+lcs: core/interface/hypercard-import: TestHyperCardImportPlayNotes
+lcs: core/interface/hypercard-import: TestHyperCardImportRawForks
+lcs: core/interface/hypercard-import: TestHyperCardImportSoundHeaders
+lcs: core/interface/hypercard-import: TestHyperCardImportStack
+lcs: core/interface/hypercard-import: TestHyperCardImportStyledText
+lcs: core/interface/hypercard-import: TestHyperCardImportVersion1
+lcs: core/interface/image-undo: TestRotateImageGetDataWorks
+lcs: core/interface/image-undo: TestRotateImageWorks
+lcs: core/interface/interface: TestImageIntersect
+lcs: core/interface/interface: TestIntersectWithRectangle
+lcs: core/interface/show-cards: TestShowCardsCountOf65536
+lcs: core/interface/show-cards: TestShowEmptyCards
+lcs: core/interface/show-cards: TestShowMarkedCardsNoneMarked
+lcs: core/interface/show-cards: TestShowNegativeCards
+lcs: core/interface/show-cards: TestShowZeroCards
+lcs: core/interface/snapshot: TestExportGroupWithoutSnapshot
+lcs: core/interface/snapshot: TestSnapshotOfHugeGroup
+lcs: core/interface/usedesktopappearance: TestUseDesktopAppearanceDefault
+lcs: core/interface/usedesktopappearance: TestUseDesktopAppearanceNotABoolean
+lcs: core/interface/usedesktopappearance: TestUseDesktopAppearanceSet
+lcs: core/interface/usesystemwindowcolor: TestUseSystemWindowColorDefault
+lcs: core/interface/usesystemwindowcolor: TestUseSystemWindowColorNotABoolean
+lcs: core/interface/usesystemwindowcolor: TestUseSystemWindowColorSet
+lcs: core/math/errors: TestBaseConvertError
+lcs: core/multimedia/audioclipexport: TestExportAudioClip8BitStereo
+lcs: core/multimedia/audioclipexport: TestExportAudioClipAsAiff
+lcs: core/multimedia/audioclipexport: TestExportAudioClipAsAu
+lcs: core/multimedia/audioclipexport: TestExportAudioClipByExtension
+lcs: core/multimedia/audioclipexport: TestExportAudioClipMulaw
+lcs: core/multimedia/audioclipexport: TestExportAudioClipNotASoundFormat
+lcs: core/multimedia/audioclipexport: TestExportAudioClipWaveIsTheFileImported
+lcs: core/multimedia/audioclipexport: TestExportOlderFormsCompileAsBefore
+lcs: core/multimedia/audioclipexport: TestExportVideoClip
+lcs: core/network/network: TestNetworkDNSServers
+lcs: core/security/encrypt: TestRSA
+lcs: core/security/encrypt: TestRSAPass
+lcs: core/strings/filter: TestBug15443
+lcs: core/strings/matches: TestMatchesCustomProperty
+lcs: core/strings/matches: TestMatchesErrorsAsBefore
+lcs: core/strings/matches: TestMatchesHandlers
+lcs: core/strings/matches: TestMatchesInDo
+lcs: core/strings/matches: TestMatchesInStatements
+lcs: core/strings/matches: TestMatchesIsStillAName
+lcs: core/strings/matches: TestMatchesOldReadings
+lcs: core/strings/matches: TestMatchesPrecedence
+lcs: core/strings/matches: TestMatchesRegex
+lcs: core/strings/matches: TestMatchesRegexBadPattern
+lcs: core/strings/matches: TestMatchesRegexCase
+lcs: core/strings/matches: TestMatchesWildcard
+lcs: core/strings/matches: TestMatchesWildcardAsFilter
+lcs: core/strings/matches: TestMatchesWildcardCase
+lcs: extensions/libraries/hxtcompat: TestIff
+lcs: extensions/libraries/hxtcompat: TestIffBothValuesWorkedOut
+lcs: extensions/libraries/hxtcompat: TestIffNeedsTrueOrFalse
+lcs: extensions/libraries/hxtcompat: TestMicrosecondsCall
+lcs: extensions/libraries/hxtcompat: TestOwnHandlersComeFirst
+lcs: extensions/libraries/hxtcompat: TestQuotedPrintableDecode
+lcs: extensions/libraries/hxtcompat: TestQuotedPrintableEncode
+lcs: extensions/libraries/hxtcompat: TestQuotedPrintableLineLength
+lcs: extensions/libraries/hxtcompat: TestQuotedPrintableRoundTrip
+lcs: mcpbridge/tools: TestALongScriptIsReadInParts  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestAMisspeltPropertyGetsTheNearest  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestARunOnTheStackGivesItsError  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestARunThatChangesNothingKeepsNoCheckpoint  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestARunTooLongToShowIsRefused  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestChangesAndUndo  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestCheckCodeGivesOneProblemALine  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestCloseAsksWhenASubstackHasChanges  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestCloseStack  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestCodeTheScanMissesIsAskedAbout  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestDesktopConfig  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestEditScript  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestHello  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestHyperCardAddressingLabels  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestIdeContext  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestImportHyperCard  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestLookAtCardWithIds  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestNotAskingEndsWithTheBridgeAndNeedsAnAsker  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestNotAskingIsOffUntilTheUserSetsIt  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestNotAskingLetsALongRunThrough  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestNotAskingRunsAndSavesWithoutAQuestion  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestNotAskingStillAsksBeforeUndoingTheUsersChanges  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestNothingPausedAndNoDialog  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestOverASocket  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestReadStackIsLeanAndReadsSeveral  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestReadStackListsSounds  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestReadingTools  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestRefusesARequestWithoutTheToken  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestRunsAndWhatTheUserIsAsked  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestSaveAsAFile  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestSaveIsAskedAbout  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestSaveNamesAStackNeverSaved  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestSearchScripts  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestServerWritesAndDeletesItsFile  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestSetAskingNeedsTheUsersYes  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestTheFileNamesThisProcessAndIsKeptByItsOwner  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestTheGuideIsTheBridges  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestTheLinkAndTheServerAreNeverOnTogether  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestTheStatusSaysWhatItWaitsFor  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestTheTokenIsComparedAsText  # error 720: could not load the security library
+lcs: mcpbridge/tools: TestUndoAsksWhenTheUserChangedIt  # error 720: could not load the security library
+lcs: webplayer/nova-rescue: TestTheScreensFitAPhoneOnItsSide
+lcs: webplayer/puzzle-almanac: TestTheScreensFitAPhoneOnItsSide
+lcs: xtalkassistant/build: TestCheckpointBringsAStackBack  # error 539: no shell() on Android
+lcs: xtalkassistant/build: TestCleanupLeavesNothing  # error 539: no shell() on Android
+lcs: xtalkassistant/build: TestRunOnTheStackCanBeUndone  # error 539: no shell() on Android
+lcs: xtalkassistant/build: TestUndoANewStack
+lcs: xtalkassistant/core: TestAskAnthropic
+lcs: xtalkassistant/core: TestAskLocalAlreadyLoaded
+lcs: xtalkassistant/core: TestAskLocalLoadFails
+lcs: xtalkassistant/core: TestAskLocalNamedCopyIsLeftLoaded
+lcs: xtalkassistant/core: TestAskLocalReloadsWithTheContext
+lcs: xtalkassistant/core: TestAskLocalServerWithoutTheList
+lcs: xtalkassistant/core: TestAskLocalWithoutContextLength
+lcs: xtalkassistant/core: TestAskOpenAI
+lcs: xtalkassistant/core: TestAskRefusedKey
+lcs: xtalkassistant/core: TestAskWaitsForTheAnswer
+lcs: xtalkassistant/core: TestListModels
+lcs: xtalkassistant/guide: TestGuideThrowInCatch
+lcs: xtalkassistant/plugin: TestACutOffAnswerIsAskedAgain  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestACutOffAnswerIsShown  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestACutOffAnswerWithNoMoreRoom  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestACutOffCallIsNotCarriedOut  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestARefusalIsNotCarriedOut  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestAnAnswerIsLaidOut  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestAskThroughTheWindow  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestChangesAreAskedAboutAndCanBeUndone  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestChangesWithAMistakeGoBack  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestChangingStacksCanBeTurnedOff
+lcs: xtalkassistant/plugin: TestCodeThatDoesNotCompileGoesBack  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestCopyTheConversation  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestDebugStateWhenNothingIsPaused
+lcs: xtalkassistant/plugin: TestErrorHookFromTheStart
+lcs: xtalkassistant/plugin: TestErrorHookNotesTheDebuggersErrors
+lcs: xtalkassistant/plugin: TestErrorHookPassesItOn
+lcs: xtalkassistant/plugin: TestEscapeStopsIt  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestExplainTheLastError
+lcs: xtalkassistant/plugin: TestFixRoundsRunOut  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestGuideAndNotesAreSent  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestLookAtTheCard
+lcs: xtalkassistant/plugin: TestModelsChoosesAModel  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestNotesOfTheStackBehindAnIDEWindow  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestNotesToRemember  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestOnlyXTalkIsInserted  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestOpenWindow
+lcs: xtalkassistant/plugin: TestPicturesCanBeTurnedOff
+lcs: xtalkassistant/plugin: TestPicturesTurnedOffWhileItAnswers
+lcs: xtalkassistant/plugin: TestReadingTheStackIsAskedFirst  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestRunOnTheStackCanBeUndone
+lcs: xtalkassistant/plugin: TestRunsAreAskedAbout  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestSaveTheStack
+lcs: xtalkassistant/plugin: TestSendChoosesAModel  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestSettingsForAKey  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestSettingsKeepEverything  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestTheActivityRowWhileItWorks  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestToolCallsAreCarriedOut  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestToolsAreUsedUp  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestToolsRefusedByALocalServer  # did not end within 60 s
+lcs: xtalkchat/core: TestBringingAKey
+lcs: xtalkchat/core: TestCleanName
+lcs: xtalkchat/core: TestDefaultRelaysAreSecure
+lcs: xtalkchat/core: TestFolderFromEnvironment
+lcs: xtalkchat/core: TestGoOnlineNeedsWhatIsMissing
+lcs: xtalkchat/core: TestIdentityRoundTrip
+lcs: xtalkchat/core: TestKeyFromText
+lcs: xtalkchat/core: TestMuting
+lcs: xtalkchat/core: TestNoMessagesOffline
+lcs: xtalkchat/core: TestNothingOnlineAtFirst
+lcs: xtalkchat/core: TestRoomsAreSignedChannels

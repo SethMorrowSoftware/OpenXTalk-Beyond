@@ -1,0 +1,19 @@
+# Card Navigator: room for "Clone Card" (patch -1) and "Show All"
+# (card-navigator-show-all-1.txt), after "New Card" in that order.
+# "Delete Card" moves right by the two new buttons' widths and gaps (240
+# pixels), the group of the buttons grows to hold it, as the engine makes
+# it (4 pixels of margin), and the window is 240 pixels wider, its right
+# margin as before.
+file: Toolset/palettes/navigatorIDE.oxtstack
+object: button "Delete Card" of group "navbtns" of card id 1002
+property: rect
+from: 380,3,510,33
+to: 620,3,750,33
+object: group "navbtns" of card id 1002
+property: rect
+from: 4,-1,514,37
+to: 4,-1,754,37
+object: stack
+property: rect
+from: 115,676,641,740
+to: 115,676,881,740

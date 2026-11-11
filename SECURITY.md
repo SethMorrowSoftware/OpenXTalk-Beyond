@@ -143,6 +143,8 @@ versions LiveCode Community last shipped):
 | libxml2 | 2.15.4 | Current. Used by revXML. Earlier releases had 2.9.4 (2016). Its HTTP and FTP clients, which revXML uses for http:// and ftp:// URLs as 2.9.4 did, are 2.14.6's and 2.13.9's, the last releases that had them (2.15 and 2.14 removed them): plain HTTP and FTP, without TLS. revXML lets entities expand to 1000 times the size of the document read (2.15's default is 5 times; 2.9.4 had no limit), so that ordinary documents that reuse a large entity parse; nested entities that expand without bound ("billion laughs") are still refused. |
 | libxslt | 1.1.45 (November 2025) | Current. Used by revXML for XSLT. Earlier releases had 1.1.28 (2012). Recursion is limited to 3000 nested template calls, as in 1.1.28, and goes past 1.1.45's own, lower count only while 96 KB of the C stack are left, where it stops with an error (see [`thirdparty/libxslt/ORIGIN`](thirdparty/libxslt/ORIGIN)). On small stacks (512 KB, as on iOS) a recursive stylesheet can still run out of stack within 1.1.45's count, as it could with 1.1.28. |
 | libzip | 1.12 (October 2026) | Current. Used by revZip. Earlier releases had a modified libzip 0.6.1 (July 2005). |
+| MariaDB Connector/C | 3.4.11 (2026) | Current. The client library of the MySQL database driver since 0.2.8; it connects to MySQL (5.x to 8.4 and later) and MariaDB servers, including MySQL 8's default `caching_sha2_password` login. Earlier releases had MySQL Connector/C 6.0.0 (2009), whose encrypted connections asked for TLS 1.0 only until 0.2.7-rc.6.11 (#290). As before, the driver uses TLS only when the script asks for it and does not check the server's certificate (see [`thirdparty/libmysql/ORIGIN`](thirdparty/libmysql/ORIGIN)). |
+| libpq (PostgreSQL) | 17.11 (August 2026) | Current. The client library of the PostgreSQL database driver since 0.2.8; it logs in with SCRAM-SHA-256, the default of PostgreSQL 14 and later. Earlier releases had libpq from PostgreSQL 9.4.5 (2015). As before, the driver uses TLS when the server offers it unless the script says `sslmode=disable` (see [`thirdparty/libpq/ORIGIN`](thirdparty/libpq/ORIGIN)). |
 | PCRE | 8.45 (June 2021) | The last release of PCRE 1, which is no longer maintained (its successor, PCRE2, has another interface); it has the fixes for the published vulnerabilities of PCRE 1. Earlier releases had 8.39 (2016). |
 
 These are still old and have publicly known vulnerabilities:
@@ -150,8 +152,6 @@ These are still old and have publicly known vulnerabilities:
 | Component | Version in this build | Status |
 | --- | --- | --- |
 | CEF / Chromium | CEF 74.1.19, Chromium 74.0.3729.157 (2019) | Years of unpatched browser vulnerabilities. Used by the browser widget and revBrowser on Windows and Linux. Do not use them to display content you do not trust. |
-| MySQL Connector/C | 6.0.0 | Old client library used by the MySQL database driver. Up to 0.2.7-rc.6.10 the driver asked for TLS 1.0 only, which OpenSSL 3 and current MySQL and MariaDB servers refuse, so its encrypted connections failed; from 0.2.7-rc.6.11 it connects over TLS 1.2 or 1.3 (#290). The library itself is still old. |
-| libpq (PostgreSQL) | from PostgreSQL 9.4.5 (2015) | Old client library used by the PostgreSQL database driver. |
 
 Other libraries in `thirdparty/` (cairo 1.9.4 and others) are
 also several years old. SQLite was updated

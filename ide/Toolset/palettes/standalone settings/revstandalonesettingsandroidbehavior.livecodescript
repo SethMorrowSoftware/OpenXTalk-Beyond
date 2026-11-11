@@ -115,7 +115,7 @@ on updateSettings
             (tSettings["android,app bundle"] is true)
    end if
    
-   -- OXT-Beyond: the "OXT-Beyond engine (preview)" box ("Beyond Engine",
+   -- OXT-Beyond: the "OXT-Beyond engine" box ("Beyond Engine",
    -- tools/oxt/ide-stack-patches/android-card-engine-1.txt): the
    -- "android,engine" setting, with which the Android builder takes
    -- OXT-Beyond's own engine (beyond) instead of LiveCode 9.6.3's (empty or
@@ -201,9 +201,27 @@ on updateAndroidSettingState
 end updateAndroidSettingState
 
 on updateAndroidArch pArch, pBuild
-   local tSettingsA
+   local tSettingsA, tEngine, tError
    put getSettings() into tSettingsA
    
+   -- OXT-Beyond: a stack set up for Android now, with this tick, is built
+   -- with OXT-Beyond's own engine when the runtimes carry it, and the
+   -- "OXT-Beyond engine" box shows it ticked; every stack set up for
+   -- Android before, or that names an engine, keeps what it has
+   -- (androidEngineOnFirstTarget in the Android builder, from the settings
+   -- as they were before this tick). Without the builder it keeps it too
+   put tSettingsA["android,engine"] into tEngine
+   if pBuild is true then
+      try
+         put androidEngineOnFirstTarget(tSettingsA) into tEngine
+      catch tError
+         put tSettingsA["android,engine"] into tEngine
+      end try
+   end if
+   if tEngine is not tSettingsA["android,engine"] then
+      put tEngine into tSettingsA["android,engine"]
+   end if
+
    put pBuild into tSettingsA["Android",pArch]
    
    local tEnabled = false
@@ -216,6 +234,12 @@ on updateAndroidArch pArch, pBuild
    put tEnabled into tSettingsA["Android"]
    setSettings tSettingsA
    
+   -- OXT-Beyond: and the engine box shows the engine the stack has now
+   if there is a button "Beyond Engine" of group "Android targets" of me then
+      set the hilited of button "Beyond Engine" of group "Android targets" of me to \
+            (tSettingsA["android,engine"] is "beyond")
+   end if
+
    if tEnabled then
       buildForEnabled "android"
    end if
