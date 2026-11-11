@@ -625,7 +625,7 @@ class Results(unittest.TestCase):
             baseline = os.path.join(tmp, 'baseline.txt')
             open(baseline, 'w').close()
             d = FakeDevice(3, lose={1: {2: 'after-begin'}})
-            d.dropped_lines = ['I/liblog  (    0): 12']
+            d.dropped_lines = ['I/liblog  (    0): 12', 'I/liblog  ( 4321): 7']
             d.install = lambda apk: None
             d.listen = d.close = lambda: None
             real = at.run_tests
@@ -650,10 +650,37 @@ class Results(unittest.TestCase):
         self.assertEqual(d.agains, [[2]])
         text = out.getvalue()
         self.assertIn('  AGAIN lcs: x: TestTwo: pass', text)
-        self.assertIn("The device's log on the lines it dropped: I/liblog  (    0): 12", text)
+        self.assertIn("The device's log on the lines it dropped: I/liblog  (    0): 12\n", text)
+        # those of the app's process are marked
+        self.assertIn("The device's log on the lines it dropped: I/liblog  ( 4321): 7 (the app)\n", text)
+        self.assertIn('  I/liblog  ( 4321): 7 (the app)\n', log)
         self.assertIn("Run again (the device's log lost their lines): x: TestTwo\n", log)
         self.assertIn('I/liblog', log)
         self.assertIn('lcs: x: TestTwo: pass', md)
+
+
+class RealDevice(unittest.TestCase):
+
+    def test_listen_clears_the_events_buffer_too(self):
+        # so that liblog's counts of the lines it dropped are this run's
+        calls = []
+
+        class Proc:
+            stdout = []
+
+            def kill(self):
+                pass
+        device = at.Device('/adb', 'emulator-5554')
+        with mock.patch.object(at, 'run', lambda cmd, timeout=None: calls.append(cmd) or (0, '')), \
+                mock.patch.object(at.subprocess, 'Popen', lambda *a, **k: Proc()):
+            device.listen()
+        self.assertIn(['/adb', '-s', 'emulator-5554', 'logcat', '-c'], calls)
+        self.assertIn(['/adb', '-s', 'emulator-5554', 'logcat', '-b', 'events', '-c'], calls)
+
+    def test_the_lines_of_the_apps_process_are_marked(self):
+        self.assertEqual(at.mark_app(['I/liblog  (  115): 18', 'I/liblog  ( 9870): 19', '(no entries)'],
+                                     {'9870', '9871'}),
+                         ['I/liblog  (  115): 18', 'I/liblog  ( 9870): 19 (the app)', '(no entries)'])
 
 
 class Prepare(unittest.TestCase):

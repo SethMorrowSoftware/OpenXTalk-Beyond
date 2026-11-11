@@ -342,6 +342,7 @@ class Run:
         self.started = set()     # every line that began, over every start
         self.resumed = []        # the RESUME lines
         self.again = []          # the lines run again (their lines were lost)
+        self.pids = set()        # the app's processes, as pidof saw them
         self.again_said = None   # the lines the app said it runs again (AGAIN), this start
         self.begun = []          # the lines that began, this start
         self.finished = []       # the lines that said DONE, this start
@@ -464,6 +465,16 @@ def result_of(run_, line):
     return outcome, counts, text, details, failures
 
 
+def mark_app(lines, pids):
+    """liblog's lines of the device's log (Device.dropped), those of the
+    app's processes (pids) marked."""
+    marked = []
+    for x in lines:
+        m = re.search(r'\(\s*(\d+)\)', x)
+        marked.append(x + ' (the app)' if m and m.group(1) in pids else x)
+    return marked
+
+
 def lost_lines(run_, count):
     """The tests that said nothing, or not all they said, while the app
     went on past them, the lines of which the device's log lost: those with
@@ -507,6 +518,9 @@ class Device:
         """Clears the device's log and reads the app's lines from now on."""
         self.a('logcat', '-G', LOG_BUFFER)
         self.a('logcat', '-c')
+        # and the events buffer, so that liblog's counts of the lines it
+        # dropped (dropped()) are this run's
+        self.a('logcat', '-b', 'events', '-c')
         proc = subprocess.Popen([self.adb, '-s', self.serial, 'logcat', '-v', 'brief', 'LiveCode:V', '*:S'],
                                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 
@@ -634,10 +648,17 @@ def run_tests(device, count, timeout, restarts, start_timeout=START_TIMEOUT, clo
             ', '.join(str(n) for n in again) or 'none')))
         pid = ''
         began = False
+        asked = False
         why = None
         while why is None and not r.ended:
             sleep(POLL)
             began = drain() or began
+            if began and not asked:
+                # its process, once it runs a test (to know liblog's
+                # counts of the lines it dropped from those of others)
+                asked = True
+                pid = device.pid()
+                r.pids.update(pid.split())
             if r.ended:
                 break
             if r.error:
@@ -654,6 +675,7 @@ def run_tests(device, count, timeout, restarts, start_timeout=START_TIMEOUT, clo
                 current = device.pid()
                 if current:
                     pid = current
+                    r.pids.update(current.split())
                 elif now - start >= ALIVE_EVERY:
                     # its last lines may still be on their way
                     began = drain() or began
@@ -795,7 +817,7 @@ def run_command(args):
         r = run_tests(device, len(idents), args.timeout, args.restarts, report=report,
                       again_starts=args.again_starts, again_check=args.again_check)
         try:
-            dropped = device.dropped()
+            dropped = mark_app(device.dropped(), r.pids)
         except CheckError as e:
             dropped = ['(the events buffer could not be read: %s)' % e]
     finally:
