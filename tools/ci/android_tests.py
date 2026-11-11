@@ -23,7 +23,7 @@ known ones, one for each engine.
   python3 tools/ci/android_check.py ide --install DIR --work DIR --sdk SDK --jdk JDK \\
       --no-units --builds debug --probe tests [--android-engine beyond]
   python3 tools/ci/android_tests.py run --work DIR --serial SERIAL --sdk SDK --engine NAME \\
-      [--timeout SECONDS] [--baseline FILE] [--update-baseline] [--results FILE]
+      [--timeout SECONDS] [--again-check] [--baseline FILE] [--update-baseline] [--results FILE]
   python3 tools/ci/android_tests.py compare --old FILE --new FILE
 
 prepare puts into --work what the standalone is built from, beside the
@@ -58,7 +58,17 @@ TAP result, and FAIL when it does not end within --timeout seconds (the
 app is stopped), stops the app (a crash, or a quit the runner could not
 cancel), or never begins. The app is then started again, and goes on with
 the test after the last one that began (its progress file), at most
---restarts times in all. --engine names the engine the package was built
+--restarts times in all. The device's log is not lossless (Android can drop
+a burst of lines while the app goes on), so a test that said nothing while
+the app went on past it, its lines lost, is run again: the app is started
+with those tests' lines in the launch's extra oxttests_again, runs them
+alone and says END, at most --again-starts times (3), each time with those
+still lost, and their results are those of that run, the log saying that
+they were run again. An app that does not take the extra (it resumes, or
+begins another test) stops the run. With --again-check, when no test was lost the app is still
+started once to run again the first test that passed (its result stays
+that of its first run), so that every run shows that the way back in
+works. --engine names the engine the package was built
 with (9.6.3 or beyond: android_check.py ide --android-engine), and with it
 the baseline, tools/ci/android-tests-baseline-<engine>.txt (lines as
 run_engine_tests.py's baselines have them: "lcs: <test>", "? " before one
@@ -68,8 +78,9 @@ removed, and --update-baseline rewrites the baseline with the failures,
 keeping the comments of the entries that it had. The results go to
 --results (default <work>/android-tests-<engine>.json), the log of every
 failed test's output and what the device said as the app stopped to --log
-(default <work>/android-tests-<engine>.log), and under GitHub Actions a
-summary to the job summary.
+(default <work>/android-tests-<engine>.log), with the tests run again and
+what the device's log says of the lines it dropped (liblog's entries in its
+events buffer), and under GitHub Actions a summary to the job summary.
 
 compare reads two runs' results (LiveCode 9.6.3's engine and OXT-Beyond's,
 say) and says which tests fail with the second engine and not with the
@@ -130,6 +141,17 @@ ALIVE_EVERY = 5
 # The device's log buffer for the app's lines (logcat -G): several
 # thousand lines a run, read as they come
 LOG_BUFFER = '16M'
+# The launch's extra that gives the app the tests to run again (the runner
+# script's kAgainExtra): their lines, comma-separated, or AGAIN_NONE for
+# none. The device's log is not lossless: on Android 13 liblog does not
+# wait for logd, and a burst of lines can be dropped while the app goes on
+# (run 43093019217 lost every line of four tests and the DONE of a fifth
+# among ~1,600 tests in four minutes). A test that said nothing while the
+# app went on past it is run again, alone, in at most AGAIN_STARTS starts
+AGAIN_EXTRA = 'oxttests_again'
+AGAIN_NONE = 'none'
+AGAIN_STARTS = 3
+AGAIN_NOTE = "run again: the device's log lost its lines while the app went on past it"
 
 BASELINE_HEADER = (
     '# Android test suite (tools/ci/android_tests.py): LiveCode Script tests known\n'
@@ -315,6 +337,10 @@ class Run:
         self.quit = set()
         self.started = set()     # every line that began, over every start
         self.resumed = []        # the RESUME lines
+        self.again = []          # the lines run again (their lines were lost)
+        self.again_said = None   # the lines the app said it runs again (AGAIN), this start
+        self.begun = []          # the lines that began, this start
+        self.finished = []       # the lines that said DONE, this start
         self.ended = False
         self.error = None
         self.last = time.monotonic()
@@ -330,11 +356,18 @@ class Run:
             self.count = number
         elif kind == 'RESUME' and number is not None:
             self.resumed.append(number)
+        elif kind == 'AGAIN':
+            # AGAIN <line>,<line>,...: started with tests to run again, the
+            # app runs those alone (none: no test, then END)
+            listed = words[1] if len(words) > 1 else ''
+            self.again_said = [int(x) for x in listed.split(',') if x.strip().isdigit()]
         elif kind == 'BEGIN' and number is not None:
             self.current = number
             self.began = now
             self.started.add(number)
-            self.tap.setdefault(number, [])
+            self.begun.append(number)
+            # its output is that of its last run (a test run again)
+            self.tap[number] = []
         elif kind == 'TAP' and number is not None:
             # TAP <line> <n> <TAP line>: n, the line's place in the test's
             # output, keeps two lines that are the same apart (the log
@@ -344,6 +377,7 @@ class Run:
             self.quit.add(number if number is not None else self.current)
         elif kind == 'DONE' and number is not None:
             self.done.add(number)
+            self.finished.append(number)
             if self.current == number:
                 self.current = None
         elif kind == 'END':
@@ -381,7 +415,22 @@ def result_of(run_, line):
     if line in run_.quit:
         outcome = 'fail'
         details.insert(0, 'the test quit (the runner cancelled the quit)')
+    if line in run_.again:
+        details.append(AGAIN_NOTE)
     return outcome, counts, text, details, failures
+
+
+def lost_lines(run_, count):
+    """The tests that said nothing while the app went on past them, the
+    lines of which the device's log lost: those with no DONE that no stop
+    of the app accounts for, below a test that began after them (or all, once
+    the app said END). A test after the last one that began did not run."""
+    if run_.ended:
+        past = count + 1
+    else:
+        past = max(run_.started) if run_.started else 0
+    return [n for n in range(1, min(count, past - 1) + 1)
+            if n not in run_.done and not run_.details.get(n)]
 
 
 # ---------------------------------------------------------------------------
@@ -427,8 +476,13 @@ class Device:
             lines, self.lines = self.lines, []
         return lines
 
-    def start(self):
-        _, out = self.a('shell', 'am', 'start', '-n', ACTIVITY)
+    def start(self, again=None):
+        """Starts the app; again: the lines of the tests to run again (a
+        list, which may be empty), given to it as the launch's extra."""
+        extra = []
+        if again is not None:
+            extra = ['--es', AGAIN_EXTRA, ','.join(str(n) for n in again) or AGAIN_NONE]
+        _, out = self.a('shell', 'am', 'start', '-n', ACTIVITY, *extra)
         if 'Error' in out:
             raise CheckError('the app does not start: %s' % out.strip()[-500:])
 
@@ -451,23 +505,35 @@ class Device:
                 keep.append(line.rstrip())
         return keep[-40:]
 
+    def dropped(self):
+        """What the device's log says of the lines it dropped: liblog's
+        entries in the events buffer (a count of lines a process could not
+        write), for the log of the run; never decides anything."""
+        _, out = self.a('logcat', '-b', 'events', '-d', '-v', 'brief', 'liblog:V', '*:S', timeout=120)
+        return [x.rstrip() for x in out.splitlines() if 'liblog' in x][-20:]
+
     def close(self):
         if self.reader:
             self.reader.kill()
 
 
 def run_tests(device, count, timeout, restarts, start_timeout=START_TIMEOUT, clock=time.monotonic,
-              sleep=time.sleep, report=None):
+              sleep=time.sleep, report=None, again_starts=AGAIN_STARTS, again_check=False):
     """Starts the app and follows it until it has said END, starting it
     again after each stop (a crash, a quit, or a test that did not end
     within timeout seconds, when it is stopped), at most restarts times
-    after the first. count: the number of tests. Returns the Run, with
-    elapsed (seconds) and starts; report is called with each test's line
-    and result as it ends."""
+    after the first. count: the number of tests. Then the tests whose lines
+    the device's log lost (lost_lines) are run again: the app is started
+    with them (the launch's extra AGAIN_EXTRA), runs them alone and says
+    END, at most again_starts times, each time with those still lost. With
+    again_check and none lost, it is started once to run again the first
+    test that passed, whose result stays that of its first run, so that a
+    run shows that the way back in works. Returns the Run, with elapsed
+    (seconds) and starts; report is called with each test's line and result
+    as it ends."""
     r = Run()
     started_at = clock()
-    starts = 0
-    idle_starts = 0
+    state = {'starts': 0, 'idle': 0}
     reported = set()
 
     def finish(line):
@@ -490,11 +556,35 @@ def run_tests(device, count, timeout, restarts, start_timeout=START_TIMEOUT, clo
                 finish(line)
         return began
 
-    while True:
-        device.start()
-        starts += 1
+    def follow(again=None):
+        """Starts the app (again: with those tests to run again) and follows
+        it until it says END (True) or stops, or is stopped (the test it
+        stopped in, or None)."""
+        r.ended = False
+        r.again_said = None
+        r.begun = []
+        r.finished = []
+        resumed = len(r.resumed)
+        # a test that began before an END, its DONE lost, is not this
+        # start's (a stop resets it otherwise)
+        r.current = None
+        if again is None:
+            device.start()
+        else:
+            # their result is that of their run again alone: their output
+            # and whether they quit (their BEGIN, which resets the output,
+            # can be lost as well)
+            for line in again:
+                r.tap.pop(line, None)
+                r.quit.discard(line)
+            # after its END the app is still running, and am start would
+            # only bring it to the front: its script would not start again
+            device.stop()
+            device.start(again)
+        state['starts'] += 1
         start = r.last = alive_at = clock()
-        log('Started the app (%d)' % starts)
+        log('Started the app (%d)%s' % (state['starts'], '' if again is None else ', to run again: %s' % (
+            ', '.join(str(n) for n in again) or 'none')))
         pid = ''
         began = False
         why = None
@@ -522,8 +612,16 @@ def run_tests(device, count, timeout, restarts, start_timeout=START_TIMEOUT, clo
                     began = drain() or began
                     if not r.ended:
                         why = 'the app stopped'
+        if again is not None and (len(r.resumed) > resumed or set(r.begun) - set(again)):
+            # an app that resumed instead (one built before the runner
+            # took the extra, or a launch that lost it) is not taken for
+            # one that ran them again. (Its AGAIN is not required: that
+            # line can be lost too)
+            raise CheckError('the app did not take the tests to run again (the launch\'s extra %s): it %s' % (
+                AGAIN_EXTRA, 'resumed' if len(r.resumed) > resumed else
+                'began test(s) %s' % ', '.join(str(n) for n in sorted(set(r.begun) - set(again)))))
         if r.ended:
-            break
+            return True
         stopped_test = r.current
         details = [why]
         if why == 'the app stopped':
@@ -537,17 +635,63 @@ def run_tests(device, count, timeout, restarts, start_timeout=START_TIMEOUT, clo
             finish(stopped_test)
         else:
             log('  between tests: %s' % why)
-        idle_starts = 0 if began else idle_starts + 1
-        if idle_starts >= 2:
+        state['idle'] = 0 if began else state['idle'] + 1
+        if state['idle'] >= 2:
             raise CheckError('the app began no test in two starts in a row (%s)' % why)
+        return stopped_test
+
+    while True:
+        stopped_test = follow()
+        if stopped_test is True:
+            break
         if count and r.started and max(r.started) >= count and stopped_test is None:
             # the last test ended, and the app stopped before its END
             break
-        if starts > restarts:
-            log('Gave up after %d starts' % starts)
+        if state['starts'] > restarts:
+            log('Gave up after %d starts' % state['starts'])
             break
+
+    ended = r.ended
+    lost = lost_lines(r, count or r.count or 0)
+    r.again = list(lost)
+    if lost:
+        log("%d test(s) said nothing while the app went on past them (the device's log lost their lines), "
+            'and are run again: %s' % (len(lost), ', '.join(str(n) for n in lost)))
+    for _ in range(again_starts if lost else 0):
+        todo = [n for n in lost if n not in r.done and not r.details.get(n)]
+        if not todo:
+            break
+        follow(todo)
+    if again_check and not lost:
+        # the first test that passed, run again to show that the way back
+        # in works; its result stays that of its first run
+        total = count or r.count or 0
+        check = next((n for n in range(1, total + 1) if n in r.done and result_of(r, n)[0] == 'pass'), None)
+        if check is None:
+            follow([])
+        else:
+            # all that makes its result: its output, what was said of it
+            # and whether it quit
+            details = r.details.get(check)
+            kept = (list(r.tap.get(check, [])), None if details is None else list(details), check in r.quit)
+            follow([check])
+            # its BEGIN or its DONE says it ran (either can be lost)
+            ran = check in r.begun or check in r.finished
+            r.tap[check] = kept[0]
+            if kept[1] is None:
+                r.details.pop(check, None)
+            else:
+                r.details[check] = kept[1]
+            if kept[2]:
+                r.quit.add(check)
+            else:
+                r.quit.discard(check)
+            if not ran:
+                raise CheckError('the app was started to run test %d again, and it did not run it' % check)
+            log('Ran test %d again, as a check that the way back in works' % check)
+    r.ended = ended
     r.elapsed = clock() - started_at
-    r.starts = starts
+    r.starts = state['starts']
     return r
 
 
@@ -611,7 +755,12 @@ def run_command(args):
             ident = 'lcs: ' + idents[line - 1] if 0 < line <= len(idents) else 'line %d' % line
             log('%-5s %s%s' % (result[0].upper(), ident[len('lcs: '):],
                                ' (in the baseline)' if result[0] == 'fail' and ident in known else ''))
-        r = run_tests(device, len(idents), args.timeout, args.restarts, report=report)
+        r = run_tests(device, len(idents), args.timeout, args.restarts, report=report,
+                      again_starts=args.again_starts, again_check=args.again_check)
+        try:
+            dropped = device.dropped()
+        except CheckError as e:
+            dropped = ['(the events buffer could not be read: %s)' % e]
     finally:
         device.close()
     if r.count is not None and r.count != len(idents):
@@ -631,6 +780,10 @@ def run_command(args):
     with open(log_path, 'w', encoding='utf-8', newline='\n') as f:
         f.write('Engine: %s\nPackage: %s\nDevice: %s\nBaseline: %s\nStarts: %d\n' % (
             engine, apk, args.serial, os.path.abspath(baseline), r.starts))
+        f.write('Run again (the device\'s log lost their lines): %s\n' % (
+            ', '.join(idents[n - 1] for n in r.again if 0 < n <= len(idents)) or 'none'))
+        if dropped:
+            f.write("The device's log on the lines it dropped:\n" + ''.join('  %s\n' % x for x in dropped))
         for ident, outcome, text, details, failures in rows:
             if outcome in ('fail', 'xpass') or args.log_all:
                 f.write('\n### %s %s%s\n' % (outcome.upper(), ident, ' (in the baseline)' if ident in known else ''))
@@ -645,6 +798,13 @@ def run_command(args):
     log('%d tests with the %s engine in %.0f s, the app started %d time(s): %s' % (
         len(rows), engine, r.elapsed, r.starts, line))
     log('Failures: %d in the baseline, %d new' % (len(failing) - len(new), len(new)))
+    again = ['lcs: ' + idents[n - 1] for n in r.again if 0 < n <= len(idents)]
+    if again:
+        log("Run again, as the device's log lost their lines while the app went on:")
+        for ident in again:
+            log('  AGAIN %s: %s' % (ident, outcomes[ident]))
+    for x in dropped:
+        log("The device's log on the lines it dropped: %s" % x)
     by_ident = dict((x[0], x) for x in rows)
     for ident in new:
         log('  NEW   %s' % ident)
@@ -662,6 +822,9 @@ def run_command(args):
     md = ['### Android script tests (the %s engine)' % engine, '',
           '%d LiveCode Script tests in an Android standalone in %.0f s: %s.' % (len(rows), r.elapsed, line),
           '%d failure(s) in the baseline, **%d new**.' % (len(failing) - len(new), len(new))]
+    if again:
+        md += ['', "Run again, as the device's log lost their lines while the app went on:", '', '```text'] + \
+            ['%s: %s' % (ident, outcomes[ident]) for ident in again] + ['```']
     if new:
         md += ['', 'New failures:', '', '```text']
         for ident in new:
@@ -735,6 +898,11 @@ def main(argv=None):
     r.add_argument('--apk')
     r.add_argument('--timeout', type=int, default=120, metavar='SECONDS', help='time limit of one test')
     r.add_argument('--restarts', type=int, default=40, help='starts of the app after the first, at most')
+    r.add_argument('--again-starts', type=int, default=AGAIN_STARTS,
+                   help='starts of the app to run again the tests whose lines the log lost, at most')
+    r.add_argument('--again-check', action='store_true',
+                   help='with no test lost, start the app once more to run again the first test that passed '
+                        '(its result is kept), so that the run shows that the way back in works')
     r.add_argument('--baseline', help='default: tools/ci/android-tests-baseline-<engine>.txt')
     r.add_argument('--update-baseline', action='store_true')
     r.add_argument('--results')
