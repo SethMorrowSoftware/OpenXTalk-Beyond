@@ -171,6 +171,24 @@ jobs:
           # security pocket comes from archive.ubuntu.com, which serves it too
           # (APT_ETC is only for tools/ci/tests/test_apt_retry.py)
           for pass in 1 2 3; do
+            # The container's name servers may give no answer for the package
+            # servers: on 11 Nov 2026 the hosted runners' own timed out on every
+            # name of Canonical's zones, while the servers answered and 1.1.1.1
+            # and 9.9.9.9 resolved them (#476). Those two are then added AFTER
+            # the container's own, so a name that resolves is still answered as
+            # before, by the same server. tools/ci/apt-name-servers.sh says more;
+            # the steps on the runner call it, and there is no checkout here yet
+            # (RESOLV_CONF, like APT_ETC, is only for the test)
+            if ! grep -q '^nameserver 1\.1\.1\.1$' "${RESOLV_CONF:-/etc/resolv.conf}"; then
+              for server in $(cat "${APT_ETC:-/etc/apt}"/sources.list "${APT_ETC:-/etc/apt}"/sources.list.d/* 2> /dev/null |
+                              grep -v '^[[:space:]]*#' | grep -Eo 'https?://[^/[:space:]]+' | sed 's|.*://||' | sort -u); do
+                if ! getent ahostsv4 "$server" > /dev/null 2>&1; then
+                  echo "::warning::$server does not resolve with the container's name servers; 1.1.1.1 and 9.9.9.9 are added after them"
+                  printf '\nnameserver 1.1.1.1\nnameserver 9.9.9.9\n' >> "${RESOLV_CONF:-/etc/resolv.conf}"
+                  break
+                fi
+              done
+            fi
             if [ "$pass" -gt 1 ]; then
               for f in "${APT_ETC:-/etc/apt}"/sources.list "${APT_ETC:-/etc/apt}"/sources.list.d/*; do
                 if [ -f "$f" ]; then
@@ -386,6 +404,8 @@ jobs:
       # The IDE's runtime libraries and Xvfb, as android.yml installs them
       - name: Install Xvfb and the runtime libraries
         run: |
+          # (public name servers too, if the runner's own give no answer for the package servers)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
           sudo apt-get update
           pkgs=(xvfb xauth fonts-dejavu-core)
           while read -r soname use deb rpm rest; do
@@ -621,6 +641,8 @@ jobs:
 
       - name: Install Xvfb and the runtime libraries
         run: |
+          # (public name servers too, if the runner's own give no answer for the package servers)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
           sudo apt-get update
           pkgs=(xvfb xauth fonts-dejavu-core)
           while read -r soname use deb rpm rest; do

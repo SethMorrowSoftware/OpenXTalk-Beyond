@@ -98,6 +98,8 @@ jobs:
       - name: Install mplayer, Xvfb and the runtime libraries
         if: runner.os == 'Linux'
         run: |
+          # (public name servers too, if the runner's own give no answer for the package servers)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
           sudo apt-get update
           pkgs=(mplayer xvfb xauth)
           while read -r soname use deb rpm rest; do

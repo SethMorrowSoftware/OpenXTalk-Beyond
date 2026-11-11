@@ -109,6 +109,8 @@ jobs:
       - name: Install Xvfb, the GTK themes and the runtime libraries
         if: runner.os == 'Linux'
         run: |
+          # (public name servers too, if the runner's own give no answer for the package servers)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
           sudo apt-get update
           pkgs=(xvfb xauth gnome-themes-extra gtk2-engines-pixbuf fonts-dejavu-core xdotool)
           while read -r soname use deb rpm rest; do

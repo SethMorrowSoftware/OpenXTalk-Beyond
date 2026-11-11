@@ -302,6 +302,24 @@ jobs:
           # security pocket comes from archive.ubuntu.com, which serves it too
           # (APT_ETC is only for tools/ci/tests/test_apt_retry.py)
           for pass in 1 2 3; do
+            # The container's name servers may give no answer for the package
+            # servers: on 11 Nov 2026 the hosted runners' own timed out on every
+            # name of Canonical's zones, while the servers answered and 1.1.1.1
+            # and 9.9.9.9 resolved them (#476). Those two are then added AFTER
+            # the container's own, so a name that resolves is still answered as
+            # before, by the same server. tools/ci/apt-name-servers.sh says more;
+            # the steps on the runner call it, and there is no checkout here yet
+            # (RESOLV_CONF, like APT_ETC, is only for the test)
+            if ! grep -q '^nameserver 1\.1\.1\.1$' "${RESOLV_CONF:-/etc/resolv.conf}"; then
+              for server in $(cat "${APT_ETC:-/etc/apt}"/sources.list "${APT_ETC:-/etc/apt}"/sources.list.d/* 2> /dev/null |
+                              grep -v '^[[:space:]]*#' | grep -Eo 'https?://[^/[:space:]]+' | sed 's|.*://||' | sort -u); do
+                if ! getent ahostsv4 "$server" > /dev/null 2>&1; then
+                  echo "::warning::$server does not resolve with the container's name servers; 1.1.1.1 and 9.9.9.9 are added after them"
+                  printf '\nnameserver 1.1.1.1\nnameserver 9.9.9.9\n' >> "${RESOLV_CONF:-/etc/resolv.conf}"
+                  break
+                fi
+              done
+            fi
             if [ "$pass" -gt 1 ]; then
               for f in "${APT_ETC:-/etc/apt}"/sources.list "${APT_ETC:-/etc/apt}"/sources.list.d/*; do
                 if [ -f "$f" ]; then
@@ -1240,6 +1258,8 @@ jobs:
             done
             return 1
           }
+          # (public name servers too, if the runner's own give no answer for the package servers)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
           # (sudo does not pass the job's environment on)
           apt=(sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30)
           retry "${apt[@]}" update
@@ -1464,6 +1484,8 @@ jobs:
           if ! command -v apache2 > /dev/null && [ ! -x /usr/sbin/apache2 ]; then missing="apache2"; fi
           if ! command -v valgrind > /dev/null; then missing="$missing valgrind"; fi
           if [ -n "$missing" ]; then
+            # (public name servers too, if the runner's own give no answer for the package servers)
+            bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
             sudo apt-get update -q
             sudo apt-get install -y -q --no-install-recommends $missing
           fi
@@ -1655,6 +1677,8 @@ jobs:
         run: |
           python3 -m venv "$RUNNER_TEMP/playwright"
           "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
+          # (public name servers too, if the runner's own give no answer for the package servers)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
           "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps chromium
 
       - name: Web standalone check
