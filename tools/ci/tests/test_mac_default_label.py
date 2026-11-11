@@ -115,11 +115,11 @@ class TheDefaultLabelInTheBackground(unittest.TestCase):
         self.assertIn('if item 4 of tMeasure < tNeed then', step)
         self.assertIn('if tFails is not empty then throw', step)
         # In the dark appearance an ordinary button's face is dark on the
-        # screen. The snapshot of a button alone draws it white, opaque
-        # (#420's run on Apple silicon: 255,255,255 at alpha 255 where the
-        # screen showed 91,91,91), as rc.6.17's and rc.6.18's did and #420's
-        # first try, an engine change, did too: that is recorded as known
-        # and queued after the GM, and only the screen's face fails the step
+        # screen, and since 0.2.8 in the snapshot of a button alone too, as
+        # it shows on the card. Before, the snapshot drew the light
+        # appearance's face, white and opaque (#420's run on Apple silicon:
+        # 255,255,255 at alpha 255 where the screen showed 91,91,91;
+        # 0.2.7 the same on macOS 15)
         self.assertIn('put tourBgScreenAt("30,50") into tCard', step)
         self.assertLess(step.index('into tCard'), step.index('put tourBgLabel("OK", tCard) into tMeasure'))
         self.assertIn('put tourBgRawAt(sPixWidth div 6, sPixHeight div 2) into tRaw', step)
@@ -134,12 +134,16 @@ class TheDefaultLabelInTheBackground(unittest.TestCase):
         self.assertIn('"points high was drawn on the screen with a light face (" & \\\n'
                       '               tScreen && "on the card" && tCard & "; in its snapshot" && (item 1 to 3 of tRaw) && \\\n'
                       '               "at alpha" && (item 4 of tRaw) & "), not the dark appearance\'s" & return after tFails', step)
-        # the snapshot's light face is recorded as known, not passed over
-        # in silence, and fails nothing
-        known = step[step.index('else if $OXT_TOUR_APPEARANCE is "dark" and max(item 1 of tPlain'):]
-        known = known[:known.index('end if')]
-        self.assertIn('tourRecord "INFO background-default: KNOWN: in the dark appearance the snapshot', known)
-        self.assertNotIn('tFails', known)
+        # the snapshot's face as it shows on the card (tPlain: its colour
+        # over the card's by its alpha, not its raw colour, which for the
+        # dark appearance's translucent white face is white) fails the
+        # step when it is light; it is no longer recorded as known
+        light = step[step.index('else if $OXT_TOUR_APPEARANCE is "dark" and max(item 1 of tPlain, '
+                                'item 2 of tPlain, item 3 of tPlain) >= 160 then'):]
+        light = light[:light.index('end if')]
+        self.assertIn('"in the dark appearance the snapshot of an ordinary button" && tHeight', light)
+        self.assertIn('return after tFails', light)
+        self.assertNotIn('KNOWN', step)
         grab = tour[tour.index('command tourBgGrab'):tour.index('end tourBgGrab')]
         self.assertIn('put the alphaData of tImage into sBgAlpha', grab)
         self.assertLess(tour.index('local sBgAlpha'), tour.index('command tourBgGrab'))
@@ -158,9 +162,8 @@ class TheDefaultLabelInTheBackground(unittest.TestCase):
         screen = tour[tour.index('function tourBgScreenAt pPoint'):tour.index('end tourBgScreenAt')]
         self.assertIn('put globalLoc(pPoint) into tLoc', screen)
         self.assertIn('import snapshot from rect ((item 1 of tLoc - 4)', screen)
-        # no engine change is claimed for it
-        self.assertNotIn('MCMacThemeDrawInAppearance', read('engine', 'src', 'osxtheme.mm'))
-        self.assertNotIn('performAsCurrentDrawingAppearance', read('engine', 'src', 'osxtheme.mm'))
+        # the engine's half: test_mac_snapshot_appearance.py
+        self.assertIn('MCMacThemeDrawInAppearance', read('engine', 'src', 'osxtheme.mm'))
         grey = tour[tour.index('function tourBgGrey pRGB'):tour.index('end tourBgGrey')]
         self.assertIn('min(item 1 of pRGB, item 2 of pRGB, item 3 of pRGB) <= 24', grey)
         # the snapshot is of the button as drawn now, with the app's state
