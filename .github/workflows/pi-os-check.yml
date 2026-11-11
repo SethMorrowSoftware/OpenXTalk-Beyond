@@ -188,6 +188,8 @@ jobs:
       # QEMU_CPU in each program's environment
       - name: Install QEMU
         run: |
+          # (public name servers too, if the runner's own give no answer for the package servers)
+          bash tools/ci/apt-name-servers.sh
           sudo apt-get -o Acquire::Retries=5 update -q
           sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=5 install -y -q qemu-user-static
           grep -q '^flags: .*F' /proc/sys/fs/binfmt_misc/qemu-aarch64
@@ -198,6 +200,8 @@ jobs:
         env:
           CPU: ${{ matrix.cpu }}
         run: |
+          # (public name servers too, if the runner's own give no answer for the package servers)
+          bash tools/ci/apt-name-servers.sh
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q gcc-aarch64-linux-gnu > /dev/null
           printf '%s\n' 'int main(void){long v=1,r;__asm__ volatile("ldadd %1,%0,[%2]":"=r"(r):"r"(2L),"r"(&v):"memory");return v==3?0:1;}' > lse.c
           aarch64-linux-gnu-gcc -static -march=armv8.1-a -o "$RUNNER_TEMP/lse" lse.c
@@ -231,6 +235,8 @@ jobs:
       - name: Print the last screenshot into the log
         if: ${{ !cancelled() }}
         run: |
+          # (public name servers too, if the runner's own give no answer for the package servers)
+          bash tools/ci/apt-name-servers.sh
           sudo apt-get install -y -q imagemagick > /dev/null 2>&1 || true
           sudo chmod -R a+rX "$RUNNER_TEMP/out" || true
           bash tools/ci/pi_os_check.sh --print-screenshot "$RUNNER_TEMP/out/ide-start/ide-end.png" || true

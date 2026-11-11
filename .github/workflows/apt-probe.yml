@@ -16,11 +16,11 @@
 
 # TEMPORARY, removed before this branch's pull request is ready. On
 # 11 November 2026 the hosted Linux runners stopped resolving Ubuntu's
-# package servers ("Could not resolve 'archive.ubuntu.com'"), on the hosts
-# and in the build containers, while github.com and mirror.gcr.io resolved.
-# This prints what a runner can still resolve and reach, with its own name
-# servers and with public ones, so that the fix is made for what is
-# measured. No step fails the job: every line is a measurement.
+# package servers. The first run of this probe measured why (their name
+# servers time out on Canonical's zones; 1.1.1.1 and 9.9.9.9 answer; the
+# package servers answer). This one runs tools/ci/apt-name-servers.sh on
+# the runners, as the workflows' steps now do, and times apt-get after it.
+# No step fails the job: every line is a measurement.
 
 name: Package server probe (temporary)
 
@@ -31,154 +31,51 @@ on:
 permissions:
   contents: read
 
-env:
-  NAMES: >-
-    archive.ubuntu.com security.ubuntu.com azure.archive.ubuntu.com
-    us.archive.ubuntu.com ports.ubuntu.com azure.ports.ubuntu.com
-    ubuntu.com canonical.com launchpad.net ppa.launchpadcontent.net
-    mirrors.kernel.org mirrors.edge.kernel.org mirror.arizona.edu
-    ubuntu.osuosl.org mirrors.ocf.berkeley.edu deb.debian.org
-    packages.microsoft.com github.com mirror.gcr.io
-
 jobs:
   host:
     name: Host ${{ matrix.runner }}
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 6
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
         runner: [ubuntu-24.04, ubuntu-24.04-arm, ubuntu-22.04]
     steps:
-      - name: The runner's name servers
+      - uses: actions/checkout@v7
+      - name: Before
         run: |
           set +e
-          echo "== /etc/resolv.conf"; cat /etc/resolv.conf
-          echo "== resolvectl"; resolvectl status 2>&1 | head -40
-          echo "== apt sources"
-          cat /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null | grep -Ev '^\s*(#|$)' | head -30
+          ls -l /etc/resolv.conf; cat /etc/resolv.conf
+          grep -E '^hosts' /etc/nsswitch.conf
           cat /etc/apt/apt-mirrors.txt 2>/dev/null
           exit 0
-      - name: What the runner resolves
+      - name: The script, then apt-get
         run: |
           set +e
-          for h in $NAMES; do
-            a=$(getent ahostsv4 "$h" 2>/dev/null | awk '{print $1}' | sort -u | head -4 | tr '\n' ' ')
-            echo "$h -> ${a:-NOT RESOLVED}"
+          s=$(date +%s.%N)
+          bash tools/ci/apt-name-servers.sh
+          echo "the script took $(echo "$(date +%s.%N) - $s" | bc) s"
+          echo "== resolv.conf now"; cat /etc/resolv.conf
+          for h in azure.archive.ubuntu.com ports.ubuntu.com archive.ubuntu.com security.ubuntu.com github.com; do
+            s=$(date +%s.%N)
+            a=$(getent ahostsv4 "$h" 2>/dev/null | awk '{print $1}' | sort -u | head -3 | tr '\n' ' ')
+            echo "$h -> ${a:-NOT RESOLVED} in $(echo "$(date +%s.%N) - $s" | bc) s"
           done
+          echo "== apt-get update"
+          time sudo apt-get -o Acquire::Retries=3 update 2>&1 | tail -8
+          echo "== apt-get install hello"
+          time sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 install -y --no-install-recommends hello 2>&1 | tail -6
+          hello
+          echo "== a second call changes nothing"
+          s=$(date +%s.%N)
+          bash tools/ci/apt-name-servers.sh
+          echo "the script took $(echo "$(date +%s.%N) - $s" | bc) s"
+          grep -c '^nameserver' /etc/resolv.conf
           exit 0
-      - name: The same names asked of each name server
+      - name: A minute later
         run: |
           set +e
-          for s in 127.0.0.53 168.63.129.16 1.1.1.1 8.8.8.8 9.9.9.9 208.67.222.222; do
-            for h in archive.ubuntu.com security.ubuntu.com azure.archive.ubuntu.com ports.ubuntu.com ubuntu.com mirrors.kernel.org github.com; do
-              out=$(dig +time=3 +tries=1 "@$s" "$h" A 2>&1)
-              st=$(printf '%s\n' "$out" | sed -n 's/.*status: \([A-Z]*\).*/\1/p' | head -1)
-              ips=$(printf '%s\n' "$out" | awk '$4 == "A" {print $5}' | head -3 | tr '\n' ' ')
-              echo "@$s $h status=${st:-none} ${ips:-(no address)}"
-            done
-          done
-          echo "== over TCP"
-          dig +tcp +time=3 +tries=1 @1.1.1.1 archive.ubuntu.com A +short 2>&1 | head -5
-          echo "== the zone's own servers"
-          dig +time=3 +tries=1 ubuntu.com NS +short 2>&1 | head -8
-          for ns in ns1.canonical.com ns2.canonical.com ns3.canonical.com; do
-            echo "-- $ns"; dig +time=3 +tries=1 "@$ns" archive.ubuntu.com A +short 2>&1 | head -4
-          done
-          exit 0
-      - name: Reach the package servers by address
-        run: |
-          set +e
-          ips=$(dig +time=3 +tries=1 @1.1.1.1 archive.ubuntu.com A +short 2>/dev/null | grep -E '^[0-9.]+$' | head -2)
-          echo "addresses from 1.1.1.1: ${ips:-none}"
-          for ip in $ips; do
-            curl -sS -m 10 -o /dev/null -w "$ip archive.ubuntu.com HTTP %{http_code} in %{time_total}s\n" \
-              --resolve "archive.ubuntu.com:80:$ip" http://archive.ubuntu.com/ubuntu/dists/jammy/InRelease
-          done
-          for u in http://mirrors.kernel.org/ubuntu/dists/jammy/InRelease \
-                   https://mirrors.kernel.org/ubuntu/dists/jammy/InRelease \
-                   http://mirror.arizona.edu/ubuntu/dists/jammy/InRelease \
-                   http://ubuntu.osuosl.org/ubuntu/dists/jammy/InRelease; do
-            curl -sS -m 10 -o /dev/null -w "$u HTTP %{http_code} in %{time_total}s\n" "$u"
-          done
-          exit 0
-      - name: apt-get update as the runner is
-        run: |
-          set +e
-          sudo apt-get -o Acquire::Retries=0 update 2>&1 | tail -15
-          exit 0
-
-  container:
-    name: Container ${{ matrix.image }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 8
-    strategy:
-      fail-fast: false
-      matrix:
-        image: ['ubuntu:22.04', 'ubuntu:20.04']
-    container: mirror.gcr.io/library/${{ matrix.image }}
-    steps:
-      - name: The container's name servers
-        run: |
-          set +e
-          echo "== /etc/resolv.conf"; cat /etc/resolv.conf
-          echo "== mount"; grep -E 'resolv|hosts' /proc/mounts
-          echo "== sources"; grep -Ev '^\s*(#|$)' /etc/apt/sources.list | head
-          exit 0
-      - name: What the container resolves
-        shell: bash
-        run: |
-          set +e
-          for h in $NAMES; do
-            a=$(getent ahostsv4 "$h" 2>/dev/null | awk '{print $1}' | sort -u | head -4 | tr '\n' ' ')
-            echo "$h -> ${a:-NOT RESOLVED}"
-          done
-          exit 0
-      - name: apt-get update as the container is
-        run: |
-          set +e
-          apt-get -o Acquire::Retries=0 update 2>&1 | tail -12
-          exit 0
-      - name: With public name servers added after the container's own
-        shell: bash
-        run: |
-          set +e
-          cp /etc/resolv.conf /tmp/resolv.conf.orig
-          { cat /tmp/resolv.conf.orig; echo 'nameserver 1.1.1.1'; echo 'nameserver 8.8.8.8'; } > /tmp/resolv.conf.new
-          cat /tmp/resolv.conf.new > /etc/resolv.conf
-          echo "write status $?"; cat /etc/resolv.conf
-          for h in archive.ubuntu.com security.ubuntu.com github.com; do
-            a=$(getent ahostsv4 "$h" 2>/dev/null | awk '{print $1}' | sort -u | head -4 | tr '\n' ' ')
-            echo "$h -> ${a:-NOT RESOLVED}"
-          done
-          apt-get -o Acquire::Retries=0 update 2>&1 | tail -12
-          cat /tmp/resolv.conf.orig > /etc/resolv.conf
-          exit 0
-      - name: With only public name servers
-        shell: bash
-        run: |
-          set +e
-          cp /etc/resolv.conf /tmp/resolv.conf.orig
-          printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\nnameserver 9.9.9.9\noptions timeout:3 attempts:2\n' > /tmp/resolv.conf.new
-          cat /tmp/resolv.conf.new > /etc/resolv.conf
-          echo "write status $?"; cat /etc/resolv.conf
-          for h in $NAMES; do
-            a=$(getent ahostsv4 "$h" 2>/dev/null | awk '{print $1}' | sort -u | head -4 | tr '\n' ' ')
-            echo "$h -> ${a:-NOT RESOLVED}"
-          done
-          apt-get -o Acquire::Retries=0 update 2>&1 | tail -12
-          echo "== install one small package"
-          apt-get -o Acquire::Retries=0 install -y --no-install-recommends ca-certificates 2>&1 | tail -6
-          cat /tmp/resolv.conf.orig > /etc/resolv.conf
-          exit 0
-      - name: With a second mirror, the container's own name servers
-        shell: bash
-        run: |
-          set +e
-          cp /etc/apt/sources.list /tmp/sources.list.orig
-          sed -e 's|http://archive.ubuntu.com/ubuntu|http://mirrors.kernel.org/ubuntu|g' \
-              -e 's|http://security.ubuntu.com/ubuntu|http://mirrors.kernel.org/ubuntu|g' \
-              /tmp/sources.list.orig > /etc/apt/sources.list
-          apt-get -o Acquire::Retries=0 update 2>&1 | tail -12
-          cat /tmp/sources.list.orig > /etc/apt/sources.list
+          sleep 60
+          cat /etc/resolv.conf
+          time getent hosts azure.archive.ubuntu.com ports.ubuntu.com
           exit 0

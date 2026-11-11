@@ -107,6 +107,8 @@ jobs:
         run: |
           python3 -m venv "$RUNNER_TEMP/venv"
           "$RUNNER_TEMP/venv/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION" "brotli==1.1.0"
+          # (public name servers too, if the runner's own give no answer for the package servers)
+          bash tools/ci/apt-name-servers.sh
           "$RUNNER_TEMP/venv/bin/python" -m playwright install --with-deps chromium
 
       - name: The unit tests
@@ -133,6 +135,8 @@ jobs:
           sudo mkdir -p /srv/oxt
           sudo cp -a "$BUNDLE" /srv/oxt/bundle
           sudo chmod -R a+rX /srv/oxt
+          # (public name servers too, if the runner's own give no answer for the package servers)
+          bash tools/ci/apt-name-servers.sh
           sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends apache2 nginx > /dev/null || true
           sudo systemctl stop apache2 nginx 2> /dev/null || true
           sudo a2enmod rewrite headers > /dev/null
