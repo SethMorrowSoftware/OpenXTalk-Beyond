@@ -2,7 +2,9 @@
 # Writes the scripts inside the binary IDE stacks (ide/ and ide-support/)
 # to stack-scripts/, one file per object script, so that Git can show what
 # changed in them (tools/oxt/stack_scripts.py says how they are named), or
-# with --check reports whether stack-scripts/ matches the stacks.
+# with --check reports whether stack-scripts/ matches the stacks. Either way
+# it then reads the stacks' buttons and fields for a text colour that the
+# dark or the light window hides (tools/ci/stack_inks.py).
 #
 #   tools/oxt/stack-scripts.sh <development engine> [--check]
 #
@@ -31,4 +33,10 @@ engine=$(cd "$(dirname "$engine")" && pwd)/$(basename "$engine")
 dumps=$(mktemp -d)
 trap 'rm -rf "$dumps"' EXIT
 bash "$repo/tools/codebase-map/make_dumps.sh" "$repo" "$engine" "$dumps"
-python3 "$here/stack_scripts.py" --dumps "$dumps" ${2:+"$2"}
+status=0
+python3 "$here/stack_scripts.py" --dumps "$dumps" ${2:+"$2"} || status=$?
+# The same dumps say whether a control's words can be read in the dark and
+# in the light appearance (tools/ci/stack_inks.py): after a stack change,
+# and in the build's check
+python3 "$repo/tools/ci/stack_inks.py" --dumps "$dumps" || status=$?
+exit $status

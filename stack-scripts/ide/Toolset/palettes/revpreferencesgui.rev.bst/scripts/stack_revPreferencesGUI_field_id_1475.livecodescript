@@ -83,9 +83,10 @@ function fFormatCols tLineFrom,tLineTo
                end if
             end repeat
             -- put  tFromCharNum & " to " & tToCharNum
-            -- OXT-Beyond: white on the IDE's selection blue, light and dark (the accentColor was behind black)
+            -- OXT-Beyond: on the IDE's selection blue, in the colour the IDE gives a row's words on it
+            -- (revIDEHilitedTextColor; dataView_TextHiliteColor is the accentColor, blue on that blue)
             set the backgroundColor of char tFromCharNum to tToCharNum of line tcount of cd fld "fPREFFS" to revIDEColor("dataView_hiliteColor")
-            set the foregroundColor of char tFromCharNum to tToCharNum of line tcount of cd fld "fPREFFS" to revIDEColor("dataView_TextHiliteColor")
+            set the foregroundColor of char tFromCharNum to tToCharNum of line tcount of cd fld "fPREFFS" to revIDEHilitedTextColor(revIDEColor("dataView_hiliteColor"))
             set the textstyle of char tFromCharNum to tToCharNum of line tcount of cd fld "fPREFFS" to bold
             set the textSize of char tFromCharNum to tToCharNum of line tcount of cd fld "fPREFFS" to 16
          end if

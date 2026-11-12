@@ -1,0 +1,13 @@
+# Object Library (Objects): the menu that chooses the library ("Standard
+# Objects") kept the text colour black from when the IDE had only a light
+# look, over a face that is the theme's: on Windows' dark window nothing of
+# its words was seen, and on Linux and the Mac it was black beside menus
+# with light words (the IDE screenshots of 0.2.7, 22-object-library, found
+# in the review for 0.2.8-dp.1). With no colour of its own it is drawn in
+# the theme's, light on dark and dark on light. tools/ci/stack_inks.py
+# reads every IDE stack for such a colour.
+file: Toolset/palettes/revimagelibrary.rev
+object: button "library chooser" of card "Objects"
+property: foregroundColor
+from: black
+to: 

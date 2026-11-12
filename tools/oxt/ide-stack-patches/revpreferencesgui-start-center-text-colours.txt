@@ -1,0 +1,16 @@
+# Preferences > General: the two Start Center check boxes ("Load Start
+# Center on start-up" and "Show classic Start Center") kept the text colour
+# black over the window. Both are disabled, and a disabled check box is
+# drawn in the theme's disabled grey whatever its colour, so nothing
+# changes while they are; enabled, their words would be black on a dark
+# window (found by tools/ci/stack_inks.py). With no colour of their own
+# they are drawn in the theme's either way.
+file: Toolset/palettes/revpreferencesgui.rev
+object: button "ReloadStartCenter" of card "General"
+property: foregroundColor
+from: 0,0,0
+to: 
+object: button "StartCenterClassicPref" of card "General"
+property: foregroundColor
+from: 0,0,0
+to: 

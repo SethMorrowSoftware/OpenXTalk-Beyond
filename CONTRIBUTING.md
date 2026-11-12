@@ -236,6 +236,11 @@ can store but not diff or merge.
   other change run `tools/oxt/stack-scripts.sh <development engine>`. The
   Linux build checks that it matches the stacks. Do not edit these files:
   they are made from the stacks.
+- Give a control of an IDE window a text colour of its own only together
+  with a background of its own. With neither it is drawn in the theme's
+  colours, light and dark; black words on the theme's background cannot
+  be read on a dark window. The same tool reads every IDE stack for this
+  (`tools/ci/stack_inks.py`), and the Linux build fails on one.
 - Do not remove other people's credits or dated comments from stacks.
 - The "OpenXTalk Lite" text that is still inside binary stacks will be
   changed in reviewable steps like these; please coordinate in an issue

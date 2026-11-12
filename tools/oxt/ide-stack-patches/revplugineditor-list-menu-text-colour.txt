@@ -1,0 +1,11 @@
+# Plugin Settings: the menu that chooses the plugin kept the text colour
+# black (0,0,0) over a face that is the theme's, so on a dark window its
+# words were black on dark, as the Object Library's library menu's were
+# (revimagelibrary-library-menu-text-colour.txt; found by
+# tools/ci/stack_inks.py). With no colour of its own it is drawn in the
+# theme's.
+file: Toolset/palettes/revplugineditor.rev
+object: button "list" of card 1
+property: foregroundColor
+from: 0,0,0
+to: 

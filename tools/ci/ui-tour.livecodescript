@@ -6213,13 +6213,24 @@ function tourPlayerCheck pStack, pWhen, pOff, pFile
 end tourPlayerCheck
 
 on tour_script_editor
-   local tSE
+   local tSE, tInk
    revIDEEditScriptOfObject tourSample("Push")
    tourWait 2000
    put tourStackNamed("revNewScriptEditor") into tSE
    if tSE is empty then throw "no script editor opened:" && tourJoin(the openStacks)
    tourShotStack tSE, "10-script-editor"
+   -- The handler menu above the script has no text colour of its own: its
+   -- words are the theme's, as every other menu's are. The stack held black
+   -- for it, and on a Mac in the dark appearance the editor set black each
+   -- time it opened ("at least you can see it"), on a face that is dark
+   -- there now: the one menu with black words (the IDE screenshots of 0.2.7,
+   -- seen in the review for 0.2.8-dp.1)
+   put the foregroundColor of button "Fake Handler Menu" of stack tSE into tInk
+   tourRecord "INFO script editor: the handler menu's own text colour" && quote & tInk & quote
    close stack tSE
+   if tInk is not empty then
+      throw "the script editor's handler menu has a text colour of its own (" & tInk & "), not the theme's"
+   end if
 end tour_script_editor
 
 -- The Search Results pane, as Find All of the Find and Replace dialog
@@ -7213,7 +7224,7 @@ command tourDictionaryEntry pStack, pFile
 end tourDictionaryEntry
 
 on tour_preferences
-   local tStack, tPane, tIndex, tMenu, tItem, tNeed, tFails, tPath, tShown
+   local tStack, tPane, tIndex, tMenu, tItem, tNeed, tFails, tPath, tShown, tSeen
    put revIDEPaletteToStackName("preferences") into tStack
    tourLabelInksReset
    revIDEOpenPalette "preferences"
@@ -7230,6 +7241,20 @@ on tour_preferences
       tourLabelInks tStack
       put tourButtonsWhole(tStack) after tFails
       put tourFieldsWhole(tStack) after tFails
+      -- two panes' words that the pictures of 0.2.7 showed wrong
+      -- (a pane by its name as the picture's file has it: the list's lines
+      -- are indented)
+      if tourFileName(tPane) is "debug-properties" then
+         put tourDebugPropertyNames(tStack) after tFails
+         put true into tSeen["debug-properties"]
+      end if
+      if tourFileName(tPane) is "mobile-support" then
+         put tourJDKTip(tStack) after tFails
+         put true into tSeen["mobile-support"]
+      end if
+   end repeat
+   repeat for each item tPane in "debug-properties,mobile-support"
+      if tSeen[tPane] is not true then put "Preferences has no" && tPane && "pane to look at" & return after tFails
    end repeat
    -- each disabled check box's and radio button's words fainter than an
    -- enabled one's, and seen (tourDisabledLabels)
@@ -7307,6 +7332,68 @@ on tour_preferences
    -- them, together
    if tFails is not empty then throw line 1 to -1 of tFails
 end tour_preferences
+
+-- The Debug Properties pane's list draws each property's name, the part in
+-- square brackets, on the IDE's selection blue, and the name's words stand
+-- out from that blue. They were the accentColor on it: blue on blue, in the
+-- light and the dark appearance (the IDE screenshots of 0.2.7, seen in the
+-- review for 0.2.8-dp.1). They are the colour the IDE gives a selected
+-- row's words now (revIDEHilitedTextColor: white on it on macOS and
+-- Windows, 3 to 1, and black on Linux). Read from the first name of the
+-- list, as the pane's script left it. Empty, or why not
+function tourDebugPropertyNames pStack
+   local tField, tText, tIndex, tLine, tFrom, tInk, tBack, tRatio
+   put the long id of field "fPREFFS" of card "Debug Properties" of stack pStack into tField
+   put 0 into tIndex
+   repeat for each line tText in the text of tField
+      add 1 to tIndex
+      if offset("[", tText) > 0 and offset("]", tText) > offset("[", tText) then
+         put tIndex into tLine
+         put offset("[", tText) + 1 into tFrom
+         exit repeat
+      end if
+   end repeat
+   if tLine is empty then return "the Debug Properties pane lists no property with its name in brackets" & return
+   put tourRGB(the foregroundColor of char tFrom of line tLine of tField) into tInk
+   put tourRGB(the backgroundColor of char tFrom of line tLine of tField) into tBack
+   if the number of items of tInk is not 3 or the number of items of tBack is not 3 then
+      return "the Debug Properties pane's first property name (line" && tLine & ") has the text colour" && \
+            quote & tInk & quote && "on the background" && quote & tBack & quote & ": not the colours of a name" & return
+   end if
+   put tourContrast(tInk, tBack) into tRatio
+   tourRecord "INFO preferences debug properties: a name in" && tInk && "on" && tBack && "(contrast" && tRatio & ")"
+   if tRatio < 2.5 then
+      return "the Debug Properties pane's property names are" && tInk && "on" && tBack & ", contrast" && tRatio & return
+   end if
+   return empty
+end tourDebugPropertyNames
+
+-- The Mobile Support pane's note for a machine where the IDE finds no JDK
+-- names the one the builder's Android tools need, JDK 17, on the one line
+-- its field has room for. It named Java 8's installers (jdk-8u202), which
+-- those tools do not run on (d8 of build-tools 35 refuses Java 8). Looked
+-- at where the note shows; tools/ci/tests/test_dp1_review_fixes.py reads
+-- the card's script for the others. Empty, or why not
+function tourJDKTip pStack
+   local tField, tText, tTop, tNeed
+   put the long id of field "fmobtip" of card "Mobile Support" of stack pStack into tField
+   put the text of tField into tText
+   put the margins of tField into tTop
+   if the number of items of tTop > 1 then put item 2 of tTop into tTop
+   put 0 into tNeed
+   if tText is not empty then put tTop + the formattedHeight of char 1 to -1 of tField into tNeed
+   tourRecord "INFO preferences mobile support: the note for no JDK shows" && the visible of tField & "," && \
+         quote & tourJoin(tText) & quote & ", its words end" && tNeed && "down a field" && the height of tField && "high"
+   if not the visible of tField then return empty
+   if "JDK 17" is not in tText or "8u" is in tText then
+      return "the Mobile Support pane's note for no JDK does not name JDK 17:" && tourJoin(tText) & return
+   end if
+   if tNeed > the height of tField then
+      return "the Mobile Support pane's note for no JDK ends" && tNeed && "pixels down a field" && \
+            the height of tField && "high:" && tourJoin(tText) & return
+   end if
+   return empty
+end tourJDKTip
 
 on tour_standalone_settings
    local tStack, tFile, tCards, tCard, tIndex, tDefault, i, tMacWas, tMacNow, tFails
