@@ -1,0 +1,55 @@
+# EXPERIMENT, not for merging: what macOS shows when the runner asks the
+# IDE a question by AppleScript (tools/ci/ui_tour.py, mac_ask), and what
+# takes that consent dialog off the screen. Runs only on the pull
+# request that carries this file.
+name: Experiment (not for merging), the consent dialog of mac_ask
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - .github/workflows/zz-mac-consent-experiment.yml
+      - tools/ci/zz_mac_consent_experiment.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zz-mac-consent-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ask:
+    name: ${{ matrix.runner }}, ${{ matrix.order }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15-intel, macos-15, macos-26]
+        order: [kill-first, allow-first]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            tools
+
+      - name: Download 0.2.7 and extract the app
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/dist" "$RUNNER_TEMP/oxt-test"
+          gh release download v0.2.7 --repo "$REPO" --pattern "*-mac-universal.zip" --dir "$RUNNER_TEMP/dist"
+          ditto -x -k "$RUNNER_TEMP"/dist/*-mac-universal.zip "$RUNNER_TEMP/oxt-test"
+          ls "$RUNNER_TEMP/oxt-test"
+
+      - name: Ask, and take the dialog away
+        env:
+          ORDER: ${{ matrix.order }}
+        run: python3 tools/ci/zz_mac_consent_experiment.py "$RUNNER_TEMP/oxt-test" "$ORDER" "$RUNNER_TEMP/consent"
