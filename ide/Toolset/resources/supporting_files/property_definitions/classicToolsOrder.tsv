@@ -20,3 +20,14 @@ com.livecode.interface.classic.LittleArrows
 com.livecode.interface.classic.Scrollbar
 com.livecode.interface.classic.Image
 com.livecode.interface.classic.Player
+com.livecode.interface.classic.FivePointStar
+com.livecode.interface.classic.OvalGraphic
+com.livecode.interface.classic.Arrow
+com.livecode.interface.classic.TenPointStar
+com.livecode.interface.classic.RectangleGraphic
+com.livecode.interface.classic.RegularGraphic
+com.livecode.interface.classic.RoundRectGraphic
+com.livecode.interface.classic.SpeechBubble
+com.livecode.interface.classic.CurveGraphic
+com.livecode.interface.classic.PolygonGraphic
+com.livecode.interface.classic.LineGraphic

@@ -404,6 +404,11 @@ private on __orderClassicTools
    put url ("file:" & tToolsOrderFile) into tToolsToLoad -- we store this in a variable, makes the next part easier
    -- OXT-Beyond: every tool has its place, the Player too when its tool is
    -- turned off: revIDEClassicControls leaves it out then (__playerToolHidden)
+   -- OXT-Beyond: the shapes and the vector tools have theirs in the file
+   -- too (revIDEGraphics, revIDEGraphicTools). They had none, so the Tools
+   -- palette showed them as the keys of their array came, which follows the
+   -- order the disk lists their definitions in: on some Linux disks
+   -- Rectangle and Speech Bubble stood in each other's place
    
    repeat for each line tTool in tToolsToLoad
       add 1 to tOrder

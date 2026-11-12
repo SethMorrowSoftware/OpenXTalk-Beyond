@@ -460,8 +460,14 @@ end tourToolsClassic
 -- A release whose palette has no modern look is noted and skipped.
 local sTmClassic, sTmClassicPrefs, sTmChecks, sTmFails
 
+-- The shapes and the vector tools in the order the palette shows them,
+-- row by row from the left, the same on every disk: their names less
+-- "com.livecode.interface.classic."
+constant kTmShapeOrder = "FivePointStar,OvalGraphic,Arrow,TenPointStar,RectangleGraphic,RegularGraphic,RoundRectGraphic,SpeechBubble"
+constant kTmVectorOrder = "CurveGraphic,PolygonGraphic,LineGraphic"
+
 on tour_tools_modern_check
-   local tModern, tName, tKey, tLine, tCount
+   local tModern, tName, tKey, tLine, tCount, tPlaced
    if not tourTmStart("tools-modern-check") then exit tour_tools_modern_check
    -- the classic look, as the other steps leave it
    tourToolsClassic
@@ -469,6 +475,22 @@ on tour_tools_modern_check
    put revIDEGetPreference("revTools_show") & "|" & revIDEGetPreference("revTools_columns") into sTmClassicPrefs
    tourTmCheck the number of elements of sTmClassic > 10, "the classic look has its tiles (" & the number of elements of sTmClassic & ")"
    tourTmCheck tourTmNamed("tmHeader") is empty, "the classic look has no modern controls"
+   -- every shape and vector tool has its place. The palette took their
+   -- order from the order the disk listed their definitions in, so on some
+   -- Linux disks Rectangle and Speech Bubble stood in each other's place
+   put tourTmShapesPlaced() into tPlaced
+   tourRecord "INFO tools-modern-check: shapes" && tourTmReadingOrder("graphic") & "; vector tools" && tourTmReadingOrder("graphictools")
+   if tPlaced then
+      tourTmCheck tourTmReadingOrder("graphic") is kTmShapeOrder, \
+            "the classic look's shapes stand in their order (" & tourTmReadingOrder("graphic") & ")"
+      tourTmCheck tourTmReadingOrder("graphictools") is kTmVectorOrder, \
+            "the classic look's vector tools stand in their order (" & tourTmReadingOrder("graphictools") & ")"
+      -- and each has a number of its own for it, so that no two can change places
+      tourTmCheck tourTmOwnOrders(revIDEGraphics()), "each shape has its own place in revIDEGraphics"
+      tourTmCheck tourTmOwnOrders(revIDEGraphicTools()), "each vector tool has its own place in revIDEGraphicTools"
+   else
+      tourRecord "INFO tools-modern-check: this IDE gives the shapes no place of their own, they stand as its disk lists them; their order is not checked"
+   end if
 
    if tourToolsModern(empty, false) is not true then throw "the modern look did not turn on"
    -- dark or light as the system is (on Apple silicon it took its light
@@ -493,6 +515,10 @@ on tour_tools_modern_check
    repeat for each item tName in "graphictools,paint"
       tourTmCheck tourTmGroup(tName) is empty, "the modern look hides the section" && tName && "at first"
    end repeat
+   if tPlaced then
+      tourTmCheck tourTmReadingOrder("graphic") is kTmShapeOrder, \
+            "the modern look's shapes stand in their order (" & tourTmReadingOrder("graphic") & ")"
+   end if
    -- the same names and properties as the classic look's
    put tourTmTiles() into tModern
    put 0 into tCount
@@ -1398,6 +1424,61 @@ function tourTmGroupTiles pView
    end repeat
    return line 1 to -1 of tTiles
 end tourTmGroupTiles
+
+-- The tiles of a section's group as a person reads them, row by row from
+-- the left: their names less "com.livecode.interface.classic.", in items.
+-- A row is the tiles whose tops are within half a tile of its first one's
+function tourTmReadingOrder pView
+   local tTiles, tTile, tRows, tRow, tRowTop, tPlaced, tName, tOrder
+   put tourTmGroupTiles(pView) into tTiles
+   if tTiles is empty then return empty
+   repeat for each line tTile in tTiles
+      put the top of tTile & tab & the left of tTile & tab & the height of tTile & tab & the short name of tTile & return after tRows
+   end repeat
+   set the itemDelimiter to tab
+   sort lines of tRows numeric ascending by item 1 of each
+   put 0 into tRow
+   repeat for each line tTile in tRows
+      if tRow is 0 or item 1 of tTile >= tRowTop + item 3 of tTile / 2 then
+         add 1 to tRow
+         put item 1 of tTile into tRowTop
+      end if
+      put tRow & tab & item 2 of tTile & tab & item 4 of tTile & return after tPlaced
+   end repeat
+   sort lines of tPlaced numeric ascending by item 2 of each
+   sort lines of tPlaced numeric ascending by item 1 of each
+   repeat for each line tTile in tPlaced
+      put item 3 of tTile into tName
+      replace "com.livecode.interface.classic." with empty in tName
+      put tName & comma after tOrder
+   end repeat
+   delete the last char of tOrder
+   return tOrder
+end tourTmReadingOrder
+
+-- Whether each tool of pData (revIDEGraphics, revIDEGraphicTools) has a
+-- whole number for its place and no two tools share one
+function tourTmOwnOrders pData
+   local tKey, tSeen
+   if the number of elements of pData is 0 then return false
+   repeat for each key tKey in pData
+      if pData[tKey]["order"] is not an integer then return false
+      if tSeen[pData[tKey]["order"]] is not empty then return false
+      put tKey into tSeen[pData[tKey]["order"]]
+   end repeat
+   return true
+end tourTmOwnOrders
+
+-- Whether this IDE gives the shapes a place of their own: its
+-- classicToolsOrder.tsv names them (tools/ci/tests/test_tools_order.py
+-- holds that it does). A release before 0.2.8 names only the controls
+-- there, and its shapes stand as its disk lists their definitions
+function tourTmShapesPlaced
+   local tFile
+   put revIDESpecialFolderPath("Object Property Definitions") & "/classicToolsOrder.tsv" into tFile
+   if there is not a file tFile then return false
+   return url ("file:" & tFile) contains "com.livecode.interface.classic.SpeechBubble"
+end tourTmShapesPlaced
 
 -- How red the middle of an object of the Tools palette is on the screen:
 -- red less the mean of green and blue. (A snapshot from the object leaves
