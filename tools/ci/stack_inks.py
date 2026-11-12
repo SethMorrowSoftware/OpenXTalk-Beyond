@@ -16,8 +16,8 @@
 # along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
 
 """The words of the IDE's own windows can be read in the light and the dark
-appearance: no button or field of a binary IDE stack keeps a text colour of
-its own over a background that is the theme's.
+appearance: no button or field of a binary IDE stack is drawn in a text
+colour that a stack file keeps, over a background that is the theme's.
 
 A control with no colours of its own is drawn in the theme's: dark words on
 a light window, light words on a dark one. One that was given a text colour
@@ -26,37 +26,46 @@ keeps that colour on the dark window. Standalone Settings' "UAC Execution
 Level" menu and the Object Library's library menu were black on Windows'
 dark window, where nothing of their words was seen, and the "Required",
 "Used" and "n/a" headers of the Android card a dark grey (the IDE
-screenshots of 0.2.7, found in the review for 0.2.8-dp.1). The screenshots
-show only the cards the tour opens, on the three platforms; this reads every
-card of every stack.
+screenshots of 0.2.7, found in the review for 0.2.8-dp.1). A stack, card or
+group that keeps a text colour gives it to every control under it that has
+none of its own: Replicate (Edit > Replicate...) kept black on its stack,
+so all of the dialog's words were black on the dark window (a picture of it
+in the dark, 12 November 2026). The screenshots show only the cards the
+tour opens, on the three platforms; this reads every card of every stack.
 
-A button or field of the stacks under ide/Toolset and ide/Plugins fails when
+Under ide/Toolset and ide/Plugins,
 
-  - it has a text colour (foreColor) of its own,
-  - neither it nor an owner (group, card, stack) has a backColor or a
-    backPattern, so what is behind its words is the theme's, and
-  - the colour does not stand out from the dark window or from the light
-    one (WCAG contrast below 2.5 to 1: a mid grey passes on both, black and
-    white on one only).
+  - a button or field fails when it has a text colour (foreColor) of its
+    own, and
+  - a stack, substack, card or group fails when it has one and a button or
+    field under it takes it (it has none of its own, and this is the
+    nearest owner with one; a substack's controls take the main stack's),
 
-EXCEPTIONS lists the controls that are left as they are, each with why. An
-entry that no longer matches a failing control is an error too, so the list
-cannot outlive what it excuses.
+where neither the control nor an owner of it (group, card, stack) has a
+backColor or a backPattern, so what is behind the words is the theme's, and
+the colour does not stand out from the dark window or from the light one
+(WCAG contrast below 2.5 to 1: a mid grey passes on both, black and white
+on one only). An owner is reported once, with how many controls take its
+colour.
 
-What this does not read yet: a text colour that comes from an owner (a
-group, card or stack with a foreColor), and a background that is set but
-not painted (on a control or group that is not opaque). Read that way on 12
-November 2026 the stacks had some 200 more such controls, most of them in
-Page Setup, the printer chooser, Replicate and the image and icon choosers,
-which nobody has looked at in the dark yet.
+EXCEPTIONS lists the controls and owners that are left as they are, each
+with why. An entry that no longer matches a failing one is an error too, so
+the list cannot outlive what it excuses.
+
+What this does not read: a background that is set but not painted (on a
+control or group that is not opaque), which it takes for a background; and
+the other way round, a background of its own with the theme's text colour
+(a white box whose words are white on a dark window, as the print dialog's
+"Pages" field was). Colours a script sets as a window opens are not in the
+stack file, and are the tour's to look at.
 
   python3 tools/ci/stack_inks.py --dumps DUMPDIR
 
 DUMPDIR holds the dumps that tools/codebase-map/make_dumps.sh writes with
 tools/oxt/ide-stack-dump.livecodescript (one per stack, named after the
 stack's path); tools/oxt/stack-scripts.sh runs this with them, and the Linux
-build runs that with the engine it built. Exit status 1 when a control fails
-or an exception is stale, 2 when there is no dump to read.
+build runs that with the engine it built. Exit status 1 when a control or
+an owner fails or an exception is stale, 2 when there is no dump to read.
 """
 
 import argparse
@@ -78,6 +87,10 @@ DARK_WINDOW = (32, 32, 32)
 LIGHT_WINDOW = (240, 240, 240)
 MIN_CONTRAST = 2.5
 
+# How EXCEPTIONS and the report name a main stack whose own text colour its
+# controls take (its other objects are named by their path below it)
+THE_STACK = 'the stack itself'
+
 _TIP = ('white on the notice\'s own graphic behind it, which this check does not see (a notice of '
         'LiveCode\'s commercial editions, in a group that is saved hidden)')
 _TEMPLATE = ('the note on a data grid\'s row template card, read only by someone who edits that template; '
@@ -87,8 +100,19 @@ _MARKS = 'no script opens this substack (a chooser of menu marks that the Menu B
 _STANDALONE = 'ide/Toolset/palettes/standalone settings/revstandalonesettings.8.rev'
 _MENUS = 'ide/Toolset/palettes/revmenumanager.rev'
 
-# (stack file, object as the dump names it, without the main stack): why
+# (stack file, object as the dump names it, without the main stack, or
+# THE_STACK for the main stack itself): why
 EXCEPTIONS = {
+    ('ide/Toolset/palettes/revpagesetup.rev', THE_STACK):
+        'a MetaCard 2.4 stack file, which the patch tool does not save (the engine would write it in another '
+        'format), so it keeps its black; no script of the engine or the IDE opens it (Standalone Settings can '
+        'copy it into a Linux standalone, its "UNIX,pageSetup" setting)',
+    ('ide/Toolset/palettes/revrulersh.rev', THE_STACK):
+        'the ruler\'s one button shows a picture and no words; the stack\'s black is what the ruler\'s marks '
+        'are drawn in, on its own white strip',
+    ('ide/Toolset/palettes/splash/revSplash.livecode', 'card "Main" (id 1008)'):
+        'the splash\'s script sets the card\'s colour as it opens (white in the dark appearance, black in the '
+        'light one) and each shown field\'s own, over the splash picture (revsplashstackbehavior.livecodescript)',
     (_STANDALONE, 'card "General" (id 1002) > group "generalCommercialTip" (id 3125) > field "tip_close" (id 3127)'): _TIP,
     (_STANDALONE, 'card "General" (id 1002) > group "generalCommercialTip" (id 3125) > field "tip_message" (id 3128)'): _TIP,
     (_STANDALONE, 'card "iOS" (id 1641) > group "iOSCommercialTip" (id 3135) > field "tip_close" (id 3137)'): _TIP,
@@ -185,32 +209,61 @@ def objects(dump_path):
     return out
 
 
+def _windows(rgb):
+    """The windows a colour does not stand out from: (ratio, name) each."""
+    return [(contrast(rgb, window), name)
+            for window, name in ((DARK_WINDOW, 'dark'), (LIGHT_WINDOW, 'light'))
+            if contrast(rgb, window) < MIN_CONTRAST]
+
+
 def findings(rel, dump_path):
-    """The buttons and fields of one stack that have a text colour of their
-    own, no background on them or on an owner, and a colour that does not
-    stand out from the dark or the light window: (object, colour, what)."""
+    """What fails in one stack: (object, colour, what). A button or field
+    with a text colour of its own, or an owner (group, card, stack) whose
+    text colour buttons and fields under it take, where nothing from the
+    control up has a background and the colour does not stand out from the
+    dark or the light window. An owner is named once, with how many
+    controls take its colour; the main stack is THE_STACK."""
     objs = objects(dump_path)
     by_label = dict(objs)
     out = []
+    taken = {}
+    order = []
     for label, props in objs:
         segments = label.split(' > ')
         if segments[-1].split(' ', 1)[0] not in ('button', 'field'):
-            continue
-        ink = props.get('foreColor')
-        if not ink:
             continue
         if any(by_label.get(' > '.join(segments[:depth]), {}).get(key)
                for depth in range(1, len(segments) + 1) for key in ('backColor', 'backPattern')):
             continue
         short = ' > '.join(segments[1:])
+        ink = props.get('foreColor')
+        if not ink:
+            # the nearest owner with a text colour gives this control its words' colour
+            for depth in range(len(segments) - 1, 0, -1):
+                owner = ' > '.join(segments[:depth])
+                if by_label.get(owner, {}).get('foreColor'):
+                    if owner not in taken:
+                        taken[owner] = []
+                        order.append(owner)
+                    taken[owner].append(segments[-1])
+                    break
+            continue
         rgb = colour(ink)
         if rgb is None:
             out.append((short, ink, 'is a colour this check does not know (add it to NAMES)'))
             continue
-        for window, name in ((DARK_WINDOW, 'dark'), (LIGHT_WINDOW, 'light')):
-            ratio = contrast(rgb, window)
-            if ratio < MIN_CONTRAST:
-                out.append((short, ink, 'is %.1f to 1 on the %s window' % (ratio, name)))
+        for ratio, name in _windows(rgb):
+            out.append((short, ink, 'is %.1f to 1 on the %s window' % (ratio, name)))
+    for owner in order:
+        ink = by_label[owner]['foreColor']
+        short = ' > '.join(owner.split(' > ')[1:]) or THE_STACK
+        who = '(taken by %d button(s) and field(s) under it, the first %s)' % (len(taken[owner]), taken[owner][0])
+        rgb = colour(ink)
+        if rgb is None:
+            out.append((short, ink, who + ' is a colour this check does not know (add it to NAMES)'))
+            continue
+        for ratio, name in _windows(rgb):
+            out.append((short, ink, '%s is %.1f to 1 on the %s window' % (who, ratio, name)))
     return out
 
 
@@ -260,12 +313,12 @@ def main():
     for line in failures + stale:
         print('FAIL ' + line)
     if failures or stale:
-        print('%d control(s) with words that cannot be read in one appearance, %d stale exception(s). '
+        print('%d control(s) or owner(s) with words that cannot be read in one appearance, %d stale exception(s). '
               'Clear the text colour with a patch in tools/oxt/ide-stack-patches (so the theme\'s is used), '
               'or give the control a background of its own.' % (len(failures), len(stale)))
         return 1
-    print('The buttons and fields of %d IDE stacks keep no text colour of their own over the theme\'s '
-          'background that the dark or the light window hides (%d excused in EXCEPTIONS).'
+    print('The buttons and fields of %d IDE stacks have no text colour, of their own or from an owner, '
+          'over the theme\'s background that the dark or the light window hides (%d excused in EXCEPTIONS).'
           % (len(rels), excused))
     return 0
 

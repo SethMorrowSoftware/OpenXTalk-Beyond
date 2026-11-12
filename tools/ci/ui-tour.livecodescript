@@ -85,7 +85,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,tools-widget-install,tools-widget-builder,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,menu-submenu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,icon-picker,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-button-menu,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,extension-builder-errors,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,code-font,ide-stacks,screen-end,background-default"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,tools-widget-install,tools-widget-builder,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,menu-submenu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,icon-picker,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-button-menu,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,extension-builder-errors,message-watcher,error-display,search,replicate,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,code-font,ide-stacks,screen-end,background-default"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -9065,6 +9065,123 @@ function tourFieldsWhole pStack
    if tFails is empty then return empty
    return tFails
 end tourFieldsWhole
+
+-- The pixels of the screen where the rect pRect of the card of the stack
+-- pStack is, as tourGrab gets those of a control of the controls stack:
+-- sPixWidth by sPixHeight points, sPixData their imageData
+command tourGrabRect pStack, pRect, pWhat
+   local tDefault, tTopLeft, tImage
+   tourUnlockScreen pWhat
+   put the defaultStack into tDefault
+   set the defaultStack to pStack
+   put globalLoc(item 1 to 2 of pRect) into tTopLeft
+   put item 1 of tTopLeft, item 2 of tTopLeft, \
+         item 1 of tTopLeft + item 3 of pRect - item 1 of pRect, \
+         item 2 of tTopLeft + item 4 of pRect - item 2 of pRect into pRect
+   set the defaultStack to "oxt_ui_tour"
+   lock messages
+   import snapshot from rect pRect
+   put the long id of last image of card 1 of stack "oxt_ui_tour" into tImage
+   put the width of tImage into sPixWidth
+   put the height of tImage into sPixHeight
+   put the imageData of tImage into sPixData
+   delete tImage
+   unlock messages
+   set the defaultStack to tDefault
+   if sPixWidth < 1 or the number of bytes of sPixData < sPixWidth * sPixHeight * 4 then throw "no pixels for" && pWhat && "(" & pRect & ")"
+end tourGrabRect
+
+-- The luminance most of the points tourGrabRect got have: what is behind
+-- a label's words, which are the fewer points
+function tourMostLum
+   local tCount, tX, tY, tLum, tBest, tMost
+   repeat with tY = 0 to sPixHeight - 1
+      repeat with tX = 0 to sPixWidth - 1
+         add 1 to tCount[tourLum(tX, tY)]
+      end repeat
+   end repeat
+   put 0 into tMost
+   repeat for each key tLum in tCount
+      if tCount[tLum] > tMost then
+         put tCount[tLum] into tMost
+         put tLum into tBest
+      end if
+   end repeat
+   return tBest
+end tourMostLum
+
+-- How far (of 255) the words of a label must be from the window behind
+-- them. Black on the dark windows is 32 (Windows) to 57 (GTK's Adwaita
+-- dark) from them, and the theme's light words 170 or more; the theme's
+-- dark words on a light window 180 or more
+constant kLabelWordsSeen = 100
+
+-- The labels of the card of the stack pStack whose words cannot be made
+-- out on the window: "<number measured>" on line 1, then a line for each
+-- that is too near what is behind it. A label is a field that shows, is
+-- enabled and not opaque (so the window is behind its words) and has
+-- words, whole in the window. Its words are where the engine lays them
+-- out (tourWordsRect); the points there and two round them are taken from
+-- the screen, what most of them are is the window, and the one furthest
+-- from that is the words' colour at its fullest
+function tourLabelsFaint pStack
+   local tDefault, i, tControl, tRect, tBack, tFar, tCount, tFaint, tWhat
+   put the defaultStack into tDefault
+   set the defaultStack to pStack
+   put 0 into tCount
+   repeat with i = 1 to the number of fields of this card
+      put the long id of field i of this card into tControl
+      if the opaque of tControl or the disabled of tControl or not tourControlShown(tControl) then next repeat
+      put tourWordsRect(tControl) into tRect
+      if tRect is empty then next repeat
+      put item 1 of tRect - 2, item 2 of tRect - 2, item 3 of tRect + 2, item 4 of tRect + 2 into tRect
+      if item 1 of tRect < 0 or item 2 of tRect < 0 or item 3 of tRect > the width of this stack or \
+            item 4 of tRect > the height of this stack then next repeat
+      put quote & tourJoin(the text of tControl) & quote into tWhat
+      tourGrabRect pStack, tRect, "the label" && tWhat
+      set the defaultStack to pStack
+      put tourMostLum() into tBack
+      put tourMaxDiff(0, 0, sPixWidth, sPixHeight, tBack) into tFar
+      add 1 to tCount
+      tourRecord "INFO" && pStack & ": the label" && tWhat && "is" && tFar && "of 255 from the" && tBack && "behind it"
+      if tFar < kLabelWordsSeen then
+         put "the label" && tWhat && "is" && tFar && "of 255 from the window behind it (" & tBack & \
+               "), its text colour" && quote & the effective foregroundColor of tControl & quote & return after tFaint
+      end if
+   end repeat
+   set the defaultStack to tDefault
+   return tCount & return & tFaint
+end tourLabelsFaint
+
+-- Replicate, as Edit > Replicate... opens it for the selected controls
+-- (tOpenReplicate in revmenubar.livecodescript: replicate.oxtstack beside
+-- the palettes, modal; here a palette, which shows the same card and lets
+-- the tour go on). Up to 0.2.8-dp.1 the stack kept a black text colour of
+-- its own and no background, so every word of the dialog was black on the
+-- theme's window: on a dark one "Replicate", "times.", "Offset by:",
+-- "Scale by:", "pixels" and the rest could hardly be made out (a picture
+-- of it in the dark, 12 November 2026; nothing showed this window before).
+-- Its labels' words are measured against the window on the screen
+on tour_replicate
+   local tFile, tStack, tFaint, tDelimiter
+   put the itemDelimiter into tDelimiter
+   set the itemDelimiter to slash
+   put item 1 to -3 of the filename of stack "revMenubar" & slash & "replicate.oxtstack" into tFile
+   set the itemDelimiter to tDelimiter
+   if there is not a file tFile then throw "no Replicate stack at" && tFile
+   put the short name of stack tFile into tStack
+   palette stack tFile
+   if not tourWaitOpen(tStack, 4000) then throw "Replicate (" & tStack & ") did not open"
+   tourWait 600
+   tourShotStack tStack, "21-replicate"
+   put tourLabelsFaint(tStack) into tFaint
+   close stack tStack
+   tourRecord "INFO replicate:" && line 1 of tFaint && "labels measured"
+   -- "Replicate", "times.", "Offset by:", "h:", "v:", "pixels", "Scale by:" and their like
+   if line 1 of tFaint < 6 then throw "only" && line 1 of tFaint && "of Replicate's labels could be measured"
+   delete line 1 of tFaint
+   if tFaint is not empty then throw "Replicate's words cannot be made out:" && tourJoin(line 1 to -1 of tFaint)
+end tour_replicate
 
 on tour_object_library
    -- with Development > Object Library, which also selects the Objects tab

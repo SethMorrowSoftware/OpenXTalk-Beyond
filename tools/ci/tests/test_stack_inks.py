@@ -15,8 +15,9 @@
 # along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
 
 """tools/ci/stack_inks.py's reading of stack dumps, on made-up dumps: which
-text colours it fails, what a background on the control or an owner changes,
-and that its list of exceptions cannot outlive what it excuses. No engine is
+text colours it fails, a control's own and one it takes from its stack, card
+or group, what a background on the control or an owner changes, and that
+its list of exceptions cannot outlive what it excuses. No engine is
 needed (tools/oxt/stack-scripts.sh runs the check on the real stacks, with
 the engine the Linux build made).
 
@@ -148,14 +149,6 @@ class TestFindings(Dumps):
         for kind in ('graphic', 'group', 'scrollbar', 'image', 'player', 'widget'):
             self.assertEqual(self.found(HEAD + control(kind, 'x', 7, {'foreColor': 'black'})), [], kind)
 
-    def test_an_owners_text_colour_is_not_read(self):
-        # What the module says it does not read yet: a colour that a control
-        # takes from its group
-        group = ('== stack "X" > card "Main" (id 1002) > group "Bar" (id 5)\n'
-                 'prop foreColor: black\n')
-        inside = control('button', 'OK', 7, {}, 'card "Main" (id 1002) > group "Bar" (id 5)')
-        self.assertEqual(self.found(HEAD + group + inside), [])
-
     def test_a_colour_it_does_not_know_is_reported(self):
         got = self.found(HEAD + control('button', 'OK', 7, {'foreColor': 'PapayaWhip'}))
         self.assertEqual(len(got), 1)
@@ -175,6 +168,126 @@ class TestFindings(Dumps):
         objs = inks.objects(self.dump(text))
         self.assertEqual(objs[-1][1], {'label': 'a: b'})
         self.assertEqual(inks.findings(REL, self.dump(text)), [])
+
+
+GROUP = 'card "Main" (id 1002) > group "Bar" (id 5)'
+
+
+def group(props, name='Bar', ident=5):
+    lines = ['== stack "X" > card "Main" (id 1002) > group "%s" (id %d)' % (name, ident)]
+    lines += ['prop %s: %s' % item for item in props.items()]
+    return '\n'.join(lines) + '\n'
+
+
+class TestOwners(Dumps):
+    """A text colour on a stack, card or group, which the buttons and fields
+    under it with none of their own are drawn in (Replicate's stack kept
+    black, so every word of the dialog was black on the dark window)."""
+
+    STACK = '== stack "X"\nprop foreColor: %s\n== stack "X" > card "Main" (id 1002)\n'
+
+    def test_a_stacks_black_fails_once_with_how_many_take_it(self):
+        text = (self.STACK % 'Black' + control('field', 'label rotate', 7, {})
+                + control('button', 'OK', 8, {}) + control('button', 'Cancel', 9, {'foreColor': ''}))
+        got = self.found(text)
+        self.assertEqual(len(got), 1)
+        obj, ink, what = got[0]
+        self.assertEqual(obj, inks.THE_STACK)
+        self.assertEqual(ink, 'Black')
+        self.assertIn('taken by 3 button(s) and field(s)', what)
+        self.assertIn('the first field "label rotate" (id 7)', what)
+        self.assertIn('on the dark window', what)
+
+    def test_a_cards_white_fails_on_the_light_window(self):
+        text = ('== stack "X"\n== stack "X" > card "Main" (id 1002)\nprop foreColor: 255,255,255\n'
+                + control('field', 'Status', 7, {}))
+        got = self.found(text)
+        self.assertEqual([(obj, what.split(' on the ')[1]) for obj, _, what in got],
+                         [('card "Main" (id 1002)', 'light window')])
+
+    def test_a_groups_black_fails_and_names_the_group(self):
+        got = self.found(HEAD + group({'foreColor': 'black'}) + control('button', 'OK', 7, {}, GROUP))
+        self.assertEqual([obj for obj, _, _ in got], [GROUP])
+
+    def test_an_owner_no_button_or_field_takes_from_passes(self):
+        # nothing under it, only a graphic under it, and controls beside it
+        self.assertEqual(self.found(HEAD + group({'foreColor': 'black'})), [])
+        self.assertEqual(self.found(HEAD + group({'foreColor': 'black'}) + control('graphic', 'line', 7, {}, GROUP)), [])
+        self.assertEqual(self.found(HEAD + group({'foreColor': 'black'}) + control('button', 'OK', 7, {})), [])
+
+    def test_a_control_with_a_colour_of_its_own_does_not_take_its_owners(self):
+        # a mid grey of its own under a black stack: neither fails
+        text = self.STACK % 'black' + control('button', 'OK', 7, {'foreColor': '128,128,128'})
+        self.assertEqual(self.found(text), [])
+        # black of its own under a black stack: the control fails, not the stack
+        text = self.STACK % 'black' + control('button', 'OK', 7, {'foreColor': '0,0,0'})
+        self.assertEqual([obj for obj, _, _ in self.found(text)], ['card "Main" (id 1002) > button "OK" (id 7)'])
+
+    def test_the_nearest_owner_with_a_colour_is_the_one_taken(self):
+        inside = control('button', 'OK', 7, {}, GROUP)
+        # a group's mid grey under a black stack passes
+        self.assertEqual(self.found(self.STACK % 'black' + group({'foreColor': '128,128,128'}) + inside), [])
+        # a group's black under a mid grey stack fails, and names the group
+        got = self.found(self.STACK % '128,128,128' + group({'foreColor': 'black'}) + inside)
+        self.assertEqual([obj for obj, _, _ in got], [GROUP])
+        # a group with an empty colour takes the stack's
+        got = self.found(self.STACK % 'black' + group({'foreColor': ''}) + inside)
+        self.assertEqual([obj for obj, _, _ in got], [inks.THE_STACK])
+
+    def test_a_colour_that_stands_out_from_both_passes(self):
+        self.assertEqual(self.found(self.STACK % '128,128,128' + control('button', 'OK', 7, {})), [])
+
+    def test_a_background_anywhere_from_the_control_up_passes(self):
+        for key, value in (('backColor', '255,255,255'), ('backPattern', '1234')):
+            # on the control, on a group between, and on the owner that has the colour
+            self.assertEqual(self.found(self.STACK % 'black' + control('button', 'OK', 7, {key: value})), [], key)
+            text = self.STACK % 'black' + group({key: value}) + control('button', 'OK', 7, {}, GROUP)
+            self.assertEqual(self.found(text), [], key)
+            text = ('== stack "X"\nprop foreColor: black\nprop %s: %s\n== stack "X" > card "Main" (id 1002)\n'
+                    % (key, value) + control('button', 'OK', 7, {}))
+            self.assertEqual(self.found(text), [], key)
+
+    def test_only_the_controls_with_no_background_are_counted(self):
+        text = (self.STACK % 'black' + control('button', 'OK', 7, {'backColor': 'white'})
+                + control('button', 'Cancel', 8, {}))
+        got = self.found(text)
+        self.assertEqual(len(got), 1)
+        self.assertIn('taken by 1 button(s) and field(s) under it, the first button "Cancel" (id 8)', got[0][2])
+
+    def test_a_substacks_own_colour_names_the_substack(self):
+        text = ('== stack "X"\n== stack "X" > substack "Pop"\nprop foreColor: Black\n'
+                '== stack "X" > substack "Pop" > card (id 1002)\n'
+                + control('button', 'Pulldown', 7, {}, 'substack "Pop" > card (id 1002)'))
+        self.assertEqual([obj for obj, _, _ in self.found(text)], ['substack "Pop"'])
+
+    def test_a_substacks_controls_take_the_main_stacks_colour(self):
+        text = ('== stack "X"\nprop foreColor: Black\n== stack "X" > substack "Pop"\n'
+                '== stack "X" > substack "Pop" > card (id 1002)\n'
+                + control('button', 'Pulldown', 7, {}, 'substack "Pop" > card (id 1002)'))
+        self.assertEqual([obj for obj, _, _ in self.found(text)], [inks.THE_STACK])
+
+    def test_an_owners_colour_it_does_not_know_is_reported(self):
+        got = self.found(self.STACK % 'PapayaWhip' + control('button', 'OK', 7, {}))
+        self.assertEqual(len(got), 1)
+        self.assertEqual(got[0][0], inks.THE_STACK)
+        self.assertIn('NAMES', got[0][2])
+
+    def test_owners_are_reported_after_the_controls_in_the_dumps_order(self):
+        text = (self.STACK % 'black' + group({'foreColor': '0,0,0'}) + control('button', 'In', 7, {}, GROUP)
+                + control('button', 'Own', 8, {'foreColor': 'black'}) + control('button', 'Out', 9, {}))
+        self.assertEqual([obj for obj, _, _ in self.found(text)],
+                         ['card "Main" (id 1002) > button "Own" (id 8)', GROUP, inks.THE_STACK])
+
+    def test_an_exception_excuses_an_owner_and_goes_stale_with_it(self):
+        self.dump(self.STACK % 'Black' + control('button', 'ruler', 7, {}))
+        key = (REL, inks.THE_STACK)
+        failures, stale, excused = inks.check(self.dir.name, [REL], {})
+        self.assertEqual((len(failures), stale, excused), (1, [], 0))
+        self.assertIn(REL + ': ' + inks.THE_STACK + ': its text colour Black (taken by 1 ', failures[0])
+        self.assertEqual(inks.check(self.dir.name, [REL], {key: 'why'}), ([], [], 1))
+        self.dump(HEAD + control('button', 'ruler', 7, {}))
+        failures, stale, excused = inks.check(self.dir.name, [REL], {key: 'why'})
+        self.assertEqual((failures, len(stale), excused), ([], 1, 0))
 
 
 class TestCheck(Dumps):
@@ -277,7 +390,10 @@ class TestExceptions(unittest.TestCase):
         for (rel, obj), why in inks.EXCEPTIONS.items():
             self.assertTrue(rel.startswith(inks.SCOPE), rel)
             self.assertTrue(os.path.exists(os.path.join(REPO, rel)), rel)
-            self.assertRegex(obj.split(' > ')[-1], r'^(button|field) ".*" \(id \d+\)$')
+            # a button or field, or the owner whose colour its controls take
+            if obj != inks.THE_STACK:
+                self.assertRegex(obj.split(' > ')[-1],
+                                 r'^((button|field) ".*" \(id \d+\)|(card|group)( ".*")? \(id \d+\)|substack ".*")$')
             self.assertFalse(obj.startswith('stack '), obj)
             self.assertGreater(len(why), 30, obj)
 

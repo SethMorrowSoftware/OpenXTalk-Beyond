@@ -1,0 +1,27 @@
+# "Print Dialog" (the print dialog the engine opens for "answer printer"
+# on Linux when the systemPrintSelector is false, and the one Standalone
+# Settings copies into a standalone): three boxes kept a white background
+# of their own with no text colour, so their words were the theme's, which
+# on a dark window is white: white on white (seen in a picture of the
+# dialog in the dark, 12 November 2026).
+#  - The "Pages" and "Print to file" fields now have no background of
+#    their own, and are drawn as the theme's fields are, like the fields of
+#    the Page Setup Dialog: white with dark words on a light window, dark
+#    with light words on a dark one.
+#  - The list of printers stays a white box, as its printer pictures are
+#    drawn for one, and now has black for its words with it. A printer's
+#    name takes it; the row that is chosen sets its own colours (white on
+#    the selection's colour), as before.
+file: Toolset/palettes/revprintdialog.rev
+object: field "Pages" of group "Range" of card 1
+property: backgroundColor
+from: 255,255,255
+to: 
+object: field "Filename" of group "Print Target" of card 1
+property: backgroundColor
+from: 255,255,255
+to: 
+object: group "Printer List" of group "Print Target" of card 1
+property: foregroundColor
+from: 
+to: 0,0,0
