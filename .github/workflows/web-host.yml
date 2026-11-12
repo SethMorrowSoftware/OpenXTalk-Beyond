@@ -46,7 +46,9 @@ on:
       - tools/web-ide/index.html
       - engine/src/em-system.js
       - .github/workflows/web-host.yml
-  # A draft runs none of this (each job's `if:`); marking it ready does
+  # A draft runs none of this but the draft gate (the first job, which
+  # asks GitHub whether the pull request is a draft now; see
+  # build-windows.yml); marking it ready does
   pull_request:
     types: [ opened, synchronize, reopened, ready_for_review ]
     paths:
@@ -73,9 +75,57 @@ defaults:
     shell: bash
 
 jobs:
+  # The draft gate: whether this run checks anything is asked of the pull
+  # request as it is now, not of the event that started the run (see
+  # build-windows.yml)
+  gate:
+    name: Draft check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    continue-on-error: true
+    outputs:
+      build: ${{ steps.ask.outputs.build }}
+    steps:
+      - name: Ask whether the pull request is a draft now
+        id: ask
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          build=true
+          if [ "$EVENT_NAME" = pull_request ]; then
+            draft=
+            for try in 1 2 3; do
+              if draft=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq .draft); then
+                break
+              fi
+              draft=
+              if [ "$try" -lt 3 ]; then sleep $((try * 5)); fi
+            done
+            case "$draft" in
+              true)
+                build=false
+                echo "::notice::Pull request #$PR_NUMBER is a draft: this run builds nothing. Marking it ready for review starts the builds."
+                ;;
+              false)
+                echo "Pull request #$PR_NUMBER is ready for review: this run builds."
+                ;;
+              *)
+                echo "::warning::GitHub did not say whether pull request #$PR_NUMBER is a draft, so this run builds."
+                ;;
+            esac
+          else
+            echo "No pull request ($EVENT_NAME): this run builds."
+          fi
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+
   check:
     name: Web host and bundle
-    if: github.event.pull_request.draft != true
+    needs: gate
+    if: ${{ needs.gate.outputs.build != 'false' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
