@@ -1249,6 +1249,12 @@ function edShortTarget pLongID
    put word 1 to 3 of pLongID into tOut
    if pLongID contains "revSEFind" then return tOut && "(Find)"
    if pLongID contains "revNewScriptEditor" then return tOut && "(Script Editor)"
+   if pLongID contains "revTools" then return tOut && "(Tools)"
+   -- (a stack of a file: its file's name)
+   if word 1 of tOut is "stack" and tOut contains "/" then
+      set the itemDelimiter to "/"
+      return "stack" && quote & item -1 of tOut
+   end if
    return tOut
 end edShortTarget
 
@@ -1282,8 +1288,10 @@ command edWatchKeys pOn
    if there is a stack tDefault then set the defaultStack to tDefault
 end edWatchKeys
 
-on edSeen pMessage, pTarget
-   put (the milliseconds - sKeep["watching"]) && pMessage && edShortTarget(pTarget) & "; " after sKeep["seen"]
+on edSeen pMessage, pTarget, pTool
+   put (the milliseconds - sKeep["watching"]) && pMessage && edShortTarget(pTarget) after sKeep["seen"]
+   if pTool is not empty then put " (" & pTool & ")" after sKeep["seen"]
+   put "; " after sKeep["seen"]
 end edSeen
 
 function edWatched
@@ -1663,9 +1671,16 @@ function edTileShown pName
    return the visible of tTile and the top of tTile >= 0 and the bottom of tTile <= the height of stack "revTools"
 end edTileShown
 
--- a tool's tile (Run or Edit) clicked
+-- a tool's tile (Run or Edit) clicked, and the tool it names waited
+-- for. browse-runs-it once found the pointer tool 3 s after the Browse
+-- tile's click (macOS Intel, dark, run 43189577663) with the button
+-- still selected, which a browse tool chosen and lost would have
+-- dropped; nothing said what the click had reached. The click is
+-- watched (edWatchClicks), and one that chose nothing in 1.5 s is
+-- recorded with what was seen and the palette's state; it is not made
+-- again, so the caller's own wait still fails the step
 command edToolTile pName
-   local tTile
+   local tTile, tTool
    put edTile(pName) into tTile
    if tTile is empty then
       -- (the classic look names them otherwise; the tool chosen as its
@@ -1674,8 +1689,55 @@ command edToolTile pName
       else revIDEChoosePointerTool
       exit edToolTile
    end if
+   put word 1 of the cToolName of tTile into tTool
+   edWatchClicks true
    edClickAt "revTools", the loc of tTile
+   if not edWaitFor("word 1 of the tool is pAx", 1500, tTool) then
+      edRecord "INFO the" && tTool && "tile's click chose nothing in 1.5 s (" & the tool & "); seen:" && edWatched() & \
+            "; the tile at" && the rect of tTile && "shown" && the visible of tTile & \
+            "; Tools mode" && the mode of stack "revTools" && "at" && the rect of stack "revTools" && "shown" && the visible of stack "revTools" & \
+            "; topStack" && the short name of the topStack & "; mouseStack" && the mouseStack & \
+            "; waiting:" && edPendingNames()
+   end if
+   edWatchClicks false
 end edToolTile
+
+-- the mouse and tool messages watched by a front script while a tile is
+-- clicked (true) and no longer (false), into what edWatched() lists
+command edWatchClicks pOn
+   local tDefault, tScript, tMessage
+   put the defaultStack into tDefault
+   set the defaultStack to "oxt_everyday"
+   lock messages
+   if pOn then
+      if there is not a button "oxt_everyday_clicks" then create invisible button "oxt_everyday_clicks"
+      repeat for each item tMessage in "mouseDown,mouseUp,mouseRelease,newTool"
+         put "on" && tMessage & return & \
+               "   dispatch " & quote & "edSeen" & quote & " to stack " & quote & "oxt_everyday" & quote & " with " & quote & tMessage & quote & \
+               ", the long id of the target, the tool" & return & \
+               "   pass" && tMessage & return & \
+               "end" && tMessage & return after tScript
+      end repeat
+      set the script of button "oxt_everyday_clicks" to tScript
+      put empty into sKeep["seen"]
+      put the milliseconds into sKeep["watching"]
+      insert the script of button "oxt_everyday_clicks" into front
+   else if there is a button "oxt_everyday_clicks" then
+      remove the script of button "oxt_everyday_clicks" from front
+   end if
+   unlock messages
+   if there is a stack tDefault then set the defaultStack to tDefault
+end edWatchClicks
+
+-- the names of the messages waiting
+function edPendingNames
+   local tOut, tLine
+   repeat for each line tLine in the pendingMessages
+      put item 3 of tLine & " " after tOut
+   end repeat
+   if tOut is empty then return "nothing"
+   return word 1 to -1 of tOut
+end edPendingNames
 
 -- The system's mouse pressed at pFrom, moved in steps to pTo and released
 -- there (screen points), while the engine handles each event as it comes:
@@ -1971,6 +2033,7 @@ command edTidyAfterFailure pTask
    end repeat
    -- (a miss in a combo box leaves no watcher in front)
    edWatchKeys false
+   edWatchClicks false
    if tLeft is empty then exit edTidyAfterFailure
    edRecord "INFO" && pTask && "failed with these open, closed:" && tLeft
    try
