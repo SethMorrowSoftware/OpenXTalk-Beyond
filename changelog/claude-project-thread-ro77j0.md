@@ -1,0 +1,1 @@
+- CI, everyday IDE tour: typing in the Find dialog waits until the combo box's own text field takes the keys (the engine's active field), not only the focus, and a miss records the selection, the Script Editor's waiting messages and the focus messages the windows were sent; the Find dialog opens once the Script Editor shows the script (#479)

@@ -168,3 +168,72 @@ class MessageBoxKeptLine(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class FindTypingReachesTheEntry(unittest.TestCase):
+    """se-find-replace types into the Find dialog's combo boxes. On the Intel
+    Mac (main fde49edf) every key was lost with the focus on the combo box
+    itself: the engine gives a typed key to a combo box's entry field only
+    while that field is its active field (MCField::kdown), and the focus
+    (the card's focused control) does not say which field that is. So the
+    click is waited for until the entry is the active field, and a miss
+    records what would name the cause."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.text = read(SCRIPT)
+        cls.handlers = handlers(cls.text)
+        m = re.search(r'^function edEntryActive pCombo\n(.*?)^end edEntryActive', cls.text, re.M | re.S)
+        cls.entry_active = m.group(1) if m else ''
+
+    def test_the_click_waits_for_the_entry_to_take_the_keys(self):
+        body = self.handlers['edTypeInCombo']
+        wait = body.index('edWaitFor("edFocusOn(pAx) and edEntryActive(pAx)"')
+        self.assertLess(wait, body.index('edType pStack, "a", "command"'), 'typing before the entry is active')
+
+    def test_entry_active_reads_the_active_fields_chunk(self):
+        # an entry's selectedChunk is its button's ("char 0 to 2 of button 1",
+        # Find, on Linux); empty when no field is active
+        self.assertIn('the selectedChunk', self.entry_active)
+        self.assertIn('("button" && the number of pCombo)', self.entry_active)
+        self.assertIn('tChunk is not empty', self.entry_active)
+
+    def test_a_miss_says_what_moved(self):
+        body = self.handlers['edTypeInCombo']
+        throw = body[body.index('put "typing in" && pCombo'):body.index('throw tMiss')]
+        for part in ('tBefore', 'tKeysBefore', 'edKeysAt()', 'edSeWaiting()', 'edWatched()',
+                     'the focusedObject', 'the topStack', 'the defaultStack'):
+            self.assertIn(part, throw, 'the miss does not record %s' % part)
+        # and what a repeated click found
+        self.assertRegex(body, r'edRecord "INFO click" && tTries .*edKeysAt\(\)')
+
+    def test_where_the_keys_are_names_the_active_field(self):
+        m = re.search(r'^function edKeysAt\n(.*?)^end edKeysAt', self.text, re.M | re.S)
+        self.assertIsNotNone(m)
+        for part in ('the focusedObject', 'the selectedField', 'the selectedChunk', 'the selectedText'):
+            self.assertIn(part, m.group(1))
+
+    def test_the_watcher_only_watches(self):
+        # a front script sees the focus and card messages of the Find and
+        # Script Editor windows and passes every one of them on
+        body = self.handlers['edWatchKeys']
+        names = re.search(r'repeat for each item tMessage in "([^"]+)"', body)
+        self.assertIsNotNone(names)
+        for name in ('preOpenCard', 'openField', 'exitField', 'focusIn', 'focusOut', 'suspendStack'):
+            self.assertIn(name, names.group(1).split(','))
+        self.assertIn('"   pass" && tMessage', body)
+        self.assertIn('remove the script of button "oxt_everyday_keys" from front', body)
+
+    def test_the_watcher_is_taken_out_on_every_way_out(self):
+        body = self.handlers['edTypeInCombo']
+        self.assertEqual(body.count('edWatchKeys true'), 1)
+        self.assertEqual(body.count('edWatchKeys false'), 2, 'the miss and the pass each take it out')
+        self.assertLess(body.index('edWatchKeys false'), body.index('throw tMiss'))
+        self.assertIn('edWatchKeys false', self.handlers['edTidyAfterFailure'])
+
+    def test_find_waits_for_the_script_editor_to_show_the_script(self):
+        # the Find dialog takes its word from the editor's selection: it
+        # opens once the editor has filled its field, as debug-breakpoint
+        body = self.handlers['ed_se_find_replace']
+        self.assertLess(body.index('edWaitFor("the text of pAx contains " & quote & "cClicks" & quote, 5000, tField)'),
+                        body.index('"Find and Replace..."'))
