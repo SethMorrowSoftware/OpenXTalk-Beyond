@@ -45,6 +45,8 @@ would not notice going back:
     configuration changes the app goes on through (LiveCode's four first),
     and declares the activity that starts it again in a new process only
     where the runtime's Java layer has it;
+  - every class it compiles is compiled for Java 8, the R classes of an
+    extension's .aar too, which javac 9 and newer refused at 1.5;
   - the engine: LiveCode 9.6.3's, as before, unless the stack's
     "android,engine" is "beyond", OXT-Beyond's own, which the runtimes
     carry as Runtime/Android/Beyond; every file of the runtime's that the
@@ -55,6 +57,9 @@ would not notice going back:
 
 import os
 import re
+import shutil
+import subprocess
+import tempfile
 import unittest
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
@@ -262,6 +267,53 @@ class Compatibility(unittest.TestCase):
         scan = root.find('repeat for each line tFolder in folders(')
         self.assertGreater(first, 0)
         self.assertGreater(scan, first, 'the target API\'s platform is taken before any newer one')
+
+
+class JavaSource(unittest.TestCase):
+    """The builder compiles its classes for Java 8, the R classes of an
+    extension's .aar too. Those were compiled with -source 1.5 -target 1.5,
+    which every javac since JDK 9 refuses ("Source option 5 is no longer
+    supported"), while the SDK's d8 needs a newer Java than 8 (#353): an app
+    with an extension that ships an .aar could not be built with any JDK."""
+
+    def setUp(self):
+        self.src = code(read(BUILDER))
+
+    def test_every_javac_call_compiles_for_java_8(self):
+        options = re.findall(r'-target (\S+) -source (\S+)', self.src)
+        self.assertGreaterEqual(len(options), 6)
+        self.assertEqual(set(options), {('8', '8')})
+
+    def test_the_r_classes_compile_with_a_current_javac(self):
+        # with the builder's own options, as aapt writes an R class: the
+        # JDK of JAVA_HOME (the runners' 17), or the PATH's
+        home = os.environ.get('JAVA_HOME', '')
+        javac = shutil.which('javac', path=os.path.join(home, 'bin')) if home else None
+        javac = javac or shutil.which('javac')
+        if not javac or subprocess.run([javac, '-version'], stdout=subprocess.DEVNULL,
+                                       stderr=subprocess.DEVNULL).returncode != 0:
+            self.skipTest('no JDK (javac) here')
+        params = re.search(r'put "(-target [^"]+)" into tParams\s+split tParams by space', self.src)
+        self.assertTrue(params, "the R classes' javac options")
+        with tempfile.TemporaryDirectory() as tmp:
+            source = os.path.join(tmp, 'gen', 'com', 'example', 'R.java')
+            os.makedirs(os.path.dirname(source))
+            with open(source, 'w') as f:
+                f.write('package com.example;\n'
+                        'public final class R {\n'
+                        '    public static final class string {\n'
+                        '        public static final int app_name = 0x7f010000;\n'
+                        '    }\n'
+                        '}\n')
+            classes = os.path.join(tmp, 'classes')
+            os.makedirs(classes)
+            done = subprocess.run([javac] + params.group(1).split(' ') + [classes, source],
+                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+            self.assertEqual(done.returncode, 0, done.stdout)
+            with open(os.path.join(classes, 'com', 'example', 'R$string.class'), 'rb') as f:
+                head = f.read(8)
+            # class file version 52: Java 8
+            self.assertEqual(int.from_bytes(head[6:8], 'big'), 52)
 
 
 JAVA = ('engine', 'src', 'java', 'com', 'runrev', 'android')

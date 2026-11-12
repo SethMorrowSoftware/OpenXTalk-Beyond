@@ -951,7 +951,12 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
       end if
       if tResourceClasses is not empty then
          local tParams
-         put "-target 1.5 -source 1.5 -Xlint:none -d" into tParams
+         -- OXT-Beyond: Java 8, as the builder's other classes. The R classes
+         -- of an extension's .aar were compiled with -source 1.5 -target
+         -- 1.5, which every javac since JDK 9 refuses ("Source option 5 is
+         -- no longer supported"), while the SDK's d8 needs a newer Java than
+         -- 8: such an app could not be built with any JDK
+         put "-target 8 -source 8 -Xlint:none -d" into tParams
          split tParams by space
          appendToList tClassesBuildFolder, tParams
          appendToList "-cp", tParams
