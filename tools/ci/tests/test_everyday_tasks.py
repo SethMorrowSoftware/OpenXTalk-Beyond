@@ -293,3 +293,53 @@ class DragWaitStartsAtTheRelease(unittest.TestCase):
         body = self.handlers['edToolFilter']
         self.assertNotIn('get edWaitFor("edTileShown(', body)
         self.assertRegex(body, r'if not edWaitFor\("edTileShown\(.*\n\s+edRecord "INFO the Tools palette\'s filter"')
+
+
+class ToolTileClickIsWatched(unittest.TestCase):
+    """browse-runs-it failed once on macOS Intel (#484's run, dark): the
+    Browse tile's click left the tool at the pointer for 3 s, and the
+    record said only that. The snapshot showed the Script Editor gone and
+    the button still selected (a browse tool chosen and lost would have
+    dropped the selection), so the click most likely never reached the
+    tile's mouseDown, but nothing recorded what it reached. The click is
+    now watched (mouseDown, mouseUp, newTool with their targets), and a
+    click that chose nothing is recorded with what was seen and the
+    palette's state. It is not made again: the callers' own waits fail
+    the step as before, and the record says whether the click reached
+    the tile."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.text = read(SCRIPT)
+        cls.handlers = handlers(cls.text)
+
+    def test_the_click_is_watched_from_before_to_after(self):
+        body = self.handlers['edToolTile']
+        on = body.index('edWatchClicks true')
+        click = body.index('edClickAt "revTools", the loc of tTile')
+        off = body.index('edWatchClicks false')
+        self.assertLess(on, click)
+        self.assertLess(click, off)
+
+    def test_the_watch_sees_the_mouse_and_the_tool(self):
+        body = self.handlers['edWatchClicks']
+        for message in ('mouseDown', 'mouseUp', 'newTool'):
+            self.assertIn(message, body)
+        self.assertIn('insert the script of button "oxt_everyday_clicks" into front', body)
+        self.assertIn('remove the script of button "oxt_everyday_clicks" from front', body)
+
+    def test_a_click_that_chose_nothing_is_recorded_and_not_made_again(self):
+        body = self.handlers['edToolTile']
+        wait = body.index('if not edWaitFor("word 1 of the tool is pAx", 1500, tTool) then')
+        record = body.index('edRecord "INFO the" && tTool && "tile')
+        self.assertLess(wait, record)
+        # one click only: a miss fails the caller's own wait, as before
+        self.assertEqual(body.count('edClickAt '), 1)
+        miss = body[record:body.index('edWatchClicks false')]
+        for part in ('the tool', 'edWatched()', 'the rect of tTile', 'the visible of tTile',
+                     'the mode of stack "revTools"', 'the rect of stack "revTools"',
+                     'the topStack', 'the mouseStack', 'edPendingNames()'):
+            self.assertIn(part, miss, 'the miss does not record %s' % part)
+
+    def test_the_watcher_is_taken_down_after_a_failure(self):
+        self.assertIn('edWatchClicks false', self.handlers['edTidyAfterFailure'])
