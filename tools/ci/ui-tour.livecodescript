@@ -4104,6 +4104,7 @@ function tourSvgMenuCheck pWhat, pObjects, pEnabled, pItem
       revIDESelectObjects pObjects
    end if
    tourWait 200
+   tourMenuBuildSettled pWhat
    dispatch "revMenubarBuildMenus" to stack "revMenuBar"
    repeat for each line tLine in the text of button "Object" of group "revMenuBar" of stack "revMenuBar"
       if tLine contains pItem then put word 1 to -1 of tLine into tItem
@@ -4115,6 +4116,35 @@ function tourSvgMenuCheck pWhat, pObjects, pEnabled, pItem
    end if
    return empty
 end tourSvgMenuCheck
+
+-- Waits, at most 3 seconds, until the menu bar has no build of its menus
+-- waiting, nor the IDE's message that asks for one. revMenubarBuildMenus
+-- does nothing while a build of it waits ("if the pendingmessages
+-- contains revMenubarBuildMenus then exit"), and on a Mac a selection
+-- sends ideSelectedObjectChanged (ideMessageSend, in 0 ms), whose handler
+-- in the menu bar sends a build in 1 ms: on an Intel Mac runner (#478,
+-- a50a3a04) the tour's own build ran while that one still waited, built
+-- nothing, and the Object menu it read was the one of the selection
+-- before ("(Convert SVG Image to Graphics" with the SVG image selected).
+-- A wait that ran out is recorded, and the build is asked for anyway
+command tourMenuBuildSettled pWhat
+   local tTry
+   repeat with tTry = 1 to 30
+      if not tourMenuBuildWaiting() then exit tourMenuBuildSettled
+      wait 100 milliseconds with messages
+   end repeat
+   tourRecord "INFO svg-menu with" && pWhat && "selected, a menu build still waits after 3 s"
+end tourMenuBuildSettled
+
+-- Whether the menu bar's build, or the IDE message that leads to one,
+-- still waits
+function tourMenuBuildWaiting
+   local tLine
+   repeat for each line tLine in the pendingMessages
+      if item 3 of tLine is among the items of "revMenubarBuildMenus,ideMessageSend" then return true
+   end repeat
+   return false
+end tourMenuBuildWaiting
 
 -- A line when pData, what Copy Graphics as SVG Paths put on the clipboard
 -- with a field and a graphic selected, is not the graphic's one path in
