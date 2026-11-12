@@ -1000,3 +1000,40 @@ class ClosedWindowOffTheScreen(unittest.TestCase):
         consts = dict(re.findall(r'^constant (kStill\w+) = (\d+)$', self.tour, re.M))
         self.assertGreaterEqual(int(consts['kStillFor']), 300)  # longer than macOS's fade
         self.assertLess(int(consts['kStillFor']), int(consts['kStillMax']))
+
+
+class MenuCheckWaitsForTheMenuBarsOwnBuild(unittest.TestCase):
+    """revMenubarBuildMenus does nothing while a build of it waits, and on a
+    Mac a selection sends one (ideSelectedObjectChanged, then a build in
+    1 ms). On an Intel Mac runner (#478, a50a3a04) svg-import's menu check
+    asked for its build while that one waited, and read the Object menu of
+    the selection before. The check now waits until no build, nor the
+    message that leads to one, waits."""
+
+    def setUp(self):
+        with open(TOUR, encoding='utf-8') as f:
+            self.tour = f.read()
+        with open(os.path.join(os.path.dirname(TOUR), '..', '..', 'ide', 'Toolset', 'palettes', 'menubar', 'revmenubar.livecodescript'),
+                  encoding='utf-8') as f:
+            self.menubar = f.read()
+
+    def test_the_menu_bar_still_skips_a_build_while_one_waits(self):
+        # what the wait is for: if this guard goes, so can the wait
+        self.assertIn('if the pendingmessages contains "revMenubarBuildMenus" then exit revMenubarBuildMenus',
+                      self.menubar)
+
+    def test_the_check_waits_before_it_asks_for_the_build(self):
+        check = handler(self.tour, 'function', 'tourSvgMenuCheck')
+        settled = check.index('tourMenuBuildSettled pWhat')
+        self.assertGreater(settled, check.index('revIDESelectObjects pObjects'))
+        self.assertLess(settled, check.index('dispatch "revMenubarBuildMenus" to stack "revMenuBar"'))
+
+    def test_the_wait_looks_for_the_build_and_its_message(self):
+        waiting = handler(self.tour, 'function', 'tourMenuBuildWaiting')
+        self.assertIn('repeat for each line tLine in the pendingMessages', waiting)
+        self.assertIn('"revMenubarBuildMenus,ideMessageSend"', waiting)
+        settled = handler(self.tour, 'command', 'tourMenuBuildSettled')
+        self.assertIn('wait 100 milliseconds with messages', settled)
+        # bounded, and a wait that ran out is recorded
+        self.assertIn('repeat with tTry = 1 to 30', settled)
+        self.assertIn('tourRecord "INFO svg-menu with" && pWhat', settled)
