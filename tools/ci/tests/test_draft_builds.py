@@ -32,7 +32,8 @@ Until 2026-11-12 the condition read the event's own copy,
 moment later sends a synchronize event that still says draft, and GitHub
 can start that event's run after the ready_for_review run (one second after
 it on #478): the late run cancelled the ready one and skipped every job,
-and a skipped required check counts as passed. So nothing here may read
+so nothing was built, nothing was red, and the pull request waited for
+required checks that no run was going to report. So nothing here may read
 that copy any more, and the gate's step is run below, with a `gh` that
 answers as GitHub would, for the events that matter: the late run of a
 pull request that is ready by now must build.

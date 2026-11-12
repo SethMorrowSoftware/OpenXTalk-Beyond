@@ -220,23 +220,30 @@ jobs:
   # GitHub can start that event's run after the `ready_for_review` run (one
   # second after it on #478, 109 seconds after it on #475, both 2026-11-11).
   # The later run then cancelled the ready run through the concurrency group
-  # and skipped every job of its own, so nothing was built, and a skipped
-  # required check counts as passed: the pull request looked mergeable
-  # without one build. Asked now, the late run finds the pull request ready
-  # and builds. Only the answer "draft" stops a run, which is why the other
-  # jobs ask for `!= 'false'` and not `== 'true'`: when GitHub gives no
-  # answer the step says build, and a gate that failed outright leaves no
-  # output at all (continue-on-error is there so that the jobs that need
-  # the gate can still start then; the gate has not failed yet, so that
-  # half is what the key is expected to do, not something seen here). A
-  # build too many costs minutes; a build too few lets unbuilt code be
-  # merged, or leaves a release without a platform. A draft's run now
-  # ends as passed, not skipped, since the gate itself ran: its notice on
-  # the run's page says that nothing was built. The job is the same
-  # text in build-windows.yml, build-linux.yml, build-macos.yml,
-  # web-ide.yml and web-host.yml, and it needs no checkout;
-  # tools/ci/tests/test_draft_builds.py runs its step and holds the five
-  # equal.
+  # and skipped every job of its own, so nothing was built and nothing was
+  # red. Of the nine required checks (BUILDING.md), "Build win-x86_64" and
+  # "Package mac-universal" showed as skipped, which GitHub counts as
+  # passed; the seven that come from matrix jobs were never reported as
+  # passed (a skipped matrix job's check keeps its unexpanded name), so
+  # the pull request waited for checks no run was going to report, until
+  # someone looked. Asked now, the late run finds the pull request ready
+  # and builds.
+  #
+  # Only the answer "draft" stops a run, which is why the other jobs ask
+  # for `!= 'false'` and not `== 'true'`: when GitHub gives no answer the
+  # step says build, and a gate that failed outright leaves no output at
+  # all (continue-on-error is there so that the jobs that need the gate
+  # can still start then; the gate has not failed yet, so that half is
+  # what the key is expected to do, not something seen here). A build too
+  # many costs minutes; a build too few leaves a pull request waiting for
+  # nothing, or a release without a platform.
+  #
+  # A draft's run now ends as passed, not skipped, since the gate itself
+  # ran: its notice on the run's page says that nothing was built. The job
+  # is the same text in build-windows.yml, build-linux.yml,
+  # build-macos.yml, web-ide.yml and web-host.yml, and it needs no
+  # checkout; tools/ci/tests/test_draft_builds.py runs its step and holds
+  # the five equal.
   gate:
     name: Draft check
     runs-on: ubuntu-24.04
