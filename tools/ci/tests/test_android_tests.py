@@ -94,6 +94,29 @@ class RunLines(unittest.TestCase):
         self.assertEqual((outcome, counts['fail']), ('fail', 2))
         self.assertEqual(failures, ['not ok - same', 'not ok - same'])
 
+    def test_done_says_how_many_lines_of_output_it_gave(self):
+        # DONE <line> <n>: the lines of output the device's log lost are
+        # missing from the n that came
+        r = at.Run()
+        for text in ('BEGIN 1', 'TAP 1 1 ok - script compiles', 'DONE 1 2',
+                     'BEGIN 2', 'TAP 2 1 ok - same', 'TAP 2 2 ok - same', 'DONE 2 2',
+                     'BEGIN 3', 'TAP 3 1 ok - x', 'DONE 3'):
+            r.said(text)
+        self.assertEqual([r.missing(n) for n in (1, 2, 3)], [1, 0, 0])
+        self.assertEqual([r.whole(n) for n in (1, 2, 3)], [False, True, True])
+        outcome, _, _, details, _ = at.result_of(r, 1)
+        self.assertEqual(outcome, 'fail')
+        self.assertEqual(details, ["the device's log lost 1 of its 2 lines of output"])
+        self.assertEqual(at.result_of(r, 2)[0], 'pass')
+        # an app that does not say how many (a DONE with no number): none
+        # are taken as lost
+        self.assertEqual(at.result_of(r, 3)[0], 'pass')
+        # the test whose output was lost is run again, below a later test
+        # or after END
+        self.assertEqual(at.lost_lines(r, 3), [1])
+        r.said('END')
+        self.assertEqual(at.lost_lines(r, 3), [1])
+
     def test_a_skip_and_a_quit(self):
         r = at.Run()
         for text in ('BEGIN 1', 'TAP 1 1 ok - script compiles', 'TAP 1 2 ok # SKIP needs the IDE', 'DONE 1',
@@ -130,10 +153,10 @@ class FakeDevice:
     time it is asked for its lines; a clock moves with the check's sleep.
     Started with tests to run again (start(again)), it says AGAIN and runs
     those alone (again_behaviour: how they go then), then END, unless it
-    ignores_again. lose: {start: {line: 'all', 'after-begin', 'begin' or
-    'done'}}, the lines of a test that the device's log loses in that start
-    (all of them, all but its BEGIN, its BEGIN or its DONE), while the app
-    goes on."""
+    ignores_again. lose: {start: {line: 'all', 'after-begin', 'begin',
+    'done' or 'tap'}}, the lines of a test that the device's log loses in
+    that start (all of them, all but its BEGIN, its BEGIN, its DONE or its
+    last line of output), while the app goes on."""
 
     def __init__(self, count, behaviour=None, lose_end=False, crash_at_start=0, lose=None,
                  again_behaviour=None, ignores_again=False, lose_again_said=False):
@@ -223,7 +246,7 @@ class FakeDevice:
                 said.append(line('QUIT %d' % n))
             said.append(line('TAP %d 1 ok - script compiles' % n))
             said.append(line('TAP %d 2 %s - test %d' % (n, 'ok' if what == 'pass' else 'not ok', n)))
-            said.append(line('DONE %d' % n))
+            said.append(line('DONE %d %d' % (n, sum(1 for x in said if ' TAP ' in x))))
         lost = self.lose.get(self.starts, {}).get(n)
         if lost == 'all':
             said = []
@@ -233,6 +256,9 @@ class FakeDevice:
             said = said[1:]
         elif lost == 'done':
             said = [x for x in said if ' DONE ' not in x]
+        elif lost == 'tap':
+            last = [x for x in said if ' TAP ' in x][-1:]
+            said = [x for x in said if x not in last]
         return out + said
 
     def pid(self):
@@ -372,6 +398,26 @@ class RunTests(unittest.TestCase):
         self.assertEqual(r.tap[2], ['ok - script compiles', 'ok - test 2'])
         self.assertEqual(dict(reported), {1: 'pass', 2: 'pass', 3: 'pass'})
         self.assertEqual(at.result_of(r, 2)[1], at.analyse_tap('ok\nok')[0])
+
+    def test_a_test_whose_output_the_log_lost_is_run_again(self):
+        # its BEGIN and its DONE came, its failure did not: it is not taken
+        # for a pass
+        d = FakeDevice(3, {2: 'fail'}, lose={1: {2: 'tap'}}, again_behaviour={2: 'fail'})
+        r, reported = follow(d, 3)
+        self.assertEqual(d.agains, [[2]])
+        self.assertEqual(r.again, [2])
+        self.assertEqual(reported, [(1, 'pass'), (3, 'pass'), (2, 'fail')])
+        self.assertEqual(r.tap[2], ['ok - script compiles', 'not ok - test 2'])
+        self.assertEqual(at.result_of(r, 2)[3], [at.AGAIN_NOTE])
+
+    def test_output_lost_every_time_fails_with_why(self):
+        d = FakeDevice(3, lose=dict((s, {2: 'tap'}) for s in range(1, 6)))
+        r, reported = follow(d, 3)
+        self.assertEqual(d.agains, [[2], [2], [2]])
+        outcome, _, _, details, _ = at.result_of(r, 2)
+        self.assertEqual(outcome, 'fail')
+        self.assertEqual(details, ["the device's log lost 1 of its 2 lines of output", at.AGAIN_NOTE])
+        self.assertNotIn(2, dict(reported))
 
     def test_the_check_of_the_way_back_in_takes_a_lost_begin(self):
         # the test the check runs again said DONE, its BEGIN lost: it ran
@@ -579,7 +625,7 @@ class Results(unittest.TestCase):
             baseline = os.path.join(tmp, 'baseline.txt')
             open(baseline, 'w').close()
             d = FakeDevice(3, lose={1: {2: 'after-begin'}})
-            d.dropped_lines = ['I/liblog  (    0): 12']
+            d.dropped_lines = ['I/liblog  (    0): 12', 'I/liblog  ( 4321): 7']
             d.install = lambda apk: None
             d.listen = d.close = lambda: None
             real = at.run_tests
@@ -604,10 +650,37 @@ class Results(unittest.TestCase):
         self.assertEqual(d.agains, [[2]])
         text = out.getvalue()
         self.assertIn('  AGAIN lcs: x: TestTwo: pass', text)
-        self.assertIn("The device's log on the lines it dropped: I/liblog  (    0): 12", text)
+        self.assertIn("The device's log on the lines it dropped: I/liblog  (    0): 12\n", text)
+        # those of the app's process are marked
+        self.assertIn("The device's log on the lines it dropped: I/liblog  ( 4321): 7 (the app)\n", text)
+        self.assertIn('  I/liblog  ( 4321): 7 (the app)\n', log)
         self.assertIn("Run again (the device's log lost their lines): x: TestTwo\n", log)
         self.assertIn('I/liblog', log)
         self.assertIn('lcs: x: TestTwo: pass', md)
+
+
+class RealDevice(unittest.TestCase):
+
+    def test_listen_clears_the_events_buffer_too(self):
+        # so that liblog's counts of the lines it dropped are this run's
+        calls = []
+
+        class Proc:
+            stdout = []
+
+            def kill(self):
+                pass
+        device = at.Device('/adb', 'emulator-5554')
+        with mock.patch.object(at, 'run', lambda cmd, timeout=None: calls.append(cmd) or (0, '')), \
+                mock.patch.object(at.subprocess, 'Popen', lambda *a, **k: Proc()):
+            device.listen()
+        self.assertIn(['/adb', '-s', 'emulator-5554', 'logcat', '-c'], calls)
+        self.assertIn(['/adb', '-s', 'emulator-5554', 'logcat', '-b', 'events', '-c'], calls)
+
+    def test_the_lines_of_the_apps_process_are_marked(self):
+        self.assertEqual(at.mark_app(['I/liblog  (  115): 18', 'I/liblog  ( 9870): 19', '(no entries)'],
+                                     {'9870', '9871'}),
+                         ['I/liblog  (  115): 18', 'I/liblog  ( 9870): 19 (the app)', '(no entries)'])
 
 
 class Prepare(unittest.TestCase):
@@ -785,6 +858,8 @@ class Standalone(unittest.TestCase):
         # QUIT from its backscript
         self.assertIn('kPrefix && "QUIT "', self.runner)
         self.assertIn('androidSay "TAP" && sIndex && tPlace && tLine', self.runner)
+        # and how many lines of output, with its DONE
+        self.assertIn('androidSay "DONE" && sIndex && tPlace', self.runner)
         # a put with no container: the engine's log line on Android
         self.assertIn('put kPrefix && pLine\n', self.runner)
         self.assertIn('constant kFolder = "%s"' % at.TESTS_FOLDER, self.runner)

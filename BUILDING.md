@@ -2260,16 +2260,21 @@ last test that began in a file of its own), at most `--restarts` times
 the web engine. The device's log is not lossless: Android can drop a
 burst of lines while the app goes on (liblog does not wait for logd; in
 run 43093019217 four tests' lines and a fifth's end were lost among
-about 1,600 tests in four minutes), and such a test looks as if it never
-ran or never ended. A test that said nothing while the app went on past
-it is therefore run again: `run` starts the app with those tests' lines
+about 1,600 tests in four minutes), and such a
+test looks as if it never ran or never ended, or, when a line of its
+output is lost, as if that line was never said: a lost failure would
+pass. The runner's `DONE` therefore says how many lines of output the
+test gave, and a test that said nothing, or less than its `DONE` says,
+while the app went on past it is run again: `run` starts the app with those tests' lines
 in the launch's extra `oxttests_again`, which the runner reads with
 `mobileGetLaunchData()`, says `AGAIN` with them, runs them alone and
 says `END`, at most `--again-starts` times (3), each time with those
-still lost. Their results are those of that run, and the log and the
+still lost. Their results are those of that run (a test whose output is
+still short after them fails, and says how many lines were lost), and the log and the
 job summary name them; an app that does not take the extra (it
 resumes, or begins another test) stops the run, and what the device's log says of the lines it dropped (liblog's
-entries in its events buffer) goes into the log. With `--again-check`,
+entries in its events buffer, which is cleared when the run begins,
+those of the app's processes marked "(the app)") goes into the log. With `--again-check`,
 which the workflow passes, the app is started once more when no test was
 lost, to run again the first test that passed (whose result stays that
 of its first run), so that every run shows that the way back in works. Failures are compared with the engine's baseline,
