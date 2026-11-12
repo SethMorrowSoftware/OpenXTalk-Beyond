@@ -75,6 +75,9 @@ fi
 echo "$answer"
 """
 FAKE_SLEEP = '#!/bin/bash\necho "$1" >> "$STATE/sleeps"\n'
+# `timeout` as the gate calls it: it notes the limit and runs the command
+# (a Mac has no timeout of its own, and the limit is not waited out here)
+FAKE_TIMEOUT = '#!/bin/bash\necho "$1" >> "$STATE/limits"\nshift\nexec "$@"\n'
 
 
 def load(name):
@@ -218,7 +221,7 @@ class GateStep(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.state)
         bindir = os.path.join(self.state, 'bin')
         os.mkdir(bindir)
-        for tool, text in (('gh', FAKE_GH), ('sleep', FAKE_SLEEP)):
+        for tool, text in (('gh', FAKE_GH), ('sleep', FAKE_SLEEP), ('timeout', FAKE_TIMEOUT)):
             path = os.path.join(bindir, tool)
             with open(path, 'w', encoding='utf-8', newline='\n') as f:
                 f.write(text)
@@ -264,6 +267,7 @@ class GateStep(unittest.TestCase):
                 self.assertEqual(build, 'true')
                 self.assertTrue(gate_term(build))
                 self.assertEqual(self.lines('calls'), [])
+                self.assertEqual(self.lines('limits'), [])
                 self.assertIn('No pull request (%s)' % event, said)
                 os.remove(self.env['GITHUB_OUTPUT'])
 
@@ -273,6 +277,8 @@ class GateStep(unittest.TestCase):
         self.assertFalse(gate_term(build))
         # one question, of this pull request, for its draft state alone
         self.assertEqual(self.lines('calls'), ['api repos/owner/repo/pulls/478 --jq .draft'])
+        # and a call that hangs is given up after half a minute
+        self.assertEqual(self.lines('limits'), ['30'])
         # said as a notice, which the run's page shows: the run itself ends
         # as passed, with nothing built
         self.assertIn('::notice::Pull request #478 is a draft: this run builds nothing', said)
@@ -295,6 +301,7 @@ class GateStep(unittest.TestCase):
         self.assertEqual(build, 'true')
         # asked three times, with a wait between the calls and none after
         self.assertEqual(len(self.lines('calls')), 3)
+        self.assertEqual(self.lines('limits'), ['30', '30', '30'])
         self.assertEqual(self.lines('sleeps'), ['5', '10'])
         self.assertIn('::warning::GitHub did not say whether pull request #478 is a draft', said)
         # and the log keeps gh's own words for why

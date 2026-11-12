@@ -241,7 +241,7 @@ jobs:
           if [ "$EVENT_NAME" = pull_request ]; then
             draft=
             for try in 1 2 3; do
-              if draft=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq .draft); then
+              if draft=$(timeout 30 gh api "repos/$REPO/pulls/$PR_NUMBER" --jq .draft); then
                 break
               fi
               draft=

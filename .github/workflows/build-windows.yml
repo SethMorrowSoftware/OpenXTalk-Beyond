@@ -232,11 +232,23 @@ jobs:
   # Only the answer "draft" stops a run, which is why the other jobs ask
   # for `!= 'false'` and not `== 'true'`: when GitHub gives no answer the
   # step says build, and a gate that failed outright leaves no output at
-  # all (continue-on-error is there so that the jobs that need the gate
-  # can still start then; the gate has not failed yet, so that half is
-  # what the key is expected to do, not something seen here). A build too
-  # many costs minutes; a build too few leaves a pull request waiting for
-  # nothing, or a release without a platform.
+  # all. A build too many costs minutes; a build too few leaves a pull
+  # request waiting for nothing, or a release without a platform.
+  #
+  # What a gate that itself goes wrong does to the jobs that need it was
+  # asked of GitHub with a workflow made for the question (#480, run
+  # 43155664105, 2026-11-12):
+  #   - its step fails: with continue-on-error the jobs that need it see
+  #     its result as success and run, a job that needs the gate and one
+  #     of those too. Without continue-on-error a job with this condition
+  #     is skipped, which is why the key is there;
+  #   - it runs into its own timeout: the job ends as cancelled, and
+  #     continue-on-error does not cover that. A job with this condition
+  #     is skipped, and only one whose condition has !cancelled() starts.
+  # So the one call that could hang is given up after 30 seconds
+  # (`timeout`), which leaves the step far inside the job's five minutes,
+  # and the second case is left to a runner that hangs outside the step.
+  # Not seen: what such a run's own conclusion is.
   #
   # A draft's run now ends as passed, not skipped, since the gate itself
   # ran: its notice on the run's page says that nothing was built. The job
@@ -265,7 +277,7 @@ jobs:
           if [ "$EVENT_NAME" = pull_request ]; then
             draft=
             for try in 1 2 3; do
-              if draft=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq .draft); then
+              if draft=$(timeout 30 gh api "repos/$REPO/pulls/$PR_NUMBER" --jq .draft); then
                 break
               fi
               draft=
