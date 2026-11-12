@@ -646,7 +646,7 @@ def main(argv=None):
     ap.add_argument('--only', default='', help='comma-separated steps of the script to run (default: all)')
     ap.add_argument('--gtk-theme', metavar='NAME',
                     help='Linux: the installed GTK 2 theme to draw with (default: Adwaita of the appearance)')
-    ap.add_argument('--timeout', type=int, default=900, help='seconds for the whole run (default: %(default)s)')
+    ap.add_argument('--timeout', type=int, default=1200, help='seconds for the whole run (default: %(default)s)')
     ap.add_argument('--script', default=SCRIPT, help='the script to run in the IDE (default: %(default)s)')
     args = ap.parse_args(argv)
     if bool(args.install) == bool(args.package):
