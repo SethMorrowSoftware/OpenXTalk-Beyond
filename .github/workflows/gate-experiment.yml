@@ -1,0 +1,179 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+
+# TEMPORARY, for pull request #480 only; the next commit removes it.
+#
+# The draft gate (build-windows.yml) is meant to stop a run only when it
+# answers "draft". What happens to the jobs that need it when the gate
+# itself fails was expected, not seen, and a review of #480 says the
+# expectation is wrong: that job-level continue-on-error keeps the run from
+# failing but does not let the jobs that need the failed job start. This
+# asks GitHub. Three gates fail on purpose (one by its step, one by its
+# timeout, one without continue-on-error as the control), and after each
+# come the three shapes the build workflows have: a job that needs the gate
+# alone, a job that needs the gate and that job, and one whose condition
+# has !cancelled(). Which of them run is the answer.
+
+name: Gate experiment
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/gate-experiment.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gate-experiment-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # A: the gate's step fails; continue-on-error, as the draft gate has it
+  a-gate:
+    name: A gate (step fails, continue-on-error)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    continue-on-error: true
+    outputs:
+      build: ${{ steps.ask.outputs.build }}
+    steps:
+      - name: Fail
+        id: ask
+        shell: bash
+        run: exit 1
+
+  a-entry:
+    name: A entry (needs the gate)
+    needs: a-gate
+    if: ${{ needs.a-gate.outputs.build != 'false' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Say what the gate looked like
+        shell: bash
+        env:
+          RESULT: ${{ needs.a-gate.result }}
+          OUTPUT: ${{ needs.a-gate.outputs.build }}
+        run: echo "ran; needs.a-gate.result=$RESULT output=[$OUTPUT]"
+
+  a-later:
+    name: A later (needs the gate and the entry)
+    needs: [a-gate, a-entry]
+    if: ${{ needs.a-gate.outputs.build != 'false' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Say what the gate looked like
+        shell: bash
+        env:
+          RESULT: ${{ needs.a-gate.result }}
+          ENTRY: ${{ needs.a-entry.result }}
+        run: echo "ran; needs.a-gate.result=$RESULT needs.a-entry.result=$ENTRY"
+
+  a-not-cancelled:
+    name: A not-cancelled form (needs the gate)
+    needs: a-gate
+    if: ${{ (!cancelled()) && needs.a-gate.outputs.build != 'false' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Say what the gate looked like
+        shell: bash
+        env:
+          RESULT: ${{ needs.a-gate.result }}
+        run: echo "ran; needs.a-gate.result=$RESULT"
+
+  # B: the gate runs into its timeout; continue-on-error
+  b-gate:
+    name: B gate (times out, continue-on-error)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    continue-on-error: true
+    outputs:
+      build: ${{ steps.ask.outputs.build }}
+    steps:
+      - name: Hang
+        id: ask
+        shell: bash
+        run: sleep 300
+
+  b-entry:
+    name: B entry (needs the gate)
+    needs: b-gate
+    if: ${{ needs.b-gate.outputs.build != 'false' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Say what the gate looked like
+        shell: bash
+        env:
+          RESULT: ${{ needs.b-gate.result }}
+        run: echo "ran; needs.b-gate.result=$RESULT"
+
+  b-not-cancelled:
+    name: B not-cancelled form (needs the gate)
+    needs: b-gate
+    if: ${{ (!cancelled()) && needs.b-gate.outputs.build != 'false' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Say what the gate looked like
+        shell: bash
+        env:
+          RESULT: ${{ needs.b-gate.result }}
+        run: echo "ran; needs.b-gate.result=$RESULT"
+
+  # C, the control: the gate's step fails and there is no continue-on-error
+  c-gate:
+    name: C gate (step fails, no continue-on-error)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      build: ${{ steps.ask.outputs.build }}
+    steps:
+      - name: Fail
+        id: ask
+        shell: bash
+        run: exit 1
+
+  c-entry:
+    name: C entry (needs the gate)
+    needs: c-gate
+    if: ${{ needs.c-gate.outputs.build != 'false' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Say what the gate looked like
+        shell: bash
+        env:
+          RESULT: ${{ needs.c-gate.result }}
+        run: echo "ran; needs.c-gate.result=$RESULT"
+
+  c-not-cancelled:
+    name: C not-cancelled form (needs the gate)
+    needs: c-gate
+    if: ${{ (!cancelled()) && needs.c-gate.outputs.build != 'false' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Say what the gate looked like
+        shell: bash
+        env:
+          RESULT: ${{ needs.c-gate.result }}
+        run: echo "ran; needs.c-gate.result=$RESULT"
