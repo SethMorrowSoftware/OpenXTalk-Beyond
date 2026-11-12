@@ -1550,9 +1550,22 @@ end ed_finish
 
 -- The tile pType ("com.livecode.interface.classic." & pType) dragged
 -- onto the stack: a new control of pWord (button, field, ...) where it
--- was dropped, selected, with the Pointer tool still chosen
+-- was dropped, selected, with the Pointer tool still chosen.
+--
+-- The wait for the control starts when the system's mouse has been
+-- released, not when the drag was launched. On Windows the drag is a
+-- PowerShell that compiles its Add-Type first, and the 6 s counted from
+-- the launch were all of the time it had: on main 92b1a1d (the #483
+-- merge, Windows, dark) make-label failed "made nothing on the stack"
+-- after 6289 ms where every other drag took about 2.4 s, and the record
+-- could not say whether the drag had even started. The helper now writes
+-- the times of its steps (edSystemDrag), the step waits for the release
+-- (20 s at most) and then 6 s for the control, and a miss says where the
+-- tile was and whether it showed, the filter, the drag's times, where
+-- the mouse and the windows were, and whether a control came late (3 s
+-- more, still a failure)
 command edMake pType, pWord, pShot
-   local tTile, tCount, tTo, tNew, tVia
+   local tTile, tCount, tTo, tNew, tVia, tFrom, tDrop, tDrag, tMiss
    if sStack is empty or there is not a stack sStack then throw "no stack to make a control on"
    edFront
    edToolFilter pType
@@ -1563,13 +1576,31 @@ command edMake pType, pWord, pShot
    put edSpot(tCount) into tTo
    if sInput is true then
       put "a drag of the system's mouse" into tVia
-      edSystemDrag edScreenLoc(tTile, "revTools"), (item 1 of tTo + the left of stack sStack) & "," & (item 2 of tTo + the top of stack sStack)
+      put edScreenLoc(tTile, "revTools") into tFrom
+      put (item 1 of tTo + the left of stack sStack) & "," & (item 2 of tTo + the top of stack sStack) into tDrop
+      edSystemDrag tFrom, tDrop
+      put edDragDone(20000) into tDrag
    else
       put "a double-click on its tile (the system's mouse does not reach the IDE)" into tVia
       send "mouseDoubleUp 1" to tTile
    end if
    if not edWaitFor("the number of controls of card 1 of stack sStack is pAx + 1", 6000, tCount) then
-      throw "the" && pType && "tile made nothing on the stack (" & tVia & ")"
+      put "the" && pType && "tile made nothing on the stack (" & tVia & ")" into tMiss
+      if sInput is true then
+         put "; the tile at" && the rect of tTile && "of revTools at" && the rect of stack "revTools" && \
+               "(shown" && edTileShown("com.livecode.interface.classic." & pType) & ")" && \
+               "dragged from" && tFrom && "to" && tDrop && "on the stack at" && the rect of stack sStack & \
+               "; the filter" && quote & edToolFilterText() & quote & "; the drag" && tDrag & \
+               "; the mouse at" && the screenMouseLoc && "and" && the mouse & "; the tool" && the tool & \
+               "; the topStack" && the short name of the topStack & "; the selObj" && edJoin(the selObj) after tMiss
+      end if
+      if edWaitFor("the number of controls of card 1 of stack sStack > pAx", 3000, tCount) then
+         put "; a control came" && the milliseconds - sKeep["dragLaunched"] && "ms after the launch:" && \
+               the long id of control (tCount + 1) of card 1 of stack sStack after tMiss
+      else
+         put "; none came 3 s later either" after tMiss
+      end if
+      throw tMiss
    end if
    put the long id of control (tCount + 1) of card 1 of stack sStack into tNew
    if word 1 of tNew is not pWord then throw "the" && pType && "tile made a" && word 1 of tNew
@@ -1608,8 +1639,17 @@ command edToolFilter pText
    edClickAt "revTools", the loc of field "tmFilter" of stack "revTools"
    select text of field "tmFilter" of stack "revTools"
    edType "revTools", pText
-   get edWaitFor("edTileShown(" & quote & "com.livecode.interface.classic." & pText & quote & ")", 2000)
+   if not edWaitFor("edTileShown(" & quote & "com.livecode.interface.classic." & pText & quote & ")", 2000) then
+      edRecord "INFO the Tools palette's filter" && quote & edToolFilterText() & quote && "does not show the" && pText && "tile"
+   end if
 end edToolFilter
+
+-- what the modern Tools palette's filter holds (empty in the classic look)
+function edToolFilterText
+   if there is not a stack "revTools" then return empty
+   if there is not a field "tmFilter" of stack "revTools" then return empty
+   return field "tmFilter" of stack "revTools"
+end edToolFilterText
 
 function edTile pName
    if there is not a button pName of stack "revTools" then return empty
@@ -1639,9 +1679,16 @@ end edToolTile
 
 -- The system's mouse pressed at pFrom, moved in steps to pTo and released
 -- there (screen points), while the engine handles each event as it comes:
--- the command runs on its own, and this waits for it
+-- the command runs on its own. It writes what it did to a file of its
+-- own (sKeep["dragFile"]), a line a step: "started", "down" and "up" on
+-- Windows, each with the milliseconds since the launch, and "up" alone
+-- elsewhere; edDragDone waits for its "up"
 command edSystemDrag pFrom, pTo
-   local tSteps, tCommand, tScript, i, tX, tY, tMoves
+   local tSteps, tCommand, tScript, i, tX, tY, tMoves, tFile
+   put specialFolderPath("temporary") & "/oxt-everyday-drag.txt" into tFile
+   if there is a file tFile then delete file tFile
+   put tFile into sKeep["dragFile"]
+   put the milliseconds into sKeep["dragLaunched"]
    put empty into tMoves
    repeat with i = 1 to 6
       put round(item 1 of pFrom + (item 1 of pTo - item 1 of pFrom) * i / 6) into tX
@@ -1660,23 +1707,28 @@ command edSystemDrag pFrom, pTo
          end repeat
          set the itemDelimiter to comma
          put "delay(0.2); ev(2," & pTo & ");" after tScript
-         put "osascript -l JavaScript -e " & quote & tScript & quote & " >/dev/null 2>&1 &" into tCommand
+         put "(osascript -l JavaScript -e " & quote & tScript & quote & " >/dev/null 2>&1; echo up > '" & tFile & "') >/dev/null 2>&1 &" into tCommand
          get shell(tCommand)
          break
       case "Win32"
-         put "Add-Type -Namespace OxtEd -Name Mouse -MemberDefinition '" & \
+         -- ($l: the milliseconds since the launch, the engine's clock
+         -- and .NET's both counting from 1970)
+         put "$f = '" & tFile & "'; function l($w) { Add-Content -Path $f -Value ($w + ' ' + ([DateTimeOffset]::Now.ToUnixTimeMilliseconds() - " & sKeep["dragLaunched"] & ")) }" & return & \
+               "l 'started'" & return & \
+               "Add-Type -Namespace OxtEd -Name Mouse -MemberDefinition '" & \
                "[DllImport(" & quote & "user32.dll" & quote & ")] public static extern bool SetCursorPos(int x, int y); " & \
                "[DllImport(" & quote & "user32.dll" & quote & ")] public static extern void mouse_event(int f, int x, int y, int d, int e);'" & return & \
                "Start-Sleep -Milliseconds 300" & return & \
                "[OxtEd.Mouse]::SetCursorPos(" & pFrom & ") | Out-Null" & return & \
                "Start-Sleep -Milliseconds 150" & return & \
-               "[OxtEd.Mouse]::mouse_event(2, 0, 0, 0, 0)" & return into tScript
+               "[OxtEd.Mouse]::mouse_event(2, 0, 0, 0, 0)" & return & \
+               "l 'down'" & return into tScript
          set the itemDelimiter to ";"
          repeat for each item i in tMoves
             put "Start-Sleep -Milliseconds 150" & return & "[OxtEd.Mouse]::SetCursorPos(" & i & ") | Out-Null" & return after tScript
          end repeat
          set the itemDelimiter to comma
-         put "Start-Sleep -Milliseconds 200" & return & "[OxtEd.Mouse]::mouse_event(4, 0, 0, 0, 0)" after tScript
+         put "Start-Sleep -Milliseconds 200" & return & "[OxtEd.Mouse]::mouse_event(4, 0, 0, 0, 0)" & return & "l 'up'" after tScript
          put base64Encode(textEncode(tScript, "UTF-16LE")) into tScript
          replace return with empty in tScript
          put "powershell -NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand" && tScript into tCommand
@@ -1692,12 +1744,26 @@ command edSystemDrag pFrom, pTo
             set the itemDelimiter to ";"
          end repeat
          set the itemDelimiter to comma
-         put " sleep 0.2 mouseup 1) >/dev/null 2>&1 &" after tCommand
+         put " sleep 0.2 mouseup 1; echo up > '" & tFile & "') >/dev/null 2>&1 &" after tCommand
          get shell(tCommand)
          break
    end switch
    -- (the caller waits for what the drag makes)
 end edSystemDrag
+
+-- Waits, at most pMilliseconds, for the last drag's helper to release the
+-- mouse; returns what it wrote and how long that took, for a record
+function edDragDone pMilliseconds
+   local tFile, tText
+   put sKeep["dragFile"] into tFile
+   if tFile is empty then return "(no drag)"
+   if edWaitFor("there is a file pAx and URL (" & quote & "file:" & quote & " & pAx) contains " & quote & "up" & quote, pMilliseconds, tFile) then
+      put URL ("file:" & tFile) into tText
+      return "released" && the milliseconds - sKeep["dragLaunched"] && "ms after the launch (" & edJoin(word 1 to -1 of tText) & ")"
+   end if
+   if there is a file tFile then put URL ("file:" & tFile) into tText
+   return "not released" && the milliseconds - sKeep["dragLaunched"] && "ms after the launch (" & edJoin(word 1 to -1 of tText) & ")"
+end edDragDone
 
 -- Whether a click of the system's mouse reaches the IDE here: a button
 -- of a stack of this script's must get its mouseUp (as the tour's

@@ -237,3 +237,59 @@ class FindTypingReachesTheEntry(unittest.TestCase):
         body = self.handlers['ed_se_find_replace']
         self.assertLess(body.index('edWaitFor("the text of pAx contains " & quote & "cClicks" & quote, 5000, tField)'),
                         body.index('"Find and Replace..."'))
+
+
+class DragWaitStartsAtTheRelease(unittest.TestCase):
+    """make-label failed on Windows (main 92b1a1d, dark) "made nothing on the
+    stack" after 6289 ms, where every other drag took about 2.4 s. The 6 s
+    were counted from the drag's launch, and on Windows the drag is a
+    PowerShell that compiles its Add-Type before it touches the mouse; the
+    record could not say whether the drag had even run. The drag's helper
+    now writes when it started, pressed and released, the wait for the
+    control starts at the release, and a miss says enough to tell a slow
+    helper, a missed tile and a late control apart."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.text = read(SCRIPT)
+        cls.handlers = handlers(cls.text)
+        m = re.search(r'^function edDragDone pMilliseconds\n(.*?)^end edDragDone', cls.text, re.M | re.S)
+        cls.done = m.group(1) if m else ''
+
+    def test_the_wait_for_the_control_follows_the_release(self):
+        body = self.handlers['edMake']
+        drag = body.index('edSystemDrag tFrom, tDrop')
+        done = body.index('put edDragDone(20000) into tDrag')
+        wait = body.index('edWaitFor("the number of controls of card 1 of stack sStack is pAx + 1", 6000, tCount)')
+        self.assertLess(drag, done)
+        self.assertLess(done, wait)
+
+    def test_every_helper_says_when_it_released(self):
+        body = self.handlers['edSystemDrag']
+        self.assertIn('put tFile into sKeep["dragFile"]', body)
+        self.assertIn('if there is a file tFile then delete file tFile', body)
+        self.assertIn("echo up > '\" & tFile & \"')", body)          # macOS
+        self.assertIn("mouseup 1; echo up > '\" & tFile & \"')", body)  # Linux
+        for step in ("l 'started'", "l 'down'", "l 'up'"):            # Windows
+            self.assertIn(step, body)
+        # started is written before the Add-Type compiles
+        self.assertLess(body.index("l 'started'"), body.index('Add-Type -Namespace OxtEd'))
+
+    def test_the_release_wait_is_bounded_and_says_what_it_saw(self):
+        self.assertIn('pMilliseconds, tFile)', self.done)
+        self.assertIn('"released"', self.done)
+        self.assertIn('"not released"', self.done)
+        self.assertIn('sKeep["dragLaunched"]', self.done)
+
+    def test_a_miss_says_enough_to_tell_the_causes_apart(self):
+        body = self.handlers['edMake']
+        miss = body[body.index('put "the" && pType && "tile made nothing on the stack'):body.index('throw tMiss')]
+        for part in ('the rect of tTile', 'edTileShown(', 'tFrom', 'tDrop', 'edToolFilterText()', 'tDrag',
+                     'the screenMouseLoc', 'the mouse', 'the tool', 'the topStack', 'the selObj',
+                     'a control came', 'none came 3 s later either'):
+            self.assertIn(part, miss, 'the miss does not record %s' % part)
+
+    def test_the_filter_says_when_its_tile_did_not_show(self):
+        body = self.handlers['edToolFilter']
+        self.assertNotIn('get edWaitFor("edTileShown(', body)
+        self.assertRegex(body, r'if not edWaitFor\("edTileShown\(.*\n\s+edRecord "INFO the Tools palette\'s filter"')
