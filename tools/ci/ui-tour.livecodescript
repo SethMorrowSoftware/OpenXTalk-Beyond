@@ -10873,11 +10873,13 @@ on tour_background_default
                tScreen && "on the card" && tCard & "; in its snapshot" && (item 1 to 3 of tRaw) && \
                "at alpha" && (item 4 of tRaw) & "), not the dark appearance's" & return after tFails
       else if $OXT_TOUR_APPEARANCE is "dark" and max(item 1 of tPlain, item 2 of tPlain, item 3 of tPlain) >= 160 then
-         -- known, queued after the GM: the snapshot of a button alone is
-         -- drawn in the light appearance
-         tourRecord "INFO background-default: KNOWN: in the dark appearance the snapshot of an ordinary button" && \
-               tHeight && "points high has a light face (" & (item 1 to 3 of tRaw) && "at alpha" && (item 4 of tRaw) & \
-               ") where the screen shows" && tScreen
+         -- the snapshot of a button alone, as it shows on the card, must
+         -- be dark as the screen is: the theme drew it in the light
+         -- appearance (an opaque white face under a light label) until
+         -- 0.2.8 (osxtheme.mm, MCMacThemeDrawInAppearance)
+         put "in the dark appearance the snapshot of an ordinary button" && tHeight && \
+               "points high has a light face as it shows on the card (" & (item 1 to 3 of tPlain) & "; raw" && \
+               (item 1 to 3 of tRaw) && "at alpha" && (item 4 of tRaw) & ") where the screen shows" && tScreen & return after tFails
       end if
       put min(200, item 4 of tPlain - 30) into tNeed
       if item 4 of tMeasure < tNeed then

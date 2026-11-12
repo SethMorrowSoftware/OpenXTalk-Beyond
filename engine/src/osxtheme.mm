@@ -542,6 +542,7 @@ static void drawthemebutton(MCDC *dc, const MCWidgetInfo &widgetinfo, const MCRe
 {
 	MCThemeDrawInfo t_info;
 	t_info . dest = drect;
+	t_info . light_appearance = dc -> gettype() == CONTEXT_TYPE_PRINTER;
 	getthemebuttonpartandstate(widgetinfo, t_info . button . info, drect, t_info . button . bounds);
 	// tperry 3rd December 2025: Store original widget type to distinguish BEVELBUTTON from PULLDOWN
 	t_info . button . widget_type = widgetinfo.type;
@@ -1155,6 +1156,37 @@ static void MCMacThemeDrawTab(CGContextRef p_context, const MCThemeDrawInfo& p_i
 	CGContextRestoreGState(p_context);
 }
 
+// OXT-Beyond: runs p_draw with p_appearance as the current drawing
+// appearance. A button's cell drawn into an image with no view draws in the
+// current drawing appearance, not the one set on its control. In a window's
+// drawing that is the window's, so the screen was right; outside one (a
+// script's `import snapshot from button` or `export snapshot`) the engine
+// found it to be the light one in the dark appearance, so a snapshot of a
+// push button had the light appearance's opaque white face under the dark
+// appearance's light label, which could not be read (the IDE tour; seen on
+// macOS 15 with 0.2.7: the face 255,255,255 at alpha 255 where AppKit,
+// asked for the dark appearance, draws white at alpha 64, which on a card
+// of 37,37,37 is the screen's 91,91,91).
+static void MCMacThemeDrawInAppearance(NSAppearance *p_appearance, void (^p_draw)(void))
+{
+	if (p_appearance == nil)
+	{
+		p_draw();
+		return;
+	}
+	if (@available(macOS 11.0, *))
+		[p_appearance performAsCurrentDrawingAppearance:p_draw];
+	else if (@available(macOS 10.14, *))
+	{
+		NSAppearance *t_old = [NSAppearance currentAppearance];
+		[NSAppearance setCurrentAppearance:p_appearance];
+		p_draw();
+		[NSAppearance setCurrentAppearance:t_old];
+	}
+	else
+		p_draw();
+}
+
 void MCMacDrawTheme(MCThemeDrawType p_type, MCThemeDrawInfo& p_info, CGContextRef p_context, bool p_hidpi)
 {
 	CGContextRef t_context = p_context;
@@ -1550,9 +1582,9 @@ void MCMacDrawTheme(MCThemeDrawType p_type, MCThemeDrawInfo& p_info, CGContextRe
 					t_frame = NSRectFromCGRect(p_info.button.bounds);
 				}
 				
-				// Set appearance
+				// Set appearance (the light one for a printer: light_appearance)
 				extern bool MCPlatformGetSystemAppearanceIsDark(void);
-				NSAppearance *t_appearance = MCPlatformGetSystemAppearanceIsDark() ?
+				NSAppearance *t_appearance = MCPlatformGetSystemAppearanceIsDark() && !p_info.light_appearance ?
 					[NSAppearance appearanceNamed:NSAppearanceNameDarkAqua] :
 					[NSAppearance appearanceNamed:NSAppearanceNameAqua];
 				
@@ -1696,7 +1728,9 @@ void MCMacDrawTheme(MCThemeDrawType p_type, MCThemeDrawInfo& p_info, CGContextRe
 					
 					// Draw into the image with correct orientation
 					NSRect t_draw_rect = NSMakeRect(0, 0, t_frame.size.width, t_frame.size.height);
-					[[t_control cell] drawWithFrame:t_draw_rect inView:nil];
+					MCMacThemeDrawInAppearance(t_appearance, ^{
+						[[t_control cell] drawWithFrame:t_draw_rect inView:nil];
+					});
 					
 					[t_image unlockFocus];
 					
