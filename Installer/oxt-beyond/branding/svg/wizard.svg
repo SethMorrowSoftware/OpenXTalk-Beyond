@@ -86,7 +86,7 @@
 </svg>
 
 <text x="194.0" y="640" text-anchor="end" font-family="DejaVu Sans" font-weight="bold" font-size="62" fill="#FF7700">OXT</text><text x="194.0" y="640" font-family="DejaVu Sans" font-weight="bold" font-size="62" fill="#F4F6F8">-Beyond</text>
-<text x="267" y="790" text-anchor="middle" font-family="DejaVu Sans" font-weight="bold" font-size="150" fill="url(#wsky-number)">0.2.7</text>
+<text x="267" y="790" text-anchor="middle" font-family="DejaVu Sans" font-weight="bold" font-size="150" fill="url(#wsky-number)">0.2.8</text>
 <path d="M76 840 Q80.4 855.6 96 860 Q80.4 864.4 76 880 Q71.6 864.4 56 860 Q71.6 855.6 76 840 Z" fill="#FFB547"/>
 <text transform="translate(290,880) skewX(-12)" font-family="DejaVu Sans" font-weight="bold" font-size="56" text-anchor="middle" fill="#FFB547">Make It So</text>
 <text transform="translate(267,950) scale(1,1)" font-family="DejaVu Sans" font-weight="normal" font-size="26" text-anchor="middle" fill="#C3CCD6">Say it in xTalk. Make it so.</text></svg>

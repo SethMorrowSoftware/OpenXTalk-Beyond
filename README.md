@@ -1,7 +1,7 @@
 # OXT-Beyond
 
 <p align="center">
-  <img src="Installer/oxt-beyond/branding/art/oxt-beyond-banner.png" alt="OXT-Beyond 0.2.7 &quot;Make It So&quot;">
+  <img src="Installer/oxt-beyond/branding/art/oxt-beyond-banner.png" alt="OXT-Beyond 0.2.8 &quot;Make It So&quot;">
 </p>
 
 <p align="center">
@@ -137,14 +137,18 @@ clone at the new one.
 
 ## Status
 
-**OXT-Beyond 0.2.7 "Make It So"** is the current release. It comes
-out of the Bug Hunt: nineteen rounds of release candidates, published
-as pre-releases on the
+**OXT-Beyond 0.2.7 "Make It So"** is the current stable release, and
+**0.2.8-dp.1** is the current developer preview: the first look at
+0.2.8, with what has been built and fixed since 0.2.7, for anyone who
+would like it early and does not mind telling us what breaks. Both are
+on the
 [Releases page](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases),
-each fixing what the testers on the
-[OpenXTalk forums](https://openxtalk.org/forum/) reported. 0.2.6
-"Frankenstein", the release before it, stays on the Releases page. This
-is a young project; please read the notes below before you download it.
+and the [downloads](https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/#downloads)
+on the website offer each under its own heading. 0.2.7 comes out of the
+Bug Hunt: nineteen rounds of release candidates, each fixing what the
+testers on the [OpenXTalk forums](https://openxtalk.org/forum/)
+reported. This is a young project; please read the notes below before
+you download it.
 
 Two changes in 0.2.6 can be seen by a script: on Linux a period typed
 while a handler runs no longer stops it (Control-period does, as on
@@ -160,6 +164,7 @@ every change, release by release.
 
 | Version | What it brings |
 | --- | --- |
+| [0.2.8-dp.1](#028-dp1-the-first-developer-preview-of-028) | The first developer preview of 0.2.8, with stacks made for phones as its highlight: new Android apps are built with OXT-Beyond's own Android engine, launcher icons can be adaptive and themed, an app with an .aar builds again, and Nova Rescue is flown by tilt; WebSockets, desktop-width fonts and a self-hosted bundle on the web; MySQL 8.4 and PostgreSQL's SCRAM logins; video on Linux without mplayer; Windows follows a switch between light and dark at once; and the dark appearance's last unreadable menus and dialogs |
 | [0.2.7](#027-make-it-so) | The stable release that the Bug Hunt's nineteen rounds made, with the last of the forum's finds squashed: the SVG icon picker, the Message Box's colours, the Extension Manager's icons and the Project Browser's Refresh arrows in the dark; ticks in a submenu, so File > Import Stack's HyperCard options show; the "menu" button style in the Inspector; Android apps that can be drawn edge to edge, a box to build them with OXT-Beyond's own Android engine, and no hang on a density change; the "Make It So" splash, installer and banner |
 | [0.2.7-rc.6.19](#027-rc619-the-bug-hunt-round-nineteen) | Puzzle Almanac, a daily puzzle book for phones, in the Stack Player and on the website; Android apps can be built with OXT-Beyond's own Android engine, and no longer crash after a density change; macOS 11 on Intel Macs too, where Catalina hung at launch; fonts a stack loads drawn as themselves on Linux and Windows, so the Script Editor shows code in Source Code Pro; one Undo for a drag and drop in the Script Editor; readable names on a selected Project Browser row; widgets in the Tools palette as soon as they are installed; tooltips that can be read in a dark browser |
 | [0.2.7-rc.6.18](#027-rc618-the-bug-hunt-round-eighteen) | Two games made for phones in the Stack Player, Nova Rescue and Wobble Forts; Android apps ready for Google Play: target API 36, App Bundles, notifications on Android 13 and newer, pictures saved on Android 10 and newer, the back gesture on Android 16, no more closing on a font size or language change, and the Android runtime's Java layer built from OXT-Beyond's source; a stack's sounds exported as WAV, AIFF or AU files; default buttons that went blank on a Mac; the App Browser back in the Tools menu with sharp icons; a splash image while a web standalone loads; SQLite 3.51.3, and libsodium 1.0.22 and OpenSSL 3.5.9 in the xTalk Suite |
@@ -218,13 +223,16 @@ Earlier versions, from 0.2.1 to 0.2.5, are described under
   engine of HTML5 standalones, which every package carries, is built
   from this repository too (see [The engine](#the-engine)), and so is
   the Android runtime's Java layer (`Runtime/Android/Classes`) from
-  0.2.7-rc.6.18 on. The default Android engines, though, are still
-  OpenXTalk Lite 1.15's (stock LiveCode 9.6.3 builds as Tom Perry
+  0.2.7-rc.6.18 on. The builder's default Android engines, though, are
+  still OpenXTalk Lite 1.15's (stock LiveCode 9.6.3 builds as Tom Perry
   shipped them), carried over unchanged in that asset. From
   0.2.7-rc.6.19 on it carries OXT-Beyond's own Android engine beside
   them, built here with a current NDK (`Runtime/Android/Beyond`), and a
   stack is built with it only when its "android,engine" setting is
-  "beyond" (see [BUILDING.md](BUILDING.md#15-building-the-android-engine)). Only
+  "beyond". From 0.2.8-dp.1 the Standalone Settings store that for a
+  stack set up for Android for the first time, with the first
+  architecture it ticks; a stack set up before keeps the engine it had
+  (see [BUILDING.md](BUILDING.md#15-building-the-android-engine)). Only
   the macOS package has the macOS runtimes, OXT-Beyond does not support
   iOS and has no iOS build or runtimes (so the Standalone
   Settings have no iOS card, and a stack set to build for iOS in
@@ -1693,6 +1701,212 @@ undo, and the folders where it keeps copies of stacks before changing
 them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
+
+#### 0.2.8-dp.1: the first developer preview of 0.2.8
+
+OXT-Beyond 0.2.8-dp.1 is the first developer preview of 0.2.8: what
+has been built and fixed since 0.2.7 "Make It So", which stays the
+stable release. A developer preview is for anyone who would like the
+new things early and does not mind telling us what breaks; Help > Check
+for Updates offers a preview only to someone who already runs one, and
+the website's downloads show the stable release and the newest preview
+side by side (#464). The highlight is stacks made for phones:
+
+- **Android apps on OXT-Beyond's own engine.** A stack set up for
+  Android in 0.2.8 is built with the Android engine built here: the
+  first architecture it ticks ticks the engine box too, and the box is
+  no longer called a preview. A stack set up for Android before keeps
+  the engine it had, so nothing changes under an app you already ship
+  (#458). The engine's own test scripts now run inside an Android app
+  on an emulator, with both engines, and none that passes with
+  LiveCode 9.6.3's fails with ours (#456); the app check also runs on
+  Android 5.0, the oldest Android an app can be built for (#455).
+- **Launcher icons that fit the phone.** An Android app can have an
+  adaptive icon, which Android 8 and newer draw in the launcher's own
+  shape, and a themed one, which Android 13 and newer tint with the
+  wallpaper's colours. A stack without the new settings is built as
+  before (#457).
+- **Android apps with an .aar build again.** An app that carries an
+  .aar, an extension's or a Play Services dependency's, builds with
+  JDK 17 or newer; the builder compiled such a library's R classes
+  with options that no JDK since 9 accepts (#482). No build of such an
+  app has run in our checks yet: a report is welcome.
+- **Nova Rescue, flown by tilt.** The tilt flies the ship much faster,
+  a lean of up to about 3 degrees moves nothing, so the ship no longer
+  drifts, a phone on its side tilts along the screen's sides, and
+  turning the phone no longer pauses a run flown by tilt
+  (OpenXTalkPaul) (#475). In a window wider than the play column,
+  meteors go behind its dimmed sides (#471).
+
+New on the web:
+
+- **WebSockets.** In an HTML5 standalone and in the Stack Player,
+  `open socket to` a ws:// or wss:// address opens a WebSocket, and the
+  socket reads and writes as a desktop one does (#462). NostrXT reaches
+  its relays that way, so xTalk Chat connects in the web IDE (#443).
+- **Text that wraps as it does on the desktop.** A new Fonts setting on
+  the Web pane, "Desktop fonts", adds Arimo, Tinos and Cousine (open
+  fonts as wide as Arial, Times New Roman and Courier New) to an HTML5
+  standalone, and the Stack Player has them too, so stacks in Arial,
+  Helvetica, Times or Courier, HyperCard stacks among them, lay out
+  their text as on the desktop. The default builds a standalone as
+  before (#460).
+- **Host it yourself.** A web bundle, the web IDE and the Stack Player
+  ready to drop onto any web host, with settings for Apache, nginx,
+  Caddy and GitHub Pages, and a small web host of your own that keeps
+  the IDE's stacks on your server, behind a password (#451).
+- **A Stack Player that fills the window.** `?fill=yes` in the bare
+  player's address scales the stack to the window on a desktop too
+  (LittleNemo) (#459). A HyperCard stack converted before its scripts
+  were fixed is offered Fix and Reopen (#453), and a box on the page
+  turns off the classic look (#448).
+- **A dark Dictionary in a dark web IDE.** The Dictionary's pages are
+  dark in a dark browser; they opened light (#440).
+
+New on the desktop:
+
+- **Databases that log in to today's servers.** The MySQL driver is
+  built on MariaDB Connector/C 3.4.11 and logs in to MySQL 8.4 and
+  later; the PostgreSQL driver is built on libpq 17.11 and logs in with
+  SCRAM-SHA-256, the default since PostgreSQL 14. Error texts read as
+  before (#452).
+- **Video on Linux without mplayer.** The player plays through
+  GStreamer where mplayer is not installed, which is most distributions
+  now; where mplayer is installed it still plays the movie. A first
+  start turns the Player tool on when GStreamer is there, and Play a
+  Video no longer asks for mplayer (#450).
+- **HyperCard import.** The HyperCard Library stands in for many more
+  of the externals old stacks call, and the summary after an import
+  says what was converted, what was stood in for and what was dropped
+  (#445); the Mac fonts a stack names are shown in look-alikes
+  (Chicago, Geneva, New York, Monaco, Palatino), and the classic look
+  draws a card's own fields flat too, not only a background's (#448).
+- **Card Navigator.** Clone Card copies the card in front with
+  everything on it, and Show All goes through every card and back to
+  the first (OpenXTalkPaul) (#467).
+- **xTalk Academy.** The lessons' text can be selected and copied, and
+  A- and A+ make it smaller or larger (LittleNemo) (#446).
+- **xTalk Assistant.** A Context length setting for a model on your
+  own computer, so LM Studio loads the model with room for the
+  assistant's guide (#383, #474).
+
+Squashed since 0.2.7:
+
+- **White words on white buttons on Windows.** A switch between light
+  and dark while the IDE or your app runs is followed at once, by
+  buttons, option menus, title bars and every window; before, a button
+  stayed light under the dark appearance's white words until the next
+  start (richmond62) (#465).
+- **Heavy code in the Script Editor on Windows.** The Script Editor
+  drew its code in Source Code Pro Medium, heavier than on a Mac or on
+  Linux; plain text is drawn in a font's regular face now (#470).
+- **"socket timeout" from some HTTPS servers.** `put url` to a server
+  that sends a TLS 1.3 session ticket with its handshake (Caddy and
+  other Go servers) never sent its request, and a large HTTPS `post`
+  could end with no reply; both go through now (bwmilby) (#463).
+- **A white button in a dark snapshot on a Mac.** In the dark
+  appearance, `import snapshot from` a button draws it dark, as the
+  screen shows it (a known issue of 0.2.7) (#473).
+- **A selection too light to read in the Message Box.** The selection
+  there is drawn in the Script Editor's highlight colour (a known issue
+  of 0.2.7; bwmilby) (#439).
+- **Menus with nothing to read in the dark.** Standalone Settings'
+  "UAC Execution Level" menu, the Object Library's library menu and a
+  few more kept black words of their own, which the dark window
+  swallowed; on a Mac the Script Editor's handler menu did too. They
+  are drawn in the theme's colours, and so are the "Required", "Used"
+  and "n/a" headers of the Android and iOS cards. The property names
+  of Preferences > Debug Properties were blue on blue on a Mac and on
+  Windows, and can be read (#483).
+- **Replicate in the dark.** Edit > Replicate's labels, numbers and
+  buttons were black on the dark window; they are drawn in the theme's
+  colours, and so are the Printer Chooser's. The print dialog's two
+  white boxes, which took the dark appearance's white words, are drawn
+  as the theme's fields (#484). Both of these came out of looking at
+  every IDE screenshot, and at the windows the screenshots do not
+  show, before this release; a check now reads every IDE window's
+  controls for a colour that the dark or the light window hides.
+- **Shapes that changed places in the Tools palette.** On some Linux
+  disks Speech Bubble stood where Rectangle stands, and Rectangle
+  last: the shapes had no place of their own and stood as the disk
+  listed their files. They stand the same everywhere now, as they
+  always did on Windows and macOS (#490).
+- **A note that sent you to Java 8.** With no JDK found, Preferences >
+  Mobile Support named Java 8's installers, which today's Android
+  tools do not run on. It names JDK 17 (#483).
+- **A script library that built and did nothing.** The Extension
+  Builder says why in its log: the first compile error by its line,
+  docs with no library block or Version line, a main file that is not
+  a stack (Skids) (#468).
+- **A server session that started over.** The Server could cut the
+  last character off the last cookie's value, so a session's second
+  request could begin a new session (#449).
+- **Sparks that turned round in Home.** On a slow computer a long
+  frame could send the Move page's sparks backwards (#454).
+
+What a script can see since 0.2.7:
+
+- On Windows, `systemAppearanceChanged` is sent, once for each change;
+  it was never sent there before (#465).
+- On Windows, plain text in a font family that has a Medium (weight
+  500) face is drawn in its regular face, as on macOS and Linux: Source
+  Code Pro in the IDE, a family your stack loads with all its weights,
+  and a few system families such as Yu Gothic. A family without a
+  Medium face is drawn as before (#470).
+- On a Mac in the dark appearance, a snapshot of a push button,
+  checkbox, radio button, option menu or combo box has the dark
+  appearance's face, as the screen shows it. The light appearance, the
+  screen and printing are as before (#473).
+- In an HTML5 standalone, `open socket to` a ws:// or wss:// address
+  works; any other socket still fails with "not supported" (#462). In
+  the web engine `the screenDepth` is 32, as on the desktop, where it
+  was 0 (#453).
+- In an HTML5 standalone built with Desktop fonts, and in the Stack
+  Player, Arial, Helvetica, Times, Courier and the like are drawn in
+  fonts of their width and are in `the fontNames`; a standalone built
+  with the default is as before. A font from the Copy Files pane is
+  read from the standalone's fonts folder whatever `the defaultFolder`
+  is; it was found only at startup (#460).
+- A HyperCard stack's XFCN that the library does not answer gives
+  empty, where a script stopped at it; stacks imported before keep the
+  library they were given (#445).
+- A stack you set up for Android from now on is built with
+  OXT-Beyond's own engine. The one known difference for an existing
+  script: a `wait` that Android ends by destroying the app's screen
+  throws "wait: aborted", where LiveCode 9.6.3's engine hangs (#458).
+  Three new standalone settings: "android,adaptive icon",
+  "android,adaptive icon background" and "android,themed icon" (#457).
+- `revIDEPropertiesInfoOfSection` asked for one section gives that
+  section's rows; it stopped with "can't find handler" (#447).
+- The MySQL and PostgreSQL drivers keep their error texts; a MySQL
+  connection keeps latin1 unless the script sets another character
+  set, and uses TLS only when asked (#452).
+- In the IDE's own Replicate, Printer Chooser and Menu Builder style
+  chooser stacks `the foregroundColor` of the stack reads empty, and so
+  does `the backgroundColor` of the print dialog's "Pages" and file
+  name fields, so they follow the theme. The Printer Chooser and the
+  print dialog can be copied into a Linux standalone, where they now
+  follow the desktop's appearance (#484).
+- Inside the IDE, the entries of `revIDEGraphics()` and
+  `revIDEGraphicTools()` carry an `order` (#490).
+
+A standalone built for another platform runs on this release's engine:
+the runtimes that every package carries for the other platforms are
+rebuilt from it, with the Android runtime's Java layer and OXT-Beyond's
+own Android engine from the same source (#491).
+
+Known issues of this preview:
+
+- Nova Rescue's new tilt is tested with made-up sensor readings and
+  has not had a pass on a real phone yet, and the pause of about a
+  second reported around sector 3 on an iPhone could not be reproduced.
+  A report from a phone is welcome.
+- No Android app with an .aar has been built in our checks yet (#482).
+- On macOS, a TERM signal (`kill`, `killall`) may not quit OXT-Beyond
+  or a standalone, or may crash it: the engine runs the shutdown
+  messages inside the signal handler. Quit from the menu, the Dock and
+  at logout are not affected. This is old, and is on the list for a
+  later preview.
 
 #### 0.2.7: Make It So
 
@@ -4554,18 +4768,21 @@ Known limitations, in rough order of importance:
    74 and several older libraries in `thirdparty/`. (OpenSSL, curl,
    ICU, zlib, libpng, giflib, libjpeg and PCRE are current from
    0.2.1-rc.3 on.) Plan: update them too.
-2. The Android standalone engines are OpenXTalk Lite 1.15's (LiveCode
-   Community 9.6.3 builds), not built from this repository; the Java
-   layer beside them is built here from 0.2.7-rc.6.18 on, and with it a
-   package targets Android 16 (API 36), as Google Play asks of new apps
-   and updates. The Android builder is tested automatically
-   (packages built with a real Android SDK, checked, and run on Android 13
-   and 16 KB page emulators), the engine itself only as that build runs
-   it. The Windows and Linux runtimes are built from this repository from
-   0.2.1-rc.3 on, and every package's tests build a standalone from each
-   of them. The Android engine is built here and checked as Android takes
-   it, but packages do not carry it yet. Plan: ship the Android engines
-   built here.
+2. The builder's default Android standalone engines are OpenXTalk Lite
+   1.15's (LiveCode Community 9.6.3 builds), not built from this
+   repository; the Java layer beside them is built here from
+   0.2.7-rc.6.18 on, and with it a package targets Android 16 (API 36),
+   as Google Play asks of new apps and updates. OXT-Beyond's own Android
+   engine is built here with a current NDK, and every package carries it
+   from 0.2.7-rc.6.19 on. From 0.2.8-dp.1 a stack set up for Android for
+   the first time is built with it; a stack set up before is built with
+   9.6.3's until its **OXT-Beyond engine** box is ticked. The Android
+   builder is tested automatically with each engine (packages built with
+   a real Android SDK, checked, and run on Android 13 and 16 KB page
+   emulators), and the LiveCode Script tests run in an Android
+   standalone with each. The Windows and Linux runtimes are built from
+   this repository from 0.2.1-rc.3 on, and every package's tests build a
+   standalone from each of them.
 3. The Windows binaries are not code-signed, and the macOS app is signed
    ad hoc, not with an Apple Developer ID, and not notarized. Plan:
    Developer ID signing and notarization for macOS.
@@ -4624,6 +4841,11 @@ Known limitations, in rough order of importance:
    input method's composition, as the tests' stand-in for a touch
    screen's keyboard does in Firefox, reaches the field with no
    `keyDown` messages.
+13. On macOS, a TERM signal (`kill`, `killall`) may not quit OXT-Beyond
+   or a standalone, or may crash it: the engine runs the shutdown
+   messages inside the signal handler. Quit from the menu, the Dock and
+   at logout are not affected. This is old. Plan: fix it in a later
+   preview.
 
 Done since 0.0.1: the extensions of the xTalk Suite are built in, taken
 from their own repositories at pinned commits (see

@@ -1,1 +1,0 @@
-- IDE library: revIDEPropertiesInfoOfSection asked for one section gives that section's rows, ordered as revIDEPropertiesInfo orders it; it called a handler the library has never had (__orderPropSection) and stopped with "can't find handler". Without a section nothing changes; the IDE tour's inspector-button-menu step checks it (claude-project-thread-kmsnyl)
