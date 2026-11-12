@@ -1837,14 +1837,14 @@ jobs:
       # (tools/ci/print_images.py).
       - name: IDE screenshots, light
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
-        timeout-minutes: 20
+        timeout-minutes: 25
         run: |
           python3 tools/ci/ui_tour.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
             --appearance light --out "$RUNNER_TEMP/logs/ui-tour/light"
 
       - name: IDE screenshots, dark
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
-        timeout-minutes: 20
+        timeout-minutes: 25
         run: |
           python3 tools/ci/ui_tour.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
             --appearance dark --out "$RUNNER_TEMP/logs/ui-tour/dark"
@@ -1914,7 +1914,7 @@ jobs:
           for theme in Yaru-MATE-dark Yaru-dark HighContrastInverse; do
             python3 tools/ci/ui_tour.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
               --appearance dark --gtk-theme "$theme" --only menu-marks,menu-words,menu-armed-words \
-              --out "$RUNNER_TEMP/logs/menu-marks/$theme" || failed+=("$theme")
+              --timeout 900 --out "$RUNNER_TEMP/logs/menu-marks/$theme" || failed+=("$theme")
           done
           if [ ${#failed[@]} -gt 0 ]; then
             echo "::error::the menus' marks or words failed under ${failed[*]}"

@@ -948,7 +948,15 @@ jobs:
           - arch: x86_64
             runner: macos-15-intel
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
+    # The job takes 42 to 46 minutes on the Intel Mac (12 November 2026),
+    # the tour's three runs about 30 of them. The limit leaves each run
+    # the whole of its own time (tools/ci/ui_tour.py --timeout, and a
+    # minute to stop the IDE and say where it stopped) and the other
+    # steps their quarter of an hour, so that a run that never ends is
+    # stopped by the tour, which prints the screen and the IDE's state,
+    # and not by this limit, which prints nothing
+    # (tools/ci/tests/test_screenshot_review.py, TheTourBudget)
+    timeout-minutes: 75
     env:
       ARCH: ${{ matrix.arch }}
       VERSION: ${{ needs.package.outputs.version }}
@@ -1217,14 +1225,14 @@ jobs:
       # logs and are printed into this log (tools/ci/print_images.py).
       - name: IDE screenshots, light
         if: ${{ !cancelled() }}
-        timeout-minutes: 20
+        timeout-minutes: 25
         run: |
           python3 tools/ci/ui_tour.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
             --appearance light --out "$LOGS/ui-tour/light"
 
       - name: IDE screenshots, dark
         if: ${{ !cancelled() }}
-        timeout-minutes: 20
+        timeout-minutes: 25
         run: |
           python3 tools/ci/ui_tour.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
             --appearance dark --out "$LOGS/ui-tour/dark"
@@ -1432,7 +1440,7 @@ jobs:
         timeout-minutes: 20
         run: |
           python3 tools/ci/ui_tour.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
-            --appearance light --only sample,controls,field-scroll,image-frames,inspector,inspector-tabs,inspector-gravity,inspector-hypercard,hypercard-disk-image,dictionary,preferences,standalone-settings --out "$RUNNER_TEMP/ui-tour"
+            --appearance light --timeout 900 --only sample,controls,field-scroll,image-frames,inspector,inspector-tabs,inspector-gravity,inspector-hypercard,hypercard-disk-image,dictionary,preferences,standalone-settings --out "$RUNNER_TEMP/ui-tour"
 
       # As the test job runs it (see there), on macOS 26
       - name: Menu and backdrop check
