@@ -463,6 +463,26 @@ class StorageTests(Running):
                                 (path, got[:40]))
         self.assertEqual(os.listdir(self.files), ['folder'])
 
+    def test_an_answer_does_not_wait_for_a_body_that_never_comes(self):
+        # A POST, or a PUT onto a folder, is answered at once even when the
+        # body it names never comes (as it was before its body was read)
+        import socket
+        os.makedirs(os.path.join(self.files, 'folder'), exist_ok=True)
+        for method, path, status in (('POST', '/', 405), ('PUT', self.url('folder'), 409),
+                                     ('PUT', self.url('x.oxtstack'), 403)):
+            headers = ['%s %s HTTP/1.1' % (method, path), 'Host: 127.0.0.1:%d' % self.ide_port,
+                       'Content-Length: 5']
+            if status == 403:
+                headers.append('Origin: https://evil.example')
+            with socket.create_connection(('127.0.0.1', self.ide_port), timeout=20) as s:
+                s.sendall(('\r\n'.join(headers) + '\r\n\r\nx').encode())
+                s.settimeout(3)
+                try:
+                    got = s.recv(65536)
+                except socket.timeout:
+                    self.fail('no answer in 3 s to %s %s with its body unsent' % (method, path))
+                self.assertIn(b' %d ' % status, got.split(b'\r\n', 1)[0], (method, path))
+
     def test_paths_stay_in_the_storage(self):
         write(self.path('outside.txt'), b'keep')
         for rel in ('../outside.txt', '..%2foutside.txt', 'a/../../outside.txt', '', 'a//b',
@@ -539,6 +559,26 @@ class DiscardBodyTests(Temp):
             h.discard_body()
             self.assertEqual(h.rfile.tell(), 0)
             self.assertFalse(h.close_connection)
+
+    def test_a_body_that_never_comes_is_waited_for_a_bounded_time(self):
+        # A client that names a length and sends less, keeping its socket
+        # open, must not hold the thread: the reading gives up after
+        # DISCARD_SECONDS and the connection closes
+        import socket
+        a, b = socket.socketpair()
+        self.addCleanup(a.close)
+        self.addCleanup(b.close)
+        h = self.handler(5, b'')
+        h.connection = a
+        h.rfile = a.makefile('rb')
+        b.sendall(b'x')
+        with mock.patch.object(host, 'DISCARD_SECONDS', 0.5):
+            started = time.monotonic()
+            h.discard_body()
+            took = time.monotonic() - started
+        self.assertLess(took, 3)
+        self.assertTrue(h.close_connection)
+        self.assertIsNone(a.gettimeout())     # the socket's own timeout comes back
 
     def test_a_bad_length_reads_nothing_and_closes(self):
         h = self.handler('ten', b'0123456789')

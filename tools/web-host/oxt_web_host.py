@@ -77,6 +77,7 @@ import re
 import shutil
 import sys
 import threading
+import time
 import urllib.parse
 import zipfile
 
@@ -111,6 +112,9 @@ MAX_UPLOAD = 200 * 1024 * 1024
 # The most of a refused request's body that is read and dropped before
 # its connection closes (discard_body)
 DISCARD_LIMIT = 1024 * 1024
+# and the longest it waits for that body: a client that names a length and
+# sends less, keeping its socket open, does not hold the thread
+DISCARD_SECONDS = 2
 TMP_SUFFIX = '.oxt-tmp'
 SYNC_TAG = b'<script src="/_host/sync.js" data-cfasync="false"></script>\n'
 
@@ -625,8 +629,8 @@ def make_handler(site):
                 return self.send_plain(413 if length > MAX_UPLOAD else 411,
                                        'Too big' if length > MAX_UPLOAD else 'No length')
             if os.path.isdir(full):
-                self.discard_body()
-                return self.send_plain(409, 'A folder of that name is there')
+                self.send_plain(409, 'A folder of that name is there')
+                return self.discard_body()
             tmp = '%s.%d%s' % (full, threading.get_ident(), TMP_SUFFIX)
             try:
                 os.makedirs(os.path.dirname(full), exist_ok=True)
@@ -680,8 +684,9 @@ def make_handler(site):
             # closes. A small one is read first: a socket closed with
             # bytes unread resets the connection, and on Windows the reset
             # can reach the client before the answer it has not read yet
-            # (WinError 10053/10054 on a refused PUT). One past the cap is
-            # left, as before: the answer is not held up for it
+            # (WinError 10053/10054 on a refused PUT). It is read after the
+            # answer is sent, for DISCARD_SECONDS at most; one past the cap
+            # is left, as before
             length = self.headers.get('Content-Length', '0')
             if length in ('', '0'):
                 return
@@ -692,15 +697,32 @@ def make_handler(site):
                 return
             if left < 0 or left > DISCARD_LIMIT:
                 return
-            while left:
-                block = self.rfile.read(min(left, 1 << 16))
-                if not block:
-                    break
-                left -= len(block)
+            connection = getattr(self, 'connection', None)
+            before = connection.gettimeout() if connection is not None else None
+            deadline = time.monotonic() + DISCARD_SECONDS
+            try:
+                while left:
+                    wait = deadline - time.monotonic()
+                    if wait <= 0:
+                        break
+                    if connection is not None:
+                        connection.settimeout(wait)
+                    block = self.rfile.read(min(left, 1 << 16))
+                    if not block:
+                        break
+                    left -= len(block)
+            except OSError:
+                pass        # (a timeout among them: the connection closes)
+            finally:
+                if connection is not None:
+                    try:
+                        connection.settimeout(before)
+                    except OSError:
+                        pass
 
         def do_POST(self):
-            self.discard_body()
             self.send_plain(405, 'Not allowed', [('Allow', 'GET, HEAD, PUT, DELETE')])
+            self.discard_body()
 
         do_PATCH = do_POST
 
