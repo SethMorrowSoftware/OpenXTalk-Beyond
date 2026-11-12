@@ -124,7 +124,7 @@ Code its authors knew to be wrong or incomplete. 64 notes, by part of the reposi
 
 ### FIXME: ide (1)
 
-- [ide/Toolset/libraries/revidelibrary.8.livecodescript:13243](ide/Toolset/libraries/revidelibrary.8.livecodescript#L13243) FIXME There is some inconsistency in the guide's files that we
+- [ide/Toolset/libraries/revidelibrary.8.livecodescript:13271](ide/Toolset/libraries/revidelibrary.8.livecodescript#L13271) FIXME There is some inconsistency in the guide's files that we
 
 <a id="fixme-ide-support"></a>
 
@@ -425,7 +425,7 @@ Work left for later. 434 notes, by part of the repository:
 - [engine/src/segment.cpp:386](engine/src/segment.cpp#L386) TODO: vertical alignment
 - [engine/src/segment.cpp:556](engine/src/segment.cpp#L556) TODO: toggle the "reversed" flag on the block or is the encoding enough?
 - [engine/src/sha1.cpp:24](engine/src/sha1.cpp#L24) TODO: can we do this in an endian-proof way?
-- [engine/src/srvcgi.cpp:1042](engine/src/srvcgi.cpp#L1042) TODO: currently we assume that urlencoded form data is small enough to fit into memory,
+- [engine/src/srvcgi.cpp:1056](engine/src/srvcgi.cpp#L1056) TODO: currently we assume that urlencoded form data is small enough to fit into memory,
 - [engine/src/srvscript.cpp:125](engine/src/srvscript.cpp#L125) TODO[2017-02-06] This is fragile; FindFile() should be
 - [engine/src/stack.cpp:644](engine/src/stack.cpp#L644) COCOA-TODO: Remove dependence on ifdef
 - [engine/src/stack.cpp:1544](engine/src/stack.cpp#L1544) COCOA-TODO: Remove dependence on ifdef
@@ -457,9 +457,9 @@ Work left for later. 434 notes, by part of the repository:
 - [engine/src/w32color.cpp:102](engine/src/w32color.cpp#L102) TODO - This isn't quite right, disable for now
 - [engine/src/w32dc.cpp:339](engine/src/w32dc.cpp#L339) TODO - determine the correct value on Win8.1 - this may depend on the display in question
 - [engine/src/w32dce.cpp:213](engine/src/w32dce.cpp#L213) TODO - This section needs to be revised as using a hardcoded titlebar size will give the wrong results
-- [engine/src/w32dcw32.cpp:849](engine/src/w32dcw32.cpp#L849) TODO: surrogate pairs?
-- [engine/src/w32dcw32.cpp:1076](engine/src/w32dcw32.cpp#L1076) TODO: pay attention to the CS_INSERTCHAR and CS_NOMOVECARET flags
-- [engine/src/w32dcw32.cpp:1458](engine/src/w32dcw32.cpp#L1458) TODO - look in to this further:
+- [engine/src/w32dcw32.cpp:890](engine/src/w32dcw32.cpp#L890) TODO: surrogate pairs?
+- [engine/src/w32dcw32.cpp:1117](engine/src/w32dcw32.cpp#L1117) TODO: pay attention to the CS_INSERTCHAR and CS_NOMOVECARET flags
+- [engine/src/w32dcw32.cpp:1499](engine/src/w32dcw32.cpp#L1499) TODO - look in to this further:
 - [engine/src/w32printer.cpp:539](engine/src/w32printer.cpp#L539) TODO - fix half pixels lost when insetting by odd integers
 - [engine/src/w32stack.cpp:550](engine/src/w32stack.cpp#L550) TODO - Windows 8 implementation will require getting the appropriate per-window value
 - [engine/src/w32stack.cpp:1231](engine/src/w32stack.cpp#L1231) TODO - Windows 8.1 per-monitor DPI-awareness may require the update region be in logical coords

@@ -81,8 +81,10 @@ recorded in
 Windows and Linux runtimes in it are built from this repository by its
 CI, with the same libraries as the packages themselves, and so are the
 Android runtime's Java layer and OXT-Beyond's own Android engine
-(`Runtime/Android/Beyond`, used only for a stack that asks for it). The
-default Android engines in it are not: they are OpenXTalk Lite 1.15's,
+(`Runtime/Android/Beyond`, used only for a stack whose settings ask for
+it, as the Standalone Settings do from 0.2.8 for a stack set up for
+Android for the first time). The other Android engines in it, which the
+builder uses for every other stack, are not: they are OpenXTalk Lite 1.15's,
 taken unchanged (LiveCode 9.6.3 builds and files as Tom Perry shipped
 them), and have not been rebuilt or updated. See
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md#standalone-runtimes-for-other-platforms).
