@@ -108,6 +108,9 @@ TYPES = {
 # which a server does not serve
 IDE_LOCAL_ONLY = ('serve.py', 'Start Web IDE.bat', 'README.txt')
 MAX_UPLOAD = 200 * 1024 * 1024
+# The most of a refused request's body that is read and dropped before
+# its connection closes (discard_body)
+DISCARD_LIMIT = 1024 * 1024
 TMP_SUFFIX = '.oxt-tmp'
 SYNC_TAG = b'<script src="/_host/sync.js" data-cfasync="false"></script>\n'
 
@@ -673,9 +676,27 @@ def make_handler(site):
             self.send_plain(200, 'Removed')
 
         def discard_body(self):
-            # An answered request's body is not read: the connection closes
-            if self.headers.get('Content-Length', '0') not in ('', '0'):
-                self.close_connection = True
+            # An answered request's body is not kept, and the connection
+            # closes. A small one is read first: a socket closed with
+            # bytes unread resets the connection, and on Windows the reset
+            # can reach the client before the answer it has not read yet
+            # (WinError 10053/10054 on a refused PUT). One past the cap is
+            # left, as before: the answer is not held up for it
+            length = self.headers.get('Content-Length', '0')
+            if length in ('', '0'):
+                return
+            self.close_connection = True
+            try:
+                left = int(length)
+            except ValueError:
+                return
+            if left < 0 or left > DISCARD_LIMIT:
+                return
+            while left:
+                block = self.rfile.read(min(left, 1 << 16))
+                if not block:
+                    break
+                left -= len(block)
 
         def do_POST(self):
             self.discard_body()
