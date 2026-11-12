@@ -697,7 +697,10 @@ jobs:
       # stack-scripts/ keeps every object script of the binary IDE stacks as
       # a text file (tools/oxt/stack_scripts.py), so a diff shows what a
       # stack change did; read from the stacks with the engine just built,
-      # it must match them (tools/oxt/stack-scripts.sh --check)
+      # it must match them (tools/oxt/stack-scripts.sh --check). The same
+      # run reads every button and field of the IDE's stacks for a text
+      # colour of its own that the dark or the light window hides
+      # (tools/ci/stack_inks.py)
       - name: Binary stack scripts
         timeout-minutes: 10
         run: tools/oxt/stack-scripts.sh "$PWD/linux-$ARCH-bin/LiveCode-Community" --check

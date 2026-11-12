@@ -101,18 +101,9 @@ command updateJDK
    get revIDEDeployAndroidGetJDK()
    put it into tJDK
    if tJDK is empty then get "(none)"
-   if the platform contains "mac" and tJDK is empty then
-      -- no JDK installed on Mac
-      put "For MacOS JDK support, please install the 'jdk-8u202-macosx-x64.dmg' directly." into cd fld "fmobtip"
-      show cd fld "fmobtip"
-   end if
-   if the platform contains "win" and tJDK is empty  then
-      -- no JDK installed on windows
-      put "For Windows JDK support, please install the 'jdk-8u202-windows.exe' directly." into cd fld "fmobtip"
-      show cd fld "fmobtip"
-   end if
-   if the platform contains "lin" and tJDK is empty  then
-      put "For Linux JDK support, please select the 'jdk-8u202' JDK path manually." into cd fld "fmobtip"
+   -- OXT-Beyond: no JDK found. The builder's Android tools need JDK 17 (it named Java 8's installers)
+   if tJDK is empty then
+      put "No JDK found. Install JDK 17, or choose one with the ... button." into cd fld "fmobtip"
       show cd fld "fmobtip"
    end if
    

@@ -1,0 +1,16 @@
+# Script Editor: the menu over the script that names the handler the
+# caret is in (button "Fake Handler Menu") was saved with the text colour
+# black. On Windows and Linux the editor's own script cleared it every time
+# it opened (pFixupMacElements in revseutilities.livecodescript); on the
+# Mac in the dark appearance it set it to black, from when the engine drew
+# a Mac menu button with a light face in the dark: the face is dark now,
+# every other menu's words are white on it, and the handler's name was the
+# one in black (the IDE screenshots of 0.2.7, 10-script-editor on the Mac,
+# found in the review for 0.2.8-dp.1). No script gives it a colour now,
+# and the stack is saved without one. tools/ci/stack_inks.py reads every
+# IDE stack for such a colour.
+file: Toolset/palettes/script editor/revscripteditor.8.rev
+object: button "Fake Handler Menu" of card "Main" of stack "revNewScriptEditor 1"
+property: foregroundColor
+from: black
+to: 

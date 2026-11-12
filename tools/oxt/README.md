@@ -1233,3 +1233,18 @@ file is missing, out of date or left over. Two stacks the engine does not
 load (`colchooser.livecode`, `revcolorchooser.rev` in `ide/Toolset/palettes`)
 have no files. `tools/oxt/stack_scripts.py` does the work; the codebase map
 uses it too.
+
+The same run reads the dumps for the words of the IDE's own windows
+(`tools/ci/stack_inks.py`): no button or field of a stack under
+`ide/Toolset` or `ide/Plugins` keeps a text colour of its own (black, a
+dark grey, white) over a background that is the theme's, where the dark
+or the light window hides it. Standalone Settings' "UAC Execution Level"
+menu was black on Windows' dark window, with nothing of its choice to
+read. The IDE's screenshots show such a control only on the cards the
+tour opens; this reads every card of every stack. When it names a
+control, clear the control's `foregroundColor` with a property patch, so
+that the theme's is used, or give the control a background of its own.
+A control that is right as it is goes in the script's `EXCEPTIONS` with
+the reason, and an entry that no longer excuses anything is an error. It
+does not read yet a text colour that a control takes from its group,
+card or stack, or a background that is set but not painted.

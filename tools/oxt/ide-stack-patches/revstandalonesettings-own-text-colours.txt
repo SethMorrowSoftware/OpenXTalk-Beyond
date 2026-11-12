@@ -1,0 +1,44 @@
+# Standalone Settings: controls that kept a dark text colour of their own
+# from when the IDE had only a light look, over a background that is the
+# theme's. On a dark window (the IDE screenshots of 0.2.7, found in the
+# review for 0.2.8-dp.1):
+#  - the Windows card's "UAC Execution Level" menu drew its choice
+#    ("Default") in black: on Windows' dark window nothing of it was seen,
+#    and on Linux and the Mac it was the one menu with black words;
+#  - the Android card's "Required", "Used" and "n/a" headers over its
+#    columns of radio buttons, and the same three on the iOS card, were a
+#    dark grey (66,66,66) on the dark window.
+# With no colour of their own they are drawn in the theme's, like the
+# controls beside them: light on a dark window, dark on a light one (where
+# the headers, which are disabled fields, were that dark grey and are now
+# the grey of the card's other disabled labels). tools/ci/stack_inks.py
+# reads every IDE stack for such a colour.
+file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
+object: button "UAC Execution Level" of group "Windows" of card "Windows"
+property: foregroundColor
+from: 0,0,0
+to: 
+object: field "Required label" of card "Android"
+property: foregroundColor
+from: 66,66,66
+to: 
+object: field "Used label" of card "Android"
+property: foregroundColor
+from: 66,66,66
+to: 
+object: field "n/a label" of card "Android"
+property: foregroundColor
+from: 66,66,66
+to: 
+object: field id 3617 of card "iOS"
+property: foregroundColor
+from: 66,66,66
+to: 
+object: field id 3618 of card "iOS"
+property: foregroundColor
+from: 66,66,66
+to: 
+object: field id 3619 of card "iOS"
+property: foregroundColor
+from: 66,66,66
+to: 
