@@ -1,0 +1,11 @@
+# The Menu Builder's substack "revMenuStylePopup" (a chooser of "Pulldown",
+# "Popup" and "Option"): the substack kept a black text colour of its own
+# and no background, so its three buttons were black on a dark window (seen
+# in a picture of it in the dark, 12 November 2026; found by
+# tools/ci/stack_inks.py). With no colour of its own they are drawn in the
+# theme's.
+file: Toolset/palettes/revmenumanager.rev
+object: stack "revMenuStylePopup"
+property: foregroundColor
+from: Black
+to: 

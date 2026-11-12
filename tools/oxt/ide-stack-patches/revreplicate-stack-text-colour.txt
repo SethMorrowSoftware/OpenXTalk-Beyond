@@ -1,0 +1,10 @@
+# The older copy of Replicate (revreplicate.rev; the Edit menu opens
+# replicate.oxtstack): the same black text colour on the stack with no
+# background, so the same black words on a dark window if a script opens
+# it. Cleared as in replicate.oxtstack (replicate-stack-text-colour.txt),
+# so the two stay alike.
+file: Toolset/palettes/revreplicate.rev
+object: stack
+property: foregroundColor
+from: Black
+to: 
