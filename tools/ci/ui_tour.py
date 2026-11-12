@@ -287,11 +287,89 @@ MAC_QUESTIONS = (
 )
 
 
+# The first time the runner sends the IDE an Apple event, macOS asks
+# whether it may: a dialog of UserNotificationCenter, '"hosted-compute-agent"
+# wants access to control "OXT-Beyond"', with the buttons Don't Allow and
+# Allow. Nobody answers it on a runner, so it held the answer back and
+# stayed on the screen over the runs after it: the Intel Mac job of #485,
+# where the light tour ran out of time, the question was asked, and the
+# dark tour's Preferences labels were then measured through the dialog.
+# On a runner of GitHub Actions the question is the runner's own to
+# answer, and it can: the image lets hosted-compute-agent use System
+# Events and the accessibility interface. Pressing Allow lets the answers
+# through and takes the dialog away; ending UserNotificationCenter takes it
+# away with no decision made (#486 tried both on the three kinds of Mac
+# runner). On a person's own Mac nothing is pressed: that answer is theirs
+MAC_CONSENT = 'UserNotificationCenter'
+MAC_ALLOW = '''on run argv
+  set theApp to item 1 of argv
+  tell application "System Events"
+    if not (exists process "UserNotificationCenter") then return "no dialog"
+    tell process "UserNotificationCenter"
+      repeat with w in (every window)
+        if (exists button "Allow" of w) then
+          set said to ""
+          try
+            repeat with t in (every static text of w)
+              set said to said & (value of t as text) & " "
+            end repeat
+          end try
+          if said contains theApp then
+            click button "Allow" of w
+            return "allowed: " & said
+          end if
+          return "another question: " & said
+        end if
+      end repeat
+    end tell
+    return "no dialog"
+  end tell
+end run'''
+
+
+def mac_allow(app, timeout=30):
+    """Presses Allow where macOS asks whether the runner may control app (a
+    .app), on a runner of GitHub Actions only. True when it was pressed."""
+    if not os.environ.get('GITHUB_ACTIONS') or not shutil.which('osascript'):
+        return False
+    name = os.path.basename(app.rstrip('/'))
+    name = name[:-4] if name.endswith('.app') else name
+    try:
+        proc = subprocess.run(['osascript', '-e', MAC_ALLOW, name], stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT, timeout=timeout)
+    except (subprocess.TimeoutExpired, OSError) as e:
+        log('(macOS\'s question about %s could not be looked for: %s)' % (name, e))
+        return False
+    said = ' '.join(proc.stdout.decode('utf-8', 'replace').split())
+    if said.startswith('allowed:'):
+        log('macOS asked whether the runner may control %s: Allow pressed (%s)' % (name, said[len('allowed:'):].strip()))
+        return True
+    log('(no question of macOS about %s to answer: %s)' % (name, said or 'nothing said'))
+    return False
+
+
+def mac_close_consent():
+    """Takes a question of macOS that nobody answered off the screen, on a
+    runner of GitHub Actions only, so that it is not over the next run.
+    True when one was open."""
+    if not os.environ.get('GITHUB_ACTIONS') or not shutil.which('pkill'):
+        return False
+    # 0: it was open and is closed; 1: none was open
+    if subprocess.run(['pkill', '-x', MAC_CONSENT], stdout=subprocess.DEVNULL,
+                      stderr=subprocess.DEVNULL).returncode != 0:
+        return False
+    log('Closed a question of macOS that nobody answered (%s)' % MAC_CONSENT)
+    return True
+
+
 def mac_ask(app, questions=MAC_QUESTIONS, timeout=20):
     """Ask the running IDE at app (its .app) each of questions, logging each
     answer. False when the engine could not be asked: osascript missing, the
-    app's bundle id unread, or no answer in timeout seconds (macOS may be
-    asking whether the runner may control the app)."""
+    app's bundle id unread, or no answer in timeout seconds. The first
+    question with no answer may be macOS asking whether the runner may
+    control the app: on a runner that is answered (mac_allow) and the
+    question asked once more, and a dialog still there when the asking
+    stops is closed (mac_close_consent)."""
     import plistlib
     if not shutil.which('osascript'):
         return False
@@ -301,19 +379,27 @@ def mac_ask(app, questions=MAC_QUESTIONS, timeout=20):
     except (OSError, KeyError, ValueError, plistlib.InvalidFileException):
         return False
     log('::group::What the IDE says (AppleScript to %s)' % bundle)
+    allowed = False
     try:
         for q in questions:
             text = 'tell application id "%s" to evaluate "%s"' % (
                 bundle, q.replace('\\', '\\\\').replace('"', '\\"'))
-            try:
-                proc = subprocess.run(['osascript', '-e', text], stdout=subprocess.PIPE,
-                                      stderr=subprocess.STDOUT, timeout=timeout)
-            except subprocess.TimeoutExpired:
-                log('%s: no answer in %d s; asking no more' % (q, timeout))
-                return False
-            except OSError as e:
-                log('%s: %s' % (q, e))
-                return False
+            while True:
+                try:
+                    proc = subprocess.run(['osascript', '-e', text], stdout=subprocess.PIPE,
+                                          stderr=subprocess.STDOUT, timeout=timeout)
+                    break
+                except subprocess.TimeoutExpired:
+                    if not allowed and mac_allow(app):
+                        # once: the same question again, now that it may be asked
+                        allowed = True
+                        continue
+                    log('%s: no answer in %d s; asking no more' % (q, timeout))
+                    mac_close_consent()
+                    return False
+                except OSError as e:
+                    log('%s: %s' % (q, e))
+                    return False
             answer = proc.stdout.decode('utf-8', 'replace').strip().replace('\r', '\n')
             log('%s:%s%s' % (q, '\n' if '\n' in answer else ' ', answer or '(empty)'))
     finally:
