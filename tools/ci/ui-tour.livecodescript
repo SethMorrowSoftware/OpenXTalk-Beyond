@@ -7238,9 +7238,6 @@ on tour_preferences
       dispatch "revPrefsGoSection" to stack tStack with tPane
       tourWait 700
       tourShotStack tStack, "14-preferences-" & format("%02d", tIndex) & "-" & tourFileName(tPane)
-      tourLabelInks tStack
-      put tourButtonsWhole(tStack) after tFails
-      put tourFieldsWhole(tStack) after tFails
       -- two panes' words that the pictures of 0.2.7 showed wrong
       -- (a pane by its name as the picture's file has it: the list's lines
       -- are indented)
@@ -7252,6 +7249,9 @@ on tour_preferences
          put tourJDKTip(tStack) after tFails
          put true into tSeen["mobile-support"]
       end if
+      tourLabelInks tStack
+      put tourButtonsWhole(tStack) after tFails
+      put tourFieldsWhole(tStack) after tFails
    end repeat
    repeat for each item tPane in "debug-properties,mobile-support"
       if tSeen[tPane] is not true then put "Preferences has no" && tPane && "pane to look at" & return after tFails
