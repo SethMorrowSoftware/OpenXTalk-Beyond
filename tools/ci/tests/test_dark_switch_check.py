@@ -811,8 +811,9 @@ class Workflows(unittest.TestCase):
     def test_the_build_checks_its_package(self):
         job = self.load('build-windows.yml')['jobs']['dark-switch']
         self.check_job(job)
-        self.assertEqual(job['needs'], ['build'])
-        self.assertIn('github.event.pull_request.draft != true', job['if'])
+        # the build, and the draft gate (test_draft_builds.py)
+        self.assertEqual(job['needs'], ['gate', 'build'])
+        self.assertIn("needs.gate.outputs.build != 'false'", job['if'])
 
     def test_a_release_can_be_checked_and_is_on_a_change_to_the_check(self):
         flow = self.load('dark-switch-check.yml')

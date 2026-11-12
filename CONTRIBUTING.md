@@ -107,11 +107,15 @@ format.
   hour). Changelog lines go in [changelog](changelog/README.md), so
   they cause no conflicts.
 - A **draft** pull request runs only the CI checks; the three build
-  workflows and the Web IDE workflow skip it. Marking it ready for
-  review starts them on its newest commit, so work in a draft while you
-  are still pushing, and mark it ready when it is done. Merge only
-  after the builds of that run have passed: the skipped builds of its
-  draft commits show as checks too, but they tested nothing.
+  workflows and the Web IDE workflow skip it. Their first job, *Draft
+  check*, asks GitHub whether the pull request is a draft at that
+  moment, and the rest of the run is skipped if it is (the run itself
+  then shows as passed, with a notice that nothing was built). Marking
+  it ready for review starts them on its newest commit, so work in a
+  draft while you are still pushing, and mark it ready when it is done.
+  Merge only after the builds of that run have passed: the skipped
+  builds of its draft commits show as checks too, but they tested
+  nothing.
 
 ### How pull requests are merged
 

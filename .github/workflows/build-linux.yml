@@ -159,13 +159,15 @@ on:
       - 'tools/ci/dark-switch-check.livecodescript'
       - 'tools/ci/dark_switch_check.py'
   # DRAFT PULL REQUESTS (2026-11-06). A draft runs none of this workflow's
-  # jobs: each job's `if:` ends in `github.event.pull_request.draft != true`,
-  # and marking the pull request ready (ready_for_review, below) starts the
-  # whole run on its newest commit. A draft is work in progress whose commits
-  # land minutes apart, and each one used to start this full build only for
-  # the next to cancel it (26 of 52 builds on 2026-11-06 00:38-02:15 UTC). CI
-  # checks still run on every draft commit. A push, a dispatch and a call from
-  # release.yml have no pull request, so the condition is always true there.
+  # jobs but the first, `gate`, which asks GitHub whether the pull request
+  # is a draft now; every other job needs it and its `if:` ends in
+  # `needs.gate.outputs.build != 'false'`. Marking the pull request ready
+  # (ready_for_review, below) starts the whole run on its newest commit. A
+  # draft is work in progress whose commits land minutes apart, and each
+  # one used to start this full build only for the next to cancel it (26
+  # of 52 builds on 2026-11-06 00:38-02:15 UTC). CI checks still run on
+  # every draft commit. A push, a dispatch and a call from release.yml
+  # have no pull request, so the gate says build there without asking.
   # tools/ci/tests/test_draft_builds.py holds every job to it.
   pull_request:
     branches: [ main ]
@@ -224,9 +226,56 @@ defaults:
     shell: bash
 
 jobs:
+  # The draft gate: whether this run builds is asked of the pull request as
+  # it is now, not of the event that started the run (see build-windows.yml)
+  gate:
+    name: Draft check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    continue-on-error: true
+    outputs:
+      build: ${{ steps.ask.outputs.build }}
+    steps:
+      - name: Ask whether the pull request is a draft now
+        id: ask
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          build=true
+          if [ "$EVENT_NAME" = pull_request ]; then
+            draft=
+            for try in 1 2 3; do
+              if draft=$(timeout 30 gh api "repos/$REPO/pulls/$PR_NUMBER" --jq .draft); then
+                break
+              fi
+              draft=
+              if [ "$try" -lt 3 ]; then sleep $((try * 5)); fi
+            done
+            case "$draft" in
+              true)
+                build=false
+                echo "::notice::Pull request #$PR_NUMBER is a draft: this run builds nothing. Marking it ready for review starts the builds."
+                ;;
+              false)
+                echo "Pull request #$PR_NUMBER is ready for review: this run builds."
+                ;;
+              *)
+                echo "::warning::GitHub did not say whether pull request #$PR_NUMBER is a draft, so this run builds."
+                ;;
+            esac
+          else
+            echo "No pull request ($EVENT_NAME): this run builds."
+          fi
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+
   build:
     name: Build linux-${{ matrix.arch }}
-    if: ${{ github.event.pull_request.draft != true }}
+    needs: gate
+    if: ${{ needs.gate.outputs.build != 'false' }}
     strategy:
       fail-fast: false
       matrix:
@@ -722,7 +771,8 @@ jobs:
   # nothing is packaged.
   build-x86:
     name: Build linux-x86
-    if: ${{ github.event.pull_request.draft != true }}
+    needs: gate
+    if: ${{ needs.gate.outputs.build != 'false' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 330
     env:
@@ -928,7 +978,8 @@ jobs:
   # engines build
   docs:
     name: Docs
-    if: ${{ github.event.pull_request.draft != true }}
+    needs: gate
+    if: ${{ needs.gate.outputs.build != 'false' }}
     uses: ./.github/workflows/docs.yml
     with:
       artifact: OXT-Beyond-docs-linux
@@ -937,7 +988,8 @@ jobs:
   # build, and checked in a headless browser
   web:
     name: Web
-    if: ${{ github.event.pull_request.draft != true }}
+    needs: gate
+    if: ${{ needs.gate.outputs.build != 'false' }}
     uses: ./.github/workflows/web.yml
     with:
       artifact: OXT-Beyond-web-linux
@@ -968,8 +1020,8 @@ jobs:
   # (the engine loads the drivers there as a package would).
   databases:
     name: Databases linux-x86_64 (${{ matrix.name }})
-    needs: build
-    if: ${{ (!cancelled() && needs.build.outputs.built-x86_64 == 'true') && github.event.pull_request.draft != true }}
+    needs: [gate, build]
+    if: ${{ (!cancelled() && needs.build.outputs.built-x86_64 == 'true') && needs.gate.outputs.build != 'false' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
@@ -1145,8 +1197,8 @@ jobs:
   # browser checks are the x86_64 leg's; its player check runs.
   package:
     name: Package linux-${{ matrix.arch }}
-    needs: [build, docs, web]
-    if: ${{ (!cancelled() && (needs.build.result == 'success' || needs.build.outputs.built-x86_64 == 'true' || needs.build.outputs.built-arm64 == 'true')) && github.event.pull_request.draft != true }}
+    needs: [gate, build, docs, web]
+    if: ${{ (!cancelled() && (needs.build.result == 'success' || needs.build.outputs.built-x86_64 == 'true' || needs.build.outputs.built-arm64 == 'true')) && needs.gate.outputs.build != 'false' }}
     strategy:
       fail-fast: false
       matrix:
