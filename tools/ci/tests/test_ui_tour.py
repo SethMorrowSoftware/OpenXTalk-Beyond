@@ -20,6 +20,10 @@ and later write it, and a .crash); and the crash dialog it keeps off CI's
 screen. And the tour's macOS system-switch step, read from the tour
 script: how it posts the switch, and that it still checks the message.
 And its log, on a console that cannot show every character.
+And the question macOS asks when the runner first asks the IDE one
+(mac_ask): on a runner Allow is pressed and the question asked again, a
+dialog nobody could answer is closed, and on a person's own Mac nothing
+is pressed.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -204,6 +208,142 @@ class CrashDialog(unittest.TestCase):
         _, ran, lines = self.run_it(1)
         self.assertEqual(ran, [['pkill', '-x', 'Problem Reporter']])
         self.assertEqual(lines, ['The Mac: no crash dialog (com.apple.CrashReporter DialogType none, UseUNC 1)'])
+
+
+class ConsentDialog(unittest.TestCase):
+    """The first Apple event the runner sends the IDE makes macOS ask
+    whether it may ('"hosted-compute-agent" wants access to control
+    "OXT-Beyond"'). Unanswered, it held the answer back and stayed over
+    the next run: the Intel Mac job of #485, whose dark tour measured
+    Preferences' labels through it after the light tour ran out of time."""
+
+    SAID = ('\u201chosted-compute-agent\u201d wants access to control \u201cOXT-Beyond\u201d. Allowing control '
+            'will provide access to documents and data in \u201cOXT-Beyond\u201d, and to perform actions within '
+            'that app.')
+
+    def setUp(self):
+        self.folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.folder, ignore_errors=True)
+        self.app = os.path.join(self.folder, 'OXT-Beyond.app')
+        os.makedirs(os.path.join(self.app, 'Contents'))
+        import plistlib
+        with open(os.path.join(self.app, 'Contents', 'Info.plist'), 'wb') as f:
+            plistlib.dump({'CFBundleIdentifier': 'io.github.sethmorrowsoftware.oxt-beyond'}, f)
+
+    def ask(self, answers, on_a_runner=True, dialog='allowed: ' + SAID, pkill_status=0):
+        """mac_ask of two questions. answers: what each asking of the IDE
+        gives in turn, None for no answer in time. Returns (what mac_ask
+        returned, the commands run, the log's lines)."""
+        answers, ran = list(answers), []
+        out = io.StringIO()
+
+        def run(cmd, **kw):
+            ran.append(cmd)
+            if cmd[0] == 'pkill':
+                return mock.Mock(returncode=pkill_status)
+            if cmd[2] == self.allow():
+                return mock.Mock(returncode=0, stdout=dialog.encode('utf-8'))
+            answer = answers.pop(0)
+            if answer is None:
+                raise ui_tour.subprocess.TimeoutExpired(cmd, kw.get('timeout'))
+            return mock.Mock(returncode=0, stdout=answer.encode('utf-8'))
+
+        env = dict(os.environ)
+        env.pop('GITHUB_ACTIONS', None)
+        if on_a_runner:
+            env['GITHUB_ACTIONS'] = 'true'
+        with mock.patch.object(ui_tour.shutil, 'which', side_effect=lambda name: '/usr/bin/' + name), \
+                mock.patch.object(ui_tour.subprocess, 'run', side_effect=run), \
+                mock.patch.dict(os.environ, env, clear=True), \
+                contextlib.redirect_stdout(out):
+            answered = ui_tour.mac_ask(self.app, questions=('the version', 'the openStacks'))
+        return answered, ran, out.getvalue().splitlines()
+
+    def allow(self):
+        return getattr(ui_tour, 'MAC_ALLOW', None)
+
+    def kinds(self, ran):
+        return ['close' if cmd[0] == 'pkill' else 'allow' if cmd[2] == self.allow() else 'ask'
+                for cmd in ran]
+
+    def test_on_a_runner_allow_is_pressed_and_the_question_asked_again(self):
+        answered, ran, lines = self.ask([None, '9.7.1-BeyondEngine', 'Home'])
+        self.assertTrue(answered)
+        self.assertEqual(self.kinds(ran), ['ask', 'allow', 'ask', 'ask'])
+        # the same question again, and the dialog is asked about this app
+        self.assertEqual(ran[0], ran[2])
+        self.assertEqual(ran[1], ['osascript', '-e', ui_tour.MAC_ALLOW, 'OXT-Beyond'])
+        self.assertEqual(lines, [
+            '::group::What the IDE says (AppleScript to io.github.sethmorrowsoftware.oxt-beyond)',
+            'macOS asked whether the runner may control OXT-Beyond: Allow pressed (%s)' % self.SAID,
+            'the version: 9.7.1-BeyondEngine',
+            'the openStacks: Home',
+            '::endgroup::'])
+
+    def test_an_ide_that_answers_is_asked_as_before(self):
+        answered, ran, lines = self.ask(['9.7.1-BeyondEngine', 'Home'])
+        self.assertTrue(answered)
+        self.assertEqual(self.kinds(ran), ['ask', 'ask'])
+        self.assertEqual(lines[1:3], ['the version: 9.7.1-BeyondEngine', 'the openStacks: Home'])
+
+    def test_allow_is_pressed_once_and_a_dialog_left_is_closed(self):
+        # still no answer after Allow: the IDE itself is not answering
+        answered, ran, lines = self.ask([None, None])
+        self.assertFalse(answered)
+        self.assertEqual(self.kinds(ran), ['ask', 'allow', 'ask', 'close'])
+        self.assertEqual(ran[-1], ['pkill', '-x', 'UserNotificationCenter'])
+        self.assertEqual(lines[-3:], ['the version: no answer in 20 s; asking no more',
+                                      'Closed a question of macOS that nobody answered (UserNotificationCenter)',
+                                      '::endgroup::'])
+
+    def test_a_later_question_with_no_answer_does_not_press_again(self):
+        answered, ran, lines = self.ask([None, '9.7.1-BeyondEngine', None])
+        self.assertFalse(answered)
+        self.assertEqual(self.kinds(ran), ['ask', 'allow', 'ask', 'ask', 'close'])
+        self.assertIn('the openStacks: no answer in 20 s; asking no more', lines)
+
+    def test_no_dialog_to_answer(self):
+        # the IDE does not answer and macOS asked nothing: nothing was open
+        answered, ran, lines = self.ask([None], dialog='no dialog', pkill_status=1)
+        self.assertFalse(answered)
+        self.assertEqual(self.kinds(ran), ['ask', 'allow', 'close'])
+        self.assertEqual(lines[1:], ['(no question of macOS about OXT-Beyond to answer: no dialog)',
+                                     'the version: no answer in 20 s; asking no more',
+                                     '::endgroup::'])
+
+    def test_a_question_about_another_app_is_not_answered(self):
+        said = 'another question: \u201chosted-compute-agent\u201d wants access to control \u201cFinder\u201d.'
+        answered, ran, lines = self.ask([None], dialog=said)
+        self.assertFalse(answered)
+        self.assertEqual(self.kinds(ran), ['ask', 'allow', 'close'])
+        self.assertEqual(lines[1], '(no question of macOS about OXT-Beyond to answer: %s)' % said)
+
+    def test_on_a_persons_own_mac_nothing_is_pressed_or_closed(self):
+        answered, ran, lines = self.ask([None], on_a_runner=False)
+        self.assertFalse(answered)
+        self.assertEqual(self.kinds(ran), ['ask'])
+        self.assertEqual(lines[1:], ['the version: no answer in 20 s; asking no more', '::endgroup::'])
+
+    def test_the_script_presses_allow_only_in_the_dialog_that_names_the_app(self):
+        script = ui_tour.MAC_ALLOW
+        self.assertIn('tell process "UserNotificationCenter"', script)
+        self.assertNotIn('every process', script)
+        self.assertEqual(script.count('click button'), 1)
+        names = script.index('if said contains theApp then')
+        press = script.index('click button "Allow" of w')
+        other = script.index('return "another question: " & said')
+        self.assertLess(names, press)
+        self.assertLess(press, other)
+        # between the test and the press, nothing but the press
+        self.assertEqual(script[names:press].strip(), 'if said contains theApp then')
+
+    def test_both_callers_ask_through_it(self):
+        # the tour and the web check ask where a stalled IDE stopped
+        here = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+        with open(os.path.join(here, 'ui_tour.py'), encoding='utf-8') as f:
+            self.assertIn('mac_ask(mac_app(lay.engine))', f.read())
+        with open(os.path.join(here, 'web_check.py'), encoding='utf-8') as f:
+            self.assertIn('ui_tour.mac_ask(ui_tour.mac_app(lay.engine))', f.read())
 
 
 class TheLog(unittest.TestCase):
