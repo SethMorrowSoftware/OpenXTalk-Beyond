@@ -1102,6 +1102,11 @@ on ed_se_find_replace
    put edOkay() into tButton
    put edOpenScript(tButton) into tSE
    put edSeField(tSE) into tField
+   -- (as debug-breakpoint: the Script Editor fills its field after it
+   -- opens, and the Find dialog takes its word from the field's selection)
+   if not edWaitFor("the text of pAx contains " & quote & "cClicks" & quote, 5000, tField) then
+      throw "the Script Editor did not show the button's script:" && edJoin(the text of tField)
+   end if
    dispatch "menuPick" to button "Edit" of group "Menubar" of card "Main" of stack tSE with "Find and Replace..."
    put "revSEFind" into tFind
    if not edWaitFor("edOpen(pAx)", 3000, tFind) then throw "the Script Editor's Edit > Find and Replace opened nothing"
@@ -1134,30 +1139,60 @@ end ed_se_find_replace
 -- focus, and the click until the focus is in the combo box (it
 -- is clicked again, at most twice more, each time recorded, when the
 -- focus is not there yet); a miss then says where the focus was. What is
--- checked is the same: the combo box shows what was typed
+-- checked is the same: the combo box shows what was typed.
+--
+-- The focus is not enough. On main fde49edf (the Intel Mac again, dark)
+-- the miss named the combo box as the focus, with no click repeated, and
+-- the label still empty. A combo box types into a field of its own (its
+-- entry), and the engine gives a key to that field only while it is the
+-- engine's active field (MCField::kdown: "MCactivefield != this" drops
+-- the key, and type reports nothing); the focusedObject is the card's
+-- focused control, the button, and stays so when another window's field
+-- becomes the active one or the active field is let go (MCStack::kfocusset
+-- unselects the entry of a window that is not focused). So the click is
+-- waited for until the entry is the active field too: the selectedChunk
+-- then ends "of button <the combo box's number>" (the entry's chunk is
+-- its button's), as it does on Linux; with the entry let go the keys were
+-- lost there too ("select empty" after the click: the label kept, then a
+-- second click and the same typing gave it). And a miss now says what
+-- moved: the selectedField and selectedChunk before and after the typing,
+-- the label before it, the Script Editor's messages still waiting, and
+-- the focus messages the Find and Script Editor windows were sent from
+-- the click on (a preOpenCard of the Find card is its update, which sets
+-- the label again)
 command edTypeInCombo pStack, pCombo, pText
-   local tCombo, tTries
+   local tCombo, tTries, tBefore, tKeysBefore
    put the long id of button pCombo of card "Main" of stack pStack into tCombo
    if not edWaitFor("edFocusIn(pAx)", 3000, pStack) then
       edRecord "INFO" && pStack && "does not have the keyboard focus before typing in" && pCombo & \
             ": the focus" && edJoin(the focusedObject) & ", the topStack" && the short name of the topStack
    end if
+   edWatchKeys true
    put 0 into tTries
    repeat
       add 1 to tTries
       edClickAt pStack, (the left of tCombo + 30) & "," & item 2 of the loc of tCombo
-      if edWaitFor("edFocusOn(pAx)", 1000, tCombo) then exit repeat
-      edRecord "INFO click" && tTries && "in" && pCombo && "left the focus at" && edJoin(the focusedObject) & \
-            "; the topStack" && the short name of the topStack
+      if edWaitFor("edFocusOn(pAx) and edEntryActive(pAx)", 1000, tCombo) then exit repeat
+      edRecord "INFO click" && tTries && "in" && pCombo && "left the keys with" && edKeysAt() & \
+            "; the topStack" && the short name of the topStack & "; waiting:" && edSeWaiting() & \
+            "; seen:" && edWatched()
       if tTries >= 3 then exit repeat
    end repeat
+   put the label of tCombo into tBefore
+   put edKeysAt() into tKeysBefore
    edType pStack, "a", "command"
    edType pStack, pText
    if not edWaitFor("the label of pAx is pBx", 1000, tCombo, pText) then
-      throw "typing in" && pCombo && "gave" && quote & the label of tCombo & quote & \
+      local tMiss
+      put "typing in" && pCombo && "gave" && quote & the label of tCombo & quote & \
             "; the focus" && edJoin(the focusedObject) & ", the topStack" && the short name of the topStack & \
-            ", the defaultStack" && the short name of the defaultStack
+            ", the defaultStack" && the short name of the defaultStack & \
+            "; before typing the label" && quote & tBefore & quote && "and" && tKeysBefore & \
+            "; after it" && edKeysAt() & "; waiting:" && edSeWaiting() & "; seen:" && edWatched() into tMiss
+      edWatchKeys false
+      throw tMiss
    end if
+   edWatchKeys false
 end edTypeInCombo
 
 -- whether the keyboard focus is in a window of the stack pStack (the
@@ -1175,6 +1210,86 @@ function edFocusOn pControl
    -- pControl)
    return the focusedObject is pControl
 end edFocusOn
+
+-- whether the entry of the combo box pCombo (a long id) is the engine's
+-- active field, the one that typed keys reach: the selectedChunk names
+-- the active field's text, and an entry's as its button's ("char 0 to 2
+-- of button 1" for Find, on Linux); empty when no field is active
+function edEntryActive pCombo
+   local tChunk
+   put the selectedChunk into tChunk
+   return tChunk is not empty and word -2 to -1 of tChunk is ("button" && the number of pCombo)
+end edEntryActive
+
+-- where typed keys would go, for a record: the focus, and the engine's
+-- active field (its selectedChunk and the text selected in it)
+function edKeysAt
+   return "the focus" && edJoin(the focusedObject) & ", the selectedField" && quote & the selectedField & quote & \
+         ", the selectedChunk" && quote & the selectedChunk & quote & ", the selectedText" && quote & edJoin(the selectedText) & quote
+end edKeysAt
+
+-- the messages waiting (send ... in) for a Script Editor window, the Find
+-- window or the IDE's palette toggle, each as its name and its target's
+-- short name: what can still move the keys after a click
+function edSeWaiting
+   local tLine, tOut
+   repeat for each line tLine in the pendingMessages
+      if tLine contains "revNewScriptEditor" or tLine contains "revSEFind" or tLine contains "revseutilities" or \
+            item 3 of tLine begins with "revSE" then
+         put item 3 of tLine & "/" & edShortTarget(item 4 to -1 of tLine) & " " after tOut
+      end if
+   end repeat
+   if tOut is empty then return "nothing"
+   return word 1 to -1 of tOut
+end edSeWaiting
+
+-- an object's long id cut to its own name and its window's
+function edShortTarget pLongID
+   local tOut
+   put word 1 to 3 of pLongID into tOut
+   if pLongID contains "revSEFind" then return tOut && "(Find)"
+   if pLongID contains "revNewScriptEditor" then return tOut && "(Script Editor)"
+   return tOut
+end edShortTarget
+
+-- the focus and card messages the Find and Script Editor windows are
+-- sent, watched by a front script while a combo box is typed in (true)
+-- and no longer (false); edWatched() lists them, each with the
+-- milliseconds since the watching began
+command edWatchKeys pOn
+   local tDefault, tScript, tMessage
+   put the defaultStack into tDefault
+   set the defaultStack to "oxt_everyday"
+   lock messages
+   if pOn then
+      if there is not a button "oxt_everyday_keys" then create invisible button "oxt_everyday_keys"
+      repeat for each item tMessage in "preOpenCard,openCard,closeCard,focusIn,focusOut,openField,exitField,closeField,suspendStack,resumeStack"
+         put "on" && tMessage & return & \
+               "   if the long id of the target contains " & quote & "revSEFind" & quote & " or the long id of the target contains " & quote & "revNewScriptEditor" & quote & " then" & return & \
+               "      dispatch " & quote & "edSeen" & quote & " to stack " & quote & "oxt_everyday" & quote & " with " & quote & tMessage & quote & ", the long id of the target" & return & \
+               "   end if" & return & \
+               "   pass" && tMessage & return & \
+               "end" && tMessage & return after tScript
+      end repeat
+      set the script of button "oxt_everyday_keys" to tScript
+      put empty into sKeep["seen"]
+      put the milliseconds into sKeep["watching"]
+      insert the script of button "oxt_everyday_keys" into front
+   else if there is a button "oxt_everyday_keys" then
+      remove the script of button "oxt_everyday_keys" from front
+   end if
+   unlock messages
+   if there is a stack tDefault then set the defaultStack to tDefault
+end edWatchKeys
+
+on edSeen pMessage, pTarget
+   put (the milliseconds - sKeep["watching"]) && pMessage && edShortTarget(pTarget) & "; " after sKeep["seen"]
+end edSeen
+
+function edWatched
+   if sKeep["seen"] is empty then return "nothing"
+   return word 1 to -1 of sKeep["seen"]
+end edWatched
 
 -- a breakpoint set by a click in the gutter beside the handler's third
 -- line, and a click on the button in Run mode: the
@@ -1788,6 +1903,8 @@ command edTidyAfterFailure pTask
          put tStack & " " after tLeft
       end if
    end repeat
+   -- (a miss in a combo box leaves no watcher in front)
+   edWatchKeys false
    if tLeft is empty then exit edTidyAfterFailure
    edRecord "INFO" && pTask && "failed with these open, closed:" && tLeft
    try
