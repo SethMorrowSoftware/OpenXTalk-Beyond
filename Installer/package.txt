@@ -687,21 +687,16 @@ component Externals.MacOSX
 component Externals.CEF.Linux
 	into [[TargetFolder]]/Externals/CEF place
 		executable linux-[[TargetArchitecture]]:Externals/CEF/libcef.so
-		executable linux-[[TargetArchitecture]]:Externals/CEF/libEGL.so
-		executable linux-[[TargetArchitecture]]:Externals/CEF/libGLESv2.so
+		executable linux-[[TargetArchitecture]]:Externals/CEF/libvk_swiftshader.so
+		executable linux-[[TargetArchitecture]]:Externals/CEF/libvulkan.so.1
 		executable linux-[[TargetArchitecture]]:Externals/CEF/chrome-sandbox
 		rfolder linux-[[TargetArchitecture]]:Externals/CEF/locales
-		file linux-[[TargetArchitecture]]:Externals/CEF/cef.pak
-		file linux-[[TargetArchitecture]]:Externals/CEF/cef_100_percent.pak
-		file linux-[[TargetArchitecture]]:Externals/CEF/cef_200_percent.pak
-		file linux-[[TargetArchitecture]]:Externals/CEF/cef_extensions.pak
+		file linux-[[TargetArchitecture]]:Externals/CEF/vk_swiftshader_icd.json
+		file linux-[[TargetArchitecture]]:Externals/CEF/resources.pak
+		file linux-[[TargetArchitecture]]:Externals/CEF/chrome_100_percent.pak
+		file linux-[[TargetArchitecture]]:Externals/CEF/chrome_200_percent.pak
 		file linux-[[TargetArchitecture]]:Externals/CEF/icudtl.dat
-		file linux-[[TargetArchitecture]]:Externals/CEF/natives_blob.bin
-		file linux-[[TargetArchitecture]]:Externals/CEF/snapshot_blob.bin
 		file linux-[[TargetArchitecture]]:Externals/CEF/v8_context_snapshot.bin
-	into [[TargetFolder]]/Externals/CEF/swiftshader place
-		executable linux-[[TargetArchitecture]]:Externals/CEF/swiftshader/libEGL.so
-		executable linux-[[TargetArchitecture]]:Externals/CEF/swiftshader/libGLESv2.so
 	// Horrible workaround for a libCEF bug
 	into [[TargetFolder]] place
 		executable linux-[[TargetArchitecture]]:revbrowser-cefprocess
@@ -712,22 +707,18 @@ component Externals.CEF.Windows
 		executable win-[[TargetArchitecture]]:libbrowser-cefprocess.exe
 		executable win-[[TargetArchitecture]]:revbrowser-cefprocess.exe
 		executable win-[[TargetArchitecture]]:Externals/CEF/libcef.dll
-		executable win-[[TargetArchitecture]]:Externals/CEF/d3dcompiler_47.dll
-		executable win-[[TargetArchitecture]]:Externals/CEF/libEGL.dll
-		executable win-[[TargetArchitecture]]:Externals/CEF/libGLESv2.dll
 		executable win-[[TargetArchitecture]]:Externals/CEF/chrome_elf.dll
+		executable win-[[TargetArchitecture]]:Externals/CEF/d3dcompiler_47.dll
+		executable win-[[TargetArchitecture]]:Externals/CEF/dxcompiler.dll
+		executable win-[[TargetArchitecture]]:Externals/CEF/vk_swiftshader.dll
+		executable win-[[TargetArchitecture]]:Externals/CEF/vulkan-1.dll
 		rfolder win-[[TargetArchitecture]]:Externals/CEF/locales
-		file win-[[TargetArchitecture]]:Externals/CEF/cef.pak
-		file win-[[TargetArchitecture]]:Externals/CEF/cef_100_percent.pak
-		file win-[[TargetArchitecture]]:Externals/CEF/cef_200_percent.pak
-		file win-[[TargetArchitecture]]:Externals/CEF/cef_extensions.pak
+		file win-[[TargetArchitecture]]:Externals/CEF/vk_swiftshader_icd.json
+		file win-[[TargetArchitecture]]:Externals/CEF/resources.pak
+		file win-[[TargetArchitecture]]:Externals/CEF/chrome_100_percent.pak
+		file win-[[TargetArchitecture]]:Externals/CEF/chrome_200_percent.pak
 		file win-[[TargetArchitecture]]:Externals/CEF/icudtl.dat
-		file win-[[TargetArchitecture]]:Externals/CEF/natives_blob.bin
-		file win-[[TargetArchitecture]]:Externals/CEF/snapshot_blob.bin
 		file win-[[TargetArchitecture]]:Externals/CEF/v8_context_snapshot.bin
-	into [[TargetFolder]]/Externals/CEF/swiftshader place
-		executable win-[[TargetArchitecture]]:Externals/CEF/swiftshader/libEGL.dll
-		executable win-[[TargetArchitecture]]:Externals/CEF/swiftshader/libGLESv2.dll
 
 ////////////////////////////////////////////////////////////////////////////////
 

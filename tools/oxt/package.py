@@ -36,8 +36,8 @@ P chooses the layout (PLATFORMS below; default win-x86_64):
   linux-arm64    the same from an arm64 build (64-bit ARM: Raspberry Pi
                  3/4/5 on a 64-bit OS, ARM servers): its standalone runtime
                  is Runtime/Linux/arm64 (the IDE's "Linux arm64" target),
-                 and it has no browser, as that build has no CEF (CEF 74
-                 has no Linux ARM build).
+                 and it has no browser, as that build has no CEF (the CEF
+                 build vendored here is x86_64 only).
   mac-universal  OXT-Beyond.app, with everything the other layouts have at
                  their root in OXT-Beyond.app/Contents/Tools, from a build
                  whose Mach-O files hold arm64 and x86_64 (the lipo merge of
@@ -476,11 +476,10 @@ def _windows(arch):
         cef=dict(
             helpers_in_cef=('libbrowser-cefprocess.exe', 'revbrowser-cefprocess.exe'),
             helpers_at_engine=(), helpers_at_runtime=(),
-            files=('libcef.dll', 'd3dcompiler_47.dll', 'libEGL.dll', 'libGLESv2.dll',
-                   'chrome_elf.dll', 'cef.pak', 'cef_100_percent.pak',
-                   'cef_200_percent.pak', 'cef_extensions.pak', 'icudtl.dat',
-                   'natives_blob.bin', 'snapshot_blob.bin', 'v8_context_snapshot.bin',
-                   'swiftshader/libEGL.dll', 'swiftshader/libGLESv2.dll'),
+            files=('libcef.dll', 'chrome_elf.dll', 'd3dcompiler_47.dll', 'dxcompiler.dll',
+                   'vk_swiftshader.dll', 'vulkan-1.dll', 'vk_swiftshader_icd.json',
+                   'resources.pak', 'chrome_100_percent.pak', 'chrome_200_percent.pak',
+                   'icudtl.dat', 'v8_context_snapshot.bin'),
             trees=('locales',)),
         # component Runtime.Windows x86-64 or x86-32 (Sample Icons come
         # from the IDE part)
@@ -495,7 +494,6 @@ def _windows(arch):
             ('*.pdb', 'debug symbols; they go into the -symbols.zip'),
             ('installer.exe', 'LiveCode\'s installer engine; OXT-Beyond is installed by Inno Setup'),
             ('server-*', 'the server engine and its externals: package.txt installs no server; they go into the server zip (package_server.py)'),
-            ('Externals/CEF/devtools_resources.pak', 'not in package.txt Externals.CEF.Windows'),
             ('Externals/CEF/libbrowser-cefprocess.exe',
              'package.txt takes the identical copy at the root of the build'),
             ('Externals/CEF/revbrowser-cefprocess.exe',
@@ -509,8 +507,8 @@ LINUX_RUNTIME_FOLDERS = {'x86_64': 'x86-64', 'x86': 'x86-32', 'arm64': 'arm64'}
 
 
 def _linux(arch):
-    """package.txt TargetPlatform Linux. The arm64 build has no CEF (CEF 74
-    has no Linux ARM build), so linux-arm64 has no browser; its runtime is
+    """package.txt TargetPlatform Linux. The arm64 build has no CEF (the CEF
+    build this repository vendors is x86_64 only), so linux-arm64 has no browser; its runtime is
     Runtime/Linux/arm64, the IDE's "Linux arm64" target (revsblibrary),
     which LiveCode never had (its ARM target was 32-bit armv6-hf, which
     this repository does not build). The x86 (32-bit) build has
@@ -529,7 +527,6 @@ def _linux(arch):
         ('Externals/CEF/chrome-sandbox',
          'CEF\'s setuid sandbox helper: CEF runs with no_sandbox (libbrowser_cef.cpp, cefbrowser.cpp), '
          'and the helper would need root ownership and mode 4755'),
-        ('Externals/CEF/devtools_resources.pak', 'not in package.txt Externals.CEF.Linux'),
     ) + _NOT_IN_PACKAGE_TXT + _BUILD_TOOLS
     # component Runtime.Linux with TargetArchitecture x86_64, x86 or arm64,
     # plus Externals (which includes Externals.CEF.Linux on x86_64)
@@ -562,11 +559,9 @@ def _linux(arch):
             helpers_in_cef=('revbrowser-cefprocess',),
             helpers_at_engine=('libbrowser-cefprocess',),
             helpers_at_runtime=('revbrowser-cefprocess', 'libbrowser-cefprocess'),
-            files=('libcef.so', 'libEGL.so', 'libGLESv2.so', 'cef.pak',
-                   'cef_100_percent.pak', 'cef_200_percent.pak', 'cef_extensions.pak',
-                   'icudtl.dat', 'natives_blob.bin', 'snapshot_blob.bin',
-                   'v8_context_snapshot.bin', 'swiftshader/libEGL.so',
-                   'swiftshader/libGLESv2.so'),
+            files=('libcef.so', 'libvk_swiftshader.so', 'libvulkan.so.1',
+                   'vk_swiftshader_icd.json', 'resources.pak', 'chrome_100_percent.pak',
+                   'chrome_200_percent.pak', 'icudtl.dat', 'v8_context_snapshot.bin'),
             trees=('locales',)) if cef else None,
         runtimes=runtimes,
         not_installed=not_installed,

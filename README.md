@@ -253,9 +253,8 @@ Earlier versions, from 0.2.1 to 0.2.5, are described under
   the engine compiles in (zlib 1.3.2, libpng 1.6.59, giflib 5.2.2,
   libjpeg 9f, and PCRE 8.45, the last release of PCRE 1), and revXML's
   libxml2 2.15.4 and libxslt 1.1.45, and revZip's libzip 1.12. The browser
-  widget and revBrowser still use
-  CEF 74 (Chromium 74, from 2019), and several libraries in
-  `thirdparty/` (cairo and the database client
+  widget and revBrowser use CEF 156 (Chromium 156, from 2026). Several
+  libraries in `thirdparty/` (cairo and the database client
   libraries among them) are years old; they
   have known vulnerabilities, and upgrading them is planned. See
   [SECURITY.md](SECURITY.md).
@@ -583,7 +582,7 @@ What it needs:
   from images (the IDE's pointing hand and grab hand) are drawn at the
   desktop's size too, and the browser widget draws its page at the
   desktop's scale.
-- **The browser widget and revBrowser** (CEF 74) also need NSS, ALSA and a
+- **The browser widget and revBrowser** (CEF 156) also need NSS, ALSA and a
   few more X11 libraries (the `browser` lines of `linux/libraries.txt` in
   the package). Without them the launcher turns the browser off
   (`LIVECODE_USE_CEF=0`), says which ones are missing, and the IDE shows
@@ -673,8 +672,8 @@ it.
 
 What it does not have:
 
-- **No browser widget and no revBrowser.** They use CEF 74, which has no
-  Linux ARM build, so the package leaves them out, the IDE opens web
+- **No browser widget and no revBrowser.** They use CEF, whose Linux ARM build
+  OXT-Beyond does not take yet, so the package leaves them out, the IDE opens web
   pages in your web browser, and the Tools palette has no browser widget.
 - **Standalones for 64-bit ARM Linux are built only by this package**,
   from its own runtime ("Linux arm64" in the standalone settings). The

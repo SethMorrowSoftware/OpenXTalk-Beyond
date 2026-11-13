@@ -414,7 +414,7 @@ library, architecture and configuration:
 | `Curl-8.22.0-...-PIC` | libcurl 8.22.0, with OpenSSL (the server engine; on macOS the server engine uses the system's libcurl) |
 | `ICU-78.3-...-1-PIC` | ICU 78.3, with its full data file, from which the build makes the cut-down copy the engines embed |
 | `Thirdparty-e5e050573c...-PIC` | static libraries built from `thirdparty/` (cairo, libffi, giflib, libjpeg, libpng, zlib, libzip, PCRE, Skia, libxml2, libxslt, MariaDB Connector/C, libpq, SQLite) |
-| `CEF-74.1.19-...-gb62bacf` | Chromium Embedded Framework 74 (Chromium 74.0.3729.157), for the browser widget and revBrowser on Windows (x86_64 and x86) and Linux x86_64 |
+| `CEF-156.0.26-...-g8ea0c73` | Chromium Embedded Framework 156 (Chromium 156.0.8078.88), for the browser widget and revBrowser on Windows (x86_64 and x86) and Linux x86_64 |
 
 The versions are in `prebuilt/versions/`. Every platform builds
 OpenSSL, curl, ICU and Thirdparty from source: Linux and macOS with
