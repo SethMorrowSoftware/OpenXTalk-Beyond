@@ -56,6 +56,7 @@ on TestDeleteDefaultStackWithNoTopStack
    put _DeleteDefaultRun("") into tOut
    TestAssert "set the defaultStack, delete it: the engine goes on", tOut is not empty
    TestAssert "the default stack is then a stack that exists", line 2 of tOut is "true"
+   -- (the defaultStack gives the stack's name, `stack "..."`)
    TestAssert "the default stack is then the home stack", line 1 of tOut is line 3 of tOut
 end TestDeleteDefaultStackWithNoTopStack
 
