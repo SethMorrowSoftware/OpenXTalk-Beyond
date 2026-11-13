@@ -158,6 +158,17 @@ script "revHyperCardScriptLibrary"
 -- library's hcStackVersion. T22 takes a menu or a menu item named by one
 -- word that this engine does not take as a value ("create menu Control",
 -- an object type here) as that word in quotes, the name HyperCard took.
+-- T78, in a script that compiles: a statement that calls one of the
+-- stack's own commands named like a command of this engine, with values
+-- only ("popUp 1", the HyperTEXT trip reports' buttons, whose stack has
+-- "on popUp"), which HyperCard sent to the stack's handler and this
+-- engine ran as its own "popup": the handler's new name (T1's); and a
+-- call of one of the stack's externals named like a word of this engine
+-- ("put Switch(Temp) into cd fld 4", the Switch XFCN, which here called
+-- a "switch" no handler has; "popUp 1" with no handler of the stack, the
+-- popUp XCMD), which here stopped with an error or ran this engine's
+-- command: the external's hcX_ name (T13's), whose stand-in or the
+-- library's handler takes it.
 -- A script whose rewrite would not compile when it did before is left as
 -- it was. Each object whose script changes keeps its HyperTalk in the
 -- custom property uHyperCard["script"], and the stack's
@@ -1546,6 +1557,100 @@ private function _RenamedFunctions pLine, pRename
    return _Join(tTokens)
 end _RenamedFunctions
 
+-- T78: in a script that compiles, a statement that calls one of the
+-- stack's commands that T1 renames (pRename), named like a command of
+-- this engine and written with values only ("popUp 1", "popUp fldNo"):
+-- HyperCard sent it to the stack's handler, and this engine runs its own
+-- command ("popup", which looks for a stack of that name): the handler's
+-- new name. Not one of HyperCard's own commands ("answer x" with an "on
+-- answer" in the stack), which HyperCard ran after the handler passed it,
+-- nor doMenu (T15's). And a call of one of the stack's externals (pExternals)
+-- named like a word of this engine, as T13 takes it in a script that
+-- does not compile: a statement with values only ("popUp 1" where the
+-- stack has no handler of that name: the popUp XCMD of HyperCard's Home)
+-- or a call with parentheses that no function of the stack answers ("put
+-- Switch(Temp) into cd fld 4", the Switch XFCN), which here ran this
+-- engine's command or called a function no handler has: the external's
+-- hcX_ name, which the stand-in made for the external (_StandIns) or the
+-- library's own handler answers. Only an external that will have one:
+-- the resource fork's own, or one the library answers as a command
+-- (hcX_popUp); a call with parentheses only the resource fork's (this
+-- engine's own files() is not the Files XFCN's hcX_Files unless the
+-- stack carries Files)
+private function _CompiledCalls pLine, pRename, pExternals, pVars
+   local tTokens, tCode, tIndex, tWord, tPrev, tNext, tChanged, tCall, tFork
+   put false into tChanged
+   -- (a line that names none of them, as most do, as it is)
+   repeat for each key tWord in pRename
+      if tWord is in pLine then put true into tChanged
+   end repeat
+   repeat for each key tWord in pExternals
+      if tWord is in pLine then put true into tChanged
+   end repeat
+   if not tChanged then return pLine
+   put false into tChanged
+   put _Tokens(pLine) into tTokens
+   put _Code(tTokens) into tCode
+   repeat for each item tIndex in tCode
+      if tTokens[tIndex]["k"] is not "w" then next repeat
+      put _T(tTokens, tIndex) into tWord
+      if tWord is "domenu" or tWord is among the words of kHyperTalkCommands then next repeat
+      put _PrevCode(tCode, tIndex) into tPrev
+      put _NextCode(tCode, tIndex) into tNext
+      put _StatementStart(tTokens, tCode, tIndex) and _PlainCall(tTokens, tCode, tIndex, pVars) into tCall
+      if pRename[tWord] is not empty then
+         if tCall and tWord is among the words of kCommands and _HandlerRefused(tWord) then
+            put pRename[tWord] into tTokens[tIndex]["t"]
+            put true into tChanged
+            _Fire "T78 a call HyperCard sent to the stack's handler or external"
+         end if
+         next repeat
+      end if
+      if not pExternals[tWord] or sStackFunctions[tWord] \
+            or tWord is among the words of "set put get go if send do add show hide" \
+            or not (tWord is among the words of kCommands or tWord is among the words of kRefused or _HandlerRefused(tWord)) then
+         next repeat
+      end if
+      put _ForkExternal(tWord) into tFork
+      if (tCall and (tFork or _LibraryCommand("hcX_" & tWord))) \
+            or (tFork and _T(tTokens, tNext) is "(" and _T(tTokens, tPrev) is not "the" \
+            and not _StatementStart(tTokens, tCode, tIndex)) then
+         put "hcX_" & tTokens[tIndex]["t"] into tTokens[tIndex]["t"]
+         put true into tChanged
+         _Fire "T78 a call HyperCard sent to the stack's handler or external"
+      end if
+   end repeat
+   if not tChanged then return pLine
+   return _Join(tTokens)
+end _CompiledCalls
+
+-- T78: whether pName (lower case) is an external of the resource fork of
+-- the stack being fixed (uHyperCard["externals"], which the importer
+-- lists), so that _StandIns makes it a stand-in
+private function _ForkExternal pName
+   local tLine, tName
+   if sStack is empty or there is not a sStack then return false
+   repeat for each line tLine in the uHyperCard["externals"] of sStack
+      if item 2 of tLine is not empty then
+         put item -1 of tLine into tName
+      else
+         put word -1 of tLine into tName
+      end if
+      if _Lower(tName) is pName then return true
+   end repeat
+   return false
+end _ForkExternal
+
+-- T78: whether the HyperCard Library has a command (on or command) named
+-- pName
+private function _LibraryCommand pName
+   local tLine
+   repeat for each line tLine in revHyperCardLibraryScript()
+      if word 1 of tLine is among the words of "on command" and word 2 of tLine is pName then return true
+   end repeat
+   return false
+end _LibraryCommand
+
 -- T1: a message sent to a handler that T1 renames (pRename), its name
 -- not in quotes or in them, alone or before its parameters ("send move
 -- to card id cardID", HyperQuest's, whose cards have "on move"; "send
@@ -1819,7 +1924,7 @@ end _Word2
 -- which case only the doMenu routing applies
 private function _Rewrite pScript, pDefines, pExternals, pCompiled
    local tLines, tCount, i, tCode, tSpans, tSpanCount, tInHandler, tName, tStart
-   local tOut, tCovered, tKey, tRenameHandlers, tWord
+   local tOut, tCovered, tKey, tRenameHandlers, tWord, tVars
 
    put 0 into tCount
    repeat for each line tCode in pScript
@@ -1900,6 +2005,11 @@ private function _Rewrite pScript, pDefines, pExternals, pCompiled
          put _RenamedMessages(tLines[i], tRenameHandlers) into tLines[i]
       end repeat
       repeat with i = 1 to tSpanCount
+         -- T78: calls HyperCard sent to the stack's handler or external
+         put _HandlerVariables(tLines, tSpans[i]["start"], tSpans[i]["end"]) into tVars
+         repeat with tKey = tSpans[i]["start"] + 1 to tSpans[i]["end"] - 1
+            put _CompiledCalls(tLines[tKey], tRenameHandlers, pExternals, tVars) into tLines[tKey]
+         end repeat
          _HyperCardRulesLines tLines, tSpans[i]["start"], tSpans[i]["end"], true
          _ColonLoops tLines, tSpans[i]["start"], tSpans[i]["end"]
       end repeat
@@ -1918,7 +2028,7 @@ private function _Rewrite pScript, pDefines, pExternals, pCompiled
 
    -- The rules inside each handler
    repeat with i = 1 to tSpanCount
-      local tVars, tRename
+      local tRename
       put _HandlerVariables(tLines, tSpans[i]["start"], tSpans[i]["end"]) into tVars
       put empty into tRename
       repeat for each key tWord in tVars
