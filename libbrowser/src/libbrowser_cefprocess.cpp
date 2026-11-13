@@ -22,6 +22,21 @@
 
 #include "libbrowser_cef.h"
 
+// CEF 156 sends process messages through a frame, not a browser, and
+// does not say whether one was sent. Messages go through the main frame,
+// as CEF 74 sent a browser's: false when the browser has none (it has
+// closed), as CEF 74's CefBrowser::SendProcessMessage returned then.
+static inline bool MCCefSendProcessMessage(CefRefPtr<CefBrowser> p_browser, CefProcessId p_target, CefRefPtr<CefProcessMessage> p_message)
+{
+	if (p_browser == nullptr || p_message == nullptr)
+		return false;
+	CefRefPtr<CefFrame> t_frame = p_browser->GetMainFrame();
+	if (t_frame == nullptr || !t_frame->IsValid())
+		return false;
+	t_frame->SendProcessMessage(p_target, p_message);
+	return true;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // Use JS "String" function to convert values to string
@@ -45,7 +60,7 @@ bool MCCefV8ValueConvertToString(CefRefPtr<CefV8Context> p_context, CefRefPtr<Ce
 		CefV8ValueList t_args;
 		t_args.push_back(x_value);
 		
-		t_string_value = t_string_func->ExecuteFunctionWithContext(p_context, NULL, t_args);
+		t_string_value = t_string_func->ExecuteFunctionWithContext(p_context, nullptr, t_args);
 		
 		t_success = t_string_value != NULL;
 	}
@@ -359,7 +374,7 @@ bool MCCefHandleCallScript(CefRefPtr<CefBrowser> p_browser, const CefString &p_f
 	
 	if (t_success)
 	{
-		t_return_value = t_function->ExecuteFunctionWithContext(t_context, NULL, t_args);
+		t_return_value = t_function->ExecuteFunctionWithContext(t_context, nullptr, t_args);
 		t_success = t_return_value != NULL;
 	}
 	
@@ -382,7 +397,7 @@ private:
 public:
 	CefString GetSelectedText() { return m_selected_text; };
 	
-	void Visit(CefRefPtr<CefDOMDocument> p_document) OVERRIDE
+	void Visit(CefRefPtr<CefDOMDocument> p_document) override
 	{
 		if (p_document->HasSelection())
 			m_selected_text = p_document->GetSelectionAsText();
@@ -423,7 +438,7 @@ private:
 public:
 	CefString GetTitle() { return m_title; };
 	
-	void Visit(CefRefPtr<CefDOMDocument> p_dom) OVERRIDE
+	void Visit(CefRefPtr<CefDOMDocument> p_dom) override
 	{
 		m_title = p_dom->GetTitle();
 	}
@@ -475,7 +490,7 @@ bool MCCefSendStringResult(CefRefPtr<CefBrowser> p_browser, bool p_success, cons
 	}
 	
 	if (t_success)
-		t_success = p_browser->SendProcessMessage(PID_BROWSER, t_message);
+		t_success = MCCefSendProcessMessage(p_browser, PID_BROWSER, t_message);
 	
 	return t_success;
 }
@@ -500,7 +515,7 @@ bool MCCefSendIntResult(CefRefPtr<CefBrowser> p_browser, bool p_success, int p_r
 	}
 	
 	if (t_success)
-		t_success = p_browser->SendProcessMessage(PID_BROWSER, t_message);
+		t_success = MCCefSendProcessMessage(p_browser, PID_BROWSER, t_message);
 	
 	return t_success;
 }
@@ -531,7 +546,7 @@ bool MCCefSendHandlerMessage(CefRefPtr<CefBrowser> p_browser, const CefString &p
 	}
 	
 	if (t_success)
-		t_success = p_browser->SendProcessMessage(PID_BROWSER, t_message);
+		t_success = MCCefSendProcessMessage(p_browser, PID_BROWSER, t_message);
 	
 	return t_success;
 }
@@ -547,7 +562,7 @@ public:
 		m_name = p_name;
 	}
 	
-	virtual bool Execute(const CefString &p_name, CefRefPtr<CefV8Value> p_object, const CefV8ValueList &p_args, CefRefPtr<CefV8Value> &r_retval, CefString &r_exception) OVERRIDE
+	virtual bool Execute(const CefString &p_name, CefRefPtr<CefV8Value> p_object, const CefV8ValueList &p_args, CefRefPtr<CefV8Value> &r_retval, CefString &r_exception) override
 	{
 		if (p_name == m_name)
 		{
@@ -569,7 +584,7 @@ public:
 class MCCefTakeFocusHandler : public CefV8Handler
 {
 public:
-	virtual bool Execute(const CefString &p_name, CefRefPtr<CefV8Value> p_object, const CefV8ValueList &p_args, CefRefPtr<CefV8Value> &r_retval, CefString &r_exception) OVERRIDE
+	virtual bool Execute(const CefString &p_name, CefRefPtr<CefV8Value> p_object, const CefV8ValueList &p_args, CefRefPtr<CefV8Value> &r_retval, CefString &r_exception) override
 	{
 		CefRefPtr<CefV8Context> t_context;
 		t_context = CefV8Context::GetCurrentContext();
@@ -583,7 +598,7 @@ public:
 			CefRefPtr<CefProcessMessage> t_message;
 			t_message = CefProcessMessage::Create(MC_CEFMSG_TAKE_FOCUS);
 			if (t_message != nil)
-				/* UNCHECKED */ t_browser->SendProcessMessage(PID_BROWSER, t_message);
+				/* UNCHECKED */ MCCefSendProcessMessage(t_browser, PID_BROWSER, t_message);
 		}
 		
 		r_retval = CefV8Value::CreateUndefined();
@@ -597,7 +612,7 @@ public:
 class MCCefRenderApp : public CefApp, CefRenderProcessHandler
 {
 public:
-	virtual CefRefPtr<CefRenderProcessHandler> GetRenderProcessHandler() OVERRIDE { return this; }
+	virtual CefRefPtr<CefRenderProcessHandler> GetRenderProcessHandler() override { return this; }
 	
 #if defined(TARGET_PLATFORM_LINUX)
 	// OXT-Beyond: on Linux the browser's window took the X input focus when it
@@ -610,7 +625,7 @@ public:
 	// the capture phase, so a page cannot stop it; it does nothing to the
 	// event itself. Only a click: a page that focuses one of its fields as it
 	// loads does not take the keyboard (OnSetFocus in libbrowser_cef.cpp).
-	virtual void OnContextCreated(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, CefRefPtr<CefV8Context> p_context) OVERRIDE
+	virtual void OnContextCreated(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, CefRefPtr<CefV8Context> p_context) override
 	{
 		CefRefPtr<CefV8Value> t_window;
 		t_window = p_context->GetGlobal();
@@ -641,7 +656,7 @@ public:
 	}
 #endif
 	
-	virtual void OnBeforeCommandLineProcessing(const CefString &p_process_type, CefRefPtr<CefCommandLine> p_command_line) OVERRIDE
+	virtual void OnBeforeCommandLineProcessing(const CefString &p_process_type, CefRefPtr<CefCommandLine> p_command_line) override
 	{
 		// Turn on hi-dpi support if enabled by command-line switch
 		if (p_command_line->HasSwitch(MC_CEF_HIDPI_SWITCH))
@@ -649,7 +664,7 @@ public:
 	}
 
 	// RenderProcessHandler interface
-	virtual bool OnProcessMessageReceived(CefRefPtr<CefBrowser> p_browser, CefProcessId p_source_process, CefRefPtr<CefProcessMessage> p_message) OVERRIDE
+	virtual bool OnProcessMessageReceived(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, CefProcessId p_source_process, CefRefPtr<CefProcessMessage> p_message) override
 	{
 		CefString t_message_name;
 		t_message_name = p_message->GetName();
@@ -723,7 +738,7 @@ public:
 			return true;
 		}
 		else
-			return CefRenderProcessHandler::OnProcessMessageReceived(p_browser, p_source_process, p_message);
+			return CefRenderProcessHandler::OnProcessMessageReceived(p_browser, p_frame, p_source_process, p_message);
 	}
 	
 private:

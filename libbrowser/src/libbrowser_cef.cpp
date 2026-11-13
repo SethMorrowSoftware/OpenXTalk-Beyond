@@ -20,6 +20,7 @@
 #include <stdlib.h>
 
 #include "libbrowser_cef.h"
+#include "libbrowser_cef_source.h"
 
 #include <include/cef_app.h>
 #include <include/cef_parser.h>
@@ -44,7 +45,10 @@ bool MCCefStringToUtf8String(const CefString &p_cef_string, char *&r_u8_string)
 	if (p_cef_string.empty())
 		return MCCStringClone("", r_u8_string);
 	
-	return MCCStringFromUnicode(p_cef_string.c_str(), r_u8_string);
+	// CEF's UTF-16 strings are char16_t since CEF 116; the same 16-bit units as
+	// unichar_t, which libcore's conversion takes
+	static_assert(sizeof(*p_cef_string.c_str()) == sizeof(unichar_t), "CefString is not UTF-16");
+	return MCCStringFromUnicode(reinterpret_cast<const unichar_t *>(p_cef_string.c_str()), r_u8_string);
 }
 
 bool MCCefStringFromUtf8String(const char *p_u8_string, cef_string_t *r_cef_string)
@@ -290,9 +294,9 @@ void MCCefBrowserRunloopAction(void *p_context)
 class MCCefBrowserApp : public CefApp, CefBrowserProcessHandler
 {
 public:
-	virtual CefRefPtr<CefBrowserProcessHandler> GetBrowserProcessHandler() OVERRIDE { return this; }
+	virtual CefRefPtr<CefBrowserProcessHandler> GetBrowserProcessHandler() override { return this; }
 
-	virtual void OnBeforeChildProcessLaunch(CefRefPtr<CefCommandLine> p_command_line) OVERRIDE
+	virtual void OnBeforeChildProcessLaunch(CefRefPtr<CefCommandLine> p_command_line) override
 	{
 		if (MCCefPlatformGetHiDPIEnabled())
 			p_command_line->AppendSwitch(MC_CEF_HIDPI_SWITCH);
@@ -301,7 +305,7 @@ public:
 #endif
 	}
 	
-	virtual void OnBeforeCommandLineProcessing(const CefString &p_process_type, CefRefPtr<CefCommandLine> p_command_line) OVERRIDE
+	virtual void OnBeforeCommandLineProcessing(const CefString &p_process_type, CefRefPtr<CefCommandLine> p_command_line) override
 	{
 		// Enable WebRTC
 		p_command_line->AppendSwitch("enable-media-stream");
@@ -441,6 +445,21 @@ const char *__MCCefPlatformGetExecutableFolder(void)
     return s_exe_path;
 }
 #endif
+
+// CEF 156 sends process messages through a frame, not a browser, and
+// does not say whether one was sent. Messages go through the main frame,
+// as CEF 74 sent a browser's: false when the browser has none (it has
+// closed), as CEF 74's CefBrowser::SendProcessMessage returned then.
+static inline bool MCCefSendProcessMessage(CefRefPtr<CefBrowser> p_browser, CefProcessId p_target, CefRefPtr<CefProcessMessage> p_message)
+{
+	if (p_browser == nullptr || p_message == nullptr)
+		return false;
+	CefRefPtr<CefFrame> t_frame = p_browser->GetMainFrame();
+	if (t_frame == nullptr || !t_frame->IsValid())
+		return false;
+	t_frame->SendProcessMessage(p_target, p_message);
+	return true;
+}
 
 static bool __MCCefGetLibraryPath(char*& r_path)
 {
@@ -777,7 +796,7 @@ struct MCCefErrorInfo
 	CefLoadHandler::ErrorCode error_code;
 };
 
-class MCCefBrowserClient : public CefClient, CefLifeSpanHandler, CefRequestHandler, /* CefDownloadHandler ,*/ CefLoadHandler, CefContextMenuHandler, CefDragHandler, CefFocusHandler
+class MCCefBrowserClient : public CefClient, CefLifeSpanHandler, CefRequestHandler, CefResourceRequestHandler, /* CefDownloadHandler ,*/ CefLoadHandler, CefContextMenuHandler, CefDragHandler, CefFocusHandler
 {
 public:
 	enum PageOrigin
@@ -795,7 +814,8 @@ private:
 	MCCefBrowserBase *m_owner;
 	
 	MCCefMessageResult m_message_result;
-	std::map<int64_t, MCCefErrorInfo> m_load_error_frames;
+	// (frame identifiers are strings since CEF 121)
+	std::map<CefString, MCCefErrorInfo> m_load_error_frames;
 	
 	// Describes where loading url requests came from
 	std::map<CefString, PageOrigin> m_load_url_origins;
@@ -804,18 +824,21 @@ private:
 	
 	PageOrigin m_displayed_page_origin;
 
+	// The pages given as htmlText, until their URL is requested
+	MCCefPendingSource m_pending_sources;
+
 	// Error handling - we need to keep track of url that failed to load in a
 	// frame so we can send the correct url in onLoadEnd()
-	void AddLoadErrorFrame(int64_t p_id, const CefString &p_url, const CefString &p_error_msg, CefLoadHandler::ErrorCode p_error_code)
+	void AddLoadErrorFrame(const CefString &p_id, const CefString &p_url, const CefString &p_error_msg, CefLoadHandler::ErrorCode p_error_code)
 	{
 		m_load_error_frames[p_id].url = p_url;
 		m_load_error_frames[p_id].error_message = p_error_msg;
 		m_load_error_frames[p_id].error_code = p_error_code;
 	}
 	
-	bool FindLoadErrorFrame(int64_t p_id, MCCefErrorInfo &r_info, bool p_delete)
+	bool FindLoadErrorFrame(const CefString &p_id, MCCefErrorInfo &r_info, bool p_delete)
 	{
-		std::map<int64_t, MCCefErrorInfo>::iterator t_iter;
+		std::map<CefString, MCCefErrorInfo>::iterator t_iter;
 		t_iter = m_load_error_frames.find(p_id);
 		
 		if (t_iter == m_load_error_frames.end())
@@ -829,7 +852,7 @@ private:
 		return true;
 	}
 	
-	bool RemoveLoadErrorFrame(int64_t p_id, CefString &r_error_url, CefString &r_error_msg, CefLoadHandler::ErrorCode &r_error_code)
+	bool RemoveLoadErrorFrame(const CefString &p_id, CefString &r_error_url, CefString &r_error_msg, CefLoadHandler::ErrorCode &r_error_code)
 	{
 		MCCefErrorInfo t_info;
 		
@@ -843,7 +866,7 @@ private:
 		return true;
 	}
 	
-	bool FetchLoadErrorFrame(int64_t p_id, CefString &r_error_url, CefString &r_error_msg, CefLoadHandler::ErrorCode &r_error_code)
+	bool FetchLoadErrorFrame(const CefString &p_id, CefString &r_error_url, CefString &r_error_msg, CefLoadHandler::ErrorCode &r_error_code)
 	{
 		MCCefErrorInfo t_info;
 		
@@ -872,13 +895,13 @@ public:
 	}
 	
 	// Tell browser which callback interfaces we implement
-	virtual CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() OVERRIDE { return this; }
-	virtual CefRefPtr<CefRequestHandler> GetRequestHandler() OVERRIDE { return this; }
-//	virtual CefRefPtr<CefDownloadHandler> GetDownloadHandler() OVERRIDE { return this; }
-	virtual CefRefPtr<CefLoadHandler> GetLoadHandler() OVERRIDE { return this; }
-	virtual CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() OVERRIDE { return this; }
-	virtual CefRefPtr<CefDragHandler> GetDragHandler() OVERRIDE { return this; }
-	virtual CefRefPtr<CefFocusHandler> GetFocusHandler() OVERRIDE { return this; }
+	virtual CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
+	virtual CefRefPtr<CefRequestHandler> GetRequestHandler() override { return this; }
+//	virtual CefRefPtr<CefDownloadHandler> GetDownloadHandler() override { return this; }
+	virtual CefRefPtr<CefLoadHandler> GetLoadHandler() override { return this; }
+	virtual CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() override { return this; }
+	virtual CefRefPtr<CefDragHandler> GetDragHandler() override { return this; }
+	virtual CefRefPtr<CefFocusHandler> GetFocusHandler() override { return this; }
 	
 	void AddLoadingUrl(const CefString &p_url, PageOrigin p_origin)
 	{
@@ -900,6 +923,16 @@ public:
 		return true;
 	}
 
+	void SetPendingSource(const CefString &p_url, const std::string &p_html)
+	{
+		m_pending_sources.Set(p_url, p_html);
+	}
+
+	bool TakePendingSource(const CefString &p_url, std::string &r_html)
+	{
+		return m_pending_sources.Take(p_url, r_html);
+	}
+
 	PageOrigin GetDisplayedPageOrigin()
 	{
 		return m_displayed_page_origin;
@@ -910,7 +943,7 @@ public:
 		return m_message_result;
 	}
 	
-	virtual bool OnProcessMessageReceived(CefRefPtr<CefBrowser> p_browser, CefProcessId p_source_process, CefRefPtr<CefProcessMessage> p_message) OVERRIDE
+	virtual bool OnProcessMessageReceived(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, CefProcessId p_source_process, CefRefPtr<CefProcessMessage> p_message) override
 	{
 		CefString t_message_name;
 		t_message_name = p_message->GetName();
@@ -990,12 +1023,12 @@ public:
 		}
 #endif
 		
-		return CefClient::OnProcessMessageReceived(p_browser, p_source_process, p_message);
+		return CefClient::OnProcessMessageReceived(p_browser, p_frame, p_source_process, p_message);
 	}
 	
 	// CefLifeSpanHandler interface
 	// Called on UI thread
-	virtual void OnAfterCreated(CefRefPtr<CefBrowser> p_browser) OVERRIDE
+	virtual void OnAfterCreated(CefRefPtr<CefBrowser> p_browser) override
 	{
 		// Keep track of first created browser instance. Any others belong to pop-ups
 		if (m_browser_id == 0)
@@ -1013,7 +1046,7 @@ public:
 		MCCefIncrementInstanceCount();
 	}
 	
-	virtual void OnBeforeClose(CefRefPtr<CefBrowser> p_browser) OVERRIDE
+	virtual void OnBeforeClose(CefRefPtr<CefBrowser> p_browser) override
 	{
 		if (m_owner != nil)
 			m_owner->OnCefBrowserClosed(p_browser);
@@ -1024,6 +1057,7 @@ public:
 	virtual bool OnBeforePopup(
 							   CefRefPtr<CefBrowser> p_browser,
 							   CefRefPtr<CefFrame> p_frame,
+							   int p_popup_id,
 							   const CefString& p_target_url,
 							   const CefString& p_target_frame_name,
 							   CefLifeSpanHandler::WindowOpenDisposition p_target_disposition,
@@ -1032,7 +1066,8 @@ public:
 							   CefWindowInfo& p_window_info,
 							   CefRefPtr<CefClient>& p_client,
 							   CefBrowserSettings& p_settings,
-							   bool* p_no_javascript_access ) OVERRIDE
+							   CefRefPtr<CefDictionaryValue>& p_extra_info,
+							   bool* p_no_javascript_access ) override
 	{
 		// returning true here will prevent popup windows from opening
 		// IM-2014-07-21: [[ Bug 12296 ]] If browser has been closed then exit
@@ -1058,7 +1093,7 @@ public:
 	// CefRequestHandler interface
 	
 	// Called on UI thread
-	virtual bool OnBeforeBrowse(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, CefRefPtr<CefRequest> p_request, bool p_user_gesture, bool p_is_redirect) OVERRIDE
+	virtual bool OnBeforeBrowse(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, CefRefPtr<CefRequest> p_request, bool p_user_gesture, bool p_is_redirect) override
 	{
 		// IM-2014-07-21: [[ Bug 12296 ]] If browser has been closed then exit
 		if (nil == m_owner)
@@ -1104,7 +1139,27 @@ public:
 		return t_cancel;
 	}
 	
-	virtual CefRequestHandler::ReturnValue OnBeforeResourceLoad(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, CefRefPtr<CefRequest> p_request, CefRefPtr<CefRequestCallback> p_callback) OVERRIDE
+	// CefRequestHandler: since CEF 75 the requests of a page go to a
+	// CefResourceRequestHandler, which is this client too (called on the IO
+	// thread, as OnBeforeResourceLoad was)
+	virtual CefRefPtr<CefResourceRequestHandler> GetResourceRequestHandler(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, CefRefPtr<CefRequest> p_request, bool p_is_navigation, bool p_is_download, const CefString &p_request_initiator, bool &r_disable_default_handling) override
+	{
+		return this;
+	}
+
+	// CefResourceRequestHandler: the page given as htmlText, for the request
+	// of its URL (MCCefBrowserBase::LoadHTMLText)
+	virtual CefRefPtr<CefResourceHandler> GetResourceHandler(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, CefRefPtr<CefRequest> p_request) override
+	{
+		if (p_frame == nullptr || !p_frame->IsMain())
+			return nullptr;
+		std::string t_html;
+		if (!TakePendingSource(p_request->GetURL(), t_html))
+			return nullptr;
+		return MCCefCreateSourceResourceHandler(t_html);
+	}
+
+	virtual cef_return_value_t OnBeforeResourceLoad(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, CefRefPtr<CefRequest> p_request, CefRefPtr<CefCallback> p_callback) override
 	{
 		// IM-2014-07-21: [[ Bug 12296 ]] If browser has been closed then exit
 		if (nil == m_owner)
@@ -1143,7 +1198,8 @@ public:
 	}
 	
 	// IM-2014-04-28: [[ CefBrowser ]] Use platform-specific method to get credentials when requested
-	virtual bool GetAuthCredentials( CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, bool p_is_proxy, const CefString &p_host, int p_port, const CefString &p_realm, const CefString &p_method, CefRefPtr<CefAuthCallback> p_callback) OVERRIDE
+	// (CEF 156 passes the origin URL in place of the frame, which this never used)
+	virtual bool GetAuthCredentials( CefRefPtr<CefBrowser> p_browser, const CefString &p_origin_url, bool p_is_proxy, const CefString &p_host, int p_port, const CefString &p_realm, const CefString &p_method, CefRefPtr<CefAuthCallback> p_callback) override
 	{
 		// IM-2014-07-21: [[ Bug 12296 ]] If browser has been closed then exit
 		if (nil == m_owner)
@@ -1175,7 +1231,7 @@ public:
 	
 #if CEF_ON_DOWNLOAD_CALLBACK
 	// TODO - Implement OnDownload callback
-	virtual void OnBeforeDownload(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefDownloadItem> p_item, const CefString & p_suggested_name, CefRefPtr<CefBeforeDownloadCallback> p_callback) OVERRIDE
+	virtual void OnBeforeDownload(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefDownloadItem> p_item, const CefString & p_suggested_name, CefRefPtr<CefBeforeDownloadCallback> p_callback) override
 	{
 		// IM-2014-07-21: [[ Bug 12296 ]] If browser has been closed then exit
 		if (nil == m_owner)
@@ -1206,7 +1262,7 @@ public:
 	// CefLoadHandler interface
 	// Methods called on UI thread or render process main thread
 
-	virtual void OnLoadStart(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, cef_transition_type_t p_transition_type) OVERRIDE
+	virtual void OnLoadStart(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, cef_transition_type_t p_transition_type) override
 	{
 		// IM-2014-07-21: [[ Bug 12296 ]] If browser has been closed then exit
 		if (nil == m_owner)
@@ -1252,7 +1308,7 @@ public:
 			MCCStringFree(t_url_str);
 	}
 	
-	virtual void OnLoadEnd(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, int p_http_status_code) OVERRIDE
+	virtual void OnLoadEnd(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, int p_http_status_code) override
 	{
 		// IM-2014-07-21: [[ Bug 12296 ]] If browser has been closed then exit
 		if (nil == m_owner)
@@ -1310,7 +1366,7 @@ public:
 			MCCStringFree(t_url_str);
 	}
 	
-	virtual void OnLoadError(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, CefLoadHandler::ErrorCode p_error_code, const CefString &p_error_text, const CefString &p_failed_url) OVERRIDE
+	virtual void OnLoadError(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, CefLoadHandler::ErrorCode p_error_code, const CefString &p_error_text, const CefString &p_failed_url) override
 	{
 		if (p_error_code == ERR_UNKNOWN_URL_SCHEME)
 		{
@@ -1334,7 +1390,7 @@ public:
 	// ContextMenuHandler interface
 	// Methods called on UI thread
 	
-	virtual void OnBeforeContextMenu(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, CefRefPtr<CefContextMenuParams> p_params, CefRefPtr<CefMenuModel> p_model) OVERRIDE
+	virtual void OnBeforeContextMenu(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, CefRefPtr<CefContextMenuParams> p_params, CefRefPtr<CefMenuModel> p_model) override
 	{
 		// IM-2014-07-21: [[ Bug 12296 ]] If browser has been closed then exit
 		if (nil == m_owner)
@@ -1358,7 +1414,7 @@ public:
 	// (xfwm4, Mutter and others). The browser still takes the focus when it is
 	// clicked (FOCUS_SOURCE_SYSTEM: MC_CEFMSG_TAKE_FOCUS), and the engine takes
 	// it back when one of its windows is clicked (MCScreenDC, lnxdclnx.cpp).
-	virtual bool OnSetFocus(CefRefPtr<CefBrowser> p_browser, FocusSource p_source) OVERRIDE
+	virtual bool OnSetFocus(CefRefPtr<CefBrowser> p_browser, FocusSource p_source) override
 	{
 #if defined(TARGET_PLATFORM_LINUX)
 		return p_source == FOCUS_SOURCE_NAVIGATION;
@@ -1465,18 +1521,21 @@ bool MCCefBrowserBase::Initialize()
 	// IM-2014-05-06: [[ Bug 12384 ]] Prevent callback messages for dummy URL
 	m_client->AddLoadingUrl(t_url, MCCefBrowserClient::PageOrigin::kSetSource);
 	PlatformConfigureWindow(t_window_info);
+	// Alloy style, as every CEF 74 browser was: Chrome style (CEF 156's
+	// default) brings Chrome's own download, permission and popup handling
+	t_window_info.runtime_style = CEF_RUNTIME_STYLE_ALLOY;
 
 	if (MC_CEF_USE_MULTITHREADED_MESSAGELOOP)
 	{
 		// need to use asnyc version when not on UI thread
-		if (!CefBrowserHost::CreateBrowser(t_window_info, m_client.get(), t_url, t_settings, NULL))
+		if (!CefBrowserHost::CreateBrowser(t_window_info, m_client.get(), t_url, t_settings, nullptr, nullptr))
 			return false;
 
 		while (m_browser == nil)
 			MCBrowserRunloopWait();
 	}
 	else
-		CefBrowserHost::CreateBrowserSync(t_window_info, m_client.get(), t_url, t_settings, NULL);
+		CefBrowserHost::CreateBrowserSync(t_window_info, m_client.get(), t_url, t_settings, nullptr, nullptr);
 	
 	return m_browser != nil;
 }
@@ -1614,7 +1673,7 @@ bool MCCefBrowserBase::GetMessageResult(CefProcessId p_target, CefRefPtr<CefProc
 	t_result.Clear();
 	
 	if (t_success)
-		t_success = m_browser->SendProcessMessage(p_target, p_message);
+		t_success = MCCefSendProcessMessage(m_browser, p_target, p_message);
 	
 	if (t_success)
 	{
@@ -1732,7 +1791,7 @@ public:
 		m_result = &p_result;
 	}
 	
-	void Visit(const CefString &p_string) OVERRIDE
+	void Visit(const CefString &p_string) override
 	{
 		m_result->SetResult(true, p_string);
 	}
@@ -1782,7 +1841,10 @@ bool MCCefBrowserBase::LoadHTMLText(const char *p_htmltext, const char *p_base_u
 		return false;
 	
 	m_client->AddLoadingUrl(t_base_url, MCCefBrowserClient::PageOrigin::kSetSource);
-	m_browser->GetMainFrame()->LoadString(t_htmltext, t_base_url);
+	// CEF 74's LoadString: the page from its URL, the request for that URL
+	// answered with the html (libbrowser_cef_source.h)
+	m_client->SetPendingSource(t_base_url, t_htmltext.ToString());
+	m_browser->GetMainFrame()->LoadURL(t_base_url);
 	
 	return true;
 }
@@ -2033,7 +2095,7 @@ bool MCCefBrowserBase::SyncJavaScriptHandlers()
 	
 	t_args->SetList(0, m_js_handler_list->Copy());
 	
-	m_browser->SendProcessMessage(PID_RENDERER, t_message);
+	MCCefSendProcessMessage(m_browser, PID_RENDERER, t_message);
 	
 	/* UNCHECKED */ return true;
 }
