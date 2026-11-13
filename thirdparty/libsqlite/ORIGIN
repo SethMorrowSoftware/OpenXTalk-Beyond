@@ -1,3 +1,13 @@
-Files in this folder are based on sqlitedataset-0.1.0 and sqlite-3.51.3.
+Files in this folder are based on sqlitedataset-0.1.0 and sqlite-3.54.1.
 
 Original source archives are available from <http://sqlitedataset.sourceforge.net/> and <http://sqlite.org/>
+
+src/sqlite3.c is SQLite 3.54.1's amalgamation (SHA3-256
+e2b869d3003b33c942b7dd7063604fbc53553e1b66609570df39b9b7b558ee81, as
+sqlite.org's release log gives it) with one OXT-Beyond change, each part
+marked "OXT-Beyond": when a connection's SQLITE_DBCONFIG_FP_DIGITS is 15,
+which src/sqlitedataset.cpp sets on every connection, quote() and the JSON
+functions write a real as SQLite 3.51 and earlier did (15 significant
+digits; quote() uses the exponent form when 15 do not give the value back)
+instead of with 17. Its tests are tests/lcs/core/database/sqlite_values.
+include/sqlite3.h and include/sqlite3ext.h are the release's, unchanged.

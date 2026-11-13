@@ -407,6 +407,14 @@ int SqliteDatabase::connect(bool p_use_uri)
     result = setErr(sqlite3_open(db.c_str(),&conn), NULL);
   if (!result)
   {
+    // OXT-Beyond: SQLite 3.53 and later write a real as text with 17
+    // significant digits (0.30000000000000004 for 0.1 + 0.2), where every
+    // earlier version wrote 15 (0.3). revDB reads every value as text, so
+    // each connection keeps 15 digits, and scripts get the text they always
+    // got. With 15, quote() and the JSON functions write reals as SQLite
+    // 3.51 did too (OXT-Beyond's change in sqlite3.c; see ../ORIGIN).
+    sqlite3_db_config(conn, SQLITE_DBCONFIG_FP_DIGITS, 15, (int *) NULL);
+
     char* err=NULL;
     if (setErr(sqlite3_exec(getHandle(),"PRAGMA empty_result_callbacks=ON",NULL,NULL,&err),"PRAGMA empty_result_callbacks=ON") != SQLITE_OK)
       throw DbErrors("%s", getErrorMsg());

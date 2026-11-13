@@ -293,7 +293,7 @@ Earlier versions, from 0.2.1 to 0.2.5, are described under
   checks that the programs and libraries exist and are genuine x86-64 PE
   images with the expected versions, runs a headless smoke test of the
   engine in the portable zip and in an installed copy (the script engine,
-  Unicode, OpenSSL, SQLite 3.51.3 through revDB, revXML and revZip), compiles
+  Unicode, OpenSSL, SQLite 3.54.1 through revDB, revXML and revZip), compiles
   every script of the IDE and compares the errors with a list of known
   ones, builds a standalone from each runtime in the portable zip and
   runs the Windows ones, and installs and uninstalls the installer (see

@@ -100,7 +100,7 @@ licence text are in `thirdparty/`.
 | Skia | revision `20471894`, with one change (see [`thirdparty/libskia/ORIGIN`](thirdparty/libskia/ORIGIN)) | engine, libgraphics | BSD 3-clause | [upstream](https://github.com/google/skia/blob/main/LICENSE); file headers in `thirdparty/libskia/` |
 | libxml2 | 2.15.4, with local changes and the HTTP and FTP clients of 2.14.6 and 2.13.9 (see [`thirdparty/libxml/ORIGIN`](thirdparty/libxml/ORIGIN)) | revXML, web engine | MIT | [`thirdparty/libxml/docs/COPYING`](thirdparty/libxml/docs/COPYING) |
 | libxslt | 1.1.45, with local changes (see [`thirdparty/libxslt/ORIGIN`](thirdparty/libxslt/ORIGIN)) | revXML, web engine | MIT-style | [`thirdparty/libxslt/docs/COPYING`](thirdparty/libxslt/docs/COPYING) |
-| SQLite | 3.51.3 | `dbsqlite.dll`, web engine | Public domain | header of `thirdparty/libsqlite/include/sqlite3.h`, [sqlite.org/copyright.html](https://www.sqlite.org/copyright.html) |
+| SQLite | 3.54.1 (with the change described in `thirdparty/libsqlite/ORIGIN`) | `dbsqlite.dll`, web engine | Public domain | header of `thirdparty/libsqlite/include/sqlite3.h`, [sqlite.org/copyright.html](https://www.sqlite.org/copyright.html) |
 | sqlitedataset | 0.1.0 | `dbsqlite.dll`, web engine | MIT | [`thirdparty/libsqlite/docs/LICENSE`](thirdparty/libsqlite/docs/LICENSE) |
 | MariaDB Connector/C | 3.4.11, with local changes (see [`thirdparty/libmysql/ORIGIN`](thirdparty/libmysql/ORIGIN)) | `dbmysql.dll` | GNU LGPL version 2.1 or later | [`thirdparty/libmysql/COPYING.LIB`](thirdparty/libmysql/COPYING.LIB) |
 | libpq (from PostgreSQL) | 17.11, with local changes (see [`thirdparty/libpq/ORIGIN`](thirdparty/libpq/ORIGIN)) | `dbpostgresql.dll` | PostgreSQL licence | [`thirdparty/libpq/COPYRIGHT`](thirdparty/libpq/COPYRIGHT) |
