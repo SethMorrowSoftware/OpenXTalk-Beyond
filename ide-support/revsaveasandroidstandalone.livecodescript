@@ -1430,32 +1430,90 @@ private command processAaptResult @xResult
    end if
 end processAaptResult
 
+-- OXT-Beyond: the R classes of the .aar libraries (an extension's
+-- jvm-android folder, a Play Services dependency), with the ids that the
+-- package's resources get. Each library's classes were compiled against an
+-- R class of their own package whose ids are fields, not constants, so
+-- that the app that includes it gives them their values; those must be
+-- the ids that the package step (aapt package -F, under "Assembling
+-- assets") gives the resources. They were made from each library's
+-- resources alone (aapt package -M <its manifest> -S <its res>), which
+-- numbers its resources from the first id of each type, while the package
+-- holds the app's resources too (its icon, from the first drawable id on):
+-- a library that looked up one of its own resources could get another, or
+-- none. Now one aapt run reads what the package step reads (the app's
+-- manifest, its res folder, then each library's res folder, in that
+-- order, --auto-add-overlay) and writes an R class for the app's package
+-- and one for each library's (--extra-packages), so the ids are the
+-- package's. A library whose manifest names no package is an error, as
+-- its R class could not be made.
 private command generateResourceClasses pBuildFolder, pResBuildFolder, \
    pManifest, @xSettings, @rGenerated
    if xSettings["aarFiles"] is empty then
       return empty
    end if
    
-   local tOutputFolder, tAaptResult, tManifest
+   local tOutputFolder, tAaptResult, tManifest, tPackage, tPackages, tParams, tRes
    put pBuildFolder & slash & "gen" into tOutputFolder
    revSBEnsureFolder tOutputFolder
-   -- at the moment we just generate resource classes for each included aar
+   appendToList "package", tParams
+   appendToList "-f", tParams
+   appendToList "-M", tParams
+   appendToList pManifest, tParams
+   appendToList "-I", tParams
+   appendToList pathToRootClasses(), tParams
+   if there is a folder pResBuildFolder then
+      appendToList "-S", tParams
+      appendToList pResBuildFolder, tParams
+   end if
    repeat with x = 1 to the number of lines in xSettings["aarFiles"]
       put pBuildFolder & "/" & x & "/AndroidManifest.xml" into tManifest
-      executeShellCommand pathToAapt(), "package", "-f", "-M", tManifest, \
-            "-I", pathToRootClasses(), "-S", pBuildFolder & slash & x & "/res", "-J", \
-            tOutputFolder & "/", "-m"
-      put the result into tAaptResult
-      processAaptResult tAaptResult
-      if tAaptResult is not empty then
-         return tAaptResult
+      put androidManifestPackage(tManifest) into tPackage
+      if tPackage is empty then
+         return "the library" && line x of xSettings["aarFiles"] && "names no package in its AndroidManifest.xml"
+      end if
+      if tPackage is not among the items of tPackages then
+         if tPackages is empty then
+            put tPackage into tPackages
+         else
+            put comma & tPackage after tPackages
+         end if
+      end if
+      put pBuildFolder & "/" & x & "/res" into tRes
+      if there is a folder tRes then
+         appendToList "-S", tParams
+         appendToList tRes, tParams
       end if
    end repeat
-   local tGenerated
+   local tExtraPackages
+   put tPackages into tExtraPackages
+   replace comma with ":" in tExtraPackages
+   appendToList "--auto-add-overlay", tParams
+   appendToList "--extra-packages", tParams
+   appendToList tExtraPackages, tParams
+   appendToList "-J", tParams
+   appendToList tOutputFolder & "/", tParams
+   appendToList "-m", tParams
+   executeShellCommandWithParams pathToAapt(), tParams
+   put the result into tAaptResult
+   processAaptResult tAaptResult
+   if tAaptResult is not empty then
+      return tAaptResult
+   end if
+   -- only the libraries' R classes, as before: aapt writes one for the
+   -- app's own package too, which no class of the app was compiled against
+   local tGenerated, tLinePackage
    put revSBEnumerateFolder(tOutputFolder) into tGenerated
    filter tGenerated with "*/R.java"
    if tGenerated is not empty then
       repeat for each line tLine in tGenerated
+         set the itemDelimiter to slash
+         put item 1 to -2 of tLine into tLinePackage
+         set the itemDelimiter to comma
+         replace slash with "." in tLinePackage
+         if tLinePackage is not among the items of tPackages then
+            next repeat
+         end if
          if rGenerated is empty then
             put tOutputFolder & slash &tLine into rGenerated
          else
@@ -1465,6 +1523,21 @@ private command generateResourceClasses pBuildFolder, pResBuildFolder, \
    end if
    return empty
 end generateResourceClasses
+
+-- OXT-Beyond: the package an AndroidManifest.xml names (the package
+-- attribute of its manifest element), or empty
+function androidManifestPackage pManifestFile
+   local tXml, tPackage
+   if there is not a file pManifestFile then
+      return empty
+   end if
+   put url ("file:" & pManifestFile) into tXml
+   replace return with space in tXml
+   if matchText(tXml, "<manifest(?:\s[^>]*)?\spackage\s*=\s*[" & quote & "']([^" & quote & "']+)[" & quote & "']", tPackage) then
+      return tPackage
+   end if
+   return empty
+end androidManifestPackage
 
 private command appendToStringList pValue, @xList
    if xList is empty then
