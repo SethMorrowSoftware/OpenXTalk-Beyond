@@ -45,8 +45,10 @@
 						'type': 'none',
 					},
 				],
+				# CEF's 32-bit Linux builds ended with CEF 101: only x86_64
+				# Linux has a browser to wrap
 				[
-					'toolset_os == "linux" and not toolset_arch in ("x86", "x86_64")',
+					'toolset_os == "linux" and toolset_arch != "x86_64"',
 					{
 						'type': 'none',
 					},
