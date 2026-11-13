@@ -1069,6 +1069,19 @@ class GoStackUrl(unittest.TestCase):
                    ('error', 'Failed to load resource: net::ERR_FAILED')]
         self.assertEqual(web_check.unexpected_console_errors(console), [t for _, t in console])
 
+    def test_webkits_page_error_for_the_refusal(self):
+        # as WebKit's lane gave it in CI (run 43511874831)
+        self.assertTrue(web_check.expected_page_error(
+            'XMLHttpRequest cannot load http://localhost:46529/probe-stack.livecode due to access control checks.'))
+        for text in ('XMLHttpRequest cannot load http://localhost:46529/other due to access control checks.',
+                     'XMLHttpRequest cannot load http://localhost:46529/probe-stack.livecode?cors=1 due to '
+                     'access control checks.',
+                     'TypeError: undefined is not a function (probe-stack.livecode)',
+                     'RangeError: Maximum call stack size exceeded.'):
+            self.assertFalse(web_check.expected_page_error(text), text)
+        check = read('tools', 'ci', 'web_check.py')
+        self.assertIn('if expected_page_error(str(error)):', check)
+
     def test_the_missing_page_is_expected_once(self):
         console = [('error', web_check.CONSOLE_404)] * 2 + [('log', 'x'), ('error', 'PROBE x')]
         self.assertEqual(web_check.unexpected_console_errors(console), [web_check.CONSOLE_404])

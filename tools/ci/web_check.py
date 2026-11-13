@@ -1939,6 +1939,11 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
         # (the other scripts' errors the check raises are not the page's)
         if stray_errors.STRAY_MARK in str(error):
             return
+        # (nor is WebKit's report of the probe's refused download, which
+        # Playwright hands on as a page error: see expected_page_error)
+        if expected_page_error(str(error)):
+            log('  page error, expected: %s' % error)
+            return
         page_errors.append(str(error))
         log('  page error: %s' % error)
 
@@ -3007,6 +3012,19 @@ CONSOLE_BLOCKED_URL = re.compile(r'localhost:\d+/probe-stack\.livecode(?![?\w])'
 CONSOLE_BLOCKED_WORDS = ('CORS', 'Access-Control-Allow-Origin', 'access control')
 CONSOLE_BLOCKED_ORIGIN = re.compile(r'^(Failed to load resource: )?Origin http://127\.0\.0\.1:\d+ is not allowed '
                                     r'by Access-Control-Allow-Origin\.')
+
+
+def expected_page_error(text):
+    """True for the page error that WebKit's Playwright gives for the
+    browser's refusal of the probe's download from another site
+    (go-stack-url-blocked): "XMLHttpRequest cannot load
+    http://localhost:<port>/probe-stack.livecode due to access control
+    checks." No script threw it (em-url.js's request is asynchronous and
+    the probe goes on, with the refusal as its result), so it is not an
+    error of the page's; if the page took it for one, it would say
+    "Something went wrong", which the check of other scripts' errors
+    would see."""
+    return bool(CONSOLE_BLOCKED_URL.search(text)) and 'access control' in text
 
 
 def unexpected_console_errors(console):
