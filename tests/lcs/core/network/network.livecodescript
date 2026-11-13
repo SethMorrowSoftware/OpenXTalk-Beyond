@@ -66,6 +66,12 @@ close socket tSock
 end TestNetwork13
 
 on TestPeerAddress
+   -- OXT-Beyond: the peerAddress is a desktop and server function; on
+   -- Android and iOS it answers empty (TestPeerAddressIsEmptyOnMobile)
+   if the platform is among the items of "android,iphone" then
+      TestSkip "peeraddress", "the peerAddress is desktop and server only"
+      exit TestPeerAddress
+   end if
    put "www.livecode.com:80|" & uuid() into tSock
 open socket tSock 
 
@@ -92,6 +98,36 @@ end repeat
 TestSkip "peeraddress", "connection timed out"
 close socket tSock
 end TestPeerAddress
+
+-- OXT-Beyond: on Android and iOS the peerAddress answers empty, whatever
+-- the handler did before it. It used to put nothing into its answer, and
+-- the engine handed on what that answer's storage last held: on an
+-- Android emulator OXT-Beyond's engine gave "100", the number the handler
+-- had just put into a variable (the old TestPeerAddress's timeout)
+on TestPeerAddressIsEmptyOnMobile
+   if the platform is not among the items of "android,iphone" then
+      TestSkip "peeraddress on mobile", "not Android or iOS"
+      exit TestPeerAddressIsEmptyOnMobile
+   end if
+   local tSock, tTimeout, tTime, tAddress
+   put "www.livecode.com:80|" & uuid() into tSock
+   open socket tSock
+   put 100 into tTimeout
+   put the millisecs into tTime
+   repeat while the millisecs - tTime < tTimeout
+      put the peeraddress of tSock into tAddress
+      if tAddress is not empty then
+         exit repeat
+      end if
+   end repeat
+   TestAssert "the peerAddress of an open socket is empty on mobile", tAddress is empty
+   TestDiagnostic "the peeraddress:" && tAddress
+   close socket tSock
+   -- a value the answer's storage could still hold
+   put 200 into tTimeout
+   put peerAddress("no such socket") into tAddress
+   TestAssert "the peerAddress of no socket is empty on mobile", tAddress is empty
+end TestPeerAddressIsEmptyOnMobile
 
 on TestOpenSocketFrom
    put "livecode.com|" & uuid() into tSock

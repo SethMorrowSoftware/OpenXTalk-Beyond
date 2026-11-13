@@ -1092,8 +1092,46 @@ class TestLibrary(unittest.TestCase):
         # after the assertion (the diagnostic under it is the line the
         # run's log gives for a failure in the baseline), before the exit
         self.assertLess(body.index('TestAssert "peeraddress", it is among the lines of hostnametoaddress(tSock)'), said)
-        self.assertLess(said, body.index('exit TestPeerAddress'))
+        self.assertLess(said, body.rindex('exit TestPeerAddress'))
         self.assertIn('replace return with comma in tAddresses', body)
+
+    def test_the_peer_address_test_skips_on_mobile(self):
+        # the peerAddress is desktop and server only, and answers empty on
+        # Android and iOS: the test skips there before it opens a socket
+        text = read('tests', 'lcs', 'core', 'network', 'network.livecodescript')
+        body = re.search(r'(?ms)^on TestPeerAddress\b(.*?)^end TestPeerAddress', text).group(1)
+        skip = body.index('TestSkip "peeraddress", "the peerAddress is desktop and server only"')
+        self.assertLess(body.index('if the platform is among the items of "android,iphone" then'), skip)
+        self.assertLess(skip, body.index('open socket tSock'))
+
+    def test_the_peer_address_is_empty_on_mobile_is_tested(self):
+        text = read('tests', 'lcs', 'core', 'network', 'network.livecodescript')
+        body = re.search(r'(?ms)^on TestPeerAddressIsEmptyOnMobile\b(.*?)^end TestPeerAddressIsEmptyOnMobile',
+                         text).group(1)
+        # skips off Android and iOS, before a socket is opened
+        self.assertLess(body.index('if the platform is not among the items of "android,iphone" then'),
+                        body.index('open socket tSock'))
+        # an open socket's and no socket's peerAddress are both empty, each
+        # read after a variable was given a value (what the uninitialized
+        # answer handed on with OXT-Beyond's engine was such a value)
+        self.assertIn('TestAssert "the peerAddress of an open socket is empty on mobile", tAddress is empty', body)
+        self.assertLess(body.index('put 200 into tTimeout'),
+                        body.index('put peerAddress("no such socket") into tAddress'))
+        self.assertIn('TestAssert "the peerAddress of no socket is empty on mobile", tAddress is empty', body)
+
+    def test_no_baseline_holds_the_peer_address_tests(self):
+        for engine in ('9.6.3', 'beyond'):
+            text = read('tools', 'ci', 'android-tests-baseline-%s.txt' % engine)
+            self.assertNotIn('TestPeerAddress', text, engine)
+
+    def test_the_mobile_peer_address_answers_empty(self):
+        # engine: the _MOBILE branch of MCNetworkEvalPeerAddress puts the
+        # empty string into its answer, which was left unset
+        text = read('engine', 'src', 'exec-network.cpp')
+        body = re.search(r'(?ms)^void MCNetworkEvalPeerAddress\b(.*?)^}', text).group(1)
+        mobile = body[body.index('#ifndef _MOBILE'):]
+        branch = mobile[mobile.index('#else'):mobile.index('#endif')]
+        self.assertIn('r_address = MCValueRetain(kMCEmptyString);', branch)
 
 
 class Workflow(unittest.TestCase):
