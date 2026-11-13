@@ -2996,10 +2996,12 @@ CONSOLE_404 = 'Failed to load resource: the server responded with a status of 40
 # that URL (Chromium's "blocked by CORS policy", Firefox's "CORS header
 # 'Access-Control-Allow-Origin' missing", WebKit's "due to access control
 # checks"), and, when the browser named that URL, Chromium's
-# "net::ERR_FAILED" for it, once, and WebKit's lines that name only the
+# "net::ERR_FAILED" for it, once; and WebKit's lines that name only the
 # page's origin ("Origin <origin> is not allowed by
 # Access-Control-Allow-Origin.", with "Failed to load resource: " before
-# it on one of them)
+# it on the other), once each, which WebKit's engine path logs without a
+# line that names the URL (the probe's is the page's only request to
+# another origin)
 CONSOLE_FAILED = 'Failed to load resource: net::ERR_FAILED'
 CONSOLE_BLOCKED_URL = re.compile(r'localhost:\d+/probe-stack\.livecode(?![?\w])')
 CONSOLE_BLOCKED_WORDS = ('CORS', 'Access-Control-Allow-Origin', 'access control')
@@ -3015,19 +3017,21 @@ def unexpected_console_errors(console):
     expected = [CONSOLE_404]
     unexpected = []
     blocked = False
+    origin_lines = set()
     for kind, text in console:
         if kind != 'error' or text.startswith('PROBE ') or stray_errors.STRAY_MARK in text:
             continue
+        m = CONSOLE_BLOCKED_ORIGIN.match(text)
         if text in expected:
             expected.remove(text)
         elif CONSOLE_BLOCKED_URL.search(text) and any(w in text for w in CONSOLE_BLOCKED_WORDS):
             blocked = True
+        elif m and bool(m.group(1)) not in origin_lines:
+            origin_lines.add(bool(m.group(1)))
         else:
             unexpected.append(text)
-    if blocked:
-        if CONSOLE_FAILED in unexpected:
-            unexpected.remove(CONSOLE_FAILED)
-        unexpected = [text for text in unexpected if not CONSOLE_BLOCKED_ORIGIN.match(text)]
+    if blocked and CONSOLE_FAILED in unexpected:
+        unexpected.remove(CONSOLE_FAILED)
     return unexpected
 
 

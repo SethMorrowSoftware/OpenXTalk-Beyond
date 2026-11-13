@@ -1049,9 +1049,13 @@ class GoStackUrl(unittest.TestCase):
                             'Access-Control-Allow-Origin. Status code: 200')]
         self.assertEqual(web_check.unexpected_console_errors(chromium), [])
         self.assertEqual(web_check.unexpected_console_errors(webkit), [])
-        # WebKit's lines that name only the origin are the probe's only
-        # when a line names the refused URL
-        self.assertEqual(web_check.unexpected_console_errors(webkit[:1]), [webkit[0][1]])
+        # WebKit's engine path names only the origin (CI, 0.2.8-dp.2)
+        self.assertEqual(web_check.unexpected_console_errors([webkit[0], webkit[2]]), [])
+        # once each: a second refusal is not the probe's
+        self.assertEqual(web_check.unexpected_console_errors(webkit + webkit[:1]), [webkit[0][1]])
+        # another page's origin is not the probe's
+        other = webkit[0][1].replace('127.0.0.1', '192.168.1.2')
+        self.assertEqual(web_check.unexpected_console_errors([('error', other)]), [other])
 
     def test_other_errors_still_fail(self):
         # a refused download of another URL, the allowed one, and a failed
