@@ -706,6 +706,7 @@ component Externals.CEF.Windows
 	into [[TargetFolder]]/Externals/CEF place
 		executable win-[[TargetArchitecture]]:libbrowser-cefprocess.exe
 		executable win-[[TargetArchitecture]]:revbrowser-cefprocess.exe
+		executable win-[[TargetArchitecture]]:libbrowser-cef.dll
 		executable win-[[TargetArchitecture]]:Externals/CEF/libcef.dll
 		executable win-[[TargetArchitecture]]:Externals/CEF/chrome_elf.dll
 		executable win-[[TargetArchitecture]]:Externals/CEF/d3dcompiler_47.dll

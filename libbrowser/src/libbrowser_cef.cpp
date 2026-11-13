@@ -345,7 +345,7 @@ extern "C" int initialise_weak_link_cef(void);
 
 // These come from the engine we link to.
 extern "C" void *MCSupportLibraryLoad(const char *p_path);
-extern "C" void *MCSupportLibraryUnload(void *p_handle);
+extern "C" void MCSupportLibraryUnload(void *p_handle);
 extern "C" char *MCSupportLibraryCopyNativePath(void *p_handle);
 
 #if defined(WIN32)
@@ -639,7 +639,7 @@ void MCCefFinalise(void)
 
 	if (s_temp_cache.IsValid())
 	{
-		s_temp_cache.Delete();
+		(void) s_temp_cache.Delete();
 	}
 	
 	CefShutdown();

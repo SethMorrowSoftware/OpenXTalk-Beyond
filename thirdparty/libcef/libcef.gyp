@@ -11,6 +11,11 @@
 			'target_name': 'libcef_library_wrapper',
 			'type': 'static_library',
 
+			# CEF 156's headers need C++20, which the engine's MSVC v141 has
+			# not: on Windows the CEF code is built with v143, which links
+			# the v141 libraries it needs (libbrowser_cef_dll.h)
+			'msbuild_toolset': 'v143',
+
 			'toolsets': ['host', 'target'],
 			
 			'variables':
@@ -49,9 +54,13 @@
 				[
 					'toolset_os == "win"',
 					{
+						# CEF's own build defines UNICODE: its *_win.cc call
+						# the wide Windows functions by their plain names
 						'defines':
 						[
 							'NOMINMAX',
+							'UNICODE',
+							'_UNICODE',
 						],
 					},
 				],
@@ -151,6 +160,7 @@
 				'VCCLCompilerTool':
 				{
 					'ExceptionHandling': '1',
+					'AdditionalOptions': ['/std:c++20', '/Zc:__cplusplus'],
 				},
 			},
 		},

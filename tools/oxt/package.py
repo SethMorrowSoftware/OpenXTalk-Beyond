@@ -474,7 +474,7 @@ def _windows(arch):
         # component Externals.CEF.Windows: the helpers from the build root,
         # the rest from the build's Externals/CEF
         cef=dict(
-            helpers_in_cef=('libbrowser-cefprocess.exe', 'revbrowser-cefprocess.exe'),
+            helpers_in_cef=('libbrowser-cefprocess.exe', 'revbrowser-cefprocess.exe', 'libbrowser-cef.dll'),
             helpers_at_engine=(), helpers_at_runtime=(),
             files=('libcef.dll', 'chrome_elf.dll', 'd3dcompiler_47.dll', 'dxcompiler.dll',
                    'vk_swiftshader.dll', 'vulkan-1.dll', 'vk_swiftshader_icd.json',
@@ -497,6 +497,8 @@ def _windows(arch):
             ('Externals/CEF/libbrowser-cefprocess.exe',
              'package.txt takes the identical copy at the root of the build'),
             ('Externals/CEF/revbrowser-cefprocess.exe',
+             'package.txt takes the identical copy at the root of the build'),
+            ('Externals/CEF/libbrowser-cef.dll',
              'package.txt takes the identical copy at the root of the build'),
         ) + _NOT_IN_PACKAGE_TXT)
 
