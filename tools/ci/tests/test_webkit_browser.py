@@ -63,7 +63,7 @@ class CheckScript(unittest.TestCase):
         # libbrowser, no sanitizer, nothing but -ldl
         self.assertEqual([os.path.basename(x) for x in cmds[1] if x.endswith('.cpp')],
                          ['libbrowser_webkitprocess_lnx.cpp', 'libbrowser_webkitgtk_protocol.cpp'])
-        self.assertTrue(helper.endswith('/' + HELPER))
+        self.assertEqual(os.path.basename(helper), HELPER)
         sanitized, _, _ = webkit_browser_check.build_commands('/tmp/w', sanitize=True)
         self.assertIn('-fsanitize=address,undefined', sanitized[0])
         self.assertNotIn('-fsanitize=address,undefined', sanitized[1])
