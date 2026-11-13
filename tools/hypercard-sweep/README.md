@@ -119,6 +119,16 @@ every sweep with an engine that has the property (0.2.7-rc.6.3 and
 later), since that is how the stacks are imported, and compare a run
 with it only with another run with it.
 
+A run sweep is silent: before the tour, every audio clip of the stack
+and its substacks (its sounds, the MACE sounds decoded and the
+instruments the import makes for `play`) is set to a `playLoudness` of
+0, and so is speech. On Windows the engine's own `playLoudness` is set
+to 0 too; on a Mac and on Linux that property is the computer's volume,
+so the sweep leaves it alone. The system beep still sounds. `--sound`
+lets the stacks be heard, as runs from before then did: several stacks
+at a time playing their sounds, with nobody there to listen. Muting
+changes no error the sweep logs.
+
 `--image` names the disk image that `extract.py` read the stacks from.
 A stack then finds the other stacks of its application on that image, as
 one that File > Import Stack imported from the image does: a `go` or a

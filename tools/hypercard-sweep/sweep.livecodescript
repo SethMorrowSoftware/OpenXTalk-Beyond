@@ -149,6 +149,7 @@ command sweepRun
             & "end openStack"
    end repeat
 
+   sweepMute tStack
    insert the script of stack "HyperCardSweepErrors" into back
    send "sweepModalWatch" to me in 250 milliseconds
    put tStack into sTour["stack"]
@@ -176,6 +177,37 @@ command sweepRun
    sweepStepDone
    sweepOpened
 end sweepRun
+
+-- Silence, unless HC_SOUND is 1 (sweep.py --sound): the stacks' sounds
+-- and played notes, and their speech, as a sweep tours them unattended,
+-- several at a time. Each audio clip of the stack and its substacks
+-- (its own sounds, the MACE ones decoded, the instruments the import
+-- made for play) is set to play at loudness 0, and the template player
+-- and audio clip are too. On Windows the playLoudness is the engine's
+-- own, so it is set to 0 as well; on a Mac and on Linux it is the
+-- computer's volume, which the sweep leaves alone. The system beep is
+-- not silenced
+command sweepMute pStack
+   local tStacks, tEach, i, tError
+   if $HC_SOUND is 1 then exit sweepMute
+   try
+      put the short name of pStack & return & the substacks of pStack into tStacks
+      repeat for each line tEach in tStacks
+         if tEach is empty or there is not a stack tEach then next repeat
+         repeat with i = 1 to the number of audioClips of stack tEach
+            set the playLoudness of audioClip i of stack tEach to 0
+         end repeat
+      end repeat
+      set the playLoudness of the templateAudioClip to 0
+      set the playLoudness of the templatePlayer to 0
+      if the platform is "Win32" then set the playLoudness to 0
+   catch tError
+   end try
+   try
+      revSetSpeechVolume 0
+   catch tError
+   end try
+end sweepMute
 
 -- The stack is open: its tour
 command sweepOpened
