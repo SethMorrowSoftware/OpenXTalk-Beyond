@@ -65,7 +65,6 @@ lcs: core/datetime/sql-date: TestSqlVariableNamesAProperty
 lcs: core/datetime/sql-date: TestSqlYearBefore1000
 lcs: core/datetime/sql-date: TestTheSqlDate
 lcs: core/engine/engine: TestEffectiveRectIsUpdatedWhileScreenIsLocked
-lcs: core/engine/engine: TestProcessor
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleArithmetic
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleBackgroundOrder
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleCardId
@@ -188,8 +187,6 @@ lcs: core/multimedia/audioclipexport: TestExportOlderFormsCompileAsBefore
 lcs: core/multimedia/audioclipexport: TestExportVideoClip
 lcs: core/network/network: TestNetworkDNSServers
 ? lcs: core/network/network: TestPeerAddress  # depends on the network: it skips unless www.livecode.com answers within 100 ms
-lcs: core/security/encrypt: TestRSA
-lcs: core/security/encrypt: TestRSAPass
 lcs: core/strings/filter: TestBug15443
 lcs: core/strings/matches: TestMatchesCustomProperty
 lcs: core/strings/matches: TestMatchesErrorsAsBefore
@@ -258,65 +255,18 @@ lcs: mcpbridge/tools: TestUndoAsksWhenTheUserChangedIt  # error 720: could not l
 lcs: webplayer/nova-rescue: TestTheScreensFitAPhoneOnItsSide
 lcs: webplayer/puzzle-almanac: TestTheScreensFitAPhoneOnItsSide
 lcs: xtalkassistant/build: TestUndoANewStack
-lcs: xtalkassistant/core: TestAskAnthropic
-lcs: xtalkassistant/core: TestAskLocalAlreadyLoaded
 lcs: xtalkassistant/core: TestAskLocalLoadFails
-lcs: xtalkassistant/core: TestAskLocalNamedCopyIsLeftLoaded
-lcs: xtalkassistant/core: TestAskLocalReloadsWithTheContext
-lcs: xtalkassistant/core: TestAskLocalServerWithoutTheList
-lcs: xtalkassistant/core: TestAskLocalWithoutContextLength
-lcs: xtalkassistant/core: TestAskOpenAI
 lcs: xtalkassistant/core: TestAskRefusedKey
-lcs: xtalkassistant/core: TestAskWaitsForTheAnswer
-lcs: xtalkassistant/core: TestListModels
 lcs: xtalkassistant/guide: TestGuideThrowInCatch
-lcs: xtalkassistant/plugin: TestACutOffAnswerIsAskedAgain  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestACutOffAnswerIsShown  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestACutOffAnswerWithNoMoreRoom  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestACutOffCallIsNotCarriedOut  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestARefusalIsNotCarriedOut  # did not end within 60 s
 lcs: xtalkassistant/plugin: TestAnAnswerIsLaidOut  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestAskThroughTheWindow  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestChangesAreAskedAboutAndCanBeUndone  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestChangesWithAMistakeGoBack  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestChangingStacksCanBeTurnedOff
-lcs: xtalkassistant/plugin: TestCodeThatDoesNotCompileGoesBack  # did not end within 60 s
 lcs: xtalkassistant/plugin: TestCopyTheConversation  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestDebugStateWhenNothingIsPaused
-lcs: xtalkassistant/plugin: TestErrorHookFromTheStart
-lcs: xtalkassistant/plugin: TestErrorHookNotesTheDebuggersErrors
-lcs: xtalkassistant/plugin: TestErrorHookPassesItOn
-lcs: xtalkassistant/plugin: TestEscapeStopsIt  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestExplainTheLastError
-lcs: xtalkassistant/plugin: TestFixRoundsRunOut  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestGuideAndNotesAreSent  # did not end within 60 s
 lcs: xtalkassistant/plugin: TestLookAtTheCard
-lcs: xtalkassistant/plugin: TestModelsChoosesAModel  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestNotesOfTheStackBehindAnIDEWindow  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestNotesToRemember  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestOnlyXTalkIsInserted  # did not end within 60 s
 lcs: xtalkassistant/plugin: TestOpenWindow
-lcs: xtalkassistant/plugin: TestPicturesCanBeTurnedOff
-lcs: xtalkassistant/plugin: TestPicturesTurnedOffWhileItAnswers
-lcs: xtalkassistant/plugin: TestReadingTheStackIsAskedFirst  # did not end within 60 s
 lcs: xtalkassistant/plugin: TestRunOnTheStackCanBeUndone
-lcs: xtalkassistant/plugin: TestRunsAreAskedAbout  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestSaveTheStack
-lcs: xtalkassistant/plugin: TestSendChoosesAModel  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestSettingsForAKey  # did not end within 60 s
 lcs: xtalkassistant/plugin: TestSettingsKeepEverything  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestTheActivityRowWhileItWorks  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestToolCallsAreCarriedOut  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestToolsAreUsedUp  # did not end within 60 s
 lcs: xtalkassistant/plugin: TestToolsRefusedByALocalServer  # did not end within 60 s
 lcs: xtalkchat/core: TestBringingAKey
-lcs: xtalkchat/core: TestCleanName
-lcs: xtalkchat/core: TestDefaultRelaysAreSecure
-lcs: xtalkchat/core: TestFolderFromEnvironment
-lcs: xtalkchat/core: TestGoOnlineNeedsWhatIsMissing
 lcs: xtalkchat/core: TestIdentityRoundTrip
 lcs: xtalkchat/core: TestKeyFromText
 lcs: xtalkchat/core: TestMuting
-lcs: xtalkchat/core: TestNoMessagesOffline
-lcs: xtalkchat/core: TestNothingOnlineAtFirst
 lcs: xtalkchat/core: TestRoomsAreSignedChannels

@@ -612,8 +612,33 @@ class Results(unittest.TestCase):
         text = out.getvalue()
         self.assertIn('NEW   lcs: x: TestOne', text)
         self.assertIn('FIXED lcs: x: TestThree', text)
+        # a failure in the baseline says why in a line; a new one has its
+        # lines under NEW, and is not said twice
+        self.assertIn('The failures in the baseline, each with its first line:\n'
+                      '  KNOWN lcs: x: TestTwo: not ok - test 2\n', text)
+        self.assertEqual(text.count('KNOWN '), 1)
         self.assertIn('### FAIL lcs: x: TestOne\n', log)
         self.assertIn('### FAIL lcs: x: TestTwo (in the baseline)', log)
+
+    def test_the_first_line_of_a_failure(self):
+        # the first failed assertion, with the diagnostic under it (what a
+        # handler threw, for one)
+        tap = 'ok - script compiles\nnot ok - run the test command\n# 720,0,0\n# 573,12,1\nnot ok - later'
+        row = ('lcs: x: T', 'fail', tap, [], ['not ok - run the test command', 'not ok - later'])
+        self.assertEqual(at.first_line(row), 'not ok - run the test command # 720,0,0')
+        # no diagnostic under it: the assertion alone
+        row = ('lcs: x: T', 'fail', 'not ok - one\nok - two', [], ['not ok - one'])
+        self.assertEqual(at.first_line(row), 'not ok - one')
+        # no output: what the harness says (it did not end, the app stopped)
+        row = ('lcs: x: T', 'fail', '', ['the app stopped', 'F/libc: signal 11'], [])
+        self.assertEqual(at.first_line(row), 'the app stopped')
+        self.assertEqual(at.first_line(('lcs: x: T', 'fail', '', [], [])), '(it said nothing)')
+        # one line, and not an endless one
+        row = ('lcs: x: T', 'fail', '', ['a\tb   c ' + 'x' * 400], [])
+        said = at.first_line(row)
+        self.assertTrue(said.startswith('a b c xxx'))
+        self.assertEqual(len(said), 300)
+        self.assertTrue(said.endswith('...'))
 
 
     def test_run_command_says_what_was_run_again(self):
