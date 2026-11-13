@@ -27,6 +27,16 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- change them fails here first (OXT-Beyond moved from 3.51.1 to 3.51.3,
 -- whose answers are the same, in 0.2.7-rc.6.18). The expected text was
 -- produced by SQLite 3.51.1, the version 0.2.7-rc.6.17 shipped.
+--
+-- OXT-Beyond 0.2.8-dp.2 moved to SQLite 3.54.1 and kept these answers:
+-- the driver sets SQLITE_DBCONFIG_FP_DIGITS to 15 on every connection
+-- (thirdparty/libsqlite/src/sqlitedataset.cpp), and OXT-Beyond's change
+-- in sqlite3.c makes quote() and the JSON functions follow it, as they
+-- wrote 15 digits too (thirdparty/libsqlite/ORIGIN). Without the setting
+-- most of these tests fail; without the change in sqlite3.c, TestCastAndJSON,
+-- TestJSONArrays and TestQuote do (checked with the 3.54.1 amalgamation). 3.54.1 rounds the 15th
+-- digit of a number above about 1e29 or below about 1e-29 correctly where
+-- 3.51 was sometimes one off; no test here depends on that.
 
 local sDatabaseID, sDatabaseFile
 
@@ -118,3 +128,35 @@ on TestCursorValues
    revCloseCursor tCursor
    TestAssert "a cursor reads a real as revDataFromQuery does", tValue is "0.333333333333333"
 end TestCursorValues
+
+on TestJSONArrays
+   __AssertQuery "reals in JSON arrays", \
+         "SELECT json_array(0.1 + 0.2, 4.35 * 100, 1e100, -0.5)", \
+         "[0.3,435.0,1.0e+100,-0.5]"
+   __AssertQuery "json_group_array of reals", \
+         "SELECT json_group_array(r) FROM oxt_values WHERE id < 4", \
+         "[0.1,0.333333333333333,100.0]"
+   __AssertQuery "a real read from JSON text", \
+         "SELECT json_extract('[0.30000000000000004]', '$[0]')", \
+         "0.3"
+end TestJSONArrays
+
+on TestQuote
+   -- quote() writes a real with 15 digits when they give the value back
+   __AssertQuery "quote() of reals that 15 digits hold", \
+         "SELECT quote(0.1), quote(100.0), quote(1e100), quote(-2.5), quote(4.35)", \
+         "0.1" & tab & "100.0" & tab & "1.0e+100" & tab & "-2.5" & tab & "4.35"
+   -- and otherwise in the exponent form, which gives the value back. SQLite
+   -- 3.51 wrote 19 digits there (3.333333333333333148e-01) and 3.54.1
+   -- writes 18 (3.33333333333333315e-01), so only the form is pinned.
+   __AssertQuery "quote() of a real that 15 digits do not hold", \
+         "SELECT quote(1.0/3) LIKE '3.33333333333333%e-01', CAST(quote(1.0/3) AS REAL) = 1.0/3", \
+         "1" & tab & "1"
+end TestQuote
+
+on TestNumbersFromText
+   -- Text read as a number, then written back as text
+   __AssertQuery "text cast to a real", \
+         "SELECT CAST('0.1' AS REAL), CAST('4.35' AS REAL) * 100, '0.1' + '0.2', CAST('1e-7' AS REAL)", \
+         "0.1" & tab & "435.0" & tab & "0.3" & tab & "1.0e-07"
+end TestNumbersFromText

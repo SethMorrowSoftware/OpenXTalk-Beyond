@@ -18,7 +18,9 @@ as a submodule. It was imported unchanged from upstream commit
 repository). Since then, Tom Perry's changes (commit `38d5712b2`)
 updated SQLite in `libsqlite/` from 3.34.0 to 3.51.1 and added
 `libexpat/lib/asciitab_old.h`, a copy of `asciitab.h` from his working
-files. SQLite was then updated to 3.51.3, its last patch release (0.2.7-rc.6.18).
+files. SQLite was then updated to 3.51.3, its last patch release (0.2.7-rc.6.18),
+and to 3.54.1 (0.2.8-dp.2), with a change that keeps the text of real numbers
+as 3.51 wrote it (see `libsqlite/ORIGIN`).
 
 ## How the builds use it
 
