@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!DOCTYPE r [
+<!ENTITY a "x&amp;y">
+<!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;">
+<!ENTITY c "&b;&b;&b;&b;&b;&b;&b;&b;">
+<!ATTLIST e d CDATA "dflt">
+]>
+<r xmlns="urn:a" xmlns:p="urn:p"><e p:z="1">&c; &#169; &#x1F600; &lt;</e><![CDATA[ <raw> & ]]><?pi data?><e d="given"/></r>
