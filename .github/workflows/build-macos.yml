@@ -118,6 +118,7 @@ on:
       - '.github/workflows/ide-screenshots.yml'
       - '.github/workflows/media-check.yml'
       - '.github/workflows/window-frame-check.yml'
+      - '.github/workflows/dark-switch-check.yml'
       - '.github/workflows/release.yml'
       - '.github/workflows/runtimes.yml'
       - '.github/workflows/tag-release.yml'
@@ -161,14 +162,18 @@ on:
       - 'tools/ci/win_crashtrace.py'
       - 'tools/ci/window-frame-check.livecodescript'
       - 'tools/ci/window_frame_check.py'
+      - 'tools/ci/dark-switch-check.livecodescript'
+      - 'tools/ci/dark_switch_check.py'
   # DRAFT PULL REQUESTS (2026-11-06). A draft runs none of this workflow's
-  # jobs: each job's `if:` ends in `github.event.pull_request.draft != true`,
-  # and marking the pull request ready (ready_for_review, below) starts the
-  # whole run on its newest commit. A draft is work in progress whose commits
-  # land minutes apart, and each one used to start this full build only for
-  # the next to cancel it (26 of 52 builds on 2026-11-06 00:38-02:15 UTC). CI
-  # checks still run on every draft commit. A push, a dispatch and a call from
-  # release.yml have no pull request, so the condition is always true there.
+  # jobs but the first, `gate`, which asks GitHub whether the pull request
+  # is a draft now; every other job needs it and its `if:` ends in
+  # `needs.gate.outputs.build != 'false'`. Marking the pull request ready
+  # (ready_for_review, below) starts the whole run on its newest commit. A
+  # draft is work in progress whose commits land minutes apart, and each
+  # one used to start this full build only for the next to cancel it (26
+  # of 52 builds on 2026-11-06 00:38-02:15 UTC). CI checks still run on
+  # every draft commit. A push, a dispatch and a call from release.yml
+  # have no pull request, so the gate says build there without asking.
   # tools/ci/tests/test_draft_builds.py holds every job to it.
   pull_request:
     branches: [ main ]
@@ -213,9 +218,56 @@ defaults:
     shell: bash
 
 jobs:
+  # The draft gate: whether this run builds is asked of the pull request as
+  # it is now, not of the event that started the run (see build-windows.yml)
+  gate:
+    name: Draft check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    continue-on-error: true
+    outputs:
+      build: ${{ steps.ask.outputs.build }}
+    steps:
+      - name: Ask whether the pull request is a draft now
+        id: ask
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          build=true
+          if [ "$EVENT_NAME" = pull_request ]; then
+            draft=
+            for try in 1 2 3; do
+              if draft=$(timeout 30 gh api "repos/$REPO/pulls/$PR_NUMBER" --jq .draft); then
+                break
+              fi
+              draft=
+              if [ "$try" -lt 3 ]; then sleep $((try * 5)); fi
+            done
+            case "$draft" in
+              true)
+                build=false
+                echo "::notice::Pull request #$PR_NUMBER is a draft: this run builds nothing. Marking it ready for review starts the builds."
+                ;;
+              false)
+                echo "Pull request #$PR_NUMBER is ready for review: this run builds."
+                ;;
+              *)
+                echo "::warning::GitHub did not say whether pull request #$PR_NUMBER is a draft, so this run builds."
+                ;;
+            esac
+          else
+            echo "No pull request ($EVENT_NAME): this run builds."
+          fi
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+
   build:
     name: Build mac-${{ matrix.arch }}
-    if: ${{ github.event.pull_request.draft != true }}
+    needs: gate
+    if: ${{ needs.gate.outputs.build != 'false' }}
     strategy:
       fail-fast: false
       matrix:
@@ -556,7 +608,8 @@ jobs:
   # engines build
   docs:
     name: Docs
-    if: ${{ github.event.pull_request.draft != true }}
+    needs: gate
+    if: ${{ needs.gate.outputs.build != 'false' }}
     uses: ./.github/workflows/docs.yml
     with:
       artifact: OXT-Beyond-docs-macos
@@ -564,7 +617,8 @@ jobs:
   # The web runtime of the package (web.yml), made while the engines build
   web:
     name: Web
-    if: ${{ github.event.pull_request.draft != true }}
+    needs: gate
+    if: ${{ needs.gate.outputs.build != 'false' }}
     uses: ./.github/workflows/web.yml
     with:
       artifact: OXT-Beyond-web-macos
@@ -576,8 +630,8 @@ jobs:
   # repository mode (tools/oxt/package.py repository_mode_trap).
   package:
     name: Package mac-universal
-    needs: [build, docs, web]
-    if: ${{ (!cancelled() && needs.build.result == 'success') && github.event.pull_request.draft != true }}
+    needs: [gate, build, docs, web]
+    if: ${{ (!cancelled() && needs.build.result == 'success') && needs.gate.outputs.build != 'false' }}
     runs-on: macos-15
     timeout-minutes: 90
     env:
@@ -883,8 +937,8 @@ jobs:
   # repository mode).
   test:
     name: Test mac-universal (${{ matrix.arch }})
-    if: ${{ github.event.pull_request.draft != true }}
-    needs: package
+    if: ${{ needs.gate.outputs.build != 'false' }}
+    needs: [gate, package]
     strategy:
       fail-fast: false
       matrix:
@@ -894,7 +948,15 @@ jobs:
           - arch: x86_64
             runner: macos-15-intel
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
+    # The job takes 42 to 46 minutes on the Intel Mac (12 November 2026),
+    # the tour's three runs about 30 of them. The limit leaves each run
+    # the whole of its own time (tools/ci/ui_tour.py --timeout, and a
+    # minute to stop the IDE and say where it stopped) and the other
+    # steps their quarter of an hour, so that a run that never ends is
+    # stopped by the tour, which prints the screen and the IDE's state,
+    # and not by this limit, which prints nothing
+    # (tools/ci/tests/test_screenshot_review.py, TheTourBudget)
+    timeout-minutes: 75
     env:
       ARCH: ${{ matrix.arch }}
       VERSION: ${{ needs.package.outputs.version }}
@@ -1163,14 +1225,14 @@ jobs:
       # logs and are printed into this log (tools/ci/print_images.py).
       - name: IDE screenshots, light
         if: ${{ !cancelled() }}
-        timeout-minutes: 20
+        timeout-minutes: 25
         run: |
           python3 tools/ci/ui_tour.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
             --appearance light --out "$LOGS/ui-tour/light"
 
       - name: IDE screenshots, dark
         if: ${{ !cancelled() }}
-        timeout-minutes: 20
+        timeout-minutes: 25
         run: |
           python3 tools/ci/ui_tour.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
             --appearance dark --out "$LOGS/ui-tour/dark"
@@ -1315,8 +1377,8 @@ jobs:
   # (inspector-hypercard).
   tour-macos-26:
     name: IDE tour on macOS 26 (arm64)
-    if: ${{ github.event.pull_request.draft != true }}
-    needs: package
+    if: ${{ needs.gate.outputs.build != 'false' }}
+    needs: [gate, package]
     runs-on: macos-26
     timeout-minutes: 30
     env:
@@ -1378,7 +1440,7 @@ jobs:
         timeout-minutes: 20
         run: |
           python3 tools/ci/ui_tour.py --install "$RUNNER_TEMP/oxt-test" --platform mac-universal \
-            --appearance light --only sample,controls,field-scroll,image-frames,inspector,inspector-tabs,inspector-gravity,inspector-hypercard,hypercard-disk-image,dictionary,preferences,standalone-settings --out "$RUNNER_TEMP/ui-tour"
+            --appearance light --timeout 900 --only sample,controls,field-scroll,image-frames,inspector,inspector-tabs,inspector-gravity,inspector-hypercard,hypercard-disk-image,dictionary,preferences,standalone-settings --out "$RUNNER_TEMP/ui-tour"
 
       # As the test job runs it (see there), on macOS 26
       - name: Menu and backdrop check

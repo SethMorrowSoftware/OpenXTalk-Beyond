@@ -404,6 +404,11 @@ private on __orderClassicTools
    put url ("file:" & tToolsOrderFile) into tToolsToLoad -- we store this in a variable, makes the next part easier
    -- OXT-Beyond: every tool has its place, the Player too when its tool is
    -- turned off: revIDEClassicControls leaves it out then (__playerToolHidden)
+   -- OXT-Beyond: the shapes and the vector tools have theirs in the file
+   -- too (revIDEGraphics, revIDEGraphicTools). They had none, so the Tools
+   -- palette showed them as the keys of their array came, which follows the
+   -- order the disk lists their definitions in: on some Linux disks
+   -- Rectangle and Speech Bubble stood in each other's place
    
    repeat for each line tTool in tToolsToLoad
       add 1 to tOrder
@@ -5537,7 +5542,13 @@ function revIDEPropertiesInfoOfSection pObjectList, pSection
    if pSection is empty then
       return __orderPropArray(tSharedPropertiesA, revIDEPropertySections())
    else
-      return __orderPropSection(tSharedPropertiesA["grouplist"])
+      -- OXT-Beyond: one section's rows, ordered as that section is in the
+      -- whole list (its "grouplist" there). This called __orderPropSection,
+      -- a handler no version of the library has, so any call with a section
+      -- stopped with "can't find handler". __revIDEPropertiesInfoOfSection
+      -- gives the section itself (its "grouplist"), which __orderPropArray
+      -- hands __orderPropSubArray for each section of the whole list
+      return __orderPropSubArray(tSharedPropertiesA, true)
    end if
 end revIDEPropertiesInfoOfSection
 

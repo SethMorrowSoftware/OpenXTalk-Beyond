@@ -157,7 +157,8 @@ stage folder itself except on macOS):
                from it the web engine of the IDE's version,
                standalone-community-<engine version>.js, .wasm and .html,
                and the templates emscripten-standalone-template/ (without
-               names that start with ".") and
+               names that start with "."), emscripten-desktop-fonts/ (when
+               the runtime has it) and
                emscripten-startup-template.livecodescript. Without it the
                package has no web runtime, and the IDE offers no HTML5
                standalones.
@@ -296,6 +297,10 @@ WEB_ENGINE_FILES = tuple('standalone-community-%%s.%s' % ext for ext in ('js', '
 # standalones that use none of them
 WEB_LEAN_FOLDER = 'lean/'
 WEB_TEMPLATE_FOLDER = 'emscripten-standalone-template'
+# The desktop fonts (tools/oxt/build_web_desktop_fonts.py), which the
+# builder adds to a standalone whose Web pane asks for them; optional, as a
+# web runtime built before 0.2.8 has none (the builder then warns)
+WEB_DESKTOP_FONTS_FOLDER = 'emscripten-desktop-fonts'
 WEB_STARTUP_TEMPLATE = 'emscripten-startup-template.livecodescript'
 
 # The Ext folder (component Ext): LiveCode's installer put the mergExt
@@ -1281,6 +1286,14 @@ def plan_web(pl, web, version):
             continue
         pl.add(Item(folder + WEB_TEMPLATE_FOLDER + '/' + rel, 'web', source=path,
                     note='file of every web standalone'))
+    fonts = os.path.join(web, WEB_DESKTOP_FONTS_FOLDER)
+    for rel in (walk_tree(fonts) if os.path.isdir(fonts) else []):
+        path = os.path.join(fonts, *rel.split('/'))
+        if os.path.islink(path):
+            pl.problems.append('web runtime: %s is a symbolic link' % path)
+            continue
+        pl.add(Item(folder + WEB_DESKTOP_FONTS_FOLDER + '/' + rel, 'web', source=path,
+                    note='desktop font of web standalones'))
 
 
 def plan_build(pl):

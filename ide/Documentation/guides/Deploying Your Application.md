@@ -433,6 +433,7 @@ Figure 9 – Standalone Settings – Web (HTML5)
 | **Position**                    | Where the main stack is in the page: **Centered at the top** (the page's own place), **Centered in the window** of the browser, or **At the top left**                                                                                                |
 | **Appearance**                  | **Light**: the stacks keep the light colours whatever the browser's colour scheme, as before. **Follow the browser**: the `systemAppearance` is the browser's scheme, controls without colours of their own are drawn dark in a dark scheme, the card gets `systemAppearanceChanged` when the scheme changes, and so does a page without its own background |
 | **Fields**                      | **White**: fields, list fields and combo boxes without colours of their own are white in the light colours, as before. **The card's grey**: they are the light grey of a card without its own colour, as both are dark grey in the dark colours. The page gets `<meta name="oxt-field-background" content="card">` |
+| **Fonts**                       | **Droid Sans for every font**: text draws in Droid Sans whatever its font, as before. **Desktop fonts**: the standalone also gets Arimo, Tinos and Cousine (1.9 MB more in `standalone.zip`, about 1.2 MB sent compressed), whose letters are as wide as those of Arial, Times New Roman and Courier New, and text in Arial, Helvetica, Times, Courier and the other names listed under *Fonts* below draws in them, so it wraps where it wraps on the desktop |
 
 Almost every Internet-connected device has a web browser.  If your application
 can run in a browser, your app can be used anywhere and by anyone, without any
@@ -479,7 +480,7 @@ window, over everything, until the engine starts.
 every standalone made with the same version of OXT-Beyond.
 * `standalone.zip`, your application: the stacks, the extensions and
 script libraries they use, the files of the **Copy Files** pane, and the
-font that the engine draws text with.
+fonts that the engine draws text with.
 
 A browser runs the page only from a web server (an `http://` or `https://`
 address), not from a file on the disk. Any web server will do. If it sends
@@ -594,7 +595,8 @@ copy. The files and folders are copied into `/uploads`, as those that
 `answer file` gives are, and `the dragData["files"]` has their copies'
 paths.
 * **The screen** is the browser's window: `the screenRect` is its size, a
-stack gets `desktopChanged` when it changes, and stacks draw at the
+stack gets `desktopChanged` when it changes, `the screenDepth` is 32 (as
+on the desktop; until 0.2.8 it was 0), and stacks draw at the
 screen's scale, so they stay sharp on high-resolution screens and when the
 page is zoomed. `import snapshot` and `export snapshot` of the screen or of
 a stack's window take what the stacks show there, and `the mouseColor` is
@@ -670,6 +672,22 @@ printerOutput` set to `file:` and a path, write a PDF of the pages'
 pictures, with the links, anchors and bookmarks of `print link`, `print
 anchor` and `print bookmark` and the document information of `with
 options`. A PDF written into `/downloads` reaches the user as a download.
+* **Sockets over WebSocket.** From 0.2.8, `open socket to` a `ws://` or
+`wss://` URL opens a WebSocket to it, and the socket then works as one of
+the desktop's does: its name is the URL (add `|` and an id of your own to
+open more than one to the same URL), `with message` sends the message
+when it has opened, and `read from socket` (for a count, until a string,
+or all there is) and `write to socket` work with and without a message;
+`socketClosed`, `socketError` and `socketTimeout` come as on the desktop.
+What the server sends is read as one stream of bytes, its messages one
+after the other (a text message as its UTF-8 bytes), so end each message
+with a line ending, or another string, to read it with `until`. What a
+script writes is sent as one message: a text message when its bytes are
+UTF-8 (`textEncode(tText, "UTF-8")`), a binary one otherwise. `open
+secure socket to` a `ws://` URL opens a `wss://` one; an `https://` page
+may only open `wss://` ones. The server must speak WebSocket: a page
+cannot reach a plain TCP server, so `the peerAddress` of the socket is
+its URL, and `the hostAddress` is empty.
 * **JavaScript.** `do <script> as "JavaScript"` runs JavaScript in the
 page, and `the result` is its value. The page calls the handlers that a
 stack's `cJavascriptHandlers` property lists, one handler name a line:
@@ -686,6 +704,21 @@ are loaded when the standalone starts, and their fonts are used by name.
 downloaded or wrote) until `stop using font file`, as on the desktop;
 `globally` makes no difference, because the page is the only place that
 the font is used.
+With the **Fonts** setting of the **Web** pane at **Desktop fonts** (from
+0.2.8), the standalone also has Arimo, Tinos and Cousine, Google's open
+fonts whose letters are as wide as those of Arial, Times New Roman and
+Courier New, and text in a desktop font draws in one of them, so that it
+wraps where it wraps on the desktop: Arial, Helvetica, Helvetica Neue,
+Liberation Sans, Geneva and Verdana in Arimo; Times New Roman, Times,
+Liberation Serif, New York, Palatino and Palatino Linotype in Tinos; and
+Courier New, Courier, Liberation Mono, Monaco, Menlo and Lucida Console in
+Cousine. Those names are then in `the fontNames`, with the styles of the
+font they draw in. (Verdana, Palatino and the Mac names are not as wide as
+their stand-ins; they are there so that a HyperCard stack, imported on the
+web or on the desktop, draws in the nearest face rather than in Droid
+Sans.) A font that the standalone has under the name itself, from the
+**Copy Files** pane or `start using font file`, is used instead. The Stack
+Player has the desktop fonts.
 
 ##### What a stack cannot do in a browser
 
@@ -693,8 +726,9 @@ A browser does not let a page do some of what a desktop application does,
 and some features are not done yet. They fail as they do on a desktop that
 cannot do them:
 
-* Sockets: `open socket` puts "not supported" into `the result`, and
-`accept` does nothing. Use URLs to talk to servers.
+* TCP sockets: `open socket` to a host and port puts "not supported"
+into `the result` (as do datagram sockets), and `accept` does nothing.
+Use URLs, or a WebSocket server (above), to talk to servers.
 * Other programs: `shell()` throws an error, and `open process` does
 nothing.
 * Externals other than revXML, revZip, revDB and revSpeech, so neither
@@ -722,7 +756,9 @@ from its root:
 that text is drawn with (`DroidSansCombined.ttf`, and
 `DroidSansCombined-Bold.ttf` for bold text). Both are the font family
 "Droid Sans"; a font that the standalone has not got draws in it, plain or
-bold as asked.
+bold as asked. With the **Fonts** setting at **Desktop fonts**, the twelve
+files of Arimo, Tinos and Cousine (`Arimo-Regular.ttf`, `Arimo-Bold.ttf`,
+`Arimo-Italic.ttf`, `Arimo-BoldItalic.ttf`, and so on) are there too.
 
 Files that you add to the archive yourself are unpacked too, at their paths
 in it; put them outside `boot/`.

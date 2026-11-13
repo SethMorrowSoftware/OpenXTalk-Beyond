@@ -24,6 +24,12 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 struct MCThemeDrawInfo
 {
 	MCRectangle dest;
+	// OXT-Beyond: draw the control as the light appearance shows it, as a
+	// button printed in the dark appearance is (the dark appearance's
+	// labels are left out of printing too: MCObject::getforecolor). Set by
+	// drawthemebutton (osxtheme.mm) from the context it draws into; a
+	// printer's marks keep it for when they are played back
+	bool light_appearance = false;
 	union
 	{
 		struct

@@ -993,7 +993,7 @@ asset is one zip archive with a fixed URL, size and SHA-256:
 | `android_engine` | Optional, the runtimes asset only: the folder of OXT-Beyond's own Android engine (`Runtime/Android/Beyond`) when the asset carries it, built from the commit `source` names (see [Building the Android engine](#15-building-the-android-engine)). |
 | `description`, `licence`, `source` | Text for people and reports. |
 
-Today there is one asset, `oxt-runtimes-0.2.7`: the Windows (x86-64
+Today there is one asset, `oxt-runtimes-0.2.8-dp.1`: the Windows (x86-64
 and x86) and Linux (x86-64 and x86) runtimes and the time zone library's
 code for them and its zoneinfo data, made from this repository's CI
 builds, the Android runtime's Java layer (`Runtime/Android/Classes`)
@@ -1002,11 +1002,11 @@ built from the same commit, and OXT-Beyond's own Android engine
 the rest of the Android runtime and its
 time zone library code carried over unchanged from the earlier asset
 `oxt-runtimes-1.15` (OpenXTalk Lite 1.15's files). Its `PROVENANCE.md` (installed as
-`PROVENANCE-oxt-runtimes-0.2.7.md`) names the commit and the CI
+`PROVENANCE-oxt-runtimes-0.2.8-dp.1.md`) names the commit and the CI
 runs and lists every file; the 1.15 asset's provenance comes with it as
 `PROVENANCE-oxt-runtimes-1.15.md`. It is published as the file
-`oxt-runtimes-0.2.7.zip` of this repository's release
-`runtimes-0.2.7`. Each package leaves out the part its own build
+`oxt-runtimes-0.2.8-dp.1.zip` of this repository's release
+`runtimes-0.2.8-dp.1`. Each package leaves out the part its own build
 makes (the entry's `exclude`). The manifest names that release in this
 repository, so a fork downloads it from here too. To package
 without the external assets, for example while a new asset is not
@@ -2257,7 +2257,27 @@ never ends within `--timeout` seconds (120), or stops the app, fails,
 and the app is started again at the next test (the runner keeps the
 last test that began in a file of its own), at most `--restarts` times
 (40). A test that quits is told it did: the quit is cancelled, as in
-the web engine. Failures are compared with the engine's baseline,
+the web engine. The device's log is not lossless: Android can drop a
+burst of lines while the app goes on (liblog does not wait for logd; in
+run 43093019217 four tests' lines and a fifth's end were lost among
+about 1,600 tests in four minutes), and such a
+test looks as if it never ran or never ended, or, when a line of its
+output is lost, as if that line was never said: a lost failure would
+pass. The runner's `DONE` therefore says how many lines of output the
+test gave, and a test that said nothing, or less than its `DONE` says,
+while the app went on past it is run again: `run` starts the app with those tests' lines
+in the launch's extra `oxttests_again`, which the runner reads with
+`mobileGetLaunchData()`, says `AGAIN` with them, runs them alone and
+says `END`, at most `--again-starts` times (3), each time with those
+still lost. Their results are those of that run (a test whose output is
+still short after them fails, and says how many lines were lost), and the log and the
+job summary name them; an app that does not take the extra (it
+resumes, or begins another test) stops the run, and what the device's log says of the lines it dropped (liblog's
+entries in its events buffer, which is cleared when the run begins,
+those of the app's processes marked "(the app)") goes into the log. With `--again-check`,
+which the workflow passes, the app is started once more when no test was
+lost, to run again the first test that passed (whose result stays that
+of its first run), so that every run shows that the way back in works. Failures are compared with the engine's baseline,
 `tools/ci/android-tests-baseline-<engine>.txt`, as the engine tests
 compare theirs: one not in it fails the check, an entry that passed is
 reported so that it can be taken out, and `--update-baseline` rewrites
@@ -2635,8 +2655,8 @@ build again.
 `cmd /c ..\make.cmd` rather than `..\make.cmd`.
 
 **Packaging fails to download the runtimes asset**
-(`oxt-runtimes-0.2.7.zip`). The download comes from this
-repository's `runtimes-0.2.7` release (also in a fork, which needs
+(`oxt-runtimes-0.2.8-dp.1.zip`). The download comes from this
+repository's `runtimes-0.2.8-dp.1` release (also in a fork, which needs
 no copy of its own), so a failure is usually the network:
 a proxy or firewall, or no access to `github.com` and its download
 servers. Copy the file into the cache folder, where it is used without
@@ -2955,7 +2975,8 @@ it.
    `0.1.0-beta.1` for a pre-release. Update the README's status and
    limitations if they changed. Leave `ide/.buildnumber` at `0`.
    `ide/.codename` holds the release name ("Frankenstein" for 0.2.1,
-   "Bug Hunt" for 0.2.7's release candidates, "Make It So" for 0.2.7),
+   "Bug Hunt" for 0.2.7's release candidates, "Make It So" for 0.2.7
+   and kept for 0.2.8-dp.1),
    which the About window shows and the GitHub release's title carries;
    change it for a release with a new name, together with its artwork
    (`Installer/oxt-beyond/branding/README.md`).

@@ -643,7 +643,7 @@ dialog.answer .actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:
     ['Other web sites', 'A web page may read another site only if that site allows it. Other requests fail as if the site were offline.']
   ];
   var MISSING = [
-    ['Sockets', 'open socket and accept are not possible in a browser. Stacks talk to servers with URLs instead.'],
+    ['TCP sockets', 'A browser can\'t open a plain socket or accept connections. Stacks talk to servers with URLs, or open a socket to a WebSocket server (a ws:// or wss:// URL), which works.'],
     ['Running other programs', 'shell() and open process can\'t start programs on your computer.'],
     ['Desktop-only externals', 'revBrowser (the browser widget works instead), the video grabber, and most externals, which are native code. revXML, revZip, revDB and revSpeech do work.'],
     ['Extensions built from native code, for now', 'Some extensions are a thin layer over a native library made for desktop computers. Box2D physics (box2dxt, and the platformer and games built on it), libsodium and the coin crypto (sodiumxt, coinxt) and WebRTC data channels have web builds, and work here. Torrents and ENet do not yet, so a stack that uses them opens but stops where it calls one, and the player says which.'],

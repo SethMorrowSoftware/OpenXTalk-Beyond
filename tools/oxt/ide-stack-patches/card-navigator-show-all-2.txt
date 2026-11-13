@@ -1,0 +1,28 @@
+# Card Navigator: "Show All" (patch -1) goes through every card of the
+# stack the navigator shows, one at a time, and back to the card it began
+# on, each card on the screen for a moment: a flip-book. The engine's
+# "show all cards" goes through them as fast as it can, too fast to see
+# on a computer of today, and it is left as it is, so that a script that
+# uses it takes no longer than before. "New Card", whose script it was
+# copied from, is unchanged.
+file: Toolset/palettes/navigatorIDE.oxtstack
+object: button "Show All" of group "navbtns" of card id 1002
+replace:
+|   try|
+|    new card in stack tStack|
+|   catch e|
+with:
+|   try|
+|      -- OXT-Beyond: each card in turn, a flip-book, and back to this one|
+|      -- (OpenXTalkPaul, p=26111). "show all cards" is too fast to see, so|
+|      -- one card at a time, each on the screen for about a fifteenth of|
+|      -- a second, as an animation of 15 frames a second shows it|
+|      put the defaultStack into tDefault|
+|      set the defaultStack to tStack|
+|      repeat the number of cards of stack tStack times|
+|         show 1 card|
+|         wait 66 milliseconds|
+|      end repeat|
+|      set the defaultStack to tDefault|
+|   catch e|
+|      if tDefault is not empty then set the defaultStack to tDefault|

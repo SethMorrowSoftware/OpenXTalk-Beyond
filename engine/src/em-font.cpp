@@ -81,8 +81,17 @@ static bool MCEmscriptenCustomFontLoadCallback(void *p_context, const MCSystemFo
 
 	if (!p_entry->is_folder)
 	{
+		/* OXT-Beyond: the entry's name is the file's name alone, and the
+		 * font keeps a path that it is read from again whenever a font is
+		 * made from it: by then the defaultFolder is seldom the fonts
+		 * folder, the file was not found, and the text drew in the face
+		 * that Skia finds by the family's name (so "Arimo" drew in Arimo,
+		 * but "Arimo Bold" and a desktop name in Droid Sans). It keeps the
+		 * whole path. */
+		MCAutoStringRef t_path;
 		MCCustomFont *t_font;
-		if (MCEmscriptenCreateCustomFontFromPath(p_entry->name, t_ft_library, t_font))
+		if (MCStringFormat(&t_path, "%s/%@", MCEMSCRIPTEN_FONT_FOLDER, p_entry->name) &&
+			MCEmscriptenCreateCustomFontFromPath(*t_path, t_ft_library, t_font))
 			MCCustomFontListAddFont(t_font);
 	}
 
@@ -149,6 +158,89 @@ bool MCEmscriptenCustomFontUnloadFile(void *p_handle)
 }
 
 
+/* OXT-Beyond: desktop font names on the web.
+ *
+ * A browser has none of the desktop's fonts, so text in Arial, Helvetica,
+ * Times or Courier drew in Droid Sans, the face every standalone has, and
+ * wrapped where Droid Sans's widths put it rather than where it wraps on
+ * the desktop. A standalone that carries the metric-compatible open fonts
+ * (Arimo, Tinos and Cousine, from Google's Croscore set: each glyph is as
+ * wide as Arial's, Times New Roman's or Courier New's), as one built with
+ * the Web pane's "Desktop fonts" does, draws those names in them. The
+ * table maps a name to the family that stands in for it. A font loaded
+ * under the name itself (from the Copy Files pane, or by "start using font
+ * file") always wins, and without the family loaded nothing changes: text
+ * draws in Droid Sans, as before.
+ *
+ * The Mac names that HyperCard stacks use (Geneva, New York, Monaco,
+ * Palatino) map to the nearest of the three, and so do the desktop fonts
+ * that File > Import Stack puts in their place on a desktop without them
+ * (revHyperCardMacFonts: Verdana, Palatino Linotype, Lucida Console), so
+ * that a stack imported on the desktop draws on the web as one imported
+ * there. Those last are not as wide as their stand-ins: they draw in the
+ * nearer face, not at the desktop's widths. */
+static const char * const kMCEmscriptenFontStandIns[][2] =
+{
+	{"Arial", "Arimo"},
+	{"Helvetica", "Arimo"},
+	{"Helvetica Neue", "Arimo"},
+	{"Liberation Sans", "Arimo"},
+	{"Geneva", "Arimo"},
+	{"Verdana", "Arimo"},
+	{"Times New Roman", "Tinos"},
+	{"Times", "Tinos"},
+	{"Liberation Serif", "Tinos"},
+	{"New York", "Tinos"},
+	{"Palatino", "Tinos"},
+	{"Palatino Linotype", "Tinos"},
+	{"Courier New", "Cousine"},
+	{"Courier", "Cousine"},
+	{"Liberation Mono", "Cousine"},
+	{"Monaco", "Cousine"},
+	{"Menlo", "Cousine"},
+	{"Lucida Console", "Cousine"},
+};
+
+/* The family that stands in for p_name, if that family is loaded */
+static bool MCEmscriptenFontStandIn(MCStringRef p_name, MCStringRef &r_family)
+{
+	for (size_t i = 0; i < sizeof(kMCEmscriptenFontStandIns) / sizeof(kMCEmscriptenFontStandIns[0]); i++)
+	{
+		if (!MCStringIsEqualToCString(p_name, kMCEmscriptenFontStandIns[i][0], kMCStringOptionCompareCaseless))
+			continue;
+		MCAutoStringRef t_family;
+		if (!MCStringCreateWithCString(kMCEmscriptenFontStandIns[i][1], &t_family))
+			return false;
+		if (MCCustomFontListGetStylesForName(*t_family) == 0)
+			return false;
+		r_family = MCValueRetain(*t_family);
+		return true;
+	}
+	return false;
+}
+
+/* For the fontNames: the names of the table whose family is loaded and
+ * that no loaded font has itself, so that a stack that checks for its
+ * fonts (as HyperCard stacks did: "These fonts are missing from your
+ * system: Helvetica 9...") finds them */
+static bool MCEmscriptenFontStandInNames(MCListRef p_list)
+{
+	for (size_t i = 0; i < sizeof(kMCEmscriptenFontStandIns) / sizeof(kMCEmscriptenFontStandIns[0]); i++)
+	{
+		MCAutoStringRef t_name;
+		if (!MCStringCreateWithCString(kMCEmscriptenFontStandIns[i][0], &t_name))
+			return false;
+		if (MCCustomFontListGetStylesForName(*t_name) != 0)
+			continue;
+		MCAutoStringRef t_family;
+		if (!MCEmscriptenFontStandIn(*t_name, &t_family))
+			continue;
+		if (!MCListAppend(p_list, *t_name))
+			return false;
+	}
+	return true;
+}
+
 bool MCEmscriptenListFontFamilies(MCListRef& r_names)
 {
 	MCAutoListRef t_list;
@@ -158,6 +250,10 @@ bool MCEmscriptenListFontFamilies(MCListRef& r_names)
 	MCAutoStringRef t_custom_font_names;
 	if (!MCCustomFontListGetNames(&t_custom_font_names) ||
 			!MCListAppend(*t_list, *t_custom_font_names))
+		return false;
+
+	/* OXT-Beyond: the desktop names that a loaded family stands in for */
+	if (!MCEmscriptenFontStandInNames(*t_list))
 		return false;
 	
 	return MCListCopy(*t_list, r_names);
@@ -170,6 +266,14 @@ bool MCEmscriptenListFontsForFamily(MCStringRef p_family, uint32_t p_fsize, MCLi
 	
 	if (t_styles == 0)
 		t_styles = MCCustomFontListGetStylesForName(p_family);
+
+	/* OXT-Beyond: a desktop name has the styles of its stand-in */
+	if (t_styles == 0)
+	{
+		MCAutoStringRef t_stand_in;
+		if (MCEmscriptenFontStandIn(p_family, &t_stand_in))
+			t_styles = MCCustomFontListGetStylesForName(*t_stand_in);
+	}
 	
 	MCAutoListRef t_list;
 	if (!MCListCreateMutable('\n', &t_list))
@@ -200,7 +304,16 @@ static bool MCEmscriptenCustomFontsCreateTypefaceFromNameAndStyle(MCStringRef p_
 	MCCustomFont *t_font;
 	t_font = nil;
 	if (t_success)
+	{
 		t_success = MCCustomFontListLookupFont(p_name, p_bold, p_italic, t_font);
+		/* OXT-Beyond: a desktop name, in the family that stands in for it */
+		if (!t_success)
+		{
+			MCAutoStringRef t_family;
+			if (MCEmscriptenFontStandIn(p_name, &t_family))
+				t_success = MCCustomFontListLookupFont(*t_family, p_bold, p_italic, t_font);
+		}
+	}
 	
 	MCAutoDataRef t_buffer;
 	if (t_success)
@@ -227,9 +340,15 @@ void* MCEmscriptenFontCreate(MCStringRef p_name, uint32_t p_size, bool p_bold, b
 		// MM-2012-03-06: Check to see if we have a custom font of the given style and name available
 		if (!MCEmscriptenCustomFontsCreateTypefaceFromNameAndStyle(p_name, p_bold, p_italic, t_font->typeface))
 		{
+			/* OXT-Beyond: a desktop name, by its stand-in's family name,
+			 * as the family's own name is found below */
+			MCAutoStringRef t_stand_in;
+			bool t_made;
+			t_made = MCEmscriptenFontStandIn(p_name, &t_stand_in) &&
+				MCSkiaTypefaceCreateWithName(*t_stand_in, p_bold, p_italic, t_font->typeface);
 			// AL-2014-09-10: [[ Bug 13335 ]] If the font does not exist, fall back to the default family
 			//  but retain the styling.
-			if (!MCSkiaTypefaceCreateWithName(p_name, p_bold, p_italic, t_font->typeface))
+			if (!t_made && !MCSkiaTypefaceCreateWithName(p_name, p_bold, p_italic, t_font->typeface))
 				MCSkiaTypefaceCreateWithName(nil, p_bold, p_italic, t_font->typeface);
 		}
 		

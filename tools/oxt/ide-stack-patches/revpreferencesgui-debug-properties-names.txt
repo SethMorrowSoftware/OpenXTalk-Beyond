@@ -1,14 +1,23 @@
 # Preferences, card "Debug Properties": the name of each property was set
 # off with the accentColor behind the field's own text colour, which in the
 # light appearance is black on navy (macOS, Linux) or on Windows blue, and
-# could hardly be read. The names are white on the IDE's selection blue now
-# (revIDEColor, as the Project Browser's selected row), light and dark.
+# could hardly be read. The names are on the IDE's selection blue now
+# (revIDEColor("dataView_hiliteColor"), as the Project Browser's selected
+# row), light and dark, in the colour the IDE gives a row's words on that
+# blue (revIDEHilitedTextColor: white on macOS, Windows and the web, black
+# or white by the hilite's brightness on Linux).
+# This patch first gave the letters revIDEColor("dataView_TextHiliteColor"),
+# taken to be white. It is the accentColor, a blue too on macOS, Windows and
+# the web, so the names were blue on blue (the IDE screenshots of 0.2.7,
+# 14-preferences-16-debug-properties, found in the review for 0.2.8-dp.1);
+# the tour's Preferences step reads the two colours now.
 # Text lines are between bars, so that trailing blanks survive editors.
 file: Toolset/palettes/revpreferencesgui.rev
 object: field "fPREFFS" of card "Debug Properties"
 replace:
 |            set the backgroundColor of char tFromCharNum to tToCharNum of line tcount of cd fld "fPREFFS" to the accentColor|
 with:
-|            -- OXT-Beyond: white on the IDE's selection blue, light and dark (the accentColor was behind black)|
+|            -- OXT-Beyond: on the IDE's selection blue, in the colour the IDE gives a row's words on it|
+|            -- (revIDEHilitedTextColor; dataView_TextHiliteColor is the accentColor, blue on that blue)|
 |            set the backgroundColor of char tFromCharNum to tToCharNum of line tcount of cd fld "fPREFFS" to revIDEColor("dataView_hiliteColor")|
-|            set the foregroundColor of char tFromCharNum to tToCharNum of line tcount of cd fld "fPREFFS" to revIDEColor("dataView_TextHiliteColor")|
+|            set the foregroundColor of char tFromCharNum to tToCharNum of line tcount of cd fld "fPREFFS" to revIDEHilitedTextColor(revIDEColor("dataView_hiliteColor"))|

@@ -166,6 +166,18 @@ and the IDE tour's checks that hold it (tools/ci/ui-tour.livecodescript):
   and the Apple silicon Mac, as the review's checks were added. It has
   900 (tools/ci/ui_tour.py), and each workflow step that runs it 20
   minutes, room for the IDE's start and the snapshots printed after.
+- On 12 November 2026 the 900 were short on the Intel Mac in turn: the
+  light tour (165 snapshots by then) took 806 and 824 seconds on two
+  usual runs and was not done at 900 on a slower runner, every step
+  until then passed. The runner then asked the IDE where it had stopped
+  (mac_ask), macOS asked whether "hosted-compute-agent" may control
+  OXT-Beyond, and that question stayed on the screen over the dark
+  tour's Preferences, whose labels were measured through it: a second
+  failure with the same cause. The whole tour has 1200 seconds, each
+  step that runs the whole of it 25 minutes, and the Mac test job 75,
+  so that a run that never ends is stopped by the tour, which prints
+  the screen, and not by the job's limit. The steps that run a part of
+  the tour (--only) keep their 900.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -1004,14 +1016,14 @@ class TheAssistantNotes(unittest.TestCase):
 
     def test_the_notes_beside_a_box(self):
         build = handler(read(ASSISTANT), 'command', 'xtaBuildSettings')
-        for name in ('Max Tokens Note', 'Fix Rounds Note', 'Timeout Note'):
+        for name in ('Context Length Note', 'Max Tokens Note', 'Fix Rounds Note', 'Timeout Note'):
             # at the row's top: with the margin of 6 their words are where
             # they were, 2 points down with a margin of 4
             self.assertIn('xtaSettingsNote "%s", tLeft + 88, tTop, tRight, 20' % name, build)
 
     def test_the_notes_under_a_box(self):
         build = handler(read(ASSISTANT), 'command', 'xtaBuildSettings')
-        for name in ('Key Note', 'Base URL Note', 'Model Note'):
+        for name in ('Key Note', 'Base URL Note'):
             # a point under the box above (24 high), and tall enough for two
             # lines of 13 and the margins
             self.assertIn('add 25 to tTop\n   xtaSettingsNote "%s", tLeft, tTop, tRight, 31' % name, build)
@@ -1075,8 +1087,10 @@ class TheTourBudget(unittest.TestCase):
         return int(m.group(1))
 
     def test_the_tour(self):
-        # 600 was short of the Intel Mac's light run on 1 November 2026
-        self.assertGreaterEqual(self.budget(), 900)
+        # 600 was short of the Intel Mac's light run on 1 November 2026,
+        # and 900 on 12 November: 806 and 824 s on two usual runs, and
+        # not done at 900 on a slower runner
+        self.assertGreaterEqual(self.budget(), 1200)
 
     def test_each_step(self):
         budget = self.budget()
@@ -1098,6 +1112,32 @@ class TheTourBudget(unittest.TestCase):
                 # snapshots printed after the run, on top of the run
                 self.assertGreaterEqual(int(limit.group(1)) * 60, seconds + 240, '%s: %s' % (wf, step.split('\n')[0]))
         self.assertGreaterEqual(steps, 9)
+
+    def test_the_mac_job(self):
+        # the job that runs the whole tour light and dark and the
+        # everyday tasks on each Mac: its own limit leaves each run the
+        # whole of its time, a minute to stop the IDE and print where it
+        # stopped, and the other steps the quarter of an hour they take
+        # (the job 42 to 46 minutes on the Intel Mac on 12 November 2026,
+        # the three runs about 30 of them). At 60 minutes two runs that
+        # never ended would have met the job's limit, which prints
+        # nothing, before the tour's own
+        budget = self.budget()
+        text = read(('.github', 'workflows', 'build-macos.yml'))
+        job = re.search(r'\n  test:\n(.*?)(?=\n  [a-z0-9-]+:\n|\Z)', text, re.S)
+        self.assertIsNotNone(job)
+        job = job.group(1)
+        limit = re.search(r'^    timeout-minutes: (\d+)$', job, re.M)
+        self.assertIsNotNone(limit)
+        runs = []
+        for step in re.split(r'\n      - ', job)[1:]:
+            step = '\n'.join(line for line in step.split('\n') if not line.lstrip().startswith('#'))
+            if 'tools/ci/ui_tour.py' not in step:
+                continue
+            m = re.search(r'--timeout[ =](\d+)', step)
+            runs.append(int(m.group(1)) if m else budget)
+        self.assertEqual(len(runs), 3)
+        self.assertGreaterEqual(int(limit.group(1)) * 60, sum(seconds + 60 for seconds in runs) + 900)
 
 
 if __name__ == '__main__':

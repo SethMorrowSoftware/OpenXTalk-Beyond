@@ -49,10 +49,21 @@ stack the home page offers, then
          and an openCard that calls an XCMD it does not have: the player
          must say it opened, report that error, and go home again
 
+  OldHyper  a HyperCard stack saved before its scripts were fixed, whose
+         openCard stops on a lost handler: the player must offer to fix
+         it and open it again, fixed, with no error
+  OldQuiet  the same kind of stack that plays without an error: the
+         player must leave it as it is
+
 and two HyperCard files from tests/lcs-input-files/hypercard: Surf, a
 stack file with no extension, which the player must import with its
 scripts fixed as File > Import Stack fixes them, and Stacks.dc42, a
 DiskCopy 4.2 image, whose stacks it must list and open the one chosen.
+
+The third page then opens Fonts, a field in Arial: with the desktop fonts
+(which the build asks for, and desktop_fonts finds in standalone.zip when
+the runtime has them), the fontNames have Arial and Times, and Arial and
+Helvetica draw as wide as Arimo, Times as Tinos.
 
 Then the bare player (play/, check_bare): a sample by ?play= in the middle
 of the page with no bar or window around it, a stack of the site by
@@ -194,6 +205,7 @@ def build(args, work):
                 log('  ide output: %s' % line)
         if not problems:
             problems += full_engine(lay.root, out)
+            problems += desktop_fonts(lay.root, out)
         if problems:
             raise CheckError('; '.join(problems))
         log('The IDE built the player in %.0f s' % (time.time() - started))
@@ -221,6 +233,27 @@ def full_engine(root, site):
                     return ['the player\'s %s is not the engine with the xTalk Suite libraries (%s)' % (name, full)]
             log('The player has the engine with the xTalk Suite libraries (%.1f MB; %.1f MB without)' % (
                 os.path.getsize(full) / 1e6, os.path.getsize(lean) / 1e6))
+    return []
+
+
+def desktop_fonts(root, site):
+    """Problems if the player's standalone.zip does not have the desktop
+    fonts of the web runtime (emscripten-desktop-fonts/, which
+    build-player.livecodescript asks for). A runtime without them (one
+    made before 0.2.8) builds a player without them, which the builder
+    warns of."""
+    folders = glob.glob(os.path.join(glob.escape(root), '**', 'Emscripten', 'js', 'emscripten-desktop-fonts'),
+                        recursive=True)
+    if not folders:
+        log('The runtime has no desktop fonts: the player draws every font in Droid Sans')
+        return []
+    fonts = sorted(x for x in os.listdir(folders[0]) if x.endswith('.ttf'))
+    with zipfile.ZipFile(os.path.join(site, 'standalone.zip')) as z:
+        names = set(z.namelist())
+    missing = [x for x in fonts if 'boot/standalone/' + x not in names]
+    if missing:
+        return ['the player\'s standalone.zip does not have the desktop fonts %s' % ', '.join(missing)]
+    log('The player has the %d desktop fonts' % len(fonts))
     return []
 
 
@@ -695,6 +728,58 @@ def check(site, samples, work):
         expect('reopen-no-duplicate', bool(library) and 'Hyper' in library[-1] and 'Hyper 2' not in library[-1],
                library[-1] if library else '')
 
+        # OldHyper: a HyperCard stack saved before File > Import Stack fixed
+        # its scripts (six of nine such stacks stopped in the 0.2.7 player
+        # with "can't find handler"). Its openCard stops on a handler of its
+        # stack script, which does not compile: the player offers to fix it
+        # (Enter takes "Fix and Reopen") and opens it again, fixed, with no
+        # error: its openStack runs, the handler is found with HyperCard's
+        # message order, and its XCMD has a stand-in, so the openCard goes
+        # on past it
+        got = open_files(third, [os.path.join(samples, 'OldHyper.livecode')], 'OldHyper', third_lines)
+        before = len(third_lines) - len(got)
+        wait_for(third, lambda: any(x.startswith('PLAYER hypercard-offer') for x in third_lines[before:]),
+                 'the offer to fix OldHyper', 30)
+        third.wait_for_timeout(500)
+        dialog = third.locator('[class^="oxt-dialog"]')
+        expect('oldhyper-offer', dialog.count() > 0 and 'Fix and Reopen' in (dialog.first.inner_text() or ''),
+               (dialog.first.inner_text() if dialog.count() else 'no dialog')[:200].replace('\n', ' '))
+        third.screenshot(path=os.path.join(shots, '12b-oldhyper-offer.png'))
+        third.keyboard.press('Enter')
+        wait_for(third, lambda: sum(1 for x in third_lines[before:] if x.startswith('PLAYER opened OldHyper')) >= 2,
+                 'OldHyper opening again', 60)
+        third.wait_for_timeout(1500)
+        got = third_lines[before:]
+        second_open = max(i for i, x in enumerate(got) if x.startswith('PLAYER opened OldHyper'))
+        after = got[second_open:]
+        fixed = [x for x in got if x.startswith('PLAYER hypercard-converted')]
+        expect('oldhyper-fixed', len(fixed) == 1 and 'HyperCard scripts:' in fixed[0] and '0 still do not compile' in fixed[0],
+               ' | '.join(fixed or got[-3:]))
+        samples_seen = [x for x in got if x.startswith('SAMPLE oldhyper')]
+        expect('oldhyper-plays', 'SAMPLE oldhyper openStack' in got and 'SAMPLE oldhyper shown true' in got
+               and any(x.startswith('SAMPLE oldhyper xcmd') for x in got)
+               and not any(x.startswith('PLAYER script error') for x in after),
+               ' | '.join(samples_seen + [x for x in after if x.startswith('PLAYER script error')]))
+        third.screenshot(path=os.path.join(shots, '12c-oldhyper-fixed.png'))
+        before = len(third_lines)
+        third.click('#home')
+        wait_for(third, lambda: any(x.startswith('PLAYER library') for x in third_lines[before:]), 'going home', 15)
+
+        # OldQuiet: the same kind of stack that plays without an error (its
+        # stack script does not compile, but nothing calls it): it is left
+        # exactly as it is, as Alphabet Zoo and The Haunted House must be
+        before = len(third_lines)
+        open_files(third, [os.path.join(samples, 'OldQuiet.livecode')], 'OldQuiet', third_lines)
+        third.wait_for_timeout(1000)
+        got = third_lines[before:]
+        touched = [x for x in got if x.startswith('PLAYER hypercard') or x.startswith('PLAYER script error')]
+        expect('oldquiet-untouched', 'SAMPLE oldquiet card false' in got and not touched
+               and 'SAMPLE oldquiet openStack' not in got,
+               ' | '.join(touched + [x for x in got if x.startswith('SAMPLE oldquiet')]))
+        before = len(third_lines)
+        third.click('#home')
+        wait_for(third, lambda: any(x.startswith('PLAYER library') for x in third_lines[before:]), 'going home', 15)
+
         # HyperCard: a stack file with no extension, imported and its
         # scripts fixed (revHyperCardFixScripts), and a disk image whose
         # stacks the player lists, one of them then copied out and opened
@@ -784,6 +869,21 @@ def check(site, samples, work):
         expect('arrows-stay-in-stack', not came_back
                and abs(colour[0] - 0xCC) < 24 and abs(colour[1] - 0x33) < 24 and abs(colour[2] - 0x66) < 24,
                ' | '.join(came_back + ['#%02X%02X%02X' % colour]))
+        before = len(third_lines)
+        third.click('#home')
+        wait_for(third, lambda: any(x.startswith('PLAYER library') for x in third_lines[before:]), 'going home', 15)
+
+        # Fonts: the desktop names draw in the desktop fonts (Arial and
+        # Helvetica as wide as Arimo, Times as Tinos), when the player has
+        # them (desktop_fonts); without them, in Droid Sans, as before
+        with zipfile.ZipFile(os.path.join(site, 'standalone.zip')) as z:
+            has_fonts = 'boot/standalone/Arimo-Regular.ttf' in z.namelist()
+        got = open_files(third, [os.path.join(samples, 'Fonts.livecode')], 'Fonts', third_lines)
+        third.wait_for_timeout(1000)
+        fonts = [x for x in third_lines if x.startswith('SAMPLE fonts')]
+        want = 'SAMPLE fonts true,true,true' if has_fonts else 'SAMPLE fonts false,false,true'
+        widths = [x for x in third_lines if x.startswith('SAMPLE font widths')]
+        expect('fonts', fonts == [want], ' | '.join((fonts + widths) or got[-3:]))
         before = len(third_lines)
         third.click('#home')
         wait_for(third, lambda: any(x.startswith('PLAYER library') for x in third_lines[before:]), 'going home', 15)

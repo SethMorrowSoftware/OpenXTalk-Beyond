@@ -168,3 +168,178 @@ class MessageBoxKeptLine(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class FindTypingReachesTheEntry(unittest.TestCase):
+    """se-find-replace types into the Find dialog's combo boxes. On the Intel
+    Mac (main fde49edf) every key was lost with the focus on the combo box
+    itself: the engine gives a typed key to a combo box's entry field only
+    while that field is its active field (MCField::kdown), and the focus
+    (the card's focused control) does not say which field that is. So the
+    click is waited for until the entry is the active field, and a miss
+    records what would name the cause."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.text = read(SCRIPT)
+        cls.handlers = handlers(cls.text)
+        m = re.search(r'^function edEntryActive pCombo\n(.*?)^end edEntryActive', cls.text, re.M | re.S)
+        cls.entry_active = m.group(1) if m else ''
+
+    def test_the_click_waits_for_the_entry_to_take_the_keys(self):
+        body = self.handlers['edTypeInCombo']
+        wait = body.index('edWaitFor("edFocusOn(pAx) and edEntryActive(pAx)"')
+        self.assertLess(wait, body.index('edType pStack, "a", "command"'), 'typing before the entry is active')
+
+    def test_entry_active_reads_the_active_fields_chunk(self):
+        # an entry's selectedChunk is its button's ("char 0 to 2 of button 1",
+        # Find, on Linux); empty when no field is active
+        self.assertIn('the selectedChunk', self.entry_active)
+        self.assertIn('("button" && the number of pCombo)', self.entry_active)
+        self.assertIn('tChunk is not empty', self.entry_active)
+
+    def test_a_miss_says_what_moved(self):
+        body = self.handlers['edTypeInCombo']
+        throw = body[body.index('put "typing in" && pCombo'):body.index('throw tMiss')]
+        for part in ('tBefore', 'tKeysBefore', 'edKeysAt()', 'edSeWaiting()', 'edWatched()',
+                     'the focusedObject', 'the topStack', 'the defaultStack'):
+            self.assertIn(part, throw, 'the miss does not record %s' % part)
+        # and what a repeated click found
+        self.assertRegex(body, r'edRecord "INFO click" && tTries .*edKeysAt\(\)')
+
+    def test_where_the_keys_are_names_the_active_field(self):
+        m = re.search(r'^function edKeysAt\n(.*?)^end edKeysAt', self.text, re.M | re.S)
+        self.assertIsNotNone(m)
+        for part in ('the focusedObject', 'the selectedField', 'the selectedChunk', 'the selectedText'):
+            self.assertIn(part, m.group(1))
+
+    def test_the_watcher_only_watches(self):
+        # a front script sees the focus and card messages of the Find and
+        # Script Editor windows and passes every one of them on
+        body = self.handlers['edWatchKeys']
+        names = re.search(r'repeat for each item tMessage in "([^"]+)"', body)
+        self.assertIsNotNone(names)
+        for name in ('preOpenCard', 'openField', 'exitField', 'focusIn', 'focusOut', 'suspendStack'):
+            self.assertIn(name, names.group(1).split(','))
+        self.assertIn('"   pass" && tMessage', body)
+        self.assertIn('remove the script of button "oxt_everyday_keys" from front', body)
+
+    def test_the_watcher_is_taken_out_on_every_way_out(self):
+        body = self.handlers['edTypeInCombo']
+        self.assertEqual(body.count('edWatchKeys true'), 1)
+        self.assertEqual(body.count('edWatchKeys false'), 2, 'the miss and the pass each take it out')
+        self.assertLess(body.index('edWatchKeys false'), body.index('throw tMiss'))
+        self.assertIn('edWatchKeys false', self.handlers['edTidyAfterFailure'])
+
+    def test_find_waits_for_the_script_editor_to_show_the_script(self):
+        # the Find dialog takes its word from the editor's selection: it
+        # opens once the editor has filled its field, as debug-breakpoint
+        body = self.handlers['ed_se_find_replace']
+        self.assertLess(body.index('edWaitFor("the text of pAx contains " & quote & "cClicks" & quote, 5000, tField)'),
+                        body.index('"Find and Replace..."'))
+
+
+class DragWaitStartsAtTheRelease(unittest.TestCase):
+    """make-label failed on Windows (main 92b1a1d, dark) "made nothing on the
+    stack" after 6289 ms, where every other drag took about 2.4 s. The 6 s
+    were counted from the drag's launch, and on Windows the drag is a
+    PowerShell that compiles its Add-Type before it touches the mouse; the
+    record could not say whether the drag had even run. The drag's helper
+    now writes when it started, pressed and released, the wait for the
+    control starts at the release, and a miss says enough to tell a slow
+    helper, a missed tile and a late control apart."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.text = read(SCRIPT)
+        cls.handlers = handlers(cls.text)
+        m = re.search(r'^function edDragDone pMilliseconds\n(.*?)^end edDragDone', cls.text, re.M | re.S)
+        cls.done = m.group(1) if m else ''
+
+    def test_the_wait_for_the_control_follows_the_release(self):
+        body = self.handlers['edMake']
+        drag = body.index('edSystemDrag tFrom, tDrop')
+        done = body.index('put edDragDone(20000) into tDrag')
+        wait = body.index('edWaitFor("the number of controls of card 1 of stack sStack is pAx + 1", 6000, tCount)')
+        self.assertLess(drag, done)
+        self.assertLess(done, wait)
+
+    def test_every_helper_says_when_it_released(self):
+        body = self.handlers['edSystemDrag']
+        self.assertIn('put tFile into sKeep["dragFile"]', body)
+        self.assertIn('if there is a file tFile then delete file tFile', body)
+        self.assertIn("echo up > '\" & tFile & \"')", body)          # macOS
+        self.assertIn("mouseup 1; echo up > '\" & tFile & \"')", body)  # Linux
+        for step in ("l 'started'", "l 'down'", "l 'up'"):            # Windows
+            self.assertIn(step, body)
+        # started is written before the Add-Type compiles
+        self.assertLess(body.index("l 'started'"), body.index('Add-Type -Namespace OxtEd'))
+
+    def test_the_release_wait_is_bounded_and_says_what_it_saw(self):
+        self.assertIn('pMilliseconds, tFile)', self.done)
+        self.assertIn('"released"', self.done)
+        self.assertIn('"not released"', self.done)
+        self.assertIn('sKeep["dragLaunched"]', self.done)
+
+    def test_a_miss_says_enough_to_tell_the_causes_apart(self):
+        body = self.handlers['edMake']
+        miss = body[body.index('put "the" && pType && "tile made nothing on the stack'):body.index('throw tMiss')]
+        for part in ('the rect of tTile', 'edTileShown(', 'tFrom', 'tDrop', 'edToolFilterText()', 'tDrag',
+                     'the screenMouseLoc', 'the mouse', 'the tool', 'the topStack', 'the selObj',
+                     'a control came', 'none came 3 s later either'):
+            self.assertIn(part, miss, 'the miss does not record %s' % part)
+
+    def test_the_filter_says_when_its_tile_did_not_show(self):
+        body = self.handlers['edToolFilter']
+        self.assertNotIn('get edWaitFor("edTileShown(', body)
+        self.assertRegex(body, r'if not edWaitFor\("edTileShown\(.*\n\s+edRecord "INFO the Tools palette\'s filter"')
+
+
+class ToolTileClickIsWatched(unittest.TestCase):
+    """browse-runs-it failed once on macOS Intel (#484's run, dark): the
+    Browse tile's click left the tool at the pointer for 3 s, and the
+    record said only that. The snapshot showed the Script Editor gone and
+    the button still selected (a browse tool chosen and lost would have
+    dropped the selection), so the click most likely never reached the
+    tile's mouseDown, but nothing recorded what it reached. The click is
+    now watched (mouseDown, mouseUp, newTool with their targets), and a
+    click that chose nothing is recorded with what was seen and the
+    palette's state. It is not made again: the callers' own waits fail
+    the step as before, and the record says whether the click reached
+    the tile."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.text = read(SCRIPT)
+        cls.handlers = handlers(cls.text)
+
+    def test_the_click_is_watched_from_before_to_after(self):
+        body = self.handlers['edToolTile']
+        on = body.index('edWatchClicks true')
+        click = body.index('edClickAt "revTools", the loc of tTile')
+        off = body.index('edWatchClicks false')
+        self.assertLess(on, click)
+        self.assertLess(click, off)
+
+    def test_the_watch_sees_the_mouse_and_the_tool(self):
+        body = self.handlers['edWatchClicks']
+        for message in ('mouseDown', 'mouseUp', 'newTool'):
+            self.assertIn(message, body)
+        self.assertIn('insert the script of button "oxt_everyday_clicks" into front', body)
+        self.assertIn('remove the script of button "oxt_everyday_clicks" from front', body)
+
+    def test_a_click_that_chose_nothing_is_recorded_and_not_made_again(self):
+        body = self.handlers['edToolTile']
+        wait = body.index('if not edWaitFor("word 1 of the tool is pAx", 1500, tTool) then')
+        record = body.index('edRecord "INFO the" && tTool && "tile')
+        self.assertLess(wait, record)
+        # one click only: a miss fails the caller's own wait, as before
+        self.assertEqual(body.count('edClickAt '), 1)
+        miss = body[record:body.index('edWatchClicks false')]
+        for part in ('the tool', 'edWatched()', 'the rect of tTile', 'the visible of tTile',
+                     'the mode of stack "revTools"', 'the rect of stack "revTools"',
+                     'the topStack', 'the mouseStack', 'edPendingNames()'):
+            self.assertIn(part, miss, 'the miss does not record %s' % part)
+
+    def test_the_watcher_is_taken_down_after_a_failure(self):
+        self.assertIn('edWatchClicks false', self.handlers['edTidyAfterFailure'])

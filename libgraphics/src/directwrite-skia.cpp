@@ -603,6 +603,26 @@ static IDWriteTextFormat* MCGDWTextFormatFromHFONT(HFONT p_hfont, MCGFloat p_siz
 	// Extract the important parameters
 	// Note: same weight values in GDI and DirectWrite
 	DWRITE_FONT_WEIGHT t_font_weight = static_cast<DWRITE_FONT_WEIGHT>(t_logfont.lfWeight);
+
+	// OXT-Beyond: the engine's plain weight is "medium" (MCFW_MEDIUM, the
+	// weight of FA_DEFAULT_STYLE), and engine/src/w32flst.cpp's weighttable
+	// puts it in the LOGFONT as FW_MEDIUM, 500, not FW_NORMAL, 400. GDI
+	// never minded: a GDI family has a regular and a bold face at most, and
+	// both 400 and 500 choose the regular one, which is the face whose
+	// metrics the engine reads (w32flst.cpp's GetTextMetricsW).
+	// DirectWrite groups every weight of a family, so where a family has a
+	// face of weight 500 it drew plain text in that face: Source Code Pro
+	// Medium in the Script Editor once the IDE had loaded all fourteen of
+	// its files, a heavier face than the regular one macOS and Linux draw
+	// (lnxflst.cpp asks Pango for its normal weight for anything up to
+	// MCFW_MEDIUM). Plain text asks DirectWrite for the regular weight.
+	// No textStyle asks for 500 by any other name ("medium" is plain), and
+	// every other weight is asked for as before, so the Light, Semibold
+	// and Black faces stay where "light", "demibold" and "ultrabold" find
+	// them.
+	if (t_font_weight == DWRITE_FONT_WEIGHT_MEDIUM)
+		t_font_weight = DWRITE_FONT_WEIGHT_NORMAL;
+
 	DWRITE_FONT_STRETCH t_font_stretch = DWRITE_FONT_STRETCH_NORMAL;
 	FLOAT t_font_size = p_size;
 	DWRITE_FONT_STYLE t_font_style = DWRITE_FONT_STYLE_NORMAL;

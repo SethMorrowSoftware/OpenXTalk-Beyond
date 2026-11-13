@@ -1,0 +1,12 @@
+# "Printer Chooser" (the printer stack that Standalone Settings can copy
+# into a Linux standalone, its "UNIX,printerChooser" setting): the stack
+# kept a black text colour of its own and no background, so "Orientation:",
+# "Paper Size:", their radio buttons, "Command:", Cancel and OK were black
+# on a dark window (seen in a picture of it in the dark, 12 November 2026;
+# found by tools/ci/stack_inks.py). With no colour of its own they are
+# drawn in the theme's.
+file: Toolset/palettes/revprinterchooser.rev
+object: stack
+property: foregroundColor
+from: 0,0,0
+to: 

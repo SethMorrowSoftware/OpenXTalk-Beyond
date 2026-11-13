@@ -518,6 +518,59 @@ extern void SeedSSL(UINT iMesg, WPARAM wParam, LPARAM lParam);
 
 #include <crtdbg.h>
 
+// OXT-Beyond: what the engine does when Windows' appearance (light or dark)
+// has changed: the colours it keeps for the appearance are set again,
+// every stack's title bar follows and the stack is drawn again, and the
+// scripts are told (systemAppearanceChanged). It was the body of the
+// WM_SETTINGCHANGE "ImmersiveColorSet" case below, which calls it when
+// Windows' notice finds the appearance changed; CWM_APPEARANCE_CHANGED
+// calls it too, when the engine itself found the appearance changed and no
+// notice has brought it up to date since (MCWin32FollowSystemAppearance,
+// w32dcs.cpp).
+static void MCWin32SystemAppearanceChanged(void)
+{
+	// Dark mode changed - update system colors for unset objects
+	extern void MCWin32UpdateSystemColors(void);
+	MCWin32UpdateSystemColors();
+	
+	// Update all stack window title bars
+	extern void MCWin32SetWindowDarkMode(HWND hwnd, bool dark_mode);
+	MCSystemAppearance t_appearance;
+	MCscreen->getsystemappearance(t_appearance);
+	bool t_dark_mode = (t_appearance == kMCSystemAppearanceDark);
+	
+	MCStacknode *t_node = MCstacks->topnode();
+	if (t_node != NULL)
+	{
+		MCStacknode *t_start = t_node;
+		do
+		{
+			MCStack *t_stack = t_node->getstack();
+			if (t_stack != NULL && t_stack->getwindow() != NULL)
+			{
+				HWND t_hwnd = (HWND)t_stack->getwindow()->handle.window;
+				if (t_hwnd != NULL)
+				{
+					MCWin32SetWindowDarkMode(t_hwnd, t_dark_mode);
+					// Force title bar redraw
+					SetWindowPos(t_hwnd, NULL, 0, 0, 0, 0,
+						SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+					// Force window content redraw to show new colors
+					InvalidateRect(t_hwnd, NULL, TRUE);
+					// Mark stack as needing redraw
+					t_stack->dirtyall();
+				}
+			}
+			t_node = t_node->next();
+		}
+		while (t_node != t_start);
+	}
+	
+	// Notify the engine that system appearance has changed
+	// This will trigger systemAppearanceChanged message
+	MCPlatformCallbackSendSystemAppearanceChanged();
+}
+
 LRESULT CALLBACK MCWindowProc(HWND hwnd, UINT msg, WPARAM wParam,
                               LPARAM lParam)
 {
@@ -655,6 +708,18 @@ LRESULT CALLBACK MCWindowProc(HWND hwnd, UINT msg, WPARAM wParam,
 		((MCScreenDC *)MCscreen) -> processtaskbarnotify(hwnd, wParam, lParam);
 		break;
 
+	// OXT-Beyond: the engine read Windows' appearance and found it was not
+	// the one its colours were set for (MCWin32FollowSystemAppearance,
+	// w32dcs.cpp): the windows and the scripts follow now, from the message
+	// loop. Nothing is left to do when Windows' own notice came first.
+	case CWM_APPEARANCE_CHANGED:
+	{
+		extern bool MCWin32SystemAppearanceIsPending(void);
+		if (hwnd == ((MCScreenDC *)MCscreen) -> getinvisiblewindow() && MCWin32SystemAppearanceIsPending())
+			MCWin32SystemAppearanceChanged();
+	}
+	break;
+
 	case WM_DISPLAYCHANGE:
 	case WM_SETTINGCHANGE:
 	{
@@ -663,51 +728,27 @@ LRESULT CALLBACK MCWindowProc(HWND hwnd, UINT msg, WPARAM wParam,
 
 		//-- tperry 11th October 2025
 		// Check if this is a theme/personalization change (dark mode toggle)
+		//
+		// OXT-Beyond: the setting's name comes as the window takes its
+		// strings, and the engine's own window, the only one that gets
+		// this far, is an ANSI one (MCdummy: CreateWindowA of a class made
+		// with RegisterClassA). Up to 0.2.7 the name was always read as a
+		// wide string, which an ANSI "ImmersiveColorSet" never equals, so
+		// the notice was never acted on: no colours, no title bars and no
+		// systemAppearanceChanged when Windows was switched while the
+		// engine ran. The notice is also sent for more than the appearance
+		// and may come more than once, so the work is done when the
+		// appearance is no longer the one the colours were set for.
 		if (msg == WM_SETTINGCHANGE && lParam != NULL)
 		{
-			if (wcscmp((LPCWSTR)lParam, L"ImmersiveColorSet") == 0)
-			{
-				// Dark mode changed - update system colors for unset objects
-				extern void MCWin32UpdateSystemColors(void);
-				MCWin32UpdateSystemColors();
-				
-				// Update all stack window title bars
-				extern void MCWin32SetWindowDarkMode(HWND hwnd, bool dark_mode);
-				MCSystemAppearance t_appearance;
-				MCscreen->getsystemappearance(t_appearance);
-				bool t_dark_mode = (t_appearance == kMCSystemAppearanceDark);
-				
-				MCStacknode *t_node = MCstacks->topnode();
-				if (t_node != NULL)
-				{
-					MCStacknode *t_start = t_node;
-					do
-					{
-						MCStack *t_stack = t_node->getstack();
-						if (t_stack != NULL && t_stack->getwindow() != NULL)
-						{
-							HWND t_hwnd = (HWND)t_stack->getwindow()->handle.window;
-							if (t_hwnd != NULL)
-							{
-								MCWin32SetWindowDarkMode(t_hwnd, t_dark_mode);
-								// Force title bar redraw
-								SetWindowPos(t_hwnd, NULL, 0, 0, 0, 0,
-									SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
-								// Force window content redraw to show new colors
-								InvalidateRect(t_hwnd, NULL, TRUE);
-								// Mark stack as needing redraw
-								t_stack->dirtyall();
-							}
-						}
-						t_node = t_node->next();
-					}
-					while (t_node != t_start);
-				}
-				
-				// Notify the engine that system appearance has changed
-				// This will trigger systemAppearanceChanged message
-				MCPlatformCallbackSendSystemAppearanceChanged();
-			}
+			extern bool MCWin32SystemAppearanceIsStale(void);
+			bool t_color_set;
+			if (IsWindowUnicode(hwnd))
+				t_color_set = wcscmp((LPCWSTR)lParam, L"ImmersiveColorSet") == 0;
+			else
+				t_color_set = strcmp((LPCSTR)lParam, "ImmersiveColorSet") == 0;
+			if (t_color_set && MCWin32SystemAppearanceIsStale())
+				MCWin32SystemAppearanceChanged();
 		}
 
 		((MCScreenDC *)MCscreen) -> processdesktopchanged(true);

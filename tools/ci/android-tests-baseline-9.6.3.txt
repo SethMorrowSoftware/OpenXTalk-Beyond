@@ -259,6 +259,12 @@ lcs: webplayer/nova-rescue: TestTheScreensFitAPhoneOnItsSide
 lcs: webplayer/puzzle-almanac: TestTheScreensFitAPhoneOnItsSide
 lcs: xtalkassistant/build: TestUndoANewStack
 lcs: xtalkassistant/core: TestAskAnthropic
+lcs: xtalkassistant/core: TestAskLocalAlreadyLoaded
+lcs: xtalkassistant/core: TestAskLocalLoadFails
+lcs: xtalkassistant/core: TestAskLocalNamedCopyIsLeftLoaded
+lcs: xtalkassistant/core: TestAskLocalReloadsWithTheContext
+lcs: xtalkassistant/core: TestAskLocalServerWithoutTheList
+lcs: xtalkassistant/core: TestAskLocalWithoutContextLength
 lcs: xtalkassistant/core: TestAskOpenAI
 lcs: xtalkassistant/core: TestAskRefusedKey
 lcs: xtalkassistant/core: TestAskWaitsForTheAnswer

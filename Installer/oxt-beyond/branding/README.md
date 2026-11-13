@@ -1,4 +1,4 @@
-# OXT-Beyond artwork: 0.2.7 "Make It So"
+# OXT-Beyond artwork: "Make It So" (0.2.7, and 0.2.8's developer previews)
 
 From 0.2.1 the icon is an orange "OXT" struck by lightning over a
 stitched seam and "BEYOND", on a charcoal tile with an orange rim. In
@@ -16,7 +16,9 @@ rays on a navy sky, the logo in a burst of gold and warm white streaks,
 gradient, "Make It So" in slanted gold after a drawn sparkle, and the
 line "Say it in xTalk. Make it so." The splash's logo has the same
 burst, and its pill says "MAKE IT SO" in gold (no Star Trek logos or
-art; the name is a wink). Its release candidates,
+art; the name is a wink). The number is the version without its
+pre-release part, so 0.2.8-dp.1, which keeps the name and the art,
+shows "0.2.8". 0.2.7's release candidates,
 frozen for play testing, had the "Bug Hunt" drawings there (and on the
 splash screens until rc.6.13): a friendly teal beetle caught under an
 orange-handled magnifying glass, over a trail of footprints, on a
@@ -132,7 +134,7 @@ README's banner names another version or release.
 | The logo's rim | `#FFC24D` to `#FF7700` to `#FF3D00` |
 | Navy sky, round the burst to the edges ("Make It So") | `#1C2B47` to `#0E1628`, with white rays at 2.5 to 6 % |
 | The burst's streaks | warm white `#F3E7D3` and gold `#E3A548`, 35 to 90 % (`#D9A15A` and `#B86A1C` on the light splash) |
-| "0.2.7" | `#FFC566` to `#FF8A1E`, top to foot |
+| The version's number ("0.2.7", "0.2.8") | `#FFC566` to `#FF8A1E`, top to foot |
 | The release's name and its sparkle | `#FFB547` (`#A0560A` on the light splash's pill) |
 | Lightning (the icon) | `#FFF9C4` to `#FFC92E` (plain `#FFE14D`), edge `#7A5A00`; arcs `#BFEFFF`, sparks `#FFF4B0` |
 | Charcoal background | `#15171A` to `#2B2F36` |

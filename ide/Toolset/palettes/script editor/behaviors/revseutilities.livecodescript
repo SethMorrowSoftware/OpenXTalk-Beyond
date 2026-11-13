@@ -1418,7 +1418,13 @@ on pFixupMacElements
       if the platform contains "mac" then
          if the systemAppearance contains "dark" then
             -- okay, we are on a mac in dark mode
-            set the foregroundColor of button "Fake Handler Menu" of stack "revNewScriptEditor 1" to black -- at least you can see it
+            -- OXT-Beyond: the handler menu's words in the theme's colour here
+            -- too. This set them to black ("at least you can see it"), from
+            -- when the engine drew a Mac menu button with a light face in the
+            -- dark appearance. Its face is dark now and every other menu's
+            -- words are white on it, so the handler's name was the one menu
+            -- in black, hard to read (the IDE screenshots of 0.2.7)
+            set the foregroundColor of button "Fake Handler Menu" of stack "revNewScriptEditor 1" to ""
          else
             -- we are on a mac, but in light mode -- so we return these to default
          end if

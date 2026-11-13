@@ -85,7 +85,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,tools-widget-install,tools-widget-builder,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,menu-submenu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,icon-picker,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-button-menu,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,message-watcher,error-display,search,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,code-font,ide-stacks,screen-end,background-default"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,tools-widget-install,tools-widget-builder,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,menu-submenu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,icon-picker,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-button-menu,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,extension-builder-errors,message-watcher,error-display,search,replicate,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,code-font,ide-stacks,screen-end,background-default"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -460,8 +460,14 @@ end tourToolsClassic
 -- A release whose palette has no modern look is noted and skipped.
 local sTmClassic, sTmClassicPrefs, sTmChecks, sTmFails
 
+-- The shapes and the vector tools in the order the palette shows them,
+-- row by row from the left, the same on every disk: their names less
+-- "com.livecode.interface.classic."
+constant kTmShapeOrder = "FivePointStar,OvalGraphic,Arrow,TenPointStar,RectangleGraphic,RegularGraphic,RoundRectGraphic,SpeechBubble"
+constant kTmVectorOrder = "CurveGraphic,PolygonGraphic,LineGraphic"
+
 on tour_tools_modern_check
-   local tModern, tName, tKey, tLine, tCount
+   local tModern, tName, tKey, tLine, tCount, tPlaced
    if not tourTmStart("tools-modern-check") then exit tour_tools_modern_check
    -- the classic look, as the other steps leave it
    tourToolsClassic
@@ -469,6 +475,22 @@ on tour_tools_modern_check
    put revIDEGetPreference("revTools_show") & "|" & revIDEGetPreference("revTools_columns") into sTmClassicPrefs
    tourTmCheck the number of elements of sTmClassic > 10, "the classic look has its tiles (" & the number of elements of sTmClassic & ")"
    tourTmCheck tourTmNamed("tmHeader") is empty, "the classic look has no modern controls"
+   -- every shape and vector tool has its place. The palette took their
+   -- order from the order the disk listed their definitions in, so on some
+   -- Linux disks Rectangle and Speech Bubble stood in each other's place
+   put tourTmShapesPlaced() into tPlaced
+   tourRecord "INFO tools-modern-check: shapes" && tourTmReadingOrder("graphic") & "; vector tools" && tourTmReadingOrder("graphictools")
+   if tPlaced then
+      tourTmCheck tourTmReadingOrder("graphic") is kTmShapeOrder, \
+            "the classic look's shapes stand in their order (" & tourTmReadingOrder("graphic") & ")"
+      tourTmCheck tourTmReadingOrder("graphictools") is kTmVectorOrder, \
+            "the classic look's vector tools stand in their order (" & tourTmReadingOrder("graphictools") & ")"
+      -- and each has a number of its own for it, so that no two can change places
+      tourTmCheck tourTmOwnOrders(revIDEGraphics()), "each shape has its own place in revIDEGraphics"
+      tourTmCheck tourTmOwnOrders(revIDEGraphicTools()), "each vector tool has its own place in revIDEGraphicTools"
+   else
+      tourRecord "INFO tools-modern-check: this IDE gives the shapes no place of their own, they stand as its disk lists them; their order is not checked"
+   end if
 
    if tourToolsModern(empty, false) is not true then throw "the modern look did not turn on"
    -- dark or light as the system is (on Apple silicon it took its light
@@ -493,6 +515,10 @@ on tour_tools_modern_check
    repeat for each item tName in "graphictools,paint"
       tourTmCheck tourTmGroup(tName) is empty, "the modern look hides the section" && tName && "at first"
    end repeat
+   if tPlaced then
+      tourTmCheck tourTmReadingOrder("graphic") is kTmShapeOrder, \
+            "the modern look's shapes stand in their order (" & tourTmReadingOrder("graphic") & ")"
+   end if
    -- the same names and properties as the classic look's
    put tourTmTiles() into tModern
    put 0 into tCount
@@ -1398,6 +1424,61 @@ function tourTmGroupTiles pView
    end repeat
    return line 1 to -1 of tTiles
 end tourTmGroupTiles
+
+-- The tiles of a section's group as a person reads them, row by row from
+-- the left: their names less "com.livecode.interface.classic.", in items.
+-- A row is the tiles whose tops are within half a tile of its first one's
+function tourTmReadingOrder pView
+   local tTiles, tTile, tRows, tRow, tRowTop, tPlaced, tName, tOrder
+   put tourTmGroupTiles(pView) into tTiles
+   if tTiles is empty then return empty
+   repeat for each line tTile in tTiles
+      put the top of tTile & tab & the left of tTile & tab & the height of tTile & tab & the short name of tTile & return after tRows
+   end repeat
+   set the itemDelimiter to tab
+   sort lines of tRows numeric ascending by item 1 of each
+   put 0 into tRow
+   repeat for each line tTile in tRows
+      if tRow is 0 or item 1 of tTile >= tRowTop + item 3 of tTile / 2 then
+         add 1 to tRow
+         put item 1 of tTile into tRowTop
+      end if
+      put tRow & tab & item 2 of tTile & tab & item 4 of tTile & return after tPlaced
+   end repeat
+   sort lines of tPlaced numeric ascending by item 2 of each
+   sort lines of tPlaced numeric ascending by item 1 of each
+   repeat for each line tTile in tPlaced
+      put item 3 of tTile into tName
+      replace "com.livecode.interface.classic." with empty in tName
+      put tName & comma after tOrder
+   end repeat
+   delete the last char of tOrder
+   return tOrder
+end tourTmReadingOrder
+
+-- Whether each tool of pData (revIDEGraphics, revIDEGraphicTools) has a
+-- whole number for its place and no two tools share one
+function tourTmOwnOrders pData
+   local tKey, tSeen
+   if the number of elements of pData is 0 then return false
+   repeat for each key tKey in pData
+      if pData[tKey]["order"] is not an integer then return false
+      if tSeen[pData[tKey]["order"]] is not empty then return false
+      put tKey into tSeen[pData[tKey]["order"]]
+   end repeat
+   return true
+end tourTmOwnOrders
+
+-- Whether this IDE gives the shapes a place of their own: its
+-- classicToolsOrder.tsv names them (tools/ci/tests/test_tools_order.py
+-- holds that it does). A release before 0.2.8 names only the controls
+-- there, and its shapes stand as its disk lists their definitions
+function tourTmShapesPlaced
+   local tFile
+   put revIDESpecialFolderPath("Object Property Definitions") & "/classicToolsOrder.tsv" into tFile
+   if there is not a file tFile then return false
+   return url ("file:" & tFile) contains "com.livecode.interface.classic.SpeechBubble"
+end tourTmShapesPlaced
 
 -- How red the middle of an object of the Tools palette is on the screen:
 -- red less the mean of green and blue. (A snapshot from the object leaves
@@ -4104,6 +4185,7 @@ function tourSvgMenuCheck pWhat, pObjects, pEnabled, pItem
       revIDESelectObjects pObjects
    end if
    tourWait 200
+   tourMenuBuildSettled pWhat
    dispatch "revMenubarBuildMenus" to stack "revMenuBar"
    repeat for each line tLine in the text of button "Object" of group "revMenuBar" of stack "revMenuBar"
       if tLine contains pItem then put word 1 to -1 of tLine into tItem
@@ -4115,6 +4197,35 @@ function tourSvgMenuCheck pWhat, pObjects, pEnabled, pItem
    end if
    return empty
 end tourSvgMenuCheck
+
+-- Waits, at most 3 seconds, until the menu bar has no build of its menus
+-- waiting, nor the IDE's message that asks for one. revMenubarBuildMenus
+-- does nothing while a build of it waits ("if the pendingmessages
+-- contains revMenubarBuildMenus then exit"), and on a Mac a selection
+-- sends ideSelectedObjectChanged (ideMessageSend, in 0 ms), whose handler
+-- in the menu bar sends a build in 1 ms: on an Intel Mac runner (#478,
+-- a50a3a04) the tour's own build ran while that one still waited, built
+-- nothing, and the Object menu it read was the one of the selection
+-- before ("(Convert SVG Image to Graphics" with the SVG image selected).
+-- A wait that ran out is recorded, and the build is asked for anyway
+command tourMenuBuildSettled pWhat
+   local tTry
+   repeat with tTry = 1 to 30
+      if not tourMenuBuildWaiting() then exit tourMenuBuildSettled
+      wait 100 milliseconds with messages
+   end repeat
+   tourRecord "INFO svg-menu with" && pWhat && "selected, a menu build still waits after 3 s"
+end tourMenuBuildSettled
+
+-- Whether the menu bar's build, or the IDE message that leads to one,
+-- still waits
+function tourMenuBuildWaiting
+   local tLine
+   repeat for each line tLine in the pendingMessages
+      if item 3 of tLine is among the items of "revMenubarBuildMenus,ideMessageSend" then return true
+   end repeat
+   return false
+end tourMenuBuildWaiting
 
 -- A line when pData, what Copy Graphics as SVG Paths put on the clipboard
 -- with a field and a graphic selected, is not the graphic's one path in
@@ -5859,11 +5970,10 @@ end tourBmMake
 -- button pButton (pWhat) is hidden or does not offer menu; empty when all
 -- is right
 function tourBmCheckRow pWhat, pButton
-   local tRow
-   -- (revIDEPropertiesInfo, the Inspector's own read: its section form,
-   -- revIDEPropertiesInfoOfSection with a section, calls a handler the
-   -- library does not have)
-   put tourBmStyleRow(revIDEPropertiesInfo(pButton)) into tRow
+   local tRow, tInfo
+   -- (revIDEPropertiesInfo, the Inspector's own read)
+   put revIDEPropertiesInfo(pButton) into tInfo
+   put tourBmStyleRow(tInfo) into tRow
    tourRecord "INFO inspector-button-menu the Style row of a" && pWhat & ": user_visible" && \
          quote & tRow["user_visible"] & quote && "options" && tourJoin(tRow["options"])
    if tRow is not an array then return "a" && pWhat & "'s Inspector has no Style row" & return
@@ -5871,8 +5981,43 @@ function tourBmCheckRow pWhat, pButton
    if "menu" is not among the lines of tRow["options"] then
       return "a" && pWhat & "'s Style row does not offer menu" & return
    end if
-   return empty
+   return tourBmCheckSection(pWhat, pButton, tInfo)
 end tourBmCheckRow
+
+-- A line saying what is wrong when revIDEPropertiesInfoOfSection, asked
+-- for the section that holds the Style row of the button pButton (pWhat),
+-- fails or gives other rows than that section has in the whole list pInfo
+-- (revIDEPropertiesInfo); empty when all is right. Up to 0.2.7 the
+-- section form called __orderPropSection, a handler the IDE library does
+-- not have, and stopped with "can't find handler"
+function tourBmCheckSection pWhat, pButton, pInfo
+   local tKey, tSection, tGroups, tError
+   repeat for each key tKey in pInfo
+      if tourBmStyleRow(pInfo[tKey]) is an array then
+         put pInfo[tKey]["label"] into tSection
+         exit repeat
+      end if
+   end repeat
+   if tSection is empty then return "a" && pWhat & "'s Style row is in no section" & return
+   try
+      put revIDEPropertiesInfoOfSection(pButton, tSection) into tGroups
+   catch tError
+      tourRecord "INFO inspector-button-menu the section" && tSection && "of a" && pWhat & ":" && \
+            tourJoin(tError)
+      return "revIDEPropertiesInfoOfSection of a" && pWhat & "'s" && tSection && "section failed:" && \
+            tourJoin(line 1 of tError) & return
+   end try
+   tourRecord "INFO inspector-button-menu the section" && tSection && "of a" && pWhat & ":" && \
+         the number of elements in tGroups && "groups"
+   if tourBmStyleRow(tGroups) is not an array then
+      return "revIDEPropertiesInfoOfSection of a" && pWhat & "'s" && tSection && "section has no Style row" & return
+   end if
+   if tGroups is not pInfo[tKey]["grouplist"] then
+      return "revIDEPropertiesInfoOfSection of a" && pWhat & "'s" && tSection && \
+            "section is not that section of revIDEPropertiesInfo" & return
+   end if
+   return empty
+end tourBmCheckSection
 
 -- The style property's row in the Inspector's property information pInfo,
 -- wherever it is grouped; empty if there is none
@@ -6149,13 +6294,24 @@ function tourPlayerCheck pStack, pWhen, pOff, pFile
 end tourPlayerCheck
 
 on tour_script_editor
-   local tSE
+   local tSE, tInk
    revIDEEditScriptOfObject tourSample("Push")
    tourWait 2000
    put tourStackNamed("revNewScriptEditor") into tSE
    if tSE is empty then throw "no script editor opened:" && tourJoin(the openStacks)
    tourShotStack tSE, "10-script-editor"
+   -- The handler menu above the script has no text colour of its own: its
+   -- words are the theme's, as every other menu's are. The stack held black
+   -- for it, and on a Mac in the dark appearance the editor set black each
+   -- time it opened ("at least you can see it"), on a face that is dark
+   -- there now: the one menu with black words (the IDE screenshots of 0.2.7,
+   -- seen in the review for 0.2.8-dp.1)
+   put the foregroundColor of button "Fake Handler Menu" of stack tSE into tInk
+   tourRecord "INFO script editor: the handler menu's own text colour" && quote & tInk & quote
    close stack tSE
+   if tInk is not empty then
+      throw "the script editor's handler menu has a text colour of its own (" & tInk & "), not the theme's"
+   end if
 end tour_script_editor
 
 -- The Search Results pane, as Find All of the Find and Replace dialog
@@ -7149,7 +7305,7 @@ command tourDictionaryEntry pStack, pFile
 end tourDictionaryEntry
 
 on tour_preferences
-   local tStack, tPane, tIndex, tMenu, tItem, tNeed, tFails, tPath, tShown
+   local tStack, tPane, tIndex, tMenu, tItem, tNeed, tFails, tPath, tShown, tSeen
    put revIDEPaletteToStackName("preferences") into tStack
    tourLabelInksReset
    revIDEOpenPalette "preferences"
@@ -7163,9 +7319,23 @@ on tour_preferences
       dispatch "revPrefsGoSection" to stack tStack with tPane
       tourWait 700
       tourShotStack tStack, "14-preferences-" & format("%02d", tIndex) & "-" & tourFileName(tPane)
+      -- two panes' words that the pictures of 0.2.7 showed wrong
+      -- (a pane by its name as the picture's file has it: the list's lines
+      -- are indented)
+      if tourFileName(tPane) is "debug-properties" then
+         put tourDebugPropertyNames(tStack) after tFails
+         put true into tSeen["debug-properties"]
+      end if
+      if tourFileName(tPane) is "mobile-support" then
+         put tourJDKTip(tStack) after tFails
+         put true into tSeen["mobile-support"]
+      end if
       tourLabelInks tStack
       put tourButtonsWhole(tStack) after tFails
       put tourFieldsWhole(tStack) after tFails
+   end repeat
+   repeat for each item tPane in "debug-properties,mobile-support"
+      if tSeen[tPane] is not true then put "Preferences has no" && tPane && "pane to look at" & return after tFails
    end repeat
    -- each disabled check box's and radio button's words fainter than an
    -- enabled one's, and seen (tourDisabledLabels)
@@ -7243,6 +7413,68 @@ on tour_preferences
    -- them, together
    if tFails is not empty then throw line 1 to -1 of tFails
 end tour_preferences
+
+-- The Debug Properties pane's list draws each property's name, the part in
+-- square brackets, on the IDE's selection blue, and the name's words stand
+-- out from that blue. They were the accentColor on it: blue on blue, in the
+-- light and the dark appearance (the IDE screenshots of 0.2.7, seen in the
+-- review for 0.2.8-dp.1). They are the colour the IDE gives a selected
+-- row's words now (revIDEHilitedTextColor: white on it on macOS and
+-- Windows, 3 to 1, and black on Linux). Read from the first name of the
+-- list, as the pane's script left it. Empty, or why not
+function tourDebugPropertyNames pStack
+   local tField, tText, tIndex, tLine, tFrom, tInk, tBack, tRatio
+   put the long id of field "fPREFFS" of card "Debug Properties" of stack pStack into tField
+   put 0 into tIndex
+   repeat for each line tText in the text of tField
+      add 1 to tIndex
+      if offset("[", tText) > 0 and offset("]", tText) > offset("[", tText) then
+         put tIndex into tLine
+         put offset("[", tText) + 1 into tFrom
+         exit repeat
+      end if
+   end repeat
+   if tLine is empty then return "the Debug Properties pane lists no property with its name in brackets" & return
+   put tourRGB(the foregroundColor of char tFrom of line tLine of tField) into tInk
+   put tourRGB(the backgroundColor of char tFrom of line tLine of tField) into tBack
+   if the number of items of tInk is not 3 or the number of items of tBack is not 3 then
+      return "the Debug Properties pane's first property name (line" && tLine & ") has the text colour" && \
+            quote & tInk & quote && "on the background" && quote & tBack & quote & ": not the colours of a name" & return
+   end if
+   put tourContrast(tInk, tBack) into tRatio
+   tourRecord "INFO preferences debug properties: a name in" && tInk && "on" && tBack && "(contrast" && tRatio & ")"
+   if tRatio < 2.5 then
+      return "the Debug Properties pane's property names are" && tInk && "on" && tBack & ", contrast" && tRatio & return
+   end if
+   return empty
+end tourDebugPropertyNames
+
+-- The Mobile Support pane's note for a machine where the IDE finds no JDK
+-- names the one the builder's Android tools need, JDK 17, on the one line
+-- its field has room for. It named Java 8's installers (jdk-8u202), which
+-- those tools do not run on (d8 of build-tools 35 refuses Java 8). Looked
+-- at where the note shows; tools/ci/tests/test_dp1_review_fixes.py reads
+-- the card's script for the others. Empty, or why not
+function tourJDKTip pStack
+   local tField, tText, tTop, tNeed
+   put the long id of field "fmobtip" of card "Mobile Support" of stack pStack into tField
+   put the text of tField into tText
+   put the margins of tField into tTop
+   if the number of items of tTop > 1 then put item 2 of tTop into tTop
+   put 0 into tNeed
+   if tText is not empty then put tTop + the formattedHeight of char 1 to -1 of tField into tNeed
+   tourRecord "INFO preferences mobile support: the note for no JDK shows" && the visible of tField & "," && \
+         quote & tourJoin(tText) & quote & ", its words end" && tNeed && "down a field" && the height of tField && "high"
+   if not the visible of tField then return empty
+   if "JDK 17" is not in tText or "8u" is in tText then
+      return "the Mobile Support pane's note for no JDK does not name JDK 17:" && tourJoin(tText) & return
+   end if
+   if tNeed > the height of tField then
+      return "the Mobile Support pane's note for no JDK ends" && tNeed && "pixels down a field" && \
+            the height of tField && "high:" && tourJoin(tText) & return
+   end if
+   return empty
+end tourJDKTip
 
 on tour_standalone_settings
    local tStack, tFile, tCards, tCard, tIndex, tDefault, i, tMacWas, tMacNow, tFails
@@ -7374,6 +7606,46 @@ on tour_standalone_settings
          if the cRevStandaloneSettings["emscripten,fieldBackground"] of stack kSample is not empty then
             throw "picking White left the Fields setting at" && \
                   quote & the cRevStandaloneSettings["emscripten,fieldBackground"] of stack kSample & quote
+         end if
+         -- the Fonts setting: Droid Sans for every font, as before, or the
+         -- desktop fonts; below Fields, above the pane's text
+         if there is not a button "emscriptenFonts" of card "Emscripten" of stack tStack then
+            throw "the Web card has no Fonts setting"
+         end if
+         if line 1 of the text of button "emscriptenFonts" of card "Emscripten" of stack tStack is not "Droid Sans for every font" or \
+               the number of lines of the text of button "emscriptenFonts" of card "Emscripten" of stack tStack is not 2 or \
+               not (line 2 of the text of button "emscriptenFonts" of card "Emscripten" of stack tStack begins with "Desktop fonts") then
+            throw "the Fonts setting offers" && tourJoin(the text of button "emscriptenFonts" of card "Emscripten" of stack tStack)
+         end if
+         if not the visible of button "emscriptenFonts" of card "Emscripten" of stack tStack or \
+               item 2 of the rect of button "emscriptenFonts" of card "Emscripten" of stack tStack < \
+               item 4 of the rect of button "emscriptenFields" of card "Emscripten" of stack tStack or \
+               item 4 of the rect of button "emscriptenFonts" of card "Emscripten" of stack tStack > \
+               item 2 of the rect of field "emscriptenDeploymentInfoLabel" of card "Emscripten" of stack tStack then
+            throw "the Fonts setting is hidden, over Fields or under the pane's text:" && \
+                  the rect of button "emscriptenFonts" of card "Emscripten" of stack tStack
+         end if
+         if the label of button "emscriptenFonts" of card "Emscripten" of stack tStack is not "Droid Sans for every font" or \
+               the cRevStandaloneSettings["emscripten,fonts"] of stack kSample is not empty then
+            throw "the Fonts setting of a stack that has none is not Droid Sans:" && \
+                  the label of button "emscriptenFonts" of card "Emscripten" of stack tStack
+         end if
+         lock messages
+         set the menuHistory of button "emscriptenFonts" of card "Emscripten" of stack tStack to 2
+         unlock messages
+         dispatch "menuPick" to button "emscriptenFonts" of card "Emscripten" of stack tStack with \
+               line 2 of the text of button "emscriptenFonts" of card "Emscripten" of stack tStack
+         if the cRevStandaloneSettings["emscripten,fonts"] of stack kSample is not "desktop" then
+            throw "picking Desktop fonts set the Fonts setting to" && \
+                  quote & the cRevStandaloneSettings["emscripten,fonts"] of stack kSample & quote
+         end if
+         lock messages
+         set the menuHistory of button "emscriptenFonts" of card "Emscripten" of stack tStack to 1
+         unlock messages
+         dispatch "menuPick" to button "emscriptenFonts" of card "Emscripten" of stack tStack with "Droid Sans for every font"
+         if the cRevStandaloneSettings["emscripten,fonts"] of stack kSample is not empty then
+            throw "picking Droid Sans left the Fonts setting at" && \
+                  quote & the cRevStandaloneSettings["emscripten,fonts"] of stack kSample & quote
          end if
       end if
    end repeat
@@ -8278,6 +8550,76 @@ on tour_extension_builder
    tourPalette "extension builder", "18-extension-builder", 2000
 end tour_extension_builder
 
+-- Skids (forum p=26031): when a script library would not build, the
+-- Extension Builder's messages were poor. Its log now says what is wrong
+-- and where (extensionScriptLibraryProblems): the first compile error by
+-- its line in the file, and docs with no library block. Two libraries are
+-- built as the Builder's Test builds one (revIDEDeveloperExtension, then
+-- revIDEDeveloperExtensionTest for the one with no id, which stops before
+-- loading it) and the Builder's own log field is read
+on tour_extension_builder_errors
+   local tStack, tRoot, tFolder, tName, tLog, tLine, tText, tError
+   -- An IDE from before the change (the release tour runs a release) has
+   -- nothing to log, so the step says so and checks nothing
+   if there is not a stack "com.livecode.library.extension-utils" or \
+         "function extensionScriptLibraryProblems" is not in \
+         the script of stack "com.livecode.library.extension-utils" then
+      tourRecord "INFO extension-builder-errors: this IDE does not check script libraries; skipped"
+      exit tour_extension_builder_errors
+   end if
+   put revIDEPaletteToStackName("extension builder") into tStack
+   revIDEOpenPalette "extension builder"
+   tourWait 1500
+   if tStack is empty or there is not a stack tStack then throw "no Extension Builder stack"
+   put specialFolderPath("temporary") & "/oxt_tour_scriptlib_" & the milliseconds into tRoot
+   create folder tRoot
+   try
+      -- A library whose handler does not compile, at a known line
+      put tRoot & "/broken" into tFolder
+      create folder tFolder
+      put "org.openxtalk.tour.brokenlib" into tName
+      put "script" && quote & tName & quote & return & \
+            "/**" & return & "Title: Tour Broken Library" & return & \
+            "Version: 1.0.0" & return & "*/" & return & \
+            "/**" & return & "Summary: Does not compile." & return & "*/" & return & \
+            "function tourBroken" & return & "   put (1 into tX" & return & \
+            "end tourBroken" & return into tText
+      put lineOffset("put (1 into tX", tText) into tLine
+      put textEncode(tText, "UTF-8") into URL ("binfile:" & tFolder & "/" & tName & ".livecodescript")
+      put empty into field "console" of stack tStack
+      get revIDEDeveloperExtension(tFolder)
+      tourWait 300
+      put field "console" of stack tStack into tLog
+      tourRecord "INFO extension-builder-errors: log" && tourJoin(tLog)
+      if not (", line" && tLine & ":" is in tLog) then throw "the compile error is not logged by its line (" & tLine & ")"
+      if not ("none of its handlers" is in tLog) then throw "the log does not say what a compile error does"
+      tourShotStack tStack, "18b-extension-builder-errors"
+      
+      -- A library with no library block
+      put tRoot & "/noblock" into tFolder
+      create folder tFolder
+      put "org.openxtalk.tour.noblocklib" into tName
+      put "script" && quote & tName & quote & return & \
+            "/**" & return & "Summary: Says hello." & return & "*/" & return & \
+            "function tourHello" & return & "   return 1" & return & \
+            "end tourHello" & return into tText
+      put textEncode(tText, "UTF-8") into URL ("binfile:" & tFolder & "/" & tName & ".livecodescript")
+      put empty into field "console" of stack tStack
+      revIDEDeveloperExtensionTest tFolder
+      tourWait 300
+      put field "console" of stack tStack into tLog
+      tourRecord "INFO extension-builder-errors: log" && tourJoin(tLog)
+      if not ("No library block was found" is in tLog) then throw "a library with no library block is not explained"
+      if not ("Could not build script library" is in tLog) then throw "Test does not say the script library did not build"
+   catch tError
+   end try
+   -- The two libraries stay in memory, as the Builder leaves a library it
+   -- built: deleting them here made the next step's error dialog fail in
+   -- Home's openStack (error-display, on Linux)
+   close stack tStack
+   if tError is not empty then throw tError
+end tour_extension_builder_errors
+
 on tour_message_watcher
    tourPalette "message watcher", "19-message-watcher", 1500
 end tour_message_watcher
@@ -8805,6 +9147,123 @@ function tourFieldsWhole pStack
    return tFails
 end tourFieldsWhole
 
+-- The pixels of the screen where the rect pRect of the card of the stack
+-- pStack is, as tourGrab gets those of a control of the controls stack:
+-- sPixWidth by sPixHeight points, sPixData their imageData
+command tourGrabRect pStack, pRect, pWhat
+   local tDefault, tTopLeft, tImage
+   tourUnlockScreen pWhat
+   put the defaultStack into tDefault
+   set the defaultStack to pStack
+   put globalLoc(item 1 to 2 of pRect) into tTopLeft
+   put item 1 of tTopLeft, item 2 of tTopLeft, \
+         item 1 of tTopLeft + item 3 of pRect - item 1 of pRect, \
+         item 2 of tTopLeft + item 4 of pRect - item 2 of pRect into pRect
+   set the defaultStack to "oxt_ui_tour"
+   lock messages
+   import snapshot from rect pRect
+   put the long id of last image of card 1 of stack "oxt_ui_tour" into tImage
+   put the width of tImage into sPixWidth
+   put the height of tImage into sPixHeight
+   put the imageData of tImage into sPixData
+   delete tImage
+   unlock messages
+   set the defaultStack to tDefault
+   if sPixWidth < 1 or the number of bytes of sPixData < sPixWidth * sPixHeight * 4 then throw "no pixels for" && pWhat && "(" & pRect & ")"
+end tourGrabRect
+
+-- The luminance most of the points tourGrabRect got have: what is behind
+-- a label's words, which are the fewer points
+function tourMostLum
+   local tCount, tX, tY, tLum, tBest, tMost
+   repeat with tY = 0 to sPixHeight - 1
+      repeat with tX = 0 to sPixWidth - 1
+         add 1 to tCount[tourLum(tX, tY)]
+      end repeat
+   end repeat
+   put 0 into tMost
+   repeat for each key tLum in tCount
+      if tCount[tLum] > tMost then
+         put tCount[tLum] into tMost
+         put tLum into tBest
+      end if
+   end repeat
+   return tBest
+end tourMostLum
+
+-- How far (of 255) the words of a label must be from the window behind
+-- them. Black on the dark windows is 32 (Windows) to 57 (GTK's Adwaita
+-- dark) from them, and the theme's light words 170 or more; the theme's
+-- dark words on a light window 180 or more
+constant kLabelWordsSeen = 100
+
+-- The labels of the card of the stack pStack whose words cannot be made
+-- out on the window: "<number measured>" on line 1, then a line for each
+-- that is too near what is behind it. A label is a field that shows, is
+-- enabled and not opaque (so the window is behind its words) and has
+-- words, whole in the window. Its words are where the engine lays them
+-- out (tourWordsRect); the points there and two round them are taken from
+-- the screen, what most of them are is the window, and the one furthest
+-- from that is the words' colour at its fullest
+function tourLabelsFaint pStack
+   local tDefault, i, tControl, tRect, tBack, tFar, tCount, tFaint, tWhat
+   put the defaultStack into tDefault
+   set the defaultStack to pStack
+   put 0 into tCount
+   repeat with i = 1 to the number of fields of this card
+      put the long id of field i of this card into tControl
+      if the opaque of tControl or the disabled of tControl or not tourControlShown(tControl) then next repeat
+      put tourWordsRect(tControl) into tRect
+      if tRect is empty then next repeat
+      put item 1 of tRect - 2, item 2 of tRect - 2, item 3 of tRect + 2, item 4 of tRect + 2 into tRect
+      if item 1 of tRect < 0 or item 2 of tRect < 0 or item 3 of tRect > the width of this stack or \
+            item 4 of tRect > the height of this stack then next repeat
+      put quote & tourJoin(the text of tControl) & quote into tWhat
+      tourGrabRect pStack, tRect, "the label" && tWhat
+      set the defaultStack to pStack
+      put tourMostLum() into tBack
+      put tourMaxDiff(0, 0, sPixWidth, sPixHeight, tBack) into tFar
+      add 1 to tCount
+      tourRecord "INFO" && pStack & ": the label" && tWhat && "is" && tFar && "of 255 from the" && tBack && "behind it"
+      if tFar < kLabelWordsSeen then
+         put "the label" && tWhat && "is" && tFar && "of 255 from the window behind it (" & tBack & \
+               "), its text colour" && quote & the effective foregroundColor of tControl & quote & return after tFaint
+      end if
+   end repeat
+   set the defaultStack to tDefault
+   return tCount & return & tFaint
+end tourLabelsFaint
+
+-- Replicate, as Edit > Replicate... opens it for the selected controls
+-- (tOpenReplicate in revmenubar.livecodescript: replicate.oxtstack beside
+-- the palettes, modal; here a palette, which shows the same card and lets
+-- the tour go on). Up to 0.2.8-dp.1 the stack kept a black text colour of
+-- its own and no background, so every word of the dialog was black on the
+-- theme's window: on a dark one "Replicate", "times.", "Offset by:",
+-- "Scale by:", "pixels" and the rest could hardly be made out (a picture
+-- of it in the dark, 12 November 2026; nothing showed this window before).
+-- Its labels' words are measured against the window on the screen
+on tour_replicate
+   local tFile, tStack, tFaint, tDelimiter
+   put the itemDelimiter into tDelimiter
+   set the itemDelimiter to slash
+   put item 1 to -3 of the filename of stack "revMenubar" & slash & "replicate.oxtstack" into tFile
+   set the itemDelimiter to tDelimiter
+   if there is not a file tFile then throw "no Replicate stack at" && tFile
+   put the short name of stack tFile into tStack
+   palette stack tFile
+   if not tourWaitOpen(tStack, 4000) then throw "Replicate (" & tStack & ") did not open"
+   tourWait 600
+   tourShotStack tStack, "21-replicate"
+   put tourLabelsFaint(tStack) into tFaint
+   close stack tStack
+   tourRecord "INFO replicate:" && line 1 of tFaint && "labels measured"
+   -- "Replicate", "times.", "Offset by:", "h:", "v:", "pixels", "Scale by:" and their like
+   if line 1 of tFaint < 6 then throw "only" && line 1 of tFaint && "of Replicate's labels could be measured"
+   delete line 1 of tFaint
+   if tFaint is not empty then throw "Replicate's words cannot be made out:" && tourJoin(line 1 to -1 of tFaint)
+end tour_replicate
+
 on tour_object_library
    -- with Development > Object Library, which also selects the Objects tab
    -- (the stack was saved with the Images tab selected)
@@ -8815,7 +9274,7 @@ on tour_object_library
 end tour_object_library
 
 on tour_navigator
-   local tBefore, tNew
+   local tBefore, tNew, tFail
    put the openStacks into tBefore
    -- as Tools > Card Navigator does
    send "tOpenNavigator" to stack "revMenuBar"
@@ -8831,8 +9290,150 @@ on tour_navigator
       close stack tNew
       throw "the IDE lists the Card Navigator among the user's stacks"
    end if
+   put tourNavigatorClone(tNew) into tFail
+   if tFail is empty then put tourNavigatorShowAll(tNew) into tFail
    close stack tNew
+   if tFail is not empty then throw tFail
 end tour_navigator
+
+-- The Card Navigator's "Clone Card" (OpenXTalkPaul, openxtalk.org
+-- p=26111: a flip-book is made card by card, each a copy of the last):
+-- on a stack of two cards, the first named "Frame 1001" (a number that
+-- is no card's id) and with a field, a click on it while
+-- the first is in front makes a copy of it, with its field, as card 2 and
+-- goes to it; the second card is now card 3. The window cannot be
+-- changed, and the engine refuses "clone card" while such a stack is the
+-- default, which the button's script works around: the default stack is
+-- the same after the click. Returns empty, or what went wrong
+function tourNavigatorClone pNav
+   local tStack, tDefault, tFail
+   if there is not a button "Clone Card" of stack pNav then return "the Card Navigator has no Clone Card button"
+   put "OXT Tour Flip Book" into tStack
+   if there is a stack tStack then delete stack tStack
+   create stack tStack
+   set the rect of stack tStack to 500, 200, 900, 500
+   set the defaultStack to tStack
+   create field "frame"
+   put "frame 1" into field "frame" of card 1 of stack tStack
+   -- a named card: the stack's currentCard is then its name, not its id
+   set the name of card 1 of stack tStack to "Frame 1001"
+   new card
+   set the name of card 2 of stack tStack to "second"
+   go card 1 of stack tStack
+   put tStack into field "stackName" of stack pNav
+   put the defaultStack into tDefault
+   send "mouseDown" to button "Clone Card" of stack pNav
+   tourWait 300
+   if the number of cards of stack tStack is not 3 then
+      put "Clone Card made no copy (" & the number of cards of stack tStack && "cards)" into tFail
+   else if the number of this card of stack tStack is not 2 then
+      put "Clone Card did not go to the copy (card" && the number of this card of stack tStack & ")" into tFail
+   else if the number of fields of card 2 of stack tStack is not 1 or field 1 of card 2 of stack tStack is not "frame 1" then
+      put "the copy is not the card it was made from" into tFail
+   else if the short name of card 2 of stack tStack is not "Frame 1001" then
+      put "the copy is not of the card in front (" & the short name of card 2 of stack tStack & ")" into tFail
+   else if the short name of card 3 of stack tStack is not "second" then
+      put "the copy is not right after the card it was made from" into tFail
+   else if the defaultStack is not tDefault then
+      put "Clone Card left the default stack" && the defaultStack into tFail
+   end if
+   delete stack tStack
+   return tFail
+end tourNavigatorClone
+
+-- The Card Navigator's "Show All" (OpenXTalkPaul, p=26111: "show all
+-- cards" flipping through the cards as HyperCard's did, which the engine's
+-- does too fast to see): on a stack of four cards, red, green, blue and
+-- yellow, a click on it while the red one is in front opens the others in
+-- turn and comes back to the red one, at least 50 milliseconds apart (it
+-- waits 66 between cards). The stack's openCard reads the middle of the
+-- window: the card before the one opening, or that one, never an older
+-- one, so each card was on the screen. The default stack is the same after
+-- the click, and the buttons of the row do not overlap and fit the
+-- window. Returns empty, or what went wrong
+local sShowAllStack, sShowAllSeen
+
+function tourNavigatorShowAll pNav
+   local tStack, tDefault, tFail, tLast, tButton, tColours, tNames, tLine, tPrevious, tWhen, tWant, i
+   if there is not a button "Show All" of stack pNav then return "the Card Navigator has no Show All button"
+   put "OXT Tour Show All" into tStack
+   put tStack into sShowAllStack
+   if there is a stack tStack then delete stack tStack
+   create stack tStack
+   set the rect of stack tStack to 500, 200, 900, 500
+   put "red,green,blue,yellow" into tNames
+   put "255,0,0|0,255,0|0,0,255|255,255,0" into tColours
+   lock messages
+   repeat with i = 1 to 4
+      if i > 1 then create card in stack tStack
+      set the itemDelimiter to "|"
+      set the backColor of card i of stack tStack to item i of tColours
+      set the itemDelimiter to comma
+      set the name of card i of stack tStack to item i of tNames
+   end repeat
+   set the script of stack tStack to "on openCard" & return & "send " & quote & "tourShowAllSeen" & quote & " to stack " & quote & "oxt_ui_tour" & quote & return & "end openCard"
+   unlock messages
+   go card 1 of stack tStack
+   tourUnlockScreen "navigator"
+   tourWait 300
+   put tStack into field "stackName" of stack pNav
+   put the defaultStack into tDefault
+   put empty into sShowAllSeen
+   send "mouseDown" to button "Show All" of stack pNav
+   tourRecord "INFO navigator: Show All opened" && replaceText(word 1 to -1 of sShowAllSeen, return, " | ")
+   if the number of lines of sShowAllSeen is not 4 then
+      put "Show All opened" && the number of lines of sShowAllSeen && "cards, not 4" into tFail
+   else if the short name of this card of stack tStack is not "red" then
+      put "Show All did not come back to the card it began on" into tFail
+   else if the defaultStack is not tDefault then
+      put "Show All left the default stack" && the defaultStack into tFail
+   else
+      put "red" into tPrevious
+      put empty into tWhen
+      repeat with i = 1 to 4
+         put line i of sShowAllSeen into tLine
+         put (i mod 4) + 1 into tWant
+         if item 1 of tLine is not item tWant of tNames then
+            put "Show All opened" && item 1 of tLine && "as card" && i into tFail
+            exit repeat
+         end if
+         if item 3 of tLine is not tPrevious and item 3 of tLine is not item 1 of tLine then
+            put "the screen showed" && item 3 of tLine && "as" && item 1 of tLine && "opened, not" && tPrevious && "or" && item 1 of tLine into tFail
+            exit repeat
+         end if
+         if tWhen is not empty and item 2 of tLine - tWhen < 50 then
+            put "Show All opened" && item 1 of tLine && "only" && (item 2 of tLine - tWhen) && "ms after the card before it" into tFail
+            exit repeat
+         end if
+         put item 1 of tLine into tPrevious
+         put item 2 of tLine into tWhen
+      end repeat
+   end if
+   delete stack tStack
+   if tFail is not empty then return tFail
+   put 0 into tLast
+   repeat for each item tButton in "New Card,Clone Card,Show All,Delete Card"
+      if the left of button tButton of stack pNav < tLast then return "the button" && tButton && "overlaps the one before it"
+      put the right of button tButton of stack pNav into tLast
+   end repeat
+   if tLast > the width of stack pNav then return "Delete Card is past the window's right edge"
+   return empty
+end tourNavigatorShowAll
+
+-- From the openCard of the stack of tourNavigatorShowAll: a line of the
+-- card's name, the milliseconds and the colour the screen shows at the
+-- middle of the window, as a word
+on tourShowAllSeen
+   local tRect, tPixel, tWord
+   put the rect of stack sShowAllStack into tRect
+   put tourPixelAt((item 1 of tRect + item 3 of tRect) div 2, (item 2 of tRect + item 4 of tRect) div 2) into tPixel
+   put "other(" & replaceText(tPixel, comma, " ") & ")" into tWord
+   if item 1 of tPixel > 200 and item 2 of tPixel < 60 and item 3 of tPixel < 60 then put "red" into tWord
+   if item 1 of tPixel < 60 and item 2 of tPixel > 200 and item 3 of tPixel < 60 then put "green" into tWord
+   if item 1 of tPixel < 60 and item 2 of tPixel < 60 and item 3 of tPixel > 200 then put "blue" into tWord
+   if item 1 of tPixel > 200 and item 2 of tPixel > 200 and item 3 of tPixel < 60 then put "yellow" into tWord
+   put the short name of this card of stack sShowAllStack & comma & the milliseconds & comma & tWord & return after sShowAllSeen
+end tourShowAllSeen
 
 on tour_about
    local tBefore, tNew
@@ -10274,8 +10875,98 @@ command tourCodeMeasure pWhen
    end if
 end tourCodeMeasure
 
+-- The IDE's Source Code Pro files other than its regular, italic, bold
+-- and bold italic ones (Light, Medium, Semibold and the rest), one path
+-- a line
+function tourCodeOtherFaces
+   local tFolder, tFile, tFaces
+   put revIDESpecialFolderPath("fonts") into tFolder
+   repeat for each line tFile in files(tFolder)
+      if tFile begins with "SourceCodePro-" and tFile ends with ".ttf" and \
+            tFile is not among the items of "SourceCodePro-Regular.ttf,SourceCodePro-It.ttf,SourceCodePro-Bold.ttf,SourceCodePro-BoldIt.ttf" then
+         put tFolder & slash & tFile & return after tFaces
+      end if
+   end repeat
+   delete the last char of tFaces
+   return tFaces
+end tourCodeOtherFaces
+
+-- The field of kCodeFontStack in Source Code Pro, pStyle: "<ink>,<PNG>",
+-- the ink being how far its points are from the colour of the point at
+-- 4,4 (inside the border, above the text), added up
+function tourCodeShot pStyle
+   local tData, tPixels, tIndex, tR, tG, tB, tInk
+   set the textFont of field "Code" of stack kCodeFontStack to "Source Code Pro"
+   set the textStyle of field "Code" of stack kCodeFontStack to pStyle
+   export snapshot from field "Code" of stack kCodeFontStack to tData as PNG
+   set the text of image "Ink" of stack kCodeFontStack to tData
+   put the imageData of image "Ink" of stack kCodeFontStack into tPixels
+   put (3 * the width of image "Ink" of stack kCodeFontStack + 3) * 4 into tIndex
+   put byteToNum(byte tIndex + 2 of tPixels) into tR
+   put byteToNum(byte tIndex + 3 of tPixels) into tG
+   put byteToNum(byte tIndex + 4 of tPixels) into tB
+   put 0 into tInk
+   repeat with tIndex = 1 to the number of bytes of tPixels - 3 step 4
+      add abs(byteToNum(byte tIndex + 1 of tPixels) - tR) + abs(byteToNum(byte tIndex + 2 of tPixels) - tG) + \
+            abs(byteToNum(byte tIndex + 3 of tPixels) - tB) to tInk
+   end repeat
+   return tInk & comma & tData
+end tourCodeShot
+
+-- Up to 0.2.7 on Windows, plain text asked DirectWrite for weight 500 (the
+-- engine's plain weight is FW_MEDIUM in its LOGFONT, engine/src/w32flst.cpp),
+-- so once the IDE had loaded Source Code Pro Medium, plain code was drawn
+-- in that heavier face (libgraphics/src/directwrite-skia.cpp). Plain and
+-- bold Source Code Pro are drawn the same, point for point, with the IDE's
+-- other ten faces loaded as with only its four: those ten are unloaded,
+-- the field is drawn again, and they are loaded again, all of them, so the
+-- IDE keeps every face. Empty, or what differed
+function tourCodeWeight
+   local tOthers, tFile, tStyle, tAll, tFour, tUnloaded, tProblem, tError
+   put tourCodeOtherFaces() into tOthers
+   if the number of lines of tOthers is not 10 then
+      return "the IDE's fonts folder has" && the number of lines of tOthers && \
+            "Source Code Pro files besides its regular, italic, bold and bold italic, not 10"
+   end if
+   repeat for each item tStyle in "plain,bold"
+      put tourCodeShot(tStyle) into tAll[tStyle]
+   end repeat
+   try
+      repeat for each line tFile in tOthers
+         stop using font file tFile
+         if the result is not empty then throw tFile && "did not unload:" && the result
+         put tFile & return after tUnloaded
+      end repeat
+      repeat for each item tStyle in "plain,bold"
+         put tourCodeShot(tStyle) into tFour[tStyle]
+      end repeat
+   catch tError
+      put tError & return after tProblem
+   end try
+   repeat for each line tFile in tUnloaded
+      start using font file tFile
+      if the result is not empty then
+         put tFile && "did not load again:" && the result & return after tProblem
+      end if
+   end repeat
+   if tProblem is not empty then return char 1 to -2 of tProblem
+   repeat for each item tStyle in "plain,bold"
+      tourRecord "INFO code-font:" && tStyle && "Source Code Pro's ink with all fourteen faces loaded" && \
+            item 1 of tAll[tStyle] & ", with only the four" && item 1 of tFour[tStyle]
+      if tAll[tStyle] is not tFour[tStyle] then
+         put tStyle && "Source Code Pro is drawn in another face when the IDE's other faces are loaded (ink" && \
+               item 1 of tAll[tStyle] && "with them," && item 1 of tFour[tStyle] && "without)" & return after tProblem
+      end if
+   end repeat
+   if the number of lines of tourCodeOtherFaces() is not 10 then
+      put "the IDE's fonts folder lost Source Code Pro files" & return after tProblem
+   end if
+   delete the last char of tProblem
+   return tProblem
+end tourCodeWeight
+
 on tour_code_font
-   local tDefault, tFiles, tBefore, tNow, tGone, tRound, tFile, tIndex, tFamily, tFails, tError
+   local tDefault, tFiles, tBefore, tNow, tGone, tRound, tFile, tIndex, tFamily, tFails, tError, tWeight
    if "Source Code Pro" is not among the lines of the fontNames then
       throw "Source Code Pro, the IDE's code font, is not among the fontNames"
    end if
@@ -10290,6 +10981,9 @@ on tour_code_font
    set the dontWrap of it to true
    set the textSize of it to 13
    set the text of it to "iiiiiiiiii" & return & "MMMMMMMMMM"
+   -- where tourCodeShot reads the field's points
+   create image "Ink"
+   hide it
    unlock messages
    set the defaultStack to tDefault
    try
@@ -10299,6 +10993,7 @@ on tour_code_font
       go stack kCodeFontStack
       tourWait 300
       tourShotStack kCodeFontStack, "98-code-font"
+      put tourCodeWeight() into tWeight
 
       put $OXT_TOUR_FONT_FILES into tFiles
       replace "|" with return in tFiles
@@ -10368,6 +11063,9 @@ on tour_code_font
    delete stack kCodeFontStack
    if tFails is not empty then
       throw "the fonts loaded are not the fonts listed:" && tourJoin(char 1 to -2 of tFails)
+   end if
+   if tWeight is not empty then
+      throw "the code font's weight:" && tourJoin(tWeight)
    end if
 end tour_code_font
 
@@ -10490,11 +11188,13 @@ on tour_background_default
                tScreen && "on the card" && tCard & "; in its snapshot" && (item 1 to 3 of tRaw) && \
                "at alpha" && (item 4 of tRaw) & "), not the dark appearance's" & return after tFails
       else if $OXT_TOUR_APPEARANCE is "dark" and max(item 1 of tPlain, item 2 of tPlain, item 3 of tPlain) >= 160 then
-         -- known, queued after the GM: the snapshot of a button alone is
-         -- drawn in the light appearance
-         tourRecord "INFO background-default: KNOWN: in the dark appearance the snapshot of an ordinary button" && \
-               tHeight && "points high has a light face (" & (item 1 to 3 of tRaw) && "at alpha" && (item 4 of tRaw) & \
-               ") where the screen shows" && tScreen
+         -- the snapshot of a button alone, as it shows on the card, must
+         -- be dark as the screen is: the theme drew it in the light
+         -- appearance (an opaque white face under a light label) until
+         -- 0.2.8 (osxtheme.mm, MCMacThemeDrawInAppearance)
+         put "in the dark appearance the snapshot of an ordinary button" && tHeight && \
+               "points high has a light face as it shows on the card (" & (item 1 to 3 of tPlain) & "; raw" && \
+               (item 1 to 3 of tRaw) && "at alpha" && (item 4 of tRaw) & ") where the screen shows" && tScreen & return after tFails
       end if
       put min(200, item 4 of tPlain - 30) into tNeed
       if item 4 of tMeasure < tNeed then

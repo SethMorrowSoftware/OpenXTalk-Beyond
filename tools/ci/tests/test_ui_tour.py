@@ -20,6 +20,10 @@ and later write it, and a .crash); and the crash dialog it keeps off CI's
 screen. And the tour's macOS system-switch step, read from the tour
 script: how it posts the switch, and that it still checks the message.
 And its log, on a console that cannot show every character.
+And the question macOS asks when the runner first asks the IDE one
+(mac_ask): on a runner Allow is pressed and the question asked again, a
+dialog nobody could answer is closed, and on a person's own Mac nothing
+is pressed.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -204,6 +208,142 @@ class CrashDialog(unittest.TestCase):
         _, ran, lines = self.run_it(1)
         self.assertEqual(ran, [['pkill', '-x', 'Problem Reporter']])
         self.assertEqual(lines, ['The Mac: no crash dialog (com.apple.CrashReporter DialogType none, UseUNC 1)'])
+
+
+class ConsentDialog(unittest.TestCase):
+    """The first Apple event the runner sends the IDE makes macOS ask
+    whether it may ('"hosted-compute-agent" wants access to control
+    "OXT-Beyond"'). Unanswered, it held the answer back and stayed over
+    the next run: the Intel Mac job of #485, whose dark tour measured
+    Preferences' labels through it after the light tour ran out of time."""
+
+    SAID = ('\u201chosted-compute-agent\u201d wants access to control \u201cOXT-Beyond\u201d. Allowing control '
+            'will provide access to documents and data in \u201cOXT-Beyond\u201d, and to perform actions within '
+            'that app.')
+
+    def setUp(self):
+        self.folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.folder, ignore_errors=True)
+        self.app = os.path.join(self.folder, 'OXT-Beyond.app')
+        os.makedirs(os.path.join(self.app, 'Contents'))
+        import plistlib
+        with open(os.path.join(self.app, 'Contents', 'Info.plist'), 'wb') as f:
+            plistlib.dump({'CFBundleIdentifier': 'io.github.sethmorrowsoftware.oxt-beyond'}, f)
+
+    def ask(self, answers, on_a_runner=True, dialog='allowed: ' + SAID, pkill_status=0):
+        """mac_ask of two questions. answers: what each asking of the IDE
+        gives in turn, None for no answer in time. Returns (what mac_ask
+        returned, the commands run, the log's lines)."""
+        answers, ran = list(answers), []
+        out = io.StringIO()
+
+        def run(cmd, **kw):
+            ran.append(cmd)
+            if cmd[0] == 'pkill':
+                return mock.Mock(returncode=pkill_status)
+            if cmd[2] == self.allow():
+                return mock.Mock(returncode=0, stdout=dialog.encode('utf-8'))
+            answer = answers.pop(0)
+            if answer is None:
+                raise ui_tour.subprocess.TimeoutExpired(cmd, kw.get('timeout'))
+            return mock.Mock(returncode=0, stdout=answer.encode('utf-8'))
+
+        env = dict(os.environ)
+        env.pop('GITHUB_ACTIONS', None)
+        if on_a_runner:
+            env['GITHUB_ACTIONS'] = 'true'
+        with mock.patch.object(ui_tour.shutil, 'which', side_effect=lambda name: '/usr/bin/' + name), \
+                mock.patch.object(ui_tour.subprocess, 'run', side_effect=run), \
+                mock.patch.dict(os.environ, env, clear=True), \
+                contextlib.redirect_stdout(out):
+            answered = ui_tour.mac_ask(self.app, questions=('the version', 'the openStacks'))
+        return answered, ran, out.getvalue().splitlines()
+
+    def allow(self):
+        return getattr(ui_tour, 'MAC_ALLOW', None)
+
+    def kinds(self, ran):
+        return ['close' if cmd[0] == 'pkill' else 'allow' if cmd[2] == self.allow() else 'ask'
+                for cmd in ran]
+
+    def test_on_a_runner_allow_is_pressed_and_the_question_asked_again(self):
+        answered, ran, lines = self.ask([None, '9.7.1-BeyondEngine', 'Home'])
+        self.assertTrue(answered)
+        self.assertEqual(self.kinds(ran), ['ask', 'allow', 'ask', 'ask'])
+        # the same question again, and the dialog is asked about this app
+        self.assertEqual(ran[0], ran[2])
+        self.assertEqual(ran[1], ['osascript', '-e', ui_tour.MAC_ALLOW, 'OXT-Beyond'])
+        self.assertEqual(lines, [
+            '::group::What the IDE says (AppleScript to io.github.sethmorrowsoftware.oxt-beyond)',
+            'macOS asked whether the runner may control OXT-Beyond: Allow pressed (%s)' % self.SAID,
+            'the version: 9.7.1-BeyondEngine',
+            'the openStacks: Home',
+            '::endgroup::'])
+
+    def test_an_ide_that_answers_is_asked_as_before(self):
+        answered, ran, lines = self.ask(['9.7.1-BeyondEngine', 'Home'])
+        self.assertTrue(answered)
+        self.assertEqual(self.kinds(ran), ['ask', 'ask'])
+        self.assertEqual(lines[1:3], ['the version: 9.7.1-BeyondEngine', 'the openStacks: Home'])
+
+    def test_allow_is_pressed_once_and_a_dialog_left_is_closed(self):
+        # still no answer after Allow: the IDE itself is not answering
+        answered, ran, lines = self.ask([None, None])
+        self.assertFalse(answered)
+        self.assertEqual(self.kinds(ran), ['ask', 'allow', 'ask', 'close'])
+        self.assertEqual(ran[-1], ['pkill', '-x', 'UserNotificationCenter'])
+        self.assertEqual(lines[-3:], ['the version: no answer in 20 s; asking no more',
+                                      'Closed a question of macOS that nobody answered (UserNotificationCenter)',
+                                      '::endgroup::'])
+
+    def test_a_later_question_with_no_answer_does_not_press_again(self):
+        answered, ran, lines = self.ask([None, '9.7.1-BeyondEngine', None])
+        self.assertFalse(answered)
+        self.assertEqual(self.kinds(ran), ['ask', 'allow', 'ask', 'ask', 'close'])
+        self.assertIn('the openStacks: no answer in 20 s; asking no more', lines)
+
+    def test_no_dialog_to_answer(self):
+        # the IDE does not answer and macOS asked nothing: nothing was open
+        answered, ran, lines = self.ask([None], dialog='no dialog', pkill_status=1)
+        self.assertFalse(answered)
+        self.assertEqual(self.kinds(ran), ['ask', 'allow', 'close'])
+        self.assertEqual(lines[1:], ['(no question of macOS about OXT-Beyond to answer: no dialog)',
+                                     'the version: no answer in 20 s; asking no more',
+                                     '::endgroup::'])
+
+    def test_a_question_about_another_app_is_not_answered(self):
+        said = 'another question: \u201chosted-compute-agent\u201d wants access to control \u201cFinder\u201d.'
+        answered, ran, lines = self.ask([None], dialog=said)
+        self.assertFalse(answered)
+        self.assertEqual(self.kinds(ran), ['ask', 'allow', 'close'])
+        self.assertEqual(lines[1], '(no question of macOS about OXT-Beyond to answer: %s)' % said)
+
+    def test_on_a_persons_own_mac_nothing_is_pressed_or_closed(self):
+        answered, ran, lines = self.ask([None], on_a_runner=False)
+        self.assertFalse(answered)
+        self.assertEqual(self.kinds(ran), ['ask'])
+        self.assertEqual(lines[1:], ['the version: no answer in 20 s; asking no more', '::endgroup::'])
+
+    def test_the_script_presses_allow_only_in_the_dialog_that_names_the_app(self):
+        script = ui_tour.MAC_ALLOW
+        self.assertIn('tell process "UserNotificationCenter"', script)
+        self.assertNotIn('every process', script)
+        self.assertEqual(script.count('click button'), 1)
+        names = script.index('if said contains theApp then')
+        press = script.index('click button "Allow" of w')
+        other = script.index('return "another question: " & said')
+        self.assertLess(names, press)
+        self.assertLess(press, other)
+        # between the test and the press, nothing but the press
+        self.assertEqual(script[names:press].strip(), 'if said contains theApp then')
+
+    def test_both_callers_ask_through_it(self):
+        # the tour and the web check ask where a stalled IDE stopped
+        here = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+        with open(os.path.join(here, 'ui_tour.py'), encoding='utf-8') as f:
+            self.assertIn('mac_ask(mac_app(lay.engine))', f.read())
+        with open(os.path.join(here, 'web_check.py'), encoding='utf-8') as f:
+            self.assertIn('ui_tour.mac_ask(ui_tour.mac_app(lay.engine))', f.read())
 
 
 class TheLog(unittest.TestCase):
@@ -787,6 +927,122 @@ class CardNavigator(unittest.TestCase):
         self.assertGreater(self.step.rindex('close stack tNew'), thrown)
 
 
+class CardNavigatorClone(unittest.TestCase):
+    """The Card Navigator's "Clone Card" (OpenXTalkPaul, openxtalk.org
+    p=26111: a flip-book is made card by card). The step clicks it on a
+    stack of two cards and checks the copy: card 2, in front, with the
+    first card's field, the old second card now third, the default stack
+    as it was. It fails on 0.2.7's navigator, which has no such button."""
+
+    def setUp(self):
+        with open(TOUR, encoding='utf-8') as f:
+            script = f.read()
+        self.step = handler(script, 'on', 'tour_navigator')
+        self.check = handler(script, 'function', 'tourNavigatorClone')
+
+    def test_the_step_runs_it_and_closes_the_window_first(self):
+        run = self.step.index('put tourNavigatorClone(tNew) into tFail')
+        closed = self.step.index('close stack tNew', run)
+        self.assertLess(closed, self.step.index('if tFail is not empty then throw tFail'))
+
+    def test_a_click_on_the_button(self):
+        self.assertIn('if there is not a button "Clone Card" of stack pNav then return', self.check)
+        self.assertIn('put tStack into field "stackName" of stack pNav', self.check)
+        self.assertIn('send "mouseDown" to button "Clone Card" of stack pNav', self.check)
+        # the first card in front, so the copy goes between the two
+        self.assertLess(self.check.index('go card 1 of stack tStack'), self.check.index('send "mouseDown"'))
+
+    def test_what_it_checks(self):
+        for part in ('if the number of cards of stack tStack is not 3 then',
+                     'else if the number of this card of stack tStack is not 2 then',
+                     'field 1 of card 2 of stack tStack is not "frame 1"',
+                     'else if the short name of card 2 of stack tStack is not "Frame 1001" then',
+                     'else if the short name of card 3 of stack tStack is not "second" then',
+                     'else if the defaultStack is not tDefault then'):
+            self.assertIn(part, self.check)
+        # its scratch stack is gone either way
+        self.assertLess(self.check.index('delete stack tStack'), self.check.index('return tFail'))
+
+    def test_show_all_follows_a_clone_that_works(self):
+        clone = self.step.index('put tourNavigatorClone(tNew) into tFail')
+        show = self.step.index('if tFail is empty then put tourNavigatorShowAll(tNew) into tFail')
+        self.assertLess(clone, show)
+        self.assertLess(show, self.step.index('close stack tNew', show))
+
+    def test_the_button_works_round_the_locked_window(self):
+        # the engine will not clone a card while a stack that cannot be
+        # changed (the navigator) is the default stack
+        text = read_navigator_script(1029)
+        self.assertIn('button "Clone Card" (id 1029)', text)
+        set_default = text.index('set the defaultStack to tStack')
+        # by its id: the currentCard of a named card is its name
+        clone = text.index('clone card id (the short id of this card of stack tStack) of stack tStack')
+        self.assertNotIn('currentCard', text)
+        restore = text.index('set the defaultStack to tDefault', clone)
+        self.assertLess(set_default, clone)
+        self.assertLess(clone, restore)
+        self.assertIn('if tDefault is not empty then set the defaultStack to tDefault', text[restore + 1:])
+
+
+class CardNavigatorShowAll(unittest.TestCase):
+    """The Card Navigator's "Show All" (OpenXTalkPaul, p=26111: "show all
+    cards" flipping as HyperCard's did; the engine's goes through the
+    cards too fast to see, and is left as it is). The step clicks it on
+    four coloured cards: each opens in turn, at least 50 ms apart, the
+    screen showing each, and it comes back to the first. It fails on
+    0.2.7's navigator, which has no such button."""
+
+    def setUp(self):
+        with open(TOUR, encoding='utf-8') as f:
+            script = f.read()
+        self.check = handler(script, 'function', 'tourNavigatorShowAll')
+        self.seen = handler(script, 'on', 'tourShowAllSeen')
+        self.button = read_navigator_script(1030)
+
+    def test_a_click_on_the_button(self):
+        self.assertIn('if there is not a button "Show All" of stack pNav then return', self.check)
+        self.assertIn('send "mouseDown" to button "Show All" of stack pNav', self.check)
+        self.assertLess(self.check.index('go card 1 of stack tStack'), self.check.index('send "mouseDown"'))
+
+    def test_what_it_checks(self):
+        for part in ('if the number of lines of sShowAllSeen is not 4 then',
+                     'else if the short name of this card of stack tStack is not "red" then',
+                     'else if the defaultStack is not tDefault then',
+                     'put (i mod 4) + 1 into tWant',
+                     'if item 3 of tLine is not tPrevious and item 3 of tLine is not item 1 of tLine then',
+                     'if tWhen is not empty and item 2 of tLine - tWhen < 50 then'):
+            self.assertIn(part, self.check)
+        self.assertLess(self.check.index('delete stack tStack'),
+                        self.check.index('if tFail is not empty then return tFail'))
+        # the stack's openCard reads the screen at the middle of its window
+        self.assertIn('send " & quote & "tourShowAllSeen" & quote & " to stack', self.check)
+        self.assertIn('put tourPixelAt((item 1 of tRect + item 3 of tRect) div 2, '
+                      '(item 2 of tRect + item 4 of tRect) div 2) into tPixel', self.seen)
+        self.assertIn('& the milliseconds &', self.seen)
+
+    def test_the_row_fits(self):
+        self.assertIn('repeat for each item tButton in "New Card,Clone Card,Show All,Delete Card"', self.check)
+        self.assertIn('if tLast > the width of stack pNav then return', self.check)
+
+    def test_the_button(self):
+        self.assertIn('button "Show All" (id 1030)', self.button)
+        loop = self.button.index('repeat the number of cards of stack tStack times')
+        self.assertLess(self.button.index('set the defaultStack to tStack'), loop)
+        self.assertIn('show 1 card', self.button[loop:])
+        self.assertIn('wait 66 milliseconds', self.button[loop:])
+        self.assertIn('set the defaultStack to tDefault', self.button[loop:])
+        # the engine's command is not changed
+        self.assertNotIn('show all cards\n', self.button)
+
+
+def read_navigator_script(object_id):
+    path = os.path.join(os.path.dirname(TOUR), '..', '..', 'stack-scripts', 'ide', 'Toolset', 'palettes',
+                        'navigatorIDE.oxtstack.bst', 'scripts',
+                        'stack_Card_Navigator_button_id_%d.livecodescript' % object_id)
+    with open(path, encoding='utf-8') as f:
+        return f.read()
+
+
 class IDEStacks(unittest.TestCase):
     """After the tour has opened nearly every window, no stack in memory
     from the IDE's own folders is among the user's stacks as the IDE lists
@@ -884,3 +1140,40 @@ class ClosedWindowOffTheScreen(unittest.TestCase):
         consts = dict(re.findall(r'^constant (kStill\w+) = (\d+)$', self.tour, re.M))
         self.assertGreaterEqual(int(consts['kStillFor']), 300)  # longer than macOS's fade
         self.assertLess(int(consts['kStillFor']), int(consts['kStillMax']))
+
+
+class MenuCheckWaitsForTheMenuBarsOwnBuild(unittest.TestCase):
+    """revMenubarBuildMenus does nothing while a build of it waits, and on a
+    Mac a selection sends one (ideSelectedObjectChanged, then a build in
+    1 ms). On an Intel Mac runner (#478, a50a3a04) svg-import's menu check
+    asked for its build while that one waited, and read the Object menu of
+    the selection before. The check now waits until no build, nor the
+    message that leads to one, waits."""
+
+    def setUp(self):
+        with open(TOUR, encoding='utf-8') as f:
+            self.tour = f.read()
+        with open(os.path.join(os.path.dirname(TOUR), '..', '..', 'ide', 'Toolset', 'palettes', 'menubar', 'revmenubar.livecodescript'),
+                  encoding='utf-8') as f:
+            self.menubar = f.read()
+
+    def test_the_menu_bar_still_skips_a_build_while_one_waits(self):
+        # what the wait is for: if this guard goes, so can the wait
+        self.assertIn('if the pendingmessages contains "revMenubarBuildMenus" then exit revMenubarBuildMenus',
+                      self.menubar)
+
+    def test_the_check_waits_before_it_asks_for_the_build(self):
+        check = handler(self.tour, 'function', 'tourSvgMenuCheck')
+        settled = check.index('tourMenuBuildSettled pWhat')
+        self.assertGreater(settled, check.index('revIDESelectObjects pObjects'))
+        self.assertLess(settled, check.index('dispatch "revMenubarBuildMenus" to stack "revMenuBar"'))
+
+    def test_the_wait_looks_for_the_build_and_its_message(self):
+        waiting = handler(self.tour, 'function', 'tourMenuBuildWaiting')
+        self.assertIn('repeat for each line tLine in the pendingMessages', waiting)
+        self.assertIn('"revMenubarBuildMenus,ideMessageSend"', waiting)
+        settled = handler(self.tour, 'command', 'tourMenuBuildSettled')
+        self.assertIn('wait 100 milliseconds with messages', settled)
+        # bounded, and a wait that ran out is recorded
+        self.assertIn('repeat with tTry = 1 to 30', settled)
+        self.assertIn('tourRecord "INFO svg-menu with" && pWhat', settled)

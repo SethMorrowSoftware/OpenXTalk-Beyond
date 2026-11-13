@@ -101,6 +101,7 @@ on:
       - '.github/workflows/ide-screenshots.yml'
       - '.github/workflows/media-check.yml'
       - '.github/workflows/window-frame-check.yml'
+      - '.github/workflows/dark-switch-check.yml'
       - '.github/workflows/release.yml'
       - '.github/workflows/runtimes.yml'
       - '.github/workflows/tag-release.yml'
@@ -148,13 +149,15 @@ on:
       - 'tools/ci/web-tests.livecodescript'
       - 'tools/ci/web_tests.py'
   # DRAFT PULL REQUESTS (2026-11-06). A draft runs none of this workflow's
-  # jobs: each job's `if:` ends in `github.event.pull_request.draft != true`,
-  # and marking the pull request ready (ready_for_review, below) starts the
-  # whole run on its newest commit. A draft is work in progress whose commits
-  # land minutes apart, and each one used to start this full build only for
-  # the next to cancel it (26 of 52 builds on 2026-11-06 00:38-02:15 UTC). CI
-  # checks still run on every draft commit. A push, a dispatch and a call from
-  # release.yml have no pull request, so the condition is always true there.
+  # jobs but the first, `gate`, which asks GitHub whether the pull request
+  # is a draft now; every other job needs it and its `if:` ends in
+  # `needs.gate.outputs.build != 'false'`. Marking the pull request ready
+  # (ready_for_review, below) starts the whole run on its newest commit. A
+  # draft is work in progress whose commits land minutes apart, and each
+  # one used to start this full build only for the next to cancel it (26
+  # of 52 builds on 2026-11-06 00:38-02:15 UTC). CI checks still run on
+  # every draft commit. A push, a dispatch and a call from release.yml
+  # have no pull request, so the gate says build there without asking.
   # tools/ci/tests/test_draft_builds.py holds every job to it.
   pull_request:
     branches: [main]
@@ -209,11 +212,100 @@ concurrency:
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
+  # THE DRAFT GATE (2026-11-12). Whether a run builds is asked of the pull
+  # request as it is now, not of the event that started the run. Until this
+  # date each job read the event's own copy, `github.event.pull_request.draft`,
+  # and that copy is as old as the event: a push to a draft that is marked
+  # ready a moment later sends a `synchronize` event that still says draft.
+  # GitHub can start that event's run after the `ready_for_review` run (one
+  # second after it on #478, 109 seconds after it on #475, both 2026-11-11).
+  # The later run then cancelled the ready run through the concurrency group
+  # and skipped every job of its own, so nothing was built and nothing was
+  # red. Of the nine required checks (BUILDING.md), "Build win-x86_64" and
+  # "Package mac-universal" showed as skipped, which GitHub counts as
+  # passed; the seven that come from matrix jobs were never reported as
+  # passed (a skipped matrix job's check keeps its unexpanded name), so
+  # the pull request waited for checks no run was going to report, until
+  # someone looked. Asked now, the late run finds the pull request ready
+  # and builds.
+  #
+  # Only the answer "draft" stops a run, which is why the other jobs ask
+  # for `!= 'false'` and not `== 'true'`: when GitHub gives no answer the
+  # step says build, and a gate that failed outright leaves no output at
+  # all. A build too many costs minutes; a build too few leaves a pull
+  # request waiting for nothing, or a release without a platform.
+  #
+  # What a gate that itself goes wrong does to the jobs that need it was
+  # asked of GitHub with a workflow made for the question (#480, run
+  # 43155664105, 2026-11-12):
+  #   - its step fails: with continue-on-error the jobs that need it see
+  #     its result as success and run, a job that needs the gate and one
+  #     of those too. Without continue-on-error a job with this condition
+  #     is skipped, which is why the key is there;
+  #   - it runs into its own timeout: the job ends as cancelled, and
+  #     continue-on-error does not cover that. A job with this condition
+  #     is skipped, and only one whose condition has !cancelled() starts.
+  # So the one call that could hang is given up after 30 seconds
+  # (`timeout`), which leaves the step far inside the job's five minutes,
+  # and the second case is left to a runner that hangs outside the step.
+  # Not seen: what such a run's own conclusion is.
+  #
+  # A draft's run now ends as passed, not skipped, since the gate itself
+  # ran: its notice on the run's page says that nothing was built. The job
+  # is the same text in build-windows.yml, build-linux.yml,
+  # build-macos.yml, web-ide.yml and web-host.yml, and it needs no
+  # checkout; tools/ci/tests/test_draft_builds.py runs its step and holds
+  # the five equal.
+  gate:
+    name: Draft check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    continue-on-error: true
+    outputs:
+      build: ${{ steps.ask.outputs.build }}
+    steps:
+      - name: Ask whether the pull request is a draft now
+        id: ask
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          build=true
+          if [ "$EVENT_NAME" = pull_request ]; then
+            draft=
+            for try in 1 2 3; do
+              if draft=$(timeout 30 gh api "repos/$REPO/pulls/$PR_NUMBER" --jq .draft); then
+                break
+              fi
+              draft=
+              if [ "$try" -lt 3 ]; then sleep $((try * 5)); fi
+            done
+            case "$draft" in
+              true)
+                build=false
+                echo "::notice::Pull request #$PR_NUMBER is a draft: this run builds nothing. Marking it ready for review starts the builds."
+                ;;
+              false)
+                echo "Pull request #$PR_NUMBER is ready for review: this run builds."
+                ;;
+              *)
+                echo "::warning::GitHub did not say whether pull request #$PR_NUMBER is a draft, so this run builds."
+                ;;
+            esac
+          else
+            echo "No pull request ($EVENT_NAME): this run builds."
+          fi
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+
   # The documentation data of the packages (docs.yml), which the build job
   # packages: it takes a few minutes, before the build starts
   docs:
     name: Docs
-    if: ${{ github.event.pull_request.draft != true }}
+    needs: gate
+    if: ${{ needs.gate.outputs.build != 'false' }}
     uses: ./.github/workflows/docs.yml
     with:
       artifact: OXT-Beyond-docs-windows
@@ -223,15 +315,16 @@ jobs:
   # the build starts
   web:
     name: Web
-    if: ${{ github.event.pull_request.draft != true }}
+    needs: gate
+    if: ${{ needs.gate.outputs.build != 'false' }}
     uses: ./.github/workflows/web.yml
     with:
       artifact: OXT-Beyond-web-windows
 
   build:
     name: Build win-x86_64
-    needs: [docs, web]
-    if: ${{ (!cancelled()) && github.event.pull_request.draft != true }}
+    needs: [gate, docs, web]
+    if: ${{ (!cancelled()) && needs.gate.outputs.build != 'false' }}
     runs-on: windows-2022
     timeout-minutes: 300
     defaults:
@@ -872,7 +965,7 @@ jobs:
       - name: IDE screenshots, light
         id: ui_tour_light
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
-        timeout-minutes: 20
+        timeout-minutes: 25
         env:
           VERSION: ${{ steps.product.outputs.version }}
         run: python tools/ci/ui_tour.py --install "dist/stage/OXT-Beyond-$env:VERSION" --platform win-x86_64 --appearance light --out "$env:RUNNER_TEMP\build-logs\ui-tour\light"
@@ -880,7 +973,7 @@ jobs:
       - name: IDE screenshots, dark
         id: ui_tour_dark
         if: ${{ !cancelled() && steps.ui_tour_light.conclusion != 'skipped' }}
-        timeout-minutes: 20
+        timeout-minutes: 25
         env:
           VERSION: ${{ steps.product.outputs.version }}
         run: python tools/ci/ui_tour.py --install "dist/stage/OXT-Beyond-$env:VERSION" --platform win-x86_64 --appearance dark --out "$env:RUNNER_TEMP\build-logs\ui-tour\dark"
@@ -1163,8 +1256,8 @@ jobs:
   # Windows 11.
   window-frame-win11:
     name: Window frame check (Windows 11 title bars)
-    if: ${{ github.event.pull_request.draft != true }}
-    needs: [build]
+    if: ${{ needs.gate.outputs.build != 'false' }}
+    needs: [gate, build]
     runs-on: windows-2025
     timeout-minutes: 20
     defaults:
@@ -1201,6 +1294,61 @@ jobs:
           python tools/ci/window_frame_check.py --package "$package" --platform win-x86_64 \
             --need-clicks --log "$RUNNER_TEMP/window-frame-check.log"
 
+  # The dark switch check (tools/ci/dark_switch_check.py) on the portable
+  # zip of the job above, from its artifact, on Windows Server 2022 (Windows
+  # 10's code base) and 2025 (Windows 11's) with visual styles on: a
+  # standard button, an option menu and a combo box are drawn for the
+  # appearance Windows has, when the engine starts in it and when Windows is
+  # switched to it while the engine runs. The build's own job has no visual
+  # styles (its tour's screenshots are of the controls the engine draws
+  # itself), so the Windows theme's buttons, which people have, are only
+  # drawn here. Up to 0.2.7 they were light grey with white words after a
+  # switch to dark while the engine ran (openxtalk.org p=26224). The check
+  # reads them from the engine's snapshots and from the screen, and a screen
+  # it cannot read is a failure (--need-screen).
+  dark-switch:
+    name: Dark switch check (${{ matrix.runner }})
+    if: ${{ needs.gate.outputs.build != 'false' }}
+    needs: [gate, build]
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the packages
+        uses: actions/download-artifact@v8
+        with:
+          name: OXT-Beyond-win-x86_64
+          path: ${{ runner.temp }}/dist
+
+      # Windows Server leaves the Themes service off: start it (the check
+      # fails when visual styles are still off)
+      - name: Turn on visual styles
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Set-Service -Name Themes -StartupType Automatic
+          Start-Service -Name Themes
+          Get-Service -Name Themes
+
+      - name: Dark switch check
+        run: |
+          cd "$RUNNER_TEMP/dist"
+          package="$(pwd -W)/$(ls *-win-x86_64-portable.zip)"
+          cd "$GITHUB_WORKSPACE"
+          python tools/ci/dark_switch_check.py --package "$package" --platform win-x86_64 \
+            --need-visual-styles --need-screen --log "$RUNNER_TEMP/dark-switch-check.log"
+
   # The 32-bit Windows build, for the standalone runtime
   # Runtime/Windows/x86-32 (the IDE's "Windows" target), which the runtimes
   # asset carries for every package (tools/oxt/make_runtimes_asset.py
@@ -1215,7 +1363,8 @@ jobs:
   # nothing is packaged.
   build-x86:
     name: Build win-x86
-    if: ${{ github.event.pull_request.draft != true }}
+    needs: gate
+    if: ${{ needs.gate.outputs.build != 'false' }}
     runs-on: windows-2022
     timeout-minutes: 300
     defaults:

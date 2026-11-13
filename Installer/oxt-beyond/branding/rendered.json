@@ -1,13 +1,13 @@
 {
   "Installer/oxt-beyond/branding/art/oxt-beyond-banner.png": {
     "drawing": "Installer/oxt-beyond/branding/svg/banner.svg",
-    "drawing_sha256": "246ace9a998706b0bc1858dda89d89b116711854593f21ae886ee22664e85bec",
-    "sha256": "9d3b972fc6122cfe51865ba7f0a640c692c3f0a8f70eb4406c8b84b1596ad82a"
+    "drawing_sha256": "94ca8728c5df549cb4d4be04b6a2ef7531f903c9d955c544f1db2d1d58da58ac",
+    "sha256": "2f81464096f740297b54dbb8e16ef53ca48a97cc80ad7f9fd8292e2a46ae16aa"
   },
   "Installer/oxt-beyond/branding/art/oxt-beyond-wizard.png": {
     "drawing": "Installer/oxt-beyond/branding/svg/wizard.svg",
-    "drawing_sha256": "46f25688385ef437bd270b8cc4e619db0010677a455beed5a62ae951b9fa553c",
-    "sha256": "69f84fe3f5388852c4134c59f253dc5dd896bc08c64273d290b6b095346cad6c"
+    "drawing_sha256": "afe2552ca7d8601c31d96150eacb61f25652ac2d328a2b113739482f7cf63050",
+    "sha256": "fda84aa153ec0a7a5f5e1e47363cf354f852a760f8c80a1441bdc96999958209"
   },
   "ide/Toolset/resources/community/ideSkin/splash-light.png": {
     "drawing": "Installer/oxt-beyond/branding/svg/splash-light.svg",
@@ -31,7 +31,7 @@
   },
   "tools/pages/brand/social.png": {
     "drawing": "Installer/oxt-beyond/branding/svg/banner.svg",
-    "drawing_sha256": "246ace9a998706b0bc1858dda89d89b116711854593f21ae886ee22664e85bec",
-    "sha256": "9d3b972fc6122cfe51865ba7f0a640c692c3f0a8f70eb4406c8b84b1596ad82a"
+    "drawing_sha256": "94ca8728c5df549cb4d4be04b6a2ef7531f903c9d955c544f1db2d1d58da58ac",
+    "sha256": "2f81464096f740297b54dbb8e16ef53ca48a97cc80ad7f9fd8292e2a46ae16aa"
   }
 }

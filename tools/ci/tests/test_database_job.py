@@ -58,7 +58,8 @@ class DatabasesJob(unittest.TestCase):
         return [s['run'] for s in self.job['steps'] if s.get('name') == name][0]
 
     def test_runs_the_database_tests_of_the_x86_64_build(self):
-        self.assertEqual(self.job['needs'], 'build')
+        # the build, and the draft gate (test_draft_builds.py)
+        self.assertEqual(self.job['needs'], ['gate', 'build'])
         self.assertIn("built-x86_64 == 'true'", self.job['if'])
         run = self.step('Database tests')
         self.assertIn('run_engine_tests.py --bin linux-x86_64-bin', run)

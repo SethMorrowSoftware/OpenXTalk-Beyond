@@ -53,12 +53,15 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --    OXTTESTS COUNT <number of tests>
 --    OXTTESTS RESUME <line>                after a restart: the last test
 --                                          that began (see below)
+--    OXTTESTS AGAIN <line>,<line>,...      started to run those tests
+--                                          again (see below)
 --    OXTTESTS BEGIN <line>                 before a test
 --    OXTTESTS TAP <line> <n> <TAP line>    each line of its output, n its
 --                                          place there (the log folds lines
 --                                          that are the same)
 --    OXTTESTS QUIT <line>                  the test quit (see below)
---    OXTTESTS DONE <line>                  after it
+--    OXTTESTS DONE <line> <n>              after it, n the number of lines
+--                                          of its output
 --    OXTTESTS END                          after the last
 --    OXTTESTS ERROR <what>                 the run cannot go on
 --
@@ -68,6 +71,16 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- android_tests.py starts the app again, and the runner goes on with the
 -- test after the one in that file. A new install starts with no file, at
 -- the first test.
+--
+-- The device's log is not lossless: Android can drop a burst of lines
+-- while the app goes on (liblog does not wait for logd), and a test whose
+-- lines were lost looks as if it never ran, or ran with less output than
+-- its DONE says (a lost failure). android_tests.py then starts
+-- the app again with those tests' lines in the launch's extra
+-- "oxttests_again" (kAgainExtra: comma-separated, or "none"), which
+-- mobileGetLaunchData() gives the runner. It says AGAIN with them, runs
+-- those tests alone, in that order, and says END. It does not resume from
+-- the progress file then.
 --
 -- A test that quits would end the engine, and with it the run: the test
 -- library quits when it cannot load an extension (TestLoadExtension), and
@@ -81,11 +94,16 @@ constant kPrefix = "OXTTESTS"
 constant kFolder = "oxt-tests"
 constant kProgressFile = "oxt-tests-progress.txt"
 constant kCopiedFile = "copied.txt"
+constant kAgainExtra = "oxttests_again"
+constant kAgainNone = "none"
 
 local sStarted
 local sTests
 local sIndex
 local sRoot
+-- Started to run tests again: true, and the lines still to run
+local sAgainMode
+local sAgain
 
 on openStack
    -- only in the app: not as the IDE makes and builds the stack
@@ -142,6 +160,20 @@ on androidTestsStart
    end if
    androidSay "COUNT" && the number of lines of sTests
 
+   -- started to run tests again (see the top): those alone, then END
+   local tAgain
+   put androidAgainLines() into tAgain
+   if tAgain is not empty then
+      put true into sAgainMode
+      if tAgain is kAgainNone then
+         put empty into tAgain
+      end if
+      put tAgain into sAgain
+      androidSay "AGAIN" && tAgain
+      send "androidTestsNext" to me in 0 milliseconds
+      exit androidTestsStart
+   end if
+
    -- after a restart: the test after the last one that began
    local tProgress, tLast
    put specialFolderPath("documents") & slash & kProgressFile into tProgress
@@ -191,6 +223,26 @@ private function androidCopyTests pFrom, pTo
    return empty
 end androidCopyTests
 
+-- The launch's extra kAgainExtra: the lines of the tests to run again,
+-- comma-separated, or kAgainNone; empty when the app was started without it
+private function androidAgainLines
+   local tData, tAgain, tError
+   try
+      put mobileGetLaunchData() into tData
+   catch tError
+      return empty
+   end try
+   if tData is not an array then
+      return empty
+   end if
+   if tData["extras"] is not an array then
+      return empty
+   end if
+   put tData["extras"][kAgainExtra] into tAgain
+   replace space with empty in tAgain
+   return tAgain
+end androidAgainLines
+
 private command androidEnsureFolder pFolder
    if there is no folder pFolder then
       create folder pFolder
@@ -198,7 +250,24 @@ private command androidEnsureFolder pFolder
 end androidEnsureFolder
 
 on androidTestsNext
-   if sIndex > the number of lines of sTests then
+   if sAgainMode is true then
+      -- the next test to run again, by its line; a line that names no
+      -- test is passed over
+      if sAgain is empty then
+         androidSay "END"
+         exit androidTestsNext
+      end if
+      put item 1 of sAgain into sIndex
+      delete item 1 of sAgain
+      if sIndex is not an integer then
+         send "androidTestsNext" to me in 0 milliseconds
+         exit androidTestsNext
+      end if
+      if sIndex < 1 or sIndex > the number of lines of sTests then
+         send "androidTestsNext" to me in 0 milliseconds
+         exit androidTestsNext
+      end if
+   else if sIndex > the number of lines of sTests then
       androidSay "END"
       exit androidTestsNext
    end if
@@ -226,8 +295,10 @@ on androidTestsNext
       add 1 to tPlace
       androidSay "TAP" && sIndex && tPlace && tLine
    end repeat
-   androidSay "DONE" && sIndex
+   androidSay "DONE" && sIndex && tPlace
 
-   add 1 to sIndex
+   if sAgainMode is not true then
+      add 1 to sIndex
+   end if
    send "androidTestsNext" to me in 0 milliseconds
 end androidTestsNext

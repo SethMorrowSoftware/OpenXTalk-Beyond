@@ -81,6 +81,8 @@ runs:
         fetched=false
         if [ ${#pkgs[@]} -gt 0 ]; then
           echo "Fetching ${#pkgs[@]} packages: ${pkgs[*]}"
+          # (public name servers too, if the runner's own give no answer for the package servers)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
           # (sudo does not pass the job's environment on)
           apt=(sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30)
           for i in 1 2 3; do

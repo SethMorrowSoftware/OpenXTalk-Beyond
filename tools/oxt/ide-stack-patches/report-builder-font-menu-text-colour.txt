@@ -1,0 +1,11 @@
+# Report Builder (Plugins): the Font menu kept the text colour black over a
+# face that is the theme's, so on a dark window the font's name was black
+# on dark, as the Object Library's library menu's words were
+# (revimagelibrary-library-menu-text-colour.txt; found by
+# tools/ci/stack_inks.py). With no colour of its own it is drawn in the
+# theme's.
+file: Plugins/Report Builder.livecode
+object: button "Font" of card 1
+property: foregroundColor
+from: black
+to: 

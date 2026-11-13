@@ -117,6 +117,7 @@ on:
       - '.github/workflows/ide-screenshots.yml'
       - '.github/workflows/media-check.yml'
       - '.github/workflows/window-frame-check.yml'
+      - '.github/workflows/dark-switch-check.yml'
       - '.github/workflows/release.yml'
       - '.github/workflows/runtimes.yml'
       - '.github/workflows/tag-release.yml'
@@ -155,14 +156,18 @@ on:
       - 'tools/ci/win_crashtrace.py'
       - 'tools/ci/window-frame-check.livecodescript'
       - 'tools/ci/window_frame_check.py'
+      - 'tools/ci/dark-switch-check.livecodescript'
+      - 'tools/ci/dark_switch_check.py'
   # DRAFT PULL REQUESTS (2026-11-06). A draft runs none of this workflow's
-  # jobs: each job's `if:` ends in `github.event.pull_request.draft != true`,
-  # and marking the pull request ready (ready_for_review, below) starts the
-  # whole run on its newest commit. A draft is work in progress whose commits
-  # land minutes apart, and each one used to start this full build only for
-  # the next to cancel it (26 of 52 builds on 2026-11-06 00:38-02:15 UTC). CI
-  # checks still run on every draft commit. A push, a dispatch and a call from
-  # release.yml have no pull request, so the condition is always true there.
+  # jobs but the first, `gate`, which asks GitHub whether the pull request
+  # is a draft now; every other job needs it and its `if:` ends in
+  # `needs.gate.outputs.build != 'false'`. Marking the pull request ready
+  # (ready_for_review, below) starts the whole run on its newest commit. A
+  # draft is work in progress whose commits land minutes apart, and each
+  # one used to start this full build only for the next to cancel it (26
+  # of 52 builds on 2026-11-06 00:38-02:15 UTC). CI checks still run on
+  # every draft commit. A push, a dispatch and a call from release.yml
+  # have no pull request, so the gate says build there without asking.
   # tools/ci/tests/test_draft_builds.py holds every job to it.
   pull_request:
     branches: [ main ]
@@ -221,9 +226,56 @@ defaults:
     shell: bash
 
 jobs:
+  # The draft gate: whether this run builds is asked of the pull request as
+  # it is now, not of the event that started the run (see build-windows.yml)
+  gate:
+    name: Draft check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    continue-on-error: true
+    outputs:
+      build: ${{ steps.ask.outputs.build }}
+    steps:
+      - name: Ask whether the pull request is a draft now
+        id: ask
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          build=true
+          if [ "$EVENT_NAME" = pull_request ]; then
+            draft=
+            for try in 1 2 3; do
+              if draft=$(timeout 30 gh api "repos/$REPO/pulls/$PR_NUMBER" --jq .draft); then
+                break
+              fi
+              draft=
+              if [ "$try" -lt 3 ]; then sleep $((try * 5)); fi
+            done
+            case "$draft" in
+              true)
+                build=false
+                echo "::notice::Pull request #$PR_NUMBER is a draft: this run builds nothing. Marking it ready for review starts the builds."
+                ;;
+              false)
+                echo "Pull request #$PR_NUMBER is ready for review: this run builds."
+                ;;
+              *)
+                echo "::warning::GitHub did not say whether pull request #$PR_NUMBER is a draft, so this run builds."
+                ;;
+            esac
+          else
+            echo "No pull request ($EVENT_NAME): this run builds."
+          fi
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+
   build:
     name: Build linux-${{ matrix.arch }}
-    if: ${{ github.event.pull_request.draft != true }}
+    needs: gate
+    if: ${{ needs.gate.outputs.build != 'false' }}
     strategy:
       fail-fast: false
       matrix:
@@ -299,6 +351,24 @@ jobs:
           # security pocket comes from archive.ubuntu.com, which serves it too
           # (APT_ETC is only for tools/ci/tests/test_apt_retry.py)
           for pass in 1 2 3; do
+            # The container's name servers may give no answer for the package
+            # servers: on 11 Nov 2026 the hosted runners' own timed out on every
+            # name of Canonical's zones, while the servers answered and 1.1.1.1
+            # and 9.9.9.9 resolved them (#476). Those two are then added AFTER
+            # the container's own, so a name that resolves is still answered as
+            # before, by the same server. tools/ci/apt-name-servers.sh says more;
+            # the steps on the runner call it, and there is no checkout here yet
+            # (RESOLV_CONF, like APT_ETC, is only for the test)
+            if ! grep -q '^nameserver 1\.1\.1\.1$' "${RESOLV_CONF:-/etc/resolv.conf}"; then
+              for server in $(cat "${APT_ETC:-/etc/apt}"/sources.list "${APT_ETC:-/etc/apt}"/sources.list.d/* 2> /dev/null |
+                              grep -v '^[[:space:]]*#' | grep -Eo 'https?://[^/[:space:]]+' | sed 's|.*://||' | sort -u); do
+                if ! getent ahostsv4 "$server" > /dev/null 2>&1; then
+                  echo "::warning::$server does not resolve with the container's name servers; 1.1.1.1 and 9.9.9.9 are added after them"
+                  printf '\nnameserver 1.1.1.1\nnameserver 9.9.9.9\n' >> "${RESOLV_CONF:-/etc/resolv.conf}"
+                  break
+                fi
+              done
+            fi
             if [ "$pass" -gt 1 ]; then
               for f in "${APT_ETC:-/etc/apt}"/sources.list "${APT_ETC:-/etc/apt}"/sources.list.d/*; do
                 if [ -f "$f" ]; then
@@ -627,7 +697,10 @@ jobs:
       # stack-scripts/ keeps every object script of the binary IDE stacks as
       # a text file (tools/oxt/stack_scripts.py), so a diff shows what a
       # stack change did; read from the stacks with the engine just built,
-      # it must match them (tools/oxt/stack-scripts.sh --check)
+      # it must match them (tools/oxt/stack-scripts.sh --check). The same
+      # run reads every button and field of the IDE's stacks for a text
+      # colour, its own or its stack's, card's or group's, that the dark or
+      # the light window hides (tools/ci/stack_inks.py)
       - name: Binary stack scripts
         timeout-minutes: 10
         run: tools/oxt/stack-scripts.sh "$PWD/linux-$ARCH-bin/LiveCode-Community" --check
@@ -701,7 +774,8 @@ jobs:
   # nothing is packaged.
   build-x86:
     name: Build linux-x86
-    if: ${{ github.event.pull_request.draft != true }}
+    needs: gate
+    if: ${{ needs.gate.outputs.build != 'false' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 330
     env:
@@ -907,7 +981,8 @@ jobs:
   # engines build
   docs:
     name: Docs
-    if: ${{ github.event.pull_request.draft != true }}
+    needs: gate
+    if: ${{ needs.gate.outputs.build != 'false' }}
     uses: ./.github/workflows/docs.yml
     with:
       artifact: OXT-Beyond-docs-linux
@@ -916,7 +991,8 @@ jobs:
   # build, and checked in a headless browser
   web:
     name: Web
-    if: ${{ github.event.pull_request.draft != true }}
+    needs: gate
+    if: ${{ needs.gate.outputs.build != 'false' }}
     uses: ./.github/workflows/web.yml
     with:
       artifact: OXT-Beyond-web-linux
@@ -947,8 +1023,8 @@ jobs:
   # (the engine loads the drivers there as a package would).
   databases:
     name: Databases linux-x86_64 (${{ matrix.name }})
-    needs: build
-    if: ${{ (!cancelled() && needs.build.outputs.built-x86_64 == 'true') && github.event.pull_request.draft != true }}
+    needs: [gate, build]
+    if: ${{ (!cancelled() && needs.build.outputs.built-x86_64 == 'true') && needs.gate.outputs.build != 'false' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
@@ -1124,8 +1200,8 @@ jobs:
   # browser checks are the x86_64 leg's; its player check runs.
   package:
     name: Package linux-${{ matrix.arch }}
-    needs: [build, docs, web]
-    if: ${{ (!cancelled() && (needs.build.result == 'success' || needs.build.outputs.built-x86_64 == 'true' || needs.build.outputs.built-arm64 == 'true')) && github.event.pull_request.draft != true }}
+    needs: [gate, build, docs, web]
+    if: ${{ (!cancelled() && (needs.build.result == 'success' || needs.build.outputs.built-x86_64 == 'true' || needs.build.outputs.built-arm64 == 'true')) && needs.gate.outputs.build != 'false' }}
     strategy:
       fail-fast: false
       matrix:
@@ -1237,6 +1313,8 @@ jobs:
             done
             return 1
           }
+          # (public name servers too, if the runner's own give no answer for the package servers)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
           # (sudo does not pass the job's environment on)
           apt=(sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30)
           retry "${apt[@]}" update
@@ -1461,6 +1539,8 @@ jobs:
           if ! command -v apache2 > /dev/null && [ ! -x /usr/sbin/apache2 ]; then missing="apache2"; fi
           if ! command -v valgrind > /dev/null; then missing="$missing valgrind"; fi
           if [ -n "$missing" ]; then
+            # (public name servers too, if the runner's own give no answer for the package servers)
+            bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
             sudo apt-get update -q
             sudo apt-get install -y -q --no-install-recommends $missing
           fi
@@ -1569,6 +1649,20 @@ jobs:
           /usr/bin/python3 tools/ci/fontfile_check.py --engine "$OXT_ROOT/Runtime/Linux/$folder/Standalone" \
             --log "$RUNNER_TEMP/logs/fontfile-check.log"
 
+      # A write to a secure socket goes while a read on it waits for the
+      # rest of a TLS record: up to 0.2.7 the engine held the write back
+      # until the next read, so a request queued behind the handshake never
+      # left when a session ticket was read first, and `put url` timed out
+      # against Go servers such as Caddy (issue #461;
+      # tools/ci/tls_write_check.py)
+      - name: TLS write check
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 5
+        run: |
+          case $ARCH in x86_64) folder=x86-64 ;; *) folder=$ARCH ;; esac
+          /usr/bin/python3 tools/ci/tls_write_check.py --engine "$OXT_ROOT/Runtime/Linux/$folder/Standalone" \
+            --log "$RUNNER_TEMP/logs/tls-write-check.log"
+
       # OXT-Beyond Home opens with the first page of its tour built and
       # builds each other page when it is first shown, and on a computer
       # whose frames are slow to draw it keeps no more than about half of a
@@ -1638,6 +1732,8 @@ jobs:
         run: |
           python3 -m venv "$RUNNER_TEMP/playwright"
           "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
+          # (public name servers too, if the runner's own give no answer for the package servers)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
           "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps chromium
 
       - name: Web standalone check
@@ -1741,14 +1837,14 @@ jobs:
       # (tools/ci/print_images.py).
       - name: IDE screenshots, light
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
-        timeout-minutes: 20
+        timeout-minutes: 25
         run: |
           python3 tools/ci/ui_tour.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
             --appearance light --out "$RUNNER_TEMP/logs/ui-tour/light"
 
       - name: IDE screenshots, dark
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
-        timeout-minutes: 20
+        timeout-minutes: 25
         run: |
           python3 tools/ci/ui_tour.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
             --appearance dark --out "$RUNNER_TEMP/logs/ui-tour/dark"
@@ -1818,7 +1914,7 @@ jobs:
           for theme in Yaru-MATE-dark Yaru-dark HighContrastInverse; do
             python3 tools/ci/ui_tour.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
               --appearance dark --gtk-theme "$theme" --only menu-marks,menu-words,menu-armed-words \
-              --out "$RUNNER_TEMP/logs/menu-marks/$theme" || failed+=("$theme")
+              --timeout 900 --out "$RUNNER_TEMP/logs/menu-marks/$theme" || failed+=("$theme")
           done
           if [ ${#failed[@]} -gt 0 ]; then
             echo "::error::the menus' marks or words failed under ${failed[*]}"

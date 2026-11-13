@@ -429,6 +429,60 @@ class StorageTests(Running):
             self.assertEqual(self.call(self.url('x.oxtstack'), 'DELETE', None, headers)[0], 403, headers)
         self.assertEqual(os.listdir(self.files), [])
 
+    def test_a_refused_write_reads_its_body_before_it_closes(self):
+        # A server that closes with a request's body unread resets the
+        # connection, and the reset can come before the answer is read:
+        # on Windows, http.client failed with WinError 10053/10054 on a
+        # refused PUT (#485's CI, windows-latest). Each refusal's answer
+        # is followed by a clean end, never a reset
+        import socket
+        cases = [({'Origin': 'https://evil.example'}, self.url('x.oxtstack'), 403),
+                 ({}, '/_host/api/files/../outside.txt', 400),
+                 ({}, '/_host/api/files/', 400)]
+        os.makedirs(os.path.join(self.files, 'folder'))
+        cases.append(({}, self.url('folder'), 409))
+        for headers, path, status in cases:
+            for attempt in range(20):
+                body = b'y' * 4096
+                lines = ['PUT %s HTTP/1.1' % path, 'Host: 127.0.0.1:%d' % self.ide_port,
+                         'Content-Length: %d' % len(body)]
+                lines += ['%s: %s' % kv for kv in headers.items()]
+                request = ('\r\n'.join(lines) + '\r\n\r\n').encode() + body
+                with socket.create_connection(('127.0.0.1', self.ide_port), timeout=20) as s:
+                    s.sendall(request)
+                    got = b''
+                    try:
+                        while True:
+                            block = s.recv(65536)
+                            if not block:
+                                break
+                            got += block
+                    except ConnectionResetError:
+                        self.fail('the connection was reset after %r (%s), attempt %d' % (path, headers, attempt + 1))
+                self.assertTrue(got.startswith(b'HTTP/1.0 %d' % status) or got.startswith(b'HTTP/1.1 %d' % status),
+                                (path, got[:40]))
+        self.assertEqual(os.listdir(self.files), ['folder'])
+
+    def test_an_answer_does_not_wait_for_a_body_that_never_comes(self):
+        # A POST, or a PUT onto a folder, is answered at once even when the
+        # body it names never comes (as it was before its body was read)
+        import socket
+        os.makedirs(os.path.join(self.files, 'folder'), exist_ok=True)
+        for method, path, status in (('POST', '/', 405), ('PUT', self.url('folder'), 409),
+                                     ('PUT', self.url('x.oxtstack'), 403)):
+            headers = ['%s %s HTTP/1.1' % (method, path), 'Host: 127.0.0.1:%d' % self.ide_port,
+                       'Content-Length: 5']
+            if status == 403:
+                headers.append('Origin: https://evil.example')
+            with socket.create_connection(('127.0.0.1', self.ide_port), timeout=20) as s:
+                s.sendall(('\r\n'.join(headers) + '\r\n\r\nx').encode())
+                s.settimeout(3)
+                try:
+                    got = s.recv(65536)
+                except socket.timeout:
+                    self.fail('no answer in 3 s to %s %s with its body unsent' % (method, path))
+                self.assertIn(b' %d ' % status, got.split(b'\r\n', 1)[0], (method, path))
+
     def test_paths_stay_in_the_storage(self):
         write(self.path('outside.txt'), b'keep')
         for rel in ('../outside.txt', '..%2foutside.txt', 'a/../../outside.txt', '', 'a//b',
@@ -460,6 +514,77 @@ class StorageTests(Running):
         write(os.path.join(self.files, 'half.oxtstack.1.oxt-tmp'), b'x')
         write(os.path.join(self.files, 'whole.oxtstack'), b'xy')
         self.assertEqual(list(self.listing_api()), ['whole.oxtstack'])
+
+
+class DiscardBodyTests(Temp):
+    """A request answered without its body (a refused write, a POST) has
+    a small body read and dropped before the connection closes: closing
+    with it unread resets the connection, and on Windows the reset can
+    land before the client reads the answer (WinError 10053/10054 in
+    test_writes_from_another_site_are_refused, #485's windows-latest).
+    A body past the cap is left unread, as before; the connection closes
+    either way."""
+
+    def handler(self, length, data):
+        cls = host.make_handler(host.Site('ide', self.work))
+        h = cls.__new__(cls)
+        h.headers = http.client.HTTPMessage()
+        if length is not None:
+            h.headers['Content-Length'] = str(length)
+        h.rfile = io.BytesIO(data)
+        h.close_connection = False
+        return h
+
+    def test_a_small_body_is_read_to_its_end_and_no_further(self):
+        h = self.handler(5, b'hello' + b'NEXT REQUEST')
+        h.discard_body()
+        self.assertEqual(h.rfile.tell(), 5)
+        self.assertTrue(h.close_connection)
+
+    def test_a_body_past_the_cap_is_left(self):
+        h = self.handler(host.DISCARD_LIMIT + 1, b'y' * (host.DISCARD_LIMIT + 1))
+        h.discard_body()
+        self.assertEqual(h.rfile.tell(), 0)
+        self.assertTrue(h.close_connection)
+
+    def test_a_short_body_ends_the_reading(self):
+        h = self.handler(100, b'only this')
+        h.discard_body()
+        self.assertEqual(h.rfile.tell(), len(b'only this'))
+        self.assertTrue(h.close_connection)
+
+    def test_no_body_keeps_the_connection(self):
+        for length in (None, 0):
+            h = self.handler(length, b'GET / HTTP/1.1')
+            h.discard_body()
+            self.assertEqual(h.rfile.tell(), 0)
+            self.assertFalse(h.close_connection)
+
+    def test_a_body_that_never_comes_is_waited_for_a_bounded_time(self):
+        # A client that names a length and sends less, keeping its socket
+        # open, must not hold the thread: the reading gives up after
+        # DISCARD_SECONDS and the connection closes
+        import socket
+        a, b = socket.socketpair()
+        self.addCleanup(a.close)
+        self.addCleanup(b.close)
+        h = self.handler(5, b'')
+        h.connection = a
+        h.rfile = a.makefile('rb')
+        b.sendall(b'x')
+        with mock.patch.object(host, 'DISCARD_SECONDS', 0.5):
+            started = time.monotonic()
+            h.discard_body()
+            took = time.monotonic() - started
+        self.assertLess(took, 3)
+        self.assertTrue(h.close_connection)
+        self.assertIsNone(a.gettimeout())     # the socket's own timeout comes back
+
+    def test_a_bad_length_reads_nothing_and_closes(self):
+        h = self.handler('ten', b'0123456789')
+        h.discard_body()
+        self.assertEqual(h.rfile.tell(), 0)
+        self.assertTrue(h.close_connection)
 
 
 class PasswordTests(Running):

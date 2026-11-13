@@ -126,6 +126,18 @@ command revSaveAsEmscriptenStandalone pStack, pOutputFolder, pSettings
          end if
       end repeat
       
+      -- OXT-Beyond: with "emscripten,fonts" set to "desktop" (the Web
+      -- pane's Fonts: Desktop fonts), the metric-compatible open fonts
+      -- that the web engine draws Arial, Helvetica, Times, Courier and the
+      -- Mac names in (em-font.cpp), beside the template's Droid Sans in
+      -- boot/standalone, where the engine loads every font at startup.
+      -- Without the setting, the standalone is as it was.
+      if pSettings["emscripten,fonts"] is "desktop" then
+         storeDesktopFonts tBuildZip
+      else if pSettings["emscripten,fonts"] is not empty then
+         revStandaloneAddWarning "HTML5: unknown fonts setting:" && pSettings["emscripten,fonts"]
+      end if
+      
       -- Define some paths within the zip archive
       local tBootPath, tStandalonePath
       local tDeployedStackPath
@@ -998,6 +1010,37 @@ end usesXTalkWebLibraries
 private function getStandaloneTemplateFolder
    return mapResPath("emscripten-standalone-template")
 end getStandaloneTemplateFolder
+
+-- OXT-Beyond: the folder of the desktop fonts (Arimo, Tinos and Cousine,
+-- made by tools/oxt/build_web_desktop_fonts.py), which the web runtime
+-- carries beside the template folder
+private function getDesktopFontsFolder
+   return mapResPath("emscripten-desktop-fonts")
+end getDesktopFontsFolder
+
+-- Stores the desktop fonts in boot/standalone of the archive. A runtime
+-- without them (one made before 0.2.8) builds the standalone without
+-- them, with a warning: its text draws in Droid Sans, as before.
+private command storeDesktopFonts pBuildZip
+   local tFolder, tFile, tCount
+   put getDesktopFontsFolder() into tFolder
+   put 0 into tCount
+   repeat for each element tFile in scanFolder(tFolder)
+      set the itemDelimiter to "."
+      if item -1 of tFile is not "ttf" then next repeat
+      set the itemDelimiter to comma
+      logDebug "template", "Storing desktop font" && tFolder & slash & tFile
+      revZipAddUncompressedItemWithFile pBuildZip, "boot/standalone/" & tFile, tFolder & slash & tFile
+      if the result is not empty then
+         throw "could not store the desktop fonts in standalone archive"
+      end if
+      add 1 to tCount
+   end repeat
+   set the itemDelimiter to comma
+   if tCount is 0 then
+      revStandaloneAddWarning "HTML5: this web runtime has no desktop fonts; text draws in Droid Sans"
+   end if
+end storeDesktopFonts
 
 -- Return a number-indexed array of files in the Emscripten standalone
 -- template folder.  The paths returned are relative to the path returned

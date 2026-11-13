@@ -48,6 +48,13 @@ whose card, stack or main stack (or one of their behaviors) has a
 <systemAppearanceChanged> handler. A handler in a library or a backscript
 gets the message wherever it is sent.
 
+On Windows the message is sent once for each change of Windows' light or
+dark setting for apps: when Windows announces the change, or when the
+engine finds the setting changed as it reads it (it reads it whenever it
+draws a control, and when a script gets the <systemAppearance>), whichever
+comes first. Up to OXT-Beyond 0.2.7 the engine did not act on Windows'
+announcement, so the message was not sent on Windows.
+
 In an HTML5 standalone the message is sent when the browser's colour scheme
 changes, on a page built with **Appearance** set to **Follow the browser**
 in the Web pane of the Standalone Application Settings.

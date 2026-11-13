@@ -539,7 +539,7 @@ Intended differences from OXT Lite 1.15:
 | the 3 junk and 2 excluded files | see [Classes](#classes) |
 | `LICENSE`, `LICENSE-EXCEPTION.md`, `THIRD-PARTY-NOTICES.md` | added: OXT-Beyond's licence files |
 | `Ext/mergJSON/**` | added: mergJSON, built from its source in `mergjson/` (the external, its library and the licences of its code) |
-| `PROVENANCE-oxt-runtimes-*.md` | added: provenance of the runtimes asset (`PROVENANCE-oxt-runtimes-0.2.7.md`, and `PROVENANCE-oxt-runtimes-1.15.md` for its Android files) |
+| `PROVENANCE-oxt-runtimes-*.md` | added: provenance of the runtimes asset (`PROVENANCE-oxt-runtimes-0.2.8-dp.1.md`, and `PROVENANCE-oxt-runtimes-1.15.md` for its Android files) |
 | `Runtime/Windows/x86-32/**`, `Runtime/Linux/**`, timezone `code/**` and `resources/**` | with a runtimes asset made from this repository's builds (any but `oxt-runtimes-1.15`), these may differ from 1.15's files, lack what 1.15's Linux runtimes bundled in `lib/` (shared libraries of other projects) and its iOS and macOS 10.9 timezone code, or have new files (the externals lists of the 64-bit Linux runtime, for example); `Runtime/Android/**`, carried over unchanged, is compared byte for byte, apart from the Java layer that such an asset's `java_layer` names (`Runtime/Android/Classes`, built from this repository) |
 | `Extensions/<xTalk folders>/**`, `Extensions/XTALK-EXTENSIONS.txt` | added: the xTalk Suite extensions (class `xtalk`); against a reference that has them they are compared like build outputs, and `--no-xtalk-extensions` makes them intended differences |
 
@@ -776,14 +776,14 @@ xTalk Suite extensions are not assets: see
 {
   "assets": [
     {
-      "id": "oxt-runtimes-0.2.7",
-      "url": "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/runtimes-0.2.7/oxt-runtimes-0.2.7.zip",
+      "id": "oxt-runtimes-0.2.8-dp.1",
+      "url": "https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/runtimes-0.2.8-dp.1/oxt-runtimes-0.2.8-dp.1.zip",
       "sha256": "<64 lowercase hex digits>",
       "size": 123456789,
       "kind": "zip",
       "strip": 1,
       "dest": "",
-      "rename": { "PROVENANCE.md": "PROVENANCE-oxt-runtimes-0.2.7.md" },
+      "rename": { "PROVENANCE.md": "PROVENANCE-oxt-runtimes-0.2.8-dp.1.md" },
       "exclude": { "win-x86_64": ["Runtime/Windows/x86-64/**", "..."], "...": ["..."] },
       "description": "...", "licence": "...", "source": "..."
     }
@@ -828,7 +828,7 @@ xTalk Suite extensions are not assets: see
 The runtimes asset excludes, per platform, what that platform's own build
 makes (`make_runtimes_asset.py` writes these; `OWN_PARTS` there):
 
-| platform | left out of `oxt-runtimes-0.2.7` | why |
+| platform | left out of `oxt-runtimes-0.2.8-dp.1` | why |
 |---|---|---|
 | `win-x86_64` | `Runtime/Windows/x86-64/**`, timezone `code/x86_64-win32/**` | the build's own runtime and timezone code |
 | `linux-x86_64` | `Runtime/Linux/x86-64/**`, timezone `code/x86_64-linux/**`, timezone `resources/**` | the build's own runtime and timezone code, and the zoneinfo data (tz.gyp `tzdata`, which the Windows builds do not make) |
@@ -1233,3 +1233,23 @@ file is missing, out of date or left over. Two stacks the engine does not
 load (`colchooser.livecode`, `revcolorchooser.rev` in `ide/Toolset/palettes`)
 have no files. `tools/oxt/stack_scripts.py` does the work; the codebase map
 uses it too.
+
+The same run reads the dumps for the words of the IDE's own windows
+(`tools/ci/stack_inks.py`): no button or field of a stack under
+`ide/Toolset` or `ide/Plugins` is drawn in a text colour that the stack
+file keeps (black, a dark grey, white), its own or one it takes from its
+group, card or stack, over a background that is the theme's, where the
+dark or the light window hides it. Standalone Settings' "UAC Execution
+Level" menu was black on Windows' dark window, with nothing of its choice
+to read, and Replicate kept black on its stack, so every word of the
+dialog was black on a dark window. The IDE's screenshots show such a
+control only on the cards the tour opens; this reads every card of every
+stack. When it names a control, clear the control's `foregroundColor`
+with a property patch, so that the theme's is used, or give the control a
+background of its own; when it names a stack, card or group (once, with
+how many controls take its colour), clear the colour there. A control or
+owner that is right as it is goes in the script's `EXCEPTIONS` with the
+reason, and an entry that no longer excuses anything is an error. It does
+not read a background that is set but not painted, or a background of a
+control's own with the theme's text colour (a white box whose words are
+white on a dark window).

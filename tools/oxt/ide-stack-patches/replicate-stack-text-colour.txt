@@ -1,0 +1,15 @@
+# Replicate (Edit > Replicate..., with a control selected): the stack kept
+# a text colour of its own (black) from when the IDE had only a light look,
+# and no background, so every label, field and button of the dialog took
+# black for its words on the theme's window. In the dark appearance they
+# were black on dark grey: "Replicate", "times.", "Offset by:", "Scale
+# by:", "Rotate", "pixels", the numbers in the fields, Cancel and OK could
+# hardly be made out (seen in a picture of the dialog in the dark, 12
+# November 2026; tools/ci/stack_inks.py now reads an owner's text colour
+# too and names the stack). With no colour of its own the stack's controls
+# are drawn in the theme's: light on a dark window, dark on a light one.
+file: Toolset/palettes/replicate.oxtstack
+object: stack
+property: foregroundColor
+from: Black
+to: 

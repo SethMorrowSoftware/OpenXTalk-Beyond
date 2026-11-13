@@ -94,6 +94,29 @@ class RunLines(unittest.TestCase):
         self.assertEqual((outcome, counts['fail']), ('fail', 2))
         self.assertEqual(failures, ['not ok - same', 'not ok - same'])
 
+    def test_done_says_how_many_lines_of_output_it_gave(self):
+        # DONE <line> <n>: the lines of output the device's log lost are
+        # missing from the n that came
+        r = at.Run()
+        for text in ('BEGIN 1', 'TAP 1 1 ok - script compiles', 'DONE 1 2',
+                     'BEGIN 2', 'TAP 2 1 ok - same', 'TAP 2 2 ok - same', 'DONE 2 2',
+                     'BEGIN 3', 'TAP 3 1 ok - x', 'DONE 3'):
+            r.said(text)
+        self.assertEqual([r.missing(n) for n in (1, 2, 3)], [1, 0, 0])
+        self.assertEqual([r.whole(n) for n in (1, 2, 3)], [False, True, True])
+        outcome, _, _, details, _ = at.result_of(r, 1)
+        self.assertEqual(outcome, 'fail')
+        self.assertEqual(details, ["the device's log lost 1 of its 2 lines of output"])
+        self.assertEqual(at.result_of(r, 2)[0], 'pass')
+        # an app that does not say how many (a DONE with no number): none
+        # are taken as lost
+        self.assertEqual(at.result_of(r, 3)[0], 'pass')
+        # the test whose output was lost is run again, below a later test
+        # or after END
+        self.assertEqual(at.lost_lines(r, 3), [1])
+        r.said('END')
+        self.assertEqual(at.lost_lines(r, 3), [1])
+
     def test_a_skip_and_a_quit(self):
         r = at.Run()
         for text in ('BEGIN 1', 'TAP 1 1 ok - script compiles', 'TAP 1 2 ok # SKIP needs the IDE', 'DONE 1',
@@ -124,23 +147,38 @@ class RunLines(unittest.TestCase):
 
 class FakeDevice:
     """The tests' app on a stand-in device: it plays the tests (behaviour:
-    {line: 'pass', 'fail', 'crash', 'hang' or 'quit-ends'}) as the runner
+    {line: 'pass', 'fail', 'crash', 'hang', 'quit' (the runner cancels it,
+    the test passes) or 'quit-ends'}) as the runner
     script does, resuming after the last test that began, one test each
-    time it is asked for its lines; a clock moves with the check's sleep."""
+    time it is asked for its lines; a clock moves with the check's sleep.
+    Started with tests to run again (start(again)), it says AGAIN and runs
+    those alone (again_behaviour: how they go then), then END, unless it
+    ignores_again. lose: {start: {line: 'all', 'after-begin', 'begin',
+    'done' or 'tap'}}, the lines of a test that the device's log loses in
+    that start (all of them, all but its BEGIN, its BEGIN, its DONE or its
+    last line of output), while the app goes on."""
 
-    def __init__(self, count, behaviour=None, lose_end=False, crash_at_start=0):
+    def __init__(self, count, behaviour=None, lose_end=False, crash_at_start=0, lose=None,
+                 again_behaviour=None, ignores_again=False, lose_again_said=False):
         self.count = count
         self.behaviour = behaviour or {}
+        self.again_behaviour = again_behaviour or {}
         self.lose_end = lose_end
         self.crash_at_start = crash_at_start
+        self.lose = lose or {}
+        self.ignores_again = ignores_again
+        self.lose_again_said = lose_again_said
         self.now = 0.0
         self.progress = None
         self.running = False
         self.next = None
+        self.queue = None
         self.pending = []
         self.starts = 0
         self.stops = 0
         self.hung = False
+        self.agains = []
+        self.dropped_lines = []
 
     def clock(self):
         return self.now
@@ -148,14 +186,26 @@ class FakeDevice:
     def sleep(self, seconds):
         self.now += seconds
 
-    def start(self):
+    def start(self, again=None):
+        if self.running:
+            # am start brings a running app to the front: its script does
+            # not start again (after its END, the app is still running)
+            return
         self.starts += 1
+        if again is not None:
+            self.agains.append(list(again))
         if self.starts <= self.crash_at_start:
             self.running = False
             return
         self.running = True
         self.hung = False
         self.pending.append(line('COUNT %d' % self.count))
+        self.queue = None
+        if again is not None and not self.ignores_again:
+            self.queue = list(again)
+            if not self.lose_again_said:
+                self.pending.append(line(('AGAIN ' + ','.join(str(n) for n in again)).rstrip()))
+            return
         self.next = 1
         if self.progress is not None:
             self.pending.append(line('RESUME %d' % self.progress))
@@ -163,7 +213,16 @@ class FakeDevice:
 
     def take(self):
         out, self.pending = self.pending, []
-        if self.running and not self.hung and not out:
+        if not (self.running and not self.hung and not out):
+            return out
+        if self.queue is not None:
+            if not self.queue:
+                self.queue = None
+                self.next = self.count + 2
+                return [line('END')]
+            n = self.queue.pop(0)
+            what = self.again_behaviour.get(n, 'pass')
+        else:
             if self.next > self.count:
                 if not self.lose_end:
                     out.append(line('END'))
@@ -171,24 +230,36 @@ class FakeDevice:
                 self.next += 1
                 return out
             n = self.next
-            self.progress = n
-            out.append(line('BEGIN %d' % n))
             what = self.behaviour.get(n, 'pass')
-            if what == 'crash':
-                self.running = False
-                return out
-            if what == 'hang':
-                self.hung = True
-                return out
-            if what == 'quit-ends':
-                out.append(line('QUIT %d' % n))
-                self.running = False
-                return out
-            out.append(line('TAP %d 1 ok - script compiles' % n))
-            out.append(line('TAP %d 2 %s - test %d' % (n, 'ok' if what == 'pass' else 'not ok', n)))
-            out.append(line('DONE %d' % n))
             self.next += 1
-        return out
+        self.progress = n
+        said = [line('BEGIN %d' % n)]
+        if what == 'crash':
+            self.running = False
+        elif what == 'hang':
+            self.hung = True
+        elif what == 'quit-ends':
+            said.append(line('QUIT %d' % n))
+            self.running = False
+        else:
+            if what == 'quit':
+                said.append(line('QUIT %d' % n))
+            said.append(line('TAP %d 1 ok - script compiles' % n))
+            said.append(line('TAP %d 2 %s - test %d' % (n, 'ok' if what == 'pass' else 'not ok', n)))
+            said.append(line('DONE %d %d' % (n, sum(1 for x in said if ' TAP ' in x))))
+        lost = self.lose.get(self.starts, {}).get(n)
+        if lost == 'all':
+            said = []
+        elif lost == 'after-begin':
+            said = said[:1]
+        elif lost == 'begin':
+            said = said[1:]
+        elif lost == 'done':
+            said = [x for x in said if ' DONE ' not in x]
+        elif lost == 'tap':
+            last = [x for x in said if ' TAP ' in x][-1:]
+            said = [x for x in said if x not in last]
+        return out + said
 
     def pid(self):
         return '4321' if self.running else ''
@@ -200,12 +271,15 @@ class FakeDevice:
     def last_words(self, pid):
         return ['F/libc    ( %s): Fatal signal 11 (SIGSEGV)' % pid]
 
+    def dropped(self):
+        return self.dropped_lines
 
-def follow(device, count, timeout=60, restarts=5, start_timeout=120):
+
+def follow(device, count, timeout=60, restarts=5, start_timeout=120, **kw):
     reported = []
     with contextlib.redirect_stdout(io.StringIO()):
         r = at.run_tests(device, count, timeout, restarts, start_timeout=start_timeout, clock=device.clock,
-                         sleep=device.sleep, report=lambda n, result: reported.append((n, result[0])))
+                         sleep=device.sleep, report=lambda n, result: reported.append((n, result[0])), **kw)
     return r, reported
 
 
@@ -274,6 +348,178 @@ class RunTests(unittest.TestCase):
         self.assertEqual(r.starts, 3)
         self.assertEqual(dict(reported), {1: 'fail', 2: 'fail', 3: 'fail'})
         self.assertEqual(at.result_of(r, 5)[3], ['the test did not begin'])
+
+    def test_lines_the_log_lost_are_run_again(self):
+        # run 43093019217: BEGIN of a test, then nothing of it or of the
+        # next three while the app went on, so the four "did not end" and
+        # "did not begin" though they ran; they are run again, alone, and
+        # their results are those of that run
+        d = FakeDevice(7, lose={1: {2: 'after-begin', 3: 'all', 4: 'all', 5: 'all'}})
+        r, reported = follow(d, 7)
+        self.assertTrue(r.ended)
+        self.assertEqual(r.starts, 2)
+        self.assertEqual(d.agains, [[2, 3, 4, 5]])
+        # stopped after its END, or am start would not start its script
+        self.assertEqual(d.stops, 1)
+        self.assertEqual(r.again, [2, 3, 4, 5])
+        self.assertEqual(dict(reported), dict((n, 'pass') for n in range(1, 8)))
+        for n in range(1, 8):
+            outcome, counts, _, details, _ = at.result_of(r, n)
+            self.assertEqual((n, outcome, counts['pass']), (n, 'pass', 2))
+        self.assertIn('run again', at.result_of(r, 2)[3][0])
+        self.assertEqual(at.result_of(r, 1)[3], [])
+
+    def test_a_test_run_again_keeps_only_its_new_output(self):
+        r = at.Run()
+        for text in ('BEGIN 1', 'TAP 1 1 not ok - half of it', 'AGAIN 1', 'BEGIN 1', 'TAP 1 1 ok - all of it',
+                     'DONE 1'):
+            r.said(text)
+        self.assertEqual(r.tap[1], ['ok - all of it'])
+        self.assertEqual(r.again_said, [1])
+        self.assertEqual(at.result_of(r, 1)[0], 'pass')
+
+    def test_the_last_test_run_again_after_its_done_was_lost(self):
+        # the app said END after it: the test it last began is not taken
+        # for the one running when it is started again, whose time limit
+        # would have run out long since
+        d = FakeDevice(3, lose={1: {3: 'after-begin'}})
+        r, reported = follow(d, 3, timeout=0)
+        self.assertEqual(d.agains, [[3]])
+        self.assertEqual(d.stops, 1)
+        self.assertEqual(dict(reported), {1: 'pass', 2: 'pass', 3: 'pass'})
+        self.assertEqual(at.result_of(r, 3)[3], [at.AGAIN_NOTE])
+
+    def test_a_test_run_again_keeps_none_of_its_first_output(self):
+        # the DONE of its first run was lost, and the BEGIN of its run
+        # again: its output is that of the run again alone
+        d = FakeDevice(3, {2: 'fail'}, lose={1: {2: 'done'}, 2: {2: 'begin'}})
+        r, reported = follow(d, 3)
+        self.assertEqual(d.agains, [[2]])
+        self.assertEqual(r.tap[2], ['ok - script compiles', 'ok - test 2'])
+        self.assertEqual(dict(reported), {1: 'pass', 2: 'pass', 3: 'pass'})
+        self.assertEqual(at.result_of(r, 2)[1], at.analyse_tap('ok\nok')[0])
+
+    def test_a_test_whose_output_the_log_lost_is_run_again(self):
+        # its BEGIN and its DONE came, its failure did not: it is not taken
+        # for a pass
+        d = FakeDevice(3, {2: 'fail'}, lose={1: {2: 'tap'}}, again_behaviour={2: 'fail'})
+        r, reported = follow(d, 3)
+        self.assertEqual(d.agains, [[2]])
+        self.assertEqual(r.again, [2])
+        self.assertEqual(reported, [(1, 'pass'), (3, 'pass'), (2, 'fail')])
+        self.assertEqual(r.tap[2], ['ok - script compiles', 'not ok - test 2'])
+        self.assertEqual(at.result_of(r, 2)[3], [at.AGAIN_NOTE])
+
+    def test_output_lost_every_time_fails_with_why(self):
+        d = FakeDevice(3, lose=dict((s, {2: 'tap'}) for s in range(1, 6)))
+        r, reported = follow(d, 3)
+        self.assertEqual(d.agains, [[2], [2], [2]])
+        outcome, _, _, details, _ = at.result_of(r, 2)
+        self.assertEqual(outcome, 'fail')
+        self.assertEqual(details, ["the device's log lost 1 of its 2 lines of output", at.AGAIN_NOTE])
+        self.assertNotIn(2, dict(reported))
+
+    def test_the_check_of_the_way_back_in_takes_a_lost_begin(self):
+        # the test the check runs again said DONE, its BEGIN lost: it ran
+        d = FakeDevice(3, lose={2: {1: 'begin'}})
+        r, reported = follow(d, 3, again_check=True)
+        self.assertEqual(d.agains, [[1]])
+        self.assertEqual(dict(reported), {1: 'pass', 2: 'pass', 3: 'pass'})
+
+    def test_a_test_run_again_keeps_no_quit_of_its_first_run(self):
+        # it quit in its first run, whose DONE was lost, and not in its
+        # run again: its result is that of the run again
+        d = FakeDevice(3, {2: 'quit'}, lose={1: {2: 'done'}})
+        r, reported = follow(d, 3)
+        self.assertEqual(d.agains, [[2]])
+        self.assertEqual(dict(reported), {1: 'pass', 2: 'pass', 3: 'pass'})
+        self.assertEqual(at.result_of(r, 2)[3], [at.AGAIN_NOTE])
+        # and one that quits in its run again too fails
+        d = FakeDevice(3, {2: 'quit'}, lose={1: {2: 'done'}}, again_behaviour={2: 'quit'})
+        r, reported = follow(d, 3)
+        self.assertEqual(dict(reported), {1: 'pass', 2: 'fail', 3: 'pass'})
+
+    def test_the_check_of_the_way_back_in_keeps_the_first_result_of_a_quit(self):
+        # the test the check runs again quits that time: its result is
+        # still that of its first run
+        d = FakeDevice(3, again_behaviour={1: 'quit-ends'})
+        r, reported = follow(d, 3, again_check=True)
+        self.assertEqual(d.agains, [[1]])
+        self.assertEqual(dict(reported), {1: 'pass', 2: 'pass', 3: 'pass'})
+        self.assertEqual([at.result_of(r, n)[0] for n in (1, 2, 3)], ['pass'] * 3)
+        self.assertEqual(at.result_of(r, 1)[3], [])
+
+    def test_a_test_run_again_that_stops_the_app_fails_with_why(self):
+        d = FakeDevice(4, lose={1: {2: 'all'}}, again_behaviour={2: 'crash'})
+        r, reported = follow(d, 4)
+        self.assertEqual(d.agains, [[2]])
+        self.assertEqual(dict(reported), {1: 'pass', 2: 'fail', 3: 'pass', 4: 'pass'})
+        details = at.result_of(r, 2)[3]
+        self.assertTrue(details[0].startswith('the app stopped'), details)
+        self.assertEqual(r.starts, 2)
+
+    def test_lines_lost_again_are_run_again_a_few_times_at_most(self):
+        lose = dict((start, {2: 'all'}) for start in range(1, 10))
+        d = FakeDevice(3, lose=lose)
+        r, reported = follow(d, 3, again_starts=3)
+        self.assertEqual(d.agains, [[2], [2], [2]])
+        self.assertEqual(r.starts, 4)
+        outcome, _, _, details, _ = at.result_of(r, 2)
+        self.assertEqual(outcome, 'fail')
+        self.assertEqual(details[0], 'the test did not begin')
+        self.assertIn('run again', details[1])
+
+    def test_an_app_that_ignores_the_tests_to_run_again(self):
+        # the way back in must work: a run that cannot run them again says
+        # so, rather than taking an app that resumed for one that ran them
+        d = FakeDevice(3, lose={1: {2: 'all'}}, ignores_again=True)
+        with self.assertRaises(android_check.CheckError) as e:
+            follow(d, 3)
+        self.assertIn('did not take the tests to run again', str(e.exception))
+        self.assertIn('it resumed', str(e.exception))
+
+    def test_a_lost_again_line_is_no_failure(self):
+        # the app's AGAIN is a line of the log too: the tests it runs say
+        # that it took them
+        d = FakeDevice(3, lose={1: {2: 'all'}}, lose_again_said=True)
+        r, reported = follow(d, 3)
+        self.assertEqual(d.agains, [[2]])
+        self.assertEqual(dict(reported), {1: 'pass', 2: 'pass', 3: 'pass'})
+
+    def test_the_check_of_the_way_back_in(self):
+        # again_check: with nothing lost, the app is started once more to
+        # run again the first test that passed, which must begin and end;
+        # the results stay those of the first run, even when it fails then
+        d = FakeDevice(3, {1: 'fail'}, again_behaviour={2: 'fail'})
+        r, reported = follow(d, 3, again_check=True)
+        self.assertTrue(r.ended)
+        self.assertEqual(r.starts, 2)
+        self.assertEqual(d.agains, [[2]])
+        self.assertEqual(r.again, [])
+        self.assertEqual(dict(reported), {1: 'fail', 2: 'pass', 3: 'pass'})
+        self.assertEqual([at.result_of(r, n)[0] for n in (1, 2, 3)], ['fail', 'pass', 'pass'])
+        self.assertEqual(at.result_of(r, 2)[3], [])
+        # it must take them
+        d = FakeDevice(3, ignores_again=True)
+        with self.assertRaises(android_check.CheckError):
+            follow(d, 3, again_check=True)
+        # and run the test
+        d = FakeDevice(3, lose={2: {1: 'all'}})
+        with self.assertRaises(android_check.CheckError) as e:
+            follow(d, 3, again_check=True)
+        self.assertIn('did not run it', str(e.exception))
+        # a run with no test that passed: none to run, and END
+        d = FakeDevice(2, {1: 'fail', 2: 'fail'})
+        r, reported = follow(d, 2, again_check=True)
+        self.assertEqual(d.agains, [[]])
+        self.assertEqual(r.starts, 2)
+
+    def test_tests_after_the_last_start_gave_up_are_not_run_again(self):
+        # they did not run: no line of theirs was lost
+        d = FakeDevice(6, {1: 'crash', 2: 'crash', 3: 'crash', 4: 'crash'})
+        r, reported = follow(d, 6, restarts=2)
+        self.assertEqual(d.agains, [])
+        self.assertEqual(r.again, [])
 
     def test_the_apps_error_stops_the_run(self):
         d = FakeDevice(2)
@@ -346,8 +592,8 @@ class Results(unittest.TestCase):
 
             real = at.run_tests
 
-            def runs(device, count, timeout, restarts, report=None):
-                return real(device, count, timeout, restarts, clock=d.clock, sleep=d.sleep, report=report)
+            def runs(device, count, timeout, restarts, report=None, **kw):
+                return real(device, count, timeout, restarts, clock=d.clock, sleep=d.sleep, report=report, **kw)
             out = io.StringIO()
             with mock.patch.object(at, 'Device', lambda adb, serial: d), \
                     mock.patch.object(at, 'adb_path', lambda sdk: '/adb'), \
@@ -368,6 +614,73 @@ class Results(unittest.TestCase):
         self.assertIn('FIXED lcs: x: TestThree', text)
         self.assertIn('### FAIL lcs: x: TestOne\n', log)
         self.assertIn('### FAIL lcs: x: TestTwo (in the baseline)', log)
+
+
+    def test_run_command_says_what_was_run_again(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with open(os.path.join(tmp, at.TESTS_JSON), 'w') as f:
+                json.dump(['x: TestOne', 'x: TestTwo', 'x: TestThree'], f)
+            os.makedirs(os.path.join(tmp, 'out'))
+            open(os.path.join(tmp, 'out', 'debug.apk'), 'wb').close()
+            baseline = os.path.join(tmp, 'baseline.txt')
+            open(baseline, 'w').close()
+            d = FakeDevice(3, lose={1: {2: 'after-begin'}})
+            d.dropped_lines = ['I/liblog  (    0): 12', 'I/liblog  ( 4321): 7']
+            d.install = lambda apk: None
+            d.listen = d.close = lambda: None
+            real = at.run_tests
+            seen = {}
+
+            def runs(device, count, timeout, restarts, report=None, **kw):
+                seen.update(kw)
+                return real(device, count, timeout, restarts, clock=d.clock, sleep=d.sleep, report=report, **kw)
+            out = io.StringIO()
+            summary = os.path.join(tmp, 'summary.md')
+            with mock.patch.object(at, 'Device', lambda adb, serial: d), \
+                    mock.patch.object(at, 'adb_path', lambda sdk: '/adb'), \
+                    mock.patch.object(at, 'run_tests', runs), \
+                    mock.patch.dict(os.environ, {'GITHUB_STEP_SUMMARY': summary, 'GITHUB_ACTIONS': ''}), \
+                    contextlib.redirect_stdout(out):
+                status = at.main(['run', '--work', tmp, '--serial', 'emulator-5554', '--sdk', tmp,
+                                  '--engine', 'beyond', '--baseline', baseline, '--again-check'])
+            log = open(os.path.join(tmp, 'android-tests-beyond.log')).read()
+            md = open(summary).read()
+        self.assertEqual(status, 0)
+        self.assertEqual(seen, {'again_starts': at.AGAIN_STARTS, 'again_check': True})
+        self.assertEqual(d.agains, [[2]])
+        text = out.getvalue()
+        self.assertIn('  AGAIN lcs: x: TestTwo: pass', text)
+        self.assertIn("The device's log on the lines it dropped: I/liblog  (    0): 12\n", text)
+        # those of the app's process are marked
+        self.assertIn("The device's log on the lines it dropped: I/liblog  ( 4321): 7 (the app)\n", text)
+        self.assertIn('  I/liblog  ( 4321): 7 (the app)\n', log)
+        self.assertIn("Run again (the device's log lost their lines): x: TestTwo\n", log)
+        self.assertIn('I/liblog', log)
+        self.assertIn('lcs: x: TestTwo: pass', md)
+
+
+class RealDevice(unittest.TestCase):
+
+    def test_listen_clears_the_events_buffer_too(self):
+        # so that liblog's counts of the lines it dropped are this run's
+        calls = []
+
+        class Proc:
+            stdout = []
+
+            def kill(self):
+                pass
+        device = at.Device('/adb', 'emulator-5554')
+        with mock.patch.object(at, 'run', lambda cmd, timeout=None: calls.append(cmd) or (0, '')), \
+                mock.patch.object(at.subprocess, 'Popen', lambda *a, **k: Proc()):
+            device.listen()
+        self.assertIn(['/adb', '-s', 'emulator-5554', 'logcat', '-c'], calls)
+        self.assertIn(['/adb', '-s', 'emulator-5554', 'logcat', '-b', 'events', '-c'], calls)
+
+    def test_the_lines_of_the_apps_process_are_marked(self):
+        self.assertEqual(at.mark_app(['I/liblog  (  115): 18', 'I/liblog  ( 9870): 19', '(no entries)'],
+                                     {'9870', '9871'}),
+                         ['I/liblog  (  115): 18', 'I/liblog  ( 9870): 19 (the app)', '(no entries)'])
 
 
 class Prepare(unittest.TestCase):
@@ -429,6 +742,33 @@ class Prepare(unittest.TestCase):
         self.assertIn('ide/Toolset/libraries/lib a.livecodescript', files)
         self.assertEqual(files[-1], 'android-tests.txt')
         self.assertNotIn('files.txt', files)
+
+    def test_a_font_file_is_not_copied(self):
+        # the Android builder moves a copied font into assets/fonts/, where
+        # the runner does not look: the app stopped on it before any test
+        with tempfile.TemporaryDirectory() as tmp:
+            repo, ide = self.make_repo(tmp), self.make_ide(tmp)
+            os.makedirs(os.path.join(repo, 'engine', 'rsrc', 'fonts'))
+            for name in ('A.ttf', 'B.otf', 'C.ttc', 'D.txt'):
+                with open(os.path.join(repo, 'engine', 'rsrc', 'fonts', name), 'w') as f:
+                    f.write('x')
+            with open(os.path.join(repo, 'tests', 'lcs', 'core', 'fonts.livecodescript'), 'w') as f:
+                f.write('script "fonts"\non TestFonts\n' + ''.join(
+                    '   get TestGetEngineRepositoryPath() & "/engine/rsrc/fonts/%s"\n' % n
+                    for n in ('A.ttf', 'B.otf', 'C.ttc', 'D.txt')) + 'end TestFonts\n')
+            work = os.path.join(tmp, 'work')
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(at.main(['prepare', '--work', work, '--ide', ide, '--repo', repo]), 0)
+            files = open(os.path.join(work, 'oxt-tests', 'files.txt')).read().splitlines()
+        self.assertIn('engine/rsrc/fonts/D.txt', files)
+        for name in ('A.ttf', 'B.otf', 'C.ttc'):
+            self.assertNotIn('engine/rsrc/fonts/' + name, files)
+
+    def test_the_font_test_is_the_builders(self):
+        # the builder's own test, which the check follows
+        source = open(os.path.join(at.REPO,
+                                   'ide-support', 'revsblibrary.livecodescript'), encoding='utf-8').read()
+        self.assertIn('return (pFile ends with ".ttf" or pFile ends with ".ttc" or pFile ends with ".otf")', source)
 
     def test_an_extension_the_ide_lacks(self):
         # said, and the tests that load it fail on the device
@@ -554,11 +894,13 @@ class Standalone(unittest.TestCase):
 
     def test_the_runner_says_what_the_check_reads(self):
         said = re.findall(r'androidSay "([A-Z]+)"', self.runner)
-        self.assertEqual(set(said), {'COUNT', 'RESUME', 'BEGIN', 'TAP', 'DONE', 'END', 'ERROR'})
+        self.assertEqual(set(said), {'COUNT', 'RESUME', 'AGAIN', 'BEGIN', 'TAP', 'DONE', 'END', 'ERROR'})
         self.assertIn('constant kPrefix = "OXTTESTS"', self.runner)
         # QUIT from its backscript
         self.assertIn('kPrefix && "QUIT "', self.runner)
         self.assertIn('androidSay "TAP" && sIndex && tPlace && tLine', self.runner)
+        # and how many lines of output, with its DONE
+        self.assertIn('androidSay "DONE" && sIndex && tPlace', self.runner)
         # a put with no container: the engine's log line on Android
         self.assertIn('put kPrefix && pLine\n', self.runner)
         self.assertIn('constant kFolder = "%s"' % at.TESTS_FOLDER, self.runner)
@@ -577,6 +919,27 @@ class Standalone(unittest.TestCase):
         # the progress is written before the test begins
         self.assertLess(step.index('kProgressFile'), step.index('androidSay "BEGIN"'))
         self.assertLess(step.index('androidSay "BEGIN"'), step.index('TestRunnerInvokeTestCommand'))
+
+    def test_the_runner_runs_again_the_tests_it_is_given(self):
+        # the launch's extra that run gives it, read with
+        # mobileGetLaunchData(), which LiveCode 9.6.3's engine has too
+        self.assertIn('constant kAgainExtra = "%s"' % at.AGAIN_EXTRA, self.runner)
+        self.assertIn('constant kAgainNone = "%s"' % at.AGAIN_NONE, self.runner)
+        lines = self.runner[self.runner.index('private function androidAgainLines'):
+                            self.runner.index('end androidAgainLines')]
+        self.assertIn('mobileGetLaunchData()', lines)
+        self.assertIn('tData["extras"][kAgainExtra]', lines)
+        start = self.runner[self.runner.index('on androidTestsStart'):self.runner.index('end androidTestsStart')]
+        # it says so before any test, and does not resume then
+        self.assertLess(start.index('androidSay "COUNT"'), start.index('androidAgainLines()'))
+        self.assertLess(start.index('androidSay "AGAIN" && tAgain'), start.index('kProgressFile'))
+        self.assertIn('exit androidTestsStart', start[start.index('androidSay "AGAIN"'):start.index('kProgressFile')])
+        step = self.runner[self.runner.index('on androidTestsNext'):self.runner.index('end androidTestsNext')]
+        self.assertIn('put item 1 of sAgain into sIndex', step)
+        # the item delimiter is still the comma there
+        self.assertLess(step.index('item 1 of sAgain'), step.index('set the itemDelimiter to tab'))
+        self.assertIn('if sAgainMode is not true then\n      add 1 to sIndex', step)
+        self.assertEqual(step.count('androidSay "END"'), 2)
 
     def test_the_scripts_declare_their_variables(self):
         # every t* variable a handler uses is declared in it (a script set by
@@ -672,6 +1035,9 @@ class Workflow(unittest.TestCase):
         self.assertIn('--engine 9.6.3', run)
         self.assertIn('--engine beyond', run)
         self.assertIn('--check-engine "$WORK/engine"', run)
+        # each run shows that the tests whose lines the log lost can be
+        # run again
+        self.assertEqual(run.count('--again-check'), 2)
         self.assertLess(run.index('--engine 9.6.3'), run.index('--engine beyond'))
         self.assertLess(run.index('--engine beyond'), run.index('android_tests.py compare'))
         # neither run stops the other or the comparison

@@ -870,10 +870,16 @@ private command __extensionBuildPackage pDetailsA, pFolder, pTargetFolder, pRemo
       end if
    end if
    
+   -- OXT-Beyond: a package that failed part way is not left beside the
+   -- extension, where it looked like a build that had worked (Skids,
+   -- forum p=26031: "leaving the extra files dotted about")
    if tError is not empty then
+      if there is a file tArchive then
+         delete file tArchive
+      end if
       return tError
    end if
-   
+
    put tArchive into rBuiltLocation
    return empty
 end __extensionBuildPackage
@@ -1476,6 +1482,132 @@ command extensionGenerateManifestForLCSExtension pDocsParser, pSourceFolder
    log "writing manifest to" && pSourceFolder & slash & "manifest.xml"
    put textEncode(tXML, "utf-8") into url("binfile:" & pSourceFolder & slash & "manifest.xml")
 end extensionGenerateManifestForLCSExtension
+
+-- OXT-Beyond: the first compile error of a script, as "line,column,
+-- message" with the line counted in the script as given, or empty when it
+-- compiles. It is compiled into a button of a stack made for it and gone
+-- after, as the Script Editor compiles one (scriptCompile), so no object's
+-- script is changed and nothing is written to disk. Without explicit
+-- variables, as a library is loaded unless its user asks for them. The
+-- message is the engine's words where it has them (the scriptParsingErrors
+-- is empty in a standalone), and the error's number where it does not.
+private function __ScriptCompileError pScript
+   local tOldDefault, tOldExplicit, tStackName, tError
+   put the defaultStack into tOldDefault
+   put the explicitVariables into tOldExplicit
+   put "OXT Extension Utils Compile Check" && the milliseconds into tStackName
+   lock messages
+   set the explicitVariables to false
+   create invisible stack tStackName
+   create button "compile" in card 1 of stack tStackName
+   set the script of button "compile" of card 1 of stack tStackName to pScript
+   put line 1 of the result into tError
+   delete stack tStackName
+   set the explicitVariables to tOldExplicit
+   if there is a stack tOldDefault then
+      set the defaultStack to tOldDefault
+   end if
+   unlock messages
+   
+   if tError is empty then
+      return empty
+   end if
+   
+   local tMessage
+   if item 1 of tError is an integer and item 1 of tError > 0 then
+      put line (item 1 of tError) of the scriptParsingErrors into tMessage
+   end if
+   if tMessage is empty then
+      put "script error" && item 1 of tError into tMessage
+   end if
+   if item 4 of tError is not empty then
+      put tMessage && "(near" && quote & item 4 to -1 of tError & quote & ")" \
+            into tMessage
+   end if
+   return item 2 of tError & comma & item 3 of tError & comma & tMessage
+end __ScriptCompileError
+
+/**
+Summary: Lists what keeps a script library extension from building or working.
+
+Parameters:
+pSourceFolder: The folder of a LiveCode Script extension (a script library).
+
+Returns:
+One problem a line, each a sentence that says what is wrong and where, or
+empty when there is nothing to report. Empty too for a folder of a LiveCode
+Builder extension or with no extension in it.
+
+Description:
+Use <extensionScriptLibraryProblems> after a script library's manifest is
+written (<extensionGenerateManifestForLCSExtension>) to tell its author what
+went wrong when it does not build, or builds and does nothing. It reports:
+
+- a folder whose extension files cannot be told apart (the main one and
+  its support files);
+- a main file that does not open as a stack (a script-only stack's first
+  line must be script "<name>");
+- the first compile error in the library's script, by its line in the file:
+  a library that does not compile loads with none of its handlers;
+- a manifest with no id, which is what a library gets whose docs have no
+  library block before its first handler (a /** */ block with a Title: or a
+  Version: line, and no Summary: or Syntax: line);
+- a manifest with no version (the library block has no Version: line).
+
+It changes nothing on disk, and nothing in the stack it checks.
+*/
+function extensionScriptLibraryProblems pSourceFolder
+   local tSource, tSupport, tType, tResult, tProblems
+   extensionFetchSourceFromFolder pSourceFolder, tSource, tSupport, tType
+   put the result into tResult
+   if tResult is not empty then
+      replace return with space in tResult
+      return tResult
+   end if
+   if tType is not "lcs" then
+      return empty
+   end if
+   
+   local tPath
+   put pSourceFolder & slash & tSource into tPath
+   if there is not a stack tPath then
+      return tPath && "could not be opened as a stack: the first line of a" && \
+            "script library must be script" && quote & "<name>" & quote & \
+            ", with the library's name in quotes."
+   end if
+   
+   local tError
+   put __ScriptCompileError(the script of stack tPath) into tError
+   if tError is not empty then
+      -- The script of a script-only stack starts below its script "..."
+      -- line, so the file's line is one more
+      if the scriptOnly of stack tPath then
+         put item 1 of tError + 1 into item 1 of tError
+      end if
+      put tPath & ", line" && item 1 of tError & ":" && item 3 to -1 of tError & \
+            ". The library will load with none of its handlers until it compiles." \
+            into tProblems
+   end if
+   
+   local tManifest, tDataA
+   put pSourceFolder & slash & "manifest.xml" into tManifest
+   if there is a file tManifest then
+      put extensionFetchMetadata(tManifest) into tDataA
+      if tDataA["name"] is empty then
+         if tProblems is not empty then put return after tProblems
+         put "No library block was found in the docs of" && tPath & \
+               ", so the library has no id. Put a /** */ block before its first" && \
+               "handler with a Title: and a Version: line, and no Summary: or" && \
+               "Syntax: line." after tProblems
+      else if tDataA["version"] is empty then
+         if tProblems is not empty then put return after tProblems
+         put "The library block in the docs of" && tPath && \
+               "has no Version: line, so the library cannot be packaged." && \
+               "Add one, for example Version: 1.0.0." after tProblems
+      end if
+   end if
+   return tProblems
+end extensionScriptLibraryProblems
 
 private command __SetMetadata pKey, pValue, @xArray
    split pKey by "."

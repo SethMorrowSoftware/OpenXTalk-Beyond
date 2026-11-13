@@ -1,0 +1,10 @@
+# The Inspector's Nudge editor (Align Controls, with several controls
+# selected): the menu with the number of pixels a nudge moves by kept a
+# dark grey text colour (64,64,64) and is not opaque, so on a dark window
+# its number was dark grey on dark (found by tools/ci/stack_inks.py). With
+# no colour of its own it is drawn in the theme's.
+file: Toolset/palettes/inspector/editors/com.livecode.pi.nudge.livecode
+object: button "Increment" of card 1
+property: foregroundColor
+from: 64,64,64
+to: 

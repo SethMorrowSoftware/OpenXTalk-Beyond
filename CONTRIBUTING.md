@@ -107,11 +107,15 @@ format.
   hour). Changelog lines go in [changelog](changelog/README.md), so
   they cause no conflicts.
 - A **draft** pull request runs only the CI checks; the three build
-  workflows and the Web IDE workflow skip it. Marking it ready for
-  review starts them on its newest commit, so work in a draft while you
-  are still pushing, and mark it ready when it is done. Merge only
-  after the builds of that run have passed: the skipped builds of its
-  draft commits show as checks too, but they tested nothing.
+  workflows and the Web IDE workflow skip it. Their first job, *Draft
+  check*, asks GitHub whether the pull request is a draft at that
+  moment, and the rest of the run is skipped if it is (the run itself
+  then shows as passed, with a notice that nothing was built). Marking
+  it ready for review starts them on its newest commit, so work in a
+  draft while you are still pushing, and mark it ready when it is done.
+  Merge only after the builds of that run have passed: the skipped
+  builds of its draft commits show as checks too, but they tested
+  nothing.
 
 ### How pull requests are merged
 
@@ -232,6 +236,14 @@ can store but not diff or merge.
   other change run `tools/oxt/stack-scripts.sh <development engine>`. The
   Linux build checks that it matches the stacks. Do not edit these files:
   they are made from the stacks.
+- Give a control of an IDE window a text colour of its own only together
+  with a background of its own, and likewise a stack, card or group whose
+  controls take its colour. With neither it is drawn in the theme's
+  colours, light and dark; black words on the theme's background cannot
+  be read on a dark window, and a white box of a control's own hides the
+  theme's white words there. The same tool reads every IDE stack for a
+  text colour like that (`tools/ci/stack_inks.py`), and the Linux build
+  fails on one.
 - Do not remove other people's credits or dated comments from stacks.
 - The "OpenXTalk Lite" text that is still inside binary stacks will be
   changed in reviewable steps like these; please coordinate in an issue
