@@ -126,6 +126,19 @@ class Toolsets(unittest.TestCase):
                          r"'toolset_os == \"win\"',\s*\{\s*(#[^\n]*\n\s*)*'defines':\s*\[\s*'NOMINMAX',\s*'UNICODE',\s*'_UNICODE',")
 
 
+    def test_the_wrapper_leaves_out_the_bootstrap_files(self):
+        # They need a newer Windows SDK than the build's, and nothing calls them
+        removed = []
+        for cond in target('thirdparty/libcef/libcef.gyp', 'libcef_library_wrapper')['target_conditions']:
+            if cond[0] == 'toolset_os == "win"':
+                removed += cond[1].get('sources!', [])
+        self.assertIn('libcef_dll/wrapper/cef_certificate_util_win.cc', removed)
+        self.assertIn('libcef_dll/wrapper/cef_scoped_library_loader_win.cc', removed)
+        for path in ('libbrowser/src', 'revbrowser/src'):
+            for name in os.listdir(os.path.join(REPO, *path.split('/'))):
+                self.assertNotIn('cef_scoped_library_loader', read(*path.split('/'), name), name)
+
+
 class EngineDoesNotLinkTheDll(unittest.TestCase):
     def test_the_copy_target_stops_the_link(self):
         t = target('libbrowser/libbrowser.gyp', 'libbrowser-cef-copy')

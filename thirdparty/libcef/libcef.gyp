@@ -64,6 +64,20 @@
 						],
 					},
 				],
+				# What only CEF's bootstrap and sandbox use: the signature
+				# check needs WINTRUST_SIGNATURE_SETTINGS, newer than the
+				# Windows SDK the build uses (10.0.17763), and the browser
+				# loads libcef through the weak stubs, not this loader
+				[
+					'toolset_os == "win"',
+					{
+						'sources!':
+						[
+							'libcef_dll/wrapper/cef_certificate_util_win.cc',
+							'libcef_dll/wrapper/cef_scoped_library_loader_win.cc',
+						],
+					},
+				],
 				# Since CEF 156 the wrapper has sources for one platform
 				# only, named for it
 				[
