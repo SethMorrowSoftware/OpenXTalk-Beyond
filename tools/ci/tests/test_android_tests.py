@@ -966,6 +966,39 @@ class Standalone(unittest.TestCase):
         self.assertIn('if sAgainMode is not true then\n      add 1 to sIndex', step)
         self.assertEqual(step.count('androidSay "END"'), 2)
 
+    def test_the_runner_paces_what_it_says(self):
+        # liblog drops a line when logd's socket is full, and the lines at
+        # the end of a burst are the ones lost (a test's DONE, the run's
+        # END): the runner says at most kPaceLines in kPaceMilliseconds,
+        # every line through androidSay, which waits out the rest
+        self.assertIn('constant kPaceLines = 50\nconstant kPaceMilliseconds = 50\n', self.runner)
+        say = re.search(r'(?ms)^private command androidSay pLine\n(.*?)^end androidSay', self.runner).group(1)
+        self.assertEqual(say, '   local tLeft\n'
+                              '   put kPrefix && pLine\n'
+                              '   if sPaceSince is empty then\n'
+                              '      put the milliseconds into sPaceSince\n'
+                              '      put 0 into sPaceCount\n'
+                              '   end if\n'
+                              '   add 1 to sPaceCount\n'
+                              '   if sPaceCount >= kPaceLines then\n'
+                              '      put kPaceMilliseconds - (the milliseconds - sPaceSince) into tLeft\n'
+                              '      if tLeft > 0 then\n'
+                              '         wait tLeft milliseconds\n'
+                              '      end if\n'
+                              '      put 0 into sPaceCount\n'
+                              '      put the milliseconds into sPaceSince\n'
+                              '   end if\n')
+        self.assertIn('local sPaceCount\nlocal sPaceSince\n', self.runner)
+        # no line of the run goes to the log past it: the one other put of
+        # the prefix is the quit backscript's, a line a test
+        code = re.sub(r'(?m)^\s*--.*$', '', self.runner)
+        self.assertEqual(len(re.findall(r'(?m)^\s*put kPrefix\b', code)), 1)
+        self.assertEqual(code.count('kPrefix'), 3)
+        self.assertIn('"   put" && quote & kPrefix && "QUIT " & quote & " & the uIndex of me"', code)
+        # and the wait is a plain one: no message (a test's, or the next
+        # test's start) runs inside a line of the run
+        self.assertNotIn('with messages', say)
+
     def test_the_scripts_declare_their_variables(self):
         # every t* variable a handler uses is declared in it (a script set by
         # the IDE may be compiled with explicit variables)
@@ -1026,6 +1059,41 @@ class TestLibrary(unittest.TestCase):
         for handler in ('TestCheckpointBringsAStackBack', 'TestCleanupLeavesNothing', 'TestRunOnTheStackCanBeUndone'):
             body = re.search(r'(?ms)^on %s\b(.*?)^end %s\b' % (handler, handler), build).group(1)
             self.assertIn('TestSkipIfNot "shell"', body, handler)
+
+    def test_the_mcp_bridges_tests_need_a_shell(self):
+        # the bridge's server, which every one of its tests starts, makes
+        # its token's file the user's alone through a shell, off Windows:
+        # error 539 in each of the 41 on Android once the security library
+        # was there. They skip where there is no shell, in the TestSetup
+        tools = read('ide', 'Extensions', 'org.openxtalk.plugin.mcpbridge', 'mcpbridge-tools.livecodescript')
+        only = re.search(r'(?ms)^private command mcbOwnerOnly pPath, pMode\n(.*?)^end mcbOwnerOnly', tools).group(1)
+        self.assertEqual(only, '   if the platform is not "Win32" then\n'
+                               '      get shell("chmod" && pMode && quote & pPath & quote)\n'
+                               '   end if\n')
+        write = re.search(r'(?ms)^(?:private )?(?:command|function) mcbWriteInfoFile\b(.*?)^end mcbWriteInfoFile', tools).group(1)
+        self.assertIn('mcbOwnerOnly sInfoFile, "600"', write)
+        test = read('tests', 'lcs', 'mcpbridge', 'tools.livecodescript')
+        setup = re.search(r'(?ms)^on TestSetup\n(.*?)^end TestSetup', test).group(1)
+        self.assertLess(setup.index('TestSkipIfNot "sockets"'), setup.index('TestSkipIfNot "shell"'))
+        self.assertLess(setup.index('TestSkipIfNot "shell"'), setup.index('start using stack'))
+        # and none is in a baseline any more, nor a comment about a lack
+        # of the bench that is no more
+        for engine in at.ENGINES:
+            with open(at.baseline_path(engine), encoding='utf-8') as f:
+                text = f.read()
+            self.assertNotIn('mcpbridge', text, engine)
+            self.assertNotIn('error 720', text, engine)
+            self.assertNotIn('error 539', text, engine)
+
+    def test_the_peer_address_test_says_what_it_compared(self):
+        text = read('tests', 'lcs', 'core', 'network', 'network.livecodescript')
+        body = re.search(r'(?ms)^on TestPeerAddress\b(.*?)^end TestPeerAddress', text).group(1)
+        said = body.index('TestDiagnostic "the peeraddress:" && it & "; hostnametoaddress:" && tAddresses')
+        # after the assertion (the diagnostic under it is the line the
+        # run's log gives for a failure in the baseline), before the exit
+        self.assertLess(body.index('TestAssert "peeraddress", it is among the lines of hostnametoaddress(tSock)'), said)
+        self.assertLess(said, body.index('exit TestPeerAddress'))
+        self.assertIn('replace return with comma in tAddresses', body)
 
 
 class Workflow(unittest.TestCase):

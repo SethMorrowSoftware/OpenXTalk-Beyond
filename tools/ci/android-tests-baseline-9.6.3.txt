@@ -186,7 +186,7 @@ lcs: core/multimedia/audioclipexport: TestExportAudioClipWaveIsTheFileImported
 lcs: core/multimedia/audioclipexport: TestExportOlderFormsCompileAsBefore
 lcs: core/multimedia/audioclipexport: TestExportVideoClip
 lcs: core/network/network: TestNetworkDNSServers
-? lcs: core/network/network: TestPeerAddress  # depends on the network: it skips unless www.livecode.com answers within 100 ms
+? lcs: core/network/network: TestPeerAddress  # skips each run so far: the test waits 100 ms for www.livecode.com to answer
 lcs: core/strings/filter: TestBug15443
 lcs: core/strings/matches: TestMatchesCustomProperty
 lcs: core/strings/matches: TestMatchesErrorsAsBefore
@@ -211,60 +211,19 @@ lcs: extensions/libraries/hxtcompat: TestQuotedPrintableDecode
 lcs: extensions/libraries/hxtcompat: TestQuotedPrintableEncode
 lcs: extensions/libraries/hxtcompat: TestQuotedPrintableLineLength
 lcs: extensions/libraries/hxtcompat: TestQuotedPrintableRoundTrip
-lcs: mcpbridge/tools: TestALongScriptIsReadInParts  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestAMisspeltPropertyGetsTheNearest  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestARunOnTheStackGivesItsError  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestARunThatChangesNothingKeepsNoCheckpoint  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestARunTooLongToShowIsRefused  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestChangesAndUndo  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestCheckCodeGivesOneProblemALine  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestCloseAsksWhenASubstackHasChanges  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestCloseStack  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestCodeTheScanMissesIsAskedAbout  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestDesktopConfig  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestEditScript  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestHello  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestHyperCardAddressingLabels  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestIdeContext  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestImportHyperCard  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestLookAtCardWithIds  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestNotAskingEndsWithTheBridgeAndNeedsAnAsker  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestNotAskingIsOffUntilTheUserSetsIt  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestNotAskingLetsALongRunThrough  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestNotAskingRunsAndSavesWithoutAQuestion  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestNotAskingStillAsksBeforeUndoingTheUsersChanges  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestNothingPausedAndNoDialog  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestOverASocket  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestReadStackIsLeanAndReadsSeveral  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestReadStackListsSounds  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestReadingTools  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestRefusesARequestWithoutTheToken  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestRunsAndWhatTheUserIsAsked  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestSaveAsAFile  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestSaveIsAskedAbout  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestSaveNamesAStackNeverSaved  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestSearchScripts  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestServerWritesAndDeletesItsFile  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestSetAskingNeedsTheUsersYes  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestTheFileNamesThisProcessAndIsKeptByItsOwner  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestTheGuideIsTheBridges  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestTheLinkAndTheServerAreNeverOnTogether  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestTheStatusSaysWhatItWaitsFor  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestTheTokenIsComparedAsText  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestUndoAsksWhenTheUserChangedIt  # error 720: could not load the security library
 lcs: webplayer/nova-rescue: TestTheScreensFitAPhoneOnItsSide
 lcs: webplayer/puzzle-almanac: TestTheScreensFitAPhoneOnItsSide
 lcs: xtalkassistant/build: TestUndoANewStack
 lcs: xtalkassistant/core: TestAskLocalLoadFails
 lcs: xtalkassistant/core: TestAskRefusedKey
 lcs: xtalkassistant/guide: TestGuideThrowInCatch
-lcs: xtalkassistant/plugin: TestAnAnswerIsLaidOut  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestCopyTheConversation  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestAnAnswerIsLaidOut
+lcs: xtalkassistant/plugin: TestCopyTheConversation
 lcs: xtalkassistant/plugin: TestLookAtTheCard
 lcs: xtalkassistant/plugin: TestOpenWindow
 lcs: xtalkassistant/plugin: TestRunOnTheStackCanBeUndone
-lcs: xtalkassistant/plugin: TestSettingsKeepEverything  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestToolsRefusedByALocalServer  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestSettingsKeepEverything
+lcs: xtalkassistant/plugin: TestToolsRefusedByALocalServer
 lcs: xtalkchat/core: TestBringingAKey
 lcs: xtalkchat/core: TestIdentityRoundTrip
 lcs: xtalkchat/core: TestKeyFromText

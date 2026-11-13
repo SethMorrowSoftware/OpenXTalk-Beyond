@@ -76,6 +76,14 @@ repeat while the millisecs - tTime < tTimeOut
 	get the peeraddress of tSock
 	if it is not empty then
 		TestAssert "peeraddress", it is among the lines of hostnametoaddress(tSock)
+		-- OXT-Beyond: what was compared, in a line (on an Android
+		-- emulator the address was not among them with OXT-Beyond's
+		-- engine, each run, and the connection took longer than the
+		-- test waits with LiveCode 9.6.3's)
+		local tAddresses
+		put hostnametoaddress(tSock) into tAddresses
+		replace return with comma in tAddresses
+		TestDiagnostic "the peeraddress:" && it & "; hostnametoaddress:" && tAddresses
 		close socket tSock
 		exit TestPeerAddress
 	end if
