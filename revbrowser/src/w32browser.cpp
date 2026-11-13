@@ -659,7 +659,7 @@ char *CWebBrowser::ExecuteScript(const char *p_javascript_string)
 	VariantInit(&t_script_return);
 	if (t_success)
 	{
-		t_result = t_window -> execScript(t_code, L"JScript", &t_script_return);
+		t_result = t_window -> execScript(t_code, const_cast<BSTR>(L"JScript"), &t_script_return);
 		t_success = (SUCCEEDED(t_result));
 	}
 
@@ -675,7 +675,7 @@ char *CWebBrowser::ExecuteScript(const char *p_javascript_string)
 	// Lookup the ID of the "result" variable
 	DISPID t_var_id;
 	LPOLESTR t_ole_var;
-	t_ole_var = OLESTR("result");
+	t_ole_var = const_cast<LPOLESTR>(OLESTR("result"));
 	if (t_success)
 		t_result = t_script -> GetIDsOfNames(IID_NULL, &t_ole_var, 1, LOCALE_NEUTRAL, &t_var_id);
 	
@@ -1607,7 +1607,7 @@ HRESULT LoadWebBrowserFromStreamDo(IDispatch *pHtmlDoc, HGLOBAL pText)
 
 
 HGLOBAL s_navigation_text = NULL;
-char *s_internal_navigation_url = NULL;
+const char *s_internal_navigation_url = NULL;
 
 HRESULT LoadWebBrowserFromStream(IWebBrowser2* pWebBrowser, HGLOBAL pText)
 {

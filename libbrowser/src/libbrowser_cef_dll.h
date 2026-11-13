@@ -79,6 +79,7 @@ struct MCBrowserCefHost
 
 	// libbrowser_value.cpp
 	bool (*list_create)(MCBrowserListRef &r_list, uint32_t p_size);
+	MCBrowserListRef (*list_retain)(MCBrowserListRef p_list);
 	void (*list_release)(MCBrowserListRef p_list);
 	bool (*list_set_boolean)(MCBrowserListRef p_list, uint32_t p_index, bool p_value);
 	bool (*list_set_integer)(MCBrowserListRef p_list, uint32_t p_index, int32_t p_value);

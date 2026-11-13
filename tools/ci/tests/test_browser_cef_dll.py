@@ -211,10 +211,17 @@ class HostTable(unittest.TestCase):
         # own in the engine is defined in the DLL, and only there
         dll = read('libbrowser', 'src', 'libbrowser_cef_dll_win.cpp')
         cef = read('libbrowser', 'src', 'libbrowser_cef.cpp') + read('libbrowser', 'src', 'libbrowser_cef_win.cpp')
-        for name in set(re.findall(r'\b(MCBrowser(?:List|Dictionary)(?:Create|Release|Set\w+)|MCBrowserRunloop\w+|'
-                                   r'MCBrowser(?:Add|Remove)RunloopAction|MCBrowserMemory(?:Allocate|Reallocate|Deallocate))\(',
-                                   cef)):
-            self.assertRegex(dll, r'\n(?:bool|void) %s\(' % name, name)
+        # (MCBrowserListRetain was once missed: Build win-x86 failed to link)
+        names = set(re.findall(r'\b(MCBrowser(?:List|Dictionary)\w+|MCBrowserRunloop\w+|'
+                               r'MCBrowser(?:Add|Remove)RunloopAction|MCBrowserMemory(?:Allocate|Reallocate|Deallocate))\(',
+                               cef))
+        self.assertIn('MCBrowserListRetain', names)
+        for name in names:
+            self.assertRegex(dll, r'\n\w+ %s\(' % name, name)
+
+    def test_the_dll_links_the_windows_it_makes(self):
+        # libbrowser_cef_win.cpp makes windows and a dialog with user32
+        self.assertIn('-luser32', target('libbrowser/libbrowser.gyp', 'libbrowser-cef').get('libraries', []))
 
     def test_the_library_part_of_libbrowser_is_left_out_of_the_dll(self):
         text = read('libbrowser', 'src', 'libbrowser.cpp')

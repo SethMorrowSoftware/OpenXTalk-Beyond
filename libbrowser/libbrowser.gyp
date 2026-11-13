@@ -326,6 +326,13 @@
                             'src/libbrowser_win.rc',
                         ],
 
+                        # libbrowser_cef_win.cpp's windows and the auth
+                        # dialog; inside the engine its own link had them
+                        'libraries':
+                        [
+                            '-luser32',
+                        ],
+
                         'msvs_settings':
                         {
                             'VCCLCompilerTool':

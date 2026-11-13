@@ -99,6 +99,7 @@ bool MCCefBrowserFactoryCreate(MCBrowserFactoryRef &r_factory)
 	t_host.runloop_break_wait = MCBrowserRunloopBreakWait;
 
 	t_host.list_create = MCBrowserCefListCreate;
+	t_host.list_retain = MCBrowserListRetain;
 	t_host.list_release = MCBrowserListRelease;
 	t_host.list_set_boolean = MCBrowserListSetBoolean;
 	t_host.list_set_integer = MCBrowserListSetInteger;

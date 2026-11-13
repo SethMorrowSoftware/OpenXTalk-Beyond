@@ -101,6 +101,11 @@ bool MCBrowserListCreate(MCBrowserListRef &r_list, uint32_t p_size)
 	return s_host.list_create(r_list, p_size);
 }
 
+MCBrowserListRef MCBrowserListRetain(MCBrowserListRef p_list)
+{
+	return s_host.list_retain(p_list);
+}
+
 void MCBrowserListRelease(MCBrowserListRef p_list)
 {
 	s_host.list_release(p_list);
