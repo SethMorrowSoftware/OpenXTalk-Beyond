@@ -26,7 +26,6 @@ on the Linux build's GCC 9), and the CEF files the packages take.
 import os
 import re
 import shutil
-import stat
 import subprocess
 import sys
 import tempfile
@@ -155,7 +154,10 @@ class CxxByStd(unittest.TestCase):
         self.assertEqual(self.run_it('-DX=a b', '-std=c++20'), 'new -DX=a b -std=c++20')
 
     def test_it_is_executable(self):
-        self.assertTrue(os.stat(CXX_BY_STD).st_mode & stat.S_IXUSR)
+        # As git records it: Windows checkouts have no execute bit
+        out = subprocess.run(['git', 'ls-files', '--stage', '--', 'tools/cxx_by_std.sh'], cwd=REPO, check=True,
+                             stdout=subprocess.PIPE, universal_newlines=True).stdout
+        self.assertTrue(out.startswith('100755 '), out)
 
     def test_the_linux_build_configures_with_it(self):
         text = read(os.path.join(REPO, '.github', 'workflows', 'build-linux.yml'))
@@ -169,7 +171,7 @@ class CxxByStd(unittest.TestCase):
             for name in files:
                 if name.endswith(('.gyp', '.gypi')):
                     if '-std=c++20' in read(os.path.join(root, name)):
-                        found.append(os.path.relpath(os.path.join(root, name), REPO))
+                        found.append(os.path.relpath(os.path.join(root, name), REPO).replace(os.sep, '/'))
         self.assertEqual(sorted(found), ['libbrowser/libbrowser.gyp', 'revbrowser/revbrowser.gyp',
                                          'thirdparty/libcef/libcef.gyp'])
 
