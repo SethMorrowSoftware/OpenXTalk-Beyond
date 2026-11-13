@@ -1,3 +1,11 @@
-Files in this folder are based on expat-2.2.0
+Files in this folder are based on expat-2.10.0
 
-Original source archives are available from <http://www.libexpat.org/>
+The source is Debian's expat_2.10.0.orig.tar.gz (libexpat's git tag
+R_2_10_0), checked against the SHA-256 in Debian's expat_2.10.0-1.dsc.
+lib/ holds the library's sources and headers (lib/winconfig.h left out;
+lib/asciitab_old.h is a file of Tom Perry's, see ../README.md), Changes
+and README.md are the release's, NOTICE is its COPYING. expat_config.h is
+OXT-Beyond's, for Android (Bionic), where alone libexpat.gyp builds
+the library (Skia's XML parsers use it).
+
+Original source archives are available from <https://libexpat.github.io/>

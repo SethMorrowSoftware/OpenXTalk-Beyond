@@ -1,6 +1,10 @@
 /*
  * This file registers the FreeType modules compiled into the library.
  *
+ * OXT-Beyond: the modules FreeType 2.10.4 had, in its order; the SDF and
+ * OT-SVG renderers that 2.11 and 2.12 added are left out (libfreetype.gyp does
+ * not compile them, and nothing here uses them).
+ *
  * If you use GNU make, this file IS NOT USED!  Instead, it is created in
  * the objects directory (normally `<topdir>/objs/`) based on information
  * from `<topdir>/modules.cfg`.
