@@ -1120,9 +1120,16 @@ class TestLibrary(unittest.TestCase):
         self.assertIn('TestAssert "the peerAddress of no socket is empty on mobile", tAddress is empty', body)
 
     def test_no_baseline_holds_the_peer_address_tests(self):
+        # but 9.6.3's, whose engine stops the app at the empty answer's
+        # test (it reads the unset answer, as this tree's did before the
+        # fix): a crash that stays in a stack built with 9.6.3
+        names = {}
         for engine in ('9.6.3', 'beyond'):
             text = read('tools', 'ci', 'android-tests-baseline-%s.txt' % engine)
-            self.assertNotIn('TestPeerAddress', text, engine)
+            names[engine] = re.findall(r'(?m)^(?:\? )?lcs: core/network/network: (TestPeerAddress\w*)', text)
+            self.assertNotIn('TestPeerAddress', re.sub(r'(?m)^lcs: core/network/network: '
+                                                       r'TestPeerAddressIsEmptyOnMobile #.*$', '', text), engine)
+        self.assertEqual(names, {'9.6.3': ['TestPeerAddressIsEmptyOnMobile'], 'beyond': []})
 
     def test_the_mobile_peer_address_answers_empty(self):
         # engine: the _MOBILE branch of MCNetworkEvalPeerAddress puts the

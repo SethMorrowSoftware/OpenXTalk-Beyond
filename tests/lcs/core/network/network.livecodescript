@@ -103,7 +103,8 @@ end TestPeerAddress
 -- the handler did before it. It used to put nothing into its answer, and
 -- the engine handed on what that answer's storage last held: on an
 -- Android emulator OXT-Beyond's engine gave "100", the number the handler
--- had just put into a variable (the old TestPeerAddress's timeout)
+-- had just put into a variable (the old TestPeerAddress's timeout), and
+-- LiveCode 9.6.3's engine stopped the app (a native crash)
 on TestPeerAddressIsEmptyOnMobile
    if the platform is not among the items of "android,iphone" then
       TestSkip "peeraddress on mobile", "not Android or iOS"
