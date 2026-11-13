@@ -122,7 +122,7 @@ def main(argv=None):
         cmds, check, helper = build_commands(work, args.sanitize,
                                              helper=os.path.abspath(args.helper) if args.helper else None)
         for cmd in cmds:
-            build = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+            build = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, errors='replace')
             output += build.stdout
             if build.returncode != 0:
                 output += 'FAIL build: %s exited with %d\n' % (os.path.basename(cmd[-1]), build.returncode)
@@ -131,12 +131,13 @@ def main(argv=None):
         if code == 0:
             env = dict(os.environ)
             # WebKitGTK's own allocations, kept until the process ends, are
-            # not the check's
-            env.setdefault('ASAN_OPTIONS', 'detect_leaks=0')
+            # not the check's, so no check at exit; the check asks for one
+            # where it means to (CheckNoLeaks)
+            env.setdefault('ASAN_OPTIONS', 'detect_leaks=1:leak_check_at_exit=0')
             for cmd in run_commands(check, helper, work, env.get('DISPLAY')):
                 try:
                     run = subprocess.run(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                         universal_newlines=True, timeout=args.timeout)
+                                         universal_newlines=True, errors='replace', timeout=args.timeout)
                     output += run.stdout
                     code = code or run.returncode
                 except subprocess.TimeoutExpired as e:

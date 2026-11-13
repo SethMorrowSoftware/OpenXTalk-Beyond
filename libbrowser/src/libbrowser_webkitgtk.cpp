@@ -661,6 +661,10 @@ private:
 			    IsJavaScriptHandler(t_handler))
 				OnJavaScriptCall(t_handler, t_params);
 
+			// The name is a copy (MCBrowserValueGetUTF8String), as CEF's
+			// (libbrowser_cef.cpp), whether the call was taken or not
+			if (t_handler != nil)
+				MCCStringFree(t_handler);
 			MCBrowserListRelease(t_call);
 		}
 	}

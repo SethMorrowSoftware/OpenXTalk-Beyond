@@ -46,6 +46,7 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 
 #include <string>
@@ -116,6 +117,9 @@ enum
 	F(unsigned int, g_io_add_watch, (void *channel, int condition, GIOFunc func, gpointer data)) \
 	F(gboolean, g_source_remove, (unsigned int tag)) \
 	F(void, g_free, (gpointer mem)) \
+	F(void, g_error_free, (GError *error)) \
+	F(gboolean, g_utf8_validate, (const gchar *str, long max_len, const gchar **end)) \
+	F(gchar *, g_convert, (const gchar *str, long len, const gchar *to_codeset, const gchar *from_codeset, size_t *bytes_read, size_t *bytes_written, GError **error)) \
 	F(GQuark, g_quark_from_string, (const gchar *string)) \
 	/* GObject */ \
 	F(gulong, g_signal_connect_data, (gpointer instance, const gchar *signal, GCallback handler, gpointer data, void *destroy, int flags)) \
@@ -545,24 +549,101 @@ static void MCEvaluate(const std::string &p_id, const std::string &p_script)
 	p_webkit_web_view_run_javascript(s_view, t_script.c_str(), nullptr, MCOnJavaScriptDone, t_call);
 }
 
+// The main resource's bytes, waiting on the document's encoding
+struct MCPendingSource
+{
+	std::string id;
+	std::string bytes;
+};
+
+static void MCReturnDocumentHTML(const std::string &p_id)
+{
+	// The document as the page has it now
+	MCEvaluate(p_id, "document.documentElement ? document.documentElement.outerHTML : ''");
+}
+
+// As CEF (GetSource): the source as text, which the engine takes as UTF-8
+// (browser.lcb), whatever the page's own encoding. Without a byte order
+// mark, as CEF's decoded text has none.
+static void MCReturnSource(const std::string &p_id, const std::string &p_bytes, const std::string &p_charset)
+{
+	std::string t_text;
+	bool t_utf8 = p_charset.empty() || strcasecmp(p_charset.c_str(), "UTF-8") == 0;
+	if (t_utf8)
+		t_text = p_bytes;
+	else
+	{
+		size_t t_written = 0;
+		GError *t_error = nullptr;
+		gchar *t_converted = p_g_convert(p_bytes.data(), (long)p_bytes.size(), "UTF-8", p_charset.c_str(),
+		                                 nullptr, &t_written, &t_error);
+		if (t_error != nullptr)
+			p_g_error_free(t_error);
+		if (t_converted == nullptr)
+		{
+			// An encoding iconv does not know: the page's own HTML instead
+			MCReturnDocumentHTML(p_id);
+			return;
+		}
+		t_text.assign(t_converted, t_written);
+		p_g_free(t_converted);
+	}
+	if (t_text.compare(0, 3, "\xef\xbb\xbf") == 0)
+		t_text.erase(0, 3);
+	// Bytes the encoding named do not decode: the page's own HTML instead,
+	// never text the engine cannot read
+	if (!p_g_utf8_validate(t_text.data(), (long)t_text.size(), nullptr))
+	{
+		MCReturnDocumentHTML(p_id);
+		return;
+	}
+	MCReturn(p_id, true, t_text);
+}
+
+static void MCOnCharsetDone(void *p_view, void *p_result, gpointer p_data)
+{
+	MCPendingSource *t_source = (MCPendingSource *)p_data;
+	GError *t_error = nullptr;
+	void *t_result = p_webkit_web_view_run_javascript_finish(p_view, p_result, &t_error);
+	std::string t_charset;
+	if (t_result != nullptr)
+	{
+		gchar *t_text = p_jsc_value_to_string(p_webkit_javascript_result_get_js_value(t_result));
+		if (t_text != nullptr)
+		{
+			t_charset = t_text;
+			p_g_free(t_text);
+		}
+		p_webkit_javascript_result_unref(t_result);
+	}
+	if (t_error != nullptr)
+		p_g_error_free(t_error);
+	MCReturnSource(t_source->id, t_source->bytes, t_charset);
+	delete t_source;
+}
+
 static void MCOnSourceDone(void *p_resource, void *p_result, gpointer p_data)
 {
 	MCPendingCall *t_call = (MCPendingCall *)p_data;
 	size_t t_length = 0;
 	GError *t_error = nullptr;
 	unsigned char *t_data = p_webkit_web_resource_get_data_finish(p_resource, p_result, &t_length, &t_error);
+	if (t_error != nullptr)
+		p_g_error_free(t_error);
 	if (t_data != nullptr)
 	{
-		MCReturn(t_call->id, true, std::string((const char *)t_data, t_length));
+		// The bytes as the server sent them: the document knows how to
+		// read them (its meta charset, the server's header, a byte order
+		// mark)
+		MCPendingSource *t_source = new MCPendingSource;
+		t_source->id = t_call->id;
+		t_source->bytes.assign((const char *)t_data, t_length);
 		p_g_free(t_data);
-		delete t_call;
+		p_webkit_web_view_run_javascript(s_view, "document.characterSet", nullptr, MCOnCharsetDone, t_source);
 	}
 	else
-	{
-		// The document as the page has it now
-		MCEvaluate(t_call->id, "document.documentElement ? document.documentElement.outerHTML : ''");
-		delete t_call;
-	}
+		MCReturnDocumentHTML(t_call->id);
+	delete t_call;
 }
 
 static void MCGetSource(const std::string &p_id)

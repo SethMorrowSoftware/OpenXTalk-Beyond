@@ -92,6 +92,39 @@ static void Check(bool p_ok, const char *p_name, const std::string &p_detail = s
 	fflush(stdout);
 }
 
+// LeakSanitizer, where the check is built with it (webkit_browser_check.py
+// --sanitize): weak, so a plain build has none and says so
+extern "C" int __lsan_do_recoverable_leak_check(void) __attribute__((weak));
+
+// The block a leak check must find, kept where no scan can see it while the
+// check runs, and then made reachable again and freed
+static uintptr_t s_hidden_block = 0;
+
+// Out of line, so no register or stack slot of the caller still holds it
+__attribute__((noinline)) static void HideBlock()
+{
+	s_hidden_block = ~(uintptr_t)malloc(64);
+}
+
+static void CheckNoLeaks(const char *p_name)
+{
+	if (__lsan_do_recoverable_leak_check == nullptr)
+	{
+		printf("SKIP %s: built without LeakSanitizer (--sanitize)\n", p_name);
+		fflush(stdout);
+		return;
+	}
+	// First that it can see a leak at all: a check that cannot would pass
+	// whatever the code did (detect_leaks=0, say)
+	HideBlock();
+	bool t_armed = __lsan_do_recoverable_leak_check() != 0;
+	free((void *)~s_hidden_block);
+	s_hidden_block = 0;
+	Check(t_armed, "leak check: it finds a leak it is shown");
+	if (t_armed)
+		Check(__lsan_do_recoverable_leak_check() == 0, p_name);
+}
+
 static double Now()
 {
 	struct timespec t_now;
@@ -243,6 +276,9 @@ static std::string Describe(MCBrowserListRef p_list)
 				char *t_value = nil;
 				MCBrowserListGetUTF8String(p_list, i, t_value);
 				t_text += std::string("s:\"") + (t_value != nil ? t_value : "") + "\"";
+				// a copy (MCBrowserValueGetUTF8String)
+				if (t_value != nil)
+					MCCStringFree(t_value);
 				break;
 			}
 			case kMCBrowserValueTypeList:
@@ -291,7 +327,7 @@ static std::string Describe(MCBrowserDictionaryRef p_dict)
 			case kMCBrowserValueTypeBoolean: { bool v = false; MCBrowserDictionaryGetBoolean(p_dict, t_key, v); MCBrowserListAppendBoolean(t_one, v); break; }
 			case kMCBrowserValueTypeInteger: { int32_t v = 0; MCBrowserDictionaryGetInteger(p_dict, t_key, v); MCBrowserListAppendInteger(t_one, v); break; }
 			case kMCBrowserValueTypeDouble: { double v = 0; MCBrowserDictionaryGetDouble(p_dict, t_key, v); MCBrowserListAppendDouble(t_one, v); break; }
-			case kMCBrowserValueTypeUTF8String: { char *v = nil; MCBrowserDictionaryGetUTF8String(p_dict, t_key, v); MCBrowserListAppendUTF8String(t_one, v != nil ? v : ""); break; }
+			case kMCBrowserValueTypeUTF8String: { char *v = nil; MCBrowserDictionaryGetUTF8String(p_dict, t_key, v); MCBrowserListAppendUTF8String(t_one, v != nil ? v : ""); if (v != nil) MCCStringFree(v); break; }
 			case kMCBrowserValueTypeList: { MCBrowserListRef v = nil; MCBrowserDictionaryGetList(p_dict, t_key, v); MCBrowserListAppendList(t_one, v); break; }
 			case kMCBrowserValueTypeDictionary: { MCBrowserDictionaryRef v = nil; MCBrowserDictionaryGetDictionary(p_dict, t_key, v); MCBrowserListAppendDictionary(t_one, v); break; }
 			default: break;
@@ -660,6 +696,18 @@ static void CheckBrowser(const std::string &p_work, const char *p_helper)
 	      "handlers: its parameters arrive with their types", t_params);
 	Check(Eval(t_browser, "typeof liveCode.oxtThree") == "undefined", "handlers: only those named are there");
 
+	// Every call the page makes, named or not, leaves nothing behind in the
+	// engine (the handler's name is a copy of its own). A page sends a name
+	// the script did not give only by posting to the channel itself.
+	for (int i = 0; i < 20; i++)
+		Eval(t_browser, "liveCode.oxtOne(1)");
+	for (int i = 0; i < 20; i++)
+		Eval(t_browser, "window.webkit.messageHandlers.livecode.postMessage(JSON.stringify(['oxtThree', [1]]))");
+	t_js->handlers.clear();
+	Eval(t_browser, "liveCode.oxtTwo('last')");
+	Pump([&]() { return !t_js->handlers.empty(); });
+	CheckNoLeaks("handlers: a call leaves nothing behind, named or not");
+
 	// Pages: the messages CEF sends for a page, in its order
 	std::string t_page_one = "file://" + p_work + "/one.html";
 	std::string t_page_two = "file://" + p_work + "/two.html";
@@ -694,6 +742,52 @@ static void CheckBrowser(const std::string &p_work, const char *p_helper)
 	Check(t_loaded, "history: back to the first page", t_events->Describe());
 	t_browser->GetBoolProperty(kMCBrowserCanGoForward, t_can_forward);
 	Check(t_can_forward, "history: then forward is possible");
+
+	// The page's source as text, whatever the page's own encoding (as CEF:
+	// htmlText is UTF-8 to the engine)
+	std::string t_page_latin = "file://" + p_work + "/latin.html";
+	std::string t_page_utf16 = "file://" + p_work + "/utf16.html";
+	WriteFile(p_work + "/latin.html",
+	          "<html><head><meta charset=\"windows-1252\"><title>latin</title></head><body>caf\xe9 \x80</body></html>");
+	{
+		// UTF-16LE with its byte order mark, written byte by byte: the text
+		// holds NULs
+		std::string t_text = "<html><head><title>wide</title></head><body>na\xc3\xafve</body></html>";
+		std::string t_bytes = "\xff\xfe";
+		for (size_t i = 0; i < t_text.size(); i++)
+		{
+			unsigned int t_char = (unsigned char)t_text[i];
+			if (t_char == 0xc3)
+				t_char = 0xc0 | ((unsigned char)t_text[++i] & 0x3f);
+			t_bytes += (char)(t_char & 0xff);
+			t_bytes += (char)(t_char >> 8);
+		}
+		FILE *t_file = fopen((p_work + "/utf16.html").c_str(), "wb");
+		if (t_file != nullptr)
+		{
+			fwrite(t_bytes.data(), 1, t_bytes.size(), t_file);
+			fclose(t_file);
+		}
+	}
+	t_events->events.clear();
+	t_browser->GoToURL(t_page_latin.c_str());
+	t_loaded = Pump([&]() { return t_events->Has("navigateComplete", t_page_latin); });
+	t_source = GetString(t_browser, kMCBrowserHTMLText);
+	Check(t_loaded && t_source.find("caf\xc3\xa9 \xe2\x82\xac") != std::string::npos && t_source.find('\xe9') == std::string::npos,
+	      "htmlText: a windows-1252 page's source reads as UTF-8", t_source);
+	t_events->events.clear();
+	t_browser->GoToURL(t_page_utf16.c_str());
+	t_loaded = Pump([&]() { return t_events->Has("navigateComplete", t_page_utf16); });
+	t_source = GetString(t_browser, kMCBrowserHTMLText);
+	Check(t_loaded && t_source.find("<title>wide</title>") != std::string::npos &&
+	      t_source.find("na\xc3\xafve") != std::string::npos && t_source.find('\0') == std::string::npos,
+	      "htmlText: a UTF-16 page's source reads as UTF-8", t_source);
+	t_events->events.clear();
+	t_browser->GoToURL(t_page_two.c_str());
+	t_loaded = Pump([&]() { return t_events->Has("navigateComplete", t_page_two); });
+	t_source = GetString(t_browser, kMCBrowserHTMLText);
+	Check(t_loaded && t_source.find("<title>two</title><") != std::string::npos,
+	      "htmlText: a UTF-8 page's source is its text as written", t_source);
 
 	// A page that is not there fails, with its URL and an error
 	std::string t_missing = "file://" + p_work + "/missing.html";
