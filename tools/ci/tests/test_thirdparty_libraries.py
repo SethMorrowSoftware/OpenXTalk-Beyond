@@ -23,7 +23,7 @@ Each library is compiled from thirdparty/ with the host's C compiler into a
 static archive, as the build makes it (the sources of its .gyp file), and
 linked with a small program from tools/ci/tests/thirdparty/:
 
-- sqlite_text.c runs sqlite_values.sql on a connection set up as revDB's
+- sqlite_text.c runs sqlite_values.txt on a connection set up as revDB's
   driver sets it up and prints the text of every value: the text a script
   gets. The answers, sqlite_values.expected, are SQLite 3.51.3's
   (0.2.8-dp.1); 0.2.8-dp.2's 3.54.1 must give them too.
@@ -189,7 +189,7 @@ def pin(thirdparty):
     work = tempfile.mkdtemp()
     try:
         sqlite = build_sqlite(work, thirdparty)
-        corpus = read(os.path.join(FIXTURES, 'sqlite_values.sql'))
+        corpus = read(os.path.join(FIXTURES, 'sqlite_values.txt'))
         with open(os.path.join(FIXTURES, 'sqlite_values.expected'), 'wb') as f:
             f.write(run(sqlite, stdin=corpus.encode('utf-8')))
         expat = build_expat(work, thirdparty)
@@ -274,7 +274,7 @@ class Compiled(unittest.TestCase):
 
     def test_sqlite_gives_scripts_the_text_it_gave(self):
         program = build_sqlite(self.work, THIRDPARTY)
-        corpus = read(os.path.join(FIXTURES, 'sqlite_values.sql'))
+        corpus = read(os.path.join(FIXTURES, 'sqlite_values.txt'))
         actual = run(program, stdin=corpus.encode('utf-8')).decode('utf-8')
         expected = read(os.path.join(FIXTURES, 'sqlite_values.expected'))
         self.assertEqual(actual.splitlines(), expected.splitlines())
