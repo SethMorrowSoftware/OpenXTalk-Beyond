@@ -23,6 +23,18 @@
 			'target_conditions':
 			[
 				[
+					# CEF 156's headers need C++20 (tools/cxx_by_std.sh: the
+					# build's GCC 9 has none, GCC 10 compiles these). Last on the
+					# command line, so it wins over the engine's -std=c++11.
+					'toolset_os == "linux" and toolset_arch == "x86_64"',
+					{
+						'cflags_cc':
+						[
+							'-std=c++20',
+						],
+					},
+				],
+				[
 					'not toolset_os in ("mac", "win", "linux")',
 					{
 						'type': 'none',
@@ -40,6 +52,35 @@
 						'defines':
 						[
 							'NOMINMAX',
+						],
+					},
+				],
+				# Since CEF 156 the wrapper has sources for one platform
+				# only, named for it
+				[
+					'toolset_os != "win"',
+					{
+						'sources/':
+						[
+							['exclude', '_win\\.cc$'],
+						],
+					},
+				],
+				[
+					'toolset_os != "linux"',
+					{
+						'sources/':
+						[
+							['exclude', '_linux\\.cc$'],
+						],
+					},
+				],
+				[
+					'toolset_os != "mac"',
+					{
+						'sources/':
+						[
+							['exclude', '_mac\\.(cc|mm)$'],
 						],
 					},
 				],

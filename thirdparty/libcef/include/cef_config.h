@@ -35,7 +35,17 @@
 #ifndef CEF_INCLUDE_CEF_CONFIG_H_
 #define CEF_INCLUDE_CEF_CONFIG_H_
 
+// OXT-Beyond: CEF writes this file for each platform's distribution; this
+// one include folder serves every platform (thirdparty/libcef/UPDATE.md),
+// so the Linux distribution's lines are kept for the platforms they hold
+// on. CEF_X11 is Linux's alone. The V8 sandbox needs pointer compression,
+// which V8 has on 64-bit builds only (CEF's 64-bit Windows and Linux
+// distributions define it, its 32-bit Windows one does not).
+#if defined(__linux__)
 #define CEF_X11 1
+#endif
+#if defined(_WIN64) || defined(__x86_64__) || defined(__aarch64__)
 #define CEF_V8_ENABLE_SANDBOX 1
+#endif
 
 #endif  // CEF_INCLUDE_CEF_CONFIG_H_

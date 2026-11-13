@@ -306,7 +306,7 @@ jobs:
       BUILDTYPE: Release
       # The packages the first step installs (part of its cache key)
       BUILD_PKGS: >-
-        build-essential gcc g++ make perl bison flex gawk pkg-config
+        build-essential gcc g++ g++-10 make perl bison flex gawk pkg-config
         python2 python-is-python2 python3 openjdk-11-jdk-headless
         git curl ca-certificates bzip2 xz-utils zip unzip file binutils
         libx11-dev libxext-dev libxrender-dev libxft-dev libxinerama-dev
@@ -527,8 +527,15 @@ jobs:
           cd prebuilt
           PREBUILT_LOCAL_DIR="$PWD/packaged" PREBUILT_SKIP_VERIFY=1 ./fetch-libraries.sh linux "$ARCH"
 
+      # CEF 156's headers need C++20, which 20.04's GCC 9 does not have:
+      # tools/cxx_by_std.sh hands the browser's -std=c++20 sources to g++-10
+      # and everything else, and every link, to the usual compiler, so the
+      # binaries need no newer libstdc++ than before (Verify build output
+      # holds that). gyp writes the compiler into the Makefiles here.
       - name: Configure
-        run: make config-linux-"$ARCH"
+        run: |
+          export CXX="$GITHUB_WORKSPACE/tools/cxx_by_std.sh" CXX_host="$GITHUB_WORKSPACE/tools/cxx_by_std.sh"
+          make config-linux-"$ARCH"
 
       # The final copy into linux-<arch>-bin runs as a second make: its input
       # out/Release/Externals is only created as a side effect of the CEF
@@ -1594,6 +1601,20 @@ jobs:
         run: |
           python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --player-backend mplayer \
             --log "$RUNNER_TEMP/logs/media-check.log" --snapshots "$RUNNER_TEMP/logs/media-snapshots"
+
+      # What a script sees of the browser's htmlText and url (the url and
+      # htmlText properties, the messages, and where the page's JavaScript
+      # says it is) is what it saw in the release before, line by line
+      # against tools/ci/browser-compat/linux-x86_64.txt, recorded from
+      # 0.2.8-dp.1 (CEF 74). CEF 156 has no LoadString, which htmlText
+      # used (tools/ci/browser_compat_check.py). x86_64 only: the only
+      # Linux build with a browser.
+      - name: Browser compatibility check (htmlText and url)
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
+        timeout-minutes: 15
+        run: |
+          python3 tools/ci/browser_compat_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
+            --log "$RUNNER_TEMP/logs/browser-compat-check.log"
 
       # The player through GStreamer, which plays a movie where mplayer is
       # not installed (engine/src/lnxgstplayer.cpp): first on its own, built

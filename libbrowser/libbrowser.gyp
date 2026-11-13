@@ -62,6 +62,18 @@
 			'target_conditions':
 			[
 				## Exclusions
+				[
+					# CEF 156's headers need C++20 (tools/cxx_by_std.sh: the
+					# build's GCC 9 has none, GCC 10 compiles these). Last on the
+					# command line, so it wins over the engine's -std=c++11.
+					'toolset_os == "linux" and toolset_arch == "x86_64"',
+					{
+						'cflags_cc':
+						[
+							'-std=c++20',
+						],
+					},
+				],
 				# Only use CEF on desktop platforms
 				[
 					'not (toolset_os == "win" or (toolset_os == "linux" and toolset_arch == "x86_64"))',
@@ -279,6 +291,18 @@
                         
                         'target_conditions':
                         [
+                            [
+                            	# CEF 156's headers need C++20 (tools/cxx_by_std.sh: the
+                            	# build's GCC 9 has none, GCC 10 compiles these). Last on the
+                            	# command line, so it wins over the engine's -std=c++11.
+                            	'toolset_os == "linux" and toolset_arch == "x86_64"',
+                            	{
+                            		'cflags_cc':
+                            		[
+                            			'-std=c++20',
+                            		],
+                            	},
+                            ],
                             [
 								'toolset_os not in ("win", "linux")',
 								{

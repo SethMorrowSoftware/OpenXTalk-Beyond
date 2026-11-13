@@ -22,6 +22,9 @@
 			'include_dirs':
 			[
 				'src',
+				# libbrowser_cef_source.h: htmltext without LoadString,
+				# shared with the browser widget
+				'../libbrowser/src',
 			],
 			
 			'sources':
@@ -48,6 +51,18 @@
 			'target_conditions':
 			[
 				# Only supported on OSX, Windows and Linux
+				[
+					# CEF 156's headers need C++20 (tools/cxx_by_std.sh: the
+					# build's GCC 9 has none, GCC 10 compiles these). Last on the
+					# command line, so it wins over the engine's -std=c++11.
+					'toolset_os == "linux" and toolset_arch == "x86_64"',
+					{
+						'cflags_cc':
+						[
+							'-std=c++20',
+						],
+					},
+				],
 				[
 					'not toolset_os in ("mac", "win", "linux")',
 					{
@@ -212,6 +227,18 @@
 						# Windows and Linux only
 						'target_conditions':
 						[
+							[
+								# CEF 156's headers need C++20 (tools/cxx_by_std.sh: the
+								# build's GCC 9 has none, GCC 10 compiles these). Last on the
+								# command line, so it wins over the engine's -std=c++11.
+								'toolset_os == "linux" and toolset_arch == "x86_64"',
+								{
+									'cflags_cc':
+									[
+										'-std=c++20',
+									],
+								},
+							],
 							[
 								'not toolset_os in ("win", "linux") or (toolset_os == "linux" and not toolset_arch == "x86_64")',
 								{
