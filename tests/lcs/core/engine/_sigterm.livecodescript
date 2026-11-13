@@ -3,7 +3,7 @@ script "_sigterm"
 Run by sigterm.livecodescript in an engine of its own: it writes what
 happens to the file named by OXT_SIGTERM_LOG, one word per line, while
 the test sends it a TERM signal. OXT_SIGTERM_MODE "refuse" makes its
-shutDownRequest refuse to quit (no pass).
+shutDownRequest refuse to quit (no pass) the first time it comes.
 */
 
 local sLog
@@ -22,9 +22,14 @@ on startup
    send "_sigtermGiveUp" to me in 8 seconds
 end startup
 
+local sRefused
+
 on shutDownRequest
    _sigtermLog "shutDownRequest"
-   if $OXT_SIGTERM_MODE is "refuse" then
+   -- Only the first: the quit command sends shutDownRequest too, and
+   -- refusing it would keep the engine running
+   if $OXT_SIGTERM_MODE is "refuse" and sRefused is not true then
+      put true into sRefused
       send "_sigtermStillRunning" to me in 1 second
       exit shutDownRequest
    end if

@@ -83,7 +83,7 @@ on TestSigtermRunsShutdownAfterTheRunningHandler
    put _SigtermRun("pass") into tLog
    replace return with comma in tLog
    if char -1 of tLog is comma then delete char -1 of tLog
-   TestAssert "TERM: shutDownRequest and shutDown come after the busy handler ends", \
+   TestAssert "TERM: shutDownRequest and shutDown come after the busy handler ends (" & tLog & ")", \
          tLog is "ready,busydone,shutDownRequest,shutDown"
 end TestSigtermRunsShutdownAfterTheRunningHandler
 
@@ -95,6 +95,7 @@ on TestSigtermRefusedByShutdownRequestKeepsRunning
    put _SigtermRun("refuse") into tLog
    replace return with comma in tLog
    if char -1 of tLog is comma then delete char -1 of tLog
-   TestAssert "TERM refused by shutDownRequest: the engine keeps running", \
-         tLog is "ready,busydone,shutDownRequest,stillrunning"
+   -- then the child's own quit sends shutDownRequest, passed, and shutDown
+   TestAssert "TERM refused by shutDownRequest: the engine keeps running (" & tLog & ")", \
+         tLog is "ready,busydone,shutDownRequest,stillrunning,shutDownRequest,shutDown"
 end TestSigtermRefusedByShutdownRequestKeepsRunning
