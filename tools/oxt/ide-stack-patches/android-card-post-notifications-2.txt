@@ -1,7 +1,11 @@
 # Android card: the groups around "Post Notifications" (patch -1) grow to
 # hold it, as the engine makes them: each one's bottom edge 4 pixels lower
 # (the box's bottom, 666, and each group's margins of 4). Nothing below
-# them on the card moves.
+# them on the card moves. "Android Settings" is also 14 pixels wider (754,
+# the window's width), for the "Target" menu that android-card-target-api-1
+# puts at its right edge (see android-card-target-api-5): a property is
+# patched in one place only, as the check finds every patch of a run at its
+# to: value or its from: value.
 file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
 object: group "permissions" of group "Application Permissions" of group "Android Settings" of card "Android"
 property: rect
@@ -14,4 +18,4 @@ to: 398,516,736,674
 object: group "Android Settings" of card "Android"
 property: rect
 from: -43,99,740,674
-to: -43,99,740,678
+to: -43,99,754,678

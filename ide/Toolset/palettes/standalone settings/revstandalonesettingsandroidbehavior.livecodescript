@@ -164,8 +164,50 @@ on updateSettings
       set the hilite of button i of group "permissions" to computeDefault(tSettings["android,application permissions"][it], false)
    end repeat
    
+   updateTargetAPIMenu tSettings["android,target sdk"]
+   
    updateInAppPurchaseSettings
 end updateSettings
+
+-- OXT-Beyond: the "Target" menu beside the minimum Android version
+-- ("Target Android Version", tools/oxt/ide-stack-patches/
+-- android-card-target-api-1.txt): the "android,target sdk" setting, the API
+-- the package targets. "Default" (no pin, the setting empty) and an item
+-- for each API the builder can target, from the one it has always targeted
+-- (33) to the newest it knows (androidTargetAPI in
+-- ide-support/revsaveasandroidstandalone.livecodescript); a pin outside
+-- them, which only a script can set and the build refuses, is shown as
+-- its own item so that the card does not hide it. The choice is shown with
+-- messages locked: setting the menuHistory of an option menu sends it
+-- menuPick, which would store the setting again
+on updateTargetAPIMenu pPin
+   if there is not a button "Target Android Version" of me then
+      exit updateTargetAPIMenu
+   end if
+   local tFirst, tNewest, tItems, tChoice
+   dispatch function "deployTargetSdkVersion" to stack "revDeployLibraryAndroid"
+   put the result into tFirst
+   dispatch function "deployNewestTargetSdkVersion" to stack "revDeployLibraryAndroid"
+   put the result into tNewest
+   put "Default" into tItems
+   put 1 into tChoice
+   if tFirst is an integer and tNewest is an integer then
+      repeat with tAPI = tFirst to tNewest
+         put return & "API" && tAPI after tItems
+         if pPin is tAPI then
+            put the number of lines of tItems into tChoice
+         end if
+      end repeat
+   end if
+   if pPin is not empty and tChoice is 1 then
+      put return & "API" && pPin after tItems
+      put the number of lines of tItems into tChoice
+   end if
+   lock messages
+   set the text of button "Target Android Version" of me to tItems
+   set the menuHistory of button "Target Android Version" of me to tChoice
+   unlock messages
+end updateTargetAPIMenu
 
 on updateAndroidSettingState
    local tSettings

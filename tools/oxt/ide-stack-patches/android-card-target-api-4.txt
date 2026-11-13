@@ -1,0 +1,18 @@
+# Android card: the minimum Android version's row makes room for the
+# "Target" label and menu (patches -1 and -3): its label says "Minimum"
+# (under the "Requirements and Restrictions" heading, beside "Target"),
+# 72 wide from the group's left margin (382) for its word and the field's
+# margins, and its menu keeps its width, 150 for "6.0 - Marshmallow", from
+# 456 to 606. Its script and the setting it stores do not change.
+file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
+object: field "Minimum Android Version Label" of group "Requirements and Restrictions" of group "Android Settings" of card "Android"
+property: htmlText
+from: <p>Minimum Android Version</p>
+to: <p>Minimum</p>
+property: rect
+from: 390,138,566,159
+to: 382,138,454,159
+object: button "Minimum Android Version" of group "Requirements and Restrictions" of group "Android Settings" of card "Android"
+property: rect
+from: 564,139,714,161
+to: 456,139,606,161

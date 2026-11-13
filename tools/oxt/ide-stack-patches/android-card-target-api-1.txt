@@ -1,0 +1,37 @@
+# Android card: a "Target" menu beside the minimum Android version, which
+# pins the API an app targets (its manifest's targetSdkVersion). The
+# Android builder has taken the stack's "android,target sdk" standalone
+# setting since 0.2.8 (androidTargetAPI in
+# ide-support/revsaveasandroidstandalone.livecodescript): empty, the
+# default, is the newest API the builder knows when the runtime's Java
+# layer is ready for it, else 33, as before; a number from 33 to the newest
+# pins that API, for example to build at 35 while an app is not yet ready
+# for Android 16's rules at 36. Until now only a script could set it. The
+# menu is that setting: its script (patch -2) stores it, and the card fills
+# the menu from the builder's range and the stack's settings
+# (updateTargetAPIMenu in revstandalonesettingsandroidbehavior.livecodescript).
+# A stack that never picks an item keeps the default, as before.
+#
+# A copy of the "Minimum Android Version" menu, so it looks like it, in the
+# same group. The "Requirements and Restrictions" column has no free row
+# (the device table follows the minimum version's row), so the two share
+# it: the minimum version's label says "Minimum" and moves left, its menu
+# keeps its width (150, for "6.0 - Marshmallow"; patch -4), and the
+# "Target" label (patch -3) and this menu, 90 wide for "Default" and "API
+# 36" in the menu's centred words clear of its arrow, follow, the menu ending 4 pixels inside the window (754 wide), as the
+# "App Bundle" box nearly does (745). The groups around it grow to hold it
+# (android-card-target-api-5.txt). Its tooltip says what it does.
+file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
+object: button "Minimum Android Version" of group "Requirements and Restrictions" of group "Android Settings" of card "Android"
+clone: Target Android Version
+unique-id: 1794600555960
+property: text
+to: Default\nAPI 33\nAPI 34\nAPI 35\nAPI 36
+property: label
+to: Default
+property: menuHistory
+to: 1
+property: toolTip
+to: The Android API the app targets. Default: the newest when the runtime is ready for it, else 33. Google Play takes only the newest
+property: rect
+to: 656,139,746,161

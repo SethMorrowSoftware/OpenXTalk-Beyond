@@ -1,0 +1,13 @@
+# Android card: the "Target" label of the "Target" menu (patch -1), a copy
+# of the minimum Android version's label, right-aligned as it is, between
+# that menu (now ending at 606, patch -4) and the "Target" menu (from 656),
+# 47 wide for its word (39 in DejaVu Sans on Linux) and the field's
+# margins.
+file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
+object: field "Minimum Android Version Label" of group "Requirements and Restrictions" of group "Android Settings" of card "Android"
+clone: Target Android Version Label
+unique-id: 1794600555961
+property: htmlText
+to: <p>Target</p>
+property: rect
+to: 607,138,654,159

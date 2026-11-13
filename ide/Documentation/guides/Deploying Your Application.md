@@ -275,7 +275,8 @@ Figure 8 – Standalone Settings – Android
 | **Status Bar**                  | Set the visibility of the status bar                                                                                                                                                                                                  |
 | **Edge to edge**                | Draw the application under the see-through status and navigation bars, on Android 11 and newer (see below)                                                                                                                            |
 | **In App Purchasing**           | Specify the store used for the in-app purchasing API                                                                                                                                                                                  |
-| **Minimum Android Version**     | Choose the minimum version of Android the application should run on                                                                                                                                                                   |
+| **Minimum**                     | Choose the minimum version of Android the application should run on                                                                                                                                                                   |
+| **Target**                      | Choose the API level the application targets: Default, or one from API 33 to the newest the builder knows (see below)                                                                                                                 |
 | **Camera**                      | Choose whether a camera is required, prohibited or not applicable in order for the application to function                                                                                                                            |
 | **Camera Autofocus**            | Choose whether camera autofocus is required, prohibited or not applicable in order for the application to function                                                                                                                    |
 | **Camera Flash**                | Choose whether a camera flash is required, prohibited or not applicable in order for the application to function                                                                                                                      |
@@ -311,14 +312,15 @@ ready; the one that earlier runtimes carried is not). At API 36 the stack still 
 `backKey` for the back button and gesture, it is kept out of the status
 and navigation bars, which Android 15 and newer would otherwise draw over
 it, and Android 16 keeps its orientation on tablets and other large
-screens. To build for a target of your choice, from 33 to 36, set it on
-the stack before you build, for example for an application that is not
-for Google Play:
+screens. To build for a target of your choice, from 33 to 36, for
+example for an application that is not for Google Play, choose it in the
+**Target** menu beside **Minimum** on the Android card, or set it on the
+stack before you build, which is what the menu does:
 
     set the cRevStandaloneSettings["android,target sdk"] of stack "My App" to 33
 
-Empty leaves it to the runtime; any other value stops the build with an
-error.
+**Default**, or empty, leaves it to the runtime; any other value stops the
+build with an error.
 
 An application can also be drawn edge to edge, as current Android
 applications are: on Android 11 and newer, the stack fills the whole
