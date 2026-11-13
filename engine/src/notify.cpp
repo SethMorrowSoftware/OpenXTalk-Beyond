@@ -234,6 +234,13 @@ static bool MCNotifyIsMainThread(void)
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// OXT-Beyond: whether MCNotifyPush may be called yet, for a thread that can
+// run before the screen makes the queue (dskmac.cpp's TERM watcher)
+bool MCNotifyIsInitialized(void)
+{
+	return s_initialized && !s_shutting_down;
+}
+
 bool MCNotifyInitialize(void)
 {
 	if (s_initialized)
