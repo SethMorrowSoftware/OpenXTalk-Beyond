@@ -664,6 +664,11 @@ static void CheckBrowser(const std::string &p_work, const char *p_helper)
 	std::string t_source = GetString(t_browser, kMCBrowserHTMLText);
 	Check(t_source.find("<p id=\"p\">first</p>") != std::string::npos || t_source.find("<p id='p'>first</p>") != std::string::npos,
 	      "htmlText: reading it gives the page's HTML", t_source);
+	// As CEF (GetSource: Blink's markup of the document): the page as it is
+	// now, not as it was given
+	Eval(t_browser, "document.getElementById('p').textContent = 'changed'");
+	t_source = GetString(t_browser, kMCBrowserHTMLText);
+	Check(t_source.find(">changed</p>") != std::string::npos, "htmlText: reading it gives the page as its script left it", t_source);
 
 	// do ... in widget
 	bool t_ok = false;
@@ -743,8 +748,22 @@ static void CheckBrowser(const std::string &p_work, const char *p_helper)
 	t_browser->GetBoolProperty(kMCBrowserCanGoForward, t_can_forward);
 	Check(t_can_forward, "history: then forward is possible");
 
-	// The page's source as text, whatever the page's own encoding (as CEF:
-	// htmlText is UTF-8 to the engine)
+	// htmlText of a page is the document as its script left it, with its
+	// doctype (as CEF: the media check reads "script ran: 3" from it)
+	std::string t_page_dom = "file://" + p_work + "/dom.html";
+	WriteFile(p_work + "/dom.html",
+	          "<!DOCTYPE html><html><head><title>dom</title></head><body><h1 id=\"h\">waiting</h1>"
+	          "<script>document.getElementById('h').textContent = 'script ran: ' + (1 + 2);</script></body></html>");
+	t_events->events.clear();
+	t_browser->GoToURL(t_page_dom.c_str());
+	t_loaded = Pump([&]() { return t_events->Has("navigateComplete", t_page_dom); });
+	t_source = GetString(t_browser, kMCBrowserHTMLText);
+	Check(t_loaded && t_source.find("script ran: 3") != std::string::npos && t_source.find("waiting") == std::string::npos,
+	      "htmlText: a page's is the document as its script left it", t_source);
+	Check(t_source.compare(0, 15, "<!DOCTYPE html>") == 0, "htmlText: with its doctype", t_source.substr(0, 40));
+
+	// The page's text, whatever the page's own encoding (as CEF: htmlText is
+	// UTF-8 to the engine)
 	std::string t_page_latin = "file://" + p_work + "/latin.html";
 	std::string t_page_utf16 = "file://" + p_work + "/utf16.html";
 	WriteFile(p_work + "/latin.html",
@@ -787,7 +806,7 @@ static void CheckBrowser(const std::string &p_work, const char *p_helper)
 	t_loaded = Pump([&]() { return t_events->Has("navigateComplete", t_page_two); });
 	t_source = GetString(t_browser, kMCBrowserHTMLText);
 	Check(t_loaded && t_source.find("<title>two</title><") != std::string::npos,
-	      "htmlText: a UTF-8 page's source is its text as written", t_source);
+	      "htmlText: a UTF-8 page's text", t_source);
 
 	// A page that is not there fails, with its URL and an error
 	std::string t_missing = "file://" + p_work + "/missing.html";

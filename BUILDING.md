@@ -2100,8 +2100,8 @@ builds libbrowser's sources with
 and checks that half on its own, under `xvfb-run` when there is no
 `DISPLAY`: the wire between the two processes, the parameters of a
 javascriptHandler call (the types CEF gives them), the choice of the
-browser, and a browser through the helper (htmlText, a page's source as UTF-8 whatever
-its own encoding, pages and their messages in CEF's order, history, JavaScript, javascriptHandlers, the user
+browser, and a browser through the helper (htmlText, which is the page as its script
+left it, as CEF's, pages and their messages in CEF's order, history, JavaScript, javascriptHandlers, the user
 agent, a page that fails, an unknown URL scheme, the page drawn in a GTK 2
 socket as the engine embeds it, the helper ending with the browser), then
 a missing helper (no browser, no crash). It needs g++, `libx11-dev`, GTK 2
