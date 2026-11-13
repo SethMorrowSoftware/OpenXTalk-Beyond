@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Chromium Embedded Framework Authors. All rights
+// Copyright (c) 2026 The Chromium Embedded Framework Authors. All rights
 // reserved. Use of this source code is governed by a BSD-style license that
 // can be found in the LICENSE file.
 //
@@ -9,10 +9,11 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=236a2f5e705cde035d9d87a8a6045dccd258a2d0$
+// $hash=601e3db23f8a51b653c3ce78f77c52705d0ac981$
 //
 
 #include "libcef_dll/cpptoc/accessibility_handler_cpptoc.h"
+
 #include "libcef_dll/ctocpp/value_ctocpp.h"
 #include "libcef_dll/shutdown_checker.h"
 
@@ -28,16 +29,18 @@ void CEF_CALLBACK accessibility_handler_on_accessibility_tree_change(
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
   DCHECK(self);
-  if (!self)
+  if (!self) {
     return;
+  }
   // Verify param: value; type: refptr_diff
   DCHECK(value);
-  if (!value)
+  if (!value) {
     return;
+  }
 
   // Execute
   CefAccessibilityHandlerCppToC::Get(self)->OnAccessibilityTreeChange(
-      CefValueCToCpp::Wrap(value));
+      CefValueCToCpp_Wrap(value));
 }
 
 void CEF_CALLBACK accessibility_handler_on_accessibility_location_change(
@@ -48,16 +51,18 @@ void CEF_CALLBACK accessibility_handler_on_accessibility_location_change(
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
   DCHECK(self);
-  if (!self)
+  if (!self) {
     return;
+  }
   // Verify param: value; type: refptr_diff
   DCHECK(value);
-  if (!value)
+  if (!value) {
     return;
+  }
 
   // Execute
   CefAccessibilityHandlerCppToC::Get(self)->OnAccessibilityLocationChange(
-      CefValueCToCpp::Wrap(value));
+      CefValueCToCpp_Wrap(value));
 }
 
 }  // namespace
@@ -84,8 +89,8 @@ CefRefPtr<CefAccessibilityHandler> CefCppToCRefCounted<
     cef_accessibility_handler_t>::UnwrapDerived(CefWrapperType type,
                                                 cef_accessibility_handler_t*
                                                     s) {
-  NOTREACHED() << "Unexpected class type: " << type;
-  return NULL;
+  CHECK(false) << __func__ << " called with unexpected class type " << type;
+  return nullptr;
 }
 
 template <>

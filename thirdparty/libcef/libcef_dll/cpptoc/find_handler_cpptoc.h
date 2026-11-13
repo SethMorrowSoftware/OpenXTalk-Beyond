@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Chromium Embedded Framework Authors. All rights
+// Copyright (c) 2026 The Chromium Embedded Framework Authors. All rights
 // reserved. Use of this source code is governed by a BSD-style license that
 // can be found in the LICENSE file.
 //
@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=b86619b4f41af3789ebda417d82762b7e53fb1c5$
+// $hash=82218fb3e3d09b7066ab92d222b534edc8b04439$
 //
 
 #ifndef CEF_LIBCEF_DLL_CPPTOC_FIND_HANDLER_CPPTOC_H_
@@ -33,5 +33,8 @@ class CefFindHandlerCppToC : public CefCppToCRefCounted<CefFindHandlerCppToC,
   CefFindHandlerCppToC();
   virtual ~CefFindHandlerCppToC();
 };
+
+constexpr auto CefFindHandlerCppToC_Wrap = CefFindHandlerCppToC::Wrap;
+constexpr auto CefFindHandlerCppToC_Unwrap = CefFindHandlerCppToC::Unwrap;
 
 #endif  // CEF_LIBCEF_DLL_CPPTOC_FIND_HANDLER_CPPTOC_H_

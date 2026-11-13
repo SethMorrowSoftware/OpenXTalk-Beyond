@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Chromium Embedded Framework Authors. All rights
+// Copyright (c) 2026 The Chromium Embedded Framework Authors. All rights
 // reserved. Use of this source code is governed by a BSD-style license that
 // can be found in the LICENSE file.
 //
@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=35e07d1a4032f54411954ef769922b8e7418d4df$
+// $hash=2bfd1f63ec914574181f6953f6543f8f15f3b024$
 //
 
 #ifndef CEF_LIBCEF_DLL_CTOCPP_SSLSTATUS_CTOCPP_H_
@@ -34,11 +34,14 @@ class CefSSLStatusCToCpp : public CefCToCppRefCounted<CefSSLStatusCToCpp,
   virtual ~CefSSLStatusCToCpp();
 
   // CefSSLStatus methods.
-  bool IsSecureConnection() OVERRIDE;
-  cef_cert_status_t GetCertStatus() OVERRIDE;
-  cef_ssl_version_t GetSSLVersion() OVERRIDE;
-  cef_ssl_content_status_t GetContentStatus() OVERRIDE;
-  CefRefPtr<CefX509Certificate> GetX509Certificate() OVERRIDE;
+  bool IsSecureConnection() override;
+  cef_cert_status_t GetCertStatus() override;
+  cef_ssl_version_t GetSSLVersion() override;
+  cef_ssl_content_status_t GetContentStatus() override;
+  CefRefPtr<CefX509Certificate> GetX509Certificate() override;
 };
+
+constexpr auto CefSSLStatusCToCpp_Wrap = CefSSLStatusCToCpp::Wrap;
+constexpr auto CefSSLStatusCToCpp_Unwrap = CefSSLStatusCToCpp::Unwrap;
 
 #endif  // CEF_LIBCEF_DLL_CTOCPP_SSLSTATUS_CTOCPP_H_

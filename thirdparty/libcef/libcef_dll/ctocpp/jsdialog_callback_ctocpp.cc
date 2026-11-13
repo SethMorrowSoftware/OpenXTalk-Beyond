@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Chromium Embedded Framework Authors. All rights
+// Copyright (c) 2026 The Chromium Embedded Framework Authors. All rights
 // reserved. Use of this source code is governed by a BSD-style license that
 // can be found in the LICENSE file.
 //
@@ -9,10 +9,11 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=d82a0396b5dca1443a021fdff2f63dbb4d110694$
+// $hash=1776496afa7c71c729086a7cf18d0eb37a3511f5$
 //
 
 #include "libcef_dll/ctocpp/jsdialog_callback_ctocpp.h"
+
 #include "libcef_dll/shutdown_checker.h"
 
 // VIRTUAL METHODS - Body may be edited by hand.
@@ -22,9 +23,10 @@ void CefJSDialogCallbackCToCpp::Continue(bool success,
                                          const CefString& user_input) {
   shutdown_checker::AssertNotShutdown();
 
-  cef_jsdialog_callback_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, cont))
+  auto* _struct = GetStruct();
+  if (!_struct->cont) {
     return;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -50,8 +52,8 @@ cef_jsdialog_callback_t* CefCToCppRefCounted<
     CefJSDialogCallback,
     cef_jsdialog_callback_t>::UnwrapDerived(CefWrapperType type,
                                             CefJSDialogCallback* c) {
-  NOTREACHED() << "Unexpected class type: " << type;
-  return NULL;
+  CHECK(false) << __func__ << " called with unexpected class type " << type;
+  return nullptr;
 }
 
 template <>

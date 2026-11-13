@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Chromium Embedded Framework Authors. All rights
+// Copyright (c) 2026 The Chromium Embedded Framework Authors. All rights
 // reserved. Use of this source code is governed by a BSD-style license that
 // can be found in the LICENSE file.
 //
@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=58d79612910145862a792650dd380246fa1ebb02$
+// $hash=c53e6020c6b7f4bb0445ec3d4a8dedb8eea9b5ca$
 //
 
 #ifndef CEF_LIBCEF_DLL_CPPTOC_KEYBOARD_HANDLER_CPPTOC_H_
@@ -34,5 +34,9 @@ class CefKeyboardHandlerCppToC
   CefKeyboardHandlerCppToC();
   virtual ~CefKeyboardHandlerCppToC();
 };
+
+constexpr auto CefKeyboardHandlerCppToC_Wrap = CefKeyboardHandlerCppToC::Wrap;
+constexpr auto CefKeyboardHandlerCppToC_Unwrap =
+    CefKeyboardHandlerCppToC::Unwrap;
 
 #endif  // CEF_LIBCEF_DLL_CPPTOC_KEYBOARD_HANDLER_CPPTOC_H_

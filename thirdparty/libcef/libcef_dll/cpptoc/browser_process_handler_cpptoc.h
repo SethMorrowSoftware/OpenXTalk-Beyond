@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Chromium Embedded Framework Authors. All rights
+// Copyright (c) 2026 The Chromium Embedded Framework Authors. All rights
 // reserved. Use of this source code is governed by a BSD-style license that
 // can be found in the LICENSE file.
 //
@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=379bec786c84a6b1ea1060a10a9a277369dc35ea$
+// $hash=6bd1e095283ad305a43f664bfe852ed9d57b0933$
 //
 
 #ifndef CEF_LIBCEF_DLL_CPPTOC_BROWSER_PROCESS_HANDLER_CPPTOC_H_
@@ -34,5 +34,10 @@ class CefBrowserProcessHandlerCppToC
   CefBrowserProcessHandlerCppToC();
   virtual ~CefBrowserProcessHandlerCppToC();
 };
+
+constexpr auto CefBrowserProcessHandlerCppToC_Wrap =
+    CefBrowserProcessHandlerCppToC::Wrap;
+constexpr auto CefBrowserProcessHandlerCppToC_Unwrap =
+    CefBrowserProcessHandlerCppToC::Unwrap;
 
 #endif  // CEF_LIBCEF_DLL_CPPTOC_BROWSER_PROCESS_HANDLER_CPPTOC_H_

@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Chromium Embedded Framework Authors. All rights
+// Copyright (c) 2026 The Chromium Embedded Framework Authors. All rights
 // reserved. Use of this source code is governed by a BSD-style license that
 // can be found in the LICENSE file.
 //
@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=1d9fe968b608602fefafccc1ab89115d45ccb4b6$
+// $hash=a3f044012eac18eca1acfdbd6a3c0ffacf595374$
 //
 
 #include "libcef_dll/cpptoc/task_cpptoc.h"
@@ -22,8 +22,9 @@ void CEF_CALLBACK task_execute(struct _cef_task_t* self) {
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
   DCHECK(self);
-  if (!self)
+  if (!self) {
     return;
+  }
 
   // Execute
   CefTaskCppToC::Get(self)->Execute();
@@ -46,8 +47,8 @@ CefRefPtr<CefTask>
 CefCppToCRefCounted<CefTaskCppToC, CefTask, cef_task_t>::UnwrapDerived(
     CefWrapperType type,
     cef_task_t* s) {
-  NOTREACHED() << "Unexpected class type: " << type;
-  return NULL;
+  CHECK(false) << __func__ << " called with unexpected class type " << type;
+  return nullptr;
 }
 
 template <>

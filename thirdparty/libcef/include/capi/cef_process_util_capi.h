@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Marshall A. Greenblatt. All rights reserved.
+// Copyright (c) 2026 Marshall A. Greenblatt. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -33,28 +33,32 @@
 // by hand. See the translator.README.txt file in the tools directory for
 // more information.
 //
-// $hash=bcae364ba4ab461e0d35e690e22484aa39fe9527$
+// $hash=fda3b55235835896c2c6e388ab90f2829f22d10c$
 //
 
 #ifndef CEF_INCLUDE_CAPI_CEF_PROCESS_UTIL_CAPI_H_
 #define CEF_INCLUDE_CAPI_CEF_PROCESS_UTIL_CAPI_H_
 #pragma once
 
-#include "include/capi/cef_base_capi.h"
+#if defined(BUILDING_CEF_SHARED)
+#error This file cannot be included DLL-side
+#endif
+
+#include "include/capi/cef_command_line_capi.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 ///
-// Launches the process specified via |command_line|. Returns true (1) upon
-// success. Must be called on the browser process TID_PROCESS_LAUNCHER thread.
-//
-// Unix-specific notes: - All file descriptors open in the parent process will
-// be closed in the
-//   child process except for stdin, stdout, and stderr.
-// - If the first argument on the command line does not contain a slash,
-//   PATH will be searched. (See man execvp.)
+/// Launches the process specified via |command_line|. Returns true (1) upon
+/// success. Must be called on the browser process TID_PROCESS_LAUNCHER thread.
+///
+/// Unix-specific notes:
+/// - All file descriptors open in the parent process will be closed in the
+///   child process except for stdin, stdout, and stderr.
+/// - If the first argument on the command line does not contain a slash, PATH
+///   will be searched. (See man execvp.)
 ///
 CEF_EXPORT int cef_launch_process(struct _cef_command_line_t* command_line);
 
