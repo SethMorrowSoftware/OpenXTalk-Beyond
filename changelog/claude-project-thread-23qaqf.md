@@ -1,0 +1,2 @@
+- macOS: a TERM signal (`kill`, `killall`) no longer runs shutDownRequest and shutDown inside the signal handler, where they could hang or crash the IDE or a standalone; the engine sends the same messages, with the same outcomes, from its event loop, after the handler that is running ends (#494)
+- Tests: a TERM signal sent to an engine busy in a handler, with shutDownRequest passed and refused, on macOS (#494)
