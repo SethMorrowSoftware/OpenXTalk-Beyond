@@ -82,6 +82,15 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- those tests alone, in that order, and says END. It does not resume from
 -- the progress file then.
 --
+-- So that fewer lines are lost in the first place, the runner says at most
+-- kPaceLines lines in kPaceMilliseconds (androidSay waits out the rest of
+-- that time): a test with hundreds of lines of output said them faster
+-- than logd took them, and the lines at the end of such a burst are the
+-- ones dropped, the test's DONE among them and, for the last test of a
+-- run, the END after it (13 November 2026: TestMathNumberWrapNumber's 801
+-- lines lost 37, and run again alone it never said DONE or END: it was
+-- stopped after a minute and failed, though it had passed).
+--
 -- A test that quits would end the engine, and with it the run: the test
 -- library quits when it cannot load an extension (TestLoadExtension), and
 -- in a desktop run each test has an engine of its own. A backscript
@@ -96,6 +105,9 @@ constant kProgressFile = "oxt-tests-progress.txt"
 constant kCopiedFile = "copied.txt"
 constant kAgainExtra = "oxttests_again"
 constant kAgainNone = "none"
+-- The most lines said in so many milliseconds (1000 lines a second)
+constant kPaceLines = 50
+constant kPaceMilliseconds = 50
 
 local sStarted
 local sTests
@@ -104,6 +116,9 @@ local sRoot
 -- Started to run tests again: true, and the lines still to run
 local sAgainMode
 local sAgain
+-- The lines said since sPaceSince (the milliseconds)
+local sPaceCount
+local sPaceSince
 
 on openStack
    -- only in the app: not as the IDE makes and builds the stack
@@ -117,9 +132,25 @@ on openStack
    send "androidTestsStart" to me in 100 milliseconds
 end openStack
 
--- A line to the device's log
+-- A line to the device's log, and no more than kPaceLines of them in
+-- kPaceMilliseconds: after that many, the rest of that time is waited out
+-- (nothing, when the lines took longer than that to say)
 private command androidSay pLine
+   local tLeft
    put kPrefix && pLine
+   if sPaceSince is empty then
+      put the milliseconds into sPaceSince
+      put 0 into sPaceCount
+   end if
+   add 1 to sPaceCount
+   if sPaceCount >= kPaceLines then
+      put kPaceMilliseconds - (the milliseconds - sPaceSince) into tLeft
+      if tLeft > 0 then
+         wait tLeft milliseconds
+      end if
+      put 0 into sPaceCount
+      put the milliseconds into sPaceSince
+   end if
 end androidSay
 
 on androidTestsStart

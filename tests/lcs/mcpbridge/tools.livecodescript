@@ -27,6 +27,10 @@ on TestSetup
    local tFolder, tStub, tName
    -- Every test talks to the bridge's server
    TestSkipIfNot "sockets"
+   -- which, off Windows, makes its token's file the user's alone with
+   -- chmod, through a shell (mcbOwnerOnly): an Android app has none, and
+   -- the bridge is the IDE's, which does not run there
+   TestSkipIfNot "shell"
    put TestGetIDERepositoryPath() & "/Extensions/org.openxtalk.plugin.mcpbridge" into tFolder
    start using stack (tFolder & "/mcpbridge-tools.livecodescript")
    -- The IDE's handlers the assistant's build library calls, and the
