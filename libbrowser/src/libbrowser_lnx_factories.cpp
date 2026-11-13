@@ -19,6 +19,7 @@
 #include "libbrowser_internal.h"
 
 extern bool MCCefBrowserFactoryCreate(MCBrowserFactoryRef &r_factory);
+extern bool MCWebKitGtkBrowserFactoryCreate(MCBrowserFactoryRef &r_factory);
 
 
 // Overcome the tautological error if s_factory_list is a static pointer
@@ -29,6 +30,11 @@ MCBrowserFactoryMap kMCBrowserFactoryMap[] =
 #if defined __amd64__
     { "CEF", nil, MCCefBrowserFactoryCreate },
 #endif
+// OXT-Beyond: WebKitGTK, through its helper process, where CEF cannot load
+// (libbrowser_webkitgtk.cpp): the default browser is the first that loads
+// (MCBrowserFactoryGet), so CEF stays the browser wherever it loads.
+// OXT_BROWSER_BACKEND=WebKitGTK (or CEF) chooses one.
+    { "WebKitGTK", nil, MCWebKitGtkBrowserFactoryCreate },
     { nil, nil, nil },
 };
 

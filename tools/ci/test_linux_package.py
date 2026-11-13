@@ -40,7 +40,12 @@ a library no system has:
   5. a missing "browser" library: the engine runs with LIVECODE_USE_CEF=0
      and the launcher names the library;
   6. LIVECODE_USE_CEF set by the user: kept;
-  7. no Externals/CEF/libcef.so (a package without CEF): LIVECODE_USE_CEF=0;
+  6a. with a stand-in WebKitGTK helper (libbrowser-webkitprocess) whose
+     --probe succeeds, a missing "browser" library leaves LIVECODE_USE_CEF
+     unset (the browser widget uses WebKitGTK) and says so; whose probe
+     fails, LIVECODE_USE_CEF=0 as before;
+  7. no Externals/CEF/libcef.so (a package without CEF): the same with
+     the helper, and LIVECODE_USE_CEF=0 without it;
   8. an engine that is not executable: an error that names it, which a
      launcher without a terminal but with a display shows with zenity (a
      stand-in that records its arguments) as plain text, --no-markup: the
@@ -110,6 +115,13 @@ for a in "$@"; do printf ' [%s]' "$a"; done
 printf '\\n'
 printf 'LIVECODE_USE_CEF=%s\\n' "${LIVECODE_USE_CEF-unset}"
 exit 0
+'''
+
+# The WebKitGTK browser's helper: --probe exits with $OXT_TEST_WEBKIT_PROBE
+# (0: WebKitGTK and GTK 3 load)
+FAKE_WEBKIT_HELPER = '''#!/bin/sh
+[ "$1" = --probe ] || exit 2
+exit "${OXT_TEST_WEBKIT_PROBE:-1}"
 '''
 
 # A zenity that writes each argument to $OXT_TEST_ZENITY_LOG, followed by
@@ -269,8 +281,31 @@ def test_launcher(c, root, work):
     c.check('launcher: a LIVECODE_USE_CEF the user set is kept',
             code == 0 and 'LIVECODE_USE_CEF=1' in out, 'exit %d, output:\n%s' % (code, out))
 
+    # Where CEF cannot load, the browser widget's WebKitGTK helper keeps it
+    # on when its --probe finds WebKitGTK; a probe that fails changes
+    # nothing
+    helper = os.path.join(app, 'libbrowser-webkitprocess')
+    with open(helper, 'w', encoding='utf-8', newline='\n') as f:
+        f.write(FAKE_WEBKIT_HELPER)
+    os.chmod(helper, 0o755)
+    code, out = run([link], env=base_env(OXT_TEST_WEBKIT_PROBE='0'))
+    c.check('launcher: a missing browser library leaves the browser on when WebKitGTK can stand in for CEF',
+            code == 0 and 'LIVECODE_USE_CEF=unset' in out and 'WebKitGTK' in out and MISSING_BROWSER in out,
+            'exit %d, output:\n%s' % (code, out))
+    code, out = run([link], env=base_env(OXT_TEST_WEBKIT_PROBE='1'))
+    c.check('launcher: a missing browser library turns the browser off when WebKitGTK cannot load either',
+            code == 0 and 'LIVECODE_USE_CEF=0' in out, 'exit %d, output:\n%s' % (code, out))
+
     with_list('')
     os.remove(cef)
+    code, out = run([link], env=base_env(OXT_TEST_WEBKIT_PROBE='0'))
+    c.check('launcher: without Externals/CEF/libcef.so the browser stays on when WebKitGTK can stand in for CEF',
+            code == 0 and 'LIVECODE_USE_CEF=unset' in out, 'exit %d, output:\n%s' % (code, out))
+    code, out = run([link], env=base_env(OXT_TEST_WEBKIT_PROBE='1'))
+    c.check('launcher: without Externals/CEF/libcef.so or WebKitGTK the browser is off (LIVECODE_USE_CEF=0)',
+            code == 0 and 'LIVECODE_USE_CEF=0' in out, 'exit %d, output:\n%s' % (code, out))
+
+    os.remove(helper)
     code, out = run([link], env=base_env())
     c.check('launcher: without Externals/CEF/libcef.so the browser is off (LIVECODE_USE_CEF=0)',
             code == 0 and 'LIVECODE_USE_CEF=0' in out, 'exit %d, output:\n%s' % (code, out))
