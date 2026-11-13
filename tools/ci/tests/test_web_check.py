@@ -236,18 +236,40 @@ class SplashSeen(unittest.TestCase):
 
     LOADING = ['oxt-splash', 'fixed', 'url("http://127.0.0.1:8000/splash.png")']
     STARTED = ['', 'none']
+    # the engine drew its stack, then the splash went (as measured in
+    # Chromium on 0.2.8-dp.1's engine)
+    ORDER = [300.8, 312.5]
 
     def test_shown_then_gone(self):
-        self.assertIsNone(web_check.splash_seen_problem(self.LOADING, self.STARTED))
+        self.assertIsNone(web_check.splash_seen_problem(self.LOADING, self.STARTED, self.ORDER))
+        self.assertIsNone(web_check.splash_seen_problem(self.LOADING, self.STARTED, [300, 300]))
 
     def test_never_shown(self):
         for loading in (None, ['', 'static', 'none'], ['oxt-splash', 'static', self.LOADING[2]],
                         ['oxt-splash', 'fixed', 'none']):
-            self.assertIn('did not show it', web_check.splash_seen_problem(loading, self.STARTED))
+            self.assertIn('did not show it', web_check.splash_seen_problem(loading, self.STARTED, self.ORDER))
 
     def test_still_shown(self):
         for started in (None, ['oxt-splash', 'none'], ['', 'block']):
-            self.assertIn('still showed it', web_check.splash_seen_problem(self.LOADING, started))
+            self.assertIn('still showed it', web_check.splash_seen_problem(self.LOADING, started, self.ORDER))
+
+    def test_gone_before_the_stack_drew(self):
+        # gone before the first drawing, never drawn, or not noted
+        for order in ([312.5, 300.8], [None, 312.5], [300.8, None], None, []):
+            self.assertIn('before the engine had drawn its stack',
+                          web_check.splash_seen_problem(self.LOADING, self.STARTED, order))
+
+    def test_the_init_script_notes_the_order(self):
+        js = web_check.SPLASH_SEEN_JS
+        self.assertIn("this.canvas.id === 'canvas'", js)
+        self.assertIn('return p.apply(this, arguments)', js)
+        self.assertIn("!r.classList.contains('oxt-splash')", js)
+        check = read('tools', 'ci', 'web_check.py')
+        self.assertIn("tab.evaluate('window.oxtSplashOrder || null')", check)
+        # the engine draws the main window with putImageData on Module.canvas,
+        # the page's #canvas
+        self.assertIn('context.putImageData(imageData, p_x, p_y)', read('engine', 'src', 'em-surface.js'))
+        self.assertIn('<canvas id="canvas"', read('engine', 'rsrc', 'emscripten-html-template.html'))
 
     def test_the_deploy_builds_it_and_the_check_reads_it(self):
         deploy = read('tools', 'ci', 'web-deploy.livecodescript')
@@ -952,3 +974,97 @@ class TheMenuLists(unittest.TestCase):
         self.assertEqual(script.count('= read_menu_list(tab, where'), 1)
         self.assertEqual({where for where, _, _, _ in web_check.MENU_LISTS},
                          {'as built', 'following the browser'})
+
+
+class GoStackUrl(unittest.TestCase):
+    """go stack URL in the web engine (OpenXTalkPaul, openxtalk.org
+    p=25362): the probe posts a stack it saved to the check's server and
+    opens it with go stack URL from the page's own site, a script-only
+    stack, another site that allows it (an Access-Control-Allow-Origin
+    header) and another that does not, which the browser refuses."""
+
+    def setUp(self):
+        import urllib.request
+        self.urllib = urllib.request
+        self.site = tempfile.mkdtemp()
+        self.server = web_check.make_server(self.site)
+        self.origin = 'http://127.0.0.1:%d' % self.server.server_address[1]
+
+    def tearDown(self):
+        self.server.shutdown()
+        self.server.server_close()
+        shutil.rmtree(self.site, ignore_errors=True)
+
+    def get(self, path):
+        try:
+            with self.urllib.urlopen(self.origin + path, timeout=10) as r:
+                return r.status, r.headers.get('Access-Control-Allow-Origin'), r.read()
+        except self.urllib.HTTPError as e:
+            return e.code, e.headers.get('Access-Control-Allow-Origin'), e.read()
+
+    def test_the_server_serves_the_stack_the_probe_posted(self):
+        import base64
+        stack = b'REVO7000\x00\x01\xe9\xff'
+        self.assertEqual(self.get('/probe-stack.livecode')[0], 404)
+        request = self.urllib.Request(self.origin + '/probe-stack', data=base64.b64encode(stack), method='POST')
+        with self.urllib.urlopen(request, timeout=10) as r:
+            self.assertEqual(r.status, 200)
+        self.assertEqual(self.get('/probe-stack.livecode'), (200, None, stack))
+        self.assertEqual(self.get('/probe-stack.livecode?cors=1'), (200, '*', stack))
+
+    def test_the_script_only_stack(self):
+        status, cors, body = self.get('/probe-stack.livecodescript')
+        self.assertEqual((status, cors), (200, None))
+        self.assertEqual(body.decode('utf-8'), web_check.PROBE_SCRIPT_ONLY_STACK)
+        self.assertEqual(self.get('/probe-stack.livecodescript?cors=1')[1], '*')
+        # the stack the probe expects, which marks itself opened
+        self.assertTrue(web_check.PROBE_SCRIPT_ONLY_STACK.startswith('script "ProbeRemoteScript"\n'))
+        self.assertIn('set the cProbeOpened of me to true', web_check.PROBE_SCRIPT_ONLY_STACK)
+
+    def test_the_checks_are_expected_in_the_probes_order(self):
+        probe = read('tools', 'ci', 'web-probe.livecodescript')
+        names = ['go-stack-url', 'go-stack-url-script', 'go-stack-url-cors', 'go-stack-url-blocked']
+        at = [web_check.PROBE_CHECKS.index(n) for n in names]
+        self.assertEqual(at, sorted(at))
+        self.assertEqual(at[0], web_check.PROBE_CHECKS.index('url-load') + 1)
+        found = [probe.index('probeCheck "%s",' % n) for n in names]
+        self.assertEqual(found, sorted(found))
+        for line in ('go stack URL (pOrigin & "/probe-stack.livecode")',
+                     'go to card 1 of stack URL (pOrigin & "/probe-stack.livecodescript")',
+                     'go stack URL (tOther & "/probe-stack.livecode?cors=1")',
+                     'go stack URL (tOther & "/probe-stack.livecode")',
+                     'post base64Encode(url ("binfile:" & tFile)) to url (pOrigin & "/probe-stack")'):
+            self.assertIn(line, probe)
+
+    def test_the_refused_download_is_expected(self):
+        chromium = [('error', "Access to XMLHttpRequest at 'http://localhost:4100/probe-stack.livecode' from "
+                              "origin 'http://127.0.0.1:4100' has been blocked by CORS policy: No "
+                              "'Access-Control-Allow-Origin' header is present on the requested resource."),
+                    ('error', 'Failed to load resource: net::ERR_FAILED')]
+        webkit = [('error', 'Origin http://127.0.0.1:4100 is not allowed by Access-Control-Allow-Origin. '
+                            'Status code: 200'),
+                  ('error', 'XMLHttpRequest cannot load http://localhost:4100/probe-stack.livecode due to '
+                            'access control checks.'),
+                  ('error', 'Failed to load resource: Origin http://127.0.0.1:4100 is not allowed by '
+                            'Access-Control-Allow-Origin. Status code: 200')]
+        self.assertEqual(web_check.unexpected_console_errors(chromium), [])
+        self.assertEqual(web_check.unexpected_console_errors(webkit), [])
+        # WebKit's lines that name only the origin are the probe's only
+        # when a line names the refused URL
+        self.assertEqual(web_check.unexpected_console_errors(webkit[:1]), [webkit[0][1]])
+
+    def test_other_errors_still_fail(self):
+        # a refused download of another URL, the allowed one, and a failed
+        # request with no refusal before it are not the probe's own
+        console = [('error', "Access to XMLHttpRequest at 'http://localhost:4100/other' has been blocked by "
+                             "CORS policy"),
+                   ('error', "Access to XMLHttpRequest at 'http://localhost:4100/probe-stack.livecode?cors=1' "
+                             "has been blocked by CORS policy"),
+                   ('error', "Access to XMLHttpRequest at 'http://localhost:4100/probe-stack.livecodescript' "
+                             "has been blocked by CORS policy"),
+                   ('error', 'Failed to load resource: net::ERR_FAILED')]
+        self.assertEqual(web_check.unexpected_console_errors(console), [t for _, t in console])
+
+    def test_the_missing_page_is_expected_once(self):
+        console = [('error', web_check.CONSOLE_404)] * 2 + [('log', 'x'), ('error', 'PROBE x')]
+        self.assertEqual(web_check.unexpected_console_errors(console), [web_check.CONSOLE_404])
