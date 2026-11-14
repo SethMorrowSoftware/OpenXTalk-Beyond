@@ -32,23 +32,35 @@
 			[
 				'expat_config.h',
 				'lib/ascii.h',
-				'lib/asiitab.h',
+				'lib/asciitab.h',
+				'lib/entities.h',
 				'lib/expat_external.h',
 				'lib/expat.h',
+				'lib/fallthrough.h',
+				'lib/hash_table.h',
 				'lib/iasciitab.h',
 				'lib/internal.h',
 				'lib/latin1tab.h',
+				'lib/memory_sanitizer.h',
 				'lib/nametab.h',
+				'lib/random_arc4random_buf.h',
+				'lib/random_dev_urandom.h',
+				'lib/siphash.h',
 				'lib/utf8tab.h',
+				'lib/xcs.h',
 				'lib/xmlrole.h',
 				'lib/xmltok_impl.h',
 				'lib/xmltok.h',
 				
+				# xmltok_impl.c and xmltok_ns.c are included by xmltok.c,
+				# not compiled on their own (Expat 2.10.0's CMakeLists.txt)
+				'lib/xcs.c',
 				'lib/xmlparse.c',
 				'lib/xmlrole.c',
-				'lib/xmltok_impl.c',
-				'lib/xmltok_ns.c',
 				'lib/xmltok.c',
+				# the entropy sources expat_config.h selects
+				'lib/random_arc4random_buf.c',
+				'lib/random_dev_urandom.c',
 			],
 			
 			'direct_dependent_settings':

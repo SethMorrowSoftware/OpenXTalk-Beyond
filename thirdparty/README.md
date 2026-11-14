@@ -18,7 +18,13 @@ as a submodule. It was imported unchanged from upstream commit
 repository). Since then, Tom Perry's changes (commit `38d5712b2`)
 updated SQLite in `libsqlite/` from 3.34.0 to 3.51.1 and added
 `libexpat/lib/asciitab_old.h`, a copy of `asciitab.h` from his working
-files. SQLite was then updated to 3.51.3, its last patch release (0.2.7-rc.6.18).
+files. SQLite was then updated to 3.51.3, its last patch release (0.2.7-rc.6.18),
+and to 3.54.1 (0.2.8-dp.2), with a change that keeps the text of real numbers
+as 3.51 wrote it (see `libsqlite/ORIGIN`). 0.2.8-dp.2 also updated expat
+from 2.2.0 to 2.10.0 and FreeType from 2.10.4 to 2.14.3 (see their `ORIGIN`
+files). `tools/ci/tests/test_thirdparty_libraries.py` compiles SQLite, expat
+and FreeType from this folder and checks what they give against answers
+pinned from the versions before (Linux only, no build of the engine needed).
 
 ## How the builds use it
 
