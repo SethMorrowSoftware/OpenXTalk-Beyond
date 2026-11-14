@@ -82,6 +82,7 @@ def one(args, stack):
                HC_LIB=os.path.abspath(args.lib), HC_ICONS=os.path.abspath(args.icons) if args.icons else "",
                HC_MODE=args.mode,
                HC_ORDER="1" if args.hypertalk_order else "0",
+               HC_SOUND="1" if args.sound else "0",
                HC_IMAGE=os.path.abspath(args.image) if name in args.paths else "",
                HC_IMAGEPATH=args.paths.get(name, ""))
     command = [args.engine, "-ui", os.path.join(HERE, "sweep.livecodescript")]
@@ -111,6 +112,9 @@ def main():
     parser.add_argument("--lib", default=LIBRARIES)
     parser.add_argument("--icons", default=ICONS,
                         help="the IDE's revicons.rev, with HyperCard's brushes and patterns (empty: none)")
+    parser.add_argument("--sound", action="store_true",
+                        help="let the stacks play their sounds and speak (a run sweep silences them: several "
+                             "stacks at a time play sounds while nobody is there to hear them)")
     parser.add_argument("--jobs", type=int, default=os.cpu_count() or 2)
     parser.add_argument("--timeout", type=float, default=None,
                         help="seconds per stack (default: 60 for fix, 25 for run)")

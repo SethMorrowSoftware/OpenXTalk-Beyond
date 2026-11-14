@@ -142,6 +142,7 @@ lcs: core/interface/hypercard-import: TestHyperCardImportIdClashes
 lcs: core/interface/hypercard-import: TestHyperCardImportInventory
 lcs: core/interface/hypercard-import: TestHyperCardImportMacBinary
 lcs: core/interface/hypercard-import: TestHyperCardImportMacBinaryResourceFork
+lcs: core/interface/hypercard-import: TestHyperCardImportMacBinaryStandalone
 lcs: core/interface/hypercard-import: TestHyperCardImportMacRomanText
 lcs: core/interface/hypercard-import: TestHyperCardImportMacZip
 lcs: core/interface/hypercard-import: TestHyperCardImportNewStackCard
@@ -169,6 +170,7 @@ lcs: core/interface/show-cards: TestShowNegativeCards
 lcs: core/interface/show-cards: TestShowZeroCards
 lcs: core/interface/snapshot: TestExportGroupWithoutSnapshot
 lcs: core/interface/snapshot: TestSnapshotOfHugeGroup
+lcs: core/interface/subwindow: TestSubwindowPopupField # 9.6.3's engine stops the app: popup of a field used the field as a stack (fixed in OXT-Beyond's, #502)
 lcs: core/interface/usedesktopappearance: TestUseDesktopAppearanceDefault
 lcs: core/interface/usedesktopappearance: TestUseDesktopAppearanceNotABoolean
 lcs: core/interface/usedesktopappearance: TestUseDesktopAppearanceSet

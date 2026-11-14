@@ -1542,6 +1542,13 @@ void MCSubwindow::exec_ctxt(MCExecContext &ctxt)
     if (!target -> getobj(ctxt2, optr, parid, True)
         || (optr->gettype() != CT_BUTTON && optr->gettype() != CT_STACK))
 	{
+		// OXT-Beyond: an object that is neither a button nor a stack
+		// ("popup field 1", "popup card 1") is taken by its value, as a
+		// stack's name, like any other expression. Before, the object
+		// was kept and a field or a card was then used as if it were a
+		// stack, which crashed the engine (HyperCard stacks call an
+		// external "popUp" with a field's number)
+		optr = nil;
 		MCerrorlock--;
         if (!ctxt . EvalExprAsNameRef(target, EE_SUBWINDOW_BADEXP, &optr_name))
             return;

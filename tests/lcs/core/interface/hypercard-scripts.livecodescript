@@ -6983,3 +6983,75 @@ on TestHyperCardScriptsPlayCorpus
    TestAssert "T35: a variable on the line after, unchanged", line 10 of tScript is "  play flute tempo 200 \" and line 11 of tScript is "  tNotes"
    TestAssert "T35: those compile", _Compiles(tScript)
 end TestHyperCardScriptsPlayCorpus
+
+on TestHyperCardScriptsT78
+   -- T78: in a script that compiles, a call HyperCard sent to the stack's
+   -- own command named like a command of this engine ("popUp 1", the
+   -- HyperTEXT trip reports' buttons, whose stack script has "on popUp",
+   -- renamed hc_popUp by T1): here it ran this engine's popup, which
+   -- looked for a stack called 1 (and crashed the engine on a field). And
+   -- a call of the stack's external named like a word of this engine
+   -- ("put Switch(Temp) into cd fld 4", the Switch XFCN of 10 stacks of
+   -- the corpus), which here called a "switch" no handler has and
+   -- stopped with an error: the external's hcX_ name, which its
+   -- stand-in answers with empty, as an XFCN's
+   local tStack, q, tError
+   global gHCScriptsTest
+   put quote into q
+   put "HCScriptsT78" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   set the uHyperCard["externals"] of stack tStack to _Lines("XFCN" & tab & "Switch", "XFCN" & tab & "Upper", \
+         "XFCN" & tab & "Files")
+   set the script of stack tStack to _Lines("on popUp pNumber", "  global gHCScriptsTest", \
+         "  put " & q & "popUp " & q & " & pNumber after gHCScriptsTest", "end popUp")
+   create button "Pop"
+   set the script of button "Pop" of card 1 of stack tStack to _Lines("on mouseUp", "  popUp 1", "end mouseUp")
+   create button "PopVar"
+   set the script of button "PopVar" of card 1 of stack tStack to _Lines("on mouseUp", "  put 2 into n", \
+         "  if n > 1 then popUp n", "end mouseUp")
+   create button "Switch"
+   set the script of button "Switch" of card 1 of stack tStack to _Lines("on mouseUp", "  global gHCScriptsTest", \
+         "  put Switch(5) into gHCScriptsTest", "  put " & q & "went on" & q & " after gHCScriptsTest", "end mouseUp")
+   -- unchanged: popup of a button (this engine's own, more than values),
+   -- HyperCard's own command with a handler of the stack, and a function
+   -- this engine has (files(), upper()) though the stack carries a Files
+   -- and an Upper XFCN: they run as they did
+   create button "Kept"
+   set the script of button "Kept" of card 1 of stack tStack to _Lines("on mouseUp", "  popup button " & q & "M" & q, \
+         "  answer " & q & "Hello" & q, "  put files(the defaultFolder) into x", "  put Upper(" & q & "ab" & q & ") into y", \
+         "end mouseUp")
+   set the script of card 1 of stack tStack to _Lines("on answer pText", "  pass answer", "end answer")
+   unlock messages
+   TestAssert "T78: the scripts compile as they are", _Compiles(the script of button "Pop" of card 1 of stack tStack) \
+         and _Compiles(the script of button "Switch" of card 1 of stack tStack)
+   get revHyperCardFixScripts(tStack)
+
+   TestAssert "T78: a call of the stack's popUp goes to its handler's new name", \
+         line 2 of the script of button "Pop" of card 1 of stack tStack is "  hc_popUp 1"
+   TestAssert "T78: with a variable as its value too", \
+         line 3 of the script of button "PopVar" of card 1 of stack tStack is "  if n > 1 then hc_popUp n"
+   put empty into gHCScriptsTest
+   try
+      send "mouseUp" to button "Pop" of card 1 of stack tStack
+      send "mouseUp" to button "PopVar" of card 1 of stack tStack
+   catch tError
+   end try
+   TestAssert "T78: the stack's handler runs, as in HyperCard", tError is empty and gHCScriptsTest is "popUp 1popUp 2"
+
+   TestAssert "T78: a call of the Switch XFCN goes to its stand-in", \
+         line 3 of the script of button "Switch" of card 1 of stack tStack is "  put hcX_Switch(5) into gHCScriptsTest"
+   put empty into gHCScriptsTest
+   try
+      send "mouseUp" to button "Switch" of card 1 of stack tStack
+   catch tError
+   end try
+   TestAssert "T78: which gives empty, and the script goes on", tError is empty and gHCScriptsTest is "went on"
+
+   TestAssert "T78: popup of a button, answer, files() and upper(), unchanged", \
+         line 2 to 5 of the script of button "Kept" of card 1 of stack tStack \
+         is _Lines("  popup button " & q & "M" & q, "  answer " & q & "Hello" & q, "  put files(the defaultFolder) into x", \
+         "  put Upper(" & q & "ab" & q & ") into y")
+   _Close tStack
+end TestHyperCardScriptsT78
