@@ -2392,8 +2392,11 @@ ungroup and align, cards with the Project Browser, find and replace and a
 breakpoint in the Script Editor, Save As, Close and Remove From Memory
 and opening the stack again, Revert to Saved, a Dictionary search, an
 image as a button's icon, the Geometry Manager, a preference changed and
-restored, and the Application Browser. Each task asserts what a person
-would see, waits for it rather than sleeping, and snapshots it
+restored, the Application Browser, and File > Save as Standalone
+Application with the build stopped by an error part way (of the stack,
+and of a stack whose file is named .mc): the stack is left as it was,
+without the IDE's Answer and Ask dialogs in it. Each task asserts what a
+person would see, waits for it rather than sleeping, and snapshots it
 (`everyday-*.png`); `--only` runs the tasks up to the last one named.
 Builds run it on Linux light and dark at once (two Xvfb screens), on
 Windows light then dark, and on the Macs one appearance each (light on

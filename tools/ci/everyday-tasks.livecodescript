@@ -39,10 +39,13 @@ script "oxt_everyday"
 -- <name> ok | FAILED <why>, DONE). OXT_TOUR_ONLY names tasks; the tasks
 -- before a named one that it needs (the stack, its controls) run too.
 
-constant kTasks = "start,new-stack,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,finish"
+constant kTasks = "start,new-stack,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,standalone-stopped-build,standalone-mc-stack-file,finish"
 -- (the names the tasks give what they make)
 constant kStack = "Everyday Stack"
 constant kFile = "everyday.oxtstack"
+-- the stack of standalone-mc-stack-file, and its file
+constant kMcStack = "Everyday Mc"
+constant kMcFile = "everyday-old.mc"
 
 local sOut, sLog, sOnly, sStarted, sWatchdog, sWatchdogCount
 local sWork, sStack, sInput, sSaved, sDebug, sReport, sKeep, sSkip
@@ -1535,6 +1538,84 @@ on ed_preferences_change
    close stack tPrefs
 end ed_preferences_change
 
+-- File > Save as Standalone Application... on the stack, and the build
+-- stops on an error after the builder has changed the stack in memory:
+-- the stack a person is left with is the one they had (openxtalk.org
+-- p=26321, tperry2x: now and then a stack "gets a copy of the IDE's
+-- Answer and Ask stack embedded in it"). For each target the builder
+-- puts the IDE's Answer and Ask dialogs into the stack as substacks,
+-- takes its standalone settings off and saves it into the build folder,
+-- and up to 0.2.8-dp.1 only the end of a build put it back: one that
+-- stopped in between left the build's copy open as the stack being
+-- worked on, and the next Save wrote the dialogs into the stack's file.
+-- The build is stopped here where its copy is about to be saved, the
+-- stack changed and closed and still under its own file name
+-- (edStoppedBuild); then a change and File > Save, as a person goes on
+on ed_standalone_stopped_build
+   local tWhy, tPath, tBefore, tMarker
+   put edBuildSkip() into sSkip
+   if sSkip is not empty then return "skipped"
+   edFront
+   edBuildSettings sStack, "Everyday"
+   edSaveForBuild sStack
+   put the effective filename of stack sStack into tPath
+   put URL ("binfile:" & tPath) into tBefore
+   put edStoppedBuild(sStack, "Saving stack files...") into tWhy
+   if tWhy is not empty then throw tWhy
+   edRecord "INFO the build stopped at Saving stack files... after:" && edJoin(sReport["steps"])
+   edFront
+   put "saved-" & the milliseconds into tMarker
+   set the cEverydayBuild of stack sStack to tMarker
+   edMenu "File", "Save"
+   if not edWaitFor("URL (" & quote & "binfile:" & quote & " & pAx) contains pBx", 5000, tPath, tMarker) then
+      throw "File > Save after the build that stopped did not write the change to" && tPath
+   end if
+   if edHasDialog(URL ("binfile:" & tPath)) and not edHasDialog(tBefore) then
+      throw "File > Save after the build that stopped wrote the IDE's Answer or Ask dialog into" && tPath && "(" & the number of bytes of URL ("binfile:" & tPath) && "bytes, before the build" && the number of bytes of tBefore & ")"
+   end if
+   if the substacks of stack sStack is not empty then throw "the stack saved after the build has the substacks" && edJoin(the substacks of stack sStack)
+   edShotStack sStack, "36-standalone-stopped-build"
+end ed_standalone_stopped_build
+
+-- A stack whose file is named .mc, as MetaCard's and old LiveCode's
+-- were, built from the File menu: up to 0.2.8-dp.1 such a build stopped
+-- by itself, which is one way a person met the task before. The IDE
+-- opens .mc, .lc, .stk and .oxtscript as stacks, and the builder kept
+-- such a file's name for its copy in the build folder but saved the copy
+-- with ".oxtstack" added, so the steps after looked for a stack that was
+-- not there, and none of these ever built (in this task 0.2.8-dp.1 went
+-- on to write the stack's own file again, 713 bytes where 721 were). The
+-- build is stopped here where the engine is about to be attached, after
+-- the builder has saved its copy once more under the name it expects it
+-- to have and taken it out of memory: the stack and its file are as
+-- they were then too
+on ed_standalone_mc_stack_file
+   local tWhy, tPath, tDefault
+   put edBuildSkip() into sSkip
+   if sSkip is not empty then return "skipped"
+   put sWork & "/" & kMcFile into tPath
+   put the defaultStack into tDefault
+   create stack kMcStack
+   set the defaultStack to kMcStack
+   create button "Hello"
+   set the script of button "Hello" of stack kMcStack to "on mouseUp" & return & "   answer the short name of me" & return & "end mouseUp"
+   if there is a stack tDefault then set the defaultStack to tDefault
+   -- (its file by script: the subject is the build, and File > Save asks
+   -- for a name while the stack's file is not there)
+   set the filename of stack kMcStack to tPath
+   save stack kMcStack as tPath
+   if there is not a file tPath then throw "could not save" && kMcStack && "as" && tPath && "(" & the result & ")"
+   go stack kMcStack
+   if not edWaitFor("the short name of the topStack is kMcStack", 3000) then throw "the stack" && kMcStack && "is not in front (" & the short name of the topStack & ")"
+   edBuildSettings kMcStack, "EverydayMc"
+   edSaveForBuild kMcStack
+   put edStoppedBuild(kMcStack, "Attaching engine...") into tWhy
+   if tWhy is not empty then throw tWhy
+   edRecord "INFO the build of" && kMcFile && "reached Attaching engine... after:" && edJoin(sReport["steps"])
+   edShotStack kMcStack, "37-standalone-mc-stack-file"
+   edRemoveMcStack
+end ed_standalone_mc_stack_file
+
 -- the stack closed and deleted from memory; what was changed set back
 on ed_finish
    local tError
@@ -1547,6 +1628,8 @@ on ed_finish
       end try
       delete stack sStack
    end if
+   edRemoveMcStack
+   edStopBuildAt empty
    if sSaved["systemFileSelector"] is not empty then set the systemFileSelector to sSaved["systemFileSelector"]
    if sSaved["typingRate"] is not empty then set the typingRate to sSaved["typingRate"]
    edToolFilter empty
@@ -2196,6 +2279,220 @@ on edAnswerWith pButton, pTries, pAfter
       edClickAt tAD, the loc of tButton
    end if
 end edAnswerWith
+
+----------------------------------------------------------------
+-- A standalone built from the File menu, and stopped
+
+-- The standalone target of this computer, as the Standalone Settings
+-- name it (kDesktopTargets in revsblibrary): the one every package has
+-- the engine for (a Mac's is the universal one, the only Mac engine)
+function edBuildTarget
+   if the platform is "MacOS" then return "MacOSX x64-ARM64"
+   if the platform is "Win32" then
+      if the processor is "x86_64" then return "Windows x86-64"
+      return "Windows"
+   end if
+   if the platform is "Linux" then
+      if the processor is "x86_64" then return "Linux x64"
+      if the processor is "arm64" then return "Linux arm64"
+      return "Linux"
+   end if
+   return empty
+end edBuildTarget
+
+-- Why no standalone can be built for this computer here, or empty: the
+-- builder makes the Mac one on macOS 14 and later only, and says so in a
+-- dialog before it starts
+function edBuildSkip
+   if edBuildTarget() is empty then return "no standalone target for" && the platform
+   if the platform is "MacOS" then
+      set the itemDelimiter to "."
+      if item 1 of the systemVersion < 14 then return "the builder makes a Mac standalone on macOS 14 and later only (this is" && the systemVersion & ")"
+   end if
+   return empty
+end edBuildSkip
+
+-- the engine the builder attaches for this computer's target, and
+-- whether it is there: for the record of a build that did not start
+function edBuildEngine
+   local tPath, tError
+   try
+      put revSBEnginePath(edBuildTarget()) into tPath
+   catch tError
+      return "revSBEnginePath:" && edJoin(tError)
+   end try
+   if there is a file tPath then return tPath
+   return tPath && "(no such file)"
+end edBuildEngine
+
+-- pStack set as the Standalone Settings set it: to build for this
+-- computer alone, under the name pName, into a folder of the work folder
+-- without asking where (its default build folder), with the Answer and
+-- Ask dialogs included whatever its scripts use ("Select inclusions")
+command edBuildSettings pStack, pName
+   local tTarget, tFolder
+   put sWork & "/standalone-" & toLower(pName) into tFolder
+   if there is not a folder tFolder then create folder tFolder
+   if there is not a folder tFolder then throw "could not make the build folder" && tFolder
+   repeat for each item tTarget in "Windows,Windows x86-64,MacOSX x86-32,MacOSX x86-64,MacOSX x64-ARM64,Linux,Linux x64,Linux armv6-hf,Linux arm64,iOS,Android,Emscripten"
+      set the cRevStandaloneSettings[tTarget] of stack pStack to (tTarget is edBuildTarget())
+   end repeat
+   set the cRevStandaloneSettings["name"] of stack pStack to pName
+   set the cRevStandaloneSettings["inclusions"] of stack pStack to "select"
+   set the cRevStandaloneSettings["answerDialog"] of stack pStack to true
+   set the cRevStandaloneSettings["askDialog"] of stack pStack to true
+   set the cRevStandaloneSettings["defaultBuildFolder"] of stack pStack to tFolder
+   set the cRevStandaloneSettings["automaticallyBuildInDefaultFolder"] of stack pStack to true
+end edBuildSettings
+
+-- pStack, in front, saved with File > Save: its file holds what it is
+-- now, and the IDE does not ask to save it before the build
+command edSaveForBuild pStack
+   local tPath, tMarker
+   put the effective filename of stack pStack into tPath
+   if tPath is empty then throw "the stack" && pStack && "has no file to save to"
+   put "build-" & the milliseconds into tMarker
+   set the cEverydayBuild of stack pStack to tMarker
+   edMenu "File", "Save"
+   if not edWaitFor("URL (" & quote & "binfile:" & quote & " & pAx) contains pBx", 5000, tPath, tMarker) then
+      throw "File > Save before the build did not write" && pStack && "to" && tPath
+   end if
+end edSaveForBuild
+
+-- pStack, in front and saved, built with File > Save as Standalone
+-- Application..., and the build stopped by an error when the builder
+-- reports the step pStep (edStopBuildAt). Returns what is not as it was
+-- before the build, or empty: the stack is open, with the file name, the
+-- substacks, the cards, the controls and the standalone settings it had;
+-- no copy of an IDE dialog is left in memory; its file is the same bytes;
+-- and the IDE asked nothing (the builder's own report of the error is off
+-- here, revSetTestEnvironment in edCatchErrors, so any question is one
+-- the stack that was left made the IDE ask, as 'A stack "Answer Dialog"
+-- is already in memory' was)
+function edStoppedBuild pStack, pStep
+   local tPath, tBefore, tBytes, tAfter, tSteps
+   -- (the file's bytes and the stack's state are compared as they are)
+   set the caseSensitive to true
+   put the effective filename of stack pStack into tPath
+   put edBuildState(pStack) into tBefore
+   put URL ("binfile:" & tPath) into tBytes
+   put empty into sReport["steps"]
+   put empty into sReport["answer"]
+   edStopBuildAt pStep
+   send "edAnswerWith" && quote & "OK,OK,OK,OK" & quote to me in 300 milliseconds
+   try
+      edMenu "File", "Save as Standalone Application..."
+   finally
+      edStopBuildAt empty
+   end try
+   put sReport["steps"] into tSteps
+   -- (a step the builder no longer reports would let the build finish,
+   -- and check nothing)
+   if pStep is not among the lines of tSteps then
+      return "the build did not reach" && quote & pStep & quote & ": it reported" && quote & edJoin(tSteps) & quote && "(the engine for" && edBuildTarget() & ":" && edBuildEngine() & "; the IDE asked:" && edJoin(sReport["answer"]) & ")"
+   end if
+   -- (open again: the builder closes the stack it builds, and opens it
+   -- again at its end)
+   if not edWaitFor("edInMemory(pAx) and edOpen(pAx)", 5000, pStack) then
+      return "the stack" && pStack && "is not open after the build that stopped at" && pStep && "(in memory:" && edInMemory(pStack) & ")"
+   end if
+   put edBuildState(pStack) into tAfter
+   if tAfter is not tBefore then
+      return "the stack is not as it was after the build that stopped at" && pStep & ". Before:" && edJoin(tBefore) && "After:" && edJoin(tAfter)
+   end if
+   if edDialogCopies() is not empty then return "the build that stopped at" && pStep && "left in memory:" && edDialogCopies()
+   if URL ("binfile:" & tPath) is not tBytes then
+      return "the build that stopped at" && pStep && "changed the stack's file" && tPath && "(" & the number of bytes of URL ("binfile:" & tPath) && "bytes, was" && the number of bytes of tBytes & ")"
+   end if
+   edCancelPending "edAnswerWith"
+   if sReport["answer"] is not empty then return "after the build that stopped at" && pStep && "the IDE asked:" && edJoin(sReport["answer"])
+   return empty
+end edStoppedBuild
+
+-- The next build stops with an error when the builder reports the step
+-- pStep: a front script on revStandaloneProgress, the command the
+-- builder reports each of its steps with ("Copying resources...",
+-- "Saving stack files...", ..., "Preparing main stackfile...",
+-- "Attaching engine..."), which also notes every step reported
+-- (edBuildStep). The error is the kind a full disk, a path too long or a
+-- file in the way gives, at a step chosen. Empty takes it out again
+command edStopBuildAt pStep
+   local tDefault, tError
+   if there is a button "oxt_everyday_build" of stack "oxt_everyday" then
+      try
+         remove the script of button "oxt_everyday_build" of stack "oxt_everyday" from front
+      catch tError
+      end try
+   end if
+   if pStep is empty then exit edStopBuildAt
+   put the defaultStack into tDefault
+   set the defaultStack to "oxt_everyday"
+   lock messages
+   if there is not a button "oxt_everyday_build" then create invisible button "oxt_everyday_build"
+   set the script of button "oxt_everyday_build" to "on revStandaloneProgress pStep" & return & \
+         "   dispatch " & quote & "edBuildStep" & quote & " to stack " & quote & "oxt_everyday" & quote & " with pStep" & return & \
+         "   if pStep is " & quote & pStep & quote & " then throw " & quote & "the everyday tasks stopped the build at " & pStep & quote & return & \
+         "   pass revStandaloneProgress" & return & \
+         "end revStandaloneProgress"
+   insert the script of button "oxt_everyday_build" into front
+   unlock messages
+   if there is a stack tDefault then set the defaultStack to tDefault
+end edStopBuildAt
+
+on edBuildStep pStep
+   put pStep & return after sReport["steps"]
+end edBuildStep
+
+-- What a build must leave as it found it, as lines: the stack's file
+-- name, its substacks, its cards, the controls of its first card and its
+-- standalone settings
+function edBuildState pStack
+   local tState, tSubstacks, tSettings, tKeys, tKey
+   if not edInMemory(pStack) then return "no stack" && pStack && "in memory"
+   put the substacks of stack pStack into tSubstacks
+   replace return with comma in tSubstacks
+   put "file name:" && the effective filename of stack pStack & return & \
+         "substacks:" && tSubstacks & return & \
+         "cards:" && the number of cards of stack pStack & return & \
+         "controls:" && the number of controls of card 1 of stack pStack & return into tState
+   put the customProperties["cRevStandaloneSettings"] of stack pStack into tSettings
+   put the keys of tSettings into tKeys
+   sort lines of tKeys
+   repeat for each line tKey in tKeys
+      put "setting" && tKey & ":" && tSettings[tKey] & return after tState
+   end repeat
+   return tState
+end edBuildState
+
+-- The copies of the IDE's dialogs in memory: the IDE's own are main
+-- stacks, so a substack of one of those names is a copy the builder made
+function edDialogCopies
+   local tMain, tSub, tCopies
+   repeat for each line tMain in the mainStacks
+      repeat for each line tSub in the substacks of stack tMain
+         if tSub is among the items of "Answer Dialog,Ask Dialog,Print Dialog,Page Setup Dialog" then
+            put tSub && "in" && tMain & ", " after tCopies
+         end if
+      end repeat
+   end repeat
+   return char 1 to -3 of tCopies
+end edDialogCopies
+
+-- whether the bytes of a stack file hold the IDE's Answer or Ask dialog
+function edHasDialog pBytes
+   return pBytes contains "Answer Dialog" or pBytes contains "Ask Dialog"
+end edHasDialog
+
+-- the stack of standalone-mc-stack-file closed and deleted from memory
+command edRemoveMcStack
+   local tError
+   if not edInMemory(kMcStack) then exit edRemoveMcStack
+   try
+      revIDESetEdited kMcStack, false
+   catch tError
+   end try
+   delete stack kMcStack
+end edRemoveMcStack
 
 ----------------------------------------------------------------
 -- Preferences: a checkbox in its window that a person might turn on and
