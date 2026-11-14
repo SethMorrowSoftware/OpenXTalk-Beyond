@@ -71,8 +71,16 @@ class FakeOXT:
     """OXT-Beyond's side: answers each line with handler(request)."""
 
     def __init__(self, handler, token='0123456789abcdef0123456789abcdef', tools=None, hello_delay=0, status=None,
-                 held_up=False, asking=None):
+                 held_up=False, asking=None, busy=True, stale=None, hello=None):
         self.handler = handler
+        # What a status says of whether a tool runs there (its "busy")
+        self.busy = busy
+        # Lines sent on each connection before its first answer: answers to
+        # requests of a connection that has gone, which Windows, giving a
+        # connection the name of one that closed, lets the engine write here
+        self.stale = stale or []
+        # What a hello is answered, when not a hello's answer
+        self.hello = hello
         # What a status says (mcbStatusText); None answers it as an
         # OXT-Beyond that has no status does
         self.status = status
@@ -107,6 +115,7 @@ class FakeOXT:
 
     def client(self, conn):
         data = b''
+        first = True
         with conn:
             while True:
                 try:
@@ -120,6 +129,10 @@ class FakeOXT:
                     line, data = data.split(b'\n', 1)
                     request = json.loads(line.decode('utf-8'))
                     self.requests.append(request)
+                    if first:
+                        first = False
+                        for reply in self.stale:
+                            conn.sendall((json.dumps(reply) + '\n').encode('utf-8'))
                     if self.held_up and request.get('method') == 'status':
                         continue
                     with self.lock:
@@ -130,12 +143,12 @@ class FakeOXT:
                     elif request.get('method') == 'hello':
                         if self.hello_delay:
                             time.sleep(self.hello_delay)
-                        reply = {'ok': True, 'protocol': 1, 'tools': self.tools}
+                        reply = self.hello or {'ok': True, 'protocol': 1, 'tools': self.tools}
                     elif request.get('method') == 'status':
                         if self.status is None:
                             reply = {'ok': False, 'error': 'There is no method "status".'}
                         else:
-                            reply = {'ok': True, 'busy': True, 'text': self.status}
+                            reply = {'ok': True, 'busy': self.busy, 'text': self.status}
                             if self.asking is not None:
                                 reply['asking'] = self.asking
                     else:
@@ -364,12 +377,12 @@ class McpBridgeServerBase(unittest.TestCase):
         with open(self.info, 'w') as f:
             json.dump(info, f)
 
-    def start_server(self, args=(), loaded=False, **settings):
+    def start_server(self, args=(), loaded=False, server=SERVER, **settings):
         env = dict(os.environ, OXT_MCP_BRIDGE_FILE=self.info, OXT_MCP_TIMEOUT_MS='20000')
         env.update(settings)
         # loaded: started by a script that loads server.js, as the Node.js
         # built into Claude's desktop app may, so require.main is not it
-        command = [NODE, '-e', 'require(process.argv[1])', SERVER] if loaded else [NODE, SERVER]
+        command = [NODE, '-e', 'require(process.argv[1])', server] if loaded else [NODE, server]
         self.proc = subprocess.Popen(command + list(args), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE, env=env)
 
@@ -400,6 +413,25 @@ class McpBridgeServerBase(unittest.TestCase):
         reply = self.request('tools/call', {'name': name, 'arguments': arguments or {}})
         self.assertIn('result', reply, reply)
         return reply['result']
+
+    def server_copy(self, name, change=None):
+        """A copy of server.js in a folder of its own under the test's, as
+        an installed OXT-Beyond's is beside the copy Claude's app runs;
+        change(text) gives the text it holds."""
+        folder = os.path.join(self.folder, name)
+        os.makedirs(folder, exist_ok=True)
+        with open(SERVER, encoding='utf-8') as f:
+            text = f.read()
+        path = os.path.join(folder, 'server.js')
+        with open(path, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(change(text) if change else text)
+        return path
+
+    def point_to(self, server):
+        """Writes the file OXT-Beyond tells the server its own server.js
+        in (mcbWriteServerPointer), beside the bridge's file."""
+        with open(os.path.join(self.folder, 'mcp-bridge-server.json'), 'w', encoding='utf-8') as f:
+            json.dump({'server': server}, f)
 
     def initialize(self, version='2025-06-18'):
         reply = self.request('initialize', {'protocolVersion': version, 'capabilities': {},
@@ -456,6 +488,137 @@ class McpBridgeServerTest(McpBridgeServerBase):
             manifest = json.load(f)
         self.assertEqual([t['name'] for t in manifest['tools']], names)
         self.assertEqual(manifest['server']['entry_point'], 'server.js')
+
+    def test_the_version_tells_one_list_of_tools_from_another(self):
+        # Claude's apps keep the tools they were given under the server's
+        # version: it is the manifest's, and a mark made from the tools
+        self.start_server()
+        result = self.initialize()['result']
+        with open(os.path.join(PLUGIN, 'mcp', 'manifest.json'), encoding='utf-8') as f:
+            manifest = json.load(f)
+        version = result['serverInfo']['version']
+        self.assertRegex(version, r'^\d+\.\d+\.\d+\+[0-9a-f]{8}$')
+        self.assertEqual(version.split('+')[0], manifest['version'])
+        self.assertIs(result['capabilities']['tools']['listChanged'], True)
+
+    def test_the_mark_of_the_version_changes_with_the_tools(self):
+        self.start_server()
+        first = self.initialize()['result']['serverInfo']['version']
+        self.tearDown()
+        self.setUp()
+        changed = self.server_copy('changed', lambda text: text.replace("title: 'Restart OXT-Beyond'", "title: 'Start it again'"))
+        self.start_server(server=changed)
+        second = self.initialize()['result']['serverInfo']['version']
+        self.assertEqual(first.split('+')[0], second.split('+')[0])
+        self.assertNotEqual(first, second)
+
+    # --- which server.js serves ------------------------------------------------
+
+    def test_the_installed_ides_server_serves_in_this_ones_place(self):
+        # The copy Claude's app starts (a desktop extension saved long ago)
+        # serves with the server.js of the OXT-Beyond installed now
+        installed = self.server_copy('installed', lambda text: text.replace("title: 'Restart OXT-Beyond'", "title: 'Start it again'"))
+        self.point_to(installed)
+        self.start_oxt(lambda request: {'ok': True, 'isError': False, 'text': 'ran'})
+        self.start_server()
+        self.initialize()
+        titles = [t.get('title') for t in self.request('tools/list')['result']['tools']]
+        self.assertIn('Start it again', titles)
+        self.assertNotIn('Restart OXT-Beyond', titles)
+        self.assertEqual(self.call('list_stacks')['content'][0]['text'], 'ran')
+
+    def test_its_own_server_when_told_so_or_none_is_named(self):
+        installed = self.server_copy('installed', lambda text: text.replace("title: 'Restart OXT-Beyond'", "title: 'Start it again'"))
+        self.point_to(installed)
+        self.start_server(OXT_MCP_OWN_SERVER='1')
+        self.initialize()
+        self.assertIn('Restart OXT-Beyond', [t.get('title') for t in self.request('tools/list')['result']['tools']])
+        self.tearDown()
+        self.setUp()
+        # A file that is not there, one that is not a server.js, no JSON
+        for note in ({'server': os.path.join(self.folder, 'gone', 'server.js')},
+                     {'server': os.path.join(self.folder, 'mcp-bridge.json')}, {'server': 'server.js'}, 'server'):
+            with open(os.path.join(self.folder, 'mcp-bridge-server.json'), 'w', encoding='utf-8') as f:
+                json.dump(note, f)
+            self.start_server()
+            self.initialize()
+            self.assertIn('Restart OXT-Beyond', [t.get('title') for t in self.request('tools/list')['result']['tools']], note)
+            self.proc.stdin.close()
+            self.proc.wait(timeout=10)
+            self.proc.stdout.close()
+            self.proc.stderr.close()
+            self.proc = None
+
+    def test_an_older_installed_server_serves_alone(self):
+        # An OXT-Beyond from before this: its server.js reads the input
+        # itself, and cannot be loaded in another's place
+        folder = os.path.join(self.folder, 'older')
+        os.makedirs(folder)
+        older = os.path.join(folder, 'server.js')
+        with open(older, 'w', encoding='utf-8') as f:
+            f.write("require('readline').createInterface({ input: process.stdin }).on('line', (line) => {\n"
+                    "  const m = JSON.parse(line);\n"
+                    "  if (m.id !== undefined) {\n"
+                    "    process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: m.id, result: { serverInfo: { name: 'older' } } }) + '\\n');\n"
+                    "  }\n"
+                    "});\n")
+        self.point_to(older)
+        self.start_server()
+        self.assertEqual(self.initialize()['result']['serverInfo']['name'], 'older')
+
+    def test_a_server_file_that_changed_is_loaded_again(self):
+        # OXT-Beyond was updated while Claude's app kept the server running
+        def retitled(title):
+            return lambda text: text.replace("title: 'Restart OXT-Beyond'", "title: '%s'" % title)
+        installed = self.server_copy('installed', retitled('Start it again'))
+        self.point_to(installed)
+        self.start_oxt(lambda request: {'ok': True, 'isError': False, 'text': 'ran'})
+        self.start_server(OXT_MCP_RELOAD_CHECK_MS='0')
+        self.initialize()
+        self.assertEqual(self.call('list_stacks')['content'][0]['text'], 'ran')
+        self.server_copy('installed', retitled('Start it once more'))
+        sent = self.send('tools/list')
+        # Claude's app is told the tools changed, then answered by the new file
+        self.assertEqual(self.receive().get('method'), 'notifications/tools/list_changed')
+        reply = self.receive()
+        self.assertEqual(reply.get('id'), sent)
+        self.assertIn('Start it once more', [t.get('title') for t in reply['result']['tools']])
+        self.assertEqual(self.call('list_stacks')['content'][0]['text'], 'ran')
+        # A file half written (an installer at work) is left alone
+        with open(installed, encoding='utf-8') as f:
+            text = f.read()
+        with open(installed, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(text[:len(text) // 2])
+        self.assertIn('Start it once more', [t.get('title') for t in self.request('tools/list')['result']['tools']])
+        # And loaded once it is whole
+        self.server_copy('installed', retitled('Start it a third time'))
+        sent = self.send('tools/list')
+        self.assertEqual(self.receive().get('method'), 'notifications/tools/list_changed')
+        self.assertIn('Start it a third time', [t.get('title') for t in self.receive()['result']['tools']])
+
+    def test_a_result_kept_is_kept_through_a_reload(self):
+        release = threading.Event()
+
+        def handler(request):
+            release.wait(20)
+            return {'ok': True, 'isError': False, 'text': 'ran'}
+        installed = self.server_copy('installed')
+        self.point_to(installed)
+        self.start_oxt(handler, status='OXT-Beyond is carrying out run_code (for 0 seconds).', asking=False)
+        self.start_server(OXT_MCP_RELOAD_CHECK_MS='0', OXT_MCP_ANSWER_WAIT_MS='200')
+        self.initialize()
+        self.assertIn('request 1', self.call('run_code', {'code': 'put 1'})['content'][0]['text'])
+        # Not loaded again while the call goes on
+        self.server_copy('installed', lambda text: text.replace("title: 'Restart OXT-Beyond'", "title: 'Start it again'"))
+        self.assertIn('Restart OXT-Beyond', [t.get('title') for t in self.request('tools/list')['result']['tools']])
+        release.set()
+        time.sleep(1)
+        sent = self.send('tools/call', {'name': 'pending_result', 'arguments': {'request': 1, 'wait_seconds': 10}})
+        self.assertEqual(self.receive().get('method'), 'notifications/tools/list_changed')
+        reply = self.receive()
+        self.assertEqual(reply.get('id'), sent)
+        self.assertIn('Call 1 (run_code) is done', reply['result']['content'][0]['text'])
+        self.assertIn('ran', reply['result']['content'][0]['text'])
 
     def test_claude_is_told_the_user_may_turn_asking_off(self):
         # OXT-Beyond asks before runs and saves unless the user chose Stop
@@ -548,6 +711,65 @@ class McpBridgeServerTest(McpBridgeServerBase):
         self.assertTrue(result['isError'])
         self.assertIn('protocol', result['content'][0]['text'])
         self.assertEqual(self.oxt.requests, [])
+
+    def test_an_answer_that_is_not_the_hellos_is_refused(self):
+        # The answer to a status asked earlier, on a connection that has
+        # gone, read as the hello's answer said "protocol undefined"
+        self.start_oxt(lambda request: {'ok': True, 'isError': False, 'text': 'x'},
+                       hello={'ok': True, 'busy': False, 'asking': False, 'text': 'OXT-Beyond is not busy.'})
+        self.start_server()
+        self.initialize()
+        result = self.call('list_stacks')
+        self.assertTrue(result['isError'])
+        self.assertNotIn('undefined', result['content'][0]['text'])
+        self.assertIn('Try again', result['content'][0]['text'])
+        self.assertEqual([r['method'] for r in self.oxt.requests], ['hello'])
+
+    def test_another_requests_answer_is_not_taken_for_this_ones(self):
+        # Answers to requests of connections that have gone, with the ids
+        # those requests had when every connection counted from 1
+        stale = [{'id': 1, 'ok': True, 'busy': False, 'asking': False, 'text': 'OXT-Beyond is not busy.'},
+                 {'id': 2, 'ok': True, 'isError': False, 'text': 'an older call'}]
+        self.start_oxt(lambda request: {'ok': True, 'isError': False, 'text': 'ran ' + request['tool']}, stale=stale)
+        self.start_server()
+        self.initialize()
+        self.assertEqual(self.call('list_stacks')['content'][0]['text'], 'ran list_stacks')
+        self.assertEqual(self.call('list_changes')['content'][0]['text'], 'ran list_changes')
+        ids = [r['id'] for r in self.oxt.requests]
+        self.assertEqual(len(ids), len(set(ids)))
+        for request_id in ids:
+            self.assertIsInstance(request_id, str)
+            self.assertRegex(request_id, r'^[0-9a-f]{12}-')
+
+    def test_a_status_takes_only_its_own_answer(self):
+        # The status asked while a call takes long is asked on a connection
+        # of its own, which gets a stale answer first: the call still waits
+        # for the user, as the real status says
+        release = threading.Event()
+        self.addCleanup(release.set)
+
+        def handler(request):
+            release.wait(20)
+            return {'ok': True, 'isError': False, 'text': 'ran'}
+        stale = [{'id': 1, 'ok': True, 'busy': False, 'asking': False, 'text': 'stale'}]
+        self.start_oxt(handler, status='OXT-Beyond is waiting for the user to answer its question "Claude asks to run code."',
+                       asking=True, stale=stale)
+        self.start_server(OXT_MCP_ANSWER_WAIT_MS='200')
+        self.initialize()
+        text = self.call('run_code', {'code': 'put 1'})['content'][0]['text']
+        self.assertIn('Claude asks to run code.', text)
+        self.assertNotIn('stale', text)
+
+    def test_a_call_says_until_when_it_is_waited_for(self):
+        self.start_oxt(lambda request: {'ok': True, 'isError': False, 'text': 'ran'})
+        self.start_server(OXT_MCP_TIMEOUT_MS='20000')
+        self.initialize()
+        before = time.time() * 1000
+        self.call('list_stacks')
+        hello, call = self.oxt.requests
+        self.assertNotIn('until', hello)
+        self.assertGreaterEqual(call['until'], before + 20000 - 50)
+        self.assertLessEqual(call['until'], time.time() * 1000 + 20000 + 50)
 
     def test_the_ide_closing_mid_call(self):
         self.start_oxt(lambda request: None)
@@ -820,25 +1042,130 @@ class McpBridgeServerTest(McpBridgeServerBase):
         self.assertTrue(result['isError'])
         self.assertIn('did not allow the run', result['content'][0]['text'])
 
-    def test_a_call_not_waiting_for_the_user_is_not_answered_early(self):
-        # A run that takes long, with no question open, and an OXT-Beyond
-        # that says it is not asking although its text reads as if it were
-        def handler(request):
-            time.sleep(1)
-            return {'ok': True, 'isError': False, 'text': 'ran'}
-        self.start_oxt(handler, status='OXT-Beyond is waiting for the user to answer its question "Claude asks to run code."', asking=False)
-        self.start_server(OXT_MCP_ANSWER_WAIT_MS='200')
-        self.initialize()
-        self.assertEqual(self.call('run_code', {'code': 'put 1'})['content'][0]['text'], 'ran')
+    def test_a_long_run_is_answered_early_too(self):
+        # A run that takes long with no question open (a test run, a sweep):
+        # Claude's app gives up on a call after about a minute, so it is
+        # answered before that and kept, as a call waiting for the user is
+        release = threading.Event()
 
-    def test_an_ide_without_a_status_is_waited_for_as_before(self):
         def handler(request):
-            time.sleep(0.8)
+            release.wait(20)
             return {'ok': True, 'isError': False, 'text': 'ran'}
-        self.start_oxt(handler)
+        self.start_oxt(handler, status='OXT-Beyond is carrying out run_code (for 0 seconds).', asking=False)
         self.start_server(OXT_MCP_ANSWER_WAIT_MS='200')
         self.initialize()
-        self.assertEqual(self.call('run_code', {'code': 'put 1'})['content'][0]['text'], 'ran')
+        result = self.call('run_code', {'code': 'put 1'})
+        self.assertFalse(release.is_set())
+        self.assertFalse(result['isError'])
+        text = result['content'][0]['text']
+        self.assertIn('Not done yet', text)
+        self.assertIn('still carrying out run_code', text)
+        self.assertIn('pending_result with request 1', text)
+        self.assertIn('would run twice', text)
+        self.assertNotIn('waiting for your answer', text)
+        self.assertEqual([r.get('tool') for r in self.oxt.requests if r['method'] == 'call'], ['run_code'])
+        release.set()
+        result = self.call('pending_result', {'request': 1, 'wait_seconds': 10})
+        self.assertFalse(result['isError'])
+        self.assertIn('Call 1 (run_code) is done', result['content'][0]['text'])
+        self.assertIn('ran', result['content'][0]['text'])
+
+    def test_an_ide_that_gives_no_status_is_taken_to_be_running(self):
+        # Code that lets nothing else in (no wait in it) reads no status;
+        # neither does an OXT-Beyond from before it had one
+        for fake in ({'held_up': True}, {}):
+            release = threading.Event()
+
+            def handler(request, release=release):
+                release.wait(20)
+                return {'ok': True, 'isError': False, 'text': 'ran'}
+            self.start_oxt(handler, **fake)
+            self.start_server(OXT_MCP_ANSWER_WAIT_MS='200', OXT_MCP_STATUS_TIMEOUT_MS='300')
+            self.initialize()
+            text = self.call('run_code', {'code': 'put 1'})['content'][0]['text']
+            self.assertIn('Not done yet', text, fake)
+            self.assertIn('pending_result with request 1', text, fake)
+            release.set()
+            self.assertIn('ran', self.call('pending_result', {'wait_seconds': 10})['content'][0]['text'], fake)
+            self.tearDown()
+            self.setUp()
+
+    def test_a_call_refused_as_busy_names_the_run_still_going_on(self):
+        release = threading.Event()
+
+        def handler(request):
+            if request['tool'] == 'run_code':
+                release.wait(20)
+            return {'ok': True, 'isError': False, 'text': request['tool']}
+        self.start_oxt(handler, status='OXT-Beyond is carrying out run_code (for 0 seconds).', asking=False)
+        self.start_server(OXT_MCP_ANSWER_WAIT_MS='200', OXT_MCP_BUSY_WAIT_MS='300')
+        self.initialize()
+        self.assertIn('request 1', self.call('run_code', {'code': 'put 1'})['content'][0]['text'])
+        result = self.call('list_stacks')
+        self.assertTrue(result['isError'])
+        self.assertIn('busy', result['content'][0]['text'])
+        self.assertIn('call 1 (run_code)', result['content'][0]['text'])
+        self.assertIn('pending_result', result['content'][0]['text'])
+        # Once it is done, calls go on as before
+        release.set()
+        self.assertIn('run_code', self.call('pending_result', {'wait_seconds': 10})['content'][0]['text'])
+        self.assertEqual(self.call('list_stacks')['content'][0]['text'], 'list_stacks')
+
+    def test_an_answer_that_will_not_come_is_said_so(self):
+        # OXT-Beyond says, twice, that no tool runs there, and the call has
+        # no answer: it went to a connection that had gone
+        release = threading.Event()
+
+        def handler(request):
+            if request['tool'] == 'run_code':
+                release.wait(20)
+            return {'ok': True, 'isError': False, 'text': request['tool']}
+        self.start_oxt(handler, status='OXT-Beyond is not busy with a call of the bridge.', asking=False, busy=False)
+        self.start_server(OXT_MCP_ANSWER_WAIT_MS='200', OXT_MCP_ANSWER_RECHECK_MS='200')
+        self.initialize()
+        result = self.call('run_code', {'code': 'put 1'})
+        self.assertFalse(release.is_set())
+        self.assertTrue(result['isError'])
+        self.assertIn('did not arrive', result['content'][0]['text'])
+        self.assertIn('list_changes', result['content'][0]['text'])
+        release.set()
+        # The next call goes on a new connection
+        self.assertEqual(self.call('list_stacks')['content'][0]['text'], 'list_stacks')
+
+    def test_restart_ide_says_when_the_ide_is_back(self):
+        def handler(request):
+            # OXT-Beyond answers, quits and starts: a new bridge file
+            def again():
+                time.sleep(0.4)
+                self.oxt.token = 'fedcba9876543210fedcba9876543210'
+                with open(self.info, 'w') as f:
+                    json.dump({'protocol': 1, 'port': self.oxt.port, 'token': self.oxt.token, 'engine': 'test'}, f)
+            threading.Thread(target=again, daemon=True).start()
+            return {'ok': True, 'isError': False, 'text': 'OXT-Beyond is quitting.'}
+        self.start_oxt(handler)
+        self.start_server(OXT_MCP_RESTART_WAIT_MS='15000')
+        self.initialize()
+        text = self.call('restart_ide')['content'][0]['text']
+        self.assertIn('OXT-Beyond is quitting.', text)
+        self.assertIn('running again', text)
+
+    def test_restart_ide_says_when_the_ide_is_not_back(self):
+        self.start_oxt(lambda request: {'ok': True, 'isError': False, 'text': 'OXT-Beyond is quitting.'})
+        self.start_server(OXT_MCP_RESTART_WAIT_MS='700')
+        self.initialize()
+        text = self.call('restart_ide')['content'][0]['text']
+        self.assertIn('OXT-Beyond is quitting.', text)
+        self.assertIn('is not back', text)
+
+    def test_a_restart_refused_is_not_waited_for(self):
+        self.start_oxt(lambda request: {'ok': True, 'isError': True, 'text': 'Nothing was done: the user did not allow the restart.'})
+        self.start_server(OXT_MCP_RESTART_WAIT_MS='30000')
+        self.initialize()
+        started = time.time()
+        result = self.call('restart_ide')
+        self.assertTrue(result['isError'])
+        self.assertEqual(result['content'][0]['text'], 'Nothing was done: the user did not allow the restart.')
+        self.assertLess(time.time() - started, 15)
 
     def test_answer_wait_0_waits_for_the_user_as_before(self):
         def handler(request):
@@ -893,6 +1220,50 @@ class McpBridgeWebServerTest(McpBridgeServerBase):
         self.assertEqual(result['serverInfo']['name'], 'oxt-beyond-web')
         names = [t['name'] for t in self.request('tools/list')['result']['tools']]
         self.assertEqual(names, ide_tools().split(',') + ['pending_result'])
+
+    def test_web_the_tools_list_does_not_change(self):
+        # The web server is one file, downloaded: it is never loaded again
+        self.start_web()
+        self.assertIs(self.initialize()['result']['capabilities']['tools']['listChanged'], False)
+
+    def test_web_with_no_page_the_desktop_ide_answers(self):
+        # Claude's app has both servers installed, and asks this one while
+        # the user has OXT-Beyond open on the desktop
+        self.start_oxt(lambda request: {'ok': True, 'isError': False, 'text': 'from the desktop'})
+        self.start_web()
+        self.initialize()
+        result = self.call('list_stacks')
+        self.assertFalse(result['isError'])
+        text = result['content'][0]['text']
+        self.assertTrue(text.startswith('from the desktop'), text)
+        self.assertIn('OXT-Beyond on the desktop', text)
+        self.assertEqual(self.oxt.requests[-1]['token'], self.oxt.token)
+        # Said once
+        self.assertEqual(self.call('list_stacks')['content'][0]['text'], 'from the desktop')
+        # A page that connects is the one asked from then on
+        tab = self.tab(lambda r: {'ok': True, 'isError': False, 'text': 'from the page'})
+        self.assertEqual(tab.status, 101)
+        text = self.call('list_stacks')['content'][0]['text']
+        self.assertTrue(text.startswith('from the page'), text)
+        self.assertIn('web IDE', text)
+        self.assertEqual(self.call('list_stacks')['content'][0]['text'], 'from the page')
+
+    def test_web_only_never_asks_the_desktop_ide(self):
+        self.start_oxt(lambda request: {'ok': True, 'isError': False, 'text': 'from the desktop'})
+        self.start_web(OXT_MCP_WEB_ONLY='1')
+        self.initialize()
+        result = self.call('list_stacks')
+        self.assertTrue(result['isError'])
+        self.assertIn('web IDE is not connected', result['content'][0]['text'])
+        self.assertEqual(self.oxt.requests, [])
+
+    def test_web_with_neither_says_both_ways(self):
+        self.start_web()
+        self.initialize()
+        result = self.call('list_stacks')
+        self.assertTrue(result['isError'])
+        self.assertIn('web IDE is not connected', result['content'][0]['text'])
+        self.assertIn('on the desktop', result['content'][0]['text'])
 
     def test_web_a_call_is_never_answered_early(self):
         # The tab has one connection: no status to ask, no call past the queue

@@ -797,6 +797,28 @@ on TestCheckScriptUndeclared
    TestAssert "statements for the Message Box need no declarations", tCheck["ok"] is true
 end TestCheckScriptUndeclared
 
+-- A whole script somebody else wrote, compiled as the engine compiles it
+-- (the MCP Bridge's set_script_from_file): xtaCheckScript, for code the
+-- model wrote, refuses what old scripts have and the engine allows
+on TestCompileProblemIsOnlyTheEngines
+   local tScript, tOld, tCheck
+   put the explicitVariables into tOld
+   put "put 1 into gLoose" & return & "on a" & return & "   put sTotal + 1 into tSum" & return & "end a" into tScript
+   put xtaCheckScript(tScript, empty) into tCheck
+   TestAssert "the check for the model's code refuses it", tCheck["ok"] is false
+   TestAssert "the engine takes it: names not declared, a line outside a handler", xtaCompileProblem(tScript) is empty
+   replace return with crlf in tScript
+   TestAssert "with Windows's line ends too", xtaCompileProblem(tScript) is empty
+   TestAssert "and an empty script", xtaCompileProblem(empty) is empty
+   put "on a" & return & "   put 1 +" & return & "end a" into tScript
+   TestDiagnostic xtaCompileProblem(tScript)
+   TestAssert "what the engine refuses, with its line", xtaCompileProblem(tScript) begins with "line 2"
+   TestAssert "nothing said of the explicitVariables, which were off", not (xtaCompileProblem(tScript) contains "explicitVariables")
+   TestAssert "which are as they were", the explicitVariables is tOld
+   TestAssert "the scratch button keeps no script", the script of button "Check" of stack "revXTalkAssistantCheck" is empty
+   xtaCheckCleanup
+end TestCompileProblemIsOnlyTheEngines
+
 on TestCheckLeavesNothingBehind
    local tOld, tTop, tDefault
    put the explicitVariables into tOld
