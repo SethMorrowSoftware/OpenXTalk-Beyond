@@ -12,8 +12,11 @@ on menuPick pWhich
     enableAll
     put line (the menuHistory of me) of the cStacksList of me into tFilePath
     -- OXT-Beyond: with the settings kept in the user's preferences when
-    -- the plugin's stack could not be saved
-    revIDEApplyPluginSettings tFilePath
+    -- the plugin's stack could not be saved; not over changes made since
+    -- this window opened, which are saved when it closes
+    if tFilePath is not among the lines of the changedStacksList of this stack then
+      revIDEApplyPluginSettings tFilePath
+    end if
     -- highlight in the list of messages:
     set the wholeMatches to true
     set the hilitedLines of fld "Message list" to empty
