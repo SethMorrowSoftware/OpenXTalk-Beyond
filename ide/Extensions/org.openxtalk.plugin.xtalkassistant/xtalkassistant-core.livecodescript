@@ -88,6 +88,8 @@ script "org.openxtalk.plugin.xtalkassistant-core"
 --    xtaScriptCounts(pCode)                its handlers and its statements
 --    xtaCheckScript(pCode, pDeclared), xtaCheckBlocks(pBlocks, pDeclared),
 --    xtaCheckCleanup                       compile checks (see "Checking code")
+--    xtaCompileProblem(pScript)            why a whole script does not compile
+--                                          as the engine compiles it, or empty
 --    xtaMemoryParse, xtaMemoryFormat, xtaMemoryLoad, xtaMemorySave,
 --    xtaMemoryAdd, xtaMemoryNotes, xtaMemorySetNotes, xtaMemoryNoteProblem,
 --    xtaMemoryPrompt, xtaMemoryProposals, xtaWithoutMemoryBlocks
@@ -1955,6 +1957,25 @@ function xtaCheckScript pCode, pDeclared
    put (tIssues is empty) into tResult["ok"]
    return tResult
 end xtaCheckScript
+
+-- Why a whole script does not compile, in words ("line N: what"), or empty
+-- when it does: compiled once, as the engine compiles a script that is set
+-- with the explicitVariables off, and nothing else is looked for. It is for
+-- a script somebody else wrote and the engine already takes (a script kept
+-- in a file, which the MCP Bridge's set_script_from_file sets):
+-- xtaCheckScript, which is for code a model has just written, would refuse
+-- its names that are not declared and its lines outside a handler, which
+-- old scripts have and the engine allows. Nothing is run.
+function xtaCompileProblem pScript
+   local tError
+   replace crlf with return in pScript
+   replace numToChar(13) with return in pScript
+   put xtaCompileError(pScript, false) into tError
+   if tError is empty then
+      return empty
+   end if
+   return xtaCompileIssue(tError, 0, false)
+end xtaCompileProblem
 
 -- The first line of the result of compiling pScript (empty when it
 -- compiles), with the explicitVariables as pExplicit. Both global settings
