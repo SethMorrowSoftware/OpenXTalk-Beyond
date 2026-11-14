@@ -4013,6 +4013,262 @@ private command _HCWriteText pText, pUsePath, pName, pAppend
    return tFile
 end _HCWriteText
 
+
+-- The script of TextDialog's dialog (below): its screens are its
+-- cScreens, by number, and cCount of them
+private function _HCTextDialogScript
+   return "local sScreen" & return & \
+      "on hcShowScreen pScreen" & return & \
+      "  put pScreen into sScreen" & return & \
+      "  put the cScreens[pScreen] of me into field " & quote & "Text" & quote & " of me" & return & \
+      "  set the vScroll of field " & quote & "Text" & quote & " of me to 0" & return & \
+      "  put " & quote & "Screen " & quote & " & pScreen && " & quote & "of" & quote & " && the cCount of me into field " & quote & "Screen" & quote & " of me" & return & \
+      "  set the enabled of button " & quote & "Previous" & quote & " of me to pScreen > 1" & return & \
+      "  set the enabled of button " & quote & "Next" & quote & " of me to pScreen < the cCount of me" & return & \
+      "end hcShowScreen" & return & \
+      "on mouseUp" & return & \
+      "  switch the short name of the target" & return & \
+      "    case " & quote & "Previous" & quote & return & \
+      "      if sScreen > 1 then hcShowScreen sScreen - 1" & return & \
+      "      break" & return & \
+      "    case " & quote & "Next" & quote & return & \
+      "      if sScreen < the cCount of me then hcShowScreen sScreen + 1" & return & \
+      "      break" & return & \
+      "    case " & quote & "OK" & quote & return & \
+      "      close me" & return & \
+      "      break" & return & \
+      "  end switch" & return & \
+      "end mouseUp" & return & \
+      "on returnKey" & return & \
+      "  close me" & return & \
+      "end returnKey" & return & \
+      "on enterKey" & return & \
+      "  close me" & return & \
+      "end enterKey"
+end _HCTextDialogScript
+
+/*
+TextDialog DLOG id, font, size, screens, first screen[, top, left] (22
+stacks), Jay Hodgdon's XCMD: a dialog of text screens, each a TEXT
+resource of the stack (screens, their ids, "128,129,130"), in that font
+and size, opened at the first screen's number, with buttons to the
+previous and the next screen and OK, which closes it. The DLOG
+resource, which drew the dialog in HyperCard, is not needed here. A
+screen whose resource is not there is empty. Top and left place the
+dialog from the top left of the card window. The script waits until it
+is closed, as it did; "Error: no text screens" in the result when none
+of the screens is there
+*/
+on TextDialog pDialog, pFont, pSize, pScreens, pFirst, pTop, pLeft
+   local tId, tCount, tAny, tText, tStack, tName, tDefault, tScreens
+   put 0 into tCount
+   put false into tAny
+   set the itemDelimiter to comma
+   repeat for each item tId in pScreens
+      add 1 to tCount
+      put ResText("TEXT", word 1 to -1 of tId) into tText
+      if tText begins with "Error :" then
+         put empty into tText
+      else
+         put true into tAny
+      end if
+      put tText into tScreens[tCount]
+   end repeat
+   if not tAny then return "Error: no text screens"
+   put "HyperCard TextDialog" into tName
+   if there is a stack tName then delete stack tName
+   -- (the script that called it goes on with its own stack the default)
+   put the defaultStack into tDefault
+   lock messages
+   get _HCNewHiddenStack(tName)
+   put the long id of stack tName into tStack
+   set the destroyStack of tStack to true
+   set the title of tStack to empty
+   set the width of tStack to 480
+   set the height of tStack to 320
+   set the defaultStack to tName
+   create field "Text"
+   set the rect of field "Text" of tStack to 12,12,468,264
+   set the lockText of field "Text" of tStack to true
+   set the vScrollbar of field "Text" of tStack to true
+   if pFont is not empty then set the textFont of field "Text" of tStack to pFont
+   if pSize is an integer then set the textSize of field "Text" of tStack to pSize
+   create field "Screen"
+   set the rect of field "Screen" of tStack to 12,280,180,304
+   set the lockText of field "Screen" of tStack to true
+   set the opaque of field "Screen" of tStack to false
+   set the showBorder of field "Screen" of tStack to false
+   create button "Previous"
+   set the rect of button "Previous" of tStack to 196,276,276,304
+   create button "Next"
+   set the rect of button "Next" of tStack to 288,276,368,304
+   create button "OK"
+   set the rect of button "OK" of tStack to 388,276,468,304
+   set the customProperties["cScreens"] of tStack to tScreens
+   set the cCount of tStack to tCount
+   set the script of tStack to _HCTextDialogScript()
+   if pFirst is not an integer or pFirst < 1 or pFirst > tCount then put 1 into pFirst
+   send "hcShowScreen" && pFirst to tStack
+   if pTop is an integer and pLeft is an integer and the mode of the topStack > 0 then
+      set the topLeft of tStack to the left of the topStack + pLeft, the top of the topStack + pTop
+   end if
+   set the defaultStack to tDefault
+   unlock messages
+   modal tStack
+   set the defaultStack to tDefault
+   return empty
+end TextDialog
+
+/*
+Textoid name, text[, ...] (23 stacks), Frederic Rinaldi's XCMD: a small
+window of text, the name its title, as its cards describe it. The text
+is the value given, or the container its name gives ("card field id
+19", "bg field Notes"), as the external took either. The parameters
+after it come in any order, each known by what it is, as the
+external knew them: a size (a number), a place (left,top) or a rect
+(left,top,right,bottom, on the screen), a colour or two (the text's,
+then the background's: a name, "red", or 16-bit red green and blue,
+"60000 60000 60000"), an alignment (left, center, right), true or false
+(whether the text wraps), a style of text (bold, italic...), the kind of
+window (windoid, BigWindoidZoom, Rinaldoid...: a palette here) and a
+font. A window of that name already open shows the new text. The
+current card gets openTextoid name, id as it opens, and closeTextoid
+name, id as it closes, which stacks that use it handle. The window is
+a stack of that name, which "window Notes" finds, or "Textoid Notes"
+beside a stack of the name that is not such a window. Textoid "?" and
+Textoid with no text give its version
+*/
+on Textoid pName, pText
+   local tParam, tFont, tSize, tRect, tColors, tAlign, tWrap, tStyle, i, tStack, tCard, tNew, tDefault, tRecent
+   if pName is "?" or paramCount() < 2 then return "Textoid (HyperCard Library)"
+   if _HCIsContainerName(pText) then
+      try
+         put value(pText) into pText
+      catch tError
+      end try
+   end if
+   put true into tWrap
+   repeat with i = 3 to paramCount()
+      put word 1 to -1 of param(i) into tParam
+      if tParam is empty then next repeat
+      if tParam is a number then
+         put tParam into tSize
+      else if tParam is among the words of "true false" then
+         put tParam into tWrap
+      else if tParam is among the words of "left center right centre" then
+         if tParam is "centre" then put "center" into tParam
+         put tParam into tAlign
+      else if _HCAreNumbers(tParam, 2) or _HCAreNumbers(tParam, 4) then
+         put tParam into tRect
+      else if "windoid" is in tParam or "rinaldoid" is in tParam or tParam is among the words of "document shadow plain dialog" then
+         next repeat
+      else if tParam is among the words of "bold italic underline outline shadow condense extend condensed expanded" then
+         put tParam into tStyle
+      else if _HCIsColour(item 1 of tParam) then
+         put tParam into tColors
+      else
+         put tParam into tFont
+      end if
+   end repeat
+   put the long id of this card into tCard
+   put the defaultStack into tDefault
+   -- (named as the window, which scripts address as "window Notes";
+   -- beside a stack of that name that is not one, "Textoid Notes")
+   put pName into tStack
+   if there is a stack tStack then
+      if the cTextoid of stack tStack is not true then put "Textoid " & pName into tStack
+   end if
+   put there is not a stack tStack into tNew
+   if tNew then
+      lock messages
+      get _HCNewHiddenStack(tStack)
+      set the destroyStack of stack tStack to true
+      set the width of stack tStack to 300
+      set the height of stack tStack to 160
+      set the defaultStack to tStack
+      create field "Text"
+      set the rect of field "Text" of stack tStack to 0,0,300,160
+      set the vScrollbar of field "Text" of stack tStack to true
+      set the cCard of stack tStack to tCard
+      set the cName of stack tStack to pName
+      set the cTextoid of stack tStack to true
+      set the script of stack tStack to "on closeStack" & return & \
+            "  try" & return & "    dispatch " & quote & "closeTextoid" & quote && \
+            "to (the cCard of me) with (the cName of me), (the short id of me)" & return & "  catch tError" & return & "  end try" & return & \
+            "  pass closeStack" & return & "end closeStack" & return & \
+            "on resizeStack" & return & "  set the rect of field 1 of me to 0,0,the width of me,the height of me" & return & "end resizeStack"
+      set the defaultStack to tDefault
+      unlock messages
+   end if
+   set the title of stack tStack to pName
+   put pText into field "Text" of stack tStack
+   set the dontWrap of field "Text" of stack tStack to (tWrap is "false")
+   if tFont is not empty then set the textFont of field "Text" of stack tStack to tFont
+   if tSize is a number then set the textSize of field "Text" of stack tStack to round(tSize)
+   if tAlign is not empty then set the textAlign of field "Text" of stack tStack to tAlign
+   if tStyle is not empty then
+      try
+         set the textStyle of field "Text" of stack tStack to tStyle
+      catch tError
+      end try
+   end if
+   if tColors is not empty then
+      set the textColor of field "Text" of stack tStack to _HCColour(item 1 of tColors)
+      if item 2 of tColors is not empty then set the backgroundColor of field "Text" of stack tStack to _HCColour(item 2 of tColors)
+   end if
+   if the number of items of tRect is 4 then
+      set the rect of stack tStack to tRect
+   else if the number of items of tRect is 2 then
+      set the topLeft of stack tStack to tRect
+   end if
+   if tNew then
+      put the lockRecent into tRecent
+      set the lockRecent to true
+      palette stack tStack
+      set the lockRecent to tRecent
+      set the defaultStack to tDefault
+      dispatch "openTextoid" to tCard with pName, the short id of stack tStack
+   end if
+   return empty
+end Textoid
+
+-- Whether pText names a container, as Textoid's text could ("card field
+-- id 19", "bg fld Notes", "cd btn 2")
+private function _HCIsContainerName pText
+   if the number of lines of pText is not 1 or the number of words of pText < 2 then return false
+   return word 1 of pText is among the words of "card cd background bkgnd bg field fld button btn me"
+end _HCIsContainerName
+
+-- Whether pText is pCount numbers, separated by commas
+private function _HCAreNumbers pText, pCount
+   local tItem
+   if the number of items of pText is not pCount then return false
+   repeat for each item tItem in pText
+      if word 1 to -1 of tItem is not a number then return false
+   end repeat
+   return true
+end _HCAreNumbers
+
+-- Whether pColour is a colour's name or 16-bit red, green and blue
+-- ("60000 60000 60000")
+private function _HCIsColour pColour
+   put word 1 to -1 of pColour into pColour
+   if the number of words of pColour is 3 then
+      return word 1 of pColour is a number and word 2 of pColour is a number and word 3 of pColour is a number
+   end if
+   return pColour is among the lines of the colorNames
+end _HCIsColour
+
+-- A colour as this engine takes one: a name as it is; 16-bit red, green
+-- and blue as 8-bit numbers, "60000 60000 60000" as "234,234,234"
+private function _HCColour pColour
+   put word 1 to -1 of pColour into pColour
+   if the number of words of pColour is 3 then
+      return (word 1 of pColour div 257) & comma & (word 2 of pColour div 257) & comma & (word 3 of pColour div 257)
+   end if
+   return pColour
+end _HCColour
+
 -- The data of the resource of type pType and id or name pResource in the
 -- resource fork pFork, or false. A fork's numbers are big-endian: its
 -- header gives where its data and map begin; the map, where its type

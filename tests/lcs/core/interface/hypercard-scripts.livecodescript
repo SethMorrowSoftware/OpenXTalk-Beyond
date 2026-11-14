@@ -5051,6 +5051,133 @@ on TestHyperCardScriptsTextFileExternals
    delete folder tFolder
 end TestHyperCardScriptsTextFileExternals
 
+on TestHyperCardScriptsTextDialog
+   -- Jay Hodgdon's TextDialog (22 stacks of the corpus): a dialog of the
+   -- stack's TEXT resources as screens, opened at the one asked for,
+   -- with buttons to the next and previous ones; the script waits until
+   -- it is closed. Before, its stand-in did nothing
+   local tStack, tFolder, q
+   global gHCScriptsTest, gHCTextDialogSeen
+   put quote into q
+   put the temporary folder & "/hcdialog" & the milliseconds into tFolder
+   create folder tFolder
+   put url ("binfile:" & TestGetInputFile("hypercard/forks/Texts.macbinary")) into url ("binfile:" & tFolder & "/Texts")
+   put "HCHelpScreens" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["file"] of stack tStack to tFolder & "/Texts"
+   set the uHyperCard["externals"] of stack tStack to "XCMD" & tab & "TextDialog"
+   set the defaultStack to tStack
+   create button "Help"
+   set the script of button "Help" to _Lines("on mouseUp pFirst", "  global gHCScriptsTest", \
+         "  TextDialog 1100,Geneva,9," & q & "128,129,500" & q & ",pFirst", \
+         "  put the result & " & q & "|" & q & " & the short name of this stack into gHCScriptsTest", "end mouseUp")
+   create button "None"
+   set the script of button "None" to _Lines("on mouseUp", "  global gHCScriptsTest", \
+         "  TextDialog 1100,Geneva,9," & q & "500,501" & q & ",1", "  put the result into gHCScriptsTest", "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   TestAssert "no stand-in is made for it", "TextDialog" is not in it
+
+   put empty into gHCTextDialogSeen
+   send "HCTextDialogPeek" to me in 200 milliseconds
+   send "mouseUp 2" to button "Help" of card 1 of stack tStack
+   -- (without a screen, as the tests may run, modal does not wait: the
+   -- dialog is still open, and is looked at now)
+   if there is a stack "HyperCard TextDialog" then HCTextDialogPeek
+   set the itemDelimiter to "|"
+   TestAssert "it opens at the screen asked for, in the font asked for", item 1 of gHCTextDialogSeen is "a[1]b" & tab & "c" & numToCodepoint(127) & "d" \
+         and item 2 of gHCTextDialogSeen is "Screen 2 of 3" and item 3 of gHCTextDialogSeen is "Geneva"
+   TestAssert "Previous goes to the screen before it", item 4 of gHCTextDialogSeen begins with "From fairest creatures" and item 5 of gHCTextDialogSeen is "Screen 1 of 3"
+   TestAssert "a screen whose resource is not there is empty", item 6 of gHCTextDialogSeen is empty and item 7 of gHCTextDialogSeen is "Screen 3 of 3"
+   TestAssert "the script goes on once OK closes it, with its own stack the default", \
+         gHCScriptsTest is "|" & tStack and "HyperCard TextDialog" is not among the lines of the openStacks
+   send "mouseUp" to button "None" of card 1 of stack tStack
+   TestAssert "no screen there: an error in the result, no dialog", gHCScriptsTest is "Error: no text screens"
+   _Close tStack
+   delete file (tFolder & "/Texts")
+   delete folder tFolder
+end TestHyperCardScriptsTextDialog
+
+-- What TextDialog's dialog shows: the screen, then the previous one,
+-- then the last (by Next twice), each its text and its "Screen n of m"; then OK
+on HCTextDialogPeek
+   global gHCTextDialogSeen
+   local tDialog
+   if there is not a stack "HyperCard TextDialog" then exit HCTextDialogPeek
+   put the long id of stack "HyperCard TextDialog" into tDialog
+   put field "Text" of tDialog & "|" & field "Screen" of tDialog & "|" & the textFont of field "Text" of tDialog into gHCTextDialogSeen
+   send "mouseUp" to button "Previous" of tDialog
+   put "|" & field "Text" of tDialog & "|" & field "Screen" of tDialog after gHCTextDialogSeen
+   send "mouseUp" to button "Next" of tDialog
+   send "mouseUp" to button "Next" of tDialog
+   put "|" & field "Text" of tDialog & "|" & field "Screen" of tDialog after gHCTextDialogSeen
+   send "mouseUp" to button "OK" of tDialog
+end HCTextDialogPeek
+
+on TestHyperCardScriptsTextoid
+   -- Frederic Rinaldi's Textoid (23 stacks of the corpus): a window of
+   -- text, its parameters after the text known by what they are; the
+   -- text the value given or the container it names; openTextoid and
+   -- closeTextoid to the card. Before, its stand-in did nothing
+   local tStack, q, tWindow
+   global gHCScriptsTest
+   put quote into q
+   put "HCNoteWindows" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["externals"] of stack tStack to "XCMD" & tab & "Textoid"
+   set the defaultStack to tStack
+   create field "Info"
+   put "hello" & return & "there" into field "Info"
+   create button "Show"
+   set the script of button "Show" to _Lines("on mouseUp", \
+         "  Textoid " & q & "Notes" & q & ", " & q & "card field 1" & q & ", " & q & "Geneva" & q & ", 12, " & q & "7,43,207,143" & q & ", " & q & "red,blue" & q & ", " & q & "center" & q & ", false, " & q & "BigWindoidZoom" & q, \
+         "end mouseUp")
+   create button "Again"
+   set the script of button "Again" to _Lines("on mouseUp", "  Textoid " & q & "Notes" & q & ", " & q & "second text" & q, "end mouseUp")
+   create button "Grey"
+   set the script of button "Grey" to _Lines("on mouseUp", "  Textoid " & q & "Grey Notes" & q & ", " & q & "x" & q & ", " & q & "60000 60000 60000,0 0 65535" & q & ", " & q & "91,69" & q, "end mouseUp")
+   set the script of card 1 of stack tStack to _Lines("on openTextoid pName, pId", "  global gHCScriptsTest", \
+         "  put " & q & "open " & q & " & pName & " & q & "|" & q & " after gHCScriptsTest", "end openTextoid", \
+         "on closeTextoid pName, pId", "  global gHCScriptsTest", \
+         "  put " & q & "close " & q & " & pName & " & q & "|" & q & " after gHCScriptsTest", "end closeTextoid")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   TestAssert "no stand-in is made for it", "Textoid" is not in it
+
+   put empty into gHCScriptsTest
+   send "mouseUp" to button "Show" of card 1 of stack tStack
+   put the long id of stack "Notes" into tWindow
+   TestAssert "a window of that name and title, as scripts address it", there is a stack "Notes" and the title of tWindow is "Notes"
+   TestAssert "the text of the container it names", field "Text" of tWindow is "hello" & return & "there"
+   TestAssert "font, size, alignment, no wrap", the textFont of field "Text" of tWindow is "Geneva" and the textSize of field "Text" of tWindow is 12 \
+         and the textAlign of field "Text" of tWindow is "center" and the dontWrap of field "Text" of tWindow
+   TestAssert "the text's colour and the background's", the textColor of field "Text" of tWindow is "red" and the backgroundColor of field "Text" of tWindow is "blue"
+   TestAssert "its rect", the rect of tWindow is "7,43,207,143"
+   TestAssert "openTextoid to the card", gHCScriptsTest is "open Notes|"
+   send "mouseUp" to button "Again" of card 1 of stack tStack
+   TestAssert "the same window again: the new text, opened once", field "Text" of tWindow is "second text" and gHCScriptsTest is "open Notes|"
+   close tWindow
+   TestAssert "closeTextoid to the card", gHCScriptsTest is "open Notes|close Notes|"
+   send "mouseUp" to button "Grey" of card 1 of stack tStack
+   TestAssert "colours in 16 bits; a place", the textColor of field "Text" of stack "Grey Notes" is "233,233,233" \
+         and the backgroundColor of field "Text" of stack "Grey Notes" is "0,0,255" and the topLeft of stack "Grey Notes" is "91,69"
+   _Close "Grey Notes"
+   -- beside a stack of the name that is no such window, its own
+   send "mouseUp" to button "Again" of card 1 of stack tStack
+   _Close "Notes"
+   lock messages
+   create invisible stack "Notes"
+   unlock messages
+   send "mouseUp" to button "Again" of card 1 of stack tStack
+   TestAssert "a stack of the name that is not its window is left alone", there is not a field "Text" of stack "Notes" \
+         and field "Text" of stack "Textoid Notes" is "second text"
+   _Close "Textoid Notes"
+   _Close "Notes"
+   _Close tStack
+end TestHyperCardScriptsTextoid
+
 on TestHyperCardScriptsImported
    -- a stack the engine imports: every script compiles afterwards, and
    -- one that compiled is unchanged
