@@ -457,7 +457,10 @@ command revDoSaveAsStandalone pStack, pFolder, pSettings, @xStandalonePaths
       if word 1 of tError = "Standalone:" then 
          put word 2 to -1 of tError into tError
          if not revSBSuppressDialogs() then
-            answer error word 2 to -1 of tError
+            -- OXT-Beyond: the message whole. tError has lost its
+            -- "Standalone:" on the line above, and a second "word 2 to
+            -- -1" here took the first word of the message with it
+            answer error tError
          end if
       else  
          if not revSBSuppressDialogs() then

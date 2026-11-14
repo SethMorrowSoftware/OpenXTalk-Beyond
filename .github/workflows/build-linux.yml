@@ -1877,8 +1877,9 @@ jobs:
       # cards, Save As, Close and Remove From Memory and opening it again,
       # Revert, the Dictionary, an image as a button's icon, the Geometry
       # Manager, Preferences, the Application Browser, a standalone
-      # build stopped by an error (the stack as it was) and a standalone
-      # built to the end and run; each asserted and snapshot
+      # build stopped by an error (the stack as it was), a standalone
+      # built to the end and run, and a build the builder refuses (what
+      # its dialog says); each asserted and snapshot
       # (tools/ci/everyday-tasks.livecodescript). Light and
       # dark at once, each on its own Xvfb screen, so that the step adds
       # one run's time; a task that fails, or a script error, fails it
