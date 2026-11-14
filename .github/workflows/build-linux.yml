@@ -1612,7 +1612,11 @@ jobs:
       # Linux build with a browser.
       - name: Browser compatibility check (htmlText and url)
         if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
-        timeout-minutes: 15
+        # (the time for libcef's symbols, which an engine that crashes in
+        # libcef is traced with: OXT_COMPAT_CEF_SYMBOLS)
+        timeout-minutes: 45
+        env:
+          OXT_COMPAT_CEF_SYMBOLS: '1'
         run: |
           python3 tools/ci/browser_compat_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
             --log "$RUNNER_TEMP/logs/browser-compat-check.log"

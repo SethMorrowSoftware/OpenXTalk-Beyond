@@ -178,6 +178,26 @@ class CrashTrace(unittest.TestCase):
         self.assertEqual(args[-3:], ['--args', '/x/engine', 'probe.livecodescript'])
 
 
+class CefSymbols(unittest.TestCase):
+    def test_the_symbols_of_the_cef_in_prebuilt(self):
+        import tempfile
+        import urllib.request
+        from unittest import mock
+        seen = []
+
+        def refuse(url, timeout=None):
+            seen.append(url)
+            raise OSError('refused')
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(urllib.request, 'urlopen', refuse):
+            self.assertIsNone(bcc.cef_symbols(d))
+        def version(name):
+            with open(os.path.join(bcc.REPO, 'prebuilt', 'versions', name)) as f:
+                return f.read().strip()
+        self.assertEqual(seen, ['https://cef-builds.spotifycdn.com/cef_binary_%s%%2B%s%%2Bchromium-%s'
+                                '_linux64_release_symbols.tar.bz2'
+                                % (version('cef'), version('cef_buildrevision'), version('cefchromium'))])
+
+
 class Probe(unittest.TestCase):
     def test_the_probe_reads_what_the_driver_sets(self):
         with open(PROBE, encoding='utf-8') as f:

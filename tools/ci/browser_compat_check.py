@@ -54,6 +54,7 @@ import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, os.path.join(os.path.dirname(HERE), 'oxt'))
 sys.path.insert(0, HERE)
 import media_check  # noqa: E402
@@ -121,6 +122,52 @@ TRACED_CEF_CALLS = ('cef_api_hash', 'cef_execute_process', 'cef_initialize', 'ce
                     'cef_browser_host_create_browser', 'cef_browser_host_create_browser_sync', 'cef_shutdown')
 
 
+def cef_symbols(cwd):
+    """A folder for gdb's debug-file-directory with libcef's symbols under
+    its build id, from Spotify's release symbols of the CEF in
+    prebuilt/versions (downloaded once into cwd); None when they cannot be
+    had. The distribution's libcef.so has none of its own."""
+    folder = os.path.join(cwd, 'cef-symbols')
+    if os.path.isdir(folder):
+        return folder
+    try:
+        import tarfile
+        import urllib.request
+
+        def version(name):
+            with open(os.path.join(REPO, 'prebuilt', 'versions', name), encoding='utf-8') as f:
+                return f.read().strip()
+        name = 'cef_binary_%s+%s+chromium-%s_linux64_release_symbols.tar.bz2' % (
+            version('cef'), version('cef_buildrevision'), version('cefchromium'))
+        url = 'https://cef-builds.spotifycdn.com/' + name.replace('+', '%2B')
+        rlc.log('Fetching libcef\'s symbols: %s' % url)
+        with urllib.request.urlopen(url, timeout=120) as response, \
+                tarfile.open(fileobj=response, mode='r|bz2') as tar:
+            for member in tar:
+                if member.isfile() and os.path.basename(member.name) == 'libcef.so.dbg':
+                    data = tar.extractfile(member)
+                    os.makedirs(folder)
+                    target = os.path.join(folder, 'libcef.so.dbg')
+                    with open(target, 'wb') as out:
+                        shutil.copyfileobj(data, out, 1 << 20)
+                    break
+        if not os.path.isdir(folder):
+            rlc.log('  (no libcef.so.dbg in %s)' % name)
+            return None
+        # gdb finds a library's symbols by its build id
+        notes = subprocess.run(['readelf', '-n', target], stdout=subprocess.PIPE,
+                               universal_newlines=True).stdout
+        m = re.search(r'Build ID: ([0-9a-f]+)', notes)
+        if m:
+            build_id = m.group(1)
+            os.makedirs(os.path.join(folder, '.build-id', build_id[:2]))
+            os.symlink(target, os.path.join(folder, '.build-id', build_id[:2], build_id[2:] + '.debug'))
+        return folder
+    except Exception as e:  # the trace goes on without them
+        rlc.log('  (libcef\'s symbols could not be had: %s)' % e)
+        return None
+
+
 def crash_trace(screen, cmd, cwd, env, timeout):
     """The engine's stack where it crashed, from a second run under gdb
     (the engine itself, inside xvfb-run when there is no screen), as
@@ -129,8 +176,11 @@ def crash_trace(screen, cmd, cwd, env, timeout):
     loaded (its own symbols are not in the distribution)."""
     if not shutil.which('gdb'):
         return ['  (no gdb to trace the crash with)']
-    full = screen + ['gdb', '-batch', '-q', '-nx', '-ex', 'set pagination off',
-                     '-ex', 'set breakpoint pending on',
+    full = screen + ['gdb', '-batch', '-q', '-nx', '-ex', 'set pagination off']
+    symbols = cef_symbols(cwd) if os.environ.get('OXT_COMPAT_CEF_SYMBOLS') == '1' else None
+    if symbols:
+        full += ['-ex', 'set debug-file-directory %s:/usr/lib/debug' % symbols]
+    full += ['-ex', 'set breakpoint pending on',
                      '-ex', 'handle SIGPIPE SIGUSR1 SIGUSR2 nostop noprint pass']
     for name in TRACED_CEF_CALLS:
         full += ['-ex', 'dprintf %s,"CALL %s\\n"' % (name, name)]
