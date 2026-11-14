@@ -450,6 +450,39 @@ class Compare(unittest.TestCase):
         self.assertEqual(status, 1)
         self.assertIn('PROBLEM: only the new jar has class a/New', out)
 
+    def run_additions_only(self, old, new):
+        with tempfile.TemporaryDirectory() as d:
+            a = jar(os.path.join(d, 'old.jar'), old)
+            b = jar(os.path.join(d, 'new.jar'), new)
+            saved = aj.EXPECTED, aj.ADDITIONS_ONLY
+            aj.EXPECTED, aj.ADDITIONS_ONLY = {}, {aj.sha256(a): 'what was added'}
+            out = io.StringIO()
+            try:
+                with contextlib.redirect_stdout(out):
+                    status = aj.main(['compare', '--old', a, '--new', b])
+            finally:
+                aj.EXPECTED, aj.ADDITIONS_ONLY = saved
+        return status, out.getvalue()
+
+    def test_an_additions_only_jar_passes_additions(self):
+        status, out = self.run_additions_only([simple()], [simple(), simple('a/New')])
+        self.assertEqual(status, 0, out)
+        self.assertIn('Only additions are expected from this old jar (ADDITIONS_ONLY): what was added', out)
+        self.assertIn('  class a/New', out)
+
+    def test_an_additions_only_jar_still_fails_a_change(self):
+        status, out = self.run_additions_only([simple()], [simple(code=(ALOAD_0, ARETURN))])
+        self.assertEqual(status, 1)
+        self.assertIn('PROBLEM: the code of a/A.m:()Ljava/lang/Object; differs', out)
+
+    def test_dp1_classes_take_only_additions(self):
+        # the released dp.1 runtime's Classes (android-java.yml compares
+        # against it): the dnsServers' Java method is an addition, and no
+        # jar is in both lists
+        self.assertIn('21d7e424af1d19470144f84382ba0ec0a2792e49ee513997dfd3f1c1cb306abe', aj.ADDITIONS_ONLY)
+        self.assertIn('getDNSServers', aj.ADDITIONS_ONLY['21d7e424af1d19470144f84382ba0ec0a2792e49ee513997dfd3f1c1cb306abe'])
+        self.assertFalse(set(aj.ADDITIONS_ONLY) & set(aj.EXPECTED))
+
 
 # ---------------------------------------------------------------------------
 # build

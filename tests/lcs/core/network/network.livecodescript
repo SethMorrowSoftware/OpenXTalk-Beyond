@@ -51,6 +51,22 @@ on TestNetworkDNSServers
 
 end TestNetworkDNSServers
 
+-- The dnsServers answers (a list, perhaps empty) and never throws. On
+-- Android LiveCode 9.6.3's engine had no way to find them and threw
+-- (error 198); Beyond's asks Android for the active network's.
+on TestNetworkDNSServersAnswers
+   local tServers, tError
+   try
+      put the dnsservers into tServers
+   catch tError
+   end try
+   TestAssert "the dnsServers does not throw", tError is empty
+   repeat for each line tServer in tServers
+      TestAssert "no empty line or scope in" && tServer, \
+            tServer is not empty and "%" is not in tServer
+   end repeat
+end TestNetworkDNSServersAnswers
+
 on TestNetwork4
 
 TestAssert "hostnametoaddress", hostnametoaddress("google-public-dns-a.google.com") is "8.8.8.8"

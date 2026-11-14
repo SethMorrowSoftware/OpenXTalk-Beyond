@@ -31,6 +31,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "variable.h"
 
 #include "socket.h"
+#include "mblandroidutil.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -159,9 +160,38 @@ bool MCAndroidSystem::AlternateLanguages(MCListRef& r_list)
     return false;
 }
 
+// The DNS servers of the network Android routes through, one address a line,
+// as the Java layer finds them (Engine.getDNSServers). LiveCode 9.6.3
+// answered false here, so `the dnsServers` threw (error 198) on every
+// Android device; now it answers the list, and empty when Android tells the
+// app nothing (no network, or no ACCESS_NETWORK_STATE permission), as the
+// desktop engines answer empty when they find none.
 bool MCAndroidSystem::GetDNSservers(MCListRef& r_list)
 {
-    return false;
+    MCAutoStringRef t_servers;
+    MCAndroidEngineRemoteCall("getDNSServers", "x", &(&t_servers));
+
+    MCAutoListRef t_list;
+    if (!MCListCreateMutable('\n', &t_list))
+        return false;
+
+    if (*t_servers != nil && !MCStringIsEmpty(*t_servers))
+    {
+        MCAutoArrayRef t_lines;
+        if (!MCStringSplit(*t_servers, MCSTR("\n"), nil, kMCCompareExact, &t_lines))
+            return false;
+        uindex_t t_count = MCArrayGetCount(*t_lines);
+        for (uindex_t i = 1; i <= t_count; i++)
+        {
+            MCValueRef t_line;
+            if (MCArrayFetchValueAtIndex(*t_lines, i, t_line) &&
+                !MCStringIsEmpty((MCStringRef)t_line) &&
+                !MCListAppend(*t_list, t_line))
+                return false;
+        }
+    }
+
+    return MCListCopy(*t_list, r_list);
 }
 
 void MCAndroidSystem::ShowMessageDialog(MCStringRef p_title,
