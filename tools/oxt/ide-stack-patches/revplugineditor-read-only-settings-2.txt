@@ -1,0 +1,17 @@
+# Plugin Settings in an install for all users: show a plugin's settings
+# as the user's preferences keep them when its stack could not be saved
+# (revplugineditor-read-only-settings-1.txt), and change those, not the
+# ones in the read-only file. revIDEApplyPluginSettings does nothing when
+# the preferences keep none, as they never do where the stack can be saved.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revplugineditor.rev
+object: button "list" of card 1
+replace:
+|    put line (the menuHistory of me) of the cStacksList of me into tFilePath|
+|    -- highlight in the list of messages:|
+with:
+|    put line (the menuHistory of me) of the cStacksList of me into tFilePath|
+|    -- OXT-Beyond: with the settings kept in the user's preferences when|
+|    -- the plugin's stack could not be saved|
+|    revIDEApplyPluginSettings tFilePath|
+|    -- highlight in the list of messages:|

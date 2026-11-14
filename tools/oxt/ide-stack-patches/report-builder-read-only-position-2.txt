@@ -1,0 +1,19 @@
+# Report Builder (Plugins) in an install for all users: the Report
+# window's place as report-builder-read-only-position-1.txt keeps it in the
+# user's preferences when the stack could not be saved; with no such
+# preference (always, where the stack can be saved), as before.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Plugins/Report Builder.livecode
+object: card 1
+replace:
+|   set the scaleFactor of stack "Report" to 1|
+|   set the topLeft of stack "Report" to the cPosition of stack "Report"  --position, custom prop|
+with:
+|   set the scaleFactor of stack "Report" to 1|
+|   -- OXT-Beyond: or where the user's preferences keep it, when this stack|
+|   -- could not be saved (an install for all users)|
+|   if revIDEGetPreference("cOXTReportBuilderPosition") is not empty then|
+|      set the topLeft of stack "Report" to revIDEGetPreference("cOXTReportBuilderPosition")|
+|   else|
+|      set the topLeft of stack "Report" to the cPosition of stack "Report"  --position, custom prop|
+|   end if|

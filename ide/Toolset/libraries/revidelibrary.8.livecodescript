@@ -7132,6 +7132,9 @@ on revIDEUpdatePlugins
    lock messages
    repeat for each line tStack in tFinal
       if there is a stack tStack then
+         -- OXT-Beyond: with the settings kept in the user's preferences
+         -- when the plugin's stack could not be saved
+         revIDEApplyPluginSettings tStack
          put the short name of stack tStack into tName
          put tStack into tPluginsA[tName]["path"]
          if the cREVLoadInfo["load"] of stack tStack is "chosen" or the cREVLoadInfo["load"] of stack tStack is empty or the cREVLoadInfo["inMenu"] of stack tStack is true then
@@ -7636,6 +7639,10 @@ on revIDEOpenPlugin pName
       exit revIDEOpenPlugin
    end if
    
+   -- OXT-Beyond: with the settings kept in the user's preferences when
+   -- the plugin's stack could not be saved
+   revIDEApplyPluginSettings tStackPath
+   
    local tMode
    if the cREVLoadInfo["mode"] of stack tStackPath is not empty then 
       put the cREVLoadInfo["mode"] of stack tStackPath into tMode
@@ -7661,6 +7668,102 @@ on revIDEOpenPlugin pName
       revIDEAppBrowserAppearance
    end if
 end revIDEOpenPlugin
+
+/*
+OXT-Beyond: Plugin Settings in an install for all users. A plugin's
+settings (when it opens, in which mode, whether it is in the Plugins menu
+and the messages it gets: its cREVLoadInfo) are kept in the plugin's own
+stack, and Plugin Settings saved them by saving that stack. In an install
+for all users the program folder is read-only to a standard user, so the
+save failed and the settings were lost. Now, only when the save fails,
+they are kept in the user's preferences instead, under the plugin's path,
+and put back into the plugin's stack each time the IDE loads it. Where the
+plugin's stack can be saved, nothing changes: it is saved, as before, and
+any settings kept in the preferences for it are dropped.
+*/
+constant kPluginSettingsSet = "cOXTPluginSettings"
+
+/**
+The settings of a plugin kept in the user's preferences.
+
+Returns (array): the plugin's cREVLoadInfo as it was when its stack could
+not be saved, or empty when the plugin's own stack holds its settings.
+*/
+function revIDEPluginSettingsSaved pStackPath
+   local tEncoded
+   put revIDEGetPreferenceOfSet(kPluginSettingsSet, pStackPath) into tEncoded
+   if tEncoded is empty then
+      return empty
+   end if
+   local tSettings
+   try
+      put arrayDecode(tEncoded) into tSettings
+   catch tError
+      put empty into tSettings
+   end try
+   return tSettings
+end revIDEPluginSettingsSaved
+
+/**
+Puts a plugin's settings kept in the user's preferences into its stack.
+
+Description:
+Does nothing when the preferences keep no settings for the plugin, as
+they do not where the plugin's stack can be saved.
+*/
+command revIDEApplyPluginSettings pStackPath
+   local tSettings
+   put revIDEPluginSettingsSaved(pStackPath) into tSettings
+   if tSettings is not an array then
+      exit revIDEApplyPluginSettings
+   end if
+   if there is not a stack pStackPath then
+      exit revIDEApplyPluginSettings
+   end if
+   if the customProperties["cREVLoadInfo"] of stack pStackPath is tSettings then
+      exit revIDEApplyPluginSettings
+   end if
+   lock messages
+   set the customProperties["cREVLoadInfo"] of stack pStackPath to tSettings
+   unlock messages
+end revIDEApplyPluginSettings
+
+/**
+Saves a plugin's settings, as Plugin Settings does when it closes.
+
+Returns: empty when the plugin's stack was saved; "preferences" when it
+could not be, and its settings were kept in the user's preferences.
+
+Description:
+The plugin's stack is saved in its own file format, as it always was.
+When that fails (the program folder of an install for all users is
+read-only), its cREVLoadInfo is kept in the user's preferences instead,
+and <revIDEApplyPluginSettings> puts it back when the IDE loads the
+plugin again.
+*/
+command revIDESavePluginSettings pStackPath
+   local tSavedStackVersion, tResult, tError
+   put the stackFileVersion into tSavedStackVersion
+   set the stackFileVersion to revIDEStackFileVersion(pStackPath)
+   try
+      save stack pStackPath
+      put the result into tResult
+   catch tError
+   end try
+   set the stackFileVersion to tSavedStackVersion
+   
+   if tResult is empty and tError is empty then
+      if revIDEGetPreferenceOfSet(kPluginSettingsSet, pStackPath) is not empty then
+         revIDESetPreferenceOfSet kPluginSettingsSet, pStackPath, empty
+      end if
+      return empty
+   end if
+   
+   local tSettings
+   put the customProperties["cREVLoadInfo"] of stack pStackPath into tSettings
+   revIDESetPreferenceOfSet kPluginSettingsSet, pStackPath, arrayEncode(tSettings)
+   return "preferences"
+end revIDESavePluginSettings
 
 function revIDELocalise pString, pSubstitutions
    repeat for each key tKey in pSubstitutions
