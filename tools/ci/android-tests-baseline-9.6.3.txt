@@ -122,6 +122,17 @@ lcs: core/filters/filters: TestFiltersMessageDigestUnknownType
 lcs: core/graphics/drawing: TestDrawingClip
 lcs: core/graphics/drawing: TestDrawingClipMalformed
 lcs: core/graphics/drawing: TestDrawingPolygonCounts
+lcs: core/interface/animated-gif: TestBadFrameDurations
+lcs: core/interface/animated-gif: TestBadPlayRate
+lcs: core/interface/animated-gif: TestCopyKeepsThePace
+lcs: core/interface/animated-gif: TestFrameDurationsFromTheFile
+lcs: core/interface/animated-gif: TestFrameDurationsOfAStillImage
+lcs: core/interface/animated-gif: TestFramePastTheCanvasIsClipped
+lcs: core/interface/animated-gif: TestOldStacksUnchanged
+lcs: core/interface/animated-gif: TestRestoreToPreviousOnATallCanvas
+lcs: core/interface/animated-gif: TestSetFrameDurations
+lcs: core/interface/animated-gif: TestTheCanvasStartsClear
+lcs: core/interface/animated-gif: TestTransparentPixelsKeepWhatIsUnder
 lcs: core/interface/go: TestGoBackground
 lcs: core/interface/go: TestGoCardOfBackgroundNotFound
 lcs: core/interface/go: TestGoNextBackgroundFromCardWithNone

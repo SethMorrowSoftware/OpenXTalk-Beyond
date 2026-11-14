@@ -1004,6 +1004,7 @@ const LT factor_table[] =
         {"fourthcolor", TT_PROPERTY, P_BORDER_COLOR},
         {"fourthpixel", TT_PROPERTY, P_BORDER_PIXEL},
         {"framecount", TT_PROPERTY, P_FRAME_COUNT},
+        {"framedurations", TT_PROPERTY, P_FRAME_DURATIONS},
         {"framerate", TT_PROPERTY, P_FRAME_RATE},
         {"freesize", TT_PROPERTY, P_FREE_SIZE},
         {"from", TT_FROM, PT_FROM},
