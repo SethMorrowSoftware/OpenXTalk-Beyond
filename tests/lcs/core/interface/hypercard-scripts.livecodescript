@@ -4969,6 +4969,59 @@ on TestHyperCardScriptsMoreStandIns
    _Close tStack
 end TestHyperCardScriptsMoreStandIns
 
+on TestHyperCardScriptsTextFileExternals
+   -- Dartmouth's WriteToFile, FieldToFile and FileToField (13, 20 and 10
+   -- stacks of the corpus): they write and read the text file a
+   -- pathname names, in the stack's folder where the path's folder is
+   -- not here, and give its path in the result, or an error; before,
+   -- their stand-ins did nothing
+   local tStack, tFolder, q, tResults
+   global gHCScriptsTest
+   put quote into q
+   put the temporary folder & "/hctext" & the milliseconds into tFolder
+   create folder tFolder
+   put "HCTextFiles" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["file"] of stack tStack to tFolder & "/Main"
+   set the uHyperCard["externals"] of stack tStack to _Lines("XCMD" & tab & "WriteToFile", "XCMD" & tab & "FieldToFile", \
+         "XCMD" & tab & "FileToField")
+   set the defaultStack to tStack
+   create field "Source"
+   put "from the field" & return & "second line" into field "Source"
+   create field "Target"
+   create button "Files"
+   set the script of button "Files" to _Lines("on mouseUp", "  global gHCScriptsTest", "  put empty into gHCScriptsTest", \
+         "  WriteToFile " & q & "line one" & q & ", true, " & q & "Notes" & q & ", false", \
+         "  put the result & tab after gHCScriptsTest", \
+         "  WriteToFile return & " & q & "line two" & q & ",TRUE," & q & "Notes" & q & ",TRUE,CType", \
+         "  put the result & tab after gHCScriptsTest", \
+         "  FieldToFile " & q & "card field 1" & q & ", " & q & "Old Disk:Gone:Field.txt" & q, \
+         "  put the result & tab after gHCScriptsTest", \
+         "  FileToField " & q & "card field 2" & q & ", " & q & ":Notes" & q, \
+         "  put the result & tab after gHCScriptsTest", \
+         "  FileToField " & q & "card field 2" & q & ", " & q & "No Such Text File" & q, \
+         "  put the result after gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   TestAssert "no stand-in is made for them", "WriteToFile" is not in it and "FileToField" is not in it
+   send "mouseUp" to button "Files" of card 1 of stack tStack
+   put gHCScriptsTest into tResults
+   set the itemDelimiter to tab
+   TestAssert "WriteToFile gives the file's path", item 1 of tResults is tFolder & "/Notes" and item 2 of tResults is tFolder & "/Notes"
+   TestAssert "WriteToFile writes, then appends", url ("file:" & tFolder & "/Notes") is "line one" & return & "line two"
+   TestAssert "FieldToFile: the file of that name in the stack's folder, where its own folder is not here", \
+         item 3 of tResults is tFolder & "/Field.txt" and url ("file:" & tFolder & "/Field.txt") is "from the field" & return & "second line"
+   TestAssert "FileToField reads the file into the field", \
+         item 4 of tResults is tFolder & "/Notes" and field "Target" of card 1 of stack tStack is "line one" & return & "line two"
+   TestAssert "FileToField of no such file: an error in the result", word 1 of item 5 of tResults is "Error:"
+   _Close tStack
+   delete file (tFolder & "/Notes")
+   delete file (tFolder & "/Field.txt")
+   delete folder tFolder
+end TestHyperCardScriptsTextFileExternals
+
 on TestHyperCardScriptsImported
    -- a stack the engine imports: every script compiles afterwards, and
    -- one that compiled is unchanged

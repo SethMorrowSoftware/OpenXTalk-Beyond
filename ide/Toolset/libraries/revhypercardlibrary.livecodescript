@@ -3860,6 +3860,144 @@ private function _HCFromMacRoman pData
    return tText
 end _HCFromMacRoman
 
+/*
+The text-file XCMDs of Dartmouth College's HyperCard group, which the
+corpus's stacks call as their cards document them; each gives the file's
+path in the result when it worked, "Cancel" when the person cancelled
+the dialog, and a message that begins "Error" when it did not work, as
+the externals did. A file is named as Files names a folder (an HFS path,
+"Old Disk:Notes:Today"; ":Data:Today", from the stack's folder; a name
+alone, in it; or a path here), and one whose folder is not here is the
+file of that name in the stack's folder. A file is written in the
+folder of the stack's file here, never on the disk image it came from,
+which is not written to.
+
+WriteToFile container, usePathname, name[, append[, creator]] (13
+stacks): writes the text to the file. With usePathname true, to the file
+the name names, else to the one the person picks in the save dialog,
+which offers the name. With append true, after what an existing file
+holds. The creator, a Mac file's application, has nothing to do here.
+*/
+on WriteToFile pText, pUsePathname, pName, pAppend, pCreator
+   _HCWriteText pText, pUsePathname is true, pName, pAppend is true
+   return the result
+end WriteToFile
+
+/*
+FieldToFile field[, pathname[, creator]] (20 stacks), WriteToFile's
+forerunner: writes the text of the field, which the first parameter
+names ("bkgnd field 1"), to the file of that pathname, or to the one
+the person picks in the save dialog when there is none.
+*/
+on FieldToFile pField, pPath, pCreator
+   local tText
+   try
+      put value(pField) into tText
+   catch tError
+      return "Error: no such field:" && pField
+   end try
+   _HCWriteText tText, pPath is not empty, pPath, false
+   return the result
+end FieldToFile
+
+/*
+FileToField field[, pathname] (10 stacks): puts the text of the file
+into the field, which the first parameter names ("card field 1"); the
+file the pathname names, or the one the person picks in the open
+dialog when there is none. A file on the disk image the stack came from
+is read from it; its Mac characters and its returns are read as they
+were meant.
+*/
+on FileToField pField, pPath
+   local tFile, tText, tWhere
+   if pPath is empty then
+      answer file "Choose a text file:"
+      if the result is "Cancel" or it is empty then return "Cancel"
+      put it into pPath
+   end if
+   put _HCTextFile(pPath) into tWhere
+   set the itemDelimiter to tab
+   if item 1 of tWhere is "image" then
+      try
+         put revHyperCardImageReadFork(item 2 of tWhere, item 3 of tWhere, "data") into tText
+      catch tError
+         return "Error: can't read" && pPath
+      end try
+      if the result is not empty then return "Error: can't read" && pPath
+      put _HCFromMacRoman(tText) into tText
+      replace numToChar(13) with return in tText
+      put item 3 of tWhere into tFile
+   else if item 1 of tWhere is "local" and there is a file item 2 of tWhere then
+      put item 2 of tWhere into tFile
+      put url ("file:" & tFile) into tText
+      if the result is not empty then
+         return "Error: can't read" && pPath
+      end if
+   else
+      return "Error: file not found:" && pPath
+   end if
+   try
+      do "put tText into" && pField
+   catch tError
+      return "Error: no such field:" && pField
+   end try
+   return tFile
+end FileToField
+
+-- The file pPath names, as Files names a folder: "image", a tab, the
+-- disk image and a tab and its HFS path there; or "local" and a tab and
+-- its path here; or empty when no folder of it is found
+private function _HCTextFile pPath
+   local tWhere, tName
+   if slash is in pPath or backslash is in pPath then return "local" & tab & pPath
+   set the itemDelimiter to colon
+   put the last item of pPath into tName
+   if colon is in pPath then
+      put _HCFilesFolder(item 1 to -2 of pPath & colon) into tWhere
+   else
+      put _HCFilesFolder(empty) into tWhere
+   end if
+   set the itemDelimiter to tab
+   if item 1 of tWhere is "image" then return "image" & tab & item 2 of tWhere & tab & item 3 of tWhere & colon & tName
+   if item 1 of tWhere is "local" then return "local" & tab & item 2 of tWhere & slash & tName
+   return empty
+end _HCTextFile
+
+-- Writes pText to the file pName names (pUsePath), or to the one the
+-- person picks in the save dialog, which offers pName; after what it
+-- holds with pAppend. The result: the file's path, "Cancel" or an error.
+-- A file on the disk image the stack came from is written beside the
+-- stack's file here instead (an image is not written to)
+private command _HCWriteText pText, pUsePath, pName, pAppend
+   local tWhere, tFile, tLocal, tSet
+   if pUsePath then
+      put _HCTextFile(pName) into tWhere
+      set the itemDelimiter to tab
+      if item 1 of tWhere is "local" then
+         put item 2 of tWhere into tFile
+      else
+         put the customProperties["uHyperCard"] of me into tSet
+         set the itemDelimiter to slash
+         put item 1 to -2 of (the effective filename of me) into tLocal
+         if tLocal is empty then put item 1 to -2 of tSet["file"] into tLocal
+         if tLocal is empty or there is not a folder tLocal then return "Error: no folder to write" && pName && "in"
+         set the itemDelimiter to colon
+         put tLocal & slash & the last item of pName into tFile
+      end if
+   else
+      ask file "Save as:" with pName
+      if the result is "Cancel" or it is empty then return "Cancel"
+      put it into tFile
+   end if
+   if pAppend and there is a file tFile then
+      put pText after url ("file:" & tFile)
+   else
+      put pText into url ("file:" & tFile)
+   end if
+   if the result is not empty then return "Error: can't write" && tFile & ":" && the result
+   return tFile
+end _HCWriteText
+
 -- The data of the resource of type pType and id or name pResource in the
 -- resource fork pFork, or false. A fork's numbers are big-endian: its
 -- header gives where its data and map begin; the map, where its type
