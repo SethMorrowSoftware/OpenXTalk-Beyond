@@ -617,6 +617,28 @@ class StandaloneBuiltAndRun(unittest.TestCase):
             self.assertIn('edRemoveBuiltStack %s' % name, self.handlers['ed_finish'])
         self.assertIn('edRemoveBuiltStack kAppStack', self.handlers['ed_standalone_built_and_run'])
 
+    def test_a_mac_builds_for_its_own_processor(self):
+        # The task runs what it builds. The Standalone Settings' "MacOS ARM
+        # 64 native" (MacOSX x64-ARM64) is built with the arm64 code alone:
+        # on an Intel Mac that standalone ended with 126, "Bad CPU type in
+        # executable". There the task builds "MacOS Intel 64-bit"
+        body = self.function('edBuildTarget')
+        mac = re.search(r'if the platform is "MacOS" then\n(.*?)\n   end if', body, re.S)
+        self.assertIsNotNone(mac, 'no target for a Mac')
+        lines = [line.strip() for line in mac.group(1).split('\n')]
+        self.assertEqual(lines, ['if the processor is "x86_64" then return "MacOSX x86-64"', 'return "MacOSX x64-ARM64"'])
+        # (one architecture each, as the builder hands them to the deploy)
+        self.assertIn('if sStandaloneSettingsA["MacOSX x86-64"] then put "x86-64," after tArchitectures', self.builder)
+        self.assertIn('if sStandaloneSettingsA["MacOSX x64-ARM64"] then put "arm64," after tArchitectures', self.builder)
+        self.assertIn('put tArchitectures into tDeployInfo["architectures"]', self.builder)
+        # (and both Macs run the tasks)
+        mac_workflow = read(os.path.join(WORKFLOWS, 'build-macos.yml'))
+        self.assertIn('macos-15-intel', mac_workflow)
+        # (the builder's own limit is the ARM 64 target's alone)
+        skip = self.function('edBuildSkip')
+        self.assertIn('if edBuildTarget() is "MacOSX x64-ARM64" then', skip)
+        self.assertRegex(self.builder, r'if tSettings\["MacOSX x64-ARM64"\] then\n\s*if the platform contains "Mac" then\n(?:.*\n){3}\s*if mysys <14 then')
+
     def test_the_dialog_the_build_ends_on_is_in_the_pictures(self):
         # (what the IDE says at the end of a build is a window a person
         # sees: it is snapshot under a name of the task's, before the

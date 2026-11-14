@@ -2376,10 +2376,16 @@ end edAnswerWith
 -- A standalone built from the File menu: stopped, and to its end
 
 -- The standalone target of this computer, as the Standalone Settings
--- name it (kDesktopTargets in revsblibrary): the one every package has
--- the engine for (a Mac's is the universal one, the only Mac engine)
+-- name it (kDesktopTargets in revsblibrary): the one whose standalone
+-- runs here. A Mac has two: "MacOS Intel 64-bit" (MacOSX x86-64) and
+-- "MacOS ARM 64 native" (MacOSX x64-ARM64), which the builder makes with
+-- the arm64 code alone, so that it does not start on an Intel Mac ("Bad
+-- CPU type in executable")
 function edBuildTarget
-   if the platform is "MacOS" then return "MacOSX x64-ARM64"
+   if the platform is "MacOS" then
+      if the processor is "x86_64" then return "MacOSX x86-64"
+      return "MacOSX x64-ARM64"
+   end if
    if the platform is "Win32" then
       if the processor is "x86_64" then return "Windows x86-64"
       return "Windows"
@@ -2393,13 +2399,13 @@ function edBuildTarget
 end edBuildTarget
 
 -- Why no standalone can be built for this computer here, or empty: the
--- builder makes the Mac one on macOS 14 and later only, and says so in a
--- dialog before it starts
+-- builder makes the ARM 64 Mac one on macOS 14 and later only, and says
+-- so in a dialog before it starts
 function edBuildSkip
    if edBuildTarget() is empty then return "no standalone target for" && the platform
-   if the platform is "MacOS" then
+   if edBuildTarget() is "MacOSX x64-ARM64" then
       set the itemDelimiter to "."
-      if item 1 of the systemVersion < 14 then return "the builder makes a Mac standalone on macOS 14 and later only (this is" && the systemVersion & ")"
+      if item 1 of the systemVersion < 14 then return "the builder makes an ARM 64 Mac standalone on macOS 14 and later only (this is" && the systemVersion & ")"
    end if
    return empty
 end edBuildSkip
