@@ -268,8 +268,11 @@ SHOWCASE = 'Resources/Examples/Showcase/'
 # ... less the player's own course and its tour of the web: the IDE has
 # them as Home's Academy and Home's tour (OXT-Beyond Home, 0.2.7-rc.6.12),
 # so Learn's gallery leaves them out (leShowcaseTable) and so does the
-# package. tools/web-ide/build_site.py leaves out the same.
-SHOWCASE_LEFT_OUT = ('Learn xTalk.oxtstack', 'OXT-Beyond on the Web.oxtstack')
+# package. tools/web-ide/build_site.py leaves out the same. So is the
+# Box2Dxt platformer, a game of the xTalk Suite's that the package stopped
+# installing with the suite's other demos (#298): the player plays it, and
+# the suite has it for the IDE.
+SHOWCASE_LEFT_OUT = ('Learn xTalk.oxtstack', 'OXT-Beyond on the Web.oxtstack', 'Box2Dxt Platformer.oxtstack')
 
 # The repository's changelog, history and README, which the Release Notes
 # window shows (ide/Toolset/palettes/updates/revreleasenotes.livecodescript,
