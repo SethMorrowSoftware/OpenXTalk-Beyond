@@ -54,6 +54,9 @@ The <connectionID> is needed only if more than one <socket> is connected
 to the same <port> of the same <host>. The <connectionID> is assigned by
 the <accept> or <open socket> <command> that created the <socket>.
 
+On Android and iOS the <peerAddress> <function> <return|returns> empty,
+for an open socket and for one that is not.
+
 References: accept (command), open socket (command),
 function (control structure), hostAddress (function),
 hostAddressToName (function), DNSServers (function), socket (glossary),

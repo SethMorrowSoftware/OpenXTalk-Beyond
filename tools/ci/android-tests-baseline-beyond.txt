@@ -14,7 +14,6 @@ lcs: core/interface/hypercard-import: TestHyperCardImportStack
 lcs: core/interface/image-undo: TestRotateImageGetDataWorks
 lcs: core/interface/image-undo: TestRotateImageWorks
 lcs: core/network/network: TestNetworkDNSServers
-? lcs: core/network/network: TestPeerAddress  # each run so far the peer's address was not among hostNameToAddress's (the test says both); it skips when www.livecode.com does not answer within 100 ms
 lcs: core/strings/filter: TestBug15443
 lcs: webplayer/nova-rescue: TestTheScreensFitAPhoneOnItsSide
 lcs: webplayer/puzzle-almanac: TestTheScreensFitAPhoneOnItsSide

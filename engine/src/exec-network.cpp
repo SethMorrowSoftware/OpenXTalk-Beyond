@@ -150,6 +150,17 @@ void MCNetworkEvalPeerAddress(MCExecContext& ctxt, MCNameRef p_socket, MCStringR
 	}
 
 	// Backwards compatibility: never throws an error
+#else
+	// OXT-Beyond: the peerAddress is a desktop and server function, and
+	// on Android and iOS it answers empty. Before, nothing was put into
+	// r_address here, and the caller read whatever its uninitialized
+	// string held: with OXT-Beyond's Android engine that was a value the
+	// handler had just used (the peerAddress of a socket gave "100", the
+	// test's own timeout), and LiveCode 9.6.3's Android engine stopped the
+	// app (a native crash, on an Android 13 emulator;
+	// tests/lcs/core/network/network.livecodescript,
+	// TestPeerAddressIsEmptyOnMobile)
+	r_address = MCValueRetain(kMCEmptyString);
 #endif
 }
 

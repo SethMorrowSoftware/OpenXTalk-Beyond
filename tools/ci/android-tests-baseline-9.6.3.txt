@@ -186,7 +186,7 @@ lcs: core/multimedia/audioclipexport: TestExportAudioClipWaveIsTheFileImported
 lcs: core/multimedia/audioclipexport: TestExportOlderFormsCompileAsBefore
 lcs: core/multimedia/audioclipexport: TestExportVideoClip
 lcs: core/network/network: TestNetworkDNSServers
-? lcs: core/network/network: TestPeerAddress  # skips each run so far: the test waits 100 ms for www.livecode.com to answer
+lcs: core/network/network: TestPeerAddressIsEmptyOnMobile # 9.6.3's engine stops the app: its peerAddress on mobile reads an unset answer (fixed in OXT-Beyond's, #495)
 lcs: core/strings/filter: TestBug15443
 lcs: core/strings/matches: TestMatchesCustomProperty
 lcs: core/strings/matches: TestMatchesErrorsAsBefore
