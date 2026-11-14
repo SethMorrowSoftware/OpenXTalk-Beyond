@@ -83,6 +83,17 @@ class Generated(unittest.TestCase):
         self.assertRegex(text, r'#if defined\(__linux__\)\n#define CEF_X11 1\n#endif')
 
 
+class MainArgs(unittest.TestCase):
+    def test_cef_gets_the_program_on_linux(self):
+        # CEF 156 (Chrome's start-up) reads the program from the arguments
+        # on Linux, which CEF 74 was given none of
+        for path in ('libbrowser/src/libbrowser_cef.cpp', 'revbrowser/src/cefbrowser.cpp'):
+            text = read(os.path.join(REPO, *path.split('/')))
+            self.assertIn('readlink("/proc/self/exe"', text, path)
+            self.assertIn('return CefMainArgs(1, s_argv);', text, path)
+            self.assertRegex(text, r'#if defined\(__linux__\)\n\tCefMainArgs t_args = MCCefLinuxMainArgs\(\);', path)
+
+
 class StubRules(unittest.TestCase):
     """The generator on headers of its own."""
 

@@ -531,6 +531,31 @@ static bool __MCCefBuildPath(const char *p_library_path,
     return true;
 }
 
+#if defined(__linux__)
+#include <limits.h>
+#include <string.h>
+#include <unistd.h>
+
+// The arguments CefExecuteProcess and CefInitialize take on Linux. CEF 74
+// took none; CEF 156 starts Chrome's browser process, which reads the
+// program from them (command_line_args_disabled keeps any switch out), so
+// they hold argv[0] as main() would: the engine, from /proc/self/exe
+static CefMainArgs MCCefLinuxMainArgs(void)
+{
+	static char s_program[PATH_MAX];
+	static char *s_argv[2] = { s_program, nullptr };
+	if (s_program[0] == '\0')
+	{
+		ssize_t t_length = readlink("/proc/self/exe", s_program, sizeof(s_program) - 1);
+		if (t_length > 0)
+			s_program[t_length] = '\0';
+		else
+			strcpy(s_program, "oxt-beyond");
+	}
+	return CefMainArgs(1, s_argv);
+}
+#endif
+
 // IM-2014-03-13: [[ revBrowserCEF ]] Initialisation of the CEF library
 bool MCCefInitialise(void)
 {
@@ -545,7 +570,11 @@ bool MCCefInitialise(void)
 
     ////////
 
+#if defined(__linux__)
+	CefMainArgs t_args = MCCefLinuxMainArgs();
+#else
 	CefMainArgs t_args;
+#endif
 	CefSettings t_settings;
 	t_settings.multi_threaded_message_loop = MC_CEF_USE_MULTITHREADED_MESSAGELOOP;
 	t_settings.command_line_args_disabled = true;

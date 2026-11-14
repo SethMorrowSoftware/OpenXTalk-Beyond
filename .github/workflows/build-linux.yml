@@ -2188,6 +2188,20 @@ jobs:
           echo "--- the end of the check's output"
           tail -n 40 "$out" | cut -c1-600
 
+      # The same for the checks that open a browser (CEF): the end of each
+      # one's log and of the IDE tours' engine output, where an engine that
+      # ended on a signal leaves what it printed
+      - name: Repeat the browser checks' output
+        if: ${{ failure() && matrix.arch == 'x86_64' }}
+        run: |
+          logs="$RUNNER_TEMP/logs"
+          for f in "$logs/browser-compat-check.log" "$logs/media-check.log" "$logs/browser-wm-check.log" \
+                   "$logs"/ui-tour/*/engine-output.txt "$logs"/everyday-tasks*/engine-output.txt; do
+            [ -f "$f" ] || continue
+            echo "--- the end of ${f#$logs/}"
+            tail -n 60 "$f" | cut -c1-600
+          done
+
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v7
