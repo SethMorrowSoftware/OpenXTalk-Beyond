@@ -5018,6 +5018,35 @@ on TestHyperCardScriptsTextFileExternals
    TestAssert "FileToField of no such file: an error in the result", word 1 of item 5 of tResults is "Error:"
    _Close tStack
    delete file (tFolder & "/Notes")
+
+   -- from a disk image: a file the stack writes is beside its file here,
+   -- and read back from there; another is read from the image
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["file"] of stack tStack to tFolder & "/Main"
+   set the uHyperCard["image"] of stack tStack to TestGetInputFile("hypercard/forks/Stacks.dc42")
+   set the uHyperCard["imagepath"] of stack tStack to "Old Disk:Stacks:Synthetic Stack"
+   set the uHyperCard["externals"] of stack tStack to _Lines("XCMD" & tab & "WriteToFile", "XCMD" & tab & "FileToField")
+   set the defaultStack to tStack
+   create field "Target"
+   create button "Files"
+   set the script of button "Files" to _Lines("on mouseUp", "  global gHCScriptsTest", "  put empty into gHCScriptsTest", \
+         "  WriteToFile " & q & "saved" & q & ", true, " & q & "Notes" & q & ", false", \
+         "  put the result & tab after gHCScriptsTest", \
+         "  FileToField " & q & "card field 1" & q & ", " & q & "Notes" & q, \
+         "  put the result & tab & card field 1 & tab after gHCScriptsTest", \
+         "  FileToField " & q & "card field 1" & q & ", " & q & "Old Disk:Read Me" & q, \
+         "  put the result & tab & (card field 1 is not empty) after gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   send "mouseUp" to button "Files" of card 1 of stack tStack
+   put gHCScriptsTest into tResults
+   TestAssert "on an image: written beside the stack's file here", item 1 of tResults is tFolder & "/Notes"
+   TestAssert "on an image: what the stack wrote is read back", item 2 of tResults is tFolder & "/Notes" and item 3 of tResults is "saved"
+   TestAssert "on an image: a file of the image is read from it", item 4 of tResults is "Old Disk:Read Me" and item 5 of tResults is true
+   _Close tStack
+   delete file (tFolder & "/Notes")
    delete file (tFolder & "/Field.txt")
    delete folder tFolder
 end TestHyperCardScriptsTextFileExternals

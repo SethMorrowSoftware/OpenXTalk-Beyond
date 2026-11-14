@@ -3905,8 +3905,9 @@ FileToField field[, pathname] (10 stacks): puts the text of the file
 into the field, which the first parameter names ("card field 1"); the
 file the pathname names, or the one the person picks in the open
 dialog when there is none. A file on the disk image the stack came from
-is read from it; its Mac characters and its returns are read as they
-were meant.
+is read from it, its Mac characters and its returns read as they were
+meant, unless the stack wrote one of that name, which is beside its file
+here (WriteToFile), and is read instead.
 */
 on FileToField pField, pPath
    local tFile, tText, tWhere
@@ -3917,6 +3918,11 @@ on FileToField pField, pPath
    end if
    put _HCTextFile(pPath) into tWhere
    set the itemDelimiter to tab
+   -- (a file the stack wrote, which went beside its file here, before the
+   -- disk image's: _HCWriteText)
+   if item 1 of tWhere is "image" then
+      if there is a file _HCWrittenBeside(pPath) then put "local" & tab & _HCWrittenBeside(pPath) into tWhere
+   end if
    if item 1 of tWhere is "image" then
       try
          put revHyperCardImageReadFork(item 2 of tWhere, item 3 of tWhere, "data") into tText
@@ -3963,26 +3969,35 @@ private function _HCTextFile pPath
    return empty
 end _HCTextFile
 
+-- Where a file that pName names on the disk image the stack came from,
+-- or in a folder not here, is written: beside the stack's file here, by
+-- its name; empty if the stack has no folder here
+private function _HCWrittenBeside pName
+   local tSet, tLocal
+   put the customProperties["uHyperCard"] of me into tSet
+   set the itemDelimiter to slash
+   put item 1 to -2 of (the effective filename of me) into tLocal
+   if tLocal is empty then put item 1 to -2 of tSet["file"] into tLocal
+   if tLocal is empty or there is not a folder tLocal then return empty
+   set the itemDelimiter to colon
+   return tLocal & slash & the last item of pName
+end _HCWrittenBeside
+
 -- Writes pText to the file pName names (pUsePath), or to the one the
 -- person picks in the save dialog, which offers pName; after what it
 -- holds with pAppend. The result: the file's path, "Cancel" or an error.
 -- A file on the disk image the stack came from is written beside the
 -- stack's file here instead (an image is not written to)
 private command _HCWriteText pText, pUsePath, pName, pAppend
-   local tWhere, tFile, tLocal, tSet
+   local tWhere, tFile
    if pUsePath then
       put _HCTextFile(pName) into tWhere
       set the itemDelimiter to tab
       if item 1 of tWhere is "local" then
          put item 2 of tWhere into tFile
       else
-         put the customProperties["uHyperCard"] of me into tSet
-         set the itemDelimiter to slash
-         put item 1 to -2 of (the effective filename of me) into tLocal
-         if tLocal is empty then put item 1 to -2 of tSet["file"] into tLocal
-         if tLocal is empty or there is not a folder tLocal then return "Error: no folder to write" && pName && "in"
-         set the itemDelimiter to colon
-         put tLocal & slash & the last item of pName into tFile
+         put _HCWrittenBeside(pName) into tFile
+         if tFile is empty then return "Error: no folder to write" && pName && "in"
       end if
    else
       ask file "Save as:" with pName
