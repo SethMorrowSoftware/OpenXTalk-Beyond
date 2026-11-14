@@ -50,8 +50,8 @@ and rounded to the nearest millisecond, when that frame comes up. The
 <playRate> of an <image> must be greater than 0: use the <repeatCount> to
 stop an animation, and the <currentFrame> to step through it. Like the
 <frameDurations>, it is not saved with the stack and is not one of the
-<properties> of an <image>; a <clone> or copy of the <image> has the same
-setting. The <playRate> of an <image> was added in version 9.7.1
+<properties> of an <image>; a <clone> of the <image> has the same
+setting, an <image> pasted from the clipboard does not. The <playRate> of an <image> was added in version 9.7.1
 (OXT-Beyond 0.2.8-dp.2).
 
 References: play (command), property (glossary), real number (glossary),

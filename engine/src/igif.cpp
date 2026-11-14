@@ -337,6 +337,14 @@ bool MCGIFImageLoader::LoadFrames(MCBitmapFrame *&r_frames, uint32_t &r_count)
 
 		// create the canvas image
 		t_success = MCImageBitmapCreate(t_width, t_height, t_canvas);
+		
+		// OXT-Beyond: start from a clear canvas. MCImageBitmapCreate leaves
+		//   the pixels as the allocator gave them; a transparent pixel of
+		//   the first frame (which now leaves the canvas as it is), and any
+		//   part of the canvas the first frame does not cover, would show
+		//   them.
+		if (t_success)
+			MCImageBitmapClear(t_canvas);
 	}
 
 	// The current frame count. The number of frames is the same as the

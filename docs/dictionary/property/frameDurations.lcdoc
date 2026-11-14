@@ -61,7 +61,9 @@ them: the <frameDurations> itself does not change with the <playRate>.
 The <frameDurations> is not saved with the <stack>, and it is not one of
 the <properties> of an <image>. Set it in a <preOpenCard> or
 <openCard> <handler>, for example, to have it whenever the <stack> is
-opened. A <clone> or a copy of the <image> has the same setting. Without
+opened. A <clone> of the <image> has the same setting; an <image> pasted
+from the clipboard does not, as it is made from the <image> as it would
+be saved. Without
 it, an <animated GIF> plays at the pace of its own delays, as it always
 has.
 
@@ -74,6 +76,7 @@ References: property (glossary), animated GIF (glossary),
 image (keyword), line (keyword), stack (object), properties (property),
 playRate (property), repeatCount (property), currentFrame (property),
 frameCount (property), palindromeFrames (property), clone (command),
+paste (command),
 preOpenCard (message), openCard (message), handler (glossary)
 
 Tags: multimedia

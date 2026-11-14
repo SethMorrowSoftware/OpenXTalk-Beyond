@@ -103,6 +103,13 @@ FIXTURES = {
         (0, 0, 2, 1, [R, R], 5, 1, None),
         (1, 0, 2, 1, [G, B], 5, 1, None),
     ]),
+    # A 3x1 canvas whose first frame covers only the first two pixels, the
+    # first of them its transparent colour: both uncovered pixels must be
+    # clear (the canvas was not cleared before it was drawn on).
+    "kGifFirstFrameClear": gif(3, 1, [
+        (0, 0, 2, 1, [K, R], 5, 1, K),
+        (0, 0, 3, 1, [G, G, G], 5, 1, None),
+    ]),
 }
 
 TEST = os.path.join(os.path.dirname(os.path.abspath(__file__)),

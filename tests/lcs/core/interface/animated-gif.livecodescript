@@ -28,6 +28,7 @@ constant kGifHoles = "R0lGODlhAgABAIEAAP8AAAD/AAAA/wAAACH/C05FVFNDQVBFMi4wAwEAAA
 constant kGifRestorePrevious = "R0lGODlhAQADAIEAAP8AAAD/AAAA/wAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQEBQAAACwAAAAAAQADAAACAoQLACH5BAwFAAAALAAAAQABAAIAAAICTAoAIfkEBAUAAAAsAAAAAAEAAQAAAgJUAQA7"
 constant kGifPastCanvas = "R0lGODlhAgABAIEAAP8AAAD/AAAA/wAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQEBQAAACwAAAAAAgABAAACAgQKACH5BAQFAAAALAEAAAACAAEAAAICjAoAOw=="
 
+constant kGifFirstFrameClear = "R0lGODlhAwABAIEAAP8AAAD/AAAA/wAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQFBQADACwAAAAAAgABAAACAhwKACH5BAQFAAAALAAAAAADAAEAAAICjAsAOw=="
 local sStack
 
 private command _MakeImage pGif
@@ -99,6 +100,16 @@ on TestFramePastTheCanvasIsClipped
          _Frame(2) is "255,0,0,255" & return & "0,255,0,255"
    _DeleteStack
 end TestFramePastTheCanvasIsClipped
+
+on TestTheCanvasStartsClear
+   -- The first frame covers two of three pixels, the first of them its
+   -- transparent colour: both of the pixels it leaves are clear, not
+   -- whatever was in the memory the canvas was made in.
+   _MakeImage kGifFirstFrameClear
+   TestAssert "frame 1", _Frame(1) is "0,0,0,0" & return & "255,0,0,255" & return & "0,0,0,0"
+   TestAssert "frame 2", _Frame(2) is "0,255,0,255" & return & "0,255,0,255" & return & "0,255,0,255"
+   _DeleteStack
+end TestTheCanvasStartsClear
 
 -------------------------------------------------------------------------------
 -- frameDurations and playRate

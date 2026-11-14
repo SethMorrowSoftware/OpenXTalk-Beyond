@@ -205,8 +205,10 @@ MCImage::MCImage(const MCImage &iref) : MCControl(iref)
     // MM-2014-07-31: [[ ThreadedRendering ]] Used to ensure the image animate message is only posted from a single thread.
     m_animate_posted = false;
 
-	// OXT-Beyond: a copy (clone, copy and paste) animates as its original
-	//   does now, script settings included; a copy of nothing on failure.
+	// OXT-Beyond: an image made from this one (clone, "copy ... to") animates
+	//   as its original does now, script settings included; it gets none
+	//   on failure. A paste from the clipboard is made from the image as it
+	//   would be saved, so it keeps neither.
 	m_frame_durations = nil;
 	m_frame_durations_count = 0;
 	if (iref.m_frame_durations != nil &&
