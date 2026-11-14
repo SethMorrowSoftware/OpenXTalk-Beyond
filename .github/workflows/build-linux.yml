@@ -2200,7 +2200,9 @@ jobs:
                    "$logs"/ui-tour/*/engine-output.txt "$logs"/everyday-tasks*/engine-output.txt; do
             [ -f "$f" ] || continue
             echo "--- the end of ${f#$logs/}"
-            tail -n 60 "$f" | cut -c1-600
+            # (without the compatibility check's lines that a crash left
+            # missing, which would push the engine's stack out of view)
+            grep -v '^missing: ' "$f" | tail -n 80 | cut -c1-600
           done
 
       - name: Upload logs
