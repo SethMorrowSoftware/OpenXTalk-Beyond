@@ -42,7 +42,8 @@ on TestSetup
    -- The IDE's handlers the assistant's build library calls, and the
    -- plugin's two functions the bridge asks: mcbConfirm answers as
    -- mcbTestSetAnswer says, and records what it was asked
-   put "local sAnswer, sAsked, sAskedDetails" & return & \
+   put "local sAnswer, sAsked, sAskedDetails, sDeleteDuringAsk" & return & \
+         "on mcbTestDeleteDuringAsk pObject" & return & "put pObject into sDeleteDuringAsk" & return & "end mcbTestDeleteDuringAsk" & return & \
          "on ideMessageSend pMessage, pTarget" & return & "end ideMessageSend" & return & \
          "on revIDESetEdited pStack" & return & "end revIDESetEdited" & return & \
          "on mcbTestSetAnswer pAnswer" & return & "put pAnswer into sAnswer" & return & "end mcbTestSetAnswer" & return & \
@@ -50,6 +51,8 @@ on TestSetup
          "put pDetail & return after sAskedDetails" & return & \
          "global gMcbTestDuringAsk, gMcbTestDuringReply" & return & \
          "repeat for each line tLine in gMcbTestDuringAsk" & return & "put mcbHandleLine(tLine) & return after gMcbTestDuringReply" & return & "end repeat" & return & \
+         "global gMcbTestGoDuringAsk" & return & "if gMcbTestGoDuringAsk is not empty then" & return & "go stack gMcbTestGoDuringAsk" & return & "end if" & return & \
+         "if sDeleteDuringAsk is not empty then" & return & "delete sDeleteDuringAsk" & return & "put empty into sDeleteDuringAsk" & return & "end if" & return & \
          "if sAnswer is " & quote & "lose" & quote & " then" & return & "mcbLinkLost" & return & "return true" & return & "end if" & return & \
          "if sAnswer is " & quote & "slow" & quote & " then" & return & "wait 1500 milliseconds with messages" & return & "return true" & return & "end if" & return & \
          "return sAnswer" & return & "end mcbConfirm" & return & \
@@ -1385,6 +1388,51 @@ on TestSetScriptFromAFile
    put TestCall("make_changes", "{`stack`:`" & kUserStack & "`,`changes`:[{`action`:`set`,`object`:`stack`,`script`:`on TestMe\n   put 5 into undeclaredThing\nend TestMe`}]}") into tReply
    TestAssert "make_changes still refuses a name that is not declared", TestIsError(tReply) and TestText(tReply) contains "explicitVariables"
 end TestSetScriptFromAFile
+
+-- The question is open for as long as the user takes. The stack whose
+-- script is set is the one the question was about, also when the call
+-- named none and another stack has come to the front meanwhile: its ids
+-- can be the same ones
+on TestSetScriptFromAFileKeepsTheStackAskedAbout
+   global gMcbTestGoDuringAsk
+   local tStack, tOther, tFile, tReply, tBefore, tOtherBefore
+   TestStart
+   create stack "mcbTestOtherStack"
+   put the long id of stack "mcbTestOtherStack" into tOther
+   set the rect of tOther to "120,120,420,320"
+   set the script of tOther to "on mouseUp" & return & "   -- the other stack's" & return & "end mouseUp"
+   put the script of tOther into tOtherBefore
+   go stack "mcbTestOtherStack"
+   put TestUserStack() into tStack
+   set the script of tStack to "on mouseUp" & return & "end mouseUp"
+   put the script of tStack into tBefore
+   put TestScriptFile("on TestMe" & return & "   return 3" & return & "end TestMe" & return) into tFile
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
+   put "mcbTestOtherStack" into gMcbTestGoDuringAsk
+   put TestCall("set_script_from_file", "{`file`:`" & tFile & "`}") into tReply
+   put empty into gMcbTestGoDuringAsk
+   TestDiagnostic TestText(tReply)
+   TestAssert "the other stack came to the front while the question was open", the short name of the topStack is "mcbTestOtherStack"
+   TestAssert "asked about the stack the user was working on", mcbTestAskedDetails() contains kUserStack \
+         and not (mcbTestAskedDetails() contains "mcbTestOtherStack")
+   TestAssert "that stack's script is set", not TestIsError(tReply) and line 1 of the script of tStack is "on TestMe" \
+         and TestText(tReply) contains kUserStack
+   TestAssert "the stack in front is left as it was", the script of tOther is tOtherBefore
+   -- Gone while the question was open: nothing is set anywhere
+   put "mcbTestOtherStack" into gMcbTestGoDuringAsk
+   put the script of tStack into tBefore
+   go stack kUserStack
+   put the short id of button "Go" of tStack into tReply
+   put "{`id`:" & tReply & ",`file`:`" & tFile & "`}" into tReply
+   dispatch "mcbTestDeleteDuringAsk" to stack "mcbTestIDE" with the long id of button "Go" of tStack
+   put TestCall("set_script_from_file", tReply) into tReply
+   put empty into gMcbTestGoDuringAsk
+   TestDiagnostic TestText(tReply)
+   TestAssert "a control deleted meanwhile: nothing is changed, and it says so", TestIsError(tReply) \
+         and TestText(tReply) contains "no longer there" and the script of tStack is tBefore and the script of tOther is tOtherBefore
+   delete file tFile
+   delete stack "mcbTestOtherStack"
+end TestSetScriptFromAFileKeepsTheStackAskedAbout
 
 on TestSetScriptFromAFileRefusals
    local tStack, tFile, tReply, tBefore

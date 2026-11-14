@@ -3178,7 +3178,7 @@ end mcbUndo
 -- change, journaled, which undo_changes takes back.
 private function mcbToolSetScriptFromFile pArguments
    local tFile, tFound, tObject, tOld, tError, tData, tBytes, tHex, tScript, tNamed, tWhere, tTitle, tProse, tDetail, tParts
-   local tMax, tId, tBatch, tPlan, tApplied, tText
+   local tMax, tId, tBatch, tPlan, tApplied, tText, tStack
    if sLink is true then
       return mcbResult("Nothing was changed: the web IDE cannot read the files of this computer. Send the script with make_changes or edit_script.", true)
    end if
@@ -3239,9 +3239,13 @@ private function mcbToolSetScriptFromFile pArguments
             "), so it holds only part of one.", true)
    end if
 
+   -- The stack the object is in, found before the question: the question
+   -- names it, and it is the one changed, whichever stack is in front
+   -- when the user answers
+   put mcbStackOfObject(tObject) into tStack
    put tFound["label"] into tWhere
    if word 1 of the name of tObject is not "stack" then
-      put " of stack" && quote & the short name of mcbStackOfObject(tObject) & quote after tWhere
+      put " of stack" && quote & the short name of tStack & quote after tWhere
    end if
    put "Claude asks to set a script from a file." into tTitle
    put "The script of" && tWhere && "would become the text of this file:" & return & tFile & return & \
@@ -3259,6 +3263,11 @@ private function mcbToolSetScriptFromFile pArguments
    if not mcbAllow(tTitle, tDetail, "Set Script", tParts) then
       return mcbResult("Nothing was changed: the user did not allow the script to be set from the file. Ask them what they would like instead.", true)
    end if
+   -- The question was open for as long as the user took, and timers ran
+   -- meanwhile: what was asked about may be gone
+   if there is not a tObject then
+      return mcbResult("Nothing was changed:" && tWhere && "is no longer there (it was deleted, or its stack was closed, while the question was open).", true)
+   end if
 
    if word 1 of the name of tObject is "stack" then
       put mcbJsonString("stack") into tId
@@ -3266,13 +3275,15 @@ private function mcbToolSetScriptFromFile pArguments
       put the short id of tObject into tId
    end if
    -- The batch is parsed with no script, and the script put into it after:
-   -- megabytes of script are not written as JSON and read back
-   put "{" & mcbJsonString("stack") & ":" & mcbJsonString(mcbArg(pArguments, "stack")) & "," & \
-         mcbJsonString("changes") & ":[{" & mcbJsonString("action") & ":" & mcbJsonString("set") & "," & \
+   -- megabytes of script are not written as JSON and read back. It names
+   -- no stack: its stack is tStack, the one the question was about (ids
+   -- repeat from stack to stack, and the stack the user works on can be
+   -- another one by now)
+   put "{" & mcbJsonString("changes") & ":[{" & mcbJsonString("action") & ":" & mcbJsonString("set") & "," & \
          mcbJsonString("object") & ":" & tId & "," & mcbJsonString("script") & ":" & mcbJsonString("-") & "}]}" into tBatch
    put xtaJsonParse(tBatch) into tBatch
    put tScript into tBatch["members"]["changes"]["items"][1]["members"]["script"]["value"]
-   put xtaBuildPlan(tBatch, mcbWorkStack(), true) into tPlan
+   put xtaBuildPlan(tBatch, tStack, true) into tPlan
    if tPlan["ok"] is not true then
       return mcbResult("Nothing was changed: the file's text does not compile as a script (the lines are the file's):" & return & tPlan["problems"], true)
    end if
