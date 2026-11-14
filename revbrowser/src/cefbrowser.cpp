@@ -527,6 +527,10 @@ public:
 ////////////////////////////////////////////////////////////////////////////////
 // Browser client - receives callback messages from the browser
 
+// The URL of Chromium's error page in CEF 74 (since Chromium shows it at the
+// URL that failed)
+static const char kMCCefErrorPageURL[] = "chrome-error://chromewebdata/";
+
 struct MCCefErrorInfo
 {
 	CefString url;
@@ -551,6 +555,11 @@ private:
 	std::set<CefString> m_ignore_urls;
 
 	CefString m_last_request_url;
+
+	// The URL that failed to load in the main frame, whose error page is
+	// shown: CEF 74 showed Chromium's error page at its own URL, and
+	// Chromium now shows it at the URL that failed (see OnLoadEnd)
+	CefString m_error_page_failed_url;
 
 	// Error handling - we need to keep track of url that failed to load in a
 	// frame so we can send the correct url in onLoadEnd()
@@ -585,6 +594,16 @@ public:
 	void SetPendingSource(const CefString &p_url, const std::string &p_html)
 	{
 		m_pending_sources.Set(p_url, p_html);
+	}
+
+	// The main frame's URL as CEF 74 named it: Chromium's error page by its
+	// own URL while it is shown for a load that failed
+	CefString MainFrameURL(CefRefPtr<CefFrame> p_frame)
+	{
+		CefString t_url = p_frame->GetURL();
+		if (!m_error_page_failed_url.empty() && t_url == m_error_page_failed_url)
+			return kMCCefErrorPageURL;
+		return t_url;
 	}
 
 	// IM-2014-07-21: [[ Bug 12296 ]] Method to allow owner to notify client of its deletion
@@ -789,6 +808,15 @@ public:
 		if (IgnoreUrl(t_url))
 			return false;
 
+		// OXT-Beyond: [[ CEF 156 ]] CEF 74's LoadString showed the htmltext
+		// without asking: no browserBeforeNavigate for it, as before
+		if (p_frame->IsMain() && !p_is_redirect && m_pending_sources.Has(t_url))
+			return false;
+
+		// a new page leaves the error page
+		if (p_frame->IsMain())
+			m_error_page_failed_url.clear();
+
 		char *t_url_str;
 		t_url_str = nil;
 		/* UNCHECKED */ MCCefStringToUtf8String(t_url, t_url_str);
@@ -992,6 +1020,17 @@ public:
 			
 			if (t_err_str != nil)
 				MCCStringFree(t_err_str);
+
+			// OXT-Beyond: [[ CEF 156 ]] CEF 74 then loaded Chromium's error
+			// page at its own URL, which sent browserDocumentComplete for it
+			// and was the url until the next page. Chromium now shows the
+			// error page at the URL that failed, with no load of its own: the
+			// message and the url are as they were.
+			if (p_frame->IsMain() && m_owner != nil)
+			{
+				m_error_page_failed_url = t_url;
+				CB_DocumentComplete(m_owner->GetInst(), kMCCefErrorPageURL);
+			}
 		}
 		else
 		{
@@ -1617,7 +1656,7 @@ bool MCCefBrowserBase::GetBusy(void)
 char *MCCefBrowserBase::GetURL(void)
 {
 	CefString t_url;
-	t_url = m_browser->GetMainFrame()->GetURL();
+	t_url = m_client->MainFrameURL(m_browser->GetMainFrame());
 
 	char *t_url_str;
 	t_url_str = nil;

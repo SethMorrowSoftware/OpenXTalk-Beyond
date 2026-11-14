@@ -102,11 +102,50 @@ class MainArgs(unittest.TestCase):
                                    r'p_command_line->AppendSwitchWithValue\(kUiToolkit, "fallback"\);', path)
             self.assertIn('static const char kUiToolkit[] = "ui-toolkit";', text, path)
         lib = read(os.path.join(REPO, 'libbrowser', 'src', 'libbrowser_cef.cpp'))
-        self.assertRegex(lib, r'AppendDeviceScaleFactor\(p_command_line\);\n\t\tAppendLinuxUiToolkit\(p_command_line\);')
+        # in the browser process's own command line, before CEF reads it
+        # (the child processes' would be too late: the UI is the browser's)
+        m = re.search(r'void OnBeforeCommandLineProcessing\(.*?\n\t\}\n', lib, re.S)
+        self.assertIsNotNone(m)
+        self.assertIn('\t\tAppendLinuxUiToolkit(p_command_line);\n', m.group(0))
+        m = re.search(r'void OnBeforeChildProcessLaunch\(.*?\n\t\}\n', lib, re.S)
+        self.assertNotIn('AppendLinuxUiToolkit', m.group(0))
         rev = read(os.path.join(REPO, 'revbrowser', 'src', 'cefbrowser.cpp'))
         # revBrowser had no CefApp; on Linux it now has one that gives the switch
         self.assertRegex(rev, r'#if defined\(__linux__\)\n\tCefRefPtr<CefApp> t_app = new MCRevBrowserCefApp\(\);\n'
                               r'#else\n\tCefRefPtr<CefApp> t_app = nil;\n#endif')
+
+
+class RevBrowserAsCef74(unittest.TestCase):
+    """What revBrowser sends and reports where CEF 156 differs from CEF 74;
+    the browser compatibility check runs them on Linux."""
+
+    def setUp(self):
+        self.text = read(os.path.join(REPO, 'revbrowser', 'src', 'cefbrowser.cpp'))
+
+    def body(self, name):
+        m = re.search(r'\n\t(?:virtual )?\w[\w *]* %s\(.*?\n\t\}\n' % name, self.text, re.S)
+        self.assertIsNotNone(m, name)
+        return m.group(0)
+
+    def test_no_before_navigate_for_htmltext(self):
+        # CEF 74's LoadString asked nothing: the htmltext page's own request
+        # returns before browserBeforeNavigate
+        body = self.body('OnBeforeBrowse')
+        skip = body.index('m_pending_sources.Has(t_url)')
+        self.assertLess(skip, body.index('CB_NavigateRequest'))
+        self.assertIn('if (p_frame->IsMain() && !p_is_redirect && m_pending_sources.Has(t_url))\n\t\t\treturn false;',
+                      body)
+        source = read(os.path.join(REPO, 'libbrowser', 'src', 'libbrowser_cef_source.h'))
+        self.assertIn('bool Has(const CefString &p_url)', source)
+
+    def test_the_error_page_by_its_cef_74_url(self):
+        self.assertIn('static const char kMCCefErrorPageURL[] = "chrome-error://chromewebdata/";', self.text)
+        end = self.body('OnLoadEnd')
+        self.assertLess(end.index('CB_DocumentFailed('), end.index('CB_DocumentComplete(m_owner->GetInst(), kMCCefErrorPageURL);'))
+        self.assertIn('m_error_page_failed_url = t_url;', end)
+        # the url property names it until the next page
+        self.assertIn('t_url = m_client->MainFrameURL(m_browser->GetMainFrame());', self.text)
+        self.assertIn('m_error_page_failed_url.clear();', self.body('OnBeforeBrowse'))
 
 
 class StubRules(unittest.TestCase):

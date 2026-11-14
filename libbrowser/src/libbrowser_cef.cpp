@@ -302,7 +302,6 @@ public:
 			p_command_line->AppendSwitch(MC_CEF_HIDPI_SWITCH);
 #if defined(TARGET_PLATFORM_LINUX)
 		AppendDeviceScaleFactor(p_command_line);
-		AppendLinuxUiToolkit(p_command_line);
 #endif
 	}
 	
@@ -312,6 +311,7 @@ public:
 		p_command_line->AppendSwitch("enable-media-stream");
 #if defined(TARGET_PLATFORM_LINUX)
 		AppendDeviceScaleFactor(p_command_line);
+		AppendLinuxUiToolkit(p_command_line);
 #endif
 	}
 	

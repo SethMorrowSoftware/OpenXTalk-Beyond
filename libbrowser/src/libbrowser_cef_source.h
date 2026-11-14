@@ -80,6 +80,14 @@ public:
 		m_sources[MCCefSourceKey(p_url)] = p_html;
 	}
 
+	// Whether the page of p_url waits for its request (OnBeforeBrowse
+	// comes before it)
+	bool Has(const CefString &p_url)
+	{
+		std::lock_guard<std::mutex> t_lock(m_mutex);
+		return m_sources.find(MCCefSourceKey(p_url)) != m_sources.end();
+	}
+
 	bool Take(const CefString &p_url, std::string &r_html)
 	{
 		std::lock_guard<std::mutex> t_lock(m_mutex);
