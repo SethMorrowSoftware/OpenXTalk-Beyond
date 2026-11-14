@@ -115,6 +115,25 @@ def compare(expected, actual):
     return problems
 
 
+def crash_trace(screen, cmd, cwd, env, timeout):
+    """The engine's stack where it crashed, from a second run under gdb
+    (the engine itself, inside xvfb-run when there is no screen), as
+    run_engine_tests.py traces a test that crashes."""
+    if not shutil.which('gdb'):
+        return ['  (no gdb to trace the crash with)']
+    full = screen + ['gdb', '-batch', '-q', '-nx', '-ex', 'set pagination off',
+                     '-ex', 'handle SIGPIPE SIGUSR1 SIGUSR2 nostop noprint pass',
+                     '-ex', 'run', '-ex', 'bt 40', '-ex', 'info sharedlibrary', '--args'] + cmd
+    try:
+        out = subprocess.run(full, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                             timeout=timeout + 60).stdout
+    except subprocess.TimeoutExpired as e:
+        out = e.stdout or b''
+    keep = [x.rstrip() for x in out.decode('utf-8', 'replace').splitlines()
+            if re.match(r'\s*(#\d+ |Thread \d+ .* received|Program received|Program terminated)', x)]
+    return ['  ' + x for x in keep] or ['  (the crash did not happen again under gdb)']
+
+
 def run(args, p, what):
     """Run the probe for each of what; (OBS and INFO lines, problems)."""
     lines, problems, temp_dirs, server = [], [], [], None
@@ -140,11 +159,13 @@ def run(args, p, what):
             'OXT_COMPAT_REVBROWSER': revbrowser.replace('\\', '/'),
         })
         cmd = [engine, SCRIPT]
+        screen = []
         if p.family == 'linux' and not env.get('DISPLAY'):
             xvfb = shutil.which('xvfb-run')
             if not xvfb:
                 raise rlc.CheckError('no DISPLAY and no xvfb-run')
-            cmd = [xvfb, '-a', '-s', '-screen 0 1280x1024x24'] + cmd
+            screen = [xvfb, '-a', '-s', '-screen 0 1280x1024x24']
+        cmd = screen + cmd
         for part in what:
             result_log = os.path.join(work, 'compat-%s.log' % part)
             env['OXT_COMPAT_LOG'] = result_log
@@ -165,6 +186,9 @@ def run(args, p, what):
                                    else 'exit status %s' % code))
                 for x in output.decode('utf-8', 'replace').splitlines()[-30:]:
                     rlc.log('  ' + x)
+                if code is not None and (code < 0 or code > 128) and p.family == 'linux':
+                    problems[-1] += '\n' + '\n'.join(crash_trace(screen, [engine, SCRIPT], work, env,
+                                                                  args.timeout))
             lines += [x for x in results if x != 'DONE']
     except (rlc.CheckError, OSError) as e:
         problems.append(str(e))

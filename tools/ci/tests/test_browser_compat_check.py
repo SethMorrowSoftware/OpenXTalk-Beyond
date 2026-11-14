@@ -129,6 +129,34 @@ class Recording(unittest.TestCase):
         self.assertEqual(steps, {'w', 'r'})
 
 
+class CrashTrace(unittest.TestCase):
+    """A crashed run is run again under gdb (a fake one here, which says
+    how it was called and prints a stack)."""
+
+    def setUp(self):
+        import shutil
+        import tempfile
+        self.dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.dir)
+        gdb = os.path.join(self.dir, 'gdb')
+        with open(gdb, 'w') as f:
+            f.write('#!/bin/sh\necho "args: $*"\necho "Thread 1 \\"x\\" received signal SIGSEGV, Segmentation fault."\n'
+                    'echo "#0  0x1 in cef_initialize () from libcef.so"\necho "#1  0x2 in MCCefInitialise ()"\n'
+                    'echo "unrelated"\n')
+        os.chmod(gdb, 0o755)
+        self.env = dict(os.environ)
+        self.env['PATH'] = self.dir + os.pathsep + self.env.get('PATH', '')
+        self.old_path = os.environ['PATH']
+        os.environ['PATH'] = self.env['PATH']
+        self.addCleanup(os.environ.__setitem__, 'PATH', self.old_path)
+
+    def test_the_stack_is_kept(self):
+        lines = bcc.crash_trace([], ['/x/engine', 'probe.livecodescript'], self.dir, self.env, 10)
+        self.assertEqual(lines, ['  Thread 1 "x" received signal SIGSEGV, Segmentation fault.',
+                                 '  #0  0x1 in cef_initialize () from libcef.so',
+                                 '  #1  0x2 in MCCefInitialise ()'])
+
+
 class Probe(unittest.TestCase):
     def test_the_probe_reads_what_the_driver_sets(self):
         with open(PROBE, encoding='utf-8') as f:

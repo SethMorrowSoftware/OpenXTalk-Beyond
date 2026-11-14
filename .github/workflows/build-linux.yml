@@ -1338,13 +1338,14 @@ jobs:
           # desktop appearance check; GStreamer's base, good and libav
           # plugins and its X sinks: the player through GStreamer, for a
           # machine without mplayer (tools/ci/gst_player_check.py and the
-          # player check with --player-backend gstreamer)
+          # player check with --player-backend gstreamer); gdb: the stack of
+          # an engine that crashes in the browser compatibility check
           pkgs=(desktop-file-utils shared-mime-info xz-utils mplayer xvfb xauth
                 gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav gstreamer1.0-x
                 xfwm4 openbox mutter xdotool x11-utils imagemagick
                 gnome-themes-extra gtk2-engines-pixbuf python3-xlib
                 mate-themes ubuntu-mate-themes yaru-theme-gtk gtk2-engines-murrine
-                xsettingsd fonts-dejavu-core gsettings-desktop-schemas)
+                xsettingsd fonts-dejavu-core gsettings-desktop-schemas gdb)
           while read -r soname use deb rpm rest; do
             case $soname in ''|'#'*) continue ;; esac
             if apt-cache show --no-all-versions "${deb}t64" > /dev/null 2>&1; then
