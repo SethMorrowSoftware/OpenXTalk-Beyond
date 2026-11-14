@@ -617,6 +617,26 @@ class StandaloneBuiltAndRun(unittest.TestCase):
             self.assertIn('edRemoveBuiltStack %s' % name, self.handlers['ed_finish'])
         self.assertIn('edRemoveBuiltStack kAppStack', self.handlers['ed_standalone_built_and_run'])
 
+    def test_the_dialog_the_build_ends_on_is_in_the_pictures(self):
+        # (what the IDE says at the end of a build is a window a person
+        # sees: it is snapshot under a name of the task's, before the
+        # click that closes it)
+        body = self.handlers['ed_standalone_built_and_run']
+        m = re.search(r'edFullBuild\(kAppStack, "(\d\d-[a-z-]+)"\)', body)
+        self.assertIsNotNone(m, 'the task names no snapshot for the dialog its build ends on')
+        own = re.search(r'edShotStack kAppStack, "(\d\d-[a-z-]+)"', body)
+        self.assertIsNotNone(own)
+        self.assertLess(m.group(1), own.group(1), 'the dialog comes before the stack in the pictures')
+        self.assertIn('put pShot into sReport["sayShot"]', self.function('edFullBuild'))
+        said = self.handlers['edBuildSaid']
+        shot = 'edShotStack tAD, sReport["sayShot"]'
+        self.assertIn(shot, said)
+        self.assertLess(said.index(shot), said.index('edAnswerWith "OK"'),
+                        'the snapshot is after the click that closes the dialog')
+        # (the first dialog alone, and a snapshot that fails does not
+        # stop the answering: an unanswered dialog holds the build)
+        self.assertRegex(said, r'if sReport\["dialogs"\] is 1 and sReport\["sayShot"\] is not empty then\s+try\s+%s\s+catch tError\s+end try' % re.escape(shot))
+
 
 if __name__ == '__main__':
     unittest.main()

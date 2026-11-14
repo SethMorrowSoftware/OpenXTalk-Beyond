@@ -1671,7 +1671,7 @@ on ed_standalone_built_and_run
    if not edWaitFor("the short name of the topStack is kAppStack", 3000) then throw "the stack" && kAppStack && "is not in front (" & the short name of the topStack & ")"
    edBuildSettings kAppStack, kAppName
    edSaveForBuild kAppStack
-   put edFullBuild(kAppStack) into tWhy
+   put edFullBuild(kAppStack, "38-standalone-build-said") into tWhy
    if tWhy is not empty then throw tWhy
    edRecord "INFO the build of" && kAppFile && "went through:" && edJoin(sReport["steps"])
    edRecord "INFO the IDE said:" && edJoin(sReport["said"]) && "and sent the stack:" && edJoin(sReport["messages"])
@@ -1702,7 +1702,7 @@ on ed_standalone_built_and_run
       if tWant is not among the lines of tReport then throw "the standalone did not report" && quote & tWant & quote & ": it reported" && edJoin(tReport)
    end repeat
    edRecord "INFO the standalone" && tExe && "reported:" && edJoin(tReport)
-   edShotStack kAppStack, "38-standalone-built-and-run"
+   edShotStack kAppStack, "39-standalone-built-and-run"
    edRemoveBuiltStack kAppStack
 end ed_standalone_built_and_run
 
@@ -2525,7 +2525,8 @@ end edBuildLeft
 -- Application... to its end, with the builder's dialogs on as a person
 -- has them (revSetTestEnvironment is off for the build alone: its
 -- progress window shows, and it says how the build ended). Returns what
--- went wrong or is not as it was before, or empty:
+-- went wrong or is not as it was before, or empty (pShot: the name of
+-- the snapshot of the dialog the build ends on):
 --   - the IDE does not keep asking (edBuildSaid)
 --   - the build goes through its steps to "Attaching engine..."
 --   - the IDE says kBuildSaved, and nothing else (an error is said in
@@ -2536,7 +2537,7 @@ end edBuildLeft
 --     and standaloneSaved with the folder after it (edAppScript passes
 --     them on to edBuildMessage), which leaves the folder in
 --     sReport["built"]
-function edFullBuild pStack
+function edFullBuild pStack, pShot
    local tPath, tBefore, tBytes, tSteps, tSaid, tMessages, tWarnings, tError, tWhy
    put the effective filename of stack pStack into tPath
    put edBuildState(pStack) into tBefore
@@ -2545,6 +2546,7 @@ function edFullBuild pStack
       put empty into sReport[tWhy]
    end repeat
    put 0 into sReport["dialogs"]
+   put pShot into sReport["sayShot"]
    edWatchBuild true
    dispatch "revSetTestEnvironment" to stack "Home" with false
    send "edBuildSaid" && (the milliseconds + 180000) to me in 300 milliseconds
@@ -2609,7 +2611,7 @@ end edFullBuild
 -- stack now). After kBuildDialogs dialogs the build is told to stop at
 -- its next step (edWatchBuild), and edFullBuild says what was asked
 on edBuildSaid pUntil
-   local tAD, tText, tNew
+   local tAD, tText, tNew, tError
    put "Answer Dialog" into tAD
    if the milliseconds > pUntil then exit edBuildSaid
    if not (there is a stack tAD and the mode of stack tAD is not 0 and the visible of stack tAD) then
@@ -2621,6 +2623,15 @@ on edBuildSaid pUntil
          if tNew and sReport["dialogs"] < 2 * kBuildDialogs then put tText & return after sReport["said"]
          put tText into sReport["lastSaid"]
          add 1 to sReport["dialogs"]
+         -- (the first thing said, under the name the task gives it and
+         -- before the click that closes it: the dialog a person ends a
+         -- build on. A snapshot that fails must not stop the answering)
+         if sReport["dialogs"] is 1 and sReport["sayShot"] is not empty then
+            try
+               edShotStack tAD, sReport["sayShot"]
+            catch tError
+            end try
+         end if
          if sReport["dialogs"] > kBuildDialogs then
             set the cEdStopBuild of stack "oxt_everyday" to "the everyday tasks stopped the build: the IDE has asked" && sReport["dialogs"] && "times"
          end if
