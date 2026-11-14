@@ -343,3 +343,115 @@ class ToolTileClickIsWatched(unittest.TestCase):
 
     def test_the_watcher_is_taken_down_after_a_failure(self):
         self.assertIn('edWatchClicks false', self.handlers['edTidyAfterFailure'])
+
+
+class StandaloneBuildStopped(unittest.TestCase):
+    """standalone-stopped-build and standalone-mc-stack-file stop a build
+    with an error at a step the builder reports (revStandaloneProgress)
+    and ask that the stack is as it was (openxtalk.org p=26321: a build
+    that stopped left the IDE's Answer and Ask dialogs in the stack). The
+    steps, the menu item and the targets are the builder's and the IDE's
+    own words: one of them reworded there would leave the task failing in
+    every build for a reason it cannot name, so the words are checked
+    here, where the difference is said."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.text = read(SCRIPT)
+        cls.handlers = handlers(cls.text)
+        cls.builder = read(os.path.join(ROOT, 'ide-support', 'revsaveasstandalone.livecodescript'))
+        cls.library = read(os.path.join(ROOT, 'ide-support', 'revsblibrary.livecodescript'))
+        cls.menubar = read(os.path.join(ROOT, 'ide', 'Toolset', 'palettes', 'menubar', 'revmenubar.livecodescript'))
+
+    @staticmethod
+    def code(text):
+        """The lines of a handler that are not comments."""
+        return '\n'.join(line for line in text.split('\n') if not line.lstrip().startswith(('--', '#', '//')))
+
+    def handler(self, kind, name):
+        m = re.search(r'^%s %s\b.*?^end %s\s*$' % (kind, name, name), self.builder, re.M | re.S)
+        self.assertIsNotNone(m, 'the builder has no %s' % name)
+        return self.code(m.group(0))
+
+    def steps(self):
+        found = []
+        for task in ('ed_standalone_stopped_build', 'ed_standalone_mc_stack_file'):
+            m = re.search(r'edStoppedBuild\(\w+, "([^"]+)"\)', self.handlers[task])
+            self.assertIsNotNone(m, '%s stops no build' % task)
+            found.append(m.group(1))
+        return found
+
+    def test_the_steps_are_ones_the_builder_reports(self):
+        for step in self.steps():
+            self.assertIn('revStandaloneProgress "%s"' % step, self.builder,
+                          'the builder reports no step "%s"' % step)
+
+    def test_the_first_stop_is_after_the_stack_is_changed_and_before_it_is_saved(self):
+        # revCopyResources: the dialogs go into the stack, then it is
+        # closed and saved into the build folder (revSaveStackFile, which
+        # reports the step first); stopped between the two the stack keeps
+        # its own file name, where a Save reaches its file
+        copy = self.handler('private command', 'revCopyResources')
+        self.assertLess(copy.index('put "answer dialog"&cr after tCopyFiles'), copy.index('close stack pStack'))
+        self.assertLess(copy.index('close stack pStack'), copy.index('revSaveStackFile(pStack'))
+        save = self.handler('private function', 'revSaveStackFile')
+        step = 'revStandaloneProgress "%s"' % self.steps()[0]
+        self.assertLess(save.index(step), save.index('revSaveToFolder('))
+
+    def test_the_second_stop_is_after_the_copy_is_saved_under_its_name(self):
+        # revStandaloneDeployWithParams saves the build's copy by the name
+        # revStandalonePreBuild gave it: a stack file whose copy has
+        # another name (.mc before the fix) does not get past that save
+        body = self.handler('command', 'revStandaloneDeployWithParams')
+        step = 'revStandaloneProgress "%s"' % self.steps()[1]
+        self.assertLess(body.index('save stack pStackFilePath'), body.index(step))
+        self.assertLess(body.index(step), body.index('_internal deploy'))
+
+    def test_the_mc_file_is_one_the_ide_opens_and_the_builder_renames(self):
+        m = re.search(r'^constant kMcFile = "[^"]*\.(\w+)"', self.text, re.M)
+        self.assertIsNotNone(m)
+        extension = m.group(1)
+        ide = read(os.path.join(ROOT, 'ide', 'Toolset', 'libraries', 'revidelibrary.8.livecodescript'))
+        # (revIDELiveCodeFileExtensions is revIDEAcceptedTypes("stack"))
+        self.assertIn('return revIDEAcceptedTypes("stack")', ide)
+        opened = re.search(r'^\s*case "stack"\n(?:\s*--[^\n]*\n)*\s*return "([^"]*)"', ide, re.M)
+        self.assertIsNotNone(opened, 'the extensions the IDE opens as stacks not found')
+        self.assertIn(extension, opened.group(1).split(','))
+        rule = self.handler('private function', 'revStandaloneSavedFileName')
+        self.assertNotIn('".%s"' % extension, rule, 'the builder keeps .%s: the task tests nothing' % extension)
+
+    def test_one_rule_names_the_builds_copy(self):
+        # the name the copy is saved under (revSaveToFolder) and the name
+        # the steps after look for (revStandalonePreBuild)
+        for kind, name in (('private on', 'revStandalonePreBuild'), ('private function', 'revSaveToFolder')):
+            body = self.handler(kind, name)
+            self.assertIn('revStandaloneSavedFileName(', body, name)
+            self.assertNotIn('revIDELiveCodeFileExtensions', body, name)
+            self.assertNotIn('".oxtstack"', body, name)
+
+    def test_the_menu_item_is_the_file_menus(self):
+        m = re.search(r'edMenu "File", "([^"]*Standalone[^"]*)"', self.text)
+        self.assertIsNotNone(m)
+        self.assertIn('enableMenuItem("%s"' % m.group(1), self.menubar)
+        picks = [p.lower() for p in re.findall(r'case "([^"]*)"', self.menubar)]
+        self.assertIn(m.group(1).lower(), picks, 'no menuPick case for it')
+
+    def test_the_targets_are_the_builders(self):
+        m = re.search(r'^constant kDesktopTargets = "([^"]*)"', self.library, re.M)
+        self.assertIsNotNone(m)
+        desktop = m.group(1).split(',')
+        body = re.search(r'^function edBuildTarget\n(.*?)^end edBuildTarget', self.text, re.M | re.S).group(1)
+        named = re.findall(r'return "([^"]+)"', body)
+        self.assertGreaterEqual(len(named), 5)
+        for target in named:
+            self.assertIn(target, desktop)
+        settings = re.search(r'repeat for each item tTarget in "([^"]*)"', self.handlers['edBuildSettings'])
+        self.assertIsNotNone(settings)
+        for target in desktop:
+            self.assertIn(target, settings.group(1).split(','), 'edBuildSettings leaves %s as the stack has it' % target)
+
+    def test_the_builder_puts_the_stack_back_before_it_aborts(self):
+        body = self.handler('command', 'revDoSaveAsStandalone')
+        catch = body.split('\n   catch tError', 1)[1]
+        self.assertIn('__PutStackBackAfterFailedBuild', catch, 'a build that stops leaves the stack as the builder changed it')
+        self.assertLess(catch.index('__PutStackBackAfterFailedBuild'), catch.index('revAbort'))
