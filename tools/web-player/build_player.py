@@ -410,6 +410,12 @@ SAMPLES = [
                     'Word of four to six letters, new every day and the same for everyone, with a '
                     'sticker book to fill. Every puzzle can be solved without a guess.',
      'tags': ['Game', 'Phones', 'Touch', 'Puzzles']},
+    {'title': 'Box2Dxt Platformer', 'source': 'stacks',
+     'files': ['Box2Dxt Platformer.oxtstack'], 'image': 'Box2Dxt Platformer.webp',
+     'description': 'Seven scrolling levels of the xTalk Suite\'s platformer on Box2D: run, double '
+                    'jump, wall jump and dash, ride lifts and rope bridges, stomp the slimes and '
+                    'collect every coin to turn the flag gold. Arrow keys or WASD, Space to jump.',
+     'tags': ['Game', 'Physics', 'Keyboard']},
     {'title': 'Tour', 'files': ['Tour.livecode'],
      'description': 'Cards, a widget, a palette window and a script error, caught and shown.',
      'tags': ['Cards', 'Widget', 'Palette']},
@@ -536,6 +542,32 @@ def check(site, samples, work):
                                    for x in out[before:]), 'opening ' + what, 60)
         page.wait_for_timeout(1500)
         return [x for x in out[before:]]
+
+    def play_platformer(page, out, before):
+        # The Box2Dxt platformer (Box2D in the web engine): it opens on its
+        # title, the dark card of its own (26,30,44), with everything it
+        # draws already in the stack (no folder asked for); SPACE builds
+        # level 1, whose sky is light, and the arrows and SPACE play it,
+        # with no script error
+        box = page.locator('#canvas').bounding_box()
+        title = png_pixel(page.screenshot(clip=box), 100, 300)
+        page.mouse.click(box['x'] + box['width'] // 2, box['y'] + box['height'] // 2)
+        page.keyboard.press('Space')
+        page.wait_for_timeout(5000)
+        page.keyboard.down('ArrowRight')
+        for _ in range(3):
+            page.keyboard.down('Space')
+            page.wait_for_timeout(400)
+            page.keyboard.up('Space')
+            page.wait_for_timeout(600)
+        page.keyboard.up('ArrowRight')
+        shot = page.screenshot(clip=box)
+        with open(os.path.join(shots, '11-platformer-level-1.png'), 'wb') as f:
+            f.write(shot)
+        sky = png_pixel(shot, 512, 120)
+        errors = [x for x in out[before:] if x.startswith('PLAYER script error')]
+        expect('platformer-plays', max(title) < 80 and min(sky) > 150 and not errors,
+               ' | '.join(errors + ['title #%02X%02X%02X' % title, 'sky #%02X%02X%02X' % sky]))
 
     def canvas_click(page, x, y):
         box = page.locator('#canvas').bounding_box()
@@ -682,6 +714,8 @@ def check(site, samples, work):
             expect(('featured-' if sample.get('featured') else 'sample-') + sample['title'].lower().replace(' ', '-'),
                    any(x.startswith('PLAYER opened') for x in got) and not errors, ' | '.join(errors or got[-2:]))
             third.screenshot(path=os.path.join(shots, '11-featured-%d.png' % (n + 1)))
+            if sample['title'] == 'Box2Dxt Platformer':
+                play_platformer(third, third_lines, before)
             third.click('#home')
             wait_for(third, lambda: any(x.startswith('PLAYER library') for x in third_lines[before:]), 'going home', 15)
 

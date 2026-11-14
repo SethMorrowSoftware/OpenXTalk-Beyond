@@ -1,0 +1,61 @@
+{
+ "repository": "SethMorrowSoftware/xtalk-suite",
+ "commit": "0baec691c4dd98c51f155219f3d23b765c648d4c",
+ "files": [
+  {
+   "path": "box2dxt/examples/box2dxt-platformer.livecodescript",
+   "size": 762896,
+   "sha256": "5f6f554e71b3ed366e7244beb017d7ceb2a7660b2ecdb08243deece6b5b8966b"
+  },
+  {
+   "path": "box2dxt/Spritesheets/spritesheet-characters-default.png",
+   "size": 69705,
+   "sha256": "f3d060ab294c262d51a8033074d1cd799506b7c536c941b4109ec35def178d3e"
+  },
+  {
+   "path": "box2dxt/Spritesheets/spritesheet-characters-default.xml",
+   "size": 3889,
+   "sha256": "e7817c1d6777b27dbb807d73159cc4642d11725359b59e618d94616ca05ee556"
+  },
+  {
+   "path": "box2dxt/Spritesheets/spritesheet-enemies-default.png",
+   "size": 36282,
+   "sha256": "2cab7bcb106db10c7ce261609ce5be9db80373920f8851e0a11bcd364e43f23e"
+  },
+  {
+   "path": "box2dxt/Spritesheets/spritesheet-enemies-default.xml",
+   "size": 4556,
+   "sha256": "f35438c82398dddf3e6e1d6f31b06228f38e7444c404e7167bcbf5aea90b1ed2"
+  },
+  {
+   "path": "box2dxt/Spritesheets/spritesheet-tiles-default.png",
+   "size": 111650,
+   "sha256": "877e68a345fc8e668c913bb5798e98ecf0bc2784aa899bfb409769bf1feb50d7"
+  },
+  {
+   "path": "box2dxt/Spritesheets/spritesheet-tiles-default.xml",
+   "size": 25807,
+   "sha256": "8b662821c3c06c108f0fbe751b11b889bcb43e1e01b1efd1a7d7f17954a63ebd"
+  },
+  {
+   "path": "box2dxt/Spritesheets/spritesheet-backgrounds-default.png",
+   "size": 20096,
+   "sha256": "ac8b1d9869a4e6eebdcd339af53e6f4be0a9b499242418d632bdeda85c3a9cae"
+  },
+  {
+   "path": "box2dxt/Spritesheets/spritesheet-backgrounds-default.xml",
+   "size": 1264,
+   "sha256": "2597d4c803a99e52f697117256c6a59dc613a1ccfda962d6f4f0a551b4529b64"
+  },
+  {
+   "path": "box2dxt/Spritesheets/enemies.png",
+   "size": 47689,
+   "sha256": "b4bcef69498a1a4def6b40fb4d5386ac6d3cae2c6b31358e000c2b53bbae6394"
+  },
+  {
+   "path": "box2dxt/Spritesheets/enemies.xml",
+   "size": 7638,
+   "sha256": "411720e0db78d885e4e2bfffcce9adcb2a5239b535fd6da6247f369553eb5cb2"
+  }
+ ]
+}

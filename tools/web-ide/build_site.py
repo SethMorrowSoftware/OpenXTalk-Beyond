@@ -124,9 +124,10 @@ LEAVE_OUT = (
     'Toolset/resources/supporting_files/themes/com.livecode.theme.linux.tar.xz',
 )
 # The Stack Player's stacks that Learn's gallery leaves out (the player's
-# own course and its tour, which are Home's Academy and Home's tour):
+# own course and its tour, which are Home's Academy and Home's tour, and
+# the xTalk Suite's Box2Dxt platformer, which the player has for itself):
 # the same as tools/oxt/package.py SHOWCASE_LEFT_OUT, which a test holds
-SHOWCASE_LEFT_OUT = ('Learn xTalk.oxtstack', 'OXT-Beyond on the Web.oxtstack')
+SHOWCASE_LEFT_OUT = ('Learn xTalk.oxtstack', 'OXT-Beyond on the Web.oxtstack', 'Box2Dxt Platformer.oxtstack')
 # Files left out by name pattern (paths relative to the layout): the
 # Script Editor's font, Source Code Pro, whose files the web engine cannot
 # load ("can't load font file", every one of them, in the web IDE of
