@@ -39,7 +39,7 @@ script "oxt_everyday"
 -- <name> ok | FAILED <why>, DONE). OXT_TOUR_ONLY names tasks; the tasks
 -- before a named one that it needs (the stack, its controls) run too.
 
-constant kTasks = "start,new-stack,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,standalone-stopped-build,standalone-mc-stack-file,standalone-built-and-run,finish"
+constant kTasks = "start,new-stack,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,standalone-stopped-build,standalone-mc-stack-file,standalone-built-and-run,standalone-engine-missing,finish"
 -- (the names the tasks give what they make)
 constant kStack = "Everyday Stack"
 constant kFile = "everyday.oxtstack"
@@ -57,6 +57,9 @@ constant kBuildSaved = "Standalone application saved successfully."
 -- more dialogs than a build has to say (it has that one): at the next
 -- one the build is stopped (edBuildSaid)
 constant kBuildDialogs = 4
+-- the builder's word when the engine it attaches is not there: the first
+-- line of its dialog (the file it looked for is the second)
+constant kBuildNoEngine = "Ensure that you have not renamed the main OXT-Beyond executable file:"
 
 local sOut, sLog, sOnly, sStarted, sWatchdog, sWatchdogCount
 local sWork, sStack, sInput, sSaved, sDebug, sReport, sKeep, sSkip
@@ -1712,6 +1715,33 @@ on ed_standalone_built_and_run
    edRemoveBuiltStack kAppStack
 end ed_standalone_built_and_run
 
+-- File > Save as Standalone Application... when the builder cannot
+-- build: what it tells a person. The engine it attaches is looked for
+-- where there is none (revSetOverrideRuntimePath, the IDE's own way to
+-- build with another engine), so the builder stops on its own error,
+-- with its dialogs on (edRefusedBuild). Its dialog says the builder's
+-- sentence from its first word, "Ensure that you have not renamed the
+-- main OXT-Beyond executable file:", and the file it looked for: up to
+-- 0.2.8-dp.1 the dialog began at "that you have not renamed". And the
+-- stack and its file are as they were, as after any build that stops
+on ed_standalone_engine_missing
+   local tWhy, tEngine
+   put edBuildSkip() into sSkip
+   if sSkip is not empty then return "skipped"
+   if edDialogCopies() is not empty then throw "a build before this one left in memory:" && edDialogCopies() & "; no build is tried over it"
+   edFront
+   edBuildSettings sStack, "Everyday"
+   edSaveForBuild sStack
+   put sWork & "/no-such-engine/Standalone" into tEngine
+   if there is a file tEngine then throw "there is a file" && tEngine & ": the build would not be refused"
+   put edRefusedBuild(sStack, tEngine, "40-standalone-build-refused") into tWhy
+   if tWhy is not empty then throw tWhy
+   edRecord "INFO the build with no engine at" && tEngine && "went through:" && edJoin(sReport["steps"])
+   edRecord "INFO the IDE said:" && edJoin(sReport["said"])
+   edFront
+   edShotStack sStack, "41-standalone-engine-missing"
+end ed_standalone_engine_missing
+
 -- the stack closed and deleted from memory; what was changed set back
 on ed_finish
    local tError
@@ -1728,6 +1758,7 @@ on ed_finish
    edRemoveBuiltStack kAppStack
    edStopBuildAt empty
    dispatch "revSetTestEnvironment" to stack "Home" with true
+   dispatch "revSetOverrideRuntimePath" to stack "Home" with empty
    if sSaved["systemFileSelector"] is not empty then set the systemFileSelector to sSaved["systemFileSelector"]
    if sSaved["typingRate"] is not empty then set the typingRate to sSaved["typingRate"]
    edToolFilter empty
@@ -2535,12 +2566,36 @@ function edBuildLeft pStack, pBefore, pBytes, pBuild
    return empty
 end edBuildLeft
 
--- pStack, in front and saved, built with File > Save as Standalone
--- Application... to its end, with the builder's dialogs on as a person
--- has them (revSetTestEnvironment is off for the build alone: its
--- progress window shows, and it says how the build ended). Returns what
--- went wrong or is not as it was before, or empty (pShot: the name of
--- the snapshot of the dialog the build ends on):
+-- The stack in front, built with File > Save as Standalone
+-- Application... with the builder's dialogs on as a person has them
+-- (revSetTestEnvironment is off for the build alone: its progress window
+-- shows, and it says how the build ended). What the build went through,
+-- what the IDE said and what the stack was sent are left in sReport
+-- (edWatchBuild, edBuildSaid, edBuildMessage). pShot: the name of the
+-- snapshot of the first dialog the build shows
+command edBuildWithDialogs pShot
+   local tKey
+   repeat for each item tKey in "steps,answer,said,lastSaid,answered,messages,built"
+      put empty into sReport[tKey]
+   end repeat
+   put 0 into sReport["dialogs"]
+   put pShot into sReport["sayShot"]
+   edWatchBuild true
+   dispatch "revSetTestEnvironment" to stack "Home" with false
+   send "edBuildSaid" && (the milliseconds + 180000) to me in 300 milliseconds
+   try
+      edMenu "File", "Save as Standalone Application..."
+   finally
+      dispatch "revSetTestEnvironment" to stack "Home" with true
+      edWatchBuild false
+      edCancelPending "edBuildSaid,edAnswerWith"
+   end try
+end edBuildWithDialogs
+
+-- pStack, in front and saved, built to its end with the builder's
+-- dialogs on (edBuildWithDialogs). Returns what went wrong or is not as
+-- it was before, or empty (pShot: the name of the snapshot of the dialog
+-- the build ends on):
 --   - the IDE does not keep asking (edBuildSaid)
 --   - the build goes through its steps to "Attaching engine..."
 --   - the IDE says kBuildSaved, and nothing else (an error is said in
@@ -2556,21 +2611,7 @@ function edFullBuild pStack, pShot
    put the effective filename of stack pStack into tPath
    put edBuildState(pStack) into tBefore
    put URL ("binfile:" & tPath) into tBytes
-   repeat for each item tWhy in "steps,answer,said,lastSaid,answered,messages,built"
-      put empty into sReport[tWhy]
-   end repeat
-   put 0 into sReport["dialogs"]
-   put pShot into sReport["sayShot"]
-   edWatchBuild true
-   dispatch "revSetTestEnvironment" to stack "Home" with false
-   send "edBuildSaid" && (the milliseconds + 180000) to me in 300 milliseconds
-   try
-      edMenu "File", "Save as Standalone Application..."
-   finally
-      dispatch "revSetTestEnvironment" to stack "Home" with true
-      edWatchBuild false
-      edCancelPending "edBuildSaid,edAnswerWith"
-   end try
+   edBuildWithDialogs pShot
    put sReport["steps"] into tSteps
    put sReport["said"] into tSaid
    put sReport["messages"] into tMessages
@@ -2606,6 +2647,53 @@ function edFullBuild pStack, pShot
    if sReport["built"] is empty or there is not a folder sReport["built"] then return "standaloneSaved named no folder that is there:" && quote & sReport["built"] & quote
    return empty
 end edFullBuild
+
+-- pStack, in front and saved, built with the builder's dialogs on
+-- (edBuildWithDialogs) while the engine it attaches is looked for at
+-- pEngine, where there is none: the builder's own way to be given
+-- another engine (revSetOverrideRuntimePath of stack "Home"), for the
+-- build alone. Returns what is not as it should be, or empty (pShot: the
+-- name of the snapshot of the dialog the build stops on):
+--   - the IDE does not keep asking (edBuildSaid)
+--   - the build does not go on to "Attaching engine..."
+--   - the IDE says kBuildNoEngine from its first word, then the file it
+--     looked for, and nothing else
+--   - the builder's progress window is gone
+--   - the stack and its file are as they were (edBuildLeft)
+function edRefusedBuild pStack, pEngine, pShot
+   local tPath, tBefore, tBytes, tSteps, tSaid
+   put the effective filename of stack pStack into tPath
+   put edBuildState(pStack) into tBefore
+   put URL ("binfile:" & tPath) into tBytes
+   dispatch "revSetOverrideRuntimePath" to stack "Home" with pEngine
+   try
+      edBuildWithDialogs pShot
+   finally
+      dispatch "revSetOverrideRuntimePath" to stack "Home" with empty
+   end try
+   put sReport["steps"] into tSteps
+   put sReport["said"] into tSaid
+   set the caseSensitive to true
+   if sReport["dialogs"] > kBuildDialogs then
+      return "the IDE kept asking during the build that had no engine (" & sReport["dialogs"] && "dialogs, and the build was stopped): it said" && quote & edJoin(tSaid) & quote && "after the steps" && quote & edJoin(tSteps) & quote
+   end if
+   if "Attaching engine..." is among the lines of tSteps then
+      return "the build went on to" && quote & "Attaching engine..." & quote && "with no engine at" && pEngine & ": it reported" && quote & edJoin(tSteps) & quote && "and the IDE said" && quote & edJoin(tSaid) & quote
+   end if
+   if tSaid is empty then
+      return "the IDE said nothing when the build had no engine at" && pEngine & ": the build reported" && quote & edJoin(tSteps) & quote
+   end if
+   -- (the builder's sentence whole, as it throws it: its first word too)
+   if word 1 to -1 of line 1 of tSaid is not kBuildNoEngine then
+      return "the IDE did not say" && quote & kBuildNoEngine & quote && "when the build had no engine: it said" && quote & edJoin(tSaid) & quote
+   end if
+   if word 1 to -1 of line 2 of tSaid is not pEngine then
+      return "the IDE did not name the file the builder looked for," && pEngine & ": it said" && quote & edJoin(tSaid) & quote
+   end if
+   if the number of lines of tSaid > 2 then return "the IDE said more than that the engine is not there:" && edJoin(tSaid)
+   if edOpen("revStandaloneProgress") then return "the builder's progress window is still open after the build that had no engine"
+   return edBuildLeft(pStack, tBefore, tBytes, "the build that had no engine")
+end edRefusedBuild
 
 -- What the IDE says while a build runs with the builder's dialogs on (at
 -- its end "Standalone application saved successfully.", or its error):

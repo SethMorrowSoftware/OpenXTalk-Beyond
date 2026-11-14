@@ -475,13 +475,9 @@ class StandaloneBuildStopped(unittest.TestCase):
         self.assertLess(catch.index('__PutStackBackAfterFailedBuild'), catch.index('revAbort'))
 
 
-class StandaloneBuiltAndRun(unittest.TestCase):
-    """standalone-built-and-run builds a stack from the File menu to the
-    end, with the builder's dialogs on, and runs the standalone, which
-    writes what it finds itself to be and quits. What the task waits for
-    is the builder's own: its last word, the two messages it sends a
-    stack, its last step and where it puts the standalone. And the stack
-    the task makes carries a quit, which must be the standalone's alone."""
+class BuildTasks:
+    """What the tasks that build a standalone with the builder's dialogs
+    on are read from: the script, its handlers, and the builder."""
 
     @classmethod
     def setUpClass(cls):
@@ -498,6 +494,15 @@ class StandaloneBuiltAndRun(unittest.TestCase):
         m = re.search(r'^constant %s = "([^"]*)"' % name, self.text, re.M)
         self.assertIsNotNone(m, 'no constant %s' % name)
         return m.group(1)
+
+
+class StandaloneBuiltAndRun(BuildTasks, unittest.TestCase):
+    """standalone-built-and-run builds a stack from the File menu to the
+    end, with the builder's dialogs on, and runs the standalone, which
+    writes what it finds itself to be and quits. What the task waits for
+    is the builder's own: its last word, the two messages it sends a
+    stack, its last step and where it puts the standalone. And the stack
+    the task makes carries a quit, which must be the standalone's alone."""
 
     def app_script(self):
         """The stack script edAppScript puts together, as the engine gets
@@ -516,8 +521,10 @@ class StandaloneBuiltAndRun(unittest.TestCase):
         # (no stop in it: the build of this task goes to its end)
         self.assertNotIn('edStoppedBuild', body)
         full = self.function('edFullBuild')
-        self.assertIn('edWatchBuild true\n', full)
-        self.assertNotIn('edStopBuildAt', full)
+        build = self.handlers['edBuildWithDialogs']
+        self.assertIn('edBuildWithDialogs pShot\n', full)
+        self.assertIn('edWatchBuild true\n', build)
+        self.assertNotIn('edStopBuildAt', full + build)
 
     def test_the_last_word_is_the_builders(self):
         said = self.constant('kBuildSaved')
@@ -573,7 +580,7 @@ class StandaloneBuiltAndRun(unittest.TestCase):
         self.assertLess(body.index('set the cEverydayRan of stack kAppStack'), body.index('edSaveForBuild kAppStack'))
 
     def test_the_builders_dialogs_are_on_for_the_build_alone(self):
-        full = self.function('edFullBuild')
+        full = self.handlers['edBuildWithDialogs']
         off = 'dispatch "revSetTestEnvironment" to stack "Home" with false'
         on = 'dispatch "revSetTestEnvironment" to stack "Home" with true'
         self.assertLess(full.index(off), full.index('edMenu "File"'))
@@ -627,8 +634,8 @@ class StandaloneBuiltAndRun(unittest.TestCase):
         self.assertIn('set the cEdStopBuild of stack "oxt_everyday" to empty', watch)
         self.assertIn('is not empty then throw the cEdStopBuild of stack', watch)
         self.assertLess(watch.index('is not empty then throw the cEdStopBuild of stack'), watch.index('pass revStandaloneProgress'))
+        self.assertIn('put 0 into sReport["dialogs"]', self.handlers['edBuildWithDialogs'])
         full = self.function('edFullBuild')
-        self.assertIn('put 0 into sReport["dialogs"]', full)
         self.assertLess(full.index('if sReport["dialogs"] > kBuildDialogs then'), full.index('is not among the lines of tSteps'))
 
     def test_the_stacks_the_tasks_made_are_taken_away(self):
@@ -668,7 +675,7 @@ class StandaloneBuiltAndRun(unittest.TestCase):
         own = re.search(r'edShotStack kAppStack, "(\d\d-[a-z-]+)"', body)
         self.assertIsNotNone(own)
         self.assertLess(m.group(1), own.group(1), 'the dialog comes before the stack in the pictures')
-        self.assertIn('put pShot into sReport["sayShot"]', self.function('edFullBuild'))
+        self.assertIn('put pShot into sReport["sayShot"]', self.handlers['edBuildWithDialogs'])
         said = self.handlers['edBuildSaid']
         shot = 'edShotStack tAD, sReport["sayShot"]'
         self.assertIn(shot, said)
@@ -677,6 +684,108 @@ class StandaloneBuiltAndRun(unittest.TestCase):
         # (the first dialog alone, and a snapshot that fails does not
         # stop the answering: an unanswered dialog holds the build)
         self.assertRegex(said, r'if sReport\["dialogs"\] is 1 and sReport\["sayShot"\] is not empty then\s+try\s+%s\s+catch tError\s+end try' % re.escape(shot))
+
+    def test_no_two_snapshots_share_a_name(self):
+        # (the second would take the place of the first in the pictures)
+        names = re.findall(r'"(\d\d-[a-z0-9-]+)"', self.text)
+        self.assertGreater(len(names), 40)
+        twice = sorted(set(name for name in names if names.count(name) > 1))
+        self.assertEqual(twice, [], 'snapshots named twice')
+
+
+class StandaloneEngineMissing(BuildTasks, unittest.TestCase):
+    """standalone-engine-missing has the builder refuse a build, with its
+    dialogs on, and reads what it tells a person. Up to 0.2.8-dp.1 the
+    dialog had lost the first word of the builder's sentence: the builder
+    took "Standalone:" off its error, and then a word more off what it
+    showed. What the task waits for is the sentence the builder throws,
+    and the engine is taken away the builder's own way, for the build
+    alone."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.home = read(os.path.join(ROOT, 'ide', 'Toolset', 'home.livecodescript'))
+
+    def test_the_builder_says_its_whole_error(self):
+        do = re.search(r'^command revDoSaveAsStandalone\b.*?^end revDoSaveAsStandalone', self.builder, re.M | re.S)
+        self.assertIsNotNone(do)
+        caught = do.group(0).split('catch tError', 1)[1]
+        strip = 'put word 2 to -1 of tError into tError'
+        self.assertEqual(caught.count(strip), 1)
+        after = caught.split(strip, 1)[1]
+        # (what it shows is what is left of the error: all of it)
+        self.assertRegex(after, r'^\s*if not revSBSuppressDialogs\(\) then\n(?:\s*--[^\n]*\n)*\s*answer error tError\n\s*end if\n')
+        self.assertNotIn('answer error word 2 to -1 of tError', self.builder)
+        # (and what a script gets back is that same text, as before)
+        self.assertIn('return tError', after)
+
+    def test_the_sentence_is_the_builders(self):
+        said = self.constant('kBuildNoEngine')
+        throws = re.findall(r'throw "Standalone: ([^"]*)" \\\n\s*& return & tEngineSourceFile', self.builder)
+        self.assertEqual(len(throws), 3, 'the Mac, the Windows and the Linux builder each say it')
+        for thrown in throws:
+            self.assertEqual(thrown.strip(), said)
+        refused = self.function('edRefusedBuild')
+        self.assertIn('if word 1 to -1 of line 1 of tSaid is not kBuildNoEngine then', refused)
+        # (and the file it looked for, on the line after)
+        self.assertIn('if word 1 to -1 of line 2 of tSaid is not pEngine then', refused)
+        self.assertIn('if the number of lines of tSaid > 2 then return', refused)
+
+    def test_the_engine_is_taken_away_the_builders_own_way(self):
+        checks = list(re.finditer(r'if there is not a file tEngineSourceFile then\n\s*throw "Standalone:', self.builder))
+        self.assertEqual(len(checks), 3)
+        for check in checks:
+            self.assertIn('put revOverrideRuntimePath() into tEngineSourceFile', self.builder[check.start() - 300:check.start()])
+        self.assertRegex(self.home, r'(?m)^\s*command revSetOverrideRuntimePath pPath$')
+        self.assertRegex(self.home, r'(?m)^\s*function revOverrideRuntimePath$')
+        refused = self.function('edRefusedBuild')
+        self.assertIn('dispatch "revSetOverrideRuntimePath" to stack "Home" with pEngine', refused)
+        # (a file there would be attached as the engine)
+        body = self.handlers['ed_standalone_engine_missing']
+        self.assertIn('if there is a file tEngine then throw', body)
+        self.assertLess(body.index('if there is a file tEngine then throw'), body.index('edRefusedBuild('))
+
+    def test_the_engine_is_away_for_the_build_alone(self):
+        # (left set, every later build of the IDE would be refused)
+        refused = self.function('edRefusedBuild')
+        away = 'dispatch "revSetOverrideRuntimePath" to stack "Home" with pEngine'
+        back = 'dispatch "revSetOverrideRuntimePath" to stack "Home" with empty'
+        self.assertLess(refused.index(away), refused.index('edBuildWithDialogs pShot'))
+        after = refused.split('edBuildWithDialogs pShot', 1)[1]
+        self.assertLess(after.index('finally'), after.index(back), 'the engine must be back whatever the build did')
+        self.assertLess(after.index(back), after.index('end try'))
+        self.assertIn(back, self.handlers['ed_finish'])
+
+    def test_the_build_is_the_file_menus_with_the_dialogs_on(self):
+        refused = self.function('edRefusedBuild')
+        self.assertIn('edBuildWithDialogs pShot\n', refused)
+        build = self.handlers['edBuildWithDialogs']
+        self.assertIn('edMenu "File", "Save as Standalone Application..."', build)
+        self.assertIn('dispatch "revSetTestEnvironment" to stack "Home" with false', build)
+
+    def test_a_refused_build_leaves_the_ide_as_it_was(self):
+        refused = self.function('edRefusedBuild')
+        self.assertLess(refused.index('put edBuildState(pStack) into tBefore'), refused.index('edBuildWithDialogs pShot'))
+        self.assertLess(refused.index('put URL ("binfile:" & tPath) into tBytes'), refused.index('edBuildWithDialogs pShot'))
+        self.assertIn('if "Attaching engine..." is among the lines of tSteps then', refused)
+        self.assertIn('if sReport["dialogs"] > kBuildDialogs then', refused)
+        self.assertIn('if edOpen("revStandaloneProgress") then return', refused)
+        self.assertIn('return edBuildLeft(pStack, tBefore, tBytes, ', refused)
+
+    def test_no_build_over_a_stack_a_build_left_broken(self):
+        body = self.handlers['ed_standalone_engine_missing']
+        guard = 'if edDialogCopies() is not empty then throw'
+        self.assertIn(guard, body)
+        self.assertLess(body.index(guard), body.index('edBuildSettings'))
+
+    def test_the_dialog_is_in_the_pictures(self):
+        body = self.handlers['ed_standalone_engine_missing']
+        m = re.search(r'edRefusedBuild\(sStack, tEngine, "(\d\d-[a-z-]+)"\)', body)
+        self.assertIsNotNone(m, 'the task names no snapshot for the dialog its build stops on')
+        own = re.search(r'edShotStack sStack, "(\d\d-[a-z-]+)"', body)
+        self.assertIsNotNone(own)
+        self.assertLess(m.group(1), own.group(1), 'the dialog comes before the stack in the pictures')
 
 
 if __name__ == '__main__':
