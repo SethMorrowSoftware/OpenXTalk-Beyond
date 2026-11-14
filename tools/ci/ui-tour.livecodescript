@@ -7539,6 +7539,7 @@ on tour_standalone_settings
          put tourAndroidAppBundle(tStack) after tFails
          put tourAndroidEngine(tStack) after tFails
          put tourAndroidEdgeToEdge(tStack) after tFails
+         put tourAndroidTargetAPI(tStack) after tFails
       end if
       -- the Web card makes its page's settings when it first opens: the
       -- HTML5 option and those settings are there
@@ -8069,6 +8070,100 @@ private function tourAndroidEdgeToEdge pStack
    dispatch "updateSettings" to tCard
    return tFails
 end tourAndroidEdgeToEdge
+
+-- The Android card's "Target" menu ("Target Android Version",
+-- tools/oxt/ide-stack-patches/android-card-target-api-1.txt): where it is
+-- (on the minimum Android version's row, after it, inside the window), what
+-- it lists (Default and an API from the builder's first target to its
+-- newest), what it shows for the stack's "android,target sdk" setting, and
+-- what a pick stores (empty for Default, else the API), changing nothing
+-- else of the stack's settings
+private function tourAndroidTargetAPI pStack
+   local tCard, tMenu, tRequirements, tMinimum, tWas, tFails, tMiddle, tFirst, tNewest, tExpected, tKey, tMinimumWas
+   put the long id of card "Android" of stack pStack into tCard
+   if there is not a group "Requirements and Restrictions" of group "Android Settings" of tCard then
+      return "the Android card has no Requirements and Restrictions" & return
+   end if
+   put the long id of group "Requirements and Restrictions" of group "Android Settings" of tCard into tRequirements
+   if there is not a button "Target Android Version" of tRequirements then
+      return "the Android card has no Target menu" & return
+   end if
+   put the long id of button "Target Android Version" of tRequirements into tMenu
+   put the long id of button "Minimum Android Version" of tRequirements into tMinimum
+   tourRecord "INFO standalone settings: the Target menu" && the rect of tMenu && "label" && the label of tMenu && \
+         "items" && the number of lines of the text of tMenu && "needs" && the formattedWidth of tMenu && \
+         "label field" && the rect of field "Target Android Version Label" of tRequirements && \
+         "minimum" && the rect of tMinimum
+   if the style of tMenu is not "menu" or the menuMode of tMenu is not "option" or not the visible of tMenu then
+      put "the Target menu is not an option menu that shows:" && the style of tMenu && the menuMode of tMenu && \
+            the visible of tMenu & return after tFails
+   end if
+   -- after the minimum version's menu, on its row, inside the window
+   put (item 2 of the rect of tMenu + item 4 of the rect of tMenu) / 2 into tMiddle
+   if item 1 of the rect of tMenu < item 3 of the rect of tMinimum or \
+         tMiddle < item 2 of the rect of tMinimum or tMiddle > item 4 of the rect of tMinimum then
+      put "the Target menu is not after the minimum version's menu on its row:" && the rect of tMenu && \
+            "beside" && the rect of tMinimum & return after tFails
+   end if
+   if item 3 of the rect of tMenu > the width of stack pStack then
+      put "the Target menu ends past the window:" && the rect of tMenu && "in a window" && \
+            the width of stack pStack && "wide" & return after tFails
+   end if
+   -- Default and each API the builder can target
+   dispatch function "deployTargetSdkVersion" to stack "revDeployLibraryAndroid"
+   put the result into tFirst
+   dispatch function "deployNewestTargetSdkVersion" to stack "revDeployLibraryAndroid"
+   put the result into tNewest
+   put "Default" into tExpected
+   repeat with tKey = tFirst to tNewest
+      put return & "API" && tKey after tExpected
+   end repeat
+   put the customProperties["cRevStandaloneSettings"] of stack kSample into tWas
+   set the cRevStandaloneSettings["android,target sdk"] of stack kSample to empty
+   dispatch "updateSettings" to tCard
+   if the text of tMenu is not tExpected then
+      put "the Target menu lists" && quote & the text of tMenu & quote && "not" && quote & tExpected & quote & return after tFails
+   end if
+   if the label of tMenu is not "Default" then
+      put "the Target menu shows" && the label of tMenu && "for a stack without the setting" & return after tFails
+   end if
+   -- showing the setting stores nothing (menuHistory sends menuPick)
+   if the cRevStandaloneSettings["android,target sdk"] of stack kSample is not empty then
+      put "showing the Target menu stored" && quote & the cRevStandaloneSettings["android,target sdk"] of stack kSample & \
+            quote & return after tFails
+   end if
+   set the cRevStandaloneSettings["android,target sdk"] of stack kSample to tFirst
+   dispatch "updateSettings" to tCard
+   if the label of tMenu is not ("API" && tFirst) then
+      put "the Target menu shows" && the label of tMenu && "for a stack pinned to" && tFirst & return after tFails
+   end if
+   -- a pin outside the range, which only a script sets, is shown, not hidden
+   set the cRevStandaloneSettings["android,target sdk"] of stack kSample to 20
+   dispatch "updateSettings" to tCard
+   if the label of tMenu is not "API 20" then
+      put "the Target menu shows" && the label of tMenu && "for a stack pinned to 20" & return after tFails
+   end if
+   -- a pick stores it (and nothing else: the card's update may store the
+   -- minimum version, as it always has, so what it is now is compared)
+   put the cRevStandaloneSettings["android,minimum version"] of stack kSample into tMinimumWas
+   dispatch "menuPick" to tMenu with "API" && tNewest
+   if the cRevStandaloneSettings["android,target sdk"] of stack kSample is not tNewest then
+      put "picking API" && tNewest && "stored" && quote & the cRevStandaloneSettings["android,target sdk"] of stack kSample & \
+            quote & return after tFails
+   end if
+   dispatch "menuPick" to tMenu with "Default"
+   if the cRevStandaloneSettings["android,target sdk"] of stack kSample is not empty then
+      put "picking Default stored" && quote & the cRevStandaloneSettings["android,target sdk"] of stack kSample & \
+            quote & return after tFails
+   end if
+   if the cRevStandaloneSettings["android,minimum version"] of stack kSample is not tMinimumWas then
+      put "the Target menu changed the minimum version from" && quote & tMinimumWas & quote && \
+            "to" && quote & the cRevStandaloneSettings["android,minimum version"] of stack kSample & quote & return after tFails
+   end if
+   set the customProperties["cRevStandaloneSettings"] of stack kSample to tWas
+   dispatch "updateSettings" to tCard
+   return tFails
+end tourAndroidTargetAPI
 
 -- "enabled" or "disabled"
 private function tourEnabledWord pEnabled

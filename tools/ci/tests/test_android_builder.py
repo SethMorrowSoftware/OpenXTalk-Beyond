@@ -1213,6 +1213,166 @@ class TargetAPI(unittest.TestCase):
             self.assertIn(case, target)
 
 
+class TargetAPIMenu(unittest.TestCase):
+    """The Android card's "Target" menu, made by the IDE stack patches
+    android-card-target-api-*.txt (a copy of the "Minimum Android Version"
+    menu, with a script of its own, and a copy of its label, on the minimum
+    version's row, which makes room for them; the groups around it grown to
+    hold it) and filled by the card's behaviour (updateTargetAPIMenu). A
+    pick stores the stack's "android,target sdk" setting, which the builder
+    reads (androidTargetAPI, TargetAPI above): empty for "Default", else the
+    API. The UI tour picks in it in the IDE (tourAndroidTargetAPI); the patch
+    tool checks the stack (tools/oxt/ide-stack-patch.sh --check)."""
+
+    REQUIREMENTS = 'of group "Requirements and Restrictions" of group "Android Settings" of card "Android"'
+
+    @staticmethod
+    def rect(name, prop='rect'):
+        lines = patch_lines(name)
+        at = len(lines) - 1 - lines[::-1].index('property: ' + prop)
+        return [int(x) for x in lines[at + 1].split(':', 1)[1].split(',')]
+
+    def test_the_menu_is_a_copy_of_the_minimum_versions_menu(self):
+        lines = patch_lines('android-card-target-api-1.txt')
+        self.assertIn('object: button "Minimum Android Version" ' + self.REQUIREMENTS, lines)
+        self.assertIn('clone: Target Android Version', lines)
+        self.assertEqual(lines[lines.index('property: text') + 1], 'to: Default\\nAPI 33\\nAPI 34\\nAPI 35\\nAPI 36')
+        self.assertEqual(lines[lines.index('property: label') + 1], 'to: Default')
+        tip = lines[lines.index('property: toolTip') + 1]
+        for words in ('Android API the app targets', 'Default', 'Google Play'):
+            self.assertIn(words, tip)
+        label = patch_lines('android-card-target-api-3.txt')
+        self.assertIn('object: field "Minimum Android Version Label" ' + self.REQUIREMENTS, label)
+        self.assertIn('clone: Target Android Version Label', label)
+        self.assertEqual(label[label.index('property: htmlText') + 1], 'to: <p>Target</p>')
+        # unique ids of their own, as the IDE gives new objects
+        ids = {}
+        for name in os.listdir(os.path.join(REPO, *PATCHES)):
+            if name.endswith('.txt'):
+                for line in patch_lines(name):
+                    if line.startswith('unique-id:'):
+                        ids.setdefault(line, []).append(name)
+        for name in ('android-card-target-api-1.txt', 'android-card-target-api-3.txt'):
+            unique = [line for line in patch_lines(name) if line.startswith('unique-id:')]
+            self.assertEqual(len(unique), 1)
+            self.assertRegex(unique[0], r'^unique-id: \d{13}$')
+            self.assertEqual(ids[unique[0]], [name])
+
+    def test_the_row_holds_both_menus_inside_the_window(self):
+        lines = patch_lines('android-card-target-api-4.txt')
+        at = lines.index('object: field "Minimum Android Version Label" ' + self.REQUIREMENTS)
+        self.assertEqual(lines[at + 4:at + 6], ['property: rect', 'from: 390,138,566,159'])
+        minimum_label = [int(x) for x in lines[at + 6][len('to:'):].split(',')]
+        at = lines.index('object: button "Minimum Android Version" ' + self.REQUIREMENTS)
+        minimum = [int(x) for x in lines[at + 3][len('to:'):].split(',')]
+        self.assertEqual(lines[at + 1:at + 3], ['property: rect', 'from: 564,139,714,161'])
+        at = lines.index('object: field "Minimum Android Version Label" ' + self.REQUIREMENTS)
+        self.assertEqual(lines[at + 1:at + 3], ['property: htmlText', 'from: <p>Minimum Android Version</p>'])
+        self.assertEqual(lines[at + 3], 'to: <p>Minimum</p>')
+        label = self.rect('android-card-target-api-3.txt')
+        menu = self.rect('android-card-target-api-1.txt')
+        # left to right, each after the one before, on the minimum version's
+        # row (139 to 161), the minimum version's menu as wide as before
+        # (150, for "6.0 - Marshmallow")
+        row = [minimum_label, minimum, label, menu]
+        for before, after in zip(row, row[1:]):
+            self.assertLess(before[2], after[0])
+        for r in row:
+            self.assertLessEqual(138, (r[1] + r[3]) / 2)
+            self.assertLessEqual((r[1] + r[3]) / 2, 161)
+        self.assertEqual(minimum[2] - minimum[0], 150)
+        self.assertEqual((menu[1], menu[3]), (139, 161))
+        # 90 wide, so that "Default" clears the arrow (it needs 70 in Linux's
+        # DejaVu Sans, the UI tour's measure), and inside the window (754)
+        self.assertGreaterEqual(menu[2] - menu[0], 90)
+        self.assertLessEqual(menu[2], 754 - 8)
+        # the groups grow to hold it, 4 pixels past it each
+        groups = patch_lines('android-card-target-api-5.txt')
+        at = groups.index('object: group "Requirements and Restrictions" of group "Android Settings" of card "Android"')
+        self.assertEqual(groups[at + 2:at + 4], ['from: 378,103,718,503', 'to: 378,103,%d,503' % (menu[2] + 4)])
+        # "Android Settings" in the patch that grew it before
+        # (android-card-post-notifications-2.txt): one patch per property
+        self.assertNotIn('object: group "Android Settings" of card "Android"', groups)
+        grown = patch_lines('android-card-post-notifications-2.txt')
+        at = grown.index('object: group "Android Settings" of card "Android"')
+        self.assertEqual(grown[at + 2:at + 4], ['from: -43,99,740,674', 'to: -43,99,%d,678' % (menu[2] + 8)])
+
+    def test_a_pick_stores_the_setting_the_builder_reads(self):
+        lines = patch_lines('android-card-target-api-2.txt')
+        self.assertIn('object: button "Target Android Version" ' + self.REQUIREMENTS, lines)
+        old = '\n'.join(line[1:-1] for line in lines[lines.index('replace:') + 1:lines.index('with:')])
+        new = '\n'.join(line[1:-1] for line in lines[lines.index('with:') + 1:])
+        # the copy's script, which was the minimum version's, but for its
+        # last line
+        source = read(SCRIPTS + ('stack_revStandaloneSettings_button_id_2263.livecodescript',))
+        self.assertTrue(source.rstrip('\n').endswith(old + '\nend updateSettings'))
+        self.assertNotIn(old, new)
+        self.assertRegex(code(new), r'if pItemName is "Default" then\s+storeSetting "target sdk", empty\s+'
+                                    r'else\s+storeSetting "target sdk", word 2 of pItemName\s+end if')
+        self.assertNotIn('minimum version', code(new))
+        # the stack's copy has that script, and its updateSettings does
+        # nothing (the card fills the menu)
+        names = [n for n in os.listdir(os.path.join(REPO, *SCRIPTS))
+                 if '> button "Target Android Version" (id ' in read(SCRIPTS + (n,))]
+        self.assertEqual(len(names), 1, names)
+        script = read(SCRIPTS + (names[0],))
+        self.assertIn('> group "Requirements and Restrictions" (id 2255) > button "Target Android Version"', script)
+        self.assertIn(new + '\nend updateSettings', script)
+        self.assertRegex(code(script), r'on updateSettings pAPI\s+end updateSettings')
+        # the card stores a setting under "android," and its name; the
+        # builder takes it as the target
+        self.assertIn('setSetting "android," & pName, pValue', handler(code(read(CARD)), 'storeSetting'))
+        self.assertIn('put pSettings["android,target sdk"] into tPin', handler(code(read(BUILDER)), 'androidTargetAPI'))
+
+    def test_the_card_fills_the_menu_from_the_builders_range(self):
+        card = code(read(CARD))
+        settings = handler(card, 'updateSettings')
+        self.assertIn('updateTargetAPIMenu tSettings["android,target sdk"]', settings)
+        fill = handler(card, 'updateTargetAPIMenu')
+        # an IDE whose stack has no such menu opens the card as before
+        self.assertLess(fill.index('if there is not a button "Target Android Version" of me then'),
+                        fill.index('set the text of button "Target Android Version" of me to tItems'))
+        for words in ('dispatch function "deployTargetSdkVersion" to stack "revDeployLibraryAndroid"',
+                      'dispatch function "deployNewestTargetSdkVersion" to stack "revDeployLibraryAndroid"',
+                      'put "Default" into tItems', 'put return & "API" && tAPI after tItems',
+                      'if pPin is not empty and tChoice is 1 then'):
+            self.assertIn(words, fill)
+        # the choice is shown with messages locked: a menuHistory sends
+        # menuPick, which would store the setting
+        self.assertRegex(fill, r'lock messages\s+set the text of button "Target Android Version" of me to tItems\s+'
+                               r'set the menuHistory of button "Target Android Version" of me to tChoice\s+'
+                               r'unlock messages')
+        # the builder library's range is the one androidTargetAPI checks
+        builder = handler(code(read(BUILDER)), 'androidTargetAPI')
+        self.assertIn('tPin < targetSDKVersion() or tPin > newestTargetSDKVersion()', builder)
+        library = code(read(('ide-support', 'revdeploylibraryandroid.livecodescript')))
+        self.assertIn('return kDeployAndroidTargetSDK', handler(library, 'deployTargetSdkVersion'))
+        self.assertIn('return kDeployAndroidNewestTargetSDK', handler(library, 'deployNewestTargetSdkVersion'))
+
+    def test_the_tour_picks_in_it(self):
+        tour = read(TOUR)
+        step = handler(tour, 'tour_standalone_settings')
+        self.assertRegex(step, r'put tourAndroidEdgeToEdge\(tStack\) after tFails\s+'
+                               r'put tourAndroidTargetAPI\(tStack\) after tFails')
+        check = handler(tour, 'tourAndroidTargetAPI')
+        for part in ('dispatch "menuPick" to tMenu with "API" && tNewest',
+                     'dispatch "menuPick" to tMenu with "Default"',
+                     'set the cRevStandaloneSettings["android,target sdk"] of stack kSample to 20',
+                     'if the label of tMenu is not "API 20" then',
+                     'if the text of tMenu is not tExpected then',
+                     'showing the Target menu stored',
+                     'set the customProperties["cRevStandaloneSettings"] of stack kSample to tWas',
+                     'item 3 of the rect of tMenu > the width of stack pStack'):
+            self.assertIn(part, check)
+
+    def test_the_guide_names_the_menu(self):
+        guide = read(('ide', 'Documentation', 'guides', 'Deploying Your Application.md'))
+        self.assertIn('| **Target**  ', guide)
+        self.assertIn('| **Minimum**  ', guide)
+        self.assertNotIn('**Minimum Android Version**', guide)
+        self.assertIn('**Target** menu beside **Minimum** on the Android card', guide)
+
+
 class Relaunch(unittest.TestCase):
     """The engine runs once in a process (RelaunchActivity in the Java layer
     says why). The manifest lists the configuration changes the app goes on
