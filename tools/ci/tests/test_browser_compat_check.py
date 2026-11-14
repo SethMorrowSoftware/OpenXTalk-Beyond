@@ -130,8 +130,8 @@ class Recording(unittest.TestCase):
 
 
 class CrashTrace(unittest.TestCase):
-    """A crashed run is run again under gdb (a fake one here, which says
-    how it was called and prints a stack)."""
+    """A crashed run is run again under gdb (a fake one here, which writes
+    its arguments to a file and prints what gdb would)."""
 
     def setUp(self):
         import shutil
@@ -140,21 +140,42 @@ class CrashTrace(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.dir)
         gdb = os.path.join(self.dir, 'gdb')
         with open(gdb, 'w') as f:
-            f.write('#!/bin/sh\necho "args: $*"\necho "Thread 1 \\"x\\" received signal SIGSEGV, Segmentation fault."\n'
-                    'echo "#0  0x1 in cef_initialize () from libcef.so"\necho "#1  0x2 in MCCefInitialise ()"\n'
-                    'echo "unrelated"\n')
+            f.write('#!/bin/sh\nfor a in "$@"; do printf "%%s\\n" "$a"; done > "%s"\n'
+                    'echo "CALL cef_api_hash"\necho "CALL cef_execute_process"\necho "CALL cef_initialize"\n'
+                    'echo "CALL cef_do_message_loop_work"\necho "CALL cef_do_message_loop_work"\n'
+                    'echo "CALL cef_browser_host_create_browser_sync"\n'
+                    'echo "Thread 1 \\"x\\" received signal SIGSEGV, Segmentation fault."\n'
+                    'echo "#0  0x1 in ?? () from libcef.so"\necho "#1  0x2 in MCCefInitialise ()"\n'
+                    'echo "=> 0x7fffe650dc39:\tmov (%%rax),%%rdx"\necho "rip            0x7fffe650dc39      0x7fffe650dc39"\n'
+                    'echo "0x00007fffd0000000  0x00007fffe8000000  Yes (*)     /x/Externals/CEF/libcef.so"\n'
+                    'echo "unrelated"\n' % os.path.join(self.dir, 'args.txt'))
         os.chmod(gdb, 0o755)
         self.env = dict(os.environ)
         self.env['PATH'] = self.dir + os.pathsep + self.env.get('PATH', '')
-        self.old_path = os.environ['PATH']
+        old = os.environ['PATH']
         os.environ['PATH'] = self.env['PATH']
-        self.addCleanup(os.environ.__setitem__, 'PATH', self.old_path)
+        self.addCleanup(os.environ.__setitem__, 'PATH', old)
 
-    def test_the_stack_is_kept(self):
+    def test_the_calls_the_stack_and_where_libcef_is(self):
         lines = bcc.crash_trace([], ['/x/engine', 'probe.livecodescript'], self.dir, self.env, 10)
-        self.assertEqual(lines, ['  Thread 1 "x" received signal SIGSEGV, Segmentation fault.',
-                                 '  #0  0x1 in cef_initialize () from libcef.so',
-                                 '  #1  0x2 in MCCefInitialise ()'])
+        self.assertEqual(lines, ['  CALL cef_api_hash', '  CALL cef_execute_process', '  CALL cef_initialize',
+                                 '  CALL cef_do_message_loop_work (x2)',
+                                 '  CALL cef_browser_host_create_browser_sync',
+                                 '  Thread 1 "x" received signal SIGSEGV, Segmentation fault.',
+                                 '  #0  0x1 in ?? () from libcef.so',
+                                 '  #1  0x2 in MCCefInitialise ()',
+                                 '  => 0x7fffe650dc39:\tmov (%rax),%rdx',
+                                 '  rip            0x7fffe650dc39      0x7fffe650dc39',
+                                 '  0x00007fffd0000000  0x00007fffe8000000  Yes (*)     /x/Externals/CEF/libcef.so'])
+
+    def test_gdb_is_asked_for_each_traced_call_then_runs_the_engine(self):
+        bcc.crash_trace([], ['/x/engine', 'probe.livecodescript'], self.dir, self.env, 10)
+        with open(os.path.join(self.dir, 'args.txt')) as f:
+            args = f.read().splitlines()
+        for name in bcc.TRACED_CEF_CALLS:
+            self.assertIn('dprintf %s,"CALL %s\\n"' % (name, name), args)
+        self.assertLess(args.index('set breakpoint pending on'), args.index('run'))
+        self.assertEqual(args[-3:], ['--args', '/x/engine', 'probe.livecodescript'])
 
 
 class Probe(unittest.TestCase):

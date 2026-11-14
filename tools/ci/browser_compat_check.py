@@ -115,23 +115,46 @@ def compare(expected, actual):
     return problems
 
 
+# The libcef entry points whose calls the trace lists, the last one before
+# the crash saying which step of starting CEF or a browser it was in
+TRACED_CEF_CALLS = ('cef_api_hash', 'cef_execute_process', 'cef_initialize', 'cef_do_message_loop_work',
+                    'cef_browser_host_create_browser', 'cef_browser_host_create_browser_sync', 'cef_shutdown')
+
+
 def crash_trace(screen, cmd, cwd, env, timeout):
     """The engine's stack where it crashed, from a second run under gdb
     (the engine itself, inside xvfb-run when there is no screen), as
-    run_engine_tests.py traces a test that crashes."""
+    run_engine_tests.py traces a test that crashes: with the libcef calls
+    made before it, the instructions at the crash and where libcef was
+    loaded (its own symbols are not in the distribution)."""
     if not shutil.which('gdb'):
         return ['  (no gdb to trace the crash with)']
     full = screen + ['gdb', '-batch', '-q', '-nx', '-ex', 'set pagination off',
-                     '-ex', 'handle SIGPIPE SIGUSR1 SIGUSR2 nostop noprint pass',
-                     '-ex', 'run', '-ex', 'bt 40', '-ex', 'info sharedlibrary', '--args'] + cmd
+                     '-ex', 'set breakpoint pending on',
+                     '-ex', 'handle SIGPIPE SIGUSR1 SIGUSR2 nostop noprint pass']
+    for name in TRACED_CEF_CALLS:
+        full += ['-ex', 'dprintf %s,"CALL %s\\n"' % (name, name)]
+    full += ['-ex', 'run', '-ex', 'bt 40', '-ex', 'x/4i $pc', '-ex', 'info registers rip rsp rdi rsi',
+             '-ex', 'info sharedlibrary libcef', '--args'] + cmd
     try:
         out = subprocess.run(full, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                              timeout=timeout + 60).stdout
     except subprocess.TimeoutExpired as e:
         out = e.stdout or b''
-    keep = [x.rstrip() for x in out.decode('utf-8', 'replace').splitlines()
-            if re.match(r'\s*(#\d+ |Thread \d+ .* received|Program received|Program terminated)', x)]
-    return ['  ' + x for x in keep] or ['  (the crash did not happen again under gdb)']
+    keep, calls = [], []
+    for x in out.decode('utf-8', 'replace').splitlines():
+        x = x.rstrip()
+        if x.startswith('CALL '):
+            # a run of one call (the message loop's) is one line
+            if calls and calls[-1][0] == x:
+                calls[-1][1] += 1
+            else:
+                calls.append([x, 1])
+        elif re.match(r'\s*(#\d+ |Thread \d+ .* received|Program received|Program terminated|=> |'
+                      r'(rip|rsp|rdi|rsi) +0x|0x[0-9a-f]+ +0x[0-9a-f]+ .*libcef)', x):
+            keep.append(x)
+    lines = ['%s%s' % (c, ' (x%d)' % n if n > 1 else '') for c, n in calls[-12:]] + keep
+    return ['  ' + x for x in lines] or ['  (the crash did not happen again under gdb)']
 
 
 def run(args, p, what):
