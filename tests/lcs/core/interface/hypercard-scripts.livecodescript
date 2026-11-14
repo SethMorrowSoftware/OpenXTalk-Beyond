@@ -7002,7 +7002,8 @@ on TestHyperCardScriptsT78
    lock messages
    create invisible stack tStack
    set the defaultStack to tStack
-   set the uHyperCard["externals"] of stack tStack to "XFCN" & tab & "Switch"
+   set the uHyperCard["externals"] of stack tStack to _Lines("XFCN" & tab & "Switch", "XFCN" & tab & "Upper", \
+         "XFCN" & tab & "Files")
    set the script of stack tStack to _Lines("on popUp pNumber", "  global gHCScriptsTest", \
          "  put " & q & "popUp " & q & " & pNumber after gHCScriptsTest", "end popUp")
    create button "Pop"
@@ -7014,11 +7015,13 @@ on TestHyperCardScriptsT78
    set the script of button "Switch" of card 1 of stack tStack to _Lines("on mouseUp", "  global gHCScriptsTest", \
          "  put Switch(5) into gHCScriptsTest", "  put " & q & "went on" & q & " after gHCScriptsTest", "end mouseUp")
    -- unchanged: popup of a button (this engine's own, more than values),
-   -- HyperCard's own command with a handler of the stack, and files()
-   -- with no Files external
+   -- HyperCard's own command with a handler of the stack, and a function
+   -- this engine has (files(), upper()) though the stack carries a Files
+   -- and an Upper XFCN: they run as they did
    create button "Kept"
    set the script of button "Kept" of card 1 of stack tStack to _Lines("on mouseUp", "  popup button " & q & "M" & q, \
-         "  answer " & q & "Hello" & q, "  put files(the defaultFolder) into x", "end mouseUp")
+         "  answer " & q & "Hello" & q, "  put files(the defaultFolder) into x", "  put Upper(" & q & "ab" & q & ") into y", \
+         "end mouseUp")
    set the script of card 1 of stack tStack to _Lines("on answer pText", "  pass answer", "end answer")
    unlock messages
    TestAssert "T78: the scripts compile as they are", _Compiles(the script of button "Pop" of card 1 of stack tStack) \
@@ -7046,8 +7049,9 @@ on TestHyperCardScriptsT78
    end try
    TestAssert "T78: which gives empty, and the script goes on", tError is empty and gHCScriptsTest is "went on"
 
-   TestAssert "T78: popup of a button, answer and files(), unchanged", \
-         line 2 to 4 of the script of button "Kept" of card 1 of stack tStack \
-         is _Lines("  popup button " & q & "M" & q, "  answer " & q & "Hello" & q, "  put files(the defaultFolder) into x")
+   TestAssert "T78: popup of a button, answer, files() and upper(), unchanged", \
+         line 2 to 5 of the script of button "Kept" of card 1 of stack tStack \
+         is _Lines("  popup button " & q & "M" & q, "  answer " & q & "Hello" & q, "  put files(the defaultFolder) into x", \
+         "  put Upper(" & q & "ab" & q & ") into y")
    _Close tStack
 end TestHyperCardScriptsT78

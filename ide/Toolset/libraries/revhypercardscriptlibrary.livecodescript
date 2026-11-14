@@ -1574,9 +1574,10 @@ end _RenamedFunctions
 -- hcX_ name, which the stand-in made for the external (_StandIns) or the
 -- library's own handler answers. Only an external that will have one:
 -- the resource fork's own, or one the library answers as a command
--- (hcX_popUp); a call with parentheses only the resource fork's (this
--- engine's own files() is not the Files XFCN's hcX_Files unless the
--- stack carries Files)
+-- (hcX_popUp); a call with parentheses only the resource fork's, and
+-- never a function this engine has (the functionNames: files(),
+-- volumes(), format() and upper() run as they did, even where the stack
+-- carries a Files or an Upper XFCN)
 private function _CompiledCalls pLine, pRename, pExternals, pVars
    local tTokens, tCode, tIndex, tWord, tPrev, tNext, tChanged, tCall, tFork
    put false into tChanged
@@ -1614,7 +1615,8 @@ private function _CompiledCalls pLine, pRename, pExternals, pVars
       put _ForkExternal(tWord) into tFork
       if (tCall and (tFork or _LibraryCommand("hcX_" & tWord))) \
             or (tFork and _T(tTokens, tNext) is "(" and _T(tTokens, tPrev) is not "the" \
-            and not _StatementStart(tTokens, tCode, tIndex)) then
+            and not _StatementStart(tTokens, tCode, tIndex) \
+            and tWord is not among the lines of the functionNames) then
          put "hcX_" & tTokens[tIndex]["t"] into tTokens[tIndex]["t"]
          put true into tChanged
          _Fire "T78 a call HyperCard sent to the stack's handler or external"
