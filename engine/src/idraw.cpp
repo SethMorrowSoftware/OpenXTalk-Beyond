@@ -293,7 +293,11 @@ void MCImage::drawme(MCDC *dc, int2 sx, int2 sy, uint2 sw, uint2 sh, int2 dx, in
 					uint32_t t_frame_duration;
 					t_frame_duration = 0;
 					
-					/* UNCHECKED */ m_rep->GetFrameDuration(currentframe, t_frame_duration);
+					// OXT-Beyond: through the frameDurations and playRate.
+					//   Script runs on the main thread, as the redraw that
+					//   gets here does (its tile threads are joined before it
+					//   returns), so no set of either can race this read.
+					/* UNCHECKED */ getplaybackframeduration(currentframe, t_frame_duration);
 					
 					m_animate_posted = true;
 					MCscreen->addtimer(this, MCM_internal, t_frame_duration);

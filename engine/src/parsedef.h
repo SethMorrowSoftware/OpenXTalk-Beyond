@@ -1787,6 +1787,10 @@ enum Properties {
     // OXT-Beyond: the global useDesktopAppearance
     P_USE_DESKTOP_APPEARANCE,
     
+    // OXT-Beyond: an image's frameDurations (its playRate is P_PLAY_RATE,
+    // the player's)
+    P_FRAME_DURATIONS,
+    
     __P_LAST,
 };
 

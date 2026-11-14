@@ -32,6 +32,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "context.h"
 
 #include "imageloader.h"
+#include "graphics_util.h"
 
 #include "gif_lib.h"
 
@@ -120,35 +121,62 @@ static uint32_t gif_color_to_pixel(GifColorType& p_color)
 	return MCGPixelPackNative(p_color.Red, p_color.Green, p_color.Blue, 255);
 }
 
-static void gif_draw_image_into_canvas(MCImageBitmap *p_canvas, GifByteType *p_raster, int32_t p_left, int32_t p_top, int32_t p_width, int32_t p_height, ColorMapObject *p_colors, int32_t p_transparency, bool t_overlay)
+// OXT-Beyond: the part of a frame's rectangle that is on the canvas (the
+//   GIF's logical screen); empty when none of it is. A frame that reaches
+//   past the canvas used to be dropped whole (drawn not at all, and its
+//   disposal skipped); browsers draw what is on the canvas, and so do we now.
+static MCRectangle gif_clip_to_canvas(const MCRectangle &p_region, int32_t p_width, int32_t p_height)
 {
-	// If the bounds are outside of the target, ignore.
-	if (p_left < 0 || p_top < 0 || (p_left + p_width) > p_canvas -> width || (p_top + p_height) > p_canvas -> height)
+	int32_t t_left, t_top, t_right, t_bottom;
+	t_left = MCMax((int32_t)p_region.x, 0);
+	t_top = MCMax((int32_t)p_region.y, 0);
+	t_right = MCMin((int32_t)p_region.x + (int32_t)p_region.width, p_width);
+	t_bottom = MCMin((int32_t)p_region.y + (int32_t)p_region.height, p_height);
+	if (t_right <= t_left || t_bottom <= t_top)
+		return kMCEmptyRectangle;
+	return MCRectangleMake(t_left, t_top, t_right - t_left, t_bottom - t_top);
+}
+
+// Draw a frame's pixels onto the canvas. p_left, p_top, p_width and p_height
+//   are the frame's own rectangle (its raster's size); only the part that is
+//   on the canvas is drawn.
+//
+// OXT-Beyond: a pixel of the frame's transparent colour leaves the canvas
+//   as it is, whatever the previous frame's disposal was, as the GIF
+//   specification says and every browser does. It used to do so only after
+//   a "do not dispose" frame: after any other (no disposal given, which most
+//   GIF makers write, restore to background, restore to previous) the
+//   transparent pixels punched clear holes into what the earlier frames had
+//   left, so optimised GIFs (each frame only the pixels that change) flashed
+//   or showed holes.
+static void gif_draw_image_into_canvas(MCImageBitmap *p_canvas, GifByteType *p_raster, int32_t p_left, int32_t p_top, int32_t p_width, int32_t p_height, ColorMapObject *p_colors, int32_t p_transparency)
+{
+	if (p_raster == nil || p_colors == nil)
+		return;
+
+	MCRectangle t_clip;
+	t_clip = gif_clip_to_canvas(MCRectangleMake(p_left, p_top, p_width, p_height), p_canvas -> width, p_canvas -> height);
+	if (t_clip.width == 0 || t_clip.height == 0)
 		return;
 
 	// Compute the dst and src ptrs.
 	uint32_t *t_dst_ptr;
 	uint8_t *t_src_ptr;
-	t_dst_ptr = (uint32_t *)p_canvas -> data + p_top * (p_canvas -> stride / 4) + p_left;
-	t_src_ptr = (uint8_t *)p_raster;
-	for(int32_t y = 0; y < p_height; y++)
+	t_dst_ptr = (uint32_t *)p_canvas -> data + t_clip.y * (p_canvas -> stride / 4) + t_clip.x;
+	t_src_ptr = (uint8_t *)p_raster + (t_clip.y - p_top) * p_width + (t_clip.x - p_left);
+	for(int32_t y = 0; y < t_clip.height; y++)
 	{
-		for(int32_t x = 0; x < p_width; x++)
-{
+		for(int32_t x = 0; x < t_clip.width; x++)
+		{
 			uint8_t t_color;
 			t_color = t_src_ptr[x];
 
-			if (t_overlay && t_color == p_transparency)
+			if (t_color == p_transparency)
 				continue;
 				
 			uint32_t t_pixel;
 			if (t_color < p_colors -> ColorCount)
-	{
-				if (t_color != p_transparency)
-					t_pixel = gif_color_to_pixel(p_colors -> Colors[t_color]);
-				else
-					t_pixel = 0;
-		}
+				t_pixel = gif_color_to_pixel(p_colors -> Colors[t_color]);
 			else
 				t_pixel = 0;
 
@@ -158,7 +186,7 @@ static void gif_draw_image_into_canvas(MCImageBitmap *p_canvas, GifByteType *p_r
 		t_dst_ptr += p_canvas -> stride / 4;
 		t_src_ptr += p_width;
 	}
-	}
+}
 
 void gif_fill_image_region(MCImageBitmap *p_bitmap, MCRectangle &p_region, uindex_t p_pixel)
 {
@@ -185,7 +213,11 @@ static void gif_paste_image(MCImageBitmap *p_dst, MCImageBitmap *p_src, int32_t 
 {
 	if (p_x_offset < 0 || p_y_offset < 0 ||
 		p_x_offset + p_src->width > p_dst->width ||
-		p_y_offset + p_src->width > p_dst->width)
+		p_y_offset + p_src->height > p_dst->height)
+		// OXT-Beyond: the height against the height. It compared the width
+		//   with the canvas's width, so a "restore to previous" frame low on
+		//   a wide canvas was not restored, and one on a tall, narrow canvas
+		//   could be pasted past the canvas's last row.
 		return;
 
 	uint8_t *t_src_ptr = (uint8_t*)p_src->data;
@@ -312,11 +344,6 @@ bool MCGIFImageLoader::LoadFrames(MCBitmapFrame *&r_frames, uint32_t &r_count)
 	uint32_t t_frame_count;
 	t_frame_count = 0;
 	
-	// If true, the new image will be merged with the old - otherwise the mask
-	// replaces it.
-	bool t_overlay;
-	t_overlay = false;
-	
 	// Loop through all the images, making frames as we go.
 	for(uindex_t i = 0; t_success && i < m_gif -> ImageCount; i++)
 	{
@@ -332,12 +359,9 @@ bool MCGIFImageLoader::LoadFrames(MCBitmapFrame *&r_frames, uint32_t &r_count)
 				gif_paste_image(t_canvas, t_restore_image, t_disposal_region.x, t_disposal_region.y);
 			break;
 
-		case DISPOSE_DO_NOT:
-			t_overlay = true;
-			break;
-
+		// "Do not dispose" and no disposal given leave the canvas as it is
+		//   for the next frame to draw over.
 		default:
-			t_overlay = false;
 			break;
 		}
 
@@ -360,6 +384,13 @@ bool MCGIFImageLoader::LoadFrames(MCBitmapFrame *&r_frames, uint32_t &r_count)
 		if (t_image_colors == nil)
 			t_image_colors = m_gif -> SColorMap;
 		
+		// OXT-Beyond: what of the frame is on the canvas: what its disposal
+		//   clears or restores, and what restore-to-previous keeps a copy of
+		//   (MCImageCopyBitmapRegion reads past the canvas for a rectangle
+		//   that is not inside it).
+		MCRectangle t_canvas_region;
+		t_canvas_region = gif_clip_to_canvas(t_image_region, t_width, t_height);
+		
 		// Then the information from the GCB.
 		if (GIF_OK == DGifSavedExtensionToGCB(m_gif, i, &t_image_gcb))
 		{
@@ -377,18 +408,18 @@ bool MCGIFImageLoader::LoadFrames(MCBitmapFrame *&r_frames, uint32_t &r_count)
 		// If disposal is 'previous' then cache the portion of the canvas we are
 		// about to affect.
 		if (t_image_disposal == DISPOSE_PREVIOUS)
-			{
+		{
 			if (t_restore_image != nil)
 			{
 				if (t_disposal_mode != DISPOSE_PREVIOUS ||
-					!MCU_equal_rect(t_disposal_region, t_image_region))
+					!MCU_equal_rect(t_disposal_region, t_canvas_region))
 				{
 					MCImageFreeBitmap(t_restore_image);
 					t_restore_image = nil;
 				}
 			}
-			if (t_restore_image == nil)
-				t_success = MCImageCopyBitmapRegion(t_canvas, t_image_region, t_restore_image);
+			if (t_restore_image == nil && t_canvas_region.width != 0 && t_canvas_region.height != 0)
+				t_success = MCImageCopyBitmapRegion(t_canvas, t_canvas_region, t_restore_image);
 		}
 		
 		if (t_success)
@@ -396,7 +427,7 @@ bool MCGIFImageLoader::LoadFrames(MCBitmapFrame *&r_frames, uint32_t &r_count)
 			// Render the image into the canvas.
 			gif_draw_image_into_canvas(t_canvas, t_image_raster,
 				t_image_region.x, t_image_region.y, t_image_region.width, t_image_region.height,
-				t_image_colors, t_image_transparency, t_overlay);
+				t_image_colors, t_image_transparency);
 			
 			// Generate our frame.
 			t_success = MCMemoryResizeArray(t_frame_count + 1, t_frames, t_frame_count);
@@ -414,7 +445,7 @@ bool MCGIFImageLoader::LoadFrames(MCBitmapFrame *&r_frames, uint32_t &r_count)
 			t_frames[t_frame_count - 1].x_scale = t_frames[t_frame_count - 1].y_scale = 1.0;
 		}
 
-		t_disposal_region = t_image_region;
+		t_disposal_region = t_canvas_region;
 		t_disposal_mode = t_image_disposal;
 	}
 	
