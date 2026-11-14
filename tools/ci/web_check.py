@@ -70,8 +70,14 @@ Then:
 
 1. A web server on 127.0.0.1 serves the standalone's folder, and the
    requests the probe makes: GET /probe-data.txt, POST /echo (which
-   answers "POST <Content-Type> <body>"), PUT and GET /store, a 404, and
-   GET /probe-page.html, the page that its browser widget loads.
+   answers "POST <Content-Type> <body>"), PUT and GET /store, a 404,
+   GET /probe-page.html, the page that its browser widget loads, and the
+   stacks that "go stack URL" opens: POST /probe-stack (a stack file the
+   probe saved, base64-encoded), then GET /probe-stack.livecode (that
+   stack) and /probe-stack.livecodescript (a script-only stack), from the
+   page's own origin and from another (the same server as "localhost"),
+   with ?cors=1 for an Access-Control-Allow-Origin header and without it,
+   which the browser must refuse.
 
 2. Headless Chromium (Playwright) opens the page. The probe writes PROBE
    lines to the console (see web-probe.livecodescript): its checks of
@@ -239,6 +245,13 @@ STACK_NAME = 'WebProbe'
 STACK_TITLE = 'Web Probe'
 PROBE_DATA = 'probe data 123'
 PROMPT_ANSWER = 'Ada'
+# The script-only stack that the server gives for
+# /probe-stack.livecodescript (probeGoStackUrl): its openStack marks it
+# opened
+PROBE_SCRIPT_ONLY_STACK = ('script "ProbeRemoteScript"\n'
+                           'on openStack\n'
+                           '   set the cProbeOpened of me to true\n'
+                           'end openStack\n')
 # How long run_browser may take in all before the watchdog fails the
 # check, at the least: a run takes about 25 seconds, and each of its waits
 # at most --timeout (120 by default), so the limit is five of those when
@@ -250,7 +263,8 @@ browser_waiting = ['']
 PROBE_CHECKS = (
     'platform', 'wait-openstack', 'wait-handler', 'wait-nested', 'wait-until', 'wait-zero', 'send-in-time',
     'javascript', 'file-roundtrip', 'standalone-folder', 'font-file', 'font-bold', 'url-get', 'url-post', 'url-put',
-    'url-missing', 'url-load', 'answer', 'answer-confirm', 'ask', 'folders', 'home-alias', 'download-written',
+    'url-missing', 'url-load', 'go-stack-url', 'go-stack-url-script', 'go-stack-url-cors', 'go-stack-url-blocked',
+    'answer', 'answer-confirm', 'ask', 'folders', 'home-alias', 'download-written',
     'address', 'random-bytes', 'modifiers', 'cursor', 'sound', 'player', 'browser', 'objects',
     'xml', 'xslt', 'zip', 'database', 'database-error', 'database-home',
     'encrypt', 'encrypt-legacy', 'cipher-names', 'speech', 'print',
@@ -1050,27 +1064,49 @@ def splash_page_from_ide(site, splash_site):
 # What a page with a splash shows when its document has loaded, long before
 # its engine has downloaded (an init script, so that it is read before the
 # engine can start): the page's root has the class oxt-splash, the status
-# covers the window and draws the image
-SPLASH_SEEN_JS = ("document.addEventListener('DOMContentLoaded', function() {"
-                  " var s = document.getElementById('status');"
-                  " window.oxtSplashSeen = [document.documentElement.className,"
+# covers the window and draws the image. It also notes when the engine
+# first drew on the main stack's canvas (#canvas: em-surface.js draws with
+# putImageData) and when the splash went (window.oxtSplashOrder): the
+# splash must stay until the stack has drawn, so that no empty page shows
+# between the two (0.2.8-dp.2; measured then: the engine draws its stack
+# before it hides the status, which takes the splash away, by about 10 ms
+# in Chromium and by about 450 ms with the processor slowed 20 times)
+SPLASH_SEEN_JS = ("window.oxtSplashOrder = [null, null];"
+                  " (function() { var c = CanvasRenderingContext2D.prototype, p = c.putImageData;"
+                  " c.putImageData = function() {"
+                  " if (this.canvas && this.canvas.id === 'canvas' && window.oxtSplashOrder[0] === null) {"
+                  " window.oxtSplashOrder[0] = performance.now(); }"
+                  " return p.apply(this, arguments); }; })();"
+                  " document.addEventListener('DOMContentLoaded', function() {"
+                  " var s = document.getElementById('status'), r = document.documentElement;"
+                  " window.oxtSplashSeen = [r.className,"
                   " s ? getComputedStyle(s).position : '',"
                   " s ? getComputedStyle(s, '::before').backgroundImage : ''];"
+                  " var o = new MutationObserver(function() {"
+                  " if (!r.classList.contains('oxt-splash') && window.oxtSplashOrder[1] === null) {"
+                  " window.oxtSplashOrder[1] = performance.now(); o.disconnect(); } });"
+                  " o.observe(r, {attributes: true, attributeFilter: ['class']});"
                   " });")
 # ... and once the stack is open: the class gone and the status hidden
 SPLASH_AFTER_JS = ("[document.documentElement.className,"
                    " getComputedStyle(document.getElementById('status')).display]")
 
 
-def splash_seen_problem(loading, started):
+def splash_seen_problem(loading, started, order):
     """None when a page with a splash showed it while loading (loading, as
-    SPLASH_SEEN_JS has it) and took it away once its stack was open
-    (started, as SPLASH_AFTER_JS has it); else what was wrong."""
+    SPLASH_SEEN_JS has it), kept it until the engine had drawn the stack
+    and took it away once its stack was open (started, as SPLASH_AFTER_JS
+    has it; order, window.oxtSplashOrder: when the engine first drew on the
+    main canvas and when the splash went); else what was wrong."""
     if (not loading or len(loading) != 3 or 'oxt-splash' not in str(loading[0]).split()
             or loading[1] != 'fixed' or SPLASH_IMAGE not in str(loading[2])):
         return 'the page with a splash did not show it while it loaded: %r' % (loading,)
     if not started or 'oxt-splash' in str(started[0]).split() or started[1] != 'none':
         return 'the page with a splash still showed it once its stack was open: %r' % (started,)
+    if (not order or len(order) != 2 or not all(isinstance(x, (int, float)) for x in order)
+            or order[0] > order[1]):
+        return ('the page with a splash took it away before the engine had drawn its stack '
+                '(drawn, gone, in ms: %r)' % (order,))
     return None
 
 
@@ -1480,12 +1516,14 @@ def make_server(site, probe_page=PROBE_PAGE):
         def log_message(self, fmt, *args):
             pass
 
-        def reply(self, code, body, content_type='text/plain; charset=utf-8'):
-            data = body.encode('utf-8')
+        def reply(self, code, body, content_type='text/plain; charset=utf-8', cors=False):
+            data = body if isinstance(body, bytes) else body.encode('utf-8')
             self.send_response(code)
             self.send_header('Content-Type', content_type)
             self.send_header('Content-Length', str(len(data)))
             self.send_header('Cache-Control', 'no-store')
+            if cors:
+                self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             self.wfile.write(data)
 
@@ -1501,6 +1539,16 @@ def make_server(site, probe_page=PROBE_PAGE):
                 return self.reply(404, 'not found')
             if self.path == '/probe-page.html':
                 return self.reply(200, probe_page, 'text/html; charset=utf-8')
+            # go stack URL (probeGoStackUrl): the stack the probe posted,
+            # and a script-only one; ?cors=1 lets another origin read them
+            path, _, query = self.path.partition('?')
+            if path in ('/probe-stack.livecode', '/probe-stack.livecodescript'):
+                cors = query == 'cors=1'
+                if path.endswith('script'):
+                    return self.reply(200, PROBE_SCRIPT_ONLY_STACK, cors=cors)
+                if 'stack' not in stored:
+                    return self.reply(404, 'not found', cors=cors)
+                return self.reply(200, stored['stack'], 'application/octet-stream', cors=cors)
             if self.path == WEBSOCKET_ECHO_PATH:
                 return websocket_echo(self)
             return super().do_GET()
@@ -1508,6 +1556,12 @@ def make_server(site, probe_page=PROBE_PAGE):
         def do_POST(self):
             if self.path == '/echo':
                 return self.reply(200, 'POST %s %s' % (self.headers.get('Content-Type', ''), self.body()))
+            if self.path == '/probe-stack':
+                try:
+                    stored['stack'] = base64.b64decode(self.body(), validate=False)
+                except ValueError:
+                    return self.reply(400, 'not base64')
+                return self.reply(200, '')
             return self.reply(404, 'not found')
 
         def do_PUT(self):
@@ -1884,6 +1938,11 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
     def on_page_error(error):
         # (the other scripts' errors the check raises are not the page's)
         if stray_errors.STRAY_MARK in str(error):
+            return
+        # (nor is WebKit's report of the probe's refused download, which
+        # Playwright hands on as a page error: see expected_page_error)
+        if expected_page_error(str(error)):
+            log('  page error, expected: %s' % error)
             return
         page_errors.append(str(error))
         log('  page error: %s' % error)
@@ -2852,12 +2911,13 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                                           'the page with a splash', timeout, prepare_splash, reopened_extra,
                                           PlaywrightError, PlaywrightTimeoutError)
                     problem = splash_seen_problem(tab.evaluate('window.oxtSplashSeen || null'),
-                                                  tab.evaluate(SPLASH_AFTER_JS))
+                                                  tab.evaluate(SPLASH_AFTER_JS),
+                                                  tab.evaluate('window.oxtSplashOrder || null'))
                     if problem:
                         problems.append(problem)
                     else:
                         lines.append('the page with a splash showed its image over the window while it loaded, '
-                                     'and its stack once open')
+                                     'until its stack had drawn, and its stack once open')
                     tab.close()
                 del extra_events[:]
                 plain.close()
@@ -2928,18 +2988,69 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
         problems.append('the page crashed (the browser\'s "Target crashed")')
     for error in page_errors:
         problems.append('page error: %s' % error)
-    # The browser may report the probe's request for a missing page
-    # (url-missing): Chromium and WebKit do, in these words; Firefox does not
-    expected = ['Failed to load resource: the server responded with a status of 404 (Not Found)']
-    for kind, text in console:
-        # (a browser may also log the other scripts' errors the check
-        # raises: they are not the page's)
-        if kind == 'error' and not text.startswith('PROBE ') and stray_errors.STRAY_MARK not in text:
-            if text in expected:
-                expected.remove(text)
-            else:
-                problems.append('console error: %s' % text)
+    problems.extend('console error: %s' % text for text in unexpected_console_errors(console))
     return problems, lines
+
+
+# The console errors of the probe's page that the probe causes itself:
+# the browser may report its request for a missing page (url-missing):
+# Chromium and WebKit do, in these words; Firefox does not
+CONSOLE_404 = 'Failed to load resource: the server responded with a status of 404 (Not Found)'
+# and its download of a stack from another site that does not allow it
+# (go-stack-url-blocked), which the browser refuses: the errors that name
+# that URL (Chromium's "blocked by CORS policy", Firefox's "CORS header
+# 'Access-Control-Allow-Origin' missing", WebKit's "due to access control
+# checks"), and, when the browser named that URL, Chromium's
+# "net::ERR_FAILED" for it, once; and WebKit's lines that name only the
+# page's origin ("Origin <origin> is not allowed by
+# Access-Control-Allow-Origin.", with "Failed to load resource: " before
+# it on the other), once each, which WebKit's engine path logs without a
+# line that names the URL (the probe's is the page's only request to
+# another origin)
+CONSOLE_FAILED = 'Failed to load resource: net::ERR_FAILED'
+CONSOLE_BLOCKED_URL = re.compile(r'localhost:\d+/probe-stack\.livecode(?![?\w])')
+CONSOLE_BLOCKED_WORDS = ('CORS', 'Access-Control-Allow-Origin', 'access control')
+CONSOLE_BLOCKED_ORIGIN = re.compile(r'^(Failed to load resource: )?Origin http://127\.0\.0\.1:\d+ is not allowed '
+                                    r'by Access-Control-Allow-Origin\.')
+
+
+def expected_page_error(text):
+    """True for the page error that WebKit's Playwright gives for the
+    browser's refusal of the probe's download from another site
+    (go-stack-url-blocked): "XMLHttpRequest cannot load
+    http://localhost:<port>/probe-stack.livecode due to access control
+    checks." No script threw it (em-url.js's request is asynchronous and
+    the probe goes on, with the refusal as its result), so it is not an
+    error of the page's; if the page took it for one, it would say
+    "Something went wrong", which the check of other scripts' errors
+    would see."""
+    return bool(CONSOLE_BLOCKED_URL.search(text)) and 'access control' in text
+
+
+def unexpected_console_errors(console):
+    """The texts of the console's errors (console: (kind, text) pairs)
+    that the probe does not cause itself: those of its own lines (PROBE),
+    the other scripts' errors the check raises (a browser may log them:
+    they are not the page's) and the errors above are left out."""
+    expected = [CONSOLE_404]
+    unexpected = []
+    blocked = False
+    origin_lines = set()
+    for kind, text in console:
+        if kind != 'error' or text.startswith('PROBE ') or stray_errors.STRAY_MARK in text:
+            continue
+        m = CONSOLE_BLOCKED_ORIGIN.match(text)
+        if text in expected:
+            expected.remove(text)
+        elif CONSOLE_BLOCKED_URL.search(text) and any(w in text for w in CONSOLE_BLOCKED_WORDS):
+            blocked = True
+        elif m and bool(m.group(1)) not in origin_lines:
+            origin_lines.add(bool(m.group(1)))
+        else:
+            unexpected.append(text)
+    if blocked and CONSOLE_FAILED in unexpected:
+        unexpected.remove(CONSOLE_FAILED)
+    return unexpected
 
 
 def main(argv=None):

@@ -558,6 +558,18 @@ Internet library's commands use the browser's own requests. A browser
 lets a page read from its own web site, and from other sites only when
 they allow it (with CORS headers); a request that the browser refuses
 fails as one to a server that cannot be reached.
+* **Stacks from a web address.** `go stack URL "https://..."` (and `go
+to stack URL`, `go card 1 of stack URL ...`, and a stack file or a
+script-only stack) opens a stack from a web server, as on the desktop.
+From the page's own web site it always works. From another site it works
+only when that site's server allows it, by sending an
+`Access-Control-Allow-Origin` header with the stack file (`*`, or the
+page's site): the browser refuses the download otherwise, whatever the
+stack does, and `the result` is then "Request failed" ("Error sending
+request: ..." with the Internet library). To open such a stack, put the
+stack file on the page's own site, or ask whoever runs the other server
+to send that header. (A forum's attachment link, for one, often does
+not.)
 * **Links.** `launch url` opens an `http` or `https` address in a new tab,
 and gives a `mailto:` or `tel:` link to the application that answers it;
 it refuses `javascript:` and `data:` addresses. `launch document` opens a
