@@ -30,6 +30,9 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "platform.h"
 #include "platform-internal.h"
 
+// OXT-Beyond: Media Foundation, for a file DirectShow cannot open
+#include "w32-mf-player.h"
+
 ////////////////////////////////////////////////////////////////////////////////
 
 extern HINSTANCE MChInst;
@@ -44,6 +47,16 @@ void MCWin32BSTRFree(BSTR p_str) { SysFreeString(p_str); }
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// OXT-Beyond: what plays a movie (MCWin32PlayerGetBackendChoice)
+enum MCWin32PlayerBackend
+{
+	kMCWin32PlayerBackendAuto,
+	kMCWin32PlayerBackendDirectShow,
+	kMCWin32PlayerBackendMediaFoundation,
+};
+
+MCWin32PlayerBackend MCWin32PlayerGetBackendChoice(void);
+
 enum MCWin32DSPlayerState
 {
 	kMCWin32DSPlayerStopped,
@@ -55,7 +68,7 @@ enum MCWin32DSPlayerState
 class MCWin32DSPlayer;
 typedef void (*MCWin32DSPlayerGraphCallback)(MCWin32DSPlayer *p_player, long evCode, LONG_PTR Param1, LONG_PTR Param2, void *instanceData);
 
-class MCWin32DSPlayer : public MCPlatformPlayer
+class MCWin32DSPlayer : public MCPlatformPlayer, public MCWin32MFPlaybackOwner
 {
 public:
 	MCWin32DSPlayer(void);
@@ -92,6 +105,11 @@ public:
 
 	bool HasVideo();
 	bool HasAudio();
+
+	// OXT-Beyond: the movie through Media Foundation (m_mf) when DirectShow
+	// could not open its file
+	virtual void MFPlaybackEnded(void);
+	bool RepaintMFVideo(void);
 
 protected:
 	virtual void Realize(void);
@@ -137,6 +155,15 @@ private:
 
 	bool OpenFile(MCStringRef p_filename);
 	void CloseFile();
+
+	// OXT-Beyond: Media Foundation (w32-mf-player.h). m_mf is set only when
+	// DirectShow could not open the file; while it is, the methods below
+	// that a movie's properties go through ask it instead of the graph.
+	bool OpenFileWithMediaFoundation(MCStringRef p_filename);
+	bool PlayMF();
+	bool PauseMF(bool p_stop);
+	void CheckMFSelectionEnd(MCPlatformPlayerDuration p_current);
+	MCWin32MFPlayback *m_mf;
 
 	MCWin32DSPlayerState m_state;
 	bool m_is_valid;
@@ -236,6 +263,19 @@ LRESULT CALLBACK DSVideoWindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 			t_player = (MCWin32DSPlayer*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
 			if (t_player != nil && t_player->HasVideo())
 				t_player->SetVideoWindowSize(LOWORD(lParam), HIWORD(lParam));
+			break;
+		}
+
+	// OXT-Beyond: Media Foundation draws its video into this window itself
+	// (DirectShow's has a window of its own inside it), so the frame is
+	// drawn again when the window needs painting; for a movie DirectShow
+	// plays, painting is as before
+	case WM_PAINT:
+		{
+			MCWin32DSPlayer *t_player;
+			t_player = (MCWin32DSPlayer*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
+			if (t_player != nil && t_player->RepaintMFVideo())
+				return 0;
 			break;
 		}
 	}
@@ -358,6 +398,11 @@ bool MCWin32DSPlayer::HandleTimer()
 		}
 
 		MCPlatformCallbackSendPlayerCurrentTimeChanged(this);
+
+		// OXT-Beyond: Media Foundation has no stop position (DirectShow's
+		// SetPositions), so the end of a selection is found here
+		if (m_mf != nil)
+			CheckMFSelectionEnd(t_current);
 	}
 
 	return true;
@@ -408,6 +453,8 @@ MCWin32DSPlayer::MCWin32DSPlayer()
 
 	m_looping = false;
 	m_mirrored = false;
+
+	m_mf = nil;
 }
 
 MCWin32DSPlayer::~MCWin32DSPlayer()
@@ -699,6 +746,13 @@ bool MCWin32DSPlayer::SetVideoWindow(HWND p_hwnd)
 
 bool MCWin32DSPlayer::SetVideoWindowSize(uint32_t p_width, uint32_t p_height)
 {
+	// OXT-Beyond: Media Foundation fills the window it draws in by itself
+	if (m_mf != nil)
+	{
+		m_mf->UpdateVideo();
+		return true;
+	}
+
     CComQIPtr<IVideoWindow> t_video(m_graph);
 
 	if (t_video == nil)
@@ -906,7 +960,168 @@ void MCWin32DSPlayer::CloseFile()
 	SetEventWindow(nil);
 	SetVideoWindow(nil);
 	SetFilterGraph(nil);
+
+	// OXT-Beyond: the movie Media Foundation played, if it played one
+	if (m_mf != nil)
+	{
+		StopTimer();
+		m_state = kMCWin32DSPlayerStopped;
+		delete m_mf;
+		m_mf = nil;
+		m_media_types = 0;
+		m_frame_length = 0;
+		if (m_video_window != nil)
+			InvalidateRect(m_video_window, NULL, TRUE);
+	}
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+// OXT-Beyond: what plays a movie. Unset, DirectShow opens every file, as it
+// always has, and Media Foundation only a file DirectShow cannot open;
+// OXT_PLAYER_BACKEND ("directshow" or "mediafoundation") names one alone,
+// for testing, as it names mplayer or GStreamer on Linux (lnxmplayer.cpp).
+MCWin32PlayerBackend MCWin32PlayerGetBackendChoice(void)
+{
+	const char *t_choice;
+	t_choice = getenv("OXT_PLAYER_BACKEND");
+	if (t_choice != NULL && _stricmp(t_choice, "directshow") == 0)
+		return kMCWin32PlayerBackendDirectShow;
+	if (t_choice != NULL && _stricmp(t_choice, "mediafoundation") == 0)
+		return kMCWin32PlayerBackendMediaFoundation;
+	return kMCWin32PlayerBackendAuto;
+}
+
+// Media Foundation sets a movie up asynchronously and says so through this
+// thread's messages: the wait handles them (and no script message), as
+// Pause's wait for DirectShow's graph does
+static void MCWin32MFWait(void)
+{
+	MCscreen->wait(0.01, false, true);
+}
+
+// How long Media Foundation may take to set a movie up
+#define kMCWin32MFOpenTimeout (10000)
+
+bool MCWin32DSPlayer::OpenFileWithMediaFoundation(MCStringRef p_filename)
+{
+	if (MCStringIsEmpty(p_filename) || !MCWin32MFPlayback::IsAvailable())
+		return false;
+
+	MCAutoCustomPointer<OLECHAR, MCWin32BSTRFree> t_filename;
+	if (!MCStringConvertToBSTR(p_filename, &t_filename))
+		return false;
+
+	MCWin32MFPlayback *t_playback;
+	t_playback = MCWin32MFPlayback::Open(*t_filename, m_video_window, this, MCWin32MFWait, kMCWin32MFOpenTimeout);
+	if (t_playback == nil)
+		return false;
+
+	m_mf = t_playback;
+
+	m_media_types = 0;
+	if (m_mf->HasVideo())
+		m_media_types |= kMCPlatformPlayerMediaTypeVideo;
+	if (m_mf->HasAudio())
+		m_media_types |= kMCPlatformPlayerMediaTypeAudio;
+	m_frame_length = (MCPlatformPlayerDuration)m_mf->GetFrameLength();
+
+	m_state = kMCWin32DSPlayerStopped;
+	m_is_valid = true;
+
+	return true;
+}
+
+bool MCWin32DSPlayer::PlayMF()
+{
+	// As Play: a stopped movie starts again from its start, or from its
+	// selection's
+	if (m_state == kMCWin32DSPlayerStopped)
+	{
+		MCPlatformPlayerDuration t_start_position = 0;
+		if (m_play_selection && m_start_position < m_finish_position)
+			t_start_position = m_start_position;
+
+		if (!m_mf->SetPosition((int64_t)t_start_position))
+			return false;
+	}
+
+	if (!m_mf->Play())
+		return false;
+
+	StartTimer();
+
+	m_state = kMCWin32DSPlayerRunning;
+
+	return true;
+}
+
+bool MCWin32DSPlayer::PauseMF(bool p_stop)
+{
+	// As Pause: the movie keeps its frame, and a stopped one starts again
+	// from its start when it next plays (PlayMF)
+	if (!m_mf->Pause())
+		return false;
+
+	StopTimer();
+
+	if (p_stop)
+		m_state = kMCWin32DSPlayerStopped;
+	else
+		m_state = kMCWin32DSPlayerPaused;
+
+	return true;
+}
+
+// The end of a movie through Media Foundation, as HandleGraphEvent ends
+// one through DirectShow
+void MCWin32DSPlayer::MFPlaybackEnded(void)
+{
+	if (m_mf == nil)
+		return;
+
+	m_state = kMCWin32DSPlayerStopped;
+	if (m_looping)
+		Play();
+	else
+	{
+		Pause(true);
+		MCPlatformCallbackSendPlayerFinished(this);
+	}
+}
+
+void MCWin32DSPlayer::CheckMFSelectionEnd(MCPlatformPlayerDuration p_current)
+{
+	if (m_mf == nil || !m_play_selection || m_state != kMCWin32DSPlayerRunning)
+		return;
+
+	MCPlatformPlayerDuration t_duration;
+	if (!GetDuration(t_duration))
+		return;
+
+	MCPlatformPlayerDuration t_finish = MCMin(t_duration, m_finish_position);
+	MCPlatformPlayerDuration t_start = MCMin(t_finish, m_start_position);
+	if (t_finish - t_start == 0 || t_finish >= t_duration)
+		return; // the whole movie: Media Foundation says when it ends
+
+	if (p_current >= t_finish)
+		MFPlaybackEnded();
+}
+
+bool MCWin32DSPlayer::RepaintMFVideo(void)
+{
+	if (m_mf == nil || m_video_window == nil)
+		return false;
+
+	PAINTSTRUCT t_paint;
+	BeginPaint(m_video_window, &t_paint);
+	m_mf->UpdateVideo();
+	EndPaint(m_video_window, &t_paint);
+
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 bool MCWin32DSPlayer::StartTimer()
 {
@@ -921,6 +1136,9 @@ void MCWin32DSPlayer::StopTimer()
 
 bool MCWin32DSPlayer::GetFormattedSize(uint32_t &r_width, uint32_t &r_height)
 {
+	if (m_mf != nil)
+		return m_mf->GetVideoSize(r_width, r_height);
+
 	if (!HasVideo() && HasAudio())
 	{
 		r_width = r_height = 0;
@@ -950,8 +1168,28 @@ bool MCWin32DSPlayer::SetUrl(MCStringRef p_url)
 
 	CloseFile();
 
-	if (t_success)
+	// OXT-Beyond: a file DirectShow cannot open (an MP4 without a
+	// third-party DirectShow filter) plays through Media Foundation. Every
+	// file DirectShow opens goes the way it always has: Media Foundation is
+	// tried only after DirectShow has failed. OXT_PLAYER_BACKEND names one
+	// of the two, for testing.
+	MCWin32PlayerBackend t_backend;
+	t_backend = MCWin32PlayerGetBackendChoice();
+
+	if (t_success && t_backend != kMCWin32PlayerBackendMediaFoundation)
 		t_success = OpenFile(p_url);
+	else
+	{
+		t_success = false;
+		m_is_valid = false;
+	}
+
+	if (!t_success && t_backend != kMCWin32PlayerBackendDirectShow && OpenFileWithMediaFoundation(p_url))
+	{
+		// As DirectShow's movie: paused at its start, its first frame shown
+		Pause();
+		return true;
+	}
 
 	if (t_success && HasVideo())
 		t_success = SetVideoWindow(m_video_window);
@@ -976,6 +1214,9 @@ bool MCWin32DSPlayer::SetUrl(MCStringRef p_url)
 
 bool MCWin32DSPlayer::GetPlayRate(double &r_play_rate)
 {
+	if (m_mf != nil)
+		return m_mf->GetRate(r_play_rate);
+
 	if (m_seeking == nil)
 		return false;
 
@@ -989,6 +1230,9 @@ bool MCWin32DSPlayer::GetPlayRate(double &r_play_rate)
 
 bool MCWin32DSPlayer::SetPlayRate(double p_play_rate)
 {
+	if (m_mf != nil)
+		return m_mf->SetRate(p_play_rate);
+
 	if (m_seeking == nil)
 		return false;
 
@@ -997,6 +1241,13 @@ bool MCWin32DSPlayer::SetPlayRate(double p_play_rate)
 
 bool MCWin32DSPlayer::GetTimeScale(MCPlatformPlayerDuration &r_time_scale)
 {
+	// Media Foundation's times are in 100 ns units, as DirectShow's media time
+	if (m_mf != nil)
+	{
+		r_time_scale = 10000000;
+		return true;
+	}
+
 	if (m_seeking == nil)
 		return false;
 
@@ -1011,6 +1262,16 @@ bool MCWin32DSPlayer::GetTimeScale(MCPlatformPlayerDuration &r_time_scale)
 
 bool MCWin32DSPlayer::GetDuration(MCPlatformPlayerDuration &r_duration)
 {
+	if (m_mf != nil)
+	{
+		int64_t t_mf_duration;
+		// (never negative: w32-mf-player.cpp)
+		if (!m_mf->GetDuration(t_mf_duration))
+			return false;
+		r_duration = (MCPlatformPlayerDuration)t_mf_duration;
+		return true;
+	}
+
 	if (m_seeking == nil)
 		return false;
 
@@ -1027,6 +1288,16 @@ bool MCWin32DSPlayer::GetDuration(MCPlatformPlayerDuration &r_duration)
 
 bool MCWin32DSPlayer::GetCurrentPosition(MCPlatformPlayerDuration &r_position)
 {
+	if (m_mf != nil)
+	{
+		int64_t t_mf_position;
+		// (never negative: w32-mf-player.cpp)
+		if (!m_mf->GetPosition(t_mf_position))
+			return false;
+		r_position = (MCPlatformPlayerDuration)t_mf_position;
+		return true;
+	}
+
 	if (m_seeking == nil)
 		return false;
 
@@ -1044,6 +1315,18 @@ bool MCWin32DSPlayer::GetCurrentPosition(MCPlatformPlayerDuration &r_position)
 
 bool MCWin32DSPlayer::SetCurrentPosition(MCPlatformPlayerDuration p_position)
 {
+	if (m_mf != nil)
+	{
+		if (!m_mf->SetPosition((int64_t)p_position))
+			return false;
+
+		// Enter paused state if not currently playing, as below
+		if (m_state != kMCWin32DSPlayerRunning)
+			return PauseMF(false);
+
+		return true;
+	}
+
 	if (m_seeking == nil)
 		return false;
 
@@ -1064,6 +1347,26 @@ bool MCWin32DSPlayer::SetCurrentPosition(MCPlatformPlayerDuration p_position)
 
 bool MCWin32DSPlayer::SetPositions(MCPlatformPlayerDuration p_start, MCPlatformPlayerDuration p_finish)
 {
+	// OXT-Beyond: Media Foundation has no stop position: the timer stops a
+	// selection at its end (CheckMFSelectionEnd); here the movie moves on to
+	// the selection's start when it is before it, as DirectShow's does
+	if (m_mf != nil)
+	{
+		if (!m_play_selection)
+			return true;
+
+		MCPlatformPlayerDuration t_mf_current, t_mf_duration;
+		if (!GetCurrentPosition(t_mf_current) || !GetDuration(t_mf_duration))
+			return false;
+
+		MCPlatformPlayerDuration t_mf_finish = MCMin(t_mf_duration, m_finish_position);
+		MCPlatformPlayerDuration t_mf_start = MCMin(t_mf_finish, m_start_position);
+		if (t_mf_finish - t_mf_start != 0 && t_mf_start > t_mf_current)
+			return SetCurrentPosition(t_mf_start);
+
+		return true;
+	}
+
 	if (m_seeking == nil)
 		return false;
 
@@ -1138,6 +1441,10 @@ bool MCWin32DSPlayer::SetFinishPosition(MCPlatformPlayerDuration p_position)
 
 bool MCWin32DSPlayer::GetLoadedPosition(MCPlatformPlayerDuration &r_loaded)
 {
+	// A file Media Foundation opened is all there
+	if (m_mf != nil)
+		return GetDuration(r_loaded);
+
 	if (m_seeking == nil)
 		return false;
 
@@ -1184,6 +1491,15 @@ long volumeToPercent(int volume)
 
 bool MCWin32DSPlayer::GetVolume(uint16_t &r_volume)
 {
+	if (m_mf != nil)
+	{
+		double t_mf_volume;
+		if (!m_mf->GetVolume(t_mf_volume))
+			return false;
+		r_volume = (uint16_t)MCClamp((int)(t_mf_volume * 100.0 + 0.5), 0, 100);
+		return true;
+	}
+
 	CComQIPtr<IBasicAudio> t_audio(m_graph);
 	if (t_audio == nil)
 		return false;
@@ -1198,6 +1514,9 @@ bool MCWin32DSPlayer::GetVolume(uint16_t &r_volume)
 
 bool MCWin32DSPlayer::SetVolume(uint16_t p_volume)
 {
+	if (m_mf != nil)
+		return m_mf->SetVolume(MCClamp((int)p_volume, 0, 100) / 100.0);
+
 	CComQIPtr<IBasicAudio> t_audio(m_graph);
 	if (t_audio == nil)
 		return false;
@@ -1240,6 +1559,10 @@ bool MCWin32DSPlayer::SetMirrored(bool p_mirrored)
 {
 	if (m_mirrored == p_mirrored)
 		return true;
+
+	// OXT-Beyond: not through Media Foundation (MFPlay cannot mirror)
+	if (m_mf != nil)
+		return false;
 
 	if (m_graph == nil)
 		return false;
@@ -1305,6 +1628,9 @@ bool MCWin32DSPlayer::SetCallbackMarkers(const MCPlatformPlayerDurationArray &p_
 //play
 bool MCWin32DSPlayer::Play()
 {
+	if (m_mf != nil)
+		return PlayMF();
+
 	if (m_control == nil)
 		return false;
 
@@ -1334,6 +1660,9 @@ bool MCWin32DSPlayer::Play()
 //pause playback
 bool MCWin32DSPlayer::Pause(bool p_stop)
 {
+	if (m_mf != nil)
+		return PauseMF(p_stop);
+
 	if (m_control == nil)
 		return false;
 
@@ -1367,6 +1696,18 @@ bool MCWin32DSPlayer::Pause(bool p_stop)
 // seek forward / backward n frames
 bool MCWin32DSPlayer::SeekRelative(int32_t p_amount)
 {
+	// OXT-Beyond: through Media Foundation, by the movie's frame length (a
+	// 30th of a second when it does not say)
+	if (m_mf != nil)
+	{
+		int64_t t_mf_position;
+		if (!m_mf->GetPosition(t_mf_position))
+			return false;
+		int64_t t_mf_frame = m_frame_length > 0 ? (int64_t)m_frame_length : 333333;
+		t_mf_position += (int64_t)p_amount * t_mf_frame;
+		return m_mf->SetPosition(t_mf_position < 0 ? 0 : t_mf_position);
+	}
+
 	if (m_seeking == nil)
 		return false;
 

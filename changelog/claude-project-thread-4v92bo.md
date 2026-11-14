@@ -1,0 +1,2 @@
+- Windows: the player opens a file DirectShow cannot, such as an MP4 (H.264 and AAC) without a third-party filter, through Media Foundation; every file DirectShow opens plays as before, and `OXT_PLAYER_BACKEND` (`directshow` or `mediafoundation`) names one of the two for testing (#claude-project-thread-4v92bo)
+- Tests: the Windows build's player check plays the MP4 files wherever Media Foundation is there, and test_mf_player.py checks the order (DirectShow first) and compiles the Media Foundation part on its own with MinGW-w64 (#claude-project-thread-4v92bo)

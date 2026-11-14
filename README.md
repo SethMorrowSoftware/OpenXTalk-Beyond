@@ -4813,15 +4813,18 @@ Known limitations, in rough order of importance:
    light. His macOS dark mode has been built and tested in CI but not yet
    tried on a Mac. OXT-Beyond's own dark mode work continues in a
    separate, experimental repository.
-10. The player depends on what the system can play. On Windows it uses
-   DirectShow, which cannot open MP4 (H.264 and AAC) files without a
-   third-party DirectShow filter such as LAV Filters; AVI files play.
-   On Linux it runs mplayer, or GStreamer when mplayer is not installed
+10. The player depends on what the system can play. On Windows it opens
+   a file with DirectShow, as it always has, and a file DirectShow cannot
+   open, such as an MP4 (H.264 and AAC) without a third-party filter like
+   LAV Filters, through Media Foundation, which is part of Windows (not
+   of the N editions without the Media Feature Pack, nor of Windows
+   Server without its Media Foundation feature). Such a movie cannot be
+   mirrored (`mirrored`), and with a selection played (`playSelection`)
+   it stops within a tenth of a second of its end. On Linux it runs mplayer, or GStreamer when mplayer is not installed
    (its plugins: `sudo apt install gstreamer1.0-plugins-good
    gstreamer1.0-libav gstreamer1.0-x` on Debian and Ubuntu); with
    neither no file plays. macOS
-   plays both. A Media Foundation player for Windows would open MP4
-   files by itself; whether to write one is not decided yet.
+   plays both.
 11. In an install for all users, a few things that save stacks inside
    the program folder fail for standard users, because Setup keeps
    stacks and scripts there read-only: the Report Builder plugin saving
