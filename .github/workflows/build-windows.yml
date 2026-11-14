@@ -984,8 +984,9 @@ jobs:
       # Editor, the Message Box, undo, copy, group, align, cards, Save As,
       # Close and Remove From Memory and opening it again, Revert, the
       # Dictionary, the Geometry Manager, Preferences, the Application
-      # Browser and a standalone build stopped by an error (the stack as
-      # it was); each asserted and snapshot
+      # Browser, a standalone build stopped by an error (the stack as
+      # it was) and a standalone built to the end and run; each asserted
+      # and snapshot
       # (tools/ci/everyday-tasks.livecodescript). A task that fails, or a
       # script error, fails the step
       - name: Everyday IDE tasks, light

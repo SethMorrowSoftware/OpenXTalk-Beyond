@@ -2395,7 +2395,10 @@ image as a button's icon, the Geometry Manager, a preference changed and
 restored, the Application Browser, and File > Save as Standalone
 Application with the build stopped by an error part way (of the stack,
 and of a stack whose file is named .mc): the stack is left as it was,
-without the IDE's Answer and Ask dialogs in it. Each task asserts what a
+without the IDE's Answer and Ask dialogs in it. The last task builds a
+stack to the end with the builder's dialogs on: the IDE says the
+standalone was saved, the stack is as it was, and the standalone is run,
+writes what it finds itself to be and quits. Each task asserts what a
 person would see, waits for it rather than sleeping, and snapshots it
 (`everyday-*.png`); `--only` runs the tasks up to the last one named.
 Builds run it on Linux light and dark at once (two Xvfb screens), on
