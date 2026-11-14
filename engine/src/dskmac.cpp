@@ -41,6 +41,7 @@
 #include "securemode.h"
 #include "text.h"
 #include "socket.h"
+#include "notify.h"
 
 #include <sys/stat.h>
 #include <sys/utsname.h>
@@ -57,6 +58,8 @@
 #include <Security/AuthorizationTags.h>
 
 #include <mach-o/dyld.h>
+#include <dispatch/dispatch.h>
+#include <signal.h>
 
 
 #define ENTRIES_CHUNK 1024
@@ -985,6 +988,79 @@ bool MCS_apply_redirect(MCStringRef p_path, bool p_is_file, MCStringRef& r_redir
 /* LEGACY */
 extern char *path2utf(char *);
 
+#ifndef _MAC_SERVER
+// OXT-Beyond: a TERM signal (kill, killall) asks the engine to quit in its
+// event loop, not in the signal handler. The handler used to send
+// shutDownRequest and shutDown itself, so script ran inside a signal,
+// interrupting whatever the engine was doing: a malloc, an AppKit call, a
+// handler half way through. The IDE or a standalone could then hang (a lock
+// the interrupted code held) or crash. Now the signal is watched by a GCD
+// source on a background queue, which queues handle_term_request as a safe
+// notification; the event loop runs it at its next safe point, where it
+// sends the same messages, in the same order, with the same outcomes as
+// before (handle_signal's old SIGTERM case, below). What a script sees is
+// unchanged but for WHEN: a handler that is running when the signal comes
+// finishes first, as it does when Quit is chosen from the menu or the Dock.
+// A second TERM while the first is still queued is coalesced into it.
+// The server engine (srvmain.cpp, sysspec.cpp) keeps its own handling.
+static dispatch_source_t s_term_source = nullptr;
+static volatile sig_atomic_t s_term_queued = 0;
+
+static void handle_term_request(void *)
+{
+    s_term_queued = 0;
+    if (MCdefaultstackptr)
+    {
+        switch (MCdefaultstackptr->getcard()->message(MCM_shut_down_request))
+        {
+            case ES_NORMAL:
+                return;
+            case ES_PASS:
+            case ES_NOT_HANDLED:
+                MCdefaultstackptr->getcard()->message(MCM_shut_down);
+                MCquit = True; //set MC quit flag, to invoke quitting
+                return;
+            default:
+                break;
+        }
+    }
+    
+    MCS_killall();
+    exit(-1);
+}
+
+// Runs on a GCD queue, never in the signal handler, so it may take locks
+static void term_source_fired(void *)
+{
+    if (s_term_queued)
+        return;
+    
+    // The notification queue is made with the screen, after the signal
+    // handlers are installed: a TERM that comes before it waits for it
+    if (!MCNotifyIsInitialized())
+    {
+        dispatch_after_f(dispatch_time(DISPATCH_TIME_NOW, 100 * NSEC_PER_MSEC),
+                         dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
+                         nullptr, term_source_fired);
+        return;
+    }
+    
+    s_term_queued = 1;
+    if (!MCNotifyPush(handle_term_request, nullptr, false, true))
+        s_term_queued = 0;
+}
+
+static void watch_term_signal(void)
+{
+    s_term_source = dispatch_source_create(DISPATCH_SOURCE_TYPE_SIGNAL, SIGTERM, 0,
+                                           dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
+    if (s_term_source == nullptr)
+        return;
+    dispatch_source_set_event_handler_f(s_term_source, term_source_fired);
+    dispatch_resume(s_term_source);
+}
+#endif
+
 static void handle_signal(int sig)
 {
 	MCHandler handler(HT_MESSAGE);
@@ -997,6 +1073,13 @@ static void handle_signal(int sig)
             MCsiguser2++;
             break;
         case SIGTERM:
+#ifndef _MAC_SERVER
+            // The GCD source above sees this signal too, and queues the
+            // request for the event loop: nothing to do here
+            if (s_term_source != nullptr)
+                return;
+#endif
+            // Without the source (it could not be made), as before
             if (MCdefaultstackptr)
             {
                 switch (MCdefaultstackptr->getcard()->message(MCM_shut_down_request))
@@ -2825,6 +2908,11 @@ struct MCMacDesktop: public MCSystemInterface, public MCMacSystemService
         sigaction(SIGIOT, &action, NULL);
         sigaction(SIGPIPE, &action, NULL);
         sigaction(SIGALRM, &action, NULL);
+#ifndef _MAC_SERVER
+        // Before the handler, so that no TERM is handled the old way once
+        // the source exists (the handler then leaves TERM to it)
+        watch_term_signal();
+#endif
         sigaction(SIGTERM, &action, NULL);
         sigaction(SIGUSR1, &action, NULL);
         sigaction(SIGUSR2, &action, NULL);

@@ -18,6 +18,10 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #define __MC_NOTIFY__
 
 bool MCNotifyInitialize(void);
+
+// OXT-Beyond: whether the queue exists yet (and is not shutting down), so a
+// thread that may run before the screen is made knows when to push
+bool MCNotifyIsInitialized(void);
 void MCNotifyFinalize(void);
 
 // MW-2010-09-04: Added 'safe' parameter. If true, the notification will only
