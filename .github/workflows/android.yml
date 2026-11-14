@@ -338,15 +338,19 @@ jobs:
       # which has RelaunchActivity: the builder declares it, in a process
       # of its own, as for any stack built with this runtime (verify checks
       # the declaration against the package's dex, and the configuration
-      # changes)
+      # changes). It is built with a real Android library (--aar: a class
+      # that reads a string of its own through its R class), as an
+      # extension's jvm-android folder brings one, and verify checks that
+      # the package carries the library's class, its R class, and its
+      # string at the id that R class gives
       - name: The app probe, with this Java layer
         if: runner.os == 'Linux'
         run: |
           "$PY" tools/ci/android_check.py ide --install "$JAVA_IDE" --platform "$PLATFORM" \
             --work "$WORK/java-app" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug \
-            --stack "$WORK/changed/AndroidProbe.livecode"
+            --stack "$WORK/changed/AndroidProbe.livecode" --aar
           "$PY" tools/ci/android_check.py verify --work "$WORK/java-app" --sdk "$SDK" --jdk "$JDK" \
-            --builds debug --target 36
+            --builds debug --aar --target 36
 
       # The busy probe (kBusyTick in tools/ci/android-check.livecodescript):
       # the app probe drawing all the time it runs, by this builder with the

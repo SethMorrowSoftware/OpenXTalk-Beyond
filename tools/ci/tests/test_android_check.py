@@ -5515,7 +5515,7 @@ class OneSystem(unittest.TestCase):
         built = [x for x in ides if '--work "$WORK/java-app"' in x]
         self.assertEqual(built, ['android_check.py ide --install "$JAVA_IDE" --platform "$PLATFORM" '
                                  '--work "$WORK/java-app" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug '
-                                 '--stack "$WORK/changed/AndroidProbe.livecode"'])
+                                 '--stack "$WORK/changed/AndroidProbe.livecode" --aar'])
         # the busy probe: by the same builder with the same Java layer, its
         # own stack (--probe busy), on Linux, where the emulators run
         built = [x for x in ides if '--work "$WORK/java-busy"' in x]

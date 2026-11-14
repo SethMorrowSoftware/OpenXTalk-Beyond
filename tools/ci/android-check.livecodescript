@@ -78,6 +78,8 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --                          "tests" for the script tests (see kTestsScript)
 --    OXT_ANDROID_ENGINE    the probe's "android,engine" setting ("beyond"
 --                          for OXT-Beyond's own engine; none when empty)
+--    OXT_ANDROID_AAR       an Android library (.aar) to build the probe
+--                          with (its "aarFiles"; none when empty)
 --
 -- The Java layer's probe, AndroidJavaProbe, is the probe with more to do
 -- before it turns green: it asks the Java layer of the runtime for what
@@ -1252,6 +1254,12 @@ private function buildSettings pName
    -- ide --android-engine beyond), or 9.6.3's as a stack that names none
    if $OXT_ANDROID_ENGINE is not empty then
       put $OXT_ANDROID_ENGINE into tSettings["android,engine"]
+   end if
+   -- a real Android library (android_check.py ide --aar), as an
+   -- extension's jvm-android folder or a Play Services dependency brings
+   -- one: the builder's "aarFiles", a path per line
+   if $OXT_ANDROID_AAR is not empty then
+      put $OXT_ANDROID_AAR into tSettings["aarFiles"]
    end if
    repeat for each item tArch in "armv7,arm64,x86,x86_64"
       delete variable tSettings["android," & tArch]
