@@ -93,6 +93,21 @@ class MainArgs(unittest.TestCase):
             self.assertIn('return CefMainArgs(1, s_argv);', text, path)
             self.assertRegex(text, r'#if defined\(__linux__\)\n\tCefMainArgs t_args = MCCefLinuxMainArgs\(\);', path)
 
+    def test_chromium_loads_no_gtk_3_into_the_gtk_2_engine(self):
+        # Chromium's Linux UI would load GTK 3 beside the engine's GTK 2,
+        # and CefInitialize crashed; the fallback UI loads no GTK
+        for path in ('libbrowser/src/libbrowser_cef.cpp', 'revbrowser/src/cefbrowser.cpp'):
+            text = read(os.path.join(REPO, *path.split('/')))
+            self.assertRegex(text, r'if \(!p_command_line->HasSwitch\(kUiToolkit\)\)\n\t+'
+                                   r'p_command_line->AppendSwitchWithValue\(kUiToolkit, "fallback"\);', path)
+            self.assertIn('static const char kUiToolkit[] = "ui-toolkit";', text, path)
+        lib = read(os.path.join(REPO, 'libbrowser', 'src', 'libbrowser_cef.cpp'))
+        self.assertRegex(lib, r'AppendDeviceScaleFactor\(p_command_line\);\n\t\tAppendLinuxUiToolkit\(p_command_line\);')
+        rev = read(os.path.join(REPO, 'revbrowser', 'src', 'cefbrowser.cpp'))
+        # revBrowser had no CefApp; on Linux it now has one that gives the switch
+        self.assertRegex(rev, r'#if defined\(__linux__\)\n\tCefRefPtr<CefApp> t_app = new MCRevBrowserCefApp\(\);\n'
+                              r'#else\n\tCefRefPtr<CefApp> t_app = nil;\n#endif')
+
 
 class StubRules(unittest.TestCase):
     """The generator on headers of its own."""

@@ -258,6 +258,26 @@ static CefMainArgs MCCefLinuxMainArgs(void)
 }
 #endif
 
+#if defined(__linux__)
+// OXT-Beyond: [[ CEF 156 ]] The engine is a GTK 2 program. Chromium's own
+// Linux UI loads GTK 3 into the browser process (CEF 74 did not), which
+// cannot share it with GTK 2 ("cannot register existing type
+// 'GtkSettings'") and left CefInitialize to read through a null pointer.
+// The fallback UI takes nothing from GTK, as CEF 74 took nothing.
+class MCRevBrowserCefApp : public CefApp
+{
+public:
+	virtual void OnBeforeCommandLineProcessing(const CefString &p_process_type, CefRefPtr<CefCommandLine> p_command_line) override
+	{
+		static const char kUiToolkit[] = "ui-toolkit";
+		if (!p_command_line->HasSwitch(kUiToolkit))
+			p_command_line->AppendSwitchWithValue(kUiToolkit, "fallback");
+	}
+	
+	IMPLEMENT_REFCOUNTING(MCRevBrowserCefApp);
+};
+#endif
+
 // IM-2014-03-13: [[ revBrowserCEF ]] Initialisation of the CEF library
 bool MCCefInitialise(void)
 {
@@ -292,7 +312,11 @@ bool MCCefInitialise(void)
         t_success = __MCCefBuildPath(t_library_path, "", &t_settings.resources_dir_path);
 
 
+#if defined(__linux__)
+	CefRefPtr<CefApp> t_app = new MCRevBrowserCefApp();
+#else
 	CefRefPtr<CefApp> t_app = nil;
+#endif
 
 	if (t_success)
 		t_success = -1 == CefExecuteProcess(t_args, t_app, nil);

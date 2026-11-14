@@ -302,6 +302,7 @@ public:
 			p_command_line->AppendSwitch(MC_CEF_HIDPI_SWITCH);
 #if defined(TARGET_PLATFORM_LINUX)
 		AppendDeviceScaleFactor(p_command_line);
+		AppendLinuxUiToolkit(p_command_line);
 #endif
 	}
 	
@@ -315,6 +316,19 @@ public:
 	}
 	
 #if defined(TARGET_PLATFORM_LINUX)
+	// OXT-Beyond: [[ CEF 156 ]] The engine is a GTK 2 program. Chromium's
+	// own Linux UI loads GTK 3 into the browser process (CEF 74 did not),
+	// which cannot share it with GTK 2 ("cannot register existing type
+	// 'GtkSettings'") and left CefInitialize to read through a null
+	// pointer. The fallback UI takes nothing from GTK, as CEF 74 took
+	// nothing: the page looks as it did. A ui-toolkit already given is kept.
+	static void AppendLinuxUiToolkit(CefRefPtr<CefCommandLine> p_command_line)
+	{
+		static const char kUiToolkit[] = "ui-toolkit";
+		if (!p_command_line->HasSwitch(kUiToolkit))
+			p_command_line->AppendSwitchWithValue(kUiToolkit, "fallback");
+	}
+	
 	// OXT-Beyond: [[ HiDPI ]] CEF on Linux takes no scale from the desktop (a
 	// Chromium of its own gets it from GTK), so on a desktop at 200% the
 	// browser's window had the right size and the page in it was drawn at
