@@ -85,8 +85,10 @@ on TestSetup
 end TestSetup
 
 on TestTeardown
-   if sPath is not empty and there is a file sPath then
+   if sPath is not empty and there is a folder sFolder then
       __MakeWritable
+   end if
+   if sPath is not empty and there is a file sPath then
       delete file sPath
    end if
    if sPath is not empty and there is a file (sPath & "~") then
@@ -123,7 +125,11 @@ private command __MakeReadOnly
    if the platform is "Win32" then
       get shell("attrib +r " & quote & revWindowsPath(sPath) & quote)
    else
-      get shell("chmod a-w " & quote & sPath & quote)
+      -- The folder too, as the program folder of an install for all
+      -- users is: with only the file read-only, the engine's save
+      -- (which renames the file to a backup and writes a new one) works
+      -- where the platform lets it rename a read-only file, as macOS does
+      get shell("chmod a-w " & quote & sPath & quote & " " & quote & sFolder & quote)
    end if
 end __MakeReadOnly
 
@@ -131,7 +137,7 @@ private command __MakeWritable
    if the platform is "Win32" then
       get shell("attrib -r " & quote & revWindowsPath(sPath) & quote)
    else
-      get shell("chmod u+w " & quote & sPath & quote)
+      get shell("chmod u+w " & quote & sFolder & quote & " " & quote & sPath & quote)
    end if
 end __MakeWritable
 
@@ -144,11 +150,22 @@ end revWindowsPath
 -- whatever its permissions)
 private function __CanWrite
    open file sPath for update
-   if the result is not empty then
-      return false
+   if the result is empty then
+      close file sPath
+      return true
    end if
-   close file sPath
-   return true
+   if the platform is not "Win32" then
+      -- Nor a file of its own in the folder
+      local tProbe
+      put sFolder & "/probe" into tProbe
+      open file tProbe for write
+      if the result is empty then
+         close file tProbe
+         delete file tProbe
+         return true
+      end if
+   end if
+   return false
 end __CanWrite
 
 -- What the preferences keep for the plugin, or with pAll all they keep
@@ -231,7 +248,9 @@ on TestReadOnlyStackKeepsSettings
    TestAssert "they are kept in the preferences", tResult is "preferences"
    
    local tKept
-   put arrayDecode(__Saved()) into tKept
+   if __Saved() is not empty then
+      put arrayDecode(__Saved()) into tKept
+   end if
    TestAssert "the preferences keep the new setting", tKept["load"] is "startup"
    TestAssert "the preferences keep the others", tKept["mode"] is "palette" and tKept["inMenu"] is true
    
