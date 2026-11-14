@@ -839,6 +839,10 @@ struct MCCefErrorInfo
 	CefLoadHandler::ErrorCode error_code;
 };
 
+// The URL of Chromium's error page in CEF 74 (since Chromium shows it at the
+// URL that failed)
+static const char kMCCefErrorPageURL[] = "chrome-error://chromewebdata/";
+
 class MCCefBrowserClient : public CefClient, CefLifeSpanHandler, CefRequestHandler, CefResourceRequestHandler, /* CefDownloadHandler ,*/ CefLoadHandler, CefContextMenuHandler, CefDragHandler, CefFocusHandler
 {
 public:
@@ -866,6 +870,11 @@ private:
 	CefString m_last_request_url;
 	
 	PageOrigin m_displayed_page_origin;
+
+	// Whether the main frame shows Chromium's error page for a load that
+	// failed: CEF 74 showed it at its own URL, and Chromium now shows it at
+	// the URL that failed (see OnLoadEnd). Until the next page starts.
+	bool m_shows_error_page = false;
 
 	// The pages given as htmlText, until their URL is requested
 	MCCefPendingSource m_pending_sources;
@@ -979,6 +988,11 @@ public:
 	PageOrigin GetDisplayedPageOrigin()
 	{
 		return m_displayed_page_origin;
+	}
+
+	bool ShowsErrorPage()
+	{
+		return m_shows_error_page;
 	}
 
 	MCCefMessageResult &GetMessageResult()
@@ -1330,7 +1344,11 @@ public:
 		/* UNCHECKED */ GetLoadingUrlOrigin(t_url, t_origin);
 
 		if (!t_frame && !t_is_error)
+		{
 			m_displayed_page_origin = t_origin;
+			// the next page leaves the error page
+			m_shows_error_page = false;
+		}
 
 		if (!t_frame && t_origin == PageOrigin::kSetSource)
 			return;
@@ -1395,10 +1413,24 @@ public:
 				
 				if (t_err_str != nil)
 					MCCStringFree(t_err_str);
+				
+				// OXT-Beyond: [[ CEF 156 ]] CEF 74 then loaded Chromium's
+				// error page at its own URL, which sent these two messages
+				// and was the url until the next page. Chromium now shows
+				// the error page at the URL that failed, with no load of its
+				// own: the messages and the url are as they were.
+				if (!t_frame)
+				{
+					m_shows_error_page = true;
+					m_owner->OnDocumentLoadComplete(t_frame, kMCCefErrorPageURL);
+					m_owner->OnNavigationComplete(t_frame, kMCCefErrorPageURL);
+				}
 			}
 		}
 		else
 		{
+			if (!t_frame)
+				m_shows_error_page = false;
 			m_owner->OnDocumentLoadComplete(t_frame, t_url_str);
 			
 			if (!t_frame)
@@ -2003,7 +2035,10 @@ char *MCCefBrowserBase::GetURL(void)
 	}
 
 	CefString t_url;
-	t_url = m_browser->GetMainFrame()->GetURL();
+	if (m_client->ShowsErrorPage())
+		t_url = kMCCefErrorPageURL;
+	else
+		t_url = m_browser->GetMainFrame()->GetURL();
 	
 	char *t_url_str;
 	t_url_str = nil;

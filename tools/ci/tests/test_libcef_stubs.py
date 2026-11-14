@@ -142,10 +142,41 @@ class RevBrowserAsCef74(unittest.TestCase):
         self.assertIn('static const char kMCCefErrorPageURL[] = "chrome-error://chromewebdata/";', self.text)
         end = self.body('OnLoadEnd')
         self.assertLess(end.index('CB_DocumentFailed('), end.index('CB_DocumentComplete(m_owner->GetInst(), kMCCefErrorPageURL);'))
-        self.assertIn('m_error_page_failed_url = t_url;', end)
-        # the url property names it until the next page
+        self.assertIn('m_shows_error_page = true;', end)
+        # a page that loads, or the next page that starts, leaves it
+        self.assertIn('m_shows_error_page = false;', end)
+        self.assertIn('m_shows_error_page = false;', self.body('OnLoadStart'))
+        # the url property names it meanwhile
         self.assertIn('t_url = m_client->MainFrameURL(m_browser->GetMainFrame());', self.text)
-        self.assertIn('m_error_page_failed_url.clear();', self.body('OnBeforeBrowse'))
+        self.assertRegex(self.body('MainFrameURL'), r'if \(m_shows_error_page\)\n\t\t\treturn kMCCefErrorPageURL;')
+
+
+class WidgetAsCef74(unittest.TestCase):
+    """The same for the browser widget (libbrowser)."""
+
+    def setUp(self):
+        self.text = read(os.path.join(REPO, 'libbrowser', 'src', 'libbrowser_cef.cpp'))
+
+    def body(self, name):
+        m = re.search(r'\n\t(?:virtual )?\w[\w *]* %s\(.*?\n\t\}\n' % name, self.text, re.S)
+        self.assertIsNotNone(m, name)
+        return m.group(0)
+
+    def test_the_error_page_by_its_cef_74_url(self):
+        self.assertIn('static const char kMCCefErrorPageURL[] = "chrome-error://chromewebdata/";', self.text)
+        end = self.body('OnLoadEnd')
+        failed = end.index('m_owner->OnNavigationFailed(')
+        load = end.index('m_owner->OnDocumentLoadComplete(t_frame, kMCCefErrorPageURL);')
+        nav = end.index('m_owner->OnNavigationComplete(t_frame, kMCCefErrorPageURL);')
+        self.assertLess(failed, load)
+        self.assertLess(load, nav)
+        self.assertIn('m_shows_error_page = true;', end)
+        self.assertIn('m_shows_error_page = false;', end)
+        self.assertIn('m_shows_error_page = false;', self.body('OnLoadStart'))
+        url = re.search(r'char \*MCCefBrowserBase::GetURL\(void\)\n\{.*?\n\}', self.text, re.S).group(0)
+        # an htmlText page's url stays empty, as CEF 74 left it
+        self.assertLess(url.index('PageOrigin::kSetSource'), url.index('ShowsErrorPage()'))
+        self.assertIn('t_url = kMCCefErrorPageURL;', url)
 
 
 class StubRules(unittest.TestCase):

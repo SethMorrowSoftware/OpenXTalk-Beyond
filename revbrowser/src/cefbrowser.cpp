@@ -556,10 +556,10 @@ private:
 
 	CefString m_last_request_url;
 
-	// The URL that failed to load in the main frame, whose error page is
-	// shown: CEF 74 showed Chromium's error page at its own URL, and
-	// Chromium now shows it at the URL that failed (see OnLoadEnd)
-	CefString m_error_page_failed_url;
+	// Whether the main frame shows Chromium's error page for a load that
+	// failed: CEF 74 showed it at its own URL, and Chromium now shows it at
+	// the URL that failed (see OnLoadEnd). Until the next page starts.
+	bool m_shows_error_page = false;
 
 	// Error handling - we need to keep track of url that failed to load in a
 	// frame so we can send the correct url in onLoadEnd()
@@ -600,10 +600,9 @@ public:
 	// own URL while it is shown for a load that failed
 	CefString MainFrameURL(CefRefPtr<CefFrame> p_frame)
 	{
-		CefString t_url = p_frame->GetURL();
-		if (!m_error_page_failed_url.empty() && t_url == m_error_page_failed_url)
+		if (m_shows_error_page)
 			return kMCCefErrorPageURL;
-		return t_url;
+		return p_frame->GetURL();
 	}
 
 	// IM-2014-07-21: [[ Bug 12296 ]] Method to allow owner to notify client of its deletion
@@ -813,10 +812,6 @@ public:
 		if (p_frame->IsMain() && !p_is_redirect && m_pending_sources.Has(t_url))
 			return false;
 
-		// a new page leaves the error page
-		if (p_frame->IsMain())
-			m_error_page_failed_url.clear();
-
 		char *t_url_str;
 		t_url_str = nil;
 		/* UNCHECKED */ MCCefStringToUtf8String(t_url, t_url_str);
@@ -968,6 +963,10 @@ public:
 		CefString t_url;
 		t_url = p_frame->GetURL();
 
+		// the next page leaves the error page
+		if (p_frame->IsMain())
+			m_shows_error_page = false;
+
 		if (IgnoreUrl(t_url))
 			return;
 
@@ -1028,12 +1027,14 @@ public:
 			// message and the url are as they were.
 			if (p_frame->IsMain() && m_owner != nil)
 			{
-				m_error_page_failed_url = t_url;
+				m_shows_error_page = true;
 				CB_DocumentComplete(m_owner->GetInst(), kMCCefErrorPageURL);
 			}
 		}
 		else
 		{
+			if (p_frame->IsMain())
+				m_shows_error_page = false;
 			if (p_frame->IsMain())
 				CB_DocumentComplete(m_owner->GetInst(), t_url_str);
 			else
