@@ -147,6 +147,15 @@ public:
 
 		switch (p_event->eEventType)
 		{
+		case MFP_EVENT_TYPE_MEDIAITEM_CREATED:
+			m_playback->HandleMediaItemCreated(p_event->hrEvent,
+			                                   ((MFP_MEDIAITEM_CREATED_EVENT *)p_event)->pMediaItem);
+			break;
+
+		case MFP_EVENT_TYPE_POSITION_SET:
+			m_playback->HandlePositionSet();
+			break;
+
 		case MFP_EVENT_TYPE_MEDIAITEM_SET:
 			m_playback->HandleMediaItemSet(p_event->hrEvent);
 			break;
@@ -176,7 +185,9 @@ private:
 MCWin32MFPlayback::MCWin32MFPlayback(void)
 	: m_player(NULL), m_callback(NULL), m_owner(NULL),
 	  m_has_video(false), m_has_audio(false), m_frame_length(0),
-	  m_item_set_done(false), m_item_set_result(S_OK)
+	  m_item_created_done(false), m_item_created_result(S_OK), m_created_item(NULL),
+	  m_item_set_done(false), m_item_set_result(S_OK),
+	  m_seek_pending(false), m_seek_target(0)
 {
 }
 
@@ -192,11 +203,40 @@ MCWin32MFPlayback::~MCWin32MFPlayback(void)
 		m_player = NULL;
 	}
 
+	ReleaseCreatedItem();
+
 	if (m_callback != NULL)
 	{
 		m_callback->Release();
 		m_callback = NULL;
 	}
+}
+
+void MCWin32MFPlayback::ReleaseCreatedItem(void)
+{
+	if (m_created_item != NULL)
+	{
+		m_created_item->Release();
+		m_created_item = NULL;
+	}
+}
+
+void MCWin32MFPlayback::HandleMediaItemCreated(HRESULT p_result, IMFPMediaItem *p_item)
+{
+	// MFPlay releases the event's item after the callback: it is kept
+	ReleaseCreatedItem();
+	if (SUCCEEDED(p_result) && p_item != NULL)
+	{
+		p_item->AddRef();
+		m_created_item = p_item;
+	}
+	m_item_created_result = SUCCEEDED(p_result) && p_item == NULL ? E_FAIL : p_result;
+	m_item_created_done = true;
+}
+
+void MCWin32MFPlayback::HandlePositionSet(void)
+{
+	m_seek_pending = false;
 }
 
 void MCWin32MFPlayback::HandleMediaItemSet(HRESULT p_result)
@@ -207,6 +247,7 @@ void MCWin32MFPlayback::HandleMediaItemSet(HRESULT p_result)
 
 void MCWin32MFPlayback::HandleEnded(void)
 {
+	m_seek_pending = false;
 	if (m_owner != NULL)
 		m_owner->MFPlaybackEnded();
 }
@@ -254,14 +295,38 @@ static int64_t MCWin32MFItemFrameLength(IMFPMediaItem *p_item)
 	return 0;
 }
 
-// Makes the media item for p_path (synchronously) and sets it on the
-// player, then waits for MFPlay to say whether that worked. With
+// Makes the media item for p_path and sets it on the player, waiting for
+// MFPlay to say whether each worked: both are asynchronous, and the one
+// deadline covers both, so a slow URL or network file cannot hold the
+// thread past it (the synchronous form of CreateMediaItemFromURL blocks
+// until the source is resolved, however long that takes). With
 // p_without_audio, the item's sound streams are left out first.
 bool MCWin32MFPlayback::SetItem(const wchar_t *p_path, bool p_without_audio, WaitFunction p_wait,
                                 DWORD p_timeout_ms, HRESULT &r_result)
 {
+	ULONGLONG t_deadline = GetTickCount64() + p_timeout_ms;
+
 	IMFPMediaItem *t_item = NULL;
-	HRESULT t_result = m_player->CreateMediaItemFromURL(p_path, TRUE, 0, &t_item);
+	ReleaseCreatedItem();
+	m_item_created_done = false;
+	m_item_created_result = S_OK;
+	HRESULT t_result = m_player->CreateMediaItemFromURL(p_path, FALSE, 0, NULL);
+	if (SUCCEEDED(t_result))
+	{
+		while (!m_item_created_done && GetTickCount64() < t_deadline)
+			p_wait();
+
+		if (!m_item_created_done)
+			t_result = HRESULT_FROM_WIN32(ERROR_TIMEOUT);
+		else
+			t_result = m_item_created_result;
+	}
+	if (SUCCEEDED(t_result))
+	{
+		// (taken from the event: SetItem releases it below)
+		t_item = m_created_item;
+		m_created_item = NULL;
+	}
 
 	if (SUCCEEDED(t_result) && p_without_audio)
 	{
@@ -294,7 +359,6 @@ bool MCWin32MFPlayback::SetItem(const wchar_t *p_path, bool p_without_audio, Wai
 	{
 		// MFPlay sets the item up asynchronously and says so through this
 		// thread's messages, which the wait pumps
-		ULONGLONG t_deadline = GetTickCount64() + p_timeout_ms;
 		while (!m_item_set_done && GetTickCount64() < t_deadline)
 			p_wait();
 
@@ -385,6 +449,12 @@ bool MCWin32MFPlayback::GetDuration(int64_t &r_duration)
 
 bool MCWin32MFPlayback::GetPosition(int64_t &r_position)
 {
+	if (m_seek_pending)
+	{
+		r_position = m_seek_target;
+		return true;
+	}
+
 	PROPVARIANT t_value;
 	PropVariantInit(&t_value);
 	bool t_success = SUCCEEDED(m_player->GetPosition(kMCMFPositionType100ns, &t_value));
@@ -407,7 +477,12 @@ bool MCWin32MFPlayback::SetPosition(int64_t p_position)
 	PropVariantInit(&t_value);
 	t_value.vt = VT_I8;
 	t_value.hVal.QuadPart = p_position < 0 ? 0 : p_position;
-	return SUCCEEDED(m_player->SetPosition(kMCMFPositionType100ns, &t_value));
+	if (FAILED(m_player->SetPosition(kMCMFPositionType100ns, &t_value)))
+		return false;
+
+	m_seek_target = t_value.hVal.QuadPart;
+	m_seek_pending = true;
+	return true;
 }
 
 bool MCWin32MFPlayback::GetRate(double &r_rate)

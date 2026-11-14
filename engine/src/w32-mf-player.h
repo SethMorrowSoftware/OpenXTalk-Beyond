@@ -51,6 +51,7 @@ public:
 
 class MCWin32MFPlaybackCallback;
 struct IMFPMediaPlayer;
+struct IMFPMediaItem;
 
 class MCWin32MFPlayback
 {
@@ -64,9 +65,11 @@ public:
 
 	// The movie at p_path in p_video_window (which may be NULL for sound
 	// alone), paused at its start; NULL when Media Foundation cannot open
-	// it. It waits (calling p_wait) until Media Foundation has set the movie
-	// up, at most p_timeout_ms milliseconds, so that its duration, size and
-	// media types are known when this returns, as DirectShow's are.
+	// it. It waits (calling p_wait) until Media Foundation has opened the
+	// file and set the movie up, at most p_timeout_ms milliseconds in all
+	// (both steps are asynchronous, so a slow URL or network file never
+	// holds the thread longer), so that its duration, size and media types
+	// are known when this returns, as DirectShow's are.
 	static MCWin32MFPlayback *Open(const wchar_t *p_path, HWND p_video_window, MCWin32MFPlaybackOwner *p_owner,
 	                               WaitFunction p_wait, DWORD p_timeout_ms);
 
@@ -100,7 +103,9 @@ public:
 	void UpdateVideo(void);
 
 	// From the callback object: MFPlay's events
+	void HandleMediaItemCreated(HRESULT p_result, IMFPMediaItem *p_item);
 	void HandleMediaItemSet(HRESULT p_result);
+	void HandlePositionSet(void);
 	void HandleEnded(void);
 
 private:
@@ -108,6 +113,7 @@ private:
 
 	bool SetItem(const wchar_t *p_path, bool p_without_audio, WaitFunction p_wait, DWORD p_timeout_ms,
 	             HRESULT &r_result);
+	void ReleaseCreatedItem(void);
 
 	IMFPMediaPlayer *m_player;
 	MCWin32MFPlaybackCallback *m_callback;
@@ -117,9 +123,23 @@ private:
 	bool m_has_audio;
 	int64_t m_frame_length;
 
+	// MFP_EVENT_TYPE_MEDIAITEM_CREATED: whether it came, its result and
+	// its item (held until SetItem takes it)
+	bool m_item_created_done;
+	HRESULT m_item_created_result;
+	IMFPMediaItem *m_created_item;
+
 	// MFP_EVENT_TYPE_MEDIAITEM_SET: whether it came, and its result
 	bool m_item_set_done;
 	HRESULT m_item_set_result;
+
+	// A seek MFPlay has not finished (it seeks asynchronously, and a seek
+	// replaces one still going): the position reads as its target until
+	// MFP_EVENT_TYPE_POSITION_SET, so that steps one after another each
+	// move on from the last one's target rather than from where the movie
+	// was before them
+	bool m_seek_pending;
+	int64_t m_seek_target;
 };
 
 #endif

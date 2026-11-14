@@ -213,6 +213,28 @@ class RunTimeLoading(unittest.TestCase):
         self.assertIn('t_playback->SetItem(p_path, true, p_wait, p_timeout_ms, t_retry)', self.mf)
         self.assertIn('t_item->SetStreamSelection(i, FALSE)', self.mf)
 
+    def test_open_never_blocks_past_its_deadline(self):
+        # the synchronous form (fSync TRUE) blocks until a URL or network
+        # file resolves, however long: the item is made asynchronously, and
+        # one deadline covers making and setting it
+        self.assertIn('CreateMediaItemFromURL(p_path, FALSE, 0, NULL)', self.mf)
+        self.assertNotRegex(self.mf, r'CreateMediaItemFromURL\([^)]*TRUE')
+        body = function_body(self.mf, 'bool MCWin32MFPlayback::SetItem(')
+        self.assertEqual(body.count('GetTickCount64() + p_timeout_ms'), 1)
+        self.assertEqual(body.count('GetTickCount64() < t_deadline'), 2)
+        self.assertIn('case MFP_EVENT_TYPE_MEDIAITEM_CREATED:', self.mf)
+        # MFPlay frees the event's item after the callback
+        self.assertIn('p_item->AddRef();', function_body(self.mf, 'void MCWin32MFPlayback::HandleMediaItemCreated('))
+
+    def test_steps_move_on_from_a_pending_seek(self):
+        # seeks are asynchronous and a new one replaces an unfinished one:
+        # the position reads as the last target until POSITION_SET
+        get = function_body(self.mf, 'bool MCWin32MFPlayback::GetPosition(')
+        self.assertLess(get.index('if (m_seek_pending)'), get.index('m_player->GetPosition('))
+        self.assertIn('m_seek_pending = true;', function_body(self.mf, 'bool MCWin32MFPlayback::SetPosition('))
+        self.assertIn('m_seek_pending = false;', function_body(self.mf, 'void MCWin32MFPlayback::HandlePositionSet('))
+        self.assertIn('case MFP_EVENT_TYPE_POSITION_SET:', self.mf)
+
     def test_events_on_the_engine_thread(self):
         # MFP_OPTION_FREE_THREADED_CALLBACK would call back on a thread of
         # Media Foundation's own, where no script may run
