@@ -129,6 +129,9 @@ class Recording(unittest.TestCase):
         self.assertEqual(steps, {'w', 'r'})
 
 
+# The fake gdb, readelf and addr2line are shell scripts; the trace is
+# Linux's (the check runs gdb only there)
+@unittest.skipIf(os.name == 'nt', 'fake tools as shell scripts')
 class CrashTrace(unittest.TestCase):
     """A crashed run is run again under gdb (a fake one here, which writes
     its arguments to a file and prints what gdb would)."""
@@ -203,6 +206,9 @@ class CrashTrace(unittest.TestCase):
         self.assertFalse([x for x in lines if 'symbols' in x])
 
 
+# The fake gdb, readelf and addr2line are shell scripts; the trace is
+# Linux's (the check runs gdb only there)
+@unittest.skipIf(os.name == 'nt', 'fake tools as shell scripts')
 class Symbolize(unittest.TestCase):
     """The pcs are moved from where libcef's .text was loaded to where the
     symbols put it (fake readelf and addr2line here)."""
