@@ -342,6 +342,16 @@ static bool try_weak_link_jvm(MCStringRef p_path, bool p_by_name, MCStringRef x_
         return true;
     }
     
+    // A failed load can leave the loader's error pending ("libjvm.so:
+    // cannot open shared object file"), which the caller would then take
+    // for a failure even when a later path loads: what was tried is
+    // reported below instead
+    if (MCErrorIsPending())
+    {
+        MCAutoErrorRef t_ignored;
+        MCErrorCatch(&t_ignored);
+    }
+    
     if (!MCStringIsEmpty(x_tried))
         MCStringAppendFormat(x_tried, "; ");
     
