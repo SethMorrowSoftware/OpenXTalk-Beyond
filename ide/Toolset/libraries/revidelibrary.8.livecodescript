@@ -8259,7 +8259,7 @@ The result is the package's path, or empty when none was made.
 Tags: ide
 */
 command revIDEActionShareStack pStack, pFolder
-   local tFile, tMain, tName, tSpec, tChoice, tResult, tError, tAsked
+   local tFile, tMain, tName, tSpec, tChoice, tResult, tError, tAsked, tHadFile, tSaved
    if revEnvironmentIsWeb() then
       return empty
    end if
@@ -8303,7 +8303,16 @@ command revIDEActionShareStack pStack, pFolder
          put it into tChoice
       end if
       if tChoice is "Save and Continue" then
+         put the effective filename of tMain is not empty into tHadFile
          revIDESaveStack tMain
+         put the result into tSaved
+         -- (a save that failed, or that the user gave up at its question
+         -- about the file's format, says so in its result, and has told
+         -- the user: the file on the disk is still the old one, and the
+         -- user asked for the changes to go with the stack)
+         if tHadFile and tSaved is not empty then
+            return empty
+         end if
          -- (a stack saved for the first time is named after its file)
          if not exists(tMain) then
             put the long id of the topStack into tMain

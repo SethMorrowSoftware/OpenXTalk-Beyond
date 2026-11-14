@@ -227,6 +227,22 @@ class Command(unittest.TestCase):
         self.assertIn('revIDESaveStack tMain', self.body)
         self.assertLess(self.body.index('revIDESaveStack tMain'), self.body.index('dispatch "revShareStackShow"'))
 
+    def test_a_save_that_failed_stops_it(self):
+        # revIDESaveStack returns why it did not save (the engine's error,
+        # or "Cancelled" at its question about the file's format) and
+        # empty when it did. The package holds the file on the disk, so a
+        # stack whose changes the user asked to save is not packed without
+        # them (#509's review).
+        save = handler(self.text, 'revIDESaveStack')
+        self.assertIn('return "Cancelled"', save)
+        self.assertTrue(save.rstrip().endswith('return tResultLog\nend revIDESaveStack'))
+        m = re.search(r'revIDESaveStack tMain\n\s+put the result into tSaved\n(.*?)dispatch "revShareStackShow"',
+                      self.body, re.S)
+        self.assertIsNotNone(m)
+        self.assertRegex(code(m.group(1)), r'if tHadFile and tSaved is not empty then\n\s+return empty\n\s+end if')
+        self.assertLess(self.body.index('put the effective filename of tMain is not empty into tHadFile'),
+                        self.body.index('revIDESaveStack tMain'))
+
     def test_every_question_falls_back_to_answer(self):
         # (revIDEKitDialog is false with the Option key down or when its
         # file is missing: the user is still asked, and still told)
