@@ -1713,3 +1713,27 @@ on TestTheRelaunchScriptForEachSystem
    TestAssert "elsewhere: a sh script", line 1 of tUnix is "#!/bin/sh" and tUnix contains "kill -0 4242" \
          and tUnix contains "-ge 120" and numToChar(13) is not in tUnix and line -1 of tUnix contains "/opt/oxt/OXT-Beyond"
 end TestTheRelaunchScriptForEachSystem
+
+-- The plugin's main stack says how its IDE is started (the engine's own
+-- file, from the address), as a line of the system's shell
+on TestTheIDESaysHowItIsStarted
+   local tPlugin, tStart, tEngine
+   put TestGetIDERepositoryPath() & "/Extensions/org.openxtalk.plugin.mcpbridge/mcpbridge.livecodescript" into tPlugin
+   dispatch function "mcbRestartCommand" to stack tPlugin
+   put the result into tStart
+   TestDiagnostic tStart
+   put the address into tEngine
+   delete char 1 to offset(":", tEngine) of tEngine
+   TestAssert "the engine's own file is found", there is a file tEngine
+   TestAssert "one line", tStart is not empty and the number of lines of tStart is 1
+   set the itemDelimiter to slash
+   if the platform is "Win32" then
+      replace slash with backslash in tEngine
+      TestAssert "Windows: cmd's start, with the engine's file between quotes", tStart is ("start" && quote & quote && quote & tEngine & quote)
+   else if the platform is "MacOS" and tEngine contains ".app/Contents/MacOS/" then
+      TestAssert "a Mac: the application's bundle is opened", tStart begins with "open -n '" and tStart ends with ".app'"
+   else
+      TestAssert "elsewhere: the engine, in the background", tStart is ("'" & tEngine & "' >/dev/null 2>&1 &")
+   end if
+   delete stack "org.openxtalk.plugin.mcpbridge"
+end TestTheIDESaysHowItIsStarted

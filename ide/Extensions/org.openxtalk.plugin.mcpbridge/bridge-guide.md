@@ -165,6 +165,32 @@ it whenever you write xTalk Script.
   `wait_seconds`). Never send that call again: it would ask, and run,
   twice. `pending_result` also gives what came of a call your app
   stopped waiting for.
+- A call that simply takes long (a test run, a sweep over many stacks)
+  comes back the same way after about forty seconds, "Not done yet" with
+  a number: it goes on, other calls are told OXT-Beyond is busy until it
+  is done, and `pending_result` waits for it. Do not send it again. For
+  work that runs by itself after a call has ended (a harness started
+  from `openStack` that fills a report field), use `wait_until`: it
+  waits, up to thirty seconds a call, until a property of a control
+  `contains`, `lacks` or `equals` a text (the text of a field, the label
+  of a button, or a `property` you name), or until a stack, card or
+  control `exists` or is gone, and it runs no code, so the user is not
+  asked. Call it again while it says "Not yet".
+- `set_script_from_file` sets a whole script from a file on the user's
+  computer: use it for a script too long to send (a test harness, a
+  library), not for code you write yourself. The user is shown the
+  file's path, size, SHA-256 and text first. The text is taken when the
+  engine compiles it, undeclared names and all, and nothing runs until
+  the stack is opened again or you call a handler.
+- `set_quiet` turns the engine's sounds off before a run of stacks that
+  play them, and back on after: turn them back on when you are done (the
+  bridge does when it is turned off). On a Mac and on Linux the loudness
+  it sets is the computer's own, so tell the user first.
+- `restart_ide` quits OXT-Beyond and starts it again, for a test that
+  needs a fresh engine. Save what must be kept first: the stacks open
+  are not opened again, and the user is asked about each stack with
+  changes not saved, and can cancel. The answer says whether OXT-Beyond
+  came back with its bridge on.
 - `import_hypercard` imports a HyperCard stack from its file, or from a
   Mac disk image (`list` lists its stacks; `stack_path` picks one), with
   messages locked, so none of its scripts run. The stack opens unsaved,

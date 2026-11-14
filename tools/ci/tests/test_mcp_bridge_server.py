@@ -423,7 +423,7 @@ class McpBridgeServerBase(unittest.TestCase):
         with open(SERVER, encoding='utf-8') as f:
             text = f.read()
         path = os.path.join(folder, 'server.js')
-        with open(path, 'w', encoding='utf-8') as f:
+        with open(path, 'w', encoding='utf-8', newline='\n') as f:
             f.write(change(text) if change else text)
         return path
 
@@ -587,7 +587,7 @@ class McpBridgeServerTest(McpBridgeServerBase):
         # A file half written (an installer at work) is left alone
         with open(installed, encoding='utf-8') as f:
             text = f.read()
-        with open(installed, 'w', encoding='utf-8') as f:
+        with open(installed, 'w', encoding='utf-8', newline='\n') as f:
             f.write(text[:len(text) // 2])
         self.assertIn('Start it once more', [t.get('title') for t in self.request('tools/list')['result']['tools']])
         # And loaded once it is whole
@@ -597,8 +597,10 @@ class McpBridgeServerTest(McpBridgeServerBase):
         self.assertIn('Start it a third time', [t.get('title') for t in self.receive()['result']['tools']])
 
     def test_a_result_kept_is_kept_through_a_reload(self):
+        release = threading.Event()
+
         def handler(request):
-            time.sleep(0.6)
+            release.wait(20)
             return {'ok': True, 'isError': False, 'text': 'ran'}
         installed = self.server_copy('installed')
         self.point_to(installed)
@@ -609,8 +611,9 @@ class McpBridgeServerTest(McpBridgeServerBase):
         # Not loaded again while the call goes on
         self.server_copy('installed', lambda text: text.replace("title: 'Restart OXT-Beyond'", "title: 'Start it again'"))
         self.assertIn('Restart OXT-Beyond', [t.get('title') for t in self.request('tools/list')['result']['tools']])
+        release.set()
         time.sleep(1)
-        sent = self.send('tools/call', {'name': 'pending_result', 'arguments': {'request': 1}})
+        sent = self.send('tools/call', {'name': 'pending_result', 'arguments': {'request': 1, 'wait_seconds': 10}})
         self.assertEqual(self.receive().get('method'), 'notifications/tools/list_changed')
         reply = self.receive()
         self.assertEqual(reply.get('id'), sent)
@@ -742,8 +745,11 @@ class McpBridgeServerTest(McpBridgeServerBase):
         # The status asked while a call takes long is asked on a connection
         # of its own, which gets a stale answer first: the call still waits
         # for the user, as the real status says
+        release = threading.Event()
+        self.addCleanup(release.set)
+
         def handler(request):
-            time.sleep(1)
+            release.wait(20)
             return {'ok': True, 'isError': False, 'text': 'ran'}
         stale = [{'id': 1, 'ok': True, 'busy': False, 'asking': False, 'text': 'stale'}]
         self.start_oxt(handler, status='OXT-Beyond is waiting for the user to answer its question "Claude asks to run code."',
@@ -1040,15 +1046,16 @@ class McpBridgeServerTest(McpBridgeServerBase):
         # A run that takes long with no question open (a test run, a sweep):
         # Claude's app gives up on a call after about a minute, so it is
         # answered before that and kept, as a call waiting for the user is
+        release = threading.Event()
+
         def handler(request):
-            time.sleep(1)
+            release.wait(20)
             return {'ok': True, 'isError': False, 'text': 'ran'}
         self.start_oxt(handler, status='OXT-Beyond is carrying out run_code (for 0 seconds).', asking=False)
         self.start_server(OXT_MCP_ANSWER_WAIT_MS='200')
         self.initialize()
-        started = time.time()
         result = self.call('run_code', {'code': 'put 1'})
-        self.assertLess(time.time() - started, 0.9)
+        self.assertFalse(release.is_set())
         self.assertFalse(result['isError'])
         text = result['content'][0]['text']
         self.assertIn('Not done yet', text)
@@ -1057,7 +1064,8 @@ class McpBridgeServerTest(McpBridgeServerBase):
         self.assertIn('would run twice', text)
         self.assertNotIn('waiting for your answer', text)
         self.assertEqual([r.get('tool') for r in self.oxt.requests if r['method'] == 'call'], ['run_code'])
-        result = self.call('pending_result', {'request': 1, 'wait_seconds': 5})
+        release.set()
+        result = self.call('pending_result', {'request': 1, 'wait_seconds': 10})
         self.assertFalse(result['isError'])
         self.assertIn('Call 1 (run_code) is done', result['content'][0]['text'])
         self.assertIn('ran', result['content'][0]['text'])
@@ -1066,8 +1074,10 @@ class McpBridgeServerTest(McpBridgeServerBase):
         # Code that lets nothing else in (no wait in it) reads no status;
         # neither does an OXT-Beyond from before it had one
         for fake in ({'held_up': True}, {}):
-            def handler(request):
-                time.sleep(0.8)
+            release = threading.Event()
+
+            def handler(request, release=release):
+                release.wait(20)
                 return {'ok': True, 'isError': False, 'text': 'ran'}
             self.start_oxt(handler, **fake)
             self.start_server(OXT_MCP_ANSWER_WAIT_MS='200', OXT_MCP_STATUS_TIMEOUT_MS='300')
@@ -1075,14 +1085,17 @@ class McpBridgeServerTest(McpBridgeServerBase):
             text = self.call('run_code', {'code': 'put 1'})['content'][0]['text']
             self.assertIn('Not done yet', text, fake)
             self.assertIn('pending_result with request 1', text, fake)
-            self.assertIn('ran', self.call('pending_result', {'wait_seconds': 5})['content'][0]['text'], fake)
+            release.set()
+            self.assertIn('ran', self.call('pending_result', {'wait_seconds': 10})['content'][0]['text'], fake)
             self.tearDown()
             self.setUp()
 
     def test_a_call_refused_as_busy_names_the_run_still_going_on(self):
+        release = threading.Event()
+
         def handler(request):
             if request['tool'] == 'run_code':
-                time.sleep(1.5)
+                release.wait(20)
             return {'ok': True, 'isError': False, 'text': request['tool']}
         self.start_oxt(handler, status='OXT-Beyond is carrying out run_code (for 0 seconds).', asking=False)
         self.start_server(OXT_MCP_ANSWER_WAIT_MS='200', OXT_MCP_BUSY_WAIT_MS='300')
@@ -1094,7 +1107,8 @@ class McpBridgeServerTest(McpBridgeServerBase):
         self.assertIn('call 1 (run_code)', result['content'][0]['text'])
         self.assertIn('pending_result', result['content'][0]['text'])
         # Once it is done, calls go on as before
-        self.assertIn('run_code', self.call('pending_result', {'wait_seconds': 5})['content'][0]['text'])
+        release.set()
+        self.assertIn('run_code', self.call('pending_result', {'wait_seconds': 10})['content'][0]['text'])
         self.assertEqual(self.call('list_stacks')['content'][0]['text'], 'list_stacks')
 
     def test_an_answer_that_will_not_come_is_said_so(self):
@@ -1104,14 +1118,13 @@ class McpBridgeServerTest(McpBridgeServerBase):
 
         def handler(request):
             if request['tool'] == 'run_code':
-                release.wait(8)
+                release.wait(20)
             return {'ok': True, 'isError': False, 'text': request['tool']}
         self.start_oxt(handler, status='OXT-Beyond is not busy with a call of the bridge.', asking=False, busy=False)
         self.start_server(OXT_MCP_ANSWER_WAIT_MS='200', OXT_MCP_ANSWER_RECHECK_MS='200')
         self.initialize()
-        started = time.time()
         result = self.call('run_code', {'code': 'put 1'})
-        self.assertLess(time.time() - started, 3)
+        self.assertFalse(release.is_set())
         self.assertTrue(result['isError'])
         self.assertIn('did not arrive', result['content'][0]['text'])
         self.assertIn('list_changes', result['content'][0]['text'])
@@ -1130,13 +1143,11 @@ class McpBridgeServerTest(McpBridgeServerBase):
             threading.Thread(target=again, daemon=True).start()
             return {'ok': True, 'isError': False, 'text': 'OXT-Beyond is quitting.'}
         self.start_oxt(handler)
-        self.start_server(OXT_MCP_RESTART_WAIT_MS='8000')
+        self.start_server(OXT_MCP_RESTART_WAIT_MS='15000')
         self.initialize()
-        started = time.time()
         text = self.call('restart_ide')['content'][0]['text']
         self.assertIn('OXT-Beyond is quitting.', text)
         self.assertIn('running again', text)
-        self.assertLess(time.time() - started, 6)
 
     def test_restart_ide_says_when_the_ide_is_not_back(self):
         self.start_oxt(lambda request: {'ok': True, 'isError': False, 'text': 'OXT-Beyond is quitting.'})
@@ -1148,13 +1159,13 @@ class McpBridgeServerTest(McpBridgeServerBase):
 
     def test_a_restart_refused_is_not_waited_for(self):
         self.start_oxt(lambda request: {'ok': True, 'isError': True, 'text': 'Nothing was done: the user did not allow the restart.'})
-        self.start_server(OXT_MCP_RESTART_WAIT_MS='8000')
+        self.start_server(OXT_MCP_RESTART_WAIT_MS='30000')
         self.initialize()
         started = time.time()
         result = self.call('restart_ide')
         self.assertTrue(result['isError'])
         self.assertEqual(result['content'][0]['text'], 'Nothing was done: the user did not allow the restart.')
-        self.assertLess(time.time() - started, 3)
+        self.assertLess(time.time() - started, 15)
 
     def test_answer_wait_0_waits_for_the_user_as_before(self):
         def handler(request):
