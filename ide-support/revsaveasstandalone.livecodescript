@@ -2347,6 +2347,13 @@ private command revCopyCEFResources pPlatform, pStandalonePath, pCopyRevBrowserR
       exit revCopyCEFResources
    end if
    
+   -- OXT-Beyond: on Linux the browser widget falls back to WebKitGTK where
+   -- CEF cannot load (libbrowser_webkitgtk.cpp), through the helper
+   -- libbrowser-webkitprocess next to the standalone's engine
+   if pCopyLibBrowserResources and pPlatform contains "Linux" then
+      revCopyWebKitHelper pPlatform, pStandalonePath
+   end if
+   
    // IM-2014-08-14: [[ LibCef2062 ]] Reorganisation of libcef framework files
    local tDetails
    put revStandalonePlatformDetails(pPlatform) into tDetails
@@ -2442,6 +2449,24 @@ private command revCopyCEFResources pPlatform, pStandalonePath, pCopyRevBrowserR
          break
    end switch
 end revCopyCEFResources
+
+-- OXT-Beyond: the WebKitGTK browser's helper (libbrowser-webkitprocess), from
+-- next to the runtime's engine into the standalone's folder. A runtime made
+-- before 0.2.8-dp.2 has none: the standalone is then built as before, with
+-- CEF as its only browser.
+private command revCopyWebKitHelper pPlatform, pStandalonePath
+   local tEngine, tHelper
+   put revSBEnginePath(pPlatform) into tEngine
+   set the itemDelimiter to slash
+   put item 1 to -2 of tEngine & slash & "libbrowser-webkitprocess" into tHelper
+   if there is not a file tHelper then
+      exit revCopyWebKitHelper
+   end if
+   revSBCopyFileToFolder tHelper, item 1 to -2 of pStandalonePath, "revStandaloneProgressCallback", the long id of me
+   if the result is not empty then
+      revStandaloneAddWarning "Linux, external failed to copy:" && quote & tHelper & quote
+   end if
+end revCopyWebKitHelper
 
 private command revCopyExternals pPlatform, pStackFilePath, pEnginePath, pStandalonePath
    local tExternalRes, tColors, tCursorName, tCurrentLocation, tExternalPath, tExternals, tExternalLibrary

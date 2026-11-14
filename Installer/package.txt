@@ -523,6 +523,7 @@ component Engine.Linux
 		executable linux-[[TargetArchitecture]]:LiveCode[[EditionTagUpper]] as [[ProductName]].[[TargetArchitecture]]
 		executable linux-[[TargetArchitecture]]:revpdfprinter.so
 		executable linux-[[TargetArchitecture]]:revsecurity.so
+		executable linux-[[TargetArchitecture]]:libbrowser-webkitprocess
 
 component Mobile.Linux
 	into "[[ToolsFolder]]/Externals" place
@@ -574,6 +575,7 @@ component Engine.MacOSX
 component Runtime.Linux
 	into [[TargetFolder]] place
 		executable linux-[[TargetArchitecture]]:standalone[[BaseEditionTagLower]] as Standalone
+		executable linux-[[TargetArchitecture]]:libbrowser-webkitprocess
 	into [[TargetFolder]]/Support place
 		executable linux-[[TargetArchitecture]]:revpdfprinter.so
 		executable linux-[[TargetArchitecture]]:revsecurity.so

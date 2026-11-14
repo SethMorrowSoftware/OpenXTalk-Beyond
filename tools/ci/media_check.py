@@ -61,7 +61,12 @@ player plays a movie through mplayer (/usr/bin/mplayer, as the engine runs
 it) or through GStreamer (engine/src/lnxgstplayer.cpp): --player-backend
 sets OXT_PLAYER_BACKEND for the engine, so that each of the two can be
 checked on a machine that has both ("auto", the default, leaves it unset:
-mplayer when it is installed, else GStreamer). On a machine without a
+mplayer when it is installed, else GStreamer). The browser widget's browser is
+CEF where it loads, else WebKitGTK (libbrowser_webkitgtk.cpp, through the
+helper libbrowser-webkitprocess next to the engine): --browser-backend
+sets OXT_BROWSER_BACKEND, so that the WebKitGTK browser can be checked on
+a machine where CEF loads (revBrowser, which has CEF only, is then left
+out). On a machine without a
 sound card (no /dev/snd) mplayer is given MPLAYER_HOME with "ao=null", so
 that it plays in real time instead of skipping to the end of a file it
 cannot play the sound of; GStreamer plays without sound there by itself.
@@ -207,6 +212,10 @@ def main(argv=None):
     ap.add_argument('--player-backend', choices=('auto', 'gstreamer', 'mplayer'), default='auto',
                     help='on Linux, what plays the movies: OXT_PLAYER_BACKEND for the engine (default: %(default)s, '
                          'mplayer when it is installed, else GStreamer)')
+    ap.add_argument('--browser-backend', choices=('auto', 'cef', 'webkitgtk'), default='auto',
+                    help='on Linux, the browser widget\'s browser: OXT_BROWSER_BACKEND for the engine (default: '
+                         '%(default)s, CEF where it loads, else WebKitGTK through libbrowser-webkitprocess). '
+                         'revBrowser has CEF only.')
     args = ap.parse_args(argv)
     if bool(args.install) == bool(args.package):
         ap.error('pass --install or --package')
@@ -215,8 +224,11 @@ def main(argv=None):
         ap.error('%s has no standalone runtime of its own' % p.name)
     what = [w.strip() for w in args.what.split(',') if w.strip()]
     if p.name.startswith('linux-') and p.name != 'linux-x86_64':
-        # CEF is in the x86_64 Linux package only
-        what = [w for w in what if w == 'player']
+        # CEF is in the x86_64 Linux package only; WebKitGTK is the browser
+        # widget's browser on every Linux architecture
+        what = [w for w in what if w == 'player' or (w == 'widget' and args.browser_backend == 'webkitgtk')]
+    if args.browser_backend == 'webkitgtk':
+        what = [w for w in what if w != 'revbrowser']
 
     lines, problems, temp_dirs, server = [], [], [], None
     try:
@@ -253,6 +265,12 @@ def main(argv=None):
             env['OXT_MEDIA_SNAPSHOTS'] = os.path.abspath(args.snapshots).replace('\\', '/')
         cmd = [engine, SCRIPT]
         if p.family == 'linux':
+            if args.browser_backend == 'auto':
+                env.pop('OXT_BROWSER_BACKEND', None)
+            else:
+                env['OXT_BROWSER_BACKEND'] = args.browser_backend
+            if 'widget' in what:
+                rlc.log('Browser : %s' % args.browser_backend)
             if 'player' in what:
                 if args.player_backend == 'auto':
                     env.pop('OXT_PLAYER_BACKEND', None)
