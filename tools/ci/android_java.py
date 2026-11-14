@@ -354,6 +354,17 @@ EXPECTED = {
     },
 }
 
+# compare: released Classes built here from which a build may differ only by
+# additions (new classes or members); nothing of them may change or go. By
+# the released jar's SHA-256, each with what the builds since have added.
+# (EXPECTED's entries are the jars that predate changes still named there.)
+ADDITIONS_ONLY = {
+    # oxt-runtimes-0.2.8-dp.1's Runtime/Android/Classes
+    '21d7e424af1d19470144f84382ba0ec0a2792e49ee513997dfd3f1c1cb306abe':
+        'Engine.getDNSServers, the dnsServers on Android (MCAndroidSystem::GetDNSservers), which 9.6.3\'s '
+        'engine and dp.1\'s did not have (the function threw there)',
+}
+
 
 class CheckError(Exception):
     pass
@@ -888,7 +899,10 @@ def compare(args):
     expected = EXPECTED.get(old_sha)
     problems = []
     log()
-    if expected is None:
+    if expected is None and old_sha in ADDITIONS_ONLY:
+        log('Only additions are expected from this old jar (ADDITIONS_ONLY): %s' % ADDITIONS_ONLY[old_sha])
+        expected = {}
+    elif expected is None:
         log('No differences are expected from this old jar (EXPECTED has no entry for its SHA-256), '
             'so every one is a problem.')
         expected = {}
