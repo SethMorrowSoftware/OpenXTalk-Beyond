@@ -361,6 +361,44 @@ class BuilderResourceClasses(unittest.TestCase):
         self.assertEqual(self.manifest_package('<manifest android:package="x"><uses-sdk/></manifest>'), '')
 
 
+class BuilderShellArguments(unittest.TestCase):
+    """An argument with a "$" (an inner class's file, such as a library's
+    R$string.class) reaches the program as it is: sh reads the command line
+    outside Windows, and put the empty value of $string in its place, so d8
+    was given R.class twice"""
+
+    def setUp(self):
+        self.body = handler(read(*BuilderResourceClasses.BUILDER), 'command', 'executeShellCommandWithParams')
+
+    def quoted(self, param, platform='linux'):
+        """The argument as the handler writes it, mirrored in Python"""
+        if platform != 'win32' and '$' in param:
+            return "'" + param.replace("'", "'\\''") + "'"
+        if ' ' in param and not param.startswith('-'):
+            return '"' + param + '"'
+        return param
+
+    def test_the_handler_quotes_a_dollar_for_sh(self):
+        lines = [x.strip() for x in self.body.splitlines()]
+        at = lines.index('if the platform is not "win32" and tParam contains "$" then')
+        self.assertEqual(lines[at + 1:at + 4], [
+            'replace "\'" with "\'\\\'\'" in tParam',
+            'put "\'" & tParam & "\'" into tParam',
+            'else if tParam contains space and not (tParam begins with "-") then'])
+
+    @unittest.skipIf(os.name == 'nt', 'sh reads the command line')
+    def test_sh_gives_the_program_the_argument_as_it_is(self):
+        for param in ('/tmp/x/classes_app/org/example/R$string.class', "/tmp/it's $HOME", '/tmp/a b/R$id.class'):
+            out = subprocess.run('printf %s ' + self.quoted(param), shell=True, stdout=subprocess.PIPE,
+                                 universal_newlines=True).stdout
+            self.assertEqual(out, param)
+
+    def test_others_as_before(self):
+        self.assertEqual(self.quoted('/tmp/a b/c.class'), '"/tmp/a b/c.class"')
+        self.assertEqual(self.quoted('-target'), '-target')
+        self.assertEqual(self.quoted('C:/x/R$string.class', 'win32'), 'C:/x/R$string.class')
+
+
 class Wiring(unittest.TestCase):
     def test_the_ide_script_builds_with_the_library(self):
         script = read('tools', 'ci', 'android-check.livecodescript')

@@ -1995,7 +1995,16 @@ end executeShellCommand
 private command executeShellCommandWithParams pCommand, pParamArray
    local tShell
    repeat for each element tParam in pParamArray
-      if tParam contains space and not (tParam begins with "-") then
+      -- OXT-Beyond: a "$" goes to the program as it is. The command line
+      -- is read by sh outside Windows, which put a variable's value (none)
+      -- in place of "$string" in the path of an inner class, such as an
+      -- .aar library's R$string.class: d8 was given R.class twice and
+      -- refused it ("defined multiple times"). In single quotes sh reads
+      -- every character as it is. Windows' cmd does not read "$"
+      if the platform is not "win32" and tParam contains "$" then
+         replace "'" with "'\''" in tParam
+         put "'" & tParam & "'" into tParam
+      else if tParam contains space and not (tParam begins with "-") then
          put quote & tParam & quote into tParam
       end if   
       put tParam & space after tShell
