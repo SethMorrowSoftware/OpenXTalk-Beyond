@@ -37,6 +37,23 @@ static inline bool MCCefSendProcessMessage(CefRefPtr<CefBrowser> p_browser, CefP
 	return true;
 }
 
+// A message the page's own script sends goes through the frame of that
+// script: an iframe of another origin runs in a renderer of its own, which
+// has no main frame (CefBrowser::GetMainFrame is null there), and CEF 74's
+// CefBrowser::SendProcessMessage reached the browser from it all the same.
+static inline bool MCCefSendProcessMessageFromScript(CefRefPtr<CefV8Context> p_context, CefProcessId p_target, CefRefPtr<CefProcessMessage> p_message)
+{
+	if (p_context == nullptr || p_message == nullptr)
+		return false;
+	CefRefPtr<CefFrame> t_frame = p_context->GetFrame();
+	if (t_frame != nullptr && t_frame->IsValid())
+	{
+		t_frame->SendProcessMessage(p_target, p_message);
+		return true;
+	}
+	return MCCefSendProcessMessage(p_context->GetBrowser(), p_target, p_message);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // Use JS "String" function to convert values to string
@@ -362,7 +379,7 @@ bool MCCefSendHandlerMessage(CefRefPtr<CefBrowser> p_browser, const CefString &p
 	}
 
 	if (t_success)
-		t_success = MCCefSendProcessMessage(p_browser, PID_BROWSER, t_message);
+		t_success = MCCefSendProcessMessageFromScript(CefV8Context::GetCurrentContext(), PID_BROWSER, t_message);
 	
 	return t_success;
 }

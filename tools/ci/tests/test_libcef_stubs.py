@@ -179,6 +179,40 @@ class WidgetAsCef74(unittest.TestCase):
         self.assertIn('t_url = kMCCefErrorPageURL;', url)
 
 
+class RendererMessages(unittest.TestCase):
+    """CEF 156 sends a process message through a frame. A message the
+    page's script sends (a handler call, the Linux focus request) goes
+    through that script's frame: an iframe of another origin has its own
+    renderer, with no main frame."""
+
+    def test_script_messages_go_through_the_scripts_frame(self):
+        for path in ('libbrowser/src/libbrowser_cefprocess.cpp', 'revbrowser/src/cefprocess.cpp'):
+            text = read(os.path.join(REPO, *path.split('/')))
+            helper = re.search(r'static inline bool MCCefSendProcessMessageFromScript\(.*?\n\}\n', text, re.S)
+            self.assertIsNotNone(helper, path)
+            self.assertIn('CefRefPtr<CefFrame> t_frame = p_context->GetFrame();', helper.group(0))
+            handler = re.search(r'bool MCCefSendHandlerMessage\(.*?\n\}\n', text, re.S).group(0)
+            self.assertIn('MCCefSendProcessMessageFromScript(CefV8Context::GetCurrentContext(), PID_BROWSER, t_message);',
+                          handler, path)
+        lib = read(os.path.join(REPO, 'libbrowser', 'src', 'libbrowser_cefprocess.cpp'))
+        focus = re.search(r'class MCCefTakeFocusHandler.*?IMPLEMENT_REFCOUNTING', lib, re.S).group(0)
+        self.assertIn('MCCefSendProcessMessageFromScript(t_context, PID_BROWSER, t_message);', focus)
+        self.assertNotIn('MCCefSendProcessMessage(t_browser', focus)
+
+
+class SourceKey(unittest.TestCase):
+    def test_the_key_has_no_fragment(self):
+        # a base URL with a fragment: the request for it has none, so the
+        # key is put together from the parts without the spec (CefCreateURL
+        # takes one or the other), and loses any fragment left
+        text = read(os.path.join(REPO, 'libbrowser', 'src', 'libbrowser_cef_source.h'))
+        key = re.search(r'inline std::string MCCefSourceKey\(const CefString &p_url\)\n\{.*?\n\}\n', text, re.S).group(0)
+        self.assertIn('cef_string_clear(&t_without_spec.spec);', key)
+        self.assertIn('cef_string_clear(&t_without_spec.fragment);', key)
+        self.assertEqual(key.count('return MCCefSourceKeyWithoutFragment('), 4)
+        self.assertNotRegex(key, r'return (p_url|t_canonical)\.ToString\(\);')
+
+
 class StubRules(unittest.TestCase):
     """The generator on headers of its own."""
 

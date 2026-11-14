@@ -55,20 +55,29 @@
 
 // The URL as Chromium requests it: canonical (CefCreateURL goes through
 // GURL), without its fragment, which a request never has
+inline std::string MCCefSourceKeyWithoutFragment(const std::string &p_url)
+{
+	std::string::size_type t_hash = p_url.find('#');
+	return t_hash == std::string::npos ? p_url : p_url.substr(0, t_hash);
+}
+
 inline std::string MCCefSourceKey(const CefString &p_url)
 {
 	CefURLParts t_parts;
 	if (!CefParseURL(p_url, t_parts))
-	{
-		std::string t_url = p_url.ToString();
-		std::string::size_type t_hash = t_url.find('#');
-		return t_hash == std::string::npos ? t_url : t_url.substr(0, t_hash);
-	}
-	cef_string_clear(&t_parts.fragment);
+		return MCCefSourceKeyWithoutFragment(p_url.ToString());
+	// CefCreateURL takes the spec or the parts, not both, and the spec is
+	// the URL as given, fragment and all: the parts without it first. A URL
+	// with no host (file:) needs its spec, canonicalised through GURL too.
 	CefString t_canonical;
-	if (!CefCreateURL(t_parts, t_canonical))
-		return p_url.ToString();
-	return t_canonical.ToString();
+	CefURLParts t_without_spec = t_parts;
+	cef_string_clear(&t_without_spec.spec);
+	cef_string_clear(&t_without_spec.fragment);
+	if (CefCreateURL(t_without_spec, t_canonical))
+		return MCCefSourceKeyWithoutFragment(t_canonical.ToString());
+	if (CefCreateURL(t_parts, t_canonical))
+		return MCCefSourceKeyWithoutFragment(t_canonical.ToString());
+	return MCCefSourceKeyWithoutFragment(p_url.ToString());
 }
 
 class MCCefPendingSource
