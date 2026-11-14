@@ -104,15 +104,24 @@ VIDEOS = ('oxt-check.mp4', 'oxt-check-silent.mp4', 'oxt-check.avi', 'oxt-check-s
 # Files a platform's player is known not to play, with the reason: their
 # failures are reported (KNOWN) but do not fail the check, and a file that
 # plays after all is reported so that it can come off the list.
-KNOWN = {
-    # DirectShow (engine/src/w32-ds-player.cpp) has no reader for MP4: the
-    # player says "could not create movie reference" unless a DirectShow
-    # filter for it (LAV Filters, a codec pack) is installed
-    'windows': {
-        'oxt-check.mp4': 'Windows: DirectShow cannot open MP4 without a third-party filter',
-        'oxt-check-silent.mp4': 'Windows: DirectShow cannot open MP4 without a third-party filter',
-    },
+KNOWN = {}
+# DirectShow (engine/src/w32-ds-player.cpp) has no reader for MP4 unless a
+# DirectShow filter for it (LAV Filters, a codec pack) is installed; since
+# 0.2.8-dp.2 the player opens a file DirectShow cannot through Media
+# Foundation (engine/src/w32-mf-player.cpp), so the MP4 files must play
+# wherever Windows has Media Foundation and its H.264 decoder
+# (MEDIA_FOUNDATION_DLLS), and are known not to only where it does not (an
+# N edition without the Media Feature Pack, a Windows Server without its
+# Media Foundation feature) or with DirectShow alone (--player-backend
+# directshow)
+NO_MEDIA_FOUNDATION = {
+    'oxt-check.mp4': 'Windows without Media Foundation: DirectShow cannot open MP4 without a third-party filter',
+    'oxt-check-silent.mp4': 'Windows without Media Foundation: DirectShow cannot open MP4 without a third-party filter',
 }
+# What the player needs of Media Foundation for the MP4 files: MFPlay (which
+# the engine loads at run time), Media Foundation itself, and its H.264
+# decoder
+MEDIA_FOUNDATION_DLLS = ('mfplay.dll', 'mfplat.dll', 'msmpeg2vdec.dll')
 # Without a sound device (a CI runner) Windows cannot play a file that is
 # only sound
 NO_SOUND_DEVICE = {'oxt-check.wav': 'Windows without a sound device (as on the CI runners) does not open it'}
@@ -194,6 +203,25 @@ def windows_sound_devices():
         return 'unknown (%s)' % e
 
 
+def windows_media_foundation(system32=None):
+    """The MEDIA_FOUNDATION_DLLS missing from Windows' system folder (empty
+    when the player can open an MP4 through Media Foundation)."""
+    if system32 is None:
+        system32 = os.path.join(os.environ.get('SystemRoot', r'C:\Windows'), 'System32')
+    return [n for n in MEDIA_FOUNDATION_DLLS if not os.path.isfile(os.path.join(system32, n))]
+
+
+def known_failures(family, player_backend='auto', missing_media_foundation=()):
+    """What the player is known not to play on a platform family: KNOWN's,
+    and on Windows the MP4 files where Media Foundation cannot play them
+    (missing_media_foundation lists what of it is missing) or DirectShow
+    plays alone."""
+    known = dict(KNOWN.get(family, {}))
+    if family == 'windows' and (player_backend == 'directshow' or missing_media_foundation):
+        known.update(NO_MEDIA_FOUNDATION)
+    return known
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description='Check the browser widget, revBrowser and the player in a standalone '
                                              'of an installed OXT-Beyond.')
@@ -209,9 +237,11 @@ def main(argv=None):
     ap.add_argument('--log', metavar='FILE', help='write the results here too')
     ap.add_argument('--snapshots', metavar='DIR', help='write the snapshots of the Linux player\'s controller here')
     ap.add_argument('--timeout', type=int, default=240, help='seconds for the engine run (default: %(default)s)')
-    ap.add_argument('--player-backend', choices=('auto', 'gstreamer', 'mplayer'), default='auto',
-                    help='on Linux, what plays the movies: OXT_PLAYER_BACKEND for the engine (default: %(default)s, '
-                         'mplayer when it is installed, else GStreamer)')
+    ap.add_argument('--player-backend', choices=('auto', 'gstreamer', 'mplayer', 'directshow', 'mediafoundation'),
+                    default='auto',
+                    help='what plays the movies: OXT_PLAYER_BACKEND for the engine (default: %(default)s; on Linux '
+                         'mplayer when it is installed, else GStreamer; on Windows DirectShow, and Media Foundation '
+                         'for a file DirectShow cannot open)')
     ap.add_argument('--browser-backend', choices=('auto', 'cef', 'webkitgtk'), default='auto',
                     help='on Linux, the browser widget\'s browser: OXT_BROWSER_BACKEND for the engine (default: '
                          '%(default)s, CEF where it loads, else WebKitGTK through libbrowser-webkitprocess). '
@@ -291,7 +321,11 @@ def main(argv=None):
                 if not xvfb:
                     raise rlc.CheckError('no DISPLAY and no xvfb-run')
                 cmd = [xvfb, '-a', '-s', '-screen 0 1280x1024x24'] + cmd
-        known = dict(KNOWN.get(p.family, {}))
+        missing_mf = windows_media_foundation() if p.family == 'windows' and 'player' in what else []
+        if p.family == 'windows' and 'player' in what:
+            lines.append('INFO Media Foundation: %s' % ('missing %s' % ', '.join(missing_mf) if missing_mf
+                                                        else 'present (%s)' % ', '.join(MEDIA_FOUNDATION_DLLS)))
+        known = known_failures(p.family, args.player_backend, missing_mf)
         for name in args.must_play.split(','):
             known.pop(name.strip(), None)
         if p.family == 'windows' and 'player' in what:
