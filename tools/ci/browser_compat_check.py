@@ -123,13 +123,14 @@ TRACED_CEF_CALLS = ('cef_api_hash', 'cef_execute_process', 'cef_initialize', 'ce
 
 
 def cef_symbols(cwd):
-    """A folder for gdb's debug-file-directory with libcef's symbols under
-    its build id, from Spotify's release symbols of the CEF in
-    prebuilt/versions (downloaded once into cwd); None when they cannot be
-    had. The distribution's libcef.so has none of its own."""
+    """(libcef.so.dbg, what happened): libcef's symbols from Spotify's
+    release symbols of the CEF in prebuilt/versions, downloaded once into
+    cwd, or (None, why not). The distribution's libcef.so has none of its
+    own."""
     folder = os.path.join(cwd, 'cef-symbols')
-    if os.path.isdir(folder):
-        return folder
+    target = os.path.join(folder, 'libcef.so.dbg')
+    if os.path.isfile(target):
+        return target, 'already here'
     try:
         import tarfile
         import urllib.request
@@ -141,31 +142,47 @@ def cef_symbols(cwd):
             version('cef'), version('cef_buildrevision'), version('cefchromium'))
         url = 'https://cef-builds.spotifycdn.com/' + name.replace('+', '%2B')
         rlc.log('Fetching libcef\'s symbols: %s' % url)
-        with urllib.request.urlopen(url, timeout=120) as response, \
+        with urllib.request.urlopen(url, timeout=300) as response, \
                 tarfile.open(fileobj=response, mode='r|bz2') as tar:
             for member in tar:
                 if member.isfile() and os.path.basename(member.name) == 'libcef.so.dbg':
                     data = tar.extractfile(member)
-                    os.makedirs(folder)
-                    target = os.path.join(folder, 'libcef.so.dbg')
-                    with open(target, 'wb') as out:
+                    os.makedirs(folder, exist_ok=True)
+                    with open(target + '.part', 'wb') as out:
                         shutil.copyfileobj(data, out, 1 << 20)
+                    os.rename(target + '.part', target)
                     break
-        if not os.path.isdir(folder):
-            rlc.log('  (no libcef.so.dbg in %s)' % name)
-            return None
-        # gdb finds a library's symbols by its build id
-        notes = subprocess.run(['readelf', '-n', target], stdout=subprocess.PIPE,
-                               universal_newlines=True).stdout
-        m = re.search(r'Build ID: ([0-9a-f]+)', notes)
-        if m:
-            build_id = m.group(1)
-            os.makedirs(os.path.join(folder, '.build-id', build_id[:2]))
-            os.symlink(target, os.path.join(folder, '.build-id', build_id[:2], build_id[2:] + '.debug'))
-        return folder
+        if not os.path.isfile(target):
+            return None, 'no libcef.so.dbg in %s' % url
+        return target, 'from %s (%d MB)' % (url, os.path.getsize(target) >> 20)
     except Exception as e:  # the trace goes on without them
-        rlc.log('  (libcef\'s symbols could not be had: %s)' % e)
-        return None
+        return None, 'could not be had: %s: %s' % (type(e).__name__, e)
+
+
+def symbolize(dbg, text_start, pcs):
+    """For each pc in libcef (loaded with its .text at text_start), the
+    functions and source lines addr2line finds for it in dbg, inlined
+    callers included."""
+    sections = subprocess.run(['readelf', '-SW', dbg], stdout=subprocess.PIPE,
+                              universal_newlines=True).stdout
+    m = re.search(r'\]\s+\.text\s+\S+\s+([0-9a-f]+)', sections)
+    if not m:
+        return ['(no .text in the symbols)']
+    text_vma = int(m.group(1), 16)
+    addrs = ['0x%x' % (pc - text_start + text_vma) for pc in pcs]
+    out = subprocess.run(['addr2line', '-a', '-f', '-C', '-i', '-e', dbg] + addrs,
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                         universal_newlines=True, timeout=600).stdout
+    lines = []
+    for x in out.splitlines():
+        x = x.strip()
+        if re.match(r'0x[0-9a-f]+$', x):
+            lines.append('at %s:' % x)
+        elif x:
+            # a source path is kept from the Chromium tree down
+            lines.append('    ' + re.sub(r'^.*?/(?=(?:cef|chrome|content|base|ui|third_party|components|'
+                                         r'services|v8|gpu|sandbox|net|mojo)/)', '', x))
+    return lines
 
 
 def crash_trace(screen, cmd, cwd, env, timeout):
@@ -173,14 +190,12 @@ def crash_trace(screen, cmd, cwd, env, timeout):
     (the engine itself, inside xvfb-run when there is no screen), as
     run_engine_tests.py traces a test that crashes: with the libcef calls
     made before it, the instructions at the crash and where libcef was
-    loaded (its own symbols are not in the distribution)."""
+    loaded, and, when OXT_COMPAT_CEF_SYMBOLS is 1, the frames in libcef
+    named from CEF's published symbols."""
     if not shutil.which('gdb'):
         return ['  (no gdb to trace the crash with)']
-    full = screen + ['gdb', '-batch', '-q', '-nx', '-ex', 'set pagination off']
-    symbols = cef_symbols(cwd) if os.environ.get('OXT_COMPAT_CEF_SYMBOLS') == '1' else None
-    if symbols:
-        full += ['-ex', 'set debug-file-directory %s:/usr/lib/debug' % symbols]
-    full += ['-ex', 'set breakpoint pending on',
+    full = screen + ['gdb', '-batch', '-q', '-nx', '-ex', 'set pagination off',
+                     '-ex', 'set breakpoint pending on',
                      '-ex', 'handle SIGPIPE SIGUSR1 SIGUSR2 nostop noprint pass']
     for name in TRACED_CEF_CALLS:
         full += ['-ex', 'dprintf %s,"CALL %s\\n"' % (name, name)]
@@ -191,7 +206,7 @@ def crash_trace(screen, cmd, cwd, env, timeout):
                              timeout=timeout + 60).stdout
     except subprocess.TimeoutExpired as e:
         out = e.stdout or b''
-    keep, calls = [], []
+    keep, calls, pcs, text_start = [], [], [], None
     for x in out.decode('utf-8', 'replace').splitlines():
         x = x.rstrip()
         if x.startswith('CALL '):
@@ -200,11 +215,31 @@ def crash_trace(screen, cmd, cwd, env, timeout):
                 calls[-1][1] += 1
             else:
                 calls.append([x, 1])
-        elif re.match(r'\s*(#\d+ |Thread \d+ .* received|Program received|Program terminated|=> |'
-                      r'(rip|rsp|rdi|rsi) +0x|0x[0-9a-f]+ +0x[0-9a-f]+ .*libcef)', x):
-            keep.append(x)
+            continue
+        if not re.match(r'\s*(#\d+ |Thread \d+ .* received|Program received|Program terminated|=> |'
+                        r'(rip|rsp|rdi|rsi) +0x|0x[0-9a-f]+ +0x[0-9a-f]+ .*libcef)', x):
+            continue
+        keep.append(x)
+        m = re.match(r'\s*(?:#\d+ +(0x[0-9a-f]+) in \?\? \(\) from \S*libcef\.so|=> (0x[0-9a-f]+))', x)
+        if m:
+            pc = int(m.group(1) or m.group(2), 16)
+            if pc not in pcs:
+                pcs.append(pc)
+        m = re.match(r'(0x[0-9a-f]+) +0x[0-9a-f]+ .*libcef\.so$', x)
+        if m:
+            text_start = int(m.group(1), 16)
     lines = ['%s%s' % (c, ' (x%d)' % n if n > 1 else '') for c, n in calls[-12:]] + keep
-    return ['  ' + x for x in lines] or ['  (the crash did not happen again under gdb)']
+    if not lines:
+        return ['  (the crash did not happen again under gdb)']
+    if os.environ.get('OXT_COMPAT_CEF_SYMBOLS') == '1' and pcs and text_start is not None:
+        dbg, note = cef_symbols(cwd)
+        lines.append('libcef\'s symbols: %s' % note)
+        if dbg:
+            try:
+                lines += symbolize(dbg, text_start, pcs)
+            except Exception as e:
+                lines.append('(addr2line failed: %s: %s)' % (type(e).__name__, e))
+    return ['  ' + x for x in lines]
 
 
 def run(args, p, what):

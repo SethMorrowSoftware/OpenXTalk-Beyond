@@ -2206,7 +2206,7 @@ jobs:
             echo "--- the end of ${f#$logs/}"
             # (without the compatibility check's lines that a crash left
             # missing, which would push the engine's stack out of view)
-            grep -v '^missing: ' "$f" | tail -n 80 | cut -c1-600
+            grep -v '^missing: ' "$f" | tail -n 200 | cut -c1-600
           done
 
       - name: Upload logs

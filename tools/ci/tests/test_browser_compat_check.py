@@ -178,6 +178,57 @@ class CrashTrace(unittest.TestCase):
         self.assertEqual(args[-3:], ['--args', '/x/engine', 'probe.livecodescript'])
 
 
+    def test_the_frames_in_libcef_are_named_from_its_symbols(self):
+        from unittest import mock
+        seen = []
+
+        def symbolize(dbg, text_start, pcs):
+            seen.append((dbg, text_start, pcs))
+            return ['at 0x10:', '    cef::Thing()', '    cef/libcef/x.cc:12']
+        env = {'OXT_COMPAT_CEF_SYMBOLS': '1'}
+        with mock.patch.dict(os.environ, env), \
+                mock.patch.object(bcc, 'cef_symbols', lambda cwd: ('/s/libcef.so.dbg', 'from here (9 MB)')), \
+                mock.patch.object(bcc, 'symbolize', symbolize):
+            lines = bcc.crash_trace([], ['/x/engine', 'probe.livecodescript'], self.dir, self.env, 10)
+        # the frame in libcef and the instruction at the crash, each once
+        self.assertEqual(seen, [('/s/libcef.so.dbg', 0x7fffd0000000, [0x1, 0x7fffe650dc39])])
+        self.assertEqual(lines[-4:], ["  libcef's symbols: from here (9 MB)", '  at 0x10:',
+                                      '      cef::Thing()', '      cef/libcef/x.cc:12'])
+
+    def test_no_symbols_unless_asked(self):
+        from unittest import mock
+        with mock.patch.dict(os.environ, {'OXT_COMPAT_CEF_SYMBOLS': '0'}), \
+                mock.patch.object(bcc, 'cef_symbols', lambda cwd: self.fail('fetched')):
+            lines = bcc.crash_trace([], ['/x/engine', 'probe.livecodescript'], self.dir, self.env, 10)
+        self.assertFalse([x for x in lines if 'symbols' in x])
+
+
+class Symbolize(unittest.TestCase):
+    """The pcs are moved from where libcef's .text was loaded to where the
+    symbols put it (fake readelf and addr2line here)."""
+
+    def test_addresses_move_to_the_symbols_text(self):
+        import tempfile
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, 'readelf'), 'w') as f:
+                f.write('#!/bin/sh\necho "  [15] .text  NOBITS  0000000003000000 001000 ..."\n')
+            with open(os.path.join(d, 'addr2line'), 'w') as f:
+                f.write('#!/bin/sh\nprintf "%%s\\n" "$@" > "%s"\n'
+                        'printf "0x0000000003000010\\nInner()\\n/b/src/cef/libcef/a.cc:3\\n'
+                        'Outer()\\n/b/src/base/b.cc:9\\n"\n' % os.path.join(d, 'args'))
+            for x in ('readelf', 'addr2line'):
+                os.chmod(os.path.join(d, x), 0o755)
+            with mock.patch.dict(os.environ, {'PATH': d + os.pathsep + os.environ['PATH']}):
+                lines = bcc.symbolize('/s/libcef.so.dbg', 0x7fff00000000, [0x7fff00000010, 0x7fff00000020])
+            with open(os.path.join(d, 'args')) as f:
+                args = f.read().splitlines()
+        self.assertEqual(args[-2:], ['0x3000010', '0x3000020'])
+        self.assertIn('/s/libcef.so.dbg', args)
+        self.assertEqual(lines, ['at 0x0000000003000010:', '    Inner()', '    cef/libcef/a.cc:3',
+                                 '    Outer()', '    base/b.cc:9'])
+
+
 class CefSymbols(unittest.TestCase):
     def test_the_symbols_of_the_cef_in_prebuilt(self):
         import tempfile
@@ -189,7 +240,9 @@ class CefSymbols(unittest.TestCase):
             seen.append(url)
             raise OSError('refused')
         with tempfile.TemporaryDirectory() as d, mock.patch.object(urllib.request, 'urlopen', refuse):
-            self.assertIsNone(bcc.cef_symbols(d))
+            dbg, note = bcc.cef_symbols(d)
+        self.assertIsNone(dbg)
+        self.assertIn('OSError: refused', note)
         def version(name):
             with open(os.path.join(bcc.REPO, 'prebuilt', 'versions', name)) as f:
                 return f.read().strip()
