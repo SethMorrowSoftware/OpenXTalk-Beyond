@@ -112,5 +112,13 @@ on TestJavaHomeOnLinux
    local tOutput
    put __RunWithEnv("LD_LIBRARY_PATH= JAVA_HOME=" & quote & tHome & quote && \
          "CLASSPATH=" & quote & tJar & quote) into tOutput
-   TestAssert "a JDK named by JAVA_HOME loads", "no error" is in tOutput
+   -- What the engine said, in the result's own line, so that a failure
+   -- shows why without the log
+   local tSaid
+   put word 1 to -1 of tOutput into tSaid
+   replace return with " | " in tSaid
+   if the number of chars of tSaid > 600 then
+      put char 1 to 600 of tSaid into tSaid
+   end if
+   TestAssert "a JDK named by JAVA_HOME loads (" & tSaid & ")", "no error" is in tOutput
 end TestJavaHomeOnLinux
