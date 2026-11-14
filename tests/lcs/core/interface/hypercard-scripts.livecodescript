@@ -5082,16 +5082,17 @@ on TestHyperCardScriptsTextDialog
    put empty into gHCTextDialogSeen
    send "HCTextDialogPeek" to me in 200 milliseconds
    send "mouseUp 2" to button "Help" of card 1 of stack tStack
-   -- (without a screen, as the tests may run, modal does not wait: the
-   -- dialog is still open, and is looked at now)
-   if there is a stack "HyperCard TextDialog" then HCTextDialogPeek
+   -- (where modal does not wait, as the tests may run, the dialog is
+   -- still open, and is looked at now)
+   if gHCTextDialogSeen is empty and there is a stack "HyperCard TextDialog" then HCTextDialogPeek
    set the itemDelimiter to "|"
    TestAssert "it opens at the screen asked for, in the font asked for", item 1 of gHCTextDialogSeen is "a[1]b" & tab & "c" & numToCodepoint(127) & "d" \
          and item 2 of gHCTextDialogSeen is "Screen 2 of 3" and item 3 of gHCTextDialogSeen is "Geneva"
    TestAssert "Previous goes to the screen before it", item 4 of gHCTextDialogSeen begins with "From fairest creatures" and item 5 of gHCTextDialogSeen is "Screen 1 of 3"
    TestAssert "a screen whose resource is not there is empty", item 6 of gHCTextDialogSeen is empty and item 7 of gHCTextDialogSeen is "Screen 3 of 3"
+   TestAssert "the dialog is shown", item 8 of gHCTextDialogSeen is true
    TestAssert "the script goes on once OK closes it, with its own stack the default", \
-         gHCScriptsTest is "|" & tStack and "HyperCard TextDialog" is not among the lines of the openStacks
+         gHCScriptsTest is "|" & tStack and there is not a stack "HyperCard TextDialog"
    send "mouseUp" to button "None" of card 1 of stack tStack
    TestAssert "no screen there: an error in the result, no dialog", gHCScriptsTest is "Error: no text screens"
    _Close tStack
@@ -5112,6 +5113,7 @@ on HCTextDialogPeek
    send "mouseUp" to button "Next" of tDialog
    send "mouseUp" to button "Next" of tDialog
    put "|" & field "Text" of tDialog & "|" & field "Screen" of tDialog after gHCTextDialogSeen
+   put "|" & the visible of tDialog after gHCTextDialogSeen
    send "mouseUp" to button "OK" of tDialog
 end HCTextDialogPeek
 
@@ -5155,6 +5157,7 @@ on TestHyperCardScriptsTextoid
          and the textAlign of field "Text" of tWindow is "center" and the dontWrap of field "Text" of tWindow
    TestAssert "the text's colour and the background's", the textColor of field "Text" of tWindow is "red" and the backgroundColor of field "Text" of tWindow is "blue"
    TestAssert "its rect", the rect of tWindow is "7,43,207,143"
+   TestAssert "the window is shown, a palette", the visible of tWindow and the mode of tWindow is 4
    TestAssert "openTextoid to the card", gHCScriptsTest is "open Notes|"
    send "mouseUp" to button "Again" of card 1 of stack tStack
    TestAssert "the same window again: the new text, opened once", field "Text" of tWindow is "second text" and gHCScriptsTest is "open Notes|"
@@ -5173,6 +5176,16 @@ on TestHyperCardScriptsTextoid
    send "mouseUp" to button "Again" of card 1 of stack tStack
    TestAssert "a stack of the name that is not its window is left alone", there is not a field "Text" of stack "Notes" \
          and field "Text" of stack "Textoid Notes" is "second text"
+   _Close "Textoid Notes"
+   -- beside stacks of both names that are no such windows, a name of its own
+   lock messages
+   create invisible stack "Textoid Notes"
+   unlock messages
+   send "mouseUp" to button "Again" of card 1 of stack tStack
+   TestAssert "neither stack of those names is touched", there is not a field "Text" of stack "Notes" \
+         and there is not a field "Text" of stack "Textoid Notes" and the title of stack "Textoid Notes" is empty \
+         and field "Text" of stack "Textoid Notes 2" is "second text" and the title of stack "Textoid Notes 2" is "Notes"
+   _Close "Textoid Notes 2"
    _Close "Textoid Notes"
    _Close "Notes"
    _Close tStack

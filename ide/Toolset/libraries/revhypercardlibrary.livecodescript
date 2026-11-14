@@ -4082,7 +4082,6 @@ on TextDialog pDialog, pFont, pSize, pScreens, pFirst, pTop, pLeft
    lock messages
    get _HCNewHiddenStack(tName)
    put the long id of stack tName into tStack
-   set the destroyStack of tStack to true
    set the title of tStack to empty
    set the width of tStack to 480
    set the height of tStack to 320
@@ -4114,7 +4113,19 @@ on TextDialog pDialog, pFont, pSize, pScreens, pFirst, pTop, pLeft
    end if
    set the defaultStack to tDefault
    unlock messages
+   -- (made visible, as an invisible stack opens no window and a modal
+   -- one waits for none; and only then destroyed as it closes, as
+   -- _HCReadyToShow closes it)
+   _HCReadyToShow tStack
+   set the destroyStack of tStack to true
    modal tStack
+   -- (gone once it is closed: a stack its own script closes is not
+   -- destroyed while that script runs)
+   if exists(tStack) then
+      lock messages
+      delete tStack
+      unlock messages
+   end if
    set the defaultStack to tDefault
    return empty
 end TextDialog
@@ -4139,7 +4150,7 @@ beside a stack of the name that is not such a window. Textoid "?" and
 Textoid with no text give its version
 */
 on Textoid pName, pText
-   local tParam, tFont, tSize, tRect, tColors, tAlign, tWrap, tStyle, i, tStack, tCard, tNew, tDefault, tRecent
+   local tParam, tFont, tSize, tRect, tColors, tAlign, tWrap, tStyle, i, tStack, tCard, tNew, tDefault, tRecent, tTry
    if pName is "?" or paramCount() < 2 then return "Textoid (HyperCard Library)"
    if _HCIsContainerName(pText) then
       try
@@ -4173,16 +4184,24 @@ on Textoid pName, pText
    put the long id of this card into tCard
    put the defaultStack into tDefault
    -- (named as the window, which scripts address as "window Notes";
-   -- beside a stack of that name that is not one, "Textoid Notes")
+   -- beside a stack of that name that is not one, "Textoid Notes", and
+   -- beside one of that name too, "Textoid Notes 2" and on: no stack but
+   -- its own window is ever touched)
    put pName into tStack
-   if there is a stack tStack then
-      if the cTextoid of stack tStack is not true then put "Textoid " & pName into tStack
-   end if
+   put 1 into tTry
+   repeat while there is a stack tStack
+      if the cTextoid of stack tStack is true and the cName of stack tStack is pName then exit repeat
+      if tTry is 1 then
+         put "Textoid " & pName into tStack
+      else
+         put "Textoid " & pName && tTry into tStack
+      end if
+      add 1 to tTry
+   end repeat
    put there is not a stack tStack into tNew
    if tNew then
       lock messages
       get _HCNewHiddenStack(tStack)
-      set the destroyStack of stack tStack to true
       set the width of stack tStack to 300
       set the height of stack tStack to 160
       set the defaultStack to tStack
@@ -4222,6 +4241,10 @@ on Textoid pName, pText
       set the topLeft of stack tStack to tRect
    end if
    if tNew then
+      -- (made visible, as an invisible stack opens no window, and only
+      -- then destroyed as it closes, as _HCReadyToShow closes it)
+      _HCReadyToShow the long id of stack tStack
+      set the destroyStack of stack tStack to true
       put the lockRecent into tRecent
       set the lockRecent to true
       palette stack tStack
