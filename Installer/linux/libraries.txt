@@ -6,7 +6,7 @@
 # <use> says what needs the library:
 #   core     the engine, even without a user interface (-ui)
 #   gui      the engine with its user interface: the IDE
-#   browser  the browser widget and revBrowser (CEF 74, x86_64 only)
+#   browser  the browser widget and revBrowser (CEF 156, x86_64 only)
 # A missing core or gui library stops the launcher (oxt-beyond) with its
 # name and the package to install; without one the engine ends at start-up
 # without a message. A missing browser library turns the browser off
@@ -77,3 +77,10 @@ libXi.so.6                browser  libxi6                libXi
 libXtst.so.6              browser  libxtst6              libXtst
 libXss.so.1               browser  libxss1               libXScrnSaver
 libXrandr.so.2            browser  libxrandr2            libXrandr
+# New in CEF 156 (CEF 74 needed none of them): printing (CUPS), the GPU's
+# buffers (GBM), the keyboard (xkbcommon) and devices such as gamepads
+# (udev).
+libcups.so.2              browser  libcups2              cups-libs
+libgbm.so.1               browser  libgbm1               mesa-libgbm
+libxkbcommon.so.0         browser  libxkbcommon0         libxkbcommon
+libudev.so.1              browser  libudev1              systemd-libs

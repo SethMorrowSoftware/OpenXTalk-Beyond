@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Chromium Embedded Framework Authors. All rights
+// Copyright (c) 2026 The Chromium Embedded Framework Authors. All rights
 // reserved. Use of this source code is governed by a BSD-style license that
 // can be found in the LICENSE file.
 //
@@ -9,22 +9,24 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=db9e1aa05b67bbc704bac6cf2d37122a5ec1d94f$
+// $hash=d8155b7c0ac56023d5fc592de229fd241ff83290$
 //
 
 #include "libcef_dll/ctocpp/run_context_menu_callback_ctocpp.h"
+
 #include "libcef_dll/shutdown_checker.h"
 
 // VIRTUAL METHODS - Body may be edited by hand.
 
 NO_SANITIZE("cfi-icall")
 void CefRunContextMenuCallbackCToCpp::Continue(int command_id,
-                                               EventFlags event_flags) {
+                                               cef_event_flags_t event_flags) {
   shutdown_checker::AssertNotShutdown();
 
-  cef_run_context_menu_callback_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, cont))
+  auto* _struct = GetStruct();
+  if (!_struct->cont) {
     return;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -35,9 +37,10 @@ void CefRunContextMenuCallbackCToCpp::Continue(int command_id,
 NO_SANITIZE("cfi-icall") void CefRunContextMenuCallbackCToCpp::Cancel() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_run_context_menu_callback_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, cancel))
+  auto* _struct = GetStruct();
+  if (!_struct->cancel) {
     return;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -62,8 +65,8 @@ cef_run_context_menu_callback_t* CefCToCppRefCounted<
     cef_run_context_menu_callback_t>::UnwrapDerived(CefWrapperType type,
                                                     CefRunContextMenuCallback*
                                                         c) {
-  NOTREACHED() << "Unexpected class type: " << type;
-  return NULL;
+  CHECK(false) << __func__ << " called with unexpected class type " << type;
+  return nullptr;
 }
 
 template <>

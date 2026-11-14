@@ -72,8 +72,8 @@
 # assets and xTalk extension files are cached as in build-windows.yml; a
 # manual run can leave them out (inputs below, or the repository variables
 # OXT_NO_EXTERNAL_ASSETS / OXT_NO_XTALK_EXTENSIONS set to 1), a release build
-# never does. The arm64 package has no browser (CEF 74 has no Linux ARM
-# build), so the browser checks run on x86_64 only; release.yml publishes
+# never does. The arm64 package has no CEF (the packages ship it for x86_64
+# only), so the browser checks run on x86_64 only; release.yml publishes
 # both packages.
 #
 # Version: <ver> is the product version in ide/.version. A build of a tag
@@ -306,7 +306,7 @@ jobs:
       BUILDTYPE: Release
       # The packages the first step installs (part of its cache key)
       BUILD_PKGS: >-
-        build-essential gcc g++ make perl bison flex gawk pkg-config
+        build-essential gcc g++ g++-10 make perl bison flex gawk pkg-config
         python2 python-is-python2 python3 openjdk-11-jdk-headless
         git curl ca-certificates bzip2 xz-utils zip unzip file binutils
         libx11-dev libxext-dev libxrender-dev libxft-dev libxinerama-dev
@@ -527,8 +527,15 @@ jobs:
           cd prebuilt
           PREBUILT_LOCAL_DIR="$PWD/packaged" PREBUILT_SKIP_VERIFY=1 ./fetch-libraries.sh linux "$ARCH"
 
+      # CEF 156's headers need C++20, which 20.04's GCC 9 does not have:
+      # tools/cxx_by_std.sh hands the browser's -std=c++20 sources to g++-10
+      # and everything else, and every link, to the usual compiler, so the
+      # binaries need no newer libstdc++ than before (Verify build output
+      # holds that). gyp writes the compiler into the Makefiles here.
       - name: Configure
-        run: make config-linux-"$ARCH"
+        run: |
+          export CXX="$GITHUB_WORKSPACE/tools/cxx_by_std.sh" CXX_host="$GITHUB_WORKSPACE/tools/cxx_by_std.sh"
+          make config-linux-"$ARCH"
 
       # The final copy into linux-<arch>-bin runs as a second make: its input
       # out/Release/Externals is only created as a side effect of the CEF
@@ -1196,7 +1203,7 @@ jobs:
   # a package would find there, and sudo for apt.
   #
   # The arm64 package (Raspberry Pi 3/4/5 on a 64-bit OS, ARM servers) is
-  # published beside the x86_64 one since 0.2.4-rc.2. It has no browser (CEF 74 has no Linux ARM build), so the
+  # published beside the x86_64 one since 0.2.4-rc.2. It has no CEF (the packages ship it for x86_64 only), so the
   # browser checks are the x86_64 leg's; its player check runs.
   package:
     name: Package linux-${{ matrix.arch }}
@@ -1334,14 +1341,15 @@ jobs:
           # player check with --player-backend gstreamer); WebKitGTK 4.1
           # and the X headers: the browser widget's browser where CEF
           # cannot load (tools/ci/webkit_browser_check.py and the browser
-          # check with --browser-backend webkitgtk)
+          # check with --browser-backend webkitgtk); gdb: the stack of an
+          # engine that crashes in the browser compatibility check
           pkgs=(desktop-file-utils shared-mime-info xz-utils mplayer xvfb xauth
                 libwebkit2gtk-4.1-0 libx11-dev
                 gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav gstreamer1.0-x
                 xfwm4 openbox mutter xdotool x11-utils imagemagick
                 gnome-themes-extra gtk2-engines-pixbuf python3-xlib
                 mate-themes ubuntu-mate-themes yaru-theme-gtk gtk2-engines-murrine
-                xsettingsd fonts-dejavu-core gsettings-desktop-schemas)
+                xsettingsd fonts-dejavu-core gsettings-desktop-schemas gdb)
           while read -r soname use deb rpm rest; do
             case $soname in ''|'#'*) continue ;; esac
             if apt-cache show --no-all-versions "${deb}t64" > /dev/null 2>&1; then
@@ -1598,6 +1606,24 @@ jobs:
         run: |
           python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --player-backend mplayer \
             --log "$RUNNER_TEMP/logs/media-check.log" --snapshots "$RUNNER_TEMP/logs/media-snapshots"
+
+      # What a script sees of the browser's htmlText and url (the url and
+      # htmlText properties, the messages, and where the page's JavaScript
+      # says it is) is what it saw in the release before, line by line
+      # against tools/ci/browser-compat/linux-x86_64.txt, recorded from
+      # 0.2.8-dp.1 (CEF 74). CEF 156 has no LoadString, which htmlText
+      # used (tools/ci/browser_compat_check.py). x86_64 only: the only
+      # Linux build with a browser.
+      - name: Browser compatibility check (htmlText and url)
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
+        # (the time for libcef's symbols, which an engine that crashes in
+        # libcef is traced with: OXT_COMPAT_CEF_SYMBOLS)
+        timeout-minutes: 45
+        env:
+          OXT_COMPAT_CEF_SYMBOLS: '1'
+        run: |
+          python3 tools/ci/browser_compat_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" \
+            --log "$RUNNER_TEMP/logs/browser-compat-check.log"
 
       # The player through GStreamer, which plays a movie where mplayer is
       # not installed (engine/src/lnxgstplayer.cpp): first on its own, built
@@ -2188,6 +2214,22 @@ jobs:
           grep -E '^ *FAIL |Traceback|Error' "$out" | cut -c1-600 || true
           echo "--- the end of the check's output"
           tail -n 40 "$out" | cut -c1-600
+
+      # The same for the checks that open a browser (CEF): the end of each
+      # one's log and of the IDE tours' engine output, where an engine that
+      # ended on a signal leaves what it printed
+      - name: Repeat the browser checks' output
+        if: ${{ failure() && matrix.arch == 'x86_64' }}
+        run: |
+          logs="$RUNNER_TEMP/logs"
+          for f in "$logs/browser-compat-check.log" "$logs/media-check.log" "$logs/browser-wm-check.log" \
+                   "$logs"/ui-tour/*/engine-output.txt "$logs"/everyday-tasks*/engine-output.txt; do
+            [ -f "$f" ] || continue
+            echo "--- the end of ${f#$logs/}"
+            # (without the compatibility check's lines that a crash left
+            # missing, which would push the engine's stack out of view)
+            grep -v '^missing: ' "$f" | tail -n 200 | cut -c1-600
+          done
 
       - name: Upload logs
         if: always()

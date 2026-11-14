@@ -11,6 +11,11 @@
 			'target_name': 'libcef_library_wrapper',
 			'type': 'static_library',
 
+			# CEF 156's headers need C++20, which the engine's MSVC v141 has
+			# not: on Windows the CEF code is built with v143, which links
+			# the v141 libraries it needs (libbrowser_cef_dll.h)
+			'msbuild_toolset': 'v143',
+
 			'toolsets': ['host', 'target'],
 			
 			'variables':
@@ -23,13 +28,27 @@
 			'target_conditions':
 			[
 				[
+					# CEF 156's headers need C++20 (tools/cxx_by_std.sh: the
+					# build's GCC 9 has none, GCC 10 compiles these). Last on the
+					# command line, so it wins over the engine's -std=c++11.
+					'toolset_os == "linux" and toolset_arch == "x86_64"',
+					{
+						'cflags_cc':
+						[
+							'-std=c++20',
+						],
+					},
+				],
+				[
 					'not toolset_os in ("mac", "win", "linux")',
 					{
 						'type': 'none',
 					},
 				],
+				# CEF's 32-bit Linux builds ended with CEF 101: only x86_64
+				# Linux has a browser to wrap
 				[
-					'toolset_os == "linux" and not toolset_arch in ("x86", "x86_64")',
+					'toolset_os == "linux" and toolset_arch != "x86_64"',
 					{
 						'type': 'none',
 					},
@@ -37,9 +56,56 @@
 				[
 					'toolset_os == "win"',
 					{
+						# CEF's own build defines UNICODE: its *_win.cc call
+						# the wide Windows functions by their plain names
 						'defines':
 						[
 							'NOMINMAX',
+							'UNICODE',
+							'_UNICODE',
+						],
+					},
+				],
+				# What only CEF's bootstrap and sandbox use: the signature
+				# check needs WINTRUST_SIGNATURE_SETTINGS, newer than the
+				# Windows SDK the build uses (10.0.17763), and the browser
+				# loads libcef through the weak stubs, not this loader
+				[
+					'toolset_os == "win"',
+					{
+						'sources!':
+						[
+							'libcef_dll/wrapper/cef_certificate_util_win.cc',
+							'libcef_dll/wrapper/cef_scoped_library_loader_win.cc',
+						],
+					},
+				],
+				# Since CEF 156 the wrapper has sources for one platform
+				# only, named for it
+				[
+					'toolset_os != "win"',
+					{
+						'sources/':
+						[
+							['exclude', '_win\\.cc$'],
+						],
+					},
+				],
+				[
+					'toolset_os != "linux"',
+					{
+						'sources/':
+						[
+							['exclude', '_linux\\.cc$'],
+						],
+					},
+				],
+				[
+					'toolset_os != "mac"',
+					{
+						'sources/':
+						[
+							['exclude', '_mac\\.(cc|mm)$'],
 						],
 					},
 				],
@@ -110,6 +176,7 @@
 				'VCCLCompilerTool':
 				{
 					'ExceptionHandling': '1',
+					'AdditionalOptions': ['/std:c++20', '/Zc:__cplusplus'],
 				},
 			},
 		},

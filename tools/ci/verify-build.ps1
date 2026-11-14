@@ -74,7 +74,10 @@ param(
         'w32-manifest-template.xml',
         'Externals\CEF\libcef.dll',
         'Externals\CEF\libbrowser-cefprocess.exe',
-        'Externals\CEF\revbrowser-cefprocess.exe'
+        'Externals\CEF\revbrowser-cefprocess.exe',
+        # The browser widget's CEF code (libbrowser/src/libbrowser_cef_dll.h)
+        'libbrowser-cef.dll',
+        'Externals\CEF\libbrowser-cef.dll'
     ),
     [string[]]$OptionalFiles = @(
         'lc-compile-ffi-java.exe',

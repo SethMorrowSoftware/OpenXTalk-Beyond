@@ -19,7 +19,7 @@
 
   python3 tools/ci/webkit_browser_check.py [--sanitize] [--helper PATH] [--log FILE]
 
-The browser widget and revBrowser use CEF 74 on Linux x86-64. Where CEF
+The browser widget and revBrowser use CEF 156 on Linux x86-64. Where CEF
 cannot load (no Externals/CEF/libcef.so, a library it needs is missing, or
 an architecture CEF has no build for), libbrowser now falls back to
 WebKitGTK, run in a helper process of its own (libbrowser-webkitprocess,

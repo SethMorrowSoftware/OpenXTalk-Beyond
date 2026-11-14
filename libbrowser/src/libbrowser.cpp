@@ -285,6 +285,11 @@ MCBrowserNavigationType MCBrowserNavigationRequestBase::GetNavigationType()
 	return m_navigation_type;
 }
 
+// libbrowser-cef.dll (Windows) has the classes above, which its browsers
+// derive from, and none of the library's functions below: it calls the
+// engine's (libbrowser_cef_dll.h)
+#if !defined(MCBROWSER_CEF_DLL)
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // Init functions
@@ -1017,3 +1022,5 @@ void MCBrowserRunloopBreakWait()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+#endif // !MCBROWSER_CEF_DLL

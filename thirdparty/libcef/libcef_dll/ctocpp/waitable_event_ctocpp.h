@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Chromium Embedded Framework Authors. All rights
+// Copyright (c) 2026 The Chromium Embedded Framework Authors. All rights
 // reserved. Use of this source code is governed by a BSD-style license that
 // can be found in the LICENSE file.
 //
@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=4cd46b2c619b3f89830c4703169521c6f4ad6ee9$
+// $hash=9cd566bb0055c0327e363d4891f53e37e4b215c9$
 //
 
 #ifndef CEF_LIBCEF_DLL_CTOCPP_WAITABLE_EVENT_CTOCPP_H_
@@ -35,11 +35,14 @@ class CefWaitableEventCToCpp
   virtual ~CefWaitableEventCToCpp();
 
   // CefWaitableEvent methods.
-  void Reset() OVERRIDE;
-  void Signal() OVERRIDE;
-  bool IsSignaled() OVERRIDE;
-  void Wait() OVERRIDE;
-  bool TimedWait(int64 max_ms) OVERRIDE;
+  void Reset() override;
+  void Signal() override;
+  bool IsSignaled() override;
+  void Wait() override;
+  bool TimedWait(int64_t max_ms) override;
 };
+
+constexpr auto CefWaitableEventCToCpp_Wrap = CefWaitableEventCToCpp::Wrap;
+constexpr auto CefWaitableEventCToCpp_Unwrap = CefWaitableEventCToCpp::Unwrap;
 
 #endif  // CEF_LIBCEF_DLL_CTOCPP_WAITABLE_EVENT_CTOCPP_H_

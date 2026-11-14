@@ -1,5 +1,6 @@
 \""$(OutDir)/standalone-community.exe"
 "$(OutDir)/libbrowser-cefprocess.exe"
+"$(OutDir)/libbrowser-cef.dll"
 "$(OutDir)/lc-compile.exe"
 "$(OutDir)/lc-compile-ffi-java.exe"
 "$(OutDir)/lc-run.exe"

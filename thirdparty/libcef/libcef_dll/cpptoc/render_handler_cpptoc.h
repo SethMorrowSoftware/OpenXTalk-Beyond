@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Chromium Embedded Framework Authors. All rights
+// Copyright (c) 2026 The Chromium Embedded Framework Authors. All rights
 // reserved. Use of this source code is governed by a BSD-style license that
 // can be found in the LICENSE file.
 //
@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=ae370bd742a5b7781d50fb63a3364fd9e5c8991a$
+// $hash=ed8adb90be8df02d515a123050987777d23e5556$
 //
 
 #ifndef CEF_LIBCEF_DLL_CPPTOC_RENDER_HANDLER_CPPTOC_H_
@@ -34,5 +34,8 @@ class CefRenderHandlerCppToC
   CefRenderHandlerCppToC();
   virtual ~CefRenderHandlerCppToC();
 };
+
+constexpr auto CefRenderHandlerCppToC_Wrap = CefRenderHandlerCppToC::Wrap;
+constexpr auto CefRenderHandlerCppToC_Unwrap = CefRenderHandlerCppToC::Unwrap;
 
 #endif  // CEF_LIBCEF_DLL_CPPTOC_RENDER_HANDLER_CPPTOC_H_

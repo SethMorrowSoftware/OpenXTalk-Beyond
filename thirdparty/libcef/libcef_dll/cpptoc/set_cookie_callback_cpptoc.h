@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Chromium Embedded Framework Authors. All rights
+// Copyright (c) 2026 The Chromium Embedded Framework Authors. All rights
 // reserved. Use of this source code is governed by a BSD-style license that
 // can be found in the LICENSE file.
 //
@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=79ff730e44957673939b45452decebdf242d476b$
+// $hash=b8b44a3771a98b508fdd4700920e478bfee3a83b$
 //
 
 #ifndef CEF_LIBCEF_DLL_CPPTOC_SET_COOKIE_CALLBACK_CPPTOC_H_
@@ -34,5 +34,10 @@ class CefSetCookieCallbackCppToC
   CefSetCookieCallbackCppToC();
   virtual ~CefSetCookieCallbackCppToC();
 };
+
+constexpr auto CefSetCookieCallbackCppToC_Wrap =
+    CefSetCookieCallbackCppToC::Wrap;
+constexpr auto CefSetCookieCallbackCppToC_Unwrap =
+    CefSetCookieCallbackCppToC::Unwrap;
 
 #endif  // CEF_LIBCEF_DLL_CPPTOC_SET_COOKIE_CALLBACK_CPPTOC_H_

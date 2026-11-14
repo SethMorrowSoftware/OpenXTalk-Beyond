@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Chromium Embedded Framework Authors. All rights
+// Copyright (c) 2026 The Chromium Embedded Framework Authors. All rights
 // reserved. Use of this source code is governed by a BSD-style license that
 // can be found in the LICENSE file.
 //
@@ -9,10 +9,11 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=2b002577e48c487b99031dbe70665ee2b0d5f299$
+// $hash=053e7fa1c1256382561a00a96a05f864003e68bc$
 //
 
 #include "libcef_dll/cpptoc/end_tracing_callback_cpptoc.h"
+
 #include "libcef_dll/shutdown_checker.h"
 
 namespace {
@@ -27,12 +28,14 @@ void CEF_CALLBACK end_tracing_callback_on_end_tracing_complete(
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
   DCHECK(self);
-  if (!self)
+  if (!self) {
     return;
+  }
   // Verify param: tracing_file; type: string_byref_const
   DCHECK(tracing_file);
-  if (!tracing_file)
+  if (!tracing_file) {
     return;
+  }
 
   // Execute
   CefEndTracingCallbackCppToC::Get(self)->OnEndTracingComplete(
@@ -60,8 +63,8 @@ CefRefPtr<CefEndTracingCallback> CefCppToCRefCounted<
     CefEndTracingCallback,
     cef_end_tracing_callback_t>::UnwrapDerived(CefWrapperType type,
                                                cef_end_tracing_callback_t* s) {
-  NOTREACHED() << "Unexpected class type: " << type;
-  return NULL;
+  CHECK(false) << __func__ << " called with unexpected class type " << type;
+  return nullptr;
 }
 
 template <>

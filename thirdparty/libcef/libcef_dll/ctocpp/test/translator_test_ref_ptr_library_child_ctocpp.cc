@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Chromium Embedded Framework Authors. All rights
+// Copyright (c) 2026 The Chromium Embedded Framework Authors. All rights
 // reserved. Use of this source code is governed by a BSD-style license that
 // can be found in the LICENSE file.
 //
@@ -9,28 +9,30 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=23e80faef7d16df6eed546e6fd8d1c731c8b8009$
+// $hash=afd6bf21ad644270e2b686beb082ff7a9ac2a995$
 //
 
 #include "libcef_dll/ctocpp/test/translator_test_ref_ptr_library_child_ctocpp.h"
+
 #include "libcef_dll/ctocpp/test/translator_test_ref_ptr_library_child_child_ctocpp.h"
 #include "libcef_dll/shutdown_checker.h"
 
 // STATIC METHODS - Body may be edited by hand.
 
 NO_SANITIZE("cfi-icall")
-CefRefPtr<CefTranslatorTestRefPtrLibraryChild>
-CefTranslatorTestRefPtrLibraryChild::Create(int value, int other_value) {
+CefRefPtr<
+    CefTranslatorTestRefPtrLibraryChild> CefTranslatorTestRefPtrLibraryChild::
+    Create(int value, int other_value) {
   shutdown_checker::AssertNotShutdown();
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
   // Execute
-  cef_translator_test_ref_ptr_library_child_t* _retval =
+  auto* _retval =
       cef_translator_test_ref_ptr_library_child_create(value, other_value);
 
   // Return type: refptr_same
-  return CefTranslatorTestRefPtrLibraryChildCToCpp::Wrap(_retval);
+  return CefTranslatorTestRefPtrLibraryChildCToCpp_Wrap(_retval);
 }
 
 // VIRTUAL METHODS - Body may be edited by hand.
@@ -39,9 +41,10 @@ NO_SANITIZE("cfi-icall")
 int CefTranslatorTestRefPtrLibraryChildCToCpp::GetOtherValue() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_translator_test_ref_ptr_library_child_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, get_other_value))
+  auto* _struct = GetStruct();
+  if (!_struct->get_other_value) {
     return 0;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -56,9 +59,10 @@ NO_SANITIZE("cfi-icall")
 void CefTranslatorTestRefPtrLibraryChildCToCpp::SetOtherValue(int value) {
   shutdown_checker::AssertNotShutdown();
 
-  cef_translator_test_ref_ptr_library_child_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, set_other_value))
+  auto* _struct = GetStruct();
+  if (!_struct->set_other_value) {
     return;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -70,10 +74,11 @@ NO_SANITIZE("cfi-icall")
 int CefTranslatorTestRefPtrLibraryChildCToCpp::GetValue() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_translator_test_ref_ptr_library_t* _struct =
+  auto* _struct =
       reinterpret_cast<cef_translator_test_ref_ptr_library_t*>(GetStruct());
-  if (CEF_MEMBER_MISSING(_struct, get_value))
+  if (!_struct->get_value) {
     return 0;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -88,10 +93,11 @@ NO_SANITIZE("cfi-icall")
 void CefTranslatorTestRefPtrLibraryChildCToCpp::SetValue(int value) {
   shutdown_checker::AssertNotShutdown();
 
-  cef_translator_test_ref_ptr_library_t* _struct =
+  auto* _struct =
       reinterpret_cast<cef_translator_test_ref_ptr_library_t*>(GetStruct());
-  if (CEF_MEMBER_MISSING(_struct, set_value))
+  if (!_struct->set_value) {
     return;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -119,11 +125,11 @@ CefCToCppRefCounted<CefTranslatorTestRefPtrLibraryChildCToCpp,
     UnwrapDerived(CefWrapperType type, CefTranslatorTestRefPtrLibraryChild* c) {
   if (type == WT_TRANSLATOR_TEST_REF_PTR_LIBRARY_CHILD_CHILD) {
     return reinterpret_cast<cef_translator_test_ref_ptr_library_child_t*>(
-        CefTranslatorTestRefPtrLibraryChildChildCToCpp::Unwrap(
+        CefTranslatorTestRefPtrLibraryChildChildCToCpp_Unwrap(
             reinterpret_cast<CefTranslatorTestRefPtrLibraryChildChild*>(c)));
   }
-  NOTREACHED() << "Unexpected class type: " << type;
-  return NULL;
+  CHECK(false) << __func__ << " called with unexpected class type " << type;
+  return nullptr;
 }
 
 template <>
