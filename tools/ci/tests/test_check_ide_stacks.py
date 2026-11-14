@@ -322,6 +322,12 @@ class AndroidCardBox(unittest.TestCase):
         for obj, prop, old, new in groups:
             self.assertEqual(prop, 'rect')
             old, new = rect(old), rect(new)
+            # "Android Settings" is also as wide as the window (754), for
+            # the "Target" menu (android-card-target-api-5.txt), as one
+            # patch holds each property
+            if obj.startswith('group "Android Settings"'):
+                self.assertEqual((old[2], new[2]), (740, 754))
+                old[2] = new[2]
             self.assertEqual(old[:3], new[:3], obj)
             self.assertEqual(new[3], inner + 4, obj)
             self.assertGreater(new[3], old[3], obj)

@@ -4821,13 +4821,15 @@ Known limitations, in rough order of importance:
    neither no file plays. macOS
    plays both. A Media Foundation player for Windows would open MP4
    files by itself; whether to write one is not decided yet.
-11. In an install for all users, a few things that save stacks inside
-   the program folder fail for standard users, because Setup keeps
-   stacks and scripts there read-only: the Report Builder plugin saving
-   itself when it closes, *Plugin Settings* changes to the plugins that
-   come with OXT-Beyond, and edits to the built-in image libraries. Install for the current user only,
-   or use the portable zip, if you need them. Plan: keep that state in
-   the user's own folders.
+11. In an install for all users, Setup keeps the stacks and scripts in
+   the program folder read-only for standard users. *Plugin Settings*
+   changes to the plugins that come with OXT-Beyond, and the place of
+   the Report Builder plugin's Report window, are then kept in the
+   user's preferences instead of the plugins' own stacks (where those
+   stacks can be saved, they are saved as before). Edits to the
+   built-in image libraries still fail there: install for the current
+   user only, or use the portable zip, if you need them. Plan: keep
+   that state in the user's own folders too.
 12. HTML5 standalones are new. They are tested automatically in
    Chromium, Firefox and WebKit (Safari's engine), but not yet on a
    phone (the touch screen's keyboard is checked with a stand-in for a

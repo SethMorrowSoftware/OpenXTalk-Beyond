@@ -72,8 +72,8 @@
 # assets and xTalk extension files are cached as in build-windows.yml; a
 # manual run can leave them out (inputs below, or the repository variables
 # OXT_NO_EXTERNAL_ASSETS / OXT_NO_XTALK_EXTENSIONS set to 1), a release build
-# never does. The arm64 package has no browser (CEF 74 has no Linux ARM
-# build), so the browser checks run on x86_64 only; release.yml publishes
+# never does. The arm64 package has no CEF (the packages ship it for x86_64
+# only), so the browser checks run on x86_64 only; release.yml publishes
 # both packages.
 #
 # Version: <ver> is the product version in ide/.version. A build of a tag
@@ -579,7 +579,7 @@ jobs:
           for f in LiveCode-Community standalone-community installer server-community \
                    revsecurity.so revpdfprinter.so revxml.so revzip.so revdb.so \
                    dbsqlite.so dbmysql.so dbodbc.so dbpostgresql.so \
-                   lc-compile lc-run; do
+                   lc-compile lc-run libbrowser-webkitprocess; do
             if [ ! -e "$B/$f" ]; then echo "::error::missing $B/$f"; missing=1; fi
           done
           if [ "$ARCH" = x86_64 ] && [ ! -e "$B/revbrowser.so" ]; then
@@ -882,7 +882,7 @@ jobs:
             for f in LiveCode-Community standalone-community installer server-community \
                      revsecurity.so revpdfprinter.so revxml.so revzip.so revdb.so \
                      dbsqlite.so dbmysql.so dbodbc.so dbpostgresql.so \
-                     lc-compile lc-run; do
+                     lc-compile lc-run libbrowser-webkitprocess; do
               if [ ! -e "$B/$f" ]; then echo "::error::missing $B/$f"; missing=1; fi
             done
             test -d "$B/packaged_extensions" || { echo "::error::missing $B/packaged_extensions"; missing=1; }
@@ -1203,7 +1203,7 @@ jobs:
   # a package would find there, and sudo for apt.
   #
   # The arm64 package (Raspberry Pi 3/4/5 on a 64-bit OS, ARM servers) is
-  # published beside the x86_64 one since 0.2.4-rc.2. It has no browser (CEF 74 has no Linux ARM build), so the
+  # published beside the x86_64 one since 0.2.4-rc.2. It has no CEF (the packages ship it for x86_64 only), so the
   # browser checks are the x86_64 leg's; its player check runs.
   package:
     name: Package linux-${{ matrix.arch }}
@@ -1338,9 +1338,13 @@ jobs:
           # desktop appearance check; GStreamer's base, good and libav
           # plugins and its X sinks: the player through GStreamer, for a
           # machine without mplayer (tools/ci/gst_player_check.py and the
-          # player check with --player-backend gstreamer); gdb: the stack of
-          # an engine that crashes in the browser compatibility check
+          # player check with --player-backend gstreamer); WebKitGTK 4.1
+          # and the X headers: the browser widget's browser where CEF
+          # cannot load (tools/ci/webkit_browser_check.py and the browser
+          # check with --browser-backend webkitgtk); gdb: the stack of an
+          # engine that crashes in the browser compatibility check
           pkgs=(desktop-file-utils shared-mime-info xz-utils mplayer xvfb xauth
+                libwebkit2gtk-4.1-0 libx11-dev
                 gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav gstreamer1.0-x
                 xfwm4 openbox mutter xdotool x11-utils imagemagick
                 gnome-themes-extra gtk2-engines-pixbuf python3-xlib
@@ -1634,6 +1638,22 @@ jobs:
           python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --what player --player-backend gstreamer \
             --log "$RUNNER_TEMP/logs/media-check-gstreamer.log" --snapshots "$RUNNER_TEMP/logs/media-snapshots-gstreamer"
 
+      # The browser widget through WebKitGTK, its browser where CEF cannot
+      # load (libbrowser/src/libbrowser_webkitgtk.cpp, through the helper
+      # libbrowser-webkitprocess): first libbrowser's half on its own, built
+      # with the sanitizers, with the package's own helper, embedded in a
+      # GTK 2 socket as the engine embeds it; then the browser widget in a
+      # standalone of the package (OXT_BROWSER_BACKEND=webkitgtk), with the
+      # page and the JavaScript call of the CEF check above
+      - name: Browser check (WebKitGTK)
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 10
+        run: |
+          python3 tools/ci/webkit_browser_check.py --sanitize --helper "$OXT_ROOT/libbrowser-webkitprocess" \
+            --log "$RUNNER_TEMP/logs/webkit-browser-check.log"
+          python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --what widget --browser-backend webkitgtk \
+            --log "$RUNNER_TEMP/logs/media-check-webkitgtk.log"
+
       # Text a standalone puts on the clipboard is still there after it
       # quits, when a clipboard manager runs (this script's own, which does
       # what GNOME's and Xfce's do), and a standalone with no manager to
@@ -1882,7 +1902,8 @@ jobs:
       # breakpoint), the Message Box, undo and redo, copy, group, align,
       # cards, Save As, Close and Remove From Memory and opening it again,
       # Revert, the Dictionary, an image as a button's icon, the Geometry
-      # Manager, Preferences and the Application Browser; each asserted
+      # Manager, Preferences, the Application Browser and a standalone
+      # build stopped by an error (the stack as it was); each asserted
       # and snapshot (tools/ci/everyday-tasks.livecodescript). Light and
       # dark at once, each on its own Xvfb screen, so that the step adds
       # one run's time; a task that fails, or a script error, fails it

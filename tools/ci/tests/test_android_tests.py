@@ -612,8 +612,33 @@ class Results(unittest.TestCase):
         text = out.getvalue()
         self.assertIn('NEW   lcs: x: TestOne', text)
         self.assertIn('FIXED lcs: x: TestThree', text)
+        # a failure in the baseline says why in a line; a new one has its
+        # lines under NEW, and is not said twice
+        self.assertIn('The failures in the baseline, each with its first line:\n'
+                      '  KNOWN lcs: x: TestTwo: not ok - test 2\n', text)
+        self.assertEqual(text.count('KNOWN '), 1)
         self.assertIn('### FAIL lcs: x: TestOne\n', log)
         self.assertIn('### FAIL lcs: x: TestTwo (in the baseline)', log)
+
+    def test_the_first_line_of_a_failure(self):
+        # the first failed assertion, with the diagnostic under it (what a
+        # handler threw, for one)
+        tap = 'ok - script compiles\nnot ok - run the test command\n# 720,0,0\n# 573,12,1\nnot ok - later'
+        row = ('lcs: x: T', 'fail', tap, [], ['not ok - run the test command', 'not ok - later'])
+        self.assertEqual(at.first_line(row), 'not ok - run the test command # 720,0,0')
+        # no diagnostic under it: the assertion alone
+        row = ('lcs: x: T', 'fail', 'not ok - one\nok - two', [], ['not ok - one'])
+        self.assertEqual(at.first_line(row), 'not ok - one')
+        # no output: what the harness says (it did not end, the app stopped)
+        row = ('lcs: x: T', 'fail', '', ['the app stopped', 'F/libc: signal 11'], [])
+        self.assertEqual(at.first_line(row), 'the app stopped')
+        self.assertEqual(at.first_line(('lcs: x: T', 'fail', '', [], [])), '(it said nothing)')
+        # one line, and not an endless one
+        row = ('lcs: x: T', 'fail', '', ['a\tb   c ' + 'x' * 400], [])
+        said = at.first_line(row)
+        self.assertTrue(said.startswith('a b c xxx'))
+        self.assertEqual(len(said), 300)
+        self.assertTrue(said.endswith('...'))
 
 
     def test_run_command_says_what_was_run_again(self):
@@ -847,9 +872,53 @@ class Standalone(unittest.TestCase):
     def test_the_build_settings(self):
         block = self.check[self.check.index('if probeName() is "StandaloneTestRunnerMainstack" then\n'
                                             '      put kTestsIdentifier'):]
-        block = block[:block.index('end if')]
+        block = block[:block.index('\n   end if\n')]
         self.assertIn('["android,application permissions"]["INTERNET"]', block)
+        # and the network's state, without which Android gives the
+        # dnsServers nothing (core/network's tests)
+        self.assertIn('put true into tSettings["android,application permissions"]["ACCESS_NETWORK_STATE"]', block)
         self.assertIn('put kTestsFiles into tSettings["files"]', block)
+        # plain http (to the tests' own servers on 127.0.0.1)
+        self.assertIn('put true into tSettings["android,allow http"]', block)
+        self.assertEqual(self.check.count('tSettings["android,allow http"]'), 1)
+        # the security library, as Standalone Settings' "SSL & Encryption"
+        # gives it, added once to whatever libraries the stack had
+        self.assertIn('if "SSL & Encryption" is not among the lines of tSettings["scriptLibraries"] then', block)
+        self.assertIn('put "SSL & Encryption" into tSettings["scriptLibraries"]', block)
+        self.assertIn('put return & "SSL & Encryption" after tSettings["scriptLibraries"]', block)
+        self.assertEqual(self.check.count('"SSL & Encryption"'), 3)
+
+    def test_allow_http_puts_cleartext_traffic_in_the_manifest(self):
+        # the builder writes android:usesCleartextTraffic for "android,allow
+        # http" when the app may use the network (the tests' INTERNET)
+        builder = read('ide-support', 'revsaveasandroidstandalone.livecodescript')
+        block = builder[builder.index('// Allow http connections'):
+                        builder.index('replace "${ALLOW_HTTP_CONNECTIONS}" with tAllowHttpConnections in tManifest')]
+        self.assertIn('if the keys of pSettings["android,application permissions"] contains "Internet" then', block)
+        self.assertIn('if pSettings["android,allow http"] and tHasInternetPermission then', block)
+        self.assertIn('put "android:usesCleartextTraffic=" & quote & "true" & quote into tAllowHttpConnections', block)
+
+    def test_ssl_and_encryption_puts_the_security_library_in_the_package(self):
+        # the chain the build settings rely on: the builder converts the
+        # inclusion to "android,include revsecurity" (revsblibrary's
+        # revSBInclusionToMobileKey through revSBConvertSettingsForPlatform),
+        # which copies librevsecurity.so into the package; "Internet" is the
+        # only library the Android builder takes out as built in
+        sb = read('ide-support', 'revsblibrary.livecodescript')
+        key = sb[sb.index('function revSBInclusionToMobileKey'):sb.index('end revSBInclusionToMobileKey')]
+        self.assertIn('case "SSL & Encryption"\n         put "revsecurity" into tToInclude', key)
+        self.assertIn('return pPlatform & ",include" && tToInclude', key)
+        convert = sb[sb.index('command revSBConvertSettingsForPlatform'):sb.index('end revSBConvertSettingsForPlatform')]
+        self.assertIn('repeat for each line tLine in xSettings["scriptLibraries"]', convert)
+        self.assertIn('revSBInclusionToMobileKey(tLine, "external", pPlatform)', convert)
+        builtin = sb[sb.index('private command __InitialiseBuiltInInclusions'):
+                     sb.index('end __InitialiseBuiltInInclusions')]
+        self.assertEqual(re.findall(r'revSBAddBuiltInInclusion "android", "scriptLibraries", "([^"]+)"', builtin),
+                         ['Internet'])
+        builder = read('ide-support', 'revsaveasandroidstandalone.livecodescript')
+        self.assertIn('if pSettings["android,include revsecurity"] then', builder)
+        self.assertLess(builder.index('revSBConvertSettingsForPlatform pSettings, "android"'),
+                        builder.index('if pSettings["android,include revsecurity"] then'))
 
     def test_the_runner_says_what_the_check_reads(self):
         said = re.findall(r'androidSay "([A-Z]+)"', self.runner)
@@ -900,6 +969,39 @@ class Standalone(unittest.TestCase):
         self.assertIn('if sAgainMode is not true then\n      add 1 to sIndex', step)
         self.assertEqual(step.count('androidSay "END"'), 2)
 
+    def test_the_runner_paces_what_it_says(self):
+        # liblog drops a line when logd's socket is full, and the lines at
+        # the end of a burst are the ones lost (a test's DONE, the run's
+        # END): the runner says at most kPaceLines in kPaceMilliseconds,
+        # every line through androidSay, which waits out the rest
+        self.assertIn('constant kPaceLines = 50\nconstant kPaceMilliseconds = 50\n', self.runner)
+        say = re.search(r'(?ms)^private command androidSay pLine\n(.*?)^end androidSay', self.runner).group(1)
+        self.assertEqual(say, '   local tLeft\n'
+                              '   put kPrefix && pLine\n'
+                              '   if sPaceSince is empty then\n'
+                              '      put the milliseconds into sPaceSince\n'
+                              '      put 0 into sPaceCount\n'
+                              '   end if\n'
+                              '   add 1 to sPaceCount\n'
+                              '   if sPaceCount >= kPaceLines then\n'
+                              '      put kPaceMilliseconds - (the milliseconds - sPaceSince) into tLeft\n'
+                              '      if tLeft > 0 then\n'
+                              '         wait tLeft milliseconds\n'
+                              '      end if\n'
+                              '      put 0 into sPaceCount\n'
+                              '      put the milliseconds into sPaceSince\n'
+                              '   end if\n')
+        self.assertIn('local sPaceCount\nlocal sPaceSince\n', self.runner)
+        # no line of the run goes to the log past it: the one other put of
+        # the prefix is the quit backscript's, a line a test
+        code = re.sub(r'(?m)^\s*--.*$', '', self.runner)
+        self.assertEqual(len(re.findall(r'(?m)^\s*put kPrefix\b', code)), 1)
+        self.assertEqual(code.count('kPrefix'), 3)
+        self.assertIn('"   put" && quote & kPrefix && "QUIT " & quote & " & the uIndex of me"', code)
+        # and the wait is a plain one: no message (a test's, or the next
+        # test's start) runs inside a line of the run
+        self.assertNotIn('with messages', say)
+
     def test_the_scripts_declare_their_variables(self):
         # every t* variable a handler uses is declared in it (a script set by
         # the IDE may be compiled with explicit variables)
@@ -912,6 +1014,134 @@ class Standalone(unittest.TestCase):
                 params = set(x.strip() for x in body.split('\n', 1)[0].split(',') if x.strip())
                 used = set(re.findall(r'\bt[A-Z]\w*', body))
                 self.assertFalse(used - declared - params, '%s: %s' % (m.group(1), used - declared - params))
+
+
+class TestLibrary(unittest.TestCase):
+    """What the test library (tests/_testlib.livecodescript) says an Android
+    standalone cannot do, so that a test needing it skips there instead of
+    failing (an Android engine's shell() always fails:
+    MCAndroidSystem::Shell)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.lib = read('tests', '_testlib.livecodescript')
+
+    def test_android_has_no_shell(self):
+        self.assertIn('bool MCAndroidSystem::Shell(MCStringRef filename, MCDataRef& r_data, int& r_retcode)\n'
+                      '{\n\treturn false;\n}', read('engine', 'src', 'mblandroidprocess.cpp'))
+
+    def test_run_stack_skips_before_it_runs_a_shell(self):
+        body = self.lib[self.lib.index('command TestRunStack'):self.lib.index('end TestRunStack')]
+        android = body.index('if the platform is "android" then\n'
+                             '\t\tthrow "SKIP test runs a stack in another engine, which an Android app cannot start"')
+        self.assertLess(android, body.index('put shell(tCommand) into tOutput'))
+        # the browser's skip is still there, first
+        self.assertLess(body.index('if the platform is "HTML5" then'), android)
+
+    def test_the_shell_requirement(self):
+        body = self.lib[self.lib.index('private function __MeetsRequirements'):
+                        self.lib.index('end __MeetsRequirements')]
+        shell = body[body.index('      case "shell"\n'):]
+        self.assertTrue(shell.startswith('      case "shell"\n'
+                                         '         return the platform is not among the items of "HTML5,android"\n'))
+        # sockets: still everywhere but a browser (Android has them)
+        sockets = body[body.index('      case "sockets"\n'):]
+        self.assertTrue(sockets.startswith('      case "sockets"\n         return the platform is not "HTML5"\n'))
+
+    def test_the_tests_that_need_a_shell_say_so(self):
+        # the tests the first emulator run failed with error 539 each reach
+        # shell() only through TestRunStack or after TestSkipIfNot "shell"
+        for path, handler in (('core/debugging/log', 'TestLog'),
+                              ('core/engine/commandargs', 'TestCommandName'),
+                              ('core/engine/engine', 'TestUngroupAndQuit')):
+            text = read('tests', 'lcs', path + '.livecodescript')
+            body = re.search(r'(?ms)^on %s\b(.*?)^end %s\b' % (handler, handler), text).group(1)
+            self.assertIn('TestRunStack', body, handler)
+            self.assertNotIn('shell(', body, handler)
+        build = read('tests', 'lcs', 'xtalkassistant', 'build.livecodescript')
+        for handler in ('TestCheckpointBringsAStackBack', 'TestCleanupLeavesNothing', 'TestRunOnTheStackCanBeUndone'):
+            body = re.search(r'(?ms)^on %s\b(.*?)^end %s\b' % (handler, handler), build).group(1)
+            self.assertIn('TestSkipIfNot "shell"', body, handler)
+
+    def test_the_mcp_bridges_tests_need_a_shell(self):
+        # the bridge's server, which every one of its tests starts, makes
+        # its token's file the user's alone through a shell, off Windows:
+        # error 539 in each of the 41 on Android once the security library
+        # was there. They skip where there is no shell, in the TestSetup
+        tools = read('ide', 'Extensions', 'org.openxtalk.plugin.mcpbridge', 'mcpbridge-tools.livecodescript')
+        only = re.search(r'(?ms)^private command mcbOwnerOnly pPath, pMode\n(.*?)^end mcbOwnerOnly', tools).group(1)
+        self.assertEqual(only, '   if the platform is not "Win32" then\n'
+                               '      get shell("chmod" && pMode && quote & pPath & quote)\n'
+                               '   end if\n')
+        write = re.search(r'(?ms)^(?:private )?(?:command|function) mcbWriteInfoFile\b(.*?)^end mcbWriteInfoFile', tools).group(1)
+        self.assertIn('mcbOwnerOnly sInfoFile, "600"', write)
+        test = read('tests', 'lcs', 'mcpbridge', 'tools.livecodescript')
+        setup = re.search(r'(?ms)^on TestSetup\n(.*?)^end TestSetup', test).group(1)
+        self.assertLess(setup.index('TestSkipIfNot "sockets"'), setup.index('TestSkipIfNot "shell"'))
+        self.assertLess(setup.index('TestSkipIfNot "shell"'), setup.index('start using stack'))
+        # and none is in a baseline any more, nor a comment about a lack
+        # of the bench that is no more
+        for engine in at.ENGINES:
+            with open(at.baseline_path(engine), encoding='utf-8') as f:
+                text = f.read()
+            self.assertNotIn('mcpbridge', text, engine)
+            self.assertNotIn('error 720', text, engine)
+            self.assertNotIn('error 539', text, engine)
+
+    def test_the_peer_address_test_says_what_it_compared(self):
+        text = read('tests', 'lcs', 'core', 'network', 'network.livecodescript')
+        body = re.search(r'(?ms)^on TestPeerAddress\b(.*?)^end TestPeerAddress', text).group(1)
+        said = body.index('TestDiagnostic "the peeraddress:" && it & "; hostnametoaddress:" && tAddresses')
+        # after the assertion (the diagnostic under it is the line the
+        # run's log gives for a failure in the baseline), before the exit
+        self.assertLess(body.index('TestAssert "peeraddress", it is among the lines of hostnametoaddress(tSock)'), said)
+        self.assertLess(said, body.rindex('exit TestPeerAddress'))
+        self.assertIn('replace return with comma in tAddresses', body)
+
+    def test_the_peer_address_test_skips_on_mobile(self):
+        # the peerAddress is desktop and server only, and answers empty on
+        # Android and iOS: the test skips there before it opens a socket
+        text = read('tests', 'lcs', 'core', 'network', 'network.livecodescript')
+        body = re.search(r'(?ms)^on TestPeerAddress\b(.*?)^end TestPeerAddress', text).group(1)
+        skip = body.index('TestSkip "peeraddress", "the peerAddress is desktop and server only"')
+        self.assertLess(body.index('if the platform is among the items of "android,iphone" then'), skip)
+        self.assertLess(skip, body.index('open socket tSock'))
+
+    def test_the_peer_address_is_empty_on_mobile_is_tested(self):
+        text = read('tests', 'lcs', 'core', 'network', 'network.livecodescript')
+        body = re.search(r'(?ms)^on TestPeerAddressIsEmptyOnMobile\b(.*?)^end TestPeerAddressIsEmptyOnMobile',
+                         text).group(1)
+        # skips off Android and iOS, before a socket is opened
+        self.assertLess(body.index('if the platform is not among the items of "android,iphone" then'),
+                        body.index('open socket tSock'))
+        # an open socket's and no socket's peerAddress are both empty, each
+        # read after a variable was given a value (what the uninitialized
+        # answer handed on with OXT-Beyond's engine was such a value)
+        self.assertIn('TestAssert "the peerAddress of an open socket is empty on mobile", tAddress is empty', body)
+        self.assertLess(body.index('put 200 into tTimeout'),
+                        body.index('put peerAddress("no such socket") into tAddress'))
+        self.assertIn('TestAssert "the peerAddress of no socket is empty on mobile", tAddress is empty', body)
+
+    def test_no_baseline_holds_the_peer_address_tests(self):
+        # but 9.6.3's, whose engine stops the app at the empty answer's
+        # test (it reads the unset answer, as this tree's did before the
+        # fix): a crash that stays in a stack built with 9.6.3
+        names = {}
+        for engine in ('9.6.3', 'beyond'):
+            text = read('tools', 'ci', 'android-tests-baseline-%s.txt' % engine)
+            names[engine] = re.findall(r'(?m)^(?:\? )?lcs: core/network/network: (TestPeerAddress\w*)', text)
+            self.assertNotIn('TestPeerAddress', re.sub(r'(?m)^lcs: core/network/network: '
+                                                       r'TestPeerAddressIsEmptyOnMobile #.*$', '', text), engine)
+        self.assertEqual(names, {'9.6.3': ['TestPeerAddressIsEmptyOnMobile'], 'beyond': []})
+
+    def test_the_mobile_peer_address_answers_empty(self):
+        # engine: the _MOBILE branch of MCNetworkEvalPeerAddress puts the
+        # empty string into its answer, which was left unset
+        text = read('engine', 'src', 'exec-network.cpp')
+        body = re.search(r'(?ms)^void MCNetworkEvalPeerAddress\b(.*?)^}', text).group(1)
+        mobile = body[body.index('#ifndef _MOBILE'):]
+        branch = mobile[mobile.index('#else'):mobile.index('#endif')]
+        self.assertIn('r_address = MCValueRetain(kMCEmptyString);', branch)
 
 
 class Workflow(unittest.TestCase):

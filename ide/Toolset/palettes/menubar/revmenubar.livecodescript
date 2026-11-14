@@ -1897,6 +1897,9 @@ private function revMenubarFileMenu pContext, tFile
    put "-" & return after tFile
    put enableMenuItem("Standalone Application Settings...", tIsUserTarget) & return after tFile
    put enableMenuItem("Save as Standalone Application...", tIsUserTarget) & return after tFile
+   -- OXT-Beyond: packs the stack for the OXT Community Stacks
+   -- (revIDEActionShareStack); not in the web IDE (revWebIDEMenu)
+   put enableMenuItem("Share Stack...", tIsUserTarget) & return after tFile
    put "-" & return after tFile
    --
    put "P&age Setup..." & return after tFile
@@ -3082,6 +3085,10 @@ on revMenubarFileMenuPick pWhich
          break
       case "Standalone Application Settings..."
          revIDEStandaloneSettingsForStack the long id of the topStack
+         break
+      -- OXT-Beyond: packs the stack for the OXT Community Stacks
+      case "Share Stack..."
+         revIDEActionShareStack the long id of the topStack
          break
       case "Move Substack to File..."
          revIDEMoveSubstackToFile the long id of the topStack

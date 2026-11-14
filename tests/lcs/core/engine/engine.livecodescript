@@ -148,7 +148,10 @@ local tProcessors
 if the platform is "Win32" then
 put "x86,x86_64" into tProcessors
 else if the platform is "android" then
-put "arm,i386" into tProcessors
+-- OXT-Beyond: the four architectures an Android build has
+-- (MCSInfoGetArchitecture: the one the engine was compiled for);
+-- "arm,i386" predated 64-bit Android, and an x86_64 emulator failed it
+put "arm,arm64,x86,x86_64" into tProcessors
 else if the platform is "iphone" then
 put "arm,arm64,i386,x86_64" into tProcessors
 else if the platform is among the items of "MacOS,Linux" then
@@ -158,6 +161,7 @@ else
    -- Unknown platform for "the processor"
 end if
 
+TestDiagnostic "the processor:" && the processor
 TestAssert "the processor is correct", the processor is among the items of tProcessors
 end TestProcessor
 

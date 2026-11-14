@@ -1,0 +1,68 @@
+# Android card: the "Target" menu (patch -1) is a copy of the minimum
+# Android version's menu, with its script; this script is the copy's own. A
+# pick stores the "android,target sdk" setting, which the Android builder
+# reads: empty for "Default", else the API of the item ("API 36" is 36).
+# The card, not this script, fills the menu (updateTargetAPIMenu in
+# revstandalonesettingsandroidbehavior.livecodescript), so the copy's
+# updateSettings handler, which listed Android versions, is emptied (the
+# text replaced runs to the line before its end, the script's last line).
+file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
+object: button "Target Android Version" of group "Requirements and Restrictions" of group "Android Settings" of card "Android"
+replace:
+|on menuPick pItemName|
+|   // SN-2015-05-13: [[ AndroidVersions ]] Make the Android versions|
+|   //  something changeable from script-only stacks|
+|   storeSetting "minimum version", revIDEDeployAndroidApiFromVersion(pItemName)|
+|end menuPick|
+||
+|on updateSettings pAPI|
+|   local tVersionsList|
+|   |
+|   // SN-2015-05-13: [[ AndroidVersions ]] Dynamically generate the list|
+|   //  of Android versions|
+|   put revIDEDeployAndroidGetVersionsList() into tVersionsList|
+|   replace comma with LF in tVersionsList|
+|   set the text of me to tVersionsList|
+|   |
+|   local tAPIsList|
+|   local tMenuHistory|
+|   put revIDEDeployAndroidGetAPIsList() into tAPIsList|
+|   |
+|   if pAPI < item 1 of tAPIsList then|
+|      menuPick line 1 of the text of me|
+|      put 1 into tMenuHistory|
+|   else if pApi > last item of tAPIsList then|
+|      menuPick last line of the text of me|
+|      put the number of lines in the text of me into tMenuHistory|
+|   else|
+|      put 1 into tMenuHistory|
+|      repeat for each item tAndroidAPI in tAPIsList|
+|         if tAndroidAPI is pAPI then|
+|            exit repeat|
+|         else|
+|            add 1 to tMenuHistory|
+|         end if|
+|      end repeat|
+|   end if   |
+|   |
+|   set the menuhistory of me to tMenuHistory|
+with:
+|on menuPick pItemName|
+|   -- OXT-Beyond: the API the package targets, its manifest's|
+|   -- targetSdkVersion: "Default" stores no pin (the "android,target sdk"|
+|   -- setting empty), and the builder targets the newest API when the|
+|   -- runtime's Java layer is ready for it, else API 33, as before; "API|
+|   -- 36" and the like pin that API (androidTargetAPI in|
+|   -- ide-support/revsaveasandroidstandalone.livecodescript)|
+|   if pItemName is "Default" then|
+|      storeSetting "target sdk", empty|
+|   else|
+|      storeSetting "target sdk", word 2 of pItemName|
+|   end if|
+|end menuPick|
+||
+|-- OXT-Beyond: the card fills this menu and sets its choice from the|
+|-- stack's settings (updateTargetAPIMenu in|
+|-- revstandalonesettingsandroidbehavior.livecodescript); the minimum|
+|-- version's list, which this copy's script made, is not this menu's|
+|on updateSettings pAPI|

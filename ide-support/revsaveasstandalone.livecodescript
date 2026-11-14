@@ -50,6 +50,9 @@ local sResetA               -- stored info for resetting to the pre-build state
 local sGenericNumber        -- a simple counter for the generic file naming
 local sStandaloneSettingsA  -- a copy of the cRevStandaloneSettings of stack pFolder
 local sIconA                -- array for icons
+-- OXT-Beyond: true from the moment a target's build changes the stack in
+-- memory (revCopyResources) until the stack is put back
+local sStackChangedForBuild
 
 local sPlatformCount    -- the total number of platforms to build for
 
@@ -297,6 +300,7 @@ command revDoSaveAsStandalone pStack, pFolder, pSettings, @xStandalonePaths
    put empty into sUserScriptLibraries
    
    put empty into sStubPath
+   put false into sStackChangedForBuild
    
    put the directory into sResetA["Directory"]
    put the fileType into sResetA["FileType"]
@@ -445,6 +449,10 @@ command revDoSaveAsStandalone pStack, pFolder, pSettings, @xStandalonePaths
       end if
       
    catch tError
+      -- OXT-Beyond: the stack as it was, before revAbort opens it again
+      if tHasDesktop and sStackChangedForBuild is true then
+         __PutStackBackAfterFailedBuild pStack, tStackFileName, tRestoreFileName
+      end if
       revAbort
       if word 1 of tError = "Standalone:" then 
          put word 2 to -1 of tError into tError
@@ -585,13 +593,15 @@ private on revStandalonePreBuild pStack, pFolder, pPlatform, pArchs, @rStackName
    
    set the itemdelimiter to slash
    put item -1 of tStackFileName into tStackName
-   local tExtension
-   set the itemdelimiter to "."
-   put item -1 of tStackName into tExtension
+   -- OXT-Beyond: the name revSaveToFolder saves the build's copy under.
+   -- This took the extensions the IDE opens as stacks
+   -- (revIDELiveCodeFileExtensions: .lc, .mc, .oxtscript and .stk among
+   -- them) while revSaveToFolder added ".oxtstack" to all but four, so a
+   -- stack file with one of those four extensions was saved under one
+   -- name and looked for under another, and its build stopped in
+   -- revCopyExternals with error 91 (no such stack)
    set the itemdelimiter to comma
-   if tExtension is not among the items of revIDELiveCodeFileExtensions() then
-      put ".oxtstack" after tStackName -- (tperry - nicked this from the RC3 appimage, by Paul McClernan 23-9-2021)
-   end if
+   put revStandaloneSavedFileName(tStackName) into tStackName -- (tperry - nicked this from the RC3 appimage, by Paul McClernan 23-9-2021)
    
    local tStackFileList
    revSBRelativeStackFilesList pStack, tStackFileList
@@ -672,7 +682,39 @@ end __SaveCopyOfStackInTemporaryLocation
 private command __RestoreStackFromTemporaryLocation pStack, pLocation, pOriginalFileName
    __ReloadOriginalStackFile pLocation, pStack
    set the filename of stack pStack to pOriginalFileName
+   put false into sStackChangedForBuild
 end __RestoreStackFromTemporaryLocation
+
+-- OXT-Beyond: the stack as it was, after a build that stopped on an error
+-- (openxtalk.org p=26321, tperry2x: now and then a stack "gets a copy of
+-- the IDE's Answer and Ask stack embedded in it"). For each target the
+-- builder changes the stack in memory (revCopyResources: the IDE's
+-- Answer, Ask and print dialogs become its substacks, its standalone
+-- settings and development properties are taken off, and it is saved
+-- into the build folder, which gives it that file's name), and only the
+-- end of a target's build put it back. A build that stopped in between
+-- left the changed stack in memory, closed, so that revCleanBuildStacks
+-- passed it by and revReset opened it again as the stack being worked
+-- on: with the dialogs in it and without its standalone settings, under
+-- the build folder's file name or, when the build's copy could not be
+-- written, under its own, where the next Save wrote the dialogs into the
+-- stack's file. As at the end of a build that works, the stack is taken
+-- out of memory and read from its file again. A stack that has no file
+-- (a build a script started on a stack never saved) is read from the
+-- copy made before the build, and keeps having no file name. A build
+-- that stopped before it changed the stack (sStackChangedForBuild) is
+-- left to revAbort, as before. An error here must not hide the one that
+-- stopped the build.
+private command __PutStackBackAfterFailedBuild pStack, pOriginalFileName, pRestoreFileName
+   try
+      if pOriginalFileName is not empty and there is a file pOriginalFileName then
+         __ReloadOriginalStackFile pOriginalFileName, pStack
+      else if pRestoreFileName is not empty and there is a file pRestoreFileName then
+         __RestoreStackFromTemporaryLocation pStack, pRestoreFileName, pOriginalFileName
+      end if
+   end try
+   put false into sStackChangedForBuild
+end __PutStackBackAfterFailedBuild
 
 private command  __SendSavingStandaloneMessage pStack
    try
@@ -1350,6 +1392,10 @@ private command revCopyResources pStack, pStackFileList, pDirectory
    local tLibraries, tOrigVisible, tPath, tCount, tRelativePath, tStack, tSubList, tStacksList, tVisibleA
    -- engine defaults are correct, except os 9 which is handled platform specific
    revStandaloneProgress "Copying resources..."
+   -- OXT-Beyond: from here the stack in memory is the build's, until it
+   -- is put back (__RestoreStackFromTemporaryLocation, or after an error
+   -- __PutStackBackAfterFailedBuild)
+   put true into sStackChangedForBuild
    lock messages
    put the visible of stack pStack into tVisibleA[pStack]
    
@@ -2111,6 +2157,20 @@ end revCopyReferencedFile
 # to save into.
 #####################################################################
 
+-- OXT-Beyond: the file name the build's copy of a stack file is saved
+-- under, for revSaveToFolder, which saves it, and revStandalonePreBuild,
+-- which tells the steps after where it is: the stack file's own name when
+-- it ends in one of these four extensions, otherwise with ".oxtstack"
+-- added (the rule revSaveToFolder had, so every name a build gave a
+-- file, a stackFiles entry's beside the standalone too, is the name it
+-- gives now)
+private function revStandaloneSavedFileName pFileName
+   if not (pFileName ends with ".oxtstack" or pFileName ends with ".livecodescript" or pFileName ends with ".livecode" or pFileName ends with ".rev") then
+      put ".oxtstack" after pFileName
+   end if
+   return pFileName
+end revStandaloneSavedFileName
+
 private function revSaveToFolder pFolder, pStack, pGeneric
    local tCheckFolder,tFileName
    revStandaloneProgress "Checking directory exists..."
@@ -2131,9 +2191,7 @@ private function revSaveToFolder pFolder, pStack, pGeneric
    # already contain ".rev". In this case, the stack ends up being called something.rev.rev,
    # and the standalone builder breaks further along because it makes assumptions about 
    # the stack's filename. I'm not 100% sure that this fix is correct...
-   if not (tFileName ends with ".oxtstack" or tFileName ends with ".livecodescript" or tFileName ends with ".livecode" or tFileName ends with ".rev") then 
-      put ".oxtstack" after tFileName -- tperry
-   end if
+   put revStandaloneSavedFileName(tFileName) into tFileName -- tperry
    lock screen
    // SN-2015-07-01: [[ Bug 15259 ]] We don't want the saving to be trapped by
    //  a saveStackRequest handler in the standalone stack
@@ -2347,6 +2405,13 @@ private command revCopyCEFResources pPlatform, pStandalonePath, pCopyRevBrowserR
       exit revCopyCEFResources
    end if
    
+   -- OXT-Beyond: on Linux the browser widget falls back to WebKitGTK where
+   -- CEF cannot load (libbrowser_webkitgtk.cpp), through the helper
+   -- libbrowser-webkitprocess next to the standalone's engine
+   if pCopyLibBrowserResources and pPlatform contains "Linux" then
+      revCopyWebKitHelper pPlatform, pStandalonePath
+   end if
+   
    // IM-2014-08-14: [[ LibCef2062 ]] Reorganisation of libcef framework files
    local tDetails
    put revStandalonePlatformDetails(pPlatform) into tDetails
@@ -2442,6 +2507,24 @@ private command revCopyCEFResources pPlatform, pStandalonePath, pCopyRevBrowserR
          break
    end switch
 end revCopyCEFResources
+
+-- OXT-Beyond: the WebKitGTK browser's helper (libbrowser-webkitprocess), from
+-- next to the runtime's engine into the standalone's folder. A runtime made
+-- before 0.2.8-dp.2 has none: the standalone is then built as before, with
+-- CEF as its only browser.
+private command revCopyWebKitHelper pPlatform, pStandalonePath
+   local tEngine, tHelper
+   put revSBEnginePath(pPlatform) into tEngine
+   set the itemDelimiter to slash
+   put item 1 to -2 of tEngine & slash & "libbrowser-webkitprocess" into tHelper
+   if there is not a file tHelper then
+      exit revCopyWebKitHelper
+   end if
+   revSBCopyFileToFolder tHelper, item 1 to -2 of pStandalonePath, "revStandaloneProgressCallback", the long id of me
+   if the result is not empty then
+      revStandaloneAddWarning "Linux, external failed to copy:" && quote & tHelper & quote
+   end if
+end revCopyWebKitHelper
 
 private command revCopyExternals pPlatform, pStackFilePath, pEnginePath, pStandalonePath
    local tExternalRes, tColors, tCursorName, tCurrentLocation, tExternalPath, tExternals, tExternalLibrary

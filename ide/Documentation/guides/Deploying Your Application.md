@@ -275,7 +275,8 @@ Figure 8 – Standalone Settings – Android
 | **Status Bar**                  | Set the visibility of the status bar                                                                                                                                                                                                  |
 | **Edge to edge**                | Draw the application under the see-through status and navigation bars, on Android 11 and newer (see below)                                                                                                                            |
 | **In App Purchasing**           | Specify the store used for the in-app purchasing API                                                                                                                                                                                  |
-| **Minimum Android Version**     | Choose the minimum version of Android the application should run on                                                                                                                                                                   |
+| **Minimum**                     | Choose the minimum version of Android the application should run on                                                                                                                                                                   |
+| **Target**                      | Choose the API level the application targets: Default, or one from API 33 to the newest the builder knows (see below)                                                                                                                 |
 | **Camera**                      | Choose whether a camera is required, prohibited or not applicable in order for the application to function                                                                                                                            |
 | **Camera Autofocus**            | Choose whether camera autofocus is required, prohibited or not applicable in order for the application to function                                                                                                                    |
 | **Camera Flash**                | Choose whether a camera flash is required, prohibited or not applicable in order for the application to function                                                                                                                      |
@@ -311,14 +312,15 @@ ready; the one that earlier runtimes carried is not). At API 36 the stack still 
 `backKey` for the back button and gesture, it is kept out of the status
 and navigation bars, which Android 15 and newer would otherwise draw over
 it, and Android 16 keeps its orientation on tablets and other large
-screens. To build for a target of your choice, from 33 to 36, set it on
-the stack before you build, for example for an application that is not
-for Google Play:
+screens. To build for a target of your choice, from 33 to 36, for
+example for an application that is not for Google Play, choose it in the
+**Target** menu beside **Minimum** on the Android card, or set it on the
+stack before you build, which is what the menu does:
 
     set the cRevStandaloneSettings["android,target sdk"] of stack "My App" to 33
 
-Empty leaves it to the runtime; any other value stops the build with an
-error.
+**Default**, or empty, leaves it to the runtime; any other value stops the
+build with an error.
 
 An application can also be drawn edge to edge, as current Android
 applications are: on Android 11 and newer, the stack fills the whole
@@ -558,6 +560,18 @@ Internet library's commands use the browser's own requests. A browser
 lets a page read from its own web site, and from other sites only when
 they allow it (with CORS headers); a request that the browser refuses
 fails as one to a server that cannot be reached.
+* **Stacks from a web address.** `go stack URL "https://..."` (and `go
+to stack URL`, `go card 1 of stack URL ...`, and a stack file or a
+script-only stack) opens a stack from a web server, as on the desktop.
+From the page's own web site it always works. From another site it works
+only when that site's server allows it, by sending an
+`Access-Control-Allow-Origin` header with the stack file (`*`, or the
+page's site): the browser refuses the download otherwise, whatever the
+stack does, and `the result` is then "Request failed" ("Error sending
+request: ..." with the Internet library). To open such a stack, put the
+stack file on the page's own site, or ask whoever runs the other server
+to send that header. (A forum's attachment link, for one, often does
+not.)
 * **Links.** `launch url` opens an `http` or `https` address in a new tab,
 and gives a `mailto:` or `tel:` link to the application that answers it;
 it refuses `javascript:` and `data:` addresses. `launch document` opens a

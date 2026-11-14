@@ -78,6 +78,8 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --                          "tests" for the script tests (see kTestsScript)
 --    OXT_ANDROID_ENGINE    the probe's "android,engine" setting ("beyond"
 --                          for OXT-Beyond's own engine; none when empty)
+--    OXT_ANDROID_AAR       an Android library (.aar) to build the probe
+--                          with (its "aarFiles"; none when empty)
 --
 -- The Java layer's probe, AndroidJavaProbe, is the probe with more to do
 -- before it turns green: it asks the Java layer of the runtime for what
@@ -1227,13 +1229,41 @@ private function buildSettings pName
       put kTestsIdentifier into tSettings["android,identifier"]
       put "Android Tests" into tSettings["android,label"]
       put true into tSettings["android,application permissions"]["INTERNET"]
+      -- and the network's state, which Android asks of an app that reads
+      -- its DNS servers (the dnsServers, core/network's tests): without it
+      -- the function answers empty
+      put true into tSettings["android,application permissions"]["ACCESS_NETWORK_STATE"]
+      -- and plain http: the card's "Allow HTTP connections", which puts
+      -- android:usesCleartextTraffic in the manifest. Without it Android
+      -- (9 and later) refuses every http:// request before it is sent, and
+      -- the tests that serve HTTP from the app itself (on 127.0.0.1) and
+      -- ask it, as the xTalk Assistant's do, never reach their server
+      put true into tSettings["android,allow http"]
       put kTestsFiles into tSettings["files"]
       replace comma with return in tSettings["files"]
+      -- and the security library, as an app that encrypts includes it
+      -- (Standalone Settings > General > SSL & Encryption, which the
+      -- builder turns into "android,include revsecurity"): the tests are
+      -- copy files, which no search for inclusions reads, and without it
+      -- randomBytes, encrypt and the rest throw error 720
+      if "SSL & Encryption" is not among the lines of tSettings["scriptLibraries"] then
+         if tSettings["scriptLibraries"] is empty then
+            put "SSL & Encryption" into tSettings["scriptLibraries"]
+         else
+            put return & "SSL & Encryption" after tSettings["scriptLibraries"]
+         end if
+      end if
    end if
    -- the engine the probe is built with: OXT-Beyond's own (android_check.py
    -- ide --android-engine beyond), or 9.6.3's as a stack that names none
    if $OXT_ANDROID_ENGINE is not empty then
       put $OXT_ANDROID_ENGINE into tSettings["android,engine"]
+   end if
+   -- a real Android library (android_check.py ide --aar), as an
+   -- extension's jvm-android folder or a Play Services dependency brings
+   -- one: the builder's "aarFiles", a path per line
+   if $OXT_ANDROID_AAR is not empty then
+      put $OXT_ANDROID_AAR into tSettings["aarFiles"]
    end if
    repeat for each item tArch in "armv7,arm64,x86,x86_64"
       delete variable tSettings["android," & tArch]

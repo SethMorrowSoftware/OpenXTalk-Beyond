@@ -39,7 +39,8 @@ If the contents of the image is not an animated GIF, the setting of the
 
 References: property (glossary), animated GIF (glossary),
 negative (glossary), image (keyword), integer (keyword),
-currentFrame (property), looping (property)
+currentFrame (property), looping (property), frameDurations (property),
+playRate (property)
 
 Tags: multimedia
 

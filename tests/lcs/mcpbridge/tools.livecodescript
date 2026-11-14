@@ -16,7 +16,13 @@ script "TestMcpBridgeTools"
 -- going ahead and noted in a log once set, undoing the user's own changes
 -- still asked about, and off again when the bridge stops. And end to end,
 -- where Node is installed: the real MCP server (mcp/server.js) against
--- this side over its socket, as Claude's app talks to it.
+-- this side over its socket, as Claude's app talks to it. And what long
+-- work away from the desk needs: the file that names this IDE's own
+-- server.js, a call that came too late doing nothing, a script set from a
+-- file (asked about, compiled as the engine does, undone), waiting for a
+-- property with no code run, the engine's sounds off and back, and the
+-- restart (asked about, with the script that starts the IDE again run
+-- here by the system's own shell).
 
 constant kTools = "org.openxtalk.plugin.mcpbridge-tools"
 constant kUserStack = "mcbTestUserStack"
@@ -27,12 +33,17 @@ on TestSetup
    local tFolder, tStub, tName
    -- Every test talks to the bridge's server
    TestSkipIfNot "sockets"
+   -- which, off Windows, makes its token's file the user's alone with
+   -- chmod, through a shell (mcbOwnerOnly): an Android app has none, and
+   -- the bridge is the IDE's, which does not run there
+   TestSkipIfNot "shell"
    put TestGetIDERepositoryPath() & "/Extensions/org.openxtalk.plugin.mcpbridge" into tFolder
    start using stack (tFolder & "/mcpbridge-tools.livecodescript")
    -- The IDE's handlers the assistant's build library calls, and the
    -- plugin's two functions the bridge asks: mcbConfirm answers as
    -- mcbTestSetAnswer says, and records what it was asked
-   put "local sAnswer, sAsked, sAskedDetails" & return & \
+   put "local sAnswer, sAsked, sAskedDetails, sDeleteDuringAsk" & return & \
+         "on mcbTestDeleteDuringAsk pObject" & return & "put pObject into sDeleteDuringAsk" & return & "end mcbTestDeleteDuringAsk" & return & \
          "on ideMessageSend pMessage, pTarget" & return & "end ideMessageSend" & return & \
          "on revIDESetEdited pStack" & return & "end revIDESetEdited" & return & \
          "on mcbTestSetAnswer pAnswer" & return & "put pAnswer into sAnswer" & return & "end mcbTestSetAnswer" & return & \
@@ -40,10 +51,14 @@ on TestSetup
          "put pDetail & return after sAskedDetails" & return & \
          "global gMcbTestDuringAsk, gMcbTestDuringReply" & return & \
          "repeat for each line tLine in gMcbTestDuringAsk" & return & "put mcbHandleLine(tLine) & return after gMcbTestDuringReply" & return & "end repeat" & return & \
+         "global gMcbTestGoDuringAsk" & return & "if gMcbTestGoDuringAsk is not empty then" & return & "go stack gMcbTestGoDuringAsk" & return & "end if" & return & \
+         "if sDeleteDuringAsk is not empty then" & return & "delete sDeleteDuringAsk" & return & "put empty into sDeleteDuringAsk" & return & "end if" & return & \
          "if sAnswer is " & quote & "lose" & quote & " then" & return & "mcbLinkLost" & return & "return true" & return & "end if" & return & \
          "if sAnswer is " & quote & "slow" & quote & " then" & return & "wait 1500 milliseconds with messages" & return & "return true" & return & "end if" & return & \
          "return sAnswer" & return & "end mcbConfirm" & return & \
          "on mcbTooLate" & return & "put " & quote & "too late" & quote & " & return after sAsked" & return & "end mcbTooLate" & return & \
+         "function mcbRestartCommand" & return & "global gMcbTestRestart" & return & "return gMcbTestRestart" & return & "end mcbRestartCommand" & return & \
+         "on mcbQuitForRestart" & return & "put " & quote & "quit for restart" & quote & " & return after sAsked" & return & "end mcbQuitForRestart" & return & \
          "function mcbEditorStack" & return & "return empty" & return & "end mcbEditorStack" & return & \
          "function mcbTestAsked" & return & "return sAsked" & return & "end mcbTestAsked" & return & \
          "function revIDEStackIsEdited pName" & return & "global gMcbTestEdited" & return & \
@@ -1272,3 +1287,501 @@ on TestImportHyperCard
    TestAssert "an HFS+ volume, imported", TestIsError(tReply) and TestText(tReply) contains "The disk image cannot be read: an HFS+ volume"
    delete file tFile
 end TestImportHyperCard
+
+--------------------------------------------------------------------------------
+-- Which server.js, and a call that came too late
+
+-- Beside the bridge's file, a file names the server.js of this plugin's
+-- folder: the MCP server Claude's app runs, which may be an old copy,
+-- serves from it (server.js's installedServer)
+on TestTheBridgeNamesItsOwnServer
+   local tFile, tNote, tServer
+   TestStart
+   put sInfoFile into tFile
+   delete char -5 to -1 of tFile
+   put "-server.json" after tFile
+   TestAssert "the file is beside the bridge's", there is a file tFile
+   put xtaJsonParse(textDecode(url ("binfile:" & tFile), "UTF-8")) into tNote
+   put xtaJsonText(xtaJsonMember(tNote, "server")) into tServer
+   TestDiagnostic tServer
+   TestAssert "it names the server.js of the plugin's folder", tServer ends with "/org.openxtalk.plugin.mcpbridge/mcp/server.js" \
+         and there is a file tServer
+   mcbServerStop
+   TestAssert "and stays when the bridge is turned off", there is a file tFile and there is not a file sInfoFile
+end TestTheBridgeNamesItsOwnServer
+
+-- A call's "until" is when the server stops waiting for it: read after
+-- that (the engine was held up meanwhile), it does nothing
+on TestACallThatCameTooLateDoesNothing
+   local tLine, tReply, tLate
+   TestStart
+   put "{" & quote & "id" & quote & ":" & quote & "0a1b2c3d4e5f-7" & quote & "," & quote & "token" & quote & ":" & quote & TestToken() & quote & "," & \
+         quote & "method" & quote & ":" & quote & "call" & quote & "," & quote & "tool" & quote & ":" & quote & "make_changes" & quote & "," & \
+         quote & "until" & quote & ":@UNTIL@," & quote & "arguments" & quote & ":{" & quote & "changes" & quote & ":[{" & \
+         quote & "action" & quote & ":" & quote & "create" & quote & "," & quote & "kind" & quote & ":" & quote & "stack" & quote & "," & \
+         quote & "name" & quote & ":" & quote & "mcbTestLate" & quote & "}]}}" into tLine
+   put tLine into tLate
+   replace "@UNTIL@" with (the milliseconds - 1000) in tLate
+   put xtaJsonParse(mcbHandleLine(tLate)) into tReply
+   TestDiagnostic xtaJsonText(xtaJsonMember(tReply, "error"))
+   TestAssert "refused, with its id", xtaJsonText(xtaJsonMember(tReply, "ok")) is "false" \
+         and xtaJsonText(xtaJsonMember(tReply, "error")) contains "stopped waiting" \
+         and xtaJsonText(xtaJsonMember(tReply, "id")) is "0a1b2c3d4e5f-7"
+   TestAssert "and nothing was made", there is not a stack "mcbTestLate"
+   replace "@UNTIL@" with (the milliseconds + 60000) in tLine
+   put xtaJsonParse(mcbHandleLine(tLine)) into tReply
+   TestAssert "in time, it is carried out", xtaJsonText(xtaJsonMember(tReply, "ok")) is "true" and there is a stack "mcbTestLate"
+   delete stack "mcbTestLate"
+end TestACallThatCameTooLateDoesNothing
+
+--------------------------------------------------------------------------------
+-- set_script_from_file
+
+private function TestScriptFile pText
+   local tFile
+   put specialFolderPath("temporary") & "/mcbtest-script-" & the milliseconds & "-" & random(100000) & ".livecodescript" into tFile
+   put textEncode(pText, "UTF-8") into url ("binfile:" & tFile)
+   return tFile
+end TestScriptFile
+
+on TestSetScriptFromAFile
+   local tStack, tFile, tText, tReply, tHex, tDetails, tBefore
+   TestStart
+   put TestUserStack() into tStack
+   set the script of tStack to "on mouseUp" & return & "end mouseUp"
+   put the script of tStack into tBefore
+   -- As a script-only stack's file is: its first line names the stack, its
+   -- line ends are Windows's, and it uses a name it does not declare
+   put "script " & quote & "Harness" & quote & crlf & "on TestMe" & crlf & "   put 5 into undeclaredThing" & crlf & \
+         "   return undeclaredThing * 2" & crlf & "end TestMe" & crlf into tText
+   put TestScriptFile(tText) into tFile
+   get binaryDecode("H*", messageDigest(textEncode(tText, "UTF-8"), "SHA-256"), tHex)
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with false
+   put TestCall("set_script_from_file", "{`stack`:`" & kUserStack & "`,`file`:`" & tFile & "`}") into tReply
+   TestDiagnostic TestText(tReply)
+   put mcbTestAskedDetails() into tDetails
+   TestAssert "asked, with the file, its digest and its text", mcbTestAsked() contains "set a script from a file" \
+         and tDetails contains tFile and tDetails contains tHex and tDetails contains "put 5 into undeclaredThing"
+   TestAssert "refused, nothing is set", TestIsError(tReply) and the script of tStack is tBefore
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
+   put TestCall("set_script_from_file", "{`stack`:`" & kUserStack & "`,`file`:`" & tFile & "`}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "allowed, the script is the file's", not TestIsError(tReply) and line 2 of the script of tStack is "on TestMe" \
+         and the number of lines of the script of tStack is 5
+   TestAssert "its first line is left empty, and said so", line 1 of the script of tStack is empty and TestText(tReply) contains "names a script-only stack"
+   TestAssert "its line ends are the engine's", numToChar(13) is not in the script of tStack
+   TestAssert "the answer has the digest, and that nothing ran", TestText(tReply) contains tHex and TestText(tReply) contains "Nothing ran"
+   dispatch "TestMe" to tStack
+   TestAssert "a script the engine takes is taken, undeclared names and all", the result is 10
+   put TestCall("undo_changes") into tReply
+   TestAssert "and undone", not TestIsError(tReply) and the script of tStack is tBefore
+   delete file tFile
+   -- A control, by its id
+   put TestScriptFile("on mouseUp" & return & "   beep" & return & "end mouseUp" & return) into tFile
+   put TestCall("set_script_from_file", "{`stack`:`" & kUserStack & "`,`id`:" & the short id of button "Go" of tStack & ",`file`:`" & tFile & "`}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "a control's script", not TestIsError(tReply) and line 2 of the script of button "Go" of tStack contains "beep" \
+         and TestText(tReply) contains "button"
+   delete file tFile
+   -- What make_changes checks is as it was: code the model wrote must
+   -- declare its names
+   put TestCall("make_changes", "{`stack`:`" & kUserStack & "`,`changes`:[{`action`:`set`,`object`:`stack`,`script`:`on TestMe\n   put 5 into undeclaredThing\nend TestMe`}]}") into tReply
+   TestAssert "make_changes still refuses a name that is not declared", TestIsError(tReply) and TestText(tReply) contains "explicitVariables"
+end TestSetScriptFromAFile
+
+-- The question is open for as long as the user takes. The stack whose
+-- script is set is the one the question was about, also when the call
+-- named none and another stack has come to the front meanwhile: its ids
+-- can be the same ones
+on TestSetScriptFromAFileKeepsTheStackAskedAbout
+   global gMcbTestGoDuringAsk
+   local tStack, tOther, tFile, tReply, tBefore, tOtherBefore
+   TestStart
+   create stack "mcbTestOtherStack"
+   put the long id of stack "mcbTestOtherStack" into tOther
+   set the rect of tOther to "120,120,420,320"
+   set the script of tOther to "on mouseUp" & return & "   -- the other stack's" & return & "end mouseUp"
+   put the script of tOther into tOtherBefore
+   go stack "mcbTestOtherStack"
+   put TestUserStack() into tStack
+   set the script of tStack to "on mouseUp" & return & "end mouseUp"
+   put the script of tStack into tBefore
+   put TestScriptFile("on TestMe" & return & "   return 3" & return & "end TestMe" & return) into tFile
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
+   put "mcbTestOtherStack" into gMcbTestGoDuringAsk
+   put TestCall("set_script_from_file", "{`file`:`" & tFile & "`}") into tReply
+   put empty into gMcbTestGoDuringAsk
+   TestDiagnostic TestText(tReply)
+   TestAssert "the other stack came to the front while the question was open", the short name of the topStack is "mcbTestOtherStack"
+   TestAssert "asked about the stack the user was working on", mcbTestAskedDetails() contains kUserStack \
+         and not (mcbTestAskedDetails() contains "mcbTestOtherStack")
+   TestAssert "that stack's script is set", not TestIsError(tReply) and line 1 of the script of tStack is "on TestMe" \
+         and TestText(tReply) contains kUserStack
+   TestAssert "the stack in front is left as it was", the script of tOther is tOtherBefore
+   -- Gone while the question was open: nothing is set anywhere
+   put "mcbTestOtherStack" into gMcbTestGoDuringAsk
+   put the script of tStack into tBefore
+   go stack kUserStack
+   put the short id of button "Go" of tStack into tReply
+   put "{`id`:" & tReply & ",`file`:`" & tFile & "`}" into tReply
+   dispatch "mcbTestDeleteDuringAsk" to stack "mcbTestIDE" with the long id of button "Go" of tStack
+   put TestCall("set_script_from_file", tReply) into tReply
+   put empty into gMcbTestGoDuringAsk
+   TestDiagnostic TestText(tReply)
+   TestAssert "a control deleted meanwhile: nothing is changed, and it says so", TestIsError(tReply) \
+         and TestText(tReply) contains "no longer there" and the script of tStack is tBefore and the script of tOther is tOtherBefore
+   delete file tFile
+   delete stack "mcbTestOtherStack"
+end TestSetScriptFromAFileKeepsTheStackAskedAbout
+
+on TestSetScriptFromAFileRefusals
+   local tStack, tFile, tReply, tBefore
+   TestStart
+   put TestUserStack() into tStack
+   set the script of tStack to "on mouseUp" & return & "end mouseUp"
+   put the script of tStack into tBefore
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
+   put TestCall("set_script_from_file", "{`stack`:`" & kUserStack & "`}") into tReply
+   TestAssert "no file given", TestIsError(tReply) and TestText(tReply) contains "give the file"
+   put TestCall("set_script_from_file", "{`stack`:`" & kUserStack & "`,`file`:`/no/such/mcbtest.livecodescript`}") into tReply
+   TestAssert "a file that is not there", TestIsError(tReply) and TestText(tReply) contains "there is no file"
+   put TestScriptFile("on mouseUp" & return & "   put 1 +" & return & "end mouseUp" & return) into tFile
+   put TestCall("set_script_from_file", "{`stack`:`" & kUserStack & "`,`file`:`" & tFile & "`}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "a script that does not compile, with its line", TestIsError(tReply) and TestText(tReply) contains "does not compile" \
+         and TestText(tReply) contains "line 2"
+   delete file tFile
+   put specialFolderPath("temporary") & "/mcbtest-binary-" & the milliseconds into tFile
+   put numToByte(1) & numToByte(0) & numToByte(2) & "on mouseUp" into url ("binfile:" & tFile)
+   put TestCall("set_script_from_file", "{`stack`:`" & kUserStack & "`,`file`:`" & tFile & "`}") into tReply
+   TestAssert "a file that is not text", TestIsError(tReply) and TestText(tReply) contains "not a text file"
+   put empty into url ("binfile:" & tFile)
+   put TestCall("set_script_from_file", "{`stack`:`" & kUserStack & "`,`file`:`" & tFile & "`}") into tReply
+   TestAssert "an empty file", TestIsError(tReply) and TestText(tReply) contains "is empty"
+   delete file tFile
+   put TestScriptFile("on mouseUp" & return & "end mouseUp" & return) into tFile
+   put TestCall("set_script_from_file", "{`stack`:`" & kUserStack & "`,`id`:99999,`file`:`" & tFile & "`}") into tReply
+   TestAssert "an id that is not there", TestIsError(tReply) and TestText(tReply) contains "99999"
+   delete file tFile
+   TestAssert "and through all of them the script is as it was", the script of tStack is tBefore
+end TestSetScriptFromAFileRefusals
+
+-- With Stop Asking on, it goes ahead and the log has the file and its digest
+on TestSetScriptFromAFileUnasked
+   local tStack, tFile, tText, tReply, tHex, tLog, tAsked
+   TestStart
+   put TestUserStack() into tStack
+   put "on TestMe" & return & "   return 3" & return & "end TestMe" & return into tText
+   put TestScriptFile(tText) into tFile
+   get binaryDecode("H*", messageDigest(textEncode(tText, "UTF-8"), "SHA-256"), tHex)
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with false
+   mcbSetUnasked true
+   put mcbTestAsked() into tAsked
+   put TestCall("set_script_from_file", "{`stack`:`" & kUserStack & "`,`file`:`" & tFile & "`}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "not asked, and set", not TestIsError(tReply) and mcbTestAsked() is tAsked and the script of tStack contains "return 3"
+   put textDecode(url ("binfile:" & mcbUnaskedLogPath()), "UTF-8") into tLog
+   TestAssert "noted in the log with the file and its digest", tLog contains tFile and tLog contains tHex
+   mcbSetUnasked false
+   delete file tFile
+end TestSetScriptFromAFileUnasked
+
+on TestSetScriptFromAFileIsRefusedOnTheWeb
+   local tReply
+   TestStartLink
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
+   put TestLinkCall("set_script_from_file", "{`file`:`/tmp/x.livecodescript`}") into tReply
+   TestAssert "the web IDE has no files of this computer", TestIsError(tReply) and TestText(tReply) contains "web IDE"
+end TestSetScriptFromAFileIsRefusedOnTheWeb
+
+--------------------------------------------------------------------------------
+-- wait_until
+
+global gMcbTestGetProp
+
+on McbWaitChangesTheField
+   set the text of field "Report" of stack kUserStack to "RUN FINISHED: 3 passed"
+end McbWaitChangesTheField
+
+on TestWaitUntil
+   local tStack, tField, tButton, tReply, tAsked, tStarted
+   TestStart
+   put TestUserStack() into tStack
+   create field "Report" in card 1 of tStack
+   put the short id of field "Report" of tStack into tField
+   put the short id of button "Go" of tStack into tButton
+   set the text of field "Report" of tStack to "Running..." & return & "RUN NOT FINISHED"
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with false
+   put mcbTestAsked() into tAsked
+   put TestCall("wait_until", "{`stack`:`" & kUserStack & "`,`id`:" & tField & ",`contains`:`run not`}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "so already: at once, with the value", not TestIsError(tReply) and TestText(tReply) begins with "It is so" \
+         and TestText(tReply) contains "the text of the field" and TestText(tReply) contains "RUN NOT FINISHED"
+   put the milliseconds into tStarted
+   put TestCall("wait_until", "{`stack`:`" & kUserStack & "`,`id`:" & tField & ",`lacks`:`RUN NOT FINISHED`,`timeout_seconds`:1}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "not so in time: said, not an error, with the value and what to do", not TestIsError(tReply) \
+         and TestText(tReply) begins with "Not yet" and TestText(tReply) contains "still contains" \
+         and TestText(tReply) contains "Call wait_until again" and TestText(tReply) contains "Running..."
+   TestAssert "after the time given", the milliseconds - tStarted >= 900 and the milliseconds - tStarted < 5000
+   -- What goes on by itself goes on while it waits
+   send "McbWaitChangesTheField" to me in 300 milliseconds
+   put the milliseconds into tStarted
+   put TestCall("wait_until", "{`stack`:`" & kUserStack & "`,`id`:" & tField & ",`lacks`:`RUN NOT FINISHED`,`timeout_seconds`:10}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "messages go on while it waits, and it answers when it is so", not TestIsError(tReply) and TestText(tReply) begins with "It is so" \
+         and TestText(tReply) contains "3 passed" and the milliseconds - tStarted < 5000
+   put TestCall("wait_until", "{`stack`:`" & kUserStack & "`,`id`:" & tField & ",`equals`:` run finished: 3 PASSED `,`timeout_seconds`:0}") into tReply
+   TestAssert "equals, but for case and the spaces around", TestText(tReply) begins with "It is so"
+   put TestCall("wait_until", "{`stack`:`" & kUserStack & "`,`id`:" & tButton & ",`equals`:`Go`,`timeout_seconds`:0}") into tReply
+   TestAssert "a button's label, its name when it has none", TestText(tReply) begins with "It is so" and TestText(tReply) contains "the label of the button"
+   put TestCall("wait_until", "{`stack`:`" & kUserStack & "`,`id`:" & tButton & ",`property`:`hilite`,`equals`:`false`,`timeout_seconds`:0}") into tReply
+   TestAssert "a property by name", TestText(tReply) begins with "It is so" and TestText(tReply) contains "the hilite of"
+   put TestCall("wait_until", "{`stack`:`" & kUserStack & "`,`exists`:true,`timeout_seconds`:0}") into tReply
+   TestAssert "a stack that is there", TestText(tReply) begins with "It is so" and TestText(tReply) contains "is there"
+   put TestCall("wait_until", "{`stack`:`mcbTestNoSuchStack`,`exists`:true,`timeout_seconds`:0}") into tReply
+   TestAssert "a stack that is not", not TestIsError(tReply) and TestText(tReply) begins with "Not yet" and TestText(tReply) contains "is not there"
+   put TestCall("wait_until", "{`stack`:`mcbTestNoSuchStack`,`exists`:false,`timeout_seconds`:0}") into tReply
+   TestAssert "waiting for it to be gone", TestText(tReply) begins with "It is so"
+   put TestCall("wait_until", "{`stack`:`" & kUserStack & "`,`id`:99999,`contains`:`x`,`timeout_seconds`:0}") into tReply
+   TestAssert "a control not there yet is waited for", not TestIsError(tReply) and TestText(tReply) begins with "Not yet" \
+         and TestText(tReply) contains "99999"
+   TestAssert "none of it asked the user anything", mcbTestAsked() is tAsked
+   -- Mistakes no wait mends
+   put TestCall("wait_until", "{`stack`:`" & kUserStack & "`,`id`:" & tField & "}") into tReply
+   TestAssert "nothing to wait for", TestIsError(tReply) and TestText(tReply) contains "only one"
+   put TestCall("wait_until", "{`stack`:`" & kUserStack & "`,`id`:" & tField & ",`contains`:`a`,`lacks`:`b`}") into tReply
+   TestAssert "two things to wait for", TestIsError(tReply) and TestText(tReply) contains "only one"
+   put TestCall("wait_until", "{`stack`:`" & kUserStack & "`,`id`:" & tField & ",`property`:`the text of field 1 & quit()`,`contains`:`a`}") into tReply
+   TestAssert "a property is one word, never an expression", TestIsError(tReply) and TestText(tReply) contains "one word"
+   put TestCall("wait_until", "{`stack`:`" & kUserStack & "`,`id`:" & tField & ",`contains`:`a`,`timeout_seconds`:-1}") into tReply
+   TestAssert "a time that is not one", TestIsError(tReply) and TestText(tReply) contains "timeout_seconds"
+end TestWaitUntil
+
+-- No code of the stack's runs to read a property: a custom property's
+-- getProp handler does not
+on TestWaitUntilRunsNoGetProp
+   local tStack, tReply
+   TestStart
+   put TestUserStack() into tStack
+   set the script of tStack to "global gMcbTestGetProp" & return & "getProp cWatched" & return & \
+         "   put true into gMcbTestGetProp" & return & "   return " & quote & "computed" & quote & return & "end cWatched"
+   set the cWatched of tStack to "stored"
+   put false into gMcbTestGetProp
+   put TestCall("wait_until", "{`stack`:`" & kUserStack & "`,`property`:`cWatched`,`equals`:`stored`,`timeout_seconds`:0}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "the stored value is read", TestText(tReply) begins with "It is so"
+   TestAssert "and the getProp handler did not run", gMcbTestGetProp is false
+   TestAssert "messages are as they were", the lockMessages is false
+end TestWaitUntilRunsNoGetProp
+
+--------------------------------------------------------------------------------
+-- set_quiet
+
+private function TestQuietNote
+   set the itemDelimiter to slash
+   return item 1 to -2 of sInfoFile & "/mcp-bridge-quiet.txt"
+end TestQuietNote
+
+on TestSetQuiet
+   local tReply, tWas, tQuiet, tAsked
+   TestStart
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with false
+   put mcbTestAsked() into tAsked
+   put the playLoudness into tWas
+   put TestCall("set_quiet", "{`quiet`:false}") into tReply
+   TestAssert "nothing to put back at first", not TestIsError(tReply) and TestText(tReply) contains "had not turned"
+   put TestCall("set_quiet", "{`quiet`:true}") into tReply
+   TestDiagnostic TestText(tReply)
+   put the playLoudness into tQuiet
+   TestAssert "quiet: said, with what it was", not TestIsError(tReply) and TestText(tReply) contains "sounds are off" \
+         and TestText(tReply) contains ("it was" && tWas)
+   -- A computer with no sound device may keep no loudness at all
+   TestAssert "the playLoudness is 0, where the system keeps one", tQuiet is 0 or tQuiet is tWas
+   TestAssert "what it was is noted beside the bridge's file", there is a file TestQuietNote() \
+         and url ("file:" & TestQuietNote()) contains ("play=" & tWas)
+   TestAssert "ide_context says so", TestText(TestCall("ide_context")) contains "set_quiet"
+   put TestCall("set_quiet", "{`quiet`:true}") into tReply
+   TestAssert "twice is once", not TestIsError(tReply) and TestText(tReply) contains "already off"
+   put TestCall("set_quiet", "{`quiet`:false}") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "back: as it was, and the note is gone", not TestIsError(tReply) and the playLoudness is tWas \
+         and there is not a file TestQuietNote()
+   TestAssert "ide_context no longer says so", not (TestText(TestCall("ide_context")) contains "set_quiet")
+   put TestCall("set_quiet", "{}") into tReply
+   TestAssert "quiet is true or false", TestIsError(tReply)
+   TestAssert "never asked about", mcbTestAsked() is tAsked
+   -- Turning the bridge off puts it back
+   put TestCall("set_quiet", "{`quiet`:true}") into tReply
+   mcbServerStop
+   TestAssert "the bridge turned off: as it was, and the note is gone", the playLoudness is tWas and there is not a file TestQuietNote()
+end TestSetQuiet
+
+-- An IDE that quit or crashed while quiet left its note: the next start
+-- of the bridge puts the loudness back
+on TestQuietIsPutBackAfterACrash
+   local tWas, tFolder
+   put the playLoudness into tWas
+   set the itemDelimiter to slash
+   put item 1 to -2 of sInfoFile into tFolder
+   create folder tFolder
+   set the playLoudness to 0
+   put "play=" & max(tWas, 40) & numToChar(10) & "beep=" & numToChar(10) into url ("file:" & TestQuietNote())
+   TestStart
+   TestDiagnostic "the playLoudness was" && tWas & ", is" && the playLoudness
+   TestAssert "the note is gone", there is not a file TestQuietNote()
+   -- Where the system keeps a loudness, it is the note's again
+   set the playLoudness to 0
+   if the playLoudness is 0 then
+      set the playLoudness to 55
+      if the playLoudness is 55 then
+         set the playLoudness to 0
+         put "play=55" & numToChar(10) into url ("file:" & TestQuietNote())
+         mcbServerStop
+         TestStart
+         TestAssert "the loudness is the note's", the playLoudness is 55
+      end if
+   end if
+   set the playLoudness to tWas
+end TestQuietIsPutBackAfterACrash
+
+--------------------------------------------------------------------------------
+-- restart_ide
+
+global gMcbTestRestart
+
+on TestRestartIsRefusedWhereItCannotBe
+   local tReply
+   put empty into gMcbTestRestart
+   TestStart
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
+   put TestCall("restart_ide") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "an IDE that cannot say how it is started is not restarted", TestIsError(tReply) and TestText(tReply) contains "cannot be restarted" \
+         and not (mcbTestAsked() contains "restart")
+   if the platform is "Win32" then
+      put "rem" into gMcbTestRestart
+   else
+      put "true" into gMcbTestRestart
+   end if
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with false
+   put TestCall("restart_ide") into tReply
+   TestAssert "asked, and refused, nothing is done", TestIsError(tReply) and TestText(tReply) contains "did not allow" \
+         and mcbTestAsked() contains "restart"
+   wait 900 milliseconds with messages
+   TestAssert "and nothing quits", not (mcbTestAsked() contains "quit for restart")
+   put empty into gMcbTestRestart
+end TestRestartIsRefusedWhereItCannotBe
+
+on TestRestartQuitsAfterItsAnswer
+   local tReply, tFile
+   TestStart
+   if the platform is "Win32" then
+      put "rem" into gMcbTestRestart
+      put specialFolderPath("temporary") & "/oxt-beyond-restart-" & the processID & ".cmd" into tFile
+   else
+      put "true" into gMcbTestRestart
+      put specialFolderPath("temporary") & "/oxt-beyond-restart-" & the processID & ".sh" into tFile
+   end if
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
+   put TestCall("restart_ide") into tReply
+   TestDiagnostic TestText(tReply)
+   TestAssert "allowed: it says it is quitting", not TestIsError(tReply) and TestText(tReply) contains "is quitting" \
+         and mcbTestAsked() contains "restart"
+   TestAssert "the script that starts it again waits for this process", there is a file tFile \
+         and url ("binfile:" & tFile) contains the processID and url ("binfile:" & tFile) contains gMcbTestRestart
+   TestAssert "the quit comes after the answer", not (mcbTestAsked() contains "quit for restart")
+   wait 1200 milliseconds with messages
+   TestAssert "then the IDE is asked to quit, as the user's Quit does", mcbTestAsked() contains "quit for restart"
+   put empty into gMcbTestRestart
+end TestRestartQuitsAfterItsAnswer
+
+on TestRestartIsRefusedOnTheWeb
+   local tReply
+   put "true" into gMcbTestRestart
+   TestStartLink
+   dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
+   put TestLinkCall("restart_ide") into tReply
+   TestAssert "the web IDE's page is reloaded by the user", TestIsError(tReply) and TestText(tReply) contains "reload"
+   put empty into gMcbTestRestart
+end TestRestartIsRefusedOnTheWeb
+
+-- The script restart_ide leaves running, run here by the system's own
+-- shell: for a process that has gone it runs the line that starts the IDE,
+-- for one still there after its wait it runs nothing, and either way it
+-- deletes its own file
+private function TestRunRelaunch pPid, pWait, pMarker
+   local tScript, tFile, tStart, tOut
+   if the platform is "Win32" then
+      put pMarker into tStart
+      replace slash with backslash in tStart
+      put "echo started> " & quote & tStart & quote into tStart
+      put specialFolderPath("temporary") & "/mcbtest-relaunch-" & the milliseconds & ".cmd" into tFile
+   else
+      put "echo started > '" & pMarker & "'" into tStart
+      put specialFolderPath("temporary") & "/mcbtest-relaunch-" & the milliseconds & ".sh" into tFile
+   end if
+   put mcbRelaunchScript(the platform, tStart, pPid, pWait) into tScript
+   put textEncode(tScript, "UTF-8") into url ("binfile:" & tFile)
+   if the platform is "Win32" then
+      replace slash with backslash in tFile
+      put shell(quote & tFile & quote) into tOut
+      replace backslash with slash in tFile
+   else
+      put shell("/bin/sh" && quote & tFile & quote) into tOut
+   end if
+   TestDiagnostic tOut
+   return tFile
+end TestRunRelaunch
+
+on TestTheRelaunchScriptWaitsForTheProcess
+   local tMarker, tFile, tStarted, tHide
+   put specialFolderPath("temporary") & "/mcbtest-relaunched-" & the milliseconds & ".txt" into tMarker
+   put the hideConsoleWindows into tHide
+   set the hideConsoleWindows to true
+   -- No process has this id (Windows gives multiples of 4; Unix none so high)
+   put TestRunRelaunch(4194301, 5, tMarker) into tFile
+   TestAssert "a process that has gone: the IDE is started", there is a file tMarker
+   TestAssert "and the script deleted its own file", there is not a file tFile
+   delete file tMarker
+   put the milliseconds into tStarted
+   put TestRunRelaunch(the processID, 2, tMarker) into tFile
+   TestAssert "a process still there after the wait: nothing is started", there is not a file tMarker
+   TestAssert "after waiting for it", the milliseconds - tStarted >= 1000
+   TestAssert "and the script deleted its own file then too", there is not a file tFile
+   set the hideConsoleWindows to tHide
+end TestTheRelaunchScriptWaitsForTheProcess
+
+on TestTheRelaunchScriptForEachSystem
+   local tWin, tUnix
+   put mcbRelaunchScript("Win32", "start " & quote & quote & " " & quote & "C:\Program Files\OXT-Beyond\OXT-Beyond.exe" & quote, 4242, 120) into tWin
+   TestAssert "Windows: a .cmd with its line ends, which looks for the process by its id", tWin contains (crlf & ":wait" & crlf) \
+         and tWin contains ("PID eq 4242" & quote) and tWin contains "OXT-Beyond.exe" and tWin contains "GEQ 120"
+   put mcbRelaunchScript("Linux", "'/opt/oxt/OXT-Beyond' >/dev/null 2>&1 &", 4242, 120) into tUnix
+   TestAssert "elsewhere: a sh script", line 1 of tUnix is "#!/bin/sh" and tUnix contains "kill -0 4242" \
+         and tUnix contains "-ge 120" and numToChar(13) is not in tUnix and line -1 of tUnix contains "/opt/oxt/OXT-Beyond"
+end TestTheRelaunchScriptForEachSystem
+
+-- The plugin's main stack says how its IDE is started (the engine's own
+-- file, from the address), as a line of the system's shell
+on TestTheIDESaysHowItIsStarted
+   local tPlugin, tStart, tEngine
+   put TestGetIDERepositoryPath() & "/Extensions/org.openxtalk.plugin.mcpbridge/mcpbridge.livecodescript" into tPlugin
+   dispatch function "mcbRestartCommand" to stack tPlugin
+   put the result into tStart
+   TestDiagnostic tStart
+   put the address into tEngine
+   delete char 1 to offset(":", tEngine) of tEngine
+   TestAssert "the engine's own file is found", there is a file tEngine
+   TestAssert "one line", tStart is not empty and the number of lines of tStart is 1
+   set the itemDelimiter to slash
+   if the platform is "Win32" then
+      replace slash with backslash in tEngine
+      TestAssert "Windows: cmd's start, with the engine's file between quotes", tStart is ("start" && quote & quote && quote & tEngine & quote)
+   else if the platform is "MacOS" and tEngine contains ".app/Contents/MacOS/" then
+      TestAssert "a Mac: the application's bundle is opened", tStart begins with "open -n '" and tStart ends with ".app'"
+   else
+      TestAssert "elsewhere: the engine, in the background", tStart is ("'" & tEngine & "' >/dev/null 2>&1 &")
+   end if
+   delete stack "org.openxtalk.plugin.mcpbridge"
+end TestTheIDESaysHowItIsStarted

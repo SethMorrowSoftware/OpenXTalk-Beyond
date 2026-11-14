@@ -76,6 +76,26 @@ script "org.openxtalk.plugin.mcpbridge-tools"
 -- Undoing what the user changed since is asked about all the same: that
 -- is the user's own work, and Claude cannot know what it was worth.
 --
+-- Four more of the bridge's own, for long work the user is not at the
+-- desk for (each says more where it is written): set_script_from_file sets
+-- a script from a file on this computer (a harness of megabytes does not
+-- fit a call), after the same kind of question; wait_until waits for a
+-- stack or a property of a control to be as Claude says, with no code run;
+-- set_quiet turns the engine's sounds off and back on; restart_ide quits
+-- this IDE and starts it again.
+--
+-- What keeps a slow answer from doing harm. Each call's line carries
+-- "until", the time (the milliseconds, by this computer's clock) after
+-- which the server no longer waits for it: a call read after that (the
+-- engine was held up in a dialog of the system's, or in a script) is
+-- refused with nothing done, like a yes that came too late (mcbAsk).
+--
+-- Which server.js. Beside the bridge's file this writes a second one
+-- (mcbWriteServerPointer) that names the server.js of this folder. The
+-- server Claude's app starts may be a copy saved in a desktop extension
+-- months ago; it reads that file and serves from the one installed now,
+-- so updating OXT-Beyond updates the server too.
+--
 -- It needs no IDE: the engine tests in tests/lcs/mcpbridge load it, the
 -- assistant's core and build library, and a stand-in asker, the same way.
 --
@@ -99,6 +119,9 @@ script "org.openxtalk.plugin.mcpbridge-tools"
 --                                        config with the bridge's entry added
 --    mcbSetUnasked pOn, mcbIsUnasked()   runs and saves without asking
 --    mcbUnaskedLogPath()                 where those are noted
+--    mcbRelaunchScript(pPlatform, pStart, pPid, pWait)   the script that
+--                                        waits for a process to end and then
+--                                        starts the IDE (restart_ide)
 
 -- What the answer to "hello" calls this end of the protocol; the MCP
 -- server refuses a version it does not know
@@ -124,7 +147,7 @@ constant kMaxUnaskedLogChars = 2000000
 constant kMaxAskLongChars = 20000
 -- The tools, in the order the MCP server lists them (mcp/server.js has
 -- their descriptions and schemas)
-constant kTools = "xtalk_guide,list_stacks,ide_context,read_stack,read_script,search_scripts,look_at_card,lookup_dictionary,check_code,make_changes,edit_script,run_code,save_stack,list_changes,undo_changes,debug_state,stop_paused_script,answer_dialog,import_hypercard,set_asking,close_stack"
+constant kTools = "xtalk_guide,list_stacks,ide_context,read_stack,read_script,search_scripts,look_at_card,lookup_dictionary,check_code,make_changes,edit_script,run_code,save_stack,list_changes,undo_changes,debug_state,stop_paused_script,answer_dialog,import_hypercard,set_asking,close_stack,set_script_from_file,wait_until,set_quiet,restart_ide"
 -- The tools that answer while another call is still being carried out
 -- (sBusy): they are for what holds that call up, a script paused in the
 -- debugger or a dialog a stack opened, so they never wait for it. They
@@ -156,6 +179,28 @@ constant kMaxSearchMatches = 100
 constant kSearchLineChars = 160
 -- The most names lookup_dictionary suggests for a term with no entry
 constant kNearestEntries = 8
+-- set_script_from_file: the most bytes of a file (as a request's), and
+-- how much of its text the question shows where the question is answer's
+-- (OXT-Beyond's panel shows kMaxAskLongChars)
+constant kMaxScriptFileBytes = 8000000
+constant kFileAskChars = 2000
+-- wait_until: the longest it waits, in seconds (server.js's
+-- WAIT_UNTIL_MAX_S: less than the 40 seconds after which the server
+-- answers a call early), how long when Claude gives none, how often it
+-- looks, in milliseconds, and the most of a value it gives back
+constant kWaitUntilMax = 30
+constant kWaitUntilDefault = 20
+constant kWaitUntilLook = 100
+constant kWaitValueChars = 400
+-- set_quiet: the note of what the loudness was, beside the bridge's file
+constant kQuietFile = "mcp-bridge-quiet.txt"
+-- What the name of the file that tells the MCP server where this IDE's
+-- server.js is ends with, after the bridge file's name without its .json
+-- (server.js's serverPointerPath)
+constant kServerPointerEnd = "-server.json"
+-- restart_ide: how long its script waits for this IDE to have quit, in
+-- seconds, before it gives up (the user cancelled the quit)
+constant kRestartWaitSeconds = 120
 
 -- The token a request must carry; empty while the server is not running,
 -- when every request is refused
@@ -191,6 +236,9 @@ local sUnasked
 -- make_changes, made by a run, imported), by name, while the bridge is on:
 -- close_stack closes one never saved without asking
 local sMadeStacks
+-- What the loudness was before set_quiet put it to 0 ("play", "beep");
+-- empty while the bridge has not quieted the engine
+local sQuiet
 
 --------------------------------------------------------------------------------
 -- The server
@@ -245,6 +293,8 @@ function mcbServerStart pAssistantFolder, pAsker, pInfoFile
       mcbServerStop
       throw tProblem
    end if
+   mcbWriteServerPointer
+   mcbQuietRecover
    return sPort
 end mcbServerStart
 
@@ -276,6 +326,8 @@ command mcbServerStop
       end if
    end if
    put empty into sToken
+   -- While the file's place is still known: its note is beside it
+   mcbQuietOff
    put empty into sInfoFile
    mcbStopParts
 end mcbServerStop
@@ -286,6 +338,8 @@ end mcbServerStop
 -- turned-off assistant leaves them, and its journal, to the bridge.
 private command mcbStopParts
    local tError
+   -- The engine's sounds are the user's again (the web IDE's link ends here)
+   mcbQuietOff
    put false into sUnasked
    put empty into sMadeStacks
    put false into sBusy
@@ -510,6 +564,35 @@ private function mcbWriteInfoFile
    return empty
 end mcbWriteInfoFile
 
+-- Tells the MCP server where this IDE's own server.js is, in a file beside
+-- the bridge's (see "Which server.js" at the top). It stays when the
+-- bridge is turned off, since the server reads it before it looks for the
+-- bridge, and is written only when it would change. A bridge that cannot
+-- write it goes on: the server then serves from its own file, as before.
+private command mcbWriteServerPointer
+   local tServer, tFile, tJson, tError
+   put mcbFolder() & "/mcp/server.js" into tServer
+   if sInfoFile is empty or there is not a file tServer then
+      exit mcbWriteServerPointer
+   end if
+   put sInfoFile into tFile
+   if tFile ends with ".json" then
+      delete char -5 to -1 of tFile
+   end if
+   put kServerPointerEnd after tFile
+   put "{" & mcbJsonString("server") & ":" & mcbJsonString(tServer) & "}" & numToChar(10) into tJson
+   try
+      if there is a file tFile then
+         set the caseSensitive to true
+         if textDecode(url ("binfile:" & tFile), "UTF-8") is tJson then
+            exit mcbWriteServerPointer
+         end if
+      end if
+      put textEncode(tJson, "UTF-8") into url ("binfile:" & tFile)
+   catch tError
+   end try
+end mcbWriteServerPointer
+
 -- Lets only the user read (and write) pPath, off Windows (where a file in
 -- the user's own folder is theirs already)
 private command mcbOwnerOnly pPath, pMode
@@ -554,7 +637,11 @@ on mcbConnection pSocket
       close socket pSocket
       exit mcbConnection
    end if
-   put pSocket & return after sClients
+   -- Once: Windows names a connection by a number it gives again after one
+   -- has closed, and a line twice here was a client counted twice
+   if pSocket is not among the lines of sClients then
+      put pSocket & return after sClients
+   end if
    read from socket pSocket until numToChar(10) with message "mcbLineRead"
 end mcbConnection
 
@@ -654,7 +741,7 @@ end mcbHandleLine
 -- IDE's link (mcbLinkHandle), which carries no token; false for one from
 -- a socket, which must carry the server's.
 private function mcbAnswerLine pLine, pFromLink
-   local tRequest, tError, tId, tMethod, tArguments, tResult, tReply, tTool
+   local tRequest, tError, tId, tMethod, tArguments, tResult, tReply, tTool, tUntil
    -- Stopped: nothing is read, and the assistant's libraries, which read
    -- JSON, may be gone
    if pFromLink is true then
@@ -709,6 +796,12 @@ private function mcbAnswerLine pLine, pFromLink
    end if
    if xtaJsonType(tArguments) is not "object" then
       return mcbRefusal(tId, "The arguments are not a JSON object.")
+   end if
+   -- A call the server no longer waits for ("until", see the top): it was
+   -- told this IDE did not answer, and Claude may have sent the call again
+   put xtaJsonText(xtaJsonMember(tRequest, "until")) into tUntil
+   if tUntil is a number and the milliseconds > tUntil then
+      return mcbRefusal(tId, "This call reached " & mcbHostName() & " after Claude's app had stopped waiting for it, so nothing was done.")
    end if
    -- One tool at a time: while one waits (for the user to answer a
    -- question here, or for a run), the engine still reads the sockets, and
@@ -856,6 +949,14 @@ function mcbCallTool pTool, pArguments
             return tResult
          case "set_asking"
             return mcbToolSetAsking(mcbArg(pArguments, "ask"))
+         case "set_script_from_file"
+            return mcbToolSetScriptFromFile(pArguments)
+         case "wait_until"
+            return mcbToolWaitUntil(pArguments)
+         case "set_quiet"
+            return mcbToolSetQuiet(mcbArg(pArguments, "quiet"))
+         case "restart_ide"
+            return mcbToolRestart()
       end switch
    catch tError
       return mcbFailed(tError)
@@ -1475,6 +1576,9 @@ private function mcbToolContext
       put return & "Runs of code and saves go ahead without asking the user (they chose Stop Asking); each is written in a log." after tText
    else
       put return & mcbHostName() & " asks the user before each run of code and each save, and the call waits for their answer." after tText
+   end if
+   if sQuiet is an array then
+      put return & "The engine's sounds are off (set_quiet): set_quiet with quiet false puts them back." after tText
    end if
    return mcbResult(tText, false)
 end mcbToolContext
@@ -3056,6 +3160,614 @@ private function mcbUndo pEntry, pAsk, pForUser
    end if
    return tResult
 end mcbUndo
+
+--------------------------------------------------------------------------------
+-- A script from a file, waiting, quiet, and a restart
+
+-- set_script_from_file: the whole script of a stack, a card or a control
+-- becomes the text of a file on this computer, for a script too long to
+-- send in a call (a test harness of megabytes). Claude's app shows the
+-- user only the file's path, so OXT-Beyond's question shows the path, the
+-- size, the SHA-256 of the file's bytes and the text (its beginning, when
+-- it is long): asked unless the user chose not to be (mcbAllow), and then
+-- noted in the log with the same. What was read for the question is what
+-- is set, whatever the file holds a moment later. The script is taken
+-- when the engine takes it (xtaBuildPlan's pCompileOnly): it is somebody's
+-- script, not code Claude has just written, and old scripts use names they
+-- do not declare. It is set as edit_script sets one, by a batch of one
+-- change, journaled, which undo_changes takes back.
+private function mcbToolSetScriptFromFile pArguments
+   local tFile, tFound, tObject, tOld, tError, tData, tBytes, tHex, tScript, tNamed, tWhere, tTitle, tProse, tDetail, tParts
+   local tMax, tId, tBatch, tPlan, tApplied, tText, tStack
+   if sLink is true then
+      return mcbResult("Nothing was changed: the web IDE cannot read the files of this computer. Send the script with make_changes or edit_script.", true)
+   end if
+   put word 1 to -1 of mcbArg(pArguments, "file") into tFile
+   if the platform is "Win32" then
+      replace backslash with slash in tFile
+   end if
+   if tFile is empty then
+      return mcbResult("Nothing was changed: give the file, by its full path on this computer.", true)
+   end if
+   if there is not a file tFile then
+      return mcbResult("Nothing was changed: there is no file" && tFile && "(give its full path).", true)
+   end if
+   put mcbScriptObject(mcbArg(pArguments, "stack"), mcbArg(pArguments, "id")) into tFound
+   if tFound["problem"] is not empty then
+      return mcbResult("Nothing was changed:" && tFound["problem"], true)
+   end if
+   put tFound["object"] into tObject
+   try
+      put mcbScriptOf(tObject) into tOld
+   catch tError
+      return mcbResult("Nothing was changed: the script of" && tFound["label"] && "cannot be read (its stack is password-protected).", true)
+   end try
+   put url ("binfile:" & tFile) into tData
+   if the result is not empty then
+      return mcbResult("Nothing was changed: the file" && tFile && "could not be read:" && the result, true)
+   end if
+   put the number of bytes of tData into tBytes
+   if tBytes is 0 then
+      return mcbResult("Nothing was changed: the file" && tFile && "is empty. (To empty a script, set it to nothing with make_changes.)", true)
+   end if
+   if tBytes > kMaxScriptFileBytes then
+      return mcbResult("Nothing was changed: the file" && tFile && "has" && tBytes && "bytes, and a script from a file has" && \
+            kMaxScriptFileBytes && "at most.", true)
+   end if
+   get binaryDecode("H*", messageDigest(tData, "SHA-256"), tHex)
+   -- Text, as UTF-8: a byte of zero is in no script (a stack's own file, a
+   -- picture, UTF-16)
+   if byteOffset(numToByte(0), tData) > 0 then
+      return mcbResult("Nothing was changed: the file" && tFile && "is not a text file of UTF-8 (a script, as a .livecodescript file holds it). " & \
+            "A stack's file is opened, not set as a script.", true)
+   end if
+   if byte 1 to 3 of tData is (numToByte(239) & numToByte(187) & numToByte(191)) then
+      delete byte 1 to 3 of tData
+   end if
+   put textDecode(tData, "UTF-8") into tScript
+   replace crlf with return in tScript
+   replace numToChar(13) with return in tScript
+   -- A script-only stack's file names its stack on its first line, which
+   -- is not code: emptied, not deleted, so that the lines keep the numbers
+   -- they have in the file
+   if word 1 of line 1 of tScript is "script" and char 1 of word 2 of line 1 of tScript is quote then
+      put line 1 of tScript into tNamed
+      put empty into line 1 of tScript
+   end if
+   if kCutMark is in line -3 to -1 of tScript then
+      return mcbResult("Nothing was changed: the file ends as read_stack cut a script (" & quote & "..." && kCutMark & quote & \
+            "), so it holds only part of one.", true)
+   end if
+
+   -- The stack the object is in, found before the question: the question
+   -- names it, and it is the one changed, whichever stack is in front
+   -- when the user answers
+   put mcbStackOfObject(tObject) into tStack
+   put tFound["label"] into tWhere
+   if word 1 of the name of tObject is not "stack" then
+      put " of stack" && quote & the short name of tStack & quote after tWhere
+   end if
+   put "Claude asks to set a script from a file." into tTitle
+   put "The script of" && tWhere && "would become the text of this file:" & return & tFile & return & \
+         the number of lines of tScript && "lines," && tBytes && "bytes, SHA-256" && tHex & return & \
+         "It replaces the script there now (" & the number of lines of tOld && "lines). Its handlers answer messages as soon as it is set, " & \
+         "and can do anything " & mcbHostName() & " can: allow it only if you know the file." into tProse
+   put tProse into tParts["prose"]
+   if mcbShowsLongCode() then
+      put kMaxAskLongChars into tMax
+   else
+      put kFileAskChars into tMax
+   end if
+   put mcbBeginning(tScript, tMax) into tParts["code"]
+   put tProse & return & return & mcbBeginning(tScript, kFileAskChars) into tDetail
+   if not mcbAllow(tTitle, tDetail, "Set Script", tParts) then
+      return mcbResult("Nothing was changed: the user did not allow the script to be set from the file. Ask them what they would like instead.", true)
+   end if
+   -- The question was open for as long as the user took, and timers ran
+   -- meanwhile: what was asked about may be gone
+   if there is not a tObject then
+      return mcbResult("Nothing was changed:" && tWhere && "is no longer there (it was deleted, or its stack was closed, while the question was open).", true)
+   end if
+
+   if word 1 of the name of tObject is "stack" then
+      put mcbJsonString("stack") into tId
+   else
+      put the short id of tObject into tId
+   end if
+   -- The batch is parsed with no script, and the script put into it after:
+   -- megabytes of script are not written as JSON and read back. It names
+   -- no stack: its stack is tStack, the one the question was about (ids
+   -- repeat from stack to stack, and the stack the user works on can be
+   -- another one by now)
+   put "{" & mcbJsonString("changes") & ":[{" & mcbJsonString("action") & ":" & mcbJsonString("set") & "," & \
+         mcbJsonString("object") & ":" & tId & "," & mcbJsonString("script") & ":" & mcbJsonString("-") & "}]}" into tBatch
+   put xtaJsonParse(tBatch) into tBatch
+   put tScript into tBatch["members"]["changes"]["items"][1]["members"]["script"]["value"]
+   put xtaBuildPlan(tBatch, tStack, true) into tPlan
+   if tPlan["ok"] is not true then
+      return mcbResult("Nothing was changed: the file's text does not compile as a script (the lines are the file's):" & return & tPlan["problems"], true)
+   end if
+   put xtaBuildApply(tPlan) into tApplied
+   if tApplied["ok"] is not true then
+      return mcbResult(tApplied["error"], true)
+   end if
+   put "Set the script of" && tWhere && "from" && tFile && "(" & the number of lines of tScript && "lines, SHA-256" && tHex & ")." into tText
+   if tNamed is not empty then
+      put return & "Its first line (" & tNamed & ") names a script-only stack and is not code: it was left empty, so the lines keep the file's numbers." after tText
+   end if
+   put return & "Nothing ran. A handler such as openStack runs when the stack is next opened, or when you call it with run_code." after tText
+   put return & "This is change" && tApplied["entry"] & "; undo_changes takes it back." after tText
+   return mcbResult(tText, false)
+end mcbToolSetScriptFromFile
+
+-- The first pMax characters of pText, saying how many more there are
+private function mcbBeginning pText, pMax
+   if the number of chars of pText <= pMax then
+      return pText
+   end if
+   return char 1 to pMax of pText & return & "... (" & the number of chars of pText - pMax && "more characters, not shown here: the file has them)"
+end mcbBeginning
+
+-- wait_until: waits until a stack, card or control is there (or gone), or
+-- until a property of it contains, lacks or is a text, and says which
+-- happened. For what goes on by itself after a call ended: a test run
+-- started from openStack that fills a report field. Before it, that was a
+-- run_code again and again, each one a question for the user; this runs
+-- no code of Claude's (the property is one word, read with the messages
+-- locked, so that no getProp handler runs either), so it is not asked
+-- about. The stack's own messages and timers go on while it waits (wait
+-- with messages). It waits kWaitUntilMax seconds at most: Claude's app
+-- gives up on a call after about a minute, and calls again to wait longer.
+private function mcbToolWaitUntil pArguments
+   local tName, tModes, tMode, tNeedle, tProperty, tTimeout, tStart, tEnd, tLook, tSeconds, tText, tType
+   repeat for each item tName in "contains,lacks,equals,exists"
+      put xtaJsonType(xtaJsonMember(pArguments, tName)) into tType
+      if tType is not "missing" and tType is not "null" then
+         put tName & comma after tModes
+      end if
+   end repeat
+   delete the last char of tModes
+   if the number of items of tModes is not 1 then
+      return mcbResult("Give one of contains, lacks or equals (a text the property is compared with) or exists (true or false), and only one.", true)
+   end if
+   put tModes into tMode
+   put xtaJsonText(xtaJsonMember(pArguments, tMode)) into tNeedle
+   if tMode is "exists" then
+      if tNeedle is not true and tNeedle is not false then
+         return mcbResult("exists is true (wait until it is there) or false (wait until it is gone).", true)
+      end if
+   else if tMode is not "equals" and tNeedle is empty then
+      return mcbResult("Give the text to look for in" && tMode & ".", true)
+   end if
+   put word 1 to -1 of mcbArg(pArguments, "property") into tProperty
+   if tProperty is not empty and not matchText(tProperty, "^[A-Za-z][A-Za-z0-9_]*$") then
+      return mcbResult("A property is one word (text, label, hilite, visible, or a custom property's name), not" && quote & tProperty & quote & ".", true)
+   end if
+   put mcbArg(pArguments, "timeout_seconds") into tTimeout
+   if tTimeout is empty then
+      put kWaitUntilDefault into tTimeout
+   end if
+   if tTimeout is not a number or tTimeout < 0 then
+      return mcbResult("timeout_seconds is a number of seconds, at most" && kWaitUntilMax & ".", true)
+   end if
+   put min(tTimeout, kWaitUntilMax) into tTimeout
+   put the milliseconds into tStart
+   put tStart + tTimeout * 1000 into tEnd
+   repeat
+      put mcbWaitLook(mcbArg(pArguments, "stack"), mcbArg(pArguments, "id"), tMode, tNeedle, tProperty) into tLook
+      if tLook["problem"] is not empty then
+         return mcbResult(tLook["problem"], true)
+      end if
+      if tLook["so"] is true or the milliseconds >= tEnd then
+         exit repeat
+      end if
+      wait kWaitUntilLook milliseconds with messages
+   end repeat
+   put (the milliseconds - tStart) div 1000 into tSeconds
+   if tLook["so"] is true then
+      put "It is so, after" && tSeconds && "seconds:" && tLook["what"] & "." into tText
+   else
+      put "Not yet, after" && tSeconds && "seconds:" && tLook["what"] & "." into tText
+      if tLook["missing"] is not empty then
+         put space & tLook["missing"] after tText
+      end if
+      put " Call wait_until again to keep waiting." after tText
+   end if
+   if tLook["read"] is true then
+      if the number of chars of tLook["value"] > kWaitValueChars then
+         put return & "It ends:" & return & "..." & char -kWaitValueChars to -1 of tLook["value"] after tText
+      else if tLook["value"] is empty then
+         put return & "It is empty." after tText
+      else
+         put return & "It is:" & return & tLook["value"] after tText
+      end if
+   end if
+   return mcbResult(tText, false)
+end mcbToolWaitUntil
+
+-- One look for wait_until: an array with "so" (true when it is as asked),
+-- "what" (what was asked, or how it is, in words), "read" and "value" (the
+-- property, when one was read), "missing" (why nothing could be read yet: a
+-- stack not open, an id not there, which a wait may still bring), or
+-- "problem" (what no wait mends)
+private function mcbWaitLook pStackName, pId, pMode, pNeedle, pProperty
+   local tLook, tTarget, tStack, tObject, tValue, tError, tProperty, tOldLock, tNamed, tSo
+   put false into tLook["so"]
+   put word 1 to -1 of pId into pId
+   if pId is "stack" then
+      put empty into pId
+   end if
+   if pId is not empty and pId is not an integer then
+      put "An id is a whole number, as read_stack gives it (none for the stack itself)." into tLook["problem"]
+      return tLook
+   end if
+   put mcbTarget(pStackName) into tTarget
+   if tTarget["problem"] is not empty then
+      put tTarget["problem"] into tLook["missing"]
+      if word 1 to -1 of pStackName is empty then
+         put "the stack the user works on" into tNamed
+      else
+         put "the stack" && quote & word 1 to -1 of pStackName & quote into tNamed
+      end if
+   else
+      put tTarget["stack"] into tStack
+      if pId is empty then
+         put tStack into tObject
+      else if there is a card id pId of tStack then
+         put the long id of card id pId of tStack into tObject
+      else if there is a control id pId of tStack then
+         put the long id of control id pId of tStack into tObject
+      else
+         put "The stack" && quote & the short name of tStack & quote && "has no card or control with the id" && pId & "." into tLook["missing"]
+         put "the card or control with the id" && pId && "of stack" && quote & the short name of tStack & quote into tNamed
+      end if
+      if tObject is not empty then
+         put mcbObjectLabel(tObject) into tNamed
+         if pId is not empty then
+            put " of stack" && quote & the short name of tStack & quote after tNamed
+         end if
+      end if
+   end if
+   if pMode is "exists" then
+      put ((tObject is not empty) is (pNeedle is true)) into tLook["so"]
+      if tObject is not empty then
+         put tNamed && "is there" into tLook["what"]
+         put empty into tLook["missing"]
+      else
+         put tNamed && "is not there" into tLook["what"]
+      end if
+      return tLook
+   end if
+   put pProperty into tProperty
+   if tProperty is empty then
+      put "text" into tProperty
+      if tObject is not empty then
+         if word 1 of the name of tObject is "button" or word 2 of the name of tObject is "button" then
+            put "label" into tProperty
+         end if
+      end if
+   end if
+   if tObject is empty then
+      put "the" && tProperty && "of" && tNamed && "cannot be read yet" into tLook["what"]
+      return tLook
+   end if
+   -- The property, by its name: a custom property's getProp handler does
+   -- not run (the messages are locked), and neither does anything else
+   put the lockMessages into tOldLock
+   lock messages
+   try
+      do "put the" && tProperty && "of tObject into tValue"
+      -- A button with no label shows its name
+      if pProperty is empty and tProperty is "label" and tValue is empty then
+         put the short name of tObject into tValue
+      end if
+   catch tError
+      set the lockMessages to tOldLock
+      put "The" && tProperty && "of" && tNamed && "cannot be read (it has no such property, or its stack is password-protected)." into tLook["problem"]
+      return tLook
+   end try
+   set the lockMessages to tOldLock
+   put true into tLook["read"]
+   put tValue into tLook["value"]
+   set the caseSensitive to false
+   switch pMode
+      case "contains"
+         put (pNeedle is in tValue) into tSo
+         if tSo then
+            put "the" && tProperty && "of" && tNamed && "contains" && quote & pNeedle & quote into tLook["what"]
+         else
+            put "the" && tProperty && "of" && tNamed && "does not contain" && quote & pNeedle & quote into tLook["what"]
+         end if
+         break
+      case "lacks"
+         put (pNeedle is not in tValue) into tSo
+         if tSo then
+            put "the" && tProperty && "of" && tNamed && "does not contain" && quote & pNeedle & quote into tLook["what"]
+         else
+            put "the" && tProperty && "of" && tNamed && "still contains" && quote & pNeedle & quote into tLook["what"]
+         end if
+         break
+      default
+         -- As text, not as numbers, and but for the spaces and empty
+         -- lines around it
+         put (("t" & word 1 to -1 of tValue) is ("t" & word 1 to -1 of pNeedle)) into tSo
+         if tSo then
+            put "the" && tProperty && "of" && tNamed && "is" && quote & pNeedle & quote into tLook["what"]
+         else
+            put "the" && tProperty && "of" && tNamed && "is not" && quote & pNeedle & quote into tLook["what"]
+         end if
+   end switch
+   put tSo into tLook["so"]
+   return tLook
+end mcbWaitLook
+
+-- set_quiet: the engine's sounds off (the playLoudness 0, and the
+-- beepLoudness where the engine has one) and back to what they were, for
+-- sweeps and test runs of stacks that play sounds. It is the engine's own
+-- loudness that is set, never the system's mixer by another road: on
+-- Windows the playLoudness is this application's, on a Mac and on Linux it
+-- is the computer's or the sound device's (the tool's description says
+-- so). What it was is kept here and in a note beside the bridge's file, so
+-- that an IDE that quit or crashed while quiet puts it back when its
+-- bridge next starts (mcbQuietRecover): Windows remembers an
+-- application's loudness from one launch to the next. Turning the bridge
+-- off puts it back too (mcbStopParts). Not asked about: it runs nothing
+-- and changes nothing of the user's work.
+private function mcbToolSetQuiet pQuiet
+   local tText
+   if pQuiet is true then
+      if sQuiet is an array then
+         return mcbResult("The engine's sounds are already off. set_quiet with quiet false puts them back.", false)
+      end if
+      mcbQuietOn
+      put "The engine's sounds are off: the playLoudness is 0 (it was" && sQuiet["play"] & "). set_quiet with quiet false puts it back, " & \
+            "and so does turning the bridge off." into tText
+      switch the platform
+         case "MacOS"
+            put return & "On a Mac the playLoudness is the computer's own volume: everything on it is silent until then, so tell the user. A beep may still sound." after tText
+            break
+         case "Linux"
+            put return & "On Linux the playLoudness is the sound device's volume, which other programs share: tell the user." after tText
+            break
+         case "Win32"
+            put return & "A beep, which is a sound of Windows, still sounds." after tText
+            break
+      end switch
+      return mcbResult(tText, false)
+   end if
+   if pQuiet is not false then
+      return mcbResult("quiet is true (the engine's sounds off) or false (back to what they were).", true)
+   end if
+   if sQuiet is not an array then
+      return mcbResult("The bridge had not turned the engine's sounds off: the playLoudness is" && the playLoudness & ".", false)
+   end if
+   mcbQuietOff
+   return mcbResult("The engine's sounds are back: the playLoudness is" && the playLoudness & ".", false)
+end mcbToolSetQuiet
+
+private command mcbQuietOn
+   local tWas, tError
+   put the playLoudness into tWas["play"]
+   try
+      put the beepLoudness into tWas["beep"]
+   catch tError
+      put empty into tWas["beep"]
+   end try
+   mcbQuietNote tWas
+   set the playLoudness to 0
+   if tWas["beep"] is an integer then
+      try
+         set the beepLoudness to 0
+      catch tError
+      end try
+   end if
+   put tWas into sQuiet
+end mcbQuietOn
+
+-- Puts the loudness back to what it was before set_quiet, where it is
+-- still 0: the user may have set it since, and that stays
+private command mcbQuietOff
+   local tWas
+   if sQuiet is not an array then
+      exit mcbQuietOff
+   end if
+   put sQuiet into tWas
+   put empty into sQuiet
+   mcbQuietRestore tWas
+   mcbQuietNote empty
+end mcbQuietOff
+
+private command mcbQuietRestore pWas
+   local tError
+   try
+      if pWas["play"] is an integer and pWas["play"] > 0 and the playLoudness is 0 then
+         set the playLoudness to pWas["play"]
+      end if
+      if pWas["beep"] is an integer and pWas["beep"] > 0 and the beepLoudness is 0 then
+         set the beepLoudness to pWas["beep"]
+      end if
+   catch tError
+   end try
+end mcbQuietRestore
+
+-- The note of what the loudness was, beside the bridge's file (none for
+-- the web IDE's link, whose files are the browser's): written while quiet,
+-- deleted when it is put back
+private function mcbQuietNotePath
+   local tFile
+   if sInfoFile is empty then
+      return empty
+   end if
+   put sInfoFile into tFile
+   set the itemDelimiter to slash
+   return item 1 to -2 of tFile & slash & kQuietFile
+end mcbQuietNotePath
+
+private command mcbQuietNote pWas
+   local tFile, tError
+   put mcbQuietNotePath() into tFile
+   if tFile is empty then
+      exit mcbQuietNote
+   end if
+   try
+      if pWas is an array then
+         put textEncode("play=" & pWas["play"] & numToChar(10) & "beep=" & pWas["beep"] & numToChar(10), "UTF-8") into url ("binfile:" & tFile)
+      else if there is a file tFile then
+         delete file tFile
+      end if
+   catch tError
+   end try
+end mcbQuietNote
+
+-- An IDE that quit or crashed while quiet left its note: the loudness is
+-- put back as the bridge starts
+private command mcbQuietRecover
+   local tFile, tText, tLine, tWas, tError
+   put mcbQuietNotePath() into tFile
+   if tFile is empty or there is not a file tFile then
+      exit mcbQuietRecover
+   end if
+   try
+      put textDecode(url ("binfile:" & tFile), "UTF-8") into tText
+      set the itemDelimiter to "="
+      repeat for each line tLine in tText
+         if item 1 of tLine is "play" or item 1 of tLine is "beep" then
+            put item 2 of tLine into tWas[item 1 of tLine]
+         end if
+      end repeat
+      mcbQuietRestore tWas
+      delete file tFile
+   catch tError
+   end try
+end mcbQuietRecover
+
+-- restart_ide: quits this IDE and starts it again, for a run that needs a
+-- fresh engine or an IDE that misbehaves. The asker says how this IDE is
+-- started (mcbRestartCommand: OXT-Beyond's main stack knows its own
+-- application; with no such function, or none it can give, this refuses)
+-- and quits it as the user's Quit does (mcbQuitForRestart), which asks
+-- about stacks not saved and can be cancelled. Between the two, a small
+-- script of the system's shell (mcbRelaunchScript) is left running: it
+-- waits until this process has gone, then starts the IDE, and gives up
+-- when the IDE is still there after kRestartWaitSeconds (the user
+-- cancelled the quit). Asked about unless the user chose not to be
+-- (mcbAllow): a run of code can quit the IDE already.
+private function mcbToolRestart
+   local tStart, tDetail, tScript, tFile, tOldHide, tProblem, tError, tCommand
+   if sLink is true then
+      return mcbResult("The web IDE cannot be restarted from here: ask the user to reload its page.", true)
+   end if
+   put mcbRestartCommand() into tStart
+   if tStart is empty then
+      return mcbResult(mcbHostName() & " cannot be restarted from here. Ask the user to quit it and start it again.", true)
+   end if
+   put mcbHostName() & " would quit and start again. It asks you first about stacks with changes you have not saved, as Quit does. " & \
+         "The stacks open now are not opened again." into tDetail
+   if not mcbAllow("Claude asks to restart " & mcbHostName() & ".", tDetail, "Restart") then
+      return mcbResult("Nothing was done: the user did not allow the restart.", true)
+   end if
+   put mcbRelaunchScript(the platform, tStart, the processID, kRestartWaitSeconds) into tScript
+   put specialFolderPath("temporary") & "/oxt-beyond-restart-" & the processID into tFile
+   if the platform is "Win32" then
+      put ".cmd" after tFile
+      put tFile into tCommand
+      replace slash with backslash in tCommand
+      put "cmd.exe /c" && quote & tCommand & quote into tCommand
+   else
+      put ".sh" after tFile
+      put "/bin/sh" && quote & tFile & quote into tCommand
+   end if
+   put textEncode(tScript, "UTF-8") into url ("binfile:" & tFile)
+   if the result is not empty then
+      return mcbResult("Nothing was done: the script that starts " & mcbHostName() & " again could not be written (" & the result & ").", true)
+   end if
+   -- No window for it, and no pipe to it: the engine ends, as it quits,
+   -- the processes it reads from or writes to, and leaves this one
+   put the hideConsoleWindows into tOldHide
+   set the hideConsoleWindows to true
+   try
+      open process tCommand for neither
+      put the result into tProblem
+   catch tError
+      put line 1 of tError into tProblem
+   end try
+   set the hideConsoleWindows to tOldHide
+   if tProblem is not empty then
+      delete file tFile
+      return mcbResult("Nothing was done: the script that starts " & mcbHostName() & " again could not be started (" & tProblem & ").", true)
+   end if
+   -- After this call's answer has gone to the server
+   send "mcbQuitForRestart" to sAsker in 600 milliseconds
+   return mcbResult(mcbHostName() & " is quitting, and starts again once it has quit. If the user cancels the quit (for a stack not saved), " & \
+         "it stays open as it is and is not started again.", false)
+end mcbToolRestart
+
+-- How the asker starts its IDE, a line of the system's shell, or empty
+private function mcbRestartCommand
+   local tStart, tError
+   if sAsker is empty or there is not a sAsker then
+      return empty
+   end if
+   try
+      dispatch function "mcbRestartCommand" to sAsker
+      if it is "handled" then
+         put the result into tStart
+      end if
+   catch tError
+      put empty into tStart
+   end try
+   return line 1 of tStart
+end mcbRestartCommand
+
+-- The script that waits for the process pPid to end and then runs pStart
+-- (a line of that shell which starts the IDE and does not wait for it),
+-- for pPlatform: a .cmd file's text on "Win32" (with its line ends), a sh
+-- script's elsewhere. It looks once a second, pWait times at most, and
+-- starts nothing when the process is still there then. It deletes its own
+-- file. On Windows the process is looked for with tasklist, whose CSV
+-- form has the id between quotes, and a second is a ping of this computer
+-- (timeout needs a console's input, which this has not). On Unix a
+-- process that ended and that its parent has not asked about (a zombie)
+-- still answers kill -0, so ps is asked too.
+function mcbRelaunchScript pPlatform, pStart, pPid, pWait
+   local tScript
+   if pPlatform is "Win32" then
+      put "@echo off" & return & \
+            "chcp 65001 >nul" & return & \
+            "set /a n=0" & return & \
+            ":wait" & return & \
+            "tasklist /FI " & quote & "PID eq" && pPid & quote & " /FO CSV /NH 2>nul | find " & quote & quote & quote & pPid & quote & quote & quote & " >nul" & return & \
+            "if errorlevel 1 goto gone" & return & \
+            "set /a n+=1" & return & \
+            "if %n% GEQ" && pWait && "goto done" & return & \
+            "ping -n 2 127.0.0.1 >nul" & return & \
+            "goto wait" & return & \
+            ":gone" & return & \
+            pStart & return & \
+            ":done" & return & \
+            "del " & quote & "%~f0" & quote & " & exit" & return into tScript
+      replace return with crlf in tScript
+      return tScript
+   end if
+   put "#!/bin/sh" & return & \
+         "there() {" & return & \
+         "   kill -0" && pPid && "2>/dev/null || return 1" & return & \
+         "   case " & quote & "$(ps -o stat= -p" && pPid && "2>/dev/null)" & quote & " in *Z*) return 1 ;; esac" & return & \
+         "   return 0" & return & \
+         "}" & return & \
+         "n=0" & return & \
+         "while there; do" & return & \
+         "   n=$((n + 1))" & return & \
+         "   if [ " & quote & "$n" & quote & " -ge" && pWait && "]; then" & return & \
+         "      rm -f " & quote & "$0" & quote & return & \
+         "      exit 0" & return & \
+         "   fi" & return & \
+         "   sleep 1" & return & \
+         "done" & return & \
+         "rm -f " & quote & "$0" & quote & return & \
+         pStart & return into tScript
+   return tScript
+end mcbRelaunchScript
 
 --------------------------------------------------------------------------------
 -- What holds the IDE up

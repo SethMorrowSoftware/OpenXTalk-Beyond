@@ -38,6 +38,13 @@
 				'src/libbrowser_cef_win.cpp',
 				'src/libbrowser_cef_loader_win.cpp',
 				
+				# OXT-Beyond: WebKitGTK, the Linux browser where CEF cannot
+				# load, through the helper libbrowser-webkitprocess
+				'src/libbrowser_json.cpp',
+				'src/libbrowser_webkitgtk.cpp',
+				'src/libbrowser_webkitgtk_protocol.cpp',
+				'src/libbrowser_webkitgtk_protocol.h',
+				
 				'src/libbrowser_win.rc.h',
 				'src/libbrowser_win.rc',
 				
@@ -151,6 +158,11 @@
 							'src/signal_restore_posix.cpp',
 							
 							'src/libbrowser_lnx_factories.cpp',
+							
+							'src/libbrowser_json.cpp',
+							'src/libbrowser_webkitgtk.cpp',
+							'src/libbrowser_webkitgtk_protocol.cpp',
+							'src/libbrowser_webkitgtk_protocol.h',
 						],
 					},
 				],
@@ -219,6 +231,18 @@
 							'../prebuilt/libicu.gyp:libicu',
 							'../thirdparty/libcef/libcef.gyp:libcef_library_wrapper',
 							'../thirdparty/libcef/libcef.gyp:libcef_stubs',
+						],
+					},
+				],
+				
+				[
+					# OXT-Beyond: the WebKitGTK helper, on every Linux
+					# architecture (it needs no CEF)
+					'OS == "linux"',
+					{
+						'dependencies':
+						[
+							'libbrowser-webkitprocess',
 						],
 					},
 				],
@@ -528,6 +552,45 @@
 					],
 				],
 			},
+                    },
+                ],
+            },
+        ],
+        [
+            # OXT-Beyond: the helper process of the Linux WebKitGTK browser
+            # (libbrowser_webkitgtk.cpp). It loads WebKitGTK and GTK 3 with
+            # dlopen, so it builds without their development packages and
+            # needs nothing beyond libc and the C++ runtime to start.
+            'OS == "linux"',
+            {
+                'targets':
+                [
+                    {
+                        'target_name': 'libbrowser-webkitprocess',
+                        'type': 'executable',
+                        'product_name': 'libbrowser-webkitprocess',
+                        
+                        'toolsets': ['host', 'target'],
+                        
+                        'sources':
+                        [
+                            'src/libbrowser_webkitprocess_lnx.cpp',
+                            'src/libbrowser_webkitgtk_protocol.cpp',
+                            'src/libbrowser_webkitgtk_protocol.h',
+                        ],
+                        
+                        'libraries':
+                        [
+                            '-ldl',
+                        ],
+                        
+                        'all_dependent_settings':
+                        {
+                            'variables':
+                            {
+                                'dist_files': [ '<(PRODUCT_DIR)/<(_product_name)>(exe_suffix)' ],
+                            },
+                        },
                     },
                 ],
             },

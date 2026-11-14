@@ -2078,6 +2078,49 @@ screen. [`media-check.yml`](.github/workflows/media-check.yml) runs it on
 the packages of a published release (by hand, for any tag), and on
 macOS starts the release's IDE as well (`tools/ci/mac_ide_start.sh`).
 
+### WebKitGTK browser check (Linux)
+
+On Linux the browser widget uses CEF 156 wherever CEF loads, and WebKitGTK
+where it does not: a package without `Externals/CEF/libcef.so` (the packages
+ship CEF for x86-64 only, and CEF has no 32-bit Linux build), or a machine
+without a library CEF needs.
+The engine is a GTK 2 program and WebKitGTK needs GTK 3, which cannot share
+one process, so each browser runs in a helper process,
+`libbrowser-webkitprocess` next to the engine
+([`libbrowser_webkitprocess_lnx.cpp`](libbrowser/src/libbrowser_webkitprocess_lnx.cpp)),
+whose window the engine embeds through XEmbed, as it embeds CEF's. The
+helper loads WebKitGTK 4.1, or else 4.0, with `dlopen`: it builds without
+WebKitGTK's development files and needs none of it to start, and a machine
+without WebKitGTK has no browser, as before. revBrowser has CEF only.
+`OXT_BROWSER_BACKEND=WebKitGTK` (or `CEF`) makes the engine use only that
+one, to check each; unset, or naming neither, CEF comes first as always.
+
+[`tools/ci/webkit_browser_check.py`](tools/ci/webkit_browser_check.py)
+builds libbrowser's sources with
+[`tools/ci/webkit-browser-check.cpp`](tools/ci/webkit-browser-check.cpp)
+and checks that half on its own, under `xvfb-run` when there is no
+`DISPLAY`: the wire between the two processes, the parameters of a
+javascriptHandler call (the types CEF gives them), the choice of the
+browser, and a browser through the helper (htmlText, which is the page as its script
+left it, as CEF's, pages and their messages in CEF's order, history, JavaScript, javascriptHandlers, the user
+agent, a page that fails, an unknown URL scheme, the page drawn in a GTK 2
+socket as the engine embeds it, the helper ending with the browser), then
+a missing helper (no browser, no crash). It needs g++, `libx11-dev`, GTK 2
+and WebKitGTK (`libwebkit2gtk-4.1-0`); `--helper` takes a built helper,
+`--sanitize` builds with AddressSanitizer and UndefinedBehaviorSanitizer,
+and LeakSanitizer then checks that javascriptHandler calls leave nothing
+behind (only there: WebKitGTK's own allocations last until the process
+ends).
+The browser widget itself, in a standalone, is checked with `media_check.py
+--what widget --browser-backend webkitgtk`.
+
+```sh
+sudo apt-get install g++ libx11-dev libgtk2.0-0 libwebkit2gtk-4.1-0 xvfb
+python3 tools/ci/webkit_browser_check.py --sanitize
+```
+
+The Linux build runs both on its package after the GStreamer player check.
+
 ### Browser window manager check (Linux)
 
 [`tools/ci/browser_wm_check.py`](tools/ci/browser_wm_check.py) runs the
@@ -2350,8 +2393,11 @@ ungroup and align, cards with the Project Browser, find and replace and a
 breakpoint in the Script Editor, Save As, Close and Remove From Memory
 and opening the stack again, Revert to Saved, a Dictionary search, an
 image as a button's icon, the Geometry Manager, a preference changed and
-restored, and the Application Browser. Each task asserts what a person
-would see, waits for it rather than sleeping, and snapshots it
+restored, the Application Browser, and File > Save as Standalone
+Application with the build stopped by an error part way (of the stack,
+and of a stack whose file is named .mc): the stack is left as it was,
+without the IDE's Answer and Ask dialogs in it. Each task asserts what a
+person would see, waits for it rather than sleeping, and snapshots it
 (`everyday-*.png`); `--only` runs the tasks up to the last one named.
 Builds run it on Linux light and dark at once (two Xvfb screens), on
 Windows light then dark, and on the Macs one appearance each (light on

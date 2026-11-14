@@ -65,7 +65,25 @@
 // sends each call with its own proof, and takes the answer only with that
 // one's proof of it. It tries the port again whenever the other is gone.
 // Without --web, none of this runs, and the server does exactly what it
-// does for the desktop IDE.
+// does for the desktop IDE. With it, since 0.2.8-dp.2, a call made while no
+// web IDE is connected goes to the desktop IDE when its bridge is on
+// (DualBridge), so that one server serves both; OXT_MCP_WEB_ONLY=1 keeps
+// it to the web IDE.
+//
+// Which file serves. Claude's app keeps this server running for as long as
+// the app is open, and a desktop extension holds a copy of this file taken
+// when it was saved: either way an OXT-Beyond updated since talked to an
+// older server, whose tools Claude went on seeing. So, for the desktop
+// IDE: OXT-Beyond writes where its own server.js is beside its bridge
+// file (mcp-bridge-server.json, kept while it is closed), and the file
+// Claude's app started serves with that one's code when it is another
+// (installedServer). And while it runs, it looks before a call whether
+// the file it serves with has changed, or OXT-Beyond now names another,
+// and when no call is going on it loads that one in its place, in this
+// same process, and tells the client that the tools changed (reloaded).
+// One object, kept in globalThis, outlives the reloads: it reads standard
+// input and hands each line to the code serving now. OXT_MCP_OWN_SERVER=1
+// keeps a server to its own file, as loaded.
 
 'use strict';
 
@@ -77,7 +95,11 @@ const os = require('os');
 const path = require('path');
 const readline = require('readline');
 
-const SERVER_VERSION = '0.2.0';
+// The server's version: this, and after the tools are listed a digest of
+// them (SERVER_VERSION), so that it changes whenever what Claude is told
+// of the tools does: at 0.2.0 from the first release to 0.2.8-dp.1, a
+// client had no way to see that it had changed
+const SERVER_BASE_VERSION = '0.3.0';
 // The bridge protocol this speaks (the "protocol" of the IDE's file and of
 // its answer to hello)
 const BRIDGE_PROTOCOL = 1;
@@ -106,22 +128,32 @@ const BUSY_WAIT_MS = Number(process.env.OXT_MCP_BUSY_WAIT_MS) || 20000;
 // (its status, over a connection of its own), to tell the client that
 // asked for progress; and how long it may take to answer that
 const STATUS_INTERVAL_MS = Number(process.env.OXT_MCP_STATUS_INTERVAL_MS) || 15000;
-const STATUS_TIMEOUT_MS = 3000;
-// How long a call waits for the user to answer OXT-Beyond's question (Run,
-// Save, an undo) before it is answered that the question is still open:
-// Claude's apps give up on a call after about a minute, and a yes given
-// after that ran what nobody waited for. The call goes on in OXT-Beyond,
+const STATUS_TIMEOUT_MS = Number(process.env.OXT_MCP_STATUS_TIMEOUT_MS) || 3000;
+// How long a call waits for OXT-Beyond before it is answered that it is
+// not done yet: for the user to answer OXT-Beyond's question (Run, Save,
+// an undo), or, since 0.2.8-dp.2, for a run that simply takes long (a
+// test suite, a sweep of stacks). Claude's apps give up on a call after
+// about a minute, and a yes given after that ran what nobody waited for,
+// and a long run's output went to nobody. The call goes on in OXT-Beyond,
 // and pending_result gives what came of it. 0: wait as long as the call
 // may take (CALL_TIMEOUT_MS), as before 0.2.7-rc.6.15. Then how often it
-// looks again while OXT-Beyond is not asking (a run that takes long)
+// looks again while OXT-Beyond says it is done with the call (its answer
+// is on its way, or was lost: see answerLost)
 const ANSWER_WAIT_MS = envMs('OXT_MCP_ANSWER_WAIT_MS', 40000);
-const ANSWER_RECHECK_MS = 5000;
+const ANSWER_RECHECK_MS = envMs('OXT_MCP_ANSWER_RECHECK_MS', 5000);
 // The longest pending_result waits for an answer, in seconds, and what it
 // waits when not told: less than the minute after which Claude's apps give up
 const PENDING_WAIT_MAX_S = 50;
 const PENDING_WAIT_DEFAULT_S = 30;
 // How many calls pending_result keeps the outcome of
 const PENDING_KEEP = 20;
+// The longest wait_until waits, in seconds (OXT-Beyond's kWaitUntilMax):
+// less than ANSWER_WAIT_MS, so that it answers by itself
+const WAIT_UNTIL_MAX_S = 30;
+// How long restart_ide waits for OXT-Beyond to be back with its bridge on,
+// once it has said it quits, and how often it looks
+const RESTART_WAIT_MS = envMs('OXT_MCP_RESTART_WAIT_MS', 30000);
+const RESTART_LOOK_MS = 500;
 // The tools that end what holds an earlier call up (a script paused in the
 // debugger, a dialog a stack opened): OXT-Beyond answers them while that
 // call waits (its kUnblockingTools), so they do not wait their turn here
@@ -166,7 +198,12 @@ const INSTRUCTIONS = [
   '(ask them to look for that window), a script paused in the debugger (stop_paused_script), or a dialog a stack opened',
   '(answer_dialog). Those two answer even while another call waits. A call still waiting for the user\'s answer after about',
   'forty seconds is answered that it waits; it goes on when they answer, and pending_result gives what came of it: do',
-  'not send it again. close_stack closes the test stacks you made. import_hypercard imports a HyperCard stack, or one from a Mac disk image, without running its scripts.'
+  'not send it again. The same for a run that takes longer than that: it goes on, other calls wait for it, and',
+  'pending_result gives its result. For what goes on by itself after a call (a test run filling a report, a timer),',
+  'wait_until waits for a field or property to be as you say, with no code run.',
+  'close_stack closes the test stacks you made. import_hypercard imports a HyperCard stack, or one from a Mac disk image, without running its scripts.',
+  'set_script_from_file sets a script too long for a call from a file the user is shown. set_quiet turns the engine\'s',
+  'sounds off while you test stacks that play them. restart_ide quits OXT-Beyond and starts it again.'
 ].join(' ');
 
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
@@ -538,10 +575,85 @@ const TOOLS = [
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false }
   },
   {
+    name: 'set_script_from_file',
+    title: 'Set a script from a file',
+    description: 'Sets the whole script of a stack, a card or a control of the user\'s to the text of a file on this ' +
+      'computer (UTF-8), for a script too long to send in a call: a test harness, a library, a script the user keeps in a ' +
+      'file. OXT-Beyond shows the user the file\'s path, its size and its text first and sets the script only when they ' +
+      'allow it, unless they turned that asking off (it is then noted in the log, with the file\'s digest). The text is ' +
+      'compiled first and set only when it compiles; undo_changes takes it back. Nothing runs: open the stack again, or ' +
+      'call a handler with run_code, afterwards. For a script you write yourself, use make_changes or edit_script, which ' +
+      'the user sees in your app.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', description: 'The full path of the file with the script, on this computer' },
+        stack: { type: 'string', description: 'The stack or substack, by name; empty for the one the user is working on' },
+        id: { type: 'integer', description: 'The id of the card or control whose script is set; none for the stack\'s own script' }
+      },
+      required: ['file']
+    },
+    annotations: CHANGES
+  },
+  {
+    name: 'wait_until',
+    title: 'Wait for a stack',
+    description: 'Waits, without running any code of yours, until something on a stack of the user\'s is as you say, and ' +
+      'tells you when it is: use it after you start something that goes on by itself (a test run that fills a report ' +
+      'field, an animation, a download) instead of asking again and again with run_code. Name the stack and, with id, a ' +
+      'card or control of it; then one of contains, lacks or equals, compared with the property (text when none: the text ' +
+      'of a field, the label of a button), or exists (true: wait for the stack, card or control to be there; false: to be ' +
+      'gone). The stack\'s own messages and timers go on while it waits. It waits timeout_seconds at most (20 when none, ' +
+      'at most ' + WAIT_UNTIL_MAX_S + '), then says it is not so yet, with the end of the value: call it again to keep waiting.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        stack: { type: 'string', description: 'The stack or substack, by name; empty for the one the user is working on' },
+        id: { type: 'integer', description: 'The id of the card or control to look at; none for the stack itself' },
+        property: { type: 'string', description: 'The property to read, one word (text, label, hilite, visible, thumbPosition...); text when none' },
+        contains: { type: 'string', description: 'Wait until the value contains this text' },
+        lacks: { type: 'string', description: 'Wait until the value no longer contains this text' },
+        equals: { type: 'string', description: 'Wait until the value is this' },
+        exists: { type: 'boolean', description: 'Wait until it is there (true) or gone (false)' },
+        timeout_seconds: { type: 'integer', minimum: 0, maximum: WAIT_UNTIL_MAX_S, description: 'How long to wait at most (20 when none)' }
+      }
+    },
+    annotations: READ_ONLY
+  },
+  {
+    name: 'set_quiet',
+    title: 'Quiet the engine\'s sounds',
+    description: 'Turns the sounds OXT-Beyond\'s engine plays off (quiet true) or back on (false), for testing stacks that ' +
+      'play sounds as they open or run (old HyperCard stacks, games) without noise at the user\'s desk: it sets the ' +
+      'engine\'s playLoudness to 0, and puts back what it was. It is put back by itself when the bridge is turned off ' +
+      'or OXT-Beyond quits, and ide_context says while it is on. On Windows that is OXT-Beyond\'s own loudness; on a Mac ' +
+      'and on Linux the playLoudness is the computer\'s, so say so to the user first there. A beep still sounds on ' +
+      'Windows and a Mac. Turn it back on when you are done.',
+    inputSchema: {
+      type: 'object',
+      properties: { quiet: { type: 'boolean', description: 'true: no sound from play; false: as loud as before' } },
+      required: ['quiet']
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+  },
+  {
+    name: 'restart_ide',
+    title: 'Restart OXT-Beyond',
+    description: 'Quits OXT-Beyond and starts it again, for a test that needs a fresh engine (a library that can be loaded ' +
+      'once, a setting read at start-up) or an IDE that misbehaves, after the user says yes in OXT-Beyond (unless they ' +
+      'turned asking off). OXT-Beyond quits as File > Quit does: it asks the user about stacks with changes not saved, ' +
+      'and stays open if they cancel. The stacks open now are not opened again. The bridge comes back on with OXT-Beyond ' +
+      'when the user keeps it on; this waits about half a minute for that and says whether it is back. Save what must ' +
+      'be kept first (save_stack). Not in the web IDE, where the user reloads the page.',
+    inputSchema: { type: 'object', properties: {} },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false }
+  },
+  {
     name: 'pending_result',
     title: 'Get a call\'s result',
     description: 'Gives the result of a call that was answered before it was done: one still waiting for the user to ' +
-      'answer OXT-Beyond\'s question (Run, Save) after about forty seconds, or one your app stopped waiting for. That call ' +
+      'answer OXT-Beyond\'s question (Run, Save) or still running after about forty seconds, or one your app stopped ' +
+      'waiting for. That call ' +
       'goes on in OXT-Beyond, and what came of it is kept here until read: the run\'s output, the save, or that the user ' +
       'said no. With no request, the oldest. While it still waits, this waits for it (wait_seconds, 30 when none), then ' +
       'says what it waits for. Use it instead of sending the call again, which would ask, and run, twice.',
@@ -558,6 +670,7 @@ const TOOLS = [
 ];
 
 const TOOL_NAMES = new Set(TOOLS.map((t) => t.name));
+const SERVER_VERSION = SERVER_BASE_VERSION + '+' + crypto.createHash('sha256').update(JSON.stringify(TOOLS)).digest('hex').slice(0, 8);
 // The tools this server answers itself, which OXT-Beyond does not have
 const SERVER_TOOLS = new Set(['pending_result']);
 
@@ -568,6 +681,81 @@ function log(message) {
 function infoFilePath() {
   return process.env.OXT_MCP_BRIDGE_FILE || path.join(os.homedir(), '.oxt-beyond', 'mcp-bridge.json');
 }
+
+// --- Which file serves (see the top of this file) ---------------------------
+
+// What outlives a reload, when this file was loaded by the one Claude's
+// app started (or by itself, changed since): null in that first one
+const HOST_KEY = '__oxtMcpHost';
+const HOST = globalThis[HOST_KEY] || null;
+// The last line of a server.js that can be loaded in another's place: a
+// file still being written by an installer lacks it, and is left alone
+const END_MARK = '// end of server.js';
+// How often, at most, a call looks whether the file has changed
+const RELOAD_CHECK_MS = envMs('OXT_MCP_RELOAD_CHECK_MS', 2000);
+
+// Where OXT-Beyond says which server.js is its own: beside its bridge
+// file, named after it (mcp-bridge.json: mcp-bridge-server.json)
+function serverPointerPath() {
+  return infoFilePath().replace(/\.json$/i, '') + '-server.json';
+}
+
+function realPath(file) {
+  try {
+    return fs.realpathSync(file);
+  } catch (e) {
+    return null;
+  }
+}
+
+function sameFile(a, b) {
+  return !!a && !!b && (process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b);
+}
+
+// The server.js of the OXT-Beyond that last turned its bridge on, as a
+// real path, or null: no such note, a file that is gone, or one not named
+// server.js (the note is the user's own file, as the bridge's is, and
+// names nothing else)
+function installedServer() {
+  if (WEB || process.env.OXT_MCP_OWN_SERVER === '1') {
+    return null;
+  }
+  try {
+    const note = JSON.parse(fs.readFileSync(serverPointerPath(), 'utf8'));
+    const file = note && typeof note.server === 'string' ? note.server : '';
+    if (!path.isAbsolute(file) || path.basename(file) !== 'server.js') {
+      return null;
+    }
+    return realPath(file);
+  } catch (e) {
+    return null;
+  }
+}
+
+// What tells one state of a file from another: when it was written and
+// how long it is; null when it cannot be read
+function fileSignature(file) {
+  try {
+    const stat = fs.statSync(file);
+    return stat.mtimeMs + ':' + stat.size;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Whether a file is a whole server.js that can serve in another's place
+// (it knows the host, and ends as this file does)
+function canTakeOver(file) {
+  try {
+    const text = fs.readFileSync(file, 'utf8');
+    return text.includes(HOST_KEY) && text.trimEnd().endsWith(END_MARK);
+  } catch (e) {
+    return false;
+  }
+}
+
+// The file this code was loaded from, and its state then
+const LOADED = { file: realPath(__filename) || __filename, signature: fileSignature(__filename) };
 
 const NOT_RUNNING = 'OXT-Beyond is not running, or its xTalk MCP Bridge is off. Ask the user to open OXT-Beyond and choose ' +
   'Development > Plugins > xTalk MCP Bridge, then Turn On; then try again.';
@@ -605,6 +793,15 @@ class Bridge {
     this.buffer = '';
     this.pending = null;   // { id, resolve, reject, timer }
     this.nextId = 1;
+    // Request ids begin with this, which no other server's do, nor this
+    // one's requests aside: on Windows the engine names a connection by
+    // its handle, which the system gives to the next connection once it is
+    // closed, so OXT-Beyond can send the answer to a request from a
+    // connection that has gone (a status asked while it was busy, of this
+    // server or another Claude app's) to the one made after it. Numbered
+    // from 1 on every connection, such an answer was taken for this one's
+    // hello ("OXT-Beyond speaks bridge protocol undefined")
+    this.idPrefix = crypto.randomBytes(6).toString('hex') + '-';
     this.queue = Promise.resolve();
     this.waiting = 0;      // calls queued or running
     this.toolsNote = '';   // said once after connecting, when the tools differ
@@ -721,6 +918,11 @@ class Bridge {
         this.close();
         throw new BridgeError(hello.error || this.notRunning);
       }
+      if (hello.protocol === undefined) {
+        // Not a hello's answer at all
+        this.close();
+        throw new BridgeError('OXT-Beyond gave an answer that is not its hello\'s, so nothing was sent to it. Try again.');
+      }
       if (hello.protocol !== BRIDGE_PROTOCOL) {
         this.close();
         throw new BridgeError('OXT-Beyond speaks bridge protocol ' + hello.protocol + ', and this MCP server ' + BRIDGE_PROTOCOL + '.');
@@ -732,7 +934,7 @@ class Bridge {
 
   exchange(request, timeoutMs, timeoutText) {
     return new Promise((resolve, reject) => {
-      const id = this.nextId++;
+      const id = this.idPrefix + this.nextId++;
       const timer = setTimeout(() => {
         if (this.pending && this.pending.id === id) {
           this.pending = null;
@@ -756,7 +958,7 @@ class Bridge {
         return;
       }
       this.pending = { id, resolve, reject, timer };
-      this.socket.write(JSON.stringify(Object.assign({ id, token: this.token }, request)) + '\n');
+      this.socket.write(JSON.stringify(Object.assign({ id, token: this.token }, untilOf(request, timeoutMs), request)) + '\n');
     });
   }
 
@@ -798,7 +1000,11 @@ class Bridge {
       const timer = setTimeout(() => {
         if (!ticket.started) {
           ticket.abandoned = true;
-          this.withStatus(BUSY).then(reject);
+          // A call answered early that still goes on is what it is busy
+          // with: pending_result waits for it
+          const running = stillRunning();
+          this.withStatus(running.length === 0 ? BUSY : BUSY + ' Still going on from before: ' + running.join(', ') +
+            '; pending_result waits for it, and gives what came of it.').then(reject);
         }
       }, BUSY_WAIT_MS);
       result.then((r) => { clearTimeout(timer); resolve(r); }, (e) => { clearTimeout(timer); reject(e); });
@@ -821,20 +1027,65 @@ class Bridge {
 
   // The status with whether OXT-Beyond is asking the user a question of
   // its own (its "asking", or, from an OXT-Beyond before 0.2.7-rc.6.15,
-  // its text saying so): { text, asking }
+  // its text saying so), whether it gave a status at all (answered: not
+  // while its engine runs code that lets nothing else in, nor from an
+  // OXT-Beyond that has none) and, when it did, whether a tool runs
+  // there (busy): { text, asking, answered, busy }
   statusInfo() {
     return this.aside({ method: 'status' }, STATUS_TIMEOUT_MS).then((reply) => {
-      const text = reply && reply.ok && typeof reply.text === 'string' ? reply.text : '';
-      const asking = !!(reply && reply.ok && (reply.asking === true ||
+      const answered = !!(reply && reply.ok);
+      const text = answered && typeof reply.text === 'string' ? reply.text : '';
+      const asking = !!(answered && (reply.asking === true ||
         (reply.asking === undefined && /is waiting for the user to answer its question/.test(text))));
-      return { text, asking };
-    }, () => ({ text: '', asking: false }));
+      return { text, asking, answered, busy: answered && reply.busy !== false };
+    }, () => ({ text: '', asking: false, answered: false, busy: false }));
+  }
+
+  // The answer to the call now sent will not come (answerLost): it fails,
+  // and the connection is made again for the next
+  giveUp(error) {
+    const pending = this.pending;
+    if (pending) {
+      this.pending = null;
+      clearTimeout(pending.timer);
+      pending.reject(error);
+      this.close();
+    }
   }
 
   // Whether a request can go on a connection of its own (the web IDE's
   // tab has one connection only)
   canCallAside() {
     return true;
+  }
+
+  // The token of the OXT-Beyond whose bridge is on now, or '' when none
+  // is: another once it has quit and started again (restart_ide)
+  running() {
+    try {
+      return this.readInfo().token;
+    } catch (e) {
+      return '';
+    }
+  }
+
+  // Resolves with true once an OXT-Beyond other than the one that had
+  // this token answers a hello, or with false after waitMs
+  async backAgain(token, waitMs) {
+    const until = Date.now() + waitMs;
+    for (;;) {
+      const now = this.running();
+      if (now !== '' && now !== token) {
+        const hello = await this.aside({ method: 'hello' }, STATUS_TIMEOUT_MS).catch(() => null);
+        if (hello && hello.ok) {
+          return true;
+        }
+      }
+      if (Date.now() >= until) {
+        return false;
+      }
+      await new Promise((resolve) => setTimeout(resolve, RESTART_LOOK_MS));
+    }
   }
 
   // A tool called past the queue (UNBLOCKING_TOOLS), as dispatch would
@@ -860,6 +1111,8 @@ class Bridge {
     }
     return new Promise((resolve, reject) => {
       const socket = net.createConnection({ host: '127.0.0.1', port: info.port });
+      // An id of its own, as the connection calls go on has (idPrefix)
+      const id = crypto.randomBytes(6).toString('hex') + '-a';
       let buffer = '';
       let done = false;
       const finish = (error, reply) => {
@@ -876,23 +1129,26 @@ class Bridge {
       };
       const timer = setTimeout(() => finish(new Error('timeout')), timeoutMs);
       socket.setEncoding('utf8');
-      socket.on('connect', () => socket.write(JSON.stringify(Object.assign({ id: 1, token: info.token }, request)) + '\n'));
+      socket.on('connect', () => socket.write(JSON.stringify(Object.assign({ id, token: info.token },
+        untilOf(request, timeoutMs), request)) + '\n'));
       socket.on('data', (chunk) => {
         buffer += chunk;
-        const at = buffer.indexOf('\n');
-        if (at < 0) {
-          return;
-        }
-        let reply = null;
-        try {
-          reply = JSON.parse(buffer.slice(0, at));
-        } catch (e) {
-          // not an answer
-        }
-        if (reply === null) {
-          finish(new Error('not JSON'));
-        } else {
-          finish(null, reply);
+        let at;
+        while (!done && (at = buffer.indexOf('\n')) >= 0) {
+          let reply = null;
+          try {
+            reply = JSON.parse(buffer.slice(0, at));
+          } catch (e) {
+            // not an answer
+          }
+          buffer = buffer.slice(at + 1);
+          if (reply === null) {
+            finish(new Error('not JSON'));
+          } else if (reply.id === id || reply.id === null || reply.id === undefined) {
+            // Its own answer, or a refusal of a line that could not be
+            // read (no id); another request's answer is not this one's
+            finish(null, reply);
+          }
         }
       });
       socket.on('error', (e) => finish(e));
@@ -935,6 +1191,16 @@ function toolsDifference(ideTools) {
     note += ' (' + missingThere.join(', ') + ' will fail: OXT-Beyond does not have them)';
   }
   return note + '. Tell the user to set Claude up again from OXT-Beyond: Development > Plugins > xTalk MCP Bridge > Claude Setup.';
+}
+
+// For a call, when this server stops waiting for its answer ("until", in
+// milliseconds since 1970 on this computer's clock, which OXT-Beyond reads
+// too): one OXT-Beyond gets to only after that (it was busy, and the
+// request waited on its socket) is refused there with nothing done, where
+// before it ran with nobody waiting (a button of a dialog pressed half a
+// minute late). Nothing for a hello or a status.
+function untilOf(request, timeoutMs) {
+  return request.method === 'call' ? { until: Date.now() + timeoutMs } : {};
 }
 
 function hmac(key, text) {
@@ -1428,6 +1694,11 @@ class WebBridge extends Bridge {
     return false;
   }
 
+  // The web IDE is not restarted from here
+  running() {
+    return '';
+  }
+
   connect() {
     if (this.link.problem) {
       return Promise.reject(new BridgeError(this.link.problem));
@@ -1462,10 +1733,101 @@ class WebBridge extends Bridge {
 // program that loads it to read TOOLS sets OXT_MCP_LIBRARY=1.
 const SERVES = process.env.OXT_MCP_LIBRARY !== '1';
 
+// The web IDE's server with the desktop IDE behind it: a call goes to the
+// web IDE's tab while one is connected (the user chose Connect there),
+// and otherwise to the desktop IDE when its bridge is on, so that the one
+// server Claude's app runs for the web IDE works with whichever IDE is
+// open. A server that found the port taken (WebBridge.relay) asks the one
+// holding it first, and takes the desktop IDE when that one has no tab.
+// What Claude is told once, when the IDE answering is another than before,
+// goes with the tools note.
+class DualBridge {
+  constructor(web, desktop) {
+    this.web = web;
+    this.desktop = desktop;
+    this.last = web;
+    this.said = web;
+    this.note = '';
+  }
+
+  desktopOn() {
+    return this.desktop.running() !== '';
+  }
+
+  use(bridge, tool, args, state) {
+    this.last = bridge;
+    if (this.said !== bridge) {
+      this.said = bridge;
+      this.note = bridge === this.desktop
+        ? 'Note: no web IDE is connected, so this was answered by OXT-Beyond on the desktop, whose bridge is on.'
+        : 'Note: this was answered by the web IDE, which is connected now.';
+    }
+    return bridge.call(tool, args, state);
+  }
+
+  call(tool, args, state) {
+    const ticket = state || {};
+    const link = this.web.link;
+    if (!link.tab && !link.taken && this.desktopOn()) {
+      return this.use(this.desktop, tool, args, ticket);
+    }
+    return this.use(this.web, tool, args, ticket).catch((e) => {
+      if (!(e instanceof BridgeError) || !e.message.startsWith(WEB_NOT_CONNECTED)) {
+        throw e;
+      }
+      if (this.desktopOn()) {
+        return this.use(this.desktop, tool, args, ticket);
+      }
+      throw new BridgeError(e.message + ' (Or, for OXT-Beyond on the desktop: open it and turn its xTalk MCP Bridge on; this ' +
+        'server works with it too.)');
+    });
+  }
+
+  get waiting() {
+    return this.web.waiting + this.desktop.waiting;
+  }
+
+  status() {
+    return this.last.status();
+  }
+
+  statusInfo() {
+    return this.last.statusInfo();
+  }
+
+  canCallAside() {
+    return this.last.canCallAside();
+  }
+
+  running() {
+    return this.last.running();
+  }
+
+  backAgain(token, waitMs) {
+    return this.last.backAgain(token, waitMs);
+  }
+
+  giveUp(error) {
+    this.last.giveUp(error);
+  }
+
+  takeToolsNote() {
+    const notes = [this.last.takeToolsNote(), this.note].filter(Boolean);
+    this.note = '';
+    return notes.join('\n\n');
+  }
+
+  close() {
+    this.web.close();
+    this.desktop.close();
+  }
+}
+
 let bridge;
 if (WEB) {
   const link = new WebLink(WEB_PORT, WEB_ORIGINS, WEB_KEY);
-  bridge = new WebBridge(link);
+  const web = new WebBridge(link);
+  bridge = process.env.OXT_MCP_WEB_ONLY === '1' ? web : new DualBridge(web, new Bridge());
   if (SERVES) {
     link.listen();
   }
@@ -1523,6 +1885,15 @@ class PendingCalls {
 }
 
 const pending = new PendingCalls();
+// The results not read yet go with a reload (reloaded): none of them is
+// still going on then
+if (HOST && HOST.carried) {
+  for (const entry of HOST.carried.calls) {
+    pending.calls.set(entry.number, entry);
+  }
+  pending.next = HOST.carried.next;
+  HOST.carried = null;
+}
 
 // What a call deferred while the user is asked is answered
 function deferredText(number, tool, status) {
@@ -1530,6 +1901,31 @@ function deferredText(number, tool, status) {
     'question stays open, and the call goes on as soon as they answer. Ask the user to look for that window in OXT-Beyond ' +
     '(it may be behind others), then call pending_result with request ' + number + ' to get what came of it. Do not send ' +
     'this call again: it would ask, and run, twice.' + (status ? '\n\n' + status : '');
+}
+
+// What a call deferred because it takes long is answered
+function runningText(number, tool, seconds, status) {
+  return 'Not done yet: OXT-Beyond is still carrying out ' + tool + ' (' + seconds + ' seconds so far). It goes on there, and ' +
+    'other calls wait until it is done. Call pending_result with request ' + number + ' to wait for what comes of it (again, ' +
+    'while it says not done). Do not send this call again: it would run twice.' + (status ? '\n\n' + status : '');
+}
+
+// What a call is answered when OXT-Beyond says it is done with it and no
+// answer came (see answerLost)
+const ANSWER_LOST = 'OXT-Beyond carried the call out, but its answer did not arrive here (the connection it was sent on had ' +
+  'gone). What was asked was done: read the stack or list_changes to see what came of it before going on; do not send it again ' +
+  'without looking.';
+
+// The calls answered early that still go on, for a call refused as busy:
+// "call 3 (run_code)"
+function stillRunning() {
+  const names = [];
+  for (const entry of pending.calls.values()) {
+    if (!entry.done) {
+      names.push('call ' + entry.number + ' (' + entry.tool + ')');
+    }
+  }
+  return names;
 }
 
 // The MCP result of OXT-Beyond's reply to a call
@@ -1554,7 +1950,22 @@ async function callTool(params, state) {
   if (name === 'pending_result') {
     return pendingResult(args);
   }
-  const work = bridge.call(name, args, state).then(resultOf, (e) => {
+  let sent = bridge.call(name, args, state);
+  if (name === 'restart_ide') {
+    // OXT-Beyond answers, then quits: this says whether it came back
+    const before = bridge.running();
+    sent = sent.then(async (reply) => {
+      if (!reply || !reply.ok || reply.isError || before === '') {
+        return reply;
+      }
+      const back = await bridge.backAgain(before, RESTART_WAIT_MS);
+      return Object.assign({}, reply, { text: (reply.text || '') + '\n\n' + (back
+        ? 'OXT-Beyond is running again, with its bridge on. The stacks that were open are closed: open what you need again.'
+        : 'OXT-Beyond is not back with its bridge on after ' + Math.round(RESTART_WAIT_MS / 1000) + ' seconds: it may still be ' +
+          'asking the user about a stack not saved, or starting. list_stacks says when it is there.') });
+    });
+  }
+  const work = sent.then(resultOf, (e) => {
     if (e instanceof BridgeError) {
       return textResult(e.message, true);
     }
@@ -1583,12 +1994,15 @@ async function callTool(params, state) {
         reject(e);
       }
     });
+    const began = Date.now();
+    let idle = 0;
     const look = () => {
       if (done || state.cancelled) {
         return;
       }
       // Only a call that has gone to OXT-Beyond waits for the user's answer
-      // to its question; one waiting its turn here is told it is busy
+      // to its question, or for a long run; one waiting its turn here is
+      // told it is busy
       if (!state.started) {
         timer = setTimeout(look, ANSWER_RECHECK_MS);
         return;
@@ -1601,6 +2015,17 @@ async function callTool(params, state) {
           done = true;
           state.deferred = true;
           resolve(textResult(deferredText(pending.add(name, work), name, info.text), false));
+        } else if (info.busy || !info.answered) {
+          // A tool runs there, or its engine lets nothing else in (code
+          // that does not wait): the call takes long
+          done = true;
+          state.deferred = true;
+          resolve(textResult(runningText(pending.add(name, work), name, Math.round((Date.now() - began) / 1000), info.text), false));
+        } else if (++idle >= 2) {
+          // OXT-Beyond says, twice, that no tool runs there, and this
+          // call has no answer: the answer went to a connection that had
+          // gone (untilOf says how), and none will come
+          bridge.giveUp(new BridgeError(ANSWER_LOST));
         } else {
           timer = setTimeout(look, ANSWER_RECHECK_MS);
         }
@@ -1675,9 +2100,14 @@ async function handle(message) {
   switch (method) {
     case 'initialize': {
       const asked = params && params.protocolVersion;
+      if (globalThis[HOST_KEY]) {
+        globalThis[HOST_KEY].initialized = true;
+      }
       respond(id, {
         protocolVersion: MCP_VERSIONS.includes(asked) ? asked : MCP_VERSIONS[0],
-        capabilities: { tools: { listChanged: false } },
+        // The tools change when this file is loaded again after an
+        // update of OXT-Beyond (reloaded); never for the web IDE's server
+        capabilities: { tools: { listChanged: !WEB } },
         serverInfo: WEB ? { name: 'oxt-beyond-web', title: 'OXT-Beyond (web IDE)', version: SERVER_VERSION }
           : { name: 'oxt-beyond', title: 'OXT-Beyond', version: SERVER_VERSION },
         instructions: INSTRUCTIONS
@@ -1732,23 +2162,142 @@ async function handle(message) {
   }
 }
 
+// One line from the client, for the code serving now
+function handleLine(line) {
+  if (line.trim() === '') {
+    return;
+  }
+  if (reloaded(line)) {
+    return;
+  }
+  let message;
+  try {
+    message = JSON.parse(line);
+  } catch (e) {
+    respondError(null, -32700, 'Parse error');
+    return;
+  }
+  handle(message).catch((e) => log('error: ' + e.stack));
+}
+
+// True while no call is going on here, in OXT-Beyond or kept for
+// pending_result
+function idle() {
+  if (inFlight.size > 0 || bridge.waiting > 0) {
+    return false;
+  }
+  for (const entry of pending.calls.values()) {
+    if (!entry.done) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Loads the server.js that should serve now in this one's place, when it
+// is another file or this one changed since it was loaded (see the top of
+// this file), and hands it the line; true when it did. Looked at before a
+// line is handled, at most every RELOAD_CHECK_MS, and only while no call
+// is going on.
+function reloaded(line) {
+  const host = globalThis[HOST_KEY];
+  if (!host || WEB) {
+    return false;
+  }
+  const now = Date.now();
+  if (now - host.checked < RELOAD_CHECK_MS) {
+    return false;
+  }
+  host.checked = now;
+  // OXT-Beyond's own; with no note of it (never written, or being
+  // written now), the file serving now while it is there, else the one
+  // Claude's app started
+  const target = installedServer() || (fileSignature(LOADED.file) !== null ? LOADED.file : host.entry);
+  const signature = fileSignature(target);
+  if (signature === null || (sameFile(target, LOADED.file) && signature === LOADED.signature)) {
+    return false;
+  }
+  // One that could not be loaded is not tried again as it is
+  if (host.failed === target + '\n' + signature || !idle()) {
+    return false;
+  }
+  if (!canTakeOver(target)) {
+    // An older server.js, or one an installer is still writing
+    host.failed = target + '\n' + signature;
+    log('not loading ' + target + ': it is not a whole server.js that can be loaded in this one\'s place');
+    return false;
+  }
+  const before = host.current;
+  host.carried = { calls: [...pending.calls.values()], next: pending.next };
+  try {
+    forget(target);
+    require(target);
+    if (host.current === before) {
+      throw new Error('it did not take over');
+    }
+  } catch (e) {
+    host.carried = null;
+    host.current = before;
+    host.failed = target + '\n' + signature;
+    log('could not load ' + target + ' (' + e.message + '); still serving with ' + LOADED.file);
+    return false;
+  }
+  log('now serving with ' + target + (sameFile(target, LOADED.file) ? ', changed since it was loaded' : ''));
+  bridge.close();
+  if (host.initialized) {
+    process.stdout.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/tools/list_changed' }) + '\n');
+  }
+  host.current.handleLine(line);
+  return true;
+}
+
+// Takes a file out of the modules Node keeps, so that loading it runs it
+// again (by its real path too: Windows names a file in more than one way)
+function forget(file) {
+  for (const key of Object.keys(require.cache)) {
+    if (sameFile(key, file) || sameFile(realPath(key), file)) {
+      delete require.cache[key];
+    }
+  }
+}
+
+// What the host calls of the code serving now
+function serving() {
+  return { handleLine, close: () => bridge.close(), file: LOADED.file };
+}
+
+// Starts serving: in the file Claude's app started, with OXT-Beyond's own
+// server.js when that is another file, and reading standard input for
+// whichever code serves; in a file loaded by that one, by taking its place
 function main() {
-  const input = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
-  input.on('line', (line) => {
-    if (line.trim() === '') {
-      return;
-    }
-    let message;
+  if (HOST) {
+    HOST.current = serving();
+    return;
+  }
+  const other = installedServer();
+  if (other && !sameFile(other, LOADED.file) && !canTakeOver(other)) {
+    // OXT-Beyond's own is an older server.js, which reads standard input
+    // itself: it serves alone
+    log('serving with ' + other + ', the server of the OXT-Beyond installed');
+    require(other);
+    return;
+  }
+  const host = { entry: LOADED.file, current: serving(), checked: Date.now(), failed: '', carried: null, initialized: false };
+  globalThis[HOST_KEY] = host;
+  if (other && !sameFile(other, LOADED.file)) {
     try {
-      message = JSON.parse(line);
+      require(other);
+      log('serving with ' + other + ', the server of the OXT-Beyond installed');
     } catch (e) {
-      respondError(null, -32700, 'Parse error');
-      return;
+      host.current = serving();
+      host.failed = other + '\n' + fileSignature(other);
+      log('could not load ' + other + ' (' + e.message + '); serving with ' + LOADED.file);
     }
-    handle(message).catch((e) => log('error: ' + e.stack));
-  });
+  }
+  const input = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
+  input.on('line', (line) => host.current.handleLine(line));
   input.on('close', () => {
-    bridge.close();
+    host.current.close();
     process.exit(0);
   });
 }
@@ -1757,4 +2306,5 @@ if (SERVES) {
   main();
 }
 
-module.exports = { TOOLS, MCP_VERSIONS, BRIDGE_PROTOCOL };
+module.exports = { TOOLS, MCP_VERSIONS, BRIDGE_PROTOCOL, SERVER_VERSION };
+// end of server.js

@@ -104,6 +104,33 @@ on TestPlanRefusesMistakes
    TestAssert "nothing changed in the user's stack", xtaStackDump(tStack) is tDump
 end TestPlanRefusesMistakes
 
+-- A batch whose scripts are only compiled (xtaBuildPlan's third
+-- parameter, for a script from a file of the user's): what the engine
+-- takes is taken, and the batch after it is checked as before
+on TestPlanCompileOnly
+   local tStack, tBatch, tPlan, tApplied
+   put TestUserStack() into tStack
+   put "{`changes`:[{`action`:`set`,`object`:`stack`,`script`:`put 1 into gLoose\non a\n   put sTotal + 1 into tSum\nend a`}]}" into tBatch
+   put TestPlan(tBatch, tStack) into tPlan
+   TestDiagnostic tPlan["problems"]
+   TestAssert "as code the model wrote, it is refused", tPlan["ok"] is false and tPlan["problems"] contains "does not compile"
+   put xtaBuildPlan(xtaJsonParse(TestJson(tBatch)), tStack, true) into tPlan
+   TestDiagnostic tPlan["problems"]
+   TestAssert "as a script the engine takes, it is planned", tPlan["ok"] is true
+   put xtaBuildApply(tPlan) into tApplied
+   TestAssert "and set", tApplied["ok"] is true and the script of tStack contains "put sTotal + 1 into tSum"
+   put xtaBuildPlan(xtaJsonParse(TestJson("{`changes`:[{`action`:`set`,`object`:`stack`,`script`:`on a\n   put 1 +\nend a`}]}")), tStack, true) into tPlan
+   TestDiagnostic tPlan["problems"]
+   TestAssert "what the engine refuses is refused, with its line", tPlan["ok"] is false and tPlan["problems"] contains "does not compile" \
+         and tPlan["problems"] contains "line 2"
+   put xtaBuildPlan(xtaJsonParse(TestJson("{`changes`:[{`action`:`set`,`object`:`stack`,`script`:`just words`}]}")), tStack, true) into tPlan
+   TestAssert "lines outside a handler, which the engine skips, are let through", tPlan["ok"] is true
+   put TestPlan(tBatch, tStack) into tPlan
+   TestAssert "the next batch is checked as code the model wrote again", tPlan["ok"] is false
+   put TestPlan("{`changes`:[{`action`:`set`,`object`:`stack`,`script`:`just words`}]}", tStack) into tPlan
+   TestAssert "and its lines outside a handler refused", tPlan["ok"] is false and tPlan["problems"] contains "made of handlers"
+end TestPlanCompileOnly
+
 on TestPlanRefusesWhatUndoCannotPutBack
    local tStack, tPlan, tGroup
    put TestUserStack() into tStack

@@ -627,6 +627,11 @@ command TestRunStack pOptions, pStackFilePath, pArgs
 	if the platform is "HTML5" then
 		throw "SKIP test runs a stack in another engine, which a browser cannot start"
 	end if
+	-- Nor has an Android app: its engine's shell() always fails
+	-- (MCAndroidSystem::Shell, error 539)
+	if the platform is "android" then
+		throw "SKIP test runs a stack in another engine, which an Android app cannot start"
+	end if
 
 	local tEnginePath
 	set the itemDelimiter to ":"
@@ -715,8 +720,11 @@ private function __MeetsRequirements pRequirement, pOptions
       -- socket of its own, nor start another program: the web engine
       -- fetches URLs, but has no sockets and no shell()
       case "sockets"
-      case "shell"
          return the platform is not "HTML5"
+      -- Nor has an Android app a shell() (MCAndroidSystem::Shell always
+      -- fails), though it has sockets
+      case "shell"
+         return the platform is not among the items of "HTML5,android"
       case "ui"
          return not (the environment ends with "command line")
       case "desktop"
@@ -782,10 +790,12 @@ command TestEnsureJVM
          end if
          break
       case "Linux"
-         -- the engine loads libjvm.so by its name alone, without looking in
-         -- JAVA_HOME
-         if not __LinkerFindsLibJVM() then
-            throw "SKIP no Java runtime the engine can load: on Linux it needs libjvm.so in a folder of LD_LIBRARY_PATH"
+         -- the engine loads libjvm.so by its name, and (OXT-Beyond) when
+         -- that fails from JAVA_HOME's lib/server, as a JDK 9 or later has
+         -- it
+         if not __LinkerFindsLibJVM() and \
+               not ($JAVA_HOME is not empty and there is a file ($JAVA_HOME & "/lib/server/libjvm.so")) then
+            throw "SKIP no Java runtime the engine can load: on Linux it needs libjvm.so in a folder of LD_LIBRARY_PATH, or a JDK 9 or later in JAVA_HOME"
          end if
          break
    end switch

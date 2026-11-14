@@ -76,7 +76,8 @@ run_engine_tests.py's baselines have them: "lcs: <test>", "? " before one
 that fails only sometimes, comments after " #"). A failure not in it fails
 the check; baseline entries that passed are reported, so that they can be
 removed, and --update-baseline rewrites the baseline with the failures,
-keeping the comments of the entries that it had. The results go to
+keeping the comments of the entries that it had. The output says of each
+failure in the baseline the first line it gave. The results go to
 --results (default <work>/android-tests-<engine>.json), the log of every
 failed test's output and what the device said as the app stopped to --log
 (default <work>/android-tests-<engine>.log), with the tests run again and
@@ -463,6 +464,26 @@ def result_of(run_, line):
     if line in run_.again:
         details.append(AGAIN_NOTE)
     return outcome, counts, text, details, failures
+
+
+def first_line(row, limit=300):
+    """In a line, why the test of row (ident, outcome, TAP text, details,
+    failure lines) failed: its first failed assertion, with the diagnostic
+    line the test library put under it (the error a handler threw, for
+    one), or else what the harness says of it."""
+    text, details, failures = row[2], row[3], row[4]
+    if failures:
+        said = failures[0]
+        lines = [x.strip() for x in text.splitlines()]
+        at = lines.index(said) if said in lines else -1
+        if 0 <= at < len(lines) - 1 and lines[at + 1].startswith('#'):
+            said += ' ' + lines[at + 1]
+    elif details:
+        said = details[0]
+    else:
+        said = '(it said nothing)'
+    said = ' '.join(said.split())
+    return said if len(said) <= limit else said[:limit - 3] + '...'
 
 
 def mark_app(lines, pids):
@@ -869,6 +890,15 @@ def run_command(args):
         log('  NEW   %s' % ident)
         for x in by_ident[ident][4][:10] + by_ident[ident][3][:20]:
             log('        %s' % x)
+    # and the baseline's failures, each with the first line it gave (the
+    # --log file has the rest): what a baseline's comment says of a test
+    # can then be read against what this run says of it, where the file,
+    # an artifact, is not at hand
+    known_failing = [ident for ident in failing if ident not in new]
+    if known_failing:
+        log('The failures in the baseline, each with its first line:')
+        for ident in known_failing:
+            log('  KNOWN %s: %s' % (ident, first_line(by_ident[ident])))
     if fixed:
         log('Baseline entries that passed (remove them from the baseline):')
         for ident in fixed:

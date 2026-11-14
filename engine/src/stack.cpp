@@ -548,6 +548,25 @@ MCStack::MCStack(const MCStack &sref)
     m_hypertalk_compatible = sref.m_hypertalk_compatible;
 }
 
+// OXT-Beyond: the stack that becomes the default when the default stack is
+// deleted. It was the top stack alone, and with no stack window open (an
+// engine run with -ui, or a standalone that has closed every window) there
+// is none, so the default stack was left empty and the next thing that used
+// it crashed (an access violation reading 0x8 on Windows: `create stack`,
+// `set the defaultStack` to it, `delete` it, then `go stack`, `the
+// defaultStack` or `the name of stack <file>`). Then the home stack, as
+// MCDispatch::destroystack already does. Where there is a top stack (the
+// IDE, a standalone with a window open) it is chosen, as before.
+static MCStack *MCStackDefaultAfterDelete(MCStack *p_deleted)
+{
+    if (MCtopstackptr)
+        return MCtopstackptr;
+    MCStack *t_home = MCdispatcher != nullptr ? MCdispatcher->gethome() : nullptr;
+    if (t_home == p_deleted)
+        return nullptr;
+    return t_home;
+}
+
 MCStack::~MCStack()
 {
 	flags &= ~F_DESTROY_STACK;
@@ -615,7 +634,7 @@ MCStack::~MCStack()
         MCstacks->top(nil);
     }
     if (MCstaticdefaultstackptr.IsBoundTo(this))
-		MCstaticdefaultstackptr = MCtopstackptr;
+		MCstaticdefaultstackptr = MCStackDefaultAfterDelete(this);
 	if (MCdefaultstackptr.IsBoundTo(this))
 		MCdefaultstackptr = MCstaticdefaultstackptr;
     delete[] needs; /* Allocated with new[] */
@@ -1511,7 +1530,7 @@ void MCStack::removereferences()
         MCstacks->top(nil);
     }
     if (MCstaticdefaultstackptr == this)
-        MCstaticdefaultstackptr = MCtopstackptr;
+        MCstaticdefaultstackptr = MCStackDefaultAfterDelete(this);
     if (MCdefaultstackptr == this)
         MCdefaultstackptr = MCstaticdefaultstackptr;
     

@@ -311,6 +311,10 @@ private:
 
 typedef MCObjectProxy<MCImage>::Handle MCImageHandle;
 
+// OXT-Beyond: an entry of an image's frameDurations that a script left
+//   empty: that frame keeps the duration its file gives it.
+#define kMCImageFrameDurationFromFile UINT32_MAX
+
 class MCImage : public MCControl, public MCMixinObjectHandle<MCImage>
 {
 public:
@@ -373,6 +377,18 @@ private:
     
     // MM-2014-07-31: [[ ThreadedRendering ]] Used to ensure the image animate message is only posted from a single thread.
     bool m_animate_posted : 1;
+
+	// OXT-Beyond: the frameDurations and playRate of an animated image.
+	//   m_frame_durations holds a script's own duration, in milliseconds,
+	//   for each frame it named (kMCImageFrameDurationFromFile for one it
+	//   left empty); nil, the default, means every frame keeps the
+	//   duration its file gives it. m_play_rate divides every duration; 1,
+	//   the default, leaves them as they are. Neither is saved with the
+	//   stack, so a stack an older engine saved (or opens) animates exactly
+	//   as before.
+	uint32_t *m_frame_durations;
+	uindex_t m_frame_durations_count;
+	double m_play_rate;
 	
 public:
 	// replace the current image data with the new bitmap
@@ -673,6 +689,16 @@ public:
 	void SetConstantMask(MCExecContext& ctxt, bool setting);
 	void GetRepeatCount(MCExecContext& ctxt, integer_t& r_count);
 	void SetRepeatCount(MCExecContext& ctxt, integer_t p_count);
+	// OXT-Beyond: the duration the animation timer waits on the given
+	//   frame: the file's own, or the frameDurations' entry for it, divided
+	//   by the playRate. With neither property set it is exactly what the
+	//   image rep's GetFrameDuration answers, so old stacks keep their pace.
+	bool getplaybackframeduration(uindex_t p_index, uint32_t &r_duration);
+	// OXT-Beyond: frameDurations and playRate
+	void GetFrameDurations(MCExecContext& ctxt, MCStringRef& r_durations);
+	void SetFrameDurations(MCExecContext& ctxt, MCStringRef p_durations);
+	void GetPlayRate(MCExecContext& ctxt, double& r_rate);
+	void SetPlayRate(MCExecContext& ctxt, double p_rate);
 	void GetFormattedHeight(MCExecContext& ctxt, integer_t& r_height);
 	void GetFormattedWidth(MCExecContext& ctxt, integer_t& r_width);
 	void GetText(MCExecContext& ctxt, MCDataRef& r_text);

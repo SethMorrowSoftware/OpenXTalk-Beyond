@@ -1,0 +1,14 @@
+# Android card: the groups around the "Target" menu (patch -1) grow to
+# hold it, as the engine makes them: "Requirements and Restrictions" to 4
+# pixels past the menu (746, and the group's margins of 4), and "Android
+# Settings", which holds it, to 4 pixels past that, the window's width
+# (754; that one in android-card-post-notifications-2, which patches its
+# rect already). The groups show nothing of their own there (no border, no
+# background), and a group passes a click on a part of it that holds no
+# control of its own to what lies below (MCGroup::mfocus in
+# engine/src/group.cpp); nothing on the card moves.
+file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
+object: group "Requirements and Restrictions" of group "Android Settings" of card "Android"
+property: rect
+from: 378,103,718,503
+to: 378,103,750,503

@@ -51,6 +51,22 @@ on TestNetworkDNSServers
 
 end TestNetworkDNSServers
 
+-- The dnsServers answers (a list, perhaps empty) and never throws. On
+-- Android LiveCode 9.6.3's engine had no way to find them and threw
+-- (error 198); Beyond's asks Android for the active network's.
+on TestNetworkDNSServersAnswers
+   local tServers, tError
+   try
+      put the dnsservers into tServers
+   catch tError
+   end try
+   TestAssert "the dnsServers does not throw", tError is empty
+   repeat for each line tServer in tServers
+      TestAssert "no empty line or scope in" && tServer, \
+            tServer is not empty and "%" is not in tServer
+   end repeat
+end TestNetworkDNSServersAnswers
+
 on TestNetwork4
 
 TestAssert "hostnametoaddress", hostnametoaddress("google-public-dns-a.google.com") is "8.8.8.8"
@@ -66,6 +82,12 @@ close socket tSock
 end TestNetwork13
 
 on TestPeerAddress
+   -- OXT-Beyond: the peerAddress is a desktop and server function; on
+   -- Android and iOS it answers empty (TestPeerAddressIsEmptyOnMobile)
+   if the platform is among the items of "android,iphone" then
+      TestSkip "peeraddress", "the peerAddress is desktop and server only"
+      exit TestPeerAddress
+   end if
    put "www.livecode.com:80|" & uuid() into tSock
 open socket tSock 
 
@@ -76,6 +98,14 @@ repeat while the millisecs - tTime < tTimeOut
 	get the peeraddress of tSock
 	if it is not empty then
 		TestAssert "peeraddress", it is among the lines of hostnametoaddress(tSock)
+		-- OXT-Beyond: what was compared, in a line (on an Android
+		-- emulator the address was not among them with OXT-Beyond's
+		-- engine, each run, and the connection took longer than the
+		-- test waits with LiveCode 9.6.3's)
+		local tAddresses
+		put hostnametoaddress(tSock) into tAddresses
+		replace return with comma in tAddresses
+		TestDiagnostic "the peeraddress:" && it & "; hostnametoaddress:" && tAddresses
 		close socket tSock
 		exit TestPeerAddress
 	end if
@@ -84,6 +114,37 @@ end repeat
 TestSkip "peeraddress", "connection timed out"
 close socket tSock
 end TestPeerAddress
+
+-- OXT-Beyond: on Android and iOS the peerAddress answers empty, whatever
+-- the handler did before it. It used to put nothing into its answer, and
+-- the engine handed on what that answer's storage last held: on an
+-- Android emulator OXT-Beyond's engine gave "100", the number the handler
+-- had just put into a variable (the old TestPeerAddress's timeout), and
+-- LiveCode 9.6.3's engine stopped the app (a native crash)
+on TestPeerAddressIsEmptyOnMobile
+   if the platform is not among the items of "android,iphone" then
+      TestSkip "peeraddress on mobile", "not Android or iOS"
+      exit TestPeerAddressIsEmptyOnMobile
+   end if
+   local tSock, tTimeout, tTime, tAddress
+   put "www.livecode.com:80|" & uuid() into tSock
+   open socket tSock
+   put 100 into tTimeout
+   put the millisecs into tTime
+   repeat while the millisecs - tTime < tTimeout
+      put the peeraddress of tSock into tAddress
+      if tAddress is not empty then
+         exit repeat
+      end if
+   end repeat
+   TestAssert "the peerAddress of an open socket is empty on mobile", tAddress is empty
+   TestDiagnostic "the peeraddress:" && tAddress
+   close socket tSock
+   -- a value the answer's storage could still hold
+   put 200 into tTimeout
+   put peerAddress("no such socket") into tAddress
+   TestAssert "the peerAddress of no socket is empty on mobile", tAddress is empty
+end TestPeerAddressIsEmptyOnMobile
 
 on TestOpenSocketFrom
    put "livecode.com|" & uuid() into tSock

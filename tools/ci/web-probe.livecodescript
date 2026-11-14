@@ -310,7 +310,98 @@ command probeUrls
       probeCheck "url-load", sLoaded is "downloaded" and sLoadedData is "probe data 123", \
             "status=" & sLoaded && "data=" & sLoadedData
    end if
+
+   probeGoStackUrl tOrigin, tLibUrl
 end probeUrls
+
+-- go stack URL, as on the desktop (OpenXTalkPaul, openxtalk.org
+-- p=25362): the URL's data is the stack. The probe saves a stack of its
+-- own (a field with an e acute and a CJK character, which must come back
+-- as the same codepoints) and posts its bytes, base64-encoded, to
+-- /probe-stack, which web_check.py then serves as /probe-stack.livecode;
+-- /probe-stack.livecodescript is a script-only stack. The page's own site
+-- serves them; so does another site, the same server by the name
+-- "localhost" (another origin), which the browser lets the page read only
+-- when the server allows it with an Access-Control-Allow-Origin header
+-- (?cors=1). Without one the browser refuses the download (CORS), the
+-- stack does not open and the result says the request failed: no engine
+-- can get past that, as the browser enforces it.
+private command probeGoStackUrl pOrigin, pLibUrl
+   local tFile, tResult, tOther, tCodepoints, tChar, tExpected
+   if there is a stack "ProbeRemote" then
+      delete stack "ProbeRemote"
+   end if
+   create invisible stack "ProbeRemote"
+   set the rect of stack "ProbeRemote" to 600,100,760,160
+   set the defaultStack to "ProbeRemote"
+   create field "Remote Text"
+   put "caf" & numToCodepoint(233) && numToCodepoint(0x65E5) into field "Remote Text" of stack "ProbeRemote"
+   put "/tmp/probe-remote.livecode" into tFile
+   save stack "ProbeRemote" as tFile
+   delete stack "ProbeRemote"
+   post base64Encode(url ("binfile:" & tFile)) to url (pOrigin & "/probe-stack")
+   set the defaultStack to "WebProbe"
+   put "99,97,102,233,32,26085" into tExpected
+
+   -- the page's own site: a stack file, as "go stack URL"
+   go stack URL (pOrigin & "/probe-stack.livecode")
+   put the result into tResult
+   put empty into tCodepoints
+   if there is a stack "ProbeRemote" then
+      repeat for each codepoint tChar in field "Remote Text" of stack "ProbeRemote"
+         if tCodepoints is not empty then
+            put comma after tCodepoints
+         end if
+         put codepointToNum(tChar) after tCodepoints
+      end repeat
+   end if
+   probeCheck "go-stack-url", tResult is empty and tCodepoints is tExpected and \
+         the short name of the topStack is "ProbeRemote", \
+         "result=" & tResult && "codepoints=" & tCodepoints && "top=" & the short name of the topStack
+   probeCloseRemote "ProbeRemote"
+
+   -- a script-only stack, as "go to stack URL", and a card of it
+   go to card 1 of stack URL (pOrigin & "/probe-stack.livecodescript")
+   put the result into tResult
+   probeCheck "go-stack-url-script", tResult is empty and there is a stack "ProbeRemoteScript" and \
+         the cProbeOpened of stack "ProbeRemoteScript" is true, \
+         "result=" & tResult && "there=" & (there is a stack "ProbeRemoteScript")
+   probeCloseRemote "ProbeRemoteScript"
+
+   -- another site that allows the page to read it
+   put pOrigin into tOther
+   replace "//127.0.0.1:" with "//localhost:" in tOther
+   go stack URL (tOther & "/probe-stack.livecode?cors=1")
+   put the result into tResult
+   probeCheck "go-stack-url-cors", tResult is empty and there is a stack "ProbeRemote", \
+         "url=" & tOther && "result=" & tResult && "there=" & (there is a stack "ProbeRemote")
+   probeCloseRemote "ProbeRemote"
+
+   -- another site that does not: no stack, and the result says why (the
+   -- engine's "Request failed", libURL's "Error sending request: ...")
+   go stack URL (tOther & "/probe-stack.livecode")
+   put the result into tResult
+   if pLibUrl then
+      put tResult begins with "Error sending request" into tExpected
+   else
+      put tResult is "Request failed" into tExpected
+   end if
+   probeCheck "go-stack-url-blocked", tExpected and there is not a stack "ProbeRemote" and \
+         the short name of the topStack is "WebProbe", \
+         "result=" & tResult && "there=" & (there is a stack "ProbeRemote")
+   probeCloseRemote "ProbeRemote"
+end probeGoStackUrl
+
+-- Close and forget a stack that go stack URL opened, so that the probe's
+-- stack is the top and default stack again for the checks after it
+private command probeCloseRemote pStack
+   if there is a stack pStack then
+      close stack pStack
+      delete stack pStack
+   end if
+   set the defaultStack to "WebProbe"
+   go stack "WebProbe"
+end probeCloseRemote
 
 -- True when libURL loads URLs: its stack is in the back scripts
 private function probeUsesLibUrl

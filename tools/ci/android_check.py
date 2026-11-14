@@ -1436,7 +1436,8 @@ def ide(args):
                    OXT_ANDROID_DEVICE=args.device or '', OXT_ANDROID_WORK=path(os.path.join(work, 'units')),
                    OXT_ANDROID_UNITS='skip' if args.no_units else '',
                    OXT_ANDROID_PROBE='' if args.probe == 'app' else args.probe,
-                   OXT_ANDROID_ENGINE=args.android_engine or '')
+                   OXT_ANDROID_ENGINE=args.android_engine or '',
+                   OXT_ANDROID_AAR=path(make_library_aar(work, args.sdk, args.jdk)) if getattr(args, 'aar', False) else '')
         cmd = [lay.engine, document]
         if p.family == 'linux':
             cef = os.path.join(lay.root, 'Externals') if lay.kind == 'development' else lay.externals
@@ -1942,6 +1943,202 @@ def builder_target(root):
     return NEWEST_TARGET_SDK, '%s has %s' % (classes, ', '.join(JAVA_LAYER_READY)), []
 
 
+# --aar (ide) and verify --aar: a real Android library (.aar) in the build,
+# as an extension's jvm-android folder or a Play Services dependency brings
+# one (the builder's "aarFiles"). Its class looks up a string of its own
+# through its R class, compiled, as a library's classes are, against an R
+# class whose ids are fields the app gives values to; the package must
+# carry that class, the library's R class, and the string at the id the R
+# class says. Until 0.2.8 no JDK could build such an app (the R classes
+# were compiled for Java 1.5, #482), and the R classes took their ids from
+# the library's resources alone, not from the package's
+AAR_NAME = 'probe-library.aar'
+AAR_PACKAGE = 'org.oxtbeyond.probe.library'
+AAR_CLASS = 'ProbeLibrary'
+AAR_STRING = 'oxt_probe_library'
+AAR_TEXT = 'OXT-Beyond probe library'
+
+
+def android_jar(sdk):
+    """The newest platforms/android-N/android.jar of the SDK, or None"""
+    best = None
+    folder = os.path.join(sdk or '', 'platforms')
+    for name in os.listdir(folder) if os.path.isdir(folder) else []:
+        m = re.match(r'android-(\d+)$', name)
+        jar = os.path.join(folder, name, 'android.jar')
+        if m and os.path.isfile(jar) and (best is None or int(m.group(1)) > best[0]):
+            best = (int(m.group(1)), jar)
+    return best[1] if best else None
+
+
+def make_library_aar(work, sdk, jdk):
+    """Writes AAR_NAME in WORK, made as a library's build makes one: its
+    classes compiled for Java 8 against android.jar and an R class whose
+    ids are not constants, classes.jar without the R classes, R.txt,
+    res/ and AndroidManifest.xml. Returns its path"""
+    javac = jdk_tool(jdk, 'javac')
+    jar = android_jar(sdk)
+    if not javac or not jar:
+        raise CheckError('making %s needs javac (%s) and the SDK\'s android.jar (%s)' % (AAR_NAME, javac, jar))
+    build = os.path.join(work, 'aar-build')
+    if os.path.isdir(build):
+        shutil.rmtree(build)
+    src = os.path.join(build, 'src', *AAR_PACKAGE.split('.'))
+    classes = os.path.join(build, 'classes')
+    os.makedirs(src)
+    os.makedirs(classes)
+    with open(os.path.join(src, 'R.java'), 'w') as f:
+        f.write('package %s;\npublic final class R {\n    public static final class string {\n'
+                '        public static int %s = 0x7f010000;\n    }\n}\n' % (AAR_PACKAGE, AAR_STRING))
+    with open(os.path.join(src, AAR_CLASS + '.java'), 'w') as f:
+        f.write('package %s;\n\nimport android.content.Context;\n\npublic class %s {\n'
+                '    public static String text(Context p_context) {\n'
+                '        return p_context.getString(R.string.%s);\n    }\n}\n'
+                % (AAR_PACKAGE, AAR_CLASS, AAR_STRING))
+    env = dict(os.environ)
+    env.pop('JAVA_TOOL_OPTIONS', None)
+    r = subprocess.run([javac, '-source', '8', '-target', '8', '-Xlint:-options', '-cp', jar, '-d', classes,
+                        os.path.join(src, 'R.java'), os.path.join(src, AAR_CLASS + '.java')],
+                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, env=env)
+    if r.returncode != 0:
+        raise CheckError('javac could not compile the library\'s classes:\n' + r.stdout)
+    path = os.path.join(work, AAR_NAME)
+    inner = os.path.join(build, 'classes.jar')
+    with zipfile.ZipFile(inner, 'w', zipfile.ZIP_DEFLATED) as z:
+        z.writestr('META-INF/MANIFEST.MF', 'Manifest-Version: 1.0\r\n\r\n')
+        for folder, _, names in os.walk(classes):
+            for name in sorted(names):
+                rel = os.path.relpath(os.path.join(folder, name), classes).replace(os.sep, '/')
+                # the R classes are the app's to make, as a library's
+                # build leaves them out
+                if rel.split('/')[-1] == 'R.class' or rel.split('/')[-1].startswith('R$'):
+                    continue
+                z.write(os.path.join(folder, name), rel)
+    with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as z:
+        z.writestr('AndroidManifest.xml',
+                   '<?xml version="1.0" encoding="utf-8"?>\n'
+                   '<manifest xmlns:android="http://schemas.android.com/apk/res/android"\n'
+                   '    package="%s">\n</manifest>\n' % AAR_PACKAGE)
+        z.write(inner, 'classes.jar')
+        z.writestr('R.txt', 'int string %s 0x7f010000\n' % AAR_STRING)
+        z.writestr('res/values/values.xml',
+                   '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
+                   '    <string name="%s">%s</string>\n</resources>\n' % (AAR_STRING, AAR_TEXT))
+    return path
+
+
+def uleb128(data, at):
+    """(value, next position) of the unsigned LEB128 at AT"""
+    value = shift = 0
+    while True:
+        b = data[at]
+        at += 1
+        value |= (b & 0x7f) << shift
+        if not b & 0x80:
+            return value, at
+        shift += 7
+
+
+def dex_static_ints(data, descriptor):
+    """The static fields of the class DESCRIPTOR (Lpkg/Name;) in a .dex
+    file's DATA that have an int value: {name: value}. None when the file
+    has no such class"""
+    if data[:4] != b'dex\n':
+        raise CheckError('not a dex file')
+
+    def u32(at):
+        return struct.unpack_from('<I', data, at)[0]
+    string_ids_size, string_ids_off = u32(56), u32(60)
+    type_ids_off = u32(68)
+    field_ids_off = u32(84)
+    class_defs_size, class_defs_off = u32(96), u32(100)
+
+    def string(i):
+        at = u32(string_ids_off + 4 * i)
+        _, at = uleb128(data, at)
+        end = data.index(b'\0', at)
+        return data[at:end].decode('utf-8', 'replace')
+
+    def type_name(i):
+        return string(u32(type_ids_off + 4 * i))
+    for c in range(class_defs_size):
+        at = class_defs_off + 32 * c
+        if type_name(u32(at)) != descriptor:
+            continue
+        class_data_off, static_values_off = u32(at + 24), u32(at + 28)
+        names = []
+        if class_data_off:
+            p = class_data_off
+            static_size, p = uleb128(data, p)
+            _, p = uleb128(data, p)
+            _, p = uleb128(data, p)
+            _, p = uleb128(data, p)
+            field = 0
+            for _ in range(static_size):
+                diff, p = uleb128(data, p)
+                _, p = uleb128(data, p)
+                field += diff
+                fat = field_ids_off + 8 * field
+                names.append(string(u32(fat + 4)))
+        values = {}
+        if static_values_off:
+            p = static_values_off
+            size, p = uleb128(data, p)
+            for k in range(size):
+                head = data[p]
+                p += 1
+                kind, arg = head & 0x1f, head >> 5
+                if kind in (0x1e, 0x1f):    # null, boolean: no bytes
+                    value = None
+                elif kind in (0x1c, 0x1d):  # array, annotation
+                    raise CheckError('%s: a static value of a kind this check does not read' % descriptor)
+                else:
+                    raw = data[p:p + arg + 1]
+                    p += arg + 1
+                    value = int.from_bytes(raw, 'little', signed=(kind == 0x04)) if kind == 0x04 else None
+                if k < len(names) and kind == 0x04:
+                    values[names[k]] = value & 0xffffffff
+        return values
+    return None
+
+
+def verify_library_aar(name, apk, aapt):
+    """(problems, notes) of the library AAR_NAME in a package: its class,
+    its R class, and its string at the id the R class gives"""
+    problems = []
+    descriptor = 'L%s/%s;' % (AAR_PACKAGE.replace('.', '/'), AAR_CLASS)
+    r_descriptor = 'L%s/R$string;' % AAR_PACKAGE.replace('.', '/')
+    found, ids = False, None
+    with zipfile.ZipFile(apk) as z:
+        for entry in z.namelist():
+            if not re.match(r'classes\d*\.dex$', entry):
+                continue
+            data = z.read(entry)
+            if descriptor.encode('utf-8') in data:
+                found = True
+            values = dex_static_ints(data, r_descriptor)
+            if values is not None:
+                ids = values
+    if not found:
+        problems.append('%s: the library\'s class %s is not in its dex' % (name, descriptor))
+    if ids is None:
+        problems.append('%s: the library\'s R class %s is not in its dex' % (name, r_descriptor))
+    elif AAR_STRING not in ids:
+        problems.append('%s: %s has no %s' % (name, r_descriptor, AAR_STRING))
+    dump = subprocess.run([aapt, 'dump', 'resources', apk], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                          universal_newlines=True).stdout
+    m = re.search(r'resource 0x([0-9a-fA-F]{8}) [^\s:]+:string/%s\b' % AAR_STRING, dump)
+    if not m:
+        problems.append('%s: the package has no string/%s' % (name, AAR_STRING))
+    elif ids is not None and AAR_STRING in ids and ids[AAR_STRING] != int(m.group(1), 16):
+        problems.append('%s: the library\'s R class gives string/%s the id 0x%08x, the package 0x%s'
+                        % (name, AAR_STRING, ids[AAR_STRING], m.group(1).lower()))
+    if problems:
+        return problems, []
+    return [], ['the library %s: its class, its R class, string/%s at 0x%s as the R class says'
+                % (AAR_NAME, AAR_STRING, m.group(1).lower())]
+
+
 def verify(args):
     work = os.path.abspath(args.work)
     if args.target_for:
@@ -1977,6 +2174,12 @@ def verify(args):
         p, notes = verify_apk(name, apk, BUILDS[name], tools, r['warnings'], args.target)
         if args.engine:
             more, said = verify_engine(name, apk, os.path.abspath(args.engine))
+            p, notes = p + more, notes + said
+        if getattr(args, 'aar', False):
+            if not tools.get('aapt'):
+                more, said = ['no aapt in the SDK\'s build-tools to read the library\'s string with'], []
+            else:
+                more, said = verify_library_aar(name, apk, tools['aapt'])
             p, notes = p + more, notes + said
         if args.adaptive_icon:
             if not tools.get('aapt'):
@@ -3450,6 +3653,9 @@ def main(argv=None):
                         'time it runs (AndroidBusyProbe); edge: the app probe drawn edge to edge, which says its '
                         'screen\'s rects (AndroidEdgeProbe); tests: the script tests\' standalone, from the files '
                         'android_tests.py prepare puts in --work')
+    i.add_argument('--aar', action='store_true',
+                   help='build the probe with a real Android library (%s, made here with the JDK and the SDK\'s '
+                        'android.jar), as an extension\'s jvm-android folder brings one' % AAR_NAME)
     i.add_argument('--timeout', type=int, default=1500)
     i.add_argument('--bundletool-fallback', action='store_true',
                    help='when GitHub\'s release host answers the builder\'s download of bundletool with an HTTP '
@@ -3467,6 +3673,9 @@ def main(argv=None):
                        help='an installed IDE: the packages must target the API its builder picks for its runtime')
     v.add_argument('--engine', help='the runtime folder that overlay --engine took: each package\'s engine must be '
                                     'the one built there')
+    v.add_argument('--aar', action='store_true',
+                   help='each package must carry the library that ide --aar builds it with: its class, its R '
+                        'class, and its string at the id that R class gives')
     v.add_argument('--adaptive-icon', action='store_true',
                    help='each package must have the adaptive icon (a themed one) that the edge probe asks for')
     c = sub.add_parser('compare')

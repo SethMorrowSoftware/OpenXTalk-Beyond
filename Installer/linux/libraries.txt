@@ -46,6 +46,12 @@ libpango-1.0.so.0         gui      libpango-1.0-0        pango
 libpangocairo-1.0.so.0    gui      libpangocairo-1.0-0   pango
 libpangoft2-1.0.so.0      gui      libpangoft2-1.0-0     pango
 #
+# Where CEF cannot load, the browser widget uses WebKitGTK through
+# libbrowser-webkitprocess, which loads libwebkit2gtk-4.1.so.0 (or
+# libwebkit2gtk-4.0.so.37) with dlopen when a browser is made: it is not
+# listed, since nothing needs it to start, and the launcher asks the helper
+# (--probe) instead.
+#
 # CEF (Externals/CEF/libcef.so, libGLESv2.so and the two helper processes):
 # their DT_NEEDED entries that are neither in the base system nor above.
 libgio-2.0.so.0           browser  libglib2.0-0          glib2

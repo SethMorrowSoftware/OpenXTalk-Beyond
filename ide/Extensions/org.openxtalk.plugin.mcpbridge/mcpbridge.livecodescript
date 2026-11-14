@@ -70,7 +70,7 @@ script "org.openxtalk.plugin.mcpbridge"
 --    mcbIsEnabled()
 --    mcbConfirm(pTitle, pDetail, pYes, pParts), mcbTooLate, mcbEditorStack(),
 --    mcbEditorContext(), mcbShowsLongCode(), mcbStopDebugger(),
---    mcbUnaskedChanged pOn
+--    mcbUnaskedChanged pOn, mcbRestartCommand(), mcbQuitForRestart
 --                                (the bridge's)
 
 constant kTitle = "xTalk MCP Bridge"
@@ -1377,6 +1377,54 @@ on mcbTooLate
       answer information "Claude stopped waiting for this answer, so nothing was done. Ask Claude again if you still want it." titled kTitle
    end if
 end mcbTooLate
+
+-- How this IDE is started, as a line of the system's shell that does not
+-- wait for it, for the bridge's restart_ide (whose script runs it once
+-- this process has gone); empty when that cannot be said. The engine's own
+-- file is the second part of the address (the computer's name, a colon,
+-- the file). On Windows the line is cmd's start (a % of the path doubled,
+-- as a .cmd file reads one); on a Mac the application's bundle is opened
+-- as the Finder opens it; elsewhere the engine is run in the background.
+function mcbRestartCommand
+   local tEngine, tAt
+   if mcbOnWeb() then
+      return empty
+   end if
+   put the address into tEngine
+   delete char 1 to offset(":", tEngine) of tEngine
+   if tEngine is empty or there is not a file tEngine then
+      return empty
+   end if
+   switch the platform
+      case "Win32"
+         replace slash with backslash in tEngine
+         replace "%" with "%%" in tEngine
+         if quote is in tEngine then
+            return empty
+         end if
+         return "start" && quote & quote && quote & tEngine & quote
+      case "MacOS"
+         put offset(".app/Contents/MacOS/", tEngine) into tAt
+         if tAt is 0 then
+            return mcbShellQuoted(tEngine) && ">/dev/null 2>&1 &"
+         end if
+         return "open -n" && mcbShellQuoted(char 1 to tAt + 3 of tEngine)
+   end switch
+   return mcbShellQuoted(tEngine) && ">/dev/null 2>&1 &"
+end mcbRestartCommand
+
+-- pText as one word of sh: between apostrophes, an apostrophe of its own
+-- written '\''
+private function mcbShellQuoted pText
+   replace "'" with "'\''" in pText
+   return "'" & pText & "'"
+end mcbShellQuoted
+
+-- The bridge's restart_ide, allowed by the user: quits as File > Quit
+-- does, so that the user is asked about stacks not saved and may cancel
+on mcbQuitForRestart
+   revIDEQuit
+end mcbQuitForRestart
 
 function mcbEditorStack
    local tEditor, tObject, tError

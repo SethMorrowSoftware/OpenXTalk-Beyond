@@ -333,6 +333,55 @@ on TestHyperCardImportMacBinary
    delete file tFile
 end TestHyperCardImportMacBinary
 
+-- A MacBinary file whose type is not a stack's but whose data fork is a
+-- stack: a HyperCard 2.2 standalone (an application, APPL) keeps its
+-- stack in its data fork. It imports as the stack (OXT-Beyond; before,
+-- the import refused it). A MacBinary file whose data fork is not a
+-- stack is still refused
+private function _MacBinaryOf pData, pName, pTypeCreator
+   local tHeader
+   put numToByte(0) & numToByte(the number of chars of pName) & pName into tHeader
+   repeat 65 - the number of bytes of tHeader times
+      put numToByte(0) after tHeader
+   end repeat
+   put pTypeCreator after tHeader
+   repeat 10 times
+      put numToByte(0) after tHeader
+   end repeat
+   put binaryEncode("N", the number of bytes of pData) after tHeader
+   repeat 128 - the number of bytes of tHeader times
+      put numToByte(0) after tHeader
+   end repeat
+   return tHeader & pData
+end _MacBinaryOf
+
+on TestHyperCardImportMacBinaryStandalone
+   local tStack, tData, tFile, tError
+   put url ("binfile:" & TestGetInputFile("hypercard/TestCardsBackgrounds.stack")) into tData
+   put the temporary folder & "/hypercard-import-test.bin" into tFile
+   put _MacBinaryOf(tData, "HCStandaloneTest", "APPLBILL") into url ("binfile:" & tFile)
+   lock messages
+   try
+      import stack from file tFile
+   catch tError
+   end try
+   unlock messages
+   TestAssert "a standalone's MacBinary imports", tError is empty and the result is empty
+   put "HCStandaloneTest" into tStack
+   TestAssert "its stack has the stack's cards", there is a stack tStack and the number of cards of stack tStack is 6
+   if there is a stack tStack then _Close tStack
+   -- a MacBinary file whose data fork is no stack is refused, as before
+   put empty into tError
+   put _MacBinaryOf("not a stack, but long enough", "HCNotAStackTest", "TEXTttxt") into url ("binfile:" & tFile)
+   try
+      import stack from file tFile
+   catch tError
+   end try
+   TestAssert "a MacBinary file that holds no stack is refused", tError is not empty
+   TestAssert "and no stack is made", there is not a stack "HCNotAStackTest"
+   delete file tFile
+end TestHyperCardImportMacBinaryStandalone
+
 on TestHyperCardImportNotAStack
    -- a file that is not a HyperCard stack throws, as it always has
    local tFile

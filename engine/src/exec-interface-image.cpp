@@ -296,9 +296,154 @@ void MCImage::SetRepeatCount(MCExecContext& ctxt, integer_t p_count)
 		
 		// IM-2014-11-25: [[ ImageRep ]] Use ImageRep method to get frame duration
 		uint32_t t_frame_duration;
-		if (m_rep->GetFrameDuration(currentframe, t_frame_duration))
+		// OXT-Beyond: through the frameDurations and playRate
+		if (getplaybackframeduration(currentframe, t_frame_duration))
 			MCscreen->addtimer(this, MCM_internal, t_frame_duration);
 	}
+}
+
+// OXT-Beyond: the frameDurations of an image. One line for each frame of an
+//   animated image: the milliseconds that frame stays on screen, the file's
+//   own (a GIF's delay) unless a script set its own. Empty for an image that
+//   is not animated. The playRate does not show here: it divides what these
+//   lines say when the animation runs.
+void MCImage::GetFrameDurations(MCExecContext& ctxt, MCStringRef& r_durations)
+{
+	uindex_t t_frame_count;
+	t_frame_count = m_rep == nil ? 0 : m_rep->GetFrameCount();
+	if (t_frame_count <= 1)
+	{
+		r_durations = MCValueRetain(kMCEmptyString);
+		return;
+	}
+
+	MCAutoListRef t_list;
+	bool t_success;
+	t_success = MCListCreateMutable('\n', &t_list);
+
+	for (uindex_t i = 0; t_success && i < t_frame_count; i++)
+	{
+		uint32_t t_duration;
+		if (!m_rep->GetFrameDuration(i, t_duration))
+			t_duration = 0;
+		if (m_frame_durations != nil && i < m_frame_durations_count &&
+			m_frame_durations[i] != kMCImageFrameDurationFromFile)
+			t_duration = m_frame_durations[i];
+
+		MCAutoStringRef t_line;
+		t_success = MCStringFormat(&t_line, "%u", t_duration) &&
+			MCListAppend(*t_list, *t_line);
+	}
+
+	if (t_success && MCListCopyAsString(*t_list, r_durations))
+		return;
+
+	ctxt . Throw();
+}
+
+// Set it to one line for each frame, from the first: a whole number of
+//   milliseconds (a fraction is rounded), or an empty line for a frame that
+//   keeps its file's own. Frames past the last line keep theirs too; lines
+//   past the last frame wait for an image with more frames. Empty puts every
+//   frame back to its file's own duration. The setting is not saved with the
+//   stack.
+void MCImage::SetFrameDurations(MCExecContext& ctxt, MCStringRef p_durations)
+{
+	uint32_t *t_durations;
+	t_durations = nil;
+	uindex_t t_count;
+	t_count = 0;
+	bool t_any;
+	t_any = false;
+
+	MCAutoStringRefAsCString t_cstring;
+	if (!t_cstring . Lock(p_durations))
+	{
+		ctxt . Throw();
+		return;
+	}
+
+	const char *t_ptr;
+	t_ptr = *t_cstring;
+	const char *t_end;
+	t_end = t_ptr + strlen(t_ptr);
+
+	// An empty value, or one that ends with a return, has no line after it.
+	while (t_ptr < t_end)
+	{
+		const char *t_line_end;
+		t_line_end = t_ptr;
+		while (t_line_end < t_end && *t_line_end != '\n')
+			t_line_end++;
+
+		// Trim spaces, tabs and a return's CR on either side.
+		const char *t_first, *t_last;
+		t_first = t_ptr;
+		t_last = t_line_end;
+		while (t_first < t_last && (*t_first == ' ' || *t_first == '\t' || *t_first == '\r'))
+			t_first++;
+		while (t_last > t_first && (t_last[-1] == ' ' || t_last[-1] == '\t' || t_last[-1] == '\r'))
+			t_last--;
+
+		uint32_t t_duration;
+		t_duration = kMCImageFrameDurationFromFile;
+		if (t_last > t_first)
+		{
+			real8 t_value;
+			if (!MCU_stor8(MCString(t_first, (uint4)(t_last - t_first)), t_value) ||
+				!(t_value >= 0.0) || t_value > (real8)INT32_MAX)
+			{
+				MCMemoryDeleteArray(t_durations);
+				ctxt . LegacyThrow(EE_IMAGE_BADFRAMEDURATIONS);
+				return;
+			}
+			t_duration = (uint32_t)floor(t_value + 0.5);
+			t_any = true;
+		}
+
+		if (!MCMemoryResizeArray(t_count + 1, t_durations, t_count))
+		{
+			MCMemoryDeleteArray(t_durations);
+			ctxt . Throw();
+			return;
+		}
+		t_durations[t_count - 1] = t_duration;
+
+		t_ptr = t_line_end < t_end ? t_line_end + 1 : t_end;
+	}
+
+	// Nothing but empty lines: every frame keeps its own, as with empty.
+	if (!t_any)
+	{
+		MCMemoryDeleteArray(t_durations);
+		t_durations = nil;
+		t_count = 0;
+	}
+
+	MCMemoryDeleteArray(m_frame_durations);
+	m_frame_durations = t_durations;
+	m_frame_durations_count = t_count;
+}
+
+// OXT-Beyond: the playRate of an image: how fast it animates, 1 being the
+//   pace its frames' durations give it (the default), 2 twice as fast, 0.5
+//   half as fast. It divides every frame's duration as the next frame comes
+//   up. Not saved with the stack.
+void MCImage::GetPlayRate(MCExecContext& ctxt, double& r_rate)
+{
+	r_rate = m_play_rate;
+}
+
+void MCImage::SetPlayRate(MCExecContext& ctxt, double p_rate)
+{
+	// Zero would be every frame at once and a negative rate has no meaning:
+	//   the repeatCount stops an animation, and currentFrame steps it.
+	if (!(p_rate > 0.0) || !isfinite(p_rate))
+	{
+		ctxt . LegacyThrow(EE_IMAGE_BADPLAYRATE);
+		return;
+	}
+	m_play_rate = p_rate;
 }
 
 void MCImage::GetFormattedHeight(MCExecContext& ctxt, integer_t& r_height)
@@ -834,7 +979,8 @@ void MCImage::SetVisible(MCExecContext& ctxt, uinteger_t part, bool setting)
     {
 		// IM-2014-11-25: [[ ImageRep ]] Use ImageRep method to get frame duration
 		uint32_t t_frame_duration;
-		if (m_rep->GetFrameDuration(currentframe, t_frame_duration))
+		// OXT-Beyond: through the frameDurations and playRate
+		if (getplaybackframeduration(currentframe, t_frame_duration))
         {
             MCscreen->addtimer(this, MCM_internal, t_frame_duration);
         }

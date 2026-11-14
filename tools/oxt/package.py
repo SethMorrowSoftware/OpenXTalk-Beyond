@@ -268,8 +268,11 @@ SHOWCASE = 'Resources/Examples/Showcase/'
 # ... less the player's own course and its tour of the web: the IDE has
 # them as Home's Academy and Home's tour (OXT-Beyond Home, 0.2.7-rc.6.12),
 # so Learn's gallery leaves them out (leShowcaseTable) and so does the
-# package. tools/web-ide/build_site.py leaves out the same.
-SHOWCASE_LEFT_OUT = ('Learn xTalk.oxtstack', 'OXT-Beyond on the Web.oxtstack')
+# package. tools/web-ide/build_site.py leaves out the same. So is the
+# Box2Dxt platformer, a game of the xTalk Suite's that the package stopped
+# installing with the suite's other demos (#298): the player plays it, and
+# the suite has it for the IDE.
+SHOWCASE_LEFT_OUT = ('Learn xTalk.oxtstack', 'OXT-Beyond on the Web.oxtstack', 'Box2Dxt Platformer.oxtstack')
 
 # The repository's changelog, history and README, which the Release Notes
 # window shows (ide/Toolset/palettes/updates/revreleasenotes.livecodescript,
@@ -503,6 +506,11 @@ def _windows(arch):
         ) + _NOT_IN_PACKAGE_TXT)
 
 
+# OXT-Beyond's Linux browser where CEF cannot load: WebKitGTK, in this helper
+# process (libbrowser/src/libbrowser_webkitprocess_lnx.cpp)
+WEBKIT_HELPER = 'libbrowser-webkitprocess'
+
+
 # The Linux runtime folder of each architecture under Runtime/Linux, as the
 # IDE's standalone builder names them (revsblibrary revSBEnginePath)
 LINUX_RUNTIME_FOLDERS = {'x86_64': 'x86-64', 'x86': 'x86-32', 'arm64': 'arm64'}
@@ -532,9 +540,12 @@ def _linux(arch):
     ) + _NOT_IN_PACKAGE_TXT + _BUILD_TOOLS
     # component Runtime.Linux with TargetArchitecture x86_64, x86 or arm64,
     # plus Externals (which includes Externals.CEF.Linux on x86_64)
+    # The WebKitGTK browser's helper (libbrowser_webkitgtk.cpp), on every
+    # architecture: next to a standalone's engine, from the runtime's root
+    # (revCopyWebKitHelper in revsaveasstandalone)
     runtimes = (dict(folder='Runtime/Linux/' + LINUX_RUNTIME_FOLDERS[arch],
                      standalone=('standalone-community', 'Standalone'),
-                     files=(), support=('revpdfprinter.so', 'revsecurity.so'),
+                     files=(WEBKIT_HELPER,), support=('revpdfprinter.so', 'revsecurity.so'),
                      externals=True),)
     return Platform(
         'linux-' + arch, 'linux', arch,
@@ -550,8 +561,11 @@ def _linux(arch):
         database=('Database', 'revdb.so'),
         drivers=(('MySQL', 'dbmysql.so'), ('ODBC', 'dbodbc.so'),
                  ('PostgreSQL', 'dbpostgresql.so'), ('SqLite', 'dbsqlite.so')),
+        # and the WebKitGTK browser's helper, which the engine starts from
+        # its own folder (libbrowser_webkitgtk.cpp)
         engine_support=(('revpdfprinter.so', 'revpdfprinter.so'),
-                        ('revsecurity.so', 'revsecurity.so')),
+                        ('revsecurity.so', 'revsecurity.so'),
+                        (WEBKIT_HELPER, WEBKIT_HELPER)),
         mobile=('revandroid.so',),
         ext=(('mergJSON.so', 'mergJSON/mergJSON-%s.so' % EXT_NAME[arch]),),
         toolchain=('lc-compile', 'lc-run', 'lc-compile-ffi-java'),

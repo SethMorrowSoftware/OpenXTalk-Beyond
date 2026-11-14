@@ -64,11 +64,7 @@ lcs: core/datetime/sql-date: TestSqlTextNotRecognisedUnlessNamed
 lcs: core/datetime/sql-date: TestSqlVariableNamesAProperty
 lcs: core/datetime/sql-date: TestSqlYearBefore1000
 lcs: core/datetime/sql-date: TestTheSqlDate
-lcs: core/debugging/log: TestLog  # error 539: no shell() on Android
-lcs: core/engine/commandargs: TestCommandName  # error 539: no shell() on Android
 lcs: core/engine/engine: TestEffectiveRectIsUpdatedWhileScreenIsLocked
-lcs: core/engine/engine: TestProcessor
-lcs: core/engine/engine: TestUngroupAndQuit  # error 539: no shell() on Android
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleArithmetic
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleBackgroundOrder
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleCardId
@@ -126,6 +122,17 @@ lcs: core/filters/filters: TestFiltersMessageDigestUnknownType
 lcs: core/graphics/drawing: TestDrawingClip
 lcs: core/graphics/drawing: TestDrawingClipMalformed
 lcs: core/graphics/drawing: TestDrawingPolygonCounts
+lcs: core/interface/animated-gif: TestBadFrameDurations
+lcs: core/interface/animated-gif: TestBadPlayRate
+lcs: core/interface/animated-gif: TestCopyKeepsThePace
+lcs: core/interface/animated-gif: TestFrameDurationsFromTheFile
+lcs: core/interface/animated-gif: TestFrameDurationsOfAStillImage
+lcs: core/interface/animated-gif: TestFramePastTheCanvasIsClipped
+lcs: core/interface/animated-gif: TestOldStacksUnchanged
+lcs: core/interface/animated-gif: TestRestoreToPreviousOnATallCanvas
+lcs: core/interface/animated-gif: TestSetFrameDurations
+lcs: core/interface/animated-gif: TestTheCanvasStartsClear
+lcs: core/interface/animated-gif: TestTransparentPixelsKeepWhatIsUnder
 lcs: core/interface/go: TestGoBackground
 lcs: core/interface/go: TestGoCardOfBackgroundNotFound
 lcs: core/interface/go: TestGoNextBackgroundFromCardWithNone
@@ -146,6 +153,7 @@ lcs: core/interface/hypercard-import: TestHyperCardImportIdClashes
 lcs: core/interface/hypercard-import: TestHyperCardImportInventory
 lcs: core/interface/hypercard-import: TestHyperCardImportMacBinary
 lcs: core/interface/hypercard-import: TestHyperCardImportMacBinaryResourceFork
+lcs: core/interface/hypercard-import: TestHyperCardImportMacBinaryStandalone
 lcs: core/interface/hypercard-import: TestHyperCardImportMacRomanText
 lcs: core/interface/hypercard-import: TestHyperCardImportMacZip
 lcs: core/interface/hypercard-import: TestHyperCardImportNewStackCard
@@ -173,6 +181,7 @@ lcs: core/interface/show-cards: TestShowNegativeCards
 lcs: core/interface/show-cards: TestShowZeroCards
 lcs: core/interface/snapshot: TestExportGroupWithoutSnapshot
 lcs: core/interface/snapshot: TestSnapshotOfHugeGroup
+lcs: core/interface/subwindow: TestSubwindowPopupField # 9.6.3's engine stops the app: popup of a field used the field as a stack (fixed in OXT-Beyond's, #502)
 lcs: core/interface/usedesktopappearance: TestUseDesktopAppearanceDefault
 lcs: core/interface/usedesktopappearance: TestUseDesktopAppearanceNotABoolean
 lcs: core/interface/usedesktopappearance: TestUseDesktopAppearanceSet
@@ -190,8 +199,8 @@ lcs: core/multimedia/audioclipexport: TestExportAudioClipWaveIsTheFileImported
 lcs: core/multimedia/audioclipexport: TestExportOlderFormsCompileAsBefore
 lcs: core/multimedia/audioclipexport: TestExportVideoClip
 lcs: core/network/network: TestNetworkDNSServers
-lcs: core/security/encrypt: TestRSA
-lcs: core/security/encrypt: TestRSAPass
+lcs: core/network/network: TestNetworkDNSServersAnswers # 9.6.3's engine has no DNS servers on Android and throws (error 198); OXT-Beyond's answers them
+lcs: core/network/network: TestPeerAddressIsEmptyOnMobile # 9.6.3's engine stops the app: its peerAddress on mobile reads an unset answer (fixed in OXT-Beyond's, #495)
 lcs: core/strings/filter: TestBug15443
 lcs: core/strings/matches: TestMatchesCustomProperty
 lcs: core/strings/matches: TestMatchesErrorsAsBefore
@@ -216,112 +225,21 @@ lcs: extensions/libraries/hxtcompat: TestQuotedPrintableDecode
 lcs: extensions/libraries/hxtcompat: TestQuotedPrintableEncode
 lcs: extensions/libraries/hxtcompat: TestQuotedPrintableLineLength
 lcs: extensions/libraries/hxtcompat: TestQuotedPrintableRoundTrip
-lcs: mcpbridge/tools: TestALongScriptIsReadInParts  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestAMisspeltPropertyGetsTheNearest  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestARunOnTheStackGivesItsError  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestARunThatChangesNothingKeepsNoCheckpoint  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestARunTooLongToShowIsRefused  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestChangesAndUndo  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestCheckCodeGivesOneProblemALine  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestCloseAsksWhenASubstackHasChanges  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestCloseStack  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestCodeTheScanMissesIsAskedAbout  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestDesktopConfig  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestEditScript  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestHello  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestHyperCardAddressingLabels  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestIdeContext  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestImportHyperCard  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestLookAtCardWithIds  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestNotAskingEndsWithTheBridgeAndNeedsAnAsker  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestNotAskingIsOffUntilTheUserSetsIt  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestNotAskingLetsALongRunThrough  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestNotAskingRunsAndSavesWithoutAQuestion  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestNotAskingStillAsksBeforeUndoingTheUsersChanges  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestNothingPausedAndNoDialog  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestOverASocket  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestReadStackIsLeanAndReadsSeveral  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestReadStackListsSounds  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestReadingTools  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestRefusesARequestWithoutTheToken  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestRunsAndWhatTheUserIsAsked  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestSaveAsAFile  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestSaveIsAskedAbout  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestSaveNamesAStackNeverSaved  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestSearchScripts  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestServerWritesAndDeletesItsFile  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestSetAskingNeedsTheUsersYes  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestTheFileNamesThisProcessAndIsKeptByItsOwner  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestTheGuideIsTheBridges  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestTheLinkAndTheServerAreNeverOnTogether  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestTheStatusSaysWhatItWaitsFor  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestTheTokenIsComparedAsText  # error 720: could not load the security library
-lcs: mcpbridge/tools: TestUndoAsksWhenTheUserChangedIt  # error 720: could not load the security library
 lcs: webplayer/nova-rescue: TestTheScreensFitAPhoneOnItsSide
 lcs: webplayer/puzzle-almanac: TestTheScreensFitAPhoneOnItsSide
-lcs: xtalkassistant/build: TestCheckpointBringsAStackBack  # error 539: no shell() on Android
-lcs: xtalkassistant/build: TestCleanupLeavesNothing  # error 539: no shell() on Android
-lcs: xtalkassistant/build: TestRunOnTheStackCanBeUndone  # error 539: no shell() on Android
 lcs: xtalkassistant/build: TestUndoANewStack
-lcs: xtalkassistant/core: TestAskAnthropic
-lcs: xtalkassistant/core: TestAskLocalAlreadyLoaded
 lcs: xtalkassistant/core: TestAskLocalLoadFails
-lcs: xtalkassistant/core: TestAskLocalNamedCopyIsLeftLoaded
-lcs: xtalkassistant/core: TestAskLocalReloadsWithTheContext
-lcs: xtalkassistant/core: TestAskLocalServerWithoutTheList
-lcs: xtalkassistant/core: TestAskLocalWithoutContextLength
-lcs: xtalkassistant/core: TestAskOpenAI
 lcs: xtalkassistant/core: TestAskRefusedKey
-lcs: xtalkassistant/core: TestAskWaitsForTheAnswer
-lcs: xtalkassistant/core: TestListModels
 lcs: xtalkassistant/guide: TestGuideThrowInCatch
-lcs: xtalkassistant/plugin: TestACutOffAnswerIsAskedAgain  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestACutOffAnswerIsShown  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestACutOffAnswerWithNoMoreRoom  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestACutOffCallIsNotCarriedOut  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestARefusalIsNotCarriedOut  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestAnAnswerIsLaidOut  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestAskThroughTheWindow  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestChangesAreAskedAboutAndCanBeUndone  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestChangesWithAMistakeGoBack  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestChangingStacksCanBeTurnedOff
-lcs: xtalkassistant/plugin: TestCodeThatDoesNotCompileGoesBack  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestCopyTheConversation  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestDebugStateWhenNothingIsPaused
-lcs: xtalkassistant/plugin: TestErrorHookFromTheStart
-lcs: xtalkassistant/plugin: TestErrorHookNotesTheDebuggersErrors
-lcs: xtalkassistant/plugin: TestErrorHookPassesItOn
-lcs: xtalkassistant/plugin: TestEscapeStopsIt  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestExplainTheLastError
-lcs: xtalkassistant/plugin: TestFixRoundsRunOut  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestGuideAndNotesAreSent  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestAnAnswerIsLaidOut
+lcs: xtalkassistant/plugin: TestCopyTheConversation
 lcs: xtalkassistant/plugin: TestLookAtTheCard
-lcs: xtalkassistant/plugin: TestModelsChoosesAModel  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestNotesOfTheStackBehindAnIDEWindow  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestNotesToRemember  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestOnlyXTalkIsInserted  # did not end within 60 s
 lcs: xtalkassistant/plugin: TestOpenWindow
-lcs: xtalkassistant/plugin: TestPicturesCanBeTurnedOff
-lcs: xtalkassistant/plugin: TestPicturesTurnedOffWhileItAnswers
-lcs: xtalkassistant/plugin: TestReadingTheStackIsAskedFirst  # did not end within 60 s
 lcs: xtalkassistant/plugin: TestRunOnTheStackCanBeUndone
-lcs: xtalkassistant/plugin: TestRunsAreAskedAbout  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestSaveTheStack
-lcs: xtalkassistant/plugin: TestSendChoosesAModel  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestSettingsForAKey  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestSettingsKeepEverything  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestTheActivityRowWhileItWorks  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestToolCallsAreCarriedOut  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestToolsAreUsedUp  # did not end within 60 s
-lcs: xtalkassistant/plugin: TestToolsRefusedByALocalServer  # did not end within 60 s
+lcs: xtalkassistant/plugin: TestSettingsKeepEverything
+lcs: xtalkassistant/plugin: TestToolsRefusedByALocalServer
 lcs: xtalkchat/core: TestBringingAKey
-lcs: xtalkchat/core: TestCleanName
-lcs: xtalkchat/core: TestDefaultRelaysAreSecure
-lcs: xtalkchat/core: TestFolderFromEnvironment
-lcs: xtalkchat/core: TestGoOnlineNeedsWhatIsMissing
 lcs: xtalkchat/core: TestIdentityRoundTrip
 lcs: xtalkchat/core: TestKeyFromText
 lcs: xtalkchat/core: TestMuting
-lcs: xtalkchat/core: TestNoMessagesOffline
-lcs: xtalkchat/core: TestNothingOnlineAtFirst
 lcs: xtalkchat/core: TestRoomsAreSignedChannels

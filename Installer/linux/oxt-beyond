@@ -29,8 +29,10 @@
 # "browser" library (CEF's) sets LIVECODE_USE_CEF=0, which makes the IDE
 # show the dictionary and other web pages in the system's browser
 # (revIDEBrowserWidgetUnavailable) instead of a browser widget that cannot
-# load. So does a package without CEF. A LIVECODE_USE_CEF that is already
-# set is left alone, and OXT_BEYOND_SKIP_LIBRARY_CHECK=1 skips the checks.
+# load. So does a package without CEF. Either way, not when WebKitGTK can
+# be the browser widget's browser instead (libbrowser-webkitprocess
+# --probe). A LIVECODE_USE_CEF that is already set is left alone, and
+# OXT_BEYOND_SKIP_LIBRARY_CHECK=1 skips the checks.
 #
 # A library counts as present when it is in a folder of LD_LIBRARY_PATH, in
 # the loader's cache for this machine's architecture (ldconfig -p) or in
@@ -232,15 +234,28 @@ EOF
 fi
 
 # The browser widget and revBrowser need CEF, which only the x86_64 package
-# has, and the libraries CEF needs
+# has, and the libraries CEF needs. Where CEF cannot load, the browser
+# widget uses WebKitGTK instead, through the helper next to the engine
+# (libbrowser-webkitprocess), when that finds WebKitGTK and GTK 3 (its
+# --probe): the browser widget then stays on. revBrowser has CEF only.
+webkit_browser() {
+    [ -x "$here/libbrowser-webkitprocess" ] && "$here/libbrowser-webkitprocess" --probe > /dev/null 2>&1
+}
+
 if [ -z "${LIVECODE_USE_CEF+set}" ]; then
     if [ ! -f "$here/Externals/CEF/libcef.so" ]; then
-        LIVECODE_USE_CEF=0
-        export LIVECODE_USE_CEF
+        if ! webkit_browser; then
+            LIVECODE_USE_CEF=0
+            export LIVECODE_USE_CEF
+        fi
     elif [ -n "${missing_browser:-}" ]; then
-        LIVECODE_USE_CEF=0
-        export LIVECODE_USE_CEF
-        printf 'oxt-beyond: the browser widget is turned off (LIVECODE_USE_CEF=0): the browser (CEF) needs these libraries:\n%s\n' "$(explain "$missing_browser")" >&2
+        if webkit_browser; then
+            printf 'oxt-beyond: the browser widget uses WebKitGTK: CEF needs these libraries:\n%s\n' "$(explain "$missing_browser")" >&2
+        else
+            LIVECODE_USE_CEF=0
+            export LIVECODE_USE_CEF
+            printf 'oxt-beyond: the browser widget is turned off (LIVECODE_USE_CEF=0): the browser (CEF) needs these libraries:\n%s\n' "$(explain "$missing_browser")" >&2
+        fi
     fi
 fi
 

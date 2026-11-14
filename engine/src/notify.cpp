@@ -18,6 +18,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 #include "notify.h"
 
+#include <atomic>
+
 #if !defined(FEATURE_NOTIFY)
 #	error MCNotify API not supported on this platform
 #endif
@@ -234,6 +236,18 @@ static bool MCNotifyIsMainThread(void)
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// OXT-Beyond: whether MCNotifyPush may be called yet, for a thread that can
+// run before the screen makes the queue (dskmac.cpp's TERM watcher). Set
+// only once MCNotifyInitialize has made the lock and the wakeup pipe, and
+// cleared first thing in MCNotifyFinalize; atomic, so that the other
+// thread sees everything made before it was set.
+static std::atomic<bool> s_ready(false);
+
+bool MCNotifyIsInitialized(void)
+{
+	return s_ready.load(std::memory_order_acquire);
+}
+
 bool MCNotifyInitialize(void)
 {
 	if (s_initialized)
@@ -263,6 +277,8 @@ bool MCNotifyInitialize(void)
 #else
 #error Threading API not specified
 #endif
+	
+	s_ready.store(true, std::memory_order_release);
 	
 	return true;
 }
@@ -299,6 +315,8 @@ static void MCNotifyFinalizeList(MCNotification*& p_list)
 
 void MCNotifyFinalize(void)
 {
+	s_ready.store(false, std::memory_order_release);
+	
 	// Mark the notification system as shutting down.
 	s_shutting_down = true;
 	

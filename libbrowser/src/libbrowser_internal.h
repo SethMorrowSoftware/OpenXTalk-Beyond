@@ -114,6 +114,12 @@ extern MCBrowserFactoryMap* s_factory_list;
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// OXT-Beyond: a JSON array as a list, with the values CEF gives a
+// javascriptHandler's parameters (libbrowser_json.cpp)
+bool MCBrowserListCreateFromJSON(const char *p_json, MCBrowserListRef &r_list);
+
+////////////////////////////////////////////////////////////////////////////////
+
 bool MCBrowserAddRunloopAction(MCBrowserRunloopCallback p_callback, void *p_context);
 void MCBrowserRemoveRunloopAction(MCBrowserRunloopCallback p_callback, void *p_context);
 bool MCBrowserRunloopWait();

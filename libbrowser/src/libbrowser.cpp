@@ -346,6 +346,20 @@ bool MCBrowserFactoryGet(const char *p_factory, MCBrowserFactoryRef &r_factory)
 	
 	if (p_factory == nil || MCCStringIsEmpty(p_factory) || MCCStringEqualCaseless(p_factory, "default"))
 	{
+		// OXT-Beyond: OXT_BROWSER_BACKEND names the one browser to use
+		// (on Linux "CEF" or "WebKitGTK", in any case), for testing each and
+		// for a machine where the first does not do: the default browser is
+		// then that one or none. A value that names no browser of this
+		// platform changes nothing, so the default stays the first browser
+		// that loads, as it always was.
+		const char *t_backend = getenv("OXT_BROWSER_BACKEND");
+		if (t_backend != nil && !MCCStringIsEmpty(t_backend))
+		{
+			for (uint32_t i = 0; s_factory_list[i].factory_id != nil; i++)
+				if (MCCStringEqualCaseless(t_backend, s_factory_list[i].factory_id))
+					return MCBrowserFactoryEnsureAvailable(s_factory_list[i], r_factory);
+		}
+
 		// use first available browser factory
 		for (uint32_t i = 0; s_factory_list[i].factory_id != nil; i++)
 		{

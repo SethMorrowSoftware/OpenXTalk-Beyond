@@ -3280,7 +3280,12 @@ IO_stat MCHcstak::read(IO_handle stream)
 		filetype = HC_APPLESINGLE_FILE;
 	else if (header[0] == '\0' && header[74] == '\0' && header[82] == '\0')
 	{
-		if (!strnequal(&header[65], "STAK", 4))
+		// a stack's own file type, or (OXT-Beyond) any other whose data
+		// fork is a stack, as an AppleSingle file's is checked: a
+		// HyperCard 2.2 standalone (APPL) keeps its stack in its data
+		// fork, and a MacBinary copy of one was refused
+		if (!strnequal(&header[65], "STAK", 4)
+		    && (hc_get_uint4(&header[83]) < 8 || hc_get_uint4(&header[128 + 4]) != HC_STAK))
 			return IO_ERROR;
 		filetype = HC_MACBIN;
 	}
