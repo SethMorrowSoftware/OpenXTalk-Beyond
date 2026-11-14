@@ -28,6 +28,8 @@ private function __LibraryHandlers pNames
    local tText, tScript, tIn, tName
    put textDecode(url ("binfile:" & TestGetIDERepositoryPath() & \
          "/Toolset/libraries/revidelibrary.8.livecodescript"), "UTF-8") into tText
+   -- A Windows checkout's file has CR LF line ends
+   replace numToCodepoint(13) & numToCodepoint(10) with numToCodepoint(10) in tText
    put false into tIn
    repeat for each line tLine in tText
       if tIn then
