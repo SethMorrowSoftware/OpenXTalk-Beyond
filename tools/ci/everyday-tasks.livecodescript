@@ -201,9 +201,15 @@ end edScriptError
 -- A folder of its own for the stack and the picture; the IDE's own file
 -- dialog (the systemFileSelector is set back at the end); typing at a
 -- person's pace would take minutes, so the typingRate is short; and
--- whether the system's mouse reaches the IDE here
+-- whether the system's mouse reaches the IDE here.
+-- The folder is this run's alone: its name has the process in it. On
+-- Linux the light and the dark run start together, and named by the
+-- milliseconds alone they once had one folder for both: the dark run's
+-- Save As found the light run's stack there and the IDE asked whether to
+-- replace it, and each then opened what the other had saved
 on ed_start
-   put specialFolderPath("temporary") & "/oxt-everyday-" & the milliseconds into sWork
+   put specialFolderPath("temporary") & "/oxt-everyday-" & the milliseconds & "-" & the processID into sWork
+   if there is a folder sWork or there is a file sWork then throw "the work folder" && sWork && "is there already: this run would share it"
    create folder sWork
    if there is not a folder sWork then throw "could not make the folder" && sWork
    edRecord "INFO work folder" && sWork
@@ -1922,7 +1928,9 @@ end edPendingNames
 -- elsewhere; edDragDone waits for its "up"
 command edSystemDrag pFrom, pTo
    local tSteps, tCommand, tScript, i, tX, tY, tMoves, tFile
-   put specialFolderPath("temporary") & "/oxt-everyday-drag.txt" into tFile
+   -- (in this run's folder: a file two runs shared would say "up" to
+   -- one for the other's drag)
+   put sWork & "/drag.txt" into tFile
    if there is a file tFile then delete file tFile
    put tFile into sKeep["dragFile"]
    put the milliseconds into sKeep["dragLaunched"]

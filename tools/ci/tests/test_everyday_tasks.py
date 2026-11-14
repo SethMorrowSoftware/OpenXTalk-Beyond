@@ -133,6 +133,25 @@ class EverydayTasksScript(unittest.TestCase):
         body = self.handlers['ed_appbrowser_names']
         self.assertIn('if tLinks is not "%s" then throw' % light.group(1), body)
 
+    def test_a_run_shares_no_file_with_another(self):
+        # Linux runs light and dark at once (build-linux.yml). Named by
+        # the milliseconds alone, the two runs' work folders were once one
+        # (/tmp/oxt-everyday-1794673798576 for both): the dark run's Save
+        # As found the light run's stack, the IDE asked whether to replace
+        # it until the watchdog closed the dialog 30 s later, and three
+        # later tasks failed on what the other run had saved
+        start = self.handlers['ed_start']
+        named = re.search(r'^\s*put specialFolderPath\("temporary"\) & "/oxt-everyday-" & (.*) into sWork$', start, re.M)
+        self.assertIsNotNone(named, 'the work folder is not named in ed_start')
+        self.assertIn('the processID', named.group(1), 'two runs that start together would name one folder')
+        taken = start.index('if there is a folder sWork or there is a file sWork then throw')
+        self.assertLess(start.index(named.group(0).strip()), taken)
+        self.assertLess(taken, start.index('create folder sWork'))
+        # (and nothing else of a run's is in the folder every run shares:
+        # the file a drag says "up" in was)
+        self.assertEqual(self.text.count('specialFolderPath("temporary")'), 1)
+        self.assertIn('put sWork & "/drag.txt" into tFile', self.handlers['edSystemDrag'])
+
 
 class EverydayTasksInCI(unittest.TestCase):
 
