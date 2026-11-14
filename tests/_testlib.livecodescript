@@ -790,10 +790,12 @@ command TestEnsureJVM
          end if
          break
       case "Linux"
-         -- the engine loads libjvm.so by its name alone, without looking in
-         -- JAVA_HOME
-         if not __LinkerFindsLibJVM() then
-            throw "SKIP no Java runtime the engine can load: on Linux it needs libjvm.so in a folder of LD_LIBRARY_PATH"
+         -- the engine loads libjvm.so by its name, and (OXT-Beyond) when
+         -- that fails from JAVA_HOME's lib/server, as a JDK 9 or later has
+         -- it
+         if not __LinkerFindsLibJVM() and \
+               not ($JAVA_HOME is not empty and there is a file ($JAVA_HOME & "/lib/server/libjvm.so")) then
+            throw "SKIP no Java runtime the engine can load: on Linux it needs libjvm.so in a folder of LD_LIBRARY_PATH, or a JDK 9 or later in JAVA_HOME"
          end if
          break
    end switch

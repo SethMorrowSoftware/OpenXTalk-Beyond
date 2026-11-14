@@ -2,6 +2,8 @@
 #define libfoundation_foundation_java_private_h
 
 bool initialise_jvm();
+// OXT-Beyond: what the last failed initialise_jvm() tried, or nil/empty
+MCStringRef MCJavaPrivateInitialiseFailure();
 void finalise_jvm();
 
 enum MCJavaCallType {

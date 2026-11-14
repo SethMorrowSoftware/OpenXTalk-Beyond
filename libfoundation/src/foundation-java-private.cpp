@@ -266,6 +266,9 @@ bool MCJavaPrivateErrorThrow(MCTypeInfoRef p_error_type)
 
 #ifdef TARGET_SUPPORTS_JAVA
 #include <jni.h>
+#if defined(TARGET_PLATFORM_LINUX) || defined(TARGET_PLATFORM_MACOS_X)
+#include <unistd.h>
+#endif
 
 #ifdef TARGET_SUBPLATFORM_ANDROID
 extern JNIEnv *MCJavaGetThreadEnv();
@@ -305,6 +308,19 @@ private:
 
 static bool s_weak_link_jvm = false;
 
+// OXT-Beyond: what the last attempt to start Java tried and why it failed,
+// for the error a script gets ("Could not initialise Java Runtime
+// Environment" alone said neither where the engine looked nor what went
+// wrong). Empty while nothing has failed.
+static MCStringRef s_jvm_failure = nullptr;
+// The library that loaded, for the error when the JVM then fails to start
+static MCStringRef s_jvm_library = nullptr;
+
+static void jvm_failure_set(MCStringRef p_failure)
+{
+    MCValueAssign(s_jvm_failure, p_failure);
+}
+
 extern "C" int initialise_weak_link_jvm_with_path(const char*);
 static bool initialise_weak_link_jvm_with_string(MCStringRef p_path)
 {
@@ -315,49 +331,145 @@ static bool initialise_weak_link_jvm_with_string(MCStringRef p_path)
     return initialise_weak_link_jvm_with_path(*t_jvm_lib) != 0;
 }
 
+// Tries to load the JVM library p_path (a full path, or with p_by_name a
+// bare name the dynamic linker looks for), and on failure adds what was
+// tried to x_tried
+static bool try_weak_link_jvm(MCStringRef p_path, bool p_by_name, MCStringRef x_tried)
+{
+    if (initialise_weak_link_jvm_with_string(p_path))
+    {
+        MCValueAssign(s_jvm_library, p_path);
+        return true;
+    }
+    
+    // A failed load can leave the loader's error pending ("libjvm.so:
+    // cannot open shared object file"), which the caller would then take
+    // for a failure even when a later path loads: what was tried is
+    // reported below instead
+    if (MCErrorIsPending())
+    {
+        MCAutoErrorRef t_ignored;
+        MCErrorCatch(&t_ignored);
+    }
+    
+    if (!MCStringIsEmpty(x_tried))
+        MCStringAppendFormat(x_tried, "; ");
+    
+    if (p_by_name)
+    {
+        MCStringAppendFormat(x_tried, "%@ (by name, on the library path: not found, or it did not load)", p_path);
+    }
+    else
+    {
+        MCAutoStringRefAsSysString t_sys_path;
+        bool t_exists = false;
+        if (t_sys_path . Lock(p_path))
+            t_exists = access(*t_sys_path, F_OK) == 0;
+        if (t_exists)
+            MCStringAppendFormat(x_tried, "%@ (there, but it did not load: is it built for this processor?)", p_path);
+        else
+            MCStringAppendFormat(x_tried, "%@ (not there)", p_path);
+    }
+    return false;
+}
+
+static bool try_weak_link_jvm_in(const char *p_folder, const char *p_file, MCStringRef x_tried)
+{
+    MCAutoStringRef t_path;
+    if (!MCStringFormat(&t_path, "%s%s", p_folder, p_file))
+        return false;
+    return try_weak_link_jvm(*t_path, false, x_tried);
+}
+
 static bool initialise_weak_link_jvm()
 {
     if (s_weak_link_jvm)
         return true;
     
+    MCAutoStringRef t_tried;
+    if (!MCStringCreateMutable(0, &t_tried))
+        return false;
+    
+    const char *t_javahome = getenv("JAVA_HOME");
+    
+    bool t_loaded = false;
+    
 #if defined(TARGET_PLATFORM_LINUX)
     // On linux we require the path to libjvm.so to be in LD_LIBRARY_PATH
     // so we can just weak link directly.
-    if (!initialise_weak_link_jvm_with_string(MCSTR("libjvm.so")))
-        return false;
+    // OXT-Beyond: that is still tried first, so a setup that found Java
+    // before finds the same one. Only when it fails, JAVA_HOME's JDK is
+    // tried too: lib/server since Java 9, jre/lib/<arch>/server in Java 8.
+    t_loaded = try_weak_link_jvm(MCSTR("libjvm.so"), true, *t_tried);
+    if (!t_loaded && t_javahome != nullptr)
+    {
+        static const char * const s_libjvm_paths[] =
+        {
+            "/lib/server/libjvm.so",
+#if defined(__x86_64__)
+            "/jre/lib/amd64/server/libjvm.so",
+#elif defined(__aarch64__)
+            "/jre/lib/aarch64/server/libjvm.so",
+#elif defined(__i386__)
+            "/jre/lib/i386/server/libjvm.so",
+#elif defined(__arm__)
+            "/jre/lib/arm/server/libjvm.so",
+#endif
+        };
+        for (const char *t_libjvm_path : s_libjvm_paths)
+        {
+            if (try_weak_link_jvm_in(t_javahome, t_libjvm_path, *t_tried))
+            {
+                t_loaded = true;
+                break;
+            }
+        }
+    }
 #else
-    const char *t_javahome = getenv("JAVA_HOME");
-    
-    if (t_javahome == nullptr)
-        return false;
-    
     // Where a JDK keeps libjli: lib since Java 11, lib/jli in Java 9 and
     // 10, jre/lib/jli in Java 8. Only the last was tried, so no current
     // Java could be found.
-    static const char * const s_libjli_paths[] =
+    // OXT-Beyond: and when none of them loads, libjvm itself (lib/server),
+    // which has the two functions the engine needs as well.
+    if (t_javahome != nullptr)
     {
-        "/lib/libjli.dylib",
-        "/lib/jli/libjli.dylib",
-        "/jre/lib/jli/libjli.dylib",
-    };
-    
-    bool t_loaded = false;
-    for (const char *t_libjli_path : s_libjli_paths)
-    {
-        MCAutoStringRef t_path;
-        if (!MCStringFormat(&t_path, "%s%s", t_javahome, t_libjli_path))
-            return false;
-        
-        if (initialise_weak_link_jvm_with_string(*t_path))
+        static const char * const s_libjli_paths[] =
         {
-            t_loaded = true;
-            break;
+            "/lib/libjli.dylib",
+            "/lib/jli/libjli.dylib",
+            "/jre/lib/jli/libjli.dylib",
+            "/lib/server/libjvm.dylib",
+        };
+        
+        for (const char *t_libjli_path : s_libjli_paths)
+        {
+            if (try_weak_link_jvm_in(t_javahome, t_libjli_path, *t_tried))
+            {
+                t_loaded = true;
+                break;
+            }
         }
     }
+#endif
     
     if (!t_loaded)
+    {
+        MCAutoStringRef t_failure;
+        if (MCStringIsEmpty(*t_tried))
+        {
+            MCStringFormat(&t_failure, "JAVA_HOME is not set, so the engine did not know where to look for Java; set it to the folder of a JDK");
+        }
+        else if (t_javahome == nullptr)
+        {
+            MCStringFormat(&t_failure, "no Java library loaded. Tried: %@. JAVA_HOME is not set, so no JDK folder was tried", *t_tried);
+        }
+        else
+        {
+            MCStringFormat(&t_failure, "no Java library loaded from JAVA_HOME (%s). Tried: %@", t_javahome, *t_tried);
+        }
+        jvm_failure_set(*t_failure);
         return false;
-#endif
+    }
     
     s_weak_link_jvm = true;
     return true;
@@ -377,14 +489,30 @@ static bool create_jvm(JavaVMInitArgs *p_args)
     int ret = 0;
 #if defined(TARGET_PLATFORM_LINUX) || defined(TARGET_PLATFORM_MACOS_X)
     ret = JNI_CreateJavaVM(&s_jvm, (void **)&s_env, p_args);
+    if (ret != 0)
+    {
+        MCAutoStringRef t_failure;
+        if (MCStringFormat(&t_failure, "Java loaded from %@, but its virtual machine did not start (JNI_CreateJavaVM returned %d)", s_jvm_library != nullptr ? s_jvm_library : kMCEmptyString, ret))
+            jvm_failure_set(*t_failure);
+    }
 #endif
     
     return ret == 0;
 }
 
+MCStringRef MCJavaPrivateInitialiseFailure()
+{
+#if defined(TARGET_PLATFORM_MACOS_X) || defined(TARGET_PLATFORM_LINUX)
+    return s_jvm_failure;
+#else
+    return nullptr;
+#endif
+}
+
 bool initialise_jvm()
 {
 #if defined(TARGET_PLATFORM_MACOS_X) || defined(TARGET_PLATFORM_LINUX)
+    MCValueAssign(s_jvm_failure, kMCEmptyString);
     if (!initialise_weak_link_jvm())
         return false;
     JavaVMInitArgs vm_args;
@@ -2023,6 +2151,11 @@ jobject MCJavaPrivateDoNativeListenerCallback(jlong p_handler, jstring p_method_
     return s_env->NewLocalRef(t_return);
 }
 #else
+
+MCStringRef MCJavaPrivateInitialiseFailure()
+{
+    return nullptr;
+}
 
 bool initialise_jvm()
 {
