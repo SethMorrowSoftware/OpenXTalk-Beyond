@@ -279,6 +279,14 @@ header; see
   and credits the people involved, and a merge commit (see
   [above](#how-pull-requests-are-merged)). Record what was left out and
   why.
+- **Code from another fork or project** (HyperXTalk, OpenXTalk DPE,
+  OXTL7, a forum post, and so on), copied or re-implemented from it: the
+  commit names the source and its commit (or post), and carries a
+  `Co-authored-by:` line for each author whose code it takes, as the
+  HyperXTalk commits do. Add a row for it to the table of its source in
+  [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) (or a new section for
+  a new source), and say in the code, where it helps, where it came from.
+  A reporter whose report led to a fix is named in the changelog line.
 - **Binaries this repository does not build** are not committed. The
   runtimes for other platforms are listed in
   [`tools/oxt/external-assets.json`](tools/oxt/external-assets.json) with

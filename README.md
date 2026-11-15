@@ -4922,7 +4922,9 @@ contributions are accepted under the same licence as the project. See
   colourisation speed-ups, OneCore voices, Windows 11 detection and the
   SQLite update; for macOS: AppKit dark mode, `macSetIcon`, faster window
   updates and the arm64 work). The OXT-Beyond icon up to 0.2.1-rc.6 was adapted from
-  his OpenXTalk Lite icon.
+  his OpenXTalk Lite icon. A few engine fixes come from his OXTL7
+  (OpenXTalk Lite 7) source
+  ([THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md#code-from-tom-perrys-openxtalk-lite-7)).
 - **Paul McClernan** (OpenXTalkPaul) started OpenXTalk DPE, the "DON'T
   PANIC! Edition", in September 2021, a week after LiveCode Community
   ended: the free continuation of Community 9.6.3 that kept the project
@@ -4940,6 +4942,11 @@ contributions are accepted under the same licence as the project. See
   code, with docmeth02, Mark Wieder, Brian Milby, Paul McClernan, BerndN
   and other contributors. Code taken from HyperXTalk
   names the HyperXTalk commit and its author in the commit message.
+- **The people who report, test and suggest on the OpenXTalk forums.**
+  Each fix their report led to names them in [CHANGELOG.md](CHANGELOG.md)
+  and in its commit. Among them: bwmilby (Brian Milby), tperry2x,
+  OpenXTalkPaul, richmond62, Skids, LittleNemo, TerryL, stam66,
+  mwieder (Mark Wieder), micmac, PaoloM and Emily-Elizabeth Howard.
 - **SethMorrowSoftware** maintains OXT-Beyond.
 - **LiveCode Ltd and the LiveCode Community contributors** wrote LiveCode
   Community, on which all of this is based
