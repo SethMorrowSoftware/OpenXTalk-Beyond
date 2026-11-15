@@ -1339,6 +1339,35 @@ on hcOpenReportPrinting pWith
    return "Report printing is not supported"
 end hcOpenReportPrinting
 
+-- HyperCard 2.1's programs, other Macintoshes' programs that a script
+-- could send AppleEvents to ("if appName is not in the programs", "there
+-- is a program user"; rule T79): there is no such network here, so there
+-- are none, and a script goes on as HyperCard did when it found none
+function hcPrograms
+   return empty
+end hcPrograms
+
+function hcIsProgram pName
+   return false
+end hcIsProgram
+
+-- The QuickTime movies of HyperCard 2.3's QuickTime Tools, windows its
+-- externals opened ("if there is a movie RealMovieName then", "the number
+-- of movies", "the version of QuickTime"; rule T79): those externals do
+-- not run here, so there are no movies and no QuickTime, as on a
+-- Macintosh without it, and a script goes on as it did there
+function hcIsMovie pName
+   return false
+end hcIsMovie
+
+function hcMovieCount
+   return 0
+end hcMovieCount
+
+function hcQuickTimeVersion
+   return 0
+end hcQuickTimeVersion
+
 -- dial ... with modem: there is no modem to dial
 on hcDial pNumber, pModemCommands
    return "dial with modem is not supported"

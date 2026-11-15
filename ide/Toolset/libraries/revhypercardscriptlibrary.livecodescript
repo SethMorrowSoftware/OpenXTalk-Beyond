@@ -169,6 +169,22 @@ script "revHyperCardScriptLibrary"
 -- popUp XCMD), which here stopped with an error or ran this engine's
 -- command: the external's hcX_ name (T13's), whose stand-in or the
 -- library's handler takes it.
+-- T79, in scripts that do not compile, takes the forms the dp.1 sweep of
+-- 2026-11-13 still found in handlers it left out: "is contained in"
+-- ("if afield is contained in "Methods Repository Generators""), "is"
+-- before a comparison ("if hcUserLevel() is < 5"), a number run into the
+-- next word ("hc_num>71and hc_num<110"), "this is the first card", the
+-- short, long and abbreviated target, a stack's cantPeek and cantModify
+-- without "the" or without the stack ("if cantPeek of this stack is
+-- false", "if the cantModify is not true"), "repeat while ... do",
+-- "repeat for i = 1 to n", a \ inside a line that does not end it
+-- ("the mouseLoc <>\ startLoc", from a continuation sign typed there), "dial ... with
+-- modem" after then with else after it, HyperCard 2.1's programs ("the
+-- programs", "there is a program user"), which here are none, and the
+-- QuickTime movies of HyperCard 2.3's QuickTime Tools ("there is a movie
+-- RealMovieName", "the number of movies", "the version of QuickTime"),
+-- which here are none either: the library's hcPrograms, hcIsProgram,
+-- hcIsMovie, hcMovieCount and hcQuickTimeVersion.
 -- A script whose rewrite would not compile when it did before is left as
 -- it was. Each object whose script changes keeps its HyperTalk in the
 -- custom property uHyperCard["script"], and the stack's
@@ -3084,6 +3100,7 @@ private function _RewriteLine pLine, pVars, pRename, pExternals, pRenameHandlers
    end repeat
    put _Join(tTokens) into pLine
 
+   put _SweepForms(pLine) into pLine
    put _PhraseRules(pLine, pThen) into pLine
    put _ParserForms(pLine, pVars) into pLine
    put _ExternalArguments(pLine, pVars, pExternals, pContinued) into pLine
@@ -3092,6 +3109,163 @@ private function _RewriteLine pLine, pVars, pRename, pExternals, pRenameHandlers
    put _PlayNotes(pLine) into pLine
    return _Visual(pLine)
 end _RewriteLine
+
+-- T79: the forms the dp.1 sweep (2026-11-13) still found in the handlers
+-- it left out, each one HyperCard took, or one whose meaning is plain, in
+-- a script that does not compile (the header has the list). Each is
+-- rewritten to the form this engine takes, or to the library's handler
+-- for what this engine has not
+private function _SweepForms pLine
+   local tTokens, tCode, tIdx, n, tItem, i, j, tWord, tPrev, tNext, tNot, tAt, tName, tNew, tFirst
+   put _Tokens(pLine) into tTokens
+   put _Code(tTokens) into tCode
+   put 0 into n
+   repeat for each item tItem in tCode
+      add 1 to n
+      put tItem into tIdx[n]
+   end repeat
+   if n = 0 then return pLine
+   put _T(tTokens, tIdx[1]) into tFirst
+
+   -- a number run into the next word, "hc_num>71and hc_num<110", which
+   -- this engine reads as one unquoted literal: a space between them
+   repeat with i = 1 to tTokens["count"] - 1
+      if tTokens[i]["k"] is "n" and tTokens[i + 1]["k"] is "w" \
+            and _T(tTokens, i + 1) is among the words of "and or then else is mod div" then
+         put space before tTokens[i + 1]["t"]
+         _Fire "T79 more forms HyperCard took"
+      end if
+   end repeat
+
+   -- a \ that does not end the line ("(the mouseLoc <>\ startLoc)"),
+   -- which this engine takes as going on to the next line: left out
+   repeat with i = 1 to n - 1
+      if _T(tTokens, tIdx[i]) is "\" and tTokens[tIdx[i]]["k"] is "p" then
+         put empty into tTokens[tIdx[i]]["t"]
+         _Fire "T79 more forms HyperCard took"
+      end if
+   end repeat
+
+   -- "repeat while x > 1 do": the do left out; "repeat for i = 1 to n":
+   -- a repeat with
+   if tFirst is "repeat" and n > 2 then
+      if _T(tTokens, tIdx[2]) is among the words of "while until" and _T(tTokens, tIdx[n]) is "do" then
+         put empty into tTokens[tIdx[n]]["t"]
+         if tTokens[tIdx[n] - 1]["k"] is "sp" then put empty into tTokens[tIdx[n] - 1]["t"]
+         _Fire "T79 more forms HyperCard took"
+      end if
+      if n > 4 and _T(tTokens, tIdx[2]) is "for" and tTokens[tIdx[3]]["k"] is "w" and _T(tTokens, tIdx[4]) is "=" \
+            and _T(tTokens, tIdx[3]) is not "each" then
+         put "with" into tTokens[tIdx[2]]["t"]
+         _Fire "T79 more forms HyperCard took"
+      end if
+   end if
+
+   repeat with i = 1 to n
+      if tTokens[tIdx[i]]["k"] is not "w" then next repeat
+      put _T(tTokens, tIdx[i]) into tWord
+      put empty into tPrev
+      if i > 1 then put _T(tTokens, tIdx[i - 1]) into tPrev
+      put _T(tTokens, tIdx[i + 1]) into tNext
+
+      switch tWord
+         case "contained"
+            -- "is contained in", "is not contained in": is in
+            if tPrev is among the words of "is not" and tNext is "in" then
+               put empty into tTokens[tIdx[i]]["t"]
+               _ClearSpaceAfter tTokens, tIdx[i]
+               _Fire "T79 more forms HyperCard took"
+            end if
+            break
+         case "is"
+            -- "is < 5", "is >= x": the comparison alone
+            if tNext is among the items of "<,>,=" and tTokens[tIdx[i + 1]]["k"] is "p" \
+                  and tPrev is not empty and tPrev is not among the words of "if then else and or not (" then
+               put empty into tTokens[tIdx[i]]["t"]
+               _ClearSpaceAfter tTokens, tIdx[i]
+               _Fire "T79 more forms HyperCard took"
+            end if
+            break
+         case "this"
+            -- "this is the first card", "this is not the last card"
+            if tNext is "is" then
+               put i + 2 into tAt
+               put _T(tTokens, tIdx[tAt]) is "not" into tNot
+               if tNot then add 1 to tAt
+               if _T(tTokens, tIdx[tAt]) is "the" and _T(tTokens, tIdx[tAt + 1]) is among the words of "first last" \
+                     and _T(tTokens, tIdx[tAt + 2]) is among the words of "card cd" \
+                     and _T(tTokens, tIdx[tAt + 3]) is not among the words of "of in" then
+                  put "the number of this card is" into tNew
+                  if tNot then put " not" after tNew
+                  if _T(tTokens, tIdx[tAt + 1]) is "first" then
+                     put " 1" after tNew
+                  else
+                     put " the number of cards" after tNew
+                  end if
+                  _Replace tTokens, tIdx, i, tAt + 2, tNew
+                  _Fire "T79 more forms HyperCard took"
+               end if
+            end if
+            break
+         case "the"
+            put _T(tTokens, tIdx[i + 2]) into tName
+            if tNext is among the words of "short long abbr abbrev abbreviated" and tName is "target" \
+                  and _T(tTokens, tIdx[i + 3]) is not "of" then
+               -- the short target: the short name of the target
+               _Replace tTokens, tIdx, i, i + 2, "the" && tTokens[tIdx[i + 1]]["t"] && "name of the target"
+               _Fire "T79 more forms HyperCard took"
+            else if tNext is among the words of "cantmodify cantpeek cantabort" and tName is not "of" then
+               -- "the cantModify" alone: this stack's
+               put " of this stack" after tTokens[tIdx[i + 1]]["t"]
+               _Fire "T79 more forms HyperCard took"
+            else if tNext is "programs" and tName is not "of" then
+               -- HyperCard 2.1's programs on the network: none here
+               _Replace tTokens, tIdx, i, i + 1, "hcPrograms()"
+               _Fire "T79 HyperCard's programs and QuickTime movies"
+            else if tNext is "number" and tName is "of" and _T(tTokens, tIdx[i + 3]) is "movies" then
+               _Replace tTokens, tIdx, i, i + 3, "hcMovieCount()"
+               _Fire "T79 HyperCard's programs and QuickTime movies"
+            else if tNext is "version" and tName is "of" and _T(tTokens, tIdx[i + 3]) is "quicktime" then
+               _Replace tTokens, tIdx, i, i + 3, "hcQuickTimeVersion()"
+               _Fire "T79 HyperCard's programs and QuickTime movies"
+            end if
+            break
+         case "cantpeek"
+         case "cantmodify"
+         case "cantabort"
+            -- "if cantPeek of this stack is false": the property with the
+            if tNext is "of" and tPrev is not among the words of "the set" then
+               put "the " before tTokens[tIdx[i]]["t"]
+               _Fire "T79 more forms HyperCard took"
+            end if
+            break
+         case "there"
+            -- "there is a program user", "there is not a movie 1"
+            if tNext is "is" then
+               put i + 2 into tAt
+               put _T(tTokens, tIdx[tAt]) is "not" into tNot
+               if tNot then add 1 to tAt
+               if _T(tTokens, tIdx[tAt]) is among the words of "a an" \
+                     and _T(tTokens, tIdx[tAt + 1]) is among the words of "program movie" \
+                     and tIdx[tAt + 2] is not empty and tTokens[tIdx[tAt + 2]]["k"] is among the words of "w s n" \
+                     and _T(tTokens, tIdx[tAt + 2]) is not among the words of "track then and or" \
+                     and _T(tTokens, tIdx[tAt + 3]) is not among the words of "of in" then
+                  if _T(tTokens, tIdx[tAt + 1]) is "program" then
+                     put "hcIsProgram(" into tNew
+                  else
+                     put "hcIsMovie(" into tNew
+                  end if
+                  put tTokens[tIdx[tAt + 2]]["t"] & ")" after tNew
+                  if tNot then put "not " before tNew
+                  _Replace tTokens, tIdx, i, tAt + 2, tNew
+                  _Fire "T79 HyperCard's programs and QuickTime movies"
+               end if
+            end if
+            break
+      end switch
+   end repeat
+   return _Join(tTokens)
+end _SweepForms
 
 -- T4, T6, T7, T9, T10, T11: phrases, matched on tokens (pThen: as
 -- _RewriteLine has it)
@@ -7263,6 +7437,16 @@ private function _LineCommands pLine
       put sMatch[2] into tRest
       _Fire "T12 HyperCard command to the library"
       return tIndent & "hcOpenReportPrinting" && _Quoted(tRest)
+   end if
+   -- (T79: after then or else, with an else after it, "then dial "ATDT"
+   -- & field "HPhone" with modem else")
+   if _Match(pLine, "(?i)^(.*\b(?:then|else)\s+)dial\s+(.*?)\s+with\s+modem\b(.*?)(\s+else\b.*)?$") then
+      put sMatch[1] into tIndent
+      put sMatch[2] into a
+      put sMatch[3] into tRest
+      put sMatch[4] into b
+      _Fire "T79 more forms HyperCard took"
+      return tIndent & "hcDial" && a & comma && _Quoted(tRest) & b
    end if
    if _Match(pLine, "(?i)^(\s*)dial\s+(.*?)\s+with\s+modem\b(.*)$") then
       put sMatch[1] into tIndent

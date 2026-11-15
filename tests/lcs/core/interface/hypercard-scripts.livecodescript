@@ -7277,3 +7277,131 @@ on TestHyperCardScriptsT78
          "  put Upper(" & q & "ab" & q & ") into y")
    _Close tStack
 end TestHyperCardScriptsT78
+
+on TestHyperCardScriptsT79
+   -- T79: the forms the dp.1 sweep (2026-11-13) still found in the
+   -- handlers it left out whole, in scripts that do not compile
+   local tScript, q, tStack, tError, tWas
+   global gHCScriptsTest
+   put quote into q
+   put _Rewrite("on mouseUp", \
+         "  if afield is contained in " & q & "Methods Repository" & q & " then beep", \
+         "  if afield is not contained in " & q & "abc" & q & " then beep", \
+         "  IF hcUserLevel() is < 5 then set userlevel to 5", \
+         "  if hc_num>71and hc_num<110 then go to card hc_num - 31", \
+         "  if this is the first card then beep", \
+         "  if this is not the last card then beep", \
+         "  if the short target is " & q & "New X" & q & " then beep", \
+         "  if cantPeek of this stack is false then set cantPeek of this stack to true", \
+         "  if the cantModify is not true then set the userModify to false", \
+         "  repeat while the number of lines in assoc > 1 do", \
+         "  end repeat", \
+         "  repeat for i = 1 to the number of lines of theText", \
+         "  end repeat", \
+         "  wait until (the seconds = t+10) or (the mouseLoc <>\ startLoc)", \
+         "  if appName is not in the programs then beep", \
+         "  if there is not a program user then beep", \
+         "  if there is a movie RealMovieName then close movie RealMovieName", \
+         "  repeat with moov = 1 to the number of movies", \
+         "  end repeat", \
+         "  if the version of QuickTime < 2.5 then beep", \
+         "end mouseUp") into tScript
+   TestAssert "T79: is contained in", line 2 of tScript is "  if afield is in " & q & "Methods Repository" & q & " then beep"
+   TestAssert "T79: is not contained in", line 3 of tScript is "  if afield is not in " & q & "abc" & q & " then beep"
+   TestAssert "T79: is before a comparison", line 4 of tScript is "  IF hcUserLevel() < 5 then set userlevel to 5"
+   TestAssert "T79: a number run into and", line 5 of tScript is "  if hc_num>71 and hc_num<110 then go to card hc_num - 31"
+   TestAssert "T79: this is the first card", line 6 of tScript is "  if the number of this card is 1 then beep"
+   TestAssert "T79: this is not the last card", line 7 of tScript is "  if the number of this card is not the number of cards then beep"
+   TestAssert "T79: the short target", line 8 of tScript is "  if the short name of the target is " & q & "New X" & q & " then beep"
+   TestAssert "T79: cantPeek without the", line 9 of tScript is "  if the cantPeek of this stack is false then set cantPeek of this stack to true"
+   TestAssert "T79: the cantModify without the stack", line 10 of tScript is "  if the cantModify of this stack is not true then set the userModify to false"
+   TestAssert "T79: repeat while ... do", line 11 of tScript is "  repeat while the number of lines in assoc > 1"
+   TestAssert "T79: repeat for i =", line 13 of tScript is "  repeat with i = 1 to the number of lines of theText"
+   TestAssert "T79: a \ inside a line", line 15 of tScript is "  wait until (the seconds = t+10) or (the mouseLoc <> startLoc)"
+   TestAssert "T79: the programs", line 16 of tScript is "  if appName is not in hcPrograms() then beep"
+   TestAssert "T79: there is not a program", line 17 of tScript is "  if not hcIsProgram(user) then beep"
+   TestAssert "T79: there is a movie", line 18 of tScript begins with "  if hcIsMovie(RealMovieName) then "
+   TestAssert "T79: the number of movies", line 19 of tScript is "  repeat with moov = 1 to hcMovieCount()"
+   TestAssert "T79: the version of QuickTime", line 21 of tScript is "  if hcQuickTimeVersion() < 2.5 then beep"
+
+   put _Rewrite("on mouseUp", \
+         "  if hilite of bg btn " & q & "Tone" & q & " is true", \
+         "  then dial " & q & "ATDT" & q & " & field " & q & "HPhone" & q & " with modem else", \
+         "  beep", \
+         "end mouseUp") into tScript
+   TestAssert "T79: dial with modem after then, the else kept", \
+         line 3 of tScript is "  then hcDial " & q & "ATDT" & q & " & field " & q & "HPhone" & q & ", empty else"
+
+   -- the words in strings and comments, and forms that are something
+   -- else, left as they are
+   put _Rewrite("on mouseUp", \
+         "  put " & q & "this is the first card, the programs" & q & " into x -- is contained in", \
+         "  put the number of this card into n", \
+         "  if x is in y then beep", \
+         "  if x is not empty then beep", \
+         "  repeat for each line tLine in x", \
+         "  end repeat", \
+         "  repeat while x do", \
+         "  end repeat", \
+         "  put the short name of the target into t", \
+         "  set cantModify of this stack to false", \
+         "  put 3 into y -- 71and", \
+         "end mouseUp") into tScript
+   TestAssert "T79: other forms unchanged", line 2 to 12 of tScript is _Lines( \
+         "  put " & q & "this is the first card, the programs" & q & " into x -- is contained in", \
+         "  put the number of this card into n", \
+         "  if x is in y then beep", \
+         "  if x is not empty then beep", \
+         "  repeat for each line tLine in x", \
+         "  end repeat", \
+         "  repeat while x", \
+         "  end repeat", \
+         "  put the short name of the target into t", \
+         "  set cantModify of this stack to false", \
+         "  put 3 into y -- 71and")
+
+   -- a script that compiles as it is: none of these
+   put "HCScriptsT79" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   create button "Compiles"
+   put _Lines("on mouseUp", "  if cantModify of this stack is true then beep", \
+         "  put " & q & "there is a movie m, the number of movies" & q & " into x", \
+         "  repeat with i = 1 to 3", "  end repeat", "end mouseUp") into tWas
+   set the script of button "Compiles" to tWas
+   -- (as the engine keeps it)
+   put the script of button "Compiles" into tWas
+   create card
+   create card
+   go to card 1
+   create button "Forms"
+   set the script of button "Forms" to _Lines("on mouseUp", "  global gHCScriptsTest", \
+         "  put empty into gHCScriptsTest", \
+         "  if this is the first card then put " & q & "first" & q & " after gHCScriptsTest", \
+         "  if this is the last card then put " & q & ",last" & q & " after gHCScriptsTest", \
+         "  put 72 into n", \
+         "  if n>71and n<110 then put " & q & ",between" & q & " after gHCScriptsTest", \
+         "  if n is contained in " & q & "1720" & q & " then put " & q & ",in" & q & " after gHCScriptsTest", \
+         "  if n is > 5 then put " & q & ",more" & q & " after gHCScriptsTest", \
+         "  if there is a movie " & q & "Demo" & q & " then put " & q & ",movie" & q & " after gHCScriptsTest", \
+         "  if there is not a program " & q & "Finder" & q & " then put " & q & ",noprogram" & q & " after gHCScriptsTest", \
+         "  put comma & the number of movies & comma & (the programs is empty) after gHCScriptsTest", \
+         "  put comma & the version of QuickTime after gHCScriptsTest", \
+         "  repeat for i = 1 to 2", \
+         "    put comma & i after gHCScriptsTest", \
+         "  end repeat", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   TestAssert "T79: a script that compiles, unchanged", the script of button "Compiles" of stack tStack is tWas
+   put empty into tError
+   try
+      send "mouseUp" to button "Forms" of stack tStack
+   catch tError
+   end try
+   TestAssert "T79: the forms run, on the first card of three", tError is empty \
+         and gHCScriptsTest is "first,between,in,more,noprogram,0,true,0,1,2"
+   TestAssert "T79: no handler left out", revHyperCardLeftOutHandlers() is empty
+   _Close tStack
+end TestHyperCardScriptsT79
