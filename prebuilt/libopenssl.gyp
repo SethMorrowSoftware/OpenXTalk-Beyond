@@ -26,7 +26,7 @@
 						{
 							'include_dirs':
 							[
-								'unpacked/openssl/<(uniform_arch)-win32-$(PlatformToolset)_static_$(ConfigurationName)/include',
+								'unpacked/openssl/<(uniform_arch)-win32-v141_static_$(ConfigurationName)/include',
 							],
 						},
 					],
@@ -62,7 +62,7 @@
 						{
 							'include_dirs':
 							[
-								'unpacked/openssl/<(uniform_arch)-win32-$(PlatformToolset)_static_$(ConfigurationName)/include',
+								'unpacked/openssl/<(uniform_arch)-win32-v141_static_$(ConfigurationName)/include',
 							],
 						},
 					],
@@ -157,7 +157,7 @@
 						{
 							'library_dirs':
 							[
-								'unpacked/openssl/<(uniform_arch)-win32-$(PlatformToolset)_static_$(ConfigurationName)/lib',
+								'unpacked/openssl/<(uniform_arch)-win32-v141_static_$(ConfigurationName)/lib',
 							],
 							
 							# OpenSSL 3's names (1.1's archives renamed them to

@@ -253,9 +253,8 @@ Earlier versions, from 0.2.1 to 0.2.5, are described under
   the engine compiles in (zlib 1.3.2, libpng 1.6.59, giflib 5.2.2,
   libjpeg 9f, and PCRE 8.45, the last release of PCRE 1), and revXML's
   libxml2 2.15.4 and libxslt 1.1.45, and revZip's libzip 1.12. The browser
-  widget and revBrowser still use
-  CEF 74 (Chromium 74, from 2019), and several libraries in
-  `thirdparty/` (cairo and the database client
+  widget and revBrowser use CEF 156 (Chromium 156, from 2026). Several
+  libraries in `thirdparty/` (cairo and the database client
   libraries among them) are years old; they
   have known vulnerabilities, and upgrading them is planned. See
   [SECURITY.md](SECURITY.md).
@@ -583,7 +582,7 @@ What it needs:
   from images (the IDE's pointing hand and grab hand) are drawn at the
   desktop's size too, and the browser widget draws its page at the
   desktop's scale.
-- **The browser widget and revBrowser** (CEF 74) also need NSS, ALSA and a
+- **The browser widget and revBrowser** (CEF 156) also need NSS, ALSA and a
   few more X11 libraries (the `browser` lines of `linux/libraries.txt` in
   the package). Without them the launcher turns the browser off
   (`LIVECODE_USE_CEF=0`), says which ones are missing, and the IDE shows
@@ -593,8 +592,9 @@ What it needs:
   (from 0.2.7-rc.1): their 64-bit libraries need glibc 2.28 at most and
   carry their own OpenSSL. Up to 0.2.6, SodiumXT needed glibc 2.33 and
   DataChannelXT glibc 2.38 and OpenSSL 3. The 32-bit libraries that x86
-  standalones get still need glibc 2.33 (SodiumXT), 2.34 (Box2Dxt), or
-  2.38 and OpenSSL 3 (TorrentXT and DataChannelXT).
+  standalones get still need glibc 2.33 (SodiumXT), 2.34 (Box2Dxt),
+  2.34 and OpenSSL 3 (curlxt), or 2.38 and OpenSSL 3 (TorrentXT and
+  DataChannelXT).
 - **The player** runs `/usr/bin/mplayer` when it is installed, and plays
   through GStreamer 1.x when it is not (many distributions no longer
   package mplayer). For GStreamer, install its plugins: on Debian and
@@ -673,8 +673,8 @@ it.
 
 What it does not have:
 
-- **No browser widget and no revBrowser.** They use CEF 74, which has no
-  Linux ARM build, so the package leaves them out, the IDE opens web
+- **No browser widget and no revBrowser.** They use CEF, whose Linux ARM build
+  OXT-Beyond does not take yet, so the package leaves them out, the IDE opens web
   pages in your web browser, and the Tools palette has no browser widget.
 - **Standalones for 64-bit ARM Linux are built only by this package**,
   from its own runtime ("Linux arm64" in the standalone settings). The
@@ -4567,6 +4567,7 @@ repositories at pinned commits when OXT-Beyond is packaged (see
 | `org.openxtalk.library.coin`, `coinxt` | CoinXT: Bitcoin and Ethereum cryptography (hashes, keys, addresses, HD wallets, transactions) | [CoinXT](https://github.com/SethMorrowSoftware/CoinXT) |
 | `onionxt`, `onion-httpd` | OnionXT: Tor transport and onion services, and a small HTTP server on top of it (LiveCode Script) | [OnionXT](https://github.com/SethMorrowSoftware/OnionXT) |
 | `nostrxt`, `nostr-relay` | NostrXT: the Nostr protocol and a relay client (LiveCode Script) | [NostrXT](https://github.com/SethMorrowSoftware/NostrXT) |
+| `org.openxtalk.library.curl`, `curlHelpers`, `tsNetCompat` | curlxt: HTTP(S), FTP(S), SFTP, SCP and SMTP through libcurl, its script helpers, and the tsNet calls by name over them | [xtalk-suite, `curlxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/curlxt) |
 
 - The IDE loads them when it starts, like its other built-in
   extensions; the *Extension Manager* lists them and can unload them or
@@ -4576,7 +4577,8 @@ repositories at pinned commits when OXT-Beyond is packaged (see
   do no harm, because a stack name finds the built-in copy.
 - The script libraries keep the stack names the members document
   (`coinxt`, `nostrxt`, `nostr-relay`, `onionxt`, `onion-httpd`,
-  `box2dxt-kit`, `torrentHelpers`, `enetHelpers`, `dataChannelHelpers`),
+  `box2dxt-kit`, `torrentHelpers`, `enetHelpers`, `dataChannelHelpers`,
+  `curlHelpers`, `tsNetCompat`),
   and only one stack of a given name can be in memory. While the
   built-in library is loaded, opening your own copy of the same file by
   its path, or loading it with
@@ -4607,6 +4609,22 @@ repositories at pinned commits when OXT-Beyond is packaged (see
   dictionary (*Preferences > Dictionary*), which is made from the same
   sources when OXT-Beyond is built. Their guides and the rest of their
   documentation are in their repositories (`docs/`).
+- **The tsNet calls.** LiveCode's tsNet external came only with its
+  paid editions. `tsNetCompat` gives the same calls by name
+  (`tsNetGet`, `tsNetPost`, `tsNetGetSync`, `tsNetSmtpSync` and the
+  rest, with tsNet's parameter orders and callbacks), written from
+  tsNet's public dictionary over curlxt, so a stack written for tsNet
+  runs, and so do the asynchronous calls of the IDE's Dropbox library,
+  which were written for tsNet (checked with curlxt's script tests, not
+  yet with Dropbox itself).
+  `tsNetVersion()` answers 1.4.5, the tsNet LiveCode last shipped.
+  libURL is untouched: `get url`, `post`, `put ... into url` and the
+  `the httpHeaders` family behave as before; only a script that calls
+  a `tsNet*` handler reaches curlxt. A stack that tested whether tsNet
+  was there (for example by trying `tsNetVersion()` and catching the
+  error) now finds it. The [differences from
+  tsNet](https://github.com/SethMorrowSoftware/xtalk-suite/blob/main/curlxt/docs/tsnet-compat.md)
+  are listed in curlxt's `docs/tsnet-compat.md`.
 - Their licences (MIT, and those of the libraries built into them) are
   in each extension's `licenses` folder and in
   [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md#xtalk-suite-extensions).
@@ -4825,13 +4843,15 @@ Known limitations, in rough order of importance:
    gstreamer1.0-libav gstreamer1.0-x` on Debian and Ubuntu); with
    neither no file plays. macOS
    plays both.
-11. In an install for all users, a few things that save stacks inside
-   the program folder fail for standard users, because Setup keeps
-   stacks and scripts there read-only: the Report Builder plugin saving
-   itself when it closes, *Plugin Settings* changes to the plugins that
-   come with OXT-Beyond, and edits to the built-in image libraries. Install for the current user only,
-   or use the portable zip, if you need them. Plan: keep that state in
-   the user's own folders.
+11. In an install for all users, Setup keeps the stacks and scripts in
+   the program folder read-only for standard users. *Plugin Settings*
+   changes to the plugins that come with OXT-Beyond, and the place of
+   the Report Builder plugin's Report window, are then kept in the
+   user's preferences instead of the plugins' own stacks (where those
+   stacks can be saved, they are saved as before). Edits to the
+   built-in image libraries still fail there: install for the current
+   user only, or use the portable zip, if you need them. Plan: keep
+   that state in the user's own folders too.
 12. HTML5 standalones are new. They are tested automatically in
    Chromium, Firefox and WebKit (Safari's engine), but not yet on a
    phone (the touch screen's keyboard is checked with a stand-in for a

@@ -2359,8 +2359,10 @@ private function leShowcaseTable
    sort lines of tFiles
    -- (the player's own course and its tour of the web are Home's Academy
    -- and Home's tour, so the gallery leaves them out, as packaging does:
-   -- tools/oxt/package.py SHOWCASE_LEFT_OUT)
-   repeat for each item tName in "OXT-Beyond on the Web,Learn xTalk"
+   -- tools/oxt/package.py SHOWCASE_LEFT_OUT; so is the xTalk Suite's
+   -- Box2Dxt platformer, which the player has for itself and the suite
+   -- has for the IDE)
+   repeat for each item tName in "OXT-Beyond on the Web,Learn xTalk,Box2Dxt Platformer"
       filter tFiles without (tName & ".oxtstack")
    end repeat
    repeat for each item tName in "xTalk Primer,Fireworks,Live Weather," & \

@@ -93,6 +93,9 @@ MCPropertyInfo MCImage::kProperties[] =
 	DEFINE_RW_OBJ_PROPERTY(P_PALINDROME_FRAMES, Bool, MCImage, PalindromeFrames)
 	DEFINE_RW_OBJ_PROPERTY(P_CONSTANT_MASK, Bool, MCImage, ConstantMask)
 	DEFINE_RW_OBJ_PROPERTY(P_REPEAT_COUNT, Int16, MCImage, RepeatCount)
+	// OXT-Beyond: the pace of an animated image, set from script
+	DEFINE_RW_OBJ_PROPERTY(P_FRAME_DURATIONS, String, MCImage, FrameDurations)
+	DEFINE_RW_OBJ_PROPERTY(P_PLAY_RATE, Double, MCImage, PlayRate)
 	DEFINE_RO_OBJ_PROPERTY(P_FORMATTED_HEIGHT, Int16, MCImage, FormattedHeight)
 	DEFINE_RO_OBJ_PROPERTY(P_FORMATTED_WIDTH, Int16, MCImage, FormattedWidth)
 	DEFINE_RW_OBJ_PROPERTY(P_TEXT, BinaryString, MCImage, Text)
@@ -148,6 +151,10 @@ MCImage::MCImage()
     // MM-2014-07-31: [[ ThreadedRendering ]] Used to ensure the image animate message is only posted from a single thread.
     m_animate_posted = false;
     
+	// OXT-Beyond: every frame keeps its file's own duration, at its own pace.
+	m_frame_durations = nil;
+	m_frame_durations_count = 0;
+	m_play_rate = 1.0;
 }
 
 MCImage::MCImage(const MCImage &iref) : MCControl(iref)
@@ -197,6 +204,20 @@ MCImage::MCImage(const MCImage &iref) : MCControl(iref)
     
     // MM-2014-07-31: [[ ThreadedRendering ]] Used to ensure the image animate message is only posted from a single thread.
     m_animate_posted = false;
+
+	// OXT-Beyond: an image made from this one (clone, "copy ... to") animates
+	//   as its original does now, script settings included; it gets none
+	//   on failure. A paste from the clipboard is made from the image as it
+	//   would be saved, so it keeps neither.
+	m_frame_durations = nil;
+	m_frame_durations_count = 0;
+	if (iref.m_frame_durations != nil &&
+		MCMemoryNewArray(iref.m_frame_durations_count, m_frame_durations))
+	{
+		MCMemoryCopy(m_frame_durations, iref.m_frame_durations, iref.m_frame_durations_count * sizeof(uint32_t));
+		m_frame_durations_count = iref.m_frame_durations_count;
+	}
+	m_play_rate = iref.m_play_rate;
 }
 
 MCImage::~MCImage()
@@ -220,6 +241,39 @@ MCImage::~MCImage()
 	}
 	
 	MCValueRelease(filename);
+
+	MCMemoryDeleteArray(m_frame_durations);
+}
+
+// OXT-Beyond: see image.h. The default path (no frameDurations, a playRate
+//   of 1) answers the image rep's own duration untouched, so the pace of
+//   every animation no script has changed is exactly what it was.
+bool MCImage::getplaybackframeduration(uindex_t p_index, uint32_t &r_duration)
+{
+	if (m_rep == nil)
+		return false;
+
+	uint32_t t_duration;
+	if (!m_rep->GetFrameDuration(p_index, t_duration))
+		return false;
+
+	if (m_frame_durations != nil && p_index < m_frame_durations_count &&
+		m_frame_durations[p_index] != kMCImageFrameDurationFromFile)
+		t_duration = m_frame_durations[p_index];
+
+	if (m_play_rate != 1.0)
+	{
+		// The rate is positive (SetPlayRate refuses anything else); round to
+		// the nearest millisecond and keep within the timer's range.
+		double t_scaled;
+		t_scaled = floor(t_duration / m_play_rate + 0.5);
+		if (t_scaled > (double)INT32_MAX)
+			t_scaled = (double)INT32_MAX;
+		t_duration = (uint32_t)t_scaled;
+	}
+
+	r_duration = t_duration;
+	return true;
 }
 
 Chunk_term MCImage::gettype() const
@@ -557,7 +611,8 @@ void MCImage::timer(MCNameRef mptr, MCParameter *params)
 				{
 					// IM-2014-11-25: [[ ImageRep ]] Use ImageRep method to get frame duration
 					uint32_t t_frame_duration;
-					if (m_rep->GetFrameDuration(currentframe, t_frame_duration))
+					// OXT-Beyond: through the frameDurations and playRate
+					if (getplaybackframeduration(currentframe, t_frame_duration))
 						MCscreen->addtimer(this, MCM_internal, t_frame_duration);
 				}
 			}

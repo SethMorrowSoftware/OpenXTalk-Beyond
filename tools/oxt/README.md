@@ -1229,10 +1229,11 @@ tools/oxt/stack-scripts.sh <development engine> --check  # compare only
 `ide-stack-patch.sh` runs it after applying patches. After any other change
 to a binary stack, run it and commit `stack-scripts/` with the stack; the
 Linux build runs it with `--check` with the engine it built and fails if a
-file is missing, out of date or left over. Two stacks the engine does not
-load (`colchooser.livecode`, `revcolorchooser.rev` in `ide/Toolset/palettes`)
-have no files. `tools/oxt/stack_scripts.py` does the work; the codebase map
-uses it too.
+file is missing, out of date or left over. (Until 0.2.8-dp.2 the two Color
+Chooser stacks, `colchooser.livecode` and `revcolorchooser.rev` in
+`ide/Toolset/palettes`, had no files: reading "the properties" of their
+color palette ended the engine, issue 518.) `tools/oxt/stack_scripts.py`
+does the work; the codebase map uses it too.
 
 The same run reads the dumps for the words of the IDE's own windows
 (`tools/ci/stack_inks.py`): no button or field of a stack under

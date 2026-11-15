@@ -1,0 +1,30 @@
+# Report Builder (Plugins) in an install for all users (README limitation
+# 11): it saved itself when it closed, to remember where its "Report"
+# window was, and in the read-only program folder of such an install that
+# save failed with an error. The save is tried as before; when it fails,
+# the window's place is kept in the user's preferences
+# (cOXTReportBuilderPosition) instead, and report-builder-read-only-position-2.txt
+# puts it back. Where the stack can be saved, that preference is cleared.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Plugins/Report Builder.livecode
+object: stack
+replace:
+|   save this stack|
+|   close stack "Report"  --substack|
+with:
+|   -- OXT-Beyond: where this stack cannot be saved (an install for all|
+|   -- users), the Report window's place is kept in the user's preferences|
+|   local tResult, tError|
+|   try|
+|      save this stack|
+|      put the result into tResult|
+|   catch tError|
+|   end try|
+|   if tResult is empty and tError is empty then|
+|      if revIDEGetPreference("cOXTReportBuilderPosition") is not empty then|
+|         revIDESetPreference "cOXTReportBuilderPosition", empty|
+|      end if|
+|   else|
+|      revIDESetPreference "cOXTReportBuilderPosition", the cPosition of stack "Report"|
+|   end if|
+|   close stack "Report"  --substack|

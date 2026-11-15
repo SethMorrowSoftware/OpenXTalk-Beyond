@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Marshall A. Greenblatt. All rights reserved.
+// Copyright (c) 2026 Marshall A. Greenblatt. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -33,31 +33,76 @@
 // by hand. See the translator.README.txt file in the tools directory for
 // more information.
 //
-// $hash=d61ec60c05868c98d2823f6fcc6cf9a5153eb01d$
+// $hash=4b79dbc9c8add3d687829498e390b5a896c12ce2$
 //
 
 #ifndef CEF_INCLUDE_CAPI_TEST_CEF_TEST_HELPERS_CAPI_H_
 #define CEF_INCLUDE_CAPI_TEST_CEF_TEST_HELPERS_CAPI_H_
 #pragma once
 
-#if !defined(BUILDING_CEF_SHARED) && !defined(WRAPPING_CEF_SHARED) && \
-    !defined(UNIT_TEST)
+#if defined(BUILDING_CEF_SHARED)
+#error This file cannot be included DLL-side
+#endif
+
+#if !defined(WRAPPING_CEF_SHARED) && !defined(UNIT_TEST)
 #error This file can be included for unit tests only
 #endif
 
-#include "include/capi/cef_base_capi.h"
+#include "include/capi/cef_browser_capi.h"
+#include "include/capi/cef_callback_capi.h"
+#include "include/capi/cef_frame_capi.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 ///
-// Execute JavaScript with a user gesture to trigger functionality like
-// onbeforeunload handlers that will otherwise be blocked.
+/// Execute JavaScript with a user gesture to trigger functionality like
+/// onbeforeunload handlers that will otherwise be blocked.
 ///
 CEF_EXPORT void cef_execute_java_script_with_user_gesture_for_tests(
     struct _cef_frame_t* frame,
     const cef_string_t* javascript);
+
+///
+/// Set the DIR_SRC_TEST_DATA_ROOT directory used to load test data. Must be
+/// configured when running from a CEF binary distribution. Defaults to the
+/// "chromium/src" directory when running from a local CEF/Chromium build. |dir|
+/// must be an absolute path.
+///
+CEF_EXPORT void cef_set_data_directory_for_tests(const cef_string_t* dir);
+
+///
+/// Returns true (1) if |feature_name| is enabled by default, command line or
+/// field trial. This supports a short list of curated values that are queried
+/// by unit tests.
+///
+CEF_EXPORT int cef_is_feature_enabled_for_tests(
+    const cef_string_t* feature_name);
+
+#if CEF_API_ADDED(CEF_EXPERIMENTAL)
+///
+/// Returns the number of native widgets owned by the Chrome-style browser
+/// window associated with |browser|, excluding the browser window itself.
+/// Returns -1 if |browser| is NULL, is not Chrome style or does not currently
+/// have a browser window. Must be called on the browser process UI thread.
+///
+CEF_EXPORT int cef_get_chrome_browser_owned_widget_count_for_tests(
+    struct _cef_browser_t* browser);
+#endif
+
+#if CEF_API_ADDED(CEF_EXPERIMENTAL)
+///
+/// Clear the smart-bubble dismissal statistics associated with |origin| for the
+/// Chrome-style browser's profile. This allows password save prompts to be
+/// shown repeatedly without reaching the automatic display limit. |callback|
+/// will be executed on the browser process UI thread after completion.
+///
+CEF_EXPORT void cef_clear_chrome_browser_password_dismissal_stats_for_tests(
+    struct _cef_browser_t* browser,
+    const cef_string_t* origin,
+    struct _cef_completion_callback_t* callback);
+#endif
 
 #ifdef __cplusplus
 }

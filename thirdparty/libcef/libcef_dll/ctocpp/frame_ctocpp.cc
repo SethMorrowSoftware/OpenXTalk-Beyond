@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Chromium Embedded Framework Authors. All rights
+// Copyright (c) 2026 The Chromium Embedded Framework Authors. All rights
 // reserved. Use of this source code is governed by a BSD-style license that
 // can be found in the LICENSE file.
 //
@@ -9,15 +9,19 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=e1e8b50b87dbf2cb7fa8b4d53fa5ff635c51bde3$
+// $hash=b3f333f7672a97b0b84d27f24c26c85931a4f20d$
 //
 
 #include "libcef_dll/ctocpp/frame_ctocpp.h"
+
 #include "libcef_dll/cpptoc/domvisitor_cpptoc.h"
 #include "libcef_dll/cpptoc/string_visitor_cpptoc.h"
+#include "libcef_dll/cpptoc/urlrequest_client_cpptoc.h"
 #include "libcef_dll/ctocpp/browser_ctocpp.h"
+#include "libcef_dll/ctocpp/process_message_ctocpp.h"
 #include "libcef_dll/ctocpp/request_ctocpp.h"
-#include "libcef_dll/ctocpp/v8context_ctocpp.h"
+#include "libcef_dll/ctocpp/urlrequest_ctocpp.h"
+#include "libcef_dll/ctocpp/v8_context_ctocpp.h"
 #include "libcef_dll/shutdown_checker.h"
 
 // VIRTUAL METHODS - Body may be edited by hand.
@@ -25,9 +29,10 @@
 NO_SANITIZE("cfi-icall") bool CefFrameCToCpp::IsValid() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, is_valid))
+  auto* _struct = GetStruct();
+  if (!_struct->is_valid) {
     return false;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -41,9 +46,10 @@ NO_SANITIZE("cfi-icall") bool CefFrameCToCpp::IsValid() {
 NO_SANITIZE("cfi-icall") void CefFrameCToCpp::Undo() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, undo))
+  auto* _struct = GetStruct();
+  if (!_struct->undo) {
     return;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -54,9 +60,10 @@ NO_SANITIZE("cfi-icall") void CefFrameCToCpp::Undo() {
 NO_SANITIZE("cfi-icall") void CefFrameCToCpp::Redo() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, redo))
+  auto* _struct = GetStruct();
+  if (!_struct->redo) {
     return;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -67,9 +74,10 @@ NO_SANITIZE("cfi-icall") void CefFrameCToCpp::Redo() {
 NO_SANITIZE("cfi-icall") void CefFrameCToCpp::Cut() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, cut))
+  auto* _struct = GetStruct();
+  if (!_struct->cut) {
     return;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -80,9 +88,10 @@ NO_SANITIZE("cfi-icall") void CefFrameCToCpp::Cut() {
 NO_SANITIZE("cfi-icall") void CefFrameCToCpp::Copy() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, copy))
+  auto* _struct = GetStruct();
+  if (!_struct->copy) {
     return;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -93,9 +102,10 @@ NO_SANITIZE("cfi-icall") void CefFrameCToCpp::Copy() {
 NO_SANITIZE("cfi-icall") void CefFrameCToCpp::Paste() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, paste))
+  auto* _struct = GetStruct();
+  if (!_struct->paste) {
     return;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -103,12 +113,27 @@ NO_SANITIZE("cfi-icall") void CefFrameCToCpp::Paste() {
   _struct->paste(_struct);
 }
 
+NO_SANITIZE("cfi-icall") void CefFrameCToCpp::PasteAndMatchStyle() {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = GetStruct();
+  if (!_struct->paste_and_match_style) {
+    return;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  _struct->paste_and_match_style(_struct);
+}
+
 NO_SANITIZE("cfi-icall") void CefFrameCToCpp::Delete() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, del))
+  auto* _struct = GetStruct();
+  if (!_struct->del) {
     return;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -119,9 +144,10 @@ NO_SANITIZE("cfi-icall") void CefFrameCToCpp::Delete() {
 NO_SANITIZE("cfi-icall") void CefFrameCToCpp::SelectAll() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, select_all))
+  auto* _struct = GetStruct();
+  if (!_struct->select_all) {
     return;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -132,9 +158,10 @@ NO_SANITIZE("cfi-icall") void CefFrameCToCpp::SelectAll() {
 NO_SANITIZE("cfi-icall") void CefFrameCToCpp::ViewSource() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, view_source))
+  auto* _struct = GetStruct();
+  if (!_struct->view_source) {
     return;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -146,99 +173,83 @@ NO_SANITIZE("cfi-icall")
 void CefFrameCToCpp::GetSource(CefRefPtr<CefStringVisitor> visitor) {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, get_source))
+  auto* _struct = GetStruct();
+  if (!_struct->get_source) {
     return;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
   // Verify param: visitor; type: refptr_diff
   DCHECK(visitor.get());
-  if (!visitor.get())
+  if (!visitor.get()) {
     return;
+  }
 
   // Execute
-  _struct->get_source(_struct, CefStringVisitorCppToC::Wrap(visitor));
+  _struct->get_source(_struct, CefStringVisitorCppToC_Wrap(visitor));
 }
 
 NO_SANITIZE("cfi-icall")
 void CefFrameCToCpp::GetText(CefRefPtr<CefStringVisitor> visitor) {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, get_text))
+  auto* _struct = GetStruct();
+  if (!_struct->get_text) {
     return;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
   // Verify param: visitor; type: refptr_diff
   DCHECK(visitor.get());
-  if (!visitor.get())
+  if (!visitor.get()) {
     return;
+  }
 
   // Execute
-  _struct->get_text(_struct, CefStringVisitorCppToC::Wrap(visitor));
+  _struct->get_text(_struct, CefStringVisitorCppToC_Wrap(visitor));
 }
 
 NO_SANITIZE("cfi-icall")
 void CefFrameCToCpp::LoadRequest(CefRefPtr<CefRequest> request) {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, load_request))
+  auto* _struct = GetStruct();
+  if (!_struct->load_request) {
     return;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
   // Verify param: request; type: refptr_same
   DCHECK(request.get());
-  if (!request.get())
+  if (!request.get()) {
     return;
+  }
 
   // Execute
-  _struct->load_request(_struct, CefRequestCToCpp::Unwrap(request));
+  _struct->load_request(_struct, CefRequestCToCpp_Unwrap(request));
 }
 
 NO_SANITIZE("cfi-icall") void CefFrameCToCpp::LoadURL(const CefString& url) {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, load_url))
+  auto* _struct = GetStruct();
+  if (!_struct->load_url) {
     return;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
   // Verify param: url; type: string_byref_const
   DCHECK(!url.empty());
-  if (url.empty())
+  if (url.empty()) {
     return;
+  }
 
   // Execute
   _struct->load_url(_struct, url.GetStruct());
-}
-
-NO_SANITIZE("cfi-icall")
-void CefFrameCToCpp::LoadString(const CefString& string_val,
-                                const CefString& url) {
-  shutdown_checker::AssertNotShutdown();
-
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, load_string))
-    return;
-
-  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
-
-  // Verify param: string_val; type: string_byref_const
-  DCHECK(!string_val.empty());
-  if (string_val.empty())
-    return;
-  // Verify param: url; type: string_byref_const
-  DCHECK(!url.empty());
-  if (url.empty())
-    return;
-
-  // Execute
-  _struct->load_string(_struct, string_val.GetStruct(), url.GetStruct());
 }
 
 NO_SANITIZE("cfi-icall")
@@ -247,16 +258,18 @@ void CefFrameCToCpp::ExecuteJavaScript(const CefString& code,
                                        int start_line) {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, execute_java_script))
+  auto* _struct = GetStruct();
+  if (!_struct->execute_java_script) {
     return;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
   // Verify param: code; type: string_byref_const
   DCHECK(!code.empty());
-  if (code.empty())
+  if (code.empty()) {
     return;
+  }
   // Unverified params: script_url
 
   // Execute
@@ -267,9 +280,10 @@ void CefFrameCToCpp::ExecuteJavaScript(const CefString& code,
 NO_SANITIZE("cfi-icall") bool CefFrameCToCpp::IsMain() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, is_main))
+  auto* _struct = GetStruct();
+  if (!_struct->is_main) {
     return false;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -283,9 +297,10 @@ NO_SANITIZE("cfi-icall") bool CefFrameCToCpp::IsMain() {
 NO_SANITIZE("cfi-icall") bool CefFrameCToCpp::IsFocused() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, is_focused))
+  auto* _struct = GetStruct();
+  if (!_struct->is_focused) {
     return false;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -299,9 +314,10 @@ NO_SANITIZE("cfi-icall") bool CefFrameCToCpp::IsFocused() {
 NO_SANITIZE("cfi-icall") CefString CefFrameCToCpp::GetName() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, get_name))
+  auto* _struct = GetStruct();
+  if (!_struct->get_name) {
     return CefString();
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -314,44 +330,49 @@ NO_SANITIZE("cfi-icall") CefString CefFrameCToCpp::GetName() {
   return _retvalStr;
 }
 
-NO_SANITIZE("cfi-icall") int64 CefFrameCToCpp::GetIdentifier() {
+NO_SANITIZE("cfi-icall") CefString CefFrameCToCpp::GetIdentifier() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, get_identifier))
-    return 0;
+  auto* _struct = GetStruct();
+  if (!_struct->get_identifier) {
+    return CefString();
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
   // Execute
-  int64 _retval = _struct->get_identifier(_struct);
+  cef_string_userfree_t _retval = _struct->get_identifier(_struct);
 
-  // Return type: simple
-  return _retval;
+  // Return type: string
+  CefString _retvalStr;
+  _retvalStr.AttachToUserFree(_retval);
+  return _retvalStr;
 }
 
 NO_SANITIZE("cfi-icall") CefRefPtr<CefFrame> CefFrameCToCpp::GetParent() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, get_parent))
-    return NULL;
+  auto* _struct = GetStruct();
+  if (!_struct->get_parent) {
+    return nullptr;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
   // Execute
-  cef_frame_t* _retval = _struct->get_parent(_struct);
+  auto* _retval = _struct->get_parent(_struct);
 
   // Return type: refptr_same
-  return CefFrameCToCpp::Wrap(_retval);
+  return CefFrameCToCpp_Wrap(_retval);
 }
 
 NO_SANITIZE("cfi-icall") CefString CefFrameCToCpp::GetURL() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, get_url))
+  auto* _struct = GetStruct();
+  if (!_struct->get_url) {
     return CefString();
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -367,53 +388,113 @@ NO_SANITIZE("cfi-icall") CefString CefFrameCToCpp::GetURL() {
 NO_SANITIZE("cfi-icall") CefRefPtr<CefBrowser> CefFrameCToCpp::GetBrowser() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, get_browser))
-    return NULL;
+  auto* _struct = GetStruct();
+  if (!_struct->get_browser) {
+    return nullptr;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
   // Execute
-  cef_browser_t* _retval = _struct->get_browser(_struct);
+  auto* _retval = _struct->get_browser(_struct);
 
   // Return type: refptr_same
-  return CefBrowserCToCpp::Wrap(_retval);
+  return CefBrowserCToCpp_Wrap(_retval);
 }
 
 NO_SANITIZE("cfi-icall")
 CefRefPtr<CefV8Context> CefFrameCToCpp::GetV8Context() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, get_v8context))
-    return NULL;
+  auto* _struct = GetStruct();
+  if (!_struct->get_v8_context) {
+    return nullptr;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
   // Execute
-  cef_v8context_t* _retval = _struct->get_v8context(_struct);
+  auto* _retval = _struct->get_v8_context(_struct);
 
   // Return type: refptr_same
-  return CefV8ContextCToCpp::Wrap(_retval);
+  return CefV8ContextCToCpp_Wrap(_retval);
 }
 
 NO_SANITIZE("cfi-icall")
 void CefFrameCToCpp::VisitDOM(CefRefPtr<CefDOMVisitor> visitor) {
   shutdown_checker::AssertNotShutdown();
 
-  cef_frame_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, visit_dom))
+  auto* _struct = GetStruct();
+  if (!_struct->visit_dom) {
     return;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
   // Verify param: visitor; type: refptr_diff
   DCHECK(visitor.get());
-  if (!visitor.get())
+  if (!visitor.get()) {
     return;
+  }
 
   // Execute
-  _struct->visit_dom(_struct, CefDOMVisitorCppToC::Wrap(visitor));
+  _struct->visit_dom(_struct, CefDOMVisitorCppToC_Wrap(visitor));
+}
+
+NO_SANITIZE("cfi-icall")
+CefRefPtr<CefURLRequest> CefFrameCToCpp::CreateURLRequest(
+    CefRefPtr<CefRequest> request,
+    CefRefPtr<CefURLRequestClient> client) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = GetStruct();
+  if (!_struct->create_urlrequest) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: request; type: refptr_same
+  DCHECK(request.get());
+  if (!request.get()) {
+    return nullptr;
+  }
+  // Verify param: client; type: refptr_diff
+  DCHECK(client.get());
+  if (!client.get()) {
+    return nullptr;
+  }
+
+  // Execute
+  auto* _retval =
+      _struct->create_urlrequest(_struct, CefRequestCToCpp_Unwrap(request),
+                                 CefURLRequestClientCppToC_Wrap(client));
+
+  // Return type: refptr_same
+  return CefURLRequestCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall")
+void CefFrameCToCpp::SendProcessMessage(CefProcessId target_process,
+                                        CefRefPtr<CefProcessMessage> message) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = GetStruct();
+  if (!_struct->send_process_message) {
+    return;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: message; type: refptr_same
+  DCHECK(message.get());
+  if (!message.get()) {
+    return;
+  }
+
+  // Execute
+  _struct->send_process_message(_struct, target_process,
+                                CefProcessMessageCToCpp_Unwrap(message));
 }
 
 // CONSTRUCTOR - Do not edit by hand.
@@ -431,8 +512,8 @@ cef_frame_t*
 CefCToCppRefCounted<CefFrameCToCpp, CefFrame, cef_frame_t>::UnwrapDerived(
     CefWrapperType type,
     CefFrame* c) {
-  NOTREACHED() << "Unexpected class type: " << type;
-  return NULL;
+  CHECK(false) << __func__ << " called with unexpected class type " << type;
+  return nullptr;
 }
 
 template <>

@@ -59,7 +59,8 @@ sliding tiles; **Quake Map**, live earthquakes from the USGS on a map;
 cards dragged between columns; **Markdown Notes**, Markdown styled as you
 type; **UI Gallery**, modern controls in a light and a dark theme;
 **Photo Lab**, a photo of your own with looks and adjustments, downloaded
-at full size; and three that the build makes), and **About**, which says in plain English
+at full size; **Box2Dxt Platformer**, the xTalk Suite's seven scrolling
+levels on Box2D; and three that the build makes), and **About**, which says in plain English
 what works on the web, what works differently and what does not. The
 stack then takes the page (`?mode=window` opens it in a window of its own
 instead), and the bar above it has **Library** (back home), **Reload**
@@ -201,6 +202,7 @@ answering no.
 | `nova-rescue.livecodescript`, `nova-rescue-stack.livecodescript`, `nova-rescue/` | build `stacks/Nova Rescue.oxtstack` from Kenney's pictures, sounds and font (see below) |
 | `wobble-forts.livecodescript`, `wobble-forts-stack.livecodescript`, `wobble-forts/` | build `stacks/Wobble Forts.oxtstack` from Kenney's pictures, sounds and font and its levels (see below) |
 | `puzzle-almanac.livecodescript`, `puzzle-almanac-stack.livecodescript`, `puzzle-almanac/` | build `stacks/Puzzle Almanac.oxtstack` from Kenney's pictures and sounds, Atkinson Hyperlegible, its puzzles and its words (see below) |
+| `box2dxt-platformer.livecodescript`, `box2dxt_platformer_files.py`, `box2dxt-platformer/pin.json` | build `stacks/Box2Dxt Platformer.oxtstack` from the xTalk Suite's platformer and sheets, as pinned (see below) |
 | `assets/` | the page's logo and pictures, copied beside it |
 | `build_player.py` | starts the IDE with the script above, puts the page in place, packs the zip and, with `--check`, drives the player in headless Chromium |
 
@@ -442,6 +444,46 @@ plays this sample in the bare player. The stack's `cJavascriptHandlers`
 are `wfPageHidden` (the page is hidden: a level pauses) and `wfState`, so
 that `tools/pages/check_wobble_forts_page.py` can ask the game how it is
 there; `build_player.py --check` runs that check on the player it builds.
+
+## The Box2Dxt platformer
+
+`stacks/Box2Dxt Platformer.oxtstack` is the xTalk Suite's platformer
+(`box2dxt/examples/box2dxt-platformer.livecodescript`): seven levels,
+each its own scrolling world, played with the keys (the arrows or WASD to
+run, Space to jump, again in the air for a double jump, Shift or X to
+dash, Esc to pause), on Box2D through the b2k Game Kit that its script
+carries. Collect every coin of a level and its flag turns gold; the
+seventh flag wins. It is made for a window with a keyboard, 1024 by 640:
+on a phone the player fits it to the screen, but it has no touch
+controls.
+
+It is the suite's game, not changed here. The game, and the five Kenney
+sheets it draws from (CC0, the suite's `box2dxt/Spritesheets`), are not
+kept in this repository: `box2dxt-platformer/pin.json` pins them to a
+commit of the suite, each file to its size and SHA-256, and
+`box2dxt_platformer_files.py` fetches them (or reads them from a checkout
+of the suite, `--local`) and refuses any that is not the pinned one.
+On its own first run the game asks for the sheets' folder, imports every
+atlas, frame and sound into its stack and asks to save it
+(pfImportMedia); `box2dxt-platformer.livecodescript` makes that import
+with the game's own handlers, with no question asked, and saves the
+stack, so that in the player it opens straight to its title with
+everything inside it. The build is the same, byte for byte, wherever it
+runs. The stack is never edited by hand: to take a newer platformer,
+change the commit in `pin.json`, run `--repin` with `--local` at that
+commit, then build it again with any OXT-Beyond engine:
+
+```sh
+python3 tools/web-player/box2dxt_platformer_files.py --out <dir>
+OXT_PLATFORMER_FILES=<dir> <engine> -ui tools/web-player/box2dxt-platformer.livecodescript
+```
+
+`build_player.py --check` plays it: it opens on its title with no
+question, Space builds level 1 and the arrows and Space play it, with no
+script error. `tools/ci/tests/test_box2dxt_platformer.py` holds the pin,
+the fetch and the stack to each other. Learn's gallery and the package
+leave it out (`SHOWCASE_LEFT_OUT`), as the package has left out the
+suite's demos since #298.
 
 ## Puzzle Almanac
 

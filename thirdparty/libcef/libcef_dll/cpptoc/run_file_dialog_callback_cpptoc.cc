@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Chromium Embedded Framework Authors. All rights
+// Copyright (c) 2026 The Chromium Embedded Framework Authors. All rights
 // reserved. Use of this source code is governed by a BSD-style license that
 // can be found in the LICENSE file.
 //
@@ -9,10 +9,11 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=2b3612392d91efff2e607d5dd2eb47de3b611de8$
+// $hash=67451cd5f8b86bf08825ca4753f55e00b73e0e8b$
 //
 
 #include "libcef_dll/cpptoc/run_file_dialog_callback_cpptoc.h"
+
 #include "libcef_dll/shutdown_checker.h"
 #include "libcef_dll/transfer_util.h"
 
@@ -22,19 +23,15 @@ namespace {
 
 void CEF_CALLBACK run_file_dialog_callback_on_file_dialog_dismissed(
     struct _cef_run_file_dialog_callback_t* self,
-    int selected_accept_filter,
     cef_string_list_t file_paths) {
   shutdown_checker::AssertNotShutdown();
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
   DCHECK(self);
-  if (!self)
+  if (!self) {
     return;
-  // Verify param: selected_accept_filter; type: simple_byval
-  DCHECK_GE(selected_accept_filter, 0);
-  if (selected_accept_filter < 0)
-    return;
+  }
   // Unverified params: file_paths
 
   // Translate param: file_paths; type: string_vec_byref_const
@@ -43,7 +40,7 @@ void CEF_CALLBACK run_file_dialog_callback_on_file_dialog_dismissed(
 
   // Execute
   CefRunFileDialogCallbackCppToC::Get(self)->OnFileDialogDismissed(
-      selected_accept_filter, file_pathsList);
+      file_pathsList);
 }
 
 }  // namespace
@@ -67,8 +64,8 @@ CefCppToCRefCounted<CefRunFileDialogCallbackCppToC,
                     CefRunFileDialogCallback,
                     cef_run_file_dialog_callback_t>::
     UnwrapDerived(CefWrapperType type, cef_run_file_dialog_callback_t* s) {
-  NOTREACHED() << "Unexpected class type: " << type;
-  return NULL;
+  CHECK(false) << __func__ << " called with unexpected class type " << type;
+  return nullptr;
 }
 
 template <>

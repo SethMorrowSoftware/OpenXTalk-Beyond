@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Chromium Embedded Framework Authors. All rights
+// Copyright (c) 2026 The Chromium Embedded Framework Authors. All rights
 // reserved. Use of this source code is governed by a BSD-style license that
 // can be found in the LICENSE file.
 //
@@ -9,10 +9,11 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=465ea298e8cb600b1aa6b1e956737af63f719811$
+// $hash=6724728edac1cc9bffb10907d2357882a81919bf$
 //
 
 #include "libcef_dll/cpptoc/navigation_entry_visitor_cpptoc.h"
+
 #include "libcef_dll/ctocpp/navigation_entry_ctocpp.h"
 #include "libcef_dll/shutdown_checker.h"
 
@@ -31,16 +32,18 @@ navigation_entry_visitor_visit(struct _cef_navigation_entry_visitor_t* self,
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
   DCHECK(self);
-  if (!self)
+  if (!self) {
     return 0;
+  }
   // Verify param: entry; type: refptr_diff
   DCHECK(entry);
-  if (!entry)
+  if (!entry) {
     return 0;
+  }
 
   // Execute
   bool _retval = CefNavigationEntryVisitorCppToC::Get(self)->Visit(
-      CefNavigationEntryCToCpp::Wrap(entry), current ? true : false, index,
+      CefNavigationEntryCToCpp_Wrap(entry), current ? true : false, index,
       total);
 
   // Return type: bool
@@ -67,8 +70,8 @@ CefCppToCRefCounted<CefNavigationEntryVisitorCppToC,
                     CefNavigationEntryVisitor,
                     cef_navigation_entry_visitor_t>::
     UnwrapDerived(CefWrapperType type, cef_navigation_entry_visitor_t* s) {
-  NOTREACHED() << "Unexpected class type: " << type;
-  return NULL;
+  CHECK(false) << __func__ << " called with unexpected class type " << type;
+  return nullptr;
 }
 
 template <>

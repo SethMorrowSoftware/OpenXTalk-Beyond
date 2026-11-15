@@ -40,7 +40,23 @@ bool MCJavaVMInitialize()
     s_java_initialised = initialise_jvm();
     
     if (!s_java_initialised)
+    {
+        // OXT-Beyond: say what was tried and why it failed, after the
+        // message the error always had, which stays its first words
+        MCStringRef t_failure = MCJavaPrivateInitialiseFailure();
+        if (t_failure != nullptr && !MCStringIsEmpty(t_failure))
+        {
+            MCAutoArrayRef t_info;
+            MCAutoErrorRef t_error;
+            if (MCArrayCreateMutable(&t_info) &&
+                MCArrayStoreValue(*t_info, false, MCNAME("reason"), t_failure) &&
+                MCErrorCreateWithMessage(kMCJavaCouldNotInitialiseJREErrorTypeInfo,
+                                         MCSTR("Could not initialise Java Runtime Environment: %{reason}"),
+                                         *t_info, &t_error))
+                return MCErrorThrow(*t_error);
+        }
         return MCJavaPrivateErrorThrow(kMCJavaCouldNotInitialiseJREErrorTypeInfo);
+    }
     
     return s_java_initialised;
 }

@@ -89,6 +89,11 @@ lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleSubstack
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleTextProperties
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleTextStyleNames
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleUserLevel
+lcs: core/engine/properties-prop: TestEffectivePropertiesOfTemplateEPS  # 9.6.3 quits on these properties (issue 518)
+lcs: core/engine/properties-prop: TestPropertiesOfCreatedEPS  # 9.6.3 quits on these properties (issue 518)
+lcs: core/engine/properties-prop: TestPropertiesOfTemplateEPS  # 9.6.3 quits on these properties (issue 518)
+lcs: core/engine/properties-prop: TestPropertiesOfTemplateVideoClip  # 9.6.3 quits on these properties (issue 518)
+lcs: core/engine/properties-prop: TestSetPropertiesOfTemplateEPSRoundTrip  # 9.6.3 quits on these properties (issue 518)
 lcs: core/field/autotab: TestAutoTabReturnGoesRound
 lcs: core/field/bidi-isolates: TestPDIAfterAClosedIsolate
 lcs: core/field/bidi-isolates: TestTheForumString
@@ -122,6 +127,17 @@ lcs: core/filters/filters: TestFiltersMessageDigestUnknownType
 lcs: core/graphics/drawing: TestDrawingClip
 lcs: core/graphics/drawing: TestDrawingClipMalformed
 lcs: core/graphics/drawing: TestDrawingPolygonCounts
+lcs: core/interface/animated-gif: TestBadFrameDurations
+lcs: core/interface/animated-gif: TestBadPlayRate
+lcs: core/interface/animated-gif: TestCopyKeepsThePace
+lcs: core/interface/animated-gif: TestFrameDurationsFromTheFile
+lcs: core/interface/animated-gif: TestFrameDurationsOfAStillImage
+lcs: core/interface/animated-gif: TestFramePastTheCanvasIsClipped
+lcs: core/interface/animated-gif: TestOldStacksUnchanged
+lcs: core/interface/animated-gif: TestRestoreToPreviousOnATallCanvas
+lcs: core/interface/animated-gif: TestSetFrameDurations
+lcs: core/interface/animated-gif: TestTheCanvasStartsClear
+lcs: core/interface/animated-gif: TestTransparentPixelsKeepWhatIsUnder
 lcs: core/interface/go: TestGoBackground
 lcs: core/interface/go: TestGoCardOfBackgroundNotFound
 lcs: core/interface/go: TestGoNextBackgroundFromCardWithNone
@@ -188,6 +204,7 @@ lcs: core/multimedia/audioclipexport: TestExportAudioClipWaveIsTheFileImported
 lcs: core/multimedia/audioclipexport: TestExportOlderFormsCompileAsBefore
 lcs: core/multimedia/audioclipexport: TestExportVideoClip
 lcs: core/network/network: TestNetworkDNSServers
+lcs: core/network/network: TestNetworkDNSServersAnswers # 9.6.3's engine has no DNS servers on Android and throws (error 198); OXT-Beyond's answers them
 lcs: core/network/network: TestPeerAddressIsEmptyOnMobile # 9.6.3's engine stops the app: its peerAddress on mobile reads an unset answer (fixed in OXT-Beyond's, #495)
 lcs: core/strings/filter: TestBug15443
 lcs: core/strings/matches: TestMatchesCustomProperty

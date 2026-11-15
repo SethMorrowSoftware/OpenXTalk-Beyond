@@ -133,6 +133,25 @@ class EverydayTasksScript(unittest.TestCase):
         body = self.handlers['ed_appbrowser_names']
         self.assertIn('if tLinks is not "%s" then throw' % light.group(1), body)
 
+    def test_a_run_shares_no_file_with_another(self):
+        # Linux runs light and dark at once (build-linux.yml). Named by
+        # the milliseconds alone, the two runs' work folders were once one
+        # (/tmp/oxt-everyday-1794673798576 for both): the dark run's Save
+        # As found the light run's stack, the IDE asked whether to replace
+        # it until the watchdog closed the dialog 30 s later, and three
+        # later tasks failed on what the other run had saved
+        start = self.handlers['ed_start']
+        named = re.search(r'^\s*put specialFolderPath\("temporary"\) & "/oxt-everyday-" & (.*) into sWork$', start, re.M)
+        self.assertIsNotNone(named, 'the work folder is not named in ed_start')
+        self.assertIn('the processID', named.group(1), 'two runs that start together would name one folder')
+        taken = start.index('if there is a folder sWork or there is a file sWork then throw')
+        self.assertLess(start.index(named.group(0).strip()), taken)
+        self.assertLess(taken, start.index('create folder sWork'))
+        # (and nothing else of a run's is in the folder every run shares:
+        # the file a drag says "up" in was)
+        self.assertEqual(self.text.count('specialFolderPath("temporary")'), 1)
+        self.assertIn('put sWork & "/drag.txt" into tFile', self.handlers['edSystemDrag'])
+
 
 class EverydayTasksInCI(unittest.TestCase):
 
@@ -165,9 +184,6 @@ class MessageBoxKeptLine(unittest.TestCase):
         self.assertLess(select, body.index('edType tMB, "put 6 * 7"'))
         self.assertGreater(select, body.index('edClickAt tMB'))
 
-
-if __name__ == '__main__':
-    unittest.main()
 
 
 class FindTypingReachesTheEntry(unittest.TestCase):
@@ -343,3 +359,434 @@ class ToolTileClickIsWatched(unittest.TestCase):
 
     def test_the_watcher_is_taken_down_after_a_failure(self):
         self.assertIn('edWatchClicks false', self.handlers['edTidyAfterFailure'])
+
+
+class StandaloneBuildStopped(unittest.TestCase):
+    """standalone-stopped-build and standalone-mc-stack-file stop a build
+    with an error at a step the builder reports (revStandaloneProgress)
+    and ask that the stack is as it was (openxtalk.org p=26321: a build
+    that stopped left the IDE's Answer and Ask dialogs in the stack). The
+    steps, the menu item and the targets are the builder's and the IDE's
+    own words: one of them reworded there would leave the task failing in
+    every build for a reason it cannot name, so the words are checked
+    here, where the difference is said."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.text = read(SCRIPT)
+        cls.handlers = handlers(cls.text)
+        cls.builder = read(os.path.join(ROOT, 'ide-support', 'revsaveasstandalone.livecodescript'))
+        cls.library = read(os.path.join(ROOT, 'ide-support', 'revsblibrary.livecodescript'))
+        cls.menubar = read(os.path.join(ROOT, 'ide', 'Toolset', 'palettes', 'menubar', 'revmenubar.livecodescript'))
+
+    @staticmethod
+    def code(text):
+        """The lines of a handler that are not comments."""
+        return '\n'.join(line for line in text.split('\n') if not line.lstrip().startswith(('--', '#', '//')))
+
+    def handler(self, kind, name):
+        m = re.search(r'^%s %s\b.*?^end %s\s*$' % (kind, name, name), self.builder, re.M | re.S)
+        self.assertIsNotNone(m, 'the builder has no %s' % name)
+        return self.code(m.group(0))
+
+    def steps(self):
+        found = []
+        for task in ('ed_standalone_stopped_build', 'ed_standalone_mc_stack_file'):
+            m = re.search(r'edStoppedBuild\(\w+, "([^"]+)"\)', self.handlers[task])
+            self.assertIsNotNone(m, '%s stops no build' % task)
+            found.append(m.group(1))
+        return found
+
+    def test_the_steps_are_ones_the_builder_reports(self):
+        for step in self.steps():
+            self.assertIn('revStandaloneProgress "%s"' % step, self.builder,
+                          'the builder reports no step "%s"' % step)
+
+    def test_the_first_stop_is_after_the_stack_is_changed_and_before_it_is_saved(self):
+        # revCopyResources: the dialogs go into the stack, then it is
+        # closed and saved into the build folder (revSaveStackFile, which
+        # reports the step first); stopped between the two the stack keeps
+        # its own file name, where a Save reaches its file
+        copy = self.handler('private command', 'revCopyResources')
+        self.assertLess(copy.index('put "answer dialog"&cr after tCopyFiles'), copy.index('close stack pStack'))
+        self.assertLess(copy.index('close stack pStack'), copy.index('revSaveStackFile(pStack'))
+        save = self.handler('private function', 'revSaveStackFile')
+        step = 'revStandaloneProgress "%s"' % self.steps()[0]
+        self.assertLess(save.index(step), save.index('revSaveToFolder('))
+
+    def test_the_second_stop_is_after_the_copy_is_saved_under_its_name(self):
+        # revStandaloneDeployWithParams saves the build's copy by the name
+        # revStandalonePreBuild gave it: a stack file whose copy has
+        # another name (.mc before the fix) does not get past that save
+        body = self.handler('command', 'revStandaloneDeployWithParams')
+        step = 'revStandaloneProgress "%s"' % self.steps()[1]
+        self.assertLess(body.index('save stack pStackFilePath'), body.index(step))
+        self.assertLess(body.index(step), body.index('_internal deploy'))
+
+    def test_the_mc_file_is_one_the_ide_opens_and_the_builder_renames(self):
+        m = re.search(r'^constant kMcFile = "[^"]*\.(\w+)"', self.text, re.M)
+        self.assertIsNotNone(m)
+        extension = m.group(1)
+        ide = read(os.path.join(ROOT, 'ide', 'Toolset', 'libraries', 'revidelibrary.8.livecodescript'))
+        # (revIDELiveCodeFileExtensions is revIDEAcceptedTypes("stack"))
+        self.assertIn('return revIDEAcceptedTypes("stack")', ide)
+        opened = re.search(r'^\s*case "stack"\n(?:\s*--[^\n]*\n)*\s*return "([^"]*)"', ide, re.M)
+        self.assertIsNotNone(opened, 'the extensions the IDE opens as stacks not found')
+        self.assertIn(extension, opened.group(1).split(','))
+        rule = self.handler('private function', 'revStandaloneSavedFileName')
+        self.assertNotIn('".%s"' % extension, rule, 'the builder keeps .%s: the task tests nothing' % extension)
+
+    def test_one_rule_names_the_builds_copy(self):
+        # the name the copy is saved under (revSaveToFolder) and the name
+        # the steps after look for (revStandalonePreBuild)
+        for kind, name in (('private on', 'revStandalonePreBuild'), ('private function', 'revSaveToFolder')):
+            body = self.handler(kind, name)
+            self.assertIn('revStandaloneSavedFileName(', body, name)
+            self.assertNotIn('revIDELiveCodeFileExtensions', body, name)
+            self.assertNotIn('".oxtstack"', body, name)
+
+    def test_the_menu_item_is_the_file_menus(self):
+        items = re.findall(r'edMenu "File", "([^"]*Standalone[^"]*)"', self.text)
+        # (a build that stops, and one that goes to its end)
+        self.assertGreaterEqual(len(items), 2)
+        picks = [p.lower() for p in re.findall(r'case "([^"]*)"', self.menubar)]
+        for item in items:
+            self.assertIn('enableMenuItem("%s"' % item, self.menubar)
+            self.assertIn(item.lower(), picks, 'no menuPick case for it')
+
+    def test_the_targets_are_the_builders(self):
+        m = re.search(r'^constant kDesktopTargets = "([^"]*)"', self.library, re.M)
+        self.assertIsNotNone(m)
+        desktop = m.group(1).split(',')
+        body = re.search(r'^function edBuildTarget\n(.*?)^end edBuildTarget', self.text, re.M | re.S).group(1)
+        named = re.findall(r'return "([^"]+)"', body)
+        self.assertGreaterEqual(len(named), 5)
+        for target in named:
+            self.assertIn(target, desktop)
+        settings = re.search(r'repeat for each item tTarget in "([^"]*)"', self.handlers['edBuildSettings'])
+        self.assertIsNotNone(settings)
+        for target in desktop:
+            self.assertIn(target, settings.group(1).split(','), 'edBuildSettings leaves %s as the stack has it' % target)
+
+    def test_the_builder_puts_the_stack_back_before_it_aborts(self):
+        body = self.handler('command', 'revDoSaveAsStandalone')
+        catch = body.split('\n   catch tError', 1)[1]
+        self.assertIn('__PutStackBackAfterFailedBuild', catch, 'a build that stops leaves the stack as the builder changed it')
+        self.assertLess(catch.index('__PutStackBackAfterFailedBuild'), catch.index('revAbort'))
+
+
+class BuildTasks:
+    """What the tasks that build a standalone with the builder's dialogs
+    on are read from: the script, its handlers, and the builder."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.text = read(SCRIPT)
+        cls.handlers = handlers(cls.text)
+        cls.builder = read(os.path.join(ROOT, 'ide-support', 'revsaveasstandalone.livecodescript'))
+
+    def function(self, name):
+        m = re.search(r'^function %s\b[^\n]*\n(.*?)^end %s\s*$' % (name, name), self.text, re.M | re.S)
+        self.assertIsNotNone(m, 'the script has no function %s' % name)
+        return '\n'.join(line for line in m.group(1).split('\n') if not line.lstrip().startswith('--'))
+
+    def constant(self, name):
+        m = re.search(r'^constant %s = "([^"]*)"' % name, self.text, re.M)
+        self.assertIsNotNone(m, 'no constant %s' % name)
+        return m.group(1)
+
+
+class StandaloneBuiltAndRun(BuildTasks, unittest.TestCase):
+    """standalone-built-and-run builds a stack from the File menu to the
+    end, with the builder's dialogs on, and runs the standalone, which
+    writes what it finds itself to be and quits. What the task waits for
+    is the builder's own: its last word, the two messages it sends a
+    stack, its last step and where it puts the standalone. And the stack
+    the task makes carries a quit, which must be the standalone's alone."""
+
+    def app_script(self):
+        """The stack script edAppScript puts together, as the engine gets
+        it: its lines, with the quotes it is written with."""
+        body = self.function('edAppScript')
+        lines = re.findall(r'^\s*(?:put )?"([^"]*)" & return', body, re.M) + re.findall(r'^\s*"([^"]*)" into tScript', body, re.M)
+        self.assertGreaterEqual(len(lines), 20, 'edAppScript is not read as it is written')
+        self.assertIn('replace "\'" with quote in tScript', body)
+        return '\n'.join(lines).replace("'", '"')
+
+    def test_the_task_builds_to_the_end_and_runs_what_it_built(self):
+        body = self.handlers['ed_standalone_built_and_run']
+        self.assertLess(body.index('edFullBuild('), body.index('edFindStandalone('))
+        self.assertLess(body.index('edFindStandalone('), body.index('shell('))
+        self.assertLess(body.index('shell('), body.index('edShotStack'))
+        # (no stop in it: the build of this task goes to its end)
+        self.assertNotIn('edStoppedBuild', body)
+        full = self.function('edFullBuild')
+        build = self.handlers['edBuildWithDialogs']
+        self.assertIn('edBuildWithDialogs pShot\n', full)
+        self.assertIn('edWatchBuild true\n', build)
+        self.assertNotIn('edStopBuildAt', full + build)
+
+    def test_the_last_word_is_the_builders(self):
+        said = self.constant('kBuildSaved')
+        self.assertIn('answer information "%s"' % said, self.builder,
+                      'the builder no longer says "%s" at the end of a build' % said)
+        full = self.function('edFullBuild')
+        self.assertIn('line 1 of tSaid is not kBuildSaved', full)
+
+    def test_the_messages_are_the_ones_the_builder_sends_a_stack(self):
+        script = self.app_script()
+        for message in ('savingStandalone', 'standaloneSaved'):
+            self.assertIn('dispatch "%s" to stack pStack' % message, self.builder)
+            self.assertRegex(script, r'(?m)^on %s\b' % message)
+            self.assertIn('with "%s"' % message, script)
+        self.assertIn('dispatch "edBuildMessage" to stack "oxt_everyday"', script)
+        self.assertIn('edBuildMessage', self.handlers)
+        # (the folder standaloneSaved comes with is the one the standalone must be in)
+        self.assertIn('dispatch "standaloneSaved" to stack pStack with pFolder', self.builder)
+        self.assertIn('if not (tExe begins with sReport["built"]) then throw', self.handlers['ed_standalone_built_and_run'])
+
+    def test_the_last_step_is_one_the_builder_reports(self):
+        full = self.function('edFullBuild')
+        m = re.search(r'if "([^"]+)" is not among the lines of tSteps', full)
+        self.assertIsNotNone(m)
+        self.assertIn('revStandaloneProgress "%s"' % m.group(1), self.builder)
+        deploy = re.search(r'^command revStandaloneDeployWithParams\b.*?^end revStandaloneDeployWithParams', self.builder, re.M | re.S).group(0)
+        self.assertLess(deploy.index('revStandaloneProgress "%s"' % m.group(1)), deploy.index('_internal deploy'))
+
+    def test_the_quit_is_the_standalones_alone(self):
+        # the stack is opened in the IDE too: a quit there ends the tasks
+        script = self.app_script()
+        opened = re.search(r'^on openStack\n(.*?)^end openStack', script, re.M | re.S)
+        self.assertIsNotNone(opened)
+        lines = [line.strip() for line in opened.group(1).split('\n') if line.strip()]
+        self.assertEqual(lines[0], 'if the environment is not "standalone application" then pass openStack')
+        self.assertEqual(script.count('quit'), 1)
+        self.assertIn('quit', opened.group(1))
+
+    def test_what_the_standalone_must_report_is_what_its_script_writes(self):
+        body = self.handlers['ed_standalone_built_and_run']
+        wanted = re.search(r'repeat for each line tWant in (.*?)\n\s*if tWant is not among the lines of tReport', body, re.S)
+        self.assertIsNotNone(wanted)
+        labels = re.findall(r'"([A-Za-z ]+:)', wanted.group(1))
+        self.assertEqual(len(labels), 7, labels)
+        script = self.app_script()
+        for label in labels:
+            self.assertIn('"%s "' % label, script, 'the standalone writes no line "%s"' % label)
+        self.assertIn('"EVERYDAY APP RAN"', wanted.group(1))
+        self.assertIn('"EVERYDAY APP RAN"', script)
+        # (and it writes them where the task reads them)
+        self.assertIn('the cEverydayRan of me', script)
+        self.assertIn('set the cEverydayRan of stack kAppStack to tRan', body)
+        self.assertLess(body.index('set the cEverydayRan of stack kAppStack'), body.index('edSaveForBuild kAppStack'))
+
+    def test_the_builders_dialogs_are_on_for_the_build_alone(self):
+        full = self.handlers['edBuildWithDialogs']
+        off = 'dispatch "revSetTestEnvironment" to stack "Home" with false'
+        on = 'dispatch "revSetTestEnvironment" to stack "Home" with true'
+        self.assertLess(full.index(off), full.index('edMenu "File"'))
+        after = full.split('edMenu "File"', 1)[1]
+        self.assertLess(after.index('finally'), after.index(on), 'the dialogs must go off again whatever the build did')
+        self.assertLess(after.index(on), after.index('end try'))
+        self.assertIn(on, self.handlers['ed_finish'])
+
+    def test_the_standalone_is_looked_for_as_the_builder_names_it(self):
+        find = self.function('edFindStandalone')
+        self.assertIn('pName & ".app/Contents/MacOS/" & pName', find)
+        self.assertIn('sStandaloneSettingsA["name"] & ".app/Contents/MacOS/"', self.builder)
+        self.assertIn('pName & ".exe"', find)
+        self.assertIn('put ".exe" after tStandalonePath', self.builder)
+        # (the name the task gives the standalone is the one it looks for)
+        body = self.handlers['ed_standalone_built_and_run']
+        self.assertIn('edBuildSettings kAppStack, kAppName', body)
+        self.assertIn('edFindStandalone(edBuildFolder(kAppName), kAppName', body)
+        settings = self.handlers['edBuildSettings']
+        self.assertIn('set the cRevStandaloneSettings["name"] of stack pStack to pName', settings)
+        # (and the folder it is looked for in is the one it is built into)
+        self.assertIn('put edBuildFolder(pName) into tFolder', settings)
+        self.assertIn('set the cRevStandaloneSettings["defaultBuildFolder"] of stack pStack to tFolder', settings)
+
+    def test_the_app_file_is_a_stack_file_people_bring(self):
+        m = re.search(r'\.(\w+)$', self.constant('kAppFile'))
+        self.assertIsNotNone(m)
+        ide = read(os.path.join(ROOT, 'ide', 'Toolset', 'libraries', 'revidelibrary.8.livecodescript'))
+        opened = re.search(r'^\s*case "stack"\n(?:\s*--[^\n]*\n)*\s*return "([^"]*)"', ide, re.M)
+        self.assertIsNotNone(opened, 'the extensions the IDE opens as stacks not found')
+        self.assertIn(m.group(1), opened.group(1).split(','))
+
+    def test_no_build_over_a_stack_a_build_left_broken(self):
+        # 0.2.8-dp.1: over the stack a stopped build left (the IDE's
+        # Answer dialog in it) the next build's dialogs did not end
+        body = self.handlers['ed_standalone_built_and_run']
+        self.assertIn('if edDialogCopies() is not empty then throw', body)
+        self.assertLess(body.index('if edDialogCopies() is not empty then throw'), body.index('create stack kAppStack'))
+
+    def test_a_build_that_keeps_asking_is_stopped(self):
+        limit = int(re.search(r'^constant kBuildDialogs = (\d+)', self.text, re.M).group(1))
+        # (the build has one thing to say; some room, and an end)
+        self.assertGreaterEqual(limit, 2)
+        self.assertLessEqual(limit, 10)
+        said = self.handlers['edBuildSaid']
+        self.assertIn('add 1 to sReport["dialogs"]', said)
+        self.assertRegex(said, r'if sReport\["dialogs"\] > kBuildDialogs then\s+set the cEdStopBuild of stack "oxt_everyday" to ')
+        # (and it gives up answering: its time is bounded)
+        self.assertIn('if the milliseconds > pUntil then exit edBuildSaid', said)
+        watch = self.handlers['edWatchBuild']
+        self.assertIn('set the cEdStopBuild of stack "oxt_everyday" to empty', watch)
+        self.assertIn('is not empty then throw the cEdStopBuild of stack', watch)
+        self.assertLess(watch.index('is not empty then throw the cEdStopBuild of stack'), watch.index('pass revStandaloneProgress'))
+        self.assertIn('put 0 into sReport["dialogs"]', self.handlers['edBuildWithDialogs'])
+        full = self.function('edFullBuild')
+        self.assertLess(full.index('if sReport["dialogs"] > kBuildDialogs then'), full.index('is not among the lines of tSteps'))
+
+    def test_the_stacks_the_tasks_made_are_taken_away(self):
+        for name in ('kMcStack', 'kAppStack'):
+            self.assertIn('edRemoveBuiltStack %s' % name, self.handlers['ed_finish'])
+        self.assertIn('edRemoveBuiltStack kAppStack', self.handlers['ed_standalone_built_and_run'])
+
+    def test_a_mac_builds_for_its_own_processor(self):
+        # The task runs what it builds. The Standalone Settings' "MacOS ARM
+        # 64 native" (MacOSX x64-ARM64) is built with the arm64 code alone:
+        # on an Intel Mac that standalone ended with 126, "Bad CPU type in
+        # executable". There the task builds "MacOS Intel 64-bit"
+        body = self.function('edBuildTarget')
+        mac = re.search(r'if the platform is "MacOS" then\n(.*?)\n   end if', body, re.S)
+        self.assertIsNotNone(mac, 'no target for a Mac')
+        lines = [line.strip() for line in mac.group(1).split('\n')]
+        self.assertEqual(lines, ['if the processor is "x86_64" then return "MacOSX x86-64"', 'return "MacOSX x64-ARM64"'])
+        # (one architecture each, as the builder hands them to the deploy)
+        self.assertIn('if sStandaloneSettingsA["MacOSX x86-64"] then put "x86-64," after tArchitectures', self.builder)
+        self.assertIn('if sStandaloneSettingsA["MacOSX x64-ARM64"] then put "arm64," after tArchitectures', self.builder)
+        self.assertIn('put tArchitectures into tDeployInfo["architectures"]', self.builder)
+        # (and both Macs run the tasks)
+        mac_workflow = read(os.path.join(WORKFLOWS, 'build-macos.yml'))
+        self.assertIn('macos-15-intel', mac_workflow)
+        # (the builder's own limit is the ARM 64 target's alone)
+        skip = self.function('edBuildSkip')
+        self.assertIn('if edBuildTarget() is "MacOSX x64-ARM64" then', skip)
+        self.assertRegex(self.builder, r'if tSettings\["MacOSX x64-ARM64"\] then\n\s*if the platform contains "Mac" then\n(?:.*\n){3}\s*if mysys <14 then')
+
+    def test_the_dialog_the_build_ends_on_is_in_the_pictures(self):
+        # (what the IDE says at the end of a build is a window a person
+        # sees: it is snapshot under a name of the task's, before the
+        # click that closes it)
+        body = self.handlers['ed_standalone_built_and_run']
+        m = re.search(r'edFullBuild\(kAppStack, "(\d\d-[a-z-]+)"\)', body)
+        self.assertIsNotNone(m, 'the task names no snapshot for the dialog its build ends on')
+        own = re.search(r'edShotStack kAppStack, "(\d\d-[a-z-]+)"', body)
+        self.assertIsNotNone(own)
+        self.assertLess(m.group(1), own.group(1), 'the dialog comes before the stack in the pictures')
+        self.assertIn('put pShot into sReport["sayShot"]', self.handlers['edBuildWithDialogs'])
+        said = self.handlers['edBuildSaid']
+        shot = 'edShotStack tAD, sReport["sayShot"]'
+        self.assertIn(shot, said)
+        self.assertLess(said.index(shot), said.index('edAnswerWith "OK"'),
+                        'the snapshot is after the click that closes the dialog')
+        # (the first dialog alone, and a snapshot that fails does not
+        # stop the answering: an unanswered dialog holds the build)
+        self.assertRegex(said, r'if sReport\["dialogs"\] is 1 and sReport\["sayShot"\] is not empty then\s+try\s+%s\s+catch tError\s+end try' % re.escape(shot))
+
+    def test_no_two_snapshots_share_a_name(self):
+        # (the second would take the place of the first in the pictures)
+        names = re.findall(r'"(\d\d-[a-z0-9-]+)"', self.text)
+        self.assertGreater(len(names), 40)
+        twice = sorted(set(name for name in names if names.count(name) > 1))
+        self.assertEqual(twice, [], 'snapshots named twice')
+
+
+class StandaloneEngineMissing(BuildTasks, unittest.TestCase):
+    """standalone-engine-missing has the builder refuse a build, with its
+    dialogs on, and reads what it tells a person. Up to 0.2.8-dp.1 the
+    dialog had lost the first word of the builder's sentence: the builder
+    took "Standalone:" off its error, and then a word more off what it
+    showed. What the task waits for is the sentence the builder throws,
+    and the engine is taken away the builder's own way, for the build
+    alone."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.home = read(os.path.join(ROOT, 'ide', 'Toolset', 'home.livecodescript'))
+
+    def test_the_builder_says_its_whole_error(self):
+        do = re.search(r'^command revDoSaveAsStandalone\b.*?^end revDoSaveAsStandalone', self.builder, re.M | re.S)
+        self.assertIsNotNone(do)
+        caught = do.group(0).split('catch tError', 1)[1]
+        strip = 'put word 2 to -1 of tError into tError'
+        self.assertEqual(caught.count(strip), 1)
+        after = caught.split(strip, 1)[1]
+        # (what it shows is what is left of the error: all of it)
+        self.assertRegex(after, r'^\s*if not revSBSuppressDialogs\(\) then\n(?:\s*--[^\n]*\n)*\s*answer error tError\n\s*end if\n')
+        self.assertNotIn('answer error word 2 to -1 of tError', self.builder)
+        # (and what a script gets back is that same text, as before)
+        self.assertIn('return tError', after)
+
+    def test_the_sentence_is_the_builders(self):
+        said = self.constant('kBuildNoEngine')
+        throws = re.findall(r'throw "Standalone: ([^"]*)" \\\n\s*& return & tEngineSourceFile', self.builder)
+        self.assertEqual(len(throws), 3, 'the Mac, the Windows and the Linux builder each say it')
+        for thrown in throws:
+            self.assertEqual(thrown.strip(), said)
+        refused = self.function('edRefusedBuild')
+        self.assertIn('if word 1 to -1 of line 1 of tSaid is not kBuildNoEngine then', refused)
+        # (and the file it looked for, on the line after)
+        self.assertIn('if word 1 to -1 of line 2 of tSaid is not pEngine then', refused)
+        self.assertIn('if the number of lines of tSaid > 2 then return', refused)
+
+    def test_the_engine_is_taken_away_the_builders_own_way(self):
+        checks = list(re.finditer(r'if there is not a file tEngineSourceFile then\n\s*throw "Standalone:', self.builder))
+        self.assertEqual(len(checks), 3)
+        for check in checks:
+            self.assertIn('put revOverrideRuntimePath() into tEngineSourceFile', self.builder[check.start() - 300:check.start()])
+        self.assertRegex(self.home, r'(?m)^\s*command revSetOverrideRuntimePath pPath$')
+        self.assertRegex(self.home, r'(?m)^\s*function revOverrideRuntimePath$')
+        refused = self.function('edRefusedBuild')
+        self.assertIn('dispatch "revSetOverrideRuntimePath" to stack "Home" with pEngine', refused)
+        # (a file there would be attached as the engine)
+        body = self.handlers['ed_standalone_engine_missing']
+        self.assertIn('if there is a file tEngine then throw', body)
+        self.assertLess(body.index('if there is a file tEngine then throw'), body.index('edRefusedBuild('))
+
+    def test_the_engine_is_away_for_the_build_alone(self):
+        # (left set, every later build of the IDE would be refused)
+        refused = self.function('edRefusedBuild')
+        away = 'dispatch "revSetOverrideRuntimePath" to stack "Home" with pEngine'
+        back = 'dispatch "revSetOverrideRuntimePath" to stack "Home" with empty'
+        self.assertLess(refused.index(away), refused.index('edBuildWithDialogs pShot'))
+        after = refused.split('edBuildWithDialogs pShot', 1)[1]
+        self.assertLess(after.index('finally'), after.index(back), 'the engine must be back whatever the build did')
+        self.assertLess(after.index(back), after.index('end try'))
+        self.assertIn(back, self.handlers['ed_finish'])
+
+    def test_the_build_is_the_file_menus_with_the_dialogs_on(self):
+        refused = self.function('edRefusedBuild')
+        self.assertIn('edBuildWithDialogs pShot\n', refused)
+        build = self.handlers['edBuildWithDialogs']
+        self.assertIn('edMenu "File", "Save as Standalone Application..."', build)
+        self.assertIn('dispatch "revSetTestEnvironment" to stack "Home" with false', build)
+
+    def test_a_refused_build_leaves_the_ide_as_it_was(self):
+        refused = self.function('edRefusedBuild')
+        self.assertLess(refused.index('put edBuildState(pStack) into tBefore'), refused.index('edBuildWithDialogs pShot'))
+        self.assertLess(refused.index('put URL ("binfile:" & tPath) into tBytes'), refused.index('edBuildWithDialogs pShot'))
+        self.assertIn('if "Attaching engine..." is among the lines of tSteps then', refused)
+        self.assertIn('if sReport["dialogs"] > kBuildDialogs then', refused)
+        self.assertIn('if edOpen("revStandaloneProgress") then return', refused)
+        self.assertIn('return edBuildLeft(pStack, tBefore, tBytes, ', refused)
+
+    def test_no_build_over_a_stack_a_build_left_broken(self):
+        body = self.handlers['ed_standalone_engine_missing']
+        guard = 'if edDialogCopies() is not empty then throw'
+        self.assertIn(guard, body)
+        self.assertLess(body.index(guard), body.index('edBuildSettings'))
+
+    def test_the_dialog_is_in_the_pictures(self):
+        body = self.handlers['ed_standalone_engine_missing']
+        m = re.search(r'edRefusedBuild\(sStack, tEngine, "(\d\d-[a-z-]+)"\)', body)
+        self.assertIsNotNone(m, 'the task names no snapshot for the dialog its build stops on')
+        own = re.search(r'edShotStack sStack, "(\d\d-[a-z-]+)"', body)
+        self.assertIsNotNone(own)
+        self.assertLess(m.group(1), own.group(1), 'the dialog comes before the stack in the pictures')
+
+
+if __name__ == '__main__':
+    unittest.main()

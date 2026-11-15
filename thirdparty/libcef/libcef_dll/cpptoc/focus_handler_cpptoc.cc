@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Chromium Embedded Framework Authors. All rights
+// Copyright (c) 2026 The Chromium Embedded Framework Authors. All rights
 // reserved. Use of this source code is governed by a BSD-style license that
 // can be found in the LICENSE file.
 //
@@ -9,10 +9,11 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=22e8a4be47b39f319f40eabc5f4cafccb7fd1e1a$
+// $hash=7a7b3245700a5a466ad64c336b535c6ab5561490$
 //
 
 #include "libcef_dll/cpptoc/focus_handler_cpptoc.h"
+
 #include "libcef_dll/ctocpp/browser_ctocpp.h"
 #include "libcef_dll/shutdown_checker.h"
 
@@ -21,64 +22,70 @@ namespace {
 // MEMBER FUNCTIONS - Body may be edited by hand.
 
 void CEF_CALLBACK focus_handler_on_take_focus(struct _cef_focus_handler_t* self,
-                                              cef_browser_t* browser,
+                                              struct _cef_browser_t* browser,
                                               int next) {
   shutdown_checker::AssertNotShutdown();
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
   DCHECK(self);
-  if (!self)
+  if (!self) {
     return;
+  }
   // Verify param: browser; type: refptr_diff
   DCHECK(browser);
-  if (!browser)
+  if (!browser) {
     return;
+  }
 
   // Execute
-  CefFocusHandlerCppToC::Get(self)->OnTakeFocus(CefBrowserCToCpp::Wrap(browser),
+  CefFocusHandlerCppToC::Get(self)->OnTakeFocus(CefBrowserCToCpp_Wrap(browser),
                                                 next ? true : false);
 }
 
 int CEF_CALLBACK focus_handler_on_set_focus(struct _cef_focus_handler_t* self,
-                                            cef_browser_t* browser,
+                                            struct _cef_browser_t* browser,
                                             cef_focus_source_t source) {
   shutdown_checker::AssertNotShutdown();
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
   DCHECK(self);
-  if (!self)
+  if (!self) {
     return 0;
+  }
   // Verify param: browser; type: refptr_diff
   DCHECK(browser);
-  if (!browser)
+  if (!browser) {
     return 0;
+  }
 
   // Execute
   bool _retval = CefFocusHandlerCppToC::Get(self)->OnSetFocus(
-      CefBrowserCToCpp::Wrap(browser), source);
+      CefBrowserCToCpp_Wrap(browser), source);
 
   // Return type: bool
   return _retval;
 }
 
 void CEF_CALLBACK focus_handler_on_got_focus(struct _cef_focus_handler_t* self,
-                                             cef_browser_t* browser) {
+                                             struct _cef_browser_t* browser) {
   shutdown_checker::AssertNotShutdown();
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
   DCHECK(self);
-  if (!self)
+  if (!self) {
     return;
+  }
   // Verify param: browser; type: refptr_diff
   DCHECK(browser);
-  if (!browser)
+  if (!browser) {
     return;
+  }
 
   // Execute
-  CefFocusHandlerCppToC::Get(self)->OnGotFocus(CefBrowserCToCpp::Wrap(browser));
+  CefFocusHandlerCppToC::Get(self)->OnGotFocus(CefBrowserCToCpp_Wrap(browser));
 }
 
 }  // namespace
@@ -103,8 +110,8 @@ CefRefPtr<CefFocusHandler> CefCppToCRefCounted<
     CefFocusHandler,
     cef_focus_handler_t>::UnwrapDerived(CefWrapperType type,
                                         cef_focus_handler_t* s) {
-  NOTREACHED() << "Unexpected class type: " << type;
-  return NULL;
+  CHECK(false) << __func__ << " called with unexpected class type " << type;
+  return nullptr;
 }
 
 template <>

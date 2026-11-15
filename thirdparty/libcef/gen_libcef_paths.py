@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os
 import sys
@@ -14,7 +14,7 @@ def gen_paths_file(pPaths):
 	for tPath in pPaths:
 		for tRoot, tFolders, tFiles in os.walk(tPath):
 			if os.path.basename(tRoot) != "test":	
-				tFileNames = filter(lambda(s) : s.endswith(".h") or s.endswith(".cc"), tFiles)
+				tFileNames = filter(lambda s : s.endswith(".h") or s.endswith(".cc"), tFiles)
 				
 				tRoot = tRoot.replace(os.path.sep, "/")
 
@@ -23,13 +23,13 @@ def gen_paths_file(pPaths):
 
 	tFileList.sort()
 	
-	print "{\n"
-	print "\t'variables': {\n"
-	print "\t\t'libcef_dll_sources': [\n"
+	print("{\n")
+	print("\t'variables': {\n")
+	print("\t\t'libcef_dll_sources': [\n")
 	
-	print "\n".join(tFileList)
+	print("\n".join(tFileList))
 	
-	print "\t\t]\n\t}\n}\n"
+	print("\t\t]\n\t}\n}\n")
 	
 
 #get include folder from the command line

@@ -4231,6 +4231,60 @@ public class Engine extends View implements EngineApi
 
 	////////////////////////////////////////////////////////////////////////////////
 
+	// The DNS servers of the network Android routes through, one address a
+	// line (an IPv6 one without its %scope), for `the dnsServers`
+	// (MCAndroidSystem::GetDNSservers). Empty when Android tells the app
+	// nothing: no network, or no ACCESS_NETWORK_STATE permission (a
+	// SecurityException), so the function answers empty and never throws.
+	// The active network on Android 6 (API 23) and later; before it, the
+	// first network that has DNS servers.
+	public String getDNSServers()
+	{
+		try
+		{
+			ConnectivityManager t_manager = (ConnectivityManager)getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+			if (t_manager == null)
+				return "";
+
+			Network[] t_networks;
+			if (Build.VERSION.SDK_INT >= 23)
+			{
+				Network t_active = t_manager.getActiveNetwork();
+				t_networks = t_active == null ? new Network[0] : new Network[] { t_active };
+			}
+			else
+				t_networks = t_manager.getAllNetworks();
+
+			for (Network t_network : t_networks)
+			{
+				LinkProperties t_properties = t_manager.getLinkProperties(t_network);
+				if (t_properties == null)
+					continue;
+				StringBuilder t_servers = new StringBuilder();
+				for (java.net.InetAddress t_address : t_properties.getDnsServers())
+				{
+					String t_text = t_address.getHostAddress();
+					if (t_text == null)
+						continue;
+					int t_scope = t_text.indexOf('%');
+					if (t_scope >= 0)
+						t_text = t_text.substring(0, t_scope);
+					if (t_servers.length() > 0)
+						t_servers.append('\n');
+					t_servers.append(t_text);
+				}
+				if (t_servers.length() > 0)
+					return t_servers.toString();
+			}
+		}
+		catch (Exception e)
+		{
+		}
+		return "";
+	}
+
+	////////////////////////////////////////////////////////////////////////////////
+
 	public boolean registerLifecycleListener(LifecycleListener p_listener)
 	{
 		return m_lifecycle_listeners.add(p_listener);

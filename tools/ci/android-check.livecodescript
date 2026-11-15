@@ -1229,6 +1229,10 @@ private function buildSettings pName
       put kTestsIdentifier into tSettings["android,identifier"]
       put "Android Tests" into tSettings["android,label"]
       put true into tSettings["android,application permissions"]["INTERNET"]
+      -- and the network's state, which Android asks of an app that reads
+      -- its DNS servers (the dnsServers, core/network's tests): without it
+      -- the function answers empty
+      put true into tSettings["android,application permissions"]["ACCESS_NETWORK_STATE"]
       -- and plain http: the card's "Allow HTTP connections", which puts
       -- android:usesCleartextTraffic in the manifest. Without it Android
       -- (9 and later) refuses every http:// request before it is sent, and

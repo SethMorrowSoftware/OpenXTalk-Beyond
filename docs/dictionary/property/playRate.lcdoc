@@ -4,10 +4,13 @@ Type: property
 
 Syntax: set the playRate of <player> to <rate>
 
-Summary:
-Specifies how fast a <player> plays a movie.
+Syntax: set the playRate of <image> to <rate>
 
-Associations: player
+Summary:
+Specifies how fast a <player> plays a movie, or how fast an <animated
+GIF> <image> animates.
+
+Associations: player, image
 
 Introduced: 1.0
 
@@ -17,6 +20,9 @@ Platforms: desktop, server
 
 Example:
 set the playRate of player 17 to 0.5 -- half-speed
+
+Example:
+set the playRate of image "Demon" to 2 -- the sprite walks twice as fast
 
 Value:
 The <playRate> of a <player> is a <real number>.
@@ -36,9 +42,23 @@ A negative <playRate> plays the movie or sound backward.
 
 If the <playRate> is zero, the movie or sound is paused.
 
+**Images:** the <playRate> of an <image> sets how fast an <animated GIF>
+animates: 1 (the default) is the pace of its frames' own delays, 2 twice
+as fast, 0.5 half as fast. Each frame's duration (its GIF delay, or what
+the <frameDurations> of the <image> says) is divided by the <playRate>
+and rounded to the nearest millisecond, when that frame comes up. The
+<playRate> of an <image> must be greater than 0: use the <repeatCount> to
+stop an animation, and the <currentFrame> to step through it. Like the
+<frameDurations>, it is not saved with the stack and is not one of the
+<properties> of an <image>; a <clone> of the <image> has the same
+setting, an <image> pasted from the clipboard does not. The <playRate> of an <image> was added in version 9.7.1
+(OXT-Beyond 0.2.8-dp.2).
+
 References: play (command), property (glossary), real number (glossary),
 player (keyword), callbacks (property), looping (property),
-startTime (property)
+startTime (property), image (keyword), animated GIF (glossary),
+frameDurations (property), repeatCount (property),
+currentFrame (property), properties (property), clone (command)
 
 Tags: multimedia
 

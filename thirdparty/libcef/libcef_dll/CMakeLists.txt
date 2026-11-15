@@ -4,8 +4,8 @@
 
 # Append platform specific sources to a list of sources.
 macro(LIBCEF_APPEND_PLATFORM_SOURCES name_of_list)
-  if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin" AND ${name_of_list}_MACOSX)
-    list(APPEND ${name_of_list} ${${name_of_list}_MACOSX})
+  if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin" AND ${name_of_list}_MAC)
+    list(APPEND ${name_of_list} ${${name_of_list}_MAC})
   endif()
   if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux" AND ${name_of_list}_LINUX)
     list(APPEND ${name_of_list} ${${name_of_list}_LINUX})
@@ -18,9 +18,9 @@ endmacro()
 set(CEF_TARGET libcef_dll_wrapper)
 
 set(LIBCEF_SRCS
-  ptr_util.h
   shutdown_checker.cc
   shutdown_checker.h
+  template_util.h
   transfer_util.cc
   transfer_util.h
   wrapper_types.h
@@ -28,15 +28,14 @@ set(LIBCEF_SRCS
 source_group(libcef_dll FILES ${LIBCEF_SRCS})
 
 set(LIBCEF_BASE_SRCS
-  base/cef_atomicops_x86_gcc.cc
-  base/cef_bind_helpers.cc
+  base/cef_atomic_flag.cc
   base/cef_callback_helpers.cc
   base/cef_callback_internal.cc
+  base/cef_dump_without_crashing.cc
   base/cef_lock.cc
   base/cef_lock_impl.cc
   base/cef_logging.cc
   base/cef_ref_counted.cc
-  base/cef_string16.cc
   base/cef_thread_checker_impl.cc
   base/cef_weak_ptr.cc
   )
@@ -57,16 +56,24 @@ set(LIBCEF_CPPTOC_SRCS
   cpptoc/browser_process_handler_cpptoc.h
   cpptoc/client_cpptoc.cc
   cpptoc/client_cpptoc.h
+  cpptoc/command_handler_cpptoc.cc
+  cpptoc/command_handler_cpptoc.h
   cpptoc/completion_callback_cpptoc.cc
   cpptoc/completion_callback_cpptoc.h
+  cpptoc/component_update_callback_cpptoc.cc
+  cpptoc/component_update_callback_cpptoc.h
   cpptoc/context_menu_handler_cpptoc.cc
   cpptoc/context_menu_handler_cpptoc.h
+  cpptoc/cookie_access_filter_cpptoc.cc
+  cpptoc/cookie_access_filter_cpptoc.h
   cpptoc/cookie_visitor_cpptoc.cc
   cpptoc/cookie_visitor_cpptoc.h
   cpptoc/cpptoc_ref_counted.h
   cpptoc/cpptoc_scoped.h
   cpptoc/delete_cookies_callback_cpptoc.cc
   cpptoc/delete_cookies_callback_cpptoc.h
+  cpptoc/dev_tools_message_observer_cpptoc.cc
+  cpptoc/dev_tools_message_observer_cpptoc.h
   cpptoc/dialog_handler_cpptoc.cc
   cpptoc/dialog_handler_cpptoc.h
   cpptoc/display_handler_cpptoc.cc
@@ -81,12 +88,12 @@ set(LIBCEF_CPPTOC_SRCS
   cpptoc/drag_handler_cpptoc.h
   cpptoc/end_tracing_callback_cpptoc.cc
   cpptoc/end_tracing_callback_cpptoc.h
-  cpptoc/extension_handler_cpptoc.cc
-  cpptoc/extension_handler_cpptoc.h
   cpptoc/find_handler_cpptoc.cc
   cpptoc/find_handler_cpptoc.h
   cpptoc/focus_handler_cpptoc.cc
   cpptoc/focus_handler_cpptoc.h
+  cpptoc/frame_handler_cpptoc.cc
+  cpptoc/frame_handler_cpptoc.h
   cpptoc/jsdialog_handler_cpptoc.cc
   cpptoc/jsdialog_handler_cpptoc.h
   cpptoc/keyboard_handler_cpptoc.cc
@@ -95,18 +102,26 @@ set(LIBCEF_CPPTOC_SRCS
   cpptoc/life_span_handler_cpptoc.h
   cpptoc/load_handler_cpptoc.cc
   cpptoc/load_handler_cpptoc.h
+  cpptoc/media_observer_cpptoc.cc
+  cpptoc/media_observer_cpptoc.h
+  cpptoc/media_route_create_callback_cpptoc.cc
+  cpptoc/media_route_create_callback_cpptoc.h
+  cpptoc/media_sink_device_info_callback_cpptoc.cc
+  cpptoc/media_sink_device_info_callback_cpptoc.h
   cpptoc/menu_model_delegate_cpptoc.cc
   cpptoc/menu_model_delegate_cpptoc.h
   cpptoc/navigation_entry_visitor_cpptoc.cc
   cpptoc/navigation_entry_visitor_cpptoc.h
   cpptoc/pdf_print_callback_cpptoc.cc
   cpptoc/pdf_print_callback_cpptoc.h
+  cpptoc/permission_handler_cpptoc.cc
+  cpptoc/permission_handler_cpptoc.h
+  cpptoc/preference_observer_cpptoc.cc
+  cpptoc/preference_observer_cpptoc.h
   cpptoc/print_handler_cpptoc.cc
   cpptoc/print_handler_cpptoc.h
   cpptoc/read_handler_cpptoc.cc
   cpptoc/read_handler_cpptoc.h
-  cpptoc/register_cdm_callback_cpptoc.cc
-  cpptoc/register_cdm_callback_cpptoc.h
   cpptoc/render_handler_cpptoc.cc
   cpptoc/render_handler_cpptoc.h
   cpptoc/render_process_handler_cpptoc.cc
@@ -121,6 +136,8 @@ set(LIBCEF_CPPTOC_SRCS
   cpptoc/resource_bundle_handler_cpptoc.h
   cpptoc/resource_handler_cpptoc.cc
   cpptoc/resource_handler_cpptoc.h
+  cpptoc/resource_request_handler_cpptoc.cc
+  cpptoc/resource_request_handler_cpptoc.h
   cpptoc/response_filter_cpptoc.cc
   cpptoc/response_filter_cpptoc.h
   cpptoc/run_file_dialog_callback_cpptoc.cc
@@ -131,30 +148,42 @@ set(LIBCEF_CPPTOC_SRCS
   cpptoc/server_handler_cpptoc.h
   cpptoc/set_cookie_callback_cpptoc.cc
   cpptoc/set_cookie_callback_cpptoc.h
+  cpptoc/setting_observer_cpptoc.cc
+  cpptoc/setting_observer_cpptoc.h
   cpptoc/string_visitor_cpptoc.cc
   cpptoc/string_visitor_cpptoc.h
   cpptoc/task_cpptoc.cc
   cpptoc/task_cpptoc.h
   cpptoc/urlrequest_client_cpptoc.cc
   cpptoc/urlrequest_client_cpptoc.h
-  cpptoc/v8accessor_cpptoc.cc
-  cpptoc/v8accessor_cpptoc.h
-  cpptoc/v8array_buffer_release_callback_cpptoc.cc
-  cpptoc/v8array_buffer_release_callback_cpptoc.h
-  cpptoc/v8handler_cpptoc.cc
-  cpptoc/v8handler_cpptoc.h
-  cpptoc/v8interceptor_cpptoc.cc
-  cpptoc/v8interceptor_cpptoc.h
-  cpptoc/web_plugin_info_visitor_cpptoc.cc
-  cpptoc/web_plugin_info_visitor_cpptoc.h
-  cpptoc/web_plugin_unstable_callback_cpptoc.cc
-  cpptoc/web_plugin_unstable_callback_cpptoc.h
+  cpptoc/v8_accessor_cpptoc.cc
+  cpptoc/v8_accessor_cpptoc.h
+  cpptoc/v8_array_buffer_release_callback_cpptoc.cc
+  cpptoc/v8_array_buffer_release_callback_cpptoc.h
+  cpptoc/v8_handler_cpptoc.cc
+  cpptoc/v8_handler_cpptoc.h
+  cpptoc/v8_interceptor_cpptoc.cc
+  cpptoc/v8_interceptor_cpptoc.h
   cpptoc/write_handler_cpptoc.cc
   cpptoc/write_handler_cpptoc.h
   )
 source_group(libcef_dll\\\\cpptoc FILES ${LIBCEF_CPPTOC_SRCS})
 
 set(LIBCEF_CPPTOC_TEST_SRCS
+  cpptoc/test/api_version_test_ref_ptr_client_child_cpptoc.cc
+  cpptoc/test/api_version_test_ref_ptr_client_child_cpptoc.h
+  cpptoc/test/api_version_test_ref_ptr_client_child_v2_cpptoc.cc
+  cpptoc/test/api_version_test_ref_ptr_client_child_v2_cpptoc.h
+  cpptoc/test/api_version_test_ref_ptr_client_cpptoc.cc
+  cpptoc/test/api_version_test_ref_ptr_client_cpptoc.h
+  cpptoc/test/api_version_test_scoped_client_child_cpptoc.cc
+  cpptoc/test/api_version_test_scoped_client_child_cpptoc.h
+  cpptoc/test/api_version_test_scoped_client_child_v2_cpptoc.cc
+  cpptoc/test/api_version_test_scoped_client_child_v2_cpptoc.h
+  cpptoc/test/api_version_test_scoped_client_cpptoc.cc
+  cpptoc/test/api_version_test_scoped_client_cpptoc.h
+  cpptoc/test/test_server_handler_cpptoc.cc
+  cpptoc/test/test_server_handler_cpptoc.h
   cpptoc/test/translator_test_ref_ptr_client_child_cpptoc.cc
   cpptoc/test/translator_test_ref_ptr_client_child_cpptoc.h
   cpptoc/test/translator_test_ref_ptr_client_cpptoc.cc
@@ -199,6 +228,10 @@ set(LIBCEF_CTOCPP_SRCS
   ctocpp/callback_ctocpp.h
   ctocpp/command_line_ctocpp.cc
   ctocpp/command_line_ctocpp.h
+  ctocpp/component_ctocpp.cc
+  ctocpp/component_ctocpp.h
+  ctocpp/component_updater_ctocpp.cc
+  ctocpp/component_updater_ctocpp.h
   ctocpp/context_menu_params_ctocpp.cc
   ctocpp/context_menu_params_ctocpp.h
   ctocpp/cookie_manager_ctocpp.cc
@@ -217,28 +250,40 @@ set(LIBCEF_CTOCPP_SRCS
   ctocpp/download_item_ctocpp.h
   ctocpp/drag_data_ctocpp.cc
   ctocpp/drag_data_ctocpp.h
-  ctocpp/extension_ctocpp.cc
-  ctocpp/extension_ctocpp.h
   ctocpp/file_dialog_callback_ctocpp.cc
   ctocpp/file_dialog_callback_ctocpp.h
   ctocpp/frame_ctocpp.cc
   ctocpp/frame_ctocpp.h
-  ctocpp/get_extension_resource_callback_ctocpp.cc
-  ctocpp/get_extension_resource_callback_ctocpp.h
   ctocpp/image_ctocpp.cc
   ctocpp/image_ctocpp.h
   ctocpp/jsdialog_callback_ctocpp.cc
   ctocpp/jsdialog_callback_ctocpp.h
   ctocpp/list_value_ctocpp.cc
   ctocpp/list_value_ctocpp.h
+  ctocpp/media_access_callback_ctocpp.cc
+  ctocpp/media_access_callback_ctocpp.h
+  ctocpp/media_route_ctocpp.cc
+  ctocpp/media_route_ctocpp.h
+  ctocpp/media_router_ctocpp.cc
+  ctocpp/media_router_ctocpp.h
+  ctocpp/media_sink_ctocpp.cc
+  ctocpp/media_sink_ctocpp.h
+  ctocpp/media_source_ctocpp.cc
+  ctocpp/media_source_ctocpp.h
   ctocpp/menu_model_ctocpp.cc
   ctocpp/menu_model_ctocpp.h
   ctocpp/navigation_entry_ctocpp.cc
   ctocpp/navigation_entry_ctocpp.h
+  ctocpp/permission_prompt_callback_ctocpp.cc
+  ctocpp/permission_prompt_callback_ctocpp.h
   ctocpp/post_data_ctocpp.cc
   ctocpp/post_data_ctocpp.h
   ctocpp/post_data_element_ctocpp.cc
   ctocpp/post_data_element_ctocpp.h
+  ctocpp/preference_manager_ctocpp.cc
+  ctocpp/preference_manager_ctocpp.h
+  ctocpp/preference_registrar_ctocpp.cc
+  ctocpp/preference_registrar_ctocpp.h
   ctocpp/print_dialog_callback_ctocpp.cc
   ctocpp/print_dialog_callback_ctocpp.h
   ctocpp/print_job_callback_ctocpp.cc
@@ -247,24 +292,34 @@ set(LIBCEF_CTOCPP_SRCS
   ctocpp/print_settings_ctocpp.h
   ctocpp/process_message_ctocpp.cc
   ctocpp/process_message_ctocpp.h
-  ctocpp/request_callback_ctocpp.cc
-  ctocpp/request_callback_ctocpp.h
+  ctocpp/registration_ctocpp.cc
+  ctocpp/registration_ctocpp.h
   ctocpp/request_context_ctocpp.cc
   ctocpp/request_context_ctocpp.h
   ctocpp/request_ctocpp.cc
   ctocpp/request_ctocpp.h
   ctocpp/resource_bundle_ctocpp.cc
   ctocpp/resource_bundle_ctocpp.h
+  ctocpp/resource_read_callback_ctocpp.cc
+  ctocpp/resource_read_callback_ctocpp.h
+  ctocpp/resource_skip_callback_ctocpp.cc
+  ctocpp/resource_skip_callback_ctocpp.h
   ctocpp/response_ctocpp.cc
   ctocpp/response_ctocpp.h
   ctocpp/run_context_menu_callback_ctocpp.cc
   ctocpp/run_context_menu_callback_ctocpp.h
+  ctocpp/run_quick_menu_callback_ctocpp.cc
+  ctocpp/run_quick_menu_callback_ctocpp.h
   ctocpp/scheme_registrar_ctocpp.cc
   ctocpp/scheme_registrar_ctocpp.h
   ctocpp/select_client_certificate_callback_ctocpp.cc
   ctocpp/select_client_certificate_callback_ctocpp.h
   ctocpp/server_ctocpp.cc
   ctocpp/server_ctocpp.h
+  ctocpp/shared_memory_region_ctocpp.cc
+  ctocpp/shared_memory_region_ctocpp.h
+  ctocpp/shared_process_message_builder_ctocpp.cc
+  ctocpp/shared_process_message_builder_ctocpp.h
   ctocpp/sslinfo_ctocpp.cc
   ctocpp/sslinfo_ctocpp.h
   ctocpp/sslstatus_ctocpp.cc
@@ -273,32 +328,36 @@ set(LIBCEF_CTOCPP_SRCS
   ctocpp/stream_reader_ctocpp.h
   ctocpp/stream_writer_ctocpp.cc
   ctocpp/stream_writer_ctocpp.h
+  ctocpp/task_manager_ctocpp.cc
+  ctocpp/task_manager_ctocpp.h
   ctocpp/task_runner_ctocpp.cc
   ctocpp/task_runner_ctocpp.h
   ctocpp/thread_ctocpp.cc
   ctocpp/thread_ctocpp.h
+  ctocpp/unresponsive_process_callback_ctocpp.cc
+  ctocpp/unresponsive_process_callback_ctocpp.h
   ctocpp/urlrequest_ctocpp.cc
   ctocpp/urlrequest_ctocpp.h
-  ctocpp/v8context_ctocpp.cc
-  ctocpp/v8context_ctocpp.h
-  ctocpp/v8exception_ctocpp.cc
-  ctocpp/v8exception_ctocpp.h
-  ctocpp/v8stack_frame_ctocpp.cc
-  ctocpp/v8stack_frame_ctocpp.h
-  ctocpp/v8stack_trace_ctocpp.cc
-  ctocpp/v8stack_trace_ctocpp.h
-  ctocpp/v8value_ctocpp.cc
-  ctocpp/v8value_ctocpp.h
+  ctocpp/v8_backing_store_ctocpp.cc
+  ctocpp/v8_backing_store_ctocpp.h
+  ctocpp/v8_context_ctocpp.cc
+  ctocpp/v8_context_ctocpp.h
+  ctocpp/v8_exception_ctocpp.cc
+  ctocpp/v8_exception_ctocpp.h
+  ctocpp/v8_stack_frame_ctocpp.cc
+  ctocpp/v8_stack_frame_ctocpp.h
+  ctocpp/v8_stack_trace_ctocpp.cc
+  ctocpp/v8_stack_trace_ctocpp.h
+  ctocpp/v8_value_ctocpp.cc
+  ctocpp/v8_value_ctocpp.h
   ctocpp/value_ctocpp.cc
   ctocpp/value_ctocpp.h
   ctocpp/waitable_event_ctocpp.cc
   ctocpp/waitable_event_ctocpp.h
-  ctocpp/web_plugin_info_ctocpp.cc
-  ctocpp/web_plugin_info_ctocpp.h
-  ctocpp/x509cert_principal_ctocpp.cc
-  ctocpp/x509cert_principal_ctocpp.h
-  ctocpp/x509certificate_ctocpp.cc
-  ctocpp/x509certificate_ctocpp.h
+  ctocpp/x509_cert_principal_ctocpp.cc
+  ctocpp/x509_cert_principal_ctocpp.h
+  ctocpp/x509_certificate_ctocpp.cc
+  ctocpp/x509_certificate_ctocpp.h
   ctocpp/xml_reader_ctocpp.cc
   ctocpp/xml_reader_ctocpp.h
   ctocpp/zip_reader_ctocpp.cc
@@ -307,6 +366,32 @@ set(LIBCEF_CTOCPP_SRCS
 source_group(libcef_dll\\\\ctocpp FILES ${LIBCEF_CTOCPP_SRCS})
 
 set(LIBCEF_CTOCPP_TEST_SRCS
+  ctocpp/test/api_version_test_ctocpp.cc
+  ctocpp/test/api_version_test_ctocpp.h
+  ctocpp/test/api_version_test_ref_ptr_library_child_child_ctocpp.cc
+  ctocpp/test/api_version_test_ref_ptr_library_child_child_ctocpp.h
+  ctocpp/test/api_version_test_ref_ptr_library_child_child_v1_ctocpp.cc
+  ctocpp/test/api_version_test_ref_ptr_library_child_child_v1_ctocpp.h
+  ctocpp/test/api_version_test_ref_ptr_library_child_child_v2_ctocpp.cc
+  ctocpp/test/api_version_test_ref_ptr_library_child_child_v2_ctocpp.h
+  ctocpp/test/api_version_test_ref_ptr_library_child_ctocpp.cc
+  ctocpp/test/api_version_test_ref_ptr_library_child_ctocpp.h
+  ctocpp/test/api_version_test_ref_ptr_library_ctocpp.cc
+  ctocpp/test/api_version_test_ref_ptr_library_ctocpp.h
+  ctocpp/test/api_version_test_scoped_library_child_child_ctocpp.cc
+  ctocpp/test/api_version_test_scoped_library_child_child_ctocpp.h
+  ctocpp/test/api_version_test_scoped_library_child_child_v1_ctocpp.cc
+  ctocpp/test/api_version_test_scoped_library_child_child_v1_ctocpp.h
+  ctocpp/test/api_version_test_scoped_library_child_child_v2_ctocpp.cc
+  ctocpp/test/api_version_test_scoped_library_child_child_v2_ctocpp.h
+  ctocpp/test/api_version_test_scoped_library_child_ctocpp.cc
+  ctocpp/test/api_version_test_scoped_library_child_ctocpp.h
+  ctocpp/test/api_version_test_scoped_library_ctocpp.cc
+  ctocpp/test/api_version_test_scoped_library_ctocpp.h
+  ctocpp/test/test_server_connection_ctocpp.cc
+  ctocpp/test/test_server_connection_ctocpp.h
+  ctocpp/test/test_server_ctocpp.cc
+  ctocpp/test/test_server_ctocpp.h
   ctocpp/test/translator_test_ctocpp.cc
   ctocpp/test/translator_test_ctocpp.h
   ctocpp/test/translator_test_ref_ptr_library_child_child_ctocpp.cc
@@ -343,6 +428,8 @@ set(LIBCEF_CTOCPP_VIEWS_SRCS
   ctocpp/views/menu_button_ctocpp.h
   ctocpp/views/menu_button_pressed_lock_ctocpp.cc
   ctocpp/views/menu_button_pressed_lock_ctocpp.h
+  ctocpp/views/overlay_controller_ctocpp.cc
+  ctocpp/views/overlay_controller_ctocpp.h
   ctocpp/views/panel_ctocpp.cc
   ctocpp/views/panel_ctocpp.h
   ctocpp/views/scroll_view_ctocpp.cc
@@ -367,10 +454,13 @@ set(LIBCEF_INCLUDE_SRCS
   ../include/cef_browser_process_handler.h
   ../include/cef_callback.h
   ../include/cef_client.h
+  ../include/cef_command_handler.h
   ../include/cef_command_line.h
+  ../include/cef_component_updater.h
   ../include/cef_context_menu_handler.h
   ../include/cef_cookie.h
   ../include/cef_crash_util.h
+  ../include/cef_devtools_message_observer.h
   ../include/cef_dialog_handler.h
   ../include/cef_display_handler.h
   ../include/cef_dom.h
@@ -378,27 +468,32 @@ set(LIBCEF_INCLUDE_SRCS
   ../include/cef_download_item.h
   ../include/cef_drag_data.h
   ../include/cef_drag_handler.h
-  ../include/cef_extension.h
-  ../include/cef_extension_handler.h
   ../include/cef_file_util.h
   ../include/cef_find_handler.h
   ../include/cef_focus_handler.h
   ../include/cef_frame.h
+  ../include/cef_frame_handler.h
+  ../include/cef_i18n_util.h
+  ../include/cef_id_mappers.h
   ../include/cef_image.h
   ../include/cef_jsdialog_handler.h
   ../include/cef_keyboard_handler.h
   ../include/cef_life_span_handler.h
   ../include/cef_load_handler.h
+  ../include/cef_media_router.h
   ../include/cef_menu_model.h
   ../include/cef_menu_model_delegate.h
   ../include/cef_navigation_entry.h
   ../include/cef_origin_whitelist.h
   ../include/cef_parser.h
   ../include/cef_path_util.h
+  ../include/cef_permission_handler.h
+  ../include/cef_preference.h
   ../include/cef_print_handler.h
   ../include/cef_print_settings.h
   ../include/cef_process_message.h
   ../include/cef_process_util.h
+  ../include/cef_registration.h
   ../include/cef_render_handler.h
   ../include/cef_render_process_handler.h
   ../include/cef_request.h
@@ -408,28 +503,32 @@ set(LIBCEF_INCLUDE_SRCS
   ../include/cef_resource_bundle.h
   ../include/cef_resource_bundle_handler.h
   ../include/cef_resource_handler.h
+  ../include/cef_resource_request_handler.h
   ../include/cef_response.h
   ../include/cef_response_filter.h
   ../include/cef_scheme.h
   ../include/cef_server.h
+  ../include/cef_shared_memory_region.h
+  ../include/cef_shared_process_message_builder.h
   ../include/cef_ssl_info.h
   ../include/cef_ssl_status.h
   ../include/cef_stream.h
   ../include/cef_string_visitor.h
   ../include/cef_task.h
+  ../include/cef_task_manager.h
   ../include/cef_thread.h
   ../include/cef_trace.h
+  ../include/cef_unresponsive_process_callback.h
   ../include/cef_urlrequest.h
   ../include/cef_v8.h
   ../include/cef_values.h
-  ../include/cef_version.h
+  ../include/cef_version_info.h
   ../include/cef_waitable_event.h
-  ../include/cef_web_plugin.h
   ../include/cef_x509_certificate.h
   ../include/cef_xml_reader.h
   ../include/cef_zip_reader.h
   )
-set(LIBCEF_INCLUDE_SRCS_MACOSX
+set(LIBCEF_INCLUDE_SRCS_MAC
   ../include/cef_application_mac.h
   ../include/cef_sandbox_mac.h
   )
@@ -440,54 +539,40 @@ LIBCEF_APPEND_PLATFORM_SOURCES(LIBCEF_INCLUDE_SRCS)
 source_group(include FILES ${LIBCEF_INCLUDE_SRCS})
 
 set(LIBCEF_INCLUDE_BASE_SRCS
+  ../include/base/cef_atomic_flag.h
   ../include/base/cef_atomic_ref_count.h
-  ../include/base/cef_atomicops.h
-  ../include/base/cef_basictypes.h
   ../include/base/cef_bind.h
-  ../include/base/cef_bind_helpers.h
   ../include/base/cef_build.h
   ../include/base/cef_callback.h
   ../include/base/cef_callback_forward.h
   ../include/base/cef_callback_helpers.h
-  ../include/base/cef_callback_list.h
-  ../include/base/cef_cancelable_callback.h
+  ../include/base/cef_compiler_specific.h
+  ../include/base/cef_dump_without_crashing.h
+  ../include/base/cef_immediate_crash.h
+  ../include/base/cef_is_complete.h
+  ../include/base/cef_is_instantiation.h
   ../include/base/cef_lock.h
   ../include/base/cef_logging.h
   ../include/base/cef_macros.h
-  ../include/base/cef_move.h
   ../include/base/cef_platform_thread.h
   ../include/base/cef_ref_counted.h
-  ../include/base/cef_scoped_ptr.h
-  ../include/base/cef_string16.h
-  ../include/base/cef_template_util.h
+  ../include/base/cef_scoped_refptr.h
   ../include/base/cef_thread_checker.h
+  ../include/base/cef_to_address.h
   ../include/base/cef_trace_event.h
-  ../include/base/cef_tuple.h
   ../include/base/cef_weak_ptr.h
   )
 source_group(include\\\\base FILES ${LIBCEF_INCLUDE_BASE_SRCS})
 
 set(LIBCEF_INCLUDE_BASE_INTERNAL_SRCS
+  ../include/base/internal/cef_always_false.h
   ../include/base/internal/cef_bind_internal.h
   ../include/base/internal/cef_callback_internal.h
+  ../include/base/internal/cef_callback_tags.h
+  ../include/base/internal/cef_color_id_macros.inc
   ../include/base/internal/cef_lock_impl.h
-  ../include/base/internal/cef_raw_scoped_refptr_mismatch_checker.h
   ../include/base/internal/cef_thread_checker_impl.h
   )
-set(LIBCEF_INCLUDE_BASE_INTERNAL_SRCS_LINUX
-  ../include/base/internal/cef_atomicops_arm_gcc.h
-  ../include/base/internal/cef_atomicops_atomicword_compat.h
-  ../include/base/internal/cef_atomicops_x86_gcc.h
-  )
-set(LIBCEF_INCLUDE_BASE_INTERNAL_SRCS_MACOSX
-  ../include/base/internal/cef_atomicops_atomicword_compat.h
-  ../include/base/internal/cef_atomicops_mac.h
-  )
-set(LIBCEF_INCLUDE_BASE_INTERNAL_SRCS_WINDOWS
-  ../include/base/internal/cef_atomicops_x86_msvc.h
-  ../include/base/internal/cef_bind_internal_win.h
-  )
-LIBCEF_APPEND_PLATFORM_SOURCES(LIBCEF_INCLUDE_BASE_INTERNAL_SRCS)
 source_group(include\\\\base\\\\internal FILES ${LIBCEF_INCLUDE_BASE_INTERNAL_SRCS})
 
 set(LIBCEF_INCLUDE_CAPI_SRCS
@@ -500,10 +585,13 @@ set(LIBCEF_INCLUDE_CAPI_SRCS
   ../include/capi/cef_browser_process_handler_capi.h
   ../include/capi/cef_callback_capi.h
   ../include/capi/cef_client_capi.h
+  ../include/capi/cef_command_handler_capi.h
   ../include/capi/cef_command_line_capi.h
+  ../include/capi/cef_component_updater_capi.h
   ../include/capi/cef_context_menu_handler_capi.h
   ../include/capi/cef_cookie_capi.h
   ../include/capi/cef_crash_util_capi.h
+  ../include/capi/cef_devtools_message_observer_capi.h
   ../include/capi/cef_dialog_handler_capi.h
   ../include/capi/cef_display_handler_capi.h
   ../include/capi/cef_dom_capi.h
@@ -511,27 +599,31 @@ set(LIBCEF_INCLUDE_CAPI_SRCS
   ../include/capi/cef_download_item_capi.h
   ../include/capi/cef_drag_data_capi.h
   ../include/capi/cef_drag_handler_capi.h
-  ../include/capi/cef_extension_capi.h
-  ../include/capi/cef_extension_handler_capi.h
   ../include/capi/cef_file_util_capi.h
   ../include/capi/cef_find_handler_capi.h
   ../include/capi/cef_focus_handler_capi.h
   ../include/capi/cef_frame_capi.h
+  ../include/capi/cef_frame_handler_capi.h
+  ../include/capi/cef_i18n_util_capi.h
   ../include/capi/cef_image_capi.h
   ../include/capi/cef_jsdialog_handler_capi.h
   ../include/capi/cef_keyboard_handler_capi.h
   ../include/capi/cef_life_span_handler_capi.h
   ../include/capi/cef_load_handler_capi.h
+  ../include/capi/cef_media_router_capi.h
   ../include/capi/cef_menu_model_capi.h
   ../include/capi/cef_menu_model_delegate_capi.h
   ../include/capi/cef_navigation_entry_capi.h
   ../include/capi/cef_origin_whitelist_capi.h
   ../include/capi/cef_parser_capi.h
   ../include/capi/cef_path_util_capi.h
+  ../include/capi/cef_permission_handler_capi.h
+  ../include/capi/cef_preference_capi.h
   ../include/capi/cef_print_handler_capi.h
   ../include/capi/cef_print_settings_capi.h
   ../include/capi/cef_process_message_capi.h
   ../include/capi/cef_process_util_capi.h
+  ../include/capi/cef_registration_capi.h
   ../include/capi/cef_render_handler_capi.h
   ../include/capi/cef_render_process_handler_capi.h
   ../include/capi/cef_request_capi.h
@@ -541,22 +633,26 @@ set(LIBCEF_INCLUDE_CAPI_SRCS
   ../include/capi/cef_resource_bundle_capi.h
   ../include/capi/cef_resource_bundle_handler_capi.h
   ../include/capi/cef_resource_handler_capi.h
+  ../include/capi/cef_resource_request_handler_capi.h
   ../include/capi/cef_response_capi.h
   ../include/capi/cef_response_filter_capi.h
   ../include/capi/cef_scheme_capi.h
   ../include/capi/cef_server_capi.h
+  ../include/capi/cef_shared_memory_region_capi.h
+  ../include/capi/cef_shared_process_message_builder_capi.h
   ../include/capi/cef_ssl_info_capi.h
   ../include/capi/cef_ssl_status_capi.h
   ../include/capi/cef_stream_capi.h
   ../include/capi/cef_string_visitor_capi.h
   ../include/capi/cef_task_capi.h
+  ../include/capi/cef_task_manager_capi.h
   ../include/capi/cef_thread_capi.h
   ../include/capi/cef_trace_capi.h
+  ../include/capi/cef_unresponsive_process_callback_capi.h
   ../include/capi/cef_urlrequest_capi.h
   ../include/capi/cef_v8_capi.h
   ../include/capi/cef_values_capi.h
   ../include/capi/cef_waitable_event_capi.h
-  ../include/capi/cef_web_plugin_capi.h
   ../include/capi/cef_x509_certificate_capi.h
   ../include/capi/cef_xml_reader_capi.h
   ../include/capi/cef_zip_reader_capi.h
@@ -564,7 +660,9 @@ set(LIBCEF_INCLUDE_CAPI_SRCS
 source_group(include\\\\capi FILES ${LIBCEF_INCLUDE_CAPI_SRCS})
 
 set(LIBCEF_INCLUDE_CAPI_TEST_SRCS
+  ../include/capi/test/cef_api_version_test_capi.h
   ../include/capi/test/cef_test_helpers_capi.h
+  ../include/capi/test/cef_test_server_capi.h
   ../include/capi/test/cef_translator_test_capi.h
   )
 source_group(include\\\\capi\\\\test FILES ${LIBCEF_INCLUDE_CAPI_TEST_SRCS})
@@ -581,6 +679,7 @@ set(LIBCEF_INCLUDE_CAPI_VIEWS_SRCS
   ../include/capi/views/cef_layout_capi.h
   ../include/capi/views/cef_menu_button_capi.h
   ../include/capi/views/cef_menu_button_delegate_capi.h
+  ../include/capi/views/cef_overlay_controller_capi.h
   ../include/capi/views/cef_panel_capi.h
   ../include/capi/views/cef_panel_delegate_capi.h
   ../include/capi/views/cef_scroll_view_capi.h
@@ -594,6 +693,7 @@ set(LIBCEF_INCLUDE_CAPI_VIEWS_SRCS
 source_group(include\\\\capi\\\\views FILES ${LIBCEF_INCLUDE_CAPI_VIEWS_SRCS})
 
 set(LIBCEF_INCLUDE_INTERNAL_SRCS
+  ../include/internal/cef_dump_without_crashing_internal.h
   ../include/internal/cef_export.h
   ../include/internal/cef_logging_internal.h
   ../include/internal/cef_ptr.h
@@ -605,19 +705,27 @@ set(LIBCEF_INCLUDE_INTERNAL_SRCS
   ../include/internal/cef_string_wrappers.h
   ../include/internal/cef_thread_internal.h
   ../include/internal/cef_time.h
+  ../include/internal/cef_time_wrappers.h
   ../include/internal/cef_trace_event_internal.h
   ../include/internal/cef_types.h
+  ../include/internal/cef_types_color.h
+  ../include/internal/cef_types_component.h
+  ../include/internal/cef_types_content_settings.h
+  ../include/internal/cef_types_geometry.h
+  ../include/internal/cef_types_osr.h
+  ../include/internal/cef_types_runtime.h
   ../include/internal/cef_types_wrappers.h
   )
 set(LIBCEF_INCLUDE_INTERNAL_SRCS_LINUX
   ../include/internal/cef_linux.h
   ../include/internal/cef_types_linux.h
   )
-set(LIBCEF_INCLUDE_INTERNAL_SRCS_MACOSX
+set(LIBCEF_INCLUDE_INTERNAL_SRCS_MAC
   ../include/internal/cef_mac.h
   ../include/internal/cef_types_mac.h
   )
 set(LIBCEF_INCLUDE_INTERNAL_SRCS_WINDOWS
+  ../include/internal/cef_app_win.h
   ../include/internal/cef_types_win.h
   ../include/internal/cef_win.h
   )
@@ -625,7 +733,9 @@ LIBCEF_APPEND_PLATFORM_SOURCES(LIBCEF_INCLUDE_INTERNAL_SRCS)
 source_group(include\\\\internal FILES ${LIBCEF_INCLUDE_INTERNAL_SRCS})
 
 set(LIBCEF_INCLUDE_TEST_SRCS
+  ../include/test/cef_api_version_test.h
   ../include/test/cef_test_helpers.h
+  ../include/test/cef_test_server.h
   ../include/test/cef_translator_test.h
   )
 source_group(include\\\\test FILES ${LIBCEF_INCLUDE_TEST_SRCS})
@@ -642,6 +752,7 @@ set(LIBCEF_INCLUDE_VIEWS_SRCS
   ../include/views/cef_layout.h
   ../include/views/cef_menu_button.h
   ../include/views/cef_menu_button_delegate.h
+  ../include/views/cef_overlay_controller.h
   ../include/views/cef_panel.h
   ../include/views/cef_panel_delegate.h
   ../include/views/cef_scroll_view.h
@@ -665,8 +776,13 @@ set(LIBCEF_INCLUDE_WRAPPER_SRCS
   ../include/wrapper/cef_xml_object.h
   ../include/wrapper/cef_zip_archive.h
   )
-set(LIBCEF_INCLUDE_WRAPPER_SRCS_MACOSX
+set(LIBCEF_INCLUDE_WRAPPER_SRCS_MAC
   ../include/wrapper/cef_library_loader.h
+  )
+set(LIBCEF_INCLUDE_WRAPPER_SRCS_WINDOWS
+  ../include/wrapper/cef_certificate_util_win.h
+  ../include/wrapper/cef_library_loader.h
+  ../include/wrapper/cef_util_win.h
   )
 LIBCEF_APPEND_PLATFORM_SOURCES(LIBCEF_INCLUDE_WRAPPER_SRCS)
 source_group(include\\\\wrapper FILES ${LIBCEF_INCLUDE_WRAPPER_SRCS})
@@ -676,6 +792,8 @@ set(LIBCEF_WRAPPER_SRCS
   wrapper/cef_byte_read_handler.cc
   wrapper/cef_closure_task.cc
   wrapper/cef_message_router.cc
+  wrapper/cef_message_router_utils.cc
+  wrapper/cef_message_router_utils.h
   wrapper/cef_resource_manager.cc
   wrapper/cef_scoped_temp_dir.cc
   wrapper/cef_stream_resource_handler.cc
@@ -684,9 +802,15 @@ set(LIBCEF_WRAPPER_SRCS
   wrapper/libcef_dll_wrapper.cc
   wrapper/libcef_dll_wrapper2.cc
   )
-set(LIBCEF_WRAPPER_SRCS_MACOSX
-  wrapper/cef_library_loader_mac.mm
+set(LIBCEF_WRAPPER_SRCS_MAC
+  wrapper/cef_scoped_library_loader_mac.mm
+  wrapper/cef_scoped_sandbox_context_mac.mm
   wrapper/libcef_dll_dylib.cc
+  )
+set(LIBCEF_WRAPPER_SRCS_WINDOWS
+  wrapper/cef_certificate_util_win.cc
+  wrapper/cef_scoped_library_loader_win.cc
+  wrapper/cef_util_win.cc
   )
 LIBCEF_APPEND_PLATFORM_SOURCES(LIBCEF_WRAPPER_SRCS)
 source_group(libcef_dll\\\\wrapper FILES ${LIBCEF_WRAPPER_SRCS})

@@ -1,0 +1,23 @@
+# Plugin Settings in an install for all users (README limitation 11): a
+# plugin's settings are saved by saving the plugin's stack, which a
+# standard user cannot do in the read-only program folder, so the save
+# failed and the settings were lost. revIDESavePluginSettings
+# (revidelibrary.8.livecodescript) saves the stack as this did, and only
+# when that fails keeps the settings in the user's preferences.
+# Text lines are between bars, so that trailing blanks survive editors.
+file: Toolset/palettes/revplugineditor.rev
+object: card 1
+replace:
+|        repeat for each line thisPluginPath in the changedStacksList of this stack|
+|            put the stackfileversion into tSavedStackVersion|
+|            set the stackfileversion to revStackFileVersion(thisPluginPath)|
+|            save stack thisPluginPath|
+|            set the stackfileversion to tSavedStackVersion|
+|        end repeat|
+with:
+|        repeat for each line thisPluginPath in the changedStacksList of this stack|
+|            -- OXT-Beyond: saved as before; where the plugin's stack cannot|
+|            -- be saved (an install for all users), its settings are kept|
+|            -- in the user's preferences instead|
+|            revIDESavePluginSettings thisPluginPath|
+|        end repeat|

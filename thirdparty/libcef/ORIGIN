@@ -1,3 +1,5 @@
-Files in this folder are based on libcef-3.1650.1562
+Files in this folder are based on CEF 156.0.26+g8ea0c73+chromium-156.0.8078.88
 
-Original source archives are available from <http://www.magpcss.net/cef_downloads/>
+The include and libcef_dll folders come from Spotify's CEF binary
+distributions (cef_binary_156.0.26+g8ea0c73+chromium-156.0.8078.88_linux64_minimal
+and _windows64_minimal), available from <https://cef-builds.spotifycdn.com/index.html>.

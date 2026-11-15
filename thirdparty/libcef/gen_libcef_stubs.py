@@ -1,6 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os
+import re
 import sys
 
 # generate export list
@@ -36,6 +37,28 @@ _s_type_table = {
 "cef_uri_unescape_rule_t":"integer",
 "cef_xml_encoding_type_t":"integer",
 "cef_cert_status_t": "integer",
+# CEF 156 spells its integers with <stdint.h>
+"int32_t":"integer",
+"uint16_t":"integer",
+"uint32_t":"integer",
+"int64_t":"integer64",
+"uint64_t":"integer64",
+"long long":"integer64",
+# Small structs passed and returned by value, as an integer of their size:
+# every ABI the engine is built for passes and returns an 8-byte struct of
+# integers as it does a 64-bit integer (System V x86-64, Win64 and Win32
+# alike). cef_basetime_t is { int64_t val; }, cef_point_t { int x, y; }.
+"cef_basetime_t":"integer64",
+"cef_point_t":"integer64",
+}
+
+# Structs that no stub type can stand for (cef_rect_t, 16 bytes: two
+# registers in System V, a hidden pointer in Win64). Their functions get an
+# optional stub with a pointer in its place, so that the wrapper links: it
+# must never be called, and is not (they are CefDisplay's, of CEF's Views,
+# which OXT does not use).
+_s_unrepresentable_types = {
+"cef_rect_t":"pointer",
 }
 
 def log(pMsg):
@@ -51,10 +74,12 @@ def cef_type_to_stub_type(pType):
 		return (True, "pointer")
 	if pType in _s_type_table:
 		return (True, _s_type_table[pType])
+	if pType in _s_unrepresentable_types:
+		return (True, _s_unrepresentable_types[pType])
 
 	return (False, pType)
 
-def conv_to_stub(pSig):
+def conv_to_stub(pSig, pOptional = False):
 	# remove CEF_EXPORT
 	tSig = pSig.replace("CEF_EXPORT ", "")
 	tSplit = tSig.split("(")
@@ -76,9 +101,13 @@ def conv_to_stub(pSig):
 		return "# ) " + pSig
 
 	tParams = tSplit[0].strip()
+	if tParams == "void":
+		tParams = ""
 
 	tStubParams = []
 
+	if any(re.search(r"\b" + t + r"\b(?!\s*\*)", pSig) for t in _s_unrepresentable_types):
+		pOptional = True
 	tStubTypesKnown, tStubReturnType = cef_type_to_stub_type(tReturnType)
 	if not tStubTypesKnown:
 		log("unknown type: " + tStubReturnType)
@@ -98,7 +127,9 @@ def conv_to_stub(pSig):
 			tStubTypesKnown &= tKnown
 			tStubParams.append(tType)
 
-	if tStubTypesKnown:
+	if tStubTypesKnown and pOptional:
+		tPrefix = "	? "
+	elif tStubTypesKnown:
 		tPrefix = "	"
 	else:
 		tPrefix = "#	"
@@ -109,9 +140,16 @@ def gen_stubs_file(pPaths):
 	
 	for tPath in pPaths:
 		for tRoot, tFolders, tFiles in os.walk(tPath):
-			tHeaders = filter(lambda(s) : s.endswith(".h"), tFiles)
+			# CEF's own test functions are in a libcef built for them only,
+			# but the wrapper names them: optional
+			tTest = os.path.basename(tRoot) == "test"
+			tHeaders = filter(lambda s : s.endswith(".h"), tFiles)
 
-			for tHeader in tHeaders:
+			for tHeader in sorted(tHeaders):
+				# Since CEF 156 one include folder has the headers of every
+				# platform (thirdparty/libcef/UPDATE.md): what one platform's
+				# libcef alone exports is optional, so that the others load
+				tOptional = tTest or tHeader.endswith(("_win.h", "_linux.h", "_mac.h"))
 				with open(os.path.join(tRoot, tHeader), "r") as tFile:
 					tContents = tFile.read()
 					tLines = tContents.split();
@@ -126,13 +164,13 @@ def gen_stubs_file(pPaths):
 								tLine = tLine + " " + tLines[i].strip()
 								i+=1;
 
-							tSignatureList.append(conv_to_stub(tLine))
+							tSignatureList.append(conv_to_stub(tLine, tOptional))
 							#print conv_to_stub(tLine)
 
 	tSignatureList.sort()
 	
-	print "cef ./Externals/CEF/libcef ./Externals/CEF/libcef ./Externals/CEF/libcef"
-	print "\n".join(tSignatureList)
+	print("cef ./Externals/CEF/libcef ./Externals/CEF/libcef ./Externals/CEF/libcef")
+	print("\n".join(tSignatureList))
 
 #get include folder from the command line
 tPaths = ["."]

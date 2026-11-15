@@ -1,0 +1,7 @@
+- macOS: a TERM signal (`kill`, `killall`) no longer runs shutDownRequest and shutDown inside the signal handler, where they could hang or crash the IDE or a standalone; the engine sends the same messages, with the same outcomes, from its event loop, after the handler that is running ends (#494)
+- Tests: a TERM signal sent to an engine busy in a handler, with shutDownRequest passed and refused, on macOS (#494)
+- Engine: deleting the default stack when no stack window is open (an engine run with `-ui`, or a standalone with every window closed) no longer leaves the engine with no default stack, which crashed it at the next use (an access violation on Windows, a segmentation fault on Linux; found building the Beyond Sampler with `-ui`). The home stack becomes the default stack then; where a stack window is open, the top stack does, as before (#494)
+- Tests: deleting the default stack, set or gone to, in an engine run with `-ui` (#494)
+- Tests: the Mac card of Standalone Settings opened on Linux or Windows keeps the stack's Mac targets, with the real card's behavior and the group "Flavors" script; the fix is already in the IDE, and these tests fail if the card stores its boxes again (#494)
+- IDE, dark appearance: Edit > Replicate's two padlock buttons, between the h and v fields of "Offset by" and "Scale by", are tinted light, where their icons were dim grey on the dark window; in the light appearance they look as before (#494)
+- Tests: Replicate's padlock colours in each appearance, in both copies of the dialog (#494)

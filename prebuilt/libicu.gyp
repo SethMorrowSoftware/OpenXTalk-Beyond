@@ -55,8 +55,8 @@
 					'variables':
 					{
 						# Hack required due to GYP failure / refusal to treat this as a path
-						'prebuilt_icu_bin_dir': '$(ProjectDir)../../../prebuilt/unpacked/icu/<(uniform_arch)-win32-$(PlatformToolset)_static_$(ConfigurationName)/bin',
-						'prebuilt_icu_share_dir': 'unpacked/icu/<(uniform_arch)-win32-$(PlatformToolset)_static_$(ConfigurationName)/share',
+						'prebuilt_icu_bin_dir': '$(ProjectDir)../../../prebuilt/unpacked/icu/<(uniform_arch)-win32-v141_static_$(ConfigurationName)/bin',
+						'prebuilt_icu_share_dir': 'unpacked/icu/<(uniform_arch)-win32-v141_static_$(ConfigurationName)/share',
 					},
 				},
 			],
@@ -115,7 +115,7 @@
 						{
 							'include_dirs':
 							[
-								'unpacked/icu/<(uniform_arch)-win32-$(PlatformToolset)_static_$(ConfigurationName)/include',
+								'unpacked/icu/<(uniform_arch)-win32-v141_static_$(ConfigurationName)/include',
 							],
 						},
 					],
@@ -262,7 +262,7 @@
 						{
 							'library_dirs':
 							[
-								'unpacked/icu/<(uniform_arch)-win32-$(PlatformToolset)_static_$(ConfigurationName)/lib',
+								'unpacked/icu/<(uniform_arch)-win32-v141_static_$(ConfigurationName)/lib',
 							],
 							
 							'libraries':

@@ -153,7 +153,7 @@ These are still old and have publicly known vulnerabilities:
 
 | Component | Version in this build | Status |
 | --- | --- | --- |
-| CEF / Chromium | CEF 74.1.19, Chromium 74.0.3729.157 (2019) | Years of unpatched browser vulnerabilities. Used by the browser widget and revBrowser on Windows and Linux. Do not use them to display content you do not trust. |
+| CEF / Chromium | CEF 156.0.26, Chromium 156.0.8078.88 (2026) | Current when it shipped, but Chromium's security fixes arrive every few weeks and OXT-Beyond takes them only with a new CEF in a release. Used by the browser widget and revBrowser on Windows and Linux. CEF runs without its sandbox. Do not use them to display content you do not trust. |
 
 Other libraries in `thirdparty/` (cairo 1.9.4 and others) are
 also several years old. SQLite was updated

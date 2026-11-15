@@ -85,7 +85,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,tools-widget-install,tools-widget-builder,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,menu-submenu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,icon-picker,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-button-menu,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,extension-builder-errors,message-watcher,error-display,search,replicate,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,code-font,ide-stacks,screen-end,background-default"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,tools-widget-install,tools-widget-builder,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,menu-submenu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,icon-picker,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-button-menu,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,extension-builder-errors,message-watcher,error-display,search,replicate,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,share-stack,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,code-font,ide-stacks,screen-end,background-default"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -9772,6 +9772,158 @@ on tourShotKitDialog
       close stack "revKitDialog"
    end if
 end tourShotKitDialog
+
+-- File > Share Stack... (palettes/share, revIDEActionShareStack), which
+-- packs a stack for the OXT Community Stacks: its window, what it says
+-- when Pack My Stack is pressed too soon, the package it writes (to a
+-- folder of the tour's, not the Desktop) and the screen that says what
+-- to do with it. Both are modal, so each is snapshot and answered by a
+-- message sent before it opens.
+local sShareNotes
+
+on tour_share_stack
+   local tFolder, tFile, tStack, tPackage, tItems, tWant, tItem, tListing, tSaved, tError, tAuthor, tLicence
+   put empty into sShareNotes
+   -- (the window remembers the name and the licence last given: the
+   -- tour's are not left behind)
+   put revIDEGetPreference("ShareStack_author") into tAuthor
+   put revIDEGetPreference("ShareStack_licence") into tLicence
+   revIDESetPreference "ShareStack_author", empty
+   revIDESetPreference "ShareStack_licence", empty
+   put specialFolderPath("temporary") & "/oxt_tour_share_" & the milliseconds into tFolder
+   create folder tFolder
+   if there is no folder tFolder then throw "no folder" && tFolder
+   put tFolder & "/Tour Beat Box.oxtstack" into tFile
+   put the defaultStack into tSaved
+   try
+      create stack "OXT Tour Share"
+      put the long id of it into tStack
+      set the label of tStack to "Tour Beat Box"
+      set the rect of tStack to 240, 200, 720, 520
+      set the defaultStack to "OXT Tour Share"
+      create button "Play"
+      set the script of button "Play" to "on mouseUp" & return & "   beep" & return & "end mouseUp"
+      set the defaultStack to tSaved
+      set the filename of tStack to tFile
+      save tStack
+      if there is no file tFile then throw "the stack to share was not saved"
+      revIDESetUnedited "OXT Tour Share"
+      tourWait 500
+
+      send "tourShotShareStack" to me in 1500 milliseconds
+      revIDEActionShareStack tStack, tFolder
+      put the result into tPackage
+      if sShareNotes is not empty then throw sShareNotes
+      if tPackage is empty or there is no file tPackage then
+         throw "Share Stack made no package:" && quote & tPackage & quote
+      end if
+      tourRecord "INFO share-stack: package" && tPackage
+
+      -- What the gallery's tools/accept.py wants: one folder,
+      -- stacks/<name>/<version>/, with the listing, the stack and the picture
+      revZipOpenArchive tPackage, "read"
+      if the result is not empty then throw "the package does not open:" && the result
+      put revZipEnumerateItems(tPackage) into tItems
+      put "stacks/tour-beat-box/1.0/listing.json,stacks/tour-beat-box/1.0/Tour Beat Box.oxtstack," & \
+            "stacks/tour-beat-box/1.0/screenshot.png" into tWant
+      repeat for each item tItem in tWant
+         if tItem is not among the lines of tItems then
+            revZipCloseArchive tPackage
+            throw "the package has no" && tItem & ":" && tourJoin(tItems)
+         end if
+      end repeat
+      if the number of lines of tItems is not 3 then
+         revZipCloseArchive tPackage
+         throw "the package has more than its three files:" && tourJoin(tItems)
+      end if
+      revZipExtractItemToVariable tPackage, "stacks/tour-beat-box/1.0/listing.json", "tListing"
+      revZipCloseArchive tPackage
+      put textDecode(tListing, "UTF-8") into tListing
+      tourRecord "INFO share-stack: listing" && tourJoin(tListing)
+      repeat for each item tItem in "title|Tour Beat Box,author|A. Tourist,licence|MIT,main|Tour Beat Box.oxtstack,screenshot|screenshot.png"
+         set the itemDelimiter to "|"
+         get quote & item 1 of tItem & quote & ": " & quote & item 2 of tItem & quote
+         set the itemDelimiter to comma
+         if it is not in tListing then throw "the listing has no" && it
+      end repeat
+      if url ("binfile:" & tFile) is empty then throw "the stack's own file is gone"
+   catch tError
+   end try
+   set the defaultStack to tSaved
+   repeat for each item tItem in "revShareStack,revKitDialog"
+      if there is a stack tItem and the mode of stack tItem is not 0 then
+         close stack tItem
+      end if
+   end repeat
+   if there is a stack "OXT Tour Share" then
+      delete stack "OXT Tour Share"
+   end if
+   if tPackage is not empty and there is a file tPackage then delete file tPackage
+   if there is a file tFile then delete file tFile
+   if there is a folder tFolder then delete folder tFolder
+   revIDESetPreference "ShareStack_author", tAuthor
+   revIDESetPreference "ShareStack_licence", tLicence
+   if tError is not empty then throw tError
+end tour_share_stack
+
+-- The window is open: snapshot as it opens, Pack My Stack pressed with
+-- nothing typed (it says what is missing and packs nothing), then filled
+-- in, ticked and packed
+on tourShotShareStack
+   local tError, tWin
+   put "revShareStack" into tWin
+   try
+      if there is not a stack tWin or the mode of stack tWin is 0 then
+         throw "the Share Stack window did not open"
+      end if
+      if the text of field "title" of stack tWin is not "Tour Beat Box" then
+         throw "the title is" && quote & the text of field "title" of stack tWin & quote & ", not the stack's label"
+      end if
+      tourShotStack tWin, "24c2-share-stack"
+      send "lkAction pack" to stack tWin
+      if field "problem" of stack tWin is empty or the mode of stack tWin is 0 then
+         throw "Pack My Stack with no name given said nothing"
+      end if
+      tourRecord "INFO share-stack: too soon:" && field "problem" of stack tWin
+      if field "problem" of stack tWin is not "Your name is missing." then
+         throw "Pack My Stack with no name given said" && quote & field "problem" of stack tWin & quote
+      end if
+      put "A. Tourist" into field "author" of stack tWin
+      put "A drum machine with sixteen steps. Click the squares to lay down a beat." into field "about" of stack tWin
+      put "music, sound" into field "tags" of stack tWin
+      send "lkAction pack" to stack tWin
+      if field "problem" of stack tWin is empty or the mode of stack tWin is 0 then
+         throw "Pack My Stack without the box ticked said nothing"
+      end if
+      send "lkAction agree" to stack tWin
+      dispatch "textChanged" to field "about" of stack tWin
+      tourWait 300
+      tourShotStack tWin, "24c3-share-stack-filled"
+      send "tourShotSharePacked" to me in 1500 milliseconds
+      send "lkAction pack" to stack tWin
+   catch tError
+      put tourJoin(tError) into sShareNotes
+      if there is a stack tWin and the mode of stack tWin is not 0 then
+         close stack tWin
+      end if
+   end try
+end tourShotShareStack
+
+-- The package is made: the screen that says where it is and what to do
+on tourShotSharePacked
+   local tError
+   try
+      if there is not a stack "revKitDialog" or the mode of stack "revKitDialog" is 0 then
+         throw "nothing said that the stack was packed"
+      end if
+      tourShotStack "revKitDialog", "24c4-share-stack-packed"
+   catch tError
+      put tourJoin(tError) into sShareNotes
+   end try
+   if there is a stack "revKitDialog" and the mode of stack "revKitDialog" is not 0 then
+      close stack "revKitDialog"
+   end if
+end tourShotSharePacked
 
 -- Learn (palettes/learn), as Help > Lessons opens it: the first page of
 -- the lessons, whose banner has "New to coding? Try the Academy", which

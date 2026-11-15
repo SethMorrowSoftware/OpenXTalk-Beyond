@@ -54,10 +54,10 @@ on closeStack
     -- save plugins that have changed settings
     if the changedStacksList of this stack is not empty then
         repeat for each line thisPluginPath in the changedStacksList of this stack
-            put the stackfileversion into tSavedStackVersion
-            set the stackfileversion to revStackFileVersion(thisPluginPath)
-            save stack thisPluginPath
-            set the stackfileversion to tSavedStackVersion
+            -- OXT-Beyond: saved as before; where the plugin's stack cannot
+            -- be saved (an install for all users), its settings are kept
+            -- in the user's preferences instead
+            revIDESavePluginSettings thisPluginPath
         end repeat
         set the changedStacksList of this stack to empty
     end if

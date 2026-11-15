@@ -99,7 +99,8 @@ void MCCefWin32Browser::PlatformConfigureWindow(CefWindowInfo &r_info)
 	//::SetRect(&t_rect, t_left, t_top, t_right, t_bottom);
 	::SetRect(&t_rect, 0, 0, 1, 1);
 
-	r_info.SetAsChild(m_parent_window, t_rect);
+	// CEF 156 takes a CefRect
+	r_info.SetAsChild(m_parent_window, CefRect(t_rect.left, t_rect.top, t_rect.right - t_rect.left, t_rect.bottom - t_rect.top));
 }
 
 bool MCCefWin32Browser::PlatformGetNativeLayer(void *&r_layer)
@@ -198,7 +199,8 @@ bool MCCefWin32Browser::PlatformSetVisible(bool p_visible)
 
 bool MCCefWin32Browser::PlatformGetWindowID(int32_t &r_id)
 {
-	r_id = (int32_t) m_parent_window;
+	// Truncated to 32 bits as before; window handles fit in them
+	r_id = (int32_t)(intptr_t) m_parent_window;
 
 	return true;
 }

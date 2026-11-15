@@ -13,7 +13,6 @@ lcs: core/interface/hypercard-import: TestHyperCardImportPlayNotes
 lcs: core/interface/hypercard-import: TestHyperCardImportStack
 lcs: core/interface/image-undo: TestRotateImageGetDataWorks
 lcs: core/interface/image-undo: TestRotateImageWorks
-lcs: core/network/network: TestNetworkDNSServers
 lcs: core/strings/filter: TestBug15443
 lcs: webplayer/nova-rescue: TestTheScreensFitAPhoneOnItsSide
 lcs: webplayer/puzzle-almanac: TestTheScreensFitAPhoneOnItsSide

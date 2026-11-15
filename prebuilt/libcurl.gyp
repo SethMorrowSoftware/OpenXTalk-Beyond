@@ -27,7 +27,7 @@
 						{
 							'include_dirs':
 							[
-								'unpacked/curl/<(uniform_arch)-win32-$(PlatformToolset)_static_$(ConfigurationName)/include',
+								'unpacked/curl/<(uniform_arch)-win32-v141_static_$(ConfigurationName)/include',
 							],
 						},
 					],
@@ -76,7 +76,7 @@
 						{
 							'library_dirs':
 							[
-								'unpacked/curl/<(uniform_arch)-win32-$(PlatformToolset)_static_$(ConfigurationName)/lib',
+								'unpacked/curl/<(uniform_arch)-win32-v141_static_$(ConfigurationName)/lib',
 							],
 							
 							'libraries':

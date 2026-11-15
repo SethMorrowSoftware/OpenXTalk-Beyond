@@ -48,14 +48,56 @@
 #error This file can be included for unit tests only
 #endif
 
+#include "include/cef_browser.h"
+#include "include/cef_callback.h"
 #include "include/cef_frame.h"
 
 ///
-// Execute JavaScript with a user gesture to trigger functionality like
-// onbeforeunload handlers that will otherwise be blocked.
+/// Execute JavaScript with a user gesture to trigger functionality like
+/// onbeforeunload handlers that will otherwise be blocked.
 ///
 /*--cef(optional_param=javascript)--*/
 void CefExecuteJavaScriptWithUserGestureForTests(CefRefPtr<CefFrame> frame,
                                                  const CefString& javascript);
+
+///
+/// Set the DIR_SRC_TEST_DATA_ROOT directory used to load test data. Must be
+/// configured when running from a CEF binary distribution. Defaults to the
+/// "chromium/src" directory when running from a local CEF/Chromium build. |dir|
+/// must be an absolute path.
+///
+/*--cef()--*/
+void CefSetDataDirectoryForTests(const CefString& dir);
+
+///
+/// Returns true if |feature_name| is enabled by default, command line or field
+/// trial. This supports a short list of curated values that are queried by unit
+/// tests.
+///
+/*--cef()--*/
+bool CefIsFeatureEnabledForTests(const CefString& feature_name);
+
+#if CEF_API_ADDED(CEF_EXPERIMENTAL)
+///
+/// Returns the number of native widgets owned by the Chrome-style browser
+/// window associated with |browser|, excluding the browser window itself.
+/// Returns -1 if |browser| is NULL, is not Chrome style or does not currently
+/// have a browser window. Must be called on the browser process UI thread.
+///
+/*--cef(added=experimental)--*/
+int CefGetChromeBrowserOwnedWidgetCountForTests(CefRefPtr<CefBrowser> browser);
+
+///
+/// Clear the smart-bubble dismissal statistics associated with |origin| for
+/// the Chrome-style browser's profile. This allows password save prompts to be
+/// shown repeatedly without reaching the automatic display limit. |callback|
+/// will be executed on the browser process UI thread after completion.
+///
+/*--cef(added=experimental)--*/
+void CefClearChromeBrowserPasswordDismissalStatsForTests(
+    CefRefPtr<CefBrowser> browser,
+    const CefString& origin,
+    CefRefPtr<CefCompletionCallback> callback);
+#endif  // CEF_API_ADDED(CEF_EXPERIMENTAL)
 
 #endif  // CEF_INCLUDE_TEST_CEF_TEST_HELPERS_H_

@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Chromium Embedded Framework Authors. All rights
+// Copyright (c) 2026 The Chromium Embedded Framework Authors. All rights
 // reserved. Use of this source code is governed by a BSD-style license that
 // can be found in the LICENSE file.
 //
@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=7158e06e5c71ed020f193c698a2fdfd6d0b170c8$
+// $hash=78bb3f4e6a0e9ae56986fbf6bd24d8989cdbca95$
 //
 
 #ifndef CEF_LIBCEF_DLL_CPPTOC_AUDIO_HANDLER_CPPTOC_H_
@@ -33,5 +33,8 @@ class CefAudioHandlerCppToC : public CefCppToCRefCounted<CefAudioHandlerCppToC,
   CefAudioHandlerCppToC();
   virtual ~CefAudioHandlerCppToC();
 };
+
+constexpr auto CefAudioHandlerCppToC_Wrap = CefAudioHandlerCppToC::Wrap;
+constexpr auto CefAudioHandlerCppToC_Unwrap = CefAudioHandlerCppToC::Unwrap;
 
 #endif  // CEF_LIBCEF_DLL_CPPTOC_AUDIO_HANDLER_CPPTOC_H_

@@ -25,8 +25,27 @@ on preOpenStack
     end if
   end repeat
   set the loc of stack "revReplicate" to the loc of the topStack
+  revReplicateLockIconColours
   unlock messages
 end preOpenStack
+
+-- OXT-Beyond: the padlocks' icons are tinted light in the dark appearance
+on revReplicateLockIconColours
+  local tDark, tError, tLock
+  put false into tDark
+  try
+    put revIDEAppearanceIsDark() into tDark
+  catch tError
+  end try
+  repeat for each item tLock in "offsetLockButton,scaleLockButton"
+    if tDark is true then
+      set the colorOverlay["color"] of btn tLock of me to "210,210,210"
+      set the colorOverlay["opacity"] of btn tLock of me to 255
+    else
+      set the colorOverlay of btn tLock of me to empty
+    end if
+  end repeat
+end revReplicateLockIconColours
 
 on closeCard
   lock messages

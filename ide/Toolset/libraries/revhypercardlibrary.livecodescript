@@ -1339,6 +1339,35 @@ on hcOpenReportPrinting pWith
    return "Report printing is not supported"
 end hcOpenReportPrinting
 
+-- HyperCard 2.1's programs, other Macintoshes' programs that a script
+-- could send AppleEvents to ("if appName is not in the programs", "there
+-- is a program user"; rule T79): there is no such network here, so there
+-- are none, and a script goes on as HyperCard did when it found none
+function hcPrograms
+   return empty
+end hcPrograms
+
+function hcIsProgram pName
+   return false
+end hcIsProgram
+
+-- The QuickTime movies of HyperCard 2.3's QuickTime Tools, windows its
+-- externals opened ("if there is a movie RealMovieName then", "the number
+-- of movies", "the version of QuickTime"; rule T79): those externals do
+-- not run here, so there are no movies and no QuickTime, as on a
+-- Macintosh without it, and a script goes on as it did there
+function hcIsMovie pName
+   return false
+end hcIsMovie
+
+function hcMovieCount
+   return 0
+end hcMovieCount
+
+function hcQuickTimeVersion
+   return 0
+end hcQuickTimeVersion
+
 -- dial ... with modem: there is no modem to dial
 on hcDial pNumber, pModemCommands
    return "dial with modem is not supported"
@@ -3602,8 +3631,11 @@ end _HCTypeAmong
 
 -- The folder an external of Files' kind lists: "image", a tab, the disk
 -- image and a tab and the folder's HFS path on it; or "local" and a tab
--- and its path here; or empty if there is none (Files above)
-private function _HCFilesFolder pPath
+-- and its path here; or empty if there is none (Files above). A folder
+-- named that is not there is the stack's folder, as Files lists it,
+-- unless pStrict: then it is none, as the externals that change or
+-- describe a file find one (_HCFileAt)
+private function _HCFilesFolder pPath, pStrict
    local tSet, tImage, tHFS, tUp, tRelative, tFolder, tLocal, tAbsolute
    put the customProperties["uHyperCard"] of me into tSet
    if tSet["image"] is not empty and there is a file tSet["image"] and tSet["imagepath"] is not empty then
@@ -3675,6 +3707,7 @@ private function _HCFilesFolder pPath
          end if
       end if
    end if
+   if pStrict and pPath is not empty then return empty
    if tImage is not empty and tHFS is not empty then return "image" & tab & tImage & tab & tHFS
    if tLocal is not empty and there is a folder tLocal then return "local" & tab & tLocal
    return empty
@@ -3859,6 +3892,1197 @@ private function _HCFromMacRoman pData
    end repeat
    return tText
 end _HCFromMacRoman
+
+/*
+The text-file XCMDs of Dartmouth College's HyperCard group, which the
+corpus's stacks call as their cards document them; each gives the file's
+path in the result when it worked, "Cancel" when the person cancelled
+the dialog, and a message that begins "Error" when it did not work, as
+the externals did. A file is named as Files names a folder (an HFS path,
+"Old Disk:Notes:Today"; ":Data:Today", from the stack's folder; a name
+alone, in it; or a path here), and one whose folder is not here is the
+file of that name in the stack's folder. A file is written in the
+folder of the stack's file here, never on the disk image it came from,
+which is not written to.
+
+WriteToFile container, usePathname, name[, append[, creator]] (13
+stacks): writes the text to the file. With usePathname true, to the file
+the name names, else to the one the person picks in the save dialog,
+which offers the name. With append true, after what an existing file
+holds. The creator, a Mac file's application, has nothing to do here.
+*/
+on WriteToFile pText, pUsePathname, pName, pAppend, pCreator
+   _HCWriteText pText, pUsePathname is true, pName, pAppend is true
+   return the result
+end WriteToFile
+
+/*
+FieldToFile field[, pathname[, creator]] (20 stacks), WriteToFile's
+forerunner: writes the text of the field, which the first parameter
+names ("bkgnd field 1"), to the file of that pathname, or to the one
+the person picks in the save dialog when there is none.
+*/
+on FieldToFile pField, pPath, pCreator
+   local tText
+   try
+      put value(pField) into tText
+   catch tError
+      return "Error: no such field:" && pField
+   end try
+   _HCWriteText tText, pPath is not empty, pPath, false
+   return the result
+end FieldToFile
+
+/*
+FileToField field[, pathname] (10 stacks): puts the text of the file
+into the field, which the first parameter names ("card field 1"); the
+file the pathname names, or the one the person picks in the open
+dialog when there is none. A file on the disk image the stack came from
+is read from it, its Mac characters and its returns read as they were
+meant, unless the stack wrote one of that name, which is beside its file
+here (WriteToFile), and is read instead.
+*/
+on FileToField pField, pPath
+   local tFile, tText, tWhere
+   if pPath is empty then
+      answer file "Choose a text file:"
+      if the result is "Cancel" or it is empty then return "Cancel"
+      put it into pPath
+   end if
+   put _HCTextFile(pPath) into tWhere
+   set the itemDelimiter to tab
+   -- (a file the stack wrote, which went beside its file here, before the
+   -- disk image's: _HCWriteText)
+   if item 1 of tWhere is "image" then
+      if there is a file _HCWrittenBeside(pPath) then put "local" & tab & _HCWrittenBeside(pPath) into tWhere
+   end if
+   if item 1 of tWhere is "image" then
+      try
+         put revHyperCardImageReadFork(item 2 of tWhere, item 3 of tWhere, "data") into tText
+      catch tError
+         return "Error: can't read" && pPath
+      end try
+      if the result is not empty then return "Error: can't read" && pPath
+      put _HCFromMacRoman(tText) into tText
+      replace numToChar(13) with return in tText
+      put item 3 of tWhere into tFile
+   else if item 1 of tWhere is "local" and there is a file item 2 of tWhere then
+      put item 2 of tWhere into tFile
+      put url ("file:" & tFile) into tText
+      if the result is not empty then
+         return "Error: can't read" && pPath
+      end if
+   else
+      return "Error: file not found:" && pPath
+   end if
+   try
+      do "put tText into" && pField
+   catch tError
+      return "Error: no such field:" && pField
+   end try
+   return tFile
+end FileToField
+
+-- The file pPath names, as Files names a folder: "image", a tab, the
+-- disk image and a tab and its HFS path there; or "local" and a tab and
+-- its path here; or empty when no folder of it is found (with pStrict,
+-- a folder named that is not there is none: _HCFilesFolder)
+private function _HCTextFile pPath, pStrict
+   local tWhere, tName
+   if slash is in pPath or backslash is in pPath then return "local" & tab & pPath
+   set the itemDelimiter to colon
+   put the last item of pPath into tName
+   if colon is in pPath then
+      put _HCFilesFolder(item 1 to -2 of pPath & colon, pStrict) into tWhere
+   else
+      put _HCFilesFolder(empty) into tWhere
+   end if
+   set the itemDelimiter to tab
+   if item 1 of tWhere is "image" then return "image" & tab & item 2 of tWhere & tab & item 3 of tWhere & colon & tName
+   if item 1 of tWhere is "local" then return "local" & tab & item 2 of tWhere & slash & tName
+   return empty
+end _HCTextFile
+
+-- Where a file that pName names on the disk image the stack came from,
+-- or in a folder not here, is written: beside the stack's file here, by
+-- its name; empty if the stack has no folder here
+private function _HCWrittenBeside pName
+   local tSet, tLocal
+   put the customProperties["uHyperCard"] of me into tSet
+   set the itemDelimiter to slash
+   put item 1 to -2 of (the effective filename of me) into tLocal
+   if tLocal is empty then put item 1 to -2 of tSet["file"] into tLocal
+   if tLocal is empty or there is not a folder tLocal then return empty
+   set the itemDelimiter to colon
+   return tLocal & slash & the last item of pName
+end _HCWrittenBeside
+
+-- Writes pText to the file pName names (pUsePath), or to the one the
+-- person picks in the save dialog, which offers pName; after what it
+-- holds with pAppend. The result: the file's path, "Cancel" or an error.
+-- A file on the disk image the stack came from is written beside the
+-- stack's file here instead (an image is not written to)
+private command _HCWriteText pText, pUsePath, pName, pAppend
+   local tWhere, tFile
+   if pUsePath then
+      put _HCTextFile(pName) into tWhere
+      set the itemDelimiter to tab
+      if item 1 of tWhere is "local" then
+         put item 2 of tWhere into tFile
+      else
+         put _HCWrittenBeside(pName) into tFile
+         if tFile is empty then return "Error: no folder to write" && pName && "in"
+      end if
+   else
+      ask file "Save as:" with pName
+      if the result is "Cancel" or it is empty then return "Cancel"
+      put it into tFile
+   end if
+   if pAppend and there is a file tFile then
+      put pText after url ("file:" & tFile)
+   else
+      put pText into url ("file:" & tFile)
+   end if
+   if the result is not empty then return "Error: can't write" && tFile & ":" && the result
+   return tFile
+end _HCWriteText
+
+/*
+The file and folder externals (52 stacks call one: DeleteFile, EraseFile,
+RenameFile, CopyFile, FileCopy, MoveFile, CreateFolder, RemoveFolder,
+FileModDate, FileType, FileCreator, GetDir), the
+utilities of the Developer Stack, of Dartmouth's XCMDs and of Support
+Tools eXternals, which scripts called by the same names. A file is
+named as for WriteToFile: by an HFS path ("Old Disk:Data:Scores"; from
+the stack's folder, ":Data:Scores"; a name alone, in it), or by a path
+here. A file on the disk image the stack came from is read from it,
+and never written: what would change it ends in an error, and a copy
+of it is made here. A file the stack wrote beside its file here, as
+WriteToFile writes one named on the image, is the one found first.
+Each command leaves empty in the result when it did its work, else an
+error ("Error: ..."); each function gives what the external gave, and
+the error when there is one, as the externals did.
+*/
+
+-- Where the file or folder pPath names is: "local", a tab and its path
+-- here; or "image", a tab, the disk image, a tab and its HFS path there,
+-- then a tab and "file", its type and its creator, or "folder"; or empty
+-- when there is no such file or folder, or no such folder of it: never
+-- the stack's folder in place of a folder named that is not there, as
+-- Files falls back to, so that nothing there is renamed or deleted
+private function _HCFileAt pPath
+   local tWhere, tName, tFolder, tLine, tList, tImage
+   put word 1 to -1 of pPath into pPath
+   if pPath is empty then return empty
+   if char -1 of pPath is colon and slash is not in pPath and backslash is not in pPath then
+      put _HCFilesFolder(pPath, true) into tWhere
+      set the itemDelimiter to tab
+      if item 1 of tWhere is "image" then return tWhere & tab & "folder"
+      if item 1 of tWhere is "local" then return tWhere
+      return empty
+   end if
+   if char -1 of pPath is slash and the number of chars of pPath > 1 then delete char -1 of pPath
+   put _HCTextFile(pPath, true) into tWhere
+   set the itemDelimiter to tab
+   if item 1 of tWhere is "image" and _HCWrittenBeside(pPath) is not empty then
+      if there is a file _HCWrittenBeside(pPath) then return "local" & tab & _HCWrittenBeside(pPath)
+   end if
+   if item 1 of tWhere is "local" then
+      if there is a file item 2 of tWhere or there is a folder item 2 of tWhere then return tWhere
+      return empty
+   end if
+   if item 1 of tWhere is not "image" then return empty
+   put item 2 of tWhere into tImage
+   put item 3 of tWhere into tFolder
+   set the itemDelimiter to colon
+   put item -1 of tFolder into tName
+   put item 1 to -2 of tFolder into tFolder
+   if tFolder is empty then
+      -- (a volume alone, "Old Disk")
+      if _HCImageHasFolder(tImage, tName) then return tWhere & tab & "folder"
+      return empty
+   end if
+   try
+      put revHyperCardImageFolder(tImage, tFolder) into tList
+   catch tError
+      return empty
+   end try
+   set the itemDelimiter to tab
+   repeat for each line tLine in tList
+      -- (names compared as HFS compared them, case aside)
+      if item 1 of tLine is tName then return tWhere & tab & item 2 to -1 of tLine
+   end repeat
+   return empty
+end _HCFileAt
+
+-- Where a file that pPath names is written here: its path, when its
+-- folder is here; beside the stack's file here when it names one on
+-- the disk image, or in a folder not here (_HCWrittenBeside); else empty
+private function _HCFileHere pPath
+   local tWhere, tFolder
+   put word 1 to -1 of pPath into pPath
+   put _HCTextFile(pPath) into tWhere
+   set the itemDelimiter to tab
+   if item 1 of tWhere is "local" then
+      put item 2 of tWhere into tFolder
+      set the itemDelimiter to slash
+      if there is a folder (item 1 to -2 of tFolder) then return tFolder
+   end if
+   return _HCWrittenBeside(pPath)
+end _HCFileHere
+
+-- The error a command leaves for a file that is not there
+private function _HCNoFile pPath
+   return "Error: file not found:" && pPath
+end _HCNoFile
+
+/*
+DeleteFile pathname (20 stacks: an XFCN of the Developer Stack, an XCMD
+of others) and EraseFile pathname (11 stacks): deletes the file. Never
+a folder (RemoveFolder), and never a file on the disk image the stack
+came from.
+*/
+on DeleteFile pPath
+   _HCDeleteFile pPath
+   return the result
+end DeleteFile
+
+function DeleteFile pPath
+   _HCDeleteFile pPath
+   return the result
+end DeleteFile
+
+on EraseFile pPath
+   _HCDeleteFile pPath
+   return the result
+end EraseFile
+
+private command _HCDeleteFile pPath
+   local tWhere
+   put _HCFileAt(pPath) into tWhere
+   set the itemDelimiter to tab
+   if tWhere is empty then return _HCNoFile(pPath)
+   if item 1 of tWhere is "image" then return "Error: the disk image is not written to:" && pPath
+   if there is not a file item 2 of tWhere then return "Error: not a file:" && pPath
+   delete file item 2 of tWhere
+   if the result is not empty then return "Error: can't delete" && pPath & ":" && the result
+   return empty
+end _HCDeleteFile
+
+/*
+RenameFile pathname, new name (20 stacks): gives the file (or folder)
+the new name in its folder; of a new name given as a path, its last
+part. Not a file on the disk image the stack came from.
+*/
+on RenameFile pPath, pNew
+   _HCRenameFile pPath, pNew
+   return the result
+end RenameFile
+
+function RenameFile pPath, pNew
+   _HCRenameFile pPath, pNew
+   return the result
+end RenameFile
+
+private command _HCRenameFile pPath, pNew
+   local tWhere, tOld, tTo
+   put _HCFileAt(pPath) into tWhere
+   set the itemDelimiter to tab
+   if tWhere is empty then return _HCNoFile(pPath)
+   if item 1 of tWhere is "image" then return "Error: the disk image is not written to:" && pPath
+   put item 2 of tWhere into tOld
+   put _HCLastPart(word 1 to -1 of pNew) into pNew
+   if pNew is empty then return "Error: no new name for" && pPath
+   set the itemDelimiter to slash
+   put item 1 to -2 of tOld & slash & pNew into tTo
+   if there is a file tTo or there is a folder tTo then return "Error: there is already a file" && pNew
+   if there is a folder tOld then
+      rename folder tOld to tTo
+   else
+      rename file tOld to tTo
+   end if
+   if the result is not empty then return "Error: can't rename" && pPath & ":" && the result
+   return empty
+end _HCRenameFile
+
+/*
+CopyFile source, destination[, replace] (14 stacks) and FileCopy
+source, destination[, replace] (8 stacks): copies the file, to the
+destination file, or into the destination folder with its name;
+a file already there is replaced only when replace is true. A file on
+the disk image the stack came from is copied out of it (its data, as
+a file here has no resource fork). The function gives empty, or the
+error.
+*/
+on CopyFile pFrom, pTo, pReplace
+   _HCCopyFile pFrom, pTo, pReplace is true, false
+   return the result
+end CopyFile
+
+function CopyFile pFrom, pTo, pReplace
+   _HCCopyFile pFrom, pTo, pReplace is true, false
+   return the result
+end CopyFile
+
+on FileCopy pFrom, pTo, pReplace
+   _HCCopyFile pFrom, pTo, pReplace is true, false
+   return the result
+end FileCopy
+
+/*
+MoveFile(file, folder) (7 stacks): moves the file into the folder, here;
+a file on the disk image the stack came from is copied out of it, as
+the image is not written to. Empty, or the error.
+*/
+function MoveFile pFrom, pTo
+   _HCCopyFile pFrom, pTo, false, true
+   return the result
+end MoveFile
+
+private command _HCCopyFile pFrom, pTo, pReplace, pMove
+   local tWhere, tDest, tTo, tData, tName
+   put _HCFileAt(pFrom) into tWhere
+   set the itemDelimiter to tab
+   if tWhere is empty then return _HCNoFile(pFrom)
+   if item 1 of tWhere is "local" and there is not a file item 2 of tWhere then return "Error: not a file:" && pFrom
+   if item 1 of tWhere is "image" and item 4 of tWhere is not "file" then return "Error: not a file:" && pFrom
+   if item 1 of tWhere is "image" then
+      put _HCLastPart(item 3 of tWhere) into tName
+   else
+      put _HCLastPart(item 2 of tWhere) into tName
+   end if
+   -- into a folder here, with its name; else the file pTo names
+   put _HCFileAt(pTo) into tDest
+   if item 1 of tDest is "local" and there is a folder item 2 of tDest then
+      put item 2 of tDest & slash & tName into tTo
+   else if pMove then
+      return "Error: no such folder:" && pTo
+   else
+      put _HCFileHere(pTo) into tTo
+   end if
+   if tTo is empty then return "Error: no folder to write" && pTo && "in"
+   if there is a folder tTo then return "Error: there is a folder" && pTo
+   if item 1 of tWhere is "local" and item 2 of tWhere is tTo then return "Error: the file is the same:" && pTo
+   if there is a file tTo and not pReplace then return "Error: there is already a file" && pTo
+   if item 1 of tWhere is "local" and pMove then
+      rename file item 2 of tWhere to tTo
+      if the result is not empty then return "Error: can't move" && pFrom & ":" && the result
+      return empty
+   end if
+   if item 1 of tWhere is "image" then
+      try
+         put revHyperCardImageReadFork(item 2 of tWhere, item 3 of tWhere, "data") into tData
+      catch tError
+         return "Error: can't read" && pFrom
+      end try
+      if the result is not empty then
+         return "Error: can't read" && pFrom
+      end if
+   else
+      put url ("binfile:" & item 2 of tWhere) into tData
+      if the result is not empty then return "Error: can't read" && pFrom
+   end if
+   put tData into url ("binfile:" & tTo)
+   if the result is not empty then return "Error: can't write" && pTo & ":" && the result
+   return empty
+end _HCCopyFile
+
+/*
+CreateFolder pathname (6 stacks): makes the folder, whose own folder is
+here. RemoveFolder pathname (6 stacks): deletes the folder when there
+is nothing in it, as the Finder's externals did; never a folder that
+holds anything, nor one on the disk image the stack came from.
+*/
+on CreateFolder pPath
+   local tWhere, tFolder
+   put word 1 to -1 of pPath into pPath
+   if char -1 of pPath is colon or char -1 of pPath is slash then delete char -1 of pPath
+   if _HCFileAt(pPath) is not empty then return "Error: there is already a file" && pPath
+   put _HCFileHere(pPath) into tFolder
+   if tFolder is empty then return "Error: no folder to make" && pPath && "in"
+   create folder tFolder
+   if the result is not empty then return "Error: can't make" && pPath & ":" && the result
+   return empty
+end CreateFolder
+
+on RemoveFolder pPath
+   local tWhere, tInside
+   put _HCFileAt(pPath) into tWhere
+   set the itemDelimiter to tab
+   if tWhere is empty then return "Error: folder not found:" && pPath
+   if item 1 of tWhere is "image" then return "Error: the disk image is not written to:" && pPath
+   if there is not a folder item 2 of tWhere then return "Error: not a folder:" && pPath
+   put folders(item 2 of tWhere) into tInside
+   -- (folders() lists ".." too)
+   filter tInside without ".."
+   if files(item 2 of tWhere) is not empty or tInside is not empty then return "Error: the folder is not empty:" && pPath
+   delete folder item 2 of tWhere
+   if the result is not empty then return "Error: can't remove" && pPath & ":" && the result
+   return empty
+end RemoveFolder
+
+/*
+FileModDate(pathname, created) (14 stacks): when the file was made
+(created true) or last changed, in seconds, which convert turns into a
+date; empty when there is no such file, as the stacks test for it. A
+file on the disk image the stack came from has the dates it had there.
+*/
+function FileModDate pPath, pCreated
+   local tWhere, tLine, tName, tFolder, tInfo
+   put _HCFileAt(pPath) into tWhere
+   set the itemDelimiter to tab
+   if tWhere is empty then return empty
+   if item 1 of tWhere is "image" then
+      if item 4 of tWhere is not "file" then return empty
+      try
+         put revHyperCardImageFileInfo(item 2 of tWhere, item 3 of tWhere) into tInfo
+      catch tError
+         return empty
+      end try
+      if pCreated is true then return tInfo["created"]
+      return tInfo["modified"]
+   end if
+   put item 2 of tWhere into tFolder
+   set the itemDelimiter to slash
+   put urlEncode(item -1 of tFolder) into tName
+   put item 1 to -2 of tFolder into tFolder
+   repeat for each line tLine in files(tFolder, "detailed")
+      set the itemDelimiter to comma
+      if item 1 of tLine is tName then
+         if pCreated is true and item 4 of tLine is not empty then return item 4 of tLine
+         return item 5 of tLine
+      end if
+   end repeat
+   repeat for each line tLine in folders(tFolder, "detailed")
+      set the itemDelimiter to comma
+      if item 1 of tLine is tName then
+         if pCreated is true and item 4 of tLine is not empty then return item 4 of tLine
+         return item 5 of tLine
+      end if
+   end repeat
+   return empty
+end FileModDate
+
+/*
+FileType(pathname) and FileCreator(pathname) (11 and 8 stacks): the
+file's Mac type and creator, four characters: on the disk image the
+stack came from, as they were there; here, from a MacBinary header,
+else STAK for a HyperCard stack and TEXT for a .txt file, and "????"
+for what is not known. Empty when there is no such file. FileType is
+called as hcX_FileType: this engine reads "fileType" as its own (rule
+T13).
+*/
+function hcX_FileType pPath
+   local tWhere
+   put _HCFileAt(pPath) into tWhere
+   set the itemDelimiter to tab
+   if tWhere is empty then return empty
+   if item 1 of tWhere is "image" then return item 5 of tWhere
+   if there is a folder item 2 of tWhere then return empty
+   return _HCLocalType(item 2 of tWhere)
+end hcX_FileType
+
+function FileCreator pPath
+   local tWhere, tHeader, tFile
+   put _HCFileAt(pPath) into tWhere
+   set the itemDelimiter to tab
+   if tWhere is empty then return empty
+   if item 1 of tWhere is "image" then return item 6 of tWhere
+   put item 2 of tWhere into tFile
+   if there is a folder tFile then return empty
+   open file tFile for binary read
+   if the result is not empty then return "????"
+   read from file tFile for 128
+   put it into tHeader
+   close file tFile
+   if _HCIsMacBinary(tHeader) then return byte 70 to 73 of tHeader
+   if byte 5 to 8 of tHeader is "STAK" then return "WILD"
+   return "????"
+end FileCreator
+
+/*
+GetDir(folder, options...) (15 stacks): the folder's files and folders,
+one a line. The first option says what: "F" files, "D" folders, "A"
+both (the default), each with "+" after it for those of every folder
+inside it too. Then any of: "t=TYPE" only files of that type ("STAK"),
+"o=p" each as its whole path rather than its name, "n<>name" leaving
+out what has that name. A folder's whole path has a colon after it on
+the disk image the stack came from, a slash here; a file's is the path
+a script gives the other externals. "Error: ..." on its first line when
+there is no such folder.
+*/
+function GetDir pPath
+   local tWhere, tWhat, tDeep, tType, tPaths, tExclude, i, tOption, tOut
+   put "A" into tWhat
+   repeat with i = 2 to paramCount()
+      put word 1 to -1 of param(i) into tOption
+      if tOption is empty then next repeat
+      if i is 2 and char 1 of tOption is among the chars of "FDAfda" and "=" is not in tOption and "<" is not in tOption then
+         put toUpper(char 1 of tOption) into tWhat
+         put char 2 of tOption is "+" into tDeep
+      else if char 1 to 2 of tOption is "t=" then
+         put char 1 to 4 of (char 3 to -1 of tOption & "    ") into tType
+      else if char 1 to 2 of tOption is "o=" then
+         put char 3 of tOption is "p" into tPaths
+      else if char 1 to 3 of tOption is "n<>" then
+         put char 4 to -1 of tOption & return after tExclude
+      end if
+   end repeat
+   if word 1 to -1 of pPath is empty then
+      put _HCFilesFolder(empty) into tWhere
+   else
+      put _HCFileAt(pPath) into tWhere
+      set the itemDelimiter to tab
+      if item 1 of tWhere is "image" and item 4 of tWhere is not "folder" then put empty into tWhere
+      if item 1 of tWhere is "local" and there is not a folder item 2 of tWhere then put empty into tWhere
+   end if
+   if tWhere is empty then return "Error: folder not found:" && pPath
+   set the itemDelimiter to tab
+   put _HCGetDir(item 1 of tWhere, item 2 of tWhere, item 3 of tWhere, tWhat, tDeep, tType, tPaths, tExclude, 0) into tOut
+   if char -1 of tOut is return then delete char -1 of tOut
+   return tOut
+end GetDir
+
+private function _HCGetDir pKind, pImageOrFolder, pHFS, pWhat, pDeep, pType, pPaths, pExclude, pDepth
+   local tList, tLine, tName, tPath, tOut, tSep
+   if pKind is "image" then
+      try
+         put revHyperCardImageFolder(pImageOrFolder, pHFS) into tList
+      catch tError
+         return empty
+      end try
+      put colon into tSep
+   else
+      put _HCLocalFolder(pImageOrFolder) into tList
+      put slash into tSep
+   end if
+   set the itemDelimiter to tab
+   repeat for each line tLine in tList
+      put item 1 of tLine into tName
+      if tName is among the lines of pExclude then next repeat
+      if pKind is "image" then
+         put pHFS & colon & tName into tPath
+      else
+         put pImageOrFolder & slash & tName into tPath
+      end if
+      if item 2 of tLine is "folder" then
+         if pWhat is not "F" then
+            if pPaths then
+               put tPath & tSep & return after tOut
+            else
+               put tName & return after tOut
+            end if
+         end if
+         -- (a folder inside it, to 32 deep, as no disk went further)
+         if pDeep and pDepth < 32 then
+            if pKind is "image" then
+               put _HCGetDir(pKind, pImageOrFolder, tPath, pWhat, pDeep, pType, pPaths, pExclude, pDepth + 1) after tOut
+            else
+               put _HCGetDir(pKind, tPath, empty, pWhat, pDeep, pType, pPaths, pExclude, pDepth + 1) after tOut
+            end if
+         end if
+      else if pWhat is not "D" then
+         if pType is not empty and item 3 of tLine is not pType then next repeat
+         if pPaths then
+            put tPath & return after tOut
+         else
+            put tName & return after tOut
+         end if
+      end if
+   end repeat
+   return tOut
+end _HCGetDir
+
+
+-- The script of TextDialog's dialog (below): its screens are its
+-- cScreens, by number, and cCount of them
+private function _HCTextDialogScript
+   return "local sScreen" & return & \
+      "on hcShowScreen pScreen" & return & \
+      "  put pScreen into sScreen" & return & \
+      "  put the cScreens[pScreen] of me into field " & quote & "Text" & quote & " of me" & return & \
+      "  set the vScroll of field " & quote & "Text" & quote & " of me to 0" & return & \
+      "  put " & quote & "Screen " & quote & " & pScreen && " & quote & "of" & quote & " && the cCount of me into field " & quote & "Screen" & quote & " of me" & return & \
+      "  set the enabled of button " & quote & "Previous" & quote & " of me to pScreen > 1" & return & \
+      "  set the enabled of button " & quote & "Next" & quote & " of me to pScreen < the cCount of me" & return & \
+      "end hcShowScreen" & return & \
+      "on mouseUp" & return & \
+      "  switch the short name of the target" & return & \
+      "    case " & quote & "Previous" & quote & return & \
+      "      if sScreen > 1 then hcShowScreen sScreen - 1" & return & \
+      "      break" & return & \
+      "    case " & quote & "Next" & quote & return & \
+      "      if sScreen < the cCount of me then hcShowScreen sScreen + 1" & return & \
+      "      break" & return & \
+      "    case " & quote & "OK" & quote & return & \
+      "      close me" & return & \
+      "      break" & return & \
+      "  end switch" & return & \
+      "end mouseUp" & return & \
+      "on returnKey" & return & \
+      "  close me" & return & \
+      "end returnKey" & return & \
+      "on enterKey" & return & \
+      "  close me" & return & \
+      "end enterKey"
+end _HCTextDialogScript
+
+/*
+TextDialog DLOG id, font, size, screens, first screen[, top, left] (22
+stacks), Jay Hodgdon's XCMD: a dialog of text screens, each a TEXT
+resource of the stack (screens, their ids, "128,129,130"), in that font
+and size, opened at the first screen's number, with buttons to the
+previous and the next screen and OK, which closes it. The DLOG
+resource, which drew the dialog in HyperCard, is not needed here. A
+screen whose resource is not there is empty. Top and left place the
+dialog from the top left of the card window. The script waits until it
+is closed, as it did; "Error: no text screens" in the result when none
+of the screens is there
+*/
+on TextDialog pDialog, pFont, pSize, pScreens, pFirst, pTop, pLeft
+   local tId, tCount, tAny, tText, tStack, tName, tDefault, tScreens, tLocked
+   put 0 into tCount
+   put false into tAny
+   set the itemDelimiter to comma
+   repeat for each item tId in pScreens
+      add 1 to tCount
+      put ResText("TEXT", word 1 to -1 of tId) into tText
+      if tText begins with "Error :" then
+         put empty into tText
+      else
+         put true into tAny
+      end if
+      put tText into tScreens[tCount]
+   end repeat
+   if not tAny then return "Error: no text screens"
+   put "HyperCard TextDialog" into tName
+   if there is a stack tName then delete stack tName
+   -- (the script that called it goes on with its own stack the default)
+   put the defaultStack into tDefault
+   -- (messages the caller locked are locked again once it is closed:
+   -- the dialog's own scripts need them while it is open)
+   put the lockMessages into tLocked
+   lock messages
+   get _HCNewHiddenStack(tName)
+   put the long id of stack tName into tStack
+   set the title of tStack to empty
+   set the width of tStack to 480
+   set the height of tStack to 320
+   set the defaultStack to tName
+   create field "Text"
+   set the rect of field "Text" of tStack to 12,12,468,264
+   set the lockText of field "Text" of tStack to true
+   set the vScrollbar of field "Text" of tStack to true
+   if pFont is not empty then set the textFont of field "Text" of tStack to pFont
+   if pSize is an integer then set the textSize of field "Text" of tStack to pSize
+   create field "Screen"
+   set the rect of field "Screen" of tStack to 12,280,180,304
+   set the lockText of field "Screen" of tStack to true
+   set the opaque of field "Screen" of tStack to false
+   set the showBorder of field "Screen" of tStack to false
+   create button "Previous"
+   set the rect of button "Previous" of tStack to 196,276,276,304
+   create button "Next"
+   set the rect of button "Next" of tStack to 288,276,368,304
+   create button "OK"
+   set the rect of button "OK" of tStack to 388,276,468,304
+   set the customProperties["cScreens"] of tStack to tScreens
+   set the cCount of tStack to tCount
+   set the script of tStack to _HCTextDialogScript()
+   if pFirst is not an integer or pFirst < 1 or pFirst > tCount then put 1 into pFirst
+   send "hcShowScreen" && pFirst to tStack
+   if pTop is an integer and pLeft is an integer and the mode of the topStack > 0 then
+      set the topLeft of tStack to the left of the topStack + pLeft, the top of the topStack + pTop
+   end if
+   set the defaultStack to tDefault
+   unlock messages
+   -- (made visible, as an invisible stack opens no window and a modal
+   -- one waits for none; and only then destroyed as it closes, as
+   -- _HCReadyToShow closes it)
+   _HCReadyToShow tStack
+   set the destroyStack of tStack to true
+   modal tStack
+   -- (gone once it is closed: a stack its own script closes is not
+   -- destroyed while that script runs)
+   if exists(tStack) then
+      lock messages
+      delete tStack
+   end if
+   set the lockMessages to tLocked
+   set the defaultStack to tDefault
+   return empty
+end TextDialog
+
+/*
+Textoid name, text[, ...] (23 stacks), Frederic Rinaldi's XCMD: a small
+window of text, the name its title, as its cards describe it. The text
+is the value given, or the container its name gives ("card field id
+19", "bg field Notes"), as the external took either. The parameters
+after it come in any order, each known by what it is, as the
+external knew them: a size (a number), a place (left,top) or a rect
+(left,top,right,bottom, on the screen), a colour or two (the text's,
+then the background's: a name, "red", or 16-bit red green and blue,
+"60000 60000 60000"), an alignment (left, center, right), true or false
+(whether the text wraps), a style of text (bold, italic...), the kind of
+window (windoid, BigWindoidZoom, Rinaldoid...: a palette here) and a
+font. A window of that name already open shows the new text. The
+current card gets openTextoid name, id as it opens, and closeTextoid
+name, id as it closes, which stacks that use it handle. The window is
+a stack of that name, which "window Notes" finds, or "Textoid Notes"
+beside a stack of the name that is not such a window. Textoid "?" and
+Textoid with no text give its version
+*/
+on Textoid pName, pText
+   local tParam, tFont, tSize, tRect, tColors, tAlign, tWrap, tStyle, i, tStack, tCard, tNew, tDefault, tRecent, tTry, tLocked
+   if pName is "?" or paramCount() < 2 then return "Textoid (HyperCard Library)"
+   if _HCIsContainerName(pText) then
+      try
+         put value(pText) into pText
+      catch tError
+      end try
+   end if
+   put true into tWrap
+   repeat with i = 3 to paramCount()
+      put word 1 to -1 of param(i) into tParam
+      if tParam is empty then next repeat
+      if tParam is a number then
+         put tParam into tSize
+      else if tParam is among the words of "true false" then
+         put tParam into tWrap
+      else if tParam is among the words of "left center right centre" then
+         if tParam is "centre" then put "center" into tParam
+         put tParam into tAlign
+      else if _HCAreNumbers(tParam, 2) or _HCAreNumbers(tParam, 4) then
+         put tParam into tRect
+      else if "windoid" is in tParam or "rinaldoid" is in tParam or tParam is among the words of "document shadow plain dialog" then
+         next repeat
+      else if tParam is among the words of "bold italic underline outline shadow condense extend condensed expanded" then
+         put tParam into tStyle
+      else if _HCIsColour(item 1 of tParam) then
+         put tParam into tColors
+      else
+         put tParam into tFont
+      end if
+   end repeat
+   put the long id of this card into tCard
+   put the defaultStack into tDefault
+   -- (named as the window, which scripts address as "window Notes";
+   -- beside a stack of that name that is not one, "Textoid Notes", and
+   -- beside one of that name too, "Textoid Notes 2" and on: no stack but
+   -- its own window is ever touched)
+   put pName into tStack
+   put 1 into tTry
+   repeat while there is a stack tStack
+      if the cTextoid of stack tStack is true and the cName of stack tStack is pName then exit repeat
+      if tTry is 1 then
+         put "Textoid " & pName into tStack
+      else
+         put "Textoid " & pName && tTry into tStack
+      end if
+      add 1 to tTry
+   end repeat
+   put there is not a stack tStack into tNew
+   if tNew then
+      -- (messages the caller locked stay locked)
+      put the lockMessages into tLocked
+      lock messages
+      get _HCNewHiddenStack(tStack)
+      set the width of stack tStack to 300
+      set the height of stack tStack to 160
+      set the defaultStack to tStack
+      create field "Text"
+      set the rect of field "Text" of stack tStack to 0,0,300,160
+      set the vScrollbar of field "Text" of stack tStack to true
+      set the cCard of stack tStack to tCard
+      set the cName of stack tStack to pName
+      set the cTextoid of stack tStack to true
+      set the script of stack tStack to "on closeStack" & return & \
+            "  try" & return & "    dispatch " & quote & "closeTextoid" & quote && \
+            "to (the cCard of me) with (the cName of me), (the short id of me)" & return & "  catch tError" & return & "  end try" & return & \
+            "  pass closeStack" & return & "end closeStack" & return & \
+            "on resizeStack" & return & "  set the rect of field 1 of me to 0,0,the width of me,the height of me" & return & "end resizeStack"
+      set the defaultStack to tDefault
+      set the lockMessages to tLocked
+   end if
+   set the title of stack tStack to pName
+   put pText into field "Text" of stack tStack
+   set the dontWrap of field "Text" of stack tStack to (tWrap is "false")
+   if tFont is not empty then set the textFont of field "Text" of stack tStack to tFont
+   if tSize is a number then set the textSize of field "Text" of stack tStack to round(tSize)
+   if tAlign is not empty then set the textAlign of field "Text" of stack tStack to tAlign
+   if tStyle is not empty then
+      try
+         set the textStyle of field "Text" of stack tStack to tStyle
+      catch tError
+      end try
+   end if
+   if tColors is not empty then
+      set the textColor of field "Text" of stack tStack to _HCColour(item 1 of tColors)
+      if item 2 of tColors is not empty then set the backgroundColor of field "Text" of stack tStack to _HCColour(item 2 of tColors)
+   end if
+   if the number of items of tRect is 4 then
+      set the rect of stack tStack to tRect
+   else if the number of items of tRect is 2 then
+      set the topLeft of stack tStack to tRect
+   end if
+   if tNew then
+      -- (made visible, as an invisible stack opens no window, and only
+      -- then destroyed as it closes, as _HCReadyToShow closes it)
+      _HCReadyToShow the long id of stack tStack
+      set the destroyStack of stack tStack to true
+      put the lockRecent into tRecent
+      set the lockRecent to true
+      palette stack tStack
+      set the lockRecent to tRecent
+      set the defaultStack to tDefault
+      dispatch "openTextoid" to tCard with pName, the short id of stack tStack
+   end if
+   return empty
+end Textoid
+
+-- Whether pText names a container, as Textoid's text could ("card field
+-- id 19", "bg fld Notes", "cd btn 2")
+private function _HCIsContainerName pText
+   if the number of lines of pText is not 1 or the number of words of pText < 2 then return false
+   return word 1 of pText is among the words of "card cd background bkgnd bg field fld button btn me"
+end _HCIsContainerName
+
+-- Whether pText is pCount numbers, separated by commas
+private function _HCAreNumbers pText, pCount
+   local tItem
+   if the number of items of pText is not pCount then return false
+   repeat for each item tItem in pText
+      if word 1 to -1 of tItem is not a number then return false
+   end repeat
+   return true
+end _HCAreNumbers
+
+-- Whether pColour is a colour's name or 16-bit red, green and blue
+-- ("60000 60000 60000")
+private function _HCIsColour pColour
+   put word 1 to -1 of pColour into pColour
+   if the number of words of pColour is 3 then
+      return word 1 of pColour is a number and word 2 of pColour is a number and word 3 of pColour is a number
+   end if
+   return pColour is among the lines of the colorNames
+end _HCIsColour
+
+-- A colour as this engine takes one: a name as it is; 16-bit red, green
+-- and blue as 8-bit numbers, "60000 60000 60000" as "234,234,234"
+private function _HCColour pColour
+   put word 1 to -1 of pColour into pColour
+   if the number of words of pColour is 3 then
+      return (word 1 of pColour div 257) & comma & (word 2 of pColour div 257) & comma & (word 3 of pColour div 257)
+   end if
+   return pColour
+end _HCColour
+
+/*
+FullHPop(menu[, place[, chosen[, font, size...]]]) (13 stacks), Frederic
+Rinaldi's XFCN: a popup menu of the menu's lines at the place (left,top
+on the card), the mouse where there is none; "FONT" alone is the fonts
+here. It gives the line chosen, a comma, the submenu's choice (none
+here: empty), a comma and the line's number, as the stacks read it
+("item 1 of it", "item 3 of it"); empty if none is chosen
+*/
+function FullHPop pMenu, pPlace, pChosen
+   local tItems, tChosen
+   if word 1 to -1 of pMenu is "FONT" then
+      put the fontNames into tItems
+      sort lines of tItems
+   else
+      put pMenu into tItems
+   end if
+   if _HCAreNumbers(pPlace, 2) then
+      put _HCPopUp(_HCMenuText(tItems, pChosen), item 2 of pPlace, item 1 of pPlace) into tChosen
+   else
+      put _HCPopUp(_HCMenuText(tItems, pChosen), empty, empty) into tChosen
+   end if
+   return hcFullHPopChoice(tItems, tChosen)
+end FullHPop
+
+-- "line,,number" of a FullHPop choice, as the popup gives it; empty if it
+-- is not a line of pItems
+function hcFullHPopChoice pItems, pChosen
+   local tLine
+   if pChosen is empty then return empty
+   put _HCLineOf(pChosen, pItems) into tLine
+   if tLine is 0 then return empty
+   return pChosen & comma & comma & tLine
+end hcFullHPopChoice
+
+/*
+PopList(list, left, top, chosen) (3 stacks): a popup menu of the list's
+lines with its top left at left,top; the line chosen, or empty
+*/
+function PopList pList, pLeft, pTop, pChosen
+   local tChosen
+   put _HCPopUp(_HCMenuText(pList, pChosen), pTop, pLeft) into tChosen
+   if _HCLineOf(tChosen, pList) is 0 then return empty
+   return tChosen
+end PopList
+
+/*
+Alert icon, buttons, text[, ...] (9 stacks): an alert of the text, its
+icon 0 a note, 1 a caution, else a stop, with OK; the result is the
+button clicked. PopAlert(icon, default, [title,] text) (3 stacks): the
+same, with OK and Cancel where the text asks a question, giving the
+number of the button clicked, as the external did
+*/
+on Alert pIcon, pButtons, pText
+   _HCAlert pIcon, pText, "OK"
+   return the result
+end Alert
+
+function PopAlert pIcon, pDefault, pTitle, pText
+   local tButtons, tChosen
+   if paramCount() < 4 then put pTitle into pText
+   put "OK" into tButtons
+   if "?" is in pText then put "OK,Cancel" into tButtons
+   _HCAlert pIcon, pText, tButtons
+   put the result into tChosen
+   set the itemDelimiter to comma
+   if tChosen is empty then return 0
+   return itemOffset(tChosen, tButtons)
+end PopAlert
+
+private command _HCAlert pIcon, pText, pButtons
+   local tAsk
+   put pButtons is not "OK" into tAsk
+   switch word 1 to -1 of pIcon
+      case 0
+         if tAsk then
+            answer information pText with "OK" or "Cancel"
+         else
+            answer information pText with "OK"
+         end if
+         break
+      case 1
+         if tAsk then
+            answer warning pText with "OK" or "Cancel"
+         else
+            answer warning pText with "OK"
+         end if
+         break
+      default
+         if tAsk then
+            answer error pText with "OK" or "Cancel"
+         else
+            answer error pText with "OK"
+         end if
+   end switch
+   return it
+end _HCAlert
+
+/*
+DispPICT name[, ...] (10 stacks): a window of the picture, the stack's
+PICT resource of that name (or id) or a file of that name beside the
+stack's file, as the picture command shows one (hcPicture); the
+parameters after the name, where to put it and how, are not kept.
+Clicking in the window closes it, as it did
+*/
+on DispPICT pName
+   local tName
+   put word 1 to -1 of pName into tName
+   if tName is an integer then put "PICT" && tName into tName
+   hcPicture tName, "resource", empty, true
+   if the result is not empty then hcPicture pName, "file", empty, true
+   if the result is not empty then return the result
+   set the itemDelimiter to colon
+   put item -1 of tName into tName
+   if there is a stack tName then
+      set the script of stack tName to "on mouseUp" & return & "close me" & return & "end mouseUp"
+   end if
+   return empty
+end DispPICT
+
+/*
+Listoid name, list[, ...] (11 stacks) and Tabloid name, list[, ...] (7
+stacks), Frederic Rinaldi's XCMDs: a small window of the list, one
+choice a line (Tabloid's in columns, at its tabs), the name its title,
+as Textoid's window of text is. The list is the value given or the
+container its name gives. The parameters after it, in any order: a
+font ("Geneva", or "Geneva,9" with its size), a size, a place or a
+rect, colours, the kind of window (a palette here), a prompt (text of
+more than two words, shown above the list). Clicking a line sends
+ListoidSelect (TabloidSelect) with the line and the window's name to
+the card the window was opened from, and closing the window
+closeListoid (closeTabloid) with its name, as the stacks that use
+them handle; openListoid (openTabloid) with its name and id as it
+opens. A window of that name already open shows the new list
+*/
+on Listoid pName, pList
+   local tParams, i
+   repeat with i = 3 to paramCount()
+      put param(i) into tParams[i - 2]
+   end repeat
+   _HCListWindow "Listoid", pName, pList, tParams
+   return the result
+end Listoid
+
+on Tabloid pName, pList
+   local tParams, i
+   repeat with i = 3 to paramCount()
+      put param(i) into tParams[i - 2]
+   end repeat
+   _HCListWindow "Tabloid", pName, pList, tParams
+   return the result
+end Tabloid
+
+private command _HCListWindow pKind, pName, pList, pParams
+   local tParam, tFont, tSize, tRect, tColors, tPrompt, i, tStack, tCard, tNew, tDefault, tRecent, tTry, tTop, tLocked
+   if pName is "?" or pName is empty then return pKind && "(HyperCard Library)"
+   if _HCIsContainerName(pList) then
+      try
+         put value(pList) into pList
+      catch tError
+      end try
+   end if
+   repeat with i = 1 to the number of elements of pParams
+      put word 1 to -1 of pParams[i] into tParam
+      if tParam is empty then next repeat
+      if tParam is a number then
+         put tParam into tSize
+      else if _HCAreNumbers(tParam, 2) or _HCAreNumbers(tParam, 4) then
+         put tParam into tRect
+      else if "windoid" is in tParam or "rinaldoid" is in tParam or tParam is among the words of "document shadow plain dialog zoom" then
+         next repeat
+      else if _HCIsColour(item 1 of tParam) then
+         put tParam into tColors
+      else if the number of words of tParam > 2 then
+         put tParam into tPrompt
+      else if item 1 of tParam is among the lines of the fontNames or (the number of items of tParam is 2 and item 2 of tParam is a number) then
+         put item 1 of tParam into tFont
+         if item 2 of tParam is a number then put item 2 of tParam into tSize
+      end if
+   end repeat
+   put the long id of this card into tCard
+   put the defaultStack into tDefault
+   -- (named as the window, which scripts address as "window Index";
+   -- beside a stack of that name that is not one, "Listoid Index" and
+   -- on, as Textoid's)
+   put pName into tStack
+   put 1 into tTry
+   repeat while there is a stack tStack
+      if the cKind of stack tStack is pKind and the cName of stack tStack is pName then exit repeat
+      if tTry is 1 then
+         put pKind && pName into tStack
+      else
+         put pKind && pName && tTry into tStack
+      end if
+      add 1 to tTry
+   end repeat
+   put there is not a stack tStack into tNew
+   if tNew then
+      -- (messages the caller locked stay locked)
+      put the lockMessages into tLocked
+      lock messages
+      get _HCNewHiddenStack(tStack)
+      set the width of stack tStack to 240
+      set the height of stack tStack to 200
+      set the defaultStack to tStack
+      create field "Prompt"
+      set the lockText of field "Prompt" of stack tStack to true
+      set the showBorder of field "Prompt" of stack tStack to false
+      set the rect of field "Prompt" of stack tStack to 0,0,240,0
+      create field "List"
+      set the listBehavior of field "List" of stack tStack to true
+      set the lockText of field "List" of stack tStack to true
+      set the dontWrap of field "List" of stack tStack to true
+      set the vScrollbar of field "List" of stack tStack to true
+      set the rect of field "List" of stack tStack to 0,0,240,200
+      set the cCard of stack tStack to tCard
+      set the cName of stack tStack to pName
+      set the cKind of stack tStack to pKind
+      set the script of field "List" of stack tStack to "on mouseUp" & return & \
+            "  if the hilitedLine of me is empty then exit mouseUp" & return & \
+            "  try" & return & "    dispatch " & quote & pKind & "Select" & quote && \
+            "to (the cCard of the owner of the owner of me) with (line (the hilitedLine of me) of me), (the cName of the owner of the owner of me)" & return & \
+            "  catch tError" & return & "  end try" & return & "end mouseUp"
+      set the script of stack tStack to "on closeStack" & return & \
+            "  try" & return & "    dispatch " & quote & "close" & pKind & quote && \
+            "to (the cCard of me) with (the cName of me), (the short id of me)" & return & "  catch tError" & return & "  end try" & return & \
+            "  pass closeStack" & return & "end closeStack" & return & \
+            "on resizeStack" & return & "  set the rect of field " & quote & "List" & quote & " of me to 0, the bottom of field " & quote & "Prompt" & quote & " of me, the width of me, the height of me" & return & "end resizeStack"
+      set the defaultStack to tDefault
+      set the lockMessages to tLocked
+   end if
+   set the title of stack tStack to pName
+   put tPrompt into field "Prompt" of stack tStack
+   if tPrompt is empty then
+      put 0 into tTop
+   else
+      put 36 into tTop
+   end if
+   set the rect of field "Prompt" of stack tStack to 0, 0, the width of stack tStack, tTop
+   put pList into field "List" of stack tStack
+   if tFont is not empty then set the textFont of field "List" of stack tStack to tFont
+   if tSize is a number then set the textSize of field "List" of stack tStack to round(tSize)
+   if pKind is "Tabloid" then _HCTabColumns tStack
+   if tColors is not empty then
+      set the textColor of field "List" of stack tStack to _HCColour(item 1 of tColors)
+      if item 2 of tColors is not empty then set the backgroundColor of field "List" of stack tStack to _HCColour(item 2 of tColors)
+   end if
+   if the number of items of tRect is 4 then
+      set the rect of stack tStack to tRect
+   else if the number of items of tRect is 2 then
+      set the topLeft of stack tStack to tRect
+   end if
+   set the rect of field "List" of stack tStack to 0, tTop, the width of stack tStack, the height of stack tStack
+   if tNew then
+      -- (made visible, as an invisible stack opens no window, and only
+      -- then destroyed as it closes, as _HCReadyToShow closes it)
+      _HCReadyToShow the long id of stack tStack
+      set the destroyStack of stack tStack to true
+      put the lockRecent into tRecent
+      set the lockRecent to true
+      palette stack tStack
+      set the lockRecent to tRecent
+      set the defaultStack to tDefault
+      dispatch ("open" & pKind) to tCard with pName, the short id of stack tStack
+   end if
+   return empty
+end _HCListWindow
+
+-- Tabloid's columns: the tabs of the field "List" of the stack pStack
+-- set to the widest of each column and a little more, each column's
+-- cells measured as they show, in the field's font and size, in a field
+-- made for it and deleted
+private command _HCTabColumns pStack
+   local tColumns, tLine, i, tCount, tStops, tAt, tLocked, tDefault, tMeasure
+   set the itemDelimiter to tab
+   put 0 into tCount
+   repeat for each line tLine in field "List" of stack pStack
+      repeat with i = 1 to the number of items of tLine
+         put item i of tLine & return after tColumns[i]
+      end repeat
+      if the number of items of tLine > tCount then put the number of items of tLine into tCount
+   end repeat
+   if tCount < 2 then
+      set the tabStops of field "List" of stack pStack to empty
+      exit _HCTabColumns
+   end if
+   put the lockMessages into tLocked
+   lock messages
+   put the defaultStack into tDefault
+   set the defaultStack to pStack
+   create invisible field "Measure"
+   put it into tMeasure
+   set the dontWrap of tMeasure to true
+   set the textFont of tMeasure to the effective textFont of field "List" of stack pStack
+   set the textSize of tMeasure to the effective textSize of field "List" of stack pStack
+   put 0 into tAt
+   repeat with i = 1 to tCount - 1
+      set the text of tMeasure to tColumns[i]
+      add the formattedWidth of tMeasure + 12 to tAt
+      put tAt & comma after tStops
+   end repeat
+   delete tMeasure
+   set the defaultStack to tDefault
+   set the lockMessages to tLocked
+   delete the last char of tStops
+   set the tabStops of field "List" of stack pStack to tStops
+end _HCTabColumns
 
 -- The data of the resource of type pType and id or name pResource in the
 -- resource fork pFork, or false. A fork's numbers are big-endian: its

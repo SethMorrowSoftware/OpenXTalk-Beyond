@@ -94,6 +94,15 @@
         "reason": "Box2Dxt's 32-bit library is built on a newer system than the IDE (README.md, Linux)"
       },
       {
+        "files": "Extensions/*/code/x86-linux/curlxt.so",
+        "elf": {
+          "GLIBC": "2.34",
+          "GLIBCXX": "3.4.29"
+        },
+        "readme": "2.34 and OpenSSL 3 (curlxt)",
+        "reason": "curlxt's 32-bit library is built on a newer system than the IDE and uses the system's OpenSSL 3 (README.md, Linux)"
+      },
+      {
         "files": "Extensions/*/code/x86-linux/torrentxt.so",
         "elf": {
           "GLIBC": "2.38"

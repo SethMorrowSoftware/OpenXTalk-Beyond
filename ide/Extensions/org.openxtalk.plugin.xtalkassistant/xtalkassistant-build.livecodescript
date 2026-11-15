@@ -56,7 +56,8 @@ script "org.openxtalk.plugin.xtalkassistant-build"
 -- "there is a stack", so the defaultStack is moved away first.
 --
 -- Public handlers:
---    xtaBuildPlan(pInput, pStack)     a make_changes batch, checked
+--    xtaBuildPlan(pInput, pStack, pCompileOnly)   a make_changes batch,
+--                                     checked
 --    xtaBuildApply(pPlan)             makes it, all or nothing
 --    xtaBuildUndo(pEntry, pForce), xtaBuildUndoAll(pForce)
 --    xtaBuildEntries()                the journal, for the window
@@ -115,6 +116,9 @@ constant kAbortErrors = "98,160,171,240,251,324,470,488,538,604,624"
 local sJournal
 -- This session's folder of checkpoints, and how many it has
 local sCheckpointFolder, sCheckpointCount
+-- True while xtaBuildPlan checks a batch whose scripts are only compiled
+-- (its pCompileOnly)
+local sCompileOnly
 
 --------------------------------------------------------------------------------
 -- The kinds of object a change creates
@@ -277,8 +281,27 @@ end xtbKindList
 -- "stack" (the long id of the stack; empty when the batch makes it),
 -- "newStack" (true when it does), "name" (the stack's name), "count" and
 -- "lines" (what each change does, one per line, for the user).
+--
+-- pCompileOnly, when true, checks each script of the batch only as the
+-- engine does when it is set (xtaCompileProblem): for a script from a file
+-- of the user's (the MCP Bridge's set_script_from_file), which may use
+-- names it does not declare, as old scripts do. Without it, as before,
+-- a script is checked as code the model wrote (xtaCheckScript).
 
-function xtaBuildPlan pInput, pStack
+function xtaBuildPlan pInput, pStack, pCompileOnly
+   local tPlan, tError
+   put (pCompileOnly is true) into sCompileOnly
+   try
+      put xtbBuildPlan(pInput, pStack) into tPlan
+   catch tError
+      put false into sCompileOnly
+      throw tError
+   end try
+   put false into sCompileOnly
+   return tPlan
+end xtaBuildPlan
+
+private function xtbBuildPlan pInput, pStack
    local tPlan, tChanges, tCount, tIndex, tChange, tRefs, tProblems, tTarget, tFirst, tProblem
    put false into tPlan["ok"]
    put false into tPlan["newStack"]
@@ -337,7 +360,7 @@ function xtaBuildPlan pInput, pStack
    delete the last char of tPlan["lines"]
    put true into tPlan["ok"]
    return tPlan
-end xtaBuildPlan
+end xtbBuildPlan
 
 -- The stack a batch or a run is in: pName (the main stack's name, a
 -- substack's of it, or another stack's open in the IDE), else pDefault
@@ -658,7 +681,14 @@ private command xtbPlanValues pNode, pType, @xChange
       put xtaJsonText(tNode) into tScript
       replace crlf with return in tScript
       replace numToChar(13) with return in tScript
-      if word 1 to -1 of tScript is not empty then
+      if sCompileOnly is true then
+         -- A script from a file of the user's: taken when the engine takes it
+         put xtaCompileProblem(tScript) into tLine
+         if tLine is not empty then
+            put "its script does not compile:" & return & "  - " & tLine into xChange["problem"]
+            exit xtbPlanValues
+         end if
+      else if word 1 to -1 of tScript is not empty then
          put xtaScriptCounts(tScript) into tCounts
          if tCounts["handlers"] is 0 then
             put "a script is made of handlers (on mouseUp ... end mouseUp); these lines are outside any handler, and the engine would ignore them" \

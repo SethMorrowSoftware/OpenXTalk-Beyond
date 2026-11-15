@@ -18,7 +18,13 @@ end preopencard
 on openPreviewPane
    open stack "Report" of stack "Report Builder"
    set the scaleFactor of stack "Report" to 1
-   set the topLeft of stack "Report" to the cPosition of stack "Report"  --position, custom prop
+   -- OXT-Beyond: or where the user's preferences keep it, when this stack
+   -- could not be saved (an install for all users)
+   if revIDEGetPreference("cOXTReportBuilderPosition") is not empty then
+      set the topLeft of stack "Report" to revIDEGetPreference("cOXTReportBuilderPosition")
+   else
+      set the topLeft of stack "Report" to the cPosition of stack "Report"  --position, custom prop
+   end if
 end openPreviewPane
 
 

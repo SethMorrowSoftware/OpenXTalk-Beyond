@@ -1,0 +1,62 @@
+# What tools/ci/browser_compat_check.py saw of the browser's htmlText and url
+# in linux-x86_64 with OXT-Beyond 0.2.8-dp.1 as released (engine 9.7.1-BeyondEngine,
+# CEF 74.1.19), recorded with --record; three runs agreed but for the line
+# ALLOWED excuses. Lines starting with # are not compared.
+w1 new: url = 
+w1 new: htmlText = <html><head></head><body></body></html>
+w1 new: messages = 
+w2 htmlText: page reports = href=http://libbrowser_dummy_url/ | protocol=http: | baseURI=http://libbrowser_dummy_url/ | origin=http://libbrowser_dummy_url | link=http://libbrowser_dummy_url/page2.html?x=1#y | title=compat w2 | text=café 中文 😀 | localStorage ok | cookie kept | referrer= | history=2\n
+w2 htmlText: url = 
+w2 htmlText: htmlText = <!DOCTYPE html><html><head><meta charset="utf-8"><title>compat w2</title></head><body><p id="p">café 中文 😀</p><a id="a" href="page2.html?x=1#y">rel</a><script>\nfunction oxtProbe(){var r=[];\nr.push('href='+location.href);\nr.push('protocol='+location.protocol);\nr.push('baseURI='+document.baseURI);\nr.push('origin='+window.origin);\nr.push('link='+document.getElementById('a').href);\nr.push('title='+document.title);\nr.push('text='+document.getElementById('p').textContent);\nvar s='none';try{localStorage.setItem('oxt','1');s='localStorage ok';}catch(e){s='localStorage '+e.name;}r.push(s);\nvar c='none';try{document.cookie='oxt=1';c='cookie '+(document.cookie.indexOf('oxt=1')>=0?'kept':'dropped');}catch(e){c='cookie '+e.name;}r.push(c);\nr.push('referrer='+document.referrer);\nr.push('history='+history.length);\nreturn r.join(' | ');}\nsetTimeout(function(){if(window.liveCode&&liveCode.oxtReport)liveCode.oxtReport(oxtProbe());},300);\n</script></body></html>
+w2 htmlText: messages = 
+w3 htmlText again: page reports = href=http://libbrowser_dummy_url/ | protocol=http: | baseURI=http://libbrowser_dummy_url/ | origin=http://libbrowser_dummy_url | link=http://libbrowser_dummy_url/page2.html?x=1#y | title=compat w3 | text=café 中文 😀 | localStorage ok | cookie kept | referrer= | history=2\n
+w3 htmlText again: url = 
+w3 htmlText again: htmlText = <!DOCTYPE html><html><head><meta charset="utf-8"><title>compat w3</title></head><body><p id="p">café 中文 😀</p><a id="a" href="page2.html?x=1#y">rel</a><script>\nfunction oxtProbe(){var r=[];\nr.push('href='+location.href);\nr.push('protocol='+location.protocol);\nr.push('baseURI='+document.baseURI);\nr.push('origin='+window.origin);\nr.push('link='+document.getElementById('a').href);\nr.push('title='+document.title);\nr.push('text='+document.getElementById('p').textContent);\nvar s='none';try{localStorage.setItem('oxt','1');s='localStorage ok';}catch(e){s='localStorage '+e.name;}r.push(s);\nvar c='none';try{document.cookie='oxt=1';c='cookie '+(document.cookie.indexOf('oxt=1')>=0?'kept':'dropped');}catch(e){c='cookie '+e.name;}r.push(c);\nr.push('referrer='+document.referrer);\nr.push('history='+history.length);\nreturn r.join(' | ');}\nsetTimeout(function(){if(window.liveCode&&liveCode.oxtReport)liveCode.oxtReport(oxtProbe());},300);\n</script></body></html>
+w3 htmlText again: messages = 
+w4 url: url = {BASE}page1.html
+w4 url: htmlText = <!DOCTYPE html><html><head><meta charset="utf-8"><title>compat page 1</title></head><body><p>page one</p>\n</body></html>
+w4 url: messages = browserNavigateBegin: {BASE}page1.html  ; browserDocumentLoadBegin: {BASE}page1.html  ; browserDocumentLoadComplete: {BASE}page1.html  ; browserNavigateComplete: {BASE}page1.html 
+w5 htmlText after url: page reports = href=http://libbrowser_dummy_url/ | protocol=http: | baseURI=http://libbrowser_dummy_url/ | origin=http://libbrowser_dummy_url | link=http://libbrowser_dummy_url/page2.html?x=1#y | title=compat w5 | text=café 中文 😀 | localStorage ok | cookie kept | referrer= | history=4\n
+w5 htmlText after url: url = 
+w5 htmlText after url: htmlText = <!DOCTYPE html><html><head><meta charset="utf-8"><title>compat w5</title></head><body><p id="p">café 中文 😀</p><a id="a" href="page2.html?x=1#y">rel</a><script>\nfunction oxtProbe(){var r=[];\nr.push('href='+location.href);\nr.push('protocol='+location.protocol);\nr.push('baseURI='+document.baseURI);\nr.push('origin='+window.origin);\nr.push('link='+document.getElementById('a').href);\nr.push('title='+document.title);\nr.push('text='+document.getElementById('p').textContent);\nvar s='none';try{localStorage.setItem('oxt','1');s='localStorage ok';}catch(e){s='localStorage '+e.name;}r.push(s);\nvar c='none';try{document.cookie='oxt=1';c='cookie '+(document.cookie.indexOf('oxt=1')>=0?'kept':'dropped');}catch(e){c='cookie '+e.name;}r.push(c);\nr.push('referrer='+document.referrer);\nr.push('history='+history.length);\nreturn r.join(' | ');}\nsetTimeout(function(){if(window.liveCode&&liveCode.oxtReport)liveCode.oxtReport(oxtProbe());},300);\n</script></body></html>
+w5 htmlText after url: messages = 
+w6 url after htmlText: url = {BASE}page2.html
+w6 url after htmlText: htmlText = <!DOCTYPE html><html><head><meta charset="utf-8"><title>compat page 2</title></head><body><p>page two</p>\n</body></html>
+w6 url after htmlText: messages = browserNavigateBegin: {BASE}page2.html  ; browserDocumentLoadBegin: {BASE}page2.html  ; browserDocumentLoadComplete: {BASE}page2.html  ; browserNavigateComplete: {BASE}page2.html 
+w7 empty htmlText: url = 
+w7 empty htmlText: htmlText = 
+w7 empty htmlText: messages = 
+w8 url to empty: url = 
+w8 url to empty: htmlText = 
+w8 url to empty: messages = browserNavigateBegin: {BASE}page1.html  ; browserDocumentLoadBegin: {BASE}page1.html  ; browserDocumentLoadComplete: {BASE}page1.html  ; browserNavigateComplete: {BASE}page1.html 
+w9 fragment: url = 
+w9 fragment: htmlText = <b>bold</b> text
+w9 fragment: messages = 
+w10 relative link: url = 
+w10 relative link: htmlText = <!DOCTYPE html><html><head><meta charset="utf-8"><title>compat w10</title></head><body><p id="p">café 中文 😀</p><a id="a" href="page2.html?x=1#y">rel</a><script>\nfunction oxtProbe(){var r=[];\nr.push('href='+location.href);\nr.push('protocol='+location.protocol);\nr.push('baseURI='+document.baseURI);\nr.push('origin='+window.origin);\nr.push('link='+document.getElementById('a').href);\nr.push('title='+document.title);\nr.push('text='+document.getElementById('p').textContent);\nvar s='none';try{localStorage.setItem('oxt','1');s='localStorage ok';}catch(e){s='localStorage '+e.name;}r.push(s);\nvar c='none';try{document.cookie='oxt=1';c='cookie '+(document.cookie.indexOf('oxt=1')>=0?'kept':'dropped');}catch(e){c='cookie '+e.name;}r.push(c);\nr.push('referrer='+document.referrer);\nr.push('history='+history.length);\nreturn r.join(' | ');}\nsetTimeout(function(){if(window.liveCode&&liveCode.oxtReport)liveCode.oxtReport(oxtProbe());},300);\n</script></body></html>
+w10 relative link: messages = browserDocumentLoadFailed: http://libbrowser_dummy_url/page2.html?x=1#y ERR_NAME_NOT_RESOLVED ; browserNavigateFailed: http://libbrowser_dummy_url/page2.html?x=1#y ERR_NAME_NOT_RESOLVED ; browserDocumentLoadComplete: chrome-error://chromewebdata/  ; browserNavigateComplete: chrome-error://chromewebdata/ 
+r1 open with url: url = {BASE}page1.html
+r1 open with url: htmltext = <!DOCTYPE html><html><head><meta charset="utf-8"><title>compat page 1</title></head><body><p>page one</p>\n</body></html>
+r1 open with url: busy = FALSE
+r1 open with url: messages = browserBeforeNavigate: 1 {BASE}page1.html ; browserNavigateComplete: 1 {BASE}page1.html ; browserDocumentComplete: 1 {BASE}page1.html
+r2 htmltext: page reports = 
+r2 htmltext: page probe = href=http://revbrowser_dummy_url/ | protocol=http: | baseURI=http://revbrowser_dummy_url/ | origin=http://revbrowser_dummy_url | link=http://revbrowser_dummy_url/page2.html?x=1#y | title=compat r2 | text=café 中文 😀 | localStorage ok | cookie kept | referrer= | history=2
+r2 htmltext: url = http://revbrowser_dummy_url/
+r2 htmltext: htmltext = <!DOCTYPE html><html><head><meta charset="utf-8"><title>compat r2</title></head><body><p id="p">café 中文 😀</p><a id="a" href="page2.html?x=1#y">rel</a><script>\nfunction oxtProbe(){var r=[];\nr.push('href='+location.href);\nr.push('protocol='+location.protocol);\nr.push('baseURI='+document.baseURI);\nr.push('origin='+window.origin);\nr.push('link='+document.getElementById('a').href);\nr.push('title='+document.title);\nr.push('text='+document.getElementById('p').textContent);\nvar s='none';try{localStorage.setItem('oxt','1');s='localStorage ok';}catch(e){s='localStorage '+e.name;}r.push(s);\nvar c='none';try{document.cookie='oxt=1';c='cookie '+(document.cookie.indexOf('oxt=1')>=0?'kept':'dropped');}catch(e){c='cookie '+e.name;}r.push(c);\nr.push('referrer='+document.referrer);\nr.push('history='+history.length);\nreturn r.join(' | ');}\nsetTimeout(function(){if(window.liveCode&&liveCode.oxtRevReport)liveCode.oxtRevReport(oxtProbe());},300);\n</script></body></html>
+r2 htmltext: busy = FALSE
+r2 htmltext: messages = browserNavigateComplete: 1 http://revbrowser_dummy_url/ ; browserDocumentComplete: 1 http://revbrowser_dummy_url/
+r3 url after htmltext: url = {BASE}page2.html
+r3 url after htmltext: htmltext = <!DOCTYPE html><html><head><meta charset="utf-8"><title>compat page 2</title></head><body><p>page two</p>\n</body></html>
+r3 url after htmltext: busy = FALSE
+r3 url after htmltext: messages = browserBeforeNavigate: 1 {BASE}page2.html ; browserNavigateComplete: 1 {BASE}page2.html ; browserDocumentComplete: 1 {BASE}page2.html
+r4 empty htmltext: url = http://revbrowser_dummy_url/
+r4 empty htmltext: htmltext = <html><head></head><body></body></html>
+r4 empty htmltext: busy = FALSE
+r4 empty htmltext: messages = browserNavigateComplete: 1 http://revbrowser_dummy_url/ ; browserDocumentComplete: 1 http://revbrowser_dummy_url/
+r5 fragment: url = http://revbrowser_dummy_url/
+r5 fragment: htmltext = <html><head></head><body><b>bold</b> text</body></html>
+r5 fragment: busy = FALSE
+r5 fragment: messages = browserNavigateComplete: 1 http://revbrowser_dummy_url/ ; browserDocumentComplete: 1 http://revbrowser_dummy_url/
+r6 relative link: executeScript = clicked
+r6 relative link: url = chrome-error://chromewebdata/
+r6 relative link: messages = browserBeforeNavigate: 1 http://revbrowser_dummy_url/page2.html?x=1#y ; browserDocumentFailed: 1 http://revbrowser_dummy_url/page2.html?x=1#y ; browserDocumentComplete: 1 chrome-error://chromewebdata/

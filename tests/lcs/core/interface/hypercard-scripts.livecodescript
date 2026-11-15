@@ -4969,6 +4969,551 @@ on TestHyperCardScriptsMoreStandIns
    _Close tStack
 end TestHyperCardScriptsMoreStandIns
 
+on TestHyperCardScriptsTextFileExternals
+   -- Dartmouth's WriteToFile, FieldToFile and FileToField (13, 20 and 10
+   -- stacks of the corpus): they write and read the text file a
+   -- pathname names, in the stack's folder where the path's folder is
+   -- not here, and give its path in the result, or an error; before,
+   -- their stand-ins did nothing
+   local tStack, tFolder, q, tResults
+   global gHCScriptsTest
+   put quote into q
+   put the temporary folder & "/hctext" & the milliseconds into tFolder
+   create folder tFolder
+   put "HCTextFiles" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["file"] of stack tStack to tFolder & "/Main"
+   set the uHyperCard["externals"] of stack tStack to _Lines("XCMD" & tab & "WriteToFile", "XCMD" & tab & "FieldToFile", \
+         "XCMD" & tab & "FileToField")
+   set the defaultStack to tStack
+   create field "Source"
+   put "from the field" & return & "second line" into field "Source"
+   create field "Target"
+   create button "Files"
+   set the script of button "Files" to _Lines("on mouseUp", "  global gHCScriptsTest", "  put empty into gHCScriptsTest", \
+         "  WriteToFile " & q & "line one" & q & ", true, " & q & "Notes" & q & ", false", \
+         "  put the result & tab after gHCScriptsTest", \
+         "  WriteToFile return & " & q & "line two" & q & ",TRUE," & q & "Notes" & q & ",TRUE,CType", \
+         "  put the result & tab after gHCScriptsTest", \
+         "  FieldToFile " & q & "card field 1" & q & ", " & q & "Old Disk:Gone:Field.txt" & q, \
+         "  put the result & tab after gHCScriptsTest", \
+         "  FileToField " & q & "card field 2" & q & ", " & q & ":Notes" & q, \
+         "  put the result & tab after gHCScriptsTest", \
+         "  FileToField " & q & "card field 2" & q & ", " & q & "No Such Text File" & q, \
+         "  put the result after gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   TestAssert "no stand-in is made for them", "WriteToFile" is not in it and "FileToField" is not in it
+   send "mouseUp" to button "Files" of card 1 of stack tStack
+   put gHCScriptsTest into tResults
+   set the itemDelimiter to tab
+   TestAssert "WriteToFile gives the file's path", item 1 of tResults is tFolder & "/Notes" and item 2 of tResults is tFolder & "/Notes"
+   TestAssert "WriteToFile writes, then appends", url ("file:" & tFolder & "/Notes") is "line one" & return & "line two"
+   TestAssert "FieldToFile: the file of that name in the stack's folder, where its own folder is not here", \
+         item 3 of tResults is tFolder & "/Field.txt" and url ("file:" & tFolder & "/Field.txt") is "from the field" & return & "second line"
+   TestAssert "FileToField reads the file into the field", \
+         item 4 of tResults is tFolder & "/Notes" and field "Target" of card 1 of stack tStack is "line one" & return & "line two"
+   TestAssert "FileToField of no such file: an error in the result", word 1 of item 5 of tResults is "Error:"
+   _Close tStack
+   delete file (tFolder & "/Notes")
+
+   -- from a disk image: a file the stack writes is beside its file here,
+   -- and read back from there; another is read from the image
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["file"] of stack tStack to tFolder & "/Main"
+   set the uHyperCard["image"] of stack tStack to TestGetInputFile("hypercard/forks/Stacks.dc42")
+   set the uHyperCard["imagepath"] of stack tStack to "Old Disk:Stacks:Synthetic Stack"
+   set the uHyperCard["externals"] of stack tStack to _Lines("XCMD" & tab & "WriteToFile", "XCMD" & tab & "FileToField")
+   set the defaultStack to tStack
+   create field "Target"
+   create button "Files"
+   set the script of button "Files" to _Lines("on mouseUp", "  global gHCScriptsTest", "  put empty into gHCScriptsTest", \
+         "  WriteToFile " & q & "saved" & q & ", true, " & q & "Notes" & q & ", false", \
+         "  put the result & tab after gHCScriptsTest", \
+         "  FileToField " & q & "card field 1" & q & ", " & q & "Notes" & q, \
+         "  put the result & tab & card field 1 & tab after gHCScriptsTest", \
+         "  FileToField " & q & "card field 1" & q & ", " & q & "Old Disk:Read Me" & q, \
+         "  put the result & tab & (card field 1 is not empty) after gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   send "mouseUp" to button "Files" of card 1 of stack tStack
+   put gHCScriptsTest into tResults
+   TestAssert "on an image: written beside the stack's file here", item 1 of tResults is tFolder & "/Notes"
+   TestAssert "on an image: what the stack wrote is read back", item 2 of tResults is tFolder & "/Notes" and item 3 of tResults is "saved"
+   TestAssert "on an image: a file of the image is read from it", item 4 of tResults is "Old Disk:Read Me" and item 5 of tResults is true
+   _Close tStack
+   delete file (tFolder & "/Notes")
+   delete file (tFolder & "/Field.txt")
+   delete folder tFolder
+end TestHyperCardScriptsTextFileExternals
+
+on TestHyperCardScriptsFileUtilities
+   -- the file and folder externals (52 stacks of the corpus call one:
+   -- DeleteFile, EraseFile, RenameFile, CopyFile, FileCopy, MoveFile,
+   -- CreateFolder, RemoveFolder, FileModDate, FileType, FileCreator,
+   -- GetDir): they do their work on the file a pathname names, from the
+   -- stack's folder; before, their stand-ins did nothing
+   local tStack, tFolder, q, r, tResults, tExternals, tName
+   global gHCScriptsTest
+   put quote into q
+   put the temporary folder & "/hcfiles" & the milliseconds into tFolder
+   create folder tFolder
+   put "abc" into url ("binfile:" & tFolder & "/a.txt")
+   put "HCFileUtilities" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["file"] of stack tStack to tFolder & "/Main"
+   repeat for each item tName in "DeleteFile,RenameFile,CopyFile,FileModDate,FileType,FileCreator,GetDir,MoveFile"
+      put "XFCN" & tab & tName & return after tExternals
+   end repeat
+   repeat for each item tName in "EraseFile,FileCopy,CreateFolder,RemoveFolder"
+      put "XCMD" & tab & tName & return after tExternals
+   end repeat
+   set the uHyperCard["externals"] of stack tStack to tExternals
+   set the defaultStack to tStack
+   create button "Files"
+   put "  put the result & tab after gHCScriptsTest" into r
+   set the script of button "Files" to _Lines("on mouseUp", "  global gHCScriptsTest", "  put empty into gHCScriptsTest", \
+         "  CreateFolder " & q & "Sub" & q, r, \
+         "  CreateFolder " & q & ":Sub:" & q, r, \
+         "  FileCopy " & q & "a.txt" & q & ", " & q & ":Sub" & q, r, \
+         "  put CopyFile(" & q & "a.txt" & q & ", " & q & "b.txt" & q & ") & tab after gHCScriptsTest", \
+         "  put CopyFile(" & q & "a.txt" & q & ", " & q & "b.txt" & q & ") & tab after gHCScriptsTest", \
+         "  put CopyFile(" & q & "a.txt" & q & ", " & q & "b.txt" & q & ", true) & tab after gHCScriptsTest", \
+         "  put RenameFile(" & q & "b.txt" & q & ", " & q & "c.txt" & q & ") & tab after gHCScriptsTest", \
+         "  put (FileModDate(" & q & "c.txt" & q & ", false) is a number) & tab after gHCScriptsTest", \
+         "  put FileModDate(" & q & "No Such File" & q & ", true) & tab after gHCScriptsTest", \
+         "  put FileType(" & q & "a.txt" & q & ") & FileType(" & q & "Sub" & q & ") & FileCreator(" & q & "a.txt" & q & ") & tab after gHCScriptsTest", \
+         "  put GetDir(empty, " & q & "A" & q & ") & tab after gHCScriptsTest", \
+         "  put GetDir(" & q & q & ", " & q & "F+" & q & ", " & q & "t=TEXT" & q & ", " & q & "n<>c.txt" & q & ") & tab after gHCScriptsTest", \
+         "  put GetDir(" & q & ":Sub" & q & ", " & q & "F" & q & ", " & q & "o=p" & q & ") & tab after gHCScriptsTest", \
+         "  put line 1 of GetDir(" & q & "Nowhere" & q & ", " & q & "F" & q & ") & tab after gHCScriptsTest", \
+         "end mouseUp")
+   create button "More"
+   set the script of button "More" to _Lines("on mouseUp", "  global gHCScriptsTest", "  put empty into gHCScriptsTest", \
+         "  put MoveFile(" & q & "c.txt" & q & ", " & q & ":Sub" & q & ") & tab after gHCScriptsTest", \
+         "  RemoveFolder " & q & "Sub" & q, r, \
+         "  put DeleteFile(" & q & "Sub" & q & ") & tab after gHCScriptsTest", \
+         "  put DeleteFile(" & q & ":Sub:a.txt" & q & ") & tab after gHCScriptsTest", \
+         "  EraseFile " & q & ":Sub:c.txt" & q, r, \
+         "  RemoveFolder " & q & ":Sub" & q, r, \
+         "  put DeleteFile(" & q & "No Such File" & q & ") & tab after gHCScriptsTest", \
+         "  put RenameFile(" & q & ":Missing:" & q & ", " & q & "Renamed" & q & ") & tab after gHCScriptsTest", \
+         "  put DeleteFile(" & q & ":Missing:a.txt" & q & ") & tab after gHCScriptsTest", \
+         "  put line 1 of GetDir(" & q & ":Missing:" & q & ") & tab after gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   TestAssert "no stand-in is made for them", "DeleteFile" is not in it and "EraseFile" is not in it and "GetDir" is not in it \
+         and "FileModDate" is not in it and "RemoveFolder" is not in it and "MoveFile" is not in it
+   send "mouseUp" to button "Files" of card 1 of stack tStack
+   put gHCScriptsTest into tResults
+   set the itemDelimiter to tab
+   TestAssert "CreateFolder makes the folder in the stack's folder", item 1 of tResults is empty and there is a folder (tFolder & "/Sub")
+   TestAssert "CreateFolder of a folder that is there: an error", word 1 of item 2 of tResults is "Error:"
+   TestAssert "FileCopy into a folder, with the file's name", item 3 of tResults is empty and url ("binfile:" & tFolder & "/Sub/a.txt") is "abc"
+   TestAssert "CopyFile to a file", item 4 of tResults is empty and url ("binfile:" & tFolder & "/c.txt") is "abc"
+   TestAssert "CopyFile onto a file that is there: an error, unless it is to replace it", word 1 of item 5 of tResults is "Error:" and item 6 of tResults is empty
+   TestAssert "RenameFile", item 7 of tResults is empty and there is a file (tFolder & "/c.txt") and there is not a file (tFolder & "/b.txt")
+   TestAssert "FileModDate in seconds; empty for no such file", item 8 of tResults is true and item 9 of tResults is empty
+   TestAssert "FileType and FileCreator of a text file here, none for a folder", item 10 of tResults is "TEXT????"
+   TestAssert "GetDir: folders, then files, by name", item 11 of tResults is _Lines("Sub", "a.txt", "c.txt")
+   TestAssert "GetDir: the files of every folder in it, of a type, leaving out a name", item 12 of tResults is _Lines("a.txt", "a.txt")
+   TestAssert "GetDir: whole paths", item 13 of tResults is tFolder & "/Sub/a.txt"
+   TestAssert "GetDir of no such folder: an error", word 1 of item 14 of tResults is "Error:"
+   send "mouseUp" to button "More" of card 1 of stack tStack
+   put gHCScriptsTest into tResults
+   TestAssert "MoveFile into a folder (where EraseFile then finds it)", item 1 of tResults is empty and there is not a file (tFolder & "/c.txt")
+   TestAssert "RemoveFolder leaves a folder with files in it; DeleteFile leaves a folder", \
+         word 1 of item 2 of tResults is "Error:" and word 1 of item 3 of tResults is "Error:"
+   TestAssert "DeleteFile and EraseFile delete the file, RemoveFolder the empty folder", \
+         item 4 of tResults is empty and item 5 of tResults is empty and item 6 of tResults is empty and there is not a folder (tFolder & "/Sub")
+   TestAssert "DeleteFile of no such file: an error", word 1 of item 7 of tResults is "Error:"
+   -- a folder named that is not there is not the stack's folder, which
+   -- Files and WriteToFile fall back to: nothing is renamed, deleted or
+   -- listed in it
+   TestAssert "a folder that is not there: RenameFile, DeleteFile and GetDir give an error", \
+         word 1 of item 8 of tResults is "Error:" and word 1 of item 9 of tResults is "Error:" and word 1 of item 10 of tResults is "Error:"
+   TestAssert "a folder that is not there: the stack's folder is not renamed", there is a folder tFolder and there is not a folder (the temporary folder & "/Renamed")
+   TestAssert "the file the stack did not name is still there", url ("binfile:" & tFolder & "/a.txt") is "abc"
+   _Close tStack
+
+   -- from a disk image: read from it, never written
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["file"] of stack tStack to tFolder & "/Main"
+   set the uHyperCard["image"] of stack tStack to TestGetInputFile("hypercard/forks/Stacks.dc42")
+   set the uHyperCard["imagepath"] of stack tStack to "Old Disk:Stacks:Synthetic Stack"
+   set the uHyperCard["externals"] of stack tStack to tExternals
+   set the defaultStack to tStack
+   create button "Files"
+   set the script of button "Files" to _Lines("on mouseUp", "  global gHCScriptsTest", "  put empty into gHCScriptsTest", \
+         "  put FileType(" & q & "Old Disk:Read Me" & q & ") && FileCreator(" & q & "Old Disk:Read Me" & q & ") & tab after gHCScriptsTest", \
+         "  put FileType(" & q & "Synthetic Stack" & q & ") & tab after gHCScriptsTest", \
+         "  put (FileModDate(" & q & "::Read Me" & q & ", true) is a number) & tab after gHCScriptsTest", \
+         "  put DeleteFile(" & q & "Old Disk:Read Me" & q & ") & tab after gHCScriptsTest", \
+         "  put CopyFile(" & q & "Old Disk:Read Me" & q & ", " & q & "Copy" & q & ") & tab after gHCScriptsTest", \
+         "  put GetDir(" & q & "Old Disk:" & q & ") & tab after gHCScriptsTest", \
+         "  put GetDir(" & q & "Old Disk:" & q & ", " & q & "a+" & q & ", " & q & "o=p" & q & ") & tab after gHCScriptsTest", \
+         "  put GetDir(empty, " & q & "F" & q & ", " & q & "t=STAK" & q & ") & tab after gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   send "mouseUp" to button "Files" of card 1 of stack tStack
+   put gHCScriptsTest into tResults
+   TestAssert "on an image: a file's type and creator as they were", item 1 of tResults is "TEXT ttxt" and item 2 of tResults is "STAK"
+   TestAssert "on an image: FileModDate finds the file, two folders up", item 3 of tResults is true
+   TestAssert "on an image: not deleted", word 1 of item 4 of tResults is "Error:"
+   TestAssert "on an image: copied out of it, here", item 5 of tResults is empty and url ("binfile:" & tFolder & "/Copy") is \
+         revHyperCardImageReadFork(TestGetInputFile("hypercard/forks/Stacks.dc42"), "Old Disk:Read Me", "data")
+   TestAssert "on an image: a folder's folders and files", item 6 of tResults is _Lines("Stacks", "Read Me")
+   TestAssert "on an image: every one inside it, by HFS path", item 7 of tResults is \
+         _Lines("Old Disk:Stacks:", "Old Disk:Stacks:More:", "Old Disk:Stacks:More:Lost Type", "Old Disk:Stacks:Synthetic Stack", "Old Disk:Read Me")
+   TestAssert "on an image: the stack's own folder, of a type", item 8 of tResults is "Synthetic Stack"
+   _Close tStack
+   delete file (tFolder & "/Copy")
+   delete file (tFolder & "/a.txt")
+   delete folder tFolder
+end TestHyperCardScriptsFileUtilities
+
+on TestHyperCardScriptsTextDialog
+   -- Jay Hodgdon's TextDialog (22 stacks of the corpus): a dialog of the
+   -- stack's TEXT resources as screens, opened at the one asked for,
+   -- with buttons to the next and previous ones; the script waits until
+   -- it is closed. Before, its stand-in did nothing
+   local tStack, tFolder, q
+   global gHCScriptsTest, gHCTextDialogSeen
+   put quote into q
+   put the temporary folder & "/hcdialog" & the milliseconds into tFolder
+   create folder tFolder
+   put url ("binfile:" & TestGetInputFile("hypercard/forks/Texts.macbinary")) into url ("binfile:" & tFolder & "/Texts")
+   put "HCHelpScreens" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["file"] of stack tStack to tFolder & "/Texts"
+   set the uHyperCard["externals"] of stack tStack to "XCMD" & tab & "TextDialog"
+   set the defaultStack to tStack
+   create button "Help"
+   set the script of button "Help" to _Lines("on mouseUp pFirst", "  global gHCScriptsTest", \
+         "  TextDialog 1100,Geneva,9," & q & "128,129,500" & q & ",pFirst", \
+         "  put the result & " & q & "|" & q & " & the short name of this stack into gHCScriptsTest", "end mouseUp")
+   create button "None"
+   set the script of button "None" to _Lines("on mouseUp", "  global gHCScriptsTest", \
+         "  TextDialog 1100,Geneva,9," & q & "500,501" & q & ",1", "  put the result into gHCScriptsTest", "end mouseUp")
+   create button "Quiet"
+   set the script of button "Quiet" to _Lines("on mouseUp", "  global gHCScriptsTest", "  lock messages", \
+         "  TextDialog 1100,Geneva,9," & q & "128" & q & ",1", "  put the lockMessages into gHCScriptsTest", "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   TestAssert "no stand-in is made for it", "TextDialog" is not in it
+
+   put empty into gHCTextDialogSeen
+   send "HCTextDialogPeek" to me in 200 milliseconds
+   send "mouseUp 2" to button "Help" of card 1 of stack tStack
+   -- (where modal does not wait, as the tests may run, the dialog is
+   -- still open, and is looked at now)
+   if gHCTextDialogSeen is empty and there is a stack "HyperCard TextDialog" then HCTextDialogPeek
+   set the itemDelimiter to "|"
+   TestAssert "it opens at the screen asked for, in the font asked for", item 1 of gHCTextDialogSeen is "a[1]b" & tab & "c" & numToCodepoint(127) & "d" \
+         and item 2 of gHCTextDialogSeen is "Screen 2 of 3" and item 3 of gHCTextDialogSeen is "Geneva"
+   TestAssert "Previous goes to the screen before it", item 4 of gHCTextDialogSeen begins with "From fairest creatures" and item 5 of gHCTextDialogSeen is "Screen 1 of 3"
+   TestAssert "a screen whose resource is not there is empty", item 6 of gHCTextDialogSeen is empty and item 7 of gHCTextDialogSeen is "Screen 3 of 3"
+   TestAssert "the dialog is shown", item 8 of gHCTextDialogSeen is true
+   TestAssert "the script goes on once OK closes it, with its own stack the default", \
+         gHCScriptsTest is "|" & tStack and there is not a stack "HyperCard TextDialog"
+   send "mouseUp" to button "None" of card 1 of stack tStack
+   TestAssert "no screen there: an error in the result, no dialog", gHCScriptsTest is "Error: no text screens"
+   put empty into gHCScriptsTest
+   send "HCTextDialogDismiss" to me in 200 milliseconds
+   send "mouseUp" to button "Quiet" of card 1 of stack tStack
+   if there is a stack "HyperCard TextDialog" then HCTextDialogDismiss
+   TestAssert "messages locked by the caller stay locked", gHCScriptsTest is true
+   _Close tStack
+   delete file (tFolder & "/Texts")
+   delete folder tFolder
+end TestHyperCardScriptsTextDialog
+
+-- Closes TextDialog's dialog, if it is open, by its OK button
+on HCTextDialogDismiss
+   if there is a stack "HyperCard TextDialog" then send "mouseUp" to button "OK" of stack "HyperCard TextDialog"
+end HCTextDialogDismiss
+
+-- What TextDialog's dialog shows: the screen, then the previous one,
+-- then the last (by Next twice), each its text and its "Screen n of m"; then OK
+on HCTextDialogPeek
+   global gHCTextDialogSeen
+   local tDialog
+   if there is not a stack "HyperCard TextDialog" then exit HCTextDialogPeek
+   put the long id of stack "HyperCard TextDialog" into tDialog
+   put field "Text" of tDialog & "|" & field "Screen" of tDialog & "|" & the textFont of field "Text" of tDialog into gHCTextDialogSeen
+   send "mouseUp" to button "Previous" of tDialog
+   put "|" & field "Text" of tDialog & "|" & field "Screen" of tDialog after gHCTextDialogSeen
+   send "mouseUp" to button "Next" of tDialog
+   send "mouseUp" to button "Next" of tDialog
+   put "|" & field "Text" of tDialog & "|" & field "Screen" of tDialog after gHCTextDialogSeen
+   put "|" & the visible of tDialog after gHCTextDialogSeen
+   send "mouseUp" to button "OK" of tDialog
+end HCTextDialogPeek
+
+on TestHyperCardScriptsTextoid
+   -- Frederic Rinaldi's Textoid (23 stacks of the corpus): a window of
+   -- text, its parameters after the text known by what they are; the
+   -- text the value given or the container it names; openTextoid and
+   -- closeTextoid to the card. Before, its stand-in did nothing
+   local tStack, q, tWindow
+   global gHCScriptsTest
+   put quote into q
+   put "HCNoteWindows" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["externals"] of stack tStack to "XCMD" & tab & "Textoid"
+   set the defaultStack to tStack
+   create field "Info"
+   put "hello" & return & "there" into field "Info"
+   create button "Show"
+   set the script of button "Show" to _Lines("on mouseUp", \
+         "  Textoid " & q & "Notes" & q & ", " & q & "card field 1" & q & ", " & q & "Geneva" & q & ", 12, " & q & "7,43,207,143" & q & ", " & q & "red,blue" & q & ", " & q & "center" & q & ", false, " & q & "BigWindoidZoom" & q, \
+         "end mouseUp")
+   create button "Again"
+   set the script of button "Again" to _Lines("on mouseUp", "  Textoid " & q & "Notes" & q & ", " & q & "second text" & q, "end mouseUp")
+   create button "Grey"
+   set the script of button "Grey" to _Lines("on mouseUp", "  Textoid " & q & "Grey Notes" & q & ", " & q & "x" & q & ", " & q & "60000 60000 60000,0 0 65535" & q & ", " & q & "91,69" & q, "end mouseUp")
+   create button "Locked"
+   set the script of button "Locked" to _Lines("on mouseUp", "  global gHCScriptsTest", "  lock messages", \
+         "  Textoid " & q & "Quiet Notes" & q & ", " & q & "x" & q, "  put the lockMessages into gHCScriptsTest", "end mouseUp")
+   set the script of card 1 of stack tStack to _Lines("on openTextoid pName, pId", "  global gHCScriptsTest", \
+         "  put " & q & "open " & q & " & pName & " & q & "|" & q & " after gHCScriptsTest", "end openTextoid", \
+         "on closeTextoid pName, pId", "  global gHCScriptsTest", \
+         "  put " & q & "close " & q & " & pName & " & q & "|" & q & " after gHCScriptsTest", "end closeTextoid")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   TestAssert "no stand-in is made for it", "Textoid" is not in it
+
+   put empty into gHCScriptsTest
+   send "mouseUp" to button "Show" of card 1 of stack tStack
+   put the long id of stack "Notes" into tWindow
+   TestAssert "a window of that name and title, as scripts address it", there is a stack "Notes" and the title of tWindow is "Notes"
+   TestAssert "the text of the container it names", field "Text" of tWindow is "hello" & return & "there"
+   TestAssert "font, size, alignment, no wrap", the textFont of field "Text" of tWindow is "Geneva" and the textSize of field "Text" of tWindow is 12 \
+         and the textAlign of field "Text" of tWindow is "center" and the dontWrap of field "Text" of tWindow
+   TestAssert "the text's colour and the background's", the textColor of field "Text" of tWindow is "red" and the backgroundColor of field "Text" of tWindow is "blue"
+   TestAssert "its rect", the rect of tWindow is "7,43,207,143"
+   TestAssert "the window is shown, a palette", the visible of tWindow and the mode of tWindow is 4
+   TestAssert "openTextoid to the card", gHCScriptsTest is "open Notes|"
+   send "mouseUp" to button "Again" of card 1 of stack tStack
+   TestAssert "the same window again: the new text, opened once", field "Text" of tWindow is "second text" and gHCScriptsTest is "open Notes|"
+   close tWindow
+   TestAssert "closeTextoid to the card", gHCScriptsTest is "open Notes|close Notes|"
+   send "mouseUp" to button "Grey" of card 1 of stack tStack
+   TestAssert "colours in 16 bits; a place", the textColor of field "Text" of stack "Grey Notes" is "233,233,233" \
+         and the backgroundColor of field "Text" of stack "Grey Notes" is "0,0,255" and the topLeft of stack "Grey Notes" is "91,69"
+   _Close "Grey Notes"
+   put empty into gHCScriptsTest
+   send "mouseUp" to button "Locked" of card 1 of stack tStack
+   TestAssert "messages locked by the caller stay locked", gHCScriptsTest is true
+   _Close "Quiet Notes"
+   -- beside a stack of the name that is no such window, its own
+   send "mouseUp" to button "Again" of card 1 of stack tStack
+   _Close "Notes"
+   lock messages
+   create invisible stack "Notes"
+   unlock messages
+   send "mouseUp" to button "Again" of card 1 of stack tStack
+   TestAssert "a stack of the name that is not its window is left alone", there is not a field "Text" of stack "Notes" \
+         and field "Text" of stack "Textoid Notes" is "second text"
+   _Close "Textoid Notes"
+   -- beside stacks of both names that are no such windows, a name of its own
+   lock messages
+   create invisible stack "Textoid Notes"
+   unlock messages
+   send "mouseUp" to button "Again" of card 1 of stack tStack
+   TestAssert "neither stack of those names is touched", there is not a field "Text" of stack "Notes" \
+         and there is not a field "Text" of stack "Textoid Notes" and the title of stack "Textoid Notes" is empty \
+         and field "Text" of stack "Textoid Notes 2" is "second text" and the title of stack "Textoid Notes 2" is "Notes"
+   _Close "Textoid Notes 2"
+   _Close "Textoid Notes"
+   _Close "Notes"
+   _Close tStack
+end TestHyperCardScriptsTextoid
+
+on TestHyperCardScriptsListoid
+   -- Frederic Rinaldi's Listoid and Tabloid (11 and 7 stacks of the
+   -- corpus): a window of a list, its parameters after the list known by
+   -- what they are; ListoidSelect (TabloidSelect) with the line and the
+   -- window's name as a line is clicked, closeListoid as it closes.
+   -- Before, their stand-ins did nothing
+   local tStack, q, tWindow
+   global gHCScriptsTest
+   put quote into q
+   put "HCListWindows" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["externals"] of stack tStack to _Lines("XCMD" & tab & "Listoid", "XCMD" & tab & "Tabloid")
+   set the defaultStack to tStack
+   create field "Entries"
+   put "apple" & tab & "1" & return & "pear" & tab & "22" into field "Entries"
+   create button "Show"
+   set the script of button "Show" to _Lines("on mouseUp", \
+         "  Listoid " & q & "Index" & q & ", " & q & "card field 1" & q & ", " & q & "Geneva,9" & q & ", " & q & "10,40,250,190" & q & ", " & q & "zoom" & q & ", " & q & "Click a line to go there" & q & ", " & q & "black,cyan" & q, \
+         "end mouseUp")
+   create button "Table"
+   set the script of button "Table" to _Lines("on mouseUp", "  Tabloid " & q & "Keywords" & q & ", card field 1, " & q & "100,100" & q & ", " & q & "0 0" & q, "end mouseUp")
+   create button "Locked"
+   set the script of button "Locked" to _Lines("on mouseUp", "  global gHCScriptsTest", "  lock messages", \
+         "  Tabloid " & q & "Large" & q & ", card field 1, " & q & "Geneva,36" & q, \
+         "  put the lockMessages into gHCScriptsTest", "end mouseUp")
+   create field "Measure"
+   set the textFont of field "Measure" to "Geneva"
+   set the textSize of field "Measure" to 36
+   put "apple" & return & "pear" into field "Measure"
+   set the script of card 1 of stack tStack to _Lines("on ListoidSelect pWhat, pWhere", "  global gHCScriptsTest", \
+         "  put " & q & "select " & q & " & pWhat & " & q & "/" & q & " & pWhere & " & q & "|" & q & " after gHCScriptsTest", "end ListoidSelect", \
+         "on openListoid pName, pId", "  global gHCScriptsTest", \
+         "  put " & q & "open " & q & " & pName & " & q & "|" & q & " after gHCScriptsTest", "end openListoid", \
+         "on closeListoid pName", "  global gHCScriptsTest", \
+         "  put " & q & "close " & q & " & pName & " & q & "|" & q & " after gHCScriptsTest", "end closeListoid", \
+         "on TabloidSelect pWhat, pWhere", "  global gHCScriptsTest", \
+         "  put " & q & "tselect " & q & " & pWhat & " & q & "/" & q & " & pWhere & " & q & "|" & q & " after gHCScriptsTest", "end TabloidSelect")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   TestAssert "no stand-in is made for them", "Listoid" is not in it and "Tabloid" is not in it
+
+   put empty into gHCScriptsTest
+   send "mouseUp" to button "Show" of card 1 of stack tStack
+   put the long id of stack "Index" into tWindow
+   TestAssert "a window of that name and title, shown, a palette", the title of tWindow is "Index" and the visible of tWindow and the mode of tWindow is 4
+   TestAssert "the list of the container it names", field "List" of tWindow is "apple" & tab & "1" & return & "pear" & tab & "22"
+   TestAssert "font and size, colours, rect, prompt", the textFont of field "List" of tWindow is "Geneva" and the textSize of field "List" of tWindow is 9 \
+         and the textColor of field "List" of tWindow is "black" and the backgroundColor of field "List" of tWindow is "cyan" \
+         and the rect of tWindow is "10,40,250,190" and field "Prompt" of tWindow is "Click a line to go there"
+   TestAssert "openListoid to the card", gHCScriptsTest is "open Index|"
+   set the hilitedLine of field "List" of tWindow to 2
+   send "mouseUp" to field "List" of tWindow
+   TestAssert "a line clicked: ListoidSelect with the line and the window's name", gHCScriptsTest is "open Index|select pear" & tab & "22/Index|"
+   close tWindow
+   TestAssert "closeListoid to the card", gHCScriptsTest ends with "|close Index|"
+   TestAssert "the window is closed", "Index" is not among the lines of the openStacks
+
+   put empty into gHCScriptsTest
+   send "mouseUp" to button "Table" of card 1 of stack tStack
+   put the long id of stack "Keywords" into tWindow
+   TestAssert "Tabloid: the list in columns at its tabs, at the place", field "List" of tWindow is field "Entries" of card 1 of stack tStack \
+         and the tabStops of field "List" of tWindow is not empty and the topLeft of tWindow is "100,100"
+   set the hilitedLine of field "List" of tWindow to 1
+   send "mouseUp" to field "List" of tWindow
+   TestAssert "Tabloid: TabloidSelect", gHCScriptsTest is "tselect apple" & tab & "1/Keywords|"
+   _Close "Keywords"
+
+   -- called with messages locked, it leaves them locked; its columns as
+   -- wide as their cells are in the font and size asked for
+   put empty into gHCScriptsTest
+   send "mouseUp" to button "Locked" of card 1 of stack tStack
+   put the long id of stack "Large" into tWindow
+   TestAssert "messages locked by the caller stay locked", gHCScriptsTest is true
+   TestAssert "Tabloid: a column as wide as its widest cell in its font and size", \
+         item 1 of the tabStops of field "List" of tWindow >= the formattedWidth of field "Measure" of card 1 of stack tStack
+   _Close "Large"
+   _Close tStack
+end TestHyperCardScriptsListoid
+
+on TestHyperCardScriptsAlerts
+   -- the Alert XCMD and PopAlert XFCN (9 and 3 stacks of the corpus): an
+   -- alert of the text, with OK, and with Cancel too where PopAlert asks;
+   -- the button clicked, by name or by number. Before, their stand-ins
+   -- did nothing
+   local tStack, q, tResults
+   global gHCScriptsTest, gHCScriptsSeen
+   put quote into q
+   if there is a stack "Answer Dialog" then
+      TestSkip "Alert and PopAlert", "an Answer Dialog stack is already open"
+      exit TestHyperCardScriptsAlerts
+   end if
+   put "HCWarnings" & the milliseconds into tStack
+   lock messages
+   -- (answer opens the stack of this name: here one that keeps what it
+   -- was asked to show, and answers with its last button)
+   create invisible stack "Answer Dialog"
+   set the script of stack "Answer Dialog" to _Lines("on openStack", "  global gHCScriptsSeen", \
+         "  put the dialogData & numToChar(1) after gHCScriptsSeen", \
+         "  set the itemDelimiter to numToChar(0)", \
+         "  put item -2 of the dialogData into tButtons", \
+         "  set the dialogData to line -1 of tButtons", "  close this stack", "end openStack")
+   create invisible stack tStack
+   set the uHyperCard["externals"] of stack tStack to _Lines("XCMD" & tab & "Alert", "XFCN" & tab & "PopAlert")
+   set the defaultStack to tStack
+   create button "Alerts"
+   set the script of button "Alerts" to _Lines("on mouseUp", "  global gHCScriptsTest", "  put empty into gHCScriptsTest", \
+         "  Alert 2,1," & q & "Installation Complete" & q, \
+         "  put the result & tab after gHCScriptsTest", \
+         "  put PopAlert(3,0," & q & "CAUTION" & q & "," & q & "Do you really want to delete this card ?" & q & ") & tab after gHCScriptsTest", \
+         "  put PopAlert(1,0," & q & "Your stack is large" & q & ") after gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   TestAssert "no stand-in is made for them", "Alert" is not in it
+   put empty into gHCScriptsSeen
+   send "mouseUp" to button "Alerts" of card 1 of stack tStack
+   put gHCScriptsTest into tResults
+   set the itemDelimiter to tab
+   TestAssert "Alert: the text, with OK, which is the result", "Installation Complete" is in item 1 of gHCScriptsSeen and item 1 of tResults is "OK"
+   TestAssert "PopAlert that asks: OK and Cancel, the number of the one clicked", item 2 of tResults is 2
+   TestAssert "PopAlert with the text alone: OK", item 3 of tResults is 1
+   set the itemDelimiter to numToChar(1)
+   TestAssert "the texts shown", "Do you really want to delete this card ?" is in item 2 of gHCScriptsSeen and "Your stack is large" is in item 3 of gHCScriptsSeen
+   _Close tStack
+   _Close "Answer Dialog"
+end TestHyperCardScriptsAlerts
+
+on TestHyperCardScriptsDispPICT
+   -- DispPICT (10 stacks of the corpus): a window of the stack's PICT
+   -- resource of that name or id, which a click closes; FullHPop (13) and
+   -- PopList (3): popup menus, whose choice FullHPop gives as "line,,n".
+   -- Before, their stand-ins did nothing
+   local tStack, q, tResults
+   global gHCScriptsTest
+   put quote into q
+   put "HCPictures" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["externals"] of stack tStack to _Lines("XCMD" & tab & "DispPICT", "XFCN" & tab & "FullHPop", "XFCN" & tab & "PopList")
+   set the defaultStack to tStack
+   create background "HC Pictures"
+   create image "Bridge" in background "HC Pictures"
+   set the width of image "Bridge" to 40
+   set the height of image "Bridge" to 30
+   create image "PICT 128" in background "HC Pictures"
+   set the width of image "PICT 128" to 20
+   set the height of image "PICT 128" to 10
+   create button "Show"
+   set the script of button "Show" to _Lines("on mouseUp", "  global gHCScriptsTest", "  put empty into gHCScriptsTest", \
+         "  DispPICT " & q & "Bridge" & q & ",1,1", "  put the result & tab after gHCScriptsTest", \
+         "  DispPICT 128", "  put the result & tab after gHCScriptsTest", \
+         "  DispPICT " & q & "Nothing" & q, "  put the result after gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   TestAssert "no stand-in is made for them", "DispPICT" is not in it and "FullHPop" is not in it and "PopList" is not in it
+   send "mouseUp" to button "Show" of card 1 of stack tStack
+   put gHCScriptsTest into tResults
+   set the itemDelimiter to tab
+   TestAssert "a window of the picture of that name, shown", item 1 of tResults is empty and there is a stack "Bridge" \
+         and the visible of stack "Bridge" and "Bridge" is among the lines of the openStacks
+   TestAssert "a window of the picture of that id", item 2 of tResults is empty and there is a stack "PICT 128"
+   TestAssert "no such picture: the result says so", item 3 of tResults is not empty and there is not a stack "Nothing"
+   send "mouseUp" to card 1 of stack "Bridge"
+   TestAssert "a click closes the window", "Bridge" is not among the lines of the openStacks
+   _Close "PICT 128"
+   _Close "Bridge"
+   TestAssert "FullHPop's choice: the line, no submenu choice, its number", \
+         value("hcFullHPopChoice(" & quote & "Add" & quote & " & return & " & quote & "Remove" & quote & ", " & quote & "Remove" & quote & ")", card 1 of stack tStack) is "Remove,,2"
+   TestAssert "FullHPop's choice: none", value("hcFullHPopChoice(" & quote & "Add" & quote & ", empty)", card 1 of stack tStack) is empty
+   _Close tStack
+end TestHyperCardScriptsDispPICT
+
 on TestHyperCardScriptsImported
    -- a stack the engine imports: every script compiles afterwards, and
    -- one that compiled is unchanged
@@ -7055,3 +7600,131 @@ on TestHyperCardScriptsT78
          "  put Upper(" & q & "ab" & q & ") into y")
    _Close tStack
 end TestHyperCardScriptsT78
+
+on TestHyperCardScriptsT79
+   -- T79: the forms the dp.1 sweep (2026-11-13) still found in the
+   -- handlers it left out whole, in scripts that do not compile
+   local tScript, q, tStack, tError, tWas
+   global gHCScriptsTest
+   put quote into q
+   put _Rewrite("on mouseUp", \
+         "  if afield is contained in " & q & "Methods Repository" & q & " then beep", \
+         "  if afield is not contained in " & q & "abc" & q & " then beep", \
+         "  IF hcUserLevel() is < 5 then set userlevel to 5", \
+         "  if hc_num>71and hc_num<110 then go to card hc_num - 31", \
+         "  if this is the first card then beep", \
+         "  if this is not the last card then beep", \
+         "  if the short target is " & q & "New X" & q & " then beep", \
+         "  if cantPeek of this stack is false then set cantPeek of this stack to true", \
+         "  if the cantModify is not true then set the userModify to false", \
+         "  repeat while the number of lines in assoc > 1 do", \
+         "  end repeat", \
+         "  repeat for i = 1 to the number of lines of theText", \
+         "  end repeat", \
+         "  wait until (the seconds = t+10) or (the mouseLoc <>\ startLoc)", \
+         "  if appName is not in the programs then beep", \
+         "  if there is not a program user then beep", \
+         "  if there is a movie RealMovieName then close movie RealMovieName", \
+         "  repeat with moov = 1 to the number of movies", \
+         "  end repeat", \
+         "  if the version of QuickTime < 2.5 then beep", \
+         "end mouseUp") into tScript
+   TestAssert "T79: is contained in", line 2 of tScript is "  if afield is in " & q & "Methods Repository" & q & " then beep"
+   TestAssert "T79: is not contained in", line 3 of tScript is "  if afield is not in " & q & "abc" & q & " then beep"
+   TestAssert "T79: is before a comparison", line 4 of tScript is "  IF hcUserLevel() < 5 then set userlevel to 5"
+   TestAssert "T79: a number run into and", line 5 of tScript is "  if hc_num>71 and hc_num<110 then go to card hc_num - 31"
+   TestAssert "T79: this is the first card", line 6 of tScript is "  if the number of this card is 1 then beep"
+   TestAssert "T79: this is not the last card", line 7 of tScript is "  if the number of this card is not the number of cards then beep"
+   TestAssert "T79: the short target", line 8 of tScript is "  if the short name of the target is " & q & "New X" & q & " then beep"
+   TestAssert "T79: cantPeek without the", line 9 of tScript is "  if the cantPeek of this stack is false then set cantPeek of this stack to true"
+   TestAssert "T79: the cantModify without the stack", line 10 of tScript is "  if the cantModify of this stack is not true then set the userModify to false"
+   TestAssert "T79: repeat while ... do", line 11 of tScript is "  repeat while the number of lines in assoc > 1"
+   TestAssert "T79: repeat for i =", line 13 of tScript is "  repeat with i = 1 to the number of lines of theText"
+   TestAssert "T79: a \ inside a line", line 15 of tScript is "  wait until (the seconds = t+10) or (the mouseLoc <> startLoc)"
+   TestAssert "T79: the programs", line 16 of tScript is "  if appName is not in hcPrograms() then beep"
+   TestAssert "T79: there is not a program", line 17 of tScript is "  if not hcIsProgram(user) then beep"
+   TestAssert "T79: there is a movie", line 18 of tScript begins with "  if hcIsMovie(RealMovieName) then "
+   TestAssert "T79: the number of movies", line 19 of tScript is "  repeat with moov = 1 to hcMovieCount()"
+   TestAssert "T79: the version of QuickTime", line 21 of tScript is "  if hcQuickTimeVersion() < 2.5 then beep"
+
+   put _Rewrite("on mouseUp", \
+         "  if hilite of bg btn " & q & "Tone" & q & " is true", \
+         "  then dial " & q & "ATDT" & q & " & field " & q & "HPhone" & q & " with modem else", \
+         "  beep", \
+         "end mouseUp") into tScript
+   TestAssert "T79: dial with modem after then, the else kept", \
+         line 3 of tScript is "  then hcDial " & q & "ATDT" & q & " & field " & q & "HPhone" & q & ", empty else"
+
+   -- the words in strings and comments, and forms that are something
+   -- else, left as they are
+   put _Rewrite("on mouseUp", \
+         "  put " & q & "this is the first card, the programs" & q & " into x -- is contained in", \
+         "  put the number of this card into n", \
+         "  if x is in y then beep", \
+         "  if x is not empty then beep", \
+         "  repeat for each line tLine in x", \
+         "  end repeat", \
+         "  repeat while x do", \
+         "  end repeat", \
+         "  put the short name of the target into t", \
+         "  set cantModify of this stack to false", \
+         "  put 3 into y -- 71and", \
+         "end mouseUp") into tScript
+   TestAssert "T79: other forms unchanged", line 2 to 12 of tScript is _Lines( \
+         "  put " & q & "this is the first card, the programs" & q & " into x -- is contained in", \
+         "  put the number of this card into n", \
+         "  if x is in y then beep", \
+         "  if x is not empty then beep", \
+         "  repeat for each line tLine in x", \
+         "  end repeat", \
+         "  repeat while x", \
+         "  end repeat", \
+         "  put the short name of the target into t", \
+         "  set cantModify of this stack to false", \
+         "  put 3 into y -- 71and")
+
+   -- a script that compiles as it is: none of these
+   put "HCScriptsT79" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   create button "Compiles"
+   put _Lines("on mouseUp", "  if cantModify of this stack is true then beep", \
+         "  put " & q & "there is a movie m, the number of movies" & q & " into x", \
+         "  repeat with i = 1 to 3", "  end repeat", "end mouseUp") into tWas
+   set the script of button "Compiles" to tWas
+   -- (as the engine keeps it)
+   put the script of button "Compiles" into tWas
+   create card
+   create card
+   go to card 1
+   create button "Forms"
+   set the script of button "Forms" to _Lines("on mouseUp", "  global gHCScriptsTest", \
+         "  put empty into gHCScriptsTest", \
+         "  if this is the first card then put " & q & "first" & q & " after gHCScriptsTest", \
+         "  if this is the last card then put " & q & ",last" & q & " after gHCScriptsTest", \
+         "  put 72 into n", \
+         "  if n>71and n<110 then put " & q & ",between" & q & " after gHCScriptsTest", \
+         "  if n is contained in " & q & "1720" & q & " then put " & q & ",in" & q & " after gHCScriptsTest", \
+         "  if n is > 5 then put " & q & ",more" & q & " after gHCScriptsTest", \
+         "  if there is a movie " & q & "Demo" & q & " then put " & q & ",movie" & q & " after gHCScriptsTest", \
+         "  if there is not a program " & q & "Finder" & q & " then put " & q & ",noprogram" & q & " after gHCScriptsTest", \
+         "  put comma & the number of movies & comma & (the programs is empty) after gHCScriptsTest", \
+         "  put comma & the version of QuickTime after gHCScriptsTest", \
+         "  repeat for i = 1 to 2", \
+         "    put comma & i after gHCScriptsTest", \
+         "  end repeat", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   TestAssert "T79: a script that compiles, unchanged", the script of button "Compiles" of stack tStack is tWas
+   put empty into tError
+   try
+      send "mouseUp" to button "Forms" of stack tStack
+   catch tError
+   end try
+   TestAssert "T79: the forms run, on the first card of three", tError is empty \
+         and gHCScriptsTest is "first,between,in,more,noprogram,0,true,0,1,2"
+   TestAssert "T79: no handler left out", revHyperCardLeftOutHandlers() is empty
+   _Close tStack
+end TestHyperCardScriptsT79

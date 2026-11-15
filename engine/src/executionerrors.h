@@ -2796,7 +2796,13 @@ enum Exec_errors
     EE_ARRAYLITERAL_BADKEY,
 
     // {EE-0916} array literal: error in value expression
-    EE_ARRAYLITERAL_BADVALUE
+    EE_ARRAYLITERAL_BADVALUE,
+
+    // {EE-0917} frameDurations: each line must be empty or a whole number of milliseconds
+    EE_IMAGE_BADFRAMEDURATIONS,
+
+    // {EE-0918} playRate: must be a number greater than 0
+    EE_IMAGE_BADPLAYRATE
     
 };
 

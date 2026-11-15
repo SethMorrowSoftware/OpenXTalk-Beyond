@@ -1,0 +1,82 @@
+Name: frameDurations
+
+Type: property
+
+Syntax: set the frameDurations of <image> to <durationsList>
+
+Syntax: get the frameDurations of <image>
+
+Summary:
+Specifies how long each frame of an <animated GIF> <image> stays on
+screen.
+
+Associations: image
+
+Introduced: 9.7.1
+
+OS: mac, windows, linux, android
+
+Platforms: desktop, server, mobile
+
+Example:
+put the frameDurations of image "Walk" -- 100, 100, 100 and 200, one a line
+
+Example:
+-- every frame of a sprite at 80 milliseconds
+local tDurations
+repeat the frameCount of image "Demon"
+   put 80 & return after tDurations
+end repeat
+set the frameDurations of image "Demon" to tDurations
+
+Example:
+set the frameDurations of image "Spin" to empty -- back to the GIF's own
+
+Value:
+The <frameDurations> of an <image> is a list of whole numbers of
+milliseconds, one per <line>, a line for each frame of the <animated
+GIF>, starting with the first. It is empty for an <image> that is not
+animated.
+
+Description:
+Use the <frameDurations> <property> to read the delays an <animated GIF>
+was made with, or to give its frames delays of your own.
+
+Each frame of an animated GIF has a delay of its own, in hundredths of a
+second, and an <image> shows each frame for that long. The
+<frameDurations> gives those delays in milliseconds: a GIF frame with a
+delay of 10 has a duration of 100.
+
+Set the <frameDurations> to a duration for each frame. A fraction is
+rounded to the nearest millisecond. An empty <line> leaves that frame
+with the GIF's own delay, and so do the frames after the last line of the
+list; lines past the last frame are ignored. Set the <frameDurations> to
+empty to give every frame its GIF's own delay again. Setting it to
+anything that is not a list of numbers of 0 or more causes an error.
+
+The new durations take effect when the next frame comes up, while the
+<image> is animating. The <playRate> of the <image> then divides each of
+them: the <frameDurations> itself does not change with the <playRate>.
+
+The <frameDurations> is not saved with the <stack>, and it is not one of
+the <properties> of an <image>. Set it in a <preOpenCard> or
+<openCard> <handler>, for example, to have it whenever the <stack> is
+opened. A <clone> of the <image> has the same setting; an <image> pasted
+from the clipboard does not, as it is made from the <image> as it would
+be saved. Without
+it, an <animated GIF> plays at the pace of its own delays, as it always
+has.
+
+A frame with a duration of 0 shows only until the engine next has time
+for the animation, which many GIF makers write for "as fast as possible"
+and web browsers show at about 100 milliseconds. To play such a GIF at a
+browser's pace, set the durations of those frames to 100.
+
+References: property (glossary), animated GIF (glossary),
+image (keyword), line (keyword), stack (object), properties (property),
+playRate (property), repeatCount (property), currentFrame (property),
+frameCount (property), palindromeFrames (property), clone (command),
+paste (command),
+preOpenCard (message), openCard (message), handler (glossary)
+
+Tags: multimedia

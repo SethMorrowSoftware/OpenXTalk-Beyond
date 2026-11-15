@@ -12,7 +12,12 @@
 			'mac_bundle': 1,
 			'product_prefix': '',
 			'product_name': 'revbrowser',
-			
+
+			# CEF 156's headers need C++20, which the engine's MSVC v141 has
+			# not: on Windows the CEF code is built with v143, which links
+			# the v141 libraries it needs (libbrowser_cef_dll.h)
+			'msbuild_toolset': 'v143',
+
 			'dependencies':
 			[
 				'../libcore/libcore.gyp:libCore',
@@ -22,6 +27,9 @@
 			'include_dirs':
 			[
 				'src',
+				# libbrowser_cef_source.h: htmltext without LoadString,
+				# shared with the browser widget
+				'../libbrowser/src',
 			],
 			
 			'sources':
@@ -48,6 +56,18 @@
 			'target_conditions':
 			[
 				# Only supported on OSX, Windows and Linux
+				[
+					# CEF 156's headers need C++20 (tools/cxx_by_std.sh: the
+					# build's GCC 9 has none, GCC 10 compiles these). Last on the
+					# command line, so it wins over the engine's -std=c++11.
+					'toolset_os == "linux" and toolset_arch == "x86_64"',
+					{
+						'cflags_cc':
+						[
+							'-std=c++20',
+						],
+					},
+				],
 				[
 					'not toolset_os in ("mac", "win", "linux")',
 					{
@@ -186,6 +206,7 @@
 				'VCCLCompilerTool':
 				{
 					'ExceptionHandling': '1',	# /EHsc
+					'AdditionalOptions': ['/std:c++20', '/Zc:__cplusplus'],
 				},	
 			},
 			
@@ -208,10 +229,23 @@
 						'target_name': 'revbrowser-cefprocess',
 						'type': 'executable',
 						'product_name': 'revbrowser-cefprocess',
+						'msbuild_toolset': 'v143',
 			
 						# Windows and Linux only
 						'target_conditions':
 						[
+							[
+								# CEF 156's headers need C++20 (tools/cxx_by_std.sh: the
+								# build's GCC 9 has none, GCC 10 compiles these). Last on the
+								# command line, so it wins over the engine's -std=c++11.
+								'toolset_os == "linux" and toolset_arch == "x86_64"',
+								{
+									'cflags_cc':
+									[
+										'-std=c++20',
+									],
+								},
+							],
 							[
 								'not toolset_os in ("win", "linux") or (toolset_os == "linux" and not toolset_arch == "x86_64")',
 								{
@@ -224,7 +258,9 @@
 								{	
 									'library_dirs':
 									[
-										'../prebuilt/unpacked/cef/<(uniform_arch)-win32-$(PlatformToolset)_static_$(ConfigurationName)/lib/CEF/',
+										# The prebuilt archives are named for the engine's v141;
+										# CEF's import library suits any toolset
+										'../prebuilt/unpacked/cef/<(uniform_arch)-win32-v141_static_$(ConfigurationName)/lib/CEF/',
 									],
 
 									'libraries':
@@ -289,6 +325,15 @@
 							'src/cefprocess_lnx.cpp',
 							'src/cefprocess_w32.cpp',
 						],
+
+						'msvs_settings':
+						{
+							'VCCLCompilerTool':
+							{
+								'ExceptionHandling': '1',	# /EHsc
+								'AdditionalOptions': ['/std:c++20', '/Zc:__cplusplus'],
+							},
+						},
 					},
                 ],
             },

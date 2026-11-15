@@ -16,7 +16,21 @@ script "stack_Report_Builder"
 
 on closeStack
    set the cPosition of stack "Report" to the topLeft of stack "Report"  --custom prop, store loc
-   save this stack
+   -- OXT-Beyond: where this stack cannot be saved (an install for all
+   -- users), the Report window's place is kept in the user's preferences
+   local tResult, tError
+   try
+      save this stack
+      put the result into tResult
+   catch tError
+   end try
+   if tResult is empty and tError is empty then
+      if revIDEGetPreference("cOXTReportBuilderPosition") is not empty then
+         revIDESetPreference "cOXTReportBuilderPosition", empty
+      end if
+   else
+      revIDESetPreference "cOXTReportBuilderPosition", the cPosition of stack "Report"
+   end if
    close stack "Report"  --substack
 end closeStack
 

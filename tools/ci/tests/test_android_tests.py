@@ -874,6 +874,9 @@ class Standalone(unittest.TestCase):
                                             '      put kTestsIdentifier'):]
         block = block[:block.index('\n   end if\n')]
         self.assertIn('["android,application permissions"]["INTERNET"]', block)
+        # and the network's state, without which Android gives the
+        # dnsServers nothing (core/network's tests)
+        self.assertIn('put true into tSettings["android,application permissions"]["ACCESS_NETWORK_STATE"]', block)
         self.assertIn('put kTestsFiles into tSettings["files"]', block)
         # plain http (to the tests' own servers on 127.0.0.1)
         self.assertIn('put true into tSettings["android,allow http"]', block)

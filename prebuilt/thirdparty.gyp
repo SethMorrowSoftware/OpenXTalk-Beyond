@@ -71,7 +71,7 @@
 						{
 							'library_dirs':
 							[
-								'unpacked/Thirdparty/<(uniform_arch)-win32-$(PlatformToolset)_static_$(ConfigurationName)/lib',
+								'unpacked/Thirdparty/<(uniform_arch)-win32-v141_static_$(ConfigurationName)/lib',
 							],
 						},
 					],

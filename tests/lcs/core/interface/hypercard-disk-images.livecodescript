@@ -264,6 +264,22 @@ on TestHyperCardImageFolder
    TestAssert "a file, not a folder", it is empty and the result begins with "no such folder"
 end TestHyperCardImageFolder
 
+on TestHyperCardImageFileInfo
+   -- a file's type, creator, dates and forks, for the HyperCard Library's
+   -- FileModDate, FileType and FileCreator
+   local tImage, tInfo
+   repeat for each item tImage in "Stacks.hfs,Stacks.dc42,Stacks.apm"
+      put revHyperCardImageFileInfo(_Image(tImage), "Old Disk:Read Me") into tInfo
+      TestAssert tImage & ": no error", the result is empty
+      TestAssert tImage & ": its type and creator", tInfo["type"] is "TEXT" and tInfo["creator"] is "ttxt"
+      TestAssert tImage & ": its dates, in seconds", tInfo["created"] is a number and tInfo["modified"] is a number
+      TestAssert tImage & ": its forks", tInfo["datasize"] is the number of bytes of revHyperCardImageReadFork(_Image(tImage), "Old Disk:Read Me", "data") \
+            and tInfo["rsrcsize"] is a number
+   end repeat
+   get revHyperCardImageFileInfo(_Image("Stacks.hfs"), "Old Disk:Nothing")
+   TestAssert "a file the volume does not have", it is empty and the result begins with "no such file"
+end TestHyperCardImageFileInfo
+
 on TestHyperCardImageReadFork
    -- a fork read in place, for the HyperCard Library's ResText
    local tData

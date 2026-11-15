@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Chromium Embedded Framework Authors. All rights
+// Copyright (c) 2026 The Chromium Embedded Framework Authors. All rights
 // reserved. Use of this source code is governed by a BSD-style license that
 // can be found in the LICENSE file.
 //
@@ -9,11 +9,12 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=a5ecb5a9e8c8e87982ea8f7de2c3a560c2480de1$
+// $hash=1173c98d84dfe272aa2fd0e92a0fc64bb4fcea29$
 //
 
 #include "libcef_dll/ctocpp/sslinfo_ctocpp.h"
-#include "libcef_dll/ctocpp/x509certificate_ctocpp.h"
+
+#include "libcef_dll/ctocpp/x509_certificate_ctocpp.h"
 #include "libcef_dll/shutdown_checker.h"
 
 // VIRTUAL METHODS - Body may be edited by hand.
@@ -21,9 +22,10 @@
 NO_SANITIZE("cfi-icall") cef_cert_status_t CefSSLInfoCToCpp::GetCertStatus() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_sslinfo_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, get_cert_status))
+  auto* _struct = GetStruct();
+  if (!_struct->get_cert_status) {
     return CERT_STATUS_NONE;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -38,17 +40,18 @@ NO_SANITIZE("cfi-icall")
 CefRefPtr<CefX509Certificate> CefSSLInfoCToCpp::GetX509Certificate() {
   shutdown_checker::AssertNotShutdown();
 
-  cef_sslinfo_t* _struct = GetStruct();
-  if (CEF_MEMBER_MISSING(_struct, get_x509certificate))
-    return NULL;
+  auto* _struct = GetStruct();
+  if (!_struct->get_x509_certificate) {
+    return nullptr;
+  }
 
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
   // Execute
-  cef_x509certificate_t* _retval = _struct->get_x509certificate(_struct);
+  auto* _retval = _struct->get_x509_certificate(_struct);
 
   // Return type: refptr_same
-  return CefX509CertificateCToCpp::Wrap(_retval);
+  return CefX509CertificateCToCpp_Wrap(_retval);
 }
 
 // CONSTRUCTOR - Do not edit by hand.
@@ -66,8 +69,8 @@ cef_sslinfo_t*
 CefCToCppRefCounted<CefSSLInfoCToCpp, CefSSLInfo, cef_sslinfo_t>::UnwrapDerived(
     CefWrapperType type,
     CefSSLInfo* c) {
-  NOTREACHED() << "Unexpected class type: " << type;
-  return NULL;
+  CHECK(false) << __func__ << " called with unexpected class type " << type;
+  return nullptr;
 }
 
 template <>

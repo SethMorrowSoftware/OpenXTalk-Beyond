@@ -139,17 +139,32 @@ Claude can do the same things the xTalk Assistant's tools do:
   answered that it waits: your answer still counts, and Claude gets what
   came of it with `pending_result` instead of asking again
   (`OXT_MCP_ANSWER_WAIT_MS` changes the 40 seconds; 0 waits as before).
+  A call that simply takes long (a test run, a sweep) is answered the
+  same way after those 40 seconds, and goes on: `pending_result` waits
+  for it, and a call sent meanwhile is told which call OXT-Beyond is
+  still busy with.
+- **Long work while you are away:** set a script from a file on your
+  computer (`set_script_from_file`, for a script too long to send in a
+  call; OXT-Beyond shows you the file's path, size, SHA-256 and text
+  first, and it can be undone), wait for a stack to be ready without
+  running code (`wait_until`: until a field's text contains or no
+  longer contains something, a property is a value, or a stack, card or
+  control is there or gone), turn the engine's sounds off for a test run
+  and back on (`set_quiet`; put back by itself when the bridge is turned
+  off), and quit OXT-Beyond and start it again (`restart_ide`, after you
+  say yes; it asks about stacks not saved as Quit does).
 - **Import from HyperCard:** a stack's file, or a stack on a Mac disk
   image, imported with messages locked so none of its scripts run.
 
 Claude's app asks you before it uses each tool. OXT-Beyond asks you
-itself in three cases:
+itself in these cases:
 
 - before running any code, which it shows you. Code runs inside
   OXT-Beyond with everything the IDE can reach (your files, the network,
   other programs), and no check of its text can see all of what it does,
   so read it before you press **Run**;
 - before saving a stack;
+- before setting a script from a file, and before restarting OXT-Beyond;
 - before undoing something that you have changed since Claude changed it.
 
 Anything else Claude changes or runs on a stack can be undone, either by
@@ -159,6 +174,33 @@ is turned off.
 
 To keep the bridge off on a computer for good, set the environment
 variable `OXTBEYOND_MCP_BRIDGE` to `off`.
+
+## Which server.js runs
+
+A desktop extension holds a copy of `server.js` from the day you saved
+it, and Claude's app keeps running that copy after OXT-Beyond is
+updated. So each time the bridge is turned on, OXT-Beyond writes where
+its own `server.js` is to `~/.oxt-beyond/mcp-bridge-server.json`, and
+the copy Claude's app starts serves with that file instead of itself.
+While it runs it looks, between calls, whether that file has changed (an
+update of OXT-Beyond), loads the new one and tells Claude's app that the
+tools changed. Updating OXT-Beyond therefore updates the server, with
+nothing to set up again. A file that is missing, half written or cannot
+be loaded is left alone, and the copy serves as before. Set
+`OXT_MCP_OWN_SERVER` to `1` in the server's environment to make a copy
+serve by itself always. The server for the web IDE is one downloaded
+file and is never replaced this way.
+
+The server's version (in `manifest.json`, and what it tells Claude's
+app) ends with a mark made from its tools, so that an app which keeps
+the list of tools by version sees when the list has changed.
+
+With both extensions installed, "OXT-Beyond" and "OXT-Beyond (web IDE)",
+Claude sees the same tools twice. The web IDE's server answers for
+whichever IDE is there: the web IDE's page when one is connected,
+otherwise OXT-Beyond on the desktop when its bridge is on, and it says
+which when that changes. Set `OXT_MCP_WEB_ONLY` to `1` to keep it to the
+web IDE.
 
 ## Tests
 

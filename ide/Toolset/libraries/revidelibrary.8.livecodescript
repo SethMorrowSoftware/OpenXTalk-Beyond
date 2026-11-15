@@ -7132,6 +7132,9 @@ on revIDEUpdatePlugins
    lock messages
    repeat for each line tStack in tFinal
       if there is a stack tStack then
+         -- OXT-Beyond: with the settings kept in the user's preferences
+         -- when the plugin's stack could not be saved
+         revIDEApplyPluginSettings tStack
          put the short name of stack tStack into tName
          put tStack into tPluginsA[tName]["path"]
          if the cREVLoadInfo["load"] of stack tStack is "chosen" or the cREVLoadInfo["load"] of stack tStack is empty or the cREVLoadInfo["inMenu"] of stack tStack is true then
@@ -7636,6 +7639,10 @@ on revIDEOpenPlugin pName
       exit revIDEOpenPlugin
    end if
    
+   -- OXT-Beyond: with the settings kept in the user's preferences when
+   -- the plugin's stack could not be saved
+   revIDEApplyPluginSettings tStackPath
+   
    local tMode
    if the cREVLoadInfo["mode"] of stack tStackPath is not empty then 
       put the cREVLoadInfo["mode"] of stack tStackPath into tMode
@@ -7661,6 +7668,102 @@ on revIDEOpenPlugin pName
       revIDEAppBrowserAppearance
    end if
 end revIDEOpenPlugin
+
+/*
+OXT-Beyond: Plugin Settings in an install for all users. A plugin's
+settings (when it opens, in which mode, whether it is in the Plugins menu
+and the messages it gets: its cREVLoadInfo) are kept in the plugin's own
+stack, and Plugin Settings saved them by saving that stack. In an install
+for all users the program folder is read-only to a standard user, so the
+save failed and the settings were lost. Now, only when the save fails,
+they are kept in the user's preferences instead, under the plugin's path,
+and put back into the plugin's stack each time the IDE loads it. Where the
+plugin's stack can be saved, nothing changes: it is saved, as before, and
+any settings kept in the preferences for it are dropped.
+*/
+constant kPluginSettingsSet = "cOXTPluginSettings"
+
+/**
+The settings of a plugin kept in the user's preferences.
+
+Returns (array): the plugin's cREVLoadInfo as it was when its stack could
+not be saved, or empty when the plugin's own stack holds its settings.
+*/
+function revIDEPluginSettingsSaved pStackPath
+   local tEncoded
+   put revIDEGetPreferenceOfSet(kPluginSettingsSet, pStackPath) into tEncoded
+   if tEncoded is empty then
+      return empty
+   end if
+   local tSettings
+   try
+      put arrayDecode(tEncoded) into tSettings
+   catch tError
+      put empty into tSettings
+   end try
+   return tSettings
+end revIDEPluginSettingsSaved
+
+/**
+Puts a plugin's settings kept in the user's preferences into its stack.
+
+Description:
+Does nothing when the preferences keep no settings for the plugin, as
+they do not where the plugin's stack can be saved.
+*/
+command revIDEApplyPluginSettings pStackPath
+   local tSettings
+   put revIDEPluginSettingsSaved(pStackPath) into tSettings
+   if tSettings is not an array then
+      exit revIDEApplyPluginSettings
+   end if
+   if there is not a stack pStackPath then
+      exit revIDEApplyPluginSettings
+   end if
+   if the customProperties["cREVLoadInfo"] of stack pStackPath is tSettings then
+      exit revIDEApplyPluginSettings
+   end if
+   lock messages
+   set the customProperties["cREVLoadInfo"] of stack pStackPath to tSettings
+   unlock messages
+end revIDEApplyPluginSettings
+
+/**
+Saves a plugin's settings, as Plugin Settings does when it closes.
+
+Returns: empty when the plugin's stack was saved; "preferences" when it
+could not be, and its settings were kept in the user's preferences.
+
+Description:
+The plugin's stack is saved in its own file format, as it always was.
+When that fails (the program folder of an install for all users is
+read-only), its cREVLoadInfo is kept in the user's preferences instead,
+and <revIDEApplyPluginSettings> puts it back when the IDE loads the
+plugin again.
+*/
+command revIDESavePluginSettings pStackPath
+   local tSavedStackVersion, tResult, tError
+   put the stackFileVersion into tSavedStackVersion
+   set the stackFileVersion to revIDEStackFileVersion(pStackPath)
+   try
+      save stack pStackPath
+      put the result into tResult
+   catch tError
+   end try
+   set the stackFileVersion to tSavedStackVersion
+   
+   if tResult is empty and tError is empty then
+      if revIDEGetPreferenceOfSet(kPluginSettingsSet, pStackPath) is not empty then
+         revIDESetPreferenceOfSet kPluginSettingsSet, pStackPath, empty
+      end if
+      return empty
+   end if
+   
+   local tSettings
+   put the customProperties["cREVLoadInfo"] of stack pStackPath into tSettings
+   revIDESetPreferenceOfSet kPluginSettingsSet, pStackPath, arrayEncode(tSettings)
+   return "preferences"
+end revIDESavePluginSettings
 
 function revIDELocalise pString, pSubstitutions
    repeat for each key tKey in pSubstitutions
@@ -8225,6 +8328,233 @@ function revIDEKitDialog pSpec, @rChoice
    end try
    return true
 end revIDEKitDialog
+
+/*
+Packs a stack for the OXT Community Stacks, the gallery of stacks that
+anybody can play in a web browser (File > Share Stack...).
+
+pStack (optional): A reference to the stack, or to one of its substacks:
+the stack's whole file is packed. The topStack when empty.
+
+pFolder (optional): The folder the package is written to. The Desktop
+when empty.
+
+Example:
+revIDEActionShareStack the long id of stack "Beat Box"
+
+Description:
+Asks for what the gallery shows about the stack (a title, the author's
+name, what it does, a licence), takes a picture of its current card, and
+writes one .zip to the Desktop: the stack's file as it was last saved,
+with a listing and the picture. The author attaches that file to a post
+on the forum, and an admin of the gallery adds it.
+
+Nothing of the stack is changed, and nothing is sent anywhere: the window
+is Toolset/palettes/share/revsharestack.livecodescript, and it opens the
+forum, in the browser, only when the user presses Open the Forum.
+
+A stack with changes that are not saved is offered a Save first. A stack
+the gallery would refuse (one with a password, one that loads externals
+of its own) is not packed, and the user is told why.
+
+The result is the package's path, or empty when none was made.
+
+Tags: ide
+*/
+command revIDEActionShareStack pStack, pFolder
+   local tFile, tMain, tName, tSpec, tChoice, tResult, tError, tAsked, tHadFile, tSaved
+   if revEnvironmentIsWeb() then
+      return empty
+   end if
+   put revIDESpecialFolderPath("Toolset") & "/palettes/share/revsharestack.livecodescript" into tFile
+   if there is no file tFile then
+      answer error "Share Stack is missing from this copy of OXT-Beyond." with "OK"
+      return empty
+   end if
+   if pStack is empty then
+      put the long id of the topStack into pStack
+   end if
+   if not exists(pStack) then
+      return empty
+   end if
+   put the long id of stack (the mainStack of pStack) into tMain
+   put the short name of tMain into tName
+
+   -- The package holds the stack's file as it is on the disk, so changes
+   -- that are not saved would stay behind
+   if the effective filename of tMain is empty or __shareStackIsEdited(tMain) then
+      put "Share Stack" into tSpec["title"]
+      put "Save your stack first?" into tSpec["heading"]
+      put tName into tSpec["subheading"]
+      put "hard-drive" into tSpec["icon"]
+      put "violet" into tSpec["tone"]
+      if the effective filename of tMain is empty then
+         put "This stack has not been saved yet. Share Stack packs the stack's file, so it needs one." into tSpec["text"]
+         put "Cancel" & return & "Save and Continue" into tSpec["buttons"]
+      else
+         put "This stack has changes that are not saved. Share Stack packs the stack's file as it was last saved, so they would be left out." into tSpec["text"]
+         put "Cancel" & return & "Share As Last Saved" & return & "Save and Continue" into tSpec["buttons"]
+      end if
+      put "Cancel" into tSpec["cancel"]
+      put revIDEKitDialog(tSpec, tChoice) into tAsked
+      if not tAsked then
+         if the effective filename of tMain is empty then
+            answer question tSpec["text"] with "Cancel" or "Save and Continue"
+         else
+            answer question tSpec["text"] with "Cancel" or "Share As Last Saved" or "Save and Continue"
+         end if
+         put it into tChoice
+      end if
+      if tChoice is "Save and Continue" then
+         put the effective filename of tMain is not empty into tHadFile
+         revIDESaveStack tMain
+         put the result into tSaved
+         -- (a save that failed, or that the user gave up at its question
+         -- about the file's format, says so in its result, and has told
+         -- the user: the file on the disk is still the old one, and the
+         -- user asked for the changes to go with the stack)
+         if tHadFile and tSaved is not empty then
+            return empty
+         end if
+         -- (a stack saved for the first time is named after its file)
+         if not exists(tMain) then
+            put the long id of the topStack into tMain
+            put the long id of stack (the mainStack of tMain) into tMain
+         end if
+         if the effective filename of tMain is empty then
+            return empty
+         end if
+      else if tChoice is not "Share As Last Saved" then
+         return empty
+      end if
+   end if
+
+   try
+      dispatch "revShareStackShow" to stack tFile with tMain, pFolder
+      put the result into tResult
+      if it is not "handled" then
+         put "error: Share Stack could not open." into tResult
+      end if
+   catch tError
+      put "error: Share Stack could not open." into tResult
+   end try
+   if tResult is empty then
+      return empty
+   end if
+   if tResult begins with "error:" then
+      put word 2 to -1 of tResult into tResult
+      put empty into tSpec
+      put "Share Stack" into tSpec["title"]
+      put "This stack cannot be shared yet" into tSpec["heading"]
+      put tName into tSpec["subheading"]
+      put "info" into tSpec["icon"]
+      put "amber" into tSpec["tone"]
+      put tResult into tSpec["text"]
+      put "OK" into tSpec["buttons"]
+      put "OK" into tSpec["cancel"]
+      if not revIDEKitDialog(tSpec, tChoice) then
+         answer information tResult with "OK"
+      end if
+      return empty
+   end if
+
+   -- Packed: what to do with the file, until the user is done
+   __shareStackPacked tResult
+   return tResult
+end revIDEActionShareStack
+
+-- True when the stack pMain, or one of its substacks, has changes the
+-- IDE knows are not saved
+private function __shareStackIsEdited pMain
+   local tStack
+   if revIDEStackIsEdited(the short name of pMain) then
+      return true
+   end if
+   repeat for each line tStack in the substacks of pMain
+      if revIDEStackIsEdited(tStack) then
+         return true
+      end if
+   end repeat
+   return false
+end __shareStackIsEdited
+
+-- Tells the user that the package pPackage is made and how to share it,
+-- with buttons that show the file and open the forum; it stays until the
+-- user presses Done
+private command __shareStackPacked pPackage
+   local tSpec, tChoice, tFileName, tFolder, tWhere
+   set the itemDelimiter to slash
+   put the last item of pPackage into tFileName
+   put item 1 to -2 of pPackage into tFolder
+   set the itemDelimiter to comma
+   if tFolder is specialFolderPath("desktop") then
+      put "on your Desktop" into tWhere
+   else
+      put "in" && tFolder into tWhere
+   end if
+   put "Share Stack" into tSpec["title"]
+   put "Your stack is packed" into tSpec["heading"]
+   put tFileName into tSpec["subheading"]
+   put "package" into tSpec["icon"]
+   put "emerald" into tSpec["tone"]
+   put "The file" && tFileName && "is" && tWhere & ". It holds your stack, its picture and what you said about it." & return & return & \
+         "To share it:" & return & \
+         "- Press Open the Forum, and start a new post." & return & \
+         "- Attach the file to your post, and say that you would like it in the community stacks." & return & \
+         "- Somebody who looks after the gallery checks it and adds it. Nothing is published before that." into tSpec["text"]
+   put "Nothing has been sent anywhere. The file stays on this computer until you post it." into tSpec["callout"]
+   put "note" into tSpec["calloutKind"]
+   put "Show the File" & return & "Open the Forum" & return & "Done" into tSpec["buttons"]
+   put "Done" into tSpec["cancel"]
+   repeat
+      if not revIDEKitDialog(tSpec, tChoice) then
+         answer information "Your stack is packed: the file" && tFileName && "is" && tWhere & "." & return & return & \
+               "To share it, attach it to a post on the OpenXTalk forum and say that you would like it in the community stacks." \
+               with "Show the File" or "Open the Forum" or "Done"
+         put it into tChoice
+      end if
+      switch tChoice
+         case "Show the File"
+            __shareStackReveal pPackage
+            break
+         case "Open the Forum"
+            launch url "https://openxtalk.org/forum/"
+            break
+         default
+            exit repeat
+      end switch
+   end repeat
+end __shareStackPacked
+
+-- Shows the file pFile in the desktop's file manager: selected, where the
+-- desktop has a way to (the Finder, the Explorer), else its folder
+private command __shareStackReveal pFile
+   local tFolder, tPath, tSaved, tError
+   set the itemDelimiter to slash
+   put item 1 to -2 of pFile into tFolder
+   set the itemDelimiter to comma
+   try
+      switch the platform
+         case "MacOS"
+            put pFile into tPath
+            replace "'" with "'\''" in tPath
+            get shell("open -R '" & tPath & "'")
+            break
+         case "Win32"
+            put pFile into tPath
+            replace slash with "\" in tPath
+            put the hideConsoleWindows into tSaved
+            set the hideConsoleWindows to true
+            get shell("explorer.exe /select," & quote & tPath & quote)
+            set the hideConsoleWindows to tSaved
+            break
+         default
+            launch document tFolder
+      end switch
+   catch tError
+      launch document tFolder
+   end try
+end __shareStackReveal
 
 -- The stack the last revIDEImportHyperCardStack imported
 local sHyperCardImported

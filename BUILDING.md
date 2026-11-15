@@ -414,7 +414,7 @@ library, architecture and configuration:
 | `Curl-8.22.0-...-PIC` | libcurl 8.22.0, with OpenSSL (the server engine; on macOS the server engine uses the system's libcurl) |
 | `ICU-78.3-...-1-PIC` | ICU 78.3, with its full data file, from which the build makes the cut-down copy the engines embed |
 | `Thirdparty-e5e050573c...-PIC` | static libraries built from `thirdparty/` (cairo, libffi, giflib, libjpeg, libpng, zlib, libzip, PCRE, Skia, libxml2, libxslt, MariaDB Connector/C, libpq, SQLite) |
-| `CEF-74.1.19-...-gb62bacf` | Chromium Embedded Framework 74 (Chromium 74.0.3729.157), for the browser widget and revBrowser on Windows (x86_64 and x86) and Linux x86_64 |
+| `CEF-156.0.26-...-g8ea0c73` | Chromium Embedded Framework 156 (Chromium 156.0.8078.88), for the browser widget and revBrowser on Windows (x86_64 and x86) and Linux x86_64 |
 
 The versions are in `prebuilt/versions/`. Every platform builds
 OpenSSL, curl, ICU and Thirdparty from source: Linux and macOS with
@@ -2086,9 +2086,10 @@ macOS starts the release's IDE as well (`tools/ci/mac_ide_start.sh`).
 
 ### WebKitGTK browser check (Linux)
 
-On Linux the browser widget uses CEF 74 wherever CEF loads, and WebKitGTK
-where it does not: a package without `Externals/CEF/libcef.so` (CEF has no
-Linux arm64 or 32-bit build), or a machine without a library CEF needs.
+On Linux the browser widget uses CEF 156 wherever CEF loads, and WebKitGTK
+where it does not: a package without `Externals/CEF/libcef.so` (the packages
+ship CEF for x86-64 only, and CEF has no 32-bit Linux build), or a machine
+without a library CEF needs.
 The engine is a GTK 2 program and WebKitGTK needs GTK 3, which cannot share
 one process, so each browser runs in a helper process,
 `libbrowser-webkitprocess` next to the engine
@@ -2398,8 +2399,17 @@ ungroup and align, cards with the Project Browser, find and replace and a
 breakpoint in the Script Editor, Save As, Close and Remove From Memory
 and opening the stack again, Revert to Saved, a Dictionary search, an
 image as a button's icon, the Geometry Manager, a preference changed and
-restored, and the Application Browser. Each task asserts what a person
-would see, waits for it rather than sleeping, and snapshots it
+restored, the Application Browser, and File > Save as Standalone
+Application with the build stopped by an error part way (of the stack,
+and of a stack whose file is named .mc): the stack is left as it was,
+without the IDE's Answer and Ask dialogs in it. The last two tasks build
+with the builder's dialogs on. One builds a stack to the end: the IDE
+says the standalone was saved, the stack is as it was, and the standalone
+is run, writes what it finds itself to be and quits. The other has the
+builder look for its engine where there is none: its dialog says the
+builder's whole sentence and the file it looked for, and the stack is as
+it was. Each task asserts what a
+person would see, waits for it rather than sleeping, and snapshots it
 (`everyday-*.png`); `--only` runs the tasks up to the last one named.
 Builds run it on Linux light and dark at once (two Xvfb screens), on
 Windows light then dark, and on the Macs one appearance each (light on

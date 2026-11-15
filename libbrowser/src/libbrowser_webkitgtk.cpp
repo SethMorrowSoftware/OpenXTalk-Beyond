@@ -17,11 +17,11 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 /* OXT-Beyond: the browser widget's and revBrowser's browser on Linux where
  * CEF cannot load: WebKitGTK.
  *
- * CEF 74 stays the browser wherever it loads; it comes first in the factory
+ * CEF stays the browser wherever it loads; it comes first in the factory
  * list (libbrowser_lnx_factories.cpp), and the default browser is the first
  * one that loads (MCBrowserFactoryGet). CEF does not load where the package
- * has no Externals/CEF/libcef.so (Linux arm64 and x86, which CEF has no
- * build of), or where a library it needs is missing: there, until now, there
+ * has no Externals/CEF/libcef.so (Linux arm64 and x86, whose packages
+ * carry no CEF), or where a library it needs is missing: there, until now, there
  * was no browser at all.
  *
  * The engine is a GTK 2 program, and WebKitGTK 4.0 and 4.1 are GTK 3

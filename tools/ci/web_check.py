@@ -178,7 +178,12 @@ Then:
    click on the page outside every window must close it with no menuPick,
    twice.
    Then it takes a screenshot of the stack and checks the colours of the
-   card, the graphic and the image in it.
+   card, the graphic and the image in it. In a page of its own (?tab=
+   fullscreen, where the probe runs no checks), the probe's window is
+   made fullscreen with each fullscreenMode in turn (probeReport(
+   "fullscreen exactFit")...), and the page made wider, then narrower
+   than it was, then as it was: each time the window must cover the
+   page's viewport (issue 515: it grew with the page and never shrank).
 
 The URLs are loaded by the engine, or by the Internet library (libURL)
 when the standalone has it: the IDE's builder adds it, with its web
@@ -348,6 +353,45 @@ STORED_FILE_JS = '''([database, path]) => new Promise(resolve => {
         };
     };
 })'''
+
+# A fullscreen stack on the web covers the page's viewport, as the page
+# changes size (issue 515). Its window is checked in each fullscreenMode
+# ("empty" is none: the stack is resized to the page), on a page 800x600
+# that is made wider and taller, then narrower and shorter than it began
+# (where a stack that only grew was left too big), then as it was.
+FULLSCREEN_MODES = ('exactFit', 'showAll', 'empty')
+FULLSCREEN_PAGE_SIZES = ((1000, 700), (600, 450), (800, 600))
+
+# The main window's canvas and the viewport it must cover, in CSS pixels
+FULLSCREEN_COVER_JS = """() => {
+    var r = document.getElementById('canvas').getBoundingClientRect();
+    var root = document.documentElement;
+    return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height),
+            root.clientWidth, root.clientHeight];
+}"""
+
+
+def fullscreen_covers(seen):
+    """Whether FULLSCREEN_COVER_JS's answer is a canvas at the page's
+    top left as big as its viewport."""
+    if not seen or len(seen) != 6:
+        return False
+    left, top, width, height, page_width, page_height = seen
+    return left == 0 and top == 0 and width == page_width and height == page_height
+
+
+def fullscreen_cover_problem(mode, width, height, seen):
+    """What a fullscreen window that does not cover the page is said to be."""
+    if not seen or len(seen) != 6:
+        return ('the fullscreen window (%s) on a %dx%d page could not be measured: %r'
+                % (mode, width, height, seen))
+    left, top, w, h, page_width, page_height = seen
+    said = ('the fullscreen window (%s) is %dx%d at (%d, %d) on a page whose viewport is %dx%d, '
+            'expected it to cover the page' % (mode, w, h, left, top, page_width, page_height))
+    if w > page_width or h > page_height:
+        said += ': it did not shrink with the page (issue 515)'
+    return said
+
 
 # The home folder was /livecode until 0.2.7-rc.6.2 (engine/src/em-system.js):
 # what a browser kept there is copied to /openxtalk on its first visit with
@@ -2699,6 +2743,50 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
             except (PlaywrightError, PlaywrightTimeoutError) as e:
                 problems.append('the check of the page in two tabs failed: %s%s' % (e, extra_said()))
                 del extra_events[:]
+        if 'ready' in probes:
+            # a fullscreen stack follows the page both ways (issue 515):
+            # the probe's own window, the main window in the page's flow,
+            # made fullscreen in each mode, the page then made wider,
+            # narrower than it began and as it was. Its canvas must cover
+            # the viewport each time. Before the fix the window grew with
+            # the page (a centred canvas moves as the page widens, which
+            # made the engine look again) and never shrank: a canvas as
+            # wide as the page cannot move as the page narrows, and nothing
+            # else told the engine. With ?tab=, the probe runs no checks.
+            for mode in FULLSCREEN_MODES:
+                try:
+                    browser_waiting[0] = 'a fullscreen stack (%s) following the page' % mode
+                    del extra_events[:]
+                    full = browser.new_context(viewport={'width': 800, 'height': 600})
+                    tab = open_extra(full, url + ('&' if '?' in url else '?') + 'tab=fullscreen',
+                                     'the fullscreen page (%s)' % mode, timeout)
+                    report_js = "document.liveCode.findStackWithName('%s').probeReport('%%s')" % STACK_NAME
+                    made = tab.evaluate(report_js % ('fullscreen ' + mode))
+                    if not str(made).startswith('true|'):
+                        problems.append('the probe\'s window could not be made fullscreen (%s): %r' % (mode, made))
+                    else:
+                        followed = []
+                        for width, height in FULLSCREEN_PAGE_SIZES:
+                            tab.set_viewport_size({'width': width, 'height': height})
+                            seen = [None]
+
+                            def covers(tab=tab, seen=seen):
+                                seen[0] = tab.evaluate(FULLSCREEN_COVER_JS)
+                                return fullscreen_covers(seen[0])
+                            if wait_for(covers, 'the fullscreen window (%s) covering a %dx%d page'
+                                        % (mode, width, height), 10):
+                                followed.append('%dx%d' % (width, height))
+                            else:
+                                problems.append(fullscreen_cover_problem(mode, width, height, seen[0]))
+                                break
+                        if len(followed) == len(FULLSCREEN_PAGE_SIZES):
+                            lines.append('a fullscreen stack (%s) covered the page as it was made %s'
+                                         % (mode, ', then '.join(followed)))
+                    del extra_events[:]
+                    full.close()
+                except (PlaywrightError, PlaywrightTimeoutError) as e:
+                    problems.append('the check of a fullscreen stack (%s) failed: %s%s' % (mode, e, extra_said()))
+                    del extra_events[:]
         if 'ready' in probes:
             # what an older engine kept in /livecode, in a new browser
             # profile: written before the page opens, copied to /openxtalk.
