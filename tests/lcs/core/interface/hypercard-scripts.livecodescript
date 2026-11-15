@@ -5204,6 +5204,9 @@ on TestHyperCardScriptsTextDialog
    create button "None"
    set the script of button "None" to _Lines("on mouseUp", "  global gHCScriptsTest", \
          "  TextDialog 1100,Geneva,9," & q & "500,501" & q & ",1", "  put the result into gHCScriptsTest", "end mouseUp")
+   create button "Quiet"
+   set the script of button "Quiet" to _Lines("on mouseUp", "  global gHCScriptsTest", "  lock messages", \
+         "  TextDialog 1100,Geneva,9," & q & "128" & q & ",1", "  put the lockMessages into gHCScriptsTest", "end mouseUp")
    unlock messages
    get revHyperCardFixScripts(tStack)
    TestAssert "no stand-in is made for it", "TextDialog" is not in it
@@ -5224,10 +5227,20 @@ on TestHyperCardScriptsTextDialog
          gHCScriptsTest is "|" & tStack and there is not a stack "HyperCard TextDialog"
    send "mouseUp" to button "None" of card 1 of stack tStack
    TestAssert "no screen there: an error in the result, no dialog", gHCScriptsTest is "Error: no text screens"
+   put empty into gHCScriptsTest
+   send "HCTextDialogDismiss" to me in 200 milliseconds
+   send "mouseUp" to button "Quiet" of card 1 of stack tStack
+   if there is a stack "HyperCard TextDialog" then HCTextDialogDismiss
+   TestAssert "messages locked by the caller stay locked", gHCScriptsTest is true
    _Close tStack
    delete file (tFolder & "/Texts")
    delete folder tFolder
 end TestHyperCardScriptsTextDialog
+
+-- Closes TextDialog's dialog, if it is open, by its OK button
+on HCTextDialogDismiss
+   if there is a stack "HyperCard TextDialog" then send "mouseUp" to button "OK" of stack "HyperCard TextDialog"
+end HCTextDialogDismiss
 
 -- What TextDialog's dialog shows: the screen, then the previous one,
 -- then the last (by Next twice), each its text and its "Screen n of m"; then OK
@@ -5269,6 +5282,9 @@ on TestHyperCardScriptsTextoid
    set the script of button "Again" to _Lines("on mouseUp", "  Textoid " & q & "Notes" & q & ", " & q & "second text" & q, "end mouseUp")
    create button "Grey"
    set the script of button "Grey" to _Lines("on mouseUp", "  Textoid " & q & "Grey Notes" & q & ", " & q & "x" & q & ", " & q & "60000 60000 60000,0 0 65535" & q & ", " & q & "91,69" & q, "end mouseUp")
+   create button "Locked"
+   set the script of button "Locked" to _Lines("on mouseUp", "  global gHCScriptsTest", "  lock messages", \
+         "  Textoid " & q & "Quiet Notes" & q & ", " & q & "x" & q, "  put the lockMessages into gHCScriptsTest", "end mouseUp")
    set the script of card 1 of stack tStack to _Lines("on openTextoid pName, pId", "  global gHCScriptsTest", \
          "  put " & q & "open " & q & " & pName & " & q & "|" & q & " after gHCScriptsTest", "end openTextoid", \
          "on closeTextoid pName, pId", "  global gHCScriptsTest", \
@@ -5296,6 +5312,10 @@ on TestHyperCardScriptsTextoid
    TestAssert "colours in 16 bits; a place", the textColor of field "Text" of stack "Grey Notes" is "233,233,233" \
          and the backgroundColor of field "Text" of stack "Grey Notes" is "0,0,255" and the topLeft of stack "Grey Notes" is "91,69"
    _Close "Grey Notes"
+   put empty into gHCScriptsTest
+   send "mouseUp" to button "Locked" of card 1 of stack tStack
+   TestAssert "messages locked by the caller stay locked", gHCScriptsTest is true
+   _Close "Quiet Notes"
    -- beside a stack of the name that is no such window, its own
    send "mouseUp" to button "Again" of card 1 of stack tStack
    _Close "Notes"

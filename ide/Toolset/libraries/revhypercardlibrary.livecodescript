@@ -4540,7 +4540,7 @@ is closed, as it did; "Error: no text screens" in the result when none
 of the screens is there
 */
 on TextDialog pDialog, pFont, pSize, pScreens, pFirst, pTop, pLeft
-   local tId, tCount, tAny, tText, tStack, tName, tDefault, tScreens
+   local tId, tCount, tAny, tText, tStack, tName, tDefault, tScreens, tLocked
    put 0 into tCount
    put false into tAny
    set the itemDelimiter to comma
@@ -4559,6 +4559,9 @@ on TextDialog pDialog, pFont, pSize, pScreens, pFirst, pTop, pLeft
    if there is a stack tName then delete stack tName
    -- (the script that called it goes on with its own stack the default)
    put the defaultStack into tDefault
+   -- (messages the caller locked are locked again once it is closed:
+   -- the dialog's own scripts need them while it is open)
+   put the lockMessages into tLocked
    lock messages
    get _HCNewHiddenStack(tName)
    put the long id of stack tName into tStack
@@ -4604,8 +4607,8 @@ on TextDialog pDialog, pFont, pSize, pScreens, pFirst, pTop, pLeft
    if exists(tStack) then
       lock messages
       delete tStack
-      unlock messages
    end if
+   set the lockMessages to tLocked
    set the defaultStack to tDefault
    return empty
 end TextDialog
@@ -4630,7 +4633,7 @@ beside a stack of the name that is not such a window. Textoid "?" and
 Textoid with no text give its version
 */
 on Textoid pName, pText
-   local tParam, tFont, tSize, tRect, tColors, tAlign, tWrap, tStyle, i, tStack, tCard, tNew, tDefault, tRecent, tTry
+   local tParam, tFont, tSize, tRect, tColors, tAlign, tWrap, tStyle, i, tStack, tCard, tNew, tDefault, tRecent, tTry, tLocked
    if pName is "?" or paramCount() < 2 then return "Textoid (HyperCard Library)"
    if _HCIsContainerName(pText) then
       try
@@ -4680,6 +4683,8 @@ on Textoid pName, pText
    end repeat
    put there is not a stack tStack into tNew
    if tNew then
+      -- (messages the caller locked stay locked)
+      put the lockMessages into tLocked
       lock messages
       get _HCNewHiddenStack(tStack)
       set the width of stack tStack to 300
@@ -4697,7 +4702,7 @@ on Textoid pName, pText
             "  pass closeStack" & return & "end closeStack" & return & \
             "on resizeStack" & return & "  set the rect of field 1 of me to 0,0,the width of me,the height of me" & return & "end resizeStack"
       set the defaultStack to tDefault
-      unlock messages
+      set the lockMessages to tLocked
    end if
    set the title of stack tStack to pName
    put pText into field "Text" of stack tStack
