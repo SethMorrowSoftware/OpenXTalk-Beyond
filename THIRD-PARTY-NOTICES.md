@@ -208,6 +208,27 @@ with an AI assistant; they say so in their own messages.
 | `MCFiltersQuotedPrintableEncode` and `MCFiltersQuotedPrintableDecode` (`libfoundation/src/foundation-filters.cpp`), with lines of at most 76 characters, for `quotedPrintableEncode` and `quotedPrintableDecode` in the HyperXTalk Compatibility library | Emily-Elizabeth Howard, commit ab8f00ed5 ("Add quotedPrintableEncode and quotedPrintableDecode functions (#484)") |
 | `iff` in the HyperXTalk Compatibility library, as a handler of the library | Emily-Elizabeth Howard, commit 8a594ecbd ("Add iff() ternary function for inline conditional expressions") |
 | Comment and Uncomment in the Script Editor's context menu (`prepareContextMenu` and `menuPick` in `revseeditorbehavior.livecodescript`) | Emily-Elizabeth Howard, commit 9e4b604fc ("added commenting/uncommenting to the context menu") |
+| `the sql date` and `convert`'s `sql` format (`engine/src/date.cpp`, `cmds.cpp`, `property.cpp`, `parsedef.h`, `lextable.cpp`, `sysunxdate.cpp`), re-implemented in OXT-Beyond commit ddea75eab | HyperXTalk's `sql` date format; which HyperXTalk commit and author it came from was not recorded when it was brought over, and should be added here |
+| The two revZip test stacks and their test data (`revzip/revziptest.rev`, `revziptestnew.rev`, `revzip/rsrc/`, `revzip/temp/`, `revzip/replace.txt`; run by hand, not installed) | Mark Wieder, HyperXTalk pull request #561, commits daccfaa0 and d76683af, brought over unchanged as OXT-Beyond commit fe42e17db |
+| Building the docs without a screen: the database driver path in `builder/builder_tool.livecodescript` and the parameter in `ide-support/revdocsparser.livecodescript` | Brian Milby, commit 84910aec ("[[Issue 249]] Update doc/guide build process", HyperXTalk #262), as OXT-Beyond commit f7cafca97 |
+| The debranded dictionary entries in `docs/dictionary/` | Paul McClernan's "Debranded Dictionary Edits from OpenXTalk DPE", as HyperXTalk commit 444b48ee, taken as OXT-Beyond commit bb526c2e0 (with Tom Perry's debranding from OpenXTalk Lite's dictionary for `docs/glossary/` and some mobile entries) |
+
+### Code from Tom Perry's OpenXTalk Lite 7
+
+OXTL7 ("OpenXTalk Lite 7") is Tom Perry's IDE on a 64-bit build of
+LiveCode Community 7 ([HISTORY.md](HISTORY.md#after-115-oxtl7)), under
+LiveCode Community's licence, the GPLv3. These OXT-Beyond changes take
+his code or his fix from its engine source; the commit of each names it:
+
+| In OXT-Beyond | From OXTL7 |
+|---|---|
+| Measuring text with no transform (`libgraphics/src/lnxtext.cpp`), OXT-Beyond commit be963d6b0 | Tom Perry's engine source, as the comment in the file says |
+| The result of `MCS_writeat` returned when saving or copying objects (`engine/src/object.cpp`; the same pattern in `pickle.cpp`), OXT-Beyond commit 95be3ca52 | Tom Perry's fix in `object.cpp` |
+| `LONG_PTR` for the login dialog's pointer in revBrowser's CEF code on Windows, OXT-Beyond commit 11c32b854 | Tom Perry changed the same line for 64-bit builds |
+
+OXT-Beyond's engine also carries Tom Perry's 9.7.1-OXT engine work for
+Windows and macOS (see the [README credits](README.md#credits)); the
+commits that brought it over name him and his working copies.
 
 ### The MACE decoder from FFmpeg
 
@@ -320,6 +341,13 @@ These are in `ide/Plugins/` and are installed in `Plugins/`.
 | Kenney Future Narrow (`kenney_future_narrow.ttf`, Kenney) | `tools/web-player/wobble-forts/fonts/`, inside Wobble Forts' stack, and `tools/pages/games/wobble-forts/` | CC0 1.0 (public domain), with Kenney's Font Package (above, "Wobble Forts' pictures, sounds and font") |
 | Atkinson Hyperlegible (`AtkinsonHyperlegible-Regular.ttf` and `AtkinsonHyperlegible-Bold.ttf`, "Copyright 2020 Braille Institute of America, Inc.") | `tools/web-player/puzzle-almanac/fonts/`, inside Puzzle Almanac's stack, and `tools/pages/games/puzzle-almanac/` | SIL Open Font License 1.1, [`atkinson-hyperlegible-OFL.txt`](tools/web-player/puzzle-almanac/licenses/atkinson-hyperlegible-OFL.txt); from Google Fonts, modified by `tools/web-player/puzzle-almanac/make_assets.py`, which adds Macintosh name records that say what the font's own Windows ones do (the web engine's font loader reads those), and nothing else. The licence names no Reserved Font Name, so the modified font keeps its name. |
 | Glyphicons Halflings (part of Bootstrap 3.3.7) | `ide/Documentation/html_viewer/fonts/` | MIT, with Bootstrap (below) |
+
+KenVector Future and Kenney Future Narrow were first published by Kenney
+on FontStruct, and their own name tables still say "Creative Commons
+Attribution Share Alike" (CC BY-SA 3.0), FontStruct's licence for them.
+Kenney later released both, in the packs named above, under CC0 1.0,
+and OXT-Beyond uses them on those terms. Both are credited to Kenney
+here and in the games' `SOURCES.md` either way.
 
 ### Documentation viewer
 
