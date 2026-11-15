@@ -467,10 +467,11 @@ below.
 | `org.openxtalk.library.coin`, `coinxt` | `CoinXT` | MIT, © 2026 Seth Morrow | trezor-crypto: MIT, © Tomas Dzetkulic and Pavol Rusnak (`address.c` also © Daira Hopwood, `hasher.c` © Saleem Rashid). libsecp256k1: MIT, © Pieter Wuille. SHA-2 (`sha2.c`): BSD 3-clause, © Aaron D. Gifford and Pavol Rusnak, whose notice must be reproduced with the binaries. SHA-3/Keccak from RHash: MIT. RIPEMD-160: public domain. BLAKE-256 and BLAKE2b: CC0 1.0. Groestl: MIT, © Projet RNRT SAPHIR. The member's `THIRD-PARTY-LICENSES.md` maps every vendored file to its licence and copyright holder. | `LICENSE`, `THIRD-PARTY-LICENSES.md`, `trezor-crypto-LICENSE` (trezor-crypto's MIT text, from the member's `native/vendor/LICENSE`, which its own licence files only point to), `trezor-crypto-address-NOTICE.txt` and `trezor-crypto-hasher-NOTICE.txt` (the notices from the headers of `native/vendor/address.c` and `hasher.c`) |
 | `onionxt`, `onion-httpd` | `OnionXT` | MIT, © 2026 Seth Morrow | none (LiveCode Script only) | `LICENSE` |
 | `nostrxt`, `nostr-relay` | `NostrXT` | MIT, © 2026 Seth Morrow | none (LiveCode Script only) | `LICENSE` |
+| `org.openxtalk.library.curl`, `curlHelpers`, `tsNetCompat` | `xtalk-suite` (`curlxt/`) | MIT, © 2026 Seth Morrow | libcurl 8.22.0: the curl licence (MIT-style), © Daniel Stenberg and many contributors. libssh2 1.11.1: BSD 3-clause, © Sara Golemon and others. OpenSSL 3.5.9, statically linked into the macOS and the Linux x86-64 and arm64 libraries: Apache License 2.0; the Linux x86 library uses the system's OpenSSL (`libssl.so.3`) and the Windows libraries Windows' own Schannel instead. The Windows libraries link the Visual C++ runtime statically. | `LICENSE`, `THIRD-PARTY-LICENSES.md` (libcurl's and libssh2's texts), `OpenSSL-LICENSE.txt` |
 
 Notes:
 
-- **OpenSSL 3.** `torrentxt` and `datachannelxt` link OpenSSL 3
+- **OpenSSL 3.** `torrentxt`, `datachannelxt` and `curlxt` link OpenSSL 3
   statically: OpenSSL is Copyright © 1998-2026 The OpenSSL Project
   Authors and © 1995-1998 Eric A. Young and Tim J. Hudson, and is
   licensed under the Apache License 2.0, which asks for a copy of the
@@ -480,7 +481,7 @@ Notes:
   libraries), so OXT-Beyond adds OpenSSL's `LICENSE.txt`, taken from the
   `openssl-3.6.4` tag of [openssl/openssl](https://github.com/openssl/openssl)
   and pinned by SHA-256 like the other files, as `OpenSSL-LICENSE.txt`
-  to both extensions' `licenses/` folders. OpenSSL 3 has no `NOTICE`
+  to the `licenses/` folders of the three members' extensions. OpenSSL 3 has no `NOTICE`
   file. These copies are separate from the OpenSSL 3.5.9 inside
   `revsecurity.dll` ([Prebuilt libraries](#prebuilt-libraries)).
 - **MPL 2.0 source.** The source of libdatachannel and libjuice is at

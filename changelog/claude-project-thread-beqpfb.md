@@ -1,0 +1,2 @@
+- xTalk Suite: curlxt is built in: org.openxtalk.library.curl (HTTP(S), FTP(S), SFTP, SCP and SMTP through libcurl), its curlHelpers script library, and tsNetCompat, LiveCode tsNet's calls by name (tsNetGet, tsNetPost, tsNetGetSync, tsNetSmtpSync and the rest) written from tsNet's public dictionary over it; libURL is unchanged, and a stack that tested for tsNet now finds it
+- Packaging: secur32.dll (SSPI, through which curlxt's Schannel TLS works) counts as a Windows system DLL in xtalk_extensions.py and check-extension-imports.ps1, and a test holds the two lists equal

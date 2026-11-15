@@ -4567,6 +4567,7 @@ repositories at pinned commits when OXT-Beyond is packaged (see
 | `org.openxtalk.library.coin`, `coinxt` | CoinXT: Bitcoin and Ethereum cryptography (hashes, keys, addresses, HD wallets, transactions) | [CoinXT](https://github.com/SethMorrowSoftware/CoinXT) |
 | `onionxt`, `onion-httpd` | OnionXT: Tor transport and onion services, and a small HTTP server on top of it (LiveCode Script) | [OnionXT](https://github.com/SethMorrowSoftware/OnionXT) |
 | `nostrxt`, `nostr-relay` | NostrXT: the Nostr protocol and a relay client (LiveCode Script) | [NostrXT](https://github.com/SethMorrowSoftware/NostrXT) |
+| `org.openxtalk.library.curl`, `curlHelpers`, `tsNetCompat` | curlxt: HTTP(S), FTP(S), SFTP, SCP and SMTP through libcurl, its script helpers, and the tsNet calls by name over them | [xtalk-suite, `curlxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/curlxt) |
 
 - The IDE loads them when it starts, like its other built-in
   extensions; the *Extension Manager* lists them and can unload them or
@@ -4576,7 +4577,8 @@ repositories at pinned commits when OXT-Beyond is packaged (see
   do no harm, because a stack name finds the built-in copy.
 - The script libraries keep the stack names the members document
   (`coinxt`, `nostrxt`, `nostr-relay`, `onionxt`, `onion-httpd`,
-  `box2dxt-kit`, `torrentHelpers`, `enetHelpers`, `dataChannelHelpers`),
+  `box2dxt-kit`, `torrentHelpers`, `enetHelpers`, `dataChannelHelpers`,
+  `curlHelpers`, `tsNetCompat`),
   and only one stack of a given name can be in memory. While the
   built-in library is loaded, opening your own copy of the same file by
   its path, or loading it with
@@ -4607,6 +4609,22 @@ repositories at pinned commits when OXT-Beyond is packaged (see
   dictionary (*Preferences > Dictionary*), which is made from the same
   sources when OXT-Beyond is built. Their guides and the rest of their
   documentation are in their repositories (`docs/`).
+- **The tsNet calls.** LiveCode's tsNet external came only with its
+  paid editions. `tsNetCompat` gives the same calls by name
+  (`tsNetGet`, `tsNetPost`, `tsNetGetSync`, `tsNetSmtpSync` and the
+  rest, with tsNet's parameter orders and callbacks), written from
+  tsNet's public dictionary over curlxt, so a stack written for tsNet
+  runs, and so do the asynchronous calls of the IDE's Dropbox library,
+  which were written for tsNet (checked with curlxt's script tests, not
+  yet with Dropbox itself).
+  `tsNetVersion()` answers 1.4.5, the tsNet LiveCode last shipped.
+  libURL is untouched: `get url`, `post`, `put ... into url` and the
+  `the httpHeaders` family behave as before; only a script that calls
+  a `tsNet*` handler reaches curlxt. A stack that tested whether tsNet
+  was there (for example by trying `tsNetVersion()` and catching the
+  error) now finds it. The [differences from
+  tsNet](https://github.com/SethMorrowSoftware/xtalk-suite/blob/main/curlxt/docs/tsnet-compat.md)
+  are listed in curlxt's `docs/tsnet-compat.md`.
 - Their licences (MIT, and those of the libraries built into them) are
   in each extension's `licenses` folder and in
   [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md#xtalk-suite-extensions).
