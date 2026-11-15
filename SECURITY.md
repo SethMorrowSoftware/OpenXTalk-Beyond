@@ -157,8 +157,14 @@ These are still old and have publicly known vulnerabilities:
 
 Other libraries in `thirdparty/` (cairo 1.9.4 and others) are
 also several years old. SQLite was updated
-to 3.51.1, and to 3.51.3 in 0.2.7-rc.6.18 (the fix for the WAL-reset
-database corruption bug).
+to 3.51.1, to 3.51.3 in 0.2.7-rc.6.18 (the fix for the WAL-reset
+database corruption bug), and to 3.54.1 in 0.2.8-dp.2 (the fixes of
+the 3.53 and 3.54 patch releases, many for problems found with AI tools).
+0.2.8-dp.2 also updated expat, which Skia uses on Android, from 2.2.0 to
+2.10.0 (the published vulnerabilities of 2.2.0 to 2.9.0 fixed, among them
+"billion laughs" entity expansion), and FreeType, which draws text in the
+web and Android engines, from 2.10.4 to 2.14.3 with the fixes for
+CVE-2026-50811 and CVE-2026-95512.
 
 Upgrading these libraries is planned. Until then, treat the browser
 components and any network or file-parsing features as unsafe for

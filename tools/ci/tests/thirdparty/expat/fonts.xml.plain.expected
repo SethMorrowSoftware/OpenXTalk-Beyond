@@ -1,0 +1,55 @@
+S familyset [version=23]
+T 
+    |
+S family [name=sans-serif]
+T 
+        |
+S font [weight=100] [style=normal]
+T Roboto-Regular.ttf
+            |
+S axis [tag=ital] [stylevalue=0]
+E axis
+T 
+            |
+S axis [tag=wdth] [stylevalue=100]
+E axis
+T 
+        |
+E font
+T 
+        |
+S font [weight=400] [style=italic] [index=1]
+T Roboto-Italic.ttf|
+E font
+T 
+    |
+E family
+T 
+    |
+S alias [name=arial] [to=sans-serif]
+E alias
+T 
+    |
+S alias [name=sans-serif-thin] [to=sans-serif] [weight=100]
+E alias
+T 
+    |
+S family [lang=und-Arab] [variant=elegant]
+T 
+        |
+S font [weight=400] [style=normal] [postScriptName=NotoNaskhArabic]
+T NotoNaskhArabic-Regular.ttf|
+E font
+T 
+    |
+E family
+T 
+    |
+S family [lang=ja zh-Hans]
+S font [weight=400] [style=normal] [index=2]
+T NotoSansCJK-Regular.ttc|
+E font
+E family
+T 
+|
+E familyset
