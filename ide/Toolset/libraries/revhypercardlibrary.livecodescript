@@ -3162,7 +3162,11 @@ on hcPicture pName, pType, pStyle, pVisible, pDepth, pFloating
    end if
    if pType is "resource" and there is a background "HC Pictures" of me then
       repeat with i = 1 to the number of images of background "HC Pictures" of me
-         if the short name of image i of background "HC Pictures" of me is tTitle then
+         -- (or "PICT <id>", by the id ClipToPICT or PICTFileToRes gave a
+         -- picture it named)
+         if the short name of image i of background "HC Pictures" of me is tTitle \
+               or (word 1 of tTitle is "PICT" and word 2 of tTitle is an integer and the number of words of tTitle is 2 \
+               and the uHyperCard["pict"] of image i of background "HC Pictures" of me is word 2 of tTitle) then
             put the long id of image i of background "HC Pictures" of me into tSource
             exit repeat
          end if
@@ -6030,7 +6034,8 @@ on SoundCapToRes pName, pFile, pStack, pRate
          return "SoundCapToRes: can't find stack" && pStack
       end if
    end if
-   if byte 1 to 4 of tData is not among the items of "RIFF,FORM,.snd" then
+   -- (the itemDelimiter is a colon here when a stack was named)
+   if byte 1 to 4 of tData is not "RIFF" and byte 1 to 4 of tData is not "FORM" and byte 1 to 4 of tData is not ".snd" then
       put word 1 to -1 of pRate into tRate
       switch tRate
          case 5

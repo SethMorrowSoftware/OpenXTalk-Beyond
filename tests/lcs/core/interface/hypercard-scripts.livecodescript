@@ -5574,6 +5574,9 @@ on TestHyperCardScriptsSoundExternals
          and the number of audioClips of stack tStack is 1
    TestAssert "SoundCapToRes: a WAVE file, into the stack named", item 3 of tResults is empty \
          and the number of audioClips of stack tOther is 1 and the short name of audioClip 1 of stack tOther is "snd 200"
+   -- (taken as it is: the sound of an 8-bit WAVE file of 2,000 samples,
+   -- not its 2,044 bytes read as samples)
+   TestAssert "SoundCapToRes: a WAVE file is taken as it is", the size of audioClip 1 of stack tOther is 2000
    TestAssert "SoundCapToRes: no such file, the result says so", item 4 of tResults begins with "Error: file not found" \
          and the number of audioClips of stack tStack is 1
    TestAssert "FPlay: the stack's sound plays", item 5 of tResults is empty
@@ -5667,6 +5670,9 @@ on TestHyperCardScriptsPICTWriters
    send "DispPICT" && q & "Bridge" & q to card 1 of stack tStack
    TestAssert "DispPICT shows the picture ClipToPICT added", there is a stack "Bridge" and the width of stack "Bridge" >= 3
    _Close "Bridge"
+   send "DispPICT 129" to card 1 of stack tStack
+   TestAssert "DispPICT finds a named picture by the id ClipToPICT gave it", there is a stack "PICT 129" and the width of stack "PICT 129" >= 3
+   _Close "PICT 129"
    _Close tStack
 end TestHyperCardScriptsPICTWriters
 
