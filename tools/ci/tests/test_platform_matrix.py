@@ -46,7 +46,7 @@ import check_macho_floor  # noqa: E402
 import check_native_deps  # noqa: E402
 import platform_matrix  # noqa: E402
 
-X86_LIBS = ('sodiumxt.so', 'box2dxt.so', 'torrentxt.so', 'datachannelxt.so')
+X86_LIBS = ('sodiumxt.so', 'box2dxt.so', 'torrentxt.so', 'datachannelxt.so', 'curlxt.so')
 
 
 def needs(**versions):
@@ -131,13 +131,15 @@ class ElfFloorMatrix(unittest.TestCase):
         return {'Extensions/x/code/x86-linux/sodiumxt.so': needs(GLIBC='2.33'),
                 'Extensions/x/code/x86-linux/box2dxt.so': needs(GLIBC='2.34'),
                 'Extensions/x/code/x86-linux/torrentxt.so': needs(GLIBC='2.38'),
-                'Extensions/x/code/x86-linux/datachannelxt.so': needs(GLIBC='2.38')}
+                'Extensions/x/code/x86-linux/datachannelxt.so': needs(GLIBC='2.38'),
+                # curlxt's (0.2.8-dp.2): GLIBCXX too, which its own limit covers
+                'Extensions/x/code/x86-linux/curlxt.so': needs(GLIBC='2.34', GLIBCXX='3.4.29')}
 
     def test_shipped_package_passes(self):
         t = self.tree()
         code, out = self.run_check(t.root, self.shipped())
         self.assertEqual(code, 0, out)
-        self.assertIn('4 exceptions above', out)
+        self.assertIn('5 exceptions above', out)
 
     def test_new_file_over_the_floor_fails_with_path_and_version(self):
         t = self.tree(['Externals/new.so'])

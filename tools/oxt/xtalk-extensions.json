@@ -258,6 +258,37 @@
         {"kind": "lcs", "id": "nostrxt", "folder": "nostrxt", "stack": "nostrxt", "main": "src/nostrxt.livecodescript", "title": "NostrXT", "author": "Seth Morrow Software", "requires": [], "probe": "nxVersion()", "expect": "^NostrXT [0-9]"},
         {"kind": "lcs", "id": "nostr-relay", "folder": "nostr-relay", "stack": "nostr-relay", "main": "src/nostr-relay.livecodescript", "title": "NostrXT relay client", "author": "Seth Morrow Software", "requires": ["nostrxt"], "probe": "nxrVersion()", "expect": "^NostrXT relay NostrXT [0-9]"}
       ]
+    },
+    {
+      "name": "curlxt",
+      "repository": "SethMorrowSoftware/xtalk-suite",
+      "commit": "3a5a9e092c8d6677d04d8e996ac16385b32d796d",
+      "version": "0.1.0",
+      "version_from": {
+        "path": "curlxt/src/curl.lcb",
+        "pattern": "^\\s*metadata\\s+version\\s+is\\s+\"([^\"]+)\""
+      },
+      "licence": "MIT (Seth Morrow); the libraries statically link libcurl (the curl licence, MIT-style), libssh2 (BSD-3-Clause) and, in the macOS and the Linux x86-64 and arm64 ones, OpenSSL 3 (Apache-2.0)",
+      "files": [
+        {"path": "curlxt/src/curl.lcb", "role": "source", "sha256": "f1859380f3d8b1208812b68d32b808506794f75027054a6431f4cf9c75d67d37", "size": 27655},
+        {"path": "curlxt/src/curl-helpers.livecodescript", "role": "source", "sha256": "a3524032fb0ad2e72682b4cbe3a7c67c54060a7f54d9efe63eb4865f8315762f", "size": 13882},
+        {"path": "curlxt/src/tsnet.livecodescript", "role": "source", "sha256": "63b344e368e6ae3293074f696533e48fe36216fb8e70b9c9970b50142df7774c", "size": 34095},
+        {"path": "curlxt/src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "89c1fa049fdbc00aa15c89dbbae82d08e744c072a79c0fcc88d5ebc9d3294aea", "size": 533},
+        {"path": "curlxt/src/code/x86_64-win32/curlxt.dll", "role": "library", "sha256": "6591810c820f495f47ddd3f98e27dcf92a8763e7aef687dcfe505871d0db7ce8", "size": 1060864, "imports": ["bcrypt.dll", "ADVAPI32.dll", "CRYPT32.dll", "Secur32.dll", "WS2_32.dll", "IPHLPAPI.DLL", "KERNEL32.dll", "USER32.dll"]},
+        {"path": "curlxt/src/code/x86-win32/curlxt.dll", "role": "library", "sha256": "da95a73c5b62e2c689fc8ed88200495593eedd4957110ebf3527354db625afc2", "size": 883712, "imports": ["bcrypt.dll", "ADVAPI32.dll", "CRYPT32.dll", "Secur32.dll", "WS2_32.dll", "IPHLPAPI.DLL", "KERNEL32.dll", "USER32.dll"]},
+        {"path": "curlxt/src/code/x86_64-linux/curlxt.so", "role": "library", "sha256": "fc4e14e976c964ffb49872a85ff4d2317231ea5feab3b167424d90a20acf2c9c", "size": 7716200},
+        {"path": "curlxt/src/code/x86-linux/curlxt.so", "role": "library", "sha256": "c523a39d45a89cee22d7d6dedc3e6ca13906b4b56ca999074bb85f3a7a8ca3ec", "size": 1405580},
+        {"path": "curlxt/src/code/arm64-linux/curlxt.so", "role": "library", "sha256": "51c5669fd2388592a615351e28ebdd8dacf40e87333f3f52b99f8a6323df23d6", "size": 7173824},
+        {"path": "curlxt/src/code/universal-mac/curlxt.dylib", "role": "library", "sha256": "44e6796a72ca256be9dc635e6c18e5d0bb744f719d4ac831c2aa966ab1f71ce0", "size": 12904400},
+        {"path": "curlxt/LICENSE", "role": "licence", "sha256": "31556e21d88b26e50e37b18c156b419bab80d33e4c8d836f7a9060079e98d0c3", "size": 1581},
+        {"path": "curlxt/THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "5deca77d0a7006e1d85bbd8fe88f4d0126a61f50841e5a7b2bc6fcf445c0db91", "size": 4239},
+        {"path": "LICENSE.txt", "repository": "openssl/openssl", "commit": "d3c1b1169b3569ff3069e5b399f47b2b28e03d79", "ref": "openssl-3.6.4", "role": "licence", "name": "OpenSSL-LICENSE.txt", "comment": "OpenSSL 3 (Apache-2.0) is statically linked into the macOS and the Linux x86-64 and arm64 curlxt libraries; the same licence text as TorrentXT's and dataChannelXT's copy", "sha256": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a", "size": 10175}
+      ],
+      "extensions": [
+        {"kind": "lcb", "id": "org.openxtalk.library.curl", "folder": "org.openxtalk.library.curl", "main": "curlxt/src/curl.lcb", "probe": "cuLibraryVersion()", "expect": "^curlxt ABI [0-9]+; libcurl/[0-9]"},
+        {"kind": "lcs", "id": "curlHelpers", "folder": "curlHelpers", "stack": "curlHelpers", "main": "curlxt/src/curl-helpers.livecodescript", "title": "curlxt helpers", "author": "Seth Morrow Software", "requires": ["org.openxtalk.library.curl"], "probe": "cuWaitingCount()", "expect": "^0$"},
+        {"kind": "lcs", "id": "tsNetCompat", "folder": "tsNetCompat", "stack": "tsNetCompat", "main": "curlxt/src/tsnet.livecodescript", "title": "tsNet calls (curlxt)", "author": "Seth Morrow Software", "requires": ["curlHelpers"], "probe": "tsNetVersion()", "expect": "^1\\.4\\.5$", "comment": "the tsNet calls by name, written from tsNet's public dictionary over curlxt; libURL is untouched"}
+      ]
     }
   ],
   "web_libraries": {

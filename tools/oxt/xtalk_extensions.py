@@ -159,9 +159,13 @@ WINDOWS_PLATFORMS = collections.OrderedDict([
 # shipped. api-ms-win-crt-* is the Universal CRT, part of Windows 10 and
 # later (and of Windows 7/8.1 with KB2999226). msvcrt.dll is the system C
 # runtime that MinGW builds (coinxt) use, not the Visual C++ runtime.
+# secur32.dll is SSPI, through which curlxt's Schannel TLS works (on every
+# Windows since NT). tools/ci/check-extension-imports.ps1 keeps the same
+# list, held equal by tools/ci/tests/test_xtalk_extensions_system_dlls.py.
 SYSTEM_DLLS = frozenset((
     'kernel32.dll', 'user32.dll', 'advapi32.dll', 'ws2_32.dll', 'winmm.dll',
     'crypt32.dll', 'bcrypt.dll', 'iphlpapi.dll', 'mswsock.dll', 'msvcrt.dll',
+    'secur32.dll',
 ))
 SYSTEM_DLL_PREFIXES = ('api-ms-win-crt-',)
 
