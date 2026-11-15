@@ -4013,6 +4013,450 @@ private command _HCWriteText pText, pUsePath, pName, pAppend
    return tFile
 end _HCWriteText
 
+/*
+The file and folder externals (52 stacks call one: DeleteFile, EraseFile,
+RenameFile, CopyFile, FileCopy, MoveFile, CreateFolder, RemoveFolder,
+FileModDate, FileType, FileCreator, GetDir), the
+utilities of the Developer Stack, of Dartmouth's XCMDs and of Support
+Tools eXternals, which scripts called by the same names. A file is
+named as for WriteToFile: by an HFS path ("Old Disk:Data:Scores"; from
+the stack's folder, ":Data:Scores"; a name alone, in it), or by a path
+here. A file on the disk image the stack came from is read from it,
+and never written: what would change it ends in an error, and a copy
+of it is made here. A file the stack wrote beside its file here, as
+WriteToFile writes one named on the image, is the one found first.
+Each command leaves empty in the result when it did its work, else an
+error ("Error: ..."); each function gives what the external gave, and
+the error when there is one, as the externals did.
+*/
+
+-- Where the file or folder pPath names is: "local", a tab and its path
+-- here; or "image", a tab, the disk image, a tab and its HFS path there,
+-- then a tab and "file", its type and its creator, or "folder"; or empty
+-- when there is no such file or folder
+private function _HCFileAt pPath
+   local tWhere, tName, tFolder, tLine, tList, tImage
+   put word 1 to -1 of pPath into pPath
+   if pPath is empty then return empty
+   if char -1 of pPath is colon and slash is not in pPath and backslash is not in pPath then
+      put _HCFilesFolder(pPath) into tWhere
+      set the itemDelimiter to tab
+      if item 1 of tWhere is "image" then return tWhere & tab & "folder"
+      if item 1 of tWhere is "local" then return tWhere
+      return empty
+   end if
+   if char -1 of pPath is slash and the number of chars of pPath > 1 then delete char -1 of pPath
+   put _HCTextFile(pPath) into tWhere
+   set the itemDelimiter to tab
+   if item 1 of tWhere is "image" and _HCWrittenBeside(pPath) is not empty then
+      if there is a file _HCWrittenBeside(pPath) then return "local" & tab & _HCWrittenBeside(pPath)
+   end if
+   if item 1 of tWhere is "local" then
+      if there is a file item 2 of tWhere or there is a folder item 2 of tWhere then return tWhere
+      return empty
+   end if
+   if item 1 of tWhere is not "image" then return empty
+   put item 2 of tWhere into tImage
+   put item 3 of tWhere into tFolder
+   set the itemDelimiter to colon
+   put item -1 of tFolder into tName
+   put item 1 to -2 of tFolder into tFolder
+   if tFolder is empty then
+      -- (a volume alone, "Old Disk")
+      if _HCImageHasFolder(tImage, tName) then return tWhere & tab & "folder"
+      return empty
+   end if
+   try
+      put revHyperCardImageFolder(tImage, tFolder) into tList
+   catch tError
+      return empty
+   end try
+   set the itemDelimiter to tab
+   repeat for each line tLine in tList
+      -- (names compared as HFS compared them, case aside)
+      if item 1 of tLine is tName then return tWhere & tab & item 2 to -1 of tLine
+   end repeat
+   return empty
+end _HCFileAt
+
+-- Where a file that pPath names is written here: its path, when its
+-- folder is here; beside the stack's file here when it names one on
+-- the disk image, or in a folder not here (_HCWrittenBeside); else empty
+private function _HCFileHere pPath
+   local tWhere, tFolder
+   put word 1 to -1 of pPath into pPath
+   put _HCTextFile(pPath) into tWhere
+   set the itemDelimiter to tab
+   if item 1 of tWhere is "local" then
+      put item 2 of tWhere into tFolder
+      set the itemDelimiter to slash
+      if there is a folder (item 1 to -2 of tFolder) then return tFolder
+   end if
+   return _HCWrittenBeside(pPath)
+end _HCFileHere
+
+-- The error a command leaves for a file that is not there
+private function _HCNoFile pPath
+   return "Error: file not found:" && pPath
+end _HCNoFile
+
+/*
+DeleteFile pathname (20 stacks: an XFCN of the Developer Stack, an XCMD
+of others) and EraseFile pathname (11 stacks): deletes the file. Never
+a folder (RemoveFolder), and never a file on the disk image the stack
+came from.
+*/
+on DeleteFile pPath
+   _HCDeleteFile pPath
+   return the result
+end DeleteFile
+
+function DeleteFile pPath
+   _HCDeleteFile pPath
+   return the result
+end DeleteFile
+
+on EraseFile pPath
+   _HCDeleteFile pPath
+   return the result
+end EraseFile
+
+private command _HCDeleteFile pPath
+   local tWhere
+   put _HCFileAt(pPath) into tWhere
+   set the itemDelimiter to tab
+   if tWhere is empty then return _HCNoFile(pPath)
+   if item 1 of tWhere is "image" then return "Error: the disk image is not written to:" && pPath
+   if there is not a file item 2 of tWhere then return "Error: not a file:" && pPath
+   delete file item 2 of tWhere
+   if the result is not empty then return "Error: can't delete" && pPath & ":" && the result
+   return empty
+end _HCDeleteFile
+
+/*
+RenameFile pathname, new name (20 stacks): gives the file (or folder)
+the new name in its folder; of a new name given as a path, its last
+part. Not a file on the disk image the stack came from.
+*/
+on RenameFile pPath, pNew
+   _HCRenameFile pPath, pNew
+   return the result
+end RenameFile
+
+function RenameFile pPath, pNew
+   _HCRenameFile pPath, pNew
+   return the result
+end RenameFile
+
+private command _HCRenameFile pPath, pNew
+   local tWhere, tOld, tTo
+   put _HCFileAt(pPath) into tWhere
+   set the itemDelimiter to tab
+   if tWhere is empty then return _HCNoFile(pPath)
+   if item 1 of tWhere is "image" then return "Error: the disk image is not written to:" && pPath
+   put item 2 of tWhere into tOld
+   put _HCLastPart(word 1 to -1 of pNew) into pNew
+   if pNew is empty then return "Error: no new name for" && pPath
+   set the itemDelimiter to slash
+   put item 1 to -2 of tOld & slash & pNew into tTo
+   if there is a file tTo or there is a folder tTo then return "Error: there is already a file" && pNew
+   if there is a folder tOld then
+      rename folder tOld to tTo
+   else
+      rename file tOld to tTo
+   end if
+   if the result is not empty then return "Error: can't rename" && pPath & ":" && the result
+   return empty
+end _HCRenameFile
+
+/*
+CopyFile source, destination[, replace] (14 stacks) and FileCopy
+source, destination[, replace] (8 stacks): copies the file, to the
+destination file, or into the destination folder with its name;
+a file already there is replaced only when replace is true. A file on
+the disk image the stack came from is copied out of it (its data, as
+a file here has no resource fork). The function gives empty, or the
+error.
+*/
+on CopyFile pFrom, pTo, pReplace
+   _HCCopyFile pFrom, pTo, pReplace is true, false
+   return the result
+end CopyFile
+
+function CopyFile pFrom, pTo, pReplace
+   _HCCopyFile pFrom, pTo, pReplace is true, false
+   return the result
+end CopyFile
+
+on FileCopy pFrom, pTo, pReplace
+   _HCCopyFile pFrom, pTo, pReplace is true, false
+   return the result
+end FileCopy
+
+/*
+MoveFile(file, folder) (7 stacks): moves the file into the folder, here;
+a file on the disk image the stack came from is copied out of it, as
+the image is not written to. Empty, or the error.
+*/
+function MoveFile pFrom, pTo
+   _HCCopyFile pFrom, pTo, false, true
+   return the result
+end MoveFile
+
+private command _HCCopyFile pFrom, pTo, pReplace, pMove
+   local tWhere, tDest, tTo, tData, tName
+   put _HCFileAt(pFrom) into tWhere
+   set the itemDelimiter to tab
+   if tWhere is empty then return _HCNoFile(pFrom)
+   if item 1 of tWhere is "local" and there is not a file item 2 of tWhere then return "Error: not a file:" && pFrom
+   if item 1 of tWhere is "image" and item 4 of tWhere is not "file" then return "Error: not a file:" && pFrom
+   if item 1 of tWhere is "image" then
+      put _HCLastPart(item 3 of tWhere) into tName
+   else
+      put _HCLastPart(item 2 of tWhere) into tName
+   end if
+   -- into a folder here, with its name; else the file pTo names
+   put _HCFileAt(pTo) into tDest
+   if item 1 of tDest is "local" and there is a folder item 2 of tDest then
+      put item 2 of tDest & slash & tName into tTo
+   else if pMove then
+      return "Error: no such folder:" && pTo
+   else
+      put _HCFileHere(pTo) into tTo
+   end if
+   if tTo is empty then return "Error: no folder to write" && pTo && "in"
+   if there is a folder tTo then return "Error: there is a folder" && pTo
+   if item 1 of tWhere is "local" and item 2 of tWhere is tTo then return "Error: the file is the same:" && pTo
+   if there is a file tTo and not pReplace then return "Error: there is already a file" && pTo
+   if item 1 of tWhere is "local" and pMove then
+      rename file item 2 of tWhere to tTo
+      if the result is not empty then return "Error: can't move" && pFrom & ":" && the result
+      return empty
+   end if
+   if item 1 of tWhere is "image" then
+      try
+         put revHyperCardImageReadFork(item 2 of tWhere, item 3 of tWhere, "data") into tData
+      catch tError
+         return "Error: can't read" && pFrom
+      end try
+      if the result is not empty then
+         return "Error: can't read" && pFrom
+      end if
+   else
+      put url ("binfile:" & item 2 of tWhere) into tData
+      if the result is not empty then return "Error: can't read" && pFrom
+   end if
+   put tData into url ("binfile:" & tTo)
+   if the result is not empty then return "Error: can't write" && pTo & ":" && the result
+   return empty
+end _HCCopyFile
+
+/*
+CreateFolder pathname (6 stacks): makes the folder, whose own folder is
+here. RemoveFolder pathname (6 stacks): deletes the folder when there
+is nothing in it, as the Finder's externals did; never a folder that
+holds anything, nor one on the disk image the stack came from.
+*/
+on CreateFolder pPath
+   local tWhere, tFolder
+   put word 1 to -1 of pPath into pPath
+   if char -1 of pPath is colon or char -1 of pPath is slash then delete char -1 of pPath
+   if _HCFileAt(pPath) is not empty then return "Error: there is already a file" && pPath
+   put _HCFileHere(pPath) into tFolder
+   if tFolder is empty then return "Error: no folder to make" && pPath && "in"
+   create folder tFolder
+   if the result is not empty then return "Error: can't make" && pPath & ":" && the result
+   return empty
+end CreateFolder
+
+on RemoveFolder pPath
+   local tWhere, tInside
+   put _HCFileAt(pPath) into tWhere
+   set the itemDelimiter to tab
+   if tWhere is empty then return "Error: folder not found:" && pPath
+   if item 1 of tWhere is "image" then return "Error: the disk image is not written to:" && pPath
+   if there is not a folder item 2 of tWhere then return "Error: not a folder:" && pPath
+   put folders(item 2 of tWhere) into tInside
+   -- (folders() lists ".." too)
+   filter tInside without ".."
+   if files(item 2 of tWhere) is not empty or tInside is not empty then return "Error: the folder is not empty:" && pPath
+   delete folder item 2 of tWhere
+   if the result is not empty then return "Error: can't remove" && pPath & ":" && the result
+   return empty
+end RemoveFolder
+
+/*
+FileModDate(pathname, created) (14 stacks): when the file was made
+(created true) or last changed, in seconds, which convert turns into a
+date; empty when there is no such file, as the stacks test for it. A
+file on the disk image the stack came from has the dates it had there.
+*/
+function FileModDate pPath, pCreated
+   local tWhere, tLine, tName, tFolder, tInfo
+   put _HCFileAt(pPath) into tWhere
+   set the itemDelimiter to tab
+   if tWhere is empty then return empty
+   if item 1 of tWhere is "image" then
+      if item 4 of tWhere is not "file" then return empty
+      try
+         put revHyperCardImageFileInfo(item 2 of tWhere, item 3 of tWhere) into tInfo
+      catch tError
+         return empty
+      end try
+      if pCreated is true then return tInfo["created"]
+      return tInfo["modified"]
+   end if
+   put item 2 of tWhere into tFolder
+   set the itemDelimiter to slash
+   put urlEncode(item -1 of tFolder) into tName
+   put item 1 to -2 of tFolder into tFolder
+   repeat for each line tLine in files(tFolder, "detailed")
+      set the itemDelimiter to comma
+      if item 1 of tLine is tName then
+         if pCreated is true and item 4 of tLine is not empty then return item 4 of tLine
+         return item 5 of tLine
+      end if
+   end repeat
+   repeat for each line tLine in folders(tFolder, "detailed")
+      set the itemDelimiter to comma
+      if item 1 of tLine is tName then
+         if pCreated is true and item 4 of tLine is not empty then return item 4 of tLine
+         return item 5 of tLine
+      end if
+   end repeat
+   return empty
+end FileModDate
+
+/*
+FileType(pathname) and FileCreator(pathname) (11 and 8 stacks): the
+file's Mac type and creator, four characters: on the disk image the
+stack came from, as they were there; here, from a MacBinary header,
+else STAK for a HyperCard stack and TEXT for a .txt file, and "????"
+for what is not known. Empty when there is no such file. FileType is
+called as hcX_FileType: this engine reads "fileType" as its own (rule
+T13).
+*/
+function hcX_FileType pPath
+   local tWhere
+   put _HCFileAt(pPath) into tWhere
+   set the itemDelimiter to tab
+   if tWhere is empty then return empty
+   if item 1 of tWhere is "image" then return item 5 of tWhere
+   if there is a folder item 2 of tWhere then return empty
+   return _HCLocalType(item 2 of tWhere)
+end hcX_FileType
+
+function FileCreator pPath
+   local tWhere, tHeader, tFile
+   put _HCFileAt(pPath) into tWhere
+   set the itemDelimiter to tab
+   if tWhere is empty then return empty
+   if item 1 of tWhere is "image" then return item 6 of tWhere
+   put item 2 of tWhere into tFile
+   if there is a folder tFile then return empty
+   open file tFile for binary read
+   if the result is not empty then return "????"
+   read from file tFile for 128
+   put it into tHeader
+   close file tFile
+   if _HCIsMacBinary(tHeader) then return byte 70 to 73 of tHeader
+   if byte 5 to 8 of tHeader is "STAK" then return "WILD"
+   return "????"
+end FileCreator
+
+/*
+GetDir(folder, options...) (15 stacks): the folder's files and folders,
+one a line. The first option says what: "F" files, "D" folders, "A"
+both (the default), each with "+" after it for those of every folder
+inside it too. Then any of: "t=TYPE" only files of that type ("STAK"),
+"o=p" each as its whole path rather than its name, "n<>name" leaving
+out what has that name. A folder's whole path has a colon after it on
+the disk image the stack came from, a slash here; a file's is the path
+a script gives the other externals. "Error: ..." on its first line when
+there is no such folder.
+*/
+function GetDir pPath
+   local tWhere, tWhat, tDeep, tType, tPaths, tExclude, i, tOption, tOut
+   put "A" into tWhat
+   repeat with i = 2 to paramCount()
+      put word 1 to -1 of param(i) into tOption
+      if tOption is empty then next repeat
+      if i is 2 and char 1 of tOption is among the chars of "FDAfda" and "=" is not in tOption and "<" is not in tOption then
+         put toUpper(char 1 of tOption) into tWhat
+         put char 2 of tOption is "+" into tDeep
+      else if char 1 to 2 of tOption is "t=" then
+         put char 1 to 4 of (char 3 to -1 of tOption & "    ") into tType
+      else if char 1 to 2 of tOption is "o=" then
+         put char 3 of tOption is "p" into tPaths
+      else if char 1 to 3 of tOption is "n<>" then
+         put char 4 to -1 of tOption & return after tExclude
+      end if
+   end repeat
+   if word 1 to -1 of pPath is empty then
+      put _HCFilesFolder(empty) into tWhere
+   else
+      put _HCFileAt(pPath) into tWhere
+      set the itemDelimiter to tab
+      if item 1 of tWhere is "image" and item 4 of tWhere is not "folder" then put empty into tWhere
+      if item 1 of tWhere is "local" and there is not a folder item 2 of tWhere then put empty into tWhere
+   end if
+   if tWhere is empty then return "Error: folder not found:" && pPath
+   set the itemDelimiter to tab
+   put _HCGetDir(item 1 of tWhere, item 2 of tWhere, item 3 of tWhere, tWhat, tDeep, tType, tPaths, tExclude, 0) into tOut
+   if char -1 of tOut is return then delete char -1 of tOut
+   return tOut
+end GetDir
+
+private function _HCGetDir pKind, pImageOrFolder, pHFS, pWhat, pDeep, pType, pPaths, pExclude, pDepth
+   local tList, tLine, tName, tPath, tOut, tSep
+   if pKind is "image" then
+      try
+         put revHyperCardImageFolder(pImageOrFolder, pHFS) into tList
+      catch tError
+         return empty
+      end try
+      put colon into tSep
+   else
+      put _HCLocalFolder(pImageOrFolder) into tList
+      put slash into tSep
+   end if
+   set the itemDelimiter to tab
+   repeat for each line tLine in tList
+      put item 1 of tLine into tName
+      if tName is among the lines of pExclude then next repeat
+      if pKind is "image" then
+         put pHFS & colon & tName into tPath
+      else
+         put pImageOrFolder & slash & tName into tPath
+      end if
+      if item 2 of tLine is "folder" then
+         if pWhat is not "F" then
+            if pPaths then
+               put tPath & tSep & return after tOut
+            else
+               put tName & return after tOut
+            end if
+         end if
+         -- (a folder inside it, to 32 deep, as no disk went further)
+         if pDeep and pDepth < 32 then
+            if pKind is "image" then
+               put _HCGetDir(pKind, pImageOrFolder, tPath, pWhat, pDeep, pType, pPaths, pExclude, pDepth + 1) after tOut
+            else
+               put _HCGetDir(pKind, tPath, empty, pWhat, pDeep, pType, pPaths, pExclude, pDepth + 1) after tOut
+            end if
+         end if
+      else if pWhat is not "D" then
+         if pType is not empty and item 3 of tLine is not pType then next repeat
+         if pPaths then
+            put tPath & return after tOut
+         else
+            put tName & return after tOut
+         end if
+      end if
+   end repeat
+   return tOut
+end _HCGetDir
+
 
 -- The script of TextDialog's dialog (below): its screens are its
 -- cScreens, by number, and cCount of them
