@@ -198,7 +198,7 @@ The programs include the xTalk Suite extensions (SodiumXT, TorrentXT, enetxt, Da
 
 Each package's engine, externals and tools are built from this repository, for Windows x86-64, for macOS (Apple Silicon and Intel, joined into universal files) and for Linux x86-64, and so are the standalone runtimes every package carries for Windows (x86-64 and x86) and Linux (x86-64 and x86), with the time zone library code for them. Every package also carries the HTML5 standalone runtime for web browsers, built from this repository into WebAssembly. {android} Only the macOS package has the macOS runtimes.
 
-OXT-Beyond continues OpenXTalk Lite, started by Terry Little and developed by Tom Perry with contributions from the OpenXTalk community. It is based on LiveCode Community and licensed under the GNU GPL version 3.
+OXT-Beyond continues OpenXTalk Lite, started by Terry Little and developed by Tom Perry with contributions from the OpenXTalk community. It is based on LiveCode Community and licensed under the GNU GPL version 3. It includes fixes and features adapted from HyperXTalk (by Emily-Elizabeth Howard, Mark Wieder, Brian Milby, BerndN, docmeth02 and others) and fixes reported by the OpenXTalk forum's testers, named in CHANGELOG.md; THIRD-PARTY-NOTICES.md lists the third-party components and their licences.
 '''
 
 
