@@ -3602,8 +3602,11 @@ end _HCTypeAmong
 
 -- The folder an external of Files' kind lists: "image", a tab, the disk
 -- image and a tab and the folder's HFS path on it; or "local" and a tab
--- and its path here; or empty if there is none (Files above)
-private function _HCFilesFolder pPath
+-- and its path here; or empty if there is none (Files above). A folder
+-- named that is not there is the stack's folder, as Files lists it,
+-- unless pStrict: then it is none, as the externals that change or
+-- describe a file find one (_HCFileAt)
+private function _HCFilesFolder pPath, pStrict
    local tSet, tImage, tHFS, tUp, tRelative, tFolder, tLocal, tAbsolute
    put the customProperties["uHyperCard"] of me into tSet
    if tSet["image"] is not empty and there is a file tSet["image"] and tSet["imagepath"] is not empty then
@@ -3675,6 +3678,7 @@ private function _HCFilesFolder pPath
          end if
       end if
    end if
+   if pStrict and pPath is not empty then return empty
    if tImage is not empty and tHFS is not empty then return "image" & tab & tImage & tab & tHFS
    if tLocal is not empty and there is a folder tLocal then return "local" & tab & tLocal
    return empty
@@ -3952,14 +3956,15 @@ end FileToField
 
 -- The file pPath names, as Files names a folder: "image", a tab, the
 -- disk image and a tab and its HFS path there; or "local" and a tab and
--- its path here; or empty when no folder of it is found
-private function _HCTextFile pPath
+-- its path here; or empty when no folder of it is found (with pStrict,
+-- a folder named that is not there is none: _HCFilesFolder)
+private function _HCTextFile pPath, pStrict
    local tWhere, tName
    if slash is in pPath or backslash is in pPath then return "local" & tab & pPath
    set the itemDelimiter to colon
    put the last item of pPath into tName
    if colon is in pPath then
-      put _HCFilesFolder(item 1 to -2 of pPath & colon) into tWhere
+      put _HCFilesFolder(item 1 to -2 of pPath & colon, pStrict) into tWhere
    else
       put _HCFilesFolder(empty) into tWhere
    end if
@@ -4033,20 +4038,22 @@ the error when there is one, as the externals did.
 -- Where the file or folder pPath names is: "local", a tab and its path
 -- here; or "image", a tab, the disk image, a tab and its HFS path there,
 -- then a tab and "file", its type and its creator, or "folder"; or empty
--- when there is no such file or folder
+-- when there is no such file or folder, or no such folder of it: never
+-- the stack's folder in place of a folder named that is not there, as
+-- Files falls back to, so that nothing there is renamed or deleted
 private function _HCFileAt pPath
    local tWhere, tName, tFolder, tLine, tList, tImage
    put word 1 to -1 of pPath into pPath
    if pPath is empty then return empty
    if char -1 of pPath is colon and slash is not in pPath and backslash is not in pPath then
-      put _HCFilesFolder(pPath) into tWhere
+      put _HCFilesFolder(pPath, true) into tWhere
       set the itemDelimiter to tab
       if item 1 of tWhere is "image" then return tWhere & tab & "folder"
       if item 1 of tWhere is "local" then return tWhere
       return empty
    end if
    if char -1 of pPath is slash and the number of chars of pPath > 1 then delete char -1 of pPath
-   put _HCTextFile(pPath) into tWhere
+   put _HCTextFile(pPath, true) into tWhere
    set the itemDelimiter to tab
    if item 1 of tWhere is "image" and _HCWrittenBeside(pPath) is not empty then
       if there is a file _HCWrittenBeside(pPath) then return "local" & tab & _HCWrittenBeside(pPath)

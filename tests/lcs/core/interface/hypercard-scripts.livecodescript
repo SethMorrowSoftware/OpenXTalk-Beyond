@@ -5102,6 +5102,9 @@ on TestHyperCardScriptsFileUtilities
          "  EraseFile " & q & ":Sub:c.txt" & q, r, \
          "  RemoveFolder " & q & ":Sub" & q, r, \
          "  put DeleteFile(" & q & "No Such File" & q & ") & tab after gHCScriptsTest", \
+         "  put RenameFile(" & q & ":Missing:" & q & ", " & q & "Renamed" & q & ") & tab after gHCScriptsTest", \
+         "  put DeleteFile(" & q & ":Missing:a.txt" & q & ") & tab after gHCScriptsTest", \
+         "  put line 1 of GetDir(" & q & ":Missing:" & q & ") & tab after gHCScriptsTest", \
          "end mouseUp")
    unlock messages
    get revHyperCardFixScripts(tStack)
@@ -5130,6 +5133,12 @@ on TestHyperCardScriptsFileUtilities
    TestAssert "DeleteFile and EraseFile delete the file, RemoveFolder the empty folder", \
          item 4 of tResults is empty and item 5 of tResults is empty and item 6 of tResults is empty and there is not a folder (tFolder & "/Sub")
    TestAssert "DeleteFile of no such file: an error", word 1 of item 7 of tResults is "Error:"
+   -- a folder named that is not there is not the stack's folder, which
+   -- Files and WriteToFile fall back to: nothing is renamed, deleted or
+   -- listed in it
+   TestAssert "a folder that is not there: RenameFile, DeleteFile and GetDir give an error", \
+         word 1 of item 8 of tResults is "Error:" and word 1 of item 9 of tResults is "Error:" and word 1 of item 10 of tResults is "Error:"
+   TestAssert "a folder that is not there: the stack's folder is not renamed", there is a folder tFolder and there is not a folder (the temporary folder & "/Renamed")
    TestAssert "the file the stack did not name is still there", url ("binfile:" & tFolder & "/a.txt") is "abc"
    _Close tStack
 
