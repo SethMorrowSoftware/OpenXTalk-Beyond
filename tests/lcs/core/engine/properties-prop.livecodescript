@@ -87,3 +87,8 @@ on TestPropertiesOfTemplateAudioClipUnchanged
    TestAssert "the templateAudioClip keeps its four keys", \
          tKeys is "altID" & return & "id" & return & "name" & return & "playLoudness"
 end TestPropertiesOfTemplateAudioClipUnchanged
+
+-- A color palette crashed the same way; a script cannot create one, so it
+-- is held by the Linux build's "Binary stack scripts" check, which reads
+-- every property of the IDE's two Color Chooser stacks (they could not be
+-- read at all before the fix).
