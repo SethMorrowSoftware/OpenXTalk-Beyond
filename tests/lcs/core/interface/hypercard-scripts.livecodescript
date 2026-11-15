@@ -5051,6 +5051,135 @@ on TestHyperCardScriptsTextFileExternals
    delete folder tFolder
 end TestHyperCardScriptsTextFileExternals
 
+on TestHyperCardScriptsFileUtilities
+   -- the file and folder externals (52 stacks of the corpus call one:
+   -- DeleteFile, EraseFile, RenameFile, CopyFile, FileCopy, MoveFile,
+   -- CreateFolder, RemoveFolder, FileModDate, FileType, FileCreator,
+   -- GetDir): they do their work on the file a pathname names, from the
+   -- stack's folder; before, their stand-ins did nothing
+   local tStack, tFolder, q, r, tResults, tExternals, tName
+   global gHCScriptsTest
+   put quote into q
+   put the temporary folder & "/hcfiles" & the milliseconds into tFolder
+   create folder tFolder
+   put "abc" into url ("binfile:" & tFolder & "/a.txt")
+   put "HCFileUtilities" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["file"] of stack tStack to tFolder & "/Main"
+   repeat for each item tName in "DeleteFile,RenameFile,CopyFile,FileModDate,FileType,FileCreator,GetDir,MoveFile"
+      put "XFCN" & tab & tName & return after tExternals
+   end repeat
+   repeat for each item tName in "EraseFile,FileCopy,CreateFolder,RemoveFolder"
+      put "XCMD" & tab & tName & return after tExternals
+   end repeat
+   set the uHyperCard["externals"] of stack tStack to tExternals
+   set the defaultStack to tStack
+   create button "Files"
+   put "  put the result & tab after gHCScriptsTest" into r
+   set the script of button "Files" to _Lines("on mouseUp", "  global gHCScriptsTest", "  put empty into gHCScriptsTest", \
+         "  CreateFolder " & q & "Sub" & q, r, \
+         "  CreateFolder " & q & ":Sub:" & q, r, \
+         "  FileCopy " & q & "a.txt" & q & ", " & q & ":Sub" & q, r, \
+         "  put CopyFile(" & q & "a.txt" & q & ", " & q & "b.txt" & q & ") & tab after gHCScriptsTest", \
+         "  put CopyFile(" & q & "a.txt" & q & ", " & q & "b.txt" & q & ") & tab after gHCScriptsTest", \
+         "  put CopyFile(" & q & "a.txt" & q & ", " & q & "b.txt" & q & ", true) & tab after gHCScriptsTest", \
+         "  put RenameFile(" & q & "b.txt" & q & ", " & q & "c.txt" & q & ") & tab after gHCScriptsTest", \
+         "  put (FileModDate(" & q & "c.txt" & q & ", false) is a number) & tab after gHCScriptsTest", \
+         "  put FileModDate(" & q & "No Such File" & q & ", true) & tab after gHCScriptsTest", \
+         "  put FileType(" & q & "a.txt" & q & ") & FileType(" & q & "Sub" & q & ") & FileCreator(" & q & "a.txt" & q & ") & tab after gHCScriptsTest", \
+         "  put GetDir(empty, " & q & "A" & q & ") & tab after gHCScriptsTest", \
+         "  put GetDir(" & q & q & ", " & q & "F+" & q & ", " & q & "t=TEXT" & q & ", " & q & "n<>c.txt" & q & ") & tab after gHCScriptsTest", \
+         "  put GetDir(" & q & ":Sub" & q & ", " & q & "F" & q & ", " & q & "o=p" & q & ") & tab after gHCScriptsTest", \
+         "  put line 1 of GetDir(" & q & "Nowhere" & q & ", " & q & "F" & q & ") & tab after gHCScriptsTest", \
+         "end mouseUp")
+   create button "More"
+   set the script of button "More" to _Lines("on mouseUp", "  global gHCScriptsTest", "  put empty into gHCScriptsTest", \
+         "  put MoveFile(" & q & "c.txt" & q & ", " & q & ":Sub" & q & ") & tab after gHCScriptsTest", \
+         "  RemoveFolder " & q & "Sub" & q, r, \
+         "  put DeleteFile(" & q & "Sub" & q & ") & tab after gHCScriptsTest", \
+         "  put DeleteFile(" & q & ":Sub:a.txt" & q & ") & tab after gHCScriptsTest", \
+         "  EraseFile " & q & ":Sub:c.txt" & q, r, \
+         "  RemoveFolder " & q & ":Sub" & q, r, \
+         "  put DeleteFile(" & q & "No Such File" & q & ") & tab after gHCScriptsTest", \
+         "  put RenameFile(" & q & ":Missing:" & q & ", " & q & "Renamed" & q & ") & tab after gHCScriptsTest", \
+         "  put DeleteFile(" & q & ":Missing:a.txt" & q & ") & tab after gHCScriptsTest", \
+         "  put line 1 of GetDir(" & q & ":Missing:" & q & ") & tab after gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   TestAssert "no stand-in is made for them", "DeleteFile" is not in it and "EraseFile" is not in it and "GetDir" is not in it \
+         and "FileModDate" is not in it and "RemoveFolder" is not in it and "MoveFile" is not in it
+   send "mouseUp" to button "Files" of card 1 of stack tStack
+   put gHCScriptsTest into tResults
+   set the itemDelimiter to tab
+   TestAssert "CreateFolder makes the folder in the stack's folder", item 1 of tResults is empty and there is a folder (tFolder & "/Sub")
+   TestAssert "CreateFolder of a folder that is there: an error", word 1 of item 2 of tResults is "Error:"
+   TestAssert "FileCopy into a folder, with the file's name", item 3 of tResults is empty and url ("binfile:" & tFolder & "/Sub/a.txt") is "abc"
+   TestAssert "CopyFile to a file", item 4 of tResults is empty and url ("binfile:" & tFolder & "/c.txt") is "abc"
+   TestAssert "CopyFile onto a file that is there: an error, unless it is to replace it", word 1 of item 5 of tResults is "Error:" and item 6 of tResults is empty
+   TestAssert "RenameFile", item 7 of tResults is empty and there is a file (tFolder & "/c.txt") and there is not a file (tFolder & "/b.txt")
+   TestAssert "FileModDate in seconds; empty for no such file", item 8 of tResults is true and item 9 of tResults is empty
+   TestAssert "FileType and FileCreator of a text file here, none for a folder", item 10 of tResults is "TEXT????"
+   TestAssert "GetDir: folders, then files, by name", item 11 of tResults is _Lines("Sub", "a.txt", "c.txt")
+   TestAssert "GetDir: the files of every folder in it, of a type, leaving out a name", item 12 of tResults is _Lines("a.txt", "a.txt")
+   TestAssert "GetDir: whole paths", item 13 of tResults is tFolder & "/Sub/a.txt"
+   TestAssert "GetDir of no such folder: an error", word 1 of item 14 of tResults is "Error:"
+   send "mouseUp" to button "More" of card 1 of stack tStack
+   put gHCScriptsTest into tResults
+   TestAssert "MoveFile into a folder (where EraseFile then finds it)", item 1 of tResults is empty and there is not a file (tFolder & "/c.txt")
+   TestAssert "RemoveFolder leaves a folder with files in it; DeleteFile leaves a folder", \
+         word 1 of item 2 of tResults is "Error:" and word 1 of item 3 of tResults is "Error:"
+   TestAssert "DeleteFile and EraseFile delete the file, RemoveFolder the empty folder", \
+         item 4 of tResults is empty and item 5 of tResults is empty and item 6 of tResults is empty and there is not a folder (tFolder & "/Sub")
+   TestAssert "DeleteFile of no such file: an error", word 1 of item 7 of tResults is "Error:"
+   -- a folder named that is not there is not the stack's folder, which
+   -- Files and WriteToFile fall back to: nothing is renamed, deleted or
+   -- listed in it
+   TestAssert "a folder that is not there: RenameFile, DeleteFile and GetDir give an error", \
+         word 1 of item 8 of tResults is "Error:" and word 1 of item 9 of tResults is "Error:" and word 1 of item 10 of tResults is "Error:"
+   TestAssert "a folder that is not there: the stack's folder is not renamed", there is a folder tFolder and there is not a folder (the temporary folder & "/Renamed")
+   TestAssert "the file the stack did not name is still there", url ("binfile:" & tFolder & "/a.txt") is "abc"
+   _Close tStack
+
+   -- from a disk image: read from it, never written
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["file"] of stack tStack to tFolder & "/Main"
+   set the uHyperCard["image"] of stack tStack to TestGetInputFile("hypercard/forks/Stacks.dc42")
+   set the uHyperCard["imagepath"] of stack tStack to "Old Disk:Stacks:Synthetic Stack"
+   set the uHyperCard["externals"] of stack tStack to tExternals
+   set the defaultStack to tStack
+   create button "Files"
+   set the script of button "Files" to _Lines("on mouseUp", "  global gHCScriptsTest", "  put empty into gHCScriptsTest", \
+         "  put FileType(" & q & "Old Disk:Read Me" & q & ") && FileCreator(" & q & "Old Disk:Read Me" & q & ") & tab after gHCScriptsTest", \
+         "  put FileType(" & q & "Synthetic Stack" & q & ") & tab after gHCScriptsTest", \
+         "  put (FileModDate(" & q & "::Read Me" & q & ", true) is a number) & tab after gHCScriptsTest", \
+         "  put DeleteFile(" & q & "Old Disk:Read Me" & q & ") & tab after gHCScriptsTest", \
+         "  put CopyFile(" & q & "Old Disk:Read Me" & q & ", " & q & "Copy" & q & ") & tab after gHCScriptsTest", \
+         "  put GetDir(" & q & "Old Disk:" & q & ") & tab after gHCScriptsTest", \
+         "  put GetDir(" & q & "Old Disk:" & q & ", " & q & "a+" & q & ", " & q & "o=p" & q & ") & tab after gHCScriptsTest", \
+         "  put GetDir(empty, " & q & "F" & q & ", " & q & "t=STAK" & q & ") & tab after gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   send "mouseUp" to button "Files" of card 1 of stack tStack
+   put gHCScriptsTest into tResults
+   TestAssert "on an image: a file's type and creator as they were", item 1 of tResults is "TEXT ttxt" and item 2 of tResults is "STAK"
+   TestAssert "on an image: FileModDate finds the file, two folders up", item 3 of tResults is true
+   TestAssert "on an image: not deleted", word 1 of item 4 of tResults is "Error:"
+   TestAssert "on an image: copied out of it, here", item 5 of tResults is empty and url ("binfile:" & tFolder & "/Copy") is \
+         revHyperCardImageReadFork(TestGetInputFile("hypercard/forks/Stacks.dc42"), "Old Disk:Read Me", "data")
+   TestAssert "on an image: a folder's folders and files", item 6 of tResults is _Lines("Stacks", "Read Me")
+   TestAssert "on an image: every one inside it, by HFS path", item 7 of tResults is \
+         _Lines("Old Disk:Stacks:", "Old Disk:Stacks:More:", "Old Disk:Stacks:More:Lost Type", "Old Disk:Stacks:Synthetic Stack", "Old Disk:Read Me")
+   TestAssert "on an image: the stack's own folder, of a type", item 8 of tResults is "Synthetic Stack"
+   _Close tStack
+   delete file (tFolder & "/Copy")
+   delete file (tFolder & "/a.txt")
+   delete folder tFolder
+end TestHyperCardScriptsFileUtilities
+
 on TestHyperCardScriptsTextDialog
    -- Jay Hodgdon's TextDialog (22 stacks of the corpus): a dialog of the
    -- stack's TEXT resources as screens, opened at the one asked for,

@@ -244,6 +244,45 @@ function revHyperCardImageFolder pImage, pFolder
 end revHyperCardImageFolder
 
 /*
+Describes a file on the HFS volume in a disk image.
+
+pImage (String): The path of the disk image, as for
+<revHyperCardImageStacks>.
+
+pPath (String): The file's HFS path, as <revHyperCardImageFolder> and
+<revHyperCardImageStacks> name it: the volume's name, each folder, the
+file's name, separated by colons.
+
+Returns (Array): The file's "type" and "creator", four characters each;
+"created" and "modified", when it was made and last changed, in seconds
+as the seconds are here (from the Mac's local time; 0 where the volume
+has none); and "datasize" and "rsrcsize", the lengths of its forks.
+Empty with an error in the result if the image cannot be read or has
+no such file.
+
+Description:
+Names are compared as HFS compared them, case aside. The HyperCard
+Library's stand-ins for FileModDate, FileType and FileCreator read a
+file of the disk image a stack came from with it.
+*/
+function revHyperCardImageFileInfo pImage, pPath
+   local tError, tEach, tFile, tInfo, tKey
+   put __hciLoad(pImage) into tError
+   if tError is not empty then return tError for error
+   repeat for each line tEach in sFiles["order"]
+      if __hciPath(sFiles[tEach]["parent"], sFiles[tEach]["name"]) is pPath then
+         put tEach into tFile
+         exit repeat
+      end if
+   end repeat
+   if tFile is empty then return "no such file on the volume:" && pPath for error
+   repeat for each item tKey in "type,creator,created,modified,datasize,rsrcsize"
+      put sFiles[tFile][tKey] into tInfo[tKey]
+   end repeat
+   return tInfo for value
+end revHyperCardImageFileInfo
+
+/*
 Reads a fork of a file on the HFS volume in a disk image.
 
 pImage (String): The path of the disk image, as for
@@ -781,11 +820,23 @@ private command __hciCatalogRecord pNode, pOffset
          put byte tAt + 9 to tAt + 12 of pNode into sFiles[tID]["creator"]
          put __hciU32(pNode, tAt + 26) into sFiles[tID]["datasize"]
          put __hciU32(pNode, tAt + 36) into sFiles[tID]["rsrcsize"]
+         -- filCrDat at 44, filMdDat at 48: seconds since 1904, given
+         -- since 1970 as the seconds are here (the Mac's were its local
+         -- time); 0 where there is none
+         put __hciSeconds(__hciU32(pNode, tAt + 44)) into sFiles[tID]["created"]
+         put __hciSeconds(__hciU32(pNode, tAt + 48)) into sFiles[tID]["modified"]
          put __hciExtents(pNode, tAt + 74) into sFiles[tID]["dataextents"]
          put __hciExtents(pNode, tAt + 86) into sFiles[tID]["rsrcextents"]
          break
    end switch
 end __hciCatalogRecord
+
+-- A date of the volume, seconds since 1904, as the seconds are here,
+-- since 1970; 0 for none
+private function __hciSeconds pMac
+   if pMac is 0 then return 0
+   return pMac - 2082844800
+end __hciSeconds
 
 -- The HFS path of a file: the volume (the root folder, id 2, whose
 -- parent is 1), each folder, the file, separated by colons
