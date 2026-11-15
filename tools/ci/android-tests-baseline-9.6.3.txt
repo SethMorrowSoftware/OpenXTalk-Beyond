@@ -89,6 +89,11 @@ lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleSubstack
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleTextProperties
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleTextStyleNames
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleUserLevel
+lcs: core/engine/properties-prop: TestEffectivePropertiesOfTemplateEPS  # 9.6.3 quits on these properties (issue 518)
+lcs: core/engine/properties-prop: TestPropertiesOfCreatedEPS  # 9.6.3 quits on these properties (issue 518)
+lcs: core/engine/properties-prop: TestPropertiesOfTemplateEPS  # 9.6.3 quits on these properties (issue 518)
+lcs: core/engine/properties-prop: TestPropertiesOfTemplateVideoClip  # 9.6.3 quits on these properties (issue 518)
+lcs: core/engine/properties-prop: TestSetPropertiesOfTemplateEPSRoundTrip  # 9.6.3 quits on these properties (issue 518)
 lcs: core/field/autotab: TestAutoTabReturnGoesRound
 lcs: core/field/bidi-isolates: TestPDIAfterAClosedIsolate
 lcs: core/field/bidi-isolates: TestTheForumString

@@ -3519,7 +3519,19 @@ void MCObject::DoGetProperties(MCExecContext& ctxt, uint32_t part, bool p_effect
             else
                 getvariantprop(ctxt, part, (Properties)table[tablesize].value, p_effective, &t_value);
 
-            if (!ctxt . HasError())
+            // A property in the table above that this kind of object does
+            // not answer (an EPS has no property table of its own, so its
+            // postScript, pageCount and the rest are not found; a video
+            // clip has no playLoudness) makes getprop return false WITHOUT
+            // throwing, leaving t_value nil. Storing nil crashed the
+            // engine on "the properties of the templateEPS" and of the
+            // templateVideoClip (and of any EPS or video clip), issue 518,
+            // in LiveCode Community 9.6.3 too. Such a key is left out:
+            // there is no value to give, and leaving it out keeps
+            // "set the properties" of the same object able to take the
+            // array back. Every object whose properties were answered
+            // before gets exactly the array it got before.
+            if (!ctxt . HasError() && *t_value != nil)
                 MCArrayStoreValue(*t_array, false, MCNAME(t_token), *t_value);
 		}
 		MCerrorlock--;

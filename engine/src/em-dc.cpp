@@ -42,6 +42,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "mode.h"
 
 #include <emscripten.h>
+#include <vector>
 
 /* ================================================================
  * Globals
@@ -84,6 +85,8 @@ MCRectangle MCEmscriptenGetDisplayRect()
 	return MCRectangleMake(t_left, t_top, t_right - t_left, t_bottom - t_top);
 }
 
+static void MCEmscriptenFitFullscreenStacks();
+
 /* The browser's window changed size, or its pixels did (a zoom, or the
  * window moved to another screen): the screen is the part of the page
  * that the window shows, so the stacks hear desktopChanged, as the
@@ -94,8 +97,52 @@ MCEmscriptenHandleScreenChanged()
 	if (MCscreen == nil || !MCdefaultstackptr)
 		return false;
 
+	MCEmscriptenFitFullscreenStacks();
+
 	MCscreen->delaymessage(MCdefaultstackptr->getcurcard(), MCM_desktop_changed);
 	return true;
+}
+
+/* OXT-Beyond: a fullscreen stack's window covers the screen, and on the
+ * web the screen is the page's viewport, which changes with the browser's
+ * window. The engine sized the window to the screen only when something
+ * else made it look again: the page's canvas moving reshaped it
+ * (MCStack::view_configure()), and a centred canvas moves when the page
+ * gets WIDER, but a canvas as wide as the page cannot move left as the
+ * page narrows, so a fullscreen stack grew with the page and never shrank
+ * back (issue 515, "exactFit" and every other fullscreenMode). Each open
+ * fullscreen stack now takes the new screen, as a desktop's fullscreen
+ * window takes a new display. Stacks that are not fullscreen are left as
+ * they were: the page resizing never resizes those. The stacks are
+ * collected first, because a resize sends messages whose handlers can
+ * open or close stacks. */
+static void MCEmscriptenFitFullscreenStacks()
+{
+	if (MCnoui || MCstacks == nil)
+		return;
+
+	MCStacknode *t_first = MCstacks->topnode();
+	if (t_first == nil)
+		return;
+
+	std::vector<MCStackHandle> t_stacks;
+	MCStacknode *t_node = t_first;
+	do
+	{
+		MCStack *t_stack = t_node->getstack();
+		if (t_stack != nil && t_stack->view_getfullscreen() &&
+		    t_stack->getwindowalways() != nil)
+			t_stacks.push_back(t_stack->GetHandle());
+		t_node = t_node->next();
+	}
+	while (t_node != t_first);
+
+	for (MCStackHandle &t_handle : t_stacks)
+	{
+		if (t_handle.IsValid() && t_handle->view_getfullscreen() &&
+		    t_handle->getwindowalways() != nil)
+			t_handle->view_update_transform();
+	}
 }
 
 /* OXT-Beyond: the window of <p_stack> moved on the screen while it was
