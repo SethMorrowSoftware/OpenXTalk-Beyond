@@ -5342,6 +5342,14 @@ on TestHyperCardScriptsListoid
          "end mouseUp")
    create button "Table"
    set the script of button "Table" to _Lines("on mouseUp", "  Tabloid " & q & "Keywords" & q & ", card field 1, " & q & "100,100" & q & ", " & q & "0 0" & q, "end mouseUp")
+   create button "Locked"
+   set the script of button "Locked" to _Lines("on mouseUp", "  global gHCScriptsTest", "  lock messages", \
+         "  Tabloid " & q & "Large" & q & ", card field 1, " & q & "Geneva,36" & q, \
+         "  put the lockMessages into gHCScriptsTest", "end mouseUp")
+   create field "Measure"
+   set the textFont of field "Measure" to "Geneva"
+   set the textSize of field "Measure" to 36
+   put "apple" & return & "pear" into field "Measure"
    set the script of card 1 of stack tStack to _Lines("on ListoidSelect pWhat, pWhere", "  global gHCScriptsTest", \
          "  put " & q & "select " & q & " & pWhat & " & q & "/" & q & " & pWhere & " & q & "|" & q & " after gHCScriptsTest", "end ListoidSelect", \
          "on openListoid pName, pId", "  global gHCScriptsTest", \
@@ -5379,6 +5387,16 @@ on TestHyperCardScriptsListoid
    send "mouseUp" to field "List" of tWindow
    TestAssert "Tabloid: TabloidSelect", gHCScriptsTest is "tselect apple" & tab & "1/Keywords|"
    _Close "Keywords"
+
+   -- called with messages locked, it leaves them locked; its columns as
+   -- wide as their cells are in the font and size asked for
+   put empty into gHCScriptsTest
+   send "mouseUp" to button "Locked" of card 1 of stack tStack
+   put the long id of stack "Large" into tWindow
+   TestAssert "messages locked by the caller stay locked", gHCScriptsTest is true
+   TestAssert "Tabloid: a column as wide as its widest cell in its font and size", \
+         item 1 of the tabStops of field "List" of tWindow >= the formattedWidth of field "Measure" of card 1 of stack tStack
+   _Close "Large"
    _Close tStack
 end TestHyperCardScriptsListoid
 

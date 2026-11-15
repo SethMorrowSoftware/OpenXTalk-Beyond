@@ -4925,7 +4925,7 @@ on Tabloid pName, pList
 end Tabloid
 
 private command _HCListWindow pKind, pName, pList, pParams
-   local tParam, tFont, tSize, tRect, tColors, tPrompt, i, tStack, tCard, tNew, tDefault, tRecent, tTry, tTop
+   local tParam, tFont, tSize, tRect, tColors, tPrompt, i, tStack, tCard, tNew, tDefault, tRecent, tTry, tTop, tLocked
    if pName is "?" or pName is empty then return pKind && "(HyperCard Library)"
    if _HCIsContainerName(pList) then
       try
@@ -4969,6 +4969,8 @@ private command _HCListWindow pKind, pName, pList, pParams
    end repeat
    put there is not a stack tStack into tNew
    if tNew then
+      -- (messages the caller locked stay locked)
+      put the lockMessages into tLocked
       lock messages
       get _HCNewHiddenStack(tStack)
       set the width of stack tStack to 240
@@ -4998,7 +5000,7 @@ private command _HCListWindow pKind, pName, pList, pParams
             "  pass closeStack" & return & "end closeStack" & return & \
             "on resizeStack" & return & "  set the rect of field " & quote & "List" & quote & " of me to 0, the bottom of field " & quote & "Prompt" & quote & " of me, the width of me, the height of me" & return & "end resizeStack"
       set the defaultStack to tDefault
-      unlock messages
+      set the lockMessages to tLocked
    end if
    set the title of stack tStack to pName
    put tPrompt into field "Prompt" of stack tStack
@@ -5009,9 +5011,9 @@ private command _HCListWindow pKind, pName, pList, pParams
    end if
    set the rect of field "Prompt" of stack tStack to 0, 0, the width of stack tStack, tTop
    put pList into field "List" of stack tStack
-   if pKind is "Tabloid" then _HCTabColumns the long id of field "List" of stack tStack
    if tFont is not empty then set the textFont of field "List" of stack tStack to tFont
    if tSize is a number then set the textSize of field "List" of stack tStack to round(tSize)
+   if pKind is "Tabloid" then _HCTabColumns tStack
    if tColors is not empty then
       set the textColor of field "List" of stack tStack to _HCColour(item 1 of tColors)
       if item 2 of tColors is not empty then set the backgroundColor of field "List" of stack tStack to _HCColour(item 2 of tColors)
@@ -5037,24 +5039,44 @@ private command _HCListWindow pKind, pName, pList, pParams
    return empty
 end _HCListWindow
 
--- Tabloid's columns: the field's tabs set to the widest of each column
--- and a little more
-private command _HCTabColumns pField
-   local tLine, tWidths, i, tCell, tStops, tAt
+-- Tabloid's columns: the tabs of the field "List" of the stack pStack
+-- set to the widest of each column and a little more, each column's
+-- cells measured as they show, in the field's font and size, in a field
+-- made for it and deleted
+private command _HCTabColumns pStack
+   local tColumns, tLine, i, tCount, tStops, tAt, tLocked, tDefault, tMeasure
    set the itemDelimiter to tab
-   repeat for each line tLine in the text of pField
+   put 0 into tCount
+   repeat for each line tLine in field "List" of stack pStack
       repeat with i = 1 to the number of items of tLine
-         put the number of chars of item i of tLine into tCell
-         if tCell > tWidths[i] then put tCell into tWidths[i]
+         put item i of tLine & return after tColumns[i]
       end repeat
+      if the number of items of tLine > tCount then put the number of items of tLine into tCount
    end repeat
+   if tCount < 2 then
+      set the tabStops of field "List" of stack pStack to empty
+      exit _HCTabColumns
+   end if
+   put the lockMessages into tLocked
+   lock messages
+   put the defaultStack into tDefault
+   set the defaultStack to pStack
+   create invisible field "Measure"
+   put it into tMeasure
+   set the dontWrap of tMeasure to true
+   set the textFont of tMeasure to the effective textFont of field "List" of stack pStack
+   set the textSize of tMeasure to the effective textSize of field "List" of stack pStack
    put 0 into tAt
-   repeat with i = 1 to (the number of elements of tWidths) - 1
-      add tWidths[i] * 7 + 12 to tAt
+   repeat with i = 1 to tCount - 1
+      set the text of tMeasure to tColumns[i]
+      add the formattedWidth of tMeasure + 12 to tAt
       put tAt & comma after tStops
    end repeat
+   delete tMeasure
+   set the defaultStack to tDefault
+   set the lockMessages to tLocked
    delete the last char of tStops
-   set the tabStops of pField to tStops
+   set the tabStops of field "List" of stack pStack to tStops
 end _HCTabColumns
 
 -- The data of the resource of type pType and id or name pResource in the
