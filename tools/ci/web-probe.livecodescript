@@ -1422,6 +1422,19 @@ function probeReport pWhat
       put "written by" && word 2 of pWhat into URL ("binfile:" & tFile)
       return "written"
    end if
+   -- The probe's own window made fullscreen in the fullscreenMode of
+   -- word 2 ("exactFit", "showAll"...; "empty" for none): web_check.py
+   -- then makes the page wider and narrower, and the window must cover
+   -- the page each time (issue 515: it grew and never shrank back)
+   if word 1 of pWhat is "fullscreen" then
+      if word 2 of pWhat is "empty" then
+         set the fullscreenMode of me to empty
+      else
+         set the fullscreenMode of me to word 2 of pWhat
+      end if
+      set the fullscreen of me to true
+      return the fullscreen of me & "|" & the fullscreenMode of me
+   end if
    if pWhat is "snapshot" then
       return probeSnapshots()
    end if

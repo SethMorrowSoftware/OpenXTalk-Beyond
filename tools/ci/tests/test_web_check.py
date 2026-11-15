@@ -1085,3 +1085,59 @@ class GoStackUrl(unittest.TestCase):
     def test_the_missing_page_is_expected_once(self):
         console = [('error', web_check.CONSOLE_404)] * 2 + [('log', 'x'), ('error', 'PROBE x')]
         self.assertEqual(web_check.unexpected_console_errors(console), [web_check.CONSOLE_404])
+
+
+class FullscreenFollowsThePage(unittest.TestCase):
+    """Issue 515: a fullscreen stack on the web grew with the page and never
+    shrank back. The check's own judgement of what it measures, and that the
+    probe and the check are wired to each other."""
+
+    def test_covers(self):
+        self.assertTrue(web_check.fullscreen_covers([0, 0, 800, 600, 800, 600]))
+
+    def test_too_big_after_the_page_narrows(self):
+        # what the released engine showed: the window left at the widest
+        seen = [0, 0, 1000, 700, 600, 450]
+        self.assertFalse(web_check.fullscreen_covers(seen))
+        said = web_check.fullscreen_cover_problem('exactFit', 600, 450, seen)
+        self.assertIn('did not shrink with the page (issue 515)', said)
+        self.assertIn('1000x700', said)
+
+    def test_too_small_or_moved(self):
+        for seen in ([0, 0, 800, 600, 1000, 700], [100, 0, 800, 600, 800, 600], [0, 20, 800, 600, 800, 600]):
+            self.assertFalse(web_check.fullscreen_covers(seen), seen)
+            self.assertNotIn('did not shrink', web_check.fullscreen_cover_problem('showAll', 1000, 700, seen))
+
+    def test_not_measured(self):
+        for seen in (None, [], [0, 0, 800]):
+            self.assertFalse(web_check.fullscreen_covers(seen))
+            self.assertIn('could not be measured', web_check.fullscreen_cover_problem('empty', 800, 600, seen))
+
+    def test_sizes_go_wider_then_narrower_than_they_began(self):
+        # the page opens 800x600; one size must be bigger and a later one
+        # smaller, or a window that only grows would pass
+        sizes = web_check.FULLSCREEN_PAGE_SIZES
+        bigger = [i for i, (w, h) in enumerate(sizes) if w > 800 and h > 600]
+        smaller = [i for i, (w, h) in enumerate(sizes) if w < 800 and h < 600]
+        self.assertTrue(bigger and smaller and bigger[0] < smaller[-1], sizes)
+        self.assertEqual(sizes[-1], (800, 600))
+
+    def test_the_probe_answers_the_check(self):
+        probe = read('tools', 'ci', 'web-probe.livecodescript')
+        self.assertIn('if word 1 of pWhat is "fullscreen" then', probe)
+        self.assertIn('set the fullscreen of me to true', probe)
+        check = read('tools', 'ci', 'web_check.py')
+        self.assertIn("'tab=fullscreen'", check)
+        self.assertIn("('fullscreen ' + mode)", check)
+        self.assertEqual(set(web_check.FULLSCREEN_MODES), {'exactFit', 'showAll', 'empty'})
+
+    def test_the_engine_fits_fullscreen_stacks_on_a_screen_change(self):
+        # the fix itself: the page's resize reaches every fullscreen stack
+        source = read('engine', 'src', 'em-dc.cpp')
+        handler = source[source.index('MCEmscriptenHandleScreenChanged()\n{'):]
+        handler = handler[:handler.index('\n}\n')]
+        self.assertIn('MCEmscriptenFitFullscreenStacks();', handler)
+        fit = source[source.index('static void MCEmscriptenFitFullscreenStacks()\n{'):]
+        fit = fit[:fit.index('\n}\n')]
+        self.assertIn('view_getfullscreen()', fit)
+        self.assertIn('view_update_transform()', fit)
