@@ -822,10 +822,29 @@ jobs:
           VERSION: ${{ steps.product.outputs.version }}
         run: python tools/ci/standalone_check.py --package "dist/OXT-Beyond-$env:VERSION-win-x86_64-portable.zip" --platform win-x86_64 --targets all --log "$env:RUNNER_TEMP\build-logs\standalone-check.log"
 
-      # The browser widget, revBrowser (CEF) and the player (DirectShow) in a
-      # standalone of the portable zip, with the runner's desktop: a page
-      # loads and its JavaScript calls back into the script, a WAV and an
-      # MP4 file play, pause and end (tools/ci/media_check.py)
+      # The player opens a file DirectShow cannot (MP4) through Media
+      # Foundation (engine/src/w32-mf-player.cpp), which a Windows Server
+      # has only with its Server-Media-Foundation feature. The check below
+      # needs the MP4 files to play wherever Media Foundation and its H.264
+      # decoder are there (media_check.py MEDIA_FOUNDATION_DLLS), so the
+      # feature is added when they are not; if it cannot be, the check
+      # reports the MP4 files as known not to play, and says why.
+      - name: Media Foundation for the player check
+        continue-on-error: true
+        run: |
+          $missing = @('mfplay.dll', 'mfplat.dll', 'msmpeg2vdec.dll') | Where-Object { -not (Test-Path "$env:SystemRoot\System32\$_") }
+          if (-not $missing) {
+            Write-Host 'Media Foundation is there (mfplay.dll, mfplat.dll, msmpeg2vdec.dll)'
+          } else {
+            Write-Host "Missing: $($missing -join ', '); adding the Server-Media-Foundation feature"
+            Install-WindowsFeature Server-Media-Foundation | Format-List | Out-String | Write-Host
+          }
+
+      # The browser widget, revBrowser (CEF) and the player (DirectShow, and
+      # Media Foundation for MP4) in a standalone of the portable zip, with
+      # the runner's desktop: a page loads and its JavaScript calls back into
+      # the script, a WAV, the AVI and the MP4 files play, pause and end
+      # (tools/ci/media_check.py)
       - name: Browser and player check
         id: media_check
         timeout-minutes: 10

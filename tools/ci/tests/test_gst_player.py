@@ -135,7 +135,7 @@ class EngineChoice(unittest.TestCase):
 class MediaCheckBackend(unittest.TestCase):
     def test_option(self):
         source = read('tools', 'ci', 'media_check.py')
-        self.assertIn("'--player-backend', choices=('auto', 'gstreamer', 'mplayer')", source)
+        self.assertIn("'--player-backend', choices=('auto', 'gstreamer', 'mplayer', 'directshow', 'mediafoundation')", source)
         self.assertIn("env['OXT_PLAYER_BACKEND'] = args.player_backend", source)
 
 

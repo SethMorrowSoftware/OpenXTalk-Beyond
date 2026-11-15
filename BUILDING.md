@@ -2046,10 +2046,16 @@ AAC; with it an AVI with Motion JPEG and PCM, and a video-only MP4 and
 AVI, which tell a format a player cannot open from a machine without a
 sound device) must play, pause and send `playStopped` at their end. Each
 part runs in an engine of its own. What a platform's player is known not
-to play is reported as KNOWN without failing the check (`KNOWN` in the
-script): on Windows, MP4, which DirectShow cannot open without a
-third-party filter, and on a Windows machine without a sound device, the
-WAV file.
+to play is reported as KNOWN without failing the check (`known_failures`
+in the script): on a Windows without Media Foundation or its H.264 decoder
+(`MEDIA_FOUNDATION_DLLS`; the check says which is missing), MP4, which
+DirectShow cannot open without a third-party filter, and on a Windows
+machine without a sound device, the WAV file. Where Media Foundation is
+there, the MP4 files must play: the Windows player opens a file DirectShow
+cannot through Media Foundation (`engine/src/w32-mf-player.cpp`), and the
+Windows build adds the runner's `Server-Media-Foundation` feature first
+when it is missing. `--player-backend directshow` or `mediafoundation`
+names one of the two for the engine (`OXT_PLAYER_BACKEND`).
 
 ```sh
 python3 tools/ci/media_check.py --package dist/OXT-Beyond-<ver>-linux-x86_64.tar.xz

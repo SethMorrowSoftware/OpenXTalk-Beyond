@@ -45,12 +45,21 @@ order to start from the beginning of the second <movie> :
     set the filename of player "My Player" to "SecondMovie.mov"
     set the currentTime of player "My Player" to zero
 
+On Windows a player opens its file with DirectShow, and a file
+DirectShow cannot open (such as an MP4 file with H.264 video and AAC
+sound, when no third-party DirectShow filter is installed) with Media
+Foundation, which is part of Windows. A movie that Media Foundation
+plays cannot be <mirrored>, and when its <playSelection> is true it
+stops within a tenth of a second of the selection's end. (OXT-Beyond
+0.2.8-dp.2)
+
 
 References: movie (function), property (glossary), stack file (glossary),
 movie (glossary), loaded into memory (glossary), object type (glossary),
 templatePlayer (keyword), control (keyword), file (keyword),
 stack (object), player (object), filename (property),
-currentTime (property), qtIdleRate (property)
+currentTime (property), qtIdleRate (property), mirrored (property),
+playSelection (property)
 
 Tags: objects
 
