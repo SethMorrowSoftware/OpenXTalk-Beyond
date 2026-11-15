@@ -4897,6 +4897,178 @@ on DispPICT pName
 end DispPICT
 
 /*
+The PICT writers, which put a picture into the stack or into a file and
+take one out: the picture is kept here as an image, in a format this
+engine reads (PNG, GIF, JPEG or BMP). A Mac PICT file is not read here
+(the import draws the stack's own PICT resources, but not files), and
+the result says so.
+
+ClipToPICT(id[, name]) (Kevin Calhoun's XFCN): the picture on the
+clipboard becomes a picture of the stack, as the import made the stack's
+PICT resources: an image of the group "HC Pictures", which DispPICT and
+picture show by its name or id. With id 0 or none, the next id over the
+stack's pictures'; a picture of that name, or that id, is replaced. It
+gives the id, or what went wrong.
+
+ClipToPICT file (Frederic Rinaldi's XCMD, as a command): writes the
+picture on the clipboard to the file, named as WriteToFile names one
+(one on the disk image the stack came from is written beside the
+stack's file here), as the clipboard holds it (PNG), which PICTToClip,
+DispPICT and picture read back. The result: empty, or what went wrong.
+*/
+function ClipToPICT pId, pName
+   local tData
+   put _HCClipPicture() into tData
+   if tData is empty then return "ClipToPICT failed to add the picture: there is no picture on the clipboard"
+   _HCAddPicture tData, pId, pName
+   return the result
+end ClipToPICT
+
+on ClipToPICT pFile
+   local tData, tWhere, tFile
+   put _HCClipPicture() into tData
+   if tData is empty then return "Error: there is no picture on the clipboard"
+   if word 1 to -1 of pFile is empty then
+      ask file "Save the picture as:"
+      if the result is "Cancel" or it is empty then return "Cancel"
+      put it into tFile
+   else
+      put _HCTextFile(word 1 to -1 of pFile) into tWhere
+      set the itemDelimiter to tab
+      if item 1 of tWhere is "local" then
+         put item 2 of tWhere into tFile
+      else
+         put _HCWrittenBeside(word 1 to -1 of pFile) into tFile
+      end if
+      if tFile is empty then return "Error: no folder to write" && pFile && "in"
+   end if
+   put tData into url ("binfile:" & tFile)
+   if the result is not empty then return "Error: can't write" && tFile & ":" && the result
+   return empty
+end ClipToPICT
+
+/*
+PICTFileToRes([id[, name[, file]]]) (6 stacks, Kevin Calhoun's XFCN):
+the picture in a file becomes a picture of the stack, as ClipToPICT's
+does. The file is the one the person picks in the open dialog, or the
+third parameter's. It gives the id, "Cancel" when the person cancelled,
+or what went wrong ("put PICTFileToRes() into theFile", "if theFile is
+"Cancel"")
+*/
+function PICTFileToRes pId, pName, pFile
+   local tData, tKind
+   if word 1 to -1 of pFile is empty then
+      answer file "Choose a picture file:"
+      if the result is "Cancel" or it is empty then return "Cancel"
+      put it into pFile
+   end if
+   put _HCFileBytes(word 1 to -1 of pFile) into tData
+   if the result is not empty then return the result
+   put _HCPictureKind(tData) into tKind
+   if tKind is not "ok" then return "PICTFileToRes: can't read the picture in" && pFile & tKind
+   _HCAddPicture tData, pId, pName
+   return the result
+end PICTFileToRes
+
+/*
+PICTToClip file[, ...] (9 stacks, Frederic Rinaldi's XCMD): puts the
+picture in the file on the clipboard, for paste. The file is named as
+FileToField names one, or the person picks it when there is none. The
+result: empty, "Cancel", or what went wrong
+*/
+on PICTToClip pFile
+   local tData, tKind
+   if word 1 to -1 of pFile is empty then
+      answer file "Choose a picture file:"
+      if the result is "Cancel" or it is empty then return "Cancel"
+      put it into pFile
+   end if
+   put _HCFileBytes(word 1 to -1 of pFile) into tData
+   if the result is not empty then return the result
+   put _HCPictureKind(tData) into tKind
+   if tKind is not "ok" then return "Error: can't read the picture in" && pFile & tKind
+   set the clipboardData["image"] to tData
+   return empty
+end PICTToClip
+
+-- The picture on the clipboard, as PNG (or as it is there), or empty
+private function _HCClipPicture
+   local tData
+   try
+      if "image" is not among the keys of the clipboardData then return empty
+      put the clipboardData["image"] into tData
+   catch tError
+      return empty
+   end try
+   if _HCPictureKind(tData) is not "ok" then return empty
+   return tData
+end _HCClipPicture
+
+-- "ok" for picture data this engine reads, else why not: ", a Mac PICT
+-- file" or ", not a picture"
+private function _HCPictureKind pData
+   if byte 1 to 4 of pData is (numToByte(137) & "PNG") then return "ok"
+   if byte 1 to 3 of pData is "GIF" then return "ok"
+   if byte 1 to 2 of pData is (numToByte(255) & numToByte(216)) then return "ok"
+   if byte 1 to 2 of pData is "BM" then return "ok"
+   -- (a PICT file: 512 bytes of header, then the picture's size, its
+   -- frame and its version, 0x1101 or 0x0011 0x02FF)
+   if the number of bytes of pData > 522 then
+      if byte 523 to 524 of pData is (numToByte(17) & numToByte(1)) \
+            or byte 523 to 526 of pData is (numToByte(0) & numToByte(17) & numToByte(2) & numToByte(255)) then
+         return ", a Mac PICT file, which is not read here"
+      end if
+   end if
+   return ", which is not a picture this engine reads"
+end _HCPictureKind
+
+-- Adds the picture pData to the stack as an image of its group "HC
+-- Pictures", made when it has none (on no card, as the import makes it),
+-- named pName, else "PICT <id>", with the id in its uHyperCard["pict"];
+-- the id is pId, or with 0 or none the next one over the stack's
+-- pictures' (128 at least). One of that name or id is replaced. The
+-- result: the id
+private command _HCAddPicture pData, pId, pName
+   local tGroup, tDefault, tTaken, tName, tLine, tSet, tImage, i
+   put word 1 to -1 of pName into pName
+   put the defaultStack into tDefault
+   set the defaultStack to the short name of me
+   if there is not a background "HC Pictures" of me then
+      create invisible group "HC Pictures"
+      set the sharedBehavior of it to true
+      remove it from this card
+   end if
+   put the long id of background "HC Pictures" of me into tGroup
+   if pId is not an integer or pId = 0 then
+      put 127 into pId
+      put the customProperties["uHyperCard"] of me into tSet
+      set the itemDelimiter to tab
+      repeat for each line tLine in tSet["resources"]
+         if item 1 of tLine is "PICT" and item 2 of tLine is an integer then put max(pId, item 2 of tLine) into pId
+      end repeat
+      repeat with i = 1 to the number of images of tGroup
+         if word 1 of the short name of image i of tGroup is "PICT" and word 2 of the short name of image i of tGroup is an integer then
+            put max(pId, word 2 of the short name of image i of tGroup) into pId
+         end if
+         if the uHyperCard["pict"] of image i of tGroup is an integer then put max(pId, the uHyperCard["pict"] of image i of tGroup) into pId
+      end repeat
+      add 1 to pId
+   end if
+   if pName is empty then put "PICT" && pId into pName
+   repeat with i = the number of images of tGroup down to 1
+      put the short name of image i of tGroup into tName
+      if tName is pName or tName is ("PICT" && pId) or the uHyperCard["pict"] of image i of tGroup is pId then delete image i of tGroup
+   end repeat
+   create image pName in tGroup
+   put it into tImage
+   set the text of tImage to pData
+   set the topLeft of tImage to 0,0
+   set the uHyperCard["pict"] of tImage to pId
+   set the defaultStack to tDefault
+   return pId
+end _HCAddPicture
+
+/*
 Listoid name, list[, ...] (11 stacks) and Tabloid name, list[, ...] (7
 stacks), Frederic Rinaldi's XCMDs: a small window of the list, one
 choice a line (Tabloid's in columns, at its tabs), the name its title,
@@ -5777,6 +5949,159 @@ private function _HCVolume pLevel
    if pLevel is an integer and pLevel >= 0 and pLevel <= 7 then put pLevel into sHCVolume
    return tOld
 end _HCVolume
+
+/*
+FPlay name (19 stacks) and FSound() (3), Farallon's XCMD and XFCN for
+MacRecorder sounds: FPlay plays the stack's sound of that name, the
+audio clip the import made of its 'snd ' resource, and the script goes
+on while it plays, as play does; FSound() gives "done" when no sound is
+playing, else the name of the one that is ("wait until fsound() is
+"done""). A number names the sound of that id ("snd 128") when the stack
+has none of that name. FPlay "stop" (or "quiet", or no name) stops the
+sound playing. A sound the stack does not have leaves "Can't find sound
+<name>" in the result, and the script goes on, as it did after the
+external's alert
+*/
+on FPlay pName
+   local tClip
+   put word 1 to -1 of pName into pName
+   if pName is empty or pName is among the words of "stop quiet" then
+      play stop
+      return empty
+   end if
+   put _HCSoundClip(pName) into tClip
+   if tClip is 0 then return "Can't find sound" && pName
+   play audioClip tClip of me
+   return empty
+end FPlay
+
+function FSound
+   return the sound
+end FSound
+
+-- The number of the stack's audio clip pName names, by its name (never
+-- "there is an audioClip": a HyperCard sound is often named "1", which
+-- that reads as a clip's number), or "snd <id>" for a number; 0 for none
+private function _HCSoundClip pName
+   local i
+   repeat with i = 1 to the number of audioClips of me
+      if the short name of audioClip i of me is pName then return i
+   end repeat
+   if pName is an integer then
+      repeat with i = 1 to the number of audioClips of me
+         if the short name of audioClip i of me is ("snd" && pName) then return i
+      end repeat
+   end if
+   return 0
+end _HCSoundClip
+
+/*
+SoundCapToRes name, file, stack[, pitch or rate] (8 stacks), Steve Milne
+and Ted Kaehler's XCMD: makes the SoundCap or SoundWave file a sound of
+the stack, by that name, which play and FPlay then play ("do
+"SoundCapToRes" && Args" and then "play ResName", as the stacks that
+carry it do). The stack is the one named, or this one when there is
+none; a sound of that name it has is replaced. A SoundCap file is its
+sound alone, a byte a sample, 22,254 of them a second unless the fourth
+parameter is a rate (5, 7, 11 or 22 for those kHz, or the samples a
+second); 60, 72, 79 or 84, a base pitch, is not a rate. A file that is
+AIFF, WAVE or an AU sound already is taken as it is. The file is named
+as WriteToFile names one: an HFS path, a name in the stack's folder, or
+a path here, and one on the disk image the stack came from is read from
+it. The result: empty, or what went wrong
+*/
+on SoundCapToRes pName, pFile, pStack, pRate
+   local tData, tTarget, tRate, tTemp, tDefault, tError, i
+   put word 1 to -1 of pName into pName
+   if pName is empty then return "SoundCapToRes: no name for the sound"
+   put _HCFileBytes(word 1 to -1 of pFile) into tData
+   if the result is not empty then return the result
+   if tData is empty then return "SoundCapToRes: the file" && pFile && "has no sound"
+   put word 1 to -1 of pStack into pStack
+   if pStack is empty then
+      put the long id of me into tTarget
+   else
+      set the itemDelimiter to colon
+      if there is a stack pStack then
+         put the long id of stack pStack into tTarget
+      else if there is a stack (the last item of pStack) then
+         put the long id of stack (the last item of pStack) into tTarget
+      else
+         return "SoundCapToRes: can't find stack" && pStack
+      end if
+   end if
+   if byte 1 to 4 of tData is not among the items of "RIFF,FORM,.snd" then
+      put word 1 to -1 of pRate into tRate
+      switch tRate
+         case 5
+            put 5563 into tRate
+            break
+         case 7
+            put 7418 into tRate
+            break
+         case 11
+            put 11127 into tRate
+            break
+         case 22
+            put 22254 into tRate
+            break
+         default
+            if tRate is not an integer or tRate < 1000 then put 22254 into tRate
+      end switch
+      put "RIFF" & binaryEncode("I", 36 + the number of bytes of tData) & "WAVEfmt " \
+            & binaryEncode("IssIIss", 16, 1, 1, tRate, tRate, 1, 8) \
+            & "data" & binaryEncode("I", the number of bytes of tData) & tData into tData
+   end if
+   put specialFolderPath("temporary") & slash & "oxt-soundcap-" & the milliseconds & ".snd" into tTemp
+   put tData into url ("binfile:" & tTemp)
+   if the result is not empty then return "SoundCapToRes: can't write" && tTemp
+   put the defaultStack into tDefault
+   try
+      set the defaultStack to the short name of tTarget
+      repeat with i = the number of audioClips of tTarget down to 1
+         if the short name of audioClip i of tTarget is pName then delete audioClip i of tTarget
+      end repeat
+      import audioClip from file tTemp
+      if the result is not empty then
+         put "SoundCapToRes: can't read the sound in" && pFile into tError
+      else
+         set the name of last audioClip of tTarget to pName
+      end if
+   catch tError
+      put "SoundCapToRes: can't read the sound in" && pFile into tError
+   end try
+   set the defaultStack to tDefault
+   delete file tTemp
+   return tError
+end SoundCapToRes
+
+-- The bytes of the file pPath names, as FileToField finds a file (one
+-- the stack wrote beside its file first, then the disk image's, then a
+-- path here), with an error in the result when there is none
+private function _HCFileBytes pPath
+   local tWhere, tData
+   if pPath is empty then return "Error: no file named" for error
+   put _HCTextFile(pPath) into tWhere
+   set the itemDelimiter to tab
+   if item 1 of tWhere is "image" then
+      if there is a file _HCWrittenBeside(pPath) then put "local" & tab & _HCWrittenBeside(pPath) into tWhere
+   end if
+   if item 1 of tWhere is "image" then
+      try
+         put revHyperCardImageReadFork(item 2 of tWhere, item 3 of tWhere, "data") into tData
+      catch tError
+         return "Error: can't read" && pPath for error
+      end try
+      if the result is not empty then return "Error: can't read" && pPath for error
+      return tData for value
+   end if
+   if item 1 of tWhere is "local" and there is a file item 2 of tWhere then
+      put url ("binfile:" & item 2 of tWhere) into tData
+      if the result is not empty then return "Error: can't read" && pPath for error
+      return tData for value
+   end if
+   return "Error: file not found:" && pPath for error
+end _HCFileBytes
 
 -- objectExists(description), the XFCN: whether there is such an object
 -- ("bg button " & quote & "Next" & quote)
