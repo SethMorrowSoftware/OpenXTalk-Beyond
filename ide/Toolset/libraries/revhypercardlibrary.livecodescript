@@ -4772,6 +4772,291 @@ private function _HCColour pColour
    return pColour
 end _HCColour
 
+/*
+FullHPop(menu[, place[, chosen[, font, size...]]]) (13 stacks), Frederic
+Rinaldi's XFCN: a popup menu of the menu's lines at the place (left,top
+on the card), the mouse where there is none; "FONT" alone is the fonts
+here. It gives the line chosen, a comma, the submenu's choice (none
+here: empty), a comma and the line's number, as the stacks read it
+("item 1 of it", "item 3 of it"); empty if none is chosen
+*/
+function FullHPop pMenu, pPlace, pChosen
+   local tItems, tChosen
+   if word 1 to -1 of pMenu is "FONT" then
+      put the fontNames into tItems
+      sort lines of tItems
+   else
+      put pMenu into tItems
+   end if
+   if _HCAreNumbers(pPlace, 2) then
+      put _HCPopUp(_HCMenuText(tItems, pChosen), item 2 of pPlace, item 1 of pPlace) into tChosen
+   else
+      put _HCPopUp(_HCMenuText(tItems, pChosen), empty, empty) into tChosen
+   end if
+   return hcFullHPopChoice(tItems, tChosen)
+end FullHPop
+
+-- "line,,number" of a FullHPop choice, as the popup gives it; empty if it
+-- is not a line of pItems
+function hcFullHPopChoice pItems, pChosen
+   local tLine
+   if pChosen is empty then return empty
+   put _HCLineOf(pChosen, pItems) into tLine
+   if tLine is 0 then return empty
+   return pChosen & comma & comma & tLine
+end hcFullHPopChoice
+
+/*
+PopList(list, left, top, chosen) (3 stacks): a popup menu of the list's
+lines with its top left at left,top; the line chosen, or empty
+*/
+function PopList pList, pLeft, pTop, pChosen
+   local tChosen
+   put _HCPopUp(_HCMenuText(pList, pChosen), pTop, pLeft) into tChosen
+   if _HCLineOf(tChosen, pList) is 0 then return empty
+   return tChosen
+end PopList
+
+/*
+Alert icon, buttons, text[, ...] (9 stacks): an alert of the text, its
+icon 0 a note, 1 a caution, else a stop, with OK; the result is the
+button clicked. PopAlert(icon, default, [title,] text) (3 stacks): the
+same, with OK and Cancel where the text asks a question, giving the
+number of the button clicked, as the external did
+*/
+on Alert pIcon, pButtons, pText
+   _HCAlert pIcon, pText, "OK"
+   return the result
+end Alert
+
+function PopAlert pIcon, pDefault, pTitle, pText
+   local tButtons, tChosen
+   if paramCount() < 4 then put pTitle into pText
+   put "OK" into tButtons
+   if "?" is in pText then put "OK,Cancel" into tButtons
+   _HCAlert pIcon, pText, tButtons
+   put the result into tChosen
+   set the itemDelimiter to comma
+   if tChosen is empty then return 0
+   return itemOffset(tChosen, tButtons)
+end PopAlert
+
+private command _HCAlert pIcon, pText, pButtons
+   local tAsk
+   put pButtons is not "OK" into tAsk
+   switch word 1 to -1 of pIcon
+      case 0
+         if tAsk then
+            answer information pText with "OK" or "Cancel"
+         else
+            answer information pText with "OK"
+         end if
+         break
+      case 1
+         if tAsk then
+            answer warning pText with "OK" or "Cancel"
+         else
+            answer warning pText with "OK"
+         end if
+         break
+      default
+         if tAsk then
+            answer error pText with "OK" or "Cancel"
+         else
+            answer error pText with "OK"
+         end if
+   end switch
+   return it
+end _HCAlert
+
+/*
+DispPICT name[, ...] (10 stacks): a window of the picture, the stack's
+PICT resource of that name (or id) or a file of that name beside the
+stack's file, as the picture command shows one (hcPicture); the
+parameters after the name, where to put it and how, are not kept.
+Clicking in the window closes it, as it did
+*/
+on DispPICT pName
+   local tName
+   put word 1 to -1 of pName into tName
+   if tName is an integer then put "PICT" && tName into tName
+   hcPicture tName, "resource", empty, true
+   if the result is not empty then hcPicture pName, "file", empty, true
+   if the result is not empty then return the result
+   set the itemDelimiter to colon
+   put item -1 of tName into tName
+   if there is a stack tName then
+      set the script of stack tName to "on mouseUp" & return & "close me" & return & "end mouseUp"
+   end if
+   return empty
+end DispPICT
+
+/*
+Listoid name, list[, ...] (11 stacks) and Tabloid name, list[, ...] (7
+stacks), Frederic Rinaldi's XCMDs: a small window of the list, one
+choice a line (Tabloid's in columns, at its tabs), the name its title,
+as Textoid's window of text is. The list is the value given or the
+container its name gives. The parameters after it, in any order: a
+font ("Geneva", or "Geneva,9" with its size), a size, a place or a
+rect, colours, the kind of window (a palette here), a prompt (text of
+more than two words, shown above the list). Clicking a line sends
+ListoidSelect (TabloidSelect) with the line and the window's name to
+the card the window was opened from, and closing the window
+closeListoid (closeTabloid) with its name, as the stacks that use
+them handle; openListoid (openTabloid) with its name and id as it
+opens. A window of that name already open shows the new list
+*/
+on Listoid pName, pList
+   local tParams, i
+   repeat with i = 3 to paramCount()
+      put param(i) into tParams[i - 2]
+   end repeat
+   _HCListWindow "Listoid", pName, pList, tParams
+   return the result
+end Listoid
+
+on Tabloid pName, pList
+   local tParams, i
+   repeat with i = 3 to paramCount()
+      put param(i) into tParams[i - 2]
+   end repeat
+   _HCListWindow "Tabloid", pName, pList, tParams
+   return the result
+end Tabloid
+
+private command _HCListWindow pKind, pName, pList, pParams
+   local tParam, tFont, tSize, tRect, tColors, tPrompt, i, tStack, tCard, tNew, tDefault, tRecent, tTry, tTop
+   if pName is "?" or pName is empty then return pKind && "(HyperCard Library)"
+   if _HCIsContainerName(pList) then
+      try
+         put value(pList) into pList
+      catch tError
+      end try
+   end if
+   repeat with i = 1 to the number of elements of pParams
+      put word 1 to -1 of pParams[i] into tParam
+      if tParam is empty then next repeat
+      if tParam is a number then
+         put tParam into tSize
+      else if _HCAreNumbers(tParam, 2) or _HCAreNumbers(tParam, 4) then
+         put tParam into tRect
+      else if "windoid" is in tParam or "rinaldoid" is in tParam or tParam is among the words of "document shadow plain dialog zoom" then
+         next repeat
+      else if _HCIsColour(item 1 of tParam) then
+         put tParam into tColors
+      else if the number of words of tParam > 2 then
+         put tParam into tPrompt
+      else if item 1 of tParam is among the lines of the fontNames or (the number of items of tParam is 2 and item 2 of tParam is a number) then
+         put item 1 of tParam into tFont
+         if item 2 of tParam is a number then put item 2 of tParam into tSize
+      end if
+   end repeat
+   put the long id of this card into tCard
+   put the defaultStack into tDefault
+   -- (named as the window, which scripts address as "window Index";
+   -- beside a stack of that name that is not one, "Listoid Index" and
+   -- on, as Textoid's)
+   put pName into tStack
+   put 1 into tTry
+   repeat while there is a stack tStack
+      if the cKind of stack tStack is pKind and the cName of stack tStack is pName then exit repeat
+      if tTry is 1 then
+         put pKind && pName into tStack
+      else
+         put pKind && pName && tTry into tStack
+      end if
+      add 1 to tTry
+   end repeat
+   put there is not a stack tStack into tNew
+   if tNew then
+      lock messages
+      get _HCNewHiddenStack(tStack)
+      set the width of stack tStack to 240
+      set the height of stack tStack to 200
+      set the defaultStack to tStack
+      create field "Prompt"
+      set the lockText of field "Prompt" of stack tStack to true
+      set the showBorder of field "Prompt" of stack tStack to false
+      set the rect of field "Prompt" of stack tStack to 0,0,240,0
+      create field "List"
+      set the listBehavior of field "List" of stack tStack to true
+      set the lockText of field "List" of stack tStack to true
+      set the dontWrap of field "List" of stack tStack to true
+      set the vScrollbar of field "List" of stack tStack to true
+      set the rect of field "List" of stack tStack to 0,0,240,200
+      set the cCard of stack tStack to tCard
+      set the cName of stack tStack to pName
+      set the cKind of stack tStack to pKind
+      set the script of field "List" of stack tStack to "on mouseUp" & return & \
+            "  if the hilitedLine of me is empty then exit mouseUp" & return & \
+            "  try" & return & "    dispatch " & quote & pKind & "Select" & quote && \
+            "to (the cCard of the owner of the owner of me) with (line (the hilitedLine of me) of me), (the cName of the owner of the owner of me)" & return & \
+            "  catch tError" & return & "  end try" & return & "end mouseUp"
+      set the script of stack tStack to "on closeStack" & return & \
+            "  try" & return & "    dispatch " & quote & "close" & pKind & quote && \
+            "to (the cCard of me) with (the cName of me), (the short id of me)" & return & "  catch tError" & return & "  end try" & return & \
+            "  pass closeStack" & return & "end closeStack" & return & \
+            "on resizeStack" & return & "  set the rect of field " & quote & "List" & quote & " of me to 0, the bottom of field " & quote & "Prompt" & quote & " of me, the width of me, the height of me" & return & "end resizeStack"
+      set the defaultStack to tDefault
+      unlock messages
+   end if
+   set the title of stack tStack to pName
+   put tPrompt into field "Prompt" of stack tStack
+   if tPrompt is empty then
+      put 0 into tTop
+   else
+      put 36 into tTop
+   end if
+   set the rect of field "Prompt" of stack tStack to 0, 0, the width of stack tStack, tTop
+   put pList into field "List" of stack tStack
+   if pKind is "Tabloid" then _HCTabColumns the long id of field "List" of stack tStack
+   if tFont is not empty then set the textFont of field "List" of stack tStack to tFont
+   if tSize is a number then set the textSize of field "List" of stack tStack to round(tSize)
+   if tColors is not empty then
+      set the textColor of field "List" of stack tStack to _HCColour(item 1 of tColors)
+      if item 2 of tColors is not empty then set the backgroundColor of field "List" of stack tStack to _HCColour(item 2 of tColors)
+   end if
+   if the number of items of tRect is 4 then
+      set the rect of stack tStack to tRect
+   else if the number of items of tRect is 2 then
+      set the topLeft of stack tStack to tRect
+   end if
+   set the rect of field "List" of stack tStack to 0, tTop, the width of stack tStack, the height of stack tStack
+   if tNew then
+      -- (made visible, as an invisible stack opens no window, and only
+      -- then destroyed as it closes, as _HCReadyToShow closes it)
+      _HCReadyToShow the long id of stack tStack
+      set the destroyStack of stack tStack to true
+      put the lockRecent into tRecent
+      set the lockRecent to true
+      palette stack tStack
+      set the lockRecent to tRecent
+      set the defaultStack to tDefault
+      dispatch ("open" & pKind) to tCard with pName, the short id of stack tStack
+   end if
+   return empty
+end _HCListWindow
+
+-- Tabloid's columns: the field's tabs set to the widest of each column
+-- and a little more
+private command _HCTabColumns pField
+   local tLine, tWidths, i, tCell, tStops, tAt
+   set the itemDelimiter to tab
+   repeat for each line tLine in the text of pField
+      repeat with i = 1 to the number of items of tLine
+         put the number of chars of item i of tLine into tCell
+         if tCell > tWidths[i] then put tCell into tWidths[i]
+      end repeat
+   end repeat
+   put 0 into tAt
+   repeat with i = 1 to (the number of elements of tWidths) - 1
+      add tWidths[i] * 7 + 12 to tAt
+      put tAt & comma after tStops
+   end repeat
+   delete the last char of tStops
+   set the tabStops of pField to tStops
+end _HCTabColumns
+
 -- The data of the resource of type pType and id or name pResource in the
 -- resource fork pFork, or false. A fork's numbers are big-endian: its
 -- header gives where its data and map begin; the map, where its type

@@ -5320,6 +5320,162 @@ on TestHyperCardScriptsTextoid
    _Close tStack
 end TestHyperCardScriptsTextoid
 
+on TestHyperCardScriptsListoid
+   -- Frederic Rinaldi's Listoid and Tabloid (11 and 7 stacks of the
+   -- corpus): a window of a list, its parameters after the list known by
+   -- what they are; ListoidSelect (TabloidSelect) with the line and the
+   -- window's name as a line is clicked, closeListoid as it closes.
+   -- Before, their stand-ins did nothing
+   local tStack, q, tWindow
+   global gHCScriptsTest
+   put quote into q
+   put "HCListWindows" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["externals"] of stack tStack to _Lines("XCMD" & tab & "Listoid", "XCMD" & tab & "Tabloid")
+   set the defaultStack to tStack
+   create field "Entries"
+   put "apple" & tab & "1" & return & "pear" & tab & "22" into field "Entries"
+   create button "Show"
+   set the script of button "Show" to _Lines("on mouseUp", \
+         "  Listoid " & q & "Index" & q & ", " & q & "card field 1" & q & ", " & q & "Geneva,9" & q & ", " & q & "10,40,250,190" & q & ", " & q & "zoom" & q & ", " & q & "Click a line to go there" & q & ", " & q & "black,cyan" & q, \
+         "end mouseUp")
+   create button "Table"
+   set the script of button "Table" to _Lines("on mouseUp", "  Tabloid " & q & "Keywords" & q & ", card field 1, " & q & "100,100" & q & ", " & q & "0 0" & q, "end mouseUp")
+   set the script of card 1 of stack tStack to _Lines("on ListoidSelect pWhat, pWhere", "  global gHCScriptsTest", \
+         "  put " & q & "select " & q & " & pWhat & " & q & "/" & q & " & pWhere & " & q & "|" & q & " after gHCScriptsTest", "end ListoidSelect", \
+         "on openListoid pName, pId", "  global gHCScriptsTest", \
+         "  put " & q & "open " & q & " & pName & " & q & "|" & q & " after gHCScriptsTest", "end openListoid", \
+         "on closeListoid pName", "  global gHCScriptsTest", \
+         "  put " & q & "close " & q & " & pName & " & q & "|" & q & " after gHCScriptsTest", "end closeListoid", \
+         "on TabloidSelect pWhat, pWhere", "  global gHCScriptsTest", \
+         "  put " & q & "tselect " & q & " & pWhat & " & q & "/" & q & " & pWhere & " & q & "|" & q & " after gHCScriptsTest", "end TabloidSelect")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   TestAssert "no stand-in is made for them", "Listoid" is not in it and "Tabloid" is not in it
+
+   put empty into gHCScriptsTest
+   send "mouseUp" to button "Show" of card 1 of stack tStack
+   put the long id of stack "Index" into tWindow
+   TestAssert "a window of that name and title, shown, a palette", the title of tWindow is "Index" and the visible of tWindow and the mode of tWindow is 4
+   TestAssert "the list of the container it names", field "List" of tWindow is "apple" & tab & "1" & return & "pear" & tab & "22"
+   TestAssert "font and size, colours, rect, prompt", the textFont of field "List" of tWindow is "Geneva" and the textSize of field "List" of tWindow is 9 \
+         and the textColor of field "List" of tWindow is "black" and the backgroundColor of field "List" of tWindow is "cyan" \
+         and the rect of tWindow is "10,40,250,190" and field "Prompt" of tWindow is "Click a line to go there"
+   TestAssert "openListoid to the card", gHCScriptsTest is "open Index|"
+   set the hilitedLine of field "List" of tWindow to 2
+   send "mouseUp" to field "List" of tWindow
+   TestAssert "a line clicked: ListoidSelect with the line and the window's name", gHCScriptsTest is "open Index|select pear" & tab & "22/Index|"
+   close tWindow
+   TestAssert "closeListoid to the card", gHCScriptsTest ends with "|close Index|"
+   TestAssert "the window is closed", "Index" is not among the lines of the openStacks
+
+   put empty into gHCScriptsTest
+   send "mouseUp" to button "Table" of card 1 of stack tStack
+   put the long id of stack "Keywords" into tWindow
+   TestAssert "Tabloid: the list in columns at its tabs, at the place", field "List" of tWindow is field "Entries" of card 1 of stack tStack \
+         and the tabStops of field "List" of tWindow is not empty and the topLeft of tWindow is "100,100"
+   set the hilitedLine of field "List" of tWindow to 1
+   send "mouseUp" to field "List" of tWindow
+   TestAssert "Tabloid: TabloidSelect", gHCScriptsTest is "tselect apple" & tab & "1/Keywords|"
+   _Close "Keywords"
+   _Close tStack
+end TestHyperCardScriptsListoid
+
+on TestHyperCardScriptsAlerts
+   -- the Alert XCMD and PopAlert XFCN (9 and 3 stacks of the corpus): an
+   -- alert of the text, with OK, and with Cancel too where PopAlert asks;
+   -- the button clicked, by name or by number. Before, their stand-ins
+   -- did nothing
+   local tStack, q, tResults
+   global gHCScriptsTest, gHCScriptsSeen
+   put quote into q
+   if there is a stack "Answer Dialog" then
+      TestSkip "Alert and PopAlert", "an Answer Dialog stack is already open"
+      exit TestHyperCardScriptsAlerts
+   end if
+   put "HCWarnings" & the milliseconds into tStack
+   lock messages
+   -- (answer opens the stack of this name: here one that keeps what it
+   -- was asked to show, and answers with its last button)
+   create invisible stack "Answer Dialog"
+   set the script of stack "Answer Dialog" to _Lines("on openStack", "  global gHCScriptsSeen", \
+         "  put the dialogData & numToChar(1) after gHCScriptsSeen", \
+         "  set the itemDelimiter to numToChar(0)", \
+         "  put item -2 of the dialogData into tButtons", \
+         "  set the dialogData to line -1 of tButtons", "  close this stack", "end openStack")
+   create invisible stack tStack
+   set the uHyperCard["externals"] of stack tStack to _Lines("XCMD" & tab & "Alert", "XFCN" & tab & "PopAlert")
+   set the defaultStack to tStack
+   create button "Alerts"
+   set the script of button "Alerts" to _Lines("on mouseUp", "  global gHCScriptsTest", "  put empty into gHCScriptsTest", \
+         "  Alert 2,1," & q & "Installation Complete" & q, \
+         "  put the result & tab after gHCScriptsTest", \
+         "  put PopAlert(3,0," & q & "CAUTION" & q & "," & q & "Do you really want to delete this card ?" & q & ") & tab after gHCScriptsTest", \
+         "  put PopAlert(1,0," & q & "Your stack is large" & q & ") after gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   TestAssert "no stand-in is made for them", "Alert" is not in it
+   put empty into gHCScriptsSeen
+   send "mouseUp" to button "Alerts" of card 1 of stack tStack
+   put gHCScriptsTest into tResults
+   set the itemDelimiter to tab
+   TestAssert "Alert: the text, with OK, which is the result", "Installation Complete" is in item 1 of gHCScriptsSeen and item 1 of tResults is "OK"
+   TestAssert "PopAlert that asks: OK and Cancel, the number of the one clicked", item 2 of tResults is 2
+   TestAssert "PopAlert with the text alone: OK", item 3 of tResults is 1
+   set the itemDelimiter to numToChar(1)
+   TestAssert "the texts shown", "Do you really want to delete this card ?" is in item 2 of gHCScriptsSeen and "Your stack is large" is in item 3 of gHCScriptsSeen
+   _Close tStack
+   _Close "Answer Dialog"
+end TestHyperCardScriptsAlerts
+
+on TestHyperCardScriptsDispPICT
+   -- DispPICT (10 stacks of the corpus): a window of the stack's PICT
+   -- resource of that name or id, which a click closes; FullHPop (13) and
+   -- PopList (3): popup menus, whose choice FullHPop gives as "line,,n".
+   -- Before, their stand-ins did nothing
+   local tStack, q, tResults
+   global gHCScriptsTest
+   put quote into q
+   put "HCPictures" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["externals"] of stack tStack to _Lines("XCMD" & tab & "DispPICT", "XFCN" & tab & "FullHPop", "XFCN" & tab & "PopList")
+   set the defaultStack to tStack
+   create background "HC Pictures"
+   create image "Bridge" in background "HC Pictures"
+   set the width of image "Bridge" to 40
+   set the height of image "Bridge" to 30
+   create image "PICT 128" in background "HC Pictures"
+   set the width of image "PICT 128" to 20
+   set the height of image "PICT 128" to 10
+   create button "Show"
+   set the script of button "Show" to _Lines("on mouseUp", "  global gHCScriptsTest", "  put empty into gHCScriptsTest", \
+         "  DispPICT " & q & "Bridge" & q & ",1,1", "  put the result & tab after gHCScriptsTest", \
+         "  DispPICT 128", "  put the result & tab after gHCScriptsTest", \
+         "  DispPICT " & q & "Nothing" & q, "  put the result after gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   TestAssert "no stand-in is made for them", "DispPICT" is not in it and "FullHPop" is not in it and "PopList" is not in it
+   send "mouseUp" to button "Show" of card 1 of stack tStack
+   put gHCScriptsTest into tResults
+   set the itemDelimiter to tab
+   TestAssert "a window of the picture of that name, shown", item 1 of tResults is empty and there is a stack "Bridge" \
+         and the visible of stack "Bridge" and "Bridge" is among the lines of the openStacks
+   TestAssert "a window of the picture of that id", item 2 of tResults is empty and there is a stack "PICT 128"
+   TestAssert "no such picture: the result says so", item 3 of tResults is not empty and there is not a stack "Nothing"
+   send "mouseUp" to card 1 of stack "Bridge"
+   TestAssert "a click closes the window", "Bridge" is not among the lines of the openStacks
+   _Close "PICT 128"
+   _Close "Bridge"
+   TestAssert "FullHPop's choice: the line, no submenu choice, its number", \
+         value("hcFullHPopChoice(" & quote & "Add" & quote & " & return & " & quote & "Remove" & quote & ", " & quote & "Remove" & quote & ")", card 1 of stack tStack) is "Remove,,2"
+   TestAssert "FullHPop's choice: none", value("hcFullHPopChoice(" & quote & "Add" & quote & ", empty)", card 1 of stack tStack) is empty
+   _Close tStack
+end TestHyperCardScriptsDispPICT
+
 on TestHyperCardScriptsImported
    -- a stack the engine imports: every script compiles afterwards, and
    -- one that compiled is unchanged
