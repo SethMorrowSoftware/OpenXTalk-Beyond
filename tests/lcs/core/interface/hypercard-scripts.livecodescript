@@ -4880,12 +4880,12 @@ on TestHyperCardScriptsExternals
    put numToChar(9) into tTab
    lock messages
    create invisible stack tStack
-   set the uHyperCard["externals"] of stack tStack to _Lines("XCMD" & tTab & "FPlay", "XCMD" & tTab & "PopUp", "XFCN" & tTab & "SysEnv", "XCMD" & tTab & "Mine", "XCMD" & tTab & "Two Words", \
+   set the uHyperCard["externals"] of stack tStack to _Lines("XCMD" & tTab & "SendSerial", "XCMD" & tTab & "PopUp", "XFCN" & tTab & "SysEnv", "XCMD" & tTab & "Mine", "XCMD" & tTab & "Two Words", \
          "XFCN" & tTab & "Mystery", "XFCN" & tTab & "MineToo", "XFCN" & tTab & "Mystery", "XFCN" & tTab & "Files")
    set the script of stack tStack to _Lines("on Mine", "end Mine", "function MineToo", "  return " & quote & "mine" & quote, "end MineToo")
    set the defaultStack to tStack
    create button "X"
-   set the script of button "X" to _Lines("on mouseUp", "  global gHCScriptsTest", "  FPlay " & quote & "boing" & quote, "  put the result into gHCScriptsTest", "end mouseUp")
+   set the script of button "X" to _Lines("on mouseUp", "  global gHCScriptsTest", "  SendSerial " & quote & "boing" & quote, "  put the result into gHCScriptsTest", "end mouseUp")
    create button "N"
    set the script of button "N" to _Lines("on mouseUp", "  doMenu " & quote & "new button" & quote, "  set the name of button " & quote & "new button" & quote & " to " & quote & "Made" & quote, "end mouseUp")
    create button "F"
@@ -4893,11 +4893,11 @@ on TestHyperCardScriptsExternals
          "  put " & quote & "|" & quote & " & MineToo() & " & quote & "|went on" & quote & " after gHCScriptsTest", "end mouseUp")
    unlock messages
    put revHyperCardFixScripts(tStack) into tReport
-   TestAssert "the report names the stand-ins", "do nothing when called: FPlay" & return is in tReport
+   TestAssert "the report names the stand-ins", "do nothing when called: SendSerial" & return is in tReport
    TestAssert "the report names the external functions' stand-ins, each once", "give empty when called: Mystery" & return is in tReport
    put empty into gHCScriptsTest
    send "mouseUp" to button "X" of stack tStack
-   TestAssert "a stand-in: the script goes on, the result says why", gHCScriptsTest is "FPlay is not available"
+   TestAssert "a stand-in: the script goes on, the result says why", gHCScriptsTest is "SendSerial is not available"
    put empty into gHCScriptsTest
    send "mouseUp" to button "F" of stack tStack
    TestAssert "an XFCN's stand-in gives empty and the script goes on; the stack's own function comes first", gHCScriptsTest is "|mine|went on"
@@ -5513,6 +5513,168 @@ on TestHyperCardScriptsDispPICT
    TestAssert "FullHPop's choice: none", value("hcFullHPopChoice(" & quote & "Add" & quote & ", empty)", card 1 of stack tStack) is empty
    _Close tStack
 end TestHyperCardScriptsDispPICT
+
+on TestHyperCardScriptsSoundExternals
+   -- FPlay and FSound (19 and 3 stacks of the corpus), Farallon's: FPlay
+   -- plays the stack's sound of that name, the audio clip the import
+   -- made, and FSound() is "done" when none plays; SoundCapToRes (8
+   -- stacks) makes a SoundCap file a sound of the stack, which play
+   -- then finds. Before, their stand-ins did nothing, and a stack's
+   -- "wait until fsound() is "done"" waited for ever
+   local tStack, tOther, tFolder, q, tResults, tData, tWav
+   global gHCScriptsTest
+   put quote into q
+   put the temporary folder & "/hcsound" & the milliseconds into tFolder
+   create folder tFolder
+   -- a SoundCap file: its samples alone, a byte each
+   repeat 2000 times
+      put numToByte(128) after tData
+   end repeat
+   put tData into url ("binfile:" & tFolder & "/Glass Sound")
+   -- a WAVE file is taken as it is
+   put "RIFF" & binaryEncode("I", 36 + 2000) & "WAVEfmt " & binaryEncode("IssIIss", 16, 1, 1, 11025, 11025, 1, 8) \
+         & "data" & binaryEncode("I", 2000) & tData into tWav
+   put tWav into url ("binfile:" & tFolder & "/Wave.wav")
+   put "HCSounds" & the milliseconds into tStack
+   put "HCSoundsOther" & the milliseconds into tOther
+   lock messages
+   create invisible stack tOther
+   create invisible stack tStack
+   set the uHyperCard["file"] of stack tStack to tFolder & "/Main"
+   set the uHyperCard["externals"] of stack tStack to _Lines("XCMD" & tab & "FPlay", "XFCN" & tab & "FSound", "XCMD" & tab & "SoundCapToRes")
+   set the defaultStack to tStack
+   create button "Sounds"
+   set the script of button "Sounds" to _Lines("on mouseUp", "  global gHCScriptsTest", "  put empty into gHCScriptsTest", \
+         "  SoundCapToRes " & q & "Glass" & q & ", " & q & "Glass Sound" & q & ", " & q & q & ", 60", \
+         "  put the result & tab after gHCScriptsTest", \
+         "  do " & q & "SoundCapToRes" & q & " && " & q & "Glass," & q & " & quote & " & q & "Glass Sound" & q & " & quote & " & q & "," & tStack & ",60" & q, \
+         "  put the result & tab after gHCScriptsTest", \
+         "  SoundCapToRes " & q & "snd 200" & q & ", " & q & tFolder & "/Wave.wav" & q & ", " & q & tOther & q & ", 22", \
+         "  put the result & tab after gHCScriptsTest", \
+         "  SoundCapToRes " & q & "Lost" & q & ", " & q & "No Such Sound" & q, \
+         "  put the result & tab after gHCScriptsTest", \
+         "  FPlay " & q & "Glass" & q, \
+         "  put the result & tab after gHCScriptsTest", \
+         "  FPlay " & q & "Nothing" & q, \
+         "  put the result & tab after gHCScriptsTest", \
+         "  FPlay " & q & "stop" & q, \
+         "  put the result & tab after gHCScriptsTest", \
+         "  wait until fsound() is " & q & "done" & q, \
+         "  put fsound() after gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   TestAssert "no stand-in is made for them", "FPlay" is not in it and "FSound" is not in it and "SoundCapToRes" is not in it
+   send "mouseUp" to button "Sounds" of card 1 of stack tStack
+   put gHCScriptsTest into tResults
+   set the itemDelimiter to tab
+   TestAssert "SoundCapToRes: the file is a sound of this stack, named", item 1 of tResults is empty \
+         and the number of audioClips of stack tStack is 1 and the short name of audioClip 1 of stack tStack is "Glass"
+   TestAssert "SoundCapToRes again, by do: the sound of that name is replaced", item 2 of tResults is empty \
+         and the number of audioClips of stack tStack is 1
+   TestAssert "SoundCapToRes: a WAVE file, into the stack named", item 3 of tResults is empty \
+         and the number of audioClips of stack tOther is 1 and the short name of audioClip 1 of stack tOther is "snd 200"
+   -- (taken as it is: the sound of an 8-bit WAVE file of 2,000 samples,
+   -- not its 2,044 bytes read as samples)
+   TestAssert "SoundCapToRes: a WAVE file is taken as it is", the size of audioClip 1 of stack tOther is 2000
+   TestAssert "SoundCapToRes: no such file, the result says so", item 4 of tResults begins with "Error: file not found" \
+         and the number of audioClips of stack tStack is 1
+   TestAssert "FPlay: the stack's sound plays", item 5 of tResults is empty
+   TestAssert "FPlay: no such sound, the result says so", item 6 of tResults is "Can't find sound Nothing"
+   TestAssert "FPlay stop", item 7 of tResults is empty
+   TestAssert "FSound(): done when no sound plays, and the wait ends", item 8 of tResults is "done"
+   _Close tStack
+   _Close tOther
+end TestHyperCardScriptsSoundExternals
+
+on TestHyperCardScriptsPICTWriters
+   -- ClipToPICT (17 stacks of the corpus carry it), PICTFileToRes (6) and
+   -- PICTToClip (9): the clipboard's picture, or a file's, becomes a
+   -- picture of the stack (an image of "HC Pictures", which DispPICT
+   -- shows) or a file, and a file's goes on the clipboard. Before, their
+   -- stand-ins did nothing (and ClipToPICT() gave empty)
+   local tStack, tFolder, q, tResults, tPng, tPict, i
+   global gHCScriptsTest
+   put quote into q
+   put the temporary folder & "/hcpict" & the milliseconds into tFolder
+   create folder tFolder
+   put "HCPICTs" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["file"] of stack tStack to tFolder & "/Main"
+   set the uHyperCard["externals"] of stack tStack to _Lines("XFCN" & tab & "ClipToPICT", "XCMD" & tab & "ClipToPICT", \
+         "XFCN" & tab & "PICTFileToRes", "XCMD" & tab & "PICTToClip")
+   set the defaultStack to tStack
+   create image "Source"
+   set the width of image "Source" to 3
+   set the height of image "Source" to 2
+   repeat 6 times
+      put numToByte(0) & numToByte(200) & numToByte(10) & numToByte(10) after tPng
+   end repeat
+   set the imageData of image "Source" to tPng
+   export image "Source" to tPng as PNG
+   delete image "Source"
+   put tPng into url ("binfile:" & tFolder & "/Picture.png")
+   -- a Mac PICT file: 512 bytes of header, the size, the frame, version 1
+   repeat 512 times
+      put numToByte(0) after tPict
+   end repeat
+   put binaryEncode("nnnnnn", 20, 0, 0, 10, 10, 4353) & numToByte(255) after tPict
+   put tPict into url ("binfile:" & tFolder & "/Old.pict")
+   create button "Pictures"
+   set the script of button "Pictures" to _Lines("on mouseUp", "  global gHCScriptsTest", "  put empty into gHCScriptsTest", \
+         "  put ClipToPICT(0) & tab after gHCScriptsTest", \
+         "  put ClipToPict(0, " & q & "Bridge" & q & ") & tab after gHCScriptsTest", \
+         "  put ClipToPICT(128) & tab after gHCScriptsTest", \
+         "  ClipToPICT " & q & "Saved" & q, \
+         "  put the result & tab after gHCScriptsTest", \
+         "  put PICTFileToRes(0, " & q & "From File" & q & ", " & q & "Picture.png" & q & ") & tab after gHCScriptsTest", \
+         "  put PICTFileToRes(0, " & q & "Old" & q & ", " & q & "Old.pict" & q & ") & tab after gHCScriptsTest", \
+         "  set the clipboardData[" & q & "text" & q & "] to " & q & "words" & q, \
+         "  put ClipToPICT(0) & tab after gHCScriptsTest", \
+         "  ClipToPICT " & q & "Nothing" & q, \
+         "  put the result & tab after gHCScriptsTest", \
+         "  PICTToClip " & q & "Saved" & q, \
+         "  put the result & tab after gHCScriptsTest", \
+         "  PICTToClip " & q & "Old.pict" & q, \
+         "  put the result & tab after gHCScriptsTest", \
+         "  PICTToClip " & q & "No Such Picture" & q, \
+         "  put the result after gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   TestAssert "no stand-in is made for them", "ClipToPICT" is not in it and "PICTFileToRes" is not in it and "PICTToClip" is not in it
+   set the clipboardData["image"] to tPng
+   send "mouseUp" to button "Pictures" of card 1 of stack tStack
+   put gHCScriptsTest into tResults
+   set the itemDelimiter to tab
+   TestAssert "ClipToPICT(0): the next id, 128, and a picture of it", item 1 of tResults is 128 \
+         and there is an image "PICT 128" of background "HC Pictures" of stack tStack \
+         and the formattedWidth of image "PICT 128" of background "HC Pictures" of stack tStack is 3
+   TestAssert "the pictures' group is on no card, as the import makes it", the number of groups of card 1 of stack tStack is 0
+   TestAssert "ClipToPICT(0, name): the next id, and the picture of that name", item 2 of tResults is 129 \
+         and there is an image "Bridge" of background "HC Pictures" of stack tStack
+   TestAssert "ClipToPICT(id): the picture of that id is replaced", item 3 of tResults is 128 \
+         and the number of images of background "HC Pictures" of stack tStack is 3
+   TestAssert "ClipToPICT file: the clipboard's picture written to the file beside the stack", item 4 of tResults is empty \
+         and url ("binfile:" & tFolder & "/Saved") is tPng
+   TestAssert "PICTFileToRes(0, name, file): the file's picture, the next id", item 5 of tResults is 130 \
+         and there is an image "From File" of background "HC Pictures" of stack tStack
+   TestAssert "PICTFileToRes: a Mac PICT file, not read here, says so", item 6 of tResults contains "Mac PICT" \
+         and there is not an image "Old" of background "HC Pictures" of stack tStack
+   TestAssert "ClipToPICT(): no picture on the clipboard, says so", item 7 of tResults begins with "ClipToPICT failed" \
+         and item 8 of tResults begins with "Error: there is no picture"
+   TestAssert "PICTToClip: the file's picture on the clipboard", item 9 of tResults is empty and the clipboardData["image"] is tPng
+   TestAssert "PICTToClip: a Mac PICT file, or no file, says so", item 10 of tResults contains "Mac PICT" \
+         and item 11 of tResults begins with "Error: file not found"
+   send "DispPICT" && q & "Bridge" & q to card 1 of stack tStack
+   TestAssert "DispPICT shows the picture ClipToPICT added", there is a stack "Bridge" and the width of stack "Bridge" >= 3
+   _Close "Bridge"
+   send "DispPICT 129" to card 1 of stack tStack
+   TestAssert "DispPICT finds a named picture by the id ClipToPICT gave it", there is a stack "PICT 129" and the width of stack "PICT 129" >= 3
+   _Close "PICT 129"
+   _Close tStack
+end TestHyperCardScriptsPICTWriters
 
 on TestHyperCardScriptsImported
    -- a stack the engine imports: every script compiles afterwards, and
