@@ -86,6 +86,10 @@ class EngineGivesTheKeyboardOn(unittest.TestCase):
         self.assertRegex(gained, r't_event->focus_change\.window == backdrop')
         self.assertIn('backdrop_focus_target()', gained)
         self.assertIn('setinputfocus(t_target)', gained)
+        # and the stack has the keyboard focus at once, whether or not the
+        # window manager hands the X focus on (Mutter and xfwm4 keep it in a
+        # backdrop that was clicked)
+        self.assertIn('MCdispatcher->wkfocus(t_target)', gained)
         # still told to the dispatcher first, as before
         self.assertLess(gained.index('MCdispatcher->wkfocus'), gained.index('backdrop_focus_target()'))
 

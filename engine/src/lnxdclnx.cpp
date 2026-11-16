@@ -436,12 +436,24 @@ Boolean MCScreenDC::handle(Boolean dispatch, Boolean anyevent, Boolean& abort, B
 
                         // OXT-Beyond: the window manager put the keyboard in
                         // the backdrop (backdrop_focus_target says when):
-                        // it goes on to the stack it belongs in.
+                        // it goes on to the stack it belongs in. That stack
+                        // is given the keyboard focus at once, as if the
+                        // window manager had done it: a window manager may
+                        // not hand the X focus on (Mutter and xfwm4 keep it
+                        // in a backdrop that was clicked), and the keys the
+                        // backdrop then gets go to this stack (GDK_KEY_PRESS
+                        // below), whose focused field must have them. When
+                        // the window manager does hand it on, the stack's
+                        // own focus event finds it focused already (kfocus).
                         if (backdrop != DNULL && t_event->focus_change.window == backdrop)
                         {
                             Window t_target = backdrop_focus_target();
                             if (t_target != nil)
+                            {
                                 setinputfocus(t_target);
+                                if (t_target != MCtracewindow)
+                                    MCdispatcher->wkfocus(t_target);
+                            }
                         }
                     }
                     else
