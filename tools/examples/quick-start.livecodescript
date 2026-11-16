@@ -155,6 +155,18 @@ private function lessonText pIndex, pWhich
       -- openxtalk.org p=26390: the notes and the narrator now say that
       -- the stack is this window, and where on it the button goes)
       textChange tText, "palette to the stack.", "palette to the stack: this window, in its Try It box."
+      -- (his Tools palette began with a grey button. The palette's modern
+      -- look, the one a new install shows, has no grey button: the
+      -- standard button is the first tile under Controls, a rounded box
+      -- that reads OK, and a reader on a Mac found nothing the lesson's
+      -- words fit, openxtalk.org p=26402. Both looks are said)
+      if pWhich is "Info" then
+         textChange tText, "the top gray button (standard button)", \
+               "a standard button (the first one under Controls, which reads OK; in the palette's classic look, the top gray button)"
+      else
+         textChange tText, "the top gray button, (a standard button),", \
+               "a standard button, (the first one under Controls, which reads OK; in the palette's classic look, the top gray button),"
+      end if
       if pWhich is "Info" then
          -- (the same newcomer took "Tools" for the Tools palette, looked
          -- there for a Message Box to put on the card, and did not expect

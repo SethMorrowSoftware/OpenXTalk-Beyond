@@ -1962,6 +1962,68 @@ function edTile pName
    return the long id of button pName of stack "revTools"
 end edTile
 
+-- The first tile of the Tools palette's Controls (the classic controls,
+-- "com.livecode.interface.classic." and a type) in the look it has on:
+-- of the tiles shown, the topmost, and of a row the leftmost. The Quick
+-- Start Guide's first lesson says which that is (edGuideLesson)
+function edFirstControlTile
+   local tIndex, tTile, tName, tFirst, tTop, tLeft
+   repeat with tIndex = 1 to the number of buttons of stack "revTools"
+      put the long id of button tIndex of stack "revTools" into tTile
+      put the short name of tTile into tName
+      if not (tName begins with "com.livecode.interface.classic.") then next repeat
+      if not the effective visible of tTile then next repeat
+      if tFirst is empty or the top of tTile < tTop - 4 or (abs(the top of tTile - tTop) <= 4 and the left of tTile < tLeft) then
+         put tName into tFirst
+         put the top of tTile into tTop
+         put the left of tTile into tLeft
+      end if
+   end repeat
+   return tFirst
+end edFirstControlTile
+
+-- Whether the Tools palette has its look pLook ("modern" or "classic")
+-- on: the modern look's header, or the classic look's "Modern look" button
+function edToolsLookOn pLook
+   if there is not a stack "revTools" then return false
+   if pLook is "classic" then return there is a button "tmModernLook" of card 1 of stack "revTools"
+   return there is a group "tmHeader" of card 1 of stack "revTools"
+end edToolsLookOn
+
+-- What the Quick Start Guide's first lesson says of the standard button's
+-- tile is so in both of the Tools palette's looks: "the first one under
+-- Controls" in the modern look, with nothing folded or left out, as a new
+-- install has it, and "the top gray button" in the classic one. The look
+-- and the modern look's settings are put back as they were
+command edGuideTileIsFirst
+   local tLook, tFolded, tShow, tTry, tError, tNow
+   put revIDEGetPreference("revTools_look") into tLook
+   put revIDEGetPreference("revTools_modernFolded") into tFolded
+   put revIDEGetPreference("revTools_modernShow") into tShow
+   try
+      if tFolded is not empty then revIDESetPreference "revTools_modernFolded", empty
+      if tShow is not empty then revIDESetPreference "revTools_modernShow", empty
+      repeat for each item tTry in "modern,classic"
+         if (tTry is "classic") is not (revIDEGetPreference("revTools_look") is "classic") then revIDESetPreference "revTools_look", tTry
+         if not edWaitFor("edToolsLookOn(pAx) and edFirstControlTile() is pBx", 6000, tTry, "com.livecode.interface.classic.button") then
+            throw "the notes call the standard button the first under Controls (the top one, in the classic look); in the Tools palette's" && tTry && \
+                  "look (on:" && edToolsLookOn(tTry) & ") the first is" && quote & edFirstControlTile() & quote
+         end if
+         edRecord "INFO the Tools palette's first control tile in its" && tTry && "look:" && edFirstControlTile() && "at" && the topLeft of edTile(edFirstControlTile())
+      end repeat
+   catch tError
+   end try
+   if revIDEGetPreference("revTools_modernFolded") is not tFolded then revIDESetPreference "revTools_modernFolded", tFolded
+   if revIDEGetPreference("revTools_modernShow") is not tShow then revIDESetPreference "revTools_modernShow", tShow
+   if revIDEGetPreference("revTools_look") is not tLook then revIDESetPreference "revTools_look", tLook
+   if tError is not empty then throw tError
+   put "modern" into tNow
+   if tLook is "classic" then put "classic" into tNow
+   if not edWaitFor("edToolsLookOn(pAx) and edTile(pBx) is not empty", 6000, tNow, "com.livecode.interface.classic.button") then
+      throw "the Tools palette did not take its" && tNow && "look again"
+   end if
+end edGuideTileIsFirst
+
 function edTileShown pName
    local tTile
    put edTile(pName) into tTile
@@ -3055,9 +3117,15 @@ command edGuideLesson pFile
    put the long id of card kGuideLesson of stack kGuideStack into tCard
    -- what the notes say of the stack and of the Message Box
    put the text of field "Info" of tCard into tNotes
-   put line lineOffset("Drag the top gray button", tNotes) of tNotes into tLine
+   put line lineOffset("from the tools palette to the stack", tNotes) of tNotes into tLine
    if "this window" is not in tLine or "Try It box" is not in tLine then
       throw "the notes do not say that the stack is this window, nor where on it the button goes:" && quote & tLine & quote
+   end if
+   -- (which tile of the Tools palette, in its modern look and in its
+   -- classic one: "the top gray button" alone fits the classic look only,
+   -- openxtalk.org p=26402)
+   if "under Controls" is not in tLine or "reads OK" is not in tLine or "classic look" is not in tLine then
+      throw "the notes do not say which tile of the Tools palette the standard button is, in its modern look and in its classic one:" && quote & tLine & quote
    end if
    put line lineOffset("Tools > Message Box", tNotes) of tNotes into tLine
    if "menu Tools > Message Box" is not in tLine or "window" is not in tLine or "Cmd-M" is not in tLine then
@@ -3066,10 +3134,12 @@ command edGuideLesson pFile
    if there is not a field "canvasHint" of tCard or "here" is not in field "canvasHint" of tCard then throw "the Try It box does not say that the button goes there"
    edShotStack kGuideStack, "35b-quick-start-lesson"
 
-   -- "1. Drag the top gray button (standard button) from the tools
-   -- palette to the stack": into the Try It box, right of My First Field
+   -- "1. Drag a standard button (the first one under Controls ...) from
+   -- the tools palette to the stack": into the Try It box, right of My
+   -- First Field
    put the number of buttons of tCard into tCount
    if tCount is not 1 then throw "the lesson has" && tCount && "buttons before one is made: its notes call the new one button 2"
+   edGuideTileIsFirst
    edToolFilter "button"
    put edTile("com.livecode.interface.classic.button") into tTile
    if tTile is empty then throw "the Tools palette has no button tile"

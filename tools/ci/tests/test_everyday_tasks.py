@@ -976,6 +976,13 @@ class QuickStartFirstLesson(BuildTasks, unittest.TestCase):
                          '1. Ctrl-M (Cmd-M on a Mac) or menu Tools > Message Box: a small window of its own opens.')
         self.assertIn('Do each Try It here: this window is the stack."', self.guide)
         self.assertNotIn('beside this window', self.guide)
+        # (and which tile the standard button is: "the top gray button"
+        # fits the Tools palette's classic look alone, and a new install
+        # shows the modern one, openxtalk.org p=26402. The notes and the
+        # narrator have their own words for it, each changed)
+        said = "the first one under Controls, which reads OK; in the palette's classic look, the top gray button"
+        self.assertEqual(changes['the top gray button (standard button)'], 'a standard button (%s)' % said)
+        self.assertEqual(changes['the top gray button, (a standard button),'], 'a standard button, (%s),' % said)
         # (the Try It box says so itself)
         self.assertIn('buildCanvas "TRY IT", "Drag a button here from the Tools palette.", true', self.guide)
 
@@ -1002,12 +1009,21 @@ class QuickStartFirstLesson(BuildTasks, unittest.TestCase):
 
     def test_the_task_reads_those_words_in_the_stack(self):
         changes = dict(self.changes())
-        m = re.search(r'put line lineOffset\("Drag the top gray button", tNotes\) of tNotes into tLine\n\s*if (.*?) then\n', self.lesson)
+        m = re.search(r'put line lineOffset\("from the tools palette to the stack", tNotes\) of tNotes into tLine\n\s*if (.*?) then\n', self.lesson)
         self.assertIsNotNone(m)
         words = re.findall(r'"([^"]+)" is not in tLine', m.group(1))
         self.assertEqual(words, ['this window', 'Try It box'])
         for word in words:
             self.assertIn(word, changes['palette to the stack.'])
+            self.assertNotIn(word.encode('ascii'), self.original)
+        # (the line is found by words of his that are still in it)
+        self.assertIn(b'from the tools palette to the stack', self.original)
+        m = re.search(r'\n\s*if ("under Controls" is not in tLine.*?) then\n\s*throw "the notes do not say which tile', self.lesson)
+        self.assertIsNotNone(m)
+        words = re.findall(r'"([^"]+)" is not in tLine', m.group(1))
+        self.assertEqual(words, ['under Controls', 'reads OK', 'classic look'])
+        for word in words:
+            self.assertIn(word, changes['the top gray button (standard button)'])
             self.assertNotIn(word.encode('ascii'), self.original)
         m = re.search(r'put line lineOffset\("Tools > Message Box", tNotes\) of tNotes into tLine\n\s*if (.*?) then\n', self.lesson)
         self.assertIsNotNone(m)
@@ -1019,6 +1035,46 @@ class QuickStartFirstLesson(BuildTasks, unittest.TestCase):
         # (read before anything is done: a lesson that does not say it is
         # not done as if it did)
         self.assertLess(self.lesson.index('put line lineOffset("Tools > Message Box", tNotes)'), self.lesson.index('edToolFilter "button"'))
+
+    def test_the_tile_the_notes_name_is_the_palettes_first(self):
+        # "under Controls" is the modern look's section of the classic
+        # controls, by its title in the palette's own list
+        tools = read(os.path.join(ROOT, 'ide', 'Toolset', 'palettes', 'tools', 'revtools.livecodescript'))
+        sections = re.search(r'^constant kTmSections = "([^"]*)"', tools, re.M).group(1).split('\\n')
+        self.assertIn('classic|Controls|classic', sections)
+        # and "the first one" is looked for in the palette itself, in both
+        # looks, before the tile is used: the topmost shown tile of the
+        # classic controls, and of a row the leftmost
+        first = self.function('edFirstControlTile')
+        self.assertIn('if not (tName begins with "com.livecode.interface.classic.") then next repeat', first)
+        self.assertIn('if not the effective visible of tTile then next repeat', first)
+        self.assertIn('the top of tTile < tTop - 4 or (abs(the top of tTile - tTop) <= 4 and the left of tTile < tLeft)', first)
+        check = self.handlers['edGuideTileIsFirst']
+        self.assertIn('repeat for each item tTry in "modern,classic"', check)
+        self.assertIn('edWaitFor("edToolsLookOn(pAx) and edFirstControlTile() is pBx", 6000, tTry, "com.livecode.interface.classic.button")', check)
+        self.assertLess(self.lesson.index('edGuideTileIsFirst'), self.lesson.index('edToolFilter "button"'))
+        # (a section folded or left out would hide the tiles: the modern
+        # look is read as a new install has it)
+        for name in ('revTools_modernFolded', 'revTools_modernShow'):
+            self.assertIn('revIDESetPreference "%s", empty' % name, check)
+
+    def test_the_palette_is_left_in_the_look_it_had(self):
+        check = self.handlers['edGuideTileIsFirst']
+        loop_end = check.index('end try')
+        for name, kept in (('revTools_look', 'tLook'), ('revTools_modernFolded', 'tFolded'), ('revTools_modernShow', 'tShow')):
+            self.assertIn('put revIDEGetPreference("%s") into %s' % (name, kept), check[:check.index('try')])
+            put_back = 'if revIDEGetPreference("%s") is not %s then revIDESetPreference "%s", %s' % (name, kept, name, kept)
+            # (put back after the try, so also when a look was not as said)
+            self.assertGreater(check.index(put_back), loop_end)
+            self.assertLess(check.index(put_back), check.index('if tError is not empty then throw tError'))
+        # and the look is on again before its tile is dragged
+        self.assertIn('edWaitFor("edToolsLookOn(pAx) and edTile(pBx) is not empty", 6000, tNow, "com.livecode.interface.classic.button")', check)
+        on = self.function('edToolsLookOn')
+        self.assertIn('if pLook is "classic" then return there is a button "tmModernLook" of card 1 of stack "revTools"', on)
+        self.assertIn('return there is a group "tmHeader" of card 1 of stack "revTools"', on)
+        tools = read(os.path.join(ROOT, 'ide', 'Toolset', 'palettes', 'tools', 'revtools.livecodescript'))
+        self.assertIn('create button "tmModernLook" in card 1 of stack "revTools"', tools)
+        self.assertIn('if there is a group "tmHeader" of me then tmTeardown', tools)
 
     def test_the_button_made_is_the_notes_button_2(self):
         self.assertEqual(dict(self.changes())['button 3 to'], 'button 2 to')
