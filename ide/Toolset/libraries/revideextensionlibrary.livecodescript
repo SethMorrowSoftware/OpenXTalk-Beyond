@@ -129,7 +129,7 @@ private command __extensionInstallPackage pPackageLocation
    put __extensionCacheID("download_package_path", pPackageLocation) \
          into tCacheIndex
    if tCacheIndex is not a number then
-      put the number of elements of sExtensions + 1 into tCacheIndex
+      put __extensionNewCacheIndex() into tCacheIndex
       __extensionPropertySet tCacheIndex, "download_package_path", pPackageLocation
       __extensionUpdateUIWithPackage tCacheIndex, pPackageLocation
    end if
@@ -347,7 +347,7 @@ private command __extensionDownloadBegin pExtensionUrl, pType, pCallbackObject, 
    
    # If the extension cache ID couldn't be found, generate a new one
    if tCacheIndex is empty then 
-      put the number of elements of sExtensions + 1 into tCacheIndex
+      put __extensionNewCacheIndex() into tCacheIndex
    end if
    
    # Add callback data to cache
@@ -1093,6 +1093,25 @@ private function __extensionCacheID pPropertyToSearch, pValue
    end repeat
 end __extensionCacheID
 
+# OXT-Beyond: a new entry's index, one past the highest in use. LiveCode
+# took "the number of elements of sExtensions + 1", which is the index of
+# the newest entry once any entry has been removed (an uninstall, an older
+# version replaced, a package installed again from somewhere else): the
+# next install then wrote over that entry. Installing the Box2Dxt Kit
+# right after Box2D overwrote Box2D's entry, and the Kit was refused with
+# "Dependency org.openxtalk.box2dxt not available" (Emily-Elizabeth,
+# forum, 2026-11-15). With no gaps the index is the same as before.
+private function __extensionNewCacheIndex
+   local tMax
+   put 0 into tMax
+   repeat for each key tExtensionID in sExtensions
+      if tExtensionID is an integer and tExtensionID > tMax then
+         put tExtensionID into tMax
+      end if
+   end repeat
+   return tMax + 1
+end __extensionNewCacheIndex
+
 private command __extensionCacheRemove pIndex
    delete variable sExtensions[pIndex]
 end __extensionCacheRemove
@@ -1255,7 +1274,7 @@ private command __revIDELCBExtensionLoad pID, pFolder, pVersion, pStatus, \
    
    # If no entry is in the cache, create one
    if tCacheIndex is not a number then
-      put the number of elements of sExtensions + 1 into tCacheIndex
+      put __extensionNewCacheIndex() into tCacheIndex
       __extensionPropertySet tCacheIndex, "install_path", pFolder
    end if
    
@@ -1375,7 +1394,7 @@ private command __revIDELCSExtensionLoad pFullPath, pFolder, pVersion, pStatus, 
    
    # If no entry is in the cache, create one
    if tCacheIndex is not a number then
-      put the number of elements of sExtensions + 1 into tCacheIndex
+      put __extensionNewCacheIndex() into tCacheIndex
       __extensionPropertySet tCacheIndex, "install_path", pFolder
    end if
    
