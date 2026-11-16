@@ -1012,6 +1012,28 @@ on TestADuelBegins
    TestAssert "the clock shows it", fieldText("Clock") is "2:59"
 end TestADuelBegins
 
+on TestADuelsFirstBallWaitsForTheCount
+   game "ebTestDuel", 1
+   game "ebTestSet", "drops", false
+   step 1
+   game "ebLaunch"
+   TestAssert "a click before the count of three is over sends no ball off", st("phase") is "serve" and ball(5) is true
+   TestAssert "and nothing says to click", not the visible of field "Hint" of card kCard of stack kStack
+   game "ebPause"
+   game "ebResume"
+   TestAssert "nor after a pause", not the visible of field "Hint" of card kCard of stack kStack
+   step 1
+   game "ebLaunch"
+   TestAssert "nor does a second click, and the clock has not begun", st("phase") is "serve" and st("left") is 180
+   step 1.5
+   TestAssert "the count over, the ball goes by itself", st("phase") is "live" and st("left") < 180
+   loseBall
+   step 1.3
+   TestAssert "the next ball waits a moment", st("phase") is "serve" and ball(5) is true
+   game "ebLaunch"
+   TestAssert "and a click sends that one off", st("phase") is "live" and ball(5) is false
+end TestADuelsFirstBallWaitsForTheCount
+
 on TestADuelsLostBallCostsPointsNotALife
    game "ebTestDuel", 1
    game "ebTestSet", "drops", false

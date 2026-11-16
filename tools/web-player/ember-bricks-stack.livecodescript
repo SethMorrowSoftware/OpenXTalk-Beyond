@@ -1537,6 +1537,12 @@ command ebLaunch
    if sPhase is not "serve" and sPhase is not "live" then
       exit ebLaunch
    end if
+   -- (a duel's first ball waits for the count of three, as its clock
+   -- does: sent off before it, a player would have those seconds more
+   -- than a rival who waited)
+   if sDuel and sNet2["wait"] > 0 then
+      exit ebLaunch
+   end if
    put false into tAny
    repeat with i = 1 to sCount["Ball"]
       if sBall[i]["on"] then
@@ -1739,7 +1745,7 @@ command ebResume
    put false into sDragging
    put empty into sMouseLast
    ebShowScreen "play"
-   if sPhase is "serve" then
+   if sPhase is "serve" and not (sDuel and sNet2["wait"] > 0) then
       set the visible of field id sId["Hint"] to true
    end if
    ebKeepAwake true
@@ -4606,12 +4612,14 @@ private command ebDuelBegin pSeed
    put abs(pSeed) mod min(12, sLevelCount) into sShift
    ebLayout
    ebNewRun 1
-   -- (the first ball waits for the count)
+   -- (the first ball waits for the count, and no click or key sends it
+   -- off before: ebLaunch; so nothing says to click)
    repeat with i = 1 to sCount["Ball"]
       if sBall[i]["on"] and sBall[i]["stuck"] then
          put sNow + 3 into sBall[i]["until"]
       end if
    end repeat
+   set the visible of field id sId["Hint"] to false
    set the text of field id sId["Rival Score"] to "0"
    ebBanner "GET READY", "Three minutes. Most points wins.", 2.6
    ebSound "go", 0.7
