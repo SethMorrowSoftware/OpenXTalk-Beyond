@@ -2019,13 +2019,44 @@ function edToolsLookOn pLook
    return there is a group "tmHeader" of card 1 of stack "revTools"
 end edToolsLookOn
 
+-- Whether the section pKey of the Tools palette's modern look ("classic"
+-- is its Controls) is folded: the arrow of its caption points right. The
+-- palette keeps what is folded in its own script, and reads the preference
+-- (revTools_modernFolded) only while nothing is folded there, so the
+-- preference does not say, and to empty it unfolds nothing
+function edToolsFolded pKey
+   if there is not a stack "revTools" then return false
+   if there is not a button ("tmCapHit:" & pKey) of stack "revTools" then return false
+   if there is not an image "tm.chevRight" of stack "revTools" then return false
+   return the icon of button ("tmCapHit:" & pKey) of stack "revTools" is the id of image "tm.chevRight" of stack "revTools"
+end edToolsFolded
+
+-- The caption of the section pKey is pressed, which folds the section or
+-- unfolds it: the palette's own handler, wherever the caption is scrolled
+command edToolsCaption pKey
+   local tWas
+   if there is not a button ("tmCapHit:" & pKey) of stack "revTools" then
+      throw "the Tools palette's modern look has no caption for its section" && pKey
+   end if
+   put edToolsFolded(pKey) into tWas
+   send "mouseDown 1" to button ("tmCapHit:" & pKey) of stack "revTools"
+   repeat while the lockScreen
+      unlock screen
+   end repeat
+   if not edWaitFor("edToolsFolded(pAx) is not pBx", 3000, pKey, tWas) then
+      throw "its caption did not fold or unfold the Tools palette's section" && pKey && "(folded:" && edToolsFolded(pKey) & ")"
+   end if
+end edToolsCaption
+
 -- What the Quick Start Guide's first lesson says of the standard button's
 -- tile is so in both of the Tools palette's looks: "the first one under
 -- Controls" in the modern look, with nothing folded or left out, as a new
--- install has it, and "the top gray button" in the classic one. The look
--- and the modern look's settings are put back as they were
+-- install has it, and "the top gray button" in the classic one. A Controls
+-- section that is folded is unfolded by its caption for it (the
+-- preference alone does not: edToolsFolded) and folded again after. The
+-- look and the modern look's settings are put back as they were
 command edGuideTileIsFirst
-   local tLook, tFolded, tShow, tTry, tError, tNow
+   local tLook, tFolded, tShow, tTry, tError, tNow, tUnfolded, tAgain
    put revIDEGetPreference("revTools_look") into tLook
    put revIDEGetPreference("revTools_modernFolded") into tFolded
    put revIDEGetPreference("revTools_modernShow") into tShow
@@ -2034,6 +2065,11 @@ command edGuideTileIsFirst
       if tShow is not empty then revIDESetPreference "revTools_modernShow", empty
       repeat for each item tTry in "modern,classic"
          if (tTry is "classic") is not (revIDEGetPreference("revTools_look") is "classic") then revIDESetPreference "revTools_look", tTry
+         if not edWaitFor("edToolsLookOn(pAx)", 6000, tTry) then throw "the Tools palette did not take its" && tTry && "look"
+         if tTry is "modern" and edToolsFolded("classic") then
+            edToolsCaption "classic"
+            put true into tUnfolded
+         end if
          if not edWaitFor("edToolsLookOn(pAx) and edFirstControlTile() is pBx", 6000, tTry, "com.livecode.interface.classic.button") then
             throw "the notes call the standard button the first under Controls (the top one, in the classic look); in the Tools palette's" && tTry && \
                   "look (on:" && edToolsLookOn(tTry) & ") the first is" && quote & edFirstControlTile() & quote
@@ -2042,6 +2078,16 @@ command edGuideTileIsFirst
       end repeat
    catch tError
    end try
+   if tUnfolded is true then
+      -- (by its caption again, which only the modern look has)
+      try
+         if revIDEGetPreference("revTools_look") is "classic" then revIDESetPreference "revTools_look", "modern"
+         if not edWaitFor("edToolsLookOn(pAx)", 6000, "modern") then throw "the Tools palette did not take its modern look, to fold its Controls again"
+         if not edToolsFolded("classic") then edToolsCaption "classic"
+      catch tAgain
+         if tError is empty then put tAgain into tError
+      end try
+   end if
    if revIDEGetPreference("revTools_modernFolded") is not tFolded then revIDESetPreference "revTools_modernFolded", tFolded
    if revIDEGetPreference("revTools_modernShow") is not tShow then revIDESetPreference "revTools_modernShow", tShow
    if revIDEGetPreference("revTools_look") is not tLook then revIDESetPreference "revTools_look", tLook
@@ -2052,6 +2098,53 @@ command edGuideTileIsFirst
       throw "the Tools palette did not take its" && tNow && "look again"
    end if
 end edGuideTileIsFirst
+
+-- The same with the Controls section folded when the check starts, as a
+-- reader may have it: the check must find the tile all the same, and
+-- leave the section folded. Then the section and the look are put back
+command edGuideTileIsFirstFolded
+   local tLook, tWas, tError, tAgain, tNow
+   put revIDEGetPreference("revTools_look") into tLook
+   try
+      if tLook is "classic" then revIDESetPreference "revTools_look", "modern"
+      if not edWaitFor("edToolsLookOn(pAx)", 6000, "modern") then throw "the Tools palette did not take its modern look, to fold its Controls"
+      put edToolsFolded("classic") into tWas
+      if not tWas then edToolsCaption "classic"
+      if "classic" is not among the items of revIDEGetPreference("revTools_modernFolded") then
+         throw "the Tools palette's Controls are folded, and its setting does not say so:" && revIDEGetPreference("revTools_modernFolded")
+      end if
+      -- (the check starts in the look the reader has)
+      if tLook is "classic" then
+         revIDESetPreference "revTools_look", "classic"
+         if not edWaitFor("edToolsLookOn(pAx)", 6000, "classic") then throw "the Tools palette did not take its classic look again"
+      end if
+      edGuideTileIsFirst
+      if "classic" is not among the items of revIDEGetPreference("revTools_modernFolded") then
+         throw "the check of the tile left the setting of what is folded changed:" && revIDEGetPreference("revTools_modernFolded")
+      end if
+      if tLook is "classic" then revIDESetPreference "revTools_look", "modern"
+      if not edWaitFor("edToolsLookOn(pAx)", 6000, "modern") then throw "the Tools palette did not take its modern look after the check"
+      if not edToolsFolded("classic") then throw "the check of the tile left the Controls unfolded, which were folded"
+      edRecord "INFO with its Controls folded first, the check of the tile unfolds them, finds the tile and folds them again"
+   catch tError
+   end try
+   -- unfolded again, if they were when this began (in the modern look,
+   -- which has the caption)
+   if tWas is false and edToolsLookOn("modern") and edToolsFolded("classic") then
+      try
+         edToolsCaption "classic"
+      catch tAgain
+         if tError is empty then put tAgain into tError
+      end try
+   end if
+   if revIDEGetPreference("revTools_look") is not tLook then revIDESetPreference "revTools_look", tLook
+   if tError is not empty then throw tError
+   put "modern" into tNow
+   if tLook is "classic" then put "classic" into tNow
+   if not edWaitFor("edToolsLookOn(pAx) and edTile(pBx) is not empty", 6000, tNow, "com.livecode.interface.classic.button") then
+      throw "the Tools palette did not take its" && tNow && "look again, after the check with its Controls folded"
+   end if
+end edGuideTileIsFirstFolded
 
 -- How much of the control pObj a person can see on its card: the number
 -- of pixels of its rect that it changes by 80 or more (of 255) in
@@ -3222,6 +3315,7 @@ command edGuideLesson pFile
    put the number of buttons of tCard into tCount
    if tCount is not 1 then throw "the lesson has" && tCount && "buttons before one is made: its notes call the new one button 2"
    edGuideTileIsFirst
+   edGuideTileIsFirstFolded
    edToolFilter "button"
    put edTile("com.livecode.interface.classic.button") into tTile
    if tTile is empty then throw "the Tools palette has no button tile"

@@ -1076,6 +1076,72 @@ class QuickStartFirstLesson(BuildTasks, unittest.TestCase):
         self.assertIn('create button "tmModernLook" in card 1 of stack "revTools"', tools)
         self.assertIn('if there is a group "tmHeader" of me then tmTeardown', tools)
 
+    def test_a_folded_controls_section_is_unfolded_by_its_caption(self):
+        # The palette keeps what is folded in its own script, and reads
+        # the setting only while nothing is folded there: to empty the
+        # setting does not unfold a section folded earlier in the session
+        # (found in the review of #531). The first tile shown was then a
+        # shape's, and the lesson was said to be wrong
+        tools = read(os.path.join(ROOT, 'ide', 'Toolset', 'palettes', 'tools', 'revtools.livecodescript'))
+        self.assertIn('if sTmFolded is empty then put revIDEGetPreference("revTools_modernFolded") into sTmFolded', tools)
+        self.assertNotIn('case "revTools_modernFolded"', tools)
+        # folded is read from the caption's arrow, as the palette lays it out
+        self.assertRegex(tools, r'if tFolded then\n\s*set the icon of button \("tmCapHit:" & tKey\) of me to the id of image "tm.chevRight" of me')
+        folded = self.function('edToolsFolded')
+        self.assertIn('return the icon of button ("tmCapHit:" & pKey) of stack "revTools" is the id of image "tm.chevRight" of stack "revTools"', folded)
+        # and the caption is pressed as the palette takes a press
+        self.assertRegex(tools, r'case tName begins with "tmCap"\n\s*tmFold the cTmSection of pTarget')
+        self.assertIn('if tmMouseDown(pButton, the long id of the target) then exit mouseDown', tools)
+        caption = self.handlers['edToolsCaption']
+        self.assertIn('send "mouseDown 1" to button ("tmCapHit:" & pKey) of stack "revTools"', caption)
+        self.assertIn('if not edWaitFor("edToolsFolded(pAx) is not pBx", 3000, pKey, tWas) then', caption)
+        check = self.handlers['edGuideTileIsFirst']
+        unfold = re.search(r'if tTry is "modern" and edToolsFolded\("classic"\) then\n\s*edToolsCaption "classic"\n\s*put true into tUnfolded\n', check)
+        self.assertIsNotNone(unfold)
+        self.assertLess(check.index('if not edWaitFor("edToolsLookOn(pAx)", 6000, tTry) then throw'), unfold.start())
+        self.assertLess(unfold.start(), check.index('edFirstControlTile() is pBx'))
+        # folded again after, whatever the check found, in the modern look
+        # (the classic one has no caption), before the settings are put back
+        end = check.index('end try')
+        mine = check.index('if tUnfolded is true then')
+        again = check.index('if not edToolsFolded("classic") then edToolsCaption "classic"')
+        self.assertLess(end, mine)
+        self.assertLess(mine, check.index('if revIDEGetPreference("revTools_look") is "classic" then revIDESetPreference "revTools_look", "modern"', mine))
+        self.assertLess(check.index('if revIDEGetPreference("revTools_look") is "classic" then revIDESetPreference "revTools_look", "modern"', mine), again)
+        self.assertLess(again, check.index('if revIDEGetPreference("revTools_modernFolded") is not tFolded then'))
+        self.assertRegex(check[mine:], r'catch tAgain\n\s*if tError is empty then put tAgain into tError')
+
+    def test_the_tile_is_looked_for_with_the_controls_folded_too(self):
+        # (in every run, so that the check is seen to unfold them: with
+        # those lines out, the lesson's task stops on "the first is
+        # com.livecode.interface.classic.FivePointStar")
+        self.assertRegex(self.lesson, r'edGuideTileIsFirst\n\s*edGuideTileIsFirstFolded\n\s*edToolFilter "button"')
+        too = self.handlers['edGuideTileIsFirstFolded']
+        fold = too.index('if not tWas then edToolsCaption "classic"')
+        run = too.index('edGuideTileIsFirst\n')
+        self.assertLess(too.index('put edToolsFolded("classic") into tWas'), fold)
+        self.assertLess(fold, run)
+        # (the check starts in the look the palette had)
+        classic = too.index('revIDESetPreference "revTools_look", "classic"')
+        self.assertLess(fold, classic)
+        self.assertLess(classic, run)
+        # it must leave them folded, and the setting saying so
+        left = too.index('if not edToolsFolded("classic") then throw "the check of the tile left the Controls unfolded, which were folded"')
+        self.assertLess(run, left)
+        said = 'if "classic" is not among the items of revIDEGetPreference("revTools_modernFolded") then'
+        self.assertEqual(too.count(said), 2)
+        self.assertLess(too.index(said), run)
+        self.assertLess(run, too.index(said, run))
+        # and what this folded is unfolded again and the look put back,
+        # after the try: whatever was found
+        end = too.index('end try')
+        back = too.index('if tWas is false and edToolsLookOn("modern") and edToolsFolded("classic") then')
+        look = too.index('if revIDEGetPreference("revTools_look") is not tLook then revIDESetPreference "revTools_look", tLook')
+        self.assertLess(left, end)
+        self.assertLess(end, back)
+        self.assertLess(back, look)
+        self.assertLess(look, too.index('if tError is not empty then throw tError'))
+
     def test_the_button_made_is_the_notes_button_2(self):
         self.assertEqual(dict(self.changes())['button 3 to'], 'button 2 to')
         self.assertIn('if tCount is not 1 then throw', self.lesson)
