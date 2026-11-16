@@ -128,6 +128,8 @@ on:
       - 'tools/ci/tests/**'
       - '.github/workflows/build-linux.yml'
       - '.github/workflows/build-macos.yml'
+      - 'tools/ci/backdrop-focus-check.livecodescript'
+      - 'tools/ci/backdrop_focus_check.py'
       - 'tools/ci/browser-wm-check.livecodescript'
       - 'tools/ci/browser_wm_check.py'
       - 'tools/ci/check_elf_floor.py'

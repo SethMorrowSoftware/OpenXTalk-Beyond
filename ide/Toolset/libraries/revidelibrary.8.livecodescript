@@ -5042,9 +5042,13 @@ be removed from the IDE library and be specific to the stack rather than the
 palette name.
 
 pPaletteName (String):The readable name of the palette to be opened
+pAsModeless (Boolean): Optional. True opens the Message Box, the Tools
+palette and the other stacks opened as palettes as modeless windows instead
+(revIDETogglePalette, for the Linux desktops where it keeps them modeless),
+so that the window is opened once, in the mode it keeps.
 example: revIDEOpenPalette "inspector"
 */
-command revIDEOpenPalette pPaletteName
+command revIDEOpenPalette pPaletteName, pAsModeless
    local tExistingPalette, tPalette, tPaletteID
    
    local tStackName
@@ -5078,14 +5082,22 @@ command revIDEOpenPalette pPaletteName
          break
       case "message box"
          -- The message box needs to be brought to the front as it takes keyboard focus
-         palette stack tStackName
+         if pAsModeless is true then
+            modeless stack tStackName
+         else
+            palette stack tStackName
+         end if
          go stack tStackName
          break
       case "standalone settings"
       case "message watcher"
       case "tools"
       case "snippet viewer"
-         palette stack tStackName
+         if pAsModeless is true then
+            modeless stack tStackName
+         else
+            palette stack tStackName
+         end if
          break
       case "search"
       case "preferences"
@@ -11324,10 +11336,26 @@ on revIDETogglePalette pPaletteName
          set the itemdelimiter to ","
          if $DESKTOP_SESSION_WM or $DESKTOP_SESSION is among the items of tFixDistros then put true into tChangeWDMode
       end if -- not linux
-      revIDEOpenPalette pPaletteName -- open the wd as palette
       if tChangeWDMode is true then -- we should change the mode
-         -- change the wd mode
-         set the style of stack tStackName to modeless -- mode of this stack
+         -- OXT-Beyond: the window is opened modeless at once. It was opened
+         -- as a palette and then made modeless, and setting the style of an
+         -- open stack makes its window again: on Ubuntu the Message Box
+         -- (Ctrl+M) and the Tools palette (Ctrl+T) came up twice, zooming in
+         -- and painting more than once, and with the backdrop shown the
+         -- window manager could leave the keyboard in the backdrop between
+         -- the two. The style is set first, while the window is not on the
+         -- screen, so the stack keeps the style it was given before.
+         if the style of stack tStackName is not "modeless" then
+            set the style of stack tStackName to modeless
+         end if
+         revIDEOpenPalette pPaletteName, true
+         -- a palette revIDEOpenPalette opens in another mode is still made
+         -- modeless, as before
+         if the mode of stack tStackName is not 3 then
+            set the style of stack tStackName to modeless -- mode of this stack
+         end if
+      else
+         revIDEOpenPalette pPaletteName -- open the wd as palette
       end if
    else
       -- it was visible, so close it

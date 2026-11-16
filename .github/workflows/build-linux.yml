@@ -1750,6 +1750,20 @@ jobs:
           python3 tools/ci/browser_wm_check.py --install "$OXT_ROOT" \
             --log "$RUNNER_TEMP/logs/browser-wm-check.log" --shots "$RUNNER_TEMP/logs/browser-wm-shots"
 
+      # The backdrop shown, a palette closed and a click into the backdrop
+      # under xfwm4, openbox and mutter: the keys typed after each reach a
+      # field of the stack in front, and under mutter the keyboard itself
+      # is in a stack, not in the backdrop (up to 0.2.8-dp.1 Mutter gave it
+      # to the backdrop, which every stack's window is transient for, and
+      # the keys went nowhere; tools/ci/backdrop_focus_check.py)
+      - name: Backdrop focus check
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 10
+        run: |
+          case $ARCH in x86_64) folder=x86-64 ;; *) folder=$ARCH ;; esac
+          python3 tools/ci/backdrop_focus_check.py --engine "$OXT_ROOT/Runtime/Linux/$folder/Standalone" \
+            --log "$RUNNER_TEMP/logs/backdrop-focus-check.log" --shots "$RUNNER_TEMP/logs/backdrop-focus-shots"
+
       # The IDE itself, started through the launcher as a user does, on an
       # Xvfb screen under openbox with a scratch home folder: still running
       # after 90 s, with windows on the screen (tools/ci/linux_ide_start.sh;

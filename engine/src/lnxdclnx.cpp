@@ -296,6 +296,70 @@ static bool focus_window_is_ours(GdkDisplay *p_display, x11::Window p_window)
     return t_ours;
 }
 
+// OXT-Beyond: is the stack's window one the keyboard can be given to: open,
+// shown, not iconified and mapped on the screen, in a mode a window takes the
+// keys in (not a menu, a popup or a tooltip).
+static bool backdrop_focus_candidate(MCStack *p_stack, bool p_modal)
+{
+    if (p_stack == nil || !p_stack->getopened() || p_stack->isiconic() || !p_stack->isvisible(false))
+        return false;
+
+    Window_mode t_mode = p_stack->getmode();
+    if (p_modal ? (t_mode != WM_MODAL && t_mode != WM_SHEET) : (t_mode < WM_TOP_LEVEL || t_mode > WM_SHEET))
+        return false;
+
+    Window t_window = p_stack->getwindow();
+    return t_window != nil && gdk_window_is_viewable(t_window);
+}
+
+// OXT-Beyond: the window of ours the keyboard belongs in when the window
+// manager has put it in the backdrop. While the backdrop is shown every
+// stack's window is transient for it (assignbackdrop), and a window manager
+// that loses the window with the focus gives the focus to the window that one
+// was transient for: Mutter does, under Wayland (XWayland) at least, when a
+// palette closes (the IDE's Ctrl+M closes the Message Box, Ctrl+T the Tools
+// palette). The backdrop is no stack, so the keys went nowhere, and as it
+// skips the taskbar the dock showed no application active, until a click.
+// A modal dialog first, then the topStack, then the frontmost other stack on
+// the screen, one that is not a palette before a palette; nil when no stack
+// is on the screen (the keys then stay in the backdrop, as before).
+static Window backdrop_focus_target(void)
+{
+    MCStacknode *t_top = MCstacks != nil ? MCstacks->topnode() : nil;
+    if (t_top == nil)
+        return nil;
+
+    MCStacknode *t_node = t_top;
+    do
+    {
+        if (backdrop_focus_candidate(t_node->getstack(), true))
+            return t_node->getstack()->getwindow();
+        t_node = t_node->next();
+    }
+    while (t_node != t_top);
+
+    if (MCtopstackptr.IsValid() && backdrop_focus_candidate(MCtopstackptr, false))
+        return MCtopstackptr->getwindow();
+
+    Window t_palette = nil;
+    t_node = t_top;
+    do
+    {
+        MCStack *t_stack = t_node->getstack();
+        if (backdrop_focus_candidate(t_stack, false))
+        {
+            if (t_stack->getmode() != WM_PALETTE)
+                return t_stack->getwindow();
+            if (t_palette == nil)
+                t_palette = t_stack->getwindow();
+        }
+        t_node = t_node->next();
+    }
+    while (t_node != t_top);
+
+    return t_palette;
+}
+
 static bool motion_event_filter_fn(GdkEvent *p_event, void*)
 {
     return p_event->type == GDK_MOTION_NOTIFY;
@@ -369,6 +433,16 @@ Boolean MCScreenDC::handle(Boolean dispatch, Boolean anyevent, Boolean& abort, B
                     {
                         if (t_event->focus_change.window != MCtracewindow)
                             MCdispatcher->wkfocus(t_event->focus_change.window);
+
+                        // OXT-Beyond: the window manager put the keyboard in
+                        // the backdrop (backdrop_focus_target says when):
+                        // it goes on to the stack it belongs in.
+                        if (backdrop != DNULL && t_event->focus_change.window == backdrop)
+                        {
+                            Window t_target = backdrop_focus_target();
+                            if (t_target != nil)
+                                setinputfocus(t_target);
+                        }
                     }
                     else
                         t_queue = true;
@@ -472,11 +546,24 @@ Boolean MCScreenDC::handle(Boolean dispatch, Boolean anyevent, Boolean& abort, B
                         else
                             t_text = MCValueRetain(kMCEmptyString);
                         
+                        // OXT-Beyond: a key the backdrop got (the window
+                        // manager left the keyboard in it, or took no focus
+                        // given back) goes to the stack the keyboard belongs
+                        // in, as on macOS, where the backdrop never has the
+                        // keys; it was lost.
+                        Window t_key_window = t_event->key.window;
+                        if (backdrop != DNULL && t_key_window == backdrop)
+                        {
+                            Window t_target = backdrop_focus_target();
+                            if (t_target != nil)
+                                t_key_window = t_target;
+                        }
+
                         MCeventtime = t_event->key.time;
                         if (t_event->type == GDK_KEY_PRESS)
-                            MCdispatcher->wkdown(t_event->key.window, *t_text, t_keysym);
+                            MCdispatcher->wkdown(t_key_window, *t_text, t_keysym);
                         else
-                            MCdispatcher->wkup(t_event->key.window, *t_text, t_keysym);
+                            MCdispatcher->wkup(t_key_window, *t_text, t_keysym);
                     }
                 }
                 else
