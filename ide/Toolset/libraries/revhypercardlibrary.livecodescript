@@ -4338,7 +4338,7 @@ offset from GMT is today's, so a date on the other side of a change to
 or from summer time is an hour out.
 */
 function FileModDate pPath, pCreated
-   return _HCSecondsHere(_HCFileModDate(pPath, pCreated))
+   return _HCFileModDate(pPath, pCreated)
 end FileModDate
 
 -- pSeconds, seconds since 1970 as the engine gives them (files(), the
@@ -4355,6 +4355,20 @@ private function _HCSecondsHere pSeconds
    return pSeconds + tOffset
 end _HCSecondsHere
 
+-- A date of the disk image (revHyperCardImageFileInfo), counted as the
+-- seconds function counts them here. An HFS date is already HyperCard's,
+-- in the local time of the Mac that wrote it, which the disk image
+-- library gives as 2082844800 less: where hyperTalkCompatible is true
+-- only that is added back, not this computer's offset from GMT as well
+-- (_HCSecondsHere); elsewhere it is given as it was. 0 (no date) stays 0
+private function _HCImageSecondsHere pSeconds
+   local tLong
+   if pSeconds is not a number or pSeconds is 0 then return pSeconds
+   put the long seconds into tLong
+   if round((the seconds - trunc(tLong)) / 900) is 0 then return pSeconds
+   return pSeconds + 2082844800
+end _HCImageSecondsHere
+
 private function _HCFileModDate pPath, pCreated
    local tWhere, tLine, tName, tFolder, tInfo
    put _HCFileAt(pPath) into tWhere
@@ -4367,8 +4381,8 @@ private function _HCFileModDate pPath, pCreated
       catch tError
          return empty
       end try
-      if pCreated is true then return tInfo["created"]
-      return tInfo["modified"]
+      if pCreated is true then return _HCImageSecondsHere(tInfo["created"])
+      return _HCImageSecondsHere(tInfo["modified"])
    end if
    put item 2 of tWhere into tFolder
    set the itemDelimiter to slash
@@ -4377,15 +4391,15 @@ private function _HCFileModDate pPath, pCreated
    repeat for each line tLine in files(tFolder, "detailed")
       set the itemDelimiter to comma
       if item 1 of tLine is tName then
-         if pCreated is true and item 4 of tLine is not empty then return item 4 of tLine
-         return item 5 of tLine
+         if pCreated is true and item 4 of tLine is not empty then return _HCSecondsHere(item 4 of tLine)
+         return _HCSecondsHere(item 5 of tLine)
       end if
    end repeat
    repeat for each line tLine in folders(tFolder, "detailed")
       set the itemDelimiter to comma
       if item 1 of tLine is tName then
-         if pCreated is true and item 4 of tLine is not empty then return item 4 of tLine
-         return item 5 of tLine
+         if pCreated is true and item 4 of tLine is not empty then return _HCSecondsHere(item 4 of tLine)
+         return _HCSecondsHere(item 5 of tLine)
       end if
    end repeat
    return empty

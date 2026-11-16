@@ -5624,6 +5624,50 @@ on TestHyperCardScriptsFileModDateSeconds
       TestAssert "hyperTalkCompatible" && tFlag & ": empty for no such file", item 5 of tResults is empty
       _Close tStack
    end repeat
+
+   -- a file on the disk image the stack came from: its HFS date is
+   -- already HyperCard's (local time on the Mac that wrote it), so only
+   -- the years from 1904 to 1970 are added, not this computer's offset
+   -- from GMT as well. The test volume's files have no dates, so a copy
+   -- of it is given Read Me's: its catalog record (a key of 13 bytes
+   -- that ends with its name, then the record, from an even byte) has
+   -- the created and modified dates at 44 and 48
+   local tImage, tData, tAt
+   put URL ("binfile:" & TestGetInputFile("hypercard/forks/Stacks.hfs")) into tData
+   put byteOffset(numToByte(7) & "Read Me", tData) - 6 into tAt
+   put tAt + byteToNum(byte tAt of tData) + 1 into tAt
+   if tAt mod 2 is 0 then add 1 to tAt
+   put binaryEncode("M", 3000000000) into byte tAt + 44 to tAt + 47 of tData
+   put binaryEncode("M", 3100000000) into byte tAt + 48 to tAt + 51 of tData
+   put tFolder & "/Dated.hfs" into tImage
+   put tData into URL ("binfile:" & tImage)
+   set the itemDelimiter to comma
+   repeat for each item tFlag in "true,false"
+      put "HCModDateImage" & tFlag & the milliseconds into tStack
+      lock messages
+      create invisible stack tStack
+      set the hyperTalkCompatible of stack tStack to tFlag
+      set the uHyperCard["file"] of stack tStack to tFolder & "/Main"
+      set the uHyperCard["image"] of stack tStack to tImage
+      set the uHyperCard["imagepath"] of stack tStack to "Old Disk:Stacks:Synthetic Stack"
+      set the uHyperCard["externals"] of stack tStack to "XFCN" & tab & "FileModDate"
+      set the defaultStack to tStack
+      create button "Dates"
+      set the script of button "Dates" to _Lines("on mouseUp", "  global gHCScriptsTest", "  put empty into gHCScriptsTest",             "  put FileModDate(" & q & "Old Disk:Read Me" & q & ", true) & tab after gHCScriptsTest",             "  put FileModDate(" & q & "Old Disk:Read Me" & q & ") after gHCScriptsTest",             "end mouseUp")
+      unlock messages
+      get revHyperCardFixScripts(tStack)
+      send "mouseUp" to button "Dates" of card 1 of stack tStack
+      put gHCScriptsTest into tResults
+      set the itemDelimiter to tab
+      if tFlag then
+         TestAssert "on an image, hyperTalkCompatible true: the HFS dates as they are, from 1904",                item 1 of tResults is 3000000000 and item 2 of tResults is 3100000000
+      else
+         TestAssert "on an image, hyperTalkCompatible false: the dates as before, from 1970",                item 1 of tResults is 3000000000 - 2082844800 and item 2 of tResults is 3100000000 - 2082844800
+      end if
+      set the itemDelimiter to comma
+      _Close tStack
+   end repeat
+   delete file tImage
 end TestHyperCardScriptsFileModDateSeconds
 
 on TestHyperCardScriptsSoundName
