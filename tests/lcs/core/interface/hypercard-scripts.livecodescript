@@ -8001,3 +8001,152 @@ on TestHyperCardScriptsT79
    TestAssert "T79: no handler left out", revHyperCardLeftOutHandlers() is empty
    _Close tStack
 end TestHyperCardScriptsT79
+
+on TestHyperCardScriptsT80
+   -- T80: the forms the dp.1 sweep (2026-11-13) still found in the lines
+   -- it left out of handlers it kept
+   local tScript, q, tStack, tError, tWas, tResult
+   global gHCScriptsTest
+   put quote into q
+   put _Rewrite("on mouseUp", \
+         "  save stack as " & q & "Backup of Running Metrics" & q, \
+         "  if x then save stack as copyStak", \
+         "  if the shiftKey is " & q & "Down" & q & " then put " & q & "it's down" & q & " else put " & q & "it's up" & q, \
+         "  if x then put a & (b into c) else beep", \
+         "  put 1 into parentCard", \
+         "  go to last line of parentCard", \
+         "  go item 2 of parentCard in a new window", \
+         "  put 1 into exportFromStack", \
+         "  go to parentCard of exportFromStack", \
+         "  if x then go parentCard of this stack else beep", \
+         "  put return & " & q & "Delete from list" & q & " after menu", \
+         "  if x then put " & q & ",-(" & q & " before menu", \
+         "  if score is 7 then put true in done", \
+         "  answer menu & done", \
+         "  show the tool window at " & q & "189,12" & q, \
+         "  hide the pattern window", \
+         "  if dither = True then set the dithering of window id it to dither", \
+         "  set the zoom of wd id (x + 1) to true", \
+         "end mouseUp") into tScript
+   TestAssert "T80: save stack as", line 2 of tScript is "  save this stack as " & q & "Backup of Running Metrics" & q
+   TestAssert "T80: save stack as after then", line 3 of tScript is "  if x then save this stack as copyStak"
+   TestAssert "T80: a put with no container before an else", \
+         line 4 of tScript is "  if the shiftKey is " & q & "Down" & q & " then put " & q & "it's down" & q & " into msg else put " & q & "it's up" & q
+   TestAssert "T80: a put before an else, into in parentheses only", line 5 of tScript is "  if x then put a & (b into c) into msg else beep"
+   TestAssert "T80: go to a chunk of a value", line 7 of tScript is "  hcGoTo (last line of parentCard)"
+   TestAssert "T80: go to a chunk of a value in a new window", line 8 of tScript is "  hcGoTo (item 2 of parentCard), " & q & "in a new window" & q
+   TestAssert "T80: go to a card and a stack two variables name", \
+         line 10 of tScript is "  hcGoTo (parentCard && " & q & "of" & q & " && exportFromStack)"
+   TestAssert "T80: go to a variable's card of this stack", line 11 of tScript is "  if x then hcGoTo parentCard else beep"
+   TestAssert "T80: a variable put names with after", line 12 of tScript is "  put return & " & q & "Delete from list" & q & " after hc_menu"
+   TestAssert "T80: a variable put names with before", line 13 of tScript is "  if x then put " & q & ",-(" & q & " before hc_menu"
+   TestAssert "T80: a variable put names with in", line 14 of tScript is "  if score is 7 then put true into hc_done"
+   TestAssert "T80: those variables read", line 15 of tScript is "  answer hc_menu & hc_done"
+   TestAssert "T80: show the tool window at", line 16 of tScript is "  hcWindow " & q & "show" & q & ", " & q & "tool" & q & ", " & q & "189,12" & q
+   TestAssert "T80: hide the pattern window", line 17 of tScript is "  hcWindow " & q & "hide" & q & ", " & q & "pattern" & q
+   TestAssert "T80: a property of the window an id names", \
+         line 18 of tScript is "  if dither = True then hcSetWindow " & q & "dithering" & q & ", " & q & "id" & q & " && (it), dither"
+   TestAssert "T80: a property of the window an expression's id names", \
+         line 19 of tScript is "  hcSetWindow " & q & "zoom" & q & ", " & q & "id" & q & " && ((x + 1)), true"
+
+   -- the words in strings and comments, and forms that are something
+   -- else, left as they are
+   put _Rewrite("on mouseUp", \
+         "  put " & q & "save stack as x, go to last line of y" & q & " into x -- put a else", \
+         "  save this stack as x", \
+         "  if c then put " & q & "a" & q & " into x else put " & q & "b" & q, \
+         "  if c then put " & q & "a" & q & " after x else beep", \
+         "  put " & q & "a" & q, \
+         "  go to card 3", \
+         "  go to next card", \
+         "  go last card", \
+         "  put " & q & "x" & q & " after menu " & q & "Edit" & q, \
+         "  put 1 after me", \
+         "  put 1 before the selection", \
+         "  if x is in menu then beep", \
+         "  set the scroll of window id 5 to 0,0", \
+         "  set the dithering of window " & q & "Pict" & q & " to true", \
+         "  show tool window", \
+         "end mouseUp") into tScript
+   TestAssert "T80: other forms unchanged", line 2 to 9 of tScript is _Lines( \
+         "  put " & q & "save stack as x, go to last line of y" & q & " into x -- put a else", \
+         "  save this stack as x", \
+         "  if c then put " & q & "a" & q & " into x else put " & q & "b" & q, \
+         "  if c then put " & q & "a" & q & " after x else beep", \
+         "  put " & q & "a" & q, \
+         "  go to card 3", \
+         "  go to next card", \
+         "  go last card")
+   TestAssert "T80: put after a menu is no variable", "hc_menu" is not in tScript and line 10 of tScript begins with "  hcPutIntoMenu "
+   TestAssert "T80: after me, before the selection: unchanged", line 11 to 12 of tScript is _Lines("  put 1 after me", "  put 1 before the selection")
+   TestAssert "T80: the scroll of the window an id names: unchanged", line 14 of tScript is "  set the scroll of window id 5 to 0,0"
+   TestAssert "T80: a window's name, as before", \
+         line 15 of tScript is "  hcSetWindow " & q & "dithering" & q & ", " & q & "Pict" & q & ", true"
+   TestAssert "T80: show tool window, as before", line 16 of tScript is "  hcWindow " & q & "show" & q & ", " & q & "tool" & q
+
+   -- with revHyperCardFixScripts' probes, and run
+   put "HCScriptsT80" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   create button "Compiles"
+   put _Lines("on mouseUp", "  put 1 into x", "  put 2 after x", "  put x into menuList", \
+         "  if x is 12 then put " & q & "a" & q & " into y else put " & q & "b" & q & " into y", \
+         "  put " & q & "save stack as x" & q & " into z", "end mouseUp") into tWas
+   set the script of button "Compiles" to tWas
+   -- (as the engine keeps it)
+   put the script of button "Compiles" into tWas
+   -- three cards of a background named like this engine's function
+   -- "directories", its field's text out of order
+   create group "Directories"
+   set the backgroundBehavior of group "Directories" to true
+   create field "DirectoryName" in group "Directories"
+   put "c" into field "DirectoryName"
+   create card
+   put "a" into field "DirectoryName"
+   create card
+   put "b" into field "DirectoryName"
+   go to card 1
+   create button "Forms"
+   set the script of button "Forms" to _Lines("on mouseUp", "  global gHCScriptsTest", \
+         "  put empty into gHCScriptsTest", \
+         "  put " & q & "card 1" & q & " & return & " & q & "card 3" & q & " into parentCard", \
+         "  go to last line of parentCard", \
+         "  put the number of this card after gHCScriptsTest", \
+         "  put " & q & "card 2" & q & " into theCard", \
+         "  put the name of this stack into theStack", \
+         "  go to theCard of theStack", \
+         "  put comma & the number of this card after gHCScriptsTest", \
+         "  put " & q & "card 1" & q & " into theCard", \
+         "  go theCard of this stack", \
+         "  put comma & the number of this card after gHCScriptsTest", \
+         "  put " & q & ",a" & q & " after menu", \
+         "  if the number of this card is 1 then put " & q & "b" & q & " after menu", \
+         "  put " & q & "0" & q & " before menu", \
+         "  if menu is " & q & "0,ab" & q & " then put true in done", \
+         "  put comma & done & menu after gHCScriptsTest", \
+         "  if done is not true then put " & q & "no" & q & " else put " & q & ",else" & q & " after gHCScriptsTest", \
+         "  set the dithering of window id it to true", \
+         "  put comma & the result after gHCScriptsTest", \
+         "  sort cards of bg Directories by fld DirectoryName", \
+         "  put comma & (the result is empty) after gHCScriptsTest", \
+         "end mouseUp", \
+         "on saveIt", "  save stack as " & q & "x" & q, "  show the tool window at " & q & "189,12" & q, "end saveIt")
+   unlock messages
+   put revHyperCardFixScripts(tStack) into tResult
+   TestAssert "T80: a script that compiles, unchanged", the script of button "Compiles" of stack tStack is tWas
+   put the script of button "Forms" of stack tStack into tScript
+   TestAssert "T80: a background named like a function of this engine's, before a sort's by", \
+         "bg " & q & "Directories" & q is in tScript
+   TestAssert "T80: no handler and no line left out", revHyperCardLeftOutHandlers() is empty and revHyperCardLeftOutLines() is empty
+   put empty into tError
+   try
+      send "mouseUp" to button "Forms" of stack tStack
+   catch tError
+   end try
+   TestAssert "T80: the forms run, in a stack of three cards", tError is empty \
+         and gHCScriptsTest is "3,2,1,true0,ab,else,No such window,true"
+   TestAssert "T80: the cards of that background sorted", field "DirectoryName" of card 1 of stack tStack \
+         & field "DirectoryName" of card 2 of stack tStack & field "DirectoryName" of card 3 of stack tStack is "abc"
+   _Close tStack
+end TestHyperCardScriptsT80
