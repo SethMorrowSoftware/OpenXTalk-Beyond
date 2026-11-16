@@ -62,18 +62,7 @@ jobs:
           - platform: win-x86_64
             runner: windows-2022
             asset: win-x86_64-portable.zip
-          - platform: linux-x86_64
-            runner: ubuntu-24.04
-            asset: linux-x86_64.tar.xz
-          - platform: mac-universal
-            runner: macos-15
-            asset: mac-universal.zip
-          - platform: mac-universal
-            runner: macos-15-intel
-            asset: mac-universal.zip
-          - platform: mac-universal
-            runner: macos-26
-            asset: mac-universal.zip
+          # DIAGNOSTIC (not for merging): Windows alone
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 75
     defaults:

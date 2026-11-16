@@ -43,7 +43,7 @@ script "oxt_everyday"
 -- <name> ok | FAILED <why>, DONE). OXT_TOUR_ONLY names tasks; the tasks
 -- before a named one that it needs (the stack, its controls) run too.
 
-constant kTasks = "start,new-stack,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,message-box-shortcut,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,quick-start-first-lesson,quick-start-dropped-shows,standalone-stopped-build,standalone-mc-stack-file,standalone-built-and-run,standalone-engine-missing,finish"
+constant kTasks = "start,new-stack,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,message-box-shortcut,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,quick-start-first-lesson,quick-start-dropped-shows,finish"
 -- (the names the tasks give what they make)
 constant kStack = "Everyday Stack"
 constant kFile = "everyday.oxtstack"
@@ -236,6 +236,9 @@ on ed_start
    if not edWaitFor("edOpen(" & quote & "revTools" & quote & ")", 5000) then throw "the Tools palette is not open"
    put edInputWorks() into sInput
    edRecord "INFO the system's mouse reaches the IDE:" && sInput
+   -- DIAGNOSTIC: no tooltip opens in the dark run
+   if $OXT_TOUR_APPEARANCE is "dark" then set the toolTipDelay to 0
+   edRecord "INFO DIAGNOSTIC: toolTipDelay" && the toolTipDelay && "in the" && $OXT_TOUR_APPEARANCE && "run"
 end ed_start
 
 -- File > New Stack > Default Size: a new stack, in front, to edit
@@ -1612,6 +1615,122 @@ on ed_preferences_change
    close stack tPrefs
 end ed_preferences_change
 
+-- DIAGNOSTIC, not for merging. On Windows the lesson's drag made no
+-- button right after the three checks of the tile (#532, run
+-- 43906149713): the same drag is made here after each of several things,
+-- and what the helper and the engine saw is recorded. Nothing throws
+on ed_drag_probe
+   local tFile, tCard, tError, tWhat, tEnd
+   put revEnvironmentResourcesPath() & "/" & kGuideFile into tFile
+   edRecord "INFO probe: the IDE is process" && the processID
+   edToolTile "com.livecode.tool.Browse"
+   put true into sKeep["guide"]
+   go stack tFile
+   get edWaitFor("edOpen(pAx) and the short name of the topStack is pAx", 8000, kGuideStack)
+   go card kGuideLesson of stack kGuideStack
+   get edWaitFor("the short name of this card of stack pAx is pBx", 4000, kGuideStack, kGuideLesson)
+   put the long id of card kGuideLesson of stack kGuideStack into tCard
+   repeat for each item tWhat in "nothing,one check,nothing again,three checks,nothing after them,a loop of 20 s,three checks with events,three checks and 3 s,three checks and the watch"
+      try
+         switch tWhat
+            case "one check"
+               edGuideTileIsFirst
+               break
+            case "three checks"
+            case "three checks and 3 s"
+            case "three checks and the watch"
+               edGuideTileIsFirst
+               edGuideTileIsFirstWhen "folded"
+               edGuideTileIsFirstWhen "hidden"
+               if tWhat is "three checks and 3 s" then edPause 3000
+               break
+            case "three checks with events"
+               put true into sKeep["probeEvents"]
+               edGuideTileIsFirst
+               edGuideTileIsFirstWhen "folded"
+               edGuideTileIsFirstWhen "hidden"
+               put false into sKeep["probeEvents"]
+               break
+            case "a loop of 20 s"
+               put the milliseconds + 20000 into tEnd
+               repeat until the milliseconds > tEnd
+               end repeat
+               break
+         end switch
+      catch tError
+         put false into sKeep["probeEvents"]
+         edRecord "INFO probe" && quote & tWhat & quote && "threw" && edJoin(tError)
+      end try
+      try
+         edProbeDrag tWhat, tCard, (tWhat is "three checks and the watch")
+      catch tError
+         edRecord "INFO probe" && quote & tWhat & quote && "drag threw" && edJoin(tError)
+      end try
+   end repeat
+   edGuideAway
+end ed_drag_probe
+
+-- the button tile dragged to the Try It box by the system's mouse after
+-- pWhat; what was there before, what the helper wrote, what the engine
+-- was sent (when pWatch), and whether a control was made. What was made
+-- is deleted, and the Browse tool chosen again
+command edProbeDrag pWhat, pCard, pWatch
+   local tBefore, tTile, tFrom, tSpot, tTo, tCount, tDrag, tMade, tSeen, tCanvas, tQuiet, tError
+   put the milliseconds - sKeep["events"] into tQuiet
+   put "lockMessages" && the lockMessages & "; lockScreen" && the lockScreen & "; no event for" && tQuiet && "ms" & \
+         "; Tools rect" && the rect of stack "revTools" && "mode" && the mode of stack "revTools" && "decorations" && the decorations of stack "revTools" & \
+         "; look on classic" && edToolsLookOn("classic") & "; topStack" && the short name of the topStack & "; tool" && the tool & \
+         "; mouse at" && the screenMouseLoc && "over" && the mouseStack & "; waiting" && edPendingNames() into tBefore
+   put edTile("com.livecode.interface.classic.button") into tTile
+   if tTile is empty then
+      edRecord "INFO probe" && quote & pWhat & quote & ": no button tile;" && tBefore
+      exit edProbeDrag
+   end if
+   put the rect of image "Canvas" of pCard into tCanvas
+   put (item 1 of tCanvas + 64) & "," & (the bottom of field "Field Test" of pCard + 20) into tSpot
+   put (item 1 of tSpot + the left of stack kGuideStack) & "," & (item 2 of tSpot + the top of stack kGuideStack) into tTo
+   put edScreenLoc(tTile, "revTools") into tFrom
+   put the number of controls of pCard into tCount
+   if pWatch then edWatchClicks true
+   edSystemDrag tFrom, tTo
+   -- (what the engine holds while the helper works, at each change:
+   -- whether messages are locked, the mouse's button, the stack and the
+   -- control it is over)
+   local tNow, tWas, tStates, tUntil, tControl
+   put the milliseconds + 4000 into tUntil
+   repeat until the milliseconds > tUntil
+      put empty into tControl
+      try
+         put the short name of the mouseControl into tControl
+      catch tError
+      end try
+      put "locked" && the lockMessages && the mouse && the mouseStack && tControl && the screenMouseLoc into tNow
+      if tNow is not tWas then
+         put (the milliseconds - sKeep["dragLaunched"]) && tNow & " / " after tStates
+         put tNow into tWas
+      end if
+      wait 15 milliseconds with messages
+   end repeat
+   put edDragDone(20000) into tDrag
+   put edWaitFor("the number of controls of pAx is pBx + 1", 6000, pCard, tCount) into tMade
+   put "not watched" into tSeen
+   if pWatch then
+      put edWatched() into tSeen
+      edWatchClicks false
+   end if
+   edRecord "INFO probe" && quote & pWhat & quote & ": made" && tMade & "; from" && tFrom && "(tile" && the rect of tTile & ") to" && tTo & \
+         "; before:" && tBefore & "; the drag" && tDrag & "; states:" && tStates & "; seen:" && tSeen & "; after: tool" && the tool & "; lockMessages" && the lockMessages & \
+         "; mouse at" && the screenMouseLoc && "over" && the mouseStack
+   if tMade then
+      select empty
+      lock messages
+      delete control (tCount + 1) of pCard
+      unlock messages
+   end if
+   revIDEChooseBrowseTool
+   get edWaitFor("the tool is " & quote & "browse tool" & quote, 3000)
+end edProbeDrag
+
 -- The Quick Start Guide's first lesson, done as its notes say. It is the
 -- first example Learn offers, and for many the first thing they do in
 -- the IDE: a button dragged from the Tools palette onto the lesson's Try
@@ -2372,24 +2491,7 @@ command edSystemDrag pFrom, pTo
          get shell(tCommand)
          break
       case "Win32"
-         -- ($l: the milliseconds since the launch, the engine's clock
-         -- and .NET's both counting from 1970)
-         put "$f = '" & tFile & "'; function l($w) { Add-Content -Path $f -Value ($w + ' ' + ([DateTimeOffset]::Now.ToUnixTimeMilliseconds() - " & sKeep["dragLaunched"] & ")) }" & return & \
-               "l 'started'" & return & \
-               "Add-Type -Namespace OxtEd -Name Mouse -MemberDefinition '" & \
-               "[DllImport(" & quote & "user32.dll" & quote & ")] public static extern bool SetCursorPos(int x, int y); " & \
-               "[DllImport(" & quote & "user32.dll" & quote & ")] public static extern void mouse_event(int f, int x, int y, int d, int e);'" & return & \
-               "Start-Sleep -Milliseconds 300" & return & \
-               "[OxtEd.Mouse]::SetCursorPos(" & pFrom & ") | Out-Null" & return & \
-               "Start-Sleep -Milliseconds 150" & return & \
-               "[OxtEd.Mouse]::mouse_event(2, 0, 0, 0, 0)" & return & \
-               "l 'down'" & return into tScript
-         set the itemDelimiter to ";"
-         repeat for each item i in tMoves
-            put "Start-Sleep -Milliseconds 150" & return & "[OxtEd.Mouse]::SetCursorPos(" & i & ") | Out-Null" & return after tScript
-         end repeat
-         set the itemDelimiter to comma
-         put "Start-Sleep -Milliseconds 200" & return & "[OxtEd.Mouse]::mouse_event(4, 0, 0, 0, 0)" & return & "l 'up'" after tScript
+         put edWinDragScript(tFile, sKeep["dragLaunched"], pFrom, pTo, tMoves) into tScript
          put base64Encode(textEncode(tScript, "UTF-16LE")) into tScript
          replace return with empty in tScript
          put "powershell -NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand" && tScript into tCommand
@@ -2412,13 +2514,84 @@ command edSystemDrag pFrom, pTo
    -- (the caller waits for what the drag makes)
 end edSystemDrag
 
+-- The Windows helper's script: PowerShell, which moves and presses the
+-- system's mouse through user32, and writes each step with the
+-- milliseconds since the launch (the engine's clock and .NET's both
+-- count from 1970). It also says what window the mouse is over, and
+-- which is in front, when it starts, before it presses and before it
+-- lets go: the top window's class, title and process, and "hung" when
+-- Windows holds it not to be responding. (@ is a double quote here)
+function edWinDragScript pFile, pLaunched, pFrom, pTo, pMoves
+   local tType, tScript, i
+   put "[DllImport(@user32.dll@)] public static extern bool SetCursorPos(int x, int y); " & \
+         "[DllImport(@user32.dll@)] public static extern void mouse_event(int f, int x, int y, int d, int e); " & \
+         "[StructLayout(LayoutKind.Sequential)] public struct POINT { public int X; public int Y; } " & \
+         "[DllImport(@user32.dll@)] public static extern IntPtr WindowFromPoint(POINT p); " & \
+         "[DllImport(@user32.dll@)] public static extern IntPtr GetAncestor(IntPtr h, uint f); " & \
+         "[DllImport(@user32.dll@, CharSet = CharSet.Unicode)] public static extern int GetClassName(IntPtr h, StringBuilder s, int n); " & \
+         "[DllImport(@user32.dll@, CharSet = CharSet.Unicode)] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n); " & \
+         "[DllImport(@user32.dll@)] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint p); " & \
+         "[DllImport(@user32.dll@)] public static extern bool IsHungAppWindow(IntPtr h); " & \
+         "[StructLayout(LayoutKind.Sequential)] public struct RECT { public int L; public int T; public int R; public int B; } " & \
+         "[DllImport(@user32.dll@)] public static extern bool GetWindowRect(IntPtr h, out RECT q); " & \
+         "public static string D(IntPtr h) { if (h == IntPtr.Zero) return @none@; IntPtr r = GetAncestor(h, 2); if (r == IntPtr.Zero) r = h; " & \
+         "StringBuilder c = new StringBuilder(200); GetClassName(r, c, 200); " & \
+         "StringBuilder t = new StringBuilder(200); GetWindowText(r, t, 200); " & \
+         "uint p; GetWindowThreadProcessId(r, out p); RECT q; GetWindowRect(r, out q); " & \
+         "return @[@ + c.ToString() + @; @ + t.ToString() + @; pid @ + p.ToString() + @; @ + q.L.ToString() + @,@ + q.T.ToString() + @,@ + q.R.ToString() + @,@ + q.B.ToString() + (IsHungAppWindow(r) ? @; hung@ : @@) + @]@; } " & \
+         "public static string At(int x, int y) { POINT p = new POINT(); p.X = x; p.Y = y; return D(WindowFromPoint(p)); }" into tType
+   put "$f = '" & pFile & "'; function l($w) { Add-Content -Path $f -Value ($w + ' ' + ([DateTimeOffset]::Now.ToUnixTimeMilliseconds() - " & pLaunched & ")) }" & return & \
+         "l 'started'" & return & \
+         "Add-Type -Namespace OxtEd -Name Mouse -UsingNamespace System.Text -MemberDefinition '" & tType & "'" & return & \
+         "l ('first ' + [OxtEd.Mouse]::At(" & pFrom & "))" & return & \
+         "Start-Sleep -Milliseconds 300" & return & \
+         "[OxtEd.Mouse]::SetCursorPos(" & pFrom & ") | Out-Null" & return & \
+         "Start-Sleep -Milliseconds 150" & return & \
+         "l ('over ' + [OxtEd.Mouse]::At(" & pFrom & "))" & return & \
+         "[OxtEd.Mouse]::mouse_event(2, 0, 0, 0, 0)" & return & \
+         "l 'down'" & return into tScript
+   set the itemDelimiter to ";"
+   repeat for each item i in pMoves
+      put "Start-Sleep -Milliseconds 150" & return & "[OxtEd.Mouse]::SetCursorPos(" & i & ") | Out-Null" & return after tScript
+   end repeat
+   set the itemDelimiter to comma
+   put "Start-Sleep -Milliseconds 200" & return & \
+         "l ('drop ' + [OxtEd.Mouse]::At(" & pTo & "))" & return & \
+         "[OxtEd.Mouse]::mouse_event(4, 0, 0, 0, 0)" & return & "l 'up'" after tScript
+   replace "@" with quote in tScript
+   return tScript
+end edWinDragScript
+
+-- DIAGNOSTIC: what the engine holds while the helper works, at each
+-- change, for pMilliseconds: whether messages are locked, the mouse's
+-- button, the stack and the control it is over, and where it is
+function edDragStates pMilliseconds
+   local tNow, tWas, tStates, tUntil, tControl, tError
+   put the milliseconds + pMilliseconds into tUntil
+   repeat until the milliseconds > tUntil
+      put empty into tControl
+      try
+         put the short name of the mouseControl into tControl
+      catch tError
+      end try
+      put "locked" && the lockMessages && the mouse && the mouseStack && tControl && the screenMouseLoc into tNow
+      if tNow is not tWas then
+         put (the milliseconds - sKeep["dragLaunched"]) && tNow & " / " after tStates
+         put tNow into tWas
+      end if
+      wait 15 milliseconds with messages
+   end repeat
+   put the milliseconds into sKeep["events"]
+   return tStates
+end edDragStates
+
 -- Waits, at most pMilliseconds, for the last drag's helper to release the
 -- mouse; returns what it wrote and how long that took, for a record
 function edDragDone pMilliseconds
    local tFile, tText
    put sKeep["dragFile"] into tFile
    if tFile is empty then return "(no drag)"
-   if edWaitFor("there is a file pAx and URL (" & quote & "file:" & quote & " & pAx) contains " & quote & "up" & quote, pMilliseconds, tFile) then
+   if edWaitFor("there is a file pAx and (return & URL (" & quote & "file:" & quote & " & pAx)) contains (return & " & quote & "up" & quote & ")", pMilliseconds, tFile) then
       put URL ("file:" & tFile) into tText
       return "released" && the milliseconds - sKeep["dragLaunched"] && "ms after the launch (" & edJoin(word 1 to -1 of tText) & ")"
    end if
@@ -3330,7 +3503,7 @@ end edRemoveBuiltStack
 -- The lesson done in the Guide at pFile; what was done goes to
 -- sReport["guide"], and a step that fails throws
 command edGuideLesson pFile
-   local tCard, tNotes, tLine, tCount, tTile, tDrop, tFrom, tMade, tVia, tDrag, tNew, tPI, tMB, tKeys, tCode
+   local tCard, tNotes, tLine, tCount, tTile, tDrop, tFrom, tMade, tVia, tDrag, tNew, tPI, tMB, tKeys, tCode, tStates
    -- as Learn opens an example (leOpenExample in revlearn.livecodescript):
    -- the Run tool, then the stack
    edToolTile "com.livecode.tool.Browse"
@@ -3344,9 +3517,7 @@ command edGuideLesson pFile
    end if
    -- the front page says where the Try Its are done, and its first tile
    -- opens the lesson
-   if "this window is the stack" is not in field "step2_text" of card 1 of stack kGuideStack then
-      throw "the front page does not say that this window is the stack:" && field "step2_text" of card 1 of stack kGuideStack
-   end if
+   -- (DIAGNOSTIC: a check of the notes' words is left out here, the release has the old notes)
    edClickAt kGuideStack, the loc of group "tile1" of card 1 of stack kGuideStack
    if not edWaitFor("the short name of this card of stack pAx is pBx", 4000, kGuideStack, kGuideLesson) then
       throw "a click on the front page's first tile did not open the lesson" && kGuideLesson && "(" & the short name of this card of stack kGuideStack & ")"
@@ -3355,20 +3526,14 @@ command edGuideLesson pFile
    -- what the notes say of the stack and of the Message Box
    put the text of field "Info" of tCard into tNotes
    put line lineOffset("from the tools palette to the stack", tNotes) of tNotes into tLine
-   if "this window" is not in tLine or "Try It box" is not in tLine then
-      throw "the notes do not say that the stack is this window, nor where on it the button goes:" && quote & tLine & quote
-   end if
+   -- (DIAGNOSTIC: a check of the notes' words is left out here, the release has the old notes)
    -- (which tile of the Tools palette, in its modern look and in its
    -- classic one: "the top gray button" alone fits the classic look only,
    -- openxtalk.org p=26402)
-   if "under Controls" is not in tLine or "reads OK" is not in tLine or "classic look" is not in tLine then
-      throw "the notes do not say which tile of the Tools palette the standard button is, in its modern look and in its classic one:" && quote & tLine & quote
-   end if
+   -- (DIAGNOSTIC: a check of the notes' words is left out here, the release has the old notes)
    put line lineOffset("Tools > Message Box", tNotes) of tNotes into tLine
-   if "menu Tools > Message Box" is not in tLine or "window" is not in tLine or "Cmd-M" is not in tLine then
-      throw "the notes do not say that the Message Box is a window the Tools menu opens, nor a Mac's key:" && quote & tLine & quote
-   end if
-   if there is not a field "canvasHint" of tCard or "here" is not in field "canvasHint" of tCard then throw "the Try It box does not say that the button goes there"
+   -- (DIAGNOSTIC: a check of the notes' words is left out here, the release has the old notes)
+   -- (DIAGNOSTIC: a check of the notes' words is left out here, the release has the old notes)
    edShotStack kGuideStack, "35b-quick-start-lesson"
 
    -- "1. Drag a standard button (the first one under Controls ...) from
@@ -3386,8 +3551,12 @@ command edGuideLesson pFile
    if sInput is true then
       put "a drag of the system's mouse" into tMade
       put edScreenLoc(tTile, "revTools") into tFrom
+      edRecord "INFO lesson drag: toolTipDelay" && the toolTipDelay & "; no event for" && (the milliseconds - sKeep["events"]) && "ms; from" && tFrom && "(tile" && the rect of tTile & \
+            "); Tools rect" && the rect of stack "revTools" & "; mouse at" && the screenMouseLoc && "over" && the mouseStack & "; lockMessages" && the lockMessages & "; process" && the processID
       edSystemDrag tFrom, (item 1 of tDrop + the left of stack kGuideStack) & "," & (item 2 of tDrop + the top of stack kGuideStack)
+      put edDragStates(3000) into tStates
       put edDragDone(20000) into tDrag
+      edRecord "INFO lesson drag: the drag" && tDrag & "; states:" && tStates
    else
       put "a double-click on its tile (the system's mouse does not reach the IDE)" into tMade
       send "mouseDoubleUp 1" to tTile
@@ -4140,6 +4309,10 @@ end edWritePng
 function edWaitFor pTrue, pMilliseconds, pAx, pBx, pCx, pDx
    local tEnd, tValue
    put the milliseconds + pMilliseconds into tEnd
+   if sKeep["probeEvents"] is true then
+      wait 50 milliseconds with messages
+      put the milliseconds into sKeep["events"]
+   end if
    repeat
       try
          put value(pTrue) into tValue
@@ -4149,6 +4322,7 @@ function edWaitFor pTrue, pMilliseconds, pAx, pBx, pCx, pDx
       if tValue is true then return true
       if the milliseconds >= tEnd then return false
       wait 100 milliseconds with messages
+      put the milliseconds into sKeep["events"]
    end repeat
 end edWaitFor
 
@@ -4156,6 +4330,7 @@ end edWaitFor
 -- redraw): for what has nothing to wait for
 command edPause pMilliseconds
    wait pMilliseconds milliseconds with messages
+   put the milliseconds into sKeep["events"]
 end edPause
 
 -- whether a main stack named pStack is in memory, loading nothing
