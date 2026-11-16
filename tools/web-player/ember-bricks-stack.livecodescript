@@ -126,6 +126,8 @@ constant kDuelWait = 1.2
 -- and a link to open
 constant kDuelVersion = 1
 constant kDuelCode = "EB1"
+-- (and the most characters a description in one can be)
+constant kDuelMost = 60000
 constant kDuelIce = "stun:stun.l.google.com:19302"
 constant kDuelSend = 0.1
 constant kDuelQuiet = 8
@@ -215,6 +217,8 @@ local sHeatBar, sChipRect, sFakeInsets, sRX, sRY, sRS
 -- DataChannelXT is here ("yes" or "no") and was used, and how far along
 -- the list of levels a match's first wall is
 local sDuel, sLobby, sNet2, sRtc, sRtcUsed, sShift
+-- The table of the sum a code carries (ebDuelSum)
+local sCrc
 
 ----------------------------------------------------------------------
 -- Opening and closing
@@ -340,11 +344,13 @@ command ebInit
    end if
    ebAudioStart
    ebWatchPage
+   lock screen
    ebResetRun
    ebShowWorld false
    put empty into sArena
    ebLayout
    ebGoTitle
+   unlock screen
 end ebInit
 
 -- The ids of the controls, once: the loop asks for a control by its id,
@@ -768,6 +774,20 @@ end ebFitPage
 
 ----------------------------------------------------------------------
 -- The loop
+--
+-- The engine draws the window again after every statement that changed
+-- what it shows, unless the screen is locked; and on a phone each
+-- drawing waits for the screen's next frame, a sixtieth of a second. A
+-- level begun with the screen unlocked was a hundred drawings and more
+-- (each brick as it appeared, each ember as it went): well over a second
+-- with nothing to do but watch, where a desktop shows nothing of it. So
+-- whatever comes into the game locks the screen for what it changes, and
+-- there is one drawing of it: a frame (ebFrame), a button (ebPress), a
+-- key or Android's back button (through ebPause, ebResume, ebLaunch,
+-- ebGoTitle and ebDuelLeave), what was pasted (ebPasted), a window of
+-- another size (ebLayout), and the tests' hands on the game. A lock
+-- inside a lock only counts, so each of these can call the others.
+-- tools/ci/tests/test_ember_bricks.py holds the game to it.
 
 private command ebSchedule
    if sManual or sLoop is not empty or sMode is "closed" then
@@ -967,12 +987,14 @@ command ebShowWorld pOn
 end ebShowWorld
 
 command ebGoTitle
+   lock screen
    put "title" into sMode
    put false into sDragging
    ebKeepAwake false
    ebShowWorld false
    set the text of field "Records" to ebRecords()
    ebShowScreen "title"
+   unlock screen
    put the milliseconds into sLast
    ebSchedule
 end ebGoTitle
@@ -1087,11 +1109,19 @@ command ebButtonLook pName, pDown
    end if
 end ebButtonLook
 
--- What each button of the screens does
+-- A button of the screens is pressed: what it does, and one drawing of
+-- all that it changed
 command ebPress pName
-   local tResult, tLevel
    set the defaultStack to the short name of me
    ebSound "click", 0.5
+   lock screen
+   ebPressed pName
+   unlock screen
+end ebPress
+
+-- What each button of the screens does
+private command ebPressed pName
+   local tResult, tLevel
    if word 1 of pName is "Level" and word 2 of pName is an integer then
       put word 2 of pName into tLevel
       if tLevel <= sUnlocked then
@@ -1099,7 +1129,7 @@ command ebPress pName
       else
          set the text of field "Levels Note" to "Clear level" && sUnlocked && "to go on."
       end if
-      exit ebPress
+      exit ebPressed
    end if
    switch pName
       case "Play"
@@ -1200,7 +1230,7 @@ command ebPress pName
          ebDuelPress pName
          break
    end switch
-end ebPress
+end ebPressed
 
 -- The whole screen: a browser's, or a desktop's (a phone's app has it)
 private command ebToggleFull
@@ -1358,6 +1388,8 @@ command ebNewRun pLevel
       put 1 into pLevel
    end if
    ebStopLoop
+   -- (one drawing of the arena and its wall, not one of each brick)
+   lock screen
    ebResetRun
    put pLevel into sStartLevel
    put 0 into sNow
@@ -1371,6 +1403,7 @@ command ebNewRun pLevel
    ebShowScreen "play"
    -- (the run's first picture is its own: no frame has drawn it yet)
    ebDrawAll
+   unlock screen
    ebKeepAwake true
    put the milliseconds into sLast
    ebSchedule
@@ -1379,6 +1412,7 @@ end ebNewRun
 -- Level pLevel begins: its bricks, a ball on the paddle
 command ebStartLevel pLevel
    local tIndex, tLap
+   lock screen
    put pLevel into sLevel
    ebClearThings
    ebResetEffects
@@ -1397,6 +1431,7 @@ command ebStartLevel pLevel
    else
       ebBanner "LEVEL" && sLevel, sLevels[tIndex]["name"], 1.8
    end if
+   unlock screen
 end ebStartLevel
 
 -- Which of the levels the one being played is: they come round again
@@ -1544,6 +1579,7 @@ command ebLaunch
       exit ebLaunch
    end if
    put false into tAny
+   lock screen
    repeat with i = 1 to sCount["Ball"]
       if sBall[i]["on"] then
          if sBall[i]["stuck"] then
@@ -1552,6 +1588,7 @@ command ebLaunch
          end if
       end if
    end repeat
+   unlock screen
    if tAny then
       ebSound "launch", 0.6
    end if
@@ -1661,8 +1698,10 @@ command ebNextLevel
    end if
    put "play" into sMode
    put empty into sCountT
+   lock screen
    ebStartLevel sLevel + 1
    ebShowScreen "play"
+   unlock screen
    ebKeepAwake true
    put the milliseconds into sLast
    ebSchedule
@@ -1716,6 +1755,7 @@ command ebPause
    end if
    put "pause" into sMode
    put false into sDragging
+   lock screen
    if sDuel then
       -- a duel goes on behind the panel: it is the way out of it
       set the visible of graphic "Restart Shape" to false
@@ -1735,6 +1775,7 @@ command ebPause
       set the text of field "Paused Title" to "PAUSED"
    end if
    ebShowScreen "pause"
+   unlock screen
 end ebPause
 
 command ebResume
@@ -1744,10 +1785,12 @@ command ebResume
    put "play" into sMode
    put false into sDragging
    put empty into sMouseLast
+   lock screen
    ebShowScreen "play"
    if sPhase is "serve" and not (sDuel and sNet2["wait"] > 0) then
       set the visible of field id sId["Hint"] to true
    end if
+   unlock screen
    ebKeepAwake true
    put the milliseconds into sLast
    ebSchedule
@@ -4138,17 +4181,81 @@ function ebDuelDecode pCode, pKind
    try
       put base64Decode(tData) into tData
       if tHow is "z" then
-         put decompress(tData) into tData
+         put ebDuelUnpack(tData) into tData
       end if
       put textDecode(tData, "UTF-8") into tSdp
    catch tError
       put empty into tSdp
    end try
-   if tSdp is empty or the length of tSdp > 60000 or "v=0" is not in tSdp then
+   if tSdp is empty or the length of tSdp > kDuelMost or "v=0" is not in tSdp then
       return "!That code is not whole. Copy all of it and paste it again."
    end if
    return tSdp
 end ebDuelDecode
+
+-- What compress packed into pData; empty when pData is not all of it.
+-- The last four bytes of what compress makes say how long the thing it
+-- packed was, and the four before them are a sum of it (a CRC-32). The
+-- engine's decompress makes room for the whole of that length before it
+-- reads a byte, whatever the length is: half a code, as a message cut it
+-- or a finger copied it, ends anywhere, and the half in the game's own
+-- test had it make room for 1,208,859,709 bytes, which a desktop
+-- survives and a phone does not (Android stopped the game). So the
+-- length is read here first, and nothing that says it is longer than a
+-- description can be is unpacked at all; and what was unpacked is the
+-- description only when its sum is the one the code carries
+private function ebDuelUnpack pData
+   local tLength, tText
+   if the number of bytes of pData < 18 then
+      return empty
+   end if
+   put ebDuelNumber(byte -4 to -1 of pData) into tLength
+   if tLength < 1 or tLength > kDuelMost then
+      return empty
+   end if
+   put decompress(pData) into tText
+   if the number of bytes of tText is not tLength then
+      return empty
+   end if
+   if ebDuelSum(tText) is not ebDuelNumber(byte -8 to -5 of pData) then
+      return empty
+   end if
+   return tText
+end ebDuelUnpack
+
+-- Four bytes as the number they are, the smallest part first
+private function ebDuelNumber pBytes
+   local tNumber, i
+   put 0 into tNumber
+   repeat with i = 4 down to 1
+      put tNumber * 256 + byteToNum(byte i of pBytes) into tNumber
+   end repeat
+   return tNumber
+end ebDuelNumber
+
+-- The sum of pData that compress puts after what it packed: its CRC-32
+-- (the table of it is made the first time)
+private function ebDuelSum pData
+   local tSum, tByte, tValue, i
+   if sCrc is empty then
+      repeat with i = 0 to 255
+         put i into tValue
+         repeat 8 times
+            if tValue mod 2 is 1 then
+               put 3988292384 bitXor (tValue div 2) into tValue
+            else
+               put tValue div 2 into tValue
+            end if
+         end repeat
+         put tValue into sCrc[i]
+      end repeat
+   end if
+   put 4294967295 into tSum
+   repeat for each byte tByte in pData
+      put sCrc[(tSum bitXor byteToNum(tByte)) mod 256] bitXor (tSum div 256) into tSum
+   end repeat
+   return tSum bitXor 4294967295
+end ebDuelSum
 
 -- Copy (or, on a phone in a browser, the share sheet): the code on its
 -- way to the rival
@@ -4210,15 +4317,22 @@ private command ebLobbyPaste
    end if
 end ebLobbyPaste
 
--- What was pasted (empty when the clipboard could not be read)
+-- What was pasted (empty when the clipboard could not be read): a
+-- browser gives it later, from outside any press
 command ebPasted pText
    set the defaultStack to the short name of me
+   lock screen
+   ebTakePasted pText
+   unlock screen
+end ebPasted
+
+private command ebTakePasted pText
    if sMode is not "lobby" or ebLobbyKind() is not "take" then
-      exit ebPasted
+      exit ebTakePasted
    end if
    if pText is empty then
       set the text of field "Lobby Note" to "Nothing to paste. Copy your rival's code, or click the box and paste into it."
-      exit ebPasted
+      exit ebTakePasted
    end if
    if the length of pText > 24000 then
       put char 1 to 24000 of pText into pText
@@ -4228,7 +4342,7 @@ command ebPasted pText
    replace space with empty in pText
    set the text of field "Code" to ebDuelLines(pText)
    ebLobbyGo
-end ebPasted
+end ebTakePasted
 
 -- The step's main button
 private command ebLobbyGo
@@ -4274,21 +4388,23 @@ end ebLobbyGo
 -- the title
 command ebDuelLeave
    set the defaultStack to the short name of me
+   lock screen
    if sMode is "lobby" and ebLobbyKind() is not "choose" and ebLobbyKind() is not "none" then
       ebDuelDrop
       put "choose" into sLobby
       ebLobbyLook empty
-      exit ebDuelLeave
+   else
+      ebDuelSend "B"
+      ebDuelDrop
+      put empty into sLobby
+      if sDuel then
+         put false into sDuel
+         put 0 into sShift
+         ebLayout
+      end if
+      ebGoTitle
    end if
-   ebDuelSend "B"
-   ebDuelDrop
-   put empty into sLobby
-   if sDuel then
-      put false into sDuel
-      put 0 into sShift
-      ebLayout
-   end if
-   ebGoTitle
+   unlock screen
 end ebDuelLeave
 
 -- The stack closes: the link too, and DataChannelXT's threads if the
@@ -4610,6 +4726,7 @@ private command ebDuelBegin pSeed
    put empty into sNet2["clock"]
    -- (one of the first twelve levels: the later ones are a slow start)
    put abs(pSeed) mod min(12, sLevelCount) into sShift
+   lock screen
    ebLayout
    ebNewRun 1
    -- (the first ball waits for the count, and no click or key sends it
@@ -4625,6 +4742,7 @@ private command ebDuelBegin pSeed
    ebSound "go", 0.7
    ebDuelClock
    ebDuelDraw true
+   unlock screen
 end ebDuelBegin
 
 -- The clock, when its second changes; red, and ticking, for its last ten
@@ -5082,6 +5200,7 @@ end ebTestStep
 command ebTestLevel pRows
    local tRow, tCol, tLine, tCode, i
    set the defaultStack to the short name of me
+   lock screen
    ebClearThings
    ebResetEffects
    repeat with i = 1 to kCells
@@ -5102,12 +5221,14 @@ command ebTestLevel pRows
    ebBrickLooks
    put sNow into sBrickAt
    ebServe
+   unlock screen
 end ebTestLevel
 
 -- A ball in flight at pX,pY (units of the arena), going pDX,pDY, in
 -- place of every other (or, with pKeep, beside them)
 command ebTestBall pX, pY, pDX, pDY, pKeep
    set the defaultStack to the short name of me
+   lock screen
    if pKeep is not true then
       ebClearKind "Ball"
    end if
@@ -5115,19 +5236,24 @@ command ebTestBall pX, pY, pDX, pDY, pKeep
    put "live" into sPhase
    put sNow into sBrickAt
    set the visible of field id sId["Hint"] to false
+   unlock screen
 end ebTestBall
 
 -- The paddle's middle where a test wants it
 command ebTestPaddle pX
    put pX into sPadX
+   lock screen
    ebSteer 0
+   unlock screen
 end ebTestPaddle
 
 -- A spark of a kind falling from pX,pY (wide, small, split, blaze,
 -- chill, fast, grip, bolts, net, life)
 command ebTestDrop pKind, pX, pY
    set the defaultStack to the short name of me
+   lock screen
    ebNewDrop pKind, pX, pY
+   unlock screen
 end ebTestDrop
 
 -- A thing of the run: lives, score, heat, level, speed; drops (whether

@@ -793,8 +793,9 @@ end TestNumbersWithCommas
 -- Any window: a phone, a phone on its side, a desktop
 
 -- Everything in its place at pWidth x pHeight: the arena on the window,
--- the HUD beside it (pWide) or over it, every screen's buttons on the
--- window and apart, every word whole
+-- the HUD beside it (pWide) or over it (with pWide empty, where the game
+-- put it), every screen's buttons on the window and apart, every word
+-- whole
 private command checkLayout pWidth, pHeight, pWide
    local tCard, tArena, tName, tBad, tScreen, tGroup, tRects, tRect, tField, tLines, i, j, tAt
    put "at" && pWidth & "x" & pHeight & ":" into tAt
@@ -809,10 +810,15 @@ private command checkLayout pWidth, pHeight, pWide
    TestAssert tAt && "the arena is on the window", isInside(tArena, tCard)
    TestAssert tAt && "two units wide for three high (320 by 480)", \
          abs((item 3 of tArena - item 1 of tArena) * 480 - (item 4 of tArena - item 2 of tArena) * 320) <= 480
-   if pWide then
+   if pWide is true then
       TestAssert tAt && "the HUD is beside the arena", st("wide") is true
-   else
+   else if pWide is false then
       TestAssert tAt && "the HUD is over the arena", st("wide") is false
+   end if
+   if st("wide") is true then
+      TestAssert tAt && "beside the arena, the score is left of it", item 3 of rectOf("Score") <= item 1 of tArena
+   else
+      TestAssert tAt && "over the arena, the score is above it", item 4 of rectOf("Score") <= item 2 of tArena
    end if
    repeat for each item tName in "Score,Stage,Heat Text,Pause"
       put rectOf(tName) into tRect
@@ -883,11 +889,23 @@ on TestTheScreensFitAPhone
    checkLayout 430, 932, false
 end TestTheScreensFitAPhone
 
+-- (Where the score is, beside the arena or over it, is asked in
+-- checkLayout, of a window that was made the size. It was asked here once
+-- more, after both, of whatever window there was: a phone's own app has
+-- the screen it has, checkLayout said twice that it could not look, and
+-- the line failed on an upright screen whose score was over its arena, as
+-- it should be.)
 on TestTheScreensFitAPhoneOnItsSide
    checkLayout 844, 390, true
    checkLayout 568, 320, true
-   TestAssert "the score is beside the arena", item 3 of rectOf("Score") <= item 1 of st("arena")
 end TestTheScreensFitAPhoneOnItsSide
+
+-- The window as it is: on a desktop the one the stack was built with, and
+-- in a phone's app the phone's screen, which no test can make another
+-- size. There this is the test that looks at the game on a phone
+on TestTheScreensFitTheScreenTheyAreOn
+   checkLayout the width of stack kStack, the height of stack kStack, empty
+end TestTheScreensFitTheScreenTheyAreOn
 
 on TestTheScreensFitAWindow
    checkLayout 900, 640, true
@@ -991,7 +1009,7 @@ on TestTheLobbysSteps
 end TestTheLobbysSteps
 
 on TestACodeCarriesADescription
-   local tSdp, tCode, tSpaced, i
+   local tSdp, tCode, tSpaced, i, tBad, tWrong, tGot, tRefused
    put "v=0" & numToChar(13) & numToChar(10) & "o=- 4611731400430051336 2 IN IP4 127.0.0.1" & numToChar(13) & numToChar(10) & \
          "a=candidate:1 1 UDP 2122317823 192.168.1.20 51234 typ host" & numToChar(13) & numToChar(10) & \
          "a=fingerprint:sha-256 4A:AD:B9:B1:3F:82:18:3B:54:02:12:DF:3E:5D:49:6B:19:E5:7C:AB:4A:AD:B9:B1:3F:82:18:3B:54:02:12:DF" & \
@@ -1010,6 +1028,39 @@ on TestACodeCarriesADescription
    TestAssert "nor nonsense", char 1 of gameSays("ebDuelDecode", "EB1Oz:!!!!", "O") is "!" and \
          char 1 of gameSays("ebDuelDecode", "hello", "O") is "!" and char 1 of gameSays("ebDuelDecode", empty, "O") is "!"
    TestAssert "nor a code that is not a description", char 1 of gameSays("ebDuelDecode", gameSays("ebDuelEncode", "O", "hello"), "O") is "!"
+   -- A code cut short, wherever a message or a finger cut it. The
+   -- engine's decompress makes room for as many bytes as the last four of
+   -- what it is given say, before it reads the rest, so the game must not
+   -- hand it a piece of a code: the half above had it make room for
+   -- 1,208,859,709 bytes, and Android stopped the game there
+   put empty into tBad
+   repeat with i = 7 to the length of tCode - 1
+      if char 1 of gameSays("ebDuelDecode", char 1 to i of tCode, "O") is not "!" then
+         put i & space after tBad
+      end if
+   end repeat
+   TestAssert "cut anywhere, it is not a code" && tBad, tBad is empty
+   -- and one character of it wrong (after the fourteen that hold nothing
+   -- of the description): the code carries a sum of what was packed, and
+   -- what it unpacks to is the description or nothing. (Nothing, but for
+   -- a character whose change changes no byte of it)
+   put empty into tBad
+   put 0 into tRefused
+   repeat with i = 21 to the length of tCode - 2 step 3
+      put tCode into tWrong
+      if char i of tWrong is "A" then
+         put "B" into char i of tWrong
+      else
+         put "A" into char i of tWrong
+      end if
+      put gameSays("ebDuelDecode", tWrong, "O") into tGot
+      if char 1 of tGot is "!" then
+         add 1 to tRefused
+      else if tGot is not tSdp then
+         put i & space after tBad
+      end if
+   end repeat
+   TestAssert "with a character wrong, it is never taken for another description" && tBad, tBad is empty and tRefused > 50
 end TestACodeCarriesADescription
 
 ----------------------------------------------------------------------
