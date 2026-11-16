@@ -205,7 +205,11 @@ on TestEverythingTheGameNeedsIsInTheStack
    local tLevels, tSounds, tFiles, tFile, tMissing, tSettings, tHandlers
    put url ("binfile:" & TestGetEngineRepositoryPath() & "/tools/web-player/ember-bricks/levels.txt") into tLevels
    TestAssert "the levels are read", tLevels is not empty
-   TestAssert "the stack has the levels as their file has them", textDecode(tLevels, "UTF-8") is the cLevels of stack kStack
+   -- (a checkout on Windows gives the file CRLF line ends: the builder
+   -- reads it as text, which takes them for line ends, and so does this)
+   put textDecode(tLevels, "UTF-8") into tLevels
+   replace numToChar(13) with empty in tLevels
+   TestAssert "the stack has the levels as their file has them", tLevels is the cLevels of stack kStack
    put the customProperties["cSounds"] of stack kStack into tSounds
    put files(TestGetEngineRepositoryPath() & "/tools/web-player/ember-bricks/sounds") into tFiles
    filter tFiles with "*.wav"
