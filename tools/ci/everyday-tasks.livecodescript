@@ -2668,6 +2668,15 @@ command edBuildWithDialogs pShot
    put pShot into sReport["sayShot"]
    edWatchBuild true
    dispatch "revSetTestEnvironment" to stack "Home" with false
+   edRecord "INFO diag before the build:" && edDiagStacks() && "|" && edDiagPending()
+   if $OXT_TOUR_APPEARANCE is "dark" then
+      local tDiagStart
+      put the milliseconds into tDiagStart
+      repeat while word 3 of edDiagPending() > 0 and the milliseconds - tDiagStart < 20000
+         wait 50 milliseconds with messages
+      end repeat
+      edRecord "INFO diag (dark) waited" && (the milliseconds - tDiagStart) && "ms until nothing was due:" && edDiagPending()
+   end if
    send "edBuildSaid" && (the milliseconds + 180000) to me in 300 milliseconds
    try
       edMenu "File", "Save as Standalone Application..."
@@ -2963,7 +2972,39 @@ command edWatchBuild pOn, pStopAt
          tStop & \
          "   if the cEdStopBuild of stack " & quote & "oxt_everyday" & quote & " is not empty then throw the cEdStopBuild of stack " & quote & "oxt_everyday" & quote & return & \
          "   pass revStandaloneProgress" & return & \
-         "end revStandaloneProgress"
+         "end revStandaloneProgress" & return & \
+         "on reloadStack pName, pFile" & return & \
+         "   dispatch " & quote & "edDiagReload" & quote & " to stack " & quote & "oxt_everyday" & quote & " with pName, pFile, the executionContexts" & return & \
+         "   pass reloadStack" & return & \
+         "end reloadStack" & return & \
+         "on preOpenStack" & return & \
+         "   if " & quote & "answerdialog" & quote & " is in the long name of the target then dispatch " & quote & "edDiagAnswer" & quote & " to stack " & quote & "oxt_everyday" & quote & " with the executionContexts" & return & \
+         "   pass preOpenStack" & return & \
+         "end preOpenStack" & return & \
+         "on revCheckStackOpen pStack, pStacks" & return & \
+         "   dispatch " & quote & "edDiagSeen" & quote & " to stack " & quote & "oxt_everyday" & quote & " with " & quote & "revCheckStackOpen" & quote & ", pStack" & return & \
+         "   pass revCheckStackOpen" & return & \
+         "end revCheckStackOpen" & return & \
+         "on revDeleteStack pStacks" & return & \
+         "   dispatch " & quote & "edDiagSeen" & quote & " to stack " & quote & "oxt_everyday" & quote & " with " & quote & "revDeleteStack" & quote & ", pStacks" & return & \
+         "   pass revDeleteStack" & return & \
+         "end revDeleteStack" & return & \
+         "on revCloseUpdate" & return & \
+         "   dispatch " & quote & "edDiagSeen" & quote & " to stack " & quote & "oxt_everyday" & quote & " with " & quote & "revCloseUpdate" & quote & return & \
+         "   pass revCloseUpdate" & return & \
+         "end revCloseUpdate" & return & \
+         "on revUpdateScriptEdit" & return & \
+         "   dispatch " & quote & "edDiagSeen" & quote & " to stack " & quote & "oxt_everyday" & quote & " with " & quote & "revUpdateScriptEdit" & quote & return & \
+         "   pass revUpdateScriptEdit" & return & \
+         "end revUpdateScriptEdit" & return & \
+         "on ideMessageSend pMessage" & return & \
+         "   dispatch " & quote & "edDiagSeen" & quote & " to stack " & quote & "oxt_everyday" & quote & " with " & quote & "ideMessageSend" & quote & ", pMessage" & return & \
+         "   pass ideMessageSend" & return & \
+         "end ideMessageSend" & return & \
+         "on ideMessageSendWithParameters pMessage, pParam" & return & \
+         "   dispatch " & quote & "edDiagSeen" & quote & " to stack " & quote & "oxt_everyday" & quote & " with " & quote & "ideMessageSendWithParameters" & quote & ", pMessage && pParam" & return & \
+         "   pass ideMessageSendWithParameters" & return & \
+         "end ideMessageSendWithParameters"
    insert the script of button "oxt_everyday_build" into front
    unlock messages
    if there is a stack tDefault then set the defaultStack to tDefault
@@ -2971,7 +3012,59 @@ end edWatchBuild
 
 on edBuildStep pStep
    put pStep & return after sReport["steps"]
+   edRecord "INFO diag step" && pStep & ":" && edDiagStacks() && "|" && edDiagPending()
 end edBuildStep
+
+-- (diagnostic) what waits: how many, how many are due, and the first 24
+function edDiagPending
+   local tLine, tOut, tCount, tNow, tDue
+   put the long seconds into tNow
+   put 0 into tCount
+   put 0 into tDue
+   repeat for each line tLine in the pendingMessages
+      add 1 to tCount
+      if item 2 of tLine <= tNow then add 1 to tDue
+      if tCount <= 24 then
+         put item 3 of tLine && "(" & (round((item 2 of tLine - tNow) * 1000)) && "ms," && char -34 to -1 of (item 4 to -1 of tLine) & ") | " after tOut
+      end if
+   end repeat
+   return tCount && "waiting," && tDue && "due:" && tOut
+end edDiagPending
+
+-- (diagnostic) the main stacks that are the build's or a dialog's, with
+-- the end of their file names and their substacks
+function edDiagStacks
+   local tMain, tOut, tSubs
+   repeat for each line tMain in the mainStacks
+      if tMain contains "dialog" or tMain contains "Everyday" then
+         put the substacks of stack tMain into tSubs
+         replace return with "," in tSubs
+         put tMain && "[" & char -50 to -1 of the effective filename of stack tMain & "] subs:" && tSubs & "; " after tOut
+      end if
+   end repeat
+   return "lockMessages" && the lockMessages & "; defaultStack" && the short name of the defaultStack & ";" && tOut
+end edDiagStacks
+
+-- (diagnostic) the handlers running, the last 14, each cut to its end
+function edDiagContexts pContexts
+   local tLine, tOut
+   repeat for each line tLine in line -14 to -1 of pContexts
+      put char -120 to -1 of tLine & " << " after tOut
+   end repeat
+   return tOut
+end edDiagContexts
+
+on edDiagReload pName, pFile, pContexts
+   edRecord "INFO diag reloadStack" && pName && "for" && pFile & ":" && edDiagStacks() && "| contexts:" && edDiagContexts(pContexts) && "|" && edDiagPending()
+end edDiagReload
+
+on edDiagAnswer pContexts
+   edRecord "INFO diag the Answer Dialog opens:" && edDiagStacks() && "| contexts:" && edDiagContexts(pContexts)
+end edDiagAnswer
+
+on edDiagSeen pWhat, pParam
+   edRecord "INFO diag delivered" && pWhat && char 1 to 160 of pParam && ":" && edDiagStacks()
+end edDiagSeen
 
 -- What a build must leave as it found it, as lines: the stack's file
 -- name, its substacks, its cards, the controls of its first card and its
