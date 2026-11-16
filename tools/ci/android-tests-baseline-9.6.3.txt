@@ -43,6 +43,9 @@ lcs: core/control/try: TestTryFinallyPassHandlerToTop
 lcs: core/control/try: TestTryFinallyRepeatControl
 lcs: core/control/try: TestTryFinallyReturn
 lcs: core/datetime/datetime: TestConvertDatesBefore1970
+lcs: core/datetime/internet-date-zone: TestInternetDateAgreesWithFromInternetDate  # convert ignored the zone of an internet date from LiveCode 7.0 until 0.2.8-dp.2 (#526)
+lcs: core/datetime/internet-date-zone: TestInternetDateToOtherForms  # convert ignored the zone of an internet date from LiveCode 7.0 until 0.2.8-dp.2 (#526)
+lcs: core/datetime/internet-date-zone: TestInternetDateToSecondsAppliesZone  # convert ignored the zone of an internet date from LiveCode 7.0 until 0.2.8-dp.2 (#526)
 lcs: core/datetime/microseconds: TestMicrosecondsCustomProperty
 lcs: core/datetime/microseconds: TestMicrosecondsErrorsAsBefore
 lcs: core/datetime/microseconds: TestMicrosecondsHandlers
