@@ -7047,6 +7047,212 @@ on TestHyperCardScriptsSystemExternals
    _Close tStack
 end TestHyperCardScriptsSystemExternals
 
+on TestHyperCardScriptsCorpusExternals
+   -- externals that 5 to 14 stacks of the corpus call, which had only the
+   -- import's stand-in (empty, or nothing done): Switch (rewritten
+   -- hcX_Switch, rule T13), FindInField, FolderPath, SubLaunch,
+   -- GetBootVol, ChangeCurs, IsFinderLocked, Resources and ClipInfo
+   -- give what the stacks read from them
+   local tStack, q, tTab, tReport, tError, tFolder, tResults, tCursor, tWas, tClip
+   global gHCScriptsTest
+   put quote into q
+   put numToChar(9) into tTab
+   put the temporary folder & "/hcexternals" & the milliseconds into tFolder
+   create folder tFolder
+   put "x" into url ("file:" & tFolder & "/Notes")
+   put "HCCorpusExternals" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["file"] of stack tStack to tFolder & "/Color Tools"
+   set the uHyperCard["imagepath"] of stack tStack to "Old Disk:Stacks:Color Tools"
+   set the uHyperCard["externals"] of stack tStack to _Lines("XFCN" & tTab & "Switch", "XFCN" & tTab & "FindInField", \
+         "XFCN" & tTab & "FolderPath", "XFCN" & tTab & "SubLaunch", "XFCN" & tTab & "GetBootVol", "XCMD" & tTab & "ChangeCurs", \
+         "XFCN" & tTab & "IsFinderLocked", "XFCN" & tTab & "Resources", "XFCN" & tTab & "ClipInfo", "XFCN" & tTab & "FullSFPack")
+   set the uHyperCard["resources"] of stack tStack to _Lines("PICT" & tTab & "128" & tTab & "10" & tTab & "Map", \
+         "Xdna" & tTab & "1" & tTab & "5" & tTab & "Time Stamp", "PICT" & tTab & "129" & tTab & "10" & tTab)
+   set the defaultStack to tStack
+   create button "Text"
+   set the script of button "Text" to _Lines("on mouseUp", "  global gHCScriptsTest", \
+         "  put " & q & "Smith,Jo,90" & q & " into it", \
+         "  put switch (it) into gHCScriptsTest", \
+         "  put " & q & "|" & q & " & Switch(" & q & "a" & q & " & return & " & q & "b" & q & " & return) after gHCScriptsTest", \
+         "  put " & q & "Ala,Arg,Asn" & q & " into cod3", \
+         "  put findinfield(cod3, " & q & "Arg" & q & ") into fndcod", \
+         "  put " & q & "|" & q & " & fndcod & " & q & "|" & q & " & item (item 4 of fndcod) of " & q & "A,R,N" & q & " after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & findInField(" & q & "one two" & q & " & return & " & q & "three four" & q & ", " & q & "FOUR" & q & ", " & q & "false" & q & ", 0) after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & findInField(" & q & "abc" & q & ", " & q & "B" & q & ", true) & " & q & "|" & q & " & findInField(" & q & "abcabc" & q & ", " & q & "a" & q & ", false, 2) after gHCScriptsTest", \
+         "end mouseUp")
+   create button "Files"
+   set the script of button "Files" to _Lines("on mouseUp", "  global gHCScriptsTest", \
+         "  put GetBootVol() into gHCScriptsTest", \
+         "  put " & q & "|" & q & " & FolderPath(" & q & "?" & q & ") after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & FolderPath(" & q & "Apple Menu Items" & q & ", 0) & " & q & "|" & q & " & FolderPath(" & q & "Nowhere" & q & ", 0) after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & IsFinderLocked(" & q & "Notes" & q & ") & " & q & "|" & q & " & IsFinderLocked(" & q & "Lost" & q & ") after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & SubLaunch(empty) & " & q & "|" & q & " & SubLaunch(" & q & tFolder & "/No Such Application" & q & ") after gHCScriptsTest", \
+         "end mouseUp")
+   create button "Resources"
+   set the script of button "Resources" to _Lines("on mouseUp", "  global gHCScriptsTest", \
+         "  put Resources(" & q & "PICT" & q & ") into gHCScriptsTest", \
+         "  put " & q & "|" & q & " & Resources(" & q & "Disk:Stacks:Color Tools" & q & ") after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & Resources(" & q & "Xdna" & q & ", " & q & "Disk:Other Stack" & q & ") after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & (Resources(" & q & "FONT" & q & ") is the fontNames) after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & Resources(" & q & "snd " & q & ") & " & q & "|end" & q & " after gHCScriptsTest", \
+         "end mouseUp")
+   create button "Cursor"
+   set the script of button "Cursor" to _Lines("on mouseUp pCursor", "  ChangeCurs pCursor", "end mouseUp")
+   create button "Clip"
+   set the script of button "Clip" to _Lines("on mouseUp", "  global gHCScriptsTest", \
+         "  put ClipInfo() & " & q & "|" & q & " & ClipInfo(" & q & "TEXT" & q & ") & " & q & "|" & q & " & ClipInfo(" & q & "PICT" & q & ") into gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   put revHyperCardFixScripts(tStack) into tReport
+   TestAssert "no stand-in is made for them", "Switch" is not in tReport and "FindInField" is not in tReport \
+         and "FolderPath" is not in tReport and "ChangeCurs" is not in tReport and "Resources" is not in tReport \
+         and "FullSFPack" is not in tReport
+   TestAssert "Switch is called by the library's name", "hcX_Switch" is in the script of button "Text" of stack tStack
+
+   put empty into tError
+   try
+      send "mouseUp" to button "Text" of stack tStack
+   catch tError
+   end try
+   set the itemDelimiter to "|"
+   put gHCScriptsTest into tResults
+   TestAssert "the text externals run", tError is empty
+   TestAssert "Switch: items as lines", item 1 of tResults is "Smith" & return & "Jo" & return & "90"
+   TestAssert "Switch: lines as items, the last return making no empty item", item 2 of tResults is "a,b"
+   TestAssert "FindInField: char, line, word and item, and the item the stack reads by it", item 3 to 4 of tResults is "5,1,1,2|R"
+   TestAssert "FindInField: the line it is in, its case not counting", item 5 of tResults is "15,2,4,1"
+   TestAssert "FindInField: its case counting; none there; characters left out at the start", item 6 to 7 of tResults is "0,0,0,0|4,1,1,1"
+
+   put empty into tError
+   try
+      send "mouseUp" to button "Files" of stack tStack
+   catch tError
+   end try
+   put gHCScriptsTest into tResults
+   TestAssert "the file externals run", tError is empty
+   TestAssert "GetBootVol: HyperCard's disk", item 1 of tResults is "Old Disk"
+   TestAssert "FolderPath: its syntax", item 2 of tResults begins with "FolderPath("
+   TestAssert "FolderPath: a folder of the System Folder by name; another is not found", \
+         item 3 to 4 of tResults is "Old Disk:System Folder:Apple Menu Items:|Error : Folder not found"
+   TestAssert "IsFinderLocked: a file beside the stack, never locked; no file", item 5 to 6 of tResults is "false|Error : File not found"
+   TestAssert "SubLaunch: the Mac's file not found, nothing opened", item 7 to 8 of tResults is "-43|-43"
+
+   put empty into tError
+   try
+      send "mouseUp" to button "Resources" of stack tStack
+   catch tError
+   end try
+   put gHCScriptsTest into tResults
+   TestAssert "Resources runs", tError is empty
+   TestAssert "Resources: the named ones of a type", item 1 of tResults is "Map"
+   TestAssert "Resources: this stack's file, every type", item 2 of tResults is "Map" & return & "Time Stamp"
+   TestAssert "Resources: another file's, none", item 3 of tResults is empty
+   TestAssert "Resources: the fonts; the stack's sounds, none", item 4 to 6 of tResults is "true||end"
+
+   -- ChangeCurs: the cursor set cursor sets for the name (hcCursor's
+   -- "watch", this engine's watch)
+   set the cursor to watch
+   put the cursor into tWas
+   set the cursor to arrow
+   put empty into tError
+   try
+      send "mouseUp" && q & "watch" & q to button "Cursor" of stack tStack
+   catch tError
+   end try
+   put the cursor into tCursor
+   TestAssert "ChangeCurs: the cursor of that name", tError is empty and tCursor is tWas
+   try
+      send "mouseUp" && q & "No Such Cursor" & q to button "Cursor" of stack tStack
+   catch tError
+   end try
+   TestAssert "ChangeCurs: a cursor not here leaves it as it was", tError is empty and the cursor is tCursor
+   set the cursor to empty
+
+   -- ClipInfo: what is on the clipboard (where this system has one)
+   put the clipboardData["text"] into tClip
+   set the clipboardData["text"] to "hello"
+   if the clipboardData["text"] is "hello" and the clipboardData["image"] is empty then
+      send "mouseUp" to button "Clip" of stack tStack
+      TestAssert "ClipInfo: the text's type and size, no picture", gHCScriptsTest is "TEXT|5|"
+   end if
+   set the clipboardData["text"] to tClip
+   _Close tStack
+end TestHyperCardScriptsCorpusExternals
+
+on TestHyperCardScriptsTCPExternals
+   -- Harry Chesley's MacTCP externals (14 stacks: HyperFTP, HyperFinger,
+   -- news readers), on this engine's sockets: a connection to a server
+   -- the test runs on this machine, as HyperFinger talks to a finger
+   -- server; before, TCPActiveOpen gave empty and TCPRecvUpTo nothing
+   local tStack, q, tTab, tPort, tError, tResults
+   global gHCScriptsTest
+   put quote into q
+   put numToChar(9) into tTab
+   put 40000 + random(9999) into tPort
+   put "HCTCPExternals" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["externals"] of stack tStack to _Lines("XFCN" & tTab & "TCPNameToAddr", "XFCN" & tTab & "TCPActiveOpen", \
+         "XCMD" & tTab & "TCPSend", "XFCN" & tTab & "TCPRecvUpTo", "XFCN" & tTab & "TCPState", "XCMD" & tTab & "TCPClose", \
+         "XCMD" & tTab & "TCPRelease", "XFCN" & tTab & "TCPCharsAvailable", "XFCN" & tTab & "TCPRecvChars", "XFCN" & tTab & "TCPPassiveOpen")
+   set the defaultStack to tStack
+   -- the server: says hello, reads a line, answers it in capitals and
+   -- "tail", and closes the connection
+   create button "Server"
+   set the script of button "Server" to _Lines("on serverStart pPort", "  accept connections on port pPort with message " & q & "serverAccept" & q, "end serverStart", \
+         "on serverAccept pSocket", "  write " & q & "hello" & q & " & numToChar(10) to socket pSocket", \
+         "  read from socket pSocket until numToChar(10) with message " & q & "serverRead" & q, "end serverAccept", \
+         "on serverRead pSocket, pData", "  write toUpper(pData) & " & q & "tail" & q & " to socket pSocket", "  close socket pSocket", "end serverRead")
+   create button "Client"
+   set the script of button "Client" to _Lines("on mouseUp pPort", "  global gHCScriptsTest, connID", \
+         "  get TCPNameToAddr(" & q & "127.0.0.1" & q & ")", \
+         "  put it into gHCScriptsTest", \
+         "  put TCPActiveOpen(item 1 of it, pPort, 0) into connID", \
+         "  put " & q & "|" & q & " & (connID contains " & q & "fail" & q & ") & " & q & "|" & q & " & TCPState(connID) after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & TCPRecvUpTo(connID, linefeed, 10, " & q & "so far:" & q & ") after gHCScriptsTest", \
+         "  TCPSend connID, " & q & "ping" & q & " & linefeed", \
+         "  put " & q & "|" & q & " & the result & " & q & "|" & q & " & TCPRecvUpTo(connID, linefeed, 10, empty) after gHCScriptsTest", \
+         "  repeat 500 times", "    if TCPCharsAvailable(connID) >= 4 then exit repeat", "    wait 10 milliseconds", "  end repeat", \
+         "  put " & q & "|" & q & " & TCPCharsAvailable(connID) & " & q & "|" & q & " & TCPRecvChars(connID, 2) & " & q & "|" & q & " & TCPState(connID) after gHCScriptsTest", \
+         "  repeat 500 times", "    if TCPState(connID) is not " & q & "established" & q & " then exit repeat", "    put TCPRecvChars(connID, 1) after tRest", "    wait 10 milliseconds", "  end repeat", \
+         "  put " & q & "|" & q & " & tRest & " & q & "|" & q & " & TCPState(connID) after gHCScriptsTest", \
+         "  TCPClose connID", \
+         "  put " & q & "|" & q & " & TCPState(connID) after gHCScriptsTest", \
+         "  TCPRelease connID", \
+         "  get TCPState(connID)", \
+         "  put " & q & "|" & q & " & (char 1 of it is numToCodepoint(167)) after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & (TCPActiveOpen(" & q & "127.0.0.1" & q & ", pPort + 1, 0) contains " & q & "fail" & q & ") after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & (TCPPassiveOpen(0, 0, 0) contains " & q & "fail" & q & ") after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & (char 1 of TCPRecvUpTo(99, linefeed, 0, empty) is numToCodepoint(167)) after gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   TestAssert "no stand-in is made for them", "do nothing when called" is not in it and "give empty when called" is not in it
+   send "serverStart" && tPort to button "Server" of stack tStack
+   put empty into tError
+   try
+      send "mouseUp" && tPort to button "Client" of stack tStack
+   catch tError
+   end try
+   close socket tPort
+   put gHCScriptsTest into tResults
+   set the itemDelimiter to "|"
+   TestAssert "the client runs", tError is empty
+   TestAssert "TCPNameToAddr: the address; TCPActiveOpen: a connection, established", item 1 to 3 of tResults is "127.0.0.1|false|established"
+   TestAssert "TCPRecvUpTo: the text so far and the line, its line feed with it", item 4 of tResults is "so far:hello" & numToChar(10)
+   TestAssert "TCPSend: no error; the answer", item 5 to 6 of tResults is "|PING" & numToChar(10)
+   TestAssert "TCPCharsAvailable, TCPRecvChars: by count; open while there is more to read", item 7 to 9 of tResults is "4|ta|established"
+   TestAssert "the host closed it: once all is read, close wait", item 10 to 11 of tResults is "il|close wait"
+   TestAssert "TCPClose: closed", item 12 of tResults is "closed"
+   TestAssert "TCPRelease: forgotten, its state an error", item 13 of tResults is "true"
+   TestAssert "TCPActiveOpen: a port nobody listens on fails", item 14 of tResults is "true"
+   TestAssert "TCPPassiveOpen: not offered, a failure", item 15 of tResults is "true"
+   TestAssert "a connection there is not: an error", item 16 of tResults is "true"
+   _Close tStack
+end TestHyperCardScriptsTCPExternals
+
 on TestHyperCardScriptsT74
    -- T74: a loop that takes a path back to its folder until its last
    -- character is a colon, which HyperCard's paths always had and this
