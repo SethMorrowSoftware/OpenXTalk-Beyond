@@ -6619,12 +6619,45 @@ on tour_script_editor_handlers
 end tour_script_editor_handlers
 
 on tour_message_box
+   local tMB, tCard, tWaiting
    revIDEOpenPalette "message box"
    tourWait 800
-   tourShotStack revIDEPaletteToStackName("message box"), "11-message-box"
+   put revIDEPaletteToStackName("message box") into tMB
+   tourShotStack tMB, "11-message-box"
+   -- However often its card is laid out, one positionOpenStacksButton
+   -- waits for it, and that one is delivered. Each layout sent one more,
+   -- and the IDE lays the card out each time a control anywhere is named:
+   -- on Windows the messages waiting came before a press of the mouse,
+   -- which reached the Tools palette seconds late (found by the everyday
+   -- tasks' drag of a tile, #532)
+   put the long id of card "Single Line" of stack tMB into tCard
+   repeat 3 times
+      dispatch "layoutCard" to tCard
+   end repeat
+   put tourMessageBoxWaiting() into tWaiting
+   tourRecord "INFO message-box after three layouts of its card" && tWaiting && "positionOpenStacksButton waiting"
+   if tWaiting is not 1 then
+      throw "after three layouts of the Message Box's card" && tWaiting && "positionOpenStacksButton messages wait for it, not one"
+   end if
+   tourWait 300
+   put tourMessageBoxWaiting() into tWaiting
+   if tWaiting is not 0 then throw "the positionOpenStacksButton that waited was not delivered:" && tWaiting && "wait still"
+   if the right of button "Open Stacks" of group "Stacks" of tCard > the width of stack tMB or the left of button "Open Stacks" of group "Stacks" of tCard < 0 then
+      throw "the Message Box's Open Stacks button is not on its card:" && the rect of button "Open Stacks" of group "Stacks" of tCard
+   end if
    -- a palette, in front of the windows of the later steps
-   close stack revIDEPaletteToStackName("message box")
+   close stack tMB
 end tour_message_box
+
+-- how many positionOpenStacksButton messages wait
+function tourMessageBoxWaiting
+   local tLine, tCount
+   put 0 into tCount
+   repeat for each line tLine in the pendingMessages
+      if item 3 of tLine is "positionOpenStacksButton" then add 1 to tCount
+   end repeat
+   return tCount
+end tourMessageBoxWaiting
 
 -- the hilite of a Project Browser row while its list does not have the
 -- focus (the data view's kDefaultDimmedHiliteColor)
