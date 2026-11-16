@@ -80,6 +80,14 @@ command exBuild pFolder
    lock messages
    put exNewStack(tInfo) into tStack
    exAddCards
+   -- (a lesson's stage follows the look with the page, where an example's
+   -- stage stays light: the reader puts controls of their own on it, and
+   -- the system draws those for its dark look, with white words that a
+   -- light Try It box does not show, openxtalk.org p=26402. build-examples
+   -- reads the cards' cStageFollowsLook)
+   repeat with tIndex = 1 to the number of items of kLessons
+      set the cStageFollowsLook of card (item tIndex of kLessons) to true
+   end repeat
    buildFront
    buildNotes
    buildNarration
@@ -436,7 +444,7 @@ private function notesHtml pText
             add 1 to tSpaces
          end repeat
          put (tSpaces + 3) * 7 into tIndent
-         put "<p bgcolor=" & quote & "#f1f5f9" & quote & " padding=" & quote & "3" & quote & " firstindent=" & quote & -tIndent & quote & \
+         put "<p bgcolor=" & quote & lkHex(lkDarkLiteral("241,245,249", "fill")) & quote & " padding=" & quote & "3" & quote & " firstindent=" & quote & -tIndent & quote & \
                " leftindent=" & quote & tIndent & quote & " rightindent=" & quote & "6" & quote & "><font face=" & quote & "Source Code Pro" & quote & \
                " size=" & quote & "12" & quote & ">" & \
                notesCodeHtml(tLine) & "</font></p>" after tHtml
@@ -462,8 +470,9 @@ private function notesIsCode pLine
    return word 1 of pLine is among the items of "on,end,put,set,get,ask,answer,if,else"
 end notesIsCode
 
--- Code, in colour on a light band: the first word of a line (a command, or
--- on and end), strings and comments
+-- Code, in colour on a band (light, or the page's dark in the dark look):
+-- the first word of a line (a command, or on and end), strings and
+-- comments
 private function notesCodeHtml pLine
    local tOut, tPos, tLen, tStart, tFirst
    put the number of chars of pLine into tLen
@@ -480,7 +489,7 @@ private function notesCodeHtml pLine
          repeat while tPos <= tLen and char tPos of pLine is not quote
             add 1 to tPos
          end repeat
-         put htmlFont(lkEscape(char tStart to tPos of pLine), empty, "180,83,9", false) after tOut
+         put htmlFont(lkEscape(char tStart to tPos of pLine), empty, codeColor("180,83,9", "252,211,77"), false) after tOut
          add 1 to tPos
       else if char tPos to tPos + 1 of pLine is "--" then
          put htmlFont(lkEscape(char tPos to tLen of pLine), empty, "100,116,139", false) after tOut
@@ -490,7 +499,7 @@ private function notesCodeHtml pLine
          repeat while tPos <= tLen and char tPos of pLine is not space
             add 1 to tPos
          end repeat
-         put htmlFont(lkEscape(char tStart to tPos - 1 of pLine), empty, "124,58,237", false) after tOut
+         put htmlFont(lkEscape(char tStart to tPos - 1 of pLine), empty, codeColor("124,58,237", "196,181,253"), false) after tOut
          put false into tFirst
       else
          put lkEscape(char tPos of pLine) after tOut
@@ -499,6 +508,17 @@ private function notesCodeHtml pLine
    end repeat
    return tOut
 end notesCodeHtml
+
+-- A colour of the notes' code: pLight on the light band, and on the dark
+-- one pDark, the scripts panel's colour for the same thing (the group
+-- "Frame"'s frameCodeLineHtml; the panel is dark in both looks). A
+-- comment has the panel's grey on both
+private function codeColor pLight, pDark
+   if lkDark() then
+      return pDark
+   end if
+   return pLight
+end codeColor
 
 private function htmlFont pText, pSize, pColor, pBold
    local tOut
@@ -544,15 +564,22 @@ end buildCanvas
 -- The canvas's drawing: its dots in rows from under its word down to
 -- pDotsBottom (none for 0)
 private function canvasSvg pWidth, pHeight, pDotsBottom
-   local tSvg, tX, tY
+   local tSvg, tX, tY, tDot
+   -- (in the dark look the canvas is the page's dark, inside the stage's
+   -- panel, and its dots the colour of a line: what the reader drops on it
+   -- is drawn by the system for the dark look)
+   put "#d5dde7" into tDot
+   if lkDark() then
+      put lkHex(lkColor("line")) into tDot
+   end if
    put "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 " & pWidth & " " & pHeight & "'>" & \
-         "<rect x='0.5' y='0.5' width='" & (pWidth - 1) & "' height='" & (pHeight - 1) & "' rx='14' fill='#f8fafc' stroke='" & \
-         lkHex(lkColor("line")) & "'/>" into tSvg
+         "<rect x='0.5' y='0.5' width='" & (pWidth - 1) & "' height='" & (pHeight - 1) & "' rx='14' fill='" & \
+         lkHex(lkDarkLiteral("248,250,252", "fill")) & "' stroke='" & lkHex(lkColor("line")) & "'/>" into tSvg
    repeat with tY = 42 to pDotsBottom step 16
       -- (a repeat with a step can go one step past its end: no dot below it)
       if tY > pDotsBottom then exit repeat
       repeat with tX = 18 to pWidth - 10 step 16
-         put "<circle cx='" & tX & "' cy='" & tY & "' r='1.2' fill='#d5dde7'/>" after tSvg
+         put "<circle cx='" & tX & "' cy='" & tY & "' r='1.2' fill='" & tDot & "'/>" after tSvg
       end repeat
    end repeat
    return tSvg & "</svg>"
@@ -660,7 +687,7 @@ private command buildButtonsAndFields
    set the hilite of button "Green" of tObj to true
    set the script of tObj to exScript("Buttons & Fields/Colors")
    put lessonField("Field Test", lkR(kPlayLeft + 140, kCanvasTop + 40, kPlayRight - 16, kCanvasTop + 132), \
-         sTexts["Field Test"], "Green", empty, 14) into tObj
+         sTexts["Field Test"], "Green", "black", 14) into tObj
    set the rect of tObj to kPlayLeft + 140, the top of group "Colors", kPlayRight - 16, the bottom of group "Colors"
    set the margins of tObj to 10
    set the script of tObj to exScript("Buttons & Fields/Field Test")
@@ -694,7 +721,7 @@ private command buildCommandsAndFunctions
    set the script of tObj to exScript("Commands & Functions/Commands & Functions")
    -- (his list, as his button last made it; it can be selected and copied)
    put lessonField("Display", lkR(kPlayLeft + 16, kCanvasTop + 82, kPlayRight - 16, kCanvasBottom - 12), \
-         sTexts["Display"], "255,255,255", lkColor("ink"), 12) into tObj
+         sTexts["Display"], lkDarkLiteral("255,255,255", "fill"), lkColor("ink"), 12) into tObj
    set the traversalOn of tObj to true
    set the autoHilite of tObj to true
    set the dontWrap of tObj to true
@@ -859,16 +886,25 @@ command narratorReset
    catch tError  --no voice here, so nothing to stop
    end try
    if there is no fld "Said" or there is no fld "Lesson" then exit narratorReset
-   set the textColor of fld "Said" to "71,85,105"  --(dark enough to read on the balloon's tint)
+   set the textColor of fld "Said" to narratorInk(false)  --(dark enough to read on the balloon's tint; light on the dark one)
    put "Press Read it to me, and I will read this lesson to you, a paragraph at each click. " & \
          "Try each thing as I go." into fld "Said"
    set the vScroll of fld "Said" to 0
    put the number of lines of fld "Lesson" && "paragraphs, one at each click" into fld "Progress"
 end narratorReset
 
+function narratorInk pReading  --the colour of the narrator's words, in the look the window has on (the group "Frame" keeps it in the stack's uLook)
+   if the uLook of this stack is "dark" then
+      if pReading is true then return "255,255,255"
+      return "226,232,240"
+   end if
+   if pReading is true then return "15,23,42"
+   return "71,85,105"
+end narratorInk
+
 command narratorShow pLine
    if there is no fld "Said" or there is no fld "Lesson" then exit narratorShow
-   set the textColor of fld "Said" to "15,23,42"
+   set the textColor of fld "Said" to narratorInk(true)
    put word 1 to -1 of line pLine of fld "Lesson" into fld "Said"
    set the vScroll of fld "Said" to 0
    put "Paragraph" && pLine && "of" && the number of lines of fld "Lesson" into fld "Progress"

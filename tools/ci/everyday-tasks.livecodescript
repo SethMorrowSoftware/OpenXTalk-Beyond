@@ -43,7 +43,7 @@ script "oxt_everyday"
 -- <name> ok | FAILED <why>, DONE). OXT_TOUR_ONLY names tasks; the tasks
 -- before a named one that it needs (the stack, its controls) run too.
 
-constant kTasks = "start,new-stack,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,message-box-shortcut,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,quick-start-first-lesson,standalone-stopped-build,standalone-mc-stack-file,standalone-built-and-run,standalone-engine-missing,finish"
+constant kTasks = "start,new-stack,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,message-box-shortcut,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,quick-start-first-lesson,quick-start-dropped-shows,standalone-stopped-build,standalone-mc-stack-file,standalone-built-and-run,standalone-engine-missing,finish"
 -- (the names the tasks give what they make)
 constant kStack = "Everyday Stack"
 constant kFile = "everyday.oxtstack"
@@ -1643,6 +1643,35 @@ on ed_quick_start_first_lesson
    edRecord "INFO the Quick Start Guide's first lesson done as its notes say:" && sReport["guide"]
 end ed_quick_start_first_lesson
 
+-- What a person drops on the Try It box of the Quick Start Guide's first
+-- lesson can be seen, in the look the IDE has on. In the dark look the
+-- system draws a new control for a dark window, with white words, and the
+-- Try It box stayed light: "when you drag a control over in dark mode it
+-- is almost invisible" (openxtalk.org p=26402, on a Mac; the same on
+-- Windows 11). The lessons' stages now follow the look. Three kinds of
+-- control are dragged from the Tools palette, as the lesson has a button
+-- dragged: one with a face of its own, one that is words alone, and one
+-- with a mark and words, and each must change what is seen of the box
+on ed_quick_start_dropped_shows
+   local tFile, tError, tMiss
+   put revEnvironmentResourcesPath() & "/" & kGuideFile into tFile
+   if there is no file tFile then throw "the Quick Start Guide is not in this IDE:" && tFile
+   if edInMemory(kGuideStack) then throw "a stack called" && kGuideStack && "is in memory before the task"
+   try
+      edGuideDropped tFile
+   catch tError
+      put edJoin(tError) into tMiss
+      try
+         edShotScreen "zz-quick-start-dropped-shows"
+      catch tError
+      end try
+   end try
+   edGuideAway
+   if tMiss is not empty then throw tMiss
+   if edInMemory(kGuideStack) then throw "the Quick Start Guide is still in memory after the task"
+   edRecord "INFO what is dropped on the Quick Start Guide's Try It box shows:" && sReport["dropped"]
+end ed_quick_start_dropped_shows
+
 -- File > Save as Standalone Application... on the stack, and the build
 -- stops on an error after the builder has changed the stack in memory:
 -- the stack a person is left with is the one they had (openxtalk.org
@@ -2023,6 +2052,59 @@ command edGuideTileIsFirst
       throw "the Tools palette did not take its" && tNow && "look again"
    end if
 end edGuideTileIsFirst
+
+-- How much of the control pObj a person can see on its card: the number
+-- of pixels of its rect that it changes by 80 or more (of 255) in
+-- brightness, between a picture of the card without it and one with it.
+-- The pictures are the card as the engine draws it, so a window over the
+-- stack does not matter. A word of a label in the colour of what is under
+-- it changes none; a word that can be read changes some dozens
+-- (openxtalk.org p=26402: in the dark look a control dropped on the Quick
+-- Start Guide's light Try It box was "almost invisible")
+function edSeenPixels pObj
+   local tCard, tRect, tWas, tWith, tWithout, tCount, tIndex, tA, tB
+   put the long owner of pObj into tCard
+   put the rect of pObj into tRect
+   put the visible of pObj into tWas
+   lock screen
+   set the visible of pObj to true
+   put edCardPixels(tCard, tRect) into tWith
+   set the visible of pObj to false
+   put edCardPixels(tCard, tRect) into tWithout
+   set the visible of pObj to tWas
+   unlock screen
+   if the number of bytes of tWith is 0 or the number of bytes of tWith is not the number of bytes of tWithout then
+      throw "the two pictures of" && tRect && "of the card do not match:" && the number of bytes of tWith && "and" && the number of bytes of tWithout && "bytes"
+   end if
+   put 0 into tCount
+   repeat with tIndex = 1 to the number of bytes of tWith step 4
+      -- (a pixel is four bytes: nothing, red, green, blue)
+      put 299 * byteToNum(byte tIndex + 1 of tWith) + 587 * byteToNum(byte tIndex + 2 of tWith) + 114 * byteToNum(byte tIndex + 3 of tWith) into tA
+      put 299 * byteToNum(byte tIndex + 1 of tWithout) + 587 * byteToNum(byte tIndex + 2 of tWithout) + 114 * byteToNum(byte tIndex + 3 of tWithout) into tB
+      if abs(tA - tB) >= 80000 then add 1 to tCount
+   end repeat
+   return tCount
+end edSeenPixels
+
+-- The pixels of the rect pRect of the card pCard, as the engine draws the
+-- card: its imageData, four bytes a pixel. The picture is made in a stack
+-- of its own, which is then deleted, so that the card gets no image
+function edCardPixels pCard, pRect
+   local tDefault, tData, tError
+   put the defaultStack into tDefault
+   if there is a stack "edPixels" then delete stack "edPixels"
+   create invisible stack "edPixels"
+   try
+      set the defaultStack to "edPixels"
+      import snapshot from rect pRect of pCard
+      put the imageData of image 1 of card 1 of stack "edPixels" into tData
+   catch tError
+   end try
+   set the defaultStack to tDefault
+   delete stack "edPixels"
+   if tError is not empty then throw "no picture of" && pRect && "of the card:" && edJoin(tError)
+   return tData
+end edCardPixels
 
 function edTileShown pName
    local tTile
@@ -3211,6 +3293,82 @@ end edGuideLesson
 
 -- The Guide out of memory unsaved (the lesson changed it), its Message
 -- Box and Inspector closed, and the tasks' own stack in front again
+-- The Guide opened on its first lesson, and a standard button, a label
+-- field and a check box dragged from the Tools palette onto the free row
+-- of its Try It box, under My First Field: each must be seen there
+-- (edSeenPixels: 30 pixels or more of it; a word of a label is some
+-- dozens). The Guide's look must be the IDE's, and the Try It box is
+-- kept as the engine draws it, so that it can be looked at where a
+-- window was over it on the screen
+command edGuideDropped pFile
+   local tCard, tWant, tLook, tCanvas, tType, tIndex, tSpot, tTile, tCount, tMade, tDrag, tNew, tSeen, tFile
+   put empty into sReport["dropped"]
+   edToolTile "com.livecode.tool.Browse"
+   if not edWaitFor("the tool is " & quote & "browse tool" & quote, 3000) then throw "Run in the Tools palette did not choose the Browse tool (" & the tool & ")"
+   -- (from here the Guide in memory is this run's own to take away)
+   put true into sKeep["guide"]
+   go stack pFile
+   if not edWaitFor("edOpen(pAx) and the short name of the topStack is pAx", 8000, kGuideStack) then
+      throw "the Quick Start Guide did not open in front; the topStack is" && the short name of the topStack
+   end if
+   -- (the front page's tile is the lesson's task's to click)
+   go card kGuideLesson of stack kGuideStack
+   if not edWaitFor("the short name of this card of stack pAx is pBx", 4000, kGuideStack, kGuideLesson) then
+      throw "the Guide did not go to the lesson" && kGuideLesson && "(" & the short name of this card of stack kGuideStack & ")"
+   end if
+   put the long id of card kGuideLesson of stack kGuideStack into tCard
+   put "light" into tWant
+   if revIDEAppearanceIsDark() is true then put "dark" into tWant
+   put the uLook of stack kGuideStack into tLook
+   if tLook is empty then put "light" into tLook
+   if tLook is not tWant then throw "the IDE has its" && tWant && "look on and the Quick Start Guide its" && tLook && "one"
+   put the rect of image "Canvas" of tCard into tCanvas
+   put 0 into tIndex
+   repeat for each item tType in "Button,LabelField,Checkbox"
+      add 1 to tIndex
+      -- (the row between My First Field and the box's hint, left to right)
+      put (item 1 of tCanvas + 64 + (tIndex - 1) * 98) & "," & (the bottom of field "Field Test" of tCard + 20) into tSpot
+      put the number of controls of tCard into tCount
+      edToolFilter tType
+      put edTile("com.livecode.interface.classic." & tType) into tTile
+      if tTile is empty then throw "the Tools palette has no" && tType && "tile"
+      if sInput is true then
+         put "a drag of the system's mouse" into tMade
+         edSystemDrag edScreenLoc(tTile, "revTools"), (item 1 of tSpot + the left of stack kGuideStack) & "," & (item 2 of tSpot + the top of stack kGuideStack)
+         put edDragDone(20000) into tDrag
+      else
+         put "a double-click on its tile (the system's mouse does not reach the IDE)" into tMade
+         send "mouseDoubleUp 1" to tTile
+      end if
+      if not edWaitFor("the number of controls of pAx is pBx + 1", 6000, tCard, tCount) then
+         throw "the" && tType && "tile made nothing on the lesson (" & tMade & "; the drag" && tDrag & "; the topStack" && the short name of the topStack & "; the tool" && the tool & ")"
+      end if
+      edToolFilter empty
+      put the long id of control (tCount + 1) of tCard into tNew
+      if the long id of the owner of tNew is not tCard then throw "the" && tType && "made is not on the lesson's card:" && the long owner of tNew
+      if sInput is not true then set the loc of tNew to tSpot
+      if not (tSpot is within the rect of tNew) then throw "the" && tType && "dropped at" && tSpot && "is at" && the rect of tNew
+      if not (the loc of tNew is within tCanvas) then throw "the" && tType && "is not on the Try It box (" & tCanvas & "):" && the rect of tNew
+      -- (as it is when the reader clicks elsewhere: its handles are not it)
+      select empty
+      put edSeenPixels(tNew) into tSeen
+      edRecord "INFO in the" && tLook && "look the" && tType && "dropped on the Try It box at" && the rect of tNew && "changes" && tSeen && "pixels of it; its words" && \
+            the effective textColor of tNew && "on" && the effective backColor of tNew
+      if tSeen < 30 then
+         throw "in the" && tLook && "look the" && tType && "dropped on the Try It box cannot be seen:" && tSeen && "of its pixels differ from the box under it (its words" && \
+               the effective textColor of tNew & ", made by" && tMade & ")"
+      end if
+      put tType && tSeen & "; " after sReport["dropped"]
+   end repeat
+   put "pixels changed, in the" && tLook && "look, made by" && tMade after sReport["dropped"]
+   edShotStack kGuideStack, "35d-quick-start-dropped"
+   -- (and the box as the engine draws it)
+   put sOut & slash & "everyday-35e-quick-start-try-it-drawn.png" into tFile
+   export snapshot from rect tCanvas of tCard to file tFile as PNG
+   if there is not a file tFile then throw "the picture of the Try It box was not written (" & the result & ")"
+   edRecord "SHOT everyday-35e-quick-start-try-it-drawn.png" && tCanvas
+end edGuideDropped
+
 command edGuideAway
    local tMB, tError
    try

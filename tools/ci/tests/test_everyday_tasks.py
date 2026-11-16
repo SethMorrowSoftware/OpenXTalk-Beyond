@@ -1129,17 +1129,212 @@ class QuickStartFirstLesson(BuildTasks, unittest.TestCase):
         # Nor does the end of the run delete it (ed_finish runs whatever
         # tasks ran, the lesson's or not): one handler takes the Guide
         # out of memory, and only when this run opened it, which the
-        # lesson notes as it opens the file and nothing else does
+        # handler that opens the file notes as it does
         gone = self.handlers['edGuideGone']
         mine = 'if sKeep["guide"] is not true then exit edGuideGone'
         self.assertLess(gone.index(mine), gone.index('edRemoveBuiltStack kGuideStack'))
         code = '\n'.join(line for line in self.text.split('\n') if not line.lstrip().startswith('--'))
         self.assertEqual(code.count('edRemoveBuiltStack kGuideStack'), 1)
         self.assertNotIn('delete stack kGuideStack', code)
-        self.assertEqual(code.count('put true into sKeep["guide"]'), 1)
-        opened = self.lesson.index('put true into sKeep["guide"]')
-        self.assertLess(opened, self.lesson.index('go stack pFile'))
-        self.assertNotIn('throw', self.lesson[opened:self.lesson.index('go stack pFile')])
+        # (two handlers open the Guide's file, the lesson and the one that
+        # drops controls on its Try It box: each notes it on the line
+        # before, and nothing else in the tasks does either)
+        self.assertEqual(code.count('put true into sKeep["guide"]'), 2)
+        self.assertEqual(code.count('go stack pFile'), 2)
+        for opener in (self.lesson, self.handlers['edGuideDropped']):
+            self.assertEqual(opener.count('put true into sKeep["guide"]'), 1)
+            self.assertEqual(opener.count('go stack pFile'), 1)
+            self.assertRegex(opener, r'put true into sKeep\["guide"\]\n\s*go stack pFile\n')
+
+
+class QuickStartDroppedShows(BuildTasks, unittest.TestCase):
+    """quick-start-dropped-shows drags a standard button, a label field
+    and a check box onto the Try It box of the Quick Start Guide's first
+    lesson, and each must be seen there. In the dark look the system draws
+    a new control for a dark window, with white words, and the lessons'
+    stage stayed light, as the stage of an example with a program does: a
+    reader on a Mac, and one on Windows 11, found what they dragged there
+    "almost invisible" (openxtalk.org p=26402). The lessons' cards now say
+    that their stage follows the look (cStageFollowsLook), the builder
+    colours the Try It box, the notes' code and the narrator's words for
+    both looks, and the stack is built from it."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.guide = read(os.path.join(ROOT, 'tools', 'examples', 'quick-start.livecodescript'))
+        cls.build = read(os.path.join(ROOT, 'tools', 'examples', 'build-examples.livecodescript'))
+        cls.kit = read(os.path.join(ROOT, 'ide', 'Toolset', 'palettes', 'learn', 'revlearnkit.livecodescript'))
+        cls.frame = read(os.path.join(ROOT, 'tools', 'examples', 'frame-runtime.livecodescript'))
+        cls.task = cls.handlers['ed_quick_start_dropped_shows']
+        cls.dropped = cls.handlers['edGuideDropped']
+        with open(os.path.join(ROOT, 'ide', 'Resources', 'Examples', 'Remastered', 'Quick Start Guide.oxtstack'), 'rb') as f:
+            cls.stack = f.read()
+
+    def guide_part(self, name):
+        m = re.search(r'^private (?:command|function) %s\b[^\n]*\n(.*?)^end %s\s*$' % (name, name), self.guide, re.M | re.S)
+        self.assertIsNotNone(m, 'the builder has no %s' % name)
+        return m.group(1)
+
+    def test_it_runs_after_the_lesson(self):
+        listed = tasks(self.text)
+        self.assertEqual(listed.index('quick-start-dropped-shows'), listed.index('quick-start-first-lesson') + 1)
+
+    def test_the_lessons_say_that_their_stage_follows_the_look(self):
+        build = re.search(r'^command exBuild\b.*?^end exBuild', self.guide, re.M | re.S).group(0)
+        said = build.index('set the cStageFollowsLook of card (item tIndex of kLessons) to true')
+        self.assertLess(build.index('exAddCards'), said)
+        self.assertLess(said, build.index('buildFront'))
+        self.assertIn('repeat with tIndex = 1 to the number of items of kLessons', build[build.index('exAddCards'):said])
+        # (and no other example's builder says it: their programs were
+        # written for a light stage)
+        folder = os.path.join(ROOT, 'tools', 'examples')
+        for name in sorted(os.listdir(folder)):
+            if name.endswith('.livecodescript') and name not in ('quick-start.livecodescript', 'build-examples.livecodescript'):
+                self.assertNotIn('cStageFollowsLook', read(os.path.join(folder, name)), name)
+
+    def test_the_build_pairs_the_stage_of_such_a_card(self):
+        self.assertIn('if buildIsPage(tObj, the cLayout of tL, the cStageFollowsLook of tL) then', self.build)
+        m = re.search(r'^private function buildIsPage pObj, pLayout, pStageToo\n(.*?)^end buildIsPage', self.build, re.M | re.S)
+        self.assertIsNotNone(m)
+        body = m.group(1)
+        # a card with no stage is the page whatever it says; one with a
+        # stage is, all of it, when it says so; else only the window's own
+        # groups are
+        first = body.index('if word 1 of pLayout is not "program" and word 1 of pLayout is not "wide" then')
+        too = body.index('if pStageToo is true then')
+        own = body.index('return word 1 of tObj is "group" and the short name of tObj is among the items of "Frame,Scripts,Focus"')
+        self.assertLess(first, too)
+        self.assertLess(too, own)
+        self.assertRegex(body[too:own], r'^if pStageToo is true then\n\s*return true\n\s*end if\n')
+
+    def test_the_window_puts_the_look_on_every_control_of_a_card(self):
+        # (frameLook asks nothing about the stage: an object that has the
+        # two sets gets the one wanted)
+        look = re.search(r'^command frameLook\n(.*?)^end frameLook', self.frame, re.M | re.S).group(1)
+        self.assertIn('repeat with tCtl = 1 to the number of controls of card tCard of this stack', look)
+        self.assertNotIn('cLayout', look)
+        self.assertIn('set the uLook of this stack to tWant', look)
+
+    def test_the_try_it_box_is_coloured_for_both_looks(self):
+        canvas = self.guide_part('canvasSvg')
+        self.assertIn('lkHex(lkDarkLiteral("248,250,252", "fill"))', canvas)
+        self.assertNotIn("fill='#f8fafc'", canvas)
+        # (the light look's own colours are the ones it had: the light
+        # build must come out the same)
+        self.assertIn('put "#d5dde7" into tDot', canvas)
+        self.assertRegex(canvas, r'if lkDark\(\) then\n\s*put lkHex\(lkColor\("line"\)\) into tDot\n\s*end if')
+        literal = re.search(r'^function lkDarkLiteral pColor, pUse\n(.*?)^end lkDarkLiteral', self.kit, re.M | re.S).group(1)
+        fill = literal[literal.index('case "fill"'):literal.index('case "ink"')]
+        self.assertRegex(fill, r'case "248,250,252"\n\s*case "241,245,249"\n\s*return lkColor\("bg"\)')
+        self.assertRegex(fill, r'case "255,255,255"\n\s*return lkColor\("panel"\)')
+        self.assertIn('if sDarkMap is not true then\n      return pColor', literal)
+
+    def test_the_notes_code_is_coloured_for_both_looks(self):
+        notes = self.guide_part('notesHtml')
+        self.assertIn('"<p bgcolor=" & quote & lkHex(lkDarkLiteral("241,245,249", "fill")) & quote', notes)
+        self.assertNotIn('#f1f5f9', self.guide)
+        code = self.guide_part('notesCodeHtml')
+        self.assertIn('codeColor("180,83,9", "252,211,77")', code)
+        self.assertIn('codeColor("124,58,237", "196,181,253")', code)
+        color = self.guide_part('codeColor')
+        self.assertRegex(color, r'if lkDark\(\) then\n\s*return pDark\n\s*end if\n\s*return pLight')
+        # (the dark ones are the scripts panel's, which is dark in both)
+        self.assertIn('"#fcd34d"', self.frame)
+        self.assertIn('"#c4b5fd"', self.frame)
+        self.assertEqual('#%02x%02x%02x' % (252, 211, 77), '#fcd34d')
+        self.assertEqual('#%02x%02x%02x' % (196, 181, 253), '#c4b5fd')
+
+    def test_what_the_lessons_have_on_the_box_is_coloured_for_both_looks(self):
+        # lesson 3's list had the kit's ink on a white written as a number:
+        # white words on white, once its card follows the look
+        self.assertIn('sTexts["Display"], lkDarkLiteral("255,255,255", "fill"), lkColor("ink"), 12) into tObj', self.guide)
+        # lesson 2's field had no colour for its words, on green: the
+        # system's, white in the dark look. Black, as its group's script
+        # leaves them for Red and Green
+        self.assertIn('sTexts["Field Test"], "Green", "black", 14) into tObj', self.guide)
+        self.assertIn('else set the textColor of fld "Field Test" to "black"', self.guide)
+
+    def test_the_narrator_words_have_the_looks_colour(self):
+        ink = re.search(r'^function narratorInk pReading[^\n]*\n(.*?)^end narratorInk', self.guide, re.M | re.S)
+        self.assertIsNotNone(ink)
+        self.assertRegex(ink.group(1), r'if the uLook of this stack is "dark" then\n\s*if pReading is true then return "255,255,255"\n\s*return "226,232,240"\n\s*end if\n'
+                                       r'\s*if pReading is true then return "15,23,42"\n\s*return "71,85,105"')
+        self.assertIn('set the textColor of fld "Said" to narratorInk(false)', self.guide)
+        self.assertIn('set the textColor of fld "Said" to narratorInk(true)', self.guide)
+        self.assertNotRegex(self.guide, r'set the textColor of fld "Said" to "')
+        # (the stack's preOpenCard, which sets them, comes after the
+        # group's, which puts the look on and says which in uLook)
+        opened = re.search(r'^on preOpenCard\n(.*?)^end preOpenCard', self.frame, re.M | re.S).group(1)
+        self.assertLess(opened.index('frameLook'), opened.index('pass preOpenCard'))
+
+    def test_the_stack_installed_is_built_from_it(self):
+        self.assertIn(b'cStageFollowsLook', self.stack, 'the stack was not built again after its builder changed')
+        self.assertIn(b'narratorInk(false)', self.stack)
+        # (the notes' code band in the dark look, in the text kept for it)
+        self.assertIn(b'bgcolor="#101624"', self.stack)
+        self.assertEqual('#%02x%02x%02x' % (16, 22, 36), '#101624')
+        self.assertRegex(self.kit, r'if sDark is true then\n\s*switch pName\n\s*case "bg"\n\s*return "16,22,36"')
+
+    def test_three_kinds_of_control_are_dragged_as_the_lesson_drags_one(self):
+        self.assertIn('repeat for each item tType in "Button,LabelField,Checkbox"', self.dropped)
+        self.assertIn('put edTile("com.livecode.interface.classic." & tType) into tTile', self.dropped)
+        drag = self.dropped.index('edSystemDrag edScreenLoc(tTile, "revTools"), (item 1 of tSpot + the left of stack kGuideStack)')
+        self.assertLess(self.dropped.index('if sInput is true then'), drag)
+        self.assertLess(drag, self.dropped.index('send "mouseDoubleUp 1" to tTile'))
+        # on the box, and clear of what the lesson has on it
+        self.assertIn('put the rect of image "Canvas" of tCard into tCanvas', self.dropped)
+        self.assertIn('(the bottom of field "Field Test" of tCard + 20) into tSpot', self.dropped)
+        self.assertIn('if not (the loc of tNew is within tCanvas) then throw', self.dropped)
+
+    def test_each_must_be_seen(self):
+        seen = self.dropped.index('put edSeenPixels(tNew) into tSeen')
+        # (as it is when the reader clicks elsewhere: not its handles)
+        self.assertLess(self.dropped.index('select empty'), seen)
+        self.assertRegex(self.dropped[seen:], r'if tSeen < 30 then\n\s*throw "in the" && tLook && "look the" && tType && "dropped on the Try It box cannot be seen:"')
+        self.assertLess(self.dropped.index('if tSeen < 30 then'), self.dropped.index('end repeat'))
+
+    def test_seen_is_what_the_control_changes_of_the_picture(self):
+        seen = self.function('edSeenPixels')
+        shown = seen.index('set the visible of pObj to true')
+        hidden = seen.index('set the visible of pObj to false')
+        self.assertLess(shown, seen.index('put edCardPixels(tCard, tRect) into tWith\n'))
+        self.assertLess(hidden, seen.index('put edCardPixels(tCard, tRect) into tWithout'))
+        self.assertLess(seen.index('put edCardPixels(tCard, tRect) into tWithout'), seen.index('set the visible of pObj to tWas'))
+        # brightness, of 255 in thousandths: 80 of it or more is a change
+        self.assertIn('299 * byteToNum(byte tIndex + 1 of tWith) + 587 * byteToNum(byte tIndex + 2 of tWith) + 114 * byteToNum(byte tIndex + 3 of tWith)', seen)
+        self.assertIn('if abs(tA - tB) >= 80000 then add 1 to tCount', seen)
+        self.assertEqual(299 + 587 + 114, 1000)
+        self.assertIn('repeat with tIndex = 1 to the number of bytes of tWith step 4', seen)
+        # two pictures that do not match are no measure
+        self.assertRegex(seen, r'the number of bytes of tWith is not the number of bytes of tWithout then\n\s*throw')
+
+    def test_the_picture_is_the_cards_and_leaves_nothing_behind(self):
+        pixels = self.function('edCardPixels')
+        self.assertIn('import snapshot from rect pRect of pCard', pixels)
+        made = pixels.index('create invisible stack "edPixels"')
+        self.assertLess(made, pixels.index('set the defaultStack to "edPixels"'))
+        back = pixels.index('set the defaultStack to tDefault')
+        self.assertLess(pixels.index('end try'), back)
+        self.assertLess(back, pixels.index('delete stack "edPixels"\n   if tError'))
+
+    def test_the_guides_look_is_the_ides(self):
+        self.assertIn('if revIDEAppearanceIsDark() is true then put "dark" into tWant', self.dropped)
+        self.assertIn('put the uLook of stack kGuideStack into tLook', self.dropped)
+        self.assertRegex(self.dropped, r'if tLook is not tWant then throw "the IDE has its"')
+
+    def test_the_guide_is_put_away_unsaved(self):
+        self.assertLess(self.task.index('if edInMemory(kGuideStack) then throw'), self.task.index('edGuideDropped tFile'))
+        self.assertLess(self.dropped.index('put true into sKeep["guide"]'), self.dropped.index('go stack pFile'))
+        away = self.task.index('edGuideAway')
+        self.assertLess(self.task.index('end try\n   end try'), away)
+        self.assertLess(away, self.task.index('if tMiss is not empty then throw tMiss'))
+        self.assertIn('if edInMemory(kGuideStack) then throw "the Quick Start Guide is still in memory after the task"', self.task)
+
+    def test_the_box_is_kept_as_the_engine_draws_it(self):
+        self.assertIn('edShotStack kGuideStack, "35d-quick-start-dropped"', self.dropped)
+        self.assertIn('export snapshot from rect tCanvas of tCard to file tFile as PNG', self.dropped)
+        self.assertIn('edRecord "SHOT everyday-35e-quick-start-try-it-drawn.png" && tCanvas', self.dropped)
 
 
 if __name__ == '__main__':
