@@ -43,7 +43,7 @@ script "oxt_everyday"
 -- <name> ok | FAILED <why>, DONE). OXT_TOUR_ONLY names tasks; the tasks
 -- before a named one that it needs (the stack, its controls) run too.
 
-constant kTasks = "start,new-stack,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,message-box-shortcut,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,quick-start-first-lesson,quick-start-dropped-shows,finish"
+constant kTasks = "start,new-stack,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,message-box-shortcut,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,drag-probe,finish"
 -- (the names the tasks give what they make)
 constant kStack = "Everyday Stack"
 constant kFile = "everyday.oxtstack"
@@ -107,6 +107,8 @@ on edRun
    put edWanted(sOnly) into tWanted
    repeat for each item tTask in kTasks
       if tTask is not among the items of tWanted then next repeat
+      -- DIAGNOSTIC: the dark run has the probe alone, with no task before it
+      if $OXT_TOUR_APPEARANCE is "dark" and tTask is not among the items of "start,drag-probe,finish" then next repeat
       put "ed_" & tTask into tHandler
       replace "-" with "_" in tHandler
       put 0 into sWatchdogCount
@@ -1622,7 +1624,8 @@ end ed_preferences_change
 on ed_drag_probe
    local tFile, tCard, tError, tWhat, tEnd
    put revEnvironmentResourcesPath() & "/" & kGuideFile into tFile
-   edRecord "INFO probe: the IDE is process" && the processID
+   cancel sWatchdog
+   edRecord "INFO probe: the IDE is process" && the processID && "; Tools window" && the windowID of stack "revTools" && "systemWindow" && the systemWindow of stack "revTools"
    edToolTile "com.livecode.tool.Browse"
    put true into sKeep["guide"]
    go stack tFile
@@ -1630,7 +1633,7 @@ on ed_drag_probe
    go card kGuideLesson of stack kGuideStack
    get edWaitFor("the short name of this card of stack pAx is pBx", 4000, kGuideStack, kGuideLesson)
    put the long id of card kGuideLesson of stack kGuideStack into tCard
-   repeat for each item tWhat in "nothing,one check,nothing again,three checks,nothing after them,a loop of 20 s,three checks with events,three checks and 3 s,three checks and the watch"
+   repeat for each item tWhat in "nothing,a loop of 8 s,a loop of 25 s,one check,nothing again,three checks,nothing after them,three checks and 3 s,three checks with events,a loop of 25 s and 3 s"
       try
          switch tWhat
             case "one check"
@@ -1651,10 +1654,17 @@ on ed_drag_probe
                edGuideTileIsFirstWhen "hidden"
                put false into sKeep["probeEvents"]
                break
-            case "a loop of 20 s"
-               put the milliseconds + 20000 into tEnd
+            case "a loop of 8 s"
+            case "a loop of 25 s"
+            case "a loop of 25 s and 3 s"
+               put the milliseconds + (word 4 of tWhat) * 1000 into tEnd
                repeat until the milliseconds > tEnd
                end repeat
+               if tWhat is "a loop of 25 s and 3 s" then edPause 3000
+               break
+            case "a click on the Guide"
+               -- (the engine's click, as the lesson's on the front page's tile)
+               edClickAt kGuideStack, the loc of image "Canvas" of tCard
                break
          end switch
       catch tError
@@ -1662,7 +1672,7 @@ on ed_drag_probe
          edRecord "INFO probe" && quote & tWhat & quote && "threw" && edJoin(tError)
       end try
       try
-         edProbeDrag tWhat, tCard, (tWhat is "three checks and the watch")
+         edProbeDrag tWhat, tCard, true
       catch tError
          edRecord "INFO probe" && quote & tWhat & quote && "drag threw" && edJoin(tError)
       end try
@@ -1680,7 +1690,8 @@ command edProbeDrag pWhat, pCard, pWatch
    put "lockMessages" && the lockMessages & "; lockScreen" && the lockScreen & "; no event for" && tQuiet && "ms" & \
          "; Tools rect" && the rect of stack "revTools" && "mode" && the mode of stack "revTools" && "decorations" && the decorations of stack "revTools" & \
          "; look on classic" && edToolsLookOn("classic") & "; topStack" && the short name of the topStack & "; tool" && the tool & \
-         "; mouse at" && the screenMouseLoc && "over" && the mouseStack & "; waiting" && edPendingNames() into tBefore
+         "; mouse at" && the screenMouseLoc && "over" && the mouseStack & "; waiting" && edPendingNames() & \
+         "; Tools window" && the windowID of stack "revTools" && "systemWindow" && the systemWindow of stack "revTools" & "; Guide window" && the windowID of stack kGuideStack into tBefore
    put edTile("com.livecode.interface.classic.button") into tTile
    if tTile is empty then
       edRecord "INFO probe" && quote & pWhat & quote & ": no button tile;" && tBefore
@@ -2539,7 +2550,16 @@ function edWinDragScript pFile, pLaunched, pFrom, pTo, pMoves
          "StringBuilder t = new StringBuilder(200); GetWindowText(r, t, 200); " & \
          "uint p; GetWindowThreadProcessId(r, out p); RECT q; GetWindowRect(r, out q); " & \
          "return @[@ + c.ToString() + @; @ + t.ToString() + @; pid @ + p.ToString() + @; @ + q.L.ToString() + @,@ + q.T.ToString() + @,@ + q.R.ToString() + @,@ + q.B.ToString() + (IsHungAppWindow(r) ? @; hung@ : @@) + @]@; } " & \
-         "public static string At(int x, int y) { POINT p = new POINT(); p.X = x; p.Y = y; return D(WindowFromPoint(p)); }" into tType
+         "[DllImport(@user32.dll@)] public static extern IntPtr GetForegroundWindow(); " & \
+         "[StructLayout(LayoutKind.Sequential)] public struct GTI { public int cbSize; public int flags; public IntPtr hwndActive; public IntPtr hwndFocus; public IntPtr hwndCapture; public IntPtr hwndMenuOwner; public IntPtr hwndMoveSize; public IntPtr hwndCaret; public RECT rcCaret; } " & \
+         "[DllImport(@user32.dll@)] public static extern bool GetGUIThreadInfo(uint t, ref GTI g); " & \
+         "[DllImport(@user32.dll@)] public static extern IntPtr SendMessageTimeout(IntPtr h, uint m, IntPtr w, IntPtr l, uint f, uint t, out IntPtr r); " & \
+         "public static string At(int x, int y) { POINT p = new POINT(); p.X = x; p.Y = y; IntPtr h = WindowFromPoint(p); if (h == IntPtr.Zero) return @none@; " & \
+         "IntPtr r = GetAncestor(h, 2); if (r == IntPtr.Zero) r = h; string s = D(h) + @ hwnd @ + r.ToInt64().ToString(); if (h != r) s += @ child @ + h.ToInt64().ToString(); " & \
+         "uint q; uint t = GetWindowThreadProcessId(r, out q); GTI g = new GTI(); g.cbSize = Marshal.SizeOf(typeof(GTI)); " & \
+         "if (GetGUIThreadInfo(t, ref g)) s += @ capture @ + g.hwndCapture.ToInt64().ToString() + @ active @ + g.hwndActive.ToInt64().ToString() + @ focus @ + g.hwndFocus.ToInt64().ToString() + @ flags @ + g.flags.ToString(); " & \
+         "IntPtr e; IntPtr k = SendMessageTimeout(h, 0x0084, IntPtr.Zero, (IntPtr)((y << 16) | (x & 0xFFFF)), 2, 200, out e); " & \
+         "s += @ hit @ + (k == IntPtr.Zero ? @timeout@ : e.ToInt64().ToString()); s += @ fg @ + D(GetForegroundWindow()); return s; }" into tType
    put "$f = '" & pFile & "'; function l($w) { Add-Content -Path $f -Value ($w + ' ' + ([DateTimeOffset]::Now.ToUnixTimeMilliseconds() - " & pLaunched & ")) }" & return & \
          "l 'started'" & return & \
          "Add-Type -Namespace OxtEd -Name Mouse -UsingNamespace System.Text -MemberDefinition '" & tType & "'" & return & \
