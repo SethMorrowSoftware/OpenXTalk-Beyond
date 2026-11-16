@@ -27,7 +27,8 @@ page crashes, a page opened beside it is closed under the check
 (tools/ci/web_check.py), or a computation in the page comes out wrong
 (the web IDE's xTalk Suite check). The workflows run those checks through
 this with --tries 2 in WebKit, and --tries 1, a single run as before, in
-the other browsers.
+the other browsers (but for the Ember Bricks check, with --tries 2 in
+Chromium too: its duel is a real WebRTC link made between two pages).
 
 COMMAND runs at most --tries times (default 2), until it exits with
 status 0. --files is the folder COMMAND writes its files to, which the

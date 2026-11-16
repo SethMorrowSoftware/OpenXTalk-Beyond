@@ -536,7 +536,7 @@ class Offered(unittest.TestCase):
         learn = read('ide', 'Toolset', 'palettes', 'learn', 'revlearn.livecodescript')
         kit = read('ide', 'Toolset', 'palettes', 'learn', 'revlearnkit.livecodescript')
         self.assertIn('Responsive Starter,Nova Rescue,Wobble Forts,', learn)
-        self.assertRegex(learn, r'Nova Rescue,Wobble Forts," & \\\n\s+"Puzzle Almanac"\n')
+        self.assertRegex(learn, r'Nova Rescue,Wobble Forts," & \\\n\s+"Puzzle Almanac[,"]')
         case = re.search(r'case "Puzzle Almanac"\n(.*?)\n      case', learn, re.S)
         self.assertIsNotNone(case)
         icon = re.search(r'\|([a-z0-9-]+)\|[a-z]+\|[^|"]+"', case.group(0)).group(1)
