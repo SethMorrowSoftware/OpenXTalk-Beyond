@@ -1,0 +1,2 @@
+- Engine: convert reads an internet date's time zone when no "from" form is named, so "convert tDate to seconds" on "Mon, 16 Nov 2026 12:00:00 +0000" gives noon universal time wherever the computer is; since LiveCode 7.0 it took the time as local and dropped the zone (only "from internet date" applied it). A date in the local zone converts as before; one in another zone now converts to the moment it names (#PR)
+- Tests: core/datetime/internet-date-zone (#PR)

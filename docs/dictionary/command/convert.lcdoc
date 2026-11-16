@@ -106,6 +106,14 @@ in the <sql> format is read only when `from sql date` names it.
 >*Note:* The <convert> command assumes all dates / times are in local
 > time except for 'the seconds', which is taken to be universal time.
 
+>*Note:* An internet date names its own time zone, and <convert> reads
+> it: "Mon, 16 Nov 2026 12:00:00 +0000" is noon universal time, whatever
+> the local time zone, with or without `from internet date`. Before
+> OXT-Beyond 0.2.8-dp.2 (and in LiveCode from 7.0), a <convert> that
+> named no `from` form took an internet date's time as local time and
+> ignored its zone; one in the local zone gives the same result as it
+> did then.
+
 >*Note:* In a <stack> whose <hyperTalkCompatible> is true, as File >
 > Import Stack sets it for a <stack> from <HyperCard>, seconds count
 > from midnight on January 1, 1904 in local time, as

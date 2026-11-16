@@ -1323,7 +1323,18 @@ bool MCD_convert_to_datetime(MCExecContext &ctxt, MCValueRef p_input, Convert_fo
 			datetime_normalize(t_datetime);
 			t_success = MCS_datetimetouniversal(t_datetime);
 		}
-		else if (datetime_parse(g_basic_locale, ctxt.GetCutOff(), false, MCSTR(s_internet_date_format), *t_string, t_offset, t_datetime, t_valid_dateitems) && MCStringIsEmpty(*t_string))
+		// OXT-Beyond: an internet date is read as one, with its zone, when
+		//   the whole input is one. LiveCode 7.0 turned the old test (the
+		//   parser had moved its pointer to the end of the input) into
+		//   "the input is empty", which is never true here, so from 2014 a
+		//   date such as "Mon, 16 Nov 2026 12:00:00 +0000" fell through to
+		//   the branch below: the internet date parse had already filled
+		//   in the date and moved the offset to the end, and that branch
+		//   took its time as local time, dropping the "+0000". Only
+		//   "convert ... from internet date" applied the zone. A date in
+		//   the local zone converts as before; one in another zone now
+		//   converts to the moment it names (seth's decision, 2026-11-16).
+		else if (datetime_parse(g_basic_locale, ctxt.GetCutOff(), false, MCSTR(s_internet_date_format), *t_string, t_offset, t_datetime, t_valid_dateitems) && t_offset == MCStringGetLength(*t_string))
 		{
 			if (!datetime_validate(t_datetime))
 				return false;
