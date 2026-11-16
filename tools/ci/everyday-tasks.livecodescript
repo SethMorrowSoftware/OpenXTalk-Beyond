@@ -2347,14 +2347,72 @@ function edPendingNames
    return word 1 to -1 of tOut
 end edPendingNames
 
+-- How many of the messages waiting have their time behind them: what the
+-- IDE has to deliver before it is idle again (the pendingMessages gives
+-- each its time, as the long seconds)
+function edDue
+   local tLine, tCount, tNow
+   put the long seconds into tNow
+   put 0 into tCount
+   repeat for each line tLine in the pendingMessages
+      if item 2 of tLine is a number and item 2 of tLine <= tNow then add 1 to tCount
+   end repeat
+   return tCount
+end edDue
+
+-- Waits until the IDE has delivered the messages it has due, as a person
+-- does who sees it busy: at most pMilliseconds, and no longer than their
+-- number goes on falling (one that sends itself again is always due).
+-- Returns how many were due and how long they took, for a record.
+--
+-- A drag of the system's mouse needs it. The helper presses, moves and
+-- lets go in about a second, and the Tools palette starts its drag only
+-- if the button is still down when its mouseDown arrives (its "check for
+-- some movement before drag"). On Windows the press waits its turn behind
+-- the messages due before it (MCScreenDC::wait, w32dce.cpp: a waiting
+-- message whose time is earlier than the next event's goes first). The
+-- lesson's three checks of the tile switch the palette's look over and
+-- over with no event handled between; each time the palette is made its
+-- tiles are named, each nameChanged tells the IDE that its stacks changed
+-- (revSetActiveStacks, revfrontscriptlibrary), and the Message Box
+-- answers each with a positionOpenStacksButton sent to itself (its
+-- layoutCard). So the lesson's drag on Windows made no button (#532, run
+-- 43906149713), and the same drag measured there (#537, run
+-- 43934646350): with 2 such messages waiting the tile's mouseDown came
+-- 46 ms after the press; with 36, after one check, 430 ms; with 252,
+-- after the three, 7.8 s, the mouse long up, in the light and the dark
+-- run alike. A wait of 3 s after the checks was not enough (163 still
+-- waiting) and a loop of 25 s without the checks did no harm. Linux
+-- delivers the same 238 in a tenth of a second. A person switches the
+-- look once, and is not pressing a tile in the half second after
+function edSettled pMilliseconds
+   local tStart, tFirst, tLeast, tLeastAt, tNow
+   put the milliseconds into tStart
+   put edDue() into tFirst
+   put tFirst into tLeast
+   put tStart into tLeastAt
+   repeat while tLeast > 0 and the milliseconds - tStart < pMilliseconds and the milliseconds - tLeastAt < 1500
+      wait 50 milliseconds with messages
+      put edDue() into tNow
+      if tNow < tLeast then
+         put tNow into tLeast
+         put the milliseconds into tLeastAt
+      end if
+   end repeat
+   return tFirst && "messages due," && tLeast && "left after" && (the milliseconds - tStart) && "ms"
+end edSettled
+
 -- The system's mouse pressed at pFrom, moved in steps to pTo and released
 -- there (screen points), while the engine handles each event as it comes:
 -- the command runs on its own. It writes what it did to a file of its
 -- own (sKeep["dragFile"]), a line a step: "started", "down" and "up" on
 -- Windows, each with the milliseconds since the launch, and "up" alone
--- elsewhere; edDragDone waits for its "up"
+-- elsewhere; edDragDone waits for its "up". The IDE is first given the
+-- time to deliver what it has due (edSettled), and what that was is kept
+-- for edDragDone's record
 command edSystemDrag pFrom, pTo
    local tSteps, tCommand, tScript, i, tX, tY, tMoves, tFile
+   put edSettled(20000) into sKeep["dragSettled"]
    -- (in this run's folder: a file two runs shared would say "up" to
    -- one for the other's drag)
    put sWork & "/drag.txt" into tFile
@@ -2462,10 +2520,12 @@ function edDragDone pMilliseconds
       -- record ends with what the engine holds the mouse over then
       edPause 200
       get edDragOver()
-      return "released" && the milliseconds - sKeep["dragLaunched"] && "ms after the launch (" & edJoin(word 1 to -1 of tText) & "); the mouse over:" && edDragWasOver()
+      return "released" && the milliseconds - sKeep["dragLaunched"] && "ms after the launch (" & edJoin(word 1 to -1 of tText) & "); the mouse over:" && edDragWasOver() & \
+            "; before it" && sKeep["dragSettled"]
    end if
    if there is a file tFile then put URL ("file:" & tFile) into tText
-   return "not released" && the milliseconds - sKeep["dragLaunched"] && "ms after the launch (" & edJoin(word 1 to -1 of tText) & "); the mouse over:" && edDragWasOver()
+   return "not released" && the milliseconds - sKeep["dragLaunched"] && "ms after the launch (" & edJoin(word 1 to -1 of tText) & "); the mouse over:" && edDragWasOver() & \
+         "; before it" && sKeep["dragSettled"]
 end edDragDone
 
 -- What the engine holds the mouse over while a drag's helper works: its
@@ -3467,6 +3527,9 @@ command edGuideLesson pFile
       throw "the button tile made no button on the lesson (" & tMade & "; the drag" && tDrag & "; the topStack" && the short name of the topStack & \
             "; the tool" && the tool & "; the lesson's buttons" && the number of buttons of tCard & ")"
    end if
+   -- (a drag that worked keeps its record too: it says what the IDE had
+   -- due before it, edSettled)
+   if sInput is true then edRecord "INFO the lesson's drag" && tDrag
    edToolFilter empty
    put the long id of button 2 of tCard into tNew
    if the short name of tNew is "My First Button" then throw "the button made is not button 2 of the lesson, as its notes call it:" && the long name of button 1 of tCard
@@ -3571,6 +3634,7 @@ command edGuideDropped pFile
       if not edWaitFor("the number of controls of pAx is pBx + 1", 6000, tCard, tCount) then
          throw "the" && tType && "tile made nothing on the lesson (" & tMade & "; the drag" && tDrag & "; the topStack" && the short name of the topStack & "; the tool" && the tool & ")"
       end if
+      if sInput is true then edRecord "INFO the drag of the" && tType && tDrag
       edToolFilter empty
       put the long id of control (tCount + 1) of tCard into tNew
       if the long id of the owner of tNew is not tCard then throw "the" && tType && "made is not on the lesson's card:" && the long owner of tNew

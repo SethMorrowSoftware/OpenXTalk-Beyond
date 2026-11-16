@@ -389,8 +389,9 @@ class ToolTileClickIsWatched(unittest.TestCase):
 
 
 class ReleaseHandledBeforeTheTaskGoesOn(unittest.TestCase):
-    """quick-start-dropped-shows failed on macOS Intel (#532, run
-    43906150245): its first click, the engine's on the Run tile, "chose
+    """quick-start-dropped-shows failed on both of macOS's test jobs, Intel
+    and Apple Silicon (#532, run 43906150245): its first click, the
+    engine's on the Run tile, "chose
     nothing ... seen: 0 mouseDown card id 1002 (Tools); 205 mouseRelease
     button id 105962 (Tools)", right after the lesson's drag of a tile by
     the system's mouse and its click on the button made; browse-runs-it
@@ -481,6 +482,86 @@ class ReleaseHandledBeforeTheTaskGoesOn(unittest.TestCase):
         self.assertIn('return tOut && "(Tools," && the short name of pLongID & ")"', self.short)
         # a card or the stack has no tile to name
         self.assertIn('return tOut && "(Tools)"', self.short)
+
+
+class TheIdeIsIdleBeforeADrag(unittest.TestCase):
+    """The lesson's drag made no button on Windows (#532, run 43906149713),
+    in the light and the dark run. Measured there (#537, run 43934646350):
+    the tile's mouseDown comes after the messages the IDE has due, and the
+    Tools palette starts its drag only if the button is still down then.
+    The lesson's three checks of the tile switch the palette's look over
+    and over with no event handled between; every tile the palette names
+    tells the IDE that its stacks changed, and the Message Box answers
+    each with a positionOpenStacksButton sent to itself. With 2 of them
+    waiting the mouseDown came 46 ms after the press; with 36, 430 ms;
+    with 252, 7.8 s, the mouse long up. A drag now waits first for what
+    the IDE has due, and its record says how many that was."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.text = read(SCRIPT)
+        m = re.search(r'^command edSystemDrag pFrom, pTo\n(.*?)^end edSystemDrag', cls.text, re.M | re.S)
+        cls.drag = m.group(1) if m else ''
+        m = re.search(r'^function edSettled pMilliseconds\n(.*?)^end edSettled', cls.text, re.M | re.S)
+        cls.settled = m.group(1) if m else ''
+        m = re.search(r'^function edDue\n(.*?)^end edDue', cls.text, re.M | re.S)
+        cls.due = m.group(1) if m else ''
+        m = re.search(r'^function edDragDone pMilliseconds\n(.*?)^end edDragDone', cls.text, re.M | re.S)
+        cls.done = m.group(1) if m else ''
+
+    def code(self, body):
+        return '\n'.join(line for line in body.split('\n') if not line.lstrip().startswith('--'))
+
+    def test_a_drag_waits_for_what_the_ide_has_due_before_the_mouse_is_pressed(self):
+        drag = self.code(self.drag)
+        settled = drag.index('put edSettled(20000) into sKeep["dragSettled"]')
+        # before the clock of the drag starts and before any helper is launched
+        self.assertLess(settled, drag.index('put the milliseconds into sKeep["dragLaunched"]'))
+        self.assertLess(settled, drag.index('switch the platform'))
+        self.assertEqual(self.text.count('edSettled('), 1,
+                         'the one wait is the drag helper\'s own: every drag goes through it')
+
+    def test_the_wait_handles_events_while_messages_are_due(self):
+        settled = self.code(self.settled)
+        self.assertIn('put edDue() into tFirst', settled)
+        loop = re.search(r'repeat while (.*?)\n(.*?)\n   end repeat', settled, re.S)
+        self.assertIsNotNone(loop)
+        self.assertIn('tLeast > 0', loop.group(1))
+        self.assertIn('wait 50 milliseconds with messages', loop.group(2))
+        self.assertIn('put edDue() into tNow', loop.group(2))
+
+    def test_the_wait_ends(self):
+        # at most the time given, and no longer than the number goes on
+        # falling: a message that sends itself again is always due
+        loop = re.search(r'repeat while (.*?)\n', self.code(self.settled)).group(1)
+        self.assertIn('the milliseconds - tStart < pMilliseconds', loop)
+        self.assertIn('the milliseconds - tLeastAt < 1500', loop)
+        self.assertEqual(loop.count(' and '), 2)
+        self.assertNotIn(' or ', loop)
+
+    def test_only_messages_whose_time_has_come_are_counted(self):
+        # a task's own watchdog waits 30 seconds, and the IDE keeps
+        # messages for later (its preferences' save): neither is due
+        due = self.code(self.due)
+        self.assertIn('put the long seconds into tNow', due)
+        self.assertIn('repeat for each line tLine in the pendingMessages', due)
+        self.assertIn('item 2 of tLine <= tNow then add 1 to tCount', due)
+
+    def test_a_drags_record_says_what_was_due_before_it(self):
+        self.assertIn('"messages due," && tLeast && "left after"', self.code(self.settled))
+        done = self.code(self.done)
+        self.assertEqual(done.count('"; before it" && sKeep["dragSettled"]'), 2,
+                         'released or not, the record ends with what the IDE had due')
+
+    def test_the_lessons_drags_keep_their_record_when_they_work(self):
+        # so that a run on Windows says how many messages its drags waited for
+        hs = handlers(self.text)
+        lesson = hs['edGuideLesson']
+        made = lesson.index('edWaitFor("the number of buttons of pAx is 2", 6000, tCard)')
+        self.assertLess(made, lesson.index('if sInput is true then edRecord "INFO the lesson\'s drag" && tDrag'))
+        dropped = hs['edGuideDropped']
+        made = dropped.index('edWaitFor("the number of controls of pAx is pBx + 1", 6000, tCard, tCount)')
+        self.assertLess(made, dropped.index('if sInput is true then edRecord "INFO the drag of the" && tType && tDrag'))
 
 
 class StandaloneBuildStopped(unittest.TestCase):
