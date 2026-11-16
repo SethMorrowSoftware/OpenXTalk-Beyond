@@ -1,4 +1,4 @@
-# OXT-Beyond
+# OXT-Beyond (OpenXTalk Beyond)
 
 <p align="center">
   <img src="Installer/oxt-beyond/branding/art/oxt-beyond-banner.png" alt="OXT-Beyond 0.2.8 &quot;Make It So&quot;">
@@ -24,9 +24,12 @@
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
-OXT-Beyond is a free, open source development environment for Windows,
-macOS and Linux in which you build programs with an English-like
-scripting language in the HyperCard/HyperTalk tradition ("xTalk"). You
+OXT-Beyond is the leading free, open source xTalk development
+environment, for Windows, macOS and Linux and in a web browser, in which
+you build programs with an English-like scripting language in the
+HyperCard/HyperTalk tradition ("xTalk"). It continues OpenXTalk and
+LiveCode Community 9, opens HyperCard stacks, and builds apps for the
+desktop, the web and Android. You
 lay out stacks of cards with buttons, fields and other controls, and
 write scripts that respond to what the user does:
 
