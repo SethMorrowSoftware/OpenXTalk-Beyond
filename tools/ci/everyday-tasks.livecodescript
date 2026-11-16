@@ -1619,7 +1619,8 @@ end ed_preferences_change
 -- stack they speak of is this window, where on it the button goes, and
 -- that the Message Box is a window the Tools menu opens. The Guide is
 -- opened as Learn opens an example, and taken out of memory unsaved
--- whatever happened (edGuideAway)
+-- whatever happened (edGuideAway). A Guide already in memory is a
+-- person's own: the task stops, and it stays as it is (edGuideGone)
 on ed_quick_start_first_lesson
    local tFile, tError, tMiss
    put revEnvironmentResourcesPath() & "/" & kGuideFile into tFile
@@ -1636,6 +1637,7 @@ on ed_quick_start_first_lesson
    end try
    edGuideAway
    if tMiss is not empty then throw tMiss
+   if edInMemory(kGuideStack) then throw "the Quick Start Guide is still in memory after the lesson"
    edRecord "INFO the Quick Start Guide's first lesson done as its notes say:" && sReport["guide"]
 end ed_quick_start_first_lesson
 
@@ -1837,7 +1839,7 @@ on ed_finish
    end if
    edRemoveBuiltStack kMcStack
    edRemoveBuiltStack kAppStack
-   edRemoveBuiltStack kGuideStack
+   edGuideGone
    edStopBuildAt empty
    dispatch "revSetTestEnvironment" to stack "Home" with true
    dispatch "revSetOverrideRuntimePath" to stack "Home" with empty
@@ -3032,6 +3034,9 @@ command edGuideLesson pFile
    -- the Run tool, then the stack
    edToolTile "com.livecode.tool.Browse"
    if not edWaitFor("the tool is " & quote & "browse tool" & quote, 3000) then throw "Run in the Tools palette did not choose the Browse tool (" & the tool & ")"
+   -- (from here the Guide in memory is this run's own to take away,
+   -- edGuideGone: the task has seen that none was in memory)
+   put true into sKeep["guide"]
    go stack pFile
    if not edWaitFor("edOpen(pAx) and the short name of the topStack is pAx", 8000, kGuideStack) then
       throw "the Quick Start Guide did not open in front; the topStack is" && the short name of the topStack
@@ -3141,9 +3146,21 @@ command edGuideAway
    catch tError
       edRecord "INFO putting the lesson's windows away:" && edJoin(tError)
    end try
-   edRemoveBuiltStack kGuideStack
+   edGuideGone
    edFront
 end edGuideAway
+
+-- The Guide closed and deleted from memory unsaved, if this run opened
+-- it (sKeep["guide"], set as edGuideLesson opens the file). A stack of
+-- that name in memory before the tasks is a person's own, with work
+-- they may not have saved: the lesson's task stops on it and touches
+-- nothing, so nothing here may delete it either, at the end of the
+-- lesson or of the run (ed_finish, which runs whatever tasks ran)
+command edGuideGone
+   if sKeep["guide"] is not true then exit edGuideGone
+   edRemoveBuiltStack kGuideStack
+   put false into sKeep["guide"]
+end edGuideGone
 
 ----------------------------------------------------------------
 -- Preferences: a checkbox in its window that a person might turn on and

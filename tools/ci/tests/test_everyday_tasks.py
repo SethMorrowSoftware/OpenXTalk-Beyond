@@ -1024,8 +1024,11 @@ class QuickStartFirstLesson(BuildTasks, unittest.TestCase):
         self.assertLess(body.index('catch tError', done), away)
         self.assertNotIn('throw', body[done:away])
         self.assertLess(away, body.index('if tMiss is not empty then throw tMiss'))
-        self.assertIn('edRemoveBuiltStack kGuideStack', self.handlers['edGuideAway'])
-        self.assertIn('edRemoveBuiltStack kGuideStack', self.handlers['ed_finish'])
+        # (and the task says so itself: the run's own Guide must be gone)
+        self.assertIn('if edInMemory(kGuideStack) then throw "the Quick Start Guide is still in memory after the lesson"', body[away:])
+        self.assertIn('edGuideGone', self.handlers['edGuideAway'])
+        self.assertIn('edGuideGone', self.handlers['ed_finish'])
+        self.assertIn('edRemoveBuiltStack kGuideStack', self.handlers['edGuideGone'])
         removed = self.handlers['edRemoveBuiltStack']
         self.assertLess(removed.index('revIDESetEdited pStack, false'), removed.index('delete stack pStack'))
         self.assertNotIn('save ', self.lesson)
@@ -1033,6 +1036,20 @@ class QuickStartFirstLesson(BuildTasks, unittest.TestCase):
     def test_a_guide_a_person_has_open_is_left_alone(self):
         body = self.handlers['ed_quick_start_first_lesson']
         self.assertLess(body.index('if edInMemory(kGuideStack) then throw'), body.index('try'))
+        # Nor does the end of the run delete it (ed_finish runs whatever
+        # tasks ran, the lesson's or not): one handler takes the Guide
+        # out of memory, and only when this run opened it, which the
+        # lesson notes as it opens the file and nothing else does
+        gone = self.handlers['edGuideGone']
+        mine = 'if sKeep["guide"] is not true then exit edGuideGone'
+        self.assertLess(gone.index(mine), gone.index('edRemoveBuiltStack kGuideStack'))
+        code = '\n'.join(line for line in self.text.split('\n') if not line.lstrip().startswith('--'))
+        self.assertEqual(code.count('edRemoveBuiltStack kGuideStack'), 1)
+        self.assertNotIn('delete stack kGuideStack', code)
+        self.assertEqual(code.count('put true into sKeep["guide"]'), 1)
+        opened = self.lesson.index('put true into sKeep["guide"]')
+        self.assertLess(opened, self.lesson.index('go stack pFile'))
+        self.assertNotIn('throw', self.lesson[opened:self.lesson.index('go stack pFile')])
 
 
 if __name__ == '__main__':
