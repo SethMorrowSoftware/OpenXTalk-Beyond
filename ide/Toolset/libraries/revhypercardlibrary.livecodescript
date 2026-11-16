@@ -8099,7 +8099,7 @@ function TCPNameToAddr pHost
 end TCPNameToAddr
 
 function TCPActiveOpen pHost, pPort, pLocalPort
-   local tId, tSocket, tStart
+   local tId, tSocket, tStart, tError
    if pHost is empty or pPort is not an integer then return "TCPActiveOpen failed: no host or port"
    add 1 to sHCTCPLast
    put sHCTCPLast into tId
@@ -8114,6 +8114,12 @@ function TCPActiveOpen pHost, pPort, pLocalPort
    end repeat
    if sHCTCP[tId]["state"] is not "established" then
       get sHCTCP[tId]["error"]
+      -- (a socket still opening when the wait ends stays open in the
+      -- engine until it is closed)
+      try
+         close socket tSocket
+      catch tError
+      end try
       _HCTCPForget tId
       if it is empty then put "the host did not answer" into it
       return "TCPActiveOpen failed:" && it
@@ -8141,6 +8147,8 @@ function TCPRecvUpTo pId, pTerminator, pSeconds, pSoFar
    _HCTCPDeliver
    if sHCTCP[pId]["socket"] is empty then return _HCTCPError("No such connection")
    if pSeconds is not a number or pSeconds < 0 then put 0 into pSeconds
+   -- (a terminator is the bytes the host sends, its case too)
+   set the caseSensitive to true
    put the milliseconds into tStart
    repeat
       if pTerminator is empty then

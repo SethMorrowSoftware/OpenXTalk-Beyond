@@ -7198,11 +7198,11 @@ on TestHyperCardScriptsTCPExternals
          "XCMD" & tTab & "TCPSend", "XFCN" & tTab & "TCPRecvUpTo", "XFCN" & tTab & "TCPState", "XCMD" & tTab & "TCPClose", \
          "XCMD" & tTab & "TCPRelease", "XFCN" & tTab & "TCPCharsAvailable", "XFCN" & tTab & "TCPRecvChars", "XFCN" & tTab & "TCPPassiveOpen")
    set the defaultStack to tStack
-   -- the server: says hello, reads a line, answers it in capitals and
+   -- the server: says hello and "abcendEND", reads a line, answers it in capitals and
    -- "tail", and closes the connection
    create button "Server"
    set the script of button "Server" to _Lines("on serverStart pPort", "  accept connections on port pPort with message " & q & "serverAccept" & q, "end serverStart", \
-         "on serverAccept pSocket", "  write " & q & "hello" & q & " & numToChar(10) to socket pSocket", \
+         "on serverAccept pSocket", "  write " & q & "hello" & q & " & numToChar(10) & " & q & "abcendEND" & q & " to socket pSocket", \
          "  read from socket pSocket until numToChar(10) with message " & q & "serverRead" & q, "end serverAccept", \
          "on serverRead pSocket, pData", "  write toUpper(pData) & " & q & "tail" & q & " to socket pSocket", "  close socket pSocket", "end serverRead")
    create button "Client"
@@ -7212,6 +7212,7 @@ on TestHyperCardScriptsTCPExternals
          "  put TCPActiveOpen(item 1 of it, pPort, 0) into connID", \
          "  put " & q & "|" & q & " & (connID contains " & q & "fail" & q & ") & " & q & "|" & q & " & TCPState(connID) after gHCScriptsTest", \
          "  put " & q & "|" & q & " & TCPRecvUpTo(connID, linefeed, 10, " & q & "so far:" & q & ") after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & TCPRecvUpTo(connID, " & q & "END" & q & ", 10, empty) after gHCScriptsTest", \
          "  TCPSend connID, " & q & "ping" & q & " & linefeed", \
          "  put " & q & "|" & q & " & the result & " & q & "|" & q & " & TCPRecvUpTo(connID, linefeed, 10, empty) after gHCScriptsTest", \
          "  repeat 500 times", "    if TCPCharsAvailable(connID) >= 4 then exit repeat", "    wait 10 milliseconds", "  end repeat", \
@@ -7242,14 +7243,16 @@ on TestHyperCardScriptsTCPExternals
    TestAssert "the client runs", tError is empty
    TestAssert "TCPNameToAddr: the address; TCPActiveOpen: a connection, established", item 1 to 3 of tResults is "127.0.0.1|false|established"
    TestAssert "TCPRecvUpTo: the text so far and the line, its line feed with it", item 4 of tResults is "so far:hello" & numToChar(10)
-   TestAssert "TCPSend: no error; the answer", item 5 to 6 of tResults is "|PING" & numToChar(10)
-   TestAssert "TCPCharsAvailable, TCPRecvChars: by count; open while there is more to read", item 7 to 9 of tResults is "4|ta|established"
-   TestAssert "the host closed it: once all is read, close wait", item 10 to 11 of tResults is "il|close wait"
-   TestAssert "TCPClose: closed", item 12 of tResults is "closed"
-   TestAssert "TCPRelease: forgotten, its state an error", item 13 of tResults is "true"
-   TestAssert "TCPActiveOpen: a port nobody listens on fails", item 14 of tResults is "true"
-   TestAssert "TCPPassiveOpen: not offered, a failure", item 15 of tResults is "true"
-   TestAssert "a connection there is not: an error", item 16 of tResults is "true"
+   TestAssert "TCPRecvUpTo: up to the terminator in its own case", item 5 of tResults is "abcendEND"
+   TestAssert "TCPSend: no error; the answer", item 6 to 7 of tResults is "|PING" & numToChar(10)
+   TestAssert "TCPCharsAvailable, TCPRecvChars: by count; open while there is more to read", item 8 to 10 of tResults is "4|ta|established"
+   TestAssert "the host closed it: once all is read, close wait", item 11 to 12 of tResults is "il|close wait"
+   TestAssert "TCPClose: closed", item 13 of tResults is "closed"
+   TestAssert "TCPRelease: forgotten, its state an error", item 14 of tResults is "true"
+   TestAssert "TCPActiveOpen: a port nobody listens on fails, and leaves no socket open", item 15 of tResults is "true" \
+         and "|hcTCP" is not in the openSockets
+   TestAssert "TCPPassiveOpen: not offered, a failure", item 16 of tResults is "true"
+   TestAssert "a connection there is not: an error", item 17 of tResults is "true"
    _Close tStack
 end TestHyperCardScriptsTCPExternals
 
