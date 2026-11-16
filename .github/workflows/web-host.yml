@@ -50,6 +50,7 @@ on:
   # asks GitHub whether the pull request is a draft now; see
   # build-windows.yml); marking it ready does
   pull_request:
+    branches: [ main ]
     types: [ opened, synchronize, reopened, ready_for_review ]
     paths:
       - tools/web-host/**

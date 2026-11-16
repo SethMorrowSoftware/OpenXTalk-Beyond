@@ -2987,6 +2987,20 @@ mac-x86_64", "Package mac-universal", "Test mac-universal (arm64)" and
 "Test mac-universal (x86_64)". The 32-bit builds, "Build win-x86" and
 "Build linux-x86", run with them but are not in that list.
 
+A draft pull request builds none of the three: each workflow's first
+job, "Draft check", asks GitHub whether the pull request is a draft and
+the rest skip, and marking it ready for review starts them. So that a
+draft never looks all green, the workflow
+[`draft-status.yml`](.github/workflows/draft-status.yml) gives its newest
+commit the pending status "Platform builds", which turns to success when
+the pull request is ready. A newer commit to a pull request or branch
+cancels the older one's run; main's runs are never cancelled, since the
+preview installers and the release come from them: a merge waits for
+main's running build to finish, and of several waiting only the newest
+runs. The unit tests of the CI scripts run on Linux on every pull request
+(`ci-checks.yml`), and on Windows and macOS only when something under
+`tools/`, `util/` or `.github/` changes (`ci-checks-other-os.yml`).
+
 The workflow [`.github/workflows/runtimes.yml`](.github/workflows/runtimes.yml)
 ("Runtimes asset") is only started by hand: it makes the runtimes asset
 from the outputs of one Windows and one Linux run, and optionally an

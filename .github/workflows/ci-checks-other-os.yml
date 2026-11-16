@@ -1,0 +1,86 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+# The unit tests of the CI scripts (tools/ci/tests) on windows-latest and
+# macos-15 (modernization report MOD-06): the build workflows run these
+# scripts on Windows and macOS too, so a script that only works on Linux
+# shows here, before the hour of building. The Linux run of the same tests
+# is in ci-checks.yml, on every pull request.
+#
+# ONLY WHEN A SCRIPT OR A WORKFLOW CHANGES (2026-11-16). Until this date
+# the job was part of ci-checks.yml and ran on every commit of every pull
+# request and every push to main, docs and IDE scripts included, with
+# macos-15 taking 14 of its 15 minutes on a Mac runner, the runner the
+# builds wait for. What can work on Linux and fail on Windows or macOS is
+# a script's own code, so the paths below are where the scripts and what
+# runs them live. A change anywhere else is still tested on Linux by
+# ci-checks.yml and on every platform by the builds. Not a required check.
+name: CI checks (Windows, macOS)
+
+on:
+  push:
+    branches: [ main ]
+    paths: &script-paths
+      - 'tools/**'
+      - 'util/**'
+      - '.github/workflows/**'
+      - '.github/actions/**'
+  pull_request:
+    branches: [ main ]
+    paths: *script-paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-checks-other-os-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  other-os:
+    name: CI scripts on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    # macos-15 took 14 of the 15 minutes this had in November 2026
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-15]
+    steps:
+      # The files as they are in git, LF line endings and all, as the
+      # Linux job sees them (Windows' git would make them CRLF).
+      # .gitattributes marks the sources "text", which checks them out
+      # with core.eol whatever core.autocrlf says, so both are set
+      - name: Keep LF line endings
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Test the CI scripts
+        run: |
+          python --version
+          python -m pip install --quiet pyyaml
+          python -m unittest discover -s tools/ci/tests -v

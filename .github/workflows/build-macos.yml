@@ -113,6 +113,8 @@ on:
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/pull_request_template.md'
       - '.github/workflows/ci-checks.yml'
+      - '.github/workflows/ci-checks-other-os.yml'
+      - '.github/workflows/draft-status.yml'
       - '.github/workflows/plugin-packages.yml'
       - '.github/workflows/field-speed.yml'
       - '.github/workflows/ide-screenshots.yml'
@@ -207,11 +209,17 @@ concurrency:
   # branch of a dry run, and pushes to that branch must neither cancel the
   # release build nor wait for it (see build-windows.yml)
   group: build-macos-${{ inputs.release && format('release-{0}', github.run_id) || github.ref }}
-  # Newer pushes to a branch or pull request replace older runs, on main
-  # too, as in build-windows.yml: a release takes main's build of the
-  # tagged commit, and "Tag a release" tags the newest commit, which still
-  # builds in full. Tag builds always run to completion.
-  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  # Newer pushes to a branch or pull request replace older runs. MAIN
+  # (2026-11-16) is never cancelled: until this date a merge cancelled
+  # main's build that was still running, and that build is where the
+  # preview installers and the release's builds come from (a release takes
+  # main's build of the tagged commit), so a burst of merges could leave
+  # main with no finished build for an hour or more. Now the running main
+  # build finishes, and GitHub keeps only the NEWEST waiting one behind it
+  # (a third push replaces the second while it waits), so a burst still
+  # costs at most two builds. Tag builds always run to completion.
+  # tools/ci/tests/test_build_paths.py holds it.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') }}
 
 defaults:
   run:

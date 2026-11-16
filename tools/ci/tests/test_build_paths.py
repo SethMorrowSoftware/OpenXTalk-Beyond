@@ -215,15 +215,18 @@ class BuildPathsTest(unittest.TestCase):
             self.assertIn('extension_docs.livecodescript', used, wf)
 
     def test_concurrency(self):
-        # A newer push replaces an older run of the same branch, main
-        # included, but never a tag's build; and a build that release.yml
-        # calls has a group of its own (the caller's run id), which no
-        # push can cancel
+        # A newer push replaces an older run of the same branch or pull
+        # request, but never main's build (2026-11-16: the preview
+        # installers and the release come from it, and a merge used to
+        # cancel it half way) and never a tag's; and a build that
+        # release.yml calls has a group of its own (the caller's run id),
+        # which no push can cancel
         for wf in BUILDS:
             with open(os.path.join(WORKFLOWS, wf), encoding='utf-8') as f:
                 concurrency = yaml.safe_load(f)['concurrency']
             self.assertEqual(concurrency['cancel-in-progress'],
-                             "${{ !startsWith(github.ref, 'refs/tags/') }}", wf)
+                             "${{ github.ref != 'refs/heads/main' && "
+                             "!startsWith(github.ref, 'refs/tags/') }}", wf)
             self.assertIn("inputs.release && format('release-{0}', github.run_id)",
                           concurrency['group'], wf)
 

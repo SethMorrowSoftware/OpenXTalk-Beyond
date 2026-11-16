@@ -34,10 +34,11 @@
 #     engine's source the runtimes asset (the other platforms' standalone
 #     runtimes) is behind, as a warning in the job summary.
 #
-# The job CI scripts on Windows and macOS runs the same unit tests on
-# windows-latest and macos-15 (modernization report MOD-06): the build
-# workflows run these scripts there too, so a script that only works on
-# Linux shows here.
+# The same unit tests on windows-latest and macos-15 (modernization report
+# MOD-06) are in ci-checks-other-os.yml since 2026-11-16, which runs only
+# when a script or a workflow changes: a macOS runner for 15 minutes on
+# every commit of every pull request, docs and IDE scripts included, was
+# the Mac queue's for a question only a changed script can raise.
 #
 # A change to this workflow or to the tests alone starts no build (the build
 # workflows' paths-ignore lists have them).
@@ -135,37 +136,3 @@ jobs:
       # 10, step 1), so every release carries runtimes of its own engine
       - name: Runtimes asset provenance
         run: python3 tools/ci/runtimes_provenance.py
-
-  other-os:
-    name: CI scripts on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    # macos-15 took 14 of the 15 minutes this had in November 2026
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-15]
-    steps:
-      # The files as they are in git, LF line endings and all, as the
-      # Linux job sees them (Windows' git would make them CRLF).
-      # .gitattributes marks the sources "text", which checks them out
-      # with core.eol whatever core.autocrlf says, so both are set
-      - name: Keep LF line endings
-        run: |
-          git config --global core.autocrlf false
-          git config --global core.eol lf
-
-      - name: Check out
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.12'
-
-      - name: Test the CI scripts
-        run: |
-          python --version
-          python -m pip install --quiet pyyaml
-          python -m unittest discover -s tools/ci/tests -v
