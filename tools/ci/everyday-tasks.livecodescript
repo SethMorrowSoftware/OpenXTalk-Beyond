@@ -521,6 +521,8 @@ on ed_message_box_shortcut
          put tKeys && "(" & tVia & ") pressed again showed the Tools palette, which was closed" into tMiss
       end if
    end if
+   -- (and its keys are let go: the clicks of the tasks after are plain)
+   if tMiss is empty then put edKeysHeld(tKeys) into tMiss
    edToolsBack tMB
    if tMiss is not empty then throw tMiss
    edRecord "INFO" && tKeys && "opened and closed the Message Box by" && tVia & ", the Tools palette closed throughout"
@@ -3112,6 +3114,9 @@ command edGuideLesson pFile
    put edShortcutName("m") into tKeys
    put edShortcut("m") into tVia
    if not edWaitFor("edOpen(pAx)", 5000, tMB) then throw tKeys && "(" & tVia & ") opened no Message Box over the lesson"
+   -- (its keys let go, before the click on the Message Box's field)
+   get edKeysHeld(tKeys)
+   if it is not empty then throw it
    dispatch "showCard" to stack tMB with "Single Line"
    edClickAt tMB, the loc of field "message" of card "Single Line" of stack tMB
    select text of field "message" of card "Single Line" of stack tMB
@@ -3447,10 +3452,19 @@ command edSystemShortcut pLetter
    local tCommand
    switch the platform
       case "MacOS"
-         -- (1048576: kCGEventFlagMaskCommand)
-         put "ObjC.import('CoreGraphics'); [true, false].forEach(function (d) { " & \
-               "var e = $.CGEventCreateKeyboardEvent(null, " & edMacKeyCode(pLetter) & ", d); " & \
-               "$.CGEventSetFlags(e, 1048576); $.CGEventPost(0, e); delay(0.1); });" into tCommand
+         -- (The Command key itself goes down before the letter and up
+         -- after it, as a hand presses them: 55 is its key, kVK_Command,
+         -- and 1048576 its flag, kCGEventFlagMaskCommand; its key up
+         -- carries no flag. The letter's two events alone with the flag
+         -- on them picked the menu item just the same, but then no event
+         -- ever said that Command was up, and macOS went on holding it:
+         -- the commandKey was down for every click after, and the App
+         -- Browser added the next control clicked to its selection as it
+         -- does for a Command-click. edKeysHeld asks after each shortcut)
+         put "ObjC.import('CoreGraphics'); function key(k, d, f) { var e = $.CGEventCreateKeyboardEvent(null, k, d); " & \
+               "$.CGEventSetFlags(e, f); $.CGEventPost(0, e); delay(0.1); } " & \
+               "key(55, true, 1048576); key(" & edMacKeyCode(pLetter) & ", true, 1048576); " & \
+               "key(" & edMacKeyCode(pLetter) & ", false, 1048576); key(55, false, 0);" into tCommand
          get shell("osascript -l JavaScript -e " & quote & tCommand & quote & " >/dev/null 2>&1 &")
          break
       case "Win32"
@@ -3484,6 +3498,21 @@ function edShortcut pLetter
    edType the short name of the topStack, pLetter, "command"
    return "the engine's own keys (the system's keyboard does not reach the IDE)"
 end edShortcut
+
+-- The modifier keys still down after the shortcut pKeys was pressed and
+-- answered, in words for a throw, or empty: each must be let go, as a
+-- hand lets go. One that the system goes on holding makes every click
+-- after it another click (the App Browser adds a Command-click on a
+-- control to its selection, and the Inspector then has two objects)
+function edKeysHeld pKeys
+   local tHeld
+   if edWaitFor("the commandKey is up and the controlKey is up and the optionKey is up and the shiftKey is up", 3000) then return empty
+   if the commandKey is down then put " commandKey" after tHeld
+   if the controlKey is down then put " controlKey" after tHeld
+   if the optionKey is down then put " optionKey" after tHeld
+   if the shiftKey is down then put " shiftKey" after tHeld
+   return "after" && pKeys && "was pressed, the system still holds a key down:" & tHeld
+end edKeysHeld
 
 -- Whether a key of the system's keyboard reaches the IDE here: a field
 -- of a stack of this script's must get its letter (as edInputWorks asks

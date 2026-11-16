@@ -835,7 +835,8 @@ class MessageBoxShortcut(BuildTasks, unittest.TestCase):
         # keys that close it)
         self.assertEqual(after.count('else if revIDEPaletteIsVisible("tools") then'), 2)
         self.assertIn('if not edWaitFor("not edOpen(pAx)", 5000, tMB) then', after)
-        self.assertEqual(after.count('into tMiss'), 4)
+        # (those four, and a key the system still holds after them)
+        self.assertEqual(after.count('into tMiss'), 5)
         self.assertIn('if tMiss is not empty then throw tMiss', after)
 
     def test_the_tools_palette_is_back_whatever_happened(self):
@@ -860,10 +861,8 @@ class MessageBoxShortcut(BuildTasks, unittest.TestCase):
     def test_each_system_presses_its_own_keys(self):
         keys = self.handlers['edSystemShortcut']
         mac = keys.split('case "MacOS"', 1)[1].split('case "Win32"', 1)[0]
-        # (kCGEventFlagMaskCommand, on the key down and on the key up)
-        self.assertIn('[true, false].forEach(function (d) {', mac)
-        self.assertIn('$.CGEventCreateKeyboardEvent(null, " & edMacKeyCode(pLetter) & ", d)', mac)
-        self.assertIn('$.CGEventSetFlags(e, 1048576); $.CGEventPost(0, e);', mac)
+        self.assertIn('function key(k, d, f) { var e = $.CGEventCreateKeyboardEvent(null, k, d); ', mac)
+        self.assertIn('$.CGEventSetFlags(e, f); $.CGEventPost(0, e);', mac)
         win = keys.split('case "Win32"', 1)[1].split('default', 1)[0]
         self.assertIn('[System.Windows.Forms.SendKeys]::SendWait(\'^" & toLower(pLetter) & "\')', win)
         self.assertIn('xdotool key ctrl+" & toLower(pLetter)', keys.split('default', 1)[1])
@@ -874,6 +873,41 @@ class MessageBoxShortcut(BuildTasks, unittest.TestCase):
         name = self.function('edShortcutName')
         self.assertIn('if the platform is "MacOS" then return "Cmd+" & toUpper(pLetter)', name)
         self.assertIn('return "Ctrl+" & toUpper(pLetter)', name)
+
+    def test_a_mac_presses_the_command_key_itself_and_lets_it_go(self):
+        # macOS's first run of the task left Command held for every click
+        # after it (the App Browser's next click added to its selection):
+        # the letter's two events had the Command flag, and no event said
+        # that Command was up. The keys in the order a hand presses them:
+        # Command (key 55) down, the letter down and up with Command
+        # held (kCGEventFlagMaskCommand), Command up with no flag
+        keys = self.handlers['edSystemShortcut']
+        mac = keys.split('case "MacOS"', 1)[1].split('case "Win32"', 1)[0]
+        code = '\n'.join(line for line in mac.split('\n') if not line.lstrip().startswith('--'))
+        order = ['key(55, true, 1048576); ',
+                 'key(" & edMacKeyCode(pLetter) & ", true, 1048576); ',
+                 'key(" & edMacKeyCode(pLetter) & ", false, 1048576); ',
+                 'key(55, false, 0);']
+        at = [code.index(part) for part in order]
+        self.assertEqual(at, sorted(at))
+        self.assertEqual(code.count('key(55, '), 2)
+        self.assertNotIn('forEach', code)
+
+    def test_the_keys_must_be_let_go(self):
+        held = self.function('edKeysHeld')
+        self.assertIn('if edWaitFor("the commandKey is up and the controlKey is up and the optionKey is up and the shiftKey is up", 3000) then return empty', held)
+        self.assertIn('return "after" && pKeys && "was pressed, the system still holds a key down:" & tHeld', held)
+        # the shortcut's task asks after both presses, with the miss kept
+        # until the Tools palette is back
+        after = self.body.split('get edShortcut("m")', 1)[1]
+        asked = after.index('if tMiss is empty then put edKeysHeld(tKeys) into tMiss')
+        self.assertLess(asked, after.index('edToolsBack tMB'))
+        # and the lesson's, before its click on the Message Box's field
+        lesson = self.handlers['edGuideLesson']
+        opened = lesson.index('put edShortcut("m") into tVia')
+        asked = lesson.index('get edKeysHeld(tKeys)', opened)
+        self.assertIn('if it is not empty then throw it', lesson[asked:asked + 80])
+        self.assertLess(asked, lesson.index('edClickAt tMB,', opened))
 
     def test_the_keys_are_checked_with_a_letter_in_a_field_of_the_tasks_own(self):
         works = self.function('edKeysWork')
