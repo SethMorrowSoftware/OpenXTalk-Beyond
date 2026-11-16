@@ -202,6 +202,7 @@ answering no.
 | `nova-rescue.livecodescript`, `nova-rescue-stack.livecodescript`, `nova-rescue/` | build `stacks/Nova Rescue.oxtstack` from Kenney's pictures, sounds and font (see below) |
 | `wobble-forts.livecodescript`, `wobble-forts-stack.livecodescript`, `wobble-forts/` | build `stacks/Wobble Forts.oxtstack` from Kenney's pictures, sounds and font and its levels (see below) |
 | `puzzle-almanac.livecodescript`, `puzzle-almanac-stack.livecodescript`, `puzzle-almanac/` | build `stacks/Puzzle Almanac.oxtstack` from Kenney's pictures and sounds, Atkinson Hyperlegible, its puzzles and its words (see below) |
+| `ember-bricks.livecodescript`, `ember-bricks-stack.livecodescript`, `ember-bricks/` | build `stacks/Ember Bricks.oxtstack` from its levels, the sounds made for it and Atkinson Hyperlegible (see below) |
 | `box2dxt-platformer.livecodescript`, `box2dxt_platformer_files.py`, `box2dxt-platformer/pin.json` | build `stacks/Box2Dxt Platformer.oxtstack` from the xTalk Suite's platformer and sheets, as pinned (see below) |
 | `assets/` | the page's logo and pictures, copied beside it |
 | `build_player.py` | starts the IDE with the script above, puts the page in place, packs the zip and, with `--check`, drives the player in headless Chromium |
@@ -569,3 +570,114 @@ are `paPageHidden` (the page is hidden: the board is saved at once) and
 `paState`, so that `tools/pages/check_puzzle_almanac_page.py` can ask the
 game how it is there; `build_player.py --check` runs that check on the
 player it builds.
+
+## Ember Bricks
+
+`stacks/Ember Bricks.oxtstack` is a brick breaker for a phone, a tablet
+or a desktop, and the first of the samples that two people play together.
+A paddle keeps a ball in the air and the ball breaks a wall of bricks:
+plain ones, tough ones that take two hits and armoured ones that take
+three, steel that no ball breaks, bombs that take their neighbours with
+them, and embers that always drop a spark. Bricks broken one soon after
+another raise the heat, which multiplies the score, up to five times, and
+cools when the ball finds nothing. Ten sparks fall from broken bricks: a
+wide paddle, three balls for one, a fireball that goes through bricks, a
+slow ball, a paddle that grips, bolts from the paddle's ends, a net under
+it, a life, and two dark ones not to catch (a small paddle, a fast ball).
+There are twenty-four levels, which come round again faster with some
+bricks made tough; a life is won every 20,000 points; the best score,
+the levels reached and the settings are kept between visits.
+
+It lays itself out for whatever window it has. The arena is always two
+wide for three high, as large as fits; on an upright phone the score, the
+heat and the lives are over it, and in a wide window (a phone on its
+side, a desktop) they are beside it. In a page of its own it fills a
+phone's screen, keeps out of the notch and the home bar (the Mobile Web
+library's safe-area insets) and pauses when the page is hidden or the
+phone turns. On a desktop's page the Stack Player shows a stack at its
+own size, 900 by 640 for this one: the game takes the browser window's
+size while that is the smaller, and a link that ends `&fill=yes` gives it
+the whole window. A finger dragged anywhere moves the paddle and, lifted,
+sends the ball off; a mouse moves the paddle to where it is, and the keys
+play it too (the arrows or A and D, Space, P to pause, Esc to go back).
+
+**The Online Duel** is a match between two players, each on their own
+wall: the same wall for both, three minutes on the clock, most points
+wins. A lost ball costs 150 points, not a life, and a wall cleared is the
+next one at once. The heat sends the rival trouble: at three times a
+fast ball, at four a small paddle, at five a row of tough bricks pushed
+in at the top of their wall. Each sees the other's arena, small, beside
+their own.
+
+The two are linked directly, over a WebRTC data channel made by
+DataChannelXT (the xTalk Suite's; the web engine has it over the
+browser's own RTCPeerConnection), so there is no game server and nothing
+to sign in to. Making the link takes two codes, sent by any chat or mail:
+the host's game makes an invite code and the host sends it; the other
+player pastes it into their game, which makes an answer code to send
+back; the host pastes that, and the match begins. A code is a WebRTC
+session description, compressed and written in letters and digits. The
+answer has to reach the host within about a minute of being made (after
+that the answerer's side gives up, and the two start again). Each game
+asks a public STUN server (`stun.l.google.com:19302`) what its address on
+the internet is, so that the two find each other through home routers;
+nothing of a match goes through that server, and two players behind
+strict company or mobile networks may not be able to link at all, since
+no relay (TURN) server is used. The duel plays wherever DataChannelXT is:
+in a browser (the Stack Player, a web standalone that includes it) and in
+OXT-Beyond on a desktop. The Android engine has no DataChannelXT yet, so
+there the game says that this build cannot make the link.
+
+How it is made, for anyone making a game like it: one card and no
+pictures. Every brick, ball, spark and bolt is a graphic from a fixed set
+that the builder makes, shown, moved and coloured by one loop that moves
+everything by the time since the last frame, in units of a 320 by 480
+arena that the layout scales. The levels are `ember-bricks/levels.txt`,
+ten letters to a row, which the builder puts in the stack as they are.
+The sounds are made by `ember-bricks/make_assets.py` from sine, square
+and triangle waves and noise (`--check` makes them again and compares),
+and mixed by the browser's Web Audio. In a duel each game sends the other
+a line of text ten times a second, its score, paddle, balls and bricks,
+on a channel that does not resend what is lost (the next line makes the
+last one old), and the few lines that must arrive (the start, trouble,
+the last score, a rematch) on one that does. A line the game cannot read
+is nothing to it.
+
+Its font is Atkinson Hyperlegible, by the Braille Institute, under the
+SIL Open Font License: the same two files as Puzzle Almanac's. Its sounds
+and levels were made for it and are OXT-Beyond's own.
+`ember-bricks/SOURCES.md` says where each file comes from.
+
+The stack is never edited by hand. Its script is
+`ember-bricks-stack.livecodescript` and its controls are made by
+`ember-bricks.livecodescript`; change them, then build it again with any
+OXT-Beyond engine:
+
+```sh
+<engine> -ui tools/web-player/ember-bricks.livecodescript
+```
+
+`tests/lcs/webplayer/ember-bricks.livecodescript` plays it on a desktop
+engine with the clock in the test's hands: every screen and setting, the
+ball off the walls and the paddle, each kind of brick, the heat, every
+spark, lives and levels, what is kept between visits, the layout at
+phone, tablet and desktop sizes, the lobby's steps, the codes, and a
+whole duel with nobody at its other end (what the game would send is
+read, and the test says what the rival does). `tools/ci/tests/test_ember_bricks.py`
+holds the stack to its files, the levels to their rules and the checks to
+the game. `tools/ci/ember_bricks_check.py` builds a standalone with
+DataChannelXT's module and plays it on emulated phones (Pixel 7 and
+iPhone 13, in Chromium and WebKit) with real touches; then, in Chromium,
+it plays a duel between two pages over a real WebRTC link: the invite
+and the answer by the clipboard, clocks in step, each other's scores, the
+result, a rematch and one player leaving. CI runs it in web.yml, after
+Puzzle Almanac's check. To run it yourself:
+
+```sh
+python3 tools/ci/ember_bricks_check.py --runtime <web runtime> --engine-cache <folder> --shots <folder>
+```
+
+The stack's `cJavascriptHandlers` are `ebPageHidden` (the page is hidden:
+a level pauses), `ebPasted` (the page hands the game the text its PASTE
+button read off the clipboard) and `ebState` and `ebRectOf`, so that a
+check can ask the game how it is.

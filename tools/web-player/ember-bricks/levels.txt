@@ -1,0 +1,286 @@
+# Ember Bricks: the levels, in the order they are played.
+#
+# A level is a line "= Name" and then its rows, top row first, each of
+# exactly 10 places and at most 12 of them; a blank line ends it. The
+# builder (ember-bricks.livecodescript) puts this file in the stack as it
+# is, and the game reads it as it opens; tools/ci/tests/test_ember_bricks.py
+# holds every level to these rules.
+#
+#   .       nothing
+#   1 to 7  a brick, one hit: red, orange, amber, green, cyan, blue, violet
+#   T       a tough brick, two hits
+#   U       an armoured brick, three hits
+#   X       steel: no ball breaks it (a bomb does), and a level is clear
+#           without it
+#   B       a bomb: it takes the eight bricks around it with it, and their
+#           bombs go off in turn
+#   E       an ember: it always drops a spark worth catching
+#
+# The levels were drawn for this game. After the last one they come round
+# again, faster, with some of their bricks made tough.
+
+= First Sparks
+..........
+..........
+5555555555
+.44444444.
+..333E33..
+...2222...
+....11....
+
+= Stairway
+..........
+1.........
+22........
+333.......
+4444......
+55555.....
+666666....
+7777777...
+TTTTTTTT..
+
+= Checkers
+..........
+1.1.1.1.1.
+.2.2.2.2.2
+3.3.3.3.3.
+.4.4.4.4.4
+5.5.5.5.5.
+.6.6.6.6.6
+
+= Two Chimneys
+..........
+.TT....TT.
+.55....55.
+.55....55.
+.44....44.
+.44.EE.44.
+.33....33.
+.33....33.
+.22222222.
+.11111111.
+
+= Diamond
+....77....
+...7667...
+..765567..
+.76544567.
+7654EE4567
+.76544567.
+..765567..
+...7667...
+....77....
+
+= Powder Keg
+..........
+..........
+2222222222
+2B222222B2
+2222222222
+3333BB3333
+4444444444
+4B444444B4
+4444444444
+
+= Girder
+..........
+.11111111.
+.22222222.
+XXX.XX.XXX
+.33333333.
+.44444444.
+XX.XXXX.XX
+.55555555.
+.6666E666.
+
+= Arrowhead
+....11....
+...1221...
+..123321..
+.12344321.
+1234TT4321
+....TT....
+....55....
+....55....
+....EE....
+
+= Zigzag
+..........
+T11111....
+....22222T
+T33333....
+....44444T
+T55555....
+....66666T
+T77777....
+
+= Night Shift
+..........
+6666666666
+6336..6336
+6336..6336
+6666666666
+6..6336..6
+6..6EE6..6
+6666666666
+
+= Fuse
+..........
+B111111111
+2B22222222
+33B3333333
+444B444444
+5555B55555
+66666B6666
+777777B777
+TTTTTTTB..
+
+= The Vault
+..........
+.XXX..XXX.
+.X5EEEE5X.
+.X555555X.
+.X5T55T5X.
+.X555555X.
+.XXXXXXXX.
+..........
+1111111111
+2222222222
+
+= Hearth
+..........
+.11....11.
+1221..1221
+1222112221
+1222EE2221
+.12222221.
+..122221..
+...1221...
+....11....
+
+= Lattice
+..........
+T.T.T.T.T.
+5555555555
+.T.T.T.T.T
+6666666666
+T.T.T.T.T.
+7777777777
+.T.T.T.T.T
+
+= Hourglass
+..........
+UUUUUUUUUU
+.77777777.
+..666666..
+...5555...
+....EE....
+...4444...
+..333333..
+.22222222.
+1111111111
+
+= Minefield
+..........
+1.B.1.1.B.
+.2.2.B.2.2
+3.3.3.3.3.
+.B.4.4.B.4
+5.5.B.5.5.
+.6.6.6.6.B
+7.B.7.7.7.
+
+= Organ Pipes
+..........
+.7......7.
+.76....67.
+.765..567.
+.76544567.
+.76544567.
+.76544567.
+.TTTTTTTT.
+.X.X..X.X.
+
+= Fortress
+..........
+X.X.XX.X.X
+5555555555
+5TTTTTTTT5
+5T666666T5
+5T6UEEU6T5
+5T666666T5
+5TTTTTTTT5
+5555555555
+
+= Rain
+..5....5..
+.....5....
+5..5....5.
+..........
+.6...6...6
+...6...6..
+..........
+7...7.7...
+..7.....7.
+.....E....
+T.T.T.T.T.
+.T.T.T.T.T
+
+= Bulwark
+..........
+1111111111
+X.X.X.X.X.
+2222222222
+.X.X.X.X.X
+3333333333
+X.X.X.X.X.
+4444B44444
+.X.X.X.X.X
+5555555555
+
+= Cinder Cone
+....EE....
+....BB....
+...1221...
+...2332...
+..T3443T..
+..T4554T..
+.TT5665TT.
+.T667766T.
+TT777777TT
+UUUUUUUUUU
+
+= Circuit
+..........
+6666XX6666
+6..6..6..6
+6.B6..6B.6
+6..6TT6..6
+6666TT6666
+...5..5...
+X..5EE5..X
+...5555...
+
+= Gauntlet
+X........X
+X.UUUUUU.X
+X.U7777U.X
+X.U7BB7U.X
+X.U7777U.X
+X.UUUUUU.X
+X........X
+X.TTTTTT.X
+X.666666.X
+X.555555.X
+
+= Crown of Embers
+..........
+3...33...3
+33.3333.33
+3333333333
+3E33EE33E3
+TTTTTTTTTT
+UUUUUUUUUU
+.B..BB..B.
+1111111111
+X.X....X.X

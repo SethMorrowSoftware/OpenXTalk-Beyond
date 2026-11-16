@@ -4330,8 +4330,46 @@ FileModDate(pathname, created) (14 stacks): when the file was made
 (created true) or last changed, in seconds, which convert turns into a
 date; empty when there is no such file, as the stacks test for it. A
 file on the disk image the stack came from has the dates it had there.
+The seconds are counted as the seconds function counts them in the stack
+that asks: in a stack whose hyperTalkCompatible is true (as the import
+sets it), HyperCard's, from 1904 in local time, so that convert and a
+comparison with the seconds work as they did in HyperCard. That time's
+offset from GMT is today's, so a date on the other side of a change to
+or from summer time is an hour out.
 */
 function FileModDate pPath, pCreated
+   return _HCFileModDate(pPath, pCreated)
+end FileModDate
+
+-- pSeconds, seconds since 1970 as the engine gives them (files(), the
+-- disk image's dates), counted as the seconds function counts them here:
+-- the same where hyperTalkCompatible is false, from 1904 in local time
+-- where it is true. The difference is today's, rounded to the quarter
+-- hour that a time zone's offset is a whole number of
+private function _HCSecondsHere pSeconds
+   local tLong, tOffset
+   if pSeconds is not a number then return pSeconds
+   put the long seconds into tLong
+   put the seconds - trunc(tLong) into tOffset
+   put round(tOffset / 900) * 900 into tOffset
+   return pSeconds + tOffset
+end _HCSecondsHere
+
+-- A date of the disk image (revHyperCardImageFileInfo), counted as the
+-- seconds function counts them here. An HFS date is already HyperCard's,
+-- in the local time of the Mac that wrote it, which the disk image
+-- library gives as 2082844800 less: where hyperTalkCompatible is true
+-- only that is added back, not this computer's offset from GMT as well
+-- (_HCSecondsHere); elsewhere it is given as it was. 0 (no date) stays 0
+private function _HCImageSecondsHere pSeconds
+   local tLong
+   if pSeconds is not a number or pSeconds is 0 then return pSeconds
+   put the long seconds into tLong
+   if round((the seconds - trunc(tLong)) / 900) is 0 then return pSeconds
+   return pSeconds + 2082844800
+end _HCImageSecondsHere
+
+private function _HCFileModDate pPath, pCreated
    local tWhere, tLine, tName, tFolder, tInfo
    put _HCFileAt(pPath) into tWhere
    set the itemDelimiter to tab
@@ -4343,8 +4381,8 @@ function FileModDate pPath, pCreated
       catch tError
          return empty
       end try
-      if pCreated is true then return tInfo["created"]
-      return tInfo["modified"]
+      if pCreated is true then return _HCImageSecondsHere(tInfo["created"])
+      return _HCImageSecondsHere(tInfo["modified"])
    end if
    put item 2 of tWhere into tFolder
    set the itemDelimiter to slash
@@ -4353,19 +4391,19 @@ function FileModDate pPath, pCreated
    repeat for each line tLine in files(tFolder, "detailed")
       set the itemDelimiter to comma
       if item 1 of tLine is tName then
-         if pCreated is true and item 4 of tLine is not empty then return item 4 of tLine
-         return item 5 of tLine
+         if pCreated is true and item 4 of tLine is not empty then return _HCSecondsHere(item 4 of tLine)
+         return _HCSecondsHere(item 5 of tLine)
       end if
    end repeat
    repeat for each line tLine in folders(tFolder, "detailed")
       set the itemDelimiter to comma
       if item 1 of tLine is tName then
-         if pCreated is true and item 4 of tLine is not empty then return item 4 of tLine
-         return item 5 of tLine
+         if pCreated is true and item 4 of tLine is not empty then return _HCSecondsHere(item 4 of tLine)
+         return _HCSecondsHere(item 5 of tLine)
       end if
    end repeat
    return empty
-end FileModDate
+end _HCFileModDate
 
 /*
 FileType(pathname) and FileCreator(pathname) (11 and 8 stacks): the
@@ -5980,8 +6018,18 @@ on FPlay pName
 end FPlay
 
 function FSound
-   return the sound
+   return hcSoundName(the sound)
 end FSound
+
+-- The name of a sound as HyperCard's sound function and FSound() gave
+-- it: "boing" where this engine's sound function gives audioclip
+-- "boing"; anything else (done, a file's path) as it is
+function hcSoundName pSound
+   if pSound begins with "audioclip " & quote and the last char of pSound is quote then
+      return char 12 to -2 of pSound
+   end if
+   return pSound
+end hcSoundName
 
 -- The number of the stack's audio clip pName names, by its name (never
 -- "there is an audioClip": a HyperCard sound is often named "1", which
