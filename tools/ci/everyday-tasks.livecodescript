@@ -27,6 +27,10 @@ script "oxt_everyday"
 --     onto the stack (xdotool, PowerShell's mouse_event or CGEventPost);
 --     where the system's mouse does not reach the IDE (edInputWorks) the
 --     tile gets the double-click that also makes one, and that is noted
+--   - a shortcut: its keys pressed on the system's keyboard (xdotool,
+--     SendKeys or CGEventPost) where they reach the IDE (edKeysWork), so
+--     that the menu bar's own accelerator answers them; else typed by the
+--     engine with the key held, and that is noted (edShortcut)
 --   - a file: the IDE's own file dialog (the stack "File Selector",
 --     which the engine opens when the systemFileSelector is false): a
 --     name typed into it and its Save or Open button clicked
@@ -39,7 +43,7 @@ script "oxt_everyday"
 -- <name> ok | FAILED <why>, DONE). OXT_TOUR_ONLY names tasks; the tasks
 -- before a named one that it needs (the stack, its controls) run too.
 
-constant kTasks = "start,new-stack,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,standalone-stopped-build,standalone-mc-stack-file,standalone-built-and-run,standalone-engine-missing,finish"
+constant kTasks = "start,new-stack,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,message-box-shortcut,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,quick-start-first-lesson,standalone-stopped-build,standalone-mc-stack-file,standalone-built-and-run,standalone-engine-missing,finish"
 -- (the names the tasks give what they make)
 constant kStack = "Everyday Stack"
 constant kFile = "everyday.oxtstack"
@@ -52,6 +56,11 @@ constant kAppStack = "Everyday App"
 constant kAppFile = "everyday-app.livecode"
 constant kAppName = "EverydayApp"
 constant kAppGreeting = "Hello from a standalone"
+-- Learn's first example, the Quick Start Guide (its file in the IDE's
+-- Resources folder, and its name), and the lesson done in it
+constant kGuideFile = "Examples/Remastered/Quick Start Guide.oxtstack"
+constant kGuideStack = "Quick Start Guide"
+constant kGuideLesson = "Orientation"
 -- the builder's word at the end of a build that worked (its dialog)
 constant kBuildSaved = "Standalone application saved successfully."
 -- more dialogs than a build has to say (it has that one): at the next
@@ -473,6 +482,51 @@ on ed_message_box_lines
    dispatch "showCard" to stack tMB with "Single Line"
    close stack tMB
 end ed_message_box_lines
+
+-- The Message Box's shortcut, Ctrl+M (Cmd+M on a Mac), pressed with the
+-- Tools palette closed: the Message Box opens and the Tools palette stays
+-- closed; pressed again, the Message Box closes. A newcomer wrote "when
+-- the Tools Palette is not yet visible, Ctrl-M only opens the Tools
+-- Palette" (openxtalk.org p=26390). The keys are the system's keyboard's
+-- where they reach the IDE (edShortcut): the menu bar's accelerator
+-- answers them, as it answers a person's. The Tools palette is shown
+-- again whatever happened, for the tasks after
+on ed_message_box_shortcut
+   local tMB, tKeys, tVia, tMiss
+   put revIDEPaletteToStackName("message box") into tMB
+   put edShortcutName("m") into tKeys
+   edFront
+   if edOpen(tMB) then close stack tMB
+   -- (closed as a person closes it: its item in the Tools menu)
+   if revIDEPaletteIsVisible("tools") then edMenu "Tools", "Tools Palette"
+   if not edWaitFor("not revIDEPaletteIsVisible(pAx)", 3000, "tools") then throw "Tools > Tools Palette did not close the Tools palette"
+   put edShortcut("m") into tVia
+   if not edWaitFor("edOpen(pAx)", 5000, tMB) then
+      put tKeys && "(" & tVia & ") opened no Message Box with the Tools palette closed; the Tools palette shown:" && \
+            revIDEPaletteIsVisible("tools") & "; the topStack" && the short name of the topStack & "; the focus" && edJoin(the focusedObject) into tMiss
+      if tVia is "the system's keyboard" then
+         -- (the same keys from the engine, to tell keys that went
+         -- elsewhere from a shortcut that does not open it)
+         edType sStack, "m", "command"
+         put "; typed by the engine it opened one:" && edWaitFor("edOpen(pAx)", 3000, tMB) after tMiss
+      end if
+   else if revIDEPaletteIsVisible("tools") then
+      put tKeys && "(" & tVia & ") opened the Message Box and showed the Tools palette too, which was closed" into tMiss
+   else
+      edShotScreen "19b-message-box-shortcut"
+      get edShortcut("m")
+      if not edWaitFor("not edOpen(pAx)", 5000, tMB) then
+         put tKeys && "(" & tVia & ") pressed again did not close the Message Box" into tMiss
+      else if revIDEPaletteIsVisible("tools") then
+         put tKeys && "(" & tVia & ") pressed again showed the Tools palette, which was closed" into tMiss
+      end if
+   end if
+   -- (and its keys are let go: the clicks of the tasks after are plain)
+   if tMiss is empty then put edKeysHeld(tKeys) into tMiss
+   edToolsBack tMB
+   if tMiss is not empty then throw tMiss
+   edRecord "INFO" && tKeys && "opened and closed the Message Box by" && tVia & ", the Tools palette closed throughout"
+end ed_message_box_shortcut
 
 -- the field clicked with the Pointer tool (selected) and dragged; Edit >
 -- Undo puts it back
@@ -1558,6 +1612,37 @@ on ed_preferences_change
    close stack tPrefs
 end ed_preferences_change
 
+-- The Quick Start Guide's first lesson, done as its notes say. It is the
+-- first example Learn offers, and for many the first thing they do in
+-- the IDE: a button dragged from the Tools palette onto the lesson's Try
+-- It box, named Color in the Inspector, and the lesson's two lines run
+-- in the Message Box, which its shortcut opens. The notes must say what
+-- a newcomer could not tell from them (openxtalk.org p=26390): that the
+-- stack they speak of is this window, where on it the button goes, and
+-- that the Message Box is a window the Tools menu opens. The Guide is
+-- opened as Learn opens an example, and taken out of memory unsaved
+-- whatever happened (edGuideAway). A Guide already in memory is a
+-- person's own: the task stops, and it stays as it is (edGuideGone)
+on ed_quick_start_first_lesson
+   local tFile, tError, tMiss
+   put revEnvironmentResourcesPath() & "/" & kGuideFile into tFile
+   if there is no file tFile then throw "the Quick Start Guide is not in this IDE:" && tFile
+   if edInMemory(kGuideStack) then throw "a stack called" && kGuideStack && "is in memory before the lesson"
+   try
+      edGuideLesson tFile
+   catch tError
+      put edJoin(tError) into tMiss
+      try
+         edShotScreen "zz-quick-start-first-lesson"
+      catch tError
+      end try
+   end try
+   edGuideAway
+   if tMiss is not empty then throw tMiss
+   if edInMemory(kGuideStack) then throw "the Quick Start Guide is still in memory after the lesson"
+   edRecord "INFO the Quick Start Guide's first lesson done as its notes say:" && sReport["guide"]
+end ed_quick_start_first_lesson
+
 -- File > Save as Standalone Application... on the stack, and the build
 -- stops on an error after the builder has changed the stack in memory:
 -- the stack a person is left with is the one they had (openxtalk.org
@@ -1756,6 +1841,7 @@ on ed_finish
    end if
    edRemoveBuiltStack kMcStack
    edRemoveBuiltStack kAppStack
+   edGuideGone
    edStopBuildAt empty
    dispatch "revSetTestEnvironment" to stack "Home" with true
    dispatch "revSetOverrideRuntimePath" to stack "Home" with empty
@@ -2940,6 +3026,148 @@ command edRemoveBuiltStack pStack
 end edRemoveBuiltStack
 
 ----------------------------------------------------------------
+-- The Quick Start Guide's first lesson
+
+-- The lesson done in the Guide at pFile; what was done goes to
+-- sReport["guide"], and a step that fails throws
+command edGuideLesson pFile
+   local tCard, tNotes, tLine, tCount, tTile, tDrop, tFrom, tMade, tVia, tDrag, tNew, tPI, tMB, tKeys, tCode
+   -- as Learn opens an example (leOpenExample in revlearn.livecodescript):
+   -- the Run tool, then the stack
+   edToolTile "com.livecode.tool.Browse"
+   if not edWaitFor("the tool is " & quote & "browse tool" & quote, 3000) then throw "Run in the Tools palette did not choose the Browse tool (" & the tool & ")"
+   -- (from here the Guide in memory is this run's own to take away,
+   -- edGuideGone: the task has seen that none was in memory)
+   put true into sKeep["guide"]
+   go stack pFile
+   if not edWaitFor("edOpen(pAx) and the short name of the topStack is pAx", 8000, kGuideStack) then
+      throw "the Quick Start Guide did not open in front; the topStack is" && the short name of the topStack
+   end if
+   -- the front page says where the Try Its are done, and its first tile
+   -- opens the lesson
+   if "this window is the stack" is not in field "step2_text" of card 1 of stack kGuideStack then
+      throw "the front page does not say that this window is the stack:" && field "step2_text" of card 1 of stack kGuideStack
+   end if
+   edClickAt kGuideStack, the loc of group "tile1" of card 1 of stack kGuideStack
+   if not edWaitFor("the short name of this card of stack pAx is pBx", 4000, kGuideStack, kGuideLesson) then
+      throw "a click on the front page's first tile did not open the lesson" && kGuideLesson && "(" & the short name of this card of stack kGuideStack & ")"
+   end if
+   put the long id of card kGuideLesson of stack kGuideStack into tCard
+   -- what the notes say of the stack and of the Message Box
+   put the text of field "Info" of tCard into tNotes
+   put line lineOffset("Drag the top gray button", tNotes) of tNotes into tLine
+   if "this window" is not in tLine or "Try It box" is not in tLine then
+      throw "the notes do not say that the stack is this window, nor where on it the button goes:" && quote & tLine & quote
+   end if
+   put line lineOffset("Tools > Message Box", tNotes) of tNotes into tLine
+   if "menu Tools > Message Box" is not in tLine or "window" is not in tLine or "Cmd-M" is not in tLine then
+      throw "the notes do not say that the Message Box is a window the Tools menu opens, nor a Mac's key:" && quote & tLine & quote
+   end if
+   if there is not a field "canvasHint" of tCard or "here" is not in field "canvasHint" of tCard then throw "the Try It box does not say that the button goes there"
+   edShotStack kGuideStack, "35b-quick-start-lesson"
+
+   -- "1. Drag the top gray button (standard button) from the tools
+   -- palette to the stack": into the Try It box, right of My First Field
+   put the number of buttons of tCard into tCount
+   if tCount is not 1 then throw "the lesson has" && tCount && "buttons before one is made: its notes call the new one button 2"
+   edToolFilter "button"
+   put edTile("com.livecode.interface.classic.button") into tTile
+   if tTile is empty then throw "the Tools palette has no button tile"
+   put (the right of image "Canvas" of tCard - 48) & "," & (the bottom of image "Canvas" of tCard - 54) into tDrop
+   if sInput is true then
+      put "a drag of the system's mouse" into tMade
+      put edScreenLoc(tTile, "revTools") into tFrom
+      edSystemDrag tFrom, (item 1 of tDrop + the left of stack kGuideStack) & "," & (item 2 of tDrop + the top of stack kGuideStack)
+      put edDragDone(20000) into tDrag
+   else
+      put "a double-click on its tile (the system's mouse does not reach the IDE)" into tMade
+      send "mouseDoubleUp 1" to tTile
+   end if
+   if not edWaitFor("the number of buttons of pAx is 2", 6000, tCard) then
+      throw "the button tile made no button on the lesson (" & tMade & "; the drag" && tDrag & "; the topStack" && the short name of the topStack & \
+            "; the tool" && the tool & "; the lesson's buttons" && the number of buttons of tCard & ")"
+   end if
+   edToolFilter empty
+   put the long id of button 2 of tCard into tNew
+   if the short name of tNew is "My First Button" then throw "the button made is not button 2 of the lesson, as its notes call it:" && the long name of button 1 of tCard
+   if the long id of the owner of tNew is not tCard then throw "the button made is not on the lesson's card:" && the long owner of tNew
+   if sInput is true and not (tDrop is within the rect of tNew) then throw "the button dropped at" && tDrop && "is at" && the rect of tNew
+   if the tool is not "pointer tool" then throw "making the button left the" && the tool && "chosen: the notes go on In Edit Mode"
+
+   -- "2. In Edit Mode, double-click the button for its Properties
+   -- Inspector or Object > Object Inspector. 3. Enter a Name for the
+   -- button: Color"
+   edCloseInspectors
+   edClickAt kGuideStack, edInside(tNew)
+   if not edWaitFor("the selected of pAx", 2000, tNew) then throw "a click with the Pointer tool did not select the button made (" & edJoin(the selObj) & ")"
+   edMenu "Object", "Object Inspector"
+   put edInspector(5000) into tPI
+   edTypeInEditor tPI, "name", "Color"
+   if not edWaitFor("the short name of pAx is " & quote & "Color" & quote, 3000, tNew) then
+      throw "the Inspector's Name did not name the button (" & the short name of tNew & ")"
+   end if
+
+   -- "1. Ctrl-M or menu Tools > Message Box. 2. In the upper field type
+   -- and press returnKey", the lesson's two lines as it gives them
+   put revIDEPaletteToStackName("message box") into tMB
+   if edOpen(tMB) then close stack tMB
+   put edShortcutName("m") into tKeys
+   put edShortcut("m") into tVia
+   if not edWaitFor("edOpen(pAx)", 5000, tMB) then throw tKeys && "(" & tVia & ") opened no Message Box over the lesson"
+   -- (its keys let go, before the click on the Message Box's field)
+   get edKeysHeld(tKeys)
+   if it is not empty then throw it
+   dispatch "showCard" to stack tMB with "Single Line"
+   edClickAt tMB, the loc of field "message" of card "Single Line" of stack tMB
+   select text of field "message" of card "Single Line" of stack tMB
+   put line lineOffset("set the backColor of button", tNotes) of tNotes into tCode
+   if tCode is empty then throw "the notes have no line that sets the backColor of the button"
+   edType tMB, tCode & return
+   if not edWaitFor("the backColor of pAx is " & quote & "red" & quote, 3000, tNew) then
+      throw "the lesson's line" && quote & tCode & quote && "did not colour the button made (" & the backColor of tNew & "); the Message Box said:" && \
+            edJoin(field "results" of card "Single Line" of stack tMB)
+   end if
+   put line lineOffset("set the showBorder of button", tNotes) of tNotes into tCode
+   if tCode is empty then throw "the notes have no line that sets the showBorder of the button"
+   select text of field "message" of card "Single Line" of stack tMB
+   edType tMB, tCode & return
+   if not edWaitFor("the showBorder of pAx is false", 3000, tNew) then
+      throw "the lesson's line" && quote & tCode & quote && "did not take the border off the button made (" & the showBorder of tNew & "); the Message Box said:" && \
+            edJoin(field "results" of card "Single Line" of stack tMB)
+   end if
+   edShotScreen "35c-quick-start-first-code"
+   put "the button made by" && tMade & ", the Message Box opened by" && tKeys && "(" & tVia & ")" into sReport["guide"]
+end edGuideLesson
+
+-- The Guide out of memory unsaved (the lesson changed it), its Message
+-- Box and Inspector closed, and the tasks' own stack in front again
+command edGuideAway
+   local tMB, tError
+   try
+      put revIDEPaletteToStackName("message box") into tMB
+      if edOpen(tMB) then close stack tMB
+      edCloseInspectors
+      edToolFilter empty
+   catch tError
+      edRecord "INFO putting the lesson's windows away:" && edJoin(tError)
+   end try
+   edGuideGone
+   edFront
+end edGuideAway
+
+-- The Guide closed and deleted from memory unsaved, if this run opened
+-- it (sKeep["guide"], set as edGuideLesson opens the file). A stack of
+-- that name in memory before the tasks is a person's own, with work
+-- they may not have saved: the lesson's task stops on it and touches
+-- nothing, so nothing here may delete it either, at the end of the
+-- lesson or of the run (ed_finish, which runs whatever tasks ran)
+command edGuideGone
+   if sKeep["guide"] is not true then exit edGuideGone
+   edRemoveBuiltStack kGuideStack
+   put false into sKeep["guide"]
+end edGuideGone
+
+----------------------------------------------------------------
 -- Preferences: a checkbox in its window that a person might turn on and
 -- off, and the preference it keeps
 
@@ -3185,7 +3413,7 @@ command edRightClickAt pStack, pLoc
 end edRightClickAt
 
 -- keys pressed on the system's keyboard, a comma-separated list of Down,
--- Up, Return, Escape (for a menu open now)
+-- Up, Return, Escape (for a menu open now) and the letters m and x
 command edSystemKeys pKeys
    local tKey, tCommand, tCodes
    switch the platform
@@ -3218,7 +3446,134 @@ command edSystemKeys pKeys
    end switch
 end edSystemKeys
 
--- a key's virtual key code on macOS (Down, Up, Return, Escape)
+-- Ctrl (Cmd on a Mac) held and the letter pLetter pressed, on the
+-- system's keyboard
+command edSystemShortcut pLetter
+   local tCommand
+   switch the platform
+      case "MacOS"
+         -- (The Command key itself goes down before the letter and up
+         -- after it, as a hand presses them: 55 is its key, kVK_Command,
+         -- and 1048576 its flag, kCGEventFlagMaskCommand; its key up
+         -- carries no flag. The letter's two events alone with the flag
+         -- on them picked the menu item just the same, but then no event
+         -- ever said that Command was up, and macOS went on holding it:
+         -- the commandKey was down for every click after, and the App
+         -- Browser added the next control clicked to its selection as it
+         -- does for a Command-click. edKeysHeld asks after each shortcut)
+         put "ObjC.import('CoreGraphics'); function key(k, d, f) { var e = $.CGEventCreateKeyboardEvent(null, k, d); " & \
+               "$.CGEventSetFlags(e, f); $.CGEventPost(0, e); delay(0.1); } " & \
+               "key(55, true, 1048576); key(" & edMacKeyCode(pLetter) & ", true, 1048576); " & \
+               "key(" & edMacKeyCode(pLetter) & ", false, 1048576); key(55, false, 0);" into tCommand
+         get shell("osascript -l JavaScript -e " & quote & tCommand & quote & " >/dev/null 2>&1 &")
+         break
+      case "Win32"
+         put "Add-Type -AssemblyName System.Windows.Forms" & return & \
+               "[System.Windows.Forms.SendKeys]::SendWait('^" & toLower(pLetter) & "')" & return into tCommand
+         put base64Encode(textEncode(tCommand, "UTF-16LE")) into tCommand
+         replace return with empty in tCommand
+         launch "powershell -NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand" && tCommand
+         break
+      default
+         get shell("(xdotool key ctrl+" & toLower(pLetter) & ") >/dev/null 2>&1 &")
+         break
+   end switch
+end edSystemShortcut
+
+-- the shortcut's name, as its menu item shows it
+function edShortcutName pLetter
+   if the platform is "MacOS" then return "Cmd+" & toUpper(pLetter)
+   return "Ctrl+" & toUpper(pLetter)
+end edShortcutName
+
+-- The shortcut Ctrl (Cmd on a Mac) and pLetter pressed as a person
+-- presses it: on the system's keyboard where its keys reach the IDE,
+-- else typed by the engine with the key held. Returns which, for the
+-- record: "the system's keyboard" or what took its place
+function edShortcut pLetter
+   if edKeysWork() then
+      edSystemShortcut pLetter
+      return "the system's keyboard"
+   end if
+   edType the short name of the topStack, pLetter, "command"
+   return "the engine's own keys (the system's keyboard does not reach the IDE)"
+end edShortcut
+
+-- The modifier keys still down after the shortcut pKeys was pressed and
+-- answered, in words for a throw, or empty: each must be let go, as a
+-- hand lets go. One that the system goes on holding makes every click
+-- after it another click (the App Browser adds a Command-click on a
+-- control to its selection, and the Inspector then has two objects)
+function edKeysHeld pKeys
+   local tHeld
+   if edWaitFor("the commandKey is up and the controlKey is up and the optionKey is up and the shiftKey is up", 3000) then return empty
+   if the commandKey is down then put " commandKey" after tHeld
+   if the controlKey is down then put " controlKey" after tHeld
+   if the optionKey is down then put " optionKey" after tHeld
+   if the shiftKey is down then put " shiftKey" after tHeld
+   return "after" && pKeys && "was pressed, the system still holds a key down:" & tHeld
+end edKeysHeld
+
+-- Whether a key of the system's keyboard reaches the IDE here: a field
+-- of a stack of this script's must get its letter (as edInputWorks asks
+-- of the mouse). Asked once in a run; the stack in front before it is in
+-- front again after it, by the system's click where that reaches, so
+-- that the keys that follow go where a person's would
+function edKeysWork
+   local tStack, tDefault, tTop, tTool, tLoc, tWorks
+   if sKeep["keysWork"] is not empty then return sKeep["keysWork"]
+   put "OXT Everyday Key Check" into tStack
+   if there is a stack tStack then delete stack tStack
+   put the defaultStack into tDefault
+   put the short name of the topStack into tTop
+   put the tool into tTool
+   lock messages
+   create stack tStack
+   set the rect of stack tStack to (item 3 of the screenRect - 380) & ",160," & (item 3 of the screenRect - 80) & ",320"
+   set the defaultStack to tStack
+   create field "Keys"
+   set the rect of it to "60,50,240,100"
+   unlock messages
+   go stack tStack
+   choose browse tool
+   edPause 500
+   put the loc of field "Keys" of card 1 of stack tStack into tLoc
+   if sInput is true then
+      edRealClickAt tStack, tLoc
+   else
+      edClickAt tStack, tLoc
+   end if
+   select after text of field "Keys" of card 1 of stack tStack
+   edSystemKeys "x"
+   get edWaitFor("field " & quote & "Keys" & quote & " of card 1 of stack pAx is " & quote & "x" & quote, 8000, tStack)
+   put field "Keys" of card 1 of stack tStack is "x" into tWorks
+   edRecord "INFO the system's keyboard reaches the IDE:" && tWorks && "(the check's field holds" && quote & field "Keys" of card 1 of stack tStack & quote & ")"
+   if word 1 of tTool is "browse" then
+      choose browse tool
+   else
+      choose pointer tool
+   end if
+   delete stack tStack
+   if there is a stack tDefault then set the defaultStack to tDefault
+   if there is a stack tTop and the mode of stack tTop is 1 then
+      go stack tTop
+      -- (a click on its title bar's height below its top would be on a
+      -- control: the card's bottom right corner is clear of the tasks')
+      if sInput is true and tWorks then edRealClickAt tTop, (the width of stack tTop - 6) & "," & (the height of stack tTop - 6)
+   end if
+   put tWorks into sKeep["keysWork"]
+   return tWorks
+end edKeysWork
+
+-- The Tools palette shown again and the Message Box pMB closed, after a
+-- task that closed the one and opened the other
+command edToolsBack pMB
+   if pMB is not empty and edOpen(pMB) then close stack pMB
+   if not revIDEPaletteIsVisible("tools") then revIDEOpenPalette "tools"
+   get edWaitFor("edOpen(" & quote & "revTools" & quote & ")", 5000)
+end edToolsBack
+
+-- a key's virtual key code on macOS (Down, Up, Return, Escape, m, x)
 function edMacKeyCode pKey
    switch pKey
       case "Down"
@@ -3229,6 +3584,10 @@ function edMacKeyCode pKey
          return 36
       case "Escape"
          return 53
+      case "m"
+         return 46
+      case "x"
+         return 7
    end switch
    return empty
 end edMacKeyCode

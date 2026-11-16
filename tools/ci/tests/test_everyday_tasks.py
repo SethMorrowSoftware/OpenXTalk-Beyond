@@ -788,5 +788,303 @@ class StandaloneEngineMissing(BuildTasks, unittest.TestCase):
         self.assertLess(m.group(1), own.group(1), 'the dialog comes before the stack in the pictures')
 
 
+class MessageBoxShortcut(BuildTasks, unittest.TestCase):
+    """message-box-shortcut presses the Message Box's shortcut with the
+    Tools palette closed. A newcomer wrote that "when the Tools Palette is
+    not yet visible, Ctrl-M only opens the Tools Palette" (openxtalk.org
+    p=26390). In 0.2.8-dp.1 on Linux it opens the Message Box and leaves
+    the Tools palette closed; the task holds Windows and macOS to that
+    too, with the system's keyboard where its keys reach the IDE, so that
+    the menu bar's accelerator answers as it answers a person."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.menubar = read(os.path.join(ROOT, 'ide', 'Toolset', 'palettes', 'menubar', 'revmenubar.livecodescript'))
+        cls.body = cls.handlers['ed_message_box_shortcut']
+
+    def test_the_task_follows_the_message_boxs_own(self):
+        names = tasks(self.text)
+        self.assertEqual(names.index('message-box-shortcut'), names.index('message-box-lines') + 1)
+        # (which leaves the Message Box closed)
+        self.assertRegex(self.handlers['ed_message_box_lines'], r'close stack tMB\s*$')
+
+    def test_the_letter_is_the_menu_items(self):
+        m = re.search(r'toggleMenuItem\("&Message Box/(\w)", revIDEPaletteIsVisible\("message box"\)\)', self.menubar)
+        self.assertIsNotNone(m, 'Tools > Message Box has no shortcut')
+        letter = m.group(1).lower()
+        self.assertEqual(self.body.count('edShortcut("%s")' % letter), 2, 'pressed to open it, and again to close it')
+        self.assertIn('put edShortcutName("%s") into tKeys' % letter, self.body)
+        # (the Tools palette's own shortcut is another letter)
+        tools = re.search(r'toggleMenuItem\("&Tools Palette/(\w)", revIDEPaletteIsVisible\("tools"\)\)', self.menubar)
+        self.assertIsNotNone(tools, 'Tools > Tools Palette has no shortcut')
+        self.assertNotEqual(tools.group(1).lower(), letter)
+
+    def test_the_tools_palette_is_closed_first_by_its_menu_item(self):
+        close = self.body.index('if revIDEPaletteIsVisible("tools") then edMenu "Tools", "Tools Palette"')
+        closed = self.body.index('if not edWaitFor("not revIDEPaletteIsVisible(pAx)", 3000, "tools") then throw')
+        self.assertLess(close, closed)
+        self.assertLess(closed, self.body.index('edShortcut("m")'))
+        # (and the Message Box is closed before the keys: they must open it)
+        self.assertLess(self.body.index('if edOpen(tMB) then close stack tMB'), self.body.index('edShortcut("m")'))
+
+    def test_a_tools_palette_the_keys_showed_fails_the_task(self):
+        after = self.body.split('put edShortcut("m") into tVia', 1)[1]
+        self.assertIn('if not edWaitFor("edOpen(pAx)", 5000, tMB) then', after)
+        # (once after the keys that open the Message Box, once after the
+        # keys that close it)
+        self.assertEqual(after.count('else if revIDEPaletteIsVisible("tools") then'), 2)
+        self.assertIn('if not edWaitFor("not edOpen(pAx)", 5000, tMB) then', after)
+        # (those four, and a key the system still holds after them)
+        self.assertEqual(after.count('into tMiss'), 5)
+        self.assertIn('if tMiss is not empty then throw tMiss', after)
+
+    def test_the_tools_palette_is_back_whatever_happened(self):
+        after = self.body.split('put edShortcut("m") into tVia', 1)[1]
+        back = after.index('edToolsBack tMB')
+        self.assertNotIn('throw', after[:back], 'a throw here would leave the Tools palette closed for the tasks after')
+        self.assertLess(back, after.index('if tMiss is not empty then throw tMiss'))
+        tools_back = self.handlers['edToolsBack']
+        self.assertIn('if pMB is not empty and edOpen(pMB) then close stack pMB', tools_back)
+        self.assertIn('if not revIDEPaletteIsVisible("tools") then revIDEOpenPalette "tools"', tools_back)
+
+    def test_the_keys_are_the_systems_where_they_reach(self):
+        shortcut = self.function('edShortcut')
+        self.assertRegex(shortcut, r'^\s*if edKeysWork\(\) then\n\s*edSystemShortcut pLetter\n\s*return "the system\'s keyboard"\n\s*end if\n'
+                                   r'\s*edType the short name of the topStack, pLetter, "command"\n\s*return "the engine\'s own keys')
+        # (a miss by the system's keys says whether the engine's own open
+        # it: keys that went elsewhere, or a shortcut that opens nothing)
+        miss = self.body.split('if not edWaitFor("edOpen(pAx)", 5000, tMB) then', 1)[1].split('else if', 1)[0]
+        self.assertRegex(miss, r'if tVia is "the system\'s keyboard" then\n(?:\s*--[^\n]*\n)*\s*edType sStack, "m", "command"\n'
+                               r'\s*put "; typed by the engine it opened one:" && edWaitFor\("edOpen\(pAx\)", 3000, tMB\) after tMiss')
+
+    def test_each_system_presses_its_own_keys(self):
+        keys = self.handlers['edSystemShortcut']
+        mac = keys.split('case "MacOS"', 1)[1].split('case "Win32"', 1)[0]
+        self.assertIn('function key(k, d, f) { var e = $.CGEventCreateKeyboardEvent(null, k, d); ', mac)
+        self.assertIn('$.CGEventSetFlags(e, f); $.CGEventPost(0, e);', mac)
+        win = keys.split('case "Win32"', 1)[1].split('default', 1)[0]
+        self.assertIn('[System.Windows.Forms.SendKeys]::SendWait(\'^" & toLower(pLetter) & "\')', win)
+        self.assertIn('xdotool key ctrl+" & toLower(pLetter)', keys.split('default', 1)[1])
+        codes = self.function('edMacKeyCode')
+        # (kVK_ANSI_M and kVK_ANSI_X)
+        self.assertRegex(codes, r'case "m"\n\s*return 46\n')
+        self.assertRegex(codes, r'case "x"\n\s*return 7\n')
+        name = self.function('edShortcutName')
+        self.assertIn('if the platform is "MacOS" then return "Cmd+" & toUpper(pLetter)', name)
+        self.assertIn('return "Ctrl+" & toUpper(pLetter)', name)
+
+    def test_a_mac_presses_the_command_key_itself_and_lets_it_go(self):
+        # macOS's first run of the task left Command held for every click
+        # after it (the App Browser's next click added to its selection):
+        # the letter's two events had the Command flag, and no event said
+        # that Command was up. The keys in the order a hand presses them:
+        # Command (key 55) down, the letter down and up with Command
+        # held (kCGEventFlagMaskCommand), Command up with no flag
+        keys = self.handlers['edSystemShortcut']
+        mac = keys.split('case "MacOS"', 1)[1].split('case "Win32"', 1)[0]
+        code = '\n'.join(line for line in mac.split('\n') if not line.lstrip().startswith('--'))
+        order = ['key(55, true, 1048576); ',
+                 'key(" & edMacKeyCode(pLetter) & ", true, 1048576); ',
+                 'key(" & edMacKeyCode(pLetter) & ", false, 1048576); ',
+                 'key(55, false, 0);']
+        at = [code.index(part) for part in order]
+        self.assertEqual(at, sorted(at))
+        self.assertEqual(code.count('key(55, '), 2)
+        self.assertNotIn('forEach', code)
+
+    def test_the_keys_must_be_let_go(self):
+        held = self.function('edKeysHeld')
+        self.assertIn('if edWaitFor("the commandKey is up and the controlKey is up and the optionKey is up and the shiftKey is up", 3000) then return empty', held)
+        self.assertIn('return "after" && pKeys && "was pressed, the system still holds a key down:" & tHeld', held)
+        # the shortcut's task asks after both presses, with the miss kept
+        # until the Tools palette is back
+        after = self.body.split('get edShortcut("m")', 1)[1]
+        asked = after.index('if tMiss is empty then put edKeysHeld(tKeys) into tMiss')
+        self.assertLess(asked, after.index('edToolsBack tMB'))
+        # and the lesson's, before its click on the Message Box's field
+        lesson = self.handlers['edGuideLesson']
+        opened = lesson.index('put edShortcut("m") into tVia')
+        asked = lesson.index('get edKeysHeld(tKeys)', opened)
+        self.assertIn('if it is not empty then throw it', lesson[asked:asked + 80])
+        self.assertLess(asked, lesson.index('edClickAt tMB,', opened))
+
+    def test_the_keys_are_checked_with_a_letter_in_a_field_of_the_tasks_own(self):
+        works = self.function('edKeysWork')
+        # (asked once in a run)
+        self.assertRegex(works, r'^\s*local [^\n]*\n\s*if sKeep\["keysWork"\] is not empty then return sKeep\["keysWork"\]\n')
+        self.assertIn('put tWorks into sKeep["keysWork"]', works)
+        typed = works.index('edSystemKeys "x"')
+        self.assertLess(works.index('choose browse tool'), typed)
+        self.assertLess(works.index('select after text of field "Keys" of card 1 of stack tStack'), typed)
+        self.assertLess(typed, works.index('put field "Keys" of card 1 of stack tStack is "x" into tWorks'))
+        # (its stack is gone, and the stack that was in front is in front
+        # again, before the keys that follow)
+        gone = works.rindex('delete stack tStack')
+        self.assertLess(typed, gone)
+        self.assertLess(gone, works.index('go stack tTop'))
+        self.assertIn('edRecord "INFO the system\'s keyboard reaches the IDE:" && tWorks', works)
+
+
+class QuickStartFirstLesson(BuildTasks, unittest.TestCase):
+    """quick-start-first-lesson does the Quick Start Guide's first lesson
+    as its notes say: the first example Learn offers. A newcomer could not
+    do it from the notes (openxtalk.org p=26390): they do not say that
+    "the stack" is the lesson's own window ("the lesson skips to say:
+    Create a new stack"), and "Ctrl-M or Tools > Message Box" reads as
+    something in the Tools palette to put on the card. The builder now
+    says both, the stack is built from it, and the task reads the words in
+    the stack the IDE installs before it does what they say."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.guide = read(os.path.join(ROOT, 'tools', 'examples', 'quick-start.livecodescript'))
+        cls.learn = read(os.path.join(ROOT, 'ide', 'Toolset', 'palettes', 'learn', 'revlearn.livecodescript'))
+        cls.lesson = cls.handlers['edGuideLesson']
+        with open(os.path.join(ROOT, 'ide', 'Resources', 'Examples', 'Remastered', 'Quick Start Guide.oxtstack'), 'rb') as f:
+            cls.stack = f.read()
+        with open(os.path.join(ROOT, 'tools', 'examples', 'originals', 'Quick Start.oxtstack'), 'rb') as f:
+            cls.original = f.read()
+
+    def changes(self):
+        """What lessonText changes in Terry Little's words: (from, to)"""
+        m = re.search(r'^private function lessonText\b.*?^end lessonText', self.guide, re.M | re.S)
+        self.assertIsNotNone(m)
+        body = m.group(0).replace('\\\n', ' ')
+        found = re.findall(r'^\s*textChange tText, "([^"]*)",\s+"([^"]*)"$', body, re.M)
+        self.assertEqual(len(found), len(re.findall(r'^\s*textChange ', body, re.M)), 'a change that is not two plain texts')
+        return found
+
+    def test_the_guide_is_learns_first_example(self):
+        first = self.learn.split('private function leExampleTable', 1)[1].split('return after tTable', 1)[0]
+        self.assertIn('|Resources/%s|%s"' % (self.constant('kGuideFile'), self.constant('kGuideStack')), first)
+        self.assertTrue(os.path.isfile(os.path.join(ROOT, 'ide', 'Resources', self.constant('kGuideFile'))))
+        self.assertIn(self.constant('kGuideLesson'), re.search(r'^constant kLessons = "([^"]*)"', self.guide, re.M).group(1).split(',')[0])
+
+    def test_it_is_opened_as_learn_opens_an_example(self):
+        opened = self.learn.split('private command leOpenExample', 1)[1].split('end leOpenExample', 1)[0]
+        self.assertLess(opened.index('choose browse tool'), opened.index('go stack tFile'))
+        self.assertLess(self.lesson.index('edToolTile "com.livecode.tool.Browse"'), self.lesson.index('go stack pFile'))
+        # (and the lesson by a click on the front page's first tile)
+        self.assertIn('edClickAt kGuideStack, the loc of group "tile1" of card 1 of stack kGuideStack', self.lesson)
+
+    def test_the_words_say_what_a_newcomer_could_not_tell(self):
+        changes = dict(self.changes())
+        self.assertEqual(changes['palette to the stack.'], 'palette to the stack: this window, in its Try It box.')
+        self.assertEqual(changes['1. Ctrl-M or Tools > Message Box.'],
+                         '1. Ctrl-M (Cmd-M on a Mac) or menu Tools > Message Box: a small window of its own opens.')
+        self.assertIn('Do each Try It here: this window is the stack."', self.guide)
+        self.assertNotIn('beside this window', self.guide)
+        # (the Try It box says so itself)
+        self.assertIn('buildCanvas "TRY IT", "Drag a button here from the Tools palette.", true', self.guide)
+
+    def test_what_is_changed_is_in_his_stack(self):
+        # (the build stops where his text no longer has the words: here,
+        # before a build)
+        for old, new in self.changes():
+            self.assertIn(old.lower().encode('ascii'), self.original.lower(), old)
+            self.assertNotIn(new.lower().encode('ascii'), self.original.lower(), new)
+
+    def test_a_line_of_the_notes_stays_a_line(self):
+        # (lesson 3 has the reader count the lines of the notes)
+        for old, new in self.changes():
+            self.assertNotRegex(new, r'[\r\n]')
+        m = re.search(r'^private function lessonText\b.*?^end lessonText', self.guide, re.M | re.S)
+        self.assertNotIn('return', m.group(0).replace('return tText', ''))
+
+    def test_the_stack_installed_is_built_from_these_words(self):
+        for old, new in self.changes():
+            self.assertIn(new.encode('ascii'), self.stack, 'the stack was not built again after its builder changed: ' + new)
+        self.assertIn(b'Do each Try It here: this window is the stack.', self.stack)
+        self.assertNotIn(b'1. Ctrl-M or Tools > Message Box.', self.stack)
+        self.assertNotIn(b'beside this window', self.stack)
+
+    def test_the_task_reads_those_words_in_the_stack(self):
+        changes = dict(self.changes())
+        m = re.search(r'put line lineOffset\("Drag the top gray button", tNotes\) of tNotes into tLine\n\s*if (.*?) then\n', self.lesson)
+        self.assertIsNotNone(m)
+        words = re.findall(r'"([^"]+)" is not in tLine', m.group(1))
+        self.assertEqual(words, ['this window', 'Try It box'])
+        for word in words:
+            self.assertIn(word, changes['palette to the stack.'])
+            self.assertNotIn(word.encode('ascii'), self.original)
+        m = re.search(r'put line lineOffset\("Tools > Message Box", tNotes\) of tNotes into tLine\n\s*if (.*?) then\n', self.lesson)
+        self.assertIsNotNone(m)
+        words = re.findall(r'"([^"]+)" is not in tLine', m.group(1))
+        self.assertEqual(words, ['menu Tools > Message Box', 'window', 'Cmd-M'])
+        for word in words:
+            self.assertIn(word, changes['1. Ctrl-M or Tools > Message Box.'])
+        self.assertIn('if "this window is the stack" is not in field "step2_text" of card 1 of stack kGuideStack then', self.lesson)
+        # (read before anything is done: a lesson that does not say it is
+        # not done as if it did)
+        self.assertLess(self.lesson.index('put line lineOffset("Tools > Message Box", tNotes)'), self.lesson.index('edToolFilter "button"'))
+
+    def test_the_button_made_is_the_notes_button_2(self):
+        self.assertEqual(dict(self.changes())['button 3 to'], 'button 2 to')
+        self.assertIn('if tCount is not 1 then throw', self.lesson)
+        made = self.lesson.index('if not edWaitFor("the number of buttons of pAx is 2", 6000, tCard) then')
+        self.assertLess(self.lesson.index('edSystemDrag tFrom, '), made)
+        self.assertLess(made, self.lesson.index('put the long id of button 2 of tCard into tNew'))
+        self.assertIn('if the long id of the owner of tNew is not tCard then throw', self.lesson)
+        # (dropped in the Try It box, where the notes send it)
+        self.assertIn('put (the right of image "Canvas" of tCard - 48) & "," & (the bottom of image "Canvas" of tCard - 54) into tDrop', self.lesson)
+        self.assertIn('if sInput is true and not (tDrop is within the rect of tNew) then throw', self.lesson)
+
+    def test_it_is_named_in_the_inspector_the_notes_open(self):
+        named = self.lesson.index('edTypeInEditor tPI, "name", "Color"')
+        self.assertLess(self.lesson.index('edMenu "Object", "Object Inspector"'), named)
+        self.assertLess(named, self.lesson.index('edShortcut("m")'))
+
+    def test_the_lessons_own_lines_are_run_in_the_message_box(self):
+        # (read from the notes: what a reader types is what is typed)
+        colour = self.lesson.index('put line lineOffset("set the backColor of button", tNotes) of tNotes into tCode')
+        border = self.lesson.index('put line lineOffset("set the showBorder of button", tNotes) of tNotes into tCode')
+        self.assertLess(self.lesson.index('if not edWaitFor("edOpen(pAx)", 5000, tMB) then throw'), colour)
+        self.assertLess(colour, border)
+        self.assertEqual(self.lesson.count('edType tMB, tCode & return'), 2)
+        self.assertEqual(self.lesson.count('if tCode is empty then throw'), 2)
+        self.assertIn('if not edWaitFor("the backColor of pAx is " & quote & "red" & quote, 3000, tNew) then', self.lesson)
+        self.assertIn('if not edWaitFor("the showBorder of pAx is false", 3000, tNew) then', self.lesson)
+        # (and those lines are in the stack as the notes give them)
+        self.assertIn(b' the backColor of button ', self.stack)
+        self.assertIn(b' the showBorder of button 2 to ', self.stack)
+
+    def test_the_guide_leaves_memory_unsaved_whatever_happened(self):
+        body = self.handlers['ed_quick_start_first_lesson']
+        done = body.index('edGuideLesson tFile')
+        away = body.index('edGuideAway')
+        self.assertLess(body.index('try'), done)
+        self.assertLess(body.index('catch tError', done), away)
+        self.assertNotIn('throw', body[done:away])
+        self.assertLess(away, body.index('if tMiss is not empty then throw tMiss'))
+        # (and the task says so itself: the run's own Guide must be gone)
+        self.assertIn('if edInMemory(kGuideStack) then throw "the Quick Start Guide is still in memory after the lesson"', body[away:])
+        self.assertIn('edGuideGone', self.handlers['edGuideAway'])
+        self.assertIn('edGuideGone', self.handlers['ed_finish'])
+        self.assertIn('edRemoveBuiltStack kGuideStack', self.handlers['edGuideGone'])
+        removed = self.handlers['edRemoveBuiltStack']
+        self.assertLess(removed.index('revIDESetEdited pStack, false'), removed.index('delete stack pStack'))
+        self.assertNotIn('save ', self.lesson)
+
+    def test_a_guide_a_person_has_open_is_left_alone(self):
+        body = self.handlers['ed_quick_start_first_lesson']
+        self.assertLess(body.index('if edInMemory(kGuideStack) then throw'), body.index('try'))
+        # Nor does the end of the run delete it (ed_finish runs whatever
+        # tasks ran, the lesson's or not): one handler takes the Guide
+        # out of memory, and only when this run opened it, which the
+        # lesson notes as it opens the file and nothing else does
+        gone = self.handlers['edGuideGone']
+        mine = 'if sKeep["guide"] is not true then exit edGuideGone'
+        self.assertLess(gone.index(mine), gone.index('edRemoveBuiltStack kGuideStack'))
+        code = '\n'.join(line for line in self.text.split('\n') if not line.lstrip().startswith('--'))
+        self.assertEqual(code.count('edRemoveBuiltStack kGuideStack'), 1)
+        self.assertNotIn('delete stack kGuideStack', code)
+        self.assertEqual(code.count('put true into sKeep["guide"]'), 1)
+        opened = self.lesson.index('put true into sKeep["guide"]')
+        self.assertLess(opened, self.lesson.index('go stack pFile'))
+        self.assertNotIn('throw', self.lesson[opened:self.lesson.index('go stack pFile')])
+
+
 if __name__ == '__main__':
     unittest.main()
