@@ -18,7 +18,7 @@
 """The changelog fragments of changelog/, and folding them into
 CHANGELOG.md.
 
-  python3 tools/ci/changelog.py check [--base COMMIT]
+  python3 tools/ci/changelog.py check [--base COMMIT [--pushed-over COMMIT]]
   python3 tools/ci/changelog.py fold [--dry-run]
 
 Every pull request used to add its lines to the end of the "Unreleased"
@@ -42,7 +42,7 @@ once and come back, as two did after 0.2.7-rc.6.15's squash), and
 CHANGELOG.md has at most one "## Unreleased" section.
 
 check --base COMMIT (what CI runs, with HEAD^1: the base of a pull
-request's merge commit, and main as it was before a push): also, no
+request's merge commit): also, no
 pull request's lines are lost. Every pull request with a line in a
 fragment COMMIT has must still have one, in a fragment or in
 CHANGELOG.md (where a fold puts them). #508 came from a branch whose
@@ -51,7 +51,10 @@ its two lines over #502's five; nothing saw it, and the fold for
 0.2.8-dp.2 would have left #502 out of the release notes. A line may
 be reworded, and one of several removed: what is refused is a pull
 request left with none. A COMMIT that cannot be read is an error, not
-a pass.
+a pass. --pushed-over COMMIT (CI gives it on a push: the commit the push
+replaced, github.event.before) is compared with instead when it can be
+read: a push may bring several commits, and HEAD^1 is only the parent of
+the last, so a fragment written over by an earlier one would pass.
 
 fold (the pull request that sets a release's version, before it renames
 "## Unreleased" to the version; BUILDING.md, "Making a release"): appends
@@ -190,6 +193,27 @@ def held(repo, commit=None):
     return fragments, dash_lines(git_text(repo, commit, CHANGELOG) or '')
 
 
+def readable(repo, commit):
+    """Whether git has the commit here (not one a forced push left
+    behind, nor the zeros GitHub gives for a branch's first push)."""
+    return (bool(commit) and not commit.startswith('-')
+            and git_lines(repo, 'rev-parse', '--verify', '--quiet', commit + '^{commit}') is not None)
+
+
+def base_of(repo, base, pushed_over=''):
+    """The commit check compares with, and a note when it is not the one
+    a push replaced though CI named one: pushed_over when it can be read
+    (main as it was before the push, whatever number of commits the push
+    brought), else base."""
+    pushed_over = (pushed_over or '').strip()
+    if not pushed_over or not pushed_over.strip('0'):
+        return base, None
+    if readable(repo, pushed_over):
+        return pushed_over, None
+    return base, ('the commit this push replaced (%s) is not in the history here (a forced '
+                  'push?): comparing with %s' % (pushed_over, base))
+
+
 def lost(repo, base, head=None):
     """The pull requests' lines that the fragments of the commit base
     hold and the working tree (or the commit head) has lost, as a list
@@ -203,8 +227,7 @@ def lost(repo, base, head=None):
     under a branch name used twice) or deleted without a fold is seen.
     A line that names no pull request (five were merged before check
     asked for the number) may only gain its number."""
-    if base.startswith('-') or git_lines(repo, 'rev-parse', '--verify', '--quiet',
-                                         base + '^{commit}') is None:
+    if not readable(repo, base):
         return ['cannot read the commit %s, so cannot tell whether a line of its fragments is '
                 'lost (no git here, or a clone without its history)' % base]
     before = held(repo, base)[0]
@@ -353,19 +376,27 @@ def main(argv=None):
     p.add_argument('--base', metavar='COMMIT',
                    help='also: no pull request with a line in the fragments COMMIT has is left '
                         'with none (CI gives HEAD^1)')
+    p.add_argument('--pushed-over', metavar='COMMIT', default='',
+                   help='the commit a push replaced (github.event.before; empty when there '
+                        'was no push): compared with instead of --base when it can be read')
     p = sub.add_parser('fold', help='fold the fragments into CHANGELOG.md')
     p.add_argument('--dry-run', action='store_true',
                    help='print the lines, change nothing')
     args = parser.parse_args(argv)
     try:
         if args.command == 'check':
-            problems = check(args.repo, args.base)
+            if args.pushed_over and args.base is None:
+                parser.error('--pushed-over needs --base, to compare with when it cannot be read')
+            base, note = base_of(args.repo, args.base, args.pushed_over)
+            if note:
+                print('NOTE: ' + note)
+            problems = check(args.repo, base)
             for problem in problems:
                 print('ERROR: ' + problem)
             if problems:
                 return 1
             print('%d changelog fragment(s), all well formed' % len(fragment_names(args.repo))
-                  + ('; no line of %s\'s fragments is lost' % args.base if args.base else ''))
+                  + ('; no line of %s\'s fragments is lost' % base if base else ''))
             return 0
         added = fold(args.repo, args.dry_run)
         for line in added:

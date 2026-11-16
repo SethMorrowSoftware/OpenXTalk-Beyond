@@ -395,6 +395,46 @@ class LostLines(unittest.TestCase):
         finally:
             shutil.rmtree(plain)
 
+    def test_a_push_of_several_commits_is_compared_with_main_before_it(self):
+        # HEAD^1 is only the parent of the last commit of a push: a
+        # fragment written over by the first of two would pass. On a push
+        # CI gives the commit the push replaced (github.event.before)
+        before = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.repo, check=True,
+                                stdout=subprocess.PIPE, universal_newlines=True).stdout.strip()
+        self.fragment('claude-thread.md', '- Five (#5)\n')
+        self.save('the first of the push writes over a fragment')
+        with open(os.path.join(self.repo, 'other.txt'), 'w', encoding='utf-8') as f:
+            f.write('something else\n')
+        self.save('the second changes something else')
+        self.assertEqual(changelog.check(self.repo, 'HEAD^1'), [])
+        self.assertEqual(changelog.base_of(self.repo, 'HEAD^1', before), (before, None))
+        code, out = self.run_check('--base', 'HEAD^1', '--pushed-over', before)
+        self.assertEqual(code, 1, out)
+        self.assertIn('ERROR: changelog/claude-thread.md', out)
+        self.assertIn(before, out)
+        # no push (a pull request's merge commit), and a branch's first
+        # push, for which GitHub gives zeros: HEAD^1, and nothing to say
+        for none in ('', '0' * 40):
+            self.assertEqual(changelog.base_of(self.repo, 'HEAD^1', none), ('HEAD^1', None))
+            code, out = self.run_check('--base', 'HEAD^1', '--pushed-over', none)
+            self.assertEqual(code, 0, out)
+            self.assertNotIn('NOTE', out)
+            self.assertIn("no line of HEAD^1's fragments is lost", out)
+        # a commit a forced push left behind is not in the history: HEAD^1
+        # then, and the run says so
+        gone = '1234567890' * 4
+        code, out = self.run_check('--base', 'HEAD^1', '--pushed-over', gone)
+        self.assertEqual(code, 0, out)
+        self.assertIn('NOTE: the commit this push replaced (%s) is not in the history' % gone, out)
+        self.assertIn('comparing with HEAD^1', out)
+        # (and it is never read as an option of git's)
+        self.assertEqual(changelog.base_of(self.repo, 'HEAD^1', '--all')[0], 'HEAD^1')
+        # alone it has nothing to fall back on
+        import contextlib
+        import io
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            changelog.main(['--repo', self.repo, 'check', '--pushed-over', before])
+
     def test_between_two_commits(self):
         # (how the history is looked through, and the test below)
         self.fragment('claude-thread.md', '- Five (#5)\n')
@@ -428,16 +468,19 @@ class LostLines(unittest.TestCase):
 
     def test_ci_gives_the_base_and_has_the_history_for_it(self):
         # "CI checks" checks out a pull request's merge commit, so HEAD^1
-        # is main as the pull request finds it (and on a push, main
-        # before it). Without --base nothing is compared, and without the
-        # whole history there is no HEAD^1
+        # is main as the pull request finds it; on a push it gives the
+        # commit the push replaced. Without --base nothing is compared,
+        # and without the whole history there is no HEAD^1
         import re
         with open(os.path.join(changelog.REPO, '.github', 'workflows', 'ci-checks.yml'), encoding='utf-8') as f:
             text = f.read()
         job = re.search(r'^  checks:\n(.*?)(?=^  [A-Za-z0-9_-]+:\n|\Z)', text, re.S | re.M)
         self.assertIsNotNone(job)
         runs = re.findall(r'^\s+run: (python3 tools/ci/changelog\.py check.*)$', job.group(1), re.M)
-        self.assertEqual(runs, ['python3 tools/ci/changelog.py check --base HEAD^1'])
+        self.assertEqual(runs, ['python3 tools/ci/changelog.py check --base HEAD^1 '
+                                '--pushed-over "$PUSHED_OVER"'])
+        self.assertIn("          PUSHED_OVER: ${{ github.event_name == 'push' && github.event.before || '' }}\n"
+                      '        run: ' + runs[0] + '\n', job.group(1))
         checkout = re.search(r'uses: actions/checkout@\S+\n\s+with:\n((?:\s+\S.*\n)+?)\n', job.group(1))
         self.assertIsNotNone(checkout)
         self.assertIn('fetch-depth: 0', checkout.group(1))

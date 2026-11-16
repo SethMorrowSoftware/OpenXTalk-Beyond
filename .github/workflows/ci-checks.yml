@@ -73,7 +73,7 @@ jobs:
     steps:
       # (the whole history: the runtimes' provenance step looks back to
       # the commit the runtimes asset was built from, and the changelog
-      # check compares with HEAD^1)
+      # check compares with HEAD^1 or the commit a push replaced)
       - name: Check out
         uses: actions/checkout@v7
         with:
@@ -114,11 +114,15 @@ jobs:
           python3 -m unittest discover -s tools/ci/tests -v
 
       # --base: no pull request's lines are lost. HEAD^1 is the base of a
-      # pull request's merge commit (what is checked out here), and main
-      # as it was before a push; it needs the history fetched above.
+      # pull request's merge commit (what is checked out here); it needs
+      # the history fetched above. On a push the commit the push replaced
+      # is compared with instead (--pushed-over): a push may bring several
+      # commits, and HEAD^1 is only the parent of the last.
       # #508's fragment took the name #502's had and wrote over its lines
       - name: Check the changelog fragments
-        run: python3 tools/ci/changelog.py check --base HEAD^1
+        env:
+          PUSHED_OVER: ${{ github.event_name == 'push' && github.event.before || '' }}
+        run: python3 tools/ci/changelog.py check --base HEAD^1 --pushed-over "$PUSHED_OVER"
 
       # GPLv3 5(a): every source file changed from LiveCode Community says
       # so (NOTICE-OF-MODIFICATIONS.md); needs the whole history above

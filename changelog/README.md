@@ -25,6 +25,7 @@ release" in [BUILDING.md](../BUILDING.md)). CI checks that every fragment
 is made of such lines, and that no pull request loses its lines: one with
 a line in a fragment on main must still have one, in a fragment or in
 CHANGELOG.md (`python3 tools/ci/changelog.py check --base HEAD^1`, where
-`HEAD^1` is main as the pull request finds it; without `--base` only the
-form of the lines is checked). A line may be reworded. A change to this
-folder alone starts no build.
+`HEAD^1` is main as the pull request finds it, and on a push to main the
+commit the push replaced; without `--base` only the form of the lines is
+checked). A line may be reworded. A change to this folder alone starts no
+build.
