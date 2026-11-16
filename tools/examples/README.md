@@ -329,6 +329,17 @@ tinted with the accent) into the dark page's. The sidebar and the scripts
 panel are dark in both. The stage and what a program puts on it are left
 as they are, light: the programs were written for a white stage.
 
+A card can say that its stage follows the look too, with the custom
+property `cStageFollowsLook` set to true by its builder: then everything
+on the card is paired between the two builds, the stage with it. The
+Quick Start Guide's lessons do. Their reader drags controls of their own
+onto the Try It box, and the system draws a new control for the look the
+desktop has: in the dark look its words are white, and on a box left
+light they could not be seen (openxtalk.org p=26402). A builder that sets
+it colours what it puts on the stage with the kit's colours, or with
+`lkDarkLiteral`, as it does the page, and looks at every card in both
+looks.
+
 ## The window
 
 Every remaster is one window, 1024 by 640, which a 720p screen holds with

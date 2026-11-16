@@ -110,6 +110,7 @@ sys.path.insert(0, HERE)
 
 import build_dictionary  # noqa: E402
 import build_lessons  # noqa: E402
+import seo  # noqa: E402
 
 # The parts of the site, each with its card on the front page, and the
 # Downloads section (from a release's files, not a folder of the site)
@@ -822,6 +823,9 @@ def build(args):
     parts['EXTENSIONS'] = 'xTalk Suite %s' % shown if shown else 'xTalk Suite'
     front_page(out, parts)
     brand(os.path.join(HERE, 'brand'), os.path.join(out, 'brand'))
+    # Last, over everything written: each page's one address and the
+    # sitemap (tools/pages/seo.py), for search engines
+    print('sitemap: %d pages' % len(seo.finish(out)))
     check_sizes(out)
     for key, version in sorted((k, v) for k, v in parts.items() if k in PARTS):
         print('%s: %s' % (key.lower(), version or '(no version given)'))

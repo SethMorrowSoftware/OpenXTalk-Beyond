@@ -76,7 +76,13 @@ end startup
 #                   so that a text the user has changed is left alone
 #    t:             an image's text (an icon, drawn in its colour)
 # The stage and what the programs put on it are not the kit's colours, so
-# they come out the same in both builds and are left as they are.
+# they come out the same in both builds and are left as they are. A card
+# whose custom property cStageFollowsLook is true is the exception: its
+# stage and what is on it follow the look with the page, in the colours
+# its builder gave them in the dark build (the Quick Start Guide's
+# lessons, where the reader puts controls of their own on the stage, and
+# the system draws those for the dark look: white words, which a stage
+# left light does not show, openxtalk.org p=26402).
 
 constant kLookProps = "backColor,foreColor,borderColor,hiliteColor,shadowColor,topColor,bottomColor,focusColor,fillGradient,strokeGradient,dropShadow,innerShadow,outerGlow,innerGlow,colorOverlay"
 
@@ -153,7 +159,7 @@ private command buildPairLooks pLight, pDark
          if the id of tObj is not the id of tDObj or word 1 of tObj is not word 1 of tDObj then
             throw "control" && tCtl && "of card" && tCard && "of" && the short name of pLight && "differs between the light and dark builds"
          end if
-         if buildIsPage(tObj, the cLayout of tL) then
+         if buildIsPage(tObj, the cLayout of tL, the cStageFollowsLook of tL) then
             buildPairOne tObj, tDObj, the id of tL, tLightA, tDarkA
          end if
       end repeat
@@ -178,10 +184,15 @@ end buildPairLooks
 -- card with a stage (pLayout "program" or "wide"), only the window's own
 -- groups (the frame, the scripts panel) are the page; the stage, and what
 -- the card's program has on it, keep their colours, which the programs
--- were written for
-private function buildIsPage pObj, pLayout
+-- were written for. Unless the card says that its stage follows the look
+-- too (pStageToo, its cStageFollowsLook): then every control of it is
+-- the page
+private function buildIsPage pObj, pLayout, pStageToo
    local tObj
    if word 1 of pLayout is not "program" and word 1 of pLayout is not "wide" then
+      return true
+   end if
+   if pStageToo is true then
       return true
    end if
    put pObj into tObj

@@ -43,7 +43,7 @@ script "oxt_everyday"
 -- <name> ok | FAILED <why>, DONE). OXT_TOUR_ONLY names tasks; the tasks
 -- before a named one that it needs (the stack, its controls) run too.
 
-constant kTasks = "start,new-stack,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,message-box-shortcut,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,quick-start-first-lesson,standalone-stopped-build,standalone-mc-stack-file,standalone-built-and-run,standalone-engine-missing,finish"
+constant kTasks = "start,new-stack,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,message-box-shortcut,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,quick-start-first-lesson,quick-start-dropped-shows,standalone-stopped-build,standalone-mc-stack-file,standalone-built-and-run,standalone-engine-missing,finish"
 -- (the names the tasks give what they make)
 constant kStack = "Everyday Stack"
 constant kFile = "everyday.oxtstack"
@@ -1322,11 +1322,21 @@ end edSeWaiting
 
 -- an object's long id cut to its own name and its window's
 function edShortTarget pLongID
-   local tOut
+   local tOut, tError
    put word 1 to 3 of pLongID into tOut
    if pLongID contains "revSEFind" then return tOut && "(Find)"
    if pLongID contains "revNewScriptEditor" then return tOut && "(Script Editor)"
-   if pLongID contains "revTools" then return tOut && "(Tools)"
+   if pLongID contains "revTools" then
+      -- (which tile: the press another tile still held went to the card
+      -- and its release to that tile, edDragDone)
+      if word 1 of tOut is not "card" and word 1 of tOut is not "stack" then
+         try
+            return tOut && "(Tools," && the short name of pLongID & ")"
+         catch tError
+         end try
+      end if
+      return tOut && "(Tools)"
+   end if
    -- (a stack of a file: its file's name)
    if word 1 of tOut is "stack" and tOut contains "/" then
       set the itemDelimiter to "/"
@@ -1643,6 +1653,35 @@ on ed_quick_start_first_lesson
    edRecord "INFO the Quick Start Guide's first lesson done as its notes say:" && sReport["guide"]
 end ed_quick_start_first_lesson
 
+-- What a person drops on the Try It box of the Quick Start Guide's first
+-- lesson can be seen, in the look the IDE has on. In the dark look the
+-- system draws a new control for a dark window, with white words, and the
+-- Try It box stayed light: "when you drag a control over in dark mode it
+-- is almost invisible" (openxtalk.org p=26402, on a Mac; the same on
+-- Windows 11). The lessons' stages now follow the look. Three kinds of
+-- control are dragged from the Tools palette, as the lesson has a button
+-- dragged: one with a face of its own, one that is words alone, and one
+-- with a mark and words, and each must change what is seen of the box
+on ed_quick_start_dropped_shows
+   local tFile, tError, tMiss
+   put revEnvironmentResourcesPath() & "/" & kGuideFile into tFile
+   if there is no file tFile then throw "the Quick Start Guide is not in this IDE:" && tFile
+   if edInMemory(kGuideStack) then throw "a stack called" && kGuideStack && "is in memory before the task"
+   try
+      edGuideDropped tFile
+   catch tError
+      put edJoin(tError) into tMiss
+      try
+         edShotScreen "zz-quick-start-dropped-shows"
+      catch tError
+      end try
+   end try
+   edGuideAway
+   if tMiss is not empty then throw tMiss
+   if edInMemory(kGuideStack) then throw "the Quick Start Guide is still in memory after the task"
+   edRecord "INFO what is dropped on the Quick Start Guide's Try It box shows:" && sReport["dropped"]
+end ed_quick_start_dropped_shows
+
 -- File > Save as Standalone Application... on the stack, and the build
 -- stops on an error after the builder has changed the stack in memory:
 -- the stack a person is left with is the one they had (openxtalk.org
@@ -1918,6 +1957,7 @@ command edMake pType, pWord, pShot
       throw "the new" && pType && "is off the card:" && the rect of tNew
    end if
    edRecord "INFO made" && the short name of tNew && "(" & pType & ") by" && tVia && "at" && the rect of tNew
+   if sInput is true then edRecord "INFO the drag" && tDrag
    set the cEverydayType of tNew to pType
    edToolFilter empty
    if the tool is not "pointer tool" then throw "the Tools palette left the" && the tool && "chosen after making a" && pType
@@ -1961,6 +2001,276 @@ function edTile pName
    if there is not a button pName of stack "revTools" then return empty
    return the long id of button pName of stack "revTools"
 end edTile
+
+-- The first tile of the Tools palette's Controls (the classic controls,
+-- "com.livecode.interface.classic." and a type) in the look it has on:
+-- of the tiles shown, the topmost, and of a row the leftmost. The Quick
+-- Start Guide's first lesson says which that is (edGuideLesson)
+function edFirstControlTile
+   local tIndex, tTile, tName, tFirst, tTop, tLeft
+   repeat with tIndex = 1 to the number of buttons of stack "revTools"
+      put the long id of button tIndex of stack "revTools" into tTile
+      put the short name of tTile into tName
+      if not (tName begins with "com.livecode.interface.classic.") then next repeat
+      if not the effective visible of tTile then next repeat
+      if tFirst is empty or the top of tTile < tTop - 4 or (abs(the top of tTile - tTop) <= 4 and the left of tTile < tLeft) then
+         put tName into tFirst
+         put the top of tTile into tTop
+         put the left of tTile into tLeft
+      end if
+   end repeat
+   return tFirst
+end edFirstControlTile
+
+-- Whether the Tools palette has its look pLook ("modern" or "classic")
+-- on: the modern look's header, or the classic look's "Modern look" button
+function edToolsLookOn pLook
+   if there is not a stack "revTools" then return false
+   if pLook is "classic" then return there is a button "tmModernLook" of card 1 of stack "revTools"
+   return there is a group "tmHeader" of card 1 of stack "revTools"
+end edToolsLookOn
+
+-- Whether the section pKey of the Tools palette's modern look ("classic"
+-- is its Controls) is folded: the arrow of its caption points right. The
+-- palette keeps what is folded in its own script, and reads the preference
+-- (revTools_modernFolded) only while nothing is folded there, so the
+-- preference does not say, and to empty it unfolds nothing
+function edToolsFolded pKey
+   if there is not a stack "revTools" then return false
+   if there is not a button ("tmCapHit:" & pKey) of stack "revTools" then return false
+   if there is not an image "tm.chevRight" of stack "revTools" then return false
+   return the icon of button ("tmCapHit:" & pKey) of stack "revTools" is the id of image "tm.chevRight" of stack "revTools"
+end edToolsFolded
+
+-- The caption of the section pKey is pressed, which folds the section or
+-- unfolds it: the palette's own handler, wherever the caption is scrolled
+command edToolsCaption pKey
+   local tWas
+   if there is not a button ("tmCapHit:" & pKey) of stack "revTools" then
+      throw "the Tools palette's modern look has no caption for its section" && pKey
+   end if
+   put edToolsFolded(pKey) into tWas
+   send "mouseDown 1" to button ("tmCapHit:" & pKey) of stack "revTools"
+   repeat while the lockScreen
+      unlock screen
+   end repeat
+   if not edWaitFor("edToolsFolded(pAx) is not pBx", 3000, pKey, tWas) then
+      throw "its caption did not fold or unfold the Tools palette's section" && pKey && "(folded:" && edToolsFolded(pKey) & ")"
+   end if
+end edToolsCaption
+
+-- Whether the modern look shows its section of the view pView ("classic"
+-- is its Controls), by the palette's own account. The palette makes its
+-- tiles from the setting (revTools_modernShow) only when it builds the
+-- look, so a section is turned on or off with the palette's own command,
+-- the one its menu calls, which builds it again (edToolsSection)
+function edToolsSectionShown pView
+   if there is not a stack "revTools" then return false
+   dispatch function "tmShownSections" to stack "revTools"
+   return pView is among the items of the result
+end edToolsSectionShown
+
+command edToolsSection pView
+   local tWas
+   put edToolsSectionShown(pView) into tWas
+   dispatch "tmToggleSection" to stack "revTools" with pView
+   repeat while the lockScreen
+      unlock screen
+   end repeat
+   if not edWaitFor("edToolsSectionShown(pAx) is not pBx", 3000, pView, tWas) then
+      throw "the Tools palette did not turn its section" && pView && "on or off (shown:" && edToolsSectionShown(pView) & ")"
+   end if
+end edToolsSection
+
+-- What the Quick Start Guide's first lesson says of the standard button's
+-- tile is so in both of the Tools palette's looks: "the first one under
+-- Controls" in the modern look and "the top gray button" in the classic
+-- one. The modern look is read with its Controls shown and unfolded, as a
+-- new install has them: a section left out is turned on as the palette's
+-- menu does it, and a folded one unfolded by its caption, since the
+-- palette reads neither setting again by itself (edToolsSectionShown,
+-- edToolsFolded). Both are put back after by the same means, and the look
+-- as it was
+command edGuideTileIsFirst
+   local tLook, tTry, tError, tNow, tShown, tUnfolded, tAgain
+   put revIDEGetPreference("revTools_look") into tLook
+   try
+      repeat for each item tTry in "modern,classic"
+         if (tTry is "classic") is not (revIDEGetPreference("revTools_look") is "classic") then revIDESetPreference "revTools_look", tTry
+         if not edWaitFor("edToolsLookOn(pAx)", 6000, tTry) then throw "the Tools palette did not take its" && tTry && "look"
+         if tTry is "modern" then
+            if not edToolsSectionShown("classic") then
+               edToolsSection "classic"
+               put true into tShown
+            end if
+            if edToolsFolded("classic") then
+               edToolsCaption "classic"
+               put true into tUnfolded
+            end if
+         end if
+         if not edWaitFor("edToolsLookOn(pAx) and edFirstControlTile() is pBx", 6000, tTry, "com.livecode.interface.classic.button") then
+            throw "the notes call the standard button the first under Controls (the top one, in the classic look); in the Tools palette's" && tTry && \
+                  "look (on:" && edToolsLookOn(tTry) & ") the first is" && quote & edFirstControlTile() & quote
+         end if
+         edRecord "INFO the Tools palette's first control tile in its" && tTry && "look:" && edFirstControlTile() && "at" && the topLeft of edTile(edFirstControlTile())
+      end repeat
+   catch tError
+   end try
+   if tUnfolded is true or tShown is true then
+      -- (in the modern look, which has the caption and the sections)
+      try
+         if revIDEGetPreference("revTools_look") is "classic" then revIDESetPreference "revTools_look", "modern"
+         if not edWaitFor("edToolsLookOn(pAx)", 6000, "modern") then throw "the Tools palette did not take its modern look, to put its Controls back as they were"
+         if tUnfolded is true and not edToolsFolded("classic") then edToolsCaption "classic"
+         if tShown is true and edToolsSectionShown("classic") then edToolsSection "classic"
+      catch tAgain
+         if tError is empty then put tAgain into tError
+      end try
+   end if
+   if revIDEGetPreference("revTools_look") is not tLook then revIDESetPreference "revTools_look", tLook
+   if tError is not empty then throw tError
+   put "modern" into tNow
+   if tLook is "classic" then put "classic" into tNow
+   if not edWaitFor("edToolsLookOn(pAx)", 6000, tNow) then
+      throw "the Tools palette did not take its" && tNow && "look again"
+   end if
+end edGuideTileIsFirst
+
+-- The same with the Controls as a reader may have them when the check
+-- starts, and the check must find the tile all the same and leave them
+-- so. pHow "folded": the section folded, the palette in the look it had.
+-- pHow "hidden": the section left out of the modern look, and the palette
+-- in that look, so that no change of look builds it again. Then the
+-- section and the look are put back
+command edGuideTileIsFirstWhen pHow
+   local tLook, tDid, tShown, tError, tAgain, tNow, tButton
+   put "com.livecode.interface.classic.button" into tButton
+   put revIDEGetPreference("revTools_look") into tLook
+   try
+      if tLook is "classic" then revIDESetPreference "revTools_look", "modern"
+      if not edWaitFor("edToolsLookOn(pAx)", 6000, "modern") then throw "the Tools palette did not take its modern look, to have its Controls" && pHow
+      if pHow is "hidden" then
+         if edToolsSectionShown("classic") then
+            edToolsSection "classic"
+            put true into tDid
+         end if
+         if edTile(tButton) is not empty then
+            throw "the Tools palette's Controls are left out, and it has the standard button's tile"
+         end if
+      else
+         -- (a section left out has no caption: shown for this)
+         if not edToolsSectionShown("classic") then
+            edToolsSection "classic"
+            put true into tShown
+         end if
+         if not edToolsFolded("classic") then
+            edToolsCaption "classic"
+            put true into tDid
+         end if
+         if "classic" is not among the items of revIDEGetPreference("revTools_modernFolded") then
+            throw "the Tools palette's Controls are folded, and its setting does not say so:" && revIDEGetPreference("revTools_modernFolded")
+         end if
+         -- (the check starts in the look the reader has)
+         if tLook is "classic" then
+            revIDESetPreference "revTools_look", "classic"
+            if not edWaitFor("edToolsLookOn(pAx)", 6000, "classic") then throw "the Tools palette did not take its classic look again"
+         end if
+      end if
+      edGuideTileIsFirst
+      if revIDEGetPreference("revTools_look") is "classic" then revIDESetPreference "revTools_look", "modern"
+      if not edWaitFor("edToolsLookOn(pAx)", 6000, "modern") then throw "the Tools palette did not take its modern look after the check"
+      if pHow is "hidden" then
+         if edToolsSectionShown("classic") or edTile(tButton) is not empty then
+            throw "the check of the tile left the Controls shown, which were left out"
+         end if
+      else
+         if not edToolsFolded("classic") then throw "the check of the tile left the Controls unfolded, which were folded"
+         if "classic" is not among the items of revIDEGetPreference("revTools_modernFolded") then
+            throw "the check of the tile left the setting of what is folded changed:" && revIDEGetPreference("revTools_modernFolded")
+         end if
+      end if
+      edRecord "INFO with its Controls" && pHow && "first, the check of the tile finds the tile and leaves them" && pHow
+   catch tError
+   end try
+   -- as they were when this began (in the modern look, which has the
+   -- caption and the sections)
+   if tDid is true or tShown is true then
+      try
+         if revIDEGetPreference("revTools_look") is "classic" then revIDESetPreference "revTools_look", "modern"
+         if not edWaitFor("edToolsLookOn(pAx)", 6000, "modern") then throw "the Tools palette did not take its modern look, to put its Controls back as they were"
+         if pHow is "hidden" then
+            if not edToolsSectionShown("classic") then
+               edToolsSection "classic"
+            end if
+         else
+            if tDid is true and edToolsFolded("classic") then edToolsCaption "classic"
+            if tShown is true and edToolsSectionShown("classic") then edToolsSection "classic"
+         end if
+      catch tAgain
+         if tError is empty then put tAgain into tError
+      end try
+   end if
+   if revIDEGetPreference("revTools_look") is not tLook then revIDESetPreference "revTools_look", tLook
+   if tError is not empty then throw tError
+   put "modern" into tNow
+   if tLook is "classic" then put "classic" into tNow
+   if not edWaitFor("edToolsLookOn(pAx)", 6000, tNow) then
+      throw "the Tools palette did not take its" && tNow && "look again, after the check with its Controls" && pHow
+   end if
+end edGuideTileIsFirstWhen
+
+-- How much of the control pObj a person can see on its card: the number
+-- of pixels of its rect that it changes by 80 or more (of 255) in
+-- brightness, between a picture of the card without it and one with it.
+-- The pictures are the card as the engine draws it, so a window over the
+-- stack does not matter. A word of a label in the colour of what is under
+-- it changes none; a word that can be read changes some dozens
+-- (openxtalk.org p=26402: in the dark look a control dropped on the Quick
+-- Start Guide's light Try It box was "almost invisible")
+function edSeenPixels pObj
+   local tCard, tRect, tWas, tWith, tWithout, tCount, tIndex, tA, tB
+   put the long owner of pObj into tCard
+   put the rect of pObj into tRect
+   put the visible of pObj into tWas
+   lock screen
+   set the visible of pObj to true
+   put edCardPixels(tCard, tRect) into tWith
+   set the visible of pObj to false
+   put edCardPixels(tCard, tRect) into tWithout
+   set the visible of pObj to tWas
+   unlock screen
+   if the number of bytes of tWith is 0 or the number of bytes of tWith is not the number of bytes of tWithout then
+      throw "the two pictures of" && tRect && "of the card do not match:" && the number of bytes of tWith && "and" && the number of bytes of tWithout && "bytes"
+   end if
+   put 0 into tCount
+   repeat with tIndex = 1 to the number of bytes of tWith step 4
+      -- (a pixel is four bytes: nothing, red, green, blue)
+      put 299 * byteToNum(byte tIndex + 1 of tWith) + 587 * byteToNum(byte tIndex + 2 of tWith) + 114 * byteToNum(byte tIndex + 3 of tWith) into tA
+      put 299 * byteToNum(byte tIndex + 1 of tWithout) + 587 * byteToNum(byte tIndex + 2 of tWithout) + 114 * byteToNum(byte tIndex + 3 of tWithout) into tB
+      if abs(tA - tB) >= 80000 then add 1 to tCount
+   end repeat
+   return tCount
+end edSeenPixels
+
+-- The pixels of the rect pRect of the card pCard, as the engine draws the
+-- card: its imageData, four bytes a pixel. The picture is made in a stack
+-- of its own, which is then deleted, so that the card gets no image
+function edCardPixels pCard, pRect
+   local tDefault, tData, tError
+   put the defaultStack into tDefault
+   if there is a stack "edPixels" then delete stack "edPixels"
+   create invisible stack "edPixels"
+   try
+      set the defaultStack to "edPixels"
+      import snapshot from rect pRect of pCard
+      put the imageData of image 1 of card 1 of stack "edPixels" into tData
+   catch tError
+   end try
+   set the defaultStack to tDefault
+   delete stack "edPixels"
+   if tError is not empty then throw "no picture of" && pRect && "of the card:" && edJoin(tError)
+   return tData
+end edCardPixels
 
 function edTileShown pName
    local tTile
@@ -2037,14 +2347,72 @@ function edPendingNames
    return word 1 to -1 of tOut
 end edPendingNames
 
+-- How many of the messages waiting have their time behind them: what the
+-- IDE has to deliver before it is idle again (the pendingMessages gives
+-- each its time, as the long seconds)
+function edDue
+   local tLine, tCount, tNow
+   put the long seconds into tNow
+   put 0 into tCount
+   repeat for each line tLine in the pendingMessages
+      if item 2 of tLine is a number and item 2 of tLine <= tNow then add 1 to tCount
+   end repeat
+   return tCount
+end edDue
+
+-- Waits until the IDE has delivered the messages it has due, as a person
+-- does who sees it busy: at most pMilliseconds, and no longer than their
+-- number goes on falling (one that sends itself again is always due).
+-- Returns how many were due and how long they took, for a record.
+--
+-- A drag of the system's mouse needs it. The helper presses, moves and
+-- lets go in about a second, and the Tools palette starts its drag only
+-- if the button is still down when its mouseDown arrives (its "check for
+-- some movement before drag"). On Windows the press waits its turn behind
+-- the messages due before it (MCScreenDC::wait, w32dce.cpp: a waiting
+-- message whose time is earlier than the next event's goes first). The
+-- lesson's three checks of the tile switch the palette's look over and
+-- over with no event handled between; each time the palette is made its
+-- tiles are named, each nameChanged tells the IDE that its stacks changed
+-- (revSetActiveStacks, revfrontscriptlibrary), and the Message Box
+-- answers each with a positionOpenStacksButton sent to itself (its
+-- layoutCard). So the lesson's drag on Windows made no button (#532, run
+-- 43906149713), and the same drag measured there (#537, run
+-- 43934646350): with 2 such messages waiting the tile's mouseDown came
+-- 46 ms after the press; with 36, after one check, 430 ms; with 252,
+-- after the three, 7.8 s, the mouse long up, in the light and the dark
+-- run alike. A wait of 3 s after the checks was not enough (163 still
+-- waiting) and a loop of 25 s without the checks did no harm. Linux
+-- delivers the same 238 in a tenth of a second. A person switches the
+-- look once, and is not pressing a tile in the half second after
+function edSettled pMilliseconds
+   local tStart, tFirst, tLeast, tLeastAt, tNow
+   put the milliseconds into tStart
+   put edDue() into tFirst
+   put tFirst into tLeast
+   put tStart into tLeastAt
+   repeat while tLeast > 0 and the milliseconds - tStart < pMilliseconds and the milliseconds - tLeastAt < 1500
+      wait 50 milliseconds with messages
+      put edDue() into tNow
+      if tNow < tLeast then
+         put tNow into tLeast
+         put the milliseconds into tLeastAt
+      end if
+   end repeat
+   return tFirst && "messages due," && tLeast && "left after" && (the milliseconds - tStart) && "ms"
+end edSettled
+
 -- The system's mouse pressed at pFrom, moved in steps to pTo and released
 -- there (screen points), while the engine handles each event as it comes:
 -- the command runs on its own. It writes what it did to a file of its
 -- own (sKeep["dragFile"]), a line a step: "started", "down" and "up" on
 -- Windows, each with the milliseconds since the launch, and "up" alone
--- elsewhere; edDragDone waits for its "up"
+-- elsewhere; edDragDone waits for its "up". The IDE is first given the
+-- time to deliver what it has due (edSettled), and what that was is kept
+-- for edDragDone's record
 command edSystemDrag pFrom, pTo
    local tSteps, tCommand, tScript, i, tX, tY, tMoves, tFile
+   put edSettled(20000) into sKeep["dragSettled"]
    -- (in this run's folder: a file two runs shared would say "up" to
    -- one for the other's drag)
    put sWork & "/drag.txt" into tFile
@@ -2114,18 +2482,80 @@ command edSystemDrag pFrom, pTo
 end edSystemDrag
 
 -- Waits, at most pMilliseconds, for the last drag's helper to release the
--- mouse; returns what it wrote and how long that took, for a record
+-- mouse; returns what it wrote, how long that took and what the engine
+-- held the mouse over meanwhile (edDragOver), for a record
 function edDragDone pMilliseconds
    local tFile, tText
    put sKeep["dragFile"] into tFile
    if tFile is empty then return "(no drag)"
-   if edWaitFor("there is a file pAx and URL (" & quote & "file:" & quote & " & pAx) contains " & quote & "up" & quote, pMilliseconds, tFile) then
+   put empty into sKeep["dragOver"]
+   put empty into sKeep["dragOverNow"]
+   if edWaitFor("edDragOver() and there is a file pAx and URL (" & quote & "file:" & quote & " & pAx) contains " & quote & "up" & quote, pMilliseconds, tFile) then
       put URL ("file:" & tFile) into tText
-      return "released" && the milliseconds - sKeep["dragLaunched"] && "ms after the launch (" & edJoin(word 1 to -1 of tText) & ")"
+      -- The release is the system's; the engine has it only when it has
+      -- handled the event. On macOS the Tools palette's drag ends when
+      -- the system says the button is up ("the mouse" there is NSEvent's
+      -- pressedMouseButtons), which can be before the engine has taken
+      -- the mouse-up from its queue, and a wait that has run its time
+      -- takes one more event at most. The engine gives a mouse-up to the
+      -- window pressed only while that window's stack is the one it holds
+      -- the mouse over (MCPlatformHandleMouseUp and
+      -- MCPlatformHandleMouseRelease, desktop.cpp), and a task's own
+      -- click (click at) makes that the stack clicked while it waits: a
+      -- mouse-up taken from the queue then is dropped. The tile dragged
+      -- goes on holding the press, and the palette's next press, wherever
+      -- it is, goes to the card and its release to that tile. So
+      -- quick-start-dropped-shows on both of macOS's test jobs, Intel and
+      -- Apple Silicon (#532, run 43906150245), whose lesson before it
+      -- drags and then clicks the button made with no event handled
+      -- between: "the browse tile's click chose nothing ... seen: 0
+      -- mouseDown card id 1002 (Tools); 205 mouseRelease button id 105962
+      -- (Tools)", the same tile's id in both; and browse-runs-it's lost
+      -- click (edToolTile) came after drags too. This was read in the
+      -- engine's code and fits that record to the message; it was not
+      -- seen happening here (the path is macOS's alone).
+      -- A person makes no click of the engine's: for them the mouse-up is
+      -- the next event taken. Here the events are handled for a moment
+      -- before the task goes on, as after edClickAt's click, and the
+      -- record ends with what the engine holds the mouse over then
+      edPause 200
+      get edDragOver()
+      return "released" && the milliseconds - sKeep["dragLaunched"] && "ms after the launch (" & edJoin(word 1 to -1 of tText) & "); the mouse over:" && edDragWasOver() & \
+            "; before it" && sKeep["dragSettled"]
    end if
    if there is a file tFile then put URL ("file:" & tFile) into tText
-   return "not released" && the milliseconds - sKeep["dragLaunched"] && "ms after the launch (" & edJoin(word 1 to -1 of tText) & ")"
+   return "not released" && the milliseconds - sKeep["dragLaunched"] && "ms after the launch (" & edJoin(word 1 to -1 of tText) & "); the mouse over:" && edDragWasOver() & \
+         "; before it" && sKeep["dragSettled"]
 end edDragDone
+
+-- What the engine holds the mouse over while a drag's helper works: its
+-- button, the stack and the control, each time one of them has changed
+-- when edDragDone's wait asks (ten times a second, and not while the
+-- palette's own drag loop runs), with the milliseconds since the launch.
+-- A drag that works reads "up revTools" and the tile's name before the
+-- press, and the stack dropped on after the release; a press that never
+-- reached the tile says here where the engine held the mouse instead. It
+-- only records: it is true whatever it saw, so the wait ends on the
+-- helper's "up" alone
+function edDragOver
+   local tNow, tControl, tError
+   try
+      put the short name of the mouseControl into tControl
+   catch tError
+      put empty into tControl
+   end try
+   put the mouse && the mouseStack && tControl into tNow
+   if tNow is not sKeep["dragOverNow"] then
+      put tNow into sKeep["dragOverNow"]
+      put (the milliseconds - sKeep["dragLaunched"]) && word 1 to -1 of tNow & " / " after sKeep["dragOver"]
+   end if
+   return true
+end edDragOver
+
+function edDragWasOver
+   if sKeep["dragOver"] is empty then return "nothing recorded"
+   return char 1 to -4 of sKeep["dragOver"]
+end edDragWasOver
 
 -- Whether a click of the system's mouse reaches the IDE here: a button
 -- of a stack of this script's must get its mouseUp (as the tour's
@@ -3055,9 +3485,15 @@ command edGuideLesson pFile
    put the long id of card kGuideLesson of stack kGuideStack into tCard
    -- what the notes say of the stack and of the Message Box
    put the text of field "Info" of tCard into tNotes
-   put line lineOffset("Drag the top gray button", tNotes) of tNotes into tLine
+   put line lineOffset("from the tools palette to the stack", tNotes) of tNotes into tLine
    if "this window" is not in tLine or "Try It box" is not in tLine then
       throw "the notes do not say that the stack is this window, nor where on it the button goes:" && quote & tLine & quote
+   end if
+   -- (which tile of the Tools palette, in its modern look and in its
+   -- classic one: "the top gray button" alone fits the classic look only,
+   -- openxtalk.org p=26402)
+   if "under Controls" is not in tLine or "reads OK" is not in tLine or "classic look" is not in tLine then
+      throw "the notes do not say which tile of the Tools palette the standard button is, in its modern look and in its classic one:" && quote & tLine & quote
    end if
    put line lineOffset("Tools > Message Box", tNotes) of tNotes into tLine
    if "menu Tools > Message Box" is not in tLine or "window" is not in tLine or "Cmd-M" is not in tLine then
@@ -3066,10 +3502,14 @@ command edGuideLesson pFile
    if there is not a field "canvasHint" of tCard or "here" is not in field "canvasHint" of tCard then throw "the Try It box does not say that the button goes there"
    edShotStack kGuideStack, "35b-quick-start-lesson"
 
-   -- "1. Drag the top gray button (standard button) from the tools
-   -- palette to the stack": into the Try It box, right of My First Field
+   -- "1. Drag a standard button (the first one under Controls ...) from
+   -- the tools palette to the stack": into the Try It box, right of My
+   -- First Field
    put the number of buttons of tCard into tCount
    if tCount is not 1 then throw "the lesson has" && tCount && "buttons before one is made: its notes call the new one button 2"
+   edGuideTileIsFirst
+   edGuideTileIsFirstWhen "folded"
+   edGuideTileIsFirstWhen "hidden"
    edToolFilter "button"
    put edTile("com.livecode.interface.classic.button") into tTile
    if tTile is empty then throw "the Tools palette has no button tile"
@@ -3087,6 +3527,9 @@ command edGuideLesson pFile
       throw "the button tile made no button on the lesson (" & tMade & "; the drag" && tDrag & "; the topStack" && the short name of the topStack & \
             "; the tool" && the tool & "; the lesson's buttons" && the number of buttons of tCard & ")"
    end if
+   -- (a drag that worked keeps its record too: it says what the IDE had
+   -- due before it, edSettled)
+   if sInput is true then edRecord "INFO the lesson's drag" && tDrag
    edToolFilter empty
    put the long id of button 2 of tCard into tNew
    if the short name of tNew is "My First Button" then throw "the button made is not button 2 of the lesson, as its notes call it:" && the long name of button 1 of tCard
@@ -3141,6 +3584,83 @@ end edGuideLesson
 
 -- The Guide out of memory unsaved (the lesson changed it), its Message
 -- Box and Inspector closed, and the tasks' own stack in front again
+-- The Guide opened on its first lesson, and a standard button, a label
+-- field and a check box dragged from the Tools palette onto the free row
+-- of its Try It box, under My First Field: each must be seen there
+-- (edSeenPixels: 30 pixels or more of it; a word of a label is some
+-- dozens). The Guide's look must be the IDE's, and the Try It box is
+-- kept as the engine draws it, so that it can be looked at where a
+-- window was over it on the screen
+command edGuideDropped pFile
+   local tCard, tWant, tLook, tCanvas, tType, tIndex, tSpot, tTile, tCount, tMade, tDrag, tNew, tSeen, tFile
+   put empty into sReport["dropped"]
+   edToolTile "com.livecode.tool.Browse"
+   if not edWaitFor("the tool is " & quote & "browse tool" & quote, 3000) then throw "Run in the Tools palette did not choose the Browse tool (" & the tool & ")"
+   -- (from here the Guide in memory is this run's own to take away)
+   put true into sKeep["guide"]
+   go stack pFile
+   if not edWaitFor("edOpen(pAx) and the short name of the topStack is pAx", 8000, kGuideStack) then
+      throw "the Quick Start Guide did not open in front; the topStack is" && the short name of the topStack
+   end if
+   -- (the front page's tile is the lesson's task's to click)
+   go card kGuideLesson of stack kGuideStack
+   if not edWaitFor("the short name of this card of stack pAx is pBx", 4000, kGuideStack, kGuideLesson) then
+      throw "the Guide did not go to the lesson" && kGuideLesson && "(" & the short name of this card of stack kGuideStack & ")"
+   end if
+   put the long id of card kGuideLesson of stack kGuideStack into tCard
+   put "light" into tWant
+   if revIDEAppearanceIsDark() is true then put "dark" into tWant
+   put the uLook of stack kGuideStack into tLook
+   if tLook is empty then put "light" into tLook
+   if tLook is not tWant then throw "the IDE has its" && tWant && "look on and the Quick Start Guide its" && tLook && "one"
+   put the rect of image "Canvas" of tCard into tCanvas
+   put 0 into tIndex
+   repeat for each item tType in "Button,LabelField,Checkbox"
+      add 1 to tIndex
+      -- (the row between My First Field and the box's hint, left to right)
+      put (item 1 of tCanvas + 64 + (tIndex - 1) * 98) & "," & (the bottom of field "Field Test" of tCard + 20) into tSpot
+      put the number of controls of tCard into tCount
+      edToolFilter tType
+      put edTile("com.livecode.interface.classic." & tType) into tTile
+      if tTile is empty then throw "the Tools palette has no" && tType && "tile"
+      if sInput is true then
+         put "a drag of the system's mouse" into tMade
+         edSystemDrag edScreenLoc(tTile, "revTools"), (item 1 of tSpot + the left of stack kGuideStack) & "," & (item 2 of tSpot + the top of stack kGuideStack)
+         put edDragDone(20000) into tDrag
+      else
+         put "a double-click on its tile (the system's mouse does not reach the IDE)" into tMade
+         send "mouseDoubleUp 1" to tTile
+      end if
+      if not edWaitFor("the number of controls of pAx is pBx + 1", 6000, tCard, tCount) then
+         throw "the" && tType && "tile made nothing on the lesson (" & tMade & "; the drag" && tDrag & "; the topStack" && the short name of the topStack & "; the tool" && the tool & ")"
+      end if
+      if sInput is true then edRecord "INFO the drag of the" && tType && tDrag
+      edToolFilter empty
+      put the long id of control (tCount + 1) of tCard into tNew
+      if the long id of the owner of tNew is not tCard then throw "the" && tType && "made is not on the lesson's card:" && the long owner of tNew
+      if sInput is not true then set the loc of tNew to tSpot
+      if not (tSpot is within the rect of tNew) then throw "the" && tType && "dropped at" && tSpot && "is at" && the rect of tNew
+      if not (the loc of tNew is within tCanvas) then throw "the" && tType && "is not on the Try It box (" & tCanvas & "):" && the rect of tNew
+      -- (as it is when the reader clicks elsewhere: its handles are not it)
+      select empty
+      put edSeenPixels(tNew) into tSeen
+      edRecord "INFO in the" && tLook && "look the" && tType && "dropped on the Try It box at" && the rect of tNew && "changes" && tSeen && "pixels of it; its words" && \
+            the effective textColor of tNew && "on" && the effective backColor of tNew
+      if tSeen < 30 then
+         throw "in the" && tLook && "look the" && tType && "dropped on the Try It box cannot be seen:" && tSeen && "of its pixels differ from the box under it (its words" && \
+               the effective textColor of tNew & ", made by" && tMade & ")"
+      end if
+      put tType && tSeen & "; " after sReport["dropped"]
+   end repeat
+   put "pixels changed, in the" && tLook && "look, made by" && tMade after sReport["dropped"]
+   edShotStack kGuideStack, "35d-quick-start-dropped"
+   -- (and the box as the engine draws it)
+   put sOut & slash & "everyday-35e-quick-start-try-it-drawn.png" into tFile
+   export snapshot from rect tCanvas of tCard to file tFile as PNG
+   if there is not a file tFile then throw "the picture of the Try It box was not written (" & the result & ")"
+   edRecord "SHOT everyday-35e-quick-start-try-it-drawn.png" && tCanvas
+end edGuideDropped
+
 command edGuideAway
    local tMB, tError
    try

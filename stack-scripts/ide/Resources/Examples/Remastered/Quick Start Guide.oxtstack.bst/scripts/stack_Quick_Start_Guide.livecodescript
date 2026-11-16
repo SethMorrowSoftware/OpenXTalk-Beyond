@@ -38,16 +38,25 @@ command narratorReset
    catch tError  --no voice here, so nothing to stop
    end try
    if there is no fld "Said" or there is no fld "Lesson" then exit narratorReset
-   set the textColor of fld "Said" to "71,85,105"  --(dark enough to read on the balloon's tint)
+   set the textColor of fld "Said" to narratorInk(false)  --(dark enough to read on the balloon's tint; light on the dark one)
    put "Press Read it to me, and I will read this lesson to you, a paragraph at each click. " & \
          "Try each thing as I go." into fld "Said"
    set the vScroll of fld "Said" to 0
    put the number of lines of fld "Lesson" && "paragraphs, one at each click" into fld "Progress"
 end narratorReset
 
+function narratorInk pReading  --the colour of the narrator's words, in the look the window has on (the group "Frame" keeps it in the stack's uLook)
+   if the uLook of this stack is "dark" then
+      if pReading is true then return "255,255,255"
+      return "226,232,240"
+   end if
+   if pReading is true then return "15,23,42"
+   return "71,85,105"
+end narratorInk
+
 command narratorShow pLine
    if there is no fld "Said" or there is no fld "Lesson" then exit narratorShow
-   set the textColor of fld "Said" to "15,23,42"
+   set the textColor of fld "Said" to narratorInk(true)
    put word 1 to -1 of line pLine of fld "Lesson" into fld "Said"
    set the vScroll of fld "Said" to 0
    put "Paragraph" && pLine && "of" && the number of lines of fld "Lesson" into fld "Progress"
