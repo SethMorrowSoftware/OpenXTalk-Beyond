@@ -202,7 +202,7 @@ end TestTheGameOpensOnItsTitle
 -- What the builder put in the stack: the levels as their file has them,
 -- every sound, the font, and what a page and an Android package ask for
 on TestEverythingTheGameNeedsIsInTheStack
-   local tLevels, tSounds, tFiles, tFile, tMissing, tSettings, tHandlers
+   local tLevels, tSounds, tFolder, tFiles, tFile, tMissing, tSettings, tHandlers
    put url ("binfile:" & TestGetEngineRepositoryPath() & "/tools/web-player/ember-bricks/levels.txt") into tLevels
    TestAssert "the levels are read", tLevels is not empty
    -- (a checkout on Windows gives the file CRLF line ends: the builder
@@ -211,17 +211,33 @@ on TestEverythingTheGameNeedsIsInTheStack
    replace numToChar(13) with empty in tLevels
    TestAssert "the stack has the levels as their file has them", tLevels is the cLevels of stack kStack
    put the customProperties["cSounds"] of stack kStack into tSounds
-   put files(TestGetEngineRepositoryPath() & "/tools/web-player/ember-bricks/sounds") into tFiles
-   filter tFiles with "*.wav"
-   repeat for each line tFile in tFiles
-      set the itemDelimiter to "."
-      if char 1 to 4 of tSounds[item 1 of tFile] is not "RIFF" then
-         put item 1 of tFile & space after tMissing
+   repeat for each key tFile in tSounds
+      if char 1 to 4 of tSounds[tFile] is not "RIFF" then
+         put tFile & space after tMissing
       end if
-      set the itemDelimiter to comma
    end repeat
-   TestAssert "every sound is in the stack, a WAV" && tMissing, tMissing is empty and the number of lines of tFiles is 27
-   TestAssert "and no other", the number of elements of tSounds is 27
+   TestAssert "the stack has 27 sounds, each a WAV" && tMissing, tMissing is empty and the number of elements of tSounds is 27
+   -- and they are the sounds of the game's folder. (The tests that run in
+   -- the web engine have the files a test names, and no folder:
+   -- tools/ci/web_tests.py. There the names have nothing to be compared
+   -- with, and the line above is what is tested)
+   put TestGetEngineRepositoryPath() & "/tools/web-player/ember-bricks/sounds" into tFolder
+   if there is a folder tFolder or not TestIsInStandalone() then
+      put files(tFolder) into tFiles
+      filter tFiles with "*.wav"
+      put empty into tMissing
+      set the itemDelimiter to "."
+      repeat for each line tFile in tFiles
+         if tSounds[item 1 of tFile] is empty then
+            put item 1 of tFile & space after tMissing
+         end if
+      end repeat
+      set the itemDelimiter to comma
+      TestAssert "every sound of the game's folder is in the stack, and no other" && tMissing, \
+            tMissing is empty and the number of lines of tFiles is 27
+   else
+      TestSkip "every sound of the game's folder is in the stack", "this run's tests have no folder of the sounds"
+   end if
    TestAssert "the font's two faces", the length of the cFontRegular of stack kStack > 10000 and \
          the length of the cFontBold of stack kStack > 10000
    put the cJavascriptHandlers of stack kStack into tHandlers
