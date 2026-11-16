@@ -14,6 +14,13 @@ for more details.
 You should have received a copy of the GNU General Public License
 along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
+/* Modified 2026 by Seth Morrow for OpenXTalk-Beyond
+   (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond): ported from
+   the libzip 0.6.1 that LiveCode carried to libzip 1.12, with revZip's
+   progress messages now sent from its own read loops and from a layered
+   source over each item it adds. These changes are distributed under the
+   same GNU General Public License v3 as the rest of this file.  */
+
 #include <map>
 #include <string>
 #include <list>
