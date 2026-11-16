@@ -38,6 +38,11 @@ files it is made from, without a browser or an engine:
   DataChannelXT's module as the xTalk Suite's pins name it, and runs in
   Chromium and WebKit in web.yml
 - the engine tests drive the game through the hooks it has
+- whatever comes into the game (a message of the engine's, a button, the
+  page) changes what the window shows only behind a locked screen, and no
+  handler leaves the screen locked: on a phone every statement that
+  changes the window with the screen unlocked is a drawing of it, and
+  waits for the screen's next frame
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -287,6 +292,104 @@ class Assets(unittest.TestCase):
         self.assertNotRegex(builder(), r'(?i)\bimport paint\b|create image')
 
 
+def script_handlers(text):
+    """The handlers of a script, {name: (kind, [(line number, code)])}: kind
+    is on, command or function, with "private " before it for a private
+    one, and the code of a line is the line without its comment and
+    without the words in its quotes"""
+    out = {}
+    name = None
+    for number, line in enumerate(text.split('\n'), 1):
+        code = re.sub(r'"[^"]*"', '""', line)
+        code = re.sub(r'(--|#|//).*$', '', code).rstrip()
+        if name is None:
+            m = re.match(r'(private\s+)?(on|command|function)\s+(\w+)', code)
+            if m:
+                name = m.group(3)
+                out[name] = (('private ' if m.group(1) else '') + m.group(2), [])
+        elif re.match(r'end\s+%s\b' % re.escape(name), code):
+            name = None
+        else:
+            out[name][1].append((number, code))
+    return out
+
+
+# A statement that changes what the window shows: a property of a control
+# (the stack's own, its rect or its whole screen, are the window itself)
+CHANGES = re.compile(r'\s*set the \w+(?:\[[^\]]*\])? of (?!me\b)')
+
+
+def screen_faults(text):
+    """Where a handler of a script would leave the screen locked, or unlock
+    one it did not lock: [(handler, line number, what)]. A handler locks
+    and unlocks as often, and between the two nothing leaves it."""
+    faults = []
+    for name, (kind, lines) in script_handlers(text).items():
+        depth = 0
+        number = 0
+        for number, code in lines:
+            word = code.strip()
+            if word == 'lock screen':
+                depth += 1
+            elif word == 'unlock screen':
+                depth -= 1
+                if depth < 0:
+                    faults.append((name, number, 'unlocks a screen it did not lock'))
+                    depth = 0
+            elif depth > 0 and re.match(r'(exit to top|exit %s|return|pass|throw)\b' % re.escape(name), word):
+                faults.append((name, number, 'leaves with the screen locked: ' + word))
+        if depth:
+            faults.append((name, number, 'ends with the screen locked'))
+    return faults
+
+
+def unlocked_changes(text, entries):
+    """Those of entries (handlers of a script) that change what the window
+    shows with the screen unlocked, themselves or through a handler they
+    call: {entry: (the handlers on the way to the statement, its line
+    number)}. What a handler does between lock screen and unlock screen is
+    locked, whatever it calls there."""
+    handlers = script_handlers(text)
+    called = re.compile(r'\b(%s)\b' % '|'.join(sorted(handlers, key=len, reverse=True)))
+    unlocked = {}
+    for name, (kind, lines) in handlers.items():
+        depth = 0
+        first = None
+        calls = []
+        for number, code in lines:
+            word = code.strip()
+            if word == 'lock screen':
+                depth += 1
+            elif word == 'unlock screen':
+                depth = max(0, depth - 1)
+            elif depth == 0:
+                if first is None and CHANGES.match(code):
+                    first = number
+                calls += [c for c in called.findall(code) if c != name]
+        unlocked[name] = (first, calls)
+    clean = set()
+
+    def way(name, on_it):
+        first, calls = unlocked[name]
+        if first is not None:
+            return [name], first
+        for other in calls:
+            if other in on_it or other in clean:
+                continue
+            found = way(other, on_it | {other})
+            if found:
+                return [name] + found[0], found[1]
+        clean.add(name)
+        return None
+
+    out = {}
+    for entry in entries:
+        found = way(entry, {entry})
+        if found:
+            out[entry] = found
+    return out
+
+
 class FitsAnIPhonesStack(unittest.TestCase):
 
     def test_no_statement_is_too_long(self):
@@ -496,6 +599,172 @@ class Check(unittest.TestCase):
         self.assertFalse(ember_bricks_check.apart(None, [100, 0, 200, 40]))
 
 
+class OneDrawing(unittest.TestCase):
+    """The engine draws the window again after every statement that changed
+    what it shows, unless the screen is locked, and on a phone each
+    drawing waits for the screen's next frame: a level begun with the
+    screen unlocked was a hundred drawings and more, well over a second on
+    Android (the emulator's tests of the game: twenty-four levels begun
+    did not end within sixty seconds). A desktop's tests cannot see it
+    (they run with no window), so the script is read instead."""
+
+    # What comes into the game with the screen unlocked on purpose, or
+    # only from the tests' hands
+    ALLOWED = {
+        'ebButtonLook': 'a button as it is pressed: the one thing it changes is the drawing wanted, at once',
+        'ebCatch': 'in the game a frame catches a spark, and a frame locks; alone it is a test, and a few drawings',
+        'ebDuelReceive': 'in the game a frame hears the rival, and a frame locks; alone it is a test',
+    }
+
+    def entries(self):
+        """The ways into the game: the engine's messages, what a button's
+        script calls, what the page may call, and the hooks of the engine
+        tests (on a phone a test's time is drawings too)"""
+        script = game_script()
+        names = [name for name, (kind, lines) in script_handlers(script).items() if kind == 'on']
+        button = builder()
+        button = button[button.index('\nprivate function buttonScript'):]
+        button = button[:button.index('\nend buttonScript')]
+        names += re.findall(r'\b(eb[A-Z]\w+)\b', button)
+        names += re.findall(r'"(\w+)"', re.search(r'set the cJavascriptHandlers of stack kStack to (.*)', builder()).group(1))
+        names += re.findall(r'"(eb[A-Z]\w+)"', read('tests', 'lcs', 'webplayer', 'ember-bricks.livecodescript'))
+        return sorted(set(names))
+
+    def test_the_ways_into_the_game(self):
+        entries = self.entries()
+        for name in ('preOpenStack', 'resizeStack', 'backKey', 'rawKeyDown', 'mouseUp', 'ebFrame', 'ebPageHidden',
+                     'ebPress', 'ebButtonLook', 'ebPasted', 'ebState', 'ebNewRun', 'ebGoTitle', 'ebTestLevel'):
+            self.assertIn(name, entries)
+        handlers = script_handlers(game_script())
+        for name in entries:
+            self.assertIn(name, handlers)
+            self.assertFalse(handlers[name][0].startswith('private'), name)
+
+    def test_no_handler_leaves_the_screen_locked(self):
+        self.assertEqual(screen_faults(game_script()), [])
+
+    def test_what_comes_into_the_game_changes_the_window_behind_a_locked_screen(self):
+        found = unlocked_changes(game_script(), self.entries())
+        told = ['%s: %s, line %d' % (name, ' > '.join(path), line) for name, (path, line) in sorted(found.items())
+                if name not in self.ALLOWED]
+        self.assertEqual(told, [])
+        # (and none is allowed that has no need to be)
+        self.assertEqual(sorted(found), sorted(self.ALLOWED))
+
+    def test_a_level_begins_with_one_drawing(self):
+        # the handlers that begin a level or put a screen up, each alone
+        script = game_script()
+        self.assertEqual(unlocked_changes(script, ['ebNewRun', 'ebStartLevel', 'ebNextLevel', 'ebGoTitle', 'ebPause',
+                                                   'ebResume', 'ebLaunch', 'ebDuelLeave', 'ebLayout', 'ebShowScreen']), {})
+
+    def mutated(self, old, new):
+        script = game_script()
+        self.assertEqual(script.count(old), 1, old)
+        return script.replace(old, new)
+
+    def test_the_measure_sees_a_button_that_does_not_lock(self):
+        script = self.mutated('   lock screen\n   ebPressed pName\n   unlock screen\n', '   ebPressed pName\n')
+        found = unlocked_changes(script, self.entries())
+        self.assertIn('ebPress', found)
+        self.assertEqual(found['ebPress'][0][:2], ['ebPress', 'ebPressed'])
+        # (the keys press the buttons)
+        self.assertIn('rawKeyDown', found)
+
+    def test_the_measure_sees_a_level_that_begins_unlocked(self):
+        script = self.mutated('   -- (one drawing of the arena and its wall, not one of each brick)\n   lock screen\n',
+                              '')
+        script = script.replace('   ebDrawAll\n   unlock screen\n   ebKeepAwake true\n', '   ebDrawAll\n   ebKeepAwake true\n')
+        self.assertEqual(screen_faults(script), [])
+        self.assertEqual(sorted(unlocked_changes(script, ['ebNewRun', 'ebGoTitle'])), ['ebNewRun'])
+
+    def test_the_measure_sees_a_pause_that_does_not_lock(self):
+        script = game_script()
+        pause = script[script.index('\ncommand ebPause'):script.index('\nend ebPause')]
+        script = script.replace(pause, pause.replace('   lock screen\n', '').replace('   unlock screen\n', ''))
+        found = unlocked_changes(script, self.entries())
+        for name in ('ebPause', 'backKey', 'rawKeyDown', 'ebPageHidden', 'suspendStack', 'resizeStack'):
+            self.assertIn(name, found)
+
+    def test_the_measure_sees_a_screen_left_locked(self):
+        script = game_script()
+        self.assertEqual([fault[0] for fault in screen_faults(script.replace(
+            '   ebDrawAll\n   unlock screen\n   ebKeepAwake true\n', '   ebDrawAll\n   ebKeepAwake true\n'))], ['ebNewRun'])
+        left = self.mutated('   ebShowScreen "pause"\n   unlock screen\nend ebPause',
+                            '   ebShowScreen "pause"\n   exit ebPause\n   unlock screen\nend ebPause')
+        self.assertEqual([(fault[0], fault[2]) for fault in screen_faults(left)],
+                         [('ebPause', 'leaves with the screen locked: exit ebPause')])
+        twice = self.mutated('   ebShowScreen "pause"\n   unlock screen\nend ebPause',
+                             '   ebShowScreen "pause"\n   unlock screen\n   unlock screen\nend ebPause')
+        self.assertEqual([(fault[0], fault[2]) for fault in screen_faults(twice)],
+                         [('ebPause', 'unlocks a screen it did not lock')])
+
+    def test_script_handlers(self):
+        text = ('local sA\n\non mouseUp\n   set the text of field "a -- b" to "x" -- said\n   helper 1\nend mouseUp\n\n'
+                'private command helper pN\n   lock screen\n   set the label of button "B" to pN\n   unlock screen\n'
+                '   set the rect of me to 0,0,1,1\nend helper\n\nfunction two\n   return 2 # two\nend two\n')
+        handlers = script_handlers(text)
+        self.assertEqual({name: kind for name, (kind, lines) in handlers.items()},
+                         {'mouseUp': 'on', 'helper': 'private command', 'two': 'function'})
+        self.assertEqual(handlers['mouseUp'][1], [(4, '   set the text of field "" to ""'), (5, '   helper 1')])
+        self.assertEqual(handlers['two'][1], [(16, '   return 2')])
+        self.assertEqual(screen_faults(text), [])
+        # the field is changed with the screen unlocked; the button is
+        # not, and the stack's own rect is the window, not what it shows
+        self.assertEqual(unlocked_changes(text, ['mouseUp', 'helper', 'two']), {'mouseUp': (['mouseUp'], 4)})
+        text = text.replace('   lock screen\n', '').replace('   unlock screen\n', '')
+        self.assertEqual(unlocked_changes(text, ['mouseUp', 'helper', 'two']),
+                         {'mouseUp': (['mouseUp'], 4), 'helper': (['helper'], 9)})
+        text = text.replace('   set the text of field "a -- b" to "x" -- said\n', '')
+        self.assertEqual(unlocked_changes(text, ['mouseUp']), {'mouseUp': (['mouseUp', 'helper'], 8)})
+
+
+class Codes(unittest.TestCase):
+    """A code is checked before it is unpacked: the engine's decompress
+    makes room for as many bytes as the last four of what it is given say
+    (libfoundation/src/foundation-filters.cpp), and half a code says
+    anything at all."""
+
+    def test_nothing_is_unpacked_that_was_not_measured(self):
+        script = game_script()
+        # one place unpacks, and it reads the length first
+        self.assertEqual(len(re.findall(r'\bdecompress\(', script)), 1)
+        unpack = script[script.index('\nprivate function ebDuelUnpack'):script.index('\nend ebDuelUnpack')]
+        self.assertLess(unpack.index('if tLength < 1 or tLength > kDuelMost then'), unpack.index('decompress('))
+        self.assertIn('ebDuelNumber(byte -4 to -1 of pData)', unpack)
+        self.assertIn('ebDuelSum(tText) is not ebDuelNumber(byte -8 to -5 of pData)', unpack)
+        self.assertLessEqual(int(constant('kDuelMost')), 100000)
+
+    def test_the_engine_still_takes_the_length_from_the_data(self):
+        # (were it to read the data first, the reason given in the script
+        # would be the past)
+        engine = read('libfoundation', 'src', 'foundation-filters.cpp')
+        body = engine[engine.index('bool MCFiltersDecompress('):]
+        body = body[:body.index('\n}\n')]
+        self.assertLess(body.index('memcpy(&size, &sptr[t_src_len - 4], 4);'), body.index('t_buffer.New(size)'))
+        self.assertLess(body.index('t_buffer.New(size)'), body.index('inflate('))
+
+    def test_the_sum_is_a_crc_32(self):
+        # the game's table and sum, worked here as the script works them,
+        # give what zlib gives
+        import zlib
+        script = game_script()
+        self.assertIn('put 3988292384 bitXor (tValue div 2) into tValue', script)
+        self.assertIn('put sCrc[(tSum bitXor byteToNum(tByte)) mod 256] bitXor (tSum div 256) into tSum', script)
+        self.assertIn('return tSum bitXor 4294967295', script)
+        self.assertEqual(3988292384, 0xEDB88320)
+        table = []
+        for i in range(256):
+            value = i
+            for _ in range(8):
+                value = 3988292384 ^ (value // 2) if value % 2 == 1 else value // 2
+            table.append(value)
+        for data in (b'', b'v=0\r\n', bytes(range(256)) * 3):
+            total = 4294967295
+            for byte in data:
+                total = table[(total ^ byte) % 256] ^ (total // 256)
+            self.assertEqual(total ^ 4294967295, zlib.crc32(data))
+
+
 class EngineTests(unittest.TestCase):
 
     def test_the_tests_use_the_games_hooks(self):
@@ -508,6 +777,20 @@ class EngineTests(unittest.TestCase):
         for name in hooks:
             self.assertRegex(script, r'\n(?:on|command|function) %s\b' % name, name)
         self.assertGreaterEqual(len(re.findall(r'^on Test(?!Setup|Teardown)', tests, re.M)), 60)
+
+    def test_the_layout_is_asked_only_of_a_window_that_was_made_the_size(self):
+        # the tests of the game run in a phone's app too, where no window
+        # can be made another size: a line about the layout outside
+        # checkLayout was asked of the phone's own screen, and failed
+        tests = read('tests', 'lcs', 'webplayer', 'ember-bricks.livecodescript')
+        for name in ('TestTheScreensFitAPhone', 'TestTheScreensFitAPhoneOnItsSide', 'TestTheScreensFitAWindow',
+                     'TestTheScreensFitTheScreenTheyAreOn'):
+            body = tests[tests.index('\non %s\n' % name):tests.index('\nend %s\n' % name)]
+            lines = [line.strip() for line in body.split('\n')[2:] if line.strip()]
+            self.assertTrue(lines and all(line.startswith('checkLayout ') for line in lines), (name, lines))
+        check = tests[tests.index('\nprivate command checkLayout'):tests.index('\nend checkLayout')]
+        self.assertLess(check.index('TestSkip tAt'), check.index('TestAssert'))
+        self.assertIn('checkLayout the width of stack kStack, the height of stack kStack, empty', tests)
 
     def test_no_description_of_a_test_starts_with_a_digit(self):
         # the test runner refuses one that does
