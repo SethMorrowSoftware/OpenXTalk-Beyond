@@ -135,6 +135,19 @@ command checkWidget pUrl
    check "browser widget: its JavaScript calls a handler of the script", waitFor("oxtReport: loaded", 15), sEvents
    put the htmlText of widget "Browser" of stack "MediaCheck" into tHtml
    check "browser widget: htmlText is the page after its JavaScript ran", tHtml contains "script ran: 3", char 1 to 120 of tHtml
+   -- The page again: with CEF (Windows; Linux when OXT_BROWSER_BACKEND is
+   -- cef) its script finds liveCode as it is read, not only once the page
+   -- has loaded. Until 0.2.8-dp.2 the handlers came only with a message
+   -- the browser sent when the page started to load, which CEF 156 could
+   -- deliver after the page's script had run, or to the page before it
+   -- (MCCefRenderApp::OnContextCreated, libbrowser_cefprocess.cpp)
+   if the platform is "Win32" or $OXT_BROWSER_BACKEND is "cef" then
+      put empty into sEvents
+      set the url of widget "Browser" of stack "MediaCheck" to pUrl & "?again"
+      check "browser widget: the page loads again", waitFor("browserDocumentLoadComplete:", 30), sEvents
+      check "browser widget: its JavaScript calls a handler as the page is read", waitFor("oxtReport: inline ?again", 5), sEvents
+      check "browser widget: its JavaScript calls a handler after the page loaded again", waitFor("oxtReport: loaded", 15), sEvents
+   end if
    delete widget "Browser" of stack "MediaCheck"
 end checkWidget
 

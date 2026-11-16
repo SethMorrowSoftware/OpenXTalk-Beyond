@@ -85,6 +85,9 @@ private:
 	int m_instance_id;
 	
 	bool SyncJavaScriptHandlers();
+	// OXT-Beyond: the handler list through one frame (the frame a navigation
+	// committed in, or the main frame whose render process asked for it)
+	bool SyncJavaScriptHandlers(CefRefPtr<CefFrame> p_frame);
 	
 	void WaitOnResult(void);
 	bool GetMessageResult(CefProcessId p_target, CefRefPtr<CefProcessMessage> p_message, const MCCefMessageResult *&r_result);
@@ -214,6 +217,10 @@ double MCCefPlatformGetDeviceScaleFactor();
 #define MC_CEFMSG_GET_SELECTED_TEXT "cefbrowser_request_get_seleted_text"
 #define MC_CEFMSG_GET_TITLE "cefbrowser_request_get_title"
 #define MC_CEFMSG_SET_JS_HANDLER_LIST "cebrowser_request_set_js_handler_list"
+// OXT-Beyond: a render process that made a main frame's script context and
+// has not been sent the handler list yet asks the browser process for it
+// (see MCCefRenderApp::OnContextCreated)
+#define MC_CEFMSG_GET_JS_HANDLER_LIST "cefbrowser_request_get_js_handler_list"
 
 #define MC_CEFMSG_JS_HANDLER "cefbrowser_js_handler"
 

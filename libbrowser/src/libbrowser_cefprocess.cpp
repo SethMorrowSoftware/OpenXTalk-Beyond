@@ -631,6 +631,48 @@ class MCCefRenderApp : public CefApp, CefRenderProcessHandler
 public:
 	virtual CefRefPtr<CefRenderProcessHandler> GetRenderProcessHandler() override { return this; }
 	
+	// OXT-Beyond: [[ CEF 156 ]] A page's liveCode object (its JavaScript
+	// handlers, the javascriptHandlers of the widget) came only with the
+	// handler list the browser process sends when a page starts to load
+	// (OnLoadStart in libbrowser_cef.cpp). With CEF 156 that message can
+	// reach the render process before the new document has its script
+	// context, and is then put into the document being replaced, or reach
+	// the process of the page before when the new page is of another site:
+	// on Windows, rarely, a page and the Dictionary never had liveCode at
+	// all. The render process now keeps the last list it was sent for each
+	// browser and gives every new main-frame document its liveCode object
+	// before the page's own script runs; a process that has no list yet asks
+	// the browser process for it. The object is as the message makes it (the
+	// same handlers, read-only), and the message still replaces it as before.
+	virtual void OnContextCreated(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, CefRefPtr<CefV8Context> p_context) override
+	{
+#if defined(TARGET_PLATFORM_LINUX)
+		AddTakeFocusListener(p_context);
+#endif
+		
+		if (p_browser == nil || p_frame == nil || !p_frame->IsMain())
+			return;
+		
+		std::map<int, CefRefPtr<CefListValue> >::const_iterator t_known;
+		t_known = m_handler_lists.find(p_browser->GetIdentifier());
+		if (t_known != m_handler_lists.end())
+		{
+			/* UNCHECKED */ InstallLiveCodeHandlers(p_browser, p_context, t_known->second);
+			return;
+		}
+		
+		CefRefPtr<CefProcessMessage> t_message;
+		t_message = CefProcessMessage::Create(MC_CEFMSG_GET_JS_HANDLER_LIST);
+		if (t_message != nil && p_frame->IsValid())
+			p_frame->SendProcessMessage(PID_BROWSER, t_message);
+	}
+	
+	virtual void OnBrowserDestroyed(CefRefPtr<CefBrowser> p_browser) override
+	{
+		if (p_browser != nil)
+			m_handler_lists.erase(p_browser->GetIdentifier());
+	}
+	
 #if defined(TARGET_PLATFORM_LINUX)
 	// OXT-Beyond: on Linux the browser's window took the X input focus when it
 	// was clicked only under some window managers (xfwm4), so under openbox,
@@ -642,7 +684,7 @@ public:
 	// the capture phase, so a page cannot stop it; it does nothing to the
 	// event itself. Only a click: a page that focuses one of its fields as it
 	// loads does not take the keyboard (OnSetFocus in libbrowser_cef.cpp).
-	virtual void OnContextCreated(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefFrame> p_frame, CefRefPtr<CefV8Context> p_context) override
+	void AddTakeFocusListener(CefRefPtr<CefV8Context> p_context)
 	{
 		CefRefPtr<CefV8Value> t_window;
 		t_window = p_context->GetGlobal();
@@ -880,24 +922,44 @@ private:
 	
 	bool SetLiveCodeHandlers(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefListValue> p_handlers)
 	{
+		// OXT-Beyond: kept for the documents the main frame has next (see
+		// OnContextCreated)
+		if (p_browser != nil)
+		{
+			CefRefPtr<CefListValue> t_kept;
+			if (p_handlers != nil)
+				t_kept = p_handlers->Copy();
+			else
+				t_kept = CefListValue::Create();
+			if (t_kept != nil)
+				m_handler_lists[p_browser->GetIdentifier()] = t_kept;
+		}
+		
+		CefRefPtr<CefV8Context> t_context;
+		if (!GetV8Context(p_browser, t_context))
+			return false;
+		
+		return InstallLiveCodeHandlers(p_browser, t_context, p_handlers);
+	}
+	
+	// The page's liveCode object, made anew with the handlers of the list
+	bool InstallLiveCodeHandlers(CefRefPtr<CefBrowser> p_browser, CefRefPtr<CefV8Context> p_context, CefRefPtr<CefListValue> p_handlers)
+	{
 		bool t_success;
-		t_success = true;
+		t_success = p_context != nil;
 		
 		bool t_entered;
 		t_entered = false;
 		
-		CefRefPtr<CefV8Context> t_context;
-		t_success = GetV8Context(p_browser, t_context);
+		if (t_success)
+			t_success = t_entered = p_context->Enter();
 		
 		if (t_success)
-			t_success = t_entered = t_context->Enter();
-		
-		if (t_success)
-			t_success = DeleteLiveCodeGlobalObj(t_context);
+			t_success = DeleteLiveCodeGlobalObj(p_context);
 		
 		CefRefPtr<CefV8Value> t_livecode_obj;
 		if (t_success)
-			t_success = GetLiveCodeGlobalObj(t_context, t_livecode_obj);
+			t_success = GetLiveCodeGlobalObj(p_context, t_livecode_obj);
 		
 		// Add new handlers
 		if (t_success)
@@ -905,11 +967,16 @@ private:
 				t_success = AddHandlerList(p_browser, t_livecode_obj, p_handlers);
 		
 		if (t_entered)
-			t_context->Exit();
+			p_context->Exit();
 		
 		return t_success;
 	}
 	
+	
+	// OXT-Beyond: the last handler list each browser's main frame was sent
+	// in this render process, by browser identifier (OnContextCreated). Only
+	// the render process's main thread uses it.
+	std::map<int, CefRefPtr<CefListValue> > m_handler_lists;
 	
 	IMPLEMENT_REFCOUNTING(MCCefRenderApp);
 };

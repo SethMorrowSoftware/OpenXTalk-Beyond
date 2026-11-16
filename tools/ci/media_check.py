@@ -128,11 +128,16 @@ NO_SOUND_DEVICE = {'oxt-check.wav': 'Windows without a sound device (as on the C
 MPLAYER = '/usr/bin/mplayer'
 
 # The page the browsers open: media-check.livecodescript looks for its
-# title, for "script ran: 3" in its HTML and for the oxtReport call
+# title, for "script ran: 3" in its HTML and for the oxtReport calls. The
+# first call is made as the page is read, before it has loaded: with CEF the
+# liveCode object must be there for the page's own script from the start
+# when the browser opens a page of a site it has opened before (the
+# widget's second load of the page, "?again")
 PAGE = """<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>OXT media check</title></head>
 <body><h1 id="h">waiting for the script</h1>
 <script>
+if (window.liveCode && liveCode.oxtReport) liveCode.oxtReport('inline', location.search || 'first');
 document.getElementById('h').textContent = 'script ran: ' + (1 + 2);
 setTimeout(function () {
   if (window.liveCode && liveCode.oxtReport) liveCode.oxtReport('loaded', navigator.userAgent);
