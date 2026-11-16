@@ -7934,11 +7934,16 @@ end FullSFPack
 -- 0, or the Mac's error -43 (file not found) where it could not be
 -- opened, which the stacks show ("if launchResult < 0 then osErr
 -- launchResult"; Turbo Help: "if it is not 0 then answer "SubLaunch
--- returned error" && it"). HyperCard went on when the application quit;
--- here it goes on at once, as with open
+-- returned error" && it"). The application is a path here, of a file or
+-- (a Mac application) a folder; a Mac application's name alone, as these
+-- stacks give it ("Turbo 1.1"), names none, and is -43. HyperCard went on
+-- when the application quit; here it goes on at once, as with open
 function SubLaunch pApplication, pDocument
    local tError
+   -- (launch reports no missing program everywhere: on Linux it gives
+   -- empty for a path that is not there)
    if pApplication is empty then return -43
+   if there is not a file pApplication and there is not a folder pApplication then return -43
    try
       if pDocument is empty then
          launch pApplication
@@ -8112,6 +8117,17 @@ function TCPActiveOpen pHost, pPort, pLocalPort
    repeat while sHCTCP[tId]["state"] is "opening" and the milliseconds - tStart < 30000
       wait 10 milliseconds with messages
    end repeat
+   -- (on Linux and macOS the engine says a socket is open as soon as it
+   -- can be written to, which a connection the host refused can be too:
+   -- its error comes right after, as the first read fails. A connection
+   -- that is closed before anything came in on it was not opened)
+   if sHCTCP[tId]["state"] is "established" then
+      put the milliseconds into tStart
+      repeat while sHCTCP[tId]["state"] is "established" and sHCTCP[tId]["buffer"] is empty and the milliseconds - tStart < 100
+         wait 10 milliseconds with messages
+      end repeat
+      if sHCTCP[tId]["state"] is not "established" and sHCTCP[tId]["buffer"] is empty then put "failed" into sHCTCP[tId]["state"]
+   end if
    if sHCTCP[tId]["state"] is not "established" then
       get sHCTCP[tId]["error"]
       -- (a socket still opening when the wait ends stays open in the

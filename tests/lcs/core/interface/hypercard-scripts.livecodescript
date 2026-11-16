@@ -8021,7 +8021,8 @@ on TestHyperCardScriptsT78
    -- ("put Switch(Temp) into cd fld 4", the Switch XFCN of 10 stacks of
    -- the corpus), which here called a "switch" no handler has and
    -- stopped with an error: the external's hcX_ name, which its
-   -- stand-in answers with empty, as an XFCN's
+   -- stand-in answers (the library's hcX_Switch since #543; before, the
+   -- import's, with empty)
    local tStack, q, tError
    global gHCScriptsTest
    put quote into q
@@ -8074,7 +8075,8 @@ on TestHyperCardScriptsT78
       send "mouseUp" to button "Switch" of card 1 of stack tStack
    catch tError
    end try
-   TestAssert "T78: which gives empty, and the script goes on", tError is empty and gHCScriptsTest is "went on"
+   TestAssert "T78: which answers as the XFCN (the library's Switch, which gives text with no comma or line break as it is), and the script goes on", \
+         tError is empty and gHCScriptsTest is "5went on"
 
    TestAssert "T78: popup of a button, answer, files() and upper(), unchanged", \
          line 2 to 5 of the script of button "Kept" of card 1 of stack tStack \
