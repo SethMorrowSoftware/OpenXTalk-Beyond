@@ -585,6 +585,30 @@ jobs:
             --engine-cache "$RUNNER_TEMP/engine" --work "$RUNNER_TEMP/web-check/puzzle-almanac" \
             --shots "$RUNNER_TEMP/web-check/puzzle-almanac/shots" --browser "$BROWSER"
 
+      # Ember Bricks (tools/web-player/stacks), the brick breaker with an
+      # online duel, played on emulated phones: How to play, a finger on
+      # the paddle, the ball sent off, a brick broken, Pause, the frame
+      # rate, a turn and no script error; and in Chromium a duel between
+      # two pages over a real WebRTC link: the invite and the answer by
+      # the clipboard, clocks in step, each other's scores, the result, a
+      # rematch and one leaving (tools/ci/ember_bricks_check.py, which
+      # says what it checks). Its standalone has DataChannelXT's module,
+      # built from the pinned xTalk Suite with the engine's lc-compile.
+      # Chromium and WebKit, as above, with a second try in Chromium too:
+      # there the duel's link is a real one, made between two pages. Its
+      # files go in ember-bricks.
+      - name: Play Ember Bricks on phones in ${{ matrix.browser }}
+        if: matrix.browser != 'firefox'
+        timeout-minutes: 20
+        env:
+          BROWSER: ${{ matrix.browser }}
+        run: |
+          python3 tools/ci/retry_check.py --tries 2 --files "$RUNNER_TEMP/web-check/ember-bricks" \
+            --what "The Ember Bricks check in $BROWSER" -- \
+            "$RUNNER_TEMP/playwright/bin/python" tools/ci/ember_bricks_check.py --runtime "$RUNNER_TEMP/web-runtime" \
+            --engine-cache "$RUNNER_TEMP/engine" --work "$RUNNER_TEMP/web-check/ember-bricks" \
+            --shots "$RUNNER_TEMP/web-check/ember-bricks/shots" --browser "$BROWSER"
+
       - name: Upload the check's files
         if: always()
         uses: actions/upload-artifact@v7

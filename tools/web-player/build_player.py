@@ -410,6 +410,13 @@ SAMPLES = [
                     'Word of four to six letters, new every day and the same for everyone, with a '
                     'sticker book to fill. Every puzzle can be solved without a guess.',
      'tags': ['Game', 'Phones', 'Touch', 'Puzzles']},
+    {'title': 'Ember Bricks', 'source': 'stacks',
+     'files': ['Ember Bricks.oxtstack'], 'image': 'Ember Bricks.webp',
+     'description': 'A brick breaker for a phone or a desktop: twenty-four levels, ten sparks to '
+                    'catch, and a heat that multiplies the score while the bricks keep breaking. '
+                    'Its Online Duel races a friend for three minutes over a direct WebRTC link, '
+                    'made with two codes you send each other.',
+     'tags': ['Game', 'Phones', 'Touch', 'Multiplayer']},
     {'title': 'Box2Dxt Platformer', 'source': 'stacks',
      'files': ['Box2Dxt Platformer.oxtstack'], 'image': 'Box2Dxt Platformer.webp',
      'description': 'Seven scrolling levels of the xTalk Suite\'s platformer on Box2D: run, double '
