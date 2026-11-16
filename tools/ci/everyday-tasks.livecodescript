@@ -1322,11 +1322,21 @@ end edSeWaiting
 
 -- an object's long id cut to its own name and its window's
 function edShortTarget pLongID
-   local tOut
+   local tOut, tError
    put word 1 to 3 of pLongID into tOut
    if pLongID contains "revSEFind" then return tOut && "(Find)"
    if pLongID contains "revNewScriptEditor" then return tOut && "(Script Editor)"
-   if pLongID contains "revTools" then return tOut && "(Tools)"
+   if pLongID contains "revTools" then
+      -- (which tile: the press another tile still held went to the card
+      -- and its release to that tile, edDragDone)
+      if word 1 of tOut is not "card" and word 1 of tOut is not "stack" then
+         try
+            return tOut && "(Tools," && the short name of pLongID & ")"
+         catch tError
+         end try
+      end if
+      return tOut && "(Tools)"
+   end if
    -- (a stack of a file: its file's name)
    if word 1 of tOut is "stack" and tOut contains "/" then
       set the itemDelimiter to "/"
@@ -1947,6 +1957,7 @@ command edMake pType, pWord, pShot
       throw "the new" && pType && "is off the card:" && the rect of tNew
    end if
    edRecord "INFO made" && the short name of tNew && "(" & pType & ") by" && tVia && "at" && the rect of tNew
+   if sInput is true then edRecord "INFO the drag" && tDrag
    set the cEverydayType of tNew to pType
    edToolFilter empty
    if the tool is not "pointer tool" then throw "the Tools palette left the" && the tool && "chosen after making a" && pType
@@ -2413,18 +2424,78 @@ command edSystemDrag pFrom, pTo
 end edSystemDrag
 
 -- Waits, at most pMilliseconds, for the last drag's helper to release the
--- mouse; returns what it wrote and how long that took, for a record
+-- mouse; returns what it wrote, how long that took and what the engine
+-- held the mouse over meanwhile (edDragOver), for a record
 function edDragDone pMilliseconds
    local tFile, tText
    put sKeep["dragFile"] into tFile
    if tFile is empty then return "(no drag)"
-   if edWaitFor("there is a file pAx and URL (" & quote & "file:" & quote & " & pAx) contains " & quote & "up" & quote, pMilliseconds, tFile) then
+   put empty into sKeep["dragOver"]
+   put empty into sKeep["dragOverNow"]
+   if edWaitFor("edDragOver() and there is a file pAx and URL (" & quote & "file:" & quote & " & pAx) contains " & quote & "up" & quote, pMilliseconds, tFile) then
       put URL ("file:" & tFile) into tText
-      return "released" && the milliseconds - sKeep["dragLaunched"] && "ms after the launch (" & edJoin(word 1 to -1 of tText) & ")"
+      -- The release is the system's; the engine has it only when it has
+      -- handled the event. On macOS the Tools palette's drag ends when
+      -- the system says the button is up ("the mouse" there is NSEvent's
+      -- pressedMouseButtons), which can be before the engine has taken
+      -- the mouse-up from its queue, and a wait that has run its time
+      -- takes one more event at most. The engine gives a mouse-up to the
+      -- window pressed only while that window's stack is the one it holds
+      -- the mouse over (MCPlatformHandleMouseUp and
+      -- MCPlatformHandleMouseRelease, desktop.cpp), and a task's own
+      -- click (click at) makes that the stack clicked while it waits: a
+      -- mouse-up taken from the queue then is dropped. The tile dragged
+      -- goes on holding the press, and the palette's next press, wherever
+      -- it is, goes to the card and its release to that tile. So
+      -- quick-start-dropped-shows on both of macOS's test jobs, Intel and
+      -- Apple Silicon (#532, run 43906150245), whose lesson before it
+      -- drags and then clicks the button made with no event handled
+      -- between: "the browse tile's click chose nothing ... seen: 0
+      -- mouseDown card id 1002 (Tools); 205 mouseRelease button id 105962
+      -- (Tools)", the same tile's id in both; and browse-runs-it's lost
+      -- click (edToolTile) came after drags too. This was read in the
+      -- engine's code and fits that record to the message; it was not
+      -- seen happening here (the path is macOS's alone).
+      -- A person makes no click of the engine's: for them the mouse-up is
+      -- the next event taken. Here the events are handled for a moment
+      -- before the task goes on, as after edClickAt's click, and the
+      -- record ends with what the engine holds the mouse over then
+      edPause 200
+      get edDragOver()
+      return "released" && the milliseconds - sKeep["dragLaunched"] && "ms after the launch (" & edJoin(word 1 to -1 of tText) & "); the mouse over:" && edDragWasOver()
    end if
    if there is a file tFile then put URL ("file:" & tFile) into tText
-   return "not released" && the milliseconds - sKeep["dragLaunched"] && "ms after the launch (" & edJoin(word 1 to -1 of tText) & ")"
+   return "not released" && the milliseconds - sKeep["dragLaunched"] && "ms after the launch (" & edJoin(word 1 to -1 of tText) & "); the mouse over:" && edDragWasOver()
 end edDragDone
+
+-- What the engine holds the mouse over while a drag's helper works: its
+-- button, the stack and the control, each time one of them has changed
+-- when edDragDone's wait asks (ten times a second, and not while the
+-- palette's own drag loop runs), with the milliseconds since the launch.
+-- A drag that works reads "up revTools" and the tile's name before the
+-- press, and the stack dropped on after the release; a press that never
+-- reached the tile says here where the engine held the mouse instead. It
+-- only records: it is true whatever it saw, so the wait ends on the
+-- helper's "up" alone
+function edDragOver
+   local tNow, tControl, tError
+   try
+      put the short name of the mouseControl into tControl
+   catch tError
+      put empty into tControl
+   end try
+   put the mouse && the mouseStack && tControl into tNow
+   if tNow is not sKeep["dragOverNow"] then
+      put tNow into sKeep["dragOverNow"]
+      put (the milliseconds - sKeep["dragLaunched"]) && word 1 to -1 of tNow & " / " after sKeep["dragOver"]
+   end if
+   return true
+end edDragOver
+
+function edDragWasOver
+   if sKeep["dragOver"] is empty then return "nothing recorded"
+   return char 1 to -4 of sKeep["dragOver"]
+end edDragWasOver
 
 -- Whether a click of the system's mouse reaches the IDE here: a button
 -- of a stack of this script's must get its mouseUp (as the tour's

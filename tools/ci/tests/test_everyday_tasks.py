@@ -388,6 +388,101 @@ class ToolTileClickIsWatched(unittest.TestCase):
         self.assertIn('edWatchClicks false', self.handlers['edTidyAfterFailure'])
 
 
+class ReleaseHandledBeforeTheTaskGoesOn(unittest.TestCase):
+    """quick-start-dropped-shows failed on macOS Intel (#532, run
+    43906150245): its first click, the engine's on the Run tile, "chose
+    nothing ... seen: 0 mouseDown card id 1002 (Tools); 205 mouseRelease
+    button id 105962 (Tools)", right after the lesson's drag of a tile by
+    the system's mouse and its click on the button made; browse-runs-it
+    once lost the same click after drags. Read in the engine: on macOS
+    the palette's drag ends when the system says the button is up, which
+    can be before the engine has taken the mouse-up from its queue; the
+    engine gives a mouse-up to the window pressed only while that window's
+    stack is the one it holds the mouse over; and a task's own click
+    makes that the stack clicked while it waits. A mouse-up taken from the
+    queue then is dropped, the tile dragged goes on holding the press, and
+    the palette's next press goes to the card. A drag's wait now handles
+    the events for a moment after the helper's release, its record says
+    what the engine held the mouse over, and a watched message to the
+    Tools palette names the tile it went to."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.text = read(SCRIPT)
+        cls.handlers = handlers(cls.text)
+        m = re.search(r'^function edDragDone pMilliseconds\n(.*?)^end edDragDone', cls.text, re.M | re.S)
+        cls.done = m.group(1) if m else ''
+        m = re.search(r'^function edDragOver\n(.*?)^end edDragOver', cls.text, re.M | re.S)
+        cls.over = m.group(1) if m else ''
+        m = re.search(r'^function edShortTarget pLongID\n(.*?)^end edShortTarget', cls.text, re.M | re.S)
+        cls.short = m.group(1) if m else ''
+
+    def code(self, body):
+        return '\n'.join(line for line in body.split('\n') if not line.lstrip().startswith('--'))
+
+    def test_the_events_are_handled_after_the_release_and_before_the_task_goes_on(self):
+        done = self.code(self.done)
+        up = done.index('edWaitFor("edDragOver() and there is a file pAx')
+        handled = done.index('edPause 200')
+        self.assertLess(up, handled)
+        self.assertLess(handled, done.index('return "released"'))
+        # every drag a task makes ends in that wait
+        for name in ('edMake', 'edGuideLesson', 'edGuideDropped'):
+            body = self.handlers[name]
+            self.assertEqual(body.count('edSystemDrag '), body.count('put edDragDone(20000) into tDrag'), name)
+            self.assertLess(body.index('edSystemDrag '), body.index('put edDragDone(20000) into tDrag'), name)
+
+    def test_the_engine_is_as_it_was_read(self):
+        # the three things the wait rests on; a change to one of them is
+        # a reason to read edDragDone's comment again
+        source = read(os.path.join(ROOT, 'engine', 'src', 'desktop.cpp'))
+        for name in ('MCPlatformHandleMouseUp', 'MCPlatformHandleMouseRelease'):
+            m = re.search(r'^void %s\(.*?^}' % name, source, re.M | re.S)
+            self.assertTrue(m, 'no %s in desktop.cpp' % name)
+            self.assertIn('if (MCmousestackptr.IsBoundTo(t_stack) || t_menu != nil)', m.group(0), name)
+        source = read(os.path.join(ROOT, 'engine', 'src', 'mac-core.mm'))
+        m = re.search(r'^bool MCPlatformGetMouseButtonState\(.*?^}', source, re.M | re.S)
+        self.assertTrue(m, 'no MCPlatformGetMouseButtonState in mac-core.mm')
+        self.assertIn('[NSEvent pressedMouseButtons]', m.group(0))
+        source = read(os.path.join(ROOT, 'engine', 'src', 'exec-interface.cpp'))
+        m = re.search(r'^void MCInterfaceExecClickCmd\(.*?^}', source, re.M | re.S)
+        self.assertTrue(m, 'no MCInterfaceExecClickCmd in exec-interface.cpp')
+        click = m.group(0)
+        self.assertLess(click.index('MCscreen->setmouseloc(MCdefaultstackptr, t_view_clickloc);'),
+                        click.index('MCscreen->wait(CLICK_INTERVAL, False, False);'))
+
+    def test_a_drags_record_says_what_the_mouse_was_over(self):
+        self.assertIn('edWaitFor("edDragOver() and there is a file pAx', self.done)
+        self.assertEqual(self.done.count('); the mouse over:" && edDragWasOver()'), 2)   # released, and not
+        for part in ('the mouse &&', 'the mouseStack', 'the short name of the mouseControl', 'sKeep["dragLaunched"]'):
+            self.assertIn(part, self.over, 'the record does not hold %s' % part)
+        # and what it is over once the release is handled
+        done = self.code(self.done)
+        self.assertLess(done.index('edPause 200'), done.index('get edDragOver()'))
+        self.assertLess(done.index('get edDragOver()'), done.index('return "released"'))
+
+    def test_the_record_never_ends_the_wait(self):
+        # true whatever it saw: the wait ends on the helper's "up" alone
+        returns = re.findall(r'^\s*return [^\n]*', self.over, re.M)
+        self.assertEqual([r.strip() for r in returns], ['return true'])
+
+    def test_each_drag_starts_its_own_record(self):
+        wait = self.done.index('edWaitFor("edDragOver()')
+        for line in ('put empty into sKeep["dragOver"]', 'put empty into sKeep["dragOverNow"]'):
+            self.assertIn(line, self.done)
+            self.assertLess(self.done.index(line), wait)
+
+    def test_a_drag_that_made_its_control_keeps_its_record_too(self):
+        body = self.handlers['edMake']
+        made = body.index('edRecord "INFO made"')
+        self.assertLess(made, body.index('if sInput is true then edRecord "INFO the drag" && tDrag'))
+
+    def test_a_watched_message_to_the_tools_palette_names_its_tile(self):
+        self.assertIn('return tOut && "(Tools," && the short name of pLongID & ")"', self.short)
+        # a card or the stack has no tile to name
+        self.assertIn('return tOut && "(Tools)"', self.short)
+
+
 class StandaloneBuildStopped(unittest.TestCase):
     """standalone-stopped-build and standalone-mc-stack-file stop a build
     with an error at a step the builder reports (revStandaloneProgress)
