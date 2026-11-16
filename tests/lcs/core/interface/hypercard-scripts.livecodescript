@@ -8079,6 +8079,15 @@ on TestHyperCardScriptsT80
          "  go last card")
    TestAssert "T80: put after a menu is no variable", "hc_menu" is not in tScript and line 10 of tScript begins with "  hcPutIntoMenu "
    TestAssert "T80: after me, before the selection: unchanged", line 11 to 12 of tScript is _Lines("  put 1 after me", "  put 1 before the selection")
+   -- "in" in an expression a put gives the message box names no variable
+   put _Rewrite("on mouseUp", \
+         "  put " & q & "hc_" & q & " is in done", \
+         "  put the number of words in done", \
+         "  if x then put a & b in done", \
+         "  save stack as x", \
+         "end mouseUp") into tResult
+   TestAssert "T80: in after an expression of a put is no variable's", "hc_done" is not in tResult \
+         and line 5 of tResult is "  save this stack as x"
    TestAssert "T80: the scroll of the window an id names: unchanged", line 14 of tScript is "  set the scroll of window id 5 to 0,0"
    TestAssert "T80: a window's name, as before", \
          line 15 of tScript is "  hcSetWindow " & q & "dithering" & q & ", " & q & "Pict" & q & ", true"

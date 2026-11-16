@@ -2717,7 +2717,7 @@ end _T
 -- The variables of a handler: its parameters, its globals, the targets
 -- of "put ... into" and "repeat with"
 private function _HandlerVariables pLines, pStart, pEnd
-   local tVars, i, tCode, tWord, tTokens, tIndices, tIndex, tNext, tAfter, tInGlobal
+   local tVars, i, tCode, tWord, tTokens, tIndices, tIndex, tNext, tAfter, tInGlobal, tValue, tPut
    put _CodeText(pLines[pStart]) into tCode
    repeat for each item tWord in word 3 to -1 of tCode
       put word 1 of tWord into tWord
@@ -2775,6 +2775,15 @@ private function _HandlerVariables pLines, pStart, pEnd
             if tAfter is not empty and _T(tTokens, tAfter) is not "else" then next repeat
             if _T(tTokens, tNext) is among the words of kObjectWords or _T(tTokens, tNext) is among the words of "me it msg message selection target" then next repeat
             if _StatementVerb(tTokens, tIndices, tIndex) is not "put" then next repeat
+            -- (in: only where T35 takes it for into, after the one value
+            -- of a put. "put x is in done" and "put the number of words
+            -- in done" put what an expression gives into the message box)
+            if _T(tTokens, tIndex) is "in" then
+               put _PrevCode(tIndices, tIndex) into tValue
+               if tValue is empty or tTokens[tValue]["k"] is not among the items of "w,s,n" or _T(tTokens, tValue) is "the" then next repeat
+               put _PrevCode(tIndices, tValue) into tPut
+               if tPut is empty or _T(tTokens, tPut) is not "put" or not _StatementStart(tTokens, tIndices, tPut) then next repeat
+            end if
             put true into tVars[_T(tTokens, tNext)]
          end if
       end repeat
