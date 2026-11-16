@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+# Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+# (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+# Seth Morrow (2026); its Git history and CHANGELOG.md say what changed.
+
 # This script removes lines from a file that match any lines from a second file.
 # Note that this will not preserve the order of lines, and will remove duplicates.
 

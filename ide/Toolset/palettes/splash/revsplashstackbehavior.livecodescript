@@ -1,4 +1,9 @@
 ﻿script "revSplashStackBehavior"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Seth Morrow (2026) and Tom Perry (2023-2026); its Git history and
+-- CHANGELOG.md say what changed.
+
 -- The loading bar fills by one step for each status the IDE shows: the
 -- number of revInternal__setSplashStatus calls in ide/Toolset/home.livecodescript
 -- (tools/ci/tests/test_branding.py counts them). A start that skips a few

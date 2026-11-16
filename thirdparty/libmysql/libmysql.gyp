@@ -9,6 +9,11 @@
 # committed, written as ORIGIN says). TLS is OpenSSL's, through the
 # engine's OpenSSL stubs, as before; the hashes are the library's own
 # (libmariadb/secure/oxt_crypt.c).
+
+# Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+# (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+# Seth Morrow (2026); its Git history and CHANGELOG.md say what changed.
+
 {
 	'includes':
 	[

@@ -1,4 +1,9 @@
 ﻿script "com.livecode.pi.enum.behavior" with behavior "revInspectorEditorBehavior"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Seth Morrow (2026), Tom Perry (2026) and Emily-Elizabeth Howard (2026);
+-- its Git history and CHANGELOG.md say what changed.
+
 constant kEffectiveTextColor = "100,100,100"
 constant kEffectiveTextColorDark = "170,170,170"
 global gRevLanguageNames

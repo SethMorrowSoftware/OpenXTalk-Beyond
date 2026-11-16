@@ -8,6 +8,11 @@
 # through the engine's OpenSSL stubs, as before; the hashes and random
 # numbers are PostgreSQL's own and the system's (src/include/pg_config.h
 # says why).
+
+# Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+# (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+# Seth Morrow (2026); its Git history and CHANGELOG.md say what changed.
+
 {
 	'includes':
 	[

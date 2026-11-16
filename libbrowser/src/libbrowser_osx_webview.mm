@@ -14,6 +14,11 @@
  You should have received a copy of the GNU General Public License
  along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
+/* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+   (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+   Seth Morrow (2026) and Tom Perry (2026); its Git history and CHANGELOG.md
+   say what changed. */
+
 #import <Foundation/Foundation.h>
 #import <WebKit/WebKit.h>
 #import <WebKit/WebFrameLoadDelegate.h>

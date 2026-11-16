@@ -8,6 +8,10 @@
    gentle-97-v-4-1-0
 */
 
+/* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+   (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+   Tom Perry (2026); its Git history and CHANGELOG.md say what changed. */
+
 
 typedef struct {long attr[2];} yyATTRIBUTES;
 #define YYSTYPE yyATTRIBUTES

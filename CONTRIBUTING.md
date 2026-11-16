@@ -287,6 +287,13 @@ header; see
   [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) (or a new section for
   a new source), and say in the code, where it helps, where it came from.
   A reporter whose report led to a fix is named in the changelog line.
+- **A file from LiveCode Community, changed for the first time** needs
+  its "Modified from LiveCode Community" notice (GPLv3 section 5(a); see
+  [NOTICE-OF-MODIFICATIONS.md](NOTICE-OF-MODIFICATIONS.md)):
+  `python3 tools/ci/modification_notices.py write` adds it, naming
+  everyone whose commits changed the file, and CI checks fails without
+  it. A notice already there is not rewritten; add a name to it by hand
+  when you bring in someone else's change to the file.
 - **Binaries this repository does not build** are not committed. The
   runtimes for other platforms are listed in
   [`tools/oxt/external-assets.json`](tools/oxt/external-assets.json) with

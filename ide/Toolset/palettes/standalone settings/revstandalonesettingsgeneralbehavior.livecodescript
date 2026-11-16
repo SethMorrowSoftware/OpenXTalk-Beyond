@@ -1,4 +1,9 @@
 ﻿script "revStandaloneSettingsGeneralBehavior"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Terry Little (2023) and Tom Perry (2024-2026); its Git history and
+-- CHANGELOG.md say what changed.
+
 on preOpenCard
    local tStandaloneSettingsA,tList,tCount,tHilite
    put getSettings() into tStandaloneSettingsA

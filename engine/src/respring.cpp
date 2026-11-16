@@ -6,6 +6,11 @@ LiveCode is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License v3 as published by the Free
 Software Foundation. */
 
+/* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+   (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+   Seth Morrow (2026) and Tom Perry (2026); its Git history and CHANGELOG.md
+   say what changed. */
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 //  Private Source File:

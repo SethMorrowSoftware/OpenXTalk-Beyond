@@ -1,4 +1,9 @@
 ﻿script "revDictionaryBehavior" with behavior "revPaletteBehavior"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Seth Morrow (2026), Tom Perry (2026) and Emily-Elizabeth Howard (2026);
+-- its Git history and CHANGELOG.md say what changed.
+
 -- The dictionary starts to hide elements at lower than 992 pixels
 -- *TODO* Tweak the CSS to rearrange things appropriately
 constant kDictionaryMinWidth = 992

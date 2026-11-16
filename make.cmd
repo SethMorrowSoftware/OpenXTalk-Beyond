@@ -1,3 +1,8 @@
+@rem Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+@rem (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes
+@rem by Seth Morrow (2026) and Tom Perry (2026); its Git history and
+@rem CHANGELOG.md say what changed.
+
 @rem Try to detect if running on 64-bit or 32-bit windows
 @rem Choose some sensible defaults
 set ProgramFilesBase=%ProgramFiles(x86)%

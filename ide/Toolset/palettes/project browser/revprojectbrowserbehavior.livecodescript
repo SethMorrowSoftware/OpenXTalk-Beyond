@@ -1,4 +1,9 @@
 ﻿script "revProjectBrowserBehavior" with behavior "revPaletteBehavior"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Seth Morrow (2026), Tom Perry (2024-2026) and Bernd Niggemann (2026); its
+-- Git history and CHANGELOG.md say what changed.
+
 local sDisplayArray, sLongIDToRow, sObjectToParent
 
 on arrowKey pDirection

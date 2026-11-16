@@ -1,4 +1,8 @@
 ﻿script "InstallerUtilities"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Seth Morrow (2026); its Git history and CHANGELOG.md say what changed.
+
 # This is the back-end installer, updater and uninstaller code. 
 # This code doesn't know anything about the product it is installing, and should be capable
 # of being re-used for products other than LiveCode. It reads a "manifest" file, which contains

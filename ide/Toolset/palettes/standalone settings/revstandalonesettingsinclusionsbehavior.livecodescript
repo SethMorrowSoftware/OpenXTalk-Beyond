@@ -1,4 +1,9 @@
 ﻿script "revStandaloneSettingsInclusionsBehavior"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Seth Morrow (2026) and Tom Perry (2026); its Git history and CHANGELOG.md
+-- say what changed.
+
 local sExtensionData
 constant kLineHeight = 41
 constant kNumberOfRows = 12

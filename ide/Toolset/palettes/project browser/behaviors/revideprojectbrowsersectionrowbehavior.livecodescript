@@ -1,4 +1,8 @@
 ﻿script "revIDEProjectBrowserSectionRowBehavior"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Seth Morrow (2026); its Git history and CHANGELOG.md say what changed.
+
 on FillInData pDataA, pRow
    # Map pDataA values to physical controls...
    set the cRowNumber of me to pRow

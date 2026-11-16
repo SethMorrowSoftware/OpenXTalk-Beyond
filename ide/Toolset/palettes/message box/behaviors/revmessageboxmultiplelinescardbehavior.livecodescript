@@ -1,4 +1,9 @@
 ﻿script "revMessageBoxMultipleLinesCardBehavior"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Seth Morrow (2026) and Bernd Niggemann (2026); its Git history and
+-- CHANGELOG.md say what changed.
+
 constant kSeparatorSize = 10
 local lMoving, lDistance
 

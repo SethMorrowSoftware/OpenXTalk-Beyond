@@ -1,4 +1,8 @@
 ﻿script "revSEDocumentationPaneBehavior"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Tom Perry (2023); its Git history and CHANGELOG.md say what changed.
+
 # String representing the last searched for doc, this is what the cDoc was last set to
 local sDoc = ""
 local sTypesA, sLibsA

@@ -1,4 +1,7 @@
 ﻿script "revshortcutslibrary"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Tom Perry (2023-2024); its Git history and CHANGELOG.md say what changed.
 
 on extensionInitialize
    // SN-2015-05-13: [[ Bug 15365 ]] Make sure that we don't catch

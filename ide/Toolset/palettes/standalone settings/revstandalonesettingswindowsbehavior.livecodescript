@@ -1,4 +1,8 @@
 ﻿script "revStandaloneSettingsWindowsBehavior"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Tom Perry (2026); its Git history and CHANGELOG.md say what changed.
+
 on preOpenCard
    local tStandaloneSettingsA
    put getSettings() into tStandaloneSettingsA

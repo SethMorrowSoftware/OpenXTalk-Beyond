@@ -1,4 +1,8 @@
 ﻿script "revStandaloneSettingsCopyFilesBehavior"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Tom Perry (2026); its Git history and CHANGELOG.md say what changed.
+
 on setProps
    setSetting "files", field "files"
    setSetting "CopyReferencedFiles", the hilite of button "Copy Referenced Files"
