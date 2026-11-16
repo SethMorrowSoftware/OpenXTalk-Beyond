@@ -1633,7 +1633,7 @@ on ed_drag_probe
    go card kGuideLesson of stack kGuideStack
    get edWaitFor("the short name of this card of stack pAx is pBx", 4000, kGuideStack, kGuideLesson)
    put the long id of card kGuideLesson of stack kGuideStack into tCard
-   repeat for each item tWhat in "nothing,a loop of 8 s,a loop of 25 s,one check,nothing again,three checks,nothing after them,three checks and 3 s,three checks with events,a loop of 25 s and 3 s"
+   repeat for each item tWhat in "nothing,the front tile clicked,a loop of 8 s,a loop of 25 s,nothing again,one check,nothing after one,three checks,nothing after them,three checks with events,three checks and 3 s,nothing more,as the lesson,nothing at the end"
       try
          switch tWhat
             case "one check"
@@ -1662,9 +1662,21 @@ on ed_drag_probe
                end repeat
                if tWhat is "a loop of 25 s and 3 s" then edPause 3000
                break
-            case "a click on the Guide"
-               -- (the engine's click, as the lesson's on the front page's tile)
-               edClickAt kGuideStack, the loc of image "Canvas" of tCard
+            case "the front tile clicked"
+            case "as the lesson"
+               -- (the engine's click on the front page's tile, as the lesson
+               -- opens itself; then, "as the lesson", its picture and its
+               -- three checks)
+               go card 1 of stack kGuideStack
+               get edWaitFor("the short name of this card of stack pAx is not pBx", 4000, kGuideStack, kGuideLesson)
+               edClickAt kGuideStack, the loc of group "tile1" of card 1 of stack kGuideStack
+               get edWaitFor("the short name of this card of stack pAx is pBx", 4000, kGuideStack, kGuideLesson)
+               if tWhat is "as the lesson" then
+                  edShotStack kGuideStack, "zz-probe-lesson"
+                  edGuideTileIsFirst
+                  edGuideTileIsFirstWhen "folded"
+                  edGuideTileIsFirstWhen "hidden"
+               end if
                break
          end switch
       catch tError
@@ -2438,7 +2450,7 @@ command edWatchClicks pOn
    lock messages
    if pOn then
       if there is not a button "oxt_everyday_clicks" then create invisible button "oxt_everyday_clicks"
-      repeat for each item tMessage in "mouseDown,mouseUp,mouseRelease,newTool"
+      repeat for each item tMessage in "mouseDown,mouseUp,mouseRelease,newTool,mouseEnter,mouseLeave"
          put "on" && tMessage & return & \
                "   dispatch " & quote & "edSeen" & quote & " to stack " & quote & "oxt_everyday" & quote & " with " & quote & tMessage & quote & \
                ", the long id of the target, the tool" & return & \

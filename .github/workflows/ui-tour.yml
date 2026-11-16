@@ -119,7 +119,6 @@ jobs:
           echo "LAYOUT=--install=$RUNNER_TEMP/oxt-test" >> "$GITHUB_ENV"
 
       - name: IDE screenshots, light
-        if: false
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         env:
           PLATFORM: ${{ matrix.platform }}
@@ -130,7 +129,6 @@ jobs:
             --appearance light --out "$RUNNER_TEMP/ui-tour/light"
 
       - name: IDE screenshots, dark
-        if: false
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         env:
           PLATFORM: ${{ matrix.platform }}
