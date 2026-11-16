@@ -1,4 +1,7 @@
 @echo off
+REM Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+REM (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+REM Seth Morrow (2026); its Git history and CHANGELOG.md say what changed.
 
 REM This batch file forwards commands to a Unix-like shell
 

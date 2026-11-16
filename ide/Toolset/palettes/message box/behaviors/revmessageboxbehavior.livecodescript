@@ -1,4 +1,9 @@
 ﻿script "revMessageBoxBehavior" with behavior "revPaletteBehavior"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Seth Morrow (2026), Tom Perry (2024-2026), Emily-Elizabeth Howard (2026)
+-- and docmeth02 (2026); its Git history and CHANGELOG.md say what changed.
+
 ##GH created 12/11/2014
 ##GH last updated 31/12/2014
 global IDEBootTimeInSeconds

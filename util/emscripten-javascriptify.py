@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+# Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+# (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+# Seth Morrow (2026); its Git history and CHANGELOG.md say what changed.
+
 # This script runs the command that links the web engine: emcc turns the
 # relocatable WebAssembly object that gyp links (standalone-community.o) into
 # standalone-community-<version>.js and .wasm, with the engine's JavaScript

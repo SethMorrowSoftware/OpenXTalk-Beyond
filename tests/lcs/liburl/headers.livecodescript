@@ -1,4 +1,7 @@
 ﻿script "TestLibUrlHeaders"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Seth Morrow (2026); its Git history and CHANGELOG.md say what changed.
 
 -- The answer of the test's HTTP server, and the request it read
 local sResponse, sRequest

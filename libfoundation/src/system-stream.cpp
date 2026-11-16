@@ -15,6 +15,10 @@ for more details.
 You should have received a copy of the GNU General Public License
 along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
+/* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+   (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+   Seth Morrow (2026); its Git history and CHANGELOG.md say what changed. */
+
 /* Force the use of 64-bit file streams API on Linux.  We need to
  * define this before including foundation.h because it pulls in
  * stdio.h, but this means that the platform identification macros

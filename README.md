@@ -123,7 +123,9 @@ Perry's last commit, release by release.
 Like OpenXTalk Lite, OXT-Beyond is based on **LiveCode Community**, the
 GPLv3 edition of LiveCode by LiveCode Ltd and its contributors. The
 upstream LiveCode Community repositories have had no changes since July
-2021 and are now archived (read-only).
+2021 and are now archived (read-only). Every source file changed from
+LiveCode Community says so in a notice of its own;
+[NOTICE-OF-MODIFICATIONS.md](NOTICE-OF-MODIFICATIONS.md) covers the rest.
 
 This repository, **OpenXTalk-Beyond**, holds all of it: the engine source (LiveCode Community 9.7 plus
 Tom Perry's 9.7.1-OXT engine work), the OpenXTalk Lite 1.15 IDE with

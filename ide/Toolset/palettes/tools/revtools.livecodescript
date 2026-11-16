@@ -1,4 +1,10 @@
 ﻿script "revTools" with behavior "revPaletteBehavior"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Seth Morrow (2026), Terry Little (2023), Tom Perry (2023-2026) and
+-- Bernd Niggemann (2026); its Git history and CHANGELOG.md say what
+-- changed.
+
 ﻿script "revTools" with behavior "revPaletteBehavior"
 constant BLOCK_SIZE = 20
 

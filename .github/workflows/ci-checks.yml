@@ -114,6 +114,11 @@ jobs:
       - name: Check the changelog fragments
         run: python3 tools/ci/changelog.py check
 
+      # GPLv3 5(a): every source file changed from LiveCode Community says
+      # so (NOTICE-OF-MODIFICATIONS.md); needs the whole history above
+      - name: Check the modification notices
+        run: python3 tools/ci/modification_notices.py check
+
       # A warning in the summary, never a failure here: an engine change
       # must not turn every pull request red. The release is where it fails:
       # "Tag a release" runs this with --fail-on-stale (BUILDING.md section

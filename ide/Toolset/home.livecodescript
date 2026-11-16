@@ -1,4 +1,9 @@
 ﻿script "home"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Seth Morrow (2026) and Tom Perry (2023-2026); its Git history and
+-- CHANGELOG.md say what changed.
+
 constant kImportantTextColor = "#FF8B00"
 global tForkName
 global IDEBootTimeInSeconds

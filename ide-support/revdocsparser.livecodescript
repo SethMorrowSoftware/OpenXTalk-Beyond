@@ -1,4 +1,9 @@
 ﻿script "revDocsParser"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Seth Morrow (2026) and Brian Milby (2026); its Git history and
+-- CHANGELOG.md say what changed.
+
 /* 
 Tests the features of the inline documentation parser & display
 

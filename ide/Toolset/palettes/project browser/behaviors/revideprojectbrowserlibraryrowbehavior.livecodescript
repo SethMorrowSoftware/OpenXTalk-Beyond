@@ -1,4 +1,9 @@
 ﻿script "revIDEProjectBrowserLibraryRowBehavior"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Seth Morrow (2026) and docmeth02 (2026); its Git history and CHANGELOG.md
+-- say what changed.
+
 on FillInData pDataA, pRow
    # Map pDataA values to physical controls...
    set the cIndent of me to pDataA["level"] -1
