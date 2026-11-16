@@ -5587,6 +5587,117 @@ on TestHyperCardScriptsSoundExternals
    _Close tOther
 end TestHyperCardScriptsSoundExternals
 
+on TestHyperCardScriptsFileModDateSeconds
+   -- FileModDate counts its seconds as the seconds function does in the
+   -- stack that asks: from 1904 in local time in a stack whose
+   -- hyperTalkCompatible is true (as the import sets it), so that convert
+   -- gives the file's date and a comparison with the seconds works, as in
+   -- HyperCard; since 1970 in any other stack, as before
+   local tStack, tFolder, q, tResults, tFlag, tYear
+   global gHCScriptsTest
+   put quote into q
+   put the seconds into tYear
+   convert tYear to dateItems
+   put item 1 of tYear into tYear
+   put the temporary folder & "/hcmoddate" & the milliseconds into tFolder
+   create folder tFolder
+   put "abc" into url ("binfile:" & tFolder & "/a.txt")
+   repeat for each item tFlag in "true,false"
+      put "HCModDate" & tFlag & the milliseconds into tStack
+      lock messages
+      create invisible stack tStack
+      set the hyperTalkCompatible of stack tStack to tFlag
+      set the uHyperCard["file"] of stack tStack to tFolder & "/Main"
+      set the uHyperCard["externals"] of stack tStack to "XFCN" & tab & "FileModDate"
+      set the defaultStack to tStack
+      create button "Dates"
+      set the script of button "Dates" to _Lines("on mouseUp", "  global gHCScriptsTest", "  local tDate", "  put empty into gHCScriptsTest",             "  put FileModDate(" & q & "a.txt" & q & ") into tDate",             "  put abs(tDate - the seconds) & tab after gHCScriptsTest",             "  put abs(FileModDate(" & q & "a.txt" & q & ", true) - the seconds) & tab after gHCScriptsTest",             "  convert tDate to dateItems",             "  put item 1 of tDate & tab after gHCScriptsTest",             "  put (the seconds > 2082844800) & tab after gHCScriptsTest",             "  put FileModDate(" & q & "No Such File" & q & ") after gHCScriptsTest",             "end mouseUp")
+      unlock messages
+      get revHyperCardFixScripts(tStack)
+      send "mouseUp" to button "Dates" of card 1 of stack tStack
+      put gHCScriptsTest into tResults
+      set the itemDelimiter to tab
+      TestAssert "hyperTalkCompatible" && tFlag & ": the stack counts the seconds from" && (char 1 to 4 of "19041970") && "when true", item 4 of tResults is tFlag
+      TestAssert "hyperTalkCompatible" && tFlag & ": FileModDate is within a minute of the seconds", item 1 of tResults < 60
+      TestAssert "hyperTalkCompatible" && tFlag & ": FileModDate(..., true) too", item 2 of tResults < 60
+      TestAssert "hyperTalkCompatible" && tFlag & ": convert gives the file's year", item 3 of tResults is tYear
+      TestAssert "hyperTalkCompatible" && tFlag & ": empty for no such file", item 5 of tResults is empty
+      _Close tStack
+   end repeat
+
+   -- a file on the disk image the stack came from: its HFS date is
+   -- already HyperCard's (local time on the Mac that wrote it), so only
+   -- the years from 1904 to 1970 are added, not this computer's offset
+   -- from GMT as well. The test volume's files have no dates, so a copy
+   -- of it is given Read Me's: its catalog record (a key of 13 bytes
+   -- that ends with its name, then the record, from an even byte) has
+   -- the created and modified dates at 44 and 48
+   local tImage, tData, tAt
+   put URL ("binfile:" & TestGetInputFile("hypercard/forks/Stacks.hfs")) into tData
+   put byteOffset(numToByte(7) & "Read Me", tData) - 6 into tAt
+   put tAt + byteToNum(byte tAt of tData) + 1 into tAt
+   if tAt mod 2 is 0 then add 1 to tAt
+   put binaryEncode("M", 3000000000) into byte tAt + 44 to tAt + 47 of tData
+   put binaryEncode("M", 3100000000) into byte tAt + 48 to tAt + 51 of tData
+   put tFolder & "/Dated.hfs" into tImage
+   put tData into URL ("binfile:" & tImage)
+   set the itemDelimiter to comma
+   repeat for each item tFlag in "true,false"
+      put "HCModDateImage" & tFlag & the milliseconds into tStack
+      lock messages
+      create invisible stack tStack
+      set the hyperTalkCompatible of stack tStack to tFlag
+      set the uHyperCard["file"] of stack tStack to tFolder & "/Main"
+      set the uHyperCard["image"] of stack tStack to tImage
+      set the uHyperCard["imagepath"] of stack tStack to "Old Disk:Stacks:Synthetic Stack"
+      set the uHyperCard["externals"] of stack tStack to "XFCN" & tab & "FileModDate"
+      set the defaultStack to tStack
+      create button "Dates"
+      set the script of button "Dates" to _Lines("on mouseUp", "  global gHCScriptsTest", "  put empty into gHCScriptsTest",             "  put FileModDate(" & q & "Old Disk:Read Me" & q & ", true) & tab after gHCScriptsTest",             "  put FileModDate(" & q & "Old Disk:Read Me" & q & ") after gHCScriptsTest",             "end mouseUp")
+      unlock messages
+      get revHyperCardFixScripts(tStack)
+      send "mouseUp" to button "Dates" of card 1 of stack tStack
+      put gHCScriptsTest into tResults
+      set the itemDelimiter to tab
+      if tFlag then
+         TestAssert "on an image, hyperTalkCompatible true: the HFS dates as they are, from 1904",                item 1 of tResults is 3000000000 and item 2 of tResults is 3100000000
+      else
+         TestAssert "on an image, hyperTalkCompatible false: the dates as before, from 1970",                item 1 of tResults is 3000000000 - 2082844800 and item 2 of tResults is 3100000000 - 2082844800
+      end if
+      set the itemDelimiter to comma
+      _Close tStack
+   end repeat
+   delete file tImage
+end TestHyperCardScriptsFileModDateSeconds
+
+on TestHyperCardScriptsSoundName
+   -- FSound() gives the name of the sound playing, as the external did
+   -- ("boing"), where this engine's sound function gives audioclip
+   -- "boing": hcSoundName makes the one the other; done, and a file's
+   -- path, stay as they are
+   local tStack, q, tResults
+   global gHCScriptsTest
+   put quote into q
+   put "HCSoundName" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["externals"] of stack tStack to "XFCN" & tab & "FSound"
+   set the defaultStack to tStack
+   create button "Names"
+   set the script of button "Names" to _Lines("on mouseUp", "  global gHCScriptsTest", "  put empty into gHCScriptsTest",          "  put hcSoundName(" & q & "audioclip " & q & " & quote & " & q & "boing" & q & " & quote) & tab after gHCScriptsTest",          "  put hcSoundName(" & q & "audioclip " & q & " & quote & " & q & "One Small Step" & q & " & quote) & tab after gHCScriptsTest",          "  put hcSoundName(" & q & "done" & q & ") & tab after gHCScriptsTest",          "  put hcSoundName(" & q & "C:/Sounds/boing.wav" & q & ") & tab after gHCScriptsTest",          "  put FSound() after gHCScriptsTest",          "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   send "mouseUp" to button "Names" of card 1 of stack tStack
+   put gHCScriptsTest into tResults
+   set the itemDelimiter to tab
+   TestAssert "an audio clip's name", item 1 of tResults is "boing"
+   TestAssert "a name with spaces", item 2 of tResults is "One Small Step"
+   TestAssert "done stays done", item 3 of tResults is "done"
+   TestAssert "a file's path stays as it is", item 4 of tResults is "C:/Sounds/boing.wav"
+   TestAssert "FSound() is done when no sound plays", item 5 of tResults is "done"
+   _Close tStack
+end TestHyperCardScriptsSoundName
+
 on TestHyperCardScriptsPICTWriters
    -- ClipToPICT (17 stacks of the corpus carry it), PICTFileToRes (6) and
    -- PICTToClip (9): the clipboard's picture, or a file's, becomes a
