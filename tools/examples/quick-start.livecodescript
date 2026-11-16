@@ -149,6 +149,20 @@ private function lessonText pIndex, pWhich
       -- navigation buttons; here the button you make is button 2, after My
       -- First Button, which is what "do the same thing" means)
       textChange tText, "button 3 to", "button 2 to"
+      -- (his card was plainly the stack he meant; this window has a
+      -- sidebar, a stage and panels, and a newcomer looked for a stack to
+      -- make first, since the lesson "skips to say: Create a new stack",
+      -- openxtalk.org p=26390: the notes and the narrator now say that
+      -- the stack is this window, and where on it the button goes)
+      textChange tText, "palette to the stack.", "palette to the stack: this window, in its Try It box."
+      if pWhich is "Info" then
+         -- (the same newcomer took "Tools" for the Tools palette, looked
+         -- there for a Message Box to put on the card, and did not expect
+         -- a window: "menu Tools" is how his narrator says it, the window
+         -- is said, and a Mac's key is Cmd)
+         textChange tText, "1. Ctrl-M or Tools > Message Box.", \
+               "1. Ctrl-M (Cmd-M on a Mac) or menu Tools > Message Box: a small window of its own opens."
+      end if
    end if
    if pIndex is 6 then
       -- (the navigation buttons and the title are in the sidebar and the
@@ -204,7 +218,7 @@ private command buildFront
    end repeat
    -- How a lesson works, in four steps
    put "mouse-pointer-click|Try it|Each lesson's own buttons and fields are on its stage, as Terry made them: click them and see." & return & \
-         "book-open|Read the notes|His notes, at the right, go step by step. Do each Try It in the IDE, beside this window." & return & \
+         "book-open|Read the notes|His notes, at the right, go step by step. Do each Try It here: this window is the stack." & return & \
          "volume-2|Listen|Read it to me reads the lesson aloud, a paragraph at each click, and shows the words." & return & \
          "code|See the scripts|Scripts, at the top right, shows the script of each button and field: read it, change it, try it." into tSteps
    put 436 into tTop
