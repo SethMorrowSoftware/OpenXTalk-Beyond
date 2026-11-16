@@ -302,6 +302,16 @@ checked for the web.
 | `OXT_EXAMPLES_DEBUG` | Set, a failure writes the engine's whole error |
 | `OXT_EXAMPLES_KEEP_LIGHT` | Set, the light stack is the one already in the output folder, as it was built before: only the dark colours and the window's script are added to it, so its light look stays as it was to the pixel |
 
+A stack built again is committed with its scripts in `stack-scripts/`, as
+every binary stack is (CONTRIBUTING.md, "Binary stacks"): run
+`tools/oxt/stack-scripts.sh <development engine>` after the build. A
+build takes in whatever has changed since the stack was last built, the
+window's script (`frame-runtime.livecodescript`) as well as the example's
+own builder, so a script can be out of date that the change in hand never
+touched. The Linux build checks it, and so, with no engine, does
+`tools/ci/tests/test_example_stack_scripts.py`: the script in each of
+those text files must be in the bytes of its stack.
+
 ### Light and dark
 
 A remaster follows the desktop between light and dark, as Learn does
