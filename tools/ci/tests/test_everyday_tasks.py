@@ -72,6 +72,33 @@ class EverydayTasksScript(unittest.TestCase):
     def test_ascii(self):
         self.text.encode('ascii')
 
+    def test_no_else_on_its_own_line_after_a_one_line_if(self):
+        # "if A then X" with "else" alone on the next line is one if
+        # statement to the engine, and its else runs to the next "end if".
+        # Written inside another if it takes that one's else and end if:
+        # the script does not compile, no handler of it runs, and a run
+        # prints nothing until its time is up. Before an "else" of the
+        # enclosing if, a one-line if is written as a block
+        found = self.one_line_ifs_before_else(self.text)
+        self.assertEqual(found, [])
+        # (the scan itself, on the shape that did not compile)
+        bad = 'if pHow is "hidden" then\n   if tOne then throw "x"\nelse\n   put 1 into tTwo\nend if\n'
+        self.assertEqual(self.one_line_ifs_before_else(bad), ['line 2: if tOne then throw "x"'])
+        good = 'if pHow is "hidden" then\n   if tOne then\n      throw "x"\n   end if\nelse\n   put 1 into tTwo\nend if\n'
+        self.assertEqual(self.one_line_ifs_before_else(good), [])
+
+    @staticmethod
+    def one_line_ifs_before_else(text):
+        lines = text.split('\n')
+        found = []
+        for index in range(len(lines) - 1):
+            line = lines[index].strip()
+            if lines[index + 1].strip() != 'else' or line.endswith('\\'):
+                continue
+            if re.match(r'(else )?if .* then \S', line):
+                found.append('line %d: %s' % (index + 1, line[:80]))
+        return found
+
     def test_tasks_listed(self):
         self.assertGreaterEqual(len(self.tasks), 40)
         self.assertEqual(self.tasks[0], 'start')
@@ -359,6 +386,182 @@ class ToolTileClickIsWatched(unittest.TestCase):
 
     def test_the_watcher_is_taken_down_after_a_failure(self):
         self.assertIn('edWatchClicks false', self.handlers['edTidyAfterFailure'])
+
+
+class ReleaseHandledBeforeTheTaskGoesOn(unittest.TestCase):
+    """quick-start-dropped-shows failed on both of macOS's test jobs, Intel
+    and Apple Silicon (#532, run 43906150245): its first click, the
+    engine's on the Run tile, "chose
+    nothing ... seen: 0 mouseDown card id 1002 (Tools); 205 mouseRelease
+    button id 105962 (Tools)", right after the lesson's drag of a tile by
+    the system's mouse and its click on the button made; browse-runs-it
+    once lost the same click after drags. Read in the engine: on macOS
+    the palette's drag ends when the system says the button is up, which
+    can be before the engine has taken the mouse-up from its queue; the
+    engine gives a mouse-up to the window pressed only while that window's
+    stack is the one it holds the mouse over; and a task's own click
+    makes that the stack clicked while it waits. A mouse-up taken from the
+    queue then is dropped, the tile dragged goes on holding the press, and
+    the palette's next press goes to the card. A drag's wait now handles
+    the events for a moment after the helper's release, its record says
+    what the engine held the mouse over, and a watched message to the
+    Tools palette names the tile it went to."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.text = read(SCRIPT)
+        cls.handlers = handlers(cls.text)
+        m = re.search(r'^function edDragDone pMilliseconds\n(.*?)^end edDragDone', cls.text, re.M | re.S)
+        cls.done = m.group(1) if m else ''
+        m = re.search(r'^function edDragOver\n(.*?)^end edDragOver', cls.text, re.M | re.S)
+        cls.over = m.group(1) if m else ''
+        m = re.search(r'^function edShortTarget pLongID\n(.*?)^end edShortTarget', cls.text, re.M | re.S)
+        cls.short = m.group(1) if m else ''
+
+    def code(self, body):
+        return '\n'.join(line for line in body.split('\n') if not line.lstrip().startswith('--'))
+
+    def test_the_events_are_handled_after_the_release_and_before_the_task_goes_on(self):
+        done = self.code(self.done)
+        up = done.index('edWaitFor("edDragOver() and there is a file pAx')
+        handled = done.index('edPause 200')
+        self.assertLess(up, handled)
+        self.assertLess(handled, done.index('return "released"'))
+        # every drag a task makes ends in that wait
+        for name in ('edMake', 'edGuideLesson', 'edGuideDropped'):
+            body = self.handlers[name]
+            self.assertEqual(body.count('edSystemDrag '), body.count('put edDragDone(20000) into tDrag'), name)
+            self.assertLess(body.index('edSystemDrag '), body.index('put edDragDone(20000) into tDrag'), name)
+
+    def test_the_engine_is_as_it_was_read(self):
+        # the three things the wait rests on; a change to one of them is
+        # a reason to read edDragDone's comment again
+        source = read(os.path.join(ROOT, 'engine', 'src', 'desktop.cpp'))
+        for name in ('MCPlatformHandleMouseUp', 'MCPlatformHandleMouseRelease'):
+            m = re.search(r'^void %s\(.*?^}' % name, source, re.M | re.S)
+            self.assertTrue(m, 'no %s in desktop.cpp' % name)
+            self.assertIn('if (MCmousestackptr.IsBoundTo(t_stack) || t_menu != nil)', m.group(0), name)
+        source = read(os.path.join(ROOT, 'engine', 'src', 'mac-core.mm'))
+        m = re.search(r'^bool MCPlatformGetMouseButtonState\(.*?^}', source, re.M | re.S)
+        self.assertTrue(m, 'no MCPlatformGetMouseButtonState in mac-core.mm')
+        self.assertIn('[NSEvent pressedMouseButtons]', m.group(0))
+        source = read(os.path.join(ROOT, 'engine', 'src', 'exec-interface.cpp'))
+        m = re.search(r'^void MCInterfaceExecClickCmd\(.*?^}', source, re.M | re.S)
+        self.assertTrue(m, 'no MCInterfaceExecClickCmd in exec-interface.cpp')
+        click = m.group(0)
+        self.assertLess(click.index('MCscreen->setmouseloc(MCdefaultstackptr, t_view_clickloc);'),
+                        click.index('MCscreen->wait(CLICK_INTERVAL, False, False);'))
+
+    def test_a_drags_record_says_what_the_mouse_was_over(self):
+        self.assertIn('edWaitFor("edDragOver() and there is a file pAx', self.done)
+        self.assertEqual(self.done.count('); the mouse over:" && edDragWasOver()'), 2)   # released, and not
+        for part in ('the mouse &&', 'the mouseStack', 'the short name of the mouseControl', 'sKeep["dragLaunched"]'):
+            self.assertIn(part, self.over, 'the record does not hold %s' % part)
+        # and what it is over once the release is handled
+        done = self.code(self.done)
+        self.assertLess(done.index('edPause 200'), done.index('get edDragOver()'))
+        self.assertLess(done.index('get edDragOver()'), done.index('return "released"'))
+
+    def test_the_record_never_ends_the_wait(self):
+        # true whatever it saw: the wait ends on the helper's "up" alone
+        returns = re.findall(r'^\s*return [^\n]*', self.over, re.M)
+        self.assertEqual([r.strip() for r in returns], ['return true'])
+
+    def test_each_drag_starts_its_own_record(self):
+        wait = self.done.index('edWaitFor("edDragOver()')
+        for line in ('put empty into sKeep["dragOver"]', 'put empty into sKeep["dragOverNow"]'):
+            self.assertIn(line, self.done)
+            self.assertLess(self.done.index(line), wait)
+
+    def test_a_drag_that_made_its_control_keeps_its_record_too(self):
+        body = self.handlers['edMake']
+        made = body.index('edRecord "INFO made"')
+        self.assertLess(made, body.index('if sInput is true then edRecord "INFO the drag" && tDrag'))
+
+    def test_a_watched_message_to_the_tools_palette_names_its_tile(self):
+        self.assertIn('return tOut && "(Tools," && the short name of pLongID & ")"', self.short)
+        # a card or the stack has no tile to name
+        self.assertIn('return tOut && "(Tools)"', self.short)
+
+
+class TheIdeIsIdleBeforeADrag(unittest.TestCase):
+    """The lesson's drag made no button on Windows (#532, run 43906149713),
+    in the light and the dark run. Measured there (#537, run 43934646350):
+    the tile's mouseDown comes after the messages the IDE has due, and the
+    Tools palette starts its drag only if the button is still down then.
+    The lesson's three checks of the tile switch the palette's look over
+    and over with no event handled between; every tile the palette names
+    tells the IDE that its stacks changed, and the Message Box answers
+    each with a positionOpenStacksButton sent to itself. With 2 of them
+    waiting the mouseDown came 46 ms after the press; with 36, 430 ms;
+    with 252, 7.8 s, the mouse long up. A drag now waits first for what
+    the IDE has due, and its record says how many that was."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.text = read(SCRIPT)
+        m = re.search(r'^command edSystemDrag pFrom, pTo\n(.*?)^end edSystemDrag', cls.text, re.M | re.S)
+        cls.drag = m.group(1) if m else ''
+        m = re.search(r'^function edSettled pMilliseconds\n(.*?)^end edSettled', cls.text, re.M | re.S)
+        cls.settled = m.group(1) if m else ''
+        m = re.search(r'^function edDue\n(.*?)^end edDue', cls.text, re.M | re.S)
+        cls.due = m.group(1) if m else ''
+        m = re.search(r'^function edDragDone pMilliseconds\n(.*?)^end edDragDone', cls.text, re.M | re.S)
+        cls.done = m.group(1) if m else ''
+
+    def code(self, body):
+        return '\n'.join(line for line in body.split('\n') if not line.lstrip().startswith('--'))
+
+    def test_a_drag_waits_for_what_the_ide_has_due_before_the_mouse_is_pressed(self):
+        drag = self.code(self.drag)
+        settled = drag.index('put edSettled(20000) into sKeep["dragSettled"]')
+        # before the clock of the drag starts and before any helper is launched
+        self.assertLess(settled, drag.index('put the milliseconds into sKeep["dragLaunched"]'))
+        self.assertLess(settled, drag.index('switch the platform'))
+        self.assertEqual(self.text.count('edSettled('), 1,
+                         'the one wait is the drag helper\'s own: every drag goes through it')
+
+    def test_the_wait_handles_events_while_messages_are_due(self):
+        settled = self.code(self.settled)
+        self.assertIn('put edDue() into tFirst', settled)
+        loop = re.search(r'repeat while (.*?)\n(.*?)\n   end repeat', settled, re.S)
+        self.assertIsNotNone(loop)
+        self.assertIn('tLeast > 0', loop.group(1))
+        self.assertIn('wait 50 milliseconds with messages', loop.group(2))
+        self.assertIn('put edDue() into tNow', loop.group(2))
+
+    def test_the_wait_ends(self):
+        # at most the time given, and no longer than the number goes on
+        # falling: a message that sends itself again is always due
+        loop = re.search(r'repeat while (.*?)\n', self.code(self.settled)).group(1)
+        self.assertIn('the milliseconds - tStart < pMilliseconds', loop)
+        self.assertIn('the milliseconds - tLeastAt < 1500', loop)
+        self.assertEqual(loop.count(' and '), 2)
+        self.assertNotIn(' or ', loop)
+
+    def test_only_messages_whose_time_has_come_are_counted(self):
+        # a task's own watchdog waits 30 seconds, and the IDE keeps
+        # messages for later (its preferences' save): neither is due
+        due = self.code(self.due)
+        self.assertIn('put the long seconds into tNow', due)
+        self.assertIn('repeat for each line tLine in the pendingMessages', due)
+        self.assertIn('item 2 of tLine <= tNow then add 1 to tCount', due)
+
+    def test_a_drags_record_says_what_was_due_before_it(self):
+        self.assertIn('"messages due," && tLeast && "left after"', self.code(self.settled))
+        done = self.code(self.done)
+        self.assertEqual(done.count('"; before it" && sKeep["dragSettled"]'), 2,
+                         'released or not, the record ends with what the IDE had due')
+
+    def test_the_lessons_drags_keep_their_record_when_they_work(self):
+        # so that a run on Windows says how many messages its drags waited for
+        hs = handlers(self.text)
+        lesson = hs['edGuideLesson']
+        made = lesson.index('edWaitFor("the number of buttons of pAx is 2", 6000, tCard)')
+        self.assertLess(made, lesson.index('if sInput is true then edRecord "INFO the lesson\'s drag" && tDrag'))
+        dropped = hs['edGuideDropped']
+        made = dropped.index('edWaitFor("the number of controls of pAx is pBx + 1", 6000, tCard, tCount)')
+        self.assertLess(made, dropped.index('if sInput is true then edRecord "INFO the drag of the" && tType && tDrag'))
 
 
 class StandaloneBuildStopped(unittest.TestCase):
@@ -976,6 +1179,13 @@ class QuickStartFirstLesson(BuildTasks, unittest.TestCase):
                          '1. Ctrl-M (Cmd-M on a Mac) or menu Tools > Message Box: a small window of its own opens.')
         self.assertIn('Do each Try It here: this window is the stack."', self.guide)
         self.assertNotIn('beside this window', self.guide)
+        # (and which tile the standard button is: "the top gray button"
+        # fits the Tools palette's classic look alone, and a new install
+        # shows the modern one, openxtalk.org p=26402. The notes and the
+        # narrator have their own words for it, each changed)
+        said = "the first one under Controls, which reads OK; in the palette's classic look, the top gray button"
+        self.assertEqual(changes['the top gray button (standard button)'], 'a standard button (%s)' % said)
+        self.assertEqual(changes['the top gray button, (a standard button),'], 'a standard button, (%s),' % said)
         # (the Try It box says so itself)
         self.assertIn('buildCanvas "TRY IT", "Drag a button here from the Tools palette.", true', self.guide)
 
@@ -1002,12 +1212,21 @@ class QuickStartFirstLesson(BuildTasks, unittest.TestCase):
 
     def test_the_task_reads_those_words_in_the_stack(self):
         changes = dict(self.changes())
-        m = re.search(r'put line lineOffset\("Drag the top gray button", tNotes\) of tNotes into tLine\n\s*if (.*?) then\n', self.lesson)
+        m = re.search(r'put line lineOffset\("from the tools palette to the stack", tNotes\) of tNotes into tLine\n\s*if (.*?) then\n', self.lesson)
         self.assertIsNotNone(m)
         words = re.findall(r'"([^"]+)" is not in tLine', m.group(1))
         self.assertEqual(words, ['this window', 'Try It box'])
         for word in words:
             self.assertIn(word, changes['palette to the stack.'])
+            self.assertNotIn(word.encode('ascii'), self.original)
+        # (the line is found by words of his that are still in it)
+        self.assertIn(b'from the tools palette to the stack', self.original)
+        m = re.search(r'\n\s*if ("under Controls" is not in tLine.*?) then\n\s*throw "the notes do not say which tile', self.lesson)
+        self.assertIsNotNone(m)
+        words = re.findall(r'"([^"]+)" is not in tLine', m.group(1))
+        self.assertEqual(words, ['under Controls', 'reads OK', 'classic look'])
+        for word in words:
+            self.assertIn(word, changes['the top gray button (standard button)'])
             self.assertNotIn(word.encode('ascii'), self.original)
         m = re.search(r'put line lineOffset\("Tools > Message Box", tNotes\) of tNotes into tLine\n\s*if (.*?) then\n', self.lesson)
         self.assertIsNotNone(m)
@@ -1019,6 +1238,146 @@ class QuickStartFirstLesson(BuildTasks, unittest.TestCase):
         # (read before anything is done: a lesson that does not say it is
         # not done as if it did)
         self.assertLess(self.lesson.index('put line lineOffset("Tools > Message Box", tNotes)'), self.lesson.index('edToolFilter "button"'))
+
+    def test_the_tile_the_notes_name_is_the_palettes_first(self):
+        # "under Controls" is the modern look's section of the classic
+        # controls, by its title in the palette's own list
+        tools = read(os.path.join(ROOT, 'ide', 'Toolset', 'palettes', 'tools', 'revtools.livecodescript'))
+        sections = re.search(r'^constant kTmSections = "([^"]*)"', tools, re.M).group(1).split('\\n')
+        self.assertIn('classic|Controls|classic', sections)
+        # and "the first one" is looked for in the palette itself, in both
+        # looks, before the tile is used: the topmost shown tile of the
+        # classic controls, and of a row the leftmost
+        first = self.function('edFirstControlTile')
+        self.assertIn('if not (tName begins with "com.livecode.interface.classic.") then next repeat', first)
+        self.assertIn('if not the effective visible of tTile then next repeat', first)
+        self.assertIn('the top of tTile < tTop - 4 or (abs(the top of tTile - tTop) <= 4 and the left of tTile < tLeft)', first)
+        check = self.handlers['edGuideTileIsFirst']
+        self.assertIn('repeat for each item tTry in "modern,classic"', check)
+        self.assertIn('edWaitFor("edToolsLookOn(pAx) and edFirstControlTile() is pBx", 6000, tTry, "com.livecode.interface.classic.button")', check)
+        self.assertLess(self.lesson.index('edGuideTileIsFirst'), self.lesson.index('edToolFilter "button"'))
+        # (a section folded or left out would hide the tiles: the modern
+        # look is read with its Controls shown and unfolded, as a new
+        # install has them, before the first tile is asked for)
+        modern = re.search(r'if tTry is "modern" then\n(.*?)\n\s*end if\n\s*if not edWaitFor\("edToolsLookOn\(pAx\) and edFirstControlTile\(\) is pBx"', check, re.S)
+        self.assertIsNotNone(modern)
+        self.assertRegex(modern.group(1), r'if not edToolsSectionShown\("classic"\) then\n\s*edToolsSection "classic"\n\s*put true into tShown\n\s*end if\n'
+                                          r'\s*if edToolsFolded\("classic"\) then\n\s*edToolsCaption "classic"\n\s*put true into tUnfolded\n\s*end if')
+        self.assertLess(check.index('if not edWaitFor("edToolsLookOn(pAx)", 6000, tTry) then throw'), modern.start())
+
+    def test_the_palette_is_left_as_it_was(self):
+        check = self.handlers['edGuideTileIsFirst']
+        loop_end = check.index('end try')
+        self.assertIn('put revIDEGetPreference("revTools_look") into tLook', check[:check.index('try')])
+        put_back = 'if revIDEGetPreference("revTools_look") is not tLook then revIDESetPreference "revTools_look", tLook'
+        # (put back after the try, so also when a look was not as said)
+        self.assertGreater(check.index(put_back), loop_end)
+        self.assertLess(check.index(put_back), check.index('if tError is not empty then throw tError'))
+        self.assertIn('if not edWaitFor("edToolsLookOn(pAx)", 6000, tNow) then', check[check.index(put_back):])
+        # what it unfolded is folded again and what it turned on is turned
+        # off, in that order and whatever the check found, in the modern
+        # look (the classic one has neither), before the look is put back
+        mine = check.index('if tUnfolded is true or tShown is true then')
+        modern = check.index('if revIDEGetPreference("revTools_look") is "classic" then revIDESetPreference "revTools_look", "modern"', mine)
+        fold = check.index('if tUnfolded is true and not edToolsFolded("classic") then edToolsCaption "classic"')
+        hide = check.index('if tShown is true and edToolsSectionShown("classic") then edToolsSection "classic"')
+        self.assertLess(loop_end, mine)
+        self.assertLess(mine, modern)
+        self.assertLess(modern, fold)
+        self.assertLess(fold, hide)
+        self.assertLess(hide, check.index(put_back))
+        self.assertRegex(check[mine:], r'catch tAgain\n\s*if tError is empty then put tAgain into tError')
+        # No task writes the two settings itself: the palette does not
+        # read them again when they change, so what is shown would not be
+        # what they say
+        code = '\n'.join(line for line in self.text.split('\n') if not line.lstrip().startswith('--'))
+        self.assertNotIn('revIDESetPreference "revTools_modernFolded"', code)
+        self.assertNotIn('revIDESetPreference "revTools_modernShow"', code)
+        on = self.function('edToolsLookOn')
+        self.assertIn('if pLook is "classic" then return there is a button "tmModernLook" of card 1 of stack "revTools"', on)
+        self.assertIn('return there is a group "tmHeader" of card 1 of stack "revTools"', on)
+        tools = read(os.path.join(ROOT, 'ide', 'Toolset', 'palettes', 'tools', 'revtools.livecodescript'))
+        self.assertIn('create button "tmModernLook" in card 1 of stack "revTools"', tools)
+        self.assertIn('if there is a group "tmHeader" of me then tmTeardown', tools)
+        # and the look is on again, with the tile, before the tile is dragged
+        after = self.lesson[self.lesson.index('edGuideTileIsFirstWhen "hidden"'):]
+        self.assertRegex(after, r'edToolFilter "button"\n\s*put edTile\("com.livecode.interface.classic.button"\) into tTile\n\s*if tTile is empty then throw')
+
+    def test_a_folded_controls_section_is_unfolded_by_its_caption(self):
+        # The palette keeps what is folded in its own script, and reads
+        # the setting only while nothing is folded there: to empty the
+        # setting does not unfold a section folded earlier in the session
+        # (found in the review of #531). The first tile shown was then a
+        # shape's, and the lesson was said to be wrong
+        tools = read(os.path.join(ROOT, 'ide', 'Toolset', 'palettes', 'tools', 'revtools.livecodescript'))
+        self.assertIn('if sTmFolded is empty then put revIDEGetPreference("revTools_modernFolded") into sTmFolded', tools)
+        self.assertNotIn('case "revTools_modernFolded"', tools)
+        # folded is read from the caption's arrow, as the palette lays it out
+        self.assertRegex(tools, r'if tFolded then\n\s*set the icon of button \("tmCapHit:" & tKey\) of me to the id of image "tm.chevRight" of me')
+        folded = self.function('edToolsFolded')
+        self.assertIn('return the icon of button ("tmCapHit:" & pKey) of stack "revTools" is the id of image "tm.chevRight" of stack "revTools"', folded)
+        # and the caption is pressed as the palette takes a press
+        self.assertRegex(tools, r'case tName begins with "tmCap"\n\s*tmFold the cTmSection of pTarget')
+        self.assertIn('if tmMouseDown(pButton, the long id of the target) then exit mouseDown', tools)
+        caption = self.handlers['edToolsCaption']
+        self.assertIn('send "mouseDown 1" to button ("tmCapHit:" & pKey) of stack "revTools"', caption)
+        self.assertIn('if not edWaitFor("edToolsFolded(pAx) is not pBx", 3000, pKey, tWas) then', caption)
+
+    def test_a_section_left_out_is_turned_on_as_the_palettes_menu_does_it(self):
+        # The palette makes its tiles from revTools_modernShow when it
+        # builds the look, and is not told when the setting changes: to
+        # empty it in the modern look showed nothing more (found in the
+        # review of #532). Its menu's command builds the look again
+        tools = read(os.path.join(ROOT, 'ide', 'Toolset', 'palettes', 'tools', 'revtools.livecodescript'))
+        self.assertNotIn('revIDESubscribe "idePreferenceChanged:revTools_modernShow"', tools)
+        toggle = re.search(r'^command tmToggleSection pView\n(.*?)^end tmToggleSection', tools, re.M | re.S).group(1)
+        self.assertRegex(toggle, r'revIDESetPreference "revTools_modernShow", tShow\n\s*if tmIsModern\(\) then\n\s*lock screen\n\s*tmGenerate\n\s*tmLayout')
+        self.assertRegex(tools, r'case "Controls"\n\s*tmToggleSection "classic"')
+        self.assertIsNotNone(re.search(r'^function tmShownSections\n', tools, re.M))
+        shown = self.function('edToolsSectionShown')
+        self.assertRegex(shown, r'dispatch function "tmShownSections" to stack "revTools"\n\s*return pView is among the items of the result')
+        section = self.handlers['edToolsSection']
+        self.assertIn('dispatch "tmToggleSection" to stack "revTools" with pView', section)
+        self.assertIn('if not edWaitFor("edToolsSectionShown(pAx) is not pBx", 3000, pView, tWas) then', section)
+
+    def test_the_tile_is_looked_for_with_the_controls_folded_and_left_out_too(self):
+        # (in every run, so that the check is seen to unfold them and to
+        # turn them on: with either taken out of it, the lesson's task
+        # stops on "the first is com.livecode.interface.classic.FivePointStar",
+        # a shape's tile)
+        self.assertRegex(self.lesson, r'edGuideTileIsFirst\n\s*edGuideTileIsFirstWhen "folded"\n\s*edGuideTileIsFirstWhen "hidden"\n\s*edToolFilter "button"')
+        too = self.handlers['edGuideTileIsFirstWhen']
+        run = too.index('edGuideTileIsFirst\n')
+        hidden = re.search(r'if pHow is "hidden" then\n\s*if edToolsSectionShown\("classic"\) then\n\s*edToolsSection "classic"\n\s*put true into tDid\n\s*end if\n', too)
+        self.assertIsNotNone(hidden)
+        fold = too.index('if not edToolsFolded("classic") then\n')
+        self.assertLess(hidden.start(), fold)
+        self.assertLess(fold, run)
+        self.assertRegex(too[fold:run], r'edToolsCaption "classic"\n\s*put true into tDid')
+        # folded: the check starts in the look the palette had. Left out:
+        # in the modern look, where no change of look builds it again
+        classic = too.index('revIDESetPreference "revTools_look", "classic"')
+        self.assertLess(fold, classic)
+        self.assertLess(classic, run)
+        self.assertNotIn('revTools_look', too[hidden.start():hidden.end()])
+        # the check must leave them as they were, and the setting saying so
+        after = too[run:too.index('catch tError')]
+        self.assertIn('if edToolsSectionShown("classic") or edTile(tButton) is not empty then', after)
+        self.assertIn('if not edToolsFolded("classic") then throw "the check of the tile left the Controls unfolded, which were folded"', after)
+        said = 'if "classic" is not among the items of revIDEGetPreference("revTools_modernFolded") then'
+        self.assertEqual(too.count(said), 2)
+        self.assertLess(too.index(said), run)
+        self.assertLess(run, too.index(said, run))
+        # and what this folded or turned off is put back, and the look,
+        # after the try: whatever was found
+        end = too.index('end try')
+        back = too.index('if tDid is true or tShown is true then')
+        look = too.index('if revIDEGetPreference("revTools_look") is not tLook then revIDESetPreference "revTools_look", tLook')
+        self.assertLess(end, back)
+        self.assertRegex(too[back:look], r'if pHow is "hidden" then\n\s*if not edToolsSectionShown\("classic"\) then\n\s*edToolsSection "classic"\n\s*end if\n\s*else\n'
+                                         r'\s*if tDid is true and edToolsFolded\("classic"\) then edToolsCaption "classic"\n'
+                                         r'\s*if tShown is true and edToolsSectionShown\("classic"\) then edToolsSection "classic"\n')
+        self.assertLess(look, too.index('if tError is not empty then throw tError'))
 
     def test_the_button_made_is_the_notes_button_2(self):
         self.assertEqual(dict(self.changes())['button 3 to'], 'button 2 to')
@@ -1073,17 +1432,212 @@ class QuickStartFirstLesson(BuildTasks, unittest.TestCase):
         # Nor does the end of the run delete it (ed_finish runs whatever
         # tasks ran, the lesson's or not): one handler takes the Guide
         # out of memory, and only when this run opened it, which the
-        # lesson notes as it opens the file and nothing else does
+        # handler that opens the file notes as it does
         gone = self.handlers['edGuideGone']
         mine = 'if sKeep["guide"] is not true then exit edGuideGone'
         self.assertLess(gone.index(mine), gone.index('edRemoveBuiltStack kGuideStack'))
         code = '\n'.join(line for line in self.text.split('\n') if not line.lstrip().startswith('--'))
         self.assertEqual(code.count('edRemoveBuiltStack kGuideStack'), 1)
         self.assertNotIn('delete stack kGuideStack', code)
-        self.assertEqual(code.count('put true into sKeep["guide"]'), 1)
-        opened = self.lesson.index('put true into sKeep["guide"]')
-        self.assertLess(opened, self.lesson.index('go stack pFile'))
-        self.assertNotIn('throw', self.lesson[opened:self.lesson.index('go stack pFile')])
+        # (two handlers open the Guide's file, the lesson and the one that
+        # drops controls on its Try It box: each notes it on the line
+        # before, and nothing else in the tasks does either)
+        self.assertEqual(code.count('put true into sKeep["guide"]'), 2)
+        self.assertEqual(code.count('go stack pFile'), 2)
+        for opener in (self.lesson, self.handlers['edGuideDropped']):
+            self.assertEqual(opener.count('put true into sKeep["guide"]'), 1)
+            self.assertEqual(opener.count('go stack pFile'), 1)
+            self.assertRegex(opener, r'put true into sKeep\["guide"\]\n\s*go stack pFile\n')
+
+
+class QuickStartDroppedShows(BuildTasks, unittest.TestCase):
+    """quick-start-dropped-shows drags a standard button, a label field
+    and a check box onto the Try It box of the Quick Start Guide's first
+    lesson, and each must be seen there. In the dark look the system draws
+    a new control for a dark window, with white words, and the lessons'
+    stage stayed light, as the stage of an example with a program does: a
+    reader on a Mac, and one on Windows 11, found what they dragged there
+    "almost invisible" (openxtalk.org p=26402). The lessons' cards now say
+    that their stage follows the look (cStageFollowsLook), the builder
+    colours the Try It box, the notes' code and the narrator's words for
+    both looks, and the stack is built from it."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.guide = read(os.path.join(ROOT, 'tools', 'examples', 'quick-start.livecodescript'))
+        cls.build = read(os.path.join(ROOT, 'tools', 'examples', 'build-examples.livecodescript'))
+        cls.kit = read(os.path.join(ROOT, 'ide', 'Toolset', 'palettes', 'learn', 'revlearnkit.livecodescript'))
+        cls.frame = read(os.path.join(ROOT, 'tools', 'examples', 'frame-runtime.livecodescript'))
+        cls.task = cls.handlers['ed_quick_start_dropped_shows']
+        cls.dropped = cls.handlers['edGuideDropped']
+        with open(os.path.join(ROOT, 'ide', 'Resources', 'Examples', 'Remastered', 'Quick Start Guide.oxtstack'), 'rb') as f:
+            cls.stack = f.read()
+
+    def guide_part(self, name):
+        m = re.search(r'^private (?:command|function) %s\b[^\n]*\n(.*?)^end %s\s*$' % (name, name), self.guide, re.M | re.S)
+        self.assertIsNotNone(m, 'the builder has no %s' % name)
+        return m.group(1)
+
+    def test_it_runs_after_the_lesson(self):
+        listed = tasks(self.text)
+        self.assertEqual(listed.index('quick-start-dropped-shows'), listed.index('quick-start-first-lesson') + 1)
+
+    def test_the_lessons_say_that_their_stage_follows_the_look(self):
+        build = re.search(r'^command exBuild\b.*?^end exBuild', self.guide, re.M | re.S).group(0)
+        said = build.index('set the cStageFollowsLook of card (item tIndex of kLessons) to true')
+        self.assertLess(build.index('exAddCards'), said)
+        self.assertLess(said, build.index('buildFront'))
+        self.assertIn('repeat with tIndex = 1 to the number of items of kLessons', build[build.index('exAddCards'):said])
+        # (and no other example's builder says it: their programs were
+        # written for a light stage)
+        folder = os.path.join(ROOT, 'tools', 'examples')
+        for name in sorted(os.listdir(folder)):
+            if name.endswith('.livecodescript') and name not in ('quick-start.livecodescript', 'build-examples.livecodescript'):
+                self.assertNotIn('cStageFollowsLook', read(os.path.join(folder, name)), name)
+
+    def test_the_build_pairs_the_stage_of_such_a_card(self):
+        self.assertIn('if buildIsPage(tObj, the cLayout of tL, the cStageFollowsLook of tL) then', self.build)
+        m = re.search(r'^private function buildIsPage pObj, pLayout, pStageToo\n(.*?)^end buildIsPage', self.build, re.M | re.S)
+        self.assertIsNotNone(m)
+        body = m.group(1)
+        # a card with no stage is the page whatever it says; one with a
+        # stage is, all of it, when it says so; else only the window's own
+        # groups are
+        first = body.index('if word 1 of pLayout is not "program" and word 1 of pLayout is not "wide" then')
+        too = body.index('if pStageToo is true then')
+        own = body.index('return word 1 of tObj is "group" and the short name of tObj is among the items of "Frame,Scripts,Focus"')
+        self.assertLess(first, too)
+        self.assertLess(too, own)
+        self.assertRegex(body[too:own], r'^if pStageToo is true then\n\s*return true\n\s*end if\n')
+
+    def test_the_window_puts_the_look_on_every_control_of_a_card(self):
+        # (frameLook asks nothing about the stage: an object that has the
+        # two sets gets the one wanted)
+        look = re.search(r'^command frameLook\n(.*?)^end frameLook', self.frame, re.M | re.S).group(1)
+        self.assertIn('repeat with tCtl = 1 to the number of controls of card tCard of this stack', look)
+        self.assertNotIn('cLayout', look)
+        self.assertIn('set the uLook of this stack to tWant', look)
+
+    def test_the_try_it_box_is_coloured_for_both_looks(self):
+        canvas = self.guide_part('canvasSvg')
+        self.assertIn('lkHex(lkDarkLiteral("248,250,252", "fill"))', canvas)
+        self.assertNotIn("fill='#f8fafc'", canvas)
+        # (the light look's own colours are the ones it had: the light
+        # build must come out the same)
+        self.assertIn('put "#d5dde7" into tDot', canvas)
+        self.assertRegex(canvas, r'if lkDark\(\) then\n\s*put lkHex\(lkColor\("line"\)\) into tDot\n\s*end if')
+        literal = re.search(r'^function lkDarkLiteral pColor, pUse\n(.*?)^end lkDarkLiteral', self.kit, re.M | re.S).group(1)
+        fill = literal[literal.index('case "fill"'):literal.index('case "ink"')]
+        self.assertRegex(fill, r'case "248,250,252"\n\s*case "241,245,249"\n\s*return lkColor\("bg"\)')
+        self.assertRegex(fill, r'case "255,255,255"\n\s*return lkColor\("panel"\)')
+        self.assertIn('if sDarkMap is not true then\n      return pColor', literal)
+
+    def test_the_notes_code_is_coloured_for_both_looks(self):
+        notes = self.guide_part('notesHtml')
+        self.assertIn('"<p bgcolor=" & quote & lkHex(lkDarkLiteral("241,245,249", "fill")) & quote', notes)
+        self.assertNotIn('#f1f5f9', self.guide)
+        code = self.guide_part('notesCodeHtml')
+        self.assertIn('codeColor("180,83,9", "252,211,77")', code)
+        self.assertIn('codeColor("124,58,237", "196,181,253")', code)
+        color = self.guide_part('codeColor')
+        self.assertRegex(color, r'if lkDark\(\) then\n\s*return pDark\n\s*end if\n\s*return pLight')
+        # (the dark ones are the scripts panel's, which is dark in both)
+        self.assertIn('"#fcd34d"', self.frame)
+        self.assertIn('"#c4b5fd"', self.frame)
+        self.assertEqual('#%02x%02x%02x' % (252, 211, 77), '#fcd34d')
+        self.assertEqual('#%02x%02x%02x' % (196, 181, 253), '#c4b5fd')
+
+    def test_what_the_lessons_have_on_the_box_is_coloured_for_both_looks(self):
+        # lesson 3's list had the kit's ink on a white written as a number:
+        # white words on white, once its card follows the look
+        self.assertIn('sTexts["Display"], lkDarkLiteral("255,255,255", "fill"), lkColor("ink"), 12) into tObj', self.guide)
+        # lesson 2's field had no colour for its words, on green: the
+        # system's, white in the dark look. Black, as its group's script
+        # leaves them for Red and Green
+        self.assertIn('sTexts["Field Test"], "Green", "black", 14) into tObj', self.guide)
+        self.assertIn('else set the textColor of fld "Field Test" to "black"', self.guide)
+
+    def test_the_narrator_words_have_the_looks_colour(self):
+        ink = re.search(r'^function narratorInk pReading[^\n]*\n(.*?)^end narratorInk', self.guide, re.M | re.S)
+        self.assertIsNotNone(ink)
+        self.assertRegex(ink.group(1), r'if the uLook of this stack is "dark" then\n\s*if pReading is true then return "255,255,255"\n\s*return "226,232,240"\n\s*end if\n'
+                                       r'\s*if pReading is true then return "15,23,42"\n\s*return "71,85,105"')
+        self.assertIn('set the textColor of fld "Said" to narratorInk(false)', self.guide)
+        self.assertIn('set the textColor of fld "Said" to narratorInk(true)', self.guide)
+        self.assertNotRegex(self.guide, r'set the textColor of fld "Said" to "')
+        # (the stack's preOpenCard, which sets them, comes after the
+        # group's, which puts the look on and says which in uLook)
+        opened = re.search(r'^on preOpenCard\n(.*?)^end preOpenCard', self.frame, re.M | re.S).group(1)
+        self.assertLess(opened.index('frameLook'), opened.index('pass preOpenCard'))
+
+    def test_the_stack_installed_is_built_from_it(self):
+        self.assertIn(b'cStageFollowsLook', self.stack, 'the stack was not built again after its builder changed')
+        self.assertIn(b'narratorInk(false)', self.stack)
+        # (the notes' code band in the dark look, in the text kept for it)
+        self.assertIn(b'bgcolor="#101624"', self.stack)
+        self.assertEqual('#%02x%02x%02x' % (16, 22, 36), '#101624')
+        self.assertRegex(self.kit, r'if sDark is true then\n\s*switch pName\n\s*case "bg"\n\s*return "16,22,36"')
+
+    def test_three_kinds_of_control_are_dragged_as_the_lesson_drags_one(self):
+        self.assertIn('repeat for each item tType in "Button,LabelField,Checkbox"', self.dropped)
+        self.assertIn('put edTile("com.livecode.interface.classic." & tType) into tTile', self.dropped)
+        drag = self.dropped.index('edSystemDrag edScreenLoc(tTile, "revTools"), (item 1 of tSpot + the left of stack kGuideStack)')
+        self.assertLess(self.dropped.index('if sInput is true then'), drag)
+        self.assertLess(drag, self.dropped.index('send "mouseDoubleUp 1" to tTile'))
+        # on the box, and clear of what the lesson has on it
+        self.assertIn('put the rect of image "Canvas" of tCard into tCanvas', self.dropped)
+        self.assertIn('(the bottom of field "Field Test" of tCard + 20) into tSpot', self.dropped)
+        self.assertIn('if not (the loc of tNew is within tCanvas) then throw', self.dropped)
+
+    def test_each_must_be_seen(self):
+        seen = self.dropped.index('put edSeenPixels(tNew) into tSeen')
+        # (as it is when the reader clicks elsewhere: not its handles)
+        self.assertLess(self.dropped.index('select empty'), seen)
+        self.assertRegex(self.dropped[seen:], r'if tSeen < 30 then\n\s*throw "in the" && tLook && "look the" && tType && "dropped on the Try It box cannot be seen:"')
+        self.assertLess(self.dropped.index('if tSeen < 30 then'), self.dropped.index('end repeat'))
+
+    def test_seen_is_what_the_control_changes_of_the_picture(self):
+        seen = self.function('edSeenPixels')
+        shown = seen.index('set the visible of pObj to true')
+        hidden = seen.index('set the visible of pObj to false')
+        self.assertLess(shown, seen.index('put edCardPixels(tCard, tRect) into tWith\n'))
+        self.assertLess(hidden, seen.index('put edCardPixels(tCard, tRect) into tWithout'))
+        self.assertLess(seen.index('put edCardPixels(tCard, tRect) into tWithout'), seen.index('set the visible of pObj to tWas'))
+        # brightness, of 255 in thousandths: 80 of it or more is a change
+        self.assertIn('299 * byteToNum(byte tIndex + 1 of tWith) + 587 * byteToNum(byte tIndex + 2 of tWith) + 114 * byteToNum(byte tIndex + 3 of tWith)', seen)
+        self.assertIn('if abs(tA - tB) >= 80000 then add 1 to tCount', seen)
+        self.assertEqual(299 + 587 + 114, 1000)
+        self.assertIn('repeat with tIndex = 1 to the number of bytes of tWith step 4', seen)
+        # two pictures that do not match are no measure
+        self.assertRegex(seen, r'the number of bytes of tWith is not the number of bytes of tWithout then\n\s*throw')
+
+    def test_the_picture_is_the_cards_and_leaves_nothing_behind(self):
+        pixels = self.function('edCardPixels')
+        self.assertIn('import snapshot from rect pRect of pCard', pixels)
+        made = pixels.index('create invisible stack "edPixels"')
+        self.assertLess(made, pixels.index('set the defaultStack to "edPixels"'))
+        back = pixels.index('set the defaultStack to tDefault')
+        self.assertLess(pixels.index('end try'), back)
+        self.assertLess(back, pixels.index('delete stack "edPixels"\n   if tError'))
+
+    def test_the_guides_look_is_the_ides(self):
+        self.assertIn('if revIDEAppearanceIsDark() is true then put "dark" into tWant', self.dropped)
+        self.assertIn('put the uLook of stack kGuideStack into tLook', self.dropped)
+        self.assertRegex(self.dropped, r'if tLook is not tWant then throw "the IDE has its"')
+
+    def test_the_guide_is_put_away_unsaved(self):
+        self.assertLess(self.task.index('if edInMemory(kGuideStack) then throw'), self.task.index('edGuideDropped tFile'))
+        self.assertLess(self.dropped.index('put true into sKeep["guide"]'), self.dropped.index('go stack pFile'))
+        away = self.task.index('edGuideAway')
+        self.assertLess(self.task.index('end try\n   end try'), away)
+        self.assertLess(away, self.task.index('if tMiss is not empty then throw tMiss'))
+        self.assertIn('if edInMemory(kGuideStack) then throw "the Quick Start Guide is still in memory after the task"', self.task)
+
+    def test_the_box_is_kept_as_the_engine_draws_it(self):
+        self.assertIn('edShotStack kGuideStack, "35d-quick-start-dropped"', self.dropped)
+        self.assertIn('export snapshot from rect tCanvas of tCard to file tFile as PNG', self.dropped)
+        self.assertIn('edRecord "SHOT everyday-35e-quick-start-try-it-drawn.png" && tCanvas', self.dropped)
 
 
 if __name__ == '__main__':
