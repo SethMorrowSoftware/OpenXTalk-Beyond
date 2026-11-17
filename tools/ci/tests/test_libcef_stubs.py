@@ -345,6 +345,55 @@ class PackageFiles(unittest.TestCase):
         p = package.PLATFORMS['win-x86_64']
         self.assertEqual(set(p.cef['files']), dist)
 
+    def x64_only(self):
+        """The files CEF's README marks "(x64 only)": its 32-bit Windows
+        distribution has none of them."""
+        names = set()
+        for m in re.finditer(r'^\* [^\n]*\(x64 only\)\.\n((?:  \* \S+\n)+)', read(os.path.join(LIBCEF, 'README.txt')), re.M):
+            names.update(re.findall(r'^  \* (\S+)$', m.group(1), re.M))
+        return names
+
+    def test_windows_32_bit_takes_no_x64_only_file(self):
+        # Nothing packages the x86 build: it is made for its runtime, and
+        # only the runtimes asset reads this list. With a file of the 64-bit
+        # distribution alone in it the asset cannot be made: the first one
+        # for 0.2.8-dp.2 stopped at "win-x86: build output missing:
+        # Externals/CEF/dxcompiler.dll"
+        only64 = self.x64_only()
+        self.assertEqual(only64, {'dxcompiler.dll'})
+        import package
+        p64, p32 = package.PLATFORMS['win-x86_64'], package.PLATFORMS['win-x86']
+        self.assertEqual(set(p32.cef['files']), set(p64.cef['files']) - only64)
+        self.assertEqual(len(p32.cef['files']), len(set(p32.cef['files'])))
+        for key in ('helpers_in_cef', 'helpers_at_engine', 'helpers_at_runtime', 'trees'):
+            self.assertEqual(p32.cef[key], p64.cef[key], key)
+
+    def test_the_runtimes_asset_asks_the_x86_build_for_no_x64_only_file(self):
+        # As the "Runtimes asset" workflow reads a build: a win-x86 build
+        # folder with what CEF's 32-bit distribution has (the 64-bit one's
+        # files without the x64 only ones) lacks nothing of CEF's
+        import tempfile
+        import make_runtimes_asset
+        only64 = self.x64_only()
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = os.path.join(tmp, 'win-x86-bin')
+            for line in read(FILES).splitlines():
+                if not line.startswith('windows64\t'):
+                    continue
+                name = line.split('\t')[1].split('/', 1)[1]
+                if name in only64 or name in ('bootstrap.exe', 'bootstrapc.exe', 'libcef.lib'):
+                    continue
+                path = os.path.join(folder, 'Externals', 'CEF', *name.split('/'))
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                open(path, 'wb').close()
+            _, problems = make_runtimes_asset.plan_build_parts('win-x86', folder)
+        # the folder has CEF's files alone, so the engine, the externals and
+        # the helpers this build makes are missing; nothing of CEF's is
+        ours = ('libbrowser-cefprocess.exe', 'revbrowser-cefprocess.exe', 'libbrowser-cef.dll')
+        cef = [x for x in problems if 'Externals/CEF/' in x and not any(o in x for o in ours)]
+        self.assertEqual(cef, [])
+        self.assertTrue(any('standalone-community.exe' in x for x in problems), problems[:3])
+
 
 if __name__ == '__main__':
     unittest.main()

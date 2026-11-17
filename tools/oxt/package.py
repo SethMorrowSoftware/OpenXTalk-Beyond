@@ -475,12 +475,16 @@ def _windows(arch):
         # component Toolchain.Windows
         toolchain=('lc-compile.exe', 'lc-run.exe', 'lc-compile-ffi-java.exe'),
         # component Externals.CEF.Windows: the helpers from the build root,
-        # the rest from the build's Externals/CEF
+        # the rest from the build's Externals/CEF. dxcompiler.dll (DirectX
+        # rendering of WebGPU) is in CEF's 64-bit distribution only
+        # ("x64 only", thirdparty/libcef/README.txt), so the x86 build has
+        # none and its runtime takes none
         cef=dict(
             helpers_in_cef=('libbrowser-cefprocess.exe', 'revbrowser-cefprocess.exe', 'libbrowser-cef.dll'),
             helpers_at_engine=(), helpers_at_runtime=(),
-            files=('libcef.dll', 'chrome_elf.dll', 'd3dcompiler_47.dll', 'dxcompiler.dll',
-                   'vk_swiftshader.dll', 'vulkan-1.dll', 'vk_swiftshader_icd.json',
+            files=('libcef.dll', 'chrome_elf.dll', 'd3dcompiler_47.dll') +
+                  (('dxcompiler.dll',) if arch == 'x86_64' else ()) +
+                  ('vk_swiftshader.dll', 'vulkan-1.dll', 'vk_swiftshader_icd.json',
                    'resources.pak', 'chrome_100_percent.pak', 'chrome_200_percent.pak',
                    'icudtl.dat', 'v8_context_snapshot.bin'),
             trees=('locales',)),
