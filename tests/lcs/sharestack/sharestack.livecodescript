@@ -134,7 +134,7 @@ on TestProblems
 
    put __Info() into tInfo
    put "Proprietary" into tInfo["licence"]
-   TestAssert "a licence the gallery does not take", __Problems(tInfo) is "Choose how others may use your stack."
+   TestAssert "a licence the gallery does not take", __Problems(tInfo) is "Choose GPL 3 or GPL 3 or later: every community stack is GPL 3, as OXT-Beyond is."
 
    put __Info() into tInfo
    repeat for each item tVersion in "1.a,.1,1.,1..2,1.2.3.4.5,v1,"
@@ -158,7 +158,7 @@ on TestProblems
    put empty into tInfo
    TestAssert "nothing typed: a line for each box, in the window's order", \
          __Problems(tInfo) is "The title is missing." & return & "Your name is missing." & return & \
-         "What it does is missing." & return & "Choose how others may use your stack." & return & \
+         "What it does is missing." & return & "Choose GPL 3 or GPL 3 or later: every community stack is GPL 3, as OXT-Beyond is." & return & \
          "The version must be a number such as 1, 1.2 or 1.2.3."
 end TestProblems
 
