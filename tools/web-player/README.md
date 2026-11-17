@@ -600,6 +600,12 @@ size while that is the smaller, and a link that ends `&fill=yes` gives it
 the whole window. A finger dragged anywhere moves the paddle and, lifted,
 sends the ball off; a mouse moves the paddle to where it is, and the keys
 play it too (the arrows or A and D, Space, P to pause, Esc to go back).
+While a level is played the mouse's pointer is hidden over the arena,
+where it points at nothing and is in the ball's way; it shows over the
+score and the pause button beside the arena, on a pause and on every
+other screen, and outside the window. (The engine has one cursor for
+all of its windows, so the game gives it back whenever its frames stop,
+and leaves alone one that another script holds locked.)
 
 **The Online Duel** is a match between two players, each on their own
 wall: the same wall for both, three minutes on the clock, most points
@@ -743,7 +749,10 @@ link, the third page seeing the two in a duel, the lobby again after the
 match, the relay hanging up on all three and each back on it by itself,
 a quick match, and a friend's room joined by the link that was copied.
 No check goes to the public relays, which CI must neither lean on nor
-write to. CI runs it in web.yml, after Puzzle Almanac's check. To run it
+write to. Last, in both browsers, a desktop's page plays a level with a
+mouse: the pointer the page shows is hidden over the arena, shows over
+the pause button and on a pause, and is hidden again when the level goes
+on. CI runs it in web.yml, after Puzzle Almanac's check. To run it
 yourself:
 
 ```sh

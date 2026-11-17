@@ -37,6 +37,10 @@ on TestTeardown
    if there is a stack kStack then
       delete stack kStack
    end if
+   -- (the engine has one cursor and one tool for every test: none
+   -- begins with what another left)
+   set the lockCursor to false
+   choose browse tool
    if sSave is not empty and there is a file sSave then
       delete file sSave
    end if
@@ -186,6 +190,30 @@ private function rivalBricks
    end repeat
    return tCount
 end rivalBricks
+
+-- The middle of the arena, in the window's points
+private function arenaMiddle
+   local tArena
+   put st("arena") into tArena
+   return (item 1 of tArena + item 3 of tArena) div 2 & comma & (item 2 of tArena + item 4 of tArena) div 2
+end arenaMiddle
+
+-- The test's mouse at a point of the window (empty: not over it), and
+-- the frame that sees it there
+private command mouseAt pLoc
+   game "ebTestSet", "mouse", pLoc
+   step 1/60
+end mouseAt
+
+-- Whether the game has hidden the mouse's pointer and holds the
+-- engine's cursor to keep it so; and whether it has not, and does not
+private function pointerHidden
+   return st("hidden") is true and the lockCursor is true
+end pointerHidden
+
+private function pointerShown
+   return st("hidden") is false and the lockCursor is false
+end pointerShown
 
 ----------------------------------------------------------------------
 -- Opening
@@ -961,6 +989,126 @@ on TestTurningThePhonePausesALevelAndKeepsItsBall
    step 0.1
    TestAssert "Resume goes on", st("mode") is "play" and st("ball") is not tBall
 end TestTurningThePhonePausesALevelAndKeepsItsBall
+
+----------------------------------------------------------------------
+-- The mouse's pointer
+
+-- Over the arena, while a level is played, the pointer is in the ball's
+-- way and points at nothing: it is hidden there, and nowhere else
+on TestThePointerIsHiddenOverTheArenaWhileALevelIsPlayed
+   local tPause
+   game "ebTestSet", "pointer", "mouse"
+   mouseAt arenaMiddle()
+   TestAssert "on the title the pointer shows, wherever it is", st("mode") is "title" and pointerShown()
+   newRun
+   step 1/60
+   TestAssert "a level played with the mouse over the arena: the pointer is hidden", st("mode") is "play" and pointerHidden()
+   put rectOf("Pause") into tPause
+   mouseAt (item 1 of tPause + 5) & comma & (item 2 of tPause + 5)
+   TestAssert "over the pause button, beside the arena, it shows", pointerShown()
+   mouseAt arenaMiddle()
+   TestAssert "back over the arena it is hidden again", pointerHidden()
+   mouseAt empty
+   TestAssert "out of the window it shows", pointerShown()
+   mouseAt arenaMiddle()
+   -- (a pause stops the frames: the pointer is back with none after it)
+   press "Pause"
+   TestAssert "a pause shows it at once, where it is", st("mode") is "pause" and pointerShown()
+   press "Resume"
+   step 1/60
+   TestAssert "and the level going on hides it", st("mode") is "play" and pointerHidden()
+   game "ebGoTitle"
+   TestAssert "the title shows it at once", st("mode") is "title" and pointerShown()
+end TestThePointerIsHiddenOverTheArenaWhileALevelIsPlayed
+
+on TestThePointerShowsWhenALevelEnds
+   game "ebTestSet", "pointer", "mouse"
+   newWall "5,5,1", false
+   mouseAt arenaMiddle()
+   TestAssert "hidden while the level is played", pointerHidden()
+   hit 5, 5
+   step 1.5
+   TestAssert "a level cleared: its panel has buttons, and the pointer", st("mode") is "clear" and pointerShown()
+   press "Next"
+   step 1/60
+   TestAssert "the next level hides it again", st("mode") is "play" and pointerHidden()
+   game "ebTestSet", "lives", 1
+   loseBall
+   step 1.2
+   TestAssert "the run over: the pointer shows", st("mode") is "over" and pointerShown()
+end TestThePointerShowsWhenALevelEnds
+
+on TestAFingerHasNoPointerToHide
+   game "ebTestSet", "pointer", "touch"
+   newRun
+   mouseAt arenaMiddle()
+   TestAssert "a level played by touch: the engine's cursor is left as it is", st("mode") is "play" and pointerShown()
+end TestAFingerHasNoPointerToHide
+
+-- The IDE's other tools (the pointer tool to move a control, say) need
+-- their pointer over the arena too
+on TestThePointerShowsWithAToolThatDoesNotPlay
+   game "ebTestSet", "pointer", "mouse"
+   newRun
+   mouseAt arenaMiddle()
+   TestAssert "hidden with the tool that plays", pointerHidden()
+   choose pointer tool
+   step 1/60
+   TestAssert "with the IDE's pointer tool it shows", pointerShown()
+   choose browse tool
+   step 1/60
+   TestAssert "and with the browse tool again it is hidden", pointerHidden()
+   game "ebGoTitle"
+end TestThePointerShowsWithAToolThatDoesNotPlay
+
+-- The engine has one cursor for all its windows: the game does not take
+-- one that another script holds, and takes its own back
+on TestACursorAnotherScriptHoldsIsLeftAlone
+   game "ebTestSet", "pointer", "mouse"
+   newRun
+   set the lockCursor to true
+   mouseAt arenaMiddle()
+   TestAssert "a cursor another script has locked is not the game's to hide", st("hidden") is false and the lockCursor is true
+   mouseAt empty
+   TestAssert "nor to let go", the lockCursor is true
+   set the lockCursor to false
+   mouseAt arenaMiddle()
+   TestAssert "once it is free, the game hides the pointer", pointerHidden()
+   -- (another script takes the cursor for a moment, and lets it go)
+   set the lockCursor to false
+   step 1/60
+   TestAssert "let go by another script, it is hidden again by the next frame", pointerHidden()
+   game "ebGoTitle"
+   TestAssert "and given back by the game", pointerShown()
+end TestACursorAnotherScriptHoldsIsLeftAlone
+
+-- A hidden pointer is hidden in every window of the engine, so it does
+-- not outlive the frames that hide it: a script that stopped or the
+-- debugger leaves nobody without one
+on TestAPointerIsNotLeftHiddenWhenTheFramesStop
+   game "ebTestSet", "pointer", "mouse"
+   newRun
+   mouseAt arenaMiddle()
+   TestAssert "hidden while the frames come", pointerHidden()
+   -- (a test's game has no loop, and no watch but the one sent here,
+   -- which then asks again by itself as a game's does)
+   dispatch "ebPointerWatch" to stack kStack
+   TestAssert "the watch leaves it hidden while they do", pointerHidden()
+   wait 900 milliseconds with messages
+   TestAssert "with no frame for most of a second, the pointer shows", st("mode") is "play" and pointerShown()
+   step 1/60
+   TestAssert "and the next frame hides it again", pointerHidden()
+   game "ebGoTitle"
+end TestAPointerIsNotLeftHiddenWhenTheFramesStop
+
+on TestClosingTheGameGivesThePointerBack
+   game "ebTestSet", "pointer", "mouse"
+   newRun
+   mouseAt arenaMiddle()
+   TestAssert "hidden while the level is played", pointerHidden()
+   close stack kStack
+   TestAssert "the game closed: the engine's cursor is free", the lockCursor is false
+end TestClosingTheGameGivesThePointerBack
 
 ----------------------------------------------------------------------
 -- The duel: its lobby and its codes
