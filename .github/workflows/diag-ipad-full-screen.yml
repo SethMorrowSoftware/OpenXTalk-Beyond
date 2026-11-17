@@ -1,0 +1,65 @@
+name: Diagnostic (full screen on an iPad simulator)
+
+# NOT FOR MAIN. A forum report (CamelCaps, post 26480, an iPad with
+# iPadOS 18.5, Safari and Chrome): the Phone Starter's "Full screen" goes
+# full screen "but in a split second it comes back". What is tried here,
+# in Safari on an iPad simulator: a bare page that asks for full screen
+# from a tap, with and without what the web engine does at every press
+# (em-event.js gives a hidden text input the focus). WebKit bug 185617
+# ("Keyboard focus should exit fullscreen", iOS only) is the lead. This
+# branch is deleted when the cause is recorded.
+on:
+  push:
+    branches: ['claude/diag-ipad-full-screen']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diag-ipad-full-screen-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  diag:
+    name: Full screen in Safari on an iPad simulator (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-14]
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: The simulators of this machine
+        timeout-minutes: 5
+        run: |
+          sw_vers
+          xcodebuild -version
+          xcrun simctl list runtimes
+          xcrun simctl list devices available | grep -i -E "^--|ipad" | head -60
+
+      - name: Boot an iPad
+        timeout-minutes: 10
+        run: |
+          udid=$(xcrun simctl list devices available -j | python3 .github/diag/ipad/drive.py pick)
+          echo "IPAD_UDID=$udid" >> "$GITHUB_ENV"
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          xcrun simctl list devices booted
+
+      - name: Full screen from a tap, case by case
+        timeout-minutes: 12
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/python" -m pip install --quiet "selenium>=4.20,<5"
+          sudo safaridriver --enable
+          python3 .github/diag/ipad/serve.py 8765 > "$RUNNER_TEMP/serve.log" 2>&1 &
+          sleep 2
+          "$RUNNER_TEMP/venv/bin/python" .github/diag/ipad/drive.py run "http://localhost:8765" "$IPAD_UDID" \
+            || echo "the driver ended with $?"
+          echo "===== what the pages posted"
+          cut -c1-300 "$RUNNER_TEMP/serve.log"

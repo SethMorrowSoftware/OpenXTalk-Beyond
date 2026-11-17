@@ -1,0 +1,124 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>full screen case</title>
+<style>
+html,body{margin:0;height:100%;font:16px system-ui}
+#pad{position:fixed;left:0;top:0;right:0;bottom:0;background:#dde;display:flex;align-items:center;justify-content:center;touch-action:none}
+#pad span{font-size:28px}
+</style>
+</head>
+<body>
+<!-- NOT FOR MAIN. One case of "a page asks for full screen from a tap" per
+     load (?mode=...), with what the web engine does at a press written out
+     by hand: em-event.js gives a hidden <input type="text"> the focus at
+     every mousedown (_setInputFocus). The page keeps a time line and posts
+     it to /log. -->
+<div id="pad"><span id="label">tap</span></div>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search), mode = q.get('mode') || 'plain';
+  var t0 = performance.now(), log = [];
+  function note(what) { log.push(Math.round(performance.now() - t0) + ' ms: ' + what); }
+  function full() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+  function active() { var a = document.activeElement; return a ? a.nodeName + (a.id ? '#' + a.id : '') : 'none'; }
+  window.__mode = mode; window.__log = log; window.__full = full; window.__done = false;
+  var pad = document.getElementById('pad');
+
+  // the engine's hidden input, as em-event.js makes it
+  var input = null;
+  if (mode !== 'plain' && mode !== 'canvas') {
+    input = document.createElement('input');
+    input.id = 'hidden';
+    input.type = mode === 'button-type' ? 'button' : 'text';
+    input.style.cssText = 'position:fixed;display:block;z-index:0;opacity:0;left:0;top:0;width:1px;height:1px;font-size:16px';
+    if (mode !== 'button-type') input.inputMode = 'none';
+    input.autocomplete = 'off';
+    if (mode === 'readonly') input.readOnly = true;
+    document.body.appendChild(input);
+    ['focus', 'blur'].forEach(function (t) {
+      input.addEventListener(t, function () { note('input ' + t + ' event, full=' + full()); });
+    });
+  }
+  var canvas = null;
+  if (mode === 'canvas') {
+    canvas = document.createElement('canvas');
+    canvas.id = 'canvas'; canvas.tabIndex = 0; canvas.width = canvas.height = 1;
+    canvas.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0';
+    document.body.appendChild(canvas);
+  }
+  ['focus', 'blur', 'resize'].forEach(function (t) {
+    window.addEventListener(t, function () { note('window ' + t + ' ' + innerWidth + 'x' + innerHeight + ' full=' + full()); });
+  });
+  document.addEventListener('visibilitychange', function () { note('visibility ' + document.visibilityState); });
+  ['fullscreenchange', 'webkitfullscreenchange', 'fullscreenerror', 'webkitfullscreenerror'].forEach(function (t) {
+    document.addEventListener(t, function () { note(t + ' full=' + full() + ' active=' + active()); });
+  });
+
+  var presses = 0, asked = false;
+  // The start of a press: the engine gives its hidden input the focus
+  function press() {
+    presses++;
+    if (mode === 'never-focused') return;
+    // two-taps: the first tap gives the focus and asks for nothing; the
+    // second asks with the input focused long before and no focus() call
+    if (mode === 'two-taps' && presses > 1) return;
+    if (input) { input.focus({preventScroll: true}); note('input.focus() at the press, active=' + active()); }
+    if (canvas) { canvas.focus({preventScroll: true}); note('canvas.focus() at the press, active=' + active()); }
+  }
+  // Its end: the script's mouseUp asks for the whole screen
+  function release() {
+    if (mode === 'two-taps' && presses < 2) { note('first tap done, active=' + active()); return; }
+    if (asked) return;
+    asked = true;
+    if (input && (mode === 'blur-before' || mode === 'blur-then-focus-later')) {
+      input.blur();
+      note('input.blur() before asking, active=' + active());
+    }
+    var el = document.documentElement, ask = el.requestFullscreen || el.webkitRequestFullscreen;
+    note('asking: has=' + !!ask + ' enabled=' + document.fullscreenEnabled + ' userActivation=' +
+      (navigator.userActivation ? navigator.userActivation.isActive : 'none') + ' active=' + active());
+    if (!ask) { finish(); return; }
+    var p = null;
+    try { p = ask.call(el, {navigationUI: 'hide'}); } catch (err) { note('threw ' + err); }
+    if (p && p.then) {
+      p.then(function () { note('promise resolved, full=' + full()); },
+             function (err) { note('promise rejected: ' + err); });
+    }
+    var n = 0, was = null;
+    var timer = setInterval(function () {
+      var now = full();
+      if (now !== was) { note('sample: full=' + now + ' active=' + active()); was = now; }
+      n++;
+      if (input && n === 20 && (mode === 'blur-then-focus-later' || mode === 'focus-again-later')) {
+        input.focus({preventScroll: true});
+        note('input.focus() 2 s after asking, full=' + full() + ' active=' + active());
+      }
+      if (n >= 45) { clearInterval(timer); finish(); }
+    }, 100);
+  }
+  function finish() {
+    note('end: full=' + full() + ' active=' + active());
+    window.__done = true;
+    document.getElementById('label').textContent = 'done';
+    try {
+      fetch('/log', {method: 'POST', body: 'mode ' + mode + '\n' + navigator.userAgent + '\n' + log.join('\n')});
+    } catch (err) {}
+  }
+
+  // As the engine: a touch is the mouse, and the browser makes none of its
+  // own (preventDefault); a real mouse is taken where no touch came
+  var touched = false;
+  pad.addEventListener('touchstart', function (e) { e.preventDefault(); touched = true; note('touchstart'); press(); }, {passive: false});
+  pad.addEventListener('touchend', function (e) { e.preventDefault(); note('touchend'); release(); }, {passive: false});
+  pad.addEventListener('mousedown', function () { note('mousedown'); if (!touched) press(); });
+  pad.addEventListener('mouseup', function () { note('mouseup'); if (!touched) release(); });
+  pad.addEventListener('click', function () { note('click'); });
+  note('ready: mode=' + mode + ' touch=' + ('ontouchstart' in window) + ' maxTouchPoints=' + navigator.maxTouchPoints +
+    ' standalone=' + ('standalone' in navigator) + ' webdriver=' + navigator.webdriver + ' ' + innerWidth + 'x' + innerHeight);
+})();
+</script>
+</body>
+</html>
