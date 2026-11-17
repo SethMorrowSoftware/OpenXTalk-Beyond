@@ -15,12 +15,13 @@
 # You should have received a copy of the GNU General Public License
 # along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
 
-"""Play Ember Bricks on emulated phones, and a duel between two pages.
+"""Play Ember Bricks on emulated phones, a duel between two pages, and
+the online lobby between three.
 
   python3 tools/ci/ember_bricks_check.py --runtime DIR (--engine FILE | --engine-cache DIR)
       [--browser chromium|webkit] [--device NAME]... [--rebuild] [--work DIR]
       [--timeout SECONDS] [--shots DIR] [--min-fps N] [--extensions DIR]
-      [--no-duel]
+      [--no-duel] [--no-lobby]
 
 --runtime, --engine and --engine-cache are tools/ci/web_check.py's: the web
 runtime (its engine is the one with the xTalk Suite's libraries, so
@@ -32,10 +33,13 @@ tools/web-player/stacks/Ember Bricks.oxtstack, or with --rebuild one that
 tools/web-player/ember-bricks.livecodescript builds now; beside it go the
 Mobile Web library, the check's own stack
 (tools/ci/ember-bricks-check.livecodescript), which says how the game is
-(its ebState) and hears of any script error in it, and DataChannelXT's
-LCB module, from --extensions or built now from the member that
-tools/oxt/xtalk-extensions.json pins (tools/oxt/xtalk_extensions.py build,
-which fetches it once into its cache).
+(its ebState) and hears of any script error in it, and what the game
+uses of the xTalk Suite: DataChannelXT's LCB module for the link, and for
+the lobby SodiumXT's and CoinXT's modules, CoinXT's script library and
+NostrXT's two. They come from --extensions, or are built now from the
+members that tools/oxt/xtalk-extensions.json pins
+(tools/oxt/xtalk_extensions.py build, which fetches them once into its
+cache).
 
 Each device (Playwright's profiles: by default "Pixel 7" and "iPhone 13"
 in Chromium, "iPhone 13" in WebKit) opens the page with a touch screen and
@@ -58,11 +62,12 @@ a phone's window, and:
 
 Then, in Chromium (--no-duel leaves it out; Playwright's WebKit on Linux
 has no clipboard a check can give a page), a duel between two pages of one
-browser, a desktop's window that hosts and a phone that joins, over a real
-WebRTC link:
+browser, a desktop's window that hosts and a phone that joins, by the two
+codes, over a real WebRTC link:
 
-  9. the host's lobby makes an invite code; COPY THE INVITE puts it on
-     the clipboard
+  9. the lobby opens on a name, with nothing sent to any relay; PLAY BY
+     CODE is the swap of two codes. The host's lobby makes an invite code;
+     COPY THE INVITE puts it on the clipboard
  10. the phone's PASTE reads the invite off its clipboard and makes an
      answer code; the host's PASTE of that one connects them
  11. both begin the same wall with three minutes on clocks in step
@@ -72,6 +77,30 @@ WebRTC link:
  14. both ask for a rematch: a new match begins
  15. the phone leaves: the host is told, and its match is over
  16. no script error, in either game or page
+
+And, in Chromium too (--no-lobby leaves it out), the online lobby: three
+pages of one browser, a desktop's window and two phones, that find each
+other on a Nostr relay of the check's own on 127.0.0.1
+(tools/ci/nostr_test_relay.py, which the game is told to use in place of
+the public ones: ebTestSet "relays"), through NostrXT's relay library and
+the browser's WebSocket, and link over WebRTC as the codes do. The relay
+keeps for five minutes what it passes on and gives it to whoever asks,
+as some public relays do, so a game that took an old message for news
+would list players who have gone, or be challenged again by a match
+that is over:
+
+ 17. a name typed and Return: the page is online, on the relay, in the
+     lobby; each page lists the others by the names they gave
+ 18. a tap on a player challenges them: they are asked, by name, and
+     ACCEPT begins the match on both, with no code carried
+ 19. the third page sees both of them in a duel
+ 20. the match over, LEAVE comes back to the lobby, online again
+ 21. QUICK MATCH on two pages matches them
+ 22. PLAY A FRIEND makes a room; COPY THE LINK puts the page's address
+     with the room's code on the clipboard, and a page opened at that
+     address has JOIN YOUR FRIEND, which begins the match with the room's
+     maker
+ 23. no script error, in any of the games or pages
 
 Playwright's WebKit on Linux makes no touch events, so there the taps and
 the drag are the mouse's, which the game reads as it reads a finger. Ends
@@ -101,6 +130,13 @@ HANDLERS = ['ecBegin', 'ecState', 'ecRect', 'ecText', 'ecSet', 'ecErrors']
 PAGE = 'EmberBricks.html'
 XTALK_EXTENSIONS = os.path.join(REPO, 'tools', 'oxt', 'xtalk_extensions.py')
 DATACHANNELXT = 'org.openxtalk.library.datachannel'
+# the lobby's: NostrXT signs with CoinXT and seals with SodiumXT. The LCB
+# modules bind to libraries the web engine has built in; the script
+# libraries are started beside the game, each after those it uses
+SODIUMXT = 'org.openxtalk.library.sodium'
+COINXT = 'org.openxtalk.library.coin'
+MODULES = (SODIUMXT, COINXT, DATACHANNELXT)
+LIBRARIES = ('coinxt', 'nostrxt', 'nostr-relay')
 DEFAULT_DEVICES = {'chromium': ['Pixel 7', 'iPhone 13'], 'webkit': ['iPhone 13']}
 DEFAULT_MIN_FPS = {'chromium': 20, 'webkit': 10}
 # the duel's pages: a desktop's window with room for the game at its own
@@ -109,10 +145,15 @@ DUEL_HOST = {'viewport': {'width': 1000, 'height': 700}}
 DUEL_GUEST = 'Pixel 7'
 # the browsers whose pages a check can give a clipboard to read
 DUEL_BROWSERS = ('chromium',)
+# the lobby's third page, a phone too
+LOBBY_THIRD = 'iPhone 13'
+# the seconds the lobby's relay keeps an ephemeral event for (strfry's
+# five minutes, which nos.lol and relay.damus.io run)
+LOBBY_RELAY_KEEPS = 300
 # the state's keys a failure is printed with
 KEYS = ('mode', 'phase', 'score', 'lives', 'level', 'bricks', 'now', 'padx', 'ball', 'fps', 'font', 'audio',
         'library', 'arena', 'wide', 'window', 'pointer', 'rtc', 'duel', 'lobby', 'stage', 'left', 'rival',
-        'link', 'shift')
+        'link', 'shift', 'nostr', 'online', 'name', 'relays', 'room', 'who', 'doing', 'foe', 'invite', 'back')
 
 # A handler of the check stack, called from the page
 CALL = ("(a) => { var h = document.liveCode && document.liveCode.findStackWithName('EmberBricksCheck');"
@@ -120,6 +161,9 @@ CALL = ("(a) => { var h = document.liveCode && document.liveCode.findStackWithNa
 # The page once the game is on its title
 OPENED = ("() => { var h = document.liveCode && document.liveCode.findStackWithName('EmberBricksCheck');"
           " return !!(h && h.ecState && String(h.ecState()).indexOf('mode:title') === 0); }")
+# The page once the game is in its lobby (a page opened by a friend's link
+# goes straight there)
+OPENED_LOBBY = OPENED.replace("'mode:title'", "'mode:lobby'")
 
 
 class CheckError(Exception):
@@ -142,13 +186,14 @@ def build_game(engine, work, timeout):
     return out
 
 
-def datachannelxt_module(engine, extensions, work, timeout):
-    """DataChannelXT's module.lcm: from --extensions (a folder that
-    tools/oxt/xtalk_extensions.py build wrote, or an install's Extensions),
-    or built now from the pinned member with the engine's lc-compile.
-    The web engine has DataChannelXT's library built in, over the
-    browser's RTCPeerConnection; the standalone needs the module that
-    binds to it."""
+def suite_files(engine, extensions, work, timeout):
+    """What the game uses of the xTalk Suite: (the module.lcm files of
+    MODULES, the script files of LIBRARIES), from --extensions (a folder
+    that tools/oxt/xtalk_extensions.py build wrote, or an install's
+    Extensions), or built now from the pinned members with the engine's
+    lc-compile. The web engine has the Suite's native libraries built in
+    (DataChannelXT's over the browser's RTCPeerConnection); the standalone
+    needs the modules that bind to them, and the script libraries."""
     if not extensions:
         extensions = os.path.join(work, 'extensions')
         if not os.path.isfile(os.path.join(extensions, DATACHANNELXT, 'module.lcm')):
@@ -158,16 +203,18 @@ def datachannelxt_module(engine, extensions, work, timeout):
             if r.returncode != 0:
                 raise CheckError('building the xTalk Suite extensions failed: %s'
                                  % r.stdout.decode('utf-8', 'replace').strip()[-2000:])
-    module = os.path.join(extensions, DATACHANNELXT, 'module.lcm')
-    if not os.path.isfile(module):
-        raise CheckError('there is no %s' % module)
-    return module
+    modules = [os.path.join(extensions, name, 'module.lcm') for name in MODULES]
+    libraries = [os.path.join(extensions, name, name + '.livecodescript') for name in LIBRARIES]
+    for path in modules + libraries:
+        if not os.path.isfile(path):
+            raise CheckError('there is no %s' % path)
+    return modules, libraries
 
 
-def deploy(engine, runtime, version, stack, work, timeout, modules=()):
+def deploy(engine, runtime, version, stack, work, timeout, modules=(), libraries=()):
     output = os.path.join(work, '__startup.data')
     env = dict(os.environ, OXT_MW_STACK=stack, OXT_MW_LIBRARY=mobile_web_check.LIBRARY,
-               OXT_MW_MODULES='\n'.join(modules),
+               OXT_MW_MODULES='\n'.join(modules), OXT_MW_LIBRARIES='\n'.join(libraries),
                OXT_MW_CHECK=CHECK_STACK, OXT_MW_CHECK_NAME=CHECK_NAME, OXT_MW_HANDLERS=','.join(HANDLERS),
                OXT_MW_OUTPUT=output, OXT_MW_VERSION=version,
                OXT_MW_TEMPLATE=os.path.join(runtime, 'emscripten-startup-template.livecodescript'))
@@ -395,11 +442,14 @@ def check_device(playwright, browser_name, device, url, timeout, shots, min_fps)
 
 
 class Player:
-    """One page of a duel: its taps, its state, its clipboard"""
+    """One page of a duel or of the lobby: its taps, its state, its
+    clipboard"""
 
-    def __init__(self, playwright, browser, browser_name, name, profile, url, timeout, shots):
+    def __init__(self, playwright, browser, browser_name, name, profile, url, timeout, shots, scene='duel'):
         self.name = name
         self.shots = shots
+        self.scene = scene
+        self.timeout = timeout
         self.browser_name = browser_name
         self.page_errors = []
         profile = dict(profile)
@@ -410,10 +460,15 @@ class Player:
         self.page.on('pageerror', lambda e: self.page_errors.append(str(e)))
         self.page.on('console', lambda m: log('  %s console.%s: %s' % (name, m.type, m.text))
                      if m.type == 'error' else None)
-        self.page.goto(url)
-        self.page.wait_for_function(OPENED, timeout=timeout * 1000)
-        call(self.page, 'ecBegin')
         self.fingers = mobile_web_check.Fingers(self.page, self.context, browser_name) if self.touch else None
+        self.open(url)
+
+    def open(self, url, opened=OPENED):
+        """The page at an address, once the game is up (on its title, or
+        with opened=OPENED_LOBBY in its lobby)"""
+        self.page.goto(url)
+        self.page.wait_for_function(opened, timeout=self.timeout * 1000)
+        call(self.page, 'ecBegin')
         time.sleep(0.8)
 
     def state(self):
@@ -446,7 +501,19 @@ class Player:
 
     def shot(self, step):
         if self.shots:
-            self.page.screenshot(path=os.path.join(self.shots, '%s-duel-%s-%s.png' % (self.browser_name, step, self.name)))
+            self.page.screenshot(path=os.path.join(self.shots, '%s-%s-%s-%s.png'
+                                                   % (self.browser_name, self.scene, step, self.name)))
+
+    def type_name(self, name):
+        """A name typed over the one in the lobby's field, and Return"""
+        x, y = middle(self.page, 'Name')
+        self.page.mouse.click(x, y)
+        time.sleep(0.3)
+        self.page.keyboard.press('Control+a')
+        self.page.keyboard.type(name, delay=40)
+        time.sleep(0.2)
+        self.page.keyboard.press('Enter')
+        time.sleep(0.3)
 
     def errors(self):
         return call(self.page, 'ecErrors').strip()
@@ -468,11 +535,17 @@ def check_duel(playwright, browser_name, url, timeout, shots):
         host = Player(playwright, browser, browser_name, 'host', DUEL_HOST, url, timeout, shots)
         guest = Player(playwright, browser, browser_name, 'guest', playwright.devices[DUEL_GUEST], url, timeout, shots)
 
-        # 9. the host's invite
+        # 9. the lobby's first step, and the host's invite
         host.tap('Duel Open')
+        h = host.wait_for(lambda s: s.get('lobby') == 'start', 3)
+        expect('the title\'s ONLINE DUEL opens the lobby, on a name', h.get('mode') == 'lobby'
+               and h.get('lobby') == 'start' and h.get('name', '') != '', h)
+        expect('a link can be made here, and there is a lobby', h.get('rtc') == 'yes' and h.get('nostr') == 'yes', h)
+        expect('nothing is sent anywhere before the player goes online', h.get('online') == 'false'
+               and h.get('relays') == '0', h)
+        host.tap('Codes Open')
         h = host.wait_for(lambda s: s.get('lobby') == 'choose', 3)
-        expect('the title\'s ONLINE DUEL opens the lobby', h.get('mode') == 'lobby' and h.get('lobby') == 'choose', h)
-        expect('a link can be made here', h.get('rtc') == 'yes', h)
+        expect('PLAY BY CODE is the swap of two codes', h.get('lobby') == 'choose', h)
         host.tap('Host')
         h = host.wait_for(lambda s: s.get('lobby') == 'host-invite', 30)
         invite = h.get('code', '')
@@ -489,6 +562,8 @@ def check_duel(playwright, browser_name, url, timeout, shots):
 
         # 10. the phone's answer, and the link
         guest.tap('Duel Open')
+        guest.wait_for(lambda s: s.get('lobby') == 'start', 3)
+        guest.tap('Codes Open')
         guest.wait_for(lambda s: s.get('lobby') == 'choose', 3)
         guest.tap('Join')
         g = guest.wait_for(lambda s: s.get('lobby') == 'join-invite', 3)
@@ -578,6 +653,192 @@ def check_duel(playwright, browser_name, url, timeout, shots):
     return problems
 
 
+def check_lobby(playwright, browser_name, url, timeout, shots, relay, relay_url):
+    """The online lobby between three pages of one browser, on a relay of
+    the check's own: 17 to 23 of the list."""
+    problems = []
+
+    def expect(what, ok, *states):
+        if ok:
+            log('  ok: %s' % what)
+        else:
+            problems.append('%s, the lobby: %s' % (browser_name, what))
+            log('  FAILED: %s (%s)' % (what, ' | '.join(said(s) if isinstance(s, dict) else str(s) for s in states)))
+
+    def playing(s):
+        return s.get('duel') == 'true' and s.get('mode') == 'play'
+
+    def listed(s):
+        """The players a page lists: {name: what they are doing}"""
+        return dict(item.split('=', 1) for item in s.get('who', '').split('|') if '=' in item)
+
+    def row_of(s, name):
+        """The list's row for a player, to tap"""
+        names = [item.split('=', 1)[0] for item in s.get('who', '').split('|')]
+        return 'Who %d' % (names.index(name) + 1)
+
+    def leave_match(player):
+        """Out of a match by its Pause, and back in the lobby"""
+        player.tap('Pause')
+        player.wait_for(lambda s: s.get('mode') == 'pause', 3)
+        player.tap('Pause Home')
+        return player.wait_for(lambda s: s.get('lobby') == 'online', 20)
+
+    def leave_result(player):
+        """Out of a match that is over, and back in the lobby"""
+        player.wait_for(lambda s: s.get('mode') == 'result', 15)
+        player.tap('Result Home')
+        return player.wait_for(lambda s: s.get('lobby') == 'online', 20)
+
+    browser = getattr(playwright, browser_name).launch(**mobile_web_check.launch_options(browser_name))
+    try:
+        ada = Player(playwright, browser, browser_name, 'ada', DUEL_HOST, url, timeout, shots, 'lobby')
+        bo = Player(playwright, browser, browser_name, 'bo', playwright.devices[DUEL_GUEST], url, timeout, shots, 'lobby')
+        cy = Player(playwright, browser, browser_name, 'cy', playwright.devices[LOBBY_THIRD], url, timeout, shots, 'lobby')
+        players = (ada, bo, cy)
+        for player in players:
+            player.set('relays', relay_url)
+
+        # 17. a name, online, and who is there
+        ada.tap('Duel Open')
+        a = ada.wait_for(lambda s: s.get('lobby') == 'start', 3)
+        ada.shot('1-name')
+        expect('the lobby opens on a name', a.get('lobby') == 'start' and a.get('nostr') == 'yes', a)
+        expect('with no word to the relay yet', len(relay.relay.clients) == 0, {'clients': len(relay.relay.clients)})
+        ada.type_name('Ada')
+        a = ada.wait_for(lambda s: s.get('lobby') == 'online', 20)
+        expect('a name typed and Return: online, in the lobby, on the relay', a.get('lobby') == 'online'
+               and a.get('name') == 'Ada' and a.get('online') == 'true' and a.get('relays') == '1'
+               and len(relay.relay.clients) == 1, a, {'clients': len(relay.relay.clients)})
+        expect('with nobody there yet', a.get('who') == '', a)
+        for player, name in ((bo, 'Bo'), (cy, 'Cy')):
+            player.tap('Duel Open')
+            player.wait_for(lambda s: s.get('lobby') == 'start', 3)
+            # (a phone's field takes its name from a keyboard the check
+            # has not got: the name is the one the game made up)
+            player.tap('Net Go')
+            s = player.wait_for(lambda s: s.get('lobby') == 'online', 20)
+            expect('%s\'s GO ONLINE is the lobby' % name, s.get('lobby') == 'online' and s.get('relays') == '1'
+                   and s.get('name', '') != '', s)
+        names = {player: player.state().get('name', '') for player in players}
+        expect('each has a name of its own', len(set(names.values())) == 3, sorted(names.values()))
+        for player in players:
+            others = {names[other]: 'free' for other in players if other is not player}
+            s = player.wait_for(lambda s: listed(s) == others, 12)
+            expect('%s lists the other two, by name' % player.name, listed(s) == others, s)
+        ada.shot('2-players')
+        bo.shot('2-players')
+
+        # 18. a challenge, and the match
+        ada.tap(row_of(ada.state(), names[bo]))
+        a = ada.wait_for(lambda s: s.get('lobby') == 'asking', 3)
+        b = bo.wait_for(lambda s: s.get('lobby') == 'asked', 10)
+        bo.shot('3-challenged')
+        expect('a tap on a player challenges them', a.get('lobby') == 'asking' and a.get('foe') == names[bo], a)
+        expect('they are asked, by the challenger\'s name', b.get('lobby') == 'asked' and b.get('foe') == 'Ada'
+               and bo.text('Lobby Text') == 'ADA challenges you to a duel.', b, {'text': bo.text('Lobby Text')})
+        bo.tap('Accept')
+        a = ada.wait_for(playing, 45)
+        b = bo.wait_for(playing, 15)
+        ada.shot('4-match')
+        bo.shot('4-match')
+        expect('ACCEPT begins the match on both, with no code carried', playing(a) and playing(b)
+               and a.get('link') == 'true' and b.get('link') == 'true', a, b)
+        expect('on the same wall', a.get('shift') == b.get('shift') and a.get('shift', '') != '', a, b)
+        expect('against a rival with a name', ada.text('Banner Sub') == 'You against %s. Most points wins.' % names[bo]
+               and bo.text('Banner Sub') == 'You against Ada. Most points wins.',
+               {'ada': ada.text('Banner Sub'), 'bo': bo.text('Banner Sub')})
+
+        # 19. the third page sees them in a duel; they have left the relay
+        duel = {'Ada': 'duel', names[bo]: 'duel'}
+        c = cy.wait_for(lambda s: listed(s) == duel, 10)
+        cy.shot('5-others-in-a-duel')
+        expect('the third page sees both in a duel', listed(c) == duel, c)
+        a = ada.wait_for(lambda s: s.get('online') == 'false' and s.get('relays') == '0', 8)
+        expect('a match leaves the lobby', a.get('online') == 'false' and a.get('relays') == '0', a)
+        end = time.time() + 8
+        while time.time() < end and len(relay.relay.clients) != 1:
+            time.sleep(0.2)
+        expect('and the relay', len(relay.relay.clients) == 1, {'clients': len(relay.relay.clients)})
+
+        # 20. the match over, and back to the lobby
+        ada.set('score', 3000)
+        ada.set('left', 2)
+        bo.set('left', 2)
+        a = ada.wait_for(lambda s: s.get('mode') == 'result', 10)
+        end = time.time() + 8
+        while time.time() < end and (ada.text('Result Title') == 'TIME!' or bo.text('Result Title') == 'TIME!'):
+            time.sleep(0.2)
+        ada.shot('6-result')
+        expect('time: the result names the rival', a.get('mode') == 'result'
+               and ada.text('Result Them').startswith(names[bo].upper()[:10] + ' '), a, {'them': ada.text('Result Them')})
+        a = leave_result(ada)
+        expect('LEAVE comes back to the lobby, online again', a.get('lobby') == 'online' and a.get('online') == 'true'
+               and a.get('name') == 'Ada', a)
+        b = leave_result(bo)
+        expect('for the other too', b.get('lobby') == 'online' and b.get('online') == 'true', b)
+        for player in players:
+            others = {names[other]: 'free' for other in players if other is not player}
+            s = player.wait_for(lambda s: listed(s) == others, 30)
+            expect('%s lists the other two again' % player.name, listed(s) == others, s)
+
+        # 21. a quick match
+        cy.tap('Quick')
+        c = cy.wait_for(lambda s: s.get('lobby') == 'quick', 3)
+        expect('QUICK MATCH looks for a rival', c.get('lobby') == 'quick' and c.get('doing') == 'quick', c)
+        b = bo.wait_for(lambda s: listed(s).get(names[cy]) == 'quick', 8)
+        expect('the others see who wants one', listed(b).get(names[cy]) == 'quick', b)
+        ada.tap('Quick')
+        a = ada.wait_for(playing, 45)
+        c = cy.wait_for(playing, 15)
+        cy.shot('7-quick-match')
+        expect('a second QUICK MATCH matches the two', playing(a) and playing(c) and a.get('shift') == c.get('shift'), a, c)
+        expect('by name', cy.text('Banner Sub') == 'You against Ada. Most points wins.', {'cy': cy.text('Banner Sub')})
+        b = bo.state()
+        expect('and not the one who asked for none', b.get('lobby') == 'online' and b.get('duel') == 'false', b)
+        c = leave_match(cy)
+        expect('one leaves by Pause, back to the lobby', c.get('lobby') == 'online', c)
+        a = leave_result(ada)
+        expect('the other is told, and comes back too', a.get('lobby') == 'online', a)
+
+        # 22. a friend's room, by its link
+        ada.tap('Friend')
+        a = ada.wait_for(lambda s: s.get('lobby') == 'room', 3)
+        code = a.get('room', '')
+        ada.shot('8-room')
+        expect('PLAY A FRIEND makes a room, with a code of six', a.get('lobby') == 'room' and len(code) == 6
+               and ada.text('Code') == code, a)
+        ada.tap('Code Copy')
+        link = ada.clipboard()
+        expect('COPY THE LINK puts the page\'s address with the room on the clipboard',
+               link.startswith(url) and ('duel=%s' % code) in link, {'clipboard': link[:200], 'room': code})
+        if ('duel=%s' % code) not in link:
+            link = '%s?duel=%s' % (url, code)
+        bo.open(link, OPENED_LOBBY)
+        bo.set('relays', relay_url)
+        b = bo.state()
+        bo.shot('9-friends-link')
+        expect('a page opened at the link has JOIN YOUR FRIEND', b.get('lobby') == 'start' and b.get('invite') == code
+               and b.get('online') == 'false', b)
+        expect('and the name it had', b.get('name') == names[bo], b)
+        bo.tap('Net Go')
+        a = ada.wait_for(playing, 60)
+        b = bo.wait_for(playing, 15)
+        expect('which begins the match with the room\'s maker', playing(a) and playing(b)
+               and a.get('shift') == b.get('shift'), a, b)
+        c = cy.state()
+        expect('and with nobody else', c.get('lobby') == 'online' and c.get('duel') == 'false', c)
+
+        # 23. no script error
+        for player in players:
+            errors = player.errors()
+            expect('no script error in %s\'s game' % player.name, errors == '', {'errors': errors[:400]})
+            expect('none in its page', not player.page_errors, {'page errors': player.page_errors[:3]})
+    finally:
+        browser.close()
+    return problems
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     ap.add_argument('--runtime', required=True, help='the web runtime folder')
@@ -593,6 +854,7 @@ def main(argv=None):
     ap.add_argument('--shots', help='a folder for screenshots of each device and of the duel')
     ap.add_argument('--min-fps', type=int, help='the fewest frames a second (default: %s)' % DEFAULT_MIN_FPS)
     ap.add_argument('--no-duel', action='store_true', help='leave out the duel between two pages')
+    ap.add_argument('--no-lobby', action='store_true', help='leave out the online lobby between three pages')
     args = ap.parse_args(argv)
     if not args.engine and not args.engine_cache:
         ap.error('--engine or --engine-cache is needed')
@@ -612,8 +874,8 @@ def main(argv=None):
         if not os.path.isfile(stack):
             raise CheckError('there is no %s' % stack)
         log('Deploying %s with %s' % (stack, engine))
-        module = datachannelxt_module(engine, args.extensions, work, args.timeout)
-        data = deploy(engine, args.runtime, version, stack, work, args.timeout, [module])
+        modules, libraries = suite_files(engine, args.extensions, work, args.timeout)
+        data = deploy(engine, args.runtime, version, stack, work, args.timeout, modules, libraries)
         site = os.path.join(work, 'site')
         shutil.rmtree(site, ignore_errors=True)
         web_check.make_standalone(args.runtime, js, wasm, html, data, site, title='Ember Bricks')
@@ -633,6 +895,22 @@ def main(argv=None):
             else:
                 log('%s, a duel between a desktop\'s page and a %s:' % (args.browser, DUEL_GUEST))
                 problems += check_duel(p, args.browser, url, args.timeout, args.shots)
+            if args.no_lobby:
+                log('(no lobby: --no-lobby)')
+            elif args.browser not in DUEL_BROWSERS:
+                log('(no lobby in %s: a check can give no clipboard to its pages)' % args.browser)
+            else:
+                import nostr_test_relay
+                # (a relay that keeps for a while what it passes on, as
+                # some public ones do: the game must take only what is new)
+                relay = nostr_test_relay.serve(os.path.join(work, 'relay.txt'), ephemeral=LOBBY_RELAY_KEEPS)
+                relay_url = 'ws://127.0.0.1:%d/' % relay.server_address[1]
+                log('%s, the lobby between a desktop\'s page, a %s and an %s, on %s:'
+                    % (args.browser, DUEL_GUEST, LOBBY_THIRD, relay_url))
+                try:
+                    problems += check_lobby(p, args.browser, url, args.timeout, args.shots, relay, relay_url)
+                finally:
+                    relay.shutdown()
         server.shutdown()
     except (CheckError, web_check.CheckError, subprocess.TimeoutExpired) as e:
         log('FAILED: %s' % e)

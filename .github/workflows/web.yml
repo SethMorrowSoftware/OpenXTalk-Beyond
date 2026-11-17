@@ -591,12 +591,17 @@ jobs:
       # rate, a turn and no script error; and in Chromium a duel between
       # two pages over a real WebRTC link: the invite and the answer by
       # the clipboard, clocks in step, each other's scores, the result, a
-      # rematch and one leaving (tools/ci/ember_bricks_check.py, which
-      # says what it checks). Its standalone has DataChannelXT's module,
-      # built from the pinned xTalk Suite with the engine's lc-compile.
-      # Chromium and WebKit, as above, with a second try in Chromium too:
-      # there the duel's link is a real one, made between two pages. Its
-      # files go in ember-bricks.
+      # rematch and one leaving; and its online lobby between three pages
+      # on a Nostr relay of the check's own on 127.0.0.1 (never a public
+      # one): a name, who is there, a challenge accepted and played, a
+      # quick match and a friend's room joined by its link
+      # (tools/ci/ember_bricks_check.py, which says what it checks). Its
+      # standalone has the modules of DataChannelXT, SodiumXT and CoinXT
+      # and the script libraries of CoinXT and NostrXT, built from the
+      # pinned xTalk Suite with the engine's lc-compile. Chromium and
+      # WebKit, as above, with a second try in Chromium too: there the
+      # links are real ones, made between pages. Its files go in
+      # ember-bricks.
       - name: Play Ember Bricks on phones in ${{ matrix.browser }}
         if: matrix.browser != 'firefox'
         timeout-minutes: 20

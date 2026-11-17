@@ -20,7 +20,7 @@
 as ws://127.0.0.1:<port>/, so xTalk Chat and NostrXT's relay library are
 tried end to end without a public relay.
 
-  python3 tools/ci/nostr_test_relay.py [--port N] [--log FILE]
+  python3 tools/ci/nostr_test_relay.py [--port N] [--log FILE] [--ephemeral SECONDS]
 
 It speaks NIP-01 (EVENT, REQ, CLOSE; OK, EOSE, EVENT, NOTICE) over RFC 6455,
 keeps the events it is sent in memory (but ephemeral kinds, 20000 to
@@ -29,6 +29,13 @@ events and then every new one its filters match (ids, authors, kinds,
 #<letter> tags, since, until, limit). It checks no signature: the clients
 under test do. It answers AUTH with nothing. Each message in and out is a
 line of the log. Standard library only.
+
+With --ephemeral (serve's ephemeral) it keeps an ephemeral event for
+that many seconds and gives it, newest first, to a subscription that
+asks while it has it, as some public relays do (strfry keeps them five
+minutes by default). tools/ci/ember_bricks_check.py's lobby runs on one
+that does: a client that takes whatever a relay gives as news fails
+there, as it would on those. Without it nothing changes.
 """
 
 import argparse
@@ -44,11 +51,36 @@ GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 
 
 class Relay:
-    def __init__(self, log_path=None):
+    def __init__(self, log_path=None, ephemeral=0):
         self.lock = threading.Lock()
         self.events = []
+        # the ephemeral events kept for a while, if any are: (when it is
+        # forgotten, the event)
+        self.ephemeral = ephemeral
+        self.passing = []
         self.clients = set()
         self.log_file = open(log_path, 'a', encoding='utf-8') if log_path else None
+
+    def take(self, event, now=None):
+        """An event that came: False if the relay had it already; kept if
+        it is of a kind that is kept, or ephemeral and those are kept for
+        a while. (Called with the lock.)"""
+        now = time.time() if now is None else now
+        self.passing = [(until, e) for until, e in self.passing if until > now]
+        if any(e['id'] == event['id'] for e in self.events) or any(e['id'] == event['id'] for _, e in self.passing):
+            return False
+        if not 20000 <= int(event['kind']) < 30000:
+            self.events.append(event)
+        elif self.ephemeral > 0:
+            self.passing.append((now + self.ephemeral, event))
+        return True
+
+    def stored(self, now=None):
+        """What a subscription is given first: the events kept, in the
+        order they came, then the ephemeral ones still held, the newest
+        first. (Called with the lock.)"""
+        now = time.time() if now is None else now
+        return list(self.events) + [e for until, e in reversed(self.passing) if until > now]
 
     def log(self, text):
         if self.log_file:
@@ -191,7 +223,7 @@ class Handler(socketserver.BaseRequestHandler):
             sub, filters = msg[1], [f for f in msg[2:] if isinstance(f, dict)]
             self.subs[sub] = filters
             with self.relay.lock:
-                stored = list(self.relay.events)
+                stored = self.relay.stored()
             for flt in filters:
                 found = [e for e in stored if matches(e, flt)]
                 if 'limit' in flt:
@@ -213,9 +245,7 @@ class Handler(socketserver.BaseRequestHandler):
             self.send(['OK', str(event.get('id', '')), False, 'invalid: not an event'])
             return
         with self.relay.lock:
-            duplicate = any(e['id'] == event_id for e in self.relay.events)
-            if not duplicate and not 20000 <= kind < 30000:
-                self.relay.events.append(event)
+            duplicate = not self.relay.take(event)
             clients = list(self.relay.clients)
         self.send(['OK', event_id, True, 'duplicate:' if duplicate else ''])
         if duplicate:
@@ -231,11 +261,12 @@ class Server(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
 
 
-def serve(log_path=None, port=0):
+def serve(log_path=None, port=0, ephemeral=0):
     """Starts the relay on 127.0.0.1 in a thread of its own; returns the
-    server (server_address[1] is its port, shutdown() stops it)."""
+    server (server_address[1] is its port, shutdown() stops it). With
+    ephemeral, ephemeral events are kept that many seconds."""
     server = Server(('127.0.0.1', port), Handler)
-    server.relay = Relay(log_path)
+    server.relay = Relay(log_path, ephemeral)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server
 
@@ -244,8 +275,9 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     ap.add_argument('--port', type=int, default=7447)
     ap.add_argument('--log')
+    ap.add_argument('--ephemeral', type=int, default=0, help='keep ephemeral events this many seconds (default: none is kept)')
     args = ap.parse_args()
-    server = serve(args.log, args.port)
+    server = serve(args.log, args.port, args.ephemeral)
     print('ws://127.0.0.1:%d/' % server.server_address[1], flush=True)
     try:
         while True:

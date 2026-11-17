@@ -2442,9 +2442,10 @@ private function leShowcaseInfo pName
                "for HTML5 and play it on a phone, or here with the mouse and the keys.|puzzle|amber|game puzzles"
       case "Ember Bricks"
          return "small|A brick breaker made for a phone and a desktop: twenty-four levels, ten sparks to " & \
-               "catch, and a heat that multiplies the score. Its Online Duel races a friend for three " & \
-               "minutes over a direct link, made with two codes you send each other. Play it here " & \
-               "with the mouse or the keys, or build it for HTML5.|blocks|rose|game multiplayer"
+               "catch, and a heat that multiplies the score. Its Online Duel races a rival for three " & \
+               "minutes over a direct link: challenge a player in the lobby, take a quick match, or " & \
+               "send a friend a room's code. Play it here with the mouse or the keys, or build it " & \
+               "for HTML5.|blocks|rose|game multiplayer"
       case "QR Studio"
          return "small|Type a link, a Wi-Fi network or a contact and get a QR code your phone can scan, " & \
                "then save it as a picture.|qr-code|indigo|qr-code image"

@@ -13,7 +13,9 @@ script "Ember Bricks"
 -- fireball, bolts, a net) and dark ones to let fall. There are 24
 -- levels, which come round again faster, and a duel for two over the
 -- internet: each on their own wall, each seeing the other's, and a hot
--- streak on one side is trouble on the other.
+-- streak on one side is trouble on the other. The two find each other
+-- in a lobby (who is online, a challenge, a quick match, a room for a
+-- friend), or swap two codes where there is none.
 --
 -- How it is made:
 --   one card, "Game". The arena is 320 units wide and 480 high whatever
@@ -134,6 +136,34 @@ constant kDuelQuiet = 8
 constant kDuelGather = 5
 constant kDuelMakeFor = 25
 constant kDuelLinkFor = 35
+-- the lobby (see "The online lobby", below): the version its players
+-- must share; the relays it is on when the stack names no others (its
+-- cRelays); the kinds of its two messages (one that says who is here, one
+-- to a single player), both of the kinds a relay passes on and is not
+-- meant to keep; the seconds between two of a player's "I am here", how long one
+-- stands, and how long one stands that says "in a duel"; how old by this
+-- machine's clock a message may be and still be news (some relays keep
+-- for a few minutes what they pass on, and give it to a newcomer; the two
+-- minutes allow for clocks that disagree); how long a relay
+-- is waited for, a challenge for its answer and a link for its opening;
+-- how long a quick match leaves alone a player who would not link; the
+-- rows of players the lobby shows, and on a phone on its side; and the
+-- letters of a room's code (none that looks like another)
+constant kNetVersion = 1
+constant kNetRelays = "wss://nos.lol,wss://relay.damus.io,wss://nostr.mom"
+constant kNetKindWho = 21043
+constant kNetKindTell = 21044
+constant kNetBeat = 20
+constant kNetStale = 50
+constant kNetOld = 120
+constant kNetOpenFor = 12
+constant kNetAskFor = 30
+constant kNetLinkFor = 30
+constant kNetAgain = 8
+constant kNetRows = 5
+constant kNetRowsShort = 3
+constant kNetLetters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+constant kNetCodeLength = 6
 
 -- whether the Mobile Web library is there; the screen showing (title,
 -- howto, settings, levels, play, pause, clear, over, lobby, result);
@@ -201,7 +231,8 @@ local sBannerUntil, sFlashUntil, sCountT, sCountTo, sSoundAt
 -- what the HUD shows now, so that it is changed only when it changes
 local sHud
 -- kept between visits: the best score, the highest level open, the
--- settings, whether How to play was seen, and the number of runs
+-- settings, whether How to play was seen, and the number of runs (and
+-- the name the player has in the lobby: sName, below)
 local sBest, sUnlocked, sSound, sBuzz, sEffects, sSeenHowto, sPlays
 -- another file for them (the tests'), how the sounds play ("web": the
 -- browser's Web Audio, many at once; "files": the engine's play, or a
@@ -217,6 +248,13 @@ local sHeatBar, sChipRect, sFakeInsets, sRX, sRY, sRS
 -- DataChannelXT is here ("yes" or "no") and was used, and how far along
 -- the list of levels a match's first wall is
 local sDuel, sLobby, sNet2, sRtc, sRtcUsed, sShift
+-- the lobby (see "The online lobby", below): whether NostrXT is here
+-- ("yes" or "no"); the player's name, kept between visits; the code of a
+-- friend's room that the page was opened with; relays in place of
+-- kNetRelays (a test's); the lobby itself while the player is online
+-- (sLob["on"], ["who"], ["room"], ...); whether a match that ends goes
+-- back to it; and what a test's lobby would have sent
+local sNostr, sName, sInvite, sRelays, sLob, sNetBack, sNetSent, sKey, sSeen, sSeenCount, sSaid
 -- The table of the sum a code carries (ebDuelSum)
 local sCrc
 
@@ -229,6 +267,7 @@ end preOpenStack
 
 on closeStack
    ebStopLoop
+   ebNetStop
    ebDuelClose
    put "closed" into sMode
    ebKeepAwake false
@@ -243,6 +282,31 @@ on resizeStack
    ebResized
    pass resizeStack
 end resizeStack
+
+-- Return in a field of the lobby is the step's main button: the name's
+-- goes online, a room's code goes to the room. (In the box of a code to
+-- paste it is a line break, as before.)
+on returnInField
+   set the defaultStack to the short name of me
+   if sMode is "lobby" and sLobby is "start" then
+      ebPress "Net Go"
+   else if sMode is "lobby" and sLobby is "room-take" then
+      ebPress "Code Go"
+   else
+      pass returnInField
+   end if
+end returnInField
+
+on enterInField
+   set the defaultStack to the short name of me
+   if sMode is "lobby" and sLobby is "start" then
+      ebPress "Net Go"
+   else if sMode is "lobby" and sLobby is "room-take" then
+      ebPress "Code Go"
+   else
+      pass enterInField
+   end if
+end enterInField
 
 -- A phone that turns says so too; the stack has its new size by then
 on orientationChanged
@@ -291,6 +355,10 @@ command ebInit
    put false into sDuel
    put empty into sNet2
    put empty into sLobby
+   put empty into sLob
+   put false into sNetBack
+   put empty into sInvite
+   put empty into sRelays
    put 0 into sShift
    put false into sWorld
    put 0 into sClock
@@ -350,6 +418,7 @@ command ebInit
    put empty into sArena
    ebLayout
    ebGoTitle
+   ebNetInvited
    unlock screen
 end ebInit
 
@@ -532,6 +601,7 @@ command ebLoad
    put true into sBuzz
    put "full" into sEffects
    put false into sSeenHowto
+   put empty into sName
    try
       put url ("file:" & ebSavePath()) into tText
    end try
@@ -569,6 +639,9 @@ command ebLoad
          case "howto"
             put tValue is "true" into sSeenHowto
             break
+         case "name"
+            put ebNetName(tValue) into sName
+            break
       end switch
    end repeat
    set the itemDelimiter to comma
@@ -579,6 +652,9 @@ command ebSave
    put "best=" & sBest & return & "unlocked=" & sUnlocked & return & "plays=" & sPlays & return & \
          "sound=" & sSound & return & "buzz=" & sBuzz & return & "effects=" & sEffects & return & \
          "howto=" & sSeenHowto & return into tText
+   if sName is not empty then
+      put "name=" & sName & return after tText
+   end if
    try
       put tText into url ("file:" & ebSavePath())
    end try
@@ -858,6 +934,9 @@ command ebAdvance pDt, pReal
    if sNet2["on"] is true then
       ebDuelStep pReal
    end if
+   if sLob["on"] is true then
+      ebNetStep pReal
+   end if
    switch sMode
       case "play"
          add pDt to sNow
@@ -1131,6 +1210,11 @@ private command ebPressed pName
       end if
       exit ebPressed
    end if
+   -- (a player in the lobby's list)
+   if word 1 of pName is "Who" and word 2 of pName is an integer then
+      ebNetChallenge word 2 of pName
+      exit ebPressed
+   end if
    switch pName
       case "Play"
          ebPressPlay
@@ -1227,6 +1311,12 @@ private command ebPressed pName
       case "Lobby Back"
       case "Rematch"
       case "Result Home"
+      case "Net Go"
+      case "Codes Open"
+      case "Quick"
+      case "Friend"
+      case "Accept"
+      case "Decline"
          ebDuelPress pName
          break
    end switch
@@ -3647,23 +3737,71 @@ private command ebLayoutOver pL, pT, pR, pB
    ebPlaceButton "Over Home", tL, tY + ebU(62), tR, tY + ebU(106)
 end ebLayoutOver
 
--- The lobby, for its step (ebLobbyKind): its words, with Host and Join;
--- a code to send, with Copy; a place for a code, with Paste; or a line
--- while something is made
+-- The lobby, for its step (ebLobbyKind): a name and Go online over Play
+-- by code; the players who are online, with Quick match and Play a
+-- friend; a challenge, with Accept; its words, with Host and Join; a code
+-- to send, with Copy; a place for a code, with Paste; or a line while
+-- something is made. A phone on its side has the name, and the players,
+-- beside the buttons
 private command ebLayoutLobby pL, pT, pR, pB
    local tW, tH, tRect, tL, tT, tR, tY, tTextH, tKind, tName, tBoxH, tGo, tShow
-   put min(pR - pL - 16, ebU(380)) into tW
+   local tTwo, tMost, tNoteH, tMid, tBackT, tRowT, tRowR, tOwn, i, tRoom
    put ebLobbyKind() into tKind
-   -- (the host's first step goes on to the second; the answer only waits)
-   put (tKind is "take" or sLobby is "host-invite") into tGo
+   put ((tKind is "start" or tKind is "list") and ebShort(pT, pB)) into tTwo
+   if tTwo then
+      put min(pR - pL - 16, ebU(620)) into tW
+   else
+      put min(pR - pL - 16, ebU(380)) into tW
+   end if
+   -- (the host's first step goes on to the second, and a room's to a
+   -- friend's; the answer only waits)
+   put (tKind is "take" or sLobby is "host-invite" or sLobby is "room") into tGo
    set the rect of field "Lobby Text" to 0, 0, tW - ebU(40), 100
    put the formattedHeight of field "Lobby Text" into tTextH
-   if ebShort(pT, pB) then
+   put ebU(38) into tNoteH
+   -- a room's code is six letters, large, in the middle of a box a line
+   -- high; a code of the swap fills a taller one, small
+   put (sLobby is "room" or sLobby is "room-take") into tRoom
+   if tRoom then
+      set the textSize of field "Code" to max(9, ebU(24))
+      set the textAlign of field "Code" to "center"
+      set the textStyle of field "Code" to "bold"
+   else
+      set the textSize of field "Code" to max(9, ebU(11))
+      set the textAlign of field "Code" to "left"
+      set the textStyle of field "Code" to "plain"
+   end if
+   if tRoom or ebShort(pT, pB) then
       put ebU(56) into tBoxH
    else
       put ebU(92) into tBoxH
    end if
+   put ebNetRowsMost() into tMost
    switch tKind
+      case "start"
+         -- (what going online shows is said whole, whatever lines it takes)
+         if tTwo then
+            set the rect of field "Lobby Note" to 0, 0, (tW - ebU(60)) div 2, 100
+         else
+            set the rect of field "Lobby Note" to 0, 0, tW - ebU(40), 100
+         end if
+         put max(ebU(38), the formattedHeight of field "Lobby Note") into tNoteH
+         if tTwo then
+            put ebU(64) + max(ebU(24 + 48) + tNoteH, ebU(52 + 8 + 44 + 8 + 40)) + ebU(18) into tH
+         else
+            put ebU(64) + tTextH + ebU(10 + 24 + 48 + 60 + 52) + tNoteH + ebU(6 + 40 + 18) into tH
+         end if
+         break
+      case "list"
+         if tTwo then
+            put ebU(64 + 26) + tMost * ebU(46) + ebU(4 + 38 + 18) into tH
+         else
+            put ebU(64 + 26) + tMost * ebU(46) + ebU(4 + 62 + 52 + 38 + 6 + 40 + 18) into tH
+         end if
+         break
+      case "asked"
+         put ebU(64) + tTextH + ebU(12 + 62 + 52 + 38 + 18) into tH
+         break
       case "choose"
          put ebU(64) + tTextH + ebU(12 + 52 + 10 + 44 + 8 + 38 + 6 + 40 + 18) into tH
          break
@@ -3684,10 +3822,78 @@ private command ebLayoutLobby pL, pT, pR, pB
    put item 1 of tRect + ebU(20) into tL
    put item 2 of tRect into tT
    put item 3 of tRect - ebU(20) into tR
+   put (tL + tR) div 2 into tMid
+   put item 4 of tRect - ebU(58) into tBackT
    set the rect of field "Lobby Title" to tL, tT + ebU(24), tR, tT + ebU(58)
    put tT + ebU(64) into tY
    set the rect of field "Lobby Text" to tL, tY, tR, tY + tTextH
+   -- (the name's step and the players' place their note and Back
+   -- themselves: beside the rest on a phone on its side)
+   put false into tOwn
    switch tKind
+      case "start"
+         put true into tOwn
+         set the textAlign of field "Lobby Step" to "left"
+         if tTwo then
+            set the rect of field "Lobby Step" to tL, tY + ebU(2), tMid - ebU(10), tY + ebU(22)
+            ebPlaceTyped "Name", "Name Back", tL, tY + ebU(24), tMid - ebU(10), tY + ebU(64), true
+            set the rect of field "Lobby Note" to tL, tY + ebU(72), tMid - ebU(10), tY + ebU(72) + tNoteH
+            ebPlaceButton "Net Go", tMid + ebU(10), tY, tR, tY + ebU(52)
+            ebPlaceButton "Codes Open", tMid + ebU(10), tY + ebU(60), tR, tY + ebU(104)
+            ebPlaceButton "Lobby Back", tMid + ebU(10), tY + ebU(112), tR, tY + ebU(152)
+         else
+            add tTextH + ebU(10) to tY
+            set the rect of field "Lobby Step" to tL, tY + ebU(2), tR, tY + ebU(22)
+            add ebU(24) to tY
+            ebPlaceTyped "Name", "Name Back", tL, tY, tR, tY + ebU(40), true
+            add ebU(48) to tY
+            ebPlaceButton "Net Go", tL, tY, tR, tY + ebU(52)
+            add ebU(60) to tY
+            ebPlaceButton "Codes Open", tL, tY, tR, tY + ebU(44)
+            add ebU(52) to tY
+            set the rect of field "Lobby Note" to tL, tY, tR, tY + tNoteH
+            ebPlaceButton "Lobby Back", tL, tBackT, tR, tBackT + ebU(40)
+         end if
+         break
+      case "list"
+         put true into tOwn
+         set the textAlign of field "Lobby Step" to "left"
+         if tTwo then
+            put tMid - ebU(10) into tRowR
+         else
+            put tR into tRowR
+         end if
+         set the rect of field "Lobby Step" to tL, tY + ebU(2), tRowR, tY + ebU(22)
+         put tY + ebU(26) into tRowT
+         repeat with i = 1 to tMost
+            ebPlaceButton "Who" && i, tL, tRowT + (i - 1) * ebU(46), tRowR, tRowT + (i - 1) * ebU(46) + ebU(40)
+         end repeat
+         -- (and, in its place, each row's words)
+         ebNetRowsLook
+         -- (with nobody there, the words say so where the players would be)
+         set the rect of field "Lobby Text" to tL, tRowT + ebU(8), tRowR, tRowT + tMost * ebU(46) - ebU(8)
+         if tTwo then
+            ebPlaceButton "Quick", tMid + ebU(10), tY, tR, tY + ebU(48)
+            ebPlaceButton "Friend", tMid + ebU(10), tY + ebU(56), tR, tY + ebU(96)
+            ebPlaceButton "Lobby Back", tMid + ebU(10), tY + ebU(104), tR, tY + ebU(144)
+            put tRowT + tMost * ebU(46) + ebU(4) into tY
+         else
+            put tRowT + tMost * ebU(46) + ebU(4) into tY
+            ebPlaceButton "Quick", tL, tY, tR, tY + ebU(52)
+            add ebU(62) to tY
+            ebPlaceButton "Friend", tL, tY, tR, tY + ebU(44)
+            add ebU(52) to tY
+            ebPlaceButton "Lobby Back", tL, tBackT, tR, tBackT + ebU(40)
+         end if
+         set the rect of field "Lobby Note" to tL, tY, tR, tY + tNoteH
+         break
+      case "asked"
+         add tTextH + ebU(12) to tY
+         ebPlaceButton "Accept", tL, tY, tR, tY + ebU(52)
+         add ebU(62) to tY
+         ebPlaceButton "Decline", tL, tY, tR, tY + ebU(44)
+         add ebU(52) to tY
+         break
       case "choose"
          add tTextH + ebU(12) to tY
          ebPlaceButton "Host", tL, tY, tR, tY + ebU(52)
@@ -3700,8 +3906,7 @@ private command ebLayoutLobby pL, pT, pR, pB
          set the textAlign of field "Lobby Step" to "left"
          set the rect of field "Lobby Step" to tL, tY + ebU(2), tR, tY + ebU(22)
          add ebU(26) to tY
-         set the rect of graphic "Code Back" to tL, tY, tR, tY + tBoxH
-         set the rect of field "Code" to tL + 2, tY + 2, tR - 2, tY + tBoxH - 2
+         ebPlaceTyped "Code", "Code Back", tL, tY, tR, tY + tBoxH, tRoom
          add tBoxH + ebU(8) to tY
          if tKind is "send" then
             ebPlaceButton "Code Copy", tL, tY, tR, tY + ebU(48)
@@ -3722,14 +3927,24 @@ private command ebLayoutLobby pL, pT, pR, pB
       default
          add tTextH + ebU(14) to tY
    end switch
-   set the rect of field "Lobby Note" to tL, tY, tR, tY + ebU(38)
-   ebPlaceButton "Lobby Back", tL, item 4 of tRect - ebU(58), tR, item 4 of tRect - ebU(18)
-   set the visible of field "Lobby Text" to (tKind is "choose" or tKind is "none")
-   set the visible of field "Lobby Step" to (tKind is "send" or tKind is "take" or tKind is "busy")
+   if not tOwn then
+      set the rect of field "Lobby Note" to tL, tY, tR, tY + ebU(38)
+      ebPlaceButton "Lobby Back", tL, tBackT, tR, tBackT + ebU(40)
+   end if
+   put (tKind is "choose" or tKind is "none" or tKind is "asked") into tShow
+   if tKind is "start" and not tTwo then
+      put true into tShow
+   else if tKind is "list" and sLob["rows"] is empty then
+      put true into tShow
+   end if
+   set the visible of field "Lobby Text" to tShow
+   set the visible of field "Lobby Step" to (tKind is among the items of "send,take,busy,start,list")
    set the visible of field "Lobby Note" to (tKind is not "none")
    set the visible of field "Code" to (tKind is "send" or tKind is "take")
    set the visible of graphic "Code Back" to (tKind is "send" or tKind is "take")
-   repeat for each item tName in "Host,Join,Code Copy,Code Paste,Code Go"
+   set the visible of field "Name" to (tKind is "start")
+   set the visible of graphic "Name Back" to (tKind is "start")
+   repeat for each item tName in "Host,Join,Code Copy,Code Paste,Code Go,Net Go,Codes Open,Quick,Friend,Accept,Decline,Lobby Back"
       switch tName
          case "Host"
          case "Join"
@@ -3741,13 +3956,49 @@ private command ebLayoutLobby pL, pT, pR, pB
          case "Code Paste"
             put (tKind is "take") into tShow
             break
+         case "Net Go"
+         case "Codes Open"
+            put (tKind is "start") into tShow
+            break
+         case "Quick"
+         case "Friend"
+            put (tKind is "list") into tShow
+            break
+         case "Accept"
+         case "Decline"
+            put (tKind is "asked") into tShow
+            break
+         case "Lobby Back"
+            -- (a challenge is left by its Not now)
+            put (tKind is not "asked") into tShow
+            break
          default
             put tGo into tShow
       end switch
       set the visible of button tName to tShow
       set the visible of graphic (tName && "Shape") to tShow
    end repeat
+   repeat with i = 1 to kNetRows
+      put (tKind is "list" and i <= tMost and line i of sLob["rows"] is not empty) into tShow
+      set the visible of button ("Who" && i) to tShow
+      set the visible of graphic ("Who" && i && "Shape") to tShow
+   end repeat
 end ebLayoutLobby
+
+-- A field for typing over its box: all of the box, or (pOne) a line in
+-- the middle of its height
+private command ebPlaceTyped pField, pBox, pL, pT, pR, pB, pOne
+   local tHigh, tTop
+   set the rect of graphic pBox to pL, pT, pR, pB
+   if pOne is true then
+      put max(the formattedHeight of field pField, the effective textHeight of field pField + 12) into tHigh
+      put min(pB - pT - 4, tHigh) into tHigh
+      put (pT + pB - tHigh) div 2 into tTop
+      set the rect of field pField to pL + 2, tTop, pR - 2, tTop + tHigh
+   else
+      set the rect of field pField to pL + 2, pT + 2, pR - 2, pB - 2
+   end if
+end ebPlaceTyped
 
 -- A duel's result: who won, the two scores, a line, and Rematch over
 -- Leave (only Leave when the rival is gone)
@@ -3787,12 +4038,16 @@ end ebLayoutResult
 -- The two are linked by DataChannelXT, peer to peer (WebRTC's data
 -- channels: libdatachannel on a desktop, the browser's own in a page),
 -- with no server of the game's. What each needs to find the other (its
--- "description", with the ways to reach it) the players carry
--- themselves, as two codes: the host's invite to the guest, the guest's
--- answer back, in any message. A public STUN server (kDuelIce) tells
--- each its address as the internet sees it; nothing of the game goes
--- through it. Where DataChannelXT is not (an Android app, for now), the
--- lobby says so.
+-- "description", with the ways to reach it) goes between them through
+-- the lobby, in a second or two (see "The online lobby", below); or,
+-- where there is no lobby, the players carry it themselves, as two
+-- codes: the host's invite to the guest, the guest's answer back, in any
+-- message. A code is good for a minute or so, because the guest's side
+-- starts to look for the host as its answer is made, and gives up when
+-- no one comes: that wait is what the lobby is there to take away. A
+-- public STUN server (kDuelIce) tells each its address as the internet
+-- sees it; nothing of the game goes through it. Where DataChannelXT is
+-- not (an Android app, for now), the lobby says so.
 --
 -- Over the link go lines of text, a letter and what it says:
 --   H 1          hello, each to the other as the link opens: the version
@@ -3830,16 +4085,23 @@ end ebDuelCan
 -- The title's button: the lobby
 command ebDuelOpen
    set the defaultStack to the short name of me
+   lock screen
    ebDuelDrop
+   ebNetStop
    put false into sDuel
    put "lobby" into sMode
-   if ebDuelCan() then
-      put "choose" into sLobby
-   else
+   if not ebDuelCan() then
       put "none" into sLobby
+   else if ebNetCan() then
+      -- (the lobby's first step: a name, and Go online)
+      put "start" into sLobby
+      ebNetNameShow
+   else
+      put "choose" into sLobby
    end if
    ebLobbyLook empty
    ebShowScreen "lobby"
+   unlock screen
 end ebDuelOpen
 
 -- The lobby's and the result's buttons
@@ -3872,26 +4134,62 @@ command ebDuelPress pName
       case "Rematch"
          ebDuelRematch
          break
+      case "Net Go"
+         ebNetGo
+         break
+      case "Codes Open"
+         if sLobby is "start" then
+            put "choose" into sLobby
+            ebLobbyLook empty
+         end if
+         break
+      case "Quick"
+         ebNetQuick
+         break
+      case "Friend"
+         ebNetFriend
+         break
+      case "Accept"
+         ebNetAccept
+         break
+      case "Decline"
+         ebNetDecline
+         break
    end switch
 end ebDuelPress
 
--- What the lobby's step shows: "choose" (its words, Host and Join),
--- "send" (a code to copy), "take" (a place to paste one), "busy" (a line
--- while something is made), or "none" (no duel here)
+-- What the lobby's step shows: "start" (a name, Go online and Play by
+-- code), "list" (the players who are online), "asked" (a challenge, to
+-- accept or not), "choose" (its words, Host and Join), "send" (a code to
+-- copy), "take" (a place to paste one), "busy" (a line while something is
+-- made), or "none" (no duel here)
 private function ebLobbyKind
    switch sLobby
+      case "start"
+         return "start"
+      case "online"
+         return "list"
+      case "asked"
+         return "asked"
       case "choose"
          return "choose"
       case "host-invite"
       case "join-answer"
+      case "room"
          return "send"
       case "host-answer"
       case "join-invite"
+      case "room-take"
          return "take"
       case "host-make"
       case "join-make"
       case "linking"
       case "linked"
+      case "net-wait"
+      case "quick"
+      case "asking"
+      case "net-link"
+      case "room-in"
          return "busy"
    end switch
    return "none"
@@ -3900,10 +4198,76 @@ end ebLobbyKind
 -- The lobby's words and buttons for its step, and pNote under them (or
 -- the step's own)
 private command ebLobbyLook pNote
-   local tText, tStep, tNote, tGo, tCopy, tTake
+   local tText, tStep, tNote, tGo, tCopy, tTake, tRival
    lock screen
    put false into tTake
+   put toUpper(sLob["rival"]) into tRival
    switch sLobby
+      case "start"
+         if sInvite is empty then
+            put "Three minutes, a wall each, and most points wins. Build your heat and your rival gets trouble." into tText
+            set the label of button "Net Go" to "GO ONLINE"
+         else
+            put "A friend waits for you in room" && sInvite & ". Three minutes, a wall each, and most points wins." into tText
+            set the label of button "Net Go" to "JOIN YOUR FRIEND"
+         end if
+         put "YOUR NAME" into tStep
+         put "Going online shows this name to the other players. The lobby is on public Nostr relays, which see your internet address." into tNote
+         break
+      case "net-wait"
+         put "FINDING THE LOBBY..." into tStep
+         put "A moment." into tNote
+         break
+      case "online"
+         if sLob["count"] > 0 then
+            put "IN THE LOBBY:" && sLob["count"] into tStep
+            put "You are" && sName & ". Tap a player to challenge them." into tNote
+         else
+            put "THE LOBBY" into tStep
+            put "No one else is here yet. Play a friend, or wait: players are listed as they arrive." into tText
+            put "You are" && sName & "." into tNote
+         end if
+         if sLob["said"] is not empty and sLob["clock"] < sLob["saidUntil"] then
+            put sLob["said"] into tNote
+         end if
+         break
+      case "quick"
+         put "LOOKING FOR A RIVAL..." into tStep
+         put "The first player who wants a quick match is yours." into tNote
+         break
+      case "asking"
+         put "CHALLENGING" && tRival & "..." into tStep
+         put "Waiting for an answer." into tNote
+         break
+      case "asked"
+         put tRival && "challenges you to a duel." into tText
+         put "Three minutes, a wall each, and most points wins." into tNote
+         break
+      case "net-link"
+         put "CONNECTING TO" && tRival & "..." into tStep
+         put "This can take a few seconds." into tNote
+         break
+      case "room"
+         put "YOUR ROOM" into tStep
+         if sPlatform is "web" then
+            put "COPY THE LINK" into tCopy
+            put "Send the link to a friend. The duel starts when they open it." into tNote
+         else
+            put "COPY THE CODE" into tCopy
+            put "Send the code to a friend. The duel starts when they join." into tNote
+         end if
+         put "I HAVE A CODE" into tGo
+         break
+      case "room-take"
+         put "A FRIEND'S ROOM" into tStep
+         put "JOIN THE ROOM" into tGo
+         put "Type or paste the code your friend sent." into tNote
+         put true into tTake
+         break
+      case "room-in"
+         put "ROOM" && sLob["code"] into tStep
+         put "Waiting for your friend to arrive." into tNote
+         break
       case "choose"
          put "Three minutes, a wall each, and most points wins. Build your heat and your rival gets trouble." & return & return & \
                "One of you hosts and sends an invite. The other joins with it and sends an answer back." into tText
@@ -3966,10 +4330,12 @@ private command ebLobbyLook pNote
    if tGo is not empty then
       set the label of button "Code Go" to tGo
    end if
-   -- a code to send is not typed over; a place for one is
+   -- a code to send is not typed over; a place for one is, and the name
    set the lockText of field "Code" to not tTake
    set the traversalOn of field "Code" to tTake
-   if not tTake then
+   set the lockText of field "Name" to (sLobby is not "start")
+   set the traversalOn of field "Name" to (sLobby is "start")
+   if not tTake and sLobby is not "start" then
       try
          focus on nothing
       end try
@@ -3978,13 +4344,12 @@ private command ebLobbyLook pNote
    unlock screen
 end ebLobbyLook
 
--- Host: a peer, its two channels, and (when the ways to reach it are
--- found: ebDuelMakeCode) the invite
-private command ebDuelHost
-   local tPeer, tChan, tWhy, tError
-   if sLobby is not "choose" then
-      exit ebDuelHost
-   end if
+-- A peer for a link: a host's, with its two channels, or a guest's,
+-- which takes the host's description (pSdp). Empty when it is made; else
+-- why not ("refused": the description could not be read), and nothing is
+-- left of it
+private function ebDuelPeer pRole, pSdp
+   local tPeer, tChan, tResult, tWhy, tError
    ebDuelDrop
    put empty into tWhy
    try
@@ -3994,13 +4359,20 @@ private command ebDuelHost
       else
          put true into sRtcUsed
          put tPeer into sNet2["peer"]
-         put dcCreateChannel(tPeer, "eb") into tChan
-         if tChan is not a number or tChan <= 0 then
-            put "no channel" into tWhy
+         if pRole is "host" then
+            put dcCreateChannel(tPeer, "eb") into tChan
+            if tChan is not a number or tChan <= 0 then
+               put "no channel" into tWhy
+            else
+               put tChan into sNet2["chan"]
+               -- (the pictures: out of order, and never sent again)
+               put dcCreateChannelEx(tPeer, "ebs", empty, true, 0, -1, false, -1) into sNet2["fast"]
+            end if
          else
-            put tChan into sNet2["chan"]
-            -- (the pictures: out of order, and never sent again)
-            put dcCreateChannelEx(tPeer, "ebs", empty, true, 0, -1, false, -1) into sNet2["fast"]
+            put dcSetRemoteDescription(tPeer, pSdp, "offer") into tResult
+            if tResult is not a number or tResult < 0 then
+               put "refused" into tWhy
+            end if
          end if
       end if
    catch tError
@@ -4008,12 +4380,26 @@ private command ebDuelHost
    end try
    if tWhy is not empty then
       ebDuelDrop
+      return tWhy
+   end if
+   put true into sNet2["on"]
+   put pRole into sNet2["role"]
+   put sClock into sNet2["since"]
+   return empty
+end ebDuelPeer
+
+-- Host: a peer, its two channels, and (when the ways to reach it are
+-- found: ebDuelMakeCode) the invite
+private command ebDuelHost
+   local tWhy
+   if sLobby is not "choose" then
+      exit ebDuelHost
+   end if
+   put ebDuelPeer("host", empty) into tWhy
+   if tWhy is not empty then
       ebLobbyLook "Could not start a link here." && ebDuelWhy()
       exit ebDuelHost
    end if
-   put true into sNet2["on"]
-   put "host" into sNet2["role"]
-   put sClock into sNet2["since"]
    put "host-make" into sLobby
    ebLobbyLook empty
 end ebDuelHost
@@ -4021,37 +4407,16 @@ end ebDuelHost
 -- Join: a peer that takes the host's invite and (ebDuelMakeCode) makes
 -- the answer to it
 private command ebDuelJoin pSdp
-   local tPeer, tResult, tWhy, tError
-   ebDuelDrop
-   put empty into tWhy
-   try
-      put dcCreatePeer(kDuelIce) into tPeer
-      if tPeer is not a number or tPeer <= 0 then
-         put "no peer" into tWhy
-      else
-         put true into sRtcUsed
-         put tPeer into sNet2["peer"]
-         put dcSetRemoteDescription(tPeer, pSdp, "offer") into tResult
-         if tResult is not a number or tResult < 0 then
-            put "refused" into tWhy
-         end if
-      end if
-   catch tError
-      put "error" into tWhy
-   end try
+   local tWhy
+   put ebDuelPeer("guest", pSdp) into tWhy
    if tWhy is "refused" then
-      ebDuelDrop
       ebLobbyLook "That invite could not be read. Ask your rival for a new one."
       exit ebDuelJoin
    end if
    if tWhy is not empty then
-      ebDuelDrop
       ebLobbyLook "Could not start a link here." && ebDuelWhy()
       exit ebDuelJoin
    end if
-   put true into sNet2["on"]
-   put "guest" into sNet2["role"]
-   put sClock into sNet2["since"]
    put "join-make" into sLobby
    ebLobbyLook empty
 end ebDuelJoin
@@ -4072,7 +4437,8 @@ end ebDuelWhy
 
 -- While a code is made: when the peer has found the ways to reach it
 -- (or, on a network that holds that up, after some seconds with what it
--- has), its description becomes the code
+-- has), its description becomes the code; or, in the lobby, goes to the
+-- rival through it
 private command ebDuelMakeCode
    local tPeer, tDone, tSdp, tKind, tError
    put sNet2["peer"] into tPeer
@@ -4095,8 +4461,17 @@ private command ebDuelMakeCode
    end if
    if tSdp is empty then
       if sClock - sNet2["since"] > kDuelMakeFor then
-         ebDuelGone "Could not make a code here: the link did not start." && ebDuelWhy()
+         if sNet2["via"] is "net" then
+            ebDuelGone "Could not start a link here." && ebDuelWhy()
+         else
+            ebDuelGone "Could not make a code here: the link did not start." && ebDuelWhy()
+         end if
       end if
+      exit ebDuelMakeCode
+   end if
+   if sNet2["via"] is "net" then
+      -- (a link made in the lobby: the description goes through it)
+      ebNetDescribed tSdp
       exit ebDuelMakeCode
    end if
    if sNet2["role"] is "host" then
@@ -4261,7 +4636,11 @@ end ebDuelSum
 -- way to the rival
 private command ebLobbyCopy
    local tCode, tResult, tError
-   put sNet2["code"] into tCode
+   if sLobby is "room" then
+      put ebNetInvite() into tCode
+   else
+      put sNet2["code"] into tCode
+   end if
    if tCode is empty or ebLobbyKind() is not "send" then
       exit ebLobbyCopy
    end if
@@ -4381,21 +4760,88 @@ private command ebLobbyGo
          end if
          ebDuelJoin tSdp
          break
+      case "room"
+         put "room-take" into sLobby
+         set the text of field "Code" to empty
+         ebLobbyLook empty
+         break
+      case "room-take"
+         ebNetJoin the text of field "Code"
+         break
    end switch
 end ebLobbyGo
 
--- Out: of a step of the lobby to its first, of the lobby or a match to
--- the title
+-- Out: of a step of the lobby to the one before it, of the lobby or a
+-- match to the title; and of a match that began in the lobby, back to the
+-- lobby
 command ebDuelLeave
+   local tOut, tBack
    set the defaultStack to the short name of me
    lock screen
-   if sMode is "lobby" and ebLobbyKind() is not "choose" and ebLobbyKind() is not "none" then
-      ebDuelDrop
-      put "choose" into sLobby
-      ebLobbyLook empty
-   else
+   put true into tOut
+   if sMode is "lobby" then
+      put false into tOut
+      switch sLobby
+         case "start"
+         case "none"
+         case empty
+            put true into tOut
+            break
+         case "choose"
+            if ebNetCan() then
+               put "start" into sLobby
+               ebNetNameShow
+               ebLobbyLook empty
+            else
+               put true into tOut
+            end if
+            break
+         case "net-wait"
+         case "online"
+            ebNetStop "gone"
+            put "start" into sLobby
+            ebNetNameShow
+            ebLobbyLook empty
+            break
+         case "quick"
+            ebNetHome empty, "online"
+            break
+         case "room"
+         case "room-take"
+         case "room-in"
+            put empty into sInvite
+            ebNetRoom empty
+            ebNetHome empty, "online"
+            break
+         case "asking"
+            ebNetTell sLob["ask"]["pk"], "D" && sLob["ask"]["id"] && "cancel"
+            ebNetHome empty
+            break
+         case "asked"
+            ebNetDecline
+            break
+         case "net-link"
+            ebNetTell sLob["link"]["pk"], "D" && sLob["link"]["id"] && "cancel"
+            ebDuelDrop
+            ebNetHome empty
+            break
+         default
+            -- (a step of the codes, or a link just made)
+            ebDuelDrop
+            if ebNetIn() then
+               ebNetHome empty
+            else
+               put "choose" into sLobby
+               ebLobbyLook empty
+            end if
+      end switch
+   end if
+   if tOut then
+      put (sNetBack is true and sMode is not "lobby") into tBack
+      put false into sNetBack
       ebDuelSend "B"
       ebDuelDrop
+      ebNetStop "gone"
       put empty into sLobby
       if sDuel then
          put false into sDuel
@@ -4403,6 +4849,13 @@ command ebDuelLeave
          ebLayout
       end if
       ebGoTitle
+      if tBack then
+         -- (a match that began in the lobby: back there, and online)
+         ebDuelOpen
+         if sLobby is "start" then
+            ebNetStart
+         end if
+      end if
    end if
    unlock screen
 end ebDuelLeave
@@ -4462,8 +4915,14 @@ private command ebDuelGone pWhy
    else
       ebDuelDrop
       if sMode is "lobby" then
-         put "choose" into sLobby
-         ebLobbyLook pWhy
+         if ebNetIn() then
+            -- (and a quick match leaves this player alone for a while)
+            ebNetNotNow sLob["link"]["pk"]
+            ebNetHome pWhy
+         else
+            put "choose" into sLobby
+            ebLobbyLook pWhy
+         end if
       end if
    end if
 end ebDuelGone
@@ -4527,6 +4986,14 @@ private command ebDuelStep pReal
             ebDuelGone "No link could be made. A code lasts only a minute or so, and some networks block a direct link. Try again."
          end if
          break
+      case "net-link"
+         if sNet2["told"] is not true and sNet2["fake"] is not true then
+            ebDuelMakeCode
+         end if
+         if sLobby is "net-link" and sClock - sNet2["began"] > kNetLinkFor then
+            ebDuelGone ebNetNoLink()
+         end if
+         break
    end switch
    if sNet2["on"] is not true or not sDuel then
       exit ebDuelStep
@@ -4586,6 +5053,8 @@ private command ebDuelEvent pEvent
          if tMine and (pEvent["state"] is 4 or pEvent["state"] is 5) then
             if sDuel then
                ebDuelGone "The link to your rival was lost."
+            else if sLobby is "net-link" then
+               ebDuelGone ebNetNoLink()
             else if sLobby is "join-answer" then
                ebDuelGone "The answer was not used in time, or a network blocks the link. Join again with a new invite."
             else
@@ -4708,8 +5177,11 @@ end ebDuelHostStart
 -- it is, pSeed says), no score, three minutes on the clock after a count
 -- of three
 private command ebDuelBegin pSeed
-   local i
+   local i, tSub
    put true into sDuel
+   if ebNetIn() then
+      ebNetBegun
+   end if
    put empty into sLobby
    put "play" into sNet2["stage"]
    put kDuelFor into sNet2["left"]
@@ -4738,7 +5210,11 @@ private command ebDuelBegin pSeed
    end repeat
    set the visible of field id sId["Hint"] to false
    set the text of field id sId["Rival Score"] to "0"
-   ebBanner "GET READY", "Three minutes. Most points wins.", 2.6
+   put "Three minutes. Most points wins." into tSub
+   if sNet2["name"] is not empty then
+      put "You against" && sNet2["name"] & ". Most points wins." into tSub
+   end if
+   ebBanner "GET READY", tSub, 2.6
    ebSound "go", 0.7
    ebDuelClock
    ebDuelDraw true
@@ -5066,7 +5542,12 @@ private command ebDuelResultLook
       put sNet2["their"]["score"] + 0 into tTheirs
    end if
    set the text of field "Result You" to "YOU   " & ebCommas(tMine)
-   set the text of field "Result Them" to "RIVAL   " & ebCommas(tTheirs)
+   if sNet2["name"] is empty then
+      set the text of field "Result Them" to "RIVAL   " & ebCommas(tTheirs)
+   else
+      -- (a rival met in the lobby has a name)
+      set the text of field "Result Them" to toUpper(char 1 to 10 of sNet2["name"]) & "   " & ebCommas(tTheirs)
+   end if
    if tGone and not tKnown then
       set the text of field "Result Title" to "RIVAL LEFT"
       set the textColor of field "Result Title" to kAmber
@@ -5134,6 +5615,1287 @@ private command ebDuelRematchCheck
 end ebDuelRematchCheck
 
 ----------------------------------------------------------------------
+-- The online lobby
+--
+-- Where two players find each other, so that neither carries a code:
+-- who is online, a challenge to one of them, a quick match with the
+-- first who wants one, and a room for a friend, by a link or six
+-- letters. It needs no server of the game's. The players meet on public
+-- Nostr relays (kNetRelays, or the stack's cRelays), through NostrXT and
+-- its relay library, which OXT-Beyond carries: a relay passes on the
+-- small signed messages its visitors send, to those who asked for them.
+-- Each player has a key made for the visit, and under it sends two
+-- kinds of message, both of the kinds a relay passes on and is not meant
+-- to keep (some hold them a few minutes, and give them to whoever asks:
+-- ebNetFresh):
+--
+--   who is here (kNetKindWho), tagged with the room, every twenty
+--     seconds and whenever it changes:
+--       EB|1|free|50|0|Lucky Flint
+--     the lobby's version, what the player is doing (free; quick, for a
+--     quick match; busy; duel; gone), the seconds it stands for, whether
+--     it asks the others to say theirs at once (a newcomer's does), and
+--     the name
+--   a word to one player (kNetKindTell), tagged with that player's key
+--     and sealed so that only that player reads it (NIP-44):
+--       L1 C K7MQ2XAB            I challenge you
+--       L1 D K7MQ2XAB no         not now (or busy, cancel, failed)
+--       L1 O K7MQ2XAB EB1Oz:...  my description: the invite of the codes
+--       L1 A K7MQ2XAB EB1Az:...  and the answer to it
+--
+-- A challenge accepted is answered with the accepter's description; the
+-- challenger sends its own back, and the link opens as it does for two
+-- codes, a second or two after. In a quick match, and in a room, there
+-- is no challenge: of two players who want a match, the one whose key
+-- sorts first sends its description to the other. The game then leaves
+-- the relays (saying "in a duel"), and comes back to them when the match
+-- is left.
+--
+-- What comes from the relays is read as a stranger's: a name is cut to
+-- sixteen plain characters, a description is checked as a code is, and
+-- only a description from the player this one is dealing with (or, in a
+-- quick match, from anyone who wants one) starts a link. Going online is
+-- the player's choice, on a step that says what it shows; nothing is
+-- sent before.
+--
+-- NostrXT's relay library tells the top stack what the relays say, or
+-- the one object that asked it to (nxrInit), which another stack's chat
+-- may be. So the game asks for nothing, and hears through a button of
+-- its own whose script it puts at the back of the message path
+-- (ebNetEar), which hands on what is for the game. It closes only the
+-- relays it opened (never nxrShutdown, which closes every stack's).
+
+-- Whether there is a lobby here: NostrXT answers, and can sign and seal
+function ebNetCan
+   local tCaps, tVersion, tError
+   if sNostr is empty then
+      put "no" into sNostr
+      try
+         put nxProbeCapabilities() into tCaps
+         put nxrVersion() into tVersion
+         if tCaps["canSign"] is true and tCaps["canNip44Cipher"] is true and tVersion is not empty then
+            put "yes" into sNostr
+         end if
+      catch tError
+      end try
+   end if
+   return sNostr is "yes"
+end ebNetCan
+
+-- Whether the player is in the lobby (and not on the way out of it)
+private function ebNetIn
+   return sLob["on"] is true and sLob["leaving"] is not true
+end ebNetIn
+
+-- How many relays are open
+private function ebNetOpen
+   local tRelay, tCount
+   put 0 into tCount
+   repeat for each key tRelay in sLob["relay"]
+      if sLob["relay"][tRelay] is "open" then
+         add 1 to tCount
+      end if
+   end repeat
+   return tCount
+end ebNetOpen
+
+-- Whether two keys or ids are the same, as text (two that look like
+-- numbers are never compared as numbers)
+private function ebSame pA, pB
+   return ("x" & pA) is ("x" & pB)
+end ebSame
+
+-- A name as the lobby shows it: at most sixteen characters, letters
+-- (western Europe's too), digits, spaces and - _ . ' ! Anything else is
+-- left out; empty when nothing is left
+function ebNetName pText
+   local tOut, tChar, tCode, tOk
+   repeat for each codepoint tChar in pText
+      put codepointToNum(tChar) into tCode
+      put false into tOk
+      if tCode >= 48 and tCode <= 57 then
+         put true into tOk
+      else if tCode >= 65 and tCode <= 90 then
+         put true into tOk
+      else if tCode >= 97 and tCode <= 122 then
+         put true into tOk
+      else if tCode >= 192 and tCode <= 591 and tCode is not 215 and tCode is not 247 then
+         put true into tOk
+      else if tCode is among the items of "32,33,39,45,46,95" then
+         put true into tOk
+      end if
+      if tOk then
+         put tChar after tOut
+      end if
+      if the length of tOut >= 48 then
+         exit repeat
+      end if
+   end repeat
+   -- (one space at a time, and none at its ends)
+   repeat while "  " is in tOut
+      replace "  " with " " in tOut
+   end repeat
+   put word 1 to -1 of tOut into tOut
+   put char 1 to 16 of tOut into tOut
+   return word 1 to -1 of tOut
+end ebNetName
+
+-- A name for a player who has given none
+private function ebNetMadeName
+   local tName
+   put any item of "Swift,Lucky,Bold,Sunny,Quick,Bright,Brave,Merry,Keen,Jolly,Nimble,Plucky" into tName
+   return tName && any item of "Spark,Ember,Flame,Comet,Blaze,Flint,Cinder,Flare,Torch,Fuse,Kiln,Wick"
+end ebNetMadeName
+
+-- The name in its field: the one kept, or one made up for a first visit
+private command ebNetNameShow
+   if sName is empty then
+      put ebNetMadeName() into sName
+   end if
+   set the text of field "Name" to sName
+end ebNetNameShow
+
+-- The name of a player of the room
+private function ebNetNameOf pPk
+   if sLob["who"][pPk]["name"] is not empty then
+      return sLob["who"][pPk]["name"]
+   end if
+   return "A player"
+end ebNetNameOf
+
+-- pLength letters by chance: a room's code, or the id of a challenge
+private function ebNetMake pLength
+   local tOut
+   repeat pLength times
+      put any char of kNetLetters after tOut
+   end repeat
+   return tOut
+end ebNetMake
+
+-- Whether pId could be the id of a challenge
+private function ebNetIsId pId
+   local tChar
+   if the length of pId < 6 or the length of pId > 16 then
+      return false
+   end if
+   repeat for each char tChar in pId
+      if tChar is not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" then
+         return false
+      end if
+   end repeat
+   return true
+end ebNetIsId
+
+-- A room's code out of what was typed or pasted: the code itself, or the
+-- link that carries it (...duel=K7M2QX). Its six letters, or empty when
+-- it is not one
+function ebNetCode pText
+   local tOffset, tOut, tChar
+   if the length of pText > 4000 then
+      return empty
+   end if
+   -- (a message breaks a link into lines, and so does the box it is
+   -- pasted into)
+   replace return with empty in pText
+   replace numToChar(13) with empty in pText
+   replace tab with empty in pText
+   replace space with empty in pText
+   put offset("duel=", pText) into tOffset
+   if tOffset > 0 then
+      put char tOffset + 5 to -1 of pText into pText
+      put offset("&", pText) into tOffset
+      if tOffset > 0 then
+         put char 1 to tOffset - 1 of pText into pText
+      end if
+      put offset("#", pText) into tOffset
+      if tOffset > 0 then
+         put char 1 to tOffset - 1 of pText into pText
+      end if
+   end if
+   if the length of pText > 40 then
+      return empty
+   end if
+   put toUpper(pText) into pText
+   repeat for each char tChar in pText
+      if tChar is in kNetLetters then
+         put tChar after tOut
+      else if tChar is not "-" then
+         return empty
+      end if
+   end repeat
+   if the length of tOut is not kNetCodeLength then
+      return empty
+   end if
+   return tOut
+end ebNetCode
+
+-- What a friend is sent: in a page, its address with the room in it (and
+-- in the Stack Player's, with the game); anywhere else, the room's code
+private function ebNetInvite
+   local tLink, tError
+   if sPlatform is "web" then
+      try
+         do "(function(){try{var u=new URL(location.href),q=u.searchParams;q.set('duel','" & sLob["code"] & "');" & \
+               "if(window.oxtPlayer&&!q.get('play')&&!q.get('stack'))q.set('play','" & the short name of me & "');" & \
+               "return u.toString();}catch(e){return '';}})()" as "JavaScript"
+         put the result into tLink
+      catch tError
+         put empty into tLink
+      end try
+      if tLink begins with "http" then
+         return tLink
+      end if
+   end if
+   return sLob["code"]
+end ebNetInvite
+
+-- The page was opened with a friend's room in its address: the lobby,
+-- ready to go there
+private command ebNetInvited
+   local tCode, tError
+   if sPlatform is not "web" then
+      exit ebNetInvited
+   end if
+   try
+      do "(function(){try{return new URLSearchParams(location.search).get('duel')||'';}catch(e){return '';}})()" as "JavaScript"
+      put the result into tCode
+   catch tError
+      put empty into tCode
+   end try
+   put ebNetCode(tCode) into tCode
+   if tCode is empty then
+      exit ebNetInvited
+   end if
+   if not ebDuelCan() or not ebNetCan() then
+      exit ebNetInvited
+   end if
+   put tCode into sInvite
+   ebDuelOpen
+end ebNetInvited
+
+-- The relays: a test's, the stack's own (its cRelays), or the lobby's
+private function ebNetRelays
+   local tList
+   put sRelays into tList
+   if tList is empty then
+      put the cRelays of me into tList
+   end if
+   if tList is empty then
+      put kNetRelays into tList
+   end if
+   replace return with comma in tList
+   replace space with empty in tList
+   return tList
+end ebNetRelays
+
+-- Go online: the name as typed, kept for the next visit, and the lobby
+private command ebNetGo
+   local tName
+   if sLobby is not "start" then
+      exit ebNetGo
+   end if
+   put ebNetName(the text of field "Name") into tName
+   if tName is empty then
+      put ebNetMadeName() into tName
+   end if
+   put tName into sName
+   set the text of field "Name" to sName
+   ebSave
+   ebNetStart
+end ebNetGo
+
+-- Online: a key for the visit, the game's ear in the message path, and a
+-- line to each relay. The lobby opens when the first of them answers
+-- (ebNetHeard)
+private command ebNetStart
+   local tSk, tPk, tUrl, tCount, tError
+   ebNetStop
+   -- (one key for the whole visit: a player who comes back from a match
+   -- is the one the others saw go into it)
+   put empty into tPk
+   try
+      if sKey is empty then
+         put nxKeyGenerate() into sKey
+      end if
+      put sKey into tSk
+      put nxKeyPublic(tSk) into tPk
+   catch tError
+      put empty into tPk
+   end try
+   if the length of tPk is not 64 then
+      ebLobbyLook "Could not go online here. Play by code."
+      exit ebNetStart
+   end if
+   put empty into sLob
+   put true into sLob["on"]
+   put tSk into sLob["sk"]
+   put tPk into sLob["pk"]
+   put 0 into sLob["clock"]
+   put 0 into sLob["alone"]
+   put "free" into sLob["state"]
+   ebNetRoomName sInvite
+   ebNetEar true
+   put 0 into tCount
+   repeat for each item tUrl in ebNetRelays()
+      if ebNetDial(tUrl) then
+         add 1 to tCount
+      end if
+   end repeat
+   if tCount is 0 then
+      ebNetStop
+      ebLobbyLook "The lobby cannot be reached. Check your connection, or play by code."
+      exit ebNetStart
+   end if
+   put "net-wait" into sLobby
+   ebLobbyLook empty
+end ebNetStart
+
+-- A line to a relay; false when none could be begun
+private function ebNetDial pUrl
+   local tRelay, tError
+   if pUrl is empty then
+      return false
+   end if
+   try
+      nxrConnect pUrl
+      put the result into tRelay
+      if tRelay is an integer then
+         nxrSetCallback tRelay, "ebRelayCall"
+         put "wait" into sLob["relay"][tRelay]
+         put pUrl into sLob["url"][tRelay]
+         return true
+      end if
+   catch tError
+   end try
+   return false
+end ebNetDial
+
+-- The game's ear: a button whose script, at the back of the message
+-- path, hands the relays' words on to the game whichever stack is on top
+-- (see the section's words). Put there while online, and taken away
+private command ebNetEar pOn
+   local tEar, tError
+   try
+      put the long id of button "Relay Ear" into tEar
+      if pOn then
+         if tEar is not among the lines of the backScripts then
+            insert the script of button "Relay Ear" into back
+         end if
+      else if tEar is among the lines of the backScripts then
+         remove the script of button "Relay Ear" from back
+      end if
+   catch tError
+   end try
+end ebNetEar
+
+-- Offline. With pSay ("gone"; or "duel", as a match begins) the others
+-- are told first, and the relays are left a moment later, when that has
+-- gone out (ebNetStep); with nothing, at once
+private command ebNetStop pSay
+   local tRelays, tRelay, tError
+   if sLob["on"] is not true then
+      put empty into sLob
+      exit ebNetStop
+   end if
+   if pSay is not empty and sLob["leaving"] is not true then
+      put pSay into sLob["state"]
+      ebNetSay false
+      if sLob["fake"] is not true and ebNetOpen() > 0 then
+         put true into sLob["leaving"]
+         put sLob["clock"] + 1.5 into sLob["leaveAt"]
+         exit ebNetStop
+      end if
+   end if
+   -- (nothing of the lobby is left before its relays are closed: closing
+   -- one says so, to an ear that is gone)
+   put the keys of sLob["relay"] into tRelays
+   put empty into sLob
+   ebNetEar false
+   repeat for each line tRelay in tRelays
+      try
+         nxrDisconnect tRelay
+      catch tError
+      end try
+   end repeat
+end ebNetStop
+
+-- What a relay says, through the game's ear: it opened, it has a
+-- message, or it is gone
+on ebNetHeard pRelay, pKind, pOne, pTwo
+   if sLob["on"] is not true or sLob["relay"][pRelay] is empty then
+      exit ebNetHeard
+   end if
+   set the defaultStack to the short name of me
+   lock screen
+   switch pKind
+      case "open"
+         ebNetOpened pRelay
+         break
+      case "event"
+         if sLob["leaving"] is not true then
+            ebNetEvent pTwo
+         end if
+         break
+      case "error"
+      case "disconnected"
+         ebNetLost pRelay
+         break
+   end switch
+   unlock screen
+end ebNetHeard
+
+-- A relay opened: it is asked for the room, and told that I am here. The
+-- first to open is the lobby (or the room of a friend's link)
+private command ebNetOpened pRelay
+   put "open" into sLob["relay"][pRelay]
+   put empty into sLob["alone"]
+   ebNetListen pRelay
+   if sLob["leaving"] is true then
+      exit ebNetOpened
+   end if
+   if sLobby is "net-wait" then
+      if sLob["code"] is empty then
+         put "online" into sLobby
+         put "free" into sLob["state"]
+      else
+         put "room-in" into sLobby
+         put "quick" into sLob["state"]
+      end if
+      ebNetSay true
+      ebSound "join", 0.5
+      ebLobbyLook empty
+   else
+      ebNetSay false
+   end if
+end ebNetOpened
+
+-- A relay is gone: it is asked again in a while, three times (ebNetStep);
+-- with none left for too long there is no lobby (ebNetNone)
+private command ebNetLost pRelay
+   local tUrl
+   put sLob["url"][pRelay] into tUrl
+   delete variable sLob["relay"][pRelay]
+   delete variable sLob["url"][pRelay]
+   if sLob["leaving"] is true then
+      exit ebNetLost
+   end if
+   if tUrl is not empty and sLob["tries"][tUrl] < 3 then
+      add 1 to sLob["tries"][tUrl]
+      put sLob["clock"] + 15 into sLob["again"][tUrl]
+   end if
+   if ebNetOpen() is 0 and sLob["alone"] is not a number then
+      put sLob["clock"] into sLob["alone"]
+   end if
+end ebNetLost
+
+-- No relay answers: no lobby, and its first step says so. (A link being
+-- made goes on: its descriptions may have gone both ways already.)
+private command ebNetNone
+   local tWas
+   put sLobby into tWas
+   ebNetStop
+   if sMode is "lobby" and tWas is not "net-link" and tWas is not "linked" then
+      put "start" into sLobby
+      ebNetNameShow
+      ebLobbyLook "The lobby cannot be reached. Check your connection, or play by code."
+   end if
+end ebNetNone
+
+-- A relay is asked for the room's "who is here", and for the words to me
+private command ebNetListen pRelay
+   local tWho, tMe, tError
+   try
+      -- (only what is said from now on: nothing a relay has kept, by its
+      -- count, nor anything made before a while ago, by its date)
+      put kNetKindWho into tWho["kinds"]
+      put sLob["room"] into tWho["#t"]
+      put 0 into tWho["limit"]
+      put the seconds - kNetOld into tWho["since"]
+      nxrSubscribe pRelay, "eb-who", nxFilterBuild(tWho)
+      put kNetKindTell into tMe["kinds"]
+      put sLob["pk"] into tMe["#p"]
+      put 0 into tMe["limit"]
+      put the seconds - kNetOld into tMe["since"]
+      nxrSubscribe pRelay, "eb-me", nxFilterBuild(tMe)
+   catch tError
+   end try
+end ebNetListen
+
+-- The room's tag for a code (a friend's room), or with none the lobby's
+private command ebNetRoomName pCode
+   put pCode into sLob["code"]
+   if pCode is empty then
+      put "ember-bricks-lobby-" & kNetVersion into sLob["room"]
+   else
+      put "ember-bricks-room-" & kNetVersion & "-" & pCode into sLob["room"]
+   end if
+end ebNetRoomName
+
+-- Into a room (a friend's, by its code), or with none back to the
+-- lobby's own: gone from the one, and listening to the other
+private command ebNetRoom pCode
+   local tRelay, tWas
+   if not ebNetIn() or ebSame(pCode, sLob["code"]) then
+      exit ebNetRoom
+   end if
+   put sLob["state"] into tWas
+   put "gone" into sLob["state"]
+   ebNetSay false
+   put tWas into sLob["state"]
+   ebNetRoomName pCode
+   put empty into sLob["who"]
+   put empty into sLob["rows"]
+   put 0 into sLob["count"]
+   put empty into sLob["tried"]
+   -- (new to the room: the next "I am here" asks who else is)
+   put true into sLob["hello"]
+   repeat for each key tRelay in sLob["relay"]
+      if sLob["relay"][tRelay] is "open" then
+         ebNetListen tRelay
+      end if
+   end repeat
+end ebNetRoom
+
+-- A message from a relay, its signature checked by NostrXT: once only
+-- in a visit (each relay has it, and one that keeps what it passes on has
+-- it again when I come back from a match), not my own, and news
+-- (ebNetFresh)
+private command ebNetEvent pJson
+   local tEvent, tId, tPk, tText, tError
+   put empty into tEvent
+   try
+      put nxEventFromJson(pJson) into tEvent
+   catch tError
+   end try
+   if tEvent is not an array then
+      exit ebNetEvent
+   end if
+   put tEvent["id"] into tId
+   put tEvent["pubkey"] into tPk
+   if the length of tId is not 64 or the length of tPk is not 64 then
+      exit ebNetEvent
+   end if
+   if sSeen[tId] is true then
+      exit ebNetEvent
+   end if
+   if sSeenCount > 500 then
+      put empty into sSeen
+      put 0 into sSeenCount
+   end if
+   put true into sSeen[tId]
+   add 1 to sSeenCount
+   if ebSame(tPk, sLob["pk"]) then
+      exit ebNetEvent
+   end if
+   if not ebNetFresh(tEvent["kind"], tPk, tEvent["created_at"]) then
+      exit ebNetEvent
+   end if
+   if tEvent["kind"] is kNetKindWho then
+      if nxTagFirst(tEvent, "t") is sLob["room"] then
+         ebNetWho tPk, tEvent["content"]
+      end if
+   else if tEvent["kind"] is kNetKindTell then
+      if ebSame(nxTagFirst(tEvent, "p"), sLob["pk"]) then
+         put empty into tText
+         try
+            put nxNip44Decrypt(sLob["sk"], tPk, tEvent["content"]) into tText
+         catch tError
+            put empty into tText
+         end try
+         if tText is not empty then
+            ebNetSignal tPk, tText
+         end if
+      end if
+   end if
+end ebNetEvent
+
+-- Whether a message is news, by the second it was made in (pAt). A relay
+-- may keep for some minutes what it passes on and give a newcomer what it
+-- has, the newest first, and each relay passes a message on in its own
+-- time. So one made long ago by this machine's clock is the past, and so
+-- is a player's "I am here" that comes after a newer one of theirs (the
+-- newer one may have said "gone")
+private function ebNetFresh pKind, pPk, pAt
+   if pAt is not an integer then
+      return false
+   end if
+   if the seconds - pAt > kNetOld then
+      return false
+   end if
+   if pKind is kNetKindWho then
+      if sLob["at"][pPk] is a number and pAt < sLob["at"][pPk] then
+         return false
+      end if
+      -- (no more remembered than a crowd of strangers could fill)
+      if the number of elements of sLob["at"] > 2000 then
+         put empty into sLob["at"]
+      end if
+      put pAt into sLob["at"][pPk]
+   end if
+   return true
+end ebNetFresh
+
+-- A player says "I am here" (see the section's words): into the room's
+-- list, or out of it. A newcomer's asks for mine, which goes a moment
+-- later (not everyone's at once)
+private command ebNetWho pPk, pContent
+   local tState, tTtl, tHello, tName, tNew, tVersion, tMark
+   set the itemDelimiter to "|"
+   put item 1 of pContent into tMark
+   put item 2 of pContent into tVersion
+   put item 3 of pContent into tState
+   put item 4 of pContent into tTtl
+   put (item 5 of pContent is "1") into tHello
+   put ebNetName(item 6 to -1 of pContent) into tName
+   set the itemDelimiter to comma
+   if tMark is not "EB" or tVersion is not kNetVersion then
+      exit ebNetWho
+   end if
+   if tState is not among the items of "free,quick,busy,duel,gone" then
+      exit ebNetWho
+   end if
+   put (sLob["who"][pPk] is not an array) into tNew
+   if tState is "gone" then
+      if not tNew then
+         delete variable sLob["who"][pPk]
+         put true into sLob["dirty"]
+      end if
+      exit ebNetWho
+   end if
+   -- (a room has no more players than a list can hold)
+   if tNew and the number of elements of sLob["who"] >= 200 then
+      exit ebNetWho
+   end if
+   if tTtl is not an integer then
+      put kNetStale into tTtl
+   end if
+   put max(5, min(600, tTtl)) into tTtl
+   if tName is empty then
+      put "Player" into tName
+   end if
+   if tNew or sLob["who"][pPk]["name"] is not tName or sLob["who"][pPk]["state"] is not tState then
+      put true into sLob["dirty"]
+   end if
+   put tName into sLob["who"][pPk]["name"]
+   put tState into sLob["who"][pPk]["state"]
+   put tTtl into sLob["who"][pPk]["ttl"]
+   put sLob["clock"] into sLob["who"][pPk]["seen"]
+   -- (a challenge, or a link, can come before its sender's "I am here":
+   -- the name it was shown without is put right)
+   if sLob["rival"] is not tName then
+      if sLobby is "asked" and ebSame(sLob["ask"]["pk"], pPk) then
+         put tName into sLob["rival"]
+         ebLobbyLook empty
+      else if sLobby is "net-link" and ebSame(sLob["link"]["pk"], pPk) then
+         put tName into sLob["rival"]
+         put tName into sNet2["name"]
+         ebLobbyLook empty
+      end if
+   end if
+   -- (a newcomer takes nothing a relay kept: it has what was said since
+   -- it began to listen, and nothing of mine from before)
+   if tHello and sLob["answerAt"] is not a number then
+      put sLob["clock"] + 0.2 + random(10) / 10 into sLob["answerAt"]
+   end if
+end ebNetWho
+
+-- A word to me from a player (see the section's words)
+private command ebNetSignal pPk, pText
+   local tKind, tId, tRest, tMine, tSdp
+   if the length of pText > 30000 or word 1 of pText is not ("L" & kNetVersion) then
+      exit ebNetSignal
+   end if
+   put word 2 of pText into tKind
+   put word 3 of pText into tId
+   put word 4 to -1 of pText into tRest
+   if not ebNetIsId(tId) then
+      exit ebNetSignal
+   end if
+   switch tKind
+      case "C"
+         if sLobby is "online" then
+            put empty into sLob["ask"]
+            put pPk into sLob["ask"]["pk"]
+            put tId into sLob["ask"]["id"]
+            put sLob["clock"] into sLob["ask"]["since"]
+            put ebNetNameOf(pPk) into sLob["rival"]
+            put "asked" into sLobby
+            put "busy" into sLob["state"]
+            ebNetSay false
+            ebSound "join", 0.6
+            ebLobbyLook empty
+         else if sLobby is "quick" then
+            -- (looking for anyone: this one will do)
+            ebNetLink pPk, tId, "host", empty
+         else
+            ebNetTell pPk, "D" && tId && "busy"
+         end if
+         break
+      case "D"
+         if sLobby is "asking" and ebSame(sLob["ask"]["pk"], pPk) and ebSame(sLob["ask"]["id"], tId) then
+            if word 1 of tRest is "busy" then
+               ebNetHome sLob["rival"] && "is busy."
+            else
+               ebNetHome sLob["rival"] && "said not now."
+            end if
+         else if sLobby is "asked" and ebSame(sLob["ask"]["pk"], pPk) and ebSame(sLob["ask"]["id"], tId) then
+            ebNetHome sLob["rival"] && "took the challenge back."
+         else if sLobby is "net-link" and ebSame(sLob["link"]["pk"], pPk) and ebSame(sLob["link"]["id"], tId) then
+            ebDuelDrop
+            ebNetNotNow pPk
+            ebNetHome sLob["rival"] && "is busy."
+         end if
+         break
+      case "O"
+         put false into tMine
+         if sLobby is "asking" then
+            put (ebSame(sLob["ask"]["pk"], pPk) and ebSame(sLob["ask"]["id"], tId)) into tMine
+         else if sLobby is "quick" then
+            put true into tMine
+         else if sLobby is among the items of "room,room-in,room-take" then
+            -- (in a room, from one who is in it)
+            put (sLob["who"][pPk] is an array) into tMine
+         end if
+         if not tMine then
+            ebNetTell pPk, "D" && tId && "busy"
+            break
+         end if
+         put ebDuelDecode(word 1 of tRest, "O") into tSdp
+         if char 1 of tSdp is "!" then
+            ebNetTell pPk, "D" && tId && "failed"
+            if sLobby is "asking" then
+               ebNetHome "What" && sLob["rival"] && "sent could not be read."
+            end if
+            break
+         end if
+         ebNetLink pPk, tId, "guest", tSdp
+         break
+      case "A"
+         if sLobby is "net-link" and sNet2["role"] is "host" and sNet2["answered"] is not true then
+            if ebSame(sLob["link"]["pk"], pPk) and ebSame(sLob["link"]["id"], tId) then
+               ebNetAnswered word 1 of tRest
+            end if
+         end if
+         break
+   end switch
+end ebNetSignal
+
+-- "I am here", to the room (pHello: and who else is?)
+private command ebNetSay pHello
+   local tText, tTtl, tFlag
+   put kNetStale into tTtl
+   if sLob["state"] is "duel" then
+      put kDuelFor + 30 into tTtl
+   end if
+   put 0 into tFlag
+   if pHello is true or sLob["hello"] is true then
+      put 1 into tFlag
+   end if
+   put false into sLob["hello"]
+   put "EB|" & kNetVersion & "|" & sLob["state"] & "|" & tTtl & "|" & tFlag & "|" & sName into tText
+   put sLob["clock"] into sLob["beat"]
+   if sLob["fake"] is true then
+      -- (a test's lobby: what would be sent is kept for it to read)
+      put "who" && tText & return after sNetSent
+      exit ebNetSay
+   end if
+   ebNetPublish kNetKindWho, "t" & tab & sLob["room"], tText
+end ebNetSay
+
+-- A word to one player, sealed for them
+private command ebNetTell pPk, pText
+   local tSealed, tError
+   if pPk is empty or sLob["on"] is not true then
+      exit ebNetTell
+   end if
+   if sLob["fake"] is true then
+      put "tell" && pPk && pText & return after sNetSent
+      exit ebNetTell
+   end if
+   put empty into tSealed
+   try
+      put nxNip44Encrypt(sLob["sk"], pPk, "L" & kNetVersion && pText) into tSealed
+   catch tError
+      put empty into tSealed
+   end try
+   if tSealed is empty then
+      exit ebNetTell
+   end if
+   ebNetPublish kNetKindTell, "p" & tab & pPk, tSealed
+end ebNetTell
+
+-- A message of a kind, with a tag, signed with the visit's key, to every
+-- relay that is open. Each has its count in the visit as a second tag: a
+-- message is known by what it says and the second it was made in, and a
+-- relay passes on only the first of two it takes for the same (an "I am
+-- here" said again within a second, to a second newcomer, went nowhere)
+private command ebNetPublish pKind, pTag, pContent
+   local tEvent, tRelay, tError
+   add 1 to sSaid
+   try
+      put nxEventBuild(pKind, pContent, nxTagsFromText(pTag & return & "seq" & tab & sSaid), empty) into tEvent
+      put nxEventSign(tEvent, sLob["sk"], empty) into tEvent
+      if tEvent is an array then
+         repeat for each key tRelay in sLob["relay"]
+            if sLob["relay"][tRelay] is "open" then
+               nxrPublish tRelay, tEvent
+            end if
+         end repeat
+      end if
+   catch tError
+   end try
+end ebNetPublish
+
+-- Every frame while online: the lobby's clock, a relay to ask again, "I
+-- am here", who has gone quiet, the waits that run out, and a rival for
+-- a quick match
+private command ebNetStep pReal
+   local tPk, tGone, tUrl, tDue
+   add pReal to sLob["clock"]
+   if sLob["leaving"] is true then
+      if sLob["clock"] >= sLob["leaveAt"] then
+         ebNetStop
+      end if
+      exit ebNetStep
+   end if
+   if sLob["fake"] is not true then
+      if sLob["alone"] is a number then
+         if sLob["clock"] - sLob["alone"] > kNetOpenFor then
+            ebNetNone
+            exit ebNetStep
+         end if
+      end if
+      repeat for each key tUrl in sLob["again"]
+         if sLob["clock"] >= sLob["again"][tUrl] then
+            put tUrl & return after tDue
+         end if
+      end repeat
+      repeat for each line tUrl in tDue
+         delete variable sLob["again"][tUrl]
+         get ebNetDial(tUrl)
+      end repeat
+      if ebNetOpen() is 0 then
+         exit ebNetStep
+      end if
+   end if
+   if sLob["clock"] - sLob["beat"] >= kNetBeat then
+      ebNetSay false
+   else if sLob["answerAt"] is a number then
+      if sLob["clock"] >= sLob["answerAt"] then
+         put empty into sLob["answerAt"]
+         ebNetSay false
+      end if
+   end if
+   repeat for each key tPk in sLob["who"]
+      if sLob["clock"] - sLob["who"][tPk]["seen"] > sLob["who"][tPk]["ttl"] then
+         put tPk & return after tGone
+      end if
+   end repeat
+   repeat for each line tPk in tGone
+      delete variable sLob["who"][tPk]
+      put true into sLob["dirty"]
+   end repeat
+   switch sLobby
+      case "asking"
+         if sLob["clock"] - sLob["ask"]["since"] > kNetAskFor then
+            ebNetTell sLob["ask"]["pk"], "D" && sLob["ask"]["id"] && "cancel"
+            ebNetHome sLob["rival"] && "did not answer."
+         end if
+         break
+      case "asked"
+         if sLob["clock"] - sLob["ask"]["since"] > kNetAskFor + 5 then
+            ebNetHome "The challenge from" && sLob["rival"] && "ran out."
+         end if
+         break
+      case "quick"
+      case "room"
+      case "room-in"
+         ebNetMatch
+         break
+   end switch
+   if sLobby is "online" then
+      if sLob["dirty"] is true then
+         ebNetList
+         ebLobbyLook empty
+      else if sLob["said"] is not empty and sLob["clock"] >= sLob["saidUntil"] then
+         -- (a line said for a while gives way to the step's own)
+         put empty into sLob["said"]
+         ebLobbyLook empty
+      end if
+   end if
+end ebNetStep
+
+-- A quick match, or a room: of the players who want a match too, the
+-- first by key; and of the two of us, the one whose key sorts first
+-- sends its description (the other waits for it)
+private command ebNetMatch
+   local tPk, tList, tPick, tPair
+   if sLob["matchAt"] is a number then
+      if sLob["clock"] < sLob["matchAt"] then
+         exit ebNetMatch
+      end if
+   end if
+   put sLob["clock"] + 0.5 into sLob["matchAt"]
+   repeat for each key tPk in sLob["who"]
+      if sLob["who"][tPk]["state"] is not "quick" then
+         next repeat
+      end if
+      if sLob["tried"][tPk] is a number then
+         if sLob["clock"] < sLob["tried"][tPk] then
+            next repeat
+         end if
+      end if
+      put tPk & return after tList
+   end repeat
+   if tList is empty then
+      exit ebNetMatch
+   end if
+   delete last char of tList
+   sort lines of tList
+   put line 1 of tList into tPick
+   put sLob["pk"] & return & tPick into tPair
+   sort lines of tPair
+   if ebSame(line 1 of tPair, sLob["pk"]) then
+      ebNetLink tPick, ebNetMake(8), "host", empty
+   end if
+end ebNetMatch
+
+-- A quick match leaves a player alone for a while: one who was busy, or
+-- to whom no link could be made
+private command ebNetNotNow pPk
+   if pPk is not empty and sLob["on"] is true then
+      put sLob["clock"] + kNetAgain into sLob["tried"][pPk]
+   end if
+end ebNetNotNow
+
+-- How many players the list shows: fewer on a phone on its side
+private function ebNetRowsMost
+   if ebShort(sInT, sH - sInB) then
+      return kNetRowsShort
+   end if
+   return kNetRows
+end ebNetRowsMost
+
+-- The players the list shows: those who can be challenged first, then by
+-- name, as many as it has rows
+private command ebNetList
+   local tPk, tRank, tSort, tLine, tRows
+   put false into sLob["dirty"]
+   repeat for each key tPk in sLob["who"]
+      switch sLob["who"][tPk]["state"]
+         case "quick"
+            put 1 into tRank
+            break
+         case "free"
+            put 2 into tRank
+            break
+         case "busy"
+            put 3 into tRank
+            break
+         default
+            put 4 into tRank
+      end switch
+      put tRank & tab & toUpper(sLob["who"][tPk]["name"]) & tab & tPk & return after tSort
+   end repeat
+   delete last char of tSort
+   sort lines of tSort
+   put the number of lines of tSort into sLob["count"]
+   set the itemDelimiter to tab
+   repeat for each line tLine in line 1 to kNetRows of tSort
+      put item 3 of tLine & return after tRows
+   end repeat
+   set the itemDelimiter to comma
+   delete last char of tRows
+   put tRows into sLob["rows"]
+end ebNetList
+
+-- Each row of the list, when it has its place: the player's name, and
+-- what they are doing; dim when they cannot be challenged now. A long
+-- name in a narrow row is cut short, never what the player is doing
+private command ebNetRowsLook
+   local i, tPk, tName, tDoing, tCan, tButton, tWide
+   repeat with i = 1 to kNetRows
+      put line i of sLob["rows"] into tPk
+      if tPk is empty then
+         next repeat
+      end if
+      put toUpper(sLob["who"][tPk]["name"]) into tName
+      put true into tCan
+      put empty into tDoing
+      switch sLob["who"][tPk]["state"]
+         case "quick"
+            put "  -  QUICK MATCH" into tDoing
+            break
+         case "busy"
+            put "  -  BUSY" into tDoing
+            put false into tCan
+            break
+         case "duel"
+            put "  -  IN A DUEL" into tDoing
+            put false into tCan
+            break
+      end switch
+      put the long id of button ("Who" && i) into tButton
+      put the width of tButton - ebU(16) into tWide
+      set the label of tButton to tName & tDoing
+      repeat while the formattedWidth of tButton > tWide and the length of tName > 3
+         delete last char of tName
+         set the label of tButton to tName & ".." & tDoing
+      end repeat
+      if tCan then
+         set the textColor of tButton to kInk
+         set the foregroundColor of graphic ("Who" && i && "Shape") to "#8A5A3C"
+      else
+         set the textColor of tButton to kDim
+         set the foregroundColor of graphic ("Who" && i && "Shape") to "#3D2B22"
+      end if
+   end repeat
+end ebNetRowsLook
+
+-- The players the list shows, for the checks: each a name, "=" and what
+-- they are doing, with "|" between them
+private function ebNetShown
+   local tOut, tPk
+   repeat for each line tPk in sLob["rows"]
+      put sLob["who"][tPk]["name"] & "=" & sLob["who"][tPk]["state"] & "|" after tOut
+   end repeat
+   delete last char of tOut
+   return tOut
+end ebNetShown
+
+-- A line under the list, for a while
+private command ebNetSaid pText
+   put pText into sLob["said"]
+   put sLob["clock"] + 8 into sLob["saidUntil"]
+   ebLobbyLook empty
+end ebNetSaid
+
+-- A row of the list is tapped: a challenge to that player (or, to one
+-- who wants a quick match, the match)
+private command ebNetChallenge pRow
+   local tPk, tState, tId
+   if sLobby is not "online" then
+      exit ebNetChallenge
+   end if
+   put line pRow of sLob["rows"] into tPk
+   if tPk is empty or sLob["who"][tPk] is not an array then
+      exit ebNetChallenge
+   end if
+   put sLob["who"][tPk]["state"] into tState
+   put ebNetNameOf(tPk) into sLob["rival"]
+   switch tState
+      case "duel"
+         ebNetSaid sLob["rival"] && "is in a duel."
+         break
+      case "busy"
+         ebNetSaid sLob["rival"] && "is busy."
+         break
+      case "quick"
+         ebNetLink tPk, ebNetMake(8), "host", empty
+         break
+      default
+         put ebNetMake(8) into tId
+         put empty into sLob["ask"]
+         put tPk into sLob["ask"]["pk"]
+         put tId into sLob["ask"]["id"]
+         put sLob["clock"] into sLob["ask"]["since"]
+         ebNetTell tPk, "C" && tId
+         put "asking" into sLobby
+         put "busy" into sLob["state"]
+         ebNetSay false
+         ebLobbyLook empty
+   end switch
+end ebNetChallenge
+
+-- A challenge accepted: the link, as its host
+private command ebNetAccept
+   if sLobby is not "asked" then
+      exit ebNetAccept
+   end if
+   ebNetLink sLob["ask"]["pk"], sLob["ask"]["id"], "host", empty
+end ebNetAccept
+
+-- A challenge refused
+private command ebNetDecline
+   if sLobby is not "asked" then
+      exit ebNetDecline
+   end if
+   ebNetTell sLob["ask"]["pk"], "D" && sLob["ask"]["id"] && "no"
+   ebNetHome empty
+end ebNetDecline
+
+-- Quick match: the first player who wants one too (ebNetMatch)
+private command ebNetQuick
+   if sLobby is not "online" then
+      exit ebNetQuick
+   end if
+   put "quick" into sLobby
+   put "quick" into sLob["state"]
+   put empty into sLob["matchAt"]
+   ebNetSay false
+   ebLobbyLook empty
+end ebNetQuick
+
+-- Play a friend: a room of this player's own, and its code to send
+private command ebNetFriend
+   if sLobby is not "online" then
+      exit ebNetFriend
+   end if
+   ebNetRoom ebNetMake(kNetCodeLength)
+   put "room" into sLobby
+   put "quick" into sLob["state"]
+   put empty into sLob["matchAt"]
+   set the text of field "Code" to sLob["code"]
+   ebNetSay true
+   ebLobbyLook empty
+end ebNetFriend
+
+-- A friend's room, by the code or the link typed or pasted
+private command ebNetJoin pText
+   local tCode
+   if sLobby is not "room-take" then
+      exit ebNetJoin
+   end if
+   put ebNetCode(pText) into tCode
+   if tCode is empty then
+      set the text of field "Lobby Note" to "That is not a room's code: six letters and numbers, or the link your friend sent."
+      exit ebNetJoin
+   end if
+   ebNetRoom tCode
+   put "room-in" into sLobby
+   put "quick" into sLob["state"]
+   put empty into sLob["matchAt"]
+   ebNetSay true
+   ebLobbyLook empty
+end ebNetJoin
+
+-- Back to where the player waits: the list of players, a quick match or
+-- a room (pTo; or with none, where a link was begun from), and a line to
+-- say why
+private command ebNetHome pNote, pTo
+   if pTo is empty then
+      put sLob["from"] into pTo
+   end if
+   if pTo is not among the items of "quick,room,room-in" then
+      put "online" into pTo
+   end if
+   put empty into sLob["from"]
+   put empty into sLob["ask"]
+   put empty into sLob["link"]
+   put pTo into sLobby
+   if pTo is "online" then
+      put "free" into sLob["state"]
+      put pNote into sLob["said"]
+      put sLob["clock"] + 8 into sLob["saidUntil"]
+      ebNetList
+   else
+      put "quick" into sLob["state"]
+      put empty into sLob["matchAt"]
+   end if
+   if pTo is "room" then
+      set the text of field "Code" to sLob["code"]
+   end if
+   ebNetSay false
+   ebLobbyLook pNote
+end ebNetHome
+
+-- Why no link was made, for the lobby to say
+private function ebNetNoLink
+   return "No link could be made with" && sLob["rival"] & ". Some networks block a direct link."
+end ebNetNoLink
+
+-- A link with a player of the lobby: as its host, whose description goes
+-- to them when it is made (ebNetDescribed), or as its guest, with theirs
+-- (pSdp), whose answer goes back
+private command ebNetLink pPk, pId, pRole, pSdp
+   local tWhy, tFrom
+   put sLobby into tFrom
+   if tFrom is "room-take" then
+      put "room" into tFrom
+   end if
+   if tFrom is not among the items of "quick,room,room-in" then
+      put "online" into tFrom
+   end if
+   put tFrom into sLob["from"]
+   put ebNetNameOf(pPk) into sLob["rival"]
+   put empty into sLob["ask"]
+   put empty into sLob["link"]
+   put pPk into sLob["link"]["pk"]
+   put pId into sLob["link"]["id"]
+   if sLob["fake"] is true then
+      -- (a test's lobby: no peer, and a description that is a word)
+      ebDuelDrop
+      put true into sNet2["on"]
+      put true into sNet2["fake"]
+      put true into sNet2["open"]
+      put pRole into sNet2["role"]
+      put sClock into sNet2["since"]
+   else
+      put ebDuelPeer(pRole, pSdp) into tWhy
+      if tWhy is not empty then
+         ebNetTell pPk, "D" && pId && "failed"
+         ebNetNotNow pPk
+         ebNetHome "Could not start a link here." && ebDuelWhy()
+         exit ebNetLink
+      end if
+   end if
+   put "net" into sNet2["via"]
+   put sClock into sNet2["began"]
+   put sLob["rival"] into sNet2["name"]
+   put "net-link" into sLobby
+   put "busy" into sLob["state"]
+   ebNetSay false
+   ebLobbyLook empty
+   if sLob["fake"] is true then
+      ebNetDescribed "v=0" & return & "s=" & pRole
+   end if
+end ebNetLink
+
+-- My description is made (ebDuelMakeCode): to the rival, as the code it
+-- would be, through the lobby
+private command ebNetDescribed pSdp
+   put true into sNet2["told"]
+   if sNet2["role"] is "host" then
+      ebNetTell sLob["link"]["pk"], "O" && sLob["link"]["id"] && ebDuelEncode("O", pSdp)
+   else
+      ebNetTell sLob["link"]["pk"], "A" && sLob["link"]["id"] && ebDuelEncode("A", pSdp)
+   end if
+end ebNetDescribed
+
+-- The rival's answer to my description: the link can open
+private command ebNetAnswered pCode
+   local tSdp, tResult, tError
+   put ebDuelDecode(pCode, "A") into tSdp
+   put -1 into tResult
+   if char 1 of tSdp is not "!" then
+      if sNet2["fake"] is true then
+         put 0 into tResult
+      else
+         try
+            put dcSetRemoteDescription(sNet2["peer"], tSdp, "answer") into tResult
+         catch tError
+            put -1 into tResult
+         end try
+      end if
+   end if
+   if tResult is not a number or tResult < 0 then
+      ebNetTell sLob["link"]["pk"], "D" && sLob["link"]["id"] && "failed"
+      ebDuelGone ebNetNoLink()
+      exit ebNetAnswered
+   end if
+   put true into sNet2["answered"]
+end ebNetAnswered
+
+-- A match begins: the lobby is told ("in a duel", for as long as one
+-- lasts) and left; leaving the match comes back to it (ebDuelLeave)
+private command ebNetBegun
+   put true into sNetBack
+   -- (a friend's link has done its work: after the match, the lobby)
+   put empty into sInvite
+   ebNetStop "duel"
+end ebNetBegun
+
+----------------------------------------------------------------------
 -- For the tests: the clock in the test's hands
 
 -- No loop, no sound, no buzz, no pointer, a fixed seed, and the saved
@@ -5150,8 +6912,17 @@ command ebTestBegin pSeed, pSaveFile
    put false into sSound
    put false into sBuzz
    put false into sNoDrops
-   -- (and no duel left over from the test before)
+   -- (and no duel left over from the test before, nor its lobby)
    ebDuelDrop
+   ebNetStop
+   put empty into sNetSent
+   put empty into sSeen
+   put 0 into sSeenCount
+   put empty into sInvite
+   put empty into sRelays
+   -- (a test has no lobby unless it asks for one: ebTestSet "nostr")
+   put "no" into sNostr
+   put false into sNetBack
    put empty into sLobby
    put 0 into sShift
    if sDuel then
@@ -5183,6 +6954,75 @@ function ebDuelSent pWhat
    put empty into sNet2["sent"]
    return tSent
 end ebDuelSent
+
+-- The lobby with no relay behind it, and this player in it under the key
+-- pPk and the name pName: what would be sent is kept (ebNetSent), and the
+-- test says what the other players do (ebNetHear)
+command ebTestNet pPk, pName
+   set the defaultStack to the short name of me
+   lock screen
+   ebDuelDrop
+   ebNetStop
+   put false into sDuel
+   put "lobby" into sMode
+   put empty into sNetSent
+   put ebNetName(pName) into sName
+   put empty into sLob
+   put true into sLob["on"]
+   put true into sLob["fake"]
+   put pPk into sLob["pk"]
+   put 0 into sLob["clock"]
+   -- (as the first relay to open does: the lobby, or the room of a
+   -- friend's link)
+   ebNetRoomName sInvite
+   if sInvite is empty then
+      put "online" into sLobby
+      put "free" into sLob["state"]
+   else
+      put "room-in" into sLobby
+      put "quick" into sLob["state"]
+   end if
+   ebNetSay true
+   ebLobbyLook empty
+   ebShowScreen "lobby"
+   unlock screen
+end ebTestNet
+
+-- What a test's lobby would have sent since this was last asked, a line
+-- each: "who" and the words of an "I am here", or "tell", the key of the
+-- player it is for, and the words
+function ebNetSent
+   local tSent
+   put sNetSent into tSent
+   put empty into sNetSent
+   return tSent
+end ebNetSent
+
+-- What a player of a test's lobby says, as a relay would bring it: with
+-- "who" the words of an "I am here", with "tell" the words to me
+command ebNetHear pPk, pWhat, pText, pAgo
+   set the defaultStack to the short name of me
+   if sLob["on"] is true then
+      -- (with pAgo, a message made that many seconds ago, as a relay
+      -- that kept it would give it: it has to be news)
+      if pAgo is a number then
+         if pWhat is "who" then
+            if not ebNetFresh(kNetKindWho, pPk, the seconds - pAgo) then
+               exit ebNetHear
+            end if
+         else if not ebNetFresh(kNetKindTell, pPk, the seconds - pAgo) then
+            exit ebNetHear
+         end if
+      end if
+      lock screen
+      if pWhat is "who" then
+         ebNetWho pPk, pText
+      else
+         ebNetSignal pPk, pText
+      end if
+      unlock screen
+   end if
+end ebNetHear
 
 -- The game, pSeconds on, a sixtieth of a second at a time
 command ebTestStep pSeconds
@@ -5260,7 +7100,9 @@ end ebTestDrop
 -- sparks fall by chance); insets (top,bottom,left,right, as a notch and
 -- a home bar would cover) and pointer (touch or mouse), each laid out
 -- for at once; left (a duel's seconds); rtc (whether a link can be made:
--- yes or no)
+-- yes or no); nostr (whether there is a lobby: yes or no); relays (the
+-- lobby's, in place of its own); invite (a friend's room, as the page's
+-- address would name it)
 command ebTestSet pName, pValue
    set the defaultStack to the short name of me
    switch pName
@@ -5301,6 +7143,15 @@ command ebTestSet pName, pValue
          break
       case "rtc"
          put pValue into sRtc
+         break
+      case "nostr"
+         put pValue into sNostr
+         break
+      case "relays"
+         put pValue into sRelays
+         break
+      case "invite"
+         put ebNetCode(pValue) into sInvite
          break
    end switch
 end ebTestSet
@@ -5349,6 +7200,13 @@ function ebState
    put "left:" & sNet2["left"] & return & "rival:" & sNet2["their"]["score"] & return after tOut
    put "link:" & (sNet2["open"] is true) & return & "rtc:" & sRtc & return & "shift:" & sShift & return after tOut
    put "code:" & sNet2["code"] & return after tOut
+   -- the online lobby: whether there is one, whether the player is in it,
+   -- under what name and key, in which room, how many relays are open,
+   -- what the player is doing, the rival, and the players the list shows
+   put "nostr:" & sNostr & return & "online:" & ebNetIn() & return & "name:" & sName & return after tOut
+   put "pk:" & sLob["pk"] & return & "room:" & sLob["code"] & return & "relays:" & ebNetOpen() & return after tOut
+   put "doing:" & sLob["state"] & return & "foe:" & sLob["rival"] & return & "invite:" & sInvite & return after tOut
+   put "who:" & ebNetShown() & return & "back:" & (sNetBack is true) & return after tOut
    put "work:" & round(sWork, 2) & return & "draw:" & round(sDraw, 2) after tOut
    repeat for each item tKind in "Ball,Drop,Bolt,Spark,Pop"
       put return & toLower(tKind) & "s:" & ebActive(tKind) after tOut
