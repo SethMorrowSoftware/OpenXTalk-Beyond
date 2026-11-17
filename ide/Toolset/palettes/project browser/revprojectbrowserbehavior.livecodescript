@@ -5,6 +5,9 @@
 -- Git history and CHANGELOG.md say what changed.
 
 local sDisplayArray, sLongIDToRow, sObjectToParent
+-- OXT-Beyond: true while the view is built again for rows that name a
+-- stack file no stack in memory has (pbRebuildIfStale)
+local sRebuildingStale
 
 on arrowKey pDirection
    local tHilitedRow
@@ -108,6 +111,10 @@ on preOpenStack
    
    revIDESubscribe "ideNameChanged"
    revIDESubscribe "ideMainstackChanged"
+   -- OXT-Beyond: sent when a stack is saved under another file name
+   -- (File > Save As), which is when its rows stop naming a stack in
+   -- memory (pbStackInMemory)
+   revIDESubscribe "ideRecentFilesChanged"
    
    revIDESubscribe "idePreferenceChanged:cShowRevolutionStacks"
    
@@ -172,7 +179,9 @@ on ideSelectedObjectChanged
 end ideSelectedObjectChanged
 
 on ideNewControl pTarget
-   if not exists(pTarget) then
+   -- OXT-Beyond: pbExists (see pbStackInMemory)
+   local tChecked
+   if not pbExists(pTarget, tChecked) then
       exit ideNewControl
    end if
    
@@ -191,14 +200,18 @@ on ideNewControl pTarget
 end ideNewControl
 
 on ideNewCard pTarget
-   if not exists(pTarget) then
+   -- OXT-Beyond: pbExists (see pbStackInMemory)
+   local tChecked
+   if not pbExists(pTarget, tChecked) then
       exit ideNewCard
    end if
    addCardToProjectBrowser pTarget
 end ideNewCard
 
 on ideNewStack pTarget
-   if not exists(pTarget) then
+   -- OXT-Beyond: pbExists (see pbStackInMemory)
+   local tChecked
+   if not pbExists(pTarget, tChecked) then
       exit ideNewStack
    end if
    addStackToProjectBrowser pTarget
@@ -242,7 +255,9 @@ end ideReleaseStack
 on ideOpenStack pTarget
    local tStack
    
-   if not exists(pTarget) then
+   -- OXT-Beyond: pbExists (see pbStackInMemory)
+   local tChecked
+   if not pbExists(pTarget, tChecked) then
       exit ideOpenStack
    end if
    
@@ -302,6 +317,13 @@ on ideNameChanged pOldName, pNewName, pTarget
       buildProjectView true
    end if
 end ideNameChanged
+
+-- OXT-Beyond: a stack was opened, closed or saved under another file
+-- name. After File > Save As the rows of the stack still named its old
+-- file, until the browser heard of something else (pbStackInMemory)
+on ideRecentFilesChanged
+   pbRebuildIfStale
+end ideRecentFilesChanged
 
 on ideMainstackChanged pOldName, pNewName, pTarget
    # The long id of the target will have changed.
@@ -514,6 +536,11 @@ command buildProjectView pRememberExpansion
    local tLibraryStacks, tOldArray,tOldExpandedControls, tOldExpandedRows
    local tSections
    local tIndex
+   -- OXT-Beyond: (see pbStackInMemory) tMoved has, for the main stack of a
+   -- row whose stack file no stack in memory has, the main stack of that
+   -- name which is in memory, as each ends a long id: a stack saved under
+   -- another file name keeps the rows it had open
+   local tChecked, tMoved, tLongID, tName
    set the wholeMatches to true
    lock screen
    
@@ -521,6 +548,15 @@ command buildProjectView pRememberExpansion
    
    if pRememberExpansion then
       repeat for each key tKey in sDisplayArray["objects"]
+         if sDisplayArray["objects"][tKey]["type"] is "stack" then
+            put sDisplayArray["objects"][tKey]["long id"] into tLongID
+            if the number of words of tLongID is 2 and not pbStackInMemory(tLongID, tChecked) then
+               put sDisplayArray["objects"][tKey]["name"] into tName
+               if tName is not empty and tName is not a number and tName is among the lines of the mainStacks then
+                  put word -1 of the long id of stack tName into tMoved[word -1 of tLongID]
+               end if
+            end if
+         end if
          if sDisplayArray["objects"][tKey]["expanded"] is true then
             if sDisplayArray["objects"][tKey]["type"] is "stack" then
                put sDisplayArray["objects"][tKey]["long id"] & comma & 1 &  return after tOldExpandedControls
@@ -579,8 +615,11 @@ command buildProjectView pRememberExpansion
    local tChildRow, tVisibleRowNumber
    repeat for each line tExpandedControl in tOldExpandedControls
       delete item 2 of tExpandedControl
+      if tMoved[word -1 of tExpandedControl] is not empty then
+         put tMoved[word -1 of tExpandedControl] into word -1 of tExpandedControl
+      end if
       put sDisplayArray["visible object keys"] into tVisibleRows
-      if exists(tExpandedControl) then
+      if pbExists(tExpandedControl, tChecked) then
          put getRow(tExpandedControl) into tChildRow
          put itemOffset(tChildRow, tVisibleRows) into tVisibleRowNumber
          if tVisibleRowNumber is 0 then
@@ -599,6 +638,12 @@ command buildProjectView pRememberExpansion
 end buildProjectView
 
 on refreshProjectView
+   -- OXT-Beyond: rows that name a stack file no stack in memory has are
+   -- not drawn or listened to: the view is built again from what is in
+   -- memory, which ends by coming here (pbStackInMemory)
+   pbRebuildIfStale
+   if the result is true then exit refreshProjectView
+   
    updateListeners
    
    --revPutArray sDisplayArray
@@ -610,6 +655,8 @@ end refreshProjectView
 
 on updateListeners
    local tOldTargets, tOldTargetsSet
+   -- OXT-Beyond: pbExists (see pbStackInMemory)
+   local tChecked
    put the revObjectListeners into tOldTargets
    repeat for each line tTarget in tOldTargets
       put true into tOldTargetsSet[tTarget]
@@ -621,7 +668,7 @@ on updateListeners
          if tOldTargetsSet[it] then
             delete variable tOldTargetsSet[it]
          else
-            if exists(it) then
+            if pbExists(it, tChecked) then
                _internal listen to it
             end if
          end if
@@ -1135,9 +1182,115 @@ end DataViewUpdated
 ####### Project List Array management #######
 #######################################
 
+-- OXT-Beyond: whether the stack that the long id pLongID names is in
+-- memory, under that name or that stack file. It is false only when that
+-- is certain: no main stack has that name or that stack file, and no
+-- substack that name, which is where the engine looks before it reads a
+-- stack from its file (as __ideObjectStackInMemory of the IDE library,
+-- which is private to it).
+-- A row's long id names a saved stack by its file. Once the stack is saved
+-- under another file name (File > Save As, `save stack ... as`, and a
+-- standalone build, which saves the stack into the build's folder and
+-- puts it back after) no stack in memory has that file, and asking the
+-- engine about the row (exists, there is, the long id of) read the old
+-- file: the engine found a stack of that name in memory already and the
+-- IDE asked "A stack with the same name as the one you are trying to load
+-- is already open". With the Project Browser opened once (it keeps
+-- listening when it is closed) that came at the next thing it heard, a
+-- control renamed for one; on Windows, where a standalone build hands
+-- out the IDE's waiting messages one at each step, it could come in the
+-- middle of a build and fail it.
+-- So such a long id is never asked of the engine (pbExists, getRow), and
+-- rows that hold one are built again from what is in memory
+-- (pbRebuildIfStale). xChecked keeps the answer for each stack, for the
+-- other objects of the same stack
+private function pbStackInMemory pLongID, @xChecked
+   local tStack, tMainStack, tInMemory
+   -- A long id ends with its main stack, as stack "<name or stack file>"
+   if word -2 of pLongID is not "stack" then
+      return true
+   end if
+   put word -1 of pLongID into tStack
+   if the number of chars of tStack < 3 or char 1 of tStack is not quote \
+         or char -1 of tStack is not quote then
+      return true
+   end if
+   put char 2 to -2 of tStack into tStack
+   -- The engine can take a number for the number of a substack, and a name
+   -- with a quote or a return in it is left to the engine as before
+   if tStack is a number or quote is in tStack or return is in tStack then
+      return true
+   end if
+   if tStack is among the keys of xChecked then
+      return xChecked[tStack]
+   end if
+   put true into tInMemory
+   if tStack is not among the lines of the mainStacks \
+         and tStack is not among the lines of the stacks then
+      put false into tInMemory
+      repeat for each line tMainStack in the mainStacks
+         if the filename of stack tMainStack is tStack \
+               or tStack is among the lines of the substacks of stack tMainStack then
+            put true into tInMemory
+            exit repeat
+         end if
+      end repeat
+   end if
+   put tInMemory into xChecked[tStack]
+   return tInMemory
+end pbStackInMemory
+
+-- OXT-Beyond: exists(pLongID), asked of the engine only when the stack
+-- that the long id names is in memory (pbStackInMemory)
+private function pbExists pLongID, @xChecked
+   if not pbStackInMemory(pLongID, xChecked) then
+      return false
+   end if
+   return exists(pLongID)
+end pbExists
+
+-- OXT-Beyond: when a row names a stack that is not in memory under that
+-- name or stack file (pbStackInMemory), the view is built again from what
+-- is in memory, keeping the rows that were open. The result is true when
+-- it was built again
+private command pbRebuildIfStale
+   local tKey, tLongID, tChecked, tStale, tError
+   if sRebuildingStale is true then
+      return false
+   end if
+   put false into tStale
+   repeat for each key tKey in sDisplayArray["objects"]
+      put sDisplayArray["objects"][tKey]["long id"] into tLongID
+      if tLongID is not empty and not pbStackInMemory(tLongID, tChecked) then
+         put true into tStale
+         exit repeat
+      end if
+   end repeat
+   if not tStale then
+      return false
+   end if
+   put true into sRebuildingStale
+   try
+      buildProjectView true
+   catch tError
+      put false into sRebuildingStale
+      throw tError
+   end try
+   put false into sRebuildingStale
+   return true
+end pbRebuildIfStale
+
 function getRow pLongID
-   if sLongIDToRow[pLongID] is not empty or \
-         there is not a pLongID then
+   -- OXT-Beyond: a long id without a row is asked of the engine only when
+   -- its stack is in memory (pbStackInMemory)
+   local tChecked
+   if sLongIDToRow[pLongID] is not empty then
+      return sLongIDToRow[pLongID]
+   end if
+   if not pbStackInMemory(pLongID, tChecked) then
+      return empty
+   end if
+   if there is not a pLongID then
       return sLongIDToRow[pLongID]
    end if
    
@@ -1358,6 +1511,8 @@ end itemise
 on refreshChildren pParentList, pNewControl, pExpanded
    local tCardRow, tDescendants, tVisibleRows, tItem
    local tExpandedChildren, tChildRow, tVisibleRowNumber
+   -- OXT-Beyond: pbExists (see pbStackInMemory)
+   local tChecked
    
    set the wholeMatches to true
 
@@ -1410,7 +1565,7 @@ on refreshChildren pParentList, pNewControl, pExpanded
    ## Add any expanded children
    repeat for each line tExpandedChild in tExpandedChildren
       put sDisplayArray["visible object keys"] into tVisibleRows
-      if exists(tExpandedChild) then
+      if pbExists(tExpandedChild, tChecked) then
          put getRow(tExpandedChild) into tChildRow
          put itemOffset(tChildRow, tVisibleRows) into tVisibleRowNumber
          addChildren tExpandedChild, tChildRow, false
@@ -1661,7 +1816,9 @@ end levelConnectors
 #######################################
 
 on addStackToProjectBrowser pTarget
-   if not exists(pTarget) then
+   -- OXT-Beyond: pbExists (see pbStackInMemory)
+   local tChecked
+   if not pbExists(pTarget, tChecked) then
       exit addStackToProjectBrowser
    end if
    

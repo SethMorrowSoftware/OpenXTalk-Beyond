@@ -43,10 +43,12 @@ script "oxt_everyday"
 -- <name> ok | FAILED <why>, DONE). OXT_TOUR_ONLY names tasks; the tasks
 -- before a named one that it needs (the stack, its controls) run too.
 
-constant kTasks = "start,new-stack,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,message-box-shortcut,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,quick-start-first-lesson,quick-start-dropped-shows,standalone-stopped-build,standalone-mc-stack-file,standalone-built-and-run,standalone-engine-missing,finish"
+constant kTasks = "start,new-stack,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,message-box-shortcut,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,save-as-second-name,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,quick-start-first-lesson,quick-start-dropped-shows,standalone-stopped-build,standalone-mc-stack-file,standalone-built-and-run,standalone-engine-missing,finish"
 -- (the names the tasks give what they make)
 constant kStack = "Everyday Stack"
 constant kFile = "everyday.oxtstack"
+-- the file of save-as-second-name
+constant kSecondFile = "everyday-second.oxtstack"
 -- the stack of standalone-mc-stack-file, and its file
 constant kMcStack = "Everyday Mc"
 constant kMcFile = "everyday-old.mc"
@@ -1169,6 +1171,78 @@ on ed_revert_to_saved
    if the label of button id sKeep["okay"] of card 1 of stack sStack is not "Saved label" then throw "the reverted stack is not the one saved"
    edShotStack sStack, "28-reverted"
 end ed_revert_to_saved
+
+-- File > Save As under a second name with the Project Browser listing
+-- the stack, and then a control renamed: the IDE asks nothing, the stack
+-- stays the one just saved and the Project Browser lists its card.
+-- (The browser's rows named the stack by the file it had left. At the
+-- next thing the browser heard, a control renamed for one, it asked the
+-- engine about those rows; the engine read the old file, found a stack
+-- of that name in memory already, and the IDE asked "A stack with the
+-- same name as the one you are trying to load is already open". A
+-- standalone build saves the stack into its folder the same way, and on
+-- Windows, where the builder hands out the IDE's waiting messages one at
+-- each step, the question came in the middle of the build and failed
+-- it: #538, run 43962703701)
+on ed_save_as_second_name
+   local tPB, tOld, tPath, tListed, tControl, tName, tSettled
+   edFront
+   put revIDEPaletteToStackName("project browser") into tPB
+   if not edOpen(tPB) then edMenu "Tools", "Project Browser"
+   if not edWaitFor("edOpen(pAx)", 5000, tPB) then throw "Tools > Project Browser opened nothing"
+   revIDEShowInProjectBrowser the long id of card 1 of stack sStack
+   if not edWaitFor("edPBRow(pAx, the long id of card 1 of stack sStack) is not empty", 5000, tPB) then
+      throw "the Project Browser does not list the stack's card before File > Save As"
+   end if
+   edFront
+   put the effective filename of stack sStack into tOld
+   put sWork & "/" & kSecondFile into tPath
+   -- (a question the IDE asks from here on is answered with Cancel, which
+   -- leaves the stacks as they are, and is what the task fails on)
+   put empty into sReport["answer"]
+   send "edAnswerWith" && quote & "Cancel,Cancel,Cancel" & quote to me in 300 milliseconds
+   edFileDialog kSecondFile, "Save"
+   edMenu "File", "Save As..."
+   if not edWaitFor("the effective filename of stack sStack is pAx", 8000, tPath) then
+      throw "File > Save As under a second name left the stack's file as" && the effective filename of stack sStack & ", not" && tPath & "; the dialog:" && sReport["dialog"] & "; the IDE asked:" && sReport["answer"]
+   end if
+   -- (the file it left is still there: it is what the engine read)
+   if there is not a file tOld then throw "the file the stack was saved in before is gone:" && tOld
+   -- the browser lists the card of the stack as it is now, whose long id
+   -- names the new file, without waiting to hear of something else (what
+   -- it says is kept until the IDE has been seen to ask nothing)
+   put edWaitFor("edPBRow(pAx, the long id of card 1 of stack sStack) is not empty", 3000, tPB) into tListed
+   put "saved," && edSettled(8000) into tSettled
+   -- a control renamed, as the Inspector's Name does, and named back
+   put edControl("checkbox") into tControl
+   put the short name of tControl into tName
+   if sReport["answer"] is empty then
+      edCancelPending "edAnswerWith"
+      send "edAnswerWith" && quote & "Cancel,Cancel,Cancel" & quote to me in 300 milliseconds
+      set the name of tControl to "Renamed After Save As"
+      put "; a control renamed," && edSettled(8000) after tSettled
+   end if
+   if sReport["answer"] is empty then
+      set the name of tControl to tName
+      put "; named back," && edSettled(8000) after tSettled
+   end if
+   edCancelPending "edAnswerWith"
+   edRecord "INFO save-as-second-name:" && tSettled
+   if sReport["answer"] is not empty then
+      throw "after File > Save As under a second name (" & tSettled & ") the IDE asked:" && sReport["answer"]
+   end if
+   if the effective filename of stack sStack is not tPath then
+      throw "after File > Save As and a control renamed the stack's file is" && the effective filename of stack sStack & ", not" && tPath
+   end if
+   if the short name of tControl is not tName then throw "the control did not get its name back"
+   if not tListed then
+      throw "after File > Save As the Project Browser did not list the stack's card under its new file"
+   end if
+   if edPBRow(tPB, the long id of card 1 of stack sStack) is empty then
+      throw "after a control was renamed the Project Browser no longer lists the stack's card"
+   end if
+   edShotStack tPB, "28b-saved-under-a-second-name"
+end ed_save_as_second_name
 
 -- the Script Editor's Edit > Find and Replace: Current Tab picked as
 -- where, a word typed into Find and its replacement into Replace, and

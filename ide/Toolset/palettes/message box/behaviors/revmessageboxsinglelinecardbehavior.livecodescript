@@ -63,6 +63,10 @@ on resizeStack
    pass resizeStack
 end resizeStack
 
+-- OXT-Beyond: the positionOpenStacksButton that waits for this card, if
+-- one does (see layoutCard)
+local sPositionMsg
+
 on layoutCard
    set the rect of group "fields" of me to the contentRect of me
    lock screen
@@ -94,7 +98,18 @@ on layoutCard
    set the loc of graphic "line" of me to (tWidth/2),(tTop+tHeight)
    
    unlock messages
+   -- OXT-Beyond: one of these waits at a time, and the button is placed
+   -- once, after the last layout. Every layout sent another, and this
+   -- card is laid out each time the IDE hears that its stacks changed,
+   -- which is each time a control anywhere is named: making the Tools
+   -- palette once left some 17 of them waiting, a script that names a
+   -- thousand controls a thousand. Each is small, but on Windows a
+   -- waiting message that was due before a press of the mouse is
+   -- delivered before it, so the press came late by all of them: on a
+   -- CI runner 430 ms with 36 waiting and 7.8 s with 252
+   cancel sPositionMsg
    send "positionOpenStacksButton" to me in 0 milliseconds
+   put the result into sPositionMsg
    unlock screen
 end layoutCard
 

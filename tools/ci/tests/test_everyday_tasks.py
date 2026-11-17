@@ -518,8 +518,20 @@ class TheIdeIsIdleBeforeADrag(unittest.TestCase):
         # before the clock of the drag starts and before any helper is launched
         self.assertLess(settled, drag.index('put the milliseconds into sKeep["dragLaunched"]'))
         self.assertLess(settled, drag.index('switch the platform'))
-        self.assertEqual(self.text.count('edSettled('), 1,
-                         'the one wait is the drag helper\'s own: every drag goes through it')
+        self.assertEqual(drag.count('edSettled('), 1)
+        # the one wait before a drag is the drag helper's own, which every
+        # drag goes through: no handler that drags waits again, and the
+        # handlers that use the wait are these (save-as-second-name does
+        # no drag: it waits for the IDE to hear of a save and of a name)
+        users = set()
+        for m in re.finditer(r'^(?:on|command|function|private command|private function) (\w+)\b(.*?)^end \1\b',
+                             self.text, re.M | re.S):
+            body = self.code(m.group(2))
+            if 'edSettled(' in body:
+                users.add(m.group(1))
+            if m.group(1) != 'edSystemDrag' and 'edSystemDrag' in body:
+                self.assertNotIn('edSettled(', body, '%s waits before the drag helper does' % m.group(1))
+        self.assertEqual(users, {'edSystemDrag', 'ed_save_as_second_name'})
 
     def test_the_wait_handles_events_while_messages_are_due(self):
         settled = self.code(self.settled)
