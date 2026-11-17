@@ -22,8 +22,14 @@ if [ -z "$display" ]; then
   echo "RESULT mutter: no session"; tail -20 "$XDG_RUNTIME_DIR/mutter.log" | cut -c1-200
   kill "$mutter" 2>/dev/null; exit 0
 fi
-export DISPLAY=$display WAYLAND_DISPLAY=wayland-oxt-mutter XDG_SESSION_TYPE=wayland
+# Mutter's Xwayland takes clients only with its own authority file, which a
+# GNOME session hands to its programs in XAUTHORITY
+auth=$(ls -a "$XDG_RUNTIME_DIR" | grep '^\.mutter-Xwaylandauth' | head -1)
+if [ -n "$auth" ]; then export XAUTHORITY="$XDG_RUNTIME_DIR/$auth"; fi
+export DISPLAY=$display WAYLAND_DISPLAY=wayland-oxt-mutter XDG_SESSION_TYPE=${OXT_SESSION_TYPE:-wayland}
+echo "XAUTHORITY=${XAUTHORITY-} XDG_SESSION_TYPE=$XDG_SESSION_TYPE"
+timeout 30 xwininfo -root > /dev/null 2>&1; echo "Mutter's X server answers xwininfo: exit status $?"
 "$@"
-echo "Mutter's log, last lines:"; tail -15 "$XDG_RUNTIME_DIR/mutter.log" | cut -c1-200
+echo "Mutter's log, last lines:"; grep -v "Could not resolve keysym\|^> \|^Errors from xkbcomp" "$XDG_RUNTIME_DIR/mutter.log" | tail -25 | cut -c1-220
 kill "$mutter" 2>/dev/null; wait "$mutter" 2>/dev/null
 exit 0

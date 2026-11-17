@@ -36,6 +36,7 @@ jobs:
       - name: Install the runtime libraries, Weston, Xwayland and gdb
         timeout-minutes: 15
         run: |
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
           apt=(sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30)
           "${apt[@]}" update
           pkgs=(xz-utils xvfb xauth weston xwayland gdb)
@@ -65,30 +66,22 @@ jobs:
       - name: Tools for the window tree and Mutter
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         run: |
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends x11-utils mutter dbus dbus-x11 > /dev/null
           mutter --version
 
-      - name: h1. Under Xvfb (the control), with the X window tree
-        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
-        run: |
-          Xvfb :77 -screen 0 1280x1024x24 > /dev/null 2>&1 &
-          sleep 2
-          env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE DISPLAY=:77 bash .github/diag/check-in-session.sh h1-xvfb \
-            "$OXT_ROOT" "$RUNNER_TEMP/logs" "$RUNNER_TEMP/cores"
-          kill %1 || true
-
-      - name: h2. In a Weston session, with the X window tree
-        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
-        run: |
-          # (media_check's own session: Xwayland takes the first free display, :0 here)
-          env -u WAYLAND_DISPLAY DISPLAY=:0 bash .github/diag/check-in-session.sh h2-weston \
-            "$OXT_ROOT" "$RUNNER_TEMP/logs" "$RUNNER_TEMP/cores" --session wayland
-
+      # (h1, Xvfb, and h2, a Weston session, passed in run 44167685958)
       - name: h3. In a Mutter session (GNOME's compositor, headless)
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         run: |
           env -u DISPLAY -u WAYLAND_DISPLAY dbus-run-session -- bash .github/diag/mutter-session.sh \
-            bash .github/diag/check-in-session.sh h3-mutter "$OXT_ROOT" "$RUNNER_TEMP/logs" "$RUNNER_TEMP/cores"
+            bash .github/diag/check-in-session.sh h3-mutter "$OXT_ROOT" "$RUNNER_TEMP/logs" "$RUNNER_TEMP/cores" --timeout 90
+
+      - name: h4. In a Mutter session whose type is given as x11
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        run: |
+          env -u DISPLAY -u WAYLAND_DISPLAY OXT_SESSION_TYPE=x11 dbus-run-session -- bash .github/diag/mutter-session.sh \
+            bash .github/diag/check-in-session.sh h4-mutter-x11 "$OXT_ROOT" "$RUNNER_TEMP/logs" "$RUNNER_TEMP/cores" --timeout 90
 
       - name: c. In an Ubuntu 26.04 container
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}

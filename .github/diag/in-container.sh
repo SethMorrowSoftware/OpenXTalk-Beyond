@@ -21,16 +21,12 @@ apt-get -o Acquire::Retries=3 install -y -q --no-install-recommends "${have[@]}"
 ldd --version | sed -n 1p; weston --version 2>&1 | head -1; mutter --version 2>&1 | head -1
 dpkg -l | grep -E "libgtk2|libgtk-3|mesa|libwayland-client" | awk '{print $2, $3}' | head -12
 
-echo "===== c1: Xvfb"
-Xvfb :77 -screen 0 1280x1024x24 > /dev/null 2>&1 & xvfb=$!
-sleep 2
-env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE DISPLAY=:77 bash /w/.github/diag/check-in-session.sh c1-xvfb /oxt /logs /cores
-kill $xvfb
-
-echo "===== c2: a Weston session"
-env -u DISPLAY -u WAYLAND_DISPLAY bash /w/.github/diag/check-in-session.sh c2-weston /oxt /logs /cores --session wayland
-
+# (c1, Xvfb, and c2, a Weston session, passed in run 44167685958)
 echo "===== c3: a Mutter session"
 env -u DISPLAY -u WAYLAND_DISPLAY dbus-run-session -- bash /w/.github/diag/mutter-session.sh \
-  bash /w/.github/diag/check-in-session.sh c3-mutter /oxt /logs /cores
+  bash /w/.github/diag/check-in-session.sh c3-mutter /oxt /logs /cores --timeout 90
+
+echo "===== c4: a Mutter session whose type is given as x11"
+env -u DISPLAY -u WAYLAND_DISPLAY OXT_SESSION_TYPE=x11 dbus-run-session -- bash /w/.github/diag/mutter-session.sh \
+  bash /w/.github/diag/check-in-session.sh c4-mutter-x11 /oxt /logs /cores --timeout 90
 echo "===== container done"
