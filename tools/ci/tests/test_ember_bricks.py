@@ -33,10 +33,20 @@ files it is made from, without a browser or an engine:
   README name; the page may call the handlers the stack lists, and the
   game has each; no DataChannelXT function is called as a statement, and
   the game ends only a link of its own
+- the online lobby: its relays are the ones the notices and the README
+  name, and xTalk Chat's; both kinds of its messages are ones a relay
+  does not keep, and a word to one player is sealed; the step it opens
+  on says what going online shows, and nothing dials a relay but the
+  player's own GO ONLINE; it hears NostrXT's relay library through an
+  ear of its own and never takes or closes what another stack's chat
+  uses; the list has the rows the builder makes; a room's code has no
+  letter that looks like another
 - its phone check calls only handlers its stack has and asks for, reads
-  only what the game says and taps only what the builder makes, has
-  DataChannelXT's module as the xTalk Suite's pins name it, and runs in
-  Chromium and WebKit in web.yml
+  only what the game says and taps only what the builder makes, has the
+  xTalk Suite's modules and script libraries as the Suite's pins name
+  them and as the IDE's web builder includes them, and runs in Chromium
+  and WebKit in web.yml, the duel and the lobby with it; the deploy
+  script adds a script library only when it is asked to
 - the engine tests drive the game through the hooks it has
 - whatever comes into the game (a message of the engine's, a button, the
   page) changes what the window shows only behind a locked screen, and no
@@ -495,6 +505,143 @@ class Duel(unittest.TestCase):
             self.assertRegex(script, r'\nfunction %s\b' % name)
 
 
+class Lobby(unittest.TestCase):
+    """The online lobby: what the notices and the README say of it is what
+    the game does, and it takes of NostrXT only what leaves another
+    stack's chat as it was."""
+
+    def code(self):
+        """The lines of the game that are not comments, strings blanked,
+        by handler"""
+        return {name: [line for number, line in lines] for name, (kind, lines) in script_handlers(game_script()).items()}
+
+    def test_the_relays_are_the_ones_the_notices_and_the_readme_name(self):
+        relays = constant('kNetRelays').split(',')
+        self.assertEqual(len(relays), 3)
+        self.assertEqual(len(set(relays)), 3)
+        notices = read('THIRD-PARTY-NOTICES.md')
+        readme = read('tools', 'web-player', 'README.md')
+        section = readme[readme.index('\n## Ember Bricks\n'):]
+        for relay in relays:
+            self.assertRegex(relay, r'^wss://[a-z0-9.-]+$')
+            self.assertIn('`%s`' % relay, notices, relay)
+            self.assertIn('`%s`' % relay, section, relay)
+        # (xTalk Chat's: OXT-Beyond has one list of public relays to answer for)
+        chat = read('ide', 'Extensions', 'org.openxtalk.plugin.xtalkchat', 'xtalkchat-core.livecodescript')
+        self.assertEqual(constant('kNetRelays'), constant('kDefaultRelays', chat))
+
+    def test_a_relay_keeps_nothing_of_the_lobby(self):
+        # both kinds are ephemeral (NIP-01: 20000 to 29999): a relay passes
+        # them on to who is there, and keeps none
+        kinds = [int(constant('kNetKindWho')), int(constant('kNetKindTell'))]
+        self.assertEqual(len(set(kinds)), 2)
+        for kind in kinds:
+            self.assertTrue(20000 <= kind <= 29999, kind)
+        # a word to one player is sealed for that player, and only what
+        # unseals is read
+        script = game_script()
+        self.assertEqual(len(re.findall(r'\bnxNip44Encrypt\(', script)), 1)
+        self.assertEqual(len(re.findall(r'\bnxNip44Decrypt\(', script)), 1)
+        # an entry stands for less time than the relays would be asked
+        # again in, and one that says "in a duel" for the match and no more
+        self.assertLess(int(constant('kNetBeat')) * 2, int(constant('kNetStale')))
+        self.assertLessEqual(int(constant('kNetStale')), 60)
+
+    def test_going_online_is_the_players_choice(self):
+        # the step the lobby opens on says what going online shows, and no
+        # relay is dialled but from the player's own GO ONLINE
+        script = game_script()
+        look = script[script.index('\nprivate command ebLobbyLook'):script.index('\nend ebLobbyLook')]
+        start = look[look.index('case "start"'):look.index('case "net-wait"')]
+        self.assertIn('Going online shows this name to the other players. The lobby is on public Nostr relays, '
+                      'which see your internet address.', start)
+        code = self.code()
+
+        def having(pattern):
+            return sorted(name for name, lines in code.items() if any(re.search(pattern, line) for line in lines))
+
+        # one handler dials; it is called to go online, and while online
+        # for a relay that was lost (the step of a lobby that is on)
+        self.assertEqual(having(r'\bnxrConnect\b'), ['ebNetDial'])
+        self.assertEqual(having(r'\bebNetDial\('), ['ebNetStart', 'ebNetStep'])
+        self.assertEqual(having(r'^\s*ebNetStep\b'), ['ebAdvance'])
+        self.assertIn('   if sLob["on"] is true then\n      ebNetStep pReal\n   end if\n', script)
+        # going online comes of GO ONLINE (the button, or Return in the
+        # name's field, which presses it) and of leaving a match that
+        # began in the lobby
+        self.assertEqual(having(r'^\s*ebNetStart\b'), ['ebDuelLeave', 'ebNetGo'])
+        self.assertEqual(having(r'^\s*ebNetGo\b'), ['ebDuelPress'])
+        self.assertRegex(script, r'case "Net Go"\n\s+ebNetGo\n')
+        leave = script[script.index('\ncommand ebDuelLeave'):script.index('\nend ebDuelLeave')]
+        self.assertRegex(leave, r'if tBack then\n(?:\s+--[^\n]*\n)*\s+ebDuelOpen\n\s+if sLobby is "start" then\n\s+ebNetStart\n')
+        # and a test's lobby dials none
+        fake = script[script.index('\ncommand ebTestNet'):script.index('\nend ebTestNet')]
+        self.assertNotIn('ebNetStart', fake)
+        self.assertIn('put true into sLob["fake"]', fake)
+
+    def test_the_game_hears_the_relays_through_an_ear_of_its_own(self):
+        # NostrXT's relay library tells the top stack, or the one object
+        # that took it all (nxrInit), which another stack's chat may be:
+        # the game takes nothing, names a callback of its own to each
+        # relay it opens, and closes only those
+        script = game_script()
+        code = [line for lines in self.code().values() for line in lines]
+        for name in ('nxrInit', 'nxrShutdown'):
+            self.assertEqual([line for line in code if re.search(r'\b%s\b' % name, line)], [], name)
+        self.assertIn('nxrSetCallback tRelay, "ebRelayCall"', script)
+        self.assertEqual(len([line for line in code if re.search(r'\bnxrDisconnect\b', line)]), 1)
+        made = builder()
+        ear = made[made.index('\nprivate function earScript'):made.index('\nend earScript')]
+        self.assertIn('"on ebRelayCall pRelay, pKind, pOne, pTwo"', ear)
+        self.assertIn('"   dispatch " & quote & "ebNetHeard" & quote & " to tGame with pRelay, pKind, pOne, pTwo"', ear)
+        self.assertIn('set the script of button "Relay Ear" to earScript()', made)
+        self.assertIn('set the visible of button "Relay Ear" to false', made)
+        self.assertRegex(script, r'\non ebNetHeard pRelay, pKind, pOne, pTwo\n')
+        # the ear is in the message path only while the game is online
+        put = script[script.index('\nprivate command ebNetEar'):script.index('\nend ebNetEar')]
+        self.assertIn('insert the script of button "Relay Ear" into back', put)
+        self.assertIn('remove the script of button "Relay Ear" from back', put)
+        # and what it hands on is for a lobby that is on, from a relay of its own
+        heard = script[script.index('\non ebNetHeard'):script.index('\nend ebNetHeard')]
+        self.assertIn('if sLob["on"] is not true or sLob["relay"][pRelay] is empty then\n      exit ebNetHeard', heard)
+
+    def test_no_nostrxt_function_is_called_as_a_statement(self):
+        # (as DataChannelXT's: an error at the first line it is met on)
+        script = game_script()
+        self.assertEqual(re.findall(r'(?m)^\s*nxr?[A-Z]\w*\(.*$', script), [])
+        called = set(re.findall(r'\b(nxr?[A-Z]\w*)\b', '\n'.join(line for lines in self.code().values() for line in lines)))
+        self.assertTrue({'nxProbeCapabilities', 'nxrVersion', 'nxKeyGenerate', 'nxKeyPublic', 'nxrConnect',
+                         'nxrSetCallback', 'nxrSubscribe', 'nxrPublish', 'nxrDisconnect', 'nxFilterBuild',
+                         'nxEventBuild', 'nxEventSign', 'nxEventFromJson', 'nxTagFirst', 'nxTagsFromText',
+                         'nxNip44Encrypt', 'nxNip44Decrypt'} <= called, called)
+
+    def test_the_list_has_the_rows_the_builder_makes(self):
+        made = builder()
+        self.assertEqual(constant('kNetRows'), constant('kWho', made))
+        self.assertLessEqual(int(constant('kNetRowsShort')), int(constant('kNetRows')))
+        self.assertIn('repeat with i = 1 to kWho', made)
+        for name in ('Name', 'Net Go', 'Codes Open', 'Quick', 'Friend', 'Accept', 'Decline', 'Relay Ear'):
+            self.assertIn('"%s"' % name, made, name)
+            self.assertIn('"%s"' % name, game_script(), name)
+
+    def test_a_rooms_code_has_no_letter_that_looks_like_another(self):
+        letters = constant('kNetLetters')
+        self.assertEqual(len(letters), 32)
+        self.assertEqual(len(set(letters)), 32)
+        self.assertRegex(letters, r'^[A-Z2-9]+$')
+        for look_alike in 'IO01':
+            self.assertNotIn(look_alike, letters)
+        self.assertEqual(constant('kNetCodeLength'), '6')
+        # (a link's "duel=" is what the game reads a room from)
+        self.assertIn('"duel="', game_script())
+
+    def test_the_duels_codes_are_as_they_were(self):
+        # a lobby's description is the invite and the answer of the codes:
+        # their version is the one two players by code share
+        self.assertEqual(constant('kDuelVersion'), '1')
+        self.assertEqual(constant('kNetVersion'), '1')
+
+
 class Check(unittest.TestCase):
 
     def test_every_handler_the_check_calls_is_there_and_asked_for(self):
@@ -540,22 +687,65 @@ class Check(unittest.TestCase):
         self.assertIn('$OXT_MW_MODULES', read('tools', 'ci', 'mobile-web-deploy.livecodescript'))
         self.assertIn("OXT_MW_MODULES='\\n'.join(modules)", read('tools', 'ci', 'ember_bricks_check.py'))
 
+    def test_the_lobbys_modules_and_libraries_are_the_ones_the_suites_pins_name(self):
+        with open(os.path.join(REPO, 'tools', 'oxt', 'xtalk-extensions.json'), encoding='utf-8') as f:
+            pins = json.load(f)
+        kinds = {e['id']: e.get('kind') for member in pins['members'] for e in member.get('extensions', [])}
+        self.assertEqual(ember_bricks_check.MODULES, (ember_bricks_check.SODIUMXT, ember_bricks_check.COINXT,
+                                                      ember_bricks_check.DATACHANNELXT))
+        for name in ember_bricks_check.MODULES:
+            self.assertEqual(kinds.get(name), 'lcb', name)
+        for name in ember_bricks_check.LIBRARIES:
+            self.assertEqual(kinds.get(name), 'lcs', name)
+        # each library after those it uses: NostrXT signs with CoinXT, and
+        # its relay library builds on it
+        self.assertEqual(ember_bricks_check.LIBRARIES, ('coinxt', 'nostrxt', 'nostr-relay'))
+        # and each is one the IDE's web builder knows the web engine has
+        # the library of: the check's standalone is one the IDE could make
+        web = read('ide-support', 'revsaveasemscriptenstandalone.livecodescript')
+        known = constant('kXTalkWebExtensions', web).split(',')
+        for name in ember_bricks_check.MODULES + ember_bricks_check.LIBRARIES:
+            self.assertIn(name, known, name)
+
+    def test_script_libraries_are_added_only_when_asked_for(self):
+        # tools/ci/mobile-web-deploy.livecodescript: OXT_MW_LIBRARIES unset
+        # leaves the deploy of every other check as it was
+        deploy = read('tools', 'ci', 'mobile-web-deploy.livecodescript')
+        self.assertIn('if $OXT_MW_LIBRARIES is not empty then', deploy)
+        self.assertEqual(deploy.count('$OXT_MW_LIBRARIES'), 3)  # its words, the question, the loop
+        self.assertIn('put $OXT_MW_LIBRARY & return & $OXT_MW_CHECK into tParams["auxiliary_stackfiles"]', deploy)
+        self.assertIn('if tLibraries is not empty then\n         put return & tLibraries after '
+                      'tParams["auxiliary_stackfiles"]', deploy)
+        # the libraries are started before the template is filled in
+        self.assertLess(deploy.index('if $OXT_MW_LIBRARIES is not empty then'),
+                        deploy.index('put fileText($OXT_MW_TEMPLATE) into tParams["startup_script"]'))
+        self.assertIn("OXT_MW_LIBRARIES='\\n'.join(libraries)", read('tools', 'ci', 'ember_bricks_check.py'))
+        for other in ('mobile_web_check.py', 'wobble_forts_check.py', 'puzzle_almanac_check.py'):
+            self.assertNotIn('OXT_MW_LIBRARIES', read('tools', 'ci', other), other)
+
     def test_the_game_has_what_the_check_reads(self):
         check = read('tools', 'ci', 'ember_bricks_check.py')
         script = game_script()
         keys = set(re.findall(r"\b[shg]\.get\('([a-z]+)'", check)) | set(re.findall(r"number\([shg], '([a-z]+)'", check))
         keys |= set(ember_bricks_check.KEYS)
         self.assertTrue({'mode', 'phase', 'score', 'bricks', 'padx', 'ball', 'window', 'arena', 'wide', 'fps',
-                         'lobby', 'code', 'duel', 'stage', 'left', 'rival', 'link', 'shift', 'rtc'} <= keys, keys)
+                         'lobby', 'code', 'duel', 'stage', 'left', 'rival', 'link', 'shift', 'rtc',
+                         'nostr', 'online', 'name', 'relays', 'room', 'who', 'doing', 'foe', 'invite'} <= keys, keys)
         for key in keys:
             self.assertIn('"%s:"' % key, script, key)
         # the controls it taps, measures and reads
-        names = set(re.findall(r"(?:\.tap\(|\btap\(|control\(|\.text\()'([A-Z][A-Za-z0-9 ]+)'", check))
+        names = set(re.findall(r"(?:\.tap\(|\btap\(|control\(|\.text\(|middle\(self\.page, )'([A-Z][A-Za-z0-9 ]+)'",
+                               check))
         self.assertTrue({'Play', 'Howto Go', 'Pause', 'Resume', 'Score', 'Duel Open', 'Host', 'Join', 'Code Copy',
-                         'Code Paste', 'Code Go', 'Rematch', 'Pause Home', 'Result Title'} <= names, names)
+                         'Code Paste', 'Code Go', 'Rematch', 'Pause Home', 'Result Title', 'Codes Open', 'Name',
+                         'Net Go', 'Accept', 'Quick', 'Friend', 'Result Home', 'Lobby Text', 'Banner Sub',
+                         'Code'} <= names, names)
         made = builder()
         for name in names:
             self.assertIn('"%s"' % name, made, name)
+        # (a row of the lobby's list is tapped by the place its player has)
+        self.assertIn("return 'Who %d' % (names.index(name) + 1)", check)
+        self.assertIn('makeButton "Who" && i,', made)
         # what the lobby and the result say, as the game says it
         for text in re.findall(r"== '([A-Z][A-Z !]+)'", check) + re.findall(r"'(?:host|guest)': '([A-Z ]+)'", check):
             self.assertIn('"%s"' % text, script, text)
@@ -572,6 +762,7 @@ class Check(unittest.TestCase):
         self.assertIn('ember-bricks', step.group(0))
         self.assertNotIn('--rebuild', step.group(0))
         self.assertNotIn('--no-duel', step.group(0))
+        self.assertNotIn('--no-lobby', step.group(0))
         # (a second try in Chromium too: the duel's link is a real one)
         self.assertIn('retry_check.py --tries 2', step.group(0))
         self.assertEqual(sorted(ember_bricks_check.DEFAULT_DEVICES), ['chromium', 'webkit'])
@@ -773,10 +964,11 @@ class EngineTests(unittest.TestCase):
         hooks = set(re.findall(r'"(eb[A-Z]\w+)"', tests))
         self.assertTrue({'ebTestBegin', 'ebTestStep', 'ebTestLevel', 'ebTestBall', 'ebTestPaddle', 'ebTestDrop',
                          'ebTestSet', 'ebTestDuel', 'ebDuelSent', 'ebDuelReceive', 'ebState', 'ebPress',
-                         'ebPasted', 'ebDuelEncode', 'ebDuelDecode'} <= hooks, hooks)
+                         'ebPasted', 'ebDuelEncode', 'ebDuelDecode', 'ebTestNet', 'ebNetHear', 'ebNetSent',
+                         'ebNetName', 'ebNetCode'} <= hooks, hooks)
         for name in hooks:
             self.assertRegex(script, r'\n(?:on|command|function) %s\b' % name, name)
-        self.assertGreaterEqual(len(re.findall(r'^on Test(?!Setup|Teardown)', tests, re.M)), 60)
+        self.assertGreaterEqual(len(re.findall(r'^on Test(?!Setup|Teardown)', tests, re.M)), 75)
 
     def test_the_layout_is_asked_only_of_a_window_that_was_made_the_size(self):
         # the tests of the game run in a phone's app too, where no window

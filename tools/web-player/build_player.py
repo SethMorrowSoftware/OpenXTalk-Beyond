@@ -414,8 +414,8 @@ SAMPLES = [
      'files': ['Ember Bricks.oxtstack'], 'image': 'Ember Bricks.webp',
      'description': 'A brick breaker for a phone or a desktop: twenty-four levels, ten sparks to '
                     'catch, and a heat that multiplies the score while the bricks keep breaking. '
-                    'Its Online Duel races a friend for three minutes over a direct WebRTC link, '
-                    'made with two codes you send each other.',
+                    'Its Online Duel races a rival for three minutes over a direct WebRTC link: '
+                    'challenge a player in the lobby, take a quick match, or send a friend a link.',
      'tags': ['Game', 'Phones', 'Touch', 'Multiplayer']},
     {'title': 'Box2Dxt Platformer', 'source': 'stacks',
      'files': ['Box2Dxt Platformer.oxtstack'], 'image': 'Box2Dxt Platformer.webp',

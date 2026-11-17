@@ -250,7 +250,7 @@ local sDuel, sLobby, sNet2, sRtc, sRtcUsed, sShift
 -- kNetRelays (a test's); the lobby itself while the player is online
 -- (sLob["on"], ["who"], ["room"], ...); whether a match that ends goes
 -- back to it; and what a test's lobby would have sent
-local sNostr, sName, sInvite, sRelays, sLob, sNetBack, sNetSent
+local sNostr, sName, sInvite, sRelays, sLob, sNetBack, sNetSent, sKey
 -- The table of the sum a code carries (ebDuelSum)
 local sCrc
 
@@ -3741,7 +3741,7 @@ end ebLayoutOver
 -- beside the buttons
 private command ebLayoutLobby pL, pT, pR, pB
    local tW, tH, tRect, tL, tT, tR, tY, tTextH, tKind, tName, tBoxH, tGo, tShow
-   local tTwo, tMost, tNoteH, tMid, tBackT, tRowT, tRowR, tOwn, i
+   local tTwo, tMost, tNoteH, tMid, tBackT, tRowT, tRowR, tOwn, i, tRoom
    put ebLobbyKind() into tKind
    put ((tKind is "start" or tKind is "list") and ebShort(pT, pB)) into tTwo
    if tTwo then
@@ -3755,7 +3755,19 @@ private command ebLayoutLobby pL, pT, pR, pB
    set the rect of field "Lobby Text" to 0, 0, tW - ebU(40), 100
    put the formattedHeight of field "Lobby Text" into tTextH
    put ebU(38) into tNoteH
-   if ebShort(pT, pB) then
+   -- a room's code is six letters, large, in the middle of a box a line
+   -- high; a code of the swap fills a taller one, small
+   put (sLobby is "room" or sLobby is "room-take") into tRoom
+   if tRoom then
+      set the textSize of field "Code" to max(9, ebU(24))
+      set the textAlign of field "Code" to "center"
+      set the textStyle of field "Code" to "bold"
+   else
+      set the textSize of field "Code" to max(9, ebU(11))
+      set the textAlign of field "Code" to "left"
+      set the textStyle of field "Code" to "plain"
+   end if
+   if tRoom or ebShort(pT, pB) then
       put ebU(56) into tBoxH
    else
       put ebU(92) into tBoxH
@@ -3820,8 +3832,7 @@ private command ebLayoutLobby pL, pT, pR, pB
          set the textAlign of field "Lobby Step" to "left"
          if tTwo then
             set the rect of field "Lobby Step" to tL, tY + ebU(2), tMid - ebU(10), tY + ebU(22)
-            set the rect of graphic "Name Back" to tL, tY + ebU(24), tMid - ebU(10), tY + ebU(64)
-            set the rect of field "Name" to tL + 2, tY + ebU(24) + 2, tMid - ebU(10) - 2, tY + ebU(64) - 2
+            ebPlaceTyped "Name", "Name Back", tL, tY + ebU(24), tMid - ebU(10), tY + ebU(64), true
             set the rect of field "Lobby Note" to tL, tY + ebU(72), tMid - ebU(10), tY + ebU(72) + tNoteH
             ebPlaceButton "Net Go", tMid + ebU(10), tY, tR, tY + ebU(52)
             ebPlaceButton "Codes Open", tMid + ebU(10), tY + ebU(60), tR, tY + ebU(104)
@@ -3830,8 +3841,7 @@ private command ebLayoutLobby pL, pT, pR, pB
             add tTextH + ebU(10) to tY
             set the rect of field "Lobby Step" to tL, tY + ebU(2), tR, tY + ebU(22)
             add ebU(24) to tY
-            set the rect of graphic "Name Back" to tL, tY, tR, tY + ebU(40)
-            set the rect of field "Name" to tL + 2, tY + 2, tR - 2, tY + ebU(40) - 2
+            ebPlaceTyped "Name", "Name Back", tL, tY, tR, tY + ebU(40), true
             add ebU(48) to tY
             ebPlaceButton "Net Go", tL, tY, tR, tY + ebU(52)
             add ebU(60) to tY
@@ -3892,8 +3902,7 @@ private command ebLayoutLobby pL, pT, pR, pB
          set the textAlign of field "Lobby Step" to "left"
          set the rect of field "Lobby Step" to tL, tY + ebU(2), tR, tY + ebU(22)
          add ebU(26) to tY
-         set the rect of graphic "Code Back" to tL, tY, tR, tY + tBoxH
-         set the rect of field "Code" to tL + 2, tY + 2, tR - 2, tY + tBoxH - 2
+         ebPlaceTyped "Code", "Code Back", tL, tY, tR, tY + tBoxH, tRoom
          add tBoxH + ebU(8) to tY
          if tKind is "send" then
             ebPlaceButton "Code Copy", tL, tY, tR, tY + ebU(48)
@@ -3917,18 +3926,6 @@ private command ebLayoutLobby pL, pT, pR, pB
    if not tOwn then
       set the rect of field "Lobby Note" to tL, tY, tR, tY + ebU(38)
       ebPlaceButton "Lobby Back", tL, tBackT, tR, tBackT + ebU(40)
-   end if
-   -- a room's code is six letters, large in the middle of its box; a
-   -- code of the swap fills it, small
-   if sLobby is "room" then
-      set the textSize of field "Code" to max(9, ebU(26))
-      set the textAlign of field "Code" to "center"
-   else if sLobby is "room-take" then
-      set the textSize of field "Code" to max(9, ebU(16))
-      set the textAlign of field "Code" to "center"
-   else
-      set the textSize of field "Code" to max(9, ebU(11))
-      set the textAlign of field "Code" to "left"
    end if
    put (tKind is "choose" or tKind is "none" or tKind is "asked") into tShow
    if tKind is "start" and not tTwo then
@@ -3983,6 +3980,21 @@ private command ebLayoutLobby pL, pT, pR, pB
       set the visible of graphic ("Who" && i && "Shape") to tShow
    end repeat
 end ebLayoutLobby
+
+-- A field for typing over its box: all of the box, or (pOne) a line in
+-- the middle of its height
+private command ebPlaceTyped pField, pBox, pL, pT, pR, pB, pOne
+   local tHigh, tTop
+   set the rect of graphic pBox to pL, pT, pR, pB
+   if pOne is true then
+      put max(the formattedHeight of field pField, the effective textHeight of field pField + 12) into tHigh
+      put min(pB - pT - 4, tHigh) into tHigh
+      put (pT + pB - tHigh) div 2 into tTop
+      set the rect of field pField to pL + 2, tTop, pR - 2, tTop + tHigh
+   else
+      set the rect of field pField to pL + 2, pT + 2, pR - 2, pB - 2
+   end if
+end ebPlaceTyped
 
 -- A duel's result: who won, the two scores, a line, and Rematch over
 -- Leave (only Leave when the rival is gone)
@@ -5893,9 +5905,14 @@ end ebNetGo
 private command ebNetStart
    local tSk, tPk, tUrl, tCount, tError
    ebNetStop
+   -- (one key for the whole visit: a player who comes back from a match
+   -- is the one the others saw go into it)
    put empty into tPk
    try
-      put nxKeyGenerate() into tSk
+      if sKey is empty then
+         put nxKeyGenerate() into sKey
+      end if
+      put sKey into tSk
       put nxKeyPublic(tSk) into tPk
    catch tError
       put empty into tPk
@@ -6221,6 +6238,18 @@ private command ebNetWho pPk, pContent
    put tState into sLob["who"][pPk]["state"]
    put tTtl into sLob["who"][pPk]["ttl"]
    put sLob["clock"] into sLob["who"][pPk]["seen"]
+   -- (a challenge, or a link, can come before its sender's "I am here":
+   -- the name it was shown without is put right)
+   if sLob["rival"] is not tName then
+      if sLobby is "asked" and ebSame(sLob["ask"]["pk"], pPk) then
+         put tName into sLob["rival"]
+         ebLobbyLook empty
+      else if sLobby is "net-link" and ebSame(sLob["link"]["pk"], pPk) then
+         put tName into sLob["rival"]
+         put tName into sNet2["name"]
+         ebLobbyLook empty
+      end if
+   end if
    -- (a relay keeps none of this: a newcomer has what was said since it
    -- began to listen, and nothing of mine from before)
    if tHello and sLob["answerAt"] is not a number then

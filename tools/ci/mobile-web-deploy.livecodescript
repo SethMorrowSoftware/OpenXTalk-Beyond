@@ -39,6 +39,22 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- $OXT_MW_MODULES, if set, names the module.lcm files of LCB extensions
 -- to include, one a line (tools/ci/wobble_forts_check.py gives Box2Dxt's);
 -- without it, none are, as before.
+--
+-- $OXT_MW_LIBRARIES, if set, names the files of more script libraries to
+-- include and start as the Mobile Web library is, one a line, each after
+-- those it uses (tools/ci/ember_bricks_check.py gives CoinXT's and
+-- NostrXT's two, for the game's lobby); without it, none are, as before.
+
+-- The name of a script library's stack: its file's first line says it
+-- (script "nostrxt")
+private function libraryName pPath
+   local tLine
+   put line 1 of fileText(pPath) into tLine
+   if word 1 of tLine is not "script" or the number of chars of word 2 of tLine < 3 then
+      throw pPath & " is not a script library: its first line is not script and a name"
+   end if
+   return char 2 to -2 of word 2 of tLine
+end libraryName
 
 private function fileText pPath
    local tText
@@ -53,7 +69,7 @@ private function fileText pPath
 end fileText
 
 on startup
-   local tParams, tResult, tError, tStartup, tHandler, tHandlers
+   local tParams, tResult, tError, tStartup, tHandler, tHandlers, tLibrary, tLibraries, tStarted
    try
       if $OXT_MW_VERSION is empty then
          throw "OXT_MW_VERSION is not set"
@@ -77,6 +93,21 @@ on startup
          put line 1 to 2 of tStartup & return & "set the cJavascriptHandlers of stack" && \
                quote & $OXT_MW_CHECK_NAME & quote && "to" && tHandlers into tStartup
       end if
+      -- more script libraries, if any: each a stack beside the others,
+      -- started after the Mobile Web library, in the order given
+      if $OXT_MW_LIBRARIES is not empty then
+         repeat for each line tLibrary in $OXT_MW_LIBRARIES
+            if tLibrary is empty then
+               next repeat
+            end if
+            put tLibrary & return after tLibraries
+            put "start using stack" && quote & libraryName(tLibrary) & quote & return & \
+                  "dispatch" && quote & "extensionInitialize" & quote && "to stack" && \
+                  quote & libraryName(tLibrary) & quote & return after tStarted
+         end repeat
+         delete last char of tLibraries
+         put line 1 to 2 of tStartup & return & tStarted & line 3 to -1 of tStartup into tStartup
+      end if
       put fileText($OXT_MW_TEMPLATE) into tParams["startup_script"]
       replace "@ENGINE_VERSION@" with $OXT_MW_VERSION in tParams["startup_script"]
       replace "@STARTUP_SCRIPT@" with tStartup in tParams["startup_script"]
@@ -84,6 +115,9 @@ on startup
       put $OXT_MW_OUTPUT into tParams["output"]
       put empty into tParams["engine"]
       put $OXT_MW_LIBRARY & return & $OXT_MW_CHECK into tParams["auxiliary_stackfiles"]
+      if tLibraries is not empty then
+         put return & tLibraries after tParams["auxiliary_stackfiles"]
+      end if
       -- the LCB extensions the main stack uses, if any: their module.lcm
       -- files, one a line, each after those it uses (Wobble Forts' check
       -- gives Box2Dxt's, whose library the web engine has built in)

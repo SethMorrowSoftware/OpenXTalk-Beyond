@@ -1351,6 +1351,9 @@ on TestAChallengeReceived
    told "z", "C ABCDEFGH"
    TestAssert "a challenger the list has not seen has no name yet", st("lobby") is "asked" and \
          fieldText("Lobby Text") is "A PLAYER challenges you to a duel."
+   hears "z", "busy", "Zed", 0
+   TestAssert "and has one as soon as it says who it is", st("lobby") is "asked" and st("foe") is "Zed" and \
+         fieldText("Lobby Text") is "ZED challenges you to a duel."
    press "Decline"
    told "a", "C abc"
    told "a", "C"
