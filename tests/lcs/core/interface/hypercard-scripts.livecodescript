@@ -8213,6 +8213,9 @@ on TestHyperCardScriptsT81
          revHyperCardDoText("put number + 1 into x", "number") is "put hc_number + 1 into x"
    TestAssert "T81: text the rules cannot fix, as it is", revHyperCardDoText("get the true", empty) is "get the true"
    TestAssert "T81: empty, as it is", revHyperCardDoText(empty, empty) is empty
+   -- (an exit or a pass names the handler the do runs in, not the check's)
+   TestAssert "T81: an exit, as it is", revHyperCardDoText("exit mouseUp", empty) is "exit mouseUp"
+   TestAssert "T81: a pass, as it is", revHyperCardDoText("put 1 into x" & return & "pass mouseUp", "sound") is "put 1 into x" & return & "pass mouseUp"
 
    -- with revHyperCardFixScripts, and run: the library's hcDoText
    put "HCScriptsT81" & the milliseconds into tStack
@@ -8238,6 +8241,9 @@ on TestHyperCardScriptsT81
          "  do " & q & "put comma & it after gHCScriptsTest" & q, \
          "  put " & q & "put comma & 8 after gHCScriptsTest" & q & " into tText", \
          "  do tText", \
+         "  do " & q & "exit mouseUp" & q, \
+         "  -- (the engine ends the do's text there, not the handler)", \
+         "  put comma & 9 after gHCScriptsTest", \
          "end mouseUp")
    unlock messages
    put revHyperCardFixScripts(tStack) into tResult
@@ -8252,6 +8258,6 @@ on TestHyperCardScriptsT81
       send "mouseUp" to button "Do" of stack tStack
    catch tError
    end try
-   TestAssert "T81: the texts run as HyperCard ran them", tError is empty and gHCScriptsTest is "true,x,6,7,8"
+   TestAssert "T81: the texts run as HyperCard ran them", tError is empty and gHCScriptsTest is "true,x,6,7,8,9"
    _Close tStack
 end TestHyperCardScriptsT81

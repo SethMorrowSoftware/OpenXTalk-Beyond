@@ -670,6 +670,11 @@ does.
 function revHyperCardDoText pText, pRenamed, pStack
    local tKey, tScript, tFixed, tExternals, tHyperTalk, tWord, tSaved, tCount
    if pText is empty then return pText
+   -- An exit or a pass names the handler the do runs in, which the text
+   -- is checked outside of: "exit mouseUp" would not compile in the
+   -- check's handler and be rewritten to name it, and then not compile
+   -- in mouseUp. Such text is left as it is
+   if _ExitsHandler(pText) then return pText
    put false into tHyperTalk
    if pStack is not empty and there is a pStack then
       put _HyperTalkOrder(pStack) into tHyperTalk
@@ -733,6 +738,19 @@ function revHyperCardDoText pText, pRenamed, pStack
    put tFixed into sDoTexts[tKey]
    return tFixed
 end revHyperCardDoText
+
+-- T81: whether pText has an exit or a pass (not in a string or a
+-- comment), whose handler name is the running handler's
+private function _ExitsHandler pText
+   local tLine, tTokens, i
+   repeat for each line tLine in pText
+      put _Tokens(tLine) into tTokens
+      repeat with i = 1 to tTokens["count"]
+         if tTokens[i]["k"] is "w" and _Lower(tTokens[i]["t"]) is among the words of "exit pass" then return true
+      end repeat
+   end repeat
+   return false
+end _ExitsHandler
 
 -- T81: whether pText has a word of code (not in a string or a comment)
 -- that is one of pRenamed's names
