@@ -1,6 +1,6 @@
 script "revShareStack"
 -- OXT-Beyond: File > Share Stack..., which packs a stack for the OXT
--- Community Stacks (github.com/SethMorrowSoftware/oxt-community-stacks),
+-- Community Stacks (github.com/oxt-stacks/oxt-community-stacks),
 -- the gallery of stacks that anybody can play in a web browser.
 --
 -- Most people who make stacks do not use GitHub, and the gallery takes a

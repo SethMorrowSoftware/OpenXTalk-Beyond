@@ -17,7 +17,7 @@
 """File > Share Stack... (ide/Toolset/palettes/share/revsharestack.livecodescript
 and revIDEActionShareStack), which packs a stack for the OXT Community
 Stacks, the gallery of stacks that play in a web browser
-(github.com/SethMorrowSoftware/oxt-community-stacks). What the source can
+(github.com/oxt-stacks/oxt-community-stacks). What the source can
 show without an engine:
 
   - the window's file is there, a script-only stack with a name of the
