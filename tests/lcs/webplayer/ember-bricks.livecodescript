@@ -12,12 +12,15 @@ script "TestEmberBricks"
 -- and ebState says how things are. The buttons are pressed through
 -- ebPress, as their scripts do. A duel is played with nobody at its other
 -- end (ebTestDuel): what the game would send is read with ebDuelSent, and
--- the test says what the rival does with ebDuelReceive.
+-- the test says what the rival does with ebDuelReceive. The online lobby
+-- is played with no relay behind it (ebTestNet): what it would send is
+-- read with ebNetSent, and the test says what the other players do with
+-- ebNetHear.
 
 constant kStack = "Ember Bricks"
 constant kCard = "Game"
 
-local sSave
+local sSave, sSent
 
 on TestSetup
    local tFile
@@ -1062,6 +1065,755 @@ on TestACodeCarriesADescription
    end repeat
    TestAssert "with a character wrong, it is never taken for another description" && tBad, tBad is empty and tRefused > 50
 end TestACodeCarriesADescription
+
+----------------------------------------------------------------------
+-- The duel: its online lobby
+--
+-- The lobby is played with no relay behind it (ebTestNet): what the game
+-- would send to the relays is read with ebNetSent, and the test says what
+-- the other players do with ebNetHear, as a relay would bring it. (This
+-- engine runs with no extension: NostrXT is not here, and a test says
+-- that there is a lobby, with ebTestSet "nostr".)
+
+-- A key of the lobby's for a player: sixty-four characters, pChar first
+-- (never a number, whatever pChar is)
+private function pkOf pChar
+   local tKey
+   put pChar into tKey
+   repeat 63 times
+      put "f" after tKey
+   end repeat
+   return tKey
+end pkOf
+
+-- This player in the lobby as pName, under the key that begins with 5
+private command lobbyAs pName
+   game "ebTestSet", "rtc", "yes"
+   game "ebTestSet", "nostr", "yes"
+   game "ebTestNet", pkOf("5"), pName
+end lobbyAs
+
+-- A player (the key that begins with pChar) says "I am here": what they
+-- are doing, their name, and whether they ask who else is (1 or 0)
+private command hears pChar, pState, pName, pHello
+   game "ebNetHear", pkOf(pChar), "who", "EB|1|" & pState & "|50|" & pHello & "|" & pName
+end hears
+
+-- A word to me from that player
+private command told pChar, pText
+   game "ebNetHear", pkOf(pChar), "tell", "L1" && pText
+end told
+
+-- What the lobby sent since this was last asked, in sSent; and of it, the
+-- last words to the player whose key begins with pChar (empty for none)
+private function toldTo pChar
+   local tLine, tFound
+   put gameSays("ebNetSent") into sSent
+   repeat for each line tLine in sSent
+      if word 1 of tLine is "tell" and word 2 of tLine is pkOf(pChar) then
+         put word 3 to -1 of tLine into tFound
+      end if
+   end repeat
+   return tFound
+end toldTo
+
+private function isShown pControl
+   return the visible of control pControl of card kCard of stack kStack
+end isShown
+
+-- A description as one player's game sends it to the other's
+private function described pKind
+   return gameSays("ebDuelEncode", pKind, "v=0" & return & "s=-")
+end described
+
+on TestTheLobbyOpensOnANameWhereThereIsOne
+   game "ebTestSet", "rtc", "yes"
+   game "ebTestSet", "nostr", "yes"
+   press "Duel Open"
+   TestAssert "the lobby's first step is a name", st("lobby") is "start" and isShown("Name") and \
+         not the lockText of field "Name" of card kCard of stack kStack
+   TestAssert "one is made up for a first visit", the number of words of fieldText("Name") is 2 and st("name") is fieldText("Name")
+   TestAssert "with Go online over Play by code", isShown("Net Go") and isShown("Codes Open") and \
+         the label of button "Net Go" of card kCard of stack kStack is "GO ONLINE" and not isShown("Host") and not isShown("Join")
+   TestAssert "it says what going online shows, and to whom", "shows this name to the other players" is in fieldText("Lobby Note") and \
+         "public Nostr relays" is in fieldText("Lobby Note") and "your internet address" is in fieldText("Lobby Note")
+   TestAssert "and nothing is sent before the player says so", st("online") is false and gameSays("ebNetSent") is empty and st("pk") is empty
+   press "Codes Open"
+   TestAssert "Play by code is the swap of two codes, as it was", st("lobby") is "choose" and isShown("Host") and isShown("Join") and \
+         not isShown("Name") and not isShown("Net Go")
+   press "Lobby Back"
+   TestAssert "Back from there is the name again", st("lobby") is "start" and isShown("Name")
+   press "Lobby Back"
+   TestAssert "and from there the title", st("mode") is "title"
+end TestTheLobbyOpensOnANameWhereThereIsOne
+
+on TestGoingOnlineKeepsTheNameAndSaysWhenItCannot
+   game "ebTestSet", "rtc", "yes"
+   game "ebTestSet", "nostr", "yes"
+   -- (no relay is asked, were NostrXT here after all: nothing listens there)
+   game "ebTestSet", "relays", "ws://127.0.0.1:9"
+   press "Duel Open"
+   set the text of field "Name" of card kCard of stack kStack to "  Ada <of> the   Kiln  "
+   press "Net Go"
+   TestAssert "the name is the one typed, made plain", st("name") is "Ada of the Kiln" and fieldText("Name") is "Ada of the Kiln"
+   TestAssert "and is kept for the next visit", "name=Ada of the Kiln" is among the lines of saved()
+   -- (this engine has no NostrXT: no key can be made)
+   TestAssert "where no key can be made the lobby says so, and stays", st("lobby") is "start" and st("online") is false and \
+         fieldText("Lobby Note") is "Could not go online here. Play by code."
+   game "ebTestBegin", 7, sSave
+   TestAssert "the next visit has the name", st("name") is "Ada of the Kiln"
+   game "ebTestSet", "rtc", "yes"
+   game "ebTestSet", "nostr", "yes"
+   press "Duel Open"
+   TestAssert "in its field", fieldText("Name") is "Ada of the Kiln"
+   set the text of field "Name" of card kCard of stack kStack to "<>"
+   press "Net Go"
+   TestAssert "a name of nothing plain is one made up", the number of words of st("name") is 2 and st("name") is not "Ada of the Kiln"
+end TestGoingOnlineKeepsTheNameAndSaysWhenItCannot
+
+on TestANameIsPlainAndShort
+   local tLong
+   TestAssert "a name as typed", gameSays("ebNetName", "Ada") is "Ada"
+   TestAssert "one space at a time, and none at its ends", gameSays("ebNetName", "  Ada    of   Kiln ") is "Ada of Kiln"
+   TestAssert "nothing a page or a list could take for its own", gameSays("ebNetName", "<b>Bo</b>|x" & return & "y" & tab & "z,=" & quote) is "bBobxyz"
+   put "Abcdefghijklmnopqrstuvwxyz0123456789" into tLong
+   TestAssert "sixteen characters at most", gameSays("ebNetName", tLong) is "Abcdefghijklmnop"
+   TestAssert "with no space left at its end", gameSays("ebNetName", "Abcdefghijklmno pqrs") is "Abcdefghijklmno"
+   TestAssert "a letter with an accent stays", gameSays("ebNetName", "Zo" & numToCodepoint(235)) is "Zo" & numToCodepoint(235)
+   TestAssert "a picture does not", gameSays("ebNetName", "Zo" & numToCodepoint(128512) & "e") is "Zoe"
+   TestAssert "nothing plain is no name", gameSays("ebNetName", "<<>>") is empty and gameSays("ebNetName", empty) is empty
+end TestANameIsPlainAndShort
+
+on TestARoomsCode
+   TestAssert "six letters and numbers", gameSays("ebNetCode", "K7M2QX") is "K7M2QX"
+   TestAssert "typed small", gameSays("ebNetCode", "k7m2qx") is "K7M2QX"
+   TestAssert "with a space or a dash in it", gameSays("ebNetCode", " K7M 2QX" & return) is "K7M2QX" and gameSays("ebNetCode", "K7M-2QX") is "K7M2QX"
+   TestAssert "or the link that carries it", gameSays("ebNetCode", "https://example.org/play/?play=Ember%20Bricks&duel=K7M2QX") is "K7M2QX"
+   TestAssert "with more after it", gameSays("ebNetCode", "https://example.org/?duel=k7m2qx&x=1#top") is "K7M2QX"
+   TestAssert "five are not a code, nor seven", gameSays("ebNetCode", "K7M2Q") is empty and gameSays("ebNetCode", "K7M2QXA") is empty
+   -- (no I, O, 0 or 1: they are read for each other)
+   TestAssert "nor a letter no code has", gameSays("ebNetCode", "K7M2Q0") is empty and gameSays("ebNetCode", "K7M2QI") is empty
+   TestAssert "nor anything else", gameSays("ebNetCode", "hello!") is empty and gameSays("ebNetCode", empty) is empty and \
+         gameSays("ebNetCode", "https://example.org/?duel=") is empty
+end TestARoomsCode
+
+on TestThePlayersInTheLobby
+   local tSent
+   lobbyAs "Ada"
+   put gameSays("ebNetSent") into tSent
+   TestAssert "online, in the lobby", st("mode") is "lobby" and st("lobby") is "online" and st("online") is true and st("room") is empty
+   TestAssert "the others are told, and asked who they are", tSent is "who EB|1|free|50|1|Ada" & return
+   TestAssert "with nobody there the lobby says so", fieldText("Lobby Step") is "THE LOBBY" and isShown("Lobby Text") and \
+         fieldText("Lobby Text") begins with "No one else is here yet." and not isShown("Who 1")
+   TestAssert "and has Quick match and Play a friend", isShown("Quick") and isShown("Friend") and not isShown("Net Go") and \
+         the lockText of field "Name" of card kCard of stack kStack
+   hears "a", "free", "Bo", 1
+   hears "b", "quick", "Cy", 0
+   hears "c", "busy", "Di", 0
+   hears "d", "duel", "Ed", 0
+   step 0.1
+   TestAssert "the players, those who can be played first", st("who") is "Cy=quick|Bo=free|Di=busy|Ed=duel"
+   TestAssert "are counted", fieldText("Lobby Step") is "IN THE LOBBY: 4" and fieldText("Lobby Note") is "You are Ada. Tap a player to challenge them."
+   TestAssert "a row each, with what they are doing", the label of button "Who 1" of card kCard of stack kStack is "CY  -  QUICK MATCH" and \
+         the label of button "Who 2" of card kCard of stack kStack is "BO" and \
+         the label of button "Who 3" of card kCard of stack kStack is "DI  -  BUSY" and \
+         the label of button "Who 4" of card kCard of stack kStack is "ED  -  IN A DUEL"
+   TestAssert "and no row for nobody", isShown("Who 4") and not isShown("Who 5") and not isShown("Lobby Text")
+   -- (a relay keeps nothing: a newcomer has not heard me)
+   get gameSays("ebNetSent")
+   step 1.5
+   TestAssert "a newcomer who asks is answered", gameSays("ebNetSent") is "who EB|1|free|50|0|Ada" & return
+   press "Who 3"
+   TestAssert "a busy player is not challenged", st("lobby") is "online" and fieldText("Lobby Note") is "Di is busy." and \
+         gameSays("ebNetSent") is empty
+   press "Who 4"
+   TestAssert "nor one in a duel", st("lobby") is "online" and fieldText("Lobby Note") is "Ed is in a duel."
+   hears "a", "gone", "Bo", 0
+   step 0.1
+   TestAssert "a player who leaves is off the list", st("who") is "Cy=quick|Di=busy|Ed=duel" and fieldText("Lobby Step") is "IN THE LOBBY: 3"
+   hears "e", "free", "<i>Zed</i>|x", 0
+   hears "f", "dancing", "No", 0
+   game "ebNetHear", pkOf("g"), "who", "EB|2|free|50|0|Newer"
+   game "ebNetHear", pkOf("h"), "who", "hello there"
+   game "ebNetHear", pkOf("i"), "who", "EB|1|free|50|0|"
+   step 0.1
+   TestAssert "a stranger's name is made plain, and one with none is Player", \
+         st("who") is "Cy=quick|iZedix=free|Player=free|Di=busy|Ed=duel"
+   get gameSays("ebNetSent")
+   step 49.7
+   TestAssert "I say that I am here every twenty seconds", gameSays("ebNetSent") is "who EB|1|free|50|0|Ada" & return & "who EB|1|free|50|0|Ada" & return
+   step 1
+   TestAssert "and a player not heard for as long as they said is gone", st("who") is empty and fieldText("Lobby Step") is "THE LOBBY"
+   press "Lobby Back"
+   TestAssert "Back leaves the lobby, and says so", st("lobby") is "start" and st("online") is false and \
+         gameSays("ebNetSent") is "who EB|1|gone|50|0|Ada" & return
+   TestAssert "to the name, which can be changed again", isShown("Name") and fieldText("Name") is "Ada" and \
+         not the lockText of field "Name" of card kCard of stack kStack
+end TestThePlayersInTheLobby
+
+on TestAChallengeSentAndAccepted
+   local tTold, tId
+   lobbyAs "Ada"
+   hears "a", "free", "Bo", 0
+   step 0.1
+   get gameSays("ebNetSent")
+   press "Who 1"
+   put toldTo("a") into tTold
+   put word 2 of tTold into tId
+   TestAssert "a tap on a player challenges them", st("lobby") is "asking" and word 1 of tTold is "C" and the length of tId is 8 and \
+         the number of words of tTold is 2
+   TestAssert "the lobby says whom", fieldText("Lobby Step") is "CHALLENGING BO..." and st("foe") is "Bo" and not isShown("Who 1")
+   TestAssert "and the others see that I am busy", "who EB|1|busy|50|0|Ada" is among the lines of sSent
+   -- (their yes is their description, as the invite of the codes is)
+   told "a", "O" && tId && described("O")
+   put toldTo("a") into tTold
+   TestAssert "accepted: their description comes, and mine goes back as the answer to it", st("lobby") is "net-link" and \
+         word 1 of tTold is "A" and word 2 of tTold is tId and char 1 to 4 of word 3 of tTold is "EB1A"
+   TestAssert "a guest's", gameSays("ebDuelDecode", word 3 of tTold, "A") is "v=0" & return & "s=guest"
+   TestAssert "the lobby says that the link is being made", fieldText("Lobby Step") is "CONNECTING TO BO..."
+   -- the link opens, and the host's number for the first wall comes
+   game "ebDuelReceive", "S 4071"
+   TestAssert "the match begins", st("duel") is true and st("mode") is "play" and st("shift") is 3
+   TestAssert "against a rival with a name", fieldText("Banner Sub") is "You against Bo. Most points wins."
+   TestAssert "the lobby is told, and left", gameSays("ebNetSent") is "who EB|1|duel|210|0|Ada" & return and st("online") is false
+   game "ebTestSet", "left", 0.5
+   step 1
+   game "ebDuelReceive", "E 250"
+   TestAssert "the result names them too", st("mode") is "result" and fieldText("Result Them") is "BO   250"
+   press "Result Home"
+   -- (and online again, where that can be done: not in this engine)
+   TestAssert "leaving the match comes back to the lobby", st("mode") is "lobby" and st("lobby") is "start" and st("duel") is false
+end TestAChallengeSentAndAccepted
+
+on TestAChallengeRefusedOrNeverAnswered
+   local tTold, tId
+   lobbyAs "Ada"
+   hears "a", "free", "Bo", 0
+   hears "b", "free", "Cy", 0
+   step 0.1
+   press "Who 1"
+   put word 2 of toldTo("a") into tId
+   told "b", "D" && tId && "no"
+   told "a", "D ZZZZZZZZ no"
+   TestAssert "a no from another player, or to another challenge, is nothing", st("lobby") is "asking"
+   told "a", "D" && tId && "no"
+   TestAssert "not now", st("lobby") is "online" and fieldText("Lobby Note") is "Bo said not now."
+   TestAssert "and I can be challenged again", "who EB|1|free|50|0|Ada" is among the lines of gameSays("ebNetSent")
+   press "Who 1"
+   put word 2 of toldTo("a") into tId
+   told "a", "D" && tId && "busy"
+   TestAssert "busy", st("lobby") is "online" and fieldText("Lobby Note") is "Bo is busy."
+   press "Who 1"
+   put word 2 of toldTo("a") into tId
+   step 29
+   TestAssert "a challenge waits half a minute", st("lobby") is "asking"
+   step 2
+   TestAssert "and no longer", st("lobby") is "online" and fieldText("Lobby Note") is "Bo did not answer."
+   TestAssert "they are told it is off", toldTo("a") is "D" && tId && "cancel"
+   step 9
+   TestAssert "what the lobby said gives way to its own line", fieldText("Lobby Note") is "You are Ada. Tap a player to challenge them."
+   press "Who 1"
+   put word 2 of toldTo("a") into tId
+   press "Lobby Back"
+   TestAssert "Back takes a challenge back", st("lobby") is "online" and toldTo("a") is "D" && tId && "cancel"
+   press "Who 1"
+   put word 2 of toldTo("a") into tId
+   told "a", "O" && tId && "EB1Oz:nonsense"
+   TestAssert "a description that cannot be read ends it", st("lobby") is "online" and toldTo("a") is "D" && tId && "failed" and \
+         fieldText("Lobby Note") is "What Bo sent could not be read."
+   told "b", "O ABCDEFGH" && described("O")
+   TestAssert "and a description nobody asked for starts nothing", st("lobby") is "online" and toldTo("b") is "D ABCDEFGH busy"
+end TestAChallengeRefusedOrNeverAnswered
+
+on TestAChallengeReceived
+   local tTold
+   lobbyAs "Ada"
+   hears "a", "free", "Bo", 0
+   step 0.1
+   get gameSays("ebNetSent")
+   told "a", "C ABCDEFGH"
+   TestAssert "a challenge", st("lobby") is "asked" and fieldText("Lobby Text") is "BO challenges you to a duel." and st("foe") is "Bo"
+   TestAssert "to accept or not", isShown("Accept") and isShown("Decline") and not isShown("Lobby Back") and not isShown("Who 1")
+   TestAssert "meanwhile I am busy", gameSays("ebNetSent") is "who EB|1|busy|50|0|Ada" & return
+   told "b", "C ZZZZZZZZ"
+   TestAssert "and a second challenger is told so", st("lobby") is "asked" and st("foe") is "Bo" and toldTo("b") is "D ZZZZZZZZ busy"
+   press "Decline"
+   TestAssert "Not now says no", st("lobby") is "online" and toldTo("a") is "D ABCDEFGH no" and \
+         "who EB|1|free|50|0|Ada" is among the lines of sSent
+   told "a", "C ABCDEFGH"
+   told "a", "D ABCDEFGH cancel"
+   TestAssert "a challenge taken back", st("lobby") is "online" and fieldText("Lobby Note") is "Bo took the challenge back."
+   told "a", "C ABCDEFGH"
+   step 34
+   TestAssert "a challenge waits a little longer than its sender does", st("lobby") is "asked"
+   step 2
+   TestAssert "and then runs out", st("lobby") is "online" and fieldText("Lobby Note") is "The challenge from Bo ran out."
+   told "z", "C ABCDEFGH"
+   TestAssert "a challenger the list has not seen has no name yet", st("lobby") is "asked" and \
+         fieldText("Lobby Text") is "A PLAYER challenges you to a duel."
+   hears "z", "busy", "Zed", 0
+   TestAssert "and has one as soon as it says who it is", st("lobby") is "asked" and st("foe") is "Zed" and \
+         fieldText("Lobby Text") is "ZED challenges you to a duel."
+   press "Decline"
+   told "a", "C abc"
+   told "a", "C"
+   game "ebNetHear", pkOf("a"), "tell", "L2 C ABCDEFGH"
+   game "ebNetHear", pkOf("a"), "tell", "hello"
+   TestAssert "nonsense is no challenge", st("lobby") is "online"
+   get gameSays("ebNetSent")
+   told "a", "C ABCDEFGH"
+   press "Accept"
+   put toldTo("a") into tTold
+   TestAssert "accepted: my description goes to them, as the invite of the codes", st("lobby") is "net-link" and \
+         word 1 to 2 of tTold is "O ABCDEFGH" and char 1 to 4 of word 3 of tTold is "EB1O"
+   TestAssert "a host's", gameSays("ebDuelDecode", word 3 of tTold, "O") is "v=0" & return & "s=host"
+   told "b", "A ABCDEFGH" && described("A")
+   told "a", "A ZZZZZZZZ" && described("A")
+   TestAssert "an answer from another player, or to another challenge, is not theirs", st("lobby") is "net-link"
+   told "a", "A ABCDEFGH" && described("A")
+   -- the link opens: their game says hello, and mine, the host's, begins
+   game "ebDuelReceive", "H 1"
+   TestAssert "their answer comes, the link opens and the match begins", st("duel") is true and st("mode") is "play" and \
+         word 1 of line 1 of gameSays("ebDuelSent") is "S"
+   TestAssert "against Bo", fieldText("Banner Sub") is "You against Bo. Most points wins."
+end TestAChallengeReceived
+
+-- Some relays keep for a few minutes what they pass on, and give it to
+-- whoever asks, the newest first: ebNetHear's fourth word is how many
+-- seconds ago a message was made
+on TestWhatARelayKeptIsThePast
+   lobbyAs "Ada"
+   game "ebNetHear", pkOf("a"), "who", "EB|1|free|50|0|Bo", 400
+   step 0.1
+   TestAssert "an I am here made minutes ago lists nobody", st("who") is empty
+   game "ebNetHear", pkOf("a"), "who", "EB|1|free|50|0|Bo", 10
+   step 0.1
+   TestAssert "one made a moment ago does", st("who") is "Bo=free"
+   game "ebNetHear", pkOf("a"), "who", "EB|1|busy|50|0|Bo", 40
+   step 0.1
+   TestAssert "an older one that comes after it changes nothing", st("who") is "Bo=free"
+   game "ebNetHear", pkOf("a"), "who", "EB|1|quick|50|0|Bo", 10
+   step 0.1
+   TestAssert "one of the same second does, in the order it comes", st("who") is "Bo=quick"
+   game "ebNetHear", pkOf("a"), "who", "EB|1|gone|50|0|Bo", 5
+   game "ebNetHear", pkOf("a"), "who", "EB|1|free|50|0|Bo", 8
+   step 0.1
+   TestAssert "a player who left is not back by what was said before", st("who") is empty
+   game "ebNetHear", pkOf("a"), "who", "EB|1|free|50|0|Bo", 0
+   step 0.1
+   TestAssert "and is by what is said now", st("who") is "Bo=free"
+   game "ebNetHear", pkOf("b"), "who", "EB|1|free|50|0|Cy", -30
+   step 0.1
+   TestAssert "a player whose clock is ahead is listed too", st("who") is "Bo=free|Cy=free"
+   game "ebNetHear", pkOf("a"), "tell", "L1 C ABCDEFGH", 400
+   TestAssert "a challenge made minutes ago is no challenge", st("lobby") is "online"
+   game "ebNetHear", pkOf("a"), "tell", "L1 C ABCDEFGH", 3
+   TestAssert "one made now is", st("lobby") is "asked" and st("foe") is "Bo"
+end TestWhatARelayKeptIsThePast
+
+-- A relay that goes is asked again: in a while if another is open, soon
+-- if none is, so that a moment without the network is not the end of the
+-- lobby. The test's lobby is given relays (ebNetRelay), which the test
+-- opens and loses as NostrXT's relay library would say; ebNetLines is
+-- what the game has asked for or has open
+private command relay pUrl, pKind
+   game "ebNetRelay", pUrl, pKind
+end relay
+
+-- (of a line that broke the library says both)
+private command loses pUrl
+   game "ebNetRelay", pUrl, "error"
+   game "ebNetRelay", pUrl, "disconnected"
+end loses
+
+on TestARelayThatGoesIsAskedAgain
+   lobbyAs "Ada"
+   relay "wss://one", "dial"
+   relay "wss://two", "dial"
+   TestAssert "a relay asked for is waited for", gameSays("ebNetLines") is "wss://one wait" & return & "wss://two wait" and st("relays") is 0
+   relay "wss://one", "open"
+   relay "wss://two", "open"
+   TestAssert "and opens", gameSays("ebNetLines") is "wss://one open" & return & "wss://two open" and st("relays") is 2
+
+   loses "wss://one"
+   step 14
+   TestAssert "one of two goes: it is not asked again at once", gameSays("ebNetLines") is "wss://two open" and st("lobby") is "online"
+   step 2
+   TestAssert "but in a while", gameSays("ebNetLines") is "wss://one wait" & return & "wss://two open"
+   get gameSays("ebNetSent")
+   relay "wss://one", "open"
+   TestAssert "it opens: it is told that I am here", st("relays") is 2 and gameSays("ebNetSent") is "who EB|1|free|50|0|Ada" & return
+
+   loses "wss://one"
+   step 5
+   loses "wss://two"
+   TestAssert "both go: none is open, and the lobby is kept", st("relays") is 0 and gameSays("ebNetLines") is empty and \
+         st("lobby") is "online" and st("online") is true
+   step 2
+   TestAssert "they are not asked again at once", gameSays("ebNetLines") is empty
+   step 2
+   TestAssert "but soon, the one that went first too", gameSays("ebNetLines") is "wss://one wait" & return & "wss://two wait"
+   step 6
+   TestAssert "the lobby is kept while they are waited for", st("lobby") is "online" and st("online") is true
+   relay "wss://two", "open"
+   step 30
+   TestAssert "one answers: the lobby goes on", st("lobby") is "online" and st("online") is true and st("relays") is 1
+
+   -- (the first goes for the third time, the second for the second)
+   loses "wss://one"
+   loses "wss://two"
+   step 4
+   TestAssert "both go again: both are asked again", gameSays("ebNetLines") is "wss://one wait" & return & "wss://two wait"
+   loses "wss://one"
+   loses "wss://two"
+   step 4
+   TestAssert "a relay that went three times is asked no more", gameSays("ebNetLines") is "wss://two wait" and st("online") is true
+   loses "wss://two"
+   step 3
+   TestAssert "with none open the lobby is kept twelve seconds", st("lobby") is "online" and st("online") is true
+   step 2
+   TestAssert "and no longer: its first step says so", st("online") is false and st("lobby") is "start" and st("mode") is "lobby" and \
+         fieldText("Lobby Note") is "The lobby cannot be reached. Check your connection, or play by code."
+end TestARelayThatGoesIsAskedAgain
+
+-- A phone that slept, or a page that was hidden: its relays went
+-- meanwhile, which the game may hear before the first frame after or
+-- after it. (ebTestSlept is one frame that was so many seconds in
+-- coming.)
+on TestAPageThatSleptHasNotWaitedForARelay
+   lobbyAs "Ada"
+   relay "wss://one", "dial"
+   relay "wss://one", "open"
+   step 5
+   loses "wss://one"
+   game "ebTestSlept", 90
+   TestAssert "the relay went, and a frame comes a minute and a half later: the lobby is kept, and the relay asked again", \
+         st("online") is true and st("lobby") is "online" and gameSays("ebNetLines") is "wss://one wait"
+   step 11
+   TestAssert "it is waited for from then", st("online") is true and st("lobby") is "online"
+   relay "wss://one", "open"
+   step 5
+   TestAssert "and opens: the lobby goes on", st("online") is true and st("relays") is 1
+
+   game "ebTestSlept", 90
+   loses "wss://one"
+   step 4
+   TestAssert "the frame first, and then the relay is heard to have gone: asked again soon", \
+         st("online") is true and gameSays("ebNetLines") is "wss://one wait"
+   loses "wss://one"
+   game "ebTestSlept", 1.5
+   step 4
+   loses "wss://one"
+   step 8
+   TestAssert "a slow frame is not a sleep: the lobby is given up twelve seconds after its last relay", \
+         st("online") is false and st("lobby") is "start"
+end TestAPageThatSleptHasNotWaitedForARelay
+
+on TestARelayThatStayedIsAskedAfresh
+   local tAsked
+   lobbyAs "Ada"
+   relay "wss://one", "dial"
+   relay "wss://one", "open"
+   put 0 into tAsked
+   repeat 5 times
+      step 61
+      loses "wss://one"
+      step 4
+      if gameSays("ebNetLines") is "wss://one wait" then
+         add 1 to tAsked
+      end if
+      relay "wss://one", "open"
+   end repeat
+   TestAssert "a relay that stayed a minute each time is asked again every time it goes", tAsked is 5 and st("relays") is 1 and \
+         st("lobby") is "online"
+   lobbyAs "Ada"
+   relay "wss://one", "dial"
+   relay "wss://one", "open"
+   put 0 into tAsked
+   repeat 4 times
+      loses "wss://one"
+      step 4
+      if gameSays("ebNetLines") is "wss://one wait" then
+         add 1 to tAsked
+      end if
+      relay "wss://one", "open"
+   end repeat
+   TestAssert "one that answers and hangs up is asked three times, not for ever", tAsked is 3 and st("relays") is 0
+end TestARelayThatStayedIsAskedAfresh
+
+on TestALinkThatIsNeverMade
+   lobbyAs "Ada"
+   hears "a", "free", "Bo", 0
+   step 0.1
+   told "a", "C ABCDEFGH"
+   press "Accept"
+   get gameSays("ebNetSent")
+   step 29
+   TestAssert "a link has half a minute", st("lobby") is "net-link"
+   step 2
+   TestAssert "and with none made the lobby says why, and is the lobby again", st("lobby") is "online" and \
+         fieldText("Lobby Note") is "No link could be made with Bo. Some networks block a direct link."
+   TestAssert "where I can be challenged again", "who EB|1|free|50|0|Ada" is among the lines of gameSays("ebNetSent")
+   told "a", "C ABCDEFGH"
+   press "Accept"
+   told "a", "D ABCDEFGH cancel"
+   TestAssert "a link the other gives up", st("lobby") is "online" and fieldText("Lobby Note") is "Bo is busy."
+   told "a", "C ABCDEFGH"
+   press "Accept"
+   get gameSays("ebNetSent")
+   press "Lobby Back"
+   TestAssert "Back gives it up, and says so", st("lobby") is "online" and toldTo("a") is "D ABCDEFGH cancel"
+   told "a", "C ABCDEFGH"
+   press "Accept"
+   get gameSays("ebNetSent")
+   told "a", "A ABCDEFGH EB1Az:nonsense"
+   TestAssert "an answer that cannot be read ends it", st("lobby") is "online" and toldTo("a") is "D ABCDEFGH failed"
+end TestALinkThatIsNeverMade
+
+on TestAQuickMatch
+   local tTold, tId
+   lobbyAs "Ada"
+   get gameSays("ebNetSent")
+   press "Quick"
+   TestAssert "Quick match looks for anyone who wants one", st("lobby") is "quick" and fieldText("Lobby Step") is "LOOKING FOR A RIVAL..." and \
+         gameSays("ebNetSent") is "who EB|1|quick|50|0|Ada" & return
+   hears "a", "free", "Bo", 0
+   step 1
+   TestAssert "a player who does not is left alone", st("lobby") is "quick" and gameSays("ebNetSent") is empty
+   -- (my key begins with 5, and theirs with 1: theirs sorts first)
+   hears "1", "quick", "Cy", 0
+   step 2
+   TestAssert "of two who want a match, the one whose key sorts first sends its description: not me", st("lobby") is "quick" and \
+         gameSays("ebNetSent") is empty
+   told "1", "O QQQQQQQQ" && described("O")
+   put toldTo("1") into tTold
+   TestAssert "theirs comes, and my answer goes back", st("lobby") is "net-link" and word 1 to 2 of tTold is "A QQQQQQQQ" and st("foe") is "Cy"
+   TestAssert "meanwhile I am busy", "who EB|1|busy|50|0|Ada" is among the lines of sSent
+   told "1", "D QQQQQQQQ cancel"
+   TestAssert "when they give up, the search goes on", st("lobby") is "quick" and "who EB|1|quick|50|0|Ada" is among the lines of gameSays("ebNetSent")
+   hears "1", "gone", "Cy", 0
+   -- (and theirs begins with a: mine sorts first)
+   hears "a", "quick", "Bo", 0
+   step 1
+   put toldTo("a") into tTold
+   put word 2 of tTold into tId
+   TestAssert "with a rival whose key sorts after mine, I send mine", st("lobby") is "net-link" and word 1 of tTold is "O" and \
+         the length of tId is 8 and gameSays("ebDuelDecode", word 3 of tTold, "O") is "v=0" & return & "s=host"
+   told "a", "D" && tId && "busy"
+   TestAssert "a rival who is busy after all", st("lobby") is "quick"
+   get gameSays("ebNetSent")
+   step 6
+   TestAssert "is left alone for a while", st("lobby") is "quick" and toldTo("a") is empty
+   step 3
+   put toldTo("a") into tTold
+   TestAssert "and then asked again", st("lobby") is "net-link" and word 1 of tTold is "O"
+   told "a", "A" && word 2 of tTold && described("A")
+   game "ebDuelReceive", "H 1"
+   TestAssert "their answer, the link, and the match", st("duel") is true and fieldText("Banner Sub") is "You against Bo. Most points wins."
+end TestAQuickMatch
+
+on TestAQuickMatchIsLeftByBack
+   lobbyAs "Ada"
+   press "Quick"
+   get gameSays("ebNetSent")
+   press "Lobby Back"
+   TestAssert "Back from a quick match is the lobby's list", st("lobby") is "online" and gameSays("ebNetSent") is "who EB|1|free|50|0|Ada" & return
+   hears "a", "quick", "Bo", 0
+   step 1
+   TestAssert "where nobody is matched by chance", st("lobby") is "online" and st("who") is "Bo=quick"
+   get gameSays("ebNetSent")
+   press "Who 1"
+   TestAssert "a tap on a player who wants a quick match is the match", st("lobby") is "net-link" and word 1 of toldTo("a") is "O"
+end TestAQuickMatchIsLeftByBack
+
+on TestARoomForAFriend
+   local tCode, tTold
+   lobbyAs "Ada"
+   hears "a", "free", "Bo", 0
+   step 0.1
+   get gameSays("ebNetSent")
+   press "Friend"
+   put st("room") into tCode
+   TestAssert "Play a friend makes a room", st("lobby") is "room" and the length of tCode is 6 and gameSays("ebNetCode", tCode) is tCode
+   -- (in a page it is the link with the code in it that is sent)
+   TestAssert "with its code to send", fieldText("Lobby Step") is "YOUR ROOM" and fieldText("Code") is tCode and isShown("Code Copy") and \
+         the lockText of field "Code" of card kCard of stack kStack and \
+         word -1 of the label of button "Code Copy" of card kCard of stack kStack is among the items of "CODE,LINK"
+   TestAssert "the lobby is left for it, and the room asked who is there", gameSays("ebNetSent") is "who EB|1|gone|50|0|Ada" & return & \
+         "who EB|1|quick|50|1|Ada" & return
+   TestAssert "nobody of the lobby is in the room", st("who") is empty
+   -- (the friend's key begins with a: mine sorts first)
+   hears "a", "quick", "Bo", 1
+   step 1
+   put toldTo("a") into tTold
+   TestAssert "the friend arrives, and the link is made at once", st("lobby") is "net-link" and word 1 of tTold is "O" and st("foe") is "Bo"
+   told "a", "D" && word 2 of tTold && "failed"
+   TestAssert "a link that fails comes back to the room", st("lobby") is "room" and fieldText("Code") is tCode
+   press "Lobby Back"
+   TestAssert "Back from the room is the lobby", st("lobby") is "online" and st("room") is empty and \
+         "who EB|1|free|50|1|Ada" is among the lines of gameSays("ebNetSent")
+end TestARoomForAFriend
+
+on TestAFriendsRoomByItsCode
+   local tTold
+   lobbyAs "Ada"
+   press "Friend"
+   press "Code Go"
+   TestAssert "I have a code: a place to type it", st("lobby") is "room-take" and fieldText("Lobby Step") is "A FRIEND'S ROOM" and \
+         fieldText("Code") is empty and not the lockText of field "Code" of card kCard of stack kStack and isShown("Code Paste")
+   game "ebPasted", "hello"
+   TestAssert "what is no code is refused", st("lobby") is "room-take" and fieldText("Lobby Note") begins with "That is not a room's code"
+   get gameSays("ebNetSent")
+   game "ebPasted", "https://example.org/play/?play=Ember%20Bricks&duel=k7m2qx"
+   TestAssert "a code, or the link with it, is the friend's room", st("lobby") is "room-in" and st("room") is "K7M2QX" and \
+         fieldText("Lobby Step") is "ROOM K7M2QX"
+   TestAssert "my own room is left for it", "who EB|1|quick|50|1|Ada" is among the lines of gameSays("ebNetSent")
+   -- (the friend's key begins with 1: theirs sorts first, and theirs comes)
+   hears "1", "quick", "Bo", 0
+   step 1
+   told "1", "O QQQQQQQQ" && described("O")
+   put toldTo("1") into tTold
+   TestAssert "the friend's description comes, and my answer goes back", st("lobby") is "net-link" and word 1 to 2 of tTold is "A QQQQQQQQ"
+   told "1", "D QQQQQQQQ failed"
+   TestAssert "a link that fails comes back to the room", st("lobby") is "room-in" and st("room") is "K7M2QX"
+   told "z", "O ZZZZZZZZ" && described("O")
+   TestAssert "a description from one who is not in the room starts nothing", st("lobby") is "room-in" and toldTo("z") is "D ZZZZZZZZ busy"
+   press "Lobby Back"
+   TestAssert "Back is the lobby", st("lobby") is "online" and st("room") is empty
+end TestAFriendsRoomByItsCode
+
+on TestAFriendsLink
+   game "ebTestSet", "rtc", "yes"
+   game "ebTestSet", "nostr", "yes"
+   game "ebTestSet", "invite", "https://example.org/play/?play=Ember%20Bricks&duel=K7M2QX"
+   press "Duel Open"
+   TestAssert "a page opened by a friend's link says so", st("lobby") is "start" and st("invite") is "K7M2QX" and \
+         fieldText("Lobby Text") begins with "A friend waits for you in room K7M2QX." and \
+         the label of button "Net Go" of card kCard of stack kStack is "JOIN YOUR FRIEND"
+   -- (online: the first relay to open is the friend's room)
+   game "ebTestNet", pkOf("5"), "Ada"
+   TestAssert "online is the friend's room", st("lobby") is "room-in" and st("room") is "K7M2QX" and \
+         gameSays("ebNetSent") is "who EB|1|quick|50|1|Ada" & return
+   hears "1", "quick", "Bo", 0
+   told "1", "O QQQQQQQQ" && described("O")
+   game "ebDuelReceive", "S 7"
+   TestAssert "and the match with them", st("duel") is true and fieldText("Banner Sub") is "You against Bo. Most points wins."
+   TestAssert "the link has done its work", st("invite") is empty
+end TestAFriendsLink
+
+-- The lobby's panel on the window, its buttons on the window, big enough
+-- to tap and apart, and its words whole, off the buttons and each other
+private command checkLobby pAt
+   local tCard, tGroup, tBad, tRects, tRect, tName, tField, tLines, i, j, tPanel
+   put the rect of card kCard of stack kStack into tCard
+   put the long id of group "Lobby" of card kCard of stack kStack into tGroup
+   put the rect of graphic "Lobby Glass" of tGroup into tPanel
+   if not isInside(tPanel, tCard) then
+      put "its panel off the window;" after tBad
+   end if
+   repeat with i = 1 to the number of buttons of tGroup
+      put the short name of button i of tGroup into tName
+      if the visible of button i of tGroup then
+         put the rect of button i of tGroup into tRect
+         if not isInside(tRect, tPanel) then
+            put tName && "off the panel;" after tBad
+         end if
+         if item 4 of tRect - item 2 of tRect < 28 or item 3 of tRect - item 1 of tRect < 28 then
+            put tName && "too small to tap;" after tBad
+         end if
+         if the rect of graphic (tName && "Shape") of tGroup is not tRect or not the visible of graphic (tName && "Shape") of tGroup then
+            put tName && "is not on its shape;" after tBad
+         end if
+         if the formattedWidth of button i of tGroup > item 3 of tRect - item 1 of tRect then
+            put tName && "is narrower than its words;" after tBad
+         end if
+         put tName & tab & tRect & return after tRects
+      end if
+   end repeat
+   repeat with i = 1 to the number of fields of tGroup
+      put the long id of field i of tGroup into tField
+      put the short name of tField into tName
+      if the visible of tField then
+         put the rect of tField into tRect
+         if not isInside(tRect, tPanel) then
+            put tName && "off the panel;" after tBad
+         end if
+         put the number of lines of the formattedText of tField into tLines
+         if the height of tField < tLines * the effective textHeight of tField then
+            put tName && "is shorter than its" && tLines && "lines;" after tBad
+         end if
+         if the dontWrap of tField and the formattedWidth of tField > the width of tField then
+            put tName && "is narrower than its words;" after tBad
+         end if
+         put tName & tab & tRect & return after tRects
+      end if
+   end repeat
+   set the itemDelimiter to tab
+   repeat with i = 1 to the number of lines of tRects
+      repeat with j = i + 1 to the number of lines of tRects
+         if overlap(item 2 of line i of tRects, item 2 of line j of tRects) then
+            put item 1 of line i of tRects && "on" && item 1 of line j of tRects & ";" after tBad
+         end if
+      end repeat
+   end repeat
+   set the itemDelimiter to comma
+   TestAssert pAt && "has its buttons and its words on the panel, apart" && tBad, tBad is empty and tRects is not empty
+end checkLobby
+
+on TestTheLobbyFitsAPhoneAndAWindow
+   local tSize, tWidth, tAt, i
+   repeat for each item tSize in "390x760,320x480,430x932,844x390,568x320,900x640,768x1024,1920x1080"
+      set the itemDelimiter to "x"
+      put item 1 of tSize into tWidth
+      windowSize tWidth, item 2 of tSize
+      set the itemDelimiter to comma
+      if the width of stack kStack is not tWidth then
+         TestSkip "the lobby at" && tSize, "the window could not be made that size here"
+         next repeat
+      end if
+      put "the lobby at" && tSize & ":" into tAt
+      game "ebTestSet", "rtc", "yes"
+      game "ebTestSet", "nostr", "yes"
+      game "ebGoTitle"
+      press "Duel Open"
+      checkLobby tAt && "the name"
+      game "ebTestSet", "invite", "K7M2QX"
+      press "Lobby Back"
+      press "Duel Open"
+      checkLobby tAt && "the name, for a friend's link"
+      game "ebTestSet", "invite", empty
+      press "Codes Open"
+      checkLobby tAt && "play by code"
+      lobbyAs "Ada of the Kilns"
+      checkLobby tAt && "nobody there"
+      repeat with i = 1 to 7
+         hears char i of "abcdefg", item i of "quick,busy,busy,duel,duel,duel,free", "Wwwwwwwwwwww W" & i, 0
+      end repeat
+      step 0.1
+      checkLobby tAt && "the players"
+      TestAssert tAt && "the players: as many rows as there is room for", isShown("Who 3") and st("who") is not empty
+      press "Who 3"
+      checkLobby tAt && "a line about a player"
+      press "Quick"
+      checkLobby tAt && "a quick match"
+      press "Lobby Back"
+      press "Friend"
+      checkLobby tAt && "a room"
+      press "Code Go"
+      checkLobby tAt && "a friend's code"
+      game "ebPasted", "hello"
+      checkLobby tAt && "a code refused"
+      press "Lobby Back"
+      told "a", "C ABCDEFGH"
+      checkLobby tAt && "a challenge"
+      press "Accept"
+      checkLobby tAt && "a link being made"
+      press "Lobby Back"
+      press "Lobby Back"
+      press "Lobby Back"
+      TestAssert tAt && "and out", st("mode") is "title"
+   end repeat
+end TestTheLobbyFitsAPhoneAndAWindow
 
 ----------------------------------------------------------------------
 -- The duel: a match

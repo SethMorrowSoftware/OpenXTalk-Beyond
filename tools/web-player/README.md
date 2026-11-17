@@ -612,21 +612,58 @@ their own.
 The two are linked directly, over a WebRTC data channel made by
 DataChannelXT (the xTalk Suite's; the web engine has it over the
 browser's own RTCPeerConnection), so there is no game server and nothing
-to sign in to. Making the link takes two codes, sent by any chat or mail:
-the host's game makes an invite code and the host sends it; the other
-player pastes it into their game, which makes an answer code to send
-back; the host pastes that, and the match begins. A code is a WebRTC
-session description, compressed and written in letters and digits. The
-answer has to reach the host within about a minute of being made (after
-that the answerer's side gives up, and the two start again). Each game
-asks a public STUN server (`stun.l.google.com:19302`) what its address on
-the internet is, so that the two find each other through home routers;
-nothing of a match goes through that server, and two players behind
-strict company or mobile networks may not be able to link at all, since
-no relay (TURN) server is used. The duel plays wherever DataChannelXT is:
-in a browser (the Stack Player, a web standalone that includes it) and in
-OXT-Beyond on a desktop. The Android engine has no DataChannelXT yet, so
-there the game says that this build cannot make the link.
+to sign in to. Before a link can be made each game has to tell the other
+where it is, and there are two ways to.
+
+**The lobby** is the one the duel opens on. A player gives a name (the
+game makes one up to begin with, and keeps the one given between visits)
+and goes online, and sees who else is there: a tap on a player challenges
+them, and their ACCEPT begins the match. QUICK MATCH pairs the first two
+players who ask for one. PLAY A FRIEND makes a room with a code of six
+letters and a link to send, the page's own address ending in `?duel=` and
+the code: a friend who opens the link, or types the code, is matched with
+the room's maker and nobody else. A match over, both are back in the
+lobby. The lobby has no server of the game's either. The players meet on
+public Nostr relays (`wss://nos.lol`, `wss://relay.damus.io` and
+`wss://nostr.mom`, which are xTalk Chat's; a stack's `cRelays` property
+names others), through NostrXT and its relay library. Each game has a key
+made for the visit, and sends two kinds of small signed message, both of
+the ephemeral kinds, which a relay passes on and is not meant to keep
+(some hold them a few minutes): one says "I am here" to the room, with
+the name and what the player is doing, and the other carries a challenge
+or a WebRTC session description to one player, sealed so that only that
+player reads it (NIP-44). So the other players see the
+name a player gave, and the relays see that and the internet address it
+came from, as any web site does. The step before going online says so,
+nothing is sent until the player goes online, and while a match is played
+the game is off the relays. What comes from them is read as a stranger's:
+a name is cut to sixteen plain characters, and a description is checked
+as a code is.
+
+**PLAY BY CODE**, on the lobby's first step, is the swap of two codes,
+sent by any chat or mail, for a player who wants no lobby and wherever
+there is none: the host's game makes an invite code and the host sends
+it; the other player pastes it into their game, which makes an answer
+code to send back; the host pastes that, and the match begins. A code is
+a WebRTC session description, compressed and written in letters and
+digits. The answer has to reach the host within about a minute of being
+made (after that the answerer's side gives up, and the two start again),
+which two people passing codes by hand often miss; the lobby carries the
+same two descriptions in a second or two.
+
+However the two met, each game asks a public STUN server
+(`stun.l.google.com:19302`) what its address on the internet is, so that
+the two find each other through home routers; nothing of a match goes
+through that server, and two players behind strict company or mobile
+networks may not be able to link at all, since no relay (TURN) server is
+used. The duel plays wherever DataChannelXT is: in a browser (the Stack
+Player, the web IDE, a web standalone that includes it) and in OXT-Beyond
+on a desktop. The lobby is there wherever NostrXT is too, which is the
+same places (a web standalone needs NostrXT with its relay library,
+CoinXT and SodiumXT among its inclusions beside DataChannelXT); without
+it the duel opens on the two codes, as it did before there was a lobby.
+The Android engine has no DataChannelXT yet, so there the game says that
+this build cannot make the link.
 
 How it is made, for anyone making a game like it: one card and no
 pictures. Every brick, ball, spark and bolt is a graphic from a fixed set
@@ -642,6 +679,29 @@ on a channel that does not resend what is lost (the next line makes the
 last one old), and the few lines that must arrive (the start, trouble,
 the last score, a rematch) on one that does. A line the game cannot read
 is nothing to it.
+
+The lobby is a pattern for any game of two, in the script's section "The
+online lobby": a room is a tag (`t`) that everyone in it asks the relays
+for; "I am here" is an event of an ephemeral kind, said again every
+twenty seconds and forgotten after fifty; a word to one player is tagged
+with that player's key (`p`) and sealed. A relay that holds such events
+for a while gives them to whoever asks, so the game asks for none that
+is kept (`limit` 0) and takes for news nothing made more than two
+minutes ago, nor a player's older "I am here" after a newer one. And
+every message carries its count as a tag: an event is known by its
+words and the second it was made in, and a relay passes on only the
+first of two it takes for the same. A relay that goes is asked again:
+after fifteen seconds while another is open, after three when none is,
+since a lobby with no relay open is given up after twelve; three times,
+counted afresh once a relay has stayed a minute. (A phone that slept
+lost its relays meanwhile: the time asleep is not counted as waiting.)
+NostrXT's relay library tells the top stack what a relay says, or the
+one object that asked for everything (`nxrInit`), which another stack's
+chat may be. So the game asks for nothing: it names a callback of its
+own to each relay it opens (`nxrSetCallback`) and hears it through a
+hidden button whose script is at the back of the message path while the
+game is online. It works whichever stack is on top, takes nothing from
+xTalk Chat, and closes only the relays it opened.
 
 Its font is Atkinson Hyperlegible, by the Braille Institute, under the
 SIL Open Font License: the same two files as Puzzle Almanac's. Its sounds
@@ -661,17 +721,30 @@ OXT-Beyond engine:
 engine with the clock in the test's hands: every screen and setting, the
 ball off the walls and the paddle, each kind of brick, the heat, every
 spark, lives and levels, what is kept between visits, the layout at
-phone, tablet and desktop sizes, the lobby's steps, the codes, and a
-whole duel with nobody at its other end (what the game would send is
-read, and the test says what the rival does). `tools/ci/tests/test_ember_bricks.py`
-holds the stack to its files, the levels to their rules and the checks to
-the game. `tools/ci/ember_bricks_check.py` builds a standalone with
-DataChannelXT's module and plays it on emulated phones (Pixel 7 and
-iPhone 13, in Chromium and WebKit) with real touches; then, in Chromium,
-it plays a duel between two pages over a real WebRTC link: the invite
-and the answer by the clipboard, clocks in step, each other's scores, the
-result, a rematch and one player leaving. CI runs it in web.yml, after
-Puzzle Almanac's check. To run it yourself:
+phone, tablet and desktop sizes, the lobby's steps, the codes, a whole
+duel with nobody at its other end (what the game would send is read, and
+the test says what the rival does), and the online lobby with no relay
+(the test is the other players: it says what they send, and reads what
+the game would send them). `tools/ci/tests/test_ember_bricks.py` holds
+the stack to its files, the levels to their rules, the lobby to what is
+said of it here and the checks to the game.
+`tools/ci/ember_bricks_check.py` builds a standalone with the xTalk
+Suite's modules and script libraries that the game uses, and plays it on
+emulated phones (Pixel 7 and iPhone 13, in Chromium and WebKit) with real
+touches. Then, in Chromium, it plays a duel between two pages over a real
+WebRTC link made by the two codes: the invite and the answer by the
+clipboard, clocks in step, each other's scores, the result, a rematch and
+one player leaving. And then the lobby, between three pages (a desktop's
+window and two phones) on a Nostr relay of its own on 127.0.0.1
+(`tools/ci/nostr_test_relay.py`, told to keep what it passes on for five
+minutes, as some public relays do): going online by a typed name, each
+page's list of the others, a challenge accepted and played over a real
+link, the third page seeing the two in a duel, the lobby again after the
+match, the relay hanging up on all three and each back on it by itself,
+a quick match, and a friend's room joined by the link that was copied.
+No check goes to the public relays, which CI must neither lean on nor
+write to. CI runs it in web.yml, after Puzzle Almanac's check. To run it
+yourself:
 
 ```sh
 python3 tools/ci/ember_bricks_check.py --runtime <web runtime> --engine-cache <folder> --shots <folder>

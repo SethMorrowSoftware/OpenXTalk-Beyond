@@ -23,6 +23,28 @@ on hcDoMenu pItem, pMenu, pWithout
    return the result
 end hcDoMenu
 
+-- The text a "do" runs (rule T81 puts each do's text through this): as it
+-- is when it compiles, else with the rules of a script that the import
+-- applied to the stack's scripts, as HyperCard ran a do's text with a
+-- script's rules ("do "set the icon of bg btn sound to" && x", where
+-- "sound" is a word this engine reserves). pRenamed: the variables of
+-- the handler the do is in that the import renamed. Where the IDE's
+-- script library is not there (a standalone), the text is as it is
+function hcDoText pText, pRenamed
+   local tText, tStack
+   try
+      put the long id of stack (the mainStack of me) into tStack
+   catch tText
+      put empty into tStack
+   end try
+   try
+      put revHyperCardDoText(pText, pRenamed, tStack) into tText
+   catch tText
+      return pText
+   end try
+   return tText
+end hcDoText
+
 -- HyperCard's menu items, by the names HyperCard gave them, with or
 -- without their "...", in any case: what a doMenu that no handler of the
 -- stack takes does. hcDoMenu calls this; in a stack with HyperCard's
@@ -7808,3 +7830,518 @@ private function _HCJavaScriptString pText
    replace numToCodepoint(13) with "\r" in pText
    return quote & pText & quote
 end _HCJavaScriptString
+
+----------------------------------------------------------------------
+-- More of the externals the corpus's stacks call: the ones that 5 to 14
+-- of its 2,202 stacks call from their own scripts, among those that
+-- carry them, and that had nothing here but the stand-in the import
+-- makes (an XFCN's gives empty, an XCMD's does nothing). Each is
+-- written from the way those stacks call it and read what it gives;
+-- the forms they do not use may differ from the external's
+
+-- Switch(text) (14 stacks; hcX_Switch after the import, rule T13, since
+-- switch is a keyword here), Frederic Rinaldi's XFCN: the text's lines
+-- as items, or, where it has no line breaks, its items as lines. Stacks
+-- turn a record's items into a field's lines to show it ("put
+-- switch(Temp) into cd fld 4" after GetFInfo, MacType or CurrPrinter)
+-- and a field's lines into a row of items (a gradebook's "put switch
+-- (theList) into theList" before it adds the row). A return at the end
+-- ends the last line, and makes no empty item after it
+function hcX_Switch pText
+   if return is in pText then
+      if char -1 of pText is return then delete char -1 of pText
+      replace return with comma in pText
+   else
+      replace comma with return in pText
+   end if
+   return pText
+end hcX_Switch
+
+-- FindInField(text, string[, caseSensitive[, start]]) (9 stacks),
+-- Frederic Rinaldi's XFCN: where the string first is in the text (a
+-- field's, which the call names), as "char,line,word,item": the number
+-- of the character it starts at and of the line, word and item that
+-- character is in, or "0,0,0,0" where it is not there. Stacks read the
+-- line ("item 2 of findInField(card field 1, lastItem, "false", 0)",
+-- SpokeLength) and the item ("item (item 4 of fndcod) of cod1" after
+-- "if item 1 of fndcod <> 0", DNA Translator). The case of a letter
+-- counts only when the third parameter is true, as HyperCard's own
+-- find; the fourth is the number of characters left out at the start
+-- of the text (0, the default, none)
+function FindInField pText, pString, pCaseSensitive, pStart
+   local tAt, tBefore
+   if pString is empty then return "0,0,0,0"
+   set the caseSensitive to (pCaseSensitive is true)
+   if pStart is not an integer or pStart < 0 then put 0 into pStart
+   put offset(pString, pText, pStart) into tAt
+   if tAt is 0 then return "0,0,0,0"
+   add pStart to tAt
+   put char 1 to tAt of pText into tBefore
+   return tAt & comma & the number of lines of tBefore & comma & the number of words of tBefore & comma & the number of items of tBefore
+end FindInField
+
+-- FolderPath([prompt[, "noDialog:" & global]]) (8 stacks), the XFCN of
+-- Apple's Support Tools eXternals: the path of a folder the user picks
+-- (the prompt above the dialog), or empty if they cancel. It ends with
+-- the folder separator, as the external's Mac path ended with a colon,
+-- since stacks add a file's name to it ("put FullPathName & tName"). "?"
+-- gives its syntax and "!" its credits, as each external of Support
+-- Tools did. A folder's name and a number (a volume, "FolderPath("Apple
+-- Menu Items", 0)", StackTools) give that folder of the System Folder,
+-- as FindFolder names them
+function FolderPath pPrompt, pOption
+   local tNames, tTypes
+   put word 1 to -1 of pPrompt into pPrompt
+   if pPrompt is "?" then return "FolderPath([prompt][," && quote & "noDialog:" & quote && "& errorGlobal])"
+   if pPrompt is "!" then return "FolderPath: OXT-Beyond's stand-in for the XFCN of Apple's Support Tools eXternals"
+   if pOption is a number then
+      put "System Folder,Desktop Folder,Trash,Temporary Items,Apple Menu Items,Control Panels,Extensions,Fonts,Startup Items,PrintMonitor Documents,Preferences,Shutdown Items" into tNames
+      put "macs,desk,trsh,temp,amnu,ctrl,extn,font,strt,prnt,pref,shdf" into tTypes
+      if pPrompt is among the items of tNames then return FindFolder(item itemOffset(pPrompt, tNames) of tTypes)
+      return "Error : Folder not found"
+   end if
+   if pPrompt is empty then put "Choose a folder:" into pPrompt
+   answer folder pPrompt
+   if the result is "Cancel" or it is empty then return empty
+   if char -1 of it is not slash then put slash after it
+   return it
+end FolderPath
+
+-- FullSFPack(mode[, ...]) (8 stacks), Frederic Rinaldi's XFCN: Standard
+-- File's dialogs. The mode is a word whose first letter says which: P
+-- ("Put") the save dialog, F ("Folder") a folder, M several files (one
+-- a line), anything else (G, "Get", Q, a button's name) a file to open.
+-- After it come file types, of four characters, which every file here
+-- passes, and the prompt, the first parameter longer than four
+-- characters ("FullSFPack(P,,,"Name your new PICT file:", "Untitled")",
+-- "FullSFPack("m","Select PICT files to print :","PICT")"), then the
+-- save dialog's name. Empty if the user cancels; a folder's path ends
+-- with the folder separator, as FolderPath's
+function FullSFPack pMode
+   local tKind, tPrompt, tDefault, tParam, i
+   put toUpper(char 1 of word 1 to -1 of pMode) into tKind
+   repeat with i = 2 to the paramCount
+      put param(i) into tParam
+      if tPrompt is empty and the number of chars of tParam > 4 then
+         put tParam into tPrompt
+      else if tPrompt is not empty and tDefault is empty then
+         put tParam into tDefault
+      end if
+   end repeat
+   switch tKind
+      case "P"
+         if tPrompt is empty then put "Save as:" into tPrompt
+         ask file tPrompt with tDefault
+         break
+      case "F"
+         if tPrompt is empty then put "Choose a folder:" into tPrompt
+         answer folder tPrompt
+         if the result is not "Cancel" and it is not empty and char -1 of it is not slash then put slash after it
+         break
+      case "M"
+         if tPrompt is empty then put "Choose files:" into tPrompt
+         answer files tPrompt
+         break
+      default
+         if tPrompt is empty then put "Choose a file:" into tPrompt
+         answer file tPrompt
+         break
+   end switch
+   if the result is "Cancel" then return empty
+   return it
+end FullSFPack
+
+-- SubLaunch(application[, document]) (8 stacks), the XFCN of the
+-- Developer Stack: opens the application (with the document), and gives
+-- 0, or the Mac's error -43 (file not found) where it could not be
+-- opened, which the stacks show ("if launchResult < 0 then osErr
+-- launchResult"; Turbo Help: "if it is not 0 then answer "SubLaunch
+-- returned error" && it"). The application is a path here, of a file or
+-- (a Mac application) a folder; a Mac application's name alone, as these
+-- stacks give it ("Turbo 1.1"), names none, and is -43. HyperCard went on
+-- when the application quit; here it goes on at once, as with open
+function SubLaunch pApplication, pDocument
+   local tError
+   -- (launch reports no missing program everywhere: on Linux it gives
+   -- empty for a path that is not there)
+   if pApplication is empty then return -43
+   if there is not a file pApplication and there is not a folder pApplication then return -43
+   try
+      if pDocument is empty then
+         launch pApplication
+      else
+         launch pDocument with pApplication
+      end if
+   catch tError
+      return -43
+   end try
+   if the result is not empty then return -43
+   return 0
+end SubLaunch
+
+-- ClipInfo([type]) (7 stacks), Frederic Rinaldi's XFCN: the types of
+-- what is on the clipboard, separated by commas, a picture's "PICT"
+-- first ("get ClipInfo()" must give "PICT" once DeltaGraph made the
+-- chart, HyperCharter), or empty when it is empty; with a type, the size
+-- of what there is of it, empty where there is none ("if
+-- ClipInfo("PICT") <> "" then picture "Clipboard", clipboard", Sokoban)
+function ClipInfo pType
+   local tTypes, tData
+   if the clipboardData["image"] is not empty then
+      put "PICT" into tTypes
+      put the clipboardData["image"] into tData["PICT"]
+   end if
+   if the clipboardData["text"] is not empty then
+      if tTypes is not empty then put comma after tTypes
+      put "TEXT" after tTypes
+      put the clipboardData["text"] into tData["TEXT"]
+   end if
+   if pType is empty then return tTypes
+   put toUpper(pType) into pType
+   if pType is not among the items of tTypes then return empty
+   if pType is "TEXT" then return the number of chars of tData[pType]
+   return the number of bytes of tData[pType]
+end ClipInfo
+
+-- GetBootVol() (6 stacks), Frederic Rinaldi's XFCN: the name of the
+-- disk the Mac started from, where its System Folder is: HyperCard's
+-- disk, as SystemPath and SysEnvirons name it
+function GetBootVol
+   set the itemDelimiter to colon
+   return item 1 of hcHyperCardName("long")
+end GetBootVol
+
+-- ChangeCurs cursor (5 stacks), the XCMD: sets the cursor, as set cursor
+-- does (hcCursor: HyperCard's names and numbers, and the stack's own
+-- cursors, "ChangeCurs 128", Fastball Fractions). A cursor that is not
+-- here leaves the cursor as it is
+on ChangeCurs pCursor
+   local tCursor, tError
+   put hcCursor(word 1 to -1 of pCursor) into tCursor
+   if tCursor is empty then return empty
+   try
+      set the cursor to tCursor
+   catch tError
+   end try
+   return empty
+end ChangeCurs
+
+-- IsFinderLocked(file) (6 stacks), Frederic Rinaldi's XFCN: whether the
+-- Finder's lock is set on the file (a name alone, in the stack's
+-- folder). No file here has that lock, a Mac file's own, so it is false
+-- for a file or folder that is there; "Error : File not found" where
+-- there is none, which a stack that checks for its errors takes for a
+-- locked file, as it took the external's (merryxmas Vaccine)
+function IsFinderLocked pPath
+   if pPath is empty then return "Error : Missing or empty parameter"
+   put _HCBesideStack(pPath) into pPath
+   if there is a file pPath or there is a folder pPath then return false
+   return "Error : File not found"
+end IsFinderLocked
+
+-- Resources([type][, file]) (13 stacks), Apple's XFCN (Steve Maller's):
+-- the names of the resources of a type, one a line, or of every type
+-- without one: the fonts there are for "FONT", "FOND" and "NFNT"
+-- (HyperKeyCaps, Stack Starter), the stack's sounds, which play names,
+-- for "snd ", and else those of the stack's resource fork, from the
+-- import's list of it. The file, or a path alone as the first parameter
+-- (Color Tools: "if "Time Stamp" is in resources(pathname)"), is this
+-- stack's when its name is the stack's file's, else one not read here:
+-- empty
+function Resources pType, pFile
+   local tSet, tLine, tList
+   if pFile is empty and the number of chars of pType > 4 then
+      put pType into pFile
+      put empty into pType
+   end if
+   if pFile is not empty and not _HCIsThisStacksFile(pFile) then return empty
+   if pType is among the words of "FONT FOND NFNT" then return the fontNames
+   if pType is "snd " then return _HCAvailable("sounds")
+   if pType is not empty then return _HCAvailable(pType)
+   put the customProperties["uHyperCard"] of me into tSet
+   set the itemDelimiter to tab
+   repeat for each line tLine in tSet["resources"]
+      if item 4 of tLine is not empty then put item 4 of tLine & return after tList
+   end repeat
+   delete the last char of tList
+   return tList
+end Resources
+
+-- Whether a path (a Mac path with colons, or a path here) names this
+-- stack's file: the stack's file now, or the one it was imported from,
+-- by the last part of each
+private function _HCIsThisStacksFile pPath
+   local tSet, tName
+   put _HCLastPart(pPath) into tName
+   if tName is empty then return false
+   if tName is _HCLastPart(the effective filename of me) then return true
+   put the customProperties["uHyperCard"] of me into tSet
+   if tName is _HCLastPart(tSet["file"]) then return true
+   if tName is _HCLastPart(tSet["imagepath"]) then return true
+   return tName is the short name of me
+end _HCIsThisStacksFile
+
+/*
+Harry Chesley's TCP externals for MacTCP (Apple, 1989), which 14 stacks
+of the corpus call: HyperFTP, HyperFinger, Stacked News, TCP NewsTalk,
+Mews, EMBL E-Mail Search and others that talk to an Internet host. Here
+they use this engine's sockets.
+
+TCPNameToAddr(host) gives the host's address; TCPActiveOpen(address,
+port, local port) opens a connection to it and gives its number, which
+the others take; TCPSend sends text over it; TCPRecvUpTo(connection,
+terminator, seconds, text so far) gives the text so far and what came
+in up to the terminator, waiting the seconds for it (0: what is there
+now; an empty terminator: all there is); TCPCharsAvailable and
+TCPRecvChars(connection, count) the same by count; TCPState the
+connection's state ("established" while it is open; "opening" while it
+is being opened; "close wait" once the host has closed it and all it
+sent has been read; "closed" once the stack closed it); TCPClose closes
+it, and TCPRelease closes it and forgets it.
+
+As the externals did, each gives an error as text that starts with a
+section sign, numToCodepoint(167) ("if char 1 of it is "<section
+sign>" then", in every one of these stacks), and a
+connection that could not be opened is a text with "failed" in it ("if
+connID contains "fail""). TCPPassiveOpen, a connection the host opens
+to the Mac (an FTP transfer's data, with TCPGetAddr's address), is not
+offered: this library does not listen for a stranger's connection on a
+stack's behalf. It says so as a failure, which the stacks show and stop
+at.
+
+The socket's messages come back to this library (socketClosed,
+socketError and socketTimeout pass on a socket it did not open). A
+stack that waits ("repeat until TCPState(dataID) is "established"")
+gets them while it waits, since each of these waits with messages.
+*/
+local sHCTCP, sHCTCPLast
+
+function TCPNameToAddr pHost
+   local tAddress
+   put word 1 to -1 of pHost into pHost
+   if pHost is empty then return _HCTCPError("No host name")
+   put line 1 of hostNameToAddress(pHost) into tAddress
+   if tAddress is empty then return _HCTCPError("Can't find the address of" && pHost)
+   return tAddress
+end TCPNameToAddr
+
+function TCPActiveOpen pHost, pPort, pLocalPort
+   local tId, tSocket, tStart, tError
+   if pHost is empty or pPort is not an integer then return "TCPActiveOpen failed: no host or port"
+   add 1 to sHCTCPLast
+   put sHCTCPLast into tId
+   put pHost & colon & pPort & "|hcTCP" & tId & "_" & the milliseconds into tSocket
+   put tSocket into sHCTCP[tId]["socket"]
+   put "opening" into sHCTCP[tId]["state"]
+   put empty into sHCTCP[tId]["buffer"]
+   open socket to tSocket with message "hcTCPConnected"
+   put the milliseconds into tStart
+   repeat while sHCTCP[tId]["state"] is "opening" and the milliseconds - tStart < 30000
+      wait 10 milliseconds with messages
+   end repeat
+   -- (on Linux and macOS the engine says a socket is open as soon as it
+   -- can be written to, which a connection the host refused can be too:
+   -- its error comes right after, as the first read fails. A connection
+   -- that is closed before anything came in on it was not opened)
+   if sHCTCP[tId]["state"] is "established" then
+      put the milliseconds into tStart
+      repeat while sHCTCP[tId]["state"] is "established" and sHCTCP[tId]["buffer"] is empty and the milliseconds - tStart < 100
+         wait 10 milliseconds with messages
+      end repeat
+      if sHCTCP[tId]["state"] is not "established" and sHCTCP[tId]["buffer"] is empty then put "failed" into sHCTCP[tId]["state"]
+   end if
+   if sHCTCP[tId]["state"] is not "established" then
+      get sHCTCP[tId]["error"]
+      -- (a socket still opening when the wait ends stays open in the
+      -- engine until it is closed)
+      try
+         close socket tSocket
+      catch tError
+      end try
+      _HCTCPForget tId
+      if it is empty then put "the host did not answer" into it
+      return "TCPActiveOpen failed:" && it
+   end if
+   return tId
+end TCPActiveOpen
+
+function TCPPassiveOpen
+   return "TCPPassiveOpen failed: a connection from the host is not supported"
+end TCPPassiveOpen
+
+on TCPSend pId, pText
+   local tError
+   if sHCTCP[pId]["state"] is not "established" then return _HCTCPError("The connection is not open")
+   try
+      write pText to socket sHCTCP[pId]["socket"]
+   catch tError
+      return _HCTCPError("The connection is not open")
+   end try
+   return empty
+end TCPSend
+
+function TCPRecvUpTo pId, pTerminator, pSeconds, pSoFar
+   local tStart, tAt
+   _HCTCPDeliver
+   if sHCTCP[pId]["socket"] is empty then return _HCTCPError("No such connection")
+   if pSeconds is not a number or pSeconds < 0 then put 0 into pSeconds
+   -- (a terminator is the bytes the host sends, its case too)
+   set the caseSensitive to true
+   put the milliseconds into tStart
+   repeat
+      if pTerminator is empty then
+         put the number of chars of sHCTCP[pId]["buffer"] into tAt
+      else
+         put offset(pTerminator, sHCTCP[pId]["buffer"]) into tAt
+         if tAt > 0 then
+            add the number of chars of pTerminator - 1 to tAt
+         end if
+      end if
+      if tAt > 0 then exit repeat
+      if sHCTCP[pId]["state"] is not "established" or the milliseconds - tStart >= pSeconds * 1000 then exit repeat
+      wait 10 milliseconds with messages
+   end repeat
+   -- (what there is, at the end of the wait or of the connection, where
+   -- no terminator came)
+   if tAt is 0 then put the number of chars of sHCTCP[pId]["buffer"] into tAt
+   return pSoFar & _HCTCPTake(pId, tAt)
+end TCPRecvUpTo
+
+function TCPCharsAvailable pId
+   _HCTCPDeliver
+   if sHCTCP[pId]["socket"] is empty then return _HCTCPError("No such connection")
+   return the number of chars of sHCTCP[pId]["buffer"]
+end TCPCharsAvailable
+
+function TCPRecvChars pId, pCount, pSeconds
+   local tStart
+   _HCTCPDeliver
+   if sHCTCP[pId]["socket"] is empty then return _HCTCPError("No such connection")
+   if pCount is not an integer or pCount < 0 then return _HCTCPError("Bad count")
+   if pSeconds is not a number or pSeconds < 0 then put 0 into pSeconds
+   put the milliseconds into tStart
+   repeat while the number of chars of sHCTCP[pId]["buffer"] < pCount \
+         and sHCTCP[pId]["state"] is "established" and the milliseconds - tStart < pSeconds * 1000
+      wait 10 milliseconds with messages
+   end repeat
+   return _HCTCPTake(pId, min(pCount, the number of chars of sHCTCP[pId]["buffer"]))
+end TCPRecvChars
+
+function TCPState pId
+   _HCTCPDeliver
+   if sHCTCP[pId]["socket"] is empty then return _HCTCPError("No such connection")
+   if sHCTCP[pId]["state"] is "remote closed" then
+      if sHCTCP[pId]["buffer"] is empty then return "close wait"
+      return "established"
+   end if
+   return sHCTCP[pId]["state"]
+end TCPState
+
+on TCPClose pId
+   local tError
+   if sHCTCP[pId]["socket"] is empty then return _HCTCPError("No such connection")
+   if sHCTCP[pId]["state"] is not "closed" then
+      try
+         close socket sHCTCP[pId]["socket"]
+      catch tError
+         -- (the host closed it first)
+      end try
+   end if
+   put "closed" into sHCTCP[pId]["state"]
+   return empty
+end TCPClose
+
+on TCPRelease pId
+   local tError
+   if sHCTCP[pId]["socket"] is empty then return _HCTCPError("No such connection")
+   if sHCTCP[pId]["state"] is not "closed" then
+      try
+         close socket sHCTCP[pId]["socket"]
+      catch tError
+         -- (the host closed it first)
+      end try
+   end if
+   _HCTCPForget pId
+   return empty
+end TCPRelease
+
+-- What came in on the sockets since the script last let the engine take
+-- it. A stack waits for a connection in a loop of its own ("repeat until
+-- TCPState(dataID) is "established"", "wait until TCPState(dataID)
+-- contains "waiting"", HyperFinger's "repeat forever" of
+-- TCPRecvUpTo(connID, linefeed, zero, empty)), where the externals saw
+-- MacTCP's progress at once; here the socket's messages are only sent
+-- between a script's statements when it lets them be
+private command _HCTCPDeliver
+   wait 0 milliseconds with messages
+end _HCTCPDeliver
+
+-- An error as the externals gave one: its text after a section sign
+private function _HCTCPError pText
+   return numToCodepoint(167) & pText
+end _HCTCPError
+
+-- The first pCount characters that came in on the connection, taken out
+-- of what is kept for it
+private function _HCTCPTake pId, pCount
+   local tText
+   if pCount <= 0 then return empty
+   put char 1 to pCount of sHCTCP[pId]["buffer"] into tText
+   delete char 1 to pCount of sHCTCP[pId]["buffer"]
+   return tText
+end _HCTCPTake
+
+private command _HCTCPForget pId
+   delete variable sHCTCP[pId]
+end _HCTCPForget
+
+-- The connection's number, from its socket's name, or empty for a socket
+-- this library did not open
+private function _HCTCPId pSocket
+   local tId
+   set the itemDelimiter to "|"
+   if item -1 of pSocket begins with "hcTCP" and "_" is in item -1 of pSocket then
+      put char 6 to offset("_", item -1 of pSocket) - 1 of item -1 of pSocket into tId
+      if sHCTCP[tId]["socket"] is pSocket then return tId
+   end if
+   return empty
+end _HCTCPId
+
+on hcTCPConnected pSocket
+   local tId
+   put _HCTCPId(pSocket) into tId
+   if tId is empty then exit hcTCPConnected
+   put "established" into sHCTCP[tId]["state"]
+   read from socket pSocket with message "hcTCPReceived"
+end hcTCPConnected
+
+on hcTCPReceived pSocket, pData
+   local tId
+   put _HCTCPId(pSocket) into tId
+   if tId is empty or sHCTCP[tId]["state"] is "closed" then exit hcTCPReceived
+   put pData after sHCTCP[tId]["buffer"]
+   read from socket pSocket with message "hcTCPReceived"
+end hcTCPReceived
+
+on socketClosed pSocket
+   local tId
+   put _HCTCPId(pSocket) into tId
+   if tId is empty then pass socketClosed
+   if sHCTCP[tId]["state"] is not "closed" then put "remote closed" into sHCTCP[tId]["state"]
+end socketClosed
+
+on socketError pSocket, pError
+   local tId
+   put _HCTCPId(pSocket) into tId
+   if tId is empty then pass socketError
+   put pError into sHCTCP[tId]["error"]
+   if sHCTCP[tId]["state"] is "opening" then
+      put "failed" into sHCTCP[tId]["state"]
+   else if sHCTCP[tId]["state"] is not "closed" then
+      put "remote closed" into sHCTCP[tId]["state"]
+   end if
+end socketError
+
+on socketTimeout pSocket
+   if _HCTCPId(pSocket) is empty then pass socketTimeout
+end socketTimeout

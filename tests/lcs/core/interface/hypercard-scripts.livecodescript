@@ -1088,10 +1088,12 @@ on TestHyperCardScriptsT42
    TestAssert "T42: statements in quotes", line 4 to 5 of tScript is _Lines("  do " & q & "put tWhere & comma after gHCScriptsTest" & q, \
          "  do " & q & "go cd " & q & " & quote & " & q & "Two" & q & " & quote") \
          and line 7 of tScript is "  do " & q & "put " & q & " & quote & " & q & "x" & q & " & quote & " & q & " && the short name of this card into tOut" & q
-   TestAssert "T42: a do of an expression: unchanged", line 10 of tScript is "  do tCmd"
+   -- (T81: its text through hcDoText, which gives back text that compiles
+   -- as it is)
+   TestAssert "T42: a do of an expression: not put in quotes", line 10 of tScript begins with "  do hcDoText(tCmd"
    TestAssert "T42: a statement that does not compile here either: not put in quotes", "do " & q & "put 1 into" is not in tScript
    TestAssert "T42: in a script that compiles, where the do ran its first word alone (go)", line 2 to 3 of the script of button "B" of card 1 of stack tStack \
-         is _Lines("  do " & q & "go cd " & q & " & quote & " & q & "Two" & q & " & quote", "  do tCmd")
+         is _Lines("  do " & q & "go cd " & q & " & quote & " & q & "Two" & q & " & quote", "  do hcDoText(tCmd)")
    TestAssert "T42: the script compiles", _Compiles(tScript)
    set the defaultStack to tStack
    put empty into gHCScriptsTest
@@ -7047,6 +7049,215 @@ on TestHyperCardScriptsSystemExternals
    _Close tStack
 end TestHyperCardScriptsSystemExternals
 
+on TestHyperCardScriptsCorpusExternals
+   -- externals that 5 to 14 stacks of the corpus call, which had only the
+   -- import's stand-in (empty, or nothing done): Switch (rewritten
+   -- hcX_Switch, rule T13), FindInField, FolderPath, SubLaunch,
+   -- GetBootVol, ChangeCurs, IsFinderLocked, Resources and ClipInfo
+   -- give what the stacks read from them
+   local tStack, q, tTab, tReport, tError, tFolder, tResults, tCursor, tWas, tClip
+   global gHCScriptsTest
+   put quote into q
+   put numToChar(9) into tTab
+   put the temporary folder & "/hcexternals" & the milliseconds into tFolder
+   create folder tFolder
+   put "x" into url ("file:" & tFolder & "/Notes")
+   put "HCCorpusExternals" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["file"] of stack tStack to tFolder & "/Color Tools"
+   set the uHyperCard["imagepath"] of stack tStack to "Old Disk:Stacks:Color Tools"
+   set the uHyperCard["externals"] of stack tStack to _Lines("XFCN" & tTab & "Switch", "XFCN" & tTab & "FindInField", \
+         "XFCN" & tTab & "FolderPath", "XFCN" & tTab & "SubLaunch", "XFCN" & tTab & "GetBootVol", "XCMD" & tTab & "ChangeCurs", \
+         "XFCN" & tTab & "IsFinderLocked", "XFCN" & tTab & "Resources", "XFCN" & tTab & "ClipInfo", "XFCN" & tTab & "FullSFPack")
+   set the uHyperCard["resources"] of stack tStack to _Lines("PICT" & tTab & "128" & tTab & "10" & tTab & "Map", \
+         "Xdna" & tTab & "1" & tTab & "5" & tTab & "Time Stamp", "PICT" & tTab & "129" & tTab & "10" & tTab)
+   set the defaultStack to tStack
+   create button "Text"
+   set the script of button "Text" to _Lines("on mouseUp", "  global gHCScriptsTest", \
+         "  put " & q & "Smith,Jo,90" & q & " into it", \
+         "  put switch (it) into gHCScriptsTest", \
+         "  put " & q & "|" & q & " & Switch(" & q & "a" & q & " & return & " & q & "b" & q & " & return) after gHCScriptsTest", \
+         "  put " & q & "Ala,Arg,Asn" & q & " into cod3", \
+         "  put findinfield(cod3, " & q & "Arg" & q & ") into fndcod", \
+         "  put " & q & "|" & q & " & fndcod & " & q & "|" & q & " & item (item 4 of fndcod) of " & q & "A,R,N" & q & " after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & findInField(" & q & "one two" & q & " & return & " & q & "three four" & q & ", " & q & "FOUR" & q & ", " & q & "false" & q & ", 0) after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & findInField(" & q & "abc" & q & ", " & q & "B" & q & ", true) & " & q & "|" & q & " & findInField(" & q & "abcabc" & q & ", " & q & "a" & q & ", false, 2) after gHCScriptsTest", \
+         "end mouseUp")
+   create button "Files"
+   set the script of button "Files" to _Lines("on mouseUp", "  global gHCScriptsTest", \
+         "  put GetBootVol() into gHCScriptsTest", \
+         "  put " & q & "|" & q & " & FolderPath(" & q & "?" & q & ") after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & FolderPath(" & q & "Apple Menu Items" & q & ", 0) & " & q & "|" & q & " & FolderPath(" & q & "Nowhere" & q & ", 0) after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & IsFinderLocked(" & q & "Notes" & q & ") & " & q & "|" & q & " & IsFinderLocked(" & q & "Lost" & q & ") after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & SubLaunch(empty) & " & q & "|" & q & " & SubLaunch(" & q & tFolder & "/No Such Application" & q & ") after gHCScriptsTest", \
+         "end mouseUp")
+   create button "Resources"
+   set the script of button "Resources" to _Lines("on mouseUp", "  global gHCScriptsTest", \
+         "  put Resources(" & q & "PICT" & q & ") into gHCScriptsTest", \
+         "  put " & q & "|" & q & " & Resources(" & q & "Disk:Stacks:Color Tools" & q & ") after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & Resources(" & q & "Xdna" & q & ", " & q & "Disk:Other Stack" & q & ") after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & (Resources(" & q & "FONT" & q & ") is the fontNames) after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & Resources(" & q & "snd " & q & ") & " & q & "|end" & q & " after gHCScriptsTest", \
+         "end mouseUp")
+   create button "Cursor"
+   set the script of button "Cursor" to _Lines("on mouseUp pCursor", "  ChangeCurs pCursor", "end mouseUp")
+   create button "Clip"
+   set the script of button "Clip" to _Lines("on mouseUp", "  global gHCScriptsTest", \
+         "  put ClipInfo() & " & q & "|" & q & " & ClipInfo(" & q & "TEXT" & q & ") & " & q & "|" & q & " & ClipInfo(" & q & "PICT" & q & ") into gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   put revHyperCardFixScripts(tStack) into tReport
+   TestAssert "no stand-in is made for them", "Switch" is not in tReport and "FindInField" is not in tReport \
+         and "FolderPath" is not in tReport and "ChangeCurs" is not in tReport and "Resources" is not in tReport \
+         and "FullSFPack" is not in tReport
+   TestAssert "Switch is called by the library's name", "hcX_Switch" is in the script of button "Text" of stack tStack
+
+   put empty into tError
+   try
+      send "mouseUp" to button "Text" of stack tStack
+   catch tError
+   end try
+   set the itemDelimiter to "|"
+   put gHCScriptsTest into tResults
+   TestAssert "the text externals run", tError is empty
+   TestAssert "Switch: items as lines", item 1 of tResults is "Smith" & return & "Jo" & return & "90"
+   TestAssert "Switch: lines as items, the last return making no empty item", item 2 of tResults is "a,b"
+   TestAssert "FindInField: char, line, word and item, and the item the stack reads by it", item 3 to 4 of tResults is "5,1,1,2|R"
+   TestAssert "FindInField: the line it is in, its case not counting", item 5 of tResults is "15,2,4,1"
+   TestAssert "FindInField: its case counting; none there; characters left out at the start", item 6 to 7 of tResults is "0,0,0,0|4,1,1,1"
+
+   put empty into tError
+   try
+      send "mouseUp" to button "Files" of stack tStack
+   catch tError
+   end try
+   put gHCScriptsTest into tResults
+   TestAssert "the file externals run", tError is empty
+   TestAssert "GetBootVol: HyperCard's disk", item 1 of tResults is "Old Disk"
+   TestAssert "FolderPath: its syntax", item 2 of tResults begins with "FolderPath("
+   TestAssert "FolderPath: a folder of the System Folder by name; another is not found", \
+         item 3 to 4 of tResults is "Old Disk:System Folder:Apple Menu Items:|Error : Folder not found"
+   TestAssert "IsFinderLocked: a file beside the stack, never locked; no file", item 5 to 6 of tResults is "false|Error : File not found"
+   TestAssert "SubLaunch: the Mac's file not found, nothing opened", item 7 to 8 of tResults is "-43|-43"
+
+   put empty into tError
+   try
+      send "mouseUp" to button "Resources" of stack tStack
+   catch tError
+   end try
+   put gHCScriptsTest into tResults
+   TestAssert "Resources runs", tError is empty
+   TestAssert "Resources: the named ones of a type", item 1 of tResults is "Map"
+   TestAssert "Resources: this stack's file, every type", item 2 of tResults is "Map" & return & "Time Stamp"
+   TestAssert "Resources: another file's, none", item 3 of tResults is empty
+   TestAssert "Resources: the fonts; the stack's sounds, none", item 4 to 6 of tResults is "true||end"
+
+   -- ChangeCurs: the cursor set cursor sets for the name (hcCursor's
+   -- "watch", this engine's watch)
+   set the cursor to watch
+   put the cursor into tWas
+   set the cursor to arrow
+   put empty into tError
+   try
+      send "mouseUp" && q & "watch" & q to button "Cursor" of stack tStack
+   catch tError
+   end try
+   put the cursor into tCursor
+   TestAssert "ChangeCurs: the cursor of that name", tError is empty and tCursor is tWas
+   try
+      send "mouseUp" && q & "No Such Cursor" & q to button "Cursor" of stack tStack
+   catch tError
+   end try
+   TestAssert "ChangeCurs: a cursor not here leaves it as it was", tError is empty and the cursor is tCursor
+   set the cursor to empty
+
+   -- ClipInfo: what is on the clipboard (where this system has one)
+   put the clipboardData["text"] into tClip
+   set the clipboardData["text"] to "hello"
+   if the clipboardData["text"] is "hello" and the clipboardData["image"] is empty then
+      send "mouseUp" to button "Clip" of stack tStack
+      TestAssert "ClipInfo: the text's type and size, no picture", gHCScriptsTest is "TEXT|5|"
+   end if
+   set the clipboardData["text"] to tClip
+   _Close tStack
+end TestHyperCardScriptsCorpusExternals
+
+on TestHyperCardScriptsTCPExternals
+   -- Harry Chesley's MacTCP externals (14 stacks: HyperFTP, HyperFinger,
+   -- news readers), on this engine's sockets: a connection to a server
+   -- the test runs on this machine, as HyperFinger talks to a finger
+   -- server; before, TCPActiveOpen gave empty and TCPRecvUpTo nothing
+   local tStack, q, tTab, tPort, tError, tResults
+   global gHCScriptsTest
+   put quote into q
+   put numToChar(9) into tTab
+   put 40000 + random(9999) into tPort
+   put "HCTCPExternals" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the uHyperCard["externals"] of stack tStack to _Lines("XFCN" & tTab & "TCPNameToAddr", "XFCN" & tTab & "TCPActiveOpen", \
+         "XCMD" & tTab & "TCPSend", "XFCN" & tTab & "TCPRecvUpTo", "XFCN" & tTab & "TCPState", "XCMD" & tTab & "TCPClose", \
+         "XCMD" & tTab & "TCPRelease", "XFCN" & tTab & "TCPCharsAvailable", "XFCN" & tTab & "TCPRecvChars", "XFCN" & tTab & "TCPPassiveOpen")
+   set the defaultStack to tStack
+   -- the server: says hello and "abcendEND", reads a line, answers it in capitals and
+   -- "tail", and closes the connection
+   create button "Server"
+   set the script of button "Server" to _Lines("on serverStart pPort", "  accept connections on port pPort with message " & q & "serverAccept" & q, "end serverStart", \
+         "on serverAccept pSocket", "  write " & q & "hello" & q & " & numToChar(10) & " & q & "abcendEND" & q & " to socket pSocket", \
+         "  read from socket pSocket until numToChar(10) with message " & q & "serverRead" & q, "end serverAccept", \
+         "on serverRead pSocket, pData", "  write toUpper(pData) & " & q & "tail" & q & " to socket pSocket", "  close socket pSocket", "end serverRead")
+   create button "Client"
+   set the script of button "Client" to _Lines("on mouseUp pPort", "  global gHCScriptsTest, connID", \
+         "  get TCPNameToAddr(" & q & "127.0.0.1" & q & ")", \
+         "  put it into gHCScriptsTest", \
+         "  put TCPActiveOpen(item 1 of it, pPort, 0) into connID", \
+         "  put " & q & "|" & q & " & (connID contains " & q & "fail" & q & ") & " & q & "|" & q & " & TCPState(connID) after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & TCPRecvUpTo(connID, linefeed, 10, " & q & "so far:" & q & ") after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & TCPRecvUpTo(connID, " & q & "END" & q & ", 10, empty) after gHCScriptsTest", \
+         "  TCPSend connID, " & q & "ping" & q & " & linefeed", \
+         "  put " & q & "|" & q & " & the result & " & q & "|" & q & " & TCPRecvUpTo(connID, linefeed, 10, empty) after gHCScriptsTest", \
+         "  repeat 500 times", "    if TCPCharsAvailable(connID) >= 4 then exit repeat", "    wait 10 milliseconds", "  end repeat", \
+         "  put " & q & "|" & q & " & TCPCharsAvailable(connID) & " & q & "|" & q & " & TCPRecvChars(connID, 2) & " & q & "|" & q & " & TCPState(connID) after gHCScriptsTest", \
+         "  repeat 500 times", "    if TCPState(connID) is not " & q & "established" & q & " then exit repeat", "    put TCPRecvChars(connID, 1) after tRest", "    wait 10 milliseconds", "  end repeat", \
+         "  put " & q & "|" & q & " & tRest & " & q & "|" & q & " & TCPState(connID) after gHCScriptsTest", \
+         "  TCPClose connID", \
+         "  put " & q & "|" & q & " & TCPState(connID) after gHCScriptsTest", \
+         "  TCPRelease connID", \
+         "  get TCPState(connID)", \
+         "  put " & q & "|" & q & " & (char 1 of it is numToCodepoint(167)) after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & (TCPActiveOpen(" & q & "127.0.0.1" & q & ", pPort + 1, 0) contains " & q & "fail" & q & ") after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & (TCPPassiveOpen(0, 0, 0) contains " & q & "fail" & q & ") after gHCScriptsTest", \
+         "  put " & q & "|" & q & " & (char 1 of TCPRecvUpTo(99, linefeed, 0, empty) is numToCodepoint(167)) after gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   get revHyperCardFixScripts(tStack)
+   TestAssert "no stand-in is made for them", "do nothing when called" is not in it and "give empty when called" is not in it
+   send "serverStart" && tPort to button "Server" of stack tStack
+   put empty into tError
+   try
+      send "mouseUp" && tPort to button "Client" of stack tStack
+   catch tError
+   end try
+   close socket tPort
+   put gHCScriptsTest into tResults
+   set the itemDelimiter to "|"
+   TestAssert "the client runs", tError is empty
+   TestAssert "TCPNameToAddr: the address; TCPActiveOpen: a connection, established", item 1 to 3 of tResults is "127.0.0.1|false|established"
+   TestAssert "TCPRecvUpTo: the text so far and the line, its line feed with it", item 4 of tResults is "so far:hello" & numToChar(10)
+   TestAssert "TCPRecvUpTo: up to the terminator in its own case", item 5 of tResults is "abcendEND"
+   TestAssert "TCPSend: no error; the answer", item 6 to 7 of tResults is "|PING" & numToChar(10)
+   TestAssert "TCPCharsAvailable, TCPRecvChars: by count; open while there is more to read", item 8 to 10 of tResults is "4|ta|established"
+   TestAssert "the host closed it: once all is read, close wait", item 11 to 12 of tResults is "il|close wait"
+   TestAssert "TCPClose: closed", item 13 of tResults is "closed"
+   TestAssert "TCPRelease: forgotten, its state an error", item 14 of tResults is "true"
+   TestAssert "TCPActiveOpen: a port nobody listens on fails, and leaves no socket open", item 15 of tResults is "true" \
+         and "|hcTCP" is not in the openSockets
+   TestAssert "TCPPassiveOpen: not offered, a failure", item 16 of tResults is "true"
+   TestAssert "a connection there is not: an error", item 17 of tResults is "true"
+   _Close tStack
+end TestHyperCardScriptsTCPExternals
+
 on TestHyperCardScriptsT74
    -- T74: a loop that takes a path back to its folder until its last
    -- character is a colon, which HyperCard's paths always had and this
@@ -7672,11 +7883,13 @@ on TestHyperCardScriptsT77
          "  do " & q & "put the short id of" & q && "&& fspec &&" && q & "into fid" & q, \
          "  return fid", \
          "end Colourize") into tScript
+   -- (T81: a text joined from parts goes through hcDoText, with the
+   -- handler's renamed variables)
    TestAssert "T77: the do's text puts into the variable's new name", line 2 of tScript \
-         is "  do " & q & "put there is a" & q && "&& fspec &&" && q & "into hc_exists" & q
+         is "  do hcDoText(" & q & "put there is a" & q && "&& fspec &&" && q & "into hc_exists" & q & ", " & q & "exists" & q & ")"
    TestAssert "T77: the code reads that name", line 3 of tScript is "  if not hc_exists then return false"
    TestAssert "T77: a do into a name this engine takes, unchanged", line 4 of tScript \
-         is "  do " & q & "put the short id of" & q && "&& fspec &&" && q & "into fid" & q
+         is "  do hcDoText(" & q & "put the short id of" & q && "&& fspec &&" && q & "into fid" & q & ", " & q & "exists" & q & ")"
    TestAssert "T77: those compile", _Compiles(tScript)
 
    -- and a do into a variable T2 renames, as the code that reads it is
@@ -7688,7 +7901,7 @@ on TestHyperCardScriptsT77
          "  do " & q & "put 3 into value " & tab & q, \
          "end mouseUp") into tScript
    TestAssert "T77: a variable T2 renames", line 2 of tScript is "  put field " & q & "worth" & q & " into hc_value"
-   TestAssert "T77: a do into it, its text joined", line 3 of tScript is "  do " & q & "put field " & q & "&typer&" & q & "stot into hc_value" & q
+   TestAssert "T77: a do into it, its text joined", line 3 of tScript is "  do hcDoText(" & q & "put field " & q & "&typer&" & q & "stot into hc_value" & q & ", " & q & "value" & q & ")"
    TestAssert "T77: a do into it after then", line 4 of tScript is "  if x then do " & q & "put 2 into hc_value" & q & " else beep"
    TestAssert "T77: a do into it, a space and a tab after the name", line 5 of tScript is "  do " & q & "put 3 into hc_value " & tab & q
 
@@ -7701,7 +7914,8 @@ on TestHyperCardScriptsT77
          "end mouseUp") into tScript
    TestAssert "T77: another statement's text, unchanged", line 2 of tScript is "  answer " & q & "put it into exists" & q
    TestAssert "T77: the function exists, unchanged", line 3 of tScript is "  if exists(card field 1) then beep"
-   TestAssert "T77: a do whose text goes on after the name, unchanged", line 4 of tScript is "  do " & q & "put 1 into exists now" & q
+   -- (T81: a text that does not compile goes through hcDoText)
+   TestAssert "T77: a do whose text goes on after the name, unchanged", line 4 of tScript is "  do hcDoText(" & q & "put 1 into exists now" & q & ")"
 
    -- Fixed by revHyperCardFixScripts and run: false for a field that is
    -- not there, the field's id for one that is
@@ -7812,7 +8026,8 @@ on TestHyperCardScriptsT78
    -- ("put Switch(Temp) into cd fld 4", the Switch XFCN of 10 stacks of
    -- the corpus), which here called a "switch" no handler has and
    -- stopped with an error: the external's hcX_ name, which its
-   -- stand-in answers with empty, as an XFCN's
+   -- stand-in answers (the library's hcX_Switch since #543; before, the
+   -- import's, with empty)
    local tStack, q, tError
    global gHCScriptsTest
    put quote into q
@@ -7865,7 +8080,8 @@ on TestHyperCardScriptsT78
       send "mouseUp" to button "Switch" of card 1 of stack tStack
    catch tError
    end try
-   TestAssert "T78: which gives empty, and the script goes on", tError is empty and gHCScriptsTest is "went on"
+   TestAssert "T78: which answers as the XFCN (the library's Switch, which gives text with no comma or line break as it is), and the script goes on", \
+         tError is empty and gHCScriptsTest is "5went on"
 
    TestAssert "T78: popup of a button, answer, files() and upper(), unchanged", \
          line 2 to 5 of the script of button "Kept" of card 1 of stack tStack \
@@ -8159,3 +8375,100 @@ on TestHyperCardScriptsT80
          & field "DirectoryName" of card 2 of stack tStack & field "DirectoryName" of card 3 of stack tStack is "abc"
    _Close tStack
 end TestHyperCardScriptsT80
+
+on TestHyperCardScriptsT81
+   -- T81: the text a do runs gets a script's rules, as HyperCard ran it
+   -- (the re-sweep of 2026-11-16: "do: error in source expression" in 13
+   -- stacks, text a script built with a word this engine reserves)
+   local tScript, q, tStack, tError, tWas, tResult, tAgain
+   global gHCScriptsTest
+   put quote into q
+   put _Rewrite("on mouseUp", \
+         "  global sound", \
+         "  put 3 into sound", \
+         "  do " & q & "set the icon of bg btn sound to sound" & q & " & x", \
+         "  if x then do y else do " & q & "beep" & q, \
+         "  do " & q & "put 1 into z" & q, \
+         "  do x as " & q & "AppleScript" & q, \
+         "  do " & q & "put 2 into z" & q & " & \", \
+         "    x", \
+         "  put sound into field 1", \
+         "end mouseUp") into tScript
+   TestAssert "T81: the rewrite compiles", _Compiles(tScript)
+   TestAssert "T81: a do's text through hcDoText, with the handler's renamed variables", \
+         line 4 of tScript is "  do hcDoText(" & q & "set the icon of bg btn sound to sound" & q & " & x, " & q & "sound" & q & ")"
+   TestAssert "T81: a do after then, through hcDoText", \
+         line 5 of tScript is "  if x then do hcDoText(y, " & q & "sound" & q & ") else do " & q & "beep" & q
+   TestAssert "T81: a string that compiles, as it is", line 6 of tScript is "  do " & q & "put 1 into z" & q
+   TestAssert "T81: a do in another language, as it is", line 7 of tScript is "  do x as " & q & "AppleScript" & q
+   TestAssert "T81: a do continued on the next line, as it is", line 8 of tScript is "  do " & q & "put 2 into z" & q & " & \"
+   -- (twice is once)
+   put revHyperCardRewriteScript(tScript) into tAgain
+   TestAssert "T81: a do already through hcDoText, as it is", tAgain is tScript
+
+   -- in a script that compiles too, with no variable renamed
+   put _Rewrite("on mouseUp", "  put " & q & "cd fld Title" & q & " into fspec", \
+         "  do " & q & "put there is a" & q & " && fspec && " & q & "into x" & q, "end mouseUp") into tScript
+   TestAssert "T81: in a script that compiles too", \
+         line 3 of tScript is "  do hcDoText(" & q & "put there is a" & q & " && fspec && " & q & "into x" & q & ")"
+   TestAssert "T81: a script with no do, as it is", \
+         _Rewrite("on mouseUp", "  put 1 into x", "end mouseUp") is _Lines("on mouseUp", "  put 1 into x", "end mouseUp")
+
+   -- revHyperCardDoText: text that compiles is the text itself
+   TestAssert "T81: text that compiles, as it is", revHyperCardDoText("put 1 into x" & return & "beep", "sound") is "put 1 into x" & return & "beep"
+   TestAssert "T81: an object named by a reserved word, in quotes", \
+         revHyperCardDoText("put there is a cd fld Title into x", empty) is "put there is a cd fld " & q & "Title" & q & " into x"
+   TestAssert "T81: a global named like a property, renamed as T2 does", \
+         revHyperCardDoText("global fileName,sound", empty) is "global hc_fileName,hc_sound"
+   TestAssert "T81: a variable the handler renamed, renamed in the text", \
+         revHyperCardDoText("put number + 1 into x", "number") is "put hc_number + 1 into x"
+   TestAssert "T81: text the rules cannot fix, as it is", revHyperCardDoText("get the true", empty) is "get the true"
+   TestAssert "T81: empty, as it is", revHyperCardDoText(empty, empty) is empty
+   -- (an exit or a pass names the handler the do runs in, not the check's)
+   TestAssert "T81: an exit, as it is", revHyperCardDoText("exit mouseUp", empty) is "exit mouseUp"
+   TestAssert "T81: a pass, as it is", revHyperCardDoText("put 1 into x" & return & "pass mouseUp", "sound") is "put 1 into x" & return & "pass mouseUp"
+
+   -- with revHyperCardFixScripts, and run: the library's hcDoText
+   put "HCScriptsT81" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   create field "Title"
+   create button "Compiles"
+   put _Lines("on mouseUp", "  put 1 into x", "  do " & q & "put 2 into x" & q, "end mouseUp") into tWas
+   set the script of button "Compiles" to tWas
+   put the script of button "Compiles" into tWas
+   create button "Do"
+   set the script of button "Do" to _Lines("on mouseUp", "  global gHCScriptsTest, sound", \
+         "  put empty into gHCScriptsTest", \
+         "  put " & q & "x" & q & " into sound", \
+         "  put 5 into number", \
+         "  put " & q & "cd fld Title" & q & " into fspec", \
+         "  do " & q & "put there is a" & q & " && fspec && " & q & "into exists" & q, \
+         "  put exists after gHCScriptsTest", \
+         "  do " & q & "global sound" & q & " & return & " & q & "put comma & sound after gHCScriptsTest" & q, \
+         "  do " & q & "put comma & (number + 1) after gHCScriptsTest" & q, \
+         "  get 7", \
+         "  do " & q & "put comma & it after gHCScriptsTest" & q, \
+         "  put " & q & "put comma & 8 after gHCScriptsTest" & q & " into tText", \
+         "  do tText", \
+         "  do " & q & "exit mouseUp" & q, \
+         "  -- (the engine ends the do's text there, not the handler)", \
+         "  put comma & 9 after gHCScriptsTest", \
+         "end mouseUp")
+   unlock messages
+   put revHyperCardFixScripts(tStack) into tResult
+   TestAssert "T81: a script with a do whose string compiles, unchanged", the script of button "Compiles" of stack tStack is tWas
+   put the script of button "Do" of stack tStack into tScript
+   TestAssert "T81: the do's text through hcDoText, in the stack", "do hcDoText(" is in tScript
+   TestAssert "T81: no handler and no line left out", revHyperCardLeftOutHandlers() is empty and revHyperCardLeftOutLines() is empty
+   TestAssert "T81: a string that compiles but names a renamed variable, through hcDoText", \
+         "do hcDoText(" & q & "put comma & (number + 1) after gHCScriptsTest" & q & ", " is in tScript
+   put empty into tError
+   try
+      send "mouseUp" to button "Do" of stack tStack
+   catch tError
+   end try
+   TestAssert "T81: the texts run as HyperCard ran them", tError is empty and gHCScriptsTest is "true,x,6,7,8,9"
+   _Close tStack
+end TestHyperCardScriptsT81

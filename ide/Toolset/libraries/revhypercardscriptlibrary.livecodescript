@@ -201,6 +201,17 @@ script "revHyperCardScriptLibrary"
 -- HyperCard's windows had ("set the dithering of window id it to
 -- dither"), which goes to the library's hcSetWindow as a window's name
 -- does.
+-- T81 takes the text a "do" runs, in any script: HyperCard ran it with
+-- the rules of a script, so text a script builds that these rules would
+-- fix stopped here where HyperCard ran it ("do "set the icon of bg btn
+-- sound to sound" & x", "do "put there is a" && fspec && "into
+-- exists"" with fspec "cd fld Title", "do "global" && tNames" naming
+-- fileName or sound). The do's text goes through the library's
+-- hcDoText, which gives it back unchanged when it compiles as a statement
+-- and otherwise as these rules rewrite it (revHyperCardDoText), with the
+-- variables T2 renamed in the handler the do is in named as there. Text
+-- that compiles runs as before, and text the rules cannot fix stops as
+-- before.
 -- A script whose rewrite would not compile when it did before is left as
 -- it was. Each object whose script changes keeps its HyperTalk in the
 -- custom property uHyperCard["script"], and the stack's
@@ -424,6 +435,12 @@ local sFiredTotal
 -- out
 local sLeftOut, sLinesLeftOut
 
+-- T81: the texts revHyperCardDoText has rewritten (by the stack's message
+-- order, the renamed variables and the text: what it gave), and the
+-- variables of the handler a do is in that T2 renamed, which _Rewrite
+-- renames in the do's text too
+local sDoTexts, sDoRenamed
+
 -- The handlers the last revHyperCardFixScripts left out, for
 -- revHyperCardLeftOutHandlers, the lines it left out of handlers, for
 -- revHyperCardLeftOutLines, and the object whose script it is fixing
@@ -623,6 +640,135 @@ function revHyperCardRewriteScript pScript, pExternals, pHyperTalk
    put empty into sObject
    return _Rewrite(pScript, empty, tExternals, false)
 end revHyperCardRewriteScript
+
+/*
+Rewrites the text a "do" of an imported HyperCard stack runs, so that it
+runs here as HyperCard ran it (rule T81).
+
+pText (String): The statements the do runs.
+
+pRenamed (String): The variables of the handler the do is in that the
+import renamed (T2), separated by commas, by their HyperTalk names.
+
+pStack (String): The imported stack, whose externals and message order
+the rules take (optional).
+
+Returns (String): pText itself if it compiles as the statements of a
+handler, or if the rules do not make it compile; else the rewritten
+statements.
+
+Description:
+The library of an imported stack calls this from hcDoText, which the
+import puts around the text of every do. HyperCard ran a do's text with
+the rules of a script, so text that a script builds with a word this
+engine reserves as a name ("set the icon of bg btn sound to sound")
+stopped here where HyperCard ran it. The rewrites of the text are those of
+a script's handler, with the renamed variables named as in the handler the
+do runs in, so that the text puts into and reads the variables the handler
+does.
+*/
+function revHyperCardDoText pText, pRenamed, pStack
+   local tKey, tScript, tFixed, tExternals, tHyperTalk, tWord, tSaved, tCount
+   if pText is empty then return pText
+   -- An exit or a pass names the handler the do runs in, which the text
+   -- is checked outside of: "exit mouseUp" would not compile in the
+   -- check's handler and be rewritten to name it, and then not compile
+   -- in mouseUp. Such text is left as it is
+   if _ExitsHandler(pText) then return pText
+   put false into tHyperTalk
+   if pStack is not empty and there is a pStack then
+      put _HyperTalkOrder(pStack) into tHyperTalk
+      put _Externals(pStack) into tExternals
+   end if
+   put tHyperTalk & numToChar(1) & pRenamed & numToChar(1) & pText into tKey
+   if tKey is among the keys of sDoTexts then return sDoTexts[tKey]
+   -- (a script's rules apply inside a handler)
+   put "on hcDoText" & return & pText & return & "end hcDoText" into tScript
+   -- Text that compiles is as it is, unless it names a variable that T2
+   -- renamed in the handler, which the text would otherwise not reach
+   -- ("put number + 1 into x" in a handler where number is hc_number):
+   -- that handler's script did not compile, and the text has its rules
+   if _Compiles(tScript) and not _NamesRenamed(pText, pRenamed) then
+      put pText into tFixed
+   else
+      -- (the state of a revHyperCardFixScripts that is running, kept)
+      put sHyperTalk into tSaved["hypertalk"]
+      put sFired into tSaved["fired"]
+      put sStackFunctions into tSaved["functions"]
+      put sFunctionDefiners into tSaved["definers"]
+      put sObject into tSaved["object"]
+      put sExternals into tSaved["externals"]
+      put sCallees into tSaved["callees"]
+      put sRenameHandlers into tSaved["handlers"]
+      put tHyperTalk into sHyperTalk
+      put empty into sFired
+      put empty into sStackFunctions
+      put empty into sFunctionDefiners
+      put empty into sObject
+      put empty into sDoRenamed
+      repeat for each item tWord in pRenamed
+         put word 1 to -1 of tWord into tWord
+         if _IsName(tWord) then put true into sDoRenamed[_Lower(tWord)]
+      end repeat
+      try
+         put _Rewrite(tScript, empty, tExternals, false) into tFixed
+      catch tFixed
+         put empty into tFixed
+      end try
+      put empty into sDoRenamed
+      put tSaved["hypertalk"] into sHyperTalk
+      put tSaved["fired"] into sFired
+      put tSaved["functions"] into sStackFunctions
+      put tSaved["definers"] into sFunctionDefiners
+      put tSaved["object"] into sObject
+      put tSaved["externals"] into sExternals
+      put tSaved["callees"] into sCallees
+      put tSaved["handlers"] into sRenameHandlers
+      -- (the handler around it as it was, and compiling)
+      put the number of lines of tFixed into tCount
+      if tCount < 3 or line 1 of tFixed is not "on hcDoText" or line tCount of tFixed is not "end hcDoText" \
+            or not _Compiles(tFixed) then
+         put pText into tFixed
+      else
+         put line 2 to tCount - 1 of tFixed into tFixed
+      end if
+   end if
+   -- (a stack that builds a new text each time keeps no more than this)
+   if the number of elements of sDoTexts >= 500 then put empty into sDoTexts
+   put tFixed into sDoTexts[tKey]
+   return tFixed
+end revHyperCardDoText
+
+-- T81: whether pText has an exit or a pass (not in a string or a
+-- comment), whose handler name is the running handler's
+private function _ExitsHandler pText
+   local tLine, tTokens, i
+   repeat for each line tLine in pText
+      put _Tokens(tLine) into tTokens
+      repeat with i = 1 to tTokens["count"]
+         if tTokens[i]["k"] is "w" and _Lower(tTokens[i]["t"]) is among the words of "exit pass" then return true
+      end repeat
+   end repeat
+   return false
+end _ExitsHandler
+
+-- T81: whether pText has a word of code (not in a string or a comment)
+-- that is one of pRenamed's names
+private function _NamesRenamed pText, pRenamed
+   local tNames, tWord, tLine, tTokens, i
+   repeat for each item tWord in pRenamed
+      put word 1 to -1 of tWord into tWord
+      if tWord is not empty then put true into tNames[_Lower(tWord)]
+   end repeat
+   if tNames is empty then return false
+   repeat for each line tLine in pText
+      put _Tokens(tLine) into tTokens
+      repeat with i = 1 to tTokens["count"]
+         if tTokens[i]["k"] is "w" and tNames[_Lower(tTokens[i]["t"])] then return true
+      end repeat
+   end repeat
+   return false
+end _NamesRenamed
 
 /*
 Gives an imported HyperCard stack HyperCard's look: white paper and
@@ -1958,7 +2104,7 @@ end _Word2
 -- which case only the doMenu routing applies
 private function _Rewrite pScript, pDefines, pExternals, pCompiled
    local tLines, tCount, i, tCode, tSpans, tSpanCount, tInHandler, tName, tStart
-   local tOut, tCovered, tKey, tRenameHandlers, tWord, tVars
+   local tOut, tCovered, tKey, tRenameHandlers, tWord, tVars, tDoTexts
 
    put 0 into tCount
    repeat for each line tCode in pScript
@@ -2025,6 +2171,11 @@ private function _Rewrite pScript, pDefines, pExternals, pCompiled
       end if
    end repeat
 
+   -- T81: the do statements of the script as it is, before the rules
+   repeat with i = 1 to tCount
+      put _DoTexts81(tLines[i]) into tDoTexts[i]
+   end repeat
+
    if pCompiled then
       -- Only what changes what a script that compiles does, to what it did
       -- in HyperCard: the doMenu routing (in a stack without HyperCard's
@@ -2045,6 +2196,10 @@ private function _Rewrite pScript, pDefines, pExternals, pCompiled
             put _CompiledCalls(tLines[tKey], tRenameHandlers, pExternals, tVars) into tLines[tKey]
          end repeat
          _HyperCardRulesLines tLines, tSpans[i]["start"], tSpans[i]["end"], true
+         -- T81: the text of a do, through hcDoText
+         repeat with tKey = tSpans[i]["start"] + 1 to tSpans[i]["end"] - 1
+            put _DoTextCalls(tLines[tKey], empty, tDoTexts[tKey]) into tLines[tKey]
+         end repeat
          _ColonLoops tLines, tSpans[i]["start"], tSpans[i]["end"]
       end repeat
       return _JoinLines(tLines, tCount)
@@ -2071,6 +2226,12 @@ private function _Rewrite pScript, pDefines, pExternals, pCompiled
          else if tWord is among the words of kRenamedWhereVariable or _ParameterRefused(tWord) then
             put "where" into tRename[tWord]
          end if
+      end repeat
+      -- T81: in the text of a do (revHyperCardDoText), the variables T2
+      -- renamed in the handler the do is in
+      repeat for each key tWord in sDoRenamed
+         put true into tVars[tWord]
+         put true into tRename[tWord]
       end repeat
       -- T77: a variable only a do puts into ("do "put there is a" &&
       -- fspec && "into exists""), named by one of this engine's
@@ -2100,6 +2261,11 @@ private function _Rewrite pScript, pDefines, pExternals, pCompiled
       _HyperCardRulesLines tLines, tSpans[i]["start"], tSpans[i]["end"], false
       _ExitPassNames tLines, tSpans[i]["start"], tSpans[i]["end"]
       _ColonLoops tLines, tSpans[i]["start"], tSpans[i]["end"]
+      -- T81: the text of a do, through hcDoText, after every other rule
+      -- (T42 puts a statement written without quotes in quotes first)
+      repeat with tKey = tSpans[i]["start"] + 1 to tSpans[i]["end"] - 1
+         put _DoTextCalls(tLines[tKey], tRename, tDoTexts[tKey]) into tLines[tKey]
+      end repeat
    end repeat
    return _JoinLines(tLines, tCount)
 end _Rewrite
@@ -2867,6 +3033,139 @@ private function _DoTextsRenamed pLine, pRename
    if not tChanged then return pLine
    return _Join(tTokens)
 end _DoTextsRenamed
+
+-- T81: the do statements of a line (a do starts the line, or follows
+-- "then" or "else"): for each, the first and the last code token of its
+-- text, and the count in ["count"]
+private function _DoStatements pTokens, pCode
+   local tIndex, tFirst, tLast, tInDo, tDos, tCount
+   put false into tInDo
+   put 0 into tCount
+   repeat for each item tIndex in pCode
+      if tInDo then
+         if pTokens[tIndex]["k"] is "w" and _T(pTokens, tIndex) is among the words of "then else" then
+            put false into tInDo
+            if tFirst is not empty then
+               add 1 to tCount
+               put tFirst into tDos[tCount]["first"]
+               put tLast into tDos[tCount]["last"]
+            end if
+         else
+            if tFirst is empty then put tIndex into tFirst
+            put tIndex into tLast
+         end if
+      end if
+      if not tInDo and pTokens[tIndex]["k"] is "w" and _T(pTokens, tIndex) is "do" \
+            and _StatementStart(pTokens, pCode, tIndex) then
+         put true into tInDo
+         put empty into tFirst
+         put empty into tLast
+      end if
+   end repeat
+   if tInDo and tFirst is not empty then
+      add 1 to tCount
+      put tFirst into tDos[tCount]["first"]
+      put tLast into tDos[tCount]["last"]
+   end if
+   put tCount into tDos["count"]
+   return tDos
+end _DoStatements
+
+-- T81: the text of the tokens pFirst to pLast as _DoTexts compares them:
+-- in lower case, without spaces, and with T2's "hc_" taken out
+private function _DoTextKey pTokens, pFirst, pLast
+   local tText, i
+   repeat with i = pFirst to pLast
+      if pTokens[i]["k"] is not "sp" and pTokens[i]["k"] is not "c" then put pTokens[i]["t"] after tText
+   end repeat
+   put _Lower(tText) into tText
+   replace "hc_" with empty in tText
+   return tText
+end _DoTextKey
+
+-- T81: the tokens pFirst to pLast as they are written
+private function _DoTextSpan pTokens, pFirst, pLast
+   local tText, i
+   repeat with i = pFirst to pLast
+      put pTokens[i]["t"] after tText
+   end repeat
+   return tText
+end _DoTextSpan
+
+-- T81: the texts of the do statements of the line as the stack's script
+-- has it, before any rule (_DoTextKey, a line each): a do a rule writes
+-- (T14's "do "visual effect" && x", T42's statement put in quotes) is not
+-- one of them, and is not put through hcDoText
+private function _DoTexts81 pLine
+   local tTokens, tCode, tDos, i, tKeys
+   if "do" is not among the words of _Lower(pLine) then return empty
+   put _Tokens(pLine) into tTokens
+   put _Code(tTokens) into tCode
+   put _DoStatements(tTokens, tCode) into tDos
+   repeat with i = 1 to tDos["count"]
+      put _DoTextKey(tTokens, tDos[i]["first"], tDos[i]["last"]) & return after tKeys
+   end repeat
+   delete the last char of tKeys
+   return tKeys
+end _DoTexts81
+
+-- T81: pLine with the text of each of its do statements that the stack's
+-- script has (pOriginal, _DoTexts81 of the line before the rules) run
+-- through the library's hcDoText ("do x" becomes "do hcDoText(x)", "do
+-- hcDoText(x, "sound,name")" where pRename, the handler's T2 renames,
+-- renames variables), so that text HyperCard ran with a script's rules
+-- runs here with them too. Not a do in another language ("do x as
+-- "AppleScript""), one continued on the next line, one whose text is a
+-- string that compiles and names no variable pRename renames (it runs as
+-- it is), nor one already through hcDoText
+private function _DoTextCalls pLine, pRename, pOriginal
+   local tTokens, tCode, tIndex, tFirst, tLast, tDos, i, tRenamed, tWord, tText
+   if pOriginal is empty then return pLine
+   if "do" is not among the words of _Lower(pLine) then return pLine
+   put _Tokens(pLine) into tTokens
+   put _Code(tTokens) into tCode
+   if tCode is empty then return pLine
+   if tTokens[item -1 of tCode]["t"] is "\" then return pLine
+   put _DoStatements(tTokens, tCode) into tDos
+   if tDos["count"] is 0 then return pLine
+   -- the variables T2 renamed in the handler, by their HyperTalk names
+   repeat for each line tWord in _SortedKeys(pRename)
+      if pRename[tWord] is true then put tWord & comma after tRenamed
+   end repeat
+   delete the last char of tRenamed
+   -- (from the last, so that the indices of those before stand)
+   repeat with i = tDos["count"] down to 1
+      put tDos[i]["first"] into tFirst
+      put tDos[i]["last"] into tLast
+      if _DoTextKey(tTokens, tFirst, tLast) is not among the lines of pOriginal then next repeat
+      if _T(tTokens, tFirst) is "hcdotext" then next repeat
+      put false into tWord
+      repeat for each item tIndex in tCode
+         if tIndex >= tFirst and tIndex <= tLast and tTokens[tIndex]["k"] is "w" and _T(tTokens, tIndex) is "as" then
+            put true into tWord
+            exit repeat
+         end if
+      end repeat
+      if tWord then next repeat
+      -- (a value: "do go cd id 13086", a statement T42 did not put in
+      -- quotes, is no value)
+      put _DoTextSpan(tTokens, tFirst, tLast) into tText
+      if not _Compiles("on hcDoText" & return & "get" && tText & return & "end hcDoText") then next repeat
+      if tFirst = tLast and tTokens[tFirst]["k"] is "s" then
+         put char 2 to -2 of tTokens[tFirst]["t"] into tText
+         if _Compiles("on hcDoText" & return & tText & return & "end hcDoText") \
+               and not _NamesRenamed(tText, tRenamed) then next repeat
+      end if
+      if tRenamed is empty then
+         put ")" after tTokens[tLast]["t"]
+      else
+         put "," && _Literal(tRenamed) & ")" after tTokens[tLast]["t"]
+      end if
+      put "hcDoText(" before tTokens[tFirst]["t"]
+      _Fire "T81 the text of a do"
+   end repeat
+   return _Join(tTokens)
+end _DoTextCalls
 
 -- Whether the script being fixed is a field's or a button's, whose "me"
 -- is the control's text, here as in HyperCard: its long id begins "field
