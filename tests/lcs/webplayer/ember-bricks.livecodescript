@@ -1411,6 +1411,136 @@ on TestWhatARelayKeptIsThePast
    TestAssert "one made now is", st("lobby") is "asked" and st("foe") is "Bo"
 end TestWhatARelayKeptIsThePast
 
+-- A relay that goes is asked again: in a while if another is open, soon
+-- if none is, so that a moment without the network is not the end of the
+-- lobby. The test's lobby is given relays (ebNetRelay), which the test
+-- opens and loses as NostrXT's relay library would say; ebNetLines is
+-- what the game has asked for or has open
+private command relay pUrl, pKind
+   game "ebNetRelay", pUrl, pKind
+end relay
+
+-- (of a line that broke the library says both)
+private command loses pUrl
+   game "ebNetRelay", pUrl, "error"
+   game "ebNetRelay", pUrl, "disconnected"
+end loses
+
+on TestARelayThatGoesIsAskedAgain
+   lobbyAs "Ada"
+   relay "wss://one", "dial"
+   relay "wss://two", "dial"
+   TestAssert "a relay asked for is waited for", gameSays("ebNetLines") is "wss://one wait" & return & "wss://two wait" and st("relays") is 0
+   relay "wss://one", "open"
+   relay "wss://two", "open"
+   TestAssert "and opens", gameSays("ebNetLines") is "wss://one open" & return & "wss://two open" and st("relays") is 2
+
+   loses "wss://one"
+   step 14
+   TestAssert "one of two goes: it is not asked again at once", gameSays("ebNetLines") is "wss://two open" and st("lobby") is "online"
+   step 2
+   TestAssert "but in a while", gameSays("ebNetLines") is "wss://one wait" & return & "wss://two open"
+   get gameSays("ebNetSent")
+   relay "wss://one", "open"
+   TestAssert "it opens: it is told that I am here", st("relays") is 2 and gameSays("ebNetSent") is "who EB|1|free|50|0|Ada" & return
+
+   loses "wss://one"
+   step 5
+   loses "wss://two"
+   TestAssert "both go: none is open, and the lobby is kept", st("relays") is 0 and gameSays("ebNetLines") is empty and \
+         st("lobby") is "online" and st("online") is true
+   step 2
+   TestAssert "they are not asked again at once", gameSays("ebNetLines") is empty
+   step 2
+   TestAssert "but soon, the one that went first too", gameSays("ebNetLines") is "wss://one wait" & return & "wss://two wait"
+   step 6
+   TestAssert "the lobby is kept while they are waited for", st("lobby") is "online" and st("online") is true
+   relay "wss://two", "open"
+   step 30
+   TestAssert "one answers: the lobby goes on", st("lobby") is "online" and st("online") is true and st("relays") is 1
+
+   -- (the first goes for the third time, the second for the second)
+   loses "wss://one"
+   loses "wss://two"
+   step 4
+   TestAssert "both go again: both are asked again", gameSays("ebNetLines") is "wss://one wait" & return & "wss://two wait"
+   loses "wss://one"
+   loses "wss://two"
+   step 4
+   TestAssert "a relay that went three times is asked no more", gameSays("ebNetLines") is "wss://two wait" and st("online") is true
+   loses "wss://two"
+   step 3
+   TestAssert "with none open the lobby is kept twelve seconds", st("lobby") is "online" and st("online") is true
+   step 2
+   TestAssert "and no longer: its first step says so", st("online") is false and st("lobby") is "start" and st("mode") is "lobby" and \
+         fieldText("Lobby Note") is "The lobby cannot be reached. Check your connection, or play by code."
+end TestARelayThatGoesIsAskedAgain
+
+-- A phone that slept, or a page that was hidden: its relays went
+-- meanwhile, which the game may hear before the first frame after or
+-- after it. (ebTestSlept is one frame that was so many seconds in
+-- coming.)
+on TestAPageThatSleptHasNotWaitedForARelay
+   lobbyAs "Ada"
+   relay "wss://one", "dial"
+   relay "wss://one", "open"
+   step 5
+   loses "wss://one"
+   game "ebTestSlept", 90
+   TestAssert "the relay went, and a frame comes a minute and a half later: the lobby is kept, and the relay asked again", \
+         st("online") is true and st("lobby") is "online" and gameSays("ebNetLines") is "wss://one wait"
+   step 11
+   TestAssert "it is waited for from then", st("online") is true and st("lobby") is "online"
+   relay "wss://one", "open"
+   step 5
+   TestAssert "and opens: the lobby goes on", st("online") is true and st("relays") is 1
+
+   game "ebTestSlept", 90
+   loses "wss://one"
+   step 4
+   TestAssert "the frame first, and then the relay is heard to have gone: asked again soon", \
+         st("online") is true and gameSays("ebNetLines") is "wss://one wait"
+   loses "wss://one"
+   game "ebTestSlept", 1.5
+   step 4
+   loses "wss://one"
+   step 8
+   TestAssert "a slow frame is not a sleep: the lobby is given up twelve seconds after its last relay", \
+         st("online") is false and st("lobby") is "start"
+end TestAPageThatSleptHasNotWaitedForARelay
+
+on TestARelayThatStayedIsAskedAfresh
+   local tAsked
+   lobbyAs "Ada"
+   relay "wss://one", "dial"
+   relay "wss://one", "open"
+   put 0 into tAsked
+   repeat 5 times
+      step 61
+      loses "wss://one"
+      step 4
+      if gameSays("ebNetLines") is "wss://one wait" then
+         add 1 to tAsked
+      end if
+      relay "wss://one", "open"
+   end repeat
+   TestAssert "a relay that stayed a minute each time is asked again every time it goes", tAsked is 5 and st("relays") is 1 and \
+         st("lobby") is "online"
+   lobbyAs "Ada"
+   relay "wss://one", "dial"
+   relay "wss://one", "open"
+   put 0 into tAsked
+   repeat 4 times
+      loses "wss://one"
+      step 4
+      if gameSays("ebNetLines") is "wss://one wait" then
+         add 1 to tAsked
+      end if
+      relay "wss://one", "open"
+   end repeat
+   TestAssert "one that answers and hangs up is asked three times, not for ever", tAsked is 3 and st("relays") is 0
+end TestARelayThatStayedIsAskedAfresh
+
 on TestALinkThatIsNeverMade
    lobbyAs "Ada"
    hears "a", "free", "Bo", 0

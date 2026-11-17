@@ -145,7 +145,13 @@ constant kDuelLinkFor = 35
 -- machine's clock a message may be and still be news (some relays keep
 -- for a few minutes what they pass on, and give it to a newcomer; the two
 -- minutes allow for clocks that disagree); how long a relay
--- is waited for, a challenge for its answer and a link for its opening;
+-- is waited for (and the lobby is kept with none open); when a relay
+-- that went is asked again, and when if it was the last (soon: well
+-- before the lobby is given up), how many times, and how long one must
+-- have stayed for its times to be counted afresh; how long a frame must
+-- have been in coming for the page to have slept (which is no time a
+-- relay was waited for); how long a challenge is waited for its answer
+-- and a link for its opening;
 -- how long a quick match leaves alone a player who would not link; the
 -- rows of players the lobby shows, and on a phone on its side; and the
 -- letters of a room's code (none that looks like another)
@@ -157,6 +163,11 @@ constant kNetBeat = 20
 constant kNetStale = 50
 constant kNetOld = 120
 constant kNetOpenFor = 12
+constant kNetRetry = 15
+constant kNetRetrySoon = 3
+constant kNetTries = 3
+constant kNetSteady = 60
+constant kNetSlept = 2
 constant kNetAskFor = 30
 constant kNetLinkFor = 30
 constant kNetAgain = 8
@@ -5956,6 +5967,15 @@ private function ebNetDial pUrl
    if pUrl is empty then
       return false
    end if
+   if sLob["fake"] is true then
+      -- (a test's lobby: a relay that is none, for the test to open or
+      -- to lose, ebNetRelay)
+      add 1 to sLob["lines"]
+      put "test-" & sLob["lines"] into tRelay
+      put "wait" into sLob["relay"][tRelay]
+      put pUrl into sLob["url"][tRelay]
+      return true
+   end if
    try
       nxrConnect pUrl
       put the result into tRelay
@@ -6009,6 +6029,9 @@ private command ebNetStop pSay
    -- (nothing of the lobby is left before its relays are closed: closing
    -- one says so, to an ear that is gone)
    put the keys of sLob["relay"] into tRelays
+   if sLob["fake"] is true then
+      put empty into tRelays
+   end if
    put empty into sLob
    ebNetEar false
    repeat for each line tRelay in tRelays
@@ -6048,6 +6071,7 @@ end ebNetHeard
 -- first to open is the lobby (or the room of a friend's link)
 private command ebNetOpened pRelay
    put "open" into sLob["relay"][pRelay]
+   put sLob["clock"] into sLob["since"][pRelay]
    put empty into sLob["alone"]
    ebNetListen pRelay
    if sLob["leaving"] is true then
@@ -6069,22 +6093,41 @@ private command ebNetOpened pRelay
    end if
 end ebNetOpened
 
--- A relay is gone: it is asked again in a while, three times (ebNetStep);
--- with none left for too long there is no lobby (ebNetNone)
+-- A relay is gone: it is asked again (ebNetStep) in a while, or soon if
+-- none is left open, since with none left for too long there is no lobby
+-- (ebNetNone) and the asking has to come before that. A relay is asked a
+-- few times and no more (one that answers and hangs up is not asked for
+-- ever), counted afresh once it has stayed a while
 private command ebNetLost pRelay
-   local tUrl
+   local tUrl, tSoon, tUrls, tOther
    put sLob["url"][pRelay] into tUrl
+   if tUrl is not empty and sLob["since"][pRelay] is a number then
+      if sLob["clock"] - sLob["since"][pRelay] >= kNetSteady then
+         put 0 into sLob["tries"][tUrl]
+      end if
+   end if
    delete variable sLob["relay"][pRelay]
    delete variable sLob["url"][pRelay]
+   delete variable sLob["since"][pRelay]
    if sLob["leaving"] is true then
       exit ebNetLost
    end if
-   if tUrl is not empty and sLob["tries"][tUrl] < 3 then
+   if tUrl is not empty and sLob["tries"][tUrl] < kNetTries then
       add 1 to sLob["tries"][tUrl]
-      put sLob["clock"] + 15 into sLob["again"][tUrl]
+      put sLob["clock"] + kNetRetry into sLob["again"][tUrl]
    end if
-   if ebNetOpen() is 0 and sLob["alone"] is not a number then
-      put sLob["clock"] into sLob["alone"]
+   if ebNetOpen() is 0 then
+      if sLob["alone"] is not a number then
+         put sLob["clock"] into sLob["alone"]
+      end if
+      -- (none is open: whichever is to be asked again is asked soon)
+      put sLob["clock"] + kNetRetrySoon into tSoon
+      put the keys of sLob["again"] into tUrls
+      repeat for each line tOther in tUrls
+         if sLob["again"][tOther] > tSoon then
+            put tSoon into sLob["again"][tOther]
+         end if
+      end repeat
    end if
 end ebNetLost
 
@@ -6104,6 +6147,9 @@ end ebNetNone
 -- A relay is asked for the room's "who is here", and for the words to me
 private command ebNetListen pRelay
    local tWho, tMe, tError
+   if sLob["fake"] is true then
+      exit ebNetListen
+   end if
    try
       -- (only what is said from now on: nothing a relay has kept, by its
       -- count, nor anything made before a while ago, by its date)
@@ -6452,13 +6498,21 @@ end ebNetPublish
 private command ebNetStep pReal
    local tPk, tGone, tUrl, tDue
    add pReal to sLob["clock"]
+   -- (a frame long in coming: the page was hidden or the phone slept,
+   -- its relays went meanwhile, and whether that is heard before this
+   -- frame or after it, the time asleep is none that a relay was waited
+   -- for. The relays are asked again now, and waited for from now)
+   if pReal > kNetSlept and sLob["alone"] is a number then
+      add pReal to sLob["alone"]
+   end if
    if sLob["leaving"] is true then
       if sLob["clock"] >= sLob["leaveAt"] then
          ebNetStop
       end if
       exit ebNetStep
    end if
-   if sLob["fake"] is not true then
+   -- (a test's lobby has relays only if the test gave it some)
+   if sLob["fake"] is not true or sLob["wired"] is true then
       if sLob["alone"] is a number then
          if sLob["clock"] - sLob["alone"] > kNetOpenFor then
             ebNetNone
@@ -7024,6 +7078,43 @@ command ebNetHear pPk, pWhat, pText, pAgo
    end if
 end ebNetHear
 
+-- A relay of a test's lobby, by its address: asked for as GO ONLINE asks
+-- for one (pKind "dial"), or what the one now asked for or open says, as
+-- NostrXT's relay library would say it ("open", "error", "disconnected")
+command ebNetRelay pUrl, pKind
+   local tRelay, tFound
+   set the defaultStack to the short name of me
+   if sLob["fake"] is not true then
+      exit ebNetRelay
+   end if
+   if pKind is "dial" then
+      put true into sLob["wired"]
+      get ebNetDial(pUrl)
+      exit ebNetRelay
+   end if
+   put empty into tFound
+   repeat for each key tRelay in sLob["url"]
+      if sLob["url"][tRelay] is pUrl then
+         put tRelay into tFound
+      end if
+   end repeat
+   if tFound is not empty then
+      ebNetHeard tFound, pKind
+   end if
+end ebNetRelay
+
+-- The relays of a test's lobby, a line each in the order of their
+-- addresses: the address, and "wait" (asked for) or "open"
+function ebNetLines
+   local tRelay, tOut
+   repeat for each key tRelay in sLob["relay"]
+      put sLob["url"][tRelay] && sLob["relay"][tRelay] & return after tOut
+   end repeat
+   delete the last char of tOut
+   sort lines of tOut
+   return tOut
+end ebNetLines
+
 -- The game, pSeconds on, a sixtieth of a second at a time
 command ebTestStep pSeconds
    set the defaultStack to the short name of me
@@ -7034,6 +7125,15 @@ command ebTestStep pSeconds
    end repeat
    unlock screen
 end ebTestStep
+
+-- One frame that was pSeconds in coming, as when the page was hidden or
+-- the phone slept
+command ebTestSlept pSeconds
+   set the defaultStack to the short name of me
+   lock screen
+   ebAdvance 0.05, pSeconds
+   unlock screen
+end ebTestSlept
 
 -- A wall of a test's own in place of the level's: its rows, top first,
 -- each of ten places as in levels.txt. A ball waits on the paddle

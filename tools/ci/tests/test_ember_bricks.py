@@ -64,6 +64,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 import unittest
 import wave
 
@@ -582,6 +583,87 @@ class Lobby(unittest.TestCase):
         self.assertGreaterEqual(ember_bricks_check.LOBBY_RELAY_KEEPS, 300)
         self.assertIn('ephemeral=LOBBY_RELAY_KEEPS', read('tools', 'ci', 'ember_bricks_check.py'))
 
+    def test_a_relay_that_goes_is_asked_again_before_the_lobby_is_given_up(self):
+        # with no relay open the lobby is kept kNetOpenFor seconds: one
+        # that went is asked again well inside that, more than once, or a
+        # moment without the network would be the end of the lobby
+        soon, tries = int(constant('kNetRetrySoon')), int(constant('kNetTries'))
+        self.assertGreaterEqual(soon, 2)
+        self.assertGreaterEqual(tries, 2)
+        self.assertLessEqual(soon * tries, int(constant('kNetOpenFor')) - soon)
+        self.assertGreater(int(constant('kNetRetry')), soon)
+        # (and one that answers and hangs up is not asked for ever: its
+        # times are counted afresh only when it has stayed a while)
+        self.assertGreaterEqual(int(constant('kNetSteady')), 30)
+        script = game_script()
+        lost = script[script.index('\nprivate command ebNetLost'):script.index('\nend ebNetLost')]
+        self.assertIn('if tUrl is not empty and sLob["tries"][tUrl] < kNetTries then\n'
+                      '      add 1 to sLob["tries"][tUrl]\n'
+                      '      put sLob["clock"] + kNetRetry into sLob["again"][tUrl]', lost)
+        alone = lost[lost.index('if ebNetOpen() is 0 then'):]
+        self.assertIn('put sLob["clock"] + kNetRetrySoon into tSoon', alone)
+        self.assertIn('if sLob["again"][tOther] > tSoon then\n            put tSoon into sLob["again"][tOther]', alone)
+        self.assertIn('if sLob["clock"] - sLob["since"][pRelay] >= kNetSteady then\n         put 0 into sLob["tries"][tUrl]', lost)
+        # the lobby is given up before a relay is asked again in a frame,
+        # so the asking has to be due before that
+        step = script[script.index('\nprivate command ebNetStep'):script.index('\nend ebNetStep')]
+        self.assertIn('if sLob["clock"] - sLob["alone"] > kNetOpenFor then\n            ebNetNone', step)
+        self.assertLess(step.index('ebNetNone'), step.index('get ebNetDial(tUrl)'))
+        # a frame long in coming (the phone slept) is no time a relay was
+        # waited for, whichever is heard first, the frame or the relays' going
+        self.assertIn('if pReal > kNetSlept and sLob["alone"] is a number then\n      add pReal to sLob["alone"]', step)
+        self.assertLess(step.index('add pReal to sLob["alone"]'), step.index('ebNetNone'))
+        self.assertTrue(1 <= float(constant('kNetSlept')) <= 5, constant('kNetSlept'))
+        # a test's lobby has no relay but the ones a test gives it, which
+        # are none: nothing of NostrXT's is called for them
+        dial = script[script.index('\nprivate function ebNetDial'):script.index('\nend ebNetDial')]
+        self.assertLess(dial.index('if sLob["fake"] is true then'), dial.index('nxrConnect pUrl'))
+        listen = script[script.index('\nprivate command ebNetListen'):script.index('\nend ebNetListen')]
+        self.assertLess(listen.index('if sLob["fake"] is true then\n      exit ebNetListen'), listen.index('nxrSubscribe'))
+        # the browser's check has the relay hang up on everyone, and gives
+        # the pages less time to be back than the lobby is kept for
+        check = read('tools', 'ci', 'ember_bricks_check.py')
+        self.assertIn('relay.relay.hang_up()', check)
+        self.assertLess(ember_bricks_check.LOBBY_BACK_IN, int(constant('kNetOpenFor')))
+        self.assertGreater(ember_bricks_check.LOBBY_BACK_IN, soon * 2)
+
+    def test_the_checks_relay_hangs_up_and_goes_on_listening(self):
+        import socket
+        import nostr_test_relay
+
+        def client(port):
+            c = socket.create_connection(('127.0.0.1', port), timeout=5)
+            c.sendall(b'GET / HTTP/1.1\r\nHost: x\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n'
+                      b'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n')
+            self.assertIn(b' 101 ', c.recv(4096))
+            return c
+
+        def wait_for(count):
+            end = time.time() + 5
+            while time.time() < end and len(server.relay.connected()) != count:
+                time.sleep(0.02)
+            return len(server.relay.connected())
+
+        server = nostr_test_relay.serve()
+        try:
+            port = server.server_address[1]
+            one, two = client(port), client(port)
+            self.assertEqual(wait_for(2), 2)
+            self.assertEqual(server.relay.hang_up(), 2)
+            # each client's connection has ended, with no closing frame
+            self.assertEqual(one.recv(16), b'')
+            self.assertEqual(two.recv(16), b'')
+            self.assertEqual(wait_for(0), 0)
+            one.close()
+            two.close()
+            # and one that asks again is let in
+            three = client(port)
+            self.assertEqual(wait_for(1), 1)
+            three.close()
+        finally:
+            server.shutdown()
+            server.server_close()
+
     def test_the_checks_relay_keeps_what_it_is_told_to(self):
         import nostr_test_relay
         kept = nostr_test_relay.Relay(None, 300)
@@ -620,7 +702,7 @@ class Lobby(unittest.TestCase):
         # one handler dials; it is called to go online, and while online
         # for a relay that was lost (the step of a lobby that is on)
         self.assertEqual(having(r'\bnxrConnect\b'), ['ebNetDial'])
-        self.assertEqual(having(r'\bebNetDial\('), ['ebNetStart', 'ebNetStep'])
+        self.assertEqual(having(r'\bebNetDial\('), ['ebNetRelay', 'ebNetStart', 'ebNetStep'])
         self.assertEqual(having(r'^\s*ebNetStep\b'), ['ebAdvance'])
         self.assertIn('   if sLob["on"] is true then\n      ebNetStep pReal\n   end if\n', script)
         # going online comes of GO ONLINE (the button, or Return in the
@@ -631,10 +713,16 @@ class Lobby(unittest.TestCase):
         self.assertRegex(script, r'case "Net Go"\n\s+ebNetGo\n')
         leave = script[script.index('\ncommand ebDuelLeave'):script.index('\nend ebDuelLeave')]
         self.assertRegex(leave, r'if tBack then\n(?:\s+--[^\n]*\n)*\s+ebDuelOpen\n\s+if sLobby is "start" then\n\s+ebNetStart\n')
-        # and a test's lobby dials none
+        # and a test's lobby dials none: the relays a test gives it
+        # (ebNetRelay, which is of a test's lobby only) are none
         fake = script[script.index('\ncommand ebTestNet'):script.index('\nend ebTestNet')]
         self.assertNotIn('ebNetStart', fake)
         self.assertIn('put true into sLob["fake"]', fake)
+        given = script[script.index('\ncommand ebNetRelay '):script.index('\nend ebNetRelay\n')]
+        self.assertLess(given.index('if sLob["fake"] is not true then\n      exit ebNetRelay'), given.index('ebNetDial('))
+        dial = script[script.index('\nprivate function ebNetDial'):script.index('\nend ebNetDial')]
+        pretend = dial[dial.index('if sLob["fake"] is true then'):dial.index('nxrConnect pUrl')]
+        self.assertIn('return true\n   end if\n', pretend)
 
     def test_the_game_hears_the_relays_through_an_ear_of_its_own(self):
         # NostrXT's relay library tells the top stack, or the one object
@@ -1022,10 +1110,10 @@ class EngineTests(unittest.TestCase):
         self.assertTrue({'ebTestBegin', 'ebTestStep', 'ebTestLevel', 'ebTestBall', 'ebTestPaddle', 'ebTestDrop',
                          'ebTestSet', 'ebTestDuel', 'ebDuelSent', 'ebDuelReceive', 'ebState', 'ebPress',
                          'ebPasted', 'ebDuelEncode', 'ebDuelDecode', 'ebTestNet', 'ebNetHear', 'ebNetSent',
-                         'ebNetName', 'ebNetCode'} <= hooks, hooks)
+                         'ebNetName', 'ebNetCode', 'ebNetRelay', 'ebNetLines', 'ebTestSlept'} <= hooks, hooks)
         for name in hooks:
             self.assertRegex(script, r'\n(?:on|command|function) %s\b' % name, name)
-        self.assertGreaterEqual(len(re.findall(r'^on Test(?!Setup|Teardown)', tests, re.M)), 78)
+        self.assertGreaterEqual(len(re.findall(r'^on Test(?!Setup|Teardown)', tests, re.M)), 81)
 
     def test_the_layout_is_asked_only_of_a_window_that_was_made_the_size(self):
         # the tests of the game run in a phone's app too, where no window

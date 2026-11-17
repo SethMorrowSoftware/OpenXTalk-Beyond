@@ -690,14 +690,18 @@ is kept (`limit` 0) and takes for news nothing made more than two
 minutes ago, nor a player's older "I am here" after a newer one. And
 every message carries its count as a tag: an event is known by its
 words and the second it was made in, and a relay passes on only the
-first of two it takes for the same. NostrXT's relay library tells
-the top stack what a relay says, or the one object that asked for
-everything (`nxrInit`), which another stack's chat may be. So the game
-asks for nothing: it names a callback of its own to each relay it opens
-(`nxrSetCallback`) and hears it through a hidden button whose script is
-at the back of the message path while the game is online. It works
-whichever stack is on top, takes nothing from xTalk Chat, and closes only
-the relays it opened.
+first of two it takes for the same. A relay that goes is asked again:
+after fifteen seconds while another is open, after three when none is,
+since a lobby with no relay open is given up after twelve; three times,
+counted afresh once a relay has stayed a minute. (A phone that slept
+lost its relays meanwhile: the time asleep is not counted as waiting.)
+NostrXT's relay library tells the top stack what a relay says, or the
+one object that asked for everything (`nxrInit`), which another stack's
+chat may be. So the game asks for nothing: it names a callback of its
+own to each relay it opens (`nxrSetCallback`) and hears it through a
+hidden button whose script is at the back of the message path while the
+game is online. It works whichever stack is on top, takes nothing from
+xTalk Chat, and closes only the relays it opened.
 
 Its font is Atkinson Hyperlegible, by the Braille Institute, under the
 SIL Open Font License: the same two files as Puzzle Almanac's. Its sounds
@@ -736,10 +740,11 @@ window and two phones) on a Nostr relay of its own on 127.0.0.1
 minutes, as some public relays do): going online by a typed name, each
 page's list of the others, a challenge accepted and played over a real
 link, the third page seeing the two in a duel, the lobby again after the
-match, a quick match, and a friend's room joined by the link that was
-copied. No check goes to the public relays, which CI must neither lean on
-nor write to. CI runs it in web.yml, after Puzzle Almanac's check. To run
-it yourself:
+match, the relay hanging up on all three and each back on it by itself,
+a quick match, and a friend's room joined by the link that was copied.
+No check goes to the public relays, which CI must neither lean on nor
+write to. CI runs it in web.yml, after Puzzle Almanac's check. To run it
+yourself:
 
 ```sh
 python3 tools/ci/ember_bricks_check.py --runtime <web runtime> --engine-cache <folder> --shots <folder>
