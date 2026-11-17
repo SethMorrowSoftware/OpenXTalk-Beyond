@@ -1,0 +1,104 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+# A draft pull request builds nothing on Windows, macOS or Linux (the
+# draft gate of build-windows.yml, build-linux.yml, build-macos.yml,
+# web-ide.yml and web-host.yml): its run of each ends as PASSED, with a
+# notice on the run's page that nothing was built. On a pull request's
+# page that read as green, and on 2026-11-16 a draft's Windows build that
+# had never run went unnoticed for hours. So this workflow writes one
+# commit status, "Platform builds", on the pull request's newest commit:
+#
+#   - PENDING while the pull request is a draft ("not built: draft"),
+#     so the pull request's checks never show all green;
+#   - SUCCESS once it is ready for review, saying only that the builds
+#     run now; the builds report their own checks, and the required ones
+#     (BUILDING.md section 9) are what decide a merge.
+#
+# The status is not a required check and builds nothing. Like the gate,
+# it asks GitHub whether the pull request is a draft NOW, and of which
+# commit, rather than reading the event's copy, which is as old as the
+# event (see build-windows.yml, "THE DRAFT GATE"). It lives in a workflow
+# of its own because it writes: release.yml calls the build workflows,
+# and a called workflow may not ask for more than its caller grants.
+# A pull request from a fork gets a token that cannot write statuses;
+# the step then warns and passes. tools/ci/tests/test_draft_status.py
+# runs its step.
+name: Draft status
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: draft-status-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  status:
+    name: Platform builds status
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      statuses: write
+      pull-requests: read
+    steps:
+      - name: Mark whether the platform builds run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          answer=
+          for try in 1 2 3; do
+            if answer=$(timeout 30 gh api "repos/$REPO/pulls/$PR_NUMBER" --jq '"\(.draft) \(.head.sha)"'); then
+              break
+            fi
+            answer=
+            if [ "$try" -lt 3 ]; then sleep $((try * 5)); fi
+          done
+          draft=${answer%% *}
+          sha=${answer#* }
+          if ! [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::warning::GitHub did not say whether pull request #$PR_NUMBER is a draft; no status written."
+            exit 0
+          fi
+          case "$draft" in
+            true)
+              state=pending
+              description="Not built: a draft. Mark it ready for review to build."
+              ;;
+            false)
+              state=success
+              description="Ready for review: the platform builds run on this commit."
+              ;;
+            *)
+              echo "::warning::GitHub did not say whether pull request #$PR_NUMBER is a draft; no status written."
+              exit 0
+              ;;
+          esac
+          echo "Pull request #$PR_NUMBER at ${sha:0:12}: $state ($description)"
+          if ! timeout 30 gh api -X POST "repos/$REPO/statuses/$sha" \
+              -f state="$state" -f context="Platform builds" \
+              -f description="$description" -f target_url="$RUN_URL" > /dev/null; then
+            echo "::warning::Could not write the status (a pull request from a fork has no right to)."
+          fi

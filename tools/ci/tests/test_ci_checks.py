@@ -38,12 +38,20 @@ import unittest
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 WORKFLOW = os.path.join(REPO, '.github', 'workflows', 'ci-checks.yml')
+# the Windows and macOS job, in a workflow of its own since 2026-11-16
+OTHER_OS = os.path.join(REPO, '.github', 'workflows', 'ci-checks-other-os.yml')
+
+
+def load(path):
+    import yaml
+    with open(path, encoding='utf-8') as f:
+        return yaml.safe_load(f)
 
 
 def jobs():
-    import yaml
-    with open(WORKFLOW, encoding='utf-8') as f:
-        return yaml.safe_load(f)['jobs']
+    both = dict(load(WORKFLOW)['jobs'])
+    both.update(load(OTHER_OS)['jobs'])
+    return both
 
 
 class TimeLimits(unittest.TestCase):
@@ -147,6 +155,30 @@ class ActionlintDownload(unittest.TestCase):
         import yaml
         with open(WORKFLOW, encoding='utf-8') as f:
             self.assertEqual(yaml.safe_load(f)['permissions'], {'contents': 'read'})
+
+
+class OtherOsOnlyForScripts(unittest.TestCase):
+    """The Windows and macOS job runs when a script or a workflow changes,
+    and on no other pull request (a Mac runner for 15 minutes on every
+    commit was the Mac queue's); the Linux job stays on every one."""
+
+    def test_the_linux_job_runs_on_every_pull_request(self):
+        on = load(WORKFLOW).get('on', load(WORKFLOW).get(True))
+        self.assertEqual(list(load(WORKFLOW)['jobs']), ['checks'])
+        self.assertNotIn('paths', on['pull_request'])
+        self.assertNotIn('paths-ignore', on['pull_request'])
+
+    def test_other_os_runs_for_the_scripts_and_the_workflows(self):
+        data = load(OTHER_OS)
+        on = data.get('on', data.get(True))
+        self.assertEqual(list(data['jobs']), ['other-os'])
+        for event in ('push', 'pull_request'):
+            paths = on[event]['paths']
+            # the tests themselves, every script they test, and the
+            # workflows that run them
+            for wanted in ('tools/**', '.github/workflows/**'):
+                self.assertIn(wanted, paths, event)
+            self.assertFalse([p for p in paths if p.startswith('!')], event)
 
 
 if __name__ == '__main__':
