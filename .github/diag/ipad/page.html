@@ -54,7 +54,14 @@ html,body{margin:0;height:100%;font:16px system-ui}
   });
   document.addEventListener('visibilitychange', function () { note('visibility ' + document.visibilityState); });
   ['fullscreenchange', 'webkitfullscreenchange', 'fullscreenerror', 'webkitfullscreenerror'].forEach(function (t) {
-    document.addEventListener(t, function () { note(t + ' full=' + full() + ' active=' + active()); });
+    document.addEventListener(t, function () {
+      note(t + ' full=' + full() + ' active=' + active());
+      // blur-on-change: the input loses the focus only once the page hears it is full screen
+      if (mode === 'blur-on-change' && input && full() && document.activeElement === input) {
+        input.blur();
+        note('input.blur() on ' + t + ', active=' + active());
+      }
+    });
   });
 
   var presses = 0, asked = false;
@@ -65,6 +72,8 @@ html,body{margin:0;height:100%;font:16px system-ui}
     // two-taps: the first tap gives the focus and asks for nothing; the
     // second asks with the input focused long before and no focus() call
     if (mode === 'two-taps' && presses > 1) return;
+    // tap-again-held: a press while the page is full screen gives the input nothing
+    if (mode === 'tap-again-held' && full()) { note('a press while full screen: the input is left alone'); return; }
     if (input) { input.focus({preventScroll: true}); note('input.focus() at the press, active=' + active()); }
     if (canvas) { canvas.focus({preventScroll: true}); note('canvas.focus() at the press, active=' + active()); }
   }
@@ -73,7 +82,7 @@ html,body{margin:0;height:100%;font:16px system-ui}
     if (mode === 'two-taps' && presses < 2) { note('first tap done, active=' + active()); return; }
     if (asked) return;
     asked = true;
-    if (input && (mode === 'blur-before' || mode === 'blur-then-focus-later')) {
+    if (input && /^(blur-before|blur-then-focus-later|tap-again|tap-again-held)$/.test(mode)) {
       input.blur();
       note('input.blur() before asking, active=' + active());
     }

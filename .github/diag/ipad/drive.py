@@ -12,8 +12,8 @@ import re
 import sys
 import time
 
-MODES = ['plain', 'focused', 'two-taps', 'blur-before', 'blur-then-focus-later', 'focus-again-later',
-         'readonly', 'button-type', 'canvas', 'never-focused']
+MODES = ['plain', 'focused', 'two-taps', 'blur-before', 'blur-on-change', 'blur-then-focus-later',
+         'focus-again-later', 'tap-again', 'tap-again-held', 'readonly', 'button-type', 'canvas', 'never-focused']
 
 
 def pick():
@@ -75,6 +75,10 @@ def run(base, udid):
                     tap(pad, how)
                     if mode == 'two-taps':
                         time.sleep(1.5)
+                        tap(pad, how)
+                    if mode in ('tap-again', 'tap-again-held'):
+                        # a second press while the page is full screen
+                        time.sleep(2.2)
                         tap(pad, how)
                     end = time.time() + 12
                     while time.time() < end:

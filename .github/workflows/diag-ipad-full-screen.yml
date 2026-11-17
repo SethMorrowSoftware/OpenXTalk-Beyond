@@ -52,7 +52,7 @@ jobs:
           xcrun simctl list devices booted
 
       - name: Full screen from a tap, case by case
-        timeout-minutes: 12
+        timeout-minutes: 15
         run: |
           python3 -m venv "$RUNNER_TEMP/venv"
           "$RUNNER_TEMP/venv/bin/python" -m pip install --quiet "selenium>=4.20,<5"
