@@ -120,9 +120,10 @@ function revWebIDEMenu pMenuName, pMenu
    switch pMenuName
       case "File"
          -- (Share Stack... writes a package to the Desktop, which a
-         -- browser does not have)
+         -- browser does not have; Community Stacks... brings copies to
+         -- the Documents folder, and the gallery is a page away)
          put "Standalone Application Settings...,Save as Standalone Application...," & \
-               "Share Stack...,Quit,Exit" into tLeaveOut
+               "Share Stack...,Community Stacks...,Quit,Exit" into tLeaveOut
          break
       case "Tools"
          put "Extension Builder" into tLeaveOut

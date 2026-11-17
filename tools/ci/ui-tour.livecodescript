@@ -85,7 +85,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,tools-widget-install,tools-widget-builder,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,menu-submenu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,icon-picker,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-button-menu,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,extension-builder-errors,message-watcher,error-display,search,replicate,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,share-stack,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,code-font,ide-stacks,screen-end,background-default"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,tools-widget-install,tools-widget-builder,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,menu-submenu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,icon-picker,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-button-menu,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,extension-builder-errors,message-watcher,error-display,search,replicate,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,share-stack,community-stacks,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,code-font,ide-stacks,screen-end,background-default"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -9971,6 +9971,348 @@ on tourShotSharePacked
       close stack "revKitDialog"
    end if
 end tourShotSharePacked
+
+-- File > Community Stacks... (palettes/community,
+-- revIDEActionCommunityStacks), the gallery of shared stacks in the IDE,
+-- on a gallery of the tour's own: three stacks in a folder, their list
+-- signed with a key made here. The window shows the list only with that
+-- signature (a list that was changed after it was signed, and one with
+-- no signature, are refused and say so); a copy is fetched, checked and
+-- written; and it opens for looking at without any of its scripts
+-- running. Get a Copy asks first, in a modal dialog, which is snapshot
+-- and closed by a message sent before it opens.
+--
+-- The signature is checked by SodiumXT, which a packaged IDE has built
+-- in. In a source tree without it the window must refuse every list,
+-- and the step checks that it does.
+local sCommunityNotes
+global gTourCommunityRan
+
+on tour_community_stacks
+   local tFolder, tSite, tCopies, tHave, tPublic, tSecret, tKey, tError, tWin, tIndex, tStack, tZip, tNotes, tEntries, tSlug, tTitle
+   local tLine, tSig, tEntry, tMain, tResult, tTool, tOut, tToolset, tInstalled, tWait
+   put "revCommunityStacks" into tWin
+   put empty into sCommunityNotes
+   put empty into gTourCommunityRan
+   put the tool into tTool
+   put specialFolderPath("temporary") & "/oxt_tour_community_" & the milliseconds into tFolder
+   put tFolder & "/site" into tSite
+   put tFolder & "/copies" into tCopies
+   create folder tFolder
+   create folder tSite
+   create folder (tSite & "/s")
+   if there is no folder (tSite & "/s") then throw "no folder" && tSite
+   try
+      -- Is SodiumXT here? A packaged IDE has it; it must then be loaded
+      put false into tHave
+      try
+         sxSignKeypair tPublic, tSecret
+         put the number of bytes of tPublic is 32 into tHave
+      catch tWait
+         put false into tHave
+      end try
+      put revIDESpecialFolderPath("Toolset") into tToolset
+      set the itemDelimiter to slash
+      put there is a folder (item 1 to -2 of tToolset & "/Extensions/org.openxtalk.library.sodium") into tInstalled
+      set the itemDelimiter to comma
+      tourRecord "INFO community-stacks: SodiumXT loaded" && tHave & ", installed" && tInstalled
+      if tInstalled and not tHave then
+         throw "SodiumXT is installed in this IDE and is not loaded: the gallery's list could never be checked"
+      end if
+      if tHave then
+         put base64Encode(tPublic) into tKey
+      else
+         -- (any key: nothing can be checked with it here)
+         put base64Encode("0123456789abcdef0123456789abcdef") into tKey
+      end if
+
+      -- The tour's gallery: three stacks, one file each
+      put empty into tEntries
+      repeat for each line tLine in "tour-beat-box|Tour Beat Box|A drum machine with sixteen steps. Click the squares to lay down a beat.|" & \
+            quote & "internet" & quote & return & \
+            "tour-weather|Tour Weather|Today and the week ahead for any place. Type a town and press Return.|" & \
+            quote & "internet" & quote & "," & quote & "files" & quote & return & \
+            "tour-zen-garden|Tour Zen Garden|Rake the sand, place the stones, and breathe. It reaches for nothing.|"
+         set the itemDelimiter to "|"
+         put item 1 of tLine into tSlug
+         put item 2 of tLine into tTitle
+         create folder (tSite & "/s/" & tSlug)
+         create folder (tSite & "/s/" & tSlug & "/1.0")
+         -- (a stack whose opening scripts would say that they ran)
+         lock messages
+         create invisible stack ("OXT Tour Community" && tSlug)
+         put it into tStack
+         set the script of tStack to "global gTourCommunityRan" & return & \
+               "on preOpenStack" & return & "put true into gTourCommunityRan" & return & "end preOpenStack" & return & \
+               "on openStack" & return & "put true into gTourCommunityRan" & return & "end openStack" & return & \
+               "on openCard" & return & "put true into gTourCommunityRan" & return & "end openCard"
+         save tStack as (tFolder & "/" & tTitle & ".oxtstack")
+         delete tStack
+         unlock messages
+         put url ("binfile:" & tFolder & "/" & tTitle & ".oxtstack") into tStack
+         delete file (tFolder & "/" & tTitle & ".oxtstack")
+         put "A file nobody listed" into tNotes
+         put tSite & "/s/" & tSlug & "/1.0/" & tSlug & "-1.0.zip" into tZip
+         revZipOpenArchive tZip, "write"
+         revZipAddItemWithData tZip, tTitle & ".oxtstack", "tStack"
+         revZipAddItemWithData tZip, "stowaway.txt", "tNotes"
+         revZipCloseArchive tZip
+         put url ("binfile:" & tZip) into tZip
+         if tZip is empty then throw "the tour's gallery could not be made"
+         if tEntries is not empty then put "," after tEntries
+         put "{" & tourCsPair("slug", tSlug) & "," & tourCsPair("version", "1.0") & "," & tourCsPair("title", tTitle) & "," & \
+               tourCsPair("author", "A. Tourist") & "," & tourCsPair("description", item 3 of tLine) & "," & \
+               tourCsPair("licence", "MIT") & "," & tourCsPair("main", tTitle & ".oxtstack") & "," & \
+               tourCsPair("download", "s/" & tSlug & "/1.0/" & tSlug & "-1.0.zip") & "," & \
+               tourCsPair("page", "s/" & tSlug & "/index.html") & "," & tourCsPair("play", "s/" & tSlug & "/play.html") & "," & \
+               tourCsPair("source", "s/" & tSlug & "/1.0/source.html") & "," & \
+               quote & "script_lines" & quote & ":10," & \
+               tourCsPair("sha256", tourCsSha(tZip)) & "," & quote & "size" & quote & ":" & the number of bytes of tZip & "," & \
+               quote & "tags" & quote & ":[" & quote & "tour" & quote & "]," & quote & "uses" & quote & ":[" & item 4 of tLine & "]," & \
+               quote & "versions" & quote & ":[{" & tourCsPair("version", "1.0") & "," & \
+               tourCsPair("download", "s/" & tSlug & "/1.0/" & tSlug & "-1.0.zip") & "," & tourCsPair("sha256", tourCsSha(tZip)) & "," & \
+               quote & "size" & quote & ":" & the number of bytes of tZip & "," & quote & "files" & quote & ":[{" & \
+               tourCsPair("path", tTitle & ".oxtstack") & "," & tourCsPair("sha256", tourCsSha(tStack)) & "," & \
+               quote & "size" & quote & ":" & the number of bytes of tStack & "}]}]}" after tEntries
+         set the itemDelimiter to comma
+      end repeat
+      put textEncode("{" & quote & "format" & quote & ":1," & tourCsPair("name", "Tour Gallery") & "," & \
+            quote & "stacks" & quote & ":[" & tEntries & "]}" & return, "utf-8") into tIndex
+      put tIndex into url ("binfile:" & tSite & "/index.json")
+
+      -- With no signature: the window says that the list is not signed
+      revIDEActionCommunityStacks tSite, tKey
+      if the result is not empty then throw the result
+      tourCsWait tWin
+      dispatch function "revCommunityStacksState" to stack tWin
+      if the result is not "problem" then throw "a list with no signature was shown: state" && the result
+      if the htmlText of field "page" of stack tWin contains "Tour Beat Box" or field "idx" of stack tWin is not empty then
+         throw "a list with no signature was shown"
+      end if
+      if not the visible of group "again" of stack tWin or the visible of group "copy" of stack tWin then
+         throw "with no list, the buttons are not Try Again alone"
+      end if
+      tourRecord "INFO community-stacks: unsigned:" && tourJoin(the text of field "page" of stack tWin)
+      tourShotStack tWin, "24c5-community-stacks-unsigned"
+
+      if tHave then
+         -- Signed: Try Again shows the list
+         put base64Encode(sxSignDetached(tIndex, tSecret)) into tSig
+         replace return with empty in tSig
+         put tSig & return into url ("binfile:" & tSite & "/index.sig")
+         send "lkAction again" to stack tWin
+         tourCsWait tWin
+         dispatch function "revCommunityStacksState" to stack tWin
+         if the result is not "list" then
+            throw "the signed list was not shown:" && tourJoin(the text of field "page" of stack tWin)
+         end if
+         if the number of lines of field "idx" of stack tWin is not 3 or line 1 of field "idx" of stack tWin is not "Tour Beat Box" then
+            throw "the index is" && tourJoin(field "idx" of stack tWin)
+         end if
+         if field "hdrTitle" of stack tWin is not "Tour Beat Box" or field "navCount" of stack tWin is not "3 stacks" then
+            throw "the window shows" && field "hdrTitle" of stack tWin & "," && field "navCount" of stack tWin
+         end if
+         if not the visible of group "play" of stack tWin or not the visible of group "copy" of stack tWin \
+               or the visible of group "again" of stack tWin then
+            throw "with a stack in front, the buttons are not Play in Browser, Read Its Scripts and Get a Copy"
+         end if
+         tourWait 400
+         tourShotStack tWin, "24c6-community-stacks"
+
+         -- The search finds a stack by what it does
+         put "town" into field "search" of stack tWin
+         dispatch "textChanged" to field "search" of stack tWin
+         if field "navCount" of stack tWin is not "1 stack found" or field "hdrTitle" of stack tWin is not "Tour Weather" then
+            throw "the search for town shows" && field "hdrTitle" of stack tWin & "," && field "navCount" of stack tWin
+         end if
+         tourWait 300
+         tourShotStack tWin, "24c7-community-stacks-search"
+
+         -- Get a Copy asks first; closed, it fetches nothing
+         dispatch function "revCommunityStacksShown" to stack tWin
+         put the result into tEntry
+         if tEntry["slug"] is not "tour-weather" then throw "the stack in front is" && tEntry["slug"]
+         send "tourShotCommunityAsk" to me in 1500 milliseconds
+         revIDECommunityStacksGetCopy tEntry, tSite, tCopies
+         put the result into tResult
+         if sCommunityNotes is not empty then throw sCommunityNotes
+         if tResult is not empty or there is a folder tCopies then
+            throw "Get a Copy, not agreed to, made a copy:" && tResult
+         end if
+
+         -- Agreed to: the copy is fetched, checked and written, only the
+         -- listed file of it; the dialog that says so is snapshot, and
+         -- Open It to Look opens it without any of it running
+         send "tourCommunityAgree" to me in 1500 milliseconds
+         revIDECommunityStacksGetCopy tEntry, tSite, tCopies
+         put the result into tMain
+         if sCommunityNotes is not empty then throw sCommunityNotes
+         if tMain is not (tCopies & "/tour-weather-1.0/Tour Weather.oxtstack") or there is no file tMain then
+            throw "the copy is" && tMain
+         end if
+         if there is a file (tCopies & "/tour-weather-1.0/stowaway.txt") then
+            throw "a file the list does not name was written"
+         end if
+         tourWait 300
+         if there is no stack "OXT Tour Community tour-weather" or the mode of stack "OXT Tour Community tour-weather" is 0 then
+            throw "the copy did not open"
+         end if
+         if the effective filename of stack "OXT Tour Community tour-weather" is not tMain then
+            throw "the stack that opened is not the copy"
+         end if
+         if gTourCommunityRan is not empty then throw "the copy's opening scripts ran"
+         if the tool is not "pointer tool" then throw "the copy opened with the" && the tool
+         tourRecord "INFO community-stacks: copy" && tMain & ", opened, nothing ran"
+         lock messages
+         close stack "OXT Tour Community tour-weather"
+         delete stack "OXT Tour Community tour-weather"
+         unlock messages
+
+         -- A download that was changed on the site is thrown away
+         put "x" after url ("binfile:" & tSite & "/s/tour-beat-box/1.0/tour-beat-box-1.0.zip")
+         dispatch function "revCommunityStacksParse" to stack tWin with tIndex
+         put the result into tOut
+         dispatch "revCommunityStacksGet" to stack tWin with tOut["stacks"][1], tCopies, tSite
+         if not (the result begins with "error:") or there is a folder (tCopies & "/tour-beat-box-1.0") then
+            throw "a download that was changed was kept:" && the result
+         end if
+
+         -- A list changed after it was signed is refused
+         close stack tWin
+         replace "A. Tourist" with "A. Stranger" in tIndex
+         put tIndex into url ("binfile:" & tSite & "/index.json")
+         revIDEActionCommunityStacks tSite, tKey
+         tourCsWait tWin
+         dispatch function "revCommunityStacksState" to stack tWin
+         if the result is not "problem" or field "idx" of stack tWin is not empty then
+            throw "a list changed after it was signed was shown"
+         end if
+         tourRecord "INFO community-stacks: changed list:" && tourJoin(the text of field "page" of stack tWin)
+      else
+         -- Without SodiumXT a signed list is refused too
+         -- (64 bytes, as a signature is)
+         put base64Encode("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef") into tSig
+         replace return with empty in tSig
+         put tSig & return into url ("binfile:" & tSite & "/index.sig")
+         send "lkAction again" to stack tWin
+         tourCsWait tWin
+         dispatch function "revCommunityStacksState" to stack tWin
+         if the result is not "problem" or field "idx" of stack tWin is not empty then
+            throw "a list that could not be checked was shown"
+         end if
+         tourRecord "INFO community-stacks: no SodiumXT:" && tourJoin(the text of field "page" of stack tWin)
+      end if
+   catch tError
+   end try
+   repeat for each item tLine in "revCommunityStacks,revKitDialog"
+      if there is a stack tLine and the mode of stack tLine is not 0 then
+         close stack tLine
+      end if
+   end repeat
+   repeat for each item tLine in "tour-beat-box,tour-weather,tour-zen-garden"
+      if there is a stack ("OXT Tour Community" && tLine) then
+         lock messages
+         delete stack ("OXT Tour Community" && tLine)
+         unlock messages
+      end if
+   end repeat
+   tourCsRemove tFolder
+   if tTool is not empty and the tool is not tTool then
+      do "choose" && tTool
+   end if
+   if tError is not empty then throw tError
+end tour_community_stacks
+
+-- "name":"value" for the tour's list (its values need no escaping)
+private function tourCsPair pName, pValue
+   return quote & pName & quote & ":" & quote & pValue & quote
+end tourCsPair
+
+private function tourCsSha pData
+   local tHex
+   get binaryDecode("H*", messageDigest(pData, "sha-256"), tHex)
+   return toLower(tHex)
+end tourCsSha
+
+-- Waits for the window to have asked its site, at most ten seconds
+private command tourCsWait pWin
+   local tUntil
+   put the milliseconds + 10000 into tUntil
+   if there is not a stack pWin or the mode of stack pWin is 0 then throw "the Community Stacks window did not open"
+   repeat
+      tourWait 200
+      dispatch function "revCommunityStacksState" to stack pWin
+      if the result is not "loading" then exit repeat
+      if the milliseconds > tUntil then throw "the Community Stacks window is still asking for its list"
+   end repeat
+   tourWait 200
+end tourCsWait
+
+private command tourCsRemove pFolder
+   local tName
+   if pFolder is empty or there is no folder pFolder then exit tourCsRemove
+   repeat for each line tName in files(pFolder)
+      delete file (pFolder & slash & tName)
+   end repeat
+   repeat for each line tName in folders(pFolder)
+      if tName is not "." and tName is not ".." then
+         tourCsRemove pFolder & slash & tName
+      end if
+   end repeat
+   delete folder pFolder
+end tourCsRemove
+
+-- Get a Copy has asked: the dialog that says what a copy is, closed
+-- without agreeing
+on tourShotCommunityAsk
+   local tError
+   try
+      if there is not a stack "revKitDialog" or the mode of stack "revKitDialog" is 0 then
+         throw "Get a Copy did not ask first"
+      end if
+      tourShotStack "revKitDialog", "24c8-community-stacks-ask"
+   catch tError
+      put tourJoin(tError) into sCommunityNotes
+   end try
+   if there is a stack "revKitDialog" and the mode of stack "revKitDialog" is not 0 then
+      close stack "revKitDialog"
+   end if
+end tourShotCommunityAsk
+
+-- Get a Copy has asked again: this time Get a Copy is pressed, and the
+-- dialog that follows, when the copy is there, is snapshot and answered
+on tourCommunityAgree
+   local tError
+   try
+      if there is not a stack "revKitDialog" or the mode of stack "revKitDialog" is 0 then
+         throw "Get a Copy did not ask first"
+      end if
+      send "tourShotCommunityReady" to me in 2500 milliseconds
+      send "lkAction b:2" to stack "revKitDialog"
+   catch tError
+      put tourJoin(tError) into sCommunityNotes
+      if there is a stack "revKitDialog" and the mode of stack "revKitDialog" is not 0 then
+         close stack "revKitDialog"
+      end if
+   end try
+end tourCommunityAgree
+
+-- The copy is there: the dialog that says where, and Open It to Look
+on tourShotCommunityReady
+   local tError
+   try
+      if there is not a stack "revKitDialog" or the mode of stack "revKitDialog" is 0 then
+         throw "nothing said that the copy was ready"
+      end if
+      tourShotStack "revKitDialog", "24c9-community-stacks-copy"
+      send "lkAction b:3" to stack "revKitDialog"
+   catch tError
+      put tourJoin(tError) into sCommunityNotes
+      if there is a stack "revKitDialog" and the mode of stack "revKitDialog" is not 0 then
+         close stack "revKitDialog"
+      end if
+   end try
+end tourShotCommunityReady
 
 -- Learn (palettes/learn), as Help > Lessons opens it: the first page of
 -- the lessons, whose banner has "New to coding? Try the Academy", which

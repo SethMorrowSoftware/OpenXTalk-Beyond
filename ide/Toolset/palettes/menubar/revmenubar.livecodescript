@@ -1906,6 +1906,9 @@ private function revMenubarFileMenu pContext, tFile
    -- OXT-Beyond: packs the stack for the OXT Community Stacks
    -- (revIDEActionShareStack); not in the web IDE (revWebIDEMenu)
    put enableMenuItem("Share Stack...", tIsUserTarget) & return after tFile
+   -- OXT-Beyond: the gallery of stacks that people share
+   -- (revIDEActionCommunityStacks); not in the web IDE (revWebIDEMenu)
+   put "Community Stacks..." & return after tFile
    put "-" & return after tFile
    --
    put "P&age Setup..." & return after tFile
@@ -3095,6 +3098,10 @@ on revMenubarFileMenuPick pWhich
       -- OXT-Beyond: packs the stack for the OXT Community Stacks
       case "Share Stack..."
          revIDEActionShareStack the long id of the topStack
+         break
+      -- OXT-Beyond: the gallery of stacks that people share
+      case "Community Stacks..."
+         revIDEActionCommunityStacks
          break
       case "Move Substack to File..."
          revIDEMoveSubstackToFile the long id of the topStack
