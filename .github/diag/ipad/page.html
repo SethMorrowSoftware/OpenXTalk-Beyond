@@ -20,8 +20,20 @@ html,body{margin:0;height:100%;font:16px system-ui}
 <script>
 (function () {
   var q = new URLSearchParams(location.search), mode = q.get('mode') || 'plain';
+  // where the page asks: 'touchend' (as the engine: the touch is the mouse,
+  // and the browser makes no click of its own), 'pointerup', or 'click'
+  // (the touches are left to the browser, which makes the click)
+  var askAt = q.get('ask') || 'touchend', how = q.get('how') || '';
   var t0 = performance.now(), log = [];
   function note(what) { log.push(Math.round(performance.now() - t0) + ' ms: ' + what); }
+  function act() { return navigator.userActivation ? navigator.userActivation.isActive : 'none'; }
+  // A word to the server at once: that the page loaded, that a touch came
+  var told = {};
+  function tell(what) {
+    if (told[what]) return;
+    told[what] = true;
+    try { fetch('/log', {method: 'POST', body: 'BEACON ' + what + ' mode=' + mode + ' ask=' + askAt + ' how=' + how}); } catch (err) {}
+  }
   function full() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
   function active() { var a = document.activeElement; return a ? a.nodeName + (a.id ? '#' + a.id : '') : 'none'; }
   window.__mode = mode; window.__log = log; window.__full = full; window.__done = false;
@@ -113,20 +125,39 @@ html,body{margin:0;height:100%;font:16px system-ui}
     window.__done = true;
     document.getElementById('label').textContent = 'done';
     try {
-      fetch('/log', {method: 'POST', body: 'mode ' + mode + '\n' + navigator.userAgent + '\n' + log.join('\n')});
+      fetch('/log', {method: 'POST', body: 'CASE mode=' + mode + ' ask=' + askAt + ' how=' + how + '\n' +
+        navigator.userAgent + '\n' + log.join('\n')});
     } catch (err) {}
   }
 
   // As the engine: a touch is the mouse, and the browser makes none of its
   // own (preventDefault); a real mouse is taken where no touch came
   var touched = false;
-  pad.addEventListener('touchstart', function (e) { e.preventDefault(); touched = true; note('touchstart'); press(); }, {passive: false});
-  pad.addEventListener('touchend', function (e) { e.preventDefault(); note('touchend'); release(); }, {passive: false});
-  pad.addEventListener('mousedown', function () { note('mousedown'); if (!touched) press(); });
-  pad.addEventListener('mouseup', function () { note('mouseup'); if (!touched) release(); });
-  pad.addEventListener('click', function () { note('click'); });
-  note('ready: mode=' + mode + ' touch=' + ('ontouchstart' in window) + ' maxTouchPoints=' + navigator.maxTouchPoints +
-    ' standalone=' + ('standalone' in navigator) + ' webdriver=' + navigator.webdriver + ' ' + innerWidth + 'x' + innerHeight);
+  pad.addEventListener('touchstart', function (e) {
+    if (askAt !== 'click') e.preventDefault();
+    touched = true; note('touchstart trusted=' + e.isTrusted + ' activation=' + act()); tell('touched'); press();
+  }, {passive: false});
+  pad.addEventListener('touchend', function (e) {
+    if (askAt !== 'click') e.preventDefault();
+    note('touchend trusted=' + e.isTrusted + ' activation=' + act());
+    if (askAt === 'touchend') release();
+  }, {passive: false});
+  pad.addEventListener('pointerup', function (e) {
+    note('pointerup ' + e.pointerType + ' trusted=' + e.isTrusted + ' activation=' + act());
+    if (askAt === 'pointerup') release();
+  });
+  pad.addEventListener('mousedown', function () { note('mousedown activation=' + act()); if (!touched) press(); });
+  pad.addEventListener('mouseup', function () { note('mouseup activation=' + act()); if (!touched && askAt === 'touchend') release(); });
+  pad.addEventListener('click', function (e) {
+    note('click trusted=' + e.isTrusted + ' activation=' + act());
+    if (askAt === 'click') release();
+  });
+  note('ready: mode=' + mode + ' ask=' + askAt + ' touch=' + ('ontouchstart' in window) + ' maxTouchPoints=' + navigator.maxTouchPoints +
+    ' platform=' + navigator.platform + ' standalone=' + ('standalone' in navigator) + ' webdriver=' + navigator.webdriver +
+    ' ' + innerWidth + 'x' + innerHeight);
+  tell('loaded');
+  // A page that no tap reached (or whose tap asked for nothing) says so
+  setTimeout(function () { if (!window.__done && !asked) { note('nothing asked within 12 s'); finish(); } }, 12000);
 })();
 </script>
 </body>
