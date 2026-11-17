@@ -1088,10 +1088,12 @@ on TestHyperCardScriptsT42
    TestAssert "T42: statements in quotes", line 4 to 5 of tScript is _Lines("  do " & q & "put tWhere & comma after gHCScriptsTest" & q, \
          "  do " & q & "go cd " & q & " & quote & " & q & "Two" & q & " & quote") \
          and line 7 of tScript is "  do " & q & "put " & q & " & quote & " & q & "x" & q & " & quote & " & q & " && the short name of this card into tOut" & q
-   TestAssert "T42: a do of an expression: unchanged", line 10 of tScript is "  do tCmd"
+   -- (T81: its text through hcDoText, which gives back text that compiles
+   -- as it is)
+   TestAssert "T42: a do of an expression: not put in quotes", line 10 of tScript begins with "  do hcDoText(tCmd"
    TestAssert "T42: a statement that does not compile here either: not put in quotes", "do " & q & "put 1 into" is not in tScript
    TestAssert "T42: in a script that compiles, where the do ran its first word alone (go)", line 2 to 3 of the script of button "B" of card 1 of stack tStack \
-         is _Lines("  do " & q & "go cd " & q & " & quote & " & q & "Two" & q & " & quote", "  do tCmd")
+         is _Lines("  do " & q & "go cd " & q & " & quote & " & q & "Two" & q & " & quote", "  do hcDoText(tCmd)")
    TestAssert "T42: the script compiles", _Compiles(tScript)
    set the defaultStack to tStack
    put empty into gHCScriptsTest
@@ -7672,11 +7674,13 @@ on TestHyperCardScriptsT77
          "  do " & q & "put the short id of" & q && "&& fspec &&" && q & "into fid" & q, \
          "  return fid", \
          "end Colourize") into tScript
+   -- (T81: a text joined from parts goes through hcDoText, with the
+   -- handler's renamed variables)
    TestAssert "T77: the do's text puts into the variable's new name", line 2 of tScript \
-         is "  do " & q & "put there is a" & q && "&& fspec &&" && q & "into hc_exists" & q
+         is "  do hcDoText(" & q & "put there is a" & q && "&& fspec &&" && q & "into hc_exists" & q & ", " & q & "exists" & q & ")"
    TestAssert "T77: the code reads that name", line 3 of tScript is "  if not hc_exists then return false"
    TestAssert "T77: a do into a name this engine takes, unchanged", line 4 of tScript \
-         is "  do " & q & "put the short id of" & q && "&& fspec &&" && q & "into fid" & q
+         is "  do hcDoText(" & q & "put the short id of" & q && "&& fspec &&" && q & "into fid" & q & ", " & q & "exists" & q & ")"
    TestAssert "T77: those compile", _Compiles(tScript)
 
    -- and a do into a variable T2 renames, as the code that reads it is
@@ -7688,7 +7692,7 @@ on TestHyperCardScriptsT77
          "  do " & q & "put 3 into value " & tab & q, \
          "end mouseUp") into tScript
    TestAssert "T77: a variable T2 renames", line 2 of tScript is "  put field " & q & "worth" & q & " into hc_value"
-   TestAssert "T77: a do into it, its text joined", line 3 of tScript is "  do " & q & "put field " & q & "&typer&" & q & "stot into hc_value" & q
+   TestAssert "T77: a do into it, its text joined", line 3 of tScript is "  do hcDoText(" & q & "put field " & q & "&typer&" & q & "stot into hc_value" & q & ", " & q & "value" & q & ")"
    TestAssert "T77: a do into it after then", line 4 of tScript is "  if x then do " & q & "put 2 into hc_value" & q & " else beep"
    TestAssert "T77: a do into it, a space and a tab after the name", line 5 of tScript is "  do " & q & "put 3 into hc_value " & tab & q
 
@@ -7701,7 +7705,8 @@ on TestHyperCardScriptsT77
          "end mouseUp") into tScript
    TestAssert "T77: another statement's text, unchanged", line 2 of tScript is "  answer " & q & "put it into exists" & q
    TestAssert "T77: the function exists, unchanged", line 3 of tScript is "  if exists(card field 1) then beep"
-   TestAssert "T77: a do whose text goes on after the name, unchanged", line 4 of tScript is "  do " & q & "put 1 into exists now" & q
+   -- (T81: a text that does not compile goes through hcDoText)
+   TestAssert "T77: a do whose text goes on after the name, unchanged", line 4 of tScript is "  do hcDoText(" & q & "put 1 into exists now" & q & ")"
 
    -- Fixed by revHyperCardFixScripts and run: false for a field that is
    -- not there, the field's id for one that is
@@ -8241,7 +8246,7 @@ on TestHyperCardScriptsT81
    TestAssert "T81: the do's text through hcDoText, in the stack", "do hcDoText(" is in tScript
    TestAssert "T81: no handler and no line left out", revHyperCardLeftOutHandlers() is empty and revHyperCardLeftOutLines() is empty
    TestAssert "T81: a string that compiles but names a renamed variable, through hcDoText", \
-         "do hcDoText(" & q & "put comma & (number + 1) after gHCScriptsTest" & q & ", " in tScript
+         "do hcDoText(" & q & "put comma & (number + 1) after gHCScriptsTest" & q & ", " is in tScript
    put empty into tError
    try
       send "mouseUp" to button "Do" of stack tStack
