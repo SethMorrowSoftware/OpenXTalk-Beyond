@@ -1378,6 +1378,39 @@ on TestAChallengeReceived
    TestAssert "against Bo", fieldText("Banner Sub") is "You against Bo. Most points wins."
 end TestAChallengeReceived
 
+-- Some relays keep for a few minutes what they pass on, and give it to
+-- whoever asks, the newest first: ebNetHear's fourth word is how many
+-- seconds ago a message was made
+on TestWhatARelayKeptIsThePast
+   lobbyAs "Ada"
+   game "ebNetHear", pkOf("a"), "who", "EB|1|free|50|0|Bo", 400
+   step 0.1
+   TestAssert "an I am here made minutes ago lists nobody", st("who") is empty
+   game "ebNetHear", pkOf("a"), "who", "EB|1|free|50|0|Bo", 10
+   step 0.1
+   TestAssert "one made a moment ago does", st("who") is "Bo=free"
+   game "ebNetHear", pkOf("a"), "who", "EB|1|busy|50|0|Bo", 40
+   step 0.1
+   TestAssert "an older one that comes after it changes nothing", st("who") is "Bo=free"
+   game "ebNetHear", pkOf("a"), "who", "EB|1|quick|50|0|Bo", 10
+   step 0.1
+   TestAssert "one of the same second does, in the order it comes", st("who") is "Bo=quick"
+   game "ebNetHear", pkOf("a"), "who", "EB|1|gone|50|0|Bo", 5
+   game "ebNetHear", pkOf("a"), "who", "EB|1|free|50|0|Bo", 8
+   step 0.1
+   TestAssert "a player who left is not back by what was said before", st("who") is empty
+   game "ebNetHear", pkOf("a"), "who", "EB|1|free|50|0|Bo", 0
+   step 0.1
+   TestAssert "and is by what is said now", st("who") is "Bo=free"
+   game "ebNetHear", pkOf("b"), "who", "EB|1|free|50|0|Cy", -30
+   step 0.1
+   TestAssert "a player whose clock is ahead is listed too", st("who") is "Bo=free|Cy=free"
+   game "ebNetHear", pkOf("a"), "tell", "L1 C ABCDEFGH", 400
+   TestAssert "a challenge made minutes ago is no challenge", st("lobby") is "online"
+   game "ebNetHear", pkOf("a"), "tell", "L1 C ABCDEFGH", 3
+   TestAssert "one made now is", st("lobby") is "asked" and st("foe") is "Bo"
+end TestWhatARelayKeptIsThePast
+
 on TestALinkThatIsNeverMade
    lobbyAs "Ada"
    hears "a", "free", "Bo", 0

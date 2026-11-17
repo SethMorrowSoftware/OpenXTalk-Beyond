@@ -40,7 +40,9 @@ files it is made from, without a browser or an engine:
   player's own GO ONLINE; it hears NostrXT's relay library through an
   ear of its own and never takes or closes what another stack's chat
   uses; the list has the rows the builder makes; a room's code has no
-  letter that looks like another
+  letter that looks like another; it asks a relay for nothing the relay
+  kept and takes none of it for news, and the check's relay is one that
+  keeps what it passes on, as some public ones do
 - its phone check calls only handlers its stack has and asks for, reads
   only what the game says and taps only what the builder makes, has the
   xTalk Suite's modules and script libraries as the Suite's pins name
@@ -547,6 +549,61 @@ class Lobby(unittest.TestCase):
         self.assertLess(int(constant('kNetBeat')) * 2, int(constant('kNetStale')))
         self.assertLessEqual(int(constant('kNetStale')), 60)
 
+    def test_only_what_is_new_is_taken_from_a_relay(self):
+        # some relays keep for a few minutes what they pass on (strfry,
+        # five by default) and give it to whoever asks: the game asks for
+        # none of it, and takes for news none that comes all the same
+        script = game_script()
+        listen = script[script.index('\nprivate command ebNetListen'):script.index('\nend ebNetListen')]
+        for name in ('tWho', 'tMe'):
+            self.assertIn('put 0 into %s["limit"]' % name, listen)
+            self.assertIn('put the seconds - kNetOld into %s["since"]' % name, listen)
+        self.assertTrue(60 <= int(constant('kNetOld')) <= 300, constant('kNetOld'))
+        event = script[script.index('\nprivate command ebNetEvent'):script.index('\nend ebNetEvent')]
+        gate = event.index('if not ebNetFresh(tEvent["kind"], tPk, tEvent["created_at"]) then\n      exit ebNetEvent')
+        self.assertLess(gate, event.index('ebNetWho tPk'))
+        self.assertLess(gate, event.index('ebNetSignal tPk'))
+        fresh = script[script.index('\nprivate function ebNetFresh'):script.index('\nend ebNetFresh')]
+        self.assertIn('if the seconds - pAt > kNetOld then\n      return false', fresh)
+        self.assertIn('if sLob["at"][pPk] is a number and pAt < sLob["at"][pPk] then\n         return false', fresh)
+        # a message is taken once in a visit, not once in a stay in the
+        # lobby: what was seen is not forgotten when a match begins
+        self.assertIn('if sSeen[tId] is true then\n      exit ebNetEvent', event)
+        stop = script[script.index('\nprivate command ebNetStop'):script.index('\nend ebNetStop')]
+        self.assertNotIn('sSeen', stop)
+        # no two of the game's messages are one to a relay: each has its
+        # count in the visit (a relay passes on the first of two with one
+        # id, and an id is made of the words and the second)
+        publish = script[script.index('\nprivate command ebNetPublish'):script.index('\nend ebNetPublish')]
+        self.assertIn('add 1 to sSaid\n', publish)
+        self.assertIn('nxTagsFromText(pTag & return & "seq" & tab & sSaid)', publish)
+        self.assertNotIn('sSaid', stop)
+        # and the check's relay is one that keeps them
+        self.assertGreaterEqual(ember_bricks_check.LOBBY_RELAY_KEEPS, 300)
+        self.assertIn('ephemeral=LOBBY_RELAY_KEEPS', read('tools', 'ci', 'ember_bricks_check.py'))
+
+    def test_the_checks_relay_keeps_what_it_is_told_to(self):
+        import nostr_test_relay
+        kept = nostr_test_relay.Relay(None, 300)
+        self.assertTrue(kept.take({'id': 'a', 'kind': 1}, 0))
+        self.assertTrue(kept.take({'id': 'b', 'kind': 21043}, 10))
+        self.assertTrue(kept.take({'id': 'c', 'kind': 21044}, 20))
+        self.assertFalse(kept.take({'id': 'b', 'kind': 21043}, 30))
+        # what is kept for good in the order it came, then the ephemeral
+        # ones while they are held, the newest first
+        self.assertEqual([e['id'] for e in kept.stored(100)], ['a', 'c', 'b'])
+        self.assertEqual([e['id'] for e in kept.stored(315)], ['a', 'c'])
+        self.assertEqual([e['id'] for e in kept.stored(400)], ['a'])
+        # and as it was for whoever asks for none of that (the web IDE's tour)
+        plain = nostr_test_relay.Relay(None)
+        self.assertTrue(plain.take({'id': 'a', 'kind': 1}, 0))
+        self.assertTrue(plain.take({'id': 'b', 'kind': 21043}, 10))
+        self.assertEqual([e['id'] for e in plain.stored(11)], ['a'])
+        self.assertTrue(plain.take({'id': 'b', 'kind': 21043}, 12))
+        self.assertFalse(plain.take({'id': 'a', 'kind': 1}, 13))
+        self.assertIn('def serve(log_path=None, port=0, ephemeral=0):', read('tools', 'ci', 'nostr_test_relay.py'))
+        self.assertIn('nostr_test_relay.serve(os.path.join(out, \'relay.txt\'))', read('tools', 'ci', 'web_ide_tour.py'))
+
     def test_going_online_is_the_players_choice(self):
         # the step the lobby opens on says what going online shows, and no
         # relay is dialled but from the player's own GO ONLINE
@@ -968,7 +1025,7 @@ class EngineTests(unittest.TestCase):
                          'ebNetName', 'ebNetCode'} <= hooks, hooks)
         for name in hooks:
             self.assertRegex(script, r'\n(?:on|command|function) %s\b' % name, name)
-        self.assertGreaterEqual(len(re.findall(r'^on Test(?!Setup|Teardown)', tests, re.M)), 75)
+        self.assertGreaterEqual(len(re.findall(r'^on Test(?!Setup|Teardown)', tests, re.M)), 78)
 
     def test_the_layout_is_asked_only_of_a_window_that_was_made_the_size(self):
         # the tests of the game run in a phone's app too, where no window

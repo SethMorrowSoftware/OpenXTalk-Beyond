@@ -83,7 +83,11 @@ pages of one browser, a desktop's window and two phones, that find each
 other on a Nostr relay of the check's own on 127.0.0.1
 (tools/ci/nostr_test_relay.py, which the game is told to use in place of
 the public ones: ebTestSet "relays"), through NostrXT's relay library and
-the browser's WebSocket, and link over WebRTC as the codes do:
+the browser's WebSocket, and link over WebRTC as the codes do. The relay
+keeps for five minutes what it passes on and gives it to whoever asks,
+as some public relays do, so a game that took an old message for news
+would list players who have gone, or be challenged again by a match
+that is over:
 
  17. a name typed and Return: the page is online, on the relay, in the
      lobby; each page lists the others by the names they gave
@@ -143,6 +147,9 @@ DUEL_GUEST = 'Pixel 7'
 DUEL_BROWSERS = ('chromium',)
 # the lobby's third page, a phone too
 LOBBY_THIRD = 'iPhone 13'
+# the seconds the lobby's relay keeps an ephemeral event for (strfry's
+# five minutes, which nos.lol and relay.damus.io run)
+LOBBY_RELAY_KEEPS = 300
 # the state's keys a failure is printed with
 KEYS = ('mode', 'phase', 'score', 'lives', 'level', 'bricks', 'now', 'padx', 'ball', 'fps', 'font', 'audio',
         'library', 'arena', 'wide', 'window', 'pointer', 'rtc', 'duel', 'lobby', 'stage', 'left', 'rival',
@@ -894,7 +901,9 @@ def main(argv=None):
                 log('(no lobby in %s: a check can give no clipboard to its pages)' % args.browser)
             else:
                 import nostr_test_relay
-                relay = nostr_test_relay.serve(os.path.join(work, 'relay.txt'))
+                # (a relay that keeps for a while what it passes on, as
+                # some public ones do: the game must take only what is new)
+                relay = nostr_test_relay.serve(os.path.join(work, 'relay.txt'), ephemeral=LOBBY_RELAY_KEEPS)
                 relay_url = 'ws://127.0.0.1:%d/' % relay.server_address[1]
                 log('%s, the lobby between a desktop\'s page, a %s and an %s, on %s:'
                     % (args.browser, DUEL_GUEST, LOBBY_THIRD, relay_url))

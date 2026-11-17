@@ -139,9 +139,12 @@ constant kDuelLinkFor = 35
 -- the lobby (see "The online lobby", below): the version its players
 -- must share; the relays it is on when the stack names no others (its
 -- cRelays); the kinds of its two messages (one that says who is here, one
--- to a single player), both of the kinds a relay passes on and does not
--- keep; the seconds between two of a player's "I am here", how long one
--- stands, and how long one stands that says "in a duel"; how long a relay
+-- to a single player), both of the kinds a relay passes on and is not
+-- meant to keep; the seconds between two of a player's "I am here", how long one
+-- stands, and how long one stands that says "in a duel"; how old by this
+-- machine's clock a message may be and still be news (some relays keep
+-- for a few minutes what they pass on, and give it to a newcomer; the two
+-- minutes allow for clocks that disagree); how long a relay
 -- is waited for, a challenge for its answer and a link for its opening;
 -- how long a quick match leaves alone a player who would not link; the
 -- rows of players the lobby shows, and on a phone on its side; and the
@@ -152,6 +155,7 @@ constant kNetKindWho = 21043
 constant kNetKindTell = 21044
 constant kNetBeat = 20
 constant kNetStale = 50
+constant kNetOld = 120
 constant kNetOpenFor = 12
 constant kNetAskFor = 30
 constant kNetLinkFor = 30
@@ -250,7 +254,7 @@ local sDuel, sLobby, sNet2, sRtc, sRtcUsed, sShift
 -- kNetRelays (a test's); the lobby itself while the player is online
 -- (sLob["on"], ["who"], ["room"], ...); whether a match that ends goes
 -- back to it; and what a test's lobby would have sent
-local sNostr, sName, sInvite, sRelays, sLob, sNetBack, sNetSent, sKey
+local sNostr, sName, sInvite, sRelays, sLob, sNetBack, sNetSent, sKey, sSeen, sSeenCount, sSaid
 -- The table of the sum a code carries (ebDuelSum)
 local sCrc
 
@@ -5621,8 +5625,9 @@ end ebDuelRematchCheck
 -- its relay library, which OXT-Beyond carries: a relay passes on the
 -- small signed messages its visitors send, to those who asked for them.
 -- Each player has a key made for the visit, and under it sends two
--- kinds of message, both of the kinds a relay passes on and does not
--- keep:
+-- kinds of message, both of the kinds a relay passes on and is not meant
+-- to keep (some hold them a few minutes, and give them to whoever asks:
+-- ebNetFresh):
 --
 --   who is here (kNetKindWho), tagged with the room, every twenty
 --     seconds and whenever it changes:
@@ -6100,11 +6105,17 @@ end ebNetNone
 private command ebNetListen pRelay
    local tWho, tMe, tError
    try
+      -- (only what is said from now on: nothing a relay has kept, by its
+      -- count, nor anything made before a while ago, by its date)
       put kNetKindWho into tWho["kinds"]
       put sLob["room"] into tWho["#t"]
+      put 0 into tWho["limit"]
+      put the seconds - kNetOld into tWho["since"]
       nxrSubscribe pRelay, "eb-who", nxFilterBuild(tWho)
       put kNetKindTell into tMe["kinds"]
       put sLob["pk"] into tMe["#p"]
+      put 0 into tMe["limit"]
+      put the seconds - kNetOld into tMe["since"]
       nxrSubscribe pRelay, "eb-me", nxFilterBuild(tMe)
    catch tError
    end try
@@ -6146,7 +6157,9 @@ private command ebNetRoom pCode
 end ebNetRoom
 
 -- A message from a relay, its signature checked by NostrXT: once only
--- (each relay has it), and not my own
+-- in a visit (each relay has it, and one that keeps what it passes on has
+-- it again when I come back from a match), not my own, and news
+-- (ebNetFresh)
 private command ebNetEvent pJson
    local tEvent, tId, tPk, tText, tError
    put empty into tEvent
@@ -6162,16 +6175,19 @@ private command ebNetEvent pJson
    if the length of tId is not 64 or the length of tPk is not 64 then
       exit ebNetEvent
    end if
-   if sLob["seen"][tId] is true then
+   if sSeen[tId] is true then
       exit ebNetEvent
    end if
-   if sLob["seenCount"] > 500 then
-      put empty into sLob["seen"]
-      put 0 into sLob["seenCount"]
+   if sSeenCount > 500 then
+      put empty into sSeen
+      put 0 into sSeenCount
    end if
-   put true into sLob["seen"][tId]
-   add 1 to sLob["seenCount"]
+   put true into sSeen[tId]
+   add 1 to sSeenCount
    if ebSame(tPk, sLob["pk"]) then
+      exit ebNetEvent
+   end if
+   if not ebNetFresh(tEvent["kind"], tPk, tEvent["created_at"]) then
       exit ebNetEvent
    end if
    if tEvent["kind"] is kNetKindWho then
@@ -6192,6 +6208,32 @@ private command ebNetEvent pJson
       end if
    end if
 end ebNetEvent
+
+-- Whether a message is news, by the second it was made in (pAt). A relay
+-- may keep for some minutes what it passes on and give a newcomer what it
+-- has, the newest first, and each relay passes a message on in its own
+-- time. So one made long ago by this machine's clock is the past, and so
+-- is a player's "I am here" that comes after a newer one of theirs (the
+-- newer one may have said "gone")
+private function ebNetFresh pKind, pPk, pAt
+   if pAt is not an integer then
+      return false
+   end if
+   if the seconds - pAt > kNetOld then
+      return false
+   end if
+   if pKind is kNetKindWho then
+      if sLob["at"][pPk] is a number and pAt < sLob["at"][pPk] then
+         return false
+      end if
+      -- (no more remembered than a crowd of strangers could fill)
+      if the number of elements of sLob["at"] > 2000 then
+         put empty into sLob["at"]
+      end if
+      put pAt into sLob["at"][pPk]
+   end if
+   return true
+end ebNetFresh
 
 -- A player says "I am here" (see the section's words): into the room's
 -- list, or out of it. A newcomer's asks for mine, which goes a moment
@@ -6250,8 +6292,8 @@ private command ebNetWho pPk, pContent
          ebLobbyLook empty
       end if
    end if
-   -- (a relay keeps none of this: a newcomer has what was said since it
-   -- began to listen, and nothing of mine from before)
+   -- (a newcomer takes nothing a relay kept: it has what was said since
+   -- it began to listen, and nothing of mine from before)
    if tHello and sLob["answerAt"] is not a number then
       put sLob["clock"] + 0.2 + random(10) / 10 into sLob["answerAt"]
    end if
@@ -6383,11 +6425,15 @@ private command ebNetTell pPk, pText
 end ebNetTell
 
 -- A message of a kind, with a tag, signed with the visit's key, to every
--- relay that is open
+-- relay that is open. Each has its count in the visit as a second tag: a
+-- message is known by what it says and the second it was made in, and a
+-- relay passes on only the first of two it takes for the same (an "I am
+-- here" said again within a second, to a second newcomer, went nowhere)
 private command ebNetPublish pKind, pTag, pContent
    local tEvent, tRelay, tError
+   add 1 to sSaid
    try
-      put nxEventBuild(pKind, pContent, nxTagsFromText(pTag), empty) into tEvent
+      put nxEventBuild(pKind, pContent, nxTagsFromText(pTag & return & "seq" & tab & sSaid), empty) into tEvent
       put nxEventSign(tEvent, sLob["sk"], empty) into tEvent
       if tEvent is an array then
          repeat for each key tRelay in sLob["relay"]
@@ -6870,6 +6916,8 @@ command ebTestBegin pSeed, pSaveFile
    ebDuelDrop
    ebNetStop
    put empty into sNetSent
+   put empty into sSeen
+   put 0 into sSeenCount
    put empty into sInvite
    put empty into sRelays
    -- (a test has no lobby unless it asks for one: ebTestSet "nostr")
@@ -6952,9 +7000,20 @@ end ebNetSent
 
 -- What a player of a test's lobby says, as a relay would bring it: with
 -- "who" the words of an "I am here", with "tell" the words to me
-command ebNetHear pPk, pWhat, pText
+command ebNetHear pPk, pWhat, pText, pAgo
    set the defaultStack to the short name of me
    if sLob["on"] is true then
+      -- (with pAgo, a message made that many seconds ago, as a relay
+      -- that kept it would give it: it has to be news)
+      if pAgo is a number then
+         if pWhat is "who" then
+            if not ebNetFresh(kNetKindWho, pPk, the seconds - pAgo) then
+               exit ebNetHear
+            end if
+         else if not ebNetFresh(kNetKindTell, pPk, the seconds - pAgo) then
+            exit ebNetHear
+         end if
+      end if
       lock screen
       if pWhat is "who" then
          ebNetWho pPk, pText

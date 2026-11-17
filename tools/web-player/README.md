@@ -628,10 +628,11 @@ public Nostr relays (`wss://nos.lol`, `wss://relay.damus.io` and
 `wss://nostr.mom`, which are xTalk Chat's; a stack's `cRelays` property
 names others), through NostrXT and its relay library. Each game has a key
 made for the visit, and sends two kinds of small signed message, both of
-a kind that a relay passes on and does not keep: one says "I am here" to
-the room, with the name and what the player is doing, and the other
-carries a challenge or a WebRTC session description to one player, sealed
-so that only that player reads it (NIP-44). So the other players see the
+the ephemeral kinds, which a relay passes on and is not meant to keep
+(some hold them a few minutes): one says "I am here" to the room, with
+the name and what the player is doing, and the other carries a challenge
+or a WebRTC session description to one player, sealed so that only that
+player reads it (NIP-44). So the other players see the
 name a player gave, and the relays see that and the internet address it
 came from, as any web site does. The step before going online says so,
 nothing is sent until the player goes online, and while a match is played
@@ -683,7 +684,13 @@ The lobby is a pattern for any game of two, in the script's section "The
 online lobby": a room is a tag (`t`) that everyone in it asks the relays
 for; "I am here" is an event of an ephemeral kind, said again every
 twenty seconds and forgotten after fifty; a word to one player is tagged
-with that player's key (`p`) and sealed. NostrXT's relay library tells
+with that player's key (`p`) and sealed. A relay that holds such events
+for a while gives them to whoever asks, so the game asks for none that
+is kept (`limit` 0) and takes for news nothing made more than two
+minutes ago, nor a player's older "I am here" after a newer one. And
+every message carries its count as a tag: an event is known by its
+words and the second it was made in, and a relay passes on only the
+first of two it takes for the same. NostrXT's relay library tells
 the top stack what a relay says, or the one object that asked for
 everything (`nxrInit`), which another stack's chat may be. So the game
 asks for nothing: it names a callback of its own to each relay it opens
@@ -725,7 +732,8 @@ WebRTC link made by the two codes: the invite and the answer by the
 clipboard, clocks in step, each other's scores, the result, a rematch and
 one player leaving. And then the lobby, between three pages (a desktop's
 window and two phones) on a Nostr relay of its own on 127.0.0.1
-(`tools/ci/nostr_test_relay.py`): going online by a typed name, each
+(`tools/ci/nostr_test_relay.py`, told to keep what it passes on for five
+minutes, as some public relays do): going online by a typed name, each
 page's list of the others, a challenge accepted and played over a real
 link, the third page seeing the two in a duel, the lobby again after the
 match, a quick match, and a friend's room joined by the link that was
