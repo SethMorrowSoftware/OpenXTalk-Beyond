@@ -322,7 +322,11 @@ private command buildOptions
       set the threeD of tObj to false
       set the opaque of tObj to false
       set the tooltip of tObj to tTip
-      set the rect of tObj to kSideLeft, tTop, kSideLeft + 200, tTop + 22
+      -- (a left margin of 8: with the engine's 4, GTK's box, wider than
+      -- the others, is drawn over the label's first letter. The button
+      -- starts 4 to the left, so that its box stays where it was)
+      set the margins of tObj to "8,4,4,4"
+      set the rect of tObj to kSideLeft - 4, tTop, kSideLeft + 200, tTop + 22
       set the script of tObj to exScript("Options/option")
       add 26 to tTop
    end repeat

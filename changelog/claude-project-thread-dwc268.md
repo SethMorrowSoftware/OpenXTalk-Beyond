@@ -1,0 +1,6 @@
+- Examples: A Data Grid Tour's grids can be read in the dark look (their words were white on white rows) (#557)
+- Examples: A Tour of SQLite's hint bar and its "not connected" labels can be read in the dark look (#557)
+- Examples: SVG Lab's checkboxes no longer draw over the first letter of their labels on Linux (#557)
+- Home: the code sample on "Your first app" is no longer cut off on Linux (#557)
+- Academy: at the window's smallest size, a lesson's header keeps its reading time (#557)
+- Tests: tools/ci/tests/test_ui_audit_dp2.py (#557)

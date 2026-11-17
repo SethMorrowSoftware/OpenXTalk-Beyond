@@ -4060,7 +4060,10 @@ private command hmBuildApp
    put hmBox("apCodeBg", "224,316,600,596", hmColor("code"), 22, "pg_app") into tObj
    hmShadow tObj, 18, 6, 50
    get hmLabel("apCodeTitle", "240,330,590,346", "The Say hello button's script: the whole app", 11, hmColor("muted"), "pg_app")
-   put hmCodeField("apCode", "240,356,592,500", 13, 24, "pg_app") into tObj
+   -- (at 12: at 13 the line that sets the textColor is wider than the box
+   -- in Linux's Source Code Pro, and wrapped, which put the script's last
+   -- lines under the box's edge)
+   put hmCodeField("apCode", "240,356,592,500", 12, 24, "pg_app") into tObj
    set the htmlText of tObj to hmCodeHtml(hmFirstAppScript())
    get hmLabel("apCodeNote", "240,520,588,584", \
          "A field for your name, a button, and these lines. Every word is in the Dictionary, with examples.", \

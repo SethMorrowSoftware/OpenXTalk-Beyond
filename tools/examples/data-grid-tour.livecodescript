@@ -1604,12 +1604,16 @@ private command gridLook pGrid, pAccent
    set the dgProps["header background hilite color"] of pGrid to lkMix("255,255,255", pAccent, 0.08) & return & lkMix("255,255,255", pAccent, 0.18)
    set the dgProps["header divider color"] of pGrid to lkColor("line")
    set the dgProps["header divider threed color"] of pGrid to "255,255,255"
-   set the dgProps["header text color"] of pGrid to lkColor("soft")
+   -- (the header and the rows are light in both looks, as the grid's own
+   -- properties are not the page's: the words on them are the light look's
+   -- ink in both. With the kit's ink they were the dark look's white, on
+   -- white rows, where a grid is on a page that follows the look)
+   set the dgProps["header text color"] of pGrid to "71,85,105"
    set the dgProps["header text size"] of pGrid to 12
    set the dgProps["header text style"] of pGrid to "bold"
    set the dgProps["header height"] of pGrid to 30
    set the dgProps["text size"] of pGrid to 13
-   set the dgProps["text color"] of pGrid to lkColor("ink")
+   set the dgProps["text color"] of pGrid to "15,23,42"
    set the dgProps["row height"] of pGrid to 28
    set the dgProps["row color"] of pGrid to "255,255,255"
    set the dgProps["alternate row colors"] of pGrid to true

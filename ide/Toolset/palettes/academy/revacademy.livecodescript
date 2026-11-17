@@ -118,6 +118,8 @@ local sIndexMap
 local sPicked
 -- The size of the reading text, in percent (kTextScales)
 local sTextScale
+-- The header's tagline, whole (acFitTag shows as much of it as fits)
+local sTag
 
 ################################################################################
 #
@@ -1398,7 +1400,10 @@ private command acLayout
    set the topLeft of group "textSmaller" to the left of group "textBigger" - 6 - the width of group "textSmaller", 22
    lkRestAt "textSmaller"
    set the rect of field "hdrTitle" to sX, the top of field "hdrTitle", the left of group "textSmaller" - 16, the bottom of field "hdrTitle"
-   set the rect of field "hdrTag" to sX, the top of field "hdrTag", the left of group "textSmaller" - 16, the bottom of field "hdrTag"
+   -- (the tagline is under the text size buttons, not beside them: it has
+   -- the column's width, and at the window's smallest size it needs it)
+   set the rect of field "hdrTag" to sX, the top of field "hdrTag", tX - kPad, the bottom of field "hdrTag"
+   acFitTag
    set the left of graphic "hdrLine" to sX
    if the visible of group "hdr" then
       set the rect of group "body" to kSide, kHeaderHeight, tX, tH
@@ -2082,8 +2087,35 @@ private command acHeader pTitle, pTag
       subtract 2 from tSize
       set the textSize of field "hdrTitle" to tSize
    end repeat
-   put pTag into field "hdrTag"
+   put pTag into sTag
+   acFitTag
 end acHeader
+
+-- The tagline in the header, whole where it fits. Where it does not (a
+-- narrow window, a long unit's name), its parts move closer, and then its
+-- first part, the unit's name, is left out: the lesson's number, its
+-- minutes and Done are what the reader looks for there.
+private command acFitTag
+   local tTag, tDot, tAt
+   if there is no field "hdrTag" of me then
+      exit acFitTag
+   end if
+   put sTag into tTag
+   put tTag into field "hdrTag" of me
+   if the formattedWidth of field "hdrTag" of me <= the width of field "hdrTag" of me then
+      exit acFitTag
+   end if
+   put numToCodepoint(183) into tDot
+   replace "  " & tDot & "  " with space & tDot & space in tTag
+   put tTag into field "hdrTag" of me
+   if the formattedWidth of field "hdrTag" of me <= the width of field "hdrTag" of me then
+      exit acFitTag
+   end if
+   put offset(space & tDot & space, tTag) into tAt
+   if tAt > 0 then
+      put char tAt + 3 to -1 of tTag into field "hdrTag" of me
+   end if
+end acFitTag
 
 -- The page's group, in the body
 private command acBeginPage
@@ -2841,7 +2873,8 @@ private command acLessonCheck
       end if
    end repeat
    acMarkDone tCourse, tLesson
-   put "  " & numToCodepoint(183) & "  Done" && numToCodepoint(10003) after field "hdrTag"
+   put "  " & numToCodepoint(183) & "  Done" && numToCodepoint(10003) after sTag
+   acFitTag
    acToast "Lesson" && tLesson && "done. On to the next!", "win"
 end acLessonCheck
 
