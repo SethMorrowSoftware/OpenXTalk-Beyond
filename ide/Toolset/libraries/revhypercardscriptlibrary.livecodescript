@@ -185,6 +185,22 @@ script "revHyperCardScriptLibrary"
 -- RealMovieName", "the number of movies", "the version of QuickTime"),
 -- which here are none either: the library's hcPrograms, hcIsProgram,
 -- hcIsMovie, hcMovieCount and hcQuickTimeVersion.
+-- T80, in scripts that do not compile, takes the forms that sweep still
+-- found in the lines it left out of handlers it kept: "save stack as x"
+-- (this stack), a put with no container before an else ("if x then put
+-- "a" else put "b"", into the message box), a go to what a chunk of a
+-- value names ("go to last line of parentCard") or to a card and a stack
+-- two variables name ("go to exportFromCard of exportFromStack", "go
+-- theCard of this stack"), a background named by a word this engine
+-- reads as something else before a sort's "by" ("sort cards of bg
+-- Directories by fld DirectoryName"), and a variable a put first names
+-- with after, before or in ("put x after menu", "put true in done"),
+-- renamed as T2 renames one it names with into. T80 also takes, in any
+-- script, "the" before HyperCard's own windows ("show the tool window
+-- at "189,12""), and the window an id names for a property only
+-- HyperCard's windows had ("set the dithering of window id it to
+-- dither"), which goes to the library's hcSetWindow as a window's name
+-- does.
 -- A script whose rewrite would not compile when it did before is left as
 -- it was. Each object whose script changes keeps its HyperTalk in the
 -- custom property uHyperCard["script"], and the stack's
@@ -2701,7 +2717,7 @@ end _T
 -- The variables of a handler: its parameters, its globals, the targets
 -- of "put ... into" and "repeat with"
 private function _HandlerVariables pLines, pStart, pEnd
-   local tVars, i, tCode, tWord, tTokens, tIndices, tIndex, tNext, tAfter, tInGlobal
+   local tVars, i, tCode, tWord, tTokens, tIndices, tIndex, tNext, tAfter, tInGlobal, tValue, tPut
    put _CodeText(pLines[pStart]) into tCode
    repeat for each item tWord in word 3 to -1 of tCode
       put word 1 of tWord into tWord
@@ -2745,6 +2761,29 @@ private function _HandlerVariables pLines, pStart, pEnd
             if _T(tTokens, tAfter) is "of" then next repeat
             if tAfter is not empty and tTokens[tAfter]["k"] is "n" then next repeat
             if tAfter is not empty and _T(tTokens, tAfter) is among the words of kObjectWords then next repeat
+            put true into tVars[_T(tTokens, tNext)]
+         else if _T(tTokens, tIndex) is among the words of "after before in" and tTokens[tIndex]["k"] is "w" then
+            -- T80: a variable a put names with after, before or in, at
+            -- the end of the statement ("put return & x after menu", "if
+            -- score is 7 then put true in done"). What is no variable
+            -- there is left: an object ("after me"), the message box,
+            -- the selection, and a name with more after it ("after menu
+            -- "Edit"", "in field 1")
+            put _NextCode(tIndices, tIndex) into tNext
+            if tNext is empty or tTokens[tNext]["k"] is not "w" then next repeat
+            put _NextCode(tIndices, tNext) into tAfter
+            if tAfter is not empty and _T(tTokens, tAfter) is not "else" then next repeat
+            if _T(tTokens, tNext) is among the words of kObjectWords or _T(tTokens, tNext) is among the words of "me it msg message selection target" then next repeat
+            if _StatementVerb(tTokens, tIndices, tIndex) is not "put" then next repeat
+            -- (in: only where T35 takes it for into, after the one value
+            -- of a put. "put x is in done" and "put the number of words
+            -- in done" put what an expression gives into the message box)
+            if _T(tTokens, tIndex) is "in" then
+               put _PrevCode(tIndices, tIndex) into tValue
+               if tValue is empty or tTokens[tValue]["k"] is not among the items of "w,s,n" or _T(tTokens, tValue) is "the" then next repeat
+               put _PrevCode(tIndices, tValue) into tPut
+               if tPut is empty or _T(tTokens, tPut) is not "put" or not _StatementStart(tTokens, tIndices, tPut) then next repeat
+            end if
             put true into tVars[_T(tTokens, tNext)]
          end if
       end repeat
@@ -3101,6 +3140,7 @@ private function _RewriteLine pLine, pVars, pRename, pExternals, pRenameHandlers
    put _Join(tTokens) into pLine
 
    put _SweepForms(pLine) into pLine
+   put _SweepForms80(pLine, pVars) into pLine
    put _PhraseRules(pLine, pThen) into pLine
    put _ParserForms(pLine, pVars) into pLine
    put _ExternalArguments(pLine, pVars, pExternals, pContinued) into pLine
@@ -3266,6 +3306,123 @@ private function _SweepForms pLine
    end repeat
    return _Join(tTokens)
 end _SweepForms
+
+-- T80: the forms the dp.1 sweep (2026-11-13) still found in the lines it
+-- left out of handlers it kept, each one HyperCard took, or one whose
+-- meaning is plain, in a script that does not compile (the header has
+-- the list). pVars: the handler's variables
+private function _SweepForms80 pLine, pVars
+   local tTokens, tCode, tIdx, n, tItem, i, j, k, tWord, tPrev, tEnd, tDepth, tLast, tText
+   put _Tokens(pLine) into tTokens
+   put _Code(tTokens) into tCode
+   put 0 into n
+   repeat for each item tItem in tCode
+      add 1 to n
+      put tItem into tIdx[n]
+   end repeat
+   if n = 0 then return pLine
+
+   repeat with i = 1 to n
+      if tTokens[tIdx[i]]["k"] is not "w" then next repeat
+      put _T(tTokens, tIdx[i]) into tWord
+      put empty into tPrev
+      if i > 1 then put _T(tTokens, tIdx[i - 1]) into tPrev
+
+      -- "sort cards of bg Directories by ...": the background's name, a
+      -- word this engine takes for something else there (its function
+      -- "directories"), in quotes, as T3 has it where "by" does not
+      -- follow
+      if tPrev is among the words of "background bkgnd bg" and _T(tTokens, tIdx[i + 1]) is "by" \
+            and _T(tTokens, tIdx[1]) is "sort" and not pVars[tWord] \
+            and tWord is not among the words of kNeverNames and _NameRefused(tWord) then
+         put quote & tTokens[tIdx[i]]["t"] & quote into tTokens[tIdx[i]]["t"]
+         put "s" into tTokens[tIdx[i]]["k"]
+         _Fire "T80 more forms HyperCard took"
+         next repeat
+      end if
+
+      -- the rest are statements: the first word of the line, or the one
+      -- after then or else
+      if i > 1 and tPrev is not among the words of "then else" then next repeat
+      -- the statement: to the end of the line, or to an else
+      put n into tEnd
+      repeat with j = i + 1 to n
+         if _T(tTokens, tIdx[j]) is "else" and tTokens[tIdx[j]]["k"] is "w" then
+            put j - 1 into tEnd
+            exit repeat
+         end if
+      end repeat
+
+      switch tWord
+         case "save"
+            -- "save stack as x": this stack
+            if _T(tTokens, tIdx[i + 1]) is "stack" and _T(tTokens, tIdx[i + 2]) is "as" and i + 2 < tEnd then
+               put "this " before tTokens[tIdx[i + 1]]["t"]
+               _Fire "T80 more forms HyperCard took"
+            end if
+            break
+         case "put"
+            -- "if x then put "a" else put "b"": a put with no container
+            -- before an else, which went to the message box and which
+            -- this engine refuses before an else: into msg
+            if tEnd = n or tEnd = i then break
+            put 0 into tDepth
+            put true into tText
+            repeat with j = i + 1 to tEnd
+               if tTokens[tIdx[j]]["k"] is "s" then next repeat
+               if _T(tTokens, tIdx[j]) is "(" then add 1 to tDepth
+               if _T(tTokens, tIdx[j]) is ")" then subtract 1 from tDepth
+               if tDepth = 0 and tTokens[tIdx[j]]["k"] is "w" and _T(tTokens, tIdx[j]) is among the words of "into after before in" then
+                  put false into tText
+                  exit repeat
+               end if
+            end repeat
+            if tText then
+               put " into msg" after tTokens[tIdx[tEnd]]["t"]
+               _Fire "T80 more forms HyperCard took"
+            end if
+            break
+         case "go"
+            put i + 1 into j
+            if _T(tTokens, tIdx[j]) is "to" then add 1 to j
+            if j > tEnd then break
+            -- (what follows the destination: "in a new window")
+            put tEnd into tLast
+            put 0 into tDepth
+            repeat with k = j + 1 to tEnd
+               if _T(tTokens, tIdx[k]) is "(" then add 1 to tDepth
+               if _T(tTokens, tIdx[k]) is ")" then subtract 1 from tDepth
+               if tDepth = 0 and _T(tTokens, tIdx[k]) is "in" and _T(tTokens, tIdx[k + 1]) is among the words of "a new" then
+                  put k - 1 into tLast
+                  exit repeat
+               end if
+            end repeat
+            if (_T(tTokens, tIdx[j]) is among the words of kChunkWords and j < tLast) \
+                  or (_T(tTokens, tIdx[j]) is among the words of kChunkOrdinals and _T(tTokens, tIdx[j + 1]) is among the words of kChunkWords and j + 1 < tLast) then
+               -- "go to last line of parentCard": the destination a chunk
+               -- of a value gives, which this engine takes in parentheses
+               -- only (T25 then has the library's hcGoTo go there)
+               put "(" before tTokens[tIdx[j]]["t"]
+               put ")" after tTokens[tIdx[tLast]]["t"]
+               _Fire "T80 go to what an expression names"
+            else if j + 2 = tLast and tTokens[tIdx[j]]["k"] is "w" and pVars[_T(tTokens, tIdx[j])] \
+                  and _T(tTokens, tIdx[j + 1]) is "of" and tTokens[tIdx[tLast]]["k"] is "w" and pVars[_T(tTokens, tIdx[tLast])] then
+               -- "go to exportFromCard of exportFromStack": a card and a
+               -- stack two variables name, as one destination
+               _Replace tTokens, tIdx, j, tLast, "(" & tTokens[tIdx[j]]["t"] && "&&" && quote & "of" & quote && "&&" && tTokens[tIdx[tLast]]["t"] & ")"
+               _Fire "T80 go to what an expression names"
+            else if j + 3 = tLast and tTokens[tIdx[j]]["k"] is "w" and pVars[_T(tTokens, tIdx[j])] \
+                  and _T(tTokens, tIdx[j + 1]) is "of" and _T(tTokens, tIdx[j + 2]) is "this" and _T(tTokens, tIdx[tLast]) is "stack" then
+               -- "go theCard of this stack": the card a variable names,
+               -- in this stack, where a go without a stack goes
+               _Replace tTokens, tIdx, j, tLast, tTokens[tIdx[j]]["t"]
+               _Fire "T80 go to what an expression names"
+            end if
+            break
+      end switch
+   end repeat
+   return _Join(tTokens)
+end _SweepForms80
 
 -- T4, T6, T7, T9, T10, T11: phrases, matched on tokens (pThen: as
 -- _RewriteLine has it)
@@ -6465,7 +6622,16 @@ private function _SetWindow pTokens, pIdx, pAt, pEnd
    if tProperty is not among the words of kWindowProperties or _T(pTokens, pIdx[j + 1]) is not "of" then return empty
    put _FindWord(pTokens, pIdx, j + 2, pEnd, "to", empty) into tTo
    if tTo is empty or tTo = pEnd then return empty
-   if _T(pTokens, pIdx[j + 2]) is among the words of "window wd" and j + 3 < tTo then
+   if _T(pTokens, pIdx[j + 2]) is among the words of "window wd" and _T(pTokens, pIdx[j + 3]) is "id" then
+      -- T80: the window an id names ("set the dithering of window id it
+      -- to dither", a picture window's id an external gave), which is
+      -- no stack here: the library's hcSetWindow, which finds no such
+      -- window and goes on
+      -- (its scroll is left to the engine, whose stacks have one)
+      if j + 4 >= tTo or tProperty is "scroll" then return empty
+      put quote & "id" & quote && "&& (" & _Span(pTokens, pIdx, j + 4, tTo - 1) & ")" into tWindow
+      _Fire "T80 more forms HyperCard took"
+   else if _T(pTokens, pIdx[j + 2]) is among the words of "window wd" and j + 3 < tTo then
       put _Span(pTokens, pIdx, j + 3, tTo - 1) into tWindow
    else if _T(pTokens, pIdx[j + 2]) is among the words of "card cd" and _T(pTokens, pIdx[j + 3]) is among the words of "window wd" and j + 4 = tTo then
       put quote & "card window" & quote into tWindow
@@ -7266,6 +7432,12 @@ private function _ShowHide pTokens, pIdx, pAt, pEnd
       if tLast = pEnd then return "hcWindow" && quote & tVerb & quote & comma && _PlainName(pTokens, pIdx, j + 1, pEnd, false)
       if tLast + 1 = pEnd then return empty
       return "hcWindow" && quote & tVerb & quote & comma && _PlainName(pTokens, pIdx, j + 1, tLast, false) & comma && _Span(pTokens, pIdx, tLast + 2, pEnd)
+   end if
+   -- (T80: "show the tool window at "189,12"", with the)
+   if _T(pTokens, pIdx[j]) is "the" and _T(pTokens, pIdx[j + 1]) is among the words of "tool tools pattern patterns scroll fatbits navigator" \
+         and _T(pTokens, pIdx[j + 2]) is "window" then
+      add 1 to j
+      _Fire "T80 more forms HyperCard took"
    end if
    if _T(pTokens, pIdx[j]) is among the words of "tool tools pattern patterns scroll fatbits navigator" \
          and _T(pTokens, pIdx[j + 1]) is "window" then
