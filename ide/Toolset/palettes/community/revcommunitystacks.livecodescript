@@ -1249,7 +1249,15 @@ private command csBuildSide
    lkGlow tObj, "139,92,246", 16, 110
    get lkIcon("sideMarkIcon", "users", "255,255,255", "28,30,48,50", empty)
    get lkLabel("sideTitle", lkR(66, 21, kSide - 8, 45), "Community Stacks", 18, "255,255,255", empty)
-   get lkLabel("sideSub", lkR(66, 45, kSide - 8, 61), "Made and shared by people like you", 11, lkColor("muted"), empty)
+   put lkLabel("sideSub", lkR(66, 45, kSide - 8, 61), "Made and shared by people like you", 11, lkColor("muted"), empty) into tObj
+   -- One line, whole, whatever the system's font. With a wide one (DejaVu
+   -- Sans, the only font of some Linux systems) these words need more than
+   -- the label's width at size 11: they went on to a second line, and the
+   -- label's bottom cut "you". There they are drawn a size smaller
+   set the dontWrap of tObj to true
+   repeat while the formattedWidth of tObj > the width of tObj and the textSize of tObj > 9
+      set the textSize of tObj to the textSize of tObj - 1
+   end repeat
 
    -- Search
    put lkBox("searchBg", lkR(14, 80, kSide - 14, 114), lkColor("side2"), 17, empty) into tObj

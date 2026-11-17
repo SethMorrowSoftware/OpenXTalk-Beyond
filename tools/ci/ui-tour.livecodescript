@@ -10093,6 +10093,14 @@ on tour_community_stacks
          throw "with no list, the buttons are not Try Again alone"
       end if
       tourRecord "INFO community-stacks: unsigned:" && tourJoin(the text of field "page" of stack tWin)
+      -- The window's name and the words under it are whole. On a Linux
+      -- system whose only font is DejaVu Sans, the build server's, "Made
+      -- and shared by people like you" needed more than the label's 190
+      -- pixels at size 11, went on to a second line and lost "you" to the
+      -- label's bottom (the IDE screenshots of main at c77e5264, light
+      -- and dark, x86_64 and arm64; Windows and macOS drew it whole)
+      tourCsWhole tWin, "sideTitle"
+      tourCsWhole tWin, "sideSub"
       tourShotStack tWin, "24c5-community-stacks-unsigned"
 
       if tHave then
@@ -10233,6 +10241,26 @@ private function tourCsSha pData
    get binaryDecode("H*", messageDigest(pData, "sha-256"), tHex)
    return toLower(tHex)
 end tourCsSha
+
+-- A label of the window's sidebar shows all its words: written on one
+-- line they need no more than the label's width (a label that wraps puts
+-- what does not fit on a line below, which the label's bottom cuts)
+private command tourCsWhole pWin, pField
+   local tWrap, tNeed, tHas
+   if there is not a field pField of stack pWin then throw "the Community Stacks window has no label" && pField
+   lock screen
+   put the dontWrap of field pField of stack pWin into tWrap
+   set the dontWrap of field pField of stack pWin to true
+   put the formattedWidth of field pField of stack pWin into tNeed
+   set the dontWrap of field pField of stack pWin to tWrap
+   unlock screen
+   put the width of field pField of stack pWin into tHas
+   tourRecord "INFO community-stacks:" && pField && "needs" && tNeed && "of" && tHas && "pixels at size" && the textSize of field pField of stack pWin
+   if tNeed > tHas then
+      throw "the window's label" && pField && "(" & quote & the text of field pField of stack pWin & quote & ") needs" && tNeed && \
+            "pixels on one line and has" && tHas & ": its last words are cut"
+   end if
+end tourCsWhole
 
 -- Waits for the window to have asked its site, at most ten seconds
 private command tourCsWait pWin

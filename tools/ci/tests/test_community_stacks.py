@@ -222,6 +222,33 @@ class Window(unittest.TestCase):
         self.assertIn('lkEscape(item 1 of tLine)', entry)
 
 
+    def test_the_words_under_the_name_are_whole_on_one_line(self):
+        # With a wide system font (DejaVu Sans, the only font of some Linux
+        # systems and of the build server) "Made and shared by people like
+        # you" needed 199 pixels at size 11 and the label has 190: it went
+        # on to a second line, and the label's bottom cut "you" (the IDE
+        # screenshots of main at c77e5264, light and dark). The label is
+        # one line, drawn a size smaller until it fits, and the tour fails
+        # where a label of the sidebar needs more than it has.
+        side = handler(self.code, 'csBuildSide')
+        m = re.search(r'put lkLabel\("sideSub", [^\n]*\) into tObj\n(.*?)\n\s*\n', side, re.S)
+        self.assertIsNotNone(m, 'the label under the name is not kept to be fitted')
+        fit = m.group(1)
+        self.assertIn('set the dontWrap of tObj to true', fit)
+        self.assertIn('repeat while the formattedWidth of tObj > the width of tObj and the textSize of tObj > 9', fit)
+        self.assertIn('set the textSize of tObj to the textSize of tObj - 1', fit)
+        tour = read(TOUR)
+        step = handler(tour, 'tour_community_stacks')
+        for label in ('sideTitle', 'sideSub'):
+            self.assertIn('tourCsWhole tWin, "%s"' % label, step)
+        # before the first picture, so that a cut label fails the step
+        self.assertLess(step.index('tourCsWhole tWin, "sideSub"'), step.index('"24c5-community-stacks-unsigned"'))
+        whole = handler(tour, 'tourCsWhole')
+        self.assertIn('set the dontWrap of field pField of stack pWin to true', whole)
+        self.assertIn('put the formattedWidth of field pField of stack pWin into tNeed', whole)
+        self.assertIn('if tNeed > tHas then\n      throw', whole)
+
+
 class Menu(unittest.TestCase):
     def test_the_file_menu_has_it(self):
         menubar = read(MENUBAR)
