@@ -62,72 +62,46 @@ jobs:
           mkdir -p "$RUNNER_TEMP/logs" "$RUNNER_TEMP/cores"
           sudo sysctl -w kernel.core_pattern="$RUNNER_TEMP/cores/core.%e.%p" || true
 
-      - name: 1. Under Xvfb, as the builds check it (the control)
+      - name: Tools for the window tree and Mutter
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         run: |
-          set +e
-          env -u XDG_SESSION_TYPE -u WAYLAND_DISPLAY python3 tools/ci/media_check.py --install "$OXT_ROOT" \
-            --platform linux-x86_64 --what widget,revbrowser --browser-backend cef --log "$RUNNER_TEMP/logs/1-xvfb.log"
-          echo "RESULT 1 (Xvfb): exit status $?"
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends x11-utils mutter dbus dbus-x11 > /dev/null
+          mutter --version
 
-      - name: 2. In a Wayland session (Weston with Xwayland), XDG_SESSION_TYPE=wayland
+      - name: h1. Under Xvfb (the control), with the X window tree
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         run: |
-          set +e
-          ulimit -c unlimited
-          python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform linux-x86_64 \
-            --what widget,revbrowser --browser-backend cef --session wayland --log "$RUNNER_TEMP/logs/2-wayland.log"
-          echo "RESULT 2 (Wayland session): exit status $?"
-          ls -la "$RUNNER_TEMP/cores" || true
-          exe=$(find "$OXT_ROOT/Runtime/Linux" -name Standalone -type f | head -1)
-          echo "Engine for the stacks: $exe"
-          for core in "$RUNNER_TEMP"/cores/core.Standalone.*; do
-            [ -f "$core" ] || continue
-            echo "===== $core"
-            timeout 600 gdb -batch -ex "set solib-search-path $OXT_ROOT/Externals/CEF:$(dirname "$exe")/Externals/CEF" \
-              -ex "bt 45" "$exe" "$core" 2>&1 | grep -v "^warning: \|^\[New LWP\|^$" | cut -c1-260 | tail -70
-            break
-          done
+          Xvfb :77 -screen 0 1280x1024x24 > /dev/null 2>&1 &
+          sleep 2
+          env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE DISPLAY=:77 bash .github/diag/check-in-session.sh h1-xvfb \
+            "$OXT_ROOT" "$RUNNER_TEMP/logs" "$RUNNER_TEMP/cores"
+          kill %1 || true
 
-      - name: 3. In the same kind of Wayland session, with XDG_SESSION_TYPE=x11
+      - name: h2. In a Weston session, with the X window tree
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         run: |
-          set +e
-          python3 - <<'PY'
-          import os, sys, tempfile
-          sys.path.insert(0, os.path.join(os.getcwd(), 'tools', 'ci'))
-          import media_check
-          work = tempfile.mkdtemp(prefix='oxt-diag-')
-          proc, env, about = media_check.wayland_session(work)
-          print('Session:', about, env, flush=True)
-          os.environ.update(env)
-          os.environ['XDG_SESSION_TYPE'] = 'x11'
-          try:
-              code = media_check.main(['--install', os.environ['OXT_ROOT'], '--platform', 'linux-x86_64',
-                                       '--what', 'widget,revbrowser', '--browser-backend', 'cef',
-                                       '--log', os.path.join(os.environ['RUNNER_TEMP'], 'logs', '3-wayland-x11.log')])
-          finally:
-              media_check.end_session(proc)
-          print('RESULT 3 (Wayland session, XDG_SESSION_TYPE=x11): exit status %s' % code, flush=True)
-          PY
+          # (media_check's own session: Xwayland takes the first free display, :0 here)
+          env -u WAYLAND_DISPLAY DISPLAY=:0 bash .github/diag/check-in-session.sh h2-weston \
+            "$OXT_ROOT" "$RUNNER_TEMP/logs" "$RUNNER_TEMP/cores" --session wayland
 
-      - name: 4. Under Xvfb with XDG_SESSION_TYPE=wayland alone (no compositor)
+      - name: h3. In a Mutter session (GNOME's compositor, headless)
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         run: |
-          set +e
-          env -u WAYLAND_DISPLAY XDG_SESSION_TYPE=wayland python3 tools/ci/media_check.py --install "$OXT_ROOT" \
-            --platform linux-x86_64 --what widget,revbrowser --browser-backend cef --log "$RUNNER_TEMP/logs/4-name-only.log"
-          echo "RESULT 4 (Xvfb, XDG_SESSION_TYPE=wayland, no compositor): exit status $?"
+          env -u DISPLAY -u WAYLAND_DISPLAY dbus-run-session -- bash .github/diag/mutter-session.sh \
+            bash .github/diag/check-in-session.sh h3-mutter "$OXT_ROOT" "$RUNNER_TEMP/logs" "$RUNNER_TEMP/cores"
 
-      - name: 5. The same as 4 with the browser left to choose (CEF, else WebKitGTK)
+      - name: c. In an Ubuntu 26.04 container
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 25
         run: |
-          set +e
-          env -u WAYLAND_DISPLAY XDG_SESSION_TYPE=wayland python3 tools/ci/media_check.py --install "$OXT_ROOT" \
-            --platform linux-x86_64 --what widget --log "$RUNNER_TEMP/logs/5-name-only-auto.log"
-          echo "RESULT 5 (as 4, browser auto): exit status $?"
+          mkdir -p "$RUNNER_TEMP/logs26" /tmp/cores26
+          sudo sysctl -w kernel.core_pattern="/cores/core.%e.%p" || true
+          docker run --rm --shm-size=2g --ulimit core=-1 \
+            -v "$GITHUB_WORKSPACE:/w:ro" -v "$OXT_ROOT:/oxt:ro" -v "$RUNNER_TEMP/logs26:/logs" -v /tmp/cores26:/cores \
+            ubuntu:26.04 bash /w/.github/diag/in-container.sh
+          sudo sysctl -w kernel.core_pattern="$RUNNER_TEMP/cores/core.%e.%p" || true
 
       - name: The results
         if: ${{ !cancelled() }}
         run: |
-          for f in "$RUNNER_TEMP"/logs/*.log; do echo "===== $f"; cut -c1-300 "$f"; done
+          for f in "$RUNNER_TEMP"/logs/*.log "$RUNNER_TEMP"/logs26/*.log; do echo "===== $f"; cut -c1-300 "$f"; done
