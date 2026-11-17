@@ -95,12 +95,15 @@ that is over:
      ACCEPT begins the match on both, with no code carried
  19. the third page sees both of them in a duel
  20. the match over, LEAVE comes back to the lobby, online again
- 21. QUICK MATCH on two pages matches them
- 22. PLAY A FRIEND makes a room; COPY THE LINK puts the page's address
+ 21. the relay hangs up on all three: each is back on it by itself, in
+     the lobby all the while, and what follows is played over the new
+     connections
+ 22. QUICK MATCH on two pages matches them
+ 23. PLAY A FRIEND makes a room; COPY THE LINK puts the page's address
      with the room's code on the clipboard, and a page opened at that
      address has JOIN YOUR FRIEND, which begins the match with the room's
      maker
- 23. no script error, in any of the games or pages
+ 24. no script error, in any of the games or pages
 
 Playwright's WebKit on Linux makes no touch events, so there the taps and
 the drag are the mouse's, which the game reads as it reads a finger. Ends
@@ -150,6 +153,10 @@ LOBBY_THIRD = 'iPhone 13'
 # the seconds the lobby's relay keeps an ephemeral event for (strfry's
 # five minutes, which nos.lol and relay.damus.io run)
 LOBBY_RELAY_KEEPS = 300
+# the seconds a page has to be back on a relay that hung up on it: fewer
+# than the game keeps a lobby with no relay open (its kNetOpenFor), so a
+# game that asked again only after that would have given the lobby up
+LOBBY_BACK_IN = 10
 # the state's keys a failure is printed with
 KEYS = ('mode', 'phase', 'score', 'lives', 'level', 'bricks', 'now', 'padx', 'ball', 'fps', 'font', 'audio',
         'library', 'arena', 'wide', 'window', 'pointer', 'rtc', 'duel', 'lobby', 'stage', 'left', 'rival',
@@ -655,7 +662,7 @@ def check_duel(playwright, browser_name, url, timeout, shots):
 
 def check_lobby(playwright, browser_name, url, timeout, shots, relay, relay_url):
     """The online lobby between three pages of one browser, on a relay of
-    the check's own: 17 to 23 of the list."""
+    the check's own: 17 to 24 of the list."""
     problems = []
 
     def expect(what, ok, *states):
@@ -782,7 +789,25 @@ def check_lobby(playwright, browser_name, url, timeout, shots, relay, relay_url)
             s = player.wait_for(lambda s: listed(s) == others, 30)
             expect('%s lists the other two again' % player.name, listed(s) == others, s)
 
-        # 21. a quick match
+        # 21. the relay hangs up on everyone, and each comes back by itself
+        was = relay.relay.connected()
+        cut = relay.relay.hang_up()
+        expect('the relay hangs up on all three', cut == 3 and len(was) == 3, {'clients': cut})
+        end = time.time() + LOBBY_BACK_IN
+        now = relay.relay.connected()
+        while time.time() < end and (len(now) != 3 or was & now):
+            time.sleep(0.2)
+            now = relay.relay.connected()
+        expect('each asks again, well before the lobby would be given up', len(now) == 3 and not was & now,
+               {'clients': len(now), 'of before': len(was & now)})
+        for player in players:
+            others = {names[other]: 'free' for other in players if other is not player}
+            s = player.wait_for(lambda s: s.get('relays') == '1' and s.get('lobby') == 'online', 5)
+            expect('%s is on the relay again, in the lobby all the while, with the other two' % player.name,
+                   s.get('relays') == '1' and s.get('lobby') == 'online' and s.get('online') == 'true'
+                   and listed(s) == others, s)
+
+        # 22. a quick match
         cy.tap('Quick')
         c = cy.wait_for(lambda s: s.get('lobby') == 'quick', 3)
         expect('QUICK MATCH looks for a rival', c.get('lobby') == 'quick' and c.get('doing') == 'quick', c)
@@ -801,7 +826,7 @@ def check_lobby(playwright, browser_name, url, timeout, shots, relay, relay_url)
         a = leave_result(ada)
         expect('the other is told, and comes back too', a.get('lobby') == 'online', a)
 
-        # 22. a friend's room, by its link
+        # 23. a friend's room, by its link
         ada.tap('Friend')
         a = ada.wait_for(lambda s: s.get('lobby') == 'room', 3)
         code = a.get('room', '')
@@ -829,7 +854,7 @@ def check_lobby(playwright, browser_name, url, timeout, shots, relay, relay_url)
         c = cy.state()
         expect('and with nobody else', c.get('lobby') == 'online' and c.get('duel') == 'false', c)
 
-        # 23. no script error
+        # 24. no script error
         for player in players:
             errors = player.errors()
             expect('no script error in %s\'s game' % player.name, errors == '', {'errors': errors[:400]})

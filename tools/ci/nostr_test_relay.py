@@ -36,12 +36,18 @@ asks while it has it, as some public relays do (strfry keeps them five
 minutes by default). tools/ci/ember_bricks_check.py's lobby runs on one
 that does: a client that takes whatever a relay gives as news fails
 there, as it would on those. Without it nothing changes.
+
+A test can have the relay hang up on everyone (Relay.hang_up): each
+client's connection ends with no closing frame, as when a relay restarts
+or a phone's network goes for a moment. The relay goes on listening, so a
+client that asks again is let in.
 """
 
 import argparse
 import base64
 import hashlib
 import json
+import socket
 import socketserver
 import struct
 import threading
@@ -81,6 +87,27 @@ class Relay:
         first. (Called with the lock.)"""
         now = time.time() if now is None else now
         return list(self.events) + [e for until, e in reversed(self.passing) if until > now]
+
+    def connected(self):
+        """The clients connected now (a set of its own, to compare with
+        a later one)."""
+        with self.lock:
+            return set(self.clients)
+
+    def hang_up(self):
+        """Ends every client's connection, with no closing frame; the
+        relay goes on listening. Returns how many there were. (They are
+        no clients from now, whenever each one's thread comes to know.)"""
+        with self.lock:
+            clients = set(self.clients)
+            self.clients -= clients
+        for client in clients:
+            try:
+                client.request.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+        self.log('hung up on %d' % len(clients))
+        return len(clients)
 
     def log(self, text):
         if self.log_file:
