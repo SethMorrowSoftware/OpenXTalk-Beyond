@@ -184,6 +184,13 @@ Then:
    "fullscreen exactFit")...), and the page made wider, then narrower
    than it was, then as it was: each time the window must cover the
    page's viewport (issue 515: it grew with the page and never shrank).
+   In Chromium, in two more pages of its own (?tab=ipad), the page asks
+   the browser for full screen from a tap: in a browser made to look like
+   an iPad's, the engine's hidden input must be without the focus when the
+   browser gets the request and while the page is full screen (WebKit
+   ends full screen there for a text input that takes the focus), have it
+   again after, and take it for a field tapped in full screen; in a
+   browser that is not an iPad's it must keep the focus throughout.
 
 The URLs are loaded by the engine, or by the Internet library (libURL)
 when the standalone has it: the IDE's builder adds it, with its web
@@ -391,6 +398,167 @@ def fullscreen_cover_problem(mode, width, height, seen):
     if w > page_width or h > page_height:
         said += ': it did not shrink with the page (issue 515)'
     return said
+
+
+# The page's own full screen (the browser's, asked from a tap) on an iPad.
+# WebKit ends a page's full screen there when a text input takes the focus
+# (its bug 185617), and the engine's hidden input is one: a stack that
+# asked for full screen from a tap got it and lost it at once (reported
+# from an iPad with iPadOS 18.5). So in those browsers the input is
+# without the focus from the request until full screen ends, unless a
+# field wants the keyboard (engine/src/em-event.js, _inputHeld()). No
+# browser here has WebKit's rule, so what is checked is where the focus
+# is, in Chromium made to look like an iPad to the engine: an iPad says
+# it is a Mac with a touch screen, and has no VirtualKeyboard API.
+IPAD_HOOK = r'''
+(function() {
+  Object.defineProperty(navigator, 'platform', {get: function() { return 'MacIntel'; }, configurable: true});
+  Object.defineProperty(navigator, 'maxTouchPoints', {get: function() { return 5; }, configurable: true});
+  Object.defineProperty(navigator, 'virtualKeyboard', {value: undefined, configurable: true});
+})();
+'''
+
+# Which element had the focus each time the BROWSER got a request for full
+# screen: this wrap is the page's first script, so the engine's own wrap of
+# the request (made when the engine starts) is around it.
+FULL_SCREEN_ASK_HOOK = r'''
+(function() {
+  window.__oxtAskedWith = [];
+  var ask = Element.prototype.requestFullscreen;
+  Element.prototype.requestFullscreen = function() {
+    var active = document.activeElement;
+    window.__oxtAskedWith.push(active ? active.tagName : 'none');
+    return ask.apply(this, arguments);
+  };
+})();
+'''
+
+# The next touch that ends on the page asks for full screen, as a stack's
+# mouseUp does through the Mobile Web library
+FULL_SCREEN_AT_TOUCH_END_JS = """() => {
+    document.addEventListener('touchend', function() {
+        document.documentElement.requestFullscreen();
+    }, {capture: true, once: true});
+}"""
+
+# The element with the focus, the keyboard it asks for, and whether the
+# page is full screen
+FULL_SCREEN_FOCUS_JS = """() => {
+    var active = document.activeElement;
+    return [active ? active.tagName : 'none', active && active.inputMode || '', !!document.fullscreenElement];
+}"""
+
+# A point of the probe's card with nothing on it (the stack is 480x360)
+FULL_SCREEN_CARD_POINT = (440, 320)
+
+# The moments full_screen_focus_seen() looks at, and what each is called
+FULL_SCREEN_MOMENTS = (
+    ('pressed', 'after a tap on the stack'),
+    ('full', 'with the page full screen'),
+    ('tapped', 'after a tap on the stack in full screen'),
+    ('left', 'back from full screen'),
+    ('full again', 'full screen a second time'),
+    ('field', 'after a tap on a field in full screen'),
+)
+
+
+def full_screen_focus_seen(tab, field_rect, clock=time.time):
+    """Where the focus is around the page's full screen, on the page tab
+    of the probe (opened with ?tab=, and with FULL_SCREEN_ASK_HOOK): a
+    tap on the stack, a tap that asks for full screen, a tap in full
+    screen, full screen left, full screen again and a tap on the field
+    there. Answers {moment: FULL_SCREEN_FOCUS_JS's answer}, 'asked' (what
+    had the focus at each of the browser's two requests), and 'problem'
+    when the page did not go full screen or come back."""
+    seen = {}
+
+    def tap(point):
+        box = tab.locator('#canvas').bounding_box()
+        tab.touchscreen.tap(box['x'] + point[0], box['y'] + point[1])
+        tab.wait_for_timeout(300)
+
+    def look(moment):
+        seen[moment] = tab.evaluate(FULL_SCREEN_FOCUS_JS)
+
+    def becomes(full, what):
+        deadline = clock() + 10
+        while clock() < deadline:
+            if tab.evaluate('!!document.fullscreenElement') == full:
+                tab.wait_for_timeout(300)
+                return True
+            tab.wait_for_timeout(100)
+        seen['problem'] = what
+        return False
+
+    def ask(what):
+        tab.evaluate(FULL_SCREEN_AT_TOUCH_END_JS)
+        tap(FULL_SCREEN_CARD_POINT)
+        return becomes(True, what)
+
+    left, top, right, bottom = parse_rect(field_rect)
+    tap(FULL_SCREEN_CARD_POINT)
+    look('pressed')
+    if not ask('a tap that asked for full screen did not make the page full screen'):
+        return seen
+    look('full')
+    tap(FULL_SCREEN_CARD_POINT)
+    look('tapped')
+    tab.evaluate('document.exitFullscreen()')
+    if not becomes(False, 'the page did not come back from full screen'):
+        return seen
+    look('left')
+    if not ask('a second tap that asked for full screen did not make the page full screen'):
+        return seen
+    look('full again')
+    tap(((left + right) / 2, (top + bottom) / 2))
+    look('field')
+    seen['asked'] = tab.evaluate('window.__oxtAskedWith.slice()')
+    return seen
+
+
+def full_screen_focus_problems(like_ipad, seen):
+    """What is wrong in full_screen_focus_seen()'s answer. In a browser
+    of an iPad the hidden input must be without the focus when the browser
+    gets each request for full screen and for as long as the page is full
+    screen, must have it again when full screen ends (a keyboard's keys go
+    to the stack through it), and must take it, asking for the keyboard,
+    when a field is tapped in full screen. Everywhere else it must keep
+    the focus throughout, as before: the keys reach a stack in full
+    screen."""
+    where = 'in a browser of an iPad' if like_ipad else 'in a browser that is not an iPad\'s'
+    if seen.get('problem'):
+        return ['%s, %s' % (where, seen['problem'])]
+    problems = []
+    said = dict(FULL_SCREEN_MOMENTS)
+    for moment, _what in FULL_SCREEN_MOMENTS:
+        got = seen.get(moment)
+        if not got or len(got) != 3:
+            problems.append('%s, the focus %s could not be read: %r' % (where, said[moment], got))
+            continue
+        has_input = got[0] == 'INPUT'
+        if moment == 'field':
+            if not has_input or got[1] != 'text':
+                problems.append('%s, %s the focus was on %r asking the keyboard for %r, expected the hidden '
+                                'input asking for \'text\': a field in full screen gets the keyboard'
+                                % (where, said[moment], got[0], got[1]))
+        elif like_ipad and moment in ('full', 'tapped', 'full again'):
+            if has_input:
+                problems.append('%s, %s the hidden input had the focus: WebKit ends full screen for a text '
+                                'input that takes the focus' % (where, said[moment]))
+        elif not has_input or got[1] != 'none':
+            problems.append('%s, %s the focus was on %r asking the keyboard for %r, expected the hidden input '
+                            'asking for \'none\': a keyboard\'s keys reach the stack through it'
+                            % (where, said[moment], got[0], got[1]))
+    asked = seen.get('asked')
+    if not isinstance(asked, list) or len(asked) != 2:
+        problems.append('%s, the browser got %r as requests for full screen, expected two' % (where, asked))
+    elif like_ipad and 'INPUT' in asked:
+        problems.append('%s, the hidden input had the focus when the browser got a request for full screen '
+                        '(%s): it must give it up before' % (where, ', '.join(asked)))
+    elif not like_ipad and asked != ['INPUT', 'INPUT']:
+        problems.append('%s, the focus was on %s when the browser got the requests for full screen, expected '
+                        'the hidden input both times' % (where, ', '.join(asked)))
+    return problems
 
 
 # The home folder was /livecode until 0.2.7-rc.6.2 (engine/src/em-system.js):
@@ -2786,6 +2954,40 @@ def run_browser(url, version, work, timeout, url_path=None, browser_widget=None,
                     full.close()
                 except (PlaywrightError, PlaywrightTimeoutError) as e:
                     problems.append('the check of a fullscreen stack (%s) failed: %s%s' % (mode, e, extra_said()))
+                    del extra_events[:]
+        if 'ready' in probes:
+            # the page's own full screen on an iPad (IPAD_HOOK): the
+            # hidden input gives the focus up for it, and nowhere else.
+            # With ?tab=, the probe runs no checks.
+            for like_ipad in (True, False):
+                where = 'an iPad' if like_ipad else 'a touch screen that is not an iPad\'s'
+                if not devtools:
+                    lines.append('the hidden input around the page\'s full screen is checked in Chromium only')
+                    break
+                try:
+                    browser_waiting[0] = 'the page\'s full screen in a browser of %s' % where
+                    del extra_events[:]
+                    pad = browser.new_context(viewport={'width': 800, 'height': 600}, has_touch=True)
+                    if like_ipad:
+                        pad.add_init_script(IPAD_HOOK)
+                    pad.add_init_script(FULL_SCREEN_ASK_HOOK)
+                    tab = open_extra(pad, url + ('&' if '?' in url else '?') + 'tab=ipad',
+                                     'the page in a browser of %s' % where, timeout)
+                    found = full_screen_focus_problems(like_ipad, full_screen_focus_seen(tab, info['field-rect']))
+                    if found:
+                        problems.extend(found)
+                    elif like_ipad:
+                        lines.append('in a browser of an iPad the hidden input gave the focus up before the '
+                                     'browser got a request for full screen, stayed without it in full screen, '
+                                     'had it again after, and took it for a field tapped in full screen')
+                    else:
+                        lines.append('in a browser of %s the hidden input kept the focus through the page\'s '
+                                     'full screen' % where)
+                    del extra_events[:]
+                    pad.close()
+                except (PlaywrightError, PlaywrightTimeoutError) as e:
+                    problems.append('the check of the page\'s full screen in a browser of %s failed: %s%s'
+                                    % (where, e, extra_said()))
                     del extra_events[:]
         if 'ready' in probes:
             # what an older engine kept in /livecode, in a new browser
