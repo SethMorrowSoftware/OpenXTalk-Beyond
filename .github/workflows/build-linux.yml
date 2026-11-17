@@ -1350,8 +1350,10 @@ jobs:
           # and the X headers: the browser widget's browser where CEF
           # cannot load (tools/ci/webkit_browser_check.py and the browser
           # check with --browser-backend webkitgtk); gdb: the stack of an
-          # engine that crashes in the browser compatibility check
+          # engine that crashes in the browser compatibility check; Weston
+          # and Xwayland: the Wayland session of the browser check
           pkgs=(desktop-file-utils shared-mime-info xz-utils mplayer xvfb xauth
+                weston xwayland
                 libwebkit2gtk-4.1-0 libx11-dev
                 gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav gstreamer1.0-x
                 xfwm4 openbox mutter xdotool x11-utils imagemagick
@@ -1614,6 +1616,34 @@ jobs:
         run: |
           python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --player-backend mplayer \
             --log "$RUNNER_TEMP/logs/media-check.log" --snapshots "$RUNNER_TEMP/logs/media-snapshots"
+
+      # The browser widget and revBrowser (CEF) where the desktop's session
+      # is Wayland, as most desktops' now is. The engine is an X11 program
+      # there too (on Xwayland) and its browser is the child of a stack's X
+      # window, so Chromium, which takes Wayland for its own windows where
+      # XDG_SESSION_TYPE says so, is told X11 (libbrowser_cef.cpp,
+      # AppendLinuxOzonePlatform). First with the session's name alone on
+      # the X display, no compositor there: before the engine told Chromium
+      # its platform no browser was made at all ...
+      # (tools/ci/media_check.py --session). x86_64 only: the only Linux
+      # build with CEF.
+      - name: Browser check (the session named Wayland)
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
+        timeout-minutes: 10
+        run: |
+          python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --what widget,revbrowser \
+            --browser-backend cef --session wayland-name --log "$RUNNER_TEMP/logs/media-check-wayland-name.log"
+
+      # ... then in a Wayland session of its own (a headless Weston with
+      # Xwayland): the page loads, its JavaScript calls back, and
+      # Chromium's own X window is inside CEF's in the stack's window,
+      # where there was none while Chromium took Wayland
+      - name: Browser check (a Wayland session)
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
+        timeout-minutes: 10
+        run: |
+          python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --what widget,revbrowser \
+            --browser-backend cef --session wayland --log "$RUNNER_TEMP/logs/media-check-wayland.log"
 
       # What a script sees of the browser's htmlText and url (the url and
       # htmlText properties, the messages, and where the page's JavaScript
