@@ -1034,6 +1034,15 @@ public:
 			
 			return true;
 		}
+		else if (t_message_name == MC_CEFMSG_GET_JS_HANDLER_LIST)
+		{
+			// OXT-Beyond: [[ CEF 156 ]] A render process made a main frame's
+			// script context before it was sent the handler list (a page of
+			// another site, in a process of its own): send it to that frame.
+			if (m_owner != nil && p_frame != nil && p_frame->IsMain())
+				/* UNCHECKED */ m_owner->SyncJavaScriptHandlers(p_frame);
+			return true;
+		}
 		else if (t_message_name == MC_CEFMSG_JS_HANDLER)
 		{
 			// Handle JavaScript call to LiveCode handler
@@ -1330,7 +1339,18 @@ public:
 			return;
 		
 		// render process may have restarted so resend js handler list
-		m_owner->SyncJavaScriptHandlers();
+		// OXT-Beyond: [[ CEF 156 ]] through the frame the page committed in
+		// when it is the main frame. A page of another site has a render
+		// process of its own, and GetMainFrame could still name the frame
+		// of the page before it while the navigation committed. The render
+		// process also keeps the list and gives it to every new main-frame
+		// document before the page's own script runs (OnContextCreated in
+		// libbrowser_cefprocess.cpp), so this message is no longer the only
+		// way the page gets its liveCode object.
+		if (p_frame != nil && p_frame->IsMain())
+			m_owner->SyncJavaScriptHandlers(p_frame);
+		else
+			m_owner->SyncJavaScriptHandlers();
 		
 		CefString t_url, t_error;
 		CefLoadHandler::ErrorCode t_error_code;
@@ -2180,6 +2200,24 @@ bool MCCefBrowserBase::SyncJavaScriptHandlers()
 	MCCefSendProcessMessage(m_browser, PID_RENDERER, t_message);
 	
 	/* UNCHECKED */ return true;
+}
+
+bool MCCefBrowserBase::SyncJavaScriptHandlers(CefRefPtr<CefFrame> p_frame)
+{
+	if (p_frame == nil || !p_frame->IsValid())
+		return SyncJavaScriptHandlers();
+	
+	CefRefPtr<CefProcessMessage> t_message;
+	t_message = CefProcessMessage::Create(MC_CEFMSG_SET_JS_HANDLER_LIST);
+	
+	CefRefPtr<CefListValue> t_args;
+	t_args = t_message->GetArgumentList();
+	
+	t_args->SetList(0, m_js_handler_list->Copy());
+	
+	p_frame->SendProcessMessage(PID_RENDERER, t_message);
+	
+	return true;
 }
 
 bool MCCefBrowserBase::SetJavaScriptHandlers(const char *p_handlers)
