@@ -17,11 +17,11 @@ You should have received a copy of the GNU General Public License
 along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 
 -- Builds stacks/Ember Bricks.oxtstack, a brick-breaking game for a phone,
--- a browser and a desktop, with an online duel for two. The stack is
--- never edited by hand: change this script, the game's script
--- (ember-bricks-stack.livecodescript beside it) or its levels
--- (ember-bricks/levels.txt), and build it again, with any OXT-Beyond
--- engine (the IDE's, or the development engine of a build):
+-- a browser and a desktop, with an online duel for two and a lobby to
+-- find a rival in. The stack is never edited by hand: change this script,
+-- the game's script (ember-bricks-stack.livecodescript beside it) or its
+-- levels (ember-bricks/levels.txt), and build it again, with any
+-- OXT-Beyond engine (the IDE's, or the development engine of a build):
 --
 --    <engine> -ui tools/web-player/ember-bricks.livecodescript
 --
@@ -76,6 +76,8 @@ constant kMotes = 16
 constant kLives = 5
 constant kChips = 6
 constant kRivalBalls = 3
+-- (the rows of the lobby's list of players: the game's kNetRows)
+constant kWho = 5
 
 -- The look (the game's script has the same colours)
 constant kFont = "Atkinson Hyperlegible"
@@ -608,41 +610,40 @@ private command buildOver
    set the visible of group "Over" to false
 end buildOver
 
--- The duel's lobby: host or join, the invite to send and the answer to
--- take, each a field with a button to copy it or paste into it
+-- The duel's lobby. Online: a name and Go online, the players who are
+-- there (a row each, to challenge them), Quick match and Play a friend,
+-- and a challenge to accept or not. By code: host or join, the invite to
+-- send and the answer to take, each a field with a button to copy it or
+-- paste into it (a friend's room uses the same field for its six letters)
 private command buildLobby
+   local i
    create group "Lobby"
    makePanel "Lobby"
    create field "Lobby Title" in group "Lobby"
    setLabel the long id of field "Lobby Title", "ONLINE DUEL", 22, kInk, "bold", "center"
    create field "Lobby Text" in group "Lobby"
    setText the long id of field "Lobby Text", empty, 14, kMuted, "center"
+   makeBox "Name Back", "Lobby"
+   create field "Name" in group "Lobby"
+   typedField the long id of field "Name", 16
+   set the dontWrap of field "Name" to true
+   set the textAlign of field "Name" to "center"
+   makeButton "Net Go", "GO ONLINE", "Lobby", true
+   makeButton "Codes Open", "PLAY BY CODE", "Lobby", false
+   repeat with i = 1 to kWho
+      makeButton "Who" && i, "PLAYER", "Lobby", false
+   end repeat
+   makeButton "Quick", "QUICK MATCH", "Lobby", true
+   makeButton "Friend", "PLAY A FRIEND", "Lobby", false
+   makeButton "Accept", "ACCEPT", "Lobby", true
+   makeButton "Decline", "NOT NOW", "Lobby", false
    makeButton "Host", "HOST A DUEL", "Lobby", true
    makeButton "Join", "JOIN A DUEL", "Lobby", false
    create field "Lobby Step" in group "Lobby"
    setLabel the long id of field "Lobby Step", empty, 13, kAmber, "bold", "left"
-   create graphic "Code Back" in group "Lobby"
-   set the style of graphic "Code Back" to "roundrect"
-   set the opaque of graphic "Code Back" to true
-   set the filled of graphic "Code Back" to true
-   set the roundRadius of graphic "Code Back" to 8
-   set the lineSize of graphic "Code Back" to 1
-   set the foregroundColor of graphic "Code Back" to kEdge
-   set the backgroundColor of graphic "Code Back" to "#120C0A"
+   makeBox "Code Back", "Lobby"
    create field "Code" in group "Lobby"
-   set the lockText of field "Code" to false
-   set the traversalOn of field "Code" to true
-   set the opaque of field "Code" to false
-   set the showBorder of field "Code" to false
-   set the threeD of field "Code" to false
-   set the dontWrap of field "Code" to false
-   set the autoTab of field "Code" to false
-   set the margins of field "Code" to 6
-   set the textFont of field "Code" to kFont
-   set the textSize of field "Code" to 11
-   set the cSize of field "Code" to 11
-   set the textColor of field "Code" to kInk
-   set the showFocusBorder of field "Code" to false
+   typedField the long id of field "Code", 11
    makeButton "Code Copy", "COPY THE INVITE", "Lobby", true
    makeButton "Code Paste", "PASTE", "Lobby", true
    makeButton "Code Go", "CONNECT", "Lobby", false
@@ -650,7 +651,53 @@ private command buildLobby
    setText the long id of field "Lobby Note", empty, 13, kAmber, "center"
    makeButton "Lobby Back", "BACK", "Lobby", false
    set the visible of group "Lobby" to false
+   -- the game's ear for the lobby's relays: a button nobody sees, whose
+   -- script the game puts at the back of the message path while it is
+   -- online (ebNetEar), to hand on to the game what NostrXT's relay
+   -- library says to the top stack, whichever stack that is. On the card
+   -- itself: its owner's owner is the stack
+   create button "Relay Ear"
+   set the visible of button "Relay Ear" to false
+   set the script of button "Relay Ear" to earScript()
 end buildLobby
+
+-- The box a field for typing lies in
+private command makeBox pName, pGroup
+   create graphic pName in group pGroup
+   set the style of graphic pName to "roundrect"
+   set the opaque of graphic pName to true
+   set the filled of graphic pName to true
+   set the roundRadius of graphic pName to 8
+   set the lineSize of graphic pName to 1
+   set the foregroundColor of graphic pName to kEdge
+   set the backgroundColor of graphic pName to "#120C0A"
+end makeBox
+
+-- A field for typing or pasting, over its box, with no look of its own
+private command typedField pField, pSize
+   set the lockText of pField to false
+   set the traversalOn of pField to true
+   set the opaque of pField to false
+   set the showBorder of pField to false
+   set the threeD of pField to false
+   set the dontWrap of pField to false
+   set the autoTab of pField to false
+   set the margins of pField to 6
+   set the textFont of pField to kFont
+   set the textSize of pField to pSize
+   set the cSize of pField to pSize
+   set the textColor of pField to kInk
+   set the showFocusBorder of pField to false
+end typedField
+
+-- The ear's script: what a relay says (the callback the game names to
+-- NostrXT's relay library: ebRelayCall), on to the game
+private function earScript
+   return "on ebRelayCall pRelay, pKind, pOne, pTwo" & return & "   local tGame" & return & \
+         "   put the owner of me into tGame" & return & "   put the owner of tGame into tGame" & return & \
+         "   dispatch " & quote & "ebNetHeard" & quote & " to tGame with pRelay, pKind, pOne, pTwo" & return & \
+         "end ebRelayCall"
+end earScript
 
 private command buildResult
    create group "Result"
