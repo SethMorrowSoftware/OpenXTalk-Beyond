@@ -1297,6 +1297,30 @@ class TargetAPIMenu(unittest.TestCase):
         at = grown.index('object: group "Android Settings" of card "Android"')
         self.assertEqual(grown[at + 2:at + 4], ['from: -43,99,740,674', 'to: -43,99,%d,678' % (menu[2] + 8)])
 
+    def test_the_rows_menus_have_their_words_at_the_left(self):
+        # Centred, as the minimum version's menu had its words (a button's
+        # default) and its copy took them, "Default" lay against the arrow
+        # of the Target menu on Linux, in a menu wide enough for its
+        # formattedWidth. The card's other menus have theirs at the left:
+        # one patch gives both menus of the row that, and nothing else
+        lines = patch_lines('android-card-target-api-6.txt')
+        for name in ('Minimum Android Version', 'Target Android Version'):
+            at = lines.index('object: button "%s" ' % name + self.REQUIREMENTS)
+            self.assertEqual(lines[at + 1:at + 4], ['property: textAlign', 'from: center', 'to: left'])
+        self.assertEqual([line for line in lines if line.startswith(('property:', 'clone:', 'replace:'))],
+                         ['property: textAlign'] * 2)
+        # after the patches that make the menu and its row, before the one
+        # that must stay last (TargetsGroup above)
+        names = sorted(n for n in os.listdir(os.path.join(REPO, *PATCHES)) if n.startswith('android-card-'))
+        self.assertEqual(names.index('android-card-target-api-6.txt'), names.index('android-card-target-api-5.txt') + 1)
+        self.assertLess(names.index('android-card-target-api-6.txt'), names.index('android-card-targets-group.txt'))
+        # the tour holds the IDE's own card to it, on every platform, and to
+        # a menu no narrower than its label and arrow ask
+        check = handler(read(TOUR), 'tourAndroidTargetAPI')
+        self.assertIn('repeat for each item tKey in "Target Android Version,Minimum Android Version"', check)
+        self.assertIn('if the textAlign of button tKey of tRequirements is not "left" then', check)
+        self.assertIn('if the width of tMenu < the formattedWidth of tMenu then', check)
+
     def test_a_pick_stores_the_setting_the_builder_reads(self):
         lines = patch_lines('android-card-target-api-2.txt')
         self.assertIn('object: button "Target Android Version" ' + self.REQUIREMENTS, lines)
