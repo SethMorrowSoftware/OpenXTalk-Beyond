@@ -1715,11 +1715,16 @@ private command __CleanWatches pObject
    local tStates
    put revMetadataGet(tStack, tMetadataType, "watchstates") into tStates
    
+   -- OXT-Beyond: tLineNumber is the watch's own line in tWatches, so
+   -- it is counted for a watch that is dropped too. It was counted for
+   -- the kept ones alone, so every watch after a dropped one took the
+   -- state of the watch before it.
    local tLineNumber
-   put 1 into tLineNumber
+   put 0 into tLineNumber
    
    local tCleanedWatches, tCleanedStates
    repeat for each line tWatch in tWatches
+      add 1 to tLineNumber
       # If an object is specified, we check that all the watches can be resolved for it,
       # otherwise we're cleaning the global watches, so we don't perform this check.
       if pObject is not empty then
@@ -1740,7 +1745,6 @@ private command __CleanWatches pObject
       
       put tWatch & return after tCleanedWatches
       put line tLineNumber of tStates & return after tCleanedStates
-      add 1 to tLineNumber
    end repeat
    delete the last char of tCleanedWatches
    delete the last char of tCleanedStates
@@ -1765,11 +1769,19 @@ private command __CleanBreakpoints pStack
    local tConditions
    put revMetadataGet(pStack, kMetadataType, "breakpointconditions") into tConditions
    
+   -- OXT-Beyond: tLineNumber is the breakpoint's own line in
+   -- tBreakpoints, so it is counted for a breakpoint that is dropped
+   -- too. It was counted for the kept ones alone, so every breakpoint
+   -- after one dropped (its control deleted, or a duplicate) took the
+   -- state and the condition of the breakpoint before it: one that was
+   -- off read as on, and stopped on a condition written for another
+   -- handler.
    local tLineNumber
-   put 1 into tLineNumber
+   put 0 into tLineNumber
    
    local tCleanedBreakpoints, tCleanedStates, tCleanedConditions
    repeat for each line tBreakpoint in tBreakpoints
+      add 1 to tLineNumber
       try
          get __ResolveId(item 1 of tBreakpoint, pStack)
       catch tError
@@ -1787,8 +1799,6 @@ private command __CleanBreakpoints pStack
       put tBreakpoint & return after tCleanedBreakpoints
       put line tLineNumber of tStates & return after tCleanedStates
       put line tLineNumber of tConditions & return after tCleanedConditions
-      
-      add 1 to tLineNumber
    end repeat
    delete the last char of tCleanedBreakpoints
    delete the last char of tCleanedStates

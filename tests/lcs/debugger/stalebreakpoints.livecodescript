@@ -93,3 +93,85 @@ on TestEntriesThatResolve
    TestAssert "the breakpoint is active", \
          (the long id of button "Kept" of stack kStack & ",2") is among the lines of the breakpoints
 end TestEntriesThatResolve
+
+-- A breakpoint saved for a deleted control is dropped when the library
+-- lists a stack's breakpoints. The breakpoints after it must keep their
+-- own state and condition: they took those of the entry before them,
+-- so a breakpoint that was off read as on, with the condition of the
+-- deleted control's breakpoint (an error when it stopped there, since
+-- the condition names what its own handler does not have).
+on TestDroppedBreakpointLeavesStatesAndConditions
+   local tKeptId, tOtherId, tStack
+   put the long id of stack kStack into tStack
+   put the id of button "Kept" of stack kStack into tKeptId
+   set the defaultStack to kStack
+   create button "Other"
+   put the id of it into tOtherId
+   revMetadataSet tStack, "general", "breakpoints", \
+         kMissingId & ",2" & return & tKeptId & ",2" & return & tOtherId & ",3"
+   revMetadataSet tStack, "general", "breakpointstates", \
+         "active" & return & "inactive" & return & "active"
+   revMetadataSet tStack, "general", "breakpointconditions", \
+         "tGone is 1" & return & empty & return & "tOther is 2"
+   local tListed
+   dispatch function "revDebuggerListBreakpoints" to stack "revdebuggerlibrary" with the long id of button "Kept" of stack kStack
+   put the result into tListed
+   TestAssert "the kept control's breakpoint is listed", \
+         tListed is (the long id of button "Kept" of stack kStack & ",2")
+   TestAssert "the deleted control's breakpoint is dropped", \
+         revMetadataGet(tStack, "general", "breakpoints") is \
+         (tKeptId & ",2" & return & tOtherId & ",3")
+   TestAssert "the breakpoints after it keep their states", \
+         revMetadataGet(tStack, "general", "breakpointstates") is ("inactive" & return & "active")
+   TestAssert "the breakpoints after it keep their conditions", \
+         revMetadataGet(tStack, "general", "breakpointconditions") is (empty & return & "tOther is 2")
+   dispatch function "revDebuggerListBreakpointStates" to stack "revdebuggerlibrary" with the long id of button "Kept" of stack kStack
+   TestAssert "the library gives the kept breakpoint's own state", the result is "inactive"
+end TestDroppedBreakpointLeavesStatesAndConditions
+
+-- The same for a breakpoint saved twice: the second copy is dropped and
+-- the entries after it keep their own state and condition
+on TestDuplicateBreakpointLeavesStatesAndConditions
+   local tKeptId, tOtherId, tStack
+   put the long id of stack kStack into tStack
+   put the id of button "Kept" of stack kStack into tKeptId
+   set the defaultStack to kStack
+   create button "Other"
+   put the id of it into tOtherId
+   revMetadataSet tStack, "general", "breakpoints", \
+         tKeptId & ",2" & return & tKeptId & ",2" & return & tOtherId & ",3"
+   revMetadataSet tStack, "general", "breakpointstates", \
+         "inactive" & return & "active" & return & "active"
+   revMetadataSet tStack, "general", "breakpointconditions", \
+         empty & return & "tTwice is 1" & return & "tOther is 2"
+   dispatch function "revDebuggerListBreakpoints" to stack "revdebuggerlibrary" with the long id of button "Kept" of stack kStack
+   TestAssert "one copy of the breakpoint is kept", \
+         revMetadataGet(tStack, "general", "breakpoints") is (tKeptId & ",2" & return & tOtherId & ",3")
+   TestAssert "the first copy's state is kept, and the next entry's own", \
+         revMetadataGet(tStack, "general", "breakpointstates") is ("inactive" & return & "active")
+   TestAssert "the next entry keeps its condition", \
+         revMetadataGet(tStack, "general", "breakpointconditions") is (empty & return & "tOther is 2")
+end TestDuplicateBreakpointLeavesStatesAndConditions
+
+-- A watch saved for a deleted control is dropped when a watch is added;
+-- the watches after it keep their own state
+on TestDroppedWatchLeavesStates
+   local tKeptId, tStack
+   put the long id of stack kStack into tStack
+   put the id of button "Kept" of stack kStack into tKeptId
+   revMetadataSet tStack, "general", "watches", \
+         kMissingId & ",mouseUp,tGone" & return & tKeptId & ",mouseUp,tKept" & return & tKeptId & ",mouseUp,tSecond"
+   revMetadataSet tStack, "general", "watchstates", \
+         "active" & return & "inactive" & return & "active"
+   dispatch "revDebuggerAddWatch" to stack "revdebuggerlibrary" with the long id of button "Kept" of stack kStack, "mouseUp", "tNew"
+   local tWatches, tStates
+   put revMetadataGet(tStack, "general", "watches") into tWatches
+   put revMetadataGet(tStack, "general", "watchstates") into tStates
+   TestDiagnostic tWatches
+   TestDiagnostic tStates
+   TestAssert "the deleted control's watch is dropped", kMissingId is not in tWatches
+   TestAssert "the first watch after it keeps its state", \
+         line lineOffset(tKeptId & ",mouseUp,tKept", tWatches) of tStates is "inactive"
+   TestAssert "the second watch after it keeps its state", \
+         line lineOffset(tKeptId & ",mouseUp,tSecond", tWatches) of tStates is "active"
+end TestDroppedWatchLeavesStates
