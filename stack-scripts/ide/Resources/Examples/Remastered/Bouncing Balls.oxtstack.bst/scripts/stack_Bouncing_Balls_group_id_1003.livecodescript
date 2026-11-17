@@ -103,6 +103,14 @@ command frameLook
    unlock screen
 end frameLook
 
+-- The field pField on the card whose id is pCardId (see frameLookOne)
+private function frameFieldOn pField, pCardId
+   local tStack
+   put the long id of pField into tStack
+   put char offset(" of stack ", tStack) + 4 to -1 of tStack into tStack
+   return "field id" && the id of pField && "of card id" && pCardId && "of" && tStack
+end frameFieldOn
+
 -- Puts the look pWant ("light" or "dark") on the object pObj, met on the
 -- card whose id is pCardId: its colours, the colours its custom
 -- properties hold, a field's text in colour on that card (unless the user
@@ -132,6 +140,9 @@ private command frameLookOne pObj, pWant, pCardId
       set the customProperties of pObj to tCustom
    end if
    if word 1 of pObj is "field" and tA["h:" & pCardId] is not empty then
+      -- (by its id and the card's: a field of a group placed on many cards
+      -- has a text on each, and its long id names the window's card)
+      put frameFieldOn(pObj, pCardId) into pObj
       if the text of pObj is tA["x:" & pCardId] then
          set the htmlText of pObj to tA["h:" & pCardId]
       end if
@@ -166,7 +177,7 @@ command frameSync
          else
             set the textColor of char tTab + 1 to -1 of line tIndex of field "frameList" to empty
             if tTab > 1 then
-               set the textColor of char 1 to tTab - 1 of line tIndex of field "frameList" to "100,116,139"
+               set the textColor of char 1 to tTab - 1 of line tIndex of field "frameList" to "148,163,184"
             end if
          end if
       end repeat
@@ -283,20 +294,17 @@ on arrowKey pKey
    -- A key sent to a control of this group comes here before the card:
    -- the card hears it first, as it does when the focus is anywhere else,
    -- and what it does not play comes back here from it. (A click can
-   -- leave the focus in the frame, and then the left and right keys of a
-   -- card whose program plays them went to the next card.)
+   -- leave the focus in the frame, and then the keys of a card whose
+   -- program plays them did not reach it.)
    if frameHasTarget() then
       dispatch "arrowKey" to this card with pKey
       exit arrowKey
    end if
-   -- (a field being typed in keeps its arrow keys)
-   if the selectedField is empty and pKey is "left" then
-      frameGo "prev"
-   else if the selectedField is empty and pKey is "right" then
-      frameGo "next"
-   else
-      pass arrowKey
-   end if
+   -- The keys a card does not play do nothing here (until 0.2.8-dp.2 left
+   -- and right went to the previous and next card, which took a reader
+   -- off a lesson with a key meant for something else). Back and Next,
+   -- and the list, turn the page.
+   pass arrowKey
 end arrowKey
 
 -- Whether the message in hand was sent to this group or to a control in it

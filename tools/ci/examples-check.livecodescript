@@ -20,13 +20,14 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- server: opens each remastered example in $OXT_EXAMPLES_DIR (the stacks
 -- tools/examples builds) and checks where the arrow keys go. Each card
 -- hears them before the window's frame (tools/examples/frame-runtime.
--- livecodescript), which takes left and right to the previous and next
--- card, whichever control has the focus: a key sent to a control of the
--- frame, where a click can leave the focus, must reach the card first
--- too. On every card of every example, with a probe for the card's script:
+-- livecodescript), whichever control has the focus: a key sent to a
+-- control of the frame, where a click can leave the focus, must reach the
+-- card first too. And no arrow key turns the page (until 0.2.8-dp.2 left
+-- and right went to the previous and next card). On every card of every
+-- example, with a probe for the card's script:
 --    - a card that plays the key keeps it, sent to the frame's list or to
 --      the card;
---    - a card that passes it goes on to the next card, either way;
+--    - a card that passes it stays in front, either way;
 --    - up and down never leave the card.
 -- And a tile of the first card, lit with the pointer over it, is at rest
 -- again, and the cursor no longer locked as a hand, when the card it goes
@@ -143,7 +144,7 @@ end errorDialog
 -- The frame of one example, on each of its cards, with probes for the
 -- cards' scripts
 command checkFrame pPath
-   local tStack, tCount, tCard, tScript, tList, tNext, tWhat
+   local tStack, tCount, tCard, tScript, tList, tWhat
    go stack pPath
    put the short name of this stack into tStack
    put the number of cards of stack tStack into tCount
@@ -153,7 +154,6 @@ command checkFrame pPath
       put tStack & ", card" && tCard && "(" & the short name of this card & ")" into tWhat
       put the script of this card into tScript
       put the long id of field "frameList" of this card into tList
-      put min(tCard + 1, tCount) into tNext
 
       set the script of this card to probeScript(false)
       sendKey tList, "right"
@@ -168,15 +168,15 @@ command checkFrame pPath
       expect gOxtExProbe is "up" and the number of this card is tCard, tWhat, \
             "hears an up key sent to the frame's list, and stays"
       sendKey tList, "right"
-      expect gOxtExProbe is "right" and the number of this card of stack tStack is tNext, tWhat, \
-            "hears a right key sent to the frame's list and passes it, and the frame goes on to card" && tNext
+      expect gOxtExProbe is "right" and the number of this card of stack tStack is tCard, tWhat, \
+            "hears a right key sent to the frame's list and passes it, and the frame stays on the card"
       set the script of card tCard of stack tStack to tScript
       go card tCard of stack tStack
 
       set the script of this card to probeScript(true)
       sendKey the long id of this card, "right"
-      expect gOxtExProbe is "right" and the number of this card of stack tStack is tNext, tWhat, \
-            "hears a right key sent to the card and passes it, and the frame goes on to card" && tNext
+      expect gOxtExProbe is "right" and the number of this card of stack tStack is tCard, tWhat, \
+            "hears a right key sent to the card and passes it, and the frame stays on the card"
       set the script of card tCard of stack tStack to tScript
    end repeat
    checkRest tStack

@@ -424,7 +424,8 @@ command exAddCards
       if exCardInfo(tIndex, "keys") then
          put "the arrow keys play this card" into field "frameHint" of card tName
       else
-         put "or use the arrow keys" into field "frameHint" of card tName
+         -- (and on the others they do nothing: Back and Next turn the page)
+         put empty into field "frameHint" of card tName
       end if
    end repeat
    go card 1
@@ -947,6 +948,11 @@ command exSave pStack, pPath
    exWarnWebFit pStack
    go card 1 of stack pStack
    unlock messages
+   -- (the highest id a control was given: in the Edit tool the IDE's arrow
+   -- keys do not nudge the controls an installed example was built with,
+   -- those up to it, and still nudge the ones a reader adds
+   -- (revshortcutslibrary, revShortcutsNudgeable))
+   set the cOXTBuiltTopId of stack pStack to the id of stack pStack
    save stack pStack as pPath
    if the result is not empty then
       throw "cannot save " & pPath & ": " & the result

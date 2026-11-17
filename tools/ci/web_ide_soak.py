@@ -26,9 +26,10 @@ up on the page (Safari reloads a page whose web process it kills).
 as it is on 127.0.0.1 and opened at 1400 x 900. Once the IDE has opened,
 the page stays open for --minutes (default 5) with Home, the IDE's
 animated welcome stack, in front: every 20 seconds the script clicks
-Home's title bar and presses the right arrow key, which turns Home's page,
-so that each of its pages (the bouncing balls, the drawing, ...) runs for
-a while.
+Home's title bar and presses the right arrow key. Until 0.2.8-dp.2 the
+key turned Home's page, so that each of its pages (the bouncing balls, the
+drawing, ...) ran for a while; it no longer does, and Home's first page
+runs throughout.
 
 Every 2 seconds it writes a line to <out>/memory.csv: the seconds since
 the IDE opened, the resident memory of the browser's largest web content

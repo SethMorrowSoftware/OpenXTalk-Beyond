@@ -864,7 +864,7 @@ end backgroundSvg
 --and "Narration", as Terry's were. The sidebar, the header, the stage and the scripts drawer are the
 --groups "Frame", "Workbench" and "Scripts", which the script of the group "Frame" runs.
 --His bar of buttons "<Prev" and " Next>" (go prev cd and go next cd, with a quick dissolve) is
---the sidebar here: its Back and Next, and the arrow keys, go from lesson to lesson. His field
+--the sidebar here: its Back and Next go from lesson to lesson. His field
 --"Title" heads the narrator.
 
 on preOpenCard

@@ -314,7 +314,7 @@ private command acBuildHostedSide
    get lkButton("back", 14, kHeight - 104, 32, "Back", "chevron-left", "dark", empty, empty, "go prev", 106)
    get lkButton("next", kSide - 120, kHeight - 104, 32, "Next", "chevron-right", "dark", empty, empty, "go next", 106)
    get lkLabel("navCount", lkR(0, kHeight - 60, kSide, kHeight - 44), empty, 12, lkColor("sideMuted"), empty, "center")
-   get lkLabel("navKeys", lkR(0, kHeight - 43, kSide, kHeight - 27), "or use the arrow keys", 11, lkColor("sideMuted"), empty, "center")
+   get lkLabel("navKeys", lkR(0, kHeight - 43, kSide, kHeight - 27), empty, 11, lkColor("sideMuted"), empty, "center")
 end acBuildHostedSide
 
 -- Each course's lessons done, beside its name in Home's sidebar
@@ -677,8 +677,8 @@ end commandKeyDown
 -- A field of the page's text that can be selected and copied (LittleNemo,
 -- p=26121: so that a browser's or a translator's tool can read it), and
 -- not changed: a locked field that takes the focus. Its links are still
--- clicked (linkClicked comes to a locked field), and the arrow keys still
--- turn the page (arrowKey, cAcademyText). Its selected words are white
+-- clicked (linkClicked comes to a locked field); cAcademyText marks it.
+-- Its selected words are white
 -- on the hilite, in the dark appearance too (lkSelectedInk: on Linux and
 -- Windows they took the dark window's colour)
 private command acSelectable pObj
@@ -1219,7 +1219,7 @@ private command acBuildSide
    get lkButton("back", 14, kHeight - 104, 32, "Back", "chevron-left", "dark", empty, empty, "go prev", 106)
    get lkButton("next", kSide - 120, kHeight - 104, 32, "Next", "chevron-right", "dark", empty, empty, "go next", 106)
    get lkLabel("navCount", lkR(0, kHeight - 60, kSide, kHeight - 44), empty, 12, lkColor("sideMuted"), empty, "center")
-   get lkLabel("navKeys", lkR(0, kHeight - 43, kSide, kHeight - 27), "or use the arrow keys", 11, lkColor("sideMuted"), empty, "center")
+   get lkLabel("navKeys", lkR(0, kHeight - 43, kSide, kHeight - 27), empty, 11, lkColor("sideMuted"), empty, "center")
 end acBuildSide
 
 private command acBuildHeader
@@ -1723,26 +1723,10 @@ private command acIndexClick
    end if
 end acIndexClick
 
-on arrowKey pKey
-   -- (a field keeps its arrow keys: the editor's, and one in another
-   -- window, the Message Box's say)
-   -- (a field of the page's text, which can be selected now, does not
-   -- keep them: they turn the page, as they did before it could be)
-   if word 1 of the name of the target is "field" and the short name of the target is not "idx" \
-         and the cAcademyText of the target is not true then
-      pass arrowKey
-   end if
-   switch pKey
-      case "left"
-         acGo "prev"
-         break
-      case "right"
-         acGo "next"
-         break
-      default
-         pass arrowKey
-   end switch
-end arrowKey
+-- The arrow keys do not turn the page (until 0.2.8-dp.2 left and right
+-- did, whenever no field had the focus: a key pressed after a click on
+-- the page's words, or meant for something else, took the reader to
+-- another page). Back and Next, and the list, turn it.
 
 on linkClicked pLink
    local tError

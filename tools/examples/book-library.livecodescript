@@ -1070,8 +1070,7 @@ command saveBook
    lock screen
    listBooks
    clearFields
-   -- (remaster) and back to reading, as when a book is chosen; the
-   -- typing stops, so the arrow keys go from page to page again
+   -- (remaster) and back to reading, as when a book is chosen
    lockFields
    set the enabled of group "Cancel" to false
    set the enabled of group "Save" to false
@@ -1321,18 +1320,6 @@ end enterInField
 on textChanged
    searchBooks
 end textChanged
-
--- (remaster) The window goes from page to
--- page with the left and right arrow keys,
--- but not in a field being typed in. While
--- the search is empty, they go from page to
--- page here too
-on arrowKey pKey
-   if me is empty and (pKey is "left" or pKey is "right") then
-      focus on nothing
-   end if
-   pass arrowKey
-end arrowKey
 @*/
 
 /*@ Book Data/Search

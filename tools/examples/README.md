@@ -349,9 +349,10 @@ below it is the card's content, from 256,104 to 1000,616. Next goes to the
 next card, and Back to the card you came from, however you came (Back and
 Next, the list, the front page, a key, or a program going on by itself),
 or to the card before when there is none: so a card chosen in the list or
-on the front page, then Back, is where you were. The arrow keys go to the
-card before and the card after, and the sidebar stays still while the
-content slides.
+on the front page, then Back, is where you were. The sidebar stays still
+while the content slides. The arrow keys do not turn the page (left and
+right did until 0.2.8-dp.2, and took a reader off a lesson with a key
+meant for something else).
 
 Each card is one of four kinds, the last item of its line in the cards'
 table (see `exNewStack`):
@@ -364,8 +365,8 @@ table (see `exNewStack`):
 | `wide` | The stage across the content, 256,104 to 1000,616, and the scripts in a drawer over its right side, which the header's Scripts button opens and Escape shuts |
 
 `keys` after the kind (`program keys`, `wide keys`) says that the card's
-arrow keys play its program, so they do not go to the next card, and the
-sidebar says so.
+arrow keys play its program, and the sidebar says so. On every other card
+the arrow keys do nothing.
 
 The stage is the graphic `Stage`, in the background group `Workbench`, and
 the panel is the background group `Scripts`. A program names the stage to

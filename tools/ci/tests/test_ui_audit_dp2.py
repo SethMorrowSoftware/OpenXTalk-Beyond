@@ -18,7 +18,8 @@
 """What the audit of the user-facing stacks for 0.2.8-dp.2 found and mended,
 read from the files without an engine: words the dark look left unreadable
 in two examples, a checkbox drawn over its label, a code sample cut off on
-Home, and the Academy's tagline cut off at the window's smallest size.
+Home, the Academy's tagline cut off at the window's smallest size, and the
+arrow keys, which turned a lesson's page and nudged its layout.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -158,6 +159,101 @@ class AcademyTagline(unittest.TestCase):
         self.assertIn('put pTag into sTag\n   acFitTag', header)
         check = handler(self.academy, 'command', 'acLessonCheck')
         self.assertIn('after sTag\n   acFitTag', check)
+
+
+class ArrowKeysTurnNoPage(unittest.TestCase):
+    """Left and right turned the page of Home, the Academy, How-to, Guides
+    and every example whenever no field had the focus. They no longer do:
+    only a card built to play the keys hears them."""
+
+    WINDOWS = (('academy', 'revacademy.livecodescript'), ('learn', 'revlearn.livecodescript'),
+               ('web home', 'revwebhome.livecodescript'))
+
+    def test_the_ides_lesson_windows_have_no_arrow_key_handler(self):
+        for folder, name in self.WINDOWS:
+            script = read(PALETTES, folder, name)
+            self.assertNotRegex(script, r'(?m)^on arrowKey\b', name)
+            for go in ('acGo "prev"', 'acGo "next"', 'leGo "prev"', 'leGo "next"', 'hmGoPage "prev"', 'hmGoPage "next"'):
+                # (Back and Next say "go prev" and "page next" to the kit, not these)
+                self.assertNotRegex(script, r'case "(left|right)"\n\s*%s' % re.escape(go), name)
+
+    def test_no_window_says_to_use_them(self):
+        for folder, name in self.WINDOWS:
+            script = read(PALETTES, folder, name)
+            self.assertNotIn('or use the arrow keys', script, name)
+            self.assertNotIn('the arrow keys page', script, name)
+            self.assertRegex(script, r'(?:lk|hm)Label\("navKeys", [^\n]*\), empty, 11,', name)
+        self.assertNotIn('or use the arrow keys', read(EXAMPLES, 'builder.livecodescript'))
+
+    def test_an_examples_window_passes_the_keys_its_card_does_not_play(self):
+        frame = read(EXAMPLES, 'frame-runtime.livecodescript')
+        keys = handler(frame, 'on', 'arrowKey')
+        self.assertIn('if frameHasTarget() then\n      dispatch "arrowKey" to this card with pKey\n      exit arrowKey', keys)
+        self.assertNotIn('frameGo', keys)
+        self.assertTrue(keys.rstrip().endswith('pass arrowKey'))
+
+    def test_a_card_built_for_the_keys_still_says_so(self):
+        builder = read(EXAMPLES, 'builder.livecodescript')
+        self.assertIn('if exCardInfo(tIndex, "keys") then\n'
+                      '         put "the arrow keys play this card" into field "frameHint" of card tName\n'
+                      '      else\n', builder)
+        self.assertIn('put empty into field "frameHint" of card tName', builder)
+
+    def test_the_examples_check_expects_the_card_to_stay(self):
+        check = read(CI, 'examples-check.livecodescript')
+        self.assertEqual(check.count('and passes it, and the frame stays on the card"'), 2)
+        self.assertNotIn('tNext', check)
+        self.assertNotIn('goes on to card', check)
+
+    def test_the_checks_that_turned_pages_with_a_key_turn_them_another_way(self):
+        speed = read(CI, 'home-speed-check.livecodescript')
+        self.assertNotIn('dispatch "arrowKey"', speed)
+        self.assertIn('dispatch "revHubGo" to stack "revHub" with "home", tPage', speed)
+        tour = read(CI, 'ui-tour.livecodescript')
+        self.assertIn('return "the right arrow key turned the page from the lesson\'s selected text"', tour)
+
+
+class ArrowKeysNudgeNoLesson(unittest.TestCase):
+    """In the Edit tool a click on a lesson selects its page, and each arrow
+    key moved it a pixel. The controls an installed example was built with
+    stay; a reader's own, and any other stack's, are nudged as before."""
+
+    def setUp(self):
+        self.library = read(REPO, 'ide', 'Toolset', 'libraries', 'revshortcutslibrary.livecodescript')
+        self.able = handler(self.library, 'function', 'revShortcutsNudgeable')
+
+    def test_a_build_marks_the_highest_id_it_gave(self):
+        save = handler(read(EXAMPLES, 'builder.livecodescript'), 'command', 'exSave')
+        mark = save.index('set the cOXTBuiltTopId of stack pStack to the id of stack pStack')
+        self.assertLess(mark, save.index('save stack pStack as pPath'))
+
+    def test_every_installed_example_has_the_mark(self):
+        folder = os.path.join(REPO, 'ide', 'Resources', 'Examples', 'Remastered')
+        stacks = sorted(name for name in os.listdir(folder) if name.endswith('.oxtstack'))
+        self.assertGreaterEqual(len(stacks), 23)
+        for name in stacks:
+            with open(os.path.join(folder, name), 'rb') as f:
+                self.assertIn(b'cOXTBuiltTopId', f.read(), name)
+
+    def test_the_arrow_keys_nudge_only_what_may_be(self):
+        keys = handler(self.library, 'on', 'arrowKey')
+        self.assertIn('put revShortcutsNudgeable(the selObj, tStack) into tNudge\n'
+                      '         if tNudge is not empty then\n'
+                      '            revIDENudgeControls tNudge, pDirection, tDistance', keys)
+        self.assertNotIn('revIDENudgeControls the selobj', keys)
+
+    def test_a_stack_without_the_mark_is_nudged_as_before(self):
+        self.assertIn('if tTop is not an integer or tTop < 1 then\n         return pObjects', self.able)
+
+    def test_a_copy_saved_elsewhere_is_nudged_as_before(self):
+        self.assertIn('& "/Resources/Examples/" into tFolder', self.able)
+        self.assertIn('if not (tFile begins with tFolder) then\n         return pObjects', self.able)
+
+    def test_a_readers_own_control_is_nudged(self):
+        self.assertIn('if the id of tObj > tTop then\n            put tObj & return after tOut', self.able)
+
+    def test_whatever_goes_wrong_nothing_is_kept_from_a_nudge(self):
+        self.assertRegex(self.able, r'catch tError\n(\s*--[^\n]*\n)*\s*return pObjects\n\s*end try')
 
 
 if __name__ == '__main__':
