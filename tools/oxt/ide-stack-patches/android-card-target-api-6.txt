@@ -1,0 +1,24 @@
+# Android card: the words of the "Target" menu and of the minimum Android
+# version's menu sit at the left of each menu, as in the card's other
+# menus (Signing, Install Location, Initial Orientation). The minimum
+# version's menu was left at a button's default, centred, and the "Target"
+# menu is a copy of it (patch -1). On Linux that put "Default" against the
+# arrow of the "Target" menu, 90 wide (the IDE screenshots of main after
+# 0.2.8-dp.1, light and dark, x86_64 and arm64): the menu's formattedWidth,
+# 70 there, counts 18 pixels for the arrow (optionrect in the engine's
+# exec-interface-button.cpp), and the Linux theme draws its arrow further
+# in than that, so a width that holds the formattedWidth does not keep
+# centred words off it. Windows and macOS drew them clear. At the left a
+# label starts at the menu's margin, as far from the arrow as the menu's
+# width lets it be. Two menus side by side on one row are aligned alike, so
+# both change, and a pick or a stored setting does not: the alignment is
+# all this sets.
+file: Toolset/palettes/standalone settings/revstandalonesettings.8.rev
+object: button "Minimum Android Version" of group "Requirements and Restrictions" of group "Android Settings" of card "Android"
+property: textAlign
+from: center
+to: left
+object: button "Target Android Version" of group "Requirements and Restrictions" of group "Android Settings" of card "Android"
+property: textAlign
+from: center
+to: left

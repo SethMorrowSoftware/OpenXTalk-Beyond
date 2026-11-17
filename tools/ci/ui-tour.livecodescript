@@ -8142,6 +8142,20 @@ private function tourAndroidTargetAPI pStack
       put "the Target menu ends past the window:" && the rect of tMenu && "in a window" && \
             the width of stack pStack && "wide" & return after tFails
    end if
+   -- its words at the left of the menu, and the minimum version's beside it
+   -- alike, as in the card's other menus: centred, "Default" lay against the
+   -- menu's arrow on Linux, in a menu wide enough for its formattedWidth
+   -- (tools/oxt/ide-stack-patches/android-card-target-api-6.txt)
+   repeat for each item tKey in "Target Android Version,Minimum Android Version"
+      if the textAlign of button tKey of tRequirements is not "left" then
+         put "the words of the menu" && quote & tKey & quote && "are not at its left, as in the card's other menus, but" && \
+               the textAlign of button tKey of tRequirements & return after tFails
+      end if
+   end repeat
+   if the width of tMenu < the formattedWidth of tMenu then
+      put "the Target menu is" && the width of tMenu && "wide and its label and arrow need" && \
+            the formattedWidth of tMenu & return after tFails
+   end if
    -- Default and each API the builder can target
    dispatch function "deployTargetSdkVersion" to stack "revDeployLibraryAndroid"
    put the result into tFirst
