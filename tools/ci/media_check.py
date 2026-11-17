@@ -82,7 +82,7 @@ session too, on Xwayland, and its browser is the child of a stack's X
 window, so it tells Chromium X11 (libbrowser_cef.cpp,
 AppendLinuxOzonePlatform, and revBrowser's cefbrowser.cpp). What the
 first CEF 156 builds did without that, main at c77e5264 in the runs
-44166397552 and 44167685958:
+44166397552, 44167685958 and 44173064029:
 
   wayland-name  XDG_SESSION_TYPE=wayland alone, on the X display there is
                 (or xvfb-run's), with no compositor and no
@@ -94,7 +94,9 @@ first CEF 156 builds did without that, main at c77e5264 in the runs
                 XDG_RUNTIME_DIR in its environment (wayland_session). The
                 page loaded and its JavaScript ran, but Chromium made no
                 X window: CEF's own window in the stack's stayed without
-                the one Chromium puts into it on an X display. So with
+                the one Chromium puts into it on an X display (in a
+                headless Mutter session, GNOME's compositor, too, where
+                the same session named x11 had it). So with
                 the widget and --browser-backend cef the X window tree is
                 sampled while the engine runs (xwininfo), and the stack's
                 window must go as deep as it does with Chromium's window
@@ -168,8 +170,9 @@ WAYLAND_START_SECONDS = 30
 # is named, and how many windows deep that window goes while a browser
 # widget on X11 shows a page: the engine's window for the card, its window
 # for the widget, CEF's, and Chromium's own in CEF's. (Counted under Xvfb in
-# run 44167685958; in a Weston session, where Chromium had taken Wayland,
-# it was 3: CEF's window had nothing in it.)
+# run 44167685958 and in a Mutter session named x11 in run 44173064029; in
+# a Weston and in a Mutter session, where Chromium had taken Wayland, it
+# was 3: CEF's window had nothing in it.)
 CHECK_STACK = 'MediaCheck'
 CHROMIUM_WINDOW_DEPTH = 4
 # A window of xwininfo's tree: its indentation, and its name when it has one
@@ -303,22 +306,24 @@ def x_window_tree(env):
 
 
 def windows_deep(tree, title):
-    """How many windows deep the first window whose name begins with title
-    goes in xwininfo's tree: 0 with no window inside it, 1 with children
-    that have none, and so on; None when the tree has no such window.
-    xwininfo indents a window's children three columns further."""
+    """How many windows deep the window whose name begins with title goes
+    in xwininfo's tree: 0 with no window inside it, 1 with children that
+    have none, and so on; None when the tree has no such window. Where a
+    window of that name is inside another, the inner one is counted:
+    Mutter's frame carries the title of the window it frames. xwininfo
+    indents a window's children three columns further."""
     inside, deepest = None, None
     for line in tree.splitlines():
         m = TREE_WINDOW.match(line)
         if not m:
             continue
         indent = len(m.group(1))
-        if inside is None:
-            if (m.group(2) or '').startswith(title):
-                inside, deepest = indent, 0
-        elif indent <= inside:
+        named = (m.group(2) or '').startswith(title)
+        if inside is not None and indent <= inside:
             break
-        else:
+        if named:
+            inside, deepest = indent, 0
+        elif inside is not None:
             deepest = max(deepest, (indent - inside) // 3)
     return deepest
 

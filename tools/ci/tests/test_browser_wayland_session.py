@@ -125,6 +125,51 @@ WESTON_TREE = '''xwininfo: Window id: 0x237 (the root window) (has no name)
      0x200001 (has no name): ()  10x10+0+0  +0+0
 '''
 
+# The same in a headless Mutter session (GNOME's compositor, 46.2) in run
+# 44173064029, down to the end of the stack's frame: Mutter's frame window
+# carries the stack's title, and the stack's own window is inside it. With
+# XDG_SESSION_TYPE=wayland, CEF's window (0xa00001) is the last ...
+MUTTER_TREE = '''xwininfo: Window id: 0x238 (the root window) (has no name)
+  Root window id: 0x238 (the root window) (has no name)
+  Parent window id: 0x0 (none)
+     19 children:
+     0x200004 "MediaCheck *": ("mutter-x11-frames" "mutter-x11-frames")  668x546+86+51  +86+51
+        2 children:
+        0x800123 "MediaCheck *": ("OXTMediaCheck" "OXTMediaCheck")  640x480+14+49  +100+100
+           2 children:
+           0x800124 (has no name): ()  1x1+-1+-1  +99+99
+           0x60003b "Standalone": ("Standalone" "Standalone")  640x400+0+0  +100+100
+              1 child:
+              0x60003e (has no name): ()  640x400+0+0  +100+100
+                 1 child:
+                 0xa00001 (has no name): ()  640x400+0+0  +100+100
+        0x200005 (has no name): ()  1x1+-1+-1  +85+50
+'''
+
+# ... and with the session named x11 Chromium's (0xa00004) is in it
+MUTTER_X11_TREE = '''xwininfo: Window id: 0x238 (the root window) (has no name)
+  Root window id: 0x238 (the root window) (has no name)
+  Parent window id: 0x0 (none)
+     21 children:
+     0xa00006 (has no name): ()  1x1+0+0  +0+0
+     0x800131 (has no name): ()  1x1+-100+-100  +-100+-100
+     0xa00000 "Chromium clipboard": ()  10x10+-100+-100  +-100+-100
+     0x400009 (has no name): ()  1x1+-1+-1  +-1+-1
+     0x400004 "MediaCheck *": ("mutter-x11-frames" "mutter-x11-frames")  668x546+86+51  +86+51
+        2 children:
+        0x800123 "MediaCheck *": ("OXTMediaCheck" "OXTMediaCheck")  640x480+14+49  +100+100
+           2 children:
+           0x800124 (has no name): ()  1x1+-1+-1  +99+99
+           0x60003b "Standalone": ("Standalone" "Standalone")  640x400+0+0  +100+100
+              1 child:
+              0x60003e (has no name): ()  640x400+0+0  +100+100
+                 1 child:
+                 0xa00003 (has no name): ()  640x400+0+0  +100+100
+                    1 child:
+                    0xa00004 (has no name): ()  640x400+0+0  +100+100
+        0x400005 (has no name): ()  1x1+-1+-1  +85+50
+'''
+
 
 def read(*parts):
     with open(os.path.join(REPO, *parts), encoding='utf-8') as f:
@@ -143,6 +188,16 @@ class TheWindowTree(unittest.TestCase):
         # (under the window manager's frame there, which is not counted)
         self.assertIn('     0x200028 (has no name): ()  716x577+0+0  +0+0\n        1 child:\n'
                       '        0x600123 "MediaCheck *"', WESTON_TREE)
+
+    def test_under_a_frame_of_the_same_name_the_stacks_own_window_is_counted(self):
+        # Mutter's frame is named as the window it frames
+        for tree in (MUTTER_TREE, MUTTER_X11_TREE):
+            self.assertRegex(tree, r'     0x[24]00004 "MediaCheck \*": \("mutter-x11-frames" "mutter-x11-frames"\)')
+            self.assertIn('        0x800123 "MediaCheck *": ("OXTMediaCheck" "OXTMediaCheck")', tree)
+        self.assertEqual(media_check.windows_deep(MUTTER_TREE, media_check.CHECK_STACK), 3)
+        self.assertEqual(media_check.windows_deep(MUTTER_X11_TREE, media_check.CHECK_STACK), 4)
+        self.assertNotIn('Chromium clipboard', MUTTER_TREE)
+        self.assertIn('"Chromium clipboard"', MUTTER_X11_TREE)
 
     def test_a_window_with_nothing_in_it_and_one_that_is_not_there(self):
         self.assertEqual(media_check.windows_deep(XVFB_TREE, 'Chromium clipboard'), 0)

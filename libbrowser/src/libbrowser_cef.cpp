@@ -341,10 +341,12 @@ public:
 	// takes Wayland unless it is told a platform (Chromium's
 	// ui/linux/display_server_utils.cc, SetOzonePlatformForLinuxIfNeeded),
 	// and a Wayland window cannot be the child of an X window (CEF issue
-	// 2804). In a Wayland session, which most desktops now start, the
-	// page was then not in the stack's window. CEF 74 had X11 alone. The
-	// browser process's choice goes to its child processes with Chromium's
-	// own switches. An ozone-platform already given is kept.
+	// 2804). With CEF 156 before this, in a Weston and in a Mutter session,
+	// Chromium made no X window in CEF's window of the stack, and with the
+	// session's name alone on an X display no browser was made at all
+	// (tools/ci/media_check.py --session runs both). CEF 74 had X11 alone.
+	// The browser process's choice goes to its child processes with
+	// Chromium's own switches. An ozone-platform already given is kept.
 	static void AppendLinuxOzonePlatform(CefRefPtr<CefCommandLine> p_command_line)
 	{
 		static const char kOzonePlatform[] = "ozone-platform";
