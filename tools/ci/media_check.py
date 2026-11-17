@@ -22,6 +22,7 @@ standalone of an installed OXT-Beyond, with a user interface.
       [--platform P] [--what widget,revbrowser,player] [--log FILE]
       [--snapshots DIR] [--timeout SECONDS]
       [--player-backend auto|gstreamer|mplayer]
+      [--browser-backend auto|cef|webkitgtk] [--session own|wayland]
 
 The layout is one of run_livecode_check.py's (--install, or --package to
 extract first). Its own platform's standalone runtime (standalone_check.py
@@ -71,6 +72,18 @@ sound card (no /dev/snd) mplayer is given MPLAYER_HOME with "ao=null", so
 that it plays in real time instead of skipping to the end of a file it
 cannot play the sound of; GStreamer plays without sound there by itself.
 
+--session wayland (Linux) runs the engine in a Wayland session of its own,
+as a desktop gives one: a headless Weston with Xwayland, the engine (an X11
+program) on Xwayland's display, and XDG_SESSION_TYPE=wayland,
+WAYLAND_DISPLAY and XDG_RUNTIME_DIR in its environment (wayland_session).
+Chromium takes Wayland for its own windows in such a session unless it is
+told which platform to use (ui/linux/display_server_utils.cc,
+SetOzonePlatformForLinuxIfNeeded), and the engine's browser is a child of
+a stack's X window: with 0.2.8-dp.2's first CEF 156 builds the engine
+ended with a segmentation fault there as soon as a browser was made
+(opening the Dictionary on Ubuntu 26.04, reported on the forum by
+bwmilby). The check needs the packages weston and xwayland.
+
 Exit status 0 when every check passed, 1 otherwise. Under GitHub Actions
 failures are annotations and the results go into the job summary. Only
 the Python 3 standard library is used (3.8 or later).
@@ -82,12 +95,15 @@ import functools
 import http.server
 import math
 import os
+import re
 import shutil
+import socket
 import struct
 import subprocess
 import sys
 import tempfile
 import threading
+import time
 import wave
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -126,6 +142,10 @@ MEDIA_FOUNDATION_DLLS = ('mfplay.dll', 'mfplat.dll', 'msmpeg2vdec.dll')
 # only sound
 NO_SOUND_DEVICE = {'oxt-check.wav': 'Windows without a sound device (as on the CI runners) does not open it'}
 MPLAYER = '/usr/bin/mplayer'
+# The Wayland session of --session wayland: its socket in a runtime folder
+# of its own, and how long Weston has to start it with Xwayland listening
+WAYLAND_SOCKET = 'wayland-oxt-check'
+WAYLAND_START_SECONDS = 30
 
 # The page the browsers open: media-check.livecodescript looks for its
 # title, for "script ran: 3" in its HTML and for the oxtReport calls. The
@@ -174,6 +194,73 @@ def serve(folder):
     server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server, server.server_address[1]
+
+
+def wayland_session(work, environ=None, start_seconds=WAYLAND_START_SECONDS):
+    """Starts a Wayland session of its own for --session wayland: a headless
+    Weston with Xwayland, in a runtime folder under work. Returns Weston's
+    process and what a program of that session has in its environment:
+    XDG_SESSION_TYPE=wayland, the compositor's socket (WAYLAND_DISPLAY in
+    XDG_RUNTIME_DIR) and Xwayland's DISPLAY, where an X11 program such as
+    the engine opens its windows. The compositor's socket must take a
+    connection: a session in name only would let a Chromium that asks for
+    Wayland fail to start instead of crashing as it did on a desktop."""
+    weston = shutil.which('weston')
+    if not weston or not shutil.which('Xwayland'):
+        raise rlc.CheckError('--session wayland needs weston and Xwayland (the packages weston and xwayland)')
+    runtime = os.path.join(work, 'xdg-runtime')
+    os.makedirs(runtime)
+    # (Weston refuses a runtime folder others can read)
+    os.chmod(runtime, 0o700)
+    log = os.path.join(work, 'weston.log')
+    env = {k: v for k, v in (os.environ if environ is None else environ).items()
+           if k not in ('DISPLAY', 'WAYLAND_DISPLAY', 'WAYLAND_SOCKET')}
+    env['XDG_RUNTIME_DIR'] = runtime
+    proc = subprocess.Popen([weston, '--backend=headless', '--xwayland', '--socket=' + WAYLAND_SOCKET,
+                             '--width=1280', '--height=1024', '--log=' + log],
+                            env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+    display, text = None, ''
+    deadline = time.time() + start_seconds
+    while time.time() < deadline and proc.poll() is None:
+        if os.path.exists(log):
+            with open(log, encoding='utf-8', errors='replace') as f:
+                text = f.read()
+        m = re.search(r'xserver listening on display (:\d+)', text)
+        if m and os.path.exists(os.path.join(runtime, WAYLAND_SOCKET)):
+            display = m.group(1)
+            break
+        time.sleep(0.2)
+    problem = None
+    if display is None:
+        problem = ('Weston ended with status %s' % proc.returncode if proc.poll() is not None
+                   else 'Weston had no Wayland session with Xwayland after %d seconds' % start_seconds)
+    else:
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            s.connect(os.path.join(runtime, WAYLAND_SOCKET))
+        except OSError as e:
+            problem = 'the compositor\'s socket %s takes no connection (%s)' % (WAYLAND_SOCKET, e)
+        finally:
+            s.close()
+    if problem:
+        end_session(proc)
+        raise rlc.CheckError('--session wayland: %s; its log ends: %s'
+                             % (problem, ' | '.join(text.splitlines()[-5:]) or '(empty)'))
+    version = re.search(r'weston (\d[\w.]*)', text)
+    return proc, {'XDG_SESSION_TYPE': 'wayland', 'XDG_RUNTIME_DIR': runtime, 'WAYLAND_DISPLAY': WAYLAND_SOCKET,
+                  'DISPLAY': display}, 'Weston %s, headless, with Xwayland on %s' % (
+                      version.group(1) if version else '(version not in its log)', display)
+
+
+def end_session(proc):
+    """Ends a session wayland_session started."""
+    if proc.poll() is None:
+        proc.terminate()
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
 
 
 def stage_runtime(tools, p, work):
@@ -251,6 +338,11 @@ def main(argv=None):
                     help='on Linux, the browser widget\'s browser: OXT_BROWSER_BACKEND for the engine (default: '
                          '%(default)s, CEF where it loads, else WebKitGTK through libbrowser-webkitprocess). '
                          'revBrowser has CEF only.')
+    ap.add_argument('--session', choices=('own', 'wayland'), default='own',
+                    help='on Linux, the desktop session the engine runs in: "wayland" starts a Wayland session of '
+                         'its own (a headless Weston with Xwayland; XDG_SESSION_TYPE=wayland, WAYLAND_DISPLAY and '
+                         'Xwayland\'s DISPLAY for the engine), as on a desktop whose session is Wayland (default: '
+                         '%(default)s, the display there is, or xvfb-run)')
     args = ap.parse_args(argv)
     if bool(args.install) == bool(args.package):
         ap.error('pass --install or --package')
@@ -265,7 +357,10 @@ def main(argv=None):
     if args.browser_backend == 'webkitgtk':
         what = [w for w in what if w != 'revbrowser']
 
-    lines, problems, temp_dirs, server = [], [], [], None
+    if args.session == 'wayland' and p.family != 'linux':
+        ap.error('--session wayland is for Linux')
+
+    lines, problems, temp_dirs, server, session = [], [], [], None, None
     try:
         base = os.environ.get('RUNNER_TEMP') or tempfile.gettempdir()
         work = tempfile.mkdtemp(prefix='oxt-media-', dir=base)
@@ -321,7 +416,13 @@ def main(argv=None):
                         f.write('ao=null\n')
                     env['MPLAYER_HOME'] = home
                     rlc.log('No sound card: mplayer plays without sound (ao=null)')
-            if not env.get('DISPLAY'):
+            if args.session == 'wayland':
+                session, session_env, about = wayland_session(work)
+                env.update(session_env)
+                rlc.log('Session : wayland (%s)' % about)
+                lines.append('INFO session: XDG_SESSION_TYPE=wayland WAYLAND_DISPLAY=%s DISPLAY=%s (%s)'
+                             % (session_env['WAYLAND_DISPLAY'], session_env['DISPLAY'], about))
+            elif not env.get('DISPLAY'):
                 xvfb = shutil.which('xvfb-run')
                 if not xvfb:
                     raise rlc.CheckError('no DISPLAY and no xvfb-run')
@@ -376,6 +477,8 @@ def main(argv=None):
     except (rlc.CheckError, OSError) as e:
         problems.append(str(e))
     finally:
+        if session:
+            end_session(session)
         if server:
             server.shutdown()
         for d in temp_dirs:

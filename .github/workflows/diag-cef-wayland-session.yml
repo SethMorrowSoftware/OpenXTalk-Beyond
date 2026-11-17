@@ -1,0 +1,133 @@
+name: Diagnostic (CEF in a Wayland session)
+
+# NOT FOR MAIN. Reproduces a forum report (the Dictionary ends the engine
+# with a segmentation fault on Ubuntu 26.04) with the Linux package the
+# report was made with: main at c77e5264, build 202611171337, Build (Linux)
+# run 44094625366. This branch is deleted when the cause is recorded.
+on:
+  push:
+    branches: ['claude/diag-cef-wayland-session']
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  diag:
+    name: The browser of build 202611171337 in a Wayland session
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the package of main at c77e5264
+        uses: actions/download-artifact@v8
+        with:
+          name: OXT-Beyond-linux-x86_64
+          path: ${{ runner.temp }}/dist
+          run-id: 44094625366
+          github-token: ${{ github.token }}
+
+      - name: Install the runtime libraries, Weston, Xwayland and gdb
+        timeout-minutes: 15
+        run: |
+          apt=(sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30)
+          "${apt[@]}" update
+          pkgs=(xz-utils xvfb xauth weston xwayland gdb)
+          while read -r soname use deb rpm rest; do
+            case $soname in ''|'#'*) continue ;; esac
+            if apt-cache show --no-all-versions "${deb}t64" > /dev/null 2>&1; then
+              deb="${deb}t64"
+            fi
+            case " ${pkgs[*]} " in *" $deb "*) ;; *) pkgs+=("$deb") ;; esac
+          done < Installer/linux/libraries.txt
+          echo "Installing: ${pkgs[*]}"
+          "${apt[@]}" install -y -q --no-install-recommends "${pkgs[@]}"
+          weston --version || true
+
+      - name: Extract the package
+        run: |
+          ls -la "$RUNNER_TEMP/dist"
+          mkdir -p "$RUNNER_TEMP/oxt-test"
+          tar -xJf "$RUNNER_TEMP"/dist/OXT-Beyond-*-linux-x86_64.tar.xz -C "$RUNNER_TEMP/oxt-test"
+          root=$(echo "$RUNNER_TEMP"/oxt-test/*)
+          ls "$root" | head -40
+          cat "$root/.version" || true
+          echo "OXT_ROOT=$root" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/logs" "$RUNNER_TEMP/cores"
+          sudo sysctl -w kernel.core_pattern="$RUNNER_TEMP/cores/core.%e.%p" || true
+
+      - name: 1. Under Xvfb, as the builds check it (the control)
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        run: |
+          set +e
+          env -u XDG_SESSION_TYPE -u WAYLAND_DISPLAY python3 tools/ci/media_check.py --install "$OXT_ROOT" \
+            --platform linux-x86_64 --what widget,revbrowser --browser-backend cef --log "$RUNNER_TEMP/logs/1-xvfb.log"
+          echo "RESULT 1 (Xvfb): exit status $?"
+
+      - name: 2. In a Wayland session (Weston with Xwayland), XDG_SESSION_TYPE=wayland
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        run: |
+          set +e
+          ulimit -c unlimited
+          python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform linux-x86_64 \
+            --what widget,revbrowser --browser-backend cef --session wayland --log "$RUNNER_TEMP/logs/2-wayland.log"
+          echo "RESULT 2 (Wayland session): exit status $?"
+          ls -la "$RUNNER_TEMP/cores" || true
+          exe=$(find "$OXT_ROOT/Runtime/Linux" -name Standalone -type f | head -1)
+          echo "Engine for the stacks: $exe"
+          for core in "$RUNNER_TEMP"/cores/core.Standalone.*; do
+            [ -f "$core" ] || continue
+            echo "===== $core"
+            timeout 600 gdb -batch -ex "set solib-search-path $OXT_ROOT/Externals/CEF:$(dirname "$exe")/Externals/CEF" \
+              -ex "bt 45" "$exe" "$core" 2>&1 | grep -v "^warning: \|^\[New LWP\|^$" | cut -c1-260 | tail -70
+            break
+          done
+
+      - name: 3. In the same kind of Wayland session, with XDG_SESSION_TYPE=x11
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        run: |
+          set +e
+          python3 - <<'PY'
+          import os, sys, tempfile
+          sys.path.insert(0, os.path.join(os.getcwd(), 'tools', 'ci'))
+          import media_check
+          work = tempfile.mkdtemp(prefix='oxt-diag-')
+          proc, env, about = media_check.wayland_session(work)
+          print('Session:', about, env, flush=True)
+          os.environ.update(env)
+          os.environ['XDG_SESSION_TYPE'] = 'x11'
+          try:
+              code = media_check.main(['--install', os.environ['OXT_ROOT'], '--platform', 'linux-x86_64',
+                                       '--what', 'widget,revbrowser', '--browser-backend', 'cef',
+                                       '--log', os.path.join(os.environ['RUNNER_TEMP'], 'logs', '3-wayland-x11.log')])
+          finally:
+              media_check.end_session(proc)
+          print('RESULT 3 (Wayland session, XDG_SESSION_TYPE=x11): exit status %s' % code, flush=True)
+          PY
+
+      - name: 4. Under Xvfb with XDG_SESSION_TYPE=wayland alone (no compositor)
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        run: |
+          set +e
+          env -u WAYLAND_DISPLAY XDG_SESSION_TYPE=wayland python3 tools/ci/media_check.py --install "$OXT_ROOT" \
+            --platform linux-x86_64 --what widget,revbrowser --browser-backend cef --log "$RUNNER_TEMP/logs/4-name-only.log"
+          echo "RESULT 4 (Xvfb, XDG_SESSION_TYPE=wayland, no compositor): exit status $?"
+
+      - name: 5. The same as 4 with the browser left to choose (CEF, else WebKitGTK)
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        run: |
+          set +e
+          env -u WAYLAND_DISPLAY XDG_SESSION_TYPE=wayland python3 tools/ci/media_check.py --install "$OXT_ROOT" \
+            --platform linux-x86_64 --what widget --log "$RUNNER_TEMP/logs/5-name-only-auto.log"
+          echo "RESULT 5 (as 4, browser auto): exit status $?"
+
+      - name: The results
+        if: ${{ !cancelled() }}
+        run: |
+          for f in "$RUNNER_TEMP"/logs/*.log; do echo "===== $f"; cut -c1-300 "$f"; done
