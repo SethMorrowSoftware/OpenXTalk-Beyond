@@ -45,6 +45,7 @@ import hmac
 import http.client
 import json
 import os
+import queue
 import re
 import shutil
 import socket
@@ -58,6 +59,72 @@ REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')
 PLUGIN = os.path.join(REPO, 'ide', 'Extensions', 'org.openxtalk.plugin.mcpbridge')
 SERVER = os.path.join(PLUGIN, 'mcp', 'server.js')
 NODE = shutil.which('node')
+
+# How long receive() waits for a line before it fails the test, with what
+# the server wrote to its standard error: longer than any wait a test sets
+# up (ANSWER_WAIT_MS and RESTART_WAIT_MS are 40 and 30 seconds by default),
+# far shorter than the CI job's limit, which a hang used to eat whole
+RECEIVE_TIMEOUT = float(os.environ.get('OXT_MCP_TEST_RECEIVE_TIMEOUT', '120'))
+
+
+def drain(proc):
+    """Reads a server's standard output and standard error on threads of
+    their own, from the moment it starts: its lines go to proc.lines (None
+    once it ends) and its standard error to proc.errors. Unread, the
+    standard error filled its pipe, and on Windows Node.js writes to a
+    pipe synchronously (net.js: "Make stdout and stderr blocking on
+    Windows"), so the server's next log() stopped it dead, mid-call: a
+    Windows pipe holds about 4 KB, some 30 "no bridge file" lines, which
+    the page test's retries wrote while a slow runner started the page."""
+    proc.lines = queue.Queue()
+    proc.errors = []
+
+    def out():
+        try:
+            for line in iter(proc.stdout.readline, b''):
+                proc.lines.put(line)
+        except (OSError, ValueError):
+            pass
+        proc.lines.put(None)
+
+    def err():
+        try:
+            for chunk in iter(lambda: proc.stderr.read1(4096), b''):
+                proc.errors.append(chunk)
+        except (OSError, ValueError):
+            pass
+
+    proc.readers = [threading.Thread(target=out, daemon=True), threading.Thread(target=err, daemon=True)]
+    for reader in proc.readers:
+        reader.start()
+    return proc
+
+
+def errors_of(proc):
+    """What the server has written to its standard error so far."""
+    return b''.join(list(getattr(proc, 'errors', []))).decode('utf-8', 'replace')
+
+
+def stop(proc):
+    """Ends a server as Claude's app does (its input closed), killing it
+    if it does not end, and closes its pipes once their readers are done."""
+    if proc.poll() is None:
+        try:
+            proc.stdin.close()
+        except OSError:
+            pass
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=10)
+    for reader in getattr(proc, 'readers', []):
+        reader.join(timeout=5)
+    for pipe in (proc.stdin, proc.stdout, proc.stderr):
+        try:
+            pipe.close()
+        except OSError:
+            pass
 
 
 def ide_tools():
@@ -357,13 +424,7 @@ class McpBridgeServerBase(unittest.TestCase):
 
     def tearDown(self):
         if self.proc:
-            self.proc.stdin.close()
-            try:
-                self.proc.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                self.proc.kill()
-            self.proc.stdout.close()
-            self.proc.stderr.close()
+            stop(self.proc)
         if self.oxt:
             self.oxt.close()
         shutil.rmtree(self.folder, ignore_errors=True)
@@ -383,8 +444,8 @@ class McpBridgeServerBase(unittest.TestCase):
         # loaded: started by a script that loads server.js, as the Node.js
         # built into Claude's desktop app may, so require.main is not it
         command = [NODE, '-e', 'require(process.argv[1])', server] if loaded else [NODE, server]
-        self.proc = subprocess.Popen(command + list(args), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE, env=env)
+        self.proc = drain(subprocess.Popen(command + list(args), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                           stderr=subprocess.PIPE, env=env))
 
     def send(self, method, params=None, notify=False):
         message = {'jsonrpc': '2.0', 'method': method}
@@ -397,10 +458,20 @@ class McpBridgeServerBase(unittest.TestCase):
         self.proc.stdin.flush()
         return message.get('id')
 
-    def receive(self):
-        line = self.proc.stdout.readline()
-        if not line:
-            self.fail('the server ended: ' + self.proc.stderr.read().decode('utf-8', 'replace'))
+    def receive(self, timeout=None):
+        """The server's next line, parsed. A server that ends, or does not
+        answer in timeout seconds (RECEIVE_TIMEOUT), fails the test with
+        what it wrote to its standard error, rather than hang the job."""
+        wait = RECEIVE_TIMEOUT if timeout is None else timeout
+        try:
+            line = self.proc.lines.get(timeout=wait)
+        except queue.Empty:
+            self.fail('the server did not answer in %g seconds; its standard error:\n%s' % (wait, errors_of(self.proc)))
+        if line is None:
+            self.proc.lines.put(None)
+            for reader in self.proc.readers:
+                reader.join(timeout=5)
+            self.fail('the server ended: ' + errors_of(self.proc))
         return json.loads(line)
 
     def request(self, method, params=None):
@@ -438,6 +509,83 @@ class McpBridgeServerBase(unittest.TestCase):
                                             'clientInfo': {'name': 'test', 'version': '1'}})
         self.send('notifications/initialized', notify=True)
         return reply
+
+
+# A stand-in server that, for each line it reads, writes what its argv
+# says to its standard error with fs.writeSync, which blocks on a full pipe
+# on every system (as process.stderr does on Windows only), then answers
+# the line, unless told to stay silent or to end
+STAND_IN = r'''
+'use strict';
+const fs = require('fs');
+const [mode, size] = process.argv.slice(2);
+require('readline').createInterface({ input: process.stdin }).on('line', (line) => {
+  const m = JSON.parse(line);
+  fs.writeSync(2, 'x'.repeat(Number(size)) + '\nstand-in: ' + mode + '\n');
+  if (mode === 'end') {
+    process.exit(3);
+  }
+  if (mode === 'answer') {
+    fs.writeSync(1, JSON.stringify({ jsonrpc: '2.0', id: m.id, result: {} }) + '\n');
+  }
+});
+'''
+
+
+@unittest.skipUnless(NODE, 'Node.js is not installed')
+class McpBridgeTestHarnessTest(McpBridgeServerBase):
+    """The tests' own way of talking to a server: it never stops one by
+    leaving its standard error unread, and a server that does not answer
+    fails the test with what it said, rather than hang the CI job."""
+
+    def stand_in(self, mode, size=0):
+        path = os.path.join(self.folder, 'stand-in.js')
+        with open(path, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(STAND_IN)
+        self.start_server(args=[mode, str(size)], server=path)
+
+    def test_a_server_that_writes_much_to_its_standard_error_still_answers(self):
+        # A megabyte, far past any pipe's buffer: unread, the write blocks
+        # and the answer never comes
+        self.stand_in('answer', 1 << 20)
+        for _ in range(3):
+            self.request('ping')
+        self.assertIn('stand-in: answer', errors_of(self.proc))
+
+    def test_the_real_server_keeps_answering_while_it_logs(self):
+        # What hung CI on Windows: tools/call while nothing is connected,
+        # each logging a line, until the pipe was full. 300 lines are some
+        # 40 KB, ten times a Windows pipe.
+        self.start_web()
+        self.initialize()
+        for _ in range(300):
+            self.assertTrue(self.call('list_stacks')['isError'])
+        self.assertEqual(self.request('ping')['result'], {})
+        self.assertGreater(len(errors_of(self.proc)), 8192)
+
+    def test_a_server_that_does_not_answer_fails_the_test_with_its_standard_error(self):
+        self.stand_in('silent')
+        self.send('ping')
+        started = time.time()
+        with self.assertRaises(self.failureException) as caught:
+            self.receive(timeout=1)
+        self.assertLess(time.time() - started, 10)
+        self.assertIn('did not answer in 1 seconds', str(caught.exception))
+        self.assertIn('stand-in: silent', str(caught.exception))
+
+    def test_a_server_that_ends_fails_the_test_with_its_standard_error(self):
+        self.stand_in('end')
+        self.send('ping')
+        with self.assertRaises(self.failureException) as caught:
+            self.receive(timeout=30)
+        self.assertIn('the server ended', str(caught.exception))
+        self.assertIn('stand-in: end', str(caught.exception))
+        # And says so again to a second receive, rather than wait
+        with self.assertRaises(self.failureException):
+            self.receive(timeout=30)
+
+    def start_web(self):
+        self.start_server(args=['--web'], OXT_MCP_WEB_PORT=str(free_port()), OXT_MCP_WEB_KEY=WEB_KEY)
 
 
 @unittest.skipUnless(NODE, 'Node.js is not installed')
@@ -543,10 +691,7 @@ class McpBridgeServerTest(McpBridgeServerBase):
             self.start_server()
             self.initialize()
             self.assertIn('Restart OXT-Beyond', [t.get('title') for t in self.request('tools/list')['result']['tools']], note)
-            self.proc.stdin.close()
-            self.proc.wait(timeout=10)
-            self.proc.stdout.close()
-            self.proc.stderr.close()
+            stop(self.proc)
             self.proc = None
 
     def test_an_older_installed_server_serves_alone(self):
@@ -1475,14 +1620,7 @@ class McpBridgeWebServerTest(McpBridgeServerBase):
         return first
 
     def end(self, proc):
-        if proc.poll() is None:
-            proc.stdin.close()
-            try:
-                proc.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-        proc.stdout.close()
-        proc.stderr.close()
+        stop(proc)
 
     def test_web_a_second_server_relays_to_the_one_on_the_port(self):
         self.start_web()
