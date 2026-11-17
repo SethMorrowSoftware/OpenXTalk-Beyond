@@ -8562,6 +8562,217 @@ private command __shareStackReveal pFile
    end try
 end __shareStackReveal
 
+/*
+Opens the Community Stacks window, the gallery of stacks that people
+share, in the IDE (File > Community Stacks...).
+
+pSite (optional): The gallery's site. The OXT Community Stacks' own when
+empty, which is what the menu gives.
+
+pPublicKey (optional): The key the gallery's list is checked with. The
+OXT Community Stacks' own when empty.
+
+Example:
+revIDEActionCommunityStacks
+
+Description:
+The window (Toolset/palettes/community/revcommunitystacks.livecodescript)
+asks the gallery's site for its list of stacks and shows it only when the
+list carries the gallery's signature. Each stack can be played in the
+browser, on the gallery's site, where it runs in a box that keeps it away
+from the computer; its scripts can be read there; and a copy of it can be
+brought to this computer (<revIDECommunityStacksGetCopy>).
+
+It opens nothing of a stack by itself and sends nothing but requests for
+the gallery's files. Not in the web IDE, where the gallery is a page
+away.
+
+The result is empty, or "error: " and why the window did not open.
+
+References: revIDECommunityStacksGetCopy (command), revIDEActionShareStack (command)
+
+Tags: ide
+*/
+command revIDEActionCommunityStacks pSite, pPublicKey
+   local tFile, tError
+   if revEnvironmentIsWeb() then
+      return empty
+   end if
+   put __communityStacksFile() into tFile
+   try
+      if there is no file tFile then
+         throw "missing"
+      end if
+      dispatch "revCommunityStacksShow" to stack tFile with pSite, pPublicKey
+      if it is not "handled" then
+         throw "unhandled"
+      end if
+   catch tError
+      answer error "The Community Stacks window could not open." with "OK"
+      return "error: The Community Stacks window could not open."
+   end try
+   return empty
+end revIDEActionCommunityStacks
+
+private function __communityStacksFile
+   return revIDESpecialFolderPath("Toolset") & "/palettes/community/revcommunitystacks.livecodescript"
+end __communityStacksFile
+
+/*
+Brings a copy of a stack of the Community Stacks to this computer, after
+asking, and offers to open it for looking at (the window's Get a Copy).
+
+pEntry (array): The stack, as the gallery's list gives it
+(revCommunityStacksParse).
+
+pSite (optional): The gallery's site; the OXT Community Stacks' own when
+empty.
+
+pFolder (optional): The folder copies are kept in; the folder OXT
+Community Stacks in Documents when empty.
+
+Description:
+A stack is a program, and this is where the user is told so: the first
+dialog says what a copy is and that the browser is the safe place to try
+a stack, and nothing is fetched unless Get a Copy is pressed there.
+
+The copy is then fetched and checked: the download and every file in it
+must be the bytes that the gallery's signed list names, and only the
+files it names are written, into a folder of their own. A copy the user
+has changed is never written over.
+
+The last dialog shows where the copy is, and opens it when asked: with
+the pointer tool, and without running any of its opening scripts. That
+is no promise about what the stack does once it is used; the dialog says
+that too.
+
+The result is the path of the copy's main file, empty when the user
+chose not to, or "error: " and why there is no copy.
+
+References: revIDEActionCommunityStacks (command)
+
+Tags: ide
+*/
+command revIDECommunityStacksGetCopy pEntry, pSite, pFolder
+   local tFile, tSpec, tChoice, tResult, tError, tFileName, tFolder, tOpened
+   if revEnvironmentIsWeb() or pEntry is not an array then
+      return empty
+   end if
+   put __communityStacksFile() into tFile
+
+   -- Ask first: what a copy is
+   put "Community Stacks" into tSpec["title"]
+   put "Get a copy of this stack?" into tSpec["heading"]
+   put pEntry["title"] && "by" && pEntry["author"] into tSpec["subheading"]
+   put "copy" into tSpec["icon"]
+   put "violet" into tSpec["tone"]
+   put "Its file is brought to this computer, into the folder OXT Community Stacks in your Documents, " & \
+         "and checked: it must be exactly the file that the gallery lists." & return & return & \
+         "A copy is for reading how a stack is made, and for learning from it." into tSpec["text"]
+   put "A stack is a program. The gallery's checker and a person read this one before it was listed, " & \
+         "but nobody can promise what a program does. To try a stack, play it in your browser: " & \
+         "there it cannot reach your computer." into tSpec["callout"]
+   put "note" into tSpec["calloutKind"]
+   put "Cancel" & return & "Get a Copy" into tSpec["buttons"]
+   put "Cancel" into tSpec["cancel"]
+   if not revIDEKitDialog(tSpec, tChoice) then
+      answer information "Get a copy of" && pEntry["title"] & "?" & return & return & \
+            "A stack is a program. To try one, play it in your browser, where it cannot reach your computer. " & \
+            "A copy is for reading how it is made." with "Cancel" or "Get a Copy"
+      put it into tChoice
+   end if
+   if tChoice is not "Get a Copy" then
+      return empty
+   end if
+
+   -- Fetch it and check it
+   lock cursor
+   set the cursor to watch
+   try
+      dispatch "revCommunityStacksGet" to stack tFile with pEntry, pFolder, pSite
+      put the result into tResult
+      if it is not "handled" then
+         put "error: The copy could not be fetched." into tResult
+      end if
+   catch tError
+      put "error: The copy could not be fetched." into tResult
+   end try
+   unlock cursor
+   if tResult begins with "error:" then
+      __communityStacksSay "No copy was made", pEntry["title"], word 2 to -1 of tResult
+      return tResult
+   end if
+
+   -- The copy is there: what to do with it, until the user is done
+   set the itemDelimiter to slash
+   put the last item of tResult into tFileName
+   put item 1 to -2 of tResult into tFolder
+   set the itemDelimiter to comma
+   put empty into tSpec
+   put "Community Stacks" into tSpec["title"]
+   put "Your copy is ready" into tSpec["heading"]
+   put tFileName into tSpec["subheading"]
+   put "check" into tSpec["icon"]
+   put "emerald" into tSpec["tone"]
+   put "It is in" && tFolder & ", and it is exactly the file that the gallery lists." & return & return & \
+         "Open It to Look opens it with the pointer tool, the one for looking and changing, " & \
+         "and runs none of its opening scripts." into tSpec["text"]
+   put "Once it is open it is a stack like any other of yours: its scripts run when you choose the browse tool and use it." into tSpec["callout"]
+   put "note" into tSpec["calloutKind"]
+   put "Show the Folder" & return & "Done" & return & "Open It to Look" into tSpec["buttons"]
+   put "Done" into tSpec["cancel"]
+   repeat
+      if not revIDEKitDialog(tSpec, tChoice) then
+         answer information "Your copy is ready:" && tResult & return & return & \
+               "Open It to Look opens it with the pointer tool and runs none of its opening scripts. " & \
+               "Its scripts run once you choose the browse tool and use it." \
+               with "Show the Folder" or "Done" or "Open It to Look"
+         put it into tChoice
+      end if
+      switch tChoice
+         case "Show the Folder"
+            __shareStackReveal tResult
+            break
+         case "Open It to Look"
+            try
+               dispatch "revCommunityStacksOpenToRead" to stack tFile with tResult
+               put the result into tOpened
+            catch tError
+               put "error: The copy could not be opened." into tOpened
+            end try
+            if tOpened begins with "error:" then
+               __communityStacksSay "The copy was not opened", tFileName, word 2 to -1 of tOpened
+            else
+               try
+                  revIDEAddRecentStack tResult
+               catch tError
+               end try
+            end if
+            exit repeat
+            break
+         default
+            exit repeat
+      end switch
+   end repeat
+   return tResult
+end revIDECommunityStacksGetCopy
+
+-- Tells the user something of the Community Stacks that went wrong
+private command __communityStacksSay pHeading, pSubheading, pText
+   local tSpec, tChoice
+   put "Community Stacks" into tSpec["title"]
+   put pHeading into tSpec["heading"]
+   put pSubheading into tSpec["subheading"]
+   put "info" into tSpec["icon"]
+   put "amber" into tSpec["tone"]
+   put pText into tSpec["text"]
+   put "OK" into tSpec["buttons"]
+   put "OK" into tSpec["cancel"]
+   if not revIDEKitDialog(tSpec, tChoice) then
+      answer information pHeading & return & return & pText with "OK"
+   end if
+end __communityStacksSay
+
 -- The stack the last revIDEImportHyperCardStack imported
 local sHyperCardImported
 
