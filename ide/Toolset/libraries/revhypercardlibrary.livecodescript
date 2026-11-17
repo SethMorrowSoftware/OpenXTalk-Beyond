@@ -23,6 +23,28 @@ on hcDoMenu pItem, pMenu, pWithout
    return the result
 end hcDoMenu
 
+-- The text a "do" runs (rule T81 puts each do's text through this): as it
+-- is when it compiles, else with the rules of a script that the import
+-- applied to the stack's scripts, as HyperCard ran a do's text with a
+-- script's rules ("do "set the icon of bg btn sound to" && x", where
+-- "sound" is a word this engine reserves). pRenamed: the variables of
+-- the handler the do is in that the import renamed. Where the IDE's
+-- script library is not there (a standalone), the text is as it is
+function hcDoText pText, pRenamed
+   local tText, tStack
+   try
+      put the long id of stack (the mainStack of me) into tStack
+   catch tText
+      put empty into tStack
+   end try
+   try
+      put revHyperCardDoText(pText, pRenamed, tStack) into tText
+   catch tText
+      return pText
+   end try
+   return tText
+end hcDoText
+
 -- HyperCard's menu items, by the names HyperCard gave them, with or
 -- without their "...", in any case: what a doMenu that no handler of the
 -- stack takes does. hcDoMenu calls this; in a stack with HyperCard's

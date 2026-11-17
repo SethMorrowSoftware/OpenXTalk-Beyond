@@ -8159,3 +8159,94 @@ on TestHyperCardScriptsT80
          & field "DirectoryName" of card 2 of stack tStack & field "DirectoryName" of card 3 of stack tStack is "abc"
    _Close tStack
 end TestHyperCardScriptsT80
+
+on TestHyperCardScriptsT81
+   -- T81: the text a do runs gets a script's rules, as HyperCard ran it
+   -- (the re-sweep of 2026-11-16: "do: error in source expression" in 13
+   -- stacks, text a script built with a word this engine reserves)
+   local tScript, q, tStack, tError, tWas, tResult, tAgain
+   global gHCScriptsTest
+   put quote into q
+   put _Rewrite("on mouseUp", \
+         "  global sound", \
+         "  put 3 into sound", \
+         "  do " & q & "set the icon of bg btn sound to sound" & q & " & x", \
+         "  if x then do y else do " & q & "beep" & q, \
+         "  do " & q & "put 1 into z" & q, \
+         "  do x as " & q & "AppleScript" & q, \
+         "  do " & q & "put 2 into z" & q & " & \", \
+         "    x", \
+         "  put sound into field 1", \
+         "end mouseUp") into tScript
+   TestAssert "T81: the rewrite compiles", _Compiles(tScript)
+   TestAssert "T81: a do's text through hcDoText, with the handler's renamed variables", \
+         line 4 of tScript is "  do hcDoText(" & q & "set the icon of bg btn sound to sound" & q & " & x, " & q & "sound" & q & ")"
+   TestAssert "T81: a do after then, through hcDoText", \
+         line 5 of tScript is "  if x then do hcDoText(y, " & q & "sound" & q & ") else do " & q & "beep" & q
+   TestAssert "T81: a string that compiles, as it is", line 6 of tScript is "  do " & q & "put 1 into z" & q
+   TestAssert "T81: a do in another language, as it is", line 7 of tScript is "  do x as " & q & "AppleScript" & q
+   TestAssert "T81: a do continued on the next line, as it is", line 8 of tScript is "  do " & q & "put 2 into z" & q & " & \"
+   -- (twice is once)
+   put revHyperCardRewriteScript(tScript) into tAgain
+   TestAssert "T81: a do already through hcDoText, as it is", tAgain is tScript
+
+   -- in a script that compiles too, with no variable renamed
+   put _Rewrite("on mouseUp", "  put " & q & "cd fld Title" & q & " into fspec", \
+         "  do " & q & "put there is a" & q & " && fspec && " & q & "into x" & q, "end mouseUp") into tScript
+   TestAssert "T81: in a script that compiles too", \
+         line 3 of tScript is "  do hcDoText(" & q & "put there is a" & q & " && fspec && " & q & "into x" & q & ")"
+   TestAssert "T81: a script with no do, as it is", \
+         _Rewrite("on mouseUp", "  put 1 into x", "end mouseUp") is _Lines("on mouseUp", "  put 1 into x", "end mouseUp")
+
+   -- revHyperCardDoText: text that compiles is the text itself
+   TestAssert "T81: text that compiles, as it is", revHyperCardDoText("put 1 into x" & return & "beep", "sound") is "put 1 into x" & return & "beep"
+   TestAssert "T81: an object named by a reserved word, in quotes", \
+         revHyperCardDoText("put there is a cd fld Title into x", empty) is "put there is a cd fld " & q & "Title" & q & " into x"
+   TestAssert "T81: a global named like a property, renamed as T2 does", \
+         revHyperCardDoText("global fileName,sound", empty) is "global hc_fileName,hc_sound"
+   TestAssert "T81: a variable the handler renamed, renamed in the text", \
+         revHyperCardDoText("put number + 1 into x", "number") is "put hc_number + 1 into x"
+   TestAssert "T81: text the rules cannot fix, as it is", revHyperCardDoText("get the true", empty) is "get the true"
+   TestAssert "T81: empty, as it is", revHyperCardDoText(empty, empty) is empty
+
+   -- with revHyperCardFixScripts, and run: the library's hcDoText
+   put "HCScriptsT81" & the milliseconds into tStack
+   lock messages
+   create invisible stack tStack
+   set the defaultStack to tStack
+   create field "Title"
+   create button "Compiles"
+   put _Lines("on mouseUp", "  put 1 into x", "  do " & q & "put 2 into x" & q, "end mouseUp") into tWas
+   set the script of button "Compiles" to tWas
+   put the script of button "Compiles" into tWas
+   create button "Do"
+   set the script of button "Do" to _Lines("on mouseUp", "  global gHCScriptsTest, sound", \
+         "  put empty into gHCScriptsTest", \
+         "  put " & q & "x" & q & " into sound", \
+         "  put 5 into number", \
+         "  put " & q & "cd fld Title" & q & " into fspec", \
+         "  do " & q & "put there is a" & q & " && fspec && " & q & "into exists" & q, \
+         "  put exists after gHCScriptsTest", \
+         "  do " & q & "global sound" & q & " & return & " & q & "put comma & sound after gHCScriptsTest" & q, \
+         "  do " & q & "put comma & (number + 1) after gHCScriptsTest" & q, \
+         "  get 7", \
+         "  do " & q & "put comma & it after gHCScriptsTest" & q, \
+         "  put " & q & "put comma & 8 after gHCScriptsTest" & q & " into tText", \
+         "  do tText", \
+         "end mouseUp")
+   unlock messages
+   put revHyperCardFixScripts(tStack) into tResult
+   TestAssert "T81: a script with a do whose string compiles, unchanged", the script of button "Compiles" of stack tStack is tWas
+   put the script of button "Do" of stack tStack into tScript
+   TestAssert "T81: the do's text through hcDoText, in the stack", "do hcDoText(" is in tScript
+   TestAssert "T81: no handler and no line left out", revHyperCardLeftOutHandlers() is empty and revHyperCardLeftOutLines() is empty
+   TestAssert "T81: a string that compiles but names a renamed variable, through hcDoText", \
+         "do hcDoText(" & q & "put comma & (number + 1) after gHCScriptsTest" & q & ", " in tScript
+   put empty into tError
+   try
+      send "mouseUp" to button "Do" of stack tStack
+   catch tError
+   end try
+   TestAssert "T81: the texts run as HyperCard ran them", tError is empty and gHCScriptsTest is "true,x,6,7,8"
+   _Close tStack
+end TestHyperCardScriptsT81
