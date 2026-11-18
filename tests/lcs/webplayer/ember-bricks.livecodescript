@@ -215,6 +215,20 @@ private function pointerShown
    return st("hidden") is false and the lockCursor is false
 end pointerShown
 
+-- Whether the game runs where it hides no pointer at all: on a phone or
+-- a tablet (ebPointerHides), where a level is played with a finger.
+-- A test of the hidden pointer is skipped there and says so, and
+-- TestAPhoneOrATabletHidesNoPointer runs in their place: with LiveCode
+-- 9.6.3's engine and with OXT-Beyond's, the tests run in an Android
+-- standalone too (tools/ci/android_tests.py)
+private function noPointerToHide pWhat
+   if st("platform") is not "mobile" then
+      return false
+   end if
+   TestSkip pWhat, "on a phone or a tablet the game hides no pointer"
+   return true
+end noPointerToHide
+
 ----------------------------------------------------------------------
 -- Opening
 
@@ -997,6 +1011,9 @@ end TestTurningThePhonePausesALevelAndKeepsItsBall
 -- way and points at nothing: it is hidden there, and nowhere else
 on TestThePointerIsHiddenOverTheArenaWhileALevelIsPlayed
    local tPause
+   if noPointerToHide("the pointer over the arena") then
+      exit TestThePointerIsHiddenOverTheArenaWhileALevelIsPlayed
+   end if
    game "ebTestSet", "pointer", "mouse"
    mouseAt arenaMiddle()
    TestAssert "on the title the pointer shows, wherever it is", st("mode") is "title" and pointerShown()
@@ -1022,6 +1039,9 @@ on TestThePointerIsHiddenOverTheArenaWhileALevelIsPlayed
 end TestThePointerIsHiddenOverTheArenaWhileALevelIsPlayed
 
 on TestThePointerShowsWhenALevelEnds
+   if noPointerToHide("the pointer when a level ends") then
+      exit TestThePointerShowsWhenALevelEnds
+   end if
    game "ebTestSet", "pointer", "mouse"
    newWall "5,5,1", false
    mouseAt arenaMiddle()
@@ -1045,9 +1065,30 @@ on TestAFingerHasNoPointerToHide
    TestAssert "a level played by touch: the engine's cursor is left as it is", st("mode") is "play" and pointerShown()
 end TestAFingerHasNoPointerToHide
 
+-- On a phone or a tablet the game hides no pointer, whatever it is told
+-- of a mouse: the other tests of the pointer are skipped there, and
+-- this one is skipped everywhere else
+on TestAPhoneOrATabletHidesNoPointer
+   if st("platform") is not "mobile" then
+      TestSkip "a mouse on a phone or a tablet", "this is not a phone or a tablet"
+      exit TestAPhoneOrATabletHidesNoPointer
+   end if
+   game "ebTestSet", "pointer", "mouse"
+   newRun
+   mouseAt arenaMiddle()
+   TestAssert "a level played, a mouse over the arena: the engine's cursor is left as it is", st("mode") is "play" and pointerShown()
+   press "Pause"
+   TestAssert "and on a pause", st("mode") is "pause" and pointerShown()
+   game "ebGoTitle"
+   TestAssert "and on the title", st("mode") is "title" and pointerShown()
+end TestAPhoneOrATabletHidesNoPointer
+
 -- The IDE's other tools (the pointer tool to move a control, say) need
 -- their pointer over the arena too
 on TestThePointerShowsWithAToolThatDoesNotPlay
+   if noPointerToHide("the pointer with another tool") then
+      exit TestThePointerShowsWithAToolThatDoesNotPlay
+   end if
    game "ebTestSet", "pointer", "mouse"
    newRun
    mouseAt arenaMiddle()
@@ -1064,6 +1105,9 @@ end TestThePointerShowsWithAToolThatDoesNotPlay
 -- The engine has one cursor for all its windows: the game does not take
 -- one that another script holds, and takes its own back
 on TestACursorAnotherScriptHoldsIsLeftAlone
+   if noPointerToHide("a cursor another script holds") then
+      exit TestACursorAnotherScriptHoldsIsLeftAlone
+   end if
    game "ebTestSet", "pointer", "mouse"
    newRun
    set the lockCursor to true
@@ -1086,6 +1130,9 @@ end TestACursorAnotherScriptHoldsIsLeftAlone
 -- not outlive the frames that hide it: a script that stopped or the
 -- debugger leaves nobody without one
 on TestAPointerIsNotLeftHiddenWhenTheFramesStop
+   if noPointerToHide("the pointer when the frames stop") then
+      exit TestAPointerIsNotLeftHiddenWhenTheFramesStop
+   end if
    game "ebTestSet", "pointer", "mouse"
    newRun
    mouseAt arenaMiddle()
@@ -1102,6 +1149,9 @@ on TestAPointerIsNotLeftHiddenWhenTheFramesStop
 end TestAPointerIsNotLeftHiddenWhenTheFramesStop
 
 on TestClosingTheGameGivesThePointerBack
+   if noPointerToHide("the pointer when the game closes") then
+      exit TestClosingTheGameGivesThePointerBack
+   end if
    game "ebTestSet", "pointer", "mouse"
    newRun
    mouseAt arenaMiddle()
