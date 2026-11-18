@@ -159,6 +159,19 @@ class DeviceLines(unittest.TestCase):
         self.assertTrue(got[1].startswith('W System.err: java.lang.SecurityException'))
         self.assertEqual(bp.refusals('11-18 22:37:43.200  4321  4400 I OXT     : fine\n'), [])
 
+    def test_the_document_android_lent(self):
+        dump = ('Granted Uri Permissions:\n'
+                '  * UID 10111 holds:\n'
+                '    UriPermission{1a2b3c 0 @ content://other.provider/document/9 [user 0]}\n'
+                '      targetUserId=0 sourcePkg=other.provider targetPkg=some.other.app\n'
+                '  * UID 10174 holds:\n'
+                '    UriPermission{4d5e6f 0 @ content://com.android.providers.downloads.documents/document/msf%3A31 [user 0]}\n'
+                '      targetUserId=0 sourcePkg=com.android.providers.downloads targetPkg=org.openxtalk.stackplayer\n')
+        self.assertEqual(bp.lent_address(dump, bp.IDENTIFIER),
+                         'content://com.android.providers.downloads.documents/document/msf%3A31')
+        self.assertIsNone(bp.lent_address(dump, 'org.nobody'))
+        self.assertIsNone(bp.lent_address('', bp.IDENTIFIER))
+
     def test_the_documents_address(self):
         self.assertEqual(bp.document_address('PlayerSample.oxtstack'),
                          'content://com.android.externalstorage.documents/document/primary%3ADownload%2FPlayerSample.oxtstack')

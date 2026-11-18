@@ -289,6 +289,17 @@ def refusals(logcat):
     return out
 
 
+def lent_address(permissions, package):
+    """The address of a document that Android has lent package, from
+    "dumpsys activity permissions", or None."""
+    lines = permissions.splitlines()
+    for i, line in enumerate(lines):
+        m = re.search(r'UriPermission\{.*?(content://\S+?)[\s}\]]', line)
+        if m and any('targetPkg=' + package in x for x in lines[i:i + 3]):
+            return m.group(1)
+    return None
+
+
 def node_centre(xml, text):
     """The centre of the first node of a uiautomator dump whose text is
     text, or None."""
@@ -345,6 +356,13 @@ class Device:
         """The window that has the focus, as dumpsys names it."""
         m = re.search(r'mCurrentFocus=(.*)', self('shell', 'dumpsys', 'window', 'displays')[1])
         return m.group(1).strip() if m else 'not said'
+
+    def keyboard(self):
+        """What the input method says of itself: shown or not, and asked
+        for or not."""
+        out = self('shell', 'dumpsys', 'input_method')[1]
+        return ' '.join(sorted(set(re.findall(r'm(?:InputShown|ShowRequested|ShowExplicitlyRequested)=\w+', out)))) \
+            or 'not said'
 
     def ui(self):
         self('shell', 'uiautomator', 'dump', '/sdcard/oxt-player-ui.xml')
@@ -425,10 +443,17 @@ def device(args):
             # ---- Back
             at = count()
             focus = d.focus()
+            keyboard = d.keyboard()
+            _, since = d('shell', 'date', "+'%m-%d %H:%M:%S.000'")
             d('shell', 'input', 'keyevent', '4')
             line, lines = d.wait_for(lambda x: x.startswith('home from '), 20, since=at)
             why = ''
             if line is None:
+                log('Back got no answer. The keyboard before it: %s; after: %s. The device\'s log since:' % (
+                    keyboard, d.keyboard()))
+                for x in d('logcat', '-d', '-v', 'threadtime', '-t', since.strip().strip("'"),
+                           timeout=120)[1].splitlines()[-150:]:
+                    log('  %s' % x.strip()[:300])
                 # what a second press does says whether the first was lost
                 # on its way or the stack never comes home
                 why = 'no answer to Back in 20 s (the window with the focus before it: %s; after: %s)' % (
@@ -440,24 +465,29 @@ def device(args):
             time.sleep(2)
             step('back: the app is still running', d.running(), 'its process has gone')
 
-        # ---- a content address
-        at = count()
-        _, out = d('shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d', document_address(SAMPLE),
-                   '-t', 'application/octet-stream', '--grant-read-uri-permission', '-n', ACTIVITY)
-        line, lines = d.wait_for(lambda x: x.startswith(('opened ', 'problem ')), wait, since=at)
-        ok = step('content', line == 'opened ' + SAMPLE_STACK,
-                  'the player said: %s; am start said: %s; the device said: %s' % (
-                      lines[at:], ac.answer(out), refusals(d.logcat())[-4:]))
-        if ok:
-            # the very file the file address gave: the library's copy of it
-            step('content: read, and known as the file the library has', 'imported PlayerSample/' + SAMPLE in lines[at:],
-                 'the player said: %s' % lines[at:])
-            d('shell', 'input', 'keyevent', '4')
-            d.wait_for(lambda x: x.startswith('home from '), wait, since=at)
-
         # ---- the Open button and Android's "Open document" screen
         if not args.no_picker:
             picker(d, step, count, wait)
+
+            # ---- a content address, as another app hands one over. The
+            # shell cannot lend a document of its own (Android lets neither
+            # root nor the shell grant one), so this is the document the
+            # "Open document" screen has just lent the app
+            address = lent_address(d('shell', 'dumpsys', 'activity', 'permissions')[1], IDENTIFIER)
+            log('The document Android lent the app: %s' % ('found' if address else 'not listed, so by its name'))
+            at = count()
+            _, out = d('shell', 'am', 'start', '-a', 'android.intent.action.VIEW', '-d',
+                       address or document_address(SAMPLE), '-t', 'application/octet-stream', '-n', ACTIVITY)
+            line, lines = d.wait_for(lambda x: x.startswith(('opened ', 'problem ')), wait, since=at)
+            ok = step('content', line == 'opened ' + SAMPLE_STACK,
+                      'the player said: %s; am start said: %s; the device said: %s' % (
+                          lines[at:], ac.answer(out), refusals(d.logcat())[-4:]))
+            if ok:
+                # the very file the file address gave: the library's copy of it
+                step('content: read, and known as the file the library has',
+                     'imported PlayerSample/' + SAMPLE in lines[at:], 'the player said: %s' % lines[at:])
+                d('shell', 'input', 'keyevent', '4')
+                d.wait_for(lambda x: x.startswith('home from '), wait, since=at)
 
         # ---- stopped and started again
         d('shell', 'am', 'force-stop', IDENTIFIER)
