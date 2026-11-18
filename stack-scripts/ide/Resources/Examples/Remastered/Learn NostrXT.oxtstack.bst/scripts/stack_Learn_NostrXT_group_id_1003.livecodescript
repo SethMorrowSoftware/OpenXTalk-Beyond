@@ -294,20 +294,17 @@ on arrowKey pKey
    -- A key sent to a control of this group comes here before the card:
    -- the card hears it first, as it does when the focus is anywhere else,
    -- and what it does not play comes back here from it. (A click can
-   -- leave the focus in the frame, and then the left and right keys of a
-   -- card whose program plays them went to the next card.)
+   -- leave the focus in the frame, and then the keys of a card whose
+   -- program plays them did not reach it.)
    if frameHasTarget() then
       dispatch "arrowKey" to this card with pKey
       exit arrowKey
    end if
-   -- (a field being typed in keeps its arrow keys)
-   if the selectedField is empty and pKey is "left" then
-      frameGo "prev"
-   else if the selectedField is empty and pKey is "right" then
-      frameGo "next"
-   else
-      pass arrowKey
-   end if
+   -- The keys a card does not play do nothing here (until 0.2.8-dp.2 left
+   -- and right went to the previous and next card, which took a reader
+   -- off a lesson with a key meant for something else). Back and Next,
+   -- and the list, turn the page.
+   pass arrowKey
 end arrowKey
 
 -- Whether the message in hand was sent to this group or to a control in it

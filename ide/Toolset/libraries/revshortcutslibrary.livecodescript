@@ -82,7 +82,14 @@ on arrowKey pDirection, pTarget
             put 1 into tDistance
          end if
          
-         revIDENudgeControls the selobj, pDirection, tDistance
+         -- (the controls an installed example was built with stay where
+         -- they are: a click on a lesson in the Edit tool selects its page,
+         -- and each arrow key then moved the lesson's layout by a pixel)
+         local tNudge
+         put revShortcutsNudgeable(the selObj, tStack) into tNudge
+         if tNudge is not empty then
+            revIDENudgeControls tNudge, pDirection, tDistance
+         end if
          
          revSendDimensionsUpdate
          unlock screen
@@ -91,6 +98,39 @@ on arrowKey pDirection, pTarget
    end if
    pass arrowKey
 end arrowKey
+
+-- The controls of pObjects (the selected ones, of the stack pStack) that
+-- the arrow keys may nudge: all of them, but for an example of this
+-- install's Resources/Examples (tools/examples builds them, and marks
+-- each with the highest id it gave a control, cOXTBuiltTopId). There only
+-- the controls made since are nudged, the reader's own; a copy of the
+-- example saved elsewhere is the reader's, and all of it is nudged.
+private function revShortcutsNudgeable pObjects, pStack
+   local tTop, tFolder, tFile, tObj, tOut, tError
+   try
+      put the cOXTBuiltTopId of stack pStack into tTop
+      if tTop is not an integer or tTop < 1 then
+         return pObjects
+      end if
+      set the itemDelimiter to slash
+      put item 1 to -2 of revEnvironmentToolsetPath() & "/Resources/Examples/" into tFolder
+      set the itemDelimiter to comma
+      put the effective filename of stack pStack into tFile
+      if not (tFile begins with tFolder) then
+         return pObjects
+      end if
+      repeat for each line tObj in pObjects
+         if the id of tObj > tTop then
+            put tObj & return after tOut
+         end if
+      end repeat
+      delete the last char of tOut
+      return tOut
+   catch tError
+      -- (whatever was not as expected: nudged, as always)
+      return pObjects
+   end try
+end revShortcutsNudgeable
 
 on commandKeyDown pWhich
    global gREVUIScriptShortcut, gREVScriptShortcut, gREVReverseGrouped, gREVScriptEdit, gREVShowStacks

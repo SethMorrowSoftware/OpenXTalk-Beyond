@@ -24,7 +24,7 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- passes.
 --
 --   OPEN      milliseconds to open; controls; the tour's pages built
---   PAGE      a page shown by the right arrow key: its name, whether
+--   PAGE      a page shown as Next shows it: its name, whether
 --             it is built, whether it is shown, milliseconds
 --   BUILT     the pages built once each has been shown, and controls
 --   FRONT     Home in front: frames a second, CPU percent
@@ -121,13 +121,14 @@ on homeRun
    homeSettle 1000
    homeLog "FRONT" & tab & homeMeasure(3000)
 
-   -- each page in turn, as the right arrow key turns them
+   -- each page in turn, as Next turns them (the right arrow key did,
+   -- until 0.2.8-dp.2)
    repeat for each item tPage in kPages
       if tPage is "home" then
          next repeat
       end if
       put the milliseconds into tStart
-      dispatch "arrowKey" to stack "revHub" with "right"
+      dispatch "revHubGo" to stack "revHub" with "home", tPage
       put "pg_" & tPage into tGroup
       homeLog "PAGE" & tab & tPage & tab & (tPage is among the items of homeBuilt()) & tab & \
             the visible of group tGroup of card 1 of stack "revHub" & tab & (the milliseconds - tStart)
@@ -136,7 +137,7 @@ on homeRun
    homeLog "BUILT" & tab & homeBuilt() & tab & the number of controls of card 1 of stack "revHub"
 
    -- back to the first page, and a slow computer
-   dispatch "arrowKey" to stack "revHub" with "right"
+   dispatch "revHubGo" to stack "revHub" with "home", "home"
    repeat with tIndex = 1 to kSlowGlows
       create graphic ("OXTHomeSlow" & tIndex) in card 1 of stack "revHub"
       put it into tGlow

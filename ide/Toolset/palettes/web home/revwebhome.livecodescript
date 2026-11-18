@@ -1303,23 +1303,10 @@ on mouseUp pButton
    end if
 end mouseUp
 
-on arrowKey pKey
-   -- (a field of Home's that has the focus keeps its arrow keys; a field
-   -- in another window, the Message Box's say, does not stop paging)
-   if word 1 of the name of the target is "field" then
-      pass arrowKey
-   end if
-   switch pKey
-      case "left"
-         hmGoPage "prev"
-         break
-      case "right"
-         hmGoPage "next"
-         break
-      default
-         pass arrowKey
-   end switch
-end arrowKey
+-- The arrow keys do not turn the page (until 0.2.8-dp.2 left and right
+-- did, whenever no field had the focus: a key pressed after a click on
+-- the page's words, or meant for something else, took the reader to
+-- another page). Back and Next, and the list, turn it.
 
 on returnInField
    switch the short name of the target
@@ -1867,7 +1854,7 @@ private command hmBuildSide
    get hmButton("back", 14, 510, 32, "Back", "chevron-left", "dark", empty, empty, "page prev", 82)
    get hmButton("next", 104, 510, 32, "Next", "chevron-right", "dark", empty, empty, "page next", 82)
    get hmLabel("navCount", "0,556,200,572", "Page 1 of 6", 12, hmColor("sideMuted"), empty, "center")
-   get hmLabel("navKeys", "0,573,200,589", "or use the arrow keys", 11, hmColor("sideMuted"), empty, "center")
+   get hmLabel("navKeys", "0,573,200,589", empty, 11, hmColor("sideMuted"), empty, "center")
 end hmBuildSide
 
 private command hmNavItem pName, pTop, pHeight, pLabel, pIcon, pAction, pSize, pRight
@@ -1946,7 +1933,7 @@ private command hmBuildHostedSide
    get hmButton("back", 14, 510, 32, "Back", "chevron-left", "dark", empty, empty, "page prev", 106)
    get hmButton("next", tSide - 120, 510, 32, "Next", "chevron-right", "dark", empty, empty, "page next", 106)
    get hmLabel("navCount", hmR(0, 556, tSide, 572), "Page 1 of 6", 12, hmColor("sideMuted"), empty, "center")
-   get hmLabel("navKeys", hmR(0, 573, tSide, 589), "or use the arrow keys", 11, hmColor("sideMuted"), empty, "center")
+   get hmLabel("navKeys", hmR(0, 573, tSide, 589), empty, 11, hmColor("sideMuted"), empty, "center")
 end hmBuildHostedSide
 
 -- OXT-Beyond Home's places: Home's lit, and the highlight on it
@@ -2622,7 +2609,7 @@ private command hmHomeFrame
       add 1 to sTipIndex
       put (sTipIndex - 1) mod 5 + 1 into tTipLine
       put line tTipLine of \
-            ("Tip: the arrow keys page through Home." & return & \
+            ("Tip: Back and Next, at the left, page through Home." & return & \
             hmPick("Tip: stacks you save stay in this browser; File > Download Stack gives you a copy.", \
             "Tip: File > Standalone Application Settings turns a stack into an app.") & return & \
             "Tip: the Message Box, in the toolbar, runs any line of xTalk you type." & return & \
@@ -4060,7 +4047,10 @@ private command hmBuildApp
    put hmBox("apCodeBg", "224,316,600,596", hmColor("code"), 22, "pg_app") into tObj
    hmShadow tObj, 18, 6, 50
    get hmLabel("apCodeTitle", "240,330,590,346", "The Say hello button's script: the whole app", 11, hmColor("muted"), "pg_app")
-   put hmCodeField("apCode", "240,356,592,500", 13, 24, "pg_app") into tObj
+   -- (at 12: at 13 the line that sets the textColor is wider than the box
+   -- in Linux's Source Code Pro, and wrapped, which put the script's last
+   -- lines under the box's edge)
+   put hmCodeField("apCode", "240,356,592,500", 12, 24, "pg_app") into tObj
    set the htmlText of tObj to hmCodeHtml(hmFirstAppScript())
    get hmLabel("apCodeNote", "240,520,588,584", \
          "A field for your name, a button, and these lines. Every word is in the Dictionary, with examples.", \

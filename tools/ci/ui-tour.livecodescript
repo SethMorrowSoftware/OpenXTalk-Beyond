@@ -10537,7 +10537,8 @@ end tour_academy
 -- lesson in front: its first block of text is a locked field that takes
 -- the focus, so a drag over it selects words (and a translator or a
 -- screen reader can read them), while it still cannot be typed in; with
--- the focus there, the arrow keys still turn the page; and A+ (a click),
+-- the focus there, the arrow keys do not turn the page (they did until
+-- 0.2.8-dp.2, and took a reader off the lesson); and A+ (a click),
 -- the action "text bigger" and Ctrl+0 make it larger and give it its own
 -- size again, its size kept in the preferences (cAcademy textScale). At
 -- its own size, 100, the text is 15 points, as it always was. Empty, or
@@ -10584,12 +10585,15 @@ function tourAcademyText pWin
       tourRecord "INFO academy-text: a drag selected" && quote & tSelected & quote && "in" && tSelField
       if tSelected is empty then return "a drag over the lesson's text selected nothing"
       if tSelField is not tField then return "a drag over the lesson's text selected text in" && tSelField
-      -- the arrow keys still turn the page from it
+      -- the arrow keys do not turn the page from it, nor sent to the window
       put field "hdrTitle" of stack pWin into tTitle
       send "arrowKey right" to tField
       tourWait 1200
       tourRecord "INFO academy-text: after the right arrow the lesson is" && quote & field "hdrTitle" of stack pWin & quote
-      if field "hdrTitle" of stack pWin is tTitle then return "the right arrow key did not turn the page from the lesson's selected text"
+      if field "hdrTitle" of stack pWin is not tTitle then return "the right arrow key turned the page from the lesson's selected text"
+      send "arrowKey left" to stack pWin
+      tourWait 600
+      if field "hdrTitle" of stack pWin is not tTitle then return "the left arrow key, sent to the window, turned the page"
       dispatch "acGoTo" to stack pWin with "basics", "hello"
       tourWait 1200
       -- bigger by the action, then by a click on A+
