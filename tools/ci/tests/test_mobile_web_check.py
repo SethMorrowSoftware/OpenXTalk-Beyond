@@ -467,6 +467,33 @@ class PhoneCard(unittest.TestCase):
         for name in built:
             self.assertIn('case "%s"' % name, phone)
 
+    def test_the_check_presses_every_phone_button(self):
+        # ("Full screen" was laid out, labelled and never pressed: what a
+        # tap on it does was seen by nobody until a tester's iPad)
+        builder = read('tools', 'web-player', 'phone-starter.livecodescript')
+        build = re.search(r'^private command buildPhone\n(.*?)^end buildPhone', builder, re.M | re.S).group(1)
+        built = re.findall(r'(\w+)\|[^"]+"', build)
+        self.assertEqual(len(built), 6, built)
+        check = read('tools', 'ci', 'mobile_web_check.py')
+        pressed = set(re.findall(r"\bpress\('(\w+)'\)", check))
+        self.assertEqual(sorted(pressed), sorted(built))
+
+    def test_full_screen_is_pressed_for_both_kinds_of_browser(self):
+        check = read('tools', 'ci', 'mobile_web_check.py')
+        step = check[check.index('# 7a. "Full screen"'):check.index('# 7b. the camera')]
+        # the whole screen taken and given back, where the browser has one
+        self.assertIn("press('Full')\n        if can:", step)
+        self.assertIn("whole_screen() and not cannot(s)", step)
+        self.assertEqual(step.count("press('Full')"), 2)
+        self.assertIn("not whole_screen() and not cannot(s) and labels(s).get('Full') == 'Full screen'", step)
+        # and the stack's own words where it has none
+        script = read('tools', 'web-player', 'phone-starter-stack.livecodescript')
+        said = re.search(r"startswith\('([^']+)'\)", step).group(1)
+        self.assertIn('psSay "%s' % said, script)
+        self.assertIn('mwFullScreen not mwIsFullScreen()', script)
+        # a screen left whole would spoil the steps after it
+        self.assertIn('document.exitFullscreen || document.webkitExitFullscreen', step)
+
     def test_the_pad_passes_the_point_between_the_fingers(self):
         # a pinch moves the dot with the fingers, so the pad's script
         # passes on where they are (tests/lcs/webplayer/phone-starter
