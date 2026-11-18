@@ -2559,7 +2559,7 @@ end edSystemDrag
 -- mouse; returns what it wrote, how long that took and what the engine
 -- held the mouse over meanwhile (edDragOver), for a record
 function edDragDone pMilliseconds
-   local tFile, tText
+   local tFile, tText, tAt, tTaken
    put sKeep["dragFile"] into tFile
    if tFile is empty then return "(no drag)"
    put empty into sKeep["dragOver"]
@@ -2591,16 +2591,68 @@ function edDragDone pMilliseconds
       -- A person makes no click of the engine's: for them the mouse-up is
       -- the next event taken. Here the events are handled for a moment
       -- before the task goes on, as after edClickAt's click, and the
-      -- record ends with what the engine holds the mouse over then
+      -- record ends with what the engine holds the mouse over then.
+      --
+      -- A moment of a fixed length is not enough on macOS. A wait there
+      -- takes one event at most each time round its loop, after the
+      -- messages the IDE has due (MCScreenDC::wait, desktop-dc.cpp), and
+      -- the IDE has just made a control and selected it. In the 24 drags
+      -- of main's two macOS test jobs at c77e5264 (run 44094625493) the
+      -- engine let go of the tile in the 200 ms after the helper's "up",
+      -- in every one, and in none before; in the lesson's drag of #552's
+      -- Intel job (run 44126720354, dark, its IDE slower than in those:
+      -- 235 ms for the two messages due before the drag, where they
+      -- took 197 and 195) it still held the tile when they were over, "the
+      -- mouse over: 249 up / 785 up revTools ...Button" and no third
+      -- entry, and the next task's click on the Run tile went to the card
+      -- and its release to that tile, as above. (Whether the mouse-up
+      -- would have been taken a moment later that record cannot say: the
+      -- lesson's own click came next.) So on macOS the task first waits
+      -- until the engine has let go (edDragHeld), 5 s at most, and the
+      -- record says how long that took; a press still held then fails
+      -- the step here, where it happened, and not a later task's click
+      put the milliseconds into tAt
+      if the platform is "MacOS" then
+         if edWaitFor("edDragOver() and not edDragHeld()", 5000) then
+            put "; the release taken" && the milliseconds - tAt && "ms after the helper's up" into tTaken
+         else
+            throw "the engine still holds the drag's press" && the milliseconds - tAt && "ms after the system's mouse was released (" & \
+                  edJoin(word 1 to -1 of tText) & "): it has not taken the mouse-up; the mouse over:" && edDragWasOver() & \
+                  "; the system's mouse at" && the screenMouseLoc & "; waiting:" && edPendingNames()
+         end if
+      end if
       edPause 200
       get edDragOver()
       return "released" && the milliseconds - sKeep["dragLaunched"] && "ms after the launch (" & edJoin(word 1 to -1 of tText) & "); the mouse over:" && edDragWasOver() & \
-            "; before it" && sKeep["dragSettled"]
+            "; before it" && sKeep["dragSettled"] & tTaken
    end if
    if there is a file tFile then put URL ("file:" & tFile) into tText
    return "not released" && the milliseconds - sKeep["dragLaunched"] && "ms after the launch (" & edJoin(word 1 to -1 of tText) & "); the mouse over:" && edDragWasOver() & \
          "; before it" && sKeep["dragSettled"]
 end edDragDone
+
+-- Whether the engine still holds a press that the system's mouse has let
+-- go of: it holds the mouse over a control of a window that the system's
+-- mouse is no longer over. While a button is down the window pressed keeps
+-- the mouse (MCMacPlatformHandleMouseMove, mac-core.mm: "If the mouse is
+-- grabbed, the mouse window does not change") and its card the control
+-- pressed (MCCard::mfocus, card.cpp); once the stack has had the mouse-up
+-- it asks its card again what is under the mouse (MCStack::mup,
+-- stack.cpp), which away from the window is nothing. The screenMouseLoc
+-- is the system's (NSEvent's mouseLocation), whatever the engine has
+-- taken from its queue
+function edDragHeld
+   local tStack, tControl, tError
+   put the mouseStack into tStack
+   if tStack is empty or there is not a stack tStack then return false
+   try
+      put the long id of the mouseControl into tControl
+   catch tError
+      put empty into tControl
+   end try
+   if tControl is empty then return false
+   return the screenMouseLoc is not within the rect of stack tStack
+end edDragHeld
 
 -- What the engine holds the mouse over while a drag's helper works: its
 -- button, the stack and the control, each time one of them has changed

@@ -484,6 +484,96 @@ class ReleaseHandledBeforeTheTaskGoesOn(unittest.TestCase):
         self.assertIn('return tOut && "(Tools)"', self.short)
 
 
+class TheTaskGoesOnWhenTheEngineHasLetGo(unittest.TestCase):
+    """quick-start-dropped-shows failed again on macOS Intel, dark (#552,
+    run 44126720354), with the moment of 200 ms in place: "the browse
+    tile's click chose nothing ... seen: 1 mouseDown card id 1002 (Tools);
+    219 mouseRelease button id 105962 (Tools, ...Button)", and the lesson's
+    drag before it recorded "the mouse over: 249 up / 785 up revTools
+    ...Button" with no third entry: the engine still held the tile when
+    the 200 ms were over. In the 24 drags of main's two macOS test jobs at
+    c77e5264 (run 44094625493) the third entry, "up revTools", has the
+    time of the record's end in every one: the engine let go in those
+    200 ms each time and never before them. A wait on macOS takes one
+    event at most each time round its loop, after the messages the IDE has
+    due, so how many events 200 ms hold depends on how busy the IDE is. On
+    macOS a drag's wait now ends when the engine has let go, 5 s at most;
+    a press still held then fails the step there."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.text = read(SCRIPT)
+        m = re.search(r'^function edDragDone pMilliseconds\n(.*?)^end edDragDone', cls.text, re.M | re.S)
+        cls.done = m.group(1) if m else ''
+        m = re.search(r'^function edDragHeld\n(.*?)^end edDragHeld', cls.text, re.M | re.S)
+        cls.held = m.group(1) if m else ''
+
+    def code(self, body):
+        return '\n'.join(line for line in body.split('\n') if not line.lstrip().startswith('--'))
+
+    def test_on_macos_the_wait_ends_when_the_engine_has_let_go(self):
+        done = self.code(self.done)
+        up = done.index('edWaitFor("edDragOver() and there is a file pAx')
+        mac = done.index('if the platform is "MacOS" then')
+        let_go = done.index('if edWaitFor("edDragOver() and not edDragHeld()", 5000) then')
+        # after the helper's release, and before the task goes on
+        self.assertLess(up, mac)
+        self.assertLess(mac, let_go)
+        self.assertLess(let_go, done.index('edPause 200'))
+        self.assertLess(let_go, done.index('return "released"'))
+        # the one wait every drag ends in: no caller has a wait of its own
+        self.assertEqual(self.code(self.text).count('edDragHeld()'), 1)
+
+    def test_a_press_still_held_fails_the_step_there(self):
+        done = self.code(self.done)
+        wait = done.index('if edWaitFor("edDragOver() and not edDragHeld()", 5000) then')
+        miss = done[done.index('else', wait):done.index('edPause 200')]
+        self.assertIn('throw "the engine still holds the drag\'s press"', miss)
+        for part in ('the milliseconds - tAt', 'edDragWasOver()', 'the screenMouseLoc', 'edPendingNames()'):
+            self.assertIn(part, miss, 'the miss does not record %s' % part)
+
+    def test_the_record_says_how_long_the_engine_took(self):
+        done = self.code(self.done)
+        self.assertIn('put "; the release taken" && the milliseconds - tAt && "ms after the helper\'s up" into tTaken', done)
+        self.assertRegex(done, r'return "released" [^\n]*\\\n[^\n]*sKeep\["dragSettled"\] & tTaken')
+        # counted from when the helper's release was seen
+        self.assertLess(done.index('put the milliseconds into tAt'), done.index('if the platform is "MacOS" then'))
+
+    def test_held_is_a_control_of_a_window_the_systems_mouse_has_left(self):
+        held = self.code(self.held)
+        self.assertIn('put the mouseStack into tStack', held)
+        self.assertIn('put the long id of the mouseControl into tControl', held)
+        self.assertIn('if tControl is empty then return false', held)
+        self.assertIn('return the screenMouseLoc is not within the rect of stack tStack', held)
+
+    def test_the_engine_is_as_it_was_read(self):
+        # what the wait rests on; a change to one of them is a reason to
+        # read edDragDone's and edDragHeld's comments again
+        source = read(os.path.join(ROOT, 'engine', 'src', 'desktop-dc.cpp'))
+        m = re.search(r'^Boolean MCScreenDC::wait\(.*?^}', source, re.M | re.S)
+        self.assertTrue(m, 'no MCScreenDC::wait in desktop-dc.cpp')
+        wait = m.group(0)
+        self.assertIn('collect at most one event', wait)
+        self.assertLess(wait.index('handlepending(curtime, eventtime, dispatch)'),
+                        wait.index('MCPlatformWaitForEvent(t_sleep, dispatch == False)'))
+        source = read(os.path.join(ROOT, 'engine', 'src', 'stack.cpp'))
+        m = re.search(r'^Boolean MCStack::mup\(.*?^}', source, re.M | re.S)
+        self.assertTrue(m, 'no MCStack::mup in stack.cpp')
+        mup = m.group(0)
+        self.assertLess(mup.index('curcard->mup(which, p_release)'), mup.index('curcard->mfocus(MCmousex, MCmousey)'))
+        source = read(os.path.join(ROOT, 'engine', 'src', 'card.cpp'))
+        m = re.search(r'^Boolean MCCard::mfocus\(.*?^}', source, re.M | re.S)
+        self.assertTrue(m, 'no MCCard::mfocus in card.cpp')
+        self.assertIn('!(mgrabbed && mfocused->getref()->mfocus(x, y))', m.group(0))
+        source = read(os.path.join(ROOT, 'engine', 'src', 'mac-core.mm'))
+        m = re.search(r'^void MCMacPlatformHandleMouseMove\(.*?^}', source, re.M | re.S)
+        self.assertTrue(m, 'no MCMacPlatformHandleMouseMove in mac-core.mm')
+        self.assertIn('If the mouse is grabbed, the mouse window does not change', m.group(0))
+        m = re.search(r'^void MCPlatformGetMousePosition\(.*?^}', source, re.M | re.S)
+        self.assertTrue(m, 'no MCPlatformGetMousePosition in mac-core.mm')
+        self.assertIn('[NSEvent mouseLocation]', m.group(0))
+
+
 class TheIdeIsIdleBeforeADrag(unittest.TestCase):
     """The lesson's drag made no button on Windows (#532, run 43906149713),
     in the light and the dark run. Measured there (#537, run 43934646350):
