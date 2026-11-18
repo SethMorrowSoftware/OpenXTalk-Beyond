@@ -138,8 +138,14 @@ end addIcons
 
 -- Colours the stack script uses when it shows what happened, kept in the stack's custom
 -- properties so that it names none itself; and the code colours, the window's (the kit's)
+-- The colours of what happened are put on the stage, which is light in both looks (only
+-- the page around it follows the desktop): they are the light look's in both builds, so
+-- that the stack keeps one set. As the dark look's they were a dark panel under the
+-- stage's dark words, and white words on the white "not connected"
 private command setLooks
-   local tSky, tGood, tBad
+   local tSky, tGood, tBad, tDark
+   put lkDark() into tDark
+   lkSetDark false
    put lkColor("sky") into tSky
    put lkColor("emerald") into tGood
    put lkColor("rose") into tBad
@@ -162,6 +168,7 @@ private command setLooks
    set the cVennMid of this stack to lkMix("255,255,255", tSky, 0.3)
    set the cVennOff of this stack to lkMix("255,255,255", tSky, 0.08)
    set the cVennInk of this stack to lkColor("ink")
+   lkSetDark tDark
    set the cSqlWord of this stack to lkWordColor("put")
    set the cSqlType of this stack to lkWordColor("field")
    set the cSqlNumber of this stack to lkWordColor("1")
@@ -360,7 +367,8 @@ private command badge
    put lkBox("BadgeBg", lkR(758, 27, 884, 55), "255,255,255", 14, empty) into tObj
    lkBorder tObj, lkColor("line")
    get lkOval("BadgeDot", lkR(772, 37, 780, 45), lkColor("muted"), empty)
-   put lkLabel("Badge", lkR(786, 38, 880, 55), "Not connected", 12, lkColor("soft"), empty) into tObj
+   -- (its words are on the badge's white in both looks: the light look's grey)
+   put lkLabel("Badge", lkR(786, 38, 880, 55), "Not connected", 12, "71,85,105", empty) into tObj
    set the dontWrap of tObj to true
 end badge
 

@@ -52,7 +52,7 @@ What it clicks, and what must follow:
   Ray Casts        a click beside a body finds it (b2OverlapCircle)
   Terrain          a click above a body blasts it (b2WorldExplode)
   Wheels           the right arrow key drives the car
-  Back and Next    and the left and right arrow keys, between lessons
+  Back and Next    between lessons (the arrow keys turn no page)
 
 What a click must show has up to five seconds to reach the state file
 (click_until): the engine writes it when it is free to, and a state read
@@ -616,12 +616,15 @@ def keys(run):
     st = go_lesson(run, 2)
     st = run.wait_for(lambda s: s.get('card') == 'Bodies', 3)
     # (a click on the court's floor leaves the focus on the card)
+    # The arrow keys turn no page: they belong to the lesson (the Wheels
+    # card drives its car with them), and Back and Next do the paging.
+    # Each key has a moment to do what it must not
     run.key('Right', settle=0.8)
-    st = run.wait_for(lambda s: s.get('card') == 'Shapes', ANSWER)
-    run.check(st.get('card') == 'Shapes', 'the right arrow key goes to the next lesson', st.get('card', ''))
+    st = run.wait_for(lambda s: s.get('card') != 'Bodies', 1.5)
+    run.check(st.get('card') == 'Bodies', 'the right arrow key leaves the lesson where it is', st.get('card', ''))
     run.key('Left', settle=0.8)
-    st = run.wait_for(lambda s: s.get('card') == 'Bodies', ANSWER)
-    run.check(st.get('card') == 'Bodies', 'the left arrow key goes back', st.get('card', ''))
+    st = run.wait_for(lambda s: s.get('card') != 'Bodies', 1.5)
+    run.check(st.get('card') == 'Bodies', 'the left arrow key leaves the lesson where it is', st.get('card', ''))
     nxt = [r for a, r in table(st.get('actions')) if a == 'next']
     back = [r for a, r in table(st.get('actions')) if a == 'back' or a == 'prev']
     if run.check(bool(nxt) and bool(back), 'Back and Next are there'):

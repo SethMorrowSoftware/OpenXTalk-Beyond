@@ -38,7 +38,7 @@ The check starts its own X server (Xvfb) and runs a standalone engine
 which opens Home from the Toolset at its first page and reads:
 
   - the pages built as it opens: only the first;
-  - each page, shown by the right arrow key: built, and shown;
+  - each page, shown as Next shows it: built, and shown;
   - every page built once all have been shown;
   - Home in front: frames a second (at least 15: a computer that draws a
     frame quickly is not slowed);

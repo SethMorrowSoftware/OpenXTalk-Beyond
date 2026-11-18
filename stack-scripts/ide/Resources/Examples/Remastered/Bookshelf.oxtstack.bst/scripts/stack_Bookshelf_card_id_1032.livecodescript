@@ -158,8 +158,7 @@ command saveBook
    lock screen
    listBooks
    clearFields
-   -- (remaster) and back to reading, as when a book is chosen; the
-   -- typing stops, so the arrow keys go from page to page again
+   -- (remaster) and back to reading, as when a book is chosen
    lockFields
    set the enabled of group "Cancel" to false
    set the enabled of group "Save" to false

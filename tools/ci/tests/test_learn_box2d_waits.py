@@ -95,8 +95,10 @@ class Window:
     END = None
     ACTIONS = {'back': (700, 600, 760, 630), 'next': (800, 600, 860, 630), 'scripts': (900, 20, 980, 50)}
 
-    def __init__(self, module, clock, lag, mute=(), wheel=True, lose=0):
+    def __init__(self, module, clock, lag, mute=(), wheel=True, lose=0, paging=False):
         self.module, self.clock, self.lag = module, clock, lag
+        # (paging: the arrow keys turn its pages, as they did before 0.2.8-dp.2)
+        self.paging = paging
         self.mute, self.wheel, self.lose = set(mute), wheel, lose
         self.turns = 0
         self.cards = ['Start'] + module.LESSONS
@@ -130,9 +132,11 @@ class Window:
                     step = 3 * self.HEIGHT if what == 'wheel down' else -3 * self.HEIGHT
                     self.scroll = max(0, min(most, self.scroll + step))
             elif what == 'Right':
-                self.turn(1)
+                if self.paging:
+                    self.turn(1)
             elif what == 'Left':
-                self.turn(-1)
+                if self.paging:
+                    self.turn(-1)
             elif within(self.CALLS):
                 line = int((y - self.CALLS[1] - self.MARGIN + self.scroll) // self.HEIGHT)
                 if 0 <= line < len(NAMES):
@@ -263,15 +267,22 @@ class Waits(unittest.TestCase):
         self.assertEqual(st.get('drawer'), 'false')
         self.assertFalse(window.drawer)
 
-    def test_the_arrow_keys_and_back_and_next_shown_late(self):
+    def test_the_arrow_keys_turn_no_page_and_back_and_next_shown_late(self):
         module, clock, window, run = self.a_window(1.2)
         module.keys(run)
         self.assertEqual(run.results, [
-            (True, 'the right arrow key goes to the next lesson', 'Shapes'),
-            (True, 'the left arrow key goes back', 'Bodies'),
+            (True, 'the right arrow key leaves the lesson where it is', 'Bodies'),
+            (True, 'the left arrow key leaves the lesson where it is', 'Bodies'),
             (True, 'Back and Next are there', ''),
             (True, 'Next goes to the next lesson', 'Shapes'),
             (True, 'Back goes back', 'Bodies')])
+
+    def test_a_stack_whose_arrow_keys_still_turn_pages_fails(self):
+        # (late too: the key has its moment to do what it must not)
+        module, clock, window, run = self.a_window(1.2, paging=True)
+        module.keys(run)
+        self.assertEqual(run.results[0],
+                         (False, 'the right arrow key leaves the lesson where it is', 'Shapes'))
 
     # -- a click that does not work still fails
 

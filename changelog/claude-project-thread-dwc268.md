@@ -1,0 +1,8 @@
+- Examples: A Data Grid Tour's grids can be read in the dark look (their words were white on white rows) (#557)
+- Examples: A Tour of SQLite's hint bar and its "not connected" labels can be read in the dark look (#557)
+- Examples: SVG Lab's checkboxes no longer draw over the first letter of their labels on Linux (#557)
+- Home: the code sample on "Your first app" is no longer cut off on Linux (#557)
+- Academy: at the window's smallest size, a lesson's header keeps its reading time (#557)
+- Home, the Academy, How-to, Guides and the examples: the left and right arrow keys no longer turn the page (a key pressed after a click on a lesson, or meant for something else, took the reader off it); Back, Next and the list turn it, and a card built to play the arrow keys still hears them (#557)
+- Examples: in the Edit tool the arrow keys no longer nudge the controls an installed example was built with, so a click and a key cannot shift a lesson's layout; controls a reader adds, and a copy of an example saved elsewhere, are nudged as before (#557)
+- Tests: tools/ci/tests/test_ui_audit_dp2.py, and the arrow key checks of tools/ci/examples-check.livecodescript and the UI tour (#557)
