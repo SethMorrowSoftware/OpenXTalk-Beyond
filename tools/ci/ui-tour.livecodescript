@@ -6565,6 +6565,95 @@ function tourSelectedLineInk pStack, pWhat
    return empty
 end tourSelectedLineInk
 
+-- The text of the selected line of pStack's index (a field "idx" with a
+-- hilited line) is in the middle of the line's hilite, and the line is
+-- wholly in view: the rows of the line's picture that have text, as
+-- lighter or darker than the hilite as text is, have their middle within
+-- an eighth of the line's height of the line's own. Empty, or what is
+-- wrong. A name with no letter below the
+-- baseline has its middle a little above the font's; one set at the bottom
+-- of a line much taller than the font, as the engine sets it, is lower
+-- than that by half of what the line has more than the font (6 points of
+-- 30 in Community Stacks, a fifth).
+function tourSelectedLineMiddle pStack, pWhat
+   local tDefault, tLine, tRect, tHilite, tData, tW, tH, tAt, tX, tY, tFirst, tLast, tRGB, tOff, tAside, tError
+   local tTop, tBottom, tAbove, tFull, tScale, tProblems
+   put the defaultStack into tDefault
+   set the defaultStack to pStack
+   if there is not a field "idx" of this card or the hilitedLine of field "idx" of this card is empty then
+      set the defaultStack to tDefault
+      return pWhat && "has no index with a line selected"
+   end if
+   put the hilitedLine of field "idx" of this card into tLine
+   put the formattedRect of line tLine of field "idx" of this card into tRect
+   put the top of field "idx" of this card into tTop
+   put the bottom of field "idx" of this card into tBottom
+   if item 2 of tRect < tTop or item 4 of tRect > tBottom then
+      put pWhat & "'s selected index line (" & tLine & ") is not wholly in view: it is" && item 2 of tRect && "to" && item 4 of tRect && \
+            "and the index shows" && tTop && "to" && tBottom into tProblems
+   end if
+   -- (the line's height, and how much of it is above the part in view)
+   put item 4 of tRect - item 2 of tRect into tFull
+   put max(0, tTop - item 2 of tRect) into tAbove
+   put tourRGB(the hiliteColor of field "idx" of this card) into tHilite
+   put item 1 of the rect of stack pStack + the left of field "idx" of this card + item 1 of the margins of field "idx" of this card, \
+         item 2 of the rect of stack pStack + max(tTop, item 2 of tRect), \
+         item 1 of the rect of stack pStack + the right of field "idx" of this card - 16, \
+         item 2 of the rect of stack pStack + min(tBottom, item 4 of tRect) into tRect
+   set the defaultStack to tDefault
+   if item 4 of tRect <= item 2 of tRect then
+      return tProblems
+   end if
+   tourUnlockScreen "the selected line of" && pWhat
+   put tourToolsAside(tRect) into tAside
+   try
+      export snapshot from rect tRect to tData as PNG
+   catch tError
+   end try
+   if tAside then tourToolsBack
+   if tError is not empty then throw tError
+   lock messages
+   create invisible image "oxt_tour_probe" in card 1 of stack "oxt_ui_tour"
+   set the text of image "oxt_tour_probe" of stack "oxt_ui_tour" to tData
+   put the width of image "oxt_tour_probe" of stack "oxt_ui_tour" into tW
+   put the height of image "oxt_tour_probe" of stack "oxt_ui_tour" into tH
+   put the imageData of image "oxt_tour_probe" of stack "oxt_ui_tour" into tData
+   delete image "oxt_tour_probe" of stack "oxt_ui_tour"
+   unlock messages
+   repeat with tY = 0 to tH - 1
+      repeat with tX = 0 to tW - 1
+         put (tY * tW + tX) * 4 into tAt
+         put byteToNum(byte tAt + 2 of tData) & comma & byteToNum(byte tAt + 3 of tData) & comma & byteToNum(byte tAt + 4 of tData) into tRGB
+         if tourContrast(tRGB, tHilite) >= 3 then
+            if tFirst is empty then put tY into tFirst
+            put tY into tLast
+            exit repeat
+         end if
+      end repeat
+   end repeat
+   if tFirst is empty then
+      if tProblems is not empty then put "; " after tProblems
+      return tProblems & pWhat & "'s selected index line (" & tLine & ") shows no text on its hilite" && tHilite
+   end if
+   -- (the picture's rows for a point of the stack: 1, or a screen's scale;
+   -- then how far the text's middle is below the line's, in points)
+   put tH / (item 4 of tRect - item 2 of tRect) into tScale
+   put (tFirst + tLast + 1) / 2 / tScale + tAbove - tFull / 2 into tOff
+   tourRecord "INFO" && pWhat & "'s selected index line (" & tLine & "): text in rows" && tFirst && "to" && tLast && "of" && tH & \
+         ", its middle" && round(tOff, 1) && "below the middle of the line's" && tFull
+   if abs(tOff) > tFull / 8 then
+      if tProblems is not empty then put "; " after tProblems
+      if tOff > 0 then
+         put pWhat & "'s selected index line has its text low in the hilite: its middle is" && round(tOff, 1) && \
+               "below the middle of the line's" && tFull after tProblems
+      else
+         put pWhat & "'s selected index line has its text high in the hilite: its middle is" && round(- tOff, 1) && \
+               "above the middle of the line's" && tFull after tProblems
+      end if
+   end if
+   return tProblems
+end tourSelectedLineMiddle
+
 -- The Handlers button above the script opens the list of its handlers,
 -- which takes the focus, and so took the script's selection away; closed
 -- with no handler picked, the list puts the selection back (tperry2x,
@@ -9991,6 +10080,7 @@ global gTourCommunityRan
 on tour_community_stacks
    local tFolder, tSite, tCopies, tHave, tPublic, tSecret, tKey, tError, tWin, tIndex, tStack, tZip, tNotes, tEntries, tSlug, tTitle
    local tLine, tSig, tEntry, tMain, tResult, tTool, tOut, tToolset, tInstalled, tWait
+   local tFirstEntry, tLong, tLongSig, tMore, tCount
    put "revCommunityStacks" into tWin
    put empty into sCommunityNotes
    put empty into gTourCommunityRan
@@ -10074,6 +10164,7 @@ on tour_community_stacks
                quote & "size" & quote & ":" & the number of bytes of tZip & "," & quote & "files" & quote & ":[{" & \
                tourCsPair("path", tTitle & ".oxtstack") & "," & tourCsPair("sha256", tourCsSha(tStack)) & "," & \
                quote & "size" & quote & ":" & the number of bytes of tStack & "}]}]}" after tEntries
+         if tFirstEntry is empty then put tEntries into tFirstEntry
          set the itemDelimiter to comma
       end repeat
       put textEncode("{" & quote & "format" & quote & ":1," & tourCsPair("name", "Tour Gallery") & "," & \
@@ -10125,6 +10216,13 @@ on tour_community_stacks
             throw "with a stack in front, the buttons are not Play in Browser, Read Its Scripts and Get a Copy"
          end if
          tourWait 400
+         -- The name of the stack in front is in the middle of its line,
+         -- and so of the hilite: the engine sets a line's text at the
+         -- bottom of the line, and 14 point names in 30 point lines were
+         -- 6 points low (bwmilby on the forum, with 0.2.8-dp.2's first
+         -- builds, on macOS and Linux)
+         get tourSelectedLineMiddle(tWin, "Community Stacks")
+         if it is not empty then throw it
          tourShotStack tWin, "24c6-community-stacks"
 
          -- The search finds a stack by what it does
@@ -10184,6 +10282,56 @@ on tour_community_stacks
          if not (the result begins with "error:") or there is a folder (tCopies & "/tour-beat-box-1.0") then
             throw "a download that was changed was kept:" && the result
          end if
+
+         -- A gallery with more stacks than the index shows at once: the
+         -- last one's name comes wholly into view, at the end of the
+         -- scroll and as the stack in front. The engine stops a field's
+         -- scroll 12 points short of its text and margins; with margins
+         -- of 2 the last line's lower 6 points stayed below the field
+         -- (bwmilby on the forum, with 0.2.8-dp.2's first builds)
+         put empty into field "search" of stack tWin
+         dispatch "textChanged" to field "search" of stack tWin
+         put tEntries into tLong
+         repeat with tCount = 1 to 21
+            put tFirstEntry into tMore
+            replace "tour-beat-box" with "tour-more-" & tCount in tMore
+            replace "Tour Beat Box" with "Tour More" && tCount in tMore
+            put "," & tMore after tLong
+         end repeat
+         put textEncode("{" & quote & "format" & quote & ":1," & tourCsPair("name", "Tour Gallery") & "," & \
+               quote & "stacks" & quote & ":[" & tLong & "]}" & return, "utf-8") into tLong
+         put tLong into url ("binfile:" & tSite & "/index.json")
+         put base64Encode(sxSignDetached(tLong, tSecret)) into tLongSig
+         replace return with empty in tLongSig
+         put tLongSig & return into url ("binfile:" & tSite & "/index.sig")
+         send "lkAction again" to stack tWin
+         tourCsWait tWin
+         dispatch function "revCommunityStacksState" to stack tWin
+         if the result is not "list" or the number of lines of field "idx" of stack tWin is not 24 then
+            throw "the list of 24 stacks was not shown:" && the number of lines of field "idx" of stack tWin && "lines," && \
+                  tourJoin(the text of field "page" of stack tWin)
+         end if
+         if the formattedHeight of field "idx" of stack tWin <= the height of field "idx" of stack tWin then
+            throw "24 stacks fit the index (" & the formattedHeight of field "idx" of stack tWin && "of" && \
+                  the height of field "idx" of stack tWin & "): the tour's list is too short to scroll"
+         end if
+         set the vScroll of field "idx" of stack tWin to 30000
+         tourCsLastLine tWin, "at the end of the scroll"
+         set the vScroll of field "idx" of stack tWin to 0
+         -- (a click on the last line, as the index takes one)
+         set the hilitedLine of field "idx" of stack tWin to 24
+         dispatch "mouseUp" to field "idx" of stack tWin with 1
+         tourWait 600
+         if field "hdrTitle" of stack tWin is not "Tour More 21" then
+            throw "the last stack of 24, clicked, is not in front:" && field "hdrTitle" of stack tWin
+         end if
+         tourCsLastLine tWin, "with the last stack in front"
+         get tourSelectedLineMiddle(tWin, "Community Stacks")
+         if it is not empty then throw it
+         tourShotStack tWin, "24c10-community-stacks-long"
+         -- (the list of three and its signature again, for what follows)
+         put tIndex into url ("binfile:" & tSite & "/index.json")
+         put tSig & return into url ("binfile:" & tSite & "/index.sig")
 
          -- A list changed after it was signed is refused
          close stack tWin
@@ -10261,6 +10409,22 @@ private command tourCsWhole pWin, pField
             "pixels on one line and has" && tHas & ": its last words are cut"
    end if
 end tourCsWhole
+
+-- The last line of the window's index is wholly in view: none of it above
+-- the field's top or below its bottom
+private command tourCsLastLine pWin, pWhen
+   local tRect, tTop, tBottom
+   put the formattedRect of line -1 of field "idx" of stack pWin into tRect
+   put the top of field "idx" of stack pWin into tTop
+   put the bottom of field "idx" of stack pWin into tBottom
+   tourRecord "INFO community-stacks: the last line of" && the number of lines of field "idx" of stack pWin && pWhen & ":" && \
+         item 2 of tRect && "to" && item 4 of tRect && "in the index's" && tTop && "to" && tBottom & ", scroll" && \
+         the vScroll of field "idx" of stack pWin
+   if item 2 of tRect < tTop or item 4 of tRect > tBottom then
+      throw "the last stack of the index is cut" && pWhen & ": its line is" && item 2 of tRect && "to" && item 4 of tRect && \
+            "and the index shows" && tTop && "to" && tBottom && "(scroll" && the vScroll of field "idx" of stack pWin & ")"
+   end if
+end tourCsLastLine
 
 -- Waits for the window to have asked its site, at most ten seconds
 private command tourCsWait pWin
