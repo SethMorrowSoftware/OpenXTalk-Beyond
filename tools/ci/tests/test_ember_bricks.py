@@ -1281,6 +1281,44 @@ class EngineTests(unittest.TestCase):
         self.assertLess(check.index('TestSkip tAt'), check.index('TestAssert'))
         self.assertIn('checkLayout the width of stack kStack, the height of stack kStack, empty', tests)
 
+    def test_a_hidden_pointer_is_asked_only_where_the_game_hides_one(self):
+        # the tests of the game run in a phone's app too, where the game
+        # hides no pointer (ebPointerHides: sPlatform is "mobile"): the
+        # six tests that told it of a mouse and looked for a hidden
+        # pointer failed there with both Android engines. Each is skipped
+        # on a phone or a tablet and nowhere else, no other test is, and
+        # one test says what the game does there
+        tests = read('tests', 'lcs', 'webplayer', 'ember-bricks.livecodescript')
+        hides = '\n'.join(code for number, code in script_handlers(game_script())['ebPointerHides'][1])
+        self.assertIn('sPlatform is ""', hides)
+        self.assertIn('or sPlatform is "mobile" or', game_script())
+
+        def body(name):
+            start = tests.index('\non %s\n' % name)
+            return [line.strip() for line in tests[start:tests.index('\nend %s\n' % name, start)].split('\n')[2:]
+                    if line.strip()]
+
+        skip = tests[tests.index('\nprivate function noPointerToHide pWhat\n'):tests.index('\nend noPointerToHide\n')]
+        self.assertEqual([line.strip() for line in skip.split('\n')[2:]],
+                         ['if st("platform") is not "mobile" then', 'return false', 'end if',
+                          'TestSkip pWhat, "on a phone or a tablet the game hides no pointer"', 'return true'])
+        looking = [name for name in re.findall(r'(?m)^on (Test\w+)$', tests) if 'pointerHidden()' in ' '.join(body(name))]
+        self.assertEqual(len(looking), 6, looking)
+        for name in looking:
+            lines = [line for line in body(name) if not line.startswith('local ')]
+            self.assertRegex(lines[0], r'^if noPointerToHide\("[^"]+"\) then$', name)
+            self.assertEqual(lines[1:3], ['exit %s' % name, 'end if'], name)
+        self.assertEqual(len(re.findall(r'\bnoPointerToHide\(', tests)), 6)
+        phone = body('TestAPhoneOrATabletHidesNoPointer')
+        self.assertEqual(phone[:4], ['if st("platform") is not "mobile" then',
+                                     'TestSkip "a mouse on a phone or a tablet", "this is not a phone or a tablet"',
+                                     'exit TestAPhoneOrATabletHidesNoPointer', 'end if'])
+        self.assertIn('game "ebTestSet", "pointer", "mouse"', phone)
+        self.assertEqual(len([line for line in phone if line.startswith('TestAssert ') and 'pointerShown()' in line]), 3)
+        # (a finger's test runs everywhere: it is not about the platform)
+        self.assertNotIn('noPointerToHide', ' '.join(body('TestAFingerHasNoPointerToHide')))
+        self.assertNotIn('"mobile"', ' '.join(body('TestAFingerHasNoPointerToHide')))
+
     def test_no_description_of_a_test_starts_with_a_digit(self):
         # the test runner refuses one that does
         tests = read('tests', 'lcs', 'webplayer', 'ember-bricks.livecodescript')
