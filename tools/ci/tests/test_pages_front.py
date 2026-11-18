@@ -30,6 +30,7 @@ reads the same page in a browser.
 import html.parser
 import io
 import itertools
+import json
 import os
 import re
 import shutil
@@ -163,6 +164,26 @@ class TheTemplate(unittest.TestCase):
         self.assertNotRegex(self.text, r'url\(\s*["\']?(https?:)?//')
         self.assertNotRegex(self.text, r'@import')
 
+
+    def test_what_search_engines_read(self):
+        # The front page is where people download OXT-Beyond, so its title,
+        # description and structured data say what OXT-Beyond is, not only
+        # that it runs in a browser; the structured data parses, names no
+        # version (build_pages.py fills those in elsewhere, and a hand-copied
+        # one goes stale) and leads to the source and openxtalk.org's page
+        title = re.search(r'<title>([^<]*)</title>', self.text).group(1)
+        self.assertIn('xTalk', title)
+        description = re.search(r'<meta name="description" content="([^"]*)">', self.text).group(1)
+        for word in ('free, open source', 'HyperCard', 'Android', 'browser'):
+            self.assertIn(word, description)
+        blocks = re.findall(r'<script type="application/ld\+json">(.*?)</script>', self.text, re.S)
+        self.assertEqual(len(blocks), 1)
+        data = json.loads(blocks[0])
+        self.assertEqual((data['@type'], data['name']), ('SoftwareApplication', 'OXT-Beyond'))
+        self.assertEqual(data['offers']['price'], '0')
+        self.assertNotIn('softwareVersion', data)
+        self.assertIn('https://github.com/SethMorrowSoftware/OpenXTalk-Beyond', data['sameAs'])
+        self.assertIn('https://openxtalk.org/engines/oxt-beyond.html', data['sameAs'])
 
     def test_the_logo(self):
         # The logo in the hero, still and moving (the moving one for the
@@ -302,7 +323,9 @@ class StillAtRest(unittest.TestCase):
         self.assertIn(('.opening .hero-logo .still, .scene:hover .hero-logo .still', ' display: none; '), rules)
         self.assertIn(('.scene:has(:focus-visible) .hero-logo .moving', ' display: block; '), rules)
         self.assertIn(('.scene:has(:focus-visible) .hero-logo .still', ' display: none; '), rules)
-        script = self.text[self.text.index('<script>'):self.text.index('</script>')]
+        # (its own script: the structured data in the head is a <script> too)
+        start = self.text.index('<script>')
+        script = self.text[start:self.text.index('</script>', start)]
         self.assertIn("root.classList.add('opening');", script)
         self.assertIn("setTimeout(function () { root.classList.remove('opening'); }, 6000);", script)
         self.assertNotIn('class="opening"', self.text)
