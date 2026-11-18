@@ -293,6 +293,7 @@ private command androidUnits
    unitRelaunch tWork
    unitEdgeToEdge tWork
    unitAdaptiveIcon tWork
+   unitDocumentTypes
    unitEngine
    unitFirstTargetEngine
    unitAppBundle tWork
@@ -483,6 +484,50 @@ private command unitRelaunch pWork
    androidUnit "relaunch-declared", tAnswer is tWanted, tAnswer
    removeTree tRuntime
 end unitRelaunch
+
+-- An app that opens documents (its "android,documentTypes" setting): the
+-- manifest's activity gets one filter that offers it for content and file
+-- addresses of each kind listed, once each, by lines or commas; a stack
+-- without the setting, or with an empty one, gets nothing (its manifest
+-- is as it was); and what is no MIME type stops the build, and never
+-- reaches the manifest
+private command unitDocumentTypes
+   local tSettings, tAnswer, tError, tWanted, tBad
+   androidUnit "documents-not-asked", builderCall("androidDocumentFilter", tSettings) is empty, \
+         builderCall("androidDocumentFilter", tSettings)
+   put return & "  ," & return into tSettings["android,documentTypes"]
+   androidUnit "documents-empty", builderCall("androidDocumentFilter", tSettings) is empty, \
+         builderCall("androidDocumentFilter", tSettings)
+   put "application/octet-stream" & return & " application/zip , image/*" & return & "application/zip" \
+         into tSettings["android,documentTypes"]
+   put builderCall("androidDocumentFilter", tSettings) into tAnswer
+   put "<intent-filter>" & \
+         "<action android:name=" & quote & "android.intent.action.VIEW" & quote & " />" & \
+         "<category android:name=" & quote & "android.intent.category.DEFAULT" & quote & " />" & \
+         "<category android:name=" & quote & "android.intent.category.BROWSABLE" & quote & " />" & \
+         "<data android:scheme=" & quote & "content" & quote & " />" & \
+         "<data android:scheme=" & quote & "file" & quote & " />" & \
+         "<data android:mimeType=" & quote & "application/octet-stream" & quote & " />" & \
+         "<data android:mimeType=" & quote & "application/zip" & quote & " />" & \
+         "<data android:mimeType=" & quote & "image/*" & quote & " />" & \
+         "</intent-filter>" into tWanted
+   androidUnit "documents-asked", tAnswer is tWanted, tAnswer
+   put "*/*" into tSettings["android,documentTypes"]
+   androidUnit "documents-any", builderCall("androidDocumentFilter", tSettings) contains \
+         ("<data android:mimeType=" & quote & "*/*" & quote & " />"), builderCall("androidDocumentFilter", tSettings)
+   repeat for each line tBad in "zip" & return & "application/zip" & quote & " /><evil" & return & \
+         "text/plain; charset=utf-8" & return & "/zip" & return & "a/b/c"
+      put tBad into tSettings["android,documentTypes"]
+      put empty into tError
+      put empty into tAnswer
+      try
+         put builderCall("androidDocumentFilter", tSettings) into tAnswer
+      catch tError
+      end try
+      androidUnit "documents-refused-" & the number of chars in tBad, tAnswer is empty and \
+            tError contains "is no kind of document", "answered" && tAnswer & ", threw" && tError
+   end repeat
+end unitDocumentTypes
 
 -- A stack drawn edge to edge (its "android,edge to edge" setting): the
 -- manifest asks the Java layer for it with one meta-data of the
