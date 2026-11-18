@@ -213,6 +213,11 @@ local sPort, sClients, sInfoFile, sAssistantFolder, sAsker
 local sLoadedCore, sLoadedBuild
 -- True while a tool runs; the tool, and when it began (the seconds)
 local sBusy, sBusyTool, sBusySince
+-- The id of the call that set sBusy, and the socket it came on (empty
+-- for one from the web IDE's link): a call whose code left every handler
+-- with exit to top never comes back to clear sBusy, and is answered for
+-- (mcbEndAbandonedCall)
+local sBusyId, sBusySocket
 -- What the user is being asked now (the title of the question), and since
 -- when, empty while nothing is asked: what a status, and a call refused
 -- as busy, are told the bridge waits for
@@ -768,6 +773,7 @@ private function mcbAnswerLine pLine, pFromLink
          or not mcbIsToken(xtaJsonText(xtaJsonMember(tRequest, "token")))) then
       return mcbRefusal(tId, "The token is not the bridge's. Turn the bridge off and on again in " & mcbHostName() & ", then try again.")
    end if
+   mcbEndAbandonedCall
    put xtaJsonText(xtaJsonMember(tRequest, "method")) into tMethod
    if tMethod is "hello" then
       return "{" & mcbJsonString("id") & ":" & tId & "," & mcbJsonString("ok") & ":true," & \
@@ -819,6 +825,12 @@ private function mcbAnswerLine pLine, pFromLink
       put true into sBusy
       put tTool into sBusyTool
       put the seconds into sBusySince
+      put tId into sBusyId
+      if pFromLink is true then
+         put empty into sBusySocket
+      else
+         put sRequestSocket into sBusySocket
+      end if
       try
          put mcbCallTool(tTool, tArguments) into tResult
       catch tError
@@ -844,6 +856,45 @@ end mcbAnswerLine
 -- numbers) and text without regard to case: a letter before each makes
 -- both text, and the caseSensitive, which is this handler's own, makes the
 -- case count.
+-- A call that set sBusy and is no longer being carried out: code it ran
+-- (a run's, or a handler the run called, such as the IDE's arrow keys
+-- in the Edit tool) left every handler with exit to top, its own and
+-- the bridge's that waited for it too, so it never came back to clear
+-- sBusy, and every later call was refused as busy until the bridge was
+-- turned off. While a call is carried out (or waits for the user, or
+-- for a run), mcbCallTool is in the executionContexts, under the handler
+-- that answers this request; where it is not, the call has ended. It is
+-- answered for, on its socket, as having ended without a word back, and
+-- the bridge goes on.
+private command mcbEndAbandonedCall
+   local tContexts, tLine, tReply, tSocket, tError
+   if sBusy is not true then
+      exit mcbEndAbandonedCall
+   end if
+   put the executionContexts into tContexts
+   set the itemDelimiter to comma
+   repeat for each line tLine in tContexts
+      if item -2 of tLine is "mcbCallTool" then
+         exit mcbEndAbandonedCall
+      end if
+   end repeat
+   put "{" & mcbJsonString("id") & ":" & sBusyId & "," & mcbJsonString("ok") & ":true," &          mcbJsonString("isError") & ":true," &          mcbJsonString("text") & ":" & mcbJsonString(sBusyTool && "ended without a word back to the bridge: its code, or a handler it called, " &          "left every handler with exit to top. What it did before that is done; there is no result to give.") & "}" into tReply
+   put sBusySocket into tSocket
+   put false into sBusy
+   put empty into sBusyTool
+   put empty into sBusyId
+   put empty into sBusySocket
+   -- (its socket's answer, and its socket read again, as mcbLineRead
+   -- would have done)
+   if tSocket is not empty and tSocket is among the lines of sClients then
+      try
+         write textEncode(tReply & numToChar(10), "UTF-8") to socket tSocket
+         read from socket tSocket until numToChar(10) with message "mcbLineRead"
+      catch tError
+      end try
+   end if
+end mcbEndAbandonedCall
+
 private function mcbIsToken pText
    set the caseSensitive to true
    return ("t" & pText) is ("t" & sToken)
@@ -3118,8 +3169,15 @@ private function mcbUndo pEntry, pAsk, pForUser
    end if
    put xtaBuildUndo(pEntry, false) into tUndone
    if tUndone["ok"] is not true and tUndone["changed"] is not empty then
-      if not pAsk or not mcbAsk("Undo what Claude changed?", "Since then, this was changed:" & return & tUndone["changed"] & return & return & \
-            "Undoing puts it back as it was before Claude's change.", "Undo") then
+      -- (the question says which change, that the later ones go with it,
+      -- what else would be lost, and what each button does: "this was
+      -- changed" with Cancel and Undo left the user to guess)
+      if not pAsk or not mcbAsk("Undo Claude's change " & pEntry & " and those after it?", \
+            "Claude asks to take back its change " & pEntry & " to this stack, and every change after it there, " & \
+            "so that the stack is as it was before them." & return & return & \
+            "Something there was changed since then, and undoing takes that back too:" & return & tUndone["changed"] & return & return & \
+            "Undo: put it all back as it was before change " & pEntry & "." & return & \
+            "Cancel: keep the stack as it is now. Nothing is undone.", "Undo") then
          put false into tResult["ok"]
          if pForUser then
             put "Nothing was undone." into tResult["text"]

@@ -277,6 +277,8 @@ on TestUndoAsksWhenTheUserChangedIt
    put TestCall("undo_changes") into tReply
    TestAssert "the user is asked, says no, and nothing is undone", TestIsError(tReply) and the title of tStack is "The user's" \
          and mcbTestAsked() contains "Undo"
+   TestAssert "the question names the change, and says what Undo and Cancel do", mcbTestAsked() contains "Undo Claude's change 1" \
+         and mcbTestAskedDetails() contains "Cancel: keep the stack as it is now" and mcbTestAskedDetails() contains "Undo: put it all back"
    dispatch "mcbTestSetAnswer" to stack "mcbTestIDE" with true
    put TestCall("undo_changes") into tReply
    TestAssert "says yes, and it is undone", not TestIsError(tReply) and the title of tStack is empty
@@ -1206,6 +1208,42 @@ on TestNothingPausedAndNoDialog
    put TestCall("answer_dialog", "{`button`:`OK`}") into tReply
    TestAssert "no dialog to answer", TestIsError(tReply) and TestText(tReply) contains "No dialog is open"
 end TestNothingPausedAndNoDialog
+
+-- A run whose code leaves every handler with exit to top (as the IDE's
+-- arrow keys do in the Edit tool, after a nudge) never comes back to the
+-- bridge: before, every later call was refused as busy until the bridge
+-- was turned off. Now the next request finds the call ended, answers it
+-- on its socket, and is carried out itself.
+on TestACallThatExitsToTopIsAnsweredFor
+   local tSocket, tStart, tReply
+   TestStart
+   mcbSetUnasked true
+   put "127.0.0.1:" & mcbServerPort() into tSocket
+   open socket to tSocket
+   write textEncode("{" & quote & "id" & quote & ":9," & quote & "token" & quote & ":" & quote & TestToken() & quote & "," &          quote & "method" & quote & ":" & quote & "call" & quote & "," & quote & "tool" & quote & ":" & quote & "run_code" & quote & "," &          quote & "arguments" & quote & ":{" & quote & "code" & quote & ":" & quote & "exit to top" & quote & "}}" & numToChar(10), "UTF-8") to socket tSocket
+   put empty into sReply
+   read from socket tSocket until numToChar(10) with message "TestReplyRead"
+   -- (the run is carried out, and leaves its socket's handler with it)
+   put the milliseconds into tStart
+   repeat while the milliseconds - tStart < 1500
+      wait 20 milliseconds with messages
+   end repeat
+   TestAssert "the run gave no answer of its own", sReply is empty
+   put TestCall("list_stacks") into tReply
+   TestDiagnostic xtaJsonText(xtaJsonMember(tReply, "error"))
+   TestAssert "the next call is carried out, not refused as busy", xtaJsonText(xtaJsonMember(tReply, "ok")) is "true"
+   put the milliseconds into tStart
+   repeat while sReply is empty and the milliseconds - tStart < 10000
+      wait 20 milliseconds with messages
+   end repeat
+   TestDiagnostic sReply
+   put xtaJsonParse(line 1 of textDecode(sReply, "UTF-8")) into tReply
+   TestAssert "the run that ended is answered for, on its socket", xtaJsonText(xtaJsonMember(tReply, "id")) is "9"          and xtaJsonText(xtaJsonMember(tReply, "isError")) is "true" and TestText(tReply) contains "exit to top"
+   put xtaJsonParse(mcbHandleLine(TestRequestLine("status"))) into tReply
+   TestAssert "and the bridge is not busy", TestText(tReply) contains "not busy"
+   mcbSetUnasked false
+   close socket tSocket
+end TestACallThatExitsToTopIsAnsweredFor
 
 -- A stack imported from HyperCard names its controls as HyperCard did
 -- (hcAddressing): "card button", "bkgnd field". They are buttons and
