@@ -114,6 +114,37 @@ class MainArgs(unittest.TestCase):
         self.assertRegex(rev, r'#if defined\(__linux__\)\n\tCefRefPtr<CefApp> t_app = new MCRevBrowserCefApp\(\);\n'
                               r'#else\n\tCefRefPtr<CefApp> t_app = nil;\n#endif')
 
+    def test_chromium_is_told_x11_whatever_the_session_is_named(self):
+        # Where XDG_SESSION_TYPE is "wayland" Chromium takes Wayland for
+        # its own windows unless it is told a platform; the engine is an
+        # X11 program there too, and its browser is the child of a stack's
+        # X window (test_browser_wayland_session.py: what the Linux build
+        # runs in such a session)
+        for path in ('libbrowser/src/libbrowser_cef.cpp', 'revbrowser/src/cefbrowser.cpp'):
+            text = read(os.path.join(REPO, *path.split('/')))
+            self.assertRegex(text, r'if \(!p_command_line->HasSwitch\(kOzonePlatform\)\)\n\t+'
+                                   r'p_command_line->AppendSwitchWithValue\(kOzonePlatform, "x11"\);', path)
+            self.assertIn('static const char kOzonePlatform[] = "ozone-platform";', text, path)
+        lib = read(os.path.join(REPO, 'libbrowser', 'src', 'libbrowser_cef.cpp'))
+        # in the browser process's own command line, before Chromium chooses
+        # (it hands its choice on to the child processes itself), on Linux alone
+        m = re.search(r'void OnBeforeCommandLineProcessing\(.*?\n\t\}\n', lib, re.S)
+        self.assertIsNotNone(m)
+        self.assertRegex(m.group(0), r'#if defined\(TARGET_PLATFORM_LINUX\)\n(?:\t\t\w+\(p_command_line\);\n)*'
+                                     r'\t\tAppendLinuxOzonePlatform\(p_command_line\);\n'
+                                     r'(?:\t\t\w+\(p_command_line\);\n)*#endif\n')
+        self.assertEqual(lib.count('AppendLinuxOzonePlatform(p_command_line);'), 1)
+        m = re.search(r'#if defined\(TARGET_PLATFORM_LINUX\)\n\t// OXT-Beyond: \[\[ CEF 156 \]\] The engine is a GTK 2 '
+                      r'program\..*?\n#endif\n', lib, re.S)
+        self.assertIsNotNone(m)
+        self.assertIn('static void AppendLinuxOzonePlatform(CefRefPtr<CefCommandLine> p_command_line)', m.group(0))
+        rev = read(os.path.join(REPO, 'revbrowser', 'src', 'cefbrowser.cpp'))
+        # revBrowser starts CEF itself where it is the first to make a browser
+        m = re.search(r'#if defined\(__linux__\)\n// OXT-Beyond: \[\[ CEF 156 \]\].*?class MCRevBrowserCefApp : public CefApp\n'
+                      r'.*?\n\};\n#endif\n', rev, re.S)
+        self.assertIsNotNone(m)
+        self.assertIn('p_command_line->AppendSwitchWithValue(kOzonePlatform, "x11");', m.group(0))
+
 
 class RevBrowserAsCef74(unittest.TestCase):
     """What revBrowser sends and reports where CEF 156 differs from CEF 74;

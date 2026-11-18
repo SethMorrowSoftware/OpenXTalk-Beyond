@@ -316,6 +316,7 @@ public:
 #if defined(TARGET_PLATFORM_LINUX)
 		AppendDeviceScaleFactor(p_command_line);
 		AppendLinuxUiToolkit(p_command_line);
+		AppendLinuxOzonePlatform(p_command_line);
 #endif
 	}
 	
@@ -331,6 +332,26 @@ public:
 		static const char kUiToolkit[] = "ui-toolkit";
 		if (!p_command_line->HasSwitch(kUiToolkit))
 			p_command_line->AppendSwitchWithValue(kUiToolkit, "fallback");
+	}
+	
+	// OXT-Beyond: [[ CEF 156 ]] The engine is an X11 program, in a Wayland
+	// session too (there its windows are Xwayland's), and a browser is the
+	// child of a stack's X window. Chromium chooses the platform of its own
+	// windows by the session's name: where XDG_SESSION_TYPE is "wayland" it
+	// takes Wayland unless it is told a platform (Chromium's
+	// ui/linux/display_server_utils.cc, SetOzonePlatformForLinuxIfNeeded),
+	// and a Wayland window cannot be the child of an X window (CEF issue
+	// 2804). With CEF 156 before this, in a Weston and in a Mutter session,
+	// Chromium made no X window in CEF's window of the stack, and with the
+	// session's name alone on an X display no browser was made at all
+	// (tools/ci/media_check.py --session runs both). CEF 74 had X11 alone.
+	// The browser process's choice goes to its child processes with
+	// Chromium's own switches. An ozone-platform already given is kept.
+	static void AppendLinuxOzonePlatform(CefRefPtr<CefCommandLine> p_command_line)
+	{
+		static const char kOzonePlatform[] = "ozone-platform";
+		if (!p_command_line->HasSwitch(kOzonePlatform))
+			p_command_line->AppendSwitchWithValue(kOzonePlatform, "x11");
 	}
 	
 	// OXT-Beyond: [[ HiDPI ]] CEF on Linux takes no scale from the desktop (a
