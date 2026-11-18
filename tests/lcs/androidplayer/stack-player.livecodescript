@@ -31,23 +31,34 @@ private function fileText pPath
    return textDecode(url ("binfile:" & pPath), "UTF-8")
 end fileText
 
-private function scriptOf pName
+-- The paths are whole and literal where they are read: the runners of
+-- the Android and web test suites find the checkout's files that tests
+-- read by them (TestGetEngineRepositoryPath() & "/<path>")
+private function scriptOf pPath
    local tScript
-   put fileText(TestGetEngineRepositoryPath() & "/tools/android-player/" & pName) into tScript
+   put fileText(pPath) into tScript
    if line 1 of tScript begins with "script " then
       delete line 1 of tScript
    end if
    return tScript
 end scriptOf
 
+private function playerScript
+   return scriptOf(TestGetEngineRepositoryPath() & "/tools/android-player/stack-player.livecodescript")
+end playerScript
+
+private function backScript
+   return scriptOf(TestGetEngineRepositoryPath() & "/tools/android-player/stack-player-back.livecodescript")
+end backScript
+
 on TestSetup
    put the tempName & "-player" into sWork
    create folder sWork
    create invisible stack kPlayer
    set the rect of stack kPlayer to 0,0,360,640
-   set the script of stack kPlayer to scriptOf("stack-player.livecodescript")
+   set the script of stack kPlayer to playerScript()
    set the cScriptErrors of stack kPlayer to the scriptExecutionErrors
-   dispatch "playerMake" to stack kPlayer with scriptOf("stack-player-back.livecodescript")
+   dispatch "playerMake" to stack kPlayer with backScript()
    dispatch "playerSetLibraryFolder" to stack kPlayer with sWork & "/library"
    -- as the player's openStack does in the app
    insert the script of button "Player Back Script" of stack kPlayer into back
