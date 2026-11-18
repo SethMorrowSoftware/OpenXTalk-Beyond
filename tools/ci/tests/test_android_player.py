@@ -148,6 +148,17 @@ class DeviceLines(unittest.TestCase):
         self.assertIsNone(bp.node_centre(xml, 'Missing.oxtstack'))
         self.assertIsNone(bp.node_centre('ERROR: could not get idle state.', 'Downloads'))
 
+    def test_what_android_refused(self):
+        log = ('11-18 22:37:43.100  1234  1250 W UriGrantsManagerService: For security reasons, the system cannot '
+               'issue a Uri permission grant to content://x\n'
+               '11-18 22:37:43.200  4321  4400 I OXT     : OXT Stack Player: taking content\n'
+               '11-18 22:37:43.300  4321  4400 W System.err: java.lang.SecurityException: Permission Denial: reading\n')
+        got = bp.refusals(log)
+        self.assertEqual(len(got), 2)
+        self.assertTrue(got[0].startswith('W UriGrantsManagerService: For security reasons'))
+        self.assertTrue(got[1].startswith('W System.err: java.lang.SecurityException'))
+        self.assertEqual(bp.refusals('11-18 22:37:43.200  4321  4400 I OXT     : fine\n'), [])
+
     def test_the_documents_address(self):
         self.assertEqual(bp.document_address('PlayerSample.oxtstack'),
                          'content://com.android.externalstorage.documents/document/primary%3ADownload%2FPlayerSample.oxtstack')

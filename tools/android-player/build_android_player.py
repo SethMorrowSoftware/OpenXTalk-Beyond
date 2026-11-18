@@ -279,6 +279,16 @@ def said(logcat, pattern=SAYS):
     return [m.group(1) for m in (pattern.search(line) for line in logcat.splitlines()) if m]
 
 
+def refusals(logcat):
+    """The lines of a log in which Android refuses to let a document be
+    read, without their dates."""
+    out = []
+    for line in logcat.splitlines():
+        if re.search(r'SecurityException|Permission Denial|Uri permission grant|FileNotFoundException', line):
+            out.append(re.sub(r'^\S+ +\S+ +\d+ +\d+ +', '', line).strip()[:300])
+    return out
+
+
 def node_centre(xml, text):
     """The centre of the first node of a uiautomator dump whose text is
     text, or None."""
@@ -331,6 +341,11 @@ class Device:
     def running(self):
         return bool(self('shell', 'pidof', IDENTIFIER)[1].strip())
 
+    def focus(self):
+        """The window that has the focus, as dumpsys names it."""
+        m = re.search(r'mCurrentFocus=(.*)', self('shell', 'dumpsys', 'window', 'displays')[1])
+        return m.group(1).strip() if m else 'not said'
+
     def ui(self):
         self('shell', 'uiautomator', 'dump', '/sdcard/oxt-player-ui.xml')
         return self('shell', 'cat', '/sdcard/oxt-player-ui.xml')[1]
@@ -361,12 +376,16 @@ def device(args):
 
     _, api = d('shell', 'getprop', 'ro.build.version.sdk')
     log('Device %s: API %s' % (args.serial, api.strip()))
-    # root, where the image gives it (an emulator's does): the shell may
-    # then lend the app any document, as a file manager lends its own
-    _, rooted = d('root')
-    log('adb root: %s' % rooted.strip())
-    time.sleep(3)
-    d('wait-for-device', timeout=60)
+    # as the shell, not as root: Android lets the shell lend the app a
+    # document with a VIEW intent as a file manager does, and refuses root
+    # ("the system cannot issue a Uri permission grant")
+    _, who = d('shell', 'id', '-u')
+    if who.strip() == '0':
+        d('unroot')
+        time.sleep(3)
+        d('wait-for-device', timeout=60)
+        _, who = d('shell', 'id', '-u')
+    log('adb shell is user %s' % who.strip())
 
     d('uninstall', IDENTIFIER)
     status, out = d('install', '-r', apk, timeout=600)
@@ -405,9 +424,19 @@ def device(args):
 
             # ---- Back
             at = count()
+            focus = d.focus()
             d('shell', 'input', 'keyevent', '4')
-            line, lines = d.wait_for(lambda x: x.startswith('home from '), wait, since=at)
-            step('back', line == 'home from ' + SAMPLE_STACK, 'the player said: %s' % lines[at:])
+            line, lines = d.wait_for(lambda x: x.startswith('home from '), 20, since=at)
+            why = ''
+            if line is None:
+                # what a second press does says whether the first was lost
+                # on its way or the stack never comes home
+                why = 'no answer to Back in 20 s (the window with the focus before it: %s; after: %s)' % (
+                    focus, d.focus())
+                d('shell', 'input', 'keyevent', '4')
+                again, lines = d.wait_for(lambda x: x.startswith('home from '), wait, since=at)
+                why += '; a second Back %s' % ('came home' if again else 'did nothing either')
+            step('back', line == 'home from ' + SAMPLE_STACK, '%s; the player said: %s' % (why, lines[at:]))
             time.sleep(2)
             step('back: the app is still running', d.running(), 'its process has gone')
 
@@ -417,7 +446,8 @@ def device(args):
                    '-t', 'application/octet-stream', '--grant-read-uri-permission', '-n', ACTIVITY)
         line, lines = d.wait_for(lambda x: x.startswith(('opened ', 'problem ')), wait, since=at)
         ok = step('content', line == 'opened ' + SAMPLE_STACK,
-                  'the player said: %s; am start said: %s' % (lines[at:], ac.answer(out)))
+                  'the player said: %s; am start said: %s; the device said: %s' % (
+                      lines[at:], ac.answer(out), refusals(d.logcat())[-4:]))
         if ok:
             # the very file the file address gave: the library's copy of it
             step('content: read, and known as the file the library has', 'imported PlayerSample/' + SAMPLE in lines[at:],
@@ -462,6 +492,15 @@ def device(args):
                    ('Fatal signal' in x and 'libc' in x)]
         for line in crashes[:10]:
             log('  crash: %s' % line.strip())
+        if problems:
+            # the job's log is all a reader of a failed run may have
+            pid = d('shell', 'pidof', IDENTIFIER)[1].strip()
+            own = [x for x in logcat.splitlines() if (pid and (' %s ' % pid) in x) or 'System.err' in x
+                   or 'AndroidRuntime' in x]
+            log()
+            log('The last of the app\'s own log:')
+            for line in own[-80:]:
+                log('  %s' % line.strip()[:400])
     ac.summary('- the Android Stack Player on API %s: %d steps passed, %d failed%s' % (
         api.strip(), len(passed), len(problems), ''.join('\n  - ' + x for x in problems)))
     return finish('device', problems)
