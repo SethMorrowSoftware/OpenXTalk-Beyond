@@ -22,6 +22,8 @@ standalone of an installed OXT-Beyond, with a user interface.
       [--platform P] [--what widget,revbrowser,player] [--log FILE]
       [--snapshots DIR] [--timeout SECONDS]
       [--player-backend auto|gstreamer|mplayer]
+      [--browser-backend auto|cef|webkitgtk]
+      [--session own|wayland|wayland-name]
 
 The layout is one of run_livecode_check.py's (--install, or --package to
 extract first). Its own platform's standalone runtime (standalone_check.py
@@ -71,6 +73,37 @@ sound card (no /dev/snd) mplayer is given MPLAYER_HOME with "ao=null", so
 that it plays in real time instead of skipping to the end of a file it
 cannot play the sound of; GStreamer plays without sound there by itself.
 
+--session (Linux) is the desktop session the engine runs in. Chromium
+chooses the platform of its own windows by the session: where
+XDG_SESSION_TYPE is "wayland" it takes Wayland unless it is told a
+platform (Chromium's ui/linux/display_server_utils.cc,
+SetOzonePlatformForLinuxIfNeeded). The engine is an X11 program in such a
+session too, on Xwayland, and its browser is the child of a stack's X
+window, so it tells Chromium X11 (libbrowser_cef.cpp,
+AppendLinuxOzonePlatform, and revBrowser's cefbrowser.cpp). What the
+first CEF 156 builds did without that, main at c77e5264 in the runs
+44166397552, 44167685958 and 44173064029:
+
+  wayland-name  XDG_SESSION_TYPE=wayland alone, on the X display there is
+                (or xvfb-run's), with no compositor and no
+                WAYLAND_DISPLAY. No browser was made: the widget's page
+                did not load, and revBrowser said "creation failed".
+  wayland       A Wayland session of its own, as a desktop gives one: a
+                headless Weston with Xwayland, the engine on Xwayland's
+                display, and XDG_SESSION_TYPE=wayland, WAYLAND_DISPLAY and
+                XDG_RUNTIME_DIR in its environment (wayland_session). The
+                page loaded and its JavaScript ran, but Chromium made no
+                X window: CEF's own window in the stack's stayed without
+                the one Chromium puts into it on an X display (in a
+                headless Mutter session, GNOME's compositor, too, where
+                the same session named x11 had it). So with
+                the widget and --browser-backend cef the X window tree is
+                sampled while the engine runs (xwininfo), and the stack's
+                window must go as deep as it does with Chromium's window
+                in it (CHROMIUM_WINDOW_DEPTH).
+
+"wayland" needs the packages weston, xwayland and x11-utils.
+
 Exit status 0 when every check passed, 1 otherwise. Under GitHub Actions
 failures are annotations and the results go into the job summary. Only
 the Python 3 standard library is used (3.8 or later).
@@ -82,12 +115,15 @@ import functools
 import http.server
 import math
 import os
+import re
 import shutil
+import socket
 import struct
 import subprocess
 import sys
 import tempfile
 import threading
+import time
 import wave
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -126,6 +162,21 @@ MEDIA_FOUNDATION_DLLS = ('mfplay.dll', 'mfplat.dll', 'msmpeg2vdec.dll')
 # only sound
 NO_SOUND_DEVICE = {'oxt-check.wav': 'Windows without a sound device (as on the CI runners) does not open it'}
 MPLAYER = '/usr/bin/mplayer'
+# The Wayland session of --session wayland: its socket in a runtime folder
+# of its own, and how long Weston has to start it with Xwayland listening
+WAYLAND_SOCKET = 'wayland-oxt-check'
+WAYLAND_START_SECONDS = 30
+# The stack media-check.livecodescript makes its browsers in, as its window
+# is named, and how many windows deep that window goes while a browser
+# widget on X11 shows a page: the engine's window for the card, its window
+# for the widget, CEF's, and Chromium's own in CEF's. (Counted under Xvfb in
+# run 44167685958 and in a Mutter session named x11 in run 44173064029; in
+# a Weston and in a Mutter session, where Chromium had taken Wayland, it
+# was 3: CEF's window had nothing in it.)
+CHECK_STACK = 'MediaCheck'
+CHROMIUM_WINDOW_DEPTH = 4
+# A window of xwininfo's tree: its indentation, and its name when it has one
+TREE_WINDOW = re.compile(r'^( +)0x[0-9a-f]+ (?:"(.*?)"|\(has no name\)): \(')
 
 # The page the browsers open: media-check.livecodescript looks for its
 # title, for "script ran: 3" in its HTML and for the oxtReport calls. The
@@ -174,6 +225,144 @@ def serve(folder):
     server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server, server.server_address[1]
+
+
+def wayland_session(work, environ=None, start_seconds=WAYLAND_START_SECONDS):
+    """Starts a Wayland session of its own for --session wayland: a headless
+    Weston with Xwayland, in a runtime folder under work. Returns Weston's
+    process and what a program of that session has in its environment:
+    XDG_SESSION_TYPE=wayland, the compositor's socket (WAYLAND_DISPLAY in
+    XDG_RUNTIME_DIR) and Xwayland's DISPLAY, where an X11 program such as
+    the engine opens its windows. The compositor's socket must take a
+    connection: with a session in name only, a Chromium that asks for
+    Wayland makes no browser at all (--session wayland-name)."""
+    weston = shutil.which('weston')
+    if not weston or not shutil.which('Xwayland'):
+        raise rlc.CheckError('--session wayland needs weston and Xwayland (the packages weston and xwayland)')
+    runtime = os.path.join(work, 'xdg-runtime')
+    os.makedirs(runtime)
+    # (Weston refuses a runtime folder others can read)
+    os.chmod(runtime, 0o700)
+    log = os.path.join(work, 'weston.log')
+    env = {k: v for k, v in (os.environ if environ is None else environ).items()
+           if k not in ('DISPLAY', 'WAYLAND_DISPLAY', 'WAYLAND_SOCKET')}
+    env['XDG_RUNTIME_DIR'] = runtime
+    proc = subprocess.Popen([weston, '--backend=headless', '--xwayland', '--socket=' + WAYLAND_SOCKET,
+                             '--width=1280', '--height=1024', '--log=' + log],
+                            env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+    display, text = None, ''
+    deadline = time.time() + start_seconds
+    while time.time() < deadline and proc.poll() is None:
+        if os.path.exists(log):
+            with open(log, encoding='utf-8', errors='replace') as f:
+                text = f.read()
+        m = re.search(r'xserver listening on display (:\d+)', text)
+        if m and os.path.exists(os.path.join(runtime, WAYLAND_SOCKET)):
+            display = m.group(1)
+            break
+        time.sleep(0.2)
+    problem = None
+    if display is None:
+        problem = ('Weston ended with status %s' % proc.returncode if proc.poll() is not None
+                   else 'Weston had no Wayland session with Xwayland after %d seconds' % start_seconds)
+    else:
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            s.connect(os.path.join(runtime, WAYLAND_SOCKET))
+        except OSError as e:
+            problem = 'the compositor\'s socket %s takes no connection (%s)' % (WAYLAND_SOCKET, e)
+        finally:
+            s.close()
+    if problem:
+        end_session(proc)
+        raise rlc.CheckError('--session wayland: %s; its log ends: %s'
+                             % (problem, ' | '.join(text.splitlines()[-5:]) or '(empty)'))
+    version = re.search(r'weston (\d[\w.]*)', text)
+    return proc, {'XDG_SESSION_TYPE': 'wayland', 'XDG_RUNTIME_DIR': runtime, 'WAYLAND_DISPLAY': WAYLAND_SOCKET,
+                  'DISPLAY': display}, 'Weston %s, headless, with Xwayland on %s' % (
+                      version.group(1) if version else '(version not in its log)', display)
+
+
+def end_session(proc):
+    """Ends a session wayland_session started."""
+    if proc.poll() is None:
+        proc.terminate()
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+
+
+def x_window_tree(env):
+    """xwininfo's tree of every window on the X display of env, or '' when
+    it gives none."""
+    try:
+        out = subprocess.run(['xwininfo', '-root', '-tree'], env=env, stdin=subprocess.DEVNULL,
+                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        return ''
+    return out.stdout.decode('utf-8', 'replace') if out.returncode == 0 else ''
+
+
+def windows_deep(tree, title):
+    """How many windows deep the window whose name begins with title goes
+    in xwininfo's tree: 0 with no window inside it, 1 with children that
+    have none, and so on; None when the tree has no such window. Where a
+    window of that name is inside another, the inner one is counted:
+    Mutter's frame carries the title of the window it frames. xwininfo
+    indents a window's children three columns further."""
+    inside, deepest = None, None
+    for line in tree.splitlines():
+        m = TREE_WINDOW.match(line)
+        if not m:
+            continue
+        indent = len(m.group(1))
+        named = (m.group(2) or '').startswith(title)
+        if inside is not None and indent <= inside:
+            break
+        if named:
+            inside, deepest = indent, 0
+        elif inside is not None:
+            deepest = max(deepest, (indent - inside) // 3)
+    return deepest
+
+
+class TreeSampler(threading.Thread):
+    """Samples the X window tree of env's display until stop(), and keeps
+    the sample in which the window named title goes deepest: a browser's
+    windows are there only while the engine shows it."""
+
+    def __init__(self, env, title, every=0.2):
+        super().__init__(daemon=True)
+        self.env, self.title, self.every = env, title, every
+        self.depth, self.tree = None, ''
+        self.done = threading.Event()
+
+    def run(self):
+        while not self.done.is_set():
+            tree = x_window_tree(self.env)
+            depth = windows_deep(tree, self.title)
+            if depth is not None and (self.depth is None or depth > self.depth):
+                self.depth, self.tree = depth, tree
+            self.done.wait(self.every)
+
+    def stop(self):
+        """Ends the sampling; the greatest depth seen, or None."""
+        self.done.set()
+        self.join()
+        return self.depth
+
+
+def chromium_window_result(depth):
+    """The result line for the stack's window having gone depth windows
+    deep in a Wayland session (None: the window was never seen)."""
+    if depth is not None and depth >= CHROMIUM_WINDOW_DEPTH:
+        return ('PASS browser widget: Chromium\'s X window is inside the stack\'s in the Wayland session: '
+                'the stack\'s window goes %d windows deep' % depth)
+    return ('FAIL browser widget: Chromium made no X window inside the stack\'s in the Wayland session: the '
+            'stack\'s window %s, and %d with Chromium\'s window in CEF\'s (Chromium is not on X11 there)'
+            % ('was not seen' if depth is None else 'goes %d windows deep' % depth, CHROMIUM_WINDOW_DEPTH))
 
 
 def stage_runtime(tools, p, work):
@@ -251,6 +440,13 @@ def main(argv=None):
                     help='on Linux, the browser widget\'s browser: OXT_BROWSER_BACKEND for the engine (default: '
                          '%(default)s, CEF where it loads, else WebKitGTK through libbrowser-webkitprocess). '
                          'revBrowser has CEF only.')
+    ap.add_argument('--session', choices=('own', 'wayland', 'wayland-name'), default='own',
+                    help='on Linux, the desktop session the engine runs in: "wayland" starts a Wayland session of '
+                         'its own (a headless Weston with Xwayland; XDG_SESSION_TYPE=wayland, WAYLAND_DISPLAY and '
+                         'Xwayland\'s DISPLAY for the engine), as on a desktop whose session is Wayland, and '
+                         'looks for Chromium\'s X window in the stack\'s; "wayland-name" gives the engine '
+                         'XDG_SESSION_TYPE=wayland alone, with no compositor (default: %(default)s, the display '
+                         'there is, or xvfb-run)')
     args = ap.parse_args(argv)
     if bool(args.install) == bool(args.package):
         ap.error('pass --install or --package')
@@ -265,7 +461,10 @@ def main(argv=None):
     if args.browser_backend == 'webkitgtk':
         what = [w for w in what if w != 'revbrowser']
 
-    lines, problems, temp_dirs, server = [], [], [], None
+    if args.session != 'own' and p.family != 'linux':
+        ap.error('--session %s is for Linux' % args.session)
+
+    lines, problems, temp_dirs, server, session, sample_tree = [], [], [], None, None, False
     try:
         base = os.environ.get('RUNNER_TEMP') or tempfile.gettempdir()
         work = tempfile.mkdtemp(prefix='oxt-media-', dir=base)
@@ -321,11 +520,28 @@ def main(argv=None):
                         f.write('ao=null\n')
                     env['MPLAYER_HOME'] = home
                     rlc.log('No sound card: mplayer plays without sound (ao=null)')
-            if not env.get('DISPLAY'):
-                xvfb = shutil.which('xvfb-run')
-                if not xvfb:
-                    raise rlc.CheckError('no DISPLAY and no xvfb-run')
-                cmd = [xvfb, '-a', '-s', '-screen 0 1280x1024x24'] + cmd
+            if args.session == 'wayland':
+                sample_tree = 'widget' in what and args.browser_backend == 'cef'
+                if sample_tree and not shutil.which('xwininfo'):
+                    raise rlc.CheckError('--session wayland needs xwininfo (the package x11-utils)')
+                session, session_env, about = wayland_session(work)
+                env.update(session_env)
+                rlc.log('Session : wayland (%s)' % about)
+                lines.append('INFO session: XDG_SESSION_TYPE=wayland WAYLAND_DISPLAY=%s DISPLAY=%s (%s)'
+                             % (session_env['WAYLAND_DISPLAY'], session_env['DISPLAY'], about))
+            else:
+                if args.session == 'wayland-name':
+                    # (the name alone: nothing there for a WAYLAND_DISPLAY to name)
+                    env['XDG_SESSION_TYPE'] = 'wayland'
+                    for name in ('WAYLAND_DISPLAY', 'WAYLAND_SOCKET'):
+                        env.pop(name, None)
+                    rlc.log('Session : XDG_SESSION_TYPE=wayland alone, with no compositor')
+                    lines.append('INFO session: XDG_SESSION_TYPE=wayland alone, on an X display, with no compositor')
+                if not env.get('DISPLAY'):
+                    xvfb = shutil.which('xvfb-run')
+                    if not xvfb:
+                        raise rlc.CheckError('no DISPLAY and no xvfb-run')
+                    cmd = [xvfb, '-a', '-s', '-screen 0 1280x1024x24'] + cmd
         missing_mf = windows_media_foundation() if p.family == 'windows' and 'player' in what else []
         if p.family == 'windows' and 'player' in what:
             lines.append('INFO Media Foundation: %s' % ('missing %s' % ', '.join(missing_mf) if missing_mf
@@ -343,17 +559,30 @@ def main(argv=None):
             result_log = os.path.join(work, 'media-check-%s.log' % part)
             env['OXT_MEDIA_LOG'] = result_log
             env['OXT_MEDIA_WHAT'] = part
+            sampler = TreeSampler(env, CHECK_STACK) if sample_tree and part == 'widget' else None
+            if sampler:
+                sampler.start()
             try:
                 proc = subprocess.run(cmd, cwd=work, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                       timeout=args.timeout)
                 code, output = proc.returncode, proc.stdout
             except subprocess.TimeoutExpired as e:
                 code, output = None, e.stdout or b''
+            finally:
+                depth = sampler.stop() if sampler else None
             results = []
             if os.path.exists(result_log):
                 with open(result_log, encoding='utf-8', errors='replace') as f:
                     results = [x.rstrip('\r\n') for x in f if x.strip()]
             finished = any(x.startswith('DONE ') for x in results)
+            if sampler and finished:
+                # (an engine that did not finish is its own problem below)
+                results.append(chromium_window_result(depth))
+                if depth is None or depth < CHROMIUM_WINDOW_DEPTH:
+                    rlc.log('The X window tree with the stack\'s window at its deepest:')
+                    for x in (sampler.tree or '(the window was in no sample)').splitlines():
+                        if x.strip():
+                            rlc.log('  ' + x.rstrip()[:170])
             results = [x for x in results if not x.startswith('DONE ') and not (x.startswith('INFO platform=')
                                                                               and part != what[0])]
             for name, reason in sorted(known.items()):
@@ -376,6 +605,8 @@ def main(argv=None):
     except (rlc.CheckError, OSError) as e:
         problems.append(str(e))
     finally:
+        if session:
+            end_session(session)
         if server:
             server.shutdown()
         for d in temp_dirs:

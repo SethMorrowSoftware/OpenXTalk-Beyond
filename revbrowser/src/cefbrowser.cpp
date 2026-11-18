@@ -268,6 +268,11 @@ static CefMainArgs MCCefLinuxMainArgs(void)
 // cannot share it with GTK 2 ("cannot register existing type
 // 'GtkSettings'") and left CefInitialize to read through a null pointer.
 // The fallback UI takes nothing from GTK, as CEF 74 took nothing.
+//
+// And the engine is an X11 program, in a Wayland session too, with the
+// browser the child of a stack's X window: Chromium, which takes Wayland
+// for its own windows where XDG_SESSION_TYPE is "wayland", is told X11
+// (libbrowser_cef.cpp's AppendLinuxOzonePlatform says more).
 class MCRevBrowserCefApp : public CefApp
 {
 public:
@@ -276,6 +281,10 @@ public:
 		static const char kUiToolkit[] = "ui-toolkit";
 		if (!p_command_line->HasSwitch(kUiToolkit))
 			p_command_line->AppendSwitchWithValue(kUiToolkit, "fallback");
+		
+		static const char kOzonePlatform[] = "ozone-platform";
+		if (!p_command_line->HasSwitch(kOzonePlatform))
+			p_command_line->AppendSwitchWithValue(kOzonePlatform, "x11");
 	}
 	
 	IMPLEMENT_REFCOUNTING(MCRevBrowserCefApp);
