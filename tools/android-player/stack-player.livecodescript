@@ -39,7 +39,7 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- opened from another app is taken in, and a script error is shown.
 --
 -- What the player does goes to the device's log, a line each that begins
--- with kSays: tools/android-player/build_player.py's device check reads
+-- with kSays: tools/android-player/build_android_player.py's device check reads
 -- them.
 --
 -- Nothing here changes the engine: everything is script that any Android
@@ -99,7 +99,7 @@ on playerLaunched
 end playerLaunched
 
 -- Where the Open button is on the device's screen, in its pixels, for a
--- check that taps it (build_player.py's device check)
+-- check that taps it (build_android_player.py's device check)
 command playerSayWhere
    local tLoc, tScale
    put globalLoc(the loc of button "Open" of stack kPlayerName) into tLoc

@@ -15,7 +15,7 @@
 # along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
 
 """The Android Stack Player's build and device check
-(tools/android-player/build_player.py): what it reads from the IDE's lines,
+(tools/android-player/build_android_player.py): what it reads from the IDE's lines,
 from aapt2 and from the device, on made-up answers, and that the player's
 scripts, the build script and the check agree on the names they share."""
 
@@ -29,7 +29,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 PLAYER = os.path.join(REPO, 'tools', 'android-player')
 sys.path.insert(0, PLAYER)
 
-import build_player as bp  # noqa: E402
+import build_android_player as bp  # noqa: E402
 
 
 def text(*parts):
@@ -211,7 +211,7 @@ class SharedNames(unittest.TestCase):
     def test_the_workflow_runs_each_step(self):
         workflow = text('.github', 'workflows', 'android-player.yml')
         for command in ('library', 'build', 'verify', 'device'):
-            self.assertIn('build_player.py %s ' % command, workflow)
+            self.assertIn('build_android_player.py %s ' % command, workflow)
 
 
 if __name__ == '__main__':

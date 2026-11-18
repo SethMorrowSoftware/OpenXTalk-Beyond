@@ -21,7 +21,7 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- takes in by a path, and a stack played and left again. What only
 -- Android has (its "Open document" screen, content addresses, the Back
 -- key from the system) is checked on an emulator by
--- tools/android-player/build_player.py.
+-- tools/android-player/build_android_player.py.
 
 constant kPlayer = "OXT Stack Player"
 

@@ -19,10 +19,10 @@
 # so this needs no build of the engine: it takes a published release (the
 # latest, or the tag given), puts this checkout's Android builder into its
 # IDE (tools/ci/android_check.py overlay) and compiles the Android
-# Documents library into it (build_player.py library), and then
+# Documents library into it (build_android_player.py library), and then
 #
 #   - builds the player with that IDE's own Android builder, with
-#     OXT-Beyond's Android engine (build_player.py build);
+#     OXT-Beyond's Android engine (build_android_player.py build);
 #   - checks the package: its name, the Internet permission and no other,
 #     and the filter that offers it for documents (verify);
 #   - on an Android 13 emulator (KVM), plays a sample stack in it by each
@@ -140,7 +140,7 @@ jobs:
             --platform "$PLATFORM" --env IDE
           . <(grep '^IDE=' "$GITHUB_ENV" | tail -n 1)
           "$PY" tools/ci/android_check.py overlay --root "$IDE"
-          "$PY" tools/android-player/build_player.py library --ide "$IDE"
+          "$PY" tools/android-player/build_android_player.py library --ide "$IDE"
 
       # As android.yml starts it (see there for why each option is as it is)
       - name: Start an Android 13 emulator
@@ -166,12 +166,12 @@ jobs:
 
       - name: Build the player
         run: |
-          "$PY" tools/android-player/build_player.py build --ide "$IDE" --work "$WORK" \
+          "$PY" tools/android-player/build_android_player.py build --ide "$IDE" --work "$WORK" \
             --platform "$PLATFORM" --sdk "$SDK" --jdk "$JDK"
 
       - name: Check the package
         run: |
-          "$PY" tools/android-player/build_player.py verify --work "$WORK" --sdk "$SDK"
+          "$PY" tools/android-player/build_android_player.py verify --work "$WORK" --sdk "$SDK"
 
       - name: Wait for the emulator
         timeout-minutes: 20
@@ -182,7 +182,7 @@ jobs:
       - name: Play stacks in the player on Android 13
         timeout-minutes: 15
         run: |
-          "$PY" tools/android-player/build_player.py device --work "$WORK" --serial emulator-5554 --sdk "$SDK"
+          "$PY" tools/android-player/build_android_player.py device --work "$WORK" --serial emulator-5554 --sdk "$SDK"
 
       - name: Upload the package and logs
         if: always()

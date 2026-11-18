@@ -18,12 +18,12 @@
 """Build the Android Stack Player with the IDE's own Android builder, check
 its package, and play stacks in it on a device.
 
-  python3 tools/android-player/build_player.py library --ide DIR
-  python3 tools/android-player/build_player.py build --ide DIR --work DIR --sdk SDK --jdk JDK
+  python3 tools/android-player/build_android_player.py library --ide DIR
+  python3 tools/android-player/build_android_player.py build --ide DIR --work DIR --sdk SDK --jdk JDK
       [--platform P] [--version NAME] [--keystore FILE --alias NAME --password WORD]
       [--timeout SECONDS]
-  python3 tools/android-player/build_player.py verify --work DIR --sdk SDK
-  python3 tools/android-player/build_player.py device --work DIR --serial SERIAL --sdk SDK
+  python3 tools/android-player/build_android_player.py verify --work DIR --sdk SDK
+  python3 tools/android-player/build_android_player.py device --work DIR --serial SERIAL --sdk SDK
       [--timeout SECONDS] [--no-picker]
 
 library compiles the Android Documents library

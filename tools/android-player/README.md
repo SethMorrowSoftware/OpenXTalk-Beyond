@@ -49,7 +49,7 @@ which share the app's storage.
 | `stack-player.livecodescript` | The player's script: its card, the library, taking a file in, playing a stack |
 | `stack-player-back.livecodescript` | Its back script: `backKey`, `urlWakeUp` and `errorDialog` while a stack plays |
 | `build-player.livecodescript` | Run in the IDE: makes the player's stack and builds it with the Android builder |
-| `build_player.py` | Starts the IDE for the build, checks the package, and plays stacks in it on a device |
+| `build_android_player.py` | Starts the IDE for the build, checks the package, and plays stacks in it on a device |
 
 It uses two things that any Android app can:
 [the Android Documents library](../../extensions/libraries/androiddocuments/androiddocuments.lcb)
@@ -65,10 +65,10 @@ Android builder asks for:
 
 ```sh
 python3 tools/ci/android_check.py overlay --root <ide>          # this checkout's builder, into a release's IDE
-python3 tools/android-player/build_player.py library --ide <ide>  # the documents library, if the IDE has none
-python3 tools/android-player/build_player.py build --ide <ide> --work <work> --sdk <sdk> --jdk <jdk>
-python3 tools/android-player/build_player.py verify --work <work> --sdk <sdk>
-python3 tools/android-player/build_player.py device --work <work> --serial emulator-5554 --sdk <sdk>
+python3 tools/android-player/build_android_player.py library --ide <ide>  # the documents library, if the IDE has none
+python3 tools/android-player/build_android_player.py build --ide <ide> --work <work> --sdk <sdk> --jdk <jdk>
+python3 tools/android-player/build_android_player.py verify --work <work> --sdk <sdk>
+python3 tools/android-player/build_android_player.py device --work <work> --serial emulator-5554 --sdk <sdk>
 ```
 
 `build` writes `<work>/OXT-Stack-Player.apk`, signed for development only

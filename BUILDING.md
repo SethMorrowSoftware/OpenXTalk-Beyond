@@ -2035,7 +2035,7 @@ so.
 [`tools/android-player`](tools/android-player/README.md) is an Android
 app that opens any stack the user gives it, built by the IDE's own
 Android builder with OXT-Beyond's Android engine, and
-[`build_player.py`](tools/android-player/build_player.py) builds it,
+[`build_android_player.py`](tools/android-player/build_android_player.py) builds it,
 checks its package (its name, the Internet permission and no other, the
 filter that offers it for documents) and plays a sample stack in it on a
 device by each way a stack comes in. Its README says how to run each
@@ -2043,7 +2043,7 @@ step. The "Android Stack Player" workflow
 (`.github/workflows/android-player.yml`) runs them on an Android 13
 emulator, in the IDE of the latest release with this checkout's builder
 and Android Documents library put into it. The player's script has its
-desktop tests in `tests/lcs/androidplayer`, and `build_player.py`'s
+desktop tests in `tests/lcs/androidplayer`, and `build_android_player.py`'s
 reading of the IDE, aapt2 and the device's log in
 `tools/ci/tests/test_android_player.py`.
 

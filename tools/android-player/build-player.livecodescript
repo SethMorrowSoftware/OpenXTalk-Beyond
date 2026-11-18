@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 
 -- Builds the Android Stack Player (tools/android-player) with the IDE's
--- own Android builder. tools/android-player/build_player.py starts the
+-- own Android builder. tools/android-player/build_android_player.py starts the
 -- IDE with this script named on its command line (as
 -- tools/web-player/build-player.livecodescript is started); once the IDE
 -- has started, it
@@ -33,7 +33,7 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --      permission and no other, and is offered for the documents a stack
 --      file is to Android (android,documentTypes);
 --   3. with OXT_APLAYER_SAMPLES, saves there the stacks that
---      build_player.py's device check opens in the player.
+--      build_android_player.py's device check opens in the player.
 --
 -- Environment:
 --    OXT_APLAYER_SOURCE   the folder of the player's scripts (this one)
@@ -52,7 +52,7 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --
 -- It writes "INFO <name> <value>" lines, then "BUILD OK <apk>" or
 -- "BUILD FAILED <reason>" and "DONE" to the log, and leaves the IDE
--- running: build_player.py ends it.
+-- running: build_android_player.py ends it.
 
 constant kPlayerName = "OXT Stack Player"
 constant kIdentifier = "org.openxtalk.stackplayer"
