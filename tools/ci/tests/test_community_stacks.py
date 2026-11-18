@@ -36,7 +36,10 @@ in the IDE. What the source can show without an engine:
     the browser is the gallery's site and a path under it;
   - a copy is asked about first, and opened with messages locked;
   - the limits it holds a list to are the gallery's (tools/scan.py and
-    tools/listing.py there, 2026-11-17).
+    tools/listing.py there, 2026-11-17);
+  - the index of stacks has the kit's list lines: each name in the middle
+    of its line's hilite, and a last line that scrolls wholly into view,
+    with the engine's own code held to what those two rest on.
 
 tests/lcs/communitystacks/communitystacks.livecodescript runs the
 checking, the rules and the unpacking in the engine, and the step
@@ -57,7 +60,9 @@ WINDOW = os.path.join(TOOLSET, 'palettes', 'community', 'revcommunitystacks.live
 MENUBAR = os.path.join(TOOLSET, 'palettes', 'menubar', 'revmenubar.livecodescript')
 LIBRARY = os.path.join(TOOLSET, 'libraries', 'revidelibrary.8.livecodescript')
 WEB = os.path.join(TOOLSET, 'libraries', 'revwebidelibrary.livecodescript')
+KIT = os.path.join(TOOLSET, 'palettes', 'learn', 'revlearnkit.livecodescript')
 TOUR = os.path.join(REPO, 'tools', 'ci', 'ui-tour.livecodescript')
+ENGINE = os.path.join(REPO, 'engine', 'src')
 ENGINE_TEST = os.path.join(REPO, 'tests', 'lcs', 'communitystacks', 'communitystacks.livecodescript')
 GUIDE = os.path.join(REPO, 'ide', 'Documentation', 'guides', 'The IDE.md')
 
@@ -249,6 +254,96 @@ class Window(unittest.TestCase):
         self.assertIn('if tNeed > tHas then\n      throw', whole)
 
 
+class TheIndex(unittest.TestCase):
+    """The list of stacks in the window's sidebar. With 0.2.8-dp.2's first
+    builds its names sat low in the hilite (14 point text at the bottom of
+    30 point lines), and the last stack of a list longer than the window
+    never came wholly into view (bwmilby on the forum, macOS and Linux).
+    The step community-stacks of the tour measures both in the IDE."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.window = read(WINDOW)
+        cls.kit = read(KIT)
+        cls.tour = read(TOUR)
+
+    def test_its_lines_are_the_kits_list_lines(self):
+        side = code(handler(self.window, 'csBuildSide'))
+        self.assertIn('lkListLines tObj, kIndexLine, 12', side)
+        # and nothing after it sets the lines again
+        after = side[side.index('lkListLines tObj, kIndexLine, 12'):]
+        for prop in ('margins', 'fixedLineHeight', 'textHeight', 'listBehavior'):
+            self.assertNotIn('set the %s of tObj' % prop, after)
+        lines = code(handler(self.kit, 'lkListLines'))
+        for line in ('set the listBehavior of pObj to true', 'set the fixedLineHeight of pObj to true',
+                     'set the textHeight of pObj to pHeight'):
+            self.assertIn(line, lines)
+
+    def test_the_last_line_scrolls_wholly_into_view(self):
+        # The engine stops a field's scroll at its text and two margins
+        # less twice TEXT_Y_OFFSET: margins that add up to less leave the
+        # end of the last line below the field
+        lines = code(handler(self.kit, 'lkListLines'))
+        m = re.search(r'set the margins of pObj to pLeft & ",(\d+),(\d+),(\d+)"', lines)
+        self.assertIsNotNone(m, 'lkListLines sets no margins')
+        top, bottom = int(m.group(1)), int(m.group(3))
+        offset = int(re.search(r'^#define TEXT_Y_OFFSET (\d+)$', read(os.path.join(ENGINE, 'objdefs.h')), re.M).group(1))
+        self.assertGreaterEqual(top + bottom, 2 * offset)
+        field = read(os.path.join(ENGINE, 'field.cpp'))
+        scroll = field[field.index('Exec_stat MCField::vscroll(int4 offset, Boolean doredraw)'):]
+        scroll = scroll[:scroll.index('\n}\n')]
+        self.assertIn('uint4 theight = textheight + topmargin + bottommargin - TEXT_Y_OFFSET * 2;', scroll)
+        self.assertIn('if ((uint4)texty > theight - drect.height)\n\t\t\ttexty = theight - drect.height;', scroll)
+
+    def test_the_names_are_set_in_the_middle_of_their_lines(self):
+        fill = code(handler(self.window, 'csFillIndex'))
+        put, centre = 'set the htmlText of field "idx" to tHtml', 'lkListCentre the long id of field "idx"'
+        self.assertIn(put, fill)
+        self.assertIn(centre, fill)
+        # after the names are put: the shift is a style of the text
+        self.assertLess(fill.index(put), fill.index(centre))
+        self.assertEqual(self.window.count('set the htmlText of field "idx"'), 1)
+        kit = code(handler(self.kit, 'lkListCentre'))
+        self.assertIn('put measureText("Xg", pObj, "bounds") into tBounds', kit)
+        self.assertIn('put (the textHeight of pObj - (item 4 of tBounds - item 2 of tBounds)) div 2 into tRoom', kit)
+        # up by the font's descent too: see the next test
+        self.assertIn('set the textShift of char 1 to -1 of pObj to (- (tRoom + item 4 of tBounds))', kit)
+
+    def test_the_engine_sets_fixed_lines_as_the_shift_takes_them(self):
+        # A fixed line's baseline is the line's height less the deepest
+        # descent of the field's text; text shifted up by its descent or
+        # more has none, and is drawn its shift above the baseline
+        field = read(os.path.join(ENGINE, 'field.cpp'))
+        recompute = field[field.index('void MCField::do_recompute(bool p_force_layout)'):]
+        recompute = recompute[:recompute.index('\n}\n')]
+        self.assertIn('if (descent > fixedd)\n\t\t\tfixedd = descent;', recompute)
+        self.assertIn('fixedheight = fheight;\n\t\tfixeda = fixedheight - fixedd;', recompute)
+        block = read(os.path.join(ENGINE, 'block.cpp'))
+        self.assertIn('return MCU_max(0.0f, MCFontGetDescent(m_font) + shift);', block)
+        self.assertIn('\t\ty += atts->shift;', block)
+
+    def test_the_tour_measures_both_in_the_ide(self):
+        step = handler(self.tour, 'tour_community_stacks')
+        middle = 'get tourSelectedLineMiddle(tWin, "Community Stacks")\n         if it is not empty then throw it'
+        self.assertEqual(step.count(middle), 2)
+        # the first before the picture of the list, so that a low name fails the step
+        self.assertLess(step.index(middle), step.index('"24c6-community-stacks"'))
+        # a list longer than the index shows: 3 stacks and 21 more
+        self.assertIn('repeat with tCount = 1 to 21', step)
+        self.assertIn('the number of lines of field "idx" of stack tWin is not 24', step)
+        self.assertIn('if the formattedHeight of field "idx" of stack tWin <= the height of field "idx" of stack tWin then\n'
+                      '            throw', step)
+        for when in ('at the end of the scroll', 'with the last stack in front'):
+            self.assertIn('tourCsLastLine tWin, "%s"' % when, step)
+        last = handler(self.tour, 'tourCsLastLine')
+        self.assertIn('put the formattedRect of line -1 of field "idx" of stack pWin into tRect', last)
+        self.assertIn('if item 2 of tRect < tTop or item 4 of tRect > tBottom then\n      throw', last)
+        measure = handler(self.tour, 'tourSelectedLineMiddle')
+        self.assertIn('if tourContrast(tRGB, tHilite) >= 3 then', measure)
+        self.assertIn('if abs(tOff) > tFull / 8 then', measure)
+        self.assertIn('is not wholly in view', measure)
+
+
 class Menu(unittest.TestCase):
     def test_the_file_menu_has_it(self):
         menubar = read(MENUBAR)
@@ -329,7 +424,7 @@ class Tests(unittest.TestCase):
                         'a list that could not be checked was shown'):
             self.assertIn(refused, step)
         for shot in ('24c5-community-stacks-unsigned', '24c6-community-stacks', '24c7-community-stacks-search',
-                     '24c8-community-stacks-ask', '24c9-community-stacks-copy'):
+                     '24c8-community-stacks-ask', '24c9-community-stacks-copy', '24c10-community-stacks-long'):
             self.assertIn('"%s"' % shot, tour)
 
     def test_the_engine_tests_are_there(self):

@@ -27,6 +27,9 @@ script "revLearnKit"
 --    "lkAction pAction";
 --  - scrolls: lkScroller puts a slim thumb in place of a group's or a
 --    field's scrollbar, which the wheel and a drag move, smoothly;
+--  - lists: lkListLines gives a field the lines of a list, of one height,
+--    whose last line scrolls wholly into view, and lkListCentre sets their
+--    text in the middle of them, and so of the hilite;
 --  - keeps time: lkStartTicking sends lkTick about sixty times a second
 --    (none while another window is in front, or the browser's window is
 --    not in use: lkTick), which animates the lit
@@ -775,6 +778,57 @@ end lkInput
 command lkSelectedInk pObj, pRGB
    set the backgroundColor of pObj to pRGB
 end lkSelectedInk
+
+-- The lines of a list, pHeight points each (a field with listBehavior: the
+-- line chosen is hilited over its whole height), with pLeft points to the
+-- left of their text. Two things the engine does with such lines are put
+-- right, here and in lkListCentre:
+--  - it sets a line's text at the bottom of the line, the font's descent
+--    on the line's lower edge (MCField::do_recompute: fixeda is the
+--    height less the descent). In a line much taller than the font the
+--    words then sit low in the hilite: Community Stacks' 14 point names in
+--    30 point lines were 6 points low (reported for 0.2.8-dp.2's first
+--    builds on macOS and Linux, by bwmilby). lkListCentre moves the text
+--    up by half the room the font leaves;
+--  - it stops a field's scroll 12 points short of the text's height and
+--    the two margins (MCField::vscroll, TEXT_Y_OFFSET), so with margins of
+--    2 the last line of a list longer than its field never came wholly
+--    into view: the end of the scroll left its lower 6 points below the
+--    field. The margins here, 4 above and 10 below, give the scroll that
+--    room, and 2 points under the last line; the first line's hilite is
+--    whole too, where a top margin of 2 left its top 2 points above the
+--    field.
+command lkListLines pObj, pHeight, pLeft
+   set the listBehavior of pObj to true
+   set the fixedLineHeight of pObj to true
+   set the textHeight of pObj to pHeight
+   set the margins of pObj to pLeft & ",4,2,10"
+end lkListLines
+
+-- Sets the text of the list pObj (lkListLines) in the middle of its
+-- lines. The shift is a style of the text: call it each time the list's
+-- text is put.
+--
+-- The engine puts the baseline of a fixed line at the line's height less
+-- the deepest descent of the field's text, and text shifted up by its
+-- descent or more has no descent (MCBlock::getdescent). So with all the
+-- text shifted up, the baseline is the line's lower edge and the text
+-- stands its shift above it: the font's descent, and half of what the line
+-- has more than the font. (A shift of that half alone moved the text by
+-- less: the baseline went down by the descent it no longer counted.)
+command lkListCentre pObj
+   local tBounds, tRoom
+   if the text of pObj is empty then
+      exit lkListCentre
+   end if
+   -- (left, top, right, bottom about the baseline: the font's ascent above
+   -- it, as a negative top, and its descent below)
+   put measureText("Xg", pObj, "bounds") into tBounds
+   put (the textHeight of pObj - (item 4 of tBounds - item 2 of tBounds)) div 2 into tRoom
+   if tRoom > 0 then
+      set the textShift of char 1 to -1 of pObj to (- (tRoom + item 4 of tBounds))
+   end if
+end lkListCentre
 
 -- A code panel's text: the code font, a fixed line height
 function lkCodeField pName, pRect, pSize, pLineHeight, pGroup

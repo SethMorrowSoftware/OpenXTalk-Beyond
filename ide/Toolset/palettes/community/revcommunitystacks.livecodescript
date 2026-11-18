@@ -1276,13 +1276,12 @@ private command csBuildSide
 
    -- The index: a stack a line
    put lkLabel("idx", lkR(8, 126, kSide - 8, kHeight - 54), empty, 14, lkColor("sideInk"), empty) into tObj
-   set the listBehavior of tObj to true
    set the autoHilite of tObj to true
    lkSelectedInk tObj, "255,255,255"
    set the dontWrap of tObj to true
-   set the fixedLineHeight of tObj to true
-   set the textHeight of tObj to kIndexLine
-   set the margins of tObj to "12,2,2,2"
+   -- (lines whose last one scrolls wholly into view; csFillIndex sets
+   -- their names in the middle of them)
+   lkListLines tObj, kIndexLine, 12
    set the threeDHilite of tObj to false
    set the hiliteColor of tObj to lkMix(lkColor("side2"), lkColor("violet"), 0.45)
 
@@ -1359,6 +1358,8 @@ private command csFillIndex
    end if
    lock screen
    set the htmlText of field "idx" to tHtml
+   -- (each name in the middle of its line, and so of the hilite)
+   lkListCentre the long id of field "idx"
    csSyncSearch
    if sState is "loading" then
       put empty into field "navCount"
