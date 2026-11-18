@@ -224,6 +224,22 @@ on TestAStackPlaysAndIsLeft
    dispatch "playerHome" to stack kPlayer
 end TestAStackPlaysAndIsLeft
 
+-- Android can give one opening twice; the same file opened again after
+-- the user came home is a new ask, however soon
+on TestAnAddressGivenTwice
+   local tFile
+   put makeSample("Sample One", "Sample One.oxtstack", empty) into tFile
+   dispatch "playerTakeAddress" to stack kPlayer with tFile
+   TestAssert "the stack plays", fromPlayer("playerCurrent") is "Sample One"
+   dispatch "playerTakeAddress" to stack kPlayer with tFile
+   TestAssert "given again at once, it is not opened a second time", the cOpened of stack "Sample One" is 1
+   dispatch "playerHome" to stack kPlayer
+   dispatch "playerTakeAddress" to stack kPlayer with tFile
+   TestAssert "given again after the user came home, it plays again", fromPlayer("playerCurrent") is "Sample One"
+   TestAssert "and is the library's one copy", the number of lines in fromPlayer("playerLibrary") is 1
+   dispatch "playerHome" to stack kPlayer
+end TestAnAddressGivenTwice
+
 on TestAStacksOwnScreenModeIsKept
    local tCopy
    put fromPlayer("playerImport", makeSample("Sample Two", "Sample Two.livecode", "exactFit")) into tCopy

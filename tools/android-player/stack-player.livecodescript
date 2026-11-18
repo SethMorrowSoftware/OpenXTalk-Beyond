@@ -373,7 +373,10 @@ end playerLibrary
 -- copied into the library, and opened
 command playerTakeAddress pAddress
    local tFile, tError
-   if pAddress is sLastAddress and the seconds - sLastSeconds < 3 then
+   -- Android can give one opening twice (as the app's launch address and
+   -- as a wake-up): the second is left alone while the first still plays.
+   -- Once the user is back home, the same file opened again is a new ask
+   if pAddress is sLastAddress and the seconds - sLastSeconds < 3 and sCurrent is not empty then
       exit playerTakeAddress
    end if
    put pAddress into sLastAddress
