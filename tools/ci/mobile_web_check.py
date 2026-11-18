@@ -57,7 +57,10 @@ emulate) opens the page with a touch screen and a phone's window, and:
      "Take a photo" opens the file chooser and the photo, made 1000
      pixels wide, is put in the frame (mwPickPhoto), "Roll the ball" and
      a tilt roll the ball (accelerationChanged), "Keep screen on" keeps
-     it on (mwKeepAwake), and "Share" says what it did (mwShare)
+     it on (mwKeepAwake), "Share" says what it did (mwShare), and "Full
+     screen" takes the whole screen from the tap and a second tap gives
+     the bars back (mwFullScreen, mwIsFullScreen), or says that this
+     browser cannot hide its bars where it has no whole screen to give
   8. the phone turns: the stack fills the window again, in landscape,
      and on each card its controls end above the tab bar
   9. a stack laid out for a desktop (800 by 500), of a fixed size, is
@@ -642,6 +645,46 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
         expect('"Share" says what it did (mwShare)', s.get('phonesaid') in (
             'Sent to the share sheet.', 'Copied, ready to paste.', 'This browser cannot share.'), s)
         shot('7-phone')
+
+        # 7a. "Full screen": where the browser has a whole screen to give,
+        # a tap on the button takes it (mwFullScreen, asked from the tap)
+        # and a second tap gives the bars back (mwIsFullScreen says which
+        # to ask for); where it has none (an iPhone's Safari, Playwright's
+        # WebKit) the stack says so. The button's label is not looked at
+        # while the screen is whole: it follows at the stack's next layout
+        # (a phone's browser gives the page more room as its bars go), and
+        # the emulated browser keeps the page's size and will not be given
+        # another while its screen is whole
+        def whole_screen():
+            return page.evaluate("() => !!(document.fullscreenElement || document.webkitFullscreenElement)")
+
+        def cannot(s):
+            return s.get('phonesaid', '').startswith('This browser cannot hide its bars')
+
+        can = page.evaluate("""() => { var el = document.documentElement;
+            return !!(el.requestFullscreen || el.webkitRequestFullscreen) && document.fullscreenEnabled !== false; }""")
+        expect('"Full screen" is the button\'s label with the browser\'s bars there',
+               not whole_screen() and labels(s).get('Full') == 'Full screen', dict(s, whole=whole_screen()))
+        press('Full')
+        if can:
+            s = wait_for(page, lambda s: whole_screen() or cannot(s))
+            expect('"Full screen" takes the whole screen from a tap (mwFullScreen)',
+                   whole_screen() and not cannot(s), dict(s, whole=whole_screen()))
+            shot('7-full-screen')
+            press('Full')
+            s = wait_for(page, lambda s: not whole_screen())
+            expect('a second tap gives the bars back (mwIsFullScreen)',
+                   not whole_screen() and not cannot(s) and labels(s).get('Full') == 'Full screen',
+                   dict(s, whole=whole_screen()))
+            if whole_screen():
+                # (said above: the steps after this one need the page's own size)
+                page.evaluate("() => (document.exitFullscreen || document.webkitExitFullscreen).call(document)")
+                wait_for(page, lambda s: not whole_screen())
+        else:
+            s = wait_for(page, cannot)
+            expect('"Full screen" says that this browser cannot hide its bars',
+                   cannot(s) and not whole_screen() and labels(s).get('Full') == 'Full screen',
+                   dict(s, whole=whole_screen()))
 
         # 7b. the camera, the share sheet and the whole screen asked for
         # other than from a tap (as from a timer): where the browser can tell,
