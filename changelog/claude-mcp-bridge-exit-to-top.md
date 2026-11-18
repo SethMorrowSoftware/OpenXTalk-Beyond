@@ -1,0 +1,3 @@
+- xTalk MCP Bridge: a call whose code left every handler with exit to top (as the IDE's arrow keys do after a nudge in the Edit tool) no longer leaves the bridge refusing every later call as busy until it is turned off: the next request finds the call ended, answers it as ended without a result, and goes on
+- xTalk MCP Bridge: the question before undoing a change the user has changed since names the change, says that the changes after it go with it and what else would be lost, and says what Undo and Cancel each do
+- Tests: TestACallThatExitsToTopIsAnsweredFor; TestUndoAsksWhenTheUserChangedIt checks the question's words
