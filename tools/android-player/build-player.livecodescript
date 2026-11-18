@@ -327,6 +327,9 @@ private command makeSample pFolder, pName, pFile, pScript
    set the rect of field "Label" to 40,40,760,120
    set the textSize of field "Label" to 36
    put pName into field "Label"
+   -- a label: a field that takes the focus brings up Android's keyboard
+   set the lockText of field "Label" to true
+   set the traversalOn of field "Label" to false
    set the visible of stack pName to true
    save stack pName as (pFolder & slash & pFile)
    if the result is not empty then

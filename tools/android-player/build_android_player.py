@@ -425,6 +425,10 @@ def device(args):
         if not step('start', line is not None, 'the player never said it was ready; it said: %s' % lines):
             raise CheckError('the player did not start')
         log('  %s' % line)
+        time.sleep(2)
+        keyboard = d.keyboard()
+        step('start: no keyboard over the library', 'mInputShown=true' not in keyboard,
+             'Android\'s keyboard is up (%s): a field of the player has the focus' % keyboard)
 
         # ---- a file address
         at = count()
@@ -444,20 +448,14 @@ def device(args):
             at = count()
             focus = d.focus()
             keyboard = d.keyboard()
-            _, since = d('shell', 'date', "+'%m-%d %H:%M:%S.000'")
             d('shell', 'input', 'keyevent', '4')
             line, lines = d.wait_for(lambda x: x.startswith('home from '), 20, since=at)
             why = ''
             if line is None:
-                log('Back got no answer. The keyboard before it: %s; after: %s. The device\'s log since:' % (
-                    keyboard, d.keyboard()))
-                for x in d('logcat', '-d', '-v', 'threadtime', '-t', since.strip().strip("'"),
-                           timeout=120)[1].splitlines()[-150:]:
-                    log('  %s' % x.strip()[:300])
                 # what a second press does says whether the first was lost
                 # on its way or the stack never comes home
-                why = 'no answer to Back in 20 s (the window with the focus before it: %s; after: %s)' % (
-                    focus, d.focus())
+                why = ('no answer to Back in 20 s (the window with the focus before it: %s; after: %s; the '
+                       'keyboard before it: %s; after: %s)' % (focus, d.focus(), keyboard, d.keyboard()))
                 d('shell', 'input', 'keyevent', '4')
                 again, lines = d.wait_for(lambda x: x.startswith('home from '), wait, since=at)
                 why += '; a second Back %s' % ('came home' if again else 'did nothing either')

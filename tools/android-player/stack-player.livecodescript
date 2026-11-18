@@ -137,6 +137,9 @@ command playerMake pBackScript
    create field "Library"
    set the listBehavior of field "Library" to true
    set the lockText of field "Library" to true
+   -- no field of the player takes the focus: a field that has it brings
+   -- up Android's keyboard, and Back then hides the keyboard first
+   set the traversalOn of field "Library" to false
    set the textSize of field "Library" to 18
    set the fixedLineHeight of field "Library" to true
    set the textHeight of field "Library" to 44

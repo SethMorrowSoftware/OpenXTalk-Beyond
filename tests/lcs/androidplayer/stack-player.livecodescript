@@ -109,13 +109,17 @@ private function makeSample pName, pFile, pFullscreenMode
 end makeSample
 
 on TestTheControlsAreMade
-   local tName, tMissing
+   local tName, tMissing, tFocus
    repeat for each item tName in "Title,Help,Library Title,Library,Status"
       if there is not a field tName of stack kPlayer then
          put tName & comma after tMissing
+      else if the traversalOn of field tName of stack kPlayer or not the lockText of field tName of stack kPlayer then
+         put tName & comma after tFocus
       end if
    end repeat
    TestAssert "every field is there", tMissing is empty
+   -- a field with the focus brings up Android's keyboard over the library
+   TestAssert "no field takes the focus or is typed into", tFocus is empty
    TestAssert "the Open button", there is a button "Open" of stack kPlayer
    TestAssert "the back script's button, with its script", \
          the script of button "Player Back Script" of stack kPlayer contains "on backKey"
