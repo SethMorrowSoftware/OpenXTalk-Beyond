@@ -1,4 +1,4 @@
-script "TestHyperXTalkCompatibilityLibrary"
+script "TestAndroidDocumentsLibrary"
 /*
 Copyright (C) 2026 OXT-Beyond contributors.
 
@@ -14,6 +14,7 @@ FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 for more details.
 
 You should have received a copy of the GNU General Public License
+along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 
 -- The Android documents library (org.openxtalk.library.androiddocuments)
 -- as a script meets it. Its handlers work on Android only: anywhere else

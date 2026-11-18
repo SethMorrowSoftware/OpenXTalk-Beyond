@@ -344,6 +344,27 @@ draw a stack so, as those made after 0.2.7-rc.6.19 can; with earlier
 ones the build stops and says so. A stack without the setting is laid
 out as before.
 
+An application can open documents that other applications hand to it.
+List the kinds of document, as MIME types, on the stack before you
+build:
+
+    set the cRevStandaloneSettings["android,documentTypes"] of stack "My App" to "application/pdf,image/*"
+
+Android then offers the application where the user opens a document of
+one of those kinds, in a file manager, a mail application or a browser.
+The application gets the document's address in the `urlWakeUp` message,
+and from `mobileGetLaunchUrl()` when it was started for it. The address
+begins with `content://`, and is no file path: the Android Documents
+library (include it on the Inclusions card) reads it.
+`androidDocumentName(tAddress)` is the document's name, and
+`androidCopyDocument tAddress, tFile` copies the document into a file of
+the application's own. `androidPickDocument(empty)` shows Android's own
+screen for choosing a document, and returns its address, or empty. None
+of this needs a permission. Android tells a document's kind, not its
+name's extension, so a file of a kind Android has no name for arrives as
+`application/octet-stream`. What is no MIME type stops the build with an
+error, and a stack without the setting is built as before.
+
 An application can also have an adaptive icon, which Android 8.0 and
 newer draw in the launcher's own shape (a circle, a squircle or a
 rounded square, whatever the phone uses) and move in the launcher's
