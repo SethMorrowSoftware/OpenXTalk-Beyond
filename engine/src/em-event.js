@@ -127,7 +127,12 @@ mergeInto(LibraryManager.library, {
 				return;
 			}
 
-			LiveCodeEvents._isMac = /^(Mac|iPhone|iPad|iPod)/.test(navigator.platform || '');
+			var tPlatform = navigator.platform || '';
+			LiveCodeEvents._isMac = /^(Mac|iPhone|iPad|iPod)/.test(tPlatform);
+			// OXT-Beyond: an iPad has said it is a Mac ("MacIntel") since
+			// iPadOS 13; a Mac has no touch screen
+			LiveCodeEvents._isIOS = /^(iPhone|iPad|iPod)/.test(tPlatform) ||
+				(/^Mac/.test(tPlatform) && navigator.maxTouchPoints > 1);
 
 			// Add document event listeners to track mouse events outside canvas
 			document.addEventListener("mouseup", LiveCodeEvents._handleDocumentMouseEvent);
@@ -182,6 +187,12 @@ mergeInto(LibraryManager.library, {
 				tInput.addEventListener(type, handler);
 			});
 
+			// OXT-Beyond: on an iPhone or an iPad the input gives the focus
+			// up while the page is full screen (_watchFullScreen())
+			if (LiveCodeEvents._isIOS) {
+				LiveCodeEvents._watchFullScreen();
+			}
+
 			// Add listener for changes to device pixel ratio
 			LiveCodeEvents._watchDevicePixelRatio();
 
@@ -221,6 +232,119 @@ mergeInto(LibraryManager.library, {
 		// command key (set by initialize(): this object is built when
 		// the engine is linked, with no browser around it)
 		_isMac: false,
+
+		// OXT-Beyond: true in a browser on an iPhone or an iPad (every
+		// browser there is WebKit). WebKit ends a page's full screen there
+		// when a text input takes the focus: full screen has no keyboard
+		// (WebKit bug 185617, "Keyboard focus should exit fullscreen",
+		// "We only want to do this on iOS"). The hidden input is a text
+		// input, and had the focus from the first press on a stack: a
+		// stack that asked for full screen from a tap got it and lost it
+		// "in a split second" (reported from an iPad with iPadOS 18.5, in
+		// Safari and in Chrome). So there the input is without the focus
+		// from the moment the page asks for full screen until full screen
+		// ends, unless a field wants the keyboard (_inputHeld()). Nothing
+		// tells the stacks: the stack that had the keyboard still has it
+		// (_inputtarget), and takes its keys again when full screen ends.
+		// Every other browser is as it was: the input keeps the focus in
+		// full screen, and the keys reach the stacks.
+		_isIOS: false,
+
+		// The page asked for full screen and the browser has not answered
+		_fullScreenAsking: false,
+		_fullScreenTimer: null,
+
+		_pageIsFullScreen: function() {
+			return !!(document.fullscreenElement || document.webkitFullscreenElement);
+		},
+
+		// True while the input must not have the focus: on an iPhone or
+		// an iPad, with the page full screen (or on its way there), and
+		// no field wanting the keyboard. A field that takes the focus
+		// then gets the input and the keyboard when the touch ends
+		// (_keyboard()), and WebKit ends full screen for it: its rule.
+		_inputHeld: function() {
+			return LiveCodeEvents._isIOS && !LiveCodeEvents._textInput &&
+				(LiveCodeEvents._fullScreenAsking || LiveCodeEvents._pageIsFullScreen());
+		},
+
+		// On an iPhone or an iPad: hears the page go to full screen and
+		// come back, and every request for it. The request must be heard
+		// before the browser has it, as the input must be without the
+		// focus by then (WebKit tells the focused element so again when
+		// the page moves to its full screen window, and that is a focus
+		// too), and whoever asks: the Mobile Web library, the page's own
+		// button, or a script of the stack's. So the three spellings of
+		// the request are wrapped here, in these browsers alone.
+		_watchFullScreen: function() {
+			['fullscreenchange', 'webkitfullscreenchange',
+			 'fullscreenerror', 'webkitfullscreenerror'].forEach(function(type) {
+				document.addEventListener(type, LiveCodeEvents._handleFullScreenChange);
+			});
+			if (typeof Element == 'undefined') {
+				return;
+			}
+			['requestFullscreen', 'webkitRequestFullscreen',
+			 'webkitRequestFullScreen'].forEach(function(name) {
+				var tAsk = Element.prototype[name];
+				if (typeof tAsk != 'function') {
+					return;
+				}
+				Element.prototype[name] = function() {
+					LiveCodeEvents._fullScreenAsked();
+					return tAsk.apply(this, arguments);
+				};
+			});
+		},
+
+		// The page is about to ask for full screen: the input gives the
+		// focus up, and takes none until the browser has answered (a
+		// press during the change would give it back). With a field
+		// being typed into the input stays as it is: the keyboard is up,
+		// and WebKit's rule decides.
+		_fullScreenAsked: function() {
+			var input = LiveCodeEvents._inputelement;
+			if (!input || LiveCodeEvents._textInput) {
+				return;
+			}
+			LiveCodeEvents._fullScreenAsking = true;
+			if (LiveCodeEvents._fullScreenTimer != null) {
+				clearTimeout(LiveCodeEvents._fullScreenTimer);
+			}
+			// A request that is refused without a word (the prefixed one
+			// answers nothing) is over after this long
+			LiveCodeEvents._fullScreenTimer = setTimeout(LiveCodeEvents._handleFullScreenChange, 3000);
+			if (document.activeElement === input) {
+				input.blur();
+			}
+		},
+
+		// The page is full screen now, or is not any more, or was
+		// refused. Back from full screen, the stack with the keyboard
+		// takes its keys again: the input has the focus as before, unless
+		// something else in the page took it meanwhile.
+		_handleFullScreenChange: function() {
+			var input = LiveCodeEvents._inputelement;
+			LiveCodeEvents._fullScreenAsking = false;
+			if (LiveCodeEvents._fullScreenTimer != null) {
+				clearTimeout(LiveCodeEvents._fullScreenTimer);
+				LiveCodeEvents._fullScreenTimer = null;
+			}
+			if (!input) {
+				return;
+			}
+			if (LiveCodeEvents._inputHeld()) {
+				if (document.activeElement === input) {
+					input.blur();
+				}
+				return;
+			}
+			var tActive = document.activeElement;
+			if (!LiveCodeEvents._pageIsFullScreen() && LiveCodeEvents._inputtarget != null &&
+				(tActive == null || tActive === document.body || tActive === document.documentElement)) {
+				input.focus({"preventScroll": true});
+			}
+		},
 
 		// The modifier keys that are down, as the latest key, mouse or
 		// wheel event of the page says (the shiftKey, the commandKey and
@@ -357,7 +481,10 @@ mergeInto(LibraryManager.library, {
 				LiveCodeDC.setActiveWindow(LiveCodeDC.getWindowIDForCanvas(pTarget));
 			}
 
-			if (LiveCodeEvents._inputelement != null)
+			// OXT-Beyond: not while the page is full screen on an iPhone
+			// or an iPad, where a text input's focus ends full screen
+			// (_inputHeld())
+			if (LiveCodeEvents._inputelement != null && !LiveCodeEvents._inputHeld())
 				LiveCodeEvents._inputelement.focus({"preventScroll": true});
 		},
 
@@ -1098,7 +1225,19 @@ mergeInto(LibraryManager.library, {
 		// again, which brings up the keyboard of its inputmode
 		_keyboard: function(show) {
 			var input = LiveCodeEvents._inputelement;
-			if (!input || document.activeElement !== input || !navigator.maxTouchPoints) {
+			if (!input || !navigator.maxTouchPoints) {
+				return;
+			}
+			if (document.activeElement !== input) {
+				// OXT-Beyond: on an iPhone or an iPad the input was left
+				// without the focus while the page is full screen
+				// (_inputHeld()). A field has the focus now and wants the
+				// keyboard: the input takes the focus, which brings the
+				// keyboard up, and WebKit ends full screen for it.
+				if (show && LiveCodeEvents._isIOS && LiveCodeEvents._inputtarget != null &&
+					(LiveCodeEvents._fullScreenAsking || LiveCodeEvents._pageIsFullScreen())) {
+					input.focus({preventScroll: true});
+				}
 				return;
 			}
 			if (input.virtualKeyboardPolicy == 'manual') {
