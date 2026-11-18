@@ -15,13 +15,13 @@
 # You should have received a copy of the GNU General Public License
 # along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
 
-"""Play Ember Bricks on emulated phones, a duel between two pages, and
-the online lobby between three.
+"""Play Ember Bricks on emulated phones, a duel between two pages, the
+online lobby between three, and a level with a mouse.
 
   python3 tools/ci/ember_bricks_check.py --runtime DIR (--engine FILE | --engine-cache DIR)
       [--browser chromium|webkit] [--device NAME]... [--rebuild] [--work DIR]
       [--timeout SECONDS] [--shots DIR] [--min-fps N] [--extensions DIR]
-      [--no-duel] [--no-lobby]
+      [--no-duel] [--no-lobby] [--no-pointer]
 
 --runtime, --engine and --engine-cache are tools/ci/web_check.py's: the web
 runtime (its engine is the one with the xTalk Suite's libraries, so
@@ -51,7 +51,8 @@ a phone's window, and:
      button begins a run: a ball waits on the paddle
   3. a finger dragged across the screen moves the paddle with it, and
      lifted, sends the ball off
-  4. the ball breaks a brick: the score goes up
+  4. the ball breaks a brick: the score goes up (and a finger has no
+     pointer for the game to hide)
   5. the Pause button pauses (the run's clock stops) and Resume goes on
   6. the game keeps at least --min-fps frames a second (by default 20 in
      Chromium and 10 in WebKit, which draws without a graphics card on
@@ -105,6 +106,20 @@ that is over:
      maker
  24. no script error, in any of the games or pages
 
+Last, in either browser (--no-pointer leaves it out), a desktop's window
+with a mouse plays a level. The pointer is what the page shows where the
+mouse is (the CSS cursor of the element there), and what the game says
+of it (its ebState's "hidden"). The page asks for no clipboard, which
+WebKit has none to give, and where a browser's own page says that it has
+no mouse (outside MOUSE_BROWSERS) the game is told that it has one:
+
+ 25. on the title the pointer shows, over where the arena is too
+ 26. in a level it is hidden over the arena
+ 27. it shows over the pause button beside the arena, and is hidden again
+     back over the arena
+ 28. a pause shows it over the arena, and Resume hides it again
+ 29. no script error, in the game or the page
+
 Playwright's WebKit on Linux makes no touch events, so there the taps and
 the drag are the mouse's, which the game reads as it reads a finger. Ends
 with "EMBER BRICKS CHECK OK" or a list of what failed, and exit status 1.
@@ -148,6 +163,9 @@ DUEL_HOST = {'viewport': {'width': 1000, 'height': 700}}
 DUEL_GUEST = 'Pixel 7'
 # the browsers whose pages a check can give a clipboard to read
 DUEL_BROWSERS = ('chromium',)
+# the browsers whose desktop page is known to say it has a mouse, which
+# the check then holds it to
+MOUSE_BROWSERS = ('chromium',)
 # the lobby's third page, a phone too
 LOBBY_THIRD = 'iPhone 13'
 # the seconds the lobby's relay keeps an ephemeral event for (strfry's
@@ -159,7 +177,7 @@ LOBBY_RELAY_KEEPS = 300
 LOBBY_BACK_IN = 10
 # the state's keys a failure is printed with
 KEYS = ('mode', 'phase', 'score', 'lives', 'level', 'bricks', 'now', 'padx', 'ball', 'fps', 'font', 'audio',
-        'library', 'arena', 'wide', 'window', 'pointer', 'rtc', 'duel', 'lobby', 'stage', 'left', 'rival',
+        'library', 'arena', 'wide', 'window', 'pointer', 'hidden', 'rtc', 'duel', 'lobby', 'stage', 'left', 'rival',
         'link', 'shift', 'nostr', 'online', 'name', 'relays', 'room', 'who', 'doing', 'foe', 'invite', 'back')
 
 # A handler of the check stack, called from the page
@@ -168,6 +186,9 @@ CALL = ("(a) => { var h = document.liveCode && document.liveCode.findStackWithNa
 # The page once the game is on its title
 OPENED = ("() => { var h = document.liveCode && document.liveCode.findStackWithName('EmberBricksCheck');"
           " return !!(h && h.ecState && String(h.ecState()).indexOf('mode:title') === 0); }")
+# The pointer a page shows at a point: the CSS cursor of what is there
+CURSOR_AT = ("(p) => { var e = document.elementFromPoint(p[0], p[1]);"
+             " return e ? String(getComputedStyle(e).cursor) : ''; }")
 # The page once the game is in its lobby (a page opened by a friend's link
 # goes straight there)
 OPENED_LOBBY = OPENED.replace("'mode:title'", "'mode:lobby'")
@@ -388,6 +409,8 @@ def check_device(playwright, browser_name, device, url, timeout, shots, min_fps)
         shot('4-play')
         expect('the ball breaks a brick', number(s, 'bricks', bricks) < bricks, s)
         expect('for points', number(s, 'score', 0) >= 10, s)
+        if s.get('pointer') == 'touch':
+            expect('a finger has no pointer for the game to hide', s.get('hidden') == 'false', s)
 
         # 5. Pause and Resume
         tap('Pause')
@@ -449,10 +472,12 @@ def check_device(playwright, browser_name, device, url, timeout, shots, min_fps)
 
 
 class Player:
-    """One page of a duel or of the lobby: its taps, its state, its
-    clipboard"""
+    """One page of a duel, of the lobby or of a level with a mouse: its
+    taps, its state, and its clipboard where the browser can give it one
+    (DUEL_BROWSERS) and it is asked for"""
 
-    def __init__(self, playwright, browser, browser_name, name, profile, url, timeout, shots, scene='duel'):
+    def __init__(self, playwright, browser, browser_name, name, profile, url, timeout, shots, scene='duel',
+                 clipboard=True):
         self.name = name
         self.shots = shots
         self.scene = scene
@@ -462,7 +487,11 @@ class Player:
         profile = dict(profile)
         profile.pop('default_browser_type', None)
         self.touch = bool(profile.get('has_touch'))
-        self.context = browser.new_context(permissions=['clipboard-read', 'clipboard-write'], **profile)
+        if clipboard:
+            # (only for a page that reads one: WebKit knows no such
+            # permission, and refuses the context's first page for it)
+            profile['permissions'] = ['clipboard-read', 'clipboard-write']
+        self.context = browser.new_context(**profile)
         self.page = self.context.new_page()
         self.page.on('pageerror', lambda e: self.page_errors.append(str(e)))
         self.page.on('console', lambda m: log('  %s console.%s: %s' % (name, m.type, m.text))
@@ -655,6 +684,102 @@ def check_duel(playwright, browser_name, url, timeout, shots):
             errors = player.errors()
             expect('no script error in the %s\'s game' % player.name, errors == '', {'errors': errors[:400]})
             expect('none in its page', not player.page_errors, {'page errors': player.page_errors[:3]})
+    finally:
+        browser.close()
+    return problems
+
+
+def check_pointer(playwright, browser_name, url, timeout, shots):
+    """A level played with a mouse in a desktop's window: 25 to 29 of the
+    list."""
+    problems = []
+
+    def expect(what, ok, *states):
+        if ok:
+            log('  ok: %s' % what)
+        else:
+            problems.append('%s, the pointer: %s' % (browser_name, what))
+            log('  FAILED: %s (%s)' % (what, ' | '.join(said(s) if isinstance(s, dict) else str(s) for s in states)))
+
+    browser = getattr(playwright, browser_name).launch(**mobile_web_check.launch_options(browser_name))
+    try:
+        # (no clipboard: nothing here reads one, and the page has to open
+        # in WebKit too)
+        me = Player(playwright, browser, browser_name, 'desktop', DUEL_HOST, url, timeout, shots, scene='pointer',
+                    clipboard=False)
+
+        def pointer_at(x, y, hidden, seconds=3.0):
+            """The mouse at a point of the page, and once the pointer is
+            hidden there (or shows), or after so many seconds: the game's
+            state and the page's cursor at the point"""
+            me.page.mouse.move(x, y, steps=4)
+            end = time.time() + seconds
+            while True:
+                s = me.state()
+                cursor = str(me.page.evaluate(CURSOR_AT, [x, y]))
+                if ((s.get('hidden') == 'true') == hidden and (cursor == 'none') == hidden) or time.time() > end:
+                    return s, {'cursor': cursor}
+                time.sleep(0.1)
+
+        def is_hidden(s, c):
+            return s.get('hidden') == 'true' and c['cursor'] == 'none'
+
+        def shows(s, c):
+            return s.get('hidden') == 'false' and c['cursor'] != 'none'
+
+        def arena_middle():
+            a = rect(me.state().get('arena', ''))
+            if not a:
+                raise CheckError('the game has no arena')
+            return (a[0] + a[2]) / 2, (a[1] + a[3]) / 2
+
+        # 25. the title
+        x, y = arena_middle()
+        s = me.state()
+        if s.get('pointer') != 'mouse' and browser_name not in MOUSE_BROWSERS:
+            # the page's (any-pointer) is the build's to answer, and a
+            # headless one may answer as a phone does whatever the page:
+            # the game is told what a desktop's browser tells it
+            log('  (%s says this page has no mouse (%s): the game is told that it has)'
+                % (browser_name, s.get('pointer')))
+            me.set('pointer', 'mouse')
+        s, c = pointer_at(x, y, False, 1.5)
+        expect('a desktop\'s page plays with a mouse', s.get('pointer') == 'mouse', s)
+        expect('on the title the pointer shows, over where the arena is too', s.get('mode') == 'title' and shows(s, c), s, c)
+
+        # 26. a level
+        me.tap('Play')
+        s = me.wait_for(lambda s: s.get('mode') in ('howto', 'play'), 3)
+        if s.get('mode') == 'howto':
+            me.tap('Howto Go')
+        s = me.wait_for(lambda s: s.get('mode') == 'play', 3)
+        x, y = arena_middle()
+        s, c = pointer_at(x, y, True)
+        me.shot('1-hidden')
+        expect('in a level the pointer is hidden over the arena', s.get('mode') == 'play' and is_hidden(s, c), s, c)
+
+        # 27. the pause button, beside the arena, and back
+        px, py = middle(me.page, 'Pause')
+        s, c = pointer_at(px, py, False)
+        expect('it shows over the pause button', s.get('mode') == 'play' and shows(s, c), s, c)
+        s, c = pointer_at(x, y, True)
+        expect('and is hidden again back over the arena', s.get('mode') == 'play' and is_hidden(s, c), s, c)
+
+        # 28. a pause, and Resume
+        me.tap('Pause')
+        s = me.wait_for(lambda s: s.get('mode') == 'pause', 3)
+        s, c = pointer_at(x, y, False)
+        me.shot('2-paused')
+        expect('a pause shows it over the arena', s.get('mode') == 'pause' and shows(s, c), s, c)
+        me.tap('Resume')
+        s = me.wait_for(lambda s: s.get('mode') == 'play', 3)
+        s, c = pointer_at(x, y, True)
+        expect('Resume hides it again', s.get('mode') == 'play' and is_hidden(s, c), s, c)
+
+        # 29. no script error
+        errors = me.errors()
+        expect('no script error in the game', errors == '', {'errors': errors[:400]})
+        expect('none in the page', not me.page_errors, {'page errors': me.page_errors[:3]})
     finally:
         browser.close()
     return problems
@@ -880,6 +1005,7 @@ def main(argv=None):
     ap.add_argument('--min-fps', type=int, help='the fewest frames a second (default: %s)' % DEFAULT_MIN_FPS)
     ap.add_argument('--no-duel', action='store_true', help='leave out the duel between two pages')
     ap.add_argument('--no-lobby', action='store_true', help='leave out the online lobby between three pages')
+    ap.add_argument('--no-pointer', action='store_true', help='leave out the level played with a mouse')
     args = ap.parse_args(argv)
     if not args.engine and not args.engine_cache:
         ap.error('--engine or --engine-cache is needed')
@@ -936,6 +1062,11 @@ def main(argv=None):
                     problems += check_lobby(p, args.browser, url, args.timeout, args.shots, relay, relay_url)
                 finally:
                     relay.shutdown()
+            if args.no_pointer:
+                log('(no level with a mouse: --no-pointer)')
+            else:
+                log('%s, a level with a mouse in a desktop\'s page:' % args.browser)
+                problems += check_pointer(p, args.browser, url, args.timeout, args.shots)
         server.shutdown()
     except (CheckError, web_check.CheckError, subprocess.TimeoutExpired) as e:
         log('FAILED: %s' % e)

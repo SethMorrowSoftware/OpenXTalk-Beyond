@@ -50,6 +50,12 @@ files it is made from, without a browser or an engine:
   and WebKit in web.yml, the duel and the lobby with it; the deploy
   script adds a script library only when it is asked to
 - the engine tests drive the game through the hooks it has
+- the mouse's pointer, hidden over the arena while a level is played: the
+  engine has one cursor for all its windows, so only the game's two
+  handlers of the pointer touch it, every frame and every change of
+  screen says how it is, a pointer the game hides is watched for frames
+  that stop, and the stack closing gives it back before anything else;
+  the check plays a level with a mouse in both browsers
 - whatever comes into the game (a message of the engine's, a button, the
   page) changes what the window shows only behind a locked screen, and no
   handler leaves the screen locked: on a phone every statement that
@@ -66,6 +72,7 @@ import subprocess
 import sys
 import time
 import unittest
+from unittest import mock
 import wave
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -1101,6 +1108,150 @@ class Codes(unittest.TestCase):
             self.assertEqual(total ^ 4294967295, zlib.crc32(data))
 
 
+class ThePointer(unittest.TestCase):
+    """The mouse's pointer is hidden over the arena while a level is
+    played. The engine has one cursor for all of its windows, the IDE's
+    among them, and a desktop's tests have no mouse and no window, so the
+    script is read for who takes the cursor and that it is given back."""
+
+    def code(self, name, script=None):
+        return '\n'.join(code for number, code in script_handlers(script or game_script())[name][1])
+
+    def test_only_the_pointers_handlers_touch_the_engines_cursor(self):
+        handlers = script_handlers(game_script())
+        touching = sorted(name for name, (kind, lines) in handlers.items()
+                          if any(re.search(r'\b(lockCursor|cursor)\b', code, re.I) and re.match(r'\s*(set|lock|unlock)\b', code)
+                                 for number, code in lines))
+        self.assertEqual(touching, ['ebPointer', 'ebPointerShow'])
+        # one hides, the other only lets go
+        self.assertIn('set the lockCursor to true', self.code('ebPointer'))
+        self.assertIn('set the cursor to none', self.code('ebPointer'))
+        self.assertNotIn('to true', self.code('ebPointerShow'))
+        self.assertIn('set the lockCursor to false', self.code('ebPointerShow'))
+        for name in ('ebPointer', 'ebPointerShow', 'ebPointerHides'):
+            self.assertTrue(handlers[name][0].startswith('private'), name)
+
+    def test_a_cursor_the_game_did_not_take_is_not_let_go(self):
+        show = self.code('ebPointerShow')
+        self.assertLess(show.index('if sPtrOff is true then'), show.index('set the lockCursor to false'))
+        hide = self.code('ebPointer')
+        # (a cursor another script holds locked is left alone)
+        self.assertLess(hide.index('if sPtrOff is not true and the lockCursor then'), hide.index('put true into sPtrOff'))
+        self.assertLess(hide.index('put true into sPtrOff'), hide.index('set the lockCursor to true'))
+
+    def test_every_frame_and_every_change_of_screen_says_how_the_pointer_is(self):
+        # (a frame's ebAdvance is the tests' clock too; a pause stops the
+        # frames, and is a change of screen)
+        self.assertEqual(self.code('ebAdvance').rstrip().split('\n')[-1].strip(), 'ebPointer')
+        self.assertEqual(self.code('ebShowScreen').rstrip().split('\n')[-1].strip(), 'ebPointer')
+        self.assertIn('ebAdvance ', self.code('ebFrame'))
+        # whatever changes the screen the game is on shows that screen,
+        # after the change (the stack closing gives the pointer back
+        # itself, and opening goes to the title)
+        changing = []
+        for name, (kind, lines) in script_handlers(game_script()).items():
+            code = self.code(name)
+            if 'into sMode' not in code or name in ('closeStack', 'ebInit'):
+                continue
+            changing.append(name)
+            self.assertIn('ebShowScreen ', code, name)
+            self.assertLess(code.rindex('into sMode'), code.rindex('ebShowScreen '), name)
+        for name in ('ebPause', 'ebResume', 'ebGoTitle', 'ebNewRun', 'ebNextLevel', 'ebShowClear', 'ebShowOver',
+                     'ebDuelOpen', 'ebDuelEnd'):
+            self.assertIn(name, changing)
+        self.assertIn('ebGoTitle', self.code('ebInit'))
+
+    def test_the_pointer_is_hidden_only_in_a_level_over_the_arena_with_a_mouse(self):
+        hides = self.code('ebPointerHides')
+        for condition in ('sMode is not ""', 'sPointer is not ""', 'sPlatform is ""', 'the tool is not ""',
+                          'the mouseStack is not the short name of me', 'tLoc is within sArena'):
+            self.assertIn(condition, hides, condition)
+        script = game_script()
+        self.assertIn('if sMode is not "play" or sPointer is not "mouse" or sPlatform is "mobile" or sArena is empty then',
+                      script)
+        self.assertIn('if the tool is not "browse tool" then', script)
+        # a test's mouse is read in place of the real one, never beside it
+        self.assertLess(hides.index('if sManual then'), hides.index('the mouseLoc'))
+
+    def test_a_hidden_pointer_is_watched_for_frames_that_stop(self):
+        hide = self.code('ebPointer')
+        self.assertIn('send "" to me in kPointerFor milliseconds', hide)
+        self.assertIn('send "ebPointerWatch" to me in kPointerFor milliseconds', game_script())
+        self.assertIn('put the milliseconds into sPtrAt', hide)
+        watch = self.code('ebPointerWatch')
+        self.assertIn('if the milliseconds - sPtrAt >= kPointerFor then', watch)
+        self.assertLess(watch.index('if the milliseconds - sPtrAt >= kPointerFor then'), watch.index('ebPointerShow'))
+        self.assertEqual(script_handlers(game_script())['ebPointerWatch'][0], 'on')
+        # sooner than the half second with no frame that pauses a level,
+        # and longer than a slow frame
+        self.assertTrue(100 <= int(constant('kPointerFor')) < 500)
+        # (the watch that is given up is cancelled)
+        self.assertIn('cancel sPtrWatch', self.code('ebPointerShow'))
+
+    def test_the_stack_closing_gives_the_pointer_back_first(self):
+        close = self.code('closeStack')
+        self.assertIn('ebPointerShow', close)
+        for later in ('ebNetStop', 'ebDuelClose', 'mwStop'):
+            self.assertLess(close.index('ebPointerShow'), close.index(later), later)
+        # and a test begins with it shown, and no mouse
+        begin = self.code('ebTestBegin')
+        self.assertIn('ebPointerShow', begin)
+        self.assertIn('put empty into sFakeMouse', begin)
+
+    def test_the_check_plays_a_level_with_a_mouse_in_both_browsers(self):
+        check = read('tools', 'ci', 'ember_bricks_check.py')
+        main = check[check.index('\ndef main('):]
+        self.assertIn('problems += check_pointer(p, args.browser, url, args.timeout, args.shots)', main)
+        # (not only where a check can give a page a clipboard)
+        pointer = main[main.index('if args.no_pointer:'):main.index('problems += check_pointer(')]
+        self.assertNotIn('DUEL_BROWSERS', pointer)
+        web = read('.github', 'workflows', 'web.yml')
+        step = re.search(r"- name: Play Ember Bricks on phones.*?(?=\n      - name:|\Z)", web, re.S)
+        self.assertNotIn('--no-pointer', step.group(0))
+        # the pointer is what the page shows where the mouse is, and what
+        # the game says of it
+        body = check[check.index('\ndef check_pointer('):check.index('\ndef check_lobby(')]
+        self.assertIn('me.page.mouse.move(x, y', body)
+        self.assertIn('me.page.evaluate(CURSOR_AT, [x, y])', body)
+        self.assertIn('getComputedStyle(e).cursor', ember_bricks_check.CURSOR_AT)
+        self.assertIn("s.get('hidden') == 'true' and c['cursor'] == 'none'", body)
+        # with a mouse, not a finger
+        self.assertNotIn('has_touch', ember_bricks_check.DUEL_HOST)
+        self.assertIn("Player(playwright, browser, browser_name, 'desktop', DUEL_HOST,", body)
+        # which the page has to say itself where it is known to (a
+        # headless build may answer for any page as a phone does, and
+        # only there is the game told)
+        self.assertEqual(ember_bricks_check.MOUSE_BROWSERS, ('chromium',))
+        told = body[body.index("if s.get('pointer') != 'mouse'"):body.index("me.set('pointer', 'mouse')")]
+        self.assertIn('browser_name not in MOUSE_BROWSERS', told)
+        self.assertIn("expect('a desktop\\'s page plays with a mouse', s.get('pointer') == 'mouse', s)", body)
+
+    def test_the_mouses_page_asks_for_no_clipboard(self):
+        # WebKit knows no clipboard permission, and refuses the first page
+        # of a context that asks for one ("Unknown permission:
+        # clipboard-write"): the level with a mouse reads no clipboard,
+        # and has to open there too
+        check = read('tools', 'ci', 'ember_bricks_check.py')
+        body = check[check.index('\ndef check_pointer('):check.index('\ndef check_lobby(')]
+        self.assertRegex(body, r"Player\(playwright, browser, browser_name, 'desktop', DUEL_HOST,[^)]*clipboard=False\)")
+
+        def context_of(**more):
+            browser = mock.MagicMock()
+            with mock.patch.object(ember_bricks_check.time, 'sleep'):
+                ember_bricks_check.Player(None, browser, 'webkit', 'desktop', ember_bricks_check.DUEL_HOST,
+                                          'http://127.0.0.1:1/', 5, None, **more)
+            self.assertEqual(browser.new_context.call_count, 1)
+            return browser.new_context.call_args.kwargs
+
+        asked = context_of(scene='pointer', clipboard=False)
+        self.assertNotIn('permissions', asked)
+        self.assertEqual(asked.get('viewport'), ember_bricks_check.DUEL_HOST['viewport'])
+        # a duel's page and the lobby's still have theirs
+        self.assertEqual(context_of().get('permissions'), ['clipboard-read', 'clipboard-write'])
+        # and the profile a page is made from is left as it was
+        self.assertNotIn('permissions', ember_bricks_check.DUEL_HOST)
+
+
 class EngineTests(unittest.TestCase):
 
     def test_the_tests_use_the_games_hooks(self):
@@ -1110,10 +1261,11 @@ class EngineTests(unittest.TestCase):
         self.assertTrue({'ebTestBegin', 'ebTestStep', 'ebTestLevel', 'ebTestBall', 'ebTestPaddle', 'ebTestDrop',
                          'ebTestSet', 'ebTestDuel', 'ebDuelSent', 'ebDuelReceive', 'ebState', 'ebPress',
                          'ebPasted', 'ebDuelEncode', 'ebDuelDecode', 'ebTestNet', 'ebNetHear', 'ebNetSent',
-                         'ebNetName', 'ebNetCode', 'ebNetRelay', 'ebNetLines', 'ebTestSlept'} <= hooks, hooks)
+                         'ebNetName', 'ebNetCode', 'ebNetRelay', 'ebNetLines', 'ebTestSlept',
+                         'ebPointerWatch'} <= hooks, hooks)
         for name in hooks:
             self.assertRegex(script, r'\n(?:on|command|function) %s\b' % name, name)
-        self.assertGreaterEqual(len(re.findall(r'^on Test(?!Setup|Teardown)', tests, re.M)), 81)
+        self.assertGreaterEqual(len(re.findall(r'^on Test(?!Setup|Teardown)', tests, re.M)), 88)
 
     def test_the_layout_is_asked_only_of_a_window_that_was_made_the_size(self):
         # the tests of the game run in a phone's app too, where no window

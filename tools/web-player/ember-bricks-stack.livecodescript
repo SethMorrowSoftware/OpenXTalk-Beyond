@@ -91,6 +91,9 @@ constant kSpeedTop = 1.25
 -- finger's point (more, so that a thumb crosses the arena easily)
 constant kKeySpeed = 420
 constant kDragGain = 1.5
+-- The milliseconds a hidden pointer stays hidden with no frame to say
+-- so again (ebPointerWatch)
+constant kPointerFor = 400
 -- what falls and flies: a spark's speed and radius, a bolt's speed, and
 -- the time between two bolts
 constant kDropSpeed = 95
@@ -214,6 +217,11 @@ local sBK, sBH, sRemaining, sLook, sBlast
 -- shrinking to, its look; a finger on the screen and where it was at the
 -- last frame; where the mouse was
 local sPadX, sPadW, sPadTarget, sPadLook, sDragging, sDragFrom, sMouseLast
+-- the mouse's pointer (see "The mouse's pointer", below): whether the
+-- game has hidden it, when a frame last said so (in milliseconds), the
+-- message that watches for frames that stop, and where a test's mouse
+-- is, in the window's points (empty: not over the window)
+local sPtrOff, sPtrAt, sPtrWatch, sFakeMouse
 -- the things that fly, by kind: each sBall[i] (and the others) is an
 -- array, with "on" whether it is in play
 local sBall, sDrop, sBolt, sSpark, sPop, sMote
@@ -278,6 +286,8 @@ end preOpenStack
 
 on closeStack
    ebStopLoop
+   -- (first: nothing below keeps the pointer hidden)
+   ebPointerShow
    ebNetStop
    ebDuelClose
    put "closed" into sMode
@@ -982,6 +992,7 @@ command ebAdvance pDt, pReal
          put empty into sFlashUntil
       end if
    end if
+   ebPointer
 end ebAdvance
 
 -- A level, pDt seconds on
@@ -1051,7 +1062,106 @@ command ebShowScreen pName
       set the visible of field id sId["Hint"] to false
    end if
    unlock screen
+   -- (a pause stops the frames: the pointer is back before they do)
+   ebPointer
 end ebShowScreen
+
+----------------------------------------------------------------------
+-- The mouse's pointer
+
+-- While a level is played the pointer over the arena points at nothing
+-- (the paddle goes where the mouse is, and nothing in the arena is
+-- pressed) and is in the ball's way, so there it is hidden: on a desktop
+-- and in a page, where a mouse plays. It shows wherever there is
+-- something to point at: on a pause and on every other screen, over the
+-- HUD and its pause button, outside the window and over another one,
+-- and with any tool of the IDE but the one that plays. A finger has no
+-- pointer, and nothing changes for it.
+--
+-- The engine has one cursor for all of its windows, the IDE's among
+-- them (the lockCursor and the cursor), so the game takes it only while
+-- it hides it, leaves alone one that another script holds locked, and
+-- never keeps it past its own frames: every frame says again that the
+-- pointer is hidden (ebPointer, from ebAdvance), and when none has for
+-- kPointerFor milliseconds (a script that stopped, the debugger)
+-- ebPointerWatch shows it again.
+
+-- Whether the pointer is hidden as things are: a level is being played
+-- with a mouse that is over the arena, in this window, with the tool
+-- that plays
+private function ebPointerHides
+   local tLoc
+   if sMode is not "play" or sPointer is not "mouse" or sPlatform is "mobile" or sArena is empty then
+      return false
+   end if
+   if the tool is not "browse tool" then
+      return false
+   end if
+   if sManual then
+      -- (a test's mouse is where the test says, and no other is read)
+      put sFakeMouse into tLoc
+   else
+      if the mouseStack is not the short name of me then
+         return false
+      end if
+      put the mouseLoc into tLoc
+   end if
+   if tLoc is not a point then
+      return false
+   end if
+   return tLoc is within sArena
+end ebPointerHides
+
+-- The pointer as it should be now, hidden or shown
+private command ebPointer
+   if not ebPointerHides() then
+      ebPointerShow
+      exit ebPointer
+   end if
+   if sPtrOff is not true and the lockCursor then
+      -- another script holds the cursor: it is theirs
+      exit ebPointer
+   end if
+   put true into sPtrOff
+   put the milliseconds into sPtrAt
+   if the lockCursor is not true then
+      -- (now, or again after another script let its own go)
+      set the lockCursor to true
+      set the cursor to none
+   end if
+   if sPtrWatch is empty and not sManual then
+      send "ebPointerWatch" to me in kPointerFor milliseconds
+      put the result into sPtrWatch
+   end if
+end ebPointer
+
+-- The pointer given back, if the game had hidden it
+private command ebPointerShow
+   if sPtrWatch is not empty then
+      cancel sPtrWatch
+      put empty into sPtrWatch
+   end if
+   if sPtrOff is true then
+      put false into sPtrOff
+      set the lockCursor to false
+   end if
+end ebPointerShow
+
+-- A hidden pointer that no frame has hidden again for kPointerFor
+-- milliseconds shows: whatever stopped the frames, nobody is left
+-- without one
+on ebPointerWatch
+   put empty into sPtrWatch
+   if sPtrOff is not true then
+      exit ebPointerWatch
+   end if
+   if the milliseconds - sPtrAt >= kPointerFor then
+      ebPointerShow
+   else
+      send "ebPointerWatch" to me in kPointerFor milliseconds
+      put the result into sPtrWatch
+   end if
+end ebPointerWatch
 
 -- The arena on the screen, or (pOn false) everything of it put away and
 -- the embers drifting instead
@@ -6958,6 +7068,9 @@ command ebTestBegin pSeed, pSaveFile
    set the defaultStack to the short name of me
    put true into sManual
    ebStopLoop
+   -- (no mouse but the one a test puts somewhere: ebTestSet "mouse")
+   put empty into sFakeMouse
+   ebPointerShow
    if pSeed is a number then
       set the randomSeed to pSeed
    end if
@@ -7202,7 +7315,9 @@ end ebTestDrop
 -- for at once; left (a duel's seconds); rtc (whether a link can be made:
 -- yes or no); nostr (whether there is a lobby: yes or no); relays (the
 -- lobby's, in place of its own); invite (a friend's room, as the page's
--- address would name it)
+-- address would name it); mouse (where the test's mouse is, in the
+-- window's points, or empty for not over the window: the next frame
+-- hides or shows the pointer for it, as it does for a real one)
 command ebTestSet pName, pValue
    set the defaultStack to the short name of me
    switch pName
@@ -7233,6 +7348,9 @@ command ebTestSet pName, pValue
          break
       case "pointer"
          put pValue into sPointer
+         break
+      case "mouse"
+         put pValue into sFakeMouse
          break
       case "unlocked"
          put pValue into sUnlocked
@@ -7294,6 +7412,8 @@ function ebState
    put "scale:" & round(sS, 4) & return & "ui:" & round(sUI, 3) & return & "wide:" & sWide & return after tOut
    put "insets:" & sInT & comma & sInB & comma & sInL & comma & sInR & return & "window:" & sW & comma & sH & return after tOut
    put "platform:" & sPlatform & return & "pointer:" & sPointer & return & "sound:" & sSound & return after tOut
+   -- whether the game has hidden the mouse's pointer
+   put "hidden:" & (sPtrOff is true) & return after tOut
    put "buzz:" & sBuzz & return & "effects:" & sEffects & return & "howto:" & sSeenHowto & return after tOut
    put "library:" & sLibrary & return & "audio:" & sAudio & return & "font:" & sFontLoaded & return after tOut
    put "duel:" & sDuel & return & "lobby:" & sLobby & return & "stage:" & sNet2["stage"] & return after tOut
