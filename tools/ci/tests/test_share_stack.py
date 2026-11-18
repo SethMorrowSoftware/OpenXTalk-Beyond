@@ -65,10 +65,7 @@ GALLERY_LIMITS = {
     'kMaxTags': 5, 'kMaxTagChars': 20,
     'kMaxFileBytes': 25 * 1024 * 1024,
 }
-GALLERY_LICENCES = {
-    'MIT', 'Apache-2.0', 'BSD-2-Clause', 'BSD-3-Clause', 'GPL-3.0-only', 'GPL-3.0-or-later',
-    'GPL-2.0-or-later', 'LGPL-3.0-or-later', 'MPL-2.0', 'CC0-1.0', 'CC-BY-4.0', 'CC-BY-SA-4.0', 'Unlicense',
-}
+GALLERY_LICENCES = {'GPL-3.0-only', 'GPL-3.0-or-later'}
 GALLERY_STACK_EXTENSIONS = {'oxtstack', 'livecode', 'rev', 'livecodescript'}
 FORUM = 'https://openxtalk.org/forum/'
 
@@ -146,9 +143,14 @@ class Window(unittest.TestCase):
         lines = re.findall(r'"([^"|]+)\|([^"|]+)\|([^"|]+)"', body)
         self.assertEqual({line[0] for line in lines}, GALLERY_LICENCES)
         self.assertEqual(len(lines), len(GALLERY_LICENCES), 'a licence is there twice')
-        # (the one a new author is given, and the plainest three first)
-        self.assertEqual([line[0] for line in lines[:3]], ['MIT', 'CC0-1.0', 'GPL-3.0-or-later'])
-        self.assertIn('put "MIT" into sInfo["licence"]', handler(self.text, 'revShareStackShow'))
+        # a community stack is GPL 3: the one a new author is given first,
+        # and the one an author who chose another licence before is moved to
+        self.assertEqual(lines[0][0], 'GPL-3.0-only')
+        show = handler(self.text, 'revShareStackShow')
+        self.assertIn('if sInfo["licence"] is not among the lines of ssLicenceIds() then', show)
+        self.assertIn('put "GPL-3.0-only" into sInfo["licence"]', show)
+        for word in ('MIT', 'BSD', 'Apache', 'CC0', 'Unlicense'):
+            self.assertNotIn(word, body)
 
     def test_the_package_is_one_folder_as_the_gallery_wants_it(self):
         pack = handler(self.text, 'revShareStackPack')

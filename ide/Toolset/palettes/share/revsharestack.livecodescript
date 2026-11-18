@@ -69,22 +69,24 @@ local sBuilding
 
 -- The licences an author can choose, a line each: the gallery's name for
 -- it (an SPDX identifier), what the menu says, and the short name the
--- window shows once it is chosen
+-- window shows once it is chosen. A community stack is GPL 3, as
+-- OXT-Beyond is: it plays on this engine, and the gallery serves it with
+-- this engine's player. The gallery takes no other licence
+-- (tools/listing.py LICENCES in oxt-community-stacks)
 function revShareStackLicences
-   return "MIT|MIT: others may use it freely, and keep your name on it|MIT" & return & \
-         "CC0-1.0|Public domain (CC0): others may do anything with it|Public domain (CC0)" & return & \
-         "GPL-3.0-or-later|GPL 3 or later: others may use it, and share their changes the same way|GPL 3 or later" & return & \
-         "Apache-2.0|Apache 2.0|Apache 2.0" & return & \
-         "BSD-2-Clause|BSD 2-Clause|BSD 2-Clause" & return & \
-         "BSD-3-Clause|BSD 3-Clause|BSD 3-Clause" & return & \
-         "GPL-3.0-only|GPL 3|GPL 3" & return & \
-         "GPL-2.0-or-later|GPL 2 or later|GPL 2 or later" & return & \
-         "LGPL-3.0-or-later|LGPL 3 or later|LGPL 3 or later" & return & \
-         "MPL-2.0|MPL 2.0|MPL 2.0" & return & \
-         "CC-BY-4.0|CC BY 4.0|CC BY 4.0" & return & \
-         "CC-BY-SA-4.0|CC BY-SA 4.0|CC BY-SA 4.0" & return & \
-         "Unlicense|Public domain (Unlicense)|Public domain (Unlicense)"
+   return "GPL-3.0-only|GPL 3: others may use, change and share it, and share their changes the same way|GPL 3" & return & \
+         "GPL-3.0-or-later|GPL 3 or later: the same, under GPL 3 or any later version|GPL 3 or later"
 end revShareStackLicences
+
+-- The gallery's names of the licences, a line each
+private function ssLicenceIds
+   local tLine, tIds
+   set the itemDelimiter to "|"
+   repeat for each line tLine in revShareStackLicences()
+      put item 1 of tLine & return after tIds
+   end repeat
+   return line 1 to -1 of tIds
+end ssLicenceIds
 
 -- The folder name the gallery gives a stack with this title: lower-case
 -- letters and digits with single hyphens between them, 3 to 40 long
@@ -179,7 +181,7 @@ function revShareStackProblems pInfo
    end repeat
    set the itemDelimiter to comma
    if not tFound then
-      put "Choose how others may use your stack." & return after tProblems
+      put "Choose GPL 3 or GPL 3 or later: every community stack is GPL 3, as OXT-Beyond is." & return after tProblems
    end if
    if not ssIsVersion(pInfo["version"]) then
       put "The version must be a number such as 1, 1.2 or 1.2.3." & return after tProblems
@@ -578,9 +580,11 @@ command revShareStackShow pStack, pFolder
       put the short name of sStack into sInfo["title"]
    end if
    put ssRemembered("author") into sInfo["author"]
+   -- (a licence remembered from before the gallery took GPL 3 alone,
+   -- MIT say, is not offered any more, so it gives way to GPL 3)
    put ssRemembered("licence") into sInfo["licence"]
-   if sInfo["licence"] is empty then
-      put "MIT" into sInfo["licence"]
+   if sInfo["licence"] is not among the lines of ssLicenceIds() then
+      put "GPL-3.0-only" into sInfo["licence"]
    end if
    put "1.0" into sInfo["version"]
    ssUseKit

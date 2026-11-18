@@ -9976,7 +9976,7 @@ on tour_share_stack
       revZipCloseArchive tPackage
       put textDecode(tListing, "UTF-8") into tListing
       tourRecord "INFO share-stack: listing" && tourJoin(tListing)
-      repeat for each item tItem in "title|Tour Beat Box,author|A. Tourist,licence|MIT,main|Tour Beat Box.oxtstack,screenshot|screenshot.png"
+      repeat for each item tItem in "title|Tour Beat Box,author|A. Tourist,licence|GPL-3.0-only,main|Tour Beat Box.oxtstack,screenshot|screenshot.png"
          set the itemDelimiter to "|"
          get quote & item 1 of tItem & quote & ": " & quote & item 2 of tItem & quote
          set the itemDelimiter to comma

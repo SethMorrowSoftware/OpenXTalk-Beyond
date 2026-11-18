@@ -56,7 +56,7 @@ private function __Info
    put "Beat Box" into tInfo["title"]
    put "A. Name" into tInfo["author"]
    put "A drum machine with sixteen steps. Click the squares to lay down a beat." into tInfo["about"]
-   put "MIT" into tInfo["licence"]
+   put "GPL-3.0-only" into tInfo["licence"]
    put "1.0" into tInfo["version"]
    put "Music, sound" into tInfo["tags"]
    return tInfo
@@ -134,7 +134,7 @@ on TestProblems
 
    put __Info() into tInfo
    put "Proprietary" into tInfo["licence"]
-   TestAssert "a licence the gallery does not take", __Problems(tInfo) is "Choose how others may use your stack."
+   TestAssert "a licence the gallery does not take", __Problems(tInfo) is "Choose GPL 3 or GPL 3 or later: every community stack is GPL 3, as OXT-Beyond is."
 
    put __Info() into tInfo
    repeat for each item tVersion in "1.a,.1,1.,1..2,1.2.3.4.5,v1,"
@@ -158,7 +158,7 @@ on TestProblems
    put empty into tInfo
    TestAssert "nothing typed: a line for each box, in the window's order", \
          __Problems(tInfo) is "The title is missing." & return & "Your name is missing." & return & \
-         "What it does is missing." & return & "Choose how others may use your stack." & return & \
+         "What it does is missing." & return & "Choose GPL 3 or GPL 3 or later: every community stack is GPL 3, as OXT-Beyond is." & return & \
          "The version must be a number such as 1, 1.2 or 1.2.3."
 end TestProblems
 
@@ -177,13 +177,16 @@ on TestLicences
    set the itemDelimiter to comma
    delete the last char of tIds
    sort items of tIds
-   TestAssert "the gallery's thirteen licences", tIds is \
-         "Apache-2.0,BSD-2-Clause,BSD-3-Clause,CC-BY-4.0,CC-BY-SA-4.0,CC0-1.0,GPL-2.0-or-later,GPL-3.0-only," & \
-         "GPL-3.0-or-later,LGPL-3.0-or-later,MIT,MPL-2.0,Unlicense"
+   TestAssert "the gallery's two licences, GPL 3 and GPL 3 or later", tIds is "GPL-3.0-only,GPL-3.0-or-later"
    put __Info() into tInfo
    repeat for each item tLine in tIds
       put tLine into tInfo["licence"]
       TestAssert "a listing with" && tLine && "is in order", __Problems(tInfo) is empty
+   end repeat
+   -- the licences the gallery took before it took GPL 3 alone
+   repeat for each item tLine in "MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,GPL-2.0-or-later,LGPL-3.0-or-later,MPL-2.0,CC0-1.0,CC-BY-4.0,CC-BY-SA-4.0,Unlicense"
+      put tLine into tInfo["licence"]
+      TestAssert "a listing with" && tLine && "is refused, and the reason names GPL 3", __Problems(tInfo) contains "GPL 3"
    end repeat
 end TestLicences
 
