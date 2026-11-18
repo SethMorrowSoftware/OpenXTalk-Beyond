@@ -72,6 +72,7 @@ import subprocess
 import sys
 import time
 import unittest
+from unittest import mock
 import wave
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -1217,6 +1218,38 @@ class ThePointer(unittest.TestCase):
         # with a mouse, not a finger
         self.assertNotIn('has_touch', ember_bricks_check.DUEL_HOST)
         self.assertIn("Player(playwright, browser, browser_name, 'desktop', DUEL_HOST,", body)
+        # which the page has to say itself where it is known to (a
+        # headless build may answer for any page as a phone does, and
+        # only there is the game told)
+        self.assertEqual(ember_bricks_check.MOUSE_BROWSERS, ('chromium',))
+        told = body[body.index("if s.get('pointer') != 'mouse'"):body.index("me.set('pointer', 'mouse')")]
+        self.assertIn('browser_name not in MOUSE_BROWSERS', told)
+        self.assertIn("expect('a desktop\\'s page plays with a mouse', s.get('pointer') == 'mouse', s)", body)
+
+    def test_the_mouses_page_asks_for_no_clipboard(self):
+        # WebKit knows no clipboard permission, and refuses the first page
+        # of a context that asks for one ("Unknown permission:
+        # clipboard-write"): the level with a mouse reads no clipboard,
+        # and has to open there too
+        check = read('tools', 'ci', 'ember_bricks_check.py')
+        body = check[check.index('\ndef check_pointer('):check.index('\ndef check_lobby(')]
+        self.assertRegex(body, r"Player\(playwright, browser, browser_name, 'desktop', DUEL_HOST,[^)]*clipboard=False\)")
+
+        def context_of(**more):
+            browser = mock.MagicMock()
+            with mock.patch.object(ember_bricks_check.time, 'sleep'):
+                ember_bricks_check.Player(None, browser, 'webkit', 'desktop', ember_bricks_check.DUEL_HOST,
+                                          'http://127.0.0.1:1/', 5, None, **more)
+            self.assertEqual(browser.new_context.call_count, 1)
+            return browser.new_context.call_args.kwargs
+
+        asked = context_of(scene='pointer', clipboard=False)
+        self.assertNotIn('permissions', asked)
+        self.assertEqual(asked.get('viewport'), ember_bricks_check.DUEL_HOST['viewport'])
+        # a duel's page and the lobby's still have theirs
+        self.assertEqual(context_of().get('permissions'), ['clipboard-read', 'clipboard-write'])
+        # and the profile a page is made from is left as it was
+        self.assertNotIn('permissions', ember_bricks_check.DUEL_HOST)
 
 
 class EngineTests(unittest.TestCase):

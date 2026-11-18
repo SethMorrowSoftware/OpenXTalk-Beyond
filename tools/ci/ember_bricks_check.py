@@ -109,7 +109,9 @@ that is over:
 Last, in either browser (--no-pointer leaves it out), a desktop's window
 with a mouse plays a level. The pointer is what the page shows where the
 mouse is (the CSS cursor of the element there), and what the game says
-of it (its ebState's "hidden"):
+of it (its ebState's "hidden"). The page asks for no clipboard, which
+WebKit has none to give, and where a browser's own page says that it has
+no mouse (outside MOUSE_BROWSERS) the game is told that it has one:
 
  25. on the title the pointer shows, over where the arena is too
  26. in a level it is hidden over the arena
@@ -161,6 +163,9 @@ DUEL_HOST = {'viewport': {'width': 1000, 'height': 700}}
 DUEL_GUEST = 'Pixel 7'
 # the browsers whose pages a check can give a clipboard to read
 DUEL_BROWSERS = ('chromium',)
+# the browsers whose desktop page is known to say it has a mouse, which
+# the check then holds it to
+MOUSE_BROWSERS = ('chromium',)
 # the lobby's third page, a phone too
 LOBBY_THIRD = 'iPhone 13'
 # the seconds the lobby's relay keeps an ephemeral event for (strfry's
@@ -467,10 +472,12 @@ def check_device(playwright, browser_name, device, url, timeout, shots, min_fps)
 
 
 class Player:
-    """One page of a duel or of the lobby: its taps, its state, its
-    clipboard"""
+    """One page of a duel, of the lobby or of a level with a mouse: its
+    taps, its state, and its clipboard where the browser can give it one
+    (DUEL_BROWSERS) and it is asked for"""
 
-    def __init__(self, playwright, browser, browser_name, name, profile, url, timeout, shots, scene='duel'):
+    def __init__(self, playwright, browser, browser_name, name, profile, url, timeout, shots, scene='duel',
+                 clipboard=True):
         self.name = name
         self.shots = shots
         self.scene = scene
@@ -480,7 +487,11 @@ class Player:
         profile = dict(profile)
         profile.pop('default_browser_type', None)
         self.touch = bool(profile.get('has_touch'))
-        self.context = browser.new_context(permissions=['clipboard-read', 'clipboard-write'], **profile)
+        if clipboard:
+            # (only for a page that reads one: WebKit knows no such
+            # permission, and refuses the context's first page for it)
+            profile['permissions'] = ['clipboard-read', 'clipboard-write']
+        self.context = browser.new_context(**profile)
         self.page = self.context.new_page()
         self.page.on('pageerror', lambda e: self.page_errors.append(str(e)))
         self.page.on('console', lambda m: log('  %s console.%s: %s' % (name, m.type, m.text))
@@ -692,7 +703,10 @@ def check_pointer(playwright, browser_name, url, timeout, shots):
 
     browser = getattr(playwright, browser_name).launch(**mobile_web_check.launch_options(browser_name))
     try:
-        me = Player(playwright, browser, browser_name, 'desktop', DUEL_HOST, url, timeout, shots, scene='pointer')
+        # (no clipboard: nothing here reads one, and the page has to open
+        # in WebKit too)
+        me = Player(playwright, browser, browser_name, 'desktop', DUEL_HOST, url, timeout, shots, scene='pointer',
+                    clipboard=False)
 
         def pointer_at(x, y, hidden, seconds=3.0):
             """The mouse at a point of the page, and once the pointer is
@@ -721,6 +735,14 @@ def check_pointer(playwright, browser_name, url, timeout, shots):
 
         # 25. the title
         x, y = arena_middle()
+        s = me.state()
+        if s.get('pointer') != 'mouse' and browser_name not in MOUSE_BROWSERS:
+            # the page's (any-pointer) is the build's to answer, and a
+            # headless one may answer as a phone does whatever the page:
+            # the game is told what a desktop's browser tells it
+            log('  (%s says this page has no mouse (%s): the game is told that it has)'
+                % (browser_name, s.get('pointer')))
+            me.set('pointer', 'mouse')
         s, c = pointer_at(x, y, False, 1.5)
         expect('a desktop\'s page plays with a mouse', s.get('pointer') == 'mouse', s)
         expect('on the title the pointer shows, over where the arena is too', s.get('mode') == 'title' and shows(s, c), s, c)
