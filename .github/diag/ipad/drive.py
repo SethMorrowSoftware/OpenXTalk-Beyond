@@ -138,15 +138,21 @@ class Served:
 
     def wait_for(self, word, seconds):
         """The text written since the last look, once it holds word (or
-        after the seconds)."""
+        one of the words; or after the seconds)."""
+        words = (word,) if isinstance(word, str) else word
         text = ''
         end = time.time() + seconds
         while time.time() < end:
             text += self.new_text()
-            if word in text:
+            if any(w in text for w in words):
                 return text, True
             time.sleep(0.3)
         return text, False
+
+
+def left_words(mode, ask, tag):
+    """What a page says when it has left full screen (or could not)."""
+    return tuple('BEACON left full=%s mode=%s ask=%s how=%s' % (full, mode, ask, tag) for full in ('false', 'true'))
 
 
 def real(base, udid, serve_log):
@@ -187,30 +193,51 @@ def real(base, udid, serve_log):
               flush=True)
         if touched:
             working = (way, point)
+            probe_tag = tag
             break
     if not working:
         sys.exit('no click on the Simulator\'s window reached the page as a touch')
     way, point = working
-    served.wait_for('CASE mode=never-focused', 14)
+    # the probe's page went full screen: it leaves by itself when it is done
+    text, left = served.wait_for(left_words('never-focused', 'touchend', probe_tag), 22)
+    print('  the probe\'s page %s' % ('left full screen' if left else 'did not say it left full screen'), flush=True)
+    for line in text.splitlines():
+        if line.startswith('  | ') and 'BEACON' not in line:
+            print('  ' + line[4:300], flush=True)
+    time.sleep(1.5)
 
     def case(mode, ask):
-        tag = 'real'
         print('\n===== %s, asked at %s, a real tap' % (mode, ask), flush=True)
-        if not open_page(mode, ask, tag):
-            print('  FAILED: the page did not load', flush=True)
-            return
-        time.sleep(1.5)
-        click(way, point)
-        if mode in SECOND_TAP:
-            time.sleep(SECOND_TAP[mode])
+        text = ''
+        for tag in ('real', 'real-again'):
+            if not open_page(mode, ask, tag):
+                print('  FAILED: the page did not load', flush=True)
+                return
+            time.sleep(1.5)
             click(way, point)
-        text, done = served.wait_for('end: full=', 16)
-        lines = [line for line in text.splitlines() if line.startswith('  | ')]
-        for line in lines:
-            print('  ' + line[4:300], flush=True)
+            if mode in SECOND_TAP:
+                time.sleep(SECOND_TAP[mode])
+                click(way, point)
+            text, touched = served.wait_for('BEACON touched mode=%s ask=%s how=%s' % (mode, ask, tag), 5)
+            if touched:
+                break
+            # Another page's full screen may still be over this one: Safari
+            # afresh, and the case once more
+            print('  no touch reached the page (%s): Safari is ended and the case tried %s'
+                  % (tag, 'again' if tag == 'real' else 'no more'), flush=True)
+            subprocess.run(['xcrun', 'simctl', 'terminate', udid, 'com.apple.mobilesafari'],
+                           capture_output=True, timeout=60)
+            time.sleep(3)
+        else:
+            print('  FAILED: no touch reached the page', flush=True)
+            return
+        more, done = served.wait_for(left_words(mode, ask, tag), 22)
+        for line in (text + more).splitlines():
+            if line.startswith('  | ') and 'BEACON' not in line:
+                print('  ' + line[4:300], flush=True)
         if not done:
-            print('  FAILED: the page did not finish', flush=True)
-        time.sleep(1)
+            print('  FAILED: the page did not say it left full screen', flush=True)
+        time.sleep(1.5)
 
     for mode in MODES:
         case(mode, 'touchend')

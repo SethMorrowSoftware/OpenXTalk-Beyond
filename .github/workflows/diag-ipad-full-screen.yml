@@ -59,19 +59,14 @@ jobs:
       # A finger on the screen: Safari as a user has it (no automation),
       # and the mouse clicked on the Simulator's window
       - name: Full screen from a real tap, case by case
-        timeout-minutes: 14
+        timeout-minutes: 20
         run: |
           python3 .github/diag/ipad/drive.py real "http://localhost:8765" "$IPAD_UDID" "$RUNNER_TEMP/serve.log" \
             || echo "the real taps ended with $?"
 
-      - name: Full screen from safaridriver's taps
-        timeout-minutes: 12
-        run: |
-          python3 -m venv "$RUNNER_TEMP/venv"
-          "$RUNNER_TEMP/venv/bin/python" -m pip install --quiet "selenium>=4.20,<5"
-          sudo safaridriver --enable
-          "$RUNNER_TEMP/venv/bin/python" .github/diag/ipad/drive.py run "http://localhost:8765" "$IPAD_UDID" \
-            || echo "the driver ended with $?"
+      # safaridriver's taps are not run again: in the runs of 79e1e5f and
+      # 04f3357 they gave the page no user activation, and every request
+      # was refused ("Cannot request fullscreen without transient activation")
 
       - name: What the pages posted
         if: always()

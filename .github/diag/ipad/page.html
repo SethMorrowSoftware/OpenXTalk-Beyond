@@ -128,6 +128,20 @@ html,body{margin:0;height:100%;font:16px system-ui}
       fetch('/log', {method: 'POST', body: 'CASE mode=' + mode + ' ask=' + askAt + ' how=' + how + '\n' +
         navigator.userAgent + '\n' + log.join('\n')});
     } catch (err) {}
+    leave();
+  }
+  // The next case's page must not open under this one's full screen: in
+  // the run of 04f3357 the probe's page stayed full screen (as it should)
+  // and no later tap reached a page. Leaving needs no tap.
+  function leave() {
+    var out = document.exitFullscreen || document.webkitExitFullscreen || document.webkitCancelFullScreen;
+    if (full() && out) {
+      try { var p = out.call(document); if (p && p.catch) p.catch(function () {}); } catch (err) {}
+    }
+    var n = 0, timer = setInterval(function () {
+      n++;
+      if (!full() || n >= 30) { clearInterval(timer); tell('left full=' + full()); }
+    }, 100);
   }
 
   // As the engine: a touch is the mouse, and the browser makes none of its
