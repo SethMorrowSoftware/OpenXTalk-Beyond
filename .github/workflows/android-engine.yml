@@ -676,11 +676,15 @@ jobs:
           echo "JDK: $jdk"; "$jdk/bin/java" -version 2>&1 | head -n 1
           echo "SDK: $sdk"; ls "$sdk/platforms" "$sdk/build-tools"
 
+      # and this checkout's Android Documents library, which no release has
+      # yet: its tests would otherwise skip on the device for want of it
       - name: Unpack the IDE, and put this builder and the runtime into it
         run: |
           python3 tools/ci/android_check.py extract --package "$PACKAGE" --dest "$WORK/ide" \
             --platform "$PLATFORM" --env IDE
           python3 tools/ci/android_check.py overlay --root "$WORK/ide" --beyond "$WORK/engine"
+          . <(grep '^IDE=' "$GITHUB_ENV" | tail -n 1)
+          python3 tools/android-player/build_android_player.py library --ide "$IDE"
 
       - name: Start an Android 13 emulator
         run: |
