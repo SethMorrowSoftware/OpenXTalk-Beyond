@@ -643,3 +643,300 @@ on TestOpenToReadLeavesAnOpenStackAlone
    TestAssert "a copy named as a stack that is open is not opened over it", tResult begins with "error:"
    TestAssert "the user's stack is as it was", the uMine of stack "TestCommunitySample" is "the user's own"
 end TestOpenToReadLeavesAnOpenStackAlone
+
+--------------------------------------------------------------------------------
+-- Script libraries: libraries.json, signed as index.json is, and each
+-- library's package, which the IDE gives to the Extension Manager
+
+private function __LibParse pList
+   dispatch function "revCommunityLibrariesParse" to stack sLib with pList
+   return the result
+end __LibParse
+
+private function __LibLoad pSite, pKey
+   dispatch function "revCommunityLibrariesLoad" to stack sLib with pSite, pKey
+   return the result
+end __LibLoad
+
+private function __LibGet pEntry, pFolder, pSite
+   dispatch "revCommunityLibrariesGet" to stack sLib with pEntry, pFolder, pSite
+   return the result
+end __LibGet
+
+-- What a library of the test's gallery is: a good one, as the gallery's
+-- builder would write it (build_site.py there: its manifest first, then
+-- the script). "packageData", "manifestData" and "scriptData" are its
+-- bytes.
+private function __GoodLibrary
+   local tA, tZip, tScript, tManifest
+   put textEncode("script " & quote & "anna.tween" & quote & return & \
+         "function tweenAt pFrom, pTo, pT" & return & "   return pFrom + (pTo - pFrom) * pT" & return & "end tweenAt" & return, \
+         "utf-8") into tScript
+   put textEncode("<package version=" & quote & "0.0" & quote & ">" & return & "  <name>anna.tween</name>" & return & \
+         "  <title>Tween</title>" & return & "  <version>1.0</version>" & return & "  <type>library</type>" & return & \
+         "</package>" & return, "utf-8") into tManifest
+   put sFolder & "/lce-" & the milliseconds & "-" & random(100000) & ".zip" into tZip
+   revZipOpenArchive tZip, "write"
+   revZipAddItemWithData tZip, "manifest.xml", "tManifest"
+   revZipAddItemWithData tZip, "tween.livecodescript", "tScript"
+   revZipCloseArchive tZip
+   put url ("binfile:" & tZip) into tA["packageData"]
+   delete file tZip
+   put tScript into tA["scriptData"]
+   put tManifest into tA["manifestData"]
+   put "tween" into tA["slug"]
+   put "1.0" into tA["version"]
+   put "Tween" into tA["title"]
+   put "A. Name" into tA["author"]
+   put "Numbers between two numbers, for things that move. Give it a start, an end and a moment." into tA["description"]
+   put "MIT" into tA["licence"]
+   put "anna.tween" into tA["name"]
+   put "tween.livecodescript" into tA["main"]
+   put "l/tween/1.0/tween-1.0.lce" into tA["download"]
+   put "l/tween/index.html" into tA["page"]
+   put "l/tween/1.0/source.html" into tA["source"]
+   put "tween-demo" into tA["demo"]
+   put __Sha256(tA["packageData"]) into tA["sha256"]
+   put the number of bytes of tA["packageData"] into tA["size"]
+   put "manifest.xml" into tA["file1"]
+   put "tween.livecodescript" into tA["file2"]
+   put "{" & __Q("kind") & ":" & __Q("function") & "," & __Q("name") & ":" & __Q("tweenAt") & "," & \
+         __Q("text") & ":" & __Q("function tweenAt pFrom, pTo, pT") & "}" into tA["handlersJson"]
+   put empty into tA["messagesJson"]
+   return tA
+end __GoodLibrary
+
+-- One library of the list, as JSON
+private function __LibraryJson pA
+   local tFiles, tVersions
+   put "{" & __Q("path") & ":" & __Q(pA["file1"]) & "," & __Q("sha256") & ":" & __Q(__Sha256(pA["manifestData"])) & "," & \
+         __Q("size") & ":" & the number of bytes of pA["manifestData"] & "},{" & \
+         __Q("path") & ":" & __Q(pA["file2"]) & "," & __Q("sha256") & ":" & __Q(__Sha256(pA["scriptData"])) & "," & \
+         __Q("size") & ":" & the number of bytes of pA["scriptData"] & "}" into tFiles
+   put pA["versionsJson"] into tVersions
+   if tVersions is empty then
+      put "[{" & __Q("version") & ":" & __Q(pA["version"]) & "," & __Q("name") & ":" & __Q(pA["name"]) & "," & \
+            __Q("download") & ":" & __Q(pA["download"]) & "," & \
+            __Q("sha256") & ":" & __Q(pA["sha256"]) & "," & __Q("size") & ":" & pA["size"] & "," & \
+            __Q("files") & ":[" & tFiles & "]}]" into tVersions
+   end if
+   return "{" & __Q("slug") & ":" & __Q(pA["slug"]) & "," & __Q("version") & ":" & __Q(pA["version"]) & "," & \
+         __Q("title") & ":" & __Q(pA["title"]) & "," & __Q("author") & ":" & __Q(pA["author"]) & "," & \
+         __Q("description") & ":" & __Q(pA["description"]) & "," & __Q("licence") & ":" & __Q(pA["licence"]) & "," & \
+         __Q("name") & ":" & __Q(pA["name"]) & "," & __Q("main") & ":" & __Q(pA["main"]) & "," & \
+         __Q("handlers") & ":[" & pA["handlersJson"] & "]," & __Q("messages") & ":[" & pA["messagesJson"] & "]," & \
+         __Q("notes") & ":[]," & __Q("demo") & ":" & __Q(pA["demo"]) & "," & \
+         __Q("download") & ":" & __Q(pA["download"]) & "," & __Q("page") & ":" & __Q(pA["page"]) & "," & \
+         __Q("source") & ":" & __Q(pA["source"]) & "," & __Q("script_lines") & ":3," & \
+         __Q("sha256") & ":" & __Q(pA["sha256"]) & "," & __Q("size") & ":" & pA["size"] & "," & \
+         __Q("tags") & ":[" & __Q("motion") & "]," & __Q("uses") & ":[]," & \
+         __Q("versions") & ":" & tVersions & "}"
+end __LibraryJson
+
+-- The list, as the bytes of libraries.json, of the libraries given as JSON
+private function __LibrariesBytes pEntriesJson
+   return textEncode("{" & __Q("format") & ":1," & __Q("name") & ":" & __Q("Test Libraries") & "," & \
+         __Q("libraries") & ":[" & pEntriesJson & "]}" & return, "utf-8")
+end __LibrariesBytes
+
+-- A library of the list with one thing changed, as the list reads it:
+-- how many libraries the list then has, and how many it leaves out
+private function __LibChanged pKey, pValue
+   local tA, tOut
+   put __GoodLibrary() into tA
+   put pValue into tA[pKey]
+   put __LibParse(__LibrariesBytes(__LibraryJson(tA))) into tOut
+   return tOut["count"] & "," & tOut["leftOut"]
+end __LibChanged
+
+-- The test's gallery of libraries, in a folder of its own: the list of
+-- the library pA, its signature (when pSign) and its package
+private function __LibSite pA, pSign
+   local tSite, tList
+   put sFolder & "/libsite-" & the milliseconds & "-" & random(100000) into tSite
+   create folder tSite
+   create folder (tSite & "/l")
+   create folder (tSite & "/l/" & pA["slug"])
+   create folder (tSite & "/l/" & pA["slug"] & "/" & pA["version"])
+   put __LibrariesBytes(__LibraryJson(pA)) into tList
+   put tList into url ("binfile:" & tSite & "/libraries.json")
+   if pSign then
+      put __Sign(tList) & return into url ("binfile:" & tSite & "/libraries.sig")
+   end if
+   put pA["packageData"] into url ("binfile:" & tSite & "/" & pA["download"])
+   return tSite
+end __LibSite
+
+on TestLibrariesParse
+   local tA, tOut, tEntry
+   put __GoodLibrary() into tA
+   put __LibParse(__LibrariesBytes(__LibraryJson(tA))) into tOut
+   TestAssert "a good list of libraries is read", tOut["problem"] is empty and tOut["count"] is 1 and tOut["leftOut"] is 0
+   put tOut["libraries"][1] into tEntry
+   TestAssert "it is a library", tEntry["kind"] is "library"
+   TestAssert "by the name it is installed by", tEntry["name"] is "anna.tween"
+   TestAssert "with its handlers, a line each", tEntry["handlers"] is ("function" & tab & "function tweenAt pFrom, pTo, pT")
+   TestAssert "its handlers are found by a search", tEntry["find"] contains "tweenAt"
+   TestAssert "its package is the builder's", tEntry["download"] is "l/tween/1.0/tween-1.0.lce" and tEntry["size"] is tA["size"]
+   TestAssert "its demo is played on the demo's own page", tEntry["demo"] is "tween-demo" and tEntry["play"] is "s/tween-demo/play.html"
+   TestAssert "its pages are under l/<slug>/", tEntry["page"] is "l/tween/index.html" and tEntry["source"] is "l/tween/1.0/source.html"
+   TestAssert "its licence as the gallery shows it", tEntry["licence"] is "MIT"
+   TestAssert "two files, the manifest first", tEntry["fileCount"] is 2 and tEntry["files"][1]["path"] is "manifest.xml"
+   put __LibParse(textEncode("{" & __Q("format") & ":1}", "utf-8")) into tOut
+   TestAssert "a list with no libraries", tOut["problem"] is empty and tOut["count"] is 0
+   put __LibParse(textEncode("{" & __Q("format") & ":2," & __Q("libraries") & ":[]}", "utf-8")) into tOut
+   TestAssert "a list of a newer form is not read", tOut["problem"] contains "newer"
+   put __LibParse("not json") into tOut
+   TestAssert "a list that is not JSON", tOut["problem"] is not empty
+   -- two libraries of one name, one installing over the other
+   put __GoodLibrary() into tA
+   put __LibraryJson(tA) into tEntry
+   put "tween-two" into tA["slug"]
+   put "l/tween-two/1.0/tween-two-1.0.lce" into tA["download"]
+   put __LibParse(__LibrariesBytes(tEntry & "," & __LibraryJson(tA))) into tOut
+   TestAssert "a second library of the same name is left out", tOut["count"] is 1 and tOut["leftOut"] is 1
+end TestLibrariesParse
+
+on TestLibrariesParseLeavesOutWhatBreaksTheRules
+   local tA, tOut
+   TestAssert "the good one is kept", __LibChanged("title", "Tween") is "1,0"
+   -- licences: GPL 3 and those a GPL 3 program can take in, and no other
+   repeat for each item tLicence in "GPL-3.0-only,GPL-3.0-or-later,LGPL-3.0-only,LGPL-3.0-or-later,Apache-2.0,MIT,BSD-2-Clause,BSD-3-Clause"
+      TestAssert "licence" && tLicence && "is kept", __LibChanged("licence", tLicence) is "1,0"
+   end repeat
+   repeat for each item tLicence in "GPL-2.0-only,CC-BY-SA-4.0,Proprietary,mit,,MPL-2.0"
+      TestAssert "licence" && quote & tLicence & quote && "is left out", __LibChanged("licence", tLicence) is "0,1"
+   end repeat
+   -- names that are the IDE's, the engine's or the suite's
+   repeat for each item tName in "revTween,com.livecode.tween,org.openxtalk.tween,community.openxtalk.tween,home,Message Box,a b,ab,1tween,tween.."
+      TestAssert "name" && quote & tName & quote && "is left out", __LibChanged("name", tName) is "0,1"
+   end repeat
+   -- the package must be the one the builder names
+   TestAssert "a package of another name", __LibChanged("download", "l/tween/1.0/other.lce") is "0,1"
+   TestAssert "a package of another library", __LibChanged("download", "l/other/1.0/other-1.0.lce") is "0,1"
+   TestAssert "a package from another site", __LibChanged("download", "https://example.invalid/tween-1.0.lce") is "0,1"
+   TestAssert "a package that climbs out", __LibChanged("download", "l/tween/1.0/../../../x.lce") is "0,1"
+   TestAssert "a stack's download", __LibChanged("download", "s/tween/1.0/tween-1.0.zip") is "0,1"
+   TestAssert "a hash that is not one", __LibChanged("sha256", "abc") is "0,1"
+   TestAssert "a size that is not one", __LibChanged("size", "-1") is "0,1"
+   -- what it holds
+   TestAssert "a handler of a kind there is not", __LibChanged("handlersJson", \
+         "{" & __Q("kind") & ":" & __Q("on") & "," & __Q("name") & ":" & __Q("x") & "}") is "0,1"
+   TestAssert "a handler whose name is not one", __LibChanged("handlersJson", \
+         "{" & __Q("kind") & ":" & __Q("command") & "," & __Q("name") & ":" & __Q("a b") & "}") is "0,1"
+   TestAssert "a message whose name is not one", __LibChanged("messagesJson", __Q("open card")) is "0,1"
+   TestAssert "a library with no handler at all is still listed", __LibChanged("handlersJson", empty) is "1,0"
+   -- the files: the manifest first, and the main file among them
+   TestAssert "no manifest", __LibChanged("file1", "other.xml") is "0,1"
+   TestAssert "a main file that is not the script", __LibChanged("main", "manifest.xml") is "0,1"
+   TestAssert "a main file in a folder", __LibChanged("main", "src/tween.livecodescript") is "0,1"
+   TestAssert "a file that climbs out", __LibChanged("file2", "../tween.livecodescript") is "0,1"
+   put __GoodLibrary() into tA
+   put "tween.livecodescript" into tA["file1"]
+   put "manifest.xml" into tA["file2"]
+   put __LibParse(__LibrariesBytes(__LibraryJson(tA))) into tOut
+   TestAssert "a manifest that is not first", tOut["count"] is 0 and tOut["leftOut"] is 1
+   -- the newest version must be the one described
+   put __GoodLibrary() into tA
+   put "[{" & __Q("version") & ":" & __Q("0.9") & "," & __Q("name") & ":" & __Q(tA["name"]) & "," & \
+         __Q("download") & ":" & __Q(tA["download"]) & "," & __Q("sha256") & ":" & __Q(tA["sha256"]) & "," & \
+         __Q("size") & ":" & tA["size"] & "," & __Q("files") & ":[]}]" into tA["versionsJson"]
+   put __LibParse(__LibrariesBytes(__LibraryJson(tA))) into tOut
+   TestAssert "a newest version that is not the one described", tOut["count"] is 0 and tOut["leftOut"] is 1
+   -- a demo that is not a slug is dropped, and the library kept
+   put __GoodLibrary() into tA
+   put "../../evil" into tA["demo"]
+   put __LibParse(__LibrariesBytes(__LibraryJson(tA))) into tOut
+   TestAssert "a demo that is not a stack's slug is not offered", tOut["count"] is 1 \
+         and tOut["libraries"][1]["play"] is empty and tOut["libraries"][1]["demo"] is empty
+end TestLibrariesParseLeavesOutWhatBreaksTheRules
+
+on TestLibrariesUsesWords
+   local tA, tOut, tWords
+   put __GoodLibrary() into tA
+   put __Q("openCard") & "," & __Q("mouseUp") into tA["messagesJson"]
+   put __LibParse(__LibrariesBytes(__LibraryJson(tA))) into tOut
+   TestAssert "the messages it handles are kept", tOut["libraries"][1]["messages"] is ("openCard" & return & "mouseUp")
+   dispatch function "revCommunityLibrariesUsesWords" to stack sLib with tOut["libraries"][1]
+   put the result into tWords
+   TestAssert "a library that handles the engine's messages is said to listen to every stack", \
+         tWords contains "Listens to every stack" and tWords contains "openCard, mouseUp"
+   put "internet" into tOut["libraries"][1]["uses"]
+   put "do" into tOut["libraries"][1]["notes"]
+   dispatch function "revCommunityLibrariesUsesWords" to stack sLib with tOut["libraries"][1]
+   put the result into tWords
+   TestAssert "the internet", line 1 of tWords begins with "Uses the internet"
+   TestAssert "script built as it runs", tWords contains "Builds script as it runs"
+end TestLibrariesUsesWords
+
+on TestLibrariesLoad
+   local tA, tSite, tOut, tList
+   put __GoodLibrary() into tA
+   -- a gallery with no libraries yet: no list, and nothing wrong
+   put __Site(__Good(), false) into tSite
+   put __LibLoad(tSite, sPublicText) into tOut
+   TestAssert "a gallery with no list of libraries has none, and no problem", tOut["problem"] is empty and tOut["count"] is 0
+   -- not signed
+   put __LibSite(tA, false) into tSite
+   put __LibLoad(tSite, sPublicText) into tOut
+   TestAssert "a list of libraries with no signature is not shown", tOut["problem"] is not empty and tOut["libraries"] is empty
+   TestAssert "and the window is told that is all that is wrong", tOut["unsigned"] is true
+   put __LibLoad("http://example.invalid/", sPublicText) into tOut
+   TestAssert "not from http", tOut["problem"] contains "https://"
+   if not __NeedsSodium("the list of libraries from a site") then
+      exit TestLibrariesLoad
+   end if
+   put __LibSite(tA, true) into tSite
+   put __LibLoad(tSite, sPublicText) into tOut
+   TestAssert "a signed list of libraries is shown", tOut["problem"] is empty and tOut["count"] is 1 \
+         and tOut["libraries"][1]["name"] is "anna.tween"
+   put __LibLoad(tSite, empty) into tOut
+   TestAssert "not with the gallery's own key, which did not sign it", tOut["problem"] is not empty and tOut["libraries"] is empty
+   put url ("binfile:" & tSite & "/libraries.json") into tList
+   replace "A. Name" with "B. Name" in tList
+   put tList into url ("binfile:" & tSite & "/libraries.json")
+   put __LibLoad(tSite, sPublicText) into tOut
+   TestAssert "a list changed after it was signed is not shown", tOut["problem"] is not empty and tOut["libraries"] is empty
+   TestAssert "and that is not called unsigned", tOut["unsigned"] is not true
+   -- the stacks' signature does not sign the libraries
+   put __LibSite(tA, false) into tSite
+   put __Sign(__IndexBytes(empty)) & return into url ("binfile:" & tSite & "/libraries.sig")
+   put __LibLoad(tSite, sPublicText) into tOut
+   TestAssert "a signature of another list is not believed", tOut["problem"] is not empty and tOut["libraries"] is empty
+end TestLibrariesLoad
+
+on TestLibrariesGet
+   local tA, tSite, tOut, tEntry, tFetched, tFile, tResult
+   put __GoodLibrary() into tA
+   put __LibSite(tA, false) into tSite
+   put __LibParse(__LibrariesBytes(__LibraryJson(tA))) into tOut
+   put tOut["libraries"][1] into tEntry
+   put sFolder & "/fetched" into tFetched
+   put __LibGet(tEntry, tFetched, tSite) into tFile
+   TestAssert "the package is kept as an .lce file, for the Extension Manager", tFile is (tFetched & "/tween-1.0.lce")
+   TestAssert "it is the package, byte for byte", url ("binfile:" & tFile) is tA["packageData"]
+   TestAssert "nothing else was written", the number of lines of files(tFetched) is 1
+   delete file tFile
+   -- a stack of the list is not a library
+   put __Parse(__IndexBytes(__EntryJson(__Good()))) into tOut
+   put __LibGet(tOut["stacks"][1], tFetched, tSite) into tResult
+   TestAssert "a stack is not fetched as a library", tResult begins with "error:"
+   -- a package changed on the site
+   put tA["packageData"] & "x" into url ("binfile:" & tSite & "/" & tA["download"])
+   put __LibGet(tEntry, tFetched, tSite) into tResult
+   TestAssert "a package that grew is thrown away", tResult begins with "error:" and there is no file (tFetched & "/tween-1.0.lce")
+   put "not a zip at all" into url ("binfile:" & tSite & "/" & tA["download"])
+   put __LibGet(tEntry, tFetched, tSite) into tResult
+   TestAssert "a package that is not one is thrown away", tResult begins with "error:" and there is no file (tFetched & "/tween-1.0.lce")
+   delete file (tSite & "/" & tA["download"])
+   put __LibGet(tEntry, tFetched, tSite) into tResult
+   TestAssert "a package the site does not have", tResult begins with "error:"
+   -- a package that holds what the list says, whose manifest names another library
+   put __GoodLibrary() into tA
+   put "other.tween" into tA["name"]
+   put __LibSite(tA, false) into tSite
+   put __LibParse(__LibrariesBytes(__LibraryJson(tA))) into tOut
+   put __LibGet(tOut["libraries"][1], tFetched, tSite) into tResult
+   TestAssert "a package whose manifest names another library is not kept", \
+         tResult contains "names another library" and there is no file (tFetched & "/tween-1.0.lce")
+end TestLibrariesGet
