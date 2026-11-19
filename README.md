@@ -4604,7 +4604,15 @@ repositories at pinned commits when OXT-Beyond is packaged (see
   inclusions a stack needs, adds an LCB library whose handlers your
   scripts use, together with its native library for the target platform.
   The extensions have native libraries for Windows x86-64 and x86, Linux
-  x86-64 and x86, and macOS, but none for Android. The standalone builder
+  x86-64, x86 and arm64, and macOS. The seven LCB libraries (SodiumXT,
+  TorrentXT, enetxt, DataChannelXT, Box2Dxt, CoinXT and curlxt) also have
+  them for Android's four architectures (arm64-v8a, armeabi-v7a, x86_64
+  and x86), which the Android builder packs into an app; the four that
+  open sockets (TorrentXT, enetxt, DataChannelXT and curlxt) add the
+  INTERNET permission to an app that includes them. Each one's smoke test
+  runs in an Android app on the Android builder workflow's x86_64
+  emulators (Android 13, and Android 16 with 16 KB pages); the ARM
+  libraries have not run on a device yet. The standalone builder
   never adds the script libraries by itself: tick them in *Standalone
   Settings*, with the LCB libraries they need (for example `coinxt` with
   `org.openxtalk.library.coin`).

@@ -17,7 +17,11 @@
     "x86_64-linux",
     "x86-linux",
     "arm64-linux",
-    "universal-mac"
+    "universal-mac",
+    "arm64-android",
+    "armv7-android",
+    "x86_64-android",
+    "x86-android"
   ],
   "vc_runtime": {
     "comment": [
@@ -50,7 +54,7 @@
     {
       "name": "SodiumXT",
       "repository": "SethMorrowSoftware/SodiumXT",
-      "commit": "7ba3db600d8075eadeb15916caf50cc4e62ca158",
+      "commit": "6300dd8384e97c4b0baf13bbf20fd905a6ca2a65",
       "version": "0.1.0",
       "version_from": {
         "path": "src/sodium.lcb",
@@ -59,13 +63,17 @@
       "licence": "MIT (Seth Morrow); the libraries statically link libsodium (ISC) and SHA-3 from RHash via trezor-crypto (MIT)",
       "files": [
         {"path": "src/sodium.lcb", "role": "source", "sha256": "32b0b0d241ca432f037aa6b5d4d24efd3cf8f6c5c91def140444c73c3725514b", "size": 126083},
-        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "09a76f756b8f93a8884fa305abe8a2c8e74a915ad492a3840b906615dd2a43fb", "size": 640},
+        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "e0746fa1eb901144fb9f058f986921182360f667df52e161397ffcaae9965dc8", "size": 1007},
         {"path": "src/code/x86_64-win32/sodiumxt.dll", "role": "library", "sha256": "55ac2cd1eab4e4fb6841498dbf97bb3e72e3f13fb68c89b9ee84ce590ba7cea6", "size": 464384, "imports": ["KERNEL32.dll", "ADVAPI32.dll"]},
         {"path": "src/code/x86-win32/sodiumxt.dll", "role": "library", "sha256": "ae9b04aa19ea1bce6fe360134c3801cb1022937b1c27e43e3e29e1c84f4de36e", "size": 420352, "imports": ["KERNEL32.dll", "ADVAPI32.dll"]},
         {"path": "src/code/x86_64-linux/sodiumxt.so", "role": "library", "sha256": "654f6fc046af9bccb9b87d75c1c7545f09b7cc98ea0a0387adea9ee272e53933", "size": 474528},
         {"path": "src/code/x86-linux/sodiumxt.so", "role": "library", "sha256": "5131498b3dc6647a876efa7c5a3a79cb744bd768c1dd954ac78435a835159f36", "size": 1220040},
         {"path": "src/code/arm64-linux/sodiumxt.so", "role": "library", "sha256": "d335f2c8a2f0434e8c5246edeb19c5e5e3369799cbccf3e2f55f4cc54b553ac4", "size": 513544},
         {"path": "src/code/universal-mac/sodiumxt.dylib", "role": "library", "sha256": "d7fed882e35ecd026b8529dd3e267d9980f24bf353cee3e884c8203f68839fc8", "size": 769824},
+        {"path": "src/code/arm64-android/sodiumxt.so", "role": "library", "sha256": "5204a63bed535d192a573df8687cb23aef3979f86087b2f2e83d45e193169975", "size": 250456},
+        {"path": "src/code/armv7-android/sodiumxt.so", "role": "library", "sha256": "8f1cc3bff0fca5bf339b9fcbb5307895d37517019ba9a34ca73b6672e9218d83", "size": 261824},
+        {"path": "src/code/x86_64-android/sodiumxt.so", "role": "library", "sha256": "64127a88809a1df407c69fe44b0ba3c29de3cbf4c2c33c53d2007f0bf263762d", "size": 327960},
+        {"path": "src/code/x86-android/sodiumxt.so", "role": "library", "sha256": "f1f7e5f716fcabb1083cec7cf2beb9e1a7bbb00cb24920a8d03e6d4c0e7e8a52", "size": 374136},
         {"path": "LICENSE", "role": "licence", "sha256": "7fa3817d3144c1e7ff541191bab1807ddeac2883ba8cc1033f22ac6798c56fc0", "size": 2265},
         {"path": "src/vendor/LICENSE", "role": "licence", "name": "trezor-crypto-LICENSE", "sha256": "b53d2eb93806f3d618370726f27eafeb6c279c7a90351297f79e073e49e569be", "size": 1114},
         {"path": "src/vendor/sha3.c", "role": "licence", "name": "RHash-SHA3-NOTICE.txt", "extract": "leading-comment", "comment": "the RHash SHA-3 permission notice is only in this file's header", "sha256": "f877c5f62bb2a63653bc363e0995f0bdfe70206c52f5a508d50d04aa373ce767", "size": 11259}
@@ -77,7 +85,7 @@
     {
       "name": "TorrentXT",
       "repository": "SethMorrowSoftware/TorrentXT",
-      "commit": "b7b368604b2d1490798588056a56a233a6901d20",
+      "commit": "b644cf5d2e941557d108633bf0ee1e4d0a216e2d",
       "version": "0.1.0",
       "version_from": {
         "path": "src/torrent.lcb",
@@ -85,17 +93,21 @@
       },
       "licence": "MIT (Seth Morrow); the libraries statically link libtorrent-rasterbar (BSD-3-Clause), Boost (BSL-1.0) and OpenSSL 3 (Apache-2.0)",
       "files": [
-        {"path": "src/torrent.lcb", "role": "source", "sha256": "a6b73142d9ab5a5b685710c4bc29d7e39ce10cea5bd23418ca311510ede25034", "size": 130874},
+        {"path": "src/torrent.lcb", "role": "source", "sha256": "18c9caf822db5844167db785a2cac5dbb4cd90d814f1487131542690111d8d56", "size": 131262},
         {"path": "examples/torrent-helpers.livecodescript", "role": "source", "sha256": "2111f040a841380867084f65ce82852efcf34141e6e84edd432927808168aafd", "size": 13943},
-        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "ebdffe1c27eb599eacc51f2d022d1aa71c446beb1585827bd6b7e633a82654de", "size": 551},
+        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "71996897f05796934450b996d6392e8fa557d4757bbc7f3a666469d37d700095", "size": 922},
         {"path": "src/code/x86_64-win32/torrentxt.dll", "role": "library", "sha256": "25878fd15e8b873e29cf4f7fc56bb9e6d9546451fe485d52367e12ac8af490d1", "size": 12140544, "imports": ["MSWSOCK.dll", "CRYPT32.dll", "IPHLPAPI.DLL", "bcrypt.dll", "WS2_32.dll", "KERNEL32.dll", "USER32.dll", "ADVAPI32.dll"]},
         {"path": "src/code/x86-win32/torrentxt.dll", "role": "library", "sha256": "bda664531083c9a0b8ed627fef325c04bed2d138a0d1ed044935322b99fa2bf6", "size": 9599488, "imports": ["MSWSOCK.dll", "CRYPT32.dll", "IPHLPAPI.DLL", "bcrypt.dll", "WS2_32.dll", "KERNEL32.dll", "USER32.dll", "ADVAPI32.dll"]},
         {"path": "src/code/x86_64-linux/torrentxt.so", "role": "library", "sha256": "66a64519afcc4c257a5ee7583c23b0d541d205ade9e706f0d9ac43cde81cf50f", "size": 12999968},
         {"path": "src/code/x86-linux/torrentxt.so", "role": "library", "sha256": "65c0a7892b4bb056cc85aadaf9b8fc2ba9f60be12b3912a70ff1f92273190254", "size": 6721400},
         {"path": "src/code/arm64-linux/torrentxt.so", "role": "library", "sha256": "a582e8efc8ead9f3ebcafdec5dce111d4d57a497dae0414248c2abfcef845eaf", "size": 11827040},
         {"path": "src/code/universal-mac/torrentxt.dylib", "role": "library", "sha256": "8c4d538692d0c37f08c03d8aed751d59d1ca977782534f70c7fbae32a72c6273", "size": 27096944},
-        {"path": "LICENSE", "role": "licence", "sha256": "619cfd2b7774524c93cbef14bd92f4ffb5dedcf41a5e0f82cc97c7994147bea3", "size": 1357},
-        {"path": "THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "73cf3c5bc7ee24125a0e4b63379f7f453bba572967e8069f21a6f657c191af00", "size": 11243},
+        {"path": "src/code/arm64-android/torrentxt.so", "role": "library", "sha256": "96b709ea4bce5ccbf3fce1634f539bb4840e51f610c61eb33056b763dc522cbf", "size": 11078360},
+        {"path": "src/code/armv7-android/torrentxt.so", "role": "library", "sha256": "149844cfc9ba0a52ad541471b01411ed7a1fe46dbbc589688e0ea932f9646a1d", "size": 7637088},
+        {"path": "src/code/x86_64-android/torrentxt.so", "role": "library", "sha256": "798b011e84252640a816b61ad79001a7a7aea097c2e5dcc6f69545f06a9e32a0", "size": 11560376},
+        {"path": "src/code/x86-android/torrentxt.so", "role": "library", "sha256": "e597932608e16229147c332c2c25b693ad47f49e78fbf48a6f978097bf2e512d", "size": 10439356},
+        {"path": "LICENSE", "role": "licence", "sha256": "e5c72da08962da9f2bf47cfb842ccf4177e19755fed2ad4268efecf4ce821f09", "size": 1481},
+        {"path": "THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "3f4dc64338c71d6222238cff54f6b1aeb3e02af9e0b9f086a63ff81bd4c4254c", "size": 11757},
         {"path": "LICENSE.txt", "repository": "openssl/openssl", "commit": "d3c1b1169b3569ff3069e5b399f47b2b28e03d79", "ref": "openssl-3.6.4", "role": "licence", "name": "OpenSSL-LICENSE.txt", "comment": "OpenSSL 3 (Apache-2.0) is statically linked into torrentxt; the member's own licence files do not carry its licence text", "sha256": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a", "size": 10175}
       ],
       "extensions": [
@@ -106,7 +118,7 @@
     {
       "name": "enetxt",
       "repository": "SethMorrowSoftware/enetxt",
-      "commit": "48f84ea97cc6ced3a48f6cf5f134eebe41c0426d",
+      "commit": "f1facfd2c228b254634611c378abf6f92bf90378",
       "version": "0.1.0",
       "version_from": {
         "path": "src/enet.lcb",
@@ -114,15 +126,19 @@
       },
       "licence": "MIT (Seth Morrow); the libraries statically link ENet (MIT); the Windows libraries need the Microsoft Visual C++ runtime",
       "files": [
-        {"path": "src/enet.lcb", "role": "source", "sha256": "5a9287c8a813a325dae3daa62e2c9d98f2a40bdd66bc065e4b1e37eedf8fb576", "size": 46431},
+        {"path": "src/enet.lcb", "role": "source", "sha256": "3a487252e864a45e80c4b751eaca9d415ea49e5fe11451f5da9f8624a78bd99b", "size": 46819},
         {"path": "examples/enet-helpers.livecodescript", "role": "source", "sha256": "5faeeaebe2016fddad1632639cf2996e55645c3ad52396d482e3d060dcc22304", "size": 15231},
-        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "82df29491cdb36b77620f1664dda57b0252b75cbeec992a650350e13accf1321", "size": 533},
+        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "2de154e95d2c9384d2d0b13bb203b6bd23728e08ad289eae9703992c6cea0b2a", "size": 892},
         {"path": "src/code/x86_64-win32/enetxt.dll", "role": "library", "sha256": "30ae4a3d34e93ecf8e1fec3adaac803e69af9e84bdd8a5a2ed6a2e79572ab03f", "size": 67584, "imports": ["WS2_32.dll", "WINMM.dll", "MSVCP140.dll", "VCRUNTIME140.dll", "VCRUNTIME140_1.dll", "api-ms-win-crt-stdio-l1-1-0.dll", "api-ms-win-crt-string-l1-1-0.dll", "api-ms-win-crt-convert-l1-1-0.dll", "api-ms-win-crt-heap-l1-1-0.dll", "api-ms-win-crt-runtime-l1-1-0.dll", "KERNEL32.dll"]},
         {"path": "src/code/x86-win32/enetxt.dll", "role": "library", "sha256": "f13fd7565fb75b7565ec5a3e44ec67c6de776bfb2b73be9f737c41fd0a720f1a", "size": 60416, "imports": ["WS2_32.dll", "WINMM.dll", "MSVCP140.dll", "VCRUNTIME140.dll", "api-ms-win-crt-stdio-l1-1-0.dll", "api-ms-win-crt-convert-l1-1-0.dll", "api-ms-win-crt-heap-l1-1-0.dll", "api-ms-win-crt-runtime-l1-1-0.dll", "KERNEL32.dll"]},
         {"path": "src/code/x86_64-linux/enetxt.so", "role": "library", "sha256": "a52ebfa9c753043c87f9dc1e0b2de4c197c8fa3d5bd0ce14f210e055f7c888ce", "size": 76288},
         {"path": "src/code/x86-linux/enetxt.so", "role": "library", "sha256": "df7570705117507126743220001f8753f82cb3d949f6e6232d9401915c7f15da", "size": 87596},
         {"path": "src/code/arm64-linux/enetxt.so", "role": "library", "sha256": "89caaf2e15966b6eee96e751810ea1f1b39307810803739b6a66338b4bb07098", "size": 199200},
         {"path": "src/code/universal-mac/enetxt.dylib", "role": "library", "sha256": "c7997d1566061424fb96725cd340c1e9bd934c613396c092065057bd9a66d5f2", "size": 192048},
+        {"path": "src/code/arm64-android/enetxt.so", "role": "library", "sha256": "c095ef059228bff390c396f58e8d828553e0b16199ff9d0662e54b4f1d110bf0", "size": 109344},
+        {"path": "src/code/armv7-android/enetxt.so", "role": "library", "sha256": "0aac4259d5125ebb12be8b1448549f92a6fa583e8543e98e0b008940ab41e7ea", "size": 66656},
+        {"path": "src/code/x86_64-android/enetxt.so", "role": "library", "sha256": "80ea174fde8b5ab39d13fcbc0c5f90a067c469e6f99b1090ac68def315552ddb", "size": 105472},
+        {"path": "src/code/x86-android/enetxt.so", "role": "library", "sha256": "6c9045ee7d0803f3c5d00c4940207e066a8ad49f1d2d658b77614649c7cd97c3", "size": 102568},
         {"path": "LICENSE", "role": "licence", "sha256": "a1c0330b8856120b497066a07008d6207dec6d324961d522eef5d977c30e83ee", "size": 1277},
         {"path": "THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "a0b87e6830707fbce98e18fc7a6aed7a1874b60b25aeb36a2966692a5a41fdc8", "size": 1403}
       ],
@@ -134,7 +150,7 @@
     {
       "name": "dataChannelXT",
       "repository": "SethMorrowSoftware/dataChannelXT",
-      "commit": "3df1439ad2e325fafda18d426a1a406a525f7c61",
+      "commit": "fa37d75e64a8804aacd5f4da12c50943eaab88ee",
       "version": "0.1.0",
       "version_from": {
         "path": "src/datachannel.lcb",
@@ -142,17 +158,21 @@
       },
       "licence": "MIT (Seth Morrow Software); the libraries statically link libdatachannel and libjuice (MPL-2.0), usrsctp (BSD-3-Clause), plog (MIT) and, on Windows and macOS, OpenSSL 3 (Apache-2.0)",
       "files": [
-        {"path": "src/datachannel.lcb", "role": "source", "sha256": "148d01824aad76b4eaf9cbc4ce6a0cfe0a5224551124614f1ca95e18f161003c", "size": 62089},
+        {"path": "src/datachannel.lcb", "role": "source", "sha256": "14614a1cb2f502478012d4a03ee738f7d523cd5080ae42fdee66e3bfdd54c613", "size": 62477},
         {"path": "examples/datachannel-helpers.livecodescript", "role": "source", "sha256": "0da09caf50443145566de8e695a8c5dc3c05025c72dd4512e4ac6741b236266c", "size": 20261},
-        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "8f13e2b2858a49a50835e893be1a8342027790878ab509abcabad774c1917012", "size": 675},
+        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "2bf7d2f8a74f1da647601a40e17b8c3630a39ebd7b7767457dc4d647e1137d18", "size": 1062},
         {"path": "src/code/x86_64-win32/datachannelxt.dll", "role": "library", "sha256": "eaba80f7b1996b63d4a9c2d263498be4153a80335ce4650d7686712ee2faeb39", "size": 6670336, "imports": ["CRYPT32.dll", "WS2_32.dll", "bcrypt.dll", "KERNEL32.dll", "USER32.dll", "ADVAPI32.dll"]},
         {"path": "src/code/x86-win32/datachannelxt.dll", "role": "library", "sha256": "15a209ffb105cff2f0bf2a3451a9328ed77d8e0b7c57707b527601f363cff1be", "size": 4614656, "imports": ["CRYPT32.dll", "WS2_32.dll", "bcrypt.dll", "KERNEL32.dll", "USER32.dll", "ADVAPI32.dll"]},
         {"path": "src/code/x86_64-linux/datachannelxt.so", "role": "library", "sha256": "4b86d273a417261e68d2bd5194559be2c9ef6ee06d4f3caae344c581aef3dfd4", "size": 9856512},
         {"path": "src/code/x86-linux/datachannelxt.so", "role": "library", "sha256": "37379a2f405539bb31910b262e9558182ea74225c0cefee2ca665dc4ae0ec3e5", "size": 3393048},
         {"path": "src/code/arm64-linux/datachannelxt.so", "role": "library", "sha256": "47e88460dca9e989ae9d0343d562aa31f053208906a8e60eb699a203f76f3166", "size": 9076928},
         {"path": "src/code/universal-mac/datachannelxt.dylib", "role": "library", "sha256": "021e99de0caf3a443a917891eb82301e5083b32f487a9568211cbd8fc1bf8a4a", "size": 14864064},
-        {"path": "LICENSE", "role": "licence", "sha256": "2be31fedf1c1dca53566f4370d18311f15c2e621b2b252f56e87a97e7bdc9b35", "size": 1606},
-        {"path": "THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "4214f86f135462463d91e5b86d007e1522494b7960367d52e2aaecb577ac347d", "size": 20454},
+        {"path": "src/code/arm64-android/datachannelxt.so", "role": "library", "sha256": "4536ac86a6f20d00681bd553a4c8564175320664ec89400a2298382c11686acb", "size": 7428224},
+        {"path": "src/code/armv7-android/datachannelxt.so", "role": "library", "sha256": "6d5b45010666fd0cc4e5e22cf4e03d425424f18efc3a64c11fe22c5cb302544d", "size": 5116064},
+        {"path": "src/code/x86_64-android/datachannelxt.so", "role": "library", "sha256": "2b73bd51d9272d86c4a1f3cfeef3995ce1919f051d2e89e8d3e895c07d5a950b", "size": 7834136},
+        {"path": "src/code/x86-android/datachannelxt.so", "role": "library", "sha256": "f4e7191bc8d65138e0b0a61f79dc59823ccc37bc2f56052c3a36ed52c71cf810", "size": 6581664},
+        {"path": "LICENSE", "role": "licence", "sha256": "510e64d53c077181aa87a8bbaddd0a094d1e2faf17f5b2d2eade3baa6322322d", "size": 1733},
+        {"path": "THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "f449ddab1d0f5405126699889aeaffb8d87ffdffcfd4e9b69c1fd25115fcd5bc", "size": 20931},
         {"path": "LICENSE.txt", "repository": "openssl/openssl", "commit": "d3c1b1169b3569ff3069e5b399f47b2b28e03d79", "ref": "openssl-3.6.4", "role": "licence", "name": "OpenSSL-LICENSE.txt", "comment": "OpenSSL 3 (Apache-2.0) is statically linked into the Windows and macOS datachannelxt libraries; the member's own licence files do not carry its licence text", "sha256": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a", "size": 10175}
       ],
       "extensions": [
@@ -163,7 +183,7 @@
     {
       "name": "Box2Dxt",
       "repository": "SethMorrowSoftware/Box2Dxt",
-      "commit": "9ef1faa2f440b5b4f4a504f77dd6a76f55ffad31",
+      "commit": "814abdee6ae7a49fe37eb73715f2bac50d8853e8",
       "version": "0.2.0",
       "version_from": {
         "path": "src/box2dxt.lcb",
@@ -174,14 +194,18 @@
       "files": [
         {"path": "src/box2dxt.lcb", "role": "source", "sha256": "bde77cafb09344922e286e8d1e076527d1fb6be8c9f564f804dba9e54d43f378", "size": 294359},
         {"path": "src/box2dxt-kit.livecodescript", "role": "source", "sha256": "878085bf6d5283ac26e265ddaa503c77cdf8bab1d4462b0ba535c5557bf813a9", "size": 376418},
-        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "9754061f601870df6cd2148dce60cb6ccdecc8646f9ce0eca1d4337b4e2a8363", "size": 633},
+        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "e41f626a811c195adcd018f3fd97134b4697914504c57a2e0a5e0a56da604324", "size": 996},
         {"path": "src/code/x86_64-win32/box2dxt.dll", "role": "library", "sha256": "0f3abf288a915bce518be9af45f164f7f44b3a0d1d85aba84a7d78cedd5ced4e", "size": 337408, "imports": ["KERNEL32.dll", "VCRUNTIME140.dll", "api-ms-win-crt-heap-l1-1-0.dll", "api-ms-win-crt-utility-l1-1-0.dll", "api-ms-win-crt-math-l1-1-0.dll", "api-ms-win-crt-stdio-l1-1-0.dll", "api-ms-win-crt-runtime-l1-1-0.dll"]},
         {"path": "src/code/x86-win32/box2dxt.dll", "role": "library", "sha256": "dd34acc205a09211cba93bd76ec57ddf5a4d3ac368a8ae2bf0d1a6532187e309", "size": 301056, "imports": ["KERNEL32.dll", "VCRUNTIME140.dll", "api-ms-win-crt-heap-l1-1-0.dll", "api-ms-win-crt-utility-l1-1-0.dll", "api-ms-win-crt-math-l1-1-0.dll", "api-ms-win-crt-stdio-l1-1-0.dll", "api-ms-win-crt-runtime-l1-1-0.dll"]},
         {"path": "src/code/x86_64-linux/box2dxt.so", "role": "library", "sha256": "a19edb050dc891682658571214746ac55679de163018c9d0b9713e276a8ca7dc", "size": 463576},
         {"path": "src/code/x86-linux/box2dxt.so", "role": "library", "sha256": "9c8cf4d8eb7f859bc375ba257600aea0e2a3169fee1b3a6bf8269d46aa36b8fc", "size": 529196},
         {"path": "src/code/arm64-linux/box2dxt.so", "role": "library", "sha256": "4d887fc8feb7d25b8e4598ba4486ab4f91e91a8376913fb0b42b89c76a39b6ea", "size": 525000},
         {"path": "src/code/universal-mac/box2dxt.dylib", "role": "library", "sha256": "1aee527b2a2946de61018dd784fa1766e79c4864c8a6430650c48483182511de", "size": 713568},
-        {"path": "LICENSE", "role": "licence", "sha256": "804bb30c3cd381140181882feff4dd10e63ec464f93cf11cb5fce3f102d8f124", "size": 1737}
+        {"path": "src/code/arm64-android/box2dxt.so", "role": "library", "sha256": "8623a1b422d9cde839e2dbc14f24e8b285b9f60d4a6f307c2ffe6bcf1f18cd88", "size": 323464},
+        {"path": "src/code/armv7-android/box2dxt.so", "role": "library", "sha256": "673ac61340858aaf6435e8561d7b959c9a87e208395035c7e48872a980362f51", "size": 242436},
+        {"path": "src/code/x86_64-android/box2dxt.so", "role": "library", "sha256": "e6c63f3d503cd11284903f446ce488b850ce645ec95487c1b54b86c614bcc165", "size": 328504},
+        {"path": "src/code/x86-android/box2dxt.so", "role": "library", "sha256": "dfaef646aa874fc98305ccd5777d6e5ec699a91159d527480554a43ec46dea54", "size": 385728},
+        {"path": "LICENSE", "role": "licence", "sha256": "69c578c4d532e48c7d4135f03097870f354bd86e0d1b829d6716f846f78fc823", "size": 2054}
       ],
       "extensions": [
         {"kind": "lcb", "id": "org.openxtalk.box2dxt", "folder": "org.openxtalk.box2dxt", "main": "src/box2dxt.lcb", "probe": "b2Version()", "expect": "^4$"},
@@ -191,7 +215,7 @@
     {
       "name": "CoinXT",
       "repository": "SethMorrowSoftware/CoinXT",
-      "commit": "57fb911058efc72593524ee27b120dd3c78fd048",
+      "commit": "2fef35e6522d281ac1c6645fa75cf8dde2f4222a",
       "version": "0.1.0",
       "version_from": {
         "path": "src/coinxt.lcb",
@@ -201,13 +225,17 @@
       "files": [
         {"path": "src/coinxt.lcb", "role": "source", "sha256": "2b17a3a4ffc7fa07a245dcc1d64ef70e941b09e1448b23abc2f9a37846c77332", "size": 101219},
         {"path": "src/coinxt.livecodescript", "role": "source", "sha256": "fa6a32233255ce65ac4f2c3f79750562ec7d2f0fee89d3d7aef8a675dd2e0657", "size": 198063},
-        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "5ed4d9f13a127466120d88f014cac7483e20e841f1b41f143ffb3c2ab10b23d8", "size": 533},
-        {"path": "src/code/x86_64-win32/coinxt.dll", "role": "library", "sha256": "5787a2fc21490406e7bf5e4576cebe46cd0feeafc716aaa6a6b065b9791115fe", "size": 454297, "imports": ["bcrypt.dll", "KERNEL32.dll", "msvcrt.dll"]},
-        {"path": "src/code/x86-win32/coinxt.dll", "role": "library", "sha256": "769f346e32f5b08a1f118adc51442868568931367c653caa52d4ca87ed542782", "size": 400356, "imports": ["bcrypt.dll", "KERNEL32.dll", "msvcrt.dll"]},
+        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "d8db3fbe5bdb91ffe63536781f3220ae0ab450b76567079f4ffbb420a260225f", "size": 985},
+        {"path": "src/code/x86_64-win32/coinxt.dll", "role": "library", "sha256": "81266340cf663261b956a924122bfaf698755cecd63e3e24c4700688481c708e", "size": 454297, "imports": ["bcrypt.dll", "KERNEL32.dll", "msvcrt.dll"]},
+        {"path": "src/code/x86-win32/coinxt.dll", "role": "library", "sha256": "f8ffcc7f44fdab1c175a389d9f292c58469e2fca40ee32f485fad7f72322478e", "size": 400356, "imports": ["bcrypt.dll", "KERNEL32.dll", "msvcrt.dll"]},
         {"path": "src/code/x86_64-linux/coinxt.so", "role": "library", "sha256": "5b5b65561172d8f4c76301535bffc3660298f362b87b3d343865ec2dd0a19946", "size": 485632},
         {"path": "src/code/x86-linux/coinxt.so", "role": "library", "sha256": "37873c9cf406f6662fdce979c8d80f8ad1c82dbb6c45491e1030541c49e50e99", "size": 398744},
         {"path": "src/code/arm64-linux/coinxt.so", "role": "library", "sha256": "015a9cc2bfc54609fc75df887e304e190eccc321b1cebda14a7a30eb77aa115e", "size": 460848},
-        {"path": "src/code/universal-mac/coinxt.dylib", "role": "library", "sha256": "77575f7f55ed8bd7ca688d790e55b11ddca5ae14b13a766ad4f19eb5de6f7e8d", "size": 875728},
+        {"path": "src/code/universal-mac/coinxt.dylib", "role": "library", "sha256": "1a22d4d01db0c7a11d2398d8644fa8264b22edbc5371b001a1c1cb5d2024537a", "size": 875728},
+        {"path": "src/code/arm64-android/coinxt.so", "role": "library", "sha256": "03b6fc8e987e0358bab682083f5473691575e97d056300f9e4dfb91337d8d1c9", "size": 455928},
+        {"path": "src/code/armv7-android/coinxt.so", "role": "library", "sha256": "49d5e4fd9edafabae8f6a332c389d07b3b2db73df93931cfdf64b88288c24ab0", "size": 376796},
+        {"path": "src/code/x86_64-android/coinxt.so", "role": "library", "sha256": "edf745db50bc12aae3be5aa6653b615b4d58ab483699e8ecb2e62d5e1fe517c3", "size": 502800},
+        {"path": "src/code/x86-android/coinxt.so", "role": "library", "sha256": "a5188c62639d24161a9afe4ffd0e290ee4ebf90c1ad009445f708b52b59b22d8", "size": 392864},
         {"path": "LICENSE", "role": "licence", "sha256": "6124d2badb597d24ed1a0f545446e1d81b3117ee13123cee03fe25dc28213512", "size": 1306},
         {"path": "THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "e535ff44198d19a51ff3e58166c8c7699be2ef375ebc5591ae3f5d638394511a", "size": 12779},
         {"path": "native/vendor/LICENSE", "role": "licence", "name": "trezor-crypto-LICENSE", "comment": "trezor-crypto's MIT text; the member's LICENSE and THIRD-PARTY-LICENSES.md only point to this file", "sha256": "b53d2eb93806f3d618370726f27eafeb6c279c7a90351297f79e073e49e569be", "size": 1114},
@@ -262,7 +290,7 @@
     {
       "name": "curlxt",
       "repository": "SethMorrowSoftware/xtalk-suite",
-      "commit": "3a5a9e092c8d6677d04d8e996ac16385b32d796d",
+      "commit": "66a3abb77fc5577441f560feb5d0e3f41954e60c",
       "version": "0.1.0",
       "version_from": {
         "path": "curlxt/src/curl.lcb",
@@ -270,18 +298,22 @@
       },
       "licence": "MIT (Seth Morrow); the libraries statically link libcurl (the curl licence, MIT-style), libssh2 (BSD-3-Clause) and, in the macOS and the Linux x86-64 and arm64 ones, OpenSSL 3 (Apache-2.0)",
       "files": [
-        {"path": "curlxt/src/curl.lcb", "role": "source", "sha256": "f1859380f3d8b1208812b68d32b808506794f75027054a6431f4cf9c75d67d37", "size": 27655},
+        {"path": "curlxt/src/curl.lcb", "role": "source", "sha256": "1e39a39e9ff40242f0c1a62dbeb2ab7e71c539909a82cc61860d966a7c1449fa", "size": 28043},
         {"path": "curlxt/src/curl-helpers.livecodescript", "role": "source", "sha256": "a3524032fb0ad2e72682b4cbe3a7c67c54060a7f54d9efe63eb4865f8315762f", "size": 13882},
         {"path": "curlxt/src/tsnet.livecodescript", "role": "source", "sha256": "63b344e368e6ae3293074f696533e48fe36216fb8e70b9c9970b50142df7774c", "size": 34095},
-        {"path": "curlxt/src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "89c1fa049fdbc00aa15c89dbbae82d08e744c072a79c0fcc88d5ebc9d3294aea", "size": 533},
+        {"path": "curlxt/src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "53d470620f7133fab40b3740bebf88b33da3c94bf8ac95da637740d375ffc6dc", "size": 892},
         {"path": "curlxt/src/code/x86_64-win32/curlxt.dll", "role": "library", "sha256": "6591810c820f495f47ddd3f98e27dcf92a8763e7aef687dcfe505871d0db7ce8", "size": 1060864, "imports": ["bcrypt.dll", "ADVAPI32.dll", "CRYPT32.dll", "Secur32.dll", "WS2_32.dll", "IPHLPAPI.DLL", "KERNEL32.dll", "USER32.dll"]},
         {"path": "curlxt/src/code/x86-win32/curlxt.dll", "role": "library", "sha256": "da95a73c5b62e2c689fc8ed88200495593eedd4957110ebf3527354db625afc2", "size": 883712, "imports": ["bcrypt.dll", "ADVAPI32.dll", "CRYPT32.dll", "Secur32.dll", "WS2_32.dll", "IPHLPAPI.DLL", "KERNEL32.dll", "USER32.dll"]},
         {"path": "curlxt/src/code/x86_64-linux/curlxt.so", "role": "library", "sha256": "fc4e14e976c964ffb49872a85ff4d2317231ea5feab3b167424d90a20acf2c9c", "size": 7716200},
         {"path": "curlxt/src/code/x86-linux/curlxt.so", "role": "library", "sha256": "c523a39d45a89cee22d7d6dedc3e6ca13906b4b56ca999074bb85f3a7a8ca3ec", "size": 1405580},
         {"path": "curlxt/src/code/arm64-linux/curlxt.so", "role": "library", "sha256": "51c5669fd2388592a615351e28ebdd8dacf40e87333f3f52b99f8a6323df23d6", "size": 7173824},
         {"path": "curlxt/src/code/universal-mac/curlxt.dylib", "role": "library", "sha256": "44e6796a72ca256be9dc635e6c18e5d0bb744f719d4ac831c2aa966ab1f71ce0", "size": 12904400},
-        {"path": "curlxt/LICENSE", "role": "licence", "sha256": "31556e21d88b26e50e37b18c156b419bab80d33e4c8d836f7a9060079e98d0c3", "size": 1581},
-        {"path": "curlxt/THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "5deca77d0a7006e1d85bbd8fe88f4d0126a61f50841e5a7b2bc6fcf445c0db91", "size": 4239},
+        {"path": "curlxt/src/code/arm64-android/curlxt.so", "role": "library", "sha256": "1380d3f232ef8d0ad9cbfa2f98148698c7eb37378720448958338086e6cbe82c", "size": 6723616},
+        {"path": "curlxt/src/code/armv7-android/curlxt.so", "role": "library", "sha256": "f7744d083c163262c20b8c5e45c14b760b3e23fe31efc91a4f4675313a6cf355", "size": 4650412},
+        {"path": "curlxt/src/code/x86_64-android/curlxt.so", "role": "library", "sha256": "8ddf0e31c6126f41e40034f0d84dfa78af1dd862ebe6bab8c62964cfe5535976", "size": 7069176},
+        {"path": "curlxt/src/code/x86-android/curlxt.so", "role": "library", "sha256": "ab0b4a96542f34fc3ef0f932bb1ba66a9d4aac165e42b988ea62157c028e9da9", "size": 5837792},
+        {"path": "curlxt/LICENSE", "role": "licence", "sha256": "24061aad085f84fafe329fb8bacef6fa113a392653231807dbe83ef82ad7ea70", "size": 1594},
+        {"path": "curlxt/THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "bc402a793105ac7dada31bb44f651a022a826e5dd0a76e08ba492f5bbcfb9ddf", "size": 4247},
         {"path": "LICENSE.txt", "repository": "openssl/openssl", "commit": "d3c1b1169b3569ff3069e5b399f47b2b28e03d79", "ref": "openssl-3.6.4", "role": "licence", "name": "OpenSSL-LICENSE.txt", "comment": "OpenSSL 3 (Apache-2.0) is statically linked into the macOS and the Linux x86-64 and arm64 curlxt libraries; the same licence text as TorrentXT's and dataChannelXT's copy", "sha256": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a", "size": 10175}
       ],
       "extensions": [
