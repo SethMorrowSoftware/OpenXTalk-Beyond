@@ -14,6 +14,10 @@
  You should have received a copy of the GNU General Public License
  along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
+/* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+   (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+   Seth Morrow (2026); its Git history and CHANGELOG.md say what changed. */
+
 #include "platform.h"
 
 #include "globdefs.h"
@@ -336,6 +340,19 @@ void MCStack::view_platform_updatewindowwithcallback(MCRegionRef p_region, MCSta
 	s_update_context = p_context;
 	// IM-2013-08-29: [[ RefactorGraphics ]] simplify by calling device_updatewindow, which performs the same actions
 	view_platform_updatewindow(p_region);
+	// The callback draws only while it is set: MCDispatch::wredraw reads it
+	// when the window's view draws. On macOS 11 and later the update above
+	// asks AppKit for the draw and returns before it happens (DoUpdate in
+	// mac-window.mm), so with the callback cleared at once the draw came
+	// later, at the next wait, and drew the card as it is now: every frame
+	// of a visual effect showed the end card, and the effect was a jump
+	// (the forum's report on 0.2.7 with macOS 15). Wait here for the draw
+	// asked for, as DoUpdate did before macOS 11 and still does on older
+	// ones (where this returns at once, there being nothing pending), so
+	// each frame is drawn by the callback that renders it. Only the
+	// effect's frames come this way; other updates stay asynchronous.
+	if (window != nil)
+		MCPlatformFlushWindowPendingDraws(window);
 	// Unset the file-local static.
 	s_update_callback = nil;
 	s_update_context = nil;
