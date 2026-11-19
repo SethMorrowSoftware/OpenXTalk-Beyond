@@ -93,6 +93,11 @@ private command removeTree pFolder
    delete folder pFolder
 end removeTree
 
+private function fromPlayer2 pFunction, pArg1, pArg2
+   dispatch function pFunction to stack kPlayer with pArg1, pArg2
+   return the result
+end fromPlayer2
+
 private function fromPlayer pFunction, pArg
    dispatch function pFunction to stack kPlayer with pArg
    return the result
@@ -121,7 +126,7 @@ end makeSample
 
 on TestTheControlsAreMade
    local tName, tMissing, tFocus
-   repeat for each item tName in "Title,Help,Library Title,Library,Status"
+   repeat for each item tName in "Brand,Title,Help,Library Title,Hint,Library,Empty,Status"
       if there is not a field tName of stack kPlayer then
          put tName & comma after tMissing
       else if the traversalOn of field tName of stack kPlayer or not the lockText of field tName of stack kPlayer then
@@ -159,6 +164,57 @@ on TestTheControlsFollowTheScreen
       TestAssert "off a phone the whole card is seen", tHeight is 360 and tWidth is 640
    end if
 end TestTheControlsFollowTheScreen
+
+on TestTheLibraryAsItIsShown
+   local tCopy
+   dispatch "playerShowLibrary" to stack kPlayer
+   TestAssert "an empty library says how to fill it", the visible of field "Empty" of stack kPlayer
+   TestAssert "and counts nothing", field "Library Title" of stack kPlayer is "YOUR STACKS"
+   put fromPlayer("playerImport", makeSample("Sample One", "A &amp; B &lt;i&gt;.livecode", empty)) into tCopy
+   dispatch "playerShowLibrary" to stack kPlayer
+   -- (a file's name cannot hold < or >: playerSafeName makes them _)
+   TestAssert "a name with & is shown as it is, not as HTML", \
+         line 1 of the text of field "Library" of stack kPlayer is "A &amp; B &lt;i&gt;" & tab & "livecode - today"
+   TestAssert "the empty library's words go", not the visible of field "Empty" of stack kPlayer
+   TestAssert "the stacks are counted", field "Library Title" of stack kPlayer is "YOUR STACKS (1)"
+   TestAssert "its line opens its file", line 1 of the cFiles of field "Library" of stack kPlayer is tCopy
+end TestTheLibraryAsItIsShown
+
+on TestWhenAsAPersonSaysIt
+   local tNow, tThen
+   put "2026,11,19,18,30,0,5" into tNow
+   convert tNow from dateItems to seconds
+   put "2026,11,19,0,10,0,5" into tThen
+   convert tThen from dateItems to seconds
+   TestAssert "earlier the same day", fromPlayer2("playerWhen", tThen, tNow) is "today"
+   put "2026,11,18,23,50,0,4" into tThen
+   convert tThen from dateItems to seconds
+   TestAssert "the evening before", fromPlayer2("playerWhen", tThen, tNow) is "yesterday"
+   put "2026,3,2,12,0,0,2" into tThen
+   convert tThen from dateItems to seconds
+   TestAssert "this year", fromPlayer2("playerWhen", tThen, tNow) is "2 Mar"
+   put "2025,12,31,12,0,0,4" into tThen
+   convert tThen from dateItems to seconds
+   TestAssert "a year before", fromPlayer2("playerWhen", tThen, tNow) is "31 Dec 2025"
+   TestAssert "no time", fromPlayer2("playerWhen", empty, tNow) is "new"
+end TestWhenAsAPersonSaysIt
+
+on TestAStackIsRemoved
+   local tCopy, tOther
+   put fromPlayer("playerImport", makeSample("Sample One", "Sample One.oxtstack", empty)) into tCopy
+   put fromPlayer("playerImport", makeSample("Sample Two", "Sample Two.oxtstack", empty)) into tOther
+   -- what the stack saved beside itself goes with it
+   put "notes" into url ("file:" & sWork & "/library/Sample One/notes.txt")
+   dispatch "playerRemove" to stack kPlayer with tCopy
+   TestAssert "its folder has gone, with what it saved", there is not a folder (sWork & "/library/Sample One")
+   TestAssert "the other stays", fromPlayer("playerLibrary") is tOther
+   TestAssert "the list shows the other alone", the number of lines in the text of field "Library" of stack kPlayer is 1
+   TestAssert "the file it came from is where it was", there is a file (sWork & "/Sample One.oxtstack")
+   dispatch "playerRemove" to stack kPlayer with sWork & "/Sample Two.oxtstack"
+   TestAssert "a file outside the library is never removed", there is a file (sWork & "/Sample Two.oxtstack")
+   dispatch "playerRemove" to stack kPlayer with sWork & "/library/../Sample Two.oxtstack"
+   TestAssert "nor one reached from it by ..", there is a file (sWork & "/Sample Two.oxtstack")
+end TestAStackIsRemoved
 
 on TestStackNames
    TestAssert "an oxtstack", fromPlayer("playerIsStackName", "My Stack.oxtstack")
@@ -334,7 +390,8 @@ on TestAStackPlaysAndIsLeft
    dispatch "backKey" to this card of stack "Sample One"
    TestAssert "Back comes home", fromPlayer("playerCurrent") is empty
    TestAssert "the stack has left memory", there is not a stack "Sample One"
-   TestAssert "the library lists it", line 1 of the text of field "Library" of stack kPlayer is "Sample One.oxtstack"
+   TestAssert "the library lists it, by its name, its kind and when", \
+         line 1 of the text of field "Library" of stack kPlayer is "Sample One" & tab & "oxtstack - today"
    -- and from the library's list
    dispatch "playerPickLine" to stack kPlayer with 1
    TestAssert "a tap on its line plays it again", fromPlayer("playerCurrent") is "Sample One"

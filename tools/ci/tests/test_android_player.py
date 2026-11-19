@@ -204,6 +204,9 @@ class Screen(unittest.TestCase):
         # the player saved unseen: the engine drew nothing
         self.assertIn('#000000', bp.card_problem(screencap(60, 600, (0, 0, 0)), self.SPOT))
 
+    def test_black_is_not_the_card_though_the_card_is_dark(self):
+        self.assertTrue(bp.card_problem(screencap(60, 600, (6, 6, 6)), self.SPOT))
+
     def test_the_stack_that_played_is_not_the_card(self):
         self.assertIn('#1F9E5A', bp.card_problem(screencap(60, 600, (31, 158, 90)), self.SPOT))
 
@@ -281,8 +284,8 @@ class SharedNames(unittest.TestCase):
         self.assertNotRegex(self.player, r'playerSay[^\n]*&& pAddress')
 
     def test_the_card_colour_is_what_the_check_looks_for(self):
-        self.assertIn('set the backgroundColor of stack kPlayerName to "#%02X%02X%02X"' % bp.CARD_COLOUR,
-                      self.player)
+        self.assertEqual(self.constant(self.player, 'kBackground'), '#%02X%02X%02X' % bp.CARD_COLOUR)
+        self.assertIn('set the backgroundColor of stack kPlayerName to kBackground', self.player)
 
     def test_the_player_is_saved_seen(self):
         # Android draws nothing of a stack saved invisible

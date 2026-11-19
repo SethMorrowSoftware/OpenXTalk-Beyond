@@ -89,8 +89,8 @@ SAMPLE_STACK = 'Player Sample'
 SAYS = re.compile(r'OXT Stack Player: (.*?)\s*$')
 SAMPLE_SAYS = re.compile(r'OXT Stack Player sample: (.*?)\s*$')
 PERMISSIONS = {'android.permission.INTERNET'}
-# The player's card (playerMake's backgroundColor), as the screen shows it
-CARD_COLOUR = (0xF4, 0xF1, 0xEA)
+# The player's card (kBackground, playerMake's backgroundColor), as the screen shows it
+CARD_COLOUR = (0x0D, 0x14, 0x20)
 
 log = ac.log
 CheckError = ac.CheckError
@@ -362,7 +362,7 @@ def card_problem(raw, spot):
     y = max(0, min(height - 1, y))
     at = (y * width + x) * 4
     colour = tuple(pixels[at:at + 3])
-    if all(abs(a - b) <= 12 for a, b in zip(colour, CARD_COLOUR)):
+    if all(abs(a - b) <= 6 for a, b in zip(colour, CARD_COLOUR)):
         return ''
     return ('the screen at %d,%d is #%02X%02X%02X, not the card\'s #%02X%02X%02X: the player\'s card '
             'is not on the screen' % ((x, y) + colour + CARD_COLOUR))

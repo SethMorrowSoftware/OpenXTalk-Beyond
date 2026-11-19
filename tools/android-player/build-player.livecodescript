@@ -278,12 +278,16 @@ private command makePlayer
    -- the texts of the engine's script errors, which a standalone does not
    -- have (playerErrorLine)
    set the cScriptErrors of stack kPlayerName to the scriptExecutionErrors
-   dispatch "playerMake" to stack kPlayerName with scriptText("stack-player-back.livecodescript")
+   dispatch "playerMake" to stack kPlayerName with scriptText("stack-player-back.livecodescript"), \
+         url ("binfile:" & $OXT_APLAYER_SOURCE & "/../web-player/assets/oxt-beyond-128.png")
    if it is not "handled" then
       throw "the player's script has no playerMake"
    end if
    if the script of button "Player Back Script" of stack kPlayerName is empty then
       throw "stack-player-back.livecodescript does not compile"
+   end if
+   if there is not an image "Logo" of stack kPlayerName or the width of image "Logo" of stack kPlayerName is 0 then
+      throw "the player has no logo (tools/web-player/assets/oxt-beyond-128.png)"
    end if
    -- made unseen, and saved seen: a standalone opens its stack as it was
    -- saved, and Android draws nothing of an invisible one (the screen

@@ -47,9 +47,24 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 
 constant kPlayerName = "OXT Stack Player"
 constant kSays = "OXT Stack Player:"
+constant kMonths = "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec"
 -- Points kept clear above the screen's bottom for Android's navigation
 -- bar (48 with buttons, less with gestures) (playerSeenHeight)
 constant kBarAllowance = 56
+-- The player's colours: the web Stack Player's night theme
+-- (tools/web-player/index.html), with Beyond's ember orange
+constant kBackground = "#0D1420"
+constant kSurface = "#141D2C"
+constant kLine = "#223047"
+constant kText = "#E8EDF4"
+constant kMuted = "#9AA8BA"
+constant kEmber = "#FF7A00"
+constant kGold = "#FFC24D"
+constant kInk = "#1A1206"
+constant kChosen = "#3A2410"
+-- How long a finger stays down on a stack of the library to ask to
+-- remove it, in milliseconds
+constant kHold = 600
 -- What a stack file's name ends with
 constant kStackEndings = "oxtstack,livecode,rev,livecodescript,oxtscript,mc"
 
@@ -124,35 +139,85 @@ end playerSay
 ----------------------------------------------------------------
 
 -- Makes the player's controls on its card: build-player.livecodescript
--- calls it once, on the new stack, with the back script's text (the tests
--- of tests/lcs/androidplayer do the same)
-command playerMake pBackScript
+-- calls it once, on the new stack, with the back script's text and the
+-- picture of Beyond's icon (the tests of tests/lcs/androidplayer do the
+-- same, without the picture)
+command playerMake pBackScript, pLogo
    local tDefault
    put the defaultStack into tDefault
    set the defaultStack to kPlayerName
    lock messages
-   set the backgroundColor of stack kPlayerName to "#F4F1EA"
-   playerMakeField "Title", 26, "bold", "OXT Stack Player"
-   playerMakeField "Help", 15, empty, "Open a stack file (.oxtstack, .livecode, .rev or .livecodescript)" && \
-         "from this device, or open one with this app from your files."
+   set the backgroundColor of stack kPlayerName to kBackground
+   set the foregroundColor of stack kPlayerName to kText
+   set the hiliteColor of stack kPlayerName to kChosen
+   if pLogo is not empty then
+      create image "Logo"
+      set the text of image "Logo" to pLogo
+      set the lockLoc of image "Logo" to true
+      set the resizeQuality of image "Logo" to "best"
+   end if
+   playerMakeField "Brand", 13, "bold", empty
+   set the htmlText of field "Brand" to "<p><font color=" & quote & kEmber & quote & ">OXT</font>-Beyond</p>"
+   set the textColor of field "Brand" to kMuted
+   playerMakeField "Title", 24, "bold", "Stack Player"
+   playerMakeField "Help", 14, empty, "Play stacks made in OXT-Beyond or LiveCode:" && \
+         ".oxtstack, .livecode, .rev and .livecodescript files."
+   set the textColor of field "Help" to kMuted
    create button "Open"
+   set the style of button "Open" to "roundrect"
+   set the opaque of button "Open" to true
+   set the showBorder of button "Open" to false
+   set the backgroundColor of button "Open" to kEmber
+   set the hiliteColor of button "Open" to kGold
+   set the textColor of button "Open" to kInk
+   set the textStyle of button "Open" to "bold"
+   set the textSize of button "Open" to 17
+   set the traversalOn of button "Open" to false
    set the label of button "Open" to "Open a stack..."
-   set the textSize of button "Open" to 18
    set the script of button "Open" to "on mouseUp" & return & "   playerChoose" & return & "end mouseUp"
-   playerMakeField "Library Title", 16, "bold", "Your stacks"
+   playerMakeField "Library Title", 12, "bold", "YOUR STACKS"
+   set the textColor of field "Library Title" to kMuted
+   playerMakeField "Hint", 12, empty, "Tap to play. Hold to remove."
+   set the textColor of field "Hint" to kMuted
+   set the textAlign of field "Hint" to "right"
    create field "Library"
    set the listBehavior of field "Library" to true
    set the lockText of field "Library" to true
    -- no field of the player takes the focus: a field that has it brings
    -- up Android's keyboard, and Back then hides the keyboard first
    set the traversalOn of field "Library" to false
-   set the textSize of field "Library" to 18
+   set the opaque of field "Library" to true
+   set the backgroundColor of field "Library" to kSurface
+   set the borderColor of field "Library" to kLine
+   set the borderWidth of field "Library" to 1
+   set the threeD of field "Library" to false
+   set the textColor of field "Library" to kText
+   set the hiliteColor of field "Library" to kChosen
+   set the textSize of field "Library" to 17
    set the fixedLineHeight of field "Library" to true
-   set the textHeight of field "Library" to 44
-   set the vScrollbar of field "Library" to true
-   set the script of field "Library" to "on mouseUp" & return & \
-         "   if the hilitedLine of me is not empty then playerPickLine the hilitedLine of me" & return & "end mouseUp"
-   playerMakeField "Status", 14, empty, empty
+   set the textHeight of field "Library" to 52
+   set the leftMargin of field "Library" to 14
+   set the rightMargin of field "Library" to 14
+   set the dontWrap of field "Library" to true
+   set the vScrollbar of field "Library" to false
+   -- a tap plays the stack of its line; a finger held kHold asks to
+   -- remove it
+   set the script of field "Library" to "local sDownAt" & return & \
+         "on mouseDown" & return & "   put the milliseconds into sDownAt" & return & "end mouseDown" & return & \
+         "on mouseUp" & return & \
+         "   if the hilitedLine of me is empty then exit mouseUp" & return & \
+         "   if the milliseconds - sDownAt >= " & kHold & " then" & return & \
+         "      playerAskRemove the hilitedLine of me" & return & \
+         "   else" & return & \
+         "      playerPickLine the hilitedLine of me" & return & \
+         "   end if" & return & \
+         "end mouseUp"
+   playerMakeField "Empty", 15, empty, "No stacks yet." & return & \
+         "Tap Open a stack..., or open a stack file with this app from your files, mail or browser."
+   set the textColor of field "Empty" to kMuted
+   set the textAlign of field "Empty" to "center"
+   playerMakeField "Status", 13, empty, empty
+   set the textColor of field "Status" to kGold
    create button "Player Back Script"
    set the visible of button "Player Back Script" to false
    set the script of button "Player Back Script" to pBackScript
@@ -178,26 +243,35 @@ end playerMakeField
 -- The controls laid out for the screen as it is now. A short screen (a
 -- phone held sideways) has no help text, so that the library keeps room
 command playerLayout
-   local tWidth, tHeight, tMargin, tTop
+   local tWidth, tHeight, tMargin, tTop, tLeft
    put playerSeenWidth() into tWidth
    put playerSeenHeight() into tHeight
    put 20 into tMargin
    lock screen
+   put tMargin into tLeft
+   if there is an image "Logo" of stack kPlayerName then
+      set the rect of image "Logo" of stack kPlayerName to tMargin, 18, tMargin + 44, 62
+      put tMargin + 54 into tLeft
+   end if
+   set the rect of field "Brand" of stack kPlayerName to tLeft, 16, tWidth - tMargin, 36
+   set the rect of field "Title" of stack kPlayerName to tLeft, 32, tWidth - tMargin, 66
    if tHeight < 520 then
       set the visible of field "Help" of stack kPlayerName to false
-      set the rect of field "Title" of stack kPlayerName to tMargin, 10, tWidth - tMargin, 50
-      set the rect of button "Open" of stack kPlayerName to tMargin, 56, tWidth - tMargin, 100
-      put 108 into tTop
+      put 74 into tTop
    else
       set the visible of field "Help" of stack kPlayerName to true
-      set the rect of field "Title" of stack kPlayerName to tMargin, 40, tWidth - tMargin, 84
-      set the rect of field "Help" of stack kPlayerName to tMargin, 90, tWidth - tMargin, 150
-      set the rect of button "Open" of stack kPlayerName to tMargin, 160, tWidth - tMargin, 216
-      put 236 into tTop
+      set the rect of field "Help" of stack kPlayerName to tMargin, 76, tWidth - tMargin, 120
+      put 128 into tTop
    end if
-   set the rect of field "Library Title" of stack kPlayerName to tMargin, tTop, tWidth - tMargin, tTop + 26
-   set the rect of field "Library" of stack kPlayerName to tMargin, tTop + 32, tWidth - tMargin, max(tTop + 80, tHeight - 60)
-   set the rect of field "Status" of stack kPlayerName to tMargin, max(tTop + 86, tHeight - 54), tWidth - tMargin, max(tTop + 126, tHeight - 8)
+   set the rect of button "Open" of stack kPlayerName to tMargin, tTop, tWidth - tMargin, tTop + 48
+   put tTop + 64 into tTop
+   set the rect of field "Library Title" of stack kPlayerName to tMargin, tTop, tMargin + 140, tTop + 22
+   set the rect of field "Hint" of stack kPlayerName to tMargin + 140, tTop, tWidth - tMargin, tTop + 22
+   set the rect of field "Library" of stack kPlayerName to tMargin, tTop + 26, tWidth - tMargin, max(tTop + 80, tHeight - 52)
+   -- the kind and the day in a column at the right
+   set the tabStops of field "Library" of stack kPlayerName to max(150, tWidth - 2 * tMargin - 150)
+   set the rect of field "Empty" of stack kPlayerName to tMargin + 16, tTop + 50, tWidth - tMargin - 16, tTop + 130
+   set the rect of field "Status" of stack kPlayerName to tMargin, max(tTop + 86, tHeight - 46), tWidth - tMargin, max(tTop + 126, tHeight - 6)
    unlock screen
 end playerLayout
 
@@ -235,18 +309,146 @@ command playerStatus pText
    put pText into field "Status" of stack kPlayerName
 end playerStatus
 
--- The stacks of the library, a line each, newest first
+-- The stacks of the library, a line each, newest first: its name, and
+-- at the right its kind and when it was last opened
 command playerShowLibrary
-   local tList, tEntry
-   repeat for each line tEntry in playerLibrary()
-      set the itemDelimiter to slash
-      put item -1 of tEntry & return after tList
-      set the itemDelimiter to comma
+   local tFiles, tFile, tHtml, tCount
+   put playerLibrary() into tFiles
+   repeat for each line tFile in tFiles
+      put "<p>" & playerEscape(playerStackTitle(tFile)) & tab & "<font size=" & quote & "14" & quote && "color=" & quote & kMuted & quote & ">" & \
+            playerEscape(playerStackKind(tFile) && "-" && playerWhen(playerFileSeconds(tFile))) & "</font></p>" after tHtml
+      add 1 to tCount
    end repeat
-   delete the last char of tList
-   put tList into field "Library" of stack kPlayerName
-   set the cFiles of field "Library" of stack kPlayerName to playerLibrary()
+   set the htmlText of field "Library" of stack kPlayerName to tHtml
+   set the cFiles of field "Library" of stack kPlayerName to tFiles
+   set the visible of field "Empty" of stack kPlayerName to (tFiles is empty)
+   if tCount > 0 then
+      put "YOUR STACKS" && "(" & tCount & ")" into field "Library Title" of stack kPlayerName
+   else
+      put "YOUR STACKS" into field "Library Title" of stack kPlayerName
+   end if
 end playerShowLibrary
+
+-- A stack file's name as the library shows it: without its ending
+function playerStackTitle pFile
+   set the itemDelimiter to slash
+   put item -1 of pFile into pFile
+   set the itemDelimiter to "."
+   if the number of items in pFile > 1 then
+      delete the last item of pFile
+   end if
+   return pFile
+end playerStackTitle
+
+-- Its kind, by its ending: "oxtstack", "livecode", ...
+function playerStackKind pFile
+   set the itemDelimiter to "."
+   return toLower(item -1 of pFile)
+end playerStackKind
+
+function playerFileSeconds pFile
+   local tFolder, tName, tEntry
+   set the itemDelimiter to slash
+   put item 1 to -2 of pFile into tFolder
+   put item -1 of pFile into tName
+   set the itemDelimiter to comma
+   repeat for each line tEntry in files(tFolder, "detailed-utf8")
+      if textDecode(urlDecode(item 1 of tEntry), "UTF-8") is tName then
+         return item 5 of tEntry
+      end if
+   end repeat
+   return empty
+end playerFileSeconds
+
+-- When, said as a person says it: today, yesterday, the day and month
+-- this year, or with the year before it
+function playerWhen pSeconds, pNow
+   local tDays, tThen, tNow, tThenNoon, tNowNoon
+   if pSeconds is not a number then
+      return "new"
+   end if
+   put pSeconds into tThen
+   put pNow into tNow
+   if tNow is empty then
+      put the seconds into tNow
+   end if
+   -- whole days between the two dates where the device is, each at noon
+   -- (convert reads dateItems only with all seven items: the seventh, the
+   -- day of the week, is not looked at)
+   convert tThen from seconds to dateItems
+   convert tNow from seconds to dateItems
+   put item 1 to 3 of tThen & ",12,0,0,1" into tThenNoon
+   convert tThenNoon from dateItems to seconds
+   put item 1 to 3 of tNow & ",12,0,0,1" into tNowNoon
+   convert tNowNoon from dateItems to seconds
+   put round((tNowNoon - tThenNoon) / 86400) into tDays
+   if tDays <= 0 then
+      return "today"
+   else if tDays is 1 then
+      return "yesterday"
+   end if
+   if item 1 of tThen is item 1 of tNow then
+      return item 3 of tThen && item (item 2 of tThen) of kMonths
+   end if
+   return item 3 of tThen && item (item 2 of tThen) of kMonths && item 1 of tThen
+end playerWhen
+
+function playerEscape pText
+   replace "&" with "&amp;" in pText
+   replace "<" with "&lt;" in pText
+   replace ">" with "&gt;" in pText
+   return pText
+end playerEscape
+
+-- A finger held on a line of the library: Android asks whether to remove
+-- the stack
+command playerAskRemove pLine
+   local tFile
+   put line pLine of the cFiles of field "Library" of stack kPlayerName into tFile
+   if tFile is empty then
+      exit playerAskRemove
+   end if
+   answer "Remove" && quote & playerStackTitle(tFile) & quote && "from your stacks?" & return & \
+         "The file it came from is not touched." with "Cancel" or "Remove"
+   if it is "Remove" then
+      playerRemove tFile
+   end if
+end playerAskRemove
+
+-- A stack leaves the library, with its folder and what the stack saved
+-- there. Nothing outside the library is touched
+command playerRemove pFile
+   local tFolder, tLibrary
+   put playerLibraryFolder() into tLibrary
+   if not (pFile begins with tLibrary & slash) or pFile contains "/../" then
+      exit playerRemove
+   end if
+   set the itemDelimiter to slash
+   put item 1 to -2 of pFile into tFolder
+   set the itemDelimiter to comma
+   if tFolder is tLibrary then
+      if there is a file pFile then
+         delete file pFile
+      end if
+   else
+      playerDeleteTree tFolder
+   end if
+   playerShowLibrary
+   playerSay "removed" && playerShortPath(pFile)
+end playerRemove
+
+private command playerDeleteTree pFolder
+   local tName
+   repeat for each line tName in files(pFolder)
+      delete file (pFolder & slash & tName)
+   end repeat
+   repeat for each line tName in folders(pFolder)
+      if tName is not "." and tName is not ".." then
+         playerDeleteTree pFolder & slash & tName
+      end if
+   end repeat
+   delete folder pFolder
+end playerDeleteTree
 
 -- A tap on a line of the library
 command playerPickLine pLine
