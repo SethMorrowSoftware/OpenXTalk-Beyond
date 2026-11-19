@@ -5231,6 +5231,10 @@ class OneSystem(unittest.TestCase):
         body = re.search(r'(?s)private function probeScript\n(.*?)\nend probeScript', script).group(1)
         tail = body.split('"end openStack" after tScript')[1]
         tail = tail.split('"end probeBusy" after tScript\n   end if')[1]
+        # (the xTalk Suite's probe's own handlers, before the tap's)
+        xtalk = '\n   if probeName() is "AndroidXtalkProbe" then\n      put return & xtalkHandlers() after tScript\n   end if'
+        self.assertTrue(tail.startswith(xtalk), tail)
+        tail = tail[len(xtalk):]
         self.assertTrue(tail.startswith(
             '\n   -- a tap: a script waiting (kWaitColor), then green again\n'
             '   put return & "on mouseUp" & return & \\\n'
@@ -5542,9 +5546,9 @@ class OneSystem(unittest.TestCase):
         workflow = read('.github', 'workflows', 'android.yml')
         verifies = [re.sub(r'\\\n\s*', '', v) for v in
                     re.findall(r'android_check\.py verify(?:[^\n]*\\\n)*[^\n]*', workflow)]
-        self.assertEqual(len(verifies), 4, verifies)
+        self.assertEqual(len(verifies), 5, verifies)
         for v in verifies:
-            if '/java-new"' in v or '/java-app"' in v:
+            if '/java-new"' in v or '/java-app"' in v or '/java-xtalk"' in v:
                 self.assertTrue(v.endswith('--target %s' % ac.NEWEST_TARGET_SDK), v)
             elif '/java-edge"' in v:
                 self.assertTrue(v.endswith('--target %s --adaptive-icon' % ac.NEWEST_TARGET_SDK), v)

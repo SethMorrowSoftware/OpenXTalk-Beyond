@@ -75,8 +75,8 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --    OXT_ANDROID_PROBE     "java" for the Java layer's probe (see below),
 --                          "busy" for the busy probe (see kBusyTick),
 --                          "edge" for the edge probe (see kEdgeWait),
---                          "tests" for the script tests (see kTestsScript),
---                          "xtalk" for the xTalk Suite's probe (see
+--                          "tests" for the script tests (see kTestsScript)
+--                          or "xtalk" for the xTalk Suite's probe (see
 --                          kXtalkSays)
 --    OXT_ANDROID_ENGINE    the probe's "android,engine" setting ("beyond"
 --                          for OXT-Beyond's own engine; none when empty)
@@ -1184,15 +1184,15 @@ private function probeScript
             "   send" && quote & "probeBusy" & quote && "to me in" && kBusyTick && "milliseconds" & return & \
             "end probeBusy" after tScript
    end if
+   if probeName() is "AndroidXtalkProbe" then
+      put return & xtalkHandlers() after tScript
+   end if
    -- a tap: a script waiting (kWaitColor), then green again
    put return & "on mouseUp" & return & \
          "   set the backgroundColor of me to" && quote & kWaitColor & quote & return & \
          "   wait" && kProbeWait && "seconds with messages" & return & \
          "   set the backgroundColor of me to" && quote & kRunColor & quote & return & \
          "end mouseUp" after tScript
-   if probeName() is "AndroidXtalkProbe" then
-      put return & xtalkHandlers() after tScript
-   end if
    if probeName() is "AndroidJavaProbe" then
       -- the back key, not passed (see the header)
       put return & "on backKey" & return & \
