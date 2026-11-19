@@ -241,7 +241,7 @@ pValue: The value: an array, or text.
 pShape: An optional shape, from <jsonDecodeWithShape>, <jsonGuessShape> or
 <jsonSetKind>, saying what each part of the value is to be in JSON.
 
-pOptions: Optional: `marks`, to write each array the shape says nothing
+pOptions: Empty, or `marks` to write each array the shape says nothing
 about as its mark says (`as a sequence`, `as a dictionary`, `[]`, `{}`).
 
 Returns: The JSON text, with no spaces or line breaks between its parts
@@ -313,7 +313,7 @@ Syntax: jsonGuessShape(<pValue> [, <pOptions>])
 Parameters:
 pValue: The value: an array, or text.
 
-pOptions: Optional: `marks`, to take what each array's mark says, as
+pOptions: Empty, or `marks` to take what each array's mark says, as
 <jsonEncode> does with that option.
 
 Returns: A shape, as <jsonDecodeWithShape> makes them.
