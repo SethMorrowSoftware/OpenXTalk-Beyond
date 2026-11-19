@@ -21,6 +21,7 @@ scripts, the build script and the check agree on the names they share."""
 
 import os
 import re
+import struct
 import sys
 import unittest
 
@@ -177,6 +178,53 @@ class DeviceLines(unittest.TestCase):
                          'content://com.android.externalstorage.documents/document/primary%3ADownload%2FPlayerSample.oxtstack')
 
 
+def screencap(width, height, colour, header=16, spots=()):
+    """A raw screencap of one colour, with the pixels of spots ((x, y,
+    colour), ...) another."""
+    pixels = bytearray(bytes(colour) + b'\xff') * (width * height)
+    for x, y, c in spots:
+        at = (y * width + x) * 4
+        pixels[at:at + 3] = bytes(c)
+    words = struct.pack('<III', width, height, 1) + (struct.pack('<I', 1) if header == 16 else b'')
+    return words + bytes(pixels)
+
+
+class Screen(unittest.TestCase):
+    SPOT = (540, 520, 3.0)  # the Open button, at 3 device pixels a point
+
+    def test_the_card_is_on_the_screen(self):
+        self.assertEqual(bp.card_problem(screencap(60, 600, bp.CARD_COLOUR), self.SPOT), '')
+
+    def test_both_headers(self):
+        for header in (12, 16):
+            width, height, pixels = bp.screen_pixels(screencap(4, 3, (1, 2, 3), header))
+            self.assertEqual((width, height, len(pixels)), (4, 3, 48))
+
+    def test_a_black_screen_is_not_the_card(self):
+        # the player saved unseen: the engine drew nothing
+        self.assertIn('#000000', bp.card_problem(screencap(60, 600, (0, 0, 0)), self.SPOT))
+
+    def test_the_stack_that_played_is_not_the_card(self):
+        self.assertIn('#1F9E5A', bp.card_problem(screencap(60, 600, (31, 158, 90)), self.SPOT))
+
+    def test_the_margin_is_where_it_looks(self):
+        # x = 6 points in, at the button's height: a card there and black
+        # everywhere else is the card
+        shot = screencap(60, 600, (0, 0, 0), spots=[(18, 520, bp.CARD_COLOUR)])
+        self.assertEqual(bp.card_problem(shot, self.SPOT), '')
+
+    def test_a_picture_that_is_no_screencap(self):
+        with self.assertRaises(bp.CheckError):
+            bp.screen_pixels(b'\x89PNG\r\n')
+        with self.assertRaises(bp.CheckError):
+            bp.screen_pixels(struct.pack('<III', 4, 3, 1) + b'\0' * 7)
+
+    def test_where_the_open_button_is(self):
+        lines = ['ready 9.6.3 android', 'open button at 540,520 scale 2.625 stack 0,0,411,820 screen 0,0,411,820']
+        self.assertEqual(bp.open_button_spot(lines), (540, 520, 2.625))
+        self.assertIsNone(bp.open_button_spot(['ready']))
+
+
 class SharedNames(unittest.TestCase):
     """The player's two scripts, its build script and its check are four
     files that must say the same names."""
@@ -231,6 +279,16 @@ class SharedNames(unittest.TestCase):
         # what is taken in is said by its kind, never by its address
         self.assertIn('playerSay "taking" && playerAddressKind(pAddress)', self.player)
         self.assertNotRegex(self.player, r'playerSay[^\n]*&& pAddress')
+
+    def test_the_card_colour_is_what_the_check_looks_for(self):
+        self.assertIn('set the backgroundColor of stack kPlayerName to "#%02X%02X%02X"' % bp.CARD_COLOUR,
+                      self.player)
+
+    def test_the_player_is_saved_seen(self):
+        # Android draws nothing of a stack saved invisible
+        make = self.build[self.build.index('private command makePlayer'):self.build.index('end makePlayer')]
+        self.assertIn('create invisible stack kPlayerName', make)
+        self.assertTrue(make.rstrip().endswith('set the visible of stack kPlayerName to true'), make[-200:])
 
     def test_the_workflow_runs_each_step(self):
         workflow = text('.github', 'workflows', 'android-player.yml')

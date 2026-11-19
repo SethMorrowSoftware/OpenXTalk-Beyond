@@ -140,6 +140,17 @@ on TestTheControlsAreMade
          item 4 of the rect of field "Status" of stack kPlayer <= the height of stack kPlayer
 end TestTheControlsAreMade
 
+-- Android turns the screen: resizeStack comes to the player's card
+on TestTheControlsFollowTheScreen
+   set the rect of stack kPlayer to 0,0,640,360
+   dispatch "resizeStack" to this card of stack kPlayer with 640,360,360,640
+   TestAssert "the Open button is as wide as the screen now", \
+         the width of button "Open" of stack kPlayer is 640 - 40
+   TestAssert "the status line is still on the card", \
+         the bottom of field "Status" of stack kPlayer <= the height of stack kPlayer
+   TestAssert "off a phone the whole card is seen", fromPlayer("playerSeenHeight") is 360
+end TestTheControlsFollowTheScreen
+
 on TestStackNames
    TestAssert "an oxtstack", fromPlayer("playerIsStackName", "My Stack.oxtstack")
    TestAssert "a livecode file, in capitals", fromPlayer("playerIsStackName", "OLD.LIVECODE")
@@ -271,6 +282,32 @@ private function folderAsTheEngineSays pFolder
    set the defaultFolder to tWas
    return tFolder
 end folderAsTheEngineSays
+
+-- A file named as a stack that is none: Android hands the player any
+-- file of such a name
+on TestANoStackFileLeavesTheLibrary
+   local tFile, tCopy
+   put sWork & "/Broken.oxtstack" into tFile
+   put "this is no stack" into url ("binfile:" & tFile)
+   put fromPlayer("playerImport", tFile) into tCopy
+   TestAssert "it comes into the library by its name", there is a file tCopy
+   dispatch "playerOpen" to stack kPlayer with tCopy
+   TestAssert "it does not play", fromPlayer("playerCurrent") is empty
+   TestAssert "the player says so on its card", \
+         field "Status" of stack kPlayer begins with "That stack cannot be opened: it is not a stack file"
+   TestAssert "it has left the library", there is not a file tCopy and fromPlayer("playerLibrary") is empty
+   TestAssert "with its folder", there is not a folder (sWork & "/library/Broken")
+   TestAssert "and the list shows it no more", the text of field "Library" of stack kPlayer is empty
+   TestAssert "the file it came from is where it was", there is a file tFile
+end TestANoStackFileLeavesTheLibrary
+
+-- Only a file of the library is ever dropped
+on TestOnlyTheLibraryIsDropped
+   local tCopy
+   put fromPlayer("playerImport", makeSample("Sample One", "Sample One.oxtstack", empty)) into tCopy
+   dispatch "playerDrop" to stack kPlayer with sWork & "/elsewhere.oxtstack"
+   TestAssert "a file outside the library is never dropped", fromPlayer("playerLibrary") is tCopy
+end TestOnlyTheLibraryIsDropped
 
 on TestAStackPlaysAndIsLeft
    local tCopy, tFolder

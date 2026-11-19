@@ -47,6 +47,9 @@ device installs the package on a device or emulator and plays the sample
 stack in it by each way a stack comes in, reading what the player and the
 sample say in the device's log ("OXT Stack Player: ..."):
 
+  start    the player's library on the screen: the log says what it did,
+           and a look at the screen (beside the Open button, the card's
+           colour) says that the user sees it; again after Back
   file     a file address (file:///data/local/tmp/...), as an old file
            manager gives one
   back     Android's Back while the stack plays: home, and still running
@@ -62,6 +65,7 @@ import argparse
 import os
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import time
@@ -85,6 +89,8 @@ SAMPLE_STACK = 'Player Sample'
 SAYS = re.compile(r'OXT Stack Player: (.*?)\s*$')
 SAMPLE_SAYS = re.compile(r'OXT Stack Player sample: (.*?)\s*$')
 PERMISSIONS = {'android.permission.INTERNET'}
+# The player's card (playerMake's backgroundColor), as the screen shows it
+CARD_COLOUR = (0xF4, 0xF1, 0xEA)
 
 log = ac.log
 CheckError = ac.CheckError
@@ -322,6 +328,46 @@ def document_address(name):
     return 'content://com.android.externalstorage.documents/document/primary%3ADownload%2F' + name
 
 
+def screen_pixels(raw):
+    """(width, height, the RGBA bytes) of what adb exec-out screencap
+    gives: a header of the width, the height and the format (and, from
+    Android 11, the colour space) as little-endian words, then the
+    pixels, four bytes each."""
+    if len(raw) < 12:
+        raise CheckError('the screen picture is %d bytes' % len(raw))
+    width, height, form = struct.unpack('<III', raw[:12])
+    header = len(raw) - width * height * 4
+    if header not in (12, 16) or form != 1:
+        raise CheckError('a screen picture of %dx%d, format %d, in %d bytes is not RGBA_8888'
+                         % (width, height, form, len(raw)))
+    return width, height, raw[header:]
+
+
+def open_button_spot(lines):
+    """(x, y, scale) of the player's Open button on the device's screen,
+    from the last "open button at" the player said, or None."""
+    spot = [x for x in lines if x.startswith('open button at ')]
+    m = re.match(r'open button at (\d+),(\d+) scale ([\d.]+)', spot[-1]) if spot else None
+    return (int(m.group(1)), int(m.group(2)), float(m.group(3))) if m else None
+
+
+def card_problem(raw, spot):
+    """Why the screen does not show the player's own card (empty when it
+    does): beside its Open button, in the card's margin, is the card's
+    colour. A screen the engine never drew is black there, and one that
+    still shows the stack that played shows that stack."""
+    width, height, pixels = screen_pixels(raw)
+    x, y, scale = spot
+    x = max(0, min(width - 1, int(round(6 * scale))))
+    y = max(0, min(height - 1, y))
+    at = (y * width + x) * 4
+    colour = tuple(pixels[at:at + 3])
+    if all(abs(a - b) <= 12 for a, b in zip(colour, CARD_COLOUR)):
+        return ''
+    return ('the screen at %d,%d is #%02X%02X%02X, not the card\'s #%02X%02X%02X: the player\'s card '
+            'is not on the screen' % ((x, y) + colour + CARD_COLOUR))
+
+
 class Device:
     def __init__(self, sdk, serial):
         self.adb = ac.adb_path(sdk)
@@ -363,6 +409,11 @@ class Device:
         out = self('shell', 'dumpsys', 'input_method')[1]
         return ' '.join(sorted(set(re.findall(r'm(?:InputShown|ShowRequested|ShowExplicitlyRequested)=\w+', out)))) \
             or 'not said'
+
+    def screen(self):
+        """The screen's pixels, as adb exec-out screencap gives them."""
+        return subprocess.run([self.adb, '-s', self.serial, 'exec-out', 'screencap'],
+                              stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=60).stdout
 
     def ui(self):
         self('shell', 'uiautomator', 'dump', '/sdcard/oxt-player-ui.xml')
@@ -429,6 +480,15 @@ def device(args):
         keyboard = d.keyboard()
         step('start: no keyboard over the library', 'mInputShown=true' not in keyboard,
              'Android\'s keyboard is up (%s): a field of the player has the focus' % keyboard)
+        # the log says what the player did, not what the user sees: a
+        # player whose stack was saved invisible said all of it to a black
+        # screen
+        _, lines = d.wait_for(lambda x: x.startswith('open button at '), 20)
+        spot = open_button_spot(lines)
+        if step('start: the player says where its library is', spot is not None,
+                'the player never said where its Open button is: %s' % lines):
+            problem = card_problem(d.screen(), spot)
+            step('start: the library is on the screen, drawn', not problem, problem)
 
         # ---- a file address
         at = count()
@@ -462,6 +522,9 @@ def device(args):
             step('back', line == 'home from ' + SAMPLE_STACK, '%s; the player said: %s' % (why, lines[at:]))
             time.sleep(2)
             step('back: the app is still running', d.running(), 'its process has gone')
+            if spot is not None:
+                problem = card_problem(d.screen(), spot)
+                step('back: the library is drawn again', not problem, problem)
 
         # ---- the Open button and Android's "Open document" screen
         if not args.no_picker:

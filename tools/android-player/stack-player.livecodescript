@@ -47,6 +47,9 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 
 constant kPlayerName = "OXT Stack Player"
 constant kSays = "OXT Stack Player:"
+-- Points kept clear above the screen's bottom for Android's navigation
+-- bar (48 with buttons, less with gestures) (playerSeenHeight)
+constant kBarAllowance = 56
 -- What a stack file's name ends with
 constant kStackEndings = "oxtstack,livecode,rev,livecodescript,oxtscript,mc"
 
@@ -66,6 +69,9 @@ on openStack
       pass openStack
    end if
    put true into sStarted
+   -- a player saved unseen draws nothing on Android (build-player
+   -- saves it seen)
+   set the visible of me to true
    insert the script of button "Player Back Script" of me into back
    playerLayout
    playerShowLibrary
@@ -80,10 +86,10 @@ on openStack
    send "playerLaunched" to me in 100 milliseconds
 end openStack
 
+-- resizeStack comes to the card, so the target is never the stack: only
+-- the player's own cards send it here (a stack that plays has its own)
 on resizeStack
-   if the short name of the target is kPlayerName then
-      playerLayout
-   end if
+   playerLayout
    pass resizeStack
 end resizeStack
 
@@ -169,21 +175,48 @@ private command playerMakeField pName, pSize, pStyle, pText
    put pText into field pName
 end playerMakeField
 
--- The controls laid out for the screen as it is now
+-- The controls laid out for the screen as it is now. A short screen (a
+-- phone held sideways) has no help text, so that the library keeps room
 command playerLayout
-   local tWidth, tHeight, tMargin
+   local tWidth, tHeight, tMargin, tTop
    put the width of stack kPlayerName into tWidth
-   put the height of stack kPlayerName into tHeight
+   put playerSeenHeight() into tHeight
    put 20 into tMargin
    lock screen
-   set the rect of field "Title" of stack kPlayerName to tMargin, 40, tWidth - tMargin, 84
-   set the rect of field "Help" of stack kPlayerName to tMargin, 90, tWidth - tMargin, 150
-   set the rect of button "Open" of stack kPlayerName to tMargin, 160, tWidth - tMargin, 216
-   set the rect of field "Library Title" of stack kPlayerName to tMargin, 236, tWidth - tMargin, 262
-   set the rect of field "Library" of stack kPlayerName to tMargin, 268, tWidth - tMargin, max(330, tHeight - 70)
-   set the rect of field "Status" of stack kPlayerName to tMargin, max(336, tHeight - 64), tWidth - tMargin, max(376, tHeight - 16)
+   if tHeight < 520 then
+      set the visible of field "Help" of stack kPlayerName to false
+      set the rect of field "Title" of stack kPlayerName to tMargin, 10, tWidth - tMargin, 50
+      set the rect of button "Open" of stack kPlayerName to tMargin, 56, tWidth - tMargin, 100
+      put 108 into tTop
+   else
+      set the visible of field "Help" of stack kPlayerName to true
+      set the rect of field "Title" of stack kPlayerName to tMargin, 40, tWidth - tMargin, 84
+      set the rect of field "Help" of stack kPlayerName to tMargin, 90, tWidth - tMargin, 150
+      set the rect of button "Open" of stack kPlayerName to tMargin, 160, tWidth - tMargin, 216
+      put 236 into tTop
+   end if
+   set the rect of field "Library Title" of stack kPlayerName to tMargin, tTop, tWidth - tMargin, tTop + 26
+   set the rect of field "Library" of stack kPlayerName to tMargin, tTop + 32, tWidth - tMargin, max(tTop + 80, tHeight - 60)
+   set the rect of field "Status" of stack kPlayerName to tMargin, max(tTop + 86, tHeight - 54), tWidth - tMargin, max(tTop + 126, tHeight - 8)
    unlock screen
 end playerLayout
+
+-- How much of the player's card is seen. On Android 15 and later an app
+-- is drawn edge to edge: the engine puts the stack below the status bar
+-- but makes it as tall as the whole screen, so that its bottom is under
+-- the navigation bar or past the screen. What lies below the screen's
+-- bottom, and kBarAllowance above it, is left empty
+function playerSeenHeight
+   local tHeight, tSeen
+   put the height of stack kPlayerName into tHeight
+   if the environment is "mobile" then
+      put item 4 of the screenRect - item 2 of the rect of stack kPlayerName - kBarAllowance into tSeen
+      if tSeen > 300 and tSeen < tHeight then
+         return tSeen
+      end if
+   end if
+   return tHeight
+end playerSeenHeight
 
 command playerStatus pText
    put pText into field "Status" of stack kPlayerName
@@ -542,8 +575,18 @@ command playerOpen pFile
       -- read without its messages first: its name, and how it wants the
       -- screen
       lock messages
-      put the short name of stack pFile into tName
+      try
+         put the short name of stack pFile into tName
+      catch tError
+         put empty into tName
+      end try
       unlock messages
+      if tName is empty then
+         -- no stack, whatever its name says: it leaves the library, which
+         -- would offer it again on every start
+         playerDrop pFile
+         throw "it is not a stack file, or one this engine cannot read"
+      end if
       if tName is among the lines of sStacksBefore then
          throw "a stack named" && quote & tName & quote && "is part of the player"
       end if
@@ -562,6 +605,32 @@ command playerOpen pFile
    end try
    playerSay "opened" && tName
 end playerOpen
+
+-- A file of the library that is no stack leaves it, with its folder
+-- when the folder holds nothing else (each file comes in to a folder of
+-- its own). Nothing outside the library is touched
+command playerDrop pFile
+   local tFolder, tLibrary, tFolders
+   put playerLibraryFolder() into tLibrary
+   if not (pFile begins with tLibrary & slash) then
+      exit playerDrop
+   end if
+   set the itemDelimiter to slash
+   put item 1 to -2 of pFile into tFolder
+   set the itemDelimiter to comma
+   if there is a file pFile then
+      delete file pFile
+   end if
+   -- folders() names ".." too, and on some systems "."
+   put folders(tFolder) into tFolders
+   filter lines of tFolders without "."
+   filter lines of tFolders without ".."
+   if tFolder is not tLibrary and files(tFolder) is empty and tFolders is empty then
+      delete folder tFolder
+   end if
+   playerShowLibrary
+   playerSay "dropped" && playerShortPath(pFile)
+end playerDrop
 
 -- How a stack that says nothing about a phone's screen is shown on one:
 -- whole, scaled to the screen, with bars beside it (showAll). A stack

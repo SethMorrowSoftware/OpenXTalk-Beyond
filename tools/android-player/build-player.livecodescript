@@ -285,6 +285,10 @@ private command makePlayer
    if the script of button "Player Back Script" of stack kPlayerName is empty then
       throw "stack-player-back.livecodescript does not compile"
    end if
+   -- made unseen, and saved seen: a standalone opens its stack as it was
+   -- saved, and Android draws nothing of an invisible one (the screen
+   -- stayed black, and took no tap, until a stack had played)
+   set the visible of stack kPlayerName to true
 end makePlayer
 
 ----------------------------------------------------------------
