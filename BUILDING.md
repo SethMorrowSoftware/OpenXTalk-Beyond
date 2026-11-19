@@ -1125,7 +1125,7 @@ package always has the pinned versions, compiled by its own
 | --- | --- |
 | `name`, `repository`, `commit` | The member, its `owner/repository` on GitHub and the full commit SHA-1. |
 | `version`, `version_from` | The member's version, and where `pin` reads it: a file and a regular expression (the `.lcb` metadata, or a version constant of a script library). |
-| `files` | Every file taken: its `path` in the repository, its `role` (`source`; `library` for the native libraries in `src/code/<platform-id>/`, all five platform ids; `code-manifest` for the member's `MANIFEST.sha256`; `licence`), the `sha256` and `size` of its Git blob and, for Windows libraries, `imports`, the DLLs it imports. A licence file may have a `name` to use in `licenses/`, `"extract": "leading-comment"` (only the comment at the top of the file is shipped: the RHash notice in SodiumXT's `sha3.c`, the trezor-crypto notices in CoinXT's `address.c` and `hasher.c`), or a `repository` and `commit` of its own (OpenSSL's licence text, for the two members that link OpenSSL). |
+| `files` | Every file taken: its `path` in the repository, its `role` (`source`; `library` for the native libraries in `src/code/<platform-id>/`, every platform id the member builds for (the four Android ones among them); `code-manifest` for the member's `MANIFEST.sha256`; `licence`), the `sha256` and `size` of its Git blob and, for Windows libraries, `imports`, the DLLs it imports. A licence file may have a `name` to use in `licenses/`, `"extract": "leading-comment"` (only the comment at the top of the file is shipped: the RHash notice in SodiumXT's `sha3.c`, the trezor-crypto notices in CoinXT's `address.c` and `hasher.c`), or a `repository` and `commit` of its own (OpenSSL's licence text, for the two members that link OpenSSL). |
 | `extensions` | What is made from the files: `kind` (`lcb` or `lcs`), `id`, `folder` in `Extensions\`, the `main` file, `probe` and `expect` (an expression and a regular expression its value must match, for the smoke test) and, for script libraries, `stack`, `title`, `author` and `requires`. |
 | `vc_runtime` (top level) | The Visual C++ runtime DLLs bundled with the libraries that need them (see below): `redist`, the redistributable folder they were pinned from, `file_version`, the DLLs' file version, and `files`, the `sha256` and `size` of each DLL per Windows platform id. |
 
@@ -1135,10 +1135,17 @@ clone with `core.autocrlf=true` has other bytes in its working copy.
 
 **What is built.** For each LCB library, `Extensions\<id>\` with the
 `.lcb` source, `module.lcm` and `manifest.xml` from `lc-compile`,
-`code\<platform-id>\<library>` for Windows x86-64 and x86, Linux x86-64
-and x86 and macOS (the IDE maps the one for its platform into
-`revLibraryMapping`, and the standalone builder copies the one for the
-target into a standalone), and `licenses\`. `lc-compile` runs in that
+`code\<platform-id>\<library>` for Windows x86-64 and x86, Linux x86-64,
+x86 and arm64, macOS, and, for the seven native members, Android's
+`arm64-android`, `armv7-android`, `x86_64-android` and `x86-android`
+(the IDE maps the one for its platform into `revLibraryMapping`, the
+standalone builder copies the one for the target into a standalone, and
+the Android builder packs each Android one into an app as
+`lib/<abi>/lib<library>`), and `licenses\`. Every package carries the
+Android libraries, since each desktop IDE builds Android apps; the
+Android builder workflow builds an app with them for all four ABIs and
+runs each extension's smoke test in it on its emulators
+(`android_check.py ide --probe xtalk`, `device --xtalk`). `lc-compile` runs in that
 folder with relative paths, because `module.lcm` embeds the source path
 as given; writes the module interface into a temporary folder
 (`--interface`), never into `modules\lci` (which the build checks is

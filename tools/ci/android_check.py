@@ -149,6 +149,7 @@ jarsigner and keytool, and bundletool.
 
 import argparse
 import collections
+import json
 import os
 import re
 import shutil
@@ -241,7 +242,20 @@ DENSITY_SHARE = 0.85
 # standalone of the script tests, which tools/ci/android_tests.py prepares
 # and runs (kTestsScript in android-check.livecodescript)
 PROBES = {'app': 'AndroidProbe.livecode', 'java': 'AndroidJavaProbe.livecode', 'busy': 'AndroidBusyProbe.livecode',
-          'edge': 'AndroidEdgeProbe.livecode', 'tests': 'StandaloneTestRunnerMainstack.livecode'}
+          'edge': 'AndroidEdgeProbe.livecode', 'tests': 'StandaloneTestRunnerMainstack.livecode',
+          'xtalk': 'AndroidXtalkProbe.livecode'}
+# The xTalk Suite's probe (--probe xtalk; kXtalkSays in
+# android-check.livecodescript): the manifest its extensions come from, the
+# file ide writes their records into (in --work), the Android platform ids
+# of the suite's libraries with the ABI folder of a package each goes into
+# (the builder's kAndroidArchitectures), and an extension's declared
+# Android permissions, as the builder reads them from its module
+XTALK_MANIFEST = os.path.join(REPO, 'tools', 'oxt', 'xtalk-extensions.json')
+XTALK_LIST = 'xtalk-probes.txt'
+XTALK_SAYS = 'xtalk'
+ANDROID_PLATFORMS = collections.OrderedDict([('arm64-android', 'arm64-v8a'), ('armv7-android', 'armeabi-v7a'),
+                                             ('x86_64-android', 'x86_64'), ('x86-android', 'x86')])
+PERMISSIONS_METADATA = re.compile(r'^\s*metadata\s+android\.permissions\s+is\s+"([^"]*)"', re.M)
 # Where a release's Java layer is (overlay --classes)
 CLASSES = ('Runtime', 'Android', 'Classes')
 # The name the builder gives the engine (a runtime's <abi>/Standalone) in a
@@ -1393,6 +1407,113 @@ def bundle_again(cmd, work, env, results, timeout, cache, lines):
     return problems
 
 
+def xtalk_android_extensions(manifest):
+    """[(member, extension, {platform id: library file name})] for every LCB
+    extension of the manifest whose member pins a library for each Android
+    platform id (ANDROID_PLATFORMS), in the manifest's order. A member with
+    some of them and not all is an error: a package for the others would
+    hold no code for it."""
+    found = []
+    for m in manifest.get('members', []):
+        libs = collections.OrderedDict()
+        for f in m.get('files', []):
+            parts = f['path'].split('/')
+            if f.get('role') == 'library' and len(parts) >= 2 and parts[-2] in ANDROID_PLATFORMS:
+                libs[parts[-2]] = parts[-1]
+        if not libs:
+            continue
+        missing = [p for p in ANDROID_PLATFORMS if p not in libs]
+        if missing:
+            raise CheckError('%s pins Android libraries for %s and none for %s' % (
+                m['name'], ', '.join(libs), ', '.join(missing)))
+        for e in m.get('extensions', []):
+            if e['kind'] == 'lcb':
+                found.append((m, e, libs))
+    return found
+
+
+def xtalk_records(manifest, ext_dir):
+    """The xTalk Suite's probe's records (kXtalkSays in the IDE script), as
+    lines, for the extensions of xtalk_android_extensions installed in
+    ext_dir (an IDE's Extensions folder): one "extension" record each, and
+    one "permission" record for each permission their sources declare.
+    Each must be installed with its code for every Android platform id,
+    since the probe is built from what is there."""
+    lines, permissions = [], []
+    for m, e, libs in xtalk_android_extensions(manifest):
+        folder = os.path.join(ext_dir, e['folder'])
+        if not os.path.isdir(folder):
+            raise CheckError('%s is not installed in %s' % (e['folder'], ext_dir))
+        for platform, name in libs.items():
+            if not os.path.isfile(os.path.join(folder, 'code', platform, name)):
+                raise CheckError('%s has no code/%s/%s: is it built from this manifest?' % (
+                    e['folder'], platform, name))
+        source = os.path.join(folder, e['main'].rsplit('/', 1)[-1])
+        if not os.path.isfile(source):
+            raise CheckError('%s has no %s' % (e['folder'], os.path.basename(source)))
+        with open(source, encoding='utf-8', errors='replace') as f:
+            for declared in PERMISSIONS_METADATA.findall(f.read()):
+                for name in declared.split(','):
+                    name = name.strip()
+                    if name and name not in permissions:
+                        permissions.append(name)
+        for item in (e['id'], e['probe'], e['expect']):
+            if '\t' in item or '\n' in item or '\r' in item:
+                raise CheckError('%s: a tab or a line break in %r' % (e['id'], item))
+        lines.append('extension\t%s\t%s\t%s' % (e['id'], e['probe'], e['expect']))
+    if not lines:
+        raise CheckError('%s has no LCB extension with libraries for every Android platform id' % XTALK_MANIFEST)
+    return lines + ['permission\t%s' % p for p in permissions]
+
+
+def read_xtalk_list(path):
+    """The keys the probe says each record by (an extension's id, a
+    permission's name), from a file xtalk_records wrote."""
+    keys = []
+    with open(path, encoding='utf-8') as f:
+        for line in f.read().splitlines():
+            items = line.split('\t')
+            if items[0] in ('extension', 'permission') and len(items) > 1:
+                keys.append(items[1])
+    if not keys:
+        raise CheckError('%s lists nothing to probe' % path)
+    return keys
+
+
+def xtalk_said_problems(said, keys):
+    """What the xTalk Suite's probe did not say was ok: every key must have
+    a said line "xtalk <key> ok: ..." (kXtalkSays), and none another
+    answer."""
+    problems = []
+    for key in keys:
+        answers = [x[len(XTALK_SAYS) + len(key) + 2:] for x in said if x.startswith('%s %s ' % (XTALK_SAYS, key))]
+        if not answers:
+            problems.append('the xTalk probe said nothing of %s' % key)
+        elif not all(a.startswith('ok:') for a in answers):
+            problems.append('the xTalk probe: %s %s' % (key, ' | '.join(a for a in answers if not a.startswith('ok:'))))
+    return problems
+
+
+def xtalk_package_problems(names, manifest):
+    """What a package (its entries' names; an App Bundle's base/ taken off)
+    lacks of the xTalk Suite's libraries: for each ABI folder it has
+    (lib/<abi>/), each Android extension's library of that ABI, as the
+    builder names it (lib<name>.so)."""
+    problems = []
+    abis = {n.split('/')[1] for n in names if n.startswith('lib/') and n.count('/') == 2}
+    if not abis:
+        return ['the package has no native libraries (lib/<abi>/)']
+    for m, e, libs in xtalk_android_extensions(manifest):
+        for platform, name in libs.items():
+            abi = ANDROID_PLATFORMS[platform]
+            if abi not in abis:
+                continue
+            want = 'lib/%s/lib%s' % (abi, name if name.endswith('.so') else name + '.so')
+            if want not in names:
+                problems.append('%s: the package has no %s' % (e['id'], want))
+    return problems
+
+
 def ide(args):
     import ui_tour
     package, rlc = ui_tour.package, ui_tour.rlc
@@ -1427,6 +1548,15 @@ def ide(args):
             raise CheckError(str(e))
         log('Layout : %s' % lay.root)
         log('Engine : %s' % lay.engine)
+        xtalk = ''
+        if args.probe == 'xtalk':
+            with open(XTALK_MANIFEST, encoding='utf-8') as f:
+                records = xtalk_records(json.load(f), os.path.join(lay.tools or lay.root, 'Extensions'))
+            xtalk = os.path.join(work, XTALK_LIST)
+            with open(xtalk, 'w', encoding='utf-8', newline='\n') as f:
+                f.write('\n'.join(records) + '\n')
+            for line in records:
+                log('xTalk  : %s' % line.replace('\t', '  '))
         env = dict(os.environ)
         env.pop('JAVA_TOOL_OPTIONS', None)
         env.update(OXT_ANDROID_LOG=path(results), OXT_ANDROID_SDK=path(args.sdk), OXT_ANDROID_JDK=path(args.jdk),
@@ -1436,7 +1566,7 @@ def ide(args):
                    OXT_ANDROID_DEVICE=args.device or '', OXT_ANDROID_WORK=path(os.path.join(work, 'units')),
                    OXT_ANDROID_UNITS='skip' if args.no_units else '',
                    OXT_ANDROID_PROBE='' if args.probe == 'app' else args.probe,
-                   OXT_ANDROID_ENGINE=args.android_engine or '',
+                   OXT_ANDROID_ENGINE=args.android_engine or '', OXT_ANDROID_XTALK=path(xtalk),
                    OXT_ANDROID_AAR=path(make_library_aar(work, args.sdk, args.jdk)) if getattr(args, 'aar', False) else '')
         cmd = [lay.engine, document]
         if p.family == 'linux':
@@ -3112,7 +3242,8 @@ def device_once(args):
     for line in said:
         log('The probe said: %s' % line)
     if failed >= 0.25:
-        problems.append('the probe\'s script ran, and a call it makes into the Java layer failed (the screen '
+        problems.append('the probe\'s script ran, and a call it makes %s failed (the screen ' % (
+                            'into an xTalk Suite extension' if getattr(args, 'xtalk', None) else 'into the Java layer') +
                         'is its fail colour, %.0f%%%s)' % (failed * 100, '; it said: %s' % ' | '.join(said)
                                                          if said else ''))
     elif share < 0.25:
@@ -3121,6 +3252,12 @@ def device_once(args):
             'the stack never showed'))
         unfinished.append(problems[-1])
     green = failed < 0.25 and share >= 0.25
+    if getattr(args, 'xtalk', None):
+        # the xTalk Suite's probe: what it said of each record, whatever
+        # its colour, and the libraries in the package
+        with open(XTALK_MANIFEST, encoding='utf-8') as f:
+            problems.extend(xtalk_package_problems(names, json.load(f)))
+        problems.extend(xtalk_said_problems(said, read_xtalk_list(args.xtalk)))
     if args.within_bars and green:
         # the stack inside the system bars: the screen's first and last
         # rows are not its green (Android 15 and newer draw an app that
@@ -3652,7 +3789,9 @@ def main(argv=None):
                    help='java: the Java layer\'s probe (AndroidJavaProbe); busy: the app probe drawing all the '
                         'time it runs (AndroidBusyProbe); edge: the app probe drawn edge to edge, which says its '
                         'screen\'s rects (AndroidEdgeProbe); tests: the script tests\' standalone, from the files '
-                        'android_tests.py prepare puts in --work')
+                        'android_tests.py prepare puts in --work; xtalk: the xTalk Suite\'s probe, built with '
+                        'the IDE\'s xTalk Suite extensions that have Android code, which calls each one\'s smoke '
+                        'test (its records in <work>/%s)' % XTALK_LIST)
     i.add_argument('--aar', action='store_true',
                    help='build the probe with a real Android library (%s, made here with the JDK and the SDK\'s '
                         'android.jar), as an extension\'s jvm-android folder brings one' % AAR_NAME)
@@ -3717,6 +3856,9 @@ def main(argv=None):
     d.add_argument('--relaunch', action='store_true',
                    help='once green, press the back key, which the app probe passes, so its stack quits: its '
                         'process must end, and the app opened again must show its green in a new one')
+    d.add_argument('--xtalk', metavar='FILE',
+                   help='the xTalk Suite\'s probe (ide --probe xtalk wrote FILE): the package must hold each '
+                        'extension\'s library for each of its ABIs, and the probe must say each record was ok')
     d.add_argument('--picture', metavar='NAME',
                    help='the probe exports a picture of this file name: it must be in the shared Pictures '
                         'folder as the package\'s own (MediaStore)')

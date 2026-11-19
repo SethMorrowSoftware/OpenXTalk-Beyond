@@ -4988,12 +4988,14 @@ class OneSystem(unittest.TestCase):
         script = read('tools', 'ci', 'android-check.livecodescript')
         self.assertEqual(ac.PROBES, {'app': 'AndroidProbe.livecode', 'java': 'AndroidJavaProbe.livecode',
                                      'busy': 'AndroidBusyProbe.livecode', 'edge': 'AndroidEdgeProbe.livecode',
-                                     'tests': 'StandaloneTestRunnerMainstack.livecode'})
+                                     'tests': 'StandaloneTestRunnerMainstack.livecode',
+                                     'xtalk': 'AndroidXtalkProbe.livecode'})
         name = re.search(r'(?s)private function probeName\n(.*?)\nend probeName', script).group(1)
         self.assertIn('if $OXT_ANDROID_PROBE is "java" then\n      return "AndroidJavaProbe"', name)
         self.assertIn('if $OXT_ANDROID_PROBE is "busy" then\n      return "AndroidBusyProbe"', name)
         self.assertIn('if $OXT_ANDROID_PROBE is "edge" then\n      return "AndroidEdgeProbe"', name)
         self.assertIn('if $OXT_ANDROID_PROBE is "tests" then\n      return "StandaloneTestRunnerMainstack"', name)
+        self.assertIn('if $OXT_ANDROID_PROBE is "xtalk" then\n      return "AndroidXtalkProbe"', name)
         self.assertIn('return "AndroidProbe"', name)
         # the app probe is the one that names none
         self.assertIn("OXT_ANDROID_PROBE='' if args.probe == 'app' else args.probe,", read('tools', 'ci', 'android_check.py'))
@@ -5014,9 +5016,13 @@ class OneSystem(unittest.TestCase):
         self.assertEqual(script.count('"StandaloneTestRunnerMainstack"'), 3)
         self.assertEqual(script.count('if tProbe is "StandaloneTestRunnerMainstack" then'), 1)
         self.assertEqual(script.count('if probeName() is "StandaloneTestRunnerMainstack" then'), 1)
+        # the xTalk Suite's probe: its openStack's calls, its handlers, and
+        # its build's extensions
+        self.assertEqual(script.count('"AndroidXtalkProbe"'), 4)
+        self.assertEqual(script.count('if probeName() is "AndroidXtalkProbe" then'), 3)
         with tempfile.TemporaryDirectory() as work:
             for name in ('Busy', 'AndroidBusyProbe', 'Edge', 'AndroidEdgeProbe', 'Tests',
-                         'StandaloneTestRunnerMainstack', ''):
+                         'StandaloneTestRunnerMainstack', 'Xtalk', 'AndroidXtalkProbe', ''):
                 with contextlib.redirect_stderr(io.StringIO()):
                     with self.assertRaises(SystemExit):
                         ac.main(['ide', '--work', work, '--probe', name])
