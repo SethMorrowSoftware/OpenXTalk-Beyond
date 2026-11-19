@@ -102,7 +102,7 @@ private command loadBox2D
             put "-" & toLower(the platform) into tPlatform
       end switch
       repeat for each line tTry in folders(tFolder & "/code")
-         if tTry does not contain tPlatform then next repeat
+         if tPlatform is not in tTry then next repeat
          if there is a file (tFolder & "/code/" & tTry & "/" & tLib) then
             if tPick is empty or (tTry begins with (the processor & "-")) then
                put tFolder & "/code/" & tTry & "/" & tLib into tPick

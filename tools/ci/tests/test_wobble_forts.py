@@ -532,7 +532,7 @@ class EngineTests(unittest.TestCase):
         self.assertIsNotNone(loop)
         name, body = loop.group(1), loop.group(2)
         first = body.strip().splitlines()[0].strip()
-        self.assertEqual(first, 'if %s does not contain tPlatform then next repeat' % name, body)
+        self.assertEqual(first, 'if tPlatform is not in %s then next repeat' % name, body)
         for platform, part in (('MacOS', '"-mac"'), ('Win32', '"-win32"')):
             self.assertRegex(handler.group(0), r'case "%s"\s*\n\s*put %s into tPlatform' % (platform, part))
         self.assertIn('put "-" & toLower(the platform) into tPlatform', handler.group(0))
