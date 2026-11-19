@@ -67,6 +67,12 @@
 #     packages with the release's Java layer go on through a font size
 #     change (the manifest lists it), and, for the record, what that
 #     layer does across a density change and opened again.
+#   - Linux only, the xTalk Suite's extensions with their Android
+#     libraries (tools/oxt/xtalk-extensions.json) in the third copy: a
+#     probe that calls each one's smoke test (android_check.py ide --probe
+#     xtalk), built for all four ABIs and run on both emulators, where
+#     every library must load and answer, and the permissions the
+#     extensions declare must be the app's (device --xtalk).
 #
 # The released builder's builds are the comparison's other half; where
 # they fail (its shell zip is not there on Windows), the job says so and
@@ -86,6 +92,8 @@ on:
       - tools/ci/android_java.py
       - engine/engine-sources.gypi
       - 'engine/src/java/**'
+      - tools/oxt/xtalk-extensions.json
+      - tools/oxt/xtalk_extensions.py
   push:
     branches: [ main ]
     paths: *android-paths
@@ -124,7 +132,7 @@ jobs:
             runner: macos-15
             asset: mac-universal.zip
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 75
+    timeout-minutes: 90
     env:
       PLATFORM: ${{ matrix.platform }}
     steps:
@@ -380,6 +388,24 @@ jobs:
           "$PY" tools/ci/android_check.py verify --work "$WORK/java-edge" --sdk "$SDK" --jdk "$JDK" \
             --builds debug --target 36 --adaptive-icon
 
+      # The xTalk Suite's probe (kXtalkSays in
+      # tools/ci/android-check.livecodescript): the suite's extensions as
+      # this checkout pins them (tools/oxt/xtalk-extensions.json, with
+      # their libraries for the four Android ABIs), built with the
+      # release's lc-compile into the third copy's Extensions in place of
+      # the release's own, after that copy's other probes are built; then a
+      # stack that calls each extension's smoke test, built by this builder
+      # with them chosen, for all four ABIs
+      - name: The xTalk Suite's probe, with this Java layer
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/oxt/xtalk_extensions.py build --bin "$JAVA_IDE/Toolchain" --out "$JAVA_IDE/Extensions" \
+            --platforms x86_64-android,x86-android,arm64-android,armv7-android
+          "$PY" tools/ci/android_check.py ide --install "$JAVA_IDE" --platform "$PLATFORM" \
+            --work "$WORK/java-xtalk" --sdk "$SDK" --jdk "$JDK" --no-units --builds debug --probe xtalk
+          "$PY" tools/ci/android_check.py verify --work "$WORK/java-xtalk" --sdk "$SDK" --jdk "$JDK" \
+            --builds debug --target 36
+
       # The same stack, by the same builder, with the release's own Java
       # layer: the "before" of the comparison
       - name: The Java layer's probe, with the release's Java layer
@@ -494,6 +520,16 @@ jobs:
             --sdk "$SDK" --out "$WORK/screen-api33-java-edge.png" --log-out "$WORK/logcat-api33-java-edge.txt" \
             --edge-to-edge
 
+      # The xTalk Suite's probe: each extension's library loads from the
+      # package and its smoke test answers what the desktop check expects,
+      # and the permissions the extensions declare are the app's
+      - name: Run the xTalk Suite's probe on Android 13
+        if: runner.os == 'Linux'
+        run: |
+          "$PY" tools/ci/android_check.py device --apk "$WORK/java-xtalk/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-api33-java-xtalk.png" --log-out "$WORK/logcat-api33-java-xtalk.txt" \
+            --within-bars --xtalk "$WORK/java-xtalk/xtalk-probes.txt"
+
       # For the record, not a check (no annotations, so the run's account
       # stays the checks'): the same probe with the release's own Java
       # layer, whose local notification throws on Android 12 and newer
@@ -560,7 +596,7 @@ jobs:
 
       - name: Run the package with 16 KB pages
         if: runner.os == 'Linux'
-        timeout-minutes: 25
+        timeout-minutes: 30
         run: |
           adb="$SDK/platform-tools/adb"
           "$adb" -s emulator-5554 emu kill || true
@@ -609,7 +645,8 @@ jobs:
           # density change, and opened again after its stack quits; and the
           # busy probe through density changes, as on Android 13 (Android 16
           # is where a relaunch while it drew hung 9.6.3's engine); and the
-          # edge probe drawn under the bars, not padded inside them
+          # edge probe drawn under the bars, not padded inside them; and the
+          # xTalk Suite's probe, whose 64-bit libraries are 16 KB aligned
           "$PY" tools/ci/android_check.py device --apk "$WORK/changed/out/debug.apk" --serial emulator-5554 \
             --sdk "$SDK" --out "$WORK/screen-16k-debug.png" --log-out "$WORK/logcat-16k-debug.txt" --within-bars
           "$PY" tools/ci/android_check.py device --apk "$WORK/java-app/out/debug.apk" --serial emulator-5554 \
@@ -621,6 +658,9 @@ jobs:
           "$PY" tools/ci/android_check.py device --apk "$WORK/java-edge/out/debug.apk" --serial emulator-5554 \
             --sdk "$SDK" --out "$WORK/screen-16k-java-edge.png" --log-out "$WORK/logcat-16k-java-edge.txt" \
             --edge-to-edge
+          "$PY" tools/ci/android_check.py device --apk "$WORK/java-xtalk/out/debug.apk" --serial emulator-5554 \
+            --sdk "$SDK" --out "$WORK/screen-16k-java-xtalk.png" --log-out "$WORK/logcat-16k-java-xtalk.txt" \
+            --within-bars --xtalk "$WORK/java-xtalk/xtalk-probes.txt"
           for pkg in debug.apk bundle.aab; do
             "$PY" tools/ci/android_check.py device --apk "$WORK/java-new/out/$pkg" --serial emulator-5554 \
               --sdk "$SDK" --out "$WORK/screen-16k-java-${pkg%.*}.png" --log-out "$WORK/logcat-16k-java-${pkg%.*}.txt" \

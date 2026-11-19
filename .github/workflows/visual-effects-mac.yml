@@ -1,0 +1,104 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+# tools/ci/visual_effect_check.py on a published release: a window of
+# black and white cards and one visual effect after another between them,
+# each very slowly, its area taken from the screen over and over, on
+# macOS 15 on Apple silicon and on Intel. The forum's report of
+# 2026-11-19 on 0.2.7 with macOS 15: visual effect transitions did not
+# play, the card just changed. Every Mac build runs the same check on its
+# own app (build-macos.yml); this runs it on a release's, as the "before"
+# of the fix: by hand, and on a pull request that changes the check
+# itself, where a release's fault is reported without failing the pull
+# request (--report-only), so that the check is seen to catch the fault
+# it was written for. It downloads a release and runs no code of the
+# pull request but the check's own Python and script, with only the
+# right to read the repository.
+
+name: Visual effects (macOS releases)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release to check (for example v0.2.7); empty for the latest one
+        type: string
+        default: ''
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/visual-effects-mac.yml'
+      - 'tools/ci/visual_effect_check.py'
+      - 'tools/ci/visual-effect-check.livecodescript'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: visual-effects-mac-${{ github.ref }}-${{ inputs.tag }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: ${{ inputs.tag || 'latest release' }} (${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [ -z "$TAG" ]; then
+            # the newest release whose tag is a version (not runtimes-* or prebuilts-*)
+            TAG=$(gh release list --repo "$REPO" --limit 30 --json tagName --jq '.[].tagName' | grep -E '^v[0-9]' | head -n 1)
+          fi
+          echo "Release: $TAG"
+          mkdir -p "$RUNNER_TEMP/dist" "$RUNNER_TEMP/oxt-test"
+          gh release download "$TAG" --repo "$REPO" --pattern "*-mac-universal.zip" --dir "$RUNNER_TEMP/dist"
+          ls -l "$RUNNER_TEMP/dist"
+          ditto -x -k "$RUNNER_TEMP"/dist/*-mac-universal.zip "$RUNNER_TEMP/oxt-test"
+          app=$(find "$RUNNER_TEMP/oxt-test" -maxdepth 2 -name '*.app' -type d | head -n 1)
+          if [ -z "$app" ]; then echo "::error::no app in the release's zip"; exit 1; fi
+          echo "APP=$app" >> "$GITHUB_ENV"
+
+      - name: Visual effects
+        env:
+          REPORT_ONLY: ${{ github.event_name == 'pull_request' && '--report-only' || '' }}
+        run: |
+          python3 tools/ci/visual_effect_check.py --app "$APP" --out "$RUNNER_TEMP/visual-effects" $REPORT_ONLY
+
+      - name: Upload the pictures
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-effects-${{ inputs.tag || 'latest' }}-${{ matrix.runner }}
+          path: ${{ runner.temp }}/visual-effects
+          if-no-files-found: ignore
+          retention-days: 14
