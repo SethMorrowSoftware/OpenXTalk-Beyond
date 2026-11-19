@@ -55,7 +55,9 @@ with `put url`; **Web Audio Piano**, sound made through `do ... as
 **QR Studio**, QR codes from the QR library, downloaded as PNG files;
 **Talking Robot**, the browser's speech voices; **2048**, a game of
 sliding tiles; **Quake Map**, live earthquakes from the USGS on a map;
-**Beat Box**, a drum machine timed by Web Audio; **Kanban Board**,
+**Beat Box**, a drum machine timed by Web Audio; **Beyond Beats**, a
+pattern studio of up to twelve channels and sixteen patterns, its kit
+made by Web Audio; **Kanban Board**,
 cards dragged between columns; **Markdown Notes**, Markdown styled as you
 type; **UI Gallery**, modern controls in a light and a dark theme;
 **Photo Lab**, a photo of your own with looks and adjustments, downloaded
@@ -203,6 +205,7 @@ answering no.
 | `wobble-forts.livecodescript`, `wobble-forts-stack.livecodescript`, `wobble-forts/` | build `stacks/Wobble Forts.oxtstack` from Kenney's pictures, sounds and font and its levels (see below) |
 | `puzzle-almanac.livecodescript`, `puzzle-almanac-stack.livecodescript`, `puzzle-almanac/` | build `stacks/Puzzle Almanac.oxtstack` from Kenney's pictures and sounds, Atkinson Hyperlegible, its puzzles and its words (see below) |
 | `ember-bricks.livecodescript`, `ember-bricks-stack.livecodescript`, `ember-bricks/` | build `stacks/Ember Bricks.oxtstack` from its levels, the sounds made for it and Atkinson Hyperlegible (see below) |
+| `beyond-beats.livecodescript`, `beyond-beats-stack.livecodescript`, `beyond-beats/` | build `stacks/Beyond Beats.oxtstack` with its audio core (see below) |
 | `box2dxt-platformer.livecodescript`, `box2dxt_platformer_files.py`, `box2dxt-platformer/pin.json` | build `stacks/Box2Dxt Platformer.oxtstack` from the xTalk Suite's platformer and sheets, as pinned (see below) |
 | `assets/` | the page's logo and pictures, copied beside it |
 | `build_player.py` | starts the IDE with the script above, puts the page in place, packs the zip and, with `--check`, drives the player in headless Chromium |
@@ -763,3 +766,58 @@ The stack's `cJavascriptHandlers` are `ebPageHidden` (the page is hidden:
 a level pauses), `ebPasted` (the page hands the game the text its PASTE
 button read off the clipboard) and `ebState` and `ebRectOf`, so that a
 check can ask the game how it is.
+
+## Beyond Beats
+
+A pattern studio for a browser, grown from Beat Box (which stays as it
+is, the short example). Up to twelve channels, each a sound of a kit of
+sixteen with its own volume, pan, mute and solo; up to sixteen patterns
+of 16 or 32 steps, a step off or on at a velocity from 1 to 9 (a click
+puts one on, a drag paints a row, a shift-click or right-click makes it
+loud, soft or normal); a tempo from 40 to 240 and a swing. The song is
+kept in the browser's storage and is there on the next visit; New (twice)
+starts an empty one and Demo brings the first one back. Song mode, a piano
+roll, effects and export are to come, each a change of its own.
+
+The stack owns the song and the screen; the page owns the sound and the
+clock. `beyond-beats/audio-core.js`, kept in the stack as the custom
+property `cAudioCore` and run once with `do ... as "JavaScript"`, makes
+`window.beyondBeats`: the kit, made sample by sample from oscillators and
+seeded noise (no sound files, so nothing to license, and the same sounds
+in every browser), a gain and a stereo panner for each channel, a master
+limiter, and a scheduler that books each step on the audio clock a tenth
+of a second ahead, so a slow frame of the engine never moves the beat.
+Swing moves every second sixteenth later by up to half a step. The stack
+tells the core the pattern playing after every change (`beyondBeats.set`)
+and asks it which step is sounding about sixty times a second, to move
+the playhead. It never calls back into the stack. Outside a browser the
+stack opens and edits as well and its playhead runs, without sound.
+
+The stack is never edited by hand. Its script is
+`beyond-beats-stack.livecodescript` and its controls are made by
+`beyond-beats.livecodescript`; change them or the core, then build it
+again with any OXT-Beyond engine:
+
+```sh
+<engine> -ui tools/web-player/beyond-beats.livecodescript
+```
+
+`tests/lcs/webplayer/beyond-beats.livecodescript` drives the song, the
+screen and the file on a desktop engine (and in the web engine, with
+`tools/ci/web_tests.py`): pads and the points they are at, velocity, a
+painted row, 16 and 32 steps, tempo and swing, the sliders, mute and
+solo, channels and the sound picker, patterns, New and Demo, what the
+page is told, a file that is not a song, and Play.
+`tools/ci/beyond_beats_check.py` checks the rest in headless Chromium: the
+audio core alone, its song rendered offline and measured sample by sample
+(the kit, each step on its sample, swing, volume, velocity, pan, mute,
+solo, the limiter, the live clock), and the stack in a Stack Player (Play
+starts the page's core with the stack's pattern, a pad clicked is in it at
+once, and Stop stops it). `build_player.py --check` runs both;
+`tools/ci/tests/test_beyond_beats.py` holds the stack to its files. To run
+the browser check yourself, with a Stack Player you have built or
+downloaded:
+
+```sh
+python3 tools/ci/beyond_beats_check.py --player <StackPlayer folder> --shots <folder>
+```
