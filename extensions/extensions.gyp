@@ -89,6 +89,9 @@
 				'script-libraries/httpd/httpd.livecodescript',
 				'script-libraries/qr/qr.livecodescript',
 				'script-libraries/mobileweb/mobileweb.livecodescript',
+				# OXT-Beyond: jsonDecode and jsonEncode, with JSON arrays and
+				# objects kept apart through a shape.
+				'script-libraries/jsoncodec/jsoncodec.livecodescript',
 			],
 			
 			'dependencies':

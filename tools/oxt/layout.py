@@ -162,6 +162,7 @@ REPO_BUILT_EXTENSIONS = (
     'com.livecode.library.httpd',
     'com.livecode.library.iconsvg',
     'com.livecode.library.json',
+    'com.livecode.library.jsoncodec',
     'com.livecode.library.messageauthentication',
     'com.livecode.library.mime',
     'com.livecode.library.mobileweb',
