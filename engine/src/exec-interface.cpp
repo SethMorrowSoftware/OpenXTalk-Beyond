@@ -3821,7 +3821,28 @@ void MCInterfaceExecImportObjectFromArray(MCExecContext& ctxt, MCArrayRef p_arra
         ctxt . LegacyThrow(EE_IMPORT_NOTANOBJECTARRAY);
         return;
     }
-    
+
+    // OXT-Beyond: with the handler-local sequencesAsLists, the state goes
+    // to the widget's OnLoad as it goes to any LCB handler that takes an
+    // Array: each array in it marked as a sequence (as "export widget"
+    // gives each List the widget saved) a List again, so that a widget
+    // copied through script loads as one read from a stack file does.
+    // Without it the state goes as it always did
+    if (ctxt . GetSequencesAsLists())
+    {
+        MCValueRef t_converted_state = MCValueRetain(*t_state);
+        if (!MCExtensionConvertFromScriptType(ctxt, kMCArrayTypeInfo, t_converted_state))
+        {
+            MCValueRelease(t_converted_state);
+            MCAutoErrorRef t_error;
+            MCErrorCatch(&t_error);
+            ctxt . LegacyThrow(EE_IMPORT_NOTANOBJECTARRAY);
+            return;
+        }
+        t_state . Reset((MCArrayRef)t_converted_state);
+        MCValueRelease(t_converted_state);
+    }
+
     MCWidget *t_widget;
     t_widget = new (nothrow) MCWidget;
     if (t_widget == NULL)

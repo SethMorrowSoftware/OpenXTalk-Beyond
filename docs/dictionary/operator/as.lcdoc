@@ -1,0 +1,88 @@
+Name: as
+
+Type: operator
+
+Syntax: <value> as { an array | a sequence | a dictionary | a name | a string | a binary string | a number | an integer | a boolean }
+
+Summary:
+Converts a value to the given kind, as LiveCode 11 does, or throws an
+error if it cannot be one.
+
+Introduced: 9.7.1
+
+OS: mac, windows, linux, android, html5
+
+Platforms: desktop, server, mobile
+
+Example:
+put 1 into tValue
+put tValue is strictly an integer -- false: a number written in a script is a string
+put 1 as an integer into tValue
+put tValue is strictly an integer -- true
+
+Example:
+put tPerson as a dictionary into tPerson -- an array keyed 1 to N that stays an object
+
+Example:
+put tRows as a sequence into tRows -- throws if its keys are not 1 to N
+
+Example:
+if tReply["code"] as a number > 399 then answer "Failed"
+
+Parameters:
+value:
+Any value.
+
+Description:
+Use the <as> <operator> to give a value the kind a later step needs:
+an array marked as a sequence or a dictionary for <is strictly> and for
+LiveCode Builder (see <sequencesAsLists>), or a number, an integer, a
+boolean, a string or a binary string for <is strictly> and for code that
+needs one.
+
+* `as an array`: the array with no mark of its kind. <empty> becomes
+  an empty array. Any other value that is not an array is an error.
+* `as a sequence`: the array marked as a sequence, so that it
+  <is strictly> a sequence. Its keys must be 1 to N; <empty> becomes an
+  empty sequence. Anything else is an error.
+* `as a dictionary`: the array marked as a dictionary, so that it
+  <is strictly> a dictionary even when its keys are 1 to N. <empty>
+  becomes an empty dictionary. A value that is not an array is an error.
+* `as a name`, `as a string`: the value as text.
+* `as a binary string`: the value as bytes, each character of its text
+  one byte, as where a string is used in place of a binary string (use
+  <textEncode> to choose an encoding).
+* `as a number`: the value as a number; text that is not a number is an
+  error.
+* `as an integer`: the value as an integer; one that is not a whole
+  number, or is beyond 2147483647 either way, is an error.
+* `as a boolean`: true or false; any other value is an error.
+
+An array with elements cannot be text: `as a name`, `as a string` and
+`as a binary string` of one is an error.
+
+The value that is converted is the one just before `as`, as a
+<function> takes its parameter: `1 + 2 as a string` is
+`1 + (2 as a string)`, which is the number 3. Use brackets to convert
+more: `(1 + 2) as a string`. Conversions can follow one another:
+`tArray as a dictionary as an array`.
+
+The value is converted, not changed: `put tList as a dictionary into
+tDict` leaves the mark of tList as it was.
+
+`as` is not a reserved word, and neither is any of the kinds. It already
+followed a value in some commands (`do tScript as appleScript`, `go stack
+"Tools" as palette`, `save stack "Notes" as tPath`), which mean what
+they did: it is read as this <operator> only where `a` or `an` and one
+of the kinds above follow it, in a <handler>, <do> script or <value>
+<expression> that does not compile without it.
+
+Changes:
+Added in OXT-Beyond 0.2.8-dp.3, from LiveCode 11.
+
+References: is strictly (operator), is a (operator), is not a (operator),
+sequencesAsLists (property), [] (keyword), do (command), value (function),
+empty (constant), function (glossary), handler (glossary),
+expression (glossary), operator (glossary)
+
+Tags: math

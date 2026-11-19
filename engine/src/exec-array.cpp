@@ -1349,6 +1349,88 @@ void MCArraysEvalIsNotAnArray(MCExecContext& ctxt, MCValueRef p_value, bool& r_r
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// OXT-Beyond: LiveCode 11's sequences and dictionaries. An array's kind is
+// read from its keys, and from its mark (MCArrayKindMark) where the keys
+// cannot say: an empty array is a sequence or a dictionary only when it was
+// made one ("[]", "{}", "as a sequence"), as an empty array is no array to
+// "is an array", and an array with keys 1 to N is strictly a dictionary
+// only when it was made one. An array with no mark is what its keys make
+// it, so that every array made before has the kind its keys give it.
+
+// Whether the value is an array with a kind: one with elements, or an empty
+// one that was made a sequence or a dictionary
+static bool MCArraysHasKind(MCValueRef p_value)
+{
+    if (MCValueGetTypeCode(p_value) != kMCValueTypeCodeArray)
+        return false;
+    MCArrayRef t_array = static_cast<MCArrayRef>(p_value);
+    return MCArrayGetCount(t_array) > 0 ||
+        MCArrayGetKindMark(t_array) != kMCArrayKindMarkNone;
+}
+
+// "is a sequence": keys 1 to N with no gaps, or "[]"
+void MCArraysEvalIsASequence(MCExecContext& ctxt, MCValueRef p_value, bool& r_result)
+{
+    r_result = false;
+    if (!MCArraysHasKind(p_value))
+        return;
+    MCArrayRef t_array = static_cast<MCArrayRef>(p_value);
+    if (MCArrayGetCount(t_array) == 0)
+        r_result = MCArrayGetKindMark(t_array) == kMCArrayKindMarkSequence;
+    else
+        r_result = MCArrayIsSequence(t_array);
+}
+
+// "is a dictionary": any array with a kind (a sequence is a dictionary too,
+// whose keys are 1 to N)
+void MCArraysEvalIsADictionary(MCExecContext& ctxt, MCValueRef p_value, bool& r_result)
+{
+    r_result = MCArraysHasKind(p_value);
+}
+
+// "is a numeric sequence": integer keys with no gaps, from any first one
+void MCArraysEvalIsANumericSequence(MCExecContext& ctxt, MCValueRef p_value, bool& r_result)
+{
+    r_result = false;
+    if (!MCArraysHasKind(p_value))
+        return;
+    MCArrayRef t_array = static_cast<MCArrayRef>(p_value);
+    if (MCArrayGetCount(t_array) == 0)
+        r_result = MCArrayGetKindMark(t_array) == kMCArrayKindMarkSequence;
+    else
+    {
+        index_t t_start;
+        r_result = MCArrayIsNumericSequence(t_array, t_start);
+    }
+}
+
+// "is strictly a sequence": a sequence not made a dictionary
+void MCArraysEvalIsStrictlyASequence(MCExecContext& ctxt, MCValueRef p_value, bool& r_result)
+{
+    MCArraysEvalIsASequence(ctxt, p_value, r_result);
+    if (r_result)
+        r_result = MCArrayGetKindMark(static_cast<MCArrayRef>(p_value)) != kMCArrayKindMarkDictionary;
+}
+
+// "is strictly a dictionary": an array with a kind that is no sequence, or
+// was made a dictionary
+void MCArraysEvalIsStrictlyADictionary(MCExecContext& ctxt, MCValueRef p_value, bool& r_result)
+{
+    r_result = false;
+    if (!MCArraysHasKind(p_value))
+        return;
+    if (MCArrayGetKindMark(static_cast<MCArrayRef>(p_value)) == kMCArrayKindMarkDictionary)
+    {
+        r_result = true;
+        return;
+    }
+    bool t_sequence;
+    MCArraysEvalIsASequence(ctxt, p_value, t_sequence);
+    r_result = !t_sequence;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 void MCArraysEvalIsAmongTheKeysOf(MCExecContext& ctxt, MCNameRef p_key, MCArrayRef p_array, bool& r_result)
 {
 	MCValueRef t_value;

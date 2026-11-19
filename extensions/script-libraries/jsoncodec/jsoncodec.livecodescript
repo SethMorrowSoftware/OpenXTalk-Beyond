@@ -26,16 +26,23 @@ public descriptions of LiveCode Create's jsonEncode and jsonDecode functions
 (their names, and the idea that a JSON array and a JSON object stay apart).
 No LiveCode Create code was seen or used.
 
-WHY A SHAPE, AND NOT A NEW KIND OF ARRAY: an xTalk script array has one type.
-A JSON array [10, 20] can only come into script as an array keyed 1 and 2,
-and from then on nothing says it was not the object {"1": 10, "2": 20}; an
-empty array and an empty object are both empty. Giving the engine's arrays a
-"sequence" flag would change what every array operation, custom property and
-saved stack does, so instead jsonDecode hands back ordinary arrays, exactly
-as script has always seen them, and, when asked, a second array (the shape)
-that records what each part of the JSON was. jsonEncode reads the shape back.
-Nothing else in the engine or the IDE changes, and a script that never calls
-these handlers sees no difference at all.
+WHY A SHAPE: an xTalk script array once had one type. A JSON array [10, 20]
+could only come into script as an array keyed 1 and 2, and from then on
+nothing said it was not the object {"1": 10, "2": 20}; an empty array and an
+empty object are both empty. So jsonDecode hands back ordinary arrays, and,
+when asked, a second array (the shape) that records what each part of the
+JSON was, strings, numbers and the order of keys included. jsonEncode reads
+the shape back.
+
+Since OXT-Beyond 0.2.8-dp.3 an array can also carry LiveCode 11's mark of a
+sequence or a dictionary ("is strictly a sequence", "as a dictionary"; the
+engine's MCArrayKindMark). jsonDecode marks each JSON array and object that
+has elements, which nothing written before the mark can see: "is", "the
+keys", arrayEncode and a saved stack ignore it. An empty one still comes back
+empty, as before. jsonEncode reads the marks only when asked ("marks"), so
+what it wrote before for a value it writes now, literals such as {"1": "a"}
+included. The shape stays: a mark says nothing about strings, numbers, null
+or the order of keys, and it is not saved with a stack.
 */
 
 on extensionInitialize
@@ -66,7 +73,7 @@ Author: OXT-Beyond contributors
 
 Type: library
 
-Version: 1.0.0
+Version: 1.1.0
 
 Description:
 
@@ -136,10 +143,11 @@ anything else.
 Description:
 <jsonDecode> reads JSON text (RFC 8259) and returns it as an xTalk value.
 
-- A JSON array becomes an array keyed 1 to N, in order; an empty one
-  becomes empty.
-- A JSON object becomes an array keyed by its names; an empty one becomes
-  empty. Names that differ only in case are kept apart; set the
+- A JSON array becomes an array keyed 1 to N, in order, marked as a
+  sequence (`is strictly a sequence`); an empty one becomes empty.
+- A JSON object becomes an array keyed by its names, marked as a dictionary
+  (`is strictly a dictionary`, even when its names are 1 to N); an empty
+  one becomes empty. Names that differ only in case are kept apart; set the
   caseSensitive to true to read them apart.
 - A string becomes its text, with every escape undone.
 - A number becomes the number exactly as the JSON wrote it (`1.50`
@@ -225,13 +233,16 @@ end jsonDecodeWithShape
 /**
 Summary: Converts an xTalk value to JSON text, following its shape.
 
-Syntax: jsonEncode(<pValue> [, <pShape>])
+Syntax: jsonEncode(<pValue> [, <pShape> [, <pOptions>]])
 
 Parameters:
 pValue: The value: an array, or text.
 
 pShape: An optional shape, from <jsonDecodeWithShape>, <jsonGuessShape> or
 <jsonSetKind>, saying what each part of the value is to be in JSON.
+
+pOptions: Optional: `marks`, to write each array the shape says nothing
+about as its mark says (`as a sequence`, `as a dictionary`, `[]`, `{}`).
 
 Returns: The JSON text, with no spaces or line breaks between its parts
 (use `textEncode(tJSON, "UTF-8")` to write it to a file or send it).
@@ -251,6 +262,13 @@ it is written that way:
 - `number`: the number as it is written, when it is a JSON number.
 - `boolean`: `true` or `false`, when the value is one of them.
 - `null`: `null`, when the value is empty.
+
+With the option `marks`, a part the shape says nothing about that is an
+array marked as a dictionary is a JSON object, even keyed 1 to N; one
+marked as a sequence is a JSON array; and an empty array so marked is `{}`
+or `[]`. The marks come from <jsonDecode>, from literals such as `[]` and
+`{"1": "a"}`, from `as a sequence` and `as a dictionary`, and from a List
+that LiveCode Builder returned.
 
 Every other part is guessed: an array keyed exactly 1 to N is a JSON array
 and any other array an object (keys sorted), `true` and `false` are
@@ -275,21 +293,28 @@ jsonSetKind tShape, "items", "sequence"
 jsonSetKind tShape, "id", "string"
 put jsonEncode(tOrder, tShape) -- {"id":"0042","items":[]}
 
+Example:
+put jsonEncode({"1": "a", "list": []}, empty, "marks") -- {"1":"a","list":[]}
+put jsonEncode({"1": "a", "list": []}) -- {"1":"a","list":""}, guessed
+
 Related: jsonDecodeWithShape (function), jsonGuessShape (function), jsonSetKind (command), JsonExport (handler)
 
 Tags: JSON
 */
-function jsonEncode pValue, pShape
-   return jcEncode(pValue, pShape)
+function jsonEncode pValue, pShape, pOptions
+   return jcEncode(pValue, pShape, jcMarksOption("jsonEncode", pOptions))
 end jsonEncode
 
 /**
 Summary: Returns the shape that jsonEncode would guess for a value.
 
-Syntax: jsonGuessShape(<pValue>)
+Syntax: jsonGuessShape(<pValue> [, <pOptions>])
 
 Parameters:
 pValue: The value: an array, or text.
+
+pOptions: Optional: `marks`, to take what each array's mark says, as
+<jsonEncode> does with that option.
 
 Returns: A shape, as <jsonDecodeWithShape> makes them.
 
@@ -310,8 +335,8 @@ Related: jsonEncode (function), jsonSetKind (command)
 
 Tags: JSON
 */
-function jsonGuessShape pValue
-   return jcGuessShape(pValue)
+function jsonGuessShape pValue, pOptions
+   return jcGuessShape(pValue, jcMarksOption("jsonGuessShape", pOptions))
 end jsonGuessShape
 
 /**
@@ -498,13 +523,16 @@ private command jcParseDocument @rValue, @rShape
       if tChar is "[" or tChar is "{" then
          add 1 to sPos
          add 1 to tDepth
-         put empty into tValue[tDepth]
          put empty into tShape[tDepth]
          put 0 into tCount[tDepth]
          put empty into tSeen[tDepth]
+         -- An empty array that carries its kind (MCArrayKindMark): the
+         -- elements put into it keep the mark, so marking costs no copy
          if tChar is "[" then
+            put [] into tValue[tDepth]
             put "sequence" into tShape[tDepth]["kind"]
          else
+            put {} into tValue[tDepth]
             put "dictionary" into tShape[tDepth]["kind"]
          end if
          jcSkipSpace
@@ -529,7 +557,13 @@ private command jcParseDocument @rValue, @rShape
       -- close every one that ends after it.
       repeat
          if tClosed then
-            put tValue[tDepth] into tItem
+            -- An empty JSON array or object is empty, as it was before
+            -- arrays had marks
+            if tCount[tDepth] is 0 then
+               put empty into tItem
+            else
+               put tValue[tDepth] into tItem
+            end if
             put tShape[tDepth] into tItemShape
             delete variable tValue[tDepth]
             delete variable tShape[tDepth]
@@ -785,7 +819,7 @@ end jcCheckControl
 -- at depth d and its shape; tKeys[d]: its keys in the order they are
 -- written, keyed 1 to N; tIndex[d]: the key written last; tKind[d]:
 -- sequence or dictionary.
-private function jcEncode pValue, pShape
+private function jcEncode pValue, pShape, pMarks
    local tOut, tDepth, tValue, tShape, tKeys, tIndex, tKind
    local tItem, tItemShape, tWhat, tItemKeys, tKey, tText
    set the caseSensitive to true
@@ -795,7 +829,7 @@ private function jcEncode pValue, pShape
    repeat
       -- Write one value, or open the array it is.
       put empty into tItemKeys
-      put jcClassify(tItem, tItemShape, tItemKeys) into tWhat
+      put jcClassify(tItem, tItemShape, tItemKeys, pMarks) into tWhat
       if tWhat is "sequence" or tWhat is "dictionary" then
          if the number of elements of tItemKeys is 0 then
             if tWhat is "sequence" then
@@ -857,15 +891,19 @@ end jcEncode
 -- to N). For anything else: its JSON text.
 --
 -- Where the shape says what the part is, and the value can be that, it is
--- written that way; otherwise it is guessed. A shape is still read inside
+-- written that way; otherwise, with pMarks, an array's mark says (see
+-- jcMarkedKind), and otherwise it is guessed. A shape is still read inside
 -- a part whose own kind was guessed, so a part can hold parts with kinds.
-private function jcClassify pValue, pShape, @rKeys
+private function jcClassify pValue, pShape, @rKeys, pMarks
    local tKind, tKeys
    set the caseSensitive to true
    if pShape is an array then
       put pShape["kind"] into tKind
    else
       put pShape into tKind
+   end if
+   if tKind is empty and pMarks then
+      put jcMarkedKind(pValue) into tKind
    end if
 
    switch tKind
@@ -934,6 +972,37 @@ private function jcClassify pValue, pShape, @rKeys
    end if
    return jcString(pValue)
 end jcClassify
+
+-- What an array's mark says it is (MCArrayKindMark), as a shape's kind:
+-- "dictionary" for one marked so, or with keys that are not 1 to N;
+-- "sequence" for one marked so, or keyed 1 to N with no mark (which the
+-- guess calls a sequence too); empty for a value that is no array and no
+-- empty array with a mark, which is then guessed. "is strictly a
+-- dictionary" is true of an array marked as one whatever its keys, and of
+-- any array whose keys are not 1 to N; an empty array is "a sequence" or
+-- "a dictionary" only when it is marked so.
+private function jcMarkedKind pValue
+   if pValue is strictly a dictionary then
+      return "dictionary"
+   else if pValue is strictly a sequence then
+      return "sequence"
+   end if
+   return empty
+end jcMarkedKind
+
+-- The options jsonEncode and jsonGuessShape take: whether "marks" is one
+private function jcMarksOption pHandler, pOptions
+   local tMarks
+   put false into tMarks
+   repeat for each word tOption in pOptions
+      if tOption is "marks" then
+         put true into tMarks
+      else
+         throw pHandler & ": unknown option" && quote & tOption & quote
+      end if
+   end repeat
+   return tMarks
+end jcMarksOption
 
 private function jcLinesToList pLines
    local tList, i
@@ -1087,9 +1156,9 @@ end jcIsNumber
 
 -- The guesses are the shape that jsonDecodeWithShape reads back from the
 -- guessed text: one definition of the guess, and no recursion.
-private function jcGuessShape pValue
+private function jcGuessShape pValue, pMarks
    local tValue, tShape
-   jcDecode jcEncode(pValue, empty), tValue, tShape
+   jcDecode jcEncode(pValue, empty, pMarks), tValue, tShape
    return tShape
 end jcGuessShape
 

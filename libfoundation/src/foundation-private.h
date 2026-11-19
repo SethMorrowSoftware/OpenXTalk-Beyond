@@ -337,6 +337,15 @@ enum
 	// If set then the array is indirect (i.e. contents is within another
 	// immutable array).
 	kMCArrayFlagIsIndirect = 1 << 7,
+	// OXT-Beyond: the array's kind mark (MCArrayKindMark), at most one of
+	// the two: made a sequence or a dictionary by script ("[...]", "{...}",
+	// "as a sequence"), or by the engine from an LCB List. Nothing that
+	// compares, hashes or saves an array reads them, so that an array with
+	// a mark is, to all of that, the array it was without one. An indirect
+	// array and its contents always carry the same mark.
+	kMCArrayFlagIsMarkedSequence = 1 << 8,
+	kMCArrayFlagIsMarkedDictionary = 1 << 9,
+	kMCArrayFlagKindMarkMask = kMCArrayFlagIsMarkedSequence | kMCArrayFlagIsMarkedDictionary,
 };
 
 struct __MCArrayKeyValue
