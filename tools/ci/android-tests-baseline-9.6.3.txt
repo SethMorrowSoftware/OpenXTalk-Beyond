@@ -6,6 +6,21 @@
 # compiler) skips there, through the test library's requirements
 # (tests/_testlib.livecodescript), and is not here.
 
+lcs: core/array/kinds: TestAsADictionary
+lcs: core/array/kinds: TestAsAScalar
+lcs: core/array/kinds: TestAsASequence
+lcs: core/array/kinds: TestAsAnArray
+lcs: core/array/kinds: TestAsInExpressions
+lcs: core/array/kinds: TestCompileErrors
+lcs: core/array/kinds: TestIsADictionary
+lcs: core/array/kinds: TestIsANumericSequence
+lcs: core/array/kinds: TestIsASequence
+lcs: core/array/kinds: TestIsStrictly
+lcs: core/array/kinds: TestMarksIgnoredAsBefore
+lcs: core/array/kinds: TestNamesAsBefore
+lcs: core/array/kinds: TestSequencesAsListsCustomPropertyAsBefore
+lcs: core/array/kinds: TestSequencesAsListsProperty
+lcs: core/array/kinds: TestTheMarkStays
 lcs: core/array/literals: TestAFreshArrayEachTime
 lcs: core/array/literals: TestAnElementIsWritten
 lcs: core/array/literals: TestBadKey
