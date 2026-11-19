@@ -62,6 +62,8 @@ effectName: One of the following.
 by <answer effect> (see Changes below)
 - the name of a Core Image Transition Effect (MacOS/iOS only; see note below)
 
+Given no direction, wipe, push and reveal go down and scroll goes left.
+
 
 speed (enum):
 If no speed is specified, the visual effect takes place at normal speed.

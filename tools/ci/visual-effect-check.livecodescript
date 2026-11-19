@@ -7,6 +7,10 @@ script "oxt_visual_effect_check"
 -- (2026-11-19): visual effect transitions did not play, the card just
 -- changed; on macOS 11 and later each frame was drawn as the card already
 -- was (engine/src/desktop-stack.cpp, view_platform_updatewindowwithcallback).
+-- The last four name no direction: the forum's report on 0.2.8-dp.1
+-- (2026-11-19) that wipe, reveal, push and scroll crash the IDE; with none
+-- they reached an unreachable default in engine/src/stacke.cpp, which the
+-- Mac's build compiled into a crash. They play down (scroll left) now.
 --
 -- It runs as the development engine's home stack: copied to
 -- <folder>/Startup.rev with REV_TOOLS_PATH set to <folder>.
@@ -31,7 +35,7 @@ script "oxt_visual_effect_check"
 -- 3 on a script error.
 
 constant kStack = "oxt_visual_effect"
-constant kEffects = "dissolve|wipe right|iris open|push left|barn door open|CIDissolveTransition"
+constant kEffects = "dissolve|wipe right|iris open|push left|barn door open|CIDissolveTransition|wipe|push|reveal|scroll"
 
 local sOut
 local sMarks
