@@ -14,6 +14,10 @@ for more details.
 You should have received a copy of the GNU General Public License
 along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
+/* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+   (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+   Seth Morrow (2026); its Git history and CHANGELOG.md say what changed. */
+
 #include "prefix.h"
 
 #include "globdefs.h"
@@ -78,6 +82,39 @@ extern void MCCoreImageEffectEnd(void);
 
 extern void MCMacDisableScreenUpdates(void);
 extern void MCMacEnableScreenUpdates(void);
+
+// OXT-Beyond: wipe, push, reveal and scroll move one way, left, right, up or
+// down, and their steps below switch on it with an unreachable default. A
+// script can still name one with no direction ("visual effect wipe", or "wipe"
+// in a variable, as HyperCard stacks do) or with one that is not a side (open,
+// in, top), and the parser lets it through. That reached the default, which a
+// release build compiles as __builtin_unreachable: clang's code (macOS, iOS,
+// Android, the web) jumped off and the engine crashed (the forum's report on
+// 0.2.8-dp.1, 2026-11-19: wipe, reveal, push and scroll crash the IDE). GCC's
+// (Linux) fell into a case instead: a direction before the sides in
+// Visual_effects (none, close, open, in, out) played wipe, push and reveal
+// down and scroll left, and one after them (bottom, center, top) played up.
+// Those are now the directions such an effect takes everywhere, so Linux plays
+// it as before and no build reaches the default.
+static Visual_effects effectside(Visual_effects p_direction, Visual_effects p_none)
+{
+	switch (p_direction)
+	{
+		case VE_LEFT:
+		case VE_RIGHT:
+		case VE_UP:
+		case VE_DOWN:
+			return p_direction;
+			
+		case VE_BOTTOM:
+		case VE_CENTER:
+		case VE_TOP:
+			return VE_UP;
+			
+		default:
+			return p_none;
+	}
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -651,6 +688,9 @@ Boolean iriseffect_step(const MCRectangle &drect, MCStackSurface *p_target, MCGI
 
 Boolean pusheffect_step(const MCRectangle &drect, MCStackSurface *p_target, MCGImageRef p_start, MCGImageRef p_end, Visual_effects dir, uint4 delta, uint4 duration)
 {
+	// OXT-Beyond: one of the four sides (see effectside)
+	dir = effectside(dir, VE_DOWN);
+	
 	uint2 size;
 	
 	if (dir == VE_LEFT || dir == VE_RIGHT)
@@ -697,6 +737,9 @@ Boolean pusheffect_step(const MCRectangle &drect, MCStackSurface *p_target, MCGI
 
 Boolean revealeffect_step(const MCRectangle &drect, MCStackSurface *p_target, MCGImageRef p_start, MCGImageRef p_end, Visual_effects dir, uint4 delta, uint4 duration)
 {
+	// OXT-Beyond: one of the four sides (see effectside)
+	dir = effectside(dir, VE_DOWN);
+	
 	uint2 size;
 	if (dir == VE_LEFT || dir == VE_RIGHT)
 		size = drect.width * delta / duration;
@@ -744,6 +787,9 @@ Boolean revealeffect_step(const MCRectangle &drect, MCStackSurface *p_target, MC
 
 Boolean scrolleffect_step(const MCRectangle &drect, MCStackSurface *p_target, MCGImageRef p_start, MCGImageRef p_end, Visual_effects dir, uint4 delta, uint4 duration)
 {
+	// OXT-Beyond: one of the four sides (see effectside)
+	dir = effectside(dir, VE_LEFT);
+	
 	MCGFloat t_position = (MCGFloat)delta / (MCGFloat)duration;
 	
 	MCGRectangle t_end_src, t_end_dst;
@@ -905,6 +951,9 @@ Boolean venetianeffect_step(const MCRectangle &drect, MCStackSurface *p_target, 
 
 Boolean wipeeffect_step(const MCRectangle &drect, MCStackSurface *p_target, MCGImageRef p_start, MCGImageRef p_end, Visual_effects dir, uint4 delta, uint4 duration)
 {
+	// OXT-Beyond: one of the four sides (see effectside)
+	dir = effectside(dir, VE_DOWN);
+	
 	int2 size;
 	if (dir == VE_LEFT || dir == VE_RIGHT)
 		size = drect.width * delta / duration;
