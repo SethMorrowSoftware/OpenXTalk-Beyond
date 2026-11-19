@@ -6,21 +6,21 @@
 # compiler) skips there, through the test library's requirements
 # (tests/_testlib.livecodescript), and is not here.
 
-lcs: core/array/kinds: TestAsADictionary
-lcs: core/array/kinds: TestAsAScalar
-lcs: core/array/kinds: TestAsASequence
-lcs: core/array/kinds: TestAsAnArray
-lcs: core/array/kinds: TestAsInExpressions
-lcs: core/array/kinds: TestCompileErrors
-lcs: core/array/kinds: TestIsADictionary
-lcs: core/array/kinds: TestIsANumericSequence
-lcs: core/array/kinds: TestIsASequence
-lcs: core/array/kinds: TestIsStrictly
-lcs: core/array/kinds: TestMarksIgnoredAsBefore
-lcs: core/array/kinds: TestNamesAsBefore
-lcs: core/array/kinds: TestSequencesAsListsCustomPropertyAsBefore
-lcs: core/array/kinds: TestSequencesAsListsProperty
-lcs: core/array/kinds: TestTheMarkStays
+lcs: core/array/kinds: TestAsADictionary  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestAsAScalar  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestAsASequence  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestAsAnArray  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestAsInExpressions  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestCompileErrors  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestIsADictionary  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestIsANumericSequence  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestIsASequence  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestIsStrictly  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestMarksIgnoredAsBefore  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestNamesAsBefore  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestSequencesAsListsCustomPropertyAsBefore  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestSequencesAsListsProperty  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestTheMarkStays  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
 lcs: core/array/literals: TestAFreshArrayEachTime
 lcs: core/array/literals: TestAnElementIsWritten
 lcs: core/array/literals: TestBadKey
@@ -82,6 +82,12 @@ lcs: core/datetime/sql-date: TestSqlTextNotRecognisedUnlessNamed
 lcs: core/datetime/sql-date: TestSqlVariableNamesAProperty
 lcs: core/datetime/sql-date: TestSqlYearBefore1000
 lcs: core/datetime/sql-date: TestTheSqlDate
+lcs: core/engine-lcb/array-kinds: TestEditedSequences  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
+lcs: core/engine-lcb/array-kinds: TestImportWidgetWithLists  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
+lcs: core/engine-lcb/array-kinds: TestIntoLcbAsBefore  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
+lcs: core/engine-lcb/array-kinds: TestIntoLcbWithSequencesAsLists  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
+lcs: core/engine-lcb/array-kinds: TestListsComeBackAsSequences  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
+lcs: core/engine-lcb/array-kinds: TestWidgetPropertyWithSequencesAsLists  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
 lcs: core/engine/engine: TestEffectiveRectIsUpdatedWhileScreenIsLocked
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleArithmetic
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleBackgroundOrder
