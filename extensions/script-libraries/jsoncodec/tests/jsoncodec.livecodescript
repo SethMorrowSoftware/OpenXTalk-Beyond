@@ -49,6 +49,31 @@ private function decodeError pJSON
    return empty
 end decodeError
 
+-- A value written out on one line with its keys sorted, so that two values
+-- can be compared as text. Keys that differ only in case are different
+-- keys, and a line break in a key or a value cannot move it in the sort.
+private function dump pValue
+   local tOut, tElement
+   set the caseSensitive to true
+   if pValue is not an array then
+      return "<" & oneLine(pValue) & ">"
+   end if
+   repeat for each key tKey in pValue
+      put pValue[tKey] into tElement
+      put "(" & oneLine(tKey) & ")=" & dump(tElement) & return after tOut
+   end repeat
+   delete the last char of tOut
+   sort lines of tOut ascending text
+   replace return with ";" in tOut
+   return "{" & tOut & "}"
+end dump
+
+private function oneLine pText
+   replace "\" with "\\" in pText
+   replace return with "\n" in pText
+   return pText
+end oneLine
+
 --------------------------------------------------------------------------------
 -- Decoding
 --------------------------------------------------------------------------------
@@ -275,7 +300,7 @@ private function randomJSON pDepth
             put random(4) - 1 into tCount
             set the caseSensitive to true
             repeat tCount times
-               put item random(8) of "1,2,Key,key,01,1.0,,name" into tKey
+               put item random(10) of "1,2,Key,key,01,1.0,,name,1\n,\n" into tKey
                if tKeys[tKey] is not true then
                   put true into tKeys[tKey]
                   put quote & tKey & quote & ":" & randomJSON(pDepth + 1) & "," after tOut
@@ -296,10 +321,15 @@ private function randomJSON pDepth
    end switch
 end randomJSON
 
+-- Each document is also written without its shape, which is guessed, and
+-- read back: the text may differ ([] and {} are both empty, a key 1 to N
+-- is a list), but the value must not lose a key or change one.
 on TestRandomRoundTrips
-   local tJSON, tShape, tData, tFailed
+   local tJSON, tShape, tData, tFailed, tLost
+   set the caseSensitive to true
    set the randomSeed to 20261119
    put 0 into tFailed
+   put 0 into tLost
    repeat 400 times
       put randomJSON(0) into tJSON
       put empty into tShape
@@ -308,8 +338,13 @@ on TestRandomRoundTrips
          add 1 to tFailed
          TestDiagnostic "not the same:" && tJSON
       end if
+      if dump(jsonDecode(jsonEncode(tData))) is not dump(tData) then
+         add 1 to tLost
+         TestDiagnostic "not the same value when guessed:" && tJSON
+      end if
    end repeat
    TestAssert "all 400 random documents come back exactly", tFailed is 0
+   TestAssert "all 400 random values come back when the shape is guessed", tLost is 0
 end TestRandomRoundTrips
 
 -- Neither reading nor writing calls itself for each level, so the depth
@@ -402,6 +437,30 @@ on TestGuessing
    put 3 into tData["Mid"]
    TestAssert "the keys of an object are sorted", jsonEncode(tData) is q("{'Mid':3,'alpha':2,'zeta':1}")
 end TestGuessing
+
+-- Keys and text that a line-by-line or a $-anchored check would get wrong.
+on TestGuessingOddKeys
+   local tData, tShape
+   set the caseSensitive to true
+   put 7 into tData[empty]
+   TestAssert "the empty key on its own", jsonEncode(tData) is q("{'':7}")
+   put 1 into tData["a"]
+   TestAssert "the empty key comes first", jsonEncode(tData) is q("{'':7,'a':1}")
+
+   put empty into tData
+   put "x" into tData["1" & return]
+   TestAssert "a key 1 and a line break is not an index", jsonEncode(tData) is q("{'1\n':'x'}")
+   put "y" into tData[1]
+   TestAssert "nor beside the key 1", jsonEncode(tData) is q("{'1':'y','1\n':'x'}")
+   TestAssert "nor when the shape says list", jsonEncode(tData, "sequence") is q("{'1':'y','1\n':'x'}")
+
+   TestAssert "a number and a line break is text", jsonEncode("42" & return) is q("'42\n'")
+   TestAssert "even when the shape says number", jsonEncode("42" & return, "number") is q("'42\n'")
+
+   put jsonDecodeWithShape(q("{'a':1}"), tShape) into tData
+   put 2 into tData[empty]
+   TestAssert "an empty key added after reading", jsonEncode(tData, tShape) is q("{'a':1,'':2}")
+end TestGuessingOddKeys
 
 on TestStringEscaping
    TestAssert "quote and backslash", jsonEncode("a" & quote & "\") is (quote & "a\" & quote & "\\" & quote)

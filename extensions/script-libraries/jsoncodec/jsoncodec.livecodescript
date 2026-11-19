@@ -761,7 +761,7 @@ end jcFind
 private function jcHex4 pAt
    local tHex
    put codeunit pAt to pAt + 3 of sText into tHex
-   if not matchText(tHex, "^[0-9A-Fa-f]{4}$") then
+   if not matchText(tHex, "^[0-9A-Fa-f]{4}\z") then
       put pAt into sPos
       jcFail "bad \u escape"
    end if
@@ -949,8 +949,11 @@ end jcLinesToList
 -- shape records, in its order, then the rest sorted, so that the same value
 -- always gives the same text. A key with a line break in it cannot be
 -- sorted as a line; those few go last, in the order the array gives them.
+-- The empty key is not sorted as a line either: on its own it would be an
+-- empty list of lines, which has none. It sorts before every other key, so
+-- it is put first.
 private function jcDictionaryKeys pArray, pShape
-   local tLeft, tList, tCount, tKey, tSorted, tOdd
+   local tLeft, tList, tCount, tKey, tSorted, tOdd, tEmpty
    set the caseSensitive to true
    repeat for each key tKey in pArray
       put true into tLeft[tKey]
@@ -966,8 +969,11 @@ private function jcDictionaryKeys pArray, pShape
          end if
       end repeat
    end if
+   put false into tEmpty
    repeat for each key tKey in tLeft
-      if return is in tKey then
+      if tKey is empty then
+         put true into tEmpty
+      else if return is in tKey then
          put tKey into tOdd[the number of elements of tOdd + 1]
       else
          put tKey & return after tSorted
@@ -975,6 +981,10 @@ private function jcDictionaryKeys pArray, pShape
    end repeat
    delete the last char of tSorted
    sort lines of tSorted ascending text
+   if tEmpty then
+      add 1 to tCount
+      put empty into tList[tCount]
+   end if
    repeat for each line tKey in tSorted
       add 1 to tCount
       put tKey into tList[tCount]
@@ -989,12 +999,14 @@ end jcDictionaryKeys
 -- The keys of an array in numeric order, one per line, when every key is a
 -- whole number from 1 written without leading zeros (with pExact, only when
 -- they are exactly 1 to N); false otherwise. "01" and "1.0" are not 1: they
--- are different keys of an xTalk array.
+-- are different keys of an xTalk array. The patterns here end in \z, not
+-- $: in a regular expression $ also matches before a line break at the end,
+-- so "1" & return would pass for 1.
 private function jcIndexKeys pArray, pExact
    local tKeys, tCount
    put 0 into tCount
    repeat for each key tKey in pArray
-      if not matchText(tKey, "^[1-9][0-9]{0,14}$") then
+      if not matchText(tKey, "^[1-9][0-9]{0,14}\z") then
          return false
       end if
       add 1 to tCount
@@ -1060,12 +1072,13 @@ private function jcEscapeLoneSurrogates pText
 end jcEscapeLoneSurrogates
 
 -- JSON's grammar for a number (RFC 8259 section 6), which is narrower than
--- what xTalk calls a number: no leading zeros, no "+", no ".5", no hex.
+-- what xTalk calls a number: no leading zeros, no "+", no ".5", no hex,
+-- and nothing after it ("42" & return is text).
 private function jcIsNumber pText
    if pText is an array or pText is empty then
       return false
    end if
-   return matchText(pText, "^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$")
+   return matchText(pText, "^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?\z")
 end jcIsNumber
 
 --------------------------------------------------------------------------------
