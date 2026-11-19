@@ -148,7 +148,8 @@ on TestTheControlsFollowTheScreen
          the width of button "Open" of stack kPlayer is 640 - 40
    TestAssert "the status line is still on the card", \
          the bottom of field "Status" of stack kPlayer <= the height of stack kPlayer
-   TestAssert "off a phone the whole card is seen", fromPlayer("playerSeenHeight") is 360
+   TestAssert "off a phone the whole card is seen", \
+         fromPlayer("playerSeenHeight") is 360 and fromPlayer("playerSeenWidth") is 640
 end TestTheControlsFollowTheScreen
 
 on TestStackNames

@@ -179,7 +179,7 @@ end playerMakeField
 -- phone held sideways) has no help text, so that the library keeps room
 command playerLayout
    local tWidth, tHeight, tMargin, tTop
-   put the width of stack kPlayerName into tWidth
+   put playerSeenWidth() into tWidth
    put playerSeenHeight() into tHeight
    put 20 into tMargin
    lock screen
@@ -205,7 +205,8 @@ end playerLayout
 -- is drawn edge to edge: the engine puts the stack below the status bar
 -- but makes it as tall as the whole screen, so that its bottom is under
 -- the navigation bar or past the screen. What lies below the screen's
--- bottom, and kBarAllowance above it, is left empty
+-- bottom, and kBarAllowance above it, is left empty. Held sideways the
+-- stack is the screen's height, and this changes nothing
 function playerSeenHeight
    local tHeight, tSeen
    put the height of stack kPlayerName into tHeight
@@ -217,6 +218,18 @@ function playerSeenHeight
    end if
    return tHeight
 end playerSeenHeight
+
+-- How wide the seen part of the card is. Held sideways, Android puts
+-- its navigation bar at the side, over the right of the card, for the
+-- same reason (playerSeenHeight)
+function playerSeenWidth
+   local tWidth
+   put the width of stack kPlayerName into tWidth
+   if the environment is "mobile" and tWidth > the height of stack kPlayerName and tWidth - kBarAllowance > 300 then
+      return tWidth - kBarAllowance
+   end if
+   return tWidth
+end playerSeenWidth
 
 command playerStatus pText
    put pText into field "Status" of stack kPlayerName
