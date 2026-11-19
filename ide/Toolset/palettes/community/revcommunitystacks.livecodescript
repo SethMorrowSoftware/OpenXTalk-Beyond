@@ -10,6 +10,11 @@ script "revCommunityStacks"
 -- pages. Get a Copy brings the stack's files to this computer, for
 -- reading and for learning from.
 --
+-- A switch above the list shows the gallery's script libraries in place of
+-- its stacks: a library has a page of what it gives a stack and what it
+-- reaches for, Try the Demo and Read Its Script open the gallery's pages
+-- for it, and Install installs it ("Libraries" below).
+--
 -- What it believes, and why:
 --
 --  * The list of stacks (index.json) is believed only when its signature
@@ -64,6 +69,10 @@ constant kMaxFileBytes = 26214400
 constant kMaxFiles = 200
 constant kMaxDepth = 5
 constant kMaxStacks = 5000
+-- A list of libraries is held to the same; and a library, to this many
+-- handlers (the gallery sets no number: this is far past any library)
+constant kMaxLibraries = 5000
+constant kMaxHandlers = 5000
 constant kStackExtensions = "oxtstack,livecode,rev,livecodescript"
 -- Give up on the site after this many milliseconds without a byte
 constant kTimeoutMilliseconds = 20000
@@ -92,6 +101,10 @@ local sPage, sSearch, sIndexMap
 local sSite, sKey
 -- True while a request is waiting for the site
 local sBusy
+-- What the window lists: "stacks" or "libraries"; and what the other one
+-- showed, by its name, to come back to: "list" (sStacks), "count",
+-- "leftOut", "problem", "state", "page" and "search"
+local sMode, sKept
 
 ################################################################################
 #
@@ -674,6 +687,466 @@ end revCommunityStacksLoad
 
 ################################################################################
 #
+# Libraries
+#
+-- The gallery also lists script libraries (libraries.json, signed as
+-- index.json is, by the same key, in libraries.sig). A library is one
+-- script-only stack that gives the user's own stacks new commands and
+-- functions. It is not played: it is installed, as the Extension Manager
+-- installs any extension, and it then runs as the user's own scripts do,
+-- with no box around it. So the window shows what it holds (its handlers,
+-- and the engine's messages it listens for) before anything is fetched,
+-- and Install asks first (revIDECommunityLibraryInstall in the IDE
+-- library).
+--
+-- The list is held to the gallery's rules as the stacks' list is
+-- (csCleanLibrary), and the package is believed only when it is the bytes
+-- that list names, as a copy of a stack is. The gallery makes every
+-- package itself, from the text its checker read (tools/build_site.py
+-- there, scan.library_package): the author's own files are never the
+-- package.
+
+-- The libraries of the list pList (the bytes of libraries.json, which the
+-- caller has checked), as revCommunityStacksParse gives the stacks of
+-- index.json: "problem"; or "libraries" by number as csCleanLibrary leaves
+-- each, "count" and "leftOut".
+function revCommunityLibrariesParse pList
+   local tOut, tData, tError, tRaw, tIndex, tEntry, tSeen, tTotal
+   put 0 into tOut["count"]
+   put 0 into tOut["leftOut"]
+   if the number of bytes of pList > kMaxIndexBytes then
+      put "The gallery's list is larger than a list of libraries should be." into tOut["problem"]
+      return tOut
+   end if
+   try
+      put JsonImport(textDecode(pList, "utf-8")) into tData
+   catch tError
+      put "The gallery's list could not be read." into tOut["problem"]
+      return tOut
+   end try
+   if tData is not an array then
+      put "The gallery's list could not be read." into tOut["problem"]
+      return tOut
+   end if
+   if tData["format"] is not kFormat then
+      put "The gallery's list is in a form that this copy of OXT-Beyond does not know. A newer OXT-Beyond may read it." into tOut["problem"]
+      return tOut
+   end if
+   put tData["libraries"] into tRaw
+   if tRaw is not an array then
+      return tOut
+   end if
+   put the number of elements of tRaw into tTotal
+   if tTotal > kMaxLibraries then
+      put "The gallery's list is larger than a list of libraries should be." into tOut["problem"]
+      return tOut
+   end if
+   repeat with tIndex = 1 to tTotal
+      put csCleanLibrary(tRaw[tIndex]) into tEntry
+      -- (two libraries of one name could not both be installed)
+      if tEntry is not an array or tSeen[tEntry["slug"]] is true or tSeen[":" & toLower(tEntry["name"])] is true then
+         add 1 to tOut["leftOut"]
+         next repeat
+      end if
+      put true into tSeen[tEntry["slug"]]
+      put true into tSeen[":" & toLower(tEntry["name"])]
+      add 1 to tOut["count"]
+      put tEntry into tOut["libraries"][tOut["count"]]
+   end repeat
+   return tOut
+end revCommunityLibrariesParse
+
+-- A library of the list as this script uses it, or empty when anything
+-- of it is not what the gallery's tools would have written. As a stack
+-- of csCleanEntry ("slug", "version", "title", "author", "description",
+-- "licence", "tags", "uses", "lines", "download", "sha256", "size",
+-- "main", "files", "fileCount", "page", "source"), and "kind" "library";
+-- "name", the name of its stack, which is the extension's name;
+-- "handlers", a line each: command or function, a tab and its first
+-- line; "messages", the engine's messages it handles, a line each;
+-- "demo", the gallery's stack that shows it, and "play", the page that
+-- plays that stack; and "find", the words its handlers add to a search.
+private function csCleanLibrary pRaw
+   local tEntry, tSlug, tVersion, tValue, tLatest, tFiles, tIndex, tFile, tCount, tTotal, tHasMain, tHasManifest, tSeen, tKey, tName, tKind, tText
+   if pRaw is not an array then
+      return empty
+   end if
+   set the caseSensitive to true
+
+   put pRaw["slug"] into tSlug
+   if not csIsText(tSlug) or the number of chars of tSlug < 3 or the number of chars of tSlug > 40 \
+         or not matchText(tSlug, "\A[a-z0-9]+(-[a-z0-9]+)*\z") then
+      return empty
+   end if
+   put pRaw["version"] into tVersion
+   if not csIsVersion(tVersion) then
+      return empty
+   end if
+   put "library" into tEntry["kind"]
+   put tSlug into tEntry["slug"]
+   put tVersion into tEntry["version"]
+   put csWords(pRaw["title"], 2, 60) into tEntry["title"]
+   put csWords(pRaw["author"], 2, 40) into tEntry["author"]
+   put csWords(pRaw["description"], 10, 600) into tEntry["description"]
+   if tEntry["title"] is empty or tEntry["author"] is empty or tEntry["description"] is empty then
+      return empty
+   end if
+   -- (a library is built into other people's programs: only a licence
+   -- that OXT-Beyond's GPL can take in)
+   put csLibraryLicence(pRaw["licence"]) into tEntry["licence"]
+   if tEntry["licence"] is empty then
+      return empty
+   end if
+
+   put empty into tEntry["tags"]
+   if pRaw["tags"] is an array then
+      repeat with tIndex = 1 to min(5, the number of elements of pRaw["tags"])
+         put pRaw["tags"][tIndex] into tValue
+         if csIsText(tValue) and the number of chars of tValue <= 20 \
+               and matchText(tValue, "\A[a-z0-9]+([ -][a-z0-9]+)*\z") then
+            put tValue & return after tEntry["tags"]
+         end if
+      end repeat
+      delete the last char of tEntry["tags"]
+   end if
+   put empty into tEntry["uses"]
+   if pRaw["uses"] is an array then
+      repeat with tIndex = 1 to min(20, the number of elements of pRaw["uses"])
+         put pRaw["uses"][tIndex] into tValue
+         if not csIsText(tValue) or not matchText(tValue, "\A[a-z][a-z0-9-]{0,30}\z") then
+            return empty
+         end if
+         put tValue & return after tEntry["uses"]
+      end repeat
+      delete the last char of tEntry["uses"]
+   end if
+   -- (what the checker noted: script built as it runs, say)
+   put empty into tEntry["notes"]
+   if pRaw["notes"] is an array then
+      repeat with tIndex = 1 to min(40, the number of elements of pRaw["notes"])
+         put pRaw["notes"][tIndex] into tValue
+         if csIsText(tValue) and matchText(tValue, "\A[a-z][a-z0-9-]{0,30}\z") then
+            put tValue & return after tEntry["notes"]
+         end if
+      end repeat
+      delete the last char of tEntry["notes"]
+   end if
+   put empty into tEntry["lines"]
+   if pRaw["script_lines"] is an integer and pRaw["script_lines"] >= 0 then
+      put pRaw["script_lines"] into tEntry["lines"]
+   end if
+
+   -- The name it is installed by: one the IDE does not keep for itself
+   put pRaw["name"] into tName
+   if not csIsLibraryName(tName) then
+      return empty
+   end if
+   put tName into tEntry["name"]
+
+   -- What it holds: the handlers other stacks can call, and the engine's
+   -- messages it handles for every stack once it is installed
+   -- (an empty list is read as empty, not as an array)
+   if (pRaw["handlers"] is not an array and pRaw["handlers"] is not empty) \
+         or the number of elements of pRaw["handlers"] > kMaxHandlers then
+      return empty
+   end if
+   put empty into tEntry["handlers"]
+   put empty into tEntry["find"]
+   repeat with tIndex = 1 to the number of elements of pRaw["handlers"]
+      put pRaw["handlers"][tIndex] into tValue
+      if tValue is not an array then
+         return empty
+      end if
+      put tValue["kind"] into tKind
+      if tKind is not among the items of "command,function,getprop,setprop" \
+            or not csIsHandlerName(tValue["name"]) then
+         return empty
+      end if
+      put csWords(tValue["text"], 1, 300) into tText
+      if tText is empty then
+         put tKind && tValue["name"] into tText
+      end if
+      put tKind & tab & tText & return after tEntry["handlers"]
+      put tValue["name"] & space after tEntry["find"]
+   end repeat
+   delete the last char of tEntry["handlers"]
+   put tName && tEntry["find"] into tEntry["find"]
+   put empty into tEntry["messages"]
+   if pRaw["messages"] is not an array and pRaw["messages"] is not empty then
+      return empty
+   end if
+   if pRaw["messages"] is an array then
+      repeat with tIndex = 1 to min(200, the number of elements of pRaw["messages"])
+         put pRaw["messages"][tIndex] into tValue
+         if not csIsHandlerName(tValue) then
+            return empty
+         end if
+         put tValue & return after tEntry["messages"]
+      end repeat
+      delete the last char of tEntry["messages"]
+   end if
+
+   -- The package: exactly l/<slug>/<version>/<slug>-<version>.lce, the
+   -- name the gallery's builder gives it, its size and hash
+   put pRaw["download"] into tValue
+   if tValue is not ("l/" & tSlug & "/" & tVersion & "/" & tSlug & "-" & tVersion & ".lce") then
+      return empty
+   end if
+   put tValue into tEntry["download"]
+   if not csIsHash(pRaw["sha256"]) then
+      return empty
+   end if
+   put pRaw["sha256"] into tEntry["sha256"]
+   if pRaw["size"] is not an integer or pRaw["size"] < 1 or pRaw["size"] > kMaxDownloadBytes then
+      return empty
+   end if
+   put pRaw["size"] + 0 into tEntry["size"]
+
+   -- The gallery's pages for it: under l/<slug>/, or not offered; and its
+   -- demo, a stack of the gallery, played on that stack's own page
+   repeat for each item tKey in "page,source"
+      put pRaw[tKey] into tValue
+      if csIsText(tValue) and tValue begins with ("l/" & tSlug & "/") and the number of chars of tValue <= 200 \
+            and matchText(tValue, "\A[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)*\.html\z") then
+         put tValue into tEntry[tKey]
+      else
+         put empty into tEntry[tKey]
+      end if
+   end repeat
+   put empty into tEntry["demo"]
+   put empty into tEntry["play"]
+   put pRaw["demo"] into tValue
+   if csIsText(tValue) and the number of chars of tValue >= 3 and the number of chars of tValue <= 40 \
+         and matchText(tValue, "\A[a-z0-9]+(-[a-z0-9]+)*\z") then
+      put tValue into tEntry["demo"]
+      put "s/" & tValue & "/play.html" into tEntry["play"]
+   end if
+
+   -- The files of the package, those of the newest version
+   if pRaw["versions"] is not an array or pRaw["versions"][1] is not an array then
+      return empty
+   end if
+   put pRaw["versions"][1] into tLatest
+   if tLatest["version"] is not tVersion or tLatest["sha256"] is not tEntry["sha256"] \
+         or tLatest["download"] is not tEntry["download"] or tLatest["name"] is not tName then
+      return empty
+   end if
+   put tLatest["files"] into tFiles
+   if tFiles is not an array then
+      return empty
+   end if
+   put the number of elements of tFiles into tCount
+   if tCount < 2 or tCount > kMaxFiles then
+      return empty
+   end if
+   put pRaw["main"] into tEntry["main"]
+   if not csIsText(tEntry["main"]) or tEntry["main"] contains "/" or not (tEntry["main"] ends with ".livecodescript") then
+      return empty
+   end if
+   put 0 into tTotal
+   put false into tHasMain
+   put false into tHasManifest
+   repeat with tIndex = 1 to tCount
+      put tFiles[tIndex] into tFile
+      if tFile is not an array or not csIsPath(tFile["path"]) or not csIsHash(tFile["sha256"]) \
+            or tFile["size"] is not an integer or tFile["size"] < 0 or tFile["size"] > kMaxFileBytes then
+         return empty
+      end if
+      if tSeen[toLower(tFile["path"])] is true then
+         return empty
+      end if
+      put true into tSeen[toLower(tFile["path"])]
+      add tFile["size"] to tTotal
+      if tFile["path"] is tEntry["main"] then
+         put true into tHasMain
+      end if
+      if tFile["path"] is "manifest.xml" then
+         put true into tHasManifest
+      end if
+      put tFile["path"] into tEntry["files"][tIndex]["path"]
+      put tFile["sha256"] into tEntry["files"][tIndex]["sha256"]
+      put tFile["size"] + 0 into tEntry["files"][tIndex]["size"]
+   end repeat
+   -- (the Extension Manager reads manifest.xml first)
+   if not tHasMain or not tHasManifest or tEntry["files"][1]["path"] is not "manifest.xml" or tTotal > kMaxDownloadBytes then
+      return empty
+   end if
+   put tCount into tEntry["fileCount"]
+   return tEntry
+end csCleanLibrary
+
+-- A name a library may have: what the gallery's checker allows
+-- (library_name_problem in tools/scan.py there), and never one that the
+-- IDE, the engine or the xTalk Suite keeps for its own
+private function csIsLibraryName pName
+   if not csIsText(pName) or the number of chars of pName < 3 or the number of chars of pName > 60 \
+         or not matchText(pName, "\A[A-Za-z][A-Za-z0-9]*([._-][A-Za-z0-9]+)*\z") then
+      return false
+   end if
+   if csIsIDEName(pName) or toLower(pName) begins with "community.openxtalk." \
+         or toLower(pName) is among the items of "home,ide,livecode,oxt,openxtalk,help,library,stack" then
+      return false
+   end if
+   return true
+end csIsLibraryName
+
+-- A handler's or a message's name, as the engine takes one
+private function csIsHandlerName pName
+   return csIsText(pName) and the number of chars of pName <= 80 and matchText(pName, "\A[A-Za-z_][A-Za-z0-9_.]*\z")
+end csIsHandlerName
+
+-- The licences an author can choose for a library, as the gallery shows
+-- them (LIBRARY_LICENCES in tools/listing.py there): GPL 3, and the ones
+-- a program under GPL 3 can take in. Empty for any other.
+private function csLibraryLicence pLicence
+   local tLine
+   if not csIsText(pLicence) then
+      return empty
+   end if
+   set the caseSensitive to true
+   set the itemDelimiter to "|"
+   repeat for each line tLine in csLibraryLicences()
+      if item 1 of tLine is pLicence then
+         return item 2 of tLine
+      end if
+   end repeat
+   return empty
+end csLibraryLicence
+
+private function csLibraryLicences
+   return "GPL-3.0-only|GPL 3" & return & \
+         "GPL-3.0-or-later|GPL 3 or later" & return & \
+         "LGPL-3.0-only|LGPL 3" & return & \
+         "LGPL-3.0-or-later|LGPL 3 or later" & return & \
+         "Apache-2.0|Apache 2.0" & return & \
+         "MIT|MIT" & return & \
+         "BSD-2-Clause|BSD (2 clauses)" & return & \
+         "BSD-3-Clause|BSD (3 clauses)"
+end csLibraryLicences
+
+-- The gallery's list of libraries, fetched, checked and read, as
+-- revCommunityStacksLoad does the stacks': "libraries", "count" and
+-- "leftOut"; or "problem" (and "unsigned"). A gallery that has no list of
+-- libraries yet has none: count 0 and no problem.
+function revCommunityLibrariesLoad pSite, pPublicKey
+   local tOut, tSite, tList, tSignature, tProblem
+   put csSite(pSite) into tSite
+   put csFetch(tSite, "libraries.json", kMaxIndexBytes, tList) into tProblem
+   if tProblem is "missing" then
+      put 0 into tOut["count"]
+      put 0 into tOut["leftOut"]
+      return tOut
+   end if
+   if tProblem is not empty then
+      put tProblem into tOut["problem"]
+      return tOut
+   end if
+   put csFetch(tSite, "libraries.sig", 1024, tSignature) into tProblem
+   if tProblem is "missing" then
+      put true into tOut["unsigned"]
+      put "The gallery's list of libraries is not signed yet, so this window cannot be sure it is the gallery's and does not show it." into tOut["problem"]
+      return tOut
+   end if
+   if tProblem is not empty then
+      put tProblem into tOut["problem"]
+      return tOut
+   end if
+   put revCommunityStacksVerify(tList, tSignature, pPublicKey) into tProblem
+   if tProblem is not empty then
+      put tProblem into tOut["problem"]
+      return tOut
+   end if
+   return revCommunityLibrariesParse(tList)
+end revCommunityLibrariesLoad
+
+-- Fetches the package of the library pEntry (as the list gives it) from
+-- the site pSite (the gallery's when empty) into the folder pFolder (a
+-- folder of the temporary folder when empty), checked: the package must
+-- be the bytes the list names, every file the list names must be in it as
+-- the list names it, and its manifest must name the library the list
+-- does. Returns in the result the package's path, ready for
+-- revIDEExtensionInstall, or "error: " and a sentence. Nothing is
+-- installed here.
+command revCommunityLibrariesGet pEntry, pFolder, pSite
+   local tSite, tPackage, tProblem, tTemp, tIndex, tPath, tData, tFile, tError
+   if pEntry is not an array or pEntry["kind"] is not "library" or pEntry["download"] is empty \
+         or pEntry["fileCount"] is not an integer then
+      return "error: That is not a library of the gallery."
+   end if
+   put csSite(pSite) into tSite
+   put csFetch(tSite, pEntry["download"], pEntry["size"], tPackage) into tProblem
+   if tProblem is "missing" then
+      put "The gallery does not have this library's package any more. Its list may have changed: close this window and open it again." into tProblem
+   end if
+   if tProblem is not empty then
+      return "error:" && tProblem
+   end if
+   if the number of bytes of tPackage is not pEntry["size"] or csSha256(tPackage) is not pEntry["sha256"] then
+      return "error: The download is not the package the gallery lists, so it was thrown away. Nothing was installed."
+   end if
+
+   if pFolder is empty then
+      put specialFolderPath("temporary") & "/OXT Community Libraries" into pFolder
+   end if
+   if pFolder ends with "/" then
+      delete the last char of pFolder
+   end if
+   csMakeFolder pFolder
+   if there is no folder pFolder then
+      return "error: The folder for the download could not be made."
+   end if
+   -- (the Extension Manager takes a package by its file, which must end
+   -- in .lce)
+   put pFolder & "/" & pEntry["slug"] & "-" & pEntry["version"] & ".lce" into tFile
+   put tPackage into url ("binfile:" & tFile)
+   if the result is not empty then
+      return "error: The download could not be kept."
+   end if
+
+   -- Every file the list names, as it names it
+   put empty into tProblem
+   put tFile into tTemp
+   try
+      revZipOpenArchive tTemp, "read"
+      if the result begins with "ziperr" then
+         put "The download could not be unpacked." into tProblem
+      else
+         repeat with tIndex = 1 to pEntry["fileCount"]
+            put pEntry["files"][tIndex]["path"] into tPath
+            put empty into tData
+            revZipExtractItemToVariable tTemp, tPath, "tData"
+            if the result begins with "ziperr" then
+               put "The download does not hold the file" && tPath & "." into tProblem
+               exit repeat
+            end if
+            if the number of bytes of tData is not pEntry["files"][tIndex]["size"] \
+                  or csSha256(tData) is not pEntry["files"][tIndex]["sha256"] then
+               put "The file" && tPath && "in the download is not the one the gallery lists." into tProblem
+               exit repeat
+            end if
+            if tPath is "manifest.xml" and not (textDecode(tData, "utf-8") contains ("<name>" & pEntry["name"] & "</name>")) then
+               put "The package names another library than the gallery's list does." into tProblem
+               exit repeat
+            end if
+         end repeat
+         revZipCloseArchive tTemp
+      end if
+   catch tError
+      put "The download could not be unpacked." into tProblem
+      try
+         revZipCloseArchive tTemp
+      catch tError
+      end try
+   end try
+   if tProblem is not empty then
+      delete file tFile
+      return "error:" && tProblem && "Nothing was installed."
+   end if
+   return tFile
+end revCommunityLibrariesGet
+
+################################################################################
+#
 # Getting a copy
 #
 
@@ -981,8 +1454,12 @@ end csSize
 
 -- Opens the window, or brings it to the front. pSite and pPublicKey are
 -- the gallery's when empty (the IDE tour opens it on a gallery of its
--- own, in a folder).
-command revCommunityStacksShow pSite, pPublicKey
+-- own, in a folder). pMode "libraries" opens it on the gallery's script
+-- libraries; it lists the stacks otherwise.
+command revCommunityStacksShow pSite, pPublicKey, pMode
+   if pMode is not "libraries" then
+      put "stacks" into pMode
+   end if
    if the mode of me is 0 then
       put pSite into sSite
       put pPublicKey into sKey
@@ -994,11 +1471,19 @@ command revCommunityStacksShow pSite, pPublicKey
       put empty into sProblem
       put "loading" into sState
       put false into sBusy
+      put pMode into sMode
+      put empty into sKept
       modeless me
    else
       go me
+      csSwitch pMode
    end if
 end revCommunityStacksShow
+
+-- What the window lists: "stacks" or "libraries"
+function revCommunityStacksMode
+   return sMode
+end revCommunityStacksMode
 
 -- The stack in front, as the list gives it (empty when there is none),
 -- and what the window is showing: "loading", "list" or "problem"
@@ -1021,6 +1506,7 @@ on preOpenStack
       csUseKit
       get lkReadAppearance()
       csBuild
+      csSyncSwitch
       csPlace
       csRender
       -- (a script-only stack is made invisible when it is loaded)
@@ -1062,6 +1548,7 @@ on lkAppearanceChanged
    lock screen
    lkClear
    csBuild
+   csSyncSwitch
    put sSearch into field "search" of me
    csFillIndex
    csRender
@@ -1146,7 +1633,11 @@ on csLoadList
    put true into sBusy
    put "loading" into sState
    csRender
-   put revCommunityStacksLoad(sSite, sKey) into tOut
+   if sMode is "libraries" then
+      put revCommunityLibrariesLoad(sSite, sKey) into tOut
+   else
+      put revCommunityStacksLoad(sSite, sKey) into tOut
+   end if
    put false into sBusy
    -- (the window may have been closed while the site was answering)
    if the mode of me is 0 then
@@ -1166,7 +1657,11 @@ private command csTakeList pOut
       put pOut into sProblem
       put "problem" into sState
    else
-      put pOut["stacks"] into sStacks
+      if sMode is "libraries" then
+         put pOut["libraries"] into sStacks
+      else
+         put pOut["stacks"] into sStacks
+      end if
       put pOut["count"] into sCount
       put pOut["leftOut"] into sLeftOut
       put "list" into sState
@@ -1184,6 +1679,93 @@ private command csTakeList pOut
    unlock screen
    csRestore tSaved
 end csTakeList
+
+-- Lists the stacks (pMode "stacks") or the libraries ("libraries"). What
+-- the other one showed is kept, and shown again when it is switched back
+-- to; a list not asked for yet is asked for now.
+private command csSwitch pMode
+   local tSaved
+   if pMode is not "libraries" then
+      put "stacks" into pMode
+   end if
+   if pMode is sMode or sBusy is true or there is no field "page" of me then
+      exit csSwitch
+   end if
+   put sStacks into sKept[sMode]["list"]
+   put sCount into sKept[sMode]["count"]
+   put sLeftOut into sKept[sMode]["leftOut"]
+   put sProblem into sKept[sMode]["problem"]
+   put sState into sKept[sMode]["state"]
+   put sPage into sKept[sMode]["page"]
+   put sSearch into sKept[sMode]["search"]
+   put pMode into sMode
+   if sKept[pMode]["state"] is among the items of "list,problem" then
+      put sKept[pMode]["list"] into sStacks
+      put sKept[pMode]["count"] into sCount
+      put sKept[pMode]["leftOut"] into sLeftOut
+      put sKept[pMode]["problem"] into sProblem
+      put sKept[pMode]["state"] into sState
+      put sKept[pMode]["page"] into sPage
+      put sKept[pMode]["search"] into sSearch
+   else
+      put empty into sStacks
+      put 0 into sCount
+      put 0 into sLeftOut
+      put empty into sProblem
+      put "loading" into sState
+      put empty into sPage
+      put empty into sSearch
+   end if
+   put the defaultStack into tSaved
+   set the defaultStack to the short name of me
+   lock screen
+   put sSearch into field "search"
+   csSyncSwitch
+   csFillIndex
+   csRender
+   set the vScroll of field "idx" to 0
+   csSyncIndex
+   unlock screen
+   csRestore tSaved
+   if sState is "loading" then
+      send "csLoadList" to me in 20 milliseconds
+   end if
+end csSwitch
+
+-- The switch shows which list is in front, and the search box says what
+-- it searches
+private command csSyncSwitch
+   local tName, tOn
+   repeat for each item tName in "modeStacks,modeLibraries"
+      put (tName is "modeLibraries") is (sMode is "libraries") into tOn
+      if tOn then
+         lkSetLook tName, "bg0", lkMix(lkColor("side2"), lkColor("violet"), 0.45)
+         lkSetLook tName, "bg1", lkMix(lkColor("side2"), lkColor("violet"), 0.55)
+         lkSetLook tName, "ink0", "255,255,255"
+      else
+         lkSetLook tName, "bg0", lkColor("side2")
+         lkSetLook tName, "bg1", lkColor("sideLine")
+         lkSetLook tName, "ink0", lkColor("sideInk")
+      end if
+      lkApply tName
+   end repeat
+   put "Search the" && csNoun(2) into field "searchHint" of me
+end csSyncSwitch
+
+-- "stack" or "stacks", "library" or "libraries": what the window lists,
+-- pCount of them
+private function csNoun pCount
+   if sMode is "libraries" then
+      if pCount is 1 then
+         return "library"
+      end if
+      return "libraries"
+   end if
+   if pCount is 1 then
+      return "stack"
+   end if
+   return "stacks"
+end csNoun
 
 ################################################################################
 #
@@ -1234,6 +1816,15 @@ private command csBuild
    lkRestAt "copy"
    get lkButton("again", kSide + kPad - 8, kHeight - kFootHeight + 16, 34, "Try Again", "rotate-cw", "primary", \
          lkColor("violet"), empty, "again", 0)
+   -- (and what to do with a library in front)
+   get lkButton("demo", kSide + kPad - 8, kHeight - kFootHeight + 16, 34, "Try the Demo", "play", "primary", \
+         lkColor("violet"), empty, "demo", 0)
+   get lkButton("script", the right of group "demo" + 10, kHeight - kFootHeight + 16, 34, "Read Its Script", "book-open", \
+         "ghost", lkColor("violet"), empty, "script", 0)
+   get lkButton("install", 0, kHeight - kFootHeight + 16, 34, "Install", "package", "ghost", \
+         lkColor("violet"), empty, "install", 0)
+   set the right of group "install" to kWidth - kPad + 8
+   lkRestAt "install"
    unlock messages
    unlock screen
    csRestore tSaved
@@ -1274,8 +1865,14 @@ private command csBuildSide
    csLiveFade "searchClear", "clear"
    hide group "searchClear"
 
+   -- Stacks or libraries
+   get lkButton("modeStacks", 14, 124, 30, "Stacks", "layers", "dark", lkColor("violet"), empty, "mode-stacks", \
+         (kSide - 36) div 2)
+   get lkButton("modeLibraries", kSide - 14 - (kSide - 36) div 2, 124, 30, "Libraries", "library-big", "dark", \
+         lkColor("violet"), empty, "mode-libraries", (kSide - 36) div 2)
+
    -- The index: a stack a line
-   put lkLabel("idx", lkR(8, 126, kSide - 8, kHeight - 54), empty, 14, lkColor("sideInk"), empty) into tObj
+   put lkLabel("idx", lkR(8, 164, kSide - 8, kHeight - 54), empty, 14, lkColor("sideInk"), empty) into tObj
    set the autoHilite of tObj to true
    lkSelectedInk tObj, "255,255,255"
    set the dontWrap of tObj to true
@@ -1331,7 +1928,7 @@ end csSyncSearch
 private function csMatches pIndex, pTerm
    local tText, tWord
    put sStacks[pIndex]["title"] && sStacks[pIndex]["author"] && sStacks[pIndex]["description"] && \
-         sStacks[pIndex]["tags"] into tText
+         sStacks[pIndex]["tags"] && sStacks[pIndex]["find"] into tText
    repeat for each word tWord in pTerm
       if not (tText contains tWord) then
          return false
@@ -1368,15 +1965,11 @@ private command csFillIndex
    else if tTerm is not empty then
       if tCount is 0 then
          put "Nothing found" into field "navCount"
-      else if tCount is 1 then
-         put "1 stack found" into field "navCount"
       else
-         put tCount && "stacks found" into field "navCount"
+         put tCount && csNoun(tCount) && "found" into field "navCount"
       end if
-   else if sCount is 1 then
-      put "1 stack" into field "navCount"
    else
-      put sCount && "stacks" into field "navCount"
+      put sCount && csNoun(sCount) into field "navCount"
    end if
    unlock screen
    csSyncIndex
@@ -1472,7 +2065,30 @@ on lkAction pAction
          csFillIndex
          break
       case "site"
-         csLaunch empty
+         if sMode is "libraries" then
+            csLaunch "libraries.html"
+         else
+            csLaunch empty
+         end if
+         break
+      case "mode-stacks"
+         csSwitch "stacks"
+         break
+      case "mode-libraries"
+         csSwitch "libraries"
+         break
+      case "demo"
+         if sState is "list" and sPage is an integer then
+            csLaunch sStacks[sPage]["play"]
+         end if
+         break
+      case "script"
+         if sState is "list" and sPage is an integer then
+            csLaunch sStacks[sPage]["source"]
+         end if
+         break
+      case "install"
+         csInstall
          break
       case "again"
          csLoadList
@@ -1523,6 +2139,24 @@ private command csGetCopy
    put false into sBusy
 end csGetCopy
 
+-- Install: the IDE asks, fetches, installs and tells
+-- (revIDECommunityLibraryInstall); the page then says it is installed
+private command csInstall
+   local tError
+   if sMode is not "libraries" or sState is not "list" or sPage is not an integer or sBusy is true then
+      exit csInstall
+   end if
+   put true into sBusy
+   try
+      revIDECommunityLibraryInstall sStacks[sPage], sSite
+   catch tError
+   end try
+   put false into sBusy
+   if the mode of me is not 0 then
+      csRender
+   end if
+end csInstall
+
 -- Goes to a stack of the list, by its number
 private command csGo pPage
    local tSaved
@@ -1560,24 +2194,33 @@ end csStep
 #
 
 private command csRender
-   local tSaved, tHtml, tEntry, tList
+   local tSaved, tHtml, tEntry, tList, tLibraries
    put the defaultStack into tSaved
    set the defaultStack to the short name of me
    lock screen
    put sState is "list" and sPage is an integer and sStacks[sPage] is an array into tList
+   put sMode is "libraries" into tLibraries
    if tList then
       put sStacks[sPage] into tEntry
       put tEntry["title"] into field "hdrTitle"
       put csTagLine(tEntry) into field "hdrTag"
-      put csEntryHtml(tEntry) into tHtml
+      if tLibraries then
+         put csLibraryHtml(tEntry) into tHtml
+      else
+         put csEntryHtml(tEntry) into tHtml
+      end if
    else if sState is "loading" then
       put "Community Stacks" into field "hdrTitle"
-      put "Asking the gallery for its list of stacks" into field "hdrTag"
+      put "Asking the gallery for its list of" && csNoun(2) into field "hdrTag"
       put "<p>One moment.</p>" into tHtml
    else if sState is "problem" then
       put "Community Stacks" into field "hdrTitle"
-      put "The list of stacks is not shown" into field "hdrTag"
+      put "The list of" && csNoun(2) && "is not shown" into field "hdrTag"
       put csProblemHtml() into tHtml
+   else if tLibraries then
+      put "Community Stacks" into field "hdrTitle"
+      put "The gallery has no libraries yet" into field "hdrTag"
+      put "<p>When somebody shares a script library, it is listed here, ready to install. The gallery's page Share a Library says how to share one of yours.</p>" into tHtml
    else
       put "Community Stacks" into field "hdrTitle"
       put "The gallery has no stacks yet" into field "hdrTag"
@@ -1589,10 +2232,19 @@ private command csRender
    lkEllipsize the long id of field "hdrTitle"
    lkEllipsize the long id of field "hdrTag"
    -- The buttons that fit what is shown
-   set the visible of group "play" to tList and tEntry["play"] is not empty
-   set the visible of group "scripts" to tList and tEntry["source"] is not empty
-   set the visible of group "copy" to tList
+   set the visible of group "play" to tList and not tLibraries and tEntry["play"] is not empty
+   set the visible of group "scripts" to tList and not tLibraries and tEntry["source"] is not empty
+   set the visible of group "copy" to tList and not tLibraries
+   set the visible of group "demo" to tList and tLibraries and tEntry["play"] is not empty
+   set the visible of group "script" to tList and tLibraries and tEntry["source"] is not empty
+   set the visible of group "install" to tList and tLibraries
    set the visible of group "again" to sState is "problem"
+   if tList and tLibraries and tEntry["play"] is empty then
+      set the left of group "script" to kSide + kPad - 8
+   else
+      set the left of group "script" to the right of group "demo" + 10
+   end if
+   lkRestAt "script"
    if tList and tEntry["play"] is empty then
       set the left of group "scripts" to kSide + kPad - 8
    else
@@ -1653,6 +2305,137 @@ private function csEntryHtml pEntry
    return tHtml
 end csEntryHtml
 
+-- What a library reaches for, a line each: the words, a tab and what
+-- they mean, as the gallery's page for it says them (LIBRARY_BADGES and
+-- library_page in tools/build_site.py there). pEntry is a library of the
+-- list.
+function revCommunityLibrariesUsesWords pEntry
+   local tLine, tOut, tMessages, tCount
+   repeat for each line tLine in pEntry["uses"]
+      switch tLine
+         case "internet"
+            put "Uses the internet" & tab & "It gets or sends information over the internet." & return after tOut
+            break
+         case "files"
+            put "Opens or saves files" & tab & "It reads or writes files on this computer." & return after tOut
+            break
+         case "javascript"
+            put "Runs JavaScript" & tab & "It runs JavaScript in a page of its own." & return after tOut
+            break
+         default
+            put "Uses" && tLine & tab & "The gallery's checker marked it with this word." & return after tOut
+      end switch
+   end repeat
+   if pEntry["messages"] is not empty then
+      put 0 into tCount
+      repeat for each line tLine in pEntry["messages"]
+         add 1 to tCount
+         if tCount > 20 then
+            exit repeat
+         end if
+         put tLine & ", " after tMessages
+      end repeat
+      delete char -2 to -1 of tMessages
+      put "Listens to every stack" & tab & "It handles messages that the engine sends (" & tMessages & \
+            "), and gets them from every stack while it is installed." & return after tOut
+   end if
+   repeat for each line tLine in pEntry["notes"]
+      if tLine is among the items of "do,send,value,set-script,could-fetch-script" then
+         put "Builds script as it runs" & tab & "The checker cannot follow script that is put together while a program runs, so these words may say less than the library does." & return after tOut
+         exit repeat
+      end if
+   end repeat
+   delete the last char of tOut
+   return tOut
+end revCommunityLibrariesUsesWords
+
+-- The version of the library named pName that is installed in this IDE,
+-- or empty
+private function csInstalledVersion pName
+   local tStatus, tVersion, tError
+   try
+      put revIDEExtensionProperty(pName, "status") into tStatus
+      put revIDEExtensionProperty(pName, "version") into tVersion
+   catch tError
+      return empty
+   end try
+   if tStatus is "installed" then
+      return tVersion
+   end if
+   return empty
+end csInstalledVersion
+
+-- The page of a library: what it does, what it gives a stack, what it
+-- reaches for, and what installing it means
+private function csLibraryHtml pEntry
+   local tHtml, tLine, tInk, tSoft, tUses, tTags, tTag, tCount, tInstalled
+   put lkHex(lkColor("ink")) into tInk
+   put lkHex(lkColor("muted")) into tSoft
+   put "<p><font size=" & quote & "16" & quote & " color=" & quote & tInk & quote & ">" & lkEscape(pEntry["description"]) & "</font></p>" into tHtml
+   put csInstalledVersion(pEntry["name"]) into tInstalled
+   if tInstalled is not empty then
+      put "<p></p>" after tHtml
+      if tInstalled is pEntry["version"] then
+         put "<p><font color=" & quote & tInk & quote & "><b>Installed.</b></font> Its commands and functions are ready for your stacks. The Extension Manager lists it, and uninstalls it.</p>" after tHtml
+      else
+         put "<p><font color=" & quote & tInk & quote & "><b>Version " & lkEscape(tInstalled) & " is installed.</b></font> Install puts this version in its place.</p>" after tHtml
+      end if
+   end if
+   put "<p></p>" after tHtml
+   put "<p><font color=" & quote & tInk & quote & "><b>What it gives your stacks</b></font></p>" after tHtml
+   put 0 into tCount
+   set the itemDelimiter to tab
+   repeat for each line tLine in pEntry["handlers"]
+      add 1 to tCount
+      if tCount > 40 then
+         exit repeat
+      end if
+      put "<p>" & numToCodepoint(0x2022) && "<font color=" & quote & tInk & quote & ">" & lkEscape(item 2 of tLine) & "</font></p>" after tHtml
+   end repeat
+   set the itemDelimiter to comma
+   if the number of lines of pEntry["handlers"] > 40 then
+      put "<p>And" && the number of lines of pEntry["handlers"] - 40 && "more. Read Its Script shows them all.</p>" after tHtml
+   end if
+   put "<p></p>" after tHtml
+   put "<p><font color=" & quote & tInk & quote & "><b>What it reaches for</b></font></p>" after tHtml
+   put revCommunityLibrariesUsesWords(pEntry) into tUses
+   if tUses is empty then
+      put "<p>The gallery's checker found no internet and no files in it.</p>" after tHtml
+   else
+      set the itemDelimiter to tab
+      repeat for each line tLine in tUses
+         put "<p>" & numToCodepoint(0x2022) && "<font color=" & quote & tInk & quote & ">" & lkEscape(item 1 of tLine) & ".</font>" && \
+               lkEscape(item 2 of tLine) & "</p>" after tHtml
+      end repeat
+      set the itemDelimiter to comma
+   end if
+   put "<p></p>" after tHtml
+   put "<p><font color=" & quote & tInk & quote & "><b>Installing it</b></font></p>" after tHtml
+   put "<p>A library is not played: Install adds it to OXT-Beyond, as the Extension Manager adds any extension, and it loads each time OXT-Beyond starts. Its commands and functions are then there for every stack you open.</p>" after tHtml
+   put "<p>It runs on this computer as your own scripts do, with no box around it. The gallery's checker and a person read every line of it before it was listed, and Read Its Script shows them to you. Install libraries only from people you trust.</p>" after tHtml
+   if pEntry["play"] is not empty then
+      put "<p>Try the Demo plays a stack that uses it, on the gallery's site, in a box that keeps it away from your computer.</p>" after tHtml
+   end if
+   if pEntry["lines"] is not empty or pEntry["tags"] is not empty then
+      put "<p></p>" after tHtml
+   end if
+   if pEntry["lines"] is not empty then
+      if pEntry["lines"] is 1 then
+         put "<p><font color=" & quote & tSoft & quote & ">1 line of script</font></p>" after tHtml
+      else
+         put "<p><font color=" & quote & tSoft & quote & ">" & pEntry["lines"] && "lines of script</font></p>" after tHtml
+      end if
+   end if
+   if pEntry["tags"] is not empty then
+      repeat for each line tTag in pEntry["tags"]
+         put tTag & ", " after tTags
+      end repeat
+      delete char -2 to -1 of tTags
+      put "<p><font color=" & quote & tSoft & quote & ">Found by: " & lkEscape(tTags) & "</font></p>" after tHtml
+   end if
+   return tHtml
+end csLibraryHtml
+
 -- Why there is no list, and what to do
 private function csProblemHtml
    local tHtml, tInk
@@ -1663,6 +2446,10 @@ private function csProblemHtml
       put "<p>Nothing is wrong on your side. The gallery signs its list so that this window can tell the real list from a copy somebody changed, and the list at its address has no signature yet.</p>" after tHtml
       put "<p></p>" after tHtml
    end if
-   put "<p>Every stack of the gallery can still be played in your browser: press Open the Gallery.</p>" after tHtml
+   if sMode is "libraries" then
+      put "<p>Every library of the gallery can still be read on its site: press Open the Gallery.</p>" after tHtml
+   else
+      put "<p>Every stack of the gallery can still be played in your browser: press Open the Gallery.</p>" after tHtml
+   end if
    return tHtml
 end csProblemHtml
