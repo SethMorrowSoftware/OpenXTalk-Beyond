@@ -69,7 +69,13 @@ def read(path):
 
 
 def node_path():
-    root = subprocess.run(['npm', 'root', '-g'], capture_output=True, text=True).stdout.strip() if shutil.which('npm') else ''
+    # (the resolved path: on Windows npm is npm.cmd, which a bare 'npm' does not find)
+    npm = shutil.which('npm')
+    try:
+        root = subprocess.run([npm, 'root', '-g'], capture_output=True, text=True,
+                              timeout=60).stdout.strip() if npm else ''
+    except (OSError, subprocess.SubprocessError):
+        root = ''
     return os.pathsep.join(p for p in (os.environ.get('NODE_PATH', ''), root) if p)
 
 

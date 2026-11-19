@@ -32,6 +32,7 @@ the ones on the page's text run everywhere.
 
 import json
 import os
+import pathlib
 import shutil
 import subprocess
 import sys
@@ -155,7 +156,7 @@ class Page(unittest.TestCase):
         script = os.path.join(self.work, 'shown.js')
         with open(script, 'w', encoding='utf-8') as f:
             f.write(SHOWN)
-        url = 'file://' + os.path.join(self.out, 'index.html')
+        url = pathlib.Path(self.out, 'index.html').as_uri()
         addresses = ['', '#put', '?entry=answer', '#PUT', '?entry=date&type=keyword',
                      '?entry=date&type=function', '#the%20date', '?entry=the+date',
                      '?entry=absoperator&api=builder', '#zzz', '#%E0%A4%A']
@@ -190,7 +191,13 @@ class Page(unittest.TestCase):
     @staticmethod
     def node_path():
         # the pre-installed playwright is global to node
-        root = subprocess.run(['npm', 'root', '-g'], capture_output=True, text=True).stdout.strip()
+        # (the resolved path: on Windows npm is npm.cmd, which a bare 'npm' does not find)
+        npm = shutil.which('npm')
+        try:
+            root = subprocess.run([npm, 'root', '-g'], capture_output=True, text=True,
+                                  timeout=60).stdout.strip() if npm else ''
+        except (OSError, subprocess.SubprocessError):
+            root = ''
         return os.pathsep.join(p for p in (os.environ.get('NODE_PATH', ''), root) if p)
 
 
