@@ -117,6 +117,53 @@ FOLLOW_SYSTEM = (
 DARK_SHEET = 'css/oxt-dark.css'
 
 
+# The online page opens at a word (seth, 2026-11-19, for the forum's
+# [dict]put[/dict] tag): dictionary/#put, or dictionary/?entry=put, opens
+# the xTalk Script entry named put, as the IDE's palette opens one through
+# the template's goEntryName holes; ?type=command picks among entries of
+# one name, and #/?entry= names an xTalk Builder one with api=builder. A
+# name that is no entry's lists the entries that have it in them, as the
+# palette does. It is put in here and not in the template, so the IDE's
+# page is the page it was, and it runs after the template's own ready
+# handler (jQuery runs them in order), so the page is drawn first. A new
+# #word in the address, as a link on the page itself makes, opens that
+# word too; an empty one (the viewer's own href="#" links) is let be.
+# The viewer draws an entry only when it is not the one it has selected
+# (displayEntryAtIndex), and it keeps that across loads ($.session), so the
+# script forgets the selection first: else a reader whose last entry was
+# put, or whose word is the list's first, would see no entry at all.
+DEEP_LINK_MARK = 'oxt-deep-link'
+DEEP_LINK = (
+    '<!-- OXT-Beyond (%s): the online Dictionary opens at the word in its address -->\n'
+    '\t<script>(function () {\n'
+    '\t\tfunction asked(name) {\n'
+    '\t\t\tvar m = new RegExp("[?&]" + name + "=([^&#]*)").exec(window.location.search);\n'
+    '\t\t\treturn m ? m[1] : "";\n'
+    '\t\t}\n'
+    '\t\tfunction plain(text) {\n'
+    '\t\t\ttry { text = decodeURIComponent(text.replace(/\\+/g, " ")); } catch (e) { return ""; }\n'
+    '\t\t\treturn text.replace(/^\\s+|\\s+$/g, "").slice(0, 100);\n'
+    '\t\t}\n'
+    '\t\tfunction word() {\n'
+    '\t\t\tvar hash = window.location.hash.replace(/^#/, "");\n'
+    '\t\t\treturn plain(hash || asked("entry"));\n'
+    '\t\t}\n'
+    '\t\tfunction open() {\n'
+    '\t\t\tvar name = word();\n'
+    '\t\t\tif (name == "" || typeof goEntryName !== "function") return;\n'
+    '\t\t\tvar api = plain(asked("api")).toLowerCase() == "builder" ? "livecode_builder" : "livecode_script";\n'
+    '\t\t\tvar type = plain(asked("type")).toLowerCase().replace(/[^a-z ]/g, "");\n'
+    '\t\t\tif (typeof tState === "object" && tState.selected_entry_index)\n'
+    '\t\t\t\ttState.selected_entry_index[tState.selected_api_id] = -1;\n'
+    '\t\t\tgoEntryName(api, name, type);\n'
+    '\t\t}\n'
+    '\t\tif (window.jQuery) {\n'
+    '\t\t\tjQuery(open);\n'
+    '\t\t\tjQuery(window).on("hashchange", open);\n'
+    '\t\t}\n'
+    '\t})();</script>\n' % DEEP_LINK_MARK)
+
+
 class DictionaryError(Exception):
     pass
 
@@ -138,7 +185,7 @@ def page_text(template):
     if left:
         raise DictionaryError('api.html.template has holes this page does not fill: %s'
                               % ', '.join(sorted(set(left))))
-    return follows_the_system(text)
+    return opens_at_a_word(follows_the_system(text))
 
 
 def follows_the_system(page):
@@ -151,6 +198,14 @@ def follows_the_system(page):
     if page.count('</head>') != 1:
         raise DictionaryError('api.html.template has no single </head>')
     return page.replace('</head>', '\t' + FOLLOW_SYSTEM + '</head>', 1)
+
+
+def opens_at_a_word(page):
+    """The page with DEEP_LINK before its </body>, after the template's
+    own scripts, so that it runs once the page is drawn."""
+    if page.count('</body>') != 1:
+        raise DictionaryError('api.html.template has no single </body>')
+    return page.replace('</body>', '\t' + DEEP_LINK + '</body>', 1)
 
 
 def _js_texts(folder):
