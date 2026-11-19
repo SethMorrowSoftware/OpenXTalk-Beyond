@@ -1466,18 +1466,39 @@ def xtalk_records(manifest, ext_dir):
     return lines + ['permission\t%s' % p for p in permissions]
 
 
-def read_xtalk_list(path):
-    """The keys the probe says each record by (an extension's id, a
-    permission's name), from a file xtalk_records wrote."""
+def read_xtalk_list(path, kind='extension'):
+    """The second item of each record of a kind in a file xtalk_records
+    wrote: for 'extension' the ids the probe says its answers by (none is
+    an error: the probe would pass with nothing tried), for 'permission'
+    the permissions the package must hold."""
     keys = []
     with open(path, encoding='utf-8') as f:
         for line in f.read().splitlines():
             items = line.split('\t')
-            if items[0] in ('extension', 'permission') and len(items) > 1:
+            if items[0] == kind and len(items) > 1:
                 keys.append(items[1])
-    if not keys:
+    if not keys and kind == 'extension':
         raise CheckError('%s lists nothing to probe' % path)
     return keys
+
+
+def xtalk_permission_problems(package_dump, names):
+    """The permissions (names without android.permission.) that dumpsys
+    package does not say the probe's package holds (granted=true). Not the
+    probe's androidHasPermission: the engine throws "bad permission name"
+    for one Android lists in no permission group, as INTERNET is on
+    Android 10 and newer (Engine.java, checkPermissionExists), and its
+    value is then empty, whether or not the app holds it (run 44453086812
+    on Android 13)."""
+    problems = []
+    for name in names:
+        granted = permission_granted(package_dump, 'android.permission.' + name)
+        if granted is None:
+            problems.append('the package does not ask for android.permission.%s, which an xTalk Suite '
+                            'extension declares' % name)
+        elif not granted:
+            problems.append('the package asks for android.permission.%s and does not hold it' % name)
+    return problems
 
 
 def xtalk_said_problems(said, keys):
@@ -3258,6 +3279,13 @@ def device_once(args):
         with open(XTALK_MANIFEST, encoding='utf-8') as f:
             problems.extend(xtalk_package_problems(names, json.load(f)))
         problems.extend(xtalk_said_problems(said, read_xtalk_list(args.xtalk)))
+        wanted = read_xtalk_list(args.xtalk, 'permission')
+        if wanted:
+            _, package_dump = a('shell', 'dumpsys', 'package', IDENTIFIER)
+            held = xtalk_permission_problems(package_dump, wanted)
+            log('The xTalk Suite\'s permissions: %s' % ('; '.join(held) if held else
+                                                       'the package holds %s' % ', '.join(wanted)))
+            problems.extend(held)
     if args.within_bars and green:
         # the stack inside the system bars: the screen's first and last
         # rows are not its green (Android 15 and newer draw an app that

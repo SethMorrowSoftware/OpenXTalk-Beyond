@@ -142,26 +142,65 @@ class Records(unittest.TestCase):
             path = os.path.join(work, ac.XTALK_LIST)
             with open(path, 'w', encoding='utf-8') as f:
                 f.write('extension\torg.x.foo\tfooVersion()\t^foo\npermission\tINTERNET\n')
-            self.assertEqual(ac.read_xtalk_list(path), ['org.x.foo', 'INTERNET'])
+            # the probe says only the extensions; the permissions are
+            # asked of the package manager
+            self.assertEqual(ac.read_xtalk_list(path), ['org.x.foo'])
+            self.assertEqual(ac.read_xtalk_list(path, 'permission'), ['INTERNET'])
             with open(path, 'w', encoding='utf-8') as f:
-                f.write('\n')
+                f.write('permission\tINTERNET\n')
             with self.assertRaisesRegex(ac.CheckError, 'lists nothing to probe'):
                 ac.read_xtalk_list(path)
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write('extension\torg.x.foo\tfooVersion()\t^foo\n')
+            self.assertEqual(ac.read_xtalk_list(path, 'permission'), [])
+
+
+class Permissions(unittest.TestCase):
+    # dumpsys package of the probe on Android 13, cut to the part that
+    # matters (the form test_android_check's dialog tests use)
+    DUMP = ('    requested permissions:\n'
+            '      android.permission.INTERNET\n'
+            '      android.permission.CAMERA\n'
+            '    install permissions:\n'
+            '      android.permission.INTERNET: granted=true\n'
+            '    User 0: ceDataInode=1 installed=true\n'
+            '      runtime permissions:\n'
+            '        android.permission.CAMERA: granted=false, flags=[ USER_SENSITIVE_WHEN_GRANTED ]\n')
+
+    def test_held(self):
+        self.assertEqual(ac.xtalk_permission_problems(self.DUMP, ['INTERNET']), [])
+
+    def test_asked_for_and_not_held(self):
+        self.assertEqual(ac.xtalk_permission_problems(self.DUMP, ['CAMERA']),
+                         ['the package asks for android.permission.CAMERA and does not hold it'])
+
+    def test_not_in_the_manifest(self):
+        self.assertEqual(ac.xtalk_permission_problems(self.DUMP, ['BLUETOOTH']),
+                         ['the package does not ask for android.permission.BLUETOOTH, which an xTalk Suite '
+                          'extension declares'])
+
+    def test_device_asks_the_package_manager(self):
+        source = read('tools', 'ci', 'android_check.py')
+        part = source[source.index("    if getattr(args, 'xtalk', None):\n        # the xTalk"):]
+        part = part[:part.index('    if args.within_bars and green:')]
+        self.assertIn("read_xtalk_list(args.xtalk, 'permission')", part)
+        self.assertIn("a('shell', 'dumpsys', 'package', IDENTIFIER)", part)
+        self.assertIn('xtalk_permission_problems(package_dump, wanted)', part)
 
 
 class Said(unittest.TestCase):
-    KEYS = ['org.x.foo', 'org.x.bar', 'INTERNET']
+    KEYS = ['org.x.foo', 'org.x.bar', 'org.x.baz']
 
     def test_all_ok(self):
-        said = ['xtalk org.x.foo ok: foo 1.0', 'xtalk org.x.bar ok: 32', 'xtalk INTERNET ok: true']
+        said = ['xtalk org.x.foo ok: foo 1.0', 'xtalk org.x.bar ok: 32', 'xtalk org.x.baz ok: true']
         self.assertEqual(ac.xtalk_said_problems(said, self.KEYS), [])
 
     def test_each_failure_is_named(self):
-        said = ['xtalk org.x.foo threw: 219,0,0', 'xtalk INTERNET unexpected: false', 'something else']
+        said = ['xtalk org.x.foo threw: 219,0,0', 'xtalk org.x.baz unexpected: false', 'something else']
         self.assertEqual(ac.xtalk_said_problems(said, self.KEYS), [
             'the xTalk probe: org.x.foo threw: 219,0,0',
             'the xTalk probe said nothing of org.x.bar',
-            'the xTalk probe: INTERNET unexpected: false'])
+            'the xTalk probe: org.x.baz unexpected: false'])
 
     def test_a_key_that_starts_another(self):
         # org.x.foo's line is not org.x.fo's
@@ -297,7 +336,10 @@ class Script(unittest.TestCase):
     def test_fail_colour_when_any_record_fails(self):
         calls = self.body('function', 'xtalkCalls')
         self.assertIn('"   xtalkProbe"', calls)
-        self.assertIn('"   xtalkPermission"', calls)
+        # a permission record is skipped: device --xtalk asks the package
+        # manager (androidHasPermission is empty for INTERNET)
+        self.assertIn('if item 1 of tLine is not "extension" then next repeat', calls)
+        self.assertNotIn('xtalkPermission', self.script)
         self.assertIn('"   if the result is not empty then put true into tFailed"', calls)
         self.assertIn('quote & kFailColor & quote', calls)
         # before the green: openStack's green follows the calls
@@ -312,7 +354,7 @@ class Script(unittest.TestCase):
         # the smoke test is evaluated inside a try, so a library that does
         # not load is a said failure and not the end of the probe
         self.assertLess(handlers.index('"   try"'), handlers.index('"      do"'))
-        self.assertIn('androidHasPermission(', handlers)
+        self.assertNotIn('androidHasPermission(', handlers)
 
     def test_no_extension_is_an_error(self):
         records = self.body('function', 'xtalkRecords')

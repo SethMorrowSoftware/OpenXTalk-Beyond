@@ -197,10 +197,15 @@ constant kProbePicture = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQV
 --    permission <name>    a permission an extension declares
 --                         (metadata android.permissions), which the
 --                         builder must have put in the manifest
--- It says each answer in the device's log (kXtalkSays, then the id or the
--- permission, then "ok:", "unexpected:" or "threw:" and what it got;
+-- It says each extension's answer in the device's log (kXtalkSays, then
+-- the id, then "ok:", "unexpected:" or "threw:" and what it got;
 -- android_check.py device --xtalk reads them) and turns kFailColor when
--- any is not ok, green otherwise.
+-- any is not ok, green otherwise. A permission is not the probe's to
+-- ask: androidHasPermission throws "bad permission name" (and the value
+-- is empty) for one Android lists in no permission group, as INTERNET
+-- is on Android 10 and newer (Engine.java, checkPermissionExists), so
+-- device --xtalk asks the package manager (dumpsys package) that the
+-- app holds it.
 constant kXtalkSays = "OXT-Beyond probe: xtalk"
 constant kProbeCopyName = "oxt-probe.txt"
 constant kProbeCopy = "OXT-Beyond probe copy file"
@@ -1150,7 +1155,7 @@ private function probeScript
             "   end if" & return after tScript
    end if
    if probeName() is "AndroidXtalkProbe" then
-      -- each extension's smoke test and each permission (see kXtalkSays)
+      -- each extension's smoke test (see kXtalkSays)
       put xtalkCalls() after tScript
    end if
    put "   set the backgroundColor of me to" && quote & kRunColor & quote & return after tScript
@@ -1231,20 +1236,17 @@ private function scriptLiteral pText
    return quote & pText & quote
 end scriptLiteral
 
--- The xTalk Suite's probe's openStack lines: a call of xtalkProbe or
--- xtalkPermission for each record, and kFailColor when any answered
--- something
+-- The xTalk Suite's probe's openStack lines: a call of xtalkProbe for
+-- each extension record (a permission record is device --xtalk's: see
+-- kXtalkSays), and kFailColor when any answered something
 private function xtalkCalls
    local tScript, tLine
    put "   local tFailed" & return & "   put false into tFailed" & return into tScript
    set the itemDelimiter to tab
    repeat for each line tLine in xtalkRecords()
-      if item 1 of tLine is "extension" then
-         put "   xtalkProbe" && scriptLiteral(item 2 of tLine) & comma && scriptLiteral(item 3 of tLine) & \
-               comma && scriptLiteral(item 4 of tLine) & return after tScript
-      else
-         put "   xtalkPermission" && scriptLiteral(item 2 of tLine) & return after tScript
-      end if
+      if item 1 of tLine is not "extension" then next repeat
+      put "   xtalkProbe" && scriptLiteral(item 2 of tLine) & comma && scriptLiteral(item 3 of tLine) & \
+            comma && scriptLiteral(item 4 of tLine) & return after tScript
       put "   if the result is not empty then put true into tFailed" & return after tScript
    end repeat
    put "   if tFailed then" & return & \
@@ -1255,8 +1257,7 @@ private function xtalkCalls
 end xtalkCalls
 
 -- The xTalk Suite's probe's own handlers: xtalkProbe evaluates a smoke
--- test (a library that does not load throws) and matches its value;
--- xtalkPermission asks Android whether the app holds a permission. Each
+-- test (a library that does not load throws) and matches its value. It
 -- says what it got (see kXtalkSays) and returns empty when it is ok
 private function xtalkHandlers
    return "command xtalkProbe pId, pProbe, pExpect" & return & \
@@ -1275,17 +1276,7 @@ private function xtalkHandlers
          "   put" && quote & kXtalkSays & quote && "&& pId &&" && quote & "unexpected:" & quote && \
          "&& tValue" & return & \
          "   return" && quote & "unexpected" & quote & return & \
-         "end xtalkProbe" & return & \
-         "command xtalkPermission pName" & return & \
-         "   local tHas" & return & \
-         "   put androidHasPermission(" & quote & "android.permission." & quote && "& pName) into tHas" & return & \
-         "   if tHas is true then" & return & \
-         "      put" && quote & kXtalkSays & quote && "&& pName &&" && quote & "ok:" & quote && "&& tHas" & return & \
-         "      return empty" & return & \
-         "   end if" & return & \
-         "   put" && quote & kXtalkSays & quote && "&& pName &&" && quote & "unexpected:" & quote && "&& tHas" & return & \
-         "   return" && quote & "unexpected" & quote & return & \
-         "end xtalkPermission"
+         "end xtalkProbe"
 end xtalkHandlers
 
 private command makeProbeStack
