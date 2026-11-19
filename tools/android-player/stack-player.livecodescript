@@ -345,9 +345,12 @@ function playerLibrary
       if tFolder begins with "." then
          next repeat
       end if
-      put files(tLibrary & slash & tFolder, "detailed") into tFiles
+      -- "detailed-utf8", because "detailed" turns a name to the native
+      -- encoding first and loses what that has no letter for (a name in
+      -- Greek, an emoji), so that the path made from it opens nothing
+      put files(tLibrary & slash & tFolder, "detailed-utf8") into tFiles
       repeat for each line tEntry in tFiles
-         put urlDecode(item 1 of tEntry) into tName
+         put textDecode(urlDecode(item 1 of tEntry), "UTF-8") into tName
          if playerIsStackName(tName) then
             put item 5 of tEntry into tSeconds
             put tSeconds & tab & tLibrary & slash & tFolder & slash & tName & return after tList
@@ -411,6 +414,33 @@ function playerShortPath pFile
    return item -1 of pFile
 end playerShortPath
 
+-- The path a file address names: each %XX its byte, the bytes UTF-8, as
+-- an address is written (RFC 3986 and 3629). Not urlDecode, which reads
+-- a form: it makes a "+" a space, and each byte a native letter, so that
+-- "A+B.oxtstack" and every name in Greek would name another file. A "%"
+-- that two hex digits do not follow is itself
+function playerAddressPath pAddress
+   local tBytes, tPiece, tFirst
+   set the itemDelimiter to "%"
+   put true into tFirst
+   repeat for each item tPiece in pAddress
+      if tFirst then
+         put false into tFirst
+         put textEncode(tPiece, "UTF-8") after tBytes
+      else if matchText(char 1 to 2 of tPiece, "^[0-9A-Fa-f]{2}$") then
+         put numToByte(baseConvert(char 1 to 2 of tPiece, 16, 10)) after tBytes
+         put textEncode(char 3 to -1 of tPiece, "UTF-8") after tBytes
+      else
+         put textEncode("%" & tPiece, "UTF-8") after tBytes
+      end if
+   end repeat
+   -- an item after a last "%" is empty and so not walked
+   if the last char of pAddress is "%" then
+      put textEncode("%", "UTF-8") after tBytes
+   end if
+   return textDecode(tBytes, "UTF-8")
+end playerAddressPath
+
 -- Copies the file at an address (content://, file:// or a path) into the
 -- library and returns the copy's path: in a new folder of its own, or,
 -- when the library has that very file already (the same name and the
@@ -424,7 +454,7 @@ function playerImport pAddress
    else
       put pAddress into tSource
       if tSource begins with "file://" then
-         put urlDecode(char 8 to -1 of tSource) into tSource
+         put playerAddressPath(char 8 to -1 of tSource) into tSource
       end if
       put playerSafeName(tSource) into tName
    end if

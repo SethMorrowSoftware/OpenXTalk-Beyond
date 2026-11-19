@@ -168,6 +168,24 @@ on TestSafeNames
    TestAssert "and keeps its ending", tSafe ends with ".oxtstack"
 end TestSafeNames
 
+-- A file address as Android writes one (Uri.fromFile): each byte of the
+-- path's UTF-8 that is not a letter, a digit, one of -_.~ or a slash as
+-- %XX; a space is %20, never the "+" of urlEncode
+private function fileAddress pPath
+   local tBytes, tByte, tCode, tAddress
+   put textEncode(pPath, "UTF-8") into tBytes
+   repeat for each byte tByte in tBytes
+      put byteToNum(tByte) into tCode
+      if (tCode >= 48 and tCode <= 57) or (tCode >= 65 and tCode <= 90) or (tCode >= 97 and tCode <= 122) \
+            or tCode is among the items of "45,46,47,95,126" then
+         put numToChar(tCode) after tAddress
+      else
+         put "%" & char -2 to -1 of ("0" & baseConvert(tCode, 10, 16)) after tAddress
+      end if
+   end repeat
+   return "file://" & tAddress
+end fileAddress
+
 on TestAFileIsTakenIntoTheLibrary
    local tSource, tCopy, tAgain, tOther
    put makeSample("Sample One", "Sample One.oxtstack", empty) into tSource
@@ -175,7 +193,7 @@ on TestAFileIsTakenIntoTheLibrary
    TestAssert "the copy is in a folder of its own in the library", \
          tCopy is sWork & "/library/Sample One/Sample One.oxtstack"
    TestAssert "and is the file", url ("binfile:" & tCopy) is url ("binfile:" & tSource)
-   put fromPlayer("playerImport", "file://" & urlEncode(tSource)) into tAgain
+   put fromPlayer("playerImport", fileAddress(tSource)) into tAgain
    TestAssert "the same file again, by a file address too, is the copy that is there", tAgain is tCopy
    TestAssert "the library lists it once", the number of lines in fromPlayer("playerLibrary") is 1
    -- another file of that name
@@ -186,6 +204,46 @@ on TestAFileIsTakenIntoTheLibrary
    TestAssert "the library lists both", the number of lines in fromPlayer("playerLibrary") is 2
    TestAssert "nothing is left where files arrive", files(sWork & "/library/.incoming") is empty
 end TestAFileIsTakenIntoTheLibrary
+
+-- A name the native encoding has no letters for: Greek, and an emoji
+private function farName
+   return numToCodepoint(0x3A3) & numToCodepoint(0x3C4) & numToCodepoint(0x3B1) & numToCodepoint(0x3BA) & \
+         " " & numToCodepoint(0x1F60A)
+end farName
+
+on TestAFarNameStaysWhole
+   local tSource, tCopy, tAgain
+   put makeSample("Sample One", farName() & ".oxtstack", empty) into tSource
+   put fromPlayer("playerImport", fileAddress(tSource)) into tCopy
+   TestAssert "a file address with such a name finds its file", \
+         tCopy is sWork & "/library/" & farName() & "/" & farName() & ".oxtstack"
+   TestAssert "the library lists it by its own path", fromPlayer("playerLibrary") is tCopy
+   TestAssert "and that path is the file", there is a file (line 1 of fromPlayer("playerLibrary"))
+   put fromPlayer("playerImport", fileAddress(tSource)) into tAgain
+   TestAssert "given again, it is the copy that is there", tAgain is tCopy
+   TestAssert "and the library still lists it once", the number of lines in fromPlayer("playerLibrary") is 1
+end TestAFarNameStaysWhole
+
+on TestAPlusInAnAddressIsAPlus
+   local tPlus, tSpace, tCopy
+   put makeSample("Sample One", "A+B.oxtstack", empty) into tPlus
+   put makeSample("Sample Two", "A B.oxtstack", empty) into tSpace
+   put fromPlayer("playerImport", "file://" & tPlus) into tCopy
+   TestAssert "a + written as it is names the file with a +", tCopy ends with "/A+B.oxtstack"
+   put fromPlayer("playerImport", "file://" & replaceText(tSpace, " ", "%20")) into tCopy
+   TestAssert "and %20 the file with a space", tCopy ends with "/A B.oxtstack"
+end TestAPlusInAnAddressIsAPlus
+
+on TestAddressPaths
+   TestAssert "%2B is a +", fromPlayer("playerAddressPath", "/a/A%2BB") is "/a/A+B"
+   TestAssert "a + is a +", fromPlayer("playerAddressPath", "/a/A+B") is "/a/A+B"
+   TestAssert "the bytes are UTF-8", \
+         fromPlayer("playerAddressPath", "/a/%CE%A3%F0%9F%98%8A") is "/a/" & numToCodepoint(0x3A3) & numToCodepoint(0x1F60A)
+   TestAssert "a letter written as it is stays", \
+         fromPlayer("playerAddressPath", "/a/" & numToCodepoint(0x3A3)) is "/a/" & numToCodepoint(0x3A3)
+   TestAssert "a % with no two hex digits is itself", fromPlayer("playerAddressPath", "/a/100%_b%") is "/a/100%_b%"
+   TestAssert "%% is two of them", fromPlayer("playerAddressPath", "%%41") is "%A"
+end TestAddressPaths
 
 on ImportAPicture
    put "not a stack" into url ("binfile:" & sWork & "/picture.png")
