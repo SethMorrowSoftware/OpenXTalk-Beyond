@@ -134,9 +134,10 @@ on TestTheControlsAreMade
    TestAssert "the Open button", there is a button "Open" of stack kPlayer
    TestAssert "the back script's button, with its script", \
          the script of button "Player Back Script" of stack kPlayer contains "on backKey"
+   -- the stack's own size: on a phone the engine gives a stack the screen's
    TestAssert "the controls are inside the card", \
-         item 3 of the rect of button "Open" of stack kPlayer <= 360 and \
-         item 4 of the rect of field "Status" of stack kPlayer <= 640
+         item 3 of the rect of button "Open" of stack kPlayer <= the width of stack kPlayer and \
+         item 4 of the rect of field "Status" of stack kPlayer <= the height of stack kPlayer
 end TestTheControlsAreMade
 
 on TestStackNames
@@ -202,15 +203,27 @@ on TestWhatIsNoStackStaysOut
          there is not a folder (sWork & "/library") or fromPlayer("playerLibrary") is empty
 end TestWhatIsNoStackStaysOut
 
+-- A folder as the engine names it once it is the defaultFolder (Android
+-- names the app's own folder /data/data/... however it was reached)
+private function folderAsTheEngineSays pFolder
+   local tWas, tFolder
+   put the defaultFolder into tWas
+   set the defaultFolder to pFolder
+   put the defaultFolder into tFolder
+   set the defaultFolder to tWas
+   return tFolder
+end folderAsTheEngineSays
+
 on TestAStackPlaysAndIsLeft
-   local tCopy
+   local tCopy, tFolder
    put fromPlayer("playerImport", makeSample("Sample One", "Sample One.oxtstack", empty)) into tCopy
+   put folderAsTheEngineSays(sWork & "/library/Sample One") into tFolder
    dispatch "playerOpen" to stack kPlayer with tCopy
    TestAssert "the stack is open", "Sample One" is among the lines of the openStacks
    TestAssert "the player says which plays", fromPlayer("playerCurrent") is "Sample One"
    TestAssert "its openStack ran once", the cOpened of stack "Sample One" is 1
    TestAssert "with its folder as the defaultFolder", \
-         the cFolder of stack "Sample One" is sWork & "/library/Sample One"
+         the cFolder of stack "Sample One" is tFolder
    TestAssert "a stack that says nothing of the screen is shown whole", \
          the fullscreenMode of stack "Sample One" is "showAll"
    -- Android's Back, which the stack does not handle
