@@ -515,6 +515,28 @@ class EngineTests(unittest.TestCase):
         for layout in ('/org.openxtalk.box2dxt', '/Extensions/org.openxtalk.box2dxt', '/code'):
             self.assertIn(layout, tests)
 
+    def test_the_tests_load_this_platforms_library_only(self):
+        # Since the xTalk Suite carries its Android libraries (#572),
+        # Box2Dxt's code folder has x86_64-android/box2dxt.so beside
+        # x86_64-linux/box2dxt.so. Picked by the processor alone, the one the
+        # tests mapped hung on the order the file system listed the two, and
+        # a Linux engine cannot load the Android one: main's Linux build of
+        # fe235241d3 skipped every test of play, where 6bab00644b's ran them.
+        # The tests look only at this platform's folders, as the IDE does
+        # (revideextensionlibrary's __MapCodeLibraryForIDE).
+        tests = read('tests', 'lcs', 'webplayer', 'wobble-forts.livecodescript')
+        handler = re.search(r'^private command loadBox2D\b.*?^end loadBox2D', tests, re.S | re.M)
+        self.assertIsNotNone(handler)
+        loop = re.search(r'repeat for each line (\w+) in folders\(tFolder & "/code"\)\n(.*?)\n\s*end repeat',
+                         handler.group(0), re.S)
+        self.assertIsNotNone(loop)
+        name, body = loop.group(1), loop.group(2)
+        first = body.strip().splitlines()[0].strip()
+        self.assertEqual(first, 'if %s does not contain tPlatform then next repeat' % name, body)
+        for platform, part in (('MacOS', '"-mac"'), ('Win32', '"-win32"')):
+            self.assertRegex(handler.group(0), r'case "%s"\s*\n\s*put %s into tPlatform' % (platform, part))
+        self.assertIn('put "-" & toLower(the platform) into tPlatform', handler.group(0))
+
     def test_ci_runs_them_with_box2dxt(self):
         linux = read('.github', 'workflows', 'build-linux.yml')
         step = re.search(r"- name: Wobble Forts with Box2Dxt.*?(?=\n      #|\n      - name:)", linux, re.S)

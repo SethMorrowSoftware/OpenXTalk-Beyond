@@ -52,7 +52,7 @@ end TestTeardown
 -- tools/oxt/xtalk_extensions.py builds it), or one with the extension's
 -- folder in it, or an installed IDE's (its Extensions folder)
 private command loadBox2D
-   local tRoot, tFolder, tTry, tLib, tPick, tError
+   local tRoot, tFolder, tTry, tLib, tPick, tError, tPlatform
    try
       get b2Version()
       exit loadBox2D
@@ -87,7 +87,22 @@ private command loadBox2D
       -- code/<processor>-<platform>/ (x86_64-linux), or the one there is
       -- (universal-mac)
       -- (the mapping is only set: an engine without one throws on reading it)
+      -- Only this platform's folders, as the IDE maps them
+      -- (revideextensionlibrary's __MapCodeLibraryForIDE): Box2Dxt also
+      -- carries x86_64-android/box2dxt.so, which a Linux engine cannot load,
+      -- and which of the two was picked hung on the order of folders()
+      switch the platform
+         case "MacOS"
+            put "-mac" into tPlatform
+            break
+         case "Win32"
+            put "-win32" into tPlatform
+            break
+         default
+            put "-" & toLower(the platform) into tPlatform
+      end switch
       repeat for each line tTry in folders(tFolder & "/code")
+         if tTry does not contain tPlatform then next repeat
          if there is a file (tFolder & "/code/" & tTry & "/" & tLib) then
             if tPick is empty or (tTry begins with (the processor & "-")) then
                put tFolder & "/code/" & tTry & "/" & tLib into tPick
