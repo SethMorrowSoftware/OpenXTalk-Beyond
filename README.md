@@ -2075,6 +2075,10 @@ Known issues of this preview:
   armeabi-v7a) are in every package but have not run on a phone yet;
   the x86 and x86_64 ones ran on the emulators. A report from a phone
   is welcome.
+- On Android 15 and newer, a standalone may have the bottom of its
+  stack hidden under the navigation bar. This is not new: standalones
+  built with 0.2.7 and 0.2.8-dp.1 do the same. A fix is coming after
+  this preview.
 
 #### 0.2.8-dp.1: the first developer preview of 0.2.8
 
