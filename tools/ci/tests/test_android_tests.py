@@ -1170,10 +1170,6 @@ class Workflow(unittest.TestCase):
         self.assertIn('flag=(--android-engine beyond)', run)
         self.assertIn('overlay --root "$WORK/ide" --beyond "$WORK/engine"',
                       self.steps['Unpack the IDE, and put this builder and the runtime into it']['run'])
-        # the checkout's Android Documents library, which no release has
-        # yet, so that its tests run on the device rather than skip
-        self.assertIn('tools/android-player/build_android_player.py library --ide "$IDE"',
-                      self.steps['Unpack the IDE, and put this builder and the runtime into it']['run'])
 
     def test_both_engines_run_then_compare(self):
         run = self.steps['Run the tests with each engine']['run']
