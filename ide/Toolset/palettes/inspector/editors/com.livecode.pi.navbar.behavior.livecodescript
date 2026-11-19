@@ -1,6 +1,21 @@
 ﻿script "com.livecode.pi.navbar.behavior"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Seth Morrow (2026); its Git history and CHANGELOG.md say what changed.
+
+-- OXT-Beyond: the editor is a navigation bar in its edit mode, which draws
+-- a white sheet with black labels in either appearance, and each item's
+-- icon in the widget's foreground colour. The editor's widget had none of
+-- its own, so the icon took the Inspector's text colour: black in the
+-- light appearance and light in the dark one, where the icon could not be
+-- seen on the sheet on a Mac, and hardly on Linux (bwmilby, issue 568).
+-- The editor gives its widget the labels' black as its own colour. The
+-- highlighted icon beside it is drawn in the highlight colour, as before.
+constant kSheetInk = "0,0,0"
+
 on editorInitialize
    set the editMode of widget 1 of me to true
+   set the foregroundColor of widget 1 of me to kSheetInk
    set the editorMinWidth of me to 300
 end editorInitialize
 
