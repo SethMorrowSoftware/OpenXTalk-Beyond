@@ -140,16 +140,24 @@ on TestTheControlsAreMade
          item 4 of the rect of field "Status" of stack kPlayer <= the height of stack kPlayer
 end TestTheControlsAreMade
 
--- Android turns the screen: resizeStack comes to the player's card
+-- Android turns the screen: resizeStack comes to the player's card. On a
+-- phone the stack keeps the screen's size whatever its rect is set to,
+-- and part of it is under Android's bars, so what is asked is measured
+-- against what the player says is seen
 on TestTheControlsFollowTheScreen
+   local tWidth, tHeight
    set the rect of stack kPlayer to 0,0,640,360
    dispatch "resizeStack" to this card of stack kPlayer with 640,360,360,640
-   TestAssert "the Open button is as wide as the screen now", \
-         the width of button "Open" of stack kPlayer is 640 - 40
-   TestAssert "the status line is still on the card", \
-         the bottom of field "Status" of stack kPlayer <= the height of stack kPlayer
-   TestAssert "off a phone the whole card is seen", \
-         fromPlayer("playerSeenHeight") is 360 and fromPlayer("playerSeenWidth") is 640
+   put fromPlayer("playerSeenWidth") into tWidth
+   put fromPlayer("playerSeenHeight") into tHeight
+   TestAssert "the Open button is as wide as the seen card", \
+         the width of button "Open" of stack kPlayer is tWidth - 40
+   TestAssert "the status line is on the seen card", the bottom of field "Status" of stack kPlayer <= tHeight
+   if the environment is "mobile" then
+      TestSkip "off a phone the whole card is seen", "this is a phone"
+   else
+      TestAssert "off a phone the whole card is seen", tHeight is 360 and tWidth is 640
+   end if
 end TestTheControlsFollowTheScreen
 
 on TestStackNames
