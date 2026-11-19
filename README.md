@@ -143,7 +143,7 @@ clone at the new one.
 ## Status
 
 **OXT-Beyond 0.2.7 "Make It So"** is the current stable release, and
-**0.2.8-dp.1** is the current developer preview: the first look at
+**0.2.8-dp.2** is the current developer preview: the second look at
 0.2.8, with what has been built and fixed since 0.2.7, for anyone who
 would like it early and does not mind telling us what breaks. Both are
 on the
@@ -169,6 +169,7 @@ every change, release by release.
 
 | Version | What it brings |
 | --- | --- |
+| [0.2.8-dp.2](#028-dp2-the-second-developer-preview-of-028) | The second developer preview of 0.2.8, again with stacks made for phones as its highlight: Ember Bricks, a brick breaker with an online duel that opens on a lobby; a Target menu for the API an Android app targets, and Android libraries with their own resources; the browser widget and revBrowser on Chromium 156; curlxt and tsNet's calls built in; MP4 on Windows with no codec to install; animated GIFs as browsers show them; the community's stacks in the File menu; about fifty more HyperCard externals that do their work; and the fixes for what 0.2.8-dp.1's testers reported: the Quick Start Guide's first lesson and its lessons in the dark, a build that stops and leaves the stack as it was, the keyboard left in the Linux backdrop, full screen that stays on an iPad, and four engine crashes |
 | [0.2.8-dp.1](#028-dp1-the-first-developer-preview-of-028) | The first developer preview of 0.2.8, with stacks made for phones as its highlight: new Android apps are built with OXT-Beyond's own Android engine, launcher icons can be adaptive and themed, an app with an .aar builds again, and Nova Rescue is flown by tilt; WebSockets, desktop-width fonts and a self-hosted bundle on the web; MySQL 8.4 and PostgreSQL's SCRAM logins; video on Linux without mplayer; Windows follows a switch between light and dark at once; and the dark appearance's last unreadable menus and dialogs |
 | [0.2.7](#027-make-it-so) | The stable release that the Bug Hunt's nineteen rounds made, with the last of the forum's finds squashed: the SVG icon picker, the Message Box's colours, the Extension Manager's icons and the Project Browser's Refresh arrows in the dark; ticks in a submenu, so File > Import Stack's HyperCard options show; the "menu" button style in the Inspector; Android apps that can be drawn edge to edge, a box to build them with OXT-Beyond's own Android engine, and no hang on a density change; the "Make It So" splash, installer and banner |
 | [0.2.7-rc.6.19](#027-rc619-the-bug-hunt-round-nineteen) | Puzzle Almanac, a daily puzzle book for phones, in the Stack Player and on the website; Android apps can be built with OXT-Beyond's own Android engine, and no longer crash after a density change; macOS 11 on Intel Macs too, where Catalina hung at launch; fonts a stack loads drawn as themselves on Linux and Windows, so the Script Editor shows code in Source Code Pro; one Undo for a drag and drop in the Script Editor; readable names on a selected Project Browser row; widgets in the Tools palette as soon as they are installed; tooltips that can be read in a dark browser |
@@ -259,8 +260,7 @@ Earlier versions, from 0.2.1 to 0.2.5, are described under
   libjpeg 9f, and PCRE 8.45, the last release of PCRE 1), and revXML's
   libxml2 2.15.4 and libxslt 1.1.45, and revZip's libzip 1.12. The browser
   widget and revBrowser use CEF 156 (Chromium 156, from 2026). Several
-  libraries in `thirdparty/` (cairo and the database client
-  libraries among them) are years old; they
+  libraries in `thirdparty/` (cairo among them) are years old; they
   have known vulnerabilities, and upgrading them is planned. See
   [SECURITY.md](SECURITY.md).
 - **Not code-signed or notarized.** On Windows, SmartScreen may warn
@@ -1706,6 +1706,375 @@ undo, and the folders where it keeps copies of stacks before changing
 them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
+
+#### 0.2.8-dp.2: the second developer preview of 0.2.8
+
+OXT-Beyond 0.2.8-dp.2 is the second developer preview of 0.2.8: the
+fixes for what was reported in 0.2.8-dp.1, and a good deal that is new.
+0.2.7 "Make It So" stays the stable release. Help > Check for Updates
+offers this preview to someone who runs 0.2.8-dp.1; on 0.2.7 it says
+you are up to date, because a preview is offered only to someone who
+already runs one. The highlight is again stacks made for phones:
+
+- **Ember Bricks.** The brick-breaking demo of the Android sampler is
+  now a full game for phones, tablets and desktops: twenty-four levels,
+  five kinds of brick (tough, armoured, steel, bomb and ember), ten
+  sparks to catch, a heat that multiplies the score, and a layout for
+  any window, upright or wide. It is in the Stack Player and in Home's
+  gallery (#529). On a phone a level begins with one drawing, where
+  pressing Play drew the screen more than a hundred times (#533).
+  Played with a mouse, the pointer is hidden over the arena while a
+  level runs, and is back on Pause, in the menus, and over the Pause
+  button and the score (LittleNemo) (#556).
+- **An online duel, with a lobby.** Two players race for three minutes
+  on the same wall, each seeing the other's arena (#529). The duel
+  opens on a lobby: give a name and go online, see who else is there
+  and tap one to challenge them, take a quick match, or make a room
+  for a friend and send its link or its six letters (#548). The
+  players meet on public Nostr relays through NostrXT, with a key made
+  for the visit, and nothing is sent before you choose to go online; a
+  relay that drops is asked again before the lobby gives itself up
+  (#549). Swapping two codes by hand is still there, as Play By Code.
+  The duel plays in a browser and in OXT-Beyond on a desktop, and not
+  yet on Android.
+- **Android, the API level an app targets.** Standalone Application
+  Settings has a Target menu beside the minimum Android version
+  (Default, or API 33 to the newest the builder knows): the
+  "android,target sdk" setting, which until now only a script could
+  set. A stack that never picks keeps the builder's choice (#500,
+  #550).
+- **Android libraries with their own resources.** A stack built with
+  an Android library (.aar: an extension's, or a Play Services
+  dependency's) gets the library's resource ids as they are in the
+  package, where a library could get another resource, or none; and on
+  macOS and Linux a library's class is no longer refused as defined
+  twice. The checks now build an app with a real .aar (#501).
+- **Android networking.** With OXT-Beyond's own engine `the dnsServers`
+  answers the network's DNS servers, where it threw an error (#504),
+  and `the peerAddress` of a socket answers empty, where it handed
+  back a stray value (#495).
+- **The xTalk Suite on Android.** SodiumXT, TorrentXT, enetxt,
+  dataChannelXT, Box2Dxt, CoinXT and curlxt carry their native
+  libraries for Android (arm64-v8a, armeabi-v7a, x86_64 and x86), so
+  an Android app that includes one gets its library, and the four
+  that open sockets add the INTERNET permission. Each one's own test
+  runs in an app on the Android 13 and 16 emulators (#572).
+
+New on the desktop:
+
+- **A modern browser.** The browser widget and revBrowser run CEF 156
+  (Chromium 156, from 2026) on Windows and on Linux x86-64, where they
+  ran CEF 74 (Chromium 74, from 2019). Scripts get the same `htmlText`
+  and `url` as before (#499), and a page's JavaScript handlers
+  (`liveCode.<handler>`) are there before the page's own script runs,
+  as they were (#540). On Linux, where CEF cannot load, the widget
+  uses WebKitGTK (#497), and in a Wayland session Chromium stays on
+  X11, like the engine, so that a page is drawn inside the stack's
+  window (bwmilby) (#560). The Mac's browser is unchanged.
+- **Networking built in.** curlxt does HTTP(S), FTP(S), SFTP, SCP and
+  SMTP through libcurl, with its curlHelpers library, and tsNetCompat
+  answers LiveCode tsNet's calls by name (tsNetGet, tsNetPost,
+  tsNetGetSync, tsNetSmtpSync and the rest), so a stack written for
+  tsNet finds it. libURL is unchanged (#516).
+- **JSON lists and objects that round-trip.** The JSON Codec Library
+  (new, opt-in) gives jsonDecode, jsonDecodeWithShape and jsonEncode,
+  which keep a JSON list a list and an object an object: a shape
+  beside the value records each container's kind, an object's key
+  order and each number as written, so the same JSON comes back.
+  jsonGuessShape, jsonSetKind and jsonKindOf read and change a shape
+  (#573).
+- **MP4 on Windows.** The player opens a file DirectShow cannot, such
+  as an MP4, through Media Foundation, with no codec to install. Every
+  file DirectShow opens plays as before (#506).
+- **Animated GIFs as browsers show them.** Optimised GIFs flashed or
+  showed holes; a frame's transparent pixels now leave what the frames
+  before it drew. An image has two new properties, `the frameDurations`
+  (each frame's milliseconds) and `the playRate` (2 is twice as fast)
+  (OpenXTalkPaul) (#505).
+- **The community's stacks, in the IDE.** File > Community Stacks shows
+  the OXT Community Stacks gallery in a window, and only when the
+  gallery's list carries the gallery's signature. For each stack it
+  gives the title, the author, the licence, what the stack does and
+  what it reaches for (the internet, files, JavaScript), with Play in
+  Browser, Read Its Scripts and Get a Copy. A copy is checked file by
+  file against the signed list, and can be opened to look at with its
+  opening scripts not run (#547, #552, and bwmilby's reports of the
+  first builds, #559). File > Share Stack packs a stack of yours into
+  one .zip for the gallery, which you attach to a post on the forum,
+  so sharing needs no GitHub account (#509, #544). A stack is shared
+  as GPL 3 or GPL 3 or later, the two licences the gallery takes: a
+  stack plays there on OXT-Beyond's engine, which is GPL 3 (#554).
+- **Script libraries from the gallery.** The same window has a
+  Libraries side. Each library's page says what it gives your stacks
+  and what it reaches for, with Try the Demo and Read Its Script.
+  Install asks first, checks the package against the gallery's
+  signed list and installs it through the Extension Manager (#571).
+- **HyperCard import.** The HyperCard Library does the work of about
+  fifty more of the externals old stacks call, where its stand-ins did
+  nothing: text files (#508), text windows and dialogs (#512), files
+  and folders (#519), lists, pictures and alerts (#520), sounds and the
+  PICT writers (#522, #524), and Switch, FindInField, the file dialogs
+  and Harry Chesley's MacTCP externals, on this engine's sockets
+  (#543). A HyperCard standalone imports (#502), more script lines
+  come in working (#502, #517, #542), and the text a script runs with
+  `do` gets the same rewrites as the stack's scripts (#546).
+- **xTalk MCP Bridge.** A call that takes long is answered after 40
+  seconds that it is still going on; there are four new tools for
+  Claude (set a long script from a file, wait until something is so,
+  quiet the sounds, restart the IDE); and the server Claude's app runs
+  stays current with the OXT-Beyond installed (#510). A call whose
+  code ended with `exit to top` no longer leaves the bridge refusing
+  every later call as busy, and the question before an undo of
+  something you have changed since says which change it is, what goes
+  with it, and what Undo and Cancel each do (#566).
+- **Fresher libraries inside.** SQLite 3.54.1, expat 2.10.0 and
+  FreeType 2.14.3, for their security fixes; values come back and text
+  is laid out as before (#498).
+
+New on the web:
+
+- **Two more samples in the Stack Player.** Ember Bricks (#529) and
+  the xTalk Suite's seven-level Box2Dxt platformer (#503).
+- **`go stack URL` in an HTML5 standalone.** It opens a stack from the
+  page's own site, and from another site whose server sends an
+  `Access-Control-Allow-Origin` header, as on the desktop. It is
+  checked on every build now, and the Deploying guide explains the
+  other-site case (OpenXTalkPaul) (#496).
+- **A fullscreen stack follows the page** when the page gets narrower
+  or shorter, not only wider (OpenXTalkPaul) (#521).
+- **A website that search engines can read.** The site has a
+  sitemap.xml, and each of its pages names its one address (#525).
+
+Squashed since 0.2.8-dp.1:
+
+- **Four engine crashes.** `the properties` of an EPS, a color palette
+  or a video clip quit the engine, as it did in LiveCode Community
+  9.6.3 (bwmilby) (#521); `popup` of a field crashed it (#502);
+  deleting the default stack with no stack window open crashed it at
+  its next use; and on a Mac a TERM signal (`kill`, `killall`) could
+  hang or crash the IDE or a standalone, a known issue of 0.2.8-dp.1
+  (#494).
+- **A build that stopped and left its marks.** A standalone build that
+  stopped on an error could leave the IDE's Answer and Ask dialogs in
+  your stack and lose its standalone settings, and the next Save wrote
+  that into the stack's file. A build that stops now leaves the stack
+  as it was (tperry2x) (#511).
+- **Stack files the builder refused.** A stack file named .mc, .lc,
+  .stk or .oxtscript builds, where the build stopped with error 91
+  (#511). When the engine to attach is missing, the dialog says its
+  whole message, where the first word was lost (#514).
+- **The Quick Start Guide's first lesson.** It says that its stack is
+  the lesson's own window, that the Message Box is a small window of
+  its own, opened with Ctrl-M (Cmd-M on a Mac), and which tile of the
+  Tools palette the standard button is (xapwing) (#530, #531).
+- **Lessons you could not read in the dark.** The Guide's lessons
+  follow dark mode; their pages stayed light, so a control dropped on
+  a Try It box had white words on a white box (bwmilby, xapwing)
+  (#532).
+- **Icons you could not see in a dark Inspector.** Under Navigation
+  data, a navigation bar's item icons were drawn in the Inspector's
+  light text colour on the editor's white sheet, so only the
+  highlighted icon showed. They are black on the sheet in either
+  appearance now (bwmilby) (#570).
+- **Visual effects that did not play on a Mac.** On macOS 11 and
+  later a `visual effect` drew each of its frames as the card it was
+  going to, so the card just changed. Dissolve, wipe, push, iris,
+  barn door and the Core Image transitions play again
+  (OpenXTalkPaul) (#574).
+- **Visual effects that crashed with no direction.** A wipe, push,
+  reveal or scroll given no direction (`visual effect wipe`, or "wipe"
+  in a variable, as HyperCard stacks have it) quit the engine on
+  macOS, iOS, Android and the web. With none, wipe, push and reveal go
+  down and scroll goes left, as they already did on Linux (richmond62)
+  (#576).
+- **A click that waited on Windows.** After many controls had been
+  named, a press of the mouse reached its window late, by half a
+  second and then by seconds. It does not wait now (#538).
+- **"A stack with the same name is already open".** After File > Save
+  As under another name the IDE asked this when a control was renamed,
+  and the same question could stop a standalone build on Windows. It
+  no longer asks (#538).
+- **Keys that went nowhere on Linux.** With the backdrop shown,
+  closing the Message Box or the Tools palette (Ctrl+M, Ctrl+T) left
+  the keyboard in the backdrop until a click; it goes on to the stack
+  in front. On Ubuntu, Xubuntu, Xfce and IceWM the two palettes open
+  once, where they opened and were made again, zoomed in (bwmilby)
+  (#536).
+- **Breakpoints that took their neighbour's condition.** After a
+  breakpoint was dropped because its control was deleted, the ones
+  after it took the state and the condition of the one before. Each
+  keeps its own now, and so do watches (#545).
+- **An extension lost by installing another.** Installing an extension
+  after removing one in the same session no longer loses Box2D or
+  refuses the Box2Dxt Kit (#528).
+- **Settings a standard user could not save.** In an install for all
+  users, Plugin Settings and the Report Builder keep their settings in
+  the user's preferences (#507).
+- **Dates that lost their time zone.** `convert` reads an internet
+  date's time zone when no "from" form is named; since LiveCode 7.0 it
+  took the time as local and dropped the zone (#526).
+- **"No Java" that did not say why.** When no Java can be started on
+  the desktop, the error says where the engine looked and what failed
+  (#507).
+- **Two padlocks lost in the dark.** Edit > Replicate's two padlock
+  buttons can be seen in the dark appearance (#494).
+- **Full screen that came back on an iPad.** A web stack that asked
+  for full screen, as the Phone Starter's "Full screen" button does,
+  got it and lost it "in a split second", in Safari and in Chrome.
+  Safari ends full screen on an iPad when a text input takes the
+  focus, and the input that takes the keys for the stacks had it from
+  the first tap. That input now gives the focus up while the page is
+  full screen (CamelCaps) (#563). The two limits are under Known
+  issues.
+- **Examples lost in the dark, or cut off.** A Data Grid Tour's grids
+  and A Tour of SQLite's hint bar and "not connected" labels can be
+  read in the dark look; on Linux SVG Lab's checkboxes no longer draw
+  over the first letter of their labels, and the code sample of
+  Home's "Your first app" is whole; and at the window's smallest size
+  an Academy lesson's header keeps its reading time (#557).
+- **A key that turned the page.** In Home, the Academy, How-to, Guides
+  and the examples the left and right arrow keys no longer turn the
+  page: a key pressed after a click on a lesson's words took the
+  reader off it. Back, Next and the list turn it, and a card built to
+  play the arrow keys still hears them. In the Edit tool the arrow
+  keys no longer nudge the controls an installed example was built
+  with (#557).
+
+What a script can see since 0.2.8-dp.1:
+
+- `convert` with no "from" form reads the zone of an internet date:
+  "Mon, 16 Nov 2026 12:00:00 +0000" converts to noon universal time
+  wherever the computer is. A date in the local zone converts as
+  before; one in another zone now converts to the moment it names
+  (#526).
+- `the properties` (and `the effective properties`) of an EPS, a color
+  palette or a video clip gives an array (#521), and `popup` of a
+  field looks for a stack by the field's text, as `popup` of a name
+  does, with "can't find stack" in `the result` when there is none
+  (#502). Both ended the engine before.
+- Deleting the default stack when no stack window is open makes the
+  home stack the default stack, where the engine was left with none.
+  On a Mac a TERM signal sends shutDownRequest and shutDown from the
+  event loop, after the handler that is running ends, with the same
+  outcomes (#494).
+- An image has `the frameDurations` and `the playRate`. Neither is
+  saved with the stack or listed among `the properties`, and without
+  them a GIF plays at its own pace, as before. An animated GIF's
+  transparent pixels keep what earlier frames drew, where they punched
+  holes (#505).
+- On Windows and Linux x86-64 the browser widget and revBrowser are
+  CEF 156; `htmlText` and `url` give what they gave. On Linux the
+  browser needs four more system libraries (libcups2, libgbm1,
+  libxkbcommon0 and libudev1); without one the launcher turns the
+  browser off, as it does for the others (#499). In a Wayland session
+  Chromium is kept on X11 (XWayland), as the engine is (#560).
+- A stack that tests for tsNet now finds it, answered by tsNetCompat
+  over curlxt; libURL is unchanged (#516).
+- The JSON Codec Library's handlers are new names. Nothing calls them
+  unless a script does: JsonImport, JsonExport, JSONToArray and
+  ArrayToJSON give what they gave before, and a script's own handler
+  of the same name is still found first (#573).
+- On Windows the player opens a file DirectShow cannot, through Media
+  Foundation; a file DirectShow opens plays as before (#506).
+- On Android, in a stack built with OXT-Beyond's own engine, `the
+  dnsServers` answers the DNS servers, one a line, where it threw an
+  error; it needs the ACCESS_NETWORK_STATE permission and answers
+  empty without it (#504), and `the peerAddress` of a socket is empty
+  (#495). A stack built with LiveCode 9.6.3's engine gets what it got.
+  A library's resource ids are the package's (#501).
+- On the web, a fullscreen stack takes the page's size when the page
+  gets narrower or shorter too, with resizeStack in the modes that
+  resize the stack (#521). In a browser on an iPad or an iPhone, the
+  engine's hidden text input is without the focus from the moment the
+  page asks for full screen until full screen ends, unless a field
+  wants the keyboard, so the keys of an attached keyboard do not reach
+  the stacks in that time; every other browser is as it was (#563).
+- SQLite 3.54.1 gives values back as before, with two small
+  differences: quote() of a real that 15 digits cannot hold writes 18
+  digits in the exponent form instead of 19 (both read back to the
+  same number), and the 15th digit of a real above about 1e29 or below
+  about 1e-29 is rounded correctly, where 3.51 was sometimes one off.
+  With FreeType 2.14.3, in the web and Android engines, text is
+  measured and laid out as before, and a hinted glyph's outline can
+  differ by a pixel (#498).
+- In a HyperCard stack imported from now on, the externals named above
+  give their values where their stand-ins gave empty: Switch(5), for
+  one, gives 5, as the original did (#543); and `do` text that names a
+  variable the import renamed reaches that variable (#546). Stacks
+  imported before keep the library and the scripts they were given. A
+  new function, revHyperCardImageFileInfo, gives a file's type,
+  creator, dates and fork sizes on a disk image (#519).
+- After a standalone build that stops on an error, the stack is the
+  one in its file, as after a build that works (#511). When no Java
+  can be started, the error has more words after its old first ones,
+  "Could not initialise Java Runtime Environment" (#507).
+- In the Quick Start Guide's stack, lines of the first lesson's fields
+  have new words (#530, #531); the six lessons' cards have
+  cStageFollowsLook, the objects on their stage have uLight and uDark
+  sets, and the textColor of field "Field Test" of card "Buttons &
+  Fields" is black where it was empty (#532).
+- In Home, the Academy, How-to, Guides and the examples the left and
+  right arrow keys no longer turn the page; a card built to play the
+  arrow keys gets them as before. Each installed example carries
+  `cOXTBuiltTopId`, the highest id its builder gave a control, and in
+  the Edit tool the arrow keys nudge only controls made since. A stack
+  without that mark, and a copy of an example saved outside the
+  install's Examples folder, are nudged as before: no other stack's
+  arrow keys change (#557).
+- Inside the IDE: new are `revIDEActionShareStack` and the stack
+  `revShareStack` (#509), whose licence menu offers GPL 3 and GPL 3 or
+  later alone, where it offered thirteen with MIT first (#554);
+  `revIDEActionCommunityStacks`, `revIDECommunityStacksGetCopy` and the
+  stack `revCommunityStacks` (#547); `revIDECommunityLibraryInstall`,
+  and an optional third parameter of `revIDEActionCommunityStacks`,
+  "libraries" to open the window on its Libraries side (#571);
+  `lkListLines` and `lkListCentre`
+  in the learning windows' kit, revLearnKit (#559); and an optional
+  third parameter of `xtaBuildPlan` (#510). On the Android card of
+  Standalone Settings the Minimum menu's textAlign is left, as the new
+  Target menu's is (#550).
+- On macOS 11 and later a card change made with a visual effect shows
+  the effect again and takes its effectRate's time on the screen, as
+  on Windows, Linux and older macOS; the engine always waited that
+  long, and only the drawing was missing (#574).
+- A wipe, push, reveal or scroll with no direction plays down (scroll:
+  left) on macOS, iOS, Android and the web, where the engine quit; on
+  Linux it plays as before. On Windows, where it drew with rectangles
+  that were never set, it now plays the same way (#576).
+- No other change is meant to be seen by a script.
+
+A standalone built for another platform runs on this release's engine:
+the runtimes that every package carries for the other platforms are
+rebuilt from it, with the Android runtime's Java layer and OXT-Beyond's
+own Android engine from the same source, and the browser of the
+Windows and Linux x86-64 runtimes is CEF 156 too (#VERSIONPR).
+
+Known issues of this preview:
+
+- Ember Bricks' online duel plays in a browser and on a desktop, and
+  not yet on Android.
+- File > Community Stacks is in the desktop IDE and not in the web
+  IDE. On Windows and on a Mac nobody has yet tried its window against
+  the live gallery, or its Show the Folder button, by hand; the
+  automatic tour runs the window there with a stand-in gallery. A
+  report is welcome.
+- On an iPad, a web stack in full screen has two limits, both from
+  Safari's rule that a text input with the focus ends full screen:
+  the keys of a keyboard attached to the iPad do not reach the stack
+  while the page is full screen, and tapping a field brings the
+  keyboard and ends full screen. The fix was shown on Apple's iPad
+  simulator (iPadOS 18.5 and 26) with a test page that does what the
+  engine does; the built engine has not run on a real iPad here. A
+  report from one is welcome.
+- Ember Bricks' hidden pointer is tested on Linux and in Chromium and
+  WebKit pages. Nobody has yet watched it by eye on a Mac or on
+  Windows.
+- Nova Rescue's tilt is tested with made-up sensor readings and has
+  not had a pass on a real phone yet. A report from a phone is welcome.
+- The xTalk Suite's Android libraries for ARM (arm64-v8a and
+  armeabi-v7a) are in every package but have not run on a phone yet;
+  the x86 and x86_64 ones ran on the emulators. A report from a phone
+  is welcome.
 
 #### 0.2.8-dp.1: the first developer preview of 0.2.8
 
@@ -4730,10 +5099,9 @@ engine (LiveCode Community 9.6.3's server engine crashed there too).
 
 Changes made in this repository to build it: the `thirdparty` and `ide`
 submodules are ordinary folders in the repository, the prebuilt
-third-party libraries are built from source (only LiveCode's CEF 74
-archive for Windows, which LiveCode's server no longer provides, is
-mirrored, in the
-[`prebuilts-v1` release](https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/prebuilts-v1)),
+third-party libraries are built from source (CEF alone is not
+compiled: the build repackages Spotify's binary distribution of it,
+see [BUILDING.md](BUILDING.md)),
 the build scripts were updated for Visual Studio 2022 with the v141
 toolset, and GitHub Actions workflows build, package and test it for
 Windows, macOS and Linux.
@@ -4795,10 +5163,13 @@ change, see the [engine stabilization and modernization plan](docs/development/e
 
 Known limitations, in rough order of importance:
 
-1. Old third-party libraries with known vulnerabilities: CEF/Chromium
-   74 and several older libraries in `thirdparty/`. (OpenSSL, curl,
+1. Old third-party libraries with known vulnerabilities: several
+   libraries in `thirdparty/` (cairo 1.9.4 among them). (OpenSSL, curl,
    ICU, zlib, libpng, giflib, libjpeg and PCRE are current from
-   0.2.1-rc.3 on.) Plan: update them too.
+   0.2.1-rc.3 on, and from 0.2.8-dp.2 the browser is CEF 156, where it
+   was CEF 74, from 2019.) Chromium's security fixes arrive every few
+   weeks, and OXT-Beyond takes them only with a new CEF in a release
+   (see [SECURITY.md](SECURITY.md)). Plan: update the rest too.
 2. The builder's default Android standalone engines are OpenXTalk Lite
    1.15's (LiveCode Community 9.6.3 builds), not built from this
    repository; the Java layer beside them is built here from
@@ -4877,11 +5248,6 @@ Known limitations, in rough order of importance:
    input method's composition, as the tests' stand-in for a touch
    screen's keyboard does in Firefox, reaches the field with no
    `keyDown` messages.
-13. On macOS, a TERM signal (`kill`, `killall`) may not quit OXT-Beyond
-   or a standalone, or may crash it: the engine runs the shutdown
-   messages inside the signal handler. Quit from the menu, the Dock and
-   at logout are not affected. This is old. Plan: fix it in a later
-   preview.
 
 Done since 0.0.1: the extensions of the xTalk Suite are built in, taken
 from their own repositories at pinned commits (see

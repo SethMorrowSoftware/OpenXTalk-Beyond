@@ -1,2 +1,0 @@
-- Credits: every source file changed from LiveCode Community now says so in a "Modified from LiveCode Community" notice under its header, naming who changed it and when (GPLv3 section 5(a)); NOTICE-OF-MODIFICATIONS.md covers the stacks, dictionary and other files that cannot hold a comment, and CI checks fails a change to another such file that comes without its notice (#527)
-- Tests: test_modification_notices (#527)
