@@ -42,6 +42,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 
 import visual_effect_check as vec  # noqa: E402
 
+# The made-up screencapture reads marks.txt as it is; a test that makes the
+# check's own reads catch the file being rewritten replaces vec.read_marks
+READ_MARKS = vec.read_marks
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..'))
 BLACK, WHITE, GREY = (0, 0, 0), (255, 255, 255), (128, 128, 128)
 
@@ -249,7 +253,7 @@ class Run(unittest.TestCase):
         marks_dir = os.path.join(self.out, 'marks')
 
         def capture(area, path):
-            marks = vec.read_marks(os.path.join(marks_dir, 'marks.txt'))
+            marks = READ_MARKS(os.path.join(marks_dir, 'marks.txt'))
             starts = [m for m in marks if m[0] == 'START']
             source = BLACK if starts[-1][2] == 'black' else WHITE
             target = WHITE if source == BLACK else BLACK
@@ -290,6 +294,37 @@ class Run(unittest.TestCase):
         code, said = self.run_check(playing)
         self.assertEqual(code, 1, said)
         self.assertIn('::error::visual effects that did not play: dissolve, wipe right', said)
+
+    def test_a_read_while_the_script_writes_marks_again(self):
+        # visual-effect-check.livecodescript writes the whole of marks.txt
+        # each time (put sMarks into url), so a read can find the file
+        # emptied or half written, with fewer lines than the reads before.
+        # Those lines were seen already: on 19 November (#577's Mac arm64
+        # test) a read of an emptied file made the check take dissolve and
+        # wipe right a second time, with no pictures, and fail them.
+        def playing(t, source, target):
+            return picture('dissolve', progress=min(1.0, t), source=source, target=target)
+        for kept in (0, 2, 3):
+            with self.subTest(lines_found=kept):
+                cut = {'done': False}
+
+                def read_marks(path):
+                    marks = READ_MARKS(path)
+                    if not cut['done'] and any(m[0] == 'END' for m in marks):
+                        cut['done'] = True
+                        return marks[:kept]
+                    return marks
+                vec.read_marks = read_marks
+                try:
+                    code, said = self.run_check(playing)
+                finally:
+                    vec.read_marks = READ_MARKS
+                self.assertTrue(cut['done'])
+                self.assertEqual(code, 0, said)
+                self.assertIn('Every effect played.', said)
+                self.assertEqual(len(re.findall(r'START dissolve', said)), 1, said)
+                self.assertEqual(len(re.findall(r'START wipe right', said)), 1, said)
+                self.assertNotIn('unseen', said)
 
     def test_report_only(self):
         def playing(t, source, target):
