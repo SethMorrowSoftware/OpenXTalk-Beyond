@@ -2047,7 +2047,7 @@ A standalone built for another platform runs on this release's engine:
 the runtimes that every package carries for the other platforms are
 rebuilt from it, with the Android runtime's Java layer and OXT-Beyond's
 own Android engine from the same source, and the browser of the
-Windows and Linux x86-64 runtimes is CEF 156 too (#VERSIONPR).
+Windows and Linux x86-64 runtimes is CEF 156 too (#577).
 
 Known issues of this preview:
 
