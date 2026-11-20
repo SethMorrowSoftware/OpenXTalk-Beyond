@@ -151,6 +151,24 @@ def popup_verdict(lines, exit_code):
             (exit_code is None, '%s: the engine runs on' % name, 'the engine ended with exit code %s' % exit_code)]
 
 
+def with_lines(results, lines, run):
+    """The results, and when one failed, one more that is not a check: the
+    lines the script wrote, which say how far the run got. The ALIVE lines
+    are counted, not listed, but for the first and last."""
+    if all(ok for ok, _, _ in results):
+        return results
+    alive = [l for l in lines if l.startswith('ALIVE')]
+    kept = []
+    last = None
+    for l in lines:
+        if l.startswith('ALIVE'):
+            if l == last:
+                continue
+            last = l
+        kept.append(l)
+    return results + [(None, '%s: the script wrote (%d ALIVE lines)' % (run, len(alive)), ' | '.join(kept) or '(nothing)')]
+
+
 def run_popup(engine_path, shots):
     work = tempfile.mkdtemp(prefix='oxt-grab-menu-')
     log_path = os.path.join(work, 'log.txt')
@@ -173,7 +191,8 @@ def run_popup(engine_path, shots):
         time.sleep(0.4)
         x(['xdotool', 'click', '1'], env)
         time.sleep(2)
-        return popup_verdict(read_lines(log_path), engine.poll())
+        lines = read_lines(log_path)
+        return with_lines(popup_verdict(lines, engine.poll()), lines, 'nomouse')
     except RuntimeError as e:
         return [(False, 'nomouse: the run', str(e))]
     finally:
@@ -217,7 +236,8 @@ def run_once(engine_path, mode, shots, drag=False):
         if shots:
             x(['import', '-window', 'root', os.path.join(shots, 'grab-menu-%s.png' % ('drag' if drag else mode))], env)
         after = read_lines(log_path)
-        results = drag_verdict(after) if drag else verdict(before, after, engine.poll(), mode)
+        results = with_lines(drag_verdict(after) if drag else verdict(before, after, engine.poll(), mode), after,
+                             'drag' if drag else mode)
     except RuntimeError as e:
         results = [(False, '%s: the run' % mode, str(e))]
     finally:
@@ -253,8 +273,11 @@ def main(argv=None):
     results.extend(run_once(engine, 'popup', args.shots, drag=True))
     results.extend(run_popup(engine, args.shots))
 
+    notes = [r for r in results if r[0] is None]
+    results = [r for r in results if r[0] is not None]
     lines = ['%s %s%s' % ('PASS' if ok else 'FAIL', what, (': ' + detail) if detail and not ok else '')
              for ok, what, detail in results]
+    lines.extend('NOTE %s: %s' % (what, detail) for _, what, detail in notes)
     failed = [r for r in results if not r[0]]
     lines.append('%d of %d checks passed' % (len(results) - len(failed), len(results)))
     text = '\n'.join(lines)

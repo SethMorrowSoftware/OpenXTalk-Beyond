@@ -2302,6 +2302,15 @@ jobs:
             grep -v '^missing: ' "$f" | tail -n 200 | cut -c1-600
           done
 
+      # And the grab check's lines, which the screenshots' lines after it
+      # push far up the log
+      - name: Repeat the grab check's output
+        if: ${{ failure() }}
+        run: |
+          out="$RUNNER_TEMP/logs/grab-menu-check.log"
+          [ -f "$out" ] || exit 0
+          cut -c1-1500 "$out"
+
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v7

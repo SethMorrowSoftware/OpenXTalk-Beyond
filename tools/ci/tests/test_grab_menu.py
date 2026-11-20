@@ -98,6 +98,25 @@ class CheckVerdicts(unittest.TestCase):
         self.assertFalse(gmc.popup_verdict(['MOUSESTACK [GrabMenu]'] + good[2:], None)[0][0])
         self.assertFalse(gmc.popup_verdict(good, 255)[3][0])
 
+    def test_a_failed_run_keeps_what_the_script_wrote(self):
+        # a note, not a check: it is not counted, and a passing run has none
+        lines = ['READY', 'ALIVE 125,165', 'ALIVE 125,165', 'ALIVE 125,165', 'MOUSESTACK []', 'POPUP opening']
+        failed = [(True, 'a', ''), (False, 'b', 'no line')]
+        out = gmc.with_lines(failed, lines, 'popup')
+        self.assertEqual(out[:2], failed)
+        self.assertEqual(out[2], (None, 'popup: the script wrote (3 ALIVE lines)',
+                                  'READY | ALIVE 125,165 | MOUSESTACK [] | POPUP opening'))
+        passed = [(True, 'a', '')]
+        self.assertEqual(gmc.with_lines(passed, lines, 'popup'), passed)
+        self.assertEqual(gmc.with_lines(failed, [], 'popup')[2][2], '(nothing)')
+        text = read(os.path.join(CI, 'grab_menu_check.py'))
+        self.assertIn("results = [r for r in results if r[0] is not None]", text)
+        wf = read(LINUX_WORKFLOW)
+        step = wf[wf.index("- name: Repeat the grab check's output"):]
+        step = step[:step.index('- name: Upload logs')]
+        self.assertIn('if: ${{ failure() }}', step)
+        self.assertIn('grab-menu-check.log', step)
+
     def test_runs_in_the_linux_build(self):
         self.assertIn('python3 tools/ci/grab_menu_check.py --engine', read(LINUX_WORKFLOW))
         # the three menu kinds of the reports, each in the group that grabs
