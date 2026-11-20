@@ -556,6 +556,25 @@ on TestLaidOutAgainNothingMoves
    TestAssert "a view fills the rack", the rect of ctl("group", "View Song") is "192,68,952,560"
 end TestLaidOutAgainNothingMoves
 
+-- A stack scaled up to fill a browser window (the Stack Player's
+-- fill=yes) cut off the tops of its labels' letters when a line was only
+-- as tall as usual: every label has two points more, so at least 1.4
+-- times its size (it had about 1.27)
+on TestEveryLabelHasRoomWhenScaled
+   local i, f, tShort
+   repeat with i = 1 to the number of fields of card kCard of stack kStack
+      put the long id of field i of card kCard of stack kStack into f
+      if not the lockText of f then
+         next repeat
+      end if
+      if the effective textHeight of f < the effective textSize of f * 1.4 then
+         put the short name of f && the effective textSize of f & "/" & the effective textHeight of f & return after tShort
+      end if
+   end repeat
+   TestAssert "every label's line has room above its letters", tShort is empty
+   TestDiagnostic tShort
+end TestEveryLabelHasRoomWhenScaled
+
 private function rects
    local i, tText
    repeat with i = 1 to the number of controls of card kCard of stack kStack

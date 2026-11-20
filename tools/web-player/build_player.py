@@ -368,9 +368,9 @@ SAMPLES = [
      'tags': ['Music', 'Web Audio']},
     {'title': 'Beyond Beats', 'source': 'stacks',
      'files': ['Beyond Beats.oxtstack'], 'image': 'Beyond Beats.webp',
-     'description': 'A pattern studio: up to twelve channels of a kit the browser makes, '
-                    'sixteen patterns of 16 or 32 steps, volume, pan, mute and solo, tempo and '
-                    'swing, all kept in time by Web Audio and saved in the browser.',
+     'description': 'A beat studio: drums in a channel rack, bass lines and chords in a piano '
+                    'roll, patterns arranged into a song, a mixer with reverb and delay, your own '
+                    'samples, and the song saved as a file or exported as a WAV.',
      'tags': ['Music', 'Web Audio', 'Sequencer']},
     {'title': 'Kanban Board', 'source': 'stacks',
      'files': ['Kanban Board.oxtstack'], 'image': 'Kanban Board.webp',

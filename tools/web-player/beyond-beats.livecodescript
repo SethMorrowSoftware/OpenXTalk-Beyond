@@ -282,7 +282,7 @@ private command buildStack pFile
          -- a strip is narrow: "Square bass" goes on two lines
          set the dontWrap of field ("mxname" && n) to false
          set the fixedLineHeight of field ("mxname" && n) to true
-         set the textHeight of field ("mxname" && n) to 12
+         set the textHeight of field ("mxname" && n) to 14
          repeat for each item tG in "cut,rev,dly,mxpan"
             makeBox tG && n, kCell, "View Mixer"
             makeBox tG & "fill" && n, kAmber, "View Mixer"
@@ -473,6 +473,10 @@ private command makeLabel pName, pText, pSize, pColor, pStyle, pGroup
    set the dontWrap of field pName to true
    set the showFocusBorder of field pName to false
    set the textSize of field pName to pSize
+   -- two points more than a line's usual height, above the letters: a
+   -- stack scaled up to fill a browser window (the Stack Player's
+   -- fill=yes) cut the tops of the letters off at the usual height
+   set the textHeight of field pName to the effective textHeight of field pName + 2
    set the textColor of field pName to pColor
    set the textStyle of field pName to pStyle
    set the margins of field pName to 2

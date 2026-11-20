@@ -3309,16 +3309,16 @@ command btLayout
 
    -- the mixer: the names of its rows, a strip a channel, the master's,
    -- and the reverb's and the delay's settings
-   set the rect of field "Label Filter" to 196, 140, 246, 158
-   set the rect of field "Label Reverb" to 196, 164, 246, 182
-   set the rect of field "Label Delay" to 196, 188, 246, 206
-   set the rect of field "Label Pan" to 196, 212, 246, 230
-   set the rect of field "Label Volume" to 196, 320, 246, 338
-   set the rect of field "Label Tune" to 196, 470, 246, 488
+   set the rect of field "Label Filter" to 196, 137, 246, 161
+   set the rect of field "Label Reverb" to 196, 161, 246, 185
+   set the rect of field "Label Delay" to 196, 185, 246, 209
+   set the rect of field "Label Pan" to 196, 209, 246, 233
+   set the rect of field "Label Volume" to 196, 317, 246, 341
+   set the rect of field "Label Tune" to 196, 467, 246, 491
    repeat with n = 1 to kMaxChannels
       put kStripLeft + (n - 1) * kStripW into tL
       set the rect of graphic ("mxsw" && n) to tL, 104, tL + 48, 107
-      set the rect of field ("mxname" && n) to tL - 1, 109, tL + 49, 139
+      set the rect of field ("mxname" && n) to tL - 1, 108, tL + 49, 142
       set the rect of graphic ("cut" && n) to tL + 4, 145, tL + 44, 153
       set the rect of graphic ("cutfill" && n) to tL + 4, 145, tL + 6, 153
       set the rect of graphic ("rev" && n) to tL + 4, 169, tL + 44, 177
