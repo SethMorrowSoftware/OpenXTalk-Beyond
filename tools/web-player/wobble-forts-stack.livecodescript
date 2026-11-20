@@ -2159,12 +2159,26 @@ private command wfSoundLook
          put mwIsFullScreen() into tPic
       end try
    end if
-   if tPic is true then
-      wfPicture the long id of image "Title Full Icon", "icon-smaller"
-   else
-      wfPicture the long id of image "Title Full Icon", "icon-larger"
-   end if
+   wfFullLook tPic is true
 end wfSoundLook
+
+-- The full screen button's icon: to make the fort smaller again when it
+-- has the whole screen (pFull), else larger
+private command wfFullLook pFull
+   if pFull then
+      wfPicture the long id of image "Title Full Icon" of card "Fort" of me, "icon-smaller"
+   else
+      wfPicture the long id of image "Title Full Icon" of card "Fort" of me, "icon-larger"
+   end if
+end wfFullLook
+
+-- The Mobile Web library's word that the browser gave the game the whole
+-- screen or took it back, whoever did it (the button, the phone's back
+-- gesture, the browser itself): the button's icon follows now, where the
+-- page keeps its size and no resizeStack comes
+on fullScreenChanged pFull
+   wfFullLook pFull is true
+end fullScreenChanged
 
 -- A button of the screens, pressed (pDown) or let go
 command wfButtonLook pName, pDown

@@ -484,13 +484,25 @@ class PhoneCard(unittest.TestCase):
         # the whole screen taken and given back, where the browser has one
         self.assertIn("press('Full')\n        if can:", step)
         self.assertIn("whole_screen() and not cannot(s)", step)
-        self.assertEqual(step.count("press('Full')"), 2)
+        # taken, given back, and a request the browser refuses after the call
+        self.assertEqual(step.count("press('Full')"), 3)
         self.assertIn("not whole_screen() and not cannot(s) and labels(s).get('Full') == 'Full screen'", step)
+        # the label follows the whole screen, where the page keeps its size
+        # (the library's fullScreenChanged)
+        self.assertIn("labels(s).get('Full') == 'Show the bars'", step)
         # and the stack's own words where it has none
         script = read('tools', 'web-player', 'phone-starter-stack.livecodescript')
         said = re.search(r"startswith\('([^']+)'\)", step).group(1)
         self.assertIn('psSay "%s' % said, script)
         self.assertIn('mwFullScreen not mwIsFullScreen()', script)
+        # and where the browser said no after the call (fullScreenError)
+        refused = re.search(r"s\.get\('phonesaid', ''\) == '([^']+)'", step).group(1)
+        handler = re.search(r'^on fullScreenError pError\n(.*?)^end fullScreenError', script, re.M | re.S).group(1)
+        self.assertIn('psSay "%s"' % refused, handler)
+        self.assertIn("Promise.reject(new TypeError('Permissions check failed'))", step)
+        self.assertIn('el.requestFullscreen = el.__oxtAsk;', step)
+        handler = re.search(r'^on fullScreenChanged pFull\n(.*?)^end fullScreenChanged', script, re.M | re.S).group(1)
+        self.assertIn('psToggleLook "Full", pFull is true, "Full screen", "Show the bars"', handler)
         # a screen left whole would spoil the steps after it
         self.assertIn('document.exitFullscreen || document.webkitExitFullscreen', step)
 
@@ -529,8 +541,9 @@ class LibraryMessages(unittest.TestCase):
         header = library.split('on extensionInitialize', 1)[0]
         sent = set(re.findall(r'mwSendAt "(\w+)"', library))
         sent |= set(re.findall(r'mwSendToCard "(\w+)"', library))
-        sent |= set(re.findall(r'mwSendToCardOf sSensorStack, "(\w+)"', library))
-        self.assertGreaterEqual(len(sent), 16, sent)
+        sent |= set(re.findall(r'mwSendToCardOf \w+, "(\w+)"', library))
+        self.assertGreaterEqual(len(sent), 18, sent)
+        self.assertLessEqual({'fullScreenChanged', 'fullScreenError'}, sent)
         for message in sorted(sent):
             self.assertRegex(header, r'--\s+%s\b' % message, '%s is not in the header' % message)
 
@@ -546,6 +559,164 @@ class LibraryMessages(unittest.TestCase):
         for line in body.split('\n')[3:]:
             if line.strip().startswith('"'):
                 self.assertRegex(line.strip(), r'^"[^"]*" (& return & \\|into tScript)$', line)
+
+
+# The library's browser script, as mwBrowserScript puts it together, run
+# in node with a made-up page: argv[1] is the script. Each step's calls to
+# the library (mwFromBrowser) are printed, as JSON, with what fullScreen
+# returned
+FULL_SCREEN_PAGE = r'''
+const src = require('fs').readFileSync(process.argv[1], 'utf8');
+const calls = [], listeners = {};
+const doc = {
+  fullscreenElement: null, webkitFullscreenElement: null, fullscreenEnabled: true,
+  addEventListener(n, f) { (listeners[n] = listeners[n] || []).push(f); },
+  removeEventListener(n, f) { listeners[n] = (listeners[n] || []).filter(g => g !== f); },
+  // (the library's calls of the full screen alone are kept)
+  liveCode: { findStackWithName() { return { mwFromBrowser(...a) {
+    if (String(a[0]).startsWith('fullscreen')) calls.push(a.filter(x => x !== undefined).map(String)); } }; } },
+  documentElement: { clientWidth: 390, style: { setProperty() {}, removeProperty() {} } },
+  body: { appendChild() {} },
+  createElement() { return { style: {} }; }
+};
+global.document = doc; global.window = global; global.navigator = { userActivation: { isActive: true } };
+global.innerWidth = 390; global.innerHeight = 664; global.screen = { width: 390, height: 844 };
+global.addEventListener = function() {}; global.removeEventListener = function() {};
+global.getComputedStyle = () => ({ paddingTop: '0px', paddingRight: '0px', paddingBottom: '0px', paddingLeft: '0px' });
+new Function(src)();
+const mw = window.__oxtMobileWeb, el = doc.documentElement;
+const fire = n => (listeners[n] || []).forEach(f => f());
+const settle = () => new Promise(r => setTimeout(r, 10));
+// a browser of today: a request and a leave each a promise, and both the
+// plain and the prefixed event for each change (as WebKit sends them)
+function today() {
+  delete el.webkitRequestFullscreen; delete doc.webkitExitFullscreen;
+  el.requestFullscreen = function() {
+    doc.fullscreenElement = el; fire('fullscreenchange'); fire('webkitfullscreenchange'); return Promise.resolve(); };
+  doc.exitFullscreen = function() {
+    doc.fullscreenElement = null; fire('fullscreenchange'); fire('webkitfullscreenchange'); return Promise.resolve(); };
+}
+const out = {};
+async function step(name, f) {
+  await settle(); calls.length = 0;
+  const r = await f(); await settle();
+  out[name] = {result: r === undefined ? null : r, calls: calls.slice()};
+}
+(async () => {
+  today();
+  // before mwStart the whole screen is not followed
+  await step('before mwStart', () => { doc.fullscreenElement = el; fire('fullscreenchange'); });
+  doc.fullscreenElement = null;
+  mw.start('');
+  await step('granted', () => mw.fullScreen(true));
+  await step('given back', () => mw.fullScreen(false));
+  await step('again', () => mw.fullScreen(true));
+  await step('the browser leaves', () => { doc.fullscreenElement = null; fire('webkitfullscreenchange'); fire('fullscreenchange'); });
+  el.requestFullscreen = function() { return Promise.reject(new TypeError('Permissions check failed')); };
+  await step('refused', () => mw.fullScreen(true));
+  el.requestFullscreen = function() { return Promise.reject(); };
+  await step('refused without words', () => mw.fullScreen(true));
+  today();
+  await step('granted once more', () => mw.fullScreen(true));
+  doc.exitFullscreen = function() { return Promise.reject(new TypeError('no')); };
+  await step('a leave refused', () => mw.fullScreen(false));
+  await step('the user leaves', () => { doc.fullscreenElement = null; fire('fullscreenchange'); });
+  // an older WebKit: the prefixed request alone, which returns nothing and
+  // says no with an event
+  delete el.requestFullscreen; delete doc.exitFullscreen;
+  el.webkitRequestFullscreen = function() { setTimeout(() => fire('webkitfullscreenerror'), 0); };
+  await step('an older WebKit refuses', () => mw.fullScreen(true));
+  await step('an error nobody asked for', () => fire('webkitfullscreenerror'));
+  el.webkitRequestFullscreen = function() {
+    doc.webkitFullscreenElement = el; setTimeout(() => fire('webkitfullscreenchange'), 0); };
+  await step('an older WebKit grants', () => mw.fullScreen(true));
+  await step('and an error after', () => fire('webkitfullscreenerror'));
+  // nor after mwStop
+  mw.stop();
+  await step('after mwStop', () => { doc.webkitFullscreenElement = null; fire('webkitfullscreenchange'); });
+  console.log(JSON.stringify(out));
+  process.exit(0);
+})();
+'''
+
+
+def browser_script(library):
+    """The library's browser script, as mwBrowserScript puts it together
+    (its one line that is not a literal, the library's name, written out)"""
+    body = re.search(r'^private function mwBrowserScript\n(.*?)^end mwBrowserScript', library, re.M | re.S).group(1)
+    name = re.search(r'^constant kLibrary = "([^"]+)"', library, re.M).group(1)
+    lines = []
+    for line in body.split('\n'):
+        line = line.strip()
+        if line.startswith('put "var lib = " & mwQuote(kLibrary)'):
+            lines.append('var lib = %s;' % json.dumps(name))
+            continue
+        m = re.match(r'^put "(.*)" (?:& return )?after tScript$', line)
+        if m:
+            lines.append(m.group(1))
+    return '\n'.join(lines)
+
+
+class LibraryFullScreen(unittest.TestCase):
+    """What the library tells a stack of the whole screen: the button
+    that said which to ask for followed only the stack's next layout, so
+    where the page kept its size while the screen was whole it went on
+    saying "Full screen", and a request the browser refused after the call
+    was swallowed (both seen after 0.2.8-dp.2). The browser script now
+    sends "fullscreen" on each change, whoever made it, and
+    "fullscreenerror" with the browser's words for a request it refused,
+    and the library sends the card fullScreenChanged and fullScreenError
+    (the engine's side: extensions/script-libraries/mobileweb/tests)."""
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not installed')
+    def test_each_change_and_each_refusal_once(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'mobileweb.js')
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(browser_script(read(*LIBRARY[len(REPO) + 1:].split(os.sep))))
+            out = subprocess.run([shutil.which('node'), '-e', FULL_SCREEN_PAGE, path], capture_output=True,
+                                 text=True, timeout=60)
+        self.assertEqual(out.returncode, 0, out.stderr)
+        got = json.loads(out.stdout)
+        full, back = [['fullscreen', 'true']], [['fullscreen', 'false']]
+        want = {
+            'before mwStart': (None, []),
+            'granted': ('', full),
+            'given back': ('', back),
+            'again': ('', full),
+            # (an iPad's Safari leaving when a field brings the keyboard)
+            'the browser leaves': (None, back),
+            'refused': ('', [['fullscreenerror', 'Permissions check failed']]),
+            'refused without words': ('', [['fullscreenerror', 'refused']]),
+            'granted once more': ('', full),
+            'a leave refused': ('', []),
+            'the user leaves': (None, back),
+            'an older WebKit refuses': ('', [['fullscreenerror', 'refused']]),
+            'an error nobody asked for': (None, []),
+            'an older WebKit grants': ('', full),
+            'and an error after': (None, []),
+            'after mwStop': (None, []),
+        }
+        self.assertEqual(sorted(got), sorted(want))
+        for name, (result, calls) in want.items():
+            self.assertEqual(got[name], {'result': result, 'calls': calls}, name)
+
+    def test_the_card_gets_them_after_mwstart(self):
+        library = read(*LIBRARY[len(REPO) + 1:].split(os.sep))
+        handler = re.search(r'^on mwFromBrowser\b.*?^end mwFromBrowser', library, re.M | re.S).group(0)
+        # after the check that mwStart's stack is there, as for the
+        # keyboard and the turns
+        after = handler[handler.index('if pKind is not "viewport" and (sTarget is empty'):]
+        self.assertRegex(after, r'case "fullscreen"\n\s+mwSendToCardOf sTarget, "fullScreenChanged", p1 is "true"\n')
+        self.assertRegex(after, r'case "fullscreenerror"\n\s+mwSendToCardOf sTarget, "fullScreenError", p1\n')
+        # and the dictionary says so, in mwStart's and mwFullScreen's entries
+        start = re.search(r'/\*\*((?:(?!\*/).)*?)\*/\s*command mwStart\b', library, re.S).group(1)
+        self.assertIn('- fullScreenChanged pFull:', start)
+        self.assertIn('- fullScreenError pError:', start)
+        full = re.search(r'/\*\*((?:(?!\*/).)*?)\*/\s*command mwFullScreen\b', library, re.S).group(1)
+        self.assertIn('fullScreenChanged', full)
+        self.assertIn('fullScreenError', full)
 
 
 class Workflow(unittest.TestCase):

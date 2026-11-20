@@ -42,6 +42,10 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --    orientationChanged
 --    keyboardActivated
 --    keyboardDeactivated
+--    fullScreenChanged pFull       (true or false: the whole screen, or
+--                                   the browser's bars back)
+--    fullScreenError pError        (the browser refused mwFullScreen
+--                                   true after the call)
 --
 -- and while a sensor is started (mwStartSensor), to the current card:
 --
@@ -340,6 +344,15 @@ them:
 - keyboardActivated: the on-screen keyboard came up, or changed its
   height while up. <mwViewport> says how much of the page it covers.
 - keyboardDeactivated: the keyboard went away.
+- fullScreenChanged pFull: the browser gave the stack the whole screen
+  (pFull is true) or put its bars back (false), whoever did it: the
+  stack with <mwFullScreen>, the user with the back gesture or Escape,
+  or the browser itself, as an iPad's Safari does when a field brings
+  up the keyboard. Where the page keeps its size, no resizeStack comes,
+  so a button that says which to ask for can follow it here.
+- fullScreenError pError: the browser refused <mwFullScreen> true after
+  it was called and returned empty (a browser can say no only later),
+  with the browser's words in pError ("refused" where it gives none).
 
 Points are in the card's coordinates. The gestures come in addition to
 the mouse messages that a touch already sends: a swipe is also a drag of
@@ -1158,6 +1171,10 @@ result is "not supported" where the browser cannot, such as on an iPhone
 (an iPad can) and on a desktop outside a browser, and "not from a tap"
 when it was not called from a tap. On an iPhone, a page added to the
 home screen opens without the bars instead (see <mwIsInstalled>).
+
+After <mwStart>, the card gets fullScreenChanged when the stack gets
+the whole screen or loses it, whoever asked, and fullScreenError when
+the browser refuses after the call (see <mwStart>).
 
 References: mwIsFullScreen (function), mwIsInstalled (function), mwStart (command)
 */
@@ -2289,6 +2306,12 @@ on mwFromBrowser pKind, p1, p2, p3, p4
             mwCheckLayout tStack
          end repeat
          break
+      case "fullscreen"
+         mwSendToCardOf sTarget, "fullScreenChanged", p1 is "true"
+         break
+      case "fullscreenerror"
+         mwSendToCardOf sTarget, "fullScreenError", p1
+         break
       case "swipe"
          mwToCard p2, p3
          mwSendAt "swipe", mwControlAt(p2, p3), p1
@@ -2575,7 +2598,8 @@ private function mwBrowserScript
    -- blank page)
    put "var lib = " & mwQuote(kLibrary) & ";" & return after tScript
    put "var mw = {gestures: {}, on: false, fingers: {}, nextFinger: 1, moveFrame: null, start0: null, pinch: null, press: null," & return after tScript
-   put "  pressed: false, queue: [], timer: null, probe: null, lastView: '', sensors: {}, wantWake: false, wake: null, waking: false, photo: null, tallest: {}};" & return after tScript
+   put "  pressed: false, queue: [], timer: null, probe: null, lastView: '', sensors: {}, wantWake: false, wake: null, waking: false, photo: null, tallest: {}," & return after tScript
+   put "  full: false, fullAsked: false};" & return after tScript
    put "function call(kind, a, b, c, d) {" & return after tScript
    put "  mw.queue.push([kind, a, b, c, d]);" & return after tScript
    put "  if (mw.timer === null) mw.timer = setTimeout(flush, 0);" & return after tScript
@@ -2880,6 +2904,31 @@ private function mwBrowserScript
    put "  return '';" & return after tScript
    put "}" & return after tScript
    put "function isFullScreen() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }" & return after tScript
+   put "// The whole screen gained or lost, by mwFullScreen, the user or the" & return after tScript
+   put "// browser (an iPad's Safari leaves it when a field brings up the keyboard):" & return after tScript
+   put "// call('fullscreen', 'true' or 'false'), once a change (a browser may send" & return after tScript
+   put "// the plain event and the prefixed one)" & return after tScript
+   put "function fullChanged() {" & return after tScript
+   put "  var f = isFullScreen();" & return after tScript
+   put "  mw.fullAsked = false;" & return after tScript
+   put "  if (f === mw.full) return;" & return after tScript
+   put "  mw.full = f;" & return after tScript
+   put "  call('fullscreen', f ? 'true' : 'false');" & return after tScript
+   put "}" & return after tScript
+   put "// A request for the whole screen that the browser refused after the call" & return after tScript
+   put "function fullRefused(why) {" & return after tScript
+   put "  mw.fullAsked = false;" & return after tScript
+   put "  call('fullscreenerror', why || 'refused');" & return after tScript
+   put "}" & return after tScript
+   put "// an older WebKit's request returns no promise: it says no with an event" & return after tScript
+   put "function fullOldRefused() { if (mw.fullAsked) fullRefused(''); }" & return after tScript
+   put "// the whole screen followed while mwStart's stack gets the messages" & return after tScript
+   put "function watchFull(on) {" & return after tScript
+   put "  var f = on ? document.addEventListener : document.removeEventListener;" & return after tScript
+   put "  ['fullscreenchange', 'webkitfullscreenchange'].forEach(function(n) { f.call(document, n, fullChanged); });" & return after tScript
+   put "  f.call(document, 'webkitfullscreenerror', fullOldRefused);" & return after tScript
+   put "  mw.full = isFullScreen(); mw.fullAsked = false;" & return after tScript
+   put "}" & return after tScript
    put "function fullScreen(on) {" & return after tScript
    put "  var el = document.documentElement, ask = el.requestFullscreen || el.webkitRequestFullscreen;" & return after tScript
    put "  var leave = document.exitFullscreen || document.webkitExitFullscreen;" & return after tScript
@@ -2887,9 +2936,11 @@ private function mwBrowserScript
    put "  if (on && !isFullScreen() && noTap()) return 'not from a tap';" & return after tScript
    put "  try {" & return after tScript
    put "    var p = null;" & return after tScript
-   put "    if (on && !isFullScreen()) p = ask.call(el, {navigationUI: 'hide'});" & return after tScript
-   put "    else if (!on && isFullScreen()) p = leave.call(document);" & return after tScript
-   put "    if (p && p.catch) p.catch(function() {});" & return after tScript
+   put "    if (on && !isFullScreen()) {" & return after tScript
+   put "      p = ask.call(el, {navigationUI: 'hide'});" & return after tScript
+   put "      mw.fullAsked = !(p && p.catch);" & return after tScript
+   put "    } else if (!on && isFullScreen()) p = leave.call(document);" & return after tScript
+   put "    if (p && p.catch) p.catch(function(err) { if (on) fullRefused(err && (err.message || err.name)); });" & return after tScript
    put "  } catch (err) { return 'not supported'; }" & return after tScript
    put "  return '';" & return after tScript
    put "}" & return after tScript
@@ -2971,6 +3022,7 @@ private function mwBrowserScript
    put "    viewEvents.forEach(function(x) { window.addEventListener(x, viewSoon); });" & return after tScript
    put "    if (window.visualViewport) { visualViewport.addEventListener('resize', viewSoon); visualViewport.addEventListener('scroll', viewSoon); }" & return after tScript
    put "    watchInsets(true);" & return after tScript
+   put "    watchFull(true);" & return after tScript
    put "    viewSoon();" & return after tScript
    put "  }," & return after tScript
    put "  stop: function() {" & return after tScript
@@ -2982,6 +3034,7 @@ private function mwBrowserScript
    put "    viewEvents.forEach(function(x) { window.removeEventListener(x, viewSoon); });" & return after tScript
    put "    if (window.visualViewport) { visualViewport.removeEventListener('resize', viewSoon); visualViewport.removeEventListener('scroll', viewSoon); }" & return after tScript
    put "    watchInsets(false);" & return after tScript
+   put "    watchFull(false);" & return after tScript
    put "  }," & return after tScript
    put "  viewport: viewport," & return after tScript
    put "  sensorAvailable: function(name) { return sensorAvailable(name) ? 'true' : 'false'; }," & return after tScript
