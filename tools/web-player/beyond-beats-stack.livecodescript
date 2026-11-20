@@ -2646,6 +2646,11 @@ command btDrawView
          btDrawMixer
          break
    end switch
+   -- the playhead at once on what is drawn (another pattern chosen as it
+   -- plays, say), not at the next step
+   if sPlaying then
+      btShowStep sStep
+   end if
 end btDrawView
 
 -- A channel changed: drawn again in the view shown.
@@ -3649,6 +3654,23 @@ function btTrackLines
    end repeat
    return tText
 end btTrackLines
+
+-- The playhead's clock, when there is no page to keep it, set so that
+-- step pStep (of the pattern, or of the song, from where it starts) is
+-- the one sounding now: a test checks the playhead at a step it chose,
+-- not at the one a slow machine has got to.
+command btTestPlayAt pStep
+   local tFirst
+   if sAudio is "ok" or not sPlaying then
+      exit btTestPlayAt
+   end if
+   put 0 into tFirst
+   if sSong["mode"] is "song" then
+      put min(btPlayLength() - 1, (sSong["from"] - 1) * 16) into tFirst
+   end if
+   put the milliseconds - (pStep - 1 - tFirst) * (15000 / sSong["bpm"]) into sFallbackAt
+   btShowStep pStep
+end btTestPlayAt
 
 -- Loads a song from its text, as opening the stack does from its file.
 function btTestRead pText

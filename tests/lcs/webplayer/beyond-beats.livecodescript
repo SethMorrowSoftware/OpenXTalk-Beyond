@@ -1245,12 +1245,18 @@ on TestSongModePlaysThePlaylist
    end if
    press "Tab Rack"
    if the platform is not "HTML5" then
-      -- bars 5 and 6 play Groove (pattern 1), not Fill (pattern 3)
-      wait 50 milliseconds with messages
-      TestAssert "the rack's playhead on the pattern shown where it plays", the visible of ctl("graphic", "Head")
+      -- bars 5 and 6 play Groove (pattern 1), bar 8 Fill (pattern 3); the
+      -- clock is set to the step each check is about, since a slow
+      -- machine can take seconds over these (a runner once got to bar 8
+      -- between the first two)
+      studio "btTestPlayAt", 70
+      TestAssert "the rack's playhead on the pattern shown where it plays", the visible of ctl("graphic", "Head") and \
+            st("step") is 70
       studio "btSelectPattern", 3
-      wait 50 milliseconds with messages
       TestAssert "and not where it does not", not the visible of ctl("graphic", "Head")
+      studio "btTestPlayAt", 118
+      TestAssert "and on it where it plays", the visible of ctl("graphic", "Head") and \
+            the left of ctl("graphic", "Head") < the left of pad(1, 6) and the right of ctl("graphic", "Head") > the left of pad(1, 6)
    end if
    press "Mode Pattern"
    TestAssert "a mode changed as it plays plays on", st("playing") is true
