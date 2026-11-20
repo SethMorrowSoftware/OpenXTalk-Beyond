@@ -156,7 +156,7 @@ Workarounds their authors were not happy with. 32 notes, by part of the reposito
 ### HACK: ide (8)
 
 - [ide/Toolset/libraries/revdebuggerlibrary.livecodescript:1442](ide/Toolset/libraries/revdebuggerlibrary.livecodescript#L1442) For now we have to hack this without access to the parser
-- [ide/Toolset/libraries/revdebuggerlibrary.livecodescript:2273](ide/Toolset/libraries/revdebuggerlibrary.livecodescript#L2273) calls IDE code, e.g get url. For now we hack around this.
+- [ide/Toolset/libraries/revdebuggerlibrary.livecodescript:2295](ide/Toolset/libraries/revdebuggerlibrary.livecodescript#L2295) calls IDE code, e.g get url. For now we hack around this.
 - [ide/Toolset/palettes/behaviors/revinspectorbehavior.livecodescript:47](ide/Toolset/palettes/behaviors/revinspectorbehavior.livecodescript#L47) HACK for stopping the gradient and effects palette getting stuck behind the inspector!!
 - [ide/Toolset/palettes/extension manager/revideextensionmanagerstorebehavior.livecodescript:29](ide/Toolset/palettes/extension%20manager/revideextensionmanagerstorebehavior.livecodescript#L29) Hack to get round bug 18946
 - [ide/Toolset/palettes/reverrordisplay.livecodescript:576](ide/Toolset/palettes/reverrordisplay.livecodescript#L576) attempting to highlight the appropriate line number. This is a total hack, but there doensn't seem
